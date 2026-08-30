@@ -26,6 +26,11 @@ PROGRAM qs_ot_complex_ref_unittest
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_submatrix,&
+                                              cp_fm_release,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                               cp_logger_create,&
                                               cp_logger_release,&
@@ -36,6 +41,7 @@ PROGRAM qs_ot_complex_ref_unittest
         ot_precond_none, ot_precond_s_inverse, ot_precond_solver_chebyshev, &
         ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol
    USE kinds,                           ONLY: dp
+   USE kpoint_methods,                  ONLY: kpoint_ot_energy_weighted_density
    USE machine,                         ONLY: default_output_unit
    USE mathlib,                         ONLY: diag_complex
    USE message_passing,                 ONLY: mp_comm_self,&
@@ -112,6 +118,7 @@ PROGRAM qs_ot_complex_ref_unittest
    CALL test_sparse_frechet_patterns(para_env, nfail)
    CALL test_complex_ref_rotation(para_env, nfail)
    CALL test_complex_preconditioner_gauge(para_env, nfail)
+   CALL test_kpoint_ot_energy_weighted_density(para_env, nfail)
 
    x(:, 1) = [CMPLX(1.10_dp, 0.10_dp, KIND=dp), CMPLX(0.20_dp, -0.30_dp, KIND=dp), &
               CMPLX(-0.10_dp, 0.20_dp, KIND=dp)]
@@ -243,6 +250,131 @@ PROGRAM qs_ot_complex_ref_unittest
    IF (nfail > 0) ERROR STOP "qs_ot_complex_ref_unittest failed"
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Check the noncanonical complex OT energy-weighted density and its gauge covariance.
+!> \param para_env parallel environment
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_kpoint_ot_energy_weighted_density(para_env, nfail)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: nao = 4, nmo = 3
+
+      COMPLEX(KIND=dp), DIMENSION(nao, nao)              :: actual, expected, hmat, rotated
+      COMPLEX(KIND=dp), DIMENSION(nao, nmo)              :: coeff, coeff_rot, hc_dense, hc_rot
+      COMPLEX(KIND=dp), DIMENSION(nmo, nmo)              :: hblock, lagrange, rotation
+      INTEGER                                            :: i, j
+      REAL(KIND=dp)                                      :: error, gauge_error, hermitian_error, &
+                                                            phase, pi
+      REAL(KIND=dp), DIMENSION(nao, nao)                 :: actual_im, actual_re, rotated_im, &
+                                                            rotated_re
+      REAL(KIND=dp), DIMENSION(nmo)                      :: occupation, uniform_occupation
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: coeff_struct, hmat_struct
+      TYPE(cp_fm_type)                                   :: coeff_im_fm, coeff_re_fm, hc_im_fm, &
+                                                            hc_re_fm, wmat_im_fm, wmat_re_fm
+
+      NULLIFY (blacs_env, coeff_struct, hmat_struct)
+      pi = ACOS(-1.0_dp)
+      hmat(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      hmat(1, 1) = CMPLX(-0.8_dp, 0.0_dp, KIND=dp)
+      hmat(2, 2) = CMPLX(0.1_dp, 0.0_dp, KIND=dp)
+      hmat(3, 3) = CMPLX(0.7_dp, 0.0_dp, KIND=dp)
+      hmat(4, 4) = CMPLX(1.4_dp, 0.0_dp, KIND=dp)
+      hmat(1, 2) = CMPLX(0.21_dp, 0.13_dp, KIND=dp)
+      hmat(1, 3) = CMPLX(-0.17_dp, 0.09_dp, KIND=dp)
+      hmat(1, 4) = CMPLX(0.08_dp, -0.14_dp, KIND=dp)
+      hmat(2, 3) = CMPLX(0.31_dp, -0.11_dp, KIND=dp)
+      hmat(2, 4) = CMPLX(-0.19_dp, -0.07_dp, KIND=dp)
+      hmat(3, 4) = CMPLX(0.27_dp, 0.16_dp, KIND=dp)
+      DO i = 1, nao
+         DO j = i + 1, nao
+            hmat(j, i) = CONJG(hmat(i, j))
+         END DO
+      END DO
+      DO j = 1, nmo
+         DO i = 1, nao
+            phase = 2.0_dp*pi*REAL((i - 1)*(j - 1), KIND=dp)/REAL(nao, KIND=dp)
+            coeff(i, j) = CMPLX(COS(phase), SIN(phase), KIND=dp)/SQRT(REAL(nao, KIND=dp))
+         END DO
+      END DO
+      hc_dense = MATMUL(hmat, coeff)
+      occupation = [1.0_dp, 0.63_dp, 0.11_dp]
+
+      hblock = MATMUL(CONJG(TRANSPOSE(coeff)), hc_dense)
+      DO j = 1, nmo
+         lagrange(:, j) = hblock(:, j)*occupation(j)
+      END DO
+      lagrange = 0.5_dp*(lagrange + CONJG(TRANSPOSE(lagrange)))
+      expected = MATMUL(MATMUL(coeff, lagrange), CONJG(TRANSPOSE(coeff)))
+
+      CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
+      CALL cp_fm_struct_create(hmat_struct, nrow_global=nao, ncol_global=nao, &
+                               context=blacs_env, para_env=para_env)
+      CALL cp_fm_struct_create(coeff_struct, nrow_global=nao, ncol_global=nmo, &
+                               context=blacs_env, para_env=para_env)
+      CALL cp_fm_create(coeff_re_fm, coeff_struct)
+      CALL cp_fm_create(coeff_im_fm, coeff_struct)
+      CALL cp_fm_create(hc_re_fm, coeff_struct)
+      CALL cp_fm_create(hc_im_fm, coeff_struct)
+      CALL cp_fm_create(wmat_re_fm, hmat_struct)
+      CALL cp_fm_create(wmat_im_fm, hmat_struct)
+      CALL cp_fm_set_submatrix(coeff_re_fm, REAL(coeff, KIND=dp))
+      CALL cp_fm_set_submatrix(coeff_im_fm, AIMAG(coeff))
+      CALL cp_fm_set_submatrix(hc_re_fm, REAL(hc_dense, KIND=dp))
+      CALL cp_fm_set_submatrix(hc_im_fm, AIMAG(hc_dense))
+
+      CALL kpoint_ot_energy_weighted_density( &
+         coeff_re_fm, coeff_im_fm, hc_re_fm, hc_im_fm, occupation, &
+         wmat_re_fm, wmat_im_fm)
+      CALL cp_fm_get_submatrix(wmat_re_fm, actual_re)
+      CALL cp_fm_get_submatrix(wmat_im_fm, actual_im)
+      actual = CMPLX(actual_re, actual_im, KIND=dp)
+      error = MAXVAL(ABS(actual - expected))
+      hermitian_error = MAXVAL(ABS(actual - CONJG(TRANSPOSE(actual))))
+
+      rotation(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      rotation(1, 1) = CMPLX(SQRT(0.5_dp), 0.0_dp, KIND=dp)
+      rotation(1, 2) = CMPLX(0.0_dp, SQRT(0.5_dp), KIND=dp)
+      rotation(2, 1) = CMPLX(0.0_dp, SQRT(0.5_dp), KIND=dp)
+      rotation(2, 2) = CMPLX(SQRT(0.5_dp), 0.0_dp, KIND=dp)
+      rotation(3, 3) = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
+      coeff_rot = MATMUL(coeff, rotation)
+      hc_rot = MATMUL(hc_dense, rotation)
+      uniform_occupation(:) = 1.0_dp
+      CALL cp_fm_set_submatrix(coeff_re_fm, REAL(coeff_rot, KIND=dp))
+      CALL cp_fm_set_submatrix(coeff_im_fm, AIMAG(coeff_rot))
+      CALL cp_fm_set_submatrix(hc_re_fm, REAL(hc_rot, KIND=dp))
+      CALL cp_fm_set_submatrix(hc_im_fm, AIMAG(hc_rot))
+      CALL kpoint_ot_energy_weighted_density( &
+         coeff_re_fm, coeff_im_fm, hc_re_fm, hc_im_fm, uniform_occupation, &
+         wmat_re_fm, wmat_im_fm)
+      CALL cp_fm_get_submatrix(wmat_re_fm, rotated_re)
+      CALL cp_fm_get_submatrix(wmat_im_fm, rotated_im)
+      rotated = CMPLX(rotated_re, rotated_im, KIND=dp)
+      expected = MATMUL(MATMUL(coeff, hblock), CONJG(TRANSPOSE(coeff)))
+      gauge_error = MAXVAL(ABS(rotated - expected))
+
+      IF (error > 5.0E-12_dp .OR. hermitian_error > 5.0E-12_dp .OR. &
+          gauge_error > 5.0E-12_dp) nfail = nfail + 1
+      IF (para_env%is_source()) THEN
+         WRITE (*, '(A,3(1X,ES13.6))') 'complex OT W error/hermitian/gauge', &
+            error, hermitian_error, gauge_error
+      END IF
+
+      CALL cp_fm_release(wmat_im_fm)
+      CALL cp_fm_release(wmat_re_fm)
+      CALL cp_fm_release(hc_im_fm)
+      CALL cp_fm_release(hc_re_fm)
+      CALL cp_fm_release(coeff_im_fm)
+      CALL cp_fm_release(coeff_re_fm)
+      CALL cp_fm_struct_release(coeff_struct)
+      CALL cp_fm_struct_release(hmat_struct)
+      CALL cp_blacs_env_release(blacs_env)
+
+   END SUBROUTINE test_kpoint_ot_energy_weighted_density
 
 ! **************************************************************************************************
 !> \brief Check the fixed-N Mermin gradient, dense gauge projector, and occupation Hessian.

@@ -23,7 +23,8 @@ MODULE qs_matrix_w
                                               cp_fm_type
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
-                                              kpoint_density_transform
+                                              kpoint_density_transform,&
+                                              kpoint_ot_energy_weighted_matrices
    USE kpoint_types,                    ONLY: kpoint_type
    USE qs_density_matrices,             ONLY: calculate_w_matrix,&
                                               calculate_w_matrix_ot
@@ -87,25 +88,20 @@ CONTAINS
                TYPE(cp_fm_type), DIMENSION(2)                   :: fmwork
                TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_fmstruct
                TYPE(cp_fm_type), POINTER                          :: mo_coeff
-               TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrix_w_kp
+               TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp, &
+                                                                     matrix_w_kp
                TYPE(kpoint_type), POINTER                         :: kpoints
                TYPE(neighbor_list_set_p_type), DIMENSION(:), &
                   POINTER                                         :: sab_nl
 
                CALL get_qs_env(qs_env, &
                                matrix_w_kp=matrix_w_kp, &
+                               matrix_ks_kp=matrix_ks_kp, &
                                matrix_s_kp=matrix_s_kp, &
                                sab_orb=sab_nl, &
                                mos=mos, &
                                kpoints=kpoints, &
                                scf_control=scf_control)
-
-               IF (scf_control%use_ot) THEN
-                  CALL cp_abort(__LOCATION__, &
-                                "Analytical forces and stress are not implemented for "// &
-                                "complex K-point OT; an OT-consistent complex "// &
-                                "energy-weighted density matrix is required.")
-               END IF
 
                CALL get_mo_set(mos(1), mo_coeff=mo_coeff, nao=nao)
                CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, nrow_global=nao, ncol_global=nao, &
@@ -117,7 +113,11 @@ CONTAINS
                CALL cp_fm_struct_release(ao_ao_fmstruct)
 
                ! energy weighted density matrices in k-space
-               CALL kpoint_density_matrices(kpoints, energy_weighted=.TRUE.)
+               IF (scf_control%use_ot) THEN
+                  CALL kpoint_ot_energy_weighted_matrices(kpoints, matrix_ks_kp)
+               ELSE
+                  CALL kpoint_density_matrices(kpoints, energy_weighted=.TRUE.)
+               END IF
                ! energy weighted density matrices in real space
                CALL kpoint_density_transform(kpoints, matrix_w_kp, .TRUE., &
                                              matrix_s_kp(1, 1)%matrix, sab_nl, fmwork)
