@@ -615,7 +615,8 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ref
       INTEGER, OPTIONAL                                  :: ortho_k
 
-      INTEGER                                            :: i, k, m_diis, my_ortho_k, n, ncoef
+      INTEGER                                            :: i, k, m_diis, my_ortho_k, n, ncoef, &
+                                                            nhistory
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
@@ -980,9 +981,14 @@ CONTAINS
          ALLOCATE (qs_ot_env%ener_x(ncoef))
          ALLOCATE (qs_ot_env%ener_rayleigh(ncoef))
 
-         IF (qs_ot_env%settings%ot_method == "DIIS") THEN
-            ALLOCATE (qs_ot_env%ener_h_e(m_diis, ncoef))
-            ALLOCATE (qs_ot_env%ener_h_x(m_diis, ncoef))
+         IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+             qs_ot_env%settings%ot_method == "LBFG") THEN
+            nhistory = m_diis
+            IF (qs_ot_env%settings%ot_method == "LBFG") nhistory = m_diis + 1
+            ALLOCATE (qs_ot_env%ener_h_e(nhistory, ncoef))
+            ALLOCATE (qs_ot_env%ener_h_x(nhistory, ncoef))
+            qs_ot_env%ener_h_e = 0.0_dp
+            qs_ot_env%ener_h_x = 0.0_dp
          END IF
 
          ALLOCATE (qs_ot_env%ener_gx(ncoef))
@@ -1150,7 +1156,8 @@ CONTAINS
          IF (ASSOCIATED(qs_ot_env%ener_preconditioned_gx)) THEN
             DEALLOCATE (qs_ot_env%ener_preconditioned_gx)
          END IF
-         IF (qs_ot_env%settings%ot_method == "DIIS") THEN
+         IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+             qs_ot_env%settings%ot_method == "LBFG") THEN
             IF (ASSOCIATED(qs_ot_env%ener_h_x)) DEALLOCATE (qs_ot_env%ener_h_x)
             IF (ASSOCIATED(qs_ot_env%ener_h_e)) DEALLOCATE (qs_ot_env%ener_h_e)
          END IF
@@ -1374,7 +1381,7 @@ CONTAINS
             CPABORT("MINIMIZER LBFGS requires ALGORITHM STRICT or IRAC")
          END IF
          IF (settings%occupation_preconditioner) THEN
-            CPABORT("MINIMIZER LBFGS does not currently support OCCUPATION_PRECONDITIONER")
+            CPABORT("LBFGS cannot combine with OCCUPATION_PRECONDITIONER; use CG or disable it")
          END IF
       END IF
       IF (settings%do_ener .AND. .NOT. use_complex_kpoints) THEN

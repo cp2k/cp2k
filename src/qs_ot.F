@@ -891,7 +891,7 @@ CONTAINS
 
       update = .FALSE.
       SELECT CASE (qs_ot_env1%settings%ot_method)
-      CASE ("CG")
+      CASE ("CG", "SD")
          SELECT CASE (qs_ot_env1%settings%line_search_method)
          CASE ("2PNT")
             IF (qs_ot_env1%line_search_count == 2) update = .TRUE.
@@ -2320,6 +2320,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_orbitals_complex'
 
       INTEGER                                            :: handle
+      TYPE(dbcsr_type)                                   :: rotated_im, rotated_re, rotation_tmp
 
       CALL timeset(routineN, handle)
 
@@ -2342,6 +2343,33 @@ CONTAINS
                                   qs_ot_env%matrix_tmp_nk)
       CALL dbcsr_add(matrix_c, qs_ot_env%matrix_buf_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
       CALL dbcsr_add(matrix_c_im, qs_ot_env%matrix_buf_nk_im, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+      IF (qs_ot_env%settings%do_rotation) THEN
+         CALL qs_ot_generate_rotation_complex(qs_ot_env)
+
+         CALL dbcsr_copy(rotated_re, matrix_c, name="strict_rotated_re")
+         CALL dbcsr_copy(rotated_im, matrix_c_im, name="strict_rotated_im")
+         CALL dbcsr_copy(rotation_tmp, matrix_c, name="strict_rotation_tmp")
+
+         ! C_out = Q(X)*U for the finite STRICT chart Q(X).
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c, qs_ot_env%rot_mat_u, &
+                             0.0_dp, rotated_re)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c_im, qs_ot_env%rot_mat_u_im, &
+                             0.0_dp, rotation_tmp)
+         CALL dbcsr_add(rotated_re, rotation_tmp, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c, qs_ot_env%rot_mat_u_im, &
+                             0.0_dp, rotated_im)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_c_im, qs_ot_env%rot_mat_u, &
+                             0.0_dp, rotation_tmp)
+         CALL dbcsr_add(rotated_im, rotation_tmp, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+         CALL dbcsr_copy(matrix_c, rotated_re)
+         CALL dbcsr_copy(matrix_c_im, rotated_im)
+         CALL dbcsr_release(rotated_re)
+         CALL dbcsr_release(rotated_im)
+         CALL dbcsr_release(rotation_tmp)
+      END IF
 
       CALL timestop(handle)
 
@@ -2445,32 +2473,95 @@ CONTAINS
 !> \param matrix_hc real part of H(k)*C(k)
 !> \param matrix_hc_im imaginary part of H(k)*C(k)
 !> \param qs_ot_env OT channel state
+!> \param matrix_hc_rotation occupation-weighted H(k)C(k) for the rotation channel
+!> \param matrix_hc_rotation_im imaginary component of matrix_hc_rotation
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_get_derivative_complex(matrix_hc, matrix_hc_im, qs_ot_env)
+   SUBROUTINE qs_ot_get_derivative_complex(matrix_hc, matrix_hc_im, qs_ot_env, &
+                                           matrix_hc_rotation, matrix_hc_rotation_im)
       TYPE(dbcsr_type), POINTER                          :: matrix_hc, matrix_hc_im
       TYPE(qs_ot_type)                                   :: qs_ot_env
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_hc_rotation, matrix_hc_rotation_im
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_complex'
 
       INTEGER                                            :: handle, i, k
       REAL(KIND=dp)                                      :: eval_scale, eval_threshold
       TYPE(dbcsr_distribution_type)                      :: dist
-      TYPE(dbcsr_type), POINTER                          :: target_im, target_re
+      TYPE(dbcsr_type)                                   :: tmp_nk
+      TYPE(dbcsr_type), POINTER                          :: hc_rotation_im, hc_rotation_re, &
+                                                            hc_work_im, hc_work_re, target_im, &
+                                                            target_re
+      TYPE(dbcsr_type), TARGET                           :: hc_rot_im, hc_rot_re
 
       CALL timeset(routineN, handle)
 
       CPASSERT(qs_ot_env%has_complex_kpoint_state)
       CPASSERT(qs_ot_env%settings%ot_algorithm == 'TOD')
-      CPASSERT(.NOT. qs_ot_env%settings%do_rotation)
+
+      hc_rotation_re => matrix_hc
+      hc_rotation_im => matrix_hc_im
+      IF (PRESENT(matrix_hc_rotation) .OR. PRESENT(matrix_hc_rotation_im)) THEN
+         CPASSERT(PRESENT(matrix_hc_rotation) .AND. PRESENT(matrix_hc_rotation_im))
+         CPASSERT(ASSOCIATED(matrix_hc_rotation))
+         CPASSERT(ASSOCIATED(matrix_hc_rotation_im))
+         hc_rotation_re => matrix_hc_rotation
+         hc_rotation_im => matrix_hc_rotation_im
+      END IF
+      hc_work_re => matrix_hc
+      hc_work_im => matrix_hc_im
+
+      IF (qs_ot_env%settings%do_rotation) THEN
+         CALL qs_ot_generate_rotation_complex(qs_ot_env)
+
+         ! Reconstruct the unrotated finite STRICT orbitals Q(X).
+         CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_c0, qs_ot_env%matrix_c0_im, &
+                                     qs_ot_env%matrix_cosp, qs_ot_env%matrix_cosp_im, &
+                                     qs_ot_env%matrix_buf_nk, qs_ot_env%matrix_buf_nk_im, &
+                                     qs_ot_env%matrix_tmp_nk)
+         CALL qs_ot_complex_multiply('N', 'N', qs_ot_env%matrix_x, qs_ot_env%matrix_x_im, &
+                                     qs_ot_env%matrix_sinp, qs_ot_env%matrix_sinp_im, &
+                                     qs_ot_env%matrix_gx, qs_ot_env%matrix_gx_im, &
+                                     qs_ot_env%matrix_tmp_nk)
+         CALL dbcsr_add(qs_ot_env%matrix_buf_nk, qs_ot_env%matrix_gx, &
+                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         CALL dbcsr_add(qs_ot_env%matrix_buf_nk_im, qs_ot_env%matrix_gx_im, &
+                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+         ! dF/dU = Q(X)^H*G_C for C=Q(X)*U.
+         CALL qs_ot_complex_multiply('C', 'N', &
+                                     qs_ot_env%matrix_buf_nk, qs_ot_env%matrix_buf_nk_im, &
+                                     hc_rotation_re, hc_rotation_im, &
+                                     qs_ot_env%rot_mat_dedu, qs_ot_env%rot_mat_dedu_im, &
+                                     qs_ot_env%matrix_buf1)
+         CALL qs_ot_rot_mat_derivative_complex(qs_ot_env)
+
+         ! The STRICT coordinate sees G_Q=G_C*U^H.
+         CALL dbcsr_copy(hc_rot_re, matrix_hc, name="strict_hc_rot_re")
+         CALL dbcsr_copy(hc_rot_im, matrix_hc_im, name="strict_hc_rot_im")
+         CALL dbcsr_copy(tmp_nk, matrix_hc, name="strict_hc_rot_tmp")
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, matrix_hc, qs_ot_env%rot_mat_u, &
+                             0.0_dp, hc_rot_re)
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, matrix_hc_im, qs_ot_env%rot_mat_u_im, &
+                             0.0_dp, tmp_nk)
+         CALL dbcsr_add(hc_rot_re, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, matrix_hc_im, qs_ot_env%rot_mat_u, &
+                             0.0_dp, hc_rot_im)
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, matrix_hc, qs_ot_env%rot_mat_u_im, &
+                             0.0_dp, tmp_nk)
+         CALL dbcsr_add(hc_rot_im, tmp_nk, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+         hc_work_re => hc_rot_re
+         hc_work_im => hc_rot_im
+      END IF
 
       ! Direct X contribution, H*C sinc(sqrt(P)).
-      CALL qs_ot_complex_multiply('N', 'N', matrix_hc, matrix_hc_im, &
+      CALL qs_ot_complex_multiply('N', 'N', hc_work_re, hc_work_im, &
                                   qs_ot_env%matrix_sinp, qs_ot_env%matrix_sinp_im, &
                                   qs_ot_env%matrix_gx, qs_ot_env%matrix_gx_im, &
                                   qs_ot_env%matrix_tmp_nk)
 
       ! Frechet contribution from X sinc(sqrt(P)).
-      CALL qs_ot_complex_multiply('C', 'N', matrix_hc, matrix_hc_im, &
+      CALL qs_ot_complex_multiply('C', 'N', hc_work_re, hc_work_im, &
                                   qs_ot_env%matrix_x, qs_ot_env%matrix_x_im, &
                                   qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
                                   qs_ot_env%matrix_buf1)
@@ -2488,7 +2579,7 @@ CONTAINS
                                   qs_ot_env%matrix_buf3_im)
 
       ! Frechet contribution from C0 cos(sqrt(P)).
-      CALL qs_ot_complex_multiply('C', 'N', matrix_hc, matrix_hc_im, &
+      CALL qs_ot_complex_multiply('C', 'N', hc_work_re, hc_work_im, &
                                   qs_ot_env%matrix_c0, qs_ot_env%matrix_c0_im, &
                                   qs_ot_env%matrix_buf2, qs_ot_env%matrix_buf2_im, &
                                   qs_ot_env%matrix_buf1)
@@ -2596,6 +2687,12 @@ CONTAINS
                      alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
       CALL dbcsr_add(qs_ot_env%matrix_gx_im, qs_ot_env%matrix_buf_nk_im, &
                      alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+
+      IF (qs_ot_env%settings%do_rotation) THEN
+         CALL dbcsr_release(hc_rot_re)
+         CALL dbcsr_release(hc_rot_im)
+         CALL dbcsr_release(tmp_nk)
+      END IF
 
       CALL timestop(handle)
 

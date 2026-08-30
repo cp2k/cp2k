@@ -997,16 +997,21 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: nfail
 
       CHARACTER(LEN=32)                                  :: name
-      COMPLEX(KIND=dp), DIMENSION(k, k)                  :: inverse_sqrt
+      COMPLEX(KIND=dp), DIMENSION(k, k)                  :: direction_a, generator, gradient_a, &
+                                                            inverse_sqrt, rotation
       COMPLEX(KIND=dp), DIMENSION(n, k)                  :: c0, direction, gradient, hc, orbitals, &
-                                                            sc0, sx, x
+                                                            orbitals_base, sc0, sx, x
       COMPLEX(KIND=dp), DIMENSION(n, n)                  :: hamiltonian, overlap
       INTEGER                                            :: i
       LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: error, fd_slope, hstep, ortho_error, &
-                                                            slope
+      REAL(KIND=dp)                                      :: error, error_rot, fd_slope, &
+                                                            fd_slope_rot, hstep, ortho_error, &
+                                                            slope, slope_rot
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+      REAL(KIND=dp), DIMENSION(k)                        :: occupation
+      REAL(KIND=dp), DIMENSION(k), TARGET                :: rotation_evals
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(dbcsr_type), DIMENSION(10), TARGET            :: rot_matrix
       TYPE(dbcsr_type), DIMENSION(15), TARGET            :: nk
       TYPE(dbcsr_type), DIMENSION(25), TARGET            :: kk
       TYPE(dbcsr_type), POINTER                          :: hc_im_p, hc_re_p, sx_im_p, sx_re_p, &
@@ -1025,6 +1030,10 @@ CONTAINS
       DO i = 1, SIZE(kk)
          WRITE (name, '(A,I0)') 'complex_strict_kk_', i
          CALL create_one_block(kk(i), TRIM(name), dist_kk, row_k, col_k)
+      END DO
+      DO i = 1, SIZE(rot_matrix)
+         WRITE (name, '(A,I0)') 'complex_strict_rot_', i
+         CALL create_one_block(rot_matrix(i), TRIM(name), dist_kk, row_k, col_k)
       END DO
 
       overlap(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
@@ -1065,8 +1074,25 @@ CONTAINS
       hamiltonian(2, 3) = CMPLX(0.05_dp, -0.09_dp, KIND=dp)
       hamiltonian(3, 2) = CONJG(hamiltonian(2, 3))
 
-      CALL strict_orbitals(c0, x, overlap, orbitals)
+      generator(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      generator(1, 1) = CMPLX(0.0_dp, 0.16_dp, KIND=dp)
+      generator(2, 2) = CMPLX(0.0_dp, -0.09_dp, KIND=dp)
+      generator(1, 2) = CMPLX(0.18_dp, -0.07_dp, KIND=dp)
+      generator(2, 1) = -CONJG(generator(1, 2))
+      direction_a(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      direction_a(1, 1) = CMPLX(0.0_dp, -0.05_dp, KIND=dp)
+      direction_a(2, 2) = CMPLX(0.0_dp, 0.04_dp, KIND=dp)
+      direction_a(1, 2) = CMPLX(-0.08_dp, 0.06_dp, KIND=dp)
+      direction_a(2, 1) = -CONJG(direction_a(1, 2))
+      occupation = [1.0_dp, 0.34_dp]
+
+      CALL strict_orbitals(c0, x, overlap, orbitals_base)
+      rotation = dense_antihermitian_exp(generator)
+      orbitals = MATMUL(orbitals_base, rotation)
       hc = 2.0_dp*MATMUL(hamiltonian, orbitals)
+      DO i = 1, k
+         hc(:, i) = occupation(i)*hc(:, i)
+      END DO
       sx = MATMUL(overlap, x)
       sc0 = MATMUL(overlap, c0)
       CALL put_complex_pair(nk(1), nk(2), x)
@@ -1074,10 +1100,11 @@ CONTAINS
       CALL put_complex_pair(nk(5), nk(6), hc)
       CALL put_complex_pair(nk(9), nk(10), c0)
       CALL put_complex_pair(nk(11), nk(12), sc0)
+      CALL put_complex_pair(rot_matrix(3), rot_matrix(4), generator)
 
       strict_env%has_complex_kpoint_state = .TRUE.
       strict_env%settings%ot_algorithm = 'TOD'
-      strict_env%settings%do_rotation = .FALSE.
+      strict_env%settings%do_rotation = .TRUE.
       strict_env%para_env => strict_para_env
       strict_env%blacs_env => blacs_env
       strict_env%matrix_x => nk(1)
@@ -1118,6 +1145,17 @@ CONTAINS
       strict_env%matrix_buf2_ortho => kk(23)
       strict_env%matrix_buf2_ortho_im => kk(24)
       strict_env%matrix_tmp_ortho => kk(25)
+      strict_env%rot_mat_u => rot_matrix(1)
+      strict_env%rot_mat_u_im => rot_matrix(2)
+      strict_env%rot_mat_x => rot_matrix(3)
+      strict_env%rot_mat_x_im => rot_matrix(4)
+      strict_env%rot_mat_dedu => rot_matrix(5)
+      strict_env%rot_mat_dedu_im => rot_matrix(6)
+      strict_env%rot_mat_gx => rot_matrix(7)
+      strict_env%rot_mat_gx_im => rot_matrix(8)
+      strict_env%rot_mat_evec_re => rot_matrix(9)
+      strict_env%rot_mat_evec_im => rot_matrix(10)
+      strict_env%rot_mat_evals => rotation_evals
       ALLOCATE (strict_env%evals(k), strict_env%dum(k))
 
       x_re_p => nk(1)
@@ -1134,25 +1172,41 @@ CONTAINS
       IF (found) gradient = gradient + CMPLX(block, 0.0_dp, KIND=dp)
       CALL dbcsr_get_block_p(nk(8), 1, 1, block, found)
       IF (found) gradient = gradient + CMPLX(0.0_dp, block, KIND=dp)
+      CALL get_complex_pair(rot_matrix(7), rot_matrix(8), gradient_a)
 
       hstep = 1.0E-6_dp
-      fd_slope = (strict_energy(c0, x + hstep*direction, overlap, hamiltonian) - &
-                  strict_energy(c0, x - hstep*direction, overlap, hamiltonian))/(2.0_dp*hstep)
+      fd_slope = (strict_rotated_energy(c0, x + hstep*direction, generator, overlap, &
+                                        hamiltonian, occupation) - &
+                  strict_rotated_energy(c0, x - hstep*direction, generator, overlap, &
+                                        hamiltonian, occupation))/(2.0_dp*hstep)
       slope = REAL(SUM(CONJG(gradient)*direction), KIND=dp)
       error = ABS(slope - fd_slope)
+      fd_slope_rot = (strict_rotated_energy(c0, x, generator + hstep*direction_a, overlap, &
+                                            hamiltonian, occupation) - &
+                      strict_rotated_energy(c0, x, generator - hstep*direction_a, overlap, &
+                                            hamiltonian, occupation))/(2.0_dp*hstep)
+      slope_rot = 0.5_dp*(SUM(REAL(gradient_a, KIND=dp)*REAL(direction_a, KIND=dp)) + &
+                          SUM(AIMAG(gradient_a)*AIMAG(direction_a)))
+      error_rot = ABS(slope_rot - fd_slope_rot)
       ortho_error = MAXVAL(ABS(MATMUL(CONJG(TRANSPOSE(orbitals)), MATMUL(overlap, orbitals)) - &
                                RESHAPE([CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
                                         CMPLX(0.0_dp, 0.0_dp, KIND=dp), &
                                         CMPLX(0.0_dp, 0.0_dp, KIND=dp), &
                                         CMPLX(1.0_dp, 0.0_dp, KIND=dp)], [k, k])))
-      IF (error > 5.0E-8_dp .OR. ortho_error > 5.0E-13_dp) nfail = nfail + 1
+      IF (error > 5.0E-8_dp .OR. error_rot > 5.0E-8_dp .OR. &
+          ortho_error > 5.0E-13_dp) nfail = nfail + 1
       IF (para_env%is_source()) THEN
          WRITE (io_unit, '(A,3(1X,ES13.6))') 'complex finite-STRICT derivative: fd/predicted/error', &
             fd_slope, slope, error
+         WRITE (io_unit, '(A,3(1X,ES13.6))') 'complex finite-STRICT rotation: fd/predicted/error', &
+            fd_slope_rot, slope_rot, error_rot
          WRITE (io_unit, '(A,1X,ES13.6)') 'complex finite-STRICT orthonormality error', ortho_error
       END IF
 
       DEALLOCATE (strict_env%evals, strict_env%dum)
+      DO i = SIZE(rot_matrix), 1, -1
+         CALL dbcsr_release(rot_matrix(i))
+      END DO
       DO i = SIZE(kk), 1, -1
          CALL dbcsr_release(kk(i))
       END DO
@@ -1664,5 +1718,36 @@ CONTAINS
       energy = REAL(SUM(CONJG(orbitals)*MATMUL(hamiltonian, orbitals)), KIND=dp)
 
    END FUNCTION strict_energy
+
+! **************************************************************************************************
+!> \brief Energy of finite STRICT orbitals followed by a complex occupied-space rotation.
+!> \param c0 reference orbitals
+!> \param coordinate tangent coordinate
+!> \param generator anti-Hermitian rotation generator
+!> \param overlap Hermitian overlap matrix
+!> \param hamiltonian Hermitian Hamiltonian
+!> \param occupation orbital occupations
+!> \return energy
+! **************************************************************************************************
+   FUNCTION strict_rotated_energy(c0, coordinate, generator, overlap, hamiltonian, &
+                                  occupation) RESULT(energy)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: c0, coordinate, generator, overlap, &
+                                                            hamiltonian
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
+      REAL(KIND=dp)                                      :: energy
+
+      COMPLEX(KIND=dp), DIMENSION(SIZE(coordinate, 1), &
+         SIZE(coordinate, 2))                            :: orbitals
+      INTEGER                                            :: i
+
+      CALL strict_orbitals(c0, coordinate, overlap, orbitals)
+      orbitals = MATMUL(orbitals, dense_antihermitian_exp(generator))
+      energy = 0.0_dp
+      DO i = 1, SIZE(occupation)
+         energy = energy + occupation(i)* &
+                  REAL(DOT_PRODUCT(orbitals(:, i), MATMUL(hamiltonian, orbitals(:, i))), KIND=dp)
+      END DO
+
+   END FUNCTION strict_rotated_energy
 
 END PROGRAM qs_ot_complex_ref_unittest
