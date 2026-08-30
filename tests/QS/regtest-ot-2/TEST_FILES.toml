@@ -47,8 +47,8 @@
 "Al-kpoint-mermin-smoke.inp"            = [{matcher="E_total", tol=1e-9, ref=-2.903015358408708},
                                            {matcher="M072", tol=1e-8, ref=0.0},
                                            {matcher="M031", tol=1e-6, ref=-1.03113798553E+08}]
-"Al-kpoint-mermin-uks-sd.inp"           = [
-  {matcher="E_total", tol=1e-9, ref=-2.904206565784740},
+"Na-kpoint-mermin-uks-sd.inp"           = [
+  {matcher="E_total", tol=1e-9, ref=-0.280830319393730},
   {matcher="OT_kpoint_ref_refresh"},
 ]
 "Al-kpoint-mermin-response.inp"         = [
