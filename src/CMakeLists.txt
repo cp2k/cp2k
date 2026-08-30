@@ -1553,6 +1553,7 @@ set(CP2K_PROGS_F
     common/memory_utilities_unittest.F
     common/parallel_rng_types_unittest.F
     kpoint_lattice_fft_unittest.F
+    kpoint_smearing_unittest.F
     qs_ot_minimizer_unittest.F
     qs_charge_mixing_unittest.F
     qs_ot_complex_ref_unittest.F
@@ -1964,6 +1965,7 @@ list(
   "memory_utilities_unittest"
   "parallel_rng_types_unittest"
   "kpoint_lattice_fft_unittest"
+  "kpoint_smearing_unittest"
   "qs_ot_minimizer_unittest"
   "qs_charge_mixing_unittest"
   "qs_ot_complex_ref_unittest"
@@ -1991,6 +1993,7 @@ add_executable(gemm_square_unittest common/gemm_square_unittest.F)
 add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
+add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(qs_ot_minimizer_unittest qs_ot_minimizer_unittest.F)
 add_executable(qs_charge_mixing_unittest qs_charge_mixing_unittest.F)
 add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F)

@@ -121,6 +121,7 @@ MODULE kpoint_methods
 
    PUBLIC :: kpoint_initialize, kpoint_env_initialize, kpoint_initialize_mos, kpoint_initialize_mo_set
    PUBLIC :: kpoint_init_cell_index, kpoint_set_mo_occupation
+   PUBLIC :: kpoint_smearing_edge_status
    PUBLIC :: kpoint_density_matrices, kpoint_density_transform
    PUBLIC :: kp_transform_plan_create, kp_transform_plan_release
    PUBLIC :: rskp_transform, lowdin_kp_trans, lowdin_kp_mo_coeff

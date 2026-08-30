@@ -1416,11 +1416,13 @@ CONTAINS
             ELSE
                IF (.NOT. scf_control%gce%do_gce) THEN
                   CALL set_mo_occupation(mo_set=mos(ispin), &
-                                         smear=scf_control%smear)
+                                         smear=scf_control%smear, &
+                                         emit_warnings=.NOT. do_kpoints)
                ELSE
                   CALL set_mo_occupation(mo_set=mos(ispin), &
                                          smear=scf_control%smear, &
-                                         gce=scf_control%gce)
+                                         gce=scf_control%gce, &
+                                         emit_warnings=.NOT. do_kpoints)
                END IF
             END IF
          END IF
