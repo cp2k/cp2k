@@ -60,11 +60,12 @@ PROGRAM qs_ot_complex_ref_unittest
                                               preconditioner_type
    USE qs_ot,                           ONLY: &
         qs_ot_apply_complex_frechet_dbcsr, qs_ot_complex_exp_frechet_kernel, &
+        qs_ot_density_secant_hessian, qs_ot_density_secant_projected_hessian, &
         qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, &
         qs_ot_fixed_n_energy_hessian, qs_ot_fixed_n_projector_frechet, qs_ot_fixed_n_schur_block, &
         qs_ot_generate_rotation, qs_ot_get_derivative_complex, qs_ot_get_derivative_ref_complex, &
         qs_ot_get_orbitals_ref_complex, qs_ot_get_p_complex, qs_ot_rot_mat_derivative, &
-        qs_ot_symmetric_abs_solve
+        qs_ot_symmetric_abs_solve, qs_ot_symmetric_sr1_update
    USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
                                               qs_ot_kpoint_preconditioner_solver_supported,&
                                               qs_ot_kpoint_preconditioner_supported,&
@@ -106,6 +107,8 @@ PROGRAM qs_ot_complex_ref_unittest
    CALL test_finite_rotation_response(mynode, nfail)
    CALL test_fixed_n_rotation_schur(mynode, nfail)
    CALL test_symmetric_abs_solve(mynode, nfail)
+   CALL test_symmetric_sr1_update(mynode, nfail)
+   CALL test_density_secant_hessian(mynode, nfail)
    ALLOCATE (para_env)
    CALL para_env%from_dup(mp_comm)
    CALL cp_logger_create(logger, para_env=para_env, default_global_unit_nr=io_unit, &
@@ -770,6 +773,129 @@ CONTAINS
       IF (mynode == 0) WRITE (io_unit, '(A,1X,ES13.6)') "symmetric absolute solve error:", error
 
    END SUBROUTINE test_symmetric_abs_solve
+
+! **************************************************************************************************
+!> \brief Check exact signed SR1 secants and rejection of an unresolved orthogonal residual.
+!> \param mynode MPI rank
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_symmetric_sr1_update(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      LOGICAL                                            :: valid
+      REAL(KIND=dp)                                      :: rejected_error, secant_error, &
+                                                            symmetry_error
+      REAL(KIND=dp), DIMENSION(3)                        :: orthogonal_residual, response, step
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: matrix, updated
+
+      matrix(:, :) = 0.0_dp
+      matrix(1, 1) = 1.0_dp
+      matrix(2, 2) = 2.0_dp
+      matrix(3, 3) = 3.0_dp
+      step(:) = [0.3_dp, -0.4_dp, 0.2_dp]
+      response(:) = [0.0_dp, -0.3_dp, 0.8_dp]
+      CALL qs_ot_symmetric_sr1_update(matrix, step, response, updated, valid)
+      secant_error = MAXVAL(ABS(MATMUL(updated, step) - response))
+      symmetry_error = MAXVAL(ABS(updated - TRANSPOSE(updated)))
+      IF (.NOT. valid .OR. secant_error > 2.0E-14_dp .OR. symmetry_error > 2.0E-14_dp) THEN
+         nfail = nfail + 1
+      END IF
+
+      orthogonal_residual(:) = [0.4_dp, 0.3_dp, 0.0_dp]
+      response(:) = MATMUL(matrix, step) + orthogonal_residual
+      CALL qs_ot_symmetric_sr1_update(matrix, step, response, updated, valid)
+      rejected_error = MAXVAL(ABS(updated - matrix))
+      IF (valid .OR. rejected_error > 2.0E-14_dp) nfail = nfail + 1
+      IF (mynode == 0) WRITE (io_unit, '(A,3(1X,ES13.6))') &
+         "symmetric SR1 secant/symmetry/rejection errors:", &
+         secant_error, symmetry_error, rejected_error
+
+   END SUBROUTINE test_symmetric_sr1_update
+
+! **************************************************************************************************
+!> \brief Check the complex gauge-invariant, sign-aware density-space response secant.
+!> \param mynode MPI rank
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_density_secant_hessian(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: n = 3, nmode = 2
+
+      COMPLEX(KIND=dp), DIMENSION(n, n)                  :: density_step, hamiltonian_step, unitary
+      COMPLEX(KIND=dp), DIMENSION(n, n, nmode)           :: density_modes, transformed_modes
+      LOGICAL                                            :: valid
+      REAL(KIND=dp)                                      :: density_norm, direct_error, gauge_error, &
+                                                            overlap_error, response_work, &
+                                                            sign_error
+      REAL(KIND=dp), DIMENSION(nmode)                    :: density_overlap, response_overlap
+      REAL(KIND=dp), DIMENSION(nmode, nmode)             :: correction, correction_gauge, &
+                                                            correction_overlap, expected
+
+      density_step(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      density_step(1, 1) = CMPLX(0.30_dp, 0.0_dp, KIND=dp)
+      density_step(2, 2) = CMPLX(-0.18_dp, 0.0_dp, KIND=dp)
+      density_step(3, 3) = CMPLX(-0.12_dp, 0.0_dp, KIND=dp)
+      density_step(1, 2) = CMPLX(0.07_dp, -0.11_dp, KIND=dp)
+      density_step(2, 1) = CONJG(density_step(1, 2))
+      density_step(1, 3) = CMPLX(-0.04_dp, 0.05_dp, KIND=dp)
+      density_step(3, 1) = CONJG(density_step(1, 3))
+
+      hamiltonian_step(:, :) = -0.45_dp*density_step
+      hamiltonian_step(2, 3) = CMPLX(0.06_dp, 0.03_dp, KIND=dp)
+      hamiltonian_step(3, 2) = CONJG(hamiltonian_step(2, 3))
+      density_modes(:, :, 1) = density_step
+      density_modes(:, :, 2) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      density_modes(1, 1, 2) = CMPLX(-0.2_dp, 0.0_dp, KIND=dp)
+      density_modes(2, 2, 2) = CMPLX(0.1_dp, 0.0_dp, KIND=dp)
+      density_modes(3, 3, 2) = CMPLX(0.1_dp, 0.0_dp, KIND=dp)
+      density_modes(1, 3, 2) = CMPLX(0.03_dp, 0.08_dp, KIND=dp)
+      density_modes(3, 1, 2) = CONJG(density_modes(1, 3, 2))
+
+      CALL qs_ot_density_secant_hessian( &
+         density_step, hamiltonian_step, density_modes, correction, valid, &
+         density_norm, response_work)
+      density_overlap(1) = density_norm
+      density_overlap(2) = SUM(REAL(CONJG(density_step)*density_modes(:, :, 2), KIND=dp))
+      response_overlap(1) = response_work
+      response_overlap(2) = SUM(REAL(CONJG(hamiltonian_step)*density_modes(:, :, 2), KIND=dp))
+      CALL qs_ot_density_secant_projected_hessian( &
+         density_norm, response_work, density_overlap, response_overlap, correction_overlap, valid)
+
+      expected(1, 1) = response_work
+      expected(1, 2) = response_overlap(2)
+      expected(2, 1) = response_overlap(2)
+      expected(2, 2) = (2.0_dp*density_overlap(2)*response_overlap(2) - &
+                        response_work*density_overlap(2)**2/density_norm)/density_norm
+      direct_error = MAXVAL(ABS(correction - expected))
+      overlap_error = MAXVAL(ABS(correction_overlap - correction))
+      sign_error = MAX(0.0_dp, correction(1, 1))
+
+      unitary(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      unitary(1, 1) = CMPLX(SQRT(0.5_dp), 0.0_dp, KIND=dp)
+      unitary(2, 1) = CMPLX(0.0_dp, SQRT(0.5_dp), KIND=dp)
+      unitary(1, 2) = CMPLX(0.0_dp, SQRT(0.5_dp), KIND=dp)
+      unitary(2, 2) = CMPLX(SQRT(0.5_dp), 0.0_dp, KIND=dp)
+      unitary(3, 3) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+      density_step = MATMUL(CONJG(TRANSPOSE(unitary)), MATMUL(density_step, unitary))
+      hamiltonian_step = MATMUL(CONJG(TRANSPOSE(unitary)), MATMUL(hamiltonian_step, unitary))
+      transformed_modes(:, :, 1) = &
+         MATMUL(CONJG(TRANSPOSE(unitary)), MATMUL(density_modes(:, :, 1), unitary))
+      transformed_modes(:, :, 2) = &
+         MATMUL(CONJG(TRANSPOSE(unitary)), MATMUL(density_modes(:, :, 2), unitary))
+      CALL qs_ot_density_secant_hessian( &
+         density_step, hamiltonian_step, transformed_modes, correction_gauge, valid)
+      gauge_error = MAXVAL(ABS(correction_gauge - correction))
+
+      IF (.NOT. valid .OR. direct_error > 2.0E-14_dp .OR. overlap_error > 2.0E-14_dp .OR. &
+          gauge_error > 2.0E-14_dp .OR. sign_error > 2.0E-14_dp) nfail = nfail + 1
+      IF (mynode == 0) WRITE (io_unit, '(A,4(1X,ES13.6))') &
+         "density secant direct/overlap/gauge/sign errors:", &
+         direct_error, overlap_error, gauge_error, sign_error
+
+   END SUBROUTINE test_density_secant_hessian
 
 ! **************************************************************************************************
 !> \brief fixed-occupation band energy for a dense finite rotation
