@@ -1556,7 +1556,6 @@ set(CP2K_PROGS_F
     common/parallel_rng_types_unittest.F
     kpoint_lattice_fft_unittest.F
     qs_ot_minimizer_unittest.F
-    optbas_frontier_utils_unittest.F
     optbas_frontier_orbitals_utils_unittest.F
     qs_charge_mixing_unittest.F
     qs_ot_complex_ref_unittest.F
@@ -1969,7 +1968,6 @@ list(
   "parallel_rng_types_unittest"
   "kpoint_lattice_fft_unittest"
   "qs_ot_minimizer_unittest"
-  "optbas_frontier_utils_unittest"
   "optbas_frontier_orbitals_utils_unittest"
   "qs_charge_mixing_unittest"
   "qs_ot_complex_ref_unittest"
@@ -1998,7 +1996,6 @@ add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(qs_ot_minimizer_unittest qs_ot_minimizer_unittest.F)
-add_executable(optbas_frontier_utils_unittest optbas_frontier_utils_unittest.F)
 add_executable(optbas_frontier_orbitals_utils_unittest
                optbas_frontier_orbitals_utils_unittest.F)
 add_executable(qs_charge_mixing_unittest qs_charge_mixing_unittest.F)
