@@ -1,7 +1,13 @@
 import traceback
 from typing import Any, Dict
 
-from matcher_classes import Matcher, MatchResult, GenericMatcher, TextPresenceMatcher
+from matcher_classes import (
+    GenericMatcher,
+    Matcher,
+    MatchResult,
+    TextAbsenceMatcher,
+    TextPresenceMatcher,
+)
 
 
 # ======================================================================================
@@ -26,6 +32,12 @@ registry = MatcherRegistry()
 
 # Total energy in Hartree
 registry["E_total"] = GenericMatcher(r"Total energy:", col=3)
+registry["OT_SCF_convergence"] = GenericMatcher(
+    r"^\s*\d+\s+OT\s+\S+\s+\S+\s+\S+\s+([-+0-9.EeDd]+)", col=1, regex=True
+)
+registry["Electronic_entropic_energy"] = GenericMatcher(
+    r"Electronic entropic energy:", col=4
+)
 registry["COMMUTATOR_HR_X"] = GenericMatcher(r"COMMUTATOR_HR| CheckSum X =", col=5)
 registry["COMMUTATOR_HR_Y"] = GenericMatcher(r"COMMUTATOR_HR| CheckSum Y =", col=5)
 registry["COMMUTATOR_HR_Z"] = GenericMatcher(r"COMMUTATOR_HR| CheckSum Z =", col=5)
@@ -215,6 +227,7 @@ registry["GAUXC_molecular_xc_virial_fd_diff"] = GenericMatcher(
 registry["XTB_reference_cli_failed"] = TextPresenceMatcher(
     "tblite reference CLI check failed to run."
 )
+registry["NO_TEXT"] = TextAbsenceMatcher()
 registry["M083"] = GenericMatcher(r"1[   1] - 2[   1]", col=7)
 registry["M084"] = GenericMatcher(r"Ionization potential of the excited atom:", col=7)
 registry["M085"] = GenericMatcher(r"Total FORCE_EVAL ( SIRIUS ) energy", col=9)
