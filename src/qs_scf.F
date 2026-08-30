@@ -2465,6 +2465,15 @@ CONTAINS
             CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_response_gx_im, &
                                                    template=matrix_s, n=nmo, &
                                                    sym=dbcsr_type_no_symmetry)
+            CALL dbcsr_init_p(qs_ot_env%matrix_mermin_g0)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_mermin_g0, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+            CALL dbcsr_init_p(qs_ot_env%matrix_mermin_g0_im)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_mermin_g0_im, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+            IF (qs_ot_env%settings%do_ener) ALLOCATE (qs_ot_env%ener_mermin_g0(nmo))
          END IF
       END IF
       SELECT CASE (qs_ot_env%settings%ot_algorithm)
@@ -2551,6 +2560,16 @@ CONTAINS
             CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_response_gx_im, &
                                                template=matrix_s, m=nmo, n=nmo, &
                                                sym=dbcsr_type_no_symmetry)
+            IF (qs_ot_env%use_dx) THEN
+               CALL dbcsr_init_p(qs_ot_env%rot_mat_mermin_g0)
+               CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_mermin_g0, &
+                                                  template=matrix_s, m=nmo, n=nmo, &
+                                                  sym=dbcsr_type_no_symmetry)
+               CALL dbcsr_init_p(qs_ot_env%rot_mat_mermin_g0_im)
+               CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_mermin_g0_im, &
+                                                  template=matrix_s, m=nmo, n=nmo, &
+                                                  sym=dbcsr_type_no_symmetry)
+            END IF
          END IF
          IF (qs_ot_env%use_dx) THEN
             CALL dbcsr_init_p(qs_ot_env%rot_mat_dx_im)

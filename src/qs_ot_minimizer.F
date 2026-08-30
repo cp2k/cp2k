@@ -52,7 +52,8 @@ MODULE qs_ot_minimizer
               ot_mermin_response_compare, &
               ot_mermin_response_probe, &
               ot_mermin_secant_curvature, &
-              ot_mini
+              ot_mini, &
+              ot_mini_prepare_gradient
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_minimizer'
 
@@ -77,24 +78,35 @@ CONTAINS
 !> \param matrix_hc_physical occupation-weighted derivative used for slopes and convergence
 !> \param matrix_hc_physical_im imaginary component of matrix_hc_physical
 !> \param para_env_inter_kp communicator between distributed k-point groups
+!> \param gradient_only return after evaluating the current OT gradient
+!> \param gradient_prepared reuse a gradient evaluated by ot_mini_prepare_gradient
 ! **************************************************************************************************
    SUBROUTINE ot_mini(qs_ot_env, matrix_hc, matrix_hc_im, &
-                      matrix_hc_physical, matrix_hc_physical_im, para_env_inter_kp)
+                      matrix_hc_physical, matrix_hc_physical_im, para_env_inter_kp, &
+                      gradient_only, gradient_prepared)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_hc_im, matrix_hc_physical, &
                                                             matrix_hc_physical_im
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
+      LOGICAL, INTENT(IN), OPTIONAL                      :: gradient_only, gradient_prepared
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_mini'
 
       INTEGER                                            :: handle, ispin, nspin
-      LOGICAL                                            :: do_ener, do_ks, &
+      LOGICAL                                            :: do_ener, do_ks, evaluate_gradient_only, &
+                                                            reuse_gradient, &
                                                             separate_occupation_gradient
       REAL(KIND=dp)                                      :: tmp
 
       CALL timeset(routineN, handle)
+
+      evaluate_gradient_only = .FALSE.
+      reuse_gradient = .FALSE.
+      IF (PRESENT(gradient_only)) evaluate_gradient_only = gradient_only
+      IF (PRESENT(gradient_prepared)) reuse_gradient = gradient_prepared
+      CPASSERT(.NOT. (evaluate_gradient_only .AND. reuse_gradient))
 
       nspin = SIZE(qs_ot_env)
 
@@ -109,7 +121,7 @@ CONTAINS
       qs_ot_env(1)%OT_METHOD_FULL = ""
 
       ! compute the gradient for the variables x
-      IF (.NOT. qs_ot_env(1)%energy_only) THEN
+      IF (.NOT. reuse_gradient .AND. .NOT. qs_ot_env(1)%energy_only) THEN
          qs_ot_env(1)%gradient = 0.0_dp
          DO ispin = 1, nspin
             IF (do_ks) THEN
@@ -248,6 +260,11 @@ CONTAINS
          CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%gradient)
       END IF
 
+      IF (evaluate_gradient_only) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
       SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
       CASE ("CG")
          IF (current_point_is_fine(qs_ot_env)) THEN
@@ -289,6 +306,31 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ot_mini
+
+! **************************************************************************************************
+!> \brief Evaluate the current OT derivative without advancing the minimizer.
+!> \param qs_ot_env OT channel environments
+!> \param matrix_hc real H*C products
+!> \param matrix_hc_im imaginary H*C products
+!> \param matrix_hc_physical occupation-weighted real H*C products
+!> \param matrix_hc_physical_im occupation-weighted imaginary H*C products
+!> \param para_env_inter_kp communicator between distributed K-point groups
+! **************************************************************************************************
+   SUBROUTINE ot_mini_prepare_gradient(qs_ot_env, matrix_hc, matrix_hc_im, &
+                                       matrix_hc_physical, matrix_hc_physical_im, para_env_inter_kp)
+      TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: matrix_hc_im, matrix_hc_physical, &
+                                                            matrix_hc_physical_im
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
+
+      CALL ot_mini(qs_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+                   matrix_hc_physical=matrix_hc_physical, &
+                   matrix_hc_physical_im=matrix_hc_physical_im, &
+                   para_env_inter_kp=para_env_inter_kp, gradient_only=.TRUE.)
+
+   END SUBROUTINE ot_mini_prepare_gradient
 
 ! **************************************************************************************************
 !> \brief Sum a minimizer scalar over distributed k-point groups when requested.
@@ -1603,17 +1645,20 @@ CONTAINS
          END IF
          IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
             WRITE (cp_logger_get_default_unit_nr(logger), &
-                   '(A,2(1X,I5),3(1X,L1),9(1X,ES16.8))') &
-            " OT Mermin response shadow sample good hxc hxc-dir advantage ema residual curvature hxc-shadow hxc-model slope mix:", &
+                   '(A,2(1X,I5),4(1X,L1),10(1X,ES16.8))') &
+               " OT Mermin response shadow sample good hxc hxc-dir cross advantage ema residual "// &
+               "curvature hxc-shadow hxc-model slope cross-curv mix:", &
                qs_ot_env(1)%response_shadow_samples, &
                qs_ot_env(1)%response_shadow_good_samples, shadow_good, &
                qs_ot_env(1)%response_hxc_valid, qs_ot_env(1)%response_hxc_direction_valid, &
+               qs_ot_env(1)%response_gradient_cross_valid, &
                response_advantage, &
                qs_ot_env(1)%response_shadow_advantage_ema, response_residual_ratio, &
                qs_ot_env(1)%response_shadow_curvature, &
                qs_ot_env(1)%response_hxc_shadow_curvature, &
                qs_ot_env(1)%response_hxc_model_curvature, &
                qs_ot_env(1)%response_hxc_secant_slope, &
+               qs_ot_env(1)%response_gradient_cross_curvature, &
                qs_ot_env(1)%response_hxc_direction_mix
          END IF
          qs_ot_env(1)%response_shadow_pending = .FALSE.
@@ -1689,12 +1734,17 @@ CONTAINS
                                qs_ot_env(1)%response_candidate_cooldown)
       IF (use_response_candidate .AND. logger%iter_info%print_level >= high_print_level .AND. &
           logger%para_env%is_source()) THEN
-         WRITE (cp_logger_get_default_unit_nr(logger), '(A,4(1X,I5),4(1X,ES16.8))') &
-            " OT Mermin response candidate selected directions shadow active residual curvature advantage ema:", &
+         WRITE (cp_logger_get_default_unit_nr(logger), '(A,4(1X,I5),8(1X,ES16.8))') &
+            " OT Mermin response candidate selected directions shadow active residual curvature advantage ema "// &
+            "density occupation rotation ref:", &
             qs_ot_env(1)%response_candidate_directions, qs_ot_env(1)%response_shadow_good_samples, &
             qs_ot_env(1)%response_candidate_good_samples, qs_ot_env(1)%response_candidate_cooldown, &
             baseline_delta, qs_ot_env(1)%response_model_curvature, &
-            qs_ot_env(1)%response_shadow_advantage, qs_ot_env(1)%response_shadow_advantage_ema
+            qs_ot_env(1)%response_shadow_advantage, qs_ot_env(1)%response_shadow_advantage_ema, &
+            qs_ot_env(1)%response_density_tangent_norm, &
+            qs_ot_env(1)%response_occupation_tangent_max, &
+            qs_ot_env(1)%response_rotation_bound, &
+            qs_ot_env(1)%response_ref_direction_norm
       END IF
       ! Keep convergence reporting tied to the conventional preconditioned residual. The finite
       ! response is an accepted-step candidate, not a redefinition of the physical stopping test.
