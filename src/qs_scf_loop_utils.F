@@ -920,7 +920,9 @@ CONTAINS
                kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, &
                scf_control%smear, trial_occupation)
             IF (physical_base_state .AND. &
-                local_ot_env(1)%settings%occupation_preconditioner) THEN
+                local_ot_env(1)%settings%occupation_preconditioner .AND. &
+                (local_ot_env(1)%settings%ot_method == "CG" .OR. &
+                 local_ot_env(1)%settings%ot_method == "LBFG")) THEN
                DO local_channel = 1, nlocal_channels
                   CALL qs_scf_kp_store_mermin_gradient(local_ot_env(local_channel))
                END DO
