@@ -111,6 +111,10 @@ PROGRAM qs_ot_minimizer_unittest
       predicted_drop, measured_drop, response_quality, residual_ratio, response_good)
    IF (response_good) ERROR STOP "Residual-growing finite response sample was accepted"
    CALL ot_mermin_response_assess( &
+      10.0_dp, 9.6_dp, 1.0_dp, 1.05_dp, 1.0_dp, 1.0_dp, 0.5_dp, 0.1_dp, &
+      predicted_drop, measured_drop, response_quality, residual_ratio, response_good)
+   IF (response_good) ERROR STOP "Mildly residual-growing finite response sample was accepted"
+   CALL ot_mermin_response_assess( &
       10.0_dp, 9.6_dp, 1.0_dp, 0.8_dp, 0.1_dp, 10.0_dp, 1.0_dp, 0.1_dp, &
       predicted_drop, measured_drop, response_quality, residual_ratio, response_good)
    IF (response_good .OR. predicted_drop >= 0.0_dp) THEN
@@ -143,6 +147,9 @@ PROGRAM qs_ot_minimizer_unittest
    END IF
    IF (ot_mermin_response_probe(.TRUE., 1.0E-3_dp, 7, 3, 0, 0)) THEN
       ERROR STOP "Uncalibrated finite response probe was scheduled too early"
+   END IF
+   IF (.NOT. ot_mermin_response_probe(.TRUE., 1.0E-3_dp, 9, 3, 0, 0)) THEN
+      ERROR STOP "Calibrated finite response missed its one-step eligibility window"
    END IF
    IF (.NOT. ot_mermin_response_probe(.TRUE., 1.0E-3_dp, 4, 3, 3, 0)) THEN
       ERROR STOP "Calibrated finite response probe did not use the shorter interval"

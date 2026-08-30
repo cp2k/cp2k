@@ -349,14 +349,14 @@ CONTAINS
       scale = MAX(1.0_dp, ABS(reference_energy), ABS(current_energy), &
                   ABS(predicted_drop), ABS(measured_drop))
       resolution = 256.0_dp*EPSILON(1.0_dp)*scale
-      IF (reference_residual > TINY(reference_residual)) then
-        residual_ratio = MAX(0.0_dp, current_residual)/reference_residual
-      end if
+      IF (reference_residual > TINY(reference_residual)) THEN
+         residual_ratio = MAX(0.0_dp, current_residual)/reference_residual
+      END IF
       IF (predicted_drop > resolution) quality = measured_drop/predicted_drop
 
       good = predicted_drop > resolution .AND. measured_drop > resolution .AND. &
              accepted_position >= 1.0E-6_dp*MAX(ABS(default_step), TINY(default_step)) .AND. &
-             quality >= 0.05_dp .AND. quality <= 5.0_dp .AND. residual_ratio <= 1.25_dp
+             quality >= 0.05_dp .AND. quality <= 5.0_dp .AND. residual_ratio <= 1.0_dp
 
    END SUBROUTINE ot_mermin_response_assess
 
@@ -399,9 +399,9 @@ CONTAINS
       scale = MAX(1.0_dp, ABS(reference_energy), ABS(current_energy), ABS(measured_drop), &
                   ABS(baseline_drop), ABS(candidate_drop))
       resolution = 256.0_dp*EPSILON(1.0_dp)*scale
-      IF (reference_residual > TINY(reference_residual)) then
-        residual_ratio = MAX(0.0_dp, current_residual)/reference_residual
-      end if
+      IF (reference_residual > TINY(reference_residual)) THEN
+         residual_ratio = MAX(0.0_dp, current_residual)/reference_residual
+      END IF
       IF (measured_drop <= resolution .OR. baseline_drop <= resolution .OR. &
           candidate_drop <= resolution) RETURN
 
@@ -430,7 +430,7 @@ CONTAINS
                                                             good_samples, cooldown
       LOGICAL                                            :: probe
 
-      INTEGER                                            :: interval
+      INTEGER                                            :: interval, phase
 
       probe = .FALSE.
       IF (.NOT. available .OR. .NOT. ieee_is_finite(residual)) RETURN
@@ -438,7 +438,9 @@ CONTAINS
       IF (shadow_good_samples < 3) RETURN
       interval = 8
       IF (good_samples >= 3) interval = 4
-      probe = MOD(MAX(0, directions), interval) == 0
+      IF (directions < interval) RETURN
+      phase = MOD(directions, interval)
+      probe = phase == 0 .OR. phase == 1
 
    END FUNCTION ot_mermin_response_probe
 
@@ -1252,21 +1254,22 @@ CONTAINS
       LOGICAL, PARAMETER :: apply_finite_response_candidate = .FALSE.
 
       INTEGER                                            :: handle, ispin, itmp, k, n, nener, nspin
-      LOGICAL                                            :: candidate_available, candidate_good, &
-                                                            do_ener, do_ks, shadow_good, &
-                                                            use_response_candidate
+      LOGICAL :: active_candidate_available, candidate_available, candidate_good, do_ener, do_ks, &
+         shadow_good, use_response_candidate
       REAL(KIND=dp) :: baseline_delta, baseline_gnorm, beta_pr, gnorm_cross, measured_drop, &
          nvariables, predicted_drop, response_advantage, response_quality, &
          response_residual_ratio, response_test_down, test_down, tmp
       TYPE(cp_logger_type), POINTER                      :: logger
 
-! The accepted Hxc secant currently calibrates the finite response but is not yet included
-! in its vector solve. Keep that incomplete direction as a shadow until both use one Hessian.
+! Only the physical low-rank subspace solve can become active. The frozen-H response remains a
+! shadow when that total projected Hessian is indefinite or unresolved.
 
       CALL timeset(routineN, handle)
 
       nspin = SIZE(qs_ot_env)
       logger => cp_get_default_logger()
+      shadow_good = .FALSE.
+      candidate_good = .FALSE.
 
       do_ks = qs_ot_env(1)%settings%ks
       do_ener = qs_ot_env(1)%settings%do_ener
@@ -1562,19 +1565,21 @@ CONTAINS
             qs_ot_env(1)%response_shadow_good_samples = &
                MAX(0, qs_ot_env(1)%response_shadow_good_samples - 1)
          END IF
-         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) then
-           WRITE (cp_logger_get_default_unit_nr(logger), &
-                   '(A,2(1X,I5),2(1X,L1),7(1X,ES16.8))') &
-            " OT Mermin response shadow sample good hxc advantage ema residual curvature hxc-shadow hxc-model slope:", &
-            qs_ot_env(1)%response_shadow_samples, &
-            qs_ot_env(1)%response_shadow_good_samples, shadow_good, &
-            qs_ot_env(1)%response_hxc_valid, response_advantage, &
-            qs_ot_env(1)%response_shadow_advantage_ema, response_residual_ratio, &
-            qs_ot_env(1)%response_shadow_curvature, &
-            qs_ot_env(1)%response_hxc_shadow_curvature, &
-            qs_ot_env(1)%response_hxc_model_curvature, &
-            qs_ot_env(1)%response_hxc_secant_slope
-         end if
+         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
+            WRITE (cp_logger_get_default_unit_nr(logger), &
+                   '(A,2(1X,I5),3(1X,L1),9(1X,ES16.8))') &
+            " OT Mermin response shadow sample good hxc hxc-dir advantage ema residual curvature hxc-shadow hxc-model slope mix:", &
+               qs_ot_env(1)%response_shadow_samples, &
+               qs_ot_env(1)%response_shadow_good_samples, shadow_good, &
+               qs_ot_env(1)%response_hxc_valid, qs_ot_env(1)%response_hxc_direction_valid, &
+               response_advantage, &
+               qs_ot_env(1)%response_shadow_advantage_ema, response_residual_ratio, &
+               qs_ot_env(1)%response_shadow_curvature, &
+               qs_ot_env(1)%response_hxc_shadow_curvature, &
+               qs_ot_env(1)%response_hxc_model_curvature, &
+               qs_ot_env(1)%response_hxc_secant_slope, &
+               qs_ot_env(1)%response_hxc_direction_mix
+         END IF
          qs_ot_env(1)%response_shadow_pending = .FALSE.
       END IF
 
@@ -1609,22 +1614,22 @@ CONTAINS
                MAX(0, qs_ot_env(1)%response_candidate_good_samples - 2)
             qs_ot_env(1)%response_candidate_cooldown = 6
          END IF
-         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) then
-           WRITE (cp_logger_get_default_unit_nr(logger), '(A,2(1X,I5),1X,L1,5(1X,ES16.8))') &
-            " OT Mermin response candidate sample good quality ema residual predicted measured:", &
-            qs_ot_env(1)%response_candidate_samples, &
-            qs_ot_env(1)%response_candidate_good_samples, candidate_good, response_quality, &
-            qs_ot_env(1)%response_quality_ema, response_residual_ratio, predicted_drop, measured_drop
-         end if
+         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
+            WRITE (cp_logger_get_default_unit_nr(logger), '(A,2(1X,I5),1X,L1,5(1X,ES16.8))') &
+               " OT Mermin response candidate sample good quality ema residual predicted measured:", &
+               qs_ot_env(1)%response_candidate_samples, &
+               qs_ot_env(1)%response_candidate_good_samples, candidate_good, response_quality, &
+               qs_ot_env(1)%response_quality_ema, response_residual_ratio, predicted_drop, measured_drop
+         END IF
          qs_ot_env(1)%response_candidate_pending = .FALSE.
       END IF
 
       qs_ot_env(1)%response_candidate_directions = &
          MIN(HUGE(qs_ot_env(1)%response_candidate_directions) - 1, &
              qs_ot_env(1)%response_candidate_directions + 1)
-      IF (qs_ot_env(1)%response_candidate_cooldown > 0) then
-        qs_ot_env(1)%response_candidate_cooldown = qs_ot_env(1)%response_candidate_cooldown - 1
-      end if
+      IF (qs_ot_env(1)%response_candidate_cooldown > 0) THEN
+         qs_ot_env(1)%response_candidate_cooldown = qs_ot_env(1)%response_candidate_cooldown - 1
+      END IF
 
       candidate_available = qs_ot_env(1)%settings%occupation_preconditioner .AND. &
                             qs_ot_env(1)%settings%do_rotation .AND. do_ener
@@ -1635,22 +1640,24 @@ CONTAINS
                                ASSOCIATED(qs_ot_env(ispin)%rot_mat_response_gx_im) .AND. &
                                ASSOCIATED(qs_ot_env(ispin)%ener_response_gx)
       END DO
+      active_candidate_available = candidate_available .AND. shadow_good .AND. &
+                                   qs_ot_env(1)%response_hxc_direction_valid
       use_response_candidate = ot_mermin_response_probe( &
-                               candidate_available .AND. apply_finite_response_candidate, &
+                               active_candidate_available .AND. apply_finite_response_candidate, &
                                baseline_delta, &
                                qs_ot_env(1)%response_candidate_directions, &
                                qs_ot_env(1)%response_shadow_good_samples, &
                                qs_ot_env(1)%response_candidate_good_samples, &
                                qs_ot_env(1)%response_candidate_cooldown)
       IF (use_response_candidate .AND. logger%iter_info%print_level >= high_print_level .AND. &
-          logger%para_env%is_source()) then
-        WRITE (cp_logger_get_default_unit_nr(logger), '(A,4(1X,I5),4(1X,ES16.8))') &
-         " OT Mermin response candidate selected directions shadow active residual curvature advantage ema:", &
-         qs_ot_env(1)%response_candidate_directions, qs_ot_env(1)%response_shadow_good_samples, &
-         qs_ot_env(1)%response_candidate_good_samples, qs_ot_env(1)%response_candidate_cooldown, &
-         baseline_delta, qs_ot_env(1)%response_model_curvature, &
-         qs_ot_env(1)%response_shadow_advantage, qs_ot_env(1)%response_shadow_advantage_ema
-      end if
+          logger%para_env%is_source()) THEN
+         WRITE (cp_logger_get_default_unit_nr(logger), '(A,4(1X,I5),4(1X,ES16.8))') &
+            " OT Mermin response candidate selected directions shadow active residual curvature advantage ema:", &
+            qs_ot_env(1)%response_candidate_directions, qs_ot_env(1)%response_shadow_good_samples, &
+            qs_ot_env(1)%response_candidate_good_samples, qs_ot_env(1)%response_candidate_cooldown, &
+            baseline_delta, qs_ot_env(1)%response_model_curvature, &
+            qs_ot_env(1)%response_shadow_advantage, qs_ot_env(1)%response_shadow_advantage_ema
+      END IF
       ! Keep convergence reporting tied to the conventional preconditioned residual. The finite
       ! response is an accepted-step candidate, not a redefinition of the physical stopping test.
       qs_ot_env(1)%delta = baseline_delta

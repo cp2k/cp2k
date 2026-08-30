@@ -65,8 +65,8 @@ PROGRAM qs_ot_complex_ref_unittest
         qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, &
         qs_ot_fixed_n_energy_hessian, qs_ot_fixed_n_projector_frechet, qs_ot_fixed_n_schur_block, &
         qs_ot_generate_rotation, qs_ot_get_derivative_complex, qs_ot_get_derivative_ref_complex, &
-        qs_ot_get_orbitals_ref_complex, qs_ot_get_p_complex, qs_ot_rot_mat_derivative, &
-        qs_ot_symmetric_abs_solve, qs_ot_symmetric_sr1_update
+        qs_ot_get_orbitals_ref_complex, qs_ot_get_p_complex, qs_ot_projected_response_update, &
+        qs_ot_rot_mat_derivative, qs_ot_symmetric_abs_solve, qs_ot_symmetric_sr1_update
    USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
                                               qs_ot_kpoint_preconditioner_solver_supported,&
                                               qs_ot_kpoint_preconditioner_supported,&
@@ -108,6 +108,7 @@ PROGRAM qs_ot_complex_ref_unittest
    CALL test_finite_rotation_response(mynode, nfail)
    CALL test_fixed_n_rotation_schur(mynode, nfail)
    CALL test_symmetric_abs_solve(mynode, nfail)
+   CALL test_projected_response_update(mynode, nfail)
    CALL test_symmetric_sr1_update(mynode, nfail)
    CALL test_density_secant_hessian(mynode, nfail)
    CALL test_density_tangent(mynode, nfail)
@@ -776,6 +777,43 @@ CONTAINS
       IF (mynode == 0) WRITE (io_unit, '(A,1X,ES13.6)') "symmetric absolute solve error:", error
 
    END SUBROUTINE test_symmetric_abs_solve
+
+! **************************************************************************************************
+!> \brief Check that the projected response update preserves the baseline and rejects indefiniteness.
+!> \param mynode MPI rank
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_projected_response_update(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      LOGICAL                                            :: valid
+      REAL(KIND=dp)                                      :: error, preservation_error
+      REAL(KIND=dp), DIMENSION(2)                        :: coefficients, gradient, residual
+      REAL(KIND=dp), DIMENSION(2, 2)                     :: correction, reference, total
+
+      reference(:, :) = RESHAPE([4.0_dp, 0.7_dp, 0.7_dp, 2.5_dp], [2, 2])
+      correction(:, :) = 0.0_dp
+      CALL qs_ot_projected_response_update(reference, correction, coefficients, valid)
+      preservation_error = MAXVAL(ABS(coefficients - [1.0_dp, 0.0_dp]))
+      IF (.NOT. valid .OR. preservation_error > 1.0E-12_dp) nfail = nfail + 1
+
+      correction(:, :) = RESHAPE([0.8_dp, -0.3_dp, -0.3_dp, 0.4_dp], [2, 2])
+      gradient(:) = [1.2_dp, -0.4_dp]
+      CALL qs_ot_projected_response_update( &
+         reference, correction, coefficients, valid, projected_gradient=gradient)
+      total(:, :) = reference + correction
+      residual(:) = MATMUL(total, coefficients) - gradient
+      error = MAXVAL(ABS(residual))
+      IF (.NOT. valid .OR. error > 1.0E-12_dp) nfail = nfail + 1
+
+      correction(:, :) = RESHAPE([-8.0_dp, 0.0_dp, 0.0_dp, 0.0_dp], [2, 2])
+      CALL qs_ot_projected_response_update(reference, correction, coefficients, valid)
+      IF (valid) nfail = nfail + 1
+      IF (mynode == 0) WRITE (io_unit, '(A,2(1X,ES14.6))') &
+         "projected response preservation/residual errors:", preservation_error, error
+
+   END SUBROUTINE test_projected_response_update
 
 ! **************************************************************************************************
 !> \brief Check exact signed SR1 secants and rejection of an unresolved orthogonal residual.

@@ -262,6 +262,8 @@ MODULE qs_ot_types
       REAL(KIND=dp)             :: response_hxc_shadow_curvature = 0.0_dp
       REAL(KIND=dp)             :: response_hxc_secant_slope = 0.0_dp
       LOGICAL                   :: response_hxc_valid = .FALSE.
+      LOGICAL                   :: response_hxc_direction_valid = .FALSE.
+      REAL(KIND=dp), DIMENSION(2) :: response_hxc_direction_mix = 0.0_dp
       REAL(KIND=dp)             :: response_reference_energy = 0.0_dp
       REAL(KIND=dp)             :: response_reference_residual = 0.0_dp
       REAL(KIND=dp)             :: response_predicted_slope = 0.0_dp
@@ -636,6 +638,8 @@ CONTAINS
          qs_ot_env%response_hxc_shadow_curvature = 0.0_dp
          qs_ot_env%response_hxc_secant_slope = 0.0_dp
          qs_ot_env%response_hxc_valid = .FALSE.
+         qs_ot_env%response_hxc_direction_valid = .FALSE.
+         qs_ot_env%response_hxc_direction_mix(:) = 0.0_dp
          qs_ot_env%response_reference_energy = 0.0_dp
          qs_ot_env%response_reference_residual = 0.0_dp
          qs_ot_env%response_predicted_slope = 0.0_dp

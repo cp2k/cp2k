@@ -65,6 +65,7 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_fixed_n_projector_frechet
    PUBLIC  :: qs_ot_fixed_n_response_mu_shift
    PUBLIC  :: qs_ot_finite_rotation_response
+   PUBLIC  :: qs_ot_projected_response_update
    PUBLIC  :: qs_ot_symmetric_sr1_update
    PUBLIC  :: qs_ot_symmetric_abs_solve
    PUBLIC  :: qs_ot_generate_rotation
@@ -288,6 +289,88 @@ CONTAINS
       DEALLOCATE (eigenvalues, eigenvectors, work)
 
    END SUBROUTINE qs_ot_symmetric_abs_solve
+
+! **************************************************************************************************
+!> \brief update a baseline response direction in a small positive physical-response subspace
+!>
+!>        The first basis mode is the baseline response direction. With B0 the projected frozen-H
+!>        Hessian and K the accepted physical correction, this routine solves
+!>
+!>          (B0 + K) c = g_Q.
+!>
+!>        The optional projected physical gradient supplies g_Q. Without it, g_Q=B0*e1, so c=e1
+!>        exactly when K=0. An indefinite or unresolved total projected Hessian is rejected instead
+!>        of turning its negative modes into an unrelated active direction.
+!> \param reference_hessian projected frozen-H Hessian B0
+!> \param response_correction projected physical response K
+!> \param coefficients response coefficients c in the supplied basis
+!> \param valid whether a finite, positive, sufficiently resolved solve was obtained
+!> \param projected_gradient optional physical gradient projected onto the supplied basis
+!> \param relative_floor optional relative positive-eigenvalue floor
+! **************************************************************************************************
+   SUBROUTINE qs_ot_projected_response_update( &
+      reference_hessian, response_correction, coefficients, valid, projected_gradient, relative_floor)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: reference_hessian, response_correction
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: coefficients
+      LOGICAL, INTENT(OUT)                               :: valid
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: projected_gradient
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: relative_floor
+
+      INTEGER                                            :: i, n
+      REAL(KIND=dp)                                      :: eigenvalue_floor, relative_floor_eff, &
+                                                            scale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, rhs, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvectors
+
+      n = SIZE(reference_hessian, 1)
+      CPASSERT(n > 0)
+      CPASSERT(ALL(SHAPE(reference_hessian) == [n, n]))
+      CPASSERT(ALL(SHAPE(response_correction) == [n, n]))
+      CPASSERT(SIZE(coefficients) == n)
+      IF (PRESENT(projected_gradient)) THEN
+         CPASSERT(SIZE(projected_gradient) == n)
+      END IF
+      coefficients(:) = 0.0_dp
+      valid = ALL(reference_hessian == reference_hessian) .AND. &
+              ALL(response_correction == response_correction)
+      IF (PRESENT(projected_gradient)) THEN
+         valid = valid .AND. ALL(projected_gradient == projected_gradient)
+      END IF
+      IF (.NOT. valid) RETURN
+
+      relative_floor_eff = 1.0E-4_dp
+      IF (PRESENT(relative_floor)) relative_floor_eff = &
+         MAX(relative_floor, SQRT(EPSILON(1.0_dp)))
+      ALLOCATE (eigenvalues(n), eigenvectors(n, n), rhs(n), work(n))
+      eigenvectors(:, :) = 0.5_dp* &
+                           (reference_hessian + response_correction + &
+                            TRANSPOSE(reference_hessian + response_correction))
+      CALL diamat_all(eigenvectors, eigenvalues)
+      scale = MAX(MAXVAL(ABS(eigenvalues)), MAXVAL(ABS(reference_hessian)))
+      IF (scale <= TINY(scale)) THEN
+         valid = .FALSE.
+         coefficients(:) = 0.0_dp
+         DEALLOCATE (eigenvalues, eigenvectors, rhs, work)
+         RETURN
+      END IF
+      eigenvalue_floor = relative_floor_eff*scale
+      valid = ALL(eigenvalues > eigenvalue_floor)
+      IF (valid) THEN
+         rhs(:) = reference_hessian(:, 1)
+         IF (PRESENT(projected_gradient)) rhs(:) = projected_gradient
+         work(:) = MATMUL(TRANSPOSE(eigenvectors), rhs)
+         DO i = 1, n
+            work(i) = work(i)/eigenvalues(i)
+         END DO
+         coefficients(:) = MATMUL(eigenvectors, work)
+         valid = ALL(coefficients == coefficients) .AND. &
+                 ALL(ABS(coefficients) <= HUGE(1.0_dp))
+      END IF
+      IF (.NOT. valid) coefficients(:) = 0.0_dp
+      DEALLOCATE (eigenvalues, eigenvectors, rhs, work)
+
+   END SUBROUTINE qs_ot_projected_response_update
 
 ! **************************************************************************************************
 !> \brief add one accepted symmetric response secant to a reference Hessian

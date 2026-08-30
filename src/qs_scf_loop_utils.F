@@ -74,7 +74,7 @@ MODULE qs_scf_loop_utils
         qs_ot_density_secant_orbital_overlaps, qs_ot_density_secant_projected_hessian, &
         qs_ot_density_tangent, qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, &
         qs_ot_fixed_n_schur_block, qs_ot_get_orbitals_complex, qs_ot_get_orbitals_ref_complex, &
-        qs_ot_symmetric_abs_solve
+        qs_ot_projected_response_update, qs_ot_symmetric_abs_solve
    USE qs_ot_minimizer,                 ONLY: ot_mini
    USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                               ot_scf_mini
@@ -561,9 +561,9 @@ CONTAINS
             refresh_count = MERGE(1, 0, refresh)
             CALL para_env%sum(refresh_count)
             refresh = refresh_count > 0
-            IF (refresh .AND. PRESENT(ot_kp_subspace_refresh)) then
-              ot_kp_subspace_refresh = .TRUE.
-            end if
+            IF (refresh .AND. PRESENT(ot_kp_subspace_refresh)) THEN
+               ot_kp_subspace_refresh = .TRUE.
+            END IF
          END IF
       CASE (smeagol_method_nr)
          ! SMEAGOL interface
@@ -1536,24 +1536,26 @@ CONTAINS
                                                             local_channel, local_kpoint, ngroups, &
                                                             nlocal_channels, nmo, nrotation, r
       LOGICAL                                            :: hxc_channel_valid, hxc_valid, &
+                                                            projected_update_valid, &
                                                             shadow_pending, solve_valid
       REAL(KIND=dp) :: denominator, hxc_density_norm_sq, hxc_density_norm_sq_channel, &
-         hxc_response_work, hxc_response_work_channel, maxocc, sigma
+         hxc_response_work, hxc_response_work_channel, maxocc, response_cross, response_scale, &
+         sigma
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: coupling, curvature_sum, energy_count, &
          energy_mean, energy_metric_step, energy_shift, energy_weighted_sum, rayleigh_step, &
          response_curvature, response_weight, rotation_count, rotation_norm, rotation_scale, &
-         schur_rhs, shadow_curvature, shadow_energy_mean, shadow_energy_weighted_sum, vy, vz
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: channel_response_weight, chc_im, chc_re, &
-         dense_im, dense_re, generator_im, generator_re, previous_rotation_step, &
-         rayleigh_response, rhs, rotation_gradient, rotation_hessian, rotation_step, rotation_y, &
-         rotation_z, schur_block, solution
+         schur_rhs, shadow_curvature, shadow_energy_mean, shadow_energy_metric_step, &
+         shadow_energy_weighted_sum, shadow_rayleigh_step, vy, vz
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: channel_response_weight, &
+         channel_rotation_gradient, chc_im, chc_re, dense_im, dense_re, generator_im, &
+         generator_re, previous_rotation_step, rayleigh_response, rhs, rotation_gradient, &
+         rotation_hessian, rotation_step, rotation_y, rotation_z, schur_block, solution
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: channel_rayleigh_response, &
                                                             channel_rotation_hessian
-      REAL(KIND=dp), DIMENSION(2)                        :: hxc_density_overlap, &
-                                                            hxc_density_overlap_channel, &
-                                                            hxc_response_overlap, &
-                                                            hxc_response_overlap_channel
-      REAL(KIND=dp), DIMENSION(2, 2)                     :: hxc_correction
+      REAL(KIND=dp), DIMENSION(2) :: hxc_density_overlap, hxc_density_overlap_channel, &
+         hxc_response_overlap, hxc_response_overlap_channel, projected_coefficients, &
+         projected_gradient
+      REAL(KIND=dp), DIMENSION(2, 2)                     :: hxc_correction, projected_hessian
       TYPE(kpoint_env_type), POINTER                     :: kp
 
       nlocal_channels = SIZE(local_ot_env)
@@ -1565,9 +1567,9 @@ CONTAINS
          IF (ASSOCIATED(local_ot_env(local_channel)%rot_mat_response_gx_im)) THEN
             CALL dbcsr_set(local_ot_env(local_channel)%rot_mat_response_gx_im, 0.0_dp)
          END IF
-         IF (ASSOCIATED(local_ot_env(local_channel)%ener_response_gx)) then
-           local_ot_env(local_channel)%ener_response_gx(:) = 0.0_dp
-         end if
+         IF (ASSOCIATED(local_ot_env(local_channel)%ener_response_gx)) THEN
+            local_ot_env(local_channel)%ener_response_gx(:) = 0.0_dp
+         END IF
       END DO
       local_ot_env(1)%response_model_curvature = 0.0_dp
       local_ot_env(1)%response_shadow_curvature = 0.0_dp
@@ -1575,6 +1577,8 @@ CONTAINS
       local_ot_env(1)%response_hxc_shadow_curvature = 0.0_dp
       local_ot_env(1)%response_hxc_secant_slope = 0.0_dp
       local_ot_env(1)%response_hxc_valid = .FALSE.
+      local_ot_env(1)%response_hxc_direction_valid = .FALSE.
+      local_ot_env(1)%response_hxc_direction_mix(:) = 0.0_dp
       IF (.NOT. local_ot_env(1)%settings%occupation_preconditioner .OR. &
           .NOT. local_ot_env(1)%settings%do_rotation .OR. &
           .NOT. local_ot_env(1)%settings%do_ener) RETURN
@@ -1604,7 +1608,8 @@ CONTAINS
                 response_weight(nmo), rotation_count(ngroups), &
                 rotation_norm(ngroups), rotation_scale(ngroups), schur_rhs(nrotation), &
                 shadow_curvature(ngroups), shadow_energy_mean(ngroups), &
-                shadow_energy_weighted_sum(ngroups), &
+                shadow_energy_metric_step(nmo), shadow_energy_weighted_sum(ngroups), &
+                shadow_rayleigh_step(nmo), &
                 vy(ngroups), vz(ngroups), rayleigh_response(nmo, nrotation), &
                 rhs(nrotation, 2), rotation_gradient(nrotation, 1), &
                 rotation_hessian(nrotation, nrotation), &
@@ -1614,6 +1619,7 @@ CONTAINS
                 schur_block(nrotation, nrotation), solution(nrotation, 2), &
                 channel_rayleigh_response(nmo, nrotation, nlocal_channels), &
                 channel_rotation_hessian(nrotation, nrotation, nlocal_channels), &
+                channel_rotation_gradient(nrotation, nlocal_channels), &
                 channel_response_weight(nmo, nlocal_channels), &
                 channel_generator(nmo, nmo, nlocal_channels), density_modes(nmo, nmo, 2))
       curvature_sum(:) = 0.0_dp
@@ -1624,9 +1630,11 @@ CONTAINS
       previous_rotation_step(:, :) = 0.0_dp
       channel_rayleigh_response(:, :, :) = 0.0_dp
       channel_rotation_hessian(:, :, :) = 0.0_dp
+      channel_rotation_gradient(:, :) = 0.0_dp
       channel_response_weight(:, :) = 0.0_dp
       channel_generator(:, :, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       failure = 0
+      response_cross = 0.0_dp
 
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
@@ -1656,6 +1664,7 @@ CONTAINS
             CALL qs_ot_finite_rotation_response( &
                chc, generator, trial_occupation(:, ikpoint, ispin), wkp(ikpoint), &
                rotation_gradient(:, 1), rotation_hessian, rayleigh_response)
+            channel_rotation_gradient(:, local_channel) = rotation_gradient(:, 1)
             channel_rotation_hessian(:, :, local_channel) = rotation_hessian
             channel_response_weight(:, local_channel) = response_weight
             CALL qs_ot_fixed_n_schur_block( &
@@ -1702,12 +1711,13 @@ CONTAINS
          DEALLOCATE (coupling, curvature_sum, energy_count, energy_mean, energy_metric_step, &
                      energy_shift, energy_weighted_sum, rayleigh_step, response_curvature, &
                      response_weight, shadow_curvature, shadow_energy_mean, &
-                     shadow_energy_weighted_sum, &
+                     shadow_energy_metric_step, shadow_energy_weighted_sum, shadow_rayleigh_step, &
                      rotation_count, rotation_norm, rotation_scale, schur_rhs, vy, vz, &
                      rayleigh_response, rhs, rotation_gradient, rotation_hessian, &
                      previous_rotation_step, rotation_step, &
                      rotation_y, rotation_z, schur_block, solution, channel_rayleigh_response, &
-                     channel_rotation_hessian, channel_response_weight, channel_generator, &
+                     channel_rotation_hessian, channel_rotation_gradient, channel_response_weight, &
+                     channel_generator, &
                      density_modes)
          RETURN
       END IF
@@ -1819,9 +1829,9 @@ CONTAINS
       CALL para_env_inter_kp%sum(energy_weighted_sum)
       energy_mean(:) = 0.0_dp
       DO group = 1, ngroups
-         IF (curvature_sum(group) > EPSILON(curvature_sum(group))) then
-           energy_mean(group) = energy_weighted_sum(group)/curvature_sum(group)
-         end if
+         IF (curvature_sum(group) > EPSILON(curvature_sum(group))) THEN
+            energy_mean(group) = energy_weighted_sum(group)/curvature_sum(group)
+         END IF
       END DO
 
       response_curvature(:) = 0.0_dp
@@ -1863,12 +1873,13 @@ CONTAINS
          CALL para_env_inter_kp%sum(shadow_energy_weighted_sum)
          shadow_energy_mean(:) = 0.0_dp
          DO group = 1, ngroups
-            IF (curvature_sum(group) > EPSILON(curvature_sum(group))) then
-              shadow_energy_mean(group) = shadow_energy_weighted_sum(group)/curvature_sum(group)
-            end if
+            IF (curvature_sum(group) > EPSILON(curvature_sum(group))) THEN
+               shadow_energy_mean(group) = shadow_energy_weighted_sum(group)/curvature_sum(group)
+            END IF
          END DO
 
          shadow_curvature(:) = 0.0_dp
+         projected_gradient(:) = 0.0_dp
          DO local_kpoint = 1, SIZE(kpoints%kp_env)
             kp => kpoints%kp_env(local_kpoint)%kpoint_env
             ikpoint = kp%nkpoint
@@ -1876,19 +1887,49 @@ CONTAINS
                group = MERGE(ispin, 1, ngroups == nspin_ot)
                local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
                energy_metric_step(:) = channel_response_weight(:, local_channel)* &
-                                       (local_ot_env(local_channel)%ener_dx - &
-                                        shadow_energy_mean(group))
+                                       (local_ot_env(local_channel)%ener_response_gx - &
+                                        energy_mean(group))
+               shadow_energy_metric_step(:) = channel_response_weight(:, local_channel)* &
+                                              (local_ot_env(local_channel)%ener_dx - &
+                                               shadow_energy_mean(group))
                rayleigh_step(:) = MATMUL(channel_rayleigh_response(:, :, local_channel), &
+                                         rotation_step(:, local_channel))
+               shadow_rayleigh_step(:) = MATMUL( &
+                                         channel_rayleigh_response(:, :, local_channel), &
                                          previous_rotation_step(:, local_channel))
                shadow_curvature(group) = shadow_curvature(group) + &
                                          DOT_PRODUCT(previous_rotation_step(:, local_channel), &
                                                      MATMUL(channel_rotation_hessian(:, :, local_channel), &
                                                             previous_rotation_step(:, local_channel))) - &
-                                         2.0_dp*DOT_PRODUCT(rayleigh_step, energy_metric_step) + &
-                                         DOT_PRODUCT(local_ot_env(local_channel)%ener_dx, energy_metric_step)
+                                         2.0_dp*DOT_PRODUCT(shadow_rayleigh_step, &
+                                                            shadow_energy_metric_step) + &
+                                         DOT_PRODUCT(local_ot_env(local_channel)%ener_dx, &
+                                                     shadow_energy_metric_step)
+               response_cross = response_cross + &
+                                DOT_PRODUCT(rotation_step(:, local_channel), &
+                                            MATMUL(channel_rotation_hessian(:, :, local_channel), &
+                                                   previous_rotation_step(:, local_channel))) - &
+                                DOT_PRODUCT(rayleigh_step, shadow_energy_metric_step) - &
+                                DOT_PRODUCT(shadow_rayleigh_step, energy_metric_step) + &
+                                0.5_dp*( &
+                                DOT_PRODUCT(local_ot_env(local_channel)%ener_response_gx, &
+                                            shadow_energy_metric_step) + &
+                                DOT_PRODUCT(local_ot_env(local_channel)%ener_dx, energy_metric_step))
+               projected_gradient(1) = projected_gradient(1) + &
+                                       DOT_PRODUCT(channel_rotation_gradient(:, local_channel), &
+                                                   rotation_step(:, local_channel)) + &
+                                       DOT_PRODUCT(local_ot_env(local_channel)%ener_gx, &
+                                                   local_ot_env(local_channel)%ener_response_gx)
+               projected_gradient(2) = projected_gradient(2) + &
+                                       DOT_PRODUCT(channel_rotation_gradient(:, local_channel), &
+                                                   previous_rotation_step(:, local_channel)) + &
+                                       DOT_PRODUCT(local_ot_env(local_channel)%ener_gx, &
+                                                   local_ot_env(local_channel)%ener_dx)
             END DO
          END DO
          CALL para_env_inter_kp%sum(shadow_curvature)
+         CALL para_env_inter_kp%sum(response_cross)
+         CALL para_env_inter_kp%sum(projected_gradient)
          local_ot_env(1)%response_shadow_curvature = SUM(shadow_curvature)
       END IF
 
@@ -1964,17 +2005,104 @@ CONTAINS
          END IF
          local_ot_env(1)%response_hxc_secant_slope = &
             hxc_response_work/MAX(hxc_density_norm_sq, TINY(1.0_dp))
+
+         IF (shadow_pending) THEN
+            projected_hessian(1, 1) = SUM(response_curvature)
+            projected_hessian(1, 2) = response_cross
+            projected_hessian(2, 1) = response_cross
+            projected_hessian(2, 2) = SUM(shadow_curvature)
+            CALL qs_ot_projected_response_update( &
+               projected_hessian, hxc_correction, projected_coefficients, projected_update_valid, &
+               projected_gradient=projected_gradient)
+            IF (projected_update_valid) THEN
+               rotation_norm(:) = 0.0_dp
+               rotation_count(:) = 0.0_dp
+               DO local_kpoint = 1, SIZE(kpoints%kp_env)
+                  kp => kpoints%kp_env(local_kpoint)%kpoint_env
+                  ikpoint = kp%nkpoint
+                  DO ispin = 1, nspin_ot
+                     group = MERGE(ispin, 1, ngroups == nspin_ot)
+                     local_channel = &
+                        qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+                     rotation_step(:, local_channel) = &
+                        projected_coefficients(1)*rotation_step(:, local_channel) + &
+                        projected_coefficients(2)*previous_rotation_step(:, local_channel)
+                     local_ot_env(local_channel)%ener_response_gx(:) = &
+                        projected_coefficients(1)* &
+                        local_ot_env(local_channel)%ener_response_gx + &
+                        projected_coefficients(2)*local_ot_env(local_channel)%ener_dx
+                     rotation_norm(group) = rotation_norm(group) + &
+                                            DOT_PRODUCT(rotation_step(:, local_channel), &
+                                                        rotation_step(:, local_channel))
+                     rotation_count(group) = rotation_count(group) + REAL(nrotation, KIND=dp)
+                  END DO
+               END DO
+               CALL para_env_inter_kp%sum(rotation_norm)
+               CALL para_env_inter_kp%sum(rotation_count)
+               response_scale = 1.0_dp
+               IF (SUM(rotation_norm) > EPSILON(SUM(rotation_norm))) THEN
+                  response_scale = MIN( &
+                                   1.0_dp, rotation_trust_rms* &
+                                   SQRT(SUM(rotation_count)/SUM(rotation_norm)))
+               END IF
+               DO local_kpoint = 1, SIZE(kpoints%kp_env)
+                  kp => kpoints%kp_env(local_kpoint)%kpoint_env
+                  ikpoint = kp%nkpoint
+                  DO ispin = 1, nspin_ot
+                     local_channel = &
+                        qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+                     rotation_step(:, local_channel) = &
+                        response_scale*rotation_step(:, local_channel)
+                     local_ot_env(local_channel)%ener_response_gx(:) = &
+                        response_scale*local_ot_env(local_channel)%ener_response_gx
+                     ALLOCATE (dense_re(nmo, nmo), dense_im(nmo, nmo))
+                     dense_re(:, :) = 0.0_dp
+                     dense_im(:, :) = 0.0_dp
+                     r = 0
+                     DO i = 1, nmo - 1
+                        DO j = i + 1, nmo
+                           r = r + 1
+                           dense_re(i, j) = rotation_step(r, local_channel)
+                           dense_re(j, i) = -rotation_step(r, local_channel)
+                           r = r + 1
+                           dense_im(i, j) = rotation_step(r, local_channel)
+                           dense_im(j, i) = rotation_step(r, local_channel)
+                        END DO
+                     END DO
+                     CPASSERT(r == nrotation)
+                     CALL qs_scf_loop_ot_dense_to_matrix( &
+                        dense_re, local_ot_env(local_channel), &
+                        local_ot_env(local_channel)%rot_mat_response_gx)
+                     CALL qs_scf_loop_ot_dense_to_matrix( &
+                        dense_im, local_ot_env(local_channel), &
+                        local_ot_env(local_channel)%rot_mat_response_gx_im)
+                     DEALLOCATE (dense_im, dense_re)
+                  END DO
+               END DO
+               local_ot_env(1)%response_hxc_direction_valid = .TRUE.
+               local_ot_env(1)%response_hxc_direction_mix(:) = &
+                  response_scale*projected_coefficients
+               local_ot_env(1)%response_hxc_model_curvature = response_scale**2* &
+                                                              DOT_PRODUCT(projected_coefficients, &
+                                                                          MATMUL(hxc_correction, projected_coefficients))
+               local_ot_env(1)%response_model_curvature = response_scale**2* &
+                                                          DOT_PRODUCT(projected_coefficients, &
+                                                                      MATMUL(projected_hessian + hxc_correction, &
+                                                                             projected_coefficients))
+            END IF
+         END IF
       END IF
 
       DEALLOCATE (coupling, curvature_sum, energy_count, energy_mean, energy_metric_step, &
                   energy_shift, energy_weighted_sum, rayleigh_step, response_curvature, &
                   response_weight, shadow_curvature, shadow_energy_mean, &
-                  shadow_energy_weighted_sum, &
+                  shadow_energy_metric_step, shadow_energy_weighted_sum, shadow_rayleigh_step, &
                   rotation_count, rotation_norm, rotation_scale, schur_rhs, vy, vz, &
                   rayleigh_response, rhs, rotation_gradient, rotation_hessian, &
                   previous_rotation_step, rotation_step, &
                   rotation_y, rotation_z, schur_block, solution, channel_rayleigh_response, &
-                  channel_rotation_hessian, channel_response_weight, channel_generator, &
+                  channel_rotation_hessian, channel_rotation_gradient, channel_response_weight, &
+                  channel_generator, &
                   density_modes)
 
    END SUBROUTINE qs_scf_loop_prepare_ot_kp_rotation_response
