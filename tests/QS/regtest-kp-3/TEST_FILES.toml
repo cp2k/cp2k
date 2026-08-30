@@ -49,4 +49,8 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "li_ot_fixed_uks_restart.inp"           = [{matcher="E_total", tol=1e-9, ref=-7.304793043804057},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"lih_ot_fixed_force_stress.inp"         = [{matcher="E_total", tol=1e-9, ref=-7.887175453793000},
+                                           {matcher="M072", tol=1e-6, ref=1.25935756E-01},
+                                           {matcher="M031", tol=1e-6, ref=-1.27602641422E+04},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=1}]
 #EOF
