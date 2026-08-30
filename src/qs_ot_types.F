@@ -237,6 +237,8 @@ MODULE qs_ot_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rot_mat_h_x_im => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_gx => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_gx_im => NULL()
+      TYPE(dbcsr_type), POINTER :: rot_mat_response_gx => NULL()
+      TYPE(dbcsr_type), POINTER :: rot_mat_response_gx_im => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_gx_old => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_gx_old_im => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_dx => NULL()
@@ -245,6 +247,27 @@ MODULE qs_ot_types
       REAL(KIND=dp), DIMENSION(:), POINTER :: rot_mat_evals => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_evec_re => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_evec_im => NULL()
+      LOGICAL                   :: rotation_response_valid = .FALSE.
+      LOGICAL                   :: response_candidate_pending = .FALSE.
+      LOGICAL                   :: response_shadow_pending = .FALSE.
+      INTEGER                   :: response_candidate_directions = 0
+      INTEGER                   :: response_candidate_samples = 0
+      INTEGER                   :: response_candidate_good_samples = 0
+      INTEGER                   :: response_candidate_cooldown = 0
+      INTEGER                   :: response_shadow_samples = 0
+      INTEGER                   :: response_shadow_good_samples = 0
+      REAL(KIND=dp)             :: response_model_curvature = 0.0_dp
+      REAL(KIND=dp)             :: response_shadow_curvature = 0.0_dp
+      REAL(KIND=dp)             :: response_reference_energy = 0.0_dp
+      REAL(KIND=dp)             :: response_reference_residual = 0.0_dp
+      REAL(KIND=dp)             :: response_predicted_slope = 0.0_dp
+      REAL(KIND=dp)             :: response_predicted_curvature = 0.0_dp
+      REAL(KIND=dp)             :: response_quality = 0.0_dp
+      REAL(KIND=dp)             :: response_quality_ema = 0.0_dp
+      REAL(KIND=dp)             :: response_residual_ratio = 1.0_dp
+      REAL(KIND=dp)             :: response_residual_ratio_ema = 1.0_dp
+      REAL(KIND=dp)             :: response_shadow_advantage = 0.0_dp
+      REAL(KIND=dp)             :: response_shadow_advantage_ema = 0.0_dp
 
       ! third part of the variables, if we need to optimize orbital energies
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_x => NULL()
@@ -252,6 +275,7 @@ MODULE qs_ot_types
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_dx => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_gx => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_preconditioned_gx => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_response_gx => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_gx_old => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:, :) :: ener_h_e => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:, :) :: ener_h_x => NULL()
@@ -582,11 +606,38 @@ CONTAINS
          CALL dbcsr_set(qs_ot_env%rot_mat_dedu, 0.0_dp)
          CALL dbcsr_set(qs_ot_env%rot_mat_chc, 0.0_dp)
          CALL dbcsr_set(qs_ot_env%rot_mat_gx, 0.0_dp)
+         IF (ASSOCIATED(qs_ot_env%rot_mat_response_gx)) THEN
+            CALL dbcsr_set(qs_ot_env%rot_mat_response_gx, 0.0_dp)
+         END IF
          IF (ASSOCIATED(qs_ot_env%rot_mat_u_im)) CALL dbcsr_set(qs_ot_env%rot_mat_u_im, 0.0_dp)
          IF (ASSOCIATED(qs_ot_env%rot_mat_x_im)) CALL dbcsr_set(qs_ot_env%rot_mat_x_im, 0.0_dp)
          IF (ASSOCIATED(qs_ot_env%rot_mat_dedu_im)) CALL dbcsr_set(qs_ot_env%rot_mat_dedu_im, 0.0_dp)
          IF (ASSOCIATED(qs_ot_env%rot_mat_chc_im)) CALL dbcsr_set(qs_ot_env%rot_mat_chc_im, 0.0_dp)
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx_im)) CALL dbcsr_set(qs_ot_env%rot_mat_gx_im, 0.0_dp)
+         IF (ASSOCIATED(qs_ot_env%rot_mat_response_gx_im)) THEN
+            CALL dbcsr_set(qs_ot_env%rot_mat_response_gx_im, 0.0_dp)
+         END IF
+         qs_ot_env%rotation_response_valid = .FALSE.
+         qs_ot_env%response_candidate_pending = .FALSE.
+         qs_ot_env%response_shadow_pending = .FALSE.
+         qs_ot_env%response_candidate_directions = 0
+         qs_ot_env%response_candidate_samples = 0
+         qs_ot_env%response_candidate_good_samples = 0
+         qs_ot_env%response_candidate_cooldown = 0
+         qs_ot_env%response_shadow_samples = 0
+         qs_ot_env%response_shadow_good_samples = 0
+         qs_ot_env%response_model_curvature = 0.0_dp
+         qs_ot_env%response_shadow_curvature = 0.0_dp
+         qs_ot_env%response_reference_energy = 0.0_dp
+         qs_ot_env%response_reference_residual = 0.0_dp
+         qs_ot_env%response_predicted_slope = 0.0_dp
+         qs_ot_env%response_predicted_curvature = 0.0_dp
+         qs_ot_env%response_quality = 0.0_dp
+         qs_ot_env%response_quality_ema = 0.0_dp
+         qs_ot_env%response_residual_ratio = 1.0_dp
+         qs_ot_env%response_residual_ratio_ema = 1.0_dp
+         qs_ot_env%response_shadow_advantage = 0.0_dp
+         qs_ot_env%response_shadow_advantage_ema = 0.0_dp
          IF (qs_ot_env%use_dx) THEN
             CALL dbcsr_set(qs_ot_env%rot_mat_dx, 0.0_dp)
             IF (ASSOCIATED(qs_ot_env%rot_mat_dx_im)) CALL dbcsr_set(qs_ot_env%rot_mat_dx_im, 0.0_dp)
@@ -602,6 +653,7 @@ CONTAINS
          IF (ASSOCIATED(qs_ot_env%ener_preconditioned_gx)) THEN
             qs_ot_env%ener_preconditioned_gx(:) = 0.0_dp
          END IF
+         IF (ASSOCIATED(qs_ot_env%ener_response_gx)) qs_ot_env%ener_response_gx(:) = 0.0_dp
          IF (qs_ot_env%use_dx) THEN
             qs_ot_env%ener_dx(:) = 0.0_dp
          END IF
@@ -932,7 +984,8 @@ CONTAINS
                qs_ot_env%rot_mat_x, qs_ot_env%rot_mat_x_im, &
                qs_ot_env%rot_mat_h_e, qs_ot_env%rot_mat_h_x, &
                qs_ot_env%rot_mat_h_e_im, qs_ot_env%rot_mat_h_x_im, qs_ot_env%rot_mat_gx, &
-               qs_ot_env%rot_mat_gx_im, qs_ot_env%rot_mat_gx_old, &
+               qs_ot_env%rot_mat_gx_im, qs_ot_env%rot_mat_response_gx, &
+               qs_ot_env%rot_mat_response_gx_im, qs_ot_env%rot_mat_gx_old, &
                qs_ot_env%rot_mat_gx_old_im, qs_ot_env%rot_mat_dx, qs_ot_env%rot_mat_dx_im, &
                qs_ot_env%rot_mat_evals, qs_ot_env%rot_mat_dedu, qs_ot_env%rot_mat_dedu_im, &
                qs_ot_env%rot_mat_chc, qs_ot_env%rot_mat_chc_im, &
@@ -985,6 +1038,13 @@ CONTAINS
          CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx, template=matrix_s, m=k, n=k, &
                                             sym=dbcsr_type_no_symmetry)
 
+         IF (qs_ot_env%settings%occupation_preconditioner) THEN
+            CALL dbcsr_init_p(qs_ot_env%rot_mat_response_gx)
+            CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_response_gx, &
+                                               template=matrix_s, m=k, n=k, &
+                                               sym=dbcsr_type_no_symmetry)
+         END IF
+
          IF (qs_ot_env%use_gx_old) THEN
             CALL dbcsr_init_p(qs_ot_env%rot_mat_gx_old)
             CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx_old, template=matrix_s, m=k, n=k, &
@@ -1018,6 +1078,7 @@ CONTAINS
          ALLOCATE (qs_ot_env%ener_gx(ncoef))
          IF (qs_ot_env%settings%occupation_preconditioner) THEN
             ALLOCATE (qs_ot_env%ener_preconditioned_gx(ncoef))
+            ALLOCATE (qs_ot_env%ener_response_gx(ncoef))
          END IF
 
          IF (qs_ot_env%use_gx_old) THEN
@@ -1206,6 +1267,12 @@ CONTAINS
          IF (ASSOCIATED(qs_ot_env%rot_mat_evec_im)) CALL dbcsr_release_p(qs_ot_env%rot_mat_evec_im)
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx)
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx_im)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx_im)
+         IF (ASSOCIATED(qs_ot_env%rot_mat_response_gx)) THEN
+            CALL dbcsr_release_p(qs_ot_env%rot_mat_response_gx)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%rot_mat_response_gx_im)) THEN
+            CALL dbcsr_release_p(qs_ot_env%rot_mat_response_gx_im)
+         END IF
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx_old)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx_old)
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx_old_im)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx_old_im)
          IF (ASSOCIATED(qs_ot_env%rot_mat_dx)) CALL dbcsr_release_p(qs_ot_env%rot_mat_dx)
@@ -1219,6 +1286,7 @@ CONTAINS
          IF (ASSOCIATED(qs_ot_env%ener_preconditioned_gx)) THEN
             DEALLOCATE (qs_ot_env%ener_preconditioned_gx)
          END IF
+         IF (ASSOCIATED(qs_ot_env%ener_response_gx)) DEALLOCATE (qs_ot_env%ener_response_gx)
          IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
              qs_ot_env%settings%ot_method == "BROY" .OR. &
              qs_ot_env%settings%ot_method == "LBFG") THEN

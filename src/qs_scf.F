@@ -2534,6 +2534,12 @@ CONTAINS
          CALL dbcsr_init_p(qs_ot_env%rot_mat_gx_im)
          CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx_im, template=matrix_s, m=nmo, n=nmo, &
                                             sym=dbcsr_type_no_symmetry)
+         IF (qs_ot_env%settings%occupation_preconditioner) THEN
+            CALL dbcsr_init_p(qs_ot_env%rot_mat_response_gx_im)
+            CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_response_gx_im, &
+                                               template=matrix_s, m=nmo, n=nmo, &
+                                               sym=dbcsr_type_no_symmetry)
+         END IF
          IF (qs_ot_env%use_dx) THEN
             CALL dbcsr_init_p(qs_ot_env%rot_mat_dx_im)
             CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_dx_im, template=matrix_s, m=nmo, n=nmo, &
