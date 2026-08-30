@@ -32,7 +32,8 @@ MODULE qs_ot
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_heevd,&
                                               cp_dbcsr_syevd
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: diag_complex
+   USE mathlib,                         ONLY: diag_complex,&
+                                              diamat_all
    USE message_passing,                 ONLY: mp_comm_type
    USE preconditioner,                  ONLY: apply_preconditioner
    USE preconditioner_types,            ONLY: preconditioner_type
@@ -60,6 +61,7 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_fixed_n_projector_frechet
    PUBLIC  :: qs_ot_fixed_n_response_mu_shift
    PUBLIC  :: qs_ot_finite_rotation_response
+   PUBLIC  :: qs_ot_symmetric_abs_solve
    PUBLIC  :: qs_ot_generate_rotation
    PUBLIC  :: qs_ot_generate_rotation_complex
    PUBLIC  :: qs_ot_rot_mat_derivative
@@ -222,6 +224,57 @@ CONTAINS
                      MATMUL(TRANSPOSE(rayleigh_response), energy_gradient)
 
    END SUBROUTINE qs_ot_fixed_n_schur_block
+
+! **************************************************************************************************
+!> \brief apply a positive spectral inverse of a real symmetric response matrix
+!>
+!>        The magnitude of every resolved eigenmode is retained, including modes with negative
+!>        physical curvature. Replacing lambda by abs(lambda) gives a descent metric without the
+!>        loss of response information caused by discarding the negative subspace.
+!> \param matrix real symmetric response matrix
+!> \param rhs one or more right-hand sides
+!> \param solution spectral-absolute inverse applied to rhs
+!> \param valid whether finite input and output were obtained
+!> \param relative_floor optional relative eigenvalue floor
+! **************************************************************************************************
+   SUBROUTINE qs_ot_symmetric_abs_solve(matrix, rhs, solution, valid, relative_floor)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)          :: matrix, rhs
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)         :: solution
+      LOGICAL, INTENT(OUT)                                :: valid
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                 :: relative_floor
+
+      INTEGER                                             :: i, n
+      REAL(KIND=dp)                                       :: eigenvalue_floor, relative_floor_eff, scale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: eigenvalues
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: eigenvectors, work
+
+      n = SIZE(matrix, 1)
+      CPASSERT(ALL(SHAPE(matrix) == [n, n]))
+      CPASSERT(SIZE(rhs, 1) == n)
+      CPASSERT(ALL(SHAPE(solution) == SHAPE(rhs)))
+      valid = ALL(matrix == matrix) .AND. ALL(rhs == rhs)
+      IF (.NOT. valid) THEN
+         solution(:, :) = 0.0_dp
+         RETURN
+      END IF
+
+      relative_floor_eff = SQRT(EPSILON(1.0_dp))
+      IF (PRESENT(relative_floor)) relative_floor_eff = MAX(relative_floor, relative_floor_eff)
+      ALLOCATE (eigenvalues(n), eigenvectors(n, n), work(n, SIZE(rhs, 2)))
+      eigenvectors(:, :) = 0.5_dp*(matrix + TRANSPOSE(matrix))
+      CALL diamat_all(eigenvectors, eigenvalues)
+      scale = MAX(1.0_dp, MAXVAL(ABS(eigenvalues)))
+      eigenvalue_floor = relative_floor_eff*scale
+      work(:, :) = MATMUL(TRANSPOSE(eigenvectors), rhs)
+      DO i = 1, n
+         work(i, :) = work(i, :)/MAX(ABS(eigenvalues(i)), eigenvalue_floor)
+      END DO
+      solution(:, :) = MATMUL(eigenvectors, work)
+      valid = ALL(solution == solution)
+      IF (.NOT. valid) solution(:, :) = 0.0_dp
+      DEALLOCATE (eigenvalues, eigenvectors, work)
+
+   END SUBROUTINE qs_ot_symmetric_abs_solve
 
 ! **************************************************************************************************
 !> \brief fixed-N Frechet derivative of a smooth occupation projector

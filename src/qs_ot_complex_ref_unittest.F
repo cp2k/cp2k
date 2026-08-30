@@ -57,7 +57,8 @@ PROGRAM qs_ot_complex_ref_unittest
         qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, &
         qs_ot_fixed_n_energy_hessian, qs_ot_fixed_n_projector_frechet, qs_ot_fixed_n_schur_block, &
         qs_ot_generate_rotation, qs_ot_get_derivative_complex, qs_ot_get_derivative_ref_complex, &
-        qs_ot_get_orbitals_ref_complex, qs_ot_get_p_complex, qs_ot_rot_mat_derivative
+        qs_ot_get_orbitals_ref_complex, qs_ot_get_p_complex, qs_ot_rot_mat_derivative, &
+        qs_ot_symmetric_abs_solve
    USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
                                               qs_ot_kpoint_preconditioner_solver_supported,&
                                               qs_ot_kpoint_preconditioner_supported,&
@@ -98,6 +99,7 @@ PROGRAM qs_ot_complex_ref_unittest
    CALL test_fixed_n_projector_frechet(mynode, nfail)
    CALL test_finite_rotation_response(mynode, nfail)
    CALL test_fixed_n_rotation_schur(mynode, nfail)
+   CALL test_symmetric_abs_solve(mynode, nfail)
    ALLOCATE (para_env)
    CALL para_env%from_dup(mp_comm)
    CALL cp_logger_create(logger, para_env=para_env, default_global_unit_nr=io_unit, &
@@ -584,6 +586,41 @@ CONTAINS
       END IF
 
    END SUBROUTINE test_fixed_n_rotation_schur
+
+! **************************************************************************************************
+!> \brief Check that positive and negative response modes retain their spectral magnitude.
+!> \param mynode MPI rank
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_symmetric_abs_solve(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      LOGICAL                                            :: valid
+      REAL(KIND=dp)                                      :: error
+      REAL(KIND=dp), DIMENSION(3)                        :: eigenvalues
+      REAL(KIND=dp), DIMENSION(3, 2)                     :: expected, rhs, solution
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: absolute_matrix, matrix, vectors
+
+      vectors(:, 1) = [0.8_dp, 0.6_dp, 0.0_dp]
+      vectors(:, 2) = [-0.6_dp, 0.8_dp, 0.0_dp]
+      vectors(:, 3) = [0.0_dp, 0.0_dp, 1.0_dp]
+      eigenvalues(:) = [-0.4_dp, 1.7_dp, 0.25_dp]
+      matrix(:, :) = MATMUL(vectors, MATMUL( &
+         RESHAPE([eigenvalues(1), 0.0_dp, 0.0_dp, 0.0_dp, eigenvalues(2), 0.0_dp, &
+                  0.0_dp, 0.0_dp, eigenvalues(3)], [3, 3]), TRANSPOSE(vectors)))
+      absolute_matrix(:, :) = MATMUL(vectors, MATMUL( &
+         RESHAPE([ABS(eigenvalues(1)), 0.0_dp, 0.0_dp, 0.0_dp, ABS(eigenvalues(2)), 0.0_dp, &
+                  0.0_dp, 0.0_dp, ABS(eigenvalues(3))], [3, 3]), TRANSPOSE(vectors)))
+      rhs(:, 1) = [0.3_dp, -0.5_dp, 0.7_dp]
+      rhs(:, 2) = [-0.2_dp, 0.4_dp, 0.1_dp]
+      CALL qs_ot_symmetric_abs_solve(matrix, rhs, solution, valid)
+      expected(:, :) = MATMUL(absolute_matrix, solution)
+      error = MAXVAL(ABS(expected - rhs))
+      IF (.NOT. valid .OR. error > 2.0E-13_dp) nfail = nfail + 1
+      IF (mynode == 0) WRITE (io_unit, '(A,1X,ES13.6)') "symmetric absolute solve error:", error
+
+   END SUBROUTINE test_symmetric_abs_solve
 
 ! **************************************************************************************************
 !> \brief fixed-occupation band energy for a dense finite rotation
