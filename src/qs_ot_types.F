@@ -31,6 +31,8 @@ MODULE qs_ot_types
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                               cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE input_constants,                 ONLY: &
         cholesky_reduce, ls_2pnt, ls_3pnt, ls_adapt, ls_gold, ls_none, ot_algo_irac, &
         ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, &
@@ -174,7 +176,21 @@ MODULE qs_ot_types
       TYPE(dbcsr_type), POINTER :: matrix_x_im => NULL(), matrix_sx_im => NULL(), matrix_gx_im => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_preconditioned_gx => NULL(), &
                                    matrix_preconditioned_gx_im => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_response_gx => NULL(), matrix_response_gx_im => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_mermin_g0 => NULL(), matrix_mermin_g0_im => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_ref_inv_sqrt => NULL(), matrix_ref_inv_sqrt_im => NULL()
+      ! Owned physical endpoints for the bounded, gauge-invariant Hxc response secant.
+      TYPE(cp_fm_type), POINTER :: fm_mermin_c0 => NULL(), fm_mermin_c0_im => NULL()
+      TYPE(cp_fm_type), POINTER :: fm_mermin_h0 => NULL(), fm_mermin_h0_im => NULL()
+      TYPE(cp_fm_type), POINTER :: fm_mermin_c_previous => NULL(), &
+                                   fm_mermin_c_previous_im => NULL()
+      TYPE(cp_fm_type), POINTER :: fm_mermin_y_previous => NULL(), &
+                                   fm_mermin_y_previous_im => NULL()
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mermin_occupation0, &
+                                                  mermin_occupation_previous, &
+                                                  ener_mermin_g0
+      LOGICAL :: mermin_physical_ref_valid = .FALSE., mermin_physical_secant_valid = .FALSE.
+      LOGICAL :: mermin_gradient_ref_valid = .FALSE.
       TYPE(dbcsr_type), POINTER :: matrix_dx => NULL(), matrix_gx_old => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_dx_im => NULL(), matrix_gx_old_im => NULL()
 
@@ -225,6 +241,10 @@ MODULE qs_ot_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rot_mat_h_x_im => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_gx => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_gx_im => NULL()
+      TYPE(dbcsr_type), POINTER :: rot_mat_response_gx => NULL()
+      TYPE(dbcsr_type), POINTER :: rot_mat_response_gx_im => NULL()
+      TYPE(dbcsr_type), POINTER :: rot_mat_mermin_g0 => NULL()
+      TYPE(dbcsr_type), POINTER :: rot_mat_mermin_g0_im => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_gx_old => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_gx_old_im => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_dx => NULL()
@@ -233,6 +253,25 @@ MODULE qs_ot_types
       REAL(KIND=dp), DIMENSION(:), POINTER :: rot_mat_evals => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_evec_re => NULL()
       TYPE(dbcsr_type), POINTER :: rot_mat_evec_im => NULL()
+      LOGICAL                   :: rotation_response_valid = .FALSE.
+      LOGICAL                   :: response_candidate_pending = .FALSE.
+      LOGICAL                   :: response_shadow_pending = .FALSE.
+      INTEGER                   :: response_candidate_directions = 0
+      INTEGER                   :: response_candidate_good_samples = 0
+      INTEGER                   :: response_candidate_cooldown = 0
+      INTEGER                   :: response_shadow_good_samples = 0
+      REAL(KIND=dp)             :: response_model_curvature = 0.0_dp
+      REAL(KIND=dp)             :: response_shadow_curvature = 0.0_dp
+      REAL(KIND=dp)             :: response_hxc_model_curvature = 0.0_dp
+      REAL(KIND=dp)             :: response_hxc_shadow_curvature = 0.0_dp
+      LOGICAL                   :: response_hxc_valid = .FALSE.
+      LOGICAL                   :: response_hxc_direction_valid = .FALSE.
+      LOGICAL                   :: response_gradient_cross_valid = .FALSE.
+      REAL(KIND=dp)             :: response_gradient_cross_curvature = 0.0_dp
+      REAL(KIND=dp)             :: response_reference_energy = 0.0_dp
+      REAL(KIND=dp)             :: response_reference_residual = 0.0_dp
+      REAL(KIND=dp)             :: response_predicted_slope = 0.0_dp
+      REAL(KIND=dp)             :: response_predicted_curvature = 0.0_dp
 
       ! third part of the variables, if we need to optimize orbital energies
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_x => NULL()
@@ -240,6 +279,7 @@ MODULE qs_ot_types
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_dx => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_gx => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_preconditioned_gx => NULL()
+      REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_response_gx => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_gx_old => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:, :) :: ener_h_e => NULL()
       REAL(KIND=dp), POINTER, DIMENSION(:, :) :: ener_h_x => NULL()
@@ -541,6 +581,15 @@ CONTAINS
       IF (ASSOCIATED(qs_ot_env%matrix_preconditioned_gx_im)) THEN
          CALL dbcsr_set(qs_ot_env%matrix_preconditioned_gx_im, 0.0_dp)
       END IF
+      IF (ASSOCIATED(qs_ot_env%matrix_response_gx)) CALL dbcsr_set(qs_ot_env%matrix_response_gx, 0.0_dp)
+      IF (ASSOCIATED(qs_ot_env%matrix_response_gx_im)) THEN
+         CALL dbcsr_set(qs_ot_env%matrix_response_gx_im, 0.0_dp)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%matrix_mermin_g0)) CALL dbcsr_set(qs_ot_env%matrix_mermin_g0, 0.0_dp)
+      IF (ASSOCIATED(qs_ot_env%matrix_mermin_g0_im)) THEN
+         CALL dbcsr_set(qs_ot_env%matrix_mermin_g0_im, 0.0_dp)
+      END IF
+      qs_ot_env%mermin_gradient_ref_valid = .FALSE.
 
       IF (qs_ot_env%use_dx) THEN
          CALL dbcsr_set(qs_ot_env%matrix_dx, 0.0_dp)
@@ -570,11 +619,42 @@ CONTAINS
          CALL dbcsr_set(qs_ot_env%rot_mat_dedu, 0.0_dp)
          CALL dbcsr_set(qs_ot_env%rot_mat_chc, 0.0_dp)
          CALL dbcsr_set(qs_ot_env%rot_mat_gx, 0.0_dp)
+         IF (ASSOCIATED(qs_ot_env%rot_mat_response_gx)) THEN
+            CALL dbcsr_set(qs_ot_env%rot_mat_response_gx, 0.0_dp)
+         END IF
          IF (ASSOCIATED(qs_ot_env%rot_mat_u_im)) CALL dbcsr_set(qs_ot_env%rot_mat_u_im, 0.0_dp)
          IF (ASSOCIATED(qs_ot_env%rot_mat_x_im)) CALL dbcsr_set(qs_ot_env%rot_mat_x_im, 0.0_dp)
          IF (ASSOCIATED(qs_ot_env%rot_mat_dedu_im)) CALL dbcsr_set(qs_ot_env%rot_mat_dedu_im, 0.0_dp)
          IF (ASSOCIATED(qs_ot_env%rot_mat_chc_im)) CALL dbcsr_set(qs_ot_env%rot_mat_chc_im, 0.0_dp)
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx_im)) CALL dbcsr_set(qs_ot_env%rot_mat_gx_im, 0.0_dp)
+         IF (ASSOCIATED(qs_ot_env%rot_mat_response_gx_im)) THEN
+            CALL dbcsr_set(qs_ot_env%rot_mat_response_gx_im, 0.0_dp)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%rot_mat_mermin_g0)) THEN
+            CALL dbcsr_set(qs_ot_env%rot_mat_mermin_g0, 0.0_dp)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%rot_mat_mermin_g0_im)) THEN
+            CALL dbcsr_set(qs_ot_env%rot_mat_mermin_g0_im, 0.0_dp)
+         END IF
+         qs_ot_env%rotation_response_valid = .FALSE.
+         qs_ot_env%response_candidate_pending = .FALSE.
+         qs_ot_env%response_shadow_pending = .FALSE.
+         qs_ot_env%response_candidate_directions = 0
+         qs_ot_env%response_candidate_good_samples = 0
+         qs_ot_env%response_candidate_cooldown = 0
+         qs_ot_env%response_shadow_good_samples = 0
+         qs_ot_env%response_model_curvature = 0.0_dp
+         qs_ot_env%response_shadow_curvature = 0.0_dp
+         qs_ot_env%response_hxc_model_curvature = 0.0_dp
+         qs_ot_env%response_hxc_shadow_curvature = 0.0_dp
+         qs_ot_env%response_hxc_valid = .FALSE.
+         qs_ot_env%response_hxc_direction_valid = .FALSE.
+         qs_ot_env%response_gradient_cross_valid = .FALSE.
+         qs_ot_env%response_gradient_cross_curvature = 0.0_dp
+         qs_ot_env%response_reference_energy = 0.0_dp
+         qs_ot_env%response_reference_residual = 0.0_dp
+         qs_ot_env%response_predicted_slope = 0.0_dp
+         qs_ot_env%response_predicted_curvature = 0.0_dp
          IF (qs_ot_env%use_dx) THEN
             CALL dbcsr_set(qs_ot_env%rot_mat_dx, 0.0_dp)
             IF (ASSOCIATED(qs_ot_env%rot_mat_dx_im)) CALL dbcsr_set(qs_ot_env%rot_mat_dx_im, 0.0_dp)
@@ -590,6 +670,8 @@ CONTAINS
          IF (ASSOCIATED(qs_ot_env%ener_preconditioned_gx)) THEN
             qs_ot_env%ener_preconditioned_gx(:) = 0.0_dp
          END IF
+         IF (ASSOCIATED(qs_ot_env%ener_response_gx)) qs_ot_env%ener_response_gx(:) = 0.0_dp
+         IF (ALLOCATED(qs_ot_env%ener_mermin_g0)) qs_ot_env%ener_mermin_g0(:) = 0.0_dp
          IF (qs_ot_env%use_dx) THEN
             qs_ot_env%ener_dx(:) = 0.0_dp
          END IF
@@ -724,8 +806,23 @@ CONTAINS
       NULLIFY (qs_ot_env%matrix_gx_im)
       NULLIFY (qs_ot_env%matrix_preconditioned_gx)
       NULLIFY (qs_ot_env%matrix_preconditioned_gx_im)
+      NULLIFY (qs_ot_env%matrix_response_gx)
+      NULLIFY (qs_ot_env%matrix_response_gx_im)
+      NULLIFY (qs_ot_env%matrix_mermin_g0)
+      NULLIFY (qs_ot_env%matrix_mermin_g0_im)
       NULLIFY (qs_ot_env%matrix_ref_inv_sqrt)
       NULLIFY (qs_ot_env%matrix_ref_inv_sqrt_im)
+      NULLIFY (qs_ot_env%fm_mermin_c0)
+      NULLIFY (qs_ot_env%fm_mermin_c0_im)
+      NULLIFY (qs_ot_env%fm_mermin_h0)
+      NULLIFY (qs_ot_env%fm_mermin_h0_im)
+      NULLIFY (qs_ot_env%fm_mermin_c_previous)
+      NULLIFY (qs_ot_env%fm_mermin_c_previous_im)
+      NULLIFY (qs_ot_env%fm_mermin_y_previous)
+      NULLIFY (qs_ot_env%fm_mermin_y_previous_im)
+      qs_ot_env%mermin_physical_ref_valid = .FALSE.
+      qs_ot_env%mermin_physical_secant_valid = .FALSE.
+      qs_ot_env%mermin_gradient_ref_valid = .FALSE.
       NULLIFY (qs_ot_env%matrix_gx_old)
       NULLIFY (qs_ot_env%matrix_gx_old_im)
       NULLIFY (qs_ot_env%matrix_dx)
@@ -910,7 +1007,9 @@ CONTAINS
                qs_ot_env%rot_mat_x, qs_ot_env%rot_mat_x_im, &
                qs_ot_env%rot_mat_h_e, qs_ot_env%rot_mat_h_x, &
                qs_ot_env%rot_mat_h_e_im, qs_ot_env%rot_mat_h_x_im, qs_ot_env%rot_mat_gx, &
-               qs_ot_env%rot_mat_gx_im, qs_ot_env%rot_mat_gx_old, &
+               qs_ot_env%rot_mat_gx_im, qs_ot_env%rot_mat_response_gx, &
+               qs_ot_env%rot_mat_response_gx_im, qs_ot_env%rot_mat_mermin_g0, &
+               qs_ot_env%rot_mat_mermin_g0_im, qs_ot_env%rot_mat_gx_old, &
                qs_ot_env%rot_mat_gx_old_im, qs_ot_env%rot_mat_dx, qs_ot_env%rot_mat_dx_im, &
                qs_ot_env%rot_mat_evals, qs_ot_env%rot_mat_dedu, qs_ot_env%rot_mat_dedu_im, &
                qs_ot_env%rot_mat_chc, qs_ot_env%rot_mat_chc_im, &
@@ -963,6 +1062,13 @@ CONTAINS
          CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx, template=matrix_s, m=k, n=k, &
                                             sym=dbcsr_type_no_symmetry)
 
+         IF (qs_ot_env%settings%occupation_preconditioner) THEN
+            CALL dbcsr_init_p(qs_ot_env%rot_mat_response_gx)
+            CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_response_gx, &
+                                               template=matrix_s, m=k, n=k, &
+                                               sym=dbcsr_type_no_symmetry)
+         END IF
+
          IF (qs_ot_env%use_gx_old) THEN
             CALL dbcsr_init_p(qs_ot_env%rot_mat_gx_old)
             CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx_old, template=matrix_s, m=k, n=k, &
@@ -996,6 +1102,7 @@ CONTAINS
          ALLOCATE (qs_ot_env%ener_gx(ncoef))
          IF (qs_ot_env%settings%occupation_preconditioner) THEN
             ALLOCATE (qs_ot_env%ener_preconditioned_gx(ncoef))
+            ALLOCATE (qs_ot_env%ener_response_gx(ncoef))
          END IF
 
          IF (qs_ot_env%use_gx_old) THEN
@@ -1073,8 +1180,56 @@ CONTAINS
       IF (ASSOCIATED(qs_ot_env%matrix_preconditioned_gx_im)) THEN
          CALL dbcsr_release_p(qs_ot_env%matrix_preconditioned_gx_im)
       END IF
+      IF (ASSOCIATED(qs_ot_env%matrix_response_gx)) CALL dbcsr_release_p(qs_ot_env%matrix_response_gx)
+      IF (ASSOCIATED(qs_ot_env%matrix_response_gx_im)) THEN
+         CALL dbcsr_release_p(qs_ot_env%matrix_response_gx_im)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%matrix_mermin_g0)) CALL dbcsr_release_p(qs_ot_env%matrix_mermin_g0)
+      IF (ASSOCIATED(qs_ot_env%matrix_mermin_g0_im)) THEN
+         CALL dbcsr_release_p(qs_ot_env%matrix_mermin_g0_im)
+      END IF
       IF (ASSOCIATED(qs_ot_env%matrix_ref_inv_sqrt)) CALL dbcsr_release_p(qs_ot_env%matrix_ref_inv_sqrt)
       IF (ASSOCIATED(qs_ot_env%matrix_ref_inv_sqrt_im)) CALL dbcsr_release_p(qs_ot_env%matrix_ref_inv_sqrt_im)
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_c0)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_c0)
+         DEALLOCATE (qs_ot_env%fm_mermin_c0)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_c0_im)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_c0_im)
+         DEALLOCATE (qs_ot_env%fm_mermin_c0_im)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_h0)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_h0)
+         DEALLOCATE (qs_ot_env%fm_mermin_h0)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_h0_im)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_h0_im)
+         DEALLOCATE (qs_ot_env%fm_mermin_h0_im)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_c_previous)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_c_previous)
+         DEALLOCATE (qs_ot_env%fm_mermin_c_previous)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_c_previous_im)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_c_previous_im)
+         DEALLOCATE (qs_ot_env%fm_mermin_c_previous_im)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_y_previous)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_y_previous)
+         DEALLOCATE (qs_ot_env%fm_mermin_y_previous)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_y_previous_im)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_y_previous_im)
+         DEALLOCATE (qs_ot_env%fm_mermin_y_previous_im)
+      END IF
+      IF (ALLOCATED(qs_ot_env%mermin_occupation0)) DEALLOCATE (qs_ot_env%mermin_occupation0)
+      IF (ALLOCATED(qs_ot_env%mermin_occupation_previous)) THEN
+         DEALLOCATE (qs_ot_env%mermin_occupation_previous)
+      END IF
+      IF (ALLOCATED(qs_ot_env%ener_mermin_g0)) DEALLOCATE (qs_ot_env%ener_mermin_g0)
+      qs_ot_env%mermin_physical_ref_valid = .FALSE.
+      qs_ot_env%mermin_physical_secant_valid = .FALSE.
+      qs_ot_env%mermin_gradient_ref_valid = .FALSE.
       IF (ASSOCIATED(qs_ot_env%matrix_dx)) CALL dbcsr_release_p(qs_ot_env%matrix_dx)
       IF (ASSOCIATED(qs_ot_env%matrix_dx_im)) CALL dbcsr_release_p(qs_ot_env%matrix_dx_im)
       IF (ASSOCIATED(qs_ot_env%matrix_gx_old)) CALL dbcsr_release_p(qs_ot_env%matrix_gx_old)
@@ -1146,6 +1301,18 @@ CONTAINS
          IF (ASSOCIATED(qs_ot_env%rot_mat_evec_im)) CALL dbcsr_release_p(qs_ot_env%rot_mat_evec_im)
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx)
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx_im)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx_im)
+         IF (ASSOCIATED(qs_ot_env%rot_mat_response_gx)) THEN
+            CALL dbcsr_release_p(qs_ot_env%rot_mat_response_gx)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%rot_mat_response_gx_im)) THEN
+            CALL dbcsr_release_p(qs_ot_env%rot_mat_response_gx_im)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%rot_mat_mermin_g0)) THEN
+            CALL dbcsr_release_p(qs_ot_env%rot_mat_mermin_g0)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%rot_mat_mermin_g0_im)) THEN
+            CALL dbcsr_release_p(qs_ot_env%rot_mat_mermin_g0_im)
+         END IF
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx_old)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx_old)
          IF (ASSOCIATED(qs_ot_env%rot_mat_gx_old_im)) CALL dbcsr_release_p(qs_ot_env%rot_mat_gx_old_im)
          IF (ASSOCIATED(qs_ot_env%rot_mat_dx)) CALL dbcsr_release_p(qs_ot_env%rot_mat_dx)
@@ -1159,6 +1326,7 @@ CONTAINS
          IF (ASSOCIATED(qs_ot_env%ener_preconditioned_gx)) THEN
             DEALLOCATE (qs_ot_env%ener_preconditioned_gx)
          END IF
+         IF (ASSOCIATED(qs_ot_env%ener_response_gx)) DEALLOCATE (qs_ot_env%ener_response_gx)
          IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
              qs_ot_env%settings%ot_method == "BROY" .OR. &
              qs_ot_env%settings%ot_method == "LBFG") THEN
