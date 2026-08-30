@@ -56,6 +56,7 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_complex_exp_frechet_kernel
    PUBLIC  :: qs_ot_fixed_n_energy_gradient
    PUBLIC  :: qs_ot_fixed_n_energy_hessian
+   PUBLIC  :: qs_ot_fixed_n_schur_block
    PUBLIC  :: qs_ot_fixed_n_projector_frechet
    PUBLIC  :: qs_ot_fixed_n_response_mu_shift
    PUBLIC  :: qs_ot_finite_rotation_response
@@ -165,6 +166,62 @@ CONTAINS
       hessian(:, :) = 0.5_dp*(hessian + TRANSPOSE(hessian))
 
    END SUBROUTINE qs_ot_fixed_n_energy_hessian
+
+! **************************************************************************************************
+!> \brief local block of the fixed-N rotation/energy Schur complement
+!>
+!>        For C = D - chi chi^T / sum(chi), elimination of the auxiliary-energy block gives
+!>
+!>          S = A - R^T C R
+!>            = (A - R^T D R) + v v^T / sum(chi),  v = R^T chi.
+!>
+!>        This routine builds the channel-local terms. The final rank-one term is deliberately left
+!>        separate so spin/k-point channels can be coupled without assembling a global dense
+!>        rotation Hessian.
+!> \param rotation_hessian fixed-occupation rotation Hessian A
+!> \param rayleigh_response derivative R of the Rayleigh energies with respect to rotations
+!> \param response_weight local positive occupation susceptibilities chi
+!> \param rotation_gradient physical rotation gradient
+!> \param energy_gradient physical auxiliary-energy gradient
+!> \param schur_block local block A - R^T D R
+!> \param coupling_vector local part of v = R^T chi
+!> \param schur_rhs local right-hand side g_x + R^T g_e
+! **************************************************************************************************
+   SUBROUTINE qs_ot_fixed_n_schur_block( &
+      rotation_hessian, rayleigh_response, response_weight, rotation_gradient, energy_gradient, &
+      schur_block, coupling_vector, schur_rhs)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: rotation_hessian, rayleigh_response
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: response_weight, rotation_gradient, &
+                                                            energy_gradient
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: schur_block
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: coupling_vector, schur_rhs
+
+      INTEGER                                            :: i, nenergy, nrotation
+      REAL(KIND=dp)                                      :: weight
+
+      nenergy = SIZE(response_weight)
+      nrotation = SIZE(rotation_gradient)
+      CPASSERT(ALL(SHAPE(rotation_hessian) == [nrotation, nrotation]))
+      CPASSERT(ALL(SHAPE(rayleigh_response) == [nenergy, nrotation]))
+      CPASSERT(SIZE(energy_gradient) == nenergy)
+      CPASSERT(ALL(SHAPE(schur_block) == [nrotation, nrotation]))
+      CPASSERT(SIZE(coupling_vector) == nrotation)
+      CPASSERT(SIZE(schur_rhs) == nrotation)
+
+      schur_block(:, :) = rotation_hessian(:, :)
+      DO i = 1, nenergy
+         weight = MAX(0.0_dp, response_weight(i))
+         schur_block(:, :) = schur_block(:, :) - weight* &
+                             SPREAD(rayleigh_response(i, :), DIM=2, NCOPIES=nrotation)* &
+                             SPREAD(rayleigh_response(i, :), DIM=1, NCOPIES=nrotation)
+      END DO
+      schur_block(:, :) = 0.5_dp*(schur_block + TRANSPOSE(schur_block))
+      coupling_vector(:) = MATMUL(TRANSPOSE(rayleigh_response), &
+                                  MAX(0.0_dp, response_weight))
+      schur_rhs(:) = rotation_gradient + &
+                     MATMUL(TRANSPOSE(rayleigh_response), energy_gradient)
+
+   END SUBROUTINE qs_ot_fixed_n_schur_block
 
 ! **************************************************************************************************
 !> \brief fixed-N Frechet derivative of a smooth occupation projector
