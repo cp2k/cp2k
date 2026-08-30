@@ -802,7 +802,8 @@ CONTAINS
 
       scale = 1.0_dp
       IF (fsign == FWFFT) scale = 1.0_dp/REAL(n, KIND=dp)
-      CALL fft_1d_many(fsign, n, m, .FALSE., .FALSE., n, n, line_in, line_out, scale, stat)
+      CALL fft_1d_many(fsign, n, m, .FALSE., .FALSE., n, n, &
+                       line_in, line_out, scale, stat)
       IF (stat == 0) THEN
          iline = 0
          SELECT CASE (direction)
