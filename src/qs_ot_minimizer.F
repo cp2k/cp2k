@@ -28,6 +28,7 @@ MODULE qs_ot_minimizer
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE mathlib,                         ONLY: diamat_all
+   USE message_passing,                 ONLY: mp_para_env_type
    USE preconditioner,                  ONLY: apply_preconditioner
    USE qs_ot,                           ONLY: qs_ot_get_derivative,&
                                               qs_ot_get_derivative_complex,&
@@ -68,14 +69,16 @@ CONTAINS
 !> \param matrix_hc_im ...
 !> \param matrix_hc_physical occupation-weighted derivative used for slopes and convergence
 !> \param matrix_hc_physical_im imaginary component of matrix_hc_physical
+!> \param para_env_inter_kp communicator between distributed k-point groups
 ! **************************************************************************************************
    SUBROUTINE ot_mini(qs_ot_env, matrix_hc, matrix_hc_im, &
-                      matrix_hc_physical, matrix_hc_physical_im)
+                      matrix_hc_physical, matrix_hc_physical_im, para_env_inter_kp)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_hc_im, matrix_hc_physical, &
                                                             matrix_hc_physical_im
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_mini'
 
@@ -235,13 +238,14 @@ CONTAINS
                END IF
             END IF
          END DO
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%gradient)
       END IF
 
       SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
       CASE ("CG")
          IF (current_point_is_fine(qs_ot_env)) THEN
             qs_ot_env(1)%OT_METHOD_FULL = "OT CG"
-            CALL ot_new_cg_direction(qs_ot_env)
+            CALL ot_new_cg_direction(qs_ot_env, para_env_inter_kp)
             qs_ot_env(1)%line_search_count = 0
          ELSE
             qs_ot_env(1)%OT_METHOD_FULL = "OT LS"
@@ -250,7 +254,7 @@ CONTAINS
       CASE ("SD")
          IF (current_point_is_fine(qs_ot_env)) THEN
             qs_ot_env(1)%OT_METHOD_FULL = "OT SD"
-            CALL ot_new_sd_direction(qs_ot_env)
+            CALL ot_new_sd_direction(qs_ot_env, para_env_inter_kp)
             qs_ot_env(1)%line_search_count = 0
          ELSE
             qs_ot_env(1)%OT_METHOD_FULL = "OT LS"
@@ -258,14 +262,14 @@ CONTAINS
          CALL do_line_search(qs_ot_env)
       CASE ("DIIS")
          qs_ot_env(1)%OT_METHOD_FULL = "OT DIIS"
-         CALL ot_diis_step(qs_ot_env)
+         CALL ot_diis_step(qs_ot_env, para_env_inter_kp)
       CASE ("BROY")
          qs_ot_env(1)%OT_METHOD_FULL = "OT BROY"
          CALL ot_broyden_step(qs_ot_env)
       CASE ("LBFG")
          IF (current_point_is_fine(qs_ot_env)) THEN
             qs_ot_env(1)%OT_METHOD_FULL = "OT LBFGS"
-            CALL ot_new_lbfgs_direction(qs_ot_env)
+            CALL ot_new_lbfgs_direction(qs_ot_env, para_env_inter_kp)
             qs_ot_env(1)%line_search_count = 0
          ELSE
             qs_ot_env(1)%OT_METHOD_FULL = "OT LS"
@@ -278,6 +282,21 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ot_mini
+
+! **************************************************************************************************
+!> \brief Sum a minimizer scalar over distributed k-point groups when requested.
+!> \param para_env_inter_kp communicator between distributed k-point groups
+!> \param value scalar to sum
+! **************************************************************************************************
+   SUBROUTINE ot_mini_sum_kpoint_scalar(para_env_inter_kp, value)
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
+      REAL(KIND=dp), INTENT(INOUT)                       :: value
+
+      IF (PRESENT(para_env_inter_kp)) THEN
+         IF (ASSOCIATED(para_env_inter_kp)) CALL para_env_inter_kp%sum(value)
+      END IF
+
+   END SUBROUTINE ot_mini_sum_kpoint_scalar
 
 !
 ! checks if the current point is a good point for finding a new direction
@@ -821,15 +840,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_ot_env ...
+!> \param para_env_inter_kp communicator between distributed k-point groups
 ! **************************************************************************************************
-   SUBROUTINE ot_new_sd_direction(qs_ot_env)
+   SUBROUTINE ot_new_sd_direction(qs_ot_env, para_env_inter_kp)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_sd_direction'
 
       INTEGER                                            :: handle, ispin, itmp, k, n, nener, nspin
       LOGICAL                                            :: do_ener, do_ks
-      REAL(KIND=dp)                                      :: channel_gnorm, tmp
+      REAL(KIND=dp)                                      :: channel_gnorm, nvariables, tmp
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -1053,9 +1074,12 @@ CONTAINS
             nener = nener + SIZE(qs_ot_env(ispin)%ener_x)
          END DO
       END IF
+      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%gnorm)
+      nvariables = REAL(INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener, KIND=dp)
+      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, nvariables)
       ! Handling the case of no free variables to optimize
-      IF (INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener /= 0) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener))
+      IF (nvariables > 0.0_dp) THEN
+         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/nvariables)
          qs_ot_env(1)%gradient = -qs_ot_env(1)%gnorm
       ELSE
          qs_ot_env(1)%delta = 0.0_dp
@@ -1074,15 +1098,18 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_ot_env ...
+!> \param para_env_inter_kp communicator between distributed k-point groups
 ! **************************************************************************************************
-   SUBROUTINE ot_new_cg_direction(qs_ot_env)
+   SUBROUTINE ot_new_cg_direction(qs_ot_env, para_env_inter_kp)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_cg_direction'
 
       INTEGER                                            :: handle, ispin, itmp, k, n, nener, nspin
       LOGICAL                                            :: do_ener, do_ks
-      REAL(KIND=dp)                                      :: beta_pr, gnorm_cross, test_down, tmp
+      REAL(KIND=dp)                                      :: beta_pr, gnorm_cross, nvariables, &
+                                                            test_down, tmp
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -1121,6 +1148,7 @@ CONTAINS
             gnorm_cross = gnorm_cross + tmp
          END DO
       END IF
+      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, gnorm_cross)
 
       IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
 
@@ -1165,10 +1193,6 @@ CONTAINS
                   qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
                END IF
             END DO
-            IF (qs_ot_env(1)%gnorm < 0.0_dp .AND. &
-                .NOT. qs_ot_env(1)%settings%occupation_preconditioner) THEN
-               WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
-            END IF
             IF (.NOT. qs_ot_env(1)%settings%occupation_preconditioner) THEN
                DO ispin = 1, nspin
                   CALL dbcsr_copy(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx_old)
@@ -1277,6 +1301,13 @@ CONTAINS
          END IF
       END IF
 
+      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%gnorm)
+      IF (ASSOCIATED(qs_ot_env(1)%preconditioner) .AND. &
+          .NOT. qs_ot_env(1)%settings%occupation_preconditioner .AND. &
+          qs_ot_env(1)%gnorm < 0.0_dp) THEN
+         WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
+      END IF
+
       ! Occupation-unweighted orbital and energy blocks are useful preconditioner inputs, but only
       ! their coupled direction is relevant for Mermin descent. Fall back as a whole when that
       ! direction is not descending; rejecting individual blocks would destroy the Schur coupling.
@@ -1333,6 +1364,7 @@ CONTAINS
                                                 qs_ot_env(ispin)%ener_gx_old)
             END DO
          END IF
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%gnorm)
       END IF
 
       k = 0
@@ -1351,9 +1383,11 @@ CONTAINS
             nener = nener + SIZE(qs_ot_env(ispin)%ener_x)
          END DO
       END IF
+      nvariables = REAL(INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener, KIND=dp)
+      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, nvariables)
       ! Handling the case of no free variables to optimize
-      IF (INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener /= 0) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener))
+      IF (nvariables > 0.0_dp) THEN
+         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/nvariables)
          beta_pr = (qs_ot_env(1)%gnorm - gnorm_cross)/qs_ot_env(1)%gnorm_old
       ELSE
          qs_ot_env(1)%delta = 0.0_dp
@@ -1397,6 +1431,7 @@ CONTAINS
             test_down = test_down + tmp
          END DO
       END IF
+      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, test_down)
 
       IF (test_down >= 0.0_dp) THEN ! reset to SD
          beta_pr = 0.0_dp
@@ -1511,10 +1546,12 @@ CONTAINS
 !> minimizers. Weak curvature can be regularized along the step, while rejected updates leave
 !> older valid history intact. Non-descent directions and collapsed line-search steps reset the
 !> history; the latter also restore the configured initial step.
-!> \param qs_ot_env OT environments for all spin channels
+!> \param qs_ot_env OT environments for all local spin/k-point channels
+!> \param para_env_inter_kp communicator between distributed k-point groups
 ! **************************************************************************************************
-   SUBROUTINE ot_new_lbfgs_direction(qs_ot_env)
+   SUBROUTINE ot_new_lbfgs_direction(qs_ot_env, para_env_inter_kp)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_lbfgs_direction'
       REAL(KIND=dp), PARAMETER                           :: rotation_scale_max = 1.0E3_dp, &
@@ -1526,8 +1563,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: history_index
       LOGICAL                                            :: do_ener, restart_history, restart_step
       REAL(KIND=dp) :: beta, current_gradient_norm_sq, curvature_tol, damping_shift, g_dot_z, &
-         gamma, gamma_rotation, previous_gradient_norm_sq, ss, ss_rotation, stq, sy, sy_rotation, &
-         tmp, yy, yy_newest, yy_rotation
+         gamma, gamma_rotation, nvariables_global, previous_gradient_norm_sq, ss, ss_rotation, &
+         stq, sy, sy_rotation, tmp, yy, yy_newest, yy_rotation
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha, rho
 
       CALL timeset(routineN, handle)
@@ -1588,6 +1625,8 @@ CONTAINS
                previous_gradient_norm_sq = previous_gradient_norm_sq + tmp
             END IF
          END DO
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, current_gradient_norm_sq)
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, previous_gradient_norm_sq)
          restart_step = lbfgs_step_restart_required(qs_ot_env(1)%ds_min, &
                                                     qs_ot_env(1)%settings%ds_min)
          restart_history = lbfgs_history_restart_required(current_gradient_norm_sq, &
@@ -1697,6 +1736,12 @@ CONTAINS
                yy = yy + DOT_PRODUCT(qs_ot_env(ispin)%ener_gx_old, qs_ot_env(ispin)%ener_gx_old)
             END IF
          END DO
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, ss)
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, sy)
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, yy)
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, ss_rotation)
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, sy_rotation)
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, yy_rotation)
 
          ! Shift y along s just enough to satisfy the requested relative curvature. With the
          ! product-chart metric this preserves orbital-rotation covariance. The target below is
@@ -1861,6 +1906,7 @@ CONTAINS
                                           qs_ot_env(ispin)%ener_gx_old)
                END IF
             END DO
+            CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, stq)
             rho(i) = qs_ot_env(1)%lbfgs_rho(history_index(i))
             alpha(i) = rho(i)*stq
             DO ispin = 1, nspin
@@ -1970,6 +2016,7 @@ CONTAINS
                                          qs_ot_env(ispin)%ener_dx)
             END IF
          END DO
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, beta)
          beta = rho(i)*beta
          DO ispin = 1, nspin
             CALL dbcsr_add(qs_ot_env(ispin)%matrix_dx, &
@@ -2020,6 +2067,7 @@ CONTAINS
                                             qs_ot_env(ispin)%ener_dx)
          END IF
       END DO
+      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, g_dot_z)
 
       ! Preserve a guaranteed descent direction even if the supplied initial preconditioner is
       ! indefinite or numerical noise corrupts the secant recursion.
@@ -2089,6 +2137,7 @@ CONTAINS
                                                qs_ot_env(ispin)%ener_dx)
             END IF
          END DO
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, g_dot_z)
          IF (.NOT. ieee_is_finite(g_dot_z) .OR. g_dot_z <= 0.0_dp) THEN
             g_dot_z = 0.0_dp
             DO ispin = 1, nspin
@@ -2119,6 +2168,7 @@ CONTAINS
                                                   qs_ot_env(ispin)%ener_dx)
                END IF
             END DO
+            CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, g_dot_z)
          END IF
       END IF
 
@@ -2157,8 +2207,10 @@ CONTAINS
       END DO
       nvariables = INT(n, KIND=int_8)*INT(k, KIND=int_8) + nrotation + &
                    INT(nener, KIND=int_8)
-      IF (nvariables /= 0_int_8) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(g_dot_z)/REAL(nvariables, KIND=dp))
+      nvariables_global = REAL(nvariables, KIND=dp)
+      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, nvariables_global)
+      IF (nvariables_global > 0.0_dp) THEN
+         qs_ot_env(1)%delta = SQRT(ABS(g_dot_z)/nvariables_global)
       ELSE
          qs_ot_env(1)%delta = 0.0_dp
          qs_ot_env(1)%gradient = 0.0_dp
@@ -2172,16 +2224,19 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_ot_env ...
+!> \param para_env_inter_kp communicator between distributed k-point groups
 ! **************************************************************************************************
-   SUBROUTINE ot_diis_step(qs_ot_env)
+   SUBROUTINE ot_diis_step(qs_ot_env, para_env_inter_kp)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_diis_step'
 
       INTEGER                                            :: diis_bound, diis_m, handle, i, info, &
                                                             ispin, itmp, j, k, n, nener, nspin
       LOGICAL                                            :: do_ener, do_ks, do_ot_sd
-      REAL(KIND=dp)                                      :: overlap, tmp, tr_xnew_gx, tr_xold_gx
+      REAL(KIND=dp)                                      :: nvariables, overlap, tmp, tr_xnew_gx, &
+                                                            tr_xold_gx
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -2253,9 +2308,6 @@ CONTAINS
                   qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
                END IF
             END DO
-            IF (qs_ot_env(1)%gnorm < 0.0_dp) THEN
-               WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
-            END IF
             DO ispin = 1, nspin
                CALL dbcsr_scale(qs_ot_env(ispin)%matrix_h_e(j)%matrix, -qs_ot_env(1)%ds_min)
                IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
@@ -2334,6 +2386,10 @@ CONTAINS
             END DO
          END IF
       END IF
+      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%gnorm)
+      IF (ASSOCIATED(qs_ot_env(1)%preconditioner) .AND. qs_ot_env(1)%gnorm < 0.0_dp) THEN
+         WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
+      END IF
       k = 0
       n = 0
       nener = 0
@@ -2350,9 +2406,11 @@ CONTAINS
             nener = nener + SIZE(qs_ot_env(ispin)%ener_x)
          END DO
       END IF
+      nvariables = REAL(INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener, KIND=dp)
+      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, nvariables)
       ! Handling the case of no free variables to optimize
-      IF (INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener /= 0) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener))
+      IF (nvariables > 0.0_dp) THEN
+         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/nvariables)
          qs_ot_env(1)%gradient = -qs_ot_env(1)%gnorm
       ELSE
          qs_ot_env(1)%delta = 0.0_dp
@@ -2431,6 +2489,7 @@ CONTAINS
                END DO
             END IF
          END IF
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%ls_diis(i, j))
          qs_ot_env(1)%ls_diis(j, i) = qs_ot_env(1)%ls_diis(i, j)
          qs_ot_env(1)%ls_diis(i, diis_bound + 1) = 1.0_dp
          qs_ot_env(1)%ls_diis(diis_bound + 1, i) = 1.0_dp
@@ -2566,6 +2625,8 @@ CONTAINS
                   tr_xnew_gx = tr_xnew_gx + tmp
                END DO
             END IF
+            CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, tr_xold_gx)
+            CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, tr_xnew_gx)
             overlap = (tr_xnew_gx - tr_xold_gx)
             ! OK, bad luck, take a SD step along the preconditioned gradient
             IF (overlap > 0.0_dp) THEN
