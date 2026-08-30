@@ -47,6 +47,7 @@ MODULE smearing_utils
    ! Unified interface (method as parameter)
    PUBLIC :: SmearOcc, SmearFixed, SmearFixedDeriv, SmearFixedDerivMV
    PUBLIC :: Smearkp, Smearkp2
+   PUBLIC :: smearing_response_weight
    PRIVATE :: cite_smearing
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'smearing_utils'
@@ -390,7 +391,8 @@ CONTAINS
          DO iter = 1, NEWTON_MAX_ITER
             res_now = ABS(N_now - N)
             IF (res_now < N*1.0e-12_dp) EXIT
-            CALL compute_gvec(gvec, f, e, mu, sigma, maxocc, Nstate, method, my_estate, my_festate)
+            CALL smearing_response_weight( &
+               gvec, f, e, mu, sigma, maxocc, Nstate, method, my_estate, my_festate)
             Gsum = accurate_sum(gvec)
             IF (ABS(Gsum) < EPSILON(Gsum)) EXIT
 
@@ -776,7 +778,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief   Computes the smearing weight vector g_i = -df_i/de_i with mu held
-!>          fixed (module-private helper for the analytical Jacobian routines).
+!>          fixed.
 !>
 !>          Fermi-Dirac:  g_i = occ * f_norm * (1 - f_norm) / sigma
 !>                        where f_norm = f_i/occ_i  (overflow-safe, uses
@@ -801,7 +803,8 @@ CONTAINS
 !> \param estate  excited state index (optional)
 !> \param festate occupation of the excited state (optional)
 ! **************************************************************************************************
-   SUBROUTINE compute_gvec(gvec, f, e, mu, sigma, maxocc, Nstate, method, estate, festate)
+   SUBROUTINE smearing_response_weight( &
+      gvec, f, e, mu, sigma, maxocc, Nstate, method, estate, festate)
 
       REAL(KIND=dp), INTENT(OUT)                         :: gvec(:)
       REAL(KIND=dp), INTENT(IN)                          :: f(:), e(:), mu, sigma, maxocc
@@ -851,7 +854,7 @@ CONTAINS
          END SELECT
       END DO
 
-   END SUBROUTINE compute_gvec
+   END SUBROUTINE smearing_response_weight
 
 ! **************************************************************************************************
 !> \brief   Analytical Jacobian df_i/de_j for any smearing method under the
@@ -904,7 +907,7 @@ CONTAINS
       ! Step 2: build g vector
       Nstate = SIZE(e)
       ALLOCATE (gvec(Nstate))
-      CALL compute_gvec(gvec, f, e, mu, sigma, maxocc, Nstate, method, estate, festate)
+      CALL smearing_response_weight(gvec, f, e, mu, sigma, maxocc, Nstate, method, estate, festate)
       Gsum = accurate_sum(gvec)
 
       ! Step 3: assemble dfde(i,j) = -delta_{ij}*g_i + g_i*g_j/G
@@ -978,7 +981,7 @@ CONTAINS
       ! Step 2: build g vector
       Nstate = SIZE(e)
       ALLOCATE (gvec(Nstate))
-      CALL compute_gvec(gvec, f, e, mu, sigma, maxocc, Nstate, method, estate, festate)
+      CALL smearing_response_weight(gvec, f, e, mu, sigma, maxocc, Nstate, method, estate, festate)
       Gsum = accurate_sum(gvec)
 
       ! Step 3: RESULT_j = g_j * (g.v / G - v_j)
