@@ -267,7 +267,7 @@ CONTAINS
          CALL ot_diis_step(qs_ot_env, para_env_inter_kp)
       CASE ("BROY")
          qs_ot_env(1)%OT_METHOD_FULL = "OT BROY"
-         CALL ot_broyden_step(qs_ot_env)
+         CALL ot_broyden_step(qs_ot_env, para_env_inter_kp)
       CASE ("LBFG")
          IF (current_point_is_fine(qs_ot_env)) THEN
             qs_ot_env(1)%OT_METHOD_FULL = "OT LBFGS"
@@ -3112,22 +3112,28 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Energy minimizer by Broyden's method
 !> \param qs_ot_env variable to control minimizer behaviour
+!> \param para_env_inter_kp communicator between distributed k-point groups
 !> \author Kurt Baarman (09.2010)
 ! **************************************************************************************************
-   SUBROUTINE ot_broyden_step(qs_ot_env)
+   SUBROUTINE ot_broyden_step(qs_ot_env, para_env_inter_kp)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
 
+      INTEGER, PARAMETER                                 :: broyden_gradient = 4, &
+                                                            broyden_position = 1, &
+                                                            broyden_random = 3, &
+                                                            broyden_residual = 2
       INTEGER                                            :: diis_bound, diis_m, i, ispin, itmp, j, &
-                                                            k, n, nspin
+                                                            k, n, nener, nspin
+      INTEGER(KIND=int_8)                                :: nrotation, nvariables
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: circ_index
       LOGICAL                                            :: adaptive_sigma, do_ener, do_ks, &
-                                                            enable_flip, forget_history
+                                                            do_rotation, enable_flip, forget_history
       REAL(KIND=dp)                                      :: beta, eta, gamma, omega, sigma, &
-                                                            sigma_dec, sigma_min, tmp, tmp2
+                                                            sigma_dec, sigma_min, tmp, tmp2, &
+                                                            nvariables_global
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: f, x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G, S
-      TYPE(cp_logger_type), POINTER                      :: logger
-
       eta = qs_ot_env(1)%settings%broyden_eta
       omega = qs_ot_env(1)%settings%broyden_omega
       sigma_dec = qs_ot_env(1)%settings%broyden_sigma_decrease
@@ -3135,9 +3141,9 @@ CONTAINS
       forget_history = qs_ot_env(1)%settings%broyden_forget_history
       adaptive_sigma = qs_ot_env(1)%settings%broyden_adaptive_sigma
       enable_flip = qs_ot_env(1)%settings%broyden_enable_flip
-
       do_ks = qs_ot_env(1)%settings%ks
       do_ener = qs_ot_env(1)%settings%do_ener
+      do_rotation = qs_ot_env(1)%settings%do_rotation
 
       beta = qs_ot_env(1)%settings%broyden_beta
       gamma = qs_ot_env(1)%settings%broyden_gamma
@@ -3151,12 +3157,8 @@ CONTAINS
          sigma = qs_ot_env(1)%settings%broyden_sigma
       END IF
 
-      ! simplify our life....
-      IF (do_ener .OR. .NOT. do_ks .OR. qs_ot_env(1)%settings%do_rotation .OR. &
-          ANY(qs_ot_env(:)%has_complex_kpoint_state)) THEN
-         CPABORT("Not yet implemented")
-      END IF
-      !
+      IF (.NOT. do_ks) CPABORT("BROYDEN currently requires OT orbital variables")
+
       nspin = SIZE(qs_ot_env)
 
       diis_m = qs_ot_env(1)%settings%diis_m
@@ -3182,46 +3184,38 @@ CONTAINS
 
       j = MOD(qs_ot_env(1)%diis_iter, diis_m) + 1 ! index in the circular array
 
-      DO ispin = 1, nspin
-         CALL dbcsr_copy(qs_ot_env(ispin)%matrix_h_x(j)%matrix, qs_ot_env(ispin)%matrix_x)
-      END DO
-
-      IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
-         qs_ot_env(1)%gnorm = 0.0_dp
-         DO ispin = 1, nspin
-            CALL apply_preconditioner(qs_ot_env(ispin)%preconditioner, &
-                                      qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix)
-            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                           tmp)
-            qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
-         END DO
-         IF (qs_ot_env(1)%gnorm < 0.0_dp) THEN
-            WRITE (cp_logger_get_default_unit_nr(logger), *) "WARNING Preconditioner not positive definite !"
-         END IF
-         DO ispin = 1, nspin
-            CALL dbcsr_scale(qs_ot_env(ispin)%matrix_h_e(j)%matrix, -1.0_dp)
-         END DO
-      ELSE
-         qs_ot_env(1)%gnorm = 0.0_dp
-         DO ispin = 1, nspin
-            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_gx, tmp)
-            qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
-            CALL dbcsr_add(qs_ot_env(ispin)%matrix_h_e(j)%matrix, &
-                           qs_ot_env(ispin)%matrix_gx, alpha_scalar=0.0_dp, beta_scalar=-1.0_dp)
-         END DO
+      CALL broyden_copy_current_to_history(j)
+      CALL ot_build_history_residual(qs_ot_env, j, -1.0_dp, para_env_inter_kp, &
+                                     qs_ot_env(1)%gnorm)
+      IF (qs_ot_env(1)%settings%occupation_preconditioner) THEN
+         CALL broyden_bound_occupation_response(j, qs_ot_env(1)%gnorm)
       END IF
 
       k = 0
       n = 0
+      nener = 0
+      nrotation = 0_int_8
       CALL dbcsr_get_info(qs_ot_env(1)%matrix_x, nfullrows_total=n)
       DO ispin = 1, nspin
          CALL dbcsr_get_info(qs_ot_env(ispin)%matrix_x, nfullcols_total=itmp)
          k = k + itmp
+         IF (qs_ot_env(ispin)%has_complex_kpoint_state) k = k + itmp
+         IF (do_rotation) THEN
+            nrotation = nrotation + INT(itmp, KIND=int_8)*INT(itmp - 1, KIND=int_8)/2_int_8
+            IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+               nrotation = nrotation + INT(itmp, KIND=int_8)*INT(itmp + 1, KIND=int_8)/2_int_8
+            END IF
+         END IF
+         IF (do_ener) nener = nener + SIZE(qs_ot_env(ispin)%ener_x)
       END DO
+      nvariables = INT(n, KIND=int_8)*INT(k, KIND=int_8) + nrotation + &
+                   INT(nener, KIND=int_8)
+      nvariables_global = REAL(nvariables, KIND=dp)
+      CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, nvariables_global)
 
       ! Handling the case of no free variables to optimize
-      IF (INT(n, KIND=int_8)*INT(k, KIND=int_8) /= 0) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/(INT(n, KIND=int_8)*INT(k, KIND=int_8)))
+      IF (nvariables_global > 0.0_dp) THEN
+         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/nvariables_global)
          qs_ot_env(1)%gradient = -qs_ot_env(1)%gnorm
       ELSE
          qs_ot_env(1)%delta = 0.0_dp
@@ -3239,52 +3233,36 @@ CONTAINS
       END IF
 
       S = 0.0_dp
-      DO ispin = 1, nspin
-         CALL dbcsr_init_random(qs_ot_env(ispin)%matrix_x)
-         DO i = 1, diis_bound
-            CALL dbcsr_dot( &
-               qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
-               qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, tmp)
-            S(i, i) = S(i, i) + tmp
-            CALL dbcsr_dot( &
-               qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
-               qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, tmp)
-            S(i + diis_bound, i + diis_bound) = S(i + diis_bound, i + diis_bound) + tmp
-            CALL dbcsr_dot( &
-               qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
-               qs_ot_env(ispin)%matrix_x, tmp)
-            S(i, 2*diis_bound + 1) = S(i, 2*diis_bound + 1) + tmp
-            S(i, 2*diis_bound + 1) = S(2*diis_bound + 1, i)
-            CALL dbcsr_dot( &
-               qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
-               qs_ot_env(ispin)%matrix_x, tmp)
-            S(i + diis_bound, 2*diis_bound + 1) = S(i + diis_bound, 2*diis_bound + 1) + tmp
-            S(i + diis_bound, 2*diis_bound + 1) = S(2*diis_bound + 1, diis_bound + i)
-            DO k = (i + 1), diis_bound
-               CALL dbcsr_dot( &
-                  qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
-                  qs_ot_env(ispin)%matrix_h_x(circ_index(k))%matrix, &
-                  tmp)
-               S(i, k) = S(i, k) + tmp
-               S(k, i) = S(i, k)
-               CALL dbcsr_dot( &
-                  qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
-                  qs_ot_env(ispin)%matrix_h_e(circ_index(k))%matrix, &
-                  tmp)
-               S(diis_bound + i, diis_bound + k) = S(diis_bound + i, diis_bound + k) + tmp
-               S(diis_bound + k, diis_bound + i) = S(diis_bound + i, diis_bound + k)
-            END DO
-            DO k = 1, diis_bound
-               CALL dbcsr_dot( &
-                  qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
-                  qs_ot_env(ispin)%matrix_h_e(circ_index(k))%matrix, tmp)
-               S(i, k + diis_bound) = S(i, k + diis_bound) + tmp
-               S(k + diis_bound, i) = S(i, k + diis_bound)
-            END DO
+      CALL broyden_randomize_current()
+      DO i = 1, diis_bound
+         CALL broyden_product_dot(broyden_position, circ_index(i), &
+                                  broyden_position, circ_index(i), S(i, i))
+         CALL broyden_product_dot(broyden_residual, circ_index(i), &
+                                  broyden_residual, circ_index(i), &
+                                  S(i + diis_bound, i + diis_bound))
+         ! Preserve the established Broyden model, whose auxiliary vector is orthogonal to history.
+         S(i, 2*diis_bound + 1) = 0.0_dp
+         S(2*diis_bound + 1, i) = 0.0_dp
+         S(i + diis_bound, 2*diis_bound + 1) = 0.0_dp
+         S(2*diis_bound + 1, i + diis_bound) = 0.0_dp
+         DO k = i + 1, diis_bound
+            CALL broyden_product_dot(broyden_position, circ_index(i), &
+                                     broyden_position, circ_index(k), S(i, k))
+            S(k, i) = S(i, k)
+            CALL broyden_product_dot(broyden_residual, circ_index(i), &
+                                     broyden_residual, circ_index(k), &
+                                     S(diis_bound + i, diis_bound + k))
+            S(diis_bound + k, diis_bound + i) = S(diis_bound + i, diis_bound + k)
          END DO
-         CALL dbcsr_dot(qs_ot_env(ispin)%matrix_x, qs_ot_env(ispin)%matrix_x, tmp)
-         S(2*diis_bound + 1, 2*diis_bound + 1) = S(2*diis_bound + 1, 2*diis_bound + 1) + tmp
+         DO k = 1, diis_bound
+            CALL broyden_product_dot(broyden_position, circ_index(i), &
+                                     broyden_residual, circ_index(k), &
+                                     S(i, k + diis_bound))
+            S(k + diis_bound, i) = S(i, k + diis_bound)
+         END DO
       END DO
+      CALL broyden_product_dot(broyden_random, 0, broyden_random, 0, &
+                               S(2*diis_bound + 1, 2*diis_bound + 1))
 
       ! normalize
       k = 2*diis_bound + 1
@@ -3293,32 +3271,20 @@ CONTAINS
       S(:, k) = S(:, k)/tmp
 
       IF (diis_bound > 1) THEN
-         tmp = 0.0_dp
          tmp2 = 0.0_dp
          i = diis_bound
-         DO ispin = 1, nspin
-            ! dot product of differences
-            CALL dbcsr_dot( &
-               qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
-               qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
-               tmp)
-            tmp2 = tmp2 + tmp
-            CALL dbcsr_dot( &
-               qs_ot_env(ispin)%matrix_h_x(circ_index(i - 1))%matrix, &
-               qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
-               tmp)
-            tmp2 = tmp2 - tmp
-            CALL dbcsr_dot( &
-               qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
-               qs_ot_env(ispin)%matrix_h_e(circ_index(i - 1))%matrix, &
-               tmp)
-            tmp2 = tmp2 - tmp
-            CALL dbcsr_dot( &
-               qs_ot_env(ispin)%matrix_h_x(circ_index(i - 1))%matrix, &
-               qs_ot_env(ispin)%matrix_h_e(circ_index(i - 1))%matrix, &
-               tmp)
-            tmp2 = tmp2 + tmp
-         END DO
+         CALL broyden_product_dot(broyden_position, circ_index(i), &
+                                  broyden_residual, circ_index(i), tmp)
+         tmp2 = tmp2 + tmp
+         CALL broyden_product_dot(broyden_position, circ_index(i - 1), &
+                                  broyden_residual, circ_index(i), tmp)
+         tmp2 = tmp2 - tmp
+         CALL broyden_product_dot(broyden_position, circ_index(i), &
+                                  broyden_residual, circ_index(i - 1), tmp)
+         tmp2 = tmp2 - tmp
+         CALL broyden_product_dot(broyden_position, circ_index(i - 1), &
+                                  broyden_residual, circ_index(i - 1), tmp)
+         tmp2 = tmp2 + tmp
          qs_ot_env(1)%c_broy(i - 1) = tmp2
       END IF
 
@@ -3329,15 +3295,9 @@ CONTAINS
       IF (i /= j) THEN
          sigma = sigma_dec*sigma
          qs_ot_env(1)%OT_METHOD_FULL = "OT BTRK"
-         DO ispin = 1, nspin
-            CALL dbcsr_set(qs_ot_env(ispin)%matrix_x, 0.0_dp)
-            CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                           qs_ot_env(ispin)%matrix_h_x(i)%matrix, &
-                           alpha_scalar=1.0_dp, beta_scalar=(1.0_dp - gamma))
-            CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                           qs_ot_env(ispin)%matrix_h_x(circ_index(diis_bound))%matrix, &
-                           alpha_scalar=1.0_dp, beta_scalar=gamma)
-         END DO
+         CALL broyden_set_current_zero()
+         CALL broyden_add_history(broyden_position, i, 1.0_dp, 1.0_dp - gamma)
+         CALL broyden_add_history(broyden_position, circ_index(diis_bound), 1.0_dp, gamma)
       ELSE
          ! Construct G
          DO i = 2, diis_bound
@@ -3373,18 +3333,13 @@ CONTAINS
          x(:) = -beta*MATMUL(G, f)
 
          ! OK, add the vectors now, this sums up to the proposed step
-         DO ispin = 1, nspin
-            CALL dbcsr_set(qs_ot_env(ispin)%matrix_x, 0.0_dp)
-            DO i = 1, diis_bound
-               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                              qs_ot_env(ispin)%matrix_h_e(circ_index(i))%matrix, &
-                              alpha_scalar=1.0_dp, beta_scalar=-x(i + diis_bound))
-            END DO
-            DO i = 1, diis_bound
-               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                              qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &
-                              alpha_scalar=1.0_dp, beta_scalar=x(i))
-            END DO
+         CALL broyden_set_current_zero()
+         DO i = 1, diis_bound
+            CALL broyden_add_history(broyden_residual, circ_index(i), 1.0_dp, &
+                                     -x(i + diis_bound))
+         END DO
+         DO i = 1, diis_bound
+            CALL broyden_add_history(broyden_position, circ_index(i), 1.0_dp, x(i))
          END DO
 
          IF (adaptive_sigma) THEN
@@ -3395,32 +3350,19 @@ CONTAINS
          END IF
 
          ! compute the inner product of direction of the step and gradient
-         tmp = 0.0_dp
-         DO ispin = 1, nspin
-            CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
-                           qs_ot_env(ispin)%matrix_x, &
-                           tmp2)
-            tmp = tmp + tmp2
-         END DO
+         CALL broyden_product_dot(broyden_gradient, 0, broyden_random, 0, tmp)
 
-         DO ispin = 1, nspin
-            ! if the direction of the step is not in direction of the gradient,
-            ! change step sign
-            IF (tmp >= 0.0_dp) THEN
-               qs_ot_env(1)%OT_METHOD_FULL = "OT TURN"
-               IF (forget_history) THEN
-                  qs_ot_env(1)%diis_iter = 0
-               END IF
-               sigma = sigma*sigma_dec
-               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                              qs_ot_env(ispin)%matrix_h_x(circ_index(diis_bound))%matrix, &
-                              alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
-            ELSE
-               CALL dbcsr_add(qs_ot_env(ispin)%matrix_x, &
-                              qs_ot_env(ispin)%matrix_h_x(circ_index(diis_bound))%matrix, &
-                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+         ! If the direction is not a descent direction, reverse it before adding the current point.
+         IF (tmp >= 0.0_dp) THEN
+            qs_ot_env(1)%OT_METHOD_FULL = "OT TURN"
+            IF (forget_history) THEN
+               qs_ot_env(1)%diis_iter = 0
             END IF
-         END DO
+            sigma = sigma*sigma_dec
+            CALL broyden_add_history(broyden_position, circ_index(diis_bound), -1.0_dp, 1.0_dp)
+         ELSE
+            CALL broyden_add_history(broyden_position, circ_index(diis_bound), 1.0_dp, 1.0_dp)
+         END IF
       END IF
 
       ! get rid of S, G, f, x, circ_index for next round
@@ -3429,6 +3371,414 @@ CONTAINS
       ! update for next round
       qs_ot_env(1)%diis_iter = qs_ot_env(1)%diis_iter + 1
       qs_ot_env(1)%broyden_adaptive_sigma = MAX(sigma, sigma_min)
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief Bound the occupation-response direction against the conventional OT H0 direction.
+!> \param history_index response history slot
+!> \param gnorm physical gradient product with the resulting positive direction
+! **************************************************************************************************
+      SUBROUTINE broyden_bound_occupation_response(history_index, gnorm)
+      INTEGER, INTENT(IN)                                :: history_index
+      REAL(KIND=dp), INTENT(INOUT)                       :: gnorm
+
+      INTEGER                                            :: ichannel
+      LOGICAL                                            :: valid_response
+      REAL(KIND=dp) :: g_dot_h0_g, h0_g_norm_sq, p_dot_h0, response_delta_norm_sq, &
+         response_norm_sq, response_scale, response_weight
+
+         CALL broyden_build_h0_current()
+         CALL broyden_product_dot(broyden_gradient, 0, broyden_random, 0, g_dot_h0_g)
+         CALL broyden_product_dot(broyden_random, 0, broyden_random, 0, h0_g_norm_sq)
+         CALL broyden_product_dot(broyden_residual, history_index, &
+                                  broyden_residual, history_index, response_norm_sq)
+         CALL broyden_product_dot(broyden_residual, history_index, &
+                                  broyden_random, 0, p_dot_h0)
+         p_dot_h0 = -p_dot_h0
+         response_delta_norm_sq = response_norm_sq + h0_g_norm_sq - 2.0_dp*p_dot_h0
+         valid_response = ieee_is_finite(gnorm) .AND. ieee_is_finite(response_norm_sq) .AND. &
+                          ieee_is_finite(g_dot_h0_g) .AND. ieee_is_finite(h0_g_norm_sq) .AND. &
+                          ieee_is_finite(response_delta_norm_sq) .AND. gnorm > 0.0_dp .AND. &
+                          g_dot_h0_g > 0.0_dp .AND. h0_g_norm_sq > TINY(1.0_dp) .AND. &
+                          response_delta_norm_sq >= 0.0_dp
+         response_scale = 1.0_dp
+         response_weight = 0.0_dp
+         IF (valid_response) THEN
+            ! Keep the response correction inside a product-norm trust ball around H0*g.
+            response_weight = MIN(1.0_dp, SQRT(h0_g_norm_sq/ &
+                                               MAX(response_delta_norm_sq, TINY(1.0_dp))))
+         END IF
+         ! Broyden secants require a consistent residual map. Use the state-dependent occupation
+         ! response only to seed the first direction, then let the history learn from frozen H0*g.
+         IF (qs_ot_env(1)%diis_iter > 0) response_weight = 0.0_dp
+         IF (.NOT. valid_response) THEN
+            response_scale = 0.0_dp
+            response_weight = 0.0_dp
+         END IF
+
+         DO ichannel = 1, nspin
+            CALL dbcsr_scale(qs_ot_env(ichannel)%matrix_h_e(history_index)%matrix, &
+                             response_weight*response_scale)
+            CALL dbcsr_add(qs_ot_env(ichannel)%matrix_h_e(history_index)%matrix, &
+                           qs_ot_env(ichannel)%matrix_x, 1.0_dp, -(1.0_dp - response_weight))
+            IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+               CALL dbcsr_scale(qs_ot_env(ichannel)%matrix_h_e_im(history_index)%matrix, &
+                                response_weight*response_scale)
+               CALL dbcsr_add(qs_ot_env(ichannel)%matrix_h_e_im(history_index)%matrix, &
+                              qs_ot_env(ichannel)%matrix_x_im, 1.0_dp, &
+                              -(1.0_dp - response_weight))
+            END IF
+            IF (do_rotation) THEN
+               CALL dbcsr_scale(qs_ot_env(ichannel)%rot_mat_h_e(history_index)%matrix, &
+                                response_weight*response_scale)
+               CALL dbcsr_add(qs_ot_env(ichannel)%rot_mat_h_e(history_index)%matrix, &
+                              qs_ot_env(ichannel)%rot_mat_x, 1.0_dp, &
+                              -(1.0_dp - response_weight))
+               IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_scale(qs_ot_env(ichannel)%rot_mat_h_e_im(history_index)%matrix, &
+                                   response_weight*response_scale)
+                  CALL dbcsr_add(qs_ot_env(ichannel)%rot_mat_h_e_im(history_index)%matrix, &
+                                 qs_ot_env(ichannel)%rot_mat_x_im, 1.0_dp, &
+                                 -(1.0_dp - response_weight))
+               END IF
+            END IF
+            IF (do_ener) THEN
+               qs_ot_env(ichannel)%ener_h_e(history_index, :) = &
+                  response_weight*response_scale*qs_ot_env(ichannel)%ener_h_e(history_index, :) - &
+                  (1.0_dp - response_weight)*qs_ot_env(ichannel)%ener_x
+            END IF
+         END DO
+         IF (valid_response) THEN
+            gnorm = response_weight*response_scale*gnorm + &
+                    (1.0_dp - response_weight)*g_dot_h0_g
+         ELSE
+            gnorm = g_dot_h0_g
+         END IF
+      END SUBROUTINE broyden_bound_occupation_response
+
+! **************************************************************************************************
+!> \brief Store the conventional positive OT H0 direction in the current product coordinate.
+! **************************************************************************************************
+      SUBROUTINE broyden_build_h0_current()
+      INTEGER                                            :: ichannel
+      REAL(KIND=dp)                                      :: kpoint_scale
+
+         DO ichannel = 1, nspin
+            IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
+               IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+                  CALL apply_preconditioner(qs_ot_env(ichannel)%preconditioner, &
+                                            qs_ot_env(ichannel)%matrix_gx, &
+                                            qs_ot_env(ichannel)%matrix_gx_im, &
+                                            qs_ot_env(ichannel)%matrix_x, &
+                                            qs_ot_env(ichannel)%matrix_x_im)
+                  CPASSERT(qs_ot_env(ichannel)%kpoint_weight > 0.0_dp)
+                  kpoint_scale = qs_ot_kpoint_preconditioner_scale( &
+                                 qs_ot_env(ichannel)%kpoint_weight)
+                  CALL dbcsr_scale(qs_ot_env(ichannel)%matrix_x, kpoint_scale)
+                  CALL dbcsr_scale(qs_ot_env(ichannel)%matrix_x_im, kpoint_scale)
+               ELSE
+                  CALL apply_preconditioner(qs_ot_env(ichannel)%preconditioner, &
+                                            qs_ot_env(ichannel)%matrix_gx, &
+                                            qs_ot_env(ichannel)%matrix_x)
+               END IF
+            ELSE
+               CALL dbcsr_copy(qs_ot_env(ichannel)%matrix_x, qs_ot_env(ichannel)%matrix_gx)
+               IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_copy(qs_ot_env(ichannel)%matrix_x_im, &
+                                  qs_ot_env(ichannel)%matrix_gx_im)
+               END IF
+            END IF
+            IF (do_rotation) THEN
+               CALL dbcsr_copy(qs_ot_env(ichannel)%rot_mat_x, qs_ot_env(ichannel)%rot_mat_gx)
+               IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_copy(qs_ot_env(ichannel)%rot_mat_x_im, &
+                                  qs_ot_env(ichannel)%rot_mat_gx_im)
+               END IF
+            END IF
+            IF (do_ener) qs_ot_env(ichannel)%ener_x = qs_ot_env(ichannel)%ener_gx
+         END DO
+      END SUBROUTINE broyden_build_h0_current
+
+! **************************************************************************************************
+!> \brief Copy all current product coordinates into a Broyden history slot.
+!> \param history_index destination history slot
+! **************************************************************************************************
+      SUBROUTINE broyden_copy_current_to_history(history_index)
+      INTEGER, INTENT(IN)                                :: history_index
+
+      INTEGER                                            :: ichannel
+
+         DO ichannel = 1, nspin
+            CALL dbcsr_copy(qs_ot_env(ichannel)%matrix_h_x(history_index)%matrix, &
+                            qs_ot_env(ichannel)%matrix_x)
+            IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+               CALL dbcsr_copy(qs_ot_env(ichannel)%matrix_h_x_im(history_index)%matrix, &
+                               qs_ot_env(ichannel)%matrix_x_im)
+            END IF
+            IF (do_rotation) THEN
+               CALL dbcsr_copy(qs_ot_env(ichannel)%rot_mat_h_x(history_index)%matrix, &
+                               qs_ot_env(ichannel)%rot_mat_x)
+               IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_copy(qs_ot_env(ichannel)%rot_mat_h_x_im(history_index)%matrix, &
+                                  qs_ot_env(ichannel)%rot_mat_x_im)
+               END IF
+            END IF
+            IF (do_ener) THEN
+               qs_ot_env(ichannel)%ener_h_x(history_index, :) = qs_ot_env(ichannel)%ener_x
+            END IF
+         END DO
+      END SUBROUTINE broyden_copy_current_to_history
+
+! **************************************************************************************************
+!> \brief Fill the current product coordinate with a deterministic auxiliary vector.
+! **************************************************************************************************
+      SUBROUTINE broyden_randomize_current()
+      INTEGER                                            :: ichannel, icoef
+
+         DO ichannel = 1, nspin
+            CALL dbcsr_init_random(qs_ot_env(ichannel)%matrix_x)
+            IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+               CALL dbcsr_init_random(qs_ot_env(ichannel)%matrix_x_im)
+            END IF
+            IF (do_rotation) THEN
+               CALL dbcsr_init_random(qs_ot_env(ichannel)%rot_mat_x)
+               IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_init_random(qs_ot_env(ichannel)%rot_mat_x_im)
+               END IF
+            END IF
+            IF (do_ener) THEN
+               DO icoef = 1, SIZE(qs_ot_env(ichannel)%ener_x)
+                  qs_ot_env(ichannel)%ener_x(icoef) = SIN(REAL(icoef + &
+                                                               37*qs_ot_env(ichannel)%spin_index + &
+                                                               101*qs_ot_env(ichannel)%kpoint_index, KIND=dp))
+               END DO
+            END IF
+         END DO
+      END SUBROUTINE broyden_randomize_current
+
+! **************************************************************************************************
+!> \brief Set all current product coordinates to zero.
+! **************************************************************************************************
+      SUBROUTINE broyden_set_current_zero()
+      INTEGER                                            :: ichannel
+
+         DO ichannel = 1, nspin
+            CALL dbcsr_set(qs_ot_env(ichannel)%matrix_x, 0.0_dp)
+            IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+               CALL dbcsr_set(qs_ot_env(ichannel)%matrix_x_im, 0.0_dp)
+            END IF
+            IF (do_rotation) THEN
+               CALL dbcsr_set(qs_ot_env(ichannel)%rot_mat_x, 0.0_dp)
+               IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_set(qs_ot_env(ichannel)%rot_mat_x_im, 0.0_dp)
+               END IF
+            END IF
+            IF (do_ener) qs_ot_env(ichannel)%ener_x = 0.0_dp
+         END DO
+      END SUBROUTINE broyden_set_current_zero
+
+! **************************************************************************************************
+!> \brief Add one stored product vector to the current coordinate.
+!> \param vector_kind position or residual history
+!> \param history_index source history slot
+!> \param alpha_current scale of the current coordinate
+!> \param beta_history scale of the stored coordinate
+! **************************************************************************************************
+      SUBROUTINE broyden_add_history(vector_kind, history_index, alpha_current, beta_history)
+      INTEGER, INTENT(IN)                                :: vector_kind, history_index
+      REAL(KIND=dp), INTENT(IN)                          :: alpha_current, beta_history
+
+      INTEGER                                            :: ichannel
+      TYPE(dbcsr_type), POINTER                          :: source
+
+         DO ichannel = 1, nspin
+            CALL broyden_matrix_pointer(vector_kind, history_index, ichannel, .FALSE., .FALSE., source)
+            CALL dbcsr_add(qs_ot_env(ichannel)%matrix_x, source, alpha_current, beta_history)
+            IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+               CALL broyden_matrix_pointer(vector_kind, history_index, ichannel, .TRUE., .FALSE., source)
+               CALL dbcsr_add(qs_ot_env(ichannel)%matrix_x_im, source, alpha_current, beta_history)
+            END IF
+            IF (do_rotation) THEN
+               CALL broyden_matrix_pointer(vector_kind, history_index, ichannel, .FALSE., .TRUE., source)
+               CALL dbcsr_add(qs_ot_env(ichannel)%rot_mat_x, source, alpha_current, beta_history)
+               IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+                  CALL broyden_matrix_pointer(vector_kind, history_index, ichannel, .TRUE., .TRUE., source)
+                  CALL dbcsr_add(qs_ot_env(ichannel)%rot_mat_x_im, source, alpha_current, beta_history)
+               END IF
+            END IF
+            IF (do_ener) THEN
+               SELECT CASE (vector_kind)
+               CASE (broyden_position)
+                  qs_ot_env(ichannel)%ener_x = alpha_current*qs_ot_env(ichannel)%ener_x + &
+                                               beta_history*qs_ot_env(ichannel)%ener_h_x(history_index, :)
+               CASE (broyden_residual)
+                  qs_ot_env(ichannel)%ener_x = alpha_current*qs_ot_env(ichannel)%ener_x + &
+                                               beta_history*qs_ot_env(ichannel)%ener_h_e(history_index, :)
+               CASE DEFAULT
+                  CPABORT("Invalid Broyden history vector kind")
+               END SELECT
+            END IF
+         END DO
+      END SUBROUTINE broyden_add_history
+
+! **************************************************************************************************
+!> \brief Product-space scalar product including complex, rotation, and energy coordinates.
+!> \param kind_a first vector kind
+!> \param index_a first history index, ignored for current/gradient vectors
+!> \param kind_b second vector kind
+!> \param index_b second history index, ignored for current/gradient vectors
+!> \param value globally reduced scalar product
+! **************************************************************************************************
+      SUBROUTINE broyden_product_dot(kind_a, index_a, kind_b, index_b, value)
+      INTEGER, INTENT(IN)                                :: kind_a, index_a, kind_b, index_b
+      REAL(KIND=dp), INTENT(OUT)                         :: value
+
+      INTEGER                                            :: ichannel
+      REAL(KIND=dp)                                      :: dot_value
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_a, energy_b
+      TYPE(dbcsr_type), POINTER                          :: matrix_a, matrix_b
+
+         value = 0.0_dp
+         DO ichannel = 1, nspin
+            CALL broyden_matrix_pointer(kind_a, index_a, ichannel, .FALSE., .FALSE., matrix_a)
+            CALL broyden_matrix_pointer(kind_b, index_b, ichannel, .FALSE., .FALSE., matrix_b)
+            CALL dbcsr_dot(matrix_a, matrix_b, dot_value)
+            value = value + dot_value
+            IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+               CALL broyden_matrix_pointer(kind_a, index_a, ichannel, .TRUE., .FALSE., matrix_a)
+               CALL broyden_matrix_pointer(kind_b, index_b, ichannel, .TRUE., .FALSE., matrix_b)
+               CALL dbcsr_dot(matrix_a, matrix_b, dot_value)
+               value = value + dot_value
+            END IF
+            IF (do_rotation) THEN
+               CALL broyden_matrix_pointer(kind_a, index_a, ichannel, .FALSE., .TRUE., matrix_a)
+               CALL broyden_matrix_pointer(kind_b, index_b, ichannel, .FALSE., .TRUE., matrix_b)
+               CALL dbcsr_dot(matrix_a, matrix_b, dot_value)
+               value = value + 0.5_dp*dot_value
+               IF (qs_ot_env(ichannel)%has_complex_kpoint_state) THEN
+                  CALL broyden_matrix_pointer(kind_a, index_a, ichannel, .TRUE., .TRUE., matrix_a)
+                  CALL broyden_matrix_pointer(kind_b, index_b, ichannel, .TRUE., .TRUE., matrix_b)
+                  CALL dbcsr_dot(matrix_a, matrix_b, dot_value)
+                  value = value + 0.5_dp*dot_value
+               END IF
+            END IF
+            IF (do_ener) THEN
+               CALL broyden_energy_pointer(kind_a, index_a, ichannel, energy_a)
+               CALL broyden_energy_pointer(kind_b, index_b, ichannel, energy_b)
+               value = value + DOT_PRODUCT(energy_a, energy_b)
+            END IF
+         END DO
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, value)
+      END SUBROUTINE broyden_product_dot
+
+! **************************************************************************************************
+!> \brief Select one orbital or rotation matrix from the product-vector storage.
+!> \param vector_kind vector kind
+!> \param history_index history slot
+!> \param channel local spin/k-point channel
+!> \param imaginary select imaginary component
+!> \param rotation select rotation instead of orbital component
+!> \param matrix selected matrix
+! **************************************************************************************************
+      SUBROUTINE broyden_matrix_pointer(vector_kind, history_index, channel, imaginary, rotation, matrix)
+      INTEGER, INTENT(IN)                                :: vector_kind, history_index, channel
+      LOGICAL, INTENT(IN)                                :: imaginary, rotation
+      TYPE(dbcsr_type), POINTER                          :: matrix
+
+         IF (imaginary) THEN
+            CPASSERT(qs_ot_env(channel)%has_complex_kpoint_state)
+         END IF
+         SELECT CASE (vector_kind)
+         CASE (broyden_position)
+            CPASSERT(history_index > 0)
+            IF (rotation) THEN
+               IF (imaginary) THEN
+                  matrix => qs_ot_env(channel)%rot_mat_h_x_im(history_index)%matrix
+               ELSE
+                  matrix => qs_ot_env(channel)%rot_mat_h_x(history_index)%matrix
+               END IF
+            ELSE
+               IF (imaginary) THEN
+                  matrix => qs_ot_env(channel)%matrix_h_x_im(history_index)%matrix
+               ELSE
+                  matrix => qs_ot_env(channel)%matrix_h_x(history_index)%matrix
+               END IF
+            END IF
+         CASE (broyden_residual)
+            CPASSERT(history_index > 0)
+            IF (rotation) THEN
+               IF (imaginary) THEN
+                  matrix => qs_ot_env(channel)%rot_mat_h_e_im(history_index)%matrix
+               ELSE
+                  matrix => qs_ot_env(channel)%rot_mat_h_e(history_index)%matrix
+               END IF
+            ELSE
+               IF (imaginary) THEN
+                  matrix => qs_ot_env(channel)%matrix_h_e_im(history_index)%matrix
+               ELSE
+                  matrix => qs_ot_env(channel)%matrix_h_e(history_index)%matrix
+               END IF
+            END IF
+         CASE (broyden_random)
+            IF (rotation) THEN
+               IF (imaginary) THEN
+                  matrix => qs_ot_env(channel)%rot_mat_x_im
+               ELSE
+                  matrix => qs_ot_env(channel)%rot_mat_x
+               END IF
+            ELSE
+               IF (imaginary) THEN
+                  matrix => qs_ot_env(channel)%matrix_x_im
+               ELSE
+                  matrix => qs_ot_env(channel)%matrix_x
+               END IF
+            END IF
+         CASE (broyden_gradient)
+            IF (rotation) THEN
+               IF (imaginary) THEN
+                  matrix => qs_ot_env(channel)%rot_mat_gx_im
+               ELSE
+                  matrix => qs_ot_env(channel)%rot_mat_gx
+               END IF
+            ELSE
+               IF (imaginary) THEN
+                  matrix => qs_ot_env(channel)%matrix_gx_im
+               ELSE
+                  matrix => qs_ot_env(channel)%matrix_gx
+               END IF
+            END IF
+         CASE DEFAULT
+            CPABORT("Invalid Broyden product vector kind")
+         END SELECT
+      END SUBROUTINE broyden_matrix_pointer
+
+! **************************************************************************************************
+!> \brief Select one energy-variable vector from the product-vector storage.
+!> \param vector_kind vector kind
+!> \param history_index history slot
+!> \param channel local spin/k-point channel
+!> \param energy selected energy vector
+! **************************************************************************************************
+      SUBROUTINE broyden_energy_pointer(vector_kind, history_index, channel, energy)
+      INTEGER, INTENT(IN)                                :: vector_kind, history_index, channel
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: energy
+
+         SELECT CASE (vector_kind)
+         CASE (broyden_position)
+            CPASSERT(history_index > 0)
+            energy => qs_ot_env(channel)%ener_h_x(history_index, :)
+         CASE (broyden_residual)
+            CPASSERT(history_index > 0)
+            energy => qs_ot_env(channel)%ener_h_e(history_index, :)
+         CASE (broyden_random)
+            energy => qs_ot_env(channel)%ener_x
+         CASE (broyden_gradient)
+            energy => qs_ot_env(channel)%ener_gx
+         CASE DEFAULT
+            CPABORT("Invalid Broyden energy vector kind")
+         END SELECT
+      END SUBROUTINE broyden_energy_pointer
 
    END SUBROUTINE ot_broyden_step
 

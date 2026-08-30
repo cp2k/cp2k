@@ -47,6 +47,7 @@
 "Al-kpoint-mermin-smoke.inp"            = [{matcher="E_total", tol=1e-9, ref=-2.903015358408708}]
 "Al-kpoint-mermin-lbfgs.inp"            = [{matcher="E_total", tol=1e-8, ref=-8.17199206567539}]
 "Al-kpoint-mermin-lbfgs-occ.inp"        = [{matcher="E_total", tol=1e-9, ref=-2.903015358383124}]
+"Al-kpoint-mermin-broyden-occ.inp"      = [{matcher="E_total", tol=1e-9, ref=-2.903015358436246}]
 "Al-kpoint-mermin-diis-occ.inp"           = [{matcher="E_total", tol=1e-6, ref=-8.15734061513311}]
 "Al-kpoint-mermin-auto.inp"             = [
   {matcher="E_total", tol=1e-9, ref=-3.004207460676986},
