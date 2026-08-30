@@ -58,6 +58,7 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_fixed_n_energy_hessian
    PUBLIC  :: qs_ot_fixed_n_projector_frechet
    PUBLIC  :: qs_ot_fixed_n_response_mu_shift
+   PUBLIC  :: qs_ot_finite_rotation_response
    PUBLIC  :: qs_ot_generate_rotation
    PUBLIC  :: qs_ot_generate_rotation_complex
    PUBLIC  :: qs_ot_rot_mat_derivative
@@ -256,6 +257,262 @@ CONTAINS
       DEALLOCATE (eigenvectors, kernel, work, eigenvalues, weighted_occupation)
 
    END SUBROUTINE qs_ot_fixed_n_projector_frechet
+
+! **************************************************************************************************
+!> \brief finite complex REF rotation Hessian and Rayleigh-energy response
+!>
+!>        The current projected Hamiltonian is pulled back through the finite rotation and then
+!>        differentiated in the independent real-antisymmetric and imaginary-symmetric pair
+!>        coordinates. This keeps the response consistent with the exponential chart used by REF
+!>        OT instead of replacing it by an infinitesimal commutator away from the chart origin.
+!> \param chc current projected Hermitian Hamiltonian U^H H_ref U
+!> \param rotation_generator current anti-Hermitian REF generator
+!> \param occupation fixed occupations attached to the rotated columns
+!> \param kpoint_weight irreducible-k-point weight
+!> \param rotation_gradient gradient in interleaved real/imaginary pair coordinates
+!> \param rotation_hessian derivative of rotation_gradient in the same coordinates
+!> \param rayleigh_response derivative of diag(U^H H_ref U) with respect to the pair coordinates
+!> \param difference_step optional central finite-difference step for the Hessian action
+! **************************************************************************************************
+   SUBROUTINE qs_ot_finite_rotation_response( &
+      chc, rotation_generator, occupation, kpoint_weight, rotation_gradient, &
+      rotation_hessian, rayleigh_response, difference_step)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: chc, rotation_generator
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
+      REAL(KIND=dp), INTENT(IN)                          :: kpoint_weight
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: rotation_gradient
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: rotation_hessian, rayleigh_response
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: difference_step
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: base_hamiltonian, generator_minus, &
+                                                            generator_plus, rotation
+      INTEGER                                            :: i, j, n, nrotation, r, s
+      REAL(KIND=dp)                                      :: step
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occupation_scale, rayleigh, &
+                                                            rayleigh_minus, rayleigh_plus
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: gradient_imag, gradient_minus_imag, &
+         gradient_minus_real, gradient_plus_imag, gradient_plus_real, gradient_real
+
+      n = SIZE(chc, 1)
+      nrotation = n*(n - 1)
+      CPASSERT(n > 0)
+      CPASSERT(ALL(SHAPE(chc) == [n, n]))
+      CPASSERT(ALL(SHAPE(rotation_generator) == [n, n]))
+      CPASSERT(SIZE(occupation) == n)
+      CPASSERT(SIZE(rotation_gradient) == nrotation)
+      CPASSERT(ALL(SHAPE(rotation_hessian) == [nrotation, nrotation]))
+      CPASSERT(ALL(SHAPE(rayleigh_response) == [n, nrotation]))
+      CPASSERT(kpoint_weight > 0.0_dp)
+
+      step = 1.0E-4_dp
+      IF (PRESENT(difference_step)) step = difference_step
+      CPASSERT(step > SQRT(EPSILON(step)))
+
+      ALLOCATE (base_hamiltonian(n, n), generator_minus(n, n), generator_plus(n, n), &
+                rotation(n, n), occupation_scale(n), rayleigh(n), rayleigh_minus(n), &
+                rayleigh_plus(n), gradient_imag(n, n), gradient_minus_imag(n, n), &
+                gradient_minus_real(n, n), gradient_plus_imag(n, n), &
+                gradient_plus_real(n, n), gradient_real(n, n))
+
+      CALL qs_ot_dense_rotation_state(rotation_generator, rotation)
+      base_hamiltonian(:, :) = MATMUL(rotation, MATMUL(chc, CONJG(TRANSPOSE(rotation))))
+      occupation_scale(:) = 2.0_dp*kpoint_weight*occupation(:)
+      CALL qs_ot_dense_rotation_gradient(rotation_generator, base_hamiltonian, occupation_scale, &
+                                         gradient_real, gradient_imag, rayleigh)
+
+      r = 0
+      DO i = 1, n - 1
+         DO j = i + 1, n
+            r = r + 1
+            rotation_gradient(r) = gradient_real(i, j)
+            r = r + 1
+            rotation_gradient(r) = gradient_imag(i, j)
+         END DO
+      END DO
+      CPASSERT(r == nrotation)
+
+      s = 0
+      DO i = 1, n - 1
+         DO j = i + 1, n
+            generator_plus(:, :) = rotation_generator(:, :)
+            generator_minus(:, :) = rotation_generator(:, :)
+            generator_plus(i, j) = generator_plus(i, j) + step
+            generator_plus(j, i) = generator_plus(j, i) - step
+            generator_minus(i, j) = generator_minus(i, j) - step
+            generator_minus(j, i) = generator_minus(j, i) + step
+            s = s + 1
+            CALL qs_ot_dense_rotation_gradient(generator_plus, base_hamiltonian, occupation_scale, &
+                                               gradient_plus_real, gradient_plus_imag, rayleigh_plus)
+            CALL qs_ot_dense_rotation_gradient(generator_minus, base_hamiltonian, occupation_scale, &
+                                               gradient_minus_real, gradient_minus_imag, rayleigh_minus)
+            CALL qs_ot_pack_rotation_response( &
+               gradient_plus_real, gradient_plus_imag, gradient_minus_real, gradient_minus_imag, &
+               rayleigh_plus, rayleigh_minus, step, rotation_hessian(:, s), &
+               rayleigh_response(:, s))
+
+            generator_plus(:, :) = rotation_generator(:, :)
+            generator_minus(:, :) = rotation_generator(:, :)
+            generator_plus(i, j) = generator_plus(i, j) + CMPLX(0.0_dp, step, KIND=dp)
+            generator_plus(j, i) = generator_plus(j, i) + CMPLX(0.0_dp, step, KIND=dp)
+            generator_minus(i, j) = generator_minus(i, j) - CMPLX(0.0_dp, step, KIND=dp)
+            generator_minus(j, i) = generator_minus(j, i) - CMPLX(0.0_dp, step, KIND=dp)
+            s = s + 1
+            CALL qs_ot_dense_rotation_gradient(generator_plus, base_hamiltonian, occupation_scale, &
+                                               gradient_plus_real, gradient_plus_imag, rayleigh_plus)
+            CALL qs_ot_dense_rotation_gradient(generator_minus, base_hamiltonian, occupation_scale, &
+                                               gradient_minus_real, gradient_minus_imag, rayleigh_minus)
+            CALL qs_ot_pack_rotation_response( &
+               gradient_plus_real, gradient_plus_imag, gradient_minus_real, gradient_minus_imag, &
+               rayleigh_plus, rayleigh_minus, step, rotation_hessian(:, s), &
+               rayleigh_response(:, s))
+         END DO
+      END DO
+      CPASSERT(s == nrotation)
+      rotation_hessian(:, :) = 0.5_dp*(rotation_hessian + TRANSPOSE(rotation_hessian))
+
+      DEALLOCATE (base_hamiltonian, generator_minus, generator_plus, rotation, occupation_scale, &
+                  rayleigh, rayleigh_minus, rayleigh_plus, gradient_imag, gradient_minus_imag, &
+                  gradient_minus_real, gradient_plus_imag, gradient_plus_real, gradient_real)
+
+   END SUBROUTINE qs_ot_finite_rotation_response
+
+! **************************************************************************************************
+!> \brief pack one finite complex rotation response column
+!> \param gradient_plus_real real gradient at the positive endpoint
+!> \param gradient_plus_imag imaginary gradient at the positive endpoint
+!> \param gradient_minus_real real gradient at the negative endpoint
+!> \param gradient_minus_imag imaginary gradient at the negative endpoint
+!> \param rayleigh_plus Rayleigh energies at the positive endpoint
+!> \param rayleigh_minus Rayleigh energies at the negative endpoint
+!> \param step central finite-difference step
+!> \param hessian_column packed rotation-Hessian column
+!> \param rayleigh_column packed Rayleigh-response column
+! **************************************************************************************************
+   SUBROUTINE qs_ot_pack_rotation_response( &
+      gradient_plus_real, gradient_plus_imag, gradient_minus_real, gradient_minus_imag, &
+      rayleigh_plus, rayleigh_minus, step, hessian_column, rayleigh_column)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: gradient_plus_real, gradient_plus_imag, &
+                                                            gradient_minus_real, &
+                                                            gradient_minus_imag
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rayleigh_plus, rayleigh_minus
+      REAL(KIND=dp), INTENT(IN)                          :: step
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: hessian_column, rayleigh_column
+
+      INTEGER                                            :: i, j, n, r
+
+      n = SIZE(gradient_plus_real, 1)
+      CPASSERT(ALL(SHAPE(gradient_plus_real) == [n, n]))
+      CPASSERT(ALL(SHAPE(gradient_plus_imag) == [n, n]))
+      CPASSERT(ALL(SHAPE(gradient_minus_real) == [n, n]))
+      CPASSERT(ALL(SHAPE(gradient_minus_imag) == [n, n]))
+      CPASSERT(SIZE(hessian_column) == n*(n - 1))
+      CPASSERT(SIZE(rayleigh_column) == n)
+
+      r = 0
+      DO i = 1, n - 1
+         DO j = i + 1, n
+            r = r + 1
+            hessian_column(r) = &
+               (gradient_plus_real(i, j) - gradient_minus_real(i, j))/(2.0_dp*step)
+            r = r + 1
+            hessian_column(r) = &
+               (gradient_plus_imag(i, j) - gradient_minus_imag(i, j))/(2.0_dp*step)
+         END DO
+      END DO
+      rayleigh_column(:) = (rayleigh_plus(:) - rayleigh_minus(:))/(2.0_dp*step)
+
+   END SUBROUTINE qs_ot_pack_rotation_response
+
+! **************************************************************************************************
+!> \brief dense complex rotation and projected-Hamiltonian diagonal
+!> \param rotation_generator anti-Hermitian REF generator
+!> \param base_hamiltonian fixed Hamiltonian in the unrotated REF basis
+!> \param occupation_scale twice the weighted occupations
+!> \param gradient_real real-antisymmetric gradient component
+!> \param gradient_imag imaginary-symmetric gradient component
+!> \param rayleigh diagonal of the rotated Hamiltonian
+! **************************************************************************************************
+   SUBROUTINE qs_ot_dense_rotation_gradient( &
+      rotation_generator, base_hamiltonian, occupation_scale, gradient_real, gradient_imag, rayleigh)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: rotation_generator, base_hamiltonian
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation_scale
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: gradient_real, gradient_imag
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: rayleigh
+
+      COMPLEX(KIND=dp)                                   :: kernel
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: covector, eigenvectors, frechet, inner, &
+                                                            outer, rotation, work
+      INTEGER                                            :: i, j, n
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+
+      n = SIZE(rotation_generator, 1)
+      ALLOCATE (covector(n, n), eigenvectors(n, n), frechet(n, n), inner(n, n), &
+                outer(n, n), rotation(n, n), work(n, n), eigenvalues(n))
+      CALL qs_ot_dense_rotation_state(rotation_generator, rotation, &
+                                      eigenvectors=eigenvectors, eigenvalues=eigenvalues)
+
+      work(:, :) = MATMUL(base_hamiltonian, rotation)
+      covector(:, :) = work(:, :)
+      DO j = 1, n
+         covector(:, j) = occupation_scale(j)*covector(:, j)
+      END DO
+
+      work(:, :) = MATMUL(CONJG(TRANSPOSE(rotation)), &
+                          MATMUL(base_hamiltonian, rotation))
+      DO i = 1, n
+         rayleigh(i) = REAL(work(i, i), KIND=dp)
+      END DO
+
+      inner(:, :) = MATMUL(CONJG(TRANSPOSE(eigenvectors)), &
+                           MATMUL(covector, eigenvectors))
+      DO j = 1, n
+         DO i = 1, n
+            kernel = CONJG(qs_ot_complex_exp_frechet_kernel(eigenvalues(i), eigenvalues(j)))
+            outer(i, j) = inner(i, j)*kernel
+         END DO
+      END DO
+      frechet(:, :) = MATMUL(eigenvectors, &
+                             MATMUL(outer, CONJG(TRANSPOSE(eigenvectors))))
+      gradient_real(:, :) = REAL(frechet, KIND=dp) - TRANSPOSE(REAL(frechet, KIND=dp))
+      gradient_imag(:, :) = AIMAG(frechet) + TRANSPOSE(AIMAG(frechet))
+
+      DEALLOCATE (covector, eigenvectors, frechet, inner, outer, rotation, work, eigenvalues)
+
+   END SUBROUTINE qs_ot_dense_rotation_gradient
+
+! **************************************************************************************************
+!> \brief dense exponential of an anti-Hermitian REF generator
+!> \param rotation_generator anti-Hermitian generator
+!> \param rotation exp(rotation_generator)
+!> \param eigenvectors optional eigenvectors of i*rotation_generator
+!> \param eigenvalues optional eigenvalues of i*rotation_generator
+! **************************************************************************************************
+   SUBROUTINE qs_ot_dense_rotation_state(rotation_generator, rotation, eigenvectors, eigenvalues)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: rotation_generator
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: rotation
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+         OPTIONAL                                        :: eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: eigenvalues
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: vectors, weighted_vectors
+      INTEGER                                            :: j, n
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: values
+
+      n = SIZE(rotation_generator, 1)
+      ALLOCATE (vectors(n, n), weighted_vectors(n, n), values(n))
+      CALL diag_complex(CMPLX(0.0_dp, 1.0_dp, KIND=dp)*rotation_generator, &
+                        vectors, values)
+      weighted_vectors(:, :) = vectors(:, :)
+      DO j = 1, n
+         weighted_vectors(:, j) = EXP(CMPLX(0.0_dp, -values(j), KIND=dp))* &
+                                  weighted_vectors(:, j)
+      END DO
+      rotation(:, :) = MATMUL(weighted_vectors, CONJG(TRANSPOSE(vectors)))
+      IF (PRESENT(eigenvectors)) eigenvectors(:, :) = vectors(:, :)
+      IF (PRESENT(eigenvalues)) eigenvalues(:) = values(:)
+      DEALLOCATE (vectors, weighted_vectors, values)
+
+   END SUBROUTINE qs_ot_dense_rotation_state
 
 ! **************************************************************************************************
 !> \brief Frechet divided-difference kernel for exp(-i*evals)
