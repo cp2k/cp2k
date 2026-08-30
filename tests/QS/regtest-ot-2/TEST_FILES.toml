@@ -81,6 +81,13 @@
   {matcher="OT_added_mos_auto_grow"},
 ]
 "H3-kpoint-roks.inp"                    = [{matcher="E_total", tol=1e-9, ref=-1.48796745286581}]
+"Al-kpoint-mermin-roks.inp"             = [
+  {matcher="E_total", tol=1e-9, ref=-2.810023241029225},
+  {matcher="Electronic_entropic_energy", tol=1e-10, ref=-0.00043901382531},
+  {matcher="Integrated_spin_density", tol=1e-8, ref=1.0},
+  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+]
 # go through planned FFTs, but don't check results, they will depend on the selected plan
 "H2O-plan-2.inp"                        = []
 "H2O-plan-3.inp"                        = []

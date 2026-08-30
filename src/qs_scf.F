@@ -1818,9 +1818,6 @@ CONTAINS
       IF (do_kpoints) THEN
          do_smear = dft_control%smear .OR. scf_control%smear%do_smear
          IF (do_smear) THEN
-            IF (dft_control%restricted) THEN
-               CPABORT("K-point ROKS smearing requires separate alpha/beta OT energy variables.")
-            END IF
             IF (.NOT. scf_env%qs_ot_env(1)%settings%do_ener) THEN
                CPABORT("K-point OT smearing requires OT%ENERGIES and OT%ROTATION.")
             END IF
@@ -1843,6 +1840,10 @@ CONTAINS
                 scf_env%qs_ot_env(1)%settings%OT_METHOD /= "BROY" .AND. &
                 scf_env%qs_ot_env(1)%settings%OT_METHOD /= "LBFG") THEN
                CPABORT("K-point Mermin OT supports OT%MINIMIZER CG, SD, DIIS, BROYDEN, or LBFGS.")
+            END IF
+            IF (dft_control%restricted .AND. &
+                scf_env%qs_ot_env(1)%settings%occupation_preconditioner) THEN
+               CPABORT("K-point ROKS smearing does not yet support OCCUPATION_PRECONDITIONER.")
             END IF
          ELSE IF (scf_env%qs_ot_env(1)%settings%do_ener) THEN
             CPABORT("OT%ENERGIES requires smearing in the complex K-point path.")
@@ -2104,8 +2105,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_qs_ot_kpoint_state'
 
-      INTEGER                                            :: handle, ikpoint, ikpoint_local, ispin, &
-                                                            nao, nmo, nocc, ot_channel
+      INTEGER                                            :: energy_dimension, energy_spin, &
+                                                            energy_start, handle, ikpoint, &
+                                                            ikpoint_local, ispin, nao, nmo, nocc, &
+                                                            ot_channel
       LOGICAL                                            :: use_real_wfn
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct
@@ -2169,9 +2172,14 @@ CONTAINS
             CALL cp_fm_create(active_mo_coeff, active_mo_struct)
             CALL cp_fm_to_fm(mo_coeff, active_mo_coeff, nocc)
 
+            energy_dimension = nocc
+            IF (dft_control%restricted .AND. &
+                scf_env%qs_ot_env(ot_channel)%settings%do_ener) THEN
+               energy_dimension = nocc*SIZE(kp%mos, 2)
+            END IF
             CALL qs_ot_allocate(scf_env%qs_ot_env(ot_channel), &
                                 matrix_sk_re, &
-                                active_mo_struct)
+                                active_mo_struct, energy_dimension=energy_dimension)
 
             CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp)
             CALL copy_fm_to_dbcsr(active_mo_coeff, scf_env%qs_ot_env(ot_channel)%matrix_c0)
@@ -2210,7 +2218,16 @@ CONTAINS
 
             CALL qs_ot_init(scf_env%qs_ot_env(ot_channel))
             IF (scf_env%qs_ot_env(ot_channel)%settings%do_ener) THEN
-               scf_env%qs_ot_env(ot_channel)%ener_x(:) = eigenvalues(1:nocc)
+               IF (dft_control%restricted) THEN
+                  DO energy_spin = 1, SIZE(kp%mos, 2)
+                     CALL get_mo_set(kp%mos(1, energy_spin), eigenvalues=eigenvalues)
+                     energy_start = (energy_spin - 1)*nocc + 1
+                     scf_env%qs_ot_env(ot_channel)%ener_x(energy_start:energy_start + nocc - 1) = &
+                        eigenvalues(1:nocc)
+                  END DO
+               ELSE
+                  scf_env%qs_ot_env(ot_channel)%ener_x(:) = eigenvalues(1:nocc)
+               END IF
             END IF
             scf_env%qs_ot_env(ot_channel)%broyden_adaptive_sigma = qs_env%broyden_adaptive_sigma
 

@@ -1526,8 +1526,10 @@ CONTAINS
 !> \param probe ...
 !> \param added_mos_auto ...
 !> \param added_mos_auto_grow ...
+!> \param separate_spin_occupations enforce the electron count of each spin channel
 ! **************************************************************************************************
-   SUBROUTINE kpoint_set_mo_occupation(kpoint, smear, probe, added_mos_auto, added_mos_auto_grow)
+   SUBROUTINE kpoint_set_mo_occupation( &
+      kpoint, smear, probe, added_mos_auto, added_mos_auto_grow, separate_spin_occupations)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(smear_type)                                   :: smear
@@ -1535,6 +1537,7 @@ CONTAINS
          POINTER                                         :: probe
       LOGICAL, DIMENSION(:), INTENT(IN), OPTIONAL        :: added_mos_auto
       LOGICAL, INTENT(OUT), OPTIONAL                     :: added_mos_auto_grow
+      LOGICAL, INTENT(IN), OPTIONAL                      :: separate_spin_occupations
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_set_mo_occupation'
 
@@ -1542,7 +1545,8 @@ CONTAINS
                                                             nb, ncol_global, ne_a, ne_b, &
                                                             nelectron, nkp, nmo, nrow_global, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
-      LOGICAL                                            :: my_added_mos_auto_grow
+      LOGICAL                                            :: my_added_mos_auto_grow, &
+                                                            my_separate_spin_occupations
       REAL(KIND=dp)                                      :: kTS, kTS_spin(2), mu, mus(2), nel
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: smatrix
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: weig, wocc
@@ -1562,6 +1566,10 @@ CONTAINS
       CALL get_kpoint_info(kpoint, nkp=nkp)
       kp => kpoint%kp_env(1)%kpoint_env
       nspin = SIZE(kp%mos, 2)
+      my_separate_spin_occupations = smear%fixed_mag_mom > 0.0_dp
+      IF (PRESENT(separate_spin_occupations)) THEN
+         my_separate_spin_occupations = my_separate_spin_occupations .OR. separate_spin_occupations
+      END IF
       mo_set => kp%mos(1, 1)
       CALL get_mo_set(mo_set, nmo=nmo, nao=nao, nelectron=nelectron)
       ne_a = nelectron
@@ -1696,7 +1704,7 @@ CONTAINS
                   CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                                smear%electronic_temperature, 2.0_dp, smear_fermi_dirac)
                   kTS_spin(1) = kTS
-               ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
+               ELSE IF (my_separate_spin_occupations) THEN
                   nel = REAL(ne_a, KIND=dp)
                   CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                                smear%electronic_temperature, 1.0_dp, smear_fermi_dirac)
@@ -1719,7 +1727,7 @@ CONTAINS
                   CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                                smear%smearing_width, 2.0_dp, smear%method)
                   kTS_spin(1) = kTS
-               ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
+               ELSE IF (my_separate_spin_occupations) THEN
                   nel = REAL(ne_a, KIND=dp)
                   CALL Smearkp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                                smear%smearing_width, 1.0_dp, smear%method)
