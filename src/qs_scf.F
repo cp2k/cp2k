@@ -1113,7 +1113,7 @@ CONTAINS
                                                             old_eigenvalues, old_occupation_numbers
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, old_mo_coeff
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1126,7 +1126,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (ao_mo_fm_pools, blacs_env, dft_control, eigenvalues, kpoints, matrix_ks, matrix_s, &
-               mo_coeff, mo_derivs, mos, occupation_numbers, old_eigenvalues, old_mo_coeff, &
+               mo_coeff, mo_derivs, mos, occupation_numbers, old_eigenvalues, &
                old_occupation_numbers, para_env)
 
       CALL get_qs_env(qs_env=qs_env, blacs_env=blacs_env, dft_control=dft_control, &
@@ -1233,12 +1233,11 @@ CONTAINS
                           name="qs_env%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
          CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, eigenvalues=eigenvalues, &
                          occupation_numbers=occupation_numbers)
-         CALL get_mo_set(old_mos(ispin), mo_coeff=old_mo_coeff, eigenvalues=old_eigenvalues, &
+         CALL get_mo_set(old_mos(ispin), eigenvalues=old_eigenvalues, &
                          occupation_numbers=old_occupation_numbers)
 
          old_nmo = old_mos(ispin)%nmo
          CALL cp_fm_init_random(mo_coeff, mos(ispin)%nmo)
-         CALL cp_fm_to_fm(old_mo_coeff, mo_coeff, old_nmo)
          IF (has_unit_metric) THEN
             CALL make_basis_simple(mo_coeff, mos(ispin)%nmo)
          ELSE
