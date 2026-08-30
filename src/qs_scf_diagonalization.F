@@ -2456,7 +2456,8 @@ CONTAINS
          CALL ot_eigensolver(matrix_h=matrix_ks(ispin)%matrix, &
                              matrix_s=matrix_s(1)%matrix, &
                              matrix_c_fm=mo_coeff, &
-                             preconditioner=scf_env%ot_preconditioner(1)%preconditioner, &
+                             preconditioner=scf_env%ot_preconditioner( &
+                             MIN(ispin, SIZE(scf_env%ot_preconditioner)))%preconditioner, &
                              eps_gradient=eps_iter, &
                              iter_max=scf_control%diagonalization%max_iter, &
                              silent=.TRUE., &

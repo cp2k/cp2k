@@ -1531,11 +1531,15 @@ CONTAINS
             CALL qs_diis_b_clear(scf_env%scf_diis_buffer)
          END IF
 
-         ! disable DFTB and SE for now
-         IF (dft_control%qs_control%dftb .OR. &
-             dft_control%qs_control%xtb .OR. &
-             dft_control%qs_control%semi_empirical) THEN
-            CPABORT("DFTB and SE not available with OT/DIAG")
+         IF (scf_control%diagonalization%ot_settings%preconditioner_type == &
+             ot_precond_full_kinetic .AND. &
+             (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb .OR. &
+              dft_control%qs_control%semi_empirical)) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "FULL_KINETIC is unavailable for semi-empirical DIAGONALIZATION%OT; "// &
+                         "falling back to FULL_S_INVERSE.")
+            scf_control%diagonalization%ot_settings%preconditioner_type = ot_precond_s_inverse
+            scf_control%diagonalization%ot_settings%preconditioner_name = "FULL_S_INVERSE"
          END IF
 
          ! if an old preconditioner is still around (i.e. outer SCF is active),

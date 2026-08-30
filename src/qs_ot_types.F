@@ -1352,23 +1352,27 @@ CONTAINS
 !> \param ot_section ...
 !> \param output_unit ...
 !> \param complex_kpoints whether defaults are for complex k-point OT
+!> \param eigensolver whether OT minimizes a fixed-H orbital subspace for DIAGONALIZATION
 ! **************************************************************************************************
-   SUBROUTINE ot_readwrite_input(settings, ot_section, output_unit, complex_kpoints)
+   SUBROUTINE ot_readwrite_input(settings, ot_section, output_unit, complex_kpoints, eigensolver)
       TYPE(qs_ot_settings_type)                          :: settings
       TYPE(section_vals_type), POINTER                   :: ot_section
       INTEGER, INTENT(IN)                                :: output_unit
-      LOGICAL, INTENT(IN), OPTIONAL                      :: complex_kpoints
+      LOGICAL, INTENT(IN), OPTIONAL                      :: complex_kpoints, eigensolver
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_readwrite_input'
 
       INTEGER                                            :: handle, ls_method, ot_algorithm, &
                                                             ot_method, ot_ortho_irac
-      LOGICAL                                            :: energy_gap_explicit, use_complex_kpoints
+      LOGICAL                                            :: energy_gap_explicit, &
+                                                            use_complex_kpoints, use_eigensolver
 
       CALL timeset(routineN, handle)
 
       use_complex_kpoints = .FALSE.
       IF (PRESENT(complex_kpoints)) use_complex_kpoints = complex_kpoints
+      use_eigensolver = .FALSE.
+      IF (PRESENT(eigensolver)) use_eigensolver = eigensolver
 
       ! choose algorithm
       CALL section_vals_val_get(ot_section, "ALGORITHM", i_val=ot_algorithm)
@@ -1553,8 +1557,20 @@ CONTAINS
             CPABORT("MINIMIZER LBFGS requires ALGORITHM STRICT or IRAC")
          END IF
       END IF
-      IF (settings%do_ener .AND. .NOT. use_complex_kpoints) THEN
+      IF (settings%do_ener .AND. .NOT. use_complex_kpoints .AND. .NOT. use_eigensolver) THEN
          CPABORT("OT%ENERGIES is currently supported only by the complex K-point Mermin path.")
+      END IF
+      IF (use_eigensolver .AND. &
+          (settings%do_rotation .OR. settings%do_ener .OR. &
+           settings%occupation_preconditioner .OR. settings%add_nondiag_energy)) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "DIAGONALIZATION%OT ignores ROTATION, ENERGIES, "// &
+                      "OCCUPATION_PRECONDITIONER, and NONDIAG_ENERGY because occupations "// &
+                      "are assigned after eigenspace minimization.")
+         settings%do_rotation = .FALSE.
+         settings%do_ener = .FALSE.
+         settings%occupation_preconditioner = .FALSE.
+         settings%add_nondiag_energy = .FALSE.
       END IF
 
       ! write OT output

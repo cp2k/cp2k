@@ -552,7 +552,9 @@ CONTAINS
             END DO
          END IF
          IF ((.NOT. ASSOCIATED(scf_env%ortho)) .AND. &
-             (scf_env%method /= ot_diag_method_nr) .AND. &
+             ((scf_env%method /= ot_diag_method_nr) .OR. &
+              dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb .OR. &
+              dft_control%qs_control%semi_empirical) .AND. &
              (scf_env%method /= special_diag_method_nr)) THEN
             ! Initialize fm matrix to store the Cholesky decomposition
             ALLOCATE (scf_env%ortho)
@@ -873,9 +875,9 @@ CONTAINS
             CPABORT("OT only for restricted (ROKS)")
          END IF
          SELECT CASE (scf_control%diagonalization%method)
-         CASE (diag_ot, diag_block_krylov, diag_block_davidson)
+         CASE (diag_block_krylov, diag_block_davidson)
             IF (.NOT. not_se_or_tb) THEN
-               CPABORT("TB and SE not possible with OT diagonalization")
+               CPABORT("TB and SE not possible with block iterative diagonalization")
             END IF
          END SELECT
          SELECT CASE (scf_control%diagonalization%method)

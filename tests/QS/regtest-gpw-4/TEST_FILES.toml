@@ -64,6 +64,7 @@
 "N_notfixedMM.inp"                      = [{matcher="E_total", tol=3e-09, ref=-9.73919922245225}]
 #new diagonalization
 "h2o-otdiag.inp"                        = [{matcher="E_total", tol=8e-13, ref=-17.09951347030604}]
+"h2o-otdiag-irac.inp"                   = [{matcher="E_total", tol=2e-12, ref=-17.108027571099878}]
 "h2o-diag.inp"                          = [{matcher="E_total", tol=6e-14, ref=-16.10105776251690}]
 "h2o-diag-sub.inp"                      = [{matcher="E_total", tol=6e-14, ref=-17.10796281427774}]
 "h2o-otdiag-lsd.inp"                    = [{matcher="E_total", tol=1E-13, ref=-12.43939517338400}]

@@ -18,6 +18,8 @@ MODULE qs_ot_eigensolver
                                               cp_dbcsr_cholesky_invert
    USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
+                                              cp_dbcsr_m_by_n_from_row_template,&
                                               cp_dbcsr_m_by_n_from_template,&
                                               cp_fm_to_dbcsr_row_template,&
                                               dbcsr_copy_columns_hack
@@ -29,6 +31,7 @@ MODULE qs_ot_eigensolver
                                               preconditioner_type
    USE qs_mo_methods,                   ONLY: make_basis_sv
    USE qs_ot,                           ONLY: qs_ot_get_orbitals,&
+                                              qs_ot_get_orbitals_ref,&
                                               qs_ot_get_p,&
                                               qs_ot_new_preconditioner
    USE qs_ot_minimizer,                 ONLY: ot_mini
@@ -88,7 +91,8 @@ CONTAINS
 
       INTEGER                                            :: handle, ieigensolver, iter_total, k, n, &
                                                             ortho_k, ortho_space_k, output_unit
-      LOGICAL                                            :: energy_only, my_silent, ortho
+      LOGICAL                                            :: energy_only, my_silent, ortho, &
+                                                            ref_algorithm
       REAL(KIND=dp)                                      :: delta, energy
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
       TYPE(dbcsr_type), POINTER                          :: matrix_buf1_ortho, matrix_buf2_ortho, &
@@ -110,7 +114,16 @@ CONTAINS
 
       CALL cp_fm_get_info(matrix_c_fm, nrow_global=n, ncol_global=k) ! fm->dbcsr
       ALLOCATE (matrix_c)
-      CALL cp_fm_to_dbcsr_row_template(matrix_c, fm_in=matrix_c_fm, template=matrix_h)
+      ref_algorithm = .FALSE.
+      IF (PRESENT(ot_settings)) ref_algorithm = ot_settings%ot_algorithm == "REF"
+      IF (ref_algorithm) THEN
+         CALL dbcsr_init_p(matrix_c)
+         CALL cp_dbcsr_m_by_n_from_row_template(matrix_c, template=matrix_h, n=k, &
+                                                sym=dbcsr_type_no_symmetry)
+         CALL copy_fm_to_dbcsr(matrix_c_fm, matrix_c)
+      ELSE
+         CALL cp_fm_to_dbcsr_row_template(matrix_c, fm_in=matrix_c_fm, template=matrix_h)
+      END IF
 
       iter_total = 0
 
@@ -128,7 +141,6 @@ CONTAINS
          ALLOCATE (matrix_hc(1))
          NULLIFY (matrix_hc(1)%matrix)
          CALL dbcsr_init_p(matrix_hc(1)%matrix)
-         CALL dbcsr_copy(matrix_hc(1)%matrix, matrix_c, 'matrix_hc')
 
          ortho = .FALSE.
          IF (PRESENT(matrix_orthogonal_space_fm)) ortho = .TRUE.
@@ -155,6 +167,11 @@ CONTAINS
 
          ! allocate
          CALL qs_ot_allocate(qs_ot_env(1), matrix_s, matrix_c_fm%matrix_struct, ortho_k=ortho_k)
+         IF (ref_algorithm) THEN
+            CALL dbcsr_copy(matrix_hc(1)%matrix, qs_ot_env(1)%matrix_x, 'matrix_hc')
+         ELSE
+            CALL dbcsr_copy(matrix_hc(1)%matrix, matrix_c, 'matrix_hc')
+         END IF
 
          IF (ortho) THEN
             ! construct an initial guess that is orthogonal to matrix_orthogonal_space
@@ -228,13 +245,19 @@ CONTAINS
          CALL qs_ot_init(qs_ot_env(1))
          energy_only = qs_ot_env(1)%energy_only
 
-         ! set x
-         CALL dbcsr_set(qs_ot_env(1)%matrix_x, 0.0_dp)
-         CALL dbcsr_set(qs_ot_env(1)%matrix_sx, 0.0_dp)
-
-         ! get c
-         CALL qs_ot_get_p(qs_ot_env(1)%matrix_x, qs_ot_env(1)%matrix_sx, qs_ot_env(1))
-         CALL qs_ot_get_orbitals(matrix_c, qs_ot_env(1)%matrix_x, qs_ot_env(1))
+         SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
+         CASE ("TOD")
+            CALL dbcsr_set(qs_ot_env(1)%matrix_x, 0.0_dp)
+            CALL dbcsr_set(qs_ot_env(1)%matrix_sx, 0.0_dp)
+            CALL qs_ot_get_p(qs_ot_env(1)%matrix_x, qs_ot_env(1)%matrix_sx, qs_ot_env(1))
+            CALL qs_ot_get_orbitals(matrix_c, qs_ot_env(1)%matrix_x, qs_ot_env(1))
+         CASE ("REF")
+            CALL dbcsr_copy(qs_ot_env(1)%matrix_x, qs_ot_env(1)%matrix_c0)
+            CALL dbcsr_copy(qs_ot_env(1)%matrix_sx, qs_ot_env(1)%matrix_sc0)
+            CALL dbcsr_copy(matrix_c, qs_ot_env(1)%matrix_c0)
+         CASE DEFAULT
+            CPABORT("OT eigensolver supports ALGORITHM STRICT or IRAC")
+         END SELECT
 
          ! if present preconditioner, use it
 
@@ -268,11 +291,17 @@ CONTAINS
             delta = qs_ot_env(1)%delta
             energy_only = qs_ot_env(1)%energy_only
 
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, qs_ot_env(1)%matrix_x, &
-                                0.0_dp, qs_ot_env(1)%matrix_sx)
-
-            CALL qs_ot_get_p(qs_ot_env(1)%matrix_x, qs_ot_env(1)%matrix_sx, qs_ot_env(1))
-            CALL qs_ot_get_orbitals(matrix_c, qs_ot_env(1)%matrix_x, qs_ot_env(1))
+            SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
+            CASE ("TOD")
+               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, qs_ot_env(1)%matrix_x, &
+                                   0.0_dp, qs_ot_env(1)%matrix_sx)
+               CALL qs_ot_get_p(qs_ot_env(1)%matrix_x, qs_ot_env(1)%matrix_sx, qs_ot_env(1))
+               CALL qs_ot_get_orbitals(matrix_c, qs_ot_env(1)%matrix_x, qs_ot_env(1))
+            CASE ("REF")
+               CALL qs_ot_get_orbitals_ref(matrix_c, matrix_s, qs_ot_env(1)%matrix_x, &
+                                           qs_ot_env(1)%matrix_sx, qs_ot_env(1)%matrix_gx_old, &
+                                           qs_ot_env(1)%matrix_dx, qs_ot_env(1), qs_ot_env(1))
+            END SELECT
 
             ! exit on convergence or if maximum of inner loop  cycles is reached
             IF (delta < eps_gradient .OR. ieigensolver >= max_iter_inner_loop) EXIT eigensolver_loop
