@@ -613,12 +613,13 @@ CONTAINS
 !> \param matrix_t optional kinetic operator retained for k-point OT preconditioning
 !> \param store_ot_matrices retain H(k) and S(k) in the local k-point-group context for OT
 !> \param transfer_only redistribute and retain OT operators without diagonalization or density update
+!> \param added_mos_auto_grow true when the adaptive virtual-space buffer must grow
 !> \par History
 !>      08.2014 created [JGH]
 ! **************************************************************************************************
    SUBROUTINE do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, update_p, &
                                  diis_step, diis_error, qs_env, probe, matrix_t, &
-                                 store_ot_matrices, transfer_only)
+                                 store_ot_matrices, transfer_only, added_mos_auto_grow)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -633,6 +634,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_t
       LOGICAL, INTENT(IN), OPTIONAL                      :: store_ot_matrices, transfer_only
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: added_mos_auto_grow
 
       CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag_kp'
 
@@ -643,9 +645,9 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL :: adiis_cdiis, cdiis_step, do_diis, my_kpgrp, my_store_ot_kinetic, &
-         my_store_ot_matrices, my_transfer_only, spin_grid_fft, use_adiis, use_grid_fft, &
-         use_omp_kpoints, use_real_wfn
+      LOGICAL :: adiis_cdiis, cdiis_step, do_diis, my_added_mos_auto_grow, my_kpgrp, &
+         my_store_ot_kinetic, my_store_ot_matrices, my_transfer_only, spin_grid_fft, use_adiis, &
+         use_grid_fft, use_omp_kpoints, use_real_wfn
       REAL(KIND=dp)                                      :: diis_weight
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
@@ -679,6 +681,8 @@ CONTAINS
       IF (my_store_ot_kinetic) my_store_ot_kinetic = ASSOCIATED(matrix_t)
       CPASSERT(.NOT. my_transfer_only .OR. .NOT. update_p)
       CPASSERT(.NOT. my_store_ot_kinetic .OR. my_transfer_only)
+      my_added_mos_auto_grow = .FALSE.
+      IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .FALSE.
 
       NULLIFY (adiis_ks, effective_ks, sab_nl)
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
@@ -1225,13 +1229,19 @@ CONTAINS
             CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
                                           probe=probe)
          ELSE
-            CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+            CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
+                                          added_mos_auto=scf_control%added_mos_auto, &
+                                          added_mos_auto_grow=my_added_mos_auto_grow)
          END IF
-         ! density matrices
-         CALL kpoint_density_matrices(kpoints)
-         ! density matrices in real space
-         CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
-                                       matrix_s(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s)
+         IF (my_added_mos_auto_grow) THEN
+            IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
+         ELSE
+            ! density matrices
+            CALL kpoint_density_matrices(kpoints)
+            ! density matrices in real space
+            CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
+                                          matrix_s(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s)
+         END IF
       END IF
 
       CALL dbcsr_deallocate_matrix(rmatrix)

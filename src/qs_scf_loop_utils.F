@@ -391,10 +391,12 @@ CONTAINS
 !> \param allow_ot_kp_subspace_refresh ...
 !> \param allow_ot_kp_exit_refresh ...
 !> \param accepted_ot_kp_searches ...
+!> \param added_mos_auto_grow ...
 ! **************************************************************************************************
    SUBROUTINE qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, probe, &
                                 ot_kp_subspace_refresh, allow_ot_kp_subspace_refresh, &
-                                allow_ot_kp_exit_refresh, accepted_ot_kp_searches)
+                                allow_ot_kp_exit_refresh, accepted_ot_kp_searches, &
+                                added_mos_auto_grow)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -405,13 +407,13 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: allow_ot_kp_subspace_refresh, &
                                                             allow_ot_kp_exit_refresh
       INTEGER, INTENT(IN), OPTIONAL                      :: accepted_ot_kp_searches
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: added_mos_auto_grow
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_new_mos_kp'
 
       INTEGER                                            :: accepted_searches, handle, ispin
-      LOGICAL                                            :: allow_exit_refresh, allow_refresh, &
-                                                            base_state, disable_diis, &
-                                                            has_unit_metric, refresh
+      LOGICAL :: allow_exit_refresh, allow_refresh, base_state, disable_diis, has_unit_metric, &
+         my_added_mos_auto_grow, refresh
       REAL(dp)                                           :: diis_error, residual, saved_eps_diis
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -424,11 +426,13 @@ CONTAINS
       allow_refresh = .FALSE.
       allow_exit_refresh = .FALSE.
       accepted_searches = 0
+      my_added_mos_auto_grow = .FALSE.
       refresh = .FALSE.
       IF (PRESENT(allow_ot_kp_subspace_refresh)) allow_refresh = allow_ot_kp_subspace_refresh
       IF (PRESENT(allow_ot_kp_exit_refresh)) allow_exit_refresh = allow_ot_kp_exit_refresh
       IF (PRESENT(accepted_ot_kp_searches)) accepted_searches = accepted_ot_kp_searches
       IF (PRESENT(ot_kp_subspace_refresh)) ot_kp_subspace_refresh = .FALSE.
+      IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .FALSE.
 
       NULLIFY (dft_control, energy, kpoints, matrix_ks, matrix_s)
 
@@ -463,7 +467,14 @@ CONTAINS
                                     diis_step, diis_error, qs_env, probe)
          ELSE
             CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .TRUE., &
-                                    diis_step, diis_error, qs_env)
+                                    diis_step, diis_error, qs_env, &
+                                    added_mos_auto_grow=my_added_mos_auto_grow)
+         END IF
+         IF (my_added_mos_auto_grow) THEN
+            IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
+            IF (disable_diis) scf_control%eps_diis = saved_eps_diis
+            CALL timestop(handle)
+            RETURN
          END IF
          IF (scf_control%diagonalization%update_method == diag_update_method_adiis .AND. &
              .NOT. diis_step) THEN
@@ -514,7 +525,14 @@ CONTAINS
          IF (refresh) THEN
             IF (PRESENT(ot_kp_subspace_refresh)) ot_kp_subspace_refresh = .TRUE.
          ELSE
-            CALL qs_scf_loop_do_ot_kp(qs_env, scf_env, matrix_ks, matrix_s)
+            CALL qs_scf_loop_do_ot_kp(qs_env, scf_env, matrix_ks, matrix_s, &
+                                      my_added_mos_auto_grow)
+            IF (my_added_mos_auto_grow) THEN
+               IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
+               IF (disable_diis) scf_control%eps_diis = saved_eps_diis
+               CALL timestop(handle)
+               RETURN
+            END IF
             IF (allow_exit_refresh .AND. scf_env%iter_delta <= scf_control%eps_scf) THEN
                base_state = TRIM(scf_env%iter_method) == "OT CG"
                refresh = qs_scf_kp_ref_refresh_ready( &
@@ -561,12 +579,14 @@ CONTAINS
 !> \param scf_env ...
 !> \param matrix_ks ...
 !> \param matrix_s ...
+!> \param added_mos_auto_grow ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_loop_do_ot_kp(qs_env, scf_env, matrix_ks, matrix_s)
+   SUBROUTINE qs_scf_loop_do_ot_kp(qs_env, scf_env, matrix_ks, matrix_s, added_mos_auto_grow)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
+      LOGICAL, INTENT(OUT)                               :: added_mos_auto_grow
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_do_ot_kp'
 
@@ -601,6 +621,7 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
+      added_mos_auto_grow = .FALSE.
 
       NULLIFY (active_mo_struct, chc_struct, density_target, dft_control, energy, fmwork, kpoints, &
                local_ot_env, matrix_hc, matrix_hc_im, matrix_k_im, matrix_k_re, matrix_s_im, &
@@ -885,23 +906,27 @@ CONTAINS
       END DO
 
       IF (local_ot_env(1)%settings%do_ener) THEN
-         CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+         CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
+                                       added_mos_auto=scf_control%added_mos_auto, &
+                                       added_mos_auto_grow=added_mos_auto_grow)
       END IF
 
       IF (ALLOCATED(trial_eigenvalues)) DEALLOCATE (trial_eigenvalues)
       IF (ALLOCATED(trial_occupation)) DEALLOCATE (trial_occupation)
 
-      fmwork => scf_env%scf_work1
-      IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-         density_target => scf_env%p_mix_new
-      ELSE
-         CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
-         density_target => rho_ao_kp
+      IF (.NOT. added_mos_auto_grow) THEN
+         fmwork => scf_env%scf_work1
+         IF (ASSOCIATED(scf_env%p_mix_new)) THEN
+            density_target => scf_env%p_mix_new
+         ELSE
+            CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+            density_target => rho_ao_kp
+         END IF
+         CALL kpoint_density_matrices(kpoints)
+         CALL kpoint_density_transform(kpoints, density_target, .FALSE., &
+                                       matrix_s(1, 1)%matrix, sab_nl, fmwork, &
+                                       overlap_rs=matrix_s)
       END IF
-      CALL kpoint_density_matrices(kpoints)
-      CALL kpoint_density_transform(kpoints, density_target, .FALSE., &
-                                    matrix_s(1, 1)%matrix, sab_nl, fmwork, &
-                                    overlap_rs=matrix_s)
       scf_env%iter_method = scf_env%qs_ot_env(first_channel)%OT_METHOD_FULL
       scf_env%iter_param = scf_env%qs_ot_env(first_channel)%ds_min
       qs_env%broyden_adaptive_sigma = scf_env%qs_ot_env(first_channel)%broyden_adaptive_sigma

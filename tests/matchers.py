@@ -74,6 +74,9 @@ registry["QS_MO_OCCUPATION_STATS"] = TextPresenceMatcher("MO| Total occupied (AL
 registry["OT_lbfgs_skipped_update"] = TextPresenceMatcher("OT LSKIP")
 registry["OT_lbfgs_update"] = TextPresenceMatcher("OT LBFGS")
 registry["OT_diis_update"] = TextPresenceMatcher("OT DIIS")
+registry["OT_added_mos_auto_grow"] = TextPresenceMatcher(
+    "K-point ADDED_MOS AUTO: growing virtual-space buffer"
+)
 registry["Kubo_sigma_iso"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S/cm]", col=3)
 registry["Kubo_sigma_iso_2d"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S]", col=3)
 registry["Kubo_sigma_iso_1d"] = GenericMatcher(r"KUBO_TRANSPORT| sigma_iso[S*m]", col=3)
