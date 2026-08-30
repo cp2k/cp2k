@@ -1,6 +1,8 @@
 # test optimize basis
 "H2O-ref.inp"                           = [{matcher="E_total", tol=9e-14, ref=-17.14511746615613}]
 "H2-ref.inp"                            = [{matcher="E_total", tol=9e-14, ref=-1.11836893446203}]
+"frontier-orbitals-optimization-H2O.inp" = [{matcher="BASOPT_frontier_optimized_gap", tol=1e-4, ref=7.548}]
 "opt-1.inp"                             = [{matcher="M055", tol=1e-14, ref=-455.31086}]
 "opt-2.inp"                             = [{matcher="M055", tol=1e-14, ref=-539.04140}]
+"frontier-orbitals-optimization-screening-H2O.inp" = [{matcher="BASOPT_frontier_screened_gap", tol=1e-4, ref=5.989}]
 #EOF

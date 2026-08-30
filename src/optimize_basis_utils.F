@@ -33,6 +33,8 @@ MODULE optimize_basis_utils
    USE optimize_basis_types,            ONLY: basis_optimization_type,&
                                               derived_basis_info,&
                                               flex_basis_type,&
+                                              method_mo_fit_occ,&
+                                              method_mo_fit_occ_virtual,&
                                               subset_type
    USE powell,                          ONLY: opt_state_type
    USE string_utilities,                ONLY: uppercase
@@ -44,7 +46,7 @@ MODULE optimize_basis_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_basis_utils'
 
    PUBLIC :: optimize_basis_init_read_input, get_set_and_basis_id, &
-             update_derived_basis_sets
+             update_derived_basis_sets, write_basis
 
 CONTAINS
 
@@ -53,53 +55,122 @@ CONTAINS
 !> \param opt_bas ...
 !> \param root_section ...
 !> \param para_env ...
+!> \param quiet_output ...
+!> \param embedded_training ...
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
-   SUBROUTINE optimize_basis_init_read_input(opt_bas, root_section, para_env)
+   SUBROUTINE optimize_basis_init_read_input(opt_bas, root_section, para_env, quiet_output, embedded_training)
       TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: quiet_output, embedded_training
 
       CHARACTER(LEN=default_path_length)                 :: main_dir
-      INTEGER                                            :: iset, iweight, nrep
-      TYPE(section_vals_type), POINTER                   :: kind_section, optbas_section, &
-                                                            powell_section, train_section
+      INTEGER                                            :: ikind, iset, iweight, nrep
+      LOGICAL                                            :: frontier_orbitals_explicit, &
+                                                            use_embedded_training
+      TYPE(section_vals_type), POINTER                   :: frontier_orbitals_section, kind_section, &
+                                                            optbas_section, powell_section, &
+                                                            train_section
 
       optbas_section => section_vals_get_subs_vals(root_section, "OPTIMIZE_BASIS")
       powell_section => section_vals_get_subs_vals(optbas_section, "OPTIMIZATION")
       train_section => section_vals_get_subs_vals(optbas_section, "TRAINING_FILES")
       kind_section => section_vals_get_subs_vals(optbas_section, "FIT_KIND")
+      frontier_orbitals_section => section_vals_get_subs_vals(optbas_section, "FRONTIER_ORBITALS")
+
+      IF (PRESENT(quiet_output)) opt_bas%quiet_output = quiet_output
+      use_embedded_training = .FALSE.
+      IF (PRESENT(embedded_training)) use_embedded_training = embedded_training
 
       CALL section_vals_val_get(optbas_section, "BASIS_TEMPLATE_FILE", c_val=opt_bas%template_basis_file)
-      CALL section_vals_val_get(optbas_section, "BASIS_WORK_FILE", c_val=opt_bas%work_basis_file)
       CALL section_vals_val_get(optbas_section, "BASIS_OUTPUT_FILE", c_val=opt_bas%output_basis_file)
       CALL m_getcwd(main_dir)
-      opt_bas%work_basis_file = TRIM(ADJUSTL(main_dir))//"/"//TRIM(ADJUSTL(opt_bas%work_basis_file))
 
       CALL section_vals_val_get(optbas_section, "WRITE_FREQUENCY", i_val=opt_bas%write_frequency)
       CALL section_vals_val_get(optbas_section, "USE_CONDITION_NUMBER", l_val=opt_bas%use_condition_number)
 
       CALL generate_initial_basis(kind_section, opt_bas, para_env)
 
+      CALL section_vals_get(frontier_orbitals_section, explicit=frontier_orbitals_explicit)
+      IF (use_embedded_training) THEN
+         opt_bas%method = method_mo_fit_occ_virtual
+      ELSE IF (frontier_orbitals_explicit) THEN
+         opt_bas%method = method_mo_fit_occ_virtual
+         CALL section_vals_val_get(frontier_orbitals_section, "OCCUPIED_WEIGHT", &
+                                   r_val=opt_bas%occupied_weight)
+         CALL section_vals_val_get(frontier_orbitals_section, "VIRTUAL_WEIGHT", &
+                                   r_val=opt_bas%virtual_weight)
+         CALL section_vals_val_get(frontier_orbitals_section, "EMPTY_OVERLAP_WEIGHT", &
+                                   r_val=opt_bas%empty_overlap_weight)
+         CALL section_vals_val_get(frontier_orbitals_section, "GAP_WEIGHT", &
+                                   r_val=opt_bas%gap_weight)
+         CALL section_vals_val_get(frontier_orbitals_section, "COEFFICIENT_WEIGHT", &
+                                   r_val=opt_bas%coefficient_weight)
+         CALL section_vals_val_get(frontier_orbitals_section, "GAP_ENERGY_SCALE", &
+                                   r_val=opt_bas%gap_energy_scale)
+         CALL section_vals_val_get(frontier_orbitals_section, "VIRTUAL_ENERGY_CUTOFF", &
+                                   r_val=opt_bas%virtual_energy_cutoff)
+         CALL section_vals_val_get(frontier_orbitals_section, "VIRTUAL_ENERGY_SMOOTHING", &
+                                   r_val=opt_bas%virtual_energy_smoothing)
+      END IF
+      IF (opt_bas%method == method_mo_fit_occ) THEN
+         CALL section_vals_val_get(optbas_section, "BASIS_WORK_FILE", c_val=opt_bas%work_basis_file)
+         opt_bas%work_basis_file = TRIM(ADJUSTL(main_dir))//"/"//TRIM(ADJUSTL(opt_bas%work_basis_file))
+      END IF
+      IF (frontier_orbitals_explicit) THEN
+         IF (opt_bas%gap_energy_scale <= 0.0_dp) CPABORT("GAP_ENERGY_SCALE must be positive")
+         IF (opt_bas%virtual_energy_smoothing <= 0.0_dp) THEN
+            CPABORT("VIRTUAL_ENERGY_SMOOTHING must be positive")
+         END IF
+         IF (MIN(opt_bas%occupied_weight, opt_bas%virtual_weight, &
+                 opt_bas%empty_overlap_weight, opt_bas%gap_weight, &
+                 opt_bas%coefficient_weight) < 0.0_dp) THEN
+            CPABORT("FRONTIER_ORBITALS weights must be non-negative")
+         END IF
+      END IF
+      IF (opt_bas%method == method_mo_fit_occ_virtual) THEN
+         DO ikind = 1, opt_bas%nkind
+            DO iset = 1, opt_bas%kind_basis(ikind)%flex_basis(0)%nsets
+               IF (ANY(opt_bas%kind_basis(ikind)%flex_basis(0)%subset(iset)%opt_exps)) THEN
+                  CPABORT("FRONTIER_ORBITALS requires fixed Gaussian exponents")
+               END IF
+            END DO
+         END DO
+      END IF
+
       CALL section_vals_get(train_section, n_repetition=opt_bas%ntraining_sets)
-      IF (opt_bas%ntraining_sets == 0) THEN
+      IF (use_embedded_training) THEN
+         IF (opt_bas%ntraining_sets /= 0) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "TRAINING_FILES is not allowed together with FRONTIER_ORBITAL_SCREENING "// &
+                          "because it is overwritten automatically")
+         END IF
+         opt_bas%ntraining_sets = 1
+      ELSE IF (opt_bas%ntraining_sets == 0) THEN
          CPABORT("No training set was specified in the Input")
       END IF
 
       ALLOCATE (opt_bas%training_input(opt_bas%ntraining_sets))
       ALLOCATE (opt_bas%training_dir(opt_bas%ntraining_sets))
-      DO iset = 1, opt_bas%ntraining_sets
-         CALL section_vals_val_get(train_section, "DIRECTORY", c_val=opt_bas%training_dir(iset), &
-                                   i_rep_section=iset)
-         CALL section_vals_val_get(train_section, "INPUT_FILE_NAME", c_val=opt_bas%training_input(iset), &
-                                   i_rep_section=iset)
-      END DO
+      IF (use_embedded_training) THEN
+         opt_bas%training_input(1) = ""
+         opt_bas%training_dir(1) = "."
+      ELSE
+         DO iset = 1, opt_bas%ntraining_sets
+            CALL section_vals_val_get(train_section, "DIRECTORY", c_val=opt_bas%training_dir(iset), &
+                                      i_rep_section=iset)
+            CALL section_vals_val_get(train_section, "INPUT_FILE_NAME", c_val=opt_bas%training_input(iset), &
+                                      i_rep_section=iset)
+         END DO
+      END IF
 
       CALL init_powell_var(opt_bas%powell_param, powell_section)
       opt_bas%powell_param%nvar = SIZE(opt_bas%x_opt)
 
-      CALL generate_derived_basis_sets(opt_bas, para_env)
+      CALL generate_derived_basis_sets( &
+         opt_bas, para_env, write_work_file=opt_bas%method == method_mo_fit_occ)
 
       CALL generate_basis_combinations(opt_bas, optbas_section)
 
@@ -121,7 +192,7 @@ CONTAINS
 
       CALL generate_computation_groups(opt_bas, optbas_section, para_env)
 
-      CALL print_opt_info(opt_bas)
+      IF (.NOT. opt_bas%quiet_output) CALL print_opt_info(opt_bas)
 
    END SUBROUTINE optimize_basis_init_read_input
 
@@ -412,12 +483,14 @@ CONTAINS
 !> \brief Initial generation of the basis set from the file and DERIVED_SET
 !> \param opt_bas ...
 !> \param para_env ...
+!> \param write_work_file ...
 !> \author Florian Schiffmann
 ! **************************************************************************************************
 
-   SUBROUTINE generate_derived_basis_sets(opt_bas, para_env)
+   SUBROUTINE generate_derived_basis_sets(opt_bas, para_env, write_work_file)
       TYPE(basis_optimization_type)                      :: opt_bas
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: write_work_file
 
       INTEGER                                            :: ibasis, ikind, iref, jbasis, unit_nr
 
@@ -436,7 +509,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (para_env%is_source()) THEN
+      IF (write_work_file .AND. para_env%is_source()) THEN
          CALL open_file(file_name=opt_bas%work_basis_file, file_status="UNKNOWN", &
                         file_action="WRITE", unit_number=unit_nr)
       ELSE
@@ -451,11 +524,13 @@ CONTAINS
                opt_bas%kind_basis(ikind)%flex_basis(ibasis)%basis_name = &
                   TRIM(ADJUSTL(opt_bas%kind_basis(ikind)%basis_name))//"-DERIVED_SET-"//ADJUSTL(cp_to_string(ibasis))
             END IF
-            CALL write_basis(opt_bas%kind_basis(ikind)%flex_basis(ibasis), opt_bas%kind_basis(ikind)%element, &
-                             unit_nr)
+            IF (write_work_file) THEN
+               CALL write_basis(opt_bas%kind_basis(ikind)%flex_basis(ibasis), &
+                                opt_bas%kind_basis(ikind)%element, unit_nr)
+            END IF
          END DO
       END DO
-      IF (para_env%is_source()) CALL close_file(unit_number=unit_nr)
+      IF (write_work_file .AND. para_env%is_source()) CALL close_file(unit_number=unit_nr)
 
    END SUBROUTINE generate_derived_basis_sets
 

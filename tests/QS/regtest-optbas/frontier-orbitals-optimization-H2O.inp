@@ -1,0 +1,44 @@
+# The aug-DZVP reference GPW calculation is loaded once from precomputed_dft/
+# and retained in memory for every aug-SZV objective evaluation.
+&GLOBAL
+  PROGRAM_NAME OPTIMIZE_BASIS
+  PROJECT frontier-orbitals-optimization-H2O
+&END GLOBAL
+
+&OPTIMIZE_BASIS
+  BASIS_OUTPUT_FILE BASIS_OUTPUT
+  BASIS_TEMPLATE_FILE BASIS_GTH_MOLOPT_AUG_H2O
+  &FIT_KIND H
+    BASIS_SET aug-SZV-MOLOPT-GTH-tier-2
+    INITIAL_DEGREES_OF_FREEDOM NONE
+  &END FIT_KIND
+  &FIT_KIND O
+    BASIS_SET aug-SZV-MOLOPT-GTH-tier-2
+    INITIAL_DEGREES_OF_FREEDOM NONE
+    ! Optimize only the three tier-2 augmentation contractions.
+    ! The inherited SZV s and p contractions remain fixed.
+    SWITCH_CONTRACTION_STATE 1 0 2
+    SWITCH_CONTRACTION_STATE 1 1 2
+    SWITCH_CONTRACTION_STATE 1 2 1
+  &END FIT_KIND
+  &FRONTIER_ORBITALS
+    GAP_ENERGY_SCALE [eV] 1.0
+    GAP_WEIGHT 10.0
+    VIRTUAL_ENERGY_CUTOFF [eV] 3.0
+    VIRTUAL_ENERGY_SMOOTHING [eV] 0.2
+  &END FRONTIER_ORBITALS
+  &OPTIMIZATION
+    ! Recommended for production molecular optimizations:
+    ! ACCURACY 1.0E-5 (default value)
+    ! MAX_FUN 800
+    ! STEP_SIZE 0.05
+    ! MAX_FUN is reduced below to keep this regression test inexpensive.
+    ACCURACY 1.0E-5
+    MAX_FUN 100
+    STEP_SIZE 0.05
+  &END OPTIMIZATION
+  &TRAINING_FILES
+    DIRECTORY precomputed_dft
+    INPUT_FILE_NAME H2O-aug-DZVP-MOLOPT-GTH-tier-2.inp
+  &END TRAINING_FILES
+&END OPTIMIZE_BASIS

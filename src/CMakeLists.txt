@@ -444,6 +444,8 @@ list(
   local_gemm_api.F
   offload/offload_api.F
   optbas_fenv_manipulation.F
+  optbas_frontier_orbital_screening.F
+  optbas_frontier_orbitals_utils.F
   optbas_opt_utils.F
   optimize_basis.F
   optimize_basis_types.F
@@ -1555,6 +1557,7 @@ set(CP2K_PROGS_F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
     qs_ot_minimizer_unittest.F
+    optbas_frontier_orbitals_utils_unittest.F
     qs_charge_mixing_unittest.F
     qs_ot_complex_ref_unittest.F
     subsys/cell_types_unittest.F
@@ -1967,6 +1970,7 @@ list(
   "kpoint_lattice_fft_unittest"
   "kpoint_smearing_unittest"
   "qs_ot_minimizer_unittest"
+  "optbas_frontier_orbitals_utils_unittest"
   "qs_charge_mixing_unittest"
   "qs_ot_complex_ref_unittest"
   "cell_types_unittest"
@@ -1995,6 +1999,8 @@ add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(qs_ot_minimizer_unittest qs_ot_minimizer_unittest.F)
+add_executable(optbas_frontier_orbitals_utils_unittest
+               optbas_frontier_orbitals_utils_unittest.F)
 add_executable(qs_charge_mixing_unittest qs_charge_mixing_unittest.F)
 add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F)
 add_executable(cell_types_unittest subsys/cell_types_unittest.F)
