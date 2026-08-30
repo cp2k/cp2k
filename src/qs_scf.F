@@ -1815,6 +1815,13 @@ CONTAINS
 
       CALL ot_scf_read_input(scf_env%qs_ot_env, scf_section, do_kpoints)
 
+      IF (scf_env%qs_ot_env(1)%settings%occupation_preconditioner .AND. &
+          scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_none) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "OCCUPATION_PRECONDITIONER requires an orbital metric; using FULL_S_INVERSE.")
+         scf_env%qs_ot_env(:)%settings%preconditioner_type = ot_precond_s_inverse
+         scf_env%qs_ot_env(:)%settings%preconditioner_name = "FULL_S_INVERSE"
+      END IF
       IF (do_kpoints) THEN
          do_smear = dft_control%smear .OR. scf_control%smear%do_smear
          IF (do_smear) THEN
@@ -1840,10 +1847,6 @@ CONTAINS
                 scf_env%qs_ot_env(1)%settings%OT_METHOD /= "BROY" .AND. &
                 scf_env%qs_ot_env(1)%settings%OT_METHOD /= "LBFG") THEN
                CPABORT("K-point Mermin OT supports OT%MINIMIZER CG, SD, DIIS, BROYDEN, or LBFGS.")
-            END IF
-            IF (dft_control%restricted .AND. &
-                scf_env%qs_ot_env(1)%settings%occupation_preconditioner) THEN
-               CPABORT("K-point ROKS smearing does not yet support OCCUPATION_PRECONDITIONER.")
             END IF
          ELSE IF (scf_env%qs_ot_env(1)%settings%do_ener) THEN
             CPABORT("OT%ENERGIES requires smearing in the complex K-point path.")

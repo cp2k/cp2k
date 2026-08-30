@@ -243,6 +243,9 @@ registry["GAUXC_molecular_xc_virial_fd_diff"] = GenericMatcher(
 registry["XTB_reference_cli_failed"] = TextPresenceMatcher(
     "tblite reference CLI check failed to run."
 )
+registry["OT_occupation_preconditioner_fallback"] = TextPresenceMatcher(
+    "OCCUPATION_PRECONDITIONER requires an"
+)
 registry["NO_TEXT"] = TextAbsenceMatcher()
 registry["M083"] = GenericMatcher(r"1[   1] - 2[   1]", col=7)
 registry["M084"] = GenericMatcher(r"Ionization potential of the excited atom:", col=7)

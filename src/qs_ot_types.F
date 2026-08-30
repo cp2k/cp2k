@@ -1185,7 +1185,10 @@ CONTAINS
             CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_mermin_g0_im, &
                                                    template=matrix_s, n=nmo, &
                                                    sym=dbcsr_type_no_symmetry)
-            IF (qs_ot_env%settings%do_ener) ALLOCATE (qs_ot_env%ener_mermin_g0(nmo))
+            IF (qs_ot_env%settings%do_ener) THEN
+               CPASSERT(ASSOCIATED(qs_ot_env%ener_x))
+               ALLOCATE (qs_ot_env%ener_mermin_g0(SIZE(qs_ot_env%ener_x)))
+            END IF
          END IF
       END IF
       SELECT CASE (qs_ot_env%settings%ot_algorithm)

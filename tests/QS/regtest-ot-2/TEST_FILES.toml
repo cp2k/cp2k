@@ -85,6 +85,7 @@
   {matcher="E_total", tol=1e-9, ref=-2.810023241029225},
   {matcher="Electronic_entropic_energy", tol=1e-10, ref=-0.00043901382531},
   {matcher="Integrated_spin_density", tol=1e-8, ref=1.0},
+  {matcher="OT_occupation_preconditioner_fallback"},
   {matcher="NO_TEXT", text="K-point smearing includes the first band"},
   {matcher="NO_TEXT", text="K-point smearing includes the last band"},
 ]

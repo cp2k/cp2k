@@ -954,7 +954,7 @@ CONTAINS
                             occupation_numbers=occupation_numbers)
             CALL get_mo_set(kp%mos(2, ispin), mo_coeff=mo_coeff_im)
             IF (local_ot_env(local_channel)%settings%do_ener) homo = nmo
-            IF (physical_base_state .AND. &
+            IF (physical_base_state .AND. .NOT. restricted_roks .AND. &
                 local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
                CALL qs_scf_kp_roll_physical_secant( &
                   local_ot_env(local_channel), mo_coeff, mo_coeff_im, &
@@ -968,8 +968,12 @@ CONTAINS
                CALL dbcsr_copy(matrix_hc_physical_im(local_channel)%matrix, &
                                matrix_hc_im(local_channel)%matrix)
                ALLOCATE (orbital_scaling_factor(homo))
-               orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)* &
-                                           trial_occupation(1:homo, ikpoint, ispin)
+               IF (restricted_roks) THEN
+                  orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)
+               ELSE
+                  orbital_scaling_factor(:) = 2.0_dp*wkp(ikpoint)* &
+                                              trial_occupation(1:homo, ikpoint, ispin)
+               END IF
                CALL dbcsr_scale_by_vector(matrix_hc_physical(local_channel)%matrix, &
                                           alpha=orbital_scaling_factor, side='right')
                CALL dbcsr_scale_by_vector(matrix_hc_physical_im(local_channel)%matrix, &
@@ -1031,7 +1035,8 @@ CONTAINS
             ! the dense finite-rotation Hessian there cannot affect the accepted direction.
             IF (physical_base_state) THEN
                CALL qs_scf_loop_prepare_ot_kp_rotation_response( &
-                  kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, &
+                  kpoints, local_ot_env, first_channel, nspin_ot, restricted_roks, &
+                  wkp, para_env_inter_kp, &
                   scf_control%smear, trial_eigenvalues, trial_occupation, trial_mu)
             END IF
             IF (physical_base_state .AND. &
@@ -1752,6 +1757,7 @@ CONTAINS
 !> \param local_ot_env local spin/K-point OT channels
 !> \param first_channel global index of the first local channel
 !> \param nspin_ot number of spin channels
+!> \param restricted_roks whether two physical spin densities share each orbital channel
 !> \param wkp irreducible K-point weights
 !> \param para_env_inter_kp communicator between distributed K-point groups
 !> \param smear smearing settings
@@ -1760,11 +1766,13 @@ CONTAINS
 !> \param trial_mu chemical potential for each spin channel
 ! **************************************************************************************************
    SUBROUTINE qs_scf_loop_prepare_ot_kp_rotation_response( &
-      kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, smear, &
+      kpoints, local_ot_env, first_channel, nspin_ot, restricted_roks, &
+      wkp, para_env_inter_kp, smear, &
       trial_eigenvalues, trial_occupation, trial_mu)
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: local_ot_env
       INTEGER, INTENT(IN)                                :: first_channel, nspin_ot
+      LOGICAL, INTENT(IN)                                :: restricted_roks
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
       TYPE(smear_type), INTENT(IN)                       :: smear
@@ -1830,6 +1838,10 @@ CONTAINS
       IF (.NOT. local_ot_env(1)%settings%occupation_preconditioner .OR. &
           .NOT. local_ot_env(1)%settings%do_rotation .OR. &
           .NOT. local_ot_env(1)%settings%do_ener) RETURN
+      ! The shared ROKS orbital uses the exact occupation-weighted alpha+beta gradient and the two
+      ! fixed-N energy blocks use their dense projected preconditioner.  The Hxc response history
+      ! below is spin-channel-local, so do not construct a falsely alpha-only coupled candidate.
+      IF (restricted_roks) RETURN
       IF (.NOT. ot_mermin_response_preparation_needed( &
           local_ot_env(1)%delta, local_ot_env(1)%response_candidate_directions, &
           local_ot_env(1)%response_shadow_good_samples, &
