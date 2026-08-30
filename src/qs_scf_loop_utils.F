@@ -23,11 +23,13 @@ MODULE qs_scf_loop_utils
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                              cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -597,7 +599,8 @@ CONTAINS
       INTEGER :: first_channel, handle, homo, ikpoint, ispin, local_channel, local_kpoint, nao, &
          nkp_groups, nkpoint, nlocal_channels, nmo, nspin_ot
       INTEGER, DIMENSION(2)                              :: kp_range
-      LOGICAL                                            :: transfer_step, use_real_wfn
+      LOGICAL                                            :: physical_base_state, transfer_step, &
+                                                            use_real_wfn
       REAL(KIND=dp)                                      :: trial_kTS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trial_eigenvalues, trial_occupation
@@ -799,14 +802,28 @@ CONTAINS
             scf_control%smear, trial_eigenvalues, trial_occupation, trial_kTS)
       END IF
 
+      physical_base_state = local_ot_env(1)%settings%do_ener .AND. &
+                            .NOT. local_ot_env(1)%initial_density_sync_pending .AND. &
+                            .NOT. local_ot_env(1)%energy_only .AND. &
+                            (local_ot_env(1)%line_search_count == 0 .OR. &
+                             local_ot_env(1)%line_search_might_be_done)
+
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
          ikpoint = kp%nkpoint
          DO ispin = 1, nspin_ot
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
-            CALL get_mo_set(kp%mos(1, ispin), homo=homo, nmo=nmo, &
+            CALL get_mo_set(kp%mos(1, ispin), homo=homo, mo_coeff=mo_coeff, nmo=nmo, &
                             occupation_numbers=occupation_numbers)
+            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=mo_coeff_im)
             IF (local_ot_env(local_channel)%settings%do_ener) homo = nmo
+            IF (physical_base_state) THEN
+               CALL qs_scf_kp_roll_physical_secant( &
+                  local_ot_env(local_channel), mo_coeff, mo_coeff_im, &
+                  kp%ot_hmat(1, MIN(ispin, SIZE(kp%ot_hmat, 2))), &
+                  kp%ot_hmat(2, MIN(ispin, SIZE(kp%ot_hmat, 2))), &
+                  trial_occupation(:, ikpoint, ispin))
+            END IF
             IF (local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
                CALL dbcsr_copy(matrix_hc_physical(local_channel)%matrix, &
                                matrix_hc(local_channel)%matrix)
@@ -964,6 +981,102 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_scf_loop_do_ot_kp
+
+! **************************************************************************************************
+!> \brief roll one accepted physical K-point Mermin endpoint into a bounded response history
+!> \param qs_ot_env local spin/K-point OT channel
+!> \param c_re current real orbital coefficients
+!> \param c_im current imaginary orbital coefficients
+!> \param h_re current real self-consistent Hamiltonian
+!> \param h_im current imaginary self-consistent Hamiltonian
+!> \param occupation current fixed-N occupations
+! **************************************************************************************************
+   SUBROUTINE qs_scf_kp_roll_physical_secant(qs_ot_env, c_re, c_im, h_re, h_im, occupation)
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+      TYPE(cp_fm_type), INTENT(IN), TARGET               :: c_re, c_im, h_re, h_im
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
+
+      INTEGER                                            :: nmo
+      LOGICAL                                            :: previous_valid
+
+      nmo = SIZE(occupation)
+      CPASSERT(nmo > 0)
+      previous_valid = qs_ot_env%mermin_physical_ref_valid .AND. &
+                       ASSOCIATED(qs_ot_env%fm_mermin_c0) .AND. &
+                       ASSOCIATED(qs_ot_env%fm_mermin_c0_im) .AND. &
+                       ASSOCIATED(qs_ot_env%fm_mermin_h0) .AND. &
+                       ASSOCIATED(qs_ot_env%fm_mermin_h0_im) .AND. &
+                       ALLOCATED(qs_ot_env%mermin_occupation0) .AND. &
+                       SIZE(qs_ot_env%mermin_occupation0) == nmo
+      qs_ot_env%mermin_physical_secant_valid = .FALSE.
+      IF (previous_valid) THEN
+         CALL store_physical_fm_matrix( &
+            qs_ot_env%fm_mermin_c0, qs_ot_env%fm_mermin_c_previous, "mermin_previous_c")
+         CALL store_physical_fm_matrix( &
+            qs_ot_env%fm_mermin_c0_im, qs_ot_env%fm_mermin_c_previous_im, "mermin_previous_c_im")
+         CALL store_physical_fm_matrix(h_re, qs_ot_env%fm_mermin_y_previous, "mermin_previous_y")
+         CALL store_physical_fm_matrix(h_im, qs_ot_env%fm_mermin_y_previous_im, "mermin_previous_y_im")
+         CALL cp_fm_scale_and_add( &
+            1.0_dp, qs_ot_env%fm_mermin_y_previous, -1.0_dp, qs_ot_env%fm_mermin_h0)
+         CALL cp_fm_scale_and_add( &
+            1.0_dp, qs_ot_env%fm_mermin_y_previous_im, -1.0_dp, qs_ot_env%fm_mermin_h0_im)
+         IF (ALLOCATED(qs_ot_env%mermin_occupation_previous)) THEN
+            IF (SIZE(qs_ot_env%mermin_occupation_previous) /= nmo) THEN
+               DEALLOCATE (qs_ot_env%mermin_occupation_previous)
+            END IF
+         END IF
+         IF (.NOT. ALLOCATED(qs_ot_env%mermin_occupation_previous)) THEN
+            ALLOCATE (qs_ot_env%mermin_occupation_previous(nmo))
+         END IF
+         qs_ot_env%mermin_occupation_previous(:) = qs_ot_env%mermin_occupation0(:)
+         qs_ot_env%mermin_physical_secant_valid = .TRUE.
+      END IF
+
+      CALL store_physical_fm_matrix(c_re, qs_ot_env%fm_mermin_c0, "mermin_c0")
+      CALL store_physical_fm_matrix(c_im, qs_ot_env%fm_mermin_c0_im, "mermin_c0_im")
+      CALL store_physical_fm_matrix(h_re, qs_ot_env%fm_mermin_h0, "mermin_h0")
+      CALL store_physical_fm_matrix(h_im, qs_ot_env%fm_mermin_h0_im, "mermin_h0_im")
+      IF (ALLOCATED(qs_ot_env%mermin_occupation0)) THEN
+         IF (SIZE(qs_ot_env%mermin_occupation0) /= nmo) DEALLOCATE (qs_ot_env%mermin_occupation0)
+      END IF
+      IF (.NOT. ALLOCATED(qs_ot_env%mermin_occupation0)) ALLOCATE (qs_ot_env%mermin_occupation0(nmo))
+      qs_ot_env%mermin_occupation0(:) = occupation(:)
+      qs_ot_env%mermin_physical_ref_valid = .TRUE.
+
+   END SUBROUTINE qs_scf_kp_roll_physical_secant
+
+! **************************************************************************************************
+!> \brief copy an owned physical full-matrix snapshot, reallocating on shape changes
+!> \param source transient or persistent source matrix
+!> \param snapshot owned response-history matrix
+!> \param name matrix name
+! **************************************************************************************************
+   SUBROUTINE store_physical_fm_matrix(source, snapshot, name)
+      TYPE(cp_fm_type), INTENT(IN), TARGET               :: source
+      TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: snapshot
+      CHARACTER(LEN=*), INTENT(IN)                       :: name
+
+      INTEGER                                            :: ncol_snapshot, ncol_source, &
+                                                            nrow_snapshot, nrow_source
+      LOGICAL                                            :: shape_changed
+
+      CALL cp_fm_get_info(source, nrow_global=nrow_source, ncol_global=ncol_source)
+      shape_changed = .FALSE.
+      IF (ASSOCIATED(snapshot)) THEN
+         CALL cp_fm_get_info(snapshot, nrow_global=nrow_snapshot, ncol_global=ncol_snapshot)
+         shape_changed = nrow_snapshot /= nrow_source .OR. ncol_snapshot /= ncol_source
+         IF (shape_changed) THEN
+            CALL cp_fm_release(snapshot)
+            DEALLOCATE (snapshot)
+         END IF
+      END IF
+      IF (.NOT. ASSOCIATED(snapshot)) THEN
+         ALLOCATE (snapshot)
+         CALL cp_fm_create(snapshot, source%matrix_struct, name=name)
+      END IF
+      CALL cp_fm_to_fm(source, snapshot)
+
+   END SUBROUTINE store_physical_fm_matrix
 
 ! **************************************************************************************************
 !> \brief collect the global fixed-N trial smearing state used by k-point OT

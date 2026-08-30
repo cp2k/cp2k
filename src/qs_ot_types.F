@@ -31,6 +31,8 @@ MODULE qs_ot_types
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                               cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_release,&
+                                              cp_fm_type
    USE input_constants,                 ONLY: &
         cholesky_reduce, ls_2pnt, ls_3pnt, ls_adapt, ls_gold, ls_none, ot_algo_irac, &
         ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, &
@@ -175,6 +177,16 @@ MODULE qs_ot_types
       TYPE(dbcsr_type), POINTER :: matrix_preconditioned_gx => NULL(), &
                                    matrix_preconditioned_gx_im => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_ref_inv_sqrt => NULL(), matrix_ref_inv_sqrt_im => NULL()
+      ! Owned physical endpoints for the bounded, gauge-invariant Hxc response secant.
+      TYPE(cp_fm_type), POINTER :: fm_mermin_c0 => NULL(), fm_mermin_c0_im => NULL()
+      TYPE(cp_fm_type), POINTER :: fm_mermin_h0 => NULL(), fm_mermin_h0_im => NULL()
+      TYPE(cp_fm_type), POINTER :: fm_mermin_c_previous => NULL(), &
+                                   fm_mermin_c_previous_im => NULL()
+      TYPE(cp_fm_type), POINTER :: fm_mermin_y_previous => NULL(), &
+                                   fm_mermin_y_previous_im => NULL()
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mermin_occupation0, &
+                                                  mermin_occupation_previous
+      LOGICAL :: mermin_physical_ref_valid = .FALSE., mermin_physical_secant_valid = .FALSE.
       TYPE(dbcsr_type), POINTER :: matrix_dx => NULL(), matrix_gx_old => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_dx_im => NULL(), matrix_gx_old_im => NULL()
 
@@ -726,6 +738,16 @@ CONTAINS
       NULLIFY (qs_ot_env%matrix_preconditioned_gx_im)
       NULLIFY (qs_ot_env%matrix_ref_inv_sqrt)
       NULLIFY (qs_ot_env%matrix_ref_inv_sqrt_im)
+      NULLIFY (qs_ot_env%fm_mermin_c0)
+      NULLIFY (qs_ot_env%fm_mermin_c0_im)
+      NULLIFY (qs_ot_env%fm_mermin_h0)
+      NULLIFY (qs_ot_env%fm_mermin_h0_im)
+      NULLIFY (qs_ot_env%fm_mermin_c_previous)
+      NULLIFY (qs_ot_env%fm_mermin_c_previous_im)
+      NULLIFY (qs_ot_env%fm_mermin_y_previous)
+      NULLIFY (qs_ot_env%fm_mermin_y_previous_im)
+      qs_ot_env%mermin_physical_ref_valid = .FALSE.
+      qs_ot_env%mermin_physical_secant_valid = .FALSE.
       NULLIFY (qs_ot_env%matrix_gx_old)
       NULLIFY (qs_ot_env%matrix_gx_old_im)
       NULLIFY (qs_ot_env%matrix_dx)
@@ -1075,6 +1097,44 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_ot_env%matrix_ref_inv_sqrt)) CALL dbcsr_release_p(qs_ot_env%matrix_ref_inv_sqrt)
       IF (ASSOCIATED(qs_ot_env%matrix_ref_inv_sqrt_im)) CALL dbcsr_release_p(qs_ot_env%matrix_ref_inv_sqrt_im)
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_c0)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_c0)
+         DEALLOCATE (qs_ot_env%fm_mermin_c0)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_c0_im)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_c0_im)
+         DEALLOCATE (qs_ot_env%fm_mermin_c0_im)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_h0)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_h0)
+         DEALLOCATE (qs_ot_env%fm_mermin_h0)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_h0_im)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_h0_im)
+         DEALLOCATE (qs_ot_env%fm_mermin_h0_im)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_c_previous)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_c_previous)
+         DEALLOCATE (qs_ot_env%fm_mermin_c_previous)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_c_previous_im)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_c_previous_im)
+         DEALLOCATE (qs_ot_env%fm_mermin_c_previous_im)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_y_previous)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_y_previous)
+         DEALLOCATE (qs_ot_env%fm_mermin_y_previous)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%fm_mermin_y_previous_im)) THEN
+         CALL cp_fm_release(qs_ot_env%fm_mermin_y_previous_im)
+         DEALLOCATE (qs_ot_env%fm_mermin_y_previous_im)
+      END IF
+      IF (ALLOCATED(qs_ot_env%mermin_occupation0)) DEALLOCATE (qs_ot_env%mermin_occupation0)
+      IF (ALLOCATED(qs_ot_env%mermin_occupation_previous)) THEN
+         DEALLOCATE (qs_ot_env%mermin_occupation_previous)
+      END IF
+      qs_ot_env%mermin_physical_ref_valid = .FALSE.
+      qs_ot_env%mermin_physical_secant_valid = .FALSE.
       IF (ASSOCIATED(qs_ot_env%matrix_dx)) CALL dbcsr_release_p(qs_ot_env%matrix_dx)
       IF (ASSOCIATED(qs_ot_env%matrix_dx_im)) CALL dbcsr_release_p(qs_ot_env%matrix_dx_im)
       IF (ASSOCIATED(qs_ot_env%matrix_gx_old)) CALL dbcsr_release_p(qs_ot_env%matrix_gx_old)
