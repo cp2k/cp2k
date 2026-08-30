@@ -248,39 +248,40 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Construct FULL_ALL directly from one complex H(k), S(k), and C(k) channel.
 !> \param preconditioner_env preconditioner storage
+!> \param matrix_c_re real part of the active OT reference orbitals
+!> \param matrix_c_im imaginary part of the active OT reference orbitals
 !> \param matrix_h_re real part of H(k)
 !> \param matrix_h_im imaginary part of H(k)
 !> \param matrix_s_re real part of S(k)
 !> \param matrix_s_im imaginary part of S(k)
-!> \param mo_set_re real reference orbitals and their energy labels
-!> \param mo_set_im imaginary reference orbitals
+!> \param mo_set reference-orbital energy labels
 !> \param energy_gap denominator floor
 !> \param solver_type inverse application selected in the OT input
 ! **************************************************************************************************
    SUBROUTINE make_preconditioner_complex_full_all(preconditioner_env, &
+                                                   matrix_c_re, matrix_c_im, &
                                                    matrix_h_re, matrix_h_im, &
                                                    matrix_s_re, matrix_s_im, &
-                                                   mo_set_re, mo_set_im, energy_gap, solver_type)
+                                                   mo_set, energy_gap, solver_type)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(dbcsr_type), POINTER                          :: matrix_h_re, matrix_h_im, matrix_s_re, &
-                                                            matrix_s_im
-      TYPE(mo_set_type), INTENT(IN)                      :: mo_set_re, mo_set_im
+      TYPE(dbcsr_type), POINTER                          :: matrix_c_re, matrix_c_im, matrix_h_re, &
+                                                            matrix_h_im, matrix_s_re, matrix_s_im
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       REAL(KIND=dp), INTENT(IN)                          :: energy_gap
       INTEGER, INTENT(IN)                                :: solver_type
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner_complex_full_all'
 
-      INTEGER                                            :: handle, nao, nmo
+      INTEGER                                            :: handle, k
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cp_cfm_type)                                  :: matrix_c, matrix_h, matrix_s
-      TYPE(cp_fm_type)                                   :: matrix_h_im_fm, matrix_h_re_fm, &
-                                                            matrix_s_im_fm, matrix_s_re_fm
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff_im, mo_coeff_re
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (eigenvalues, mo_coeff_im, mo_coeff_re)
+      NULLIFY (eigenvalues)
+      CPASSERT(ASSOCIATED(matrix_c_re))
+      CPASSERT(ASSOCIATED(matrix_c_im))
       CPASSERT(ASSOCIATED(matrix_h_re))
       CPASSERT(ASSOCIATED(matrix_h_im))
       CPASSERT(ASSOCIATED(matrix_s_re))
@@ -288,43 +289,24 @@ CONTAINS
       IF (solver_type /= ot_precond_solver_default) THEN
          CPABORT('Complex FULL_ALL supports only PRECOND_SOLVER DEFAULT')
       END IF
-      CALL get_mo_set(mo_set_re, mo_coeff=mo_coeff_re, eigenvalues=eigenvalues, &
-                      nao=nao, nmo=nmo)
-      CALL get_mo_set(mo_set_im, mo_coeff=mo_coeff_im)
-      CPASSERT(ASSOCIATED(mo_coeff_re))
-      CPASSERT(ASSOCIATED(mo_coeff_im))
+      CALL dbcsr_get_info(matrix_c_re, nfullcols_total=k)
+      CPASSERT(k > 0)
+      CALL get_mo_set(mo_set, eigenvalues=eigenvalues)
       CPASSERT(ASSOCIATED(eigenvalues))
-      CPASSERT(SIZE(eigenvalues) >= nmo)
+      CPASSERT(SIZE(eigenvalues) >= k)
 
-      CALL cp_fm_create(matrix_h_re_fm, mo_coeff_re%matrix_struct, nrow=nao, ncol=nao, &
-                        name='complex FULL_ALL H real')
-      CALL cp_fm_create(matrix_h_im_fm, mo_coeff_re%matrix_struct, nrow=nao, ncol=nao, &
-                        name='complex FULL_ALL H imaginary')
-      CALL cp_fm_create(matrix_s_re_fm, mo_coeff_re%matrix_struct, nrow=nao, ncol=nao, &
-                        name='complex FULL_ALL S real')
-      CALL cp_fm_create(matrix_s_im_fm, mo_coeff_re%matrix_struct, nrow=nao, ncol=nao, &
-                        name='complex FULL_ALL S imaginary')
-      CALL copy_dbcsr_to_fm(matrix_h_re, matrix_h_re_fm)
-      CALL copy_dbcsr_to_fm(matrix_h_im, matrix_h_im_fm)
-      CALL copy_dbcsr_to_fm(matrix_s_re, matrix_s_re_fm)
-      CALL copy_dbcsr_to_fm(matrix_s_im, matrix_s_im_fm)
-
-      CALL cp_cfm_create(matrix_h, matrix_h_re_fm%matrix_struct, name='complex FULL_ALL H')
-      CALL cp_cfm_create(matrix_s, matrix_s_re_fm%matrix_struct, name='complex FULL_ALL S')
-      CALL cp_cfm_create(matrix_c, mo_coeff_re%matrix_struct, name='complex FULL_ALL C')
-      CALL cp_fm_to_cfm(matrix_h_re_fm, matrix_h_im_fm, matrix_h)
-      CALL cp_fm_to_cfm(matrix_s_re_fm, matrix_s_im_fm, matrix_s)
-      CALL cp_fm_to_cfm(mo_coeff_re, mo_coeff_im, matrix_c)
+      CALL dbcsr_pair_to_cfm(matrix_c_re, matrix_c_im, preconditioner_env, &
+                             'complex FULL_ALL C', matrix_c)
+      CALL dbcsr_pair_to_cfm(matrix_h_re, matrix_h_im, preconditioner_env, &
+                             'complex FULL_ALL H', matrix_h)
+      CALL dbcsr_pair_to_cfm(matrix_s_re, matrix_s_im, preconditioner_env, &
+                             'complex FULL_ALL S', matrix_s)
       CALL make_complex_full_all(preconditioner_env, matrix_c, matrix_h, matrix_s, &
-                                 eigenvalues(1:nmo), energy_gap)
+                                 eigenvalues(1:k), energy_gap)
 
       CALL cp_cfm_release(matrix_c)
       CALL cp_cfm_release(matrix_s)
       CALL cp_cfm_release(matrix_h)
-      CALL cp_fm_release(matrix_s_im_fm)
-      CALL cp_fm_release(matrix_s_re_fm)
-      CALL cp_fm_release(matrix_h_im_fm)
-      CALL cp_fm_release(matrix_h_re_fm)
 
       CALL timestop(handle)
 
