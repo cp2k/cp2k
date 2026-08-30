@@ -15,6 +15,7 @@ MODULE qs_scf_loop_utils
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_release_p,&
+                                              dbcsr_scale,&
                                               dbcsr_set,&
                                               dbcsr_type
    USE cp_dbcsr_contrib,                ONLY: dbcsr_get_diag,&
@@ -75,7 +76,8 @@ MODULE qs_scf_loop_utils
         qs_ot_density_tangent, qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, &
         qs_ot_fixed_n_schur_block, qs_ot_get_orbitals_complex, qs_ot_get_orbitals_ref_complex, &
         qs_ot_projected_response_update, qs_ot_symmetric_abs_solve
-   USE qs_ot_minimizer,                 ONLY: ot_mini
+   USE qs_ot_minimizer,                 ONLY: ot_mermin_secant_curvature,&
+                                              ot_mini
    USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                               ot_scf_mini
    USE qs_ot_types,                     ONLY: qs_ot_channel_index,&
@@ -693,6 +695,11 @@ CONTAINS
       nlocal_channels = SIZE(kpoints%kp_env)*nspin_ot
       local_ot_env => scf_env%qs_ot_env(first_channel:first_channel + nlocal_channels - 1)
       local_ot_env(1)%etotal = energy%total
+      physical_base_state = local_ot_env(1)%settings%do_ener .AND. &
+                            .NOT. local_ot_env(1)%initial_density_sync_pending .AND. &
+                            .NOT. local_ot_env(1)%energy_only .AND. &
+                            (local_ot_env(1)%line_search_count == 0 .OR. &
+                             local_ot_env(1)%line_search_might_be_done)
 
       ALLOCATE (matrix_hc(nlocal_channels))
       ALLOCATE (matrix_hc_im(nlocal_channels))
@@ -735,6 +742,14 @@ CONTAINS
                matrix_ks, kpoints, kp, MIN(ispin, SIZE(matrix_ks, 1)), &
                kp%ot_hmat(1, MIN(ispin, SIZE(kp%ot_hmat, 2))), &
                kp%ot_hmat(2, MIN(ispin, SIZE(kp%ot_hmat, 2))), matrix_k_re, matrix_k_im)
+            IF (physical_base_state .AND. nkp_groups == 1) THEN
+               ! The direct single-group transform bypasses the full-matrix cache.  Synchronize it
+               ! at accepted endpoints so the physical Mermin history sees the H(k) used for H(k)C(k).
+               CALL copy_dbcsr_to_fm( &
+                  matrix_k_re, kp%ot_hmat(1, MIN(ispin, SIZE(kp%ot_hmat, 2))))
+               CALL copy_dbcsr_to_fm( &
+                  matrix_k_im, kp%ot_hmat(2, MIN(ispin, SIZE(kp%ot_hmat, 2))))
+            END IF
 
             CALL get_mo_set(kp%mos(1, ispin), homo=homo, mo_coeff=mo_coeff, nao=nao, nmo=nmo, &
                             occupation_numbers=occupation_numbers)
@@ -818,12 +833,6 @@ CONTAINS
             kpoints, local_ot_env, first_channel, nspin_ot, kp_range, wkp, para_env_inter_kp, &
             scf_control%smear, trial_eigenvalues, trial_occupation, trial_kTS)
       END IF
-
-      physical_base_state = local_ot_env(1)%settings%do_ener .AND. &
-                            .NOT. local_ot_env(1)%initial_density_sync_pending .AND. &
-                            .NOT. local_ot_env(1)%energy_only .AND. &
-                            (local_ot_env(1)%line_search_count == 0 .OR. &
-                             local_ot_env(1)%line_search_might_be_done)
 
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
@@ -1535,12 +1544,11 @@ CONTAINS
       INTEGER                                            :: failure, group, i, ikpoint, ispin, j, &
                                                             local_channel, local_kpoint, ngroups, &
                                                             nlocal_channels, nmo, nrotation, r
-      LOGICAL                                            :: hxc_channel_valid, hxc_valid, &
-                                                            projected_update_valid, &
-                                                            shadow_pending, solve_valid
-      REAL(KIND=dp) :: denominator, hxc_density_norm_sq, hxc_density_norm_sq_channel, &
-         hxc_response_work, hxc_response_work_channel, maxocc, response_cross, response_scale, &
-         sigma
+      LOGICAL :: accepted_curvature_valid, hxc_channel_valid, hxc_valid, projected_update_valid, &
+         shadow_pending, solve_valid
+      REAL(KIND=dp) :: accepted_curvature, denominator, hxc_density_norm_sq, &
+         hxc_density_norm_sq_channel, hxc_response_work, hxc_response_work_channel, maxocc, &
+         response_cross, response_scale, sigma
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: coupling, curvature_sum, energy_count, &
          energy_mean, energy_metric_step, energy_shift, energy_weighted_sum, rayleigh_step, &
          response_curvature, response_weight, rotation_count, rotation_norm, rotation_scale, &
@@ -1569,6 +1577,12 @@ CONTAINS
          END IF
          IF (ASSOCIATED(local_ot_env(local_channel)%ener_response_gx)) THEN
             local_ot_env(local_channel)%ener_response_gx(:) = 0.0_dp
+         END IF
+         IF (ASSOCIATED(local_ot_env(local_channel)%matrix_response_gx)) THEN
+            CALL dbcsr_set(local_ot_env(local_channel)%matrix_response_gx, 0.0_dp)
+         END IF
+         IF (ASSOCIATED(local_ot_env(local_channel)%matrix_response_gx_im)) THEN
+            CALL dbcsr_set(local_ot_env(local_channel)%matrix_response_gx_im, 0.0_dp)
          END IF
       END DO
       local_ot_env(1)%response_model_curvature = 0.0_dp
@@ -1989,9 +2003,17 @@ CONTAINS
       CALL para_env_inter_kp%sum(hxc_response_overlap)
       hxc_valid = .FALSE.
       IF (failure == 0) THEN
-         CALL qs_ot_density_secant_projected_hessian( &
-            hxc_density_norm_sq, hxc_response_work, hxc_density_overlap, &
-            hxc_response_overlap, hxc_correction, hxc_valid)
+         IF (shadow_pending .AND. &
+             ABS(local_ot_env(1)%ds_min) > SQRT(EPSILON(1.0_dp))) THEN
+            CALL qs_ot_density_secant_projected_hessian( &
+               hxc_density_norm_sq, hxc_response_work, hxc_density_overlap, &
+               hxc_response_overlap, hxc_correction, hxc_valid, &
+               secant_mode=2, secant_position=local_ot_env(1)%ds_min)
+         ELSE
+            CALL qs_ot_density_secant_projected_hessian( &
+               hxc_density_norm_sq, hxc_response_work, hxc_density_overlap, &
+               hxc_response_overlap, hxc_correction, hxc_valid)
+         END IF
       END IF
       IF (hxc_valid) THEN
          local_ot_env(1)%response_hxc_valid = .TRUE.
@@ -2007,10 +2029,18 @@ CONTAINS
             hxc_response_work/MAX(hxc_density_norm_sq, TINY(1.0_dp))
 
          IF (shadow_pending) THEN
+            CALL ot_mermin_secant_curvature( &
+               local_ot_env(1)%response_reference_energy, local_ot_env(1)%etotal, &
+               local_ot_env(1)%response_predicted_slope, local_ot_env(1)%ds_min, &
+               accepted_curvature, accepted_curvature_valid)
             projected_hessian(1, 1) = SUM(response_curvature)
             projected_hessian(1, 2) = response_cross
             projected_hessian(2, 1) = response_cross
             projected_hessian(2, 2) = SUM(shadow_curvature)
+            IF (accepted_curvature_valid) THEN
+               projected_hessian(2, 2) = accepted_curvature - hxc_correction(2, 2)
+               local_ot_env(1)%response_shadow_curvature = accepted_curvature
+            END IF
             CALL qs_ot_projected_response_update( &
                projected_hessian, hxc_correction, projected_coefficients, projected_update_valid, &
                projected_gradient=projected_gradient)
@@ -2055,6 +2085,16 @@ CONTAINS
                         response_scale*rotation_step(:, local_channel)
                      local_ot_env(local_channel)%ener_response_gx(:) = &
                         response_scale*local_ot_env(local_channel)%ener_response_gx
+                     CPASSERT(ASSOCIATED(local_ot_env(local_channel)%matrix_response_gx))
+                     CPASSERT(ASSOCIATED(local_ot_env(local_channel)%matrix_response_gx_im))
+                     CALL dbcsr_copy(local_ot_env(local_channel)%matrix_response_gx, &
+                                     local_ot_env(local_channel)%matrix_dx)
+                     CALL dbcsr_scale(local_ot_env(local_channel)%matrix_response_gx, &
+                                      response_scale*projected_coefficients(2))
+                     CALL dbcsr_copy(local_ot_env(local_channel)%matrix_response_gx_im, &
+                                     local_ot_env(local_channel)%matrix_dx_im)
+                     CALL dbcsr_scale(local_ot_env(local_channel)%matrix_response_gx_im, &
+                                      response_scale*projected_coefficients(2))
                      ALLOCATE (dense_re(nmo, nmo), dense_im(nmo, nmo))
                      dense_re(:, :) = 0.0_dp
                      dense_im(:, :) = 0.0_dp

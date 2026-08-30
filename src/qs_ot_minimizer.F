@@ -51,6 +51,7 @@ MODULE qs_ot_minimizer
               ot_mermin_response_assess, &
               ot_mermin_response_compare, &
               ot_mermin_response_probe, &
+              ot_mermin_secant_curvature, &
               ot_mini
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_minimizer'
@@ -359,6 +360,41 @@ CONTAINS
              quality >= 0.05_dp .AND. quality <= 5.0_dp .AND. residual_ratio <= 1.0_dp
 
    END SUBROUTINE ot_mermin_response_assess
+
+! **************************************************************************************************
+!> \brief Recover the total finite Mermin curvature of an accepted line-search secant.
+!>
+!>        For F(alpha)=F(0)-g*alpha+0.5*kappa*alpha**2, the accepted energy difference fixes
+!>        kappa without separating REF, rotation, occupation, and self-consistent Hxc terms.
+!> \param reference_energy Mermin energy at the start of the accepted search
+!> \param current_energy Mermin energy at its accepted endpoint
+!> \param predicted_slope positive directional decrease at the search origin
+!> \param position accepted line-search position
+!> \param curvature recovered total finite curvature
+!> \param valid whether a resolved finite curvature was recovered
+! **************************************************************************************************
+   PURE SUBROUTINE ot_mermin_secant_curvature( &
+      reference_energy, current_energy, predicted_slope, position, curvature, valid)
+      REAL(KIND=dp), INTENT(IN)                          :: reference_energy, current_energy, &
+                                                            predicted_slope, position
+      REAL(KIND=dp), INTENT(OUT)                         :: curvature
+      LOGICAL, INTENT(OUT)                               :: valid
+
+      REAL(KIND=dp)                                      :: accepted_position, measured_drop
+
+      curvature = 0.0_dp
+      valid = .FALSE.
+      IF (.NOT. ieee_is_finite(reference_energy) .OR. .NOT. ieee_is_finite(current_energy) .OR. &
+          .NOT. ieee_is_finite(predicted_slope) .OR. .NOT. ieee_is_finite(position)) RETURN
+      accepted_position = ABS(position)
+      IF (accepted_position <= SQRT(EPSILON(1.0_dp))) RETURN
+
+      measured_drop = reference_energy - current_energy
+      curvature = 2.0_dp*(accepted_position*predicted_slope - measured_drop)/accepted_position**2
+      valid = ieee_is_finite(curvature)
+      IF (.NOT. valid) curvature = 0.0_dp
+
+   END SUBROUTINE ot_mermin_secant_curvature
 
 ! **************************************************************************************************
 !> \brief Compare an endpoint response shadow with the linear accepted-step model.
@@ -1636,6 +1672,8 @@ CONTAINS
       DO ispin = 1, nspin
          candidate_available = candidate_available .AND. &
                                qs_ot_env(ispin)%rotation_response_valid .AND. &
+                               ASSOCIATED(qs_ot_env(ispin)%matrix_response_gx) .AND. &
+                               ASSOCIATED(qs_ot_env(ispin)%matrix_response_gx_im) .AND. &
                                ASSOCIATED(qs_ot_env(ispin)%rot_mat_response_gx) .AND. &
                                ASSOCIATED(qs_ot_env(ispin)%rot_mat_response_gx_im) .AND. &
                                ASSOCIATED(qs_ot_env(ispin)%ener_response_gx)
@@ -1738,19 +1776,19 @@ CONTAINS
       END IF
 
       ! Probe the coupled finite response without replacing the conventional CG history. The
-      ! reference-orbital block retains its accepted CG direction, while rotation and energy
-      ! variables use the response direction for this search only. This avoids two artificial
-      ! history resets around every sparse probe.
+      ! candidate is assembled in separate workspaces and used for this search only, avoiding two
+      ! artificial history resets around every sparse probe.
       IF (use_response_candidate) THEN
          response_test_down = 0.0_dp
          IF (do_ks) THEN
             DO ispin = 1, nspin
-               CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, qs_ot_env(ispin)%matrix_dx, tmp)
-               response_test_down = response_test_down + tmp
+               CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
+                              qs_ot_env(ispin)%matrix_response_gx, tmp)
+               response_test_down = response_test_down - tmp
                IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
                   CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, &
-                                 qs_ot_env(ispin)%matrix_dx_im, tmp)
-                  response_test_down = response_test_down + tmp
+                                 qs_ot_env(ispin)%matrix_response_gx_im, tmp)
+                  response_test_down = response_test_down - tmp
                END IF
                CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, &
                               qs_ot_env(ispin)%rot_mat_response_gx, tmp)
@@ -1773,6 +1811,14 @@ CONTAINS
          IF (response_test_down < 0.0_dp) THEN
             DO ispin = 1, nspin
                IF (do_ks) THEN
+                  CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, &
+                                  qs_ot_env(ispin)%matrix_response_gx)
+                  CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx, -1.0_dp)
+                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                     CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx_im, &
+                                     qs_ot_env(ispin)%matrix_response_gx_im)
+                     CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx_im, -1.0_dp)
+                  END IF
                   CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, &
                                   qs_ot_env(ispin)%rot_mat_response_gx)
                   CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, -1.0_dp)

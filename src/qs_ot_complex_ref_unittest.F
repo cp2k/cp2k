@@ -864,16 +864,17 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: nfail
 
       INTEGER, PARAMETER                                 :: n = 3, nmode = 2
+      REAL(KIND=dp), PARAMETER                           :: secant_position = 0.4_dp
 
       COMPLEX(KIND=dp), DIMENSION(n, n)                  :: density_step, hamiltonian_step, unitary
       COMPLEX(KIND=dp), DIMENSION(n, n, nmode)           :: density_modes, transformed_modes
-      LOGICAL                                            :: valid
-      REAL(KIND=dp)                                      :: density_norm, direct_error, gauge_error, &
-                                                            overlap_error, response_work, &
-                                                            sign_error
+      LOGICAL                                            :: calibrated_valid, rejected_valid, valid
+      REAL(KIND=dp) :: calibrated_error, density_norm, direct_error, gauge_error, overlap_error, &
+         rejected_error, response_work, sign_error
       REAL(KIND=dp), DIMENSION(nmode)                    :: density_overlap, response_overlap
-      REAL(KIND=dp), DIMENSION(nmode, nmode)             :: correction, correction_gauge, &
-                                                            correction_overlap, expected
+      REAL(KIND=dp), DIMENSION(nmode, nmode)             :: calibrated, correction, &
+                                                            correction_gauge, correction_overlap, &
+                                                            expected, rejected
 
       density_step(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       density_step(1, 1) = CMPLX(0.30_dp, 0.0_dp, KIND=dp)
@@ -914,6 +915,19 @@ CONTAINS
       overlap_error = MAXVAL(ABS(correction_overlap - correction))
       sign_error = MAX(0.0_dp, correction(1, 1))
 
+      CALL qs_ot_density_secant_projected_hessian( &
+         density_norm, response_work, density_overlap, response_overlap, calibrated, &
+         calibrated_valid, secant_mode=2, secant_position=secant_position)
+      expected(1, 1) = response_work
+      expected(1, 2) = response_work/secant_position
+      expected(2, 1) = expected(1, 2)
+      expected(2, 2) = response_work/secant_position**2
+      calibrated_error = MAXVAL(ABS(calibrated - expected))
+      CALL qs_ot_density_secant_projected_hessian( &
+         density_norm, response_work, density_overlap, response_overlap, rejected, &
+         rejected_valid, secant_mode=2, secant_position=0.0_dp)
+      rejected_error = MAXVAL(ABS(rejected))
+
       unitary(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       unitary(1, 1) = CMPLX(SQRT(0.5_dp), 0.0_dp, KIND=dp)
       unitary(2, 1) = CMPLX(0.0_dp, SQRT(0.5_dp), KIND=dp)
@@ -930,11 +944,13 @@ CONTAINS
          density_step, hamiltonian_step, transformed_modes, correction_gauge, valid)
       gauge_error = MAXVAL(ABS(correction_gauge - correction))
 
-      IF (.NOT. valid .OR. direct_error > 2.0E-14_dp .OR. overlap_error > 2.0E-14_dp .OR. &
-          gauge_error > 2.0E-14_dp .OR. sign_error > 2.0E-14_dp) nfail = nfail + 1
-      IF (mynode == 0) WRITE (io_unit, '(A,4(1X,ES13.6))') &
-         "density secant direct/overlap/gauge/sign errors:", &
-         direct_error, overlap_error, gauge_error, sign_error
+      IF (.NOT. valid .OR. .NOT. calibrated_valid .OR. rejected_valid .OR. &
+          direct_error > 2.0E-14_dp .OR. overlap_error > 2.0E-14_dp .OR. &
+          gauge_error > 2.0E-14_dp .OR. sign_error > 2.0E-14_dp .OR. &
+          calibrated_error > 2.0E-14_dp .OR. rejected_error > 2.0E-14_dp) nfail = nfail + 1
+      IF (mynode == 0) WRITE (io_unit, '(A,6(1X,ES13.6))') &
+         "density secant direct/overlap/gauge/sign/calibrated/rejected errors:", &
+         direct_error, overlap_error, gauge_error, sign_error, calibrated_error, rejected_error
 
    END SUBROUTINE test_density_secant_hessian
 

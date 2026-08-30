@@ -176,6 +176,7 @@ MODULE qs_ot_types
       TYPE(dbcsr_type), POINTER :: matrix_x_im => NULL(), matrix_sx_im => NULL(), matrix_gx_im => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_preconditioned_gx => NULL(), &
                                    matrix_preconditioned_gx_im => NULL()
+      TYPE(dbcsr_type), POINTER :: matrix_response_gx => NULL(), matrix_response_gx_im => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_ref_inv_sqrt => NULL(), matrix_ref_inv_sqrt_im => NULL()
       ! Owned physical endpoints for the bounded, gauge-invariant Hxc response secant.
       TYPE(cp_fm_type), POINTER :: fm_mermin_c0 => NULL(), fm_mermin_c0_im => NULL()
@@ -583,6 +584,10 @@ CONTAINS
       IF (ASSOCIATED(qs_ot_env%matrix_preconditioned_gx_im)) THEN
          CALL dbcsr_set(qs_ot_env%matrix_preconditioned_gx_im, 0.0_dp)
       END IF
+      IF (ASSOCIATED(qs_ot_env%matrix_response_gx)) CALL dbcsr_set(qs_ot_env%matrix_response_gx, 0.0_dp)
+      IF (ASSOCIATED(qs_ot_env%matrix_response_gx_im)) THEN
+         CALL dbcsr_set(qs_ot_env%matrix_response_gx_im, 0.0_dp)
+      END IF
 
       IF (qs_ot_env%use_dx) THEN
          CALL dbcsr_set(qs_ot_env%matrix_dx, 0.0_dp)
@@ -800,6 +805,8 @@ CONTAINS
       NULLIFY (qs_ot_env%matrix_gx_im)
       NULLIFY (qs_ot_env%matrix_preconditioned_gx)
       NULLIFY (qs_ot_env%matrix_preconditioned_gx_im)
+      NULLIFY (qs_ot_env%matrix_response_gx)
+      NULLIFY (qs_ot_env%matrix_response_gx_im)
       NULLIFY (qs_ot_env%matrix_ref_inv_sqrt)
       NULLIFY (qs_ot_env%matrix_ref_inv_sqrt_im)
       NULLIFY (qs_ot_env%fm_mermin_c0)
@@ -1167,6 +1174,10 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_ot_env%matrix_preconditioned_gx_im)) THEN
          CALL dbcsr_release_p(qs_ot_env%matrix_preconditioned_gx_im)
+      END IF
+      IF (ASSOCIATED(qs_ot_env%matrix_response_gx)) CALL dbcsr_release_p(qs_ot_env%matrix_response_gx)
+      IF (ASSOCIATED(qs_ot_env%matrix_response_gx_im)) THEN
+         CALL dbcsr_release_p(qs_ot_env%matrix_response_gx_im)
       END IF
       IF (ASSOCIATED(qs_ot_env%matrix_ref_inv_sqrt)) CALL dbcsr_release_p(qs_ot_env%matrix_ref_inv_sqrt)
       IF (ASSOCIATED(qs_ot_env%matrix_ref_inv_sqrt_im)) CALL dbcsr_release_p(qs_ot_env%matrix_ref_inv_sqrt_im)

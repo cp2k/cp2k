@@ -16,17 +16,18 @@ PROGRAM qs_ot_minimizer_unittest
                                               lbfgs_step_restart_required,&
                                               ot_mermin_response_assess,&
                                               ot_mermin_response_compare,&
-                                              ot_mermin_response_probe
+                                              ot_mermin_response_probe,&
+                                              ot_mermin_secant_curvature
    USE qs_scf_loop_utils,               ONLY: qs_scf_kp_ref_refresh_ready
 
    IMPLICIT NONE
 
-   LOGICAL                                            :: response_good, valid_response
+   LOGICAL                                            :: curvature_valid, response_good, valid_response
    REAL(KIND=dp)                                      :: damping_shift, infinity, mixed_curvature, &
                                                          measured_drop, not_a_number, predicted_drop, &
                                                          response_advantage, response_quality, &
                                                          response_scale, response_weight, residual_ratio, &
-                                                         sy_damped, yy_damped
+                                                         secant_curvature, sy_damped, yy_damped
 
    damping_shift = lbfgs_curvature_damping_shift(0.6_dp, 1.0_dp, 1.0_dp, 0.5_dp)
    IF (damping_shift /= 0.0_dp) ERROR STOP "Well-conditioned L-BFGS curvature was damped"
@@ -124,6 +125,17 @@ PROGRAM qs_ot_minimizer_unittest
       10.0_dp, 9.6_dp, 1.0_dp, 0.8_dp, 1.0_dp, 1.0_dp, 1.0E-10_dp, 0.1_dp, &
       predicted_drop, measured_drop, response_quality, residual_ratio, response_good)
    IF (response_good) ERROR STOP "Collapsed response line search was accepted"
+
+   CALL ot_mermin_secant_curvature(10.0_dp, 9.6_dp, 1.0_dp, 0.5_dp, &
+                                   secant_curvature, curvature_valid)
+   IF (.NOT. curvature_valid .OR. ABS(secant_curvature - 0.8_dp) > 1.0E-14_dp) THEN
+      ERROR STOP "Accepted Mermin secant curvature was not recovered"
+   END IF
+   CALL ot_mermin_secant_curvature(10.0_dp, 9.6_dp, 1.0_dp, 0.0_dp, &
+                                   secant_curvature, curvature_valid)
+   IF (curvature_valid .OR. secant_curvature /= 0.0_dp) THEN
+      ERROR STOP "Collapsed Mermin secant produced a curvature"
+   END IF
 
    CALL ot_mermin_response_compare( &
       10.0_dp, 9.6_dp, 1.0_dp, 0.8_dp, 1.0_dp, 1.0_dp, 0.5_dp, &

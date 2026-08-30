@@ -506,17 +506,25 @@ CONTAINS
 !> \param response_overlap <Y,B_r>
 !> \param correction projected symmetric Hxc response <B_q,K*B_r>
 !> \param valid whether finite nonzero secant data were available
+!> \param secant_mode optional mode representing the accepted full density secant divided by its
+!>        line-search position
+!> \param secant_position signed line-search position of the accepted full density secant
 ! **************************************************************************************************
    SUBROUTINE qs_ot_density_secant_projected_hessian( &
-      density_norm_sq, response_work, density_overlap, response_overlap, correction, valid)
+      density_norm_sq, response_work, density_overlap, response_overlap, correction, valid, &
+      secant_mode, secant_position)
 
       REAL(KIND=dp), INTENT(IN)                          :: density_norm_sq, response_work
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: density_overlap, response_overlap
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: correction
       LOGICAL, INTENT(OUT)                               :: valid
+      INTEGER, INTENT(IN), OPTIONAL                      :: secant_mode
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: secant_position
 
       INTEGER                                            :: i, j, nmode
       REAL(KIND=dp)                                      :: inverse_density_norm
+      REAL(KIND=dp), DIMENSION(SIZE(density_overlap))    :: projected_density_overlap, &
+                                                            projected_response_overlap
 
       nmode = SIZE(density_overlap)
       CPASSERT(SIZE(response_overlap) == nmode)
@@ -530,15 +538,29 @@ CONTAINS
       IF (ANY(density_overlap /= density_overlap) .OR. ANY(response_overlap /= response_overlap)) RETURN
       IF (ANY(ABS(density_overlap) > HUGE(1.0_dp)) .OR. &
           ANY(ABS(response_overlap) > HUGE(1.0_dp))) RETURN
+      IF (PRESENT(secant_mode) .NEQV. PRESENT(secant_position)) RETURN
+
+      projected_density_overlap(:) = density_overlap
+      projected_response_overlap(:) = response_overlap
+      IF (PRESENT(secant_mode)) THEN
+         IF (secant_mode < 1 .OR. secant_mode > nmode) RETURN
+         IF (secant_position /= secant_position .OR. &
+             ABS(secant_position) > HUGE(1.0_dp) .OR. &
+             ABS(secant_position) <= SQRT(EPSILON(1.0_dp))) RETURN
+         ! The complete accepted density change can contain REF-orbital motion that is absent from
+         ! a reduced rotation/occupation tangent.  S/alpha supplies its exact projected secant mode.
+         projected_density_overlap(secant_mode) = density_norm_sq/secant_position
+         projected_response_overlap(secant_mode) = response_work/secant_position
+      END IF
 
       inverse_density_norm = 1.0_dp/density_norm_sq
       DO j = 1, nmode
          DO i = 1, nmode
             correction(i, j) = inverse_density_norm* &
-                               (response_overlap(i)*density_overlap(j) + &
-                                density_overlap(i)*response_overlap(j) - &
+                               (projected_response_overlap(i)*projected_density_overlap(j) + &
+                                projected_density_overlap(i)*projected_response_overlap(j) - &
                                 response_work*inverse_density_norm* &
-                                density_overlap(i)*density_overlap(j))
+                                projected_density_overlap(i)*projected_density_overlap(j))
          END DO
       END DO
       correction(:, :) = 0.5_dp*(correction + TRANSPOSE(correction))
