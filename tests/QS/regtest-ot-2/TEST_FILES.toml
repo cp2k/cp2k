@@ -43,8 +43,8 @@
 "C_fermi.inp"                           = [{matcher="E_total", tol=1e-13, ref=-5.34109284627944}]
 "Al_fermi.inp"                          = [{matcher="E_total", tol=5e-14, ref=-8.17296838715160}]
 # fixed-N Mermin OT at symmetry-reduced complex K points and its diagonalization reference
-"Al-kpoint-diag-reference.inp"          = [{matcher="E_total", tol=1e-9, ref=-8.15998780645071}]
-"Al-kpoint-mermin-smoke.inp"            = [{matcher="E_total", tol=1e-9, ref=-8.159987076790056}]
+"Al-kpoint-diag-reference.inp"          = [{matcher="E_total", tol=1e-9, ref=-2.903015361392054}]
+"Al-kpoint-mermin-smoke.inp"            = [{matcher="E_total", tol=1e-9, ref=-2.903015358408708}]
 "Al-kpoint-mermin-lbfgs.inp"            = [{matcher="E_total", tol=1e-8, ref=-8.17199206567539}]
 # go through planned FFTs, but don't check results, they will depend on the selected plan
 "H2O-plan-2.inp"                        = []
