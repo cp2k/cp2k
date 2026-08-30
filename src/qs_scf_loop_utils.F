@@ -1069,8 +1069,8 @@ CONTAINS
                        ASSOCIATED(qs_ot_env%fm_mermin_c0_im) .AND. &
                        ASSOCIATED(qs_ot_env%fm_mermin_h0) .AND. &
                        ASSOCIATED(qs_ot_env%fm_mermin_h0_im) .AND. &
-                       ALLOCATED(qs_ot_env%mermin_occupation0) .AND. &
-                       SIZE(qs_ot_env%mermin_occupation0) == nmo
+                       ALLOCATED(qs_ot_env%mermin_occupation0)
+      IF (previous_valid) previous_valid = SIZE(qs_ot_env%mermin_occupation0) == nmo
       qs_ot_env%mermin_physical_secant_valid = .FALSE.
       IF (previous_valid) THEN
          CALL store_physical_fm_matrix( &
