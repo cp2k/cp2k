@@ -815,7 +815,7 @@ CONTAINS
                         qs_env, scf_env, scf_control, diis_step, &
                         ot_kp_subspace_refresh=ot_kp_subspace_refresh, &
                         allow_ot_kp_subspace_refresh= &
-                        ot_kp_subspace_refresh_count < max_ot_kp_subspace_refreshes, &
+                        ot_kp_subspace_refresh_count == 0, &
                         allow_ot_kp_exit_refresh= &
                         ot_kp_subspace_refresh_count > 0 .AND. &
                         ot_kp_subspace_refresh_count < max_ot_kp_subspace_refreshes, &
