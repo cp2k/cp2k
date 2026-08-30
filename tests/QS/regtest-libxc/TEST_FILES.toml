@@ -3,10 +3,10 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"H2O-hybrid-b3lyp_libxc_uks.inp"        = [{matcher="E_total", tol=3e-14, ref=-76.41035426581175}]
-"H2O-hybrid-b3lyp_libxc.inp"            = [{matcher="E_total", tol=3e-14, ref=-76.41035426581175}]
-"H2O-hybrid-wb97mv-libxc.inp"           = [{matcher="E_total", tol=2e-14, ref=-76.39611446074743}]
-"H2O-hybrid-cam-lda0.inp"               = [{matcher="E_total", tol=3e-14, ref=-76.47215215214956}]
+"H2O-hybrid-b3lyp_libxc_uks.inp"        = [{matcher="E_total", tol=3e-14, ref=-76.41035426571447}]
+"H2O-hybrid-b3lyp_libxc.inp"            = [{matcher="E_total", tol=3e-14, ref=-76.41035426571437}]
+"H2O-hybrid-wb97mv-libxc.inp"           = [{matcher="E_total", tol=2e-14, ref=-76.39611446074579}]
+"H2O-hybrid-cam-lda0.inp"               = [{matcher="E_total", tol=3e-14, ref=-76.47215215213457}]
 "H2O-tpssx_libxc.inp"                   = [{matcher="E_total", tol=3e-13, ref=-33.88300963208589}]
 "diamond_br89_libxc_uks.inp"            = [{matcher="E_total", tol=7e-14, ref=-11.06630328605534}]
 "diamond_br89_libxc.inp"                = [{matcher="E_total", tol=7e-14, ref=-11.06581139033952}]

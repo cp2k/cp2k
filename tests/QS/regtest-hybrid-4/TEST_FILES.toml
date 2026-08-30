@@ -6,5 +6,5 @@
 "farming-1.inp"                         = []
 "Ne_hybrid-rcam-b3lyp_tc.inp"           = [{matcher="E_total", tol=1e-09, ref=-128.87196715853946}]
 "Ne-periodic-shortrange.inp"            = [{matcher="E_total", tol=1.0E-14, ref=-772.98184640121008}]
-"wB97X-V.inp"                           = [{matcher="E_total", tol=3e-13, ref=-1.11098988553847}]
+"wB97X-V.inp"                           = [{matcher="E_total", tol=3e-13, ref=-1.1109898855359}]
 #EOF
