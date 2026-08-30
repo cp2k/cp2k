@@ -1604,9 +1604,7 @@ CONTAINS
          projected_update_valid, shadow_pending, solve_valid
       REAL(KIND=dp) :: accepted_cross, accepted_curvature, denominator, hxc_density_norm_sq, &
          hxc_density_norm_sq_channel, hxc_response_work, hxc_response_work_channel, maxocc, &
-         response_cross, response_density_norm_sq, response_occupation_tangent_max, &
-         response_ref_norm_sq, response_rotation_bound, response_scale, sigma, tmp, &
-         unscaled_rotation_norm
+         response_cross, response_scale, sigma, tmp, unscaled_rotation_norm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: coupling, curvature_sum, energy_count, &
          energy_mean, energy_metric_step, energy_shift, energy_weighted_sum, rayleigh_step, &
          response_curvature, response_weight, rotation_count, rotation_norm, rotation_scale, &
@@ -1647,16 +1645,10 @@ CONTAINS
       local_ot_env(1)%response_shadow_curvature = 0.0_dp
       local_ot_env(1)%response_hxc_model_curvature = 0.0_dp
       local_ot_env(1)%response_hxc_shadow_curvature = 0.0_dp
-      local_ot_env(1)%response_hxc_secant_slope = 0.0_dp
       local_ot_env(1)%response_hxc_valid = .FALSE.
       local_ot_env(1)%response_hxc_direction_valid = .FALSE.
       local_ot_env(1)%response_gradient_cross_valid = .FALSE.
       local_ot_env(1)%response_gradient_cross_curvature = 0.0_dp
-      local_ot_env(1)%response_hxc_direction_mix(:) = 0.0_dp
-      local_ot_env(1)%response_density_tangent_norm = 0.0_dp
-      local_ot_env(1)%response_occupation_tangent_max = 0.0_dp
-      local_ot_env(1)%response_ref_direction_norm = 0.0_dp
-      local_ot_env(1)%response_rotation_bound = 0.0_dp
       IF (.NOT. local_ot_env(1)%settings%occupation_preconditioner .OR. &
           .NOT. local_ot_env(1)%settings%do_rotation .OR. &
           .NOT. local_ot_env(1)%settings%do_ener) RETURN
@@ -2076,8 +2068,8 @@ CONTAINS
 
       ! The frozen-H finite response above omits the self-consistent Hxc density response.  Project
       ! the most recent accepted physical density/Hamiltonian secant onto both the candidate and
-      ! conventional accepted directions.  The resulting sign-aware rank-two response initially
-      ! changes only the predicted curvature; accepted Mermin drops still decide promotion.
+      ! conventional accepted directions.  The resulting sign-aware rank-two response is calibrated
+      ! against accepted Mermin drops before it can replace the conventional search direction.
       hxc_density_norm_sq = 0.0_dp
       hxc_response_work = 0.0_dp
       hxc_density_overlap(:) = 0.0_dp
@@ -2152,9 +2144,6 @@ CONTAINS
             local_ot_env(1)%response_shadow_curvature = &
                local_ot_env(1)%response_shadow_curvature + hxc_correction(2, 2)
          END IF
-         local_ot_env(1)%response_hxc_secant_slope = &
-            hxc_response_work/MAX(hxc_density_norm_sq, TINY(1.0_dp))
-
          IF (shadow_pending) THEN
             CALL ot_mermin_secant_curvature( &
                local_ot_env(1)%response_reference_energy, local_ot_env(1)%etotal, &
@@ -2234,13 +2223,6 @@ CONTAINS
                                    response_scale, &
                                    rotation_trust_spectral/unscaled_rotation_norm)
                END IF
-               response_density_norm_sq = 0.0_dp
-               response_occupation_tangent_max = 0.0_dp
-               response_ref_norm_sq = 0.0_dp
-               response_rotation_bound = response_scale*unscaled_rotation_norm
-               energy_shift(:) = response_scale*( &
-                                 projected_coefficients(1)*energy_mean + &
-                                 projected_coefficients(2)*shadow_energy_mean)
                DO local_kpoint = 1, SIZE(kpoints%kp_env)
                   kp => kpoints%kp_env(local_kpoint)%kpoint_env
                   ikpoint = kp%nkpoint
@@ -2282,35 +2264,10 @@ CONTAINS
                      CALL qs_scf_loop_ot_dense_to_matrix( &
                         dense_im, local_ot_env(local_channel), &
                         local_ot_env(local_channel)%rot_mat_response_gx_im)
-                     energy_metric_step(:) = -channel_response_weight(:, local_channel)* &
-                                             (local_ot_env(local_channel)%ener_response_gx - &
-                                              energy_shift(group))
-                     response_occupation_tangent_max = MAX( &
-                                                       response_occupation_tangent_max, &
-                                                       MAXVAL(ABS(energy_metric_step))/wkp(ikpoint))
-                     CALL qs_ot_density_tangent( &
-                        channel_generator(:, :, local_channel), &
-                        trial_occupation(:, ikpoint, ispin), wkp(ikpoint), &
-                        rotation_step(:, local_channel), energy_metric_step, &
-                        density_modes(:, :, 1))
-                     response_density_norm_sq = response_density_norm_sq + &
-                                                SUM(ABS(density_modes(:, :, 1))**2)
-                     CALL dbcsr_dot(local_ot_env(local_channel)%matrix_response_gx, &
-                                    local_ot_env(local_channel)%matrix_response_gx, tmp)
-                     response_ref_norm_sq = response_ref_norm_sq + tmp
-                     CALL dbcsr_dot(local_ot_env(local_channel)%matrix_response_gx_im, &
-                                    local_ot_env(local_channel)%matrix_response_gx_im, tmp)
-                     response_ref_norm_sq = response_ref_norm_sq + tmp
                      DEALLOCATE (dense_im, dense_re)
                   END DO
                END DO
-               CALL para_env_inter_kp%sum(response_density_norm_sq)
-               CALL para_env_inter_kp%sum(response_ref_norm_sq)
-               CALL para_env_inter_kp%max(response_occupation_tangent_max)
-               CALL para_env_inter_kp%max(response_rotation_bound)
                local_ot_env(1)%response_hxc_direction_valid = .TRUE.
-               local_ot_env(1)%response_hxc_direction_mix(:) = &
-                  response_scale*projected_coefficients
                local_ot_env(1)%response_hxc_model_curvature = response_scale**2* &
                                                               DOT_PRODUCT(projected_coefficients, &
                                                                           MATMUL(hxc_correction, projected_coefficients))
@@ -2318,13 +2275,6 @@ CONTAINS
                                                           DOT_PRODUCT(projected_coefficients, &
                                                                       MATMUL(projected_hessian + hxc_correction, &
                                                                              projected_coefficients))
-               local_ot_env(1)%response_density_tangent_norm = &
-                  SQRT(MAX(0.0_dp, response_density_norm_sq))
-               local_ot_env(1)%response_occupation_tangent_max = &
-                  response_occupation_tangent_max
-               local_ot_env(1)%response_ref_direction_norm = &
-                  SQRT(MAX(0.0_dp, response_ref_norm_sq))
-               local_ot_env(1)%response_rotation_bound = response_rotation_bound
             END IF
          END IF
       END IF

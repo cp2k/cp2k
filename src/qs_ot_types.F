@@ -257,35 +257,21 @@ MODULE qs_ot_types
       LOGICAL                   :: response_candidate_pending = .FALSE.
       LOGICAL                   :: response_shadow_pending = .FALSE.
       INTEGER                   :: response_candidate_directions = 0
-      INTEGER                   :: response_candidate_samples = 0
       INTEGER                   :: response_candidate_good_samples = 0
       INTEGER                   :: response_candidate_cooldown = 0
-      INTEGER                   :: response_shadow_samples = 0
       INTEGER                   :: response_shadow_good_samples = 0
       REAL(KIND=dp)             :: response_model_curvature = 0.0_dp
       REAL(KIND=dp)             :: response_shadow_curvature = 0.0_dp
       REAL(KIND=dp)             :: response_hxc_model_curvature = 0.0_dp
       REAL(KIND=dp)             :: response_hxc_shadow_curvature = 0.0_dp
-      REAL(KIND=dp)             :: response_hxc_secant_slope = 0.0_dp
       LOGICAL                   :: response_hxc_valid = .FALSE.
       LOGICAL                   :: response_hxc_direction_valid = .FALSE.
       LOGICAL                   :: response_gradient_cross_valid = .FALSE.
       REAL(KIND=dp)             :: response_gradient_cross_curvature = 0.0_dp
-      REAL(KIND=dp), DIMENSION(2) :: response_hxc_direction_mix = 0.0_dp
-      REAL(KIND=dp)             :: response_density_tangent_norm = 0.0_dp
-      REAL(KIND=dp)             :: response_occupation_tangent_max = 0.0_dp
-      REAL(KIND=dp)             :: response_ref_direction_norm = 0.0_dp
-      REAL(KIND=dp)             :: response_rotation_bound = 0.0_dp
       REAL(KIND=dp)             :: response_reference_energy = 0.0_dp
       REAL(KIND=dp)             :: response_reference_residual = 0.0_dp
       REAL(KIND=dp)             :: response_predicted_slope = 0.0_dp
       REAL(KIND=dp)             :: response_predicted_curvature = 0.0_dp
-      REAL(KIND=dp)             :: response_quality = 0.0_dp
-      REAL(KIND=dp)             :: response_quality_ema = 0.0_dp
-      REAL(KIND=dp)             :: response_residual_ratio = 1.0_dp
-      REAL(KIND=dp)             :: response_residual_ratio_ema = 1.0_dp
-      REAL(KIND=dp)             :: response_shadow_advantage = 0.0_dp
-      REAL(KIND=dp)             :: response_shadow_advantage_ema = 0.0_dp
 
       ! third part of the variables, if we need to optimize orbital energies
       REAL(KIND=dp), POINTER, DIMENSION(:) :: ener_x => NULL()
@@ -654,35 +640,21 @@ CONTAINS
          qs_ot_env%response_candidate_pending = .FALSE.
          qs_ot_env%response_shadow_pending = .FALSE.
          qs_ot_env%response_candidate_directions = 0
-         qs_ot_env%response_candidate_samples = 0
          qs_ot_env%response_candidate_good_samples = 0
          qs_ot_env%response_candidate_cooldown = 0
-         qs_ot_env%response_shadow_samples = 0
          qs_ot_env%response_shadow_good_samples = 0
          qs_ot_env%response_model_curvature = 0.0_dp
          qs_ot_env%response_shadow_curvature = 0.0_dp
          qs_ot_env%response_hxc_model_curvature = 0.0_dp
          qs_ot_env%response_hxc_shadow_curvature = 0.0_dp
-         qs_ot_env%response_hxc_secant_slope = 0.0_dp
          qs_ot_env%response_hxc_valid = .FALSE.
          qs_ot_env%response_hxc_direction_valid = .FALSE.
          qs_ot_env%response_gradient_cross_valid = .FALSE.
          qs_ot_env%response_gradient_cross_curvature = 0.0_dp
-         qs_ot_env%response_hxc_direction_mix(:) = 0.0_dp
-         qs_ot_env%response_density_tangent_norm = 0.0_dp
-         qs_ot_env%response_occupation_tangent_max = 0.0_dp
-         qs_ot_env%response_ref_direction_norm = 0.0_dp
-         qs_ot_env%response_rotation_bound = 0.0_dp
          qs_ot_env%response_reference_energy = 0.0_dp
          qs_ot_env%response_reference_residual = 0.0_dp
          qs_ot_env%response_predicted_slope = 0.0_dp
          qs_ot_env%response_predicted_curvature = 0.0_dp
-         qs_ot_env%response_quality = 0.0_dp
-         qs_ot_env%response_quality_ema = 0.0_dp
-         qs_ot_env%response_residual_ratio = 1.0_dp
-         qs_ot_env%response_residual_ratio_ema = 1.0_dp
-         qs_ot_env%response_shadow_advantage = 0.0_dp
-         qs_ot_env%response_shadow_advantage_ema = 0.0_dp
          IF (qs_ot_env%use_dx) THEN
             CALL dbcsr_set(qs_ot_env%rot_mat_dx, 0.0_dp)
             IF (ASSOCIATED(qs_ot_env%rot_mat_dx_im)) CALL dbcsr_set(qs_ot_env%rot_mat_dx_im, 0.0_dp)
