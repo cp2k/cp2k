@@ -891,7 +891,7 @@ CONTAINS
 
       update = .FALSE.
       SELECT CASE (qs_ot_env1%settings%ot_method)
-      CASE ("CG")
+      CASE ("CG", "SD")
          SELECT CASE (qs_ot_env1%settings%line_search_method)
          CASE ("2PNT")
             IF (qs_ot_env1%line_search_count == 2) update = .TRUE.
