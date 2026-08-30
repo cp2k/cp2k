@@ -20,6 +20,7 @@ MODULE scf_control_types
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_parser_methods,               ONLY: read_integer_object
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE input_constants,                 ONLY: &
         atomic_guess, diag_ot, diag_update_method_adiis, diag_update_method_mixing, direct_p_mix, &
@@ -42,13 +43,15 @@ MODULE scf_control_types
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE outer_scf_control_types,         ONLY: outer_scf_control_type,&
                                               outer_scf_read_parameters
    USE qs_cdft_opt_types,               ONLY: cdft_opt_type_release
    USE qs_ot_types,                     ONLY: ot_readwrite_input,&
                                               qs_ot_settings_init,&
                                               qs_ot_settings_type
+   USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -144,6 +147,7 @@ MODULE scf_control_types
       LOGICAL                               :: force_scf_calculation = .FALSE.
       LOGICAL                               :: non_selfconsistent = .FALSE.
       INTEGER, DIMENSION(2)                 :: added_mos = -1
+      LOGICAL, DIMENSION(2)                 :: added_mos_auto = .FALSE.
       INTEGER                               :: roks_scheme = -1
       REAL(KIND=dp)                         :: roks_f = -1.0_dp
       REAL(KIND=dp), DIMENSION(0:2, 0:2, 1:2) :: roks_parameter = -1.0_dp
@@ -205,6 +209,7 @@ CONTAINS
       scf_control%max_diis = 4
       scf_control%eps_diis = 0.1_dp
       scf_control%added_mos(:) = 0
+      scf_control%added_mos_auto(:) = .FALSE.
       scf_control%max_scf_hist = 0
 
       !Mixing
@@ -339,8 +344,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters'
 
-      INTEGER                                            :: cholesky_flag, handle, ialgo
-      INTEGER, DIMENSION(:), POINTER                     :: added_mos
+      CHARACTER(LEN=default_string_length)               :: added_mos_string, error_message
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: added_mos
+      INTEGER                                            :: added_mos_value, cholesky_flag, handle, &
+                                                            i, ialgo
       LOGICAL                                            :: do_mixing, explicit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: roks_parameter
       TYPE(section_vals_type), POINTER                   :: adiis_section, gce_section, &
@@ -474,12 +482,28 @@ CONTAINS
       CALL section_vals_val_get(scf_section, "max_iter_lumo", i_val=scf_control%max_iter_lumos)
 
       ! Extra MOs, e.g. for smearing
-      CALL section_vals_val_get(scf_section, "added_mos", i_vals=added_mos)
+      CALL section_vals_val_get(scf_section, "added_mos", c_vals=added_mos)
       CPASSERT(ASSOCIATED(added_mos))
       IF (SIZE(added_mos) > 0) THEN
-         scf_control%added_mos(1) = added_mos(1)
-         IF (SIZE(added_mos) > 1) THEN
-            scf_control%added_mos(2) = added_mos(2)
+         scf_control%added_mos_auto(:) = .FALSE.
+         DO i = 1, MIN(SIZE(added_mos), SIZE(scf_control%added_mos))
+            added_mos_string = ADJUSTL(added_mos(i))
+            CALL uppercase(added_mos_string)
+            IF (TRIM(added_mos_string) == "AUTO") THEN
+               scf_control%added_mos(i) = 0
+               scf_control%added_mos_auto(i) = .TRUE.
+            ELSE
+               CALL read_integer_object(TRIM(added_mos(i)), added_mos_value, error_message)
+               IF (LEN_TRIM(error_message) > 0) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "Invalid ADDED_MOS value '"//TRIM(added_mos(i))// &
+                                "'. Use an integer or AUTO.")
+               END IF
+               scf_control%added_mos(i) = added_mos_value
+            END IF
+         END DO
+         IF (SIZE(added_mos) == 1 .AND. scf_control%added_mos_auto(1)) THEN
+            scf_control%added_mos_auto(2) = .TRUE.
          END IF
       END IF
 
@@ -687,7 +711,10 @@ CONTAINS
                END IF
             END IF
 
-            IF (SUM(ABS(scf_control%added_mos)) > 0) THEN
+            IF (ANY(scf_control%added_mos_auto)) THEN
+               WRITE (UNIT=output_unit, FMT="(T25,A,T71,2I5)") &
+                  "added MOs (auto)   ", scf_control%added_mos
+            ELSE IF (SUM(ABS(scf_control%added_mos)) > 0) THEN
                WRITE (UNIT=output_unit, FMT="(T25,A,T71,2I5)") &
                   "added MOs          ", scf_control%added_mos
             END IF

@@ -997,9 +997,9 @@ CONTAINS
 
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER :: gfn_type, handle, ikind, ispin, iw, lmax_sphere, maxl, maxlgto, maxlgto_lri, &
-         maxlgto_nuc, maxlppl, maxlppnl, method_id, multiplicity, my_ival, n_ao, n_mo_add, natom, &
-         nelectron, ngauss, nkind, nlumo_dos, nlumo_molden, nlumo_required, output_unit, &
-         sort_basis, tnadd_method
+         maxlgto_nuc, maxlppl, maxlppnl, method_id, multiplicity, my_ival, n_ao, n_mo_add, &
+         n_mo_auto, n_mo_target, natom, nelectron, ngauss, nkind, nlumo_dos, nlumo_molden, &
+         nlumo_required, output_unit, sort_basis, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       INTEGER, DIMENSION(5)                              :: ngaussflex, occ
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range
@@ -2147,6 +2147,41 @@ CONTAINS
       CALL qs_subsys_set(subsys, &
                          nelectron_total=nelectron, &
                          nelectron_spin=nelectron_spin)
+
+      IF (ANY(scf_control%added_mos_auto) .AND. .NOT. scf_control%smear%do_smear) THEN
+         CPABORT("ADDED_MOS AUTO requires smearing")
+      END IF
+      IF (ANY(scf_control%added_mos_auto) .AND. .NOT. do_kpoints) THEN
+         CPABORT("ADDED_MOS AUTO currently requires a K-point calculation")
+      END IF
+
+      IF (scf_control%smear%do_smear .AND. ANY(scf_control%added_mos_auto)) THEN
+         n_mo_auto = MAX(4, CEILING(0.2_dp*REAL(MAXVAL(n_mo(1:dft_control%nspins)), KIND=dp)))
+         IF (dft_control%nspins == 2 .AND. ALL(scf_control%added_mos_auto(1:2))) THEN
+            n_mo_target = MIN(n_ao, MAXVAL(n_mo(1:2)) + n_mo_auto)
+            DO ispin = 1, 2
+               scf_control%added_mos(ispin) = MAX(0, n_mo_target - n_mo(ispin))
+               scf_control%added_mos_auto(ispin) = .TRUE.
+            END DO
+         ELSE
+            DO ispin = 1, dft_control%nspins
+               IF (scf_control%added_mos_auto(ispin)) THEN
+                  scf_control%added_mos(ispin) = MIN(n_mo_auto, MAX(0, n_ao - n_mo(ispin)))
+                  scf_control%added_mos_auto(ispin) = .TRUE.
+               END IF
+            END DO
+         END IF
+         IF (output_unit > 0) THEN
+            IF (dft_control%nspins == 2) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,2I5)") &
+                  "SCF smearing: automatically selected ADDED_MOS:", &
+                  scf_control%added_mos(1:dft_control%nspins)
+            ELSE
+               WRITE (UNIT=output_unit, FMT="(T2,A,I0)") &
+                  "SCF smearing: automatically selected ADDED_MOS: ", scf_control%added_mos(1)
+            END IF
+         END IF
+      END IF
 
       ! Ensure that all orbitals requested for printout are added even
       ! if the keyword ADDED_MOS was not specified or set properly

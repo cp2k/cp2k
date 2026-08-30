@@ -121,6 +121,7 @@ MODULE kpoint_methods
 
    PUBLIC :: kpoint_initialize, kpoint_env_initialize, kpoint_initialize_mos, kpoint_initialize_mo_set
    PUBLIC :: kpoint_init_cell_index, kpoint_set_mo_occupation
+   PUBLIC :: kpoint_smearing_edge_status
    PUBLIC :: kpoint_density_matrices, kpoint_density_transform
    PUBLIC :: kp_transform_plan_create, kp_transform_plan_release
    PUBLIC :: rskp_transform, lowdin_kp_trans, lowdin_kp_mo_coeff
@@ -1517,13 +1518,17 @@ CONTAINS
 !> \param kpoint  Kpoint environment
 !> \param smear   Smearing information
 !> \param probe ...
+!> \param added_mos_auto ...
+!> \param added_mos_auto_grow ...
 ! **************************************************************************************************
-   SUBROUTINE kpoint_set_mo_occupation(kpoint, smear, probe)
+   SUBROUTINE kpoint_set_mo_occupation(kpoint, smear, probe, added_mos_auto, added_mos_auto_grow)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(smear_type)                                   :: smear
       TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: probe
+      LOGICAL, DIMENSION(:), INTENT(IN), OPTIONAL        :: added_mos_auto
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: added_mos_auto_grow
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_set_mo_occupation'
 
@@ -1531,6 +1536,7 @@ CONTAINS
                                                             nb, ncol_global, ne_a, ne_b, &
                                                             nelectron, nkp, nmo, nrow_global, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
+      LOGICAL                                            :: my_added_mos_auto_grow
       REAL(KIND=dp)                                      :: kTS, kTS_spin(2), mu, mus(2), nel
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: smatrix
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: weig, wocc
@@ -1542,6 +1548,9 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
 
       CALL timeset(routineN, handle)
+
+      my_added_mos_auto_grow = .FALSE.
+      IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .FALSE.
 
       ! first collect all the eigenvalues
       CALL get_kpoint_info(kpoint, nkp=nkp)
@@ -1742,6 +1751,22 @@ CONTAINS
                kTS_spin(2) = kTS
             END IF
          END IF
+         IF (smear%do_smear .AND. PRESENT(added_mos_auto)) THEN
+            CALL kpoint_check_added_mos_auto_occupation( &
+               wocc, wkp, smear, nspin, added_mos_auto, nao, my_added_mos_auto_grow)
+         END IF
+         IF (my_added_mos_auto_grow) THEN
+            IF (PRESENT(added_mos_auto_grow)) THEN
+               added_mos_auto_grow = .TRUE.
+               DEALLOCATE (weig, wocc)
+               CALL timestop(handle)
+               RETURN
+            ELSE
+               CALL cp_abort(__LOCATION__, &
+                             "K-point ADDED_MOS AUTO needs a larger virtual-space buffer, "// &
+                             "but this call path cannot grow it.")
+            END IF
+         END IF
          DO ikpgr = 1, kplocal
             ik = kp_range(1) + ikpgr - 1
             kp => kpoint%kp_env(ikpgr)%kpoint_env
@@ -1762,6 +1787,109 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_set_mo_occupation
+
+! **************************************************************************************************
+!> \brief summarize whether weighted k-point smearing reaches the available band edges
+!> \param wocc ...
+!> \param wkp ...
+!> \param smear ...
+!> \param nspin ...
+!> \param has_weight ...
+!> \param first_fractional ...
+!> \param last_occupied ...
+!> \param last_occupied_spin ...
+! **************************************************************************************************
+   SUBROUTINE kpoint_smearing_edge_status(wocc, wkp, smear, nspin, has_weight, &
+                                          first_fractional, last_occupied, last_occupied_spin)
+
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: wocc
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp
+      TYPE(smear_type), INTENT(IN)                       :: smear
+      INTEGER, INTENT(IN)                                :: nspin
+      LOGICAL, INTENT(OUT)                               :: has_weight, first_fractional, &
+                                                            last_occupied
+      LOGICAL, DIMENSION(:), INTENT(OUT), OPTIONAL       :: last_occupied_spin
+
+      INTEGER                                            :: ik, ispin, nmo
+      LOGICAL                                            :: band_occupied
+      REAL(KIND=dp)                                      :: eps_occ, maxocc, weight, weight_threshold
+
+      has_weight = .FALSE.
+      first_fractional = .FALSE.
+      last_occupied = .FALSE.
+      IF (PRESENT(last_occupied_spin)) last_occupied_spin(:) = .FALSE.
+      IF (.NOT. smear%do_smear) RETURN
+
+      nmo = SIZE(wocc, 1)
+      IF (nmo < 1) RETURN
+      eps_occ = MAX(smear%eps_fermi_dirac, 10.0_dp*EPSILON(1.0_dp))
+      weight_threshold = 10.0_dp*EPSILON(1.0_dp)
+
+      DO ispin = 1, MIN(nspin, SIZE(wocc, 3))
+         maxocc = MERGE(2.0_dp, 1.0_dp, nspin == 1)
+         DO ik = 1, MIN(SIZE(wkp), SIZE(wocc, 2))
+            weight = ABS(wkp(ik))
+            IF (weight <= weight_threshold) CYCLE
+            has_weight = .TRUE.
+            first_fractional = first_fractional .OR. &
+                               ABS(wocc(1, ik, ispin) - maxocc) > eps_occ
+            band_occupied = ABS(wocc(nmo, ik, ispin)) > eps_occ
+            last_occupied = last_occupied .OR. band_occupied
+            IF (band_occupied .AND. PRESENT(last_occupied_spin)) THEN
+               IF (ispin <= SIZE(last_occupied_spin)) last_occupied_spin(ispin) = .TRUE.
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE kpoint_smearing_edge_status
+
+! **************************************************************************************************
+!> \brief request ADDED_MOS AUTO growth if weighted k-point smearing occupies the last band
+!> \param wocc ...
+!> \param wkp ...
+!> \param smear ...
+!> \param nspin ...
+!> \param added_mos_auto ...
+!> \param nao ...
+!> \param added_mos_auto_grow ...
+! **************************************************************************************************
+   SUBROUTINE kpoint_check_added_mos_auto_occupation(wocc, wkp, smear, nspin, &
+                                                     added_mos_auto, nao, added_mos_auto_grow)
+
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: wocc
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp
+      TYPE(smear_type), INTENT(IN)                       :: smear
+      INTEGER, INTENT(IN)                                :: nspin
+      LOGICAL, DIMENSION(:), INTENT(IN)                  :: added_mos_auto
+      INTEGER, INTENT(IN)                                :: nao
+      LOGICAL, INTENT(OUT)                               :: added_mos_auto_grow
+
+      INTEGER                                            :: ispin, nmo
+      LOGICAL                                            :: first_fractional, has_weight, &
+                                                            last_occupied
+      LOGICAL, DIMENSION(nspin)                          :: last_occupied_spin
+
+      added_mos_auto_grow = .FALSE.
+      IF (.NOT. ANY(added_mos_auto) .OR. .NOT. smear%do_smear) RETURN
+
+      CALL kpoint_smearing_edge_status(wocc, wkp, smear, nspin, has_weight, &
+                                       first_fractional, last_occupied, &
+                                       last_occupied_spin=last_occupied_spin)
+      IF (.NOT. has_weight) RETURN
+
+      nmo = SIZE(wocc, 1)
+      DO ispin = 1, MIN(nspin, SIZE(added_mos_auto))
+         IF (.NOT. added_mos_auto(ispin) .OR. .NOT. last_occupied_spin(ispin)) CYCLE
+         IF (nmo >= nao) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "K-point ADDED_MOS AUTO exhausted the AO basis but the highest band "// &
+                          "is still occupied. Use a larger basis or a lower electronic temperature.")
+         END IF
+         added_mos_auto_grow = .TRUE.
+         RETURN
+      END DO
+
+   END SUBROUTINE kpoint_check_added_mos_auto_occupation
 
 ! **************************************************************************************************
 !> \brief Calculate kpoint density matrices (rho(k), owned by kpoint groups)

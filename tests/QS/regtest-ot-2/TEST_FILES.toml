@@ -47,6 +47,10 @@
 "Al-kpoint-mermin-smoke.inp"            = [{matcher="E_total", tol=1e-9, ref=-2.903015358408708}]
 "Al-kpoint-mermin-lbfgs.inp"            = [{matcher="E_total", tol=1e-8, ref=-8.17199206567539}]
 "Al-kpoint-mermin-diis-occ.inp"           = [{matcher="E_total", tol=1e-6, ref=-8.15734061513311}]
+"Al-kpoint-mermin-auto.inp"             = [
+  {matcher="E_total", tol=1e-9, ref=-3.004207460676986},
+  {matcher="OT_added_mos_auto_grow"},
+]
 # go through planned FFTs, but don't check results, they will depend on the selected plan
 "H2O-plan-2.inp"                        = []
 "H2O-plan-3.inp"                        = []
