@@ -808,7 +808,8 @@ CONTAINS
                   ! kpoints
                   IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
                      scf_control%smear%do_smear = .FALSE.
-                     CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, dft_control%probe)
+                     CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, dft_control%probe, &
+                                            energy_only=energy_only)
                   ELSE
                      CALL qs_scf_new_mos_kp( &
                         qs_env, scf_env, scf_control, diis_step, &
@@ -817,7 +818,7 @@ CONTAINS
                         ot_kp_subspace_refresh_count < max_ot_kp_subspace_refreshes, &
                         allow_ot_kp_exit_refresh=ot_kp_subspace_refresh_count > 0, &
                         accepted_ot_kp_searches=accepted_ot_kp_searches, &
-                        added_mos_auto_grow=added_mos_auto_grow)
+                        added_mos_auto_grow=added_mos_auto_grow, energy_only=energy_only)
                   END IF
                ELSE
                   ! Gamma points only
