@@ -200,7 +200,8 @@ MODULE qs_scf
    USE qs_scf_loop_utils,               ONLY: &
         qs_scf_candidate_density_delta, qs_scf_check_inner_exit, qs_scf_check_outer_exit, &
         qs_scf_commit_density_candidate, qs_scf_density_mixing, qs_scf_inner_finalize, &
-        qs_scf_new_mos, qs_scf_new_mos_kp, qs_scf_rho_update, qs_scf_set_loop_flags
+        qs_scf_kp_search_endpoint, qs_scf_new_mos, qs_scf_new_mos_kp, qs_scf_rho_update, &
+        qs_scf_set_loop_flags
    USE qs_scf_oda,                      ONLY: qs_scf_oda_apply
    USE qs_scf_output,                   ONLY: qs_scf_cdft_info,&
                                               qs_scf_cdft_initial_info,&
@@ -409,7 +410,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: total_scf_steps
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scf_env_do_scf'
-      INTEGER, PARAMETER :: max_ot_kp_subspace_refreshes = 2
+      INTEGER, PARAMETER :: max_ot_kp_subspace_refreshes = 4
       REAL(KIND=dp), PARAMETER :: adiis_stagnation_ratio = 1.0E-2_dp
 
       CHARACTER(LEN=default_string_length)               :: description, name
@@ -447,6 +448,8 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: ace_section, dft_section, hfx_sections, &
                                                             input, scf_section
+
+! Weak orbital metrics can need several bounded REF rebuilds to close the canonical density tail.
 
       CALL timeset(routineN, handle)
 
@@ -871,7 +874,7 @@ CONTAINS
             END IF
 
             IF (do_kpoints .AND. scf_env%method == ot_method_nr .AND. &
-                TRIM(scf_env%iter_method) == "OT CG") THEN
+                qs_scf_kp_search_endpoint(scf_env%iter_method)) THEN
                accepted_ot_kp_searches = accepted_ot_kp_searches + 1
             END IF
 

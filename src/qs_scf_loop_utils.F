@@ -119,12 +119,31 @@ MODULE qs_scf_loop_utils
 
    PUBLIC :: qs_scf_set_loop_flags, &
              qs_scf_new_mos, qs_scf_new_mos_kp, &
-             qs_scf_kp_ref_refresh_ready, &
+             qs_scf_kp_ref_refresh_ready, qs_scf_kp_search_endpoint, &
              qs_scf_candidate_density_delta, qs_scf_commit_density_candidate, &
              qs_scf_density_mixing, qs_scf_check_inner_exit, &
              qs_scf_check_outer_exit, qs_scf_inner_finalize, qs_scf_rho_update
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief identify an accepted OT search endpoint from its iteration label
+!> \param method OT iteration label
+!> \return true for the primary endpoint of every supported minimizer
+! **************************************************************************************************
+   PURE FUNCTION qs_scf_kp_search_endpoint(method) RESULT(endpoint)
+
+      CHARACTER(LEN=*), INTENT(IN)                       :: method
+      LOGICAL                                            :: endpoint
+
+      SELECT CASE (TRIM(method))
+      CASE ("OT CG", "OT SD", "OT DIIS", "OT BROY", "OT LBFGS")
+         endpoint = .TRUE.
+      CASE DEFAULT
+         endpoint = .FALSE.
+      END SELECT
+
+   END FUNCTION qs_scf_kp_search_endpoint
 
 ! **************************************************************************************************
 !> \brief decide whether a mature variable-occupation REF chart should be rebuilt
@@ -155,7 +174,7 @@ CONTAINS
       IF (PRESENT(allow_exit_window)) exit_window = allow_exit_window
       refresh = base_state .AND. accepted_searches >= min_accepted_searches .AND. &
                 ((residual > 10.0_dp*eps .AND. residual <= 0.2_dp*SQRT(eps)) .OR. &
-                 (exit_window .AND. residual > 0.25_dp*eps .AND. residual <= eps))
+                 (exit_window .AND. residual > 0.25_dp*eps .AND. residual <= 10.0_dp*eps))
 
    END FUNCTION qs_scf_kp_ref_refresh_ready
 
@@ -536,7 +555,8 @@ CONTAINS
                       (scf_env%qs_ot_env(1)%line_search_count == 0 .OR. &
                        scf_env%qs_ot_env(1)%line_search_might_be_done)
          residual = MAX(scf_env%iter_delta, scf_env%qs_ot_env(1)%delta)
-         refresh = allow_refresh .AND. scf_env%qs_ot_env(1)%settings%do_ener .AND. &
+         refresh = (allow_refresh .OR. allow_exit_refresh) .AND. &
+                   scf_env%qs_ot_env(1)%settings%do_ener .AND. &
                    scf_env%qs_ot_env(1)%settings%occupation_preconditioner .AND. &
                    (dft_control%smear .OR. scf_control%smear%do_smear) .AND. &
                    qs_scf_kp_ref_refresh_ready(accepted_searches, residual, &
@@ -557,7 +577,7 @@ CONTAINS
                RETURN
             END IF
             IF (allow_exit_refresh .AND. scf_env%iter_delta <= scf_control%eps_scf) THEN
-               base_state = TRIM(scf_env%iter_method) == "OT CG"
+               base_state = qs_scf_kp_search_endpoint(scf_env%iter_method)
                refresh = qs_scf_kp_ref_refresh_ready( &
                          accepted_searches, scf_env%iter_delta, scf_control%eps_scf, &
                          base_state, allow_exit_window=.TRUE.)

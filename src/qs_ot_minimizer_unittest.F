@@ -16,7 +16,8 @@ PROGRAM qs_ot_minimizer_unittest
         ot_mermin_response_candidate_preferred, ot_mermin_response_compare, &
         ot_mermin_response_preparation_needed, ot_mermin_response_probe, &
         ot_mermin_response_shadow_followup, ot_mermin_secant_curvature
-   USE qs_scf_loop_utils,               ONLY: qs_scf_kp_ref_refresh_ready
+   USE qs_scf_loop_utils,               ONLY: qs_scf_kp_ref_refresh_ready,&
+                                              qs_scf_kp_search_endpoint
 
    IMPLICIT NONE
 
@@ -255,8 +256,21 @@ PROGRAM qs_ot_minimizer_unittest
    IF (.NOT. qs_scf_kp_ref_refresh_ready(12, 0.75E-6_dp, 1.0E-6_dp, .TRUE., .TRUE.)) THEN
       ERROR STOP "K-point REF refresh rejected a mature exit-only state"
    END IF
+   IF (.NOT. qs_scf_kp_ref_refresh_ready(12, 5.0E-6_dp, 1.0E-6_dp, .TRUE., .TRUE.)) THEN
+      ERROR STOP "K-point REF refresh rejected a stagnant post-rebuild tail"
+   END IF
    IF (qs_scf_kp_ref_refresh_ready(12, 0.2E-6_dp, 1.0E-6_dp, .TRUE., .TRUE.)) THEN
       ERROR STOP "K-point REF refresh accepted a safely converged exit state"
+   END IF
+   IF (.NOT. ALL([qs_scf_kp_search_endpoint("OT CG"), &
+                  qs_scf_kp_search_endpoint("OT SD"), &
+                  qs_scf_kp_search_endpoint("OT DIIS"), &
+                  qs_scf_kp_search_endpoint("OT BROY"), &
+                  qs_scf_kp_search_endpoint("OT LBFGS")])) THEN
+      ERROR STOP "K-point REF refresh rejected a supported minimizer endpoint"
+   END IF
+   IF (qs_scf_kp_search_endpoint("OT LS") .OR. qs_scf_kp_search_endpoint("OT Sync")) THEN
+      ERROR STOP "K-point REF refresh counted a non-endpoint OT iteration"
    END IF
 
    infinity = ieee_value(0.0_dp, ieee_positive_inf)
