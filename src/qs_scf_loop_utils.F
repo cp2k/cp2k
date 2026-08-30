@@ -15,23 +15,30 @@ MODULE qs_scf_loop_utils
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_release_p,&
+                                              dbcsr_scale,&
                                               dbcsr_set,&
                                               dbcsr_type
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_get_diag,&
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot,&
+                                              dbcsr_get_diag,&
                                               dbcsr_scale_by_vector
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                              cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
                                               cp_fm_release,&
+                                              cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: diag_update_method_adiis,&
                                               smear_fermi_dirac
    USE input_section_types,             ONLY: section_vals_type
@@ -66,10 +73,16 @@ MODULE qs_scf_loop_utils
                                               mo_set_type
    USE qs_mom_methods,                  ONLY: do_mom_diag
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_ot,                           ONLY: qs_ot_fixed_n_energy_gradient,&
-                                              qs_ot_get_orbitals_complex,&
-                                              qs_ot_get_orbitals_ref_complex
-   USE qs_ot_minimizer,                 ONLY: ot_mini
+   USE qs_ot,                           ONLY: &
+        qs_ot_antihermitian_spectral_norm, qs_ot_density_secant_orbital_overlaps, &
+        qs_ot_density_secant_projected_hessian, qs_ot_density_tangent, &
+        qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, qs_ot_fixed_n_schur_block, &
+        qs_ot_get_orbitals_complex, qs_ot_get_orbitals_ref_complex, &
+        qs_ot_projected_response_update, qs_ot_symmetric_abs_solve
+   USE qs_ot_minimizer,                 ONLY: ot_mermin_response_preparation_needed,&
+                                              ot_mermin_secant_curvature,&
+                                              ot_mini,&
+                                              ot_mini_prepare_gradient
    USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                               ot_scf_mini
    USE qs_ot_types,                     ONLY: qs_ot_channel_index,&
@@ -106,12 +119,31 @@ MODULE qs_scf_loop_utils
 
    PUBLIC :: qs_scf_set_loop_flags, &
              qs_scf_new_mos, qs_scf_new_mos_kp, &
-             qs_scf_kp_ref_refresh_ready, &
+             qs_scf_kp_ref_refresh_ready, qs_scf_kp_search_endpoint, &
              qs_scf_candidate_density_delta, qs_scf_commit_density_candidate, &
              qs_scf_density_mixing, qs_scf_check_inner_exit, &
              qs_scf_check_outer_exit, qs_scf_inner_finalize, qs_scf_rho_update
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief identify an accepted OT search endpoint from its iteration label
+!> \param method OT iteration label
+!> \return true for the primary endpoint of every supported minimizer
+! **************************************************************************************************
+   PURE FUNCTION qs_scf_kp_search_endpoint(method) RESULT(endpoint)
+
+      CHARACTER(LEN=*), INTENT(IN)                       :: method
+      LOGICAL                                            :: endpoint
+
+      SELECT CASE (TRIM(method))
+      CASE ("OT CG", "OT SD", "OT DIIS", "OT BROY", "OT LBFGS")
+         endpoint = .TRUE.
+      CASE DEFAULT
+         endpoint = .FALSE.
+      END SELECT
+
+   END FUNCTION qs_scf_kp_search_endpoint
 
 ! **************************************************************************************************
 !> \brief decide whether a mature variable-occupation REF chart should be rebuilt
@@ -142,7 +174,7 @@ CONTAINS
       IF (PRESENT(allow_exit_window)) exit_window = allow_exit_window
       refresh = base_state .AND. accepted_searches >= min_accepted_searches .AND. &
                 ((residual > 10.0_dp*eps .AND. residual <= 0.2_dp*SQRT(eps)) .OR. &
-                 (exit_window .AND. residual > 0.25_dp*eps .AND. residual <= eps))
+                 (exit_window .AND. residual > 0.25_dp*eps .AND. residual <= 10.0_dp*eps))
 
    END FUNCTION qs_scf_kp_ref_refresh_ready
 
@@ -412,7 +444,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_new_mos_kp'
 
-      INTEGER                                            :: accepted_searches, handle, ispin
+      INTEGER                                            :: accepted_searches, handle, ispin, &
+                                                            refresh_count
       LOGICAL :: allow_exit_refresh, allow_refresh, base_state, disable_diis, has_unit_metric, &
          my_added_mos_auto_grow, ot_energy_only, refresh
       REAL(dp)                                           :: diis_error, residual, saved_eps_diis
@@ -420,6 +453,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
 
       CALL timeset(routineN, handle)
@@ -436,9 +470,11 @@ CONTAINS
       IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .FALSE.
       IF (PRESENT(energy_only)) energy_only = .FALSE.
 
-      NULLIFY (dft_control, energy, kpoints, matrix_ks, matrix_s)
+      NULLIFY (dft_control, energy, kpoints, matrix_ks, matrix_s, para_env)
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, kpoints=kpoints)
+      CALL get_kpoint_info(kpoints, para_env=para_env)
+      CPASSERT(ASSOCIATED(para_env))
       scf_env%iter_param = 0.0_dp
       disable_diis = dft_control%qs_control%xtb_control%do_tblite .AND. &
                      tb_native_scc_mixer_active(dft_control)
@@ -519,11 +555,15 @@ CONTAINS
                       (scf_env%qs_ot_env(1)%line_search_count == 0 .OR. &
                        scf_env%qs_ot_env(1)%line_search_might_be_done)
          residual = MAX(scf_env%iter_delta, scf_env%qs_ot_env(1)%delta)
-         refresh = allow_refresh .AND. scf_env%qs_ot_env(1)%settings%do_ener .AND. &
+         refresh = (allow_refresh .OR. allow_exit_refresh) .AND. &
+                   scf_env%qs_ot_env(1)%settings%do_ener .AND. &
                    scf_env%qs_ot_env(1)%settings%occupation_preconditioner .AND. &
                    (dft_control%smear .OR. scf_control%smear%do_smear) .AND. &
                    qs_scf_kp_ref_refresh_ready(accepted_searches, residual, &
                                                scf_control%eps_scf, base_state, allow_exit_refresh)
+         refresh_count = MERGE(1, 0, refresh)
+         CALL para_env%sum(refresh_count)
+         refresh = refresh_count > 0
          IF (refresh) THEN
             IF (PRESENT(ot_kp_subspace_refresh)) ot_kp_subspace_refresh = .TRUE.
          ELSE
@@ -537,13 +577,19 @@ CONTAINS
                RETURN
             END IF
             IF (allow_exit_refresh .AND. scf_env%iter_delta <= scf_control%eps_scf) THEN
-               base_state = TRIM(scf_env%iter_method) == "OT CG"
+               base_state = qs_scf_kp_search_endpoint(scf_env%iter_method)
                refresh = qs_scf_kp_ref_refresh_ready( &
                          accepted_searches, scf_env%iter_delta, scf_control%eps_scf, &
                          base_state, allow_exit_window=.TRUE.)
                IF (refresh .AND. PRESENT(ot_kp_subspace_refresh)) THEN
                   ot_kp_subspace_refresh = .TRUE.
                END IF
+            END IF
+            refresh_count = MERGE(1, 0, refresh)
+            CALL para_env%sum(refresh_count)
+            refresh = refresh_count > 0
+            IF (refresh .AND. PRESENT(ot_kp_subspace_refresh)) THEN
+               ot_kp_subspace_refresh = .TRUE.
             END IF
          END IF
       CASE (smeagol_method_nr)
@@ -597,7 +643,9 @@ CONTAINS
       INTEGER :: first_channel, handle, homo, ikpoint, ispin, local_channel, local_kpoint, nao, &
          nkp_groups, nkpoint, nlocal_channels, nmo, nspin_ot
       INTEGER, DIMENSION(2)                              :: kp_range
-      LOGICAL                                            :: transfer_step, use_real_wfn
+      LOGICAL                                            :: ot_gradient_prepared, &
+                                                            physical_base_state, transfer_step, &
+                                                            use_real_wfn
       REAL(KIND=dp)                                      :: trial_kTS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trial_eigenvalues, trial_occupation
@@ -626,6 +674,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       added_mos_auto_grow = .FALSE.
+      ot_gradient_prepared = .FALSE.
 
       NULLIFY (active_mo_struct, chc_struct, density_target, dft_control, energy, fmwork, kpoints, &
                local_ot_env, matrix_hc, matrix_hc_im, matrix_k_im, matrix_k_re, matrix_s_im, &
@@ -673,6 +722,11 @@ CONTAINS
       nlocal_channels = SIZE(kpoints%kp_env)*nspin_ot
       local_ot_env => scf_env%qs_ot_env(first_channel:first_channel + nlocal_channels - 1)
       local_ot_env(1)%etotal = energy%total
+      physical_base_state = local_ot_env(1)%settings%do_ener .AND. &
+                            .NOT. local_ot_env(1)%initial_density_sync_pending .AND. &
+                            .NOT. local_ot_env(1)%energy_only .AND. &
+                            (local_ot_env(1)%line_search_count == 0 .OR. &
+                             local_ot_env(1)%line_search_might_be_done)
 
       ALLOCATE (matrix_hc(nlocal_channels))
       ALLOCATE (matrix_hc_im(nlocal_channels))
@@ -715,6 +769,14 @@ CONTAINS
                matrix_ks, kpoints, kp, MIN(ispin, SIZE(matrix_ks, 1)), &
                kp%ot_hmat(1, MIN(ispin, SIZE(kp%ot_hmat, 2))), &
                kp%ot_hmat(2, MIN(ispin, SIZE(kp%ot_hmat, 2))), matrix_k_re, matrix_k_im)
+            IF (physical_base_state .AND. nkp_groups == 1) THEN
+               ! The direct single-group transform bypasses the full-matrix cache.  Synchronize it
+               ! at accepted endpoints so the physical Mermin history sees the H(k) used for H(k)C(k).
+               CALL copy_dbcsr_to_fm( &
+                  matrix_k_re, kp%ot_hmat(1, MIN(ispin, SIZE(kp%ot_hmat, 2))))
+               CALL copy_dbcsr_to_fm( &
+                  matrix_k_im, kp%ot_hmat(2, MIN(ispin, SIZE(kp%ot_hmat, 2))))
+            END IF
 
             CALL get_mo_set(kp%mos(1, ispin), homo=homo, mo_coeff=mo_coeff, nao=nao, nmo=nmo, &
                             occupation_numbers=occupation_numbers)
@@ -804,9 +866,17 @@ CONTAINS
          ikpoint = kp%nkpoint
          DO ispin = 1, nspin_ot
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
-            CALL get_mo_set(kp%mos(1, ispin), homo=homo, nmo=nmo, &
+            CALL get_mo_set(kp%mos(1, ispin), homo=homo, mo_coeff=mo_coeff, nmo=nmo, &
                             occupation_numbers=occupation_numbers)
+            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=mo_coeff_im)
             IF (local_ot_env(local_channel)%settings%do_ener) homo = nmo
+            IF (physical_base_state) THEN
+               CALL qs_scf_kp_roll_physical_secant( &
+                  local_ot_env(local_channel), mo_coeff, mo_coeff_im, &
+                  kp%ot_hmat(1, MIN(ispin, SIZE(kp%ot_hmat, 2))), &
+                  kp%ot_hmat(2, MIN(ispin, SIZE(kp%ot_hmat, 2))), &
+                  trial_occupation(:, ikpoint, ispin))
+            END IF
             IF (local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
                CALL dbcsr_copy(matrix_hc_physical(local_channel)%matrix, &
                                matrix_hc(local_channel)%matrix)
@@ -856,15 +926,45 @@ CONTAINS
             CALL qs_scf_loop_prepare_ot_kp_energy_gradient( &
                kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, &
                scf_control%smear, trial_eigenvalues, trial_occupation)
+            IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
+               CALL ot_mini_prepare_gradient( &
+                  local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+                  matrix_hc_physical=matrix_hc_physical, &
+                  matrix_hc_physical_im=matrix_hc_physical_im, &
+                  para_env_inter_kp=para_env_inter_kp)
+            ELSE
+               CALL ot_mini_prepare_gradient( &
+                  local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+                  para_env_inter_kp=para_env_inter_kp)
+            END IF
+            ot_gradient_prepared = .TRUE.
+            ! A coupled response direction is consumed only when the minimizer starts a new
+            ! search.  Line-search trial points still need their physical gradient, but rebuilding
+            ! the dense finite-rotation Hessian there cannot affect the accepted direction.
+            IF (physical_base_state) THEN
+               CALL qs_scf_loop_prepare_ot_kp_rotation_response( &
+                  kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, &
+                  scf_control%smear, trial_occupation)
+            END IF
+            IF (physical_base_state .AND. &
+                local_ot_env(1)%settings%occupation_preconditioner .AND. &
+                (local_ot_env(1)%settings%ot_method == "CG" .OR. &
+                 local_ot_env(1)%settings%ot_method == "LBFG")) THEN
+               DO local_channel = 1, nlocal_channels
+                  CALL qs_scf_kp_store_mermin_gradient(local_ot_env(local_channel))
+               END DO
+            END IF
          END IF
          IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
             CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
                          matrix_hc_physical=matrix_hc_physical, &
                          matrix_hc_physical_im=matrix_hc_physical_im, &
-                         para_env_inter_kp=para_env_inter_kp)
+                         para_env_inter_kp=para_env_inter_kp, &
+                         gradient_prepared=ot_gradient_prepared)
          ELSE
             CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
-                         para_env_inter_kp=para_env_inter_kp)
+                         para_env_inter_kp=para_env_inter_kp, &
+                         gradient_prepared=ot_gradient_prepared)
          END IF
          scf_env%iter_delta = local_ot_env(1)%delta
       END IF
@@ -964,6 +1064,316 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_scf_loop_do_ot_kp
+
+! **************************************************************************************************
+!> \brief roll one accepted physical K-point Mermin endpoint into a bounded response history
+!> \param qs_ot_env local spin/K-point OT channel
+!> \param c_re current real orbital coefficients
+!> \param c_im current imaginary orbital coefficients
+!> \param h_re current real self-consistent Hamiltonian
+!> \param h_im current imaginary self-consistent Hamiltonian
+!> \param occupation current fixed-N occupations
+! **************************************************************************************************
+   SUBROUTINE qs_scf_kp_roll_physical_secant(qs_ot_env, c_re, c_im, h_re, h_im, occupation)
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+      TYPE(cp_fm_type), INTENT(IN), TARGET               :: c_re, c_im, h_re, h_im
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
+
+      INTEGER                                            :: nmo
+      LOGICAL                                            :: previous_valid
+
+      nmo = SIZE(occupation)
+      CPASSERT(nmo > 0)
+      previous_valid = qs_ot_env%mermin_physical_ref_valid .AND. &
+                       ASSOCIATED(qs_ot_env%fm_mermin_c0) .AND. &
+                       ASSOCIATED(qs_ot_env%fm_mermin_c0_im) .AND. &
+                       ASSOCIATED(qs_ot_env%fm_mermin_h0) .AND. &
+                       ASSOCIATED(qs_ot_env%fm_mermin_h0_im) .AND. &
+                       ALLOCATED(qs_ot_env%mermin_occupation0)
+      IF (previous_valid) previous_valid = SIZE(qs_ot_env%mermin_occupation0) == nmo
+      qs_ot_env%mermin_physical_secant_valid = .FALSE.
+      IF (previous_valid) THEN
+         CALL store_physical_fm_matrix( &
+            qs_ot_env%fm_mermin_c0, qs_ot_env%fm_mermin_c_previous, "mermin_previous_c")
+         CALL store_physical_fm_matrix( &
+            qs_ot_env%fm_mermin_c0_im, qs_ot_env%fm_mermin_c_previous_im, "mermin_previous_c_im")
+         CALL store_physical_fm_matrix(h_re, qs_ot_env%fm_mermin_y_previous, "mermin_previous_y")
+         CALL store_physical_fm_matrix(h_im, qs_ot_env%fm_mermin_y_previous_im, "mermin_previous_y_im")
+         CALL cp_fm_scale_and_add( &
+            1.0_dp, qs_ot_env%fm_mermin_y_previous, -1.0_dp, qs_ot_env%fm_mermin_h0)
+         CALL cp_fm_scale_and_add( &
+            1.0_dp, qs_ot_env%fm_mermin_y_previous_im, -1.0_dp, qs_ot_env%fm_mermin_h0_im)
+         IF (ALLOCATED(qs_ot_env%mermin_occupation_previous)) THEN
+            IF (SIZE(qs_ot_env%mermin_occupation_previous) /= nmo) THEN
+               DEALLOCATE (qs_ot_env%mermin_occupation_previous)
+            END IF
+         END IF
+         IF (.NOT. ALLOCATED(qs_ot_env%mermin_occupation_previous)) THEN
+            ALLOCATE (qs_ot_env%mermin_occupation_previous(nmo))
+         END IF
+         qs_ot_env%mermin_occupation_previous(:) = qs_ot_env%mermin_occupation0(:)
+         qs_ot_env%mermin_physical_secant_valid = .TRUE.
+      END IF
+
+      CALL store_physical_fm_matrix(c_re, qs_ot_env%fm_mermin_c0, "mermin_c0")
+      CALL store_physical_fm_matrix(c_im, qs_ot_env%fm_mermin_c0_im, "mermin_c0_im")
+      CALL store_physical_fm_matrix(h_re, qs_ot_env%fm_mermin_h0, "mermin_h0")
+      CALL store_physical_fm_matrix(h_im, qs_ot_env%fm_mermin_h0_im, "mermin_h0_im")
+      IF (ALLOCATED(qs_ot_env%mermin_occupation0)) THEN
+         IF (SIZE(qs_ot_env%mermin_occupation0) /= nmo) DEALLOCATE (qs_ot_env%mermin_occupation0)
+      END IF
+      IF (.NOT. ALLOCATED(qs_ot_env%mermin_occupation0)) ALLOCATE (qs_ot_env%mermin_occupation0(nmo))
+      qs_ot_env%mermin_occupation0(:) = occupation(:)
+      qs_ot_env%mermin_physical_ref_valid = .TRUE.
+
+   END SUBROUTINE qs_scf_kp_roll_physical_secant
+
+! **************************************************************************************************
+!> \brief store the raw physical Mermin gradient at one accepted K-point endpoint
+!> \param qs_ot_env local spin/K-point OT channel
+! **************************************************************************************************
+   SUBROUTINE qs_scf_kp_store_mermin_gradient(qs_ot_env)
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+
+      CPASSERT(ASSOCIATED(qs_ot_env%matrix_mermin_g0))
+      CPASSERT(ASSOCIATED(qs_ot_env%matrix_mermin_g0_im))
+      CPASSERT(ASSOCIATED(qs_ot_env%rot_mat_mermin_g0))
+      CPASSERT(ASSOCIATED(qs_ot_env%rot_mat_mermin_g0_im))
+      CPASSERT(ALLOCATED(qs_ot_env%ener_mermin_g0))
+      CPASSERT(SIZE(qs_ot_env%ener_mermin_g0) == SIZE(qs_ot_env%ener_gx))
+
+      CALL dbcsr_copy(qs_ot_env%matrix_mermin_g0, qs_ot_env%matrix_gx)
+      CALL dbcsr_copy(qs_ot_env%matrix_mermin_g0_im, qs_ot_env%matrix_gx_im)
+      CALL dbcsr_copy(qs_ot_env%rot_mat_mermin_g0, qs_ot_env%rot_mat_gx)
+      CALL dbcsr_copy(qs_ot_env%rot_mat_mermin_g0_im, qs_ot_env%rot_mat_gx_im)
+      qs_ot_env%ener_mermin_g0(:) = qs_ot_env%ener_gx(:)
+      qs_ot_env%mermin_gradient_ref_valid = .TRUE.
+
+   END SUBROUTINE qs_scf_kp_store_mermin_gradient
+
+! **************************************************************************************************
+!> \brief copy an owned physical full-matrix snapshot, reallocating on shape changes
+!> \param source transient or persistent source matrix
+!> \param snapshot owned response-history matrix
+!> \param name matrix name
+! **************************************************************************************************
+   SUBROUTINE store_physical_fm_matrix(source, snapshot, name)
+      TYPE(cp_fm_type), INTENT(IN), TARGET               :: source
+      TYPE(cp_fm_type), INTENT(INOUT), POINTER           :: snapshot
+      CHARACTER(LEN=*), INTENT(IN)                       :: name
+
+      INTEGER                                            :: ncol_snapshot, ncol_source, &
+                                                            nrow_snapshot, nrow_source
+      LOGICAL                                            :: shape_changed
+
+      CALL cp_fm_get_info(source, nrow_global=nrow_source, ncol_global=ncol_source)
+      shape_changed = .FALSE.
+      IF (ASSOCIATED(snapshot)) THEN
+         CALL cp_fm_get_info(snapshot, nrow_global=nrow_snapshot, ncol_global=ncol_snapshot)
+         shape_changed = nrow_snapshot /= nrow_source .OR. ncol_snapshot /= ncol_source
+         IF (shape_changed) THEN
+            CALL cp_fm_release(snapshot)
+            DEALLOCATE (snapshot)
+         END IF
+      END IF
+      IF (.NOT. ASSOCIATED(snapshot)) THEN
+         ALLOCATE (snapshot)
+         CALL cp_fm_create(snapshot, source%matrix_struct, name=name)
+      END IF
+      CALL cp_fm_to_fm(source, snapshot)
+
+   END SUBROUTINE store_physical_fm_matrix
+
+! **************************************************************************************************
+!> \brief project one accepted physical Hxc secant onto current-orbital density tangents
+!> \param qs_ot_env channel owning the accepted endpoint snapshots
+!> \param overlap_re real part of the AO overlap matrix
+!> \param overlap_im imaginary part of the AO overlap matrix
+!> \param density_modes current-orbital density tangents including the K-point weight
+!> \param kpoint_weight irreducible K-point weight
+!> \param density_norm_sq physical density-step norm
+!> \param response_work density/Hamiltonian response work
+!> \param density_overlap projections of the density step onto density_modes
+!> \param response_overlap projections of the Hamiltonian step onto density_modes
+!> \param valid whether a finite accepted secant was available
+! **************************************************************************************************
+   SUBROUTINE qs_scf_kp_physical_secant_overlaps( &
+      qs_ot_env, overlap_re, overlap_im, density_modes, kpoint_weight, density_norm_sq, &
+      response_work, density_overlap, response_overlap, valid)
+
+      TYPE(qs_ot_type), INTENT(IN)                       :: qs_ot_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: overlap_re, overlap_im
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: density_modes
+      REAL(KIND=dp), INTENT(IN)                          :: kpoint_weight
+      REAL(KIND=dp), INTENT(OUT)                         :: density_norm_sq, response_work
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: density_overlap, response_overlap
+      LOGICAL, INTENT(OUT)                               :: valid
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: hamiltonian_step_current, &
+                                                            hamiltonian_step_previous, &
+                                                            overlap_previous_current
+      INTEGER                                            :: nmo
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dense_im, dense_re
+      TYPE(cp_fm_type)                                   :: action_im, action_re, cross_im, cross_re, &
+                                                            projection_im, projection_re
+
+      nmo = SIZE(density_modes, 1)
+      CPASSERT(nmo > 0)
+      CPASSERT(SIZE(density_modes, 2) == nmo)
+      CPASSERT(SIZE(density_overlap) == SIZE(density_modes, 3))
+      CPASSERT(SIZE(response_overlap) == SIZE(density_modes, 3))
+      valid = qs_ot_env%mermin_physical_secant_valid .AND. &
+              ASSOCIATED(qs_ot_env%fm_mermin_c0) .AND. &
+              ASSOCIATED(qs_ot_env%fm_mermin_c0_im) .AND. &
+              ASSOCIATED(qs_ot_env%fm_mermin_c_previous) .AND. &
+              ASSOCIATED(qs_ot_env%fm_mermin_c_previous_im) .AND. &
+              ASSOCIATED(qs_ot_env%fm_mermin_y_previous) .AND. &
+              ASSOCIATED(qs_ot_env%fm_mermin_y_previous_im) .AND. &
+              ALLOCATED(qs_ot_env%mermin_occupation0) .AND. &
+              ALLOCATED(qs_ot_env%mermin_occupation_previous)
+      density_norm_sq = 0.0_dp
+      response_work = 0.0_dp
+      density_overlap(:) = 0.0_dp
+      response_overlap(:) = 0.0_dp
+      IF (.NOT. valid) RETURN
+      CPASSERT(SIZE(qs_ot_env%mermin_occupation0) == nmo)
+      CPASSERT(SIZE(qs_ot_env%mermin_occupation_previous) == nmo)
+
+      CALL cp_fm_create(action_re, qs_ot_env%fm_mermin_c0%matrix_struct, &
+                        name="mermin_hxc_action_re", set_zero=.TRUE.)
+      CALL cp_fm_create(action_im, qs_ot_env%fm_mermin_c0%matrix_struct, &
+                        name="mermin_hxc_action_im", set_zero=.TRUE.)
+      CALL cp_fm_create(cross_re, qs_ot_env%fm_mermin_c0%matrix_struct, &
+                        name="mermin_hxc_cross_re", nrow=nmo, ncol=nmo, set_zero=.TRUE.)
+      CALL cp_fm_create(cross_im, qs_ot_env%fm_mermin_c0%matrix_struct, &
+                        name="mermin_hxc_cross_im", nrow=nmo, ncol=nmo, set_zero=.TRUE.)
+      CALL cp_fm_create(projection_re, qs_ot_env%fm_mermin_c0%matrix_struct, &
+                        name="mermin_hxc_projection_re", nrow=nmo, ncol=nmo, set_zero=.TRUE.)
+      CALL cp_fm_create(projection_im, qs_ot_env%fm_mermin_c0%matrix_struct, &
+                        name="mermin_hxc_projection_im", nrow=nmo, ncol=nmo, set_zero=.TRUE.)
+      ALLOCATE (dense_re(nmo, nmo), dense_im(nmo, nmo), &
+                hamiltonian_step_current(nmo, nmo), hamiltonian_step_previous(nmo, nmo), &
+                overlap_previous_current(nmo, nmo))
+
+      CALL multiply_complex_fm_nn( &
+         overlap_re, overlap_im, qs_ot_env%fm_mermin_c0, qs_ot_env%fm_mermin_c0_im, &
+         action_re, action_im, 1.0_dp, 0.0_dp)
+      CALL multiply_complex_fm_adjoint( &
+         qs_ot_env%fm_mermin_c_previous, qs_ot_env%fm_mermin_c_previous_im, &
+         action_re, action_im, cross_re, cross_im, 1.0_dp, 0.0_dp)
+      CALL cp_fm_get_submatrix(cross_re, dense_re)
+      CALL cp_fm_get_submatrix(cross_im, dense_im)
+      overlap_previous_current(:, :) = CMPLX(dense_re, dense_im, KIND=dp)
+
+      CALL project_physical_response( &
+         qs_ot_env, qs_ot_env%fm_mermin_c0, qs_ot_env%fm_mermin_c0_im, &
+         action_re, action_im, projection_re, projection_im, hamiltonian_step_current)
+      CALL project_physical_response( &
+         qs_ot_env, qs_ot_env%fm_mermin_c_previous, qs_ot_env%fm_mermin_c_previous_im, &
+         action_re, action_im, projection_re, projection_im, hamiltonian_step_previous)
+      CALL qs_ot_density_secant_orbital_overlaps( &
+         overlap_previous_current, qs_ot_env%mermin_occupation_previous, &
+         qs_ot_env%mermin_occupation0, hamiltonian_step_previous, hamiltonian_step_current, &
+         density_modes, kpoint_weight, density_norm_sq, response_work, density_overlap, &
+         response_overlap, valid)
+
+      DEALLOCATE (dense_re, dense_im, hamiltonian_step_current, &
+                  hamiltonian_step_previous, overlap_previous_current)
+      CALL cp_fm_release(action_re)
+      CALL cp_fm_release(action_im)
+      CALL cp_fm_release(cross_re)
+      CALL cp_fm_release(cross_im)
+      CALL cp_fm_release(projection_re)
+      CALL cp_fm_release(projection_im)
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param env ...
+!> \param c_re ...
+!> \param c_im ...
+!> \param action_re ...
+!> \param action_im ...
+!> \param projected_re ...
+!> \param projected_im ...
+!> \param projected ...
+! **************************************************************************************************
+      SUBROUTINE project_physical_response( &
+         env, c_re, c_im, action_re, action_im, projected_re, projected_im, projected)
+      TYPE(qs_ot_type), INTENT(IN)                       :: env
+      TYPE(cp_fm_type), INTENT(IN)                       :: c_re, c_im, action_re, action_im, &
+                                                            projected_re, projected_im
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: projected
+
+         CALL multiply_complex_fm_nn( &
+            env%fm_mermin_y_previous, env%fm_mermin_y_previous_im, c_re, c_im, &
+            action_re, action_im, 1.0_dp, 0.0_dp)
+         CALL multiply_complex_fm_adjoint( &
+            c_re, c_im, action_re, action_im, projected_re, projected_im, 1.0_dp, 0.0_dp)
+         CALL cp_fm_get_submatrix(projected_re, dense_re)
+         CALL cp_fm_get_submatrix(projected_im, dense_im)
+         projected(:, :) = CMPLX(dense_re, dense_im, KIND=dp)
+         projected(:, :) = 0.5_dp*(projected + CONJG(TRANSPOSE(projected)))
+      END SUBROUTINE project_physical_response
+
+   END SUBROUTINE qs_scf_kp_physical_secant_overlaps
+
+! **************************************************************************************************
+!> \brief accumulate C=beta*C+alpha*A*B for split-complex distributed full matrices
+!> \param a_re ...
+!> \param a_im ...
+!> \param b_re ...
+!> \param b_im ...
+!> \param c_re ...
+!> \param c_im ...
+!> \param alpha ...
+!> \param beta ...
+! **************************************************************************************************
+   SUBROUTINE multiply_complex_fm_nn(a_re, a_im, b_re, b_im, c_re, c_im, alpha, beta)
+      TYPE(cp_fm_type), INTENT(IN)                       :: a_re, a_im, b_re, b_im, c_re, c_im
+      REAL(KIND=dp), INTENT(IN)                          :: alpha, beta
+
+      INTEGER                                            :: k, k_b, m, m_c, n, n_c
+
+      CALL cp_fm_get_info(a_re, nrow_global=m, ncol_global=k)
+      CALL cp_fm_get_info(b_re, nrow_global=k_b, ncol_global=n)
+      CALL cp_fm_get_info(c_re, nrow_global=m_c, ncol_global=n_c)
+      CPASSERT(k_b == k .AND. m_c == m .AND. n_c == n)
+      CALL cp_fm_gemm('N', 'N', m, n, k, alpha, a_re, b_re, beta, c_re)
+      CALL cp_fm_gemm('N', 'N', m, n, k, -alpha, a_im, b_im, 1.0_dp, c_re)
+      CALL cp_fm_gemm('N', 'N', m, n, k, alpha, a_re, b_im, beta, c_im)
+      CALL cp_fm_gemm('N', 'N', m, n, k, alpha, a_im, b_re, 1.0_dp, c_im)
+
+   END SUBROUTINE multiply_complex_fm_nn
+
+! **************************************************************************************************
+!> \brief accumulate C=beta*C+alpha*A^H*B for split-complex distributed full matrices
+!> \param a_re ...
+!> \param a_im ...
+!> \param b_re ...
+!> \param b_im ...
+!> \param c_re ...
+!> \param c_im ...
+!> \param alpha ...
+!> \param beta ...
+! **************************************************************************************************
+   SUBROUTINE multiply_complex_fm_adjoint(a_re, a_im, b_re, b_im, c_re, c_im, alpha, beta)
+      TYPE(cp_fm_type), INTENT(IN)                       :: a_re, a_im, b_re, b_im, c_re, c_im
+      REAL(KIND=dp), INTENT(IN)                          :: alpha, beta
+
+      INTEGER                                            :: k, k_b, m, m_c, n, n_c
+
+      CALL cp_fm_get_info(a_re, nrow_global=k, ncol_global=m)
+      CALL cp_fm_get_info(b_re, nrow_global=k_b, ncol_global=n)
+      CALL cp_fm_get_info(c_re, nrow_global=m_c, ncol_global=n_c)
+      CPASSERT(k_b == k .AND. m_c == m .AND. n_c == n)
+      CALL cp_fm_gemm('T', 'N', m, n, k, alpha, a_re, b_re, beta, c_re)
+      CALL cp_fm_gemm('T', 'N', m, n, k, alpha, a_im, b_im, 1.0_dp, c_re)
+      CALL cp_fm_gemm('T', 'N', m, n, k, alpha, a_re, b_im, beta, c_im)
+      CALL cp_fm_gemm('T', 'N', m, n, k, -alpha, a_im, b_re, 1.0_dp, c_im)
+
+   END SUBROUTINE multiply_complex_fm_adjoint
 
 ! **************************************************************************************************
 !> \brief collect the global fixed-N trial smearing state used by k-point OT
@@ -1180,6 +1590,786 @@ CONTAINS
       DEALLOCATE (fixed_n_residual, fixed_n_weight, preconditioner_count, preconditioner_shift)
 
    END SUBROUTINE qs_scf_loop_prepare_ot_kp_energy_gradient
+
+! **************************************************************************************************
+!> \brief build a coupled finite-complex rotation/energy preconditioner for K-point Mermin OT
+!> \param kpoints K-point environment
+!> \param local_ot_env local spin/K-point OT channels
+!> \param first_channel global index of the first local channel
+!> \param nspin_ot number of spin channels
+!> \param wkp irreducible K-point weights
+!> \param para_env_inter_kp communicator between distributed K-point groups
+!> \param smear smearing settings
+!> \param trial_occupation current fixed-N occupations
+! **************************************************************************************************
+   SUBROUTINE qs_scf_loop_prepare_ot_kp_rotation_response( &
+      kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, smear, &
+      trial_occupation)
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(qs_ot_type), DIMENSION(:), POINTER            :: local_ot_env
+      INTEGER, INTENT(IN)                                :: first_channel, nspin_ot
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
+      TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
+      TYPE(smear_type), INTENT(IN)                       :: smear
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: trial_occupation
+
+      INTEGER, PARAMETER :: finite_response_max_rotation = 800
+      REAL(KIND=dp), PARAMETER :: rotation_trust_rms = 0.25_dp, rotation_trust_spectral = 0.25_dp
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: chc, generator
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: channel_generator, density_modes
+      INTEGER :: failure, gradient_secant_failure, group, i, ikpoint, ispin, j, local_channel, &
+         local_kpoint, ngroups, nlocal_channels, nmo, nrotation, r
+      LOGICAL :: accepted_cross_valid, accepted_curvature_valid, hxc_channel_valid, hxc_valid, &
+         projected_update_valid, shadow_pending, solve_valid
+      REAL(KIND=dp) :: accepted_cross, accepted_curvature, denominator, hxc_density_norm_sq, &
+         hxc_density_norm_sq_channel, hxc_response_work, hxc_response_work_channel, maxocc, &
+         response_cross, response_scale, sigma, tmp, unscaled_rotation_norm
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: coupling, curvature_sum, energy_count, &
+         energy_mean, energy_metric_step, energy_shift, energy_weighted_sum, rayleigh_step, &
+         response_curvature, response_weight, rotation_count, rotation_norm, rotation_scale, &
+         schur_rhs, shadow_curvature, shadow_energy_mean, shadow_energy_metric_step, &
+         shadow_energy_weighted_sum, shadow_rayleigh_step, vy, vz
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: channel_response_weight, &
+         channel_rotation_gradient, chc_im, chc_re, dense_im, dense_re, generator_im, &
+         generator_re, previous_rotation_step, rayleigh_response, rhs, rotation_gradient, &
+         rotation_hessian, rotation_step, rotation_y, rotation_z, schur_block, solution
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: channel_rayleigh_response, &
+                                                            channel_rotation_hessian
+      REAL(KIND=dp), DIMENSION(2) :: hxc_density_overlap, hxc_density_overlap_channel, &
+         hxc_response_overlap, hxc_response_overlap_channel, projected_coefficients, &
+         projected_gradient
+      REAL(KIND=dp), DIMENSION(2, 2)                     :: hxc_correction, projected_hessian
+      TYPE(kpoint_env_type), POINTER                     :: kp
+
+      nlocal_channels = SIZE(local_ot_env)
+      DO local_channel = 1, nlocal_channels
+         local_ot_env(local_channel)%rotation_response_valid = .FALSE.
+         IF (ASSOCIATED(local_ot_env(local_channel)%rot_mat_response_gx)) THEN
+            CALL dbcsr_set(local_ot_env(local_channel)%rot_mat_response_gx, 0.0_dp)
+         END IF
+         IF (ASSOCIATED(local_ot_env(local_channel)%rot_mat_response_gx_im)) THEN
+            CALL dbcsr_set(local_ot_env(local_channel)%rot_mat_response_gx_im, 0.0_dp)
+         END IF
+         IF (ASSOCIATED(local_ot_env(local_channel)%ener_response_gx)) THEN
+            local_ot_env(local_channel)%ener_response_gx(:) = 0.0_dp
+         END IF
+         IF (ASSOCIATED(local_ot_env(local_channel)%matrix_response_gx)) THEN
+            CALL dbcsr_set(local_ot_env(local_channel)%matrix_response_gx, 0.0_dp)
+         END IF
+         IF (ASSOCIATED(local_ot_env(local_channel)%matrix_response_gx_im)) THEN
+            CALL dbcsr_set(local_ot_env(local_channel)%matrix_response_gx_im, 0.0_dp)
+         END IF
+      END DO
+      local_ot_env(1)%response_model_curvature = 0.0_dp
+      local_ot_env(1)%response_shadow_curvature = 0.0_dp
+      local_ot_env(1)%response_hxc_model_curvature = 0.0_dp
+      local_ot_env(1)%response_hxc_shadow_curvature = 0.0_dp
+      local_ot_env(1)%response_hxc_valid = .FALSE.
+      local_ot_env(1)%response_hxc_direction_valid = .FALSE.
+      local_ot_env(1)%response_gradient_cross_valid = .FALSE.
+      local_ot_env(1)%response_gradient_cross_curvature = 0.0_dp
+      IF (.NOT. local_ot_env(1)%settings%occupation_preconditioner .OR. &
+          .NOT. local_ot_env(1)%settings%do_rotation .OR. &
+          .NOT. local_ot_env(1)%settings%do_ener) RETURN
+      IF (.NOT. ot_mermin_response_preparation_needed( &
+          local_ot_env(1)%delta, local_ot_env(1)%response_candidate_directions, &
+          local_ot_env(1)%response_shadow_good_samples, &
+          local_ot_env(1)%response_candidate_good_samples, &
+          local_ot_env(1)%response_candidate_cooldown, &
+          local_ot_env(1)%response_shadow_pending)) RETURN
+      CPASSERT(smear%do_smear)
+      CPASSERT(smear%method == smear_fermi_dirac)
+      CPASSERT(ASSOCIATED(para_env_inter_kp))
+      sigma = smear%electronic_temperature
+      CPASSERT(sigma > EPSILON(sigma))
+
+      nmo = SIZE(local_ot_env(1)%ener_x)
+      nrotation = nmo*(nmo - 1)
+      IF (nrotation <= 0 .OR. nrotation > finite_response_max_rotation) RETURN
+      DO local_channel = 1, nlocal_channels
+         CPASSERT(local_ot_env(local_channel)%has_complex_kpoint_state)
+         CPASSERT(SIZE(local_ot_env(local_channel)%ener_x) == nmo)
+         CPASSERT(ASSOCIATED(local_ot_env(local_channel)%rot_mat_response_gx))
+         CPASSERT(ASSOCIATED(local_ot_env(local_channel)%rot_mat_response_gx_im))
+         CPASSERT(ASSOCIATED(local_ot_env(local_channel)%ener_response_gx))
+      END DO
+
+      ngroups = 1
+      IF (nspin_ot == 2 .AND. smear%fixed_mag_mom > 0.0_dp) ngroups = 2
+      shadow_pending = local_ot_env(1)%response_shadow_pending
+      ALLOCATE (coupling(nrotation), curvature_sum(ngroups), energy_count(ngroups), &
+                energy_mean(ngroups), energy_metric_step(nmo), energy_shift(ngroups), &
+                energy_weighted_sum(ngroups), rayleigh_step(nmo), response_curvature(ngroups), &
+                response_weight(nmo), rotation_count(ngroups), &
+                rotation_norm(ngroups), rotation_scale(ngroups), schur_rhs(nrotation), &
+                shadow_curvature(ngroups), shadow_energy_mean(ngroups), &
+                shadow_energy_metric_step(nmo), shadow_energy_weighted_sum(ngroups), &
+                shadow_rayleigh_step(nmo), &
+                vy(ngroups), vz(ngroups), rayleigh_response(nmo, nrotation), &
+                rhs(nrotation, 2), rotation_gradient(nrotation, 1), &
+                rotation_hessian(nrotation, nrotation), &
+                previous_rotation_step(nrotation, nlocal_channels), &
+                rotation_step(nrotation, nlocal_channels), &
+                rotation_y(nrotation, nlocal_channels), rotation_z(nrotation, nlocal_channels), &
+                schur_block(nrotation, nrotation), solution(nrotation, 2), &
+                channel_rayleigh_response(nmo, nrotation, nlocal_channels), &
+                channel_rotation_hessian(nrotation, nrotation, nlocal_channels), &
+                channel_rotation_gradient(nrotation, nlocal_channels), &
+                channel_response_weight(nmo, nlocal_channels), &
+                channel_generator(nmo, nmo, nlocal_channels), density_modes(nmo, nmo, 2))
+      curvature_sum(:) = 0.0_dp
+      vy(:) = 0.0_dp
+      vz(:) = 0.0_dp
+      rotation_y(:, :) = 0.0_dp
+      rotation_z(:, :) = 0.0_dp
+      previous_rotation_step(:, :) = 0.0_dp
+      channel_rayleigh_response(:, :, :) = 0.0_dp
+      channel_rotation_hessian(:, :, :) = 0.0_dp
+      channel_rotation_gradient(:, :) = 0.0_dp
+      channel_response_weight(:, :) = 0.0_dp
+      channel_generator(:, :, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      failure = 0
+      response_cross = 0.0_dp
+
+      DO local_kpoint = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(local_kpoint)%kpoint_env
+         ikpoint = kp%nkpoint
+         DO ispin = 1, nspin_ot
+            group = MERGE(ispin, 1, ngroups == nspin_ot)
+            local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+            CALL get_mo_set(kp%mos(1, ispin), maxocc=maxocc)
+            CPASSERT(maxocc > EPSILON(maxocc))
+            response_weight(:) = wkp(ikpoint)* &
+                                 MAX(0.0_dp, trial_occupation(:, ikpoint, ispin)* &
+                                     (maxocc - trial_occupation(:, ikpoint, ispin))/(maxocc*sigma))
+            curvature_sum(group) = curvature_sum(group) + SUM(response_weight)
+
+            CALL qs_scf_loop_ot_matrix_to_dense( &
+               local_ot_env(local_channel)%rot_mat_chc, local_ot_env(local_channel), chc_re)
+            CALL qs_scf_loop_ot_matrix_to_dense( &
+               local_ot_env(local_channel)%rot_mat_chc_im, local_ot_env(local_channel), chc_im)
+            CALL qs_scf_loop_ot_matrix_to_dense( &
+               local_ot_env(local_channel)%rot_mat_x, local_ot_env(local_channel), generator_re)
+            CALL qs_scf_loop_ot_matrix_to_dense( &
+               local_ot_env(local_channel)%rot_mat_x_im, local_ot_env(local_channel), generator_im)
+            ALLOCATE (chc(nmo, nmo), generator(nmo, nmo))
+            chc(:, :) = CMPLX(chc_re, chc_im, KIND=dp)
+            generator(:, :) = CMPLX(generator_re, generator_im, KIND=dp)
+            channel_generator(:, :, local_channel) = generator
+            CALL qs_ot_finite_rotation_response( &
+               chc, generator, trial_occupation(:, ikpoint, ispin), wkp(ikpoint), &
+               rotation_gradient(:, 1), rotation_hessian, rayleigh_response)
+            channel_rotation_gradient(:, local_channel) = rotation_gradient(:, 1)
+            channel_rotation_hessian(:, :, local_channel) = rotation_hessian
+            channel_response_weight(:, local_channel) = response_weight
+            CALL qs_ot_fixed_n_schur_block( &
+               rotation_hessian, rayleigh_response, response_weight, rotation_gradient(:, 1), &
+               local_ot_env(local_channel)%ener_gx, schur_block, coupling, schur_rhs)
+            rhs(:, 1) = schur_rhs
+            rhs(:, 2) = coupling
+            CALL qs_ot_symmetric_abs_solve( &
+               schur_block, rhs, solution, solve_valid, relative_floor=1.0E-4_dp)
+            IF (solve_valid) THEN
+               rotation_y(:, local_channel) = solution(:, 1)
+               rotation_z(:, local_channel) = solution(:, 2)
+               channel_rayleigh_response(:, :, local_channel) = rayleigh_response
+               vy(group) = vy(group) + DOT_PRODUCT(coupling, solution(:, 1))
+               vz(group) = vz(group) + DOT_PRODUCT(coupling, solution(:, 2))
+            ELSE
+               failure = 1
+            END IF
+            IF (shadow_pending .AND. local_ot_env(local_channel)%use_dx) THEN
+               CALL qs_scf_loop_ot_matrix_to_dense( &
+                  local_ot_env(local_channel)%rot_mat_dx, local_ot_env(local_channel), dense_re)
+               CALL qs_scf_loop_ot_matrix_to_dense( &
+                  local_ot_env(local_channel)%rot_mat_dx_im, local_ot_env(local_channel), dense_im)
+               r = 0
+               DO i = 1, nmo - 1
+                  DO j = i + 1, nmo
+                     r = r + 1
+                     previous_rotation_step(r, local_channel) = dense_re(i, j)
+                     r = r + 1
+                     previous_rotation_step(r, local_channel) = dense_im(i, j)
+                  END DO
+               END DO
+               CPASSERT(r == nrotation)
+               DEALLOCATE (dense_im, dense_re)
+            END IF
+            DEALLOCATE (chc, generator, chc_im, chc_re, generator_im, generator_re)
+         END DO
+      END DO
+
+      CALL para_env_inter_kp%sum(curvature_sum)
+      CALL para_env_inter_kp%sum(vy)
+      CALL para_env_inter_kp%sum(vz)
+      CALL para_env_inter_kp%sum(failure)
+      IF (failure /= 0) THEN
+         DEALLOCATE (coupling, curvature_sum, energy_count, energy_mean, energy_metric_step, &
+                     energy_shift, energy_weighted_sum, rayleigh_step, response_curvature, &
+                     response_weight, shadow_curvature, shadow_energy_mean, &
+                     shadow_energy_metric_step, shadow_energy_weighted_sum, shadow_rayleigh_step, &
+                     rotation_count, rotation_norm, rotation_scale, schur_rhs, vy, vz, &
+                     rayleigh_response, rhs, rotation_gradient, rotation_hessian, &
+                     previous_rotation_step, rotation_step, &
+                     rotation_y, rotation_z, schur_block, solution, channel_rayleigh_response, &
+                     channel_rotation_hessian, channel_rotation_gradient, channel_response_weight, &
+                     channel_generator, &
+                     density_modes)
+         RETURN
+      END IF
+
+      rotation_norm(:) = 0.0_dp
+      rotation_count(:) = 0.0_dp
+      DO local_kpoint = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(local_kpoint)%kpoint_env
+         ikpoint = kp%nkpoint
+         DO ispin = 1, nspin_ot
+            group = MERGE(ispin, 1, ngroups == nspin_ot)
+            local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+            denominator = curvature_sum(group) + vz(group)
+            IF (denominator > EPSILON(denominator)) THEN
+               rotation_step(:, local_channel) = rotation_y(:, local_channel) - &
+                                                 rotation_z(:, local_channel)*vy(group)/denominator
+            ELSE
+               rotation_step(:, local_channel) = rotation_y(:, local_channel)
+            END IF
+            rotation_norm(group) = rotation_norm(group) + &
+                                   DOT_PRODUCT(rotation_step(:, local_channel), &
+                                               rotation_step(:, local_channel))
+            rotation_count(group) = rotation_count(group) + REAL(nrotation, KIND=dp)
+         END DO
+      END DO
+      CALL para_env_inter_kp%sum(rotation_norm)
+      CALL para_env_inter_kp%sum(rotation_count)
+      rotation_scale(:) = 1.0_dp
+      DO group = 1, ngroups
+         IF (rotation_norm(group) > EPSILON(rotation_norm(group))) THEN
+            rotation_scale(group) = MIN( &
+                                    1.0_dp, rotation_trust_rms*SQRT(rotation_count(group)/rotation_norm(group)))
+         END IF
+      END DO
+
+      energy_shift(:) = 0.0_dp
+      energy_count(:) = 0.0_dp
+      DO local_kpoint = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(local_kpoint)%kpoint_env
+         ikpoint = kp%nkpoint
+         DO ispin = 1, nspin_ot
+            group = MERGE(ispin, 1, ngroups == nspin_ot)
+            local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+            rotation_step(:, local_channel) = rotation_scale(group)*rotation_step(:, local_channel)
+            local_ot_env(local_channel)%ener_response_gx(:) = &
+               local_ot_env(local_channel)%ener_preconditioned_gx + &
+               MATMUL(channel_rayleigh_response(:, :, local_channel), &
+                      rotation_step(:, local_channel))
+            energy_shift(group) = energy_shift(group) + &
+                                  SUM(local_ot_env(local_channel)%ener_response_gx)
+            energy_count(group) = energy_count(group) + REAL(nmo, KIND=dp)
+
+            ALLOCATE (dense_re(nmo, nmo), dense_im(nmo, nmo))
+            dense_re(:, :) = 0.0_dp
+            dense_im(:, :) = 0.0_dp
+            r = 0
+            DO i = 1, nmo - 1
+               DO j = i + 1, nmo
+                  r = r + 1
+                  dense_re(i, j) = rotation_step(r, local_channel)
+                  dense_re(j, i) = -rotation_step(r, local_channel)
+                  r = r + 1
+                  dense_im(i, j) = rotation_step(r, local_channel)
+                  dense_im(j, i) = rotation_step(r, local_channel)
+               END DO
+            END DO
+            CPASSERT(r == nrotation)
+            CALL qs_scf_loop_ot_dense_to_matrix( &
+               dense_re, local_ot_env(local_channel), &
+               local_ot_env(local_channel)%rot_mat_response_gx)
+            CALL qs_scf_loop_ot_dense_to_matrix( &
+               dense_im, local_ot_env(local_channel), &
+               local_ot_env(local_channel)%rot_mat_response_gx_im)
+            local_ot_env(local_channel)%rotation_response_valid = .TRUE.
+            DEALLOCATE (dense_im, dense_re)
+         END DO
+      END DO
+      CALL para_env_inter_kp%sum(energy_shift)
+      CALL para_env_inter_kp%sum(energy_count)
+      DO local_kpoint = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(local_kpoint)%kpoint_env
+         ikpoint = kp%nkpoint
+         DO ispin = 1, nspin_ot
+            group = MERGE(ispin, 1, ngroups == nspin_ot)
+            local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+            IF (energy_count(group) > 0.0_dp) THEN
+               local_ot_env(local_channel)%ener_response_gx(:) = &
+                  local_ot_env(local_channel)%ener_response_gx - &
+                  energy_shift(group)/energy_count(group)
+            END IF
+         END DO
+      END DO
+
+      ! The accepted gradient difference supplies the missing total cross curvature between the
+      ! finite rotation/energy candidate and the preceding accepted product direction.  Keep the
+      ! dedicated endpoint history separate from CG's preconditioned-gradient history.
+      accepted_cross = 0.0_dp
+      accepted_cross_valid = .FALSE.
+      gradient_secant_failure = 0
+      IF (shadow_pending .AND. ABS(local_ot_env(1)%ds_min) > SQRT(EPSILON(1.0_dp))) THEN
+         DO local_kpoint = 1, SIZE(kpoints%kp_env)
+            kp => kpoints%kp_env(local_kpoint)%kpoint_env
+            ikpoint = kp%nkpoint
+            DO ispin = 1, nspin_ot
+               local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+               IF (local_ot_env(local_channel)%mermin_gradient_ref_valid .AND. &
+                   ASSOCIATED(local_ot_env(local_channel)%rot_mat_mermin_g0) .AND. &
+                   ASSOCIATED(local_ot_env(local_channel)%rot_mat_mermin_g0_im) .AND. &
+                   ALLOCATED(local_ot_env(local_channel)%ener_mermin_g0)) THEN
+                  CALL dbcsr_dot(local_ot_env(local_channel)%rot_mat_gx, &
+                                 local_ot_env(local_channel)%rot_mat_response_gx, tmp)
+                  accepted_cross = accepted_cross + 0.5_dp*tmp
+                  CALL dbcsr_dot(local_ot_env(local_channel)%rot_mat_mermin_g0, &
+                                 local_ot_env(local_channel)%rot_mat_response_gx, tmp)
+                  accepted_cross = accepted_cross - 0.5_dp*tmp
+                  CALL dbcsr_dot(local_ot_env(local_channel)%rot_mat_gx_im, &
+                                 local_ot_env(local_channel)%rot_mat_response_gx_im, tmp)
+                  accepted_cross = accepted_cross + 0.5_dp*tmp
+                  CALL dbcsr_dot(local_ot_env(local_channel)%rot_mat_mermin_g0_im, &
+                                 local_ot_env(local_channel)%rot_mat_response_gx_im, tmp)
+                  accepted_cross = accepted_cross - 0.5_dp*tmp
+                  accepted_cross = accepted_cross + &
+                                   DOT_PRODUCT( &
+                                   local_ot_env(local_channel)%ener_gx - &
+                                   local_ot_env(local_channel)%ener_mermin_g0, &
+                                   local_ot_env(local_channel)%ener_response_gx)
+               ELSE
+                  gradient_secant_failure = 1
+               END IF
+            END DO
+         END DO
+         CALL para_env_inter_kp%sum(accepted_cross)
+         CALL para_env_inter_kp%sum(gradient_secant_failure)
+         IF (gradient_secant_failure == 0) THEN
+            accepted_cross = accepted_cross/local_ot_env(1)%ds_min
+            accepted_cross_valid = ieee_is_finite(accepted_cross)
+         END IF
+      END IF
+      local_ot_env(1)%response_gradient_cross_valid = accepted_cross_valid
+      IF (accepted_cross_valid) THEN
+         local_ot_env(1)%response_gradient_cross_curvature = accepted_cross
+      END IF
+
+      ! Evaluate the signed finite response in the same fixed-N tangent used to build the Schur
+      ! step. This is a prediction only; the minimizer calibrates it against accepted Mermin drops
+      ! before the candidate can be reused.
+      energy_weighted_sum(:) = 0.0_dp
+      DO local_kpoint = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(local_kpoint)%kpoint_env
+         ikpoint = kp%nkpoint
+         DO ispin = 1, nspin_ot
+            group = MERGE(ispin, 1, ngroups == nspin_ot)
+            local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+            energy_weighted_sum(group) = energy_weighted_sum(group) + &
+                                         DOT_PRODUCT(channel_response_weight(:, local_channel), &
+                                                     local_ot_env(local_channel)%ener_response_gx)
+         END DO
+      END DO
+      CALL para_env_inter_kp%sum(energy_weighted_sum)
+      energy_mean(:) = 0.0_dp
+      DO group = 1, ngroups
+         IF (curvature_sum(group) > EPSILON(curvature_sum(group))) THEN
+            energy_mean(group) = energy_weighted_sum(group)/curvature_sum(group)
+         END IF
+      END DO
+
+      response_curvature(:) = 0.0_dp
+      DO local_kpoint = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(local_kpoint)%kpoint_env
+         ikpoint = kp%nkpoint
+         DO ispin = 1, nspin_ot
+            group = MERGE(ispin, 1, ngroups == nspin_ot)
+            local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+            energy_metric_step(:) = channel_response_weight(:, local_channel)* &
+                                    (local_ot_env(local_channel)%ener_response_gx - &
+                                     energy_mean(group))
+            rayleigh_step(:) = MATMUL(channel_rayleigh_response(:, :, local_channel), &
+                                      rotation_step(:, local_channel))
+            response_curvature(group) = response_curvature(group) + &
+                                        DOT_PRODUCT(rotation_step(:, local_channel), &
+                                                    MATMUL(channel_rotation_hessian(:, :, local_channel), &
+                                                           rotation_step(:, local_channel))) - &
+                                        2.0_dp*DOT_PRODUCT(rayleigh_step, energy_metric_step) + &
+                                        DOT_PRODUCT(local_ot_env(local_channel)%ener_response_gx, energy_metric_step)
+         END DO
+      END DO
+      CALL para_env_inter_kp%sum(response_curvature)
+      local_ot_env(1)%response_model_curvature = SUM(response_curvature)
+
+      IF (shadow_pending) THEN
+         shadow_energy_weighted_sum(:) = 0.0_dp
+         DO local_kpoint = 1, SIZE(kpoints%kp_env)
+            kp => kpoints%kp_env(local_kpoint)%kpoint_env
+            ikpoint = kp%nkpoint
+            DO ispin = 1, nspin_ot
+               group = MERGE(ispin, 1, ngroups == nspin_ot)
+               local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+               shadow_energy_weighted_sum(group) = shadow_energy_weighted_sum(group) + &
+                                                   DOT_PRODUCT(channel_response_weight(:, local_channel), &
+                                                               local_ot_env(local_channel)%ener_dx)
+            END DO
+         END DO
+         CALL para_env_inter_kp%sum(shadow_energy_weighted_sum)
+         shadow_energy_mean(:) = 0.0_dp
+         DO group = 1, ngroups
+            IF (curvature_sum(group) > EPSILON(curvature_sum(group))) THEN
+               shadow_energy_mean(group) = shadow_energy_weighted_sum(group)/curvature_sum(group)
+            END IF
+         END DO
+
+         shadow_curvature(:) = 0.0_dp
+         projected_gradient(:) = 0.0_dp
+         DO local_kpoint = 1, SIZE(kpoints%kp_env)
+            kp => kpoints%kp_env(local_kpoint)%kpoint_env
+            ikpoint = kp%nkpoint
+            DO ispin = 1, nspin_ot
+               group = MERGE(ispin, 1, ngroups == nspin_ot)
+               local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+               energy_metric_step(:) = channel_response_weight(:, local_channel)* &
+                                       (local_ot_env(local_channel)%ener_response_gx - &
+                                        energy_mean(group))
+               shadow_energy_metric_step(:) = channel_response_weight(:, local_channel)* &
+                                              (local_ot_env(local_channel)%ener_dx - &
+                                               shadow_energy_mean(group))
+               rayleigh_step(:) = MATMUL(channel_rayleigh_response(:, :, local_channel), &
+                                         rotation_step(:, local_channel))
+               shadow_rayleigh_step(:) = MATMUL( &
+                                         channel_rayleigh_response(:, :, local_channel), &
+                                         previous_rotation_step(:, local_channel))
+               shadow_curvature(group) = shadow_curvature(group) + &
+                                         DOT_PRODUCT(previous_rotation_step(:, local_channel), &
+                                                     MATMUL(channel_rotation_hessian(:, :, local_channel), &
+                                                            previous_rotation_step(:, local_channel))) - &
+                                         2.0_dp*DOT_PRODUCT(shadow_rayleigh_step, &
+                                                            shadow_energy_metric_step) + &
+                                         DOT_PRODUCT(local_ot_env(local_channel)%ener_dx, &
+                                                     shadow_energy_metric_step)
+               response_cross = response_cross + &
+                                DOT_PRODUCT(rotation_step(:, local_channel), &
+                                            MATMUL(channel_rotation_hessian(:, :, local_channel), &
+                                                   previous_rotation_step(:, local_channel))) - &
+                                DOT_PRODUCT(rayleigh_step, shadow_energy_metric_step) - &
+                                DOT_PRODUCT(shadow_rayleigh_step, energy_metric_step) + &
+                                0.5_dp*( &
+                                DOT_PRODUCT(local_ot_env(local_channel)%ener_response_gx, &
+                                            shadow_energy_metric_step) + &
+                                DOT_PRODUCT(local_ot_env(local_channel)%ener_dx, energy_metric_step))
+               projected_gradient(1) = projected_gradient(1) + &
+                                       DOT_PRODUCT(channel_rotation_gradient(:, local_channel), &
+                                                   rotation_step(:, local_channel)) + &
+                                       DOT_PRODUCT(local_ot_env(local_channel)%ener_gx, &
+                                                   local_ot_env(local_channel)%ener_response_gx)
+               CALL dbcsr_dot(local_ot_env(local_channel)%matrix_gx, &
+                              local_ot_env(local_channel)%matrix_dx, tmp)
+               projected_gradient(2) = projected_gradient(2) + tmp
+               CALL dbcsr_dot(local_ot_env(local_channel)%matrix_gx_im, &
+                              local_ot_env(local_channel)%matrix_dx_im, tmp)
+               projected_gradient(2) = projected_gradient(2) + tmp
+               projected_gradient(2) = projected_gradient(2) + &
+                                       DOT_PRODUCT(channel_rotation_gradient(:, local_channel), &
+                                                   previous_rotation_step(:, local_channel)) + &
+                                       DOT_PRODUCT(local_ot_env(local_channel)%ener_gx, &
+                                                   local_ot_env(local_channel)%ener_dx)
+            END DO
+         END DO
+         CALL para_env_inter_kp%sum(shadow_curvature)
+         CALL para_env_inter_kp%sum(response_cross)
+         CALL para_env_inter_kp%sum(projected_gradient)
+         local_ot_env(1)%response_shadow_curvature = SUM(shadow_curvature)
+      END IF
+
+      ! The frozen-H finite response above omits the self-consistent Hxc density response.  Project
+      ! the most recent accepted physical density/Hamiltonian secant onto both the candidate and
+      ! conventional accepted directions.  The resulting sign-aware rank-two response is calibrated
+      ! against accepted Mermin drops before it can replace the conventional search direction.
+      hxc_density_norm_sq = 0.0_dp
+      hxc_response_work = 0.0_dp
+      hxc_density_overlap(:) = 0.0_dp
+      hxc_response_overlap(:) = 0.0_dp
+      failure = 0
+      DO local_kpoint = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(local_kpoint)%kpoint_env
+         ikpoint = kp%nkpoint
+         CPASSERT(ASSOCIATED(kp%ot_smat))
+         CPASSERT(SIZE(kp%ot_smat) >= 2)
+         DO ispin = 1, nspin_ot
+            group = MERGE(ispin, 1, ngroups == nspin_ot)
+            local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+            energy_metric_step(:) = -channel_response_weight(:, local_channel)* &
+                                    (local_ot_env(local_channel)%ener_response_gx - &
+                                     energy_mean(group))
+            CALL qs_ot_density_tangent( &
+               channel_generator(:, :, local_channel), &
+               trial_occupation(:, ikpoint, ispin), wkp(ikpoint), &
+               rotation_step(:, local_channel), energy_metric_step, density_modes(:, :, 1))
+            density_modes(:, :, 2) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+            IF (shadow_pending) THEN
+               energy_metric_step(:) = -channel_response_weight(:, local_channel)* &
+                                       (local_ot_env(local_channel)%ener_dx - &
+                                        shadow_energy_mean(group))
+               CALL qs_ot_density_tangent( &
+                  channel_generator(:, :, local_channel), &
+                  trial_occupation(:, ikpoint, ispin), wkp(ikpoint), &
+                  previous_rotation_step(:, local_channel), energy_metric_step, &
+                  density_modes(:, :, 2))
+            END IF
+            CALL qs_scf_kp_physical_secant_overlaps( &
+               local_ot_env(local_channel), kp%ot_smat(1), kp%ot_smat(2), density_modes, &
+               wkp(ikpoint), hxc_density_norm_sq_channel, hxc_response_work_channel, &
+               hxc_density_overlap_channel, hxc_response_overlap_channel, hxc_channel_valid)
+            IF (hxc_channel_valid) THEN
+               hxc_density_norm_sq = hxc_density_norm_sq + hxc_density_norm_sq_channel
+               hxc_response_work = hxc_response_work + hxc_response_work_channel
+               hxc_density_overlap(:) = hxc_density_overlap + hxc_density_overlap_channel
+               hxc_response_overlap(:) = hxc_response_overlap + hxc_response_overlap_channel
+            ELSE
+               failure = 1
+            END IF
+         END DO
+      END DO
+      CALL para_env_inter_kp%sum(failure)
+      CALL para_env_inter_kp%sum(hxc_density_norm_sq)
+      CALL para_env_inter_kp%sum(hxc_response_work)
+      CALL para_env_inter_kp%sum(hxc_density_overlap)
+      CALL para_env_inter_kp%sum(hxc_response_overlap)
+      hxc_valid = .FALSE.
+      IF (failure == 0) THEN
+         IF (shadow_pending .AND. &
+             ABS(local_ot_env(1)%ds_min) > SQRT(EPSILON(1.0_dp))) THEN
+            CALL qs_ot_density_secant_projected_hessian( &
+               hxc_density_norm_sq, hxc_response_work, hxc_density_overlap, &
+               hxc_response_overlap, hxc_correction, hxc_valid, &
+               secant_mode=2, secant_position=local_ot_env(1)%ds_min)
+         ELSE
+            CALL qs_ot_density_secant_projected_hessian( &
+               hxc_density_norm_sq, hxc_response_work, hxc_density_overlap, &
+               hxc_response_overlap, hxc_correction, hxc_valid)
+         END IF
+      END IF
+      IF (hxc_valid) THEN
+         local_ot_env(1)%response_hxc_valid = .TRUE.
+         local_ot_env(1)%response_hxc_model_curvature = hxc_correction(1, 1)
+         local_ot_env(1)%response_model_curvature = &
+            local_ot_env(1)%response_model_curvature + hxc_correction(1, 1)
+         IF (shadow_pending) THEN
+            local_ot_env(1)%response_hxc_shadow_curvature = hxc_correction(2, 2)
+            local_ot_env(1)%response_shadow_curvature = &
+               local_ot_env(1)%response_shadow_curvature + hxc_correction(2, 2)
+         END IF
+         IF (shadow_pending) THEN
+            CALL ot_mermin_secant_curvature( &
+               local_ot_env(1)%response_reference_energy, local_ot_env(1)%etotal, &
+               local_ot_env(1)%response_predicted_slope, local_ot_env(1)%ds_min, &
+               accepted_curvature, accepted_curvature_valid)
+            projected_hessian(1, 1) = SUM(response_curvature)
+            projected_hessian(1, 2) = response_cross
+            projected_hessian(2, 1) = response_cross
+            projected_hessian(2, 2) = SUM(shadow_curvature)
+            IF (accepted_cross_valid) THEN
+               projected_hessian(1, 2) = accepted_cross - hxc_correction(1, 2)
+               projected_hessian(2, 1) = projected_hessian(1, 2)
+            END IF
+            IF (accepted_curvature_valid) THEN
+               projected_hessian(2, 2) = accepted_curvature - hxc_correction(2, 2)
+               local_ot_env(1)%response_shadow_curvature = accepted_curvature
+            END IF
+            CALL qs_ot_projected_response_update( &
+               projected_hessian, hxc_correction, projected_coefficients, projected_update_valid, &
+               projected_gradient=projected_gradient)
+            IF (projected_update_valid) THEN
+               rotation_norm(:) = 0.0_dp
+               rotation_count(:) = 0.0_dp
+               DO local_kpoint = 1, SIZE(kpoints%kp_env)
+                  kp => kpoints%kp_env(local_kpoint)%kpoint_env
+                  ikpoint = kp%nkpoint
+                  DO ispin = 1, nspin_ot
+                     group = MERGE(ispin, 1, ngroups == nspin_ot)
+                     local_channel = &
+                        qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+                     rotation_step(:, local_channel) = &
+                        projected_coefficients(1)*rotation_step(:, local_channel) + &
+                        projected_coefficients(2)*previous_rotation_step(:, local_channel)
+                     local_ot_env(local_channel)%ener_response_gx(:) = &
+                        projected_coefficients(1)* &
+                        local_ot_env(local_channel)%ener_response_gx + &
+                        projected_coefficients(2)*local_ot_env(local_channel)%ener_dx
+                     rotation_norm(group) = rotation_norm(group) + &
+                                            DOT_PRODUCT(rotation_step(:, local_channel), &
+                                                        rotation_step(:, local_channel))
+                     rotation_count(group) = rotation_count(group) + REAL(nrotation, KIND=dp)
+                  END DO
+               END DO
+               CALL para_env_inter_kp%sum(rotation_norm)
+               CALL para_env_inter_kp%sum(rotation_count)
+               response_scale = 1.0_dp
+               IF (SUM(rotation_norm) > EPSILON(SUM(rotation_norm))) THEN
+                  response_scale = MIN( &
+                                   1.0_dp, rotation_trust_rms* &
+                                   SQRT(SUM(rotation_count)/SUM(rotation_norm)))
+               END IF
+               unscaled_rotation_norm = 0.0_dp
+               DO local_channel = 1, nlocal_channels
+                  ALLOCATE (dense_re(nmo, nmo), dense_im(nmo, nmo))
+                  dense_re(:, :) = 0.0_dp
+                  dense_im(:, :) = 0.0_dp
+                  r = 0
+                  DO i = 1, nmo - 1
+                     DO j = i + 1, nmo
+                        r = r + 1
+                        dense_re(i, j) = rotation_step(r, local_channel)
+                        dense_re(j, i) = -rotation_step(r, local_channel)
+                        r = r + 1
+                        dense_im(i, j) = rotation_step(r, local_channel)
+                        dense_im(j, i) = rotation_step(r, local_channel)
+                     END DO
+                  END DO
+                  CPASSERT(r == nrotation)
+                  unscaled_rotation_norm = MAX( &
+                                           unscaled_rotation_norm, qs_ot_antihermitian_spectral_norm( &
+                                           CMPLX(dense_re, dense_im, KIND=dp)))
+                  DEALLOCATE (dense_im, dense_re)
+               END DO
+               CALL para_env_inter_kp%max(unscaled_rotation_norm)
+               IF (unscaled_rotation_norm > EPSILON(unscaled_rotation_norm)) THEN
+                  response_scale = MIN( &
+                                   response_scale, &
+                                   rotation_trust_spectral/unscaled_rotation_norm)
+               END IF
+               DO local_kpoint = 1, SIZE(kpoints%kp_env)
+                  kp => kpoints%kp_env(local_kpoint)%kpoint_env
+                  ikpoint = kp%nkpoint
+                  DO ispin = 1, nspin_ot
+                     local_channel = &
+                        qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
+                     rotation_step(:, local_channel) = &
+                        response_scale*rotation_step(:, local_channel)
+                     local_ot_env(local_channel)%ener_response_gx(:) = &
+                        response_scale*local_ot_env(local_channel)%ener_response_gx
+                     CPASSERT(ASSOCIATED(local_ot_env(local_channel)%matrix_response_gx))
+                     CPASSERT(ASSOCIATED(local_ot_env(local_channel)%matrix_response_gx_im))
+                     CALL dbcsr_copy(local_ot_env(local_channel)%matrix_response_gx, &
+                                     local_ot_env(local_channel)%matrix_dx)
+                     CALL dbcsr_scale(local_ot_env(local_channel)%matrix_response_gx, &
+                                      response_scale*projected_coefficients(2))
+                     CALL dbcsr_copy(local_ot_env(local_channel)%matrix_response_gx_im, &
+                                     local_ot_env(local_channel)%matrix_dx_im)
+                     CALL dbcsr_scale(local_ot_env(local_channel)%matrix_response_gx_im, &
+                                      response_scale*projected_coefficients(2))
+                     ALLOCATE (dense_re(nmo, nmo), dense_im(nmo, nmo))
+                     dense_re(:, :) = 0.0_dp
+                     dense_im(:, :) = 0.0_dp
+                     r = 0
+                     DO i = 1, nmo - 1
+                        DO j = i + 1, nmo
+                           r = r + 1
+                           dense_re(i, j) = rotation_step(r, local_channel)
+                           dense_re(j, i) = -rotation_step(r, local_channel)
+                           r = r + 1
+                           dense_im(i, j) = rotation_step(r, local_channel)
+                           dense_im(j, i) = rotation_step(r, local_channel)
+                        END DO
+                     END DO
+                     CPASSERT(r == nrotation)
+                     CALL qs_scf_loop_ot_dense_to_matrix( &
+                        dense_re, local_ot_env(local_channel), &
+                        local_ot_env(local_channel)%rot_mat_response_gx)
+                     CALL qs_scf_loop_ot_dense_to_matrix( &
+                        dense_im, local_ot_env(local_channel), &
+                        local_ot_env(local_channel)%rot_mat_response_gx_im)
+                     DEALLOCATE (dense_im, dense_re)
+                  END DO
+               END DO
+               local_ot_env(1)%response_hxc_direction_valid = .TRUE.
+               local_ot_env(1)%response_hxc_model_curvature = response_scale**2* &
+                                                              DOT_PRODUCT(projected_coefficients, &
+                                                                          MATMUL(hxc_correction, projected_coefficients))
+               local_ot_env(1)%response_model_curvature = response_scale**2* &
+                                                          DOT_PRODUCT(projected_coefficients, &
+                                                                      MATMUL(projected_hessian + hxc_correction, &
+                                                                             projected_coefficients))
+            END IF
+         END IF
+      END IF
+
+      DEALLOCATE (coupling, curvature_sum, energy_count, energy_mean, energy_metric_step, &
+                  energy_shift, energy_weighted_sum, rayleigh_step, response_curvature, &
+                  response_weight, shadow_curvature, shadow_energy_mean, &
+                  shadow_energy_metric_step, shadow_energy_weighted_sum, shadow_rayleigh_step, &
+                  rotation_count, rotation_norm, rotation_scale, schur_rhs, vy, vz, &
+                  rayleigh_response, rhs, rotation_gradient, rotation_hessian, &
+                  previous_rotation_step, rotation_step, &
+                  rotation_y, rotation_z, schur_block, solution, channel_rayleigh_response, &
+                  channel_rotation_hessian, channel_rotation_gradient, channel_response_weight, &
+                  channel_generator, &
+                  density_modes)
+
+   END SUBROUTINE qs_scf_loop_prepare_ot_kp_rotation_response
+
+! **************************************************************************************************
+!> \brief copy a distributed OT matrix to a replicated dense matrix
+!> \param matrix distributed matrix
+!> \param ot_env channel owning the matrix distribution
+!> \param dense replicated result
+! **************************************************************************************************
+   SUBROUTINE qs_scf_loop_ot_matrix_to_dense(matrix, ot_env, dense)
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      TYPE(qs_ot_type), INTENT(IN)                       :: ot_env
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: dense
+
+      INTEGER                                            :: ncol, nrow
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: fm
+
+      NULLIFY (fm_struct)
+      CPASSERT(ASSOCIATED(ot_env%blacs_env))
+      CPASSERT(ASSOCIATED(ot_env%para_env))
+      CALL dbcsr_get_info(matrix, nfullrows_total=nrow, nfullcols_total=ncol)
+      ALLOCATE (dense(nrow, ncol))
+      CALL cp_fm_struct_create(fm_struct, context=ot_env%blacs_env, para_env=ot_env%para_env, &
+                               nrow_global=nrow, ncol_global=ncol)
+      CALL cp_fm_create(fm, fm_struct)
+      CALL copy_dbcsr_to_fm(matrix, fm)
+      CALL cp_fm_get_submatrix(fm, dense, n_rows=nrow, n_cols=ncol)
+      CALL cp_fm_release(fm)
+      CALL cp_fm_struct_release(fm_struct)
+
+   END SUBROUTINE qs_scf_loop_ot_matrix_to_dense
+
+! **************************************************************************************************
+!> \brief copy a replicated dense matrix into a distributed OT matrix
+!> \param dense replicated source
+!> \param ot_env channel owning the matrix distribution
+!> \param matrix distributed result
+! **************************************************************************************************
+   SUBROUTINE qs_scf_loop_ot_dense_to_matrix(dense, ot_env, matrix)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: dense
+      TYPE(qs_ot_type), INTENT(IN)                       :: ot_env
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: fm
+
+      NULLIFY (fm_struct)
+      CPASSERT(ASSOCIATED(ot_env%blacs_env))
+      CPASSERT(ASSOCIATED(ot_env%para_env))
+      CALL cp_fm_struct_create(fm_struct, context=ot_env%blacs_env, para_env=ot_env%para_env, &
+                               nrow_global=SIZE(dense, 1), ncol_global=SIZE(dense, 2))
+      CALL cp_fm_create(fm, fm_struct)
+      CALL cp_fm_set_submatrix(fm, dense)
+      CALL copy_fm_to_dbcsr(fm, matrix)
+      CALL cp_fm_release(fm)
+      CALL cp_fm_struct_release(fm_struct)
+
+   END SUBROUTINE qs_scf_loop_ot_dense_to_matrix
 
 ! **************************************************************************************************
 !> \brief the inner loop of scf, specific to using to the orbital transformation method

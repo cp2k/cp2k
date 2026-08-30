@@ -200,7 +200,8 @@ MODULE qs_scf
    USE qs_scf_loop_utils,               ONLY: &
         qs_scf_candidate_density_delta, qs_scf_check_inner_exit, qs_scf_check_outer_exit, &
         qs_scf_commit_density_candidate, qs_scf_density_mixing, qs_scf_inner_finalize, &
-        qs_scf_new_mos, qs_scf_new_mos_kp, qs_scf_rho_update, qs_scf_set_loop_flags
+        qs_scf_kp_search_endpoint, qs_scf_new_mos, qs_scf_new_mos_kp, qs_scf_rho_update, &
+        qs_scf_set_loop_flags
    USE qs_scf_oda,                      ONLY: qs_scf_oda_apply
    USE qs_scf_output,                   ONLY: qs_scf_cdft_info,&
                                               qs_scf_cdft_initial_info,&
@@ -409,7 +410,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: total_scf_steps
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'scf_env_do_scf'
-      INTEGER, PARAMETER :: max_ot_kp_subspace_refreshes = 2
+      INTEGER, PARAMETER :: max_ot_kp_subspace_refreshes = 4
       REAL(KIND=dp), PARAMETER :: adiis_stagnation_ratio = 1.0E-2_dp
 
       CHARACTER(LEN=default_string_length)               :: description, name
@@ -447,6 +448,8 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: ace_section, dft_section, hfx_sections, &
                                                             input, scf_section
+
+! Weak orbital metrics can need several bounded REF rebuilds to close the canonical density tail.
 
       CALL timeset(routineN, handle)
 
@@ -815,8 +818,10 @@ CONTAINS
                         qs_env, scf_env, scf_control, diis_step, &
                         ot_kp_subspace_refresh=ot_kp_subspace_refresh, &
                         allow_ot_kp_subspace_refresh= &
+                        ot_kp_subspace_refresh_count == 0, &
+                        allow_ot_kp_exit_refresh= &
+                        ot_kp_subspace_refresh_count > 0 .AND. &
                         ot_kp_subspace_refresh_count < max_ot_kp_subspace_refreshes, &
-                        allow_ot_kp_exit_refresh=ot_kp_subspace_refresh_count > 0, &
                         accepted_ot_kp_searches=accepted_ot_kp_searches, &
                         added_mos_auto_grow=added_mos_auto_grow, energy_only=energy_only)
                   END IF
@@ -869,7 +874,7 @@ CONTAINS
             END IF
 
             IF (do_kpoints .AND. scf_env%method == ot_method_nr .AND. &
-                TRIM(scf_env%iter_method) == "OT CG") THEN
+                qs_scf_kp_search_endpoint(scf_env%iter_method)) THEN
                accepted_ot_kp_searches = accepted_ot_kp_searches + 1
             END IF
 
@@ -2454,6 +2459,25 @@ CONTAINS
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_preconditioned_gx_im, &
                                                 template=matrix_s, n=nmo, &
                                                 sym=dbcsr_type_no_symmetry)
+         IF (qs_ot_env%use_dx) THEN
+            CALL dbcsr_init_p(qs_ot_env%matrix_response_gx)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_response_gx, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+            CALL dbcsr_init_p(qs_ot_env%matrix_response_gx_im)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_response_gx_im, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+            CALL dbcsr_init_p(qs_ot_env%matrix_mermin_g0)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_mermin_g0, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+            CALL dbcsr_init_p(qs_ot_env%matrix_mermin_g0_im)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_mermin_g0_im, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+            IF (qs_ot_env%settings%do_ener) ALLOCATE (qs_ot_env%ener_mermin_g0(nmo))
+         END IF
       END IF
       SELECT CASE (qs_ot_env%settings%ot_algorithm)
       CASE ("TOD")
@@ -2534,6 +2558,22 @@ CONTAINS
          CALL dbcsr_init_p(qs_ot_env%rot_mat_gx_im)
          CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx_im, template=matrix_s, m=nmo, n=nmo, &
                                             sym=dbcsr_type_no_symmetry)
+         IF (qs_ot_env%settings%occupation_preconditioner) THEN
+            CALL dbcsr_init_p(qs_ot_env%rot_mat_response_gx_im)
+            CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_response_gx_im, &
+                                               template=matrix_s, m=nmo, n=nmo, &
+                                               sym=dbcsr_type_no_symmetry)
+            IF (qs_ot_env%use_dx) THEN
+               CALL dbcsr_init_p(qs_ot_env%rot_mat_mermin_g0)
+               CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_mermin_g0, &
+                                                  template=matrix_s, m=nmo, n=nmo, &
+                                                  sym=dbcsr_type_no_symmetry)
+               CALL dbcsr_init_p(qs_ot_env%rot_mat_mermin_g0_im)
+               CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_mermin_g0_im, &
+                                                  template=matrix_s, m=nmo, n=nmo, &
+                                                  sym=dbcsr_type_no_symmetry)
+            END IF
+         END IF
          IF (qs_ot_env%use_dx) THEN
             CALL dbcsr_init_p(qs_ot_env%rot_mat_dx_im)
             CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_dx_im, template=matrix_s, m=nmo, n=nmo, &

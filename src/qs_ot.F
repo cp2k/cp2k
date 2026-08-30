@@ -54,13 +54,20 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_get_derivative_ref
    PUBLIC  :: qs_ot_get_derivative_ref_complex
    PUBLIC  :: qs_ot_apply_complex_frechet_dbcsr
+   PUBLIC  :: qs_ot_antihermitian_spectral_norm
    PUBLIC  :: qs_ot_complex_exp_frechet_kernel
+   PUBLIC  :: qs_ot_density_secant_hessian
+   PUBLIC  :: qs_ot_density_secant_orbital_overlaps
+   PUBLIC  :: qs_ot_density_secant_projected_hessian
+   PUBLIC  :: qs_ot_density_tangent
    PUBLIC  :: qs_ot_fixed_n_energy_gradient
    PUBLIC  :: qs_ot_fixed_n_energy_hessian
    PUBLIC  :: qs_ot_fixed_n_schur_block
    PUBLIC  :: qs_ot_fixed_n_projector_frechet
    PUBLIC  :: qs_ot_fixed_n_response_mu_shift
    PUBLIC  :: qs_ot_finite_rotation_response
+   PUBLIC  :: qs_ot_projected_response_update
+   PUBLIC  :: qs_ot_symmetric_sr1_update
    PUBLIC  :: qs_ot_symmetric_abs_solve
    PUBLIC  :: qs_ot_generate_rotation
    PUBLIC  :: qs_ot_generate_rotation_complex
@@ -82,6 +89,31 @@ MODULE qs_ot
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot'
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief spectral norm of a dense anti-Hermitian rotation generator
+!> \param rotation_generator anti-Hermitian generator
+!> \return largest absolute eigenvalue of i times the generator
+! **************************************************************************************************
+   FUNCTION qs_ot_antihermitian_spectral_norm(rotation_generator) RESULT(norm)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: rotation_generator
+      REAL(KIND=dp)                                      :: norm
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: eigenvectors
+      INTEGER                                            :: n
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+
+      n = SIZE(rotation_generator, 1)
+      CPASSERT(SIZE(rotation_generator, 2) == n)
+      norm = 0.0_dp
+      IF (n == 0) RETURN
+      ALLOCATE (eigenvectors(n, n), eigenvalues(n))
+      CALL diag_complex(CMPLX(0.0_dp, 1.0_dp, KIND=dp)*rotation_generator, &
+                        eigenvectors, eigenvalues)
+      norm = MAXVAL(ABS(eigenvalues))
+      DEALLOCATE (eigenvalues, eigenvectors)
+
+   END FUNCTION qs_ot_antihermitian_spectral_norm
 
 ! **************************************************************************************************
 !> \brief chemical-potential response for one fixed-electron-number group
@@ -283,6 +315,489 @@ CONTAINS
       DEALLOCATE (eigenvalues, eigenvectors, work)
 
    END SUBROUTINE qs_ot_symmetric_abs_solve
+
+! **************************************************************************************************
+!> \brief update a baseline response direction in a small positive physical-response subspace
+!>
+!>        The first basis mode is the baseline response direction. With B0 the projected frozen-H
+!>        Hessian and K the accepted physical correction, this routine solves
+!>
+!>          (B0 + K) c = g_Q.
+!>
+!>        The optional projected physical gradient supplies g_Q. Without it, g_Q=B0*e1, so c=e1
+!>        exactly when K=0. An indefinite or unresolved total projected Hessian is rejected instead
+!>        of turning its negative modes into an unrelated active direction.
+!> \param reference_hessian projected frozen-H Hessian B0
+!> \param response_correction projected physical response K
+!> \param coefficients response coefficients c in the supplied basis
+!> \param valid whether a finite, positive, sufficiently resolved solve was obtained
+!> \param projected_gradient optional physical gradient projected onto the supplied basis
+!> \param relative_floor optional relative positive-eigenvalue floor
+! **************************************************************************************************
+   SUBROUTINE qs_ot_projected_response_update( &
+      reference_hessian, response_correction, coefficients, valid, projected_gradient, relative_floor)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: reference_hessian, response_correction
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: coefficients
+      LOGICAL, INTENT(OUT)                               :: valid
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: projected_gradient
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: relative_floor
+
+      INTEGER                                            :: i, n
+      REAL(KIND=dp)                                      :: eigenvalue_floor, relative_floor_eff, &
+                                                            scale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, rhs, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvectors
+
+      n = SIZE(reference_hessian, 1)
+      CPASSERT(n > 0)
+      CPASSERT(ALL(SHAPE(reference_hessian) == [n, n]))
+      CPASSERT(ALL(SHAPE(response_correction) == [n, n]))
+      CPASSERT(SIZE(coefficients) == n)
+      IF (PRESENT(projected_gradient)) THEN
+         CPASSERT(SIZE(projected_gradient) == n)
+      END IF
+      coefficients(:) = 0.0_dp
+      valid = ALL(reference_hessian == reference_hessian) .AND. &
+              ALL(response_correction == response_correction)
+      IF (PRESENT(projected_gradient)) THEN
+         valid = valid .AND. ALL(projected_gradient == projected_gradient)
+      END IF
+      IF (.NOT. valid) RETURN
+
+      relative_floor_eff = 1.0E-4_dp
+      IF (PRESENT(relative_floor)) relative_floor_eff = &
+         MAX(relative_floor, SQRT(EPSILON(1.0_dp)))
+      ALLOCATE (eigenvalues(n), eigenvectors(n, n), rhs(n), work(n))
+      eigenvectors(:, :) = 0.5_dp* &
+                           (reference_hessian + response_correction + &
+                            TRANSPOSE(reference_hessian + response_correction))
+      CALL diamat_all(eigenvectors, eigenvalues)
+      scale = MAX(MAXVAL(ABS(eigenvalues)), MAXVAL(ABS(reference_hessian)))
+      IF (scale <= TINY(scale)) THEN
+         valid = .FALSE.
+         coefficients(:) = 0.0_dp
+         DEALLOCATE (eigenvalues, eigenvectors, rhs, work)
+         RETURN
+      END IF
+      eigenvalue_floor = relative_floor_eff*scale
+      valid = ALL(eigenvalues > eigenvalue_floor)
+      IF (valid) THEN
+         rhs(:) = reference_hessian(:, 1)
+         IF (PRESENT(projected_gradient)) rhs(:) = projected_gradient
+         work(:) = MATMUL(TRANSPOSE(eigenvectors), rhs)
+         DO i = 1, n
+            work(i) = work(i)/eigenvalues(i)
+         END DO
+         coefficients(:) = MATMUL(eigenvectors, work)
+         valid = ALL(coefficients == coefficients) .AND. &
+                 ALL(ABS(coefficients) <= HUGE(1.0_dp))
+      END IF
+      IF (.NOT. valid) coefficients(:) = 0.0_dp
+      DEALLOCATE (eigenvalues, eigenvectors, rhs, work)
+
+   END SUBROUTINE qs_ot_projected_response_update
+
+! **************************************************************************************************
+!> \brief add one accepted symmetric response secant to a reference Hessian
+!>
+!>        With r=y-B0*s, the symmetric-rank-one update B=B0+r*r^T/(r^T*s) satisfies B*s=y
+!>        exactly.  The signed denominator is retained because a self-consistent Hxc response can
+!>        be indefinite.  Nearly orthogonal residuals are rejected instead of manufacturing a
+!>        large unresolved mode.
+!> \param matrix reference symmetric Hessian B0
+!> \param step accepted displacement s
+!> \param response measured gradient response y
+!> \param updated_matrix symmetric secant Hessian B
+!> \param valid whether a resolved finite update was constructed
+!> \param relative_tolerance optional SR1 denominator acceptance threshold
+! **************************************************************************************************
+   PURE SUBROUTINE qs_ot_symmetric_sr1_update( &
+      matrix, step, response, updated_matrix, valid, relative_tolerance)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: matrix
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: step, response
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: updated_matrix
+      LOGICAL, INTENT(OUT)                               :: valid
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: relative_tolerance
+
+      INTEGER                                            :: n
+      REAL(KIND=dp)                                      :: denominator, residual_norm, step_norm, &
+                                                            threshold, tolerance
+      REAL(KIND=dp), DIMENSION(SIZE(step))               :: residual
+
+      n = SIZE(step)
+      updated_matrix(:, :) = 0.0_dp
+      valid = SIZE(response) == n .AND. ALL(SHAPE(matrix) == [n, n]) .AND. &
+              ALL(SHAPE(updated_matrix) == [n, n])
+      IF (.NOT. valid) RETURN
+      valid = ALL(matrix == matrix) .AND. ALL(step == step) .AND. ALL(response == response)
+      IF (.NOT. valid) RETURN
+
+      updated_matrix(:, :) = 0.5_dp*(matrix + TRANSPOSE(matrix))
+      residual(:) = response - MATMUL(updated_matrix, step)
+      denominator = DOT_PRODUCT(residual, step)
+      residual_norm = SQRT(MAX(0.0_dp, DOT_PRODUCT(residual, residual)))
+      step_norm = SQRT(MAX(0.0_dp, DOT_PRODUCT(step, step)))
+      tolerance = SQRT(EPSILON(1.0_dp))
+      IF (PRESENT(relative_tolerance)) tolerance = MAX(tolerance, relative_tolerance)
+      threshold = tolerance*residual_norm*step_norm
+      valid = residual_norm > TINY(residual_norm) .AND. step_norm > TINY(step_norm) .AND. &
+              ABS(denominator) > threshold
+      IF (.NOT. valid) RETURN
+
+      updated_matrix(:, :) = updated_matrix + &
+                             SPREAD(residual, DIM=2, NCOPIES=n)*SPREAD(residual, DIM=1, NCOPIES=n)/denominator
+      updated_matrix(:, :) = 0.5_dp*(updated_matrix + TRANSPOSE(updated_matrix))
+      valid = ALL(updated_matrix == updated_matrix)
+
+   END SUBROUTINE qs_ot_symmetric_sr1_update
+
+! **************************************************************************************************
+!> \brief project a self-adjoint density/Hamiltonian secant onto density-response modes
+!>
+!>        For an accepted Hermitian density change S and the corresponding self-consistent
+!>        Hamiltonian change Y, the minimum-Frobenius-norm self-adjoint response satisfying
+!>        K*S=Y is
+!>
+!>          K = (Y<S,.> + S<Y,.>)/<S,S> - <S,Y>S<S,.>/<S,S>**2.
+!>
+!>        The returned matrix is <B_q,K*B_r> for the supplied Hermitian density modes B_r.  Its
+!>        density-space construction is invariant under a common complex similarity transform.
+!> \param density_step accepted density-matrix change S
+!> \param hamiltonian_step accepted self-consistent Hamiltonian change Y
+!> \param density_modes density derivatives B_r of the coupled minimizer variables
+!> \param correction projected symmetric Hxc response
+!> \param valid whether a finite nonzero density secant was available
+!> \param density_norm_sq optional <S,S>
+!> \param response_work optional <S,Y>
+! **************************************************************************************************
+   SUBROUTINE qs_ot_density_secant_hessian( &
+      density_step, hamiltonian_step, density_modes, correction, valid, &
+      density_norm_sq, response_work)
+
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: density_step, hamiltonian_step
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: density_modes
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: correction
+      LOGICAL, INTENT(OUT)                               :: valid
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: density_norm_sq, response_work
+
+      INTEGER                                            :: i, j, mode, n, nmode
+      REAL(KIND=dp)                                      :: density_norm, density_response_work, &
+                                                            scale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: density_overlap, response_overlap
+
+      n = SIZE(density_step, 1)
+      nmode = SIZE(density_modes, 3)
+      CPASSERT(n > 0)
+      CPASSERT(SIZE(density_step, 2) == n)
+      CPASSERT(ALL(SHAPE(hamiltonian_step) == [n, n]))
+      CPASSERT(SIZE(density_modes, 1) == n)
+      CPASSERT(SIZE(density_modes, 2) == n)
+      CPASSERT(ALL(SHAPE(correction) == [nmode, nmode]))
+
+      correction(:, :) = 0.0_dp
+      valid = .FALSE.
+      density_norm = 0.0_dp
+      density_response_work = 0.0_dp
+      DO j = 1, n
+         DO i = 1, n
+            density_norm = density_norm + &
+                           REAL(CONJG(density_step(i, j))*density_step(i, j), KIND=dp)
+            density_response_work = density_response_work + &
+                                    REAL(CONJG(density_step(i, j))*hamiltonian_step(i, j), KIND=dp)
+         END DO
+      END DO
+      IF (PRESENT(density_norm_sq)) density_norm_sq = density_norm
+      IF (PRESENT(response_work)) response_work = density_response_work
+      scale = MAXVAL(ABS(density_step))
+      IF (scale <= TINY(1.0_dp)) RETURN
+      IF (density_norm <= 64.0_dp*EPSILON(1.0_dp)*scale*scale .OR. nmode <= 0) RETURN
+
+      ALLOCATE (density_overlap(nmode), response_overlap(nmode))
+      DO mode = 1, nmode
+         density_overlap(mode) = SUM(REAL(CONJG(density_step)*density_modes(:, :, mode), KIND=dp))
+         response_overlap(mode) = SUM(REAL(CONJG(hamiltonian_step)*density_modes(:, :, mode), KIND=dp))
+      END DO
+      CALL qs_ot_density_secant_projected_hessian( &
+         density_norm, density_response_work, density_overlap, response_overlap, correction, valid)
+      DEALLOCATE (density_overlap, response_overlap)
+
+   END SUBROUTINE qs_ot_density_secant_hessian
+
+! **************************************************************************************************
+!> \brief form a projected self-adjoint Hxc response from distributed density-space overlaps
+!> \param density_norm_sq <S,S>
+!> \param response_work <S,Y>
+!> \param density_overlap <S,B_r>
+!> \param response_overlap <Y,B_r>
+!> \param correction projected symmetric Hxc response <B_q,K*B_r>
+!> \param valid whether finite nonzero secant data were available
+!> \param secant_mode optional mode representing the accepted full density secant divided by its
+!>        line-search position
+!> \param secant_position signed line-search position of the accepted full density secant
+! **************************************************************************************************
+   SUBROUTINE qs_ot_density_secant_projected_hessian( &
+      density_norm_sq, response_work, density_overlap, response_overlap, correction, valid, &
+      secant_mode, secant_position)
+
+      REAL(KIND=dp), INTENT(IN)                          :: density_norm_sq, response_work
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: density_overlap, response_overlap
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: correction
+      LOGICAL, INTENT(OUT)                               :: valid
+      INTEGER, INTENT(IN), OPTIONAL                      :: secant_mode
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: secant_position
+
+      INTEGER                                            :: i, j, nmode
+      REAL(KIND=dp)                                      :: inverse_density_norm
+      REAL(KIND=dp), DIMENSION(SIZE(density_overlap))    :: projected_density_overlap, &
+                                                            projected_response_overlap
+
+      nmode = SIZE(density_overlap)
+      CPASSERT(SIZE(response_overlap) == nmode)
+      CPASSERT(ALL(SHAPE(correction) == [nmode, nmode]))
+
+      correction(:, :) = 0.0_dp
+      valid = .FALSE.
+      IF (nmode <= 0 .OR. density_norm_sq <= TINY(1.0_dp)) RETURN
+      IF (density_norm_sq /= density_norm_sq .OR. response_work /= response_work) RETURN
+      IF (ABS(density_norm_sq) > HUGE(1.0_dp) .OR. ABS(response_work) > HUGE(1.0_dp)) RETURN
+      IF (ANY(density_overlap /= density_overlap) .OR. ANY(response_overlap /= response_overlap)) RETURN
+      IF (ANY(ABS(density_overlap) > HUGE(1.0_dp)) .OR. &
+          ANY(ABS(response_overlap) > HUGE(1.0_dp))) RETURN
+      IF (PRESENT(secant_mode) .NEQV. PRESENT(secant_position)) RETURN
+
+      projected_density_overlap(:) = density_overlap
+      projected_response_overlap(:) = response_overlap
+      IF (PRESENT(secant_mode)) THEN
+         IF (secant_mode < 1 .OR. secant_mode > nmode) RETURN
+         IF (secant_position /= secant_position .OR. &
+             ABS(secant_position) > HUGE(1.0_dp) .OR. &
+             ABS(secant_position) <= SQRT(EPSILON(1.0_dp))) RETURN
+         ! The complete accepted density change can contain REF-orbital motion that is absent from
+         ! a reduced rotation/occupation tangent.  S/alpha supplies its exact projected secant mode.
+         projected_density_overlap(secant_mode) = density_norm_sq/secant_position
+         projected_response_overlap(secant_mode) = response_work/secant_position
+      END IF
+
+      inverse_density_norm = 1.0_dp/density_norm_sq
+      DO j = 1, nmode
+         DO i = 1, nmode
+            correction(i, j) = inverse_density_norm* &
+                               (projected_response_overlap(i)*projected_density_overlap(j) + &
+                                projected_density_overlap(i)*projected_response_overlap(j) - &
+                                response_work*inverse_density_norm* &
+                                projected_density_overlap(i)*projected_density_overlap(j))
+         END DO
+      END DO
+      correction(:, :) = 0.5_dp*(correction + TRANSPOSE(correction))
+      valid = ALL(correction == correction) .AND. ALL(ABS(correction) <= HUGE(1.0_dp))
+      IF (.NOT. valid) correction(:, :) = 0.0_dp
+
+   END SUBROUTINE qs_ot_density_secant_projected_hessian
+
+! **************************************************************************************************
+!> \brief finite-chart density tangent for coupled complex rotations and fixed-N occupations
+!>
+!>        The rotation contribution differentiates
+!>
+!>          exp(X) diag(w_k f) exp(X)^H
+!>
+!>        along an anti-Hermitian packed direction.  The supplied weighted occupation response is
+!>        added in the same chart, and the result is returned in the current physical orbital basis.
+!> \param rotation_generator current anti-Hermitian REF generator X
+!> \param occupation current occupations f
+!> \param kpoint_weight irreducible K-point weight w_k
+!> \param rotation_step interleaved real/imaginary anti-Hermitian direction
+!> \param weighted_occupation_step derivative of w_k*f, including the fixed-N mu response
+!> \param density_tangent Hermitian tangent in the current physical orbital basis
+!> \param difference_step optional finite-chart central-difference step
+! **************************************************************************************************
+   SUBROUTINE qs_ot_density_tangent( &
+      rotation_generator, occupation, kpoint_weight, rotation_step, &
+      weighted_occupation_step, density_tangent, difference_step)
+
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: rotation_generator
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
+      REAL(KIND=dp), INTENT(IN)                          :: kpoint_weight
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rotation_step, weighted_occupation_step
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT)     :: density_tangent
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: difference_step
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: direction, generator_minus, &
+         generator_plus, mode_ref, rotation, rotation_minus, rotation_plus, weighted_rotation
+      INTEGER                                            :: i, j, n, nrotation, r
+      REAL(KIND=dp)                                      :: step, step_scale
+
+      n = SIZE(rotation_generator, 1)
+      nrotation = n*(n - 1)
+      CPASSERT(n > 0)
+      CPASSERT(ALL(SHAPE(rotation_generator) == [n, n]))
+      CPASSERT(SIZE(occupation) == n)
+      CPASSERT(SIZE(rotation_step) == nrotation)
+      CPASSERT(SIZE(weighted_occupation_step) == n)
+      CPASSERT(ALL(SHAPE(density_tangent) == [n, n]))
+      CPASSERT(kpoint_weight > 0.0_dp)
+
+      ALLOCATE (direction(n, n), generator_minus(n, n), generator_plus(n, n), &
+                mode_ref(n, n), rotation(n, n), rotation_minus(n, n), &
+                rotation_plus(n, n), weighted_rotation(n, n))
+      direction(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      r = 0
+      DO i = 1, n - 1
+         DO j = i + 1, n
+            r = r + 1
+            direction(i, j) = CMPLX(rotation_step(r), 0.0_dp, KIND=dp)
+            direction(j, i) = -direction(i, j)
+            r = r + 1
+            direction(i, j) = direction(i, j) + &
+                              CMPLX(0.0_dp, rotation_step(r), KIND=dp)
+            direction(j, i) = direction(j, i) + &
+                              CMPLX(0.0_dp, rotation_step(r), KIND=dp)
+         END DO
+      END DO
+      CPASSERT(r == nrotation)
+
+      step_scale = MAX(1.0_dp, MAXVAL(ABS(direction)))
+      step = 1.0E-5_dp/step_scale
+      IF (PRESENT(difference_step)) step = difference_step/step_scale
+      CPASSERT(step > EPSILON(step))
+      generator_plus(:, :) = rotation_generator + step*direction
+      generator_minus(:, :) = rotation_generator - step*direction
+      CALL qs_ot_dense_rotation_state(rotation_generator, rotation)
+      CALL qs_ot_dense_rotation_state(generator_plus, rotation_plus)
+      CALL qs_ot_dense_rotation_state(generator_minus, rotation_minus)
+
+      weighted_rotation(:, :) = rotation_plus
+      DO j = 1, n
+         weighted_rotation(:, j) = kpoint_weight*occupation(j)*weighted_rotation(:, j)
+      END DO
+      mode_ref(:, :) = MATMUL(weighted_rotation, CONJG(TRANSPOSE(rotation_plus)))
+      weighted_rotation(:, :) = rotation_minus
+      DO j = 1, n
+         weighted_rotation(:, j) = kpoint_weight*occupation(j)*weighted_rotation(:, j)
+      END DO
+      mode_ref(:, :) = (mode_ref - &
+                        MATMUL(weighted_rotation, CONJG(TRANSPOSE(rotation_minus))))/(2.0_dp*step)
+
+      weighted_rotation(:, :) = rotation
+      DO j = 1, n
+         weighted_rotation(:, j) = weighted_occupation_step(j)*weighted_rotation(:, j)
+      END DO
+      mode_ref(:, :) = mode_ref + MATMUL(weighted_rotation, CONJG(TRANSPOSE(rotation)))
+      density_tangent(:, :) = MATMUL(CONJG(TRANSPOSE(rotation)), MATMUL(mode_ref, rotation))
+      density_tangent(:, :) = 0.5_dp*(density_tangent + CONJG(TRANSPOSE(density_tangent)))
+
+      DEALLOCATE (direction, generator_minus, generator_plus, mode_ref, rotation, &
+                  rotation_minus, rotation_plus, weighted_rotation)
+
+   END SUBROUTINE qs_ot_density_tangent
+
+! **************************************************************************************************
+!> \brief project a physical density/Hamiltonian secant between moving orbital subspaces
+!>
+!>        For separately S-orthonormal endpoint orbitals C0 and C1, O=C0^H*S*C1 retains the
+!>        component of the accepted density step that leaves the old subspace.  Density modes are
+!>        represented in the current C1 basis and already contain the irreducible K-point weight.
+!> \param overlap_start_current cross overlap O
+!> \param occupation_start occupations at the accepted start
+!> \param occupation_current occupations at the accepted endpoint
+!> \param hamiltonian_step_start C0^H*(H1-H0)*C0
+!> \param hamiltonian_step_current C1^H*(H1-H0)*C1
+!> \param density_modes current-orbital density tangents
+!> \param kpoint_weight irreducible K-point weight
+!> \param density_norm_sq contribution to <Delta P,Delta P>
+!> \param response_work contribution to <Delta P,Delta H>
+!> \param density_overlap contributions <Delta P,B_r>
+!> \param response_overlap contributions <Delta H,B_r>
+!> \param valid whether a finite nonzero secant was available
+! **************************************************************************************************
+   SUBROUTINE qs_ot_density_secant_orbital_overlaps( &
+      overlap_start_current, occupation_start, occupation_current, hamiltonian_step_start, &
+      hamiltonian_step_current, density_modes, kpoint_weight, density_norm_sq, response_work, &
+      density_overlap, response_overlap, valid)
+
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: overlap_start_current
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation_start, occupation_current
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: hamiltonian_step_start, &
+                                                            hamiltonian_step_current
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: density_modes
+      REAL(KIND=dp), INTENT(IN)                          :: kpoint_weight
+      REAL(KIND=dp), INTENT(OUT)                         :: density_norm_sq, response_work
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: density_overlap, response_overlap
+      LOGICAL, INTENT(OUT)                               :: valid
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: cross_mode
+      INTEGER                                            :: i, j, mode, n, nmode
+      REAL(KIND=dp)                                      :: cross_density, density_scale
+
+      n = SIZE(occupation_start)
+      nmode = SIZE(density_modes, 3)
+      CPASSERT(n > 0)
+      CPASSERT(SIZE(occupation_current) == n)
+      CPASSERT(ALL(SHAPE(overlap_start_current) == [n, n]))
+      CPASSERT(ALL(SHAPE(hamiltonian_step_start) == [n, n]))
+      CPASSERT(ALL(SHAPE(hamiltonian_step_current) == [n, n]))
+      CPASSERT(SIZE(density_modes, 1) == n .AND. SIZE(density_modes, 2) == n)
+      CPASSERT(SIZE(density_overlap) == nmode .AND. SIZE(response_overlap) == nmode)
+
+      density_norm_sq = 0.0_dp
+      response_work = 0.0_dp
+      density_overlap(:) = 0.0_dp
+      response_overlap(:) = 0.0_dp
+      valid = .FALSE.
+      IF (nmode <= 0 .OR. kpoint_weight <= TINY(1.0_dp)) RETURN
+
+      cross_density = 0.0_dp
+      DO j = 1, n
+         DO i = 1, n
+            cross_density = cross_density + occupation_start(i)*occupation_current(j)* &
+                            ABS(overlap_start_current(i, j))**2
+         END DO
+      END DO
+      density_norm_sq = kpoint_weight* &
+                        (SUM(occupation_start**2) + SUM(occupation_current**2) - &
+                         2.0_dp*cross_density)
+      response_work = 0.0_dp
+      DO i = 1, n
+         response_work = response_work + kpoint_weight* &
+                         (occupation_current(i)*REAL(hamiltonian_step_current(i, i), KIND=dp) - &
+                          occupation_start(i)*REAL(hamiltonian_step_start(i, i), KIND=dp))
+      END DO
+
+      ALLOCATE (cross_mode(n, n))
+      DO mode = 1, nmode
+         cross_mode(:, :) = MATMUL(overlap_start_current, &
+                                   MATMUL(density_modes(:, :, mode), &
+                                          CONJG(TRANSPOSE(overlap_start_current))))
+         DO i = 1, n
+            density_overlap(mode) = density_overlap(mode) + &
+                                    occupation_current(i)* &
+                                    REAL(density_modes(i, i, mode), KIND=dp) - &
+                                    occupation_start(i)*REAL(cross_mode(i, i), KIND=dp)
+         END DO
+         response_overlap(mode) = &
+            REAL(SUM(CONJG(hamiltonian_step_current)*density_modes(:, :, mode)), KIND=dp)
+      END DO
+      DEALLOCATE (cross_mode)
+
+      density_scale = kpoint_weight* &
+                      MAX(MAXVAL(ABS(occupation_start)), MAXVAL(ABS(occupation_current)))
+      IF (density_scale <= TINY(1.0_dp)) RETURN
+      IF (density_norm_sq <= 64.0_dp*EPSILON(1.0_dp)*density_scale**2) RETURN
+      valid = density_norm_sq == density_norm_sq .AND. response_work == response_work .AND. &
+              ABS(density_norm_sq) <= HUGE(1.0_dp) .AND. ABS(response_work) <= HUGE(1.0_dp) .AND. &
+              ALL(density_overlap == density_overlap) .AND. &
+              ALL(response_overlap == response_overlap) .AND. &
+              ALL(ABS(density_overlap) <= HUGE(1.0_dp)) .AND. &
+              ALL(ABS(response_overlap) <= HUGE(1.0_dp))
+      IF (.NOT. valid) THEN
+         density_norm_sq = 0.0_dp
+         response_work = 0.0_dp
+         density_overlap(:) = 0.0_dp
+         response_overlap(:) = 0.0_dp
+      END IF
+
+   END SUBROUTINE qs_ot_density_secant_orbital_overlaps
 
 ! **************************************************************************************************
 !> \brief fixed-N Frechet derivative of a smooth occupation projector

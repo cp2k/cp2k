@@ -25,6 +25,7 @@ MODULE qs_ot_minimizer
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
+   USE cp_output_handling,              ONLY: high_print_level
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -47,7 +48,15 @@ MODULE qs_ot_minimizer
               lbfgs_history_restart_required, &
               lbfgs_response_secant_parameters, &
               lbfgs_step_restart_required, &
-              ot_mini
+              ot_mermin_response_assess, &
+              ot_mermin_response_candidate_preferred, &
+              ot_mermin_response_compare, &
+              ot_mermin_response_preparation_needed, &
+              ot_mermin_response_probe, &
+              ot_mermin_response_shadow_followup, &
+              ot_mermin_secant_curvature, &
+              ot_mini, &
+              ot_mini_prepare_gradient
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_minimizer'
 
@@ -72,24 +81,35 @@ CONTAINS
 !> \param matrix_hc_physical occupation-weighted derivative used for slopes and convergence
 !> \param matrix_hc_physical_im imaginary component of matrix_hc_physical
 !> \param para_env_inter_kp communicator between distributed k-point groups
+!> \param gradient_only return after evaluating the current OT gradient
+!> \param gradient_prepared reuse a gradient evaluated by ot_mini_prepare_gradient
 ! **************************************************************************************************
    SUBROUTINE ot_mini(qs_ot_env, matrix_hc, matrix_hc_im, &
-                      matrix_hc_physical, matrix_hc_physical_im, para_env_inter_kp)
+                      matrix_hc_physical, matrix_hc_physical_im, para_env_inter_kp, &
+                      gradient_only, gradient_prepared)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_hc_im, matrix_hc_physical, &
                                                             matrix_hc_physical_im
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
+      LOGICAL, INTENT(IN), OPTIONAL                      :: gradient_only, gradient_prepared
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_mini'
 
       INTEGER                                            :: handle, ispin, nspin
-      LOGICAL                                            :: do_ener, do_ks, &
+      LOGICAL                                            :: do_ener, do_ks, evaluate_gradient_only, &
+                                                            reuse_gradient, &
                                                             separate_occupation_gradient
       REAL(KIND=dp)                                      :: tmp
 
       CALL timeset(routineN, handle)
+
+      evaluate_gradient_only = .FALSE.
+      reuse_gradient = .FALSE.
+      IF (PRESENT(gradient_only)) evaluate_gradient_only = gradient_only
+      IF (PRESENT(gradient_prepared)) reuse_gradient = gradient_prepared
+      CPASSERT(.NOT. (evaluate_gradient_only .AND. reuse_gradient))
 
       nspin = SIZE(qs_ot_env)
 
@@ -104,7 +124,7 @@ CONTAINS
       qs_ot_env(1)%OT_METHOD_FULL = ""
 
       ! compute the gradient for the variables x
-      IF (.NOT. qs_ot_env(1)%energy_only) THEN
+      IF (.NOT. reuse_gradient .AND. .NOT. qs_ot_env(1)%energy_only) THEN
          qs_ot_env(1)%gradient = 0.0_dp
          DO ispin = 1, nspin
             IF (do_ks) THEN
@@ -243,6 +263,11 @@ CONTAINS
          CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%gradient)
       END IF
 
+      IF (evaluate_gradient_only) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
       SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
       CASE ("CG")
          IF (current_point_is_fine(qs_ot_env)) THEN
@@ -286,6 +311,31 @@ CONTAINS
    END SUBROUTINE ot_mini
 
 ! **************************************************************************************************
+!> \brief Evaluate the current OT derivative without advancing the minimizer.
+!> \param qs_ot_env OT channel environments
+!> \param matrix_hc real H*C products
+!> \param matrix_hc_im imaginary H*C products
+!> \param matrix_hc_physical occupation-weighted real H*C products
+!> \param matrix_hc_physical_im occupation-weighted imaginary H*C products
+!> \param para_env_inter_kp communicator between distributed K-point groups
+! **************************************************************************************************
+   SUBROUTINE ot_mini_prepare_gradient(qs_ot_env, matrix_hc, matrix_hc_im, &
+                                       matrix_hc_physical, matrix_hc_physical_im, para_env_inter_kp)
+      TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: matrix_hc_im, matrix_hc_physical, &
+                                                            matrix_hc_physical_im
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
+
+      CALL ot_mini(qs_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+                   matrix_hc_physical=matrix_hc_physical, &
+                   matrix_hc_physical_im=matrix_hc_physical_im, &
+                   para_env_inter_kp=para_env_inter_kp, gradient_only=.TRUE.)
+
+   END SUBROUTINE ot_mini_prepare_gradient
+
+! **************************************************************************************************
 !> \brief Sum a minimizer scalar over distributed k-point groups when requested.
 !> \param para_env_inter_kp communicator between distributed k-point groups
 !> \param value scalar to sum
@@ -299,6 +349,312 @@ CONTAINS
       END IF
 
    END SUBROUTINE ot_mini_sum_kpoint_scalar
+
+! **************************************************************************************************
+!> \brief Assess a finite-response candidate at its accepted Mermin endpoint.
+!> \param reference_energy Mermin energy at the start of the search
+!> \param current_energy Mermin energy at the accepted endpoint
+!> \param reference_residual physical residual at the start of the search
+!> \param current_residual physical residual at the accepted endpoint
+!> \param predicted_slope positive predicted decrease per unit line-search position
+!> \param predicted_curvature signed finite-response curvature
+!> \param position accepted line-search position
+!> \param default_step configured initial line-search position
+!> \param predicted_drop finite quadratic-model decrease
+!> \param measured_drop measured Mermin decrease
+!> \param quality measured over predicted decrease
+!> \param residual_ratio endpoint over reference residual
+!> \param good whether this is a resolved, useful accepted response sample
+! **************************************************************************************************
+   PURE SUBROUTINE ot_mermin_response_assess( &
+      reference_energy, current_energy, reference_residual, current_residual, &
+      predicted_slope, predicted_curvature, position, default_step, &
+      predicted_drop, measured_drop, quality, residual_ratio, good)
+      REAL(KIND=dp), INTENT(IN) :: reference_energy, current_energy, reference_residual, &
+         current_residual, predicted_slope, predicted_curvature, position, default_step
+      REAL(KIND=dp), INTENT(OUT)                         :: predicted_drop, measured_drop, quality, &
+                                                            residual_ratio
+      LOGICAL, INTENT(OUT)                               :: good
+
+      REAL(KIND=dp)                                      :: accepted_position, resolution, scale
+
+      predicted_drop = 0.0_dp
+      measured_drop = 0.0_dp
+      quality = 0.0_dp
+      residual_ratio = HUGE(1.0_dp)
+      good = .FALSE.
+      IF (.NOT. ieee_is_finite(reference_energy) .OR. .NOT. ieee_is_finite(current_energy) .OR. &
+          .NOT. ieee_is_finite(reference_residual) .OR. .NOT. ieee_is_finite(current_residual) .OR. &
+          .NOT. ieee_is_finite(predicted_slope) .OR. .NOT. ieee_is_finite(predicted_curvature) .OR. &
+          .NOT. ieee_is_finite(position) .OR. .NOT. ieee_is_finite(default_step)) RETURN
+
+      accepted_position = ABS(position)
+      measured_drop = reference_energy - current_energy
+      predicted_drop = accepted_position*predicted_slope - &
+                       0.5_dp*accepted_position**2*predicted_curvature
+      scale = MAX(1.0_dp, ABS(reference_energy), ABS(current_energy), &
+                  ABS(predicted_drop), ABS(measured_drop))
+      resolution = 256.0_dp*EPSILON(1.0_dp)*scale
+      IF (reference_residual > TINY(reference_residual)) THEN
+         residual_ratio = MAX(0.0_dp, current_residual)/reference_residual
+      END IF
+      IF (predicted_drop > resolution) quality = measured_drop/predicted_drop
+
+      good = predicted_drop > resolution .AND. measured_drop > resolution .AND. &
+             accepted_position >= 1.0E-6_dp*MAX(ABS(default_step), TINY(default_step)) .AND. &
+             quality >= 0.05_dp .AND. quality <= 5.0_dp .AND. residual_ratio <= 1.0_dp
+
+   END SUBROUTINE ot_mermin_response_assess
+
+! **************************************************************************************************
+!> \brief Recover the total finite Mermin curvature of an accepted line-search secant.
+!>
+!>        For F(alpha)=F(0)-g*alpha+0.5*kappa*alpha**2, the accepted energy difference fixes
+!>        kappa without separating REF, rotation, occupation, and self-consistent Hxc terms.
+!> \param reference_energy Mermin energy at the start of the accepted search
+!> \param current_energy Mermin energy at its accepted endpoint
+!> \param predicted_slope positive directional decrease at the search origin
+!> \param position accepted line-search position
+!> \param curvature recovered total finite curvature
+!> \param valid whether a resolved finite curvature was recovered
+! **************************************************************************************************
+   PURE SUBROUTINE ot_mermin_secant_curvature( &
+      reference_energy, current_energy, predicted_slope, position, curvature, valid)
+      REAL(KIND=dp), INTENT(IN)                          :: reference_energy, current_energy, &
+                                                            predicted_slope, position
+      REAL(KIND=dp), INTENT(OUT)                         :: curvature
+      LOGICAL, INTENT(OUT)                               :: valid
+
+      REAL(KIND=dp)                                      :: accepted_position, measured_drop
+
+      curvature = 0.0_dp
+      valid = .FALSE.
+      IF (.NOT. ieee_is_finite(reference_energy) .OR. .NOT. ieee_is_finite(current_energy) .OR. &
+          .NOT. ieee_is_finite(predicted_slope) .OR. .NOT. ieee_is_finite(position)) RETURN
+      accepted_position = ABS(position)
+      IF (accepted_position <= SQRT(EPSILON(1.0_dp))) RETURN
+
+      measured_drop = reference_energy - current_energy
+      curvature = 2.0_dp*(accepted_position*predicted_slope - measured_drop)/accepted_position**2
+      valid = ieee_is_finite(curvature)
+      IF (.NOT. valid) curvature = 0.0_dp
+
+   END SUBROUTINE ot_mermin_secant_curvature
+
+! **************************************************************************************************
+!> \brief Compare an endpoint response shadow with the linear accepted-step model.
+!> \param reference_energy Mermin energy at the start of the search
+!> \param current_energy Mermin energy at the accepted endpoint
+!> \param reference_residual physical residual at the start of the search
+!> \param current_residual physical residual at the accepted endpoint
+!> \param predicted_slope positive reference directional decrease
+!> \param shadow_curvature endpoint finite-response curvature along the accepted direction
+!> \param position accepted line-search position
+!> \param advantage reduction of symmetric prediction error relative to the linear model
+!> \param residual_ratio endpoint over reference residual
+!> \param good whether the passive response prediction is both better and residual-consistent
+! **************************************************************************************************
+   PURE SUBROUTINE ot_mermin_response_compare( &
+      reference_energy, current_energy, reference_residual, current_residual, &
+      predicted_slope, shadow_curvature, position, advantage, residual_ratio, good)
+      REAL(KIND=dp), INTENT(IN) :: reference_energy, current_energy, reference_residual, &
+         current_residual, predicted_slope, shadow_curvature, position
+      REAL(KIND=dp), INTENT(OUT)                         :: advantage, residual_ratio
+      LOGICAL, INTENT(OUT)                               :: good
+
+      REAL(KIND=dp) :: accepted_position, baseline_drop, baseline_error, candidate_drop, &
+         candidate_error, measured_drop, resolution, scale
+
+      advantage = 0.0_dp
+      residual_ratio = HUGE(1.0_dp)
+      good = .FALSE.
+      IF (.NOT. ieee_is_finite(reference_energy) .OR. .NOT. ieee_is_finite(current_energy) .OR. &
+          .NOT. ieee_is_finite(reference_residual) .OR. .NOT. ieee_is_finite(current_residual) .OR. &
+          .NOT. ieee_is_finite(predicted_slope) .OR. .NOT. ieee_is_finite(shadow_curvature) .OR. &
+          .NOT. ieee_is_finite(position)) RETURN
+
+      accepted_position = ABS(position)
+      measured_drop = reference_energy - current_energy
+      baseline_drop = accepted_position*predicted_slope
+      candidate_drop = baseline_drop - 0.5_dp*accepted_position**2*shadow_curvature
+      scale = MAX(1.0_dp, ABS(reference_energy), ABS(current_energy), ABS(measured_drop), &
+                  ABS(baseline_drop), ABS(candidate_drop))
+      resolution = 256.0_dp*EPSILON(1.0_dp)*scale
+      IF (reference_residual > TINY(reference_residual)) THEN
+         residual_ratio = MAX(0.0_dp, current_residual)/reference_residual
+      END IF
+      IF (measured_drop <= resolution .OR. baseline_drop <= resolution .OR. &
+          candidate_drop <= resolution) RETURN
+
+      baseline_error = ABS(measured_drop - baseline_drop)/scale
+      candidate_error = ABS(measured_drop - candidate_drop)/scale
+      advantage = baseline_error - candidate_error
+      good = advantage > 64.0_dp*EPSILON(1.0_dp)*scale .AND. residual_ratio <= 1.05_dp
+
+   END SUBROUTINE ot_mermin_response_compare
+
+! **************************************************************************************************
+!> \brief Compare response and conventional directions in one accepted Mermin model.
+!>
+!>        The most recent accepted conventional secant supplies the dimensionless local curvature
+!>        ratio kappa/g.  Applying that ratio to the current conventional slope transfers the
+!>        measured line-search model without assuming that the two directions have equal norms.
+!>        Both candidates are then evaluated at the same line-search position.
+!> \param baseline_slope positive current conventional directional decrease
+!> \param response_slope positive current response directional decrease
+!> \param response_curvature current finite-response curvature
+!> \param accepted_slope positive slope of the preceding accepted conventional search
+!> \param accepted_curvature measured total curvature of that accepted search
+!> \param position common line-search position used for comparison
+!> \param baseline_drop predicted conventional Mermin decrease
+!> \param response_drop predicted response Mermin decrease
+!> \param relative_gain response improvement relative to the larger predicted decrease
+!> \param preferred whether the response model predicts a resolved improvement
+! **************************************************************************************************
+   PURE SUBROUTINE ot_mermin_response_candidate_preferred( &
+      baseline_slope, response_slope, response_curvature, accepted_slope, accepted_curvature, &
+      position, baseline_drop, response_drop, relative_gain, preferred)
+      REAL(KIND=dp), INTENT(IN)                          :: baseline_slope, response_slope, &
+                                                            response_curvature, accepted_slope, &
+                                                            accepted_curvature, position
+      REAL(KIND=dp), INTENT(OUT)                         :: baseline_drop, response_drop, &
+                                                            relative_gain
+      LOGICAL, INTENT(OUT)                               :: preferred
+
+      REAL(KIND=dp)                                      :: alpha, baseline_curvature, &
+                                                            curvature_ratio, resolution, scale
+
+      baseline_drop = 0.0_dp
+      response_drop = 0.0_dp
+      relative_gain = 0.0_dp
+      preferred = .FALSE.
+      IF (.NOT. ieee_is_finite(baseline_slope) .OR. .NOT. ieee_is_finite(response_slope) .OR. &
+          .NOT. ieee_is_finite(response_curvature) .OR. .NOT. ieee_is_finite(accepted_slope) .OR. &
+          .NOT. ieee_is_finite(accepted_curvature) .OR. .NOT. ieee_is_finite(position)) RETURN
+
+      alpha = ABS(position)
+      scale = MAX(1.0_dp, ABS(baseline_slope), ABS(response_slope), &
+                  ABS(response_curvature), ABS(accepted_slope), ABS(accepted_curvature))
+      resolution = 256.0_dp*EPSILON(1.0_dp)*scale
+      IF (alpha <= SQRT(EPSILON(1.0_dp)) .OR. baseline_slope <= resolution .OR. &
+          response_slope <= resolution .OR. accepted_slope <= resolution) RETURN
+
+      curvature_ratio = accepted_curvature/accepted_slope
+      baseline_curvature = curvature_ratio*baseline_slope
+      baseline_drop = alpha*baseline_slope - 0.5_dp*alpha**2*baseline_curvature
+      response_drop = alpha*response_slope - 0.5_dp*alpha**2*response_curvature
+      scale = MAX(ABS(baseline_drop), ABS(response_drop), resolution)
+      relative_gain = (response_drop - baseline_drop)/scale
+      preferred = response_drop > resolution .AND. response_drop > baseline_drop + resolution
+
+   END SUBROUTINE ot_mermin_response_candidate_preferred
+
+! **************************************************************************************************
+!> \brief Select a sparse coupled-response probe from accepted-history evidence.
+!> \param available whether every local channel has a finite coupled response
+!> \param residual current conventional-preconditioned residual
+!> \param directions number of accepted directions seen by this response state
+!> \param shadow_good_samples passive accepted steps where response improved the prediction
+!> \param good_samples consecutive useful active response samples
+!> \param cooldown accepted directions remaining after a failed response sample
+!> \return whether the next direction should use the coupled response candidate
+! **************************************************************************************************
+   PURE FUNCTION ot_mermin_response_probe( &
+      available, residual, directions, shadow_good_samples, good_samples, cooldown) RESULT(probe)
+      LOGICAL, INTENT(IN)                                :: available
+      REAL(KIND=dp), INTENT(IN)                          :: residual
+      INTEGER, INTENT(IN)                                :: directions, shadow_good_samples, &
+                                                            good_samples, cooldown
+      LOGICAL                                            :: probe
+
+      INTEGER                                            :: interval, phase
+
+      probe = .FALSE.
+      IF (.NOT. available .OR. .NOT. ieee_is_finite(residual)) RETURN
+      IF (residual <= 0.0_dp .OR. residual > 2.0E-3_dp .OR. cooldown > 0) RETURN
+      IF (shadow_good_samples < 3) RETURN
+      interval = 8
+      IF (good_samples >= 3) interval = 4
+      IF (directions < interval) RETURN
+      phase = MOD(directions, interval)
+      probe = phase == 0 .OR. phase == 1
+
+   END FUNCTION ot_mermin_response_probe
+
+! **************************************************************************************************
+!> \brief Decide whether the next accepted state needs the dense finite Mermin response.
+!>
+!>        A pending shadow is always completed. Otherwise the response is prepared while collecting
+!>        the initial accepted-step calibration and at the state immediately preceding a sparse
+!>        response-probe window. The relaxed residual bound accounts for using the preceding
+!>        accepted residual before the current norm has been reduced across K-point groups.
+!> \param residual preceding accepted conventional-preconditioned residual
+!> \param directions number of accepted directions already seen
+!> \param shadow_good_samples useful passive accepted-step samples
+!> \param good_samples useful active response samples
+!> \param cooldown accepted directions remaining after a failed active sample
+!> \param shadow_pending whether the current endpoint must assess a prepared shadow
+!> \return whether to build the dense finite response at the current accepted endpoint
+! **************************************************************************************************
+   PURE FUNCTION ot_mermin_response_preparation_needed( &
+      residual, directions, shadow_good_samples, good_samples, cooldown, shadow_pending) RESULT(prepare)
+      REAL(KIND=dp), INTENT(IN)                          :: residual
+      INTEGER, INTENT(IN)                                :: directions, shadow_good_samples, &
+                                                            good_samples, cooldown
+      LOGICAL, INTENT(IN)                                :: shadow_pending
+      LOGICAL                                            :: prepare
+
+      INTEGER                                            :: interval, next_direction, phase
+
+      prepare = shadow_pending
+      IF (prepare) RETURN
+      IF (.NOT. ieee_is_finite(residual) .OR. residual <= 0.0_dp .OR. residual > 4.0E-3_dp) RETURN
+      IF (cooldown > 1) RETURN
+      IF (shadow_good_samples < 3) THEN
+         prepare = .TRUE.
+         RETURN
+      END IF
+
+      interval = 8
+      IF (good_samples >= 3) interval = 4
+      next_direction = MIN(HUGE(directions) - 1, MAX(0, directions) + 1)
+      phase = MOD(next_direction, interval)
+      prepare = phase == interval - 1
+
+   END FUNCTION ot_mermin_response_preparation_needed
+
+! **************************************************************************************************
+!> \brief Decide whether a prepared conventional direction needs a shadow at its endpoint.
+!> \param residual current conventional-preconditioned residual
+!> \param directions number of accepted directions including the current one
+!> \param shadow_good_samples useful passive accepted-step samples
+!> \param good_samples useful active response samples
+!> \param cooldown accepted directions remaining after a failed active sample
+!> \return whether the next accepted endpoint must assess the current response shadow
+! **************************************************************************************************
+   PURE FUNCTION ot_mermin_response_shadow_followup( &
+      residual, directions, shadow_good_samples, good_samples, cooldown) RESULT(followup)
+      REAL(KIND=dp), INTENT(IN)                          :: residual
+      INTEGER, INTENT(IN)                                :: directions, shadow_good_samples, &
+                                                            good_samples, cooldown
+      LOGICAL                                            :: followup
+
+      INTEGER                                            :: interval, phase
+
+      followup = .FALSE.
+      IF (.NOT. ieee_is_finite(residual) .OR. residual <= 0.0_dp .OR. residual > 4.0E-3_dp) RETURN
+      IF (cooldown > 1) RETURN
+      IF (shadow_good_samples < 3) THEN
+         followup = .TRUE.
+         RETURN
+      END IF
+
+      interval = 8
+      IF (good_samples >= 3) interval = 4
+      phase = MOD(MAX(0, directions), interval)
+      followup = phase == interval - 1 .OR. phase == 0
+
+   END FUNCTION ot_mermin_response_shadow_followup
 
 !
 ! checks if the current point is a good point for finding a new direction
@@ -1109,15 +1465,25 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_cg_direction'
 
       INTEGER                                            :: handle, ispin, itmp, k, n, nener, nspin
-      LOGICAL                                            :: do_ener, do_ks
-      REAL(KIND=dp)                                      :: beta_pr, gnorm_cross, nvariables, &
-                                                            test_down, tmp
+      LOGICAL :: active_candidate_available, candidate_available, candidate_good, do_ener, do_ks, &
+         preceding_response_candidate, probe_response_candidate, shadow_good, &
+         use_response_candidate
+      REAL(KIND=dp) :: baseline_delta, baseline_gnorm, baseline_model_drop, beta_pr, gnorm_cross, &
+         measured_drop, nvariables, predicted_drop, response_advantage, response_model_drop, &
+         response_quality, response_relative_gain, response_residual_ratio, response_test_down, &
+         test_down, tmp
       TYPE(cp_logger_type), POINTER                      :: logger
+
+! Only the physical low-rank subspace solve can become active. The frozen-H response remains a
+! shadow when that total projected Hessian is indefinite or unresolved.
 
       CALL timeset(routineN, handle)
 
       nspin = SIZE(qs_ot_env)
       logger => cp_get_default_logger()
+      shadow_good = .FALSE.
+      candidate_good = .FALSE.
+      preceding_response_candidate = qs_ot_env(1)%response_candidate_pending
 
       do_ks = qs_ot_env(1)%settings%ks
       do_ener = qs_ot_env(1)%settings%do_ener
@@ -1206,7 +1572,6 @@ CONTAINS
             END IF
             IF (qs_ot_env(1)%settings%do_rotation) THEN
                DO ispin = 1, nspin
-                  ! right now no preconditioner yet
                   CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx_old, qs_ot_env(ispin)%rot_mat_gx)
                   CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx_old, tmp)
                   ! added 0.5, because we have (antisymmetry) only half the number of variables
@@ -1217,13 +1582,6 @@ CONTAINS
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx_im, &
                                     qs_ot_env(ispin)%rot_mat_gx_old_im, tmp)
                      qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + 0.5_dp*tmp
-                  END IF
-               END DO
-               DO ispin = 1, nspin
-                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx_old)
-                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                     CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx_im, &
-                                     qs_ot_env(ispin)%rot_mat_gx_old_im)
                   END IF
                END DO
             END IF
@@ -1348,9 +1706,12 @@ CONTAINS
                   qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + tmp
                END IF
                IF (qs_ot_env(1)%settings%do_rotation) THEN
+                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx_old, qs_ot_env(ispin)%rot_mat_gx)
                   CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_gx_old, tmp)
                   qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + 0.5_dp*tmp
                   IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                     CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_gx_old_im, &
+                                     qs_ot_env(ispin)%rot_mat_gx_im)
                      CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx_im, &
                                     qs_ot_env(ispin)%rot_mat_gx_old_im, tmp)
                      qs_ot_env(1)%gnorm = qs_ot_env(1)%gnorm + 0.5_dp*tmp
@@ -1368,6 +1729,7 @@ CONTAINS
          END IF
          CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, qs_ot_env(1)%gnorm)
       END IF
+      baseline_gnorm = qs_ot_env(1)%gnorm
 
       k = 0
       n = 0
@@ -1387,14 +1749,106 @@ CONTAINS
       END IF
       nvariables = REAL(INT(n, KIND=int_8)*INT(k, KIND=int_8) + nener, KIND=dp)
       CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, nvariables)
-      ! Handling the case of no free variables to optimize
+
+      baseline_delta = 0.0_dp
       IF (nvariables > 0.0_dp) THEN
-         qs_ot_env(1)%delta = SQRT(ABS(qs_ot_env(1)%gnorm)/nvariables)
+         baseline_delta = SQRT(ABS(baseline_gnorm)/nvariables)
+      END IF
+
+      IF (qs_ot_env(1)%response_shadow_pending) THEN
+         CALL ot_mermin_response_compare( &
+            qs_ot_env(1)%response_reference_energy, qs_ot_env(1)%etotal, &
+            qs_ot_env(1)%response_reference_residual, baseline_delta, &
+            qs_ot_env(1)%response_predicted_slope, qs_ot_env(1)%response_shadow_curvature, &
+            qs_ot_env(1)%ds_min, response_advantage, response_residual_ratio, shadow_good)
+         IF (shadow_good) THEN
+            qs_ot_env(1)%response_shadow_good_samples = &
+               MIN(HUGE(qs_ot_env(1)%response_shadow_good_samples) - 1, &
+                   qs_ot_env(1)%response_shadow_good_samples + 1)
+         ELSE
+            qs_ot_env(1)%response_shadow_good_samples = &
+               MAX(0, qs_ot_env(1)%response_shadow_good_samples - 1)
+         END IF
+         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
+            WRITE (cp_logger_get_default_unit_nr(logger), &
+                   '(A,1X,I5,4(1X,L1),6(1X,ES16.8))') &
+               " OT Mermin response shadow good hxc hxc-dir cross advantage residual "// &
+               "curvature hxc-shadow hxc-model cross-curv:", &
+               qs_ot_env(1)%response_shadow_good_samples, shadow_good, &
+               qs_ot_env(1)%response_hxc_valid, qs_ot_env(1)%response_hxc_direction_valid, &
+               qs_ot_env(1)%response_gradient_cross_valid, &
+               response_advantage, response_residual_ratio, &
+               qs_ot_env(1)%response_shadow_curvature, &
+               qs_ot_env(1)%response_hxc_shadow_curvature, &
+               qs_ot_env(1)%response_hxc_model_curvature, &
+               qs_ot_env(1)%response_gradient_cross_curvature
+         END IF
+         qs_ot_env(1)%response_shadow_pending = .FALSE.
+      END IF
+
+      IF (qs_ot_env(1)%response_candidate_pending) THEN
+         CALL ot_mermin_response_assess( &
+            qs_ot_env(1)%response_reference_energy, qs_ot_env(1)%etotal, &
+            qs_ot_env(1)%response_reference_residual, baseline_delta, &
+            qs_ot_env(1)%response_predicted_slope, &
+            qs_ot_env(1)%response_predicted_curvature, &
+            qs_ot_env(1)%ds_min, qs_ot_env(1)%settings%ds_min, predicted_drop, measured_drop, &
+            response_quality, response_residual_ratio, candidate_good)
+         IF (candidate_good) THEN
+            qs_ot_env(1)%response_candidate_good_samples = &
+               MIN(HUGE(qs_ot_env(1)%response_candidate_good_samples) - 1, &
+                   qs_ot_env(1)%response_candidate_good_samples + 1)
+         ELSE
+            qs_ot_env(1)%response_candidate_good_samples = &
+               MAX(0, qs_ot_env(1)%response_candidate_good_samples - 2)
+            qs_ot_env(1)%response_candidate_cooldown = 6
+         END IF
+         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
+            WRITE (cp_logger_get_default_unit_nr(logger), '(A,1X,I5,1X,L1,4(1X,ES16.8))') &
+               " OT Mermin response candidate good quality residual predicted measured:", &
+               qs_ot_env(1)%response_candidate_good_samples, candidate_good, response_quality, &
+               response_residual_ratio, predicted_drop, measured_drop
+         END IF
+         qs_ot_env(1)%response_candidate_pending = .FALSE.
+      END IF
+
+      qs_ot_env(1)%response_candidate_directions = &
+         MIN(HUGE(qs_ot_env(1)%response_candidate_directions) - 1, &
+             qs_ot_env(1)%response_candidate_directions + 1)
+      IF (qs_ot_env(1)%response_candidate_cooldown > 0) THEN
+         qs_ot_env(1)%response_candidate_cooldown = qs_ot_env(1)%response_candidate_cooldown - 1
+      END IF
+
+      candidate_available = qs_ot_env(1)%settings%occupation_preconditioner .AND. &
+                            qs_ot_env(1)%settings%do_rotation .AND. do_ener
+      DO ispin = 1, nspin
+         candidate_available = candidate_available .AND. &
+                               qs_ot_env(ispin)%rotation_response_valid .AND. &
+                               ASSOCIATED(qs_ot_env(ispin)%matrix_response_gx) .AND. &
+                               ASSOCIATED(qs_ot_env(ispin)%matrix_response_gx_im) .AND. &
+                               ASSOCIATED(qs_ot_env(ispin)%rot_mat_response_gx) .AND. &
+                               ASSOCIATED(qs_ot_env(ispin)%rot_mat_response_gx_im) .AND. &
+                               ASSOCIATED(qs_ot_env(ispin)%ener_response_gx)
+      END DO
+      active_candidate_available = candidate_available .AND. shadow_good .AND. &
+                                   qs_ot_env(1)%response_hxc_direction_valid
+      probe_response_candidate = ot_mermin_response_probe( &
+                                 active_candidate_available, &
+                                 baseline_delta, &
+                                 qs_ot_env(1)%response_candidate_directions, &
+                                 qs_ot_env(1)%response_shadow_good_samples, &
+                                 qs_ot_env(1)%response_candidate_good_samples, &
+                                 qs_ot_env(1)%response_candidate_cooldown)
+      use_response_candidate = .FALSE.
+      ! Keep convergence reporting tied to the conventional preconditioned residual. The finite
+      ! response is an accepted-step candidate, not a redefinition of the physical stopping test.
+      qs_ot_env(1)%delta = baseline_delta
+      IF (nvariables > 0.0_dp) THEN
          beta_pr = (qs_ot_env(1)%gnorm - gnorm_cross)/qs_ot_env(1)%gnorm_old
       ELSE
-         qs_ot_env(1)%delta = 0.0_dp
          beta_pr = 0.0_dp
       END IF
+      IF (preceding_response_candidate) beta_pr = 0.0_dp
       beta_pr = MAX(beta_pr, 0.0_dp) ! reset to SD
 
       test_down = 0.0_dp
@@ -1411,12 +1865,13 @@ CONTAINS
                test_down = test_down + tmp
             END IF
             IF (qs_ot_env(1)%settings%do_rotation) THEN
-               CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx, &
+               CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_dx, qs_ot_env(ispin)%rot_mat_gx_old, &
                               alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
                CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, qs_ot_env(ispin)%rot_mat_dx, tmp)
                test_down = test_down + 0.5_dp*tmp
                IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                  CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_dx_im, qs_ot_env(ispin)%rot_mat_gx_im, &
+                  CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_dx_im, &
+                                 qs_ot_env(ispin)%rot_mat_gx_old_im, &
                                  alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
                   CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx_im, &
                                  qs_ot_env(ispin)%rot_mat_dx_im, tmp)
@@ -1447,10 +1902,11 @@ CONTAINS
                END IF
                IF (qs_ot_env(1)%settings%do_rotation) THEN
                   CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_dx, &
-                                 qs_ot_env(ispin)%rot_mat_gx, alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
+                                 qs_ot_env(ispin)%rot_mat_gx_old, &
+                                 alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
                   IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
                      CALL dbcsr_add(qs_ot_env(ispin)%rot_mat_dx_im, &
-                                    qs_ot_env(ispin)%rot_mat_gx_im, &
+                                    qs_ot_env(ispin)%rot_mat_gx_old_im, &
                                     alpha_scalar=beta_pr, beta_scalar=-1.0_dp)
                   END IF
                END IF
@@ -1463,8 +1919,117 @@ CONTAINS
             END DO
          END IF
       END IF
+
+      ! Probe the coupled finite response without replacing the conventional CG history. The
+      ! candidate is assembled in separate workspaces and used for this search only, avoiding two
+      ! artificial history resets around every sparse probe.
+      IF (probe_response_candidate) THEN
+         response_test_down = 0.0_dp
+         baseline_model_drop = 0.0_dp
+         response_model_drop = 0.0_dp
+         response_relative_gain = 0.0_dp
+         IF (do_ks) THEN
+            DO ispin = 1, nspin
+               CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
+                              qs_ot_env(ispin)%matrix_response_gx, tmp)
+               response_test_down = response_test_down - tmp
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, &
+                                 qs_ot_env(ispin)%matrix_response_gx_im, tmp)
+                  response_test_down = response_test_down - tmp
+               END IF
+               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, &
+                              qs_ot_env(ispin)%rot_mat_response_gx, tmp)
+               response_test_down = response_test_down - 0.5_dp*tmp
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx_im, &
+                                 qs_ot_env(ispin)%rot_mat_response_gx_im, tmp)
+                  response_test_down = response_test_down - 0.5_dp*tmp
+               END IF
+            END DO
+         END IF
+         IF (do_ener) THEN
+            DO ispin = 1, nspin
+               response_test_down = response_test_down - &
+                                    DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, &
+                                                qs_ot_env(ispin)%ener_response_gx)
+            END DO
+         END IF
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, response_test_down)
+         IF (response_test_down < 0.0_dp) THEN
+            CALL ot_mermin_response_candidate_preferred( &
+               -test_down, -response_test_down, qs_ot_env(1)%response_model_curvature, &
+               qs_ot_env(1)%response_predicted_slope, qs_ot_env(1)%response_shadow_curvature, &
+               qs_ot_env(1)%ds_min, baseline_model_drop, response_model_drop, &
+               response_relative_gain, use_response_candidate)
+         END IF
+         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
+            WRITE (cp_logger_get_default_unit_nr(logger), '(A,4(1X,I5),5(1X,ES16.8),2(1X,L1))') &
+               " OT Mermin response candidate comparison directions shadow active cooldown residual "// &
+               "curvature baseline response gain probe use:", &
+               qs_ot_env(1)%response_candidate_directions, &
+               qs_ot_env(1)%response_shadow_good_samples, &
+               qs_ot_env(1)%response_candidate_good_samples, &
+               qs_ot_env(1)%response_candidate_cooldown, baseline_delta, &
+               qs_ot_env(1)%response_model_curvature, &
+               baseline_model_drop, &
+               response_model_drop, response_relative_gain, probe_response_candidate, &
+               use_response_candidate
+         END IF
+         IF (use_response_candidate) THEN
+            DO ispin = 1, nspin
+               IF (do_ks) THEN
+                  CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, &
+                                  qs_ot_env(ispin)%matrix_response_gx)
+                  CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx, -1.0_dp)
+                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                     CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx_im, &
+                                     qs_ot_env(ispin)%matrix_response_gx_im)
+                     CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx_im, -1.0_dp)
+                  END IF
+                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, &
+                                  qs_ot_env(ispin)%rot_mat_response_gx)
+                  CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, -1.0_dp)
+                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                     CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx_im, &
+                                     qs_ot_env(ispin)%rot_mat_response_gx_im)
+                     CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx_im, -1.0_dp)
+                  END IF
+               END IF
+               IF (do_ener) qs_ot_env(ispin)%ener_dx = -qs_ot_env(ispin)%ener_response_gx
+            END DO
+            test_down = response_test_down
+         END IF
+      END IF
+      qs_ot_env(1)%response_reference_energy = qs_ot_env(1)%etotal
+      qs_ot_env(1)%response_reference_residual = baseline_delta
+      IF (test_down < 0.0_dp) THEN
+         qs_ot_env(1)%response_predicted_slope = -test_down
+      ELSE
+         qs_ot_env(1)%response_predicted_slope = qs_ot_env(1)%gnorm
+      END IF
+      IF (use_response_candidate) THEN
+         qs_ot_env(1)%response_candidate_pending = .TRUE.
+         qs_ot_env(1)%response_shadow_pending = .FALSE.
+         qs_ot_env(1)%response_predicted_curvature = &
+            qs_ot_env(1)%response_model_curvature
+      ELSE
+         qs_ot_env(1)%response_candidate_pending = .FALSE.
+         qs_ot_env(1)%response_shadow_pending = candidate_available .AND. &
+                                                ot_mermin_response_shadow_followup( &
+                                                baseline_delta, &
+                                                qs_ot_env(1)%response_candidate_directions, &
+                                                qs_ot_env(1)%response_shadow_good_samples, &
+                                                qs_ot_env(1)%response_candidate_good_samples, &
+                                                qs_ot_env(1)%response_candidate_cooldown)
+      END IF
       ! since we change the direction we have to adjust the gradient
-      qs_ot_env(1)%gradient = beta_pr*qs_ot_env(1)%gradient - qs_ot_env(1)%gnorm
+      IF (use_response_candidate) THEN
+         qs_ot_env(1)%OT_METHOD_FULL = "OT CG-R"
+         qs_ot_env(1)%gradient = test_down
+      ELSE
+         qs_ot_env(1)%gradient = beta_pr*qs_ot_env(1)%gradient - qs_ot_env(1)%gnorm
+      END IF
       qs_ot_env(1)%gnorm_old = qs_ot_env(1)%gnorm
 
       CALL timestop(handle)

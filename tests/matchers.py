@@ -74,6 +74,10 @@ registry["QS_MO_OCCUPATION_STATS"] = TextPresenceMatcher("MO| Total occupied (AL
 registry["OT_lbfgs_skipped_update"] = TextPresenceMatcher("OT LSKIP")
 registry["OT_lbfgs_update"] = TextPresenceMatcher("OT LBFGS")
 registry["OT_diis_update"] = TextPresenceMatcher("OT DIIS")
+registry["OT_mermin_response_update"] = TextPresenceMatcher("OT CG-R")
+registry["OT_kpoint_ref_refresh"] = TextPresenceMatcher(
+    "K-point OT: rebuilding physical virtual subspace"
+)
 registry["OT_added_mos_auto_grow"] = TextPresenceMatcher(
     "K-point ADDED_MOS AUTO: growing virtual-space buffer"
 )

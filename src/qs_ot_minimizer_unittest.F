@@ -10,18 +10,24 @@ PROGRAM qs_ot_minimizer_unittest
                                               ieee_quiet_nan,&
                                               ieee_value
    USE kinds,                           ONLY: dp
-   USE qs_ot_minimizer,                 ONLY: lbfgs_curvature_damping_shift,&
-                                              lbfgs_history_restart_required,&
-                                              lbfgs_response_secant_parameters,&
-                                              lbfgs_step_restart_required
-   USE qs_scf_loop_utils,               ONLY: qs_scf_kp_ref_refresh_ready
+   USE qs_ot_minimizer,                 ONLY: &
+        lbfgs_curvature_damping_shift, lbfgs_history_restart_required, &
+        lbfgs_response_secant_parameters, lbfgs_step_restart_required, ot_mermin_response_assess, &
+        ot_mermin_response_candidate_preferred, ot_mermin_response_compare, &
+        ot_mermin_response_preparation_needed, ot_mermin_response_probe, &
+        ot_mermin_response_shadow_followup, ot_mermin_secant_curvature
+   USE qs_scf_loop_utils,               ONLY: qs_scf_kp_ref_refresh_ready,&
+                                              qs_scf_kp_search_endpoint
 
    IMPLICIT NONE
 
-   LOGICAL                                            :: valid_response
-   REAL(KIND=dp)                                      :: damping_shift, infinity, mixed_curvature, &
-                                                         not_a_number, response_scale, &
-                                                         response_weight, sy_damped, yy_damped
+   LOGICAL                                            :: curvature_valid, response_good, valid_response
+   REAL(KIND=dp)                                      :: baseline_drop, damping_shift, infinity, &
+                                                         mixed_curvature, &
+                                                         measured_drop, not_a_number, predicted_drop, &
+                                                         response_advantage, response_gain, response_quality, &
+                                                         response_scale, response_weight, residual_ratio, &
+                                                         secant_curvature, sy_damped, yy_damped
 
    damping_shift = lbfgs_curvature_damping_shift(0.6_dp, 1.0_dp, 1.0_dp, 0.5_dp)
    IF (damping_shift /= 0.0_dp) ERROR STOP "Well-conditioned L-BFGS curvature was damped"
@@ -92,6 +98,143 @@ PROGRAM qs_ot_minimizer_unittest
    IF (valid_response) ERROR STOP "Non-descent L-BFGS response secant was accepted"
    IF (response_weight /= 0.0_dp) ERROR STOP "Rejected L-BFGS response secant changed H0"
 
+   CALL ot_mermin_response_assess( &
+      10.0_dp, 9.6_dp, 1.0_dp, 0.8_dp, 1.0_dp, 1.0_dp, 0.5_dp, 0.1_dp, &
+      predicted_drop, measured_drop, response_quality, residual_ratio, response_good)
+   IF (.NOT. response_good .OR. ABS(predicted_drop - 0.375_dp) > 1.0E-14_dp .OR. &
+       ABS(measured_drop - 0.4_dp) > 1.0E-14_dp .OR. &
+       ABS(response_quality - 0.4_dp/0.375_dp) > 1.0E-14_dp .OR. &
+       ABS(residual_ratio - 0.8_dp) > 1.0E-14_dp) THEN
+      ERROR STOP "Useful finite Mermin response sample was not accepted"
+   END IF
+   CALL ot_mermin_response_assess( &
+      10.0_dp, 9.6_dp, 1.0_dp, 1.5_dp, 1.0_dp, 1.0_dp, 0.5_dp, 0.1_dp, &
+      predicted_drop, measured_drop, response_quality, residual_ratio, response_good)
+   IF (response_good) ERROR STOP "Residual-growing finite response sample was accepted"
+   CALL ot_mermin_response_assess( &
+      10.0_dp, 9.6_dp, 1.0_dp, 1.05_dp, 1.0_dp, 1.0_dp, 0.5_dp, 0.1_dp, &
+      predicted_drop, measured_drop, response_quality, residual_ratio, response_good)
+   IF (response_good) ERROR STOP "Mildly residual-growing finite response sample was accepted"
+   CALL ot_mermin_response_assess( &
+      10.0_dp, 9.6_dp, 1.0_dp, 0.8_dp, 0.1_dp, 10.0_dp, 1.0_dp, 0.1_dp, &
+      predicted_drop, measured_drop, response_quality, residual_ratio, response_good)
+   IF (response_good .OR. predicted_drop >= 0.0_dp) THEN
+      ERROR STOP "Indefinite non-descent response prediction was accepted"
+   END IF
+   CALL ot_mermin_response_assess( &
+      10.0_dp, 9.6_dp, 1.0_dp, 0.8_dp, 1.0_dp, 1.0_dp, 1.0E-10_dp, 0.1_dp, &
+      predicted_drop, measured_drop, response_quality, residual_ratio, response_good)
+   IF (response_good) ERROR STOP "Collapsed response line search was accepted"
+
+   CALL ot_mermin_secant_curvature(10.0_dp, 9.6_dp, 1.0_dp, 0.5_dp, &
+                                   secant_curvature, curvature_valid)
+   IF (.NOT. curvature_valid .OR. ABS(secant_curvature - 0.8_dp) > 1.0E-14_dp) THEN
+      ERROR STOP "Accepted Mermin secant curvature was not recovered"
+   END IF
+   CALL ot_mermin_secant_curvature(10.0_dp, 9.6_dp, 1.0_dp, 0.0_dp, &
+                                   secant_curvature, curvature_valid)
+   IF (curvature_valid .OR. secant_curvature /= 0.0_dp) THEN
+      ERROR STOP "Collapsed Mermin secant produced a curvature"
+   END IF
+
+   CALL ot_mermin_response_compare( &
+      10.0_dp, 9.6_dp, 1.0_dp, 0.8_dp, 1.0_dp, 1.0_dp, 0.5_dp, &
+      response_advantage, residual_ratio, response_good)
+   IF (.NOT. response_good .OR. response_advantage <= 0.0_dp .OR. &
+       ABS(residual_ratio - 0.8_dp) > 1.0E-14_dp) THEN
+      ERROR STOP "Improved passive finite response prediction was not retained"
+   END IF
+   CALL ot_mermin_response_compare( &
+      10.0_dp, 9.6_dp, 1.0_dp, 0.8_dp, 1.0_dp, -1.0_dp, 0.5_dp, &
+      response_advantage, residual_ratio, response_good)
+   IF (response_good .OR. response_advantage >= 0.0_dp) THEN
+      ERROR STOP "Worse passive finite response prediction was retained"
+   END IF
+
+   CALL ot_mermin_response_candidate_preferred( &
+      1.0_dp, 1.0_dp, 1.0_dp, 1.0_dp, 2.0_dp, 0.5_dp, &
+      baseline_drop, predicted_drop, response_gain, response_good)
+   IF (.NOT. response_good .OR. ABS(baseline_drop - 0.25_dp) > 1.0E-14_dp .OR. &
+       ABS(predicted_drop - 0.375_dp) > 1.0E-14_dp .OR. response_gain <= 0.0_dp) THEN
+      ERROR STOP "Better coupled Mermin candidate was not preferred"
+   END IF
+   CALL ot_mermin_response_candidate_preferred( &
+      1.0_dp, 1.0_dp, 3.0_dp, 1.0_dp, 2.0_dp, 0.5_dp, &
+      baseline_drop, predicted_drop, response_gain, response_good)
+   IF (response_good .OR. response_gain >= 0.0_dp) THEN
+      ERROR STOP "Worse coupled Mermin candidate was preferred"
+   END IF
+   CALL ot_mermin_response_candidate_preferred( &
+      4.0_dp, 4.0_dp, 4.0_dp, 4.0_dp, 8.0_dp, 0.5_dp, &
+      baseline_drop, predicted_drop, response_gain, response_good)
+   IF (.NOT. response_good .OR. ABS(response_gain - 1.0_dp/3.0_dp) > 1.0E-14_dp) THEN
+      ERROR STOP "Coupled Mermin candidate comparison is not scale invariant"
+   END IF
+   CALL ot_mermin_response_candidate_preferred( &
+      1.0_dp, 1.0_dp, 1.0_dp, 0.0_dp, 2.0_dp, 0.5_dp, &
+      baseline_drop, predicted_drop, response_gain, response_good)
+   IF (response_good) ERROR STOP "Coupled Mermin candidate ignored unresolved accepted curvature"
+
+   IF (.NOT. ot_mermin_response_probe(.TRUE., 1.0E-3_dp, 8, 3, 0, 0)) THEN
+      ERROR STOP "Uncalibrated finite response probe was not scheduled"
+   END IF
+   IF (ot_mermin_response_probe(.TRUE., 1.0E-3_dp, 8, 2, 0, 0)) THEN
+      ERROR STOP "Finite response probe ignored passive accepted-step calibration"
+   END IF
+   IF (ot_mermin_response_probe(.TRUE., 1.0E-3_dp, 7, 3, 0, 0)) THEN
+      ERROR STOP "Uncalibrated finite response probe was scheduled too early"
+   END IF
+   IF (.NOT. ot_mermin_response_probe(.TRUE., 1.0E-3_dp, 9, 3, 0, 0)) THEN
+      ERROR STOP "Calibrated finite response missed its one-step eligibility window"
+   END IF
+   IF (.NOT. ot_mermin_response_probe(.TRUE., 1.0E-3_dp, 4, 3, 3, 0)) THEN
+      ERROR STOP "Calibrated finite response probe did not use the shorter interval"
+   END IF
+   IF (ot_mermin_response_probe(.TRUE., 1.0E-3_dp, 8, 3, 3, 1)) THEN
+      ERROR STOP "Finite response cooldown was ignored"
+   END IF
+   IF (ot_mermin_response_probe(.TRUE., 3.0E-3_dp, 8, 3, 3, 0)) THEN
+      ERROR STOP "Finite response was probed outside its local residual regime"
+   END IF
+
+   IF (.NOT. ot_mermin_response_preparation_needed( &
+       1.0_dp, 5, 3, 0, 6, .TRUE.)) THEN
+      ERROR STOP "Pending finite-response shadow was not completed"
+   END IF
+   IF (ot_mermin_response_preparation_needed( &
+       5.0E-3_dp, 6, 2, 0, 0, .FALSE.)) THEN
+      ERROR STOP "Finite response was prepared outside its calibration residual regime"
+   END IF
+   IF (.NOT. ot_mermin_response_preparation_needed( &
+       3.0E-3_dp, 4, 2, 0, 0, .FALSE.)) THEN
+      ERROR STOP "Finite response did not prepare its initial shadow calibration"
+   END IF
+   IF (.NOT. ot_mermin_response_preparation_needed( &
+       1.0E-3_dp, 6, 3, 0, 0, .FALSE.)) THEN
+      ERROR STOP "Finite response did not seed the next sparse probe window"
+   END IF
+   IF (ot_mermin_response_preparation_needed( &
+       1.0E-3_dp, 5, 3, 0, 0, .FALSE.)) THEN
+      ERROR STOP "Finite response was prepared between sparse probe windows"
+   END IF
+   IF (ot_mermin_response_preparation_needed( &
+       1.0E-3_dp, 6, 3, 0, 2, .FALSE.)) THEN
+      ERROR STOP "Finite response preparation ignored an active cooldown"
+   END IF
+
+   IF (.NOT. ot_mermin_response_shadow_followup(1.0E-3_dp, 7, 3, 0, 0)) THEN
+      ERROR STOP "Finite response did not retain the probe-window seed shadow"
+   END IF
+   IF (.NOT. ot_mermin_response_shadow_followup(1.0E-3_dp, 8, 3, 0, 0)) THEN
+      ERROR STOP "Finite response did not retain the paired probe shadow"
+   END IF
+   IF (ot_mermin_response_shadow_followup(1.0E-3_dp, 9, 3, 0, 0)) THEN
+      ERROR STOP "Finite response retained a shadow beyond its probe window"
+   END IF
+   IF (.NOT. ot_mermin_response_shadow_followup(3.0E-3_dp, 2, 2, 0, 0)) THEN
+      ERROR STOP "Finite response stopped before completing initial calibration"
+   END IF
+
    IF (qs_scf_kp_ref_refresh_ready(11, 1.0E-4_dp, 1.0E-6_dp, .TRUE.)) THEN
       ERROR STOP "K-point REF refresh accepted insufficient history"
    END IF
@@ -113,8 +256,21 @@ PROGRAM qs_ot_minimizer_unittest
    IF (.NOT. qs_scf_kp_ref_refresh_ready(12, 0.75E-6_dp, 1.0E-6_dp, .TRUE., .TRUE.)) THEN
       ERROR STOP "K-point REF refresh rejected a mature exit-only state"
    END IF
+   IF (.NOT. qs_scf_kp_ref_refresh_ready(12, 5.0E-6_dp, 1.0E-6_dp, .TRUE., .TRUE.)) THEN
+      ERROR STOP "K-point REF refresh rejected a stagnant post-rebuild tail"
+   END IF
    IF (qs_scf_kp_ref_refresh_ready(12, 0.2E-6_dp, 1.0E-6_dp, .TRUE., .TRUE.)) THEN
       ERROR STOP "K-point REF refresh accepted a safely converged exit state"
+   END IF
+   IF (.NOT. ALL([qs_scf_kp_search_endpoint("OT CG"), &
+                  qs_scf_kp_search_endpoint("OT SD"), &
+                  qs_scf_kp_search_endpoint("OT DIIS"), &
+                  qs_scf_kp_search_endpoint("OT BROY"), &
+                  qs_scf_kp_search_endpoint("OT LBFGS")])) THEN
+      ERROR STOP "K-point REF refresh rejected a supported minimizer endpoint"
+   END IF
+   IF (qs_scf_kp_search_endpoint("OT LS") .OR. qs_scf_kp_search_endpoint("OT Sync")) THEN
+      ERROR STOP "K-point REF refresh counted a non-endpoint OT iteration"
    END IF
 
    infinity = ieee_value(0.0_dp, ieee_positive_inf)
