@@ -21,5 +21,5 @@
 "argon-vdW-DF-optB88.inp"               = [{matcher="E_total", tol=2e-13, ref=-84.83650261177308}]
 "argon-vdW-DF-optPBE.inp"               = [{matcher="E_total", tol=2e-13, ref=-84.83934531955803}]
 "argon-vdW-DF2-b86r.inp"                = [{matcher="E_total", tol=2e-13, ref=-84.62927314675835}]
-"argon-vdW-DF-cx0p.inp"                 = [{matcher="E_total", tol=2e-13, ref=-42.30332492815149}]
+"argon-vdW-DF-cx0p.inp"                 = [{matcher="E_total", tol=2e-13, ref=-42.30332492803327}]
 #EOF

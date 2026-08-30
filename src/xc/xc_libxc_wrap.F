@@ -27,13 +27,16 @@ MODULE xc_libxc_wrap
    This version of CP2K ONLY works with libxc versions 5.1.0 and above.
    Furthermore, -I${LIBXC_DIR}/include needs to be added to FCFLAGS.
 #else
-   ! Functionals which require parameters
-   USE cp_log_handling, ONLY: cp_to_string
    USE kinds, ONLY: dp
    USE xc_f03_lib_m, ONLY: xc_f03_func_end, &
                            xc_f03_func_init, &
                            xc_f03_functional_get_name, &
                            xc_f03_func_set_ext_params, &
+                           xc_f03_func_set_dens_threshold, &
+                           xc_f03_func_set_tau_threshold, &
+                           xc_f03_version_string, &
+                           xc_f03_reference, &
+                           xc_f03_reference_doi, &
                            xc_f03_functional_get_number, &
                            xc_f03_available_functional_numbers, &
                            xc_f03_available_functional_names, &
@@ -99,11 +102,6 @@ MODULE xc_libxc_wrap
                            XC_FLAGS_HAVE_EXC, &
                            XC_FLAGS_DEVELOPMENT
 
-   USE input_section_types, ONLY: section_add_keyword, &
-                                  section_add_subsection, &
-                                  section_create, &
-                                  section_release, &
-                                  section_type, section_vals_type, section_vals_val_get
 #include "../base/base_uses.f90"
 #endif
    IMPLICIT NONE
@@ -115,7 +113,7 @@ MODULE xc_libxc_wrap
    CHARACTER(LEN=*), PARAMETER, PUBLIC :: libxc_version = XC_VERSION
 
    PUBLIC :: xc_f03_func_t, xc_f03_func_info_t
-   PUBLIC :: xc_f03_func_init, xc_f03_func_end
+   PUBLIC :: xc_f03_func_init, xc_f03_func_end, xc_f03_func_set_ext_params
    PUBLIC :: xc_f03_functional_get_name, xc_f03_available_functional_numbers, xc_f03_maximum_name_length, &
              xc_f03_number_of_functionals, xc_f03_available_functional_names
    PUBLIC :: xc_f03_func_get_info, xc_f03_func_info_get_family, xc_f03_func_info_get_kind, &
@@ -140,9 +138,11 @@ MODULE xc_libxc_wrap
 ! wrappers for routines
    PUBLIC :: xc_libxc_wrap_info_refs, &
              xc_libxc_wrap_version, &
+             xc_libxc_wrap_library_reference, &
+             xc_libxc_wrap_info_needs_laplace, &
+             xc_libxc_wrap_info_no_exc, &
+             xc_libxc_wrap_set_thresholds, &
              xc_libxc_wrap_functional_get_number, &
-             xc_libxc_wrap_needs_laplace, &
-             xc_libxc_wrap_functional_set_params, &
              xc_libxc_wrap_is_under_development, &
              xc_libxc_get_reference_length, &
              xc_libxc_check_functional
@@ -292,13 +292,18 @@ CONTAINS
    END SUBROUTINE xc_libxc_wrap_info_refs
 
 ! **************************************************************************************************
-!> \brief Provides a version string.
-!> \param version ...
+!> \brief Provides the version of the LibXC library CP2K is running against.
+!> \param version version string reported by the library at run time
+!> \param compiled_version version of the headers CP2K was compiled against
 !> \author A. Gloess (agloess)
+!> \note The run-time and compile-time versions differ whenever CP2K is executed
+!>       against a shared LibXC other than the one it was built with. Reporting
+!>       the run-time version is what actually describes the numbers produced.
 !>
 ! **************************************************************************************************
-   SUBROUTINE xc_libxc_wrap_version(version)
+   SUBROUTINE xc_libxc_wrap_version(version, compiled_version)
       CHARACTER(LEN=*), INTENT(OUT)                      :: version
+      CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: compiled_version
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_version'
 
@@ -306,11 +311,74 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      version = TRIM(libxc_version)
+      CALL xc_f03_version_string(version)
+      IF (PRESENT(compiled_version)) compiled_version = TRIM(libxc_version)
 
       CALL timestop(handle)
 
    END SUBROUTINE xc_libxc_wrap_version
+
+! **************************************************************************************************
+!> \brief Provides the citation LibXC asks to be given for the library itself.
+!> \param reference bibliographic reference
+!> \param doi digital object identifier of that reference
+!> \author S. Lehtola
+!> \note Taken from the library at run time rather than hard-coded, so that the
+!>       citation stays correct when LibXC updates its own self-citation.
+!>
+! **************************************************************************************************
+   SUBROUTINE xc_libxc_wrap_library_reference(reference, doi)
+      CHARACTER(LEN=*), INTENT(OUT)                      :: reference, doi
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_library_reference'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CALL xc_f03_reference(reference)
+      CALL xc_f03_reference_doi(doi)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE xc_libxc_wrap_library_reference
+
+! **************************************************************************************************
+!> \brief Applies the CP2K screening cutoffs to a LibXC functional object.
+!> \param xc_func LibXC functional object
+!> \param xc_info info object belonging to xc_func
+!> \param epsilon_rho density cutoff (XC%DENSITY_CUTOFF)
+!> \param epsilon_tau kinetic energy density cutoff (XC%TAU_CUTOFF)
+!> \author S. Lehtola
+!> \note LibXC screens every point against the density threshold internally, which
+!>       is what allows CP2K to hand it whole blocks of points instead of filtering
+!>       point by point. The sigma threshold is deliberately left at LibXC's own
+!>       default: CP2K has no cutoff of its own on the gradient here, and raising
+!>       it in step with the density cutoff would floor sigma for points with a
+!>       small gradient that used to be evaluated as given.
+!>
+! **************************************************************************************************
+   SUBROUTINE xc_libxc_wrap_set_thresholds(xc_func, xc_info, epsilon_rho, epsilon_tau)
+      TYPE(xc_f03_func_t), INTENT(INOUT)                 :: xc_func
+      TYPE(xc_f03_func_info_t), INTENT(IN)               :: xc_info
+      REAL(KIND=dp), INTENT(IN)                          :: epsilon_rho, epsilon_tau
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_set_thresholds'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CALL xc_f03_func_set_dens_threshold(xc_func, epsilon_rho)
+
+      SELECT CASE (xc_f03_func_info_get_family(xc_info))
+      CASE (XC_FAMILY_MGGA, XC_FAMILY_HYB_MGGA)
+         CALL xc_f03_func_set_tau_threshold(xc_func, epsilon_tau)
+      END SELECT
+
+      CALL timestop(handle)
+
+   END SUBROUTINE xc_libxc_wrap_set_thresholds
 
 ! **************************************************************************************************
 !> \brief Checks existence of functional in LibXC
@@ -401,93 +469,43 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Wrapper for functionals that need the Laplacian, all others can use
 !>        a dummy array.
-!> \param func_id ...
+!> \param xc_info info object of an already initialized functional
 !>
 !> \return ...
 !> \author A. Gloess (agloess)
+!> \note Reads the flag off an info object the caller already holds. Creating a
+!>       throw-away functional object just to look at one flag used to cost an
+!>       extra xc_f03_func_init/xc_f03_func_end pair per evaluated batch.
 ! **************************************************************************************************
-   LOGICAL FUNCTION xc_libxc_wrap_needs_laplace(func_id)
+   LOGICAL FUNCTION xc_libxc_wrap_info_needs_laplace(xc_info)
       ! Only some MGGA functionals needs the laplacian
-      INTEGER, INTENT(IN)                                :: func_id
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_needs_laplace'
-
-      INTEGER                                            :: handle
-      TYPE(xc_f03_func_info_t)                           :: xc_info
-      TYPE(xc_f03_func_t)                                :: xc_func
-
-      CALL timeset(routineN, handle)
-
-      ! Some MGGa need the laplace explicit and some just need an arbitrary array
-      ! of the correct size.
-      !
-      ! Assumption (.true. in v2.1.0 - v4.0.x):
-      !             if
-      !                functional is Laplace-dependent for XC_UNPOLARIZED
-      !             then
-      !                functional will be Laplace-dependent for XC_POLARIZED too.
-      !
-!$OMP CRITICAL(libxc_init)
-      CALL xc_f03_func_init(xc_func, func_id, XC_UNPOLARIZED)
-      xc_info = xc_f03_func_get_info(xc_func)
-!$OMP END CRITICAL(libxc_init)
-!$OMP BARRIER
-      IF (IAND(xc_f03_func_info_get_flags(xc_info), XC_FLAGS_NEEDS_LAPLACIAN) == XC_FLAGS_NEEDS_LAPLACIAN) THEN
-         xc_libxc_wrap_needs_laplace = .TRUE.
-      ELSE
-         xc_libxc_wrap_needs_laplace = .FALSE.
-      END IF
-
-      CALL xc_f03_func_end(xc_func)
-
-      CALL timestop(handle)
-
-   END FUNCTION xc_libxc_wrap_needs_laplace
-
-! **************************************************************************************************
-!> \brief Wrapper for functionals that need special parameters.
-!> \param xc_func ...
-!> \param xc_info ...
-!> \param libxc_params ...
-!> \param no_exc ...
-!>
-!> \author A. Gloess (agloess)
-! **************************************************************************************************
-   SUBROUTINE xc_libxc_wrap_functional_set_params(xc_func, xc_info, libxc_params, no_exc)
-      TYPE(xc_f03_func_t), INTENT(INOUT)                 :: xc_func
       TYPE(xc_f03_func_info_t), INTENT(IN)               :: xc_info
-      TYPE(section_vals_type), POINTER, INTENT(IN)       :: libxc_params
-      LOGICAL, INTENT(INOUT)                             :: no_exc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_functional_set_params'
-
-      INTEGER                                            :: handle, i, n_params
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: params
-      CHARACTER(LEN=128)                                 :: param_name
-
-      CALL timeset(routineN, handle)
-
-      n_params = xc_f03_func_info_get_n_ext_params(xc_info)
-      IF (n_params > 0) THEN
-         ALLOCATE (params(n_params))
-         DO i = 1, n_params
-            param_name = xc_f03_func_info_get_ext_params_name(xc_info, i - 1)
-
-            CALL section_vals_val_get(libxc_params, TRIM(param_name), r_val=params(i))
-         END DO
-
-         CALL xc_f03_func_set_ext_params(xc_func, params)
+      IF (IAND(xc_f03_func_info_get_flags(xc_info), XC_FLAGS_NEEDS_LAPLACIAN) == XC_FLAGS_NEEDS_LAPLACIAN) THEN
+         xc_libxc_wrap_info_needs_laplace = .TRUE.
+      ELSE
+         xc_libxc_wrap_info_needs_laplace = .FALSE.
       END IF
+
+   END FUNCTION xc_libxc_wrap_info_needs_laplace
+
+! **************************************************************************************************
+!> \brief Whether the functional does not provide the energy density.
+!> \param xc_info info object of an already initialized functional
+!>
+!> \return .TRUE. when LibXC cannot supply Exc for this functional
+!> \author S. Lehtola
+! **************************************************************************************************
+   LOGICAL FUNCTION xc_libxc_wrap_info_no_exc(xc_info)
+      TYPE(xc_f03_func_info_t), INTENT(IN)               :: xc_info
 
       IF (IAND(xc_f03_func_info_get_flags(xc_info), XC_FLAGS_HAVE_EXC) == XC_FLAGS_HAVE_EXC) THEN
-         no_exc = .FALSE.
+         xc_libxc_wrap_info_no_exc = .FALSE.
       ELSE
-         no_exc = .TRUE.
+         xc_libxc_wrap_info_no_exc = .TRUE.
       END IF
 
-      CALL timestop(handle)
-
-   END SUBROUTINE xc_libxc_wrap_functional_set_params
+   END FUNCTION xc_libxc_wrap_info_no_exc
 
 #endif
 #endif
