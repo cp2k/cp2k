@@ -2280,9 +2280,6 @@ CONTAINS
 
       ! Compatibility checks for smearing
       IF (scf_control%smear%do_smear) THEN
-         IF (dft_control%qs_control%xtb_control%do_tblite .AND. scf_control%use_ot) THEN
-            CPABORT("CP2K/tblite with OT does not support smearing.")
-         END IF
          IF (scf_control%added_mos(1) == 0) THEN
             CPABORT("Extra MOs (ADDED_MOS) are required for smearing")
          END IF
