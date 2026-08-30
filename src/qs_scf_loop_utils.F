@@ -392,11 +392,12 @@ CONTAINS
 !> \param allow_ot_kp_exit_refresh ...
 !> \param accepted_ot_kp_searches ...
 !> \param added_mos_auto_grow ...
+!> \param energy_only ...
 ! **************************************************************************************************
    SUBROUTINE qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, probe, &
                                 ot_kp_subspace_refresh, allow_ot_kp_subspace_refresh, &
                                 allow_ot_kp_exit_refresh, accepted_ot_kp_searches, &
-                                added_mos_auto_grow)
+                                added_mos_auto_grow, energy_only)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -407,13 +408,13 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: allow_ot_kp_subspace_refresh, &
                                                             allow_ot_kp_exit_refresh
       INTEGER, INTENT(IN), OPTIONAL                      :: accepted_ot_kp_searches
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: added_mos_auto_grow
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: added_mos_auto_grow, energy_only
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_new_mos_kp'
 
       INTEGER                                            :: accepted_searches, handle, ispin
       LOGICAL :: allow_exit_refresh, allow_refresh, base_state, disable_diis, has_unit_metric, &
-         my_added_mos_auto_grow, refresh
+         my_added_mos_auto_grow, ot_energy_only, refresh
       REAL(dp)                                           :: diis_error, residual, saved_eps_diis
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -433,6 +434,7 @@ CONTAINS
       IF (PRESENT(accepted_ot_kp_searches)) accepted_searches = accepted_ot_kp_searches
       IF (PRESENT(ot_kp_subspace_refresh)) ot_kp_subspace_refresh = .FALSE.
       IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .FALSE.
+      IF (PRESENT(energy_only)) energy_only = .FALSE.
 
       NULLIFY (dft_control, energy, kpoints, matrix_ks, matrix_s)
 
@@ -526,7 +528,8 @@ CONTAINS
             IF (PRESENT(ot_kp_subspace_refresh)) ot_kp_subspace_refresh = .TRUE.
          ELSE
             CALL qs_scf_loop_do_ot_kp(qs_env, scf_env, matrix_ks, matrix_s, &
-                                      my_added_mos_auto_grow)
+                                      my_added_mos_auto_grow, ot_energy_only)
+            IF (PRESENT(energy_only)) energy_only = ot_energy_only
             IF (my_added_mos_auto_grow) THEN
                IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
                IF (disable_diis) scf_control%eps_diis = saved_eps_diis
@@ -580,13 +583,14 @@ CONTAINS
 !> \param matrix_ks ...
 !> \param matrix_s ...
 !> \param added_mos_auto_grow ...
+!> \param energy_only ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_loop_do_ot_kp(qs_env, scf_env, matrix_ks, matrix_s, added_mos_auto_grow)
+   SUBROUTINE qs_scf_loop_do_ot_kp(qs_env, scf_env, matrix_ks, matrix_s, added_mos_auto_grow, energy_only)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
-      LOGICAL, INTENT(OUT)                               :: added_mos_auto_grow
+      LOGICAL, INTENT(OUT)                               :: added_mos_auto_grow, energy_only
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_do_ot_kp'
 
@@ -856,6 +860,7 @@ CONTAINS
          END IF
          scf_env%iter_delta = local_ot_env(1)%delta
       END IF
+      energy_only = local_ot_env(1)%energy_only
 
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
