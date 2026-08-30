@@ -2373,8 +2373,10 @@ CONTAINS
             CASE (ot_precond_full_all)
                CALL make_preconditioner_complex_full_all( &
                   scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+                  scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                  scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
                   matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
-                  kp%mos(1, ispin), kp%mos(2, ispin), &
+                  kp%mos(1, ispin), &
                   scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
                   scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
             CASE (ot_precond_full_single_inverse)

@@ -41,6 +41,8 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "li_ot_fixed_uks_diis.inp"              = [{matcher="E_total", tol=1e-9, ref=-7.304793043105472},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
+"li_ot_fixed_uks_full_all.inp"          = [{matcher="E_total", tol=1e-9, ref=-7.30479304513239},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "li_ot_fixed_uks_lbfgs_rotation.inp"    = [{matcher="E_total", tol=1e-9, ref=-7.30479343035225},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "li_ot_fixed_uks_strict_diis.inp"       = [{matcher="E_total", tol=1e-9, ref=-7.304793043105472},
