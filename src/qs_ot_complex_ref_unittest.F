@@ -607,17 +607,34 @@ CONTAINS
       vectors(:, 3) = [0.0_dp, 0.0_dp, 1.0_dp]
       eigenvalues(:) = [-0.4_dp, 1.7_dp, 0.25_dp]
       matrix(:, :) = MATMUL(vectors, MATMUL( &
-         RESHAPE([eigenvalues(1), 0.0_dp, 0.0_dp, 0.0_dp, eigenvalues(2), 0.0_dp, &
-                  0.0_dp, 0.0_dp, eigenvalues(3)], [3, 3]), TRANSPOSE(vectors)))
+                            RESHAPE([eigenvalues(1), 0.0_dp, 0.0_dp, 0.0_dp, eigenvalues(2), 0.0_dp, &
+                                     0.0_dp, 0.0_dp, eigenvalues(3)], [3, 3]), TRANSPOSE(vectors)))
       absolute_matrix(:, :) = MATMUL(vectors, MATMUL( &
-         RESHAPE([ABS(eigenvalues(1)), 0.0_dp, 0.0_dp, 0.0_dp, ABS(eigenvalues(2)), 0.0_dp, &
-                  0.0_dp, 0.0_dp, ABS(eigenvalues(3))], [3, 3]), TRANSPOSE(vectors)))
+                                     RESHAPE([ABS(eigenvalues(1)), 0.0_dp, 0.0_dp, 0.0_dp, ABS(eigenvalues(2)), 0.0_dp, &
+                                              0.0_dp, 0.0_dp, ABS(eigenvalues(3))], [3, 3]), TRANSPOSE(vectors)))
       rhs(:, 1) = [0.3_dp, -0.5_dp, 0.7_dp]
       rhs(:, 2) = [-0.2_dp, 0.4_dp, 0.1_dp]
       CALL qs_ot_symmetric_abs_solve(matrix, rhs, solution, valid)
       expected(:, :) = MATMUL(absolute_matrix, solution)
       error = MAXVAL(ABS(expected - rhs))
       IF (.NOT. valid .OR. error > 2.0E-13_dp) nfail = nfail + 1
+
+      eigenvalues(:) = [-0.4_dp, 1.7_dp, 1.0E-12_dp]
+      matrix(:, :) = MATMUL(vectors, MATMUL( &
+                            RESHAPE([eigenvalues(1), 0.0_dp, 0.0_dp, 0.0_dp, eigenvalues(2), 0.0_dp, &
+                                     0.0_dp, 0.0_dp, eigenvalues(3)], [3, 3]), TRANSPOSE(vectors)))
+      rhs(:, 1) = [0.3_dp, -0.5_dp, 0.7_dp]
+      rhs(:, 2) = [-0.2_dp, 0.4_dp, 0.1_dp]
+      CALL qs_ot_symmetric_abs_solve(matrix, rhs, solution, valid)
+      expected(:, :) = rhs(:, :)
+      expected(3, :) = 0.0_dp
+      absolute_matrix(:, :) = MATMUL(vectors(:, 1:2), MATMUL( &
+                                     RESHAPE([ABS(eigenvalues(1)), 0.0_dp, 0.0_dp, ABS(eigenvalues(2))], [2, 2]), &
+                                     TRANSPOSE(vectors(:, 1:2))))
+      error = MAX(error, MAXVAL(ABS(MATMUL(absolute_matrix, solution) - expected)))
+      IF (.NOT. valid .OR. error > 2.0E-13_dp .OR. MAXVAL(ABS(solution(3, :))) > 2.0E-13_dp) THEN
+         nfail = nfail + 1
+      END IF
       IF (mynode == 0) WRITE (io_unit, '(A,1X,ES13.6)') "symmetric absolute solve error:", error
 
    END SUBROUTINE test_symmetric_abs_solve

@@ -230,7 +230,8 @@ CONTAINS
 !>
 !>        The magnitude of every resolved eigenmode is retained, including modes with negative
 !>        physical curvature. Replacing lambda by abs(lambda) gives a descent metric without the
-!>        loss of response information caused by discarding the negative subspace.
+!>        loss of response information caused by discarding the negative subspace. Unresolved
+!>        null modes are projected out instead of being amplified by an artificial eigenvalue floor.
 !> \param matrix real symmetric response matrix
 !> \param rhs one or more right-hand sides
 !> \param solution spectral-absolute inverse applied to rhs
@@ -238,15 +239,16 @@ CONTAINS
 !> \param relative_floor optional relative eigenvalue floor
 ! **************************************************************************************************
    SUBROUTINE qs_ot_symmetric_abs_solve(matrix, rhs, solution, valid, relative_floor)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)          :: matrix, rhs
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)         :: solution
-      LOGICAL, INTENT(OUT)                                :: valid
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                 :: relative_floor
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: matrix, rhs
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: solution
+      LOGICAL, INTENT(OUT)                               :: valid
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: relative_floor
 
-      INTEGER                                             :: i, n
-      REAL(KIND=dp)                                       :: eigenvalue_floor, relative_floor_eff, scale
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: eigenvalues
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: eigenvectors, work
+      INTEGER                                            :: i, n, nresolved
+      REAL(KIND=dp)                                      :: eigenvalue_floor, relative_floor_eff, &
+                                                            scale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvectors, work
 
       n = SIZE(matrix, 1)
       CPASSERT(ALL(SHAPE(matrix) == [n, n]))
@@ -266,11 +268,17 @@ CONTAINS
       scale = MAX(1.0_dp, MAXVAL(ABS(eigenvalues)))
       eigenvalue_floor = relative_floor_eff*scale
       work(:, :) = MATMUL(TRANSPOSE(eigenvectors), rhs)
+      nresolved = 0
       DO i = 1, n
-         work(i, :) = work(i, :)/MAX(ABS(eigenvalues(i)), eigenvalue_floor)
+         IF (ABS(eigenvalues(i)) > eigenvalue_floor) THEN
+            work(i, :) = work(i, :)/ABS(eigenvalues(i))
+            nresolved = nresolved + 1
+         ELSE
+            work(i, :) = 0.0_dp
+         END IF
       END DO
       solution(:, :) = MATMUL(eigenvectors, work)
-      valid = ALL(solution == solution)
+      valid = nresolved > 0 .AND. ALL(solution == solution)
       IF (.NOT. valid) solution(:, :) = 0.0_dp
       DEALLOCATE (eigenvalues, eigenvectors, work)
 
