@@ -79,7 +79,8 @@ MODULE qs_scf_loop_utils
         qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, qs_ot_fixed_n_schur_block, &
         qs_ot_get_orbitals_complex, qs_ot_get_orbitals_ref_complex, &
         qs_ot_projected_response_update, qs_ot_symmetric_abs_solve
-   USE qs_ot_minimizer,                 ONLY: ot_mermin_secant_curvature,&
+   USE qs_ot_minimizer,                 ONLY: ot_mermin_response_preparation_needed,&
+                                              ot_mermin_secant_curvature,&
                                               ot_mini,&
                                               ot_mini_prepare_gradient
    USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
@@ -917,9 +918,14 @@ CONTAINS
                   para_env_inter_kp=para_env_inter_kp)
             END IF
             ot_gradient_prepared = .TRUE.
-            CALL qs_scf_loop_prepare_ot_kp_rotation_response( &
-               kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, &
-               scf_control%smear, trial_occupation)
+            ! A coupled response direction is consumed only when the minimizer starts a new
+            ! search.  Line-search trial points still need their physical gradient, but rebuilding
+            ! the dense finite-rotation Hessian there cannot affect the accepted direction.
+            IF (physical_base_state) THEN
+               CALL qs_scf_loop_prepare_ot_kp_rotation_response( &
+                  kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, &
+                  scf_control%smear, trial_occupation)
+            END IF
             IF (physical_base_state .AND. &
                 local_ot_env(1)%settings%occupation_preconditioner .AND. &
                 (local_ot_env(1)%settings%ot_method == "CG" .OR. &
@@ -1654,6 +1660,12 @@ CONTAINS
       IF (.NOT. local_ot_env(1)%settings%occupation_preconditioner .OR. &
           .NOT. local_ot_env(1)%settings%do_rotation .OR. &
           .NOT. local_ot_env(1)%settings%do_ener) RETURN
+      IF (.NOT. ot_mermin_response_preparation_needed( &
+          local_ot_env(1)%delta, local_ot_env(1)%response_candidate_directions, &
+          local_ot_env(1)%response_shadow_good_samples, &
+          local_ot_env(1)%response_candidate_good_samples, &
+          local_ot_env(1)%response_candidate_cooldown, &
+          local_ot_env(1)%response_shadow_pending)) RETURN
       CPASSERT(smear%do_smear)
       CPASSERT(smear%method == smear_fermi_dirac)
       CPASSERT(ASSOCIATED(para_env_inter_kp))

@@ -49,8 +49,11 @@ MODULE qs_ot_minimizer
               lbfgs_response_secant_parameters, &
               lbfgs_step_restart_required, &
               ot_mermin_response_assess, &
+              ot_mermin_response_candidate_preferred, &
               ot_mermin_response_compare, &
+              ot_mermin_response_preparation_needed, &
               ot_mermin_response_probe, &
+              ot_mermin_response_shadow_followup, &
               ot_mermin_secant_curvature, &
               ot_mini, &
               ot_mini_prepare_gradient
@@ -491,6 +494,62 @@ CONTAINS
    END SUBROUTINE ot_mermin_response_compare
 
 ! **************************************************************************************************
+!> \brief Compare response and conventional directions in one accepted Mermin model.
+!>
+!>        The most recent accepted conventional secant supplies the dimensionless local curvature
+!>        ratio kappa/g.  Applying that ratio to the current conventional slope transfers the
+!>        measured line-search model without assuming that the two directions have equal norms.
+!>        Both candidates are then evaluated at the same line-search position.
+!> \param baseline_slope positive current conventional directional decrease
+!> \param response_slope positive current response directional decrease
+!> \param response_curvature current finite-response curvature
+!> \param accepted_slope positive slope of the preceding accepted conventional search
+!> \param accepted_curvature measured total curvature of that accepted search
+!> \param position common line-search position used for comparison
+!> \param baseline_drop predicted conventional Mermin decrease
+!> \param response_drop predicted response Mermin decrease
+!> \param relative_gain response improvement relative to the larger predicted decrease
+!> \param preferred whether the response model predicts a resolved improvement
+! **************************************************************************************************
+   PURE SUBROUTINE ot_mermin_response_candidate_preferred( &
+      baseline_slope, response_slope, response_curvature, accepted_slope, accepted_curvature, &
+      position, baseline_drop, response_drop, relative_gain, preferred)
+      REAL(KIND=dp), INTENT(IN)                          :: baseline_slope, response_slope, &
+                                                            response_curvature, accepted_slope, &
+                                                            accepted_curvature, position
+      REAL(KIND=dp), INTENT(OUT)                         :: baseline_drop, response_drop, &
+                                                            relative_gain
+      LOGICAL, INTENT(OUT)                               :: preferred
+
+      REAL(KIND=dp)                                      :: alpha, baseline_curvature, &
+                                                            curvature_ratio, resolution, scale
+
+      baseline_drop = 0.0_dp
+      response_drop = 0.0_dp
+      relative_gain = 0.0_dp
+      preferred = .FALSE.
+      IF (.NOT. ieee_is_finite(baseline_slope) .OR. .NOT. ieee_is_finite(response_slope) .OR. &
+          .NOT. ieee_is_finite(response_curvature) .OR. .NOT. ieee_is_finite(accepted_slope) .OR. &
+          .NOT. ieee_is_finite(accepted_curvature) .OR. .NOT. ieee_is_finite(position)) RETURN
+
+      alpha = ABS(position)
+      scale = MAX(1.0_dp, ABS(baseline_slope), ABS(response_slope), &
+                  ABS(response_curvature), ABS(accepted_slope), ABS(accepted_curvature))
+      resolution = 256.0_dp*EPSILON(1.0_dp)*scale
+      IF (alpha <= SQRT(EPSILON(1.0_dp)) .OR. baseline_slope <= resolution .OR. &
+          response_slope <= resolution .OR. accepted_slope <= resolution) RETURN
+
+      curvature_ratio = accepted_curvature/accepted_slope
+      baseline_curvature = curvature_ratio*baseline_slope
+      baseline_drop = alpha*baseline_slope - 0.5_dp*alpha**2*baseline_curvature
+      response_drop = alpha*response_slope - 0.5_dp*alpha**2*response_curvature
+      scale = MAX(ABS(baseline_drop), ABS(response_drop), resolution)
+      relative_gain = (response_drop - baseline_drop)/scale
+      preferred = response_drop > resolution .AND. response_drop > baseline_drop + resolution
+
+   END SUBROUTINE ot_mermin_response_candidate_preferred
+
+! **************************************************************************************************
 !> \brief Select a sparse coupled-response probe from accepted-history evidence.
 !> \param available whether every local channel has a finite coupled response
 !> \param residual current conventional-preconditioned residual
@@ -521,6 +580,81 @@ CONTAINS
       probe = phase == 0 .OR. phase == 1
 
    END FUNCTION ot_mermin_response_probe
+
+! **************************************************************************************************
+!> \brief Decide whether the next accepted state needs the dense finite Mermin response.
+!>
+!>        A pending shadow is always completed. Otherwise the response is prepared while collecting
+!>        the initial accepted-step calibration and at the state immediately preceding a sparse
+!>        response-probe window. The relaxed residual bound accounts for using the preceding
+!>        accepted residual before the current norm has been reduced across K-point groups.
+!> \param residual preceding accepted conventional-preconditioned residual
+!> \param directions number of accepted directions already seen
+!> \param shadow_good_samples useful passive accepted-step samples
+!> \param good_samples useful active response samples
+!> \param cooldown accepted directions remaining after a failed active sample
+!> \param shadow_pending whether the current endpoint must assess a prepared shadow
+!> \return whether to build the dense finite response at the current accepted endpoint
+! **************************************************************************************************
+   PURE FUNCTION ot_mermin_response_preparation_needed( &
+      residual, directions, shadow_good_samples, good_samples, cooldown, shadow_pending) RESULT(prepare)
+      REAL(KIND=dp), INTENT(IN)                          :: residual
+      INTEGER, INTENT(IN)                                :: directions, shadow_good_samples, &
+                                                            good_samples, cooldown
+      LOGICAL, INTENT(IN)                                :: shadow_pending
+      LOGICAL                                            :: prepare
+
+      INTEGER                                            :: interval, next_direction, phase
+
+      prepare = shadow_pending
+      IF (prepare) RETURN
+      IF (.NOT. ieee_is_finite(residual) .OR. residual <= 0.0_dp .OR. residual > 4.0E-3_dp) RETURN
+      IF (cooldown > 1) RETURN
+      IF (shadow_good_samples < 3) THEN
+         prepare = .TRUE.
+         RETURN
+      END IF
+
+      interval = 8
+      IF (good_samples >= 3) interval = 4
+      next_direction = MIN(HUGE(directions) - 1, MAX(0, directions) + 1)
+      phase = MOD(next_direction, interval)
+      prepare = phase == interval - 1
+
+   END FUNCTION ot_mermin_response_preparation_needed
+
+! **************************************************************************************************
+!> \brief Decide whether a prepared conventional direction needs a shadow at its endpoint.
+!> \param residual current conventional-preconditioned residual
+!> \param directions number of accepted directions including the current one
+!> \param shadow_good_samples useful passive accepted-step samples
+!> \param good_samples useful active response samples
+!> \param cooldown accepted directions remaining after a failed active sample
+!> \return whether the next accepted endpoint must assess the current response shadow
+! **************************************************************************************************
+   PURE FUNCTION ot_mermin_response_shadow_followup( &
+      residual, directions, shadow_good_samples, good_samples, cooldown) RESULT(followup)
+      REAL(KIND=dp), INTENT(IN)                          :: residual
+      INTEGER, INTENT(IN)                                :: directions, shadow_good_samples, &
+                                                            good_samples, cooldown
+      LOGICAL                                            :: followup
+
+      INTEGER                                            :: interval, phase
+
+      followup = .FALSE.
+      IF (.NOT. ieee_is_finite(residual) .OR. residual <= 0.0_dp .OR. residual > 4.0E-3_dp) RETURN
+      IF (cooldown > 1) RETURN
+      IF (shadow_good_samples < 3) THEN
+         followup = .TRUE.
+         RETURN
+      END IF
+
+      interval = 8
+      IF (good_samples >= 3) interval = 4
+      phase = MOD(MAX(0, directions), interval)
+      followup = phase == interval - 1 .OR. phase == 0
+
+   END FUNCTION ot_mermin_response_shadow_followup
 
 !
 ! checks if the current point is a good point for finding a new direction
@@ -1329,14 +1463,16 @@ CONTAINS
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_cg_direction'
-      LOGICAL, PARAMETER :: apply_finite_response_candidate = .FALSE.
+      LOGICAL, PARAMETER :: apply_finite_response_candidate = .TRUE.
 
       INTEGER                                            :: handle, ispin, itmp, k, n, nener, nspin
       LOGICAL :: active_candidate_available, candidate_available, candidate_good, do_ener, do_ks, &
-         shadow_good, use_response_candidate
-      REAL(KIND=dp) :: baseline_delta, baseline_gnorm, beta_pr, gnorm_cross, measured_drop, &
-         nvariables, predicted_drop, response_advantage, response_quality, &
-         response_residual_ratio, response_test_down, test_down, tmp
+         preceding_response_candidate, probe_response_candidate, shadow_good, &
+         use_response_candidate
+      REAL(KIND=dp) :: baseline_delta, baseline_gnorm, baseline_model_drop, beta_pr, gnorm_cross, &
+         measured_drop, nvariables, predicted_drop, response_advantage, response_model_drop, &
+         response_quality, response_relative_gain, response_residual_ratio, response_test_down, &
+         test_down, tmp
       TYPE(cp_logger_type), POINTER                      :: logger
 
 ! Only the physical low-rank subspace solve can become active. The frozen-H response remains a
@@ -1348,6 +1484,7 @@ CONTAINS
       logger => cp_get_default_logger()
       shadow_good = .FALSE.
       candidate_good = .FALSE.
+      preceding_response_candidate = qs_ot_env(1)%response_candidate_pending
 
       do_ks = qs_ot_env(1)%settings%ks
       do_ener = qs_ot_env(1)%settings%do_ener
@@ -1725,27 +1862,14 @@ CONTAINS
       END DO
       active_candidate_available = candidate_available .AND. shadow_good .AND. &
                                    qs_ot_env(1)%response_hxc_direction_valid
-      use_response_candidate = ot_mermin_response_probe( &
-                               active_candidate_available .AND. apply_finite_response_candidate, &
-                               baseline_delta, &
-                               qs_ot_env(1)%response_candidate_directions, &
-                               qs_ot_env(1)%response_shadow_good_samples, &
-                               qs_ot_env(1)%response_candidate_good_samples, &
-                               qs_ot_env(1)%response_candidate_cooldown)
-      IF (use_response_candidate .AND. logger%iter_info%print_level >= high_print_level .AND. &
-          logger%para_env%is_source()) THEN
-         WRITE (cp_logger_get_default_unit_nr(logger), '(A,4(1X,I5),8(1X,ES16.8))') &
-            " OT Mermin response candidate selected directions shadow active residual curvature advantage ema "// &
-            "density occupation rotation ref:", &
-            qs_ot_env(1)%response_candidate_directions, qs_ot_env(1)%response_shadow_good_samples, &
-            qs_ot_env(1)%response_candidate_good_samples, qs_ot_env(1)%response_candidate_cooldown, &
-            baseline_delta, qs_ot_env(1)%response_model_curvature, &
-            qs_ot_env(1)%response_shadow_advantage, qs_ot_env(1)%response_shadow_advantage_ema, &
-            qs_ot_env(1)%response_density_tangent_norm, &
-            qs_ot_env(1)%response_occupation_tangent_max, &
-            qs_ot_env(1)%response_rotation_bound, &
-            qs_ot_env(1)%response_ref_direction_norm
-      END IF
+      probe_response_candidate = ot_mermin_response_probe( &
+                                 active_candidate_available .AND. apply_finite_response_candidate, &
+                                 baseline_delta, &
+                                 qs_ot_env(1)%response_candidate_directions, &
+                                 qs_ot_env(1)%response_shadow_good_samples, &
+                                 qs_ot_env(1)%response_candidate_good_samples, &
+                                 qs_ot_env(1)%response_candidate_cooldown)
+      use_response_candidate = .FALSE.
       ! Keep convergence reporting tied to the conventional preconditioned residual. The finite
       ! response is an accepted-step candidate, not a redefinition of the physical stopping test.
       qs_ot_env(1)%delta = baseline_delta
@@ -1754,6 +1878,7 @@ CONTAINS
       ELSE
          beta_pr = 0.0_dp
       END IF
+      IF (preceding_response_candidate) beta_pr = 0.0_dp
       beta_pr = MAX(beta_pr, 0.0_dp) ! reset to SD
 
       test_down = 0.0_dp
@@ -1828,8 +1953,11 @@ CONTAINS
       ! Probe the coupled finite response without replacing the conventional CG history. The
       ! candidate is assembled in separate workspaces and used for this search only, avoiding two
       ! artificial history resets around every sparse probe.
-      IF (use_response_candidate) THEN
+      IF (probe_response_candidate) THEN
          response_test_down = 0.0_dp
+         baseline_model_drop = 0.0_dp
+         response_model_drop = 0.0_dp
+         response_relative_gain = 0.0_dp
          IF (do_ks) THEN
             DO ispin = 1, nspin
                CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
@@ -1859,6 +1987,31 @@ CONTAINS
          END IF
          CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, response_test_down)
          IF (response_test_down < 0.0_dp) THEN
+            CALL ot_mermin_response_candidate_preferred( &
+               -test_down, -response_test_down, qs_ot_env(1)%response_model_curvature, &
+               qs_ot_env(1)%response_predicted_slope, qs_ot_env(1)%response_shadow_curvature, &
+               qs_ot_env(1)%ds_min, baseline_model_drop, response_model_drop, &
+               response_relative_gain, use_response_candidate)
+         END IF
+         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
+            WRITE (cp_logger_get_default_unit_nr(logger), '(A,4(1X,I5),11(1X,ES16.8),2(1X,L1))') &
+               " OT Mermin response candidate comparison directions shadow active cooldown residual "// &
+               "curvature advantage ema density occupation rotation ref baseline response gain probe use:", &
+               qs_ot_env(1)%response_candidate_directions, &
+               qs_ot_env(1)%response_shadow_good_samples, &
+               qs_ot_env(1)%response_candidate_good_samples, &
+               qs_ot_env(1)%response_candidate_cooldown, baseline_delta, &
+               qs_ot_env(1)%response_model_curvature, &
+               qs_ot_env(1)%response_shadow_advantage, &
+               qs_ot_env(1)%response_shadow_advantage_ema, &
+               qs_ot_env(1)%response_density_tangent_norm, &
+               qs_ot_env(1)%response_occupation_tangent_max, &
+               qs_ot_env(1)%response_rotation_bound, &
+               qs_ot_env(1)%response_ref_direction_norm, baseline_model_drop, &
+               response_model_drop, response_relative_gain, probe_response_candidate, &
+               use_response_candidate
+         END IF
+         IF (use_response_candidate) THEN
             DO ispin = 1, nspin
                IF (do_ks) THEN
                   CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, &
@@ -1881,8 +2034,6 @@ CONTAINS
                IF (do_ener) qs_ot_env(ispin)%ener_dx = -qs_ot_env(ispin)%ener_response_gx
             END DO
             test_down = response_test_down
-         ELSE
-            use_response_candidate = .FALSE.
          END IF
       END IF
       qs_ot_env(1)%response_reference_energy = qs_ot_env(1)%etotal
@@ -1899,7 +2050,13 @@ CONTAINS
             qs_ot_env(1)%response_model_curvature
       ELSE
          qs_ot_env(1)%response_candidate_pending = .FALSE.
-         qs_ot_env(1)%response_shadow_pending = candidate_available
+         qs_ot_env(1)%response_shadow_pending = candidate_available .AND. &
+                                                ot_mermin_response_shadow_followup( &
+                                                baseline_delta, &
+                                                qs_ot_env(1)%response_candidate_directions, &
+                                                qs_ot_env(1)%response_shadow_good_samples, &
+                                                qs_ot_env(1)%response_candidate_good_samples, &
+                                                qs_ot_env(1)%response_candidate_cooldown)
       END IF
       ! since we change the direction we have to adjust the gradient
       IF (use_response_candidate) THEN
