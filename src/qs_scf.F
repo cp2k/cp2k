@@ -1541,10 +1541,6 @@ CONTAINS
                 scf_env%qs_ot_env(1)%settings%OT_METHOD /= "LBFG") THEN
                CPABORT("K-point Mermin OT supports OT%MINIMIZER CG, SD, DIIS, or LBFGS.")
             END IF
-            IF (scf_env%qs_ot_env(1)%settings%OT_METHOD == "DIIS" .AND. &
-                scf_env%qs_ot_env(1)%settings%occupation_preconditioner) THEN
-               CPABORT("Mermin DIIS cannot combine with OCCUPATION_PRECONDITIONER; use CG or disable it.")
-            END IF
          ELSE IF (scf_env%qs_ot_env(1)%settings%do_ener) THEN
             CPABORT("OT%ENERGIES requires FERMI_DIRAC smearing in the complex K-point path.")
          END IF
