@@ -12,13 +12,16 @@ PROGRAM qs_ot_minimizer_unittest
    USE kinds,                           ONLY: dp
    USE qs_ot_minimizer,                 ONLY: lbfgs_curvature_damping_shift,&
                                               lbfgs_history_restart_required,&
+                                              lbfgs_response_secant_parameters,&
                                               lbfgs_step_restart_required
    USE qs_scf_loop_utils,               ONLY: qs_scf_kp_ref_refresh_ready
 
    IMPLICIT NONE
 
-   REAL(KIND=dp)                                      :: damping_shift, infinity, not_a_number, &
-                                                         sy_damped, yy_damped
+   LOGICAL                                            :: valid_response
+   REAL(KIND=dp)                                      :: damping_shift, infinity, mixed_curvature, &
+                                                         not_a_number, response_scale, &
+                                                         response_weight, sy_damped, yy_damped
 
    damping_shift = lbfgs_curvature_damping_shift(0.6_dp, 1.0_dp, 1.0_dp, 0.5_dp)
    IF (damping_shift /= 0.0_dp) ERROR STOP "Well-conditioned L-BFGS curvature was damped"
@@ -63,6 +66,31 @@ PROGRAM qs_ot_minimizer_unittest
    IF (lbfgs_step_restart_required(0.0_dp, 0.0_dp)) THEN
       ERROR STOP "L-BFGS step restarted without a valid reference step"
    END IF
+
+   CALL lbfgs_response_secant_parameters( &
+      1.0_dp, 4.0_dp, 2.0_dp, 9.0_dp, response_scale, response_weight, valid_response)
+   IF (.NOT. valid_response) ERROR STOP "Valid L-BFGS response secant was rejected"
+   IF (ABS(response_scale - 1.5_dp) > 1.0E-14_dp) THEN
+      ERROR STOP "L-BFGS response secant did not match the H0 direction norm"
+   END IF
+   IF (response_weight /= 1.0_dp) ERROR STOP "Well-aligned L-BFGS response secant was damped"
+
+   CALL lbfgs_response_secant_parameters( &
+      0.01_dp, 4.0_dp, 2.0_dp, 9.0_dp, response_scale, response_weight, valid_response)
+   IF (.NOT. valid_response) ERROR STOP "Dampable L-BFGS response secant was rejected"
+   mixed_curvature = response_weight*response_scale*0.01_dp + &
+                     (1.0_dp - response_weight)*2.0_dp
+   IF (ABS(mixed_curvature - 0.4_dp) > 1.0E-14_dp) THEN
+      ERROR STOP "L-BFGS response secant does not satisfy the Powell curvature bound"
+   END IF
+   IF (response_weight <= 0.0_dp .OR. response_weight >= 1.0_dp) THEN
+      ERROR STOP "Weak L-BFGS response secant was not convexly damped"
+   END IF
+
+   CALL lbfgs_response_secant_parameters( &
+      -1.0_dp, 4.0_dp, 2.0_dp, 9.0_dp, response_scale, response_weight, valid_response)
+   IF (valid_response) ERROR STOP "Non-descent L-BFGS response secant was accepted"
+   IF (response_weight /= 0.0_dp) ERROR STOP "Rejected L-BFGS response secant changed H0"
 
    IF (qs_scf_kp_ref_refresh_ready(11, 1.0E-4_dp, 1.0E-6_dp, .TRUE.)) THEN
       ERROR STOP "K-point REF refresh accepted insufficient history"
@@ -115,5 +143,8 @@ PROGRAM qs_ot_minimizer_unittest
    IF (lbfgs_curvature_damping_shift(not_a_number, 1.0_dp, 1.0_dp, 0.5_dp) /= 0.0_dp) THEN
       ERROR STOP "L-BFGS damping accepted NaN curvature"
    END IF
+   CALL lbfgs_response_secant_parameters( &
+      not_a_number, 1.0_dp, 1.0_dp, 1.0_dp, response_scale, response_weight, valid_response)
+   IF (valid_response) ERROR STOP "L-BFGS response secant accepted NaN curvature"
 
 END PROGRAM qs_ot_minimizer_unittest

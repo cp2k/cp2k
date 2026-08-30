@@ -1380,9 +1380,6 @@ CONTAINS
          IF (settings%ot_algorithm /= "TOD" .AND. settings%ot_algorithm /= "REF") THEN
             CPABORT("MINIMIZER LBFGS requires ALGORITHM STRICT or IRAC")
          END IF
-         IF (settings%occupation_preconditioner) THEN
-            CPABORT("LBFGS cannot combine with OCCUPATION_PRECONDITIONER; use CG or disable it")
-         END IF
       END IF
       IF (settings%do_ener .AND. .NOT. use_complex_kpoints) THEN
          CPABORT("OT%ENERGIES is currently supported only by the complex K-point Mermin path.")
