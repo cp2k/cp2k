@@ -332,8 +332,10 @@ CONTAINS
       END IF
       IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
          DO i = 1, SIZE(scf_env%ot_preconditioner)
-            CALL destroy_preconditioner(scf_env%ot_preconditioner(i)%preconditioner)
-            DEALLOCATE (scf_env%ot_preconditioner(i)%preconditioner)
+            IF (ASSOCIATED(scf_env%ot_preconditioner(i)%preconditioner)) THEN
+               CALL destroy_preconditioner(scf_env%ot_preconditioner(i)%preconditioner)
+               DEALLOCATE (scf_env%ot_preconditioner(i)%preconditioner)
+            END IF
          END DO
          DEALLOCATE (scf_env%ot_preconditioner)
       END IF
