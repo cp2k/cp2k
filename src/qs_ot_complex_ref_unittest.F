@@ -59,10 +59,10 @@ PROGRAM qs_ot_complex_ref_unittest
                                               init_preconditioner,&
                                               preconditioner_type
    USE qs_ot,                           ONLY: &
-        qs_ot_apply_complex_frechet_dbcsr, qs_ot_complex_exp_frechet_kernel, &
-        qs_ot_density_secant_hessian, qs_ot_density_secant_orbital_overlaps, &
-        qs_ot_density_secant_projected_hessian, qs_ot_density_tangent, &
-        qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, &
+        qs_ot_antihermitian_spectral_norm, qs_ot_apply_complex_frechet_dbcsr, &
+        qs_ot_complex_exp_frechet_kernel, qs_ot_density_secant_hessian, &
+        qs_ot_density_secant_orbital_overlaps, qs_ot_density_secant_projected_hessian, &
+        qs_ot_density_tangent, qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, &
         qs_ot_fixed_n_energy_hessian, qs_ot_fixed_n_projector_frechet, qs_ot_fixed_n_schur_block, &
         qs_ot_generate_rotation, qs_ot_get_derivative_complex, qs_ot_get_derivative_ref_complex, &
         qs_ot_get_orbitals_ref_complex, qs_ot_get_p_complex, qs_ot_projected_response_update, &
@@ -103,6 +103,7 @@ PROGRAM qs_ot_complex_ref_unittest
    mynode = mp_comm%mepos
    io_unit = -1
    IF (mynode == 0) io_unit = default_output_unit
+   CALL test_antihermitian_spectral_norm(mynode, nfail)
    CALL test_fixed_n_mermin_energy(mynode, nfail)
    CALL test_fixed_n_projector_frechet(mynode, nfail)
    CALL test_finite_rotation_response(mynode, nfail)
@@ -382,6 +383,38 @@ CONTAINS
       CALL cp_blacs_env_release(blacs_env)
 
    END SUBROUTINE test_kpoint_ot_energy_weighted_density
+! **************************************************************************************************
+!> \brief Check the complex rotation norm against an analytic pair and a unitary gauge change.
+!> \param mynode MPI rank
+!> \param nfail accumulated failures
+! **************************************************************************************************
+   SUBROUTINE test_antihermitian_spectral_norm(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      COMPLEX(KIND=dp), DIMENSION(3)                     :: phase
+      COMPLEX(KIND=dp), DIMENSION(3, 3)                  :: generator, transformed
+      INTEGER                                            :: i, j
+      REAL(KIND=dp)                                      :: error, norm, transformed_norm
+
+      generator(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      generator(1, 2) = CMPLX(0.3_dp, 0.4_dp, KIND=dp)
+      generator(2, 1) = -CONJG(generator(1, 2))
+      phase = EXP(CMPLX(0.0_dp, 1.0_dp, KIND=dp)*[0.37_dp, -0.51_dp, 0.83_dp])
+      DO j = 1, 3
+         DO i = 1, 3
+            transformed(i, j) = CONJG(phase(i))*generator(i, j)*phase(j)
+         END DO
+      END DO
+
+      norm = qs_ot_antihermitian_spectral_norm(generator)
+      transformed_norm = qs_ot_antihermitian_spectral_norm(transformed)
+      error = MAX(ABS(norm - 0.5_dp), ABS(transformed_norm - norm))
+      IF (mynode == 0) WRITE (default_output_unit, '(A,ES14.6)') &
+         "complex rotation spectral-norm error: ", error
+      IF (error > 1.0E-13_dp) nfail = nfail + 1
+
+   END SUBROUTINE test_antihermitian_spectral_norm
 
 ! **************************************************************************************************
 !> \brief Check the fixed-N Mermin gradient, dense gauge projector, and occupation Hessian.

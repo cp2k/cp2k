@@ -54,6 +54,7 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_get_derivative_ref
    PUBLIC  :: qs_ot_get_derivative_ref_complex
    PUBLIC  :: qs_ot_apply_complex_frechet_dbcsr
+   PUBLIC  :: qs_ot_antihermitian_spectral_norm
    PUBLIC  :: qs_ot_complex_exp_frechet_kernel
    PUBLIC  :: qs_ot_density_secant_hessian
    PUBLIC  :: qs_ot_density_secant_orbital_overlaps
@@ -88,6 +89,31 @@ MODULE qs_ot
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot'
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief spectral norm of a dense anti-Hermitian rotation generator
+!> \param rotation_generator anti-Hermitian generator
+!> \return largest absolute eigenvalue of i times the generator
+! **************************************************************************************************
+   FUNCTION qs_ot_antihermitian_spectral_norm(rotation_generator) RESULT(norm)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: rotation_generator
+      REAL(KIND=dp)                                      :: norm
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: eigenvectors
+      INTEGER                                            :: n
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+
+      n = SIZE(rotation_generator, 1)
+      CPASSERT(SIZE(rotation_generator, 2) == n)
+      norm = 0.0_dp
+      IF (n == 0) RETURN
+      ALLOCATE (eigenvectors(n, n), eigenvalues(n))
+      CALL diag_complex(CMPLX(0.0_dp, 1.0_dp, KIND=dp)*rotation_generator, &
+                        eigenvectors, eigenvalues)
+      norm = MAXVAL(ABS(eigenvalues))
+      DEALLOCATE (eigenvalues, eigenvectors)
+
+   END FUNCTION qs_ot_antihermitian_spectral_norm
 
 ! **************************************************************************************************
 !> \brief chemical-potential response for one fixed-electron-number group

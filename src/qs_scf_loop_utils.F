@@ -74,9 +74,10 @@ MODULE qs_scf_loop_utils
    USE qs_mom_methods,                  ONLY: do_mom_diag
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_ot,                           ONLY: &
-        qs_ot_density_secant_orbital_overlaps, qs_ot_density_secant_projected_hessian, &
-        qs_ot_density_tangent, qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, &
-        qs_ot_fixed_n_schur_block, qs_ot_get_orbitals_complex, qs_ot_get_orbitals_ref_complex, &
+        qs_ot_antihermitian_spectral_norm, qs_ot_density_secant_orbital_overlaps, &
+        qs_ot_density_secant_projected_hessian, qs_ot_density_tangent, &
+        qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, qs_ot_fixed_n_schur_block, &
+        qs_ot_get_orbitals_complex, qs_ot_get_orbitals_ref_complex, &
         qs_ot_projected_response_update, qs_ot_symmetric_abs_solve
    USE qs_ot_minimizer,                 ONLY: ot_mermin_secant_curvature,&
                                               ot_mini,&
@@ -1587,7 +1588,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: trial_occupation
 
       INTEGER, PARAMETER :: finite_response_max_rotation = 800
-      REAL(KIND=dp), PARAMETER                           :: rotation_trust_rms = 0.25_dp
+      REAL(KIND=dp), PARAMETER :: rotation_trust_rms = 0.25_dp, rotation_trust_spectral = 0.25_dp
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: chc, generator
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: channel_generator, density_modes
@@ -1598,7 +1599,8 @@ CONTAINS
       REAL(KIND=dp) :: accepted_cross, accepted_curvature, denominator, hxc_density_norm_sq, &
          hxc_density_norm_sq_channel, hxc_response_work, hxc_response_work_channel, maxocc, &
          response_cross, response_density_norm_sq, response_occupation_tangent_max, &
-         response_ref_norm_sq, response_rotation_bound, response_scale, sigma, tmp
+         response_ref_norm_sq, response_rotation_bound, response_scale, sigma, tmp, &
+         unscaled_rotation_norm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: coupling, curvature_sum, energy_count, &
          energy_mean, energy_metric_step, energy_shift, energy_weighted_sum, rayleigh_step, &
          response_curvature, response_weight, rotation_count, rotation_norm, rotation_scale, &
@@ -2192,10 +2194,38 @@ CONTAINS
                                    1.0_dp, rotation_trust_rms* &
                                    SQRT(SUM(rotation_count)/SUM(rotation_norm)))
                END IF
+               unscaled_rotation_norm = 0.0_dp
+               DO local_channel = 1, nlocal_channels
+                  ALLOCATE (dense_re(nmo, nmo), dense_im(nmo, nmo))
+                  dense_re(:, :) = 0.0_dp
+                  dense_im(:, :) = 0.0_dp
+                  r = 0
+                  DO i = 1, nmo - 1
+                     DO j = i + 1, nmo
+                        r = r + 1
+                        dense_re(i, j) = rotation_step(r, local_channel)
+                        dense_re(j, i) = -rotation_step(r, local_channel)
+                        r = r + 1
+                        dense_im(i, j) = rotation_step(r, local_channel)
+                        dense_im(j, i) = rotation_step(r, local_channel)
+                     END DO
+                  END DO
+                  CPASSERT(r == nrotation)
+                  unscaled_rotation_norm = MAX( &
+                                           unscaled_rotation_norm, qs_ot_antihermitian_spectral_norm( &
+                                           CMPLX(dense_re, dense_im, KIND=dp)))
+                  DEALLOCATE (dense_im, dense_re)
+               END DO
+               CALL para_env_inter_kp%max(unscaled_rotation_norm)
+               IF (unscaled_rotation_norm > EPSILON(unscaled_rotation_norm)) THEN
+                  response_scale = MIN( &
+                                   response_scale, &
+                                   rotation_trust_spectral/unscaled_rotation_norm)
+               END IF
                response_density_norm_sq = 0.0_dp
                response_occupation_tangent_max = 0.0_dp
                response_ref_norm_sq = 0.0_dp
-               response_rotation_bound = 0.0_dp
+               response_rotation_bound = response_scale*unscaled_rotation_norm
                energy_shift(:) = response_scale*( &
                                  projected_coefficients(1)*energy_mean + &
                                  projected_coefficients(2)*shadow_energy_mean)
@@ -2240,9 +2270,6 @@ CONTAINS
                      CALL qs_scf_loop_ot_dense_to_matrix( &
                         dense_im, local_ot_env(local_channel), &
                         local_ot_env(local_channel)%rot_mat_response_gx_im)
-                     response_rotation_bound = MAX( &
-                                               response_rotation_bound, &
-                                               MAXVAL(SUM(SQRT(dense_re**2 + dense_im**2), DIM=2)))
                      energy_metric_step(:) = -channel_response_weight(:, local_channel)* &
                                              (local_ot_env(local_channel)%ener_response_gx - &
                                               energy_shift(group))
