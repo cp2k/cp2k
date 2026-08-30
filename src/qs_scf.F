@@ -1810,8 +1810,9 @@ CONTAINS
             IF (scf_env%qs_ot_env(1)%settings%OT_METHOD /= "CG" .AND. &
                 scf_env%qs_ot_env(1)%settings%OT_METHOD /= "SD" .AND. &
                 scf_env%qs_ot_env(1)%settings%OT_METHOD /= "DIIS" .AND. &
+                scf_env%qs_ot_env(1)%settings%OT_METHOD /= "BROY" .AND. &
                 scf_env%qs_ot_env(1)%settings%OT_METHOD /= "LBFG") THEN
-               CPABORT("K-point Mermin OT supports OT%MINIMIZER CG, SD, DIIS, or LBFGS.")
+               CPABORT("K-point Mermin OT supports OT%MINIMIZER CG, SD, DIIS, BROYDEN, or LBFGS.")
             END IF
          ELSE IF (scf_env%qs_ot_env(1)%settings%do_ener) THEN
             CPABORT("OT%ENERGIES requires FERMI_DIRAC smearing in the complex K-point path.")
@@ -1823,8 +1824,9 @@ CONTAINS
          IF (scf_env%qs_ot_env(1)%settings%OT_METHOD /= "CG" .AND. &
              scf_env%qs_ot_env(1)%settings%OT_METHOD /= "SD" .AND. &
              scf_env%qs_ot_env(1)%settings%OT_METHOD /= "DIIS" .AND. &
+             scf_env%qs_ot_env(1)%settings%OT_METHOD /= "BROY" .AND. &
              scf_env%qs_ot_env(1)%settings%OT_METHOD /= "LBFG") THEN
-            CPABORT("K-point OT currently supports OT%MINIMIZER CG, SD, DIIS, or LBFGS.")
+            CPABORT("K-point OT currently supports OT%MINIMIZER CG, SD, DIIS, BROYDEN, or LBFGS.")
          END IF
          IF (.NOT. qs_ot_kpoint_preconditioner_supported( &
              scf_env%qs_ot_env(1)%settings%preconditioner_type, .FALSE.)) THEN
@@ -2498,6 +2500,7 @@ CONTAINS
                                                 sym=dbcsr_type_no_symmetry)
       END IF
       IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+          qs_ot_env%settings%ot_method == "BROY" .OR. &
           qs_ot_env%settings%ot_method == "LBFG") THEN
          ncoef = qs_ot_env%settings%diis_m
          IF (qs_ot_env%settings%ot_method == "LBFG") ncoef = ncoef + 1
@@ -2542,6 +2545,7 @@ CONTAINS
                                                sym=dbcsr_type_no_symmetry)
          END IF
          IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+             qs_ot_env%settings%ot_method == "BROY" .OR. &
              qs_ot_env%settings%ot_method == "LBFG") THEN
             ncoef = qs_ot_env%settings%diis_m
             IF (qs_ot_env%settings%ot_method == "LBFG") ncoef = ncoef + 1

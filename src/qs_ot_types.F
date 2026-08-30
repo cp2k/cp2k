@@ -934,6 +934,7 @@ CONTAINS
                                             sym=dbcsr_type_no_symmetry)
 
          IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+             qs_ot_env%settings%ot_method == "BROY" .OR. &
              qs_ot_env%settings%ot_method == "LBFG") THEN
             ncoef = m_diis
             IF (qs_ot_env%settings%ot_method == "LBFG") ncoef = m_diis + 1
@@ -982,6 +983,7 @@ CONTAINS
          ALLOCATE (qs_ot_env%ener_rayleigh(ncoef))
 
          IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+             qs_ot_env%settings%ot_method == "BROY" .OR. &
              qs_ot_env%settings%ot_method == "LBFG") THEN
             nhistory = m_diis
             IF (qs_ot_env%settings%ot_method == "LBFG") nhistory = m_diis + 1
@@ -1127,6 +1129,7 @@ CONTAINS
          IF (ASSOCIATED(qs_ot_env%rot_mat_chc_im)) CALL dbcsr_release_p(qs_ot_env%rot_mat_chc_im)
 
          IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+             qs_ot_env%settings%ot_method == "BROY" .OR. &
              qs_ot_env%settings%ot_method == "LBFG") THEN
             CALL dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_x)
             CALL dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_e)
@@ -1157,6 +1160,7 @@ CONTAINS
             DEALLOCATE (qs_ot_env%ener_preconditioned_gx)
          END IF
          IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+             qs_ot_env%settings%ot_method == "BROY" .OR. &
              qs_ot_env%settings%ot_method == "LBFG") THEN
             IF (ASSOCIATED(qs_ot_env%ener_h_x)) DEALLOCATE (qs_ot_env%ener_h_x)
             IF (ASSOCIATED(qs_ot_env%ener_h_e)) DEALLOCATE (qs_ot_env%ener_h_e)
