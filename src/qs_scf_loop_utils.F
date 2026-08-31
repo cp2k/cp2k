@@ -97,7 +97,7 @@ MODULE qs_scf_loop_utils
                                               qs_rho_type
    USE qs_scf_diagonalization,          ONLY: &
         do_block_davidson_diag, do_block_krylov_diag, do_general_diag, do_general_diag_kp, &
-        do_ot_diag, do_roks_diag, do_scf_diag_subspace, do_special_diag, &
+        do_ot_diag, do_ot_diag_kp, do_roks_diag, do_scf_diag_subspace, do_special_diag, &
         qs_scf_get_ot_kpoint_operator
    USE qs_scf_methods,                  ONLY: cp_sm_mix,&
                                               scf_env_density_mixing
@@ -453,7 +453,7 @@ CONTAINS
       LOGICAL :: allow_exit_refresh, allow_refresh, base_state, disable_diis, has_unit_metric, &
          my_added_mos_auto_grow, ot_energy_only, refresh
       REAL(dp)                                           :: diis_error, residual, saved_eps_diis
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, matrix_t
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
@@ -474,7 +474,7 @@ CONTAINS
       IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .FALSE.
       IF (PRESENT(energy_only)) energy_only = .FALSE.
 
-      NULLIFY (dft_control, energy, kpoints, matrix_ks, matrix_s, para_env)
+      NULLIFY (dft_control, energy, kpoints, matrix_ks, matrix_s, matrix_t, para_env)
 
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, kpoints=kpoints)
       CALL get_kpoint_info(kpoints, para_env=para_env)
@@ -547,8 +547,17 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "KP code: Scf method not available: "// &
                        cp_to_string(scf_env%method))
-      CASE (ot_diag_method_nr, &
-            block_krylov_diag_method_nr, &
+      CASE (ot_diag_method_nr)
+         CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s, kinetic_kp=matrix_t)
+         CALL do_ot_diag_kp(matrix_ks, matrix_s, matrix_t, kpoints, scf_env, scf_control, &
+                            diis_step, my_added_mos_auto_grow)
+         IF (my_added_mos_auto_grow) THEN
+            IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
+            IF (disable_diis) scf_control%eps_diis = saved_eps_diis
+            CALL timestop(handle)
+            RETURN
+         END IF
+      CASE (block_krylov_diag_method_nr, &
             block_davidson_diag_method_nr)
          CALL cp_abort(__LOCATION__, &
                        "KP code: Scf method not available: "// &

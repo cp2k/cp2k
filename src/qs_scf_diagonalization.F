@@ -32,8 +32,8 @@ MODULE qs_scf_diagonalization
                                               hairy_probes_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_get_readonly_block_p, dbcsr_init_p, dbcsr_p_type, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_get_readonly_block_p, dbcsr_init_p, dbcsr_p_type, dbcsr_release_p, dbcsr_set, &
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -58,8 +58,8 @@ MODULE qs_scf_diagonalization
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         copy_info_type, cp_fm_add_to_element, cp_fm_cleanup_copy_general, cp_fm_create, &
-        cp_fm_finish_copy_general, cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, &
-        cp_fm_to_fm, cp_fm_type
+        cp_fm_finish_copy_general, cp_fm_get_info, cp_fm_release, cp_fm_set_all, &
+        cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -67,7 +67,8 @@ MODULE qs_scf_diagonalization
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
-        core_guess, diag_update_method_adiis, general_roks, high_spin_roks, restart_guess
+        core_guess, diag_update_method_adiis, general_roks, high_spin_roks, &
+        ot_precond_full_kinetic, restart_guess
    USE input_cp2k_kpoints,              ONLY: lattice_fft_auto,&
                                               lattice_fft_off,&
                                               lattice_fft_on
@@ -121,7 +122,8 @@ MODULE qs_scf_diagonalization
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
+   USE qs_ot_eigensolver,               ONLY: ot_eigensolver,&
+                                              ot_eigensolver_complex
    USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
@@ -156,7 +158,7 @@ MODULE qs_scf_diagonalization
    END TYPE kp_diag_omp_workspace_type
 
    PUBLIC :: do_general_diag, do_general_diag_kp, do_roks_diag, &
-             do_special_diag, do_ot_diag, do_block_davidson_diag, &
+             do_special_diag, do_ot_diag, do_ot_diag_kp, do_block_davidson_diag, &
              do_block_krylov_diag, do_scf_diag_subspace, diag_subspace_allocate, &
              general_eigenproblem, diag_kp_smat, diag_kp_basic, &
              qs_scf_get_ot_kpoint_operator
@@ -656,7 +658,7 @@ CONTAINS
       TYPE(cp_cfm_type)                                  :: cksmat, cmos, csmat, ctmat, cwork
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
-      TYPE(cp_fm_type)                                   :: fmdummy, fmlocal, rksmat, rsmat
+      TYPE(cp_fm_type)                                   :: fmdummy, fmlocal, rksmat, rsmat, rtmat
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: adiis_ks, effective_ks
@@ -779,6 +781,7 @@ CONTAINS
       IF (use_real_wfn) THEN
          CALL cp_fm_create(rksmat, matrix_struct)
          CALL cp_fm_create(rsmat, matrix_struct)
+         IF (my_store_ot_kinetic) CALL cp_fm_create(rtmat, matrix_struct)
       END IF
       IF (.NOT. use_real_wfn .OR. do_diis) THEN
          CALL cp_cfm_create(cksmat, matrix_struct)
@@ -941,21 +944,33 @@ CONTAINS
                   END IF
                END IF
                IF (my_store_ot_kinetic) THEN
-                  CPASSERT(.NOT. use_real_wfn)
                   CALL dbcsr_set(rmatrix, 0.0_dp)
-                  CALL dbcsr_set(cmatrix, 0.0_dp)
-                  CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_t, ispin=1, &
-                                      xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                  IF (use_real_wfn) THEN
+                     CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_t, ispin=1, &
+                                         xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                  ELSE
+                     CALL dbcsr_set(cmatrix, 0.0_dp)
+                     CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_t, ispin=1, &
+                                         xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
+                  END IF
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
-                  CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(4))
-                  IF (my_kpgrp) THEN
-                     CALL cp_fm_start_copy_general(fmwork(3), fmlocal, para_env, info(indx, 5))
-                     CALL cp_fm_start_copy_general(fmwork(4), fmlocal, para_env, info(indx, 6))
+                  IF (use_real_wfn) THEN
+                     IF (my_kpgrp) THEN
+                        CALL cp_fm_start_copy_general(fmwork(3), rtmat, para_env, info(indx, 3))
+                     ELSE
+                        CALL cp_fm_start_copy_general(fmwork(3), fmdummy, para_env, info(indx, 3))
+                     END IF
                   ELSE
-                     CALL cp_fm_start_copy_general(fmwork(3), fmdummy, para_env, info(indx, 5))
-                     CALL cp_fm_start_copy_general(fmwork(4), fmdummy, para_env, info(indx, 6))
+                     CALL dbcsr_desymmetrize(cmatrix, tmpmat)
+                     CALL copy_dbcsr_to_fm(tmpmat, fmwork(4))
+                     IF (my_kpgrp) THEN
+                        CALL cp_fm_start_copy_general(fmwork(3), fmlocal, para_env, info(indx, 5))
+                        CALL cp_fm_start_copy_general(fmwork(4), fmlocal, para_env, info(indx, 6))
+                     ELSE
+                        CALL cp_fm_start_copy_general(fmwork(3), fmdummy, para_env, info(indx, 5))
+                        CALL cp_fm_start_copy_general(fmwork(4), fmdummy, para_env, info(indx, 6))
+                     END IF
                   END IF
                END IF
             END DO
@@ -980,6 +995,9 @@ CONTAINS
                      IF (use_real_wfn) THEN
                         CALL cp_fm_finish_copy_general(rksmat, info(indx, 1))
                         CALL cp_fm_finish_copy_general(rsmat, info(indx, 2))
+                        IF (my_store_ot_kinetic) THEN
+                           CALL cp_fm_finish_copy_general(rtmat, info(indx, 3))
+                        END IF
                         CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, rksmat)
                         CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, rsmat)
                      ELSE
@@ -1128,6 +1146,9 @@ CONTAINS
                      IF (use_real_wfn) THEN
                         CALL cp_fm_finish_copy_general(rksmat, info(indx, 1))
                         CALL cp_fm_finish_copy_general(rsmat, info(indx, 2))
+                        IF (my_store_ot_kinetic) THEN
+                           CALL cp_fm_finish_copy_general(rtmat, info(indx, 3))
+                        END IF
                      ELSE
                         CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
                         CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, fmlocal)
@@ -1155,6 +1176,9 @@ CONTAINS
                   IF (my_store_ot_matrices) THEN
                      CALL cp_fm_to_fm(rksmat, kp%ot_hmat(1, ispin))
                      IF (ispin == 1) CALL cp_fm_to_fm(rsmat, kp%ot_smat(1))
+                     IF (ispin == 1 .AND. my_store_ot_kinetic) THEN
+                        CALL cp_fm_to_fm(rtmat, kp%ot_tmat(1))
+                     END IF
                   END IF
                   IF (.NOT. my_transfer_only) THEN
                      IF (scf_env%cholesky_method == cholesky_off) THEN
@@ -1205,6 +1229,9 @@ CONTAINS
                IF (use_real_wfn) THEN
                   CALL cp_fm_cleanup_copy_general(info(indx, 1))
                   CALL cp_fm_cleanup_copy_general(info(indx, 2))
+                  IF (my_store_ot_kinetic) THEN
+                     CALL cp_fm_cleanup_copy_general(info(indx, 3))
+                  END IF
                ELSE
                   CALL cp_fm_cleanup_copy_general(info(indx, 1))
                   CALL cp_fm_cleanup_copy_general(info(indx, 2))
@@ -1256,6 +1283,7 @@ CONTAINS
       IF (use_real_wfn) THEN
          CALL cp_fm_release(rksmat)
          CALL cp_fm_release(rsmat)
+         IF (my_store_ot_kinetic) CALL cp_fm_release(rtmat)
       END IF
       IF (.NOT. use_real_wfn .OR. do_diis) THEN
          CALL cp_cfm_release(cksmat)
@@ -2456,7 +2484,8 @@ CONTAINS
          CALL ot_eigensolver(matrix_h=matrix_ks(ispin)%matrix, &
                              matrix_s=matrix_s(1)%matrix, &
                              matrix_c_fm=mo_coeff, &
-                             preconditioner=scf_env%ot_preconditioner(1)%preconditioner, &
+                             preconditioner=scf_env%ot_preconditioner( &
+                             MIN(ispin, SIZE(scf_env%ot_preconditioner)))%preconditioner, &
                              eps_gradient=eps_iter, &
                              iter_max=scf_control%diagonalization%max_iter, &
                              silent=.TRUE., &
@@ -2479,6 +2508,164 @@ CONTAINS
       END DO
 
    END SUBROUTINE do_ot_diag
+
+! **************************************************************************************************
+!> \brief fixed-H OT diagonalization for real or complex K-point channels
+!> \param matrix_ks real-space Kohn-Sham matrices
+!> \param matrix_s real-space overlap matrices
+!> \param matrix_t ...
+!> \param kpoints K-point environment
+!> \param scf_env SCF environment
+!> \param scf_control SCF controls
+!> \param diis_step set false; density mixing remains the outer accelerator
+!> \param added_mos_auto_grow request a larger adaptive virtual-space buffer
+! **************************************************************************************************
+   SUBROUTINE do_ot_diag_kp(matrix_ks, matrix_s, matrix_t, kpoints, scf_env, scf_control, &
+                            diis_step, added_mos_auto_grow)
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, matrix_t
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(scf_control_type), POINTER                    :: scf_control
+      LOGICAL, INTENT(INOUT)                             :: diis_step
+      LOGICAL, INTENT(OUT)                               :: added_mos_auto_grow
+
+      INTEGER                                            :: ikp, ispin, ks_spin, nspin
+      LOGICAL                                            :: store_kinetic, use_real_wfn
+      REAL(KIND=dp)                                      :: eps_iter
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      TYPE(cp_fm_type)                                   :: coeff_im_work
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      TYPE(cp_fm_type), POINTER                          :: coeff_im, coeff_re
+      TYPE(dbcsr_type), POINTER                          :: matrix_h_im, matrix_h_re, matrix_s_im, &
+                                                            matrix_s_re, matrix_t_im, matrix_t_re
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+
+      NULLIFY (coeff_im, coeff_re, eigenvalues, fmwork, kp, matrix_h_im, matrix_h_re, &
+               matrix_s_im, matrix_s_re, matrix_t_im, matrix_t_re, sab_nl)
+      added_mos_auto_grow = .FALSE.
+      diis_step = .FALSE.
+      eps_iter = scf_control%diagonalization%eps_iter
+      nspin = SIZE(matrix_ks, 1)
+      store_kinetic = scf_control%diagonalization%ot_settings%preconditioner_type == &
+         ot_precond_full_kinetic
+      IF (store_kinetic) THEN
+         CPASSERT(ASSOCIATED(matrix_t))
+      END IF
+      CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn, sab_nl=sab_nl)
+      CPASSERT(ASSOCIATED(sab_nl))
+
+      ! A full diagonalization supplies an orthonormal start after initialization or an
+      ! ADDED_MOS AUTO resize. Subsequent SCF steps only redistribute H(k) and S(k).
+      IF (scf_env%iter_count <= 1) THEN
+         CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, &
+                                 .FALSE., diis_step)
+      END IF
+      IF (store_kinetic) THEN
+         CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, &
+                                 .FALSE., diis_step, matrix_t=matrix_t, &
+                                 store_ot_matrices=.TRUE., transfer_only=.TRUE.)
+      ELSE
+         CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, &
+                                 .FALSE., diis_step, store_ot_matrices=.TRUE., transfer_only=.TRUE.)
+      END IF
+
+      scf_env%iter_delta = 0.0_dp
+      DO ikp = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(ikp)%kpoint_env
+         CPASSERT(ASSOCIATED(kp%ot_hmat) .AND. ASSOCIATED(kp%ot_smat))
+         IF (SIZE(kp%ot_smat) >= 2) THEN
+            CALL qs_scf_get_ot_kpoint_operator(matrix_s, kpoints, kp, 1, &
+                                               kp%ot_smat(1), kp%ot_smat(2), &
+                                               matrix_s_re, matrix_s_im)
+         ELSE
+            CALL qs_scf_get_ot_kpoint_operator(matrix_s, kpoints, kp, 1, &
+                                               kp%ot_smat(1), kp%ot_smat(1), &
+                                               matrix_s_re, matrix_s_im)
+            CALL dbcsr_set(matrix_s_im, 0.0_dp)
+         END IF
+         IF (store_kinetic) THEN
+            CPASSERT(ASSOCIATED(kp%ot_tmat))
+            IF (SIZE(kp%ot_tmat) >= 2) THEN
+               CALL qs_scf_get_ot_kpoint_operator(matrix_t, kpoints, kp, 1, &
+                                                  kp%ot_tmat(1), kp%ot_tmat(2), &
+                                                  matrix_t_re, matrix_t_im)
+            ELSE
+               CALL qs_scf_get_ot_kpoint_operator(matrix_t, kpoints, kp, 1, &
+                                                  kp%ot_tmat(1), kp%ot_tmat(1), &
+                                                  matrix_t_re, matrix_t_im)
+               CALL dbcsr_set(matrix_t_im, 0.0_dp)
+            END IF
+         END IF
+         DO ispin = 1, nspin
+            ks_spin = MIN(ispin, SIZE(kp%ot_hmat, 2))
+            IF (SIZE(kp%ot_hmat, 1) >= 2) THEN
+               CALL qs_scf_get_ot_kpoint_operator(matrix_ks, kpoints, kp, ks_spin, &
+                                                  kp%ot_hmat(1, ks_spin), kp%ot_hmat(2, ks_spin), &
+                                                  matrix_h_re, matrix_h_im)
+            ELSE
+               CALL qs_scf_get_ot_kpoint_operator(matrix_ks, kpoints, kp, ks_spin, &
+                                                  kp%ot_hmat(1, ks_spin), kp%ot_hmat(1, ks_spin), &
+                                                  matrix_h_re, matrix_h_im)
+               CALL dbcsr_set(matrix_h_im, 0.0_dp)
+            END IF
+            CALL get_mo_set(kp%mos(1, ispin), mo_coeff=coeff_re, eigenvalues=eigenvalues)
+            IF (use_real_wfn) THEN
+               CALL cp_fm_create(coeff_im_work, coeff_re%matrix_struct, &
+                                 name='real k-point OT imaginary work')
+               CALL cp_fm_set_all(coeff_im_work, 0.0_dp)
+               CALL ot_eigensolver_complex(matrix_h=matrix_h_re, matrix_h_im=matrix_h_im, &
+                                           matrix_s=matrix_s_re, matrix_s_im=matrix_s_im, &
+                                           matrix_c_fm=coeff_re, matrix_c_fm_im=coeff_im_work, &
+                                           eps_gradient=eps_iter, &
+                                           iter_max=scf_control%diagonalization%max_iter, &
+                                           eigenvalues=eigenvalues, silent=.TRUE., &
+                                           ot_settings=scf_control%diagonalization%ot_settings, &
+                                           matrix_t=matrix_t_re, matrix_t_im=matrix_t_im, &
+                                           mo_set=kp%mos(1, ispin))
+               CALL cp_fm_release(coeff_im_work)
+            ELSE
+               CALL get_mo_set(kp%mos(2, ispin), mo_coeff=coeff_im)
+               CALL ot_eigensolver_complex(matrix_h=matrix_h_re, matrix_h_im=matrix_h_im, &
+                                           matrix_s=matrix_s_re, matrix_s_im=matrix_s_im, &
+                                           matrix_c_fm=coeff_re, matrix_c_fm_im=coeff_im, &
+                                           eps_gradient=eps_iter, &
+                                           iter_max=scf_control%diagonalization%max_iter, &
+                                           eigenvalues=eigenvalues, silent=.TRUE., &
+                                           ot_settings=scf_control%diagonalization%ot_settings, &
+                                           matrix_t=matrix_t_re, matrix_t_im=matrix_t_im, &
+                                           mo_set=kp%mos(1, ispin))
+               kp%mos(2, ispin)%eigenvalues = eigenvalues
+            END IF
+            CALL dbcsr_release_p(matrix_h_re)
+            CALL dbcsr_release_p(matrix_h_im)
+         END DO
+         CALL dbcsr_release_p(matrix_s_re)
+         CALL dbcsr_release_p(matrix_s_im)
+         IF (ASSOCIATED(matrix_t_re)) CALL dbcsr_release_p(matrix_t_re)
+         IF (ASSOCIATED(matrix_t_im)) CALL dbcsr_release_p(matrix_t_im)
+      END DO
+
+      CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
+                                    added_mos_auto=scf_control%added_mos_auto, &
+                                    added_mos_auto_grow=added_mos_auto_grow)
+      IF (added_mos_auto_grow) RETURN
+
+      CALL kpoint_density_matrices(kpoints)
+      fmwork => scf_env%scf_work1
+      CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
+                                    matrix_s(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s)
+      IF (scf_env%mixing_method == 0) THEN
+         scf_env%iter_method = 'NoMix/OTdiag.'
+      ELSE IF (scf_env%mixing_method == 1) THEN
+         scf_env%iter_param = scf_env%p_mix_alpha
+         scf_env%iter_method = 'P_Mix/OTdiag.'
+      ELSE
+         scf_env%iter_param = scf_env%mixing_store%alpha
+         scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//'/OTdiag.'
+      END IF
+   END SUBROUTINE do_ot_diag_kp
 
 ! **************************************************************************************************
 !> \brief Solve a set restricted open Kohn-Sham (ROKS) equations based on the

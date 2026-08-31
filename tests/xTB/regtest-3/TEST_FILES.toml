@@ -10,6 +10,7 @@
 "si_kp.inp"                             = [{matcher="E_total", tol=1.0E-12, ref=-14.73033107961160}]
 "tmol.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-41.90845660778482}]
 "ch2o.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-7.84456570305608}]
+"ch2o_otdiag_smear.inp"                 = [{matcher="E_total", tol=1.0E-12, ref=-7.844565703056073}]
 "ch2o_print.inp"                        = [{matcher="E_total", tol=1.0E-12, ref=-7.84456570305608}]
 "ch2o_cube.inp"                         = [{matcher="E_total", tol=1.0E-12, ref=-7.84456570305607}]
 "ch2o_dens.inp"                         = [{matcher="E_total", tol=1.0E-12, ref=-7.84456570305607}]
