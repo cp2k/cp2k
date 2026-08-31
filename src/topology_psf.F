@@ -725,7 +725,8 @@ CONTAINS
 
       CHARACTER(LEN=2*default_string_length)             :: psf_format
       CHARACTER(LEN=default_path_length)                 :: record
-      CHARACTER(LEN=default_string_length)               :: c_int, my_tag1, my_tag2, my_tag3
+      CHARACTER(LEN=default_string_length)               :: atom_name, c_int, my_tag1, my_tag2, &
+                                                            my_tag3
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: charge_atm
       INTEGER                                            :: handle, i, iw, j, my_index, nchg
@@ -758,11 +759,11 @@ CONTAINS
          ALLOCATE (charge_inp(nchg))
          CALL read_chrg_section(charge_atm, charge_inp, section=tmp_section, start=0)
          DO j = 1, topology%natoms
-            record = id2str(atom_info%id_atmname(j))
-            ldum = qmmm_ff_precond_only_qm(record)
-            CALL uppercase(record)
+            atom_name = id2str(atom_info%id_atmname(j))
+            ldum = qmmm_ff_precond_only_qm(atom_name)
+            CALL uppercase(atom_name)
             DO i = 1, nchg
-               IF (record == charge_atm(i)) THEN
+               IF (atom_name == charge_atm(i)) THEN
                   charges(j) = charge_inp(i)
                   EXIT
                END IF

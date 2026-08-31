@@ -1371,7 +1371,7 @@ CONTAINS
       mype = matrix%matrix_struct%para_env%mepos
       npe = matrix%matrix_struct%para_env%num_pe
       ! Get a new context
-      CALL ictxt_loc%gridinit(matrix%matrix_struct%para_env, 'Row-major', nprow*npcol, 1)
+      CALL ictxt_loc%gridinit(matrix%matrix_struct%para_env, 'R', nprow*npcol, 1)
 
       CALL descinit(desc_a_block, block_dim_row, block_dim_col, block_dim_row, &
                     block_dim_col, 0, 0, ictxt_loc%get_handle(), block_dim_row, info)

@@ -1199,7 +1199,7 @@ CONTAINS
       IF (defined_kind_section .OR. .NOT. use_mm_map_first) THEN
          ! lengths larger than 2 should not match, because 'trailing' characters are ignored.
          in_ptable = .FALSE.
-         IF (LEN_TRIM(element_symbol) <= 2) CALL get_ptable_info(element_symbol, found=in_ptable)
+         IF (LEN_TRIM(element_symbol) <= 2) CALL get_ptable_info(element_symbol(1:2), found=in_ptable)
          IF (in_ptable) THEN
             element_out = TRIM(element_symbol)
             found = .TRUE.
@@ -1257,7 +1257,7 @@ CONTAINS
       ! Try again the periodic table.
       IF (.NOT. found) THEN
          in_ptable = .FALSE.
-         IF (LEN_TRIM(element_symbol) <= 2) CALL get_ptable_info(element_symbol, found=in_ptable)
+         IF (LEN_TRIM(element_symbol) <= 2) CALL get_ptable_info(element_symbol(1:2), found=in_ptable)
          IF (in_ptable) THEN
             element_out = TRIM(element_symbol)
             found = .TRUE.

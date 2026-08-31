@@ -74,9 +74,6 @@ add_compile_options(
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O1;-Wall;-Wextra;-Werror>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>,$<VERSION_GREATER_EQUAL:$<C_COMPILER_VERSION>,16>>:-Wno-error=deprecated-openmp>"
 )
-# FIXME: GCC 16 diagnoses legacy character-length mismatches that were not
-# reported by earlier GCC versions. Restore "-Werror=character-truncation" after
-# auditing and resolving them.
 add_compile_options(
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fsanitize=leak;-Werror=realloc-lhs>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fcheck=all,no-array-temps;-finline-matmul-limit=0>"
@@ -84,7 +81,8 @@ add_compile_options(
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-finit-derived;-finit-real=snan;-finit-integer=-42>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Werror=aliasing;-Werror=ampersand;-Werror=c-binding-type>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Werror=intrinsics-std;-Werror=intrinsic-shadow>"
-  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Werror=line-truncation;-Werror=tabs;-Werror=target-lifetime>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Werror=character-truncation;-Werror=line-truncation>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Werror=tabs;-Werror=target-lifetime>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Werror=underflow;-Werror=unused-but-set-variable;-Werror=unused-variable>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Werror=unused-dummy-argument;-Werror=unused-parameter>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Werror=unused-label;-Werror=conversion;-Werror=zerotrip>"
