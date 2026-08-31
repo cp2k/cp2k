@@ -66,7 +66,7 @@ $$
 \frac{\mathrm d A}{\mathrm d\xi} = \frac{\left\langle Z^{-1/2}(-\lambda + k_\mathrm{B} T G)\right\rangle_\xi}{\left\langle Z^{-1/2}\right\rangle_\xi}
 $$
 
-where $k_\mathrm{B}$ is the Boltzmann constant, $\left\langle \cdots \right\rangle_\xi$ denotes the time average of reaction coordinate $\xi(\mathbf r_1,\dots,\mathbf r_N)$ by MD simulation.
+where $k_\mathrm{B}$ is the Boltzmann constant, $T$ is the temperature, $\left\langle \cdots \right\rangle_\xi$ denotes the time average of reaction coordinate $\xi(\mathbf r_1,\dots,\mathbf r_N)$ by MD simulation.
 Here $Z$ defines the scalar mass metric
 
 $$
@@ -130,7 +130,40 @@ spacing, integration direction, and unit conversion.
 [TARGET_GROWTH](#CP2K_INPUT.MOTION.CONSTRAINT.COLLECTIVE.TARGET_GROWTH) instead changes `TARGET`
 linearly by `TARGET_GROWTH * TIMESTEP` at every MD step, optionally stopping at
 [TARGET_LIMIT](#CP2K_INPUT.MOTION.CONSTRAINT.COLLECTIVE.TARGET_LIMIT). This is a moving-constraint
-or slow-growth protocol. CP2K does not integrate the work or turn the resulting trajectory into an
-equilibrium free-energy profile automatically. A finite pulling rate can cause lag, dissipation, and
-direction-dependent hysteresis, so such a trajectory must be analysed with a method appropriate to
-the intended nonequilibrium protocol. In general, the resulting work from slow growth (typically the irreversible work) can be related to the free energy via Jarzynski's identity.
+or slow-growth protocol. A simple example for the performance of CV as the distance between two atoms:
+```none
+&FORCE_EVAL
+  ...
+  &SUBSYS
+    ...
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 2
+      &END DISTANCE
+    &END COLVAR
+  &END SUBSYS
+&END FORCE_EVAL
+
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      COLVAR 1
+      INTERMOLECULAR TRUE
+      TARGET [angstrom] 2.0
+      TARGET_GROWTH [angstrom*fs^-1] 0.0008
+      TARGET_LIMIT [angstrom] 3.0
+    &END COLLECTIVE
+    &LAGRANGE_MULTIPLIERS ON
+      FILENAME constraint_force
+      COMMON_ITERATION_LEVELS 1
+    &END LAGRANGE_MULTIPLIERS
+  &END CONSTRAINT
+  &MD
+    ...
+  &END MD
+&END MOTION
+```
+
+CP2K does not integrate the work or turn the resulting trajectory into an equilibrium free-energy profile automatically. A finite pulling rate can cause lag, dissipation, and direction-dependent hysteresis, so such a trajectory must be analysed with a method appropriate to the intended nonequilibrium protocol. In the limit of infinititesimal change of $\xi$, the irreversible work ($W$) describes the energy change between the initial and final state. The resulting work from slow growth (typically the irreversible work) can be related to the free energy change $(\Delta A)$ via Jarzynski's identity
+$$\exp\left(-\frac{\Delta A}{k_B T}\right) = \left\langle \exp\left(-\frac{W}{k_B T}\right) \right\rangle.$$
+
