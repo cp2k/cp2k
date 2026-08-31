@@ -77,7 +77,7 @@ MODULE rt_bse
    USE force_env_methods, ONLY: force_env_calc_energy_force
    USE efield_utils, ONLY: make_field
    USE message_passing, ONLY: mp_para_env_type
-   USE input_constants, ONLY: rtp_bse_ham_g0w0, &
+   USE input_constants, ONLY: rtp_bse_ham_gw, &
                               use_mom_ref_zero, &
                               do_bch, &
                               do_exact, &
@@ -418,7 +418,7 @@ CONTAINS
 
       ! ****** START SINGLE PARTICLE HAMILTONIAN CALCULATION
       DO i = 1, rtbse_env%n_spin
-         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+         IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
             ! G0W0 Hamiltonian
             CALL cp_fm_to_fm(bs_env%fm_mo_coeff_Gamma(i), rtbse_env%real_workspace(1))
             ! NOTE : Gamma point is not always the zero k-point
@@ -499,7 +499,7 @@ CONTAINS
       CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env)
 
       ! ****** START COHSEX REFERENCE CALCULATION
-      IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+      IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
          ! In a non-HF calculation, copy the actual correlation part of the interaction
          CALL copy_fm_to_dbcsr(bs_env%fm_W_MIC_freq_zero, rtbse_env%w_dbcsr)
       ELSE
@@ -511,7 +511,7 @@ CONTAINS
       CALL dbt_copy_matrix_to_tensor(rtbse_env%w_dbcsr, rtbse_env%screened_dbt)
       ! Calculate the COHSEX starting energies
       DO i = 1, rtbse_env%n_spin
-         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+         IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
             ! Subtract the v_xc from COH part of the self-energy, as V_xc is also not updated during the timestepping
             ! TODO : Allow no COH calculation for static screening
             CALL get_sigma(rtbse_env, rtbse_env%sigma_COH(i), -0.5_dp, rtbse_env%S_inv_fm)
@@ -736,7 +736,7 @@ CONTAINS
             CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_effective(j), &
                                       CMPLX(rtbse_env%field(k), 0.0, kind=dp), rtbse_env%ham_workspace(1))
          END DO
-         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+         IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
             ! Add the COH part - so far static but can be dynamic in principle through the W updates
             CALL get_sigma(rtbse_env, rtbse_env%sigma_COH(j), -0.5_dp, rtbse_env%S_inv_fm)
             CALL cp_fm_to_cfm(msourcer=rtbse_env%sigma_COH(j), mtarget=rtbse_env%ham_workspace(1))
