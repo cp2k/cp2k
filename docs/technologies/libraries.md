@@ -20,16 +20,23 @@ Examples are the sequential or thread variant of the Intel MKL, the Cray libsci,
 variant and the reference BLAS/LAPACK packages. Usually the CMake step of CP2K will auto-detect the
 type of BLAS and SCALAPACK and then use the right configuration to ensure the code is thread-safe;
 however, if detection is ambiguous, `-DCP2K_BLAS_VENDOR=MKL` and `-DCP2K_SCALAPACK_VENDOR=MKL` can
-be used for a oneMKL installation
+be used for a oneMKL installation.
 
 On the Mac, BLAS and LAPACK can be provided by either OpenBLAS or Apple's Accelerate framework.
 
 ## DBCSR (required, block-sparse matrix operations)
 
-CP2K requires [DBCSR](https://github.com/cp2k/dbcsr/) for block-sparse matrix operations. It is
-found automatically by CMake. For MPI builds, DBCSR must also have been built with MPI support. The
-CP2K toolchain, Spack, and a compatible external DBCSR installation are supported ways to provide
-it.
+DBCSR is a standalone library for block-sparse matrix operations. It is maintained at the
+[cp2k/dbcsr](https://github.com/cp2k/dbcsr/) repository, with links to reference materials on
+<https://www.cp2k.org/dbcsr> and documentation on <https://cp2k.github.io/dbcsr/develop/index.html>.
+
+CP2K requires DBCSR as a hard dependency, which can be prepared with the CP2K toolchain or Spack
+build, and will be found automatically by CMake during configuration.
+
+The MPI configuration should be consistent between CP2K and DBCSR. For a MPI build (`psmp`/`pdbg`)
+of CP2K, DBCSR must also have been built with MPI support using the CMake flag `-DUSE_MPI=ON`, and
+`-DUSE_MPI_F08=ON` if `mpi_f08` is available. Likewise, a serial build (`ssmp`/`sdbg`) of CP2K must
+use a DBCSR configured with `-DUSE_MPI=OFF`.
 
 ## MPI and ScaLAPACK (required for MPI parallel builds)
 
@@ -42,9 +49,12 @@ Note that the MPI installation must match the used Fortran compiler.
 
 If your computing platform does not provide MPI, there are several freely available implementations:
 
-- MPICH: <https://www.mpich.org/> (may require `-fallow-argument-mismatch` when building with GCC
-  10\)
+- MPICH: <https://www.mpich.org/>
 - OpenMPI: <http://www.open-mpi.org/>
+
+```{hint}
+When building MPICH with GCC 10, the `-fallow-argument-mismatch` compiler flag may be needed.
+```
 
 ```{note}
 Open MPI applies process binding by default. This can affect hybrid MPI+OpenMP runs because the
@@ -117,15 +127,21 @@ Hartree--Fock exchange and related methods.
 
 ## LIBXS (improved performance for matrix multiplication)
 
-- A library for matrix operations and deep learning primitives: <https://github.com/hfp/libxs/>.
-- [LIBXS](https://github.com/hfp/libxs/) provides optimized matrix operations used by CP2K and is
-  required when using CP2K's OpenCL backend.
+LIBXS is a C library for memory operations, numerics, synchronization, and more. It is originally
+developed as part of [LIBXSMM](#libxsmm-jit-kernel-provider-of-libxs). For more information, refer
+to <https://libxs.readthedocs.io/>. The source code is available at <https://github.com/hfp/libxs>.
+
+- LIBXS provides optimized matrix operations used by CP2K and is required when using CP2K's OpenCL
+  backend.
 - Pass `-DCP2K_USE_LIBXS=ON` to CMake to enable it.
 
 ## LIBXSTREAM (OpenCL offload runtime)
 
-- [LIBXSTREAM](https://github.com/hfp/libxstream) provides the stream and memory-management layer
-  used by CP2K's OpenCL offload backend.
+LIBXSTREAM is an accelerator backend library for GPU offloading. For more information, refer to
+<https://libxstream.readthedocs.io/>. The source code is available at
+<https://github.com/hfp/libxstream>.
+
+- LIBXSTREAM provides the stream and memory-management layer used by CP2K's OpenCL offload backend.
 - It is required automatically when configuring OpenCL acceleration with `-DCP2K_USE_ACCEL=OPENCL`;
   there is no separate `CP2K_USE_LIBXSTREAM` option.
 - OpenCL builds also require LIBXS. For a manual build, make both LIBXSTREAM and the OpenCL
@@ -134,7 +150,10 @@ Hartree--Fock exchange and related methods.
 
 ## LIBXSMM (JIT-kernel provider of libXS)
 
-- A library that provide a JIT-kernel for LibXS: <https://github.com/libxsmm/libxsmm/>.
+LIBXSMM is a library for specialized dense and sparse matrix operations that provides just-in-time
+kernels (JIT-kernels) for LibXS. For more information, refer to <https://libxsmm.readthedocs.io/>.
+The source code is available at <https://github.com/libxsmm/libxsmm/>.
+
 - Pass `-DCP2K_USE_LIBXSMM=ON` to CMake to enable it; this is only valid when `-DCP2K_USE_LIBXS=ON`
   is passed.
 - The integration of LIBXS and LIBXSMM is done through `libxs_jit.F` that is provided by LIBXS but
@@ -143,13 +162,15 @@ Hartree--Fock exchange and related methods.
 
 ## LIBXC (wider choice of xc functionals)
 
-LIBXC is a library that provides wider choice of XC functionals.
+LIBXC is a library that provides wider choice of XC functionals. For more information, refer to
+<https://libxc.gitlab.io>.
 
-- The latest version of LIBXC can be downloaded from <https://gitlab.com/libxc/libxc/-/releases>
+- The latest version of LIBXC can be downloaded from <https://gitlab.com/libxc/libxc/-/releases>.
+- CP2K input reference for the [DFT/XC/XC_FUNCTIONAL](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL)
+  section lists the LIBXC functionals as well as built-in ones.
 - CP2K makes use of third derivates but does not use fourth derivates, so LIBXC may be configured
   with `cmake .. -DDISABLE_KXC=OFF <other LIBXC configuration flags>`.
 - Pass `-DCP2K_USE_LIBXC=ON` to CMake.
-- [LIBXSMM](https://github.com/libxsmm/libxsmm/) provides just-in-time kernels for LIBXS.
 
 ## GauXC (xc integration library)
 
@@ -178,15 +199,20 @@ typically SuperLU_DIST together with ParMETIS or PT-Scotch.
 
 ## PLUMED (enables various enhanced sampling methods)
 
+PLUMED is a plugin library for enhanced sampling and free energy algorithms in molecular dynamics.
+For more information, refer to <https://www.plumed.org/>. The source code and release tarballs are
+available at <https://github.com/plumed/plumed2>.
+
 CP2K can be compiled with PLUMED 2.x by passing `-DCP2K_USE_PLUMED=ON` to CMake.
 
 See <https://cp2k.org/howto:install_with_plumed> for full instructions.
 
 ## spglib (crystal symmetries tools)
 
-Spglib is a library for finding and handling crystal symmetries.
+Spglib is a library for finding and handling crystal symmetries. For more information, refer to
+<https://spglib.readthedocs.io/>.
 
-- The library can be downloaded from <https://github.com/atztogo/spglib>
+- The library can be downloaded from <https://github.com/spglib/spglib>
 - For building CP2K with the spglib pass `-DCP2K_USE_SPGLIB=ON` to CMake.
 
 ## SIRIUS (plane wave calculations)
@@ -196,7 +222,9 @@ SIRIUS is a domain specific library for electronic structure calculations with p
 - The code is available at <https://github.com/electronic-structure/SIRIUS>.
 - SIRIUS support requires an MPI build. Pass `-DCP2K_USE_SIRIUS=ON` to CMake to enable it.
 - SIRIUS has its own dependency stack, commonly including HDF5, SpFFT, SPLA, and eigensolver
-  libraries. It's recommended to build SIRIUS through Spack to get all features enabled.
+  libraries. It is recommended to build SIRIUS through Spack to get all features enabled.
+- The CP2K input reference for the [PW_DFT](#CP2K_INPUT.FORCE_EVAL.PW_DFT) section is composed by
+  SIRIUS itself, and thus is absent from the `.xml` dumped by a CP2K binary not built with SIRIUS.
 - Pass `-DCP2K_USE_LIBVDWXC=ON` when the selected SIRIUS build provides libvdwxc support.
 - Pass `-DCP2K_USE_SIRIUS_DFTD3=ON` when SIRIUS was built with DFT-D3 support.
 - Pass `-DCP2K_USE_SIRIUS_DFTD4=ON` when SIRIUS was built with DFT-D4 support.
@@ -260,7 +288,7 @@ DeePMD-kit provides Deep Potential models. Support for its C interface can be en
 
 - DeePMD-kit C interface can be downloaded from
   <https://docs.deepmodeling.com/projects/deepmd/en/master/install/install-from-c-library.html>
-- For more information see <https://github.com/deepmodeling/deepmd-kit.git>.
+- For more information see <https://github.com/deepmodeling/deepmd-kit>.
 
 ## ACE (atomic cluster expansion ML potentials)
 
@@ -275,10 +303,16 @@ potentials support can be enabled by passing `-DCP2K_USE_ACE=ON` to CMake.
 
 ## DFTD4 (dispersion correction)
 
-DFTD4 provides the Generally Applicable Atomic-Charge Dependent London Dispersion Correction.
+DFTD4 provides the Generally Applicable Atomic-Charge Dependent London Dispersion Correction. For
+more information, see <https://www.chemie.uni-bonn.de/grimme/de/software/dft-d4>. The source code
+and release tarballs are available at <https://github.com/dftd4/dftd4>.
 
-- Please use the CMake-built dftd4 package rather than the Meson-built one for CP2K.
-- For more information, see <https://github.com/dftd4/dftd4>
+- Please use the CMake-built dftd4 package rather than the Meson-built one for CP2K at the moment;
+  the ability to export CMake configurations from Meson build has yet to be included in a release.
+- The CP2K 2026.2 release would be the last one to have interfaces to legacy versions of the DFTD4
+  code down to version 3; due to compatibility issues in development, these have since been dropped
+  in [pull request #5641](https://github.com/cp2k/cp2k/pull/5641).
+- DFTD4 is also part of the [TBLITE](#tblite-semiempirical-method) package as noted below.
 - Pass `-DCP2K_USE_DFTD4=ON` to CMake.
 
 ## libsmeagol (electron transport calculation with current-induced forces)
@@ -319,11 +353,13 @@ enabled by passing `-DCP2K_USE_GREENX=ON` to CMake.
 
 TBLITE is a lightweight tight-binding framework that provides the GFN2-xTB method.
 
-- Please always use the CMake-built tblite package rather than the Meson-built one for CP2K.
+- Please always use the CMake-built tblite package rather than the Meson-built one for CP2K at the
+  moment; the ability to export CMake configurations from Meson build has yet to be validated.
 - A CMake build of tblite from source also installs DFT-D4 and s-dftd3. Therefore, no separate DFTD4
   installation is needed when tblite is enabled; s-dftd3 also provides parameters for additional XC
   functionals.
-- For more information see <https://github.com/tblite/tblite>
+- The source code and release tarballs are available at <https://github.com/tblite/tblite>.
+- For more information see <https://tblite.readthedocs.io>.
 - Pass `-DCP2K_USE_TBLITE=ON` to CMake.
 
 ## openPMD (structured output)
@@ -349,7 +385,7 @@ as part of DFLAGS may or may not work.
 MiMiC - Multiscale simulation framework
 
 - Its interface is realized through the MCL library, which can be downloaded from
-  <https://https://mimic-project.org>
+  <https://gitlab.com/mimic-project/>
 - For more information about the framework and supported programs see <https://mimic-project.org>
 - Pass `-DCP2K_USE_MIMIC=ON` to CMake
 
@@ -360,4 +396,4 @@ libGint - A library for the calculation of the Hartree Fock exchange on GPUs
 - Compared to a regular XF calculation, the changes needed in the input file are :
 - &FORCE_EVAL &DFT &XC &HF HFX_LIBRARY libGint
 - &FORCE_EVAL &DFT &XC &HF &MEMORY MAX_MEMORY X
-- pass -DCP2K_USE_LIBGINT=ON\` to CMake.
+- pass `-DCP2K_USE_LIBGINT=ON` to CMake.
