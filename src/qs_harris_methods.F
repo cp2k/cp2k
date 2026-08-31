@@ -21,7 +21,6 @@ MODULE qs_harris_methods
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE ec_methods,                      ONLY: create_kernel
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -43,6 +42,7 @@ MODULE qs_harris_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_harris_types,                 ONLY: harris_energy_type,&
                                               harris_print_energy,&
                                               harris_rhoin_type,&
@@ -51,7 +51,10 @@ MODULE qs_harris_methods
                                               integrate_v_core_rspace,&
                                               integrate_v_rspace
    USE qs_ks_types,                     ONLY: qs_ks_env_type
-   USE qs_rho_types,                    ONLY: qs_rho_get,&
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
+   USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                              qs_rho_get,&
+                                              qs_rho_set,&
                                               qs_rho_type
 #include "./base/base_uses.f90"
 
@@ -181,7 +184,8 @@ CONTAINS
                                                             tauh_r
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_rho_type), POINTER                         :: rho, rhoh
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_section
 
       CALL timeset(routineN, handle)
@@ -270,9 +274,23 @@ CONTAINS
       END DO
       xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
       NULLIFY (fxc, ftau)
-      CALL create_kernel(qs_env, vxc=fxc, vxc_tau=ftau, &
-                         rho=rho, rho1_r=rhoh_r, rho1_g=rhoh_g, tau1_r=tauh_r, &
-                         xc_section=xc_section)
+      NULLIFY (rho0_atom_set, rho1_atom_set)
+      ALLOCATE (rhoh)
+      CALL qs_rho_create(rhoh)
+      IF (ASSOCIATED(rhoh_r)) THEN
+         CALL qs_rho_set(rhoh, rho_r=rhoh_r, rho_r_valid=.TRUE.)
+      END IF
+      IF (ASSOCIATED(rhoh_g)) THEN
+         CALL qs_rho_set(rhoh, rho_g=rhoh_g, rho_g_valid=.TRUE.)
+      END IF
+      IF (ASSOCIATED(tauh_r)) THEN
+         CALL qs_rho_set(rhoh, tau_r=tauh_r, tau_r_valid=.TRUE.)
+      END IF
+      !
+      CALL qs_fxc_create(qs_env, rho, rhoh, rho0_atom_set, xc_section, .FALSE., &
+                         fxc, ftau, rho1_atom_set)
+      !
+      DEALLOCATE (rhoh)
       CPASSERT(.NOT. ASSOCIATED(ftau))
 
       DO ispin = 1, nspins

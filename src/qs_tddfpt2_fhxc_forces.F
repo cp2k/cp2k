@@ -132,8 +132,6 @@ MODULE qs_tddfpt2_fhxc_forces
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
                                               tddfpt_work_matrices
-   USE qs_vxc_atom,                     ONLY: calculate_gfxc_atom,&
-                                              gfxc_atom_diff
    USE task_list_types,                 ONLY: task_list_type
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
@@ -180,8 +178,8 @@ CONTAINS
       INTEGER :: handle, ia, ib, iounit, ispin, mspin, myfun, n_rep_hf, nactive(2), nao, nao_aux, &
          natom, nkind, norb(2), nsev, nspins, nsteps, order, spin
       LOGICAL :: analytic_2nd_deriv, analytic_3rd_deriv, distribute_fock_matrix, do_admm, do_hfx, &
-         do_hfxlr, do_hfxsr, do_res, do_sf, gapw, gapw_xc, hfx_treat_lsd_in_core, is_rks_triplets, &
-         needs_tau_response, needs_tau_response_aux, s_mstruct_changed, use_virial
+         do_hfxlr, do_hfxsr, do_onecenter, do_res, do_sf, gapw, gapw_xc, hfx_treat_lsd_in_core, &
+         is_rks_triplets, needs_tau_response, needs_tau_response_aux, s_mstruct_changed, use_virial
       REAL(KIND=dp)                                      :: eh1, eh1c, eps_delta, eps_fit, focc, &
                                                             fscal, fval, kval, xehartree
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
@@ -590,33 +588,26 @@ CONTAINS
          END IF
          ! Calculate the exchange-correlation kernel derivative contribution, notice that for open-shell
          ! rhox_r contains a factor of 2!
-         CALL qs_fgxc_create(qs_env, rho, rhox, xc_section, is_rks_triplets, do_sf, &
-                             fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+         IF (gapw .OR. gapw_xc) THEN
+            do_onecenter = .TRUE.
+            rho_atom_set => ex_env%local_rho_set%rho_atom_set
+            rho_atom_set_f => local_rho_set_f%rho_atom_set
+            rho_atom_set_g => local_rho_set_g%rho_atom_set
+            CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
+         ELSE
+            do_onecenter = .FALSE.
+            NULLIFY (rho_atom_set, rho_atom_set_f, rho_atom_set_g, qs_kind_set)
+         END IF
+         CALL qs_fgxc_create(qs_env, rho, rhox, rho_atom_set, &
+                             xc_section, do_onecenter, is_rks_triplets, do_sf, &
+                             fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
+                             rho_atom_set_f, rho_atom_set_g, qs_kind_set)
 
          IF (nspins == 2) THEN
             DO ispin = 1, nspins
                CALL pw_scale(gxc_rho(ispin), 0.5_dp)
                IF (ASSOCIATED(gxc_tau)) CALL pw_scale(gxc_tau(ispin), 0.5_dp)
             END DO
-         END IF
-         IF (gapw .OR. gapw_xc) THEN
-            IF (analytic_2nd_deriv .AND. analytic_3rd_deriv) THEN
-               CPABORT("Analytic 3rd EXC derivatives not available")
-            ELSE IF (analytic_2nd_deriv) THEN
-               CALL gfxc_atom_diff(qs_env, ex_env%local_rho_set%rho_atom_set, &
-                                   local_rho_set_f%rho_atom_set, local_rho_set_g%rho_atom_set, &
-                                   qs_kind_set, xc_section, is_rks_triplets, order, eps_delta)
-            ELSE
-               IF (analytic_3rd_deriv) THEN
-                  CALL cp_warn(__LOCATION__, "XC Analytic 3rd derivatives cannot be combined with "// &
-                               "numeric 2nd derivatives.")
-                  CPABORT("XC derivative options")
-               ELSE
-                  CALL calculate_gfxc_atom(qs_env, ex_env%local_rho_set%rho_atom_set, &
-                                           local_rho_set_f%rho_atom_set, local_rho_set_g%rho_atom_set, &
-                                           qs_kind_set, xc_section, is_rks_triplets, order)
-               END IF
-            END IF
          END IF
 
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
@@ -790,8 +781,20 @@ CONTAINS
                                rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
             END IF
 
-            CALL qs_fgxc_create(qs_env, rho_aux_fit, rhox_aux, xc_section, is_rks_triplets, do_sf, &
-                                fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+            IF (admm_env%do_gapw) THEN
+               do_onecenter = .TRUE.
+               rho_atom_set => admm_env%admm_gapw_env%local_rho_set%rho_atom_set
+               rho_atom_set_f => local_rho_set_f_admm%rho_atom_set
+               rho_atom_set_g => local_rho_set_g_admm%rho_atom_set
+               qs_kind_set => admm_env%admm_gapw_env%admm_kind_set
+            ELSE
+               do_onecenter = .FALSE.
+               NULLIFY (rho_atom_set, rho_atom_set_f, rho_atom_set_g, qs_kind_set)
+            END IF
+            CALL qs_fgxc_create(qs_env, rho_aux_fit, rhox_aux, rho_atom_set, &
+                                xc_section, do_onecenter, is_rks_triplets, do_sf, &
+                                fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
+                                rho_atom_set_f, rho_atom_set_g, qs_kind_set)
 
             ! grid weight contribution to forces ADMM XC correction term
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
@@ -864,30 +867,6 @@ CONTAINS
             !
             IF (admm_env%do_gapw) THEN
                CALL get_admm_env(admm_env, sab_aux_fit=sab_aux_fit)
-               rho_atom_set => admm_env%admm_gapw_env%local_rho_set%rho_atom_set
-               rho_atom_set_f => local_rho_set_f_admm%rho_atom_set
-               rho_atom_set_g => local_rho_set_g_admm%rho_atom_set
-
-               IF (analytic_2nd_deriv .AND. analytic_3rd_deriv) THEN
-                  CPABORT("Analytic 3rd EXC derivatives not available")
-               ELSE IF (analytic_2nd_deriv) THEN
-                  CALL gfxc_atom_diff(qs_env, rho_atom_set, &
-                                      rho_atom_set_f, rho_atom_set_g, &
-                                      admm_env%admm_gapw_env%admm_kind_set, xc_section, &
-                                      is_rks_triplets, order, eps_delta)
-               ELSE
-                  IF (analytic_3rd_deriv) THEN
-                     CALL cp_warn(__LOCATION__, "XC Analytic 3rd derivatives cannot be combined with "// &
-                                  "numeric 2nd derivatives.")
-                     CPABORT("XC derivative options")
-                  ELSE
-                     CALL calculate_gfxc_atom(qs_env, rho_atom_set, &
-                                              rho_atom_set_f, rho_atom_set_g, &
-                                              admm_env%admm_gapw_env%admm_kind_set, xc_section, &
-                                              is_rks_triplets, order)
-                  END IF
-               END IF
-
                IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
                IF (nspins == 1) THEN
                   CALL update_ks_atom(qs_env, mfx, matrix_px1_admm, forces=.TRUE., &

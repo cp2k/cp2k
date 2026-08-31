@@ -35,6 +35,7 @@ MODULE qs_fxc
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_grids,                        ONLY: pw_grid_compare
@@ -47,7 +48,9 @@ MODULE qs_fxc
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_methods,                  ONLY: qs_rho_copy,&
                                               qs_rho_scale_and_add,&
                                               qs_rho_transfer
@@ -56,6 +59,7 @@ MODULE qs_fxc
                                               qs_rho_release,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
+   USE qs_vxc_atom,                     ONLY: fxc_atom_calc
    USE xc,                              ONLY: xc_calc_2nd_deriv_analytical,&
                                               xc_calc_2nd_deriv_numerical,&
                                               xc_prep_2nd_deriv
@@ -88,28 +92,43 @@ CONTAINS
 !> \param qs_env ...
 !> \param rho0_struct ...
 !> \param rho1_struct ...
+!> \param rho0_atom_set ...
 !> \param xc_section ...
+!> \param do_onecenter ...
 !> \param fxc_rho ...
 !> \param fxc_tau ...
+!> \param rho1_atom_set ...
+!> \param do_scale ...
 !> \param is_triplet ...
 !> \param spinflip ...
 !> \param no_weights ...
 !> \param uf_grid_results ...
 !> \param pw_env_ext ...
+!> \param kind_set_external ...
+!> \param para_env_external ...
 !> \param compute_virial ...
 !> \param virial_xc ...
 ! **************************************************************************************************
-   SUBROUTINE qs_fxc_create(qs_env, rho0_struct, rho1_struct, xc_section, fxc_rho, fxc_tau, &
-                            is_triplet, spinflip, no_weights, uf_grid_results, &
-                            pw_env_ext, compute_virial, virial_xc)
+   SUBROUTINE qs_fxc_create(qs_env, rho0_struct, rho1_struct, rho0_atom_set, &
+                            xc_section, do_onecenter, &
+                            fxc_rho, fxc_tau, rho1_atom_set, &
+                            do_scale, is_triplet, spinflip, no_weights, uf_grid_results, &
+                            pw_env_ext, kind_set_external, para_env_external, &
+                            compute_virial, virial_xc)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho0_struct, rho1_struct
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_section
+      LOGICAL, INTENT(IN)                                :: do_onecenter
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau
-      LOGICAL, INTENT(IN), OPTIONAL                      :: is_triplet, spinflip, no_weights, &
-                                                            uf_grid_results
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_scale, is_triplet, spinflip, &
+                                                            no_weights, uf_grid_results
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_ext
+      TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: kind_set_external
+      TYPE(mp_para_env_type), INTENT(IN), OPTIONAL       :: para_env_external
       LOGICAL, INTENT(IN), OPTIONAL                      :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: virial_xc
@@ -299,6 +318,13 @@ CONTAINS
          END IF
       ELSE
          fxc_tau => fxc_tau_lo
+      END IF
+
+      IF (do_onecenter) THEN
+         CALL fxc_atom_calc(qs_env, rho0_atom_set, rho1_atom_set, xc_section, &
+                            do_scale=do_scale, do_triplet=is_triplet, do_sf=spinflip, &
+                            para_env_ext=para_env_external, &
+                            kind_set_external=kind_set_external)
       END IF
 
       CALL timestop(handle)
@@ -645,26 +671,40 @@ CONTAINS
 !> \param xc_deriv_set ...
 !> \param xc_rho_set ...
 !> \param rho1_struct ...
+!> \param rho0_atom_set ...
 !> \param xc_section ...
+!> \param do_onecenter ...
 !> \param fxc_rho ...
 !> \param fxc_tau ...
+!> \param rho1_atom_set ...
+!> \param do_scale ...
 !> \param is_triplet ...
 !> \param spinflip ...
 !> \param pw_env_ext ...
+!> \param kind_set_external ...
+!> \param para_env_external ...
 !> \param compute_virial ...
 !> \param virial_xc ...
 ! **************************************************************************************************
-   SUBROUTINE qs_fxc_apply(qs_env, xc_deriv_set, xc_rho_set, rho1_struct, xc_section, fxc_rho, fxc_tau, &
-                           is_triplet, spinflip, pw_env_ext, compute_virial, virial_xc)
+   SUBROUTINE qs_fxc_apply(qs_env, xc_deriv_set, xc_rho_set, rho1_struct, rho0_atom_set, &
+                           xc_section, do_onecenter, fxc_rho, fxc_tau, rho1_atom_set, &
+                           do_scale, is_triplet, spinflip, pw_env_ext, &
+                           kind_set_external, para_env_external, compute_virial, virial_xc)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(xc_derivative_set_type)                       :: xc_deriv_set
       TYPE(xc_rho_set_type)                              :: xc_rho_set
       TYPE(qs_rho_type), POINTER                         :: rho1_struct
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_section
+      LOGICAL, INTENT(IN)                                :: do_onecenter
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau
-      LOGICAL, INTENT(IN), OPTIONAL                      :: is_triplet, spinflip
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_scale, is_triplet, spinflip
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_ext
+      TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: kind_set_external
+      TYPE(mp_para_env_type), INTENT(IN), OPTIONAL       :: para_env_external
       LOGICAL, INTENT(IN), OPTIONAL                      :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: virial_xc
@@ -811,6 +851,13 @@ CONTAINS
          END IF
       ELSE
          fxc_tau => fxc_tau_lo
+      END IF
+
+      IF (do_onecenter) THEN
+         CALL fxc_atom_calc(qs_env, rho0_atom_set, rho1_atom_set, xc_section, &
+                            do_scale=do_scale, do_triplet=is_triplet, do_sf=spinflip, &
+                            para_env_ext=para_env_external, &
+                            kind_set_external=kind_set_external)
       END IF
 
       CALL timestop(handle)

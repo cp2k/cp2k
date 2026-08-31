@@ -68,6 +68,7 @@ MODULE qs_dcdr_ao
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                               qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_create,&
@@ -125,6 +126,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace_new, v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: perturbed_density, rho
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
       TYPE(section_vals_type), POINTER                   :: input, xc_section
 
       ! Build the perturbed density matrix correction depending on the overlap derivative
@@ -240,7 +242,8 @@ CONTAINS
       CALL auxbas_pw_pool%give_back_pw(rho1_tot_gspace)
 
       ! Calculate the second derivative of the exchange-correlation potential
-      CALL qs_fxc_create(qs_env, rho, perturbed_density, xc_section, v_xc, v_xc_tau)
+      CALL qs_fxc_create(qs_env, rho, perturbed_density, rho0_atom_set, xc_section, &
+                         .FALSE., v_xc, v_xc_tau, rho1_atom_set)
       !
 
       DO ispin = 1, dcdr_env%nspins
@@ -432,6 +435,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type)                               :: drho_r_total, v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: drho_r, dtau_r, rho_r, v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: drho, rho
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
       TYPE(section_vals_type), POINTER                   :: input, xc_section
 
       CALL timeset(routineN, handle)
@@ -498,7 +502,8 @@ CONTAINS
          END IF
          !
          NULLIFY (v_xc, v_xc_tau)
-         CALL qs_fxc_create(qs_env, rho, drho, xc_section, v_xc, v_xc_tau)
+         CALL qs_fxc_create(qs_env, rho, drho, rho0_atom_set, xc_section, .FALSE., &
+                            v_xc, v_xc_tau, rho1_atom_set)
          !
          DEALLOCATE (drho)
 

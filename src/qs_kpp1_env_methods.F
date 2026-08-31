@@ -61,7 +61,6 @@ MODULE qs_kpp1_env_methods
    USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -116,7 +115,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'calc_kpp1'
 
       INTEGER                                            :: handle, ikind, ispin, nkind, ns, nspins
-      LOGICAL                                            :: gapw, gapw_xc, my_calc_forces
+      LOGICAL                                            :: do_onecenter, gapw, gapw_xc, &
+                                                            my_calc_forces
       REAL(KIND=dp)                                      :: alpha, energy_hartree, energy_hartree_1c
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: k1mat, rho_ao
@@ -164,6 +164,7 @@ CONTAINS
       IF (gapw_xc) THEN
          CPASSERT(ASSOCIATED(rho1_xc))
       END IF
+      do_onecenter = gapw .OR. gapw_xc
       nspins = dft_control%nspins
 
       kpp1_env => p_env%kpp1_env
@@ -219,8 +220,14 @@ CONTAINS
          rho1_fxc => rho1
       END IF
 
-      CALL qs_fxc_apply(qs_env, kpp1_env%deriv_set, kpp1_env%rho_set, rho1_fxc, &
-                        xc_section, v_xc, v_xc_tau, &
+      NULLIFY (rho_atom_set, rho1_atom_set)
+      IF (do_onecenter) THEN
+         CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
+         rho1_atom_set => p_env%local_rho_set%rho_atom_set
+      END IF
+      CALL qs_fxc_apply(qs_env, kpp1_env%deriv_set, kpp1_env%rho_set, &
+                        rho1_fxc, rho_atom_set, xc_section, &
+                        do_onecenter, v_xc, v_xc_tau, rho1_atom_set, &
                         compute_virial=calc_virial, virial_xc=virial)
 
       DO ispin = 1, nspins
@@ -238,13 +245,6 @@ CONTAINS
          IF (SIZE(v_xc_tau) /= nspins) THEN
             CALL auxbas_pw_pool%give_back_pw(v_xc_tau(2))
          END IF
-      END IF
-
-      IF (gapw .OR. gapw_xc) THEN
-         CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
-         rho1_atom_set => p_env%local_rho_set%rho_atom_set
-         CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
-                                          do_triplet=.FALSE.)
       END IF
 
       alpha = 1.0_dp

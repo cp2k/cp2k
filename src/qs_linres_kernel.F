@@ -87,7 +87,6 @@ MODULE qs_linres_kernel
    USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
    USE task_list_types,                 ONLY: task_list_type
    USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
@@ -163,7 +162,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_op_2_dft'
 
       INTEGER                                            :: handle, ikind, ispin, nkind, ns, nspins
-      LOGICAL                                            :: gapw, gapw_xc, lr_triplet, lrigpw
+      LOGICAL                                            :: do_onecenter, gapw, gapw_xc, lr_triplet, &
+                                                            lrigpw
       REAL(KIND=dp)                                      :: alpha, ekin_mol, energy_hartree, &
                                                             energy_hartree_1c
       TYPE(admm_type), POINTER                           :: admm_env
@@ -217,6 +217,7 @@ CONTAINS
 
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
+      do_onecenter = gapw .OR. gapw_xc
       lr_triplet = linres_control%lr_triplet
 
       rho1 => p_env%rho1
@@ -290,15 +291,13 @@ CONTAINS
       END IF
 
       NULLIFY (v_xc_tau)
-      CALL qs_fxc_apply(qs_env, kpp1_env%deriv_set, kpp1_env%rho_set, rho1a, &
-                        xc_section, v_xc, v_xc_tau, is_triplet=lr_triplet)
-
-      IF (gapw .OR. gapw_xc) THEN
+      NULLIFY (rho_atom_set, rho1_atom_set)
+      IF (do_onecenter) THEN
          CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
          rho1_atom_set => p_env%local_rho_set%rho_atom_set
-         CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, &
-                                          para_env, do_triplet=lr_triplet)
       END IF
+      CALL qs_fxc_apply(qs_env, kpp1_env%deriv_set, kpp1_env%rho_set, rho1a, rho_atom_set, &
+                        xc_section, do_onecenter, v_xc, v_xc_tau, rho1_atom_set)
 
       v_rspace_new => v_xc
       NULLIFY (v_xc)
@@ -816,6 +815,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_xc, v_xc_tau
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_rho_type), POINTER                         :: rho_aux
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
@@ -850,25 +850,26 @@ CONTAINS
             CALL get_admm_env(admm_env, rho_aux_fit=rho_aux)
             xc_section => admm_env%xc_section_aux
             kpp1_env => p_env%kpp1_env
-            CALL qs_fxc_apply(qs_env, kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, p_env%rho1_admm, &
-                              xc_section, v_xc, v_xc_tau)
 
-            IF (ASSOCIATED(v_xc_tau)) THEN
-               CPABORT("Meta-GGA ADMM functionals not yet supported!")
-            END IF
-
+            NULLIFY (rho_atom_set, rho1_atom_set)
             basis_type = "AUX_FIT"
-            CALL get_qs_env(qs_env, para_env=para_env)
+            CALL get_qs_env(qs_env, para_env=para_env, qs_kind_set=kind_set)
             CALL get_admm_env(admm_env, task_list_aux_fit=task_list)
             IF (admm_env%do_gapw) THEN
+               kind_set => admm_env%admm_gapw_env%admm_kind_set
                CALL prepare_gapw_den(qs_env, local_rho_set=p_env%local_rho_set_admm, &
-                                     do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
+                                     do_rho0=.FALSE., kind_set_external=kind_set)
                rho_atom_set => admm_env%admm_gapw_env%local_rho_set%rho_atom_set
                rho1_atom_set => p_env%local_rho_set_admm%rho_atom_set
-               CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
-                                                kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
                basis_type = "AUX_FIT_SOFT"
                task_list => admm_env%admm_gapw_env%task_list
+            END IF
+
+            CALL qs_fxc_apply(qs_env, kpp1_env%deriv_set_admm, kpp1_env%rho_set_admm, p_env%rho1_admm, &
+                              rho_atom_set, xc_section, admm_env%do_gapw, v_xc, v_xc_tau, rho1_atom_set, &
+                              kind_set_external=kind_set)
+            IF (ASSOCIATED(v_xc_tau)) THEN
+               CPABORT("Meta-GGA ADMM functionals not yet supported!")
             END IF
 
             alpha = 1.0_dp

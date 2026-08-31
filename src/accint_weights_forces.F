@@ -44,6 +44,7 @@ MODULE accint_weights_forces
    USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
@@ -431,6 +432,7 @@ CONTAINS
                                                             tau1_r, tau1_r_xc, tau_r, tau_r_xc, &
                                                             vxc_rho, vxc_tau
       TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, weights
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
 
       CALL timeset(routineN, handle)
 
@@ -535,8 +537,8 @@ CONTAINS
                CALL cp_abort(__LOCATION__, &
                              "Native SKALA GAPW accurate-XCINT response forces are not implemented.")
             ELSE
-               CALL qs_fxc_create(qs_env, rho_struct, rho1_struct, xc_section, &
-                                  vxc_rho, vxc_tau, is_triplet=triplet, &
+               CALL qs_fxc_create(qs_env, rho_struct, rho1_struct, rho0_atom_set, xc_section, .FALSE., &
+                                  vxc_rho, vxc_tau, rho1_atom_set, is_triplet=triplet, &
                                   no_weights=.TRUE., uf_grid_results=uf_grid)
             END IF
          CASE DEFAULT

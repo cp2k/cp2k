@@ -48,7 +48,9 @@ MODULE qs_fgxc
                                               qs_environment_type
    USE qs_fxc,                          ONLY: qs_fxc_create,&
                                               qs_fxc_fdiff
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_methods,                  ONLY: qs_rho_copy,&
                                               qs_rho_scale_and_add,&
                                               qs_rho_scale_and_add_b,&
@@ -58,6 +60,8 @@ MODULE qs_fgxc
                                               qs_rho_release,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
+   USE qs_vxc_atom,                     ONLY: fgxc_atom_calc,&
+                                              fgxc_atom_diff
    USE xc,                              ONLY: xc_calc_2nd_deriv_analytical,&
                                               xc_calc_3rd_deriv_analytical,&
                                               xc_prep_3rd_deriv
@@ -89,22 +93,32 @@ CONTAINS
 !> \param qs_env ...
 !> \param rho0_struct ...
 !> \param rho1_struct ...
+!> \param rho0_atom_set ...
 !> \param xc_section ...
+!> \param do_onecenter ...
 !> \param is_triplet ...
 !> \param spinflip ...
 !> \param fxc_rho ...
 !> \param fxc_tau ...
 !> \param gxc_rho ...
 !> \param gxc_tau ...
+!> \param rhof_atom_set ...
+!> \param rhog_atom_set ...
+!> \param qs_kind_set ...
 ! **************************************************************************************************
-   SUBROUTINE qs_fgxc_create(qs_env, rho0_struct, rho1_struct, xc_section, is_triplet, spinflip, &
-                             fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+   SUBROUTINE qs_fgxc_create(qs_env, rho0_struct, rho1_struct, rho0_atom_set, &
+                             xc_section, do_onecenter, is_triplet, spinflip, &
+                             fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
+                             rhof_atom_set, rhog_atom_set, qs_kind_set)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho0_struct, rho1_struct
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_section
-      LOGICAL, INTENT(IN)                                :: is_triplet, spinflip
+      LOGICAL, INTENT(IN)                                :: do_onecenter, is_triplet, spinflip
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, fxc_tau, gxc_rho, gxc_tau
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rhof_atom_set, rhog_atom_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fgxc_create'
 
@@ -299,6 +313,22 @@ CONTAINS
 
       ELSE
          CPABORT("EXC derivative option not available")
+      END IF
+
+      IF (do_onecenter) THEN
+         IF (analytic_2nd_deriv .AND. analytic_3rd_deriv) THEN
+            CPABORT("Analytic 3rd EXC derivatives not available")
+         ELSE IF (analytic_2nd_deriv) THEN
+            CALL fgxc_atom_diff(qs_env, rho0_atom_set, rhof_atom_set, rhog_atom_set, &
+                                qs_kind_set, xc_section, is_triplet, order, eps_delta)
+         ELSE IF (analytic_3rd_deriv) THEN
+            CALL cp_warn(__LOCATION__, "XC Analytic 3rd derivatives cannot be combined with "// &
+                         "numeric 2nd derivatives.")
+            CPABORT("XC derivative options")
+         ELSE
+            CALL fgxc_atom_calc(qs_env, rho0_atom_set, rhof_atom_set, rhog_atom_set, &
+                                qs_kind_set, xc_section, is_triplet, order)
+         END IF
       END IF
 
       CALL timestop(handle)
@@ -504,6 +534,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_tau_rspace, vxc00, vxc00b
       TYPE(qs_rho_type), POINTER                         :: rhoin
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
 
       CALL timeset(routineN, handle)
 
@@ -537,9 +568,9 @@ CONTAINS
       exc = 0.0_dp
 
       IF (do_sf) THEN
-         CALL qs_fxc_create(qs_env, rho0_struct, rho1_struct, xc_section, fxc_rho, fxc_tau, &
+         CALL qs_fxc_create(qs_env, rho0_struct, rho1_struct, rho0_atom_set, xc_section, &
+                            .FALSE., fxc_rho, fxc_tau, rho1_atom_set, &
                             is_triplet=is_triplet, spinflip=do_sf)
-
       ELSE
          CALL qs_fxc_fdiff(qs_env, rho0_struct, rho1_struct, xc_section, &
                            accuracy, fxc_rho, fxc_tau, is_triplet)
@@ -558,12 +589,14 @@ CONTAINS
             CALL qs_rho_scale_and_add(rhoin, rho1_struct, alpha, beta)
             IF (do_sf) THEN
                ! variation in alpha density
-               CALL qs_fxc_create(qs_env, rhoin, rho1_struct, xc_section, vxc00, v_tau_rspace, &
+               CALL qs_fxc_create(qs_env, rhoin, rho1_struct, rho0_atom_set, xc_section, &
+                                  .FALSE., vxc00, v_tau_rspace, rho1_atom_set, &
                                   is_triplet=is_triplet, spinflip=do_sf)
                ! variation in beta density
                CALL qs_rho_copy(rho0_struct, rhoin, auxbas_pw_pool, nspins)
                CALL qs_rho_scale_and_add_b(rhoin, rho1_struct, alpha, beta)
-               CALL qs_fxc_create(qs_env, rhoin, rho1_struct, xc_section, vxc00b, v_tau_rspace, &
+               CALL qs_fxc_create(qs_env, rhoin, rho1_struct, rho0_atom_set, xc_section, &
+                                  .FALSE., vxc00b, v_tau_rspace, rho1_atom_set, &
                                   is_triplet=is_triplet, spinflip=do_sf)
             ELSE
                CALL qs_fxc_fdiff(qs_env, rhoin, rho1_struct, xc_section, accuracy, &
