@@ -166,7 +166,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       SELECT CASE (preconditioner_env%in_use)
-      CASE (ot_precond_full_all, ot_precond_full_single_inverse, &
+      CASE (ot_precond_full_all, ot_precond_full_single, ot_precond_full_single_inverse, &
             ot_precond_full_kinetic, ot_precond_s_inverse)
       CASE DEFAULT
          CPABORT("Unsupported complex K-point OT preconditioner")

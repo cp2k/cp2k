@@ -76,7 +76,8 @@ MODULE preconditioner_makes
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_makes'
 
    PUBLIC :: make_complex_full_all, make_complex_full_kinetic, make_complex_full_s_inverse, &
-             make_complex_full_single_inverse, make_preconditioner_matrix
+             make_complex_full_single, make_complex_full_single_inverse, &
+             make_preconditioner_matrix
 
 CONTAINS
 
@@ -184,6 +185,86 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE make_complex_full_all
+
+! **************************************************************************************************
+!> \brief Build the complex spectral FULL_SINGLE preconditioner.
+!> \param preconditioner_env preconditioner storage
+!> \param matrix_h complex Hermitian k-point Hamiltonian
+!> \param matrix_s complex Hermitian k-point overlap
+!> \param energy_homo occupied spectral edge
+!> \param energy_gap denominator floor
+! **************************************************************************************************
+   SUBROUTINE make_complex_full_single(preconditioner_env, matrix_h, matrix_s, &
+                                       energy_homo, energy_gap)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_h, matrix_s
+      REAL(KIND=dp), INTENT(IN)                          :: energy_homo, energy_gap
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_complex_full_single'
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: scaling
+      INTEGER                                            :: handle, i, n
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+      TYPE(cp_cfm_type)                                  :: matrix_diag_a, matrix_diag_b, &
+                                                            matrix_eigenvectors, &
+                                                            matrix_scaled_eigenvectors, matrix_work
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_cfm_get_info(matrix_h, nrow_global=n)
+      CPASSERT(n > 0)
+      CPASSERT(energy_gap > 0.0_dp)
+
+      IF (ASSOCIATED(preconditioner_env%complex_fm)) THEN
+         CALL cp_cfm_release(preconditioner_env%complex_fm)
+         DEALLOCATE (preconditioner_env%complex_fm)
+      END IF
+      IF (ASSOCIATED(preconditioner_env%occ_evals)) DEALLOCATE (preconditioner_env%occ_evals)
+      IF (ASSOCIATED(preconditioner_env%full_evals)) DEALLOCATE (preconditioner_env%full_evals)
+
+      ALLOCATE (preconditioner_env%complex_fm)
+      CALL cp_cfm_create(preconditioner_env%complex_fm, matrix_h%matrix_struct, &
+                         name='complex FULL_SINGLE preconditioner')
+      CALL cp_cfm_create(matrix_diag_a, matrix_h%matrix_struct, &
+                         name='complex FULL_SINGLE diagonalization A')
+      CALL cp_cfm_create(matrix_diag_b, matrix_s%matrix_struct, &
+                         name='complex FULL_SINGLE diagonalization B')
+      CALL cp_cfm_create(matrix_eigenvectors, matrix_h%matrix_struct, &
+                         name='complex FULL_SINGLE eigenvectors')
+      CALL cp_cfm_create(matrix_scaled_eigenvectors, matrix_h%matrix_struct, &
+                         name='complex FULL_SINGLE scaled eigenvectors')
+      CALL cp_cfm_create(matrix_work, matrix_h%matrix_struct, &
+                         name='complex FULL_SINGLE diagonalization work')
+
+      ALLOCATE (eigenvalues(n), scaling(n))
+      CALL cp_cfm_to_cfm(matrix_h, matrix_diag_a)
+      CALL cp_cfm_to_cfm(matrix_s, matrix_diag_b)
+      CALL cp_cfm_geeig(matrix_diag_a, matrix_diag_b, matrix_eigenvectors, &
+                        eigenvalues, matrix_work)
+      DO i = 1, n
+         scaling(i) = CMPLX(1.0_dp/MAX(eigenvalues(i) - energy_homo, energy_gap), &
+                            0.0_dp, KIND=dp)
+      END DO
+      CALL cp_cfm_to_cfm(matrix_eigenvectors, matrix_scaled_eigenvectors)
+      CALL cp_cfm_column_scale(matrix_scaled_eigenvectors, scaling)
+      CALL cp_cfm_gemm('N', 'C', n, n, n, z_one, matrix_scaled_eigenvectors, &
+                       matrix_eigenvectors, z_zero, preconditioner_env%complex_fm)
+
+      preconditioner_env%energy_gap = energy_gap
+      preconditioner_env%in_use = ot_precond_full_single
+      preconditioner_env%solver = ot_precond_solver_default
+
+      DEALLOCATE (scaling, eigenvalues)
+      CALL cp_cfm_release(matrix_work)
+      CALL cp_cfm_release(matrix_scaled_eigenvectors)
+      CALL cp_cfm_release(matrix_eigenvectors)
+      CALL cp_cfm_release(matrix_diag_b)
+      CALL cp_cfm_release(matrix_diag_a)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE make_complex_full_single
 
 ! **************************************************************************************************
 !> \brief ...

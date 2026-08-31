@@ -11,28 +11,60 @@
 !> \author Joost VandeVondele (25.08.2002)
 ! **************************************************************************************************
 MODULE qs_ot_eigensolver
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
+   USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, dbcsr_scale, &
-        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_add, dbcsr_copy, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, &
+        dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
    USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
+                                              cp_dbcsr_m_by_n_from_row_template,&
                                               cp_dbcsr_m_by_n_from_template,&
+                                              cp_dbcsr_sm_fm_multiply,&
                                               cp_fm_to_dbcsr_row_template,&
                                               dbcsr_copy_columns_hack
-   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE input_constants,                 ONLY: ot_precond_full_all,&
+                                              ot_precond_full_kinetic,&
+                                              ot_precond_full_single,&
+                                              ot_precond_full_single_inverse,&
+                                              ot_precond_none,&
+                                              ot_precond_s_inverse
    USE kinds,                           ONLY: dp
-   USE preconditioner_types,            ONLY: preconditioner_in_use,&
+   USE mathconstants,                   ONLY: z_one,&
+                                              z_zero
+   USE preconditioner,                  ONLY: make_preconditioner_complex_full_all,&
+                                              make_preconditioner_complex_full_kinetic,&
+                                              make_preconditioner_complex_full_s_inverse,&
+                                              make_preconditioner_complex_full_single,&
+                                              make_preconditioner_complex_full_single_inverse
+   USE preconditioner_types,            ONLY: destroy_preconditioner,&
+                                              init_preconditioner,&
+                                              preconditioner_in_use,&
                                               preconditioner_type
    USE qs_mo_methods,                   ONLY: make_basis_sv
+   USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_ot,                           ONLY: qs_ot_get_orbitals,&
+                                              qs_ot_get_orbitals_complex,&
+                                              qs_ot_get_orbitals_ref,&
+                                              qs_ot_get_orbitals_ref_complex,&
                                               qs_ot_get_p,&
                                               qs_ot_new_preconditioner
    USE qs_ot_minimizer,                 ONLY: ot_mini
    USE qs_ot_types,                     ONLY: qs_ot_allocate,&
+                                              qs_ot_allocate_complex_state,&
                                               qs_ot_destroy,&
                                               qs_ot_init,&
                                               qs_ot_settings_init,&
@@ -49,7 +81,7 @@ MODULE qs_ot_eigensolver
 
 ! *** Public subroutines ***
 
-   PUBLIC :: ot_eigensolver
+   PUBLIC :: ot_eigensolver, ot_eigensolver_complex
 
 CONTAINS
 
@@ -88,7 +120,8 @@ CONTAINS
 
       INTEGER                                            :: handle, ieigensolver, iter_total, k, n, &
                                                             ortho_k, ortho_space_k, output_unit
-      LOGICAL                                            :: energy_only, my_silent, ortho
+      LOGICAL                                            :: energy_only, my_silent, ortho, &
+                                                            ref_algorithm
       REAL(KIND=dp)                                      :: delta, energy
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
       TYPE(dbcsr_type), POINTER                          :: matrix_buf1_ortho, matrix_buf2_ortho, &
@@ -110,7 +143,16 @@ CONTAINS
 
       CALL cp_fm_get_info(matrix_c_fm, nrow_global=n, ncol_global=k) ! fm->dbcsr
       ALLOCATE (matrix_c)
-      CALL cp_fm_to_dbcsr_row_template(matrix_c, fm_in=matrix_c_fm, template=matrix_h)
+      ref_algorithm = .FALSE.
+      IF (PRESENT(ot_settings)) ref_algorithm = ot_settings%ot_algorithm == "REF"
+      IF (ref_algorithm) THEN
+         CALL dbcsr_init_p(matrix_c)
+         CALL cp_dbcsr_m_by_n_from_row_template(matrix_c, template=matrix_h, n=k, &
+                                                sym=dbcsr_type_no_symmetry)
+         CALL copy_fm_to_dbcsr(matrix_c_fm, matrix_c)
+      ELSE
+         CALL cp_fm_to_dbcsr_row_template(matrix_c, fm_in=matrix_c_fm, template=matrix_h)
+      END IF
 
       iter_total = 0
 
@@ -128,7 +170,6 @@ CONTAINS
          ALLOCATE (matrix_hc(1))
          NULLIFY (matrix_hc(1)%matrix)
          CALL dbcsr_init_p(matrix_hc(1)%matrix)
-         CALL dbcsr_copy(matrix_hc(1)%matrix, matrix_c, 'matrix_hc')
 
          ortho = .FALSE.
          IF (PRESENT(matrix_orthogonal_space_fm)) ortho = .TRUE.
@@ -155,6 +196,11 @@ CONTAINS
 
          ! allocate
          CALL qs_ot_allocate(qs_ot_env(1), matrix_s, matrix_c_fm%matrix_struct, ortho_k=ortho_k)
+         IF (ref_algorithm) THEN
+            CALL dbcsr_copy(matrix_hc(1)%matrix, qs_ot_env(1)%matrix_x, 'matrix_hc')
+         ELSE
+            CALL dbcsr_copy(matrix_hc(1)%matrix, matrix_c, 'matrix_hc')
+         END IF
 
          IF (ortho) THEN
             ! construct an initial guess that is orthogonal to matrix_orthogonal_space
@@ -228,13 +274,19 @@ CONTAINS
          CALL qs_ot_init(qs_ot_env(1))
          energy_only = qs_ot_env(1)%energy_only
 
-         ! set x
-         CALL dbcsr_set(qs_ot_env(1)%matrix_x, 0.0_dp)
-         CALL dbcsr_set(qs_ot_env(1)%matrix_sx, 0.0_dp)
-
-         ! get c
-         CALL qs_ot_get_p(qs_ot_env(1)%matrix_x, qs_ot_env(1)%matrix_sx, qs_ot_env(1))
-         CALL qs_ot_get_orbitals(matrix_c, qs_ot_env(1)%matrix_x, qs_ot_env(1))
+         SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
+         CASE ("TOD")
+            CALL dbcsr_set(qs_ot_env(1)%matrix_x, 0.0_dp)
+            CALL dbcsr_set(qs_ot_env(1)%matrix_sx, 0.0_dp)
+            CALL qs_ot_get_p(qs_ot_env(1)%matrix_x, qs_ot_env(1)%matrix_sx, qs_ot_env(1))
+            CALL qs_ot_get_orbitals(matrix_c, qs_ot_env(1)%matrix_x, qs_ot_env(1))
+         CASE ("REF")
+            CALL dbcsr_copy(qs_ot_env(1)%matrix_x, qs_ot_env(1)%matrix_c0)
+            CALL dbcsr_copy(qs_ot_env(1)%matrix_sx, qs_ot_env(1)%matrix_sc0)
+            CALL dbcsr_copy(matrix_c, qs_ot_env(1)%matrix_c0)
+         CASE DEFAULT
+            CPABORT("OT eigensolver supports ALGORITHM STRICT or IRAC")
+         END SELECT
 
          ! if present preconditioner, use it
 
@@ -268,11 +320,17 @@ CONTAINS
             delta = qs_ot_env(1)%delta
             energy_only = qs_ot_env(1)%energy_only
 
-            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, qs_ot_env(1)%matrix_x, &
-                                0.0_dp, qs_ot_env(1)%matrix_sx)
-
-            CALL qs_ot_get_p(qs_ot_env(1)%matrix_x, qs_ot_env(1)%matrix_sx, qs_ot_env(1))
-            CALL qs_ot_get_orbitals(matrix_c, qs_ot_env(1)%matrix_x, qs_ot_env(1))
+            SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
+            CASE ("TOD")
+               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, qs_ot_env(1)%matrix_x, &
+                                   0.0_dp, qs_ot_env(1)%matrix_sx)
+               CALL qs_ot_get_p(qs_ot_env(1)%matrix_x, qs_ot_env(1)%matrix_sx, qs_ot_env(1))
+               CALL qs_ot_get_orbitals(matrix_c, qs_ot_env(1)%matrix_x, qs_ot_env(1))
+            CASE ("REF")
+               CALL qs_ot_get_orbitals_ref(matrix_c, matrix_s, qs_ot_env(1)%matrix_x, &
+                                           qs_ot_env(1)%matrix_sx, qs_ot_env(1)%matrix_gx_old, &
+                                           qs_ot_env(1)%matrix_dx, qs_ot_env(1), qs_ot_env(1))
+            END SELECT
 
             ! exit on convergence or if maximum of inner loop  cycles is reached
             IF (delta < eps_gradient .OR. ieigensolver >= max_iter_inner_loop) EXIT eigensolver_loop
@@ -315,5 +373,313 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ot_eigensolver
+
+! **************************************************************************************************
+!> \brief solve a fixed complex Hermitian generalized eigenproblem by OT
+!> \param matrix_h real part of H(k)
+!> \param matrix_h_im imaginary part of H(k)
+!> \param matrix_s real part of S(k)
+!> \param matrix_s_im imaginary part of S(k)
+!> \param matrix_c_fm real part of the orbital coefficients
+!> \param matrix_c_fm_im imaginary part of the orbital coefficients
+!> \param preconditioner optional complex k-point preconditioner
+!> \param eps_gradient requested OT gradient accuracy
+!> \param iter_max maximum number of OT iterations
+!> \param eigenvalues ...
+!> \param silent suppress successful convergence output
+!> \param ot_settings OT algorithm and minimizer settings
+!> \param matrix_t ...
+!> \param matrix_t_im ...
+!> \param mo_set ...
+! **************************************************************************************************
+   SUBROUTINE ot_eigensolver_complex(matrix_h, matrix_h_im, matrix_s, matrix_s_im, &
+                                     matrix_c_fm, matrix_c_fm_im, preconditioner, &
+                                     eps_gradient, iter_max, eigenvalues, silent, ot_settings, &
+                                     matrix_t, matrix_t_im, mo_set)
+
+      TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_h_im, matrix_s, &
+                                                            matrix_s_im
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_c_fm, matrix_c_fm_im
+      TYPE(preconditioner_type), OPTIONAL, POINTER       :: preconditioner
+      REAL(KIND=dp), INTENT(IN)                          :: eps_gradient
+      INTEGER, INTENT(IN)                                :: iter_max
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: eigenvalues
+      LOGICAL, INTENT(IN), OPTIONAL                      :: silent
+      TYPE(qs_ot_settings_type), INTENT(IN), OPTIONAL    :: ot_settings
+      TYPE(dbcsr_type), OPTIONAL, POINTER                :: matrix_t, matrix_t_im
+      TYPE(mo_set_type), INTENT(IN), OPTIONAL            :: mo_set
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'ot_eigensolver_complex'
+      INTEGER, PARAMETER                                 :: max_iter_inner_loop = 40
+
+      INTEGER                                            :: handle, ieigensolver, iter_total, k, n, &
+                                                            output_unit
+      LOGICAL                                            :: energy_only, my_silent
+      REAL(KIND=dp)                                      :: delta, energy_im, energy_re
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc, matrix_hc_im
+      TYPE(dbcsr_type), POINTER                          :: matrix_c, matrix_c_im, matrix_tmp
+      TYPE(preconditioner_type), POINTER                 :: local_preconditioner
+      TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
+
+      CALL timeset(routineN, handle)
+      output_unit = cp_logger_get_default_io_unit()
+      my_silent = .FALSE.
+      IF (PRESENT(silent)) my_silent = silent
+      NULLIFY (local_preconditioner)
+
+      CALL cp_fm_get_info(matrix_c_fm, nrow_global=n, ncol_global=k)
+      CPASSERT(n > 0 .AND. k > 0)
+      ALLOCATE (matrix_c, matrix_c_im, matrix_tmp)
+      CALL dbcsr_init_p(matrix_c)
+      CALL cp_dbcsr_m_by_n_from_row_template(matrix_c, template=matrix_h, n=k, &
+                                             sym=dbcsr_type_no_symmetry)
+      CALL dbcsr_init_p(matrix_c_im)
+      CALL cp_dbcsr_m_by_n_from_row_template(matrix_c_im, template=matrix_h, n=k, &
+                                             sym=dbcsr_type_no_symmetry)
+      CALL dbcsr_init_p(matrix_tmp)
+      CALL cp_dbcsr_m_by_n_from_row_template(matrix_tmp, template=matrix_h, n=k, &
+                                             sym=dbcsr_type_no_symmetry)
+      CALL copy_fm_to_dbcsr(matrix_c_fm, matrix_c)
+      CALL copy_fm_to_dbcsr(matrix_c_fm_im, matrix_c_im)
+
+      iter_total = 0
+      outer_scf: DO
+         ALLOCATE (qs_ot_env(1), matrix_hc(1), matrix_hc_im(1))
+         NULLIFY (matrix_hc(1)%matrix, matrix_hc_im(1)%matrix)
+
+         IF (PRESENT(ot_settings)) THEN
+            qs_ot_env(1)%settings = ot_settings
+         ELSE
+            CALL qs_ot_settings_init(qs_ot_env(1)%settings)
+            qs_ot_env(1)%settings%ds_min = 0.10_dp
+         END IF
+
+         CALL qs_ot_allocate(qs_ot_env(1), matrix_s, matrix_c_fm%matrix_struct)
+         CALL qs_ot_allocate_complex_state(qs_ot_env(1), matrix_s)
+         CALL dbcsr_init_p(matrix_hc(1)%matrix)
+         CALL dbcsr_copy(matrix_hc(1)%matrix, qs_ot_env(1)%matrix_x, 'matrix_hc')
+         CALL dbcsr_init_p(matrix_hc_im(1)%matrix)
+         CALL dbcsr_copy(matrix_hc_im(1)%matrix, qs_ot_env(1)%matrix_x_im, 'matrix_hc_im')
+
+         CALL dbcsr_copy(qs_ot_env(1)%matrix_c0, matrix_c)
+         CALL dbcsr_copy(qs_ot_env(1)%matrix_c0_im, matrix_c_im)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, matrix_c, &
+                             0.0_dp, qs_ot_env(1)%matrix_sc0)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s_im, matrix_c_im, &
+                             0.0_dp, matrix_tmp)
+         CALL dbcsr_add(qs_ot_env(1)%matrix_sc0, matrix_tmp, &
+                        alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s, matrix_c_im, &
+                             0.0_dp, qs_ot_env(1)%matrix_sc0_im)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_s_im, matrix_c, &
+                             0.0_dp, matrix_tmp)
+         CALL dbcsr_add(qs_ot_env(1)%matrix_sc0_im, matrix_tmp, &
+                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+         CALL qs_ot_init(qs_ot_env(1))
+         energy_only = qs_ot_env(1)%energy_only
+         SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
+         CASE ('TOD')
+            CALL dbcsr_set(qs_ot_env(1)%matrix_x, 0.0_dp)
+            CALL dbcsr_set(qs_ot_env(1)%matrix_x_im, 0.0_dp)
+            CALL dbcsr_set(qs_ot_env(1)%matrix_sx, 0.0_dp)
+            CALL dbcsr_set(qs_ot_env(1)%matrix_sx_im, 0.0_dp)
+            CALL qs_ot_get_orbitals_complex(matrix_c, matrix_c_im, matrix_s, matrix_s_im, &
+                                            qs_ot_env(1))
+         CASE ('REF')
+            CALL dbcsr_copy(qs_ot_env(1)%matrix_x, qs_ot_env(1)%matrix_c0)
+            CALL dbcsr_copy(qs_ot_env(1)%matrix_x_im, qs_ot_env(1)%matrix_c0_im)
+            CALL dbcsr_copy(qs_ot_env(1)%matrix_sx, qs_ot_env(1)%matrix_sc0)
+            CALL dbcsr_copy(qs_ot_env(1)%matrix_sx_im, qs_ot_env(1)%matrix_sc0_im)
+            CALL qs_ot_get_orbitals_ref_complex(matrix_c, matrix_c_im, matrix_s, matrix_s_im, &
+                                                qs_ot_env(1), qs_ot_env(1))
+         CASE DEFAULT
+            CPABORT('Complex OT eigensolver supports ALGORITHM STRICT or IRAC')
+         END SELECT
+
+         IF (.NOT. PRESENT(preconditioner) .AND. .NOT. ASSOCIATED(local_preconditioner) .AND. &
+             qs_ot_env(1)%settings%preconditioner_type /= ot_precond_none) THEN
+            ALLOCATE (local_preconditioner)
+            CALL init_preconditioner(local_preconditioner, qs_ot_env(1)%para_env, qs_ot_env(1)%blacs_env)
+            SELECT CASE (qs_ot_env(1)%settings%preconditioner_type)
+            CASE (ot_precond_full_all)
+               IF (.NOT. PRESENT(mo_set)) THEN
+                  CPABORT('Complex FULL_ALL eigensolver preconditioning requires MO energy labels')
+               END IF
+               CALL make_preconditioner_complex_full_all( &
+                  local_preconditioner, qs_ot_env(1)%matrix_c0, qs_ot_env(1)%matrix_c0_im, &
+                  matrix_h, matrix_h_im, matrix_s, matrix_s_im, mo_set, &
+                  qs_ot_env(1)%settings%energy_gap, qs_ot_env(1)%settings%precond_solver_type)
+            CASE (ot_precond_full_single)
+               IF (.NOT. PRESENT(mo_set)) THEN
+                  CPABORT('Complex FULL_SINGLE eigensolver preconditioning requires MO energy labels')
+               END IF
+               CALL make_preconditioner_complex_full_single( &
+                  local_preconditioner, matrix_h, matrix_h_im, matrix_s, matrix_s_im, mo_set, &
+                  qs_ot_env(1)%settings%energy_gap, qs_ot_env(1)%settings%precond_solver_type)
+            CASE (ot_precond_full_single_inverse)
+               CALL make_preconditioner_complex_full_single_inverse( &
+                  local_preconditioner, qs_ot_env(1)%matrix_c0, qs_ot_env(1)%matrix_c0_im, &
+                  matrix_h, matrix_h_im, matrix_s, matrix_s_im, &
+                  qs_ot_env(1)%settings%energy_gap, qs_ot_env(1)%settings%precond_solver_type)
+            CASE (ot_precond_full_kinetic)
+               IF (.NOT. PRESENT(matrix_t) .OR. .NOT. PRESENT(matrix_t_im)) THEN
+                  CPABORT('Complex FULL_KINETIC eigensolver preconditioning requires T(k)')
+               END IF
+               IF (.NOT. ASSOCIATED(matrix_t) .OR. .NOT. ASSOCIATED(matrix_t_im)) THEN
+                  CPABORT('Complex FULL_KINETIC eigensolver preconditioning requires T(k)')
+               END IF
+               CALL make_preconditioner_complex_full_kinetic( &
+                  local_preconditioner, matrix_t, matrix_t_im, matrix_s, matrix_s_im, &
+                  qs_ot_env(1)%settings%energy_gap, qs_ot_env(1)%settings%precond_solver_type)
+            CASE (ot_precond_s_inverse)
+               CALL make_preconditioner_complex_full_s_inverse( &
+                  local_preconditioner, matrix_s, matrix_s_im, &
+                  qs_ot_env(1)%settings%precond_solver_type)
+            CASE DEFAULT
+               CPABORT('Unsupported complex K-point OT eigensolver preconditioner')
+            END SELECT
+         END IF
+
+         IF (PRESENT(preconditioner)) THEN
+            IF (ASSOCIATED(preconditioner)) THEN
+               IF (preconditioner_in_use(preconditioner)) THEN
+                  CALL qs_ot_new_preconditioner(qs_ot_env(1), preconditioner)
+               END IF
+            END IF
+         ELSE IF (ASSOCIATED(local_preconditioner)) THEN
+            CALL qs_ot_new_preconditioner(qs_ot_env(1), local_preconditioner)
+         END IF
+
+         ieigensolver = 0
+         eigensolver_loop: DO
+            ieigensolver = ieigensolver + 1
+            iter_total = iter_total + 1
+
+            ! H*C = (Hre*Cre-Him*Cim) + i*(Hre*Cim+Him*Cre).
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_h, matrix_c, &
+                                0.0_dp, matrix_hc(1)%matrix)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_h_im, matrix_c_im, &
+                                0.0_dp, matrix_tmp)
+            CALL dbcsr_add(matrix_hc(1)%matrix, matrix_tmp, &
+                           alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_h, matrix_c_im, &
+                                0.0_dp, matrix_hc_im(1)%matrix)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_h_im, matrix_c, &
+                                0.0_dp, matrix_tmp)
+            CALL dbcsr_add(matrix_hc_im(1)%matrix, matrix_tmp, &
+                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+
+            CALL dbcsr_dot(matrix_c, matrix_hc(1)%matrix, energy_re)
+            CALL dbcsr_dot(matrix_c_im, matrix_hc_im(1)%matrix, energy_im)
+            qs_ot_env(1)%etotal = energy_re + energy_im
+            IF (.NOT. energy_only) THEN
+               CALL dbcsr_scale(matrix_hc(1)%matrix, 2.0_dp)
+               CALL dbcsr_scale(matrix_hc_im(1)%matrix, 2.0_dp)
+            END IF
+            CALL ot_mini(qs_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im)
+            delta = qs_ot_env(1)%delta
+            energy_only = qs_ot_env(1)%energy_only
+
+            SELECT CASE (qs_ot_env(1)%settings%ot_algorithm)
+            CASE ('TOD')
+               CALL qs_ot_get_orbitals_complex(matrix_c, matrix_c_im, matrix_s, matrix_s_im, &
+                                               qs_ot_env(1))
+            CASE ('REF')
+               CALL qs_ot_get_orbitals_ref_complex(matrix_c, matrix_c_im, matrix_s, matrix_s_im, &
+                                                   qs_ot_env(1), qs_ot_env(1))
+            END SELECT
+
+            IF (delta < eps_gradient .OR. ieigensolver >= max_iter_inner_loop) EXIT eigensolver_loop
+            IF (iter_total >= iter_max .AND. qs_ot_env(1)%OT_METHOD_FULL /= 'OT LS') EXIT eigensolver_loop
+         END DO eigensolver_loop
+
+         CALL qs_ot_destroy(qs_ot_env(1))
+         DEALLOCATE (qs_ot_env)
+         CALL dbcsr_release_p(matrix_hc(1)%matrix)
+         CALL dbcsr_release_p(matrix_hc_im(1)%matrix)
+         DEALLOCATE (matrix_hc, matrix_hc_im)
+
+         IF (delta < eps_gradient) THEN
+            IF (output_unit > 0 .AND. .NOT. my_silent) THEN
+               WRITE (UNIT=output_unit, FMT='(T2,A,I0,A)') &
+                  'OT| Complex eigensolver reached convergence in ', iter_total, ' iterations'
+            END IF
+            EXIT outer_scf
+         END IF
+         IF (iter_total >= iter_max) THEN
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, '(A,T60,E20.10)') &
+                  '  WARNING complex OT eigensolver did not converge: current gradient', delta
+            END IF
+            EXIT outer_scf
+         END IF
+      END DO outer_scf
+
+      CALL copy_dbcsr_to_fm(matrix_c, matrix_c_fm)
+      CALL copy_dbcsr_to_fm(matrix_c_im, matrix_c_fm_im)
+      IF (PRESENT(eigenvalues)) THEN
+         CALL canonicalize_complex_subspace(matrix_h, matrix_h_im, matrix_c_fm, &
+                                            matrix_c_fm_im, eigenvalues)
+      END IF
+      CALL dbcsr_release_p(matrix_c)
+      CALL dbcsr_release_p(matrix_c_im)
+      CALL dbcsr_release_p(matrix_tmp)
+      IF (ASSOCIATED(local_preconditioner)) THEN
+         CALL destroy_preconditioner(local_preconditioner)
+         DEALLOCATE (local_preconditioner)
+      END IF
+      CALL timestop(handle)
+
+   END SUBROUTINE ot_eigensolver_complex
+
+! **************************************************************************************************
+!> \brief diagonalize C^H H C and rotate a complex orthonormal orbital subspace
+!> \param matrix_h ...
+!> \param matrix_h_im ...
+!> \param coeff_re ...
+!> \param coeff_im ...
+!> \param eigenvalues ...
+! **************************************************************************************************
+   SUBROUTINE canonicalize_complex_subspace(matrix_h, matrix_h_im, coeff_re, coeff_im, eigenvalues)
+      TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_h_im
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: coeff_re, coeff_im
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+
+      INTEGER                                            :: nao, nmo
+      TYPE(cp_cfm_type)                                  :: coeff, eigenvectors, hblock, hc, rotated
+      TYPE(cp_fm_type)                                   :: hc_im, hc_re
+
+      CALL cp_fm_get_info(coeff_re, nrow_global=nao, ncol_global=nmo)
+      CPASSERT(SIZE(eigenvalues) >= nmo)
+      CALL cp_fm_create(hc_re, coeff_re%matrix_struct)
+      CALL cp_fm_create(hc_im, coeff_re%matrix_struct)
+      CALL cp_dbcsr_sm_fm_multiply(matrix_h, coeff_re, hc_re, nmo)
+      CALL cp_dbcsr_sm_fm_multiply(matrix_h_im, coeff_im, hc_re, nmo, &
+                                   alpha=-1.0_dp, beta=1.0_dp)
+      CALL cp_dbcsr_sm_fm_multiply(matrix_h, coeff_im, hc_im, nmo)
+      CALL cp_dbcsr_sm_fm_multiply(matrix_h_im, coeff_re, hc_im, nmo, &
+                                   alpha=1.0_dp, beta=1.0_dp)
+
+      CALL cp_cfm_create(coeff, coeff_re%matrix_struct)
+      CALL cp_cfm_create(hc, coeff_re%matrix_struct)
+      CALL cp_cfm_create(rotated, coeff_re%matrix_struct)
+      CALL cp_cfm_create(hblock, coeff_re%matrix_struct, nrow=nmo, ncol=nmo)
+      CALL cp_cfm_create(eigenvectors, coeff_re%matrix_struct, nrow=nmo, ncol=nmo)
+      CALL cp_fm_to_cfm(coeff_re, coeff_im, coeff)
+      CALL cp_fm_to_cfm(hc_re, hc_im, hc)
+      CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, coeff, hc, z_zero, hblock)
+      CALL cp_cfm_heevd(hblock, eigenvectors, eigenvalues(1:nmo))
+      CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, coeff, eigenvectors, z_zero, rotated)
+      CALL cp_cfm_to_fm(rotated, coeff_re, coeff_im)
+
+      CALL cp_cfm_release(eigenvectors)
+      CALL cp_cfm_release(hblock)
+      CALL cp_cfm_release(rotated)
+      CALL cp_cfm_release(hc)
+      CALL cp_cfm_release(coeff)
+      CALL cp_fm_release(hc_im)
+      CALL cp_fm_release(hc_re)
+   END SUBROUTINE canonicalize_complex_subspace
 
 END MODULE qs_ot_eigensolver

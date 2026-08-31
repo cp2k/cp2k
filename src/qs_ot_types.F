@@ -18,7 +18,9 @@ MODULE qs_ot_types
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_init_p,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+                                              dbcsr_get_info,&
+                                              dbcsr_init_p,&
                                               dbcsr_p_type,&
                                               dbcsr_release_p,&
                                               dbcsr_set,&
@@ -57,6 +59,7 @@ MODULE qs_ot_types
    PUBLIC  :: qs_ot_settings_type
    PUBLIC  :: qs_ot_destroy
    PUBLIC  :: qs_ot_allocate
+   PUBLIC  :: qs_ot_allocate_complex_state
    PUBLIC  :: qs_ot_channel_index
    PUBLIC  :: qs_ot_check_channel_context
    PUBLIC  :: qs_ot_init
@@ -399,6 +402,7 @@ CONTAINS
       IF (.NOT. use_real_wfn) THEN
          supported = preconditioner_type == ot_precond_none .OR. &
                      preconditioner_type == ot_precond_full_all .OR. &
+                     preconditioner_type == ot_precond_full_single .OR. &
                      preconditioner_type == ot_precond_full_single_inverse .OR. &
                      preconditioner_type == ot_precond_full_kinetic .OR. &
                      preconditioner_type == ot_precond_s_inverse
@@ -421,7 +425,8 @@ CONTAINS
 
       supported = qs_ot_kpoint_preconditioner_supported(preconditioner_type, use_real_wfn)
       IF (.NOT. supported) RETURN
-      IF (preconditioner_type == ot_precond_full_all) THEN
+      IF (preconditioner_type == ot_precond_full_all .OR. &
+          preconditioner_type == ot_precond_full_single) THEN
          supported = solver_type == ot_precond_solver_default
       ELSE IF (preconditioner_type == ot_precond_full_single_inverse .OR. &
                preconditioner_type == ot_precond_full_kinetic .OR. &
@@ -1120,6 +1125,210 @@ CONTAINS
    END SUBROUTINE qs_ot_allocate
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+!> \param matrix_s ...
+! **************************************************************************************************
+   SUBROUTINE qs_ot_allocate_complex_state(qs_ot_env, matrix_s)
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+      TYPE(dbcsr_type), POINTER                          :: matrix_s
+
+      INTEGER                                            :: i, ncoef, nmo, nmo_ortho
+
+      CPASSERT(qs_ot_env%state_allocated)
+      CPASSERT(.NOT. qs_ot_env%has_complex_kpoint_state)
+      CPASSERT(ASSOCIATED(matrix_s))
+
+      CALL dbcsr_get_info(qs_ot_env%matrix_c0, nfullcols_total=nmo)
+      CALL dbcsr_get_info(qs_ot_env%matrix_sc0, nfullcols_total=nmo_ortho)
+
+      CALL dbcsr_init_p(qs_ot_env%matrix_c0_im)
+      CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_c0_im, template=matrix_s, n=nmo, &
+                                             sym=dbcsr_type_no_symmetry)
+      CALL dbcsr_init_p(qs_ot_env%matrix_sc0_im)
+      CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_sc0_im, template=matrix_s, n=nmo_ortho, &
+                                             sym=dbcsr_type_no_symmetry)
+      CALL dbcsr_init_p(qs_ot_env%matrix_x_im)
+      CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_x_im, template=matrix_s, n=nmo, &
+                                             sym=dbcsr_type_no_symmetry)
+      CALL dbcsr_init_p(qs_ot_env%matrix_sx_im)
+      CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_sx_im, template=matrix_s, n=nmo, &
+                                             sym=dbcsr_type_no_symmetry)
+      CALL dbcsr_init_p(qs_ot_env%matrix_gx_im)
+      CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx_im, template=matrix_s, n=nmo, &
+                                             sym=dbcsr_type_no_symmetry)
+      IF (qs_ot_env%settings%occupation_preconditioner) THEN
+         CALL dbcsr_init_p(qs_ot_env%matrix_preconditioned_gx_im)
+         CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_preconditioned_gx_im, &
+                                                template=matrix_s, n=nmo, &
+                                                sym=dbcsr_type_no_symmetry)
+         IF (qs_ot_env%use_dx) THEN
+            CALL dbcsr_init_p(qs_ot_env%matrix_response_gx)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_response_gx, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+            CALL dbcsr_init_p(qs_ot_env%matrix_response_gx_im)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_response_gx_im, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+            CALL dbcsr_init_p(qs_ot_env%matrix_mermin_g0)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_mermin_g0, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+            CALL dbcsr_init_p(qs_ot_env%matrix_mermin_g0_im)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_mermin_g0_im, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+            IF (qs_ot_env%settings%do_ener) ALLOCATE (qs_ot_env%ener_mermin_g0(nmo))
+         END IF
+      END IF
+      SELECT CASE (qs_ot_env%settings%ot_algorithm)
+      CASE ("TOD")
+         CPASSERT(nmo_ortho == nmo)
+         CALL allocate_complex_copy(qs_ot_env%matrix_p_im, qs_ot_env%matrix_p, "matrix_p_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_r_im, qs_ot_env%matrix_r, "matrix_r_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_sinp_im, qs_ot_env%matrix_sinp, "matrix_sinp_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_cosp_im, qs_ot_env%matrix_cosp, "matrix_cosp_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf1_im, qs_ot_env%matrix_buf1, "matrix_buf1_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf2_im, qs_ot_env%matrix_buf2, "matrix_buf2_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf3_im, qs_ot_env%matrix_buf3, "matrix_buf3_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf4_im, qs_ot_env%matrix_buf4, "matrix_buf4_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_os_im, qs_ot_env%matrix_os, "matrix_os_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf1_ortho_im, qs_ot_env%matrix_buf1_ortho, &
+                                    "matrix_buf1_ortho_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf2_ortho_im, qs_ot_env%matrix_buf2_ortho, &
+                                    "matrix_buf2_ortho_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_tmp_ortho, qs_ot_env%matrix_buf1_ortho, &
+                                    "matrix_tmp_ortho")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf_nk, qs_ot_env%matrix_x, "matrix_buf_nk")
+         CALL allocate_complex_copy(qs_ot_env%matrix_buf_nk_im, qs_ot_env%matrix_x, "matrix_buf_nk_im")
+         CALL allocate_complex_copy(qs_ot_env%matrix_tmp_nk, qs_ot_env%matrix_x, "matrix_tmp_nk")
+      CASE ("REF")
+         CALL dbcsr_init_p(qs_ot_env%matrix_ref_inv_sqrt)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_ref_inv_sqrt, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(qs_ot_env%matrix_ref_inv_sqrt_im)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_ref_inv_sqrt_im, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(qs_ot_env%buf1_n_k_dp)
+         CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%buf1_n_k_dp, template=matrix_s, n=nmo, &
+                                                sym=dbcsr_type_no_symmetry)
+      CASE DEFAULT
+         CPABORT("Complex K-point OT state requires ALGORITHM STRICT or IRAC")
+      END SELECT
+      IF (qs_ot_env%use_dx) THEN
+         CALL dbcsr_init_p(qs_ot_env%matrix_dx_im)
+         CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_dx_im, template=matrix_s, n=nmo, &
+                                                sym=dbcsr_type_no_symmetry)
+      END IF
+      IF (qs_ot_env%use_gx_old) THEN
+         CALL dbcsr_init_p(qs_ot_env%matrix_gx_old_im)
+         CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx_old_im, template=matrix_s, n=nmo, &
+                                                sym=dbcsr_type_no_symmetry)
+      END IF
+      IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+          qs_ot_env%settings%ot_method == "BROY" .OR. &
+          qs_ot_env%settings%ot_method == "LBFG") THEN
+         ncoef = qs_ot_env%settings%diis_m
+         IF (qs_ot_env%settings%ot_method == "LBFG") ncoef = ncoef + 1
+         CALL dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_e_im, ncoef)
+         CALL dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_x_im, ncoef)
+         DO i = 1, ncoef
+            CALL dbcsr_init_p(qs_ot_env%matrix_h_e_im(i)%matrix)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_h_e_im(i)%matrix, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+            CALL dbcsr_init_p(qs_ot_env%matrix_h_x_im(i)%matrix)
+            CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_h_x_im(i)%matrix, &
+                                                   template=matrix_s, n=nmo, &
+                                                   sym=dbcsr_type_no_symmetry)
+         END DO
+      END IF
+
+      IF (qs_ot_env%settings%do_rotation) THEN
+         CALL dbcsr_init_p(qs_ot_env%rot_mat_u_im)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_u_im, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(qs_ot_env%rot_mat_x_im)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_x_im, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(qs_ot_env%rot_mat_dedu_im)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_dedu_im, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(qs_ot_env%rot_mat_chc_im)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_chc_im, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL dbcsr_init_p(qs_ot_env%rot_mat_gx_im)
+         CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx_im, template=matrix_s, m=nmo, n=nmo, &
+                                            sym=dbcsr_type_no_symmetry)
+         IF (qs_ot_env%settings%occupation_preconditioner) THEN
+            CALL dbcsr_init_p(qs_ot_env%rot_mat_response_gx_im)
+            CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_response_gx_im, &
+                                               template=matrix_s, m=nmo, n=nmo, &
+                                               sym=dbcsr_type_no_symmetry)
+            IF (qs_ot_env%use_dx) THEN
+               CALL dbcsr_init_p(qs_ot_env%rot_mat_mermin_g0)
+               CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_mermin_g0, &
+                                                  template=matrix_s, m=nmo, n=nmo, &
+                                                  sym=dbcsr_type_no_symmetry)
+               CALL dbcsr_init_p(qs_ot_env%rot_mat_mermin_g0_im)
+               CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_mermin_g0_im, &
+                                                  template=matrix_s, m=nmo, n=nmo, &
+                                                  sym=dbcsr_type_no_symmetry)
+            END IF
+         END IF
+         IF (qs_ot_env%use_dx) THEN
+            CALL dbcsr_init_p(qs_ot_env%rot_mat_dx_im)
+            CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_dx_im, template=matrix_s, m=nmo, n=nmo, &
+                                               sym=dbcsr_type_no_symmetry)
+         END IF
+         IF (qs_ot_env%use_gx_old) THEN
+            CALL dbcsr_init_p(qs_ot_env%rot_mat_gx_old_im)
+            CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx_old_im, template=matrix_s, m=nmo, n=nmo, &
+                                               sym=dbcsr_type_no_symmetry)
+         END IF
+         IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+             qs_ot_env%settings%ot_method == "BROY" .OR. &
+             qs_ot_env%settings%ot_method == "LBFG") THEN
+            ncoef = qs_ot_env%settings%diis_m
+            IF (qs_ot_env%settings%ot_method == "LBFG") ncoef = ncoef + 1
+            CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_e_im, ncoef)
+            CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_x_im, ncoef)
+            DO i = 1, ncoef
+               CALL dbcsr_init_p(qs_ot_env%rot_mat_h_e_im(i)%matrix)
+               CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_h_e_im(i)%matrix, &
+                                                  template=matrix_s, m=nmo, n=nmo, &
+                                                  sym=dbcsr_type_no_symmetry)
+               CALL dbcsr_init_p(qs_ot_env%rot_mat_h_x_im(i)%matrix)
+               CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_h_x_im(i)%matrix, &
+                                                  template=matrix_s, m=nmo, n=nmo, &
+                                                  sym=dbcsr_type_no_symmetry)
+            END DO
+         END IF
+      END IF
+
+      qs_ot_env%has_complex_kpoint_state = .TRUE.
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief allocate a zeroed matrix with the distribution and sparsity of a real companion
+!> \param matrix output matrix
+!> \param template real companion matrix
+!> \param name DBCSR matrix name
+! **************************************************************************************************
+      SUBROUTINE allocate_complex_copy(matrix, template, name)
+      TYPE(dbcsr_type), POINTER                          :: matrix, template
+      CHARACTER(LEN=*), INTENT(IN)                       :: name
+
+         CALL dbcsr_init_p(matrix)
+         CALL dbcsr_copy(matrix, template, name=name)
+         CALL dbcsr_set(matrix, 0.0_dp)
+      END SUBROUTINE allocate_complex_copy
+
+   END SUBROUTINE qs_ot_allocate_complex_state
+
+! **************************************************************************************************
 !> \brief deallocates data
 !> \param qs_ot_env ...
 ! **************************************************************************************************
@@ -1352,23 +1561,27 @@ CONTAINS
 !> \param ot_section ...
 !> \param output_unit ...
 !> \param complex_kpoints whether defaults are for complex k-point OT
+!> \param eigensolver whether OT minimizes a fixed-H orbital subspace for DIAGONALIZATION
 ! **************************************************************************************************
-   SUBROUTINE ot_readwrite_input(settings, ot_section, output_unit, complex_kpoints)
+   SUBROUTINE ot_readwrite_input(settings, ot_section, output_unit, complex_kpoints, eigensolver)
       TYPE(qs_ot_settings_type)                          :: settings
       TYPE(section_vals_type), POINTER                   :: ot_section
       INTEGER, INTENT(IN)                                :: output_unit
-      LOGICAL, INTENT(IN), OPTIONAL                      :: complex_kpoints
+      LOGICAL, INTENT(IN), OPTIONAL                      :: complex_kpoints, eigensolver
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_readwrite_input'
 
       INTEGER                                            :: handle, ls_method, ot_algorithm, &
                                                             ot_method, ot_ortho_irac
-      LOGICAL                                            :: energy_gap_explicit, use_complex_kpoints
+      LOGICAL                                            :: energy_gap_explicit, &
+                                                            use_complex_kpoints, use_eigensolver
 
       CALL timeset(routineN, handle)
 
       use_complex_kpoints = .FALSE.
       IF (PRESENT(complex_kpoints)) use_complex_kpoints = complex_kpoints
+      use_eigensolver = .FALSE.
+      IF (PRESENT(eigensolver)) use_eigensolver = eigensolver
 
       ! choose algorithm
       CALL section_vals_val_get(ot_section, "ALGORITHM", i_val=ot_algorithm)
@@ -1553,8 +1766,20 @@ CONTAINS
             CPABORT("MINIMIZER LBFGS requires ALGORITHM STRICT or IRAC")
          END IF
       END IF
-      IF (settings%do_ener .AND. .NOT. use_complex_kpoints) THEN
+      IF (settings%do_ener .AND. .NOT. use_complex_kpoints .AND. .NOT. use_eigensolver) THEN
          CPABORT("OT%ENERGIES is currently supported only by the complex K-point Mermin path.")
+      END IF
+      IF (use_eigensolver .AND. &
+          (settings%do_rotation .OR. settings%do_ener .OR. &
+           settings%occupation_preconditioner .OR. settings%add_nondiag_energy)) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "DIAGONALIZATION%OT ignores ROTATION, ENERGIES, "// &
+                      "OCCUPATION_PRECONDITIONER, and NONDIAG_ENERGY because occupations "// &
+                      "are assigned after eigenspace minimization.")
+         settings%do_rotation = .FALSE.
+         settings%do_ener = .FALSE.
+         settings%occupation_preconditioner = .FALSE.
+         settings%add_nondiag_energy = .FALSE.
       END IF
 
       ! write OT output

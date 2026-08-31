@@ -44,6 +44,11 @@
 "Al_fermi.inp"                          = [{matcher="E_total", tol=5e-14, ref=-8.17296838715160}]
 # fixed-N Mermin OT at symmetry-reduced complex K points and its diagonalization reference
 "Al-kpoint-diag-reference.inp"          = [{matcher="E_total", tol=1e-9, ref=-2.903015361392054}]
+"Al-kpoint-otdiag.inp"                  = [
+  {matcher="E_total", tol=1e-8, ref=-2.975637282434870},
+  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+]
 "Al-kpoint-mermin-smoke.inp"            = [{matcher="E_total", tol=1e-9, ref=-2.903015358408708},
                                            {matcher="M072", tol=1e-8, ref=0.0},
                                            {matcher="M031", tol=1e-6, ref=-1.03113798553E+08}]

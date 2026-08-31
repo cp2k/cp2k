@@ -886,7 +886,7 @@ CONTAINS
       ot_section => section_vals_get_subs_vals(scf_section, "DIAGONALIZATION%OT")
       CALL section_vals_get(ot_section, explicit=explicit)
 
-      CALL ot_readwrite_input(settings, ot_section, output_unit)
+      CALL ot_readwrite_input(settings, ot_section, output_unit, eigensolver=.TRUE.)
 
       CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
                                         "PRINT%PROGRAM_RUN_INFO")

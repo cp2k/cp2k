@@ -45,6 +45,7 @@ MODULE preconditioner
    USE preconditioner_makes,            ONLY: make_complex_full_all,&
                                               make_complex_full_kinetic,&
                                               make_complex_full_s_inverse,&
+                                              make_complex_full_single,&
                                               make_complex_full_single_inverse,&
                                               make_preconditioner_matrix
    USE preconditioner_solvers,          ONLY: solve_preconditioner,&
@@ -71,6 +72,7 @@ MODULE preconditioner
    PUBLIC :: make_preconditioner, make_preconditioner_complex_full_all, &
              make_preconditioner_complex_full_kinetic, &
              make_preconditioner_complex_full_s_inverse, &
+             make_preconditioner_complex_full_single, &
              make_preconditioner_complex_full_single_inverse, restart_preconditioner
    PUBLIC :: apply_preconditioner, prepare_preconditioner
 
@@ -311,6 +313,56 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE make_preconditioner_complex_full_all
+
+! **************************************************************************************************
+!> \brief Construct a complex FULL_SINGLE preconditioner from H(k) and S(k).
+!> \param preconditioner_env preconditioner storage
+!> \param matrix_h_re real part of H(k)
+!> \param matrix_h_im imaginary part of H(k)
+!> \param matrix_s_re real part of S(k)
+!> \param matrix_s_im imaginary part of S(k)
+!> \param mo_set orbital energy labels defining the occupied edge
+!> \param energy_gap denominator floor
+!> \param solver_type requested inverse solver
+! **************************************************************************************************
+   SUBROUTINE make_preconditioner_complex_full_single(preconditioner_env, &
+                                                      matrix_h_re, matrix_h_im, &
+                                                      matrix_s_re, matrix_s_im, &
+                                                      mo_set, energy_gap, solver_type)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type), POINTER                          :: matrix_h_re, matrix_h_im, matrix_s_re, &
+                                                            matrix_s_im
+      TYPE(mo_set_type), INTENT(IN)                      :: mo_set
+      REAL(KIND=dp), INTENT(IN)                          :: energy_gap
+      INTEGER, INTENT(IN)                                :: solver_type
+
+      INTEGER                                            :: homo
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      TYPE(cp_cfm_type)                                  :: matrix_h, matrix_s
+
+      NULLIFY (eigenvalues)
+      CPASSERT(ASSOCIATED(matrix_h_re))
+      CPASSERT(ASSOCIATED(matrix_h_im))
+      CPASSERT(ASSOCIATED(matrix_s_re))
+      CPASSERT(ASSOCIATED(matrix_s_im))
+      IF (solver_type /= ot_precond_solver_default) THEN
+         CPABORT('Complex FULL_SINGLE supports only PRECOND_SOLVER DEFAULT')
+      END IF
+      CALL get_mo_set(mo_set, homo=homo, eigenvalues=eigenvalues)
+      CPASSERT(ASSOCIATED(eigenvalues))
+      CPASSERT(homo > 0 .AND. homo <= SIZE(eigenvalues))
+
+      CALL dbcsr_pair_to_cfm(matrix_h_re, matrix_h_im, preconditioner_env, &
+                             'complex FULL_SINGLE H', matrix_h)
+      CALL dbcsr_pair_to_cfm(matrix_s_re, matrix_s_im, preconditioner_env, &
+                             'complex FULL_SINGLE S', matrix_s)
+      CALL make_complex_full_single(preconditioner_env, matrix_h, matrix_s, &
+                                    eigenvalues(homo), energy_gap)
+      CALL cp_cfm_release(matrix_s)
+      CALL cp_cfm_release(matrix_h)
+
+   END SUBROUTINE make_preconditioner_complex_full_single
 
 ! **************************************************************************************************
 !> \brief Construct a complex FULL_SINGLE_INVERSE preconditioner without discarding Im(H,S,C).

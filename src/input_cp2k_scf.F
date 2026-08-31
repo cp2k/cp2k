@@ -552,29 +552,46 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief makes the orbital transformation section
 !> \param section ...
+!> \param diagonalization ...
 !> \par History
 !>      11.2004 created [Joost VandeVondele]
 ! **************************************************************************************************
-   SUBROUTINE create_ot_section(section)
+   SUBROUTINE create_ot_section(section, diagonalization)
       TYPE(section_type), POINTER                        :: section
+      LOGICAL, INTENT(IN), OPTIONAL                      :: diagonalization
 
+      LOGICAL                                            :: is_diagonalization
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="OT", &
-                          description="Sets the various options for the orbital transformation (OT) method. "// &
-                          "Default settings already provide an efficient, yet robust method. "// &
-                          "Most systems benefit from using the FULL_ALL preconditioner "// &
-                          "combined with a small value (0.001) of ENERGY_GAP. "// &
-                          "Well-behaved systems might benefit from using a DIIS minimizer. "//newline//newline// &
-                          "**Advantages:** "// &
-                          "It's fast, because no expensive diagonalisation is performed. "// &
-                          "If preconditioned correctly, method guaranteed to find minimum. "//newline//newline// &
-                          "**Disadvantages:** "// &
-                          "Sensitive to preconditioning. A good preconditioner can be expensive. "// &
-                          "No smearing, or advanced SCF mixing possible: POOR convergence for metallic systems.", &
-                          n_keywords=28, n_subsections=0, repeats=.FALSE., &
-                          citations=[VandeVondele2003, Weber2008])
+      is_diagonalization = .FALSE.
+      IF (PRESENT(diagonalization)) is_diagonalization = diagonalization
+      IF (is_diagonalization) THEN
+         CALL section_create(section, __LOCATION__, name="OT", &
+                             description="Configures OT as the iterative eigensolver selected by "// &
+                             "SCF%DIAGONALIZATION%ALGORITHM OT. The solver minimizes the trace of the "// &
+                             "requested orbital subspace for a fixed Kohn-Sham matrix. Orbital energies, "// &
+                             "occupations, smearing, density construction, and density mixing are handled "// &
+                             "afterwards by the parent DIAGONALIZATION SCF path.", &
+                             n_keywords=28, n_subsections=0, repeats=.FALSE., &
+                             citations=[VandeVondele2003, Weber2008])
+      ELSE
+         CALL section_create(section, __LOCATION__, name="OT", &
+                             description="Sets the various options for the orbital transformation (OT) method. "// &
+                             "Default settings already provide an efficient, yet robust method. "// &
+                             "Most systems benefit from using the FULL_ALL preconditioner "// &
+                             "combined with a small value (0.001) of ENERGY_GAP. "// &
+                             "Well-behaved systems might benefit from using a DIIS minimizer. "//newline//newline// &
+                             "**Advantages:** "// &
+                             "It's fast, because no expensive diagonalisation is performed. "// &
+                             "If preconditioned correctly, method guaranteed to find minimum. "//newline//newline// &
+                             "**Disadvantages:** "// &
+                             "Sensitive to preconditioning. A good preconditioner can be expensive. "// &
+                             "Metallic systems require a sufficiently large virtual orbital space and "// &
+                             "the coupled ROTATION and ENERGIES variables.", &
+                             n_keywords=28, n_subsections=0, repeats=.FALSE., &
+                             citations=[VandeVondele2003, Weber2008])
+      END IF
 
       NULLIFY (keyword)
 
@@ -938,29 +955,34 @@ CONTAINS
                           description="Introduce additional variables so that rotations of the occupied"// &
                           " subspace are allowed as well, only needed for cases where the energy is not invariant under"// &
                           " a rotation of the occupied subspace such as non-singlet restricted calculations"// &
-                          " or fractional occupations.", &
+                          " or fractional occupations. This variable is not used by DIAGONALIZATION%OT, "// &
+                          "which canonicalizes the converged eigenspace explicitly.", &
                           usage="ROTATION", lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGIES", &
-                          description="Optimize orbital energies for use in Fermi-Dirac smearing "// &
-                          "(requires ROTATION and FD smearing to be active).", &
+                          description="Optimize auxiliary orbital energies for smearing in direct SCF%OT "// &
+                          "(requires ROTATION and smearing to be active). DIAGONALIZATION%OT obtains "// &
+                          "orbital energies by canonicalizing its converged eigenspace instead.", &
                           usage="ENERGIES", lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OCCUPATION_PRECONDITIONER", &
-                          description="Preconditioner with the occupation numbers (FD smearing)", &
+                          description="Augment the direct SCF%OT orbital metric with occupation response. "// &
+                          "It is not used by DIAGONALIZATION%OT, where occupations are assigned after "// &
+                          "the eigensolver has converged.", &
                           usage="OCCUPATION_PRECONDITIONER", lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NONDIAG_ENERGY", &
-                          description="Add a non-diagonal energy penalty (FD smearing)", &
+                          description="Add a non-diagonal auxiliary-energy penalty in direct SCF%OT. "// &
+                          "It is not used by DIAGONALIZATION%OT.", &
                           usage="NONDIAG_ENERGY", lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -1115,7 +1137,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsection)
-      CALL create_ot_section(subsection)
+      CALL create_ot_section(subsection, diagonalization=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

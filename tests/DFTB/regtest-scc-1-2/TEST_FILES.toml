@@ -9,6 +9,7 @@
 "ch2o_force.inp"                        = [{matcher="M042", tol=1.0E-06, ref=0.0}]
 "ch2o_uks_force.inp"                    = [{matcher="M042", tol=1.0E-06, ref=0.0}]
 "h2o-2.inp"                             = [{matcher="E_total", tol=3e-09, ref=-130.54671568595433}]
+"h2-otdiag.inp"                         = [{matcher="E_total", tol=2e-13, ref=-0.673591658300094}]
 # DFTB3
 "h2o-6.inp"                             = [{matcher="E_total", tol=4e-09, ref=-131.25337238175840}]
 "h2o-7.inp"                             = [{matcher="E_total", tol=2e-08, ref=-131.26536755467674}]
