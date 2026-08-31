@@ -44,7 +44,8 @@ MODULE qs_ot_minimizer
 
    PRIVATE
 
-   PUBLIC  :: lbfgs_curvature_damping_shift, &
+   PUBLIC  :: broyden_history_restart_required, &
+              lbfgs_curvature_damping_shift, &
               lbfgs_history_restart_required, &
               lbfgs_response_secant_parameters, &
               lbfgs_step_restart_required, &
@@ -61,6 +62,21 @@ MODULE qs_ot_minimizer
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_minimizer'
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Decide whether a non-descent Broyden step invalidates its secant history.
+!> \param non_descent whether the proposed Broyden direction is not a descent direction
+!> \param forget_history explicit user request to discard an inconsistent history
+!> \param do_ener whether the product vector contains Mermin auxiliary-energy variables
+!> \return true when the Broyden history has to be restarted
+! **************************************************************************************************
+   PURE ELEMENTAL LOGICAL FUNCTION broyden_history_restart_required( &
+      non_descent, forget_history, do_ener)
+      LOGICAL, INTENT(IN)                                :: non_descent, forget_history, do_ener
+
+      broyden_history_restart_required = non_descent .AND. (forget_history .OR. do_ener)
+   END FUNCTION broyden_history_restart_required
+
 !
 ! the minimizer interface
 ! should present all possible modes of minimization
@@ -3920,7 +3936,10 @@ CONTAINS
          ! If the direction is not a descent direction, reverse it before adding the current point.
          IF (tmp >= 0.0_dp) THEN
             qs_ot_env(1)%OT_METHOD_FULL = "OT TURN"
-            IF (forget_history) THEN
+            ! A non-descent product step invalidates the secants that couple orbitals,
+            ! rotations, and auxiliary energies.  Retain the legacy opt-in behavior
+            ! for orbital-only OT, but always restart an inconsistent Mermin history.
+            IF (broyden_history_restart_required(.TRUE., forget_history, do_ener)) THEN
                qs_ot_env(1)%diis_iter = 0
             END IF
             sigma = sigma*sigma_dec
