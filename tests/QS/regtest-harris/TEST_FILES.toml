@@ -2,6 +2,7 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 "2H2O_t01.inp"                          = [{matcher="M011", tol=1e-010, ref=-34.570515851298339}]
+"he_cube.inp"                           = [{matcher="M011", tol=1e-009, ref=-1.773125551436637}]
 "ft1.inp"                               = []
 "ft2.inp"                               = []
 "fl1.inp"                               = []

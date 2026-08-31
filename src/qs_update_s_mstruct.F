@@ -32,13 +32,15 @@ MODULE qs_update_s_mstruct
                                               calculate_rho_core,&
                                               calculate_rho_nlcc
    USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
+                                              qs_environment_type,&
+                                              set_qs_env
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_did_change,&
                                               qs_ks_env_type,&
                                               set_ks_env
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild
-   USE qs_rho_types,                    ONLY: qs_rho_type
+   USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                              qs_rho_type
    USE qs_scf_types,                    ONLY: scf_env_did_change
    USE skala_gpw_functional,            ONLY: get_gauxc_section,&
                                               native_skala_gapw_composite_direct_ao,&
@@ -329,6 +331,11 @@ CONTAINS
 
 ! ZMP rebuilding external density
       IF (dft_control%apply_external_density) THEN
+         IF (.NOT. ASSOCIATED(rho_external)) THEN
+            ALLOCATE (rho_external)
+            CALL qs_rho_create(rho_external)
+            CALL set_qs_env(qs_env, rho_external=rho_external)
+         END IF
          CALL qs_rho_rebuild(rho_external, qs_env=qs_env, &
                              rebuild_grids=rebuild_grids)
          dft_control%read_external_density = .TRUE.

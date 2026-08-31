@@ -10,6 +10,7 @@
 ! **************************************************************************************************
 MODULE input_cp2k_harris
    USE input_constants,                 ONLY: hden_atomic,&
+                                              hden_cube,&
                                               hfun_harris,&
                                               horb_default
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -18,6 +19,7 @@ MODULE input_cp2k_harris
    USE input_section_types,             ONLY: section_add_keyword,&
                                               section_create,&
                                               section_type
+   USE input_val_types,                 ONLY: char_t
    USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
@@ -45,7 +47,7 @@ CONTAINS
       NULLIFY (keyword)
       CALL section_create(section, __LOCATION__, name="HARRIS_METHOD", &
                           description="Sets the various options for the Harris method", &
-                          n_keywords=5, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of the Harris method", &
@@ -69,9 +71,19 @@ CONTAINS
                           description="Method to create the input density", &
                           usage="DENSITY_SOURCE ATOMIC", &
                           default_i_val=hden_atomic, &
-                          enum_c_vals=s2a("ATOMIC"), &
-                          enum_desc=s2a("Atomic densities"), &
-                          enum_i_vals=[hden_atomic])
+                          enum_c_vals=s2a("ATOMIC", "CUBE"), &
+                          enum_desc=s2a("Atomic densities", &
+                                        "Electron density read directly from a Gaussian cube file"), &
+                          enum_i_vals=[hden_atomic, hden_cube])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FILE_DENSITY", &
+                          description="Filename of the electron density in Gaussian cube format. "// &
+                          "Used when DENSITY_SOURCE is CUBE. The cube grid has to coincide with "// &
+                          "the finest CP2K real-space grid.", &
+                          usage="FILE_DENSITY <FILENAME>", &
+                          type_of_var=char_t, default_c_val="", n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

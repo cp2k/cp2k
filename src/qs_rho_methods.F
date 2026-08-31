@@ -406,7 +406,7 @@ CONTAINS
 
       IF (qs_env%harris_method) THEN
          CALL get_qs_env(qs_env, harris_env=harris_env)
-         CALL calculate_harris_density(qs_env, harris_env%rhoin, rho_struct)
+         CALL calculate_harris_density(qs_env, harris_env, rho_struct)
          CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
 
       ELSE IF (dft_control%qs_control%semi_empirical .OR. &

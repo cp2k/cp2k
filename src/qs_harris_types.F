@@ -64,6 +64,7 @@ MODULE qs_harris_types
       INTEGER                                          :: energy_functional = 0
       INTEGER                                          :: density_source = 0
       INTEGER                                          :: orbital_basis = 0
+      CHARACTER(LEN=default_string_length)             :: density_filename = ""
       !
       TYPE(harris_energy_type)                         :: energy
       !
