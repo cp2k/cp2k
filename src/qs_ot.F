@@ -131,10 +131,10 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: denominator
 
-      denominator = MAX(0.0_dp, fixed_n_curvature_sum)
-      IF (denominator <= EPSILON(denominator)) denominator = MAX(0.0_dp, local_curvature_sum)
+      denominator = fixed_n_curvature_sum
+      IF (ABS(denominator) <= EPSILON(denominator)) denominator = local_curvature_sum
       mu_shift = 0.0_dp
-      IF (denominator > EPSILON(denominator)) mu_shift = weighted_energy_response/denominator
+      IF (ABS(denominator) > EPSILON(denominator)) mu_shift = weighted_energy_response/denominator
 
    END FUNCTION qs_ot_fixed_n_response_mu_shift
 
@@ -142,7 +142,7 @@ CONTAINS
 !> \brief fixed-N Mermin gradient in auxiliary-energy coordinates
 !> \param rayleigh_energy diagonal expectation values of the current Hamiltonian
 !> \param energy_coordinate auxiliary band energies controlling the occupations
-!> \param response_weight positive weighted occupation susceptibilities chi_i
+!> \param response_weight signed weighted occupation responses chi_i
 !> \param fixed_n_weight_sum global sum_i chi_i for the fixed-N group
 !> \param fixed_n_weighted_residual global sum_i chi_i (h_i-e_i)
 !> \param gradient projected fixed-N gradient
@@ -159,7 +159,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: fixed_n_mean
 
       fixed_n_mean = 0.0_dp
-      IF (fixed_n_weight_sum > EPSILON(fixed_n_weight_sum)) THEN
+      IF (ABS(fixed_n_weight_sum) > EPSILON(fixed_n_weight_sum)) THEN
          fixed_n_mean = fixed_n_weighted_residual/fixed_n_weight_sum
       END IF
       gradient(:) = response_weight(:)* &
@@ -170,9 +170,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief dense fixed-N occupation Hessian in auxiliary-energy coordinates
 !>
-!>        H = diag(chi) - chi chi^T / sum(chi) is symmetric positive semidefinite and has the
-!>        constant-energy gauge as an exact null vector.
-!> \param response_weight positive weighted occupation susceptibilities chi_i
+!>        H = diag(chi) - chi chi^T / sum(chi) is symmetric and has the constant-energy gauge as
+!>        an exact null vector. It can be indefinite for non-monotone smearing distributions.
+!> \param response_weight signed weighted occupation responses chi_i
 !> \param fixed_n_weight_sum global sum_i chi_i for the fixed-N group
 !> \param hessian projected fixed-N Hessian
 ! **************************************************************************************************
@@ -186,14 +186,13 @@ CONTAINS
       n = SIZE(response_weight)
       hessian(:, :) = 0.0_dp
       DO i = 1, n
-         hessian(i, i) = MAX(0.0_dp, response_weight(i))
+         hessian(i, i) = response_weight(i)
       END DO
-      IF (fixed_n_weight_sum > EPSILON(fixed_n_weight_sum)) THEN
+      IF (ABS(fixed_n_weight_sum) > EPSILON(fixed_n_weight_sum)) THEN
          DO j = 1, n
             DO i = 1, n
                hessian(i, j) = hessian(i, j) - &
-                               MAX(0.0_dp, response_weight(i))* &
-                               MAX(0.0_dp, response_weight(j))/fixed_n_weight_sum
+                               response_weight(i)*response_weight(j)/fixed_n_weight_sum
             END DO
          END DO
       END IF
@@ -214,7 +213,7 @@ CONTAINS
 !>        rotation Hessian.
 !> \param rotation_hessian fixed-occupation rotation Hessian A
 !> \param rayleigh_response derivative R of the Rayleigh energies with respect to rotations
-!> \param response_weight local positive occupation susceptibilities chi
+!> \param response_weight local signed occupation responses chi
 !> \param rotation_gradient physical rotation gradient
 !> \param energy_gradient physical auxiliary-energy gradient
 !> \param schur_block local block A - R^T D R
@@ -244,14 +243,14 @@ CONTAINS
 
       schur_block(:, :) = rotation_hessian(:, :)
       DO i = 1, nenergy
-         weight = MAX(0.0_dp, response_weight(i))
+         weight = response_weight(i)
          schur_block(:, :) = schur_block(:, :) - weight* &
                              SPREAD(rayleigh_response(i, :), DIM=2, NCOPIES=nrotation)* &
                              SPREAD(rayleigh_response(i, :), DIM=1, NCOPIES=nrotation)
       END DO
       schur_block(:, :) = 0.5_dp*(schur_block + TRANSPOSE(schur_block))
       coupling_vector(:) = MATMUL(TRANSPOSE(rayleigh_response), &
-                                  MAX(0.0_dp, response_weight))
+                                  response_weight)
       schur_rhs(:) = rotation_gradient + &
                      MATMUL(TRANSPOSE(rayleigh_response), energy_gradient)
 
@@ -809,7 +808,7 @@ CONTAINS
 !> \param dchc Hermitian Hamiltonian perturbation
 !> \param occupation canonical occupations associated with the eigenvalues of chc
 !> \param kpoint_weight irreducible-k-point weight
-!> \param response_weight positive weighted occupation susceptibilities for this channel
+!> \param response_weight signed weighted occupation responses for this channel
 !> \param fixed_n_weight_sum susceptibility summed over the complete fixed-N group
 !> \param projector_derivative derivative of the weighted occupation projector
 !> \param density_factor optional representation-dependent density prefactor
@@ -851,10 +850,10 @@ CONTAINS
       work(:, :) = MATMUL(CONJG(TRANSPOSE(eigenvectors)), MATMUL(dchc, eigenvectors))
       weighted_occupation(:) = factor*kpoint_weight*occupation(:)
 
-      local_weight_sum = SUM(MAX(0.0_dp, response_weight(:)))
+      local_weight_sum = SUM(response_weight(:))
       mu_numerator = 0.0_dp
       DO i = 1, n
-         mu_numerator = mu_numerator + MAX(0.0_dp, response_weight(i))* &
+         mu_numerator = mu_numerator + response_weight(i)* &
                         REAL(work(i, i), KIND=dp)
       END DO
       mu_shift = qs_ot_fixed_n_response_mu_shift(mu_numerator, local_weight_sum, &
@@ -866,7 +865,7 @@ CONTAINS
       DO j = 1, n
          DO i = 1, n
             IF (i == j) THEN
-               coefficient = -factor*MAX(0.0_dp, response_weight(i))
+               coefficient = -factor*response_weight(i)
                kernel(i, i) = CMPLX(coefficient*(REAL(work(i, i), KIND=dp) - mu_shift), &
                                     0.0_dp, KIND=dp)
             ELSE
@@ -874,8 +873,7 @@ CONTAINS
                IF (ABS(denominator) > gap_tolerance) THEN
                   coefficient = (weighted_occupation(i) - weighted_occupation(j))/denominator
                ELSE
-                  coefficient = -factor*SQRT(MAX(0.0_dp, response_weight(i))* &
-                                             MAX(0.0_dp, response_weight(j)))
+                  coefficient = -0.5_dp*factor*(response_weight(i) + response_weight(j))
                END IF
                kernel(i, j) = coefficient*work(i, j)
             END IF

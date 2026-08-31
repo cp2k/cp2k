@@ -92,8 +92,8 @@ MODULE qs_scf
         ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
         outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_newton_ls, restart_guess, sic_eo, smear_fermi_dirac, &
-        tblite_scc_mixer_tblite
+        outer_scf_optimizer_newton_ls, restart_guess, sic_eo, smear_fermi_dirac, smear_gaussian, &
+        smear_mp, smear_mv, tblite_scc_mixer_tblite
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -1805,9 +1805,12 @@ CONTAINS
             IF (.NOT. scf_env%qs_ot_env(1)%settings%do_rotation) THEN
                CPABORT("K-point OT smearing requires OT%ROTATION.")
             END IF
-            IF (scf_control%smear%method /= smear_fermi_dirac) THEN
-               CPABORT("K-point Mermin OT currently supports FERMI_DIRAC smearing only.")
-            END IF
+            SELECT CASE (scf_control%smear%method)
+            CASE (smear_fermi_dirac, smear_gaussian, smear_mp, smear_mv)
+               CONTINUE
+            CASE DEFAULT
+               CPABORT("K-point Mermin OT does not support the selected smearing method.")
+            END SELECT
             IF (scf_env%qs_ot_env(1)%settings%ot_algorithm /= "TOD" .AND. &
                 scf_env%qs_ot_env(1)%settings%ot_algorithm /= "REF") THEN
                CPABORT("K-point Mermin OT currently supports OT%ALGORITHM STRICT or IRAC.")
@@ -1820,7 +1823,7 @@ CONTAINS
                CPABORT("K-point Mermin OT supports OT%MINIMIZER CG, SD, DIIS, BROYDEN, or LBFGS.")
             END IF
          ELSE IF (scf_env%qs_ot_env(1)%settings%do_ener) THEN
-            CPABORT("OT%ENERGIES requires FERMI_DIRAC smearing in the complex K-point path.")
+            CPABORT("OT%ENERGIES requires smearing in the complex K-point path.")
          END IF
          IF (scf_env%qs_ot_env(1)%settings%ot_algorithm /= "TOD" .AND. &
              scf_env%qs_ot_env(1)%settings%ot_algorithm /= "REF") THEN
@@ -1848,7 +1851,7 @@ CONTAINS
             CPABORT(kpoint_solver_error)
          END IF
          IF (scf_env%qs_ot_env(1)%settings%occupation_preconditioner .AND. .NOT. do_smear) THEN
-            CPABORT("K-point OCCUPATION_PRECONDITIONER currently requires FERMI_DIRAC smearing.")
+            CPABORT("K-point OCCUPATION_PRECONDITIONER requires smearing.")
          END IF
          IF (dft_control%restricted) THEN
             CPABORT("Restricted open-shell K-point OT is not implemented.")

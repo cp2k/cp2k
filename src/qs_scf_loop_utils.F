@@ -40,7 +40,10 @@ MODULE qs_scf_loop_utils
    USE cp_log_handling,                 ONLY: cp_to_string
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: diag_update_method_adiis,&
-                                              smear_fermi_dirac
+                                              smear_fermi_dirac,&
+                                              smear_gaussian,&
+                                              smear_mp,&
+                                              smear_mv
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -107,7 +110,8 @@ MODULE qs_scf_loop_utils
                                               smear_type
    USE smeagol_interface,               ONLY: run_smeagol_emtrans
    USE smearing_utils,                  ONLY: Smearkp,&
-                                              Smearkp2
+                                              Smearkp2,&
+                                              smearing_response_weight
    USE tblite_interface,                ONLY: tb_native_scc_mixer_active
 #include "./base/base_uses.f90"
 
@@ -647,7 +651,7 @@ CONTAINS
                                                             physical_base_state, transfer_step, &
                                                             use_real_wfn
       REAL(KIND=dp)                                      :: trial_kTS
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor, trial_mu
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trial_eigenvalues, trial_occupation
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers, wkp
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct, chc_struct
@@ -858,7 +862,7 @@ CONTAINS
       IF (local_ot_env(1)%settings%do_ener) THEN
          CALL qs_scf_loop_collect_ot_kp_trial_smearing( &
             kpoints, local_ot_env, first_channel, nspin_ot, kp_range, wkp, para_env_inter_kp, &
-            scf_control%smear, trial_eigenvalues, trial_occupation, trial_kTS)
+            scf_control%smear, trial_eigenvalues, trial_occupation, trial_mu, trial_kTS)
       END IF
 
       DO local_kpoint = 1, SIZE(kpoints%kp_env)
@@ -925,7 +929,7 @@ CONTAINS
             local_ot_env(1)%etotal = energy%total - energy%kTS + trial_kTS
             CALL qs_scf_loop_prepare_ot_kp_energy_gradient( &
                kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, &
-               scf_control%smear, trial_eigenvalues, trial_occupation)
+               scf_control%smear, trial_eigenvalues, trial_occupation, trial_mu)
             IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
                CALL ot_mini_prepare_gradient( &
                   local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
@@ -944,7 +948,7 @@ CONTAINS
             IF (physical_base_state) THEN
                CALL qs_scf_loop_prepare_ot_kp_rotation_response( &
                   kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, &
-                  scf_control%smear, trial_occupation)
+                  scf_control%smear, trial_eigenvalues, trial_occupation, trial_mu)
             END IF
             IF (physical_base_state .AND. &
                 local_ot_env(1)%settings%occupation_preconditioner .AND. &
@@ -1026,6 +1030,7 @@ CONTAINS
 
       IF (ALLOCATED(trial_eigenvalues)) DEALLOCATE (trial_eigenvalues)
       IF (ALLOCATED(trial_occupation)) DEALLOCATE (trial_occupation)
+      IF (ALLOCATED(trial_mu)) DEALLOCATE (trial_mu)
 
       IF (.NOT. added_mos_auto_grow) THEN
          fmwork => scf_env%scf_work1
@@ -1387,11 +1392,12 @@ CONTAINS
 !> \param smear ...
 !> \param trial_eigenvalues ...
 !> \param trial_occupation ...
+!> \param trial_mu chemical potential for each spin channel
 !> \param trial_kTS ...
 ! **************************************************************************************************
    SUBROUTINE qs_scf_loop_collect_ot_kp_trial_smearing( &
       kpoints, local_ot_env, first_channel, nspin_ot, kp_range, wkp, para_env_inter_kp, smear, &
-      trial_eigenvalues, trial_occupation, trial_kTS)
+      trial_eigenvalues, trial_occupation, trial_mu, trial_kTS)
 
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: local_ot_env
@@ -1402,17 +1408,27 @@ CONTAINS
       TYPE(smear_type), INTENT(IN)                       :: smear
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: trial_eigenvalues, trial_occupation
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: trial_mu
       REAL(KIND=dp), INTENT(OUT)                         :: trial_kTS
 
       INTEGER                                            :: ikpoint, ispin, local_channel, &
                                                             local_kpoint, ne_a, ne_b, nelectron, &
                                                             nkpoint, nmo
-      REAL(KIND=dp)                                      :: kTS, mu, nel
+      REAL(KIND=dp)                                      :: kTS, mu, nel, sigma
       REAL(KIND=dp), DIMENSION(2)                        :: mus
       TYPE(kpoint_env_type), POINTER                     :: kp
 
       CPASSERT(smear%do_smear)
-      CPASSERT(smear%method == smear_fermi_dirac)
+      SELECT CASE (smear%method)
+      CASE (smear_fermi_dirac)
+         sigma = smear%electronic_temperature
+      CASE (smear_gaussian, smear_mp, smear_mv)
+         sigma = smear%smearing_width
+      CASE DEFAULT
+         CPABORT("K-point Mermin OT does not support the selected smearing method")
+      END SELECT
+      CPASSERT(sigma > EPSILON(sigma))
       CPASSERT(ASSOCIATED(para_env_inter_kp))
       CALL get_kpoint_info(kpoints, nkp=nkpoint)
       kp => kpoints%kp_env(1)%kpoint_env
@@ -1423,6 +1439,7 @@ CONTAINS
 
       ALLOCATE (trial_eigenvalues(nmo, nkpoint, nspin_ot))
       ALLOCATE (trial_occupation(nmo, nkpoint, nspin_ot))
+      ALLOCATE (trial_mu(nspin_ot))
       trial_eigenvalues(:, :, :) = 0.0_dp
       trial_occupation(:, :, :) = 0.0_dp
       mus(:) = 0.0_dp
@@ -1442,25 +1459,23 @@ CONTAINS
       IF (nspin_ot == 1) THEN
          nel = REAL(nelectron, KIND=dp)
          CALL Smearkp(trial_occupation(:, :, 1), mus(1), trial_kTS, &
-                      trial_eigenvalues(:, :, 1), nel, wkp, smear%electronic_temperature, &
-                      2.0_dp, smear_fermi_dirac)
+                      trial_eigenvalues(:, :, 1), nel, wkp, sigma, 2.0_dp, smear%method)
       ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
          nel = REAL(ne_a, KIND=dp)
          CALL Smearkp(trial_occupation(:, :, 1), mus(1), kTS, &
-                      trial_eigenvalues(:, :, 1), nel, wkp, smear%electronic_temperature, &
-                      1.0_dp, smear_fermi_dirac)
+                      trial_eigenvalues(:, :, 1), nel, wkp, sigma, 1.0_dp, smear%method)
          trial_kTS = kTS
          nel = REAL(ne_b, KIND=dp)
          CALL Smearkp(trial_occupation(:, :, 2), mus(2), kTS, &
-                      trial_eigenvalues(:, :, 2), nel, wkp, smear%electronic_temperature, &
-                      1.0_dp, smear_fermi_dirac)
+                      trial_eigenvalues(:, :, 2), nel, wkp, sigma, 1.0_dp, smear%method)
          trial_kTS = trial_kTS + kTS
       ELSE
          nel = REAL(ne_a + ne_b, KIND=dp)
          CALL Smearkp2(trial_occupation, mu, trial_kTS, trial_eigenvalues, nel, wkp, &
-                       smear%electronic_temperature, smear_fermi_dirac)
+                       sigma, smear%method)
          mus(1:2) = mu
       END IF
+      trial_mu(:) = mus(1:nspin_ot)
    END SUBROUTINE qs_scf_loop_collect_ot_kp_trial_smearing
 
 ! **************************************************************************************************
@@ -1474,10 +1489,11 @@ CONTAINS
 !> \param smear ...
 !> \param trial_eigenvalues ...
 !> \param trial_occupation ...
+!> \param trial_mu ...
 ! **************************************************************************************************
    SUBROUTINE qs_scf_loop_prepare_ot_kp_energy_gradient( &
       kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, smear, &
-      trial_eigenvalues, trial_occupation)
+      trial_eigenvalues, trial_occupation, trial_mu)
 
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: local_ot_env
@@ -1486,6 +1502,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
       TYPE(smear_type), INTENT(IN)                       :: smear
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: trial_eigenvalues, trial_occupation
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: trial_mu
 
       INTEGER                                            :: group, ikpoint, imo, ispin, &
                                                             local_channel, local_kpoint, ngroups, &
@@ -1499,15 +1516,23 @@ CONTAINS
       IF (.NOT. local_ot_env(1)%settings%do_ener) RETURN
 
       CPASSERT(smear%do_smear)
-      CPASSERT(smear%method == smear_fermi_dirac)
       CPASSERT(ASSOCIATED(para_env_inter_kp))
-      sigma = smear%electronic_temperature
+      SELECT CASE (smear%method)
+      CASE (smear_fermi_dirac)
+         sigma = smear%electronic_temperature
+      CASE (smear_gaussian, smear_mp, smear_mv)
+         sigma = smear%smearing_width
+      CASE DEFAULT
+         CPABORT("K-point Mermin OT does not support the selected smearing method")
+      END SELECT
       CPASSERT(sigma > EPSILON(sigma))
 
       ngroups = 1
       IF (nspin_ot == 2 .AND. smear%fixed_mag_mom > 0.0_dp) ngroups = 2
+      nmo = SIZE(trial_eigenvalues, 1)
       ALLOCATE (fixed_n_residual(ngroups), fixed_n_weight(ngroups), &
-                preconditioner_count(ngroups), preconditioner_shift(ngroups))
+                preconditioner_count(ngroups), preconditioner_shift(ngroups), &
+                response_weight(nmo))
       fixed_n_residual(:) = 0.0_dp
       fixed_n_weight(:) = 0.0_dp
       preconditioner_count(:) = 0.0_dp
@@ -1523,13 +1548,16 @@ CONTAINS
             CPASSERT(maxocc > EPSILON(maxocc))
             CPASSERT(SIZE(local_ot_env(local_channel)%ener_x) == nmo)
             CPASSERT(SIZE(local_ot_env(local_channel)%ener_rayleigh) == nmo)
+            CALL smearing_response_weight( &
+               response_weight, trial_occupation(:, ikpoint, ispin), &
+               trial_eigenvalues(:, ikpoint, ispin), trial_mu(ispin), sigma, maxocc, nmo, &
+               smear%method)
+            response_weight(:) = wkp(ikpoint)*response_weight
             DO imo = 1, nmo
                fixed_n_weight(group) = fixed_n_weight(group) + &
-                                       wkp(ikpoint)*MAX(0.0_dp, trial_occupation(imo, ikpoint, ispin)* &
-                                                        (maxocc - trial_occupation(imo, ikpoint, ispin))/(maxocc*sigma))
+                                       response_weight(imo)
                fixed_n_residual(group) = fixed_n_residual(group) + &
-                                         wkp(ikpoint)*MAX(0.0_dp, trial_occupation(imo, ikpoint, ispin)* &
-                                                          (maxocc - trial_occupation(imo, ikpoint, ispin))/(maxocc*sigma))* &
+                                         response_weight(imo)* &
                                          (local_ot_env(local_channel)%ener_rayleigh(imo) - &
                                           trial_eigenvalues(imo, ikpoint, ispin))
             END DO
@@ -1547,7 +1575,7 @@ CONTAINS
                local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
                CALL get_mo_set(kp%mos(1, ispin), nmo=nmo)
                fixed_n_mean = 0.0_dp
-               IF (fixed_n_weight(group) > EPSILON(fixed_n_weight(group))) THEN
+               IF (ABS(fixed_n_weight(group)) > EPSILON(fixed_n_weight(group))) THEN
                   fixed_n_mean = fixed_n_residual(group)/fixed_n_weight(group)
                END IF
                local_ot_env(local_channel)%ener_preconditioned_gx(:) = fixed_n_mean - &
@@ -1575,19 +1603,20 @@ CONTAINS
                   local_ot_env(local_channel)%ener_preconditioned_gx(:) - &
                   preconditioner_shift(group)/preconditioner_count(group)
             END IF
-            ALLOCATE (response_weight(nmo))
-            response_weight(:) = wkp(ikpoint)*MAX(0.0_dp, trial_occupation(1:nmo, ikpoint, ispin)* &
-                                                  (maxocc - trial_occupation(1:nmo, ikpoint, ispin))/ &
-                                                  (maxocc*sigma))
+            CALL smearing_response_weight( &
+               response_weight, trial_occupation(:, ikpoint, ispin), &
+               trial_eigenvalues(:, ikpoint, ispin), trial_mu(ispin), sigma, maxocc, nmo, &
+               smear%method)
+            response_weight(:) = wkp(ikpoint)*response_weight
             CALL qs_ot_fixed_n_energy_gradient( &
                local_ot_env(local_channel)%ener_rayleigh, trial_eigenvalues(:, ikpoint, ispin), &
                response_weight, fixed_n_weight(group), fixed_n_residual(group), &
                local_ot_env(local_channel)%ener_gx)
-            DEALLOCATE (response_weight)
          END DO
       END DO
 
-      DEALLOCATE (fixed_n_residual, fixed_n_weight, preconditioner_count, preconditioner_shift)
+      DEALLOCATE (fixed_n_residual, fixed_n_weight, preconditioner_count, preconditioner_shift, &
+                  response_weight)
 
    END SUBROUTINE qs_scf_loop_prepare_ot_kp_energy_gradient
 
@@ -1600,18 +1629,21 @@ CONTAINS
 !> \param wkp irreducible K-point weights
 !> \param para_env_inter_kp communicator between distributed K-point groups
 !> \param smear smearing settings
+!> \param trial_eigenvalues current auxiliary band energies
 !> \param trial_occupation current fixed-N occupations
+!> \param trial_mu chemical potential for each spin channel
 ! **************************************************************************************************
    SUBROUTINE qs_scf_loop_prepare_ot_kp_rotation_response( &
       kpoints, local_ot_env, first_channel, nspin_ot, wkp, para_env_inter_kp, smear, &
-      trial_occupation)
+      trial_eigenvalues, trial_occupation, trial_mu)
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: local_ot_env
       INTEGER, INTENT(IN)                                :: first_channel, nspin_ot
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
       TYPE(smear_type), INTENT(IN)                       :: smear
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: trial_occupation
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: trial_eigenvalues, trial_occupation
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: trial_mu
 
       INTEGER, PARAMETER :: finite_response_max_rotation = 800
       REAL(KIND=dp), PARAMETER :: rotation_trust_rms = 0.25_dp, rotation_trust_spectral = 0.25_dp
@@ -1679,9 +1711,15 @@ CONTAINS
           local_ot_env(1)%response_candidate_cooldown, &
           local_ot_env(1)%response_shadow_pending)) RETURN
       CPASSERT(smear%do_smear)
-      CPASSERT(smear%method == smear_fermi_dirac)
       CPASSERT(ASSOCIATED(para_env_inter_kp))
-      sigma = smear%electronic_temperature
+      SELECT CASE (smear%method)
+      CASE (smear_fermi_dirac)
+         sigma = smear%electronic_temperature
+      CASE (smear_gaussian, smear_mp, smear_mv)
+         sigma = smear%smearing_width
+      CASE DEFAULT
+         RETURN
+      END SELECT
       CPASSERT(sigma > EPSILON(sigma))
 
       nmo = SIZE(local_ot_env(1)%ener_x)
@@ -1740,9 +1778,11 @@ CONTAINS
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
             CALL get_mo_set(kp%mos(1, ispin), maxocc=maxocc)
             CPASSERT(maxocc > EPSILON(maxocc))
-            response_weight(:) = wkp(ikpoint)* &
-                                 MAX(0.0_dp, trial_occupation(:, ikpoint, ispin)* &
-                                     (maxocc - trial_occupation(:, ikpoint, ispin))/(maxocc*sigma))
+            CALL smearing_response_weight( &
+               response_weight, trial_occupation(:, ikpoint, ispin), &
+               trial_eigenvalues(:, ikpoint, ispin), trial_mu(ispin), sigma, maxocc, nmo, &
+               smear%method)
+            response_weight(:) = wkp(ikpoint)*response_weight
             curvature_sum(group) = curvature_sum(group) + SUM(response_weight)
 
             CALL qs_scf_loop_ot_matrix_to_dense( &
@@ -1828,7 +1868,7 @@ CONTAINS
             group = MERGE(ispin, 1, ngroups == nspin_ot)
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
             denominator = curvature_sum(group) + vz(group)
-            IF (denominator > EPSILON(denominator)) THEN
+            IF (ABS(denominator) > EPSILON(denominator)) THEN
                rotation_step(:, local_channel) = rotation_y(:, local_channel) - &
                                                  rotation_z(:, local_channel)*vy(group)/denominator
             ELSE
@@ -1976,7 +2016,7 @@ CONTAINS
       CALL para_env_inter_kp%sum(energy_weighted_sum)
       energy_mean(:) = 0.0_dp
       DO group = 1, ngroups
-         IF (curvature_sum(group) > EPSILON(curvature_sum(group))) THEN
+         IF (ABS(curvature_sum(group)) > EPSILON(curvature_sum(group))) THEN
             energy_mean(group) = energy_weighted_sum(group)/curvature_sum(group)
          END IF
       END DO
@@ -2020,7 +2060,7 @@ CONTAINS
          CALL para_env_inter_kp%sum(shadow_energy_weighted_sum)
          shadow_energy_mean(:) = 0.0_dp
          DO group = 1, ngroups
-            IF (curvature_sum(group) > EPSILON(curvature_sum(group))) THEN
+            IF (ABS(curvature_sum(group)) > EPSILON(curvature_sum(group))) THEN
                shadow_energy_mean(group) = shadow_energy_weighted_sum(group)/curvature_sum(group)
             END IF
          END DO

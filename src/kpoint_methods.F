@@ -1889,7 +1889,7 @@ CONTAINS
          IF (nmo >= nao) THEN
             CALL cp_abort(__LOCATION__, &
                           "K-point ADDED_MOS AUTO exhausted the AO basis but the highest band "// &
-                          "is still occupied. Use a larger basis or a lower electronic temperature.")
+                          "is still occupied. Use a larger basis or reduce the smearing width.")
          END IF
          added_mos_auto_grow = .TRUE.
          RETURN
