@@ -68,6 +68,17 @@
   {matcher="E_total", tol=1e-9, ref=-0.280830319393730},
   {matcher="OT_kpoint_ref_refresh"},
 ]
+"Na-kpoint-mermin-uks-cg.inp"           = [{matcher="E_total", tol=1e-9, ref=-0.280830319393724}]
+"Al-kpoint-mermin-uks-common-mu.inp"    = [
+  {matcher="E_total", tol=1e-9, ref=-2.092003917582918},
+  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+]
+"Al-kpoint-mermin-uks-fixed-moment.inp" = [
+  {matcher="E_total", tol=1e-9, ref=-2.092002995440775},
+  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+]
 "Al-kpoint-mermin-response.inp"         = [
   {matcher="E_total", tol=1e-9, ref=-3.990589661043425},
   {matcher="OT_mermin_response_update"},
