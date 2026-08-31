@@ -1064,6 +1064,7 @@ fi
 if [ "${with_gauxc}" != "__DONTUSE__" ] || [ "${with_skala_ftorch}" != "__DONTUSE__" ]; then
   echo "Info: Installing shared skala model for GauXC and/or skala_ftorch"
   with_skala="__INSTALL__"
+  export with_skala
 fi
 
 # Set SKALA flag if either GAUXC or skala_ftorch is enabled
