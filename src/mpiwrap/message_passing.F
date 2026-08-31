@@ -20,6 +20,8 @@
 !>      JGH (15-Feb-2006): single precision mp_alltoall
 !> \note Concurrent calls must use thread-private buffers and requests. Concurrent collectives,
 !>       or point-to-point calls that do not use distinct tags, must use distinct communicators.
+!>       Communicator creation, duplication, splitting, ownership changes, and destruction must
+!>       happen outside OpenMP parallel regions.
 !> \author JGH
 ! **************************************************************************************************
 MODULE message_passing
@@ -29,6 +31,7 @@ MODULE message_passing
       real_8_size, default_string_length
    USE machine, ONLY: m_abort
    USE mp_perf_env, ONLY: add_perf, add_mp_perf_env, rm_mp_perf_env
+   USE OMP_LIB, ONLY: omp_get_level, omp_get_thread_num, omp_in_parallel
 #if defined(__MIMIC)
    USE mcl, ONLY: mcl_initialize, mcl_is_initialized, mcl_abort
 #endif
@@ -74,8 +77,6 @@ MODULE message_passing
    USE mpi
 #endif
 #endif
-
-!$ USE OMP_LIB, ONLY: omp_get_level, omp_get_thread_num, omp_in_parallel
 
    IMPLICIT NONE
    PRIVATE
@@ -149,6 +150,13 @@ MODULE message_passing
    ! Thread-support level provided by MPI. A negative value means that MPI has
    ! not been initialized by CP2K or queried from an embedding application yet.
    INTEGER, PRIVATE, SAVE :: mp_thread_level_provided = -1
+
+   ! MPI can be initialized by CP2K or by an embedding application. Only the
+   ! component that initialized MPI is allowed to finalize it.
+#if defined(__parallel)
+   LOGICAL, PRIVATE, SAVE :: mp_mpi_initialized_by_cp2k = .FALSE.
+#endif
+   LOGICAL, PRIVATE, SAVE :: mp_world_is_initialized = .FALSE.
 
    PUBLIC :: mp_comm_type
    PUBLIC :: mp_request_type
@@ -838,7 +846,6 @@ MODULE message_passing
 
    ! init and error
    PUBLIC :: mp_world_init, mp_world_finalize, mp_query_thread_level
-   PUBLIC :: mp_get_thread_level, mp_has_thread_multiple
    PUBLIC :: mp_abort
 
    ! informational / generation of sub comms
@@ -1126,8 +1133,10 @@ CONTAINS
       SUBROUTINE mp_assert_outside_parallel(routine_name)
          CHARACTER(LEN=*), INTENT(IN)                     :: routine_name
 
-!$       IF (omp_in_parallel()) &
-!$          CPABORT(TRIM(routine_name)//" must be called outside an OpenMP parallel region.")
+         IF (omp_in_parallel()) THEN
+            CALL cp_abort(__LOCATION__, &
+                          TRIM(routine_name)//" must be called outside an OpenMP parallel region.")
+         END IF
       END SUBROUTINE mp_assert_outside_parallel
 
 ! **************************************************************************************************
@@ -1144,34 +1153,49 @@ CONTAINS
       END SUBROUTINE mp_assert_thread_multiple
 
 ! **************************************************************************************************
+!> \brief Initialize MPI or attach to an MPI environment provided by an embedding application.
+!> \param initialize_mpi whether CP2K should initialize MPI when it is not active yet
+! **************************************************************************************************
+      SUBROUTINE mp_initialize_thread_support(initialize_mpi)
+         LOGICAL, INTENT(IN)                              :: initialize_mpi
+#if defined(__parallel)
+         INTEGER                                          :: ierr
+         LOGICAL                                          :: finalized, initialized
+
+         CALL mpi_finalized(finalized, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_finalized @ mp_initialize_thread_support")
+         IF (finalized) THEN
+            CALL cp_abort(__LOCATION__, "MPI has already been finalized.")
+         END IF
+
+         CALL mpi_initialized(initialized, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_initialized @ mp_initialize_thread_support")
+         IF (.NOT. initialized) THEN
+            IF (.NOT. initialize_mpi) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "MPI must be initialized by the embedding application before CP2K.")
+            END IF
+            CALL mpi_init_thread(MPI_THREAD_MULTIPLE, mp_thread_level_provided, ierr)
+            IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init_thread @ mp_initialize_thread_support")
+            mp_mpi_initialized_by_cp2k = .TRUE.
+         ELSE
+            CALL mpi_query_thread(mp_thread_level_provided, ierr)
+            IF (ierr /= 0) CALL mp_stop(ierr, "mpi_query_thread @ mp_initialize_thread_support")
+         END IF
+         CALL mp_assert_thread_multiple()
+#else
+         MARK_USED(initialize_mpi)
+         mp_thread_level_provided = -1
+#endif
+      END SUBROUTINE mp_initialize_thread_support
+
+! **************************************************************************************************
 !> \brief Query the MPI thread-support level when MPI is managed by an embedding application.
 ! **************************************************************************************************
       SUBROUTINE mp_query_thread_level()
-#if defined(__parallel)
-         INTEGER                                          :: ierr
-         LOGICAL                                          :: initialized
-
          CALL mp_assert_outside_parallel("mp_query_thread_level")
-         CALL mpi_initialized(initialized, ierr)
-         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_initialized @ mp_query_thread_level")
-         IF (.NOT. initialized) &
-            CPABORT("MPI must be initialized before calling mp_query_thread_level.")
-
-         CALL mpi_query_thread(mp_thread_level_provided, ierr)
-         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_query_thread @ mp_query_thread_level")
-         CALL mp_assert_thread_multiple()
-#else
-         mp_thread_level_provided = -1
-#endif
+         CALL mp_initialize_thread_support(.FALSE.)
       END SUBROUTINE mp_query_thread_level
-
-! **************************************************************************************************
-!> \brief Return the MPI thread-support level observed during initialization.
-!> \return MPI thread-support level, or -1 if MPI is unavailable or has not been queried
-! **************************************************************************************************
-      INTEGER FUNCTION mp_get_thread_level()
-         mp_get_thread_level = mp_thread_level_provided
-      END FUNCTION mp_get_thread_level
 
 ! **************************************************************************************************
 !> \brief Return a human-readable name for the observed MPI thread-support level.
@@ -1197,24 +1221,13 @@ CONTAINS
       END FUNCTION mp_get_thread_level_name
 
 ! **************************************************************************************************
-!> \brief Return whether the active MPI environment supports MPI_THREAD_MULTIPLE.
-!> \return true when MPI_THREAD_MULTIPLE is available
-! **************************************************************************************************
-      LOGICAL FUNCTION mp_has_thread_multiple()
-#if defined(__parallel)
-         mp_has_thread_multiple = mp_thread_level_provided >= MPI_THREAD_MULTIPLE
-#else
-         mp_has_thread_multiple = .FALSE.
-#endif
-      END FUNCTION mp_has_thread_multiple
-
-! **************************************************************************************************
 !> \brief initializes the system default communicator
 !> \param mp_comm [output] : handle of the default communicator
 !> \par History
 !>      2.2004 created [Joost VandeVondele ]
 !> \note
-!>      should only be called once
+!>      While active, this routine may only be called once. If MPI is already initialized,
+!>      CP2K validates MPI_THREAD_MULTIPLE and attaches without taking ownership.
 ! **************************************************************************************************
       SUBROUTINE mp_world_init(mp_comm)
          CLASS(mp_comm_type), INTENT(OUT)                     :: mp_comm
@@ -1226,10 +1239,11 @@ CONTAINS
 #endif
 
          CALL mp_assert_outside_parallel("mp_world_init")
+         IF (mp_world_is_initialized) THEN
+            CALL cp_abort(__LOCATION__, "mp_world_init called while already initialized.")
+         END IF
+         CALL mp_initialize_thread_support(.TRUE.)
 #if defined(__parallel)
-         CALL mpi_init_thread(MPI_THREAD_MULTIPLE, mp_thread_level_provided, ierr)
-         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init_thread @ mp_world_init")
-         CALL mp_assert_thread_multiple()
          CALL mpi_comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_set_errhandler @ mp_world_init")
 #endif
@@ -1247,6 +1261,7 @@ CONTAINS
 #endif
          CALL mp_comm%init()
          CALL add_mp_perf_env()
+         mp_world_is_initialized = .TRUE.
       END SUBROUTINE mp_world_init
 
 ! **************************************************************************************************
@@ -1272,6 +1287,7 @@ CONTAINS
          MPI_GROUP_TYPE                                  :: newgroup, oldgroup
 #endif
 
+         CALL mp_assert_outside_parallel(routineN)
          CALL mp_timeset(routineN, handle)
          ierr = 0
 #if defined(__parallel)
@@ -1301,7 +1317,7 @@ CONTAINS
       END SUBROUTINE mp_reordering
 
 ! **************************************************************************************************
-!> \brief finalizes the system default communicator
+!> \brief Finalize the system default communicator and MPI when CP2K owns MPI.
 !> \par History
 !>      2.2004 created [Joost VandeVondele]
 ! **************************************************************************************************
@@ -1313,6 +1329,10 @@ CONTAINS
 #endif
 
          CALL mp_assert_outside_parallel("mp_world_finalize")
+         IF (.NOT. mp_world_is_initialized) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "mp_world_finalize called without a matching mp_world_init.")
+         END IF
 #if defined(__parallel)
 #if defined(__MIMIC)
          CALL mpi_barrier(mimic_comm_world, ierr)
@@ -1334,10 +1354,16 @@ CONTAINS
                           " leaking communicators "//ADJUSTL(TRIM(debug_comm_count_char)))
          END IF
 #if defined(__parallel)
-         CALL mpi_finalize(ierr)
-         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_finalize @ mp_world_finalize")
+         IF (mp_mpi_initialized_by_cp2k) THEN
+            CALL mpi_finalize(ierr)
+            IF (ierr /= 0) CALL mp_stop(ierr, "mpi_finalize @ mp_world_finalize")
+         END IF
 #endif
          mp_thread_level_provided = -1
+#if defined(__parallel)
+         mp_mpi_initialized_by_cp2k = .FALSE.
+#endif
+         mp_world_is_initialized = .FALSE.
 
       END SUBROUTINE mp_world_finalize
 
@@ -1585,6 +1611,7 @@ CONTAINS
 #endif
 
          ierr = 0
+         CALL mp_assert_outside_parallel(routineN)
          CALL mp_timeset(routineN, handle)
 
          comm_cart%handle = comm_old%handle
@@ -1708,6 +1735,7 @@ CONTAINS
          INTEGER :: ierr
 #endif
 
+         CALL mp_assert_outside_parallel(routineN)
          CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -1741,6 +1769,7 @@ CONTAINS
          INTEGER :: ierr
 #endif
 
+         CALL mp_assert_outside_parallel(routineN)
          free_comm = .TRUE.
          SELECT TYPE (comm)
          CLASS IS (mp_para_env_type)
@@ -1798,9 +1827,10 @@ CONTAINS
 !> \brief increase the reference counter but ensure that you free it later
 !> \param para_env ...
 ! **************************************************************************************************
-      ELEMENTAL SUBROUTINE mp_para_env_retain(para_env)
+      ELEMENTAL IMPURE SUBROUTINE mp_para_env_retain(para_env)
          CLASS(mp_para_env_type), INTENT(INOUT) :: para_env
 
+         CALL mp_assert_outside_parallel("mp_para_env_retain")
          para_env%ref_count = para_env%ref_count + 1
 
       END SUBROUTINE mp_para_env_retain
@@ -1821,9 +1851,10 @@ CONTAINS
 !> \brief increase the reference counter, don't forget to free it later
 !> \param cart ...
 ! **************************************************************************************************
-      ELEMENTAL SUBROUTINE mp_para_cart_retain(cart)
+      ELEMENTAL IMPURE SUBROUTINE mp_para_cart_retain(cart)
          CLASS(mp_para_cart_type), INTENT(INOUT) :: cart
 
+         CALL mp_assert_outside_parallel("mp_para_cart_retain")
          cart%ref_count = cart%ref_count + 1
 
       END SUBROUTINE mp_para_cart_retain
@@ -1845,6 +1876,7 @@ CONTAINS
          INTEGER :: ierr
 #endif
 
+         CALL mp_assert_outside_parallel(routineN)
          CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -1895,6 +1927,14 @@ CONTAINS
          CLASS(mp_comm_type), INTENT(INOUT) :: comm
          LOGICAL, INTENT(IN), OPTIONAL :: owns_group
 
+         ! Only reference-counted communicators update ownership state during initialization.
+         SELECT TYPE (comm)
+         CLASS IS (mp_para_env_type)
+            CALL mp_assert_outside_parallel("mp_comm_init")
+         CLASS IS (mp_para_cart_type)
+            CALL mp_assert_outside_parallel("mp_comm_init")
+         END SELECT
+
          IF (comm%handle MPI_GET_COMP /= mp_comm_null_handle MPI_GET_COMP) THEN
             comm%source = 0
             CALL comm%get_size(comm%num_pe)
@@ -1944,6 +1984,7 @@ CONTAINS
          TYPE(mp_para_env_type), POINTER        :: para_env
          CLASS(mp_comm_type), INTENT(in)        :: group
 
+         CALL mp_assert_outside_parallel("mp_para_env_create")
          IF (ASSOCIATED(para_env)) &
             CPABORT("The passed para_env must not be associated!")
          ALLOCATE (para_env)
@@ -1965,6 +2006,7 @@ CONTAINS
       SUBROUTINE mp_para_env_release(para_env)
          TYPE(mp_para_env_type), POINTER                    :: para_env
 
+         CALL mp_assert_outside_parallel("mp_para_env_release")
          IF (ASSOCIATED(para_env)) THEN
             CALL para_env%free()
             IF (.NOT. para_env%is_valid()) DEALLOCATE (para_env)
@@ -1982,6 +2024,7 @@ CONTAINS
          TYPE(mp_para_cart_type), POINTER, INTENT(OUT)      :: cart
          CLASS(mp_comm_type), INTENT(in)                    :: group
 
+         CALL mp_assert_outside_parallel("mp_para_cart_create")
          IF (ASSOCIATED(cart)) &
             CPABORT("The passed para_cart must not be associated!")
          ALLOCATE (cart)
@@ -1998,6 +2041,7 @@ CONTAINS
       SUBROUTINE mp_para_cart_release(cart)
          TYPE(mp_para_cart_type), POINTER                   :: cart
 
+         CALL mp_assert_outside_parallel("mp_para_cart_release")
          IF (ASSOCIATED(cart)) THEN
             CALL cart%free()
             IF (.NOT. cart%is_valid()) DEALLOCATE (cart)
@@ -2455,6 +2499,7 @@ CONTAINS
          INTEGER :: ierr, my_key
 #endif
 
+         CALL mp_assert_outside_parallel(routineN)
          CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2495,6 +2540,7 @@ CONTAINS
          INTEGER :: ierr, my_key
 #endif
 
+         CALL mp_assert_outside_parallel(routineN)
          CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
@@ -2560,6 +2606,7 @@ CONTAINS
          INTEGER, DIMENSION(:), ALLOCATABLE       :: rank_permutation
 #endif
 
+         CALL mp_assert_outside_parallel(routineN)
          CALL mp_timeset(routineN, handle)
 
          ! actual number of groups
@@ -4800,9 +4847,10 @@ CONTAINS
          INTEGER, INTENT(OUT)                               :: handle
 
          handle = -1
-!$       IF (omp_get_thread_num() /= 0 .OR. omp_get_level() > 1) RETURN
-         IF (mp_collect_timings) &
-            CALL timeset(routineN, handle)
+         IF (.NOT. mp_collect_timings) RETURN
+         IF (omp_get_thread_num() /= 0) RETURN
+         IF (omp_get_level() > 1) RETURN
+         CALL timeset(routineN, handle)
       END SUBROUTINE mp_timeset
 
 ! **************************************************************************************************
@@ -4812,7 +4860,7 @@ CONTAINS
       SUBROUTINE mp_timestop(handle)
          INTEGER, INTENT(IN)                                :: handle
 
-         IF (mp_collect_timings .AND. handle >= 0) &
+         IF (handle >= 0) &
             CALL timestop(handle)
       END SUBROUTINE mp_timestop
 
