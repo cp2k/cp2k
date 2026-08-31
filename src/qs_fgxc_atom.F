@@ -214,7 +214,7 @@ CONTAINS
 
             ! Prepare the structures needed to calculate and store the xc derivatives
 
-            ! Array dimension: here anly one dimensional arrays are used,
+            ! Array dimension: here only one dimensional arrays are used,
             ! i.e. only the first column of deriv_data is read.
             ! The other to dimensions  are set to size equal 1
             bounds(1:2, 1:3) = 1
@@ -374,15 +374,8 @@ CONTAINS
                   END IF
                   !
                   IF (gradient_f) THEN
-                     drho_h(4, :, :, :) = SQRT( &
-                                          drho_h(1, :, :, :)*drho_h(1, :, :, :) + &
-                                          drho_h(2, :, :, :)*drho_h(2, :, :, :) + &
-                                          drho_h(3, :, :, :)*drho_h(3, :, :, :))
-
-                     drho_s(4, :, :, :) = SQRT( &
-                                          drho_s(1, :, :, :)*drho_s(1, :, :, :) + &
-                                          drho_s(2, :, :, :)*drho_s(2, :, :, :) + &
-                                          drho_s(3, :, :, :)*drho_s(3, :, :, :))
+                     drho_h(4, :, :, :) = NORM2(drho_h(1:3, :, :, :), 1)
+                     drho_s(4, :, :, :) = NORM2(drho_s(1:3, :, :, :), 1)
                   END IF
 
                   DO ir = 1, nr
@@ -640,7 +633,7 @@ CONTAINS
 
             ! Array dimension: here anly one dimensional arrays are used,
             ! i.e. only the first column of deriv_data is read.
-            ! The other to dimensions  are set to size equal 1
+            ! The other two dimensions are set to size equal 1
             bounds(1:2, 1:3) = 1
             bounds(2, 1) = na
             bounds(2, 2) = nr
@@ -793,15 +786,8 @@ CONTAINS
                   END IF
                   !
                   IF (gradient_f) THEN
-                     drho_h(4, :, :, :) = SQRT( &
-                                          drho_h(1, :, :, :)*drho_h(1, :, :, :) + &
-                                          drho_h(2, :, :, :)*drho_h(2, :, :, :) + &
-                                          drho_h(3, :, :, :)*drho_h(3, :, :, :))
-
-                     drho_s(4, :, :, :) = SQRT( &
-                                          drho_s(1, :, :, :)*drho_s(1, :, :, :) + &
-                                          drho_s(2, :, :, :)*drho_s(2, :, :, :) + &
-                                          drho_s(3, :, :, :)*drho_s(3, :, :, :))
+                     drho_h(4, :, :, :) = NORM2(drho_h(1:3, :, :, :), 1)
+                     drho_s(4, :, :, :) = NORM2(drho_s(1:3, :, :, :), 1)
                   END IF
 
                   DO ir = 1, nr

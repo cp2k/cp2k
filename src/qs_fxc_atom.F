@@ -220,9 +220,9 @@ CONTAINS
             weight_s => grid_atom%weight
          END IF
 
-         ! Array dimension: here anly one dimensional arrays are used,
+         ! Array dimension: here only one dimensional arrays are used,
          ! i.e. only the first column of deriv_data is read.
-         ! The other to dimensions  are set to size equal 1.
+         ! The other two dimensions are set to size equal 1.
          bounds(1:2, 1:3) = 1
          bounds(2, 1) = na
          bounds(2, 2) = nr
