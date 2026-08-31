@@ -11,9 +11,9 @@ PROGRAM qs_ot_minimizer_unittest
                                               ieee_value
    USE kinds,                           ONLY: dp
    USE qs_ot_minimizer,                 ONLY: &
-        broyden_history_restart_required, lbfgs_curvature_damping_shift, &
-        lbfgs_history_restart_required, lbfgs_response_secant_parameters, &
-        lbfgs_step_restart_required, ot_mermin_response_assess, &
+        broyden_history_restart_required, cg_history_restart_required, &
+        lbfgs_curvature_damping_shift, lbfgs_history_restart_required, &
+        lbfgs_response_secant_parameters, lbfgs_step_restart_required, ot_mermin_response_assess, &
         ot_mermin_response_candidate_preferred, ot_mermin_response_compare, &
         ot_mermin_response_preparation_needed, ot_mermin_response_probe, &
         ot_mermin_response_shadow_followup, ot_mermin_secant_curvature
@@ -41,6 +41,20 @@ PROGRAM qs_ot_minimizer_unittest
    END IF
    IF (broyden_history_restart_required(.TRUE., .FALSE., .FALSE.)) THEN
       ERROR STOP "Orbital-only Broyden default behavior changed"
+   END IF
+
+   IF (.NOT. cg_history_restart_required(.TRUE., 0.5_dp + 32.0_dp*EPSILON(1.0_dp), 0.5_dp)) THEN
+      ERROR STOP "Occupation-preconditioned CG retained unresolved free-energy history"
+   END IF
+   IF (cg_history_restart_required(.TRUE., 0.5_dp + 256.0_dp*EPSILON(1.0_dp), 0.5_dp)) THEN
+      ERROR STOP "Occupation-preconditioned CG discarded resolved free-energy history"
+   END IF
+   IF (cg_history_restart_required(.FALSE., 0.5_dp, 0.5_dp)) THEN
+      ERROR STOP "Conventional CG history changed at an energy plateau"
+   END IF
+   IF (.NOT. cg_history_restart_required(.TRUE., 1.0E6_dp + &
+                                         32.0_dp*EPSILON(1.0_dp)*1.0E6_dp, 1.0E6_dp)) THEN
+      ERROR STOP "CG free-energy history restart is not scale aware"
    END IF
 
    damping_shift = lbfgs_curvature_damping_shift(0.6_dp, 1.0_dp, 1.0_dp, 0.5_dp)
