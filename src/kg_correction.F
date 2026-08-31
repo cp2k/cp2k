@@ -20,7 +20,6 @@ MODULE kg_correction
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE ec_methods,                      ONLY: create_kernel
    USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri,&
@@ -43,13 +42,14 @@ MODULE kg_correction
    USE pw_methods,                      ONLY: pw_integral_ab,&
                                               pw_scale
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_c1d_gs_type,&
-                                              pw_r3d_rs_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_integrate_potential,          ONLY: integrate_v_rspace,&
                                               integrate_v_rspace_one_center
    USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                               qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_create,&
@@ -178,13 +178,13 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: density_matrix
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho_r, tau1_r, vxc_rho, vxc_tau
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: old_rho, rho1, rho1_use, rho1_xc, &
                                                             rho_struct, rho_use, rho_xc
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(virial_type), POINTER                         :: virial
 
@@ -195,6 +195,7 @@ CONTAINS
 
       NULLIFY (ks_env, dft_control, old_rho, pw_env, rho1_use, rho1_xc, rho_struct, &
                rho_use, rho_xc, virial, vxc_rho, vxc_tau)
+      NULLIFY (rho0_atom_set, rho1_atom_set)
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -279,17 +280,10 @@ CONTAINS
       IF (do_kernel) THEN
          ! derivation wrt to rho_struct and evaluation at rho_struct
          IF (use_virial) virial%pv_xc = 0.0_dp
-         CALL qs_rho_get(rho1_use, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
-         CALL create_kernel(qs_env, &
-                            vxc=vxc_rho, &
-                            vxc_tau=vxc_tau, &
-                            rho=rho_use, &
-                            rho1_r=rho1_r, &
-                            rho1_g=rho1_g, &
-                            tau1_r=tau1_r, &
-                            xc_section=xc_section, &
-                            compute_virial=use_virial, &
-                            virial_xc=virial%pv_xc)
+         CALL qs_fxc_create(qs_env, rho_use, rho1_use, rho0_atom_set, &
+                            xc_section, .FALSE., &
+                            vxc_rho, vxc_tau, rho1_atom_set, &
+                            compute_virial=use_virial, virial_xc=virial%pv_xc)
       ELSE
          CALL qs_vxc_create(ks_env=ks_env, &
                             rho_struct=rho_use, &
@@ -380,17 +374,10 @@ CONTAINS
          ! calculate xc-potential or kernel
          IF (do_kernel) THEN
             IF (use_virial) virial%pv_xc = 0.0_dp
-            CALL qs_rho_get(rho1_use, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
-            CALL create_kernel(qs_env, &
-                               vxc=vxc_rho, &
-                               vxc_tau=vxc_tau, &
-                               rho=rho_use, &
-                               rho1_r=rho1_r, &
-                               rho1_g=rho1_g, &
-                               tau1_r=tau1_r, &
-                               xc_section=xc_section, &
-                               compute_virial=use_virial, &
-                               virial_xc=virial%pv_xc)
+            CALL qs_fxc_create(qs_env, rho_use, rho1_use, rho0_atom_set, &
+                               xc_section, .FALSE., &
+                               vxc_rho, vxc_tau, rho1_atom_set, &
+                               compute_virial=use_virial, virial_xc=virial%pv_xc)
          ELSE
             CALL qs_vxc_create(ks_env=ks_env, &
                                rho_struct=rho_use, &
@@ -686,12 +673,12 @@ CONTAINS
       TYPE(lri_environment_type), POINTER                :: lri_env, lri_env1
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, tau1_r, vxc_rho, vxc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc_rho, vxc_tau
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho_struct
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(virial_type), POINTER                         :: virial
 
@@ -699,6 +686,8 @@ CONTAINS
 
       logger => cp_get_default_logger()
       iounit = cp_logger_get_default_unit_nr(logger)
+
+      NULLIFY (rho0_atom_set, rho1_atom_set)
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -787,15 +776,9 @@ CONTAINS
       IF (do_kernel) THEN
          ! kernel total
          ! derivation wrt to rho_struct and evaluation at rho_struct
-         CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
-         CALL create_kernel(qs_env, &
-                            vxc=vxc_rho, &
-                            vxc_tau=vxc_tau, &
-                            rho=rho_struct, &
-                            rho1_r=rho1_r, &
-                            rho1_g=rho1_g, &
-                            tau1_r=tau1_r, &
-                            xc_section=xc_section)
+         CALL qs_fxc_create(qs_env, rho_struct, rho1, rho0_atom_set, &
+                            xc_section, .FALSE., &
+                            vxc_rho, vxc_tau, rho1_atom_set)
       ELSE
          ! vxc total
          CALL qs_vxc_create(ks_env=ks_env, &
@@ -855,15 +838,9 @@ CONTAINS
          ! calculate xc potential or kernel
          IF (do_kernel) THEN
             ! subsys kernel
-            CALL qs_rho_get(rho1, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
-            CALL create_kernel(qs_env, &
-                               vxc=vxc_rho, &
-                               vxc_tau=vxc_tau, &
-                               rho=rho_struct, &
-                               rho1_r=rho1_r, &
-                               rho1_g=rho1_g, &
-                               tau1_r=tau1_r, &
-                               xc_section=xc_section)
+            CALL qs_fxc_create(qs_env, rho_struct, rho1, rho0_atom_set, &
+                               xc_section, .FALSE., &
+                               vxc_rho, vxc_tau, rho1_atom_set)
          ELSE
 
             ! subsys xc-potential

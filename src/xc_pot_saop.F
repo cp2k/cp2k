@@ -75,7 +75,7 @@ MODULE xc_pot_saop
                                               rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_vxc_atom,                     ONLY: calc_rho_angular,&
+   USE qs_vxc_atom_utils,               ONLY: calc_rho_angular,&
                                               gaVxcgb_noGC
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type

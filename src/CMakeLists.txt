@@ -766,6 +766,9 @@ list(
   qs_vcd.F
   qs_vcd_ao.F
   qs_vcd_utils.F
+  qs_fxc_atom.F
+  qs_fgxc_atom.F
+  qs_vxc_atom_utils.F
   qs_vxc_atom.F
   qs_vxc.F
   qs_wannier90.F

@@ -25,15 +25,11 @@ MODULE ec_methods
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
-   USE pw_types,                        ONLY: pw_c1d_gs_type,&
-                                              pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                               qs_kind_type
    USE qs_matrix_pools,                 ONLY: mpools_release,&
@@ -42,9 +38,6 @@ MODULE ec_methods
                                               get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
-   USE qs_rho_types,                    ONLY: qs_rho_create,&
-                                              qs_rho_set,&
-                                              qs_rho_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -55,75 +48,9 @@ MODULE ec_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ec_methods'
 
-   PUBLIC :: create_kernel
    PUBLIC :: ec_mos_init
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Creation of second derivative xc-potential
-!> \param qs_env ...
-!> \param vxc will contain the partially integrated second derivative
-!>        taken with respect to rho, evaluated in rho and folded with rho1
-!>        vxc is allocated here and needs to be deallocated by the caller.
-!> \param vxc_tau ...
-!> \param rho density at which derivatives were calculated
-!> \param rho1_r density in r-space with which to fold
-!> \param rho1_g density in g-space with which to fold
-!> \param tau1_r ...
-!> \param xc_section XC parameters of this potential
-!> \param compute_virial Enable stress-tensor calculation
-!> \param virial_xc Will contain GGA contribution of XC-kernel to stress-tensor
-!> \date    11.2019
-!> \author  fbelle
-! **************************************************************************************************
-   SUBROUTINE create_kernel(qs_env, vxc, vxc_tau, rho, rho1_r, rho1_g, tau1_r, xc_section, &
-                            compute_virial, virial_xc)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc, vxc_tau
-      TYPE(qs_rho_type), INTENT(IN), POINTER             :: rho
-      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN), &
-         POINTER                                         :: rho1_r
-      TYPE(pw_c1d_gs_type), DIMENSION(:), INTENT(IN), &
-         POINTER                                         :: rho1_g
-      TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(IN), &
-         POINTER                                         :: tau1_r
-      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
-      LOGICAL, INTENT(IN), OPTIONAL                      :: compute_virial
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
-         OPTIONAL                                        :: virial_xc
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_kernel'
-
-      INTEGER                                            :: handle
-      TYPE(qs_rho_type), POINTER                         :: rho1
-
-      CALL timeset(routineN, handle)
-
-      CPASSERT(.NOT. ASSOCIATED(vxc))
-      CPASSERT(.NOT. ASSOCIATED(vxc_tau))
-
-      ALLOCATE (rho1)
-      CALL qs_rho_create(rho1)
-      IF (ASSOCIATED(rho1_r)) THEN
-         CALL qs_rho_set(rho1, rho_r=rho1_r, rho_r_valid=.TRUE.)
-      END IF
-      IF (ASSOCIATED(rho1_g)) THEN
-         CALL qs_rho_set(rho1, rho_g=rho1_g, rho_g_valid=.TRUE.)
-      END IF
-      IF (ASSOCIATED(tau1_r)) THEN
-         CALL qs_rho_set(rho1, tau_r=tau1_r, tau_r_valid=.TRUE.)
-      END IF
-      !
-      CALL qs_fxc_create(qs_env, rho, rho1, xc_section, vxc, vxc_tau, &
-                         compute_virial=compute_virial, virial_xc=virial_xc)
-      !
-      DEALLOCATE (rho1)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE create_kernel
 
 ! **************************************************************************************************
 !> \brief Allocate and initiate molecular orbitals environment
