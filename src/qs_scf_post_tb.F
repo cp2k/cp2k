@@ -283,7 +283,7 @@ CONTAINS
                      CALL get_dftb_atom_param(dftb_kind, name=aname)
                   CASE ("xTB")
                      CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-                     CALL get_xtb_atom_param(xtb_kind, symbol=aname)
+                     CALL get_xtb_atom_param(xtb_kind, symbol=aname(1:2))
                   CASE DEFAULT
                      CPABORT("unknown TB type")
                   END SELECT
@@ -310,7 +310,7 @@ CONTAINS
                      CALL get_dftb_atom_param(dftb_kind, name=aname)
                   CASE ("xTB")
                      CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
-                     CALL get_xtb_atom_param(xtb_kind, symbol=aname)
+                     CALL get_xtb_atom_param(xtb_kind, symbol=aname(1:2))
                   CASE DEFAULT
                      CPABORT("unknown TB type")
                   END SELECT

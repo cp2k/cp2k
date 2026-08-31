@@ -217,7 +217,7 @@ CONTAINS
                                        TRANSPOSE(hmat), scoor, types, nat, delta)
                ! Schoenflies Symbol
                csym%schoenflies = ' '
-               ierr = spg_get_schoenflies(csym%schoenflies, TRANSPOSE(hmat), scoor, types, nat, delta)
+               ierr = spg_get_schoenflies(csym%schoenflies(1:7), TRANSPOSE(hmat), scoor, types, nat, delta)
                ! Point Group
                csym%pointgroup_symbol = ' '
                tra_mat = 0

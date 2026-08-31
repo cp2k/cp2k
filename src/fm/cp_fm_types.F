@@ -656,10 +656,10 @@ CONTAINS
 
       IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
          alpha = a(irow_local, icol_local)
-         CALL context%dgebs2d('All', ' ', 1, 1, alpha, 1)
+         CALL context%dgebs2d('A', ' ', 1, 1, alpha, 1)
          IF (PRESENT(local)) local = .TRUE.
       ELSE
-         CALL context%dgebr2d('All', ' ', 1, 1, alpha, 1, iprow, ipcol)
+         CALL context%dgebr2d('A', ' ', 1, 1, alpha, 1, iprow, ipcol)
          IF (PRESENT(local)) local = .FALSE.
       END IF
 

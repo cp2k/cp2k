@@ -203,9 +203,9 @@ CONTAINS
       my_row_major = .TRUE.
       IF (PRESENT(row_major)) my_row_major = row_major
       IF (my_row_major) THEN
-         CALL blacs_env%gridinit(para_env, "Row-major", nprow, npcol)
+         CALL blacs_env%gridinit(para_env, "R", nprow, npcol)
       ELSE
-         CALL blacs_env%gridinit(para_env, "Col-major", nprow, npcol)
+         CALL blacs_env%gridinit(para_env, "C", nprow, npcol)
       END IF
 
       ! We set the components of blacs_env here such that we can still use INTENT(OUT) with gridinit
@@ -220,7 +220,7 @@ CONTAINS
 
 #else
       ! In serial mode, we just have to setup the object
-      CALL blacs_env%gridinit(para_env, "Row-major", 1, 1)
+      CALL blacs_env%gridinit(para_env, "R", 1, 1)
 
       blacs_env%ref_count = 1
       blacs_env%my_pid = 0

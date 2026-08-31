@@ -66,7 +66,7 @@ MODULE qs_linres_current_utils
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_path_length,&
+   USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
@@ -132,7 +132,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'current_response'
 
-      CHARACTER(LEN=default_path_length)                 :: my_pos
+      CHARACTER(LEN=default_string_length)               :: my_pos
       INTEGER :: first_center, handle, i, icenter, idir, ii, iii, ispin, ist_true, istate, j, &
          jcenter, jstate, max_nbr_center, max_states, nao, natom, nbr_center(2), ncubes, nmo, &
          nspins, nstates(2), output_unit
