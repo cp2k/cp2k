@@ -695,15 +695,16 @@ CONTAINS
 !> \param matrix_s ...
 !> \param fm_struct_ref ...
 !> \param ortho_k ...
+!> \param energy_dimension number of auxiliary energy variables, defaults to the orbital count
 ! **************************************************************************************************
-   SUBROUTINE qs_ot_allocate(qs_ot_env, matrix_s, fm_struct_ref, ortho_k)
+   SUBROUTINE qs_ot_allocate(qs_ot_env, matrix_s, fm_struct_ref, ortho_k, energy_dimension)
       TYPE(qs_ot_type)                                   :: qs_ot_env
       TYPE(dbcsr_type), POINTER                          :: matrix_s
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ref
-      INTEGER, OPTIONAL                                  :: ortho_k
+      INTEGER, OPTIONAL                                  :: ortho_k, energy_dimension
 
-      INTEGER                                            :: i, k, m_diis, my_ortho_k, n, ncoef, &
-                                                            nhistory
+      INTEGER                                            :: i, k, m_diis, my_energy_dimension, &
+                                                            my_ortho_k, n, ncoef, nhistory
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
@@ -729,6 +730,11 @@ CONTAINS
          my_ortho_k = ortho_k
       ELSE
          my_ortho_k = k
+      END IF
+      my_energy_dimension = k
+      IF (PRESENT(energy_dimension)) my_energy_dimension = energy_dimension
+      IF (qs_ot_env%settings%do_ener) THEN
+         CPASSERT(my_energy_dimension > 0)
       END IF
 
       m_diis = qs_ot_env%settings%diis_m
@@ -1089,7 +1095,7 @@ CONTAINS
       END IF
 
       IF (qs_ot_env%settings%do_ener) THEN
-         ncoef = k
+         ncoef = my_energy_dimension
          ALLOCATE (qs_ot_env%ener_x(ncoef))
          ALLOCATE (qs_ot_env%ener_rayleigh(ncoef))
 
@@ -1179,7 +1185,10 @@ CONTAINS
             CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_mermin_g0_im, &
                                                    template=matrix_s, n=nmo, &
                                                    sym=dbcsr_type_no_symmetry)
-            IF (qs_ot_env%settings%do_ener) ALLOCATE (qs_ot_env%ener_mermin_g0(nmo))
+            IF (qs_ot_env%settings%do_ener) THEN
+               CPASSERT(ASSOCIATED(qs_ot_env%ener_x))
+               ALLOCATE (qs_ot_env%ener_mermin_g0(SIZE(qs_ot_env%ener_x)))
+            END IF
          END IF
       END IF
       SELECT CASE (qs_ot_env%settings%ot_algorithm)

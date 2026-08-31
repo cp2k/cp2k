@@ -1592,9 +1592,14 @@ CONTAINS
                      CALL qs_ot_copy_kpoint_spin_mos(kpoints, nspin_ot)
                   END IF
                END IF
-               CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+               IF (dft_control%restricted) THEN
+                  CALL qs_ot_copy_kpoint_spin_mos(kpoints, dft_control%nspins)
+               END IF
+               CALL kpoint_set_mo_occupation( &
+                  kpoints, scf_control%smear, &
+                  separate_spin_occupations=dft_control%restricted)
                IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) THEN
-                  CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
+                  CALL qs_ot_set_fixed_kpoint_occupations(kpoints, dft_control%nspins)
                END IF
 
                ! Build the initial KS matrix from the requested density guess.
@@ -1615,9 +1620,14 @@ CONTAINS
                      CPASSERT(SIZE(matrix_ks_kp, 1) == 1)
                      CALL qs_ot_copy_kpoint_spin_mos(kpoints, nspin_ot)
                   END IF
-                  CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+                  IF (dft_control%restricted) THEN
+                     CALL qs_ot_copy_kpoint_spin_mos(kpoints, dft_control%nspins)
+                  END IF
+                  CALL kpoint_set_mo_occupation( &
+                     kpoints, scf_control%smear, &
+                     separate_spin_occupations=dft_control%restricted)
                   IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) THEN
-                     CALL qs_ot_set_fixed_kpoint_occupations(kpoints, nspin_ot)
+                     CALL qs_ot_set_fixed_kpoint_occupations(kpoints, dft_control%nspins)
                   END IF
                END IF
 
@@ -1866,9 +1876,6 @@ CONTAINS
          IF (scf_env%qs_ot_env(1)%settings%occupation_preconditioner .AND. .NOT. do_smear) THEN
             CPABORT("K-point OCCUPATION_PRECONDITIONER requires smearing.")
          END IF
-         IF (dft_control%restricted) THEN
-            CPABORT("Restricted open-shell K-point OT is not implemented.")
-         END IF
       END IF
 
       IF (scf_env%outer_scf%iter_count > 0) THEN
@@ -2098,8 +2105,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_qs_ot_kpoint_state'
 
-      INTEGER                                            :: handle, ikpoint, ikpoint_local, ispin, &
-                                                            nao, nmo, nocc, ot_channel
+      INTEGER                                            :: energy_dimension, energy_spin, &
+                                                            energy_start, handle, ikpoint, &
+                                                            ikpoint_local, ispin, nao, nmo, nocc, &
+                                                            ot_channel
       LOGICAL                                            :: use_real_wfn
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct
@@ -2163,9 +2172,14 @@ CONTAINS
             CALL cp_fm_create(active_mo_coeff, active_mo_struct)
             CALL cp_fm_to_fm(mo_coeff, active_mo_coeff, nocc)
 
+            energy_dimension = nocc
+            IF (dft_control%restricted .AND. &
+                scf_env%qs_ot_env(ot_channel)%settings%do_ener) THEN
+               energy_dimension = nocc*SIZE(kp%mos, 2)
+            END IF
             CALL qs_ot_allocate(scf_env%qs_ot_env(ot_channel), &
                                 matrix_sk_re, &
-                                active_mo_struct)
+                                active_mo_struct, energy_dimension=energy_dimension)
 
             CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp)
             CALL copy_fm_to_dbcsr(active_mo_coeff, scf_env%qs_ot_env(ot_channel)%matrix_c0)
@@ -2204,7 +2218,16 @@ CONTAINS
 
             CALL qs_ot_init(scf_env%qs_ot_env(ot_channel))
             IF (scf_env%qs_ot_env(ot_channel)%settings%do_ener) THEN
-               scf_env%qs_ot_env(ot_channel)%ener_x(:) = eigenvalues(1:nocc)
+               IF (dft_control%restricted) THEN
+                  DO energy_spin = 1, SIZE(kp%mos, 2)
+                     CALL get_mo_set(kp%mos(1, energy_spin), eigenvalues=eigenvalues)
+                     energy_start = (energy_spin - 1)*nocc + 1
+                     scf_env%qs_ot_env(ot_channel)%ener_x(energy_start:energy_start + nocc - 1) = &
+                        eigenvalues(1:nocc)
+                  END DO
+               ELSE
+                  scf_env%qs_ot_env(ot_channel)%ener_x(:) = eigenvalues(1:nocc)
+               END IF
             END IF
             scf_env%qs_ot_env(ot_channel)%broyden_adaptive_sigma = qs_env%broyden_adaptive_sigma
 

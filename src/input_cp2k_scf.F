@@ -963,7 +963,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGIES", &
-                          description="Optimize auxiliary orbital energies for smearing in direct SCF%OT "// &
+                          description="Optimize auxiliary orbital energies for Mermin smearing in direct SCF%OT "// &
                           "(requires ROTATION and smearing to be active). DIAGONALIZATION%OT obtains "// &
                           "orbital energies by canonicalizing its converged eigenspace instead.", &
                           usage="ENERGIES", lone_keyword_l_val=.TRUE., &
@@ -972,9 +972,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OCCUPATION_PRECONDITIONER", &
-                          description="Augment the direct SCF%OT orbital metric with occupation response. "// &
-                          "It is not used by DIAGONALIZATION%OT, where occupations are assigned after "// &
-                          "the eigensolver has converged.", &
+                          description="Augment the direct SCF%OT orbital metric with coupled fixed-N "// &
+                          "occupation response. This augments the independently selected orbital "// &
+                          "preconditioner. It is not used by DIAGONALIZATION%OT, where occupations are "// &
+                          "assigned after the eigensolver has converged.", &
                           usage="OCCUPATION_PRECONDITIONER", lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
