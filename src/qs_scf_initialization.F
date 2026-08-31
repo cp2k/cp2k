@@ -1056,8 +1056,9 @@ CONTAINS
             IF (scf_control%smear%do_smear .AND. &
                 dft_control%qs_control%xtb_control%tblite_method == gfn2xtb) THEN
                CALL cp_warn(__LOCATION__, &
-                            "Direct GFN2/tblite OT can expose non-convex shell and multipole SCC modes "// &
-                            "with fractional occupations; verify the state against diagonalization.")
+                            "Direct GFN2/tblite smearing has indefinite shell and multipole SCC modes. "// &
+                            "Use SCF/DIAGONALIZATION ALGORITHM OT with XTB/SCC_MIXER TBLITE or CP2K.")
+               CPABORT("Use fixed-H OT for GFN2 smearing")
             END IF
          END IF
       END IF

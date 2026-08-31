@@ -126,33 +126,37 @@ CONTAINS
 !> \param para_env_inter_kp communicator between distributed k-point groups
 !> \param gradient_only return after evaluating the current OT gradient
 !> \param gradient_prepared reuse a gradient evaluated by ot_mini_prepare_gradient
+!> \param direction_only prepare a line-search direction without advancing the variables
 ! **************************************************************************************************
    SUBROUTINE ot_mini(qs_ot_env, matrix_hc, matrix_hc_im, &
                       matrix_hc_physical, matrix_hc_physical_im, para_env_inter_kp, &
-                      gradient_only, gradient_prepared)
+                      gradient_only, gradient_prepared, direction_only)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_hc_im, matrix_hc_physical, &
                                                             matrix_hc_physical_im
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
-      LOGICAL, INTENT(IN), OPTIONAL                      :: gradient_only, gradient_prepared
+      LOGICAL, INTENT(IN), OPTIONAL                      :: gradient_only, gradient_prepared, &
+                                                            direction_only
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_mini'
 
       INTEGER                                            :: handle, ispin, nspin
-      LOGICAL                                            :: do_ener, do_ks, evaluate_gradient_only, &
-                                                            reuse_gradient, &
-                                                            separate_occupation_gradient
+      LOGICAL :: do_ener, do_ks, evaluate_direction_only, evaluate_gradient_only, reuse_gradient, &
+         separate_occupation_gradient
       REAL(KIND=dp)                                      :: tmp
 
       CALL timeset(routineN, handle)
 
       evaluate_gradient_only = .FALSE.
+      evaluate_direction_only = .FALSE.
       reuse_gradient = .FALSE.
       IF (PRESENT(gradient_only)) evaluate_gradient_only = gradient_only
       IF (PRESENT(gradient_prepared)) reuse_gradient = gradient_prepared
+      IF (PRESENT(direction_only)) evaluate_direction_only = direction_only
       CPASSERT(.NOT. (evaluate_gradient_only .AND. reuse_gradient))
+      CPASSERT(.NOT. (evaluate_gradient_only .AND. evaluate_direction_only))
 
       nspin = SIZE(qs_ot_env)
 
@@ -311,29 +315,49 @@ CONTAINS
          RETURN
       END IF
 
+      IF (qs_ot_env(1)%prepared_direction_pending) THEN
+         CPASSERT(.NOT. evaluate_direction_only)
+         SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
+         CASE ("CG", "SD", "LBFG")
+            qs_ot_env(1)%OT_METHOD_FULL = "OT LS"
+            qs_ot_env(1)%prepared_direction_pending = .FALSE.
+            CALL do_line_search(qs_ot_env)
+         CASE DEFAULT
+            CPABORT("A prepared OT direction requires CG, SD, or LBFGS")
+         END SELECT
+         CALL timestop(handle)
+         RETURN
+      END IF
+
       SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
       CASE ("CG")
          IF (current_point_is_fine(qs_ot_env)) THEN
             qs_ot_env(1)%OT_METHOD_FULL = "OT CG"
             CALL ot_new_cg_direction(qs_ot_env, para_env_inter_kp)
             qs_ot_env(1)%line_search_count = 0
+            IF (evaluate_direction_only) qs_ot_env(1)%prepared_direction_pending = .TRUE.
          ELSE
+            CPASSERT(.NOT. evaluate_direction_only)
             qs_ot_env(1)%OT_METHOD_FULL = "OT LS"
          END IF
-         CALL do_line_search(qs_ot_env)
+         IF (.NOT. evaluate_direction_only) CALL do_line_search(qs_ot_env)
       CASE ("SD")
          IF (current_point_is_fine(qs_ot_env)) THEN
             qs_ot_env(1)%OT_METHOD_FULL = "OT SD"
             CALL ot_new_sd_direction(qs_ot_env, para_env_inter_kp)
             qs_ot_env(1)%line_search_count = 0
+            IF (evaluate_direction_only) qs_ot_env(1)%prepared_direction_pending = .TRUE.
          ELSE
+            CPASSERT(.NOT. evaluate_direction_only)
             qs_ot_env(1)%OT_METHOD_FULL = "OT LS"
          END IF
-         CALL do_line_search(qs_ot_env)
+         IF (.NOT. evaluate_direction_only) CALL do_line_search(qs_ot_env)
       CASE ("DIIS")
+         CPASSERT(.NOT. evaluate_direction_only)
          qs_ot_env(1)%OT_METHOD_FULL = "OT DIIS"
          CALL ot_diis_step(qs_ot_env, para_env_inter_kp)
       CASE ("BROY")
+         CPASSERT(.NOT. evaluate_direction_only)
          qs_ot_env(1)%OT_METHOD_FULL = "OT BROY"
          CALL ot_broyden_step(qs_ot_env, para_env_inter_kp)
       CASE ("LBFG")
@@ -341,10 +365,12 @@ CONTAINS
             qs_ot_env(1)%OT_METHOD_FULL = "OT LBFGS"
             CALL ot_new_lbfgs_direction(qs_ot_env, para_env_inter_kp)
             qs_ot_env(1)%line_search_count = 0
+            IF (evaluate_direction_only) qs_ot_env(1)%prepared_direction_pending = .TRUE.
          ELSE
+            CPASSERT(.NOT. evaluate_direction_only)
             qs_ot_env(1)%OT_METHOD_FULL = "OT LS"
          END IF
-         CALL do_line_search(qs_ot_env)
+         IF (.NOT. evaluate_direction_only) CALL do_line_search(qs_ot_env)
       CASE DEFAULT
          CPABORT("OT_METHOD NYI")
       END SELECT
@@ -698,6 +724,225 @@ CONTAINS
       followup = phase == interval - 1 .OR. phase == 0
 
    END FUNCTION ot_mermin_response_shadow_followup
+
+! **************************************************************************************************
+!> \brief Assess and optionally select a calibrated finite Mermin response direction.
+!>
+!>        The caller supplies its conventional descent direction in the product workspaces.  A
+!>        finite-response direction is considered only after accepted conventional steps have
+!>        calibrated its quadratic model.  This keeps the response independent of the line-search
+!>        minimizer while preserving the physical residual as the convergence measure.
+!> \param qs_ot_env OT environments for all local spin/k-point channels
+!> \param para_env_inter_kp communicator between distributed k-point groups
+!> \param baseline_delta conventional preconditioned residual
+!> \param test_down physical gradient dotted into the conventional direction, updated on selection
+!> \param use_response_candidate whether the finite-response direction was selected
+! **************************************************************************************************
+   SUBROUTINE ot_try_mermin_response_direction( &
+      qs_ot_env, para_env_inter_kp, baseline_delta, test_down, use_response_candidate)
+      TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
+      TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
+      REAL(KIND=dp), INTENT(IN)                          :: baseline_delta
+      REAL(KIND=dp), INTENT(INOUT)                       :: test_down
+      LOGICAL, INTENT(OUT)                               :: use_response_candidate
+
+      INTEGER                                            :: ispin, nspin
+      LOGICAL :: active_candidate_available, candidate_available, candidate_good, do_ener, do_ks, &
+         probe_response_candidate, shadow_good
+      REAL(KIND=dp) :: baseline_model_drop, measured_drop, predicted_drop, response_advantage, &
+         response_model_drop, response_quality, response_relative_gain, response_residual_ratio, &
+         response_test_down, tmp
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      nspin = SIZE(qs_ot_env)
+      do_ks = qs_ot_env(1)%settings%ks
+      do_ener = qs_ot_env(1)%settings%do_ener
+      logger => cp_get_default_logger()
+      shadow_good = .FALSE.
+      candidate_good = .FALSE.
+
+      IF (qs_ot_env(1)%response_shadow_pending) THEN
+         CALL ot_mermin_response_compare( &
+            qs_ot_env(1)%response_reference_energy, qs_ot_env(1)%etotal, &
+            qs_ot_env(1)%response_reference_residual, baseline_delta, &
+            qs_ot_env(1)%response_predicted_slope, qs_ot_env(1)%response_shadow_curvature, &
+            qs_ot_env(1)%ds_min, response_advantage, response_residual_ratio, shadow_good)
+         IF (shadow_good) THEN
+            qs_ot_env(1)%response_shadow_good_samples = &
+               MIN(HUGE(qs_ot_env(1)%response_shadow_good_samples) - 1, &
+                   qs_ot_env(1)%response_shadow_good_samples + 1)
+         ELSE
+            qs_ot_env(1)%response_shadow_good_samples = &
+               MAX(0, qs_ot_env(1)%response_shadow_good_samples - 1)
+         END IF
+         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
+            WRITE (cp_logger_get_default_unit_nr(logger), &
+                   '(A,1X,I5,4(1X,L1),6(1X,ES16.8))') &
+               " OT Mermin response shadow good hxc hxc-dir cross advantage residual "// &
+               "curvature hxc-shadow hxc-model cross-curv:", &
+               qs_ot_env(1)%response_shadow_good_samples, shadow_good, &
+               qs_ot_env(1)%response_hxc_valid, qs_ot_env(1)%response_hxc_direction_valid, &
+               qs_ot_env(1)%response_gradient_cross_valid, response_advantage, &
+               response_residual_ratio, qs_ot_env(1)%response_shadow_curvature, &
+               qs_ot_env(1)%response_hxc_shadow_curvature, &
+               qs_ot_env(1)%response_hxc_model_curvature, &
+               qs_ot_env(1)%response_gradient_cross_curvature
+         END IF
+         qs_ot_env(1)%response_shadow_pending = .FALSE.
+      END IF
+
+      IF (qs_ot_env(1)%response_candidate_pending) THEN
+         CALL ot_mermin_response_assess( &
+            qs_ot_env(1)%response_reference_energy, qs_ot_env(1)%etotal, &
+            qs_ot_env(1)%response_reference_residual, baseline_delta, &
+            qs_ot_env(1)%response_predicted_slope, qs_ot_env(1)%response_predicted_curvature, &
+            qs_ot_env(1)%ds_min, qs_ot_env(1)%settings%ds_min, predicted_drop, measured_drop, &
+            response_quality, response_residual_ratio, candidate_good)
+         IF (candidate_good) THEN
+            qs_ot_env(1)%response_candidate_good_samples = &
+               MIN(HUGE(qs_ot_env(1)%response_candidate_good_samples) - 1, &
+                   qs_ot_env(1)%response_candidate_good_samples + 1)
+         ELSE
+            qs_ot_env(1)%response_candidate_good_samples = &
+               MAX(0, qs_ot_env(1)%response_candidate_good_samples - 2)
+            qs_ot_env(1)%response_candidate_cooldown = 6
+         END IF
+         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
+            WRITE (cp_logger_get_default_unit_nr(logger), '(A,1X,I5,1X,L1,4(1X,ES16.8))') &
+               " OT Mermin response candidate good quality residual predicted measured:", &
+               qs_ot_env(1)%response_candidate_good_samples, candidate_good, response_quality, &
+               response_residual_ratio, predicted_drop, measured_drop
+         END IF
+         qs_ot_env(1)%response_candidate_pending = .FALSE.
+      END IF
+
+      qs_ot_env(1)%response_candidate_directions = &
+         MIN(HUGE(qs_ot_env(1)%response_candidate_directions) - 1, &
+             qs_ot_env(1)%response_candidate_directions + 1)
+      IF (qs_ot_env(1)%response_candidate_cooldown > 0) THEN
+         qs_ot_env(1)%response_candidate_cooldown = qs_ot_env(1)%response_candidate_cooldown - 1
+      END IF
+
+      candidate_available = qs_ot_env(1)%settings%occupation_preconditioner .AND. &
+                            qs_ot_env(1)%settings%do_rotation .AND. do_ener
+      DO ispin = 1, nspin
+         candidate_available = candidate_available .AND. &
+                               qs_ot_env(ispin)%rotation_response_valid .AND. &
+                               ASSOCIATED(qs_ot_env(ispin)%matrix_response_gx) .AND. &
+                               ASSOCIATED(qs_ot_env(ispin)%matrix_response_gx_im) .AND. &
+                               ASSOCIATED(qs_ot_env(ispin)%rot_mat_response_gx) .AND. &
+                               ASSOCIATED(qs_ot_env(ispin)%rot_mat_response_gx_im) .AND. &
+                               ASSOCIATED(qs_ot_env(ispin)%ener_response_gx)
+      END DO
+      active_candidate_available = candidate_available .AND. shadow_good .AND. &
+                                   qs_ot_env(1)%response_hxc_direction_valid
+      probe_response_candidate = ot_mermin_response_probe( &
+                                 active_candidate_available, baseline_delta, &
+                                 qs_ot_env(1)%response_candidate_directions, &
+                                 qs_ot_env(1)%response_shadow_good_samples, &
+                                 qs_ot_env(1)%response_candidate_good_samples, &
+                                 qs_ot_env(1)%response_candidate_cooldown)
+      use_response_candidate = .FALSE.
+
+      IF (probe_response_candidate) THEN
+         response_test_down = 0.0_dp
+         baseline_model_drop = 0.0_dp
+         response_model_drop = 0.0_dp
+         response_relative_gain = 0.0_dp
+         IF (do_ks) THEN
+            DO ispin = 1, nspin
+               CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
+                              qs_ot_env(ispin)%matrix_response_gx, tmp)
+               response_test_down = response_test_down - tmp
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, &
+                                 qs_ot_env(ispin)%matrix_response_gx_im, tmp)
+                  response_test_down = response_test_down - tmp
+               END IF
+               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, &
+                              qs_ot_env(ispin)%rot_mat_response_gx, tmp)
+               response_test_down = response_test_down - 0.5_dp*tmp
+               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                  CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx_im, &
+                                 qs_ot_env(ispin)%rot_mat_response_gx_im, tmp)
+                  response_test_down = response_test_down - 0.5_dp*tmp
+               END IF
+            END DO
+         END IF
+         IF (do_ener) THEN
+            DO ispin = 1, nspin
+               response_test_down = response_test_down - &
+                                    DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, &
+                                                qs_ot_env(ispin)%ener_response_gx)
+            END DO
+         END IF
+         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, response_test_down)
+         IF (response_test_down < 0.0_dp) THEN
+            CALL ot_mermin_response_candidate_preferred( &
+               -test_down, -response_test_down, qs_ot_env(1)%response_model_curvature, &
+               qs_ot_env(1)%response_predicted_slope, qs_ot_env(1)%response_shadow_curvature, &
+               qs_ot_env(1)%ds_min, baseline_model_drop, response_model_drop, &
+               response_relative_gain, use_response_candidate)
+         END IF
+         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
+            WRITE (cp_logger_get_default_unit_nr(logger), '(A,4(1X,I5),5(1X,ES16.8),2(1X,L1))') &
+               " OT Mermin response candidate comparison directions shadow active cooldown residual "// &
+               "curvature baseline response gain probe use:", &
+               qs_ot_env(1)%response_candidate_directions, &
+               qs_ot_env(1)%response_shadow_good_samples, &
+               qs_ot_env(1)%response_candidate_good_samples, &
+               qs_ot_env(1)%response_candidate_cooldown, baseline_delta, &
+               qs_ot_env(1)%response_model_curvature, baseline_model_drop, response_model_drop, &
+               response_relative_gain, probe_response_candidate, use_response_candidate
+         END IF
+         IF (use_response_candidate) THEN
+            DO ispin = 1, nspin
+               IF (do_ks) THEN
+                  CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, qs_ot_env(ispin)%matrix_response_gx)
+                  CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx, -1.0_dp)
+                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                     CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx_im, &
+                                     qs_ot_env(ispin)%matrix_response_gx_im)
+                     CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx_im, -1.0_dp)
+                  END IF
+                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, &
+                                  qs_ot_env(ispin)%rot_mat_response_gx)
+                  CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, -1.0_dp)
+                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
+                     CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx_im, &
+                                     qs_ot_env(ispin)%rot_mat_response_gx_im)
+                     CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx_im, -1.0_dp)
+                  END IF
+               END IF
+               IF (do_ener) qs_ot_env(ispin)%ener_dx = -qs_ot_env(ispin)%ener_response_gx
+            END DO
+            test_down = response_test_down
+         END IF
+      END IF
+
+      qs_ot_env(1)%response_reference_energy = qs_ot_env(1)%etotal
+      qs_ot_env(1)%response_reference_residual = baseline_delta
+      IF (test_down < 0.0_dp) THEN
+         qs_ot_env(1)%response_predicted_slope = -test_down
+      ELSE
+         qs_ot_env(1)%response_predicted_slope = qs_ot_env(1)%gnorm
+      END IF
+      IF (use_response_candidate) THEN
+         qs_ot_env(1)%response_candidate_pending = .TRUE.
+         qs_ot_env(1)%response_shadow_pending = .FALSE.
+         qs_ot_env(1)%response_predicted_curvature = qs_ot_env(1)%response_model_curvature
+      ELSE
+         qs_ot_env(1)%response_candidate_pending = .FALSE.
+         qs_ot_env(1)%response_shadow_pending = candidate_available .AND. &
+                                                ot_mermin_response_shadow_followup( &
+                                                baseline_delta, &
+                                                qs_ot_env(1)%response_candidate_directions, &
+                                                qs_ot_env(1)%response_shadow_good_samples, &
+                                                qs_ot_env(1)%response_candidate_good_samples, &
+                                                qs_ot_env(1)%response_candidate_cooldown)
+      END IF
+
+   END SUBROUTINE ot_try_mermin_response_direction
 
 !
 ! checks if the current point is a good point for finding a new direction
@@ -1508,13 +1753,11 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'ot_new_cg_direction'
 
       INTEGER                                            :: handle, ispin, itmp, k, n, nener, nspin
-      LOGICAL :: active_candidate_available, candidate_available, candidate_good, do_ener, do_ks, &
-         preceding_response_candidate, probe_response_candidate, shadow_good, &
-         use_response_candidate
-      REAL(KIND=dp) :: baseline_delta, baseline_gnorm, baseline_model_drop, beta_pr, gnorm_cross, &
-         measured_drop, nvariables, predicted_drop, response_advantage, response_model_drop, &
-         response_quality, response_relative_gain, response_residual_ratio, response_test_down, &
-         test_down, tmp
+      LOGICAL                                            :: do_ener, do_ks, &
+                                                            preceding_response_candidate, &
+                                                            use_response_candidate
+      REAL(KIND=dp)                                      :: baseline_delta, baseline_gnorm, beta_pr, &
+                                                            gnorm_cross, nvariables, test_down, tmp
       TYPE(cp_logger_type), POINTER                      :: logger
 
 ! Only the physical low-rank subspace solve can become active. The frozen-H response remains a
@@ -1524,8 +1767,6 @@ CONTAINS
 
       nspin = SIZE(qs_ot_env)
       logger => cp_get_default_logger()
-      shadow_good = .FALSE.
-      candidate_good = .FALSE.
       preceding_response_candidate = qs_ot_env(1)%response_candidate_pending
 
       do_ks = qs_ot_env(1)%settings%ks
@@ -1798,91 +2039,6 @@ CONTAINS
          baseline_delta = SQRT(ABS(baseline_gnorm)/nvariables)
       END IF
 
-      IF (qs_ot_env(1)%response_shadow_pending) THEN
-         CALL ot_mermin_response_compare( &
-            qs_ot_env(1)%response_reference_energy, qs_ot_env(1)%etotal, &
-            qs_ot_env(1)%response_reference_residual, baseline_delta, &
-            qs_ot_env(1)%response_predicted_slope, qs_ot_env(1)%response_shadow_curvature, &
-            qs_ot_env(1)%ds_min, response_advantage, response_residual_ratio, shadow_good)
-         IF (shadow_good) THEN
-            qs_ot_env(1)%response_shadow_good_samples = &
-               MIN(HUGE(qs_ot_env(1)%response_shadow_good_samples) - 1, &
-                   qs_ot_env(1)%response_shadow_good_samples + 1)
-         ELSE
-            qs_ot_env(1)%response_shadow_good_samples = &
-               MAX(0, qs_ot_env(1)%response_shadow_good_samples - 1)
-         END IF
-         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
-            WRITE (cp_logger_get_default_unit_nr(logger), &
-                   '(A,1X,I5,4(1X,L1),6(1X,ES16.8))') &
-               " OT Mermin response shadow good hxc hxc-dir cross advantage residual "// &
-               "curvature hxc-shadow hxc-model cross-curv:", &
-               qs_ot_env(1)%response_shadow_good_samples, shadow_good, &
-               qs_ot_env(1)%response_hxc_valid, qs_ot_env(1)%response_hxc_direction_valid, &
-               qs_ot_env(1)%response_gradient_cross_valid, &
-               response_advantage, response_residual_ratio, &
-               qs_ot_env(1)%response_shadow_curvature, &
-               qs_ot_env(1)%response_hxc_shadow_curvature, &
-               qs_ot_env(1)%response_hxc_model_curvature, &
-               qs_ot_env(1)%response_gradient_cross_curvature
-         END IF
-         qs_ot_env(1)%response_shadow_pending = .FALSE.
-      END IF
-
-      IF (qs_ot_env(1)%response_candidate_pending) THEN
-         CALL ot_mermin_response_assess( &
-            qs_ot_env(1)%response_reference_energy, qs_ot_env(1)%etotal, &
-            qs_ot_env(1)%response_reference_residual, baseline_delta, &
-            qs_ot_env(1)%response_predicted_slope, &
-            qs_ot_env(1)%response_predicted_curvature, &
-            qs_ot_env(1)%ds_min, qs_ot_env(1)%settings%ds_min, predicted_drop, measured_drop, &
-            response_quality, response_residual_ratio, candidate_good)
-         IF (candidate_good) THEN
-            qs_ot_env(1)%response_candidate_good_samples = &
-               MIN(HUGE(qs_ot_env(1)%response_candidate_good_samples) - 1, &
-                   qs_ot_env(1)%response_candidate_good_samples + 1)
-         ELSE
-            qs_ot_env(1)%response_candidate_good_samples = &
-               MAX(0, qs_ot_env(1)%response_candidate_good_samples - 2)
-            qs_ot_env(1)%response_candidate_cooldown = 6
-         END IF
-         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
-            WRITE (cp_logger_get_default_unit_nr(logger), '(A,1X,I5,1X,L1,4(1X,ES16.8))') &
-               " OT Mermin response candidate good quality residual predicted measured:", &
-               qs_ot_env(1)%response_candidate_good_samples, candidate_good, response_quality, &
-               response_residual_ratio, predicted_drop, measured_drop
-         END IF
-         qs_ot_env(1)%response_candidate_pending = .FALSE.
-      END IF
-
-      qs_ot_env(1)%response_candidate_directions = &
-         MIN(HUGE(qs_ot_env(1)%response_candidate_directions) - 1, &
-             qs_ot_env(1)%response_candidate_directions + 1)
-      IF (qs_ot_env(1)%response_candidate_cooldown > 0) THEN
-         qs_ot_env(1)%response_candidate_cooldown = qs_ot_env(1)%response_candidate_cooldown - 1
-      END IF
-
-      candidate_available = qs_ot_env(1)%settings%occupation_preconditioner .AND. &
-                            qs_ot_env(1)%settings%do_rotation .AND. do_ener
-      DO ispin = 1, nspin
-         candidate_available = candidate_available .AND. &
-                               qs_ot_env(ispin)%rotation_response_valid .AND. &
-                               ASSOCIATED(qs_ot_env(ispin)%matrix_response_gx) .AND. &
-                               ASSOCIATED(qs_ot_env(ispin)%matrix_response_gx_im) .AND. &
-                               ASSOCIATED(qs_ot_env(ispin)%rot_mat_response_gx) .AND. &
-                               ASSOCIATED(qs_ot_env(ispin)%rot_mat_response_gx_im) .AND. &
-                               ASSOCIATED(qs_ot_env(ispin)%ener_response_gx)
-      END DO
-      active_candidate_available = candidate_available .AND. shadow_good .AND. &
-                                   qs_ot_env(1)%response_hxc_direction_valid
-      probe_response_candidate = ot_mermin_response_probe( &
-                                 active_candidate_available, &
-                                 baseline_delta, &
-                                 qs_ot_env(1)%response_candidate_directions, &
-                                 qs_ot_env(1)%response_shadow_good_samples, &
-                                 qs_ot_env(1)%response_candidate_good_samples, &
-                                 qs_ot_env(1)%response_candidate_cooldown)
-      use_response_candidate = .FALSE.
       ! Keep convergence reporting tied to the conventional preconditioned residual. The finite
       ! response is an accepted-step candidate, not a redefinition of the physical stopping test.
       qs_ot_env(1)%delta = baseline_delta
@@ -1966,109 +2122,8 @@ CONTAINS
          END IF
       END IF
 
-      ! Probe the coupled finite response without replacing the conventional CG history. The
-      ! candidate is assembled in separate workspaces and used for this search only, avoiding two
-      ! artificial history resets around every sparse probe.
-      IF (probe_response_candidate) THEN
-         response_test_down = 0.0_dp
-         baseline_model_drop = 0.0_dp
-         response_model_drop = 0.0_dp
-         response_relative_gain = 0.0_dp
-         IF (do_ks) THEN
-            DO ispin = 1, nspin
-               CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx, &
-                              qs_ot_env(ispin)%matrix_response_gx, tmp)
-               response_test_down = response_test_down - tmp
-               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                  CALL dbcsr_dot(qs_ot_env(ispin)%matrix_gx_im, &
-                                 qs_ot_env(ispin)%matrix_response_gx_im, tmp)
-                  response_test_down = response_test_down - tmp
-               END IF
-               CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx, &
-                              qs_ot_env(ispin)%rot_mat_response_gx, tmp)
-               response_test_down = response_test_down - 0.5_dp*tmp
-               IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                  CALL dbcsr_dot(qs_ot_env(ispin)%rot_mat_gx_im, &
-                                 qs_ot_env(ispin)%rot_mat_response_gx_im, tmp)
-                  response_test_down = response_test_down - 0.5_dp*tmp
-               END IF
-            END DO
-         END IF
-         IF (do_ener) THEN
-            DO ispin = 1, nspin
-               response_test_down = response_test_down - &
-                                    DOT_PRODUCT(qs_ot_env(ispin)%ener_gx, &
-                                                qs_ot_env(ispin)%ener_response_gx)
-            END DO
-         END IF
-         CALL ot_mini_sum_kpoint_scalar(para_env_inter_kp, response_test_down)
-         IF (response_test_down < 0.0_dp) THEN
-            CALL ot_mermin_response_candidate_preferred( &
-               -test_down, -response_test_down, qs_ot_env(1)%response_model_curvature, &
-               qs_ot_env(1)%response_predicted_slope, qs_ot_env(1)%response_shadow_curvature, &
-               qs_ot_env(1)%ds_min, baseline_model_drop, response_model_drop, &
-               response_relative_gain, use_response_candidate)
-         END IF
-         IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
-            WRITE (cp_logger_get_default_unit_nr(logger), '(A,4(1X,I5),5(1X,ES16.8),2(1X,L1))') &
-               " OT Mermin response candidate comparison directions shadow active cooldown residual "// &
-               "curvature baseline response gain probe use:", &
-               qs_ot_env(1)%response_candidate_directions, &
-               qs_ot_env(1)%response_shadow_good_samples, &
-               qs_ot_env(1)%response_candidate_good_samples, &
-               qs_ot_env(1)%response_candidate_cooldown, baseline_delta, &
-               qs_ot_env(1)%response_model_curvature, &
-               baseline_model_drop, &
-               response_model_drop, response_relative_gain, probe_response_candidate, &
-               use_response_candidate
-         END IF
-         IF (use_response_candidate) THEN
-            DO ispin = 1, nspin
-               IF (do_ks) THEN
-                  CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx, &
-                                  qs_ot_env(ispin)%matrix_response_gx)
-                  CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx, -1.0_dp)
-                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                     CALL dbcsr_copy(qs_ot_env(ispin)%matrix_dx_im, &
-                                     qs_ot_env(ispin)%matrix_response_gx_im)
-                     CALL dbcsr_scale(qs_ot_env(ispin)%matrix_dx_im, -1.0_dp)
-                  END IF
-                  CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx, &
-                                  qs_ot_env(ispin)%rot_mat_response_gx)
-                  CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx, -1.0_dp)
-                  IF (qs_ot_env(ispin)%has_complex_kpoint_state) THEN
-                     CALL dbcsr_copy(qs_ot_env(ispin)%rot_mat_dx_im, &
-                                     qs_ot_env(ispin)%rot_mat_response_gx_im)
-                     CALL dbcsr_scale(qs_ot_env(ispin)%rot_mat_dx_im, -1.0_dp)
-                  END IF
-               END IF
-               IF (do_ener) qs_ot_env(ispin)%ener_dx = -qs_ot_env(ispin)%ener_response_gx
-            END DO
-            test_down = response_test_down
-         END IF
-      END IF
-      qs_ot_env(1)%response_reference_energy = qs_ot_env(1)%etotal
-      qs_ot_env(1)%response_reference_residual = baseline_delta
-      IF (test_down < 0.0_dp) THEN
-         qs_ot_env(1)%response_predicted_slope = -test_down
-      ELSE
-         qs_ot_env(1)%response_predicted_slope = qs_ot_env(1)%gnorm
-      END IF
-      IF (use_response_candidate) THEN
-         qs_ot_env(1)%response_candidate_pending = .TRUE.
-         qs_ot_env(1)%response_shadow_pending = .FALSE.
-         qs_ot_env(1)%response_predicted_curvature = &
-            qs_ot_env(1)%response_model_curvature
-      ELSE
-         qs_ot_env(1)%response_candidate_pending = .FALSE.
-         qs_ot_env(1)%response_shadow_pending = candidate_available .AND. &
-                                                ot_mermin_response_shadow_followup( &
-                                                baseline_delta, &
-                                                qs_ot_env(1)%response_candidate_directions, &
-                                                qs_ot_env(1)%response_shadow_good_samples, &
-                                                qs_ot_env(1)%response_candidate_good_samples, &
-                                                qs_ot_env(1)%response_candidate_cooldown)
-      END IF
+      CALL ot_try_mermin_response_direction( &
+         qs_ot_env, para_env_inter_kp, baseline_delta, test_down, use_response_candidate)
       ! since we change the direction we have to adjust the gradient
       IF (use_response_candidate) THEN
          qs_ot_env(1)%OT_METHOD_FULL = "OT CG-R"
@@ -2586,10 +2641,12 @@ CONTAINS
                                                             n, nener, newest, nhistory, nspin
       INTEGER(KIND=int_8)                                :: nrotation, nvariables
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: history_index
-      LOGICAL                                            :: do_ener, restart_history, restart_step
+      LOGICAL                                            :: do_ener, preceding_response_candidate, &
+                                                            restart_history, restart_step, &
+                                                            use_response_candidate
       REAL(KIND=dp) :: beta, current_gradient_norm_sq, curvature_tol, damping_shift, g_dot_z, &
          gamma, gamma_rotation, nvariables_global, previous_gradient_norm_sq, ss, ss_rotation, &
-         stq, sy, sy_rotation, tmp, yy, yy_newest, yy_rotation
+         stq, sy, sy_rotation, test_down, tmp, yy, yy_newest, yy_rotation
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha, rho
 
       CALL timeset(routineN, handle)
@@ -2603,6 +2660,7 @@ CONTAINS
       curvature_tol = qs_ot_env(1)%settings%lbfgs_curvature_tol
       restart_history = .FALSE.
       restart_step = .FALSE.
+      preceding_response_candidate = qs_ot_env(1)%response_candidate_pending
 
       ! A local line search can accept a nearly isoenergetic point whose raw gradient is much
       ! larger than at the preceding point. CG naturally resets after such a loss of conjugacy,
@@ -2656,7 +2714,7 @@ CONTAINS
                                                     qs_ot_env(1)%settings%ds_min)
          restart_history = lbfgs_history_restart_required(current_gradient_norm_sq, &
                                                           previous_gradient_norm_sq) .OR. &
-                           restart_step
+                           restart_step .OR. preceding_response_candidate
          IF (restart_history) THEN
             qs_ot_env(1)%diis_iter = 1
             IF (restart_step) qs_ot_env(1)%ds_min = qs_ot_env(1)%settings%ds_min
@@ -3204,6 +3262,19 @@ CONTAINS
       ELSE
          qs_ot_env(1)%delta = 0.0_dp
          qs_ot_env(1)%gradient = 0.0_dp
+      END IF
+
+      test_down = -g_dot_z
+      CALL ot_try_mermin_response_direction( &
+         qs_ot_env, para_env_inter_kp, qs_ot_env(1)%delta, test_down, use_response_candidate)
+      IF (use_response_candidate) THEN
+         ! A sparse finite-response probe changes the inverse model outside the accumulated
+         ! L-BFGS secant space. Restart that space while retaining the accepted point used by the
+         ! next update; this avoids mixing a calibrated physical candidate with stale curvature.
+         qs_ot_env(1)%diis_iter = 1
+         qs_ot_env(1)%OT_METHOD_FULL = "OT L-R"
+         qs_ot_env(1)%gnorm = -test_down
+         qs_ot_env(1)%gradient = test_down
       END IF
 
       DEALLOCATE (alpha, rho, history_index)
