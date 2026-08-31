@@ -2264,10 +2264,13 @@ CONTAINS
          local_ot_env(1)%response_shadow_curvature = SUM(shadow_curvature)
       END IF
 
-      ! The frozen-H finite response above omits the self-consistent Hxc density response.  Project
+      ! The frozen-H finite response above omits the self-consistent Hxc density response. Project
       ! the most recent accepted physical density/Hamiltonian secant onto both the candidate and
-      ! conventional accepted directions.  The resulting sign-aware rank-two response is calibrated
-      ! against accepted Mermin drops before it can replace the conventional search direction.
+      ! conventional accepted directions. All spin/K-point overlaps are accumulated before the
+      ! minimum-Frobenius secant is formed: this is the direct-sum spin response, including the Hxc
+      ! cross-spin coupling, and not a sum of independently fitted spin Hessians. The resulting
+      ! sign-aware rank-two response is calibrated against accepted Mermin drops before it can replace
+      ! the conventional search direction.
       hxc_density_norm_sq = 0.0_dp
       hxc_response_work = 0.0_dp
       hxc_density_overlap(:) = 0.0_dp
