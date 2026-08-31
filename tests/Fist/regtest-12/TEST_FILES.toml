@@ -72,4 +72,5 @@
 "ch4legendre.inp"                       = [{matcher="M011", tol=1.0E-14, ref=0.000337730329915}]
 # mixed stretch-bend form
 "bonded-3.inp"                          = [{matcher="M002", tol=1.0E-14, ref=0.168535489010E-02}]
+"voronoiipz.inp"                       = []
 #EOF
