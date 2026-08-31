@@ -70,7 +70,9 @@
 ]
 "Na-kpoint-mermin-uks-cg.inp"           = [{matcher="E_total", tol=1e-9, ref=-0.280830319393724}]
 "Al-kpoint-mermin-uks-common-mu.inp"    = [
-  {matcher="E_total", tol=1e-9, ref=-2.092003917582918},
+  {matcher="E_total", tol=1e-9, ref=-2.092003830373816},
+  {matcher="Electronic_entropic_energy", tol=1e-7, ref=-0.00000831502199},
+  {matcher="Integrated_spin_density", tol=1e-6, ref=0.9997353341},
   {matcher="NO_TEXT", text="K-point smearing includes the first band"},
   {matcher="NO_TEXT", text="K-point smearing includes the last band"},
 ]
