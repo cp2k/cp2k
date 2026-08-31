@@ -83,6 +83,7 @@ registry["OT_mermin_lbfgs_response_update"] = TextPresenceMatcher("OT L-R")
 registry["OT_kpoint_ref_refresh"] = TextPresenceMatcher(
     "K-point OT: rebuilding physical virtual subspace"
 )
+registry["OT_kpoint_ref_gradient_sync"] = TextPresenceMatcher("OT GSync")
 registry["OT_added_mos_auto_grow"] = TextPresenceMatcher(
     "K-point ADDED_MOS AUTO: growing virtual-space buffer"
 )

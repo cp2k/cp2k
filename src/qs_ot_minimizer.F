@@ -99,33 +99,37 @@ CONTAINS
 !> \param para_env_inter_kp communicator between distributed k-point groups
 !> \param gradient_only return after evaluating the current OT gradient
 !> \param gradient_prepared reuse a gradient evaluated by ot_mini_prepare_gradient
+!> \param direction_only prepare a line-search direction without advancing the variables
 ! **************************************************************************************************
    SUBROUTINE ot_mini(qs_ot_env, matrix_hc, matrix_hc_im, &
                       matrix_hc_physical, matrix_hc_physical_im, para_env_inter_kp, &
-                      gradient_only, gradient_prepared)
+                      gradient_only, gradient_prepared, direction_only)
       TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: matrix_hc_im, matrix_hc_physical, &
                                                             matrix_hc_physical_im
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env_inter_kp
-      LOGICAL, INTENT(IN), OPTIONAL                      :: gradient_only, gradient_prepared
+      LOGICAL, INTENT(IN), OPTIONAL                      :: gradient_only, gradient_prepared, &
+                                                            direction_only
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ot_mini'
 
       INTEGER                                            :: handle, ispin, nspin
-      LOGICAL                                            :: do_ener, do_ks, evaluate_gradient_only, &
-                                                            reuse_gradient, &
-                                                            separate_occupation_gradient
+      LOGICAL :: do_ener, do_ks, evaluate_direction_only, evaluate_gradient_only, reuse_gradient, &
+         separate_occupation_gradient
       REAL(KIND=dp)                                      :: tmp
 
       CALL timeset(routineN, handle)
 
       evaluate_gradient_only = .FALSE.
+      evaluate_direction_only = .FALSE.
       reuse_gradient = .FALSE.
       IF (PRESENT(gradient_only)) evaluate_gradient_only = gradient_only
       IF (PRESENT(gradient_prepared)) reuse_gradient = gradient_prepared
+      IF (PRESENT(direction_only)) evaluate_direction_only = direction_only
       CPASSERT(.NOT. (evaluate_gradient_only .AND. reuse_gradient))
+      CPASSERT(.NOT. (evaluate_gradient_only .AND. evaluate_direction_only))
 
       nspin = SIZE(qs_ot_env)
 
@@ -284,29 +288,49 @@ CONTAINS
          RETURN
       END IF
 
+      IF (qs_ot_env(1)%prepared_direction_pending) THEN
+         CPASSERT(.NOT. evaluate_direction_only)
+         SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
+         CASE ("CG", "SD", "LBFG")
+            qs_ot_env(1)%OT_METHOD_FULL = "OT LS"
+            qs_ot_env(1)%prepared_direction_pending = .FALSE.
+            CALL do_line_search(qs_ot_env)
+         CASE DEFAULT
+            CPABORT("A prepared OT direction requires CG, SD, or LBFGS")
+         END SELECT
+         CALL timestop(handle)
+         RETURN
+      END IF
+
       SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
       CASE ("CG")
          IF (current_point_is_fine(qs_ot_env)) THEN
             qs_ot_env(1)%OT_METHOD_FULL = "OT CG"
             CALL ot_new_cg_direction(qs_ot_env, para_env_inter_kp)
             qs_ot_env(1)%line_search_count = 0
+            IF (evaluate_direction_only) qs_ot_env(1)%prepared_direction_pending = .TRUE.
          ELSE
+            CPASSERT(.NOT. evaluate_direction_only)
             qs_ot_env(1)%OT_METHOD_FULL = "OT LS"
          END IF
-         CALL do_line_search(qs_ot_env)
+         IF (.NOT. evaluate_direction_only) CALL do_line_search(qs_ot_env)
       CASE ("SD")
          IF (current_point_is_fine(qs_ot_env)) THEN
             qs_ot_env(1)%OT_METHOD_FULL = "OT SD"
             CALL ot_new_sd_direction(qs_ot_env, para_env_inter_kp)
             qs_ot_env(1)%line_search_count = 0
+            IF (evaluate_direction_only) qs_ot_env(1)%prepared_direction_pending = .TRUE.
          ELSE
+            CPASSERT(.NOT. evaluate_direction_only)
             qs_ot_env(1)%OT_METHOD_FULL = "OT LS"
          END IF
-         CALL do_line_search(qs_ot_env)
+         IF (.NOT. evaluate_direction_only) CALL do_line_search(qs_ot_env)
       CASE ("DIIS")
+         CPASSERT(.NOT. evaluate_direction_only)
          qs_ot_env(1)%OT_METHOD_FULL = "OT DIIS"
          CALL ot_diis_step(qs_ot_env, para_env_inter_kp)
       CASE ("BROY")
+         CPASSERT(.NOT. evaluate_direction_only)
          qs_ot_env(1)%OT_METHOD_FULL = "OT BROY"
          CALL ot_broyden_step(qs_ot_env, para_env_inter_kp)
       CASE ("LBFG")
@@ -314,10 +338,12 @@ CONTAINS
             qs_ot_env(1)%OT_METHOD_FULL = "OT LBFGS"
             CALL ot_new_lbfgs_direction(qs_ot_env, para_env_inter_kp)
             qs_ot_env(1)%line_search_count = 0
+            IF (evaluate_direction_only) qs_ot_env(1)%prepared_direction_pending = .TRUE.
          ELSE
+            CPASSERT(.NOT. evaluate_direction_only)
             qs_ot_env(1)%OT_METHOD_FULL = "OT LS"
          END IF
-         CALL do_line_search(qs_ot_env)
+         IF (.NOT. evaluate_direction_only) CALL do_line_search(qs_ot_env)
       CASE DEFAULT
          CPABORT("OT_METHOD NYI")
       END SELECT

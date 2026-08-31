@@ -589,7 +589,8 @@ CONTAINS
       scf_outer_loop: DO
 
          CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, &
-                            scf_section=scf_section)
+                            scf_section=scf_section, &
+                            prepare_ot_kp_direction=ot_kp_subspace_refresh_count > 0)
 
          oda_globalization_active = oda_eligible
          oda_predictor_lambda = 1.0_dp
@@ -1343,14 +1344,16 @@ CONTAINS
 !> \param scf_env ...
 !> \param qs_env ...
 !> \param scf_section ...
+!> \param prepare_ot_kp_direction prepare a physical direction after an asymptotic REF refresh
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
-   SUBROUTINE init_scf_loop(scf_env, qs_env, scf_section)
+   SUBROUTINE init_scf_loop(scf_env, qs_env, scf_section, prepare_ot_kp_direction)
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: scf_section
+      LOGICAL, INTENT(IN), OPTIONAL                      :: prepare_ot_kp_direction
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_scf_loop'
 
@@ -1359,7 +1362,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       LOGICAL                                            :: do_adiis, do_kpoints, do_rotation, &
                                                             has_unit_metric, kp_diis_step, &
-                                                            kpoint_mos_initialized
+                                                            kpoint_mos_initialized, &
+                                                            prepare_direction
       REAL(KIND=dp)                                      :: u_ramping
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -1380,6 +1384,8 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(ASSOCIATED(qs_env))
+      prepare_direction = .FALSE.
+      IF (PRESENT(prepare_ot_kp_direction)) prepare_direction = prepare_ot_kp_direction
 
       CALL get_qs_env(qs_env=qs_env, &
                       scf_control=scf_control, &
@@ -1645,7 +1651,8 @@ CONTAINS
                                                 matrix_ks_kp=matrix_ks_kp, &
                                                 matrix_s_kp=matrix_s_kp, &
                                                 matrix_t_kp=matrix_t_kp, &
-                                                nspin_ot=nspin_ot)
+                                                nspin_ot=nspin_ot, &
+                                                prepare_direction=prepare_direction)
             END IF
 
             CALL timestop(handle)
@@ -2093,15 +2100,18 @@ CONTAINS
 !> \param matrix_s_kp ...
 !> \param matrix_t_kp ...
 !> \param nspin_ot ...
+!> \param prepare_direction prepare a physical line-search direction after density synchronization
 ! **************************************************************************************************
    SUBROUTINE allocate_qs_ot_kpoint_state(qs_env, scf_env, dft_control, &
-                                          kpoints, matrix_ks_kp, matrix_s_kp, matrix_t_kp, nspin_ot)
+                                          kpoints, matrix_ks_kp, matrix_s_kp, matrix_t_kp, nspin_ot, &
+                                          prepare_direction)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp, matrix_t_kp
       INTEGER, INTENT(IN)                                :: nspin_ot
+      LOGICAL, INTENT(IN)                                :: prepare_direction
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_qs_ot_kpoint_state'
 
@@ -2293,6 +2303,7 @@ CONTAINS
                                        require_complex_state=.NOT. use_real_wfn)
 
       scf_env%qs_ot_env(:)%initial_density_sync_pending = .TRUE.
+      scf_env%qs_ot_env(:)%initial_gradient_sync_pending = prepare_direction
 
       CALL prepare_qs_ot_kpoint_preconditioners(scf_env, kpoints, matrix_ks_kp, &
                                                 matrix_s_kp, matrix_t_kp, nspin_ot)

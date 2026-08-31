@@ -743,6 +743,7 @@ CONTAINS
       local_ot_env(1)%etotal = energy%total
       physical_base_state = local_ot_env(1)%settings%do_ener .AND. &
                             .NOT. local_ot_env(1)%initial_density_sync_pending .AND. &
+                            .NOT. local_ot_env(1)%prepared_direction_pending .AND. &
                             .NOT. local_ot_env(1)%energy_only .AND. &
                             (local_ot_env(1)%line_search_count == 0 .OR. &
                              local_ot_env(1)%line_search_might_be_done)
@@ -1011,6 +1012,11 @@ CONTAINS
          scf_env%iter_delta = 2.0_dp*scf_control%eps_scf
          local_ot_env(1)%OT_METHOD_FULL = "OT Sync"
          local_ot_env(:)%initial_density_sync_pending = .FALSE.
+         local_ot_env(:)%initial_gradient_sync_pending = &
+            local_ot_env(:)%initial_gradient_sync_pending .AND. &
+            (local_ot_env(1)%settings%ot_method == "CG" .OR. &
+             local_ot_env(1)%settings%ot_method == "SD" .OR. &
+             local_ot_env(1)%settings%ot_method == "LBFG")
       ELSE
          IF (local_ot_env(1)%settings%do_ener) THEN
             local_ot_env(1)%etotal = energy%total - energy%kTS + trial_kTS
@@ -1048,18 +1054,35 @@ CONTAINS
                END DO
             END IF
          END IF
-         IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
-            CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
-                         matrix_hc_physical=matrix_hc_physical, &
-                         matrix_hc_physical_im=matrix_hc_physical_im, &
-                         para_env_inter_kp=para_env_inter_kp, &
-                         gradient_prepared=ot_gradient_prepared)
+         IF (local_ot_env(1)%initial_gradient_sync_pending) THEN
+            IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
+               CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+                            matrix_hc_physical=matrix_hc_physical, &
+                            matrix_hc_physical_im=matrix_hc_physical_im, &
+                            para_env_inter_kp=para_env_inter_kp, &
+                            gradient_prepared=ot_gradient_prepared, direction_only=.TRUE.)
+            ELSE
+               CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+                            para_env_inter_kp=para_env_inter_kp, &
+                            gradient_prepared=ot_gradient_prepared, direction_only=.TRUE.)
+            END IF
+            scf_env%iter_delta = local_ot_env(1)%delta
+            local_ot_env(1)%OT_METHOD_FULL = "OT GSync"
+            local_ot_env(:)%initial_gradient_sync_pending = .FALSE.
          ELSE
-            CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
-                         para_env_inter_kp=para_env_inter_kp, &
-                         gradient_prepared=ot_gradient_prepared)
+            IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
+               CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+                            matrix_hc_physical=matrix_hc_physical, &
+                            matrix_hc_physical_im=matrix_hc_physical_im, &
+                            para_env_inter_kp=para_env_inter_kp, &
+                            gradient_prepared=ot_gradient_prepared)
+            ELSE
+               CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+                            para_env_inter_kp=para_env_inter_kp, &
+                            gradient_prepared=ot_gradient_prepared)
+            END IF
+            scf_env%iter_delta = local_ot_env(1)%delta
          END IF
-         scf_env%iter_delta = local_ot_env(1)%delta
       END IF
       energy_only = local_ot_env(1)%energy_only
 
