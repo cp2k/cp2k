@@ -168,6 +168,10 @@ CONTAINS
 
       CALL read_gw_input_parameters(bs_env, bs_sec)
 
+      ! Keep the non-owning geometry references needed by RI-RS grid setup in bs_env.
+      CALL get_qs_env(qs_env, cell=bs_env%ri_rs%cell, &
+                      particle_set=bs_env%ri_rs%particle_set)
+
       ! RTBSE%CUTOFF_RADIUS_W0 gates the per-grid-block centroid cache, which is built during the
       ! GW grid setup -- long before the RT-BSE env reads its own section. Pick it up here.
       NULLIFY (input)
@@ -356,12 +360,13 @@ CONTAINS
 
       INTEGER                                            :: handle
       LOGICAL                                            :: do_evgw0
-      TYPE(section_vals_type), POINTER                   :: gw_sec
+      TYPE(section_vals_type), POINTER                   :: grid_opt_sec, gw_sec
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (gw_sec)
+      NULLIFY (grid_opt_sec, gw_sec)
       gw_sec => section_vals_get_subs_vals(bs_sec, "GW")
+      grid_opt_sec => section_vals_get_subs_vals(gw_sec, "RI_RS%GRID_OPTIMIZATION")
 
       CALL section_vals_val_get(gw_sec, "NUM_TIME_FREQ_POINTS", i_val=bs_env%num_time_freq_points)
       CALL section_vals_val_get(gw_sec, "EPS_FILTER", r_val=bs_env%eps_filter)
@@ -374,8 +379,6 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "KPOINTS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
       CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
       CALL section_vals_val_get(gw_sec, "FREQ_MAX_FIT", r_val=bs_env%freq_max_fit)
-      CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT", l_val=bs_env%print_contract)
-      CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT_VERBOSE", l_val=bs_env%print_contract_verbose)
       CALL section_vals_val_get(gw_sec, "RI_RS%TIKHONOV", r_val=bs_env%ri_rs%tikhonov)
       CALL section_vals_val_get(gw_sec, "RI_RS%GRID_SELECT", i_val=bs_env%ri_rs%grid_select)
       CALL section_vals_val_get(gw_sec, "RI_RS%GRID_FILE_SUFFIX", c_val=bs_env%ri_rs%grid_file_suffix)
@@ -390,6 +393,14 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0%_SECTION_PARAMETERS_", l_val=do_evgw0)
       CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0%MAX_ITER", i_val=bs_env%ri_rs%evgw0_iter)
       CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0%EPS_ITER", r_val=bs_env%ri_rs%evgw0_eps_iter)
+
+      CALL section_vals_get(grid_opt_sec, explicit=bs_env%ri_rs%grid_opt%enabled)
+      CALL section_vals_val_get(grid_opt_sec, "CUTOFF_ATOMIC_CLUSTER", &
+                                r_val=bs_env%ri_rs%grid_opt%cutoff_atomic_cluster)
+      CALL section_vals_val_get(grid_opt_sec, "MAX_ITER", i_val=bs_env%ri_rs%grid_opt%max_iter)
+      IF (bs_env%ri_rs%grid_opt%enabled) THEN
+         CALL read_rirs_grid_sizes(bs_env, grid_opt_sec)
+      END IF
 
       ! Assigning GW flavour
       bs_env%gw_flavour = G0W0
@@ -406,14 +417,59 @@ CONTAINS
                       "check the convergence of the reported states.")
       END IF
 
-      IF (bs_env%print_contract) THEN
-         bs_env%unit_nr_contract = bs_env%unit_nr
-      ELSE
-         bs_env%unit_nr_contract = 0
-      END IF
       CALL timestop(handle)
 
    END SUBROUTINE read_gw_input_parameters
+
+! **************************************************************************************************
+!> \brief Read the element-specific grid sizes for RI-RS grid optimization.
+!> \param bs_env ...
+!> \param grid_opt_sec ...
+! **************************************************************************************************
+   SUBROUTINE read_rirs_grid_sizes(bs_env, grid_opt_sec)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(section_vals_type), POINTER                   :: grid_opt_sec
+
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: grid_size_vals
+      INTEGER                                            :: igrid, ios, jgrid, ngrid
+
+      NULLIFY (grid_size_vals)
+
+      CALL section_vals_val_get(grid_opt_sec, "GRID_SIZE", n_rep_val=ngrid)
+      IF (ngrid == 0) THEN
+         CPABORT("GRID_OPTIMIZATION requires one GRID_SIZE entry for every element.")
+      END IF
+      IF (ALLOCATED(bs_env%ri_rs%grid_opt%grid_elements)) THEN
+         DEALLOCATE (bs_env%ri_rs%grid_opt%grid_elements)
+      END IF
+      IF (ALLOCATED(bs_env%ri_rs%grid_opt%grid_npoints)) THEN
+         DEALLOCATE (bs_env%ri_rs%grid_opt%grid_npoints)
+      END IF
+      IF (ngrid > 0) THEN
+         ALLOCATE (bs_env%ri_rs%grid_opt%grid_elements(ngrid))
+         ALLOCATE (bs_env%ri_rs%grid_opt%grid_npoints(ngrid))
+         DO igrid = 1, ngrid
+            CALL section_vals_val_get(grid_opt_sec, "GRID_SIZE", &
+                                      i_rep_val=igrid, c_vals=grid_size_vals)
+            CPASSERT(SIZE(grid_size_vals) == 2)
+            bs_env%ri_rs%grid_opt%grid_elements(igrid) = TRIM(ADJUSTL(grid_size_vals(1)))
+            READ (grid_size_vals(2), *, IOSTAT=ios) bs_env%ri_rs%grid_opt%grid_npoints(igrid)
+            IF (ios /= 0 .OR. bs_env%ri_rs%grid_opt%grid_npoints(igrid) <= 0) THEN
+               CPABORT("GRID_OPTIMIZATION%GRID_SIZE requires a positive integer point count.")
+            END IF
+            IF (LEN_TRIM(bs_env%ri_rs%grid_opt%grid_elements(igrid)) == 0) THEN
+               CPABORT("GRID_OPTIMIZATION%GRID_SIZE requires an element symbol.")
+            END IF
+            DO jgrid = 1, igrid - 1
+               IF (TRIM(bs_env%ri_rs%grid_opt%grid_elements(jgrid)) == &
+                   TRIM(bs_env%ri_rs%grid_opt%grid_elements(igrid))) THEN
+                  CPABORT("GRID_OPTIMIZATION%GRID_SIZE contains a duplicate element.")
+               END IF
+            END DO
+         END DO
+      END IF
+   END SUBROUTINE read_rirs_grid_sizes
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1765,7 +1821,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_header_and_input_parameters'
 
-      INTEGER                                            :: handle, u
+      INTEGER                                            :: handle, igrid, u
 
       CALL timeset(routineN, handle)
 
@@ -1811,6 +1867,22 @@ CONTAINS
                   bs_env%ri_rs%cutoff_radius_g_w*angstrom, ' Å'
             END IF
             WRITE (u, '(T2,A,A62)') 'Input: GW flavour', TRIM(gw_flavour_label(bs_env))
+            IF (bs_env%ri_rs%grid_opt%enabled) THEN
+               WRITE (u, '(A)') ' '
+               WRITE (u, '(T2,A,T80,L1)') &
+                  'Input: RI-RS grid optimization activated', .TRUE.
+               DO igrid = 1, SIZE(bs_env%ri_rs%grid_opt%grid_elements)
+                  WRITE (u, '(T2,A,A,A,T75,I6)') &
+                     'Input: Element: ', TRIM(bs_env%ri_rs%grid_opt%grid_elements(igrid)), &
+                     ', number of points per atom:', bs_env%ri_rs%grid_opt%grid_npoints(igrid)
+               END DO
+               WRITE (u, '(T2,A,T73,F6.1,A)') &
+                  'Input: Cutoff radius for atomic clusters', &
+                  bs_env%ri_rs%grid_opt%cutoff_atomic_cluster*angstrom, ' Å'
+               WRITE (u, '(T2,A,T75,I6)') &
+                  'Input: Maximum grid optimization iterations', &
+                  bs_env%ri_rs%grid_opt%max_iter
+            END IF
             IF (bs_env%gw_flavour == evGW0) THEN
                WRITE (u, '(T2,A,I42)') 'Input: Maximum number of evGW0 cycles', &
                   bs_env%ri_rs%evgw0_iter

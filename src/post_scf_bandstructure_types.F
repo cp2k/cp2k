@@ -12,6 +12,7 @@
 ! **************************************************************************************************
 MODULE post_scf_bandstructure_types
    USE basis_set_types,                 ONLY: gto_basis_set_p_type
+   USE cell_types,                      ONLY: cell_type
    USE cp_cfm_types,                    ONLY: cp_cfm_release,&
                                               cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
@@ -28,13 +29,17 @@ MODULE post_scf_bandstructure_types
                                               small_cell_full_kp
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
-                                              dp
+                                              dp,&
+                                              int_4,&
+                                              int_8
    USE kpoint_types,                    ONLY: kpoint_release,&
                                               kpoint_type
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
-   USE physcon,                         ONLY: evolt
+   USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: angstrom,&
+                                              evolt
    USE qs_tensors_types,                ONLY: neighbor_list_3c_type
 #include "./base/base_uses.f90"
 
@@ -44,7 +49,8 @@ MODULE post_scf_bandstructure_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'post_scf_bandstructure_types'
 
-   PUBLIC :: post_scf_bandstructure_type, band_edges_type, data_3_type, bs_env_release
+   PUBLIC :: post_scf_bandstructure_type, rirs_grid_type, ri_rs_grid_opt_type, &
+             band_edges_type, data_3_type, bs_env_release
 
    ! valence band maximum (VBM), conduction band minimum (CBM), direct band gap (DBG),
    ! indirect band gap (IDBG)
@@ -66,6 +72,15 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp), ALLOCATABLE :: raw_points(:, :)
    END TYPE rirs_grid_type
 
+   ! Input for the optional in-memory GW RI-RS grid optimization.
+   TYPE ri_rs_grid_opt_type
+      LOGICAL                                          :: enabled = .FALSE.
+      REAL(KIND=dp)                                    :: cutoff_atomic_cluster = 3.0_dp/angstrom
+      INTEGER                                          :: max_iter = 100
+      CHARACTER(LEN=2), ALLOCATABLE                    :: grid_elements(:)
+      INTEGER, ALLOCATABLE                             :: grid_npoints(:)
+   END TYPE ri_rs_grid_opt_type
+
    TYPE ri_rs_env
 
       ! Input parameters for RI-RS
@@ -79,6 +94,12 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp)                                    :: cutoff_radius_v_w = -1.0_dp
       REAL(KIND=dp)                                    :: cutoff_radius_g_w = -1.0_dp
       CHARACTER(LEN=default_string_length)             :: grid_file_suffix = ""
+      TYPE(ri_rs_grid_opt_type)                        :: grid_opt
+
+      ! Non-owning geometry references used by RI-RS grid setup and optimization.
+      ! They remain owned by qs_env and must never be deallocated here.
+      TYPE(cell_type), POINTER                         :: cell => NULL()
+      TYPE(particle_type), DIMENSION(:), POINTER       :: particle_set => NULL()
 
       ! Eigenvalue self-consistency (evGW0): G is rebuilt from the quasiparticle energies of
       ! the previous cycle while W stays frozen at the RPA@DFT level.
@@ -93,7 +114,7 @@ MODULE post_scf_bandstructure_types
       INTEGER, ALLOCATABLE                             :: grid_atom_boundaries(:)
       INTEGER, ALLOCATABLE                             :: pan_first(:), pan_last(:)
 
-      ! Data types for building grid points
+      ! Atom-specific grids used directly by the GW grid assembler
       TYPE(rirs_grid_type), ALLOCATABLE                :: grid_cache(:)
 
       ! Data types for storing RI-RS matrices
@@ -162,6 +183,14 @@ MODULE post_scf_bandstructure_types
 
       ! parameters for RI-RS implementation of GW
       TYPE(ri_rs_env)                                 :: ri_rs
+
+      ! DBCSR ships each rank's matrix panel in one MPI message whose length is stored in a
+      ! 32-bit default INTEGER (dbcsr_mpiwrap.F: msglen = SIZE(buffer)). Exceeding this ceiling
+      ! overflows the count to a negative/garbage value and multiply_cannon segfaults. This is
+      ! that hard limit in elements (= HUGE(int_4) = 2^31-1), the same bound DBCSR uses
+      ! internally as mp_max_memory_size. Panel sizing keeps every per-rank message below it.
+      INTEGER(KIND=int_8)                             :: dbcsr_msg_elem_limit = &
+                                                         INT(HUGE(0_int_4), int_8)
 
       ! general parameters on molecular orbitals and basis sets
       ! Number of real states; entries above it are linear-dependency placeholders, not states.
@@ -331,8 +360,7 @@ MODULE post_scf_bandstructure_types
       CHARACTER(LEN=13)                            :: Sigma_p_name = "Sigma_pos_tau", &
                                                       Sigma_n_name = "Sigma_neg_tau"
       CHARACTER(LEN=default_path_length)           :: prefix = ""
-      INTEGER                                      :: unit_nr = -1, &
-                                                      unit_nr_contract = -1
+      INTEGER                                      :: unit_nr = -1
 
       ! parameters and data for basis sets
       TYPE(gto_basis_set_p_type), &
@@ -422,10 +450,6 @@ MODULE post_scf_bandstructure_types
                                                            fm_Sigma_c_R_pos_tau
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE    :: v_xc_n
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)      :: t_3c_int
-
-      !MG: Print options
-      LOGICAL                                           :: print_contract = .FALSE., &
-                                                           print_contract_verbose = .FALSE.
 
    END TYPE post_scf_bandstructure_type
 
@@ -578,6 +602,7 @@ CONTAINS
       IF (ALLOCATED(bs_env%ri_rs%chunk_centroids)) DEALLOCATE (bs_env%ri_rs%chunk_centroids)
       IF (ALLOCATED(bs_env%ri_rs%atom_centers)) DEALLOCATE (bs_env%ri_rs%atom_centers)
       IF (ALLOCATED(bs_env%ri_rs%grid_atom_boundaries)) DEALLOCATE (bs_env%ri_rs%grid_atom_boundaries)
+      NULLIFY (bs_env%ri_rs%cell, bs_env%ri_rs%particle_set)
       IF (ALLOCATED(bs_env%ri_rs%pan_first)) DEALLOCATE (bs_env%ri_rs%pan_first)
       IF (ALLOCATED(bs_env%ri_rs%pan_last)) DEALLOCATE (bs_env%ri_rs%pan_last)
 

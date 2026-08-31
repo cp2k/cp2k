@@ -30,4 +30,7 @@
                                           {matcher="E_RIRS_evGW0_LUMO", tol=1e-03, ref=10.718},
                                           {matcher="E_evGW0_direct_gap", tol=1e-03, ref=21.416}]
 
+"rirs-grid-optimization-H2O.inp"         = [{matcher="RIRS_Grid", tol=1e-12, ref=41},
+                                           {matcher="RIRS_Grid_Optimization_Error", tol=1e-1, ref=1.1e-5},
+                                           {matcher="E_RIRS_HOMO", tol=8e-4, ref=-6.151}]
 #EOF

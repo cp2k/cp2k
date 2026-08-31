@@ -2577,22 +2577,6 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL keyword_create(keyword, __LOCATION__, name="PRINT_DBT_CONTRACT", &
-                          description="Prints information of contraction routines.", &
-                          usage="PRINT_DBT_CONTRACT", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="PRINT_DBT_CONTRACT_VERBOSE", &
-                          description="Prints verbose information of contraction routines.", &
-                          usage="PRINT_DBT_CONTRACT_VERBOSE", &
-                          default_l_val=.FALSE., &
-                          lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -2635,7 +2619,7 @@ CONTAINS
                           "This locality approximation yields a sparse representation of the "// &
                           "3-center integrals and enables reduced computational cost. "// &
                           "See details in https://doi.org/10.1063/1.5090605.", &
-                          n_keywords=11, n_subsections=1, repeats=.FALSE.)
+                          n_keywords=11, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, &
@@ -2765,11 +2749,73 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsection)
+      CALL create_ri_rs_grid_optimization_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      NULLIFY (subsection)
       CALL create_evgw0_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
    END SUBROUTINE create_ri_rs_section
+
+! **************************************************************************************************
+!> \brief Creates the GW RI-RS in-memory grid optimizer section.
+!> \param section ...
+! **************************************************************************************************
+   SUBROUTINE create_ri_rs_grid_optimization_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      NULLIFY (keyword)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create( &
+         section, __LOCATION__, name="GRID_OPTIMIZATION", repeats=.FALSE., &
+         description="Optimizes RI-RS grids using small local atomic environments. For every atom "// &
+         "in the structure, a cluster is formed from all atoms whose distance from the centre atom "// &
+         "is smaller than CUTOFF_ATOMIC_CLUSTER. All three-centre integrals within each cluster are "// &
+         "computed analytically and serve as exact reference values. The grid points are optimized "// &
+         "such that the corresponding RI-RS three-centre integrals reproduce these references. "// &
+         "For a cluster $C_I$, the normalized squared RI-RS error is "// &
+         "$E_I = \frac{1}{N_I} \sum_{P\mu\nu \in C_I} \left|(\mu\nu|P) - "// &
+         "\sum_{\mathbf{r}_{A\ell} \in C_I} \varphi_\mu(\mathbf{r}_{A\ell}) "// &
+         "\varphi_\nu(\mathbf{r}_{A\ell}) Z_{A\ell P}\right|^2$. The total objective is "// &
+         "the average over all local clusters, "// &
+         "$E_\mathrm{loc} = \frac{1}{N_\mathrm{at}} "// &
+         "\sum_{I=1}^{N_\mathrm{at}} E_I$. Starting from pre-tabulated atom-specific grids, "// &
+         "the optimization adapts the grid to the chemical environment and composition of the "// &
+         "structure and can permit substantially smaller grids. Compact grids often work well for "// &
+         "small basis sets, but the point count specified with GRID_SIZE should be tuned and "// &
+         "converged for the chosen basis sets and chemical system.")
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="GRID_SIZE", &
+         description="Specifies how many grid points are used per atom for a given element. "// &
+         "Repeat this keyword once for every element in the structure.", &
+         usage="GRID_SIZE Si 100", type_of_var=char_t, repeats=.TRUE., n_var=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="CUTOFF_ATOMIC_CLUSTER", &
+         description="Radius of the atom-centred cluster used to construct the local three-centre "// &
+         "integral fitting objective. Atoms within this distance of the centre atom are included.", &
+         usage="CUTOFF_ATOMIC_CLUSTER [angstrom] 3.0", type_of_var=real_t, &
+         default_r_val=cp_unit_to_cp2k(value=3.0_dp, unit_str="angstrom"), &
+         unit_str="angstrom")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="MAX_ITER", &
+         description="Maximum number of objective-and-gradient evaluations in the single "// &
+         "cooperative Cartesian grid optimization.", &
+         usage="MAX_ITER 100", default_i_val=100)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_ri_rs_grid_optimization_section
 
 ! **************************************************************************************************
 !> \brief creates the input section for eigenvalue self-consistent GW0 (evGW0) in RI-RS
