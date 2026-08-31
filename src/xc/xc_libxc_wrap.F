@@ -104,7 +104,11 @@ MODULE xc_libxc_wrap
                            !
                            XC_FLAGS_NEEDS_LAPLACIAN, &
                            XC_FLAGS_HAVE_EXC, &
-                           XC_FLAGS_DEVELOPMENT
+                           XC_FLAGS_DEVELOPMENT, &
+                           xc_f03_func_init_flags,
+                           XC_FLAGS_ON_HOST,
+                           XC_FLAGS_ON_DEVICE,
+                           xc_f03_func_info_set_default_flags
 
 #include "../base/base_uses.f90"
 #endif
@@ -140,6 +144,7 @@ MODULE xc_libxc_wrap
    PUBLIC :: XC_UNPOLARIZED, XC_POLARIZED
 
    PUBLIC :: XC_EXCHANGE, XC_CORRELATION, XC_EXCHANGE_CORRELATION, XC_KINETIC
+   PUBLIC :: XC_FLAGS_ON_HOST, XC_FLAGS_ON_DEVICE
 
 ! wrappers for routines
    PUBLIC :: xc_libxc_wrap_info_refs, &
@@ -151,9 +156,20 @@ MODULE xc_libxc_wrap
              xc_libxc_wrap_functional_get_number, &
              xc_libxc_wrap_is_under_development, &
              xc_libxc_get_reference_length, &
-             xc_libxc_check_functional
+             xc_libxc_check_functional, &
+             xc_libxc_wrap_init_cuda_safe
 
 CONTAINS
+
+   SUBROUTINE xc_libxc_wrap_init_cuda_safe()
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_init_cuda_safe', routineP = moduleN//':'//routineN
+      INTEGER :: handle
+      CALL timeset(routineN, handle)
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
+      CALL timestop(handle)
+   END SUBROUTINE xc_libxc_wrap_init_cuda_safe
+
+
 
 ! **************************************************************************************************
 !> \brief Provides the reference(s) for this functional.
