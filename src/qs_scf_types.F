@@ -101,8 +101,17 @@ MODULE qs_scf_types
       LOGICAL :: valid = .FALSE.
       INTEGER :: spin_index = 0, kpoint_index = 0, local_kpoint_index = 0
       INTEGER :: nmo = 0, nmo_ortho = 0
+      INTEGER :: diis_m = 0
       LOGICAL :: has_complex_kpoint_state = .FALSE., do_rotation = .FALSE., do_ener = .FALSE.
       LOGICAL :: has_rot_mat_x = .FALSE., has_rot_mat_x_im = .FALSE., has_ener_x = .FALSE.
+      LOGICAL :: has_matrix_dx = .FALSE., has_matrix_dx_im = .FALSE.
+      LOGICAL :: has_matrix_gx_old = .FALSE., has_matrix_gx_old_im = .FALSE.
+      LOGICAL :: has_rot_mat_dx = .FALSE., has_rot_mat_dx_im = .FALSE.
+      LOGICAL :: has_rot_mat_gx_old = .FALSE., has_rot_mat_gx_old_im = .FALSE.
+      LOGICAL :: has_ener_dx = .FALSE., has_ener_gx_old = .FALSE.
+      LOGICAL :: has_diis_scalars = .FALSE., has_matrix_history = .FALSE.
+      LOGICAL :: has_matrix_history_im = .FALSE., has_rot_history = .FALSE.
+      LOGICAL :: has_rot_history_im = .FALSE., has_ener_history = .FALSE.
       REAL(KIND=dp) :: kpoint_weight = 0.0_dp
       REAL(KIND=dp) :: ot_pos(53) = 0.0_dp, ot_energy(53) = 0.0_dp, ot_grad(53) = 0.0_dp
       INTEGER :: line_search_left = -1, line_search_right = -1, line_search_mid = -1
@@ -112,7 +121,19 @@ MODULE qs_scf_types
       REAL(KIND=dp) :: etotal = 0.0_dp, gradient = 0.0_dp, ds_min = 0.0_dp
       REAL(KIND=dp) :: broyden_adaptive_sigma = 0.0_dp
       TYPE(cp_fm_type), POINTER :: rot_mat_x => NULL(), rot_mat_x_im => NULL()
-      REAL(KIND=dp), DIMENSION(:), POINTER :: ener_x => NULL()
+      TYPE(cp_fm_type), POINTER :: matrix_dx => NULL(), matrix_dx_im => NULL()
+      TYPE(cp_fm_type), POINTER :: matrix_gx_old => NULL(), matrix_gx_old_im => NULL()
+      TYPE(cp_fm_type), POINTER :: rot_mat_dx => NULL(), rot_mat_dx_im => NULL()
+      TYPE(cp_fm_type), POINTER :: rot_mat_gx_old => NULL(), rot_mat_gx_old_im => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: matrix_h_e => NULL(), matrix_h_x => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: matrix_h_e_im => NULL(), matrix_h_x_im => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: rot_mat_h_e => NULL(), rot_mat_h_x => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER :: rot_mat_h_e_im => NULL(), rot_mat_h_x_im => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: ener_x => NULL(), ener_dx => NULL(), ener_gx_old => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: c_diis => NULL(), c_broy => NULL(), energy_h => NULL()
+      INTEGER, DIMENSION(:), POINTER :: ipivot => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: ls_diis => NULL(), lss_diis => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER :: ener_h_e => NULL(), ener_h_x => NULL()
    END TYPE qs_ot_restart_channel_type
 
    TYPE qs_ot_restart_cache_type
@@ -448,8 +469,78 @@ CONTAINS
                CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x_im)
                DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x_im)
             END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%matrix_dx)) THEN
+               CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%matrix_dx)
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%matrix_dx)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%matrix_dx_im)) THEN
+               CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%matrix_dx_im)
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%matrix_dx_im)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%matrix_gx_old)) THEN
+               CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%matrix_gx_old)
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%matrix_gx_old)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%matrix_gx_old_im)) THEN
+               CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%matrix_gx_old_im)
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%matrix_gx_old_im)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_dx)) THEN
+               CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_dx)
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_dx)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_dx_im)) THEN
+               CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_dx_im)
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_dx_im)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_gx_old)) THEN
+               CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_gx_old)
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_gx_old)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_gx_old_im)) THEN
+               CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_gx_old_im)
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_gx_old_im)
+            END IF
+            CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%matrix_h_e)
+            CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%matrix_h_x)
+            CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%matrix_h_e_im)
+            CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%matrix_h_x_im)
+            CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_e)
+            CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_x)
+            CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_e_im)
+            CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_x_im)
             IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%ener_x)) THEN
                DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ener_x)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%ener_dx)) THEN
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ener_dx)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%ener_gx_old)) THEN
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ener_gx_old)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%c_diis)) THEN
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%c_diis)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%c_broy)) THEN
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%c_broy)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%energy_h)) THEN
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%energy_h)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%ipivot)) THEN
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ipivot)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%ls_diis)) THEN
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ls_diis)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%lss_diis)) THEN
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%lss_diis)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%ener_h_e)) THEN
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ener_h_e)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%ener_h_x)) THEN
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ener_h_x)
             END IF
          END DO
          DEALLOCATE (scf_env%qs_ot_restart%channel)

@@ -64,7 +64,7 @@ MODULE kpoint_io
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_io'
 
    INTEGER, PARAMETER                   :: version = 1
-   INTEGER, PARAMETER                   :: ot_restart_version = 1
+   INTEGER, PARAMETER                   :: ot_restart_version = 2
    CHARACTER(LEN=*), PARAMETER          :: ot_restart_marker = "CP2K_KPOINT_OT_RESTART"
 
    PUBLIC :: read_kpoints_restart, &
@@ -500,11 +500,15 @@ CONTAINS
       TYPE(qs_ot_type), DIMENSION(:), INTENT(IN)         :: qs_ot_env
       INTEGER, INTENT(IN)                                :: ires
 
-      INTEGER                                            :: ichannel, nchannel, nener, nmo, nmo_ortho
-      INTEGER, DIMENSION(12)                             :: int_payload
-      LOGICAL                                            :: has_ener_x, has_rot_mat_x, &
-                                                            has_rot_mat_x_im
-      LOGICAL, DIMENSION(9)                              :: log_payload
+      INTEGER                                            :: ichannel, ihist, nchannel, ndiis, nener, &
+                                                            nmo, nmo_ortho
+      INTEGER, DIMENSION(13)                             :: int_payload
+      LOGICAL :: has_diis_scalars, has_ener_dx, has_ener_gx_old, has_ener_history, has_ener_x, &
+         has_matrix_dx, has_matrix_dx_im, has_matrix_gx_old, has_matrix_gx_old_im, &
+         has_matrix_history, has_matrix_history_im, has_rot_history, has_rot_history_im, &
+         has_rot_mat_dx, has_rot_mat_dx_im, has_rot_mat_gx_old, has_rot_mat_gx_old_im, &
+         has_rot_mat_x, has_rot_mat_x_im
+      LOGICAL, DIMENSION(25)                             :: log_payload
       REAL(KIND=dp), DIMENSION(8)                        :: real_payload
 
       nchannel = SIZE(qs_ot_env)
@@ -526,8 +530,43 @@ CONTAINS
          has_rot_mat_x_im = qs_ot_env(ichannel)%state_allocated .AND. &
                             ASSOCIATED(qs_ot_env(ichannel)%rot_mat_x_im)
          has_ener_x = qs_ot_env(ichannel)%state_allocated .AND. ASSOCIATED(qs_ot_env(ichannel)%ener_x)
+         has_matrix_dx = qs_ot_env(ichannel)%state_allocated .AND. ASSOCIATED(qs_ot_env(ichannel)%matrix_dx)
+         has_matrix_dx_im = qs_ot_env(ichannel)%state_allocated .AND. &
+                            ASSOCIATED(qs_ot_env(ichannel)%matrix_dx_im)
+         has_matrix_gx_old = qs_ot_env(ichannel)%state_allocated .AND. &
+                             ASSOCIATED(qs_ot_env(ichannel)%matrix_gx_old)
+         has_matrix_gx_old_im = qs_ot_env(ichannel)%state_allocated .AND. &
+                                ASSOCIATED(qs_ot_env(ichannel)%matrix_gx_old_im)
+         has_rot_mat_dx = qs_ot_env(ichannel)%state_allocated .AND. ASSOCIATED(qs_ot_env(ichannel)%rot_mat_dx)
+         has_rot_mat_dx_im = qs_ot_env(ichannel)%state_allocated .AND. &
+                             ASSOCIATED(qs_ot_env(ichannel)%rot_mat_dx_im)
+         has_rot_mat_gx_old = qs_ot_env(ichannel)%state_allocated .AND. &
+                              ASSOCIATED(qs_ot_env(ichannel)%rot_mat_gx_old)
+         has_rot_mat_gx_old_im = qs_ot_env(ichannel)%state_allocated .AND. &
+                                 ASSOCIATED(qs_ot_env(ichannel)%rot_mat_gx_old_im)
+         has_ener_dx = qs_ot_env(ichannel)%state_allocated .AND. ASSOCIATED(qs_ot_env(ichannel)%ener_dx)
+         has_ener_gx_old = qs_ot_env(ichannel)%state_allocated .AND. &
+                           ASSOCIATED(qs_ot_env(ichannel)%ener_gx_old)
+         has_diis_scalars = qs_ot_env(ichannel)%state_allocated .AND. ASSOCIATED(qs_ot_env(ichannel)%ls_diis)
+         has_matrix_history = qs_ot_env(ichannel)%state_allocated .AND. &
+                              ASSOCIATED(qs_ot_env(ichannel)%matrix_h_e) .AND. &
+                              ASSOCIATED(qs_ot_env(ichannel)%matrix_h_x)
+         has_matrix_history_im = qs_ot_env(ichannel)%state_allocated .AND. &
+                                 ASSOCIATED(qs_ot_env(ichannel)%matrix_h_e_im) .AND. &
+                                 ASSOCIATED(qs_ot_env(ichannel)%matrix_h_x_im)
+         has_rot_history = qs_ot_env(ichannel)%state_allocated .AND. &
+                           ASSOCIATED(qs_ot_env(ichannel)%rot_mat_h_e) .AND. &
+                           ASSOCIATED(qs_ot_env(ichannel)%rot_mat_h_x)
+         has_rot_history_im = qs_ot_env(ichannel)%state_allocated .AND. &
+                              ASSOCIATED(qs_ot_env(ichannel)%rot_mat_h_e_im) .AND. &
+                              ASSOCIATED(qs_ot_env(ichannel)%rot_mat_h_x_im)
+         has_ener_history = qs_ot_env(ichannel)%state_allocated .AND. &
+                            ASSOCIATED(qs_ot_env(ichannel)%ener_h_e) .AND. &
+                            ASSOCIATED(qs_ot_env(ichannel)%ener_h_x)
          nener = 0
          IF (has_ener_x) nener = SIZE(qs_ot_env(ichannel)%ener_x)
+         ndiis = 0
+         IF (has_diis_scalars) ndiis = SIZE(qs_ot_env(ichannel)%energy_h)
 
          int_payload = [ichannel, qs_ot_env(ichannel)%spin_index, &
                         qs_ot_env(ichannel)%kpoint_index, &
@@ -536,14 +575,19 @@ CONTAINS
                         qs_ot_env(ichannel)%line_search_right, &
                         qs_ot_env(ichannel)%line_search_mid, &
                         qs_ot_env(ichannel)%line_search_count, &
-                        qs_ot_env(ichannel)%diis_iter, nener]
+                        qs_ot_env(ichannel)%diis_iter, nener, ndiis]
          log_payload = [qs_ot_env(ichannel)%state_allocated, &
                         qs_ot_env(ichannel)%has_complex_kpoint_state, &
                         qs_ot_env(ichannel)%settings%do_rotation, &
                         qs_ot_env(ichannel)%settings%do_ener, &
                         has_rot_mat_x, has_rot_mat_x_im, has_ener_x, &
                         qs_ot_env(ichannel)%line_search_might_be_done, &
-                        qs_ot_env(ichannel)%energy_only]
+                        qs_ot_env(ichannel)%energy_only, has_matrix_dx, &
+                        has_matrix_dx_im, has_matrix_gx_old, has_matrix_gx_old_im, &
+                        has_rot_mat_dx, has_rot_mat_dx_im, has_rot_mat_gx_old, &
+                        has_rot_mat_gx_old_im, has_ener_dx, has_ener_gx_old, &
+                        has_diis_scalars, has_matrix_history, has_matrix_history_im, &
+                        has_rot_history, has_rot_history_im, has_ener_history]
          real_payload = [qs_ot_env(ichannel)%kpoint_weight, &
                          qs_ot_env(ichannel)%delta, qs_ot_env(ichannel)%gnorm, &
                          qs_ot_env(ichannel)%gnorm_old, qs_ot_env(ichannel)%etotal, &
@@ -563,6 +607,68 @@ CONTAINS
          IF (has_rot_mat_x_im) CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%rot_mat_x_im, &
                                                                qs_ot_env(ichannel), ires)
          IF (has_ener_x .AND. ires > 0) WRITE (ires) qs_ot_env(ichannel)%ener_x
+         IF (has_matrix_dx) CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%matrix_dx, &
+                                                            qs_ot_env(ichannel), ires)
+         IF (has_matrix_dx_im) CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%matrix_dx_im, &
+                                                               qs_ot_env(ichannel), ires)
+         IF (has_matrix_gx_old) CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%matrix_gx_old, &
+                                                                qs_ot_env(ichannel), ires)
+         IF (has_matrix_gx_old_im) CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%matrix_gx_old_im, &
+                                                                   qs_ot_env(ichannel), ires)
+         IF (has_rot_mat_dx) CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%rot_mat_dx, &
+                                                             qs_ot_env(ichannel), ires)
+         IF (has_rot_mat_dx_im) CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%rot_mat_dx_im, &
+                                                                qs_ot_env(ichannel), ires)
+         IF (has_rot_mat_gx_old) CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%rot_mat_gx_old, &
+                                                                 qs_ot_env(ichannel), ires)
+         IF (has_rot_mat_gx_old_im) CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%rot_mat_gx_old_im, &
+                                                                    qs_ot_env(ichannel), ires)
+         IF (has_ener_dx .AND. ires > 0) WRITE (ires) qs_ot_env(ichannel)%ener_dx
+         IF (has_ener_gx_old .AND. ires > 0) WRITE (ires) qs_ot_env(ichannel)%ener_gx_old
+         IF (has_diis_scalars .AND. ires > 0) THEN
+            WRITE (ires) qs_ot_env(ichannel)%ls_diis
+            WRITE (ires) qs_ot_env(ichannel)%lss_diis
+            WRITE (ires) qs_ot_env(ichannel)%c_diis
+            WRITE (ires) qs_ot_env(ichannel)%c_broy
+            WRITE (ires) qs_ot_env(ichannel)%energy_h
+            WRITE (ires) qs_ot_env(ichannel)%ipivot
+         END IF
+         IF (has_matrix_history) THEN
+            DO ihist = 1, ndiis
+               CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%matrix_h_e(ihist)%matrix, &
+                                               qs_ot_env(ichannel), ires)
+               CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%matrix_h_x(ihist)%matrix, &
+                                               qs_ot_env(ichannel), ires)
+            END DO
+         END IF
+         IF (has_matrix_history_im) THEN
+            DO ihist = 1, ndiis
+               CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%matrix_h_e_im(ihist)%matrix, &
+                                               qs_ot_env(ichannel), ires)
+               CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%matrix_h_x_im(ihist)%matrix, &
+                                               qs_ot_env(ichannel), ires)
+            END DO
+         END IF
+         IF (has_rot_history) THEN
+            DO ihist = 1, ndiis
+               CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%rot_mat_h_e(ihist)%matrix, &
+                                               qs_ot_env(ichannel), ires)
+               CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%rot_mat_h_x(ihist)%matrix, &
+                                               qs_ot_env(ichannel), ires)
+            END DO
+         END IF
+         IF (has_rot_history_im) THEN
+            DO ihist = 1, ndiis
+               CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%rot_mat_h_e_im(ihist)%matrix, &
+                                               qs_ot_env(ichannel), ires)
+               CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%rot_mat_h_x_im(ihist)%matrix, &
+                                               qs_ot_env(ichannel), ires)
+            END DO
+         END IF
+         IF (has_ener_history .AND. ires > 0) THEN
+            WRITE (ires) qs_ot_env(ichannel)%ener_h_e
+            WRITE (ires) qs_ot_env(ichannel)%ener_h_x
+         END IF
       END DO
 
    END SUBROUTINE write_kpoint_ot_restart_payload
@@ -584,6 +690,7 @@ CONTAINS
 
       NULLIFY (fm_struct)
       CALL dbcsr_get_info(matrix, nfullrows_total=nrow, nfullcols_total=ncol)
+      IF (ires > 0) WRITE (ires) nrow, ncol
       CALL cp_fm_struct_create(fm_struct, para_env=qs_ot_env%para_env, &
                                context=qs_ot_env%blacs_env, &
                                nrow_global=nrow, ncol_global=ncol)
@@ -609,11 +716,11 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
 
       CHARACTER(LEN=LEN(ot_restart_marker))              :: marker
-      INTEGER                                            :: ichannel, ios, nchannel, nener, &
-                                                            version_read
-      INTEGER, DIMENSION(12)                             :: int_payload
+      INTEGER                                            :: ichannel, ihist, ios, nchannel, ndiis, &
+                                                            nener, version_read
+      INTEGER, DIMENSION(13)                             :: int_payload
       LOGICAL                                            :: payload_found
-      LOGICAL, DIMENSION(9)                              :: log_payload
+      LOGICAL, DIMENSION(25)                             :: log_payload
       REAL(KIND=dp), DIMENSION(8)                        :: real_payload
 
       payload_found = .FALSE.
@@ -668,6 +775,8 @@ CONTAINS
          scf_env%qs_ot_restart%channel(ichannel)%line_search_count = int_payload(10)
          scf_env%qs_ot_restart%channel(ichannel)%diis_iter = int_payload(11)
          nener = int_payload(12)
+         ndiis = int_payload(13)
+         scf_env%qs_ot_restart%channel(ichannel)%diis_m = ndiis
          scf_env%qs_ot_restart%channel(ichannel)%has_complex_kpoint_state = log_payload(2)
          scf_env%qs_ot_restart%channel(ichannel)%do_rotation = log_payload(3)
          scf_env%qs_ot_restart%channel(ichannel)%do_ener = log_payload(4)
@@ -676,6 +785,22 @@ CONTAINS
          scf_env%qs_ot_restart%channel(ichannel)%has_ener_x = log_payload(7)
          scf_env%qs_ot_restart%channel(ichannel)%line_search_might_be_done = log_payload(8)
          scf_env%qs_ot_restart%channel(ichannel)%energy_only = log_payload(9)
+         scf_env%qs_ot_restart%channel(ichannel)%has_matrix_dx = log_payload(10)
+         scf_env%qs_ot_restart%channel(ichannel)%has_matrix_dx_im = log_payload(11)
+         scf_env%qs_ot_restart%channel(ichannel)%has_matrix_gx_old = log_payload(12)
+         scf_env%qs_ot_restart%channel(ichannel)%has_matrix_gx_old_im = log_payload(13)
+         scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_dx = log_payload(14)
+         scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_dx_im = log_payload(15)
+         scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_gx_old = log_payload(16)
+         scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_gx_old_im = log_payload(17)
+         scf_env%qs_ot_restart%channel(ichannel)%has_ener_dx = log_payload(18)
+         scf_env%qs_ot_restart%channel(ichannel)%has_ener_gx_old = log_payload(19)
+         scf_env%qs_ot_restart%channel(ichannel)%has_diis_scalars = log_payload(20)
+         scf_env%qs_ot_restart%channel(ichannel)%has_matrix_history = log_payload(21)
+         scf_env%qs_ot_restart%channel(ichannel)%has_matrix_history_im = log_payload(22)
+         scf_env%qs_ot_restart%channel(ichannel)%has_rot_history = log_payload(23)
+         scf_env%qs_ot_restart%channel(ichannel)%has_rot_history_im = log_payload(24)
+         scf_env%qs_ot_restart%channel(ichannel)%has_ener_history = log_payload(25)
          scf_env%qs_ot_restart%channel(ichannel)%kpoint_weight = real_payload(1)
          scf_env%qs_ot_restart%channel(ichannel)%delta = real_payload(2)
          scf_env%qs_ot_restart%channel(ichannel)%gnorm = real_payload(3)
@@ -686,19 +811,131 @@ CONTAINS
          scf_env%qs_ot_restart%channel(ichannel)%broyden_adaptive_sigma = real_payload(8)
 
          IF (scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_x) THEN
-            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%nmo, &
-                                        scf_env%qs_ot_restart%channel(ichannel)%nmo, &
-                                        scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x, rst_unit)
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x)
+            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x, rst_unit)
          END IF
          IF (scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_x_im) THEN
-            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%nmo, &
-                                        scf_env%qs_ot_restart%channel(ichannel)%nmo, &
-                                        scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x_im, rst_unit)
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x_im)
+            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x_im, rst_unit)
          END IF
          IF (scf_env%qs_ot_restart%channel(ichannel)%has_ener_x) THEN
             ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ener_x(nener))
             IF (para_env%is_source()) READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%ener_x
             CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%ener_x)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_matrix_dx) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%matrix_dx)
+            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%matrix_dx, rst_unit)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_matrix_dx_im) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%matrix_dx_im)
+            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%matrix_dx_im, rst_unit)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_matrix_gx_old) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%matrix_gx_old)
+            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%matrix_gx_old, rst_unit)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_matrix_gx_old_im) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%matrix_gx_old_im)
+            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%matrix_gx_old_im, rst_unit)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_dx) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_dx)
+            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%rot_mat_dx, rst_unit)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_dx_im) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_dx_im)
+            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%rot_mat_dx_im, rst_unit)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_gx_old) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_gx_old)
+            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%rot_mat_gx_old, rst_unit)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_gx_old_im) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_gx_old_im)
+            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%rot_mat_gx_old_im, rst_unit)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_ener_dx) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ener_dx(nener))
+            IF (para_env%is_source()) READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%ener_dx
+            CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%ener_dx)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_ener_gx_old) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ener_gx_old(nener))
+            IF (para_env%is_source()) READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%ener_gx_old
+            CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%ener_gx_old)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_diis_scalars) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ls_diis(ndiis + 1, ndiis + 1))
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%lss_diis(ndiis + 1, ndiis + 1))
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%c_diis(ndiis + 1))
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%c_broy(ndiis))
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%energy_h(ndiis))
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ipivot(ndiis + 1))
+            IF (para_env%is_source()) THEN
+               READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%ls_diis
+               READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%lss_diis
+               READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%c_diis
+               READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%c_broy
+               READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%energy_h
+               READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%ipivot
+            END IF
+            CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%ls_diis)
+            CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%lss_diis)
+            CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%c_diis)
+            CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%c_broy)
+            CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%energy_h)
+            CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%ipivot)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_matrix_history) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%matrix_h_e(ndiis))
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%matrix_h_x(ndiis))
+            DO ihist = 1, ndiis
+               CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%matrix_h_e(ihist), &
+                                           rst_unit)
+               CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%matrix_h_x(ihist), &
+                                           rst_unit)
+            END DO
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_matrix_history_im) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%matrix_h_e_im(ndiis))
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%matrix_h_x_im(ndiis))
+            DO ihist = 1, ndiis
+               CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%matrix_h_e_im(ihist), &
+                                           rst_unit)
+               CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%matrix_h_x_im(ihist), &
+                                           rst_unit)
+            END DO
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_rot_history) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_e(ndiis))
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_x(ndiis))
+            DO ihist = 1, ndiis
+               CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_e(ihist), &
+                                           rst_unit)
+               CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_x(ihist), &
+                                           rst_unit)
+            END DO
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_rot_history_im) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_e_im(ndiis))
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_x_im(ndiis))
+            DO ihist = 1, ndiis
+               CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_e_im(ihist), &
+                                           rst_unit)
+               CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_x_im(ihist), &
+                                           rst_unit)
+            END DO
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_ener_history) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ener_h_e(ndiis, nener))
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ener_h_x(ndiis, nener))
+            IF (para_env%is_source()) THEN
+               READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%ener_h_e
+               READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%ener_h_x
+            END IF
+            CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%ener_h_e)
+            CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%ener_h_x)
          END IF
       END DO
 
@@ -707,21 +944,23 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief read a restart FM matrix using an existing FM distribution as template
 !> \param fmat_template FM template
-!> \param nrow global row count
-!> \param ncol global column count
 !> \param fmat matrix read from restart
 !> \param rst_unit restart unit
 ! **************************************************************************************************
-   SUBROUTINE read_restart_fm_matrix(fmat_template, nrow, ncol, fmat, rst_unit)
+   SUBROUTINE read_restart_fm_matrix(fmat_template, fmat, rst_unit)
       TYPE(cp_fm_type), INTENT(IN)                       :: fmat_template
-      INTEGER, INTENT(IN)                                :: nrow, ncol
-      TYPE(cp_fm_type), POINTER                          :: fmat
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fmat
       INTEGER, INTENT(IN)                                :: rst_unit
 
+      INTEGER                                            :: ncol, nrow
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
 
       NULLIFY (fm_struct)
-      ALLOCATE (fmat)
+      nrow = 0
+      ncol = 0
+      IF (fmat_template%matrix_struct%para_env%is_source()) READ (rst_unit) nrow, ncol
+      CALL fmat_template%matrix_struct%para_env%bcast(nrow)
+      CALL fmat_template%matrix_struct%para_env%bcast(ncol)
       CALL cp_fm_struct_create(fm_struct, template_fmstruct=fmat_template%matrix_struct, &
                                nrow_global=nrow, ncol_global=ncol)
       CALL cp_fm_create(fmat, fm_struct)
