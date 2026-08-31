@@ -3,10 +3,17 @@
 # see regtest/TEST_FILES
 "2H2O_t01.inp"                          = [{matcher="M011", tol=1e-010, ref=-34.570515851298339}]
 "he_cube.inp"                           = [{matcher="M011", tol=1e-009, ref=-1.773125551436637}]
+"he_cube_ls_scf.inp"                    = [{matcher="M011", tol=1e-009, ref=-1.773125551436640}]
 "he_cube_fit.inp"                       = [
     {matcher="M011", tol=1e-009, ref=-1.777065334241121},
     {matcher="Harris_fit_electron_count", tol=1e-010, ref=2.0},
 ]
+"he_cube_fit_ls_scf.inp"                = [
+    {matcher="M011", tol=1e-009, ref=-1.777065334241120},
+    {matcher="Harris_fit_electron_count", tol=1e-010, ref=2.0},
+]
+"he_zmp.inp"                            = [{matcher="M011", tol=1e-008, ref=-2.237334614695333}]
+"he_zmp_ls_scf.inp"                     = [{matcher="M011", tol=1e-008, ref=-2.237335366244200}]
 "ft1.inp"                               = []
 "ft2.inp"                               = []
 "fl1.inp"                               = []
