@@ -67,13 +67,16 @@ reaction coordinate $\xi$, the free-energy gradient then follows
 $$
 \frac{\mathrm d A}{\mathrm d\xi} 
 = 
-\frac{\left\langle Z^{-1/2}(-\lambda + k_\mathrm{B} T G)\right\rangle_\xi}
+\frac{\left\langle Z^{-1/2}
+\left(-\lambda + k_\mathrm{B} T G\right)
+\right\rangle_\xi}
 {\left\langle Z^{-1/2}\right\rangle_\xi}
 $$
 
 where $k_\mathrm{B}$ is the Boltzmann constant, $T$ is the temperature, 
 $\left\langle \cdots \right\rangle_\xi$ denotes the 
-time average of reaction coordinate $\xi(\mathbf r_1,\dots,\mathbf r_N)$ by MD simulation.
+time average of reaction coordinate 
+$\xi(\mathbf r_1,\dots,\mathbf r_N)$ by MD simulation.
 Here $Z$ defines the scalar mass metric
 
 $$
@@ -111,7 +114,9 @@ the metric-derivative term is also zero, but
 
 $$
 Z = m_i^{-1}+m_k^{-1}
-    +2m_j^{-1}\left(1-\boldsymbol\rho_{ij}\mathbin{\cdot}\boldsymbol\rho_{kj}\right)
+    +2m_j^{-1}
+    \left(1-\boldsymbol\rho_{ij}\mathbin{\cdot}\boldsymbol\rho_{kj}
+    \right)
 $$
 
 depends on the instantaneous angle. Consequently, the free-energy gradient is
@@ -171,13 +176,19 @@ or slow-growth protocol. A simple example for the performance of CV as the dista
 &END MOTION
 ```
 
-CP2K does not integrate the work or turn the resulting trajectory into an equilibrium free-energy profile automatically. 
-A finite pulling rate can cause lag, dissipation, and direction-dependent hysteresis, so such a trajectory must be analysed with a method appropriate to the intended nonequilibrium protocol. 
-In the limit of infinitesimal change of $\xi$, the irreversible work ($W$) describes the energy change between the initial and final state. 
-The resulting work from slow growth (typically the irreversible work) can be related to the free energy change $(\Delta A)$ via Jarzynski's identity
+CP2K does not integrate the work or turn the resulting trajectory into 
+an equilibrium free-energy profile automatically. 
+A finite pulling rate can cause lag, dissipation, and direction-dependent hysteresis, 
+so such a trajectory must be analysed with a method appropriate to the intended nonequilibrium protocol. 
+In the limit of infinitesimal change of $\xi$, the irreversible work ($W$) 
+describes the energy change between the initial and final state. 
+The resulting work from slow growth (typically the irreversible work) 
+can be related to the free-energy change $(\Delta A)$ via Jarzynski's identity
 
-$$\exp\left(-\frac{\Delta A}{k_B T}\right) 
+$$
+\exp\left(-\frac{\Delta A}{k_B T}\right) 
 = 
-\left\langle \exp\left(-\frac{W}{k_B T}\right) \right\rangle.
+\left\langle \exp\left(-\frac{W}{k_B T}\right) 
+\right\rangle.
 $$
 
