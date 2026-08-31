@@ -283,8 +283,8 @@ CONTAINS
          do_ec_hfx, do_et, do_exx, do_gw, do_hfx, do_kpoints, do_linear_response, do_mp2, &
          do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_tddfpt, do_tddfpt_unsupported_kpoints, &
          do_wfc_low_scaling, do_wfc_low_scaling_kpoints, do_xtb_tblite, final_kpoint_reinit, &
-         is_identical, is_semi, kpoint_verbose, mp2_present, my_qmmm, owned_kpoints, qmmm_decoupl, &
-         same_except_frac, use_real_wfn, use_ref_cell
+         is_identical, is_semi, kpoint_explicit, kpoint_verbose, mp2_present, my_qmmm, &
+         ot_energies, owned_kpoints, qmmm_decoupl, same_except_frac, use_real_wfn, use_ref_cell
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rtmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: my_cell, my_cell_ref
@@ -393,6 +393,13 @@ CONTAINS
          CALL set_qs_env(qs_env=qs_env, kpoints=kpoints)
          kpoint_section => section_vals_get_subs_vals(qs_env%input, "DFT%KPOINTS")
          CALL read_kpoint_section(kpoints, kpoint_section, my_cell%hmat, my_cell)
+         CALL section_vals_get(kpoint_section, explicit=kpoint_explicit)
+         ot_energies = .FALSE.
+         CALL section_vals_val_get(qs_env%input, "DFT%SCF%OT%ENERGIES", l_val=ot_energies)
+         IF (.NOT. kpoint_explicit .AND. ot_energies) THEN
+            ! Use the production Mermin driver instead of maintaining a second sparse Gamma path.
+            CALL set_kpoint_info(kpoints, kp_scheme="GAMMA")
+         END IF
          CALL get_kpoint_info(kpoints, verbose=kpoint_verbose)
          IF (kpoint_verbose) CALL set_kpoint_info(kpoints, verbose=.FALSE.)
          do_hfx = .FALSE.
