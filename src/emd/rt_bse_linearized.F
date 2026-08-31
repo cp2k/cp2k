@@ -57,7 +57,8 @@ MODULE rt_bse_linearized
    USE dbt_api,                         ONLY: dbt_copy_matrix_to_tensor
    USE force_env_methods,               ONLY: force_env_calc_energy_force
    USE force_env_types,                 ONLY: force_env_type
-   USE input_constants,                 ONLY: rtp_bse_ham_g0w0,&
+   USE input_constants,                 ONLY: evGW0,&
+                                              rtp_bse_ham_gw,&
                                               use_mom_ref_zero,&
                                               use_rt_restart
    USE kinds,                           ONLY: dp
@@ -298,7 +299,7 @@ CONTAINS
       i_first = rtbse_env%first_active_mo
       i_last = rtbse_env%last_active_mo
 
-      IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+      IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
          omega_max = MAXVAL(rtbse_env%bs_env%eigenval_GW(i_first:i_last, :, :)) - &
                      MINVAL(rtbse_env%bs_env%eigenval_GW(i_first:i_last, :, :))
       ELSE
@@ -321,7 +322,7 @@ CONTAINS
          DO ispin = 1, rtbse_env%n_spin
             ! Active occupied window: first_active_mo .. n_occ(ispin)
             IF (rtbse_env%n_occ(ispin) >= i_first) THEN
-               IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+               IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
                   ev_tmp = MINVAL(rtbse_env%bs_env%eigenval_GW(i_first:rtbse_env%n_occ(ispin), :, ispin))
                   eps_occ_min = MIN(eps_occ_min, ev_tmp)
                   ev_tmp = MAXVAL(rtbse_env%bs_env%eigenval_GW(i_first:rtbse_env%n_occ(ispin), :, ispin))
@@ -335,7 +336,7 @@ CONTAINS
             END IF
             ! Active virtual window: n_occ(ispin)+1 .. last_active_mo
             IF (rtbse_env%n_occ(ispin) < i_last) THEN
-               IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+               IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
                   ev_tmp = MINVAL(rtbse_env%bs_env%eigenval_GW(rtbse_env%n_occ(ispin) + 1:i_last, :, ispin))
                   eps_virt_min = MIN(eps_virt_min, ev_tmp)
                   ev_tmp = MAXVAL(rtbse_env%bs_env%eigenval_GW(rtbse_env%n_occ(ispin) + 1:i_last, :, ispin))
@@ -538,12 +539,22 @@ CONTAINS
          WRITE (rtbse_env%unit_nr, '(A,T65,F16.6)') ' Estimated maximum oscillation frequency (gap-based) [eV]:', &
             rtbse_env%omega_max*evolt
 
-         ! Active MO window (energy-cutoff truncation) for linearized RT-BSE
-         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
-            WRITE (rtbse_env%unit_nr, '(A,T75,A6)') ' Active-window single-particle spectrum source:', '  G0W0'
+         ! Which single-particle eigenvalues the propagation uses. bs_env%eigenval_GW carries the
+         ! result of the highest GW flavour requested.
+         IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
+            IF (rtbse_env%bs_env%gw_flavour == evGW0) THEN
+               WRITE (rtbse_env%unit_nr, '(A,T75,A6)') &
+                  ' GW flavor for computing GW eigenvalues used in RT-BSE:', ' evGW0'
+            ELSE
+               WRITE (rtbse_env%unit_nr, '(A,T75,A6)') &
+                  ' GW flavor for computing GW eigenvalues used in RT-BSE:', '  G0W0'
+            END IF
          ELSE
-            WRITE (rtbse_env%unit_nr, '(A,T75,A6)') ' Active-window single-particle spectrum source:', '    KS'
+            WRITE (rtbse_env%unit_nr, '(A,T75,A6)') &
+               ' Single-particle eigenvalues used in RT-BSE:', '    KS'
          END IF
+
+         ! Active MO window (energy-cutoff truncation) for linearized RT-BSE
          IF (rtbse_env%rtbse_energy_cutoff_occ > 0.0_dp) THEN
             WRITE (rtbse_env%unit_nr, '(A,T71,F10.3)') ' Active-window occupied energy cutoff [eV]:', &
                rtbse_env%rtbse_energy_cutoff_occ*evolt
@@ -571,7 +582,7 @@ CONTAINS
                   ' first active MO, E - E_HOMO (KS) [eV]:', e_first
                WRITE (rtbse_env%unit_nr, '(A,I1,A,T71,F10.3)') ' Spin ', ispin, &
                   ' last active MO, E - E_LUMO (KS) [eV]:', e_last
-               IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+               IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
                   e_first = (rtbse_env%bs_env%eigenval_GW(rtbse_env%first_active_mo, 1, ispin) - &
                              rtbse_env%bs_env%eigenval_GW(rtbse_env%n_occ(ispin), 1, ispin))*evolt
                   e_last = (rtbse_env%bs_env%eigenval_GW(rtbse_env%last_active_mo, 1, ispin) - &
@@ -778,8 +789,8 @@ CONTAINS
                j_col_global = col_indices(jj)
                IF (i_row_global == j_col_global) THEN
                   abs_mo_idx = i_row_global + rtbse_env%first_active_mo - 1
-                  IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
-                     ! G0W0 Hamiltonian
+                  IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
+                     ! GW Hamiltonian
                      rtbse_env%real_workspace_mo(1)%local_data(ii, jj) = bs_env%eigenval_GW(abs_mo_idx, 1, i)
                   ELSE
                      ! KS Hamiltonian
@@ -933,7 +944,7 @@ CONTAINS
       ! w_dbcsr and screened_dbt are needed for get_sigma routines (AO-RI path only).
       ! For RI-RS the W = V + W^c kernel is on the real-space grid in mat_W0_grid_rtbse.
       IF (.NOT. use_rirs_kernel) THEN
-         IF (rtbse_env%ham_reference_type == rtp_bse_ham_g0w0) THEN
+         IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
             ! W(w=0) is built by the GW step only under its RTBSE rtp_method gate; reaching this
             ! consumer without it means gate and consumer disagree. The HF branch below needs no W.
             IF (.NOT. ASSOCIATED(rtbse_env%bs_env%fm_W_MIC_freq_zero%matrix_struct)) THEN

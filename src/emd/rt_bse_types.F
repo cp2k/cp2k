@@ -54,7 +54,7 @@ MODULE rt_bse_types
    USE input_constants, ONLY: use_mom_ref_coac, &
                               do_bch, &
                               do_exact, &
-                              rtp_bse_ham_g0w0, &
+                              rtp_bse_ham_gw, &
                               rtp_method_bse_linearized
    USE bse_util, ONLY: determine_cutoff_indices
    USE cp_log_handling, ONLY: cp_to_string
@@ -973,7 +973,7 @@ CONTAINS
       INTEGER                                            :: homo, ispin
       REAL(KIND=dp)                                      :: gap, gap_scf
 
-      IF (rtbse_env%ham_reference_type /= rtp_bse_ham_g0w0) RETURN
+      IF (rtbse_env%ham_reference_type /= rtp_bse_ham_gw) RETURN
 
       DO ispin = 1, rtbse_env%n_spin
          homo = rtbse_env%n_occ(ispin)
