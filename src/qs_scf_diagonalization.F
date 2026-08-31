@@ -51,10 +51,8 @@ MODULE qs_scf_diagonalization
                                               choose_eigv_solver,&
                                               cp_fm_geeig,&
                                               cp_fm_geeig_canon,&
-                                              cusolver_n_min,&
-                                              dlaf_neigvec_min,&
-                                              diag_type,&
                                               diag_check_requested,&
+                                              diag_type,&
                                               direct_generalized_diagonalization
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm,&
