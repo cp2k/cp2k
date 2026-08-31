@@ -173,6 +173,7 @@ CONTAINS
       END DO
       IF (unit_nr > 0) FLUSH (unit_nr)
 
+      bs_env%ri_rs%Z_lP_exists = .FALSE.
       CALL gw_3c_ctx_release(integral_context)
       CALL timestop(handle)
 

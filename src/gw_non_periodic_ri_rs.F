@@ -694,16 +694,12 @@ CONTAINS
        !! 1. Build the grid cache
       CALL build_grid_cache(bs_env, atomic_kind_set)
 
-      ! The dedicated post-SCF input reader has already populated bs_env%ri_rs%grid_opt.
-      ! Optimize the selected in-memory grids before the following GW assembly consumes them.
+      !! 2. Optimize RIRS grid points
       IF (bs_env%ri_rs%grid_opt%enabled) THEN
          CALL optimize_ri_rs_grid(qs_env, bs_env)
-         ! A file from an earlier run describes different grid coordinates even when its
-         ! dimensions happen to match. Always rebuild Z_lP for the newly optimized grid.
-         bs_env%ri_rs%Z_lP_exists = .FALSE.
       END IF
 
-      !! 2. Calculate grid counts and offsets
+      !! 3. Calculate grid counts and offsets
       ALLOCATE (ri_rs_grid_offsets(natom + 1))
 
       ! grid_atom_boundaries(k) = 1-based start of the k-th atom's grid run in LAYOUT order
@@ -712,10 +708,8 @@ CONTAINS
       IF (ALLOCATED(bs_env%ri_rs%grid_atom_boundaries)) DEALLOCATE (bs_env%ri_rs%grid_atom_boundaries)
       ALLOCATE (bs_env%ri_rs%grid_atom_boundaries(natom + 1))
 
-      ! Lay the grid rows down in Morton (spatial) atom order rather than kind-major, so a
-      ! contiguous grid panel maps to a compact spatial region and the CUTOFF_RADIUS_RL_W
-      ! neighborhood width of every panel shrinks. The grid row index is summed over in χ/Σ,
-      ! so this reordering is result-preserving (see spatial_atom_order).
+      ! Lay the grid rows down in Morton (spatial) atom order, so a
+      ! contiguous grid maps to a compact spatial region.
       CALL spatial_atom_order(particle_set, atom_order)
 
       total_grid_npts = 0
@@ -735,10 +729,10 @@ CONTAINS
          WRITE (bs_env%unit_nr, "(A)") ' '
       END IF
 
-       !! 3. Allocate the global ri_rs_grid arrays
+       !! 4. Allocate the global ri_rs_grid arrays
       ALLOCATE (ri_rs_grid_points(3, total_grid_npts))
 
-       !! 4. Parallelize the grid generation loop
+       !! 5. Parallelize the grid generation loop
       !$OMP PARALLEL DO DEFAULT(NONE) &
       !$OMP SHARED(ri_rs_grid_points, ri_rs_grid_offsets, &
       !$OMP        particle_set, bs_env, natom) &
@@ -758,7 +752,7 @@ CONTAINS
       END DO
       !$OMP END PARALLEL DO
 
-      !! 5. Cleanup memory
+      !! 6. Cleanup memory
       IF (ALLOCATED(bs_env%ri_rs%grid_cache)) THEN
          DO atom_idx = 1, natom
             IF (ALLOCATED(bs_env%ri_rs%grid_cache(atom_idx)%raw_points)) THEN
