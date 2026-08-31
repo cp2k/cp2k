@@ -47,6 +47,15 @@
 "Al-kpoint-mermin-smoke.inp"            = [{matcher="E_total", tol=1e-9, ref=-2.903015358408708},
                                            {matcher="M072", tol=1e-8, ref=0.0},
                                            {matcher="M031", tol=1e-6, ref=-1.03113798553E+08}]
+"Al-kpoint-mermin-gaussian.inp"         = [{matcher="E_total", tol=1e-9, ref=-2.977126996245875},
+                                           {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+                                           {matcher="NO_TEXT", text="K-point smearing includes the last band"}]
+"Al-kpoint-mermin-methfessel-paxton.inp" = [{matcher="E_total", tol=1e-9, ref=-2.975935843898080},
+                                             {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+                                             {matcher="NO_TEXT", text="K-point smearing includes the last band"}]
+"Al-kpoint-mermin-marzari-vanderbilt.inp" = [{matcher="E_total", tol=1e-9, ref=-2.976427997093175},
+                                              {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+                                              {matcher="NO_TEXT", text="K-point smearing includes the last band"}]
 "Na-kpoint-mermin-uks-sd.inp"           = [
   {matcher="E_total", tol=1e-9, ref=-0.280830319393730},
   {matcher="OT_kpoint_ref_refresh"},

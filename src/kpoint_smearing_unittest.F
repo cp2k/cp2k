@@ -6,9 +6,18 @@
 !--------------------------------------------------------------------------------------------------!
 
 PROGRAM kpoint_smearing_unittest
+   USE bibliography,                    ONLY: add_all_references
+   USE input_constants,                 ONLY: smear_fermi_dirac,&
+                                              smear_gaussian,&
+                                              smear_mp,&
+                                              smear_mv
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_smearing_edge_status
+   USE qs_ot,                           ONLY: qs_ot_fixed_n_energy_hessian
+   USE reference_manager,               ONLY: remove_all_references
    USE scf_control_types,               ONLY: smear_type
+   USE smearing_utils,                  ONLY: Smearkp,&
+                                              smearing_response_weight
 
    IMPLICIT NONE
 
@@ -18,6 +27,7 @@ PROGRAM kpoint_smearing_unittest
    REAL(KIND=dp), DIMENSION(3, 2, 2)                  :: occupation
    TYPE(smear_type)                                   :: smear
 
+   CALL add_all_references()
    smear%do_smear = .TRUE.
    smear%eps_fermi_dirac = 1.0E-5_dp
    occupation = 0.0_dp
@@ -61,5 +71,77 @@ PROGRAM kpoint_smearing_unittest
    IF (has_weight .OR. first_fractional .OR. last_occupied) THEN
       ERROR STOP "Disabled smearing produced an edge status"
    END IF
+
+   CALL test_fixed_n_smearing_response()
+   CALL remove_all_references()
+
+CONTAINS
+
+! **************************************************************************************************
+!> \brief Check the fixed-N occupation response for every supported K-point smearing method.
+! **************************************************************************************************
+   SUBROUTINE test_fixed_n_smearing_response()
+      INTEGER, PARAMETER                                 :: nkpoint = 2, nstate = 5
+      REAL(KIND=dp), PARAMETER                           :: fd_step = 1.0E-6_dp, maxocc = 2.0_dp, &
+                                                            sigma = 0.15_dp, TARGET = 4.3_dp
+
+      INTEGER                                            :: ikpoint, imethod
+      INTEGER, DIMENSION(4)                              :: methods
+      REAL(KIND=dp)                                      :: error, kTS, mu, response_sum
+      REAL(KIND=dp), DIMENSION(nkpoint)                  :: kpoint_weight
+      REAL(KIND=dp), DIMENSION(nstate*nkpoint)           :: fd_response, flat_direction, &
+                                                            predicted_response
+      REAL(KIND=dp), &
+         DIMENSION(nstate*nkpoint, nstate*nkpoint)       :: hessian
+      REAL(KIND=dp), DIMENSION(nstate, nkpoint) :: direction, eigenvalue, eigenvalue_minus, &
+         eigenvalue_plus, occupation, occupation_minus, occupation_plus, response
+
+      methods(:) = [smear_fermi_dirac, smear_gaussian, smear_mp, smear_mv]
+      kpoint_weight(:) = [0.4_dp, 0.6_dp]
+      eigenvalue(:, 1) = [-0.38_dp, -0.14_dp, 0.02_dp, 0.23_dp, 0.52_dp]
+      eigenvalue(:, 2) = [-0.31_dp, -0.08_dp, 0.07_dp, 0.28_dp, 0.61_dp]
+      direction(:, 1) = [0.13_dp, -0.07_dp, 0.11_dp, -0.04_dp, 0.09_dp]
+      direction(:, 2) = [-0.08_dp, 0.05_dp, -0.12_dp, 0.06_dp, -0.03_dp]
+      flat_direction(:) = RESHAPE(direction, [nstate*nkpoint])
+
+      DO imethod = 1, SIZE(methods)
+         CALL Smearkp(occupation, mu, kTS, eigenvalue, TARGET, kpoint_weight, sigma, maxocc, &
+                      methods(imethod))
+         DO ikpoint = 1, nkpoint
+            CALL smearing_response_weight( &
+               response(:, ikpoint), occupation(:, ikpoint), eigenvalue(:, ikpoint), mu, sigma, &
+               maxocc, nstate, methods(imethod))
+            response(:, ikpoint) = kpoint_weight(ikpoint)*response(:, ikpoint)
+         END DO
+         response_sum = SUM(response)
+         IF (ABS(response_sum) <= EPSILON(response_sum)) THEN
+            ERROR STOP "Singular fixed-N smearing response in unit test"
+         END IF
+         IF ((methods(imethod) == smear_mp .OR. methods(imethod) == smear_mv) .AND. &
+             .NOT. ANY(response < 0.0_dp)) THEN
+            ERROR STOP "Signed smearing-response branch was not exercised"
+         END IF
+         CALL qs_ot_fixed_n_energy_hessian( &
+            RESHAPE(response, [nstate*nkpoint]), response_sum, hessian)
+
+         eigenvalue_plus(:, :) = eigenvalue + fd_step*direction
+         eigenvalue_minus(:, :) = eigenvalue - fd_step*direction
+         CALL Smearkp(occupation_plus, mu, kTS, eigenvalue_plus, TARGET, kpoint_weight, sigma, &
+                      maxocc, methods(imethod))
+         CALL Smearkp(occupation_minus, mu, kTS, eigenvalue_minus, TARGET, kpoint_weight, sigma, &
+                      maxocc, methods(imethod))
+         DO ikpoint = 1, nkpoint
+            fd_response((ikpoint - 1)*nstate + 1:ikpoint*nstate) = &
+               kpoint_weight(ikpoint)*(occupation_plus(:, ikpoint) - &
+                                       occupation_minus(:, ikpoint))/(2.0_dp*fd_step)
+         END DO
+         predicted_response(:) = -MATMUL(hessian, flat_direction)
+         error = MAXVAL(ABS(fd_response - predicted_response))
+         error = MAX(error, ABS(SUM(fd_response)))
+         error = MAX(error, MAXVAL(ABS(MATMUL(hessian, SPREAD(1.0_dp, 1, nstate*nkpoint)))))
+         IF (error > 2.0E-6_dp) ERROR STOP "Fixed-N smearing response finite difference failed"
+      END DO
+
+   END SUBROUTINE test_fixed_n_smearing_response
 
 END PROGRAM kpoint_smearing_unittest
