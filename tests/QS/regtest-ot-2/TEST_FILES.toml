@@ -72,6 +72,10 @@
   {matcher="E_total", tol=1e-9, ref=-3.990589661043425},
   {matcher="OT_mermin_response_update"},
 ]
+"Al-kpoint-mermin-response-lbfgs.inp"   = [
+  {matcher="E_total", tol=1e-9, ref=-3.990589661470200},
+  {matcher="OT_mermin_lbfgs_response_update"},
+]
 "Al-kpoint-mermin-lbfgs.inp"            = [{matcher="E_total", tol=1e-8, ref=-8.17199206567539}]
 "Al-kpoint-mermin-lbfgs-occ.inp"        = [{matcher="E_total", tol=1e-9, ref=-2.903015358383124}]
 "Al-kpoint-mermin-broyden-occ.inp"      = [{matcher="E_total", tol=1e-9, ref=-2.903015358436246}]

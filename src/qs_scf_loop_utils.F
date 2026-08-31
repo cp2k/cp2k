@@ -1838,6 +1838,11 @@ CONTAINS
       IF (.NOT. local_ot_env(1)%settings%occupation_preconditioner .OR. &
           .NOT. local_ot_env(1)%settings%do_rotation .OR. &
           .NOT. local_ot_env(1)%settings%do_ener) RETURN
+      ! The dense candidate is accepted through a physical line search. DIIS and Broyden use the
+      ! cheaper fixed-N response in their history residuals, but have no comparable accepted-step
+      ! model and therefore must not pay for an unused finite-response construction.
+      IF (local_ot_env(1)%settings%ot_method /= "CG" .AND. &
+          local_ot_env(1)%settings%ot_method /= "LBFG") RETURN
       ! The shared ROKS orbital uses the exact occupation-weighted alpha+beta gradient and the two
       ! fixed-N energy blocks use their dense projected preconditioner.  The Hxc response history
       ! below is spin-channel-local, so do not construct a falsely alpha-only coupled candidate.
