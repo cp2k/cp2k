@@ -138,6 +138,12 @@
   {matcher="E_total", tol=1e-6, ref=-2.181855772490608},
   {matcher="OT_kpoint_restart_state"},
 ]
+"Al-kpoint-mermin-md.inp"              = [
+  {matcher="M_INIT_ENERGY", tol=1e-8, ref=-3.959232891657958},
+  {matcher="M_CONS_QTY", tol=1e-8, ref=-3.95874105061},
+]
+"Al-kpoint-mermin-geo-opt.inp"         = [{matcher="E_total", tol=1e-8, ref=-3.959422888885181}]
+"Al-kpoint-mermin-cell-opt.inp"        = [{matcher="E_total", tol=1e-8, ref=-2.085971162407874}]
 # go through planned FFTs, but don't check results, they will depend on the selected plan
 "H2O-plan-2.inp"                        = []
 "H2O-plan-3.inp"                        = []
