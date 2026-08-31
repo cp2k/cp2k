@@ -59,8 +59,8 @@ constraints. The ordering within each group is collective-variable, 3-by-3, and 
 ## Blue-moon ensemble correction
 
 Constrained molecular dynamics generally produces biased statistical distributions. 
-The blue‑moon ensemble average is used to correct these biased outputs and retrieve the statistical 
-properties corresponding to unconstrained molecular‑dynamics conditions. 
+The blue-moon ensemble average is used to correct these biased outputs and retrieve the statistical 
+properties corresponding to unconstrained molecular-dynamics conditions. 
 The printed SHAKE multiplier is not, in general, a complete blue-moon estimator. For one constrained
 reaction coordinate $\xi$, the free-energy gradient then follows
 
