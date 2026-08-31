@@ -1206,7 +1206,8 @@ MODULE input_constants
 
    ! Harris method
    INTEGER, PARAMETER, PUBLIC               :: hfun_harris = 1
-   INTEGER, PARAMETER, PUBLIC               :: hden_atomic = 10
+   INTEGER, PARAMETER, PUBLIC               :: hden_atomic = 10, &
+                                               hden_cube = 20
    INTEGER, PARAMETER, PUBLIC               :: horb_default = 100
 
    ! non-scf energy corrections
