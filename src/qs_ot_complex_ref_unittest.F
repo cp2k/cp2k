@@ -42,6 +42,8 @@ PROGRAM qs_ot_complex_ref_unittest
         ot_precond_solver_chebyshev, ot_precond_solver_default, ot_precond_solver_direct, &
         ot_precond_solver_inv_chol
    USE kinds,                           ONLY: dp
+   USE kpoint_io,                       ONLY: kpoint_ot_restart_geometry_compatible,&
+                                              kpoint_ot_restart_smearing_compatible
    USE kpoint_methods,                  ONLY: kpoint_ot_energy_weighted_density
    USE machine,                         ONLY: default_output_unit
    USE mathlib,                         ONLY: diag_complex
@@ -74,6 +76,7 @@ PROGRAM qs_ot_complex_ref_unittest
                                               qs_ot_kpoint_preconditioner_supported,&
                                               qs_ot_type
    USE reference_manager,               ONLY: remove_all_references
+   USE scf_control_types,               ONLY: smear_type
 
    IMPLICIT NONE
 
@@ -100,6 +103,7 @@ PROGRAM qs_ot_complex_ref_unittest
 
    nfail = 0
    CALL test_preconditioner_support(nfail)
+   CALL test_restart_compatibility(nfail)
    NULLIFY (hc_im_p, hc_re_p, logger, para_env)
    CALL mp_world_init(mp_comm)
    mynode = mp_comm%mepos
@@ -260,6 +264,45 @@ PROGRAM qs_ot_complex_ref_unittest
    IF (nfail > 0) ERROR STOP "qs_ot_complex_ref_unittest failed"
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Check that minimizer history is reused only for the same geometry and Mermin objective.
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_restart_compatibility(nfail)
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      REAL(KIND=dp), DIMENSION(3, 2)                     :: positions, restart_positions
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat, restart_hmat
+      TYPE(smear_type)                                   :: smear
+
+      hmat(:, :) = 0.0_dp
+      hmat(1, 1) = 4.0_dp
+      hmat(2, 2) = 5.0_dp
+      hmat(3, 3) = 6.0_dp
+      positions = RESHAPE([0.0_dp, 0.1_dp, 0.2_dp, 1.0_dp, 1.1_dp, 1.2_dp], SHAPE(positions))
+      restart_hmat = hmat
+      restart_positions = positions
+      IF (.NOT. kpoint_ot_restart_geometry_compatible( &
+          hmat, positions, restart_hmat, restart_positions)) nfail = nfail + 1
+      restart_positions(1, 2) = restart_positions(1, 2) + 1.0E-8_dp
+      IF (kpoint_ot_restart_geometry_compatible( &
+          hmat, positions, restart_hmat, restart_positions)) nfail = nfail + 1
+
+      smear%do_smear = .TRUE.
+      smear%common_mu = .TRUE.
+      smear%method = 7
+      smear%electronic_temperature = 0.02_dp
+      smear%smearing_width = 0.01_dp
+      smear%fixed_mag_mom = 1.0_dp
+      IF (.NOT. kpoint_ot_restart_smearing_compatible( &
+          smear, .TRUE., .TRUE., 7, 0.02_dp, 0.01_dp, 1.0_dp)) nfail = nfail + 1
+      IF (kpoint_ot_restart_smearing_compatible( &
+          smear, .TRUE., .FALSE., 7, 0.02_dp, 0.01_dp, 1.0_dp)) nfail = nfail + 1
+      IF (kpoint_ot_restart_smearing_compatible( &
+          smear, .TRUE., .TRUE., 7, 0.02000001_dp, 0.01_dp, 1.0_dp)) nfail = nfail + 1
+
+   END SUBROUTINE test_restart_compatibility
 
 ! **************************************************************************************************
 !> \brief Check the noncanonical complex OT energy-weighted density and its gauge covariance.
