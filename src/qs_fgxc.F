@@ -46,6 +46,8 @@ MODULE qs_fgxc
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_fgxc_atom,                    ONLY: fgxc_atom_calc,&
+                                              fgxc_atom_diff
    USE qs_fxc,                          ONLY: qs_fxc_create,&
                                               qs_fxc_fdiff
    USE qs_kind_types,                   ONLY: qs_kind_type
@@ -60,8 +62,6 @@ MODULE qs_fgxc
                                               qs_rho_release,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
-   USE qs_vxc_atom,                     ONLY: fgxc_atom_calc,&
-                                              fgxc_atom_diff
    USE xc,                              ONLY: xc_calc_2nd_deriv_analytical,&
                                               xc_calc_3rd_deriv_analytical,&
                                               xc_prep_3rd_deriv
