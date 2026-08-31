@@ -46,6 +46,7 @@
 ! **************************************************************************************************
 MODULE qs_scf
    USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
@@ -65,10 +66,12 @@ MODULE qs_scf
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_init_random,&
                                               cp_fm_release,&
+                                              cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                               cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_release,&
                                               cp_logger_type,&
                                               cp_rm_default_logger,&
@@ -182,7 +185,8 @@ MODULE qs_scf
    USE qs_ot_types,                     ONLY: &
         qs_ot_allocate, qs_ot_allocate_complex_state, qs_ot_channel_index, &
         qs_ot_check_channel_context, qs_ot_init, qs_ot_kpoint_preconditioner_solver_supported, &
-        qs_ot_kpoint_preconditioner_supported, qs_ot_number_of_channels, qs_ot_set_context, qs_ot_type
+        qs_ot_kpoint_preconditioner_supported, qs_ot_number_of_channels, qs_ot_set_context, &
+        qs_ot_settings_restart_compatible, qs_ot_type
    USE qs_outer_scf,                    ONLY: outer_loop_gradient,&
                                               outer_loop_optimize,&
                                               outer_loop_purge_history,&
@@ -218,8 +222,8 @@ MODULE qs_scf
                                               qs_scf_subspace_buffer_release
    USE qs_scf_types,                    ONLY: &
         block_davidson_diag_method_nr, block_krylov_diag_method_nr, filter_matrix_diag_method_nr, &
-        general_diag_method_nr, ot_diag_method_nr, ot_method_nr, qs_scf_env_type, &
-        smeagol_method_nr, special_diag_method_nr
+        general_diag_method_nr, ot_diag_method_nr, ot_method_nr, qs_ot_restart_dense_matrix_type, &
+        qs_scf_env_type, smeagol_method_nr, special_diag_method_nr
    USE qs_vxc_atom,                     ONLY: gapw_cdft_one_center
    USE qs_wf_history_methods,           ONLY: wfi_purge_history,&
                                               wfi_update
@@ -427,6 +431,7 @@ CONTAINS
                                                             oda_predictor_lambda, t1, t2
       REAL(KIND=dp), DIMENSION(3)                        :: res_val_3
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_result_type), POINTER                      :: results
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
@@ -452,7 +457,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, rho, energy, &
+      NULLIFY (cell, dft_control, rho, energy, &
                logger, qs_charges, ks_env, mos, atomic_kind_set, qs_kind_set, &
                particle_set, ace_section, dft_section, hfx_sections, input, &
                scf_section, para_env, results, kpoints, pw_env, matrix_ks, &
@@ -465,6 +470,7 @@ CONTAINS
       t1 = m_walltime()
 
       CALL get_qs_env(qs_env=qs_env, &
+                      cell=cell, &
                       energy=energy, &
                       particle_set=particle_set, &
                       qs_charges=qs_charges, &
@@ -966,7 +972,8 @@ CONTAINS
             END IF
 
             IF (do_kpoints) THEN
-               CALL write_kpoints_restart(rho_ao_kp, kpoints, scf_env, dft_section, particle_set, qs_kind_set)
+               CALL write_kpoints_restart(rho_ao_kp, kpoints, scf_env, dft_section, &
+                                          particle_set, qs_kind_set, cell, scf_control%smear)
                IF (exit_inner_loop .AND. ASSOCIATED(scf_env%qs_ot_env)) THEN
                   IF (ANY(scf_env%qs_ot_env(:)%kpoint_index > 0)) THEN
                      DO ispin = 1, SIZE(scf_env%qs_ot_env)
@@ -2114,11 +2121,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_qs_ot_kpoint_state'
 
-      INTEGER                                            :: energy_dimension, energy_spin, &
-                                                            energy_start, handle, ikpoint, &
-                                                            ikpoint_local, ispin, nao, nmo, nocc, &
-                                                            ot_channel
-      LOGICAL                                            :: use_real_wfn
+      INTEGER :: energy_dimension, energy_spin, energy_start, handle, ikpoint, ikpoint_local, &
+         ispin, nao, nmo, nocc, ot_channel, restart_compatible_int
+      LOGICAL                                            :: restart_channel_restored, &
+                                                            restart_compatible, use_real_wfn
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct
       TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im
@@ -2145,6 +2151,39 @@ CONTAINS
       IF (use_real_wfn) THEN
          CPABORT("K-point OT currently requires complex K-point wavefunctions.")
       END IF
+
+      restart_compatible = scf_env%qs_ot_restart%valid .AND. &
+                           ASSOCIATED(scf_env%qs_ot_restart%channel)
+      IF (restart_compatible) THEN
+         restart_compatible = SIZE(scf_env%qs_ot_restart%channel) == SIZE(scf_env%qs_ot_env)
+      END IF
+      IF (restart_compatible) THEN
+         DO ikpoint_local = 1, SIZE(kpoints%kp_env)
+            kp => kpoints%kp_env(ikpoint_local)%kpoint_env
+            ikpoint = kp%nkpoint
+            DO ispin = 1, nspin_ot
+               ot_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot)
+               restart_compatible = restart_compatible .AND. &
+                                    scf_env%qs_ot_restart%channel(ot_channel)%valid .AND. &
+                                    scf_env%qs_ot_restart%channel(ot_channel)%spin_index == ispin .AND. &
+                                    scf_env%qs_ot_restart%channel(ot_channel)%kpoint_index == ikpoint .AND. &
+                                    scf_env%qs_ot_restart%channel(ot_channel)%has_complex_kpoint_state .AND. &
+                                    qs_ot_settings_restart_compatible( &
+                                    scf_env%qs_ot_env(ot_channel)%settings, &
+                                    scf_env%qs_ot_restart%channel(ot_channel)%settings_char, &
+                                    scf_env%qs_ot_restart%channel(ot_channel)%settings_int, &
+                                    scf_env%qs_ot_restart%channel(ot_channel)%settings_log, &
+                                    scf_env%qs_ot_restart%channel(ot_channel)%settings_real)
+            END DO
+         END DO
+      END IF
+      restart_compatible_int = MERGE(1, 0, restart_compatible)
+      CALL kpoints%para_env%min(restart_compatible_int)
+      IF (scf_env%qs_ot_restart%valid .AND. restart_compatible_int == 0) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "Ignoring k-point OT restart payload incompatible with current channels or settings")
+      END IF
+      scf_env%qs_ot_restart%valid = restart_compatible_int /= 0
 
       DO ikpoint_local = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(ikpoint_local)%kpoint_env
@@ -2247,8 +2286,6 @@ CONTAINS
                CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sx_im, 0.0_dp)
             END IF
 
-            CALL apply_qs_ot_kpoint_restart(scf_env%qs_ot_env(ot_channel), &
-                                            scf_env, ot_channel, nmo)
             SELECT CASE (scf_env%qs_ot_env(ot_channel)%settings%ot_algorithm)
             CASE ("TOD")
                IF (scf_env%qs_ot_env(ot_channel)%has_complex_kpoint_state) THEN
@@ -2280,6 +2317,12 @@ CONTAINS
             CASE DEFAULT
                CPABORT("Algorithm not yet implemented")
             END SELECT
+            CALL apply_qs_ot_kpoint_restart(scf_env%qs_ot_env(ot_channel), &
+                                            scf_env, ot_channel, nmo, restart_channel_restored)
+            IF (restart_channel_restored) THEN
+               CALL refresh_qs_ot_kpoint_metric_image(scf_env%qs_ot_env(ot_channel), &
+                                                      matrix_sk_re, matrix_sk_im)
+            END IF
 
             CPASSERT(scf_env%qs_ot_env(ot_channel)%state_allocated)
             IF (.NOT. use_real_wfn) THEN
@@ -2313,20 +2356,52 @@ CONTAINS
    END SUBROUTINE allocate_qs_ot_kpoint_state
 
 ! **************************************************************************************************
+!> \brief rebuild S(k)X after restoring independent k-point OT coordinates
+!> \param qs_ot_env ...
+!> \param matrix_sk_re ...
+!> \param matrix_sk_im ...
+! **************************************************************************************************
+   SUBROUTINE refresh_qs_ot_kpoint_metric_image(qs_ot_env, matrix_sk_re, matrix_sk_im)
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+      TYPE(dbcsr_type), POINTER                          :: matrix_sk_re, matrix_sk_im
+
+      TYPE(dbcsr_type), POINTER                          :: tmp
+
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_re, qs_ot_env%matrix_x, &
+                          0.0_dp, qs_ot_env%matrix_sx)
+      IF (qs_ot_env%has_complex_kpoint_state) THEN
+         CPASSERT(ASSOCIATED(matrix_sk_im))
+         tmp => qs_ot_env%buf1_n_k
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_im, qs_ot_env%matrix_x_im, &
+                             0.0_dp, tmp)
+         CALL dbcsr_add(qs_ot_env%matrix_sx, tmp, alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_re, qs_ot_env%matrix_x_im, &
+                             0.0_dp, qs_ot_env%matrix_sx_im)
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_im, qs_ot_env%matrix_x, &
+                             0.0_dp, tmp)
+         CALL dbcsr_add(qs_ot_env%matrix_sx_im, tmp, alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+      END IF
+
+   END SUBROUTINE refresh_qs_ot_kpoint_metric_image
+
+! **************************************************************************************************
 !> \brief apply cached k-point OT restart data to an allocated channel
 !> \param qs_ot_env allocated OT channel
 !> \param scf_env SCF environment carrying the restart cache
 !> \param ot_channel channel index
 !> \param nmo number of MOs in the allocated channel
+!> \param restored true when cached minimizer coordinates were applied
 ! **************************************************************************************************
-   SUBROUTINE apply_qs_ot_kpoint_restart(qs_ot_env, scf_env, ot_channel, nmo)
+   SUBROUTINE apply_qs_ot_kpoint_restart(qs_ot_env, scf_env, ot_channel, nmo, restored)
       TYPE(qs_ot_type)                                   :: qs_ot_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       INTEGER, INTENT(IN)                                :: ot_channel, nmo
+      LOGICAL, INTENT(OUT)                               :: restored
 
-      INTEGER                                            :: ihist, ndiis
-      LOGICAL                                            :: restored
+      INTEGER                                            :: ihist, ndiis, nhistory, nlbfgs
+      TYPE(cp_logger_type), POINTER                      :: logger
 
+      restored = .FALSE.
       IF (.NOT. scf_env%qs_ot_restart%valid) RETURN
       IF (.NOT. ASSOCIATED(scf_env%qs_ot_restart%channel)) RETURN
       IF (ot_channel < 1 .OR. ot_channel > SIZE(scf_env%qs_ot_restart%channel)) RETURN
@@ -2336,19 +2411,33 @@ CONTAINS
       IF (scf_env%qs_ot_restart%channel(ot_channel)%nmo /= nmo) RETURN
 
       ndiis = scf_env%qs_ot_restart%channel(ot_channel)%diis_m
-      restored = .FALSE.
+      nhistory = scf_env%qs_ot_restart%channel(ot_channel)%history_m
+      nlbfgs = scf_env%qs_ot_restart%channel(ot_channel)%lbfgs_m
+      IF (scf_env%qs_ot_restart%channel(ot_channel)%has_matrix_x .AND. &
+          ASSOCIATED(qs_ot_env%matrix_x)) THEN
+         CALL copy_qs_ot_restart_dense_matrix( &
+            scf_env%qs_ot_restart%channel(ot_channel)%matrix_x_dense, qs_ot_env%matrix_x, qs_ot_env)
+         restored = .TRUE.
+      END IF
+      IF (qs_ot_env%has_complex_kpoint_state .AND. &
+          scf_env%qs_ot_restart%channel(ot_channel)%has_matrix_x_im .AND. &
+          ASSOCIATED(qs_ot_env%matrix_x_im)) THEN
+         CALL copy_qs_ot_restart_dense_matrix( &
+            scf_env%qs_ot_restart%channel(ot_channel)%matrix_x_im_dense, qs_ot_env%matrix_x_im, qs_ot_env)
+         restored = .TRUE.
+      END IF
       IF (qs_ot_env%settings%do_rotation .AND. &
           scf_env%qs_ot_restart%channel(ot_channel)%has_rot_mat_x .AND. &
           ASSOCIATED(qs_ot_env%rot_mat_x)) THEN
-         CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_x, &
-                               qs_ot_env%rot_mat_x)
+         CALL copy_qs_ot_restart_dense_matrix( &
+            scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_x_dense, qs_ot_env%rot_mat_x, qs_ot_env)
          restored = .TRUE.
       END IF
       IF (qs_ot_env%settings%do_rotation .AND. qs_ot_env%has_complex_kpoint_state .AND. &
           scf_env%qs_ot_restart%channel(ot_channel)%has_rot_mat_x_im .AND. &
           ASSOCIATED(qs_ot_env%rot_mat_x_im)) THEN
-         CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_x_im, &
-                               qs_ot_env%rot_mat_x_im)
+         CALL copy_qs_ot_restart_dense_matrix( &
+            scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_x_im_dense, qs_ot_env%rot_mat_x_im, qs_ot_env)
          restored = .TRUE.
       END IF
       IF (qs_ot_env%settings%do_ener .AND. &
@@ -2361,54 +2450,55 @@ CONTAINS
       END IF
       IF (scf_env%qs_ot_restart%channel(ot_channel)%has_matrix_dx .AND. &
           ASSOCIATED(qs_ot_env%matrix_dx)) THEN
-         CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%matrix_dx, &
-                               qs_ot_env%matrix_dx)
+         CALL copy_qs_ot_restart_dense_matrix( &
+            scf_env%qs_ot_restart%channel(ot_channel)%matrix_dx_dense, qs_ot_env%matrix_dx, qs_ot_env)
          restored = .TRUE.
       END IF
       IF (scf_env%qs_ot_restart%channel(ot_channel)%has_matrix_dx_im .AND. &
           ASSOCIATED(qs_ot_env%matrix_dx_im)) THEN
-         CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%matrix_dx_im, &
-                               qs_ot_env%matrix_dx_im)
+         CALL copy_qs_ot_restart_dense_matrix( &
+            scf_env%qs_ot_restart%channel(ot_channel)%matrix_dx_im_dense, qs_ot_env%matrix_dx_im, qs_ot_env)
          restored = .TRUE.
       END IF
       IF (scf_env%qs_ot_restart%channel(ot_channel)%has_matrix_gx_old .AND. &
           ASSOCIATED(qs_ot_env%matrix_gx_old)) THEN
-         CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%matrix_gx_old, &
-                               qs_ot_env%matrix_gx_old)
+         CALL copy_qs_ot_restart_dense_matrix( &
+            scf_env%qs_ot_restart%channel(ot_channel)%matrix_gx_old_dense, qs_ot_env%matrix_gx_old, qs_ot_env)
          restored = .TRUE.
       END IF
       IF (scf_env%qs_ot_restart%channel(ot_channel)%has_matrix_gx_old_im .AND. &
           ASSOCIATED(qs_ot_env%matrix_gx_old_im)) THEN
-         CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%matrix_gx_old_im, &
-                               qs_ot_env%matrix_gx_old_im)
+         CALL copy_qs_ot_restart_dense_matrix( &
+            scf_env%qs_ot_restart%channel(ot_channel)%matrix_gx_old_im_dense, qs_ot_env%matrix_gx_old_im, qs_ot_env)
          restored = .TRUE.
       END IF
       IF (qs_ot_env%settings%do_rotation .AND. &
           scf_env%qs_ot_restart%channel(ot_channel)%has_rot_mat_dx .AND. &
           ASSOCIATED(qs_ot_env%rot_mat_dx)) THEN
-         CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_dx, &
-                               qs_ot_env%rot_mat_dx)
+         CALL copy_qs_ot_restart_dense_matrix( &
+            scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_dx_dense, qs_ot_env%rot_mat_dx, qs_ot_env)
          restored = .TRUE.
       END IF
       IF (qs_ot_env%settings%do_rotation .AND. qs_ot_env%has_complex_kpoint_state .AND. &
           scf_env%qs_ot_restart%channel(ot_channel)%has_rot_mat_dx_im .AND. &
           ASSOCIATED(qs_ot_env%rot_mat_dx_im)) THEN
-         CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_dx_im, &
-                               qs_ot_env%rot_mat_dx_im)
+         CALL copy_qs_ot_restart_dense_matrix( &
+            scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_dx_im_dense, qs_ot_env%rot_mat_dx_im, qs_ot_env)
          restored = .TRUE.
       END IF
       IF (qs_ot_env%settings%do_rotation .AND. &
           scf_env%qs_ot_restart%channel(ot_channel)%has_rot_mat_gx_old .AND. &
           ASSOCIATED(qs_ot_env%rot_mat_gx_old)) THEN
-         CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_gx_old, &
-                               qs_ot_env%rot_mat_gx_old)
+         CALL copy_qs_ot_restart_dense_matrix( &
+            scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_gx_old_dense, qs_ot_env%rot_mat_gx_old, qs_ot_env)
          restored = .TRUE.
       END IF
       IF (qs_ot_env%settings%do_rotation .AND. qs_ot_env%has_complex_kpoint_state .AND. &
           scf_env%qs_ot_restart%channel(ot_channel)%has_rot_mat_gx_old_im .AND. &
           ASSOCIATED(qs_ot_env%rot_mat_gx_old_im)) THEN
-         CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_gx_old_im, &
-                               qs_ot_env%rot_mat_gx_old_im)
+         CALL copy_qs_ot_restart_dense_matrix( &
+            scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_gx_old_im_dense, &
+            qs_ot_env%rot_mat_gx_old_im, qs_ot_env)
          restored = .TRUE.
       END IF
       IF (qs_ot_env%settings%do_ener .AND. &
@@ -2437,51 +2527,67 @@ CONTAINS
          qs_ot_env%ipivot = scf_env%qs_ot_restart%channel(ot_channel)%ipivot
          restored = .TRUE.
       END IF
+      IF (scf_env%qs_ot_restart%channel(ot_channel)%has_lbfgs_scalars .AND. &
+          ASSOCIATED(qs_ot_env%lbfgs_rho) .AND. nlbfgs == SIZE(qs_ot_env%lbfgs_rho)) THEN
+         qs_ot_env%lbfgs_rho = scf_env%qs_ot_restart%channel(ot_channel)%lbfgs_rho
+         qs_ot_env%lbfgs_yy = scf_env%qs_ot_restart%channel(ot_channel)%lbfgs_yy
+         qs_ot_env%lbfgs_sy_rotation = scf_env%qs_ot_restart%channel(ot_channel)%lbfgs_sy_rotation
+         qs_ot_env%lbfgs_yy_rotation = scf_env%qs_ot_restart%channel(ot_channel)%lbfgs_yy_rotation
+         restored = .TRUE.
+      END IF
       IF (scf_env%qs_ot_restart%channel(ot_channel)%has_matrix_history .AND. &
-          ASSOCIATED(qs_ot_env%matrix_h_e) .AND. ndiis == SIZE(qs_ot_env%matrix_h_e)) THEN
-         DO ihist = 1, ndiis
-            CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%matrix_h_e(ihist), &
-                                  qs_ot_env%matrix_h_e(ihist)%matrix)
-            CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%matrix_h_x(ihist), &
-                                  qs_ot_env%matrix_h_x(ihist)%matrix)
+          ASSOCIATED(qs_ot_env%matrix_h_e) .AND. nhistory == SIZE(qs_ot_env%matrix_h_e)) THEN
+         DO ihist = 1, nhistory
+            CALL copy_qs_ot_restart_dense_matrix( &
+               scf_env%qs_ot_restart%channel(ot_channel)%matrix_h_e_dense(ihist), &
+               qs_ot_env%matrix_h_e(ihist)%matrix, qs_ot_env)
+            CALL copy_qs_ot_restart_dense_matrix( &
+               scf_env%qs_ot_restart%channel(ot_channel)%matrix_h_x_dense(ihist), &
+               qs_ot_env%matrix_h_x(ihist)%matrix, qs_ot_env)
          END DO
          restored = .TRUE.
       END IF
       IF (scf_env%qs_ot_restart%channel(ot_channel)%has_matrix_history_im .AND. &
-          ASSOCIATED(qs_ot_env%matrix_h_e_im) .AND. ndiis == SIZE(qs_ot_env%matrix_h_e_im)) THEN
-         DO ihist = 1, ndiis
-            CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%matrix_h_e_im(ihist), &
-                                  qs_ot_env%matrix_h_e_im(ihist)%matrix)
-            CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%matrix_h_x_im(ihist), &
-                                  qs_ot_env%matrix_h_x_im(ihist)%matrix)
+          ASSOCIATED(qs_ot_env%matrix_h_e_im) .AND. nhistory == SIZE(qs_ot_env%matrix_h_e_im)) THEN
+         DO ihist = 1, nhistory
+            CALL copy_qs_ot_restart_dense_matrix( &
+               scf_env%qs_ot_restart%channel(ot_channel)%matrix_h_e_im_dense(ihist), &
+               qs_ot_env%matrix_h_e_im(ihist)%matrix, qs_ot_env)
+            CALL copy_qs_ot_restart_dense_matrix( &
+               scf_env%qs_ot_restart%channel(ot_channel)%matrix_h_x_im_dense(ihist), &
+               qs_ot_env%matrix_h_x_im(ihist)%matrix, qs_ot_env)
          END DO
          restored = .TRUE.
       END IF
       IF (qs_ot_env%settings%do_rotation .AND. &
           scf_env%qs_ot_restart%channel(ot_channel)%has_rot_history .AND. &
-          ASSOCIATED(qs_ot_env%rot_mat_h_e) .AND. ndiis == SIZE(qs_ot_env%rot_mat_h_e)) THEN
-         DO ihist = 1, ndiis
-            CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_h_e(ihist), &
-                                  qs_ot_env%rot_mat_h_e(ihist)%matrix)
-            CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_h_x(ihist), &
-                                  qs_ot_env%rot_mat_h_x(ihist)%matrix)
+          ASSOCIATED(qs_ot_env%rot_mat_h_e) .AND. nhistory == SIZE(qs_ot_env%rot_mat_h_e)) THEN
+         DO ihist = 1, nhistory
+            CALL copy_qs_ot_restart_dense_matrix( &
+               scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_h_e_dense(ihist), &
+               qs_ot_env%rot_mat_h_e(ihist)%matrix, qs_ot_env)
+            CALL copy_qs_ot_restart_dense_matrix( &
+               scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_h_x_dense(ihist), &
+               qs_ot_env%rot_mat_h_x(ihist)%matrix, qs_ot_env)
          END DO
          restored = .TRUE.
       END IF
       IF (qs_ot_env%settings%do_rotation .AND. qs_ot_env%has_complex_kpoint_state .AND. &
           scf_env%qs_ot_restart%channel(ot_channel)%has_rot_history_im .AND. &
-          ASSOCIATED(qs_ot_env%rot_mat_h_e_im) .AND. ndiis == SIZE(qs_ot_env%rot_mat_h_e_im)) THEN
-         DO ihist = 1, ndiis
-            CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_h_e_im(ihist), &
-                                  qs_ot_env%rot_mat_h_e_im(ihist)%matrix)
-            CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_h_x_im(ihist), &
-                                  qs_ot_env%rot_mat_h_x_im(ihist)%matrix)
+          ASSOCIATED(qs_ot_env%rot_mat_h_e_im) .AND. nhistory == SIZE(qs_ot_env%rot_mat_h_e_im)) THEN
+         DO ihist = 1, nhistory
+            CALL copy_qs_ot_restart_dense_matrix( &
+               scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_h_e_im_dense(ihist), &
+               qs_ot_env%rot_mat_h_e_im(ihist)%matrix, qs_ot_env)
+            CALL copy_qs_ot_restart_dense_matrix( &
+               scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_h_x_im_dense(ihist), &
+               qs_ot_env%rot_mat_h_x_im(ihist)%matrix, qs_ot_env)
          END DO
          restored = .TRUE.
       END IF
       IF (qs_ot_env%settings%do_ener .AND. &
           scf_env%qs_ot_restart%channel(ot_channel)%has_ener_history .AND. &
-          ASSOCIATED(qs_ot_env%ener_h_e) .AND. ndiis == SIZE(qs_ot_env%ener_h_e, 1)) THEN
+          ASSOCIATED(qs_ot_env%ener_h_e) .AND. nhistory == SIZE(qs_ot_env%ener_h_e, 1)) THEN
          IF (SIZE(qs_ot_env%ener_h_e, 2) == SIZE(scf_env%qs_ot_restart%channel(ot_channel)%ener_h_e, 2)) THEN
             qs_ot_env%ener_h_e = scf_env%qs_ot_restart%channel(ot_channel)%ener_h_e
             qs_ot_env%ener_h_x = scf_env%qs_ot_restart%channel(ot_channel)%ener_h_x
@@ -2509,9 +2615,45 @@ CONTAINS
          qs_ot_env%ds_min = scf_env%qs_ot_restart%channel(ot_channel)%ds_min
          qs_ot_env%broyden_adaptive_sigma = &
             scf_env%qs_ot_restart%channel(ot_channel)%broyden_adaptive_sigma
+         IF (qs_ot_env%spin_index == 1 .AND. qs_ot_env%kpoint_index == 1 .AND. &
+             qs_ot_env%para_env%is_source()) THEN
+            logger => cp_get_default_logger()
+            WRITE (UNIT=cp_logger_get_default_io_unit(logger), FMT="(T2,A)") &
+               "K-point OT restart: restored minimizer state"
+         END IF
       END IF
 
    END SUBROUTINE apply_qs_ot_kpoint_restart
+
+! **************************************************************************************************
+!> \brief copy replicated restart data into the owning k-point communicator
+!> \param source ...
+!> \param matrix ...
+!> \param qs_ot_env ...
+! **************************************************************************************************
+   SUBROUTINE copy_qs_ot_restart_dense_matrix(source, matrix, qs_ot_env)
+      TYPE(qs_ot_restart_dense_matrix_type), INTENT(IN)  :: source
+      TYPE(dbcsr_type), POINTER                          :: matrix
+      TYPE(qs_ot_type), INTENT(IN)                       :: qs_ot_env
+
+      TYPE(cp_fm_struct_type), POINTER                   :: local_fm_struct
+      TYPE(cp_fm_type)                                   :: local_fm
+
+      CPASSERT(ALLOCATED(source%data))
+      CPASSERT(ASSOCIATED(matrix))
+      CPASSERT(ASSOCIATED(qs_ot_env%blacs_env))
+
+      NULLIFY (local_fm_struct)
+      CALL cp_fm_struct_create(local_fm_struct, context=qs_ot_env%blacs_env, &
+                               nrow_global=SIZE(source%data, 1), &
+                               ncol_global=SIZE(source%data, 2))
+      CALL cp_fm_create(local_fm, local_fm_struct)
+      CALL cp_fm_set_submatrix(local_fm, source%data)
+      CALL copy_fm_to_dbcsr(local_fm, matrix)
+      CALL cp_fm_release(local_fm)
+      CALL cp_fm_struct_release(local_fm_struct)
+
+   END SUBROUTINE copy_qs_ot_restart_dense_matrix
 
 ! **************************************************************************************************
 !> \brief prepare and attach orbital preconditioners for complex k-point OT channels
