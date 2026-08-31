@@ -31,7 +31,8 @@ MODULE molecule_kind_types
         hydronium_shell_colvar_id, mindist_colvar_id, no_colvar_id, plane_distance_colvar_id, &
         plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
         reaction_path_colvar_id, ring_puckering_colvar_id, rmsd_colvar_id, rotation_colvar_id, &
-        torsion_colvar_id, u_colvar_id, xyz_diag_colvar_id, xyz_outerdiag_colvar_id
+        torsion_colvar_id, u_colvar_id, voronoiipz_colvar_id, xyz_diag_colvar_id, &
+        xyz_outerdiag_colvar_id
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -286,6 +287,8 @@ CONTAINS
                ncolv%nreactionpath = ncolv%nreactionpath + 1
             CASE (combine_colvar_id)
                ncolv%ncombinecvs = ncolv%ncombinecvs + 1
+            CASE (voronoiipz_colvar_id)
+               ncolv%nvoronoiipz = ncolv%nvoronoiipz + 1
             CASE DEFAULT
                CPABORT("Unknown colvar type")
             END SELECT
@@ -309,7 +312,8 @@ CONTAINS
                    ncolv%nreactionpath + &
                    ncolv%ncombinecvs + &
                    ncolv%npopulation + &
-                   ncolv%ngyration
+                   ncolv%ngyration + &
+                   ncolv%nvoronoiipz
 
    END SUBROUTINE setup_colvar_counters
 
@@ -1115,6 +1119,8 @@ CONTAINS
             type_string = "Acid hydronium shell"
          CASE (hydronium_dist_colvar_id)
             type_string = "Hydronium distance"
+         CASE (voronoiipz_colvar_id)
+            type_string = "Voronoi ion position"
          CASE DEFAULT
             CPABORT("Invalid collective variable ID specified. Check the code!")
          END SELECT
