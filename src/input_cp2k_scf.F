@@ -691,8 +691,7 @@ CONTAINS
                        "Limited-memory BFGS in the fixed OT product chart. The selected OT preconditioner is used"// &
                        " as the initial inverse Hessian. The secant history is reset after a tenfold increase in"// &
                        " the raw fixed-chart gradient norm. With OUTER_SCF, an explicit EPS_DIIS can switch later"// &
-                       " outer iterations to OT/DIIS. Available with ALGORITHM STRICT and without"// &
-                       " OCCUPATION_PRECONDITIONER."), &
+                       " outer iterations to OT/DIIS. Available with ALGORITHM STRICT or IRAC."), &
          enum_i_vals=[ot_mini_sd, ot_mini_cg, ot_mini_diis, ot_mini_broyden, ot_mini_lbfgs])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
