@@ -182,7 +182,7 @@ MODULE qs_scf
    USE qs_ot_types,                     ONLY: &
         qs_ot_allocate, qs_ot_allocate_complex_state, qs_ot_channel_index, &
         qs_ot_check_channel_context, qs_ot_init, qs_ot_kpoint_preconditioner_solver_supported, &
-        qs_ot_kpoint_preconditioner_supported, qs_ot_number_of_channels, qs_ot_set_context
+        qs_ot_kpoint_preconditioner_supported, qs_ot_number_of_channels, qs_ot_set_context, qs_ot_type
    USE qs_outer_scf,                    ONLY: outer_loop_gradient,&
                                               outer_loop_optimize,&
                                               outer_loop_purge_history,&
@@ -2238,6 +2238,8 @@ CONTAINS
                CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sx_im, 0.0_dp)
             END IF
 
+            CALL apply_qs_ot_kpoint_restart(scf_env%qs_ot_env(ot_channel), &
+                                            scf_env, ot_channel, nmo)
             SELECT CASE (scf_env%qs_ot_env(ot_channel)%settings%ot_algorithm)
             CASE ("TOD")
                IF (scf_env%qs_ot_env(ot_channel)%has_complex_kpoint_state) THEN
@@ -2300,6 +2302,76 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE allocate_qs_ot_kpoint_state
+
+! **************************************************************************************************
+!> \brief apply cached k-point OT restart data to an allocated channel
+!> \param qs_ot_env allocated OT channel
+!> \param scf_env SCF environment carrying the restart cache
+!> \param ot_channel channel index
+!> \param nmo number of MOs in the allocated channel
+! **************************************************************************************************
+   SUBROUTINE apply_qs_ot_kpoint_restart(qs_ot_env, scf_env, ot_channel, nmo)
+      TYPE(qs_ot_type)                                   :: qs_ot_env
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      INTEGER, INTENT(IN)                                :: ot_channel, nmo
+
+      LOGICAL                                            :: restored
+
+      IF (.NOT. scf_env%qs_ot_restart%valid) RETURN
+      IF (.NOT. ASSOCIATED(scf_env%qs_ot_restart%channel)) RETURN
+      IF (ot_channel < 1 .OR. ot_channel > SIZE(scf_env%qs_ot_restart%channel)) RETURN
+      IF (.NOT. scf_env%qs_ot_restart%channel(ot_channel)%valid) RETURN
+      IF (scf_env%qs_ot_restart%channel(ot_channel)%spin_index /= qs_ot_env%spin_index) RETURN
+      IF (scf_env%qs_ot_restart%channel(ot_channel)%kpoint_index /= qs_ot_env%kpoint_index) RETURN
+      IF (scf_env%qs_ot_restart%channel(ot_channel)%nmo /= nmo) RETURN
+
+      restored = .FALSE.
+      IF (qs_ot_env%settings%do_rotation .AND. &
+          scf_env%qs_ot_restart%channel(ot_channel)%has_rot_mat_x .AND. &
+          ASSOCIATED(qs_ot_env%rot_mat_x)) THEN
+         CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_x, &
+                               qs_ot_env%rot_mat_x)
+         restored = .TRUE.
+      END IF
+      IF (qs_ot_env%settings%do_rotation .AND. qs_ot_env%has_complex_kpoint_state .AND. &
+          scf_env%qs_ot_restart%channel(ot_channel)%has_rot_mat_x_im .AND. &
+          ASSOCIATED(qs_ot_env%rot_mat_x_im)) THEN
+         CALL copy_fm_to_dbcsr(scf_env%qs_ot_restart%channel(ot_channel)%rot_mat_x_im, &
+                               qs_ot_env%rot_mat_x_im)
+         restored = .TRUE.
+      END IF
+      IF (qs_ot_env%settings%do_ener .AND. &
+          scf_env%qs_ot_restart%channel(ot_channel)%has_ener_x .AND. &
+          ASSOCIATED(qs_ot_env%ener_x)) THEN
+         IF (SIZE(qs_ot_env%ener_x) == SIZE(scf_env%qs_ot_restart%channel(ot_channel)%ener_x)) THEN
+            qs_ot_env%ener_x = scf_env%qs_ot_restart%channel(ot_channel)%ener_x
+            restored = .TRUE.
+         END IF
+      END IF
+
+      IF (restored) THEN
+         qs_ot_env%ot_pos = scf_env%qs_ot_restart%channel(ot_channel)%ot_pos
+         qs_ot_env%ot_energy = scf_env%qs_ot_restart%channel(ot_channel)%ot_energy
+         qs_ot_env%ot_grad = scf_env%qs_ot_restart%channel(ot_channel)%ot_grad
+         qs_ot_env%line_search_left = scf_env%qs_ot_restart%channel(ot_channel)%line_search_left
+         qs_ot_env%line_search_right = scf_env%qs_ot_restart%channel(ot_channel)%line_search_right
+         qs_ot_env%line_search_mid = scf_env%qs_ot_restart%channel(ot_channel)%line_search_mid
+         qs_ot_env%line_search_count = scf_env%qs_ot_restart%channel(ot_channel)%line_search_count
+         qs_ot_env%line_search_might_be_done = &
+            scf_env%qs_ot_restart%channel(ot_channel)%line_search_might_be_done
+         qs_ot_env%delta = scf_env%qs_ot_restart%channel(ot_channel)%delta
+         qs_ot_env%gnorm = scf_env%qs_ot_restart%channel(ot_channel)%gnorm
+         qs_ot_env%gnorm_old = scf_env%qs_ot_restart%channel(ot_channel)%gnorm_old
+         qs_ot_env%etotal = scf_env%qs_ot_restart%channel(ot_channel)%etotal
+         qs_ot_env%gradient = scf_env%qs_ot_restart%channel(ot_channel)%gradient
+         qs_ot_env%energy_only = scf_env%qs_ot_restart%channel(ot_channel)%energy_only
+         qs_ot_env%diis_iter = scf_env%qs_ot_restart%channel(ot_channel)%diis_iter
+         qs_ot_env%ds_min = scf_env%qs_ot_restart%channel(ot_channel)%ds_min
+         qs_ot_env%broyden_adaptive_sigma = &
+            scf_env%qs_ot_restart%channel(ot_channel)%broyden_adaptive_sigma
+      END IF
+
+   END SUBROUTINE apply_qs_ot_kpoint_restart
 
 ! **************************************************************************************************
 !> \brief prepare and attach orbital preconditioners for complex k-point OT channels

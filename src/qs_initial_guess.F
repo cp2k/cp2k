@@ -394,7 +394,8 @@ CONTAINS
          IF (do_kpoints) THEN
             natoms = SIZE(particle_set)
             CALL read_kpoints_restart(rho_ao_kp, kpoints, work1, &
-                                      natoms, para_env, id_nr, dft_section, natom_mismatch)
+                                      natoms, para_env, id_nr, dft_section, natom_mismatch, &
+                                      scf_env=scf_env)
             IF (natom_mismatch) density_guess = safe_density_guess
          ELSE
             CALL read_mo_set_from_restart(mo_array, qs_kind_set, particle_set, para_env, &

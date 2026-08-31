@@ -16,12 +16,18 @@ MODULE kpoint_io
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
-                                              dbcsr_p_type
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_fm_types,                     ONLY: cp_fm_read_unformatted,&
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_read_unformatted,&
+                                              cp_fm_release,&
                                               cp_fm_type,&
                                               cp_fm_write_unformatted
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -33,6 +39,7 @@ MODULE kpoint_io
                                               cp_print_key_unit_nr
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
+                                              dp,&
                                               default_string_length
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
@@ -44,7 +51,10 @@ MODULE kpoint_io
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE qs_mo_io,                        ONLY: wfn_restart_file_name
-   USE qs_scf_types,                    ONLY: qs_scf_env_type
+   USE qs_ot_types,                     ONLY: qs_ot_check_channel_context,&
+                                              qs_ot_type
+   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
+                                              qs_scf_ot_restart_clear
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -54,6 +64,8 @@ MODULE kpoint_io
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_io'
 
    INTEGER, PARAMETER                   :: version = 1
+   INTEGER, PARAMETER                   :: ot_restart_version = 1
+   CHARACTER(LEN=*), PARAMETER          :: ot_restart_marker = "CP2K_KPOINT_OT_RESTART"
 
    PUBLIC :: read_kpoints_restart, &
              write_kpoints_restart
@@ -134,6 +146,9 @@ CONTAINS
                      CALL cp_fm_write_unformatted(fmat, ires)
                   END DO
                END DO
+               IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
+                  CALL write_kpoint_ot_restart_payload(scf_env%qs_ot_env, ires)
+               END IF
 
                CALL cp_print_key_finished_output(ires, logger, dft_section, TRIM(keys(ikey)))
 
@@ -305,7 +320,7 @@ CONTAINS
 !> \param natom_mismatch ...
 ! **************************************************************************************************
    SUBROUTINE read_kpoints_restart(denmat, kpoints, fmwork, natom, &
-                                   para_env, id_nr, dft_section, natom_mismatch)
+                                   para_env, id_nr, dft_section, natom_mismatch, scf_env)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: denmat
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -315,6 +330,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: id_nr
       TYPE(section_vals_type), POINTER                   :: dft_section
       LOGICAL, INTENT(OUT)                               :: natom_mismatch
+      TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_kpoints_restart'
 
@@ -327,6 +343,7 @@ CONTAINS
       logger => cp_get_default_logger()
 
       restart_unit = -1
+      IF (PRESENT(scf_env)) CALL qs_scf_ot_restart_clear(scf_env)
 
       IF (para_env%is_source()) THEN
 
@@ -344,8 +361,13 @@ CONTAINS
 
       END IF
 
-      CALL read_kpoints_restart_low(denmat, kpoints, fmwork(1), para_env, &
-                                    natom, restart_unit, natom_mismatch)
+      IF (PRESENT(scf_env)) THEN
+         CALL read_kpoints_restart_low(denmat, kpoints, fmwork(1), para_env, &
+                                       natom, restart_unit, natom_mismatch, scf_env=scf_env)
+      ELSE
+         CALL read_kpoints_restart_low(denmat, kpoints, fmwork(1), para_env, &
+                                       natom, restart_unit, natom_mismatch)
+      END IF
 
       ! only the io_node returns natom_mismatch, must broadcast it
       CALL para_env%bcast(natom_mismatch)
@@ -371,7 +393,7 @@ CONTAINS
 !> \author MI
 ! **************************************************************************************************
    SUBROUTINE read_kpoints_restart_low(denmat, kpoints, fmat, para_env, &
-                                       natom, rst_unit, natom_mismatch)
+                                       natom, rst_unit, natom_mismatch, scf_env)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: denmat
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -379,6 +401,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: natom, rst_unit
       LOGICAL, INTENT(OUT)                               :: natom_mismatch
+      TYPE(qs_scf_env_type), OPTIONAL, POINTER           :: scf_env
 
       INTEGER                                            :: ic, image, ispin, nao, nao_read, &
                                                             natom_read, ni, nimages, nset_max, &
@@ -460,10 +483,252 @@ CONTAINS
             END DO
             IF (ispin == nspin_read) EXIT
          END DO
+         IF (PRESENT(scf_env)) THEN
+            CALL read_kpoint_ot_restart_payload(rst_unit, para_env, fmat, scf_env)
+         END IF
 
       END IF
 
    END SUBROUTINE read_kpoints_restart_low
+
+! **************************************************************************************************
+!> \brief write optional k-point OT restart state after the density payload
+!> \param qs_ot_env OT channels
+!> \param ires restart unit
+! **************************************************************************************************
+   SUBROUTINE write_kpoint_ot_restart_payload(qs_ot_env, ires)
+      TYPE(qs_ot_type), DIMENSION(:), INTENT(IN)         :: qs_ot_env
+      INTEGER, INTENT(IN)                                :: ires
+
+      INTEGER                                            :: ichannel, nchannel, nener, nmo, nmo_ortho
+      INTEGER, DIMENSION(12)                             :: int_payload
+      LOGICAL                                            :: has_ener_x, has_rot_mat_x, &
+                                                            has_rot_mat_x_im
+      LOGICAL, DIMENSION(9)                              :: log_payload
+      REAL(KIND=dp), DIMENSION(8)                        :: real_payload
+
+      nchannel = SIZE(qs_ot_env)
+      IF (ires > 0) THEN
+         WRITE (ires) ot_restart_marker
+         WRITE (ires) ot_restart_version, nchannel
+      END IF
+      DO ichannel = 1, nchannel
+         nmo = 0
+         nmo_ortho = 0
+         IF (ASSOCIATED(qs_ot_env(ichannel)%matrix_c0)) THEN
+            CALL dbcsr_get_info(qs_ot_env(ichannel)%matrix_c0, nfullcols_total=nmo)
+         END IF
+         IF (ASSOCIATED(qs_ot_env(ichannel)%matrix_sc0)) THEN
+            CALL dbcsr_get_info(qs_ot_env(ichannel)%matrix_sc0, nfullcols_total=nmo_ortho)
+         END IF
+         has_rot_mat_x = qs_ot_env(ichannel)%state_allocated .AND. &
+                         ASSOCIATED(qs_ot_env(ichannel)%rot_mat_x)
+         has_rot_mat_x_im = qs_ot_env(ichannel)%state_allocated .AND. &
+                            ASSOCIATED(qs_ot_env(ichannel)%rot_mat_x_im)
+         has_ener_x = qs_ot_env(ichannel)%state_allocated .AND. ASSOCIATED(qs_ot_env(ichannel)%ener_x)
+         nener = 0
+         IF (has_ener_x) nener = SIZE(qs_ot_env(ichannel)%ener_x)
+
+         int_payload = [ichannel, qs_ot_env(ichannel)%spin_index, &
+                        qs_ot_env(ichannel)%kpoint_index, &
+                        qs_ot_env(ichannel)%local_kpoint_index, nmo, nmo_ortho, &
+                        qs_ot_env(ichannel)%line_search_left, &
+                        qs_ot_env(ichannel)%line_search_right, &
+                        qs_ot_env(ichannel)%line_search_mid, &
+                        qs_ot_env(ichannel)%line_search_count, &
+                        qs_ot_env(ichannel)%diis_iter, nener]
+         log_payload = [qs_ot_env(ichannel)%state_allocated, &
+                        qs_ot_env(ichannel)%has_complex_kpoint_state, &
+                        qs_ot_env(ichannel)%settings%do_rotation, &
+                        qs_ot_env(ichannel)%settings%do_ener, &
+                        has_rot_mat_x, has_rot_mat_x_im, has_ener_x, &
+                        qs_ot_env(ichannel)%line_search_might_be_done, &
+                        qs_ot_env(ichannel)%energy_only]
+         real_payload = [qs_ot_env(ichannel)%kpoint_weight, &
+                         qs_ot_env(ichannel)%delta, qs_ot_env(ichannel)%gnorm, &
+                         qs_ot_env(ichannel)%gnorm_old, qs_ot_env(ichannel)%etotal, &
+                         qs_ot_env(ichannel)%gradient, qs_ot_env(ichannel)%ds_min, &
+                         qs_ot_env(ichannel)%broyden_adaptive_sigma]
+
+         IF (ires > 0) THEN
+            WRITE (ires) int_payload
+            WRITE (ires) log_payload
+            WRITE (ires) real_payload
+            WRITE (ires) qs_ot_env(ichannel)%ot_pos
+            WRITE (ires) qs_ot_env(ichannel)%ot_energy
+            WRITE (ires) qs_ot_env(ichannel)%ot_grad
+         END IF
+         IF (has_rot_mat_x) CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%rot_mat_x, &
+                                                            qs_ot_env(ichannel), ires)
+         IF (has_rot_mat_x_im) CALL write_restart_dbcsr_matrix(qs_ot_env(ichannel)%rot_mat_x_im, &
+                                                               qs_ot_env(ichannel), ires)
+         IF (has_ener_x .AND. ires > 0) WRITE (ires) qs_ot_env(ichannel)%ener_x
+      END DO
+
+   END SUBROUTINE write_kpoint_ot_restart_payload
+
+! **************************************************************************************************
+!> \brief write a DBCSR matrix through the restart FM layer
+!> \param matrix matrix to write
+!> \param qs_ot_env channel owning the matrix distribution
+!> \param ires restart unit
+! **************************************************************************************************
+   SUBROUTINE write_restart_dbcsr_matrix(matrix, qs_ot_env, ires)
+      TYPE(dbcsr_type), POINTER                          :: matrix
+      TYPE(qs_ot_type), INTENT(IN)                       :: qs_ot_env
+      INTEGER, INTENT(IN)                                :: ires
+
+      INTEGER                                            :: ncol, nrow
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: fmat
+
+      NULLIFY (fm_struct)
+      CALL dbcsr_get_info(matrix, nfullrows_total=nrow, nfullcols_total=ncol)
+      CALL cp_fm_struct_create(fm_struct, para_env=qs_ot_env%para_env, &
+                               context=qs_ot_env%blacs_env, &
+                               nrow_global=nrow, ncol_global=ncol)
+      CALL cp_fm_create(fmat, fm_struct)
+      CALL copy_dbcsr_to_fm(matrix, fmat)
+      CALL cp_fm_write_unformatted(fmat, ires)
+      CALL cp_fm_release(fmat)
+      CALL cp_fm_struct_release(fm_struct)
+
+   END SUBROUTINE write_restart_dbcsr_matrix
+
+! **************************************************************************************************
+!> \brief read optional k-point OT restart state after the density payload
+!> \param rst_unit restart unit
+!> \param para_env parallel environment
+!> \param fmat restart FM template
+!> \param scf_env SCF environment receiving the cache
+! **************************************************************************************************
+   SUBROUTINE read_kpoint_ot_restart_payload(rst_unit, para_env, fmat, scf_env)
+      INTEGER, INTENT(IN)                                :: rst_unit
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fmat
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+
+      CHARACTER(LEN=LEN(ot_restart_marker))              :: marker
+      INTEGER                                            :: ichannel, ios, nchannel, nener, &
+                                                            version_read
+      INTEGER, DIMENSION(12)                             :: int_payload
+      LOGICAL                                            :: payload_found
+      LOGICAL, DIMENSION(9)                              :: log_payload
+      REAL(KIND=dp), DIMENSION(8)                        :: real_payload
+
+      payload_found = .FALSE.
+      marker = ""
+      IF (para_env%is_source()) THEN
+         READ (rst_unit, IOSTAT=ios) marker
+         payload_found = (ios == 0 .AND. TRIM(marker) == ot_restart_marker)
+      END IF
+      CALL para_env%bcast(payload_found)
+      IF (.NOT. payload_found) RETURN
+
+      version_read = 0
+      nchannel = 0
+      IF (para_env%is_source()) READ (rst_unit) version_read, nchannel
+      CALL para_env%bcast(version_read)
+      CALL para_env%bcast(nchannel)
+      IF (version_read /= ot_restart_version) THEN
+         CALL cp_warn(__LOCATION__, "Ignoring unsupported k-point OT restart payload version")
+         RETURN
+      END IF
+
+      CALL qs_scf_ot_restart_clear(scf_env)
+      scf_env%qs_ot_restart%valid = .TRUE.
+      scf_env%qs_ot_restart%format_version = version_read
+      scf_env%qs_ot_restart%nchannel = nchannel
+      ALLOCATE (scf_env%qs_ot_restart%channel(nchannel))
+      DO ichannel = 1, nchannel
+         IF (para_env%is_source()) THEN
+            READ (rst_unit) int_payload
+            READ (rst_unit) log_payload
+            READ (rst_unit) real_payload
+            READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%ot_pos
+            READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%ot_energy
+            READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%ot_grad
+         END IF
+         CALL para_env%bcast(int_payload)
+         CALL para_env%bcast(log_payload)
+         CALL para_env%bcast(real_payload)
+         CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%ot_pos)
+         CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%ot_energy)
+         CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%ot_grad)
+
+         scf_env%qs_ot_restart%channel(ichannel)%valid = log_payload(1)
+         scf_env%qs_ot_restart%channel(ichannel)%spin_index = int_payload(2)
+         scf_env%qs_ot_restart%channel(ichannel)%kpoint_index = int_payload(3)
+         scf_env%qs_ot_restart%channel(ichannel)%local_kpoint_index = int_payload(4)
+         scf_env%qs_ot_restart%channel(ichannel)%nmo = int_payload(5)
+         scf_env%qs_ot_restart%channel(ichannel)%nmo_ortho = int_payload(6)
+         scf_env%qs_ot_restart%channel(ichannel)%line_search_left = int_payload(7)
+         scf_env%qs_ot_restart%channel(ichannel)%line_search_right = int_payload(8)
+         scf_env%qs_ot_restart%channel(ichannel)%line_search_mid = int_payload(9)
+         scf_env%qs_ot_restart%channel(ichannel)%line_search_count = int_payload(10)
+         scf_env%qs_ot_restart%channel(ichannel)%diis_iter = int_payload(11)
+         nener = int_payload(12)
+         scf_env%qs_ot_restart%channel(ichannel)%has_complex_kpoint_state = log_payload(2)
+         scf_env%qs_ot_restart%channel(ichannel)%do_rotation = log_payload(3)
+         scf_env%qs_ot_restart%channel(ichannel)%do_ener = log_payload(4)
+         scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_x = log_payload(5)
+         scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_x_im = log_payload(6)
+         scf_env%qs_ot_restart%channel(ichannel)%has_ener_x = log_payload(7)
+         scf_env%qs_ot_restart%channel(ichannel)%line_search_might_be_done = log_payload(8)
+         scf_env%qs_ot_restart%channel(ichannel)%energy_only = log_payload(9)
+         scf_env%qs_ot_restart%channel(ichannel)%kpoint_weight = real_payload(1)
+         scf_env%qs_ot_restart%channel(ichannel)%delta = real_payload(2)
+         scf_env%qs_ot_restart%channel(ichannel)%gnorm = real_payload(3)
+         scf_env%qs_ot_restart%channel(ichannel)%gnorm_old = real_payload(4)
+         scf_env%qs_ot_restart%channel(ichannel)%etotal = real_payload(5)
+         scf_env%qs_ot_restart%channel(ichannel)%gradient = real_payload(6)
+         scf_env%qs_ot_restart%channel(ichannel)%ds_min = real_payload(7)
+         scf_env%qs_ot_restart%channel(ichannel)%broyden_adaptive_sigma = real_payload(8)
+
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_x) THEN
+            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%nmo, &
+                                        scf_env%qs_ot_restart%channel(ichannel)%nmo, &
+                                        scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x, rst_unit)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_rot_mat_x_im) THEN
+            CALL read_restart_fm_matrix(fmat, scf_env%qs_ot_restart%channel(ichannel)%nmo, &
+                                        scf_env%qs_ot_restart%channel(ichannel)%nmo, &
+                                        scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x_im, rst_unit)
+         END IF
+         IF (scf_env%qs_ot_restart%channel(ichannel)%has_ener_x) THEN
+            ALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ener_x(nener))
+            IF (para_env%is_source()) READ (rst_unit) scf_env%qs_ot_restart%channel(ichannel)%ener_x
+            CALL para_env%bcast(scf_env%qs_ot_restart%channel(ichannel)%ener_x)
+         END IF
+      END DO
+
+   END SUBROUTINE read_kpoint_ot_restart_payload
+
+! **************************************************************************************************
+!> \brief read a restart FM matrix using an existing FM distribution as template
+!> \param fmat_template FM template
+!> \param nrow global row count
+!> \param ncol global column count
+!> \param fmat matrix read from restart
+!> \param rst_unit restart unit
+! **************************************************************************************************
+   SUBROUTINE read_restart_fm_matrix(fmat_template, nrow, ncol, fmat, rst_unit)
+      TYPE(cp_fm_type), INTENT(IN)                       :: fmat_template
+      INTEGER, INTENT(IN)                                :: nrow, ncol
+      TYPE(cp_fm_type), POINTER                          :: fmat
+      INTEGER, INTENT(IN)                                :: rst_unit
+
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+
+      NULLIFY (fm_struct)
+      ALLOCATE (fmat)
+      CALL cp_fm_struct_create(fm_struct, template_fmstruct=fmat_template%matrix_struct, &
+                               nrow_global=nrow, ncol_global=ncol)
+      CALL cp_fm_create(fmat, fm_struct)
+      CALL cp_fm_read_unformatted(fmat, rst_unit)
+      CALL cp_fm_struct_release(fm_struct)
+
+   END SUBROUTINE read_restart_fm_matrix
 
 ! **************************************************************************************************
 !> \brief ...

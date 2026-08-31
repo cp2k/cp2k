@@ -61,6 +61,7 @@ MODULE qs_scf_types
 
    PUBLIC :: qs_scf_env_type
    PUBLIC :: scf_env_release, scf_env_create, scf_env_did_change
+   PUBLIC :: qs_scf_ot_restart_clear
    PUBLIC :: krylov_space_type, krylov_space_create, subspace_env_type
    PUBLIC :: diag_subspace_env_create
 
@@ -95,6 +96,30 @@ MODULE qs_scf_types
    TYPE floating_basis_type
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: gradient => NULL()
    END TYPE floating_basis_type
+
+   TYPE qs_ot_restart_channel_type
+      LOGICAL :: valid = .FALSE.
+      INTEGER :: spin_index = 0, kpoint_index = 0, local_kpoint_index = 0
+      INTEGER :: nmo = 0, nmo_ortho = 0
+      LOGICAL :: has_complex_kpoint_state = .FALSE., do_rotation = .FALSE., do_ener = .FALSE.
+      LOGICAL :: has_rot_mat_x = .FALSE., has_rot_mat_x_im = .FALSE., has_ener_x = .FALSE.
+      REAL(KIND=dp) :: kpoint_weight = 0.0_dp
+      REAL(KIND=dp) :: ot_pos(53) = 0.0_dp, ot_energy(53) = 0.0_dp, ot_grad(53) = 0.0_dp
+      INTEGER :: line_search_left = -1, line_search_right = -1, line_search_mid = -1
+      INTEGER :: line_search_count = -1, diis_iter = -1
+      LOGICAL :: line_search_might_be_done = .FALSE., energy_only = .FALSE.
+      REAL(KIND=dp) :: delta = 0.0_dp, gnorm = 0.0_dp, gnorm_old = 0.0_dp
+      REAL(KIND=dp) :: etotal = 0.0_dp, gradient = 0.0_dp, ds_min = 0.0_dp
+      REAL(KIND=dp) :: broyden_adaptive_sigma = 0.0_dp
+      TYPE(cp_fm_type), POINTER :: rot_mat_x => NULL(), rot_mat_x_im => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: ener_x => NULL()
+   END TYPE qs_ot_restart_channel_type
+
+   TYPE qs_ot_restart_cache_type
+      LOGICAL :: valid = .FALSE.
+      INTEGER :: format_version = 0, nchannel = 0
+      TYPE(qs_ot_restart_channel_type), DIMENSION(:), POINTER :: channel => NULL()
+   END TYPE qs_ot_restart_cache_type
 ! **************************************************************************************************
    TYPE qs_scf_env_type
       TYPE(qs_outer_scf_type) :: outer_scf = qs_outer_scf_type()
@@ -121,6 +146,7 @@ MODULE qs_scf_types
       TYPE(dbcsr_type), POINTER :: ortho_dbcsr => NULL(), buf1_dbcsr => NULL(), buf2_dbcsr => NULL()
       TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner => NULL()
       TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env => NULL()
+      TYPE(qs_ot_restart_cache_type) :: qs_ot_restart = qs_ot_restart_cache_type()
       TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer => NULL()
       TYPE(qs_scf_subspace_buffer_type), POINTER :: scf_subspace_buffer => NULL()
       TYPE(subspace_env_type), POINTER :: subspace_env => NULL()
@@ -195,6 +221,10 @@ CONTAINS
       NULLIFY (scf_env%p_mix_new)
       NULLIFY (scf_env%ot_preconditioner)
       NULLIFY (scf_env%qs_ot_env)
+      scf_env%qs_ot_restart%valid = .FALSE.
+      scf_env%qs_ot_restart%format_version = 0
+      scf_env%qs_ot_restart%nchannel = 0
+      NULLIFY (scf_env%qs_ot_restart%channel)
       NULLIFY (scf_env%scf_diis_buffer)
       NULLIFY (scf_env%scf_subspace_buffer)
       NULLIFY (scf_env%buf1_dbcsr)
@@ -345,6 +375,7 @@ CONTAINS
          END DO
          DEALLOCATE (scf_env%qs_ot_env)
       END IF
+      CALL qs_scf_ot_restart_clear(scf_env)
       IF (ASSOCIATED(scf_env%scf_diis_buffer)) THEN
          CALL qs_diis_b_release(scf_env%scf_diis_buffer)
          DEALLOCATE (scf_env%scf_diis_buffer)
@@ -397,6 +428,38 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE scf_env_release
+
+! **************************************************************************************************
+!> \brief clear cached k-point OT restart data
+!> \param scf_env the environment containing the restart cache
+! **************************************************************************************************
+   SUBROUTINE qs_scf_ot_restart_clear(scf_env)
+      TYPE(qs_scf_env_type), INTENT(INOUT)               :: scf_env
+
+      INTEGER                                            :: ichannel
+
+      IF (ASSOCIATED(scf_env%qs_ot_restart%channel)) THEN
+         DO ichannel = 1, SIZE(scf_env%qs_ot_restart%channel)
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x)) THEN
+               CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x)
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x_im)) THEN
+               CALL cp_fm_release(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x_im)
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x_im)
+            END IF
+            IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%ener_x)) THEN
+               DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ener_x)
+            END IF
+         END DO
+         DEALLOCATE (scf_env%qs_ot_restart%channel)
+      END IF
+      scf_env%qs_ot_restart%valid = .FALSE.
+      scf_env%qs_ot_restart%format_version = 0
+      scf_env%qs_ot_restart%nchannel = 0
+      NULLIFY (scf_env%qs_ot_restart%channel)
+
+   END SUBROUTINE qs_scf_ot_restart_clear
 
 ! **************************************************************************************************
 !> \brief  creates krylov space
