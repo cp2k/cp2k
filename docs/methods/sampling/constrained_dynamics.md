@@ -58,15 +58,22 @@ constraints. The ordering within each group is collective-variable, 3-by-3, and 
 
 ## Blue-moon ensemble correction
 
-Constrained molecular dynamics generally produces biased statistical distributions. The blue‑moon ensemble average is used to correct these biased outputs and retrieve the statistical properties corresponding to unconstrained molecular‑dynamics conditions. 
+Constrained molecular dynamics generally produces biased statistical distributions. 
+The blue‑moon ensemble average is used to correct these biased outputs and retrieve the statistical 
+properties corresponding to unconstrained molecular‑dynamics conditions. 
 The printed SHAKE multiplier is not, in general, a complete blue-moon estimator. For one constrained
 reaction coordinate $\xi$, the free-energy gradient then follows
 
 $$
-\frac{\mathrm d A}{\mathrm d\xi} = \frac{\left\langle Z^{-1/2}(-\lambda + k_\mathrm{B} T G)\right\rangle_\xi}{\left\langle Z^{-1/2}\right\rangle_\xi}
+\frac{\mathrm d A}{\mathrm d\xi} 
+= 
+\frac{\left\langle Z^{-1/2}(-\lambda + k_\mathrm{B} T G)\right\rangle_\xi}
+{\left\langle Z^{-1/2}\right\rangle_\xi}
 $$
 
-where $k_\mathrm{B}$ is the Boltzmann constant, $T$ is the temperature, $\left\langle \cdots \right\rangle_\xi$ denotes the time average of reaction coordinate $\xi(\mathbf r_1,\dots,\mathbf r_N)$ by MD simulation.
+where $k_\mathrm{B}$ is the Boltzmann constant, $T$ is the temperature, 
+$\left\langle \cdots \right\rangle_\xi$ denotes the 
+time average of reaction coordinate $\xi(\mathbf r_1,\dots,\mathbf r_N)$ by MD simulation.
 Here $Z$ defines the scalar mass metric
 
 $$
@@ -164,6 +171,13 @@ or slow-growth protocol. A simple example for the performance of CV as the dista
 &END MOTION
 ```
 
-CP2K does not integrate the work or turn the resulting trajectory into an equilibrium free-energy profile automatically. A finite pulling rate can cause lag, dissipation, and direction-dependent hysteresis, so such a trajectory must be analysed with a method appropriate to the intended nonequilibrium protocol. In the limit of infinititesimal change of $\xi$, the irreversible work ($W$) describes the energy change between the initial and final state. The resulting work from slow growth (typically the irreversible work) can be related to the free energy change $(\Delta A)$ via Jarzynski's identity
-$$\exp\left(-\frac{\Delta A}{k_B T}\right) = \left\langle \exp\left(-\frac{W}{k_B T}\right) \right\rangle.$$
+CP2K does not integrate the work or turn the resulting trajectory into an equilibrium free-energy profile automatically. 
+A finite pulling rate can cause lag, dissipation, and direction-dependent hysteresis, so such a trajectory must be analysed with a method appropriate to the intended nonequilibrium protocol. 
+In the limit of infinitesimal change of $\xi$, the irreversible work ($W$) describes the energy change between the initial and final state. 
+The resulting work from slow growth (typically the irreversible work) can be related to the free energy change $(\Delta A)$ via Jarzynski's identity
+
+$$\exp\left(-\frac{\Delta A}{k_B T}\right) 
+= 
+\left\langle \exp\left(-\frac{W}{k_B T}\right) \right\rangle.
+$$
 
