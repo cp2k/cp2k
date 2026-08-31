@@ -568,7 +568,15 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   # allow for unsupported compilers (gcc/cuda version mismatch)
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -allow-unsupported-compiler")
 
+  set(CUDA_SEPARABLE_COMPILATION ON)
+  set(CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+
+  if(NOT CP2K_USE_NVHPC)
+    set(CMAKE_CUDA_FLAGS "-dc" CACHE STRING "CUDA device linking flags")
+  endif()
+
   enable_language(CUDA)
+
   if(CP2K_USE_NVHPC)
     find_package(NVHPC REQUIRED COMPONENTS CUDA MATH HOSTUTILS NCCL)
   else()
@@ -594,6 +602,16 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   endif()
 
   message(STATUS "CUDA compiler and libraries found")
+
+  if(TARGET Libxc::xc)
+    get_target_property(LIBXC_INCLUDE_DIRS Libxc::xc INTERFACE_INCLUDE_DIRECTORIES)
+    if(EXISTS "${LIBXC_INCLUDE_DIRS}/xc.h")
+      file(READ "${LIBXC_INCLUDE_DIRS}/xc.h" LIBXC_HEADER_CONTENTS)
+      if(LIBXC_HEADER_CONTENTS MATCHES "HAVE_CUDA")
+        set(LIBXC_ENABLE_CUDA ON CACHE BOOL "libxc was built with CUDA support")
+      endif()
+    endif()
+  endif()
 
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
   message("\n------------------------------------------------------------")
@@ -688,9 +706,13 @@ if(CP2K_USE_ELPA)
   find_package(Elpa REQUIRED)
 endif()
 
-if(CP2K_USE_LIBXC)
-  find_package(Libxc 7 REQUIRED)
-endif()
+  if(CP2K_USE_LIBXC)
+    find_package(Libxc 7 REQUIRED)
+
+    if(LIBXC_ENABLE_CUDA)
+      set(CP2K_LIBXC_CUDA_SUPPORT ON CACHE BOOL "libxc CUDA support available")
+    endif()
+  endif()
 
 if(CP2K_USE_GAUXC)
   find_package(Threads REQUIRED)
