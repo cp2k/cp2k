@@ -80,6 +80,24 @@
   {matcher="E_total", tol=1e-9, ref=-3.004207460676986},
   {matcher="OT_added_mos_auto_grow"},
 ]
+"H3-kpoint-roks.inp"                    = [{matcher="E_total", tol=1e-9, ref=-1.487967452903754},
+                                           {matcher="M072", tol=1e-6, ref=6.74684454E-02},
+                                           {matcher="M031", tol=1e-6, ref=-1.52540610981E+04}]
+"Al-kpoint-mermin-roks.inp"             = [
+  {matcher="E_total", tol=1e-6, ref=-2.181856403160713},
+  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-0.00007019578175},
+  {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999998274},
+  {matcher="N_kpoints_per_group", tol=0.0, ref=1},
+  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+]
+"Al-kpoint-mermin-roks-restart.inp"     = [
+  {matcher="E_total", tol=1e-6, ref=-2.181856717255157},
+  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-0.00007212901683},
+  {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999998274},
+  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+]
 # go through planned FFTs, but don't check results, they will depend on the selected plan
 "H2O-plan-2.inp"                        = []
 "H2O-plan-3.inp"                        = []
