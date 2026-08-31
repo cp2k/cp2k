@@ -25,7 +25,7 @@ source "${INSTALLDIR}"/toolchain.env
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-source "${INSTALLDIR}/setup_skala"
+source "${BUILDDIR}/setup_skala"
 
 retrieve_github_archive() {
   local __sha256="$1"
