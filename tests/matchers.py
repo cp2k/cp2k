@@ -67,6 +67,9 @@ registry["M009"] = GenericMatcher(r"PINT| Total energy =", col=5)
 registry["M010"] = GenericMatcher(r"BAND TOTAL ENERGY [au]", col=6)
 registry["M011"] = GenericMatcher(r"ENERGY| Total FORCE_EVAL", col=9)
 registry["N_special_kpoints"] = GenericMatcher(r"Number of Special K-points:", col=5)
+registry["N_kpoints_per_group"] = GenericMatcher(
+    r"KPOINTS\| Number of kpoints per group", col=7
+)
 registry["QS_number_of_molecular_orbitals"] = GenericMatcher(
     r"Number of molecular orbitals:", col=5
 )
@@ -242,9 +245,6 @@ registry["GAUXC_molecular_xc_virial_fd_diff"] = GenericMatcher(
 )
 registry["XTB_reference_cli_failed"] = TextPresenceMatcher(
     "tblite reference CLI check failed to run."
-)
-registry["OT_occupation_preconditioner_fallback"] = TextPresenceMatcher(
-    "OCCUPATION_PRECONDITIONER requires an"
 )
 registry["NO_TEXT"] = TextAbsenceMatcher()
 registry["M083"] = GenericMatcher(r"1[   1] - 2[   1]", col=7)

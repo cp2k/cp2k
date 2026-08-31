@@ -1595,7 +1595,9 @@ CONTAINS
                IF (dft_control%restricted) THEN
                   CALL qs_ot_copy_kpoint_spin_mos(kpoints, dft_control%nspins)
                END IF
-               CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+               CALL kpoint_set_mo_occupation( &
+                  kpoints, scf_control%smear, &
+                  separate_spin_occupations=dft_control%restricted)
                IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) THEN
                   CALL qs_ot_set_fixed_kpoint_occupations(kpoints, dft_control%nspins)
                END IF
@@ -1621,7 +1623,9 @@ CONTAINS
                   IF (dft_control%restricted) THEN
                      CALL qs_ot_copy_kpoint_spin_mos(kpoints, dft_control%nspins)
                   END IF
-                  CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+                  CALL kpoint_set_mo_occupation( &
+                     kpoints, scf_control%smear, &
+                     separate_spin_occupations=dft_control%restricted)
                   IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) THEN
                      CALL qs_ot_set_fixed_kpoint_occupations(kpoints, dft_control%nspins)
                   END IF
@@ -1815,13 +1819,6 @@ CONTAINS
 
       CALL ot_scf_read_input(scf_env%qs_ot_env, scf_section, do_kpoints)
 
-      IF (scf_env%qs_ot_env(1)%settings%occupation_preconditioner .AND. &
-          scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_none) THEN
-         CALL cp_warn(__LOCATION__, &
-                      "OCCUPATION_PRECONDITIONER requires an orbital metric; using FULL_S_INVERSE.")
-         scf_env%qs_ot_env(:)%settings%preconditioner_type = ot_precond_s_inverse
-         scf_env%qs_ot_env(:)%settings%preconditioner_name = "FULL_S_INVERSE"
-      END IF
       IF (do_kpoints) THEN
          do_smear = dft_control%smear .OR. scf_control%smear%do_smear
          IF (do_smear) THEN

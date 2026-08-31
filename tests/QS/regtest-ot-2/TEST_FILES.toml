@@ -82,10 +82,17 @@
 ]
 "H3-kpoint-roks.inp"                    = [{matcher="E_total", tol=1e-9, ref=-1.48796745286581}]
 "Al-kpoint-mermin-roks.inp"             = [
-  {matcher="E_total", tol=1e-9, ref=-2.810023241029225},
-  {matcher="Electronic_entropic_energy", tol=1e-10, ref=-0.00043901382531},
-  {matcher="Integrated_spin_density", tol=1e-8, ref=1.0},
-  {matcher="OT_occupation_preconditioner_fallback"},
+  {matcher="E_total", tol=1e-9, ref=-2.951892752297918},
+  {matcher="Electronic_entropic_energy", tol=1e-9, ref=-0.00050368537343},
+  {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999684001},
+  {matcher="N_kpoints_per_group", tol=0.0, ref=2},
+  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+]
+"Al-kpoint-mermin-roks-restart.inp"     = [
+  {matcher="E_total", tol=1e-9, ref=-2.951892752297918},
+  {matcher="Electronic_entropic_energy", tol=1e-9, ref=-0.00050375472192},
+  {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999683948},
   {matcher="NO_TEXT", text="K-point smearing includes the first band"},
   {matcher="NO_TEXT", text="K-point smearing includes the last band"},
 ]

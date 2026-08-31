@@ -973,9 +973,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="OCCUPATION_PRECONDITIONER", &
                           description="Augment the direct SCF%OT orbital metric with coupled fixed-N "// &
-                          "occupation response. This augments the selected orbital preconditioner; NONE "// &
-                          "is replaced by FULL_S_INVERSE. It is not used by DIAGONALIZATION%OT, where "// &
-                          "occupations are assigned after the eigensolver has converged.", &
+                          "occupation response. This augments the independently selected orbital "// &
+                          "preconditioner. It is not used by DIAGONALIZATION%OT, where occupations are "// &
+                          "assigned after the eigensolver has converged.", &
                           usage="OCCUPATION_PRECONDITIONER", lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
