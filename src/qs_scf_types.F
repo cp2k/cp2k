@@ -479,10 +479,54 @@ CONTAINS
    SUBROUTINE qs_scf_ot_restart_clear(scf_env)
       TYPE(qs_scf_env_type), INTENT(INOUT)               :: scf_env
 
-      INTEGER                                            :: ichannel
+      INTEGER                                            :: ichannel, ihistory
 
       IF (ASSOCIATED(scf_env%qs_ot_restart%channel)) THEN
          DO ichannel = 1, SIZE(scf_env%qs_ot_restart%channel)
+            CALL qs_ot_restart_dense_matrix_clear(scf_env%qs_ot_restart%channel(ichannel)%matrix_x_dense)
+            CALL qs_ot_restart_dense_matrix_clear(scf_env%qs_ot_restart%channel(ichannel)%matrix_x_im_dense)
+            CALL qs_ot_restart_dense_matrix_clear(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x_dense)
+            CALL qs_ot_restart_dense_matrix_clear(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_x_im_dense)
+            CALL qs_ot_restart_dense_matrix_clear(scf_env%qs_ot_restart%channel(ichannel)%matrix_dx_dense)
+            CALL qs_ot_restart_dense_matrix_clear(scf_env%qs_ot_restart%channel(ichannel)%matrix_dx_im_dense)
+            CALL qs_ot_restart_dense_matrix_clear(scf_env%qs_ot_restart%channel(ichannel)%matrix_gx_old_dense)
+            CALL qs_ot_restart_dense_matrix_clear(scf_env%qs_ot_restart%channel(ichannel)%matrix_gx_old_im_dense)
+            CALL qs_ot_restart_dense_matrix_clear(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_dx_dense)
+            CALL qs_ot_restart_dense_matrix_clear(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_dx_im_dense)
+            CALL qs_ot_restart_dense_matrix_clear(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_gx_old_dense)
+            CALL qs_ot_restart_dense_matrix_clear(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_gx_old_im_dense)
+            IF (ALLOCATED(scf_env%qs_ot_restart%channel(ichannel)%matrix_h_e_dense)) THEN
+               DO ihistory = 1, SIZE(scf_env%qs_ot_restart%channel(ichannel)%matrix_h_e_dense)
+                  CALL qs_ot_restart_dense_matrix_clear( &
+                     scf_env%qs_ot_restart%channel(ichannel)%matrix_h_e_dense(ihistory))
+                  CALL qs_ot_restart_dense_matrix_clear( &
+                     scf_env%qs_ot_restart%channel(ichannel)%matrix_h_x_dense(ihistory))
+               END DO
+            END IF
+            IF (ALLOCATED(scf_env%qs_ot_restart%channel(ichannel)%matrix_h_e_im_dense)) THEN
+               DO ihistory = 1, SIZE(scf_env%qs_ot_restart%channel(ichannel)%matrix_h_e_im_dense)
+                  CALL qs_ot_restart_dense_matrix_clear( &
+                     scf_env%qs_ot_restart%channel(ichannel)%matrix_h_e_im_dense(ihistory))
+                  CALL qs_ot_restart_dense_matrix_clear( &
+                     scf_env%qs_ot_restart%channel(ichannel)%matrix_h_x_im_dense(ihistory))
+               END DO
+            END IF
+            IF (ALLOCATED(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_e_dense)) THEN
+               DO ihistory = 1, SIZE(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_e_dense)
+                  CALL qs_ot_restart_dense_matrix_clear( &
+                     scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_e_dense(ihistory))
+                  CALL qs_ot_restart_dense_matrix_clear( &
+                     scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_x_dense(ihistory))
+               END DO
+            END IF
+            IF (ALLOCATED(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_e_im_dense)) THEN
+               DO ihistory = 1, SIZE(scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_e_im_dense)
+                  CALL qs_ot_restart_dense_matrix_clear( &
+                     scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_e_im_dense(ihistory))
+                  CALL qs_ot_restart_dense_matrix_clear( &
+                     scf_env%qs_ot_restart%channel(ichannel)%rot_mat_h_x_im_dense(ihistory))
+               END DO
+            END IF
             IF (ASSOCIATED(scf_env%qs_ot_restart%channel(ichannel)%ener_x)) THEN
                DEALLOCATE (scf_env%qs_ot_restart%channel(ichannel)%ener_x)
             END IF
@@ -531,6 +575,18 @@ CONTAINS
       NULLIFY (scf_env%qs_ot_restart%channel)
 
    END SUBROUTINE qs_scf_ot_restart_clear
+
+! **************************************************************************************************
+!> \brief release storage owned by a dense OT restart matrix
+!> \param matrix restart matrix to clear
+! **************************************************************************************************
+   SUBROUTINE qs_ot_restart_dense_matrix_clear(matrix)
+      TYPE(qs_ot_restart_dense_matrix_type), &
+         INTENT(INOUT)                                   :: matrix
+
+      IF (ALLOCATED(matrix%data)) DEALLOCATE (matrix%data)
+
+   END SUBROUTINE qs_ot_restart_dense_matrix_clear
 
 ! **************************************************************************************************
 !> \brief  creates krylov space
