@@ -42,6 +42,9 @@
 # use of the fermi distribution
 "C_fermi.inp"                           = [{matcher="E_total", tol=1e-13, ref=-5.34109284627944}]
 "Al_fermi.inp"                          = [{matcher="E_total", tol=5e-14, ref=-8.17296838715160}]
+# OT%ENERGIES without an explicit KPOINTS section uses the complex Gamma-point Mermin path
+"Al-gamma-mermin-smoke.inp"             = [{matcher="E_total", tol=1e-9, ref=-3.106695789848826},
+                                           {matcher="M095", tol=1e-6, ref=-0.27461042739180}]
 # fixed-N Mermin OT at symmetry-reduced complex K points and its diagonalization reference
 "Al-kpoint-diag-reference.inp"          = [{matcher="E_total", tol=1e-9, ref=-2.903015361392054}]
 "Al-kpoint-otdiag.inp"                  = [
