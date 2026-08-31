@@ -11,6 +11,7 @@
 MODULE input_cp2k_harris
    USE input_constants,                 ONLY: hden_atomic,&
                                               hden_cube,&
+                                              hden_cube_fit,&
                                               hfun_harris,&
                                               horb_default
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -20,6 +21,7 @@ MODULE input_cp2k_harris
                                               section_create,&
                                               section_type
    USE input_val_types,                 ONLY: char_t
+   USE kinds,                           ONLY: dp
    USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
@@ -47,7 +49,7 @@ CONTAINS
       NULLIFY (keyword)
       CALL section_create(section, __LOCATION__, name="HARRIS_METHOD", &
                           description="Sets the various options for the Harris method", &
-                          n_keywords=7, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=11, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of the Harris method", &
@@ -71,19 +73,46 @@ CONTAINS
                           description="Method to create the input density", &
                           usage="DENSITY_SOURCE ATOMIC", &
                           default_i_val=hden_atomic, &
-                          enum_c_vals=s2a("ATOMIC", "CUBE"), &
+                          enum_c_vals=s2a("ATOMIC", "CUBE", "CUBE_FIT"), &
                           enum_desc=s2a("Atomic densities", &
-                                        "Electron density read directly from a Gaussian cube file"), &
-                          enum_i_vals=[hden_atomic, hden_cube])
+                                        "Electron density read directly from a Gaussian cube file", &
+                                        "Cube density fitted by a constrained AO density matrix. "// &
+                                        "This dense reference method currently requires GPW, a "// &
+                                        "spin-restricted calculation, and the Gamma point"), &
+                          enum_i_vals=[hden_atomic, hden_cube, hden_cube_fit])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FILE_DENSITY", &
                           description="Filename of the electron density in Gaussian cube format. "// &
-                          "Used when DENSITY_SOURCE is CUBE. The cube grid has to coincide with "// &
+                          "Used when DENSITY_SOURCE is CUBE or CUBE_FIT. The cube grid has to coincide with "// &
                           "the finest CP2K real-space grid.", &
                           usage="FILE_DENSITY <FILENAME>", &
                           type_of_var=char_t, default_c_val="", n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_MAX_ITER", &
+                          description="Maximum number of projected-gradient iterations for CUBE_FIT.", &
+                          usage="FIT_MAX_ITER 50", default_i_val=50)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_EPS", &
+                          description="Target RMS error of the fitted density for CUBE_FIT.", &
+                          usage="FIT_EPS 1.0E-3", default_r_val=1.0E-3_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_STEP_SIZE", &
+                          description="Initial spectral projected-gradient step size for CUBE_FIT.", &
+                          usage="FIT_STEP_SIZE 1.0", default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_MAX_BACKTRACK", &
+                          description="Maximum number of line-search reductions in each CUBE_FIT iteration.", &
+                          usage="FIT_MAX_BACKTRACK 20", default_i_val=20)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

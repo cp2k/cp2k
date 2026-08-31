@@ -65,6 +65,11 @@ MODULE qs_harris_types
       INTEGER                                          :: density_source = 0
       INTEGER                                          :: orbital_basis = 0
       CHARACTER(LEN=default_string_length)             :: density_filename = ""
+      INTEGER                                          :: fit_max_iter = 50
+      INTEGER                                          :: fit_max_backtrack = 20
+      REAL(KIND=dp)                                    :: fit_eps = 1.0E-3_dp
+      REAL(KIND=dp)                                    :: fit_step_size = 1.0_dp
+      LOGICAL                                          :: density_fit_ready = .FALSE.
       !
       TYPE(harris_energy_type)                         :: energy
       !
@@ -72,6 +77,7 @@ MODULE qs_harris_types
       !
       TYPE(pw_r3d_rs_type)                             :: vh_rspace = pw_r3d_rs_type()
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER      :: vxc_rspace => Null()
+      TYPE(pw_r3d_rs_type)                             :: density_fit_rspace = pw_r3d_rs_type()
 
       !
       LOGICAL                                          :: debug_forces = .FALSE.
@@ -199,6 +205,9 @@ CONTAINS
          !
          IF (ASSOCIATED(harris_env%vh_rspace%pw_grid)) THEN
             CALL harris_env%vh_rspace%release()
+         END IF
+         IF (ASSOCIATED(harris_env%density_fit_rspace%pw_grid)) THEN
+            CALL harris_env%density_fit_rspace%release()
          END IF
          IF (ASSOCIATED(harris_env%vxc_rspace)) THEN
             DO iab = 1, SIZE(harris_env%vxc_rspace)

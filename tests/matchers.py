@@ -461,4 +461,9 @@ registry["RTP_current_checksum"] = GenericMatcher(
 # surface dipole correction reference plane; both values are printed on the same line.
 registry["Vacuum_level_below"] = GenericMatcher(r"dipole correction plane [eV]:", col=5)
 registry["Vacuum_level_above"] = GenericMatcher(r"dipole correction plane [eV]:", col=6)
+
+# Electron count imposed on a cube density fitted in the nonorthogonal AO basis.
+registry["Harris_fit_electron_count"] = GenericMatcher(
+    r"HARRIS\| AO density-matrix electron count:", col=6
+)
 # EOF
