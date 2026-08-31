@@ -54,6 +54,50 @@ case "$with_libxc" in
         .. > configure.log 2>&1 || tail_excerpt configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       make install > install.log 2>&1 || tail_excerpt install.log
+      cd ..
+        # Build CUDA version of libxc using autotools (more reliable for CUDA)
+       if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
+         echo "Installing from scratch into ${pkg_install_dir}-cuda"
+         [ -d build-cuda ] && rm -rf "build-cuda"
+         mkdir build-cuda
+         cd build-cuda
+         CFLAGS="${LIBXC_CFLAGS}" cmake \
+           -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+           -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-cuda" \
+           -DCMAKE_INSTALL_LIBDIR="lib" \
+           -DCMAKE_VERBOSE_MAKEFILE=ON \
+           -DBUILD_SHARED_LIBS=OFF \
+           -DBUILD_TESTING=OFF \
+           -DENABLE_FORTRAN=ON \
+           -DENABLE_CUDA=ON \
+           -DCMAKE_CUDA_ARCHITECTURES="${ARCH_NUM}" \
+           -DMAXORDER=3 \
+           .. > configure.log 2>&1 || tail_excerpt configure.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make install > install.log 2>&1 || tail_excerpt install.log
+        cd ..
+      fi
+       # Build HIP version of libxc.
+       if [ "${ENABLE_HIP}" = "__TRUE__" ]; then
+         echo "Installing from scratch into ${pkg_install_dir}-hip"
+         [ -d build-hip ] && rm -rf "build-hip"
+         mkdir build-hip
+         cd build-hip
+          CFLAGS="${LIBXC_CFLAGS}" cmake \
+            -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+            -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-hip" \
+            -DCMAKE_INSTALL_LIBDIR="lib" \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DBUILD_TESTING=OFF \
+            -DENABLE_FORTRAN=ON \
+            -DENABLE_HIP=ON \
+            -DMAXORDER=3 \
+            .. > configure.log 2>&1 || tail_excerpt configure.log
+         make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+         make install > install.log 2>&1 || tail_excerpt install.log
+         cd ..
+       fi
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"
       cd ..
     fi
@@ -74,17 +118,25 @@ case "$with_libxc" in
     ;;
 esac
 if [ "$with_libxc" != "__DONTUSE__" ]; then
+   pkg_install_dir1="${pkg_install_dir}"
+   if [ "$with_libxc" = "__INSTALL__" ]; then
+     if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
+       pkg_install_dir1="${pkg_install_dir}-cuda"
+     elif [ "${ENABLE_HIP}" = "__TRUE__" ]; then
+       pkg_install_dir1="${pkg_install_dir}-hip"
+     fi
+   fi
   cat << EOF > "${BUILDDIR}/setup_libxc"
-export LIBXC_ROOT="${pkg_install_dir}"
+export LIBXC_ROOT="${pkg_install_dir1}"
 export LIBXC_VER="${libxc_ver}"
 EOF
   if [ "$with_libxc" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_libxc"
-prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
-prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
-prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
-prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir1}/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir1}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir1}/lib"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir1}/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir1}"
 EOF
   fi
   filter_setup "${BUILDDIR}/setup_libxc" "${SETUPFILE}"
