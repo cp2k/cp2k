@@ -404,7 +404,8 @@ def find_all_mentions() -> Dict[str, Set[Path]]:
     mentions = defaultdict(set)
     for subdir in "getting-started", "methods", "technologies":
         for fn in (root_dir / subdir).glob("**/*.md"):
-            for xref in re.findall(r"\(#(CP2K_INPUT\..*)\)", fn.read_text()):
+            # Non-greedy match permits multiple links on the same line
+            for xref in re.findall(r"\(#(CP2K_INPUT\..*?)\)", fn.read_text()):
                 mentions[xref].add(fn.relative_to(root_dir))
     return mentions
 

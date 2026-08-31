@@ -38,7 +38,7 @@ git clone -b support/vx.y --recursive https://github.com/cp2k/cp2k.git cp2k
 
 ## Install CP2K
 
-The [installation instructions](https://manual.cp2k.org/trunk/getting-started/installation.md) in
+The [installation instructions](https://manual.cp2k.org/trunk/getting-started/installation.html) in
 the CP2K manual provide several methods for installing CP2K with dependencies:
 
 - [Build from Source](https://manual.cp2k.org/trunk/getting-started/build-from-source.html)
@@ -64,7 +64,7 @@ the CP2K manual provide several methods for installing CP2K with dependencies:
 - [`data`](./data): Simulation parameters e.g. basis sets and pseudopotentials
 - [`docs`](./docs/): The markdown source pages for documentations that is rendered as the manual
 - [`tests`](./tests): Inputs for tests and regression tests
-- [`tools`](./tools): Mixed collection of useful scripts related to cp2k
+- [`tools`](./tools): Mixed collection of useful scripts related to CP2K
 - [`benchmarks`](./benchmarks): Inputs for benchmarks
 
 [conda-badge]: https://img.shields.io/conda/vn/conda-forge/cp2k
