@@ -539,18 +539,22 @@ CONTAINS
          WRITE (rtbse_env%unit_nr, '(A,T65,F16.6)') ' Estimated maximum oscillation frequency (gap-based) [eV]:', &
             rtbse_env%omega_max*evolt
 
-         ! Active MO window (energy-cutoff truncation) for linearized RT-BSE.
+         ! Which single-particle eigenvalues the propagation uses. bs_env%eigenval_GW carries the
+         ! result of the highest GW flavour requested.
          IF (rtbse_env%ham_reference_type == rtp_bse_ham_gw) THEN
             IF (rtbse_env%bs_env%gw_flavour == evGW0) THEN
                WRITE (rtbse_env%unit_nr, '(A,T75,A6)') &
-                  ' Active-window single-particle spectrum source:', ' evGW0'
+                  ' GW flavor for computing GW eigenvalues used in RT-BSE:', ' evGW0'
             ELSE
                WRITE (rtbse_env%unit_nr, '(A,T75,A6)') &
-                  ' Active-window single-particle spectrum source:', '  G0W0'
+                  ' GW flavor for computing GW eigenvalues used in RT-BSE:', '  G0W0'
             END IF
          ELSE
-            WRITE (rtbse_env%unit_nr, '(A,T75,A6)') ' Active-window single-particle spectrum source:', '    KS'
+            WRITE (rtbse_env%unit_nr, '(A,T75,A6)') &
+               ' Single-particle eigenvalues used in RT-BSE:', '    KS'
          END IF
+
+         ! Active MO window (energy-cutoff truncation) for linearized RT-BSE
          IF (rtbse_env%rtbse_energy_cutoff_occ > 0.0_dp) THEN
             WRITE (rtbse_env%unit_nr, '(A,T71,F10.3)') ' Active-window occupied energy cutoff [eV]:', &
                rtbse_env%rtbse_energy_cutoff_occ*evolt

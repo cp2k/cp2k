@@ -2091,7 +2091,8 @@ CONTAINS
                           enum_c_vals=s2a("KS", "GW"), &
                           enum_i_vals=[rtp_bse_ham_ks, rtp_bse_ham_gw], &
                           enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's function propagation.", &
-                                        "Use GW Hamiltonian for Green's function propagation."))
+                                        "Use GW Hamiltonian for Green's function propagation. The GW "// &
+                                        "eigenvalues from the highest-level GW flavor will be picked."))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
