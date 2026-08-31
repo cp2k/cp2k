@@ -1,13 +1,13 @@
 # Constrained molecular dynamics
 
-CP2K can constrain a collective variable during molecular dynamics with
-[MOTION/CONSTRAINT/COLLECTIVE](#CP2K_INPUT.MOTION.CONSTRAINT.COLLECTIVE). The collective variable is
-defined in [FORCE_EVAL/SUBSYS/COLVAR](#CP2K_INPUT.FORCE_EVAL.SUBSYS.COLVAR), and `COLVAR` in the
-constraint section selects it by input order. Use
-[INTERMOLECULAR](#CP2K_INPUT.MOTION.CONSTRAINT.COLLECTIVE.INTERMOLECULAR) for a collective variable
-whose atoms are not all in the same molecular object.
+CP2K can constrain a collective variable (CV) during molecular dynamics with
+[MOTION/CONSTRAINT/COLLECTIVE](#CP2K_INPUT.MOTION.CONSTRAINT.COLLECTIVE). The CV is defined in
+[FORCE_EVAL/SUBSYS/COLVAR](#CP2K_INPUT.FORCE_EVAL.SUBSYS.COLVAR), and `COLVAR` in the constraint
+section selects it by input order. Use
+[INTERMOLECULAR](#CP2K_INPUT.MOTION.CONSTRAINT.COLLECTIVE.INTERMOLECULAR) for a CV whose atoms are
+not all in the same molecular object.
 
-A fixed-distance window can be set up as follows:
+A fixed-distance window between two atoms can be set up as follows:
 
 ```none
 &FORCE_EVAL
@@ -46,7 +46,7 @@ A fixed-distance window can be set up as follows:
 a velocity-Verlet step:
 
 - `Shake Lagrangian Multipliers` contains the position-constraint multipliers. These are the values
-  relevant to a configurational constraint force and constrained thermodynamic integration.
+  relevant to a configurational constraint force and constrained thermodynamic integration (TI).
 - `Rattle Lagrangian Multipliers` contains the velocity-constraint multipliers. They enforce the
   time derivative of the constraint and are not a second configurational-force sample.
 
@@ -58,18 +58,39 @@ constraints. The ordering within each group is collective-variable, 3-by-3, and 
 
 ## Blue-moon ensemble correction
 
-The printed SHAKE multiplier is not, in general, a complete blue-moon estimator. For one constrained
-reaction coordinate $\xi$, define the scalar mass metric
+Constrained molecular dynamics generally produces biased statistical distributions. The blue-moon
+ensemble average is used to correct these biased outputs and retrieve the statistical properties
+corresponding to unconstrained molecular-dynamics conditions. The printed SHAKE multiplier is not,
+in general, a complete blue-moon estimator. For one constrained reaction coordinate $\xi$, the
+free-energy gradient then follows
 
 $$
-Z = \sum_i \frac{1}{m_i}\left|\nabla_i\xi\right|^2.
+\frac{\mathrm d A}{\mathrm d\xi} 
+= 
+\frac{\left\langle Z^{-1/2}
+\left(-\lambda + k_\mathrm{B} T G\right)
+\right\rangle_\xi}
+{\left\langle Z^{-1/2}\right\rangle_\xi}
+$$
+
+where $k_\mathrm{B}$ is the Boltzmann constant, $T$ is the temperature,
+$\left\langle \cdots \right\rangle_\xi$ denotes the time average of reaction coordinate
+$\xi(\mathbf r_1,\dots,\mathbf r_N)$ by MD simulation.
+
+Here $Z$ defines the scalar mass metric
+
+$$
+Z = \sum_i \frac{1}{m_i}
+\left|\nabla_i\xi\right|^2.
 $$
 
 With the CP2K convention that the constraint force is $-\lambda\nabla\xi$, the free-energy gradient
 contains a $Z^{-1/2}$ reweighting and, for a general coordinate, an additional metric-derivative
-term. CP2K currently writes $\lambda$ but does not evaluate or print the complete corrected
-blue-moon estimator. The required metric terms therefore have to be evaluated during postprocessing
-for the chosen reaction coordinate. See
+term ($G$).
+
+CP2K currently writes $\lambda$ but does not evaluate or print the complete corrected blue-moon
+estimator. The required metric terms therefore have to be evaluated during postprocessing for the
+chosen reaction coordinate. See
 [Komeiji, Chem-Bio Informatics Journal 7, 12 (2007)](https://doi.org/10.1273/cbij.7.12) for the
 general expression and explicit algorithms for two common coordinates.
 
@@ -94,7 +115,9 @@ the metric-derivative term is also zero, but
 
 $$
 Z = m_i^{-1}+m_k^{-1}
-    +2m_j^{-1}\left(1-\boldsymbol\rho_{ij}\mathbin{\cdot}\boldsymbol\rho_{kj}\right)
+    +2m_j^{-1}
+    \left(1-\boldsymbol\rho_{ij}\mathbin{\cdot}\boldsymbol\rho_{kj}
+    \right)
 $$
 
 depends on the instantaneous angle. Consequently, the free-energy gradient is
@@ -120,7 +143,53 @@ spacing, integration direction, and unit conversion.
 [TARGET_GROWTH](#CP2K_INPUT.MOTION.CONSTRAINT.COLLECTIVE.TARGET_GROWTH) instead changes `TARGET`
 linearly by `TARGET_GROWTH * TIMESTEP` at every MD step, optionally stopping at
 [TARGET_LIMIT](#CP2K_INPUT.MOTION.CONSTRAINT.COLLECTIVE.TARGET_LIMIT). This is a moving-constraint
-or slow-growth protocol. CP2K does not integrate the work or turn the resulting trajectory into an
-equilibrium free-energy profile automatically. A finite pulling rate can cause lag, dissipation, and
-direction-dependent hysteresis, so such a trajectory must be analysed with a method appropriate to
-the intended nonequilibrium protocol.
+or slow-growth protocol. A simple example for the performance of CV as the distance between two
+atoms:
+
+```none
+&FORCE_EVAL
+  ...
+  &SUBSYS
+    ...
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 2
+      &END DISTANCE
+    &END COLVAR
+  &END SUBSYS
+&END FORCE_EVAL
+
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      COLVAR 1
+      INTERMOLECULAR TRUE
+      TARGET [angstrom] 2.0
+      TARGET_GROWTH [angstrom*fs^-1] 0.0008
+      TARGET_LIMIT [angstrom] 3.0
+    &END COLLECTIVE
+    &LAGRANGE_MULTIPLIERS ON
+      FILENAME constraint_force
+      COMMON_ITERATION_LEVELS 1
+    &END LAGRANGE_MULTIPLIERS
+  &END CONSTRAINT
+  &MD
+    ...
+  &END MD
+&END MOTION
+```
+
+CP2K does not integrate the work or turn the resulting trajectory into an equilibrium free-energy
+profile automatically. A finite pulling rate can cause lag, dissipation, and direction-dependent
+hysteresis, so such a trajectory must be analysed with a method appropriate to the intended
+nonequilibrium protocol. In the limit of infinitesimal change of $\xi$, the irreversible work ($W$)
+describes the energy change between the initial and final state. The resulting work from slow growth
+(typically the irreversible work) can be related to the free-energy change $(\Delta A)$ via
+Jarzynski's identity
+
+$$
+\exp\left(-\frac{\Delta A}{k_\mathrm{B} T}\right) 
+= 
+\left\langle \exp\left(-\frac{W}{k_\mathrm{B} T}\right) 
+\right\rangle
+$$
