@@ -12,6 +12,7 @@ hartree-fock/index
 basis_sets
 pseudopotentials
 k-points
+orbital_transformation
 convergence
 cutoff
 local_ri
