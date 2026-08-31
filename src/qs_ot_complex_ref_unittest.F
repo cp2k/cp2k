@@ -118,6 +118,7 @@ PROGRAM qs_ot_complex_ref_unittest
    CALL test_projected_response_update(mynode, nfail)
    CALL test_symmetric_sr1_update(mynode, nfail)
    CALL test_density_secant_hessian(mynode, nfail)
+   CALL test_joint_spin_density_secant(mynode, nfail)
    CALL test_density_tangent(mynode, nfail)
    CALL test_density_secant_moving_subspace(mynode, nfail)
    ALLOCATE (para_env)
@@ -1031,6 +1032,118 @@ CONTAINS
          direct_error, overlap_error, gauge_error, sign_error, calibrated_error, rejected_error
 
    END SUBROUTINE test_density_secant_hessian
+
+! **************************************************************************************************
+!> \brief Check that the Hxc secant is formed in the joint direct sum of both spin channels.
+!> \param mynode MPI rank
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_joint_spin_density_secant(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: n = 2, nmode = 2, nspin = 2, &
+                                                            ntotal = n*nspin
+
+      COMPLEX(KIND=dp), DIMENSION(n, n, nmode, nspin)    :: density_modes
+      COMPLEX(KIND=dp), DIMENSION(n, n, nspin)           :: density_step, hamiltonian_step
+      COMPLEX(KIND=dp), DIMENSION(ntotal, ntotal)        :: direct_density_step, &
+                                                            direct_hamiltonian_step
+      COMPLEX(KIND=dp), DIMENSION(ntotal, ntotal, nmode) :: direct_density_modes
+      INTEGER                                            :: first, ispin, last, mode
+      LOGICAL                                            :: direct_valid, joint_valid, spin_valid
+      REAL(KIND=dp)                                      :: coupling_size, density_norm, &
+                                                            direct_error, response_work
+      REAL(KIND=dp), DIMENSION(nmode)                    :: density_overlap, response_overlap
+      REAL(KIND=dp), DIMENSION(nmode, nmode)             :: direct_correction, joint_correction, &
+                                                            separate_correction, spin_correction
+
+      density_step(:, :, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      density_step(1, 1, 1) = 0.31_dp
+      density_step(2, 2, 1) = -0.31_dp
+      density_step(1, 2, 1) = CMPLX(0.08_dp, -0.04_dp, KIND=dp)
+      density_step(2, 1, 1) = CONJG(density_step(1, 2, 1))
+      density_step(1, 1, 2) = -0.19_dp
+      density_step(2, 2, 2) = 0.19_dp
+      density_step(1, 2, 2) = CMPLX(-0.05_dp, 0.06_dp, KIND=dp)
+      density_step(2, 1, 2) = CONJG(density_step(1, 2, 2))
+
+      hamiltonian_step(:, :, 1) = 0.67_dp*density_step(:, :, 1)
+      hamiltonian_step(1, 2, 1) = hamiltonian_step(1, 2, 1) + CMPLX(-0.03_dp, 0.09_dp, KIND=dp)
+      hamiltonian_step(2, 1, 1) = CONJG(hamiltonian_step(1, 2, 1))
+      hamiltonian_step(:, :, 2) = -0.43_dp*density_step(:, :, 2)
+      hamiltonian_step(1, 2, 2) = hamiltonian_step(1, 2, 2) + CMPLX(0.07_dp, 0.02_dp, KIND=dp)
+      hamiltonian_step(2, 1, 2) = CONJG(hamiltonian_step(1, 2, 2))
+
+      density_modes(:, :, :, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      density_modes(1, 1, 1, 1) = 0.21_dp
+      density_modes(2, 2, 1, 1) = -0.21_dp
+      density_modes(1, 2, 1, 1) = CMPLX(0.04_dp, 0.03_dp, KIND=dp)
+      density_modes(2, 1, 1, 1) = CONJG(density_modes(1, 2, 1, 1))
+      density_modes(1, 1, 2, 1) = -0.13_dp
+      density_modes(2, 2, 2, 1) = 0.13_dp
+      density_modes(1, 2, 2, 1) = CMPLX(-0.02_dp, 0.05_dp, KIND=dp)
+      density_modes(2, 1, 2, 1) = CONJG(density_modes(1, 2, 2, 1))
+      density_modes(1, 1, 1, 2) = -0.17_dp
+      density_modes(2, 2, 1, 2) = 0.17_dp
+      density_modes(1, 2, 1, 2) = CMPLX(0.06_dp, -0.01_dp, KIND=dp)
+      density_modes(2, 1, 1, 2) = CONJG(density_modes(1, 2, 1, 2))
+      density_modes(1, 1, 2, 2) = 0.09_dp
+      density_modes(2, 2, 2, 2) = -0.09_dp
+      density_modes(1, 2, 2, 2) = CMPLX(0.03_dp, 0.04_dp, KIND=dp)
+      density_modes(2, 1, 2, 2) = CONJG(density_modes(1, 2, 2, 2))
+
+      direct_density_step(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      direct_hamiltonian_step(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      direct_density_modes(:, :, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      density_norm = 0.0_dp
+      response_work = 0.0_dp
+      density_overlap(:) = 0.0_dp
+      response_overlap(:) = 0.0_dp
+      separate_correction(:, :) = 0.0_dp
+      spin_valid = .TRUE.
+      DO ispin = 1, nspin
+         first = (ispin - 1)*n + 1
+         last = ispin*n
+         direct_density_step(first:last, first:last) = density_step(:, :, ispin)
+         direct_hamiltonian_step(first:last, first:last) = hamiltonian_step(:, :, ispin)
+         direct_density_modes(first:last, first:last, :) = density_modes(:, :, :, ispin)
+         density_norm = density_norm + &
+                        SUM(REAL(CONJG(density_step(:, :, ispin))* &
+                                 density_step(:, :, ispin), KIND=dp))
+         response_work = response_work + &
+                         SUM(REAL(CONJG(density_step(:, :, ispin))* &
+                                  hamiltonian_step(:, :, ispin), KIND=dp))
+         DO mode = 1, nmode
+            density_overlap(mode) = density_overlap(mode) + &
+                                    SUM(REAL(CONJG(density_step(:, :, ispin))* &
+                                             density_modes(:, :, mode, ispin), KIND=dp))
+            response_overlap(mode) = response_overlap(mode) + &
+                                     SUM(REAL(CONJG(hamiltonian_step(:, :, ispin))* &
+                                              density_modes(:, :, mode, ispin), KIND=dp))
+         END DO
+         CALL qs_ot_density_secant_hessian( &
+            density_step(:, :, ispin), hamiltonian_step(:, :, ispin), &
+            density_modes(:, :, :, ispin), spin_correction, direct_valid)
+         spin_valid = spin_valid .AND. direct_valid
+         separate_correction = separate_correction + spin_correction
+      END DO
+
+      CALL qs_ot_density_secant_hessian( &
+         direct_density_step, direct_hamiltonian_step, direct_density_modes, &
+         direct_correction, direct_valid)
+      CALL qs_ot_density_secant_projected_hessian( &
+         density_norm, response_work, density_overlap, response_overlap, &
+         joint_correction, joint_valid)
+      direct_error = MAXVAL(ABS(joint_correction - direct_correction))
+      coupling_size = MAXVAL(ABS(joint_correction - separate_correction))
+
+      IF (.NOT. direct_valid .OR. .NOT. joint_valid .OR. .NOT. spin_valid .OR. &
+          direct_error > 3.0E-14_dp .OR. coupling_size < 1.0E-5_dp) nfail = nfail + 1
+      IF (mynode == 0) WRITE (io_unit, '(A,2(1X,ES13.6))') &
+         "joint-spin density secant direct error/coupling:", direct_error, coupling_size
+
+   END SUBROUTINE test_joint_spin_density_secant
 
 ! **************************************************************************************************
 !> \brief Check the coupled finite-chart density tangent against a central finite difference.

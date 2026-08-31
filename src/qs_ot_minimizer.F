@@ -45,6 +45,7 @@ MODULE qs_ot_minimizer
    PRIVATE
 
    PUBLIC  :: broyden_history_restart_required, &
+              cg_history_restart_required, &
               lbfgs_curvature_damping_shift, &
               lbfgs_history_restart_required, &
               lbfgs_response_secant_parameters, &
@@ -76,6 +77,32 @@ CONTAINS
 
       broyden_history_restart_required = non_descent .AND. (forget_history .OR. do_ener)
    END FUNCTION broyden_history_restart_required
+
+! **************************************************************************************************
+!> \brief Decide whether an unresolved accepted energy change invalidates CG conjugacy.
+!>
+!> The occupation-preconditioned Mermin direction is a coupled Schur step rather than the action of
+!> one fixed positive-definite metric on the physical gradient. Once the accepted free-energy change
+!> is below floating-point resolution, its nonlinear conjugacy cannot be calibrated reliably. The
+!> current preconditioned descent direction remains valid, but the history contribution is discarded.
+!> \param occupation_preconditioned whether the product direction uses occupation preconditioning
+!> \param current_energy current Mermin free energy
+!> \param reference_energy Mermin free energy before the accepted line search
+!> \return true when the CG history contribution has to be discarded
+! **************************************************************************************************
+   PURE ELEMENTAL LOGICAL FUNCTION cg_history_restart_required( &
+      occupation_preconditioned, current_energy, reference_energy)
+      LOGICAL, INTENT(IN)                                :: occupation_preconditioned
+      REAL(KIND=dp), INTENT(IN)                          :: current_energy, reference_energy
+
+      REAL(KIND=dp)                                      :: energy_scale
+
+      energy_scale = MAX(1.0_dp, ABS(current_energy), ABS(reference_energy))
+      cg_history_restart_required = occupation_preconditioned .AND. &
+                                    ABS(current_energy - reference_energy) <= &
+                                    64.0_dp*EPSILON(1.0_dp)*energy_scale
+
+   END FUNCTION cg_history_restart_required
 
 !
 ! the minimizer interface
@@ -1865,6 +1892,9 @@ CONTAINS
          beta_pr = 0.0_dp
       END IF
       IF (preceding_response_candidate) beta_pr = 0.0_dp
+      IF (cg_history_restart_required( &
+          qs_ot_env(1)%settings%occupation_preconditioner, qs_ot_env(1)%etotal, &
+          qs_ot_env(1)%response_reference_energy)) beta_pr = 0.0_dp
       beta_pr = MAX(beta_pr, 0.0_dp) ! reset to SD
 
       test_down = 0.0_dp
