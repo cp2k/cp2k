@@ -1318,7 +1318,7 @@ CONTAINS
 
       INTEGER                                            :: extrapolation_method_nr, handle, ispin, &
                                                             nmo, output_unit
-      LOGICAL                                            :: do_harris, orthogonal_wf
+      LOGICAL                                            :: do_harris, do_kpoints, orthogonal_wf
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1338,6 +1338,7 @@ CONTAINS
                       rho=rho, &
                       mos=mos, &
                       dft_control=dft_control, &
+                      do_kpoints=do_kpoints, &
                       para_env=para_env)
 
       do_harris = qs_env%harris_method
@@ -1351,6 +1352,7 @@ CONTAINS
          ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
          IF ((.NOT. orthogonal_wf) .AND. &
              (scf_env%method == ot_method_nr) .AND. &
+             (.NOT. do_kpoints) .AND. &
              (.NOT. (extrapolation_method_nr == wfi_use_guess_method_nr))) THEN
             DO ispin = 1, SIZE(mos)
                CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
