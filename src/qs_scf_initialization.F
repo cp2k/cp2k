@@ -897,13 +897,9 @@ CONTAINS
             IF (has_unit_metric) THEN
                scf_env%method = special_diag_method_nr
             END IF
-            ! OT Diagonalization: not possible with ROKS
          CASE (diag_ot)
             IF (dft_control%roks) THEN
                CPABORT("ROKS with OT diagonalization not possible")
-            END IF
-            IF (do_kpoints) THEN
-               CPABORT("OT diagonalization not possible with kpoint calculations")
             END IF
             scf_env%method = ot_diag_method_nr
             need_coeff_b = .TRUE.
