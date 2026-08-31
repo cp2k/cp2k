@@ -77,7 +77,8 @@ where $k_\mathrm{B}$ is the Boltzmann constant, $T$ is the temperature,
 $\left\langle \cdots \right\rangle_\xi$ 
 denotes the time average of reaction coordinate 
 $\xi(\mathbf r_1,\dots,\mathbf r_N)$ 
-by MD simulation.
+by MD simulation. 
+
 Here $Z$ defines the scalar mass metric
 
 $$
@@ -189,9 +190,9 @@ The resulting work from slow growth (typically the irreversible work)
 can be related to the free-energy change $(\Delta A)$ via Jarzynski's identity
 
 $$
-\exp\left(-\frac{\Delta A}{k_B T}\right) 
+\exp\left(-\frac{\Delta A}{k_\mathrm{B} T}\right) 
 = 
-\left\langle \exp\left(-\frac{W}{k_B T}\right) 
+\left\langle \exp\left(-\frac{W}{k_\mathrm{B} T}\right) 
 \right\rangle
 $$
 
