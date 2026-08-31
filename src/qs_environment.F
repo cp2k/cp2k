@@ -645,9 +645,13 @@ CONTAINS
       CALL get_qs_env(qs_env, harris_env=harris_env)
       IF (qs_env%harris_method) THEN
          ! initialize the Harris input density and potential integrals
-         CALL get_qs_env(qs_env, local_particles=local_particles)
-         CALL harris_rhoin_init(harris_env%rhoin, "RHOIN", qs_kind_set, atomic_kind_set, &
-                                local_particles, dft_control%nspins)
+         IF (harris_env%density_source == hden_atomic) THEN
+            CALL get_qs_env(qs_env, local_particles=local_particles)
+            CALL harris_rhoin_init(harris_env%rhoin, "RHOIN", qs_kind_set, atomic_kind_set, &
+                                   local_particles, dft_control%nspins)
+         ELSE
+            harris_env%rhoin%nspin = dft_control%nspins
+         END IF
          ! Print information of the HARRIS section
          CALL harris_write_input(harris_env)
       END IF
@@ -1446,7 +1450,7 @@ CONTAINS
       CALL harris_env_create(qs_env, harris_env, harris_section)
       CALL set_qs_env(qs_env, harris_env=harris_env)
       !
-      IF (qs_env%harris_method) THEN
+      IF (qs_env%harris_method .AND. qs_env%harris_env%density_source == hden_atomic) THEN
          CALL get_qs_env(qs_env, nkind=nkind)
          ! Check if RI_HXC basis is available, auto-generate if needed
          DO ikind = 1, nkind
@@ -1456,12 +1460,8 @@ CONTAINS
             IF (.NOT. (ASSOCIATED(rhoin_basis))) THEN
                ! Generate a default basis
                CALL create_ri_aux_basis_set(tmp_basis_set, qs_kind, dft_control%auto_basis_ri_hxc)
-               IF (qs_env%harris_env%density_source == hden_atomic) THEN
-                  CALL create_primitive_basis_set(tmp_basis_set, rhoin_basis, lmax=0)
-                  CALL deallocate_gto_basis_set(tmp_basis_set)
-               ELSE
-                  rhoin_basis => tmp_basis_set
-               END IF
+               CALL create_primitive_basis_set(tmp_basis_set, rhoin_basis, lmax=0)
+               CALL deallocate_gto_basis_set(tmp_basis_set)
                CALL add_basis_set_to_container(qs_kind%basis_sets, rhoin_basis, "RHOIN")
             END IF
          END DO
