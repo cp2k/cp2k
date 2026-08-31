@@ -74,17 +74,20 @@ $$
 $$
 
 where $k_\mathrm{B}$ is the Boltzmann constant, $T$ is the temperature, 
-$\left\langle \cdots \right\rangle_\xi$ denotes the 
-time average of reaction coordinate 
-$\xi(\mathbf r_1,\dots,\mathbf r_N)$ by MD simulation.
+$\left\langle \cdots \right\rangle_\xi$ 
+denotes the time average of reaction coordinate 
+$\xi(\mathbf r_1,\dots,\mathbf r_N)$ 
+by MD simulation.
 Here $Z$ defines the scalar mass metric
 
 $$
-Z = \sum_i \frac{1}{m_i}\left|\nabla_i\xi\right|^2.
+Z = \sum_i \frac{1}{m_i}
+\left|\nabla_i\xi\right|^2.
 $$
 
-With the CP2K convention that the constraint force is $-\lambda\nabla\xi$, the free-energy gradient
-contains a $Z^{-1/2}$ reweighting and, for a general coordinate, an additional metric-derivative
+With the CP2K convention that the constraint force is $-\lambda\nabla\xi$, 
+the free-energy gradient contains a $Z^{-1/2}$ reweighting and, 
+for a general coordinate, an additional metric-derivative
 term ($G$). 
 
 CP2K currently writes $\lambda$ but does not evaluate or print the complete corrected
@@ -189,6 +192,6 @@ $$
 \exp\left(-\frac{\Delta A}{k_B T}\right) 
 = 
 \left\langle \exp\left(-\frac{W}{k_B T}\right) 
-\right\rangle.
+\right\rangle
 $$
 
