@@ -505,6 +505,7 @@ CONTAINS
       TYPE(preconditioner_type), OPTIONAL, POINTER       :: preconditioner
 
       CHARACTER(len=*), PARAMETER :: routineN = 'generate_extended_space_c'
+      REAL(KIND=dp), PARAMETER                           :: eps_exhaust = 1.0E-12_dp
 
       COMPLEX(KIND=dp)                                   :: lambda_c
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cdiag, scaling
@@ -524,6 +525,11 @@ CONTAINS
                                                             w_block
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_i, mo_coeff_r
+
+! empirical floor for declaring a correction vector numerically zero: the
+! vectors are normalized to one, double-precision roundoff sits near 1e-16,
+! and the threshold errs towards bailing out early (the fallback is an
+! exact diagonalization). Not taken from any reference implementation.
 
       CALL timeset(routineN, handle)
 
@@ -582,7 +588,9 @@ CONTAINS
          ! Check for converged eigenvectors: residual C_z = S*C*diag(ritz) - H*C
          CALL cp_cfm_create(c_z, cmo%matrix_struct, name="z")
          CALL cp_cfm_to_cfm(m_sc, c_z)
-         scaling = CMPLX(ritz_coeff, 0.0_dp, KIND=dp)
+         IF (ALLOCATED(scaling)) DEALLOCATE (scaling)
+         ALLOCATE (scaling(nmo))
+         scaling(:) = CMPLX(ritz_coeff, 0.0_dp, KIND=dp)
          CALL cp_cfm_column_scale(c_z, scaling)
          CALL cp_cfm_scale_and_add(-z_one, c_z, z_one, m_hc)
          CALL cp_cfm_vectorsnorm(c_z, vnorm)
@@ -742,7 +750,9 @@ CONTAINS
             CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, h_fm, c_notconv, z_zero, m_hc)
             CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, matrix_s, c_notconv, z_zero, m_sc)
             CALL cp_cfm_to_cfm(m_sc, c_z)
-            scaling = CMPLX(eig_not_conv, 0.0_dp, KIND=dp)
+            IF (ALLOCATED(scaling)) DEALLOCATE (scaling)
+            ALLOCATE (scaling(ncol_z))
+            scaling(:) = CMPLX(eig_not_conv, 0.0_dp, KIND=dp)
             CALL cp_cfm_column_scale(c_z, scaling)
             CALL cp_cfm_scale_and_add(-z_one, c_z, z_one, m_hc)
             DEALLOCATE (eig_not_conv)
@@ -790,65 +800,45 @@ CONTAINS
          ! subspace expansion of Kresse and Furthmueller (1996). This keeps the
          ! reduced S block well conditioned when a MOS is already (nearly) an
          ! eigenvector and its preconditioned residual is (nearly) parallel to it.
+         ! Exhaustion: either the preconditioned correction itself, or its
+         ! component outside the MOS span, can vanish by symmetry (the density
+         ! keeps the little-group symmetry of the kpoint), which would make the
+         ! reduced overlap block singular. Bail out and finish the channel by
+         ! the direct diagonalization below; the scratch of the interrupted
+         ! iteration is released at the single cleanup point after the loop.
          ALLOCATE (vnorm_pz(ncol_z))
          CALL cp_cfm_vectorsnorm(c_mz, vnorm_pz)
-         IF (ANY(vnorm_pz < 1.0E-12_dp)) THEN
-            ! numerically zero preconditioned correction: nothing to add for
-            ! this round (same symmetry mechanism as the projection below)
+         IF (ANY(vnorm_pz < eps_exhaust)) THEN
             exhausted = .TRUE.
-            DEALLOCATE (vnorm_pz)
-            IF (ALLOCATED(iconv_set)) DEALLOCATE (iconv_set)
-            IF (ALLOCATED(inotconv_set)) DEALLOCATE (inotconv_set)
-            IF (nmo_converged > 0) THEN
-               CALL cp_cfm_release(h_fm)
-               CALL cp_cfm_release(c_out)
-            END IF
-            CALL cp_cfm_release(m_hc)
-            CALL cp_cfm_release(m_sc)
-            CALL cp_cfm_release(c_z)
-            CALL cp_cfm_release(c_mz)
-            CALL cp_cfm_release(c_notconv)
-            EXIT
-         END IF
-         scaling = CMPLX(1.0_dp/vnorm_pz, 0.0_dp, KIND=dp)
-         CALL cp_cfm_column_scale(c_mz, scaling)
-         DEALLOCATE (vnorm_pz)
+         ELSE
+            IF (ALLOCATED(scaling)) DEALLOCATE (scaling)
+            ALLOCATE (scaling(ncol_z))
+            scaling(:) = CMPLX(1.0_dp/vnorm_pz, 0.0_dp, KIND=dp)
+            CALL cp_cfm_column_scale(c_mz, scaling)
 
-         ! projection coefficients C^H*S*z; c_z is reused as scratch for S*z
-         CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, matrix_s, c_mz, z_zero, c_z)
-         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=ncol_z, &
-                                  context=cmo%matrix_struct%context, &
-                                  para_env=cmo%matrix_struct%para_env)
-         CALL cp_cfm_create(m_tmp, fm_struct_tmp, name="proj_coef")
-         CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_cfm_gemm('C', 'N', nmo, ncol_z, nao, z_one, cmo, c_z, z_zero, m_tmp)
-         CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nmo, -z_one, cmo, m_tmp, z_one, c_mz)
-         CALL cp_cfm_release(m_tmp)
+            ! projection coefficients C^H*S*z; c_z is reused as scratch for S*z
+            CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, matrix_s, c_mz, z_zero, c_z)
+            CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=ncol_z, &
+                                     context=cmo%matrix_struct%context, &
+                                     para_env=cmo%matrix_struct%para_env)
+            CALL cp_cfm_create(m_tmp, fm_struct_tmp, name="proj_coef")
+            CALL cp_fm_struct_release(fm_struct_tmp)
+            CALL cp_cfm_gemm('C', 'N', nmo, ncol_z, nao, z_one, cmo, c_z, z_zero, m_tmp)
+            CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nmo, -z_one, cmo, m_tmp, z_one, c_mz)
+            CALL cp_cfm_release(m_tmp)
 
-         ALLOCATE (vnorm_pz(ncol_z))
-         CALL cp_cfm_vectorsnorm(c_mz, vnorm_pz)
-         IF (ANY(vnorm_pz < 1.0E-12_dp)) THEN
-            ! the correction lies inside the MOS span (happens by symmetry, e.g.
-            ! when the density keeps the little-group symmetry of a kpoint): the
-            ! subspace expansion is exhausted for this round
-            exhausted = .TRUE.
-            DEALLOCATE (vnorm_pz)
-            IF (ALLOCATED(iconv_set)) DEALLOCATE (iconv_set)
-            IF (ALLOCATED(inotconv_set)) DEALLOCATE (inotconv_set)
-            IF (nmo_converged > 0) THEN
-               CALL cp_cfm_release(h_fm)
-               CALL cp_cfm_release(c_out)
+            CALL cp_cfm_vectorsnorm(c_mz, vnorm_pz)
+            IF (ANY(vnorm_pz < eps_exhaust)) THEN
+               exhausted = .TRUE.
+            ELSE
+               IF (ALLOCATED(scaling)) DEALLOCATE (scaling)
+               ALLOCATE (scaling(ncol_z))
+               scaling(:) = CMPLX(1.0_dp/vnorm_pz, 0.0_dp, KIND=dp)
+               CALL cp_cfm_column_scale(c_mz, scaling)
             END IF
-            CALL cp_cfm_release(m_hc)
-            CALL cp_cfm_release(m_sc)
-            CALL cp_cfm_release(c_z)
-            CALL cp_cfm_release(c_mz)
-            CALL cp_cfm_release(c_notconv)
-            EXIT
          END IF
-         scaling = CMPLX(1.0_dp/vnorm_pz, 0.0_dp, KIND=dp)
-         CALL cp_cfm_column_scale(c_mz, scaling)
          DEALLOCATE (vnorm_pz)
+         IF (exhausted) EXIT
 
          nmat = ncol_z
          nmat2 = 2*ncol_z
@@ -968,6 +958,21 @@ CONTAINS
       END DO ! iter
 
       IF (exhausted) THEN
+         ! single cleanup point for the interrupted iteration: the shifted
+         ! operator h_fm ends its life either here or at the HZ recompute
+         ! inside the loop, its two end-of-life sites
+         IF (nmo_converged > 0) THEN
+            CALL cp_cfm_release(h_fm)
+            CALL cp_cfm_release(c_out)
+         END IF
+         CALL cp_cfm_release(m_hc)
+         CALL cp_cfm_release(m_sc)
+         CALL cp_cfm_release(c_z)
+         CALL cp_cfm_release(c_mz)
+         CALL cp_cfm_release(c_notconv)
+         IF (ALLOCATED(iconv_set)) DEALLOCATE (iconv_set)
+         IF (ALLOCATED(inotconv_set)) DEALLOCATE (inotconv_set)
+
          ! the subspace expansion was exhausted (symmetry-invariant MOS span);
          ! finish this channel by a direct diagonalization of the intact
          ! operator, so that at least the rotation inside the MOS span is exact

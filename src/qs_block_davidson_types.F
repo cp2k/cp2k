@@ -62,35 +62,35 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: scf_section
 
       INTEGER                                            :: ichannel
+      TYPE(davidson_type)                                :: settings
 
       CPASSERT(.NOT. ASSOCIATED(bdav_env))
+      ! the solver settings are channel independent, so they are read once and
+      ! then copied into every channel
+      CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%PRECONDITIONER", &
+                                i_val=settings%prec_type)
+      CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%PRECOND_SOLVER", &
+                                i_val=settings%solver_type)
+      CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%ENERGY_GAP", &
+                                r_val=settings%energy_gap)
+      CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%NEW_PREC_EACH", &
+                                i_val=settings%niter_new_prec)
+      CALL section_vals_val_get(scf_section, "DIAGONALIZATION%MAX_ITER", &
+                                i_val=settings%max_iter)
+      CALL section_vals_val_get(scf_section, "DIAGONALIZATION%EPS_ITER", &
+                                r_val=settings%eps_iter)
+      CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%FIRST_PREC", &
+                                i_val=settings%first_prec)
+      CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%CONV_MOS_PERCENT", &
+                                r_val=settings%conv_percent)
+      CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%SPARSE_MOS", &
+                                l_val=settings%use_sparse_mos)
+
       ALLOCATE (bdav_env(nchannels))
       DO ichannel = 1, nchannels
-         NULLIFY (bdav_env(ichannel)%H_block_mat)
-         NULLIFY (bdav_env(ichannel)%H_block_vec)
-         NULLIFY (bdav_env(ichannel)%S_block_mat)
-         NULLIFY (bdav_env(ichannel)%W_block_mat)
-         NULLIFY (bdav_env(ichannel)%matrix_z)
-         NULLIFY (bdav_env(ichannel)%matrix_pz)
-
-         CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%PRECONDITIONER", &
-                                   i_val=bdav_env(ichannel)%prec_type)
-         CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%PRECOND_SOLVER", &
-                                   i_val=bdav_env(ichannel)%solver_type)
-         CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%ENERGY_GAP", &
-                                   r_val=bdav_env(ichannel)%energy_gap)
-         CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%NEW_PREC_EACH", &
-                                   i_val=bdav_env(ichannel)%niter_new_prec)
-         CALL section_vals_val_get(scf_section, "DIAGONALIZATION%MAX_ITER", &
-                                   i_val=bdav_env(ichannel)%max_iter)
-         CALL section_vals_val_get(scf_section, "DIAGONALIZATION%EPS_ITER", &
-                                   r_val=bdav_env(ichannel)%eps_iter)
-         CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%FIRST_PREC", &
-                                   i_val=bdav_env(ichannel)%first_prec)
-         CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%CONV_MOS_PERCENT", &
-                                   r_val=bdav_env(ichannel)%conv_percent)
-         CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%SPARSE_MOS", &
-                                   l_val=bdav_env(ichannel)%use_sparse_mos)
+         ! davidson_type has default initializers, so allocation leaves the
+         ! matrix pointers disassociated
+         bdav_env(ichannel) = settings
 
       END DO
 
@@ -140,24 +140,24 @@ CONTAINS
 
       TYPE(davidson_type), DIMENSION(:), POINTER         :: bdav_env
 
-      INTEGER                                            :: ispin, nspins
+      INTEGER                                            :: ichannel, nchannels
 
       IF (ASSOCIATED(bdav_env)) THEN
 
-         nspins = SIZE(bdav_env)
-         DO ispin = 1, nspins
+         nchannels = SIZE(bdav_env)
+         DO ichannel = 1, nchannels
 
             ! K-point channels carry settings only (the complex scratch is local
             ! to generate_extended_space_c), so the pointers may stay disassociated
-            IF (ASSOCIATED(bdav_env(ispin)%matrix_z)) THEN
-               CALL cp_fm_release(bdav_env(ispin)%matrix_z)
-               DEALLOCATE (bdav_env(ispin)%matrix_z)
+            IF (ASSOCIATED(bdav_env(ichannel)%matrix_z)) THEN
+               CALL cp_fm_release(bdav_env(ichannel)%matrix_z)
+               DEALLOCATE (bdav_env(ichannel)%matrix_z)
             END IF
-            IF (ASSOCIATED(bdav_env(ispin)%matrix_pz)) THEN
-               CALL cp_fm_release(bdav_env(ispin)%matrix_pz)
-               DEALLOCATE (bdav_env(ispin)%matrix_pz)
+            IF (ASSOCIATED(bdav_env(ichannel)%matrix_pz)) THEN
+               CALL cp_fm_release(bdav_env(ichannel)%matrix_pz)
+               DEALLOCATE (bdav_env(ichannel)%matrix_pz)
             END IF
-            NULLIFY (bdav_env(ispin)%matrix_z, bdav_env(ispin)%matrix_pz)
+            NULLIFY (bdav_env(ichannel)%matrix_z, bdav_env(ichannel)%matrix_pz)
 
          END DO
 

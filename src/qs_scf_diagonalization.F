@@ -104,7 +104,8 @@ MODULE qs_scf_diagonalization
                                               prepare_preconditioner,&
                                               restart_preconditioner
    USE preconditioner_makes,            ONLY: make_complex_full_all
-   USE preconditioner_types,            ONLY: init_preconditioner
+   USE preconditioner_types,            ONLY: destroy_preconditioner,&
+                                              init_preconditioner
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
                                               gspace_mixing_nr
@@ -3197,7 +3198,6 @@ CONTAINS
       logger => cp_get_default_logger()
       CALL timeset(routineN, handle)
 
-      scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
       output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DAVIDSON", &
                                          extension=".scfLog")
 
@@ -3283,6 +3283,71 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE do_block_davidson_diag
+
+! **************************************************************************************************
+!> \brief transforms one real-space operator to the complex full matrix of a
+!>        K point: rskp_transform into the dbcsr pair, then redistribution to
+!>        the kpoint-group BLACS context of cmat (the copy_general dance of
+!>        do_general_diag_kp)
+!> \param rsmat_kp real-space operator, dbcsr image set
+!> \param ispin spin component of rsmat_kp
+!> \param ikp index of the K point in xkp
+!> \param xkp K point coordinates
+!> \param cell_to_index ...
+!> \param sab_nl ...
+!> \param rmatrix symmetric real-part scratch
+!> \param cmatrix antisymmetric imaginary-part scratch
+!> \param tmpmat no-symmetry desymmetrization scratch
+!> \param fmwork global-context full-matrix scratch, fmwork(1:2)
+!> \param fmlocal kpoint-group full-matrix redistribution target
+!> \param para_env communicator of the kpoint groups
+!> \param info_re redistribution state of the real part
+!> \param info_im redistribution state of the imaginary part
+!> \param cmat complex output matrix, overwritten
+! **************************************************************************************************
+   SUBROUTINE assemble_cksmat(rsmat_kp, ispin, ikp, xkp, cell_to_index, sab_nl, &
+                              rmatrix, cmatrix, tmpmat, fmwork, fmlocal, para_env, &
+                              info_re, info_im, cmat)
+
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat_kp
+      INTEGER, INTENT(IN)                                :: ispin, ikp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      TYPE(dbcsr_type), POINTER                          :: rmatrix, cmatrix, tmpmat
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      TYPE(cp_fm_type)                                   :: fmlocal
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(copy_info_type)                               :: info_re, info_im
+      TYPE(cp_cfm_type)                                  :: cmat
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'assemble_cksmat'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_set(rmatrix, 0.0_dp)
+      CALL dbcsr_set(cmatrix, 0.0_dp)
+      CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=rsmat_kp, ispin=ispin, &
+                          xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, sab_nl=sab_nl)
+      CALL dbcsr_desymmetrize(rmatrix, tmpmat)
+      CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
+      CALL dbcsr_desymmetrize(cmatrix, tmpmat)
+      CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
+      CALL cp_fm_start_copy_general(fmwork(1), fmlocal, para_env, info_re)
+      CALL cp_fm_finish_copy_general(fmlocal, info_re)
+      CALL cp_cfm_scale_and_add_fm(z_zero, cmat, z_one, fmlocal)
+      CALL cp_fm_start_copy_general(fmwork(2), fmlocal, para_env, info_im)
+      CALL cp_fm_finish_copy_general(fmlocal, info_im)
+      CALL cp_cfm_scale_and_add_fm(z_one, cmat, gaussi, fmlocal)
+      CALL cp_fm_cleanup_copy_general(info_re)
+      CALL cp_fm_cleanup_copy_general(info_im)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE assemble_cksmat
 
 ! **************************************************************************************************
 !> \brief block-Davidson SCF step for complex K points, one channel per
@@ -3398,66 +3463,43 @@ CONTAINS
          local_kpoint = ikp - kp_range(1) + 1
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
 
-         ! S(k) is spin independent
-         CALL dbcsr_set(rmatrix, 0.0_dp)
-         CALL dbcsr_set(cmatrix, 0.0_dp)
-         CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s_kp, ispin=1, &
-                             xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, sab_nl=sab_nl)
-         CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-         CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
-         CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-         CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
-         CALL cp_fm_start_copy_general(fmwork(1), fmlocal, para_env, info_re)
-         CALL cp_fm_finish_copy_general(fmlocal, info_re)
-         CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, fmlocal)
-         CALL cp_fm_start_copy_general(fmwork(2), fmlocal, para_env, info_im)
-         CALL cp_fm_finish_copy_general(fmlocal, info_im)
-         CALL cp_cfm_scale_and_add_fm(z_one, csmat, gaussi, fmlocal)
-         CALL cp_fm_cleanup_copy_general(info_re)
-         CALL cp_fm_cleanup_copy_general(info_im)
+         IF (scf_env%iter_count == 1) THEN
+            ! cold start: K-point MOS enter the SCF loop only allocated, never
+            ! initialized (the Gamma guess machinery does not fill them). Davidson
+            ! needs them as trial subspace, so the first SCF step initializes each
+            ! channel by one direct diagonalization (the Krylov eps_std_diag
+            ! precedent). cp_cfm_geeig overwrites its matrix arguments, hence the
+            ! Davidson call is skipped on this step and S(k) is reassembled per spin.
+            DO ispin = 1, nspin
+               CALL assemble_cksmat(matrix_ks_kp, ispin, ikp, xkp, cell_to_index, sab_nl, &
+                                    rmatrix, cmatrix, tmpmat, fmwork, fmlocal, para_env, &
+                                    info_re, info_im, cksmat)
+               CALL assemble_cksmat(matrix_s_kp, 1, ikp, xkp, cell_to_index, sab_nl, &
+                                    rmatrix, cmatrix, tmpmat, fmwork, fmlocal, para_env, &
+                                    info_re, info_im, csmat)
+               CALL cold_start_mo_init(kp, ispin, cksmat, csmat)
+            END DO
+         ELSE
+            ! S(k) is spin independent
+            CALL assemble_cksmat(matrix_s_kp, 1, ikp, xkp, cell_to_index, sab_nl, &
+                                 rmatrix, cmatrix, tmpmat, fmwork, fmlocal, para_env, &
+                                 info_re, info_im, csmat)
+            DO ispin = 1, nspin
+               channel = (local_kpoint - 1)*nspin + ispin
+               CALL assemble_cksmat(matrix_ks_kp, ispin, ikp, xkp, cell_to_index, sab_nl, &
+                                    rmatrix, cmatrix, tmpmat, fmwork, fmlocal, para_env, &
+                                    info_re, info_im, cksmat)
 
-         DO ispin = 1, nspin
-            channel = (local_kpoint - 1)*nspin + ispin
-
-            CALL dbcsr_set(rmatrix, 0.0_dp)
-            CALL dbcsr_set(cmatrix, 0.0_dp)
-            CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_ks_kp, ispin=ispin, &
-                                xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, sab_nl=sab_nl)
-            CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-            CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
-            CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-            CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
-            CALL cp_fm_start_copy_general(fmwork(1), fmlocal, para_env, info_re)
-            CALL cp_fm_finish_copy_general(fmlocal, info_re)
-            CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, fmlocal)
-            CALL cp_fm_start_copy_general(fmwork(2), fmlocal, para_env, info_im)
-            CALL cp_fm_finish_copy_general(fmlocal, info_im)
-            CALL cp_cfm_scale_and_add_fm(z_one, cksmat, gaussi, fmlocal)
-            CALL cp_fm_cleanup_copy_general(info_re)
-            CALL cp_fm_cleanup_copy_general(info_im)
-
-            IF (scf_env%iter_count == 1) THEN
-               ! cold start: K-point MOS enter the SCF loop only allocated, never
-               ! initialized (the Gamma guess machinery does not fill them). Davidson
-               ! needs them as trial subspace, so the first SCF step initializes each
-               ! kpoint by one direct diagonalization (the Krylov eps_std_diag
-               ! precedent). cp_cfm_geeig overwrites cksmat/csmat, hence the Davidson
-               ! call is skipped on this step.
-               CALL cold_start_mo_init(kp, ispin, cksmat, csmat, matrix_s_kp, rmatrix, cmatrix, &
-                                       tmpmat, fmwork, fmlocal, para_env, info_re, info_im, &
-                                       xkp, ikp, cell_to_index, sab_nl)
-               CYCLE
-            END IF
-
-            IF (do_prec) THEN
-               CALL generate_extended_space_c(scf_env%block_davidson_env(channel), &
-                                              kp%mos(1:2, ispin), cksmat, csmat, output_unit, &
-                                              scf_env%ot_preconditioner(channel)%preconditioner)
-            ELSE
-               CALL generate_extended_space_c(scf_env%block_davidson_env(channel), &
-                                              kp%mos(1:2, ispin), cksmat, csmat, output_unit)
-            END IF
-         END DO
+               IF (do_prec) THEN
+                  CALL generate_extended_space_c(scf_env%block_davidson_env(channel), &
+                                                 kp%mos(1:2, ispin), cksmat, csmat, output_unit, &
+                                                 scf_env%ot_preconditioner(channel)%preconditioner)
+               ELSE
+                  CALL generate_extended_space_c(scf_env%block_davidson_env(channel), &
+                                                 kp%mos(1:2, ispin), cksmat, csmat, output_unit)
+               END IF
+            END DO
+         END IF
       END DO
 
       ! occupations and density, same exit chain as do_general_diag_kp
@@ -3489,44 +3531,18 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief first-SCF-step initialization of the K-point MOS of one spin by one
-!>        direct diagonalization of H(k). S(k) is reassembled because
-!>        cp_cfm_geeig overwrites its matrix arguments.
+!>        direct diagonalization of H(k); both arguments are assembled by the
+!>        caller because cp_cfm_geeig overwrites them
 !> \param kp kpoint environment holding the MOS pair
 !> \param ispin ...
-!> \param cksmat complex H(k), already assembled by the caller
-!> \param csmat complex S(k), reassembled here
-!> \param matrix_s_kp ...
-!> \param rmatrix ...
-!> \param cmatrix ...
-!> \param tmpmat ...
-!> \param fmwork ...
-!> \param fmlocal ...
-!> \param para_env ...
-!> \param info_re ...
-!> \param info_im ...
-!> \param xkp ...
-!> \param ikp ...
-!> \param cell_to_index ...
-!> \param sab_nl ...
+!> \param cksmat complex H(k), assembled by the caller
+!> \param csmat complex S(k), assembled by the caller
 ! **************************************************************************************************
-   SUBROUTINE cold_start_mo_init(kp, ispin, cksmat, csmat, matrix_s_kp, rmatrix, cmatrix, &
-                                 tmpmat, fmwork, fmlocal, para_env, info_re, info_im, &
-                                 xkp, ikp, cell_to_index, sab_nl)
+   SUBROUTINE cold_start_mo_init(kp, ispin, cksmat, csmat)
 
       TYPE(kpoint_env_type), POINTER                     :: kp
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(cp_cfm_type)                                  :: cksmat, csmat
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
-      TYPE(dbcsr_type), POINTER                          :: rmatrix, cmatrix, tmpmat
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
-      TYPE(cp_fm_type)                                   :: fmlocal
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(copy_info_type)                               :: info_re, info_im
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
-      INTEGER, INTENT(IN)                                :: ikp
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cold_start_mo_init'
 
@@ -3536,23 +3552,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: imos, rmos
 
       CALL timeset(routineN, handle)
-
-      CALL dbcsr_set(rmatrix, 0.0_dp)
-      CALL dbcsr_set(cmatrix, 0.0_dp)
-      CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s_kp, ispin=1, &
-                          xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, sab_nl=sab_nl)
-      CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-      CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
-      CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-      CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
-      CALL cp_fm_start_copy_general(fmwork(1), fmlocal, para_env, info_re)
-      CALL cp_fm_finish_copy_general(fmlocal, info_re)
-      CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, fmlocal)
-      CALL cp_fm_start_copy_general(fmwork(2), fmlocal, para_env, info_im)
-      CALL cp_fm_finish_copy_general(fmlocal, info_im)
-      CALL cp_cfm_scale_and_add_fm(z_one, csmat, gaussi, fmlocal)
-      CALL cp_fm_cleanup_copy_general(info_re)
-      CALL cp_fm_cleanup_copy_general(info_im)
 
       CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
       CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
@@ -3587,8 +3586,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'davidson_kp_prepare_preconditioners'
 
       INTEGER                                            :: channel, handle, ikp, ispin, kplocal, &
-                                                            ks_spin, local_kpoint, nchannels, nmo, &
-                                                            nspin, prec_type, solver_type
+                                                            local_kpoint, nchannels, nmo, nspin, &
+                                                            prec_type, solver_type
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       REAL(KIND=dp)                                      :: energy_gap
@@ -3631,10 +3630,12 @@ CONTAINS
       IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
          DO channel = 1, SIZE(scf_env%ot_preconditioner)
             IF (ASSOCIATED(scf_env%ot_preconditioner(channel)%preconditioner)) THEN
+               CALL destroy_preconditioner(scf_env%ot_preconditioner(channel)%preconditioner)
                DEALLOCATE (scf_env%ot_preconditioner(channel)%preconditioner)
             END IF
          END DO
          DEALLOCATE (scf_env%ot_preconditioner)
+         NULLIFY (scf_env%ot_preconditioner)
       END IF
       ALLOCATE (scf_env%ot_preconditioner(nchannels))
       DO channel = 1, nchannels
@@ -3689,11 +3690,10 @@ CONTAINS
          DO ispin = 1, nspin
             channel = (local_kpoint - 1)*nspin + ispin
             IF (prec_type == ot_precond_full_all) THEN
-               ks_spin = MIN(ispin, nspin)
                CALL dbcsr_set(matrix_h_re, 0.0_dp)
                CALL dbcsr_set(matrix_h_im, 0.0_dp)
                CALL rskp_transform(rmatrix=matrix_h_re, cmatrix=matrix_h_im, rsmat=matrix_ks_kp, &
-                                   ispin=ks_spin, xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, &
+                                   ispin=ispin, xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, &
                                    sab_nl=sab_nl)
                ! Davidson iterates the full MO set, so its active space is all nmo
                ! MOs of the channel: assemble the complex channel matrices on the
