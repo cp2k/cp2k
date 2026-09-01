@@ -58,6 +58,7 @@ Fist/regtest-excl-G
 QS/regtest-sym-2
 Fist/regtest-12
 QS/regtest-ot-2
+QS/regtest-ot-3
 QS/regtest-rtbse-linearized-restart                         libint !ifx
 QS/regtest-embed                                            libint !ifx
 QS/regtest-gpw-2-3
