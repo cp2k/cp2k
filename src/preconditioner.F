@@ -73,7 +73,8 @@ MODULE preconditioner
              make_preconditioner_complex_full_kinetic, &
              make_preconditioner_complex_full_s_inverse, &
              make_preconditioner_complex_full_single, &
-             make_preconditioner_complex_full_single_inverse, restart_preconditioner
+             make_preconditioner_complex_full_single_inverse, restart_preconditioner, &
+             dbcsr_pair_to_cfm
    PUBLIC :: apply_preconditioner, prepare_preconditioner
 
 ! The public interface for apply preconditioner, the routines can be found in preconditioner_apply.F

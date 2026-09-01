@@ -87,7 +87,7 @@ MODULE bibliography
                             Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
                             Bussy2023, Bussy2024, Wang2018, Zeng2023, Graml2024, Solca2024, &
                             Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Wittmann2024, Freeman1977, &
-                            Gruneis2009, &
+                            Gruneis2009, Blaha2010, KresseFurthmueller1996, &
                             Stein2022, Stein2024, Pracht2019, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
@@ -1912,6 +1912,21 @@ CONTAINS
                          title="Making the random phase approximation to electronic correlation accurate", &
                          source="J. Chem. Phys.", volume="131", pages="154115", &
                          year=2009, doi="10.1063/1.3250347")
+
+      CALL add_reference(key=Blaha2010, &
+                         authors=s2a("P. Blaha", "H. Hofstaetter", "O. Koch", &
+                                     "R. Laskowski", "K. Schwarz"), &
+                         title="Iterative diagonalization in augmented plane wave based methods "// &
+                         "in electronic structure calculations", &
+                         source="J. Comput. Phys.", volume="229", pages="453-460", &
+                         year=2010, doi="10.1016/j.jcp.2009.09.036")
+
+      CALL add_reference(key=KresseFurthmueller1996, &
+                         authors=s2a("G. Kresse", "J. Furthmueller"), &
+                         title="Efficiency of ab-initio total energy calculations for metals and "// &
+                         "semiconductors using a plane-wave basis set", &
+                         source="Comput. Mater. Sci.", volume="6", pages="15-50", &
+                         year=1996, doi="10.1016/0927-0256(96)00008-0")
 
       CALL add_reference(key=Stein2022, &
                          authors=s2a("F. Stein", "J. Hutter"), &

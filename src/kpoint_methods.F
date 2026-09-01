@@ -913,6 +913,9 @@ CONTAINS
                                           flexible_electron_count)
                   END DO
                END DO
+               ! freshly allocated MOS carry no coefficients: solvers must
+               ! cold-start again until an extrapolation refills them
+               kp%mos_prefilled = .FALSE.
             END DO
 
             ! generate the blacs environment for the kpoint group

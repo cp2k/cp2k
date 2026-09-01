@@ -73,6 +73,9 @@ MODULE kpoint_types
 !> \param xkp       kpoint coordinates in units of b-vector
 !> \param is_local  if this kpoint is calculated on a single thread
 !> \param mos       associated MOs (r/i,spin)
+!> \param mos_prefilled the MOS hold meaningful coefficients (refilled and
+!>                     reorthogonalized by wavefunction extrapolation for the
+!>                     current geometry) rather than being only allocated
 !> \param pmat      associated density matrix (r/i,spin)
 !> \param wmat      associated energy weighted density matrix (r/i,spin)
 !> \param smat      associated overlap matrix (for ADMM) (r/i,spin)
@@ -90,6 +93,7 @@ MODULE kpoint_types
       REAL(KIND=dp), DIMENSION(3)                       :: xkp = 0.0_dp
       LOGICAL                                           :: is_local = .FALSE.
       TYPE(mo_set_type), DIMENSION(:, :), POINTER       :: mos => NULL()
+      LOGICAL                                           :: mos_prefilled = .FALSE.
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: pmat => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: wmat => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: smat => NULL()

@@ -38,6 +38,7 @@ MODULE cp_cfm_basic_linalg
 
    PUBLIC :: cp_cfm_column_scale, &
              cp_cfm_gemm, &
+             cp_cfm_get_diag, &
              cp_cfm_lu_decompose, &
              cp_cfm_lu_invert, &
              cp_cfm_norm, &
@@ -53,7 +54,8 @@ MODULE cp_cfm_basic_linalg
              cp_cfm_rot_rows, &
              cp_cfm_rot_cols, &
              cp_cfm_det, & ! determinant of a complex matrix with correct sign
-             cp_cfm_uplo_to_full
+             cp_cfm_uplo_to_full, &
+             cp_cfm_vectorsnorm
 
    REAL(kind=dp), EXTERNAL :: zlange, pzlange
 
@@ -1399,5 +1401,74 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_cfm_uplo_to_full
+
+! **************************************************************************************************
+!> \brief find the norm of each column norm_{j}= sqrt( \sum_{i} A_{ij}*conjg(A_{ij}) )
+!>        Complex-valued mirror of cp_fm_vectorsnorm.
+!> \param matrix ...
+!> \param norm_array ...
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_vectorsnorm(matrix, norm_array)
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: norm_array
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_vectorsnorm'
+
+      INTEGER                                            :: handle, i, j, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_cfm_get_info(matrix, col_indices=col_indices, nrow_local=nrow_local, &
+                           ncol_local=ncol_local)
+
+      ! the efficiency could be improved by making use of the row-col distribution of scalapack
+      norm_array = 0.0_dp
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            norm_array(col_indices(j)) = norm_array(col_indices(j)) + &
+                                         REAL(matrix%local_data(i, j), KIND=dp)**2 + &
+                                         AIMAG(matrix%local_data(i, j))**2
+         END DO
+      END DO
+      CALL matrix%matrix_struct%para_env%sum(norm_array)
+      norm_array = SQRT(norm_array)
+
+      CALL timestop(handle)
+   END SUBROUTINE cp_cfm_vectorsnorm
+
+! **************************************************************************************************
+!> \brief returns the diagonal of a complex full matrix: diag(i)= A_{ii}.
+!>        Each diagonal entry is owned by one process. The sum over the
+!>        process grid collects the entries.
+!> \param matrix ...
+!> \param diag ...
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_get_diag(matrix, diag)
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
+      COMPLEX(KIND=dp), DIMENSION(:), INTENT(OUT)        :: diag
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_cfm_get_diag'
+
+      INTEGER                                            :: handle, i, j, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_cfm_get_info(matrix, col_indices=col_indices, row_indices=row_indices, &
+                           nrow_local=nrow_local, ncol_local=ncol_local)
+
+      diag = z_zero
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            IF (row_indices(i) == col_indices(j)) THEN
+               diag(col_indices(j)) = matrix%local_data(i, j)
+            END IF
+         END DO
+      END DO
+      CALL matrix%matrix_struct%para_env%sum(diag)
+
+      CALL timestop(handle)
+   END SUBROUTINE cp_cfm_get_diag
 
 END MODULE cp_cfm_basic_linalg
