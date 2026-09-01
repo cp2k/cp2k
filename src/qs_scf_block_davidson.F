@@ -509,7 +509,7 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: lambda_c
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cdiag, scaling
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: colbuf, submat_buffer, submat_buffer2
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: colbuf, submat_buffer
       INTEGER :: handle, homo, i_first, i_last, imo, iter, j, jj, max_iter, n, nao, ncol_z, nmat, &
          nmat2, nmo, nmo_converged, nmo_not_converged, nset, nset_conv, nset_not_conv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iconv, inotconv
@@ -767,27 +767,48 @@ CONTAINS
          CALL cp_cfm_create(c_mz, c_z%matrix_struct, name="pz")
          IF (do_apply_preconditioner) THEN
             IF (preconditioner%in_use /= 0) THEN
-               ! the complex applier works column-wise in the MO basis of the
-               ! preconditioner construction, so the unconverged residuals are
-               ! scattered into an nmo-wide zero buffer first and gathered back
-               CALL cp_cfm_create(c_pzw, cmo%matrix_struct, name="pzw")
-               CALL cp_cfm_create(c_pzo, cmo%matrix_struct, name="pzo")
-               CALL cp_cfm_set_all(c_pzw, z_zero, z_zero)
-               ALLOCATE (colbuf(nao, 1))
-               DO j = 1, ncol_z
-                  CALL cp_cfm_get_submatrix(c_z, colbuf, n_rows=nao, n_cols=1, start_col=j)
-                  CALL cp_cfm_set_submatrix(c_pzw, colbuf, n_rows=nao, n_cols=1, &
-                                            start_col=inotconv(j))
-               END DO
-               CALL apply_preconditioner(preconditioner, c_pzw, c_pzo)
-               DO j = 1, ncol_z
-                  CALL cp_cfm_get_submatrix(c_pzo, colbuf, n_rows=nao, n_cols=1, &
-                                            start_col=inotconv(j))
-                  CALL cp_cfm_set_submatrix(c_mz, colbuf, n_rows=nao, n_cols=1, start_col=j)
-               END DO
-               DEALLOCATE (colbuf)
-               CALL cp_cfm_release(c_pzw)
-               CALL cp_cfm_release(c_pzo)
+               IF (nmo_converged == 0) THEN
+                  ! every column is unconverged, so the residual set already is
+                  ! the nmo-wide input the applier contract requires: apply
+                  ! directly, no scattering
+                  CALL apply_preconditioner(preconditioner, c_z, c_mz)
+               ELSE
+                  ! the complex applier works column-wise in the MO basis of
+                  ! the preconditioner construction, so the unconverged
+                  ! residuals are scattered into an nmo-wide zero buffer and
+                  ! gathered back. The unconverged columns move per contiguous
+                  ! segment of inotconv_set: the submatrix transfers end in a
+                  ! collective reduction over the matrix group, and a
+                  ! column-at-a-time loop would launch one per unconverged MO
+                  CALL cp_cfm_create(c_pzw, cmo%matrix_struct, name="pzw")
+                  CALL cp_cfm_create(c_pzo, cmo%matrix_struct, name="pzo")
+                  CALL cp_cfm_set_all(c_pzw, z_zero, z_zero)
+                  ALLOCATE (colbuf(nao, ncol_z))
+                  jj = 1
+                  DO j = 1, nset_not_conv
+                     i_first = inotconv_set(j, 1)
+                     i_last = inotconv_set(j, 2)
+                     n = i_last - i_first + 1
+                     CALL cp_cfm_get_submatrix(c_z, colbuf(:, 1:n), n_rows=nao, n_cols=n, start_col=jj)
+                     CALL cp_cfm_set_submatrix(c_pzw, colbuf(:, 1:n), n_rows=nao, n_cols=n, &
+                                               start_col=i_first)
+                     jj = jj + n
+                  END DO
+                  CALL apply_preconditioner(preconditioner, c_pzw, c_pzo)
+                  jj = 1
+                  DO j = 1, nset_not_conv
+                     i_first = inotconv_set(j, 1)
+                     i_last = inotconv_set(j, 2)
+                     n = i_last - i_first + 1
+                     CALL cp_cfm_get_submatrix(c_pzo, colbuf(:, 1:n), n_rows=nao, n_cols=n, &
+                                               start_col=i_first)
+                     CALL cp_cfm_set_submatrix(c_mz, colbuf(:, 1:n), n_rows=nao, n_cols=n, start_col=jj)
+                     jj = jj + n
+                  END DO
+                  DEALLOCATE (colbuf)
+                  CALL cp_cfm_release(c_pzw)
+                  CALL cp_cfm_release(c_pzo)
+               END IF
             ELSE
                CALL cp_cfm_to_cfm(c_z, c_mz)
             END IF
@@ -867,20 +888,6 @@ CONTAINS
          CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_mz, m_hc, z_zero, h_block, &
                           c_first_row=1 + nmat, c_first_col=1)
 
-         ! fill the opposite off-diagonal blocks by conjugate transpose
-         ALLOCATE (submat_buffer(nmat, nmat))
-         ALLOCATE (submat_buffer2(nmat, nmat))
-         CALL cp_cfm_get_submatrix(s_block, submat_buffer, start_row=1 + nmat, start_col=1, &
-                                   n_rows=nmat, n_cols=nmat)
-         submat_buffer2 = CONJG(TRANSPOSE(submat_buffer))
-         CALL cp_cfm_set_submatrix(s_block, submat_buffer2, start_row=1, start_col=1 + nmat)
-         CALL cp_cfm_get_submatrix(h_block, submat_buffer, start_row=1 + nmat, start_col=1, &
-                                   n_rows=nmat, n_cols=nmat)
-         submat_buffer2 = CONJG(TRANSPOSE(submat_buffer))
-         CALL cp_cfm_set_submatrix(h_block, submat_buffer2, start_row=1, start_col=1 + nmat)
-         DEALLOCATE (submat_buffer2)
-         DEALLOCATE (submat_buffer)
-
          ! then reuse m_sc and m_hc to compute SZ and HZ (mirrors the Gamma
          ! version); with frozen converged vectors the operator is the shifted
          ! h_fm = H + lambda*P
@@ -892,6 +899,17 @@ CONTAINS
             CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, matrix_h, c_mz, z_zero, m_hc)
          END IF
          CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, matrix_s, c_mz, z_zero, m_sc)
+
+         ! the opposite off-diagonal blocks are the conjugate transposes
+         ! (ZSC)^H = C_nc^H*(S*Z) and (ZHC)^H = C_nc^H*(H*Z): with S and H
+         ! Hermitian these are the same products read in the other direction,
+         ! so the blocks complete as gemms against the just-computed S*Z and
+         ! H*Z, with no gather/conjugate/scatter round trip per block (two
+         ! collectives and a serial conjugation of nmat^2 elements each)
+         CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_notconv, m_sc, z_zero, s_block, &
+                          c_first_row=1, c_first_col=1 + nmat)
+         CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_notconv, m_hc, z_zero, h_block, &
+                          c_first_row=1, c_first_col=1 + nmat)
 
          ! compute ZSZ
          CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_mz, m_sc, z_zero, s_block, &
