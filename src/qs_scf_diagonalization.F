@@ -254,7 +254,7 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: diis_step
 
       INTEGER                                            :: cdiis_cholesky_method, cdiis_ncall, &
-                                                            ispin, nao, nspin
+                                                            ispin, nspin
       LOGICAL                                            :: cdiis_step, do_level_shift, owns_ortho, &
                                                             use_adiis, use_cdiis, use_jacobi, &
                                                             use_subspace_fock
@@ -430,7 +430,6 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspin
-            CALL cp_fm_get_info(scf_env%scf_work1(ispin), nrow_global=nao)
             IF (direct_generalized_diagonalization .AND. .NOT. do_level_shift) THEN
                CALL eigensolver_generalized(matrix_ks_fm=scf_env%scf_work1(ispin), &
                                             matrix_s=matrix_s(ispin)%matrix, &
