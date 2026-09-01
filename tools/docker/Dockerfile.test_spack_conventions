@@ -63,3 +63,36 @@ COPY ./tools/build_utils ./tools/build_utils
 COPY ./tools/conventions ./tools/conventions
 
 RUN ./make_cp2k.sh -cv psmp  -gpu none -mpi mpich --check_conventions
+
+###### Stage 3: Install CP2K ######
+
+FROM "${BASE_IMAGE}" AS install_cp2k
+
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    g++ gcc gfortran \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/cp2k
+
+# Install CP2K dependencies built with spack
+COPY --from=build_cp2k /opt/cp2k/spack/spack/opt/spack ./spack/spack/opt/spack
+
+# Install CP2K
+COPY --from=build_cp2k /opt/cp2k/install ./install
+
+# Install CP2K regression tests
+COPY --from=build_cp2k /opt/cp2k/tests ./tests
+COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
+
+# Install CP2K/Quickstep CI benchmarks
+COPY ./benchmarks/CI ./benchmarks/CI
+
+# Do not rely only on LD_LIBRARY_PATH because it is fragile
+COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
+RUN ldconfig
+
+# Create entrypoint and finalise container build
+WORKDIR /mnt
+ENTRYPOINT ["/opt/cp2k/install/bin/launch"]
+CMD ["cp2k", "--help", "--version"]

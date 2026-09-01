@@ -809,8 +809,6 @@ COPY ./tools/conventions ./tools/conventions
 RUN ./make_cp2k.sh -cv {version} {gcc_version_flag} -gpu {gpu_model} -mpi {mpi_mode} {feature_flags}
 """
     )
-    if test_type == "conventions" or test_type == "coverage":
-        return output
     output += (
         install_base_image(
             base_image=rf"{base_image}",
@@ -863,7 +861,7 @@ RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_benchmarks {benchmark
 # Run CP2K regression test
 RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts} || echo "ERROR: Regression test run failed"
 """
-    elif test_type == "gromacs":
+    elif test_type in ["conventions", "coverage", "gromacs"]:
         pass
     else:
         sys.exit(f"\nERROR: Unknown test type {test_type} specified\n")
