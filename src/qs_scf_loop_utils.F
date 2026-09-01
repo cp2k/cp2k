@@ -1852,12 +1852,7 @@ CONTAINS
       END DO
       local_ot_env(1)%response_model_curvature = 0.0_dp
       local_ot_env(1)%response_shadow_curvature = 0.0_dp
-      local_ot_env(1)%response_hxc_model_curvature = 0.0_dp
-      local_ot_env(1)%response_hxc_shadow_curvature = 0.0_dp
-      local_ot_env(1)%response_hxc_valid = .FALSE.
       local_ot_env(1)%response_hxc_direction_valid = .FALSE.
-      local_ot_env(1)%response_gradient_cross_valid = .FALSE.
-      local_ot_env(1)%response_gradient_cross_curvature = 0.0_dp
       IF (.NOT. local_ot_env(1)%settings%occupation_preconditioner .OR. &
           .NOT. local_ot_env(1)%settings%do_rotation .OR. &
           .NOT. local_ot_env(1)%settings%do_ener) RETURN
@@ -2159,11 +2154,6 @@ CONTAINS
             accepted_cross_valid = ieee_is_finite(accepted_cross)
          END IF
       END IF
-      local_ot_env(1)%response_gradient_cross_valid = accepted_cross_valid
-      IF (accepted_cross_valid) THEN
-         local_ot_env(1)%response_gradient_cross_curvature = accepted_cross
-      END IF
-
       ! Evaluate the signed finite response in the same fixed-N tangent used to build the Schur
       ! step. This is a prediction only; the minimizer calibrates it against accepted Mermin drops
       ! before the candidate can be reused.
@@ -2364,12 +2354,9 @@ CONTAINS
          END IF
       END IF
       IF (hxc_valid) THEN
-         local_ot_env(1)%response_hxc_valid = .TRUE.
-         local_ot_env(1)%response_hxc_model_curvature = hxc_correction(1, 1)
          local_ot_env(1)%response_model_curvature = &
             local_ot_env(1)%response_model_curvature + hxc_correction(1, 1)
          IF (shadow_pending) THEN
-            local_ot_env(1)%response_hxc_shadow_curvature = hxc_correction(2, 2)
             local_ot_env(1)%response_shadow_curvature = &
                local_ot_env(1)%response_shadow_curvature + hxc_correction(2, 2)
          END IF
@@ -2497,9 +2484,6 @@ CONTAINS
                   END DO
                END DO
                local_ot_env(1)%response_hxc_direction_valid = .TRUE.
-               local_ot_env(1)%response_hxc_model_curvature = response_scale**2* &
-                                                              DOT_PRODUCT(projected_coefficients, &
-                                                                          MATMUL(hxc_correction, projected_coefficients))
                local_ot_env(1)%response_model_curvature = response_scale**2* &
                                                           DOT_PRODUCT(projected_coefficients, &
                                                                       MATMUL(projected_hessian + hxc_correction, &
