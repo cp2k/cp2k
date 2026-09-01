@@ -14,9 +14,7 @@
 MODULE gw_non_periodic_ri_rs
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
-   USE basis_set_types,                 ONLY: gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc
+   USE cell_types,                      ONLY: cell_type
    USE constants_operator,              ONLY: operator_coulomb
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
@@ -34,8 +32,6 @@ MODULE gw_non_periodic_ri_rs
                                               copy_fm_to_dbcsr,&
                                               dbcsr_deallocate_matrix_set,&
                                               max_elements_per_block
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -68,6 +64,7 @@ MODULE gw_non_periodic_ri_rs
                                               fill_fm_Sigma_c_Gamma_time,&
                                               fm_write,&
                                               multiply_fm_W_MIC_time_with_Minv_Gamma
+   USE gw_optimize_ri_rs_grid,          ONLY: optimize_ri_rs_grid
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
                                               de_init_bs_env,&
                                               time_to_freq
@@ -78,7 +75,6 @@ MODULE gw_non_periodic_ri_rs
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
-                                              int_4,&
                                               int_8,&
                                               max_line_length
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
@@ -88,18 +84,21 @@ MODULE gw_non_periodic_ri_rs
                                               m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
-   USE orbital_pointers,                ONLY: indco,&
-                                              ncoset
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
-   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
+   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type,&
+                                              rirs_grid_type
    USE post_scf_bandstructure_utils,    ONLY: get_all_VBM_CBM_bandgaps
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE rirs_grid_utils,                 ONLY: evaluate_ao_on_points,&
+                                              get_rirs_grid_filepath,&
+                                              initialize_rirs_grid,&
+                                              read_rirs_grid_file
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -108,14 +107,6 @@ MODULE gw_non_periodic_ri_rs
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_non_periodic_ri_rs'
-
-   ! DBCSR ships each ranks matrix panel in one MPI message whose length is stored in a
-   ! 32-bit default INTEGER (dbcsr_mpiwrap.F: msglen = SIZE(buffer)). Exceeding this ceiling
-   ! overflows the count to a negative/garbage value and multiply_cannon segfaults. This is
-   ! that hard limit in elements (= HUGE(int_4) = 2^31-1), the same bound DBCSR uses
-   ! internally as mp_max_memory_size. Panel sizing keeps every per-rank message below it.
-
-   INTEGER(KIND=int_8), PARAMETER, PRIVATE :: dbcsr_msg_elem_limit = INT(HUGE(0_int_4), int_8)
 
    PUBLIC :: gw_calc_non_periodic_ri_rs, ri_rs_grid_assembler, &
              get_basis_offsets, precompute_ri_rs_radii, solve_D_lp_distributed, &
@@ -688,10 +679,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ri_rs_grid_assembler'
 
       INTEGER                                            :: atom_idx, end_idx, handle, i_layout, &
-                                                            ikind, j, natom, nkind, start_idx, &
-                                                            total_grid_npts
-      INTEGER, ALLOCATABLE                               :: atom_order(:), atom_to_kind(:), &
-                                                            ri_rs_grid_offsets(:)
+                                                            natom, start_idx, total_grid_npts
+      INTEGER, ALLOCATABLE                               :: atom_order(:), ri_rs_grid_offsets(:)
       REAL(KIND=dp)                                      :: atomic_center(3)
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -701,15 +690,18 @@ CONTAINS
        !! Get the information about the atoms in the system
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, particle_set=particle_set)
 
-      nkind = SIZE(atomic_kind_set)
       natom = SIZE(particle_set)
 
        !! 1. Build the grid cache
       CALL build_grid_cache(bs_env, atomic_kind_set)
 
-       !! 2. Calculate grid counts and offsets
+      !! 2. Optimize RIRS grid points
+      IF (bs_env%ri_rs%grid_opt%enabled) THEN
+         CALL optimize_ri_rs_grid(qs_env, bs_env)
+      END IF
+
+      !! 3. Calculate grid counts and offsets
       ALLOCATE (ri_rs_grid_offsets(natom + 1))
-      ALLOCATE (atom_to_kind(natom))
 
       ! grid_atom_boundaries(k) = 1-based start of the k-th atom's grid run in LAYOUT order
       ! (the order in which the points are laid down below). Used later to build atom-aligned
@@ -717,27 +709,16 @@ CONTAINS
       IF (ALLOCATED(bs_env%ri_rs%grid_atom_boundaries)) DEALLOCATE (bs_env%ri_rs%grid_atom_boundaries)
       ALLOCATE (bs_env%ri_rs%grid_atom_boundaries(natom + 1))
 
-      ! atom -> kind map (needed before the spatial layout loop, which visits atoms in a
-      ! kind-independent order).
-      DO ikind = 1, nkind
-         DO j = 1, SIZE(atomic_kind_set(ikind)%atom_list)
-            atom_to_kind(atomic_kind_set(ikind)%atom_list(j)) = ikind
-         END DO
-      END DO
-
-      ! Lay the grid rows down in Morton (spatial) atom order rather than kind-major, so a
-      ! contiguous grid panel maps to a compact spatial region and the CUTOFF_RADIUS_RL_W
-      ! neighborhood width of every panel shrinks. The grid row index is summed over in χ/Σ,
-      ! so this reordering is result-preserving (see spatial_atom_order).
+      ! Lay the grid rows down in Morton (spatial) atom order, so a
+      ! contiguous grid maps to a compact spatial region.
       CALL spatial_atom_order(particle_set, atom_order)
 
       total_grid_npts = 0
       DO i_layout = 1, natom
          atom_idx = atom_order(i_layout)
-         ikind = atom_to_kind(atom_idx)
          ri_rs_grid_offsets(atom_idx) = total_grid_npts + 1
          bs_env%ri_rs%grid_atom_boundaries(i_layout) = total_grid_npts + 1
-         total_grid_npts = total_grid_npts + bs_env%ri_rs%grid_cache(ikind)%npts
+         total_grid_npts = total_grid_npts + bs_env%ri_rs%grid_cache(atom_idx)%npts
       END DO
 
       ri_rs_grid_offsets(natom + 1) = total_grid_npts + 1
@@ -749,39 +730,40 @@ CONTAINS
          WRITE (bs_env%unit_nr, "(A)") ' '
       END IF
 
-       !! 3. Allocate the global ri_rs_grid arrays
+       !! 4. Allocate the global ri_rs_grid arrays
       ALLOCATE (ri_rs_grid_points(3, total_grid_npts))
 
-       !! 4. Parallelize the grid generation loop
+       !! 5. Parallelize the grid generation loop
       !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(ri_rs_grid_points, ri_rs_grid_offsets, atom_to_kind, &
+      !$OMP SHARED(ri_rs_grid_points, ri_rs_grid_offsets, &
       !$OMP        particle_set, bs_env, natom) &
-      !$OMP PRIVATE(atom_idx, ikind, atomic_center, start_idx, end_idx) &
+      !$OMP PRIVATE(atom_idx, atomic_center, start_idx, end_idx) &
       !$OMP SCHEDULE(DYNAMIC, 1)
       DO atom_idx = 1, natom
-         ikind = atom_to_kind(atom_idx)
          atomic_center(:) = particle_set(atom_idx)%r(:)
 
          start_idx = ri_rs_grid_offsets(atom_idx)
-         end_idx = start_idx + bs_env%ri_rs%grid_cache(ikind)%npts - 1
+         end_idx = start_idx + bs_env%ri_rs%grid_cache(atom_idx)%npts - 1
 
          !! Shift the cached origin grid by the atom's center
-         ri_rs_grid_points(1, start_idx:end_idx) = bs_env%ri_rs%grid_cache(ikind)%raw_points(1, :) + atomic_center(1)
-         ri_rs_grid_points(2, start_idx:end_idx) = bs_env%ri_rs%grid_cache(ikind)%raw_points(2, :) + atomic_center(2)
-         ri_rs_grid_points(3, start_idx:end_idx) = bs_env%ri_rs%grid_cache(ikind)%raw_points(3, :) + atomic_center(3)
+         ri_rs_grid_points(1, start_idx:end_idx) = bs_env%ri_rs%grid_cache(atom_idx)%raw_points(1, :) + atomic_center(1)
+         ri_rs_grid_points(2, start_idx:end_idx) = bs_env%ri_rs%grid_cache(atom_idx)%raw_points(2, :) + atomic_center(2)
+         ri_rs_grid_points(3, start_idx:end_idx) = bs_env%ri_rs%grid_cache(atom_idx)%raw_points(3, :) + atomic_center(3)
 
       END DO
       !$OMP END PARALLEL DO
 
-       !! 5. Cleanup memory
+      !! 6. Cleanup memory
       IF (ALLOCATED(bs_env%ri_rs%grid_cache)) THEN
-         DO ikind = 1, nkind
-            IF (ALLOCATED(bs_env%ri_rs%grid_cache(ikind)%raw_points)) DEALLOCATE (bs_env%ri_rs%grid_cache(ikind)%raw_points)
+         DO atom_idx = 1, natom
+            IF (ALLOCATED(bs_env%ri_rs%grid_cache(atom_idx)%raw_points)) THEN
+               DEALLOCATE (bs_env%ri_rs%grid_cache(atom_idx)%raw_points)
+            END IF
          END DO
          DEALLOCATE (bs_env%ri_rs%grid_cache)
       END IF
 
-      DEALLOCATE (atom_order, atom_to_kind, ri_rs_grid_offsets)
+      DEALLOCATE (atom_order, ri_rs_grid_offsets)
 
       CALL timestop(handle)
 
@@ -799,74 +781,55 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_grid_cache'
 
-      CHARACTER(LEN=default_path_length)                 :: filename, full_path, line
-      CHARACTER(LEN=default_string_length)               :: atom_sym, suffix
-      INTEGER                                            :: colon_idx, handle, i, ierr, ikind, &
-                                                            iunit, nkind
-      REAL(KIND=dp)                                      :: pt(3)
+      CHARACTER(LEN=default_path_length)                 :: full_path, warning_msg
+      CHARACTER(LEN=default_string_length)               :: atom_sym
+      INTEGER                                            :: handle, iatom, ikind, &
+                                                            n_voronoi_candidates, natom, nkind, &
+                                                            requested_npts
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(rirs_grid_type), ALLOCATABLE                  :: kind_grid(:)
 
       CALL timeset(routineN, handle)
 
-      ! Determine the file suffix based on the user's choice
-      IF (bs_env%ri_rs%grid_select == 1) THEN
-         suffix = "_def2-tzvp-rs.ion"
-      ELSE IF (bs_env%ri_rs%grid_select == 2) THEN
-         suffix = "_cc-pvtz-rs.ion"
-      ELSE IF (bs_env%ri_rs%grid_select == 3) THEN
-         IF (LEN_TRIM(bs_env%ri_rs%grid_file_suffix) > 0) THEN
-            suffix = TRIM(bs_env%ri_rs%grid_file_suffix)
-         ELSE
-            suffix = "_rirs.ion"
-         END IF
-      ELSE
-         CPABORT("Unknown grid_select (1=def2-TZVPP, 2=cc-pVTZ, 3=user-provided).")
-      END IF
-
       nkind = SIZE(atomic_kind_set)
-      IF (.NOT. ALLOCATED(bs_env%ri_rs%grid_cache)) ALLOCATE (bs_env%ri_rs%grid_cache(nkind))
+      particle_set => bs_env%ri_rs%particle_set
+      CPASSERT(ASSOCIATED(particle_set))
+      natom = SIZE(particle_set)
+      ALLOCATE (kind_grid(nkind))
 
       DO ikind = 1, nkind
          atom_sym = TRIM(atomic_kind_set(ikind)%element_symbol)
-         filename = TRIM(atom_sym)//TRIM(suffix)
-
-         full_path = "ri_rs_grid/"//TRIM(filename)
-
-         CALL open_file(file_name=TRIM(full_path), unit_number=iunit, &
-                        file_action="READ", file_status="OLD")
-
-         ! Parse the preamble for 'n points'
-         bs_env%ri_rs%grid_cache(ikind)%npts = 0
-         DO
-            READ (iunit, '(A)', IOSTAT=ierr) line
-            IF (ierr /= 0) EXIT
-            IF (INDEX(line, 'n points') > 0) THEN
-               colon_idx = INDEX(line, ':')
-               READ (line(colon_idx + 1:), *) bs_env%ri_rs%grid_cache(ikind)%npts
-               EXIT
-            END IF
-         END DO
-
-         ! Allocate the cache array for this specific element
-         ALLOCATE (bs_env%ri_rs%grid_cache(ikind)%raw_points(3, bs_env%ri_rs%grid_cache(ikind)%npts))
-
-         REWIND (iunit)
-         DO
-            READ (iunit, '(A)', IOSTAT=ierr) line
-            IF (ierr /= 0) EXIT
-            IF (INDEX(line, '<grid_points>') > 0) EXIT
-         END DO
-
-         ! Read the raw grid coordinates
-         DO i = 1, bs_env%ri_rs%grid_cache(ikind)%npts
-            READ (iunit, *, IOSTAT=ierr) pt(1), pt(2), pt(3)
-            IF (ierr /= 0) THEN
-               CPABORT("Unexpected EOF in grid file ")
-            END IF
-            bs_env%ri_rs%grid_cache(ikind)%raw_points(:, i) = pt(:)
-         END DO
-
-         CALL close_file(unit_number=iunit)
+         CALL get_rirs_grid_filepath( &
+            atom_sym, bs_env%ri_rs%grid_select, bs_env%ri_rs%grid_file_suffix, full_path)
+         CALL read_rirs_grid_file(TRIM(full_path), kind_grid(ikind)%raw_points)
+         kind_grid(ikind)%npts = SIZE(kind_grid(ikind)%raw_points, 2)
       END DO
+
+      ! Make every atom own an independent copy.  The optimizer can therefore adapt symmetry-
+      ! equivalent atoms to their individual local environments, and GW consumes those copies
+      ! directly without writing intermediate .ion files.
+      IF (ALLOCATED(bs_env%ri_rs%grid_cache)) DEALLOCATE (bs_env%ri_rs%grid_cache)
+      ALLOCATE (bs_env%ri_rs%grid_cache(natom))
+      DO iatom = 1, natom
+         ikind = particle_set(iatom)%atomic_kind%kind_number
+         bs_env%ri_rs%grid_cache(iatom) = kind_grid(ikind)
+         IF (bs_env%ri_rs%grid_opt%enabled) THEN
+            atom_sym = TRIM(atomic_kind_set(ikind)%element_symbol)
+            requested_npts = bs_env%ri_rs%grid_opt%grid_npoints(ikind)
+            CALL initialize_rirs_grid( &
+               bs_env%ri_rs%grid_cache(iatom)%raw_points, requested_npts, iatom, particle_set, &
+               n_voronoi_candidates)
+            IF (n_voronoi_candidates < requested_npts) THEN
+               WRITE (warning_msg, '(A,I0,A,A,A,I0,A,I0,A)') &
+                  "Atom ", iatom, " (", TRIM(atom_sym), "): Grid selection requests ", requested_npts, &
+                  " points, but only ", n_voronoi_candidates, &
+                  " are inside its Voronoi volume. Selecting from the full RI-RS source grid."
+               CALL cp_warn(__LOCATION__, TRIM(warning_msg))
+            END IF
+            bs_env%ri_rs%grid_cache(iatom)%npts = requested_npts
+         END IF
+      END DO
+      DEALLOCATE (kind_grid)
 
       CALL timestop(handle)
 
@@ -942,8 +905,9 @@ CONTAINS
       CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist_ks)
       CALL dbcsr_distribution_get(dbcsr_dist_ks, nprows=nprow, npcols=npcol)
 
-      ! Overflow-safe upper bound on the block size (see dbcsr_msg_elem_limit).
-      safe_max = INT(0.5_dp*REAL(dbcsr_msg_elem_limit, dp)*REAL(MAX(MIN(nprow, npcol), 1), dp)/ &
+      ! Overflow-safe upper bound on the block size (see bs_env%dbcsr_msg_elem_limit).
+      safe_max = INT(0.5_dp*REAL(bs_env%dbcsr_msg_elem_limit, dp)* &
+                     REAL(MAX(MIN(nprow, npcol), 1), dp)/ &
                      REAL(total_grid_npts, dp))
       safe_max = MAX(1, safe_max)
       ! Block size = CP2K's global max_elements_per_block (GLOBAL/DBCSR input; default 32),
@@ -1064,7 +1028,7 @@ CONTAINS
 
       CALL dbcsr_finalize(mat_phi_mu_l)
 
-      CALL print_matrix_occupation(mat_phi_mu_l, 'φ(μ,l)', para_env, bs_env%unit_nr)
+      CALL print_matrix_occupation(mat_phi_mu_l, 'φ(μ,l)', bs_env)
 
       ! -------------------------------------------------------------------------
       ! CLEANUP
@@ -1107,71 +1071,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fill_phi_for_atom'
 
-      INTEGER                                            :: first_sgf, handle, i_pt, ico, iend_co, &
-                                                            ikind, ipgf, iset, isgf, ishell, &
-                                                            istart_co, l, last_sgf, lx, ly, lz, &
-                                                            n_cart_total, row_idx
-      REAL(KIND=dp)                                      :: alpha, dist_vec(3), exp_val, poly, r2, &
-                                                            r_atom(3), weight
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
-      ! Get Atom Info
-      ikind = particle_set(iatom)%atomic_kind%kind_number
-      CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type="ORB")
-      IF (.NOT. ASSOCIATED(orb_basis_set)) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      r_atom = particle_set(iatom)%r
-
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(phi_val, ri_rs_grid, npts, orb_basis_set, r_atom, cell, ncoset, indco, &
-      !$OMP        r2_threshold) &
-      !$OMP PRIVATE(i_pt, dist_vec, r2, iset, n_cart_total, ishell, l, istart_co, iend_co, &
-      !$OMP         first_sgf, last_sgf, ipgf, alpha, exp_val, isgf, ico, row_idx, weight, &
-      !$OMP         lx, ly, lz, poly) &
-      !$OMP SCHEDULE(STATIC)
-      DO i_pt = 1, npts
-         dist_vec = pbc(ri_rs_grid(:, i_pt) - r_atom, cell)
-         r2 = DOT_PRODUCT(dist_vec, dist_vec)
-         IF (r2 > r2_threshold) CYCLE
-
-         DO iset = 1, orb_basis_set%nset
-            n_cart_total = ncoset(orb_basis_set%lmax(iset))
-
-            DO ishell = 1, orb_basis_set%nshell(iset)
-               l = orb_basis_set%l(ishell, iset)
-               istart_co = ncoset(l - 1) + 1
-               iend_co = ncoset(l)
-
-               first_sgf = orb_basis_set%first_sgf(ishell, iset)
-               last_sgf = orb_basis_set%last_sgf(ishell, iset)
-
-               DO ipgf = 1, orb_basis_set%npgf(iset)
-                  alpha = orb_basis_set%zet(ipgf, iset)
-                  exp_val = EXP(-alpha*r2)
-
-                  DO isgf = first_sgf, last_sgf
-                     DO ico = istart_co, iend_co
-                        row_idx = (ipgf - 1)*n_cart_total + ico
-                        weight = orb_basis_set%sphi(row_idx, isgf)
-                        lx = indco(1, ico)
-                        ly = indco(2, ico)
-                        lz = indco(3, ico)
-                        poly = (dist_vec(1)**lx)*(dist_vec(2)**ly)*(dist_vec(3)**lz)
-
-                        phi_val(i_pt, isgf) = phi_val(i_pt, isgf) + (weight*poly*exp_val)
-
-                     END DO
-                  END DO
-               END DO
-            END DO
-         END DO
-      END DO
-      !$OMP END PARALLEL DO
+      CALL evaluate_ao_on_points(phi_val, ri_rs_grid, iatom, particle_set, qs_kind_set, cell, &
+                                 cutoff_squared=r2_threshold)
 
       CALL timestop(handle)
 
@@ -1552,7 +1457,7 @@ CONTAINS
 
          CALL dbcsr_finalize(mat_Z_lP)
 
-         CALL print_matrix_occupation(mat_Z_lP, 'Z(l,P)', para_env, bs_env%unit_nr)
+         CALL print_matrix_occupation(mat_Z_lP, 'Z(l,P)', bs_env)
 
          IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(A)') ' '
@@ -2622,8 +2527,7 @@ CONTAINS
             CALL m_flush(bs_env%unit_nr)
          END IF
          IF (i_t == 1) THEN
-            CALL print_matrix_occupation(mat_chi_Gamma_tau(i_t)%matrix, 'χ(P,Q)', &
-                                         bs_env%para_env, bs_env%unit_nr)
+            CALL print_matrix_occupation(mat_chi_Gamma_tau(i_t)%matrix, 'χ(P,Q)', bs_env)
          END IF
 
          IF (bs_env%unit_nr > 0) THEN
@@ -2644,15 +2548,13 @@ CONTAINS
 !> \brief Prints the non-zero occupation percentage of a DBCSR matrix on one line.
 !> \param matrix ...
 !> \param label ...
-!> \param para_env ...
-!> \param unit_nr ...
+!> \param bs_env ...
 ! **************************************************************************************************
-   SUBROUTINE print_matrix_occupation(matrix, label, para_env, unit_nr)
+   SUBROUTINE print_matrix_occupation(matrix, label, bs_env)
 
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       CHARACTER(LEN=*), INTENT(IN)                       :: label
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
-      INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_matrix_occupation'
 
@@ -2664,12 +2566,12 @@ CONTAINS
 
       occ = dbcsr_get_occupation(matrix)
       max_loc = REAL(dbcsr_get_data_size(matrix), dp)
-      CALL para_env%max(max_loc)
+      CALL bs_env%para_env%max(max_loc)
 
-      IF (unit_nr > 0) THEN
-         frac_2p31 = max_loc/REAL(dbcsr_msg_elem_limit, dp)
-         WRITE (unit_nr, '(A)') ' '
-         WRITE (unit_nr, '(T2,A,F36.2,A)') &
+      IF (bs_env%unit_nr > 0) THEN
+         frac_2p31 = max_loc/REAL(bs_env%dbcsr_msg_elem_limit, dp)
+         WRITE (bs_env%unit_nr, '(A)') ' '
+         WRITE (bs_env%unit_nr, '(T2,A,F36.2,A)') &
             'Occupation of non-zero elements of '//TRIM(label), occ*100.0_dp, ' %'
          IF (frac_2p31 > 0.5_dp) THEN
             WRITE (msg, '(3A,F0.2,A)') &
@@ -2679,7 +2581,7 @@ CONTAINS
                "for instance with more MPI ranks or a larger N_PANELS."
             CPWARN(TRIM(msg))
          END IF
-         CALL m_flush(unit_nr)
+         CALL m_flush(bs_env%unit_nr)
       END IF
 
       CALL timestop(handle)
@@ -2823,6 +2725,7 @@ CONTAINS
 !>        (centroids+cutoff), each candidate panel is additionally checked against
 !>          (a) the 32-bit message bound with the panel's TRUE occupancy
 !>          (b) the per-rank memory budget: panel_mem_estimate_GB <= mem_budget_GB.
+!> \param bs_env ...
 !> \param r_blk_sizes ...
 !> \param panel_size ...
 !> \param min_dim ...
@@ -2837,10 +2740,11 @@ CONTAINS
 !> \param honor_exact ...
 !> \param unsafe ...
 ! **************************************************************************************************
-   SUBROUTINE plan_grid_panels(r_blk_sizes, panel_size, min_dim, pan_first, pan_last, &
+   SUBROUTINE plan_grid_panels(bs_env, r_blk_sizes, panel_size, min_dim, pan_first, pan_last, &
                                centroids, cutoff, n_RI, n_ao, n_procs, mem_budget_GB, &
                                honor_exact, unsafe)
 
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: r_blk_sizes
       INTEGER, INTENT(IN)                                :: panel_size, min_dim
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: pan_first, pan_last
@@ -2901,7 +2805,7 @@ CONTAINS
             f_near = REAL(width, dp)/REAL(MAX(n_grid_total, 1), dp)
             side = INT(REAL(rows_acc, dp)*f_near*REAL(MAX(n_RI, n_ao), dp), int_8)
             msg = MAX(nze_tmpl, side)/INT(MAX(min_dim, 1), int_8)
-            fits = (msg <= dbcsr_msg_elem_limit/4)
+            fits = (msg <= bs_env%dbcsr_msg_elem_limit/4)
             IF (fits .AND. PRESENT(mem_budget_GB)) THEN
                IF (mem_budget_GB > 0.0_dp) THEN
                   CALL panel_mem_estimate_GB(nze_tmpl, rows_acc, width, n_grid_total, &
@@ -2984,12 +2888,12 @@ CONTAINS
       min_dim = MAX(MIN(nprows, npcols), 1)
 
       ! Panel height such that NO per-rank DBCSR message can overflow the 32-bit length field
-      ! (see dbcsr_msg_elem_limit): requiring the worst-rank message to stay under
+      ! (see bs_env%dbcsr_msg_elem_limit): requiring the worst-rank message to stay under
       ! 0.5 * HUGE(int_4) gives the safe height P_safe = 0.5 * HUGE(int_4) * min_dim / n_grid.
       IF (use_cutoff) THEN
          safe_max = n_grid_total
       ELSE
-         safe_max = INT(0.5_dp*REAL(dbcsr_msg_elem_limit, dp)*REAL(min_dim, dp)/ &
+         safe_max = INT(0.5_dp*REAL(bs_env%dbcsr_msg_elem_limit, dp)*REAL(min_dim, dp)/ &
                         REAL(n_grid_total, dp))
          safe_max = MAX(1, MIN(safe_max, n_grid_total))
       END IF
@@ -3016,14 +2920,14 @@ CONTAINS
          ! Half of the measured free memory as panel budget.
          CALL ri_rs_mem_avail_per_proc_GB(bs_env, mem_avail_GB)
          mem_budget_GB = 0.5_dp*mem_avail_GB
-         CALL plan_grid_panels(r_blk_sizes, panel_size, min_dim, pan_first, pan_last, &
+         CALL plan_grid_panels(bs_env, r_blk_sizes, panel_size, min_dim, pan_first, pan_last, &
                                centroids=bs_env%ri_rs%chunk_centroids, &
                                cutoff=bs_env%ri_rs%cutoff_radius_v_w, &
                                n_RI=bs_env%n_RI, n_ao=bs_env%n_ao, &
                                n_procs=bs_env%para_env%num_pe, mem_budget_GB=mem_budget_GB, &
                                honor_exact=honor_exact, unsafe=panels_unsafe)
       ELSE
-         CALL plan_grid_panels(r_blk_sizes, panel_size, min_dim, pan_first, pan_last)
+         CALL plan_grid_panels(bs_env, r_blk_sizes, panel_size, min_dim, pan_first, pan_last)
       END IF
 
       IF (honor_exact .AND. panels_unsafe) THEN

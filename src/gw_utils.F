@@ -104,7 +104,9 @@ MODULE gw_utils
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
-   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
+   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type,&
+                                              ri_rs_env,&
+                                              ri_rs_grid_opt_type
    USE post_scf_bandstructure_utils,    ONLY: allocate_GW_eigenvalues,&
                                               gw_flavour_label,&
                                               rsmat_to_kp
@@ -130,6 +132,8 @@ MODULE gw_utils
                                               distribution_3d_create,&
                                               distribution_3d_type,&
                                               neighbor_list_3c_type
+   USE rirs_grid_utils,                 ONLY: get_rirs_grid_filepath,&
+                                              read_rirs_grid_npoints
    USE rpa_gw,                          ONLY: continuation_pade
 #include "base/base_uses.f90"
 
@@ -160,20 +164,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_and_init_bs_env_for_gw'
 
       INTEGER                                            :: handle
-      TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
 
       CALL cite_reference(Graml2024)
 
-      CALL read_gw_input_parameters(bs_env, bs_sec)
+      CALL get_parameters_from_qs_env(qs_env, bs_env)
 
-      ! RTBSE%CUTOFF_RADIUS_W0 gates the per-grid-block centroid cache, which is built during the
-      ! GW grid setup -- long before the RT-BSE env reads its own section. Pick it up here.
-      NULLIFY (input)
-      CALL get_qs_env(qs_env, input=input)
-      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%CUTOFF_RADIUS_W0", &
-                                r_val=bs_env%ri_rs%cutoff_radius_w0)
+      CALL read_gw_input_parameters(bs_env, bs_sec)
 
       CALL print_header_and_input_parameters(bs_env)
 
@@ -255,6 +253,24 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE create_and_init_bs_env_for_gw
+
+! **************************************************************************************************
+!> \brief Store the QS environment parameters needed by GW.
+!> \param qs_env ...
+!> \param bs_env ...
+! **************************************************************************************************
+   SUBROUTINE get_parameters_from_qs_env(qs_env, bs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      TYPE(section_vals_type), POINTER                   :: input, rtbse_sec
+
+      NULLIFY (input, rtbse_sec)
+      CALL get_qs_env(qs_env, atomic_kind_set=bs_env%ri_rs%atomic_kind_set, &
+                      cell=bs_env%ri_rs%cell, particle_set=bs_env%ri_rs%particle_set, input=input)
+      rtbse_sec => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%RTBSE")
+      CALL section_vals_val_get(rtbse_sec, "CUTOFF_RADIUS_W0", r_val=bs_env%ri_rs%cutoff_radius_w0)
+   END SUBROUTINE get_parameters_from_qs_env
 
 ! **************************************************************************************************
 !> \brief Releases the memory-heavy GW intermediates that cannot be freed in bs_env_release,
@@ -356,12 +372,13 @@ CONTAINS
 
       INTEGER                                            :: handle
       LOGICAL                                            :: do_evgw0
-      TYPE(section_vals_type), POINTER                   :: gw_sec
+      TYPE(section_vals_type), POINTER                   :: grid_opt_sec, gw_sec
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (gw_sec)
+      NULLIFY (grid_opt_sec, gw_sec)
       gw_sec => section_vals_get_subs_vals(bs_sec, "GW")
+      grid_opt_sec => section_vals_get_subs_vals(gw_sec, "RI_RS%GRID_OPTIMIZATION")
 
       CALL section_vals_val_get(gw_sec, "NUM_TIME_FREQ_POINTS", i_val=bs_env%num_time_freq_points)
       CALL section_vals_val_get(gw_sec, "EPS_FILTER", r_val=bs_env%eps_filter)
@@ -374,28 +391,29 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "KPOINTS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
       CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
       CALL section_vals_val_get(gw_sec, "FREQ_MAX_FIT", r_val=bs_env%freq_max_fit)
-      CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT", l_val=bs_env%print_contract)
-      CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT_VERBOSE", l_val=bs_env%print_contract_verbose)
       CALL section_vals_val_get(gw_sec, "RI_RS%TIKHONOV", r_val=bs_env%ri_rs%tikhonov)
       CALL section_vals_val_get(gw_sec, "RI_RS%GRID_SELECT", i_val=bs_env%ri_rs%grid_select)
       CALL section_vals_val_get(gw_sec, "RI_RS%GRID_FILE_SUFFIX", c_val=bs_env%ri_rs%grid_file_suffix)
       CALL section_vals_val_get(gw_sec, "RI_RS%CUTOFF_RADIUS_RL_RI", r_val=bs_env%ri_rs%cutoff_radius_ri_rs)
       CALL section_vals_val_get(gw_sec, "RI_RS%CUTOFF_RADIUS_RL_AO", r_val=bs_env%ri_rs%cutoff_radius_ri_ao)
-      CALL section_vals_val_get(gw_sec, "RI_RS%N_PROCS_PER_ATOM_Z_LP", &
-                                i_val=bs_env%ri_rs%n_procs_per_atom_z_lp)
+      CALL section_vals_val_get(gw_sec, "RI_RS%N_PROCS_PER_ATOM_Z_LP", i_val=bs_env%ri_rs%n_procs_per_atom_z_lp)
       CALL section_vals_val_get(gw_sec, "RI_RS%N_PANELS", i_val=bs_env%ri_rs%n_panels)
       CALL section_vals_val_get(gw_sec, "RI_RS%KEEP_SPARSITY_RL", l_val=bs_env%ri_rs%keep_sparsity_rirs)
       CALL section_vals_val_get(gw_sec, "RI_RS%CUTOFF_RADIUS_RL_W", r_val=bs_env%ri_rs%cutoff_radius_v_w)
       CALL section_vals_val_get(gw_sec, "RI_RS%CUTOFF_RADIUS_G_W", r_val=bs_env%ri_rs%cutoff_radius_g_w)
-      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0%_SECTION_PARAMETERS_", l_val=do_evgw0)
-      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0%MAX_ITER", i_val=bs_env%ri_rs%evgw0_iter)
-      CALL section_vals_val_get(gw_sec, "RI_RS%EVGW0%EPS_ITER", r_val=bs_env%ri_rs%evgw0_eps_iter)
+      CALL section_vals_val_get(gw_sec, "EVGW0%_SECTION_PARAMETERS_", l_val=do_evgw0)
+      CALL section_vals_val_get(gw_sec, "EVGW0%MAX_ITER", i_val=bs_env%ri_rs%evgw0_iter)
+      CALL section_vals_val_get(gw_sec, "EVGW0%EPS_ITER", r_val=bs_env%ri_rs%evgw0_eps_iter)
+
+      CALL section_vals_get(grid_opt_sec, explicit=bs_env%ri_rs%grid_opt%enabled)
+      IF (bs_env%ri_rs%grid_opt%enabled) CALL read_rirs_grid_opt(bs_env%ri_rs, grid_opt_sec)
 
       ! Assigning GW flavour
       bs_env%gw_flavour = G0W0
-      IF (do_evgw0) bs_env%gw_flavour = evGW0
-
-      IF (bs_env%gw_flavour == evGW0) THEN
+      IF (do_evgw0) THEN
+         ! evGW0 implemented so far only with RIRS
+         CPASSERT(bs_env%do_gw_ri_rs)
+         bs_env%gw_flavour = evGW0
          CALL cp_warn(__LOCATION__, &
                       "evGW0 in the RI-RS GW code is experimental. The quasiparticle energies "// &
                       "of the previous cycle are fed back into the Green's function, so the "// &
@@ -406,14 +424,77 @@ CONTAINS
                       "check the convergence of the reported states.")
       END IF
 
-      IF (bs_env%print_contract) THEN
-         bs_env%unit_nr_contract = bs_env%unit_nr
-      ELSE
-         bs_env%unit_nr_contract = 0
-      END IF
       CALL timestop(handle)
 
    END SUBROUTINE read_gw_input_parameters
+
+! **************************************************************************************************
+!> \brief Read the RI-RS grid optimization input.
+!> \param ri_rs ...
+!> \param grid_opt_sec ...
+! **************************************************************************************************
+   SUBROUTINE read_rirs_grid_opt(ri_rs, grid_opt_sec)
+      TYPE(ri_rs_env), INTENT(INOUT), TARGET             :: ri_rs
+      TYPE(section_vals_type), POINTER                   :: grid_opt_sec
+
+      CHARACTER(LEN=default_path_length)                 :: grid_filepath
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: grid_size_vals
+      INTEGER                                            :: igrid, ikind, ios, ngrid, &
+                                                            requested_npoints, source_npt
+      LOGICAL                                            :: element_found, perc_explicit
+      REAL(KIND=dp)                                      :: perc
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(ri_rs_grid_opt_type), POINTER                 :: grid_opt
+
+      NULLIFY (atomic_kind_set, grid_opt, grid_size_vals)
+      atomic_kind_set => ri_rs%atomic_kind_set
+      grid_opt => ri_rs%grid_opt
+
+      CALL section_vals_val_get(grid_opt_sec, "CUTOFF_ATOMIC_CLUSTER", r_val=grid_opt%cutoff_atomic_cluster)
+      CALL section_vals_val_get(grid_opt_sec, "MAX_ITER", i_val=grid_opt%max_iter)
+      CALL section_vals_val_get(grid_opt_sec, "N_POINT_PERCENTAGE", r_val=perc, explicit=perc_explicit)
+      CALL section_vals_val_get(grid_opt_sec, "GRID_SIZE", n_rep_val=ngrid)
+
+      CPASSERT(.NOT. (perc_explicit .AND. ngrid > 0))
+      CPASSERT(perc_explicit .OR. ngrid > 0)
+      CPASSERT(.NOT. perc_explicit .OR. (perc > 0.0_dp .AND. perc <= 100.0_dp))
+
+      ALLOCATE (grid_opt%grid_elements(SIZE(atomic_kind_set)))
+      ALLOCATE (grid_opt%grid_npoints(SIZE(atomic_kind_set)), source=0)
+      DO ikind = 1, SIZE(atomic_kind_set)
+         grid_opt%grid_elements(ikind) = TRIM(atomic_kind_set(ikind)%element_symbol)
+      END DO
+
+      IF (.NOT. perc_explicit) THEN
+         DO igrid = 1, ngrid
+            CALL section_vals_val_get(grid_opt_sec, "GRID_SIZE", i_rep_val=igrid, c_vals=grid_size_vals)
+            CPASSERT(SIZE(grid_size_vals) == 2)
+            READ (grid_size_vals(2), *, IOSTAT=ios) requested_npoints
+            CPASSERT(ios == 0 .AND. requested_npoints > 0)
+            CPASSERT(LEN_TRIM(grid_size_vals(1)) > 0)
+            element_found = .FALSE.
+            DO ikind = 1, SIZE(atomic_kind_set)
+               IF (TRIM(grid_opt%grid_elements(ikind)) == TRIM(ADJUSTL(grid_size_vals(1)))) THEN
+                  CPASSERT(grid_opt%grid_npoints(ikind) == 0)
+                  grid_opt%grid_npoints(ikind) = requested_npoints
+                  element_found = .TRUE.
+               END IF
+            END DO
+            CPASSERT(element_found)
+         END DO
+         CPASSERT(ALL(grid_opt%grid_npoints > 0))
+      END IF
+
+      DO ikind = 1, SIZE(atomic_kind_set)
+         CALL get_rirs_grid_filepath( &
+            grid_opt%grid_elements(ikind), ri_rs%grid_select, ri_rs%grid_file_suffix, grid_filepath)
+         source_npt = read_rirs_grid_npoints(grid_filepath)
+         IF (perc_explicit) grid_opt%grid_npoints(ikind) = MAX(1, NINT(REAL(source_npt, KIND=dp)*perc/100.0_dp))
+         CPASSERT(grid_opt%grid_npoints(ikind) <= source_npt)
+      END DO
+
+   END SUBROUTINE read_rirs_grid_opt
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1765,7 +1846,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_header_and_input_parameters'
 
-      INTEGER                                            :: handle, u
+      INTEGER                                            :: handle, igrid, u
 
       CALL timeset(routineN, handle)
 
@@ -1811,6 +1892,22 @@ CONTAINS
                   bs_env%ri_rs%cutoff_radius_g_w*angstrom, ' Å'
             END IF
             WRITE (u, '(T2,A,A62)') 'Input: GW flavour', TRIM(gw_flavour_label(bs_env))
+            IF (bs_env%ri_rs%grid_opt%enabled) THEN
+               WRITE (u, '(A)') ' '
+               WRITE (u, '(T2,A,T80,L1)') &
+                  'Input: RI-RS grid optimization activated', .TRUE.
+               DO igrid = 1, SIZE(bs_env%ri_rs%grid_opt%grid_elements)
+                  WRITE (u, '(T2,A,A,A,T75,I6)') &
+                     'Input: Element: ', TRIM(bs_env%ri_rs%grid_opt%grid_elements(igrid)), &
+                     ', number of points per atom:', bs_env%ri_rs%grid_opt%grid_npoints(igrid)
+               END DO
+               WRITE (u, '(T2,A,T73,F6.1,A)') &
+                  'Input: Cutoff radius for atomic clusters', &
+                  bs_env%ri_rs%grid_opt%cutoff_atomic_cluster*angstrom, ' Å'
+               WRITE (u, '(T2,A,T75,I6)') &
+                  'Input: Maximum grid optimization iterations', &
+                  bs_env%ri_rs%grid_opt%max_iter
+            END IF
             IF (bs_env%gw_flavour == evGW0) THEN
                WRITE (u, '(T2,A,I42)') 'Input: Maximum number of evGW0 cycles', &
                   bs_env%ri_rs%evgw0_iter

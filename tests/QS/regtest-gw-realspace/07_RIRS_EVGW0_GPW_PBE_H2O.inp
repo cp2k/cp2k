@@ -43,12 +43,12 @@
     &BANDSTRUCTURE
       &GW
         NUM_TIME_FREQ_POINTS 10
+        &EVGW0
+          EPS_ITER 0.00005
+          MAX_ITER 20
+        &END EVGW0
         &RI_RS
           GRID_SELECT 1
-          &EVGW0
-            EPS_ITER 0.00005
-            MAX_ITER 20
-          &END EVGW0
         &END RI_RS
       &END GW
     &END BANDSTRUCTURE

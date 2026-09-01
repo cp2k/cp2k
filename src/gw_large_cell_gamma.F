@@ -302,9 +302,7 @@ CONTAINS
                                        bounds_1=bounds_comb, &
                                        bounds_2=bounds_P, &
                                        bounds_3=bounds_Q, &
-                                       filter_eps=bs_env%eps_filter, move_data=.FALSE., flop=flop, &
-                                       unit_nr=bs_env%unit_nr_contract, &
-                                       log_verbose=bs_env%print_contract_verbose)
+                                       filter_eps=bs_env%eps_filter, move_data=.FALSE., flop=flop)
                   END IF
                   IF (flop == 0_int_8) bs_env%skip_chi(i_intval_idx, j_intval_idx) = .TRUE.
 
@@ -732,9 +730,7 @@ CONTAINS
                            bounds_2=bounds_comb, &
                            bounds_3=bounds_ao_1, &
                            flop=flop, &
-                           filter_eps=bs_env%eps_filter, &
-                           unit_nr=bs_env%unit_nr_contract, &
-                           log_verbose=bs_env%print_contract_verbose)
+                           filter_eps=bs_env%eps_filter)
       END IF
 
       CALL dbt_clear(t_3c_for_G)
@@ -2094,9 +2090,7 @@ CONTAINS
                            bounds_3=bounds_ao, &
                            flop=flop, &
                            move_data=.FALSE., &
-                           filter_eps=bs_env%eps_filter, &
-                           unit_nr=bs_env%unit_nr_contract, &
-                           log_verbose=bs_env%print_contract_verbose)
+                           filter_eps=bs_env%eps_filter)
 
       END DO ! RI_atoms
 
@@ -2210,9 +2204,7 @@ CONTAINS
                            bounds_3=bounds_comb, &
                            flop=flop, &
                            move_data=.FALSE., &
-                           filter_eps=bs_env%eps_filter, &
-                           unit_nr=bs_env%unit_nr_contract, &
-                           log_verbose=bs_env%print_contract_verbose)
+                           filter_eps=bs_env%eps_filter)
       END DO ! IL_atoms
 
       ! Reordering: N_Qλν -> N_Qνλ
@@ -2244,9 +2236,7 @@ CONTAINS
                            bounds_1=bounds_comb, &
                            bounds_2=bounds_sigma, &
                            bounds_3=bounds_lambda, &
-                           filter_eps=bs_env%eps_filter, move_data=.FALSE., flop=flop, &
-                           unit_nr=bs_env%unit_nr_contract, &
-                           log_verbose=bs_env%print_contract_verbose)
+                           filter_eps=bs_env%eps_filter, move_data=.FALSE., flop=flop)
       END IF
 
       IF (PRESENT(can_skip)) THEN
