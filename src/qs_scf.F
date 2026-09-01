@@ -112,13 +112,12 @@ MODULE qs_scf
                                               mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
-   USE preconditioner,                  ONLY: make_preconditioner_complex_full_all,&
-                                              make_preconditioner_complex_full_kinetic,&
-                                              make_preconditioner_complex_full_s_inverse,&
-                                              make_preconditioner_complex_full_single,&
-                                              make_preconditioner_complex_full_single_inverse,&
-                                              prepare_preconditioner,&
-                                              restart_preconditioner
+   USE preconditioner,                  ONLY: &
+        make_preconditioner_complex_fermi_low_rank, make_preconditioner_complex_full_all, &
+        make_preconditioner_complex_full_all_covariant, make_preconditioner_complex_full_kinetic, &
+        make_preconditioner_complex_full_s_inverse, make_preconditioner_complex_full_single, &
+        make_preconditioner_complex_full_single_inverse, prepare_preconditioner, &
+        restart_preconditioner
    USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                               init_preconditioner
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -1765,11 +1764,13 @@ CONTAINS
                IF (scf_env%qs_ot_env(1)%restricted) THEN
                   CPABORT('PRECONDITIONER FULL_ALL_COVARIANT does not currently support ROKS.')
                END IF
-               DO ispin = 1, SIZE(mos)
-                  IF (.NOT. mos(ispin)%uniform_occupation) THEN
-                     CPABORT('PRECONDITIONER FULL_ALL_COVARIANT currently requires uniform occupations.')
-                  END IF
-               END DO
+               IF (.NOT. do_kpoints) THEN
+                  DO ispin = 1, SIZE(mos)
+                     IF (.NOT. mos(ispin)%uniform_occupation) THEN
+                        CPABORT('PRECONDITIONER FULL_ALL_COVARIANT currently requires uniform occupations.')
+                     END IF
+                  END DO
+               END IF
             END IF
 
             ! might need the KS matrix to init properly
@@ -1880,10 +1881,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
 
       CHARACTER(len=*), PARAMETER :: kpoint_precond_error = &
-         "Complex K-point OT supports PRECONDITIONER NONE, FULL_S_INVERSE, "// &
-         "FULL_KINETIC, FULL_SINGLE_INVERSE, or FULL_ALL.", kpoint_solver_error = &
-         "Complex K-point FULL_ALL supports PRECOND_SOLVER DEFAULT; inverse "// &
-         "preconditioners support DEFAULT or INVERSE_CHOLESKY."
+         "Complex K-point OT supports PRECONDITIONER NONE, FERMI_LOW_RANK, "// &
+         "FULL_S_INVERSE, FULL_KINETIC, FULL_SINGLE, FULL_SINGLE_INVERSE, FULL_ALL, or "// &
+         "FULL_ALL_COVARIANT.", kpoint_solver_error = &
+         "Complex K-point FERMI_LOW_RANK, FULL_SINGLE, FULL_ALL, and FULL_ALL_COVARIANT "// &
+         "support PRECOND_SOLVER DEFAULT; FULL_S_INVERSE, FULL_KINETIC, and "// &
+         "FULL_SINGLE_INVERSE support DEFAULT or INVERSE_CHOLESKY."
 
       INTEGER                                            :: ikpoint, ispin, local_kpoint, &
                                                             number_of_OT_envs, ot_channel
@@ -2282,7 +2285,8 @@ CONTAINS
          RETURN
       END IF
       SELECT CASE (prec_type)
-      CASE (ot_precond_full_all, ot_precond_full_single, ot_precond_full_single_inverse, &
+      CASE (ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_all_covariant, &
+            ot_precond_full_single, ot_precond_full_single_inverse, &
             ot_precond_full_kinetic, ot_precond_s_inverse)
       CASE DEFAULT
          CPABORT("Unsupported complex K-point OT preconditioner")
@@ -2349,7 +2353,9 @@ CONTAINS
                                              scf_env%ot_preconditioner(ot_channel)%preconditioner)
                CYCLE
             END IF
-            IF (prec_type == ot_precond_full_all .OR. &
+            IF (prec_type == ot_precond_fermi_low_rank .OR. &
+                prec_type == ot_precond_full_all .OR. &
+                prec_type == ot_precond_full_all_covariant .OR. &
                 prec_type == ot_precond_full_single .OR. &
                 prec_type == ot_precond_full_single_inverse) THEN
                ks_spin = MIN(ispin, SIZE(kp%ot_hmat, 2))
@@ -2359,6 +2365,15 @@ CONTAINS
                                                   matrix_h_re, matrix_h_im)
             END IF
             SELECT CASE (prec_type)
+            CASE (ot_precond_fermi_low_rank)
+               CALL make_preconditioner_complex_fermi_low_rank( &
+                  scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+                  scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                  scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
+                  matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
+                  scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
+                  scf_env%qs_ot_env(ot_channel)%settings%fermi_low_rank_max_rank, &
+                  scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
             CASE (ot_precond_full_all)
                CALL make_preconditioner_complex_full_all( &
                   scf_env%ot_preconditioner(ot_channel)%preconditioner, &
@@ -2373,6 +2388,14 @@ CONTAINS
                   scf_env%ot_preconditioner(ot_channel)%preconditioner, &
                   matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
                   kp%mos(1, ispin), &
+                  scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
+                  scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
+            CASE (ot_precond_full_all_covariant)
+               CALL make_preconditioner_complex_full_all_covariant( &
+                  scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+                  scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                  scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
+                  matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
                   scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
                   scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
             CASE (ot_precond_full_single_inverse)
