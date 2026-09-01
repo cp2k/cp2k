@@ -17,7 +17,6 @@ MODULE qs_loc_utils
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_p_type,&
-                                              dbcsr_set,&
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_files,                        ONLY: close_file,&
@@ -396,7 +395,6 @@ CONTAINS
                   ALLOCATE (qs_loc_env%op_sm_set(j, i)%matrix)
                   CALL dbcsr_copy(qs_loc_env%op_sm_set(j, i)%matrix, matrix_s(1)%matrix, &
                                   name="qs_loc_env%op_sm_"//TRIM(ADJUSTL(cp_to_string(j)))//"-"//TRIM(ADJUSTL(cp_to_string(i))))
-                  CALL dbcsr_set(qs_loc_env%op_sm_set(j, i)%matrix, 0.0_dp)
                END DO
             END DO
 

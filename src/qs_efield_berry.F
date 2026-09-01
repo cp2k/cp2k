@@ -168,8 +168,6 @@ CONTAINS
 
          CALL dbcsr_copy(cosmat(i)%matrix, matrix_s(1)%matrix, 'COS MAT')
          CALL dbcsr_copy(sinmat(i)%matrix, matrix_s(1)%matrix, 'SIN MAT')
-         CALL dbcsr_set(cosmat(i)%matrix, 0.0_dp)
-         CALL dbcsr_set(sinmat(i)%matrix, 0.0_dp)
 
          kvec(:) = twopi*cell%h_inv(i, :)
          CALL build_berry_moment_matrix(qs_env, cosmat(i)%matrix, sinmat(i)%matrix, kvec)

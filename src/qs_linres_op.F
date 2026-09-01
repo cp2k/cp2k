@@ -773,8 +773,6 @@ CONTAINS
 
          DO i = 1, 3
             kvec(:) = twopi*cell%h_inv(i, :)
-            CALL dbcsr_set(cosmat, 0.0_dp)
-            CALL dbcsr_set(sinmat, 0.0_dp)
             CALL build_berry_moment_matrix(qs_env, cosmat, sinmat, kvec)
 
             DO ispin = 1, dft_control%nspins ! spin

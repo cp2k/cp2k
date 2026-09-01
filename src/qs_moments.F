@@ -1690,8 +1690,6 @@ CONTAINS
       ALLOCATE (cosmat, sinmat)
       CALL dbcsr_copy(cosmat, matrix_s(1)%matrix, 'COS MOM')
       CALL dbcsr_copy(sinmat, matrix_s(1)%matrix, 'SIN MOM')
-      CALL dbcsr_set(cosmat, 0.0_dp)
-      CALL dbcsr_set(sinmat, 0.0_dp)
 
       ALLOCATE (op_fm_set(2, dft_control%nspins))
       ALLOCATE (opvec(dft_control%nspins))
