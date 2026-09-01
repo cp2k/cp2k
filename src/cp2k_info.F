@@ -100,10 +100,6 @@ CONTAINS
 
 !$    flags = TRIM(flags)//" omp"
 
-#if defined(__MACOSX)
-      flags = TRIM(flags)//" macos"
-#endif
-
       ! TODO: remove __INTEL_LLVM_COMPILER conditions (regtests)
 #if defined(__INTEL_LLVM_COMPILER)
       flags = TRIM(flags)//" ifx"
