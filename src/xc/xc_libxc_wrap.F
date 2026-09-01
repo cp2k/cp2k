@@ -139,7 +139,7 @@ MODULE xc_libxc_wrap
    PUBLIC :: XC_UNPOLARIZED, XC_POLARIZED
 
    PUBLIC :: XC_EXCHANGE, XC_CORRELATION, XC_EXCHANGE_CORRELATION, XC_KINETIC
-    PUBLIC :: XC_FLAGS_ON_HOST, XC_FLAGS_ON_DEVICE
+   PUBLIC :: XC_FLAGS_ON_HOST, XC_FLAGS_ON_DEVICE
 
    ! Create aliases for backward compatibility with LibXC 5.x interface
    PUBLIC :: xc_f03_lda, xc_f03_mgga
@@ -155,7 +155,13 @@ MODULE xc_libxc_wrap
              xc_libxc_wrap_is_under_development, &
              xc_libxc_get_reference_length, &
              xc_libxc_check_functional, &
-              xc_libxc_wrap_init_cuda_safe
+             xc_libxc_wrap_init_cuda_safe, &
+             libxc_set_backend, libxc_get_backend
+
+   ! Backend selection for CPU vs GPU Libxc
+   INTEGER, PARAMETER :: LIBXC_BACKEND_CPU = 1
+   INTEGER, PARAMETER :: LIBXC_BACKEND_GPU = 2
+   INTEGER :: libxc_current_backend = LIBXC_BACKEND_CPU
 
    ! Alias definitions for backward compatibility
    PROCEDURE(xc_f03_lda_exc_vxc_fxc_kxc), POINTER :: xc_f03_lda => xc_f03_lda_exc_vxc_fxc_kxc
@@ -163,15 +169,51 @@ MODULE xc_libxc_wrap
 
 CONTAINS
 
+   ! Backend selection functions
+! **************************************************************************************************
+!> \brief ...
+!> \param backend ...
+! **************************************************************************************************
+   SUBROUTINE libxc_set_backend(backend)
+      INTEGER, INTENT(IN)                                :: backend
+
+      SELECT CASE (backend)
+      CASE (LIBXC_BACKEND_CPU)
+         libxc_current_backend = LIBXC_BACKEND_CPU
+      CASE (LIBXC_BACKEND_GPU)
+#if defined (__LIBXC_CUDA)
+         libxc_current_backend = LIBXC_BACKEND_GPU
+#else
+         CPABORT("GPU backend requested but CUDA Libxc not available")
+#endif
+      CASE DEFAULT
+         CPABORT("Invalid Libxc backend specified")
+      END SELECT
+   END SUBROUTINE libxc_set_backend
+
+! **************************************************************************************************
+!> \brief ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION libxc_get_backend() RESULT(backend)
+      INTEGER                                            :: backend
+
+      backend = libxc_current_backend
+   END FUNCTION libxc_get_backend
+
+! **************************************************************************************************
+!> \brief ...
+! **************************************************************************************************
    SUBROUTINE xc_libxc_wrap_init_cuda_safe()
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_init_cuda_safe', routineP = moduleN//':'//routineN
-      INTEGER :: handle
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_init_cuda_safe', &
+         routineP = moduleN//':'//routineN
+
+      INTEGER                                            :: handle
+
       CALL timeset(routineN, handle)
       CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
       CALL timestop(handle)
    END SUBROUTINE xc_libxc_wrap_init_cuda_safe
-
-
 
 ! **************************************************************************************************
 !> \brief Provides the reference(s) for this functional.
@@ -187,9 +229,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_get_reference_length'
       INTEGER, PARAMETER                                 :: maxlen = 67
 
-      CHARACTER(LEN=128)                                 :: descr_string
       CHARACTER(LEN=1024)                                :: doi_string, ref_string
-      INTEGER                                            :: i, i_ref, i_ref_old, n_params, handle
+      CHARACTER(LEN=128)                                 :: descr_string
+      INTEGER                                            :: handle, i, i_ref, i_ref_old, n_params
       TYPE(xc_f03_func_reference_t)                      :: xc_ref
 
       CALL timeset(routineN, handle)
@@ -242,13 +284,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_info_refs'
       INTEGER, PARAMETER                                 :: maxlen = 67
 
-      CHARACTER(LEN=128)                                 :: descr_string
       CHARACTER(LEN=1028)                                :: doi_string, ref_string
-      ! conservative estimate of the necessary length: 2*1028+11=2067
+      CHARACTER(LEN=128)                                 :: descr_string
       CHARACTER(LEN=2067)                                :: tmp_string
-      INTEGER                                            :: empty, first, handle, i, i_ref, i_ref_old, idx, &
-                                                            last, n_params
+      INTEGER                                            :: empty, first, handle, i, i_ref, &
+                                                            i_ref_old, idx, last, n_params
       TYPE(xc_f03_func_reference_t)                      :: xc_ref
+
+! conservative estimate of the necessary length: 2*1028+11=2067
 
       CALL timeset(routineN, handle)
 
@@ -530,6 +573,64 @@ CONTAINS
       END IF
 
    END FUNCTION xc_libxc_wrap_info_no_exc
+
+   ! Backend-aware wrapper functions for key Libxc operations
+   ! These functions will dispatch to either CPU or CUDA implementations
+   ! based on the current backend setting
+
+! **************************************************************************************************
+!> \brief ...
+!> \param func ...
+!> \param functional ...
+!> \param nspin ...
+! **************************************************************************************************
+   SUBROUTINE libxc_func_init_wrapper(func, functional, nspin)
+      TYPE(xc_f03_func_t), INTENT(OUT)                   :: func
+      INTEGER, INTENT(IN)                                :: functional
+      INTEGER, INTENT(IN), OPTIONAL                      :: nspin
+
+      SELECT CASE (libxc_current_backend)
+      CASE (LIBXC_BACKEND_CPU)
+         IF (PRESENT(nspin)) THEN
+            CALL xc_f03_func_init(func, functional, nspin)
+         ELSE
+            CALL xc_f03_func_init(func, functional)
+         END IF
+      CASE (LIBXC_BACKEND_GPU)
+#if defined (__LIBXC_CUDA)
+         ! For now, use CPU version until proper CUDA symbols are available
+         IF (PRESENT(nspin)) THEN
+            CALL xc_f03_func_init(func, functional, nspin)
+         ELSE
+            CALL xc_f03_func_init(func, functional)
+         END IF
+         ! Directly call CUDA-enabled functions (same symbols, GPU-accelerated internally)
+#else
+         CPABORT("GPU backend requested but CUDA Libxc not available")
+#endif
+      END SELECT
+   END SUBROUTINE libxc_func_init_wrapper
+
+! **************************************************************************************************
+!> \brief ...
+!> \param func ...
+! **************************************************************************************************
+   SUBROUTINE libxc_func_end_wrapper(func)
+      TYPE(xc_f03_func_t), INTENT(INOUT)                 :: func
+
+      SELECT CASE (libxc_current_backend)
+      CASE (LIBXC_BACKEND_CPU)
+         CALL xc_f03_func_end(func)
+      CASE (LIBXC_BACKEND_GPU)
+#if defined (__LIBXC_CUDA)
+         ! For now, use CPU version until proper CUDA symbols are available
+         CALL xc_f03_func_end(func)
+         ! Directly call CUDA-enabled functions (same symbols, GPU-accelerated internally)
+#else
+         CPABORT("GPU backend requested but CUDA Libxc not available")
+#endif
+      END SELECT
+   END SUBROUTINE libxc_func_end_wrapper
 
 #endif
 #endif

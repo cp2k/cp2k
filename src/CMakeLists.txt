@@ -1834,6 +1834,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:cp2k::libsmeagol::smeagol>
     $<$<BOOL:${CP2K_USE_LIBXC}>:Libxc::xcf03>
+    $<$<AND:$<BOOL:${CP2K_USE_LIBXC}>,$<BOOL:${CP2K_LIBXC_CUDA_SUPPORT}>,$<BOOL:${CP2K_USE_CUDA}>>:Libxc::xc_cuda>
     $<$<BOOL:${CP2K_USE_GAUXC}>:gauxc::gauxc>
     $<$<BOOL:${CP2K_USE_ELPA}>:cp2k::ELPA::elpa>
     $<$<BOOL:${CP2K_USE_PLUMED}>:cp2k::plumed::plumed>

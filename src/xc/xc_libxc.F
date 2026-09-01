@@ -68,6 +68,8 @@ MODULE xc_libxc
    USE xc_libxc_wrap, ONLY: xc_f03_func_t, &
                             xc_f03_func_init, &
                             xc_f03_func_end, &
+                            libxc_set_backend, libxc_get_backend, &
+                            LIBXC_BACKEND_CPU, LIBXC_BACKEND_GPU, &
                             xc_f03_func_info_t, &
                             xc_f03_functional_get_name, &
                             xc_f03_func_get_info, &
@@ -140,11 +142,11 @@ MODULE xc_libxc
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_libxc'
 
-   PUBLIC :: libxc_spin_unpolarized_info, libxc_spin_unpolarized_eval, &
-             libxc_spin_polarized_info, libxc_spin_polarized_eval, &
-             libxc_version_info, libxc_library_reference, &
-             libxc_get_reference_length, libxc_add_sections, &
-             libxc_check_existence_in_libxc, libxc_release_workers
+    PUBLIC :: libxc_spin_unpolarized_info, libxc_spin_unpolarized_eval, &
+              libxc_spin_polarized_info, libxc_spin_polarized_eval, &
+              libxc_version_info, libxc_library_reference, &
+              libxc_get_reference_length, libxc_add_sections, &
+              libxc_check_existence_in_libxc, libxc_release_workers
 
 #if defined (__LIBXC)
    ! Number of grid points handed to LibXC in a single call. LibXC amortizes its
@@ -270,15 +272,15 @@ CONTAINS
 
       func_id = xc_libxc_wrap_functional_get_number(func_name)
       IF (lsd) THEN
-         CALL xc_f03_func_init(xc_func, func_id, XC_POLARIZED)
+         CALL libxc_func_init_wrapper(xc_func, func_id, XC_POLARIZED)
       ELSE
-         CALL xc_f03_func_init(xc_func, func_id, XC_UNPOLARIZED)
+         CALL libxc_func_init_wrapper(xc_func, func_id, XC_UNPOLARIZED)
       END IF
       xc_info = xc_f03_func_get_info(xc_func)
 
       length = xc_libxc_get_reference_length(xc_info)
 
-      CALL xc_f03_func_end(xc_func)
+      CALL libxc_func_end_wrapper(xc_func)
 
       CALL timestop(handle)
 #else
@@ -329,7 +331,7 @@ CONTAINS
          IF (ii > 1) THEN
             IF (func_id == func_ids(ii - 1)) CYCLE
          END IF
-         CALL xc_f03_func_init(xc_func, func_id, XC_UNPOLARIZED)
+         CALL libxc_func_init_wrapper(xc_func, func_id, XC_UNPOLARIZED)
          xc_info = xc_f03_func_get_info(xc_func)
 
          func_name = xc_f03_functional_get_name(func_id)
@@ -373,7 +375,7 @@ CONTAINS
          CALL section_add_subsection(section, subsection)
          CALL section_release(subsection)
 
-         CALL xc_f03_func_end(xc_func)
+         CALL libxc_func_end_wrapper(xc_func)
 
       END DO
 
@@ -432,7 +434,7 @@ CONTAINS
       IF (ABS(func_scale - 1.0_dp) < 1.0e-10_dp) func_scale = 1.0_dp
 
       func_id = xc_libxc_wrap_functional_get_number(func_name)
-      CALL xc_f03_func_init(xc_func, func_id, XC_UNPOLARIZED)
+      CALL libxc_func_init_wrapper(xc_func, func_id, XC_UNPOLARIZED)
       xc_info = xc_f03_func_get_info(xc_func)
 
       s1 = xc_f03_func_info_get_name(xc_info)
@@ -546,7 +548,7 @@ CONTAINS
       IF (ABS(func_scale - 1.0_dp) < 1.0e-10_dp) func_scale = 1.0_dp
 
       func_id = xc_libxc_wrap_functional_get_number(func_name)
-      CALL xc_f03_func_init(xc_func, func_id, XC_POLARIZED)
+      CALL libxc_func_init_wrapper(xc_func, func_id, XC_POLARIZED)
       xc_info = xc_f03_func_get_info(xc_func)
 
       s1 = xc_f03_func_info_get_name(xc_info)
@@ -951,7 +953,7 @@ CONTAINS
             ALLOCATE (ws%worker(nthreads))
 
             DO ithread = 1, nthreads
-               CALL xc_f03_func_init(ws%worker(ithread)%func, func_id, nspin)
+               CALL libxc_func_init_wrapper(ws%worker(ithread)%func, func_id, nspin)
                ws%worker(ithread)%info = xc_f03_func_get_info(ws%worker(ithread)%func)
                ws%worker(ithread)%is_init = .TRUE.
             END DO
@@ -1055,7 +1057,7 @@ CONTAINS
          IF (.NOT. ALLOCATED(libxc_cache(i)%worker)) CYCLE
          DO ithread = 1, SIZE(libxc_cache(i)%worker)
             IF (libxc_cache(i)%worker(ithread)%is_init) THEN
-               CALL xc_f03_func_end(libxc_cache(i)%worker(ithread)%func)
+               CALL libxc_func_end_wrapper(libxc_cache(i)%worker(ithread)%func)
                libxc_cache(i)%worker(ithread)%is_init = .FALSE.
             END IF
          END DO
