@@ -57,7 +57,7 @@ MODULE qs_vcd_ao
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_types,                 ONLY: vcd_env_type
-   USE qs_moments,                      ONLY: build_dsdv_moments
+   USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: &
         get_iterator_info, get_neighbor_list_set_p, neighbor_list_iterate, &
         neighbor_list_iterator_create, neighbor_list_iterator_p_type, &
@@ -1507,7 +1507,8 @@ CONTAINS
          CALL dbcsr_set(matrix_dsdv(i)%matrix, 0.0_dp)
       END DO
 
-      CALL build_dsdv_moments(qs_env, my_matrix_mom, 1, rcc)
+      CALL build_local_moment_matrix(qs_env, my_matrix_mom, 1, ref_point=rcc, &
+                                     neighbor_image=.TRUE.)
 
       DO i = 1, 3
          CALL dbcsr_desymmetrize(my_matrix_mom(i)%matrix, my_matrix_dsdv(i)%matrix)
