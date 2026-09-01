@@ -68,8 +68,9 @@ PROGRAM qs_ot_complex_ref_unittest
         qs_ot_complex_exp_frechet_kernel, qs_ot_density_secant_hessian, &
         qs_ot_density_secant_orbital_overlaps, qs_ot_density_secant_projected_hessian, &
         qs_ot_density_tangent, qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, &
-        qs_ot_fixed_n_energy_hessian, qs_ot_fixed_n_projector_frechet, qs_ot_fixed_n_schur_block, &
-        qs_ot_generate_rotation, qs_ot_get_derivative_complex, qs_ot_get_derivative_ref_complex, &
+        qs_ot_fixed_n_energy_hessian, qs_ot_fixed_n_multigroup_schur_block, &
+        qs_ot_fixed_n_projector_frechet, qs_ot_fixed_n_schur_block, qs_ot_generate_rotation, &
+        qs_ot_get_derivative_complex, qs_ot_get_derivative_ref_complex, &
         qs_ot_get_orbitals_ref_complex, qs_ot_get_p_complex, qs_ot_projected_response_update, &
         qs_ot_rot_mat_derivative, qs_ot_symmetric_abs_solve, qs_ot_symmetric_sr1_update
    USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
@@ -113,6 +114,8 @@ PROGRAM qs_ot_complex_ref_unittest
    CALL test_fixed_n_projector_frechet(mynode, nfail)
    CALL test_finite_rotation_response(mynode, nfail)
    CALL test_fixed_n_rotation_schur(mynode, nfail)
+   CALL test_fixed_n_multigroup_schur(mynode, nfail)
+   CALL test_roks_fixed_n_rotation_schur(mynode, nfail)
    CALL test_symmetric_abs_solve(mynode, nfail)
    CALL test_projected_response_update(mynode, nfail)
    CALL test_symmetric_sr1_update(mynode, nfail)
@@ -850,6 +853,268 @@ CONTAINS
       END IF
 
    END SUBROUTINE test_fixed_n_rotation_schur
+
+! **************************************************************************************************
+!> \brief verify the two-chemical-potential Schur reduction used by shared ROKS orbitals
+!> \param mynode MPI rank
+!> \param nfail accumulated failures
+! **************************************************************************************************
+   SUBROUTINE test_fixed_n_multigroup_schur(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: nenergy = 4, ngroups = 2, nrotation = 3
+
+      INTEGER, DIMENSION(nenergy)                        :: response_group
+      REAL(KIND=dp)                                      :: coupling_error, rhs_error, schur_error
+      REAL(KIND=dp), DIMENSION(nenergy)                  :: energy_gradient, response_weight
+      REAL(KIND=dp), DIMENSION(nenergy, nrotation)       :: rayleigh_response
+      REAL(KIND=dp), DIMENSION(nrotation)                :: rotation_gradient, schur_rhs
+      REAL(KIND=dp), DIMENSION(nrotation, ngroups)       :: coupling
+      REAL(KIND=dp), DIMENSION(nrotation, nrotation)     :: expected, rotation_hessian, schur_block
+
+      rotation_hessian(:, :) = RESHAPE( &
+                               [2.3_dp, 0.2_dp, -0.1_dp, 0.2_dp, 1.8_dp, 0.3_dp, -0.1_dp, 0.3_dp, 1.5_dp], &
+                               [nrotation, nrotation])
+      rayleigh_response(:, :) = RESHAPE( &
+                                [0.4_dp, -0.2_dp, 0.1_dp, 0.3_dp, &
+                                 -0.1_dp, 0.5_dp, 0.2_dp, -0.4_dp, &
+                                 0.3_dp, 0.1_dp, -0.5_dp, 0.2_dp], &
+                                [nenergy, nrotation])
+      response_weight(:) = [0.7_dp, 0.5_dp, 0.4_dp, 0.2_dp]
+      response_group(:) = [1, 1, 2, 2]
+      rotation_gradient(:) = [0.2_dp, -0.1_dp, 0.3_dp]
+      energy_gradient(:) = [0.04_dp, -0.03_dp, 0.02_dp, -0.01_dp]
+
+      CALL qs_ot_fixed_n_multigroup_schur_block( &
+         rotation_hessian, rayleigh_response, response_weight, response_group, &
+         rotation_gradient, energy_gradient, schur_block, coupling, schur_rhs)
+
+      expected(:, :) = rotation_hessian - &
+                       MATMUL(TRANSPOSE(rayleigh_response), &
+                              MATMUL(RESHAPE( &
+                                     [0.2916666666666667_dp, -0.2916666666666667_dp, 0.0_dp, 0.0_dp, &
+                                      -0.2916666666666667_dp, 0.2916666666666667_dp, 0.0_dp, 0.0_dp, &
+                                      0.0_dp, 0.0_dp, 0.1333333333333333_dp, -0.1333333333333333_dp, &
+                                      0.0_dp, 0.0_dp, -0.1333333333333333_dp, 0.1333333333333333_dp], &
+                                     [nenergy, nenergy]), rayleigh_response))
+      schur_error = MAXVAL(ABS( &
+                           schur_block + &
+                           MATMUL(coupling(:, 1:1), TRANSPOSE(coupling(:, 1:1)))/1.2_dp + &
+                           MATMUL(coupling(:, 2:2), TRANSPOSE(coupling(:, 2:2)))/0.6_dp - expected))
+      coupling_error = MAXVAL(ABS(coupling(:, 1) - &
+                                  MATMUL(TRANSPOSE(rayleigh_response(1:2, :)), &
+                                         response_weight(1:2))))
+      coupling_error = MAX(coupling_error, MAXVAL(ABS(coupling(:, 2) - &
+                                                      MATMUL(TRANSPOSE(rayleigh_response(3:4, :)), &
+                                                             response_weight(3:4)))))
+      rhs_error = MAXVAL(ABS(schur_rhs - rotation_gradient - &
+                             MATMUL(TRANSPOSE(rayleigh_response), energy_gradient)))
+
+      IF (MAX(schur_error, coupling_error, rhs_error) > 2.0E-14_dp) nfail = nfail + 1
+      IF (mynode == 0) THEN
+         WRITE (io_unit, '(A,3(1X,ES13.6))') "fixed-N multigroup Schur errors:", &
+            schur_error, coupling_error, rhs_error
+      END IF
+
+   END SUBROUTINE test_fixed_n_multigroup_schur
+
+! **************************************************************************************************
+!> \brief finite-difference the shared-orbital, two-fixed-N ROKS Mermin Hessian
+!> \param mynode MPI rank
+!> \param nfail accumulated failures
+! **************************************************************************************************
+   SUBROUTINE test_roks_fixed_n_rotation_schur(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: nbands = 3, nenergy = 6, ngroups = 2, &
+                                                            nrotation = 6
+      REAL(KIND=dp), PARAMETER                           :: fd_step = 1.0E-4_dp, &
+                                                            kpoint_weight = 0.7_dp, &
+                                                            maxocc = 1.0_dp, temperature = 0.09_dp
+
+      COMPLEX(KIND=dp), DIMENSION(nbands, nbands) :: chc_a, chc_b, direction_generator, generator, &
+         hamiltonian_a, hamiltonian_b, rotation, rotation_minus, rotation_plus
+      INTEGER                                            :: i
+      INTEGER, DIMENSION(nenergy)                        :: response_group
+      REAL(KIND=dp) :: curvature, curvature_a, curvature_b, curvature_error, energy_minus, &
+         energy_minus_a, energy_minus_b, energy_plus, energy_plus_a, energy_plus_b, energy_zero, &
+         energy_zero_a, energy_zero_b, mu_a, mu_b, response_sum_a, response_sum_b, schur_error
+      REAL(KIND=dp), DIMENSION(nbands) :: energy_a, energy_a_minus, energy_a_plus, energy_b, &
+         energy_b_minus, energy_b_plus, occupation_a, occupation_b, rayleigh_a, rayleigh_a_minus, &
+         rayleigh_a_plus, rayleigh_b, rayleigh_b_minus, rayleigh_b_plus, response_a, response_b, &
+         weights
+      REAL(KIND=dp), DIMENSION(nbands, nrotation)        :: spin_rayleigh_response
+      REAL(KIND=dp), DIMENSION(nenergy)                  :: energy_direction, energy_gradient, &
+                                                            response
+      REAL(KIND=dp), DIMENSION(nenergy, nenergy)         :: energy_hessian
+      REAL(KIND=dp), DIMENSION(nenergy, nrotation)       :: rayleigh_response
+      REAL(KIND=dp), DIMENSION(nrotation)                :: rotation_direction, rotation_gradient, &
+                                                            schur_rhs, spin_gradient
+      REAL(KIND=dp), DIMENSION(nrotation, ngroups)       :: coupling
+      REAL(KIND=dp), DIMENSION(nrotation, nrotation)     :: rotation_hessian, rotation_hessian_a, &
+                                                            rotation_hessian_b, schur, &
+                                                            schur_block, spin_hessian
+
+      hamiltonian_a(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      hamiltonian_b(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      hamiltonian_a(1, 1) = -0.42_dp
+      hamiltonian_a(2, 2) = 0.03_dp
+      hamiltonian_a(3, 3) = 0.37_dp
+      hamiltonian_a(1, 2) = CMPLX(0.08_dp, -0.05_dp, KIND=dp)
+      hamiltonian_a(1, 3) = CMPLX(-0.03_dp, 0.07_dp, KIND=dp)
+      hamiltonian_a(2, 3) = CMPLX(0.09_dp, 0.04_dp, KIND=dp)
+      hamiltonian_b(1, 1) = -0.31_dp
+      hamiltonian_b(2, 2) = 0.11_dp
+      hamiltonian_b(3, 3) = 0.46_dp
+      hamiltonian_b(1, 2) = CMPLX(-0.06_dp, 0.02_dp, KIND=dp)
+      hamiltonian_b(1, 3) = CMPLX(0.05_dp, 0.04_dp, KIND=dp)
+      hamiltonian_b(2, 3) = CMPLX(-0.07_dp, 0.06_dp, KIND=dp)
+      DO i = 1, nbands
+         hamiltonian_a(i, 1:i - 1) = CONJG(hamiltonian_a(1:i - 1, i))
+         hamiltonian_b(i, 1:i - 1) = CONJG(hamiltonian_b(1:i - 1, i))
+      END DO
+
+      generator(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      generator(1, 2) = CMPLX(0.14_dp, -0.06_dp, KIND=dp)
+      generator(1, 3) = CMPLX(-0.08_dp, 0.05_dp, KIND=dp)
+      generator(2, 3) = CMPLX(0.10_dp, 0.03_dp, KIND=dp)
+      DO i = 1, nbands
+         generator(i, 1:i - 1) = -CONJG(generator(1:i - 1, i))
+      END DO
+      rotation_direction(:) = [0.09_dp, -0.04_dp, -0.07_dp, 0.06_dp, 0.03_dp, 0.08_dp]
+      energy_direction(:) = [0.05_dp, -0.04_dp, 0.02_dp, -0.03_dp, 0.06_dp, -0.01_dp]
+      direction_generator(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      direction_generator(1, 2) = CMPLX(rotation_direction(1), rotation_direction(2), KIND=dp)
+      direction_generator(2, 1) = -CONJG(direction_generator(1, 2))
+      direction_generator(1, 3) = CMPLX(rotation_direction(3), rotation_direction(4), KIND=dp)
+      direction_generator(3, 1) = -CONJG(direction_generator(1, 3))
+      direction_generator(2, 3) = CMPLX(rotation_direction(5), rotation_direction(6), KIND=dp)
+      direction_generator(3, 2) = -CONJG(direction_generator(2, 3))
+
+      rotation(:, :) = dense_antihermitian_exp(generator)
+      chc_a(:, :) = MATMUL(CONJG(TRANSPOSE(rotation)), MATMUL(hamiltonian_a, rotation))
+      chc_b(:, :) = MATMUL(CONJG(TRANSPOSE(rotation)), MATMUL(hamiltonian_b, rotation))
+      DO i = 1, nbands
+         rayleigh_a(i) = REAL(chc_a(i, i), KIND=dp)
+         rayleigh_b(i) = REAL(chc_b(i, i), KIND=dp)
+      END DO
+      energy_a(:) = rayleigh_a
+      energy_b(:) = rayleigh_b
+      weights(:) = kpoint_weight
+      CALL fixed_n_fermi_occupations(energy_a, weights, 1.65_dp, temperature, &
+                                     maxocc, occupation_a, mu_a)
+      CALL fixed_n_fermi_occupations(energy_b, weights, 0.95_dp, temperature, &
+                                     maxocc, occupation_b, mu_b)
+      response_a(:) = weights*occupation_a*(maxocc - occupation_a)/(maxocc*temperature)
+      response_b(:) = weights*occupation_b*(maxocc - occupation_b)/(maxocc*temperature)
+      response_sum_a = SUM(response_a)
+      response_sum_b = SUM(response_b)
+      response(1:nbands) = response_a
+      response(nbands + 1:nenergy) = response_b
+      response_group(:) = [1, 1, 1, 2, 2, 2]
+
+      CALL qs_ot_finite_rotation_response( &
+         chc_a, generator, occupation_a, kpoint_weight, spin_gradient, spin_hessian, &
+         spin_rayleigh_response)
+      rotation_gradient(:) = spin_gradient
+      rotation_hessian_a(:, :) = spin_hessian
+      rayleigh_response(1:nbands, :) = spin_rayleigh_response
+      CALL qs_ot_finite_rotation_response( &
+         chc_b, generator, occupation_b, kpoint_weight, spin_gradient, spin_hessian, &
+         spin_rayleigh_response)
+      rotation_gradient(:) = rotation_gradient + spin_gradient
+      rotation_hessian_b(:, :) = spin_hessian
+      rotation_hessian(:, :) = rotation_hessian_a + rotation_hessian_b
+      rayleigh_response(nbands + 1:nenergy, :) = spin_rayleigh_response
+
+      CALL qs_ot_fixed_n_energy_gradient( &
+         rayleigh_a, energy_a, response_a, response_sum_a, 0.0_dp, &
+         energy_gradient(1:nbands))
+      CALL qs_ot_fixed_n_energy_gradient( &
+         rayleigh_b, energy_b, response_b, response_sum_b, 0.0_dp, &
+         energy_gradient(nbands + 1:nenergy))
+      energy_hessian(:, :) = 0.0_dp
+      CALL qs_ot_fixed_n_energy_hessian( &
+         response_a, response_sum_a, energy_hessian(1:nbands, 1:nbands))
+      CALL qs_ot_fixed_n_energy_hessian( &
+         response_b, response_sum_b, energy_hessian(nbands + 1:nenergy, nbands + 1:nenergy))
+      CALL qs_ot_fixed_n_multigroup_schur_block( &
+         rotation_hessian, rayleigh_response, response, response_group, rotation_gradient, &
+         energy_gradient, schur_block, coupling, schur_rhs)
+      schur(:, :) = schur_block + &
+                    MATMUL(coupling(:, 1:1), TRANSPOSE(coupling(:, 1:1)))/response_sum_a + &
+                    MATMUL(coupling(:, 2:2), TRANSPOSE(coupling(:, 2:2)))/response_sum_b
+      schur_error = MAXVAL(ABS(schur - rotation_hessian + &
+                               MATMUL(TRANSPOSE(rayleigh_response), &
+                                      MATMUL(energy_hessian, rayleigh_response))))
+
+      rotation_plus(:, :) = dense_antihermitian_exp(generator + fd_step*direction_generator)
+      rotation_minus(:, :) = dense_antihermitian_exp(generator - fd_step*direction_generator)
+      DO i = 1, nbands
+         rayleigh_a_plus(i) = REAL(DOT_PRODUCT(rotation_plus(:, i), &
+                                               MATMUL(hamiltonian_a, rotation_plus(:, i))), KIND=dp)
+         rayleigh_a_minus(i) = REAL(DOT_PRODUCT(rotation_minus(:, i), &
+                                                MATMUL(hamiltonian_a, rotation_minus(:, i))), KIND=dp)
+         rayleigh_b_plus(i) = REAL(DOT_PRODUCT(rotation_plus(:, i), &
+                                               MATMUL(hamiltonian_b, rotation_plus(:, i))), KIND=dp)
+         rayleigh_b_minus(i) = REAL(DOT_PRODUCT(rotation_minus(:, i), &
+                                                MATMUL(hamiltonian_b, rotation_minus(:, i))), KIND=dp)
+      END DO
+      energy_a_plus(:) = energy_a + fd_step*energy_direction(1:nbands)
+      energy_a_minus(:) = energy_a - fd_step*energy_direction(1:nbands)
+      energy_b_plus(:) = energy_b + fd_step*energy_direction(nbands + 1:nenergy)
+      energy_b_minus(:) = energy_b - fd_step*energy_direction(nbands + 1:nenergy)
+      energy_zero_a = fixed_n_mermin_value( &
+                      rayleigh_a, energy_a, weights, 1.65_dp, temperature, maxocc)
+      energy_zero_b = fixed_n_mermin_value( &
+                      rayleigh_b, energy_b, weights, 0.95_dp, temperature, maxocc)
+      energy_plus_a = fixed_n_mermin_value( &
+                      rayleigh_a_plus, energy_a_plus, weights, 1.65_dp, temperature, maxocc)
+      energy_plus_b = fixed_n_mermin_value( &
+                      rayleigh_b_plus, energy_b_plus, weights, 0.95_dp, temperature, maxocc)
+      energy_minus_a = fixed_n_mermin_value( &
+                       rayleigh_a_minus, energy_a_minus, weights, 1.65_dp, temperature, maxocc)
+      energy_minus_b = fixed_n_mermin_value( &
+                       rayleigh_b_minus, energy_b_minus, weights, 0.95_dp, temperature, maxocc)
+      energy_zero = energy_zero_a + energy_zero_b
+      energy_plus = energy_plus_a + energy_plus_b
+      energy_minus = energy_minus_a + energy_minus_b
+      curvature_a = DOT_PRODUCT(rotation_direction, &
+                                MATMUL(rotation_hessian_a, rotation_direction)) - &
+                    2.0_dp*DOT_PRODUCT(energy_direction(1:nbands), &
+                                       MATMUL(energy_hessian(1:nbands, 1:nbands), &
+                                              MATMUL(rayleigh_response(1:nbands, :), &
+                                                     rotation_direction))) + &
+                    DOT_PRODUCT(energy_direction(1:nbands), &
+                                MATMUL(energy_hessian(1:nbands, 1:nbands), &
+                                       energy_direction(1:nbands)))
+      curvature_b = DOT_PRODUCT(rotation_direction, &
+                                MATMUL(rotation_hessian_b, rotation_direction)) - &
+                    2.0_dp*DOT_PRODUCT(energy_direction(nbands + 1:nenergy), &
+                                       MATMUL(energy_hessian(nbands + 1:nenergy, &
+                                                             nbands + 1:nenergy), &
+                                              MATMUL(rayleigh_response(nbands + 1:nenergy, :), &
+                                                     rotation_direction))) + &
+                    DOT_PRODUCT(energy_direction(nbands + 1:nenergy), &
+                                MATMUL(energy_hessian(nbands + 1:nenergy, nbands + 1:nenergy), &
+                                       energy_direction(nbands + 1:nenergy)))
+      curvature = curvature_a + curvature_b
+      curvature_error = ABS((energy_plus_a - 2.0_dp*energy_zero_a + energy_minus_a)/ &
+                            fd_step**2 - curvature_a)
+      curvature_error = MAX( &
+                        curvature_error, &
+                        ABS((energy_plus_b - 2.0_dp*energy_zero_b + energy_minus_b)/fd_step**2 - curvature_b), &
+                        ABS((energy_plus - 2.0_dp*energy_zero + energy_minus)/fd_step**2 - curvature))
+
+      IF (schur_error > 3.0E-11_dp .OR. curvature_error > 5.0E-6_dp) nfail = nfail + 1
+      IF (mynode == 0) THEN
+         WRITE (io_unit, '(A,2(1X,ES13.6))') "ROKS fixed-N rotation Schur errors:", &
+            schur_error, curvature_error
+      END IF
+
+   END SUBROUTINE test_roks_fixed_n_rotation_schur
 
 ! **************************************************************************************************
 !> \brief Check that positive and negative response modes retain their spectral magnitude.
