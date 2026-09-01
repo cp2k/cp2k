@@ -71,7 +71,8 @@ MODULE qs_scf_initialization
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE kpoint_types,                    ONLY: kpoint_type
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -843,11 +844,13 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       LOGICAL                                            :: has_unit_metric
 
-      INTEGER                                            :: ispin, nao, nmo
+      INTEGER                                            :: ispin, kplocal, nao, nmo
+      INTEGER, DIMENSION(2)                              :: kp_range
       LOGICAL                                            :: do_kpoints, need_coeff_b, not_se_or_tb, &
                                                             ot_energies
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, dft_control=dft_control, mos=mos)
@@ -920,19 +923,32 @@ CONTAINS
             CALL krylov_space_allocate(scf_env%krylov_space, scf_control, mos)
             ! Block davidson diagonlization: allocation of additional matrices is needed
          CASE (diag_block_davidson)
-            IF (do_kpoints) THEN
-               CPABORT("Block Davidson diagonalization not possible with kpoint calculations")
-            END IF
             scf_env%method = block_davidson_diag_method_nr
-            IF (.NOT. ASSOCIATED(scf_env%block_davidson_env)) THEN
-               CALL block_davidson_env_create(scf_env%block_davidson_env, dft_control%nspins, &
-                                              scf_section)
+            IF (do_kpoints) THEN
+               IF (dft_control%roks) THEN
+                  CPABORT("Block Davidson not possible with ROKS")
+               END IF
+               ! one channel per (local kpoint, spin); scratch matrices are local
+               ! to generate_extended_space_c, so only the settings are stored
+               IF (.NOT. ASSOCIATED(scf_env%block_davidson_env)) THEN
+                  CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
+                  CALL get_kpoint_info(kpoints, kp_range=kp_range)
+                  kplocal = kp_range(2) - kp_range(1) + 1
+                  CALL block_davidson_env_create(scf_env%block_davidson_env, &
+                                                 kplocal*dft_control%nspins, scf_section)
+               END IF
+               need_coeff_b = .FALSE.
+            ELSE
+               IF (.NOT. ASSOCIATED(scf_env%block_davidson_env)) THEN
+                  CALL block_davidson_env_create(scf_env%block_davidson_env, dft_control%nspins, &
+                                                 scf_section)
+               END IF
+               DO ispin = 1, dft_control%nspins
+                  CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+                  CALL block_davidson_allocate(scf_env%block_davidson_env(ispin), mo_coeff, nao, nmo)
+               END DO
+               need_coeff_b = .TRUE.
             END IF
-            DO ispin = 1, dft_control%nspins
-               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
-               CALL block_davidson_allocate(scf_env%block_davidson_env(ispin), mo_coeff, nao, nmo)
-            END DO
-            need_coeff_b = .TRUE.
             ! Filter matrix diagonalisation method
          CASE (diag_filter_matrix)
             scf_env%method = filter_matrix_diag_method_nr

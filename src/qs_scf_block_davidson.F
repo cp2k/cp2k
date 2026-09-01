@@ -17,6 +17,21 @@
 ! **************************************************************************************************
 MODULE qs_scf_block_davidson
 
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
+                                              cp_cfm_gemm,&
+                                              cp_cfm_get_diag,&
+                                              cp_cfm_scale_and_add,&
+                                              cp_cfm_scale_and_add_fm,&
+                                              cp_cfm_vectorsnorm
+   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_submatrix,&
+                                              cp_cfm_release,&
+                                              cp_cfm_set_all,&
+                                              cp_cfm_set_submatrix,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
@@ -52,6 +67,9 @@ MODULE qs_scf_block_davidson
                                               cp_fm_vectorsnorm
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
+   USE mathconstants,                   ONLY: gaussi,&
+                                              z_one,&
+                                              z_zero
    USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner,                  ONLY: apply_preconditioner
@@ -65,7 +83,7 @@ MODULE qs_scf_block_davidson
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_block_davidson'
 
-   PUBLIC :: generate_extended_space, generate_extended_space_sparse
+   PUBLIC :: generate_extended_space, generate_extended_space_c, generate_extended_space_sparse
 
 CONTAINS
 
@@ -464,6 +482,592 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE generate_extended_space
+
+! **************************************************************************************************
+!> \brief iterative diagonalization by the block-Davidson approach for one
+!>        complex K point; complex counterpart of generate_extended_space
+!> \param bdav_env Davidson settings of this channel
+!> \param mos MO pair of this K point: mos(1) real part, mos(2) imaginary part
+!> \param matrix_h complex Kohn-Sham matrix H(k) in full storage
+!> \param matrix_s complex overlap matrix S(k) in full storage
+!> \param output_unit unit for the Davidson iteration log
+!> \param eps_iter convergence threshold for the residual norm of the occupied
+!>        MOS of this step
+!> \param eps_iter_empty threshold for the unoccupied MOS, identical to
+!>        eps_iter unless the driver relaxed it with EPS_ADAPT
+!> \param preconditioner complex K-point preconditioner
+!> \note K-point MOs have no sparse dbcsr copy (mo_coeff_b). This routine does
+!>       not update mo_coeff_b.
+! **************************************************************************************************
+   SUBROUTINE generate_extended_space_c(bdav_env, mos, matrix_h, matrix_s, output_unit, &
+                                        eps_iter, eps_iter_empty, preconditioner)
+
+      TYPE(davidson_type)                                :: bdav_env
+      TYPE(mo_set_type), DIMENSION(2), INTENT(INOUT)     :: mos
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_h, matrix_s
+      INTEGER, INTENT(IN)                                :: output_unit
+      REAL(KIND=dp), INTENT(IN)                          :: eps_iter, eps_iter_empty
+      TYPE(preconditioner_type), OPTIONAL, POINTER       :: preconditioner
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'generate_extended_space_c'
+      REAL(KIND=dp), PARAMETER                           :: eps_exhaust = 1.0E-12_dp, &
+                                                            occ_tol = 1.0E-3_dp
+
+      COMPLEX(KIND=dp)                                   :: lambda_c
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cdiag, scaling
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: colbuf, submat_buffer
+      INTEGER :: handle, homo, i_first, i_last, imo, iter, j, jj, max_iter, n, nao, ncol_z, nmat, &
+         nmat2, nmo, nmo_converged, nmo_not_converged, nset, nset_conv, nset_not_conv
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iconv, inotconv
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: iconv_set, inotconv_set
+      LOGICAL                                            :: converged, do_apply_preconditioner, &
+                                                            exhausted
+      REAL(KIND=dp)                                      :: eps_iter_col, lambda, max_norm, &
+                                                            min_norm, t1, t2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ritz_coeff, vnorm, vnorm_pz
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eig_not_conv, eigenvalues, evals, &
+                                                            occupation
+      TYPE(cp_cfm_type)                                  :: c_conv, c_mz, c_new, c_notconv, c_out, &
+                                                            c_pzo, c_pzw, c_z, cmo, h_block, h_fm, &
+                                                            m_hc, m_sc, m_tmp, s_block, v_block, &
+                                                            w_block
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_i, mo_coeff_r
+
+! an occupation below this carries no weight in the density (it sits
+! beyond the thermal smearing tail) and may converge at the relaxed
+! empty threshold
+
+! empirical floor for declaring a correction vector numerically zero: the
+! vectors are normalized to one, double-precision roundoff sits near 1e-16,
+! and the threshold errs towards bailing out early (the fallback is an
+! exact diagonalization). Not taken from any reference implementation.
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (eigenvalues, evals, eig_not_conv, mo_coeff_r, mo_coeff_i, occupation, fm_struct_tmp)
+
+      do_apply_preconditioner = .FALSE.
+      IF (PRESENT(preconditioner)) do_apply_preconditioner = .TRUE.
+      CALL get_mo_set(mo_set=mos(1), mo_coeff=mo_coeff_r, eigenvalues=eigenvalues, &
+                      occupation_numbers=occupation, nao=nao, nmo=nmo, homo=homo)
+      CALL get_mo_set(mo_set=mos(2), mo_coeff=mo_coeff_i)
+      IF (do_apply_preconditioner) THEN
+         max_iter = bdav_env%max_iter
+      ELSE
+         max_iter = 1
+      END IF
+
+      t1 = m_walltime()
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, "(T15,A,T23,A,T36,A,T49,A,T60,A,/,T8,A)") &
+            " Cycle ", " conv. MOS ", " B2MAX ", " B2MIN ", " Time", REPEAT("-", 60)
+      END IF
+
+      ALLOCATE (iconv(nmo))
+      ALLOCATE (inotconv(nmo))
+      ALLOCATE (ritz_coeff(nmo))
+      ALLOCATE (vnorm(nmo))
+      ALLOCATE (cdiag(nmo))
+
+      ! assemble the complex MO matrix of this K point: cmo = C_re + i*C_im
+      CALL cp_cfm_create(cmo, mo_coeff_r%matrix_struct, name="cmo")
+      CALL cp_cfm_scale_and_add_fm(z_zero, cmo, z_one, mo_coeff_r)
+      CALL cp_cfm_scale_and_add_fm(z_one, cmo, gaussi, mo_coeff_i)
+
+      converged = .FALSE.
+      exhausted = .FALSE.
+      DO iter = 1, max_iter
+
+         ! compute Ritz values
+         ritz_coeff = 0.0_dp
+         CALL cp_cfm_create(m_hc, cmo%matrix_struct, name="hc")
+         CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, matrix_h, cmo, z_zero, m_hc)
+         CALL cp_cfm_create(m_sc, cmo%matrix_struct, name="sc")
+         CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, matrix_s, cmo, z_zero, m_sc)
+
+         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=nmo, &
+                                  context=cmo%matrix_struct%context, &
+                                  para_env=cmo%matrix_struct%para_env)
+         CALL cp_cfm_create(m_tmp, fm_struct_tmp, name="matrix_tmp")
+         CALL cp_fm_struct_release(fm_struct_tmp)
+
+         CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, cmo, m_hc, z_zero, m_tmp)
+         CALL cp_cfm_get_diag(m_tmp, cdiag)
+         ritz_coeff(1:nmo) = REAL(cdiag(1:nmo), KIND=dp)
+         CALL cp_cfm_release(m_tmp)
+
+         ! Check for converged eigenvectors: residual C_z = S*C*diag(ritz) - H*C
+         CALL cp_cfm_create(c_z, cmo%matrix_struct, name="z")
+         CALL cp_cfm_to_cfm(m_sc, c_z)
+         IF (ALLOCATED(scaling)) DEALLOCATE (scaling)
+         ALLOCATE (scaling(nmo))
+         scaling(:) = CMPLX(ritz_coeff, 0.0_dp, KIND=dp)
+         CALL cp_cfm_column_scale(c_z, scaling)
+         CALL cp_cfm_scale_and_add(-z_one, c_z, z_one, m_hc)
+         CALL cp_cfm_vectorsnorm(c_z, vnorm)
+
+         nmo_converged = 0
+         nmo_not_converged = 0
+         max_norm = 0.0_dp
+         min_norm = 1.e10_dp
+         DO imo = 1, nmo
+            max_norm = MAX(max_norm, vnorm(imo))
+            min_norm = MIN(min_norm, vnorm(imo))
+         END DO
+         iconv = 0
+         inotconv = 0
+         DO imo = 1, nmo
+            ! the relaxed threshold applies to the UNOCCUPIED manifold only:
+            ! under smearing the MOS above the HOMO can still carry weight and
+            ! leak their residual into the density, so the occupation decides,
+            ! not the HOMO index
+            IF (occupation(imo) < occ_tol) THEN
+               eps_iter_col = eps_iter_empty
+            ELSE
+               eps_iter_col = eps_iter
+            END IF
+            IF (vnorm(imo) <= eps_iter_col) THEN
+               nmo_converged = nmo_converged + 1
+               iconv(nmo_converged) = imo
+            ELSE
+               nmo_not_converged = nmo_not_converged + 1
+               inotconv(nmo_not_converged) = imo
+            END IF
+         END DO
+
+         ! the iter > 1 gate below blocks the exit when EVERY column passes
+         ! the entering check at iter == 1. With no unconverged column there
+         ! is no correction to rotate with. The reduced problem further down
+         ! would be zero-dimensional, and this head's nmo-wide residual
+         ! matrices would be released for nothing by the packing block below.
+         ! Reclassify all columns as unconverged so the call still performs
+         ! the required one Rayleigh-Ritz rotation under the current
+         ! operator: the zero-converged branch reuses the head matrices
+         ! directly. At iter > 1 the same situation exits legitimately above,
+         ! hence the iter guard
+         IF (iter == 1 .AND. nmo_not_converged == 0) THEN
+            nmo_not_converged = nmo
+            nmo_converged = 0
+            iconv = 0
+            DO imo = 1, nmo
+               inotconv(imo) = imo
+            END DO
+         END IF
+
+         IF (nmo_converged > 0) THEN
+            ALLOCATE (iconv_set(nmo_converged, 2))
+            ALLOCATE (inotconv_set(nmo_not_converged, 2))
+            i_last = iconv(1)
+            nset = 0
+            DO j = 1, nmo_converged
+               imo = iconv(j)
+
+               IF (imo == i_last + 1) THEN
+                  i_last = imo
+                  iconv_set(nset, 2) = imo
+               ELSE
+                  i_last = imo
+                  nset = nset + 1
+                  iconv_set(nset, 1) = imo
+                  iconv_set(nset, 2) = imo
+               END IF
+            END DO
+            nset_conv = nset
+
+            i_last = inotconv(1)
+            nset = 0
+            DO j = 1, nmo_not_converged
+               imo = inotconv(j)
+
+               IF (imo == i_last + 1) THEN
+                  i_last = imo
+                  inotconv_set(nset, 2) = imo
+               ELSE
+                  i_last = imo
+                  nset = nset + 1
+                  inotconv_set(nset, 1) = imo
+                  inotconv_set(nset, 2) = imo
+               END IF
+            END DO
+            nset_not_conv = nset
+            CALL cp_cfm_release(m_sc)
+            CALL cp_cfm_release(m_hc)
+            CALL cp_cfm_release(c_z)
+         END IF
+
+         ! the convergence check runs at the head of a cycle and probes the
+         ! ENTERING MOS. Requiring iter > 1 enforces one Rayleigh-Ritz rotation
+         ! under the current operator per call. Exiting on the entry check
+         ! alone would return the MOS unchanged, the density unchanged, and an
+         ! outer SCF convergence measure of exactly zero. The SCF then stops
+         ! at whatever the previous step left, which masquerades as
+         ! convergence whenever the threshold is looser than the entering
+         ! residual
+         IF (iter > 1 .AND. REAL(nmo_converged, dp)/REAL(nmo, dp) > bdav_env%conv_percent) THEN
+            converged = .TRUE.
+            DEALLOCATE (iconv_set)
+            DEALLOCATE (inotconv_set)
+            t2 = m_walltime()
+            IF (output_unit > 0) THEN
+               WRITE (output_unit, '(T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)') &
+                  iter, nmo_converged, max_norm, min_norm, t2 - t1
+
+               WRITE (output_unit, *) " Reached convergence in ", iter, &
+                  " Davidson iterations"
+            END IF
+
+            EXIT
+         END IF
+
+         ncol_z = nmo_not_converged
+
+         IF (nmo_converged > 0) THEN
+            ! dense copy of H, shifted below by the projector onto the converged space
+            CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nao, &
+                                     context=cmo%matrix_struct%context, &
+                                     para_env=cmo%matrix_struct%para_env)
+            CALL cp_cfm_create(h_fm, fm_struct_tmp, name="hf")
+            CALL cp_cfm_create(c_out, fm_struct_tmp, name="cout")
+            CALL cp_fm_struct_release(fm_struct_tmp)
+            CALL cp_cfm_to_cfm(matrix_h, h_fm)
+
+            ! projector P = (S*C_conv)*(S*C_conv)^H
+            CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmo_converged, &
+                                     context=cmo%matrix_struct%context, &
+                                     para_env=cmo%matrix_struct%para_env)
+            CALL cp_cfm_create(c_conv, fm_struct_tmp, name="cconv")
+            CALL cp_cfm_create(m_tmp, fm_struct_tmp, name="scconv")
+            CALL cp_fm_struct_release(fm_struct_tmp)
+            jj = 1
+            DO j = 1, nset_conv
+               i_first = iconv_set(j, 1)
+               i_last = iconv_set(j, 2)
+               n = i_last - i_first + 1
+               ALLOCATE (submat_buffer(nao, n))
+               CALL cp_cfm_get_submatrix(cmo, submat_buffer, start_row=1, start_col=i_first, &
+                                         n_rows=nao, n_cols=n)
+               CALL cp_cfm_set_submatrix(c_conv, submat_buffer, start_row=1, start_col=jj)
+               DEALLOCATE (submat_buffer)
+               jj = jj + n
+            END DO
+            CALL cp_cfm_gemm('N', 'N', nao, nmo_converged, nao, z_one, matrix_s, c_conv, &
+                             z_zero, m_tmp)
+            CALL cp_cfm_gemm('N', 'C', nao, nao, nmo_converged, z_one, m_tmp, m_tmp, z_zero, c_out)
+            CALL cp_cfm_release(m_tmp)
+            CALL cp_cfm_release(c_conv)
+
+            ! project c_out out of H
+            lambda = 100.0_dp*ABS(eigenvalues(homo))
+            lambda_c = CMPLX(lambda, 0.0_dp, KIND=dp)
+            CALL cp_cfm_scale_and_add(z_one, h_fm, lambda_c, c_out)
+         END IF
+
+         ! gather the not converged MOs
+         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=ncol_z, &
+                                  context=cmo%matrix_struct%context, &
+                                  para_env=cmo%matrix_struct%para_env)
+         CALL cp_cfm_create(c_notconv, fm_struct_tmp, name="c_notconv")
+         CALL cp_fm_struct_release(fm_struct_tmp)
+
+         IF (nmo_converged > 0) THEN
+            ! m_hc/m_sc/c_z are recreated with the ncol_z column count
+            CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=ncol_z, &
+                                     context=cmo%matrix_struct%context, &
+                                     para_env=cmo%matrix_struct%para_env)
+            CALL cp_cfm_create(m_hc, fm_struct_tmp, name="m_hc")
+            CALL cp_cfm_create(m_sc, fm_struct_tmp, name="m_sc")
+            CALL cp_cfm_create(c_z, fm_struct_tmp, name="c_z")
+            CALL cp_fm_struct_release(fm_struct_tmp)
+
+            ALLOCATE (eig_not_conv(ncol_z))
+            jj = 1
+            DO j = 1, nset_not_conv
+               i_first = inotconv_set(j, 1)
+               i_last = inotconv_set(j, 2)
+               n = i_last - i_first + 1
+               ALLOCATE (submat_buffer(nao, n))
+               CALL cp_cfm_get_submatrix(cmo, submat_buffer, start_row=1, start_col=i_first, &
+                                         n_rows=nao, n_cols=n)
+               CALL cp_cfm_set_submatrix(c_notconv, submat_buffer, start_row=1, start_col=jj)
+               DEALLOCATE (submat_buffer)
+               eig_not_conv(jj:jj + n - 1) = ritz_coeff(i_first:i_last)
+               jj = jj + n
+            END DO
+            ! extend the subspace using only the not converged vectors
+            CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, h_fm, c_notconv, z_zero, m_hc)
+            CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, matrix_s, c_notconv, z_zero, m_sc)
+            CALL cp_cfm_to_cfm(m_sc, c_z)
+            IF (ALLOCATED(scaling)) DEALLOCATE (scaling)
+            ALLOCATE (scaling(ncol_z))
+            scaling(:) = CMPLX(eig_not_conv, 0.0_dp, KIND=dp)
+            CALL cp_cfm_column_scale(c_z, scaling)
+            CALL cp_cfm_scale_and_add(-z_one, c_z, z_one, m_hc)
+            DEALLOCATE (eig_not_conv)
+            ! h_fm is the shifted operator H+lambda*P, still needed for the HZ block below
+         ELSE
+            ! nothing frozen: c_notconv is the full set and the m_hc/m_sc/c_z matrices
+            ! of the Ritz step above (nmo-wide) are reused directly
+            CALL cp_cfm_to_cfm(cmo, c_notconv)
+         END IF
+
+         ! preconditioner
+         CALL cp_cfm_create(c_mz, c_z%matrix_struct, name="pz")
+         IF (do_apply_preconditioner) THEN
+            IF (preconditioner%in_use /= 0) THEN
+               IF (nmo_converged == 0) THEN
+                  ! every column is unconverged, so the residual set already is
+                  ! the nmo-wide input the applier contract requires: apply
+                  ! directly, no scattering
+                  CALL apply_preconditioner(preconditioner, c_z, c_mz)
+               ELSE
+                  ! the complex applier works column-wise in the MO basis of
+                  ! the preconditioner construction, so the unconverged
+                  ! residuals are scattered into an nmo-wide zero buffer and
+                  ! gathered back. The unconverged columns move per contiguous
+                  ! segment of inotconv_set. The submatrix transfers end in a
+                  ! collective reduction over the matrix group, and a
+                  ! column-at-a-time loop would launch one per unconverged MO
+                  CALL cp_cfm_create(c_pzw, cmo%matrix_struct, name="pzw")
+                  CALL cp_cfm_create(c_pzo, cmo%matrix_struct, name="pzo")
+                  CALL cp_cfm_set_all(c_pzw, z_zero, z_zero)
+                  ALLOCATE (colbuf(nao, ncol_z))
+                  jj = 1
+                  DO j = 1, nset_not_conv
+                     i_first = inotconv_set(j, 1)
+                     i_last = inotconv_set(j, 2)
+                     n = i_last - i_first + 1
+                     CALL cp_cfm_get_submatrix(c_z, colbuf(:, 1:n), n_rows=nao, n_cols=n, start_col=jj)
+                     CALL cp_cfm_set_submatrix(c_pzw, colbuf(:, 1:n), n_rows=nao, n_cols=n, &
+                                               start_col=i_first)
+                     jj = jj + n
+                  END DO
+                  CALL apply_preconditioner(preconditioner, c_pzw, c_pzo)
+                  jj = 1
+                  DO j = 1, nset_not_conv
+                     i_first = inotconv_set(j, 1)
+                     i_last = inotconv_set(j, 2)
+                     n = i_last - i_first + 1
+                     CALL cp_cfm_get_submatrix(c_pzo, colbuf(:, 1:n), n_rows=nao, n_cols=n, &
+                                               start_col=i_first)
+                     CALL cp_cfm_set_submatrix(c_mz, colbuf(:, 1:n), n_rows=nao, n_cols=n, start_col=jj)
+                     jj = jj + n
+                  END DO
+                  DEALLOCATE (colbuf)
+                  CALL cp_cfm_release(c_pzw)
+                  CALL cp_cfm_release(c_pzo)
+               END IF
+            ELSE
+               CALL cp_cfm_to_cfm(c_z, c_mz)
+            END IF
+         ELSE
+            CALL cp_cfm_to_cfm(c_z, c_mz)
+         END IF
+
+         ! normalize the correction vectors, then remove their components inside
+         ! the span of the current MOS, z <- z - C*(C^H*S*z): the blocked Davidson
+         ! subspace expansion of Kresse and Furthmueller (1996). This keeps the
+         ! reduced S block well conditioned when a MOS is already (nearly) an
+         ! eigenvector and its preconditioned residual is (nearly) parallel to it.
+         ! Exhaustion: either the preconditioned correction itself, or its
+         ! component outside the MOS span, can vanish by symmetry (the density
+         ! keeps the little-group symmetry of the kpoint), which would make the
+         ! reduced overlap block singular. Stop the iteration and finish the
+         ! channel by the direct diagonalization below. The scratch of the
+         ! interrupted iteration is released at the single cleanup point after
+         ! the loop.
+         ALLOCATE (vnorm_pz(ncol_z))
+         CALL cp_cfm_vectorsnorm(c_mz, vnorm_pz)
+         IF (ANY(vnorm_pz < eps_exhaust)) THEN
+            exhausted = .TRUE.
+         ELSE
+            IF (ALLOCATED(scaling)) DEALLOCATE (scaling)
+            ALLOCATE (scaling(ncol_z))
+            scaling(:) = CMPLX(1.0_dp/vnorm_pz, 0.0_dp, KIND=dp)
+            CALL cp_cfm_column_scale(c_mz, scaling)
+
+            ! projection coefficients C^H*S*z. c_z is reused as scratch for S*z
+            CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, matrix_s, c_mz, z_zero, c_z)
+            CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=ncol_z, &
+                                     context=cmo%matrix_struct%context, &
+                                     para_env=cmo%matrix_struct%para_env)
+            CALL cp_cfm_create(m_tmp, fm_struct_tmp, name="proj_coef")
+            CALL cp_fm_struct_release(fm_struct_tmp)
+            CALL cp_cfm_gemm('C', 'N', nmo, ncol_z, nao, z_one, cmo, c_z, z_zero, m_tmp)
+            CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nmo, -z_one, cmo, m_tmp, z_one, c_mz)
+            CALL cp_cfm_release(m_tmp)
+
+            CALL cp_cfm_vectorsnorm(c_mz, vnorm_pz)
+            IF (ANY(vnorm_pz < eps_exhaust)) THEN
+               exhausted = .TRUE.
+            ELSE
+               IF (ALLOCATED(scaling)) DEALLOCATE (scaling)
+               ALLOCATE (scaling(ncol_z))
+               scaling(:) = CMPLX(1.0_dp/vnorm_pz, 0.0_dp, KIND=dp)
+               CALL cp_cfm_column_scale(c_mz, scaling)
+            END IF
+         END IF
+         DEALLOCATE (vnorm_pz)
+         IF (exhausted) EXIT
+
+         nmat = ncol_z
+         nmat2 = 2*ncol_z
+         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmat2, ncol_global=nmat2, &
+                                  context=cmo%matrix_struct%context, &
+                                  para_env=cmo%matrix_struct%para_env)
+
+         CALL cp_cfm_create(s_block, fm_struct_tmp, name="sb")
+         CALL cp_cfm_create(h_block, fm_struct_tmp, name="hb")
+         CALL cp_cfm_create(v_block, fm_struct_tmp, name="vb")
+         CALL cp_cfm_create(w_block, fm_struct_tmp, name="wb")
+         ALLOCATE (evals(nmat2))
+         CALL cp_fm_struct_release(fm_struct_tmp)
+
+         ! compute CHC and CSC first, with m_hc/m_sc still holding the
+         ! H*C_nc and S*C_nc products of the residual step
+         CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_notconv, m_hc, z_zero, h_block, &
+                          c_first_row=1, c_first_col=1)
+         CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_notconv, m_sc, z_zero, s_block, &
+                          c_first_row=1, c_first_col=1)
+
+         ! compute ZSC and ZHC with m_sc/m_sc still holding S*C_nc and H*C_nc
+         CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_mz, m_sc, z_zero, s_block, &
+                          c_first_row=1 + nmat, c_first_col=1)
+         ! compute ZHC
+         CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_mz, m_hc, z_zero, h_block, &
+                          c_first_row=1 + nmat, c_first_col=1)
+
+         ! then reuse m_sc and m_hc to compute SZ and HZ (mirrors the Gamma
+         ! version); with frozen converged vectors the operator is the shifted
+         ! h_fm = H + lambda*P
+         IF (nmo_converged > 0) THEN
+            CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, h_fm, c_mz, z_zero, m_hc)
+            CALL cp_cfm_release(c_out)
+            CALL cp_cfm_release(h_fm)
+         ELSE
+            CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, matrix_h, c_mz, z_zero, m_hc)
+         END IF
+         CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, matrix_s, c_mz, z_zero, m_sc)
+
+         ! the opposite off-diagonal blocks are the conjugate transposes
+         ! (ZSC)^H = C_nc^H*(S*Z) and (ZHC)^H = C_nc^H*(H*Z): with S and H
+         ! Hermitian these are the same products read in the other direction,
+         ! so the blocks complete as gemms against the just-computed S*Z and
+         ! H*Z, with no gather/conjugate/scatter round trip per block (two
+         ! collectives and a serial conjugation of nmat^2 elements each)
+         CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_notconv, m_sc, z_zero, s_block, &
+                          c_first_row=1, c_first_col=1 + nmat)
+         CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_notconv, m_hc, z_zero, h_block, &
+                          c_first_row=1, c_first_col=1 + nmat)
+
+         ! compute ZSZ
+         CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_mz, m_sc, z_zero, s_block, &
+                          c_first_row=1 + nmat, c_first_col=1 + nmat)
+         ! compute ZHZ
+         CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_mz, m_hc, z_zero, h_block, &
+                          c_first_row=1 + nmat, c_first_col=1 + nmat)
+
+         CALL cp_cfm_release(m_sc)
+
+         ! solution of the reduced generalized eigenproblem
+         CALL cp_cfm_geeig(h_block, s_block, v_block, evals, w_block)
+
+         ! new MOS: C_nc*V_11 + Z*V_21
+         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmat, &
+                                  context=cmo%matrix_struct%context, &
+                                  para_env=cmo%matrix_struct%para_env)
+         CALL cp_cfm_create(c_new, fm_struct_tmp, name="c_new")
+         CALL cp_fm_struct_release(fm_struct_tmp)
+         CALL cp_cfm_gemm('N', 'N', nao, nmat, nmat, z_one, c_notconv, v_block, z_zero, c_new, &
+                          b_first_row=1, b_first_col=1)
+         CALL cp_cfm_gemm('N', 'N', nao, nmat, nmat, z_one, c_mz, v_block, z_one, c_new, &
+                          b_first_row=1 + nmat, b_first_col=1)
+
+         CALL cp_cfm_release(m_hc)
+         CALL cp_cfm_release(c_mz)
+         CALL cp_cfm_release(c_z)
+         CALL cp_cfm_release(c_notconv)
+         CALL cp_cfm_release(s_block)
+         CALL cp_cfm_release(h_block)
+         CALL cp_cfm_release(w_block)
+         CALL cp_cfm_release(v_block)
+
+         IF (nmo_converged > 0) THEN
+            jj = 1
+            DO j = 1, nset_not_conv
+               i_first = inotconv_set(j, 1)
+               i_last = inotconv_set(j, 2)
+               n = i_last - i_first + 1
+               ALLOCATE (submat_buffer(nao, n))
+               CALL cp_cfm_get_submatrix(c_new, submat_buffer, start_row=1, start_col=jj, &
+                                         n_rows=nao, n_cols=n)
+               CALL cp_cfm_set_submatrix(cmo, submat_buffer, start_row=1, start_col=i_first)
+               DEALLOCATE (submat_buffer)
+               eigenvalues(i_first:i_last) = evals(jj:jj + n - 1)
+               jj = jj + n
+            END DO
+            DEALLOCATE (iconv_set)
+            DEALLOCATE (inotconv_set)
+         ELSE
+            CALL cp_cfm_to_cfm(c_new, cmo)
+            eigenvalues(1:nmo) = evals(1:nmo)
+         END IF
+         DEALLOCATE (evals)
+         CALL cp_cfm_release(c_new)
+
+         t2 = m_walltime()
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, '(T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)') &
+               iter, nmo_converged, max_norm, min_norm, t2 - t1
+         END IF
+         t1 = m_walltime()
+
+      END DO ! iter
+
+      IF (exhausted) THEN
+         ! single cleanup point for the interrupted iteration: the shifted
+         ! operator h_fm ends its life either here or at the HZ recompute
+         ! inside the loop, its two end-of-life sites
+         IF (nmo_converged > 0) THEN
+            CALL cp_cfm_release(h_fm)
+            CALL cp_cfm_release(c_out)
+         END IF
+         CALL cp_cfm_release(m_hc)
+         CALL cp_cfm_release(m_sc)
+         CALL cp_cfm_release(c_z)
+         CALL cp_cfm_release(c_mz)
+         CALL cp_cfm_release(c_notconv)
+         IF (ALLOCATED(iconv_set)) DEALLOCATE (iconv_set)
+         IF (ALLOCATED(inotconv_set)) DEALLOCATE (inotconv_set)
+
+         ! the subspace expansion was exhausted (symmetry-invariant MOS span);
+         ! finish this channel by a direct diagonalization of the intact
+         ! operator, so that at least the rotation inside the MOS span is exact
+         CALL cp_cfm_create(h_fm, matrix_h%matrix_struct, name="fb_h")
+         CALL cp_cfm_create(c_out, matrix_h%matrix_struct, name="fb_s")
+         CALL cp_cfm_create(c_new, matrix_h%matrix_struct, name="fb_work")
+         CALL cp_cfm_to_cfm(matrix_h, h_fm)
+         CALL cp_cfm_to_cfm(matrix_s, c_out)
+         CALL cp_cfm_geeig(h_fm, c_out, cmo, eigenvalues, c_new)
+         CALL cp_cfm_release(h_fm)
+         CALL cp_cfm_release(c_out)
+         CALL cp_cfm_release(c_new)
+      END IF
+
+      ! split the complex MOS back into the real/imaginary pair of this K point
+      CALL cp_cfm_to_fm(cmo, mo_coeff_r, mo_coeff_i)
+      mos(2)%eigenvalues = eigenvalues
+      CALL cp_cfm_release(cmo)
+
+      DEALLOCATE (iconv)
+      DEALLOCATE (inotconv)
+      DEALLOCATE (ritz_coeff)
+      DEALLOCATE (vnorm)
+      DEALLOCATE (cdiag)
+      IF (ALLOCATED(scaling)) DEALLOCATE (scaling)
+
+      CALL timestop(handle)
+   END SUBROUTINE generate_extended_space_c
 
 ! **************************************************************************************************
 !> \brief ...

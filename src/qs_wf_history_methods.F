@@ -1527,6 +1527,12 @@ CONTAINS
             END IF
             CALL cp_cfm_to_fm(cmos_new, rmos, imos)
          END DO
+         ! the MOS now hold extrapolated coefficients that are orthonormal under
+         ! the S(k) of the current geometry: a valid trial subspace for solvers.
+         ! All WFN-based k-point extrapolation methods converge here (PS/ASPC
+         ! and GEXT_PROJ finish through this routine). The flag is set once
+         ! at their common write-back.
+         kp%mos_prefilled = .TRUE.
       END DO
       DEALLOCATE (eigenvalues)
 

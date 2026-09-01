@@ -97,9 +97,9 @@ MODULE qs_scf_loop_utils
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_diagonalization,          ONLY: &
-        do_block_davidson_diag, do_block_krylov_diag, do_general_diag, do_general_diag_kp, &
-        do_ot_diag, do_ot_diag_kp, do_roks_diag, do_scf_diag_subspace, do_special_diag, &
-        qs_scf_get_ot_kpoint_operator
+        do_block_davidson_diag, do_block_davidson_diag_kp, do_block_krylov_diag, do_general_diag, &
+        do_general_diag_kp, do_ot_diag, do_ot_diag_kp, do_roks_diag, do_scf_diag_subspace, &
+        do_special_diag, qs_scf_get_ot_kpoint_operator
    USE qs_scf_methods,                  ONLY: cp_sm_mix,&
                                               scf_env_density_mixing
    USE qs_scf_output,                   ONLY: qs_scf_print_summary
@@ -558,11 +558,14 @@ CONTAINS
             CALL timestop(handle)
             RETURN
          END IF
-      CASE (block_krylov_diag_method_nr, &
-            block_davidson_diag_method_nr)
+      CASE (block_krylov_diag_method_nr)
          CALL cp_abort(__LOCATION__, &
                        "KP code: Scf method not available: "// &
                        cp_to_string(scf_env%method))
+      CASE (block_davidson_diag_method_nr)
+         CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
+         CALL do_block_davidson_diag_kp(qs_env, scf_env, matrix_ks, matrix_s, kpoints, &
+                                        scf_control)
       CASE (ot_method_nr)
          CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
          base_state = .NOT. scf_env%qs_ot_env(1)%energy_only .AND. &
@@ -2793,7 +2796,7 @@ CONTAINS
                                                             exit_inner_loop, inner_loop_converged
       INTEGER                                            :: output_unit
 
-      LOGICAL                                            :: update_validated
+      LOGICAL                                            :: davidson_tightening, update_validated
 
       inner_loop_converged = .FALSE.
       exit_inner_loop = .FALSE.
@@ -2807,12 +2810,40 @@ CONTAINS
       CALL external_control(should_stop, "SCF", target_time=qs_env%target_time, &
                             start_time=qs_env%start_time)
       IF (scf_env%iter_delta < scf_control%eps_scf .AND. update_validated) THEN
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(/,T3,A,I5,A/)") &
-               "*** SCF run converged in ", scf_env%iter_count, " steps ***"
+         ! nested IFs on purpose: a .AND. chain leaves the evaluation order
+         ! unspecified. On non-Davidson runs the env array has size zero
+         ! while the tightening test below indexes its first channel
+         davidson_tightening = .FALSE.
+         IF (scf_env%method == block_davidson_diag_method_nr) THEN
+            IF (SIZE(scf_env%block_davidson_env) > 0) THEN
+               davidson_tightening = scf_env%block_davidson_env(1)%eps_iter_used > &
+                                     scf_env%block_davidson_env(1)%eps_iter .AND. &
+                                     scf_env%iter_delta < scf_env%block_davidson_env(1)%eps_iter_used
+            END IF
          END IF
-         inner_loop_converged = .TRUE.
-         exit_inner_loop = .TRUE.
+         IF (davidson_tightening) THEN
+            ! the adaptive inner tolerance of the Davidson solve that produced
+            ! this mixing delta was looser than the delta itself. The apparent
+            ! convergence may be nothing but the noise floor of the loose
+            ! solve. Tighten the ratchet one decade below what that solve used
+            ! and keep iterating until the delta survives a tighter solve.
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(T3,A,ES9.2,A)") &
+                  "*** SCF delta below the loose Davidson tolerance ", &
+                  scf_env%block_davidson_env(1)%eps_iter_used, " - tightening and continuing ***"
+            END IF
+            scf_env%block_davidson_env(1)%eps_iter_prev = &
+               MIN(scf_env%block_davidson_env(1)%eps_iter_prev, &
+                   MAX(scf_env%block_davidson_env(1)%eps_iter, &
+                       0.1_dp*scf_env%block_davidson_env(1)%eps_iter_used))
+         ELSE
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T3,A,I5,A/)") &
+                  "*** SCF run converged in ", scf_env%iter_count, " steps ***"
+            END IF
+            inner_loop_converged = .TRUE.
+            exit_inner_loop = .TRUE.
+         END IF
       ELSE IF (should_stop .OR. scf_env%iter_count >= scf_control%max_scf) THEN
          inner_loop_converged = .FALSE.
          IF (just_energy) THEN
