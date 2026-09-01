@@ -50,8 +50,9 @@
   {matcher="NO_TEXT", text="K-point smearing includes the last band"},
 ]
 "Al-kpoint-mermin-response.inp"         = [
-  {matcher="E_total", tol=1e-9, ref=-3.990589661043425},
+  {matcher="E_total", tol=1e-9, ref=-3.995032366510561},
   {matcher="OT_mermin_response_update"},
+  {matcher="OT_mermin_exact_hxc"},
   {matcher="OT_kpoint_ref_gradient_sync"},
 ]
 "Al-kpoint-mermin-response-lbfgs.inp"   = [
