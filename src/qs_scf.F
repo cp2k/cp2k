@@ -1761,9 +1761,6 @@ CONTAINS
 
             IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == &
                 ot_precond_full_all_covariant) THEN
-               IF (scf_env%qs_ot_env(1)%restricted) THEN
-                  CPABORT('PRECONDITIONER FULL_ALL_COVARIANT does not currently support ROKS.')
-               END IF
                IF (.NOT. do_kpoints) THEN
                   DO ispin = 1, SIZE(mos)
                      IF (.NOT. mos(ispin)%uniform_occupation) THEN
@@ -1910,6 +1907,12 @@ CONTAINS
       END IF
 
       CALL ot_scf_read_input(scf_env%qs_ot_env, scf_section, do_kpoints)
+
+      IF (dft_control%restricted .AND. &
+          scf_env%qs_ot_env(1)%settings%preconditioner_type == &
+          ot_precond_full_all_covariant) THEN
+         CPABORT('PRECONDITIONER FULL_ALL_COVARIANT does not currently support ROKS.')
+      END IF
 
       IF (do_kpoints) THEN
          do_smear = dft_control%smear .OR. scf_control%smear%do_smear
