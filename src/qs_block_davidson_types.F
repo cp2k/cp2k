@@ -48,47 +48,49 @@ CONTAINS
 ! **************************************************************************************************
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief creates one Davidson environment per solver channel: for Gamma-point
+!>        runs a channel is a spin, for K-point runs it is (ikpoint,ispin)
+!>        following the layout of qs_ot_channel_index.
 !> \param bdav_env ...
-!> \param nspins ...
+!> \param nchannels number of channels (spins at Gamma, local kpoints*spins with K points)
 !> \param scf_section ...
 ! **************************************************************************************************
-   SUBROUTINE block_davidson_env_create(bdav_env, nspins, scf_section)
+   SUBROUTINE block_davidson_env_create(bdav_env, nchannels, scf_section)
 
       TYPE(davidson_type), DIMENSION(:), POINTER         :: bdav_env
-      INTEGER, INTENT(IN)                                :: nspins
+      INTEGER, INTENT(IN)                                :: nchannels
       TYPE(section_vals_type), POINTER                   :: scf_section
 
-      INTEGER                                            :: ispin
+      INTEGER                                            :: ichannel
 
       CPASSERT(.NOT. ASSOCIATED(bdav_env))
-      ALLOCATE (bdav_env(nspins))
-      DO ispin = 1, nspins
-         NULLIFY (bdav_env(ispin)%H_block_mat)
-         NULLIFY (bdav_env(ispin)%H_block_vec)
-         NULLIFY (bdav_env(ispin)%S_block_mat)
-         NULLIFY (bdav_env(ispin)%W_block_mat)
-         NULLIFY (bdav_env(ispin)%matrix_z)
-         NULLIFY (bdav_env(ispin)%matrix_pz)
+      ALLOCATE (bdav_env(nchannels))
+      DO ichannel = 1, nchannels
+         NULLIFY (bdav_env(ichannel)%H_block_mat)
+         NULLIFY (bdav_env(ichannel)%H_block_vec)
+         NULLIFY (bdav_env(ichannel)%S_block_mat)
+         NULLIFY (bdav_env(ichannel)%W_block_mat)
+         NULLIFY (bdav_env(ichannel)%matrix_z)
+         NULLIFY (bdav_env(ichannel)%matrix_pz)
 
          CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%PRECONDITIONER", &
-                                   i_val=bdav_env(ispin)%prec_type)
+                                   i_val=bdav_env(ichannel)%prec_type)
          CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%PRECOND_SOLVER", &
-                                   i_val=bdav_env(ispin)%solver_type)
+                                   i_val=bdav_env(ichannel)%solver_type)
          CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%ENERGY_GAP", &
-                                   r_val=bdav_env(ispin)%energy_gap)
+                                   r_val=bdav_env(ichannel)%energy_gap)
          CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%NEW_PREC_EACH", &
-                                   i_val=bdav_env(ispin)%niter_new_prec)
+                                   i_val=bdav_env(ichannel)%niter_new_prec)
          CALL section_vals_val_get(scf_section, "DIAGONALIZATION%MAX_ITER", &
-                                   i_val=bdav_env(ispin)%max_iter)
+                                   i_val=bdav_env(ichannel)%max_iter)
          CALL section_vals_val_get(scf_section, "DIAGONALIZATION%EPS_ITER", &
-                                   r_val=bdav_env(ispin)%eps_iter)
+                                   r_val=bdav_env(ichannel)%eps_iter)
          CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%FIRST_PREC", &
-                                   i_val=bdav_env(ispin)%first_prec)
+                                   i_val=bdav_env(ichannel)%first_prec)
          CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%CONV_MOS_PERCENT", &
-                                   r_val=bdav_env(ispin)%conv_percent)
+                                   r_val=bdav_env(ichannel)%conv_percent)
          CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%SPARSE_MOS", &
-                                   l_val=bdav_env(ispin)%use_sparse_mos)
+                                   l_val=bdav_env(ichannel)%use_sparse_mos)
 
       END DO
 
