@@ -53,6 +53,9 @@ MODULE qs_scf_types
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_types'
+   ! Format version 5 has no serialized OT reference state. A restorable successor must use a
+   ! distinct format version so that legacy chart-dependent coordinates remain permanently gated.
+   INTEGER, PARAMETER, PRIVATE          :: ot_restart_reference_state_min_version = 6
 
    INTEGER, PARAMETER, PUBLIC :: general_diag_method_nr = 1, &
                                  special_diag_method_nr = 2, &
@@ -66,7 +69,7 @@ MODULE qs_scf_types
    PUBLIC :: qs_scf_env_type
    PUBLIC :: qs_ot_restart_dense_matrix_type
    PUBLIC :: scf_env_release, scf_env_create, scf_env_did_change
-   PUBLIC :: qs_scf_ot_restart_clear
+   PUBLIC :: qs_scf_ot_restart_can_restore, qs_scf_ot_restart_clear
    PUBLIC :: krylov_space_type, krylov_space_create, subspace_env_type
    PUBLIC :: diag_subspace_env_create
 
@@ -159,7 +162,7 @@ MODULE qs_scf_types
    END TYPE qs_ot_restart_channel_type
 
    TYPE qs_ot_restart_cache_type
-      LOGICAL :: valid = .FALSE.
+      LOGICAL :: valid = .FALSE., reference_state_compatible = .FALSE.
       INTEGER :: format_version = 0, nchannel = 0
       TYPE(qs_ot_restart_channel_type), DIMENSION(:), POINTER :: channel => NULL()
    END TYPE qs_ot_restart_cache_type
@@ -265,6 +268,7 @@ CONTAINS
       NULLIFY (scf_env%ot_preconditioner)
       NULLIFY (scf_env%qs_ot_env)
       scf_env%qs_ot_restart%valid = .FALSE.
+      scf_env%qs_ot_restart%reference_state_compatible = .FALSE.
       scf_env%qs_ot_restart%format_version = 0
       scf_env%qs_ot_restart%nchannel = 0
       NULLIFY (scf_env%qs_ot_restart%channel)
@@ -473,6 +477,22 @@ CONTAINS
    END SUBROUTINE scf_env_release
 
 ! **************************************************************************************************
+!> \brief report whether cached k-point OT state has a verified coordinate reference
+!> \param scf_env the environment containing the restart cache
+!> \return true only for a structurally valid cache with a compatible reference state
+! **************************************************************************************************
+   PURE FUNCTION qs_scf_ot_restart_can_restore(scf_env) RESULT(can_restore)
+      TYPE(qs_scf_env_type), INTENT(IN)                  :: scf_env
+      LOGICAL                                            :: can_restore
+
+      can_restore = scf_env%qs_ot_restart%valid .AND. &
+                    scf_env%qs_ot_restart%format_version >= ot_restart_reference_state_min_version .AND. &
+                    scf_env%qs_ot_restart%reference_state_compatible .AND. &
+                    ASSOCIATED(scf_env%qs_ot_restart%channel)
+
+   END FUNCTION qs_scf_ot_restart_can_restore
+
+! **************************************************************************************************
 !> \brief clear cached k-point OT restart data
 !> \param scf_env the environment containing the restart cache
 ! **************************************************************************************************
@@ -578,6 +598,7 @@ CONTAINS
          DEALLOCATE (scf_env%qs_ot_restart%channel)
       END IF
       scf_env%qs_ot_restart%valid = .FALSE.
+      scf_env%qs_ot_restart%reference_state_compatible = .FALSE.
       scf_env%qs_ot_restart%format_version = 0
       scf_env%qs_ot_restart%nchannel = 0
       NULLIFY (scf_env%qs_ot_restart%channel)

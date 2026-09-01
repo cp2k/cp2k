@@ -1247,6 +1247,9 @@ CONTAINS
 
       CALL qs_scf_ot_restart_clear(scf_env)
       scf_env%qs_ot_restart%valid = .TRUE.
+      ! Format version 5 does not serialize matrix_c0/matrix_c0_im or an equivalent
+      ! objective/reference fingerprint. Its chart-dependent minimizer state must not be restored.
+      scf_env%qs_ot_restart%reference_state_compatible = .FALSE.
       scf_env%qs_ot_restart%format_version = version_read
       scf_env%qs_ot_restart%nchannel = nchannel
       ALLOCATE (scf_env%qs_ot_restart%channel(nchannel))

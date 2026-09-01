@@ -75,6 +75,9 @@ PROGRAM qs_ot_complex_ref_unittest
                                               qs_ot_kpoint_preconditioner_solver_supported,&
                                               qs_ot_kpoint_preconditioner_supported,&
                                               qs_ot_type
+   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
+                                              qs_scf_ot_restart_can_restore,&
+                                              qs_scf_ot_restart_clear
    USE reference_manager,               ONLY: remove_all_references
    USE scf_control_types,               ONLY: smear_type
 
@@ -104,6 +107,7 @@ PROGRAM qs_ot_complex_ref_unittest
    nfail = 0
    CALL test_preconditioner_support(nfail)
    CALL test_restart_compatibility(nfail)
+   CALL test_restart_cache_safety(nfail)
    NULLIFY (hc_im_p, hc_re_p, logger, para_env)
    CALL mp_world_init(mp_comm)
    mynode = mp_comm%mepos
@@ -304,6 +308,35 @@ CONTAINS
           smear, .TRUE., .TRUE., 7, 0.02000001_dp, 0.01_dp, 1.0_dp)) nfail = nfail + 1
 
    END SUBROUTINE test_restart_compatibility
+
+! **************************************************************************************************
+!> \brief Check that structurally valid state is unusable without a verified OT reference.
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_restart_cache_safety(nfail)
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      TYPE(qs_scf_env_type)                              :: scf_env
+
+      scf_env%qs_ot_restart%valid = .TRUE.
+      ALLOCATE (scf_env%qs_ot_restart%channel(1))
+      scf_env%qs_ot_restart%format_version = 5
+      scf_env%qs_ot_restart%reference_state_compatible = .TRUE.
+      IF (qs_scf_ot_restart_can_restore(scf_env)) nfail = nfail + 1
+
+      scf_env%qs_ot_restart%format_version = 6
+      scf_env%qs_ot_restart%reference_state_compatible = .FALSE.
+      IF (qs_scf_ot_restart_can_restore(scf_env)) nfail = nfail + 1
+
+      scf_env%qs_ot_restart%reference_state_compatible = .TRUE.
+      IF (.NOT. qs_scf_ot_restart_can_restore(scf_env)) nfail = nfail + 1
+
+      CALL qs_scf_ot_restart_clear(scf_env)
+      IF (qs_scf_ot_restart_can_restore(scf_env)) nfail = nfail + 1
+      IF (scf_env%qs_ot_restart%reference_state_compatible) nfail = nfail + 1
+      IF (ASSOCIATED(scf_env%qs_ot_restart%channel)) nfail = nfail + 1
+
+   END SUBROUTINE test_restart_cache_safety
 
 ! **************************************************************************************************
 !> \brief Check the noncanonical complex OT energy-weighted density and its gauge covariance.

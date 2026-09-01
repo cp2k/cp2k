@@ -223,7 +223,7 @@ MODULE qs_scf
    USE qs_scf_types,                    ONLY: &
         block_davidson_diag_method_nr, block_krylov_diag_method_nr, filter_matrix_diag_method_nr, &
         general_diag_method_nr, ot_diag_method_nr, ot_method_nr, qs_ot_restart_dense_matrix_type, &
-        qs_scf_env_type, smeagol_method_nr, special_diag_method_nr
+        qs_scf_env_type, qs_scf_ot_restart_can_restore, smeagol_method_nr, special_diag_method_nr
    USE qs_vxc_atom,                     ONLY: gapw_cdft_one_center
    USE qs_wf_history_methods,           ONLY: wfi_purge_history,&
                                               wfi_update
@@ -2134,7 +2134,9 @@ CONTAINS
       INTEGER :: energy_dimension, energy_spin, energy_start, handle, ikpoint, ikpoint_local, &
          ispin, nao, nmo, nocc, ot_channel, restart_compatible_int
       LOGICAL                                            :: restart_channel_restored, &
-                                                            restart_compatible, use_real_wfn
+                                                            restart_compatible, &
+                                                            restart_reference_compatible, &
+                                                            use_real_wfn
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct
       TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im
@@ -2162,8 +2164,8 @@ CONTAINS
          CPABORT("K-point OT currently requires complex K-point wavefunctions.")
       END IF
 
-      restart_compatible = scf_env%qs_ot_restart%valid .AND. &
-                           ASSOCIATED(scf_env%qs_ot_restart%channel)
+      restart_reference_compatible = scf_env%qs_ot_restart%reference_state_compatible
+      restart_compatible = qs_scf_ot_restart_can_restore(scf_env)
       IF (restart_compatible) THEN
          restart_compatible = SIZE(scf_env%qs_ot_restart%channel) == SIZE(scf_env%qs_ot_env)
       END IF
@@ -2189,7 +2191,11 @@ CONTAINS
       END IF
       restart_compatible_int = MERGE(1, 0, restart_compatible)
       CALL kpoints%para_env%min(restart_compatible_int)
-      IF (scf_env%qs_ot_restart%valid .AND. restart_compatible_int == 0) THEN
+      IF (scf_env%qs_ot_restart%valid .AND. .NOT. restart_reference_compatible) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "K-point OT restart: density restored; minimizer state discarded because "// &
+                      "the payload has no verifiable OT reference state")
+      ELSE IF (scf_env%qs_ot_restart%valid .AND. restart_compatible_int == 0) THEN
          CALL cp_warn(__LOCATION__, &
                       "Ignoring k-point OT restart payload incompatible with current channels or settings")
       END IF
@@ -2413,8 +2419,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       restored = .FALSE.
-      IF (.NOT. scf_env%qs_ot_restart%valid) RETURN
-      IF (.NOT. ASSOCIATED(scf_env%qs_ot_restart%channel)) RETURN
+      IF (.NOT. qs_scf_ot_restart_can_restore(scf_env)) RETURN
       IF (ot_channel < 1 .OR. ot_channel > SIZE(scf_env%qs_ot_restart%channel)) RETURN
       IF (.NOT. scf_env%qs_ot_restart%channel(ot_channel)%valid) RETURN
       IF (scf_env%qs_ot_restart%channel(ot_channel)%spin_index /= qs_ot_env%spin_index) RETURN
