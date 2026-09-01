@@ -3375,8 +3375,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'do_block_davidson_diag_kp'
       REAL(KIND=dp), PARAMETER                           :: empty_factor = 5.0_dp, &
-                                                            eps_iter_cap = 1.0E-4_dp, &
-                                                            noise_scale = 1.0E2_dp
+                                                            eps_iter_cap = 1.0E-4_dp
 
       INTEGER                                            :: channel, first_prec, handle, ikp, ispin, &
                                                             iw, iwork, kplocal, local_kpoint, &
@@ -3494,7 +3493,8 @@ CONTAINS
          ! tighter than the previous adaptive value, which lives in the
          ! persistent channel settings (a local variable would reset on
          ! every call into this driver)
-         eps_iter = MIN(MAX(eps_iter, MIN(scf_control%diagonalization%eps_adapt*scf_env%iter_delta/noise_scale, &
+         eps_iter = MIN(MAX(eps_iter, MIN(scf_control%diagonalization%eps_adapt*scf_env%iter_delta/ &
+                                          scf_env%block_davidson_env(1)%noise_scale, &
                                           eps_iter_cap)), scf_env%block_davidson_env(1)%eps_iter_prev)
          eps_iter_empty = empty_factor*eps_iter
          ! record what this solve uses, after every override above: the outer

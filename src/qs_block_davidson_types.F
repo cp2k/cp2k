@@ -38,7 +38,8 @@ MODULE qs_block_davidson_types
    TYPE davidson_type
       INTEGER :: max_iter = -1, prec_type = -1, solver_type = -1, niter_new_prec = -1, first_prec = -1
       LOGICAL :: use_sparse_mos = .FALSE.
-      REAL(KIND=dp) :: conv_percent = -1.0_dp, energy_gap = -1.0_dp, eps_iter = -1.0_dp
+      REAL(KIND=dp) :: conv_percent = -1.0_dp, energy_gap = -1.0_dp, eps_iter = -1.0_dp, &
+                       noise_scale = 100.0_dp
       ! adaptive-tolerance ratchet state: the inner threshold of the previous
       ! SCF step, carried across steps so that it may only tighten, and the
       ! threshold the latest solve actually used (zero: EPS_ADAPT inactive)
@@ -87,6 +88,8 @@ CONTAINS
                                 i_val=settings%first_prec)
       CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%CONV_MOS_PERCENT", &
                                 r_val=settings%conv_percent)
+      CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%NOISE_SCALE", &
+                                r_val=settings%noise_scale)
       CALL section_vals_val_get(scf_section, "DIAGONALIZATION%DAVIDSON%SPARSE_MOS", &
                                 l_val=settings%use_sparse_mos)
 

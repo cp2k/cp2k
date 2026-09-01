@@ -1236,7 +1236,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FIRST_PREC", &
-                          description="First SCF iteration at which a Preconditioner is employed", &
+                          description="First SCF iteration at which a Preconditioner is employed. "// &
+                          "With K points, the first build waits until after the cold start.", &
                           usage="FIRST_PREC 1", default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1248,8 +1249,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="NOISE_SCALE", &
+                          description="Divisor that maps the SCF mixing error onto the adaptive Davidson tolerance. "// &
+                          "The inner tolerance tracks EPS_ADAPT times the mixing error divided by this value. "// &
+                          "The value approximates how much the per-column residuals amplify the density mixing error. "// &
+                          "A measured amplification on a smeared slab is 20. Increase the value for looser tracking. "// &
+                          "Only used with EPS_ADAPT.", &
+                          usage="NOISE_SCALE 100", default_r_val=100.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="SPARSE_MOS", &
-                          description="Use MOS as sparse matrix and avoid as much as possible multiplications with full matrices", &
+                       description="Use MOS as sparse matrix and avoid as much as possible multiplications with full matrices. "// &
+                          "Not used with K points.", &
                           usage="SPARSE_MOS", default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
