@@ -36,7 +36,9 @@ MODULE qs_ot_eigensolver
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE input_constants,                 ONLY: ot_precond_full_all,&
+   USE input_constants,                 ONLY: ot_precond_fermi_low_rank,&
+                                              ot_precond_full_all,&
+                                              ot_precond_full_all_covariant,&
                                               ot_precond_full_kinetic,&
                                               ot_precond_full_single,&
                                               ot_precond_full_single_inverse,&
@@ -45,7 +47,9 @@ MODULE qs_ot_eigensolver
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
-   USE preconditioner,                  ONLY: make_preconditioner_complex_full_all,&
+   USE preconditioner,                  ONLY: make_preconditioner_complex_fermi_low_rank,&
+                                              make_preconditioner_complex_full_all,&
+                                              make_preconditioner_complex_full_all_covariant,&
                                               make_preconditioner_complex_full_kinetic,&
                                               make_preconditioner_complex_full_s_inverse,&
                                               make_preconditioner_complex_full_single,&
@@ -504,20 +508,33 @@ CONTAINS
             ALLOCATE (local_preconditioner)
             CALL init_preconditioner(local_preconditioner, qs_ot_env(1)%para_env, qs_ot_env(1)%blacs_env)
             SELECT CASE (qs_ot_env(1)%settings%preconditioner_type)
-            CASE (ot_precond_full_all)
+            CASE (ot_precond_fermi_low_rank)
+               CALL make_preconditioner_complex_fermi_low_rank( &
+                  local_preconditioner, qs_ot_env(1)%matrix_c0, qs_ot_env(1)%matrix_c0_im, &
+                  matrix_h, matrix_h_im, matrix_s, matrix_s_im, &
+                  qs_ot_env(1)%settings%energy_gap, &
+                  qs_ot_env(1)%settings%fermi_low_rank_max_rank, &
+                  qs_ot_env(1)%settings%precond_solver_type)
+            CASE (ot_precond_full_all, ot_precond_full_all_covariant)
                IF (qs_ot_env(1)%settings%ot_algorithm == 'TOD') THEN
-                  ! The column-selective FULL_ALL model can lose its positive tangent metric in a
-                  ! finite STRICT fixed-H chart. Retain a well-defined eigensolver with its S^-1 base.
+                  ! State-selective FULL_ALL models can destabilize the finite STRICT fixed-H chart
+                  ! even when the tangent metric is positive. Retain a well-defined eigensolver with
+                  ! their S^-1 base; IRAC can use the complete state-dependent inverse below.
                   CALL make_preconditioner_complex_full_s_inverse( &
                      local_preconditioner, matrix_s, matrix_s_im, &
                      qs_ot_env(1)%settings%precond_solver_type)
-               ELSE
+               ELSE IF (qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all) THEN
                   IF (.NOT. PRESENT(mo_set)) THEN
                      CPABORT('Complex FULL_ALL eigensolver preconditioning requires MO energy labels')
                   END IF
                   CALL make_preconditioner_complex_full_all( &
                      local_preconditioner, qs_ot_env(1)%matrix_c0, qs_ot_env(1)%matrix_c0_im, &
                      matrix_h, matrix_h_im, matrix_s, matrix_s_im, mo_set, &
+                     qs_ot_env(1)%settings%energy_gap, qs_ot_env(1)%settings%precond_solver_type)
+               ELSE
+                  CALL make_preconditioner_complex_full_all_covariant( &
+                     local_preconditioner, qs_ot_env(1)%matrix_c0, qs_ot_env(1)%matrix_c0_im, &
+                     matrix_h, matrix_h_im, matrix_s, matrix_s_im, &
                      qs_ot_env(1)%settings%energy_gap, qs_ot_env(1)%settings%precond_solver_type)
                END IF
             CASE (ot_precond_full_single)
