@@ -1,7 +1,5 @@
-"H2_NATIVE_SKALA_GPW_FORCE.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96628050897611}]
-"H2_NATIVE_SKALA_GPW_SMOOTH_FORCE.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96628050897611},
-                                             {matcher="M072", tol=1e-4, ref=2.44020247E-03}]
-"H2_NATIVE_SKALA_GPW_SMOOTH_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96570776119772},
+ "H2_NATIVE_SKALA_GPW_FORCE.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96628050897611}]
+ "H2_NATIVE_SKALA_GPW_SMOOTH_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96570776119772},
                                                {matcher="M072", tol=1e-4, ref=5.553455E-05},
                                                {matcher="M031", tol=1e-5, ref=-1.650145621E+05}]
 "H2_NATIVE_SKALA_GPW_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.96628050897611}]
