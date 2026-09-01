@@ -223,7 +223,8 @@ MODULE qs_scf
    USE qs_scf_types,                    ONLY: &
         block_davidson_diag_method_nr, block_krylov_diag_method_nr, filter_matrix_diag_method_nr, &
         general_diag_method_nr, ot_diag_method_nr, ot_method_nr, qs_ot_restart_dense_matrix_type, &
-        qs_scf_env_type, qs_scf_ot_restart_can_restore, smeagol_method_nr, special_diag_method_nr
+        qs_scf_env_type, qs_scf_ot_restart_can_restore, qs_scf_ot_restart_clear, &
+        smeagol_method_nr, special_diag_method_nr
    USE qs_vxc_atom,                     ONLY: gapw_cdft_one_center
    USE qs_wf_history_methods,           ONLY: wfi_purge_history,&
                                               wfi_update
@@ -2353,6 +2354,10 @@ CONTAINS
          CALL dbcsr_release_p(matrix_sk_re)
          CALL dbcsr_release_p(matrix_sk_im)
       END DO
+
+      ! A serialized minimizer state belongs to one OT workspace construction only. In particular,
+      ! it must not be applied again when an outer SCF cycle rebuilds the temporary OT environments.
+      CALL qs_scf_ot_restart_clear(scf_env)
 
       CALL qs_ot_check_channel_context(scf_env%qs_ot_env, dft_control%nspins, &
                                        nkpoint=kpoints%nkp, &
