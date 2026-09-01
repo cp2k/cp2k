@@ -22,10 +22,10 @@
 MODULE xc_libxc_wrap
 #if defined (__LIBXC)
 #include <xc_version.h>
-! check for LibXC version
-#if (XC_MAJOR_VERSION < 5 || (XC_MAJOR_VERSION == 5 && XC_MINOR_VERSION < 1))
-   This version of CP2K ONLY works with libxc versions 5.1.0 and above.
-   Furthermore, -I${LIBXC_DIR}/include needs to be added to FCFLAGS.
+! check for LibXC version - updated for LibXC 7.x
+#if (XC_MAJOR_VERSION < 7)
+   This version of CP2K requires libxc version 7.x or above for full functionality.
+   Some features may not be available with older versions.
 #else
    USE kinds, ONLY: dp
    USE xc_f03_lib_m, ONLY: xc_f03_func_end, &
@@ -68,7 +68,7 @@ MODULE xc_libxc_wrap
                            xc_f03_func_reference_get_ref, &
                            xc_f03_func_reference_get_doi, &
                            !
-                           xc_f03_lda => xc_f03_lda_exc_vxc_fxc_kxc, &
+                           xc_f03_lda_exc_vxc_fxc_kxc, &
                            xc_f03_lda_exc, &
                            xc_f03_lda_exc_vxc, &
                            xc_f03_lda_exc_vxc_fxc, &
@@ -76,7 +76,7 @@ MODULE xc_libxc_wrap
                            xc_f03_lda_kxc, &
                            xc_f03_lda_vxc, &
                            !
-                           xc_f03_mgga => xc_f03_mgga_exc_vxc_fxc, &
+                           xc_f03_mgga_exc_vxc_fxc, &
                            xc_f03_mgga_exc, &
                            xc_f03_mgga_exc_vxc, &
                            xc_f03_mgga_fxc, &
@@ -105,9 +105,8 @@ MODULE xc_libxc_wrap
                            XC_FLAGS_NEEDS_LAPLACIAN, &
                            XC_FLAGS_HAVE_EXC, &
                            XC_FLAGS_DEVELOPMENT, &
-                           xc_f03_func_init_flags,
-                           XC_FLAGS_ON_HOST,
-                           XC_FLAGS_ON_DEVICE,
+                           XC_FLAGS_ON_HOST, &
+                           XC_FLAGS_ON_DEVICE, &
                            xc_f03_func_info_set_default_flags
 
 #include "../base/base_uses.f90"
@@ -133,10 +132,6 @@ MODULE xc_libxc_wrap
              xc_f03_gga_exc_vxc_fxc_kxc, xc_f03_gga_vxc_fxc_kxc
    PUBLIC :: xc_f03_mgga_exc_vxc_fxc_kxc, xc_f03_mgga_vxc_fxc_kxc
    PUBLIC :: xc_f03_lda, &
-             xc_f03_lda_exc, xc_f03_lda_exc_vxc, xc_f03_lda_exc_vxc_fxc, &
-             xc_f03_lda_fxc, xc_f03_lda_kxc, xc_f03_lda_vxc
-   PUBLIC :: xc_f03_mgga, xc_f03_mgga_exc, xc_f03_mgga_exc_vxc, xc_f03_mgga_fxc, &
-             xc_f03_mgga_vxc, xc_f03_mgga_vxc_fxc
 
    PUBLIC :: XC_FAMILY_LDA, XC_FAMILY_GGA, XC_FAMILY_MGGA, &
              XC_FAMILY_HYB_LDA, XC_FAMILY_HYB_GGA, XC_FAMILY_HYB_MGGA
@@ -144,7 +139,10 @@ MODULE xc_libxc_wrap
    PUBLIC :: XC_UNPOLARIZED, XC_POLARIZED
 
    PUBLIC :: XC_EXCHANGE, XC_CORRELATION, XC_EXCHANGE_CORRELATION, XC_KINETIC
-   PUBLIC :: XC_FLAGS_ON_HOST, XC_FLAGS_ON_DEVICE
+    PUBLIC :: XC_FLAGS_ON_HOST, XC_FLAGS_ON_DEVICE
+
+   ! Create aliases for backward compatibility with LibXC 5.x interface
+   PUBLIC :: xc_f03_lda, xc_f03_mgga
 
 ! wrappers for routines
    PUBLIC :: xc_libxc_wrap_info_refs, &
@@ -157,7 +155,11 @@ MODULE xc_libxc_wrap
              xc_libxc_wrap_is_under_development, &
              xc_libxc_get_reference_length, &
              xc_libxc_check_functional, &
-             xc_libxc_wrap_init_cuda_safe
+              xc_libxc_wrap_init_cuda_safe
+
+   ! Alias definitions for backward compatibility
+   PROCEDURE(xc_f03_lda_exc_vxc_fxc_kxc), POINTER :: xc_f03_lda => xc_f03_lda_exc_vxc_fxc_kxc
+   PROCEDURE(xc_f03_mgga_exc_vxc_fxc), POINTER :: xc_f03_mgga => xc_f03_mgga_exc_vxc_fxc
 
 CONTAINS
 
