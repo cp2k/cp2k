@@ -62,6 +62,7 @@ MODULE preconditioner_types
       TYPE(dbcsr_type), POINTER :: sparse_matrix => NULL()
       TYPE(cp_fm_type), POINTER :: fm => NULL()
       TYPE(cp_cfm_type), POINTER :: complex_fm => NULL()
+      TYPE(cp_cfm_type), POINTER :: occ_rotation_complex => NULL()
       LOGICAL :: owns_complex_fm = .TRUE.
       TYPE(cp_fm_type), POINTER :: base_fm => NULL()
       TYPE(dbcsr_type), POINTER           :: dbcsr_matrix => NULL()
@@ -141,6 +142,7 @@ CONTAINS
       NULLIFY (preconditioner_env%sparse_matrix)
       NULLIFY (preconditioner_env%fm)
       NULLIFY (preconditioner_env%complex_fm)
+      NULLIFY (preconditioner_env%occ_rotation_complex)
       preconditioner_env%owns_complex_fm = .TRUE.
       NULLIFY (preconditioner_env%base_fm)
       NULLIFY (preconditioner_env%dbcsr_matrix)
@@ -215,6 +217,11 @@ CONTAINS
       END IF
       NULLIFY (preconditioner_env%complex_fm)
       preconditioner_env%owns_complex_fm = .TRUE.
+      IF (ASSOCIATED(preconditioner_env%occ_rotation_complex)) THEN
+         CALL cp_cfm_release(preconditioner_env%occ_rotation_complex)
+         DEALLOCATE (preconditioner_env%occ_rotation_complex)
+         NULLIFY (preconditioner_env%occ_rotation_complex)
+      END IF
       IF (ASSOCIATED(preconditioner_env%base_fm)) THEN
          CALL cp_fm_release(preconditioner_env%base_fm)
          DEALLOCATE (preconditioner_env%base_fm)

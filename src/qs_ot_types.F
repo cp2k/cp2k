@@ -409,8 +409,10 @@ CONTAINS
       supported = .FALSE.
       IF (.NOT. use_real_wfn) THEN
          supported = preconditioner_type == ot_precond_none .OR. &
+                     preconditioner_type == ot_precond_fermi_low_rank .OR. &
                      preconditioner_type == ot_precond_full_all .OR. &
                      preconditioner_type == ot_precond_full_single .OR. &
+                     preconditioner_type == ot_precond_full_all_covariant .OR. &
                      preconditioner_type == ot_precond_full_single_inverse .OR. &
                      preconditioner_type == ot_precond_full_kinetic .OR. &
                      preconditioner_type == ot_precond_s_inverse
@@ -433,7 +435,9 @@ CONTAINS
 
       supported = qs_ot_kpoint_preconditioner_supported(preconditioner_type, use_real_wfn)
       IF (.NOT. supported) RETURN
-      IF (preconditioner_type == ot_precond_full_all .OR. &
+      IF (preconditioner_type == ot_precond_fermi_low_rank .OR. &
+          preconditioner_type == ot_precond_full_all .OR. &
+          preconditioner_type == ot_precond_full_all_covariant .OR. &
           preconditioner_type == ot_precond_full_single) THEN
          supported = solver_type == ot_precond_solver_default
       ELSE IF (preconditioner_type == ot_precond_full_single_inverse .OR. &
@@ -1826,6 +1830,11 @@ CONTAINS
           settings%lattice_fft /= ot_lattice_fft_on) THEN
          CPABORT("LATTICE_FFT_LOCAL_CELLS requires LATTICE_FFT ON")
       END IF
+      IF (use_complex_kpoints .AND. settings%lattice_fft_local_cells > 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "LATTICE_FFT_LOCAL_CELLS is a Gamma-point supercell approximation; "// &
+                       "explicit K points already use native Bloch blocks")
+      END IF
       CALL section_vals_val_get(ot_section, "CHOLESKY", i_val=settings%cholesky_type)
       CALL section_vals_val_get(ot_section, "EPS_TAYLOR", r_val=settings%eps_taylor)
       CALL section_vals_val_get(ot_section, "MAX_TAYLOR", i_val=settings%max_taylor)
@@ -1929,7 +1938,9 @@ CONTAINS
          END SELECT
 
          IF (settings%preconditioner_type == ot_precond_fermi_low_rank) THEN
-            IF (settings%lattice_fft == ot_lattice_fft_auto) THEN
+            IF (use_complex_kpoints .AND. settings%lattice_fft /= ot_lattice_fft_off) THEN
+               WRITE (output_unit, '(A)') "  Low-rank base : native K-point inverse of S(k)"
+            ELSE IF (settings%lattice_fft == ot_lattice_fft_auto) THEN
                WRITE (output_unit, '(A)') "  Low-rank base : LATTICE_FFT (AUTO)"
             ELSE IF (settings%lattice_fft == ot_lattice_fft_on) THEN
                WRITE (output_unit, '(A)') "  Low-rank base : LATTICE_FFT"
@@ -1937,7 +1948,11 @@ CONTAINS
                WRITE (output_unit, '(A,A)') "  Low-rank base : ", TRIM(settings%low_rank_base_name)
             END IF
          END IF
-         WRITE (output_unit, '(A,A)') "  Lattice FFT   : ", TRIM(settings%lattice_fft_name)
+         IF (use_complex_kpoints .AND. settings%lattice_fft /= ot_lattice_fft_off) THEN
+            WRITE (output_unit, '(A)') "  Lattice FFT   : native Bloch blocks (no additional FFT)"
+         ELSE
+            WRITE (output_unit, '(A,A)') "  Lattice FFT   : ", TRIM(settings%lattice_fft_name)
+         END IF
          IF (settings%lattice_fft_local_cells > 0) THEN
             WRITE (output_unit, '(A,I0)') "  Local FFT cells: ", settings%lattice_fft_local_cells
          END IF
