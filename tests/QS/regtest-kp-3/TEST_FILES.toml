@@ -25,6 +25,8 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_dav_s_inverse.inp"                  = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"he_dav_single_inverse.inp"             = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_ot_fixed.inp"                       = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_ot_fixed_s_inverse.inp"             = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},

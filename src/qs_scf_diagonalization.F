@@ -105,7 +105,8 @@ MODULE qs_scf_diagonalization
                                               make_preconditioner_complex_full_s_inverse,&
                                               prepare_preconditioner,&
                                               restart_preconditioner
-   USE preconditioner_makes,            ONLY: make_complex_full_all
+   USE preconditioner_makes,            ONLY: make_complex_full_all,&
+                                              make_complex_full_single_inverse
    USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                               init_preconditioner
    USE qs_density_matrices,             ONLY: calculate_density_matrix
@@ -3702,9 +3703,6 @@ CONTAINS
       prec_type = scf_env%block_davidson_env(1)%prec_type
       solver_type = scf_env%block_davidson_env(1)%solver_type
       energy_gap = scf_env%block_davidson_env(1)%energy_gap
-      IF (prec_type == ot_precond_full_single_inverse) THEN
-         CPABORT('FULL_SINGLE_INVERSE not yet for Kpoint Davidson')
-      END IF
 
       ! channel storage: every (kpoint, spin) channel carries its own
       ! preconditioner, because S(k) and H(k) differ per kpoint. The Gamma
@@ -3736,7 +3734,7 @@ CONTAINS
                         matrix_type=dbcsr_type_antisymmetric)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix_s_re, sab_nl)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix_s_im, sab_nl)
-      IF (prec_type == ot_precond_full_all) THEN
+      IF (prec_type == ot_precond_full_all .OR. prec_type == ot_precond_full_single_inverse) THEN
          ALLOCATE (matrix_h_re, matrix_h_im)
          CALL dbcsr_create(matrix_h_re, template=matrix_ks_kp(1, 1)%matrix, &
                            matrix_type=dbcsr_type_symmetric)
@@ -3772,7 +3770,7 @@ CONTAINS
 
          DO ispin = 1, nspin
             channel = (local_kpoint - 1)*nspin + ispin
-            IF (prec_type == ot_precond_full_all) THEN
+            IF (prec_type == ot_precond_full_all .OR. prec_type == ot_precond_full_single_inverse) THEN
                CALL dbcsr_set(matrix_h_re, 0.0_dp)
                CALL dbcsr_set(matrix_h_im, 0.0_dp)
                CALL rskp_transform(rmatrix=matrix_h_re, cmatrix=matrix_h_im, rsmat=matrix_ks_kp, &
@@ -3780,9 +3778,10 @@ CONTAINS
                                    sab_nl=sab_nl)
                ! Davidson iterates the full MO set, so its active space is all nmo
                ! MOs of the channel: assemble the complex channel matrices on the
-               ! kpoint-group context and call the complex FULL_ALL core directly
-               ! (mirrors make_preconditioner_complex_full_all for the OT case,
-               ! which now sizes occ_evals to the OT active space)
+               ! kpoint-group context and call the complex H-based cores directly
+               ! (mirrors the complex preconditioners of the K-point OT case; the
+               ! FULL_SINGLE_INVERSE variant trades the state selectivity of
+               ! FULL_ALL for one shifted factorization and a gemm application)
                CALL get_mo_set(kp%mos(1, ispin), mo_coeff=mo_coeff_re, eigenvalues=eigenvalues, &
                                nmo=nmo)
                CALL get_mo_set(kp%mos(2, ispin), mo_coeff=mo_coeff_im)
@@ -3795,9 +3794,15 @@ CONTAINS
                CALL dbcsr_pair_to_cfm(matrix_s_re, matrix_s_im, &
                                       scf_env%ot_preconditioner(channel)%preconditioner, &
                                       'dav pc S', matrix_s)
-               CALL make_complex_full_all(scf_env%ot_preconditioner(channel)%preconditioner, &
-                                          matrix_c, matrix_h, matrix_s, eigenvalues(1:nmo), &
-                                          energy_gap)
+               IF (prec_type == ot_precond_full_all) THEN
+                  CALL make_complex_full_all(scf_env%ot_preconditioner(channel)%preconditioner, &
+                                             matrix_c, matrix_h, matrix_s, eigenvalues(1:nmo), &
+                                             energy_gap)
+               ELSE
+                  CALL make_complex_full_single_inverse( &
+                     scf_env%ot_preconditioner(channel)%preconditioner, &
+                     matrix_c, matrix_h, matrix_s, energy_gap)
+               END IF
                CALL cp_cfm_release(matrix_c)
                CALL cp_cfm_release(matrix_h)
                CALL cp_cfm_release(matrix_s)
