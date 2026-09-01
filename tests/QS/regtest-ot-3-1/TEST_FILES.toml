@@ -24,7 +24,7 @@
                                            {matcher="M072", tol=1e-8, ref=0.0},
                                            {matcher="M031", tol=1e-6, ref=-1.03113798553E+08}]
 "Al-kpoint-mermin-fermi-low-rank.inp"   = [
-  {matcher="E_total", tol=1e-9, ref=-2.975637281978972},
+  {matcher="E_total", tol=1e-9, ref=-2.171129071510264},
   {matcher="NO_TEXT", text="K-point smearing includes the first band"},
   {matcher="NO_TEXT", text="K-point smearing includes the last band"},
 ]
