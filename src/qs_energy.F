@@ -33,6 +33,7 @@ MODULE qs_energy
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_harris_methods,               ONLY: harris_energy_correction
+   USE qs_harris_types,                 ONLY: harris_type
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_matrix_w,                     ONLY: compute_matrix_w
    USE qs_nonscf,                       ONLY: nonscf
@@ -77,6 +78,7 @@ CONTAINS
                                                             do_excited_state, loverlap_deltat, &
                                                             my_calc_forces, run_rtp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(harris_type), POINTER                         :: harris_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: excited_state_section
@@ -94,9 +96,15 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, run_rtp=run_rtp)
       IF (.NOT. run_rtp) THEN
 
-         NULLIFY (dft_control, energy)
+         NULLIFY (dft_control, energy, harris_env)
          CALL qs_energies_init(qs_env, my_calc_forces)
-         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, scf_control=scf_control, energy=energy)
+         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, scf_control=scf_control, energy=energy, &
+                         harris_env=harris_env)
+         IF (ASSOCIATED(harris_env)) THEN
+            IF (harris_env%direct_density_matrix_energy .AND. my_calc_forces) THEN
+               CPABORT("Forces are not available for the direct fitted-density-matrix energy")
+            END IF
+         END IF
 
          ! *** check if only overlap matrix is needed for couplings
          loverlap_deltat = .FALSE.
