@@ -10,13 +10,18 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE offload_api
-   USE ISO_C_BINDING,                   ONLY: &
-        C_ASSOCIATED, C_CHAR, C_FUNLOC, C_FUNPTR, C_F_POINTER, C_INT, C_NULL_CHAR, C_NULL_PTR, &
-        C_PTR, C_SIZE_T
-   USE kinds,                           ONLY: dp,&
-                                              int_8
-   USE message_passing,                 ONLY: mp_comm_type
+   USE ISO_C_BINDING, ONLY: &
+      C_ASSOCIATED, C_CHAR, C_FUNLOC, C_FUNPTR, C_F_POINTER, C_INT, C_NULL_CHAR, C_NULL_PTR, &
+      C_PTR, C_SIZE_T
+   USE kinds, ONLY: dp, &
+                    int_8
+   USE message_passing, ONLY: mp_comm_type
 #include "../base/base_uses.f90"
+
+#if defined (__LIBXC)
+   USE xc_libxc, ONLY: libxc_set_backend, LIBXC_BACKEND_CPU, LIBXC_BACKEND_GPU
+   ! Local implementation of offload_has_cuda
+#endif
 
    IMPLICIT NONE
 
@@ -31,6 +36,7 @@ MODULE offload_api
    PUBLIC :: offload_buffer_type, offload_create_buffer, offload_free_buffer
    PUBLIC :: offload_malloc_pinned_mem, offload_free_pinned_mem
    PUBLIC :: offload_mempool_stats_print
+    PUBLIC :: offload_has_cuda
 
    TYPE offload_buffer_type
       REAL(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: host_buffer => Null()
@@ -97,6 +103,17 @@ CONTAINS
       END INTERFACE
 
       CALL offload_init_c()
+
+#if defined (__LIBXC)
+      ! Initialize Libxc backend based on offload availability
+
+      ! Set Libxc backend based on whether CUDA offload is available
+      IF (offload_has_cuda()) THEN
+         CALL libxc_set_backend(LIBXC_BACKEND_GPU)
+      ELSE
+         CALL libxc_set_backend(LIBXC_BACKEND_CPU)
+      END IF
+#endif
 
    END SUBROUTINE offload_init
 
@@ -371,3 +388,25 @@ CONTAINS
       WRITE (output_unit, FMT="(100A)", ADVANCE="NO") msg(1:msglen)
    END SUBROUTINE print_func
 END MODULE offload_api
+
+! **************************************************************************************************
+!> \brief Checks if CUDA offload is available.
+!> \return TRUE if CUDA offload is available, FALSE otherwise
+!> \author Ole Schuett
+! **************************************************************************************************
+   FUNCTION offload_has_cuda() RESULT(has_cuda)
+      LOGICAL                                            :: has_cuda
+
+      INTERFACE
+         FUNCTION offload_get_device_count_c() &
+            BIND(C, name="offload_get_device_count")
+            IMPORT :: C_INT
+            INTEGER(KIND=C_INT)                :: offload_get_device_count_c
+         END FUNCTION offload_get_device_count_c
+      END INTERFACE
+
+      ! Check if we have any CUDA devices available
+      has_cuda = offload_get_device_count_c() > 0
+
+   END FUNCTION offload_has_cuda
+
