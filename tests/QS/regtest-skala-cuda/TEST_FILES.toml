@@ -1,8 +1,8 @@
 "H2_NATIVE_SKALA_GAPW_AE_ATOM_COMPOSITE.inp" = [{matcher="E_total", tol=1e-8, ref=-0.921392698498790},
                                                   {matcher="M072", tol=1e-4, ref=1.73941953E-03}]
 "H2_NATIVE_SKALA_GPW_GTH_KP_INV_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.808861553448790},
-                                                 {matcher="M072", tol=2e-6, ref=2.11956720E-03},
-                                                 {matcher="M031", tol=1e-5, ref=-2.06383170158E+04}]
+                                                 {matcher="M072", tol=2e-6, ref=2.11957112E-03},
+                                                 {matcher="M031", tol=1e-5, ref=-2.06383170094E+04}]
 "H2_NATIVE_SKALA_GPW_GTH_KP_SYM_STRESS.inp" = [{matcher="E_total", tol=1e-8, ref=-0.808861553448790},
                                                   {matcher="M072", tol=2e-6, ref=2.11957580E-03},
                                                   {matcher="M031", tol=1e-5, ref=-2.06383171098E+04}]

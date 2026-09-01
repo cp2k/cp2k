@@ -1040,13 +1040,9 @@ fi
 if [ "${ENABLE_GAUXC_CUTLASS}" = "__TRUE__" ]; then
   if [ "${ENABLE_CUDA}" != "__TRUE__" ]; then
     report_error ${LINENO} "--enable-gauxc-cutlass requires --enable-cuda=yes."
+  elif ! case "${GPUVER}" in A100 | A40 | H100 | B200 | GB10) true ;; *) false ;; esac; then
+    report_error ${LINENO} "--enable-gauxc-cutlass requires CUDA compute capability >= 8.0 (found: ${GPUVER})."
   fi
-  case "${GPUVER}" in
-    A100 | A40 | H100 | B200 | GB10) ;;
-    *)
-      report_error ${LINENO} "--enable-gauxc-cutlass requires CUDA compute capability >= 8.0."
-      ;;
-  esac
   if [ "${with_gauxc}" = "__DONTUSE__" ]; then
     report_warning ${LINENO} "--enable-gauxc-cutlass requires GauXC, enabling --with-gauxc=install."
     with_gauxc="__INSTALL__"
@@ -1111,13 +1107,10 @@ if [ "${with_gauxc}" != "__DONTUSE__" ] &&
   with_libxc="__INSTALL__"
 fi
 
-# Since tblite includes dftd4, a separate dftd4 is not needed.
-if [ "${with_tblite}" != "__DONTUSE__" ]; then
-  if [ "${with_dftd4}" != "__DONTUSE__" ]; then
-    report_warning ${LINENO} "Since tblite includes dft-d4, a standalone dft-d4
-package will not be used separately."
-    with_dftd4="__DONTUSE__"
-  fi
+# tblite includes dftd4, so disable standalone dftd4 when tblite is enabled
+if [ "${with_tblite}" != "__DONTUSE__" ] && [ "${with_dftd4}" != "__DONTUSE__" ]; then
+  report_warning ${LINENO} "tblite includes dft-d4, disabling standalone dftd4"
+  with_dftd4="__DONTUSE__"
 fi
 
 # Require cmake as hard dependency.
