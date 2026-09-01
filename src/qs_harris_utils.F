@@ -132,6 +132,8 @@ CONTAINS
                                    r_val=harris_env%fit_step_size)
          CALL section_vals_val_get(harris_section, "FIT_MAX_BACKTRACK", &
                                    i_val=harris_env%fit_max_backtrack)
+         CALL section_vals_val_get(harris_section, "DIRECT_DENSITY_MATRIX_ENERGY", &
+                                   l_val=harris_env%direct_density_matrix_energy)
          CALL section_vals_val_get(harris_section, "ORBITAL_BASIS", &
                                    i_val=harris_env%orbital_basis)
          !
@@ -199,6 +201,8 @@ CONTAINS
                harris_env%fit_eps
             WRITE (unit_nr, '(T2,A,T61,ES20.8)') "Harris density fit: Initial step size", &
                harris_env%fit_step_size
+            WRITE (unit_nr, '(T2,A,T61,L20)') "Direct fitted-DM energy evaluation", &
+               harris_env%direct_density_matrix_energy
          END SELECT
          IF (harris_env%density_source == hden_atomic) THEN
             WRITE (unit_nr, '(T2,A,T71,A10)') "Harris model density: Basis type", &
@@ -312,6 +316,10 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Illegal value of harris_env%density_source")
       END SELECT
+      IF (harris_env%direct_density_matrix_energy .AND. &
+          harris_env%density_source /= hden_cube_fit) THEN
+         CPABORT("HARRIS_METHOD%DIRECT_DENSITY_MATRIX_ENERGY requires DENSITY_SOURCE CUBE_FIT")
+      END IF
 
       CALL timestop(handle)
 
@@ -351,6 +359,12 @@ CONTAINS
          IF (.NOT. harris_env%density_fit_ready) THEN
             CALL read_cube_density(qs_env, rho_struct, TRIM(harris_env%density_filename), &
                                    total_density_sign=-1, source_label="HARRIS")
+            IF (harris_env%direct_density_matrix_energy) THEN
+               CALL qs_rho_get(rho_struct, rho_r=rho_rspace)
+               pw_grid => rho_rspace(1)%pw_grid
+               CALL harris_env%density_target_rspace%create(pw_grid)
+               CALL pw_copy(rho_rspace(1), harris_env%density_target_rspace)
+            END IF
             CALL fit_constrained_density(qs_env, rho_struct, harris_env%fit_max_iter, &
                                          harris_env%fit_eps, harris_env%fit_step_size, &
                                          harris_env%fit_max_backtrack)

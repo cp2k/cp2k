@@ -31,11 +31,15 @@ MODULE qs_nonscf
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
+   USE qs_harris_methods,               ONLY: harris_direct_density_matrix_energy
+   USE qs_harris_types,                 ONLY: harris_type
+   USE qs_harris_utils,                 ONLY: harris_density_update
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_mo_types,                     ONLY: mo_set_type
    USE qs_nonscf_utils,                 ONLY: qs_nonscf_print_summary
+   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf,                          ONLY: init_scf_loop
@@ -72,10 +76,23 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(harris_type), POINTER                         :: harris_env
+      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
 
-      CALL get_qs_env(qs_env, dft_control=dft_control)
+      NULLIFY (harris_env, rho)
+      CALL get_qs_env(qs_env, dft_control=dft_control, harris_env=harris_env, rho=rho)
+
+      IF (ASSOCIATED(harris_env)) THEN
+         IF (harris_env%direct_density_matrix_energy) THEN
+            CALL harris_density_update(qs_env, harris_env)
+            CALL qs_rho_update_rho(rho, qs_env=qs_env)
+            CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., potential_changed=.TRUE.)
+            CALL harris_direct_density_matrix_energy(qs_env)
+            RETURN
+         END IF
+      END IF
 
       IF (dft_control%qs_control%do_ls_scf) THEN
          ! Density matrix based solver

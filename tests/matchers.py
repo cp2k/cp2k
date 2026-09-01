@@ -466,4 +466,10 @@ registry["Vacuum_level_above"] = GenericMatcher(r"dipole correction plane [eV]:"
 registry["Harris_fit_electron_count"] = GenericMatcher(
     r"HARRIS\| AO density-matrix electron count:", col=6
 )
+registry["Harris_direct_trial_energy"] = GenericMatcher(
+    r"Consistent trial-DM energy:", col=4
+)
+registry["Harris_direct_energy_difference"] = GenericMatcher(
+    r"Trial-DM minus Harris-like energy:", col=5
+)
 # EOF
