@@ -17,7 +17,6 @@ MODULE qs_initial_guess
                                               get_atomic_kind_set
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_filter, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_get_occupation, &
@@ -158,7 +157,6 @@ CONTAINS
       TYPE(atom_matrix_type), DIMENSION(:), POINTER      :: pmat
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, ao_mo_struct
       TYPE(cp_fm_type)                                   :: sv
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: work1
@@ -184,7 +182,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section, input, subsys_section
 
       logger => cp_get_default_logger()
-      NULLIFY (atomic_kind, cell, qs_kind, mo_coeff, orb_basis_set, atomic_kind_set, &
+      NULLIFY (atomic_kind, qs_kind, mo_coeff, orb_basis_set, atomic_kind_set, &
                qs_kind_set, particle_set, ortho, work2, work1, mo_array, s_sparse, &
                scf_control, dft_control, p_rmpv, para_env, h_core_sparse, matrix_ks, rho, &
                mos_last_converged)
@@ -199,7 +197,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env, &
                       atomic_kind_set=atomic_kind_set, &
-                      cell=cell, &
                       qs_kind_set=qs_kind_set, &
                       particle_set=particle_set, &
                       mos=mo_array, &
@@ -397,9 +394,7 @@ CONTAINS
          IF (do_kpoints) THEN
             natoms = SIZE(particle_set)
             CALL read_kpoints_restart(rho_ao_kp, kpoints, work1, &
-                                      natoms, para_env, id_nr, dft_section, natom_mismatch, &
-                                      scf_env=scf_env, simulation_cell=cell, &
-                                      particle_set=particle_set, smear=scf_control%smear)
+                                      natoms, para_env, id_nr, dft_section, natom_mismatch)
             IF (natom_mismatch) density_guess = safe_density_guess
          ELSE
             CALL read_mo_set_from_restart(mo_array, qs_kind_set, particle_set, para_env, &
