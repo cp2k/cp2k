@@ -52,6 +52,9 @@ MODULE qs_harris_types
       REAL(KIND=dp)                                    :: eh_correction = 0.0_dp
       REAL(KIND=dp)                                    :: ewald_correction = 0.0_dp
       REAL(KIND=dp)                                    :: dispersion = 0.0_dp
+      REAL(KIND=dp)                                    :: trial_dm = 0.0_dp
+      REAL(KIND=dp)                                    :: direct_harris = 0.0_dp
+      REAL(KIND=dp)                                    :: direct_difference = 0.0_dp
    END TYPE harris_energy_type
 
 ! *****************************************************************************
@@ -70,6 +73,7 @@ MODULE qs_harris_types
       REAL(KIND=dp)                                    :: fit_eps = 1.0E-3_dp
       REAL(KIND=dp)                                    :: fit_step_size = 1.0_dp
       LOGICAL                                          :: density_fit_ready = .FALSE.
+      LOGICAL                                          :: direct_density_matrix_energy = .FALSE.
       !
       TYPE(harris_energy_type)                         :: energy
       !
@@ -78,6 +82,7 @@ MODULE qs_harris_types
       TYPE(pw_r3d_rs_type)                             :: vh_rspace = pw_r3d_rs_type()
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER      :: vxc_rspace => Null()
       TYPE(pw_r3d_rs_type)                             :: density_fit_rspace = pw_r3d_rs_type()
+      TYPE(pw_r3d_rs_type)                             :: density_target_rspace = pw_r3d_rs_type()
 
       !
       LOGICAL                                          :: debug_forces = .FALSE.
@@ -86,7 +91,7 @@ MODULE qs_harris_types
 ! **************************************************************************************************
 
    PUBLIC :: harris_type, harris_energy_type, harris_env_release, &
-             harris_print_energy, harris_rhoin_type, harris_rhoin_init
+             harris_print_direct_energy, harris_print_energy, harris_rhoin_type, harris_rhoin_init
 
 ! **************************************************************************************************
 
@@ -115,6 +120,25 @@ CONTAINS
       END IF
 
    END SUBROUTINE harris_print_energy
+
+! **************************************************************************************************
+!> \brief Prints the two direct fitted-density-matrix energy evaluations.
+!> \param iounit Output unit
+!> \param energy Harris energy data
+! **************************************************************************************************
+   SUBROUTINE harris_print_direct_energy(iounit, energy)
+      INTEGER, INTENT(IN)                                :: iounit
+      TYPE(harris_energy_type), INTENT(IN)               :: energy
+
+      IF (iounit > 0) THEN
+         WRITE (UNIT=iounit, FMT="(/,(T2,A))") "HARRIS DIRECT DENSITY MATRIX ENERGY INFORMATION"
+         WRITE (UNIT=iounit, FMT="((T3,A,T56,F25.14))") &
+            "Consistent trial-DM energy:                   ", energy%trial_dm, &
+            "Harris-like fitted-DM/cube energy:            ", energy%direct_harris, &
+            "Trial-DM minus Harris-like energy:            ", energy%direct_difference
+      END IF
+
+   END SUBROUTINE harris_print_direct_energy
 
 ! **************************************************************************************************
 !> \brief ...
@@ -208,6 +232,9 @@ CONTAINS
          END IF
          IF (ASSOCIATED(harris_env%density_fit_rspace%pw_grid)) THEN
             CALL harris_env%density_fit_rspace%release()
+         END IF
+         IF (ASSOCIATED(harris_env%density_target_rspace%pw_grid)) THEN
+            CALL harris_env%density_target_rspace%release()
          END IF
          IF (ASSOCIATED(harris_env%vxc_rspace)) THEN
             DO iab = 1, SIZE(harris_env%vxc_rspace)

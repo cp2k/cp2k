@@ -49,7 +49,7 @@ CONTAINS
       NULLIFY (keyword)
       CALL section_create(section, __LOCATION__, name="HARRIS_METHOD", &
                           description="Sets the various options for the Harris method", &
-                          n_keywords=11, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=12, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of the Harris method", &
@@ -113,6 +113,16 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="FIT_MAX_BACKTRACK", &
                           description="Maximum number of line-search reductions in each CUBE_FIT iteration.", &
                           usage="FIT_MAX_BACKTRACK 20", default_i_val=20)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DIRECT_DENSITY_MATRIX_ENERGY", &
+                          description="Evaluate the fitted AO density matrix directly, without a NONSCF "// &
+                          "eigensolver. Requires DENSITY_SOURCE CUBE_FIT. CP2K reports both the "// &
+                          "consistent trial-density-matrix energy and a Harris-like energy based on "// &
+                          "the original cube density.", &
+                          usage="DIRECT_DENSITY_MATRIX_ENERGY T", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
