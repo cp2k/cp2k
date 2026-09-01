@@ -27,6 +27,18 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_dav_single_inverse.inp"             = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
+# warm start from extrapolated MOS: the second geometry step consumes the
+# extrapolated MOS as trial subspace instead of a cold start (PS, and ASPC below)
+"he_dav_geo_opt.inp"                    = [{matcher="E_total", tol=1e-9, ref=-2.89466358072372},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"he_dav_geo_opt_aspc.inp"               = [{matcher="E_total", tol=1e-9, ref=-2.89466358072372},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
+# density-only WFN restart (the .kp file holds no MOS): the Davidson cold-starts
+# on top of the restarted density
+"he_dav_restart.inp"                    = [{matcher="E_total", tol=1e-9, ref=-2.89466358138925}]
+# no preconditioner: every call is a single Rayleigh-Ritz rotation
+"he_dav_none.inp"                       = [{matcher="E_total", tol=1e-9, ref=-2.89466358135803},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_ot_fixed.inp"                       = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_ot_fixed_s_inverse.inp"             = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
