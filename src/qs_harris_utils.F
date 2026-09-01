@@ -313,13 +313,13 @@ CONTAINS
                CPABORT("HARRIS_METHOD%FIT_MAX_BACKTRACK cannot be negative")
             END IF
          END IF
-         IF (harris_env%direct_density_matrix_energy .AND. &
-             harris_env%density_source /= hden_cube_fit) THEN
-            CPABORT("HARRIS_METHOD%DIRECT_DENSITY_MATRIX_ENERGY requires DENSITY_SOURCE CUBE_FIT")
-         END IF
       CASE DEFAULT
          CPABORT("Illegal value of harris_env%density_source")
       END SELECT
+      IF (harris_env%direct_density_matrix_energy .AND. &
+          harris_env%density_source /= hden_cube_fit) THEN
+         CPABORT("HARRIS_METHOD%DIRECT_DENSITY_MATRIX_ENERGY requires DENSITY_SOURCE CUBE_FIT")
+      END IF
 
       CALL timestop(handle)
 
