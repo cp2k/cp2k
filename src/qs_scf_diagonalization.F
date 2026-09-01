@@ -178,9 +178,94 @@ MODULE qs_scf_diagonalization
              do_block_davidson_diag_kp, &
              do_block_krylov_diag, do_scf_diag_subspace, diag_subspace_allocate, &
              general_eigenproblem, diag_kp_smat, diag_kp_basic, &
-             qs_scf_get_ot_kpoint_operator
+             qs_scf_distribute_kpoint_operator, qs_scf_get_ot_kpoint_operator
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Transform and redistribute a real-space operator to all local complex K-point groups.
+!> \param matrix_rs real-space image matrices of the operator
+!> \param kpoints K-point environment and group distribution
+!> \param fmwork full-matrix workspaces on the global communicator
+!> \param operator_re local real K-point operators
+!> \param operator_im local imaginary K-point operators
+! **************************************************************************************************
+   SUBROUTINE qs_scf_distribute_kpoint_operator( &
+      matrix_rs, kpoints, fmwork, operator_re, operator_im)
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_rs
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fmwork
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: operator_re, operator_im
+
+      INTEGER                                            :: igroup, ikpoint, ispin, local_kpoint, &
+                                                            nkp_groups, nlocal_kpoints, nspin
+      INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: my_kpoint_group
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(copy_info_type)                               :: info_im, info_re
+      TYPE(cp_fm_type)                                   :: fmdummy
+      TYPE(dbcsr_type), POINTER                          :: matrix_im, matrix_re, matrix_work
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+
+      NULLIFY (cell_to_index, kp_dist, matrix_im, matrix_re, matrix_work, para_env, sab_nl, xkp)
+      CPASSERT(ASSOCIATED(matrix_rs))
+      CPASSERT(ASSOCIATED(kpoints))
+      CPASSERT(SIZE(fmwork) >= 2)
+      nlocal_kpoints = SIZE(kpoints%kp_env)
+      nspin = SIZE(matrix_rs, 1)
+      CPASSERT(ALL(SHAPE(operator_re) == [nlocal_kpoints, nspin]))
+      CPASSERT(ALL(SHAPE(operator_im) == [nlocal_kpoints, nspin]))
+      CALL get_kpoint_info(kpoints, nkp_groups=nkp_groups, kp_dist=kp_dist, xkp=xkp, &
+                           cell_to_index=cell_to_index, sab_nl=sab_nl)
+      para_env => kpoints%blacs_env_all%para_env
+
+      ALLOCATE (matrix_re, matrix_im, matrix_work)
+      CALL dbcsr_create(matrix_re, template=matrix_rs(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(matrix_im, template=matrix_rs(1, 1)%matrix, matrix_type=dbcsr_type_antisymmetric)
+      CALL dbcsr_create(matrix_work, template=matrix_rs(1, 1)%matrix, matrix_type=dbcsr_type_no_symmetry)
+      CALL cp_dbcsr_alloc_block_from_nbl(matrix_re, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(matrix_im, sab_nl)
+
+      DO local_kpoint = 1, nlocal_kpoints
+         DO ispin = 1, nspin
+            DO igroup = 1, nkp_groups
+               ikpoint = kp_dist(1, igroup) + local_kpoint - 1
+               my_kpoint_group = ikpoint >= kpoints%kp_range(1) .AND. &
+                                 ikpoint <= kpoints%kp_range(2)
+               CALL dbcsr_set(matrix_re, 0.0_dp)
+               CALL dbcsr_set(matrix_im, 0.0_dp)
+               CALL rskp_transform( &
+                  rmatrix=matrix_re, cmatrix=matrix_im, rsmat=matrix_rs, ispin=ispin, &
+                  xkp=xkp(1:3, ikpoint), cell_to_index=cell_to_index, sab_nl=sab_nl)
+               CALL dbcsr_desymmetrize(matrix_re, matrix_work)
+               CALL copy_dbcsr_to_fm(matrix_work, fmwork(1))
+               CALL dbcsr_desymmetrize(matrix_im, matrix_work)
+               CALL copy_dbcsr_to_fm(matrix_work, fmwork(2))
+               IF (my_kpoint_group) THEN
+                  CALL cp_fm_start_copy_general( &
+                     fmwork(1), operator_re(local_kpoint, ispin), para_env, info_re)
+                  CALL cp_fm_start_copy_general( &
+                     fmwork(2), operator_im(local_kpoint, ispin), para_env, info_im)
+                  CALL cp_fm_finish_copy_general(operator_re(local_kpoint, ispin), info_re)
+                  CALL cp_fm_finish_copy_general(operator_im(local_kpoint, ispin), info_im)
+               ELSE
+                  CALL cp_fm_start_copy_general(fmwork(1), fmdummy, para_env, info_re)
+                  CALL cp_fm_start_copy_general(fmwork(2), fmdummy, para_env, info_im)
+               END IF
+               CALL cp_fm_cleanup_copy_general(info_re)
+               CALL cp_fm_cleanup_copy_general(info_im)
+            END DO
+         END DO
+      END DO
+
+      CALL dbcsr_deallocate_matrix(matrix_re)
+      CALL dbcsr_deallocate_matrix(matrix_im)
+      CALL dbcsr_deallocate_matrix(matrix_work)
+
+   END SUBROUTINE qs_scf_distribute_kpoint_operator
 
 ! **************************************************************************************************
 !> \brief Build one complex k-point operator for OT in the local k-point-group context.
