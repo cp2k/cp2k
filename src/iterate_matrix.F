@@ -1209,34 +1209,44 @@ CONTAINS
       INTEGER                                            :: info, liwork, lwork
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: tmp
 
-      ALLOCATE (eigvecs(N, N), tmp(N, N))
+      ALLOCATE (eigvecs(N, N))
       ALLOCATE (eigvals(N))
 
       ! symmetrize sm
       eigvecs(:, :) = 0.5*(sm + TRANSPOSE(sm))
 
-      ! probe optimal sizes for WORK and IWORK
+      ! Probe optimal sizes for WORK and IWORK. On macOS, BLAS/LAPACK libraries
+      ! using a different OpenMP runtime can fail when entered concurrently.
       LWORK = -1
       LIWORK = -1
       ALLOCATE (WORK(1))
       ALLOCATE (IWORK(1))
+#if defined(__MACOSX)
+      !$OMP CRITICAL (submatrix_dense_linalg)
+#endif
       CALL dsyevd('V', 'U', N, eigvecs, N, eigvals, WORK, LWORK, IWORK, LIWORK, INFO)
+#if defined(__MACOSX)
+      !$OMP END CRITICAL (submatrix_dense_linalg)
+#endif
       LWORK = INT(WORK(1))
       LIWORK = INT(IWORK(1))
       DEALLOCATE (IWORK)
       DEALLOCATE (WORK)
 
-      ! calculate eigenvalues and eigenvectors
+      ! Calculate eigenvalues and eigenvectors.
       ALLOCATE (WORK(LWORK))
       ALLOCATE (IWORK(LIWORK))
+#if defined(__MACOSX)
+      !$OMP CRITICAL (submatrix_dense_linalg)
+#endif
       CALL dsyevd('V', 'U', N, eigvecs, N, eigvals, WORK, LWORK, IWORK, LIWORK, INFO)
+#if defined(__MACOSX)
+      !$OMP END CRITICAL (submatrix_dense_linalg)
+#endif
       DEALLOCATE (IWORK)
       DEALLOCATE (WORK)
       IF (INFO /= 0) CPABORT("dsyevd did not succeed")
-
-      DEALLOCATE (tmp)
    END SUBROUTINE eigdecomp
 
 ! **************************************************************************************************
@@ -1273,8 +1283,14 @@ CONTAINS
 
       ! Create matrix with eigenvalues in {-1,0,1} and eigenvectors of sm:
       ! sm_sign = eigvecs * sm_sign * eigvecs.T
+#if defined(__MACOSX)
+      !$OMP CRITICAL (submatrix_dense_linalg)
+#endif
       CALL dgemm('N', 'N', N, N, N, 1.0_dp, eigvecs, N, sm_sign, N, 0.0_dp, tmp, N)
       CALL dgemm('N', 'T', N, N, N, 1.0_dp, tmp, N, eigvecs, N, 0.0_dp, sm_sign, N)
+#if defined(__MACOSX)
+      !$OMP END CRITICAL (submatrix_dense_linalg)
+#endif
    END SUBROUTINE sign_from_eigdecomp
 
 ! **************************************************************************************************
@@ -1578,7 +1594,7 @@ CONTAINS
       IF ((variant == ls_scf_submatrix_sign_direct_muadj_lowmem) .AND. (mu /= new_mu)) THEN
          !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
          !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
-         !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu)
+         !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, mu, new_mu)
          !$OMP DO SCHEDULE(GUIDED)
          DO i = 1, SIZE(my_sms)
             WRITE (unit_nr, '(T3,A,1X,I4,1X,A,1X,I6)') "Rank", myrank, "reprocessing submatrix", my_sms(i)
