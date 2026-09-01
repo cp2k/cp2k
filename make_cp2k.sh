@@ -1894,11 +1894,18 @@ export IMAGE_TAG=${IMAGE_TAG:-<IMAGE ID>}
 # Optionally, launch test run
 if [[ "${RUN_TEST}" == "yes" ]]; then
   echo -e "\n*** Launching regression test run using the script ${INSTALL_PREFIX}/bin/run_tests\n"
-  ${LAUNCH_SCRIPT} run_tests
-  EXIT_CODE=$?
-  if ((EXIT_CODE != 0)); then
-    echo "ERROR: The regression test run failed with the error code ${EXIT_CODE}"
-    ${EXIT_CMD} "${EXIT_CODE}"
+  if [[ "${TEST_COVERAGE}" == "yes" ]]; then
+    # Print only a warning when the regression test is failing and continue with coverage analysis
+    if ! ${LAUNCH_SCRIPT} run_tests; then
+      echo -e "\nWARNING: The regression test run failed, but the coverage analysis will still be performed\n"
+    fi
+  else
+    ${LAUNCH_SCRIPT} run_tests
+    EXIT_CODE=$?
+    if ((EXIT_CODE != 0)); then
+      echo -e "\nERROR: The regression test run failed with the error code ${EXIT_CODE}\n"
+      ${EXIT_CMD} "${EXIT_CODE}"
+    fi
   fi
 else
   if [[ "${IN_CONTAINER}" == "yes" ]]; then
