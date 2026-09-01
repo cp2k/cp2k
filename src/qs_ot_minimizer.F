@@ -777,16 +777,12 @@ CONTAINS
          END IF
          IF (logger%iter_info%print_level >= high_print_level .AND. logger%para_env%is_source()) THEN
             WRITE (cp_logger_get_default_unit_nr(logger), &
-                   '(A,1X,I5,4(1X,L1),6(1X,ES16.8))') &
-               " OT Mermin response shadow good hxc hxc-dir cross advantage residual "// &
-               "curvature hxc-shadow hxc-model cross-curv:", &
+                   '(A,1X,I5,2(1X,L1),4(1X,ES16.8))') &
+               " OT Mermin response shadow good hxc-dir advantage residual model shadow:", &
                qs_ot_env(1)%response_shadow_good_samples, shadow_good, &
-               qs_ot_env(1)%response_hxc_valid, qs_ot_env(1)%response_hxc_direction_valid, &
-               qs_ot_env(1)%response_gradient_cross_valid, response_advantage, &
-               response_residual_ratio, qs_ot_env(1)%response_shadow_curvature, &
-               qs_ot_env(1)%response_hxc_shadow_curvature, &
-               qs_ot_env(1)%response_hxc_model_curvature, &
-               qs_ot_env(1)%response_gradient_cross_curvature
+               qs_ot_env(1)%response_hxc_direction_valid, response_advantage, &
+               response_residual_ratio, qs_ot_env(1)%response_model_curvature, &
+               qs_ot_env(1)%response_shadow_curvature
          END IF
          qs_ot_env(1)%response_shadow_pending = .FALSE.
       END IF
