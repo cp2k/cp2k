@@ -560,6 +560,7 @@ list(
   qs_dcdr_ao.F
   qs_dcdr.F
   qs_dcdr_utils.F
+  qs_density_fit.F
   qs_density_matrices.F
   qs_density_mixing_types.F
   qs_dftb3_methods.F

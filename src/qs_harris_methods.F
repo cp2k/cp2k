@@ -21,7 +21,8 @@ MODULE qs_harris_methods
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
-   USE input_constants,                 ONLY: hden_cube
+   USE input_constants,                 ONLY: hden_cube,&
+                                              hden_cube_fit
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -98,7 +99,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, harris_env=harris_env, energy=ks_energy)
-      IF (calculate_forces .AND. harris_env%density_source == hden_cube) THEN
+      IF (calculate_forces .AND. (harris_env%density_source == hden_cube .OR. &
+                                  harris_env%density_source == hden_cube_fit)) THEN
          CPABORT("Forces are not available for a Harris energy based on an external cube density")
       END IF
       energy => harris_env%energy
