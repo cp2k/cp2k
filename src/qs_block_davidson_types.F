@@ -147,9 +147,16 @@ CONTAINS
          nspins = SIZE(bdav_env)
          DO ispin = 1, nspins
 
-            CALL cp_fm_release(bdav_env(ispin)%matrix_z)
-            CALL cp_fm_release(bdav_env(ispin)%matrix_pz)
-            DEALLOCATE (bdav_env(ispin)%matrix_z, bdav_env(ispin)%matrix_pz)
+            ! K-point channels carry settings only (the complex scratch is local
+            ! to generate_extended_space_c), so the pointers may stay disassociated
+            IF (ASSOCIATED(bdav_env(ispin)%matrix_z)) THEN
+               CALL cp_fm_release(bdav_env(ispin)%matrix_z)
+               DEALLOCATE (bdav_env(ispin)%matrix_z)
+            END IF
+            IF (ASSOCIATED(bdav_env(ispin)%matrix_pz)) THEN
+               CALL cp_fm_release(bdav_env(ispin)%matrix_pz)
+               DEALLOCATE (bdav_env(ispin)%matrix_pz)
+            END IF
             NULLIFY (bdav_env(ispin)%matrix_z, bdav_env(ispin)%matrix_pz)
 
          END DO

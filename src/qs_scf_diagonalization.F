@@ -71,8 +71,9 @@ MODULE qs_scf_diagonalization
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
-        core_guess, diag_update_method_adiis, general_roks, high_spin_roks, &
-        ot_precond_full_kinetic, restart_guess
+        core_guess, diag_update_method_adiis, general_roks, high_spin_roks, ot_precond_full_all, &
+        ot_precond_full_kinetic, ot_precond_full_single_inverse, ot_precond_none, &
+        ot_precond_s_inverse, restart_guess
    USE input_cp2k_kpoints,              ONLY: lattice_fft_auto,&
                                               lattice_fft_off,&
                                               lattice_fft_on
@@ -96,8 +97,12 @@ MODULE qs_scf_diagonalization
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE preconditioner,                  ONLY: prepare_preconditioner,&
+   USE preconditioner,                  ONLY: dbcsr_pair_to_cfm,&
+                                              make_preconditioner_complex_full_kinetic,&
+                                              make_preconditioner_complex_full_s_inverse,&
+                                              prepare_preconditioner,&
                                               restart_preconditioner
+   USE preconditioner_makes,            ONLY: make_complex_full_all
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
                                               gspace_mixing_nr
@@ -133,6 +138,7 @@ MODULE qs_scf_diagonalization
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_block_davidson,           ONLY: generate_extended_space,&
+                                              generate_extended_space_c,&
                                               generate_extended_space_sparse
    USE qs_scf_lanczos,                  ONLY: lanczos_refinement,&
                                               lanczos_refinement_2v
@@ -163,6 +169,7 @@ MODULE qs_scf_diagonalization
 
    PUBLIC :: do_general_diag, do_general_diag_kp, do_roks_diag, &
              do_special_diag, do_ot_diag, do_ot_diag_kp, do_block_davidson_diag, &
+             do_block_davidson_diag_kp, &
              do_block_krylov_diag, do_scf_diag_subspace, diag_subspace_allocate, &
              general_eigenproblem, diag_kp_smat, diag_kp_basic, &
              qs_scf_get_ot_kpoint_operator
@@ -3188,6 +3195,7 @@ CONTAINS
       logger => cp_get_default_logger()
       CALL timeset(routineN, handle)
 
+      scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
       output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DAVIDSON", &
                                          extension=".scfLog")
 
@@ -3273,6 +3281,456 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE do_block_davidson_diag
+
+! **************************************************************************************************
+!> \brief block-Davidson SCF step for complex K points, one channel per
+!>        (local kpoint, spin); mirrors do_block_davidson_diag for the
+!>        preconditioner scheduling and do_general_diag_kp for the H(k)/S(k)
+!>        assembly and the density exit chain
+!> \param qs_env ...
+!> \param scf_env ...
+!> \param matrix_ks_kp real-space Kohn-Sham matrices, dbcsr image set
+!> \param matrix_s_kp real-space overlap matrix, dbcsr image set
+!> \param kpoints ...
+!> \param scf_control ...
+! **************************************************************************************************
+   SUBROUTINE do_block_davidson_diag_kp(qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints, &
+                                        scf_control)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(scf_control_type), POINTER                    :: scf_control
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_block_davidson_diag_kp'
+
+      INTEGER                                            :: channel, handle, ikp, ispin, iwork, &
+                                                            kplocal, local_kpoint, nchannels, &
+                                                            nspin, output_unit
+      INTEGER, DIMENSION(2)                              :: kp_range
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: do_prec, use_real_wfn
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(copy_info_type)                               :: info_im, info_re
+      TYPE(cp_cfm_type)                                  :: cksmat, csmat
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools, kp_ao_ao_fm_pools
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      TYPE(cp_fm_type)                                   :: fmlocal
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      TYPE(qs_matrix_pools_type), POINTER                :: kp_mpools, mpools
+      TYPE(section_vals_type), POINTER                   :: scf_section
+
+      logger => cp_get_default_logger()
+      CALL timeset(routineN, handle)
+
+      scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
+      output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DAVIDSON", &
+                                         extension=".scfLog")
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, "(/T15,A)") '<<<<<<<<<  DAVIDSON ITERATIONS   <<<<<<<<<<'
+      END IF
+
+      CALL get_kpoint_info(kpoints, kp_range=kp_range, xkp=xkp, use_real_wfn=use_real_wfn, &
+                           sab_nl=sab_nl, cell_to_index=cell_to_index, mpools=kp_mpools)
+      IF (use_real_wfn) THEN
+         CPABORT('Davidson Kp requires complex K-point MOS')
+      END IF
+      para_env => kpoints%blacs_env_all%para_env
+      kplocal = kp_range(2) - kp_range(1) + 1
+      nspin = SIZE(matrix_ks_kp, 1)
+      nchannels = kplocal*nspin
+
+      IF (scf_env%mixing_method == 1) THEN
+         scf_env%iter_param = scf_env%p_mix_alpha
+         scf_env%iter_method = "P_Mix/Dav."
+      ELSE IF (scf_env%mixing_method > 1) THEN
+         scf_env%iter_param = scf_env%mixing_store%alpha
+         scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Dav."
+      END IF
+
+      ! preconditioner scheduling, mirrors do_block_davidson_diag
+      do_prec = .FALSE.
+      IF (scf_env%block_davidson_env(1)%prec_type /= ot_precond_none .AND. &
+          scf_env%iter_count >= scf_env%block_davidson_env(1)%first_prec) THEN
+         do_prec = .TRUE.
+      END IF
+      IF (do_prec .AND. (scf_env%iter_count == scf_env%block_davidson_env(1)%first_prec .OR. &
+                         MODULO(scf_env%iter_count, &
+                                scf_env%block_davidson_env(1)%niter_new_prec) == 0)) THEN
+         CALL davidson_kp_prepare_preconditioners(qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints)
+      END IF
+
+      ! work matrices: real-space Fourier scratch (dbcsr), global scratch fms,
+      ! one k-group fm as redistribution target, and the complex H(k)/S(k)
+      ALLOCATE (rmatrix, cmatrix, tmpmat)
+      CALL dbcsr_create(rmatrix, template=matrix_ks_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(cmatrix, template=matrix_ks_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_antisymmetric)
+      CALL dbcsr_create(tmpmat, template=matrix_ks_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_no_symmetry)
+      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(tmpmat, sab_nl)
+
+      CALL get_qs_env(qs_env, mpools=mpools)
+      CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
+      ALLOCATE (fmwork(4))
+      DO iwork = 1, 4
+         CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
+      END DO
+      CALL mpools_get(kp_mpools, ao_ao_fm_pools=kp_ao_ao_fm_pools)
+      CALL fm_pool_create_fm(kp_ao_ao_fm_pools(1)%pool, fmlocal)
+      CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
+      CALL cp_cfm_create(cksmat, matrix_struct, name="dav_hk")
+      CALL cp_cfm_create(csmat, matrix_struct, name="dav_sk")
+
+      DO ikp = kp_range(1), kp_range(2)
+         local_kpoint = ikp - kp_range(1) + 1
+         kp => kpoints%kp_env(local_kpoint)%kpoint_env
+
+         ! S(k) is spin independent
+         CALL dbcsr_set(rmatrix, 0.0_dp)
+         CALL dbcsr_set(cmatrix, 0.0_dp)
+         CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s_kp, ispin=1, &
+                             xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, sab_nl=sab_nl)
+         CALL dbcsr_desymmetrize(rmatrix, tmpmat)
+         CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
+         CALL dbcsr_desymmetrize(cmatrix, tmpmat)
+         CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
+         CALL cp_fm_start_copy_general(fmwork(1), fmlocal, para_env, info_re)
+         CALL cp_fm_finish_copy_general(fmlocal, info_re)
+         CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, fmlocal)
+         CALL cp_fm_start_copy_general(fmwork(2), fmlocal, para_env, info_im)
+         CALL cp_fm_finish_copy_general(fmlocal, info_im)
+         CALL cp_cfm_scale_and_add_fm(z_one, csmat, gaussi, fmlocal)
+         CALL cp_fm_cleanup_copy_general(info_re)
+         CALL cp_fm_cleanup_copy_general(info_im)
+
+         DO ispin = 1, nspin
+            channel = (local_kpoint - 1)*nspin + ispin
+
+            CALL dbcsr_set(rmatrix, 0.0_dp)
+            CALL dbcsr_set(cmatrix, 0.0_dp)
+            CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_ks_kp, ispin=ispin, &
+                                xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, sab_nl=sab_nl)
+            CALL dbcsr_desymmetrize(rmatrix, tmpmat)
+            CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
+            CALL dbcsr_desymmetrize(cmatrix, tmpmat)
+            CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
+            CALL cp_fm_start_copy_general(fmwork(1), fmlocal, para_env, info_re)
+            CALL cp_fm_finish_copy_general(fmlocal, info_re)
+            CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, fmlocal)
+            CALL cp_fm_start_copy_general(fmwork(2), fmlocal, para_env, info_im)
+            CALL cp_fm_finish_copy_general(fmlocal, info_im)
+            CALL cp_cfm_scale_and_add_fm(z_one, cksmat, gaussi, fmlocal)
+            CALL cp_fm_cleanup_copy_general(info_re)
+            CALL cp_fm_cleanup_copy_general(info_im)
+
+            IF (scf_env%iter_count == 1) THEN
+               ! cold start: K-point MOS enter the SCF loop only allocated, never
+               ! initialized (the Gamma guess machinery does not fill them). Davidson
+               ! needs them as trial subspace, so the first SCF step initializes each
+               ! kpoint by one direct diagonalization (the Krylov eps_std_diag
+               ! precedent). cp_cfm_geeig overwrites cksmat/csmat, hence the Davidson
+               ! call is skipped on this step.
+               CALL cold_start_mo_init(kp, ispin, cksmat, csmat, matrix_s_kp, rmatrix, cmatrix, &
+                                       tmpmat, fmwork, fmlocal, para_env, info_re, info_im, &
+                                       xkp, ikp, cell_to_index, sab_nl)
+               CYCLE
+            END IF
+
+            IF (do_prec) THEN
+               CALL generate_extended_space_c(scf_env%block_davidson_env(channel), &
+                                              kp%mos(1:2, ispin), cksmat, csmat, output_unit, &
+                                              scf_env%ot_preconditioner(channel)%preconditioner)
+            ELSE
+               CALL generate_extended_space_c(scf_env%block_davidson_env(channel), &
+                                              kp%mos(1:2, ispin), cksmat, csmat, output_unit)
+            END IF
+         END DO
+      END DO
+
+      ! occupations and density, same exit chain as do_general_diag_kp
+      CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+      CALL kpoint_density_matrices(kpoints)
+      CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
+                                    matrix_s_kp(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s_kp)
+
+      CALL cp_cfm_release(cksmat)
+      CALL cp_cfm_release(csmat)
+      CALL fm_pool_give_back_fm(kp_ao_ao_fm_pools(1)%pool, fmlocal)
+      DO iwork = 1, 4
+         CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
+      END DO
+      DEALLOCATE (fmwork)
+      CALL dbcsr_deallocate_matrix(rmatrix)
+      CALL dbcsr_deallocate_matrix(cmatrix)
+      CALL dbcsr_deallocate_matrix(tmpmat)
+
+      IF (output_unit > 0) THEN
+         WRITE (output_unit, "(T15,A/)") '<<<<<<<<< END DAVIDSON ITERATION  <<<<<<<<<<'
+      END IF
+      CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
+                                        "PRINT%DAVIDSON")
+
+      CALL timestop(handle)
+
+   END SUBROUTINE do_block_davidson_diag_kp
+
+! **************************************************************************************************
+!> \brief first-SCF-step initialization of the K-point MOS of one spin by one
+!>        direct diagonalization of H(k). S(k) is reassembled because
+!>        cp_cfm_geeig overwrites its matrix arguments.
+!> \param kp kpoint environment holding the MOS pair
+!> \param ispin ...
+!> \param cksmat complex H(k), already assembled by the caller
+!> \param csmat complex S(k), reassembled here
+!> \param matrix_s_kp ...
+!> \param rmatrix ...
+!> \param cmatrix ...
+!> \param tmpmat ...
+!> \param fmwork ...
+!> \param fmlocal ...
+!> \param para_env ...
+!> \param info_re ...
+!> \param info_im ...
+!> \param xkp ...
+!> \param ikp ...
+!> \param cell_to_index ...
+!> \param sab_nl ...
+! **************************************************************************************************
+   SUBROUTINE cold_start_mo_init(kp, ispin, cksmat, csmat, matrix_s_kp, rmatrix, cmatrix, &
+                                 tmpmat, fmwork, fmlocal, para_env, info_re, info_im, &
+                                 xkp, ikp, cell_to_index, sab_nl)
+
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      INTEGER, INTENT(IN)                                :: ispin
+      TYPE(cp_cfm_type)                                  :: cksmat, csmat
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
+      TYPE(dbcsr_type), POINTER                          :: rmatrix, cmatrix, tmpmat
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      TYPE(cp_fm_type)                                   :: fmlocal
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(copy_info_type)                               :: info_re, info_im
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      INTEGER, INTENT(IN)                                :: ikp
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cold_start_mo_init'
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      TYPE(cp_cfm_type)                                  :: cmos, cwork
+      TYPE(cp_fm_type), POINTER                          :: imos, rmos
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_set(rmatrix, 0.0_dp)
+      CALL dbcsr_set(cmatrix, 0.0_dp)
+      CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s_kp, ispin=1, &
+                          xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, sab_nl=sab_nl)
+      CALL dbcsr_desymmetrize(rmatrix, tmpmat)
+      CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
+      CALL dbcsr_desymmetrize(cmatrix, tmpmat)
+      CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
+      CALL cp_fm_start_copy_general(fmwork(1), fmlocal, para_env, info_re)
+      CALL cp_fm_finish_copy_general(fmlocal, info_re)
+      CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, fmlocal)
+      CALL cp_fm_start_copy_general(fmwork(2), fmlocal, para_env, info_im)
+      CALL cp_fm_finish_copy_general(fmlocal, info_im)
+      CALL cp_cfm_scale_and_add_fm(z_one, csmat, gaussi, fmlocal)
+      CALL cp_fm_cleanup_copy_general(info_re)
+      CALL cp_fm_cleanup_copy_general(info_im)
+
+      CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
+      CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
+      CALL cp_cfm_create(cmos, rmos%matrix_struct, name="dav_cold_cmos")
+      CALL cp_cfm_create(cwork, cksmat%matrix_struct, name="dav_cold_cwork")
+      CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
+      kp%mos(2, ispin)%eigenvalues = eigenvalues
+      CALL cp_cfm_to_fm(cmos, rmos, imos)
+      CALL cp_cfm_release(cmos)
+      CALL cp_cfm_release(cwork)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cold_start_mo_init
+
+! **************************************************************************************************
+!> \brief builds one complex K-point preconditioner per (local kpoint, spin)
+!>        channel; mirrors prepare_qs_ot_kpoint_preconditioners
+!> \param qs_env ...
+!> \param scf_env ...
+!> \param matrix_ks_kp ...
+!> \param matrix_s_kp ...
+!> \param kpoints ...
+! **************************************************************************************************
+   SUBROUTINE davidson_kp_prepare_preconditioners(qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
+      TYPE(kpoint_type), POINTER                         :: kpoints
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'davidson_kp_prepare_preconditioners'
+
+      INTEGER                                            :: channel, handle, ikp, ispin, kplocal, &
+                                                            ks_spin, local_kpoint, nchannels, nmo, &
+                                                            nspin, prec_type, solver_type
+      INTEGER, DIMENSION(2)                              :: kp_range
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      REAL(KIND=dp)                                      :: energy_gap
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(cp_cfm_type)                                  :: matrix_c, matrix_h, matrix_s
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_im, mo_coeff_re
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_t_kp
+      TYPE(dbcsr_type), POINTER                          :: matrix_h_im, matrix_h_re, matrix_s_im, &
+                                                            matrix_s_re, matrix_t_im, matrix_t_re
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+
+      CALL timeset(routineN, handle)
+
+      CALL get_kpoint_info(kpoints, kp_range=kp_range, xkp=xkp, sab_nl=sab_nl, &
+                           cell_to_index=cell_to_index)
+      CALL get_qs_env(qs_env, kinetic_kp=matrix_t_kp)
+      kplocal = kp_range(2) - kp_range(1) + 1
+      nspin = SIZE(matrix_ks_kp, 1)
+      nchannels = kplocal*nspin
+      prec_type = scf_env%block_davidson_env(1)%prec_type
+      solver_type = scf_env%block_davidson_env(1)%solver_type
+      energy_gap = scf_env%block_davidson_env(1)%energy_gap
+      IF (prec_type == ot_precond_full_single_inverse) THEN
+         CPABORT('FULL_SINGLE_INVERSE not yet for Kpoint Davidson')
+      END IF
+
+      ! channel storage, same pattern as prepare_qs_ot_kpoint_preconditioners
+      IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
+         DO channel = 1, SIZE(scf_env%ot_preconditioner)
+            IF (ASSOCIATED(scf_env%ot_preconditioner(channel)%preconditioner)) THEN
+               DEALLOCATE (scf_env%ot_preconditioner(channel)%preconditioner)
+            END IF
+         END DO
+         DEALLOCATE (scf_env%ot_preconditioner)
+      END IF
+      ALLOCATE (scf_env%ot_preconditioner(nchannels))
+      DO channel = 1, nchannels
+         ALLOCATE (scf_env%ot_preconditioner(channel)%preconditioner)
+      END DO
+
+      NULLIFY (eigenvalues, matrix_h_im, matrix_h_re, matrix_t_im, matrix_t_re, mo_coeff_im, &
+               mo_coeff_re)
+      ALLOCATE (matrix_s_re, matrix_s_im)
+      CALL dbcsr_create(matrix_s_re, template=matrix_s_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_symmetric)
+      CALL dbcsr_create(matrix_s_im, template=matrix_s_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_antisymmetric)
+      CALL cp_dbcsr_alloc_block_from_nbl(matrix_s_re, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(matrix_s_im, sab_nl)
+      IF (prec_type == ot_precond_full_all) THEN
+         ALLOCATE (matrix_h_re, matrix_h_im)
+         CALL dbcsr_create(matrix_h_re, template=matrix_ks_kp(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_symmetric)
+         CALL dbcsr_create(matrix_h_im, template=matrix_ks_kp(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_antisymmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_re, sab_nl)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_im, sab_nl)
+      END IF
+      IF (prec_type == ot_precond_full_kinetic) THEN
+         ALLOCATE (matrix_t_re, matrix_t_im)
+         CALL dbcsr_create(matrix_t_re, template=matrix_t_kp(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_symmetric)
+         CALL dbcsr_create(matrix_t_im, template=matrix_t_kp(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_antisymmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_t_re, sab_nl)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_t_im, sab_nl)
+      END IF
+
+      DO ikp = kp_range(1), kp_range(2)
+         local_kpoint = ikp - kp_range(1) + 1
+         kp => kpoints%kp_env(local_kpoint)%kpoint_env
+
+         CALL dbcsr_set(matrix_s_re, 0.0_dp)
+         CALL dbcsr_set(matrix_s_im, 0.0_dp)
+         CALL rskp_transform(rmatrix=matrix_s_re, cmatrix=matrix_s_im, rsmat=matrix_s_kp, ispin=1, &
+                             xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, sab_nl=sab_nl)
+         IF (prec_type == ot_precond_full_kinetic) THEN
+            CALL dbcsr_set(matrix_t_re, 0.0_dp)
+            CALL dbcsr_set(matrix_t_im, 0.0_dp)
+            CALL rskp_transform(rmatrix=matrix_t_re, cmatrix=matrix_t_im, rsmat=matrix_t_kp, ispin=1, &
+                                xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, sab_nl=sab_nl)
+         END IF
+
+         DO ispin = 1, nspin
+            channel = (local_kpoint - 1)*nspin + ispin
+            IF (prec_type == ot_precond_full_all) THEN
+               ks_spin = MIN(ispin, nspin)
+               CALL dbcsr_set(matrix_h_re, 0.0_dp)
+               CALL dbcsr_set(matrix_h_im, 0.0_dp)
+               CALL rskp_transform(rmatrix=matrix_h_re, cmatrix=matrix_h_im, rsmat=matrix_ks_kp, &
+                                   ispin=ks_spin, xkp=xkp(1:3, ikp), cell_to_index=cell_to_index, &
+                                   sab_nl=sab_nl)
+               ! Davidson iterates the full MO set, so its active space is all nmo
+               ! MOs of the channel: assemble the complex channel matrices on the
+               ! kpoint-group context and call the complex FULL_ALL core directly
+               ! (mirrors make_preconditioner_complex_full_all for the OT case,
+               ! which now sizes occ_evals to the OT active space)
+               CALL get_mo_set(kp%mos(1, ispin), mo_coeff=mo_coeff_re, eigenvalues=eigenvalues, &
+                               nmo=nmo)
+               CALL get_mo_set(kp%mos(2, ispin), mo_coeff=mo_coeff_im)
+               CALL cp_cfm_create(matrix_c, mo_coeff_re%matrix_struct, name="dav pc C")
+               CALL cp_cfm_scale_and_add_fm(z_zero, matrix_c, z_one, mo_coeff_re)
+               CALL cp_cfm_scale_and_add_fm(z_one, matrix_c, gaussi, mo_coeff_im)
+               CALL dbcsr_pair_to_cfm(matrix_h_re, matrix_h_im, &
+                                      scf_env%ot_preconditioner(channel)%preconditioner, &
+                                      'dav pc H', matrix_h)
+               CALL dbcsr_pair_to_cfm(matrix_s_re, matrix_s_im, &
+                                      scf_env%ot_preconditioner(channel)%preconditioner, &
+                                      'dav pc S', matrix_s)
+               CALL make_complex_full_all(scf_env%ot_preconditioner(channel)%preconditioner, &
+                                          matrix_c, matrix_h, matrix_s, eigenvalues(1:nmo), &
+                                          energy_gap)
+               CALL cp_cfm_release(matrix_c)
+               CALL cp_cfm_release(matrix_h)
+               CALL cp_cfm_release(matrix_s)
+            ELSE IF (prec_type == ot_precond_full_kinetic) THEN
+               CALL make_preconditioner_complex_full_kinetic( &
+                  scf_env%ot_preconditioner(channel)%preconditioner, &
+                  matrix_t_re, matrix_t_im, matrix_s_re, matrix_s_im, energy_gap, solver_type)
+            ELSE IF (prec_type == ot_precond_s_inverse) THEN
+               CALL make_preconditioner_complex_full_s_inverse( &
+                  scf_env%ot_preconditioner(channel)%preconditioner, &
+                  matrix_s_re, matrix_s_im, solver_type)
+            END IF
+         END DO
+      END DO
+
+      CALL dbcsr_deallocate_matrix(matrix_s_re)
+      CALL dbcsr_deallocate_matrix(matrix_s_im)
+      IF (ASSOCIATED(matrix_h_re)) THEN
+         CALL dbcsr_deallocate_matrix(matrix_h_re)
+         CALL dbcsr_deallocate_matrix(matrix_h_im)
+      END IF
+      IF (ASSOCIATED(matrix_t_re)) THEN
+         CALL dbcsr_deallocate_matrix(matrix_t_re)
+         CALL dbcsr_deallocate_matrix(matrix_t_im)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE davidson_kp_prepare_preconditioners
 
 ! **************************************************************************************************
 !> \brief Kpoint diagonalization routine

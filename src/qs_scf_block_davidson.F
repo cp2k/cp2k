@@ -27,7 +27,6 @@ MODULE qs_scf_block_davidson
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_submatrix,&
                                               cp_cfm_release,&
-                                              cp_cfm_set_all,&
                                               cp_cfm_set_submatrix,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
@@ -702,7 +701,6 @@ CONTAINS
             lambda = 100.0_dp*ABS(eigenvalues(homo))
             lambda_c = CMPLX(lambda, 0.0_dp, KIND=dp)
             CALL cp_cfm_scale_and_add(z_one, h_fm, lambda_c, c_out)
-            CALL cp_cfm_release(c_out)
          END IF
 
          ! gather the not converged MOs
@@ -763,13 +761,35 @@ CONTAINS
             CALL cp_cfm_to_cfm(c_z, c_mz)
          END IF
 
-         ! normalize the correction vectors; this keeps the subspace eigenproblem
-         ! well conditioned. A zero correction means the residual already lies in the
-         ! span of the current MOS and is treated as an error.
+         ! normalize the correction vectors, then remove their components inside
+         ! the span of the current MOS, z <- z - C*(C^H*S*z): the blocked Davidson
+         ! subspace expansion of Kresse and Furthmueller (1996). This keeps the
+         ! reduced S block well conditioned when a MOS is already (nearly) an
+         ! eigenvector and its preconditioned residual is (nearly) parallel to it.
          ALLOCATE (vnorm_pz(ncol_z))
          CALL cp_cfm_vectorsnorm(c_mz, vnorm_pz)
          IF (ANY(vnorm_pz < 1.0E-12_dp)) THEN
             CPABORT('Davidson Kp: preconditioned residual is zero')
+         END IF
+         scaling = CMPLX(1.0_dp/vnorm_pz, 0.0_dp, KIND=dp)
+         CALL cp_cfm_column_scale(c_mz, scaling)
+         DEALLOCATE (vnorm_pz)
+
+         ! projection coefficients C^H*S*z; c_z is reused as scratch for S*z
+         CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, matrix_s, c_mz, z_zero, c_z)
+         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=ncol_z, &
+                                  context=cmo%matrix_struct%context, &
+                                  para_env=cmo%matrix_struct%para_env)
+         CALL cp_cfm_create(m_tmp, fm_struct_tmp, name="proj_coef")
+         CALL cp_fm_struct_release(fm_struct_tmp)
+         CALL cp_cfm_gemm('C', 'N', nmo, ncol_z, nao, z_one, cmo, c_z, z_zero, m_tmp)
+         CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nmo, -z_one, cmo, m_tmp, z_one, c_mz)
+         CALL cp_cfm_release(m_tmp)
+
+         ALLOCATE (vnorm_pz(ncol_z))
+         CALL cp_cfm_vectorsnorm(c_mz, vnorm_pz)
+         IF (ANY(vnorm_pz < 1.0E-12_dp)) THEN
+            CPABORT('Davidson Kp: correction lies in the MOS span')
          END IF
          scaling = CMPLX(1.0_dp/vnorm_pz, 0.0_dp, KIND=dp)
          CALL cp_cfm_column_scale(c_mz, scaling)
@@ -788,17 +808,14 @@ CONTAINS
          ALLOCATE (evals(nmat2))
          CALL cp_fm_struct_release(fm_struct_tmp)
 
-         ! compute CSC, CSC of the correction vectors is filled below; the C block is
-         ! computed explicitly (no S-orthonormality assumption across inner iterations)
-         CALL cp_cfm_set_all(s_block, z_zero, z_zero)
+         ! compute CHC and CSC first, with m_hc/m_sc still holding the
+         ! H*C_nc and S*C_nc products of the residual step
+         CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_notconv, m_hc, z_zero, h_block, &
+                          c_first_row=1, c_first_col=1)
          CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_notconv, m_sc, z_zero, s_block, &
                           c_first_row=1, c_first_col=1)
 
-         ! compute CHC
-         CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_notconv, m_hc, z_zero, h_block, &
-                          c_first_row=1, c_first_col=1)
-
-         ! compute ZSC
+         ! compute ZSC and ZHC with m_sc/m_sc still holding S*C_nc and H*C_nc
          CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_mz, m_sc, z_zero, s_block, &
                           c_first_row=1 + nmat, c_first_col=1)
          ! compute ZHC
@@ -818,6 +835,18 @@ CONTAINS
          CALL cp_cfm_set_submatrix(h_block, submat_buffer2, start_row=1, start_col=1 + nmat)
          DEALLOCATE (submat_buffer2)
          DEALLOCATE (submat_buffer)
+
+         ! then reuse m_sc and m_hc to compute SZ and HZ (mirrors the Gamma
+         ! version); with frozen converged vectors the operator is the shifted
+         ! h_fm = H + lambda*P
+         IF (nmo_converged > 0) THEN
+            CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, h_fm, c_mz, z_zero, m_hc)
+            CALL cp_cfm_release(c_out)
+            CALL cp_cfm_release(h_fm)
+         ELSE
+            CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, matrix_h, c_mz, z_zero, m_hc)
+         END IF
+         CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, matrix_s, c_mz, z_zero, m_sc)
 
          ! compute ZSZ
          CALL cp_cfm_gemm('C', 'N', nmat, nmat, nao, z_one, c_mz, m_sc, z_zero, s_block, &

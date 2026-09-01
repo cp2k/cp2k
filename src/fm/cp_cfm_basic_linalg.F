@@ -1412,7 +1412,7 @@ CONTAINS
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: norm_array
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_cfm_vectorsnorm'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_vectorsnorm'
 
       INTEGER                                            :: handle, i, j, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
@@ -1439,8 +1439,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief returns the diagonal of a complex full matrix: diag(i)= A_{ii}.
-!>        Each global diagonal entry is owned by exactly one process, the sum
-!>        over the process grid collects it (same trick as cp_cfm_vectorsnorm).
+!>        Each diagonal entry is owned by one process. The sum over the
+!>        process grid collects the entries.
 !> \param matrix ...
 !> \param diag ...
 ! **************************************************************************************************

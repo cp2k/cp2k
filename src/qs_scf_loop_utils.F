@@ -97,9 +97,9 @@ MODULE qs_scf_loop_utils
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_diagonalization,          ONLY: &
-        do_block_davidson_diag, do_block_krylov_diag, do_general_diag, do_general_diag_kp, &
-        do_ot_diag, do_ot_diag_kp, do_roks_diag, do_scf_diag_subspace, do_special_diag, &
-        qs_scf_get_ot_kpoint_operator
+        do_block_davidson_diag, do_block_davidson_diag_kp, do_block_krylov_diag, do_general_diag, &
+        do_general_diag_kp, do_ot_diag, do_ot_diag_kp, do_roks_diag, do_scf_diag_subspace, &
+        do_special_diag, qs_scf_get_ot_kpoint_operator
    USE qs_scf_methods,                  ONLY: cp_sm_mix,&
                                               scf_env_density_mixing
    USE qs_scf_output,                   ONLY: qs_scf_print_summary
@@ -558,11 +558,14 @@ CONTAINS
             CALL timestop(handle)
             RETURN
          END IF
-      CASE (block_krylov_diag_method_nr, &
-            block_davidson_diag_method_nr)
+      CASE (block_krylov_diag_method_nr)
          CALL cp_abort(__LOCATION__, &
                        "KP code: Scf method not available: "// &
                        cp_to_string(scf_env%method))
+      CASE (block_davidson_diag_method_nr)
+         CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
+         CALL do_block_davidson_diag_kp(qs_env, scf_env, matrix_ks, matrix_s, kpoints, &
+                                        scf_control)
       CASE (ot_method_nr)
          CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
          base_state = .NOT. scf_env%qs_ot_env(1)%energy_only .AND. &
