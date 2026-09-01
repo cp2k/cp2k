@@ -1974,10 +1974,12 @@ if [[ "${VERSION}" == "psmp" ]]; then
       ${EXIT_CMD} "${EXIT_CODE}"
     fi
   else
-    echo ""
-    echo "*** A benchmark run can be launched with"
-    echo "    ${LAUNCH_SCRIPT} run_benchmarks"
-    echo ""
+    if [[ "${IN_CONTAINER}" != "yes" ]]; then
+      echo ""
+      echo "*** A benchmark run can be launched with"
+      echo "    ${LAUNCH_SCRIPT} run_benchmarks"
+      echo ""
+    fi
   fi
 fi
 
