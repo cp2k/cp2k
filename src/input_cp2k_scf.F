@@ -14,8 +14,9 @@
 ! **************************************************************************************************
 MODULE input_cp2k_scf
    USE bibliography,                    ONLY: &
-        Becke1988b, Chai2024a, Holmberg2017, Holmberg2018, Hu2010, Schiffmann2015, Stewart1982, &
-        VandeVondele2003, VandeVondele2005a, Weber2008
+        Becke1988b, Blaha2010, Chai2024a, Holmberg2017, Holmberg2018, Hu2010, &
+        KresseFurthmueller1996, Schiffmann2015, Stewart1982, VandeVondele2003, VandeVondele2005a, &
+        Weber2008
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level,&
@@ -1174,8 +1175,10 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="DAVIDSON", &
-                          description=" ", &
-                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
+                          description="Settings of the blocked Davidson iterative diagonalization. "// &
+                          "Also available at symmetry-reduced complex K points.", &
+                          n_keywords=2, n_subsections=0, repeats=.FALSE., &
+                          citations=[Blaha2010, KresseFurthmueller1996])
 
       NULLIFY (keyword)
 
