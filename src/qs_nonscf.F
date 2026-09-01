@@ -20,6 +20,7 @@ MODULE qs_nonscf
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE dm_ls_scf,                       ONLY: ls_scf
+   USE input_constants,                 ONLY: hfit_relative_entropy
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -31,7 +32,8 @@ MODULE qs_nonscf
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_harris_methods,               ONLY: harris_direct_density_matrix_energy
+   USE qs_harris_methods,               ONLY: harris_direct_density_matrix_energy,&
+                                              harris_relative_entropy_reconstruction
    USE qs_harris_types,                 ONLY: harris_type
    USE qs_harris_utils,                 ONLY: harris_density_update
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
@@ -85,6 +87,12 @@ CONTAINS
       CALL get_qs_env(qs_env, dft_control=dft_control, harris_env=harris_env, rho=rho)
 
       IF (ASSOCIATED(harris_env)) THEN
+         IF (harris_env%fit_method == hfit_relative_entropy .AND. &
+             .NOT. harris_env%density_fit_ready) THEN
+            CALL harris_density_update(qs_env, harris_env)
+            CALL qs_rho_update_rho(rho, qs_env=qs_env)
+            CALL harris_relative_entropy_reconstruction(qs_env)
+         END IF
          IF (harris_env%direct_density_matrix_energy) THEN
             CALL harris_density_update(qs_env, harris_env)
             CALL qs_rho_update_rho(rho, qs_env=qs_env)
