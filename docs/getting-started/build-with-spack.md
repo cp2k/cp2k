@@ -146,7 +146,7 @@ You can then build the Docker container (here the `test_spack` container, as an 
 following command:
 
 ```bash
-docker build -f tools/docker/Dockerfile.test_spack -t cp2k_test_spack --shm-size=1Gb --network=host . 
+podman build -f tools/docker/Dockerfile.test_spack -t cp2k_test_spack --shm-size=1G --network=host .
 ```
 
 The first build after enabling the cache will be as slow as usual, but all subsequent builds will be
@@ -156,7 +156,7 @@ The cache is expected, as it dramatically improves build times. Should you need 
 using the Spack cache, you can set it to an empty string as follows:
 
 ```bash
-docker build -f tools/docker/Dockerfile.test_spack -t cp2k_test_spack --shm-size=1Gb --build-arg SPACK_CACHE="" .
+podman build -f tools/docker/Dockerfile.test_spack -t cp2k_test_spack --shm-size=1G --build-arg SPACK_CACHE="" .
 ```
 
 [cp2k spack package]: https://packages.spack.io/package.html?name=cp2k
