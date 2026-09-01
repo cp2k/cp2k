@@ -14,6 +14,7 @@
 ! **************************************************************************************************
 MODULE qs_scf_diagonalization
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_scale_and_add_fm
@@ -103,6 +104,7 @@ MODULE qs_scf_diagonalization
                                               prepare_preconditioner,&
                                               restart_preconditioner
    USE preconditioner_makes,            ONLY: make_complex_full_all
+   USE preconditioner_types,            ONLY: init_preconditioner
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
                                               gspace_mixing_nr
@@ -3592,12 +3594,14 @@ CONTAINS
       REAL(KIND=dp)                                      :: energy_gap
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_cfm_type)                                  :: matrix_c, matrix_h, matrix_s
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_im, mo_coeff_re
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_t_kp
       TYPE(dbcsr_type), POINTER                          :: matrix_h_im, matrix_h_re, matrix_s_im, &
                                                             matrix_s_re, matrix_t_im, matrix_t_re
       TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
 
@@ -3606,6 +3610,10 @@ CONTAINS
       CALL get_kpoint_info(kpoints, kp_range=kp_range, xkp=xkp, sab_nl=sab_nl, &
                            cell_to_index=cell_to_index)
       CALL get_qs_env(qs_env, kinetic_kp=matrix_t_kp)
+      ! the preconditioner fms must live on the kpoint-group BLACS context,
+      ! the context of the MOS they are applied with
+      blacs_env => kpoints%blacs_env
+      para_env => kpoints%para_env_kp
       kplocal = kp_range(2) - kp_range(1) + 1
       nspin = SIZE(matrix_ks_kp, 1)
       nchannels = kplocal*nspin
@@ -3616,7 +3624,10 @@ CONTAINS
          CPABORT('FULL_SINGLE_INVERSE not yet for Kpoint Davidson')
       END IF
 
-      ! channel storage, same pattern as prepare_qs_ot_kpoint_preconditioners
+      ! channel storage: every (kpoint, spin) channel carries its own
+      ! preconditioner, because S(k) and H(k) differ per kpoint. The Gamma
+      ! reuse pattern of restart_preconditioner (a single entry for the
+      ! spin-independent types) must not be used here.
       IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
          DO channel = 1, SIZE(scf_env%ot_preconditioner)
             IF (ASSOCIATED(scf_env%ot_preconditioner(channel)%preconditioner)) THEN
@@ -3628,6 +3639,8 @@ CONTAINS
       ALLOCATE (scf_env%ot_preconditioner(nchannels))
       DO channel = 1, nchannels
          ALLOCATE (scf_env%ot_preconditioner(channel)%preconditioner)
+         CALL init_preconditioner(scf_env%ot_preconditioner(channel)%preconditioner, &
+                                  para_env, blacs_env)
       END DO
 
       NULLIFY (eigenvalues, matrix_h_im, matrix_h_re, matrix_t_im, matrix_t_re, mo_coeff_im, &

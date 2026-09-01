@@ -27,6 +27,7 @@ MODULE qs_scf_block_davidson
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_submatrix,&
                                               cp_cfm_release,&
+                                              cp_cfm_set_all,&
                                               cp_cfm_set_submatrix,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
@@ -507,7 +508,7 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: lambda_c
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cdiag, scaling
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: submat_buffer, submat_buffer2
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: colbuf, submat_buffer, submat_buffer2
       INTEGER :: handle, homo, i_first, i_last, imo, iter, j, jj, max_iter, n, nao, ncol_z, nmat, &
          nmat2, nmo, nmo_converged, nmo_not_converged, nset, nset_conv, nset_not_conv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iconv, inotconv
@@ -518,8 +519,9 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ritz_coeff, vnorm, vnorm_pz
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eig_not_conv, eigenvalues, evals
       TYPE(cp_cfm_type)                                  :: c_conv, c_mz, c_new, c_notconv, c_out, &
-                                                            c_z, cmo, h_block, h_fm, m_hc, m_sc, &
-                                                            m_tmp, s_block, v_block, w_block
+                                                            c_pzo, c_pzw, c_z, cmo, h_block, h_fm, &
+                                                            m_hc, m_sc, m_tmp, s_block, v_block, &
+                                                            w_block
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_i, mo_coeff_r
 
@@ -744,7 +746,7 @@ CONTAINS
             CALL cp_cfm_column_scale(c_z, scaling)
             CALL cp_cfm_scale_and_add(-z_one, c_z, z_one, m_hc)
             DEALLOCATE (eig_not_conv)
-            CALL cp_cfm_release(h_fm)
+            ! h_fm is the shifted operator H+lambda*P, still needed for the HZ block below
          ELSE
             ! nothing frozen: c_notconv is the full set and the m_hc/m_sc/c_z matrices
             ! of the Ritz step above (nmo-wide) are reused directly
@@ -755,7 +757,27 @@ CONTAINS
          CALL cp_cfm_create(c_mz, c_z%matrix_struct, name="pz")
          IF (do_apply_preconditioner) THEN
             IF (preconditioner%in_use /= 0) THEN
-               CALL apply_preconditioner(preconditioner, c_z, c_mz)
+               ! the complex applier works column-wise in the MO basis of the
+               ! preconditioner construction, so the unconverged residuals are
+               ! scattered into an nmo-wide zero buffer first and gathered back
+               CALL cp_cfm_create(c_pzw, cmo%matrix_struct, name="pzw")
+               CALL cp_cfm_create(c_pzo, cmo%matrix_struct, name="pzo")
+               CALL cp_cfm_set_all(c_pzw, z_zero, z_zero)
+               ALLOCATE (colbuf(nao, 1))
+               DO j = 1, ncol_z
+                  CALL cp_cfm_get_submatrix(c_z, colbuf, n_rows=nao, n_cols=1, start_col=j)
+                  CALL cp_cfm_set_submatrix(c_pzw, colbuf, n_rows=nao, n_cols=1, &
+                                            start_col=inotconv(j))
+               END DO
+               CALL apply_preconditioner(preconditioner, c_pzw, c_pzo)
+               DO j = 1, ncol_z
+                  CALL cp_cfm_get_submatrix(c_pzo, colbuf, n_rows=nao, n_cols=1, &
+                                            start_col=inotconv(j))
+                  CALL cp_cfm_set_submatrix(c_mz, colbuf, n_rows=nao, n_cols=1, start_col=j)
+               END DO
+               DEALLOCATE (colbuf)
+               CALL cp_cfm_release(c_pzw)
+               CALL cp_cfm_release(c_pzo)
             ELSE
                CALL cp_cfm_to_cfm(c_z, c_mz)
             END IF
