@@ -63,10 +63,7 @@ MODULE qs_vcd_utils
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
    USE qs_vcd_ao,                       ONLY: build_com_rpnl_r,&
-                                              build_matrix_r_vhxc,&
-                                              build_rcore_matrix,&
-                                              build_rpnl_matrix,&
-                                              build_tr_matrix
+                                              build_matrix_hr_rh
    USE string_utilities,                ONLY: xstring
 #include "./base/base_uses.f90"
 
@@ -105,7 +102,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, my_matrix_hr_1d
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all, sab_orb, sap_ppnl
@@ -373,23 +370,7 @@ CONTAINS
 
       ! NVP matrices
       ! hr matrices
-      my_matrix_hr_1d => vcd_env%matrix_hr(1, 1:3)
-      CALL build_rpnl_matrix(my_matrix_hr_1d, qs_kind_set, particle_set, sab_all, sap_ppnl, &
-                             dft_control%qs_control%eps_ppnl, cell, [0._dp, 0._dp, 0._dp], &
-                             direction_Or=.TRUE.)
-      CALL build_tr_matrix(my_matrix_hr_1d, qs_env, qs_kind_set, "ORB", sab_all, &
-                           direction_Or=.TRUE., rc=[0._dp, 0._dp, 0._dp])
-      CALL build_rcore_matrix(my_matrix_hr_1d, qs_env, qs_kind_set, "ORB", sab_all, [0._dp, 0._dp, 0._dp])
-      CALL build_matrix_r_vhxc(vcd_env%matrix_hr, qs_env, [0._dp, 0._dp, 0._dp])
-
-      my_matrix_hr_1d => vcd_env%matrix_rh(1, 1:3)
-      CALL build_rpnl_matrix(my_matrix_hr_1d, qs_kind_set, particle_set, sab_all, sap_ppnl, &
-                             dft_control%qs_control%eps_ppnl, cell, [0._dp, 0._dp, 0._dp], &
-                             direction_Or=.FALSE.)
-      CALL build_tr_matrix(my_matrix_hr_1d, qs_env, qs_kind_set, "ORB", sab_all, &
-                           direction_Or=.FALSE., rc=[0._dp, 0._dp, 0._dp])
-      CALL build_rcore_matrix(my_matrix_hr_1d, qs_env, qs_kind_set, "ORB", sab_all, [0._dp, 0._dp, 0._dp])
-      CALL build_matrix_r_vhxc(vcd_env%matrix_rh, qs_env, [0._dp, 0._dp, 0._dp])
+      CALL build_matrix_hr_rh(vcd_env, qs_env, [0._dp, 0._dp, 0._dp])
 
       ! commutator terms
       ! - [V, r]
