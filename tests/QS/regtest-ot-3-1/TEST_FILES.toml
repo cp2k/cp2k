@@ -1,0 +1,26 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"Al_fermi.inp"                          = [{matcher="E_total", tol=5e-14, ref=-8.17296838715160}]
+# OT%ENERGIES without an explicit KPOINTS section uses the complex Gamma-point Mermin path
+"Al-gamma-mermin-smoke.inp"             = [{matcher="E_total", tol=1e-9, ref=-3.106695789848826},
+                                           {matcher="M095", tol=1e-6, ref=-0.27461042739180}]
+# fixed-N Mermin OT at symmetry-reduced complex K points and its diagonalization reference
+"Al-kpoint-diag-reference.inp"          = [{matcher="E_total", tol=1e-9, ref=-2.903015361392054}]
+"Al-kpoint-otdiag.inp"                  = [
+  {matcher="E_total", tol=1e-8, ref=-2.975637282434870},
+  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+]
+"Al-kpoint-otdiag-strict-full-all.inp"  = [
+  {matcher="E_total", tol=1e-8, ref=-2.171132526114770},
+  {matcher="NO_TEXT", text="Complex STRICT tangent metric is not positive definite"},
+  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+]
+"Al-kpoint-mermin-smoke.inp"            = [{matcher="E_total", tol=1e-9, ref=-2.903015358408708},
+                                           {matcher="M072", tol=1e-8, ref=0.0},
+                                           {matcher="M031", tol=1e-6, ref=-1.03113798553E+08}]
+#EOF

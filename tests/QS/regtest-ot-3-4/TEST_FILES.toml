@@ -1,0 +1,41 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"Na-kpoint-mermin-uks-sd.inp"           = [
+  {matcher="E_total", tol=1e-9, ref=-0.280830319393730},
+  {matcher="OT_kpoint_ref_refresh"},
+]
+"Na-kpoint-mermin-uks-cg.inp"           = [{matcher="E_total", tol=1e-9, ref=-0.280830319393724}]
+"Al-kpoint-mermin-uks-common-mu.inp"    = [
+  {matcher="E_total", tol=1e-9, ref=-2.092003830373816},
+  {matcher="Electronic_entropic_energy", tol=2e-3, ref=-0.00000831502199},
+  {matcher="Integrated_spin_density", tol=1e-6, ref=0.9997353341},
+  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+]
+"Al-kpoint-mermin-uks-fixed-moment.inp" = [
+  {matcher="E_total", tol=1e-9, ref=-2.092002995440775},
+  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+]
+"Al-kpoint-mermin-roks.inp"             = [
+  {matcher="E_total", tol=1e-6, ref=-2.181856403160713},
+  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-7.212509981e-05},
+  {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999998274},
+  {matcher="N_kpoints_per_group", tol=0.0, ref=1},
+  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+]
+"Al-kpoint-mermin-roks-restart.inp"     = [
+  {matcher="E_total", tol=1e-6, ref=-2.181856717255157},
+  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-7.211893715e-05},
+  {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999998274},
+  {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+  {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+]
+"H3-kpoint-roks.inp"                    = [{matcher="E_total", tol=1e-9, ref=-1.48796890031007},
+                                           {matcher="M072", tol=1e-6, ref=6.74684616E-02},
+                                           {matcher="M031", tol=1e-6, ref=-1.52567729226E+04}]
+#EOF
