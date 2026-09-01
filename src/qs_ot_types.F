@@ -58,6 +58,7 @@ MODULE qs_ot_types
    PRIVATE
 
    PUBLIC  :: qs_ot_type
+   PUBLIC  :: qs_ot_physical_secant_type
    PUBLIC  :: qs_ot_settings_type
    PUBLIC  :: qs_ot_destroy
    PUBLIC  :: qs_ot_allocate
@@ -121,6 +122,18 @@ MODULE qs_ot_types
       LOGICAL           :: broyden_forget_history = .FALSE., broyden_adaptive_sigma = .FALSE.
       LOGICAL           :: broyden_enable_flip = .FALSE.
    END TYPE qs_ot_settings_type
+
+! **************************************************************************************************
+!> \brief bounded physical endpoint history for one spin density at one K point
+! **************************************************************************************************
+   TYPE qs_ot_physical_secant_type
+      TYPE(cp_fm_type), POINTER :: c0 => NULL(), c0_im => NULL()
+      TYPE(cp_fm_type), POINTER :: h0 => NULL(), h0_im => NULL()
+      TYPE(cp_fm_type), POINTER :: c_previous => NULL(), c_previous_im => NULL()
+      TYPE(cp_fm_type), POINTER :: y_previous => NULL(), y_previous_im => NULL()
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: occupation0, occupation_previous
+      LOGICAL :: reference_valid = .FALSE., secant_valid = .FALSE.
+   END TYPE qs_ot_physical_secant_type
 
 ! **************************************************************************************************
    TYPE qs_ot_type
@@ -189,17 +202,9 @@ MODULE qs_ot_types
       TYPE(dbcsr_type), POINTER :: matrix_response_gx => NULL(), matrix_response_gx_im => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_mermin_g0 => NULL(), matrix_mermin_g0_im => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_ref_inv_sqrt => NULL(), matrix_ref_inv_sqrt_im => NULL()
-      ! Owned physical endpoints for the bounded, gauge-invariant Hxc response secant.
-      TYPE(cp_fm_type), POINTER :: fm_mermin_c0 => NULL(), fm_mermin_c0_im => NULL()
-      TYPE(cp_fm_type), POINTER :: fm_mermin_h0 => NULL(), fm_mermin_h0_im => NULL()
-      TYPE(cp_fm_type), POINTER :: fm_mermin_c_previous => NULL(), &
-                                   fm_mermin_c_previous_im => NULL()
-      TYPE(cp_fm_type), POINTER :: fm_mermin_y_previous => NULL(), &
-                                   fm_mermin_y_previous_im => NULL()
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mermin_occupation0, &
-                                                  mermin_occupation_previous, &
-                                                  ener_mermin_g0
-      LOGICAL :: mermin_physical_ref_valid = .FALSE., mermin_physical_secant_valid = .FALSE.
+      ! ROKS shares one orbital channel between two physical spin-density histories.
+      TYPE(qs_ot_physical_secant_type), DIMENSION(2) :: mermin_physical
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ener_mermin_g0
       LOGICAL :: mermin_gradient_ref_valid = .FALSE.
       TYPE(dbcsr_type), POINTER :: matrix_dx => NULL(), matrix_gx_old => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_dx_im => NULL(), matrix_gx_old_im => NULL()
@@ -830,16 +835,18 @@ CONTAINS
       NULLIFY (qs_ot_env%matrix_mermin_g0_im)
       NULLIFY (qs_ot_env%matrix_ref_inv_sqrt)
       NULLIFY (qs_ot_env%matrix_ref_inv_sqrt_im)
-      NULLIFY (qs_ot_env%fm_mermin_c0)
-      NULLIFY (qs_ot_env%fm_mermin_c0_im)
-      NULLIFY (qs_ot_env%fm_mermin_h0)
-      NULLIFY (qs_ot_env%fm_mermin_h0_im)
-      NULLIFY (qs_ot_env%fm_mermin_c_previous)
-      NULLIFY (qs_ot_env%fm_mermin_c_previous_im)
-      NULLIFY (qs_ot_env%fm_mermin_y_previous)
-      NULLIFY (qs_ot_env%fm_mermin_y_previous_im)
-      qs_ot_env%mermin_physical_ref_valid = .FALSE.
-      qs_ot_env%mermin_physical_secant_valid = .FALSE.
+      DO i = 1, SIZE(qs_ot_env%mermin_physical)
+         NULLIFY (qs_ot_env%mermin_physical(i)%c0)
+         NULLIFY (qs_ot_env%mermin_physical(i)%c0_im)
+         NULLIFY (qs_ot_env%mermin_physical(i)%h0)
+         NULLIFY (qs_ot_env%mermin_physical(i)%h0_im)
+         NULLIFY (qs_ot_env%mermin_physical(i)%c_previous)
+         NULLIFY (qs_ot_env%mermin_physical(i)%c_previous_im)
+         NULLIFY (qs_ot_env%mermin_physical(i)%y_previous)
+         NULLIFY (qs_ot_env%mermin_physical(i)%y_previous_im)
+         qs_ot_env%mermin_physical(i)%reference_valid = .FALSE.
+         qs_ot_env%mermin_physical(i)%secant_valid = .FALSE.
+      END DO
       qs_ot_env%mermin_gradient_ref_valid = .FALSE.
       NULLIFY (qs_ot_env%matrix_gx_old)
       NULLIFY (qs_ot_env%matrix_gx_old_im)
@@ -1351,6 +1358,8 @@ CONTAINS
    SUBROUTINE qs_ot_destroy(qs_ot_env)
       TYPE(qs_ot_type)                                   :: qs_ot_env
 
+      INTEGER                                            :: physical_spin
+
       IF (.NOT. qs_ot_env%state_allocated) RETURN
 
       CALL mp_para_env_release(qs_ot_env%para_env)
@@ -1415,45 +1424,49 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_ot_env%matrix_ref_inv_sqrt)) CALL dbcsr_release_p(qs_ot_env%matrix_ref_inv_sqrt)
       IF (ASSOCIATED(qs_ot_env%matrix_ref_inv_sqrt_im)) CALL dbcsr_release_p(qs_ot_env%matrix_ref_inv_sqrt_im)
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_c0)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_c0)
-         DEALLOCATE (qs_ot_env%fm_mermin_c0)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_c0_im)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_c0_im)
-         DEALLOCATE (qs_ot_env%fm_mermin_c0_im)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_h0)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_h0)
-         DEALLOCATE (qs_ot_env%fm_mermin_h0)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_h0_im)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_h0_im)
-         DEALLOCATE (qs_ot_env%fm_mermin_h0_im)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_c_previous)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_c_previous)
-         DEALLOCATE (qs_ot_env%fm_mermin_c_previous)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_c_previous_im)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_c_previous_im)
-         DEALLOCATE (qs_ot_env%fm_mermin_c_previous_im)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_y_previous)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_y_previous)
-         DEALLOCATE (qs_ot_env%fm_mermin_y_previous)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_y_previous_im)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_y_previous_im)
-         DEALLOCATE (qs_ot_env%fm_mermin_y_previous_im)
-      END IF
-      IF (ALLOCATED(qs_ot_env%mermin_occupation0)) DEALLOCATE (qs_ot_env%mermin_occupation0)
-      IF (ALLOCATED(qs_ot_env%mermin_occupation_previous)) THEN
-         DEALLOCATE (qs_ot_env%mermin_occupation_previous)
-      END IF
+      DO physical_spin = 1, SIZE(qs_ot_env%mermin_physical)
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%c0)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%c0)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%c0)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%c0_im)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%c0_im)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%c0_im)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%h0)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%h0)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%h0)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%h0_im)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%h0_im)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%h0_im)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%c_previous)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%c_previous)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%c_previous)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%c_previous_im)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%c_previous_im)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%c_previous_im)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%y_previous)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%y_previous)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%y_previous)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%y_previous_im)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%y_previous_im)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%y_previous_im)
+         END IF
+         IF (ALLOCATED(qs_ot_env%mermin_physical(physical_spin)%occupation0)) THEN
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%occupation0)
+         END IF
+         IF (ALLOCATED(qs_ot_env%mermin_physical(physical_spin)%occupation_previous)) THEN
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%occupation_previous)
+         END IF
+         qs_ot_env%mermin_physical(physical_spin)%reference_valid = .FALSE.
+         qs_ot_env%mermin_physical(physical_spin)%secant_valid = .FALSE.
+      END DO
       IF (ALLOCATED(qs_ot_env%ener_mermin_g0)) DEALLOCATE (qs_ot_env%ener_mermin_g0)
-      qs_ot_env%mermin_physical_ref_valid = .FALSE.
-      qs_ot_env%mermin_physical_secant_valid = .FALSE.
       qs_ot_env%mermin_gradient_ref_valid = .FALSE.
       IF (ASSOCIATED(qs_ot_env%matrix_dx)) CALL dbcsr_release_p(qs_ot_env%matrix_dx)
       IF (ASSOCIATED(qs_ot_env%matrix_dx_im)) CALL dbcsr_release_p(qs_ot_env%matrix_dx_im)
