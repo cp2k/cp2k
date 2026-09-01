@@ -618,10 +618,10 @@ CONTAINS
          iconv = 0
          inotconv = 0
          DO imo = 1, nmo
-            ! the relaxed threshold applies to the UNOCCUPIED manifold only
-            ! (cf. the empty_ethr of QE cegterg.f90): under smearing the MOS
-            ! above the HOMO can still carry weight and leak their residual
-            ! into the density, so the occupation decides, not the HOMO index
+            ! the relaxed threshold applies to the UNOCCUPIED manifold only:
+            ! under smearing the MOS above the HOMO can still carry weight and
+            ! leak their residual into the density, so the occupation decides,
+            ! not the HOMO index
             IF (occupation(imo) < occ_tol) THEN
                eps_iter_col = eps_iter_empty
             ELSE
@@ -637,8 +637,8 @@ CONTAINS
          END DO
 
          ! the iter > 1 gate below blocks the exit when EVERY column passes
-         ! the entering check at iter == 1: with no unconverged column there
-         ! is no correction to rotate with, the reduced problem further down
+         ! the entering check at iter == 1. With no unconverged column there
+         ! is no correction to rotate with. The reduced problem further down
          ! would be zero-dimensional, and this head's nmo-wide residual
          ! matrices would be released for nothing by the packing block below.
          ! Reclassify all columns as unconverged so the call still performs
@@ -698,9 +698,9 @@ CONTAINS
 
          ! the convergence check runs at the head of a cycle and probes the
          ! ENTERING MOS. Requiring iter > 1 enforces one Rayleigh-Ritz rotation
-         ! under the current operator per call: exiting on the entry check
+         ! under the current operator per call. Exiting on the entry check
          ! alone would return the MOS unchanged, the density unchanged, and an
-         ! outer SCF convergence measure of exactly zero - the SCF then stops
+         ! outer SCF convergence measure of exactly zero. The SCF then stops
          ! at whatever the previous step left, which masquerades as
          ! convergence whenever the threshold is looser than the entering
          ! residual
@@ -825,7 +825,7 @@ CONTAINS
                   ! the preconditioner construction, so the unconverged
                   ! residuals are scattered into an nmo-wide zero buffer and
                   ! gathered back. The unconverged columns move per contiguous
-                  ! segment of inotconv_set: the submatrix transfers end in a
+                  ! segment of inotconv_set. The submatrix transfers end in a
                   ! collective reduction over the matrix group, and a
                   ! column-at-a-time loop would launch one per unconverged MO
                   CALL cp_cfm_create(c_pzw, cmo%matrix_struct, name="pzw")
@@ -872,9 +872,10 @@ CONTAINS
          ! Exhaustion: either the preconditioned correction itself, or its
          ! component outside the MOS span, can vanish by symmetry (the density
          ! keeps the little-group symmetry of the kpoint), which would make the
-         ! reduced overlap block singular. Bail out and finish the channel by
-         ! the direct diagonalization below; the scratch of the interrupted
-         ! iteration is released at the single cleanup point after the loop.
+         ! reduced overlap block singular. Stop the iteration and finish the
+         ! channel by the direct diagonalization below. The scratch of the
+         ! interrupted iteration is released at the single cleanup point after
+         ! the loop.
          ALLOCATE (vnorm_pz(ncol_z))
          CALL cp_cfm_vectorsnorm(c_mz, vnorm_pz)
          IF (ANY(vnorm_pz < eps_exhaust)) THEN
@@ -885,7 +886,7 @@ CONTAINS
             scaling(:) = CMPLX(1.0_dp/vnorm_pz, 0.0_dp, KIND=dp)
             CALL cp_cfm_column_scale(c_mz, scaling)
 
-            ! projection coefficients C^H*S*z; c_z is reused as scratch for S*z
+            ! projection coefficients C^H*S*z. c_z is reused as scratch for S*z
             CALL cp_cfm_gemm('N', 'N', nao, ncol_z, nao, z_one, matrix_s, c_mz, z_zero, c_z)
             CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=ncol_z, &
                                      context=cmo%matrix_struct%context, &

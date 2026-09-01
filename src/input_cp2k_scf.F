@@ -1186,7 +1186,7 @@ CONTAINS
          keyword, __LOCATION__, name="PRECONDITIONER", &
          description="Type of preconditioner to be used with all minimization schemes. "// &
          "With K points, FULL_ALL, FULL_S_INVERSE and FULL_KINETIC use the "// &
-         "complex K-point preconditioners; FULL_SINGLE_INVERSE is not yet "// &
+         "complex K-point preconditioners. FULL_SINGLE_INVERSE is not yet "// &
          "available with K points.", &
          usage="PRECONDITIONER FULL_ALL", &
          default_i_val=ot_precond_full_all, &

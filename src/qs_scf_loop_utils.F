@@ -2811,7 +2811,7 @@ CONTAINS
                             start_time=qs_env%start_time)
       IF (scf_env%iter_delta < scf_control%eps_scf .AND. update_validated) THEN
          ! nested IFs on purpose: a .AND. chain leaves the evaluation order
-         ! unspecified, and on non-Davidson runs the env array has size zero
+         ! unspecified. On non-Davidson runs the env array has size zero
          ! while the tightening test below indexes its first channel
          davidson_tightening = .FALSE.
          IF (scf_env%method == block_davidson_diag_method_nr) THEN
@@ -2823,12 +2823,10 @@ CONTAINS
          END IF
          IF (davidson_tightening) THEN
             ! the adaptive inner tolerance of the Davidson solve that produced
-            ! this mixing delta was looser than the delta itself: the apparent
+            ! this mixing delta was looser than the delta itself. The apparent
             ! convergence may be nothing but the noise floor of the loose
             ! solve. Tighten the ratchet one decade below what that solve used
-            ! and keep iterating until the delta survives a tighter solve -
-            ! the counterpart of the dr2 < tr2_min check that suppresses
-            ! conv_elec in QE electrons.f90
+            ! and keep iterating until the delta survives a tighter solve.
             IF (output_unit > 0) THEN
                WRITE (UNIT=output_unit, FMT="(T3,A,ES9.2,A)") &
                   "*** SCF delta below the loose Davidson tolerance ", &

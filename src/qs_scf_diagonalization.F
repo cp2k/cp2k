@@ -3401,18 +3401,15 @@ CONTAINS
       TYPE(qs_matrix_pools_type), POINTER                :: kp_mpools, mpools
       TYPE(section_vals_type), POINTER                   :: scf_section
 
-! bounds of the adaptive inner tolerance: the loose phase is capped for
-! the residual-norm semantics of EPS_ITER (a residual of order 1/k would
+! bounds of the adaptive inner tolerance. The loose phase is capped for
+! the residual-norm semantics of EPS_ITER. A residual of order 1/k would
 ! leave an eigenvector error of order 10 percent at a typical metallic
-! gap; the QE second-iteration ethr bounds the analogous eigenvalue
-! scale), unoccupied MOS converge empty_factor times looser like the QE
-! empty_ethr, and the tracking divides the mixing delta by noise_scale:
-! the SCF convergence measure is the LARGEST ELEMENT of the density
-! residual, in which the per-column residuals of a whole block
-! accumulate - measured amplification ~20 on a smeared Bi2S3/MoS2 slab,
-! so tracking at delta/100 keeps the injected noise below the outer
-! convergence level (the 1/nelec of the QE ethr schedule plays the same
-! role, deeper)
+! gap. Unoccupied MOS converge empty_factor times looser. The tracking
+! divides the mixing delta by noise_scale: the SCF convergence measure
+! is the LARGEST ELEMENT of the density residual, in which the
+! per-column residuals of a whole block accumulate. The measured
+! amplification is ~20 on a smeared Bi2S3/MoS2 slab, so tracking at
+! delta/100 keeps the injected noise below the outer convergence level.
 
       logger => cp_get_default_logger()
       CALL timeset(routineN, handle)
@@ -3444,10 +3441,10 @@ CONTAINS
 
       ! preconditioner scheduling, mirrors do_block_davidson_diag. The first
       ! K-point SCF step cold-starts unless extrapolation prefilled the MOS
-      ! (mos_prefilled): the FULL_ALL maker consumes the MO coefficients and
+      ! (mos_prefilled). The FULL_ALL maker consumes the MO coefficients and
       ! eigenvalues, so building before the first solve completed would feed it
       ! uninitialized data and stall the Davidson convergence. Keep first_prec
-      ! clamped past that step in both cases; warming it up under prefilled MOS
+      ! clamped past that step in both cases. Warming it up under prefilled MOS
       ! would mix two variables at once.
       first_prec = MAX(scf_env%block_davidson_env(1)%first_prec, 2)
       do_prec = .FALSE.
@@ -3464,31 +3461,29 @@ CONTAINS
       ! adaptive inner tolerance from EPS_ADAPT: loose while the density is
       ! still far from self-consistency, tightening with the outer error
       ! scaled by noise_scale (mirrors the block Krylov scheduling in
-      ! do_block_krylov_diag, cf. the ethr ratchet of QE electrons.f90). The
-      ! ratchet is monotone across SCF steps - the threshold may tighten but
-      ! never relax again: a rebounding outer error would otherwise re-loosen
-      ! the solver and the run could stop on a near-zero mixing delta of a
+      ! do_block_krylov_diag). The
+      ! ratchet is monotone across SCF steps: the threshold may tighten but
+      ! never relax again. A rebounding outer error would otherwise re-loosen
+      ! the solver, and the run could stop on a near-zero mixing delta of a
       ! pair of identical, sloppily converged densities. The cap bounds the
-      ! early loose phase, like the second-iteration ethr of QE. Unoccupied
-      ! MOS converge empty_factor times looser (cf. the empty_ethr of QE
-      ! cegterg.f90; the occupancy decides which columns qualify, see
-      ! generate_extended_space_c). Like QE, there is no restoration of the
-      ! user threshold at the end: the tolerance stays a margin below the
-      ! outer error, and the MOS the run exits with satisfy that same margin
+      ! early loose phase. Unoccupied MOS converge empty_factor times
+      ! looser (the occupancy decides which columns qualify, see
+      ! generate_extended_space_c). There is no restoration of the
+      ! user threshold at the end. The tolerance stays a margin below the
+      ! outer error. The MOS the run exits with satisfy that same margin
       ! rather than the nominal EPS_ITER.
       eps_iter = scf_env%block_davidson_env(1)%eps_iter
       eps_iter_empty = eps_iter
       IF (scf_control%diagonalization%eps_adapt > 0.0_dp .AND. scf_env%iter_delta > 0.0_dp) THEN
          ! stall escape: when the mixing delta sank below the tolerance the
          ! last solve used, that solve's own sloppiness may be the noise floor
-         ! pinning the delta - tighten one decade below what that solve used.
+         ! pinning the delta. Tighten one decade below what that solve used.
          ! Tightening relative to the OPERATING tolerance instead of the
          ! dipped delta bounds the reaction to transient mixing dips (a
          ! momentary overshoot must not collapse the threshold by orders of
-         ! magnitude and destabilise the mixer), while a genuine stall walks
-         ! the threshold down decade by decade. QE tightens ethr from dr2 on
-         ! EVERY iteration (electrons.f90); checking on the stall alone keeps
-         ! the loose phase as loose as EPS_ADAPT allows
+         ! magnitude and destabilise the mixer), while a genuine stall moves
+         ! the threshold down decade by decade. Checking on the stall alone
+         ! keeps the loose phase as loose as EPS_ADAPT allows
          IF (scf_env%iter_delta < scf_env%block_davidson_env(1)%eps_iter_used) THEN
             scf_env%block_davidson_env(1)%eps_iter_prev = &
                MIN(scf_env%block_davidson_env(1)%eps_iter_prev, &
