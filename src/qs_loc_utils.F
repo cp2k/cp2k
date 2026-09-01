@@ -12,17 +12,10 @@
 ! **************************************************************************************************
 MODULE qs_loc_utils
 
-   USE ai_moments,                      ONLY: contract_cossin,&
-                                              cossin
-   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
-                                              gto_basis_set_type
-   USE block_p_types,                   ONLY: block_p_type
-   USE cell_types,                      ONLY: cell_type,&
-                                              pbc
+   USE cell_types,                      ONLY: cell_type
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
-                                              dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type
@@ -60,14 +53,10 @@ MODULE qs_loc_utils
    USE mathconstants,                   ONLY: twopi
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
-   USE orbital_pointers,                ONLY: ncoset
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              get_qs_kind_set,&
-                                              qs_kind_type
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                               localized_wfn_control_create,&
                                               localized_wfn_control_release,&
@@ -78,12 +67,7 @@ MODULE qs_loc_utils
    USE qs_mo_methods,                   ONLY: make_mo_eig
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
-   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
-                                              neighbor_list_iterate,&
-                                              neighbor_list_iterator_create,&
-                                              neighbor_list_iterator_p_type,&
-                                              neighbor_list_iterator_release,&
-                                              neighbor_list_set_p_type
+   USE qs_operators_ao,                 ONLY: build_exp_ikr_matrix
    USE qs_scf_types,                    ONLY: ot_method_nr
    USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
@@ -485,24 +469,21 @@ CONTAINS
    END SUBROUTINE get_berry_operator
 
 ! **************************************************************************************************
-!> \brief Computes the Berry operator for periodic systems
-!>       used to define the spread of the MOS
-!>       Here the matrix elements of the type <mu|cos(kr)|nu> and  <mu|sin(kr)|nu>
-!>       are computed, where mu and nu are the contracted basis functions.
-!>       Namely the Berry operator is exp(ikr)
-!>       k is defined somewhere
-!>       the pair lists are exploited and sparse matrixes are constructed
+!> \brief Computes the reciprocal-space operators used by Berry localization.
+!>       The operators contain the contracted AO matrix elements of
+!>       cos(k*r) and sin(k*r) for reciprocal vectors selected from the cell.
+!>       This routine preserves the historical localization interface and
+!>       delegates the AO assembly to qs_operators_ao::build_exp_ikr_matrix.
 !> \param qs_env the qs_env in which the qs_env lives
-!> \param cell ...
-!> \param op_sm_set ...
-!> \param dim_op ...
+!> \param cell cell used to generate the reciprocal vectors and fold positions
+!> \param op_sm_set cosine and sine operator storage
+!> \param dim_op number of reciprocal vectors, either 3 or 6
 !> \par History
 !>      04.2005 created [MI]
 !>      04.2018 wrapped old code [RZK, ZL]
 !> \author MI
-!> \note
-!>      The intgrals are computed analytically  using the primitives GTO
-!>      The contraction is performed block-wise
+!> \note The supplied cell is also used for coordinate folding and its
+!>       periodicity is temporarily set to three dimensions during assembly.
 ! **************************************************************************************************
    SUBROUTINE compute_berry_operator(qs_env, cell, op_sm_set, dim_op)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -512,60 +493,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_berry_operator'
 
-      INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
-         ldab, ldsa, ldsb, ldwork, maxl, ncoa, ncob, nkind, nrow, nseta, nsetb, sgfa, sgfb
-      INTEGER, DIMENSION(3)                              :: perd0
-      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
-                                                            npgfb, nsgfa, nsgfb
-      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: found, new_atom_b
-      REAL(KIND=dp)                                      :: dab, kvec(3), rab2, vector_k(3, 6)
-      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cosab, rpgfa, rpgfb, sinab, sphi_a, &
-                                                            sphi_b, work, zeta, zetb
-      TYPE(block_p_type), DIMENSION(:), POINTER          :: op_cos, op_sin
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_kind_type), POINTER                        :: qs_kind
+      INTEGER                                            :: handle
+      REAL(KIND=dp), DIMENSION(3, 6)                     :: vector_k
 
       CALL timeset(routineN, handle)
-      NULLIFY (qs_kind, qs_kind_set)
-      NULLIFY (particle_set)
-      NULLIFY (sab_orb)
-      NULLIFY (cosab, sinab, work)
-      NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
-      NULLIFY (set_radius_a, set_radius_b, rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb)
-
-      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
-                      particle_set=particle_set, sab_orb=sab_orb)
-
-      nkind = SIZE(qs_kind_set)
-
-      CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
-                           maxco=ldwork, maxlgto=maxl)
-      ldab = ldwork
-      ALLOCATE (cosab(ldab, ldab))
-      cosab = 0.0_dp
-      ALLOCATE (sinab(ldab, ldab))
-      sinab = 0.0_dp
-      ALLOCATE (work(ldwork, ldwork))
-      work = 0.0_dp
-
-      ALLOCATE (op_cos(dim_op))
-      ALLOCATE (op_sin(dim_op))
-      DO i = 1, dim_op
-         NULLIFY (op_cos(i)%block)
-         NULLIFY (op_sin(i)%block)
-      END DO
-
-      kvec = 0.0_dp
+      CPASSERT(dim_op == 3 .OR. dim_op == 6)
+      CPASSERT(ASSOCIATED(cell))
       vector_k = 0.0_dp
       vector_k(:, 1) = twopi*cell%h_inv(1, :)
       vector_k(:, 2) = twopi*cell%h_inv(2, :)
@@ -574,139 +507,11 @@ CONTAINS
       vector_k(:, 5) = twopi*(cell%h_inv(1, :) + cell%h_inv(3, :))
       vector_k(:, 6) = twopi*(cell%h_inv(2, :) + cell%h_inv(3, :))
 
-      ! This operator can be used only for periodic systems
-      ! If an isolated system is used the periodicity is overimposed
-      perd0(1:3) = cell%perd(1:3)
-      cell%perd(1:3) = 1
-
-      ALLOCATE (basis_set_list(nkind))
-      DO ikind = 1, nkind
-         qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a)
-         IF (ASSOCIATED(basis_set_a)) THEN
-            basis_set_list(ikind)%gto_basis_set => basis_set_a
-         ELSE
-            NULLIFY (basis_set_list(ikind)%gto_basis_set)
-         END IF
-      END DO
-      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
-                                iatom=iatom, jatom=jatom, r=rab)
-         basis_set_a => basis_set_list(ikind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
-         basis_set_b => basis_set_list(jkind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-         ra = pbc(particle_set(iatom)%r, cell)
-         ! basis ikind
-         first_sgfa => basis_set_a%first_sgf
-         la_max => basis_set_a%lmax
-         la_min => basis_set_a%lmin
-         npgfa => basis_set_a%npgf
-         nseta = basis_set_a%nset
-         nsgfa => basis_set_a%nsgf_set
-         rpgfa => basis_set_a%pgf_radius
-         set_radius_a => basis_set_a%set_radius
-         sphi_a => basis_set_a%sphi
-         zeta => basis_set_a%zet
-         ! basis jkind
-         first_sgfb => basis_set_b%first_sgf
-         lb_max => basis_set_b%lmax
-         lb_min => basis_set_b%lmin
-         npgfb => basis_set_b%npgf
-         nsetb = basis_set_b%nset
-         nsgfb => basis_set_b%nsgf_set
-         rpgfb => basis_set_b%pgf_radius
-         set_radius_b => basis_set_b%set_radius
-         sphi_b => basis_set_b%sphi
-         zetb => basis_set_b%zet
-
-         ldsa = SIZE(sphi_a, 1)
-         ldsb = SIZE(sphi_b, 1)
-         IF (inode == 1) last_jatom = 0
-
-         rb = rab + ra
-
-         IF (jatom /= last_jatom) THEN
-            new_atom_b = .TRUE.
-            last_jatom = jatom
-         ELSE
-            new_atom_b = .FALSE.
-         END IF
-
-         IF (new_atom_b) THEN
-            IF (iatom <= jatom) THEN
-               irow = iatom
-               icol = jatom
-            ELSE
-               irow = jatom
-               icol = iatom
-            END IF
-
-            DO i = 1, dim_op
-               NULLIFY (op_cos(i)%block)
-               CALL dbcsr_get_block_p(matrix=op_sm_set(1, i)%matrix, &
-                                      row=irow, col=icol, block=op_cos(i)%block, found=found)
-               NULLIFY (op_sin(i)%block)
-               CALL dbcsr_get_block_p(matrix=op_sm_set(2, i)%matrix, &
-                                      row=irow, col=icol, block=op_sin(i)%block, found=found)
-            END DO
-         END IF ! new_atom_b
-
-         rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-         dab = SQRT(rab2)
-
-         nrow = 0
-         DO iset = 1, nseta
-
-            ncoa = npgfa(iset)*ncoset(la_max(iset))
-            sgfa = first_sgfa(1, iset)
-
-            DO jset = 1, nsetb
-
-               ncob = npgfb(jset)*ncoset(lb_max(jset))
-               sgfb = first_sgfb(1, jset)
-
-               IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
-
-!           *** Calculate the primitive overlap integrals ***
-                  DO i = 1, dim_op
-                     kvec(1:3) = vector_k(1:3, i)
-                     cosab = 0.0_dp
-                     sinab = 0.0_dp
-                     CALL cossin(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), &
-                                 la_min(iset), lb_max(jset), npgfb(jset), zetb(:, jset), &
-                                 rpgfb(:, jset), lb_min(jset), &
-                                 ra, rb, kvec, cosab, sinab)
-                     CALL contract_cossin(op_cos(i)%block, op_sin(i)%block, &
-                                          iatom, ncoa, nsgfa(iset), sgfa, sphi_a, ldsa, &
-                                          jatom, ncob, nsgfb(jset), sgfb, sphi_b, ldsb, &
-                                          cosab, sinab, ldab, work, ldwork)
-                  END DO
-
-               END IF !  >= dab
-
-            END DO ! jset
-
-            nrow = nrow + ncoa
-
-         END DO ! iset
-
-      END DO
-      CALL neighbor_list_iterator_release(nl_iterator)
-
-      ! Set back the correct periodicity
-      cell%perd(1:3) = perd0(1:3)
-
-      DO i = 1, dim_op
-         NULLIFY (op_cos(i)%block)
-         NULLIFY (op_sin(i)%block)
-      END DO
-      DEALLOCATE (op_cos, op_sin)
-
-      DEALLOCATE (cosab, sinab, work, basis_set_list)
+      CALL build_exp_ikr_matrix(qs_env, op_sm_set, vector_k(:, 1:dim_op), &
+                                force_periodic=.TRUE., cell_external=cell)
 
       CALL timestop(handle)
+
    END SUBROUTINE compute_berry_operator
 
 ! **************************************************************************************************
@@ -1745,4 +1550,3 @@ CONTAINS
    END SUBROUTINE set_loc_wfn_lists
 
 END MODULE qs_loc_utils
-
