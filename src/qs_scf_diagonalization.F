@@ -46,10 +46,14 @@ MODULE qs_scf_diagonalization
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
-   USE cp_fm_diag,                      ONLY: &
-        FM_DIAG_TYPE_CUSOLVER, FM_DIAG_TYPE_DLAF, choose_eigv_solver, cp_fm_geeig, &
-        cp_fm_geeig_canon, cusolver_n_min, diag_check_requested, diag_type, &
-        direct_generalized_diagonalization
+   USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
+                                              FM_DIAG_TYPE_DLAF,&
+                                              choose_eigv_solver,&
+                                              cp_fm_geeig,&
+                                              cp_fm_geeig_canon,&
+                                              diag_check_requested,&
+                                              diag_type,&
+                                              direct_generalized_diagonalization
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm,&
                                               fm_pool_give_back_fm
@@ -250,7 +254,7 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: diis_step
 
       INTEGER                                            :: cdiis_cholesky_method, cdiis_ncall, &
-                                                            ispin, nao, nspin
+                                                            ispin, nspin
       LOGICAL                                            :: cdiis_step, do_level_shift, owns_ortho, &
                                                             use_adiis, use_cdiis, use_jacobi, &
                                                             use_subspace_fock
@@ -426,9 +430,7 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspin
-            CALL cp_fm_get_info(scf_env%scf_work1(ispin), nrow_global=nao)
-            IF (diag_type == FM_DIAG_TYPE_CUSOLVER .AND. direct_generalized_diagonalization .AND. &
-                nao >= cusolver_n_min .AND. .NOT. do_level_shift) THEN
+            IF (direct_generalized_diagonalization .AND. .NOT. do_level_shift) THEN
                CALL eigensolver_generalized(matrix_ks_fm=scf_env%scf_work1(ispin), &
                                             matrix_s=matrix_s(ispin)%matrix, &
                                             mo_set=mos(ispin), &
