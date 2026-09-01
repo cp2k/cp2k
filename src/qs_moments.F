@@ -139,7 +139,6 @@ MODULE qs_moments
    PUBLIC :: qs_moment_kpoints_scf_mos
    PUBLIC :: dipole_deriv_ao
    PUBLIC :: build_local_moments_der_matrix
-   PUBLIC :: dipole_velocity_deriv
    PUBLIC :: calculate_commutator_nl_terms, op_orbbas, op_orbbas_rtp, &
              print_moments, print_moments_nl, set_label
 
@@ -156,190 +155,6 @@ CONTAINS
 !> \param rc ...
 !> \author Edward Ditler
 ! **************************************************************************************************
-   SUBROUTINE dipole_velocity_deriv(qs_env, difdip, order, lambda, rc)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: difdip
-      INTEGER, INTENT(IN)                                :: order, lambda
-      REAL(KIND=dp), DIMENSION(3)                        :: rc
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'dipole_velocity_deriv'
-
-      INTEGER :: handle, i, iatom, icol, idir, ikind, inode, irow, iset, j, jatom, jkind, jset, &
-                 last_jatom, lda, ldab, ldb, M_dim, maxsgf, ncoa, ncob, nkind, nseta, nsetb, sgfa, &
-                 sgfb
-      LOGICAL                                            :: found
-      REAL(dp)                                           :: dab
-      REAL(dp), DIMENSION(3)                             :: ra, rab, rac, rb, rbc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: difmab
-      TYPE(block_p_type), ALLOCATABLE, DIMENSION(:, :)   :: mint
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_all
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_kind_type), POINTER                        :: qs_kind
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (cell, particle_set, qs_kind_set, sab_all)
-      CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set, &
-                      qs_kind_set=qs_kind_set, sab_all=sab_all)
-      CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
-                           maxco=ldab, maxsgf=maxsgf)
-
-      nkind = SIZE(qs_kind_set)
-      M_dim = ncoset(order) - 1
-
-      ALLOCATE (basis_set_list(nkind))
-
-      ALLOCATE (work(ldab, maxsgf))
-      ALLOCATE (mint(3, 3))
-
-      work(1:ldab, 1:maxsgf) = 0.0_dp
-
-      DO i = 1, 3
-         DO j = 1, 3
-            NULLIFY (mint(i, j)%block)
-         END DO
-      END DO
-
-      ! Set the basis_set_list(nkind) to point to the corresponding basis sets
-      DO ikind = 1, nkind
-         qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a)
-         IF (ASSOCIATED(basis_set_a)) THEN
-            basis_set_list(ikind)%gto_basis_set => basis_set_a
-         ELSE
-            NULLIFY (basis_set_list(ikind)%gto_basis_set)
-         END IF
-      END DO
-
-      CALL neighbor_list_iterator_create(nl_iterator, sab_all)
-      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
-                                iatom=iatom, jatom=jatom, r=rab)
-
-         basis_set_a => basis_set_list(ikind)%gto_basis_set
-         basis_set_b => basis_set_list(jkind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
-         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-
-         ASSOCIATE ( &
-            ! basis ikind
-            first_sgfa => basis_set_a%first_sgf, &
-            la_max => basis_set_a%lmax, &
-            la_min => basis_set_a%lmin, &
-            npgfa => basis_set_a%npgf, &
-            nsgfa => basis_set_a%nsgf_set, &
-            rpgfa => basis_set_a%pgf_radius, &
-            set_radius_a => basis_set_a%set_radius, &
-            sphi_a => basis_set_a%sphi, &
-            zeta => basis_set_a%zet, &
-            ! basis jkind, &
-            first_sgfb => basis_set_b%first_sgf, &
-            lb_max => basis_set_b%lmax, &
-            lb_min => basis_set_b%lmin, &
-            npgfb => basis_set_b%npgf, &
-            nsgfb => basis_set_b%nsgf_set, &
-            rpgfb => basis_set_b%pgf_radius, &
-            set_radius_b => basis_set_b%set_radius, &
-            sphi_b => basis_set_b%sphi, &
-            zetb => basis_set_b%zet)
-
-            nseta = basis_set_a%nset
-            nsetb = basis_set_b%nset
-
-            IF (inode == 1) last_jatom = 0
-
-            ! this guarantees minimum image convention
-            ! anything else would not make sense
-            IF (jatom == last_jatom) THEN
-               CYCLE
-            END IF
-
-            last_jatom = jatom
-
-            irow = iatom
-            icol = jatom
-
-            DO i = 1, 3
-            DO j = 1, 3
-               NULLIFY (mint(i, j)%block)
-               CALL dbcsr_get_block_p(matrix=difdip(i, j)%matrix, &
-                                      row=irow, col=icol, BLOCK=mint(i, j)%block, &
-                                      found=found)
-               CPASSERT(found)
-               mint(i, j)%block = 0._dp
-            END DO
-            END DO
-
-            ! With and without MIC, rab(:) is the vector giving us the coordinates of rb.
-            ra = pbc(particle_set(iatom)%r(:), cell)
-            rb(:) = ra(:) + rab(:)
-            rac = pbc(rc, ra, cell)
-            rbc = rac + rab
-            dab = norm2(rab)
-
-            DO iset = 1, nseta
-               ncoa = npgfa(iset)*ncoset(la_max(iset))
-               sgfa = first_sgfa(1, iset)
-               DO jset = 1, nsetb
-                  IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-                  ncob = npgfb(jset)*ncoset(lb_max(jset))
-                  sgfb = first_sgfb(1, jset)
-                  ldab = MAX(ncoa, ncob)
-                  lda = ncoset(la_max(iset))*npgfa(iset)
-                  ldb = ncoset(lb_max(jset))*npgfb(jset)
-                  ALLOCATE (difmab(lda, ldb, M_dim, 3))
-
-                  ! Calculate integral difmab(beta, alpha) = (a|r_beta|db_alpha)
-                  ! difmab(beta, alpha) = < a | r_beta | ∂_alpha b >
-                  ! difmab(j, idir) = < a | r_j | ∂_idir b >
-                  CALL diff_momop(la_max(iset), npgfa(iset), zeta(:, iset), &
-                                  rpgfa(:, iset), la_min(iset), lb_max(jset), npgfb(jset), &
-                                  zetb(:, jset), rpgfb(:, jset), lb_min(jset), order, rac, rbc, &
-                                  difmab, lambda=lambda, iatom=iatom, jatom=jatom)
-
-                  !                  *** Contraction step ***
-
-                  DO idir = 1, 3 ! derivative of AO function
-                  DO j = 1, 3     ! position operator r_j
-                     CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
-                                1.0_dp, difmab(1, 1, j, idir), SIZE(difmab, 1), &
-                                sphi_b(1, sgfb), SIZE(sphi_b, 1), &
-                                0.0_dp, work(1, 1), SIZE(work, 1))
-
-                     CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
-                                1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                work(1, 1), SIZE(work, 1), &
-                                1.0_dp, mint(j, idir)%block(sgfa, sgfb), &
-                                SIZE(mint(j, idir)%block, 1))
-                  END DO !j
-                  END DO !idir
-                  DEALLOCATE (difmab)
-               END DO !jset
-            END DO !iset
-         END ASSOCIATE
-      END DO!iterator
-
-      CALL neighbor_list_iterator_release(nl_iterator)
-
-      DO i = 1, 3
-      DO j = 1, 3
-         NULLIFY (mint(i, j)%block)
-      END DO
-      END DO
-
-      DEALLOCATE (basis_set_list, work, mint)
-
-      CALL timestop(handle)
-   END SUBROUTINE dipole_velocity_deriv
-
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
@@ -621,9 +436,10 @@ CONTAINS
 !> \param basis_type basis set used for the integral evaluation
 !> \param minimum_image apply the half-cell image filter
 !> \param ordered use ordered neighbor blocks and the full neighbor list
+!> \param lambda optional atom selector for the right-hand derivative
 ! **************************************************************************************************
    SUBROUTINE build_local_moments_der_matrix(qs_env, moments_der, nmoments_der, nmoments, &
-                                             ref_point, moments, basis_type, minimum_image, ordered)
+                                             ref_point, moments, basis_type, minimum_image, ordered, lambda)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), &
          INTENT(INOUT), POINTER                          :: moments_der
@@ -633,13 +449,15 @@ CONTAINS
          OPTIONAL, POINTER                               :: moments
       CHARACTER(len=*), OPTIONAL                         :: basis_type
       LOGICAL, OPTIONAL                                   :: minimum_image, ordered
+      INTEGER, OPTIONAL                                   :: lambda
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moments_der_matrix'
 
       INTEGER :: dimders, handle, i, iatom, icol, ider, ii, ikind, inode, ipgf, irow, iset, j, &
                  jatom, jkind, jpgf, jset, last_jatom, lda_min, M_dim, maxco, maxsgf, na, nb, ncoa, ncob, nda, ndb, &
                  nders, nkind, nm, nmom_build, nseta, nsetb, sgfa, sgfb
-      LOGICAL                                            :: found, my_minimum_image, my_ordered, new_atom_pair
+      LOGICAL                                            :: accumulate_images, found, my_minimum_image, my_ordered, &
+                                                            new_atom_pair
       REAL(KIND=dp)                                      :: dab, derivative_sign
       REAL(KIND=dp), DIMENSION(3)                        :: half_cell
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
@@ -672,8 +490,10 @@ CONTAINS
       IF (PRESENT(minimum_image)) my_minimum_image = minimum_image
       my_ordered = .FALSE.
       IF (PRESENT(ordered)) my_ordered = ordered
+      accumulate_images = my_ordered
+      IF (PRESENT(lambda)) accumulate_images = .FALSE.
       derivative_sign = 1._dp
-      IF (my_ordered) derivative_sign = -1._dp
+      IF (my_ordered .AND. .NOT. PRESENT(lambda)) derivative_sign = -1._dp
 
       NULLIFY (qs_kind_set, particle_set, sab_all, sab_orb, cell)
       CALL get_qs_env(qs_env=qs_env, &
@@ -796,7 +616,7 @@ CONTAINS
             END IF
 
             new_atom_pair = jatom /= last_jatom
-            IF (.NOT. my_ordered .AND. .NOT. new_atom_pair) CYCLE
+            IF (.NOT. accumulate_images .AND. .NOT. new_atom_pair) CYCLE
 
             IF (new_atom_pair) THEN
                last_jatom = jatom
@@ -889,7 +709,8 @@ CONTAINS
                                      rpgfa(:, iset), la_min(iset), &
                                      lb_max(jset), npgfb(jset), zetb(:, jset), &
                                      rpgfb(:, jset), lb_min(jset), &
-                                     nmoments_der, rac, rbc, difmab, mab_ext=mab_tmp)
+                                     nmoments_der, rac, rbc, difmab, mab_ext=mab_tmp, &
+                                     lambda=lambda, iatom=iatom, jatom=jatom)
                   END IF
 
                   IF (nmoments > 0) THEN

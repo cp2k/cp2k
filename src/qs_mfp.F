@@ -52,7 +52,7 @@ MODULE qs_mfp
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
-   USE qs_vcd_ao,                       ONLY: hr_mult_by_delta_1d
+   USE qs_dcdr_ao,                      ONLY: hr_mult_by_delta_1d
    USE qs_vcd_utils,                    ONLY: vcd_read_restart,&
                                               vcd_write_restart
 
