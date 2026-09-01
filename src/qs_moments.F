@@ -589,8 +589,13 @@ CONTAINS
 !> \param ref_point ...
 !> \param ref_points ...
 !> \param basis_type ...
+!> \param all_images accumulate all neighbor images belonging to one atom pair
+!> \param minimum_image apply the half-cell image filter
+!> \param neighbor_image use the neighbor-list image vector for one atom-pair representative
+!> \param first_component first Cartesian moment component to write
 ! **************************************************************************************************
-   SUBROUTINE build_local_moment_matrix(qs_env, moments, nmoments, ref_point, ref_points, basis_type)
+   SUBROUTINE build_local_moment_matrix(qs_env, moments, nmoments, ref_point, ref_points, basis_type, &
+                                        all_images, minimum_image, neighbor_image, first_component)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: moments
@@ -599,13 +604,17 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: ref_points
       CHARACTER(len=*), OPTIONAL                         :: basis_type
+      LOGICAL, OPTIONAL                                   :: all_images, minimum_image, neighbor_image
+      INTEGER, OPTIONAL                                   :: first_component
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_local_moment_matrix'
 
-      INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
-                 maxco, maxsgf, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
-      LOGICAL                                            :: found
+      INTEGER :: component_start, handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, &
+                 last_jatom, maxco, maxsgf, ncoa, ncob, nkind, nm, nseta, nsetb, sgfa, sgfb
+      LOGICAL                                            :: found, my_all_images, my_minimum_image, &
+                                                            my_neighbor_image, new_atom_pair
       REAL(KIND=dp)                                      :: dab
+      REAL(KIND=dp), DIMENSION(3)                        :: half_cell
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: mab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, rb, rbc, rc
@@ -625,14 +634,29 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      my_all_images = .FALSE.
+      IF (PRESENT(all_images)) my_all_images = all_images
+      my_minimum_image = .FALSE.
+      IF (PRESENT(minimum_image)) my_minimum_image = minimum_image
+      my_neighbor_image = .FALSE.
+      IF (PRESENT(neighbor_image)) my_neighbor_image = neighbor_image
+      CPASSERT(.NOT. (my_all_images .AND. my_neighbor_image))
+
       nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
       CPASSERT(SIZE(moments) >= nm)
+      component_start = 1
+      IF (PRESENT(first_component)) component_start = first_component
+      CPASSERT(component_start >= 1 .AND. component_start <= nm)
 
       NULLIFY (qs_kind_set, particle_set, sab_orb, cell)
       CALL get_qs_env(qs_env=qs_env, &
                       qs_kind_set=qs_kind_set, &
                       particle_set=particle_set, cell=cell, &
                       sab_orb=sab_orb)
+
+      IF (my_minimum_image) THEN
+         half_cell = 0.5_dp*NORM2(cell%hmat, DIM=1)
+      END IF
 
       nkind = SIZE(qs_kind_set)
       ! Allocate work storage
@@ -647,7 +671,7 @@ CONTAINS
       work(:, :) = 0.0_dp
 
       ALLOCATE (mint(nm))
-      DO i = 1, nm
+      DO i = component_start, nm
          NULLIFY (mint(i)%block)
       END DO
 
@@ -696,30 +720,36 @@ CONTAINS
 
             IF (inode == 1) last_jatom = 0
 
-            ! this guarantees minimum image convention
-            ! anything else would not make sense
-            IF (jatom == last_jatom) THEN
+            IF (my_minimum_image) THEN
+               IF (ANY(ABS(rab(:)) > half_cell(:))) CYCLE
+            END IF
+
+            new_atom_pair = jatom /= last_jatom
+            IF (.NOT. my_all_images .AND. .NOT. new_atom_pair) THEN
                CYCLE
             END IF
 
-            last_jatom = jatom
+            IF (new_atom_pair) THEN
+               last_jatom = jatom
 
-            IF (iatom <= jatom) THEN
-               irow = iatom
-               icol = jatom
-            ELSE
-               irow = jatom
-               icol = iatom
+               IF (iatom <= jatom) THEN
+                  irow = iatom
+                  icol = jatom
+               ELSE
+                  irow = jatom
+                  icol = iatom
+               END IF
+
+               DO i = component_start, nm
+                  NULLIFY (mint(i)%block)
+                  CALL dbcsr_get_block_p(matrix=moments(i)%matrix, &
+                                         row=irow, col=icol, BLOCK=mint(i)%block, found=found)
+                  CPASSERT(found .AND. ASSOCIATED(mint(i)%block))
+                  mint(i)%block = 0._dp
+               END DO
             END IF
 
-            DO i = 1, nm
-               NULLIFY (mint(i)%block)
-               CALL dbcsr_get_block_p(matrix=moments(i)%matrix, &
-                                      row=irow, col=icol, BLOCK=mint(i)%block, found=found)
-               mint(i)%block = 0._dp
-            END DO
-
-            ! fold atomic position back into unit cell
+            ! Reference point and image geometry.
             IF (PRESENT(ref_points)) THEN
                rc(:) = 0.5_dp*(ref_points(:, iatom) + ref_points(:, jatom))
             ELSE IF (PRESENT(ref_point)) THEN
@@ -727,15 +757,30 @@ CONTAINS
             ELSE
                rc(:) = 0._dp
             END IF
-            ! using PBC here might screw a molecule that fits the box (but e.g. hasn't been shifted by center_molecule)
-            ! by folding around the center, such screwing can be avoided for a proper choice of center.
-            ra(:) = pbc(particle_set(iatom)%r(:) - rc, cell) + rc
-            rb(:) = pbc(particle_set(jatom)%r(:) - rc, cell) + rc
-            ! we dont use PBC at this point
-            rab(:) = ra(:) - rb(:)
-            rac(:) = ra(:) - rc(:)
-            rbc(:) = rb(:) - rc(:)
-            dab = NORM2(rab)
+
+            IF (my_all_images) THEN
+               ! Keep the image represented by the current neighbor-list node.
+               ra(:) = pbc(particle_set(iatom)%r(:), cell)
+               rb(:) = ra(:) + rab(:)
+               rac(:) = pbc(rc, ra, cell)
+               rbc(:) = pbc(rc, rb, cell)
+               dab = NORM2(rab)
+            ELSE IF (my_neighbor_image) THEN
+               ! Keep the neighbor-list image while selecting one atom-pair representative.
+               ra(:) = particle_set(iatom)%r(:)
+               rb(:) = ra(:) + rab(:)
+               rac(:) = pbc(rc, ra, cell)
+               rbc(:) = rac(:) + rab(:)
+               dab = NORM2(rab)
+            ELSE
+               ! Fold atomic positions around the reference point.
+               ra(:) = pbc(particle_set(iatom)%r(:) - rc, cell) + rc
+               rb(:) = pbc(particle_set(jatom)%r(:) - rc, cell) + rc
+               rab(:) = ra(:) - rb(:)
+               rac(:) = ra(:) - rc(:)
+               rbc(:) = rb(:) - rc(:)
+               dab = NORM2(rab)
+            END IF
 
             DO iset = 1, nseta
 
@@ -756,7 +801,7 @@ CONTAINS
                               rpgfb(:, jset), nmoments, rac, rbc, mab)
 
                   ! Contraction step
-                  DO i = 1, nm
+                  DO i = component_start, nm
 
                      CALL dgemm("N", "N", ncoa, nsgfb(jset), ncob, &
                                 1.0_dp, mab(1, 1, i), SIZE(mab, 1), &
@@ -793,7 +838,7 @@ CONTAINS
       ! Release work storage
       DEALLOCATE (mab, basis_set_list)
       DEALLOCATE (work)
-      DO i = 1, nm
+      DO i = component_start, nm
          NULLIFY (mint(i)%block)
       END DO
       DEALLOCATE (mint)
@@ -1267,8 +1312,8 @@ CONTAINS
                NULLIFY (mint(i)%block)
                CALL dbcsr_get_block_p(matrix=magmom(i)%matrix, &
                                       row=irow, col=icol, BLOCK=mint(i)%block, found=found)
+               CPASSERT(found .AND. ASSOCIATED(mint(i)%block))
                mint(i)%block = 0._dp
-               CPASSERT(ASSOCIATED(mint(i)%block))
             END DO
 
             ! fold atomic position back into unit cell

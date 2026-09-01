@@ -630,7 +630,7 @@ CONTAINS
                NULLIFY (INTEGRAL(i)%block)
                CALL dbcsr_get_block_p(matrix=matrix(i)%matrix, &
                                       row=irow, col=icol, BLOCK=INTEGRAL(i)%block, found=found)
-               CPASSERT(ASSOCIATED(INTEGRAL(i)%block))
+               CPASSERT(found .AND. ASSOCIATED(INTEGRAL(i)%block))
             END DO
          END IF
 
