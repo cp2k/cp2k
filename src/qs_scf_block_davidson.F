@@ -615,6 +615,25 @@ CONTAINS
             END IF
          END DO
 
+         ! the iter > 1 gate below blocks the exit when EVERY column passes
+         ! the entering check at iter == 1: with no unconverged column there
+         ! is no correction to rotate with, the reduced problem further down
+         ! would be zero-dimensional, and this head's nmo-wide residual
+         ! matrices would be released for nothing by the packing block below.
+         ! Reclassify all columns as unconverged so the call still performs
+         ! the required one Rayleigh-Ritz rotation under the current
+         ! operator: the zero-converged branch reuses the head matrices
+         ! directly. At iter > 1 the same situation exits legitimately above,
+         ! hence the iter guard
+         IF (iter == 1 .AND. nmo_not_converged == 0) THEN
+            nmo_not_converged = nmo
+            nmo_converged = 0
+            iconv = 0
+            DO imo = 1, nmo
+               inotconv(imo) = imo
+            END DO
+         END IF
+
          IF (nmo_converged > 0) THEN
             ALLOCATE (iconv_set(nmo_converged, 2))
             ALLOCATE (inotconv_set(nmo_not_converged, 2))
@@ -656,7 +675,15 @@ CONTAINS
             CALL cp_cfm_release(c_z)
          END IF
 
-         IF (REAL(nmo_converged, dp)/REAL(nmo, dp) > bdav_env%conv_percent) THEN
+         ! the convergence check runs at the head of a cycle and probes the
+         ! ENTERING MOS. Requiring iter > 1 enforces one Rayleigh-Ritz rotation
+         ! under the current operator per call: exiting on the entry check
+         ! alone would return the MOS unchanged, the density unchanged, and an
+         ! outer SCF convergence measure of exactly zero - the SCF then stops
+         ! at whatever the previous step left, which masquerades as
+         ! convergence whenever the threshold is looser than the entering
+         ! residual
+         IF (iter > 1 .AND. REAL(nmo_converged, dp)/REAL(nmo, dp) > bdav_env%conv_percent) THEN
             converged = .TRUE.
             DEALLOCATE (iconv_set)
             DEALLOCATE (inotconv_set)
