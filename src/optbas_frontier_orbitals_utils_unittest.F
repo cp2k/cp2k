@@ -15,6 +15,7 @@ PROGRAM optbas_frontier_orbitals_utils_unittest
    USE optbas_frontier_orbitals_utils,  ONLY: compute_frontier_orbital_loss_function,&
                                               frontier_orbitals_result_type,&
                                               smooth_frontier_orbital_weight
+#include "./base/base_uses.f90"
 
    IMPLICIT NONE
 
@@ -97,8 +98,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: description
 
       IF (ABS(actual - expected) > tolerance) THEN
-         WRITE (*, '(A,2ES24.14)') TRIM(description)//": ", actual, expected
-         ERROR STOP "frontier-orbital objective unit test failed"
+         CPABORT(TRIM(description))
       END IF
 
    END SUBROUTINE assert_close
