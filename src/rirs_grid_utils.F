@@ -15,6 +15,7 @@ MODULE rirs_grid_utils
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE orbital_pointers,                ONLY: indco,&
                                               ncoset
@@ -28,10 +29,58 @@ MODULE rirs_grid_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rirs_grid_utils'
 
-   PUBLIC :: evaluate_ao_basis_on_points, evaluate_ao_on_points, initialize_rirs_grid, &
-             read_rirs_grid_file
+   PUBLIC :: evaluate_ao_basis_on_points, evaluate_ao_on_points, get_rirs_grid_filepath, &
+             initialize_rirs_grid, read_rirs_grid_file, read_rirs_grid_npoints
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Construct the path of an RI-RS grid file.
+!> \param element_symbol ...
+!> \param grid_select ...
+!> \param grid_file_suffix ...
+!> \param filepath ...
+! **************************************************************************************************
+   SUBROUTINE get_rirs_grid_filepath(element_symbol, grid_select, grid_file_suffix, filepath)
+      CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol
+      INTEGER, INTENT(IN)                                :: grid_select
+      CHARACTER(LEN=*), INTENT(IN)                       :: grid_file_suffix
+      CHARACTER(LEN=*), INTENT(OUT)                      :: filepath
+
+      CHARACTER(LEN=default_string_length)               :: suffix
+
+      SELECT CASE (grid_select)
+      CASE (1)
+         suffix = "_def2-tzvp-rs.ion"
+      CASE (2)
+         suffix = "_cc-pvtz-rs.ion"
+      CASE (3)
+         IF (LEN_TRIM(grid_file_suffix) > 0) THEN
+            suffix = TRIM(grid_file_suffix)
+         ELSE
+            suffix = "_rirs.ion"
+         END IF
+      CASE DEFAULT
+         CPABORT("Unknown grid_select (1=def2-TZVPP, 2=cc-pVTZ, 3=user-provided).")
+      END SELECT
+      filepath = "ri_rs_grid/"//TRIM(element_symbol)//TRIM(suffix)
+   END SUBROUTINE get_rirs_grid_filepath
+
+! **************************************************************************************************
+!> \brief Read the number of points from an RI-RS grid file.
+!> \param filename ...
+!> \return Number of grid points.
+! **************************************************************************************************
+   INTEGER FUNCTION read_rirs_grid_npoints(filename) RESULT(npoints)
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
+
+      INTEGER                                            :: iunit
+
+      CALL open_file(file_name=TRIM(filename), unit_number=iunit, &
+                     file_action='READ', file_status='OLD')
+      CALL read_rirs_grid_header(iunit, filename, npoints)
+      CALL close_file(unit_number=iunit)
+   END FUNCTION read_rirs_grid_npoints
 
 ! **************************************************************************************************
 !> \brief Read Cartesian grid points from the existing CP2K RI-RS .ion format.
@@ -46,28 +95,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'read_rirs_grid_file'
 
       CHARACTER(LEN=default_path_length)                 :: line
-      INTEGER                                            :: colon, handle, ierr, iunit, l, npoints
-      LOGICAL                                            :: found_points, found_size
+      INTEGER                                            :: handle, ierr, iunit, l, npoints
+      LOGICAL                                            :: found_points
 
       CALL timeset(routineN, handle)
       CALL open_file(file_name=TRIM(filename), unit_number=iunit, &
                      file_action='READ', file_status='OLD')
 
-      found_size = .FALSE.
-      npoints = 0
-      DO
-         READ (iunit, '(A)', IOSTAT=ierr) line
-         IF (ierr /= 0) EXIT
-         IF (INDEX(line, 'n points') > 0) THEN
-            colon = INDEX(line, ':')
-            IF (colon > 0) THEN
-               READ (line(colon + 1:), *, IOSTAT=ierr) npoints
-               found_size = ierr == 0 .AND. npoints > 0
-            END IF
-            EXIT
-         END IF
-      END DO
-      IF (.NOT. found_size) CPABORT('RI-RS .ion file has no valid n points field: '//TRIM(filename))
+      CALL read_rirs_grid_header(iunit, filename, npoints)
 
       REWIND (iunit)
       found_points = .FALSE.
@@ -89,6 +124,38 @@ CONTAINS
       CALL close_file(unit_number=iunit)
       CALL timestop(handle)
    END SUBROUTINE read_rirs_grid_file
+
+! **************************************************************************************************
+!> \brief Read and validate the point count in an open RI-RS grid file.
+!> \param iunit ...
+!> \param filename ...
+!> \param npoints ...
+! **************************************************************************************************
+   SUBROUTINE read_rirs_grid_header(iunit, filename, npoints)
+      INTEGER, INTENT(IN)                                :: iunit
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
+      INTEGER, INTENT(OUT)                               :: npoints
+
+      CHARACTER(LEN=default_path_length)                 :: line
+      INTEGER                                            :: colon, ierr
+      LOGICAL                                            :: found_size
+
+      found_size = .FALSE.
+      npoints = 0
+      DO
+         READ (iunit, '(A)', IOSTAT=ierr) line
+         IF (ierr /= 0) EXIT
+         IF (INDEX(line, 'n points') > 0) THEN
+            colon = INDEX(line, ':')
+            IF (colon > 0) THEN
+               READ (line(colon + 1:), *, IOSTAT=ierr) npoints
+               found_size = ierr == 0 .AND. npoints > 0
+            END IF
+            EXIT
+         END IF
+      END DO
+      IF (.NOT. found_size) CPABORT('RI-RS .ion file has no valid n points field: '//TRIM(filename))
+   END SUBROUTINE read_rirs_grid_header
 
 ! **************************************************************************************************
 !> \brief Build one deterministic atom-specific grid from a tabulated source grid.

@@ -2407,7 +2407,7 @@ CONTAINS
                           "For the GW algorithm for molecules, see "// &
                           "<https://doi.org/10.1021/acs.jctc.0c01282>. "// &
                           "For 2D materials, see <https://doi.org/10.1021/acs.jctc.3c01230>.", &
-                          n_keywords=1, n_subsections=2, repeats=.FALSE.)
+                          n_keywords=1, n_subsections=3, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, &
@@ -2585,6 +2585,11 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      NULLIFY (subsection)
+      CALL create_evgw0_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_gw_section
 
 ! **************************************************************************************************
@@ -2619,7 +2624,7 @@ CONTAINS
                           "This locality approximation yields a sparse representation of the "// &
                           "3-center integrals and enables reduced computational cost. "// &
                           "See details in https://doi.org/10.1063/1.5090605.", &
-                          n_keywords=11, n_subsections=2, repeats=.FALSE.)
+                          n_keywords=11, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, &
@@ -2753,11 +2758,6 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      NULLIFY (subsection)
-      CALL create_evgw0_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
    END SUBROUTINE create_ri_rs_section
 
 ! **************************************************************************************************
@@ -2786,14 +2786,23 @@ CONTAINS
          "\sum_{I=1}^{N_\mathrm{at}} E_I$. Starting from pre-tabulated atom-specific grids, "// &
          "the optimization adapts the grid to the chemical environment and composition of the "// &
          "structure and can permit substantially smaller grids. Compact grids often work well for "// &
-         "small basis sets, but the point count specified with GRID_SIZE should be tuned and "// &
-         "converged for the chosen basis sets and chemical system.")
+         "small basis sets, but the point count specified with GRID_SIZE or N_POINT_PERCENTAGE "// &
+         "should be tuned and converged for the chosen basis sets and chemical system.")
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="GRID_SIZE", &
          description="Specifies how many grid points are used per atom for a given element. "// &
          "Repeat this keyword once for every element in the structure.", &
          usage="GRID_SIZE Si 100", type_of_var=char_t, repeats=.TRUE., n_var=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="N_POINT_PERCENTAGE", &
+         description="The element grids are read from the .ion files selected by GRID_SELECT; "// &
+         "GRID_FILE_SUFFIX determines user-provided filenames. From these initial grids, only "// &
+         "N_POINT_PERCENTAGE % of each element's grid points are taken in the actual GW calculation.", &
+         usage="N_POINT_PERCENTAGE 20", type_of_var=real_t, default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2818,7 +2827,7 @@ CONTAINS
    END SUBROUTINE create_ri_rs_grid_optimization_section
 
 ! **************************************************************************************************
-!> \brief creates the input section for eigenvalue self-consistent GW0 (evGW0) in RI-RS
+!> \brief creates the input section for eigenvalue self-consistent GW0 (evGW0)
 !> \param section section to create
 ! **************************************************************************************************
    SUBROUTINE create_evgw0_section(section)
@@ -2834,8 +2843,8 @@ CONTAINS
                           "$W$ stays at its RPA@DFT value. Only the correlation self-energy "// &
                           "and the quasiparticle equation are recomputed per cycle; $W$, the "// &
                           "exchange self-energy and the RI-RS grid quantities are computed "// &
-                          "once. Without this section a single-shot G0W0 calculation is "// &
-                          "performed.", &
+                          "once. This implementation requires RI-RS. Without this section a "// &
+                          "single-shot G0W0 calculation is performed.", &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)

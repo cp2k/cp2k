@@ -11,6 +11,7 @@
 !> \date 07.2023
 ! **************************************************************************************************
 MODULE post_scf_bandstructure_types
+   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type
    USE cell_types,                      ONLY: cell_type
    USE cp_cfm_types,                    ONLY: cp_cfm_release,&
@@ -49,7 +50,7 @@ MODULE post_scf_bandstructure_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'post_scf_bandstructure_types'
 
-   PUBLIC :: post_scf_bandstructure_type, rirs_grid_type, ri_rs_grid_opt_type, &
+   PUBLIC :: post_scf_bandstructure_type, ri_rs_env, rirs_grid_type, ri_rs_grid_opt_type, &
              band_edges_type, data_3_type, bs_env_release
 
    ! valence band maximum (VBM), conduction band minimum (CBM), direct band gap (DBG),
@@ -100,6 +101,7 @@ MODULE post_scf_bandstructure_types
       ! They remain owned by qs_env and must never be deallocated here.
       TYPE(cell_type), POINTER                         :: cell => NULL()
       TYPE(particle_type), DIMENSION(:), POINTER       :: particle_set => NULL()
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER    :: atomic_kind_set => NULL()
 
       ! Eigenvalue self-consistency (evGW0): G is rebuilt from the quasiparticle energies of
       ! the previous cycle while W stays frozen at the RPA@DFT level.
@@ -602,7 +604,7 @@ CONTAINS
       IF (ALLOCATED(bs_env%ri_rs%chunk_centroids)) DEALLOCATE (bs_env%ri_rs%chunk_centroids)
       IF (ALLOCATED(bs_env%ri_rs%atom_centers)) DEALLOCATE (bs_env%ri_rs%atom_centers)
       IF (ALLOCATED(bs_env%ri_rs%grid_atom_boundaries)) DEALLOCATE (bs_env%ri_rs%grid_atom_boundaries)
-      NULLIFY (bs_env%ri_rs%cell, bs_env%ri_rs%particle_set)
+      NULLIFY (bs_env%ri_rs%atomic_kind_set, bs_env%ri_rs%cell, bs_env%ri_rs%particle_set)
       IF (ALLOCATED(bs_env%ri_rs%pan_first)) DEALLOCATE (bs_env%ri_rs%pan_first)
       IF (ALLOCATED(bs_env%ri_rs%pan_last)) DEALLOCATE (bs_env%ri_rs%pan_last)
 

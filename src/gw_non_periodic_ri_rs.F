@@ -96,6 +96,7 @@ MODULE gw_non_periodic_ri_rs
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE rirs_grid_utils,                 ONLY: evaluate_ao_on_points,&
+                                              get_rirs_grid_filepath,&
                                               initialize_rirs_grid,&
                                               read_rirs_grid_file
    USE util,                            ONLY: sort
@@ -780,8 +781,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_grid_cache'
 
-      CHARACTER(LEN=default_path_length)                 :: filename, full_path, warning_msg
-      CHARACTER(LEN=default_string_length)               :: atom_sym, suffix
+      CHARACTER(LEN=default_path_length)                 :: full_path, warning_msg
+      CHARACTER(LEN=default_string_length)               :: atom_sym
       INTEGER                                            :: handle, iatom, ikind, &
                                                             n_voronoi_candidates, natom, nkind, &
                                                             requested_npts
@@ -789,21 +790,6 @@ CONTAINS
       TYPE(rirs_grid_type), ALLOCATABLE                  :: kind_grid(:)
 
       CALL timeset(routineN, handle)
-
-      ! Determine the file suffix based on the user's choice
-      IF (bs_env%ri_rs%grid_select == 1) THEN
-         suffix = "_def2-tzvp-rs.ion"
-      ELSE IF (bs_env%ri_rs%grid_select == 2) THEN
-         suffix = "_cc-pvtz-rs.ion"
-      ELSE IF (bs_env%ri_rs%grid_select == 3) THEN
-         IF (LEN_TRIM(bs_env%ri_rs%grid_file_suffix) > 0) THEN
-            suffix = TRIM(bs_env%ri_rs%grid_file_suffix)
-         ELSE
-            suffix = "_rirs.ion"
-         END IF
-      ELSE
-         CPABORT("Unknown grid_select (1=def2-TZVPP, 2=cc-pVTZ, 3=user-provided).")
-      END IF
 
       nkind = SIZE(atomic_kind_set)
       particle_set => bs_env%ri_rs%particle_set
@@ -813,10 +799,8 @@ CONTAINS
 
       DO ikind = 1, nkind
          atom_sym = TRIM(atomic_kind_set(ikind)%element_symbol)
-         filename = TRIM(atom_sym)//TRIM(suffix)
-
-         full_path = "ri_rs_grid/"//TRIM(filename)
-
+         CALL get_rirs_grid_filepath( &
+            atom_sym, bs_env%ri_rs%grid_select, bs_env%ri_rs%grid_file_suffix, full_path)
          CALL read_rirs_grid_file(TRIM(full_path), kind_grid(ikind)%raw_points)
          kind_grid(ikind)%npts = SIZE(kind_grid(ikind)%raw_points, 2)
       END DO
@@ -831,13 +815,13 @@ CONTAINS
          bs_env%ri_rs%grid_cache(iatom) = kind_grid(ikind)
          IF (bs_env%ri_rs%grid_opt%enabled) THEN
             atom_sym = TRIM(atomic_kind_set(ikind)%element_symbol)
-            requested_npts = requested_grid_size(bs_env, atom_sym)
+            requested_npts = bs_env%ri_rs%grid_opt%grid_npoints(ikind)
             CALL initialize_rirs_grid( &
                bs_env%ri_rs%grid_cache(iatom)%raw_points, requested_npts, iatom, particle_set, &
                n_voronoi_candidates)
             IF (n_voronoi_candidates < requested_npts) THEN
                WRITE (warning_msg, '(A,I0,A,A,A,I0,A,I0,A)') &
-                  "Atom ", iatom, " (", TRIM(atom_sym), "): GRID_SIZE requests ", requested_npts, &
+                  "Atom ", iatom, " (", TRIM(atom_sym), "): Grid selection requests ", requested_npts, &
                   " points, but only ", n_voronoi_candidates, &
                   " are inside its Voronoi volume. Selecting from the full RI-RS source grid."
                CALL cp_warn(__LOCATION__, TRIM(warning_msg))
@@ -850,32 +834,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_grid_cache
-
-! **************************************************************************************************
-!> \brief Returns the explicitly requested input-grid size for an element.
-!> \param bs_env ...
-!> \param atom_sym ...
-!> \return Number of requested grid points.
-!> \author Jan Wilhelm
-! **************************************************************************************************
-   INTEGER FUNCTION requested_grid_size(bs_env, atom_sym) RESULT(npoints)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      CHARACTER(LEN=*), INTENT(IN)                       :: atom_sym
-
-      INTEGER                                            :: igrid
-
-      CPASSERT(bs_env%ri_rs%grid_opt%enabled)
-      CPASSERT(ALLOCATED(bs_env%ri_rs%grid_opt%grid_elements))
-
-      DO igrid = 1, SIZE(bs_env%ri_rs%grid_opt%grid_elements)
-         IF (TRIM(bs_env%ri_rs%grid_opt%grid_elements(igrid)) == TRIM(atom_sym)) THEN
-            npoints = bs_env%ri_rs%grid_opt%grid_npoints(igrid)
-            RETURN
-         END IF
-      END DO
-      CPABORT("GRID_OPTIMIZATION uses GRID_SIZE, but one atomic kind has no GRID_SIZE entry.")
-
-   END FUNCTION requested_grid_size
 
 ! **************************************************************************************************
 !> \brief Evaluates the AO basis on the RI-RS grid and stores it as the sparse DBCSR matrix
