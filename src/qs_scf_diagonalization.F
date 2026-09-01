@@ -66,9 +66,11 @@ MODULE qs_scf_diagonalization
         cp_fm_finish_copy_general, cp_fm_get_info, cp_fm_release, cp_fm_set_all, &
         cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr
+                                              cp_print_key_unit_nr,&
+                                              debug_print_level
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
@@ -3371,13 +3373,17 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'do_block_davidson_diag_kp'
+      REAL(KIND=dp), PARAMETER                           :: empty_factor = 5.0_dp, &
+                                                            eps_iter_cap = 1.0E-4_dp, &
+                                                            noise_scale = 1.0E2_dp
 
       INTEGER                                            :: channel, first_prec, handle, ikp, ispin, &
-                                                            iwork, kplocal, local_kpoint, &
+                                                            iw, iwork, kplocal, local_kpoint, &
                                                             nchannels, nspin, output_unit
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_prec, use_real_wfn
+      REAL(KIND=dp)                                      :: eps_iter, eps_iter_empty
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(copy_info_type)                               :: info_im, info_re
       TYPE(cp_cfm_type)                                  :: cksmat, csmat
@@ -3393,6 +3399,19 @@ CONTAINS
          POINTER                                         :: sab_nl
       TYPE(qs_matrix_pools_type), POINTER                :: kp_mpools, mpools
       TYPE(section_vals_type), POINTER                   :: scf_section
+
+! bounds of the adaptive inner tolerance: the loose phase is capped for
+! the residual-norm semantics of EPS_ITER (a residual of order 1/k would
+! leave an eigenvector error of order 10 percent at a typical metallic
+! gap; the QE second-iteration ethr bounds the analogous eigenvalue
+! scale), unoccupied MOS converge empty_factor times looser like the QE
+! empty_ethr, and the tracking divides the mixing delta by noise_scale:
+! the SCF convergence measure is the LARGEST ELEMENT of the density
+! residual, in which the per-column residuals of a whole block
+! accumulate - measured amplification ~20 on a smeared Bi2S3/MoS2 slab,
+! so tracking at delta/100 keeps the injected noise below the outer
+! convergence level (the 1/nelec of the QE ethr schedule plays the same
+! role, deeper)
 
       logger => cp_get_default_logger()
       CALL timeset(routineN, handle)
@@ -3437,6 +3456,63 @@ CONTAINS
                          MODULO(scf_env%iter_count, &
                                 scf_env%block_davidson_env(1)%niter_new_prec) == 0)) THEN
          CALL davidson_kp_prepare_preconditioners(qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints)
+      END IF
+
+      ! adaptive inner tolerance from EPS_ADAPT: loose while the density is
+      ! still far from self-consistency, tightening with the outer error
+      ! scaled by noise_scale (mirrors the block Krylov scheduling in
+      ! do_block_krylov_diag, cf. the ethr ratchet of QE electrons.f90). The
+      ! ratchet is monotone across SCF steps - the threshold may tighten but
+      ! never relax again: a rebounding outer error would otherwise re-loosen
+      ! the solver and the run could stop on a near-zero mixing delta of a
+      ! pair of identical, sloppily converged densities. The cap bounds the
+      ! early loose phase, like the second-iteration ethr of QE. Unoccupied
+      ! MOS converge empty_factor times looser (cf. the empty_ethr of QE
+      ! cegterg.f90; the occupancy decides which columns qualify, see
+      ! generate_extended_space_c). Like QE, there is no restoration of the
+      ! user threshold at the end: the tolerance stays a margin below the
+      ! outer error, and the MOS the run exits with satisfy that same margin
+      ! rather than the nominal EPS_ITER.
+      eps_iter = scf_env%block_davidson_env(1)%eps_iter
+      eps_iter_empty = eps_iter
+      IF (scf_control%diagonalization%eps_adapt > 0.0_dp .AND. scf_env%iter_delta > 0.0_dp) THEN
+         ! stall escape: when the mixing delta sank below the tolerance the
+         ! last solve used, that solve's own sloppiness may be the noise floor
+         ! pinning the delta - tighten one decade below what that solve used.
+         ! Tightening relative to the OPERATING tolerance instead of the
+         ! dipped delta bounds the reaction to transient mixing dips (a
+         ! momentary overshoot must not collapse the threshold by orders of
+         ! magnitude and destabilise the mixer), while a genuine stall walks
+         ! the threshold down decade by decade. QE tightens ethr from dr2 on
+         ! EVERY iteration (electrons.f90); checking on the stall alone keeps
+         ! the loose phase as loose as EPS_ADAPT allows
+         IF (scf_env%iter_delta < scf_env%block_davidson_env(1)%eps_iter_used) THEN
+            scf_env%block_davidson_env(1)%eps_iter_prev = &
+               MIN(scf_env%block_davidson_env(1)%eps_iter_prev, &
+                   MAX(scf_env%block_davidson_env(1)%eps_iter, &
+                       0.1_dp*scf_env%block_davidson_env(1)%eps_iter_used))
+         END IF
+         ! candidate: looser than the user value, capped; ratchet: only
+         ! tighter than the previous adaptive value, which lives in the
+         ! persistent channel settings (a local variable would reset on
+         ! every call into this driver)
+         eps_iter = MIN(MAX(eps_iter, MIN(scf_control%diagonalization%eps_adapt*scf_env%iter_delta/noise_scale, &
+                                          eps_iter_cap)), scf_env%block_davidson_env(1)%eps_iter_prev)
+         eps_iter_empty = empty_factor*eps_iter
+         ! record what this solve uses, after every override above: the outer
+         ! loop compares the mixing delta against it (qs_scf_check_inner_exit)
+         scf_env%block_davidson_env(1)%eps_iter_prev = eps_iter
+         scf_env%block_davidson_env(1)%eps_iter_used = eps_iter
+      END IF
+      ! schedule trace of the adaptive tolerance, one line per SCF step at
+      ! DEBUG print level
+      IF (scf_control%diagonalization%eps_adapt > 0.0_dp .AND. para_env%is_source() .AND. &
+          logger%iter_info%print_level >= debug_print_level) THEN
+         iw = cp_logger_get_default_unit_nr()
+         IF (iw > 0) THEN
+            WRITE (UNIT=iw, FMT="(T3,'EPS_ADAPT step',I5,' delta=',ES9.2,' eps_occ=',ES9.2,' eps_empty=',ES9.2)") &
+               scf_env%iter_count, scf_env%iter_delta, eps_iter, eps_iter_empty
+         END IF
       END IF
 
       ! work matrices: real-space Fourier scratch (dbcsr), global scratch fms,
@@ -3498,10 +3574,12 @@ CONTAINS
                IF (do_prec) THEN
                   CALL generate_extended_space_c(scf_env%block_davidson_env(channel), &
                                                  kp%mos(1:2, ispin), cksmat, csmat, output_unit, &
+                                                 eps_iter, eps_iter_empty, &
                                                  scf_env%ot_preconditioner(channel)%preconditioner)
                ELSE
                   CALL generate_extended_space_c(scf_env%block_davidson_env(channel), &
-                                                 kp%mos(1:2, ispin), cksmat, csmat, output_unit)
+                                                 kp%mos(1:2, ispin), cksmat, csmat, output_unit, &
+                                                 eps_iter, eps_iter_empty)
                END IF
             END DO
          END IF

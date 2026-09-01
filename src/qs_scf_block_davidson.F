@@ -491,21 +491,27 @@ CONTAINS
 !> \param matrix_h complex Kohn-Sham matrix H(k) in full storage
 !> \param matrix_s complex overlap matrix S(k) in full storage
 !> \param output_unit unit for the Davidson iteration log
+!> \param eps_iter convergence threshold for the residual norm of the occupied
+!>        MOS of this step
+!> \param eps_iter_empty threshold for the unoccupied MOS, identical to
+!>        eps_iter unless the driver relaxed it with EPS_ADAPT
 !> \param preconditioner complex K-point preconditioner
 !> \note K-point MOs have no sparse dbcsr copy (mo_coeff_b). This routine does
 !>       not update mo_coeff_b.
 ! **************************************************************************************************
    SUBROUTINE generate_extended_space_c(bdav_env, mos, matrix_h, matrix_s, output_unit, &
-                                        preconditioner)
+                                        eps_iter, eps_iter_empty, preconditioner)
 
       TYPE(davidson_type)                                :: bdav_env
       TYPE(mo_set_type), DIMENSION(2), INTENT(INOUT)     :: mos
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_h, matrix_s
       INTEGER, INTENT(IN)                                :: output_unit
+      REAL(KIND=dp), INTENT(IN)                          :: eps_iter, eps_iter_empty
       TYPE(preconditioner_type), OPTIONAL, POINTER       :: preconditioner
 
       CHARACTER(len=*), PARAMETER :: routineN = 'generate_extended_space_c'
-      REAL(KIND=dp), PARAMETER                           :: eps_exhaust = 1.0E-12_dp
+      REAL(KIND=dp), PARAMETER                           :: eps_exhaust = 1.0E-12_dp, &
+                                                            occ_tol = 1.0E-3_dp
 
       COMPLEX(KIND=dp)                                   :: lambda_c
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cdiag, scaling
@@ -516,15 +522,21 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: iconv_set, inotconv_set
       LOGICAL                                            :: converged, do_apply_preconditioner, &
                                                             exhausted
-      REAL(KIND=dp)                                      :: lambda, max_norm, min_norm, t1, t2
+      REAL(KIND=dp)                                      :: eps_iter_col, lambda, max_norm, &
+                                                            min_norm, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ritz_coeff, vnorm, vnorm_pz
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eig_not_conv, eigenvalues, evals
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eig_not_conv, eigenvalues, evals, &
+                                                            occupation
       TYPE(cp_cfm_type)                                  :: c_conv, c_mz, c_new, c_notconv, c_out, &
                                                             c_pzo, c_pzw, c_z, cmo, h_block, h_fm, &
                                                             m_hc, m_sc, m_tmp, s_block, v_block, &
                                                             w_block
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_i, mo_coeff_r
+
+! an occupation below this carries no weight in the density (it sits
+! beyond the thermal smearing tail) and may converge at the relaxed
+! empty threshold
 
 ! empirical floor for declaring a correction vector numerically zero: the
 ! vectors are normalized to one, double-precision roundoff sits near 1e-16,
@@ -533,12 +545,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (eigenvalues, evals, eig_not_conv, mo_coeff_r, mo_coeff_i, fm_struct_tmp)
+      NULLIFY (eigenvalues, evals, eig_not_conv, mo_coeff_r, mo_coeff_i, occupation, fm_struct_tmp)
 
       do_apply_preconditioner = .FALSE.
       IF (PRESENT(preconditioner)) do_apply_preconditioner = .TRUE.
       CALL get_mo_set(mo_set=mos(1), mo_coeff=mo_coeff_r, eigenvalues=eigenvalues, &
-                      nao=nao, nmo=nmo, homo=homo)
+                      occupation_numbers=occupation, nao=nao, nmo=nmo, homo=homo)
       CALL get_mo_set(mo_set=mos(2), mo_coeff=mo_coeff_i)
       IF (do_apply_preconditioner) THEN
          max_iter = bdav_env%max_iter
@@ -606,7 +618,16 @@ CONTAINS
          iconv = 0
          inotconv = 0
          DO imo = 1, nmo
-            IF (vnorm(imo) <= bdav_env%eps_iter) THEN
+            ! the relaxed threshold applies to the UNOCCUPIED manifold only
+            ! (cf. the empty_ethr of QE cegterg.f90): under smearing the MOS
+            ! above the HOMO can still carry weight and leak their residual
+            ! into the density, so the occupation decides, not the HOMO index
+            IF (occupation(imo) < occ_tol) THEN
+               eps_iter_col = eps_iter_empty
+            ELSE
+               eps_iter_col = eps_iter
+            END IF
+            IF (vnorm(imo) <= eps_iter_col) THEN
                nmo_converged = nmo_converged + 1
                iconv(nmo_converged) = imo
             ELSE

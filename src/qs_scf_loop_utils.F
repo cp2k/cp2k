@@ -2810,12 +2810,33 @@ CONTAINS
       CALL external_control(should_stop, "SCF", target_time=qs_env%target_time, &
                             start_time=qs_env%start_time)
       IF (scf_env%iter_delta < scf_control%eps_scf .AND. update_validated) THEN
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(/,T3,A,I5,A/)") &
-               "*** SCF run converged in ", scf_env%iter_count, " steps ***"
+         IF (scf_env%method == block_davidson_diag_method_nr .AND. &
+             scf_env%block_davidson_env(1)%eps_iter_used > scf_env%block_davidson_env(1)%eps_iter .AND. &
+             scf_env%iter_delta < scf_env%block_davidson_env(1)%eps_iter_used) THEN
+            ! the adaptive inner tolerance of the Davidson solve that produced
+            ! this mixing delta was looser than the delta itself: the apparent
+            ! convergence may be nothing but the noise floor of the loose
+            ! solve. Tighten the ratchet one decade below what that solve used
+            ! and keep iterating until the delta survives a tighter solve -
+            ! the counterpart of the dr2 < tr2_min check that suppresses
+            ! conv_elec in QE electrons.f90
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(T3,A,ES9.2,A)") &
+                  "*** SCF delta below the loose Davidson tolerance ", &
+                  scf_env%block_davidson_env(1)%eps_iter_used, " - tightening and continuing ***"
+            END IF
+            scf_env%block_davidson_env(1)%eps_iter_prev = &
+               MIN(scf_env%block_davidson_env(1)%eps_iter_prev, &
+                   MAX(scf_env%block_davidson_env(1)%eps_iter, &
+                       0.1_dp*scf_env%block_davidson_env(1)%eps_iter_used))
+         ELSE
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T3,A,I5,A/)") &
+                  "*** SCF run converged in ", scf_env%iter_count, " steps ***"
+            END IF
+            inner_loop_converged = .TRUE.
+            exit_inner_loop = .TRUE.
          END IF
-         inner_loop_converged = .TRUE.
-         exit_inner_loop = .TRUE.
       ELSE IF (should_stop .OR. scf_env%iter_count >= scf_control%max_scf) THEN
          inner_loop_converged = .FALSE.
          IF (just_energy) THEN

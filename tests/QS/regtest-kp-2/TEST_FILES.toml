@@ -12,6 +12,9 @@
 # blocked Davidson at symmetry-reduced complex K points with fractional occupations,
 # the Davidson counterpart of the STANDARD Al smearing family above
 "Al-kpoint-dav-smear.inp"               = [{matcher="E_total", tol=1e-9, ref=-8.159987079852488}]
+# same with the adaptive inner tolerance (EPS_ADAPT): loose early SCF steps,
+# unoccupied MOS converge five times looser
+"Al-kpoint-dav-smear-adapt.inp"         = [{matcher="E_total", tol=1e-9, ref=-8.159987079852488}]
 "H_sym.inp"                             = []
 "cc1.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-45.64761389790363}]
 "cc2.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-46.03625569798420}]

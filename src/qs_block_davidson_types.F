@@ -39,6 +39,10 @@ MODULE qs_block_davidson_types
       INTEGER :: max_iter = -1, prec_type = -1, solver_type = -1, niter_new_prec = -1, first_prec = -1
       LOGICAL :: use_sparse_mos = .FALSE.
       REAL(KIND=dp) :: conv_percent = -1.0_dp, energy_gap = -1.0_dp, eps_iter = -1.0_dp
+      ! adaptive-tolerance ratchet state: the inner threshold of the previous
+      ! SCF step, carried across steps so that it may only tighten, and the
+      ! threshold the latest solve actually used (zero: EPS_ADAPT inactive)
+      REAL(KIND=dp) :: eps_iter_prev = HUGE(1.0_dp), eps_iter_used = 0.0_dp
       TYPE(cp_fm_type), POINTER :: H_block_mat => NULL(), H_block_vec => NULL(), &
                                    matrix_z => NULL(), matrix_pz => NULL(), S_block_mat => NULL(), W_block_mat => NULL()
    END TYPE davidson_type
