@@ -17,4 +17,11 @@
                                              {matcher="NO_TEXT", text="K-point smearing includes the first band"},
                                              {matcher="NO_TEXT", text="K-point smearing includes the last band"},
                                              {matcher="NO_TEXT", text="MAX ITER EXCEEDED"}]
+"Al_fcc_gfn1_kp_ot_fermi_low_rank.inp"   = [{matcher="E_total", tol=1.0E-9, ref=-1.146917584283822},
+                                             {matcher="Electronic_entropic_energy", tol=1.0E-9, ref=-7.1232462562E-4},
+                                             {matcher="N_special_kpoints", tol=0.0, ref=2},
+                                             {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+                                             {matcher="NO_TEXT", text="K-point smearing includes the last band"},
+                                             {matcher="NO_TEXT", text="MAX ITER EXCEEDED"},
+                                             {matcher="NO_TEXT", text="Unsupported complex K-point OT preconditioner"}]
 #EOF
