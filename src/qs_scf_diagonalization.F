@@ -3372,9 +3372,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'do_block_davidson_diag_kp'
 
-      INTEGER                                            :: channel, handle, ikp, ispin, iwork, &
-                                                            kplocal, local_kpoint, nchannels, &
-                                                            nspin, output_unit
+      INTEGER                                            :: channel, first_prec, handle, ikp, ispin, &
+                                                            iwork, kplocal, local_kpoint, &
+                                                            nchannels, nspin, output_unit
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_prec, use_real_wfn
@@ -3422,13 +3422,18 @@ CONTAINS
          scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Dav."
       END IF
 
-      ! preconditioner scheduling, mirrors do_block_davidson_diag
+      ! preconditioner scheduling, mirrors do_block_davidson_diag, except that
+      ! the first K-point SCF step is the cold start (the MOS are only
+      ! allocated then): the FULL_ALL maker consumes the MO coefficients and
+      ! eigenvalues, so building earlier would feed it uninitialized data and
+      ! stall the Davidson convergence. Clamp first_prec past the cold start.
+      first_prec = MAX(scf_env%block_davidson_env(1)%first_prec, 2)
       do_prec = .FALSE.
       IF (scf_env%block_davidson_env(1)%prec_type /= ot_precond_none .AND. &
-          scf_env%iter_count >= scf_env%block_davidson_env(1)%first_prec) THEN
+          scf_env%iter_count >= first_prec) THEN
          do_prec = .TRUE.
       END IF
-      IF (do_prec .AND. (scf_env%iter_count == scf_env%block_davidson_env(1)%first_prec .OR. &
+      IF (do_prec .AND. (scf_env%iter_count == first_prec .OR. &
                          MODULO(scf_env%iter_count, &
                                 scf_env%block_davidson_env(1)%niter_new_prec) == 0)) THEN
          CALL davidson_kp_prepare_preconditioners(qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints)

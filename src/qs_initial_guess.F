@@ -256,8 +256,8 @@ CONTAINS
 
       need_mos = scf_control%use_ot .OR. scf_env%method == ot_diag_method_nr .OR. &
                  (scf_env%method == block_krylov_diag_method_nr .AND. .NOT. do_std_diag) &
-                 .OR. dft_control%do_admm .OR. scf_env%method == block_davidson_diag_method_nr &
-                 .OR. do_hfx_ri_mo
+                 .OR. dft_control%do_admm .OR. do_hfx_ri_mo .OR. &
+                 (scf_env%method == block_davidson_diag_method_nr .AND. .NOT. do_kpoints)
 
       safe_density_guess = atomic_guess
       IF (dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
