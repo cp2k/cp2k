@@ -94,8 +94,8 @@ CONTAINS
                                                             nelectron, unit_nr
       LOGICAL                                            :: accepted, converged, do_kpoints, &
                                                             have_previous
-      REAL(KIND=dp) :: alpha, direction_derivative, direction_norm2, matrix_trace, objective, &
-         objective_trial, rms, rms_trial, ss, step_length, sy
+      REAL(KIND=dp) :: alpha, direction_derivative, direction_norm2, fitted_grid_trace, &
+         matrix_trace, objective, objective_trial, rms, rms_trial, ss, step_length, sy
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -285,6 +285,9 @@ CONTAINS
       END DO
 
       CALL dbcsr_dot(rho_ao(1)%matrix, matrix_s(1)%matrix, matrix_trace)
+      ! pw_integrate_function performs an MPI reduction and therefore has to be
+      ! called collectively, not only by the rank that owns the output unit.
+      fitted_grid_trace = pw_integrate_function(rho_r(1), isign=1)
       IF (unit_nr > 0) THEN
          IF (rms <= eps_rms) THEN
             WRITE (unit_nr, "(T3,A,I0,A)") "HARRIS| Density fit reached its RMS target after ", iteration, " iterations"
@@ -293,8 +296,7 @@ CONTAINS
          END IF
          WRITE (unit_nr, "(T3,A,ES16.8)") "HARRIS| Final density RMS error: ", rms
          WRITE (unit_nr, "(T3,A,F20.10)") "HARRIS| AO density-matrix electron count: ", matrix_trace
-         WRITE (unit_nr, "(T3,A,F20.10)") "HARRIS| Fitted grid electron count: ", &
-            pw_integrate_function(rho_r(1), isign=1)
+         WRITE (unit_nr, "(T3,A,F20.10)") "HARRIS| Fitted grid electron count: ", fitted_grid_trace
       END IF
 
       DEALLOCATE (eigenvalues)
