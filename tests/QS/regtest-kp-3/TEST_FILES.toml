@@ -18,6 +18,13 @@
 "cc8.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.389916356641265},
                                            {matcher="gext", tol=5.0E-08, ref=0.7099959941}]
 "cc9.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.270016601865670}]
+# blocked Davidson at complex K points, same oracle energy as the OT family below
+"he_dav.inp"                            = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"he_dav_full_all.inp"                   = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"he_dav_s_inverse.inp"                  = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_ot_fixed.inp"                       = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_ot_fixed_s_inverse.inp"             = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
@@ -37,6 +44,8 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "he_ot_fixed_full_all_rotation.inp"     = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"li_dav_uks.inp"                        = [{matcher="E_total", tol=1e-9, ref=-7.304793043105472},
+                                           {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "li_ot_fixed_uks.inp"                   = [{matcher="E_total", tol=1e-9, ref=-7.304793045179261},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "li_ot_fixed_uks_diis.inp"              = [{matcher="E_total", tol=1e-9, ref=-7.304793043105472},
