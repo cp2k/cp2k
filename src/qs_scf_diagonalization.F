@@ -3442,11 +3442,13 @@ CONTAINS
          scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Dav."
       END IF
 
-      ! preconditioner scheduling, mirrors do_block_davidson_diag, except that
-      ! the first K-point SCF step is the cold start (the MOS are only
-      ! allocated then): the FULL_ALL maker consumes the MO coefficients and
-      ! eigenvalues, so building earlier would feed it uninitialized data and
-      ! stall the Davidson convergence. Clamp first_prec past the cold start.
+      ! preconditioner scheduling, mirrors do_block_davidson_diag. The first
+      ! K-point SCF step cold-starts unless extrapolation prefilled the MOS
+      ! (mos_prefilled): the FULL_ALL maker consumes the MO coefficients and
+      ! eigenvalues, so building before the first solve completed would feed it
+      ! uninitialized data and stall the Davidson convergence. Keep first_prec
+      ! clamped past that step in both cases; warming it up under prefilled MOS
+      ! would mix two variables at once.
       first_prec = MAX(scf_env%block_davidson_env(1)%first_prec, 2)
       do_prec = .FALSE.
       IF (scf_env%block_davidson_env(1)%prec_type /= ot_precond_none .AND. &
@@ -3545,13 +3547,16 @@ CONTAINS
          local_kpoint = ikp - kp_range(1) + 1
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
 
-         IF (scf_env%iter_count == 1) THEN
+         IF (scf_env%iter_count == 1 .AND. .NOT. kp%mos_prefilled) THEN
             ! cold start: K-point MOS enter the SCF loop only allocated, never
             ! initialized (the Gamma guess machinery does not fill them). Davidson
             ! needs them as trial subspace, so the first SCF step initializes each
             ! channel by one direct diagonalization (the Krylov eps_std_diag
             ! precedent). cp_cfm_geeig overwrites its matrix arguments, hence the
             ! Davidson call is skipped on this step and S(k) is reassembled per spin.
+            ! Wavefunction extrapolation (mos_prefilled) has already refilled the
+            ! MOS with S(k)-orthonormal coefficients of the current geometry, so
+            ! the Davidson update below consumes them directly as trial subspace.
             DO ispin = 1, nspin
                CALL assemble_cksmat(matrix_ks_kp, ispin, ikp, xkp, cell_to_index, sab_nl, &
                                     rmatrix, cmatrix, tmpmat, fmwork, fmlocal, para_env, &
