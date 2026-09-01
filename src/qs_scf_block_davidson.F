@@ -512,7 +512,8 @@ CONTAINS
          nmat2, nmo, nmo_converged, nmo_not_converged, nset, nset_conv, nset_not_conv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iconv, inotconv
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: iconv_set, inotconv_set
-      LOGICAL                                            :: converged, do_apply_preconditioner
+      LOGICAL                                            :: converged, do_apply_preconditioner, &
+                                                            exhausted
       REAL(KIND=dp)                                      :: lambda, max_norm, min_norm, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ritz_coeff, vnorm, vnorm_pz
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eig_not_conv, eigenvalues, evals
@@ -555,6 +556,7 @@ CONTAINS
       CALL cp_cfm_scale_and_add_fm(z_one, cmo, gaussi, mo_coeff_i)
 
       converged = .FALSE.
+      exhausted = .FALSE.
       DO iter = 1, max_iter
 
          ! compute Ritz values
@@ -769,7 +771,22 @@ CONTAINS
          ALLOCATE (vnorm_pz(ncol_z))
          CALL cp_cfm_vectorsnorm(c_mz, vnorm_pz)
          IF (ANY(vnorm_pz < 1.0E-12_dp)) THEN
-            CPABORT('Davidson Kp: preconditioned residual is zero')
+            ! numerically zero preconditioned correction: nothing to add for
+            ! this round (same symmetry mechanism as the projection below)
+            exhausted = .TRUE.
+            DEALLOCATE (vnorm_pz)
+            IF (ALLOCATED(iconv_set)) DEALLOCATE (iconv_set)
+            IF (ALLOCATED(inotconv_set)) DEALLOCATE (inotconv_set)
+            IF (nmo_converged > 0) THEN
+               CALL cp_cfm_release(h_fm)
+               CALL cp_cfm_release(c_out)
+            END IF
+            CALL cp_cfm_release(m_hc)
+            CALL cp_cfm_release(m_sc)
+            CALL cp_cfm_release(c_z)
+            CALL cp_cfm_release(c_mz)
+            CALL cp_cfm_release(c_notconv)
+            EXIT
          END IF
          scaling = CMPLX(1.0_dp/vnorm_pz, 0.0_dp, KIND=dp)
          CALL cp_cfm_column_scale(c_mz, scaling)
@@ -789,7 +806,23 @@ CONTAINS
          ALLOCATE (vnorm_pz(ncol_z))
          CALL cp_cfm_vectorsnorm(c_mz, vnorm_pz)
          IF (ANY(vnorm_pz < 1.0E-12_dp)) THEN
-            CPABORT('Davidson Kp: correction lies in the MOS span')
+            ! the correction lies inside the MOS span (happens by symmetry, e.g.
+            ! when the density keeps the little-group symmetry of a kpoint): the
+            ! subspace expansion is exhausted for this round
+            exhausted = .TRUE.
+            DEALLOCATE (vnorm_pz)
+            IF (ALLOCATED(iconv_set)) DEALLOCATE (iconv_set)
+            IF (ALLOCATED(inotconv_set)) DEALLOCATE (inotconv_set)
+            IF (nmo_converged > 0) THEN
+               CALL cp_cfm_release(h_fm)
+               CALL cp_cfm_release(c_out)
+            END IF
+            CALL cp_cfm_release(m_hc)
+            CALL cp_cfm_release(m_sc)
+            CALL cp_cfm_release(c_z)
+            CALL cp_cfm_release(c_mz)
+            CALL cp_cfm_release(c_notconv)
+            EXIT
          END IF
          scaling = CMPLX(1.0_dp/vnorm_pz, 0.0_dp, KIND=dp)
          CALL cp_cfm_column_scale(c_mz, scaling)
@@ -911,6 +944,21 @@ CONTAINS
          t1 = m_walltime()
 
       END DO ! iter
+
+      IF (exhausted) THEN
+         ! the subspace expansion was exhausted (symmetry-invariant MOS span);
+         ! finish this channel by a direct diagonalization of the intact
+         ! operator, so that at least the rotation inside the MOS span is exact
+         CALL cp_cfm_create(h_fm, matrix_h%matrix_struct, name="fb_h")
+         CALL cp_cfm_create(c_out, matrix_h%matrix_struct, name="fb_s")
+         CALL cp_cfm_create(c_new, matrix_h%matrix_struct, name="fb_work")
+         CALL cp_cfm_to_cfm(matrix_h, h_fm)
+         CALL cp_cfm_to_cfm(matrix_s, c_out)
+         CALL cp_cfm_geeig(h_fm, c_out, cmo, eigenvalues, c_new)
+         CALL cp_cfm_release(h_fm)
+         CALL cp_cfm_release(c_out)
+         CALL cp_cfm_release(c_new)
+      END IF
 
       ! split the complex MOS back into the real/imaginary pair of this K point
       CALL cp_cfm_to_fm(cmo, mo_coeff_r, mo_coeff_i)
