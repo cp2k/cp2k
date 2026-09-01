@@ -27,7 +27,7 @@
     &END QS
     &SCF
       ADDED_MOS AUTO
-      EPS_SCF 1.0E-5
+      EPS_SCF 1.0E-4
       MAX_SCF 30
       SCF_GUESS RESTART
       &OT

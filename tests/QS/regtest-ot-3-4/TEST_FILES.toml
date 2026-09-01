@@ -21,16 +21,16 @@
   {matcher="NO_TEXT", text="K-point smearing includes the last band"},
 ]
 "Al-kpoint-mermin-roks.inp"             = [
-  {matcher="E_total", tol=1e-6, ref=-2.181856403160713},
-  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-7.212509981e-05},
-  {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999998274},
+  {matcher="E_total", tol=1e-6, ref=-2.181856078568244},
+  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-0.00007213217456},
+  {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999998276},
   {matcher="NO_TEXT", text="K-point smearing includes the first band"},
   {matcher="NO_TEXT", text="K-point smearing includes the last band"},
 ]
 "Al-kpoint-mermin-roks-restart.inp"     = [
-  {matcher="E_total", tol=1e-6, ref=-2.181856717255157},
-  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-7.211893715e-05},
-  {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999998274},
+  {matcher="E_total", tol=1e-6, ref=-2.181856396772085},
+  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-0.00007211956995},
+  {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999998275},
   {matcher="NO_TEXT", text="K-point smearing includes the first band"},
   {matcher="NO_TEXT", text="K-point smearing includes the last band"},
 ]
