@@ -1107,16 +1107,19 @@ CONTAINS
 !> \param matrix_s_im imaginary part of S(k)
 !> \param energy_gap denominator floor
 !> \param solver_type inverse application selected in the OT input
+!> \param occupation_signature occupations that define the admissible private gauge
 ! **************************************************************************************************
    SUBROUTINE make_preconditioner_complex_full_all_covariant( &
       preconditioner_env, matrix_c_re, matrix_c_im, matrix_h_re, matrix_h_im, &
-      matrix_s_re, matrix_s_im, energy_gap, solver_type)
+      matrix_s_re, matrix_s_im, energy_gap, solver_type, occupation_signature)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(dbcsr_type), POINTER                          :: matrix_c_re, matrix_c_im, matrix_h_re, &
                                                             matrix_h_im, matrix_s_re, matrix_s_im
       REAL(KIND=dp), INTENT(IN)                          :: energy_gap
       INTEGER, INTENT(IN)                                :: solver_type
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: occupation_signature
 
       TYPE(cp_cfm_type)                                  :: matrix_c, matrix_h, matrix_s
 
@@ -1130,7 +1133,7 @@ CONTAINS
       CALL dbcsr_pair_to_cfm(matrix_s_re, matrix_s_im, preconditioner_env, &
                              'complex FULL_ALL_COVARIANT S', matrix_s)
       CALL make_complex_full_all_covariant(preconditioner_env, matrix_c, matrix_h, matrix_s, &
-                                           energy_gap)
+                                           energy_gap, occupation_signature)
 
       CALL cp_cfm_release(matrix_s)
       CALL cp_cfm_release(matrix_h)

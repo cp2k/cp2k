@@ -133,6 +133,7 @@ PROGRAM qs_ot_complex_ref_unittest
    CALL test_complex_ref_rotation(para_env, nfail)
    CALL test_split_complex_fm_gemm(para_env, io_unit, nfail)
    CALL test_complex_preconditioner_gauge(para_env, nfail)
+   CALL test_complex_occupation_block_preconditioner(para_env, nfail)
    CALL test_kpoint_ot_energy_weighted_density(para_env, io_unit, nfail)
 
    x(:, 1) = [CMPLX(1.10_dp, 0.10_dp, KIND=dp), CMPLX(0.20_dp, -0.30_dp, KIND=dp), &
@@ -2576,6 +2577,163 @@ CONTAINS
       CALL cp_blacs_env_release(blacs_env)
 
    END SUBROUTINE test_complex_preconditioner_gauge
+
+! **************************************************************************************************
+!> \brief Check complex covariant preconditioning within equal-occupation ROKS blocks.
+!> \param para_env parallel environment
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_complex_occupation_block_preconditioner(para_env, nfail)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: nbas = 4, norb = 3
+
+      COMPLEX(KIND=dp)                                   :: value
+      COMPLEX(KIND=dp), DIMENSION(nbas, nbas)            :: hamiltonian, overlap
+      COMPLEX(KIND=dp), DIMENSION(nbas, norb)            :: coeff, coeff_rot, gradient, &
+                                                            gradient_rot, output, output_rot
+      COMPLEX(KIND=dp), DIMENSION(norb, norb)            :: block_rotation, private_rotation
+      INTEGER                                            :: i, j
+      REAL(KIND=dp)                                      :: covariance_error, cross_block_error, &
+                                                            descent, shifted_eigenvalue_error
+      REAL(KIND=dp), DIMENSION(norb, 2)                  :: occupation_signature
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_cfm_type) :: matrix_c, matrix_c_rot, matrix_gradient, matrix_gradient_rot, matrix_h, &
+         matrix_output, matrix_output_rot, matrix_s
+      TYPE(cp_fm_struct_type), POINTER                   :: fmstruct_nk, fmstruct_nn
+      TYPE(preconditioner_type)                          :: preconditioner, preconditioner_rot
+
+      NULLIFY (blacs_env, fmstruct_nk, fmstruct_nn)
+      CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
+      CALL cp_fm_struct_create(fmstruct=fmstruct_nn, para_env=para_env, context=blacs_env, &
+                               nrow_global=nbas, ncol_global=nbas)
+      CALL cp_fm_struct_create(fmstruct=fmstruct_nk, para_env=para_env, context=blacs_env, &
+                               nrow_global=nbas, ncol_global=norb)
+      CALL cp_cfm_create(matrix_h, fmstruct_nn, name='occupation-block H')
+      CALL cp_cfm_create(matrix_s, fmstruct_nn, name='occupation-block S')
+      CALL cp_cfm_create(matrix_c, fmstruct_nk, name='occupation-block C')
+      CALL cp_cfm_create(matrix_c_rot, fmstruct_nk, name='occupation-block C U')
+      CALL cp_cfm_create(matrix_gradient, fmstruct_nk, name='occupation-block gradient')
+      CALL cp_cfm_create(matrix_gradient_rot, fmstruct_nk, &
+                         name='occupation-block rotated gradient')
+      CALL cp_cfm_create(matrix_output, fmstruct_nk, name='occupation-block output')
+      CALL cp_cfm_create(matrix_output_rot, fmstruct_nk, name='occupation-block rotated output')
+
+      hamiltonian(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      hamiltonian(1, 1) = CMPLX(-0.42_dp, 0.0_dp, KIND=dp)
+      hamiltonian(2, 2) = CMPLX(-0.18_dp, 0.0_dp, KIND=dp)
+      hamiltonian(3, 3) = CMPLX(0.07_dp, 0.0_dp, KIND=dp)
+      hamiltonian(4, 4) = CMPLX(0.83_dp, 0.0_dp, KIND=dp)
+      hamiltonian(1, 2) = CMPLX(0.09_dp, 0.04_dp, KIND=dp)
+      hamiltonian(2, 1) = CONJG(hamiltonian(1, 2))
+      hamiltonian(1, 3) = CMPLX(-0.06_dp, 0.03_dp, KIND=dp)
+      hamiltonian(3, 1) = CONJG(hamiltonian(1, 3))
+      hamiltonian(2, 3) = CMPLX(0.05_dp, -0.02_dp, KIND=dp)
+      hamiltonian(3, 2) = CONJG(hamiltonian(2, 3))
+      hamiltonian(1, 4) = CMPLX(0.04_dp, -0.03_dp, KIND=dp)
+      hamiltonian(4, 1) = CONJG(hamiltonian(1, 4))
+      hamiltonian(2, 4) = CMPLX(-0.02_dp, 0.05_dp, KIND=dp)
+      hamiltonian(4, 2) = CONJG(hamiltonian(2, 4))
+      hamiltonian(3, 4) = CMPLX(0.07_dp, 0.01_dp, KIND=dp)
+      hamiltonian(4, 3) = CONJG(hamiltonian(3, 4))
+      overlap(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      DO i = 1, nbas
+         overlap(i, i) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+      END DO
+      coeff(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      DO i = 1, norb
+         coeff(i, i) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+      END DO
+      block_rotation(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      block_rotation(1, 1) = CMPLX(SQRT(0.7_dp), 0.0_dp, KIND=dp)
+      block_rotation(1, 3) = CMPLX(0.0_dp, SQRT(0.3_dp), KIND=dp)
+      block_rotation(2, 2) = EXP(CMPLX(0.0_dp, 0.37_dp, KIND=dp))
+      block_rotation(3, 1) = CMPLX(0.0_dp, SQRT(0.3_dp), KIND=dp)
+      block_rotation(3, 3) = CMPLX(SQRT(0.7_dp), 0.0_dp, KIND=dp)
+      coeff_rot = MATMUL(coeff, block_rotation)
+      gradient(:, 1) = [CMPLX(0.12_dp, 0.03_dp, KIND=dp), &
+                        CMPLX(-0.04_dp, 0.07_dp, KIND=dp), &
+                        CMPLX(0.08_dp, -0.02_dp, KIND=dp), &
+                        CMPLX(-0.05_dp, 0.06_dp, KIND=dp)]
+      gradient(:, 2) = [CMPLX(-0.06_dp, 0.02_dp, KIND=dp), &
+                        CMPLX(0.11_dp, -0.05_dp, KIND=dp), &
+                        CMPLX(0.03_dp, 0.09_dp, KIND=dp), &
+                        CMPLX(0.07_dp, -0.01_dp, KIND=dp)]
+      gradient(:, 3) = [CMPLX(0.04_dp, -0.08_dp, KIND=dp), &
+                        CMPLX(-0.02_dp, 0.05_dp, KIND=dp), &
+                        CMPLX(0.10_dp, 0.01_dp, KIND=dp), &
+                        CMPLX(-0.03_dp, -0.06_dp, KIND=dp)]
+      gradient_rot = MATMUL(gradient, block_rotation)
+      occupation_signature(:, 1) = [1.0_dp, 1.0_dp, 1.0_dp]
+      occupation_signature(:, 2) = [1.0_dp, 0.0_dp, 1.0_dp]
+
+      DO j = 1, nbas
+         DO i = 1, nbas
+            CALL cp_cfm_set_element(matrix_h, i, j, hamiltonian(i, j))
+            CALL cp_cfm_set_element(matrix_s, i, j, overlap(i, j))
+         END DO
+      END DO
+      DO j = 1, norb
+         DO i = 1, nbas
+            CALL cp_cfm_set_element(matrix_c, i, j, coeff(i, j))
+            CALL cp_cfm_set_element(matrix_c_rot, i, j, coeff_rot(i, j))
+            CALL cp_cfm_set_element(matrix_gradient, i, j, gradient(i, j))
+            CALL cp_cfm_set_element(matrix_gradient_rot, i, j, gradient_rot(i, j))
+         END DO
+      END DO
+
+      CALL init_preconditioner(preconditioner, para_env, blacs_env)
+      CALL init_preconditioner(preconditioner_rot, para_env, blacs_env)
+      CALL make_complex_full_all_covariant(preconditioner, matrix_c, matrix_h, matrix_s, &
+                                           0.08_dp, occupation_signature)
+      CALL make_complex_full_all_covariant(preconditioner_rot, matrix_c_rot, matrix_h, matrix_s, &
+                                           0.08_dp, occupation_signature)
+      CALL apply_preconditioner(preconditioner, matrix_gradient, matrix_output)
+      CALL apply_preconditioner(preconditioner_rot, matrix_gradient_rot, matrix_output_rot)
+      DO j = 1, norb
+         DO i = 1, nbas
+            CALL cp_cfm_get_element(matrix_output, i, j, value)
+            output(i, j) = value
+            CALL cp_cfm_get_element(matrix_output_rot, i, j, value)
+            output_rot(i, j) = value
+         END DO
+      END DO
+      DO j = 1, norb
+         DO i = 1, norb
+            CALL cp_cfm_get_element(preconditioner%occ_rotation_complex, i, j, value)
+            private_rotation(i, j) = value
+         END DO
+      END DO
+
+      covariance_error = MAXVAL(ABS(output_rot - MATMUL(output, block_rotation)))
+      cross_block_error = MAX(MAXVAL(ABS(private_rotation([1, 3], 3))), &
+                              MAXVAL(ABS(private_rotation(2, 1:2))))
+      shifted_eigenvalue_error = MAXVAL(ABS(preconditioner%occ_evals))
+      descent = REAL(SUM(CONJG(gradient)*output), KIND=dp)
+      IF (covariance_error > 1.0E-11_dp .OR. cross_block_error > 1.0E-12_dp .OR. &
+          shifted_eigenvalue_error > 1.0_dp .OR. descent <= 0.0_dp) nfail = nfail + 1
+      IF (para_env%is_source()) THEN
+         WRITE (io_unit, '(A,4(1X,ES13.6))') &
+            'complex occupation-block covariance/cross-block/max-eigenvalue/descent', &
+            covariance_error, cross_block_error, shifted_eigenvalue_error, descent
+      END IF
+
+      CALL destroy_preconditioner(preconditioner_rot)
+      CALL destroy_preconditioner(preconditioner)
+      CALL cp_cfm_release(matrix_output_rot)
+      CALL cp_cfm_release(matrix_output)
+      CALL cp_cfm_release(matrix_gradient_rot)
+      CALL cp_cfm_release(matrix_gradient)
+      CALL cp_cfm_release(matrix_c_rot)
+      CALL cp_cfm_release(matrix_c)
+      CALL cp_cfm_release(matrix_s)
+      CALL cp_cfm_release(matrix_h)
+      CALL cp_fm_struct_release(fmstruct_nk)
+      CALL cp_fm_struct_release(fmstruct_nn)
+      CALL cp_blacs_env_release(blacs_env)
+
+   END SUBROUTINE test_complex_occupation_block_preconditioner
 
 ! **************************************************************************************************
 !> \brief Check the intentionally narrow complex k-point preconditioner support matrix.
