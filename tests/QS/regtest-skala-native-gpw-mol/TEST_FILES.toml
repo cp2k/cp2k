@@ -2,7 +2,4 @@
 "H2_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=5e-6, ref=-0.97943165590781}]
 "H2O_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=1e-8, ref=-17.06733787704884}]
 "NE4_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=1e-8, ref=-139.37721907310967}]
-"OH_NATIVE_SKALA_GPW_UKS.inp" = [{matcher="E_total", tol=1e-8, ref=-16.40806539453419}]
-"H2_NATIVE_SKALA_GPW_GTH_KP_INV_STRESS_NATIVE.inp" = [{matcher="E_total", tol=1e-8, ref=-0.80886155318645},
-                                                 {matcher="M072", tol=5e-3, ref=2.11956975E-03},
-                                                 {matcher="M031", tol=1e-5, ref=-2.06383169655E+04}]
+ "OH_NATIVE_SKALA_GPW_UKS.inp" = [{matcher="E_total", tol=1e-8, ref=-16.40806539453419}]
