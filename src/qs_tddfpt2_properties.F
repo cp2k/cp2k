@@ -99,9 +99,9 @@ MODULE qs_tddfpt2_properties
                                               init_mo_set,&
                                               mo_set_type,&
                                               set_mo_set
-   USE qs_moments,                      ONLY: build_berry_moment_matrix
+   USE qs_moments,                      ONLY: build_berry_moment_matrix,&
+                                              build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_operators_ao,                 ONLY: rRc_xyz_ao
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
@@ -383,8 +383,8 @@ CONTAINS
                                   reference=tddfpt_control%dipole_reference, &
                                   ref_point=tddfpt_control%dipole_ref_point)
 
-         CALL rRc_xyz_ao(op=rRc_xyz, qs_env=qs_env, rc=reference_point, order=1, &
-                         minimum_image=.FALSE., soft=.FALSE.)
+         CALL build_local_moment_matrix(qs_env, rRc_xyz, 1, ref_point=reference_point, &
+                                        all_images=.TRUE.)
 
          DO ispin = 1, nspins
 

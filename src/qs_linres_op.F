@@ -87,8 +87,7 @@ MODULE qs_linres_op
                                               build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_operators_ao,                 ONLY: build_ang_mom_matrix,&
-                                              build_lin_mom_matrix,&
-                                              rRc_xyz_ao
+                                              build_lin_mom_matrix
    USE qs_spin_orbit,                   ONLY: build_pso_matrix
 #include "./base/base_uses.f90"
 
@@ -588,7 +587,8 @@ CONTAINS
          CALL dbcsr_set(matrix_dso(1)%matrix, 0.0_dp)
          CALL dbcsr_set(matrix_dso(2)%matrix, 0.0_dp)
          CALL dbcsr_set(matrix_dso(3)%matrix, 0.0_dp)
-         CALL rRc_xyz_ao(matrix_dso, qs_env, [0.0_dp, 0.0_dp, 0.0_dp], 1)
+         CALL build_local_moment_matrix(qs_env, matrix_dso, 1, &
+                                        ref_point=[0.0_dp, 0.0_dp, 0.0_dp], all_images=.TRUE.)
       END IF
       !
       ! multiply by the mos
