@@ -244,7 +244,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ADDED_MOS", &
                           description="Number of additional molecular orbitals added for each spin channel. "// &
                           "This is commonly needed for smearing, excited-state, or post-Hartree-Fock calculations. "// &
-                          "Use -1 to add all available orbitals. For K-point smearing, use AUTO "// &
+                          "Use -1 to add all available orbitals. For k-point smearing, use AUTO "// &
                           "to select and adapt the virtual-space buffer.", &
                           usage="ADDED_MOS {integer|AUTO}", default_c_val="0", n_var=-1)
       CALL section_add_keyword(section, keyword)
@@ -1117,7 +1117,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_ADAPT", &
-                          description="Required accuracy in iterative diagonalization as compared to current SCF convergence", &
+                          description="Tolerance of the iterative diagonalization relative to the current SCF convergence. "// &
+                          "A positive value makes the inner tolerance the looser of EPS_ITER and this factor "// &
+                          "times the SCF error: loose while the density is far from self-consistency, "// &
+                          "tightening as the SCF converges. The value 0 disables the tracking.", &
                           usage="EPS_ADAPT 0.01", &
                           default_r_val=0._dp)
       CALL section_add_keyword(section, keyword)
@@ -1176,7 +1179,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="DAVIDSON", &
                           description="Settings of the blocked Davidson iterative diagonalization. "// &
-                          "Also available at symmetry-reduced complex K points.", &
+                          "Also available at symmetry-reduced complex k points.", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE., &
                           citations=[Blaha2010, KresseFurthmueller1996])
 
@@ -1185,9 +1188,8 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="PRECONDITIONER", &
          description="Type of preconditioner to be used with all minimization schemes. "// &
-         "With K points, FULL_ALL, FULL_S_INVERSE and FULL_KINETIC use the "// &
-         "complex K-point preconditioners. FULL_SINGLE_INVERSE is not yet "// &
-         "available with K points.", &
+         "With k points, all preconditioners except NONE use the complex "// &
+         "k-point preconditioners.", &
          usage="PRECONDITIONER FULL_ALL", &
          default_i_val=ot_precond_full_all, &
          enum_c_vals=s2a("FULL_ALL", "FULL_SINGLE_INVERSE", "FULL_KINETIC", "FULL_S_INVERSE", "NONE"), &
@@ -1237,7 +1239,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="FIRST_PREC", &
                           description="First SCF iteration at which a Preconditioner is employed. "// &
-                          "With K points, the first build waits until after the cold start.", &
+                          "With k points the first build waits until after the cold start, whatever lower value is set. "// &
+                          "The preconditioner makers read the MO coefficients, and only the cold start fills them.", &
                           usage="FIRST_PREC 1", default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1261,7 +1264,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="SPARSE_MOS", &
                        description="Use MOS as sparse matrix and avoid as much as possible multiplications with full matrices. "// &
-                          "Not used with K points.", &
+                          "Not used with k points.", &
                           usage="SPARSE_MOS", default_l_val=.TRUE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
