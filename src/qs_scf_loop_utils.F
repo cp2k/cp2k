@@ -2960,19 +2960,15 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cleanup_scf_loop'
 
       INTEGER                                            :: handle, ispin
-      LOGICAL                                            :: keep_kpoint_ot_for_restart
 
       CALL timeset(routineN, handle)
 
       SELECT CASE (scf_env%method)
       CASE (ot_method_nr)
-         keep_kpoint_ot_for_restart = ANY(scf_env%qs_ot_env(:)%kpoint_index > 0)
-         IF (.NOT. keep_kpoint_ot_for_restart) THEN
-            DO ispin = 1, SIZE(scf_env%qs_ot_env)
-               CALL ot_scf_destroy(scf_env%qs_ot_env(ispin))
-            END DO
-            DEALLOCATE (scf_env%qs_ot_env)
-         END IF
+         DO ispin = 1, SIZE(scf_env%qs_ot_env)
+            CALL ot_scf_destroy(scf_env%qs_ot_env(ispin))
+         END DO
+         DEALLOCATE (scf_env%qs_ot_env)
       CASE (ot_diag_method_nr)
          !
       CASE (general_diag_method_nr)

@@ -67,12 +67,6 @@ MODULE qs_ot_types
    PUBLIC  :: qs_ot_kpoint_preconditioner_scale
    PUBLIC  :: qs_ot_kpoint_preconditioner_supported
    PUBLIC  :: qs_ot_number_of_channels
-   PUBLIC  :: qs_ot_restart_signature_nchar
-   PUBLIC  :: qs_ot_restart_signature_nint
-   PUBLIC  :: qs_ot_restart_signature_nlog
-   PUBLIC  :: qs_ot_restart_signature_nreal
-   PUBLIC  :: qs_ot_settings_restart_compatible
-   PUBLIC  :: qs_ot_settings_restart_signature
    PUBLIC  :: qs_ot_settings_init
    PUBLIC  :: qs_ot_set_context
    PUBLIC  :: ot_readwrite_input
@@ -292,99 +286,8 @@ MODULE qs_ot_types
    END TYPE qs_ot_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_types'
-   INTEGER, PARAMETER :: qs_ot_restart_signature_nchar = 4, &
-                         qs_ot_restart_signature_nint = 8, &
-                         qs_ot_restart_signature_nlog = 10, &
-                         qs_ot_restart_signature_nreal = 17
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief pack settings that define the meaning of serialized OT minimizer history
-!> \param settings ...
-!> \param char_signature ...
-!> \param int_signature ...
-!> \param log_signature ...
-!> \param real_signature ...
-! **************************************************************************************************
-   PURE SUBROUTINE qs_ot_settings_restart_signature(settings, char_signature, int_signature, &
-                                                    log_signature, real_signature)
-      TYPE(qs_ot_settings_type), INTENT(IN)              :: settings
-      CHARACTER(LEN=20), &
-         DIMENSION(qs_ot_restart_signature_nchar), &
-         INTENT(OUT)                                     :: char_signature
-      INTEGER, DIMENSION(qs_ot_restart_signature_nint), &
-         INTENT(OUT)                                     :: int_signature
-      LOGICAL, DIMENSION(qs_ot_restart_signature_nlog), &
-         INTENT(OUT)                                     :: log_signature
-      REAL(KIND=dp), &
-         DIMENSION(qs_ot_restart_signature_nreal), &
-         INTENT(OUT)                                     :: real_signature
-
-      char_signature = [CHARACTER(LEN=20) :: settings%ot_method, settings%ot_algorithm, &
-                        settings%line_search_method, settings%ortho_irac]
-      int_signature = [settings%preconditioner_type, settings%cholesky_type, &
-                       settings%precond_solver_type, settings%diis_m, &
-                       settings%chebyshev_degree, settings%max_taylor, &
-                       settings%irac_degree, settings%max_irac]
-      log_signature = [settings%do_rotation, settings%do_ener, &
-                       settings%occupation_preconditioner, settings%add_nondiag_energy, &
-                       settings%safer_diis, settings%lbfgs_damping, &
-                       settings%on_the_fly_loc, settings%broyden_forget_history, &
-                       settings%broyden_adaptive_sigma, settings%broyden_enable_flip]
-      real_signature = [settings%ds_min, settings%energy_gap, settings%lbfgs_curvature_tol, &
-                        settings%gold_target, settings%eps_taylor, settings%eps_irac, &
-                        settings%eps_irac_quick_exit, settings%eps_irac_filter_matrix, &
-                        settings%eps_irac_switch, settings%nondiag_energy_strength, &
-                        settings%broyden_beta, settings%broyden_gamma, settings%broyden_sigma, &
-                        settings%broyden_eta, settings%broyden_omega, &
-                        settings%broyden_sigma_decrease, settings%broyden_sigma_min]
-
-   END SUBROUTINE qs_ot_settings_restart_signature
-
-! **************************************************************************************************
-!> \brief test whether serialized history uses the same OT coordinate model
-!> \param settings ...
-!> \param restart_char ...
-!> \param restart_int ...
-!> \param restart_log ...
-!> \param restart_real ...
-!> \return ...
-! **************************************************************************************************
-   PURE FUNCTION qs_ot_settings_restart_compatible(settings, restart_char, restart_int, &
-                                                   restart_log, restart_real) RESULT(compatible)
-      TYPE(qs_ot_settings_type), INTENT(IN)              :: settings
-      CHARACTER(LEN=20), &
-         DIMENSION(qs_ot_restart_signature_nchar), &
-         INTENT(IN)                                      :: restart_char
-      INTEGER, DIMENSION(qs_ot_restart_signature_nint), &
-         INTENT(IN)                                      :: restart_int
-      LOGICAL, DIMENSION(qs_ot_restart_signature_nlog), &
-         INTENT(IN)                                      :: restart_log
-      REAL(KIND=dp), &
-         DIMENSION(qs_ot_restart_signature_nreal), &
-         INTENT(IN)                                      :: restart_real
-      LOGICAL                                            :: compatible
-
-      CHARACTER(LEN=20), &
-         DIMENSION(qs_ot_restart_signature_nchar)        :: current_char
-      INTEGER                                            :: i
-      INTEGER, DIMENSION(qs_ot_restart_signature_nint)   :: current_int
-      LOGICAL, DIMENSION(qs_ot_restart_signature_nlog)   :: current_log
-      REAL(KIND=dp)                                      :: scale
-      REAL(KIND=dp), &
-         DIMENSION(qs_ot_restart_signature_nreal)        :: current_real
-
-      CALL qs_ot_settings_restart_signature(settings, current_char, current_int, current_log, current_real)
-      compatible = ALL(current_char == restart_char) .AND. ALL(current_int == restart_int) .AND. &
-                   ALL(current_log .EQV. restart_log)
-      IF (.NOT. compatible) RETURN
-      DO i = 1, qs_ot_restart_signature_nreal
-         scale = MAX(1.0_dp, ABS(current_real(i)), ABS(restart_real(i)))
-         compatible = compatible .AND. ABS(current_real(i) - restart_real(i)) <= 1.0E-12_dp*scale
-      END DO
-
-   END FUNCTION qs_ot_settings_restart_compatible
 
 ! **************************************************************************************************
 !> \brief sets default values for the settings type
