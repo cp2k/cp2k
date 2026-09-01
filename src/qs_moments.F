@@ -17,7 +17,6 @@ MODULE qs_moments
                          cossin, &
                          diff_momop, &
                          diff_momop2, &
-                         diff_momop_velocity, &
                          moment
    USE atomic_kind_types, ONLY: atomic_kind_type, &
                                 get_atomic_kind
@@ -301,10 +300,10 @@ CONTAINS
                   ! Calculate integral difmab(beta, alpha) = (a|r_beta|db_alpha)
                   ! difmab(beta, alpha) = < a | r_beta | ∂_alpha b >
                   ! difmab(j, idir) = < a | r_j | ∂_idir b >
-                  CALL diff_momop_velocity(la_max(iset), npgfa(iset), zeta(:, iset), &
-                                           rpgfa(:, iset), la_min(iset), lb_max(jset), npgfb(jset), &
-                                           zetb(:, jset), rpgfb(:, jset), lb_min(jset), order, rac, rbc, &
-                                           difmab, lambda=lambda, iatom=iatom, jatom=jatom)
+                  CALL diff_momop(la_max(iset), npgfa(iset), zeta(:, iset), &
+                                  rpgfa(:, iset), la_min(iset), lb_max(jset), npgfb(jset), &
+                                  zetb(:, jset), rpgfb(:, jset), lb_min(jset), order, rac, rbc, &
+                                  difmab, lambda=lambda, iatom=iatom, jatom=jatom)
 
                   !                  *** Contraction step ***
 

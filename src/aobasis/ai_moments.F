@@ -45,87 +45,9 @@ MODULE ai_moments
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_moments'
 
    PUBLIC :: cossin, moment, diff_momop, contract_cossin, dipole_force
-   PUBLIC :: diff_momop2, diff_momop_velocity
+   PUBLIC :: diff_momop2
 
 CONTAINS
-
-! *****************************************************************************
-!> \brief This returns the derivative of the moment integrals [a|\mu|b], with respect
-!>        to the primitive on the right
-!>        difmab(:, :, beta, alpha) = < a | r_beta | ∂_alpha b >  * (iatom - jatom)
-!> \param la_max ...
-!> \param npgfa ...
-!> \param zeta ...
-!> \param rpgfa ...
-!> \param la_min ...
-!> \param lb_max ...
-!> \param npgfb ...
-!> \param zetb ...
-!> \param rpgfb ...
-!> \param lb_min ...
-!> \param order ...
-!> \param rac ...
-!> \param rbc ...
-!> \param difmab ...
-!> \param lambda The atom on which we take the derivative
-!> \param iatom ...
-!> \param jatom ...
-!> \author Edward Ditler
-! **************************************************************************************************
-   SUBROUTINE diff_momop_velocity(la_max, npgfa, zeta, rpgfa, la_min, &
-                                  lb_max, npgfb, zetb, rpgfb, lb_min, &
-                                  order, rac, rbc, difmab, lambda, iatom, jatom)
-
-      INTEGER, INTENT(IN)                                :: la_max, npgfa
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta, rpgfa
-      INTEGER, INTENT(IN)                                :: la_min, lb_max, npgfb
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zetb, rpgfb
-      INTEGER, INTENT(IN)                                :: lb_min, order
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac, rbc
-      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(OUT)  :: difmab
-      INTEGER, INTENT(IN)                                :: lambda
-      INTEGER, INTENT(IN), OPTIONAL                      :: iatom, jatom
-
-      INTEGER                                            :: alpha, beta, lda, lda_min, ldb, ldb_min
-      REAL(KIND=dp)                                      :: dab, rab(3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: difmab_tmp, mab
-
-      rab = rbc - rac
-      dab = SQRT(SUM(rab**2))
-
-      lda_min = MAX(0, la_min - 1)
-      ldb_min = MAX(0, lb_min - 1)
-      lda = ncoset(la_max)*npgfa
-      ldb = ncoset(lb_max)*npgfb
-      ALLOCATE (difmab_tmp(lda, ldb, 3))
-
-      ALLOCATE (mab(npgfa*ncoset(la_max + 1), npgfb*ncoset(lb_max + 1), ncoset(order) - 1))
-      ! *** Calculate the primitive overlap integrals ***
-      ! mab(1:3) = < a | r_beta - RC_beta | b >
-      mab = 0.0_dp
-      CALL moment(la_max + 1, npgfa, zeta, rpgfa, lda_min, &
-                  lb_max + 1, npgfb, zetb, rpgfb, &
-                  order, rac, rbc, mab)
-
-      difmab = 0.0_dp
-      DO beta = 1, ncoset(order) - 1  ! beta was imom
-
-         difmab_tmp = 0.0_dp
-         CALL adbdr(la_max, npgfa, rpgfa, la_min, &
-                    lb_max, npgfb, zetb, rpgfb, lb_min, &
-                    dab, mab(:, :, beta), difmab_tmp(:, :, 1), &
-                    difmab_tmp(:, :, 2), difmab_tmp(:, :, 3))
-
-         ! difmab(beta, alpha) = < a | r_beta - RC_beta | ∂_alpha b > * [(a==lambda) - (b==lambda)]
-         DO alpha = 1, 3
-            IF (iatom == lambda) difmab(:, :, beta, alpha) = difmab(:, :, beta, alpha) + difmab_tmp(:, :, alpha)
-            IF (jatom == lambda) difmab(:, :, beta, alpha) = difmab(:, :, beta, alpha) - difmab_tmp(:, :, alpha)
-         END DO
-      END DO
-
-      DEALLOCATE (mab)
-      DEALLOCATE (difmab_tmp)
-   END SUBROUTINE diff_momop_velocity
 
 ! *****************************************************************************
 !> \brief This returns the derivative of the moment integrals [a|\mu|b], with respect
@@ -1496,8 +1418,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief This returns the derivative of the moment integrals [a|\mu|b], with respect
-!>       to the position of the primitive on the  left, i.e.
-!>       [da/dR_ai|\mu|b] =  2*zeta*[a+1i|\mu|b] - Ni(a)[a-1i|\mu|b]
+!>       to the position of the primitive on the right, i.e.
+!>       [a|\mu|d/dR_bi] =  2*zetb*[a|\mu|b+1i] - Ni(b)[a|\mu|b-1i]
 !>       order indicates the max order of the moment operator to be calculated
 !>       1: dipole
 !>       2: quadrupole
@@ -1517,11 +1439,14 @@ CONTAINS
 !> \param rbc ...
 !> \param difmab ...
 !> \param mab_ext ...
+!> \param lambda optional atom selector for the factor (iatom == lambda) - (jatom == lambda)
+!> \param iatom atom associated with the left basis function
+!> \param jatom atom associated with the right basis function
 !> \note
 ! **************************************************************************************************
    SUBROUTINE diff_momop(la_max, npgfa, zeta, rpgfa, la_min, &
                          lb_max, npgfb, zetb, rpgfb, lb_min, &
-                         order, rac, rbc, difmab, mab_ext)
+                         order, rac, rbc, difmab, mab_ext, lambda, iatom, jatom)
 
       INTEGER, INTENT(IN)                                :: la_max, npgfa
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: zeta, rpgfa
@@ -1532,6 +1457,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(OUT)  :: difmab
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: mab_ext
+      INTEGER, INTENT(IN), OPTIONAL                      :: lambda, iatom, jatom
 
       INTEGER                                            :: imom, lda, lda_min, ldb, ldb_min
       REAL(KIND=dp)                                      :: dab, rab(3), rab2
@@ -1570,6 +1496,19 @@ CONTAINS
          difmab(1:lda, 1:ldb, imom, 2) = difmab_tmp(1:lda, 1:ldb, 2)
          difmab(1:lda, 1:ldb, imom, 3) = difmab_tmp(1:lda, 1:ldb, 3)
       END DO
+
+      IF (PRESENT(lambda)) THEN
+         CPASSERT(PRESENT(iatom) .AND. PRESENT(jatom))
+         IF (iatom == lambda .AND. jatom == lambda) THEN
+            difmab = 0.0_dp
+         ELSE IF (iatom == lambda) THEN
+            ! The right-hand derivative is selected with a positive sign.
+         ELSE IF (jatom == lambda) THEN
+            difmab = -difmab
+         ELSE
+            difmab = 0.0_dp
+         END IF
+      END IF
 
       IF (PRESENT(mab_ext)) THEN
          NULLIFY (mab)
