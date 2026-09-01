@@ -1,6 +1,7 @@
+#CPQA DEPENDS li_ot_fixed_uks_strict_diis.inp
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT li_ot_fixed_uks_strict_diis
+  PROJECT li_ot_fixed_uks_strict_restart
   RUN_TYPE ENERGY
 &END GLOBAL
 
@@ -11,6 +12,7 @@
     MULTIPLICITY 2
     POTENTIAL_FILE_NAME POTENTIAL
     UKS T
+    WFN_RESTART_FILE_NAME li_ot_fixed_uks_strict_diis-RESTART.kp
     &KPOINTS
       FULL_GRID OFF
       PARALLEL_GROUP_SIZE 0
@@ -27,8 +29,8 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-6
-      MAX_SCF 60
-      SCF_GUESS ATOMIC
+      MAX_SCF 20
+      SCF_GUESS RESTART
       &OT
         ALGORITHM STRICT
         MINIMIZER DIIS
@@ -37,7 +39,7 @@
         SAFE_DIIS ON
       &END OT
       &PRINT
-        &RESTART ON
+        &RESTART OFF
         &END RESTART
       &END PRINT
     &END SCF
