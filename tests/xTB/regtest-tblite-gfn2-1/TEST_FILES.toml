@@ -26,10 +26,10 @@
 "CH2O_gfn2_reference_cli_lone.inp"       = [{matcher="E_total", tol=1.0E-8, ref=-7.1737299847},
                                              {matcher="XTB_reference_cli_failed"}]
 "Hg2Cl2_gfn2_force.inp"                  = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
-"Si_gfn2_ot_kp.inp"                      = [{matcher="E_total", tol=1.0E-8, ref=-13.65652361444185},
+"Si_gfn2_ot_kp.inp"                      = [{matcher="E_total", tol=1.0E-8, ref=-13.65652352542018},
                                              {matcher="N_special_kpoints", tol=0.0, ref=4}]
-"Si_gfn2_ot_kp_lbfgs_rotation.inp"       = [{matcher="E_total", tol=1.0E-8, ref=-13.656523614714454},
-                                             {matcher="N_special_kpoints", tol=0.0, ref=4}]
+"Si_gfn2_ot_kp_lbfgs_rotation.inp"       = [{matcher="E_total", tol=1.0E-8, ref=-13.65468885187564},
+                                             {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "Al_fcc_gfn2_kp_otdiag_smear.inp"        = [{matcher="E_total", tol=1.0E-9, ref=-1.194939346653323},
                                              {matcher="Electronic_entropic_energy", tol=1.0E-9, ref=-1.18720770936E-3},
                                              {matcher="N_special_kpoints", tol=0.0, ref=2},

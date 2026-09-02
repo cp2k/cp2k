@@ -124,9 +124,6 @@ MODULE qs_ot_types
       LOGICAL                   :: has_kpoint_context = .FALSE.
       LOGICAL                   :: state_allocated = .FALSE.
       LOGICAL                   :: has_complex_kpoint_state = .FALSE.
-      LOGICAL                   :: initial_density_sync_pending = .FALSE.
-      LOGICAL                   :: initial_gradient_sync_pending = .FALSE.
-      LOGICAL                   :: prepared_direction_pending = .FALSE.
 
       ! first part of the variables, for occupied subspace invariant optimisation
 
@@ -568,8 +565,6 @@ CONTAINS
       qs_ot_env%line_search_count = 0
 
       qs_ot_env%energy_only = .FALSE.
-      qs_ot_env%initial_gradient_sync_pending = .FALSE.
-      qs_ot_env%prepared_direction_pending = .FALSE.
       qs_ot_env%gnorm_old = 1.0_dp
       qs_ot_env%diis_iter = 0
       qs_ot_env%ds_min = qs_ot_env%settings%ds_min

@@ -23,6 +23,7 @@ MODULE preconditioner_makes
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                               cp_cfm_gemm,&
                                               cp_cfm_scale_and_add,&
+                                              cp_cfm_triangular_multiply,&
                                               cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert
@@ -101,10 +102,16 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: energy_gap
 
       CHARACTER(len=*), PARAMETER :: routineN = 'make_complex_full_all'
-      REAL(KIND=dp), PARAMETER                           :: lambda_base = 10.0_dp
+      REAL(KIND=dp), PARAMETER                           :: fudge_factor = 0.25_dp, &
+                                                            lambda_base = 10.0_dp
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: shifted_evals
-      INTEGER                                            :: handle, k, n
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
+      INTEGER                                            :: handle, j, k, n, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices
+      REAL(KIND=dp)                                      :: error_estimate, lambda
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: residual_norm_sq
       TYPE(cp_cfm_type) :: matrix_chc, matrix_diag_work, matrix_hc0, matrix_s_copy, matrix_sc0, &
          matrix_sc_chc, matrix_shifted_sc, matrix_tmp
 
@@ -145,6 +152,32 @@ CONTAINS
       CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, matrix_s, matrix_c0, z_zero, matrix_sc0)
       CALL cp_cfm_gemm('C', 'N', k, k, n, z_one, matrix_c0, matrix_hc0, z_zero, matrix_chc)
 
+      ! Estimate the S^-1 norm of the Ritz residual, R = H C - S C epsilon.
+      ! As in the real FULL_ALL implementation, use it to prevent an inaccurate
+      ! reference subspace from producing an overly aggressive preconditioner.
+      ALLOCATE (shifted_evals(k), residual_norm_sq(k))
+      shifted_evals(:) = CMPLX(c0_evals(1:k), 0.0_dp, KIND=dp)
+      CALL cp_cfm_to_cfm(matrix_sc0, matrix_sc_chc)
+      CALL cp_cfm_column_scale(matrix_sc_chc, shifted_evals)
+      CALL cp_cfm_to_cfm(matrix_hc0, matrix_shifted_sc)
+      CALL cp_cfm_scale_and_add(z_one, matrix_shifted_sc, -z_one, matrix_sc_chc)
+      CALL cp_cfm_to_cfm(matrix_s, matrix_s_copy)
+      CALL cp_cfm_cholesky_decompose(matrix_s_copy)
+      CALL cp_cfm_triangular_multiply(matrix_s_copy, matrix_shifted_sc, side='L', &
+                                      transa_tr='C', invert_tr=.TRUE., uplo_tr='U')
+
+      residual_norm_sq(:) = 0.0_dp
+      CALL cp_cfm_get_info(matrix_shifted_sc, nrow_local=nrow_local, ncol_local=ncol_local, &
+                           col_indices=col_indices, local_data=local_data)
+      DO j = 1, ncol_local
+         residual_norm_sq(col_indices(j)) = residual_norm_sq(col_indices(j)) + &
+                                            SUM(ABS(local_data(1:nrow_local, j))**2)
+      END DO
+      CALL preconditioner_env%para_env%sum(residual_norm_sq)
+      error_estimate = SQRT(MAXVAL(residual_norm_sq))
+      preconditioner_env%energy_gap = MAX(energy_gap, error_estimate*fudge_factor)
+      lambda = lambda_base + error_estimate
+
       ! Q^H H Q with Q = I - C C^H S. This removes occupied/complement cross terms
       ! without rotating the reference columns.
       CALL cp_cfm_to_cfm(matrix_h, matrix_tmp)
@@ -155,8 +188,7 @@ CONTAINS
 
       ! Shift the retained reference subspace below the complementary spectrum, diagonalize,
       ! and then restore the original reference columns and their energy labels exactly.
-      ALLOCATE (shifted_evals(k))
-      shifted_evals(:) = CMPLX(c0_evals(1:k) - lambda_base, 0.0_dp, KIND=dp)
+      shifted_evals(:) = CMPLX(c0_evals(1:k) - lambda, 0.0_dp, KIND=dp)
       CALL cp_cfm_to_cfm(matrix_sc0, matrix_shifted_sc)
       CALL cp_cfm_column_scale(matrix_shifted_sc, shifted_evals)
       CALL cp_cfm_gemm('N', 'C', n, n, k, z_one, matrix_shifted_sc, matrix_sc0, z_one, matrix_tmp)
@@ -168,11 +200,10 @@ CONTAINS
       preconditioner_env%occ_evals(:) = c0_evals(1:k)
       preconditioner_env%full_evals(1:k) = c0_evals(1:k)
       CALL cp_cfm_to_cfm(matrix_c0, preconditioner_env%complex_fm, k)
-      preconditioner_env%energy_gap = energy_gap
       preconditioner_env%in_use = ot_precond_full_all
       preconditioner_env%solver = ot_precond_solver_default
 
-      DEALLOCATE (shifted_evals)
+      DEALLOCATE (residual_norm_sq, shifted_evals)
       CALL cp_cfm_release(matrix_diag_work)
       CALL cp_cfm_release(matrix_s_copy)
       CALL cp_cfm_release(matrix_tmp)

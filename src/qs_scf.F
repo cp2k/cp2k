@@ -57,7 +57,6 @@ MODULE qs_scf
                                               cp_dbcsr_m_by_n_from_row_template,&
                                               dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_norm
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -90,8 +89,8 @@ MODULE qs_scf
         ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
         ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
         outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_newton_ls, restart_guess, sic_eo, smear_fermi_dirac, smear_gaussian, &
-        smear_mp, smear_mv, tblite_scc_mixer_tblite
+        outer_scf_optimizer_newton_ls, sic_eo, smear_fermi_dirac, smear_gaussian, smear_mp, &
+        smear_mv, tblite_scc_mixer_tblite
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -101,8 +100,7 @@ MODULE qs_scf
                                               dp
    USE kpoint_io,                       ONLY: write_kpoints_restart
    USE kpoint_methods,                  ONLY: kpoint_initialize_mo_set,&
-                                              kpoint_initialize_mos,&
-                                              kpoint_set_mo_occupation
+                                              kpoint_initialize_mos
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_type,&
                                               kpoint_type
@@ -148,6 +146,11 @@ MODULE qs_scf
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE qs_kpoint_state,                 ONLY: qs_kpoint_copy_spin_mos,&
+                                              qs_kpoint_mos_initialized,&
+                                              qs_kpoint_state_canonicalize_fixed,&
+                                              qs_kpoint_state_commit,&
+                                              qs_kpoint_state_prepare_fixed_density
    USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_methods,                   ONLY: evaluate_core_matrix_traces,&
                                               qs_ks_update_qs_env
@@ -237,6 +240,10 @@ MODULE qs_scf
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf'
+   INTEGER, PARAMETER, PRIVATE          :: kp_ot_entry_initial = 1, &
+                                           kp_ot_entry_reuse = 2, &
+                                           kp_ot_entry_resized = 3, &
+                                           kp_ot_entry_refresh = 4
    LOGICAL, PRIVATE                     :: reuse_precond = .FALSE.
    LOGICAL, PRIVATE                     :: used_history = .FALSE.
 
@@ -414,7 +421,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: description, name
       INTEGER :: accepted_ot_kp_searches, ext_master_id, handle, handle2, i_tmp, ic, irep, ispin, &
-         iter_count, n_rep_hf, oda_base_slot, ot_kp_subspace_refresh_count, &
+         iter_count, kp_ot_entry_reason, n_rep_hf, oda_base_slot, ot_kp_subspace_refresh_count, &
          ot_kp_subspace_refresh_iter_count, output_unit, scf_energy_message_tag, total_steps
       LOGICAL :: ace_active, added_mos_auto_grow, adiis_pushed, adiis_restarted, adiis_stagnated, &
          adiis_validation, density_full_step, diis_step, do_kpoints, energy_only, exit_inner_loop, &
@@ -580,6 +587,7 @@ CONTAINS
       scf_env%outer_scf%iter_count = 0
       accepted_ot_kp_searches = 0
       iter_count = 0
+      kp_ot_entry_reason = kp_ot_entry_initial
       ot_kp_subspace_refresh_count = 0
       ot_kp_subspace_refresh_iter_count = 0
       ot_kp_subspace_refresh_pending = .FALSE.
@@ -590,7 +598,8 @@ CONTAINS
 
          CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, &
                             scf_section=scf_section, &
-                            prepare_ot_kp_direction=ot_kp_subspace_refresh_count > 0)
+                            kp_ot_entry_reason=kp_ot_entry_reason)
+         kp_ot_entry_reason = kp_ot_entry_reuse
 
          oda_globalization_active = oda_eligible
          oda_predictor_lambda = 1.0_dp
@@ -839,6 +848,7 @@ CONTAINS
 
             IF (added_mos_auto_grow) THEN
                CALL qs_scf_grow_added_mos_auto_kp(qs_env, scf_env, scf_control, output_unit)
+               kp_ot_entry_reason = kp_ot_entry_resized
                total_steps = MAX(0, total_steps - 1)
                iter_count = MAX(0, iter_count - 1)
                IF (.NOT. just_energy) scf_env%iter_count = MAX(0, scf_env%iter_count - 1)
@@ -851,6 +861,7 @@ CONTAINS
                   WRITE (UNIT=output_unit, FMT="(T2,A)") &
                      "K-point OT: rebuilding physical virtual subspace by full KS diagonalization."
                END IF
+               CALL qs_kpoint_state_commit(qs_env, update_occupations=.FALSE.)
                IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
                   DO ispin = 1, SIZE(scf_env%qs_ot_env)
                      CALL ot_scf_destroy(scf_env%qs_ot_env(ispin))
@@ -869,6 +880,7 @@ CONTAINS
                IF (.NOT. just_energy) scf_env%iter_count = MAX(0, scf_env%iter_count - 1)
                ot_kp_subspace_refresh_iter_count = scf_env%iter_count
                ot_kp_subspace_refresh_pending = .TRUE.
+               kp_ot_entry_reason = kp_ot_entry_refresh
                CALL timestop(handle2)
                CYCLE scf_outer_loop
             END IF
@@ -1317,6 +1329,11 @@ CONTAINS
 
       diag_step = .FALSE.
       CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .FALSE., diag_step)
+      IF (dft_control%restricted) CALL qs_kpoint_copy_spin_mos(kpoints, nspins)
+      CALL qs_kpoint_state_commit( &
+         qs_env, update_occupations=.TRUE., &
+         separate_spin_occupations=dft_control%restricted, &
+         fixed_occupations=.NOT. (dft_control%smear .OR. scf_control%smear%do_smear))
 
       IF (ASSOCIATED(kpoints%scf_diis_buffer)) CALL qs_diis_b_clear_kp(kpoints%scf_diis_buffer)
       IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
@@ -1344,48 +1361,48 @@ CONTAINS
 !> \param scf_env ...
 !> \param qs_env ...
 !> \param scf_section ...
-!> \param prepare_ot_kp_direction prepare a physical direction after an asymptotic REF refresh
+!> \param kp_ot_entry_reason reason for constructing a new k-point OT workspace
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
-   SUBROUTINE init_scf_loop(scf_env, qs_env, scf_section, prepare_ot_kp_direction)
+   SUBROUTINE init_scf_loop(scf_env, qs_env, scf_section, kp_ot_entry_reason)
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: scf_section
-      LOGICAL, INTENT(IN), OPTIONAL                      :: prepare_ot_kp_direction
+      INTEGER, INTENT(IN), OPTIONAL                      :: kp_ot_entry_reason
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_scf_loop'
 
-      INTEGER                                            :: handle, ikind, ispin, nkpoint, nmo, &
-                                                            nspin_ot
+      INTEGER                                            :: entry_reason, handle, ikind, ispin, &
+                                                            nkpoint, nmo, nspin_ot
       INTEGER, DIMENSION(2)                              :: kp_range
-      LOGICAL                                            :: do_adiis, do_kpoints, do_rotation, &
-                                                            has_unit_metric, kp_diis_step, &
-                                                            kpoint_mos_initialized, &
-                                                            prepare_direction
+      LOGICAL :: do_adiis, do_kpoints, do_rotation, fixed_density_prepared, has_unit_metric, &
+         kp_diis_step, kpoint_mos_initialized
       REAL(KIND=dp)                                      :: u_ramping
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h_kp, matrix_ks_kp, matrix_s_kp, &
-                                                            matrix_t_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp, matrix_t_kp, &
+                                                            rho_ao_kp
       TYPE(dbcsr_type), POINTER                          :: orthogonality_metric
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (scf_control, matrix_h_kp, matrix_ks_kp, matrix_s, matrix_s_kp, matrix_t_kp, matrix_ks, &
-               dft_control, mos, mo_coeff, kpoints, qs_kind_set, wkp)
+      NULLIFY (scf_control, matrix_ks_kp, matrix_s, matrix_s_kp, matrix_t_kp, matrix_ks, &
+               rho_ao_kp, dft_control, mos, mo_coeff, kpoints, qs_kind_set, rho, wkp)
 
       CPASSERT(ASSOCIATED(scf_env))
       CPASSERT(ASSOCIATED(qs_env))
-      prepare_direction = .FALSE.
-      IF (PRESENT(prepare_ot_kp_direction)) prepare_direction = prepare_ot_kp_direction
+      entry_reason = kp_ot_entry_initial
+      IF (PRESENT(kp_ot_entry_reason)) entry_reason = kp_ot_entry_reason
+      fixed_density_prepared = .FALSE.
 
       CALL get_qs_env(qs_env=qs_env, &
                       scf_control=scf_control, &
@@ -1393,6 +1410,7 @@ CONTAINS
                       do_kpoints=do_kpoints, &
                       kpoints=kpoints, &
                       mos=mos, &
+                      rho=rho, &
                       qs_kind_set=qs_kind_set)
 
       nkpoint = 1
@@ -1574,9 +1592,8 @@ CONTAINS
       CASE (ot_method_nr)
          IF (do_kpoints) THEN
             IF (.NOT. ASSOCIATED(scf_env%qs_ot_env)) THEN
-               CALL get_qs_env(qs_env, matrix_h_kp=matrix_h_kp, matrix_s_kp=matrix_s_kp, &
+               CALL get_qs_env(qs_env, matrix_s_kp=matrix_s_kp, &
                                kinetic_kp=matrix_t_kp)
-               CPASSERT(ASSOCIATED(matrix_h_kp))
                CPASSERT(ASSOCIATED(matrix_s_kp))
                CALL allocate_qs_ot_envs(scf_env=scf_env, &
                                         scf_control=scf_control, &
@@ -1588,54 +1605,89 @@ CONTAINS
                                         kp_range=kp_range, &
                                         wkp=wkp)
 
-               kpoint_mos_initialized = qs_ot_kpoint_mos_initialized(kpoints)
-               IF (.NOT. kpoint_mos_initialized) THEN
-                  kp_diis_step = .FALSE.
-                  CALL do_general_diag_kp(matrix_h_kp, matrix_s_kp, kpoints, scf_env, &
-                                          scf_control, .FALSE., kp_diis_step)
-                  IF (SIZE(matrix_h_kp, 1) < nspin_ot) THEN
-                     CPASSERT(SIZE(matrix_h_kp, 1) == 1)
-                     CALL qs_ot_copy_kpoint_spin_mos(kpoints, nspin_ot)
+               kpoint_mos_initialized = qs_kpoint_mos_initialized( &
+                                        kpoints, require_full_space=scf_env%qs_ot_env(1)%settings%do_ener)
+               SELECT CASE (entry_reason)
+               CASE (kp_ot_entry_initial)
+                  IF (kpoint_mos_initialized) THEN
+                     IF (dft_control%restricted) THEN
+                        CALL qs_kpoint_copy_spin_mos(kpoints, dft_control%nspins)
+                     END IF
+                     CALL qs_kpoint_state_commit( &
+                        qs_env, update_occupations=.TRUE., &
+                        separate_spin_occupations=dft_control%restricted, &
+                        fixed_occupations=.NOT. (dft_control%smear .OR. scf_control%smear%do_smear))
                   END IF
-               END IF
-               IF (dft_control%restricted) THEN
-                  CALL qs_ot_copy_kpoint_spin_mos(kpoints, dft_control%nspins)
-               END IF
-               CALL kpoint_set_mo_occupation( &
-                  kpoints, scf_control%smear, &
-                  separate_spin_occupations=dft_control%restricted)
-               IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) THEN
-                  CALL qs_ot_set_fixed_kpoint_occupations(kpoints, dft_control%nspins)
-               END IF
+               CASE (kp_ot_entry_reuse, kp_ot_entry_resized, kp_ot_entry_refresh)
+                  CPASSERT(kpoint_mos_initialized)
+               CASE DEFAULT
+                  CPABORT("Invalid k-point OT workspace entry reason.")
+               END SELECT
 
-               ! Build the initial KS matrix from the requested density guess.
-               CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
-                                        calculate_forces=.FALSE.)
-               CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks_kp)
-               CPASSERT(ASSOCIATED(matrix_ks_kp))
-
-               ! Variable-occupation OT needs its fixed REF complement from the
-               ! physical Hamiltonian of the requested density. A restart needs the
-               ! same synchronization for both fixed and variable occupations.
-               IF (scf_env%qs_ot_env(1)%settings%do_ener .OR. &
-                   scf_control%density_guess == restart_guess) THEN
+               ! For fixed occupations, reconstruct the occupied subspace directly from the
+               ! density-only guess. This preserves its physical content instead of replacing it
+               ! with the potentially remote ground-state projector of H[P].
+               IF (entry_reason == kp_ot_entry_initial .AND. .NOT. kpoint_mos_initialized .AND. &
+                   .NOT. scf_env%qs_ot_env(1)%settings%do_ener) THEN
+                  CPASSERT(ASSOCIATED(rho))
+                  CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+                  CPASSERT(ASSOCIATED(rho_ao_kp))
                   kp_diis_step = .FALSE.
-                  CALL do_general_diag_kp(matrix_ks_kp, matrix_s_kp, kpoints, scf_env, &
-                                          scf_control, .FALSE., kp_diis_step)
-                  IF (SIZE(matrix_ks_kp, 1) < nspin_ot) THEN
-                     CPASSERT(SIZE(matrix_ks_kp, 1) == 1)
-                     CALL qs_ot_copy_kpoint_spin_mos(kpoints, nspin_ot)
+                  CALL do_general_diag_kp(rho_ao_kp, matrix_s_kp, kpoints, scf_env, &
+                                          scf_control, .FALSE., kp_diis_step, &
+                                          store_ot_matrices=.TRUE., transfer_only=.TRUE.)
+                  CALL qs_kpoint_state_prepare_fixed_density(kpoints)
+                  IF (SIZE(rho_ao_kp, 1) < nspin_ot) THEN
+                     CPASSERT(SIZE(rho_ao_kp, 1) == 1)
+                     CALL qs_kpoint_copy_spin_mos(kpoints, nspin_ot)
                   END IF
                   IF (dft_control%restricted) THEN
-                     CALL qs_ot_copy_kpoint_spin_mos(kpoints, dft_control%nspins)
+                     CALL qs_kpoint_copy_spin_mos(kpoints, dft_control%nspins)
                   END IF
-                  CALL kpoint_set_mo_occupation( &
-                     kpoints, scf_control%smear, &
-                     separate_spin_occupations=dft_control%restricted)
-                  IF (.NOT. (dft_control%smear .OR. scf_control%smear%do_smear)) THEN
-                     CALL qs_ot_set_fixed_kpoint_occupations(kpoints, dft_control%nspins)
+                  CALL qs_kpoint_state_commit( &
+                     qs_env, update_occupations=.TRUE., &
+                     separate_spin_occupations=dft_control%restricted, fixed_occupations=.TRUE.)
+
+                  ! The reconstructed projector replaces the density-only input. Rebuild H and E
+                  ! so the first minimizer call sees one coherent physical electronic state.
+                  CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., calculate_forces=.FALSE.)
+                  fixed_density_prepared = .TRUE.
+
+               ELSE
+                  ! Build the physical Hamiltonian from the committed state or a Mermin
+                  ! density-only guess. Ordinary workspace re-entry only needs this rebuild.
+                  CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., calculate_forces=.FALSE.)
+                  CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks_kp)
+                  CPASSERT(ASSOCIATED(matrix_ks_kp))
+
+                  ! Mermin initialization and deliberate REF refreshes require a full orbital
+                  ! space, so use the physical Hamiltonian replacement for those cases only.
+                  IF ((entry_reason == kp_ot_entry_initial .AND. .NOT. kpoint_mos_initialized) .OR. &
+                      entry_reason == kp_ot_entry_refresh) THEN
+                     kp_diis_step = .FALSE.
+                     CALL do_general_diag_kp(matrix_ks_kp, matrix_s_kp, kpoints, scf_env, &
+                                             scf_control, .FALSE., kp_diis_step)
+                     IF (SIZE(matrix_ks_kp, 1) < nspin_ot) THEN
+                        CPASSERT(SIZE(matrix_ks_kp, 1) == 1)
+                        CALL qs_kpoint_copy_spin_mos(kpoints, nspin_ot)
+                     END IF
+                     IF (dft_control%restricted) THEN
+                        CALL qs_kpoint_copy_spin_mos(kpoints, dft_control%nspins)
+                     END IF
+                     CALL qs_kpoint_state_commit( &
+                        qs_env, update_occupations=.TRUE., &
+                        separate_spin_occupations=dft_control%restricted, &
+                        fixed_occupations=.NOT. (dft_control%smear .OR. scf_control%smear%do_smear))
+
+                     ! The accepted projector replaced the density-only input. Rebuild H and E so
+                     ! the first minimizer call sees one coherent physical electronic state.
+                     CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
+                                              calculate_forces=.FALSE.)
                   END IF
                END IF
+
+               CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks_kp)
+               CPASSERT(ASSOCIATED(matrix_ks_kp))
 
                ! Redistribute the physical operators to their owning k-point groups.  OT must not
                ! call the collective real-space transform independently with group-local k values.
@@ -1644,6 +1696,11 @@ CONTAINS
                                        scf_control, .FALSE., kp_diis_step, matrix_t=matrix_t_kp, &
                                        store_ot_matrices=.TRUE., transfer_only=.TRUE.)
 
+               ! Natural orbitals define the fixed occupied projector but not its internal gauge.
+               ! Canonicalize that subspace with the matching physical Hamiltonian and populate
+               ! the MO energy labels before constructing H-dependent OT preconditioners.
+               IF (fixed_density_prepared) CALL qs_kpoint_state_canonicalize_fixed(kpoints)
+
                CALL allocate_qs_ot_kpoint_state(qs_env=qs_env, &
                                                 scf_env=scf_env, &
                                                 dft_control=dft_control, &
@@ -1651,8 +1708,7 @@ CONTAINS
                                                 matrix_ks_kp=matrix_ks_kp, &
                                                 matrix_s_kp=matrix_s_kp, &
                                                 matrix_t_kp=matrix_t_kp, &
-                                                nspin_ot=nspin_ot, &
-                                                prepare_direction=prepare_direction)
+                                                nspin_ot=nspin_ot)
             END IF
 
             CALL timestop(handle)
@@ -1947,150 +2003,6 @@ CONTAINS
    END SUBROUTINE allocate_qs_ot_envs
 
 ! **************************************************************************************************
-!> \brief checks whether every local K-point channel has nonzero orbitals
-!> \param kpoints K-point environment
-!> \return true if every channel has a nonzero real or imaginary MO coefficient
-! **************************************************************************************************
-   FUNCTION qs_ot_kpoint_mos_initialized(kpoints) RESULT(initialized)
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      LOGICAL                                            :: initialized
-
-      INTEGER                                            :: icomponent, ikpoint_local, ispin, nocc
-      REAL(KIND=dp)                                      :: channel_norm, coefficient_norm
-      TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct
-      TYPE(cp_fm_type)                                   :: active_mo_coeff
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      NULLIFY (active_mo_struct, kp, mo_coeff, para_env)
-      CPASSERT(ASSOCIATED(kpoints))
-      CPASSERT(ASSOCIATED(kpoints%kp_env))
-
-      coefficient_norm = HUGE(1.0_dp)
-      DO ikpoint_local = 1, SIZE(kpoints%kp_env)
-         kp => kpoints%kp_env(ikpoint_local)%kpoint_env
-         CPASSERT(ASSOCIATED(kp))
-         CPASSERT(ASSOCIATED(kp%mos))
-         DO ispin = 1, SIZE(kp%mos, 2)
-            CALL get_mo_set(kp%mos(1, ispin), homo=nocc, mo_coeff=mo_coeff)
-            CPASSERT(ASSOCIATED(mo_coeff))
-            IF (nocc < 1) THEN
-               initialized = .FALSE.
-               RETURN
-            END IF
-            CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=mo_coeff%matrix_struct, &
-                                     ncol_global=nocc)
-            channel_norm = 0.0_dp
-            DO icomponent = 1, SIZE(kp%mos, 1)
-               CALL get_mo_set(kp%mos(icomponent, ispin), mo_coeff=mo_coeff)
-               CPASSERT(ASSOCIATED(mo_coeff))
-               CALL cp_fm_create(active_mo_coeff, active_mo_struct)
-               CALL cp_fm_to_fm(mo_coeff, active_mo_coeff, nocc)
-               channel_norm = MAX(channel_norm, cp_fm_norm(active_mo_coeff, "M"))
-               CALL cp_fm_release(active_mo_coeff)
-            END DO
-            CALL cp_fm_struct_release(active_mo_struct)
-            coefficient_norm = MIN(coefficient_norm, channel_norm)
-         END DO
-      END DO
-
-      CALL get_kpoint_info(kpoints, para_env=para_env)
-      CPASSERT(ASSOCIATED(para_env))
-      CALL para_env%min(coefficient_norm)
-      initialized = coefficient_norm > 100.0_dp*EPSILON(1.0_dp)
-
-   END FUNCTION qs_ot_kpoint_mos_initialized
-
-! **************************************************************************************************
-!> \brief copy the spin-independent core-Hamiltonian eigenvectors into all UKS start channels
-!> \param kpoints K-point environment
-!> \param nspin number of spin channels
-! **************************************************************************************************
-   SUBROUTINE qs_ot_copy_kpoint_spin_mos(kpoints, nspin)
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER, INTENT(IN)                                :: nspin
-
-      INTEGER                                            :: icomponent, ikpoint_local, ispin
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues_source, eigenvalues_target
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff_source, mo_coeff_target
-      TYPE(kpoint_env_type), POINTER                     :: kp
-
-      NULLIFY (eigenvalues_source, eigenvalues_target, kp, mo_coeff_source, mo_coeff_target)
-      CPASSERT(ASSOCIATED(kpoints))
-      CPASSERT(ASSOCIATED(kpoints%kp_env))
-      CPASSERT(nspin >= 1)
-
-      DO ikpoint_local = 1, SIZE(kpoints%kp_env)
-         kp => kpoints%kp_env(ikpoint_local)%kpoint_env
-         CPASSERT(ASSOCIATED(kp))
-         CPASSERT(ASSOCIATED(kp%mos))
-         CPASSERT(SIZE(kp%mos, 2) >= nspin)
-         DO icomponent = 1, SIZE(kp%mos, 1)
-            CALL get_mo_set(kp%mos(icomponent, 1), mo_coeff=mo_coeff_source, &
-                            eigenvalues=eigenvalues_source)
-            CPASSERT(ASSOCIATED(mo_coeff_source))
-            CPASSERT(ASSOCIATED(eigenvalues_source))
-            DO ispin = 2, nspin
-               CALL get_mo_set(kp%mos(icomponent, ispin), mo_coeff=mo_coeff_target, &
-                               eigenvalues=eigenvalues_target)
-               CPASSERT(ASSOCIATED(mo_coeff_target))
-               CPASSERT(ASSOCIATED(eigenvalues_target))
-               CALL cp_fm_to_fm(mo_coeff_source, mo_coeff_target)
-               eigenvalues_target(:) = eigenvalues_source(:)
-            END DO
-         END DO
-      END DO
-
-   END SUBROUTINE qs_ot_copy_kpoint_spin_mos
-
-! **************************************************************************************************
-!> \brief restore the fixed occupied rank required by K-point OT after global Aufbau filling
-!> \param kpoints K-point environment
-!> \param nspin number of spin channels
-! **************************************************************************************************
-   SUBROUTINE qs_ot_set_fixed_kpoint_occupations(kpoints, nspin)
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      INTEGER, INTENT(IN)                                :: nspin
-
-      INTEGER                                            :: icomponent, ikpoint_local, ispin, &
-                                                            nelectron, nmo, nocc
-      REAL(KIND=dp)                                      :: maxocc
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
-      TYPE(kpoint_env_type), POINTER                     :: kp
-
-      NULLIFY (kp, occupation_numbers)
-      CPASSERT(ASSOCIATED(kpoints))
-      CPASSERT(ASSOCIATED(kpoints%kp_env))
-      CPASSERT(nspin >= 1)
-
-      DO ikpoint_local = 1, SIZE(kpoints%kp_env)
-         kp => kpoints%kp_env(ikpoint_local)%kpoint_env
-         CPASSERT(ASSOCIATED(kp))
-         CPASSERT(ASSOCIATED(kp%mos))
-         CPASSERT(SIZE(kp%mos, 2) >= nspin)
-         DO ispin = 1, nspin
-            DO icomponent = 1, SIZE(kp%mos, 1)
-               CALL get_mo_set(kp%mos(icomponent, ispin), homo=nocc, maxocc=maxocc, &
-                               nelectron=nelectron, nmo=nmo, occupation_numbers=occupation_numbers)
-               CPASSERT(ASSOCIATED(occupation_numbers))
-               IF (nocc < 1 .OR. nocc > nmo) THEN
-                  CPABORT("Fixed-occupation K-point OT requires a nonempty occupied subspace.")
-               END IF
-               IF (ABS(maxocc*REAL(nocc, KIND=dp) - REAL(nelectron, KIND=dp)) > &
-                   100.0_dp*EPSILON(1.0_dp)) THEN
-                  CPABORT("Fixed-occupation K-point OT requires uniform integer occupations.")
-               END IF
-               occupation_numbers(:) = 0.0_dp
-               occupation_numbers(1:nocc) = maxocc
-               kp%mos(icomponent, ispin)%kTS = 0.0_dp
-            END DO
-         END DO
-      END DO
-
-   END SUBROUTINE qs_ot_set_fixed_kpoint_occupations
-
-! **************************************************************************************************
 !> \brief allocate local k-point OT minimizer state for labelled spin/k-point channels
 !> \param qs_env ...
 !> \param scf_env ...
@@ -2100,18 +2012,15 @@ CONTAINS
 !> \param matrix_s_kp ...
 !> \param matrix_t_kp ...
 !> \param nspin_ot ...
-!> \param prepare_direction prepare a physical line-search direction after density synchronization
 ! **************************************************************************************************
    SUBROUTINE allocate_qs_ot_kpoint_state(qs_env, scf_env, dft_control, &
-                                          kpoints, matrix_ks_kp, matrix_s_kp, matrix_t_kp, nspin_ot, &
-                                          prepare_direction)
+                                          kpoints, matrix_ks_kp, matrix_s_kp, matrix_t_kp, nspin_ot)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp, matrix_t_kp
       INTEGER, INTENT(IN)                                :: nspin_ot
-      LOGICAL, INTENT(IN)                                :: prepare_direction
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_qs_ot_kpoint_state'
 
@@ -2301,9 +2210,6 @@ CONTAINS
                                        kp_range=kpoints%kp_range, &
                                        require_local_state=.TRUE., &
                                        require_complex_state=.NOT. use_real_wfn)
-
-      scf_env%qs_ot_env(:)%initial_density_sync_pending = .TRUE.
-      scf_env%qs_ot_env(:)%initial_gradient_sync_pending = prepare_direction
 
       CALL prepare_qs_ot_kpoint_preconditioners(scf_env, kpoints, matrix_ks_kp, &
                                                 matrix_s_kp, matrix_t_kp, nspin_ot)

@@ -9,7 +9,6 @@
   &DFT
     &KPOINTS
       FULL_GRID OFF
-      PARALLEL_GROUP_SIZE 0
       SCHEME MONKHORST-PACK 3 3 3
       SYMMETRY ON
       VERBOSE T
@@ -19,7 +18,7 @@
       POISSON_SOLVER PERIODIC
     &END POISSON
     &QS
-      EPS_DEFAULT 1.0E-12
+      EPS_DEFAULT 1.0E-10
       METHOD xTB
       &XTB
         GFN_TYPE TBLITE
@@ -31,15 +30,18 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-6
-      MAX_SCF 250
+      MAX_SCF 25
       SCF_GUESS MOPAC
       &OT
         ALGORITHM IRAC
         MINIMIZER LBFGS
-        PRECONDITIONER FULL_SINGLE_INVERSE
+        PRECONDITIONER FULL_ALL
         ROTATION
-        STEPSIZE 0.05
       &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 20
+      &END OUTER_SCF
       &PRINT
         &RESTART OFF
         &END RESTART

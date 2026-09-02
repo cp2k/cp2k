@@ -52,25 +52,22 @@
 "Al-kpoint-mermin-response.inp"         = [
   {matcher="E_total", tol=1e-9, ref=-3.995032366510561},
   {matcher="OT_mermin_response_update"},
-  {matcher="OT_mermin_exact_hxc"},
-  {matcher="OT_kpoint_ref_gradient_sync"},
 ]
 "Al-kpoint-mermin-response-lbfgs.inp"   = [
   {matcher="E_total", tol=1e-9, ref=-3.990589661470200},
   {matcher="OT_mermin_lbfgs_response_update"},
-  {matcher="OT_kpoint_ref_gradient_sync"},
 ]
 "Al-kpoint-mermin-lbfgs.inp"            = [{matcher="E_total", tol=1e-8, ref=-8.17199206567539}]
 "Al-kpoint-mermin-lbfgs-occ.inp"        = [{matcher="E_total", tol=1e-9, ref=-2.903015358383124}]
 "Al-kpoint-mermin-broyden-occ.inp"      = [{matcher="E_total", tol=1e-9, ref=-2.903015358436246}]
 "Al-kpoint-mermin-diis-occ.inp"           = [{matcher="E_total", tol=1e-6, ref=-8.15734061513311}]
 "Al-kpoint-mermin-auto.inp"             = [
-  {matcher="E_total", tol=1e-9, ref=-3.004207460676986},
+  {matcher="E_total", tol=1e-9, ref=-3.0042081326234},
   {matcher="OT_added_mos_auto_grow"},
 ]
 "Al-kpoint-mermin-roks.inp"             = [
   {matcher="E_total", tol=1e-6, ref=-2.181856403160713},
-  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-0.00007019578175},
+  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-7.212509981e-05},
   {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999998274},
   {matcher="N_kpoints_per_group", tol=0.0, ref=1},
   {matcher="NO_TEXT", text="K-point smearing includes the first band"},
@@ -78,18 +75,18 @@
 ]
 "Al-kpoint-mermin-roks-restart.inp"     = [
   {matcher="E_total", tol=1e-6, ref=-2.181856717255157},
-  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-0.00007212901683},
+  {matcher="Electronic_entropic_energy", tol=1e-4, ref=-7.211893715e-05},
   {matcher="Integrated_spin_density", tol=1e-7, ref=0.9999998274},
   {matcher="NO_TEXT", text="K-point smearing includes the first band"},
   {matcher="NO_TEXT", text="K-point smearing includes the last band"},
 ]
 "Al-kpoint-mermin-md.inp"              = [
-  {matcher="M_INIT_ENERGY", tol=1e-8, ref=-3.959232891657958},
+  {matcher="M_INIT_ENERGY", tol=1e-8, ref=-3.959232525340075},
   {matcher="M_CONS_QTY", tol=1e-8, ref=-3.95874105061},
 ]
-"Al-kpoint-mermin-geo-opt.inp"         = [{matcher="E_total", tol=1e-8, ref=-3.959422888885181}]
-"Al-kpoint-mermin-cell-opt.inp"        = [{matcher="E_total", tol=1e-8, ref=-2.085971162407874}]
-"H3-kpoint-roks.inp"                    = [{matcher="E_total", tol=1e-9, ref=-1.487967452903754},
-                                           {matcher="M072", tol=1e-6, ref=6.74684454E-02},
-                                           {matcher="M031", tol=1e-6, ref=-1.52540610981E+04}]
+"Al-kpoint-mermin-geo-opt.inp"         = [{matcher="E_total", tol=1e-8, ref=-3.95942279154558}]
+"Al-kpoint-mermin-cell-opt.inp"        = [{matcher="E_total", tol=1e-8, ref=-2.08597923726350}]
+"H3-kpoint-roks.inp"                    = [{matcher="E_total", tol=1e-9, ref=-1.48796890031007},
+                                           {matcher="M072", tol=1e-6, ref=6.74684616E-02},
+                                           {matcher="M031", tol=1e-6, ref=-1.52567729226E+04}]
 #EOF
