@@ -235,7 +235,7 @@ CONTAINS
             END DO
          END IF
 
-         dab = SQRT(SUM(rab**2))
+         dab = NORM2(rab)
          DO iset = 1, nseta
             ncoa = npgfa(iset)*ncoset(la_max(iset))
             sgfa = first_sgfa(1, iset)
