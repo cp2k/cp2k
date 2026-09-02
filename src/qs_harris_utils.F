@@ -25,6 +25,8 @@ MODULE qs_harris_utils
    USE input_constants,                 ONLY: hden_atomic,&
                                               hden_cube,&
                                               hden_cube_fit,&
+                                              hfit_least_squares,&
+                                              hfit_relative_entropy,&
                                               hfun_harris,&
                                               horb_default
    USE input_section_types,             ONLY: section_vals_type,&
@@ -126,12 +128,18 @@ CONTAINS
                                    c_val=harris_env%density_filename)
          CALL section_vals_val_get(harris_section, "FIT_MAX_ITER", &
                                    i_val=harris_env%fit_max_iter)
+         CALL section_vals_val_get(harris_section, "FIT_METHOD", &
+                                   i_val=harris_env%fit_method)
          CALL section_vals_val_get(harris_section, "FIT_EPS", &
                                    r_val=harris_env%fit_eps)
          CALL section_vals_val_get(harris_section, "FIT_STEP_SIZE", &
                                    r_val=harris_env%fit_step_size)
          CALL section_vals_val_get(harris_section, "FIT_MAX_BACKTRACK", &
                                    i_val=harris_env%fit_max_backtrack)
+         CALL section_vals_val_get(harris_section, "FIT_TEMPERATURE", &
+                                   r_val=harris_env%fit_temperature)
+         CALL section_vals_val_get(harris_section, "FIT_RELATIVE_ENTROPY_WEIGHT", &
+                                   r_val=harris_env%fit_relative_entropy_weight)
          CALL section_vals_val_get(harris_section, "DIRECT_DENSITY_MATRIX_ENERGY", &
                                    l_val=harris_env%direct_density_matrix_energy)
          CALL section_vals_val_get(harris_section, "ORBITAL_BASIS", &
@@ -201,6 +209,16 @@ CONTAINS
                harris_env%fit_eps
             WRITE (unit_nr, '(T2,A,T61,ES20.8)') "Harris density fit: Initial step size", &
                harris_env%fit_step_size
+            SELECT CASE (harris_env%fit_method)
+            CASE (hfit_least_squares)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Harris density fit: Objective", "Least squares"
+            CASE (hfit_relative_entropy)
+               WRITE (unit_nr, '(T2,A,T61,A20)') "Harris density fit: Objective", "Relative entropy"
+               WRITE (unit_nr, '(T2,A,T61,ES20.8)') "Harris density fit: Temperature", &
+                  harris_env%fit_temperature
+               WRITE (unit_nr, '(T2,A,T61,ES20.8)') "Harris density fit: Entropy weight", &
+                  harris_env%fit_relative_entropy_weight
+            END SELECT
             WRITE (unit_nr, '(T2,A,T61,L20)') "Direct fitted-DM energy evaluation", &
                harris_env%direct_density_matrix_energy
          END SELECT
@@ -312,6 +330,14 @@ CONTAINS
             IF (harris_env%fit_max_backtrack < 0) THEN
                CPABORT("HARRIS_METHOD%FIT_MAX_BACKTRACK cannot be negative")
             END IF
+            IF (harris_env%fit_method == hfit_relative_entropy) THEN
+               IF (harris_env%fit_temperature <= 0.0_dp) THEN
+                  CPABORT("HARRIS_METHOD%FIT_TEMPERATURE has to be positive for RELATIVE_ENTROPY")
+               END IF
+               IF (harris_env%fit_relative_entropy_weight < 0.0_dp) THEN
+                  CPABORT("HARRIS_METHOD%FIT_RELATIVE_ENTROPY_WEIGHT cannot be negative")
+               END IF
+            END IF
          END IF
       CASE DEFAULT
          CPABORT("Illegal value of harris_env%density_source")
@@ -356,7 +382,27 @@ CONTAINS
          CALL read_cube_density(qs_env, rho_struct, TRIM(harris_env%density_filename), &
                                 total_density_sign=-1, source_label="HARRIS")
       CASE (hden_cube_fit)
-         IF (.NOT. harris_env%density_fit_ready) THEN
+         IF (harris_env%fit_method == hfit_relative_entropy) THEN
+            IF (.NOT. harris_env%density_target_ready) THEN
+               CALL read_cube_density(qs_env, rho_struct, TRIM(harris_env%density_filename), &
+                                      total_density_sign=-1, source_label="HARRIS")
+               CALL qs_rho_get(rho_struct, rho_r=rho_rspace)
+               pw_grid => rho_rspace(1)%pw_grid
+               CALL harris_env%density_target_rspace%create(pw_grid)
+               CALL pw_copy(rho_rspace(1), harris_env%density_target_rspace)
+               harris_env%density_target_ready = .TRUE.
+            ELSE
+               CALL qs_rho_get(rho_struct, rho_r=rho_rspace, rho_g=rho_gspace, &
+                               tot_rho_r=tot_rho_r)
+               IF (harris_env%density_fit_ready) THEN
+                  CALL pw_copy(harris_env%density_fit_rspace, rho_rspace(1))
+               ELSE
+                  CALL pw_copy(harris_env%density_target_rspace, rho_rspace(1))
+               END IF
+               CALL pw_transfer(rho_rspace(1), rho_gspace(1))
+               tot_rho_r(1) = pw_integrate_function(rho_rspace(1), isign=-1)
+            END IF
+         ELSE IF (.NOT. harris_env%density_fit_ready) THEN
             CALL read_cube_density(qs_env, rho_struct, TRIM(harris_env%density_filename), &
                                    total_density_sign=-1, source_label="HARRIS")
             IF (harris_env%direct_density_matrix_energy) THEN

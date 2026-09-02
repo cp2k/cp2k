@@ -41,6 +41,7 @@ MODULE qs_harris_methods
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
+   USE qs_density_fit,                  ONLY: fit_relative_entropy_density
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -70,7 +71,8 @@ MODULE qs_harris_methods
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_harris_methods'
 
-   PUBLIC :: harris_direct_density_matrix_energy, harris_energy_correction
+   PUBLIC :: harris_direct_density_matrix_energy, harris_energy_correction, &
+             harris_relative_entropy_reconstruction
 
 CONTAINS
 
@@ -244,6 +246,58 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE harris_direct_density_matrix_energy
+
+! **************************************************************************************************
+!> \brief Builds H[n_cube] once and reconstructs the AO density matrix by minimizing a
+!>        density residual regularized by fermionic relative entropy to its Fermi matrix.
+!> \param qs_env Quickstep environment with the target cube density active
+! **************************************************************************************************
+   SUBROUTINE harris_relative_entropy_reconstruction(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_relative_entropy_reconstruction'
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
+      TYPE(harris_type), POINTER                         :: harris_env
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      CALL timeset(routineN, handle)
+      NULLIFY (harris_env, matrix_ks, rho, rho_g, rho_r, tot_rho_r)
+
+      CALL get_qs_env(qs_env, harris_env=harris_env, rho=rho)
+      CPASSERT(harris_env%density_source == hden_cube_fit)
+      CPASSERT(harris_env%density_target_ready)
+      CPASSERT(.NOT. harris_env%density_fit_ready)
+
+      ! The active real-space density is n_cube here.  Build and freeze its Kohn-Sham matrix
+      ! before changing the AO density matrix.
+      CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., potential_changed=.TRUE.)
+      CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.TRUE., &
+                               print_active=.FALSE.)
+      CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
+      CPASSERT(ASSOCIATED(matrix_ks) .AND. SIZE(matrix_ks) == 1)
+
+      CALL fit_relative_entropy_density(qs_env, rho, matrix_ks(1)%matrix, &
+                                        harris_env%fit_temperature, &
+                                        harris_env%fit_relative_entropy_weight, &
+                                        harris_env%fit_max_iter, harris_env%fit_eps, &
+                                        harris_env%fit_step_size, harris_env%fit_max_backtrack)
+
+      CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, tot_rho_r=tot_rho_r)
+      CPASSERT(SIZE(rho_r) == 1 .AND. SIZE(rho_g) == 1)
+      CALL harris_env%density_fit_rspace%create(rho_r(1)%pw_grid)
+      CALL pw_copy(rho_r(1), harris_env%density_fit_rspace)
+      harris_env%density_fit_ready = .TRUE.
+      CALL qs_rho_set(rho, rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
+      CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., potential_changed=.TRUE.)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE harris_relative_entropy_reconstruction
 
 ! **************************************************************************************************
 !> \brief ...

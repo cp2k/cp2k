@@ -1209,6 +1209,8 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: hden_atomic = 10, &
                                                hden_cube = 20, &
                                                hden_cube_fit = 30
+   INTEGER, PARAMETER, PUBLIC               :: hfit_least_squares = 10, &
+                                               hfit_relative_entropy = 20
    INTEGER, PARAMETER, PUBLIC               :: horb_default = 100
 
    ! non-scf energy corrections

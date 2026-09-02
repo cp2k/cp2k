@@ -70,9 +70,13 @@ MODULE qs_harris_types
       CHARACTER(LEN=default_string_length)             :: density_filename = ""
       INTEGER                                          :: fit_max_iter = 50
       INTEGER                                          :: fit_max_backtrack = 20
+      INTEGER                                          :: fit_method = 0
       REAL(KIND=dp)                                    :: fit_eps = 1.0E-3_dp
       REAL(KIND=dp)                                    :: fit_step_size = 1.0_dp
+      REAL(KIND=dp)                                    :: fit_temperature = 0.0_dp
+      REAL(KIND=dp)                                    :: fit_relative_entropy_weight = 1.0E-3_dp
       LOGICAL                                          :: density_fit_ready = .FALSE.
+      LOGICAL                                          :: density_target_ready = .FALSE.
       LOGICAL                                          :: direct_density_matrix_energy = .FALSE.
       !
       TYPE(harris_energy_type)                         :: energy

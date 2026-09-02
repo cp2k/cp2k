@@ -24,6 +24,38 @@
     {matcher="Harris_direct_trial_energy", tol=1e-009, ref=0.16600457904403},
     {matcher="Harris_direct_energy_difference", tol=1e-009, ref=0.15318552342482},
 ]
+"he_cube_fit_relative_entropy.inp"      = [
+    {matcher="M011", tol=1e-009, ref=-1.777220255742019},
+    {matcher="Harris_fit_electron_count", tol=1e-010, ref=2.0},
+    {matcher="Harris_fit_relative_entropy", tol=1e-008, ref=0.683618889},
+    {matcher="Harris_fit_prior_commutator", tol=1e-008, ref=0.0},
+    {matcher="Harris_fit_idempotency_error", tol=1e-008, ref=0.275472962},
+]
+"he_cube_fit_relative_entropy_ls_scf.inp" = [
+    {matcher="M011", tol=1e-009, ref=-1.777220255742018},
+    {matcher="Harris_fit_electron_count", tol=1e-010, ref=2.0},
+    {matcher="Harris_fit_relative_entropy", tol=1e-008, ref=0.683618889},
+    {matcher="Harris_fit_prior_commutator", tol=1e-008, ref=0.0},
+    {matcher="Harris_fit_idempotency_error", tol=1e-008, ref=0.275472962},
+]
+"he_cube_fit_relative_entropy_direct.inp" = [
+    {matcher="M011", tol=1e-009, ref=0.012564980540902},
+    {matcher="Harris_fit_electron_count", tol=1e-010, ref=2.0},
+    {matcher="Harris_fit_relative_entropy", tol=1e-008, ref=0.683618889},
+    {matcher="Harris_fit_prior_commutator", tol=1e-008, ref=0.0},
+    {matcher="Harris_fit_idempotency_error", tol=1e-008, ref=0.275472962},
+    {matcher="Harris_direct_trial_energy", tol=1e-009, ref=0.17038967467664},
+    {matcher="Harris_direct_energy_difference", tol=1e-009, ref=0.15782469413574},
+]
+"he_cube_fit_relative_entropy_direct_ls_scf.inp" = [
+    {matcher="M011", tol=1e-009, ref=0.012564980540902},
+    {matcher="Harris_fit_electron_count", tol=1e-010, ref=2.0},
+    {matcher="Harris_fit_relative_entropy", tol=1e-008, ref=0.683618889},
+    {matcher="Harris_fit_prior_commutator", tol=1e-008, ref=0.0},
+    {matcher="Harris_fit_idempotency_error", tol=1e-008, ref=0.275472962},
+    {matcher="Harris_direct_trial_energy", tol=1e-009, ref=0.17038967467664},
+    {matcher="Harris_direct_energy_difference", tol=1e-009, ref=0.15782469413574},
+]
 "he_zmp.inp"                            = [{matcher="M011", tol=1e-008, ref=-2.237334614695333}]
 "he_zmp_ls_scf.inp"                     = [{matcher="M011", tol=1e-008, ref=-2.237335366244200}]
 "ft1.inp"                               = []
