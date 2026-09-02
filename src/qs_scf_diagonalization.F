@@ -123,7 +123,8 @@ MODULE qs_scf_diagonalization
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gspace_mixing,                ONLY: gspace_mixing
-   USE qs_kp_evp_methods,               ONLY: kp_evp_op_finish_cfm,&
+   USE qs_kp_evp_methods,               ONLY: kp_evp_cfm_to_mo,&
+                                              kp_evp_op_finish_cfm,&
                                               kp_evp_op_start
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
@@ -810,7 +811,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
       TYPE(cp_fm_type)                                   :: fmdummy, fmlocal, rksmat, rsmat, rtmat
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
-      TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: adiis_ks, effective_ks
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -1227,18 +1228,15 @@ CONTAINS
                      CALL cp_fm_geeig(rksmat, rsmat, mo_coeff, eigenvalues, fmlocal)
                   END IF
                ELSE
-                  CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
-                  CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
+                  CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
                   IF (scf_env%cholesky_method == cholesky_off) THEN
                      CALL cp_cfm_geeig_canon(cksmat, csmat, cmos, eigenvalues, cwork, &
                                              scf_control%eps_eigval)
                   ELSE
                      CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
                   END IF
-                  ! copy eigenvalues to imag set (keep them in sync)
-                  kp%mos(2, ispin)%eigenvalues = eigenvalues
-                  ! split real and imaginary part of mos
-                  CALL cp_cfm_to_fm(cmos, rmos, imos)
+                  ! split real and imaginary part of mos and sync the eigenvalues
+                  CALL kp_evp_cfm_to_mo(cmos, kp%mos(1, ispin), kp%mos(2, ispin), eigenvalues)
                END IF
             END DO
          END DO
@@ -1294,8 +1292,7 @@ CONTAINS
                      END IF
                   END IF
                ELSE
-                  CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
-                  CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
+                  CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
                   IF (my_store_ot_matrices) THEN
                      CALL cp_cfm_to_fm(cksmat, kp%ot_hmat(1, ispin), kp%ot_hmat(2, ispin))
                      IF (ispin == 1) THEN
@@ -1312,10 +1309,8 @@ CONTAINS
                      ELSE
                         CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
                      END IF
-                     ! copy eigenvalues to imag set (keep them in sync)
-                     kp%mos(2, ispin)%eigenvalues = eigenvalues
-                     ! split real and imaginary part of mos
-                     CALL cp_cfm_to_fm(cmos, rmos, imos)
+                     ! split real and imaginary part of mos and sync the eigenvalues
+                     CALL kp_evp_cfm_to_mo(cmos, kp%mos(1, ispin), kp%mos(2, ispin), eigenvalues)
                   END IF
                END IF
             END DO
@@ -1913,7 +1908,7 @@ CONTAINS
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
       TYPE(cp_fm_type)                                   :: fmdummy, fmlocal, rksmat, rsmat
-      TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tempmat, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -2051,13 +2046,10 @@ CONTAINS
                CALL get_mo_set(kp%mos(1, ispin), mo_coeff=mo_coeff, eigenvalues=eigenvalues)
                CALL cp_fm_geeig(rksmat, rsmat, mo_coeff, eigenvalues, fmlocal)
             ELSE
-               CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
-               CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
+               CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
                CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
-               ! copy eigenvalues to imag set (keep them in sync)
-               kp%mos(2, ispin)%eigenvalues = eigenvalues
-               ! split real and imaginary part of mos
-               CALL cp_cfm_to_fm(cmos, rmos, imos)
+               ! split real and imaginary part of mos and sync the eigenvalues
+               CALL kp_evp_cfm_to_mo(cmos, kp%mos(1, ispin), kp%mos(2, ispin), eigenvalues)
             END IF
          END DO
       END DO
