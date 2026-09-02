@@ -594,7 +594,7 @@ CONTAINS
          IF (PRESENT(nspin)) THEN
             CALL xc_f03_func_init(func, functional, nspin)
          ELSE
-            CALL xc_f03_func_init(func, functional)
+            CALL xc_f03_func_init(func, functional, XC_UNPOLARIZED)
          END IF
       CASE (LIBXC_BACKEND_GPU)
 #if defined (__LIBXC_CUDA)
@@ -602,7 +602,7 @@ CONTAINS
          IF (PRESENT(nspin)) THEN
             CALL xc_f03_func_init(func, functional, nspin)
          ELSE
-            CALL xc_f03_func_init(func, functional)
+            CALL xc_f03_func_init(func, functional, XC_UNPOLARIZED)
          END IF
          ! Directly call CUDA-enabled functions (same symbols, GPU-accelerated internally)
 #else
