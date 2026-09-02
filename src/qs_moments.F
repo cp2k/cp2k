@@ -16,7 +16,6 @@ MODULE qs_moments
    USE ai_moments, ONLY: contract_cossin, &
                          cossin, &
                          diff_momop, &
-                         diff_momop2, &
                          moment
    USE atomic_kind_types, ONLY: atomic_kind_type, &
                                 get_atomic_kind
@@ -2807,10 +2806,10 @@ CONTAINS
                ALLOCATE (difmab(lda, ldb, M_dim, 3))
 
                ! Calculate integral (da|r|b)
-               CALL diff_momop2(la_max(iset), npgfa(iset), zeta(:, iset), &
-                                rpgfa(:, iset), la_min(iset), lb_max(jset), npgfb(jset), &
-                                zetb(:, jset), rpgfb(:, jset), lb_min(jset), order, rac, rbc, &
-                                difmab, deltaR=deltaR, iatom=iatom, jatom=jatom)
+               CALL diff_momop(la_max(iset), npgfa(iset), zeta(:, iset), &
+                               rpgfa(:, iset), la_min(iset), lb_max(jset), npgfb(jset), &
+                               zetb(:, jset), rpgfb(:, jset), lb_min(jset), order, rac, rbc, &
+                               difmab, deltaR=deltaR, iatom=iatom, jatom=jatom)
 
 !                  *** Contraction step ***
 
