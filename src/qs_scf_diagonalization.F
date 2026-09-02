@@ -123,6 +123,8 @@ MODULE qs_scf_diagonalization
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gspace_mixing,                ONLY: gspace_mixing
+   USE qs_kp_evp_methods,               ONLY: kp_evp_op_finish_cfm,&
+                                              kp_evp_op_start
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
@@ -1038,39 +1040,7 @@ CONTAINS
                   END IF
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
-               ELSE
-                  ! FT of matrices KS and S, then transfer to FM type
-                  IF (use_grid_fft) THEN
-                     CALL rskp_transform_grid_extract(ks_grid(ispin), ik, rmatrix, cmatrix)
-                  ELSE
-                     CALL dbcsr_set(rmatrix, 0.0_dp)
-                     CALL dbcsr_set(cmatrix, 0.0_dp)
-                     CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=effective_ks, ispin=ispin, &
-                                         xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                  END IF
-                  CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
-                  CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
-                  ! s matrix is not spin dependent, double the work
-                  IF (use_grid_fft) THEN
-                     CALL rskp_transform_grid_extract(s_grid, ik, rmatrix, cmatrix)
-                  ELSE
-                     CALL dbcsr_set(rmatrix, 0.0_dp)
-                     CALL dbcsr_set(cmatrix, 0.0_dp)
-                     CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s, ispin=1, &
-                                         xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                  END IF
-                  CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
-                  CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(4))
-               END IF
-               ! transfer to kpoint group
-               ! redistribution of matrices, new blacs environment
-               ! fmwork -> fmlocal -> rksmat/cksmat
-               ! fmwork -> fmlocal -> rsmat/csmat
-               IF (use_real_wfn) THEN
+                  ! transfer to kpoint group, redistribution with new blacs environment
                   IF (my_kpgrp) THEN
                      CALL cp_fm_start_copy_general(fmwork(1), rksmat, para_env, info(indx, 1))
                      CALL cp_fm_start_copy_general(fmwork(3), rsmat, para_env, info(indx, 2))
@@ -1079,45 +1049,49 @@ CONTAINS
                      CALL cp_fm_start_copy_general(fmwork(3), fmdummy, para_env, info(indx, 2))
                   END IF
                ELSE
+                  ! complex wavefunctions: assemble KS and S and start their
+                  ! redistribution to the kpoint group
                   IF (my_kpgrp) THEN
-                     CALL cp_fm_start_copy_general(fmwork(1), fmlocal, para_env, info(indx, 1))
-                     CALL cp_fm_start_copy_general(fmwork(2), fmlocal, para_env, info(indx, 2))
-                     CALL cp_fm_start_copy_general(fmwork(3), fmlocal, para_env, info(indx, 3))
-                     CALL cp_fm_start_copy_general(fmwork(4), fmlocal, para_env, info(indx, 4))
+                     CALL kp_evp_op_start(effective_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                          ks_grid(ispin), use_grid_fft, rmatrix, cmatrix, tmpmat, &
+                                          fmwork(1), fmwork(2), fmlocal, para_env, info(indx, 1), info(indx, 2))
+                     CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, s_grid, &
+                                          use_grid_fft, rmatrix, cmatrix, tmpmat, fmwork(3), fmwork(4), &
+                                          fmlocal, para_env, info(indx, 3), info(indx, 4))
                   ELSE
-                     CALL cp_fm_start_copy_general(fmwork(1), fmdummy, para_env, info(indx, 1))
-                     CALL cp_fm_start_copy_general(fmwork(2), fmdummy, para_env, info(indx, 2))
-                     CALL cp_fm_start_copy_general(fmwork(3), fmdummy, para_env, info(indx, 3))
-                     CALL cp_fm_start_copy_general(fmwork(4), fmdummy, para_env, info(indx, 4))
+                     CALL kp_evp_op_start(effective_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                          ks_grid(ispin), use_grid_fft, rmatrix, cmatrix, tmpmat, &
+                                          fmwork(1), fmwork(2), fmdummy, para_env, info(indx, 1), info(indx, 2))
+                     CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, s_grid, &
+                                          use_grid_fft, rmatrix, cmatrix, tmpmat, fmwork(3), fmwork(4), &
+                                          fmdummy, para_env, info(indx, 3), info(indx, 4))
                   END IF
                END IF
                IF (my_store_ot_kinetic) THEN
-                  CALL dbcsr_set(rmatrix, 0.0_dp)
                   IF (use_real_wfn) THEN
+                     CALL dbcsr_set(rmatrix, 0.0_dp)
                      CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_t, ispin=1, &
                                          xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                  ELSE
-                     CALL dbcsr_set(cmatrix, 0.0_dp)
-                     CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_t, ispin=1, &
-                                         xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                  END IF
-                  CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
-                  IF (use_real_wfn) THEN
+                     CALL dbcsr_desymmetrize(rmatrix, tmpmat)
+                     CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
                      IF (my_kpgrp) THEN
                         CALL cp_fm_start_copy_general(fmwork(3), rtmat, para_env, info(indx, 3))
                      ELSE
                         CALL cp_fm_start_copy_general(fmwork(3), fmdummy, para_env, info(indx, 3))
                      END IF
                   ELSE
-                     CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-                     CALL copy_dbcsr_to_fm(tmpmat, fmwork(4))
                      IF (my_kpgrp) THEN
-                        CALL cp_fm_start_copy_general(fmwork(3), fmlocal, para_env, info(indx, 5))
-                        CALL cp_fm_start_copy_general(fmwork(4), fmlocal, para_env, info(indx, 6))
+                        CALL kp_evp_op_start(matrix_t, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                             use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
+                                             tmpmat=tmpmat, fm_re=fmwork(3), fm_im=fmwork(4), &
+                                             target_fm=fmlocal, para_env=para_env, &
+                                             info_re=info(indx, 5), info_im=info(indx, 6))
                      ELSE
-                        CALL cp_fm_start_copy_general(fmwork(3), fmdummy, para_env, info(indx, 5))
-                        CALL cp_fm_start_copy_general(fmwork(4), fmdummy, para_env, info(indx, 6))
+                        CALL kp_evp_op_start(matrix_t, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                             use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
+                                             tmpmat=tmpmat, fm_re=fmwork(3), fm_im=fmwork(4), &
+                                             target_fm=fmdummy, para_env=para_env, &
+                                             info_re=info(indx, 5), info_im=info(indx, 6))
                      END IF
                   END IF
                END IF
@@ -1149,19 +1123,13 @@ CONTAINS
                         CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, rksmat)
                         CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, rsmat)
                      ELSE
-                        CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
-                        CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, fmlocal)
-                        CALL cp_fm_finish_copy_general(fmlocal, info(indx, 2))
-                        CALL cp_cfm_scale_and_add_fm(z_one, cksmat, gaussi, fmlocal)
-                        CALL cp_fm_finish_copy_general(fmlocal, info(indx, 3))
-                        CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, fmlocal)
-                        CALL cp_fm_finish_copy_general(fmlocal, info(indx, 4))
-                        CALL cp_cfm_scale_and_add_fm(z_one, csmat, gaussi, fmlocal)
+                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 1), cksmat, .FALSE.)
+                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 2), cksmat, .TRUE.)
+                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 3), csmat, .FALSE.)
+                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 4), csmat, .TRUE.)
                         IF (my_store_ot_kinetic) THEN
-                           CALL cp_fm_finish_copy_general(fmlocal, info(indx, 5))
-                           CALL cp_cfm_scale_and_add_fm(z_zero, ctmat, z_one, fmlocal)
-                           CALL cp_fm_finish_copy_general(fmlocal, info(indx, 6))
-                           CALL cp_cfm_scale_and_add_fm(z_one, ctmat, gaussi, fmlocal)
+                           CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 5), ctmat, .FALSE.)
+                           CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 6), ctmat, .TRUE.)
                         END IF
                      END IF
                   END IF
@@ -1214,25 +1182,20 @@ CONTAINS
                      DO igroup = 1, nkp_groups
                         ik = kp_dist(1, igroup) + ikp - 1
                         my_kpgrp = ik >= kp_range(1) .AND. ik <= kp_range(2)
-                        CALL dbcsr_set(rmatrix, 0.0_dp)
-                        CALL dbcsr_set(cmatrix, 0.0_dp)
-                        CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, &
-                                            rsmat=adiis_ks, ispin=ispin, &
-                                            xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                        CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                        CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
-                        CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-                        CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
                         IF (my_kpgrp) THEN
-                           CALL cp_fm_start_copy_general(fmwork(1), fmlocal, para_env, blend_info(1))
-                           CALL cp_fm_start_copy_general(fmwork(2), fmlocal, para_env, blend_info(2))
-                           CALL cp_fm_finish_copy_general(fmlocal, blend_info(1))
-                           CALL cp_cfm_scale_and_add_fm(z_zero, cwork, z_one, fmlocal)
-                           CALL cp_fm_finish_copy_general(fmlocal, blend_info(2))
-                           CALL cp_cfm_scale_and_add_fm(z_one, cwork, gaussi, fmlocal)
+                           CALL kp_evp_op_start(adiis_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                                use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
+                                                tmpmat=tmpmat, fm_re=fmwork(1), fm_im=fmwork(2), &
+                                                target_fm=fmlocal, para_env=para_env, &
+                                                info_re=blend_info(1), info_im=blend_info(2))
+                           CALL kp_evp_op_finish_cfm(fmlocal, blend_info(1), cwork, .FALSE.)
+                           CALL kp_evp_op_finish_cfm(fmlocal, blend_info(2), cwork, .TRUE.)
                         ELSE
-                           CALL cp_fm_start_copy_general(fmwork(1), fmdummy, para_env, blend_info(1))
-                           CALL cp_fm_start_copy_general(fmwork(2), fmdummy, para_env, blend_info(2))
+                           CALL kp_evp_op_start(adiis_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                                use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
+                                                tmpmat=tmpmat, fm_re=fmwork(1), fm_im=fmwork(2), &
+                                                target_fm=fmdummy, para_env=para_env, &
+                                                info_re=blend_info(1), info_im=blend_info(2))
                         END IF
                         CALL cp_fm_cleanup_copy_general(blend_info(1))
                         CALL cp_fm_cleanup_copy_general(blend_info(2))
@@ -1298,19 +1261,13 @@ CONTAINS
                            CALL cp_fm_finish_copy_general(rtmat, info(indx, 3))
                         END IF
                      ELSE
-                        CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
-                        CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, fmlocal)
-                        CALL cp_fm_finish_copy_general(fmlocal, info(indx, 2))
-                        CALL cp_cfm_scale_and_add_fm(z_one, cksmat, gaussi, fmlocal)
-                        CALL cp_fm_finish_copy_general(fmlocal, info(indx, 3))
-                        CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, fmlocal)
-                        CALL cp_fm_finish_copy_general(fmlocal, info(indx, 4))
-                        CALL cp_cfm_scale_and_add_fm(z_one, csmat, gaussi, fmlocal)
+                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 1), cksmat, .FALSE.)
+                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 2), cksmat, .TRUE.)
+                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 3), csmat, .FALSE.)
+                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 4), csmat, .TRUE.)
                         IF (my_store_ot_kinetic) THEN
-                           CALL cp_fm_finish_copy_general(fmlocal, info(indx, 5))
-                           CALL cp_cfm_scale_and_add_fm(z_zero, ctmat, z_one, fmlocal)
-                           CALL cp_fm_finish_copy_general(fmlocal, info(indx, 6))
-                           CALL cp_cfm_scale_and_add_fm(z_one, ctmat, gaussi, fmlocal)
+                           CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 5), ctmat, .FALSE.)
+                           CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 6), ctmat, .TRUE.)
                         END IF
                      END IF
                   END IF
@@ -2030,31 +1987,7 @@ CONTAINS
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
-               ELSE
-                  ! FT of matrices KS and S, then transfer to FM type
-                  CALL dbcsr_set(rmatrix, 0.0_dp)
-                  CALL dbcsr_set(cmatrix, 0.0_dp)
-                  CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_ks, ispin=ispin, &
-                                      xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                  CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
-                  CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
-                  ! s matrix is not spin dependent, double the work
-                  CALL dbcsr_set(rmatrix, 0.0_dp)
-                  CALL dbcsr_set(cmatrix, 0.0_dp)
-                  CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s, ispin=1, &
-                                      xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                  CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
-                  CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(4))
-               END IF
-               ! transfer to kpoint group
-               ! redistribution of matrices, new blacs environment
-               ! fmwork -> fmlocal -> rksmat/cksmat
-               ! fmwork -> fmlocal -> rsmat/csmat
-               IF (use_real_wfn) THEN
+                  ! transfer to kpoint group, redistribution with new blacs environment
                   IF (my_kpgrp) THEN
                      CALL cp_fm_start_copy_general(fmwork(1), rksmat, para_env, info(indx, 1))
                      CALL cp_fm_start_copy_general(fmwork(3), rsmat, para_env, info(indx, 2))
@@ -2063,16 +1996,26 @@ CONTAINS
                      CALL cp_fm_start_copy_general(fmwork(3), fmdummy, para_env, info(indx, 2))
                   END IF
                ELSE
+                  ! complex wavefunctions: assemble KS and S and start their
+                  ! redistribution to the kpoint group
                   IF (my_kpgrp) THEN
-                     CALL cp_fm_start_copy_general(fmwork(1), fmlocal, para_env, info(indx, 1))
-                     CALL cp_fm_start_copy_general(fmwork(2), fmlocal, para_env, info(indx, 2))
-                     CALL cp_fm_start_copy_general(fmwork(3), fmlocal, para_env, info(indx, 3))
-                     CALL cp_fm_start_copy_general(fmwork(4), fmlocal, para_env, info(indx, 4))
+                     CALL kp_evp_op_start(matrix_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                          use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
+                                          fm_re=fmwork(1), fm_im=fmwork(2), target_fm=fmlocal, &
+                                          para_env=para_env, info_re=info(indx, 1), info_im=info(indx, 2))
+                     CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                          use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
+                                          fm_re=fmwork(3), fm_im=fmwork(4), target_fm=fmlocal, &
+                                          para_env=para_env, info_re=info(indx, 3), info_im=info(indx, 4))
                   ELSE
-                     CALL cp_fm_start_copy_general(fmwork(1), fmdummy, para_env, info(indx, 1))
-                     CALL cp_fm_start_copy_general(fmwork(2), fmdummy, para_env, info(indx, 2))
-                     CALL cp_fm_start_copy_general(fmwork(3), fmdummy, para_env, info(indx, 3))
-                     CALL cp_fm_start_copy_general(fmwork(4), fmdummy, para_env, info(indx, 4))
+                     CALL kp_evp_op_start(matrix_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                          use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
+                                          fm_re=fmwork(1), fm_im=fmwork(2), target_fm=fmdummy, &
+                                          para_env=para_env, info_re=info(indx, 1), info_im=info(indx, 2))
+                     CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                          use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
+                                          fm_re=fmwork(3), fm_im=fmwork(4), target_fm=fmdummy, &
+                                          para_env=para_env, info_re=info(indx, 3), info_im=info(indx, 4))
                   END IF
                END IF
             END DO
@@ -2093,14 +2036,10 @@ CONTAINS
                      CALL cp_fm_finish_copy_general(rksmat, info(indx, 1))
                      CALL cp_fm_finish_copy_general(rsmat, info(indx, 2))
                   ELSE
-                     CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
-                     CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, fmlocal)
-                     CALL cp_fm_finish_copy_general(fmlocal, info(indx, 2))
-                     CALL cp_cfm_scale_and_add_fm(z_one, cksmat, gaussi, fmlocal)
-                     CALL cp_fm_finish_copy_general(fmlocal, info(indx, 3))
-                     CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, fmlocal)
-                     CALL cp_fm_finish_copy_general(fmlocal, info(indx, 4))
-                     CALL cp_cfm_scale_and_add_fm(z_one, csmat, gaussi, fmlocal)
+                     CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 1), cksmat, .FALSE.)
+                     CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 2), cksmat, .TRUE.)
+                     CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 3), csmat, .FALSE.)
+                     CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 4), csmat, .TRUE.)
                   END IF
                END IF
             END DO
@@ -3994,32 +3933,25 @@ CONTAINS
                                    xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
-            ELSE
-               CALL dbcsr_set(rmatrix, 0.0_dp)
-               CALL dbcsr_set(cmatrix, 0.0_dp)
-               CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=matrix_s, ispin=1, &
-                                   xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-               CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-               CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
-               CALL dbcsr_desymmetrize(cmatrix, tmpmat)
-               CALL copy_dbcsr_to_fm(tmpmat, fmwork(2))
-            END IF
-            ! transfer to kpoint group
-            ! redistribution of matrices, new blacs environment
-            ! fmwork -> fmlocal -> rsmat/csmat
-            IF (use_real_wfn) THEN
+               ! transfer to kpoint group, redistribution with new blacs environment
                IF (my_kpgrp) THEN
                   CALL cp_fm_start_copy_general(fmwork(1), rsmat, para_env, info(indx, 1))
                ELSE
                   CALL cp_fm_start_copy_general(fmwork(1), fmdummy, para_env, info(indx, 1))
                END IF
             ELSE
+               ! complex wavefunctions: assemble S and start its redistribution
+               ! to the kpoint group
                IF (my_kpgrp) THEN
-                  CALL cp_fm_start_copy_general(fmwork(1), fmlocal, para_env, info(indx, 1))
-                  CALL cp_fm_start_copy_general(fmwork(2), fmlocal, para_env, info(indx, 2))
+                  CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                       use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
+                                       fm_re=fmwork(1), fm_im=fmwork(2), target_fm=fmlocal, &
+                                       para_env=para_env, info_re=info(indx, 1), info_im=info(indx, 2))
                ELSE
-                  CALL cp_fm_start_copy_general(fmwork(1), fmdummy, para_env, info(indx, 1))
-                  CALL cp_fm_start_copy_general(fmwork(2), fmdummy, para_env, info(indx, 2))
+                  CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                       use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
+                                       fm_re=fmwork(1), fm_im=fmwork(2), target_fm=fmdummy, &
+                                       para_env=para_env, info_re=info(indx, 1), info_im=info(indx, 2))
                END IF
             END IF
          END DO
@@ -4037,10 +3969,8 @@ CONTAINS
                IF (use_real_wfn) THEN
                   CALL cp_fm_finish_copy_general(rsmat, info(indx, 1))
                ELSE
-                  CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
-                  CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, fmlocal)
-                  CALL cp_fm_finish_copy_general(fmlocal, info(indx, 2))
-                  CALL cp_cfm_scale_and_add_fm(z_one, csmat, gaussi, fmlocal)
+                  CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 1), csmat, .FALSE.)
+                  CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 2), csmat, .TRUE.)
                END IF
             END IF
          END DO
