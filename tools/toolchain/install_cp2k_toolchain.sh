@@ -257,8 +257,12 @@ Specific options of --with-PKG:
                           Default = install
   --with-gauxc            Enable GauXC for external exchange-correlation
                           integration. Installing GauXC with Skala
-                          support also enables libtorch and installs Skala-1.1.
+                          support also enables libtorch and installs Skala.
                           Default = no
+  --with-skala-ftorch     Enable Skala neural network density functional
+                          via ftorch. This also installs Skala and libtorch. 
+                          Use either this option or --with-gauxc, not both.
+                          Default = no 
   --with-eigen            Enable Eigen3; required by libint and SIRIUS.
                           Default = no
   --with-libint           Enable libint for two-body molecular integrals in
