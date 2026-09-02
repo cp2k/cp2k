@@ -12,7 +12,9 @@
 ! **************************************************************************************************
 MODULE qs_operators_ao
    USE ai_angmom,                       ONLY: angmom
-   USE ai_moments,                      ONLY: diff_momop,&
+   USE ai_moments,                      ONLY: contract_cossin,&
+                                              cossin,&
+                                              diff_momop,&
                                               moment
    USE ai_overlap,                      ONLY: overlap_ab
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
@@ -24,6 +26,7 @@ MODULE qs_operators_ao
                                               dbcsr_get_matrix_type,&
                                               dbcsr_has_symmetry,&
                                               dbcsr_p_type,&
+                                              dbcsr_set,&
                                               dbcsr_type_antisymmetric,&
                                               dbcsr_type_no_symmetry
    USE kinds,                           ONLY: default_string_length,&
@@ -51,10 +54,217 @@ MODULE qs_operators_ao
 
 ! *** Public subroutines ***
 
+   PUBLIC :: build_exp_ikr_matrix
    PUBLIC :: rRc_xyz_ao, rRc_xyz_der_ao
    PUBLIC :: build_lin_mom_matrix, build_ang_mom_matrix
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Build real and imaginary AO matrices for exp(i*k*r).
+!> \param qs_env ...
+!> \param op_sm_set op_sm_set(1, i) is the cosine matrix and op_sm_set(2, i) is the sine matrix
+!>        for kvec(:, i)
+!> \param kvec Cartesian wave vectors, one column for each output matrix pair
+!> \param sab_orb_external optional neighbor list used instead of the default orbital list
+!> \param basis_type optional basis-set name
+!> \param force_periodic temporarily use all three periodic directions
+!> \param cell_external optional cell used for coordinate folding and periodicity
+!> \author CP2K developers
+!> \note The cosine and sine matrices must be preallocated with matching symmetric
+!>       DBCSR topology. The matrices are overwritten from zero and only canonical
+!>       atom-pair blocks are written.
+! **************************************************************************************************
+   SUBROUTINE build_exp_ikr_matrix(qs_env, op_sm_set, kvec, sab_orb_external, basis_type, force_periodic, cell_external)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :)                :: op_sm_set
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: kvec
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: sab_orb_external
+      CHARACTER(LEN=*), OPTIONAL                         :: basis_type
+      LOGICAL, OPTIONAL                                  :: force_periodic
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell_external
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_exp_ikr_matrix'
+
+      INTEGER :: handle, i, iatom, icol, ikind, inode, irow, iset, jatom, jkind, jset, last_jatom, &
+         ldsa, ldsb, ldwork, ncoa, ncob, nkind, nkvec, nseta, nsetb, reim, sgfa, sgfb
+      INTEGER, DIMENSION(3)                              :: perd0
+      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
+                                                            npgfb, nsgfa, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      LOGICAL                                            :: found, my_force_periodic, new_atom_b
+      REAL(KIND=dp)                                      :: dab
+      REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cosab, rpgfa, rpgfb, sinab, sphi_a, &
+                                                            sphi_b, work, zeta, zetb
+      TYPE(block_p_type), ALLOCATABLE, DIMENSION(:, :)   :: op_cossin
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_kind_type), POINTER                        :: qs_kind
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(SIZE(kvec, 1) == 3)
+      nkvec = SIZE(kvec, 2)
+      CPASSERT(nkvec > 0)
+      CPASSERT(SIZE(op_sm_set, 1) == 2)
+      CPASSERT(SIZE(op_sm_set, 2) == nkvec)
+      DO i = 1, nkvec
+         DO reim = 1, 2
+            CPASSERT(ASSOCIATED(op_sm_set(reim, i)%matrix))
+            CPASSERT(dbcsr_has_symmetry(op_sm_set(reim, i)%matrix))
+            CALL dbcsr_set(op_sm_set(reim, i)%matrix, 0.0_dp)
+         END DO
+      END DO
+
+      NULLIFY (qs_kind, qs_kind_set, particle_set, sab_orb, cell)
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
+                      particle_set=particle_set, cell=cell, sab_orb=sab_orb)
+      CPASSERT(ASSOCIATED(cell))
+      CPASSERT(ASSOCIATED(qs_kind_set))
+      CPASSERT(ASSOCIATED(particle_set))
+      IF (PRESENT(cell_external)) THEN
+         CPASSERT(ASSOCIATED(cell_external))
+         cell => cell_external
+      END IF
+
+      IF (PRESENT(sab_orb_external)) THEN
+         CPASSERT(ASSOCIATED(sab_orb_external))
+         sab_orb => sab_orb_external
+      END IF
+      CPASSERT(ASSOCIATED(sab_orb))
+
+      my_force_periodic = .FALSE.
+      IF (PRESENT(force_periodic)) my_force_periodic = force_periodic
+      IF (my_force_periodic) THEN
+         perd0(:) = cell%perd(:)
+         cell%perd(:) = 1
+      END IF
+
+      nkind = SIZE(qs_kind_set)
+      CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork, basis_type=basis_type)
+      ALLOCATE (cosab(ldwork, ldwork), sinab(ldwork, ldwork), work(ldwork, ldwork))
+
+      ALLOCATE (op_cossin(2, nkvec))
+
+      ALLOCATE (basis_set_list(nkind))
+      DO ikind = 1, nkind
+         qs_kind => qs_kind_set(ikind)
+         CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a, basis_type=basis_type)
+         IF (ASSOCIATED(basis_set_a)) THEN
+            basis_set_list(ikind)%gto_basis_set => basis_set_a
+         ELSE
+            NULLIFY (basis_set_list(ikind)%gto_basis_set)
+         END IF
+      END DO
+
+      last_jatom = 0
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, inode=inode, &
+                                iatom=iatom, jatom=jatom, r=rab)
+         basis_set_a => basis_set_list(ikind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
+         basis_set_b => basis_set_list(jkind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+
+         ra(:) = pbc(particle_set(iatom)%r(:), cell)
+         rb(:) = ra(:) + rab(:)
+
+         first_sgfa => basis_set_a%first_sgf
+         la_max => basis_set_a%lmax
+         la_min => basis_set_a%lmin
+         npgfa => basis_set_a%npgf
+         nsgfa => basis_set_a%nsgf_set
+         rpgfa => basis_set_a%pgf_radius
+         set_radius_a => basis_set_a%set_radius
+         sphi_a => basis_set_a%sphi
+         zeta => basis_set_a%zet
+
+         first_sgfb => basis_set_b%first_sgf
+         lb_max => basis_set_b%lmax
+         lb_min => basis_set_b%lmin
+         npgfb => basis_set_b%npgf
+         nsgfb => basis_set_b%nsgf_set
+         rpgfb => basis_set_b%pgf_radius
+         set_radius_b => basis_set_b%set_radius
+         sphi_b => basis_set_b%sphi
+         zetb => basis_set_b%zet
+
+         nseta = basis_set_a%nset
+         nsetb = basis_set_b%nset
+         ldsa = SIZE(sphi_a, 1)
+         ldsb = SIZE(sphi_b, 1)
+         IF (inode == 1) last_jatom = 0
+
+         IF (jatom /= last_jatom) THEN
+            new_atom_b = .TRUE.
+            last_jatom = jatom
+         ELSE
+            new_atom_b = .FALSE.
+         END IF
+
+         IF (new_atom_b) THEN
+            IF (iatom <= jatom) THEN
+               irow = iatom
+               icol = jatom
+            ELSE
+               irow = jatom
+               icol = iatom
+            END IF
+
+            DO i = 1, nkvec
+               DO reim = 1, 2
+                  NULLIFY (op_cossin(reim, i)%block)
+                  CALL dbcsr_get_block_p(matrix=op_sm_set(reim, i)%matrix, &
+                                         row=irow, col=icol, block=op_cossin(reim, i)%block, found=found)
+               END DO
+               IF (ASSOCIATED(op_cossin(1, i)%block) .NEQV. ASSOCIATED(op_cossin(2, i)%block)) THEN
+                  CPABORT("cosine and sine blocks should have the same topology")
+               END IF
+            END DO
+         END IF
+
+         dab = NORM2(rab)
+         DO iset = 1, nseta
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            sgfa = first_sgfa(1, iset)
+            DO jset = 1, nsetb
+               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+               ncob = npgfb(jset)*ncoset(lb_max(jset))
+               sgfb = first_sgfb(1, jset)
+
+               DO i = 1, nkvec
+                  IF (.NOT. ASSOCIATED(op_cossin(1, i)%block)) CYCLE
+                  CALL cossin(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), &
+                              la_min(iset), lb_max(jset), npgfb(jset), zetb(:, jset), &
+                              rpgfb(:, jset), lb_min(jset), ra, rb, kvec(:, i), cosab, sinab)
+                  CALL contract_cossin(op_cossin(1, i)%block, op_cossin(2, i)%block, &
+                                       iatom, ncoa, nsgfa(iset), sgfa, sphi_a, ldsa, &
+                                       jatom, ncob, nsgfb(jset), sgfb, sphi_b, ldsb, &
+                                       cosab, sinab, ldwork, work, ldwork)
+               END DO
+            END DO
+         END DO
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      DEALLOCATE (op_cossin, cosab, sinab, work, basis_set_list)
+
+      IF (my_force_periodic) cell%perd(:) = perd0(:)
+
+      CALL timestop(handle)
+   END SUBROUTINE build_exp_ikr_matrix
 
 ! **************************************************************************************************
 !> \brief   Calculation of the linear momentum matrix <mu|∂|nu> over

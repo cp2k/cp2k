@@ -27,7 +27,7 @@ MODULE qs_tddfpt2_properties
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type
+        dbcsr_p_type, dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -286,9 +286,6 @@ CONTAINS
 
          DO ideriv = 1, nderivs
             kvec(:) = twopi*cell%h_inv(ideriv, :)
-            DO i_cos_sin = 1, 2
-               CALL dbcsr_set(berry_cossin_xyz(i_cos_sin)%matrix, 0.0_dp)
-            END DO
             CALL build_berry_moment_matrix(qs_env, berry_cossin_xyz(1)%matrix, &
                                            berry_cossin_xyz(2)%matrix, kvec)
 

@@ -1327,7 +1327,6 @@ CONTAINS
             NULLIFY (op_sm_set(j, i)%matrix)
             ALLOCATE (op_sm_set(j, i)%matrix)
             CALL dbcsr_copy(op_sm_set(j, i)%matrix, matrix_s(1)%matrix)
-            CALL dbcsr_set(op_sm_set(j, i)%matrix, 0.0_dp)
          END DO
       END DO
       CALL initialize_weights(cell, weights)

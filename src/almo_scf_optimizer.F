@@ -918,7 +918,6 @@ CONTAINS
                ALLOCATE (op_sm_set_qs(reim, idim0)%matrix)
                CALL dbcsr_copy(op_sm_set_qs(reim, idim0)%matrix, qs_matrix_s(1)%matrix, &
                              name="almo_scf_env%op_sm_"//TRIM(ADJUSTL(cp_to_string(reim)))//"-"//TRIM(ADJUSTL(cp_to_string(idim0))))
-               CALL dbcsr_set(op_sm_set_qs(reim, idim0)%matrix, 0.0_dp)
                NULLIFY (op_sm_set_almo(reim, idim0)%matrix)
                ALLOCATE (op_sm_set_almo(reim, idim0)%matrix)
                CALL dbcsr_copy(op_sm_set_almo(reim, idim0)%matrix, almo_scf_env%matrix_s(1), &
@@ -1972,7 +1971,6 @@ CONTAINS
                ALLOCATE (op_sm_set_almo(reim, idim0)%matrix)
                CALL dbcsr_copy(op_sm_set_qs(reim, idim0)%matrix, qs_matrix_s(1)%matrix, &
                              name="almo_scf_env%op_sm_"//TRIM(ADJUSTL(cp_to_string(reim)))//"-"//TRIM(ADJUSTL(cp_to_string(idim0))))
-               CALL dbcsr_set(op_sm_set_qs(reim, idim0)%matrix, 0.0_dp)
                CALL dbcsr_copy(op_sm_set_almo(reim, idim0)%matrix, matrix_s, &
                              name="almo_scf_env%op_sm_"//TRIM(ADJUSTL(cp_to_string(reim)))//"-"//TRIM(ADJUSTL(cp_to_string(idim0))))
                CALL dbcsr_set(op_sm_set_almo(reim, idim0)%matrix, 0.0_dp)
