@@ -66,9 +66,6 @@ case "${with_skala_ftorch}" in
       cmake "${BUILDDIR}/FTorch-${ftorch_ver}" \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
-        -DCMAKE_C_COMPILER="${CC}" \
-        -DCMAKE_CXX_COMPILER="${CXX}" \
-        -DCMAKE_Fortran_COMPILER="${FC}" \
         -DCMAKE_BUILD_TYPE=Release \
         -DBUILD_SHARED_LIBS=ON \
         > configure.log 2>&1 || tail_excerpt configure.log

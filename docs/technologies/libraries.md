@@ -188,7 +188,7 @@ integrator.
 
 ## Skala/FTorch (machine learning for quantum chemistry)
 
-Skala/FTorch provides machine learning functionality for quantum chemistry calculations.
+Skala/FTorch provides the machine learning based density functional Skala.
 
 - Pass `-DCP2K_USE_SKALA_FTORCH=ON` to CMake to enable Skala/FTorch support.
 - Requires FTorch and Skala libraries to be installed and available.
