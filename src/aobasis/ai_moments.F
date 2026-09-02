@@ -1355,8 +1355,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(OUT)  :: difmab
       REAL(KIND=dp), DIMENSION(:, :, :), OPTIONAL, &
          POINTER                                         :: mab_ext
-      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: deltaR
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: deltaR
       INTEGER, INTENT(IN), OPTIONAL                      :: lambda, iatom, jatom
 
       INTEGER                                            :: ider, imom, lda, lda_min, ldb, ldb_min
