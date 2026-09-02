@@ -12,4 +12,6 @@
 - Use `-DCP2K_ENABLE_DBM_GPU=OFF` to disable the GPU backend of the sparse tensor library.
 - Use `-DCP2K_ENABLE_PW_GPU=OFF` to disable the GPU backend of FFTs and associated gather/scatter
   operations.
+- Use `-DCP2K_ENABLE_NNP_GPU=OFF` to disable the GPU backend of the neural network potential (NNP)
+  force evaluation.
 - Use `-DCP2K_DBCSR_USE_CPU_ONLY=ON` to disable the GPU backend of DBCSR.

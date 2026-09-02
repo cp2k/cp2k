@@ -1,5 +1,6 @@
 # directories in this file will be scanned for a TEST_FILES entry, and used in regression testing of cp2k
 # additional fields are requirements on the list of cp2kflags provided by cp2k --version, i.e. regtests that will only run if a certain library has been linked in.
+# two requirements are evaluated at runtime instead: expressions on "mpiranks", and "gpu", which holds when the test machine has at least one GPU.
 # Directories have been reordered according the execution time needed for a gfortran pdbg run using 2 MPI tasks
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
@@ -277,6 +278,7 @@ QS/regtest-mom-2                                            libint !ifx
 QS/regtest-poisson
 xTB/regtest-tblite-gfn2-4                                   tblite spglib
 NNP/regtest-1
+NNP/regtest-gpu                                             nnp_gpu gpu
 QS/regtest-ps-implicit-1-2                                  fftw3
 QS/regtest-ecp-2
 xTB/regtest-4

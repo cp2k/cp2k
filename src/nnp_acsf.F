@@ -57,7 +57,8 @@ MODULE nnp_acsf
              nnp_init_acsf_groups, &
              nnp_sort_acsf, &
              nnp_sort_ele, &
-             nnp_write_acsf
+             nnp_write_acsf, &
+             nnp_build_radial_splines
 
 CONTAINS
 

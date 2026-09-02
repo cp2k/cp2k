@@ -440,6 +440,7 @@ list(
   nnp_environment.F
   nnp_environment_types.F
   nnp_force.F
+  nnp_gpu.F
   nnp_model.F
   nnp_neighbor_interface.F
   local_gemm_api.F
@@ -1549,6 +1550,10 @@ set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_opencl.c dbm/dbm_multiply_gpu.c)
 
 set(CP2K_PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
 
+set(CP2K_NNP_SRCS_GPU nnp/gpu/nnp_gpu_acsf.cu nnp/gpu/nnp_gpu_scatter.cu
+                      nnp/gpu/nnp_gpu_walk.cu nnp/gpu/nnp_gpu_nn.cu)
+set(CP2K_NNP_SRCS_GPU_C nnp/gpu/nnp_gpu_state.c)
+
 set(CP2K_PROGS_C
     grid/grid_miniapp.c;grid/grid_unittest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c
 )
@@ -1621,6 +1626,12 @@ if(CP2K_USE_CUDA
   if(CP2K_ENABLE_GRID_GPU)
     list(APPEND CP2K_SRCS_GPU ${CP2K_GRID_SRCS_GPU})
   endif()
+
+  if(CP2K_ENABLE_NNP_GPU)
+    list(APPEND CP2K_SRCS_GPU ${CP2K_NNP_SRCS_GPU})
+    list(APPEND CP2K_SRCS_C ${CP2K_NNP_SRCS_GPU_C})
+  endif()
+
   if(CP2K_USE_HIP)
     set_source_files_properties(${CP2K_SRCS_GPU} PROPERTIES LANGUAGE HIP)
   endif()
@@ -1639,14 +1650,14 @@ list(APPEND CP2K_SRCS_CPP openpmd_c_api.cpp)
 
 if(CP2K_ENABLE_CONSISTENCY_CHECKS)
   cp2k_compare_src_with_list(
-    "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_MPIWRAP_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C}"
+    "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_MPIWRAP_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_NNP_SRCS_GPU_C};${CP2K_PROGS_C}"
     "*.c"
     "${CP2K_EXCLUDED_SRCS_C}")
   cp2k_compare_src_with_list(
     "${CP2K_SRCS_F};${CP2K_OFFLOAD_SRCS_F};${CP2K_PROGS_F}" "*.F"
     "${CP2K_EXCLUDED_SRCS_F}")
   cp2k_compare_src_with_list(
-    "${CP2K_GRID_SRCS_GPU};${CP2K_GRID_SRCS_HIP};${CP2K_DBM_SRCS_GPU};${CP2K_PW_SRCS_GPU}"
+    "${CP2K_GRID_SRCS_GPU};${CP2K_GRID_SRCS_HIP};${CP2K_DBM_SRCS_GPU};${CP2K_PW_SRCS_GPU};${CP2K_NNP_SRCS_GPU}"
     "*.cu"
     "")
   cp2k_compare_src_with_list("${CP2K_SRCS_CPP}" "*.cpp" "")
@@ -1943,7 +1954,8 @@ if(CP2K_USE_CUDA
            $<$<NOT:$<BOOL:${CP2K_ENABLE_ELPA_GPU}>>:__NO_OFFLOAD_ELPA>
            $<$<NOT:$<BOOL:${CP2K_ENABLE_GRID_GPU}>>:__NO_OFFLOAD_GRID>
            $<$<NOT:$<BOOL:${CP2K_ENABLE_DBM_GPU}>>:__NO_OFFLOAD_DBM>
-           $<$<NOT:$<BOOL:${CP2K_ENABLE_PW_GPU}>>:__NO_OFFLOAD_PW>)
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_PW_GPU}>>:__NO_OFFLOAD_PW>
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_NNP_GPU}>>:__NO_OFFLOAD_NNP>)
 endif()
 
 add_dependencies(cp2k cp2k_build_info)

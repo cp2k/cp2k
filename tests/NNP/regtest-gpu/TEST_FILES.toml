@@ -1,0 +1,107 @@
+# GPU code path of the NNP force evaluation. This directory is gated on the
+# nnp_gpu cp2kflag AND the runtime gpu requirement (see tests/TEST_DIRS), so it
+# runs only on a binary built with the NNP GPU backend on a machine where the
+# test harness detects a device.
+#
+# The reference values are the same as the CPU tests in ../regtest-1: these
+# tests measure GPU-versus-CPU agreement. The double-precision GPU path is
+# compared at 1e-9 rather than 1e-14 because the descriptor accumulation uses
+# atomic additions whose ordering is not guaranteed identical across GPU
+# architectures, nor between two runs on one; 1e-9 still catches every
+# functional regression. Nothing asserts exact agreement, because the GPU path
+# does not offer it: see the limitations section of
+# docs/methods/machine_learning/nnp.md.
+
+# Single model, committee, and biased committee on the GPU (double precision).
+"H2O-64_NNP_MD-gpu.inp"                 = [{matcher="M002", tol=1.0E-9, ref=0.375124218267E+04}]
+"H2O-64_C-NNP_MD-gpu.inp"               = [{matcher="M002", tol=1.0E-9, ref=0.375124235844E+04}]
+"H2O-64_C-NNP_biased_MD-gpu.inp"        = [{matcher="M002", tol=1.0E-9, ref=0.375124232248E+04}]
+
+# Restart of the biased committee run above (same PROJECT, so it consumes the
+# H2O-64_C-NNP_biased_MD-1.restart written by the previous test): exercises
+# GPU-state re-initialisation through EXT_RESTART.
+"H2O-64_C-NNP_biased_MD_restart-gpu.inp" = [{matcher="M002", tol=1.0E-9, ref=0.375124124406E+04}]
+
+# NVE: non-periodic committee (cluster code path, no cell list) and periodic
+# 64-water box. Ten steps regress the trajectory; energy conservation over a
+# long run is a manual check (see the testing status in
+# docs/methods/machine_learning/nnp.md).
+"H2O_C-NNP_MD-gpu.inp"                  = [{matcher="M002", tol=1.0E-9, ref=0.586488095231E+02}]
+"H2O-64_C-NNP_MD-NVE-gpu.inp"           = [{matcher="M002", tol=1.0E-9, ref=0.375124383284E+04}]
+
+# Non-cubic 256-water cell: catches neighbour-walk and image bugs on the GPU.
+"H2O-256_C-NNP_MD-gpu-bitexact.inp" = [
+    {matcher="M_INIT_ENERGY", tol=1.0E-9, ref=15004.992479346592518},
+    {matcher="M002",          tol=1.0E-9, ref=0.150049870566E+05},
+    {matcher="M_CONS_QTY",    tol=1.0E-9, ref=0.150060861414E+05},
+]
+
+# Analytic-stress NPT on the GPU: the force-scatter kernels accumulate the
+# analytical virial on the device, so the whole NPT step runs there. The energy
+# is compared to the CPU reference at 1e-9 like the other GPU tests
+# (double-precision atomics, not bit-exact). The pressure is matched as well,
+# because it is the only quantity here that the virial actually moves: an
+# energy-only matcher passes even if the stress tensor is identically zero. Its
+# tolerance carries the same derivative amplification the CPU file documents
+# (energies at 1e-14 hold the pressure to 1e-10 there): the pressure is a
+# derivative quantity and ten NPT steps amplify the last bits by about four
+# orders, so the 1e-9 energies here pin it to 1e-5. Dropping the NNP virial
+# moves this number by around ten kilobar, so the loose gate still catches
+# that by orders of magnitude.
+"H2O-64_C-NNP_MD-NpT-gpu.inp" = [
+    {matcher="M002",       tol=1.0E-9, ref=0.375126784023E+04},
+    {matcher="M_PRESSURE", tol=1.0E-5, ref=7.913385731135E+03},
+]
+
+# NPT_I with numeric (finite-difference) stress: the FD displacement evals are
+# energy-only; this regresses the GPU energy path under cell perturbations. The
+# pressure gets 1e-6 rather than the 1e-9 used elsewhere here: an FD virial
+# differences energies over a small cell displacement, so it carries the
+# rounding of that difference divided by the step size. Measured spread is 5e-8
+# across compilers and 1e-8 between the CPU and GPU paths.
+"H2O-64_C-NNP_MD-NpT-numeric-gpu.inp" = [
+    {matcher="M002",       tol=1.0E-9, ref=0.375124841615E+04},
+    {matcher="M_PRESSURE", tol=1.0E-6, ref=6.603770676757E+03},
+]
+
+# Dilute electrolyte (62 H2O + 1 Na + 1 Cl, ions beyond the SF cutoff): every
+# step has heterogeneous angular groups with an empty first and/or second
+# neighbour list. This pins the invariant that a group skipped at
+# symmetry-function time is also skipped at force-scatter time; scattering a
+# slot the descriptor stage never wrote would read stale device buffers and
+# produce silently wrong forces.
+"NaCl-dilute-hetero-gpu.inp"            = [{matcher="M002", tol=1.0E-9, ref=-0.111644640894E+04}]
+
+# GPU_PRECISION MIXED, i.e. single-precision angular symmetry functions. The
+# file is named for the arithmetic rather than for the keyword, because "mixed"
+# also names CP2K's MIXED force environment and the two are unrelated.
+#
+# Single precision perturbs the energy well above the 1e-9 used for the
+# double-precision tests. Only the step-zero energy is regressed: a full
+# trajectory diverges chaotically from the double-precision reference, so the
+# per-step matcher would test the Lyapunov exponent rather than the kernel.
+"H2O-256_C-NNP_MD-gpu-fp32ang.inp"      = [{matcher="M_INIT_ENERGY", tol=1.0E-6, ref=15004.992479346592518}]
+
+# GPU_PRECISION MIXED with an analytic virial: the force-scatter kernels
+# accumulate the virial in double precision from double-precision coordinates
+# regardless of the descriptor arithmetic, so single precision reaches the
+# stress only through the descriptor derivatives. Step zero only, for the same
+# reason as the 256-water case above: over ten steps the single- and
+# double-precision trajectories separate chaotically, so a per-step matcher
+# would be measuring the Lyapunov exponent rather than the kernel. Step zero is
+# also the only point where the double-precision reference is a meaningful
+# target for the single-precision run.
+"H2O-64_C-NNP_MD-NpT-gpu-fp32ang.inp"   = [{matcher="M_INIT_ENERGY", tol=1.0E-6, ref=3751.248119836647220}]
+
+# MIXED force environment (METHOD MIXED): a committee NNP summed with a FIST
+# point-charge baseline, with the analytic virial coming from both halves. The
+# NNP sub-force-eval carries its own STRESS_TENSOR: pv_availability is derived
+# per force environment and is not inherited from the MIXED level, so omitting
+# it there yields a full-looking stress tensor holding only the FIST term.
+# The pressure tolerance carries the same four-orders derivative amplification
+# as the NPT test above.
+"H2O-64_MIXED_C-NNP-FIST_MD-NpT-gpu.inp" = [
+    {matcher="M002",       tol=1.0E-9, ref=0.372936358260E+04},
+    {matcher="M_PRESSURE", tol=1.0E-5, ref=-1.299133163874E+05},
+]
+#EOF

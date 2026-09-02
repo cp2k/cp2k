@@ -1,11 +1,41 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
+#
+# Every input here sets USE_GPU OFF. The keyword defaults to AUTO; today its
+# atoms-per-rank threshold keeps systems this small on the CPU anyway, but the
+# explicit OFF makes the 1e-14 references independent of that heuristic, so a
+# future change to AUTO cannot silently move this directory onto the GPU on
+# exactly the machines that build the GPU code. The GPU path has its own
+# directory, NNP/regtest-gpu.
 "H2O-64_NNP_MD.inp"                     = [{matcher="M002", tol=1.0E-14, ref=0.375124218267E+04}]
 "H2O_C-NNP_MD.inp"                      = [{matcher="M002", tol=1.0E-14, ref=0.586488095231E+02}]
 "H2O-64_C-NNP_MD.inp"                   = [{matcher="M002", tol=1.0E-14, ref=0.375124235844E+04}]
-"H2O-64_C-NNP_MD-NpT.inp"               = [{matcher="M002", tol=1.0E-14, ref=0.375126784023E+04}]
-"H2O-64_C-NNP_MD-NpT-numeric.inp"       = [{matcher="M002", tol=1.0E-14, ref=0.375124841615E+04}]
+"H2O-64_C-NNP_MD-NVE.inp"               = [{matcher="M002", tol=1.0E-14, ref=0.375124383284E+04}]
+
+# The NPT runs match the pressure as well as the energy. The pressure is the only
+# quantity in this output that the virial alone determines, so it is what
+# actually pins the stress tensor: an energy matcher still passes when the virial
+# is identically zero. Dropping the NNP virial moves this number by around ten
+# kilobar (measured 7.5e3 to 3.4e4 bar; the exact value is trajectory
+# dependent), so even the loosest gate below catches that by orders of
+# magnitude.
+#
+# The tolerances are looser than the 1e-14 used for the energies because the
+# pressure is a derivative quantity and ten NPT steps amplify the last bits. The
+# analytic-stress run holds 1e-10 across compilers (checked on gcc-13/Linux and
+# gcc-15/macOS). The numeric-stress run gets 1e-6: its virial comes from
+# differencing energies over a finite cell displacement, which amplifies rounding
+# by one over the step size, and it was measured to move by 5e-8 between those
+# two platforms and by 1e-8 between the CPU and GPU paths on one of them.
+"H2O-64_C-NNP_MD-NpT.inp" = [
+    {matcher="M002",       tol=1.0E-14, ref=0.375126784023E+04},
+    {matcher="M_PRESSURE", tol=1.0E-10, ref=7.913385731135E+03},
+]
+"H2O-64_C-NNP_MD-NpT-numeric.inp" = [
+    {matcher="M002",       tol=1.0E-14, ref=0.375124841615E+04},
+    {matcher="M_PRESSURE", tol=1.0E-6,  ref=6.603770676757E+03},
+]
 "H2O-64_C-NNP_biased_MD.inp"            = [{matcher="M002", tol=1.0E-14, ref=0.375124232248E+04}]
 "H2O-64_C-NNP_biased_MD_restart.inp"    = [{matcher="M002", tol=1.0E-14, ref=0.375124124406E+04}]
 
@@ -21,5 +51,20 @@
     {matcher="M_INIT_ENERGY", tol=1.0E-14, ref=15004.992479346592518},
     {matcher="M002",          tol=1.0E-14, ref=0.150049870566E+05},
     {matcher="M_CONS_QTY",    tol=1.0E-14, ref=0.150060861414E+05},
+]
+
+# Dilute electrolyte (62 H2O + 1 Na + 1 Cl, ions beyond the SF cutoff):
+# heterogeneous angular groups with empty neighbour lists on every step. CPU
+# reference for the GPU regression twin in ../regtest-gpu.
+"NaCl-dilute-hetero.inp"                = [{matcher="M002", tol=1.0E-14, ref=-0.111644640894E+04}]
+
+# MIXED force environment: committee NNP summed with a FIST point-charge
+# baseline, analytic virial from both halves under NPT_F. Pins the per-force-env
+# stress aggregation, and supplies the reference for the GPU twin in
+# ../regtest-gpu. Each &FORCE_EVAL carries its own STRESS_TENSOR because
+# pv_availability is not inherited from the MIXED level.
+"H2O-64_MIXED_C-NNP-FIST_MD-NpT.inp" = [
+    {matcher="M002",       tol=1.0E-14, ref=0.372936358260E+04},
+    {matcher="M_PRESSURE", tol=1.0E-10, ref=-1.299133163874E+05},
 ]
 #EOF

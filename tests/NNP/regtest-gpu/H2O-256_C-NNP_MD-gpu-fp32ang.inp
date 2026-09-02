@@ -1,0 +1,6 @@
+# Single-precision angular twin of ../regtest-1/H2O-256_C-NNP_MD-bitexact.inp: the shared
+# body on the device path with GPU_PRECISION MIXED.
+@SET GPU ON
+@SET PREC MIXED
+@SET PROJ H2O-256_C-NNP_MD-fp32ang
+@INCLUDE ../regtest-1/H2O-256_C-NNP_MD-bitexact.inc

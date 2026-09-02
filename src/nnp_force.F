@@ -25,6 +25,7 @@ MODULE nnp_force
                                               cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE input_constants,                 ONLY: nnp_use_gpu_on
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -36,6 +37,7 @@ MODULE nnp_force
    USE nnp_environment_types,           ONLY: nnp_arc_type,&
                                               nnp_env_get,&
                                               nnp_type
+   USE nnp_gpu,                         ONLY: nnp_gpu_energy_force
    USE nnp_model,                       ONLY: nnp_gradients,&
                                               nnp_predict
    USE particle_types,                  ONLY: particle_type
@@ -76,7 +78,7 @@ CONTAINS
                                                             max_input_nodes, mecalc, &
                                                             n_input_nodes, nthreads, t, tid
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: allcalc
-      LOGICAL                                            :: calc_stress
+      LOGICAL                                            :: calc_stress, use_gpu_path
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: denergydsym
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: stress
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: my_cstress_t, my_force_t
@@ -154,10 +156,19 @@ CONTAINS
          max_input_nodes = MAX(max_input_nodes, nnp%arc(i)%n_nodes(1))
       END DO
 
-      ! number of threads that will run the atom loop below
+      ! The GPU path runs the whole per-rank step (neighbour walk, descriptors,
+      ! network and force assembly) on the device. It handles energies, forces
+      ! and, when a stress tensor is requested, the analytical virial the
+      ! scatter kernels accumulate alongside the forces. Energy-only evaluations
+      ! always use the CPU loop.
+      use_gpu_path = (nnp%use_gpu == nnp_use_gpu_on) .AND. calc_forces
+
+      ! number of threads that will run the atom loop below. The per-thread
+      ! accumulator slabs belong to the CPU loop: the device kernels scatter
+      ! straight into nnp%myforce and nnp%committee_stress.
       nthreads = 1
 !$    nthreads = omp_get_max_threads()
-      IF (calc_forces) THEN
+      IF (calc_forces .AND. .NOT. use_gpu_path) THEN
          ! dGdr lives in per-element workspace; no global (3, n_sf, num_atoms) slab.
          ALLOCATE (my_force_t(3, nnp%num_atoms, nnp%n_committee, 0:nthreads - 1))
          my_force_t(:, :, :, :) = 0.0_dp
@@ -171,150 +182,156 @@ CONTAINS
       ! avg/max across ranks, so max - avg measures the load imbalance.
       CALL timeset('nnp_per_rank_atom_loop', handle_loop)
 
-      ! Thread the loop over atomic centres. Each thread works on its own copy
-      ! of the networks (my_arc), its own workspace column (selected by
-      ! omp_get_thread_num inside the ACSF routines) and its own slab of
-      ! my_force_t/my_cstress_t. SCHEDULE(STATIC) hands out contiguous atom
-      ! blocks in thread order, so the ordered sum over threads after the
-      ! region reproduces the serial summation order exactly.
-      !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP          SHARED(calc_forces, calc_stress, istart, max_input_nodes, mecalc, &
-      !$OMP                 my_cstress_t, my_force_t, nnp) &
-      !$OMP          PRIVATE(i, i_com, ind, ie, il, j, n_input_nodes, tid, my_arc, denergydsym, stress)
+      IF (use_gpu_path) THEN
+         CALL nnp_gpu_energy_force(nnp, istart, mecalc, max_input_nodes, calc_stress)
+      ELSE
 
-      tid = 1
-!$    tid = omp_get_thread_num() + 1
+         ! Thread the loop over atomic centres. Each thread works on its own copy
+         ! of the networks (my_arc), its own workspace column (selected by
+         ! omp_get_thread_num inside the ACSF routines) and its own slab of
+         ! my_force_t/my_cstress_t. SCHEDULE(STATIC) hands out contiguous atom
+         ! blocks in thread order, so the ordered sum over threads after the
+         ! region reproduces the serial summation order exactly.
+         !$OMP PARALLEL DEFAULT(NONE) &
+         !$OMP          SHARED(calc_forces, calc_stress, istart, max_input_nodes, mecalc, &
+         !$OMP                 my_cstress_t, my_force_t, nnp) &
+         !$OMP          PRIVATE(i, i_com, ind, ie, il, j, n_input_nodes, tid, my_arc, denergydsym, stress)
 
-      ! Copy the networks for this thread. ALLOCATE with SOURCE= rather than
-      ! plain assignment: allocate-on-assignment to an ALLOCATABLE is what
-      ! -Werror=realloc-lhs rejects in the debug builds. SOURCE= copies the
-      ! shape, the bounds and the values, so the copy is structurally identical
-      ! to the original either way. %layer itself is a POINTER array and is
-      ! allocated and freed explicitly.
-      ALLOCATE (my_arc(nnp%n_ele))
-      DO ie = 1, nnp%n_ele
-         ALLOCATE (my_arc(ie)%n_nodes, SOURCE=nnp%arc(ie)%n_nodes)
-         ALLOCATE (my_arc(ie)%layer(nnp%n_layer))
-         DO il = 1, nnp%n_layer
-            IF (ALLOCATED(nnp%arc(ie)%layer(il)%weights)) THEN
-               ALLOCATE (my_arc(ie)%layer(il)%weights, SOURCE=nnp%arc(ie)%layer(il)%weights)
-            END IF
-            IF (ALLOCATED(nnp%arc(ie)%layer(il)%bweights)) THEN
-               ALLOCATE (my_arc(ie)%layer(il)%bweights, SOURCE=nnp%arc(ie)%layer(il)%bweights)
-            END IF
-            IF (ALLOCATED(nnp%arc(ie)%layer(il)%node)) THEN
-               ALLOCATE (my_arc(ie)%layer(il)%node, SOURCE=nnp%arc(ie)%layer(il)%node)
-            END IF
-            IF (ALLOCATED(nnp%arc(ie)%layer(il)%node_grad)) THEN
-               ALLOCATE (my_arc(ie)%layer(il)%node_grad, SOURCE=nnp%arc(ie)%layer(il)%node_grad)
-            END IF
-            IF (ALLOCATED(nnp%arc(ie)%layer(il)%tmp_der)) THEN
-               ALLOCATE (my_arc(ie)%layer(il)%tmp_der, SOURCE=nnp%arc(ie)%layer(il)%tmp_der)
-            END IF
-         END DO
-      END DO
+         tid = 1
+!$       tid = omp_get_thread_num() + 1
 
-      IF (calc_forces) THEN
-         ALLOCATE (denergydsym(max_input_nodes))
-         denergydsym(:) = 0.0_dp
-         IF (calc_stress) THEN
-            ALLOCATE (stress(3, 3, max_input_nodes))
-            stress(:, :, :) = 0.0_dp
-         END IF
-      END IF
-
-      ! calc atomic contribution to energy and force
-      !$OMP DO SCHEDULE(STATIC)
-      DO i = istart, istart + mecalc - 1
-
-         ! determine index of atom type and offset
-         ind = nnp%ele_ind(i)
-         n_input_nodes = nnp%arc(ind)%n_nodes(1)
-
-         ! reset input nodes of ele(ind):
-         my_arc(ind)%layer(1)%node(:) = 0.0_dp
-
-         ! compute sym fnct values
-         IF (calc_forces) THEN
-            !reset input grads of ele(ind):
-            my_arc(ind)%layer(1)%node_grad(:) = 0.0_dp
-            IF (calc_stress) THEN
-               stress(:, :, 1:n_input_nodes) = 0.0_dp
-               CALL nnp_calc_acsf(nnp, i, .TRUE., my_arc(ind), stress(:, :, 1:n_input_nodes))
-            ELSE
-               CALL nnp_calc_acsf(nnp, i, .TRUE., my_arc(ind))
-            END IF
-         ELSE
-            CALL nnp_calc_acsf(nnp, i, .FALSE., my_arc(ind))
-         END IF
-
-         DO i_com = 1, nnp%n_committee
-            ! predict energy
-            CALL nnp_predict(my_arc(ind), nnp, i_com)
-            nnp%atomic_energy(i, i_com) = my_arc(ind)%layer(nnp%n_layer)%node(1) + &
-                                          nnp%atom_energies(ind)
-
-            ! predict forces
-            IF (calc_forces) THEN
-               denergydsym(1:n_input_nodes) = 0.0_dp
-               CALL nnp_gradients(my_arc(ind), nnp, i_com, denergydsym(1:n_input_nodes))
-
-               ! Force scatter into this thread's private accumulator slab; see
-               ! nnp_scatter_dgdr_to_forces below, also reused by the helium-NNP
-               ! coupling in src/motion/helium_interactions.F.
-               CALL nnp_scatter_dgdr_to_forces(nnp, ind, i, denergydsym(1:n_input_nodes), &
-                                               my_force_t(:, :, i_com, tid - 1))
-
-               IF (calc_stress) THEN
-                  DO j = 1, n_input_nodes
-                     my_cstress_t(:, :, i_com, tid - 1) = my_cstress_t(:, :, i_com, tid - 1) - &
-                                                          denergydsym(j)*stress(:, :, j)
-                  END DO
+         ! Copy the networks for this thread. ALLOCATE with SOURCE= rather than
+         ! plain assignment: allocate-on-assignment to an ALLOCATABLE is what
+         ! -Werror=realloc-lhs rejects in the debug builds. SOURCE= copies the
+         ! shape, the bounds and the values, so the copy is structurally identical
+         ! to the original either way. %layer itself is a POINTER array and is
+         ! allocated and freed explicitly.
+         ALLOCATE (my_arc(nnp%n_ele))
+         DO ie = 1, nnp%n_ele
+            ALLOCATE (my_arc(ie)%n_nodes, SOURCE=nnp%arc(ie)%n_nodes)
+            ALLOCATE (my_arc(ie)%layer(nnp%n_layer))
+            DO il = 1, nnp%n_layer
+               IF (ALLOCATED(nnp%arc(ie)%layer(il)%weights)) THEN
+                  ALLOCATE (my_arc(ie)%layer(il)%weights, SOURCE=nnp%arc(ie)%layer(il)%weights)
                END IF
-            END IF
-         END DO
-
-      END DO ! loop over num_atoms
-      !$OMP END DO
-
-      IF (calc_forces) THEN
-         DEALLOCATE (denergydsym)
-         IF (calc_stress) DEALLOCATE (stress)
-      END IF
-      ! Free this thread's copy of the networks. %layer is a POINTER array, and
-      ! deallocating a pointer array does NOT release the ALLOCATABLE components
-      ! of its elements, so each one is released explicitly. Without this the
-      ! whole per-thread network copy leaks once per thread per MD step; the
-      ! LeakSanitizer in CP2K's pdbg CI build reports it. (%n_nodes needs no such
-      ! treatment: my_arc is ALLOCATABLE, and deallocating an allocatable does
-      ! cascade to its allocatable components.)
-      DO ie = 1, nnp%n_ele
-         DO il = 1, nnp%n_layer
-            IF (ALLOCATED(my_arc(ie)%layer(il)%weights)) DEALLOCATE (my_arc(ie)%layer(il)%weights)
-            IF (ALLOCATED(my_arc(ie)%layer(il)%bweights)) DEALLOCATE (my_arc(ie)%layer(il)%bweights)
-            IF (ALLOCATED(my_arc(ie)%layer(il)%node)) DEALLOCATE (my_arc(ie)%layer(il)%node)
-            IF (ALLOCATED(my_arc(ie)%layer(il)%node_grad)) DEALLOCATE (my_arc(ie)%layer(il)%node_grad)
-            IF (ALLOCATED(my_arc(ie)%layer(il)%tmp_der)) DEALLOCATE (my_arc(ie)%layer(il)%tmp_der)
-         END DO
-         DEALLOCATE (my_arc(ie)%layer)
-      END DO
-      DEALLOCATE (my_arc)
-      !$OMP END PARALLEL
-
-      ! Sum the per-thread slabs in ascending thread order. Together with the
-      ! static schedule above this keeps the summation order of the serial
-      ! loop, so forces are bit-identical to serial for any thread count.
-      IF (calc_forces) THEN
-         DO t = 0, nthreads - 1
-            nnp%myforce(:, :, :) = nnp%myforce(:, :, :) + my_force_t(:, :, :, t)
-         END DO
-         DEALLOCATE (my_force_t)
-         IF (calc_stress) THEN
-            DO t = 0, nthreads - 1
-               nnp%committee_stress(:, :, :) = nnp%committee_stress(:, :, :) + my_cstress_t(:, :, :, t)
+               IF (ALLOCATED(nnp%arc(ie)%layer(il)%bweights)) THEN
+                  ALLOCATE (my_arc(ie)%layer(il)%bweights, SOURCE=nnp%arc(ie)%layer(il)%bweights)
+               END IF
+               IF (ALLOCATED(nnp%arc(ie)%layer(il)%node)) THEN
+                  ALLOCATE (my_arc(ie)%layer(il)%node, SOURCE=nnp%arc(ie)%layer(il)%node)
+               END IF
+               IF (ALLOCATED(nnp%arc(ie)%layer(il)%node_grad)) THEN
+                  ALLOCATE (my_arc(ie)%layer(il)%node_grad, SOURCE=nnp%arc(ie)%layer(il)%node_grad)
+               END IF
+               IF (ALLOCATED(nnp%arc(ie)%layer(il)%tmp_der)) THEN
+                  ALLOCATE (my_arc(ie)%layer(il)%tmp_der, SOURCE=nnp%arc(ie)%layer(il)%tmp_der)
+               END IF
             END DO
-            DEALLOCATE (my_cstress_t)
+         END DO
+
+         IF (calc_forces) THEN
+            ALLOCATE (denergydsym(max_input_nodes))
+            denergydsym(:) = 0.0_dp
+            IF (calc_stress) THEN
+               ALLOCATE (stress(3, 3, max_input_nodes))
+               stress(:, :, :) = 0.0_dp
+            END IF
          END IF
+
+         ! calc atomic contribution to energy and force
+         !$OMP DO SCHEDULE(STATIC)
+         DO i = istart, istart + mecalc - 1
+
+            ! determine index of atom type and offset
+            ind = nnp%ele_ind(i)
+            n_input_nodes = nnp%arc(ind)%n_nodes(1)
+
+            ! reset input nodes of ele(ind):
+            my_arc(ind)%layer(1)%node(:) = 0.0_dp
+
+            ! compute sym fnct values
+            IF (calc_forces) THEN
+               !reset input grads of ele(ind):
+               my_arc(ind)%layer(1)%node_grad(:) = 0.0_dp
+               IF (calc_stress) THEN
+                  stress(:, :, 1:n_input_nodes) = 0.0_dp
+                  CALL nnp_calc_acsf(nnp, i, .TRUE., my_arc(ind), stress(:, :, 1:n_input_nodes))
+               ELSE
+                  CALL nnp_calc_acsf(nnp, i, .TRUE., my_arc(ind))
+               END IF
+            ELSE
+               CALL nnp_calc_acsf(nnp, i, .FALSE., my_arc(ind))
+            END IF
+
+            DO i_com = 1, nnp%n_committee
+               ! predict energy
+               CALL nnp_predict(my_arc(ind), nnp, i_com)
+               nnp%atomic_energy(i, i_com) = my_arc(ind)%layer(nnp%n_layer)%node(1) + &
+                                             nnp%atom_energies(ind)
+
+               ! predict forces
+               IF (calc_forces) THEN
+                  denergydsym(1:n_input_nodes) = 0.0_dp
+                  CALL nnp_gradients(my_arc(ind), nnp, i_com, denergydsym(1:n_input_nodes))
+
+                  ! Force scatter into this thread's private accumulator slab; see
+                  ! nnp_scatter_dgdr_to_forces below, also reused by the helium-NNP
+                  ! coupling in src/motion/helium_interactions.F.
+                  CALL nnp_scatter_dgdr_to_forces(nnp, ind, i, denergydsym(1:n_input_nodes), &
+                                                  my_force_t(:, :, i_com, tid - 1))
+
+                  IF (calc_stress) THEN
+                     DO j = 1, n_input_nodes
+                        my_cstress_t(:, :, i_com, tid - 1) = my_cstress_t(:, :, i_com, tid - 1) - &
+                                                             denergydsym(j)*stress(:, :, j)
+                     END DO
+                  END IF
+               END IF
+            END DO
+
+         END DO ! loop over num_atoms
+         !$OMP END DO
+
+         IF (calc_forces) THEN
+            DEALLOCATE (denergydsym)
+            IF (calc_stress) DEALLOCATE (stress)
+         END IF
+         ! Free this thread's copy of the networks. %layer is a POINTER array, and
+         ! deallocating a pointer array does NOT release the ALLOCATABLE components
+         ! of its elements, so each one is released explicitly. Without this the
+         ! whole per-thread network copy leaks once per thread per MD step; the
+         ! LeakSanitizer in CP2K's pdbg CI build reports it. (%n_nodes needs no such
+         ! treatment: my_arc is ALLOCATABLE, and deallocating an allocatable does
+         ! cascade to its allocatable components.)
+         DO ie = 1, nnp%n_ele
+            DO il = 1, nnp%n_layer
+               IF (ALLOCATED(my_arc(ie)%layer(il)%weights)) DEALLOCATE (my_arc(ie)%layer(il)%weights)
+               IF (ALLOCATED(my_arc(ie)%layer(il)%bweights)) DEALLOCATE (my_arc(ie)%layer(il)%bweights)
+               IF (ALLOCATED(my_arc(ie)%layer(il)%node)) DEALLOCATE (my_arc(ie)%layer(il)%node)
+               IF (ALLOCATED(my_arc(ie)%layer(il)%node_grad)) DEALLOCATE (my_arc(ie)%layer(il)%node_grad)
+               IF (ALLOCATED(my_arc(ie)%layer(il)%tmp_der)) DEALLOCATE (my_arc(ie)%layer(il)%tmp_der)
+            END DO
+            DEALLOCATE (my_arc(ie)%layer)
+         END DO
+         DEALLOCATE (my_arc)
+         !$OMP END PARALLEL
+
+         ! Sum the per-thread slabs in ascending thread order. Together with the
+         ! static schedule above this keeps the summation order of the serial
+         ! loop, so forces are bit-identical to serial for any thread count.
+         IF (calc_forces) THEN
+            DO t = 0, nthreads - 1
+               nnp%myforce(:, :, :) = nnp%myforce(:, :, :) + my_force_t(:, :, :, t)
+            END DO
+            DEALLOCATE (my_force_t)
+            IF (calc_stress) THEN
+               DO t = 0, nthreads - 1
+                  nnp%committee_stress(:, :, :) = nnp%committee_stress(:, :, :) + my_cstress_t(:, :, :, t)
+               END DO
+               DEALLOCATE (my_cstress_t)
+            END IF
+         END IF
+
       END IF
 
       CALL timestop(handle_loop)

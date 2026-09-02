@@ -24,6 +24,9 @@ MODULE nnp_environment_types
                                               cp_subsys_set,&
                                               cp_subsys_type
    USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE input_constants,                 ONLY: nnp_gpu_prec_double,&
+                                              nnp_use_gpu_off,&
+                                              nnp_use_gpu_on
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -62,6 +65,7 @@ MODULE nnp_environment_types
    PUBLIC :: nnp_dGdr_grp_type
    PUBLIC :: nnp_neighbor_workspace_type
    PUBLIC :: nnp_neighbor_interface_state_type
+   PUBLIC :: nnp_gpu_host_state_type
 
    ! Public subroutines ***
    PUBLIC :: nnp_env_release, &
@@ -117,6 +121,11 @@ MODULE nnp_environment_types
       INTEGER                                             :: n_layer = -1
       INTEGER                                             :: rad_spline_n = 8192 ! knots/radial group (RAD_SPLINE_N)
       REAL(KIND=dp)                                       :: verlet_skin = -1.0_dp ! cell-list skin, bohr (VERLET_SKIN; <0 = auto)
+      ! GPU offload controls. use_gpu holds the resolved USE_GPU value (AUTO is
+      ! resolved to ON/OFF once at init, when the device is probed), so the
+      ! force evaluation only ever tests use_gpu == nnp_use_gpu_on.
+      INTEGER                                             :: use_gpu = nnp_use_gpu_off
+      INTEGER                                             :: gpu_precision = nnp_gpu_prec_double
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: n_hnodes
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: actfnct
       INTEGER                                             :: expol = -1 ! extrapolation counter
@@ -154,6 +163,8 @@ MODULE nnp_environment_types
       ! nnp_env_release; operated on by nnp_cell_list and nnp_neighbor_interface.
       TYPE(nnp_cell_list_cache_type), ALLOCATABLE         :: cell_list_cache
       TYPE(nnp_neighbor_interface_state_type), ALLOCATABLE :: neighbor_interface_state
+      ! Host-side GPU walk bookkeeping, allocated on first GPU use.
+      TYPE(nnp_gpu_host_state_type), ALLOCATABLE          :: gpu_host_state
    END TYPE nnp_type
 
 ! **************************************************************************************************
@@ -297,6 +308,11 @@ MODULE nnp_environment_types
 ! **************************************************************************************************
    TYPE nnp_cell_list_cache_type
       LOGICAL                                             :: initialized = .FALSE.
+      ! Counts the full cell-list rebuilds (the steps that regenerate the image
+      ! translations). The GPU path compares it against the generation it last
+      ! uploaded, so it re-uploads the image table exactly when the translations
+      ! have moved on, whichever steps happened to reach the device in between.
+      INTEGER                                             :: rebuild_count = 0
       INTEGER                                             :: num_atoms = -1
       INTEGER                                             :: n_images = 0
       INTEGER                                             :: n_cells = 1
@@ -418,6 +434,30 @@ MODULE nnp_environment_types
    END TYPE nnp_neighbor_interface_state_type
 
 ! **************************************************************************************************
+!> \brief Host-side bookkeeping for the GPU cell-list walk. Holds the
+!>        per-element neighbour-list widths (grown on overflow and reused across
+!>        MD steps) and the per-(atom-slot, group, element) neighbour counts
+!>        read back from the device after each walk. Owned by nnp_type so it is
+!>        allocated on first GPU use and freed with the environment.
+!> \author Dhruv Sharma (ds2173@cam.ac.uk)
+! **************************************************************************************************
+   TYPE nnp_gpu_host_state_type
+      LOGICAL                                             :: walk_initialised = .FALSE.
+      INTEGER                                             :: max_n_neigh_rad = 0
+      INTEGER                                             :: max_n_neigh_ang1 = 0
+      INTEGER                                             :: max_n_neigh_ang2 = 0
+      INTEGER                                             :: n_atoms_in_e_max = 0
+      ! Value of the cell-list cache's rebuild_count at the last image-table
+      ! upload; -1 until the first one. Never equal to a real generation, so the
+      ! first walk always uploads.
+      INTEGER                                             :: image_table_generation = -1
+      INTEGER, ALLOCATABLE, DIMENSION(:)                  :: n_atoms_in_e
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)            :: n_rad_pa
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)            :: n_ang1_pa
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)            :: n_ang2_pa
+   END TYPE nnp_gpu_host_state_type
+
+! **************************************************************************************************
 !> \brief Data type for artificial neural networks
 !> \author Christoph Schran (christoph.schran@rub.de)
 !> \date   2020-10-10
@@ -453,6 +493,26 @@ CONTAINS
       TYPE(nnp_type), INTENT(INOUT)                      :: nnp_env
 
       INTEGER                                            :: i, j
+
+#if (defined(__OFFLOAD) || defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)) && !defined(__NO_OFFLOAD_NNP)
+      INTERFACE
+         SUBROUTINE nnp_gpu_release_env_c() &
+            BIND(C, NAME="nnp_gpu_release_env")
+         END SUBROUTINE nnp_gpu_release_env_c
+      END INTERFACE
+
+      ! Device-side caches are keyed by host pointers into this environment
+      ! (spline tables, packed angular parameters). Invalidate them before
+      ! the host arrays are deallocated: a later environment could otherwise
+      ! receive recycled heap addresses and silently hit stale device copies.
+      ! This also drops this environment from the device state's live count, so
+      ! a later environment may take the GPU in turn, and releases the state
+      ! outright once the last one goes; the call is therefore made exactly for
+      ! the environments that registered, the GPU-enabled ones.
+      ! The interface is inlined here (instead of USE nnp_gpu) because
+      ! nnp_gpu itself uses this module.
+      IF (nnp_env%use_gpu == nnp_use_gpu_on) CALL nnp_gpu_release_env_c()
+#endif
 
       IF (ASSOCIATED(nnp_env%rad)) THEN
          DO i = 1, nnp_env%n_ele
@@ -583,6 +643,8 @@ CONTAINS
          CALL nnp_neighbor_interface_state_release(nnp_env%neighbor_interface_state)
          DEALLOCATE (nnp_env%neighbor_interface_state)
       END IF
+      ! Allocatable array components are freed recursively with the parent.
+      IF (ALLOCATED(nnp_env%gpu_host_state)) DEALLOCATE (nnp_env%gpu_host_state)
 
       IF (ASSOCIATED(nnp_env%subsys)) THEN
          CALL cp_subsys_release(nnp_env%subsys)

@@ -1,0 +1,4 @@
+# GPU twin of ../regtest-1/H2O-256_C-NNP_MD-bitexact.inp: the shared body with the device
+# code path selected.
+@SET GPU ON
+@INCLUDE ../regtest-1/H2O-256_C-NNP_MD-bitexact.inc

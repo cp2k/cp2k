@@ -297,6 +297,13 @@ CONTAINS
 #if defined(__NO_OFFLOAD_PW)
       flags = TRIM(flags)//" no_offload_pw"
 #endif
+#if (defined(__OFFLOAD) || defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)) && !defined(__NO_OFFLOAD_NNP)
+      ! __OFFLOAD itself is only defined for C/CUDA units that include
+      ! offload_runtime.h; CMake builds define __OFFLOAD_CUDA/__OFFLOAD_HIP
+      ! globally, so test those here too or the nnp_gpu regtests are
+      ! silently skipped on CMake-built binaries.
+      flags = TRIM(flags)//" nnp_gpu"
+#endif
 #if defined(__OFFLOAD_PROFILING)
       flags = TRIM(flags)//" offload_profiling"
 #endif
