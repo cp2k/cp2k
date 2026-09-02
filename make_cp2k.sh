@@ -304,7 +304,7 @@ while [[ $# -gt 0 ]]; do
             CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=${ON_OFF}"
             for package in adios2 cosma deepmdkit dla-future dla-future-fortran elpa \
               gauxc greenx hdf5 libfabric libfci libint libvdwxc libsmeagol libtorch libvori \
-              libxc libxs libxsmm mimic-mcl openpmd-api pace pexsi plumed py-torch skala-ftorch sirius \
+              libxc libxs libxsmm mimic-mcl openpmd-api pace pexsi plumed py-torch sirius \
               spfft spglib spla tblite trexio; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
             done
@@ -424,9 +424,6 @@ while [[ $# -gt 0 ]]; do
             ;;
           none)
             # do nothing
-            ;;
-          skala_ftorch)
-            CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_SKALA_FTORCH=${ON_OFF}"
             ;;
           *)
             echo "ERROR: Unknown CP2K feature \"${2}\" specified"
