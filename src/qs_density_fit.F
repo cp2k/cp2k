@@ -19,6 +19,7 @@ MODULE qs_density_fit
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_set,&
+                                              dbcsr_type,&
                                               dbcsr_type_symmetric
    USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -66,7 +67,7 @@ MODULE qs_density_fit
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_density_fit'
 
-   PUBLIC :: fit_constrained_density
+   PUBLIC :: fit_constrained_density, fit_relative_entropy_density
 
 CONTAINS
 
@@ -88,20 +89,79 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_rms, step_size
       INTEGER, INTENT(IN)                                :: max_backtrack
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_constrained_density'
+      CALL fit_density_matrix(qs_env, rho_struct, max_iter, eps_rms, step_size, max_backtrack)
 
-      INTEGER                                            :: backtrack, handle, info, iteration, nao, &
-                                                            nelectron, unit_nr
+   END SUBROUTINE fit_constrained_density
+
+! **************************************************************************************************
+!> \brief Reconstructs an AO density matrix using the Fermi matrix of H[n_cube] as a
+!>        fermionic relative-entropy prior.
+!> \param qs_env QS environment
+!> \param rho_struct density structure containing the target density on entry and the fit on exit
+!> \param prior_hamiltonian frozen Kohn-Sham matrix built from the target cube density
+!> \param temperature electronic temperature of the Fermi prior
+!> \param entropy_weight weight of the dimensionless fermionic relative entropy
+!> \param max_iter maximum number of projected-gradient iterations
+!> \param eps_rms requested RMS density residual
+!> \param step_size initial spectral projected-gradient step
+!> \param max_backtrack maximum number of step halvings per iteration
+! **************************************************************************************************
+   SUBROUTINE fit_relative_entropy_density(qs_env, rho_struct, prior_hamiltonian, temperature, &
+                                           entropy_weight, max_iter, eps_rms, step_size, max_backtrack)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_struct
+      TYPE(dbcsr_type), INTENT(IN)                       :: prior_hamiltonian
+      REAL(KIND=dp), INTENT(IN)                          :: temperature, entropy_weight
+      INTEGER, INTENT(IN)                                :: max_iter
+      REAL(KIND=dp), INTENT(IN)                          :: eps_rms, step_size
+      INTEGER, INTENT(IN)                                :: max_backtrack
+
+      CALL fit_density_matrix(qs_env, rho_struct, max_iter, eps_rms, step_size, max_backtrack, &
+                              prior_hamiltonian, temperature, entropy_weight)
+
+   END SUBROUTINE fit_relative_entropy_density
+
+! **************************************************************************************************
+!> \brief Dense implementation shared by the least-squares and relative-entropy fits.
+!> \param qs_env ...
+!> \param rho_struct ...
+!> \param max_iter ...
+!> \param eps_rms ...
+!> \param step_size ...
+!> \param max_backtrack ...
+!> \param prior_hamiltonian ...
+!> \param temperature ...
+!> \param entropy_weight ...
+! **************************************************************************************************
+   SUBROUTINE fit_density_matrix(qs_env, rho_struct, max_iter, eps_rms, step_size, max_backtrack, &
+                                 prior_hamiltonian, temperature, entropy_weight)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: rho_struct
+      INTEGER, INTENT(IN)                                :: max_iter
+      REAL(KIND=dp), INTENT(IN)                          :: eps_rms, step_size
+      INTEGER, INTENT(IN)                                :: max_backtrack
+      TYPE(dbcsr_type), INTENT(IN), OPTIONAL             :: prior_hamiltonian
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: temperature, entropy_weight
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_density_matrix'
+
+      INTEGER                                            :: backtrack, handle, i, info, iteration, &
+                                                            nao, nelectron, unit_nr
       LOGICAL                                            :: accepted, converged, do_kpoints, &
-                                                            have_previous
-      REAL(KIND=dp) :: alpha, direction_derivative, direction_norm2, fitted_grid_trace, &
-         matrix_trace, objective, objective_trial, rms, rms_trial, ss, step_length, sy
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+                                                            have_previous, use_relative_entropy
+      REAL(KIND=dp) :: alpha, chemical_potential, commutator_norm, direction_derivative, &
+         direction_norm2, fitted_grid_trace, idempotency_error, matrix_trace, objective, &
+         objective_trial, prior_fraction, prior_log_one_minus, relative_entropy, &
+         relative_entropy_trial, relative_temperature, relative_weight, rms, rms_trial, ss, &
+         step_length, sy
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, prior_eigenvalues, &
+                                                            prior_logit_values, prior_occupations
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type) :: density_orth, direction_orth, eigenvectors, gradient_orth, overlap_chol, &
-         previous_density, previous_gradient, trial_orth, work1, work2
+      TYPE(cp_fm_type) :: density_orth, direction_orth, eigenvectors, gradient_orth, &
+         hamiltonian_orth, overlap_chol, previous_density, previous_gradient, prior_logit, &
+         trial_orth, work1, work2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type)                                 :: gradient_ao
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_ao
@@ -115,6 +175,19 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
 
       CALL timeset(routineN, handle)
+
+      use_relative_entropy = PRESENT(prior_hamiltonian)
+      CPASSERT(use_relative_entropy .EQV. PRESENT(temperature))
+      CPASSERT(use_relative_entropy .EQV. PRESENT(entropy_weight))
+      IF (use_relative_entropy) THEN
+         relative_temperature = temperature
+         relative_weight = entropy_weight
+         CPASSERT(relative_temperature > 0.0_dp)
+         CPASSERT(relative_weight >= 0.0_dp)
+      ELSE
+         relative_temperature = 1.0_dp
+         relative_weight = 0.0_dp
+      END IF
 
       NULLIFY (auxbas_pw_pool, blacs_env, dft_control, fm_struct, gradient_ao%matrix, &
                ks_env, matrix_s, para_env, pw_env, rho_ao, rho_g, rho_r, tot_rho_r)
@@ -160,10 +233,17 @@ CONTAINS
       CALL cp_fm_create(previous_gradient, fm_struct, name="previous density-fit gradient")
       CALL cp_fm_create(trial_orth, fm_struct, name="density-fit trial matrix")
       CALL cp_fm_create(eigenvectors, fm_struct, name="density-fit eigenvectors")
+      IF (use_relative_entropy) THEN
+         CALL cp_fm_create(hamiltonian_orth, fm_struct, name="relative-entropy prior Hamiltonian")
+         CALL cp_fm_create(prior_logit, fm_struct, name="relative-entropy prior logit")
+      END IF
       CALL cp_fm_create(work1, fm_struct, name="density-fit work matrix 1")
       CALL cp_fm_create(work2, fm_struct, name="density-fit work matrix 2")
       CALL cp_fm_struct_release(fm_struct)
       ALLOCATE (eigenvalues(nao))
+      IF (use_relative_entropy) THEN
+         ALLOCATE (prior_eigenvalues(nao), prior_logit_values(nao), prior_occupations(nao))
+      END IF
 
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, overlap_chol)
       CALL cp_fm_uplo_to_full(overlap_chol, work1)
@@ -171,17 +251,47 @@ CONTAINS
       IF (info /= 0) CPABORT("Overlap Cholesky decomposition failed in Harris CUBE_FIT")
 
       ! X = U P U^T for S = U^T U.  Tr(X) is the electron count.
-      CALL copy_dbcsr_to_fm(rho_ao(1)%matrix, work1)
-      CALL cp_fm_uplo_to_full(work1, work2)
-      CALL cp_fm_cholesky_restore(work1, nao, overlap_chol, work2, "MULTIPLY", pos="LEFT")
-      CALL cp_fm_cholesky_restore(work2, nao, overlap_chol, density_orth, &
-                                  "MULTIPLY", pos="RIGHT", transa="T")
-      CALL project_density_matrix(density_orth, eigenvectors, work1, eigenvalues, &
-                                  REAL(nelectron, dp), 2.0_dp)
+      IF (use_relative_entropy) THEN
+         ! H_tilde = U^-T H[n_cube] U^-1 in the same orthonormal representation.
+         CALL copy_dbcsr_to_fm(prior_hamiltonian, work1)
+         CALL cp_fm_uplo_to_full(work1, work2)
+         CALL cp_fm_cholesky_restore(work1, nao, overlap_chol, work2, &
+                                     "SOLVE", pos="LEFT", transa="T")
+         CALL cp_fm_cholesky_restore(work2, nao, overlap_chol, hamiltonian_orth, &
+                                     "SOLVE", pos="RIGHT")
+         CALL cp_fm_to_fm(hamiltonian_orth, work1)
+         CALL cp_fm_syevd(work1, eigenvectors, prior_eigenvalues)
+         CALL fixed_trace_fermi_occupations(prior_eigenvalues, REAL(nelectron, dp), &
+                                            relative_temperature, chemical_potential, prior_occupations)
+         CALL matrix_from_eigensystem(eigenvectors, prior_occupations, density_orth, work1)
+         prior_log_one_minus = 0.0_dp
+         DO i = 1, nao
+            prior_fraction = clipped_occupation_fraction(prior_occupations(i))
+            prior_logit_values(i) = LOG(prior_fraction/(1.0_dp - prior_fraction))
+            prior_log_one_minus = prior_log_one_minus + LOG(1.0_dp - prior_fraction)
+         END DO
+         CALL matrix_from_eigensystem(eigenvectors, prior_logit_values, prior_logit, work1)
+      ELSE
+         CALL copy_dbcsr_to_fm(rho_ao(1)%matrix, work1)
+         CALL cp_fm_uplo_to_full(work1, work2)
+         CALL cp_fm_cholesky_restore(work1, nao, overlap_chol, work2, "MULTIPLY", pos="LEFT")
+         CALL cp_fm_cholesky_restore(work2, nao, overlap_chol, density_orth, &
+                                     "MULTIPLY", pos="RIGHT", transa="T")
+         CALL project_density_matrix(density_orth, eigenvectors, work1, eigenvalues, &
+                                     REAL(nelectron, dp), 2.0_dp)
+         chemical_potential = 0.0_dp
+         prior_log_one_minus = 0.0_dp
+      END IF
       CALL orthogonal_to_ao(density_orth, overlap_chol, work1, work2, nao)
       CALL copy_fm_to_dbcsr(work2, rho_ao(1)%matrix)
       CALL evaluate_density_fit(qs_env, ks_env, rho_ao, rho_r, rho_g, tot_rho_r, &
                                 target_rspace, residual_rspace, objective, rms)
+      relative_entropy = 0.0_dp
+      IF (use_relative_entropy) THEN
+         CALL fermionic_relative_entropy(density_orth, prior_logit, eigenvectors, work1, &
+                                         eigenvalues, prior_log_one_minus, relative_entropy)
+         objective = objective + relative_weight*relative_entropy
+      END IF
 
       logger => cp_get_default_logger()
       IF (logger%para_env%is_source()) THEN
@@ -190,10 +300,27 @@ CONTAINS
          unit_nr = -1
       END IF
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, "(/,T3,A,I0)") "HARRIS| Constrained AO density fit; basis functions: ", nao
+         IF (use_relative_entropy) THEN
+            WRITE (unit_nr, "(/,T3,A,I0)") &
+               "HARRIS| Relative-entropy AO density reconstruction; basis functions: ", nao
+            WRITE (unit_nr, "(T3,A,ES16.8)") "HARRIS| Prior electronic temperature [a.u.]: ", &
+               relative_temperature
+            WRITE (unit_nr, "(T3,A,ES16.8)") "HARRIS| Prior chemical potential [a.u.]: ", &
+               chemical_potential
+            WRITE (unit_nr, "(T3,A,ES16.8)") "HARRIS| Relative-entropy weight: ", relative_weight
+            WRITE (unit_nr, "(T3,A,ES16.8)") "HARRIS| Initial fermionic relative entropy: ", &
+               relative_entropy
+         ELSE
+            WRITE (unit_nr, "(/,T3,A,I0)") "HARRIS| Constrained AO density fit; basis functions: ", nao
+         END IF
          WRITE (unit_nr, "(T3,A,I0)") "HARRIS| Constrained electron count: ", nelectron
          WRITE (unit_nr, "(T3,A,ES16.8)") "HARRIS| Initial density RMS error: ", rms
-         WRITE (unit_nr, "(T3,A)") "HARRIS|  Iteration       RMS error          Objective       Step"
+         IF (use_relative_entropy) THEN
+            WRITE (unit_nr, "(T3,A)") &
+               "HARRIS|  Iteration       RMS error   Relative entropy          Objective       Step"
+         ELSE
+            WRITE (unit_nr, "(T3,A)") "HARRIS|  Iteration       RMS error          Objective       Step"
+         END IF
       END IF
 
       converged = rms <= eps_rms
@@ -214,6 +341,11 @@ CONTAINS
                                      "SOLVE", pos="LEFT", transa="T")
          CALL cp_fm_cholesky_restore(work2, nao, overlap_chol, gradient_orth, &
                                      "SOLVE", pos="RIGHT")
+
+         IF (use_relative_entropy .AND. relative_weight > 0.0_dp) THEN
+            CALL add_relative_entropy_gradient(density_orth, prior_logit, eigenvectors, work1, &
+                                               work2, eigenvalues, relative_weight, gradient_orth)
+         END IF
 
          ! Barzilai-Borwein spectral step for the convex projected-gradient iteration.
          IF (have_previous) THEN
@@ -257,6 +389,12 @@ CONTAINS
             CALL copy_fm_to_dbcsr(work2, rho_ao(1)%matrix)
             CALL evaluate_density_fit(qs_env, ks_env, rho_ao, rho_r, rho_g, tot_rho_r, &
                                       target_rspace, residual_rspace, objective_trial, rms_trial)
+            relative_entropy_trial = 0.0_dp
+            IF (use_relative_entropy) THEN
+               CALL fermionic_relative_entropy(trial_orth, prior_logit, eigenvectors, work1, &
+                                               eigenvalues, prior_log_one_minus, relative_entropy_trial)
+               objective_trial = objective_trial + relative_weight*relative_entropy_trial
+            END IF
             IF (objective_trial <= objective + 1.0E-4_dp*step_length*direction_derivative) THEN
                accepted = .TRUE.
                EXIT
@@ -270,6 +408,11 @@ CONTAINS
             CALL copy_fm_to_dbcsr(work2, rho_ao(1)%matrix)
             CALL evaluate_density_fit(qs_env, ks_env, rho_ao, rho_r, rho_g, tot_rho_r, &
                                       target_rspace, residual_rspace, objective, rms)
+            IF (use_relative_entropy) THEN
+               CALL fermionic_relative_entropy(density_orth, prior_logit, eigenvectors, work1, &
+                                               eigenvalues, prior_log_one_minus, relative_entropy)
+               objective = objective + relative_weight*relative_entropy
+            END IF
             IF (unit_nr > 0) WRITE (unit_nr, "(T3,A)") &
                "HARRIS| Density fit stopped: projected line search reached a stationary point"
             converged = .TRUE.
@@ -279,8 +422,16 @@ CONTAINS
          CALL cp_fm_to_fm(trial_orth, density_orth)
          objective = objective_trial
          rms = rms_trial
-         IF (unit_nr > 0) WRITE (unit_nr, "(T3,A,I7,3ES19.9)") &
-            "HARRIS| ", iteration, rms, objective, alpha*step_length
+         relative_entropy = relative_entropy_trial
+         IF (unit_nr > 0) THEN
+            IF (use_relative_entropy) THEN
+               WRITE (unit_nr, "(T3,A,I7,4ES19.9)") &
+                  "HARRIS| ", iteration, rms, relative_entropy, objective, alpha*step_length
+            ELSE
+               WRITE (unit_nr, "(T3,A,I7,3ES19.9)") &
+                  "HARRIS| ", iteration, rms, objective, alpha*step_length
+            END IF
+         END IF
          converged = rms <= eps_rms
       END DO
 
@@ -288,6 +439,13 @@ CONTAINS
       ! pw_integrate_function performs an MPI reduction and therefore has to be
       ! called collectively, not only by the rank that owns the output unit.
       fitted_grid_trace = pw_integrate_function(rho_r(1), isign=1)
+      commutator_norm = 0.0_dp
+      idempotency_error = 0.0_dp
+      IF (use_relative_entropy) THEN
+         CALL matrix_commutator_norm(density_orth, hamiltonian_orth, work1, work2, nao, &
+                                     commutator_norm)
+         CALL density_matrix_idempotency_error(density_orth, work1, work2, nao, idempotency_error)
+      END IF
       IF (unit_nr > 0) THEN
          IF (rms <= eps_rms) THEN
             WRITE (unit_nr, "(T3,A,I0,A)") "HARRIS| Density fit reached its RMS target after ", iteration, " iterations"
@@ -297,9 +455,20 @@ CONTAINS
          WRITE (unit_nr, "(T3,A,ES16.8)") "HARRIS| Final density RMS error: ", rms
          WRITE (unit_nr, "(T3,A,F20.10)") "HARRIS| AO density-matrix electron count: ", matrix_trace
          WRITE (unit_nr, "(T3,A,F20.10)") "HARRIS| Fitted grid electron count: ", fitted_grid_trace
+         IF (use_relative_entropy) THEN
+            WRITE (unit_nr, "(T3,A,ES16.8)") "HARRIS| Final fermionic relative entropy: ", &
+               relative_entropy
+            WRITE (unit_nr, "(T3,A,ES16.8)") "HARRIS| Prior-Hamiltonian commutator norm: ", &
+               commutator_norm
+            WRITE (unit_nr, "(T3,A,ES16.8)") "HARRIS| Occupation idempotency error: ", &
+               idempotency_error
+         END IF
       END IF
 
       DEALLOCATE (eigenvalues)
+      IF (use_relative_entropy) THEN
+         DEALLOCATE (prior_eigenvalues, prior_logit_values, prior_occupations)
+      END IF
       CALL cp_fm_release(overlap_chol)
       CALL cp_fm_release(density_orth)
       CALL cp_fm_release(direction_orth)
@@ -308,6 +477,10 @@ CONTAINS
       CALL cp_fm_release(previous_gradient)
       CALL cp_fm_release(trial_orth)
       CALL cp_fm_release(eigenvectors)
+      IF (use_relative_entropy) THEN
+         CALL cp_fm_release(hamiltonian_orth)
+         CALL cp_fm_release(prior_logit)
+      END IF
       CALL cp_fm_release(work1)
       CALL cp_fm_release(work2)
       CALL dbcsr_release(gradient_ao%matrix)
@@ -317,7 +490,249 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE fit_constrained_density
+   END SUBROUTINE fit_density_matrix
+
+! **************************************************************************************************
+!> \brief Builds fixed-trace, spin-restricted Fermi occupations for a set of eigenvalues.
+!> \param eigenvalues ...
+!> \param trace_target ...
+!> \param temperature ...
+!> \param chemical_potential ...
+!> \param occupations ...
+! **************************************************************************************************
+   SUBROUTINE fixed_trace_fermi_occupations(eigenvalues, trace_target, temperature, &
+                                            chemical_potential, occupations)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues
+      REAL(KIND=dp), INTENT(IN)                          :: trace_target, temperature
+      REAL(KIND=dp), INTENT(OUT)                         :: chemical_potential
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: occupations
+
+      INTEGER                                            :: i, iteration, n
+      REAL(KIND=dp)                                      :: mu_high, mu_low, trace_value
+
+      n = SIZE(eigenvalues)
+      CPASSERT(SIZE(occupations) == n)
+      CPASSERT(temperature > 0.0_dp)
+      CPASSERT(trace_target >= 0.0_dp .AND. trace_target <= 2.0_dp*REAL(n, dp))
+
+      IF (trace_target <= 0.0_dp) THEN
+         occupations = 0.0_dp
+         chemical_potential = MINVAL(eigenvalues) - 100.0_dp*temperature
+         RETURN
+      ELSE IF (trace_target >= 2.0_dp*REAL(n, dp)) THEN
+         occupations = 2.0_dp
+         chemical_potential = MAXVAL(eigenvalues) + 100.0_dp*temperature
+         RETURN
+      END IF
+
+      mu_low = MINVAL(eigenvalues) - 100.0_dp*temperature - 1.0_dp
+      mu_high = MAXVAL(eigenvalues) + 100.0_dp*temperature + 1.0_dp
+      DO iteration = 1, 200
+         chemical_potential = 0.5_dp*(mu_low + mu_high)
+         DO i = 1, n
+            occupations(i) = fermi_occupation(eigenvalues(i), chemical_potential, temperature)
+         END DO
+         trace_value = SUM(occupations)
+         IF (trace_value > trace_target) THEN
+            mu_high = chemical_potential
+         ELSE
+            mu_low = chemical_potential
+         END IF
+         IF (ABS(trace_value - trace_target) <= 1.0E-13_dp*MAX(1.0_dp, trace_target)) EXIT
+      END DO
+      chemical_potential = 0.5_dp*(mu_low + mu_high)
+      DO i = 1, n
+         occupations(i) = fermi_occupation(eigenvalues(i), chemical_potential, temperature)
+      END DO
+
+   END SUBROUTINE fixed_trace_fermi_occupations
+
+! **************************************************************************************************
+!> \brief Numerically stable spin-restricted Fermi occupation.
+!> \param energy ...
+!> \param chemical_potential ...
+!> \param temperature ...
+!> \return ...
+! **************************************************************************************************
+   PURE FUNCTION fermi_occupation(energy, chemical_potential, temperature) RESULT(occupation)
+      REAL(KIND=dp), INTENT(IN)                          :: energy, chemical_potential, temperature
+      REAL(KIND=dp)                                      :: occupation
+
+      REAL(KIND=dp)                                      :: x
+
+      x = (energy - chemical_potential)/temperature
+      IF (x >= 50.0_dp) THEN
+         occupation = 2.0_dp*EXP(-x)
+      ELSE IF (x <= -50.0_dp) THEN
+         occupation = 2.0_dp
+      ELSE
+         occupation = 2.0_dp/(1.0_dp + EXP(x))
+      END IF
+
+   END FUNCTION fermi_occupation
+
+! **************************************************************************************************
+!> \brief Converts a spin-restricted occupation to a numerically interior fraction.
+!>
+!> At ordinary electronic temperatures a Fermi occupation can round to exactly zero or two.
+!> Clipping its per-spin fraction keeps the matrix logit finite and, because the same operation
+!> is used for the prior and every trial matrix, preserves a zero relative entropy at the prior.
+!> \param occupation spin-restricted occupation in [0,2]
+!> \return clipped per-spin occupation in (0,1)
+! **************************************************************************************************
+   PURE FUNCTION clipped_occupation_fraction(occupation) RESULT(fraction)
+      REAL(KIND=dp), INTENT(IN)                          :: occupation
+      REAL(KIND=dp)                                      :: fraction
+
+      REAL(KIND=dp), PARAMETER                           :: occupation_clip = 1.0E-14_dp
+
+      fraction = MIN(1.0_dp - occupation_clip, &
+                     MAX(occupation_clip, 0.5_dp*occupation))
+
+   END FUNCTION clipped_occupation_fraction
+
+! **************************************************************************************************
+!> \brief Reconstructs V diag(values) V^T.
+!> \param eigenvectors ...
+!> \param values ...
+!> \param matrix ...
+!> \param work ...
+! **************************************************************************************************
+   SUBROUTINE matrix_from_eigensystem(eigenvectors, values, matrix, work)
+      TYPE(cp_fm_type), INTENT(IN)                       :: eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: values
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix, work
+
+      INTEGER                                            :: n
+
+      n = SIZE(values)
+      CALL cp_fm_to_fm(eigenvectors, work)
+      CALL cp_fm_column_scale(work, values)
+      CALL parallel_gemm('N', 'T', n, n, n, 1.0_dp, work, eigenvectors, 0.0_dp, matrix)
+
+   END SUBROUTINE matrix_from_eigensystem
+
+! **************************************************************************************************
+!> \brief Evaluates the fermionic quantum relative entropy D_F(X/2 || f_0).
+!>
+!> The matrix logit of the representable Fermi prior is precomputed spectrally.
+!> \param density_orth ...
+!> \param prior_logit ...
+!> \param eigenvectors ...
+!> \param work ...
+!> \param eigenvalues ...
+!> \param prior_log_one_minus ...
+!> \param relative_entropy ...
+! **************************************************************************************************
+   SUBROUTINE fermionic_relative_entropy(density_orth, prior_logit, eigenvectors, work, eigenvalues, &
+                                         prior_log_one_minus, relative_entropy)
+      TYPE(cp_fm_type), INTENT(IN)                       :: density_orth, prior_logit
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: eigenvectors, work
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: eigenvalues
+      REAL(KIND=dp), INTENT(IN)                          :: prior_log_one_minus
+      REAL(KIND=dp), INTENT(OUT)                         :: relative_entropy
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: entropy_part, f, trace_xlogit
+
+      CALL cp_fm_to_fm(density_orth, work)
+      CALL cp_fm_syevd(work, eigenvectors, eigenvalues)
+      entropy_part = 0.0_dp
+      DO i = 1, SIZE(eigenvalues)
+         f = clipped_occupation_fraction(eigenvalues(i))
+         entropy_part = entropy_part + f*LOG(f) + (1.0_dp - f)*LOG(1.0_dp - f)
+      END DO
+      CALL cp_fm_trace(density_orth, prior_logit, trace_xlogit)
+      relative_entropy = entropy_part - prior_log_one_minus - 0.5_dp*trace_xlogit
+      IF (relative_entropy < 0.0_dp .AND. ABS(relative_entropy) < 1.0E-10_dp) relative_entropy = 0.0_dp
+
+   END SUBROUTINE fermionic_relative_entropy
+
+! **************************************************************************************************
+!> \brief Adds weight*dD_F/dX to a density-fit gradient at fixed trace.
+!> \param density_orth ...
+!> \param prior_logit ...
+!> \param eigenvectors ...
+!> \param work1 ...
+!> \param work2 ...
+!> \param eigenvalues ...
+!> \param weight ...
+!> \param gradient ...
+! **************************************************************************************************
+   SUBROUTINE add_relative_entropy_gradient(density_orth, prior_logit, eigenvectors, &
+                                            work1, work2, eigenvalues, weight, gradient)
+      TYPE(cp_fm_type), INTENT(IN)                       :: density_orth, prior_logit
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: eigenvectors, work1, work2
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: eigenvalues
+      REAL(KIND=dp), INTENT(IN)                          :: weight
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: gradient
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: f
+
+      CALL cp_fm_to_fm(density_orth, work1)
+      CALL cp_fm_syevd(work1, eigenvectors, eigenvalues)
+      DO i = 1, SIZE(eigenvalues)
+         f = clipped_occupation_fraction(eigenvalues(i))
+         eigenvalues(i) = 0.5_dp*LOG(f/(1.0_dp - f))
+      END DO
+      CALL matrix_from_eigensystem(eigenvectors, eigenvalues, work1, work2)
+      CALL cp_fm_scale_and_add(1.0_dp, gradient, beta=weight, matrix_b=work1)
+      CALL cp_fm_scale_and_add(1.0_dp, gradient, beta=-0.5_dp*weight, matrix_b=prior_logit)
+
+   END SUBROUTINE add_relative_entropy_gradient
+
+! **************************************************************************************************
+!> \brief Frobenius norm of the commutator [X,H] in the orthonormal AO representation.
+!> \param density_orth ...
+!> \param hamiltonian_orth ...
+!> \param work1 ...
+!> \param work2 ...
+!> \param nao ...
+!> \param norm ...
+! **************************************************************************************************
+   SUBROUTINE matrix_commutator_norm(density_orth, hamiltonian_orth, work1, work2, nao, norm)
+      TYPE(cp_fm_type), INTENT(IN)                       :: density_orth, hamiltonian_orth
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: work1, work2
+      INTEGER, INTENT(IN)                                :: nao
+      REAL(KIND=dp), INTENT(OUT)                         :: norm
+
+      REAL(KIND=dp)                                      :: norm_squared
+
+      CALL parallel_gemm('N', 'N', nao, nao, nao, 1.0_dp, density_orth, hamiltonian_orth, &
+                         0.0_dp, work1)
+      CALL parallel_gemm('N', 'N', nao, nao, nao, 1.0_dp, hamiltonian_orth, density_orth, &
+                         0.0_dp, work2)
+      CALL cp_fm_scale_and_add(1.0_dp, work1, beta=-1.0_dp, matrix_b=work2)
+      CALL cp_fm_trace(work1, work1, norm_squared)
+      norm = SQRT(MAX(0.0_dp, norm_squared))
+
+   END SUBROUTINE matrix_commutator_norm
+
+! **************************************************************************************************
+!> \brief Frobenius norm of f^2-f for f=X/2.
+!> \param density_orth ...
+!> \param work1 ...
+!> \param work2 ...
+!> \param nao ...
+!> \param error ...
+! **************************************************************************************************
+   SUBROUTINE density_matrix_idempotency_error(density_orth, work1, work2, nao, error)
+      TYPE(cp_fm_type), INTENT(IN)                       :: density_orth
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: work1, work2
+      INTEGER, INTENT(IN)                                :: nao
+      REAL(KIND=dp), INTENT(OUT)                         :: error
+
+      REAL(KIND=dp)                                      :: error_squared
+
+      CALL parallel_gemm('N', 'N', nao, nao, nao, 1.0_dp, density_orth, density_orth, &
+                         0.0_dp, work1)
+      CALL cp_fm_to_fm(work1, work2)
+      CALL cp_fm_scale_and_add(0.25_dp, work2, beta=-0.5_dp, matrix_b=density_orth)
+      CALL cp_fm_trace(work2, work2, error_squared)
+      error = SQRT(MAX(0.0_dp, error_squared))
+
+   END SUBROUTINE density_matrix_idempotency_error
 
 ! **************************************************************************************************
 !> \brief Projects a symmetric matrix onto eigenvalue bounds and a prescribed trace.

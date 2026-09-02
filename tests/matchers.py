@@ -467,6 +467,15 @@ registry["Vacuum_level_above"] = GenericMatcher(r"dipole correction plane [eV]:"
 registry["Harris_fit_electron_count"] = GenericMatcher(
     r"HARRIS\| AO density-matrix electron count:", col=6
 )
+registry["Harris_fit_relative_entropy"] = GenericMatcher(
+    r"HARRIS\| Final fermionic relative entropy:", col=6
+)
+registry["Harris_fit_prior_commutator"] = GenericMatcher(
+    r"HARRIS\| Prior-Hamiltonian commutator norm:", col=5
+)
+registry["Harris_fit_idempotency_error"] = GenericMatcher(
+    r"HARRIS\| Occupation idempotency error:", col=5
+)
 registry["Harris_direct_trial_energy"] = GenericMatcher(
     r"Consistent trial-DM energy:", col=4
 )
