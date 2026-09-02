@@ -1041,7 +1041,7 @@ CONTAINS
                   END IF
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
-                  ! transfer to kpoint group, redistribution with new blacs environment
+                  ! transfer to the kpoint group with a new blacs environment
                   IF (my_kpgrp) THEN
                      CALL cp_fm_start_copy_general(fmwork(1), rksmat, para_env, info(indx, 1))
                      CALL cp_fm_start_copy_general(fmwork(3), rsmat, para_env, info(indx, 2))
@@ -1051,7 +1051,7 @@ CONTAINS
                   END IF
                ELSE
                   ! complex wavefunctions: assemble KS and S and start their
-                  ! redistribution to the kpoint group
+                  ! transfer to the k-point group
                   IF (my_kpgrp) THEN
                      CALL kp_evp_op_start(effective_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
                                           ks_grid(ispin), use_grid_fft, rmatrix, cmatrix, tmpmat, &
@@ -1235,7 +1235,7 @@ CONTAINS
                   ELSE
                      CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
                   END IF
-                  ! split real and imaginary part of mos and sync the eigenvalues
+                  ! split the real and imaginary parts of the mos and copy the eigenvalues to the imaginary set
                   CALL kp_evp_cfm_to_mo(cmos, kp%mos(1, ispin), kp%mos(2, ispin), eigenvalues)
                END IF
             END DO
@@ -1309,7 +1309,7 @@ CONTAINS
                      ELSE
                         CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
                      END IF
-                     ! split real and imaginary part of mos and sync the eigenvalues
+                     ! split the real and imaginary parts of the mos and copy the eigenvalues to the imaginary set
                      CALL kp_evp_cfm_to_mo(cmos, kp%mos(1, ispin), kp%mos(2, ispin), eigenvalues)
                   END IF
                END IF
@@ -1982,7 +1982,7 @@ CONTAINS
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                   CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
-                  ! transfer to kpoint group, redistribution with new blacs environment
+                  ! transfer to the kpoint group with a new blacs environment
                   IF (my_kpgrp) THEN
                      CALL cp_fm_start_copy_general(fmwork(1), rksmat, para_env, info(indx, 1))
                      CALL cp_fm_start_copy_general(fmwork(3), rsmat, para_env, info(indx, 2))
@@ -1992,7 +1992,7 @@ CONTAINS
                   END IF
                ELSE
                   ! complex wavefunctions: assemble KS and S and start their
-                  ! redistribution to the kpoint group
+                  ! transfer to the k-point group
                   IF (my_kpgrp) THEN
                      CALL kp_evp_op_start(matrix_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
                                           use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
@@ -2048,7 +2048,7 @@ CONTAINS
             ELSE
                CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
                CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
-               ! split real and imaginary part of mos and sync the eigenvalues
+               ! split the real and imaginary parts of the mos and copy the eigenvalues to the imaginary set
                CALL kp_evp_cfm_to_mo(cmos, kp%mos(1, ispin), kp%mos(2, ispin), eigenvalues)
             END IF
          END DO
@@ -3925,15 +3925,15 @@ CONTAINS
                                    xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                CALL dbcsr_desymmetrize(rmatrix, tmpmat)
                CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
-               ! transfer to kpoint group, redistribution with new blacs environment
+               ! transfer to the kpoint group with a new blacs environment
                IF (my_kpgrp) THEN
                   CALL cp_fm_start_copy_general(fmwork(1), rsmat, para_env, info(indx, 1))
                ELSE
                   CALL cp_fm_start_copy_general(fmwork(1), fmdummy, para_env, info(indx, 1))
                END IF
             ELSE
-               ! complex wavefunctions: assemble S and start its redistribution
-               ! to the kpoint group
+               ! complex wavefunctions: assemble S and start its transfer
+               ! to the k-point group
                IF (my_kpgrp) THEN
                   CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
                                        use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &

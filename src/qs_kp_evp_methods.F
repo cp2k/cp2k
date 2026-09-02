@@ -6,10 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Shared assembly of complex k-point operators: real-space DBCSR matrices to
-!>        a complex full matrix on the k-point group distribution.
-!>        The work is split so that bulk MPI collectives can be started for all operators
-!>        and finished later, as done by the STANDARD k-point driver.
+!> \brief Assembly of complex k-point operators from real-space DBCSR matrices.
+!>        The output is a complex full matrix on the distribution of the k-point group.
+!>        The module splits this work into a start step and a finish step.
+!>        One process can start the MPI transfers of many operators before it finishes
+!>        any of them. The STANDARD k-point driver uses this order.
 !> \author MI
 ! **************************************************************************************************
 MODULE qs_kp_evp_methods
@@ -50,26 +51,32 @@ MODULE qs_kp_evp_methods
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Transform one real-space operator to a k point and start its redistribution.
-!>        The real and imaginary parts are densified into fm_re and fm_im, and their
-!>        transfer to the k-point group distribution is started. Both transfers receive
-!>        into private buffers, so any number of starts may target the same fmlocal.
-!>        The results are collected with kp_evp_op_finish_cfm.
+!> \brief Transform one real-space operator to one k point and start the transfer of
+!>        the result to the k-point group.
+!>        The routine densifies the real part into fm_re and the imaginary part into
+!>        fm_im. Densify means: copy the blocks of a DBCSR matrix into a full matrix.
+!>        It then starts the transfer of both parts to the target matrix.
+!>        Each transfer receives its data in a private buffer. For this reason, several
+!>        starts can use the same target matrix.
+!>        Finish a start with kp_evp_op_finish_cfm when its target received data.
+!>        For target fmdummy, clean the start up with cp_fm_cleanup_copy_general and
+!>        do not finish it.
 !> \param rsmat real-space image matrices of the operator
 !> \param ispin spin component of rsmat (1 for spin-free matrices such as S)
 !> \param ik global k-point index
 !> \param xkp coordinates of this k point
 !> \param cell_to_index mapping of cell indices to real-space index
 !> \param sab_nl neighbor lists defining the real-space sparsity
-!> \param grid prepared reciprocal-grid cache, enables the FFT branch with use_grid
+!> \param grid prepared reciprocal-grid cache of the caller. Required when use_grid is set
 !> \param use_grid extract from grid instead of a direct phase sum
 !> \param rmatrix workspace holding the real part of the k-point matrix
 !> \param cmatrix workspace holding the imaginary part of the k-point matrix
 !> \param tmpmat unsymmetric DBCSR workspace
 !> \param fm_re full-matrix workspace of the global communicator holding the real part
 !> \param fm_im full-matrix workspace of the global communicator holding the imaginary part
-!> \param target_fm transfer target on the k-point group (fmlocal, or fmdummy to keep
-!>        collective calls balanced on groups one does not own)
+!> \param target_fm transfer target on the k-point group. Use fmlocal on the group
+!>        that owns this k point. Use fmdummy on the other groups. This keeps the
+!>        collective calls balanced.
 !> \param para_env communicator of source and target distributions
 !> \param info_re transfer state of the real part
 !> \param info_im transfer state of the imaginary part
@@ -118,7 +125,8 @@ CONTAINS
    END SUBROUTINE kp_evp_op_start
 
 ! **************************************************************************************************
-!> \brief Finish one transfer started by kp_evp_op_start and add it to a complex matrix.
+!> \brief Finish one transfer that kp_evp_op_start started and add the received
+!>        matrix to a complex matrix.
 !> \param fmlocal transfer target filled by the finished copy
 !> \param info transfer state of one part
 !> \param cmat complex matrix accumulating the operator
@@ -148,7 +156,7 @@ CONTAINS
 
    END SUBROUTINE kp_evp_op_finish_cfm
 
-!> \brief Split a complex matrix into the real and imaginary MO sets and keep the
+!> rief Split a complex matrix into the real and imaginary MO sets and keep the
 !>        eigenvalues of both spin-imaginary sets in sync.
 !> \param cmat complex MO coefficients
 !> \param mo_re real part MO set
