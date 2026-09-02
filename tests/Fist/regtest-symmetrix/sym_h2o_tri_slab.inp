@@ -1,0 +1,57 @@
+! Triclinic AND aperiodic: a skewed cell periodic in XY with vacuum along C.
+! This is the only cell here that exercises the two together. The grid on the
+! aperiodic axis is fitted to the atoms rather than to the cell, and its depth
+! comes from the reciprocal row of the cell matrix, which on a skewed cell is
+! not the length of the C vector. Using that length instead would put the atoms
+! in the wrong bins and drop neighbours, and no other test would notice.
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT sym_h2o_tri_slab
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &MACE
+          ATOMS H O
+          BACKEND SYMMETRIX
+          ! Committed toy MACE model (untrained, deterministic weights); see
+          ! README.md in this directory for the generation recipe.
+          POT_FILE_NAME Symmetrix/toy_mace-1-8.json
+        &END MACE
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      PERIODIC XY
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+    &STRESS_TENSOR
+    &END STRESS_TENSOR
+  &END PRINT
+  &SUBSYS
+    &CELL
+      A [angstrom] 6.0 0.0 0.0
+      B [angstrom] 1.5 3.5 0.0
+      C [angstrom] 0.8 0.9 20.0
+      PERIODIC XY
+    &END CELL
+    &COORD
+      O  0.000  0.000  9.500
+      H  0.757  0.586  9.500
+      H -0.757  0.586  9.500
+      O  3.000  0.400 11.100
+      H  3.757  0.986 11.100
+      H  2.243  0.986 11.100
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

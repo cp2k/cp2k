@@ -1,0 +1,55 @@
+! Two waters periodic in XY only, with vacuum along C. The waters are placed
+! 3 Angstrom apart along A in a 6 Angstrom box, so each sees the other both
+! directly and through the A image, well inside the 4 Angstrom model cutoff. The
+! B images are 6.5 Angstrom away and the C direction is 20 Angstrom of vacuum,
+! so neither contributes: an implementation that replicated along C regardless
+! of the cell periodicity would change this energy.
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT sym_h2o_slab
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &MACE
+          ATOMS H O
+          BACKEND SYMMETRIX
+          ! Committed toy MACE model (untrained, deterministic weights); see
+          ! README.md in this directory for the generation recipe.
+          POT_FILE_NAME Symmetrix/toy_mace-1-8.json
+        &END MACE
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      PERIODIC XY
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+    &STRESS_TENSOR
+    &END STRESS_TENSOR
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 6.0 6.5 20.0
+      PERIODIC XY
+    &END CELL
+    &COORD
+      O  0.000  0.000 10.000
+      H  0.757  0.586 10.000
+      H -0.757  0.586 10.000
+      O  3.000  0.000 10.000
+      H  3.757  0.586 10.000
+      H  2.243  0.586 10.000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

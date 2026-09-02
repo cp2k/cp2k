@@ -1,0 +1,71 @@
+! Five NPT steps, so the CELL ITSELF changes between force evaluations. Every
+! other cell here is fixed for the whole run. The neighbour grid, its stencil
+! and the shift table are all derived from the current cell matrix on every
+! evaluation, which is what makes a moving cell safe; nothing here is carried
+! over from the previous step. Note that CP2K's own neighbour list rebuilds on
+! particle drift alone and never on a change of cell, so the cross-check in
+! manybody_symmetrix.F is not meaningful on this input.
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT sym_h2o_npt
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NPT_I
+    STEPS 5
+    TEMPERATURE 300.0
+    TIMESTEP 0.5
+    &BAROSTAT
+      PRESSURE 1.0
+      TIMECON 100.0
+    &END BAROSTAT
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        TIMECON 100.0
+      &END NOSE
+    &END THERMOSTAT
+  &END MD
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &MACE
+          ATOMS H O
+          BACKEND SYMMETRIX
+          ! Committed toy MACE model (untrained, deterministic weights); see
+          ! README.md in this directory for the generation recipe.
+          POT_FILE_NAME Symmetrix/toy_mace-1-8.json
+        &END MACE
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 9.0 9.5 10.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      O  0.000  0.000  0.000
+      H  0.757  0.586  0.000
+      H -0.757  0.586  0.000
+      O  0.000  0.000  2.900
+      H  0.757  0.586  2.900
+      H -0.757  0.586  2.900
+      O  2.100  1.400  1.450
+      H  2.857  1.986  1.450
+      H  1.343  1.986  1.450
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

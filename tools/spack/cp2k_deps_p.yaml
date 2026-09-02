@@ -234,6 +234,7 @@ spack:
     - "spfft@1.1.1"
     - "spglib@2.7.0"
     - "spla@1.6.1"
+    - "symmetrix@2026.01"
     - "tblite@0.7.0"
     - "trexio@2.6.1"
 

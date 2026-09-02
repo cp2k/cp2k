@@ -18,6 +18,7 @@
 !> \author CJM
 ! **************************************************************************************************
 MODULE force_fields_input
+   USE ISO_C_BINDING,                   ONLY: C_INT32_T
    USE ace_wrapper,                     ONLY: ace_model_initialize,&
                                               ace_model_type
    USE bibliography,                    ONLY: Clabaut2020,&
@@ -71,10 +72,18 @@ MODULE force_fields_input
         ea_type, eam_pot_type, ft_pot_type, ft_type, ftd_type, gal21_type, gal_type, gp_type, &
         gw_type, ip_type, ipbv_pot_type, lj_charmm_type, mace_type, nequip_pot_type, nequip_type, &
         no_potential_single_allocation, pair_potential_p_type, pair_potential_reallocate, &
-        potential_single_allocation, siepmann_type, tab_pot_type, tab_type, tersoff_type, wl_type
+        potential_single_allocation, siepmann_type, symmetrix_pot_type, symmetrix_type, &
+        tab_pot_type, tab_type, tersoff_type, wl_type
+   USE periodic_table,                  ONLY: get_ptable_info
    USE shell_potential_types,           ONLY: shell_p_create,&
                                               shell_p_type
    USE string_utilities,                ONLY: uppercase
+   USE symmetrix_api,                   ONLY: symmetrix_model_atomic_types,&
+                                              symmetrix_model_cutoff,&
+                                              symmetrix_model_load,&
+                                              symmetrix_model_num_types,&
+                                              symmetrix_model_release,&
+                                              symmetrix_model_type
    USE torch_api,                       ONLY: torch_allow_tf32,&
                                               torch_model_read_metadata
 #include "./base/base_uses.f90"
@@ -106,6 +115,7 @@ CONTAINS
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
+      CHARACTER(LEN=default_string_length)               :: mace_backend
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names
       INTEGER :: nace, nb4, nbends, nbm, nbmhft, nbmhftd, nbonds, nchg, ndeepmd, neam, ngal, &
@@ -328,17 +338,34 @@ CONTAINS
             CALL read_ace_section(inp_info%nonbonded, tmp_section2, ntot)
          END IF
 
+         ! The unified MACE section: BACKEND selects the inference engine, the
+         ! remaining keywords are shared, so the existing per-backend readers
+         ! apply unchanged.
          tmp_section2 => section_vals_get_subs_vals(tmp_section, "MACE")
          CALL section_vals_get(tmp_section2, explicit=explicit, n_repetition=nmace)
          ntot = nlj + nwl + neam + ngd + nipbv + nbmhft + nbmhftd + nb4 + nbm + ngp + ntersoff + &
                 ngal + ngal21 + nsiepmann + nnequip + ntab + ndeepmd + nace
          IF (explicit) THEN
+            CALL section_vals_val_get(tmp_section2, "BACKEND", c_val=mace_backend)
+            mace_backend = TRIM(ADJUSTL(mace_backend))
+            CALL uppercase(mace_backend)
             ! avoid repeating the mace section for each pair
             CALL section_vals_val_get(tmp_section2, "ATOMS", c_vals=atm_names)
-            nmace = nmace - 1 + SIZE(atm_names) + (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
-            ! MACE reuses the nequip_pot_type storage (set%nequip), hence nequip=.TRUE. here
-            CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nmace, nequip=.TRUE.)
-            CALL read_mace_section(inp_info%nonbonded, tmp_section2, ntot)
+            nmace = nmace - 1 + SIZE(atm_names) + &
+                    (SIZE(atm_names)*SIZE(atm_names) - SIZE(atm_names))/2
+            SELECT CASE (TRIM(mace_backend))
+            CASE ("SYMMETRIX")
+               CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nmace, symmetrix=.TRUE.)
+               CALL read_symmetrix_section(inp_info%nonbonded, tmp_section2, ntot)
+            CASE ("TORCH", "")
+               ! TorchScript backend (default): MACE reuses the nequip_pot_type storage (set%nequip)
+               CALL pair_potential_reallocate(inp_info%nonbonded, 1, ntot + nmace, nequip=.TRUE.)
+               CALL read_mace_section(inp_info%nonbonded, tmp_section2, ntot)
+            CASE DEFAULT
+               CALL cp_abort(__LOCATION__, &
+                             "&MACE BACKEND '"//TRIM(mace_backend)//"' is not known; "// &
+                             "use TORCH or SYMMETRIX.")
+            END SELECT
          END IF
 
       END IF
@@ -890,6 +917,71 @@ CONTAINS
       END DO
 
    END SUBROUTINE read_mace_section
+
+! **************************************************************************************************
+!> \brief Reads the SYMMETRIX section
+!> \param nonbonded ...
+!> \param section ...
+!> \param start ...
+!> \author Dhruv Sharma
+! **************************************************************************************************
+   SUBROUTINE read_symmetrix_section(nonbonded, section, start)
+      TYPE(pair_potential_p_type), POINTER               :: nonbonded
+      TYPE(section_vals_type), POINTER                   :: section
+      INTEGER, INTENT(IN)                                :: start
+
+      CHARACTER(LEN=default_path_length)                 :: pot_file_name
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: atm_names
+      INTEGER                                            :: isec, jsec, n_items, n_types
+      INTEGER(C_INT32_T), ALLOCATABLE, DIMENSION(:)      :: model_z
+      REAL(KIND=dp)                                      :: cutoff, length_au_per_angstrom
+      TYPE(symmetrix_model_type)                         :: model
+      TYPE(symmetrix_pot_type)                           :: symmetrix
+
+      n_items = 1
+      CALL section_vals_val_get(section, "ATOMS", c_vals=atm_names)
+      CALL section_vals_val_get(section, "POT_FILE_NAME", c_val=pot_file_name)
+
+      symmetrix%pot_file_name = discover_file(pot_file_name)
+
+      ! Load the model once to read its cutoff (symmetrix reports it in Angstrom)
+      ! and to check ATOMS against the elements it supports, so a mismatch is
+      ! caught here rather than mid-run. The handle is released again; the live
+      ! model is loaded and cached at the first force evaluation.
+      CALL symmetrix_model_load(model, symmetrix%pot_file_name)
+      length_au_per_angstrom = cp_unit_to_cp2k(1.0_dp, "angstrom")
+      cutoff = symmetrix_model_cutoff(model)*length_au_per_angstrom    ! Angstrom -> Bohr
+      ! Everything downstream divides by this to size a neighbour grid, so a
+      ! model that reports no range is caught here, where the file can still be
+      ! named, rather than as a division by zero later.
+      IF (cutoff <= 0.0_dp) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "The symmetrix model '"//TRIM(symmetrix%pot_file_name)//"' reports a "// &
+                       "non-positive interaction cutoff. The file is not a usable model.")
+      END IF
+      symmetrix%rcutsq = cutoff*cutoff
+      n_types = symmetrix_model_num_types(model)
+      ALLOCATE (model_z(n_types))
+      CALL symmetrix_model_atomic_types(model, model_z)
+      CALL symmetrix_model_release(model)
+      CALL check_atom_names_in_symmetrix(atm_names, model_z, symmetrix%pot_file_name)
+      DEALLOCATE (model_z)
+
+      DO isec = 1, SIZE(atm_names)
+         DO jsec = isec, SIZE(atm_names)
+            nonbonded%pot(start + n_items)%pot%type = symmetrix_type
+            nonbonded%pot(start + n_items)%pot%at1 = atm_names(isec)
+            nonbonded%pot(start + n_items)%pot%at2 = atm_names(jsec)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at1)
+            CALL uppercase(nonbonded%pot(start + n_items)%pot%at2)
+            nonbonded%pot(start + n_items)%pot%set(1)%symmetrix = symmetrix
+            nonbonded%pot(start + n_items)%pot%rcutsq = symmetrix%rcutsq
+            n_items = n_items + 1
+         END DO
+      END DO
+
+   END SUBROUTINE read_symmetrix_section
 
 ! **************************************************************************************************
 !> \brief Reads the LJ section
@@ -2657,6 +2749,39 @@ CONTAINS
          END IF
       END DO
    END SUBROUTINE check_cp2k_atom_names_in_torch
+
+! **************************************************************************************************
+!> \brief Checks that every element listed in ATOMS is supported by the symmetrix model.
+!>        symmetrix identifies its species by atomic number, so the input symbols are
+!>        resolved through the periodic table first.
+!> \param cp2k_inp_atom_types the elements given in the input section
+!> \param model_z the atomic numbers the model supports
+!> \param pot_file_name the model file, quoted in the error message
+!> \author Dhruv Sharma
+! **************************************************************************************************
+   SUBROUTINE check_atom_names_in_symmetrix(cp2k_inp_atom_types, model_z, pot_file_name)
+      CHARACTER(LEN=*), DIMENSION(:), INTENT(IN)         :: cp2k_inp_atom_types
+      INTEGER(C_INT32_T), DIMENSION(:), INTENT(IN)       :: model_z
+      CHARACTER(LEN=*), INTENT(IN)                       :: pot_file_name
+
+      INTEGER                                            :: i, z
+      LOGICAL                                            :: found_atom
+
+      DO i = 1, SIZE(cp2k_inp_atom_types)
+         CALL get_ptable_info(cp2k_inp_atom_types(i) (1:2), number=z, found=found_atom)
+         IF (.NOT. found_atom) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "&MACE BACKEND SYMMETRIX: ATOMS lists '"// &
+                          TRIM(cp2k_inp_atom_types(i))//"', which is not a known element.")
+         END IF
+         IF (.NOT. ANY(model_z == INT(z, C_INT32_T))) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "&MACE BACKEND SYMMETRIX: element "// &
+                          TRIM(cp2k_inp_atom_types(i))//" is listed in ATOMS but is not among "// &
+                          "the elements supported by the model "//TRIM(pot_file_name)//".")
+         END IF
+      END DO
+   END SUBROUTINE check_atom_names_in_symmetrix
 
 ! **************************************************************************************************
 !> \brief reads TABPOT potential from file

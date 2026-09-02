@@ -301,6 +301,22 @@ potentials support can be enabled by passing `-DCP2K_USE_ACE=ON` to CMake.
   ML-PACE/ace-evaluator and yaml-cpp/include from the library is also needed (see toolchain for
   example).
 
+## symmetrix (torch-free MACE interatomic potentials)
+
+[symmetrix](https://github.com/wcwitt/symmetrix) is a torch-free C++/Kokkos evaluator for MACE
+models. Support is enabled by passing `-DCP2K_USE_SYMMETRIX=ON` to CMake and pointing it at a
+separately built libsymmetrix checkout:
+
+- `-DCP2K_SYMMETRIX_ROOT=<dir>` points at the symmetrix checkout; the bundled `FindSymmetrix` module
+  derives the include directories and static libraries from it (and its build tree,
+  `-DCP2K_SYMMETRIX_BUILD_DIR=<dir>`, default `<ROOT>/build`).
+- `-DCP2K_SYMMETRIX_KOKKOS=ON` links the Kokkos (GPU) evaluator (needs a Kokkos-enabled
+  `libsymmetrix` and CUDA ≥ 12.2).
+- `-DCP2K_SYMMETRIX_INCLUDE_DIR=<dir>` / `-DCP2K_SYMMETRIX_LIBRARIES="<...>.a;<...>.a"` remain as an
+  explicit escape hatch that bypasses the find module.
+- symmetrix requires C++20 and the GNU libstdc++ special functions. See
+  [](../methods/machine_learning/symmetrix) for usage.
+
 ## DFTD4 (dispersion correction)
 
 DFTD4 provides the Generally Applicable Atomic-Charge Dependent London Dispersion Correction. For
