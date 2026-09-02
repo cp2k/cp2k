@@ -105,25 +105,25 @@ if [ "${with_skala}" != "__DONTUSE__" ]; then
   if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
     skala_cuda_model="${pkg_install_dir}/share/skala/onedft_models/${skala_cuda_model_pkg}"
   fi
-  cat << EOF > "${BUILDDIR}/setup_skala"
+    cat << EOF > "${INSTALLDIR}/setup_skala"
 export SKALA_VER="${skala_model_ver}"
 export SKALA_ROOT="${pkg_install_dir}"
 export SKALA_MODEL="${skala_model}"
 EOF
-  if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
-    cat >> "${BUILDDIR}/setup_skala" << EOF
+   if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
+     cat >> "${INSTALLDIR}/setup_skala" << EOF
 export SKALA_CUDA_MODEL="${skala_cuda_model}"
 EOF
-  fi
-  if [ "${with_skala}" != "__SYSTEM__" ]; then
-    cat << EOF >> "${BUILDDIR}/setup_skala"
+   fi
+   if [ "${with_skala}" != "__SYSTEM__" ]; then
+     cat << EOF >> "${INSTALLDIR}/setup_skala"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
-  fi
-  filter_setup "${BUILDDIR}/setup_skala" "${SETUPFILE}"
+   fi
+   filter_setup "${INSTALLDIR}/setup_skala" "${SETUPFILE}"
 fi
 
-load "${BUILDDIR}/setup_skala"
+load "${INSTALLDIR}/setup_skala"
 write_toolchain_env "${INSTALLDIR}"
 
 cd "${ROOTDIR}"
