@@ -1792,6 +1792,11 @@ if [[ "${CHECK_CONVENTIONS}" == "yes" ]]; then
   "${CP2K_ROOT}"/tools/conventions/analyze_gfortran_warnings.py "${CMAKE_BUILD_PATH}"/*.warn &> "${CMAKE_BUILD_PATH}"/warn.issues
   ((VERBOSE > 0)) && cat "${CMAKE_BUILD_PATH}"/warn.issues
   "${CP2K_ROOT}"/tools/conventions/summarize_issues.py --suppressions="${CP2K_ROOT}/tools/conventions/conventions.supp" "${CMAKE_BUILD_PATH}"/*.issues
+  cat << *** > "${INSTALL_PREFIX}"/bin/summarize_issues
+#!/bin/bash
+${CP2K_ROOT}/tools/conventions/summarize_issues.py --suppressions=${CP2K_ROOT}/tools/conventions/conventions.supp ${CMAKE_BUILD_PATH}/*.issues
+***
+  chmod 750 "${INSTALL_PREFIX}"/bin/summarize_issues
 fi
 
 # Create script to run the CP2K benchmarks for psmp builds
@@ -1894,11 +1899,18 @@ export IMAGE_TAG=${IMAGE_TAG:-<IMAGE ID>}
 # Optionally, launch test run
 if [[ "${RUN_TEST}" == "yes" ]]; then
   echo -e "\n*** Launching regression test run using the script ${INSTALL_PREFIX}/bin/run_tests\n"
-  ${LAUNCH_SCRIPT} run_tests
-  EXIT_CODE=$?
-  if ((EXIT_CODE != 0)); then
-    echo "ERROR: The regression test run failed with the error code ${EXIT_CODE}"
-    ${EXIT_CMD} "${EXIT_CODE}"
+  if [[ "${TEST_COVERAGE}" == "yes" ]]; then
+    # Print only a warning when the regression test is failing and continue with coverage analysis
+    if ! ${LAUNCH_SCRIPT} run_tests; then
+      echo -e "\nWARNING: The regression test run failed, but the coverage analysis will still be performed\n"
+    fi
+  else
+    ${LAUNCH_SCRIPT} run_tests
+    EXIT_CODE=$?
+    if ((EXIT_CODE != 0)); then
+      echo -e "\nERROR: The regression test run failed with the error code ${EXIT_CODE}\n"
+      ${EXIT_CMD} "${EXIT_CODE}"
+    fi
   fi
 else
   if [[ "${IN_CONTAINER}" == "yes" ]]; then
@@ -1974,10 +1986,12 @@ if [[ "${VERSION}" == "psmp" ]]; then
       ${EXIT_CMD} "${EXIT_CODE}"
     fi
   else
-    echo ""
-    echo "*** A benchmark run can be launched with"
-    echo "    ${LAUNCH_SCRIPT} run_benchmarks"
-    echo ""
+    if [[ "${IN_CONTAINER}" != "yes" ]]; then
+      echo ""
+      echo "*** A benchmark run can be launched with"
+      echo "    ${LAUNCH_SCRIPT} run_benchmarks"
+      echo ""
+    fi
   fi
 fi
 
