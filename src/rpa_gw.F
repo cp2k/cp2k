@@ -2920,8 +2920,6 @@ CONTAINS
                            matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_copy(cosmat, matrix_s(1)%matrix)
          CALL dbcsr_copy(sinmat, matrix_s(1)%matrix)
-         CALL dbcsr_set(cosmat, 0.0_dp)
-         CALL dbcsr_set(sinmat, 0.0_dp)
 
          CALL dbcsr_allocate_matrix_set(matrix_berry_re_mo_mo, nkp)
          CALL dbcsr_allocate_matrix_set(matrix_berry_im_mo_mo, nkp)
@@ -3109,8 +3107,6 @@ CONTAINS
                            matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_copy(cosmat, matrix_s_aux_aux(1)%matrix)
          CALL dbcsr_copy(sinmat, matrix_s_aux_aux(1)%matrix)
-         CALL dbcsr_set(cosmat, 0.0_dp)
-         CALL dbcsr_set(sinmat, 0.0_dp)
 
          CALL dbcsr_allocate_matrix_set(matrix_berry_re_mo_mo, nkp)
          CALL dbcsr_allocate_matrix_set(matrix_berry_im_mo_mo, nkp)
