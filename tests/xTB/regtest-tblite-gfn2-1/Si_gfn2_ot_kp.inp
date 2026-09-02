@@ -9,7 +9,6 @@
   &DFT
     &KPOINTS
       FULL_GRID OFF
-      PARALLEL_GROUP_SIZE 0
       SCHEME MONKHORST-PACK 3 3 3
       SYMMETRY ON
       VERBOSE T
@@ -31,14 +30,18 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-6
-      MAX_SCF 250
+      MAX_SCF 20
       SCF_GUESS MOPAC
       &OT
         ALGORITHM IRAC
-        MINIMIZER CG
-        PRECONDITIONER FULL_SINGLE_INVERSE
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
         STEPSIZE 0.05
       &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 20
+      &END OUTER_SCF
       &PRINT
         &RESTART OFF
         &END RESTART

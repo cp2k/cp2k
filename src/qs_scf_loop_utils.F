@@ -754,8 +754,6 @@ CONTAINS
       local_ot_env => scf_env%qs_ot_env(first_channel:first_channel + nlocal_channels - 1)
       local_ot_env(1)%etotal = energy%total
       physical_base_state = local_ot_env(1)%settings%do_ener .AND. &
-                            .NOT. local_ot_env(1)%initial_density_sync_pending .AND. &
-                            .NOT. local_ot_env(1)%prepared_direction_pending .AND. &
                             .NOT. local_ot_env(1)%energy_only .AND. &
                             (local_ot_env(1)%line_search_count == 0 .OR. &
                              local_ot_env(1)%line_search_might_be_done)
@@ -1012,90 +1010,54 @@ CONTAINS
          END DO
       END DO
 
-      IF (local_ot_env(1)%initial_density_sync_pending) THEN
-         ! The initial Hamiltonian can come from a density that does not match the
-         ! fixed-rank orbital projector. Rebuild that density before starting a line search.
-         IF (local_ot_env(1)%settings%ot_algorithm == "REF") THEN
+      IF (local_ot_env(1)%settings%do_ener) THEN
+         local_ot_env(1)%etotal = energy%total - energy%kTS + trial_kTS
+         CALL qs_scf_loop_prepare_ot_kp_energy_gradient( &
+            kpoints, local_ot_env, first_channel, nspin_ot, nspin_energy, restricted_roks, &
+            wkp, para_env_inter_kp, scf_control%smear, &
+            trial_eigenvalues, trial_occupation, trial_mu)
+         IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
+            CALL ot_mini_prepare_gradient( &
+               local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+               matrix_hc_physical=matrix_hc_physical, &
+               matrix_hc_physical_im=matrix_hc_physical_im, &
+               para_env_inter_kp=para_env_inter_kp)
+         ELSE
+            CALL ot_mini_prepare_gradient( &
+               local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+               para_env_inter_kp=para_env_inter_kp)
+         END IF
+         ot_gradient_prepared = .TRUE.
+         ! A coupled response direction is consumed only when the minimizer starts a new
+         ! search.  Line-search trial points still need their physical gradient, but rebuilding
+         ! the dense finite-rotation Hessian there cannot affect the accepted direction.
+         IF (physical_base_state) THEN
+            CALL qs_scf_loop_prepare_ot_kp_rotation_response( &
+               qs_env, kpoints, local_ot_env, first_channel, nspin_ot, restricted_roks, &
+               wkp, para_env_inter_kp, sab_nl, fmwork, rho_ao_kp, &
+               scf_control%smear, trial_eigenvalues, trial_occupation, trial_mu)
+         END IF
+         IF (physical_base_state .AND. &
+             local_ot_env(1)%settings%occupation_preconditioner .AND. &
+             (local_ot_env(1)%settings%ot_method == "CG" .OR. &
+              local_ot_env(1)%settings%ot_method == "LBFG")) THEN
             DO local_channel = 1, nlocal_channels
-               CALL dbcsr_copy(matrix_hc(local_channel)%matrix, local_ot_env(local_channel)%matrix_x)
-               CALL dbcsr_copy(matrix_hc_im(local_channel)%matrix, local_ot_env(local_channel)%matrix_x_im)
+               CALL qs_scf_kp_store_mermin_gradient(local_ot_env(local_channel))
             END DO
          END IF
-         scf_env%iter_delta = 2.0_dp*scf_control%eps_scf
-         local_ot_env(1)%OT_METHOD_FULL = "OT Sync"
-         local_ot_env(:)%initial_density_sync_pending = .FALSE.
-         local_ot_env(:)%initial_gradient_sync_pending = &
-            local_ot_env(:)%initial_gradient_sync_pending .AND. &
-            (local_ot_env(1)%settings%ot_method == "CG" .OR. &
-             local_ot_env(1)%settings%ot_method == "SD" .OR. &
-             local_ot_env(1)%settings%ot_method == "LBFG")
-      ELSE
-         IF (local_ot_env(1)%settings%do_ener) THEN
-            local_ot_env(1)%etotal = energy%total - energy%kTS + trial_kTS
-            CALL qs_scf_loop_prepare_ot_kp_energy_gradient( &
-               kpoints, local_ot_env, first_channel, nspin_ot, nspin_energy, restricted_roks, &
-               wkp, para_env_inter_kp, scf_control%smear, &
-               trial_eigenvalues, trial_occupation, trial_mu)
-            IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
-               CALL ot_mini_prepare_gradient( &
-                  local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
-                  matrix_hc_physical=matrix_hc_physical, &
-                  matrix_hc_physical_im=matrix_hc_physical_im, &
-                  para_env_inter_kp=para_env_inter_kp)
-            ELSE
-               CALL ot_mini_prepare_gradient( &
-                  local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
-                  para_env_inter_kp=para_env_inter_kp)
-            END IF
-            ot_gradient_prepared = .TRUE.
-            ! A coupled response direction is consumed only when the minimizer starts a new
-            ! search.  Line-search trial points still need their physical gradient, but rebuilding
-            ! the dense finite-rotation Hessian there cannot affect the accepted direction.
-            IF (physical_base_state) THEN
-               CALL qs_scf_loop_prepare_ot_kp_rotation_response( &
-                  qs_env, kpoints, local_ot_env, first_channel, nspin_ot, restricted_roks, &
-                  wkp, para_env_inter_kp, sab_nl, fmwork, rho_ao_kp, &
-                  scf_control%smear, trial_eigenvalues, trial_occupation, trial_mu)
-            END IF
-            IF (physical_base_state .AND. &
-                local_ot_env(1)%settings%occupation_preconditioner .AND. &
-                (local_ot_env(1)%settings%ot_method == "CG" .OR. &
-                 local_ot_env(1)%settings%ot_method == "LBFG")) THEN
-               DO local_channel = 1, nlocal_channels
-                  CALL qs_scf_kp_store_mermin_gradient(local_ot_env(local_channel))
-               END DO
-            END IF
-         END IF
-         IF (local_ot_env(1)%initial_gradient_sync_pending) THEN
-            IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
-               CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
-                            matrix_hc_physical=matrix_hc_physical, &
-                            matrix_hc_physical_im=matrix_hc_physical_im, &
-                            para_env_inter_kp=para_env_inter_kp, &
-                            gradient_prepared=ot_gradient_prepared, direction_only=.TRUE.)
-            ELSE
-               CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
-                            para_env_inter_kp=para_env_inter_kp, &
-                            gradient_prepared=ot_gradient_prepared, direction_only=.TRUE.)
-            END IF
-            scf_env%iter_delta = local_ot_env(1)%delta
-            local_ot_env(1)%OT_METHOD_FULL = "OT GSync"
-            local_ot_env(:)%initial_gradient_sync_pending = .FALSE.
-         ELSE
-            IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
-               CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
-                            matrix_hc_physical=matrix_hc_physical, &
-                            matrix_hc_physical_im=matrix_hc_physical_im, &
-                            para_env_inter_kp=para_env_inter_kp, &
-                            gradient_prepared=ot_gradient_prepared)
-            ELSE
-               CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
-                            para_env_inter_kp=para_env_inter_kp, &
-                            gradient_prepared=ot_gradient_prepared)
-            END IF
-            scf_env%iter_delta = local_ot_env(1)%delta
-         END IF
       END IF
+      IF (local_ot_env(1)%settings%occupation_preconditioner) THEN
+         CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+                      matrix_hc_physical=matrix_hc_physical, &
+                      matrix_hc_physical_im=matrix_hc_physical_im, &
+                      para_env_inter_kp=para_env_inter_kp, &
+                      gradient_prepared=ot_gradient_prepared)
+      ELSE
+         CALL ot_mini(local_ot_env, matrix_hc, matrix_hc_im=matrix_hc_im, &
+                      para_env_inter_kp=para_env_inter_kp, &
+                      gradient_prepared=ot_gradient_prepared)
+      END IF
+      scf_env%iter_delta = local_ot_env(1)%delta
       energy_only = local_ot_env(1)%energy_only
 
       DO local_kpoint = 1, SIZE(kpoints%kp_env)

@@ -644,6 +644,7 @@ list(
   qs_kernel_types.F
   qs_kind_types.F
   qs_kinetic.F
+  qs_kpoint_state.F
   qs_kpp1_env_methods.F
   qs_kpp1_env_types.F
   qs_ks_apply_restraints.F

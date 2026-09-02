@@ -22,18 +22,22 @@
       CUTOFF 100
     &END MGRID
     &QS
-      EPS_DEFAULT 1.0E-8
+      EPS_DEFAULT 1.0E-12
     &END QS
     &SCF
-      EPS_SCF 1.0E-8
-      MAX_SCF 300
+      EPS_SCF 1.0E-6
+      MAX_SCF 20
       SCF_GUESS ATOMIC
       &OT
-        ALGORITHM STRICT
+        ALGORITHM IRAC
         MINIMIZER CG
-        PRECONDITIONER FULL_KINETIC
+        PRECONDITIONER FULL_ALL
         ROTATION
       &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 20
+      &END OUTER_SCF
       &PRINT
         &RESTART OFF
         &END RESTART
