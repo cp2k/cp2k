@@ -55,7 +55,7 @@ case "$with_libxc" in
       make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       make install > install.log 2>&1 || tail_excerpt install.log
       cd ..
-      # Build CUDA version of libxc using autotools (more reliable for CUDA)
+      # Build CUDA version of libxc using cmake with CUDA support
       if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
         echo "Installing from scratch into ${pkg_install_dir}-cuda"
         [ -d build-cuda ] && rm -rf "build-cuda"
@@ -66,7 +66,7 @@ case "$with_libxc" in
           -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-cuda" \
           -DCMAKE_INSTALL_LIBDIR="lib" \
           -DCMAKE_VERBOSE_MAKEFILE=ON \
-          -DBUILD_SHARED_LIBS=OFF \
+          -DBUILD_SHARED_LIBS=ON \
           -DBUILD_TESTING=OFF \
           -DENABLE_FORTRAN=ON \
           -DENABLE_CUDA=ON \
