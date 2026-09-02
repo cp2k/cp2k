@@ -79,6 +79,7 @@ registry["OT_lbfgs_skipped_update"] = TextPresenceMatcher("OT LSKIP")
 registry["OT_lbfgs_update"] = TextPresenceMatcher("OT LBFGS")
 registry["OT_diis_update"] = TextPresenceMatcher("OT DIIS")
 registry["OT_mermin_response_update"] = TextPresenceMatcher("OT CG-R")
+registry["OT_mermin_exact_hxc"] = TextPresenceMatcher("apply_hxc_kernel_kp")
 registry["OT_mermin_lbfgs_response_update"] = TextPresenceMatcher("OT L-R")
 registry["OT_kpoint_ref_refresh"] = TextPresenceMatcher(
     "K-point OT: rebuilding physical virtual subspace"
