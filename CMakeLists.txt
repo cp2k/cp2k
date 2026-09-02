@@ -568,10 +568,7 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   # allow for unsupported compilers (gcc/cuda version mismatch)
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -allow-unsupported-compiler")
 
-  set(CUDA_SEPARABLE_COMPILATION ON)
-
   enable_language(CUDA)
-
   if(CP2K_USE_NVHPC)
     find_package(NVHPC REQUIRED COMPONENTS CUDA MATH HOSTUTILS NCCL)
   else()
@@ -597,14 +594,6 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   endif()
 
   message(STATUS "CUDA compiler and libraries found")
-
-  # CUDA Libxc detection will be handled in the Libxc section below
-   # The toolchain builds libxc with CUDA support in build-cuda/
-   # Both CPU and CUDA builds use the same symbol namespace (xc_*)
-   # The CUDA-enabled library handles GPU acceleration internally
-   # Note: Current implementation uses single namespace; symbol prefixing not yet implemented
-   # This ensures clean ABI separation and allows both libraries to coexist in the same executable
-  # for proper dual-library support
 
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
   message("\n------------------------------------------------------------")
@@ -706,20 +695,44 @@ if(CP2K_USE_LIBXC)
   set(LIBXC_CPU_INCLUDE_DIRS ${Libxc_INCLUDE_DIRS})
   set(LIBXC_CPU_LIBRARIES ${Libxc_LIBRARIES})
 
-  # Check if CUDA-enabled Libxc is available
-   if(CP2K_USE_ACCEL MATCHES "CUDA")
-     set(LIBXC_CUDA_FOUND FALSE)
+    # Check if CUDA-enabled Libxc is available
+    if(CP2K_USE_CUDA)
+      set(LIBXC_CUDA_FOUND FALSE)
 
-     # Check for CUDA-enabled build directory
-     set(LIBXC_CUDA_LIBRARY_PATH "${LIBXC_SOURCE_DIR}/build-cuda/libxcf03.a")
-     if(EXISTS "${LIBXC_CUDA_LIBRARY_PATH}")
-       set(LIBXC_CUDA_FOUND TRUE)
-       set(CP2K_LIBXC_CUDA_SUPPORT ON CACHE BOOL "libxc CUDA support available")
-       message(STATUS "Found CUDA-enabled Libxc in build-cuda directory")
-     else()
-       message(STATUS "CUDA-enabled Libxc not found in build-cuda directory")
-     endif()
-   endif()
+      # LIBXC_ROOT from environment (set by toolchain, already points to -cuda variant when ENABLE_CUDA is set)
+      # Try shared library first (preferred for CUDA), then fall back to static
+      if(EXISTS "$ENV{LIBXC_ROOT}/lib/libxcf03.so")
+        set(LIBXC_CUDA_LIBRARY_PATH "$ENV{LIBXC_ROOT}/lib/libxcf03.so")
+        set(LIBXC_CUDA_IS_SHARED TRUE)
+      elseif(EXISTS "$ENV{LIBXC_ROOT}/lib/libxcf03.a")
+        set(LIBXC_CUDA_LIBRARY_PATH "$ENV{LIBXC_ROOT}/lib/libxcf03.a")
+        set(LIBXC_CUDA_IS_SHARED FALSE)
+      endif()
+      if(LIBXC_CUDA_LIBRARY_PATH)
+        set(LIBXC_CUDA_FOUND TRUE)
+        set(CP2K_LIBXC_CUDA_SUPPORT ON CACHE BOOL "libxc CUDA support available")
+        message(STATUS "Found CUDA-enabled Libxc in $ENV{LIBXC_ROOT}/lib")
+        message(STATUS "CUDA Libxc library type: ${LIBXC_CUDA_LIBRARY_PATH}")
+        # Create imported target for CUDA-enabled Libxc
+        if(LIBXC_CUDA_IS_SHARED)
+          # Shared library - CUDA device link handled by Libxc during its build
+          add_library(Libxc::xc_cuda SHARED IMPORTED GLOBAL)
+          set_target_properties(Libxc::xc_cuda PROPERTIES
+            IMPORTED_LOCATION "${LIBXC_CUDA_LIBRARY_PATH}"
+            INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/")
+        else()
+          # Static library - need special handling for fatbin symbols
+          add_library(Libxc::xc_cuda STATIC IMPORTED GLOBAL)
+          set_target_properties(Libxc::xc_cuda PROPERTIES
+            IMPORTED_LOCATION "${LIBXC_CUDA_LIBRARY_PATH}"
+            INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/"
+            INTERFACE_LINK_OPTIONS "-Wl,--whole-archive;${LIBXC_CUDA_LIBRARY_PATH};-Wl,--no-whole-archive")
+        endif()
+      else()
+        message(FATAL_ERROR "CUDA-enabled Libxc not found in $ENV{LIBXC_ROOT}/lib. Please install CUDA-enabled Libxc or disable CUDA support.")
+      endif()
+    endif()
+endif()
 
 if(CP2K_USE_GAUXC)
   find_package(Threads REQUIRED)
@@ -1036,7 +1049,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
             FORCE)
   # set the possible values of build type for cmake-gui
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
-                                               "RelWithDebInfo")
+                                               "Coverage")
 endif()
 
 # compiler configuration could have impacted package discovery (above)
@@ -1122,3 +1135,343 @@ if(CP2K_USE_CUSOLVER_MP)
   endif()
 endif()
 
+if(CP2K_USE_LIBXC)
+  message("  - LibXC\n" "    - Include directories: ${Libxc_INCLUDE_DIRS}\n"
+          "    - Libraries: ${Libxc_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_GAUXC)
+  message("  - GauXC\n" "    - Package directory: ${gauxc_DIR}\n")
+endif()
+
+if(CP2K_USE_SPGLIB)
+  message("  - Spglib\n"
+          "    - Include directories: ${CP2K_SPGLIB_INCLUDE_DIRS}\n")
+endif()
+
+if(CP2K_USE_LIBTORCH)
+  message("  - LibTorch\n" "    - Extra CXX flags: ${TORCH_CXX_FLAGS}\n"
+          "    - Include directories: ${TORCH_INCLUDE_DIRS}\n"
+          "    - Libraries: ${TORCH_LIBRARY}\n")
+endif()
+
+if(CP2K_USE_HDF5)
+  message("  - HDF5\n" "    - Include directories: ${HDF5_INCLUDE_DIRS}\n"
+          "    - Libraries: ${HDF5_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_OPENPMD)
+  message("  - OpenPMD\n" "    - package directory: ${openPMD_DIR}\n")
+endif()
+
+if(CP2K_USE_FFTW3)
+  message("  - FFTW3\n"
+          "    - Include directories: ${CP2K_FFTW3_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_FFTW3_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_PLUMED)
+  message("  - PLUMED\n"
+          "    - Include directories: ${CP2K_PLUMED_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_PLUMED_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_LIBXS)
+  message("  - LIBXS\n"
+          "    - Include directories: ${CP2K_LIBXS_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_LIBXS_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_SPLA)
+  message("  - SpLA\n" "    - Include directories: ${CP2K_SPLA_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_SPLA_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_SPLA_GEMM_OFFLOADING)
+  message("  - SpLA GEMM offloading\n")
+endif()
+
+if(CP2K_USE_MIMIC)
+  message("  - MiMiC\n"
+          "    - Include directories: ${CP2K_MIMIC_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_MIMIC_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_DFTD4 OR CP2K_USE_TBLITE)
+  message("  - DFTD4")
+  if(CP2K_USE_TBLITE)
+    message("    - Enabled via TBLITE")
+  endif()
+  message("    - Include directories: ${dftd4_INCLUDE_DIRS}\n"
+          "    - Libraries: ${dftd4_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_DEEPMD)
+  message("  - DeePMD\n")
+endif()
+
+if(CP2K_USE_PEXSI)
+  message("  - PEXSI\n"
+          "    - Include directories: ${CP2K_PEXSI_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_PEXSI_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_ACE)
+  message(
+    "  - ACE\n"
+    "    - Include directories: ${CP2K_ACE_INCLUDE_DIRS}\n"
+    "    - Libraries: ${CP2K_ACE_LINK_LIBRARIES};${CP2K_ACE_YAML_LINK_LIBRARIES};${CP2K_ACE_CNPY_LINK_LIBRARIES}\n"
+  )
+endif()
+
+if(CP2K_USE_LIBSMEAGOL)
+  message("  - LibSMEAGOL\n"
+          "    - Include directories: ${CP2K_LIBSMEAGOL_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_LIBSMEAGOL_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_TBLITE)
+  message("  - TBLITE\n" "    - Include directories: ${tblite_INCLUDE_DIRS}\n"
+          "    - Libraries: ${tblite_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_SIRIUS)
+  message("  - SIRIUS\n"
+          "    - Include directories: ${CP2K_SIRIUS_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_SIRIUS_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_COSMA)
+  message("  - COSMA\n"
+          "    - Include directories: ${CP2K_COSMA_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_COSMA_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_LIBINT2)
+  message("  - Libint2\n"
+          "    - Include directories: ${CP2K_LIBINT2_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_LIBINT2_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_LIBGINT)
+  message("  - LibGint\n"
+          "    - include directories: ${CP2K_LIBGINT_INCLUDE_DIRS}\n"
+          "    - libraries: ${CP2K_LIBGINT_LINK_LIBRARIES}\n\n")
+endif()
+
+if(CP2K_USE_LIBFCI)
+  message("  - LibFCI\n" "    - Libraries: ${CP2K_LIBFCI_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_VORI)
+  message("  - Libvori\n" "    - Libraries: ${CP2K_LIBVORI_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_ELPA)
+  message("  - ELPA\n" "    - Include directories: ${CP2K_ELPA_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_ELPA_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_DLAF)
+  message("  - DLA-Future\n"
+          "    - Include directories: ${CP2K_DLAF_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_DLAF_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_TREXIO)
+  message("  - TREXIO\n"
+          "    - Include directories: ${CP2K_TREXIO_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_TREXIO_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_USE_GREENX)
+  message("  - GreenX\n"
+          "    - Include directories: ${CP2K_GREENX_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_GREENX_LINK_LIBRARIES}\n")
+endif()
+
+message(
+  "--------------------------------------------------------------------\n"
+  "-                                                                  -\n"
+  "-          Dependencies not included in this build                 -\n"
+  "-                                                                  -\n"
+  "--------------------------------------------------------------------\n")
+
+if(NOT CP2K_USE_MPI)
+  message("  - MPI")
+endif()
+
+if(NOT CP2K_USE_DFTD4 AND NOT CP2K_USE_TBLITE)
+  message("  - DFTD4")
+endif()
+
+if(NOT CP2K_USE_DEEPMD)
+  message("  - DeePMD")
+endif()
+
+if(NOT CP2K_USE_PEXSI)
+  message("  - PEXSI")
+endif()
+
+if(NOT CP2K_USE_ACE)
+  message("  - ACE (libpace)")
+endif()
+
+if(NOT CP2K_USE_TBLITE)
+  message("  - TBLITE")
+endif()
+
+if(NOT CP2K_USE_SIRIUS)
+  message("  - SIRIUS")
+endif()
+
+if(NOT CP2K_USE_SPGLIB)
+  message("  - Spglib")
+endif()
+
+if(NOT CP2K_USE_LIBSMEAGOL)
+  message("  - LibSMEAGOL")
+endif()
+
+if(NOT CP2K_USE_COSMA)
+  message("  - COSMA")
+endif()
+
+if(NOT CP2K_USE_SPLA)
+  message("  - SpLA")
+endif()
+
+if(NOT CP2K_USE_MIMIC)
+  message("  - MiMiC")
+endif()
+
+if(NOT CP2K_USE_HDF5)
+  message("  - HDF5")
+endif()
+
+if(CP2K_USE_ACCEL MATCHES "NONE")
+  message("  - Hardware acceleration")
+endif()
+
+if(NOT CP2K_USE_ELPA)
+  message("  - ELPA")
+endif()
+
+if(NOT CP2K_USE_DLAF)
+  message("  - DLA-Future")
+endif()
+
+if(NOT CP2K_USE_PLUMED)
+  message("  - PLUMED")
+endif()
+
+if(NOT CP2K_USE_LIBXS)
+  message("  - LIBXS")
+endif()
+
+if(NOT CP2K_USE_LIBXSMM)
+  message("  - LIBXSMM")
+endif()
+
+if(NOT CP2K_USE_LIBINT2)
+  message("  - Libint2")
+endif()
+
+if(NOT CP2K_USE_LIBGINT)
+  message("  - LibGint")
+endif()
+
+if(NOT CP2K_USE_LIBFCI)
+  message("  - LibFCI")
+endif()
+
+if(NOT CP2K_USE_LIBXC)
+  message("  - LibXC")
+endif()
+
+if(NOT CP2K_USE_GAUXC)
+  message("  - GauXC")
+endif()
+
+if(NOT CP2K_USE_VORI)
+  message("  - Libvori")
+endif()
+
+if(NOT CP2K_USE_FFTW3)
+  message("  - FFTW3")
+  message(
+    WARNING
+      "FFTW3 may become mandatory in future releases of CP2K. Calculations requiring large grid sizes may not work properly without FFTW3. Please consider installing and enabling it."
+  )
+endif()
+
+if(NOT CP2K_USE_LIBTORCH)
+  message("  - LibTorch")
+endif()
+
+if(NOT CP2K_USE_TREXIO)
+  message("  - TREXIO")
+endif()
+
+if(NOT CP2K_USE_OPENPMD)
+  message("  - OpenPMD")
+endif()
+
+if(NOT CP2K_USE_GREENX)
+  message("  - GreenX")
+endif()
+
+message(
+  "\n"
+  "After building and installing CP2K, run the regtests with:\n"
+  "  ${PROJECT_SOURCE_DIR}/tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin ${__cp2k_ext}\n"
+)
+
+# files needed for cmake
+
+write_basic_package_version_file(
+  "${PROJECT_BINARY_DIR}/cp2kConfigVersion.cmake"
+  VERSION "${CP2K_VERSION}"
+  COMPATIBILITY SameMajorVersion)
+
+configure_file("${PROJECT_SOURCE_DIR}/cmake/cp2kConfig.cmake.in"
+               "${PROJECT_BINARY_DIR}/cp2kConfig.cmake" @ONLY)
+
+install(FILES "${PROJECT_BINARY_DIR}/cp2kConfig.cmake"
+              "${PROJECT_BINARY_DIR}/cp2kConfigVersion.cmake"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k")
+
+install(FILES "${PROJECT_BINARY_DIR}/libcp2k.pc"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
+install(
+  DIRECTORY "${PROJECT_SOURCE_DIR}/cmake/modules"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/cp2k"
+  FILES_MATCHING
+  PATTERN "*.cmake")
+
+# Create symlink: popt -> psmp, sopt -> ssmp
+foreach(__ext_pair "psmp:popt" "ssmp:sopt")
+  string(REPLACE ":" ";" __ext_list ${__ext_pair})
+  list(GET __ext_list 0 __src_ext)
+  list(GET __ext_list 1 __link_ext)
+  if(__cp2k_ext MATCHES ${__src_ext})
+    if(IS_ABSOLUTE "${CMAKE_INSTALL_BINDIR}")
+      set(__cp2k_alias_bindir "${CMAKE_INSTALL_BINDIR}")
+    else()
+      set(__cp2k_alias_bindir
+          "\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}")
+    endif()
+
+    install(
+      CODE "
+      set(__cp2k_alias_bindir \"\$ENV{DESTDIR}${__cp2k_alias_bindir}\")
+      message(STATUS \"Creating symlink: cp2k.${__link_ext} -> cp2k.${__src_ext}\")
+      execute_process(
+        COMMAND \"${CMAKE_COMMAND}\" -E create_symlink
+          \"cp2k.${__src_ext}\"
+          \"\${__cp2k_alias_bindir}/cp2k.${__link_ext}\"
+        COMMAND_ERROR_IS_FATAL ANY)
+    ")
+  endif()
+endforeach()
