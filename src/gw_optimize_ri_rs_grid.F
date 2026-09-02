@@ -47,23 +47,6 @@ MODULE gw_optimize_ri_rs_grid
       REAL(KIND=dp), ALLOCATABLE           :: three_center(:, :, :)
    END TYPE local_cluster_type
 
-   ABSTRACT INTERFACE
-! **************************************************************************************************
-!> \brief Interface for objective and gradient evaluations used by the grid optimizer.
-!> \param x Flattened atom-relative grid coordinates.
-!> \param f Objective value.
-!> \param g Objective gradient with respect to x.
-!> \param successful Whether the objective evaluation succeeded.
-! **************************************************************************************************
-      SUBROUTINE grid_objective_callback(x, f, g, successful)
-         IMPORT :: dp
-         REAL(KIND=dp), DIMENSION(:), INTENT(IN)         :: x
-         REAL(KIND=dp), INTENT(OUT)                      :: f
-         REAL(KIND=dp), DIMENSION(:), INTENT(OUT)        :: g
-         LOGICAL, INTENT(OUT)                            :: successful
-      END SUBROUTINE grid_objective_callback
-   END INTERFACE
-
    PUBLIC :: optimize_ri_rs_grid
 
 CONTAINS
@@ -74,23 +57,22 @@ CONTAINS
 !> \param bs_env GW environment containing all configuration, basis, geometry, parallel, and grid data.
 ! **************************************************************************************************
    SUBROUTINE optimize_ri_rs_grid(qs_env, bs_env)
-      TYPE(qs_environment_type), POINTER                :: qs_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_ri_rs_grid'
 
-      INTEGER :: handle, iatom, icluster, ikind, n_variable, successful_clusters, unit_nr
-      INTEGER                                            :: periodic(3)
+      INTEGER                                            :: handle, iatom, ikind, n_variable, &
+                                                            periodic(3), unit_nr
       INTEGER, ALLOCATABLE                               :: ao_size(:), grid_offsets(:), ri_size(:)
       LOGICAL                                            :: successful
-      REAL(KIND=dp)                                      :: f
+      REAL(KIND=dp)                                      :: f, maximum_absolute_error
       REAL(KIND=dp), ALLOCATABLE                         :: g(:), lower(:), upper(:), x(:)
       TYPE(cell_type), POINTER                           :: cell
       TYPE(gw_3c_ctx_type)                               :: integral_context
       TYPE(local_cluster_type), ALLOCATABLE              :: clusters(:)
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      REAL(KIND=dp)                                      :: maximum_absolute_error
 
       CALL timeset(routineN, handle)
       NULLIFY (cell, para_env, particle_set)
@@ -156,8 +138,9 @@ CONTAINS
       lower(:) = x - 100.0_dp/angstrom
       upper(:) = x + 100.0_dp/angstrom
       CALL optimize_grid_coordinates(x, lower, upper, optimizer_accuracy, &
-                                     bs_env%ri_rs%grid_opt%max_iter, grid_objective)
-      CALL grid_objective(x, f, g, successful)
+                                     bs_env%ri_rs%grid_opt%max_iter, bs_env, clusters, grid_offsets)
+      CALL grid_objective(x, bs_env, clusters, grid_offsets, f, g, &
+                          maximum_absolute_error, successful)
       IF (.NOT. successful) CPABORT("RI-RS grid optimization produced no regularized fit")
 
       IF (unit_nr > 0) THEN
@@ -177,66 +160,79 @@ CONTAINS
       CALL gw_3c_ctx_release(integral_context)
       CALL timestop(handle)
 
-   CONTAINS
+   END SUBROUTINE optimize_ri_rs_grid
 
 ! **************************************************************************************************
-!> \brief L-BFGS-B callback for the regularized three-centre-integral fitting error.
+!> \brief Evaluate the regularized three-centre-integral fitting error.
 !> \param coordinates Flattened atom-relative grid coordinates.
+!> \param bs_env GW environment containing RI-RS configuration and grid data.
+!> \param clusters Rank-local clusters and their exact three-centre integrals.
+!> \param grid_offsets Starting coordinate offset for each atom.
 !> \param value Mean normalized squared three-centre-integral error.
 !> \param gradient Derivative of value with respect to coordinates.
+!> \param maximum_absolute_error Largest absolute three-centre-integral error.
 !> \param valid Whether every local-cluster evaluation succeeded.
 ! **************************************************************************************************
-      SUBROUTINE grid_objective(coordinates, value, gradient, valid)
+   SUBROUTINE grid_objective(coordinates, bs_env, clusters, grid_offsets, value, gradient, &
+                             maximum_absolute_error, valid)
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: coordinates
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(local_cluster_type), DIMENSION(:), INTENT(IN) :: clusters
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: grid_offsets
       REAL(KIND=dp), INTENT(OUT)                         :: value
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: gradient
+      REAL(KIND=dp), INTENT(OUT)                         :: maximum_absolute_error
       LOGICAL, INTENT(OUT)                               :: valid
 
-      INTEGER                                            :: all_valid
+      INTEGER                                            :: all_valid, icluster, successful_clusters
       REAL(KIND=dp)                                      :: cluster_maximum_absolute_error, &
                                                             cluster_value
       REAL(KIND=dp), ALLOCATABLE                         :: cluster_gradient(:, :)
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-         CALL unpack_atom_grids(coordinates, bs_env%ri_rs%grid_cache, grid_offsets)
-         value = 0.0_dp
-         gradient = 0.0_dp
-         successful_clusters = 0
-         maximum_absolute_error = 0.0_dp
-         valid = .TRUE.
-         DO icluster = 1, SIZE(clusters)
-            CALL evaluate_local_cluster(clusters(icluster), bs_env%ri_rs%grid_cache, &
-                                        bs_env, particle_set, cell, &
-                                        cluster_value, cluster_gradient, &
-                                        cluster_maximum_absolute_error, valid)
-            IF (.NOT. valid) THEN
-               IF (ALLOCATED(cluster_gradient)) DEALLOCATE (cluster_gradient)
-               EXIT
-            END IF
-            value = value + cluster_value
-            CALL accumulate_atom_gradient(clusters(icluster)%atoms, bs_env%ri_rs%grid_cache, &
-                                          grid_offsets, cluster_gradient, gradient)
-            successful_clusters = successful_clusters + 1
-            maximum_absolute_error = &
-               MAX(maximum_absolute_error, cluster_maximum_absolute_error)
-            DEALLOCATE (cluster_gradient)
-         END DO
-         all_valid = MERGE(1, 0, valid)
-         CALL para_env%sum(value)
-         CALL para_env%sum(gradient)
-         CALL para_env%sum(successful_clusters)
-         CALL para_env%sum(all_valid)
-         CALL para_env%max(maximum_absolute_error)
-         valid = successful_clusters == SIZE(particle_set) .AND. all_valid == para_env%num_pe
+      cell => bs_env%ri_rs%cell
+      particle_set => bs_env%ri_rs%particle_set
+      para_env => bs_env%para_env
+      CALL unpack_atom_grids(coordinates, bs_env%ri_rs%grid_cache, grid_offsets)
+      value = 0.0_dp
+      gradient = 0.0_dp
+      successful_clusters = 0
+      maximum_absolute_error = 0.0_dp
+      valid = .TRUE.
+      DO icluster = 1, SIZE(clusters)
+         CALL evaluate_local_cluster(clusters(icluster), bs_env%ri_rs%grid_cache, &
+                                     bs_env, particle_set, cell, &
+                                     cluster_value, cluster_gradient, &
+                                     cluster_maximum_absolute_error, valid)
          IF (.NOT. valid) THEN
-            value = HUGE(value)
-            gradient = 0.0_dp
-            RETURN
+            IF (ALLOCATED(cluster_gradient)) DEALLOCATE (cluster_gradient)
+            EXIT
          END IF
-         value = value/REAL(SIZE(particle_set), dp)
-         gradient = gradient/REAL(SIZE(particle_set), dp)
-      END SUBROUTINE grid_objective
-
-   END SUBROUTINE optimize_ri_rs_grid
+         value = value + cluster_value
+         CALL accumulate_atom_gradient(clusters(icluster)%atoms, bs_env%ri_rs%grid_cache, &
+                                       grid_offsets, cluster_gradient, gradient)
+         successful_clusters = successful_clusters + 1
+         maximum_absolute_error = &
+            MAX(maximum_absolute_error, cluster_maximum_absolute_error)
+         DEALLOCATE (cluster_gradient)
+      END DO
+      all_valid = MERGE(1, 0, valid)
+      CALL para_env%sum(value)
+      CALL para_env%sum(gradient)
+      CALL para_env%sum(successful_clusters)
+      CALL para_env%sum(all_valid)
+      CALL para_env%max(maximum_absolute_error)
+      valid = successful_clusters == SIZE(particle_set) .AND. all_valid == para_env%num_pe
+      IF (.NOT. valid) THEN
+         value = HUGE(value)
+         gradient = 0.0_dp
+         RETURN
+      END IF
+      value = value/REAL(SIZE(particle_set), dp)
+      gradient = gradient/REAL(SIZE(particle_set), dp)
+   END SUBROUTINE grid_objective
 
 ! **************************************************************************************************
 !> \brief Minimize the RI-RS grid objective with CP2K's bound-constrained L-BFGS implementation.
@@ -245,27 +241,34 @@ CONTAINS
 !> \param upper Upper bound for each coordinate.
 !> \param accuracy Projected-gradient convergence threshold.
 !> \param max_evaluations Maximum number of objective evaluations.
-!> \param objective Objective and gradient callback.
+!> \param bs_env GW environment containing RI-RS configuration and grid data.
+!> \param clusters Rank-local clusters and their exact three-centre integrals.
+!> \param grid_offsets Starting coordinate offset for each atom.
 ! **************************************************************************************************
-   SUBROUTINE optimize_grid_coordinates(x, lower, upper, accuracy, max_evaluations, objective)
+   SUBROUTINE optimize_grid_coordinates(x, lower, upper, accuracy, max_evaluations, &
+                                        bs_env, clusters, grid_offsets)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: x
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: lower, upper
       REAL(KIND=dp), INTENT(IN)                          :: accuracy
       INTEGER, INTENT(IN)                                :: max_evaluations
-      PROCEDURE(grid_objective_callback)                 :: objective
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(local_cluster_type), DIMENSION(:), INTENT(IN) :: clusters
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: grid_offsets
 
       INTEGER, PARAMETER                                 :: memory = 7
+
       CHARACTER(LEN=60)                                  :: csave, task
       INTEGER                                            :: evaluations
-      INTEGER, DIMENSION(3*SIZE(x))                      :: iwa
-      INTEGER, DIMENSION(44)                             :: isave
-      INTEGER, DIMENSION(SIZE(x))                        :: bound_type
-      LOGICAL                                            :: evaluation_ok, have_best
-      LOGICAL, DIMENSION(4)                              :: lsave
-      REAL(KIND=dp)                                      :: best_f, f
       REAL(KIND=dp), DIMENSION(29)                       :: dsave
+      REAL(KIND=dp), DIMENSION(2*memory*SIZE(x)+5*SIZE(x&
+         )+11*memory**2+8*memory)                        :: wa
+      REAL(KIND=dp)                                      :: best_f, f, maximum_absolute_error
+      LOGICAL, DIMENSION(4)                              :: lsave
+      LOGICAL                                            :: evaluation_ok, have_best
+      INTEGER, DIMENSION(SIZE(x))                        :: bound_type
+      INTEGER, DIMENSION(44)                             :: isave
+      INTEGER, DIMENSION(3*SIZE(x))                      :: iwa
       REAL(KIND=dp), DIMENSION(SIZE(x))                  :: best_x, g
-      REAL(KIND=dp), DIMENSION(2*memory*SIZE(x) + 5*SIZE(x) + 11*memory**2 + 8*memory) :: wa
 
       CPASSERT(SIZE(x) > 0)
       CPASSERT(ALL(SHAPE(lower) == SHAPE(x)) .AND. ALL(SHAPE(upper) == SHAPE(x)))
@@ -292,7 +295,8 @@ CONTAINS
                      0.0_dp, accuracy, wa, iwa, task, -1, csave, lsave, isave, dsave, -1.0_dp)
          IF (task(1:2) == 'FG') THEN
             IF (evaluations >= max_evaluations) EXIT
-            CALL objective(x, f, g, evaluation_ok)
+            CALL grid_objective(x, bs_env, clusters, grid_offsets, f, g, &
+                                maximum_absolute_error, evaluation_ok)
             evaluations = evaluations + 1
             IF (.NOT. evaluation_ok) EXIT
             IF (.NOT. have_best .OR. f < best_f) THEN
