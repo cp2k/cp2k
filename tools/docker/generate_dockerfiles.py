@@ -809,8 +809,6 @@ COPY ./tools/conventions ./tools/conventions
 RUN ./make_cp2k.sh -cv {version} {gcc_version_flag} -gpu {gpu_model} -mpi {mpi_mode} {feature_flags}
 """
     )
-    if test_type == "conventions" or test_type == "coverage":
-        return output
     output += (
         install_base_image(
             base_image=rf"{base_image}",
@@ -862,6 +860,17 @@ RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_benchmarks {benchmark
         output += rf"""
 # Run CP2K regression test
 RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts} || echo "ERROR: Regression test run failed"
+"""
+    elif test_type == "conventions":
+        output += rf"""
+# Copy data from convention check
+COPY --from=build_cp2k /opt/cp2k/build /opt/cp2k/build
+COPY --from=build_cp2k /opt/cp2k/tools/conventions /opt/cp2k/tools/conventions
+"""
+    elif test_type == "coverage":
+        output += rf"""
+# Copy data from coverage analysis
+COPY --from=build_cp2k /workspace /workspace
 """
     elif test_type == "gromacs":
         pass
