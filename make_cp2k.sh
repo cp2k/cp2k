@@ -1792,6 +1792,11 @@ if [[ "${CHECK_CONVENTIONS}" == "yes" ]]; then
   "${CP2K_ROOT}"/tools/conventions/analyze_gfortran_warnings.py "${CMAKE_BUILD_PATH}"/*.warn &> "${CMAKE_BUILD_PATH}"/warn.issues
   ((VERBOSE > 0)) && cat "${CMAKE_BUILD_PATH}"/warn.issues
   "${CP2K_ROOT}"/tools/conventions/summarize_issues.py --suppressions="${CP2K_ROOT}/tools/conventions/conventions.supp" "${CMAKE_BUILD_PATH}"/*.issues
+  cat << *** > "${INSTALL_PREFIX}"/bin/summarize_issues
+#!/bin/bash
+${CP2K_ROOT}/tools/conventions/summarize_issues.py --suppressions=${CP2K_ROOT}/tools/conventions/conventions.supp ${CMAKE_BUILD_PATH}/*.issues
+***
+  chmod 750 "${INSTALL_PREFIX}"/bin/summarize_issues
 fi
 
 # Create script to run the CP2K benchmarks for psmp builds
