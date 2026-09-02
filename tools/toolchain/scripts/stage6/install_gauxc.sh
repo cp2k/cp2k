@@ -28,30 +28,22 @@ cd "${BUILDDIR}"
 source "${BUILDDIR}/setup_skala"
 
 retrieve_github_archive() {
-  local __sha256="$1"
-  local __filename="$2"
-  local __urlpath="$3"
-  local __outfile="$4"
-  local __attempt
-  if ! [ -f "${__outfile}" ]; then
+  local __sha256="$1" __filename="$2" __urlpath="$3" __outfile="$4" __attempt
+  if ! [ -f "${__outfile}" ] || ! checksum "${__sha256}" "${__outfile}"; then
+    if [ -f "${__outfile}" ]; then
+      echo "${__outfile} checksum wrong, deleting..."
+      rm -vf "${__outfile}"
+    fi
     for __attempt in 1 2 3 4 5; do
-      download_pkg_from_urlpath "${__sha256}" "${__filename}" "${__urlpath}" "${__outfile}" && return
+      if download_pkg_from_urlpath "${__sha256}" "${__filename}" "${__urlpath}" "${__outfile}"; then
+        return
+      fi
       echo "Download attempt ${__attempt} for ${__filename} failed."
       sleep $((__attempt * 5))
     done
     return 1
-  elif ! checksum "${__sha256}" "${__outfile}"; then
-    echo "${__outfile} is found but checksum is wrong; delete and re-download"
-    rm -vf "${__outfile}"
-    for __attempt in 1 2 3 4 5; do
-      download_pkg_from_urlpath "${__sha256}" "${__filename}" "${__urlpath}" "${__outfile}" && return
-      echo "Download attempt ${__attempt} for ${__filename} failed."
-      sleep $((__attempt * 5))
-    done
-    return 1
-  else
-    echo "${__outfile} is found and checksum is right"
   fi
+  echo "${__outfile} is found and checksum is right"
 }
 
 case "${with_gauxc}" in
@@ -114,14 +106,12 @@ case "${with_gauxc}" in
       else
         gauxc_enable_openmp="OFF"
       fi
-      gauxc_cuda_architectures_option=""
-      has_cuda="__FALSE__"
       if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
         gauxc_enable_cuda="ON"
-        has_cuda="__TRUE__"
         gauxc_cuda_architectures_option="-DCMAKE_CUDA_ARCHITECTURES=${ARCH_NUM}"
       else
         gauxc_enable_cuda="OFF"
+        gauxc_cuda_architectures_option=""
       fi
       if [ "${ENABLE_GAUXC_CUTLASS}" = "__TRUE__" ]; then
         gauxc_enable_cutlass="ON"
@@ -156,7 +146,7 @@ case "${with_gauxc}" in
         ${gauxc_cuda_architectures_option} \
         .. > configure.log 2>&1 || tail_excerpt configure.log
       make install -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})" \
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename "${SCRIPT_NAME}")" \
         "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" \
         "${SCRIPT_DIR}/stage6/gauxc-libxc-only-exchcxx.patch" \
         "${SCRIPT_DIR}/stage6/exchcxx-disable-builtin.patch" "${BUILDDIR}/${gauxc_pkg}" \
@@ -182,18 +172,11 @@ case "${with_gauxc}" in
 esac
 
 if [ "${with_gauxc}" != "__DONTUSE__" ]; then
-  if [ -n "${pkg_install_dir:-}" ]; then
-    gauxc_skala_model="${SKALA_MODEL}"
-    gauxc_skala_cuda_model="${SKALA_CUDA_MODEL}"
-  else
-    gauxc_skala_model=""
-    gauxc_skala_cuda_model=""
-  fi
   cat << EOF > "${BUILDDIR}/setup_gauxc"
 export GAUXC_VER="${gauxc_ver}"
 export GAUXC_ROOT="${pkg_install_dir}"
-export SKALA_MODEL="${gauxc_skala_model}"
-export SKALA_CUDA_MODEL="${gauxc_skala_cuda_model}"
+export SKALA_MODEL="${SKALA_MODEL:-}"
+export SKALA_CUDA_MODEL="${SKALA_CUDA_MODEL:-}"
 EOF
   if [ "${with_gauxc}" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_gauxc"
