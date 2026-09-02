@@ -92,6 +92,10 @@ COPY ./benchmarks/CI ./benchmarks/CI
 COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
 RUN ldconfig
 
+# Copy data from convention check
+COPY --from=build_cp2k /opt/cp2k/build /opt/cp2k/build
+COPY --from=build_cp2k /opt/cp2k/tools/conventions /opt/cp2k/tools/conventions
+
 # Create entrypoint and finalise container build
 WORKDIR /mnt
 ENTRYPOINT ["/opt/cp2k/install/bin/launch"]

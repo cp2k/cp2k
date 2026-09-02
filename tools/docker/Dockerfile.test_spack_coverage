@@ -93,6 +93,9 @@ COPY ./benchmarks/CI ./benchmarks/CI
 COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf
 RUN ldconfig
 
+# Copy data from coverage analysis
+COPY --from=build_cp2k /workspace /workspace
+
 # Create entrypoint and finalise container build
 WORKDIR /mnt
 ENTRYPOINT ["/opt/cp2k/install/bin/launch"]

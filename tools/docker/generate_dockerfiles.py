@@ -861,7 +861,18 @@ RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_benchmarks {benchmark
 # Run CP2K regression test
 RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts} || echo "ERROR: Regression test run failed"
 """
-    elif test_type in ["conventions", "coverage", "gromacs"]:
+    elif test_type == "conventions":
+        output += rf"""
+# Copy data from convention check
+COPY --from=build_cp2k /opt/cp2k/build /opt/cp2k/build
+COPY --from=build_cp2k /opt/cp2k/tools/conventions /opt/cp2k/tools/conventions
+"""
+    elif test_type == "coverage":
+        output += rf"""
+# Copy data from coverage analysis
+COPY --from=build_cp2k /workspace /workspace
+"""
+    elif test_type == "gromacs":
         pass
     else:
         sys.exit(f"\nERROR: Unknown test type {test_type} specified\n")
