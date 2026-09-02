@@ -69,15 +69,15 @@ CONTAINS
 !> \param sab_nl neighbor lists defining the real-space sparsity
 !> \param grid prepared reciprocal-grid cache of the caller. Required when use_grid is set
 !> \param use_grid extract from grid instead of a direct phase sum
-!> \param rmatrix workspace holding the real part of the k-point matrix
-!> \param cmatrix workspace holding the imaginary part of the k-point matrix
+!> \param rmatrix symmetric DBCSR workspace holding the real part of the k-point matrix
+!> \param cmatrix antisymmetric DBCSR workspace holding the imaginary part of the k-point matrix
 !> \param tmpmat unsymmetric DBCSR workspace
 !> \param fm_re full-matrix workspace of the global communicator holding the real part
 !> \param fm_im full-matrix workspace of the global communicator holding the imaginary part
 !> \param target_fm transfer target on the k-point group. Use fmlocal on the group
 !>        that owns this k point. Use fmdummy on the other groups. This keeps the
 !>        collective calls balanced.
-!> \param para_env communicator of source and target distributions
+!> \param para_env communicator that spans the source and the target distributions
 !> \param info_re transfer state of the real part
 !> \param info_im transfer state of the imaginary part
 ! **************************************************************************************************
@@ -127,6 +127,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Finish one transfer that kp_evp_op_start started and add the received
 !>        matrix to a complex matrix.
+!>        The finish of the real part overwrites cmat.
+!>        The finish of the imaginary part adds to cmat.
+!>        Finish the real part first. A real-part finish after an imaginary-part
+!>        finish erases the imaginary contribution.
+!>        The routine consumes fmlocal before it returns, so the next finish can
+!>        reuse the same matrix.
 !> \param fmlocal transfer target filled by the finished copy
 !> \param info transfer state of one part
 !> \param cmat complex matrix accumulating the operator
@@ -156,7 +162,7 @@ CONTAINS
 
    END SUBROUTINE kp_evp_op_finish_cfm
 
-!> rief Split a complex matrix into the real and imaginary MO sets and keep the
+!> \brief Split a complex matrix into the real and imaginary MO sets and keep the
 !>        eigenvalues of both spin-imaginary sets in sync.
 !> \param cmat complex MO coefficients
 !> \param mo_re real part MO set
