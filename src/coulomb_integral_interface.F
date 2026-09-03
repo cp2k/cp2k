@@ -222,7 +222,7 @@ CONTAINS
 
       ncoa = npgfa*ncoset(la_max)
       ncob = npgfb*ncoset(lb_max)
-      ncoc = npgfc*ncoset(lc_max)
+      ncoc = ncoset(lc_max)
       rab2 = (rb(1) - ra(1))**2 + (rb(2) - ra(2))**2 + (rb(3) - ra(3))**2
       rac2 = (rc(1) - ra(1))**2 + (rc(2) - ra(2))**2 + (rc(3) - ra(3))**2
       rbc2 = (rc(1) - rb(1))**2 + (rc(2) - rb(2))**2 + (rc(3) - rb(3))**2
@@ -252,19 +252,18 @@ CONTAINS
          ALLOCATE (vabc(ncoa, ncob))
          vabc(:, :) = 0.0_dp
 
-         ! in the RI basis, there is only a single primitive Gaussian
-         kpgf = 1
+         ! coulomb3 handles a single primitive Gaussian on center C per call.
+         DO kpgf = 1, npgfc
+            ! Each primitive occupies an ncoc-wide block in the uncontracted array.
+            nc_start = (kpgf - 1)*ncoc + ncoset(lc_min - 1) + 1
+            nc_end = kpgf*ncoc
 
-         ! ncoset is indexed by -1,..., ,5
-         ! e.g. for pure s: lc_min = lc_max = 0, nc_start = 1
-         nc_start = ncoset(lc_min - 1) + 1
-         nc_end = ncoset(lc_max)
-
-         CALL coulomb3(la_max, npgfa, zeta(:), rpgfa_work(:), la_min, &
-                       lb_max, npgfb, zetb(:), rpgfb_work(:), lb_min, &
-                       lc_max, zetc(kpgf), rpgfc_work(kpgf), lc_min, &
-                       gccc, rb - ra, rab2, rc - ra, rac2, rbc2, &
-                       vabc, habc(:, :, nc_start:nc_end), v_work, f_work)
+            CALL coulomb3(la_max, npgfa, zeta(:), rpgfa_work(:), la_min, &
+                          lb_max, npgfb, zetb(:), rpgfb_work(:), lb_min, &
+                          lc_max, zetc(kpgf), rpgfc_work(kpgf), lc_min, &
+                          gccc, rb - ra, rab2, rc - ra, rac2, rbc2, &
+                          vabc, habc(:, :, nc_start:nc_end), v_work, f_work)
+         END DO
 
          DEALLOCATE (v_work, f_work, rpgfa_work, rpgfb_work, rpgfc_work, gccc, vabc)
       CASE DEFAULT
