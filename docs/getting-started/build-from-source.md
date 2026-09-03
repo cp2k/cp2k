@@ -312,6 +312,7 @@ Here are some other important general options you may want to know:
 Along with some options with CP2K:
 
 - `-DCP2K_USE_EVERYTHING` Enables all dependencies or not.
+- `-DCP2K_USE_AICS` Enables the Python-based AICS implicit-solvent feature. Default is `OFF`.
 - `-DCP2K_DATA_DIR` Specifies the location of the data of basis and potentials. Default is
   `/path/to/installation/share/cp2k/data`.
 - `-DCP2K_ENABLE_CONSISTENCY_CHECKS` Only used for
@@ -322,6 +323,33 @@ Along with some options with CP2K:
 
 Note that CMake is typically run *out-of-tree* in a seperate `build/` directory. We don't allow
 in-source builds; if you run CMake in the root directory, it will give error.
+
+### Anisotropic implicit-continuum solvation (AICS)
+
+AICS is an optional Python-based implicit-solvent feature. It is disabled by default and is not
+enabled by `CP2K_USE_EVERYTHING`. AICS currently supports Gamma-point calculations only. A minimal
+build is:
+
+```bash
+cmake -S . -B build-aics \
+    -DCP2K_USE_MPI=ON \
+    -DCP2K_USE_AICS=ON \
+    -DBUILD_SHARED_LIBS=ON
+cmake --build build-aics -j
+```
+
+The AICS runtime requires an MPI-enabled CP2K build, shared CP2K libraries, and POSIX-compatible
+dynamic loading. CMake requires Python `Interpreter` and `Development.Embed`, including a compatible
+shared Python library, and checks that NumPy, mpi4py, petsc4py, and PETSc are available in the
+selected Python environment. These packages must use a compatible MPI and PETSc installation.
+
+The `FINITE_ELEMENT` solver additionally requires DOLFINx, UFL, and Basix at runtime. It creates
+temporary mesh files in the calculation directory, which must be accessible at the same path from
+all MPI ranks. CP2K owns the embedded Python interpreter and MPI lifecycle; running AICS inside an
+externally initialized Python process is not supported.
+
+After building, `build-aics/bin/cp2k.psmp --version` should list `aics` among the compiled features.
+See the generated input reference for `DFT/SCCS/AICS` keyword descriptions, requirements, and usage.
 
 ### Example
 

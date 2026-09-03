@@ -7,130 +7,137 @@
 
 ! **************************************************************************************************
 MODULE cp2k_runs
-   USE atom,                            ONLY: atom_code
-   USE bibliography,                    ONLY: Iannuzzi2026,&
-                                              cite_reference,&
-                                              cp2kqs2020
-   USE bsse,                            ONLY: do_bsse_calculation
-   USE cell_opt,                        ONLY: cp_cell_opt
-   USE cp2k_debug,                      ONLY: cp2k_debug_energy_and_forces
-   USE cp2k_info,                       ONLY: compile_date,&
-                                              compile_revision,&
-                                              cp2k_version,&
-                                              cp2k_year
-   USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_finalize_lib,&
-                                              dbcsr_init_lib,&
-                                              dbcsr_print_config,&
-                                              dbcsr_print_statistics
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_config
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type,&
-                                              cp_logger_would_log,&
-                                              cp_note_level
-   USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                              cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr,&
-                                              cp_rm_iter_level
-   USE cp_parser_methods,               ONLY: parser_search_string
-   USE cp_parser_types,                 ONLY: cp_parser_type,&
-                                              parser_create,&
-                                              parser_release
-   USE cp_units,                        ONLY: cp_unit_set_create,&
-                                              cp_unit_set_release,&
-                                              cp_unit_set_type,&
-                                              export_units_as_xml
-   USE dbm_api,                         ONLY: dbm_library_print_stats
-   USE environment,                     ONLY: cp2k_finalize,&
-                                              cp2k_init,&
-                                              cp2k_read,&
-                                              cp2k_setup
-   USE f77_interface,                   ONLY: create_force_env,&
-                                              destroy_force_env,&
-                                              f77_default_para_env => default_para_env,&
-                                              f_env_add_defaults,&
-                                              f_env_rm_defaults,&
-                                              f_env_type
-   USE farming_methods,                 ONLY: do_deadlock,&
-                                              do_nothing,&
-                                              do_wait,&
-                                              farming_parse_input,&
-                                              get_next_job
-   USE farming_types,                   ONLY: deallocate_farming_env,&
-                                              farming_env_type,&
-                                              init_farming_env,&
-                                              job_finished,&
-                                              job_running
-   USE force_env_methods,               ONLY: force_env_calc_energy_force
-   USE force_env_types,                 ONLY: force_env_get,&
-                                              force_env_type
-   USE geo_opt,                         ONLY: cp_geo_opt
-   USE global_types,                    ONLY: global_environment_type,&
-                                              globenv_create,&
-                                              globenv_release
-   USE grid_api,                        ONLY: grid_library_print_stats,&
-                                              grid_library_set_config
-   USE input_constants,                 ONLY: &
-        bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_embed, do_farming, &
-        do_fist, do_ipi, do_mixed, do_nnp, do_opt_basis, do_optimize_input, do_qmmm, do_qs, &
-        do_sirius, do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
-        energy_force_run, energy_run, geo_opt_run, linear_response_run, mimic_run, mol_dyn_run, &
-        mon_car_run, mtlr_run, negf_run, none_run, pint_run, real_time_propagation, &
-        rtp_method_bse, rtp_method_bse_linearized, tree_mc_run, vib_anal
-   USE input_cp2k,                      ONLY: create_cp2k_root_section
-   USE input_cp2k_check,                ONLY: check_cp2k_input
-   USE input_cp2k_global,               ONLY: create_global_section
-   USE input_cp2k_read,                 ONLY: read_input
-   USE input_keyword_types,             ONLY: keyword_release
-   USE input_parsing,                   ONLY: section_vals_parse
-   USE input_section_types,             ONLY: &
-        section_release, section_type, section_vals_create, section_vals_get_subs_vals, &
-        section_vals_release, section_vals_retain, section_vals_type, section_vals_val_get, &
-        section_vals_write, write_section_xml
-   USE ipi_driver,                      ONLY: run_driver
-   USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length,&
-                                              dp,&
-                                              int_8
-   USE library_tests,                   ONLY: lib_test
-   USE machine,                         ONLY: default_output_unit,&
-                                              m_chdir,&
-                                              m_flush,&
-                                              m_getcwd,&
-                                              m_memory,&
-                                              m_memory_max,&
-                                              m_walltime
-   USE mc_run,                          ONLY: do_mon_car
-   USE md_run,                          ONLY: qs_mol_dyn
-   USE message_passing,                 ONLY: mp_any_source,&
-                                              mp_comm_type,&
-                                              mp_para_env_release,&
-                                              mp_para_env_type
-   USE mimic_loop,                      ONLY: do_mimic_loop
-   USE mscfg_methods,                   ONLY: do_mol_loop,&
-                                              loop_over_molecules
-   USE mtlr_u_j_methods,                ONLY: do_mtlr_u_j
-   USE neb_methods,                     ONLY: neb
-   USE negf_methods,                    ONLY: do_negf
-   USE offload_api,                     ONLY: offload_get_chosen_device,&
-                                              offload_get_device_count,&
-                                              offload_mempool_stats_print
-   USE optimize_basis,                  ONLY: run_optimize_basis
-   USE optimize_input,                  ONLY: run_optimize_input
-   USE pint_methods,                    ONLY: do_pint_run
-   USE qs_environment_types,            ONLY: get_qs_env
-   USE qs_linres_module,                ONLY: linres_calculation
-   USE reference_manager,               ONLY: export_references_as_xml
-   USE rt_bse,                          ONLY: run_propagation_bse
-   USE rt_bse_linearized,               ONLY: run_propagation_linearized_bse
-   USE rt_propagation,                  ONLY: rt_prop_setup
-   USE swarm,                           ONLY: run_swarm
-   USE tamc_run,                        ONLY: qs_tamc
-   USE tmc_setup,                       ONLY: do_analyze_files,&
-                                              do_tmc
-   USE vibrational_analysis,            ONLY: vb_anal
+   USE atom, ONLY: atom_code
+   USE bibliography, ONLY: Iannuzzi2026, &
+                           cite_reference, &
+                           cp2kqs2020
+   USE bsse, ONLY: do_bsse_calculation
+   USE cell_opt, ONLY: cp_cell_opt
+   USE cp2k_debug, ONLY: cp2k_debug_energy_and_forces
+   USE cp2k_info, ONLY: compile_date, &
+                        compile_revision, &
+                        cp2k_version, &
+                        cp2k_year
+   USE cp_control_types, ONLY: dft_control_type
+   USE cp_dbcsr_api, ONLY: dbcsr_finalize_lib, &
+                           dbcsr_init_lib, &
+                           dbcsr_print_config, &
+                           dbcsr_print_statistics
+   USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_config
+   USE cp_files, ONLY: close_file, &
+                       open_file
+   USE cp_log_handling, ONLY: cp_get_default_logger, &
+                              cp_logger_type, &
+                              cp_logger_would_log, &
+                              cp_note_level
+   USE cp_output_handling, ONLY: cp_add_iter_level, &
+                                 cp_print_key_finished_output, &
+                                 cp_print_key_unit_nr, &
+                                 cp_rm_iter_level
+   USE cp_parser_methods, ONLY: parser_search_string
+   USE cp_parser_types, ONLY: cp_parser_type, &
+                              parser_create, &
+                              parser_release
+   USE cp_units, ONLY: cp_unit_set_create, &
+                       cp_unit_set_release, &
+                       cp_unit_set_type, &
+                       export_units_as_xml
+   USE dbm_api, ONLY: dbm_library_print_stats
+   USE environment, ONLY: cp2k_finalize, &
+                          cp2k_init, &
+                          cp2k_read, &
+                          cp2k_setup
+   USE f77_interface, ONLY: create_force_env, &
+                            destroy_force_env, &
+                            f77_default_para_env => default_para_env, &
+                            f_env_add_defaults, &
+                            f_env_rm_defaults, &
+                            f_env_type
+   USE farming_methods, ONLY: do_deadlock, &
+                              do_nothing, &
+                              do_wait, &
+                              farming_parse_input, &
+                              get_next_job
+   USE farming_types, ONLY: deallocate_farming_env, &
+                            farming_env_type, &
+                            init_farming_env, &
+                            job_finished, &
+                            job_running
+#if defined(__AICS)
+   USE aics_interface, ONLY: clear_aics_field_registrations, &
+                             cp2k_aics_get_last_error_from_fortran, &
+                             cp2k_aics_scope_enter_from_fortran, &
+                             cp2k_aics_scope_leave_from_fortran
+#endif
+   USE force_env_methods, ONLY: force_env_calc_energy_force
+   USE force_env_types, ONLY: force_env_get, &
+                              force_env_type
+   USE geo_opt, ONLY: cp_geo_opt
+   USE global_types, ONLY: global_environment_type, &
+                           globenv_create, &
+                           globenv_release
+   USE grid_api, ONLY: grid_library_print_stats, &
+                       grid_library_set_config
+   USE input_constants, ONLY: &
+      bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_embed, do_farming, &
+      do_fist, do_ipi, do_mixed, do_nnp, do_opt_basis, do_optimize_input, do_qmmm, do_qs, &
+      do_sirius, do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
+      energy_force_run, energy_run, geo_opt_run, linear_response_run, mimic_run, mol_dyn_run, &
+      mon_car_run, mtlr_run, negf_run, none_run, pint_run, real_time_propagation, &
+      rtp_method_bse, rtp_method_bse_linearized, tree_mc_run, vib_anal
+   USE input_cp2k, ONLY: create_cp2k_root_section
+   USE input_cp2k_check, ONLY: check_cp2k_input
+   USE input_cp2k_global, ONLY: create_global_section
+   USE input_cp2k_read, ONLY: read_input
+   USE input_keyword_types, ONLY: keyword_release
+   USE input_parsing, ONLY: section_vals_parse
+   USE input_section_types, ONLY: &
+      section_release, section_type, section_vals_create, section_vals_get, section_vals_get_subs_vals, &
+      section_vals_release, section_vals_retain, section_vals_type, section_vals_val_get, &
+      section_vals_write, write_section_xml
+   USE ipi_driver, ONLY: run_driver
+   USE iso_c_binding, ONLY: c_int
+   USE kinds, ONLY: default_path_length, &
+                    default_string_length, &
+                    dp, &
+                    int_8
+   USE library_tests, ONLY: lib_test
+   USE machine, ONLY: default_output_unit, &
+                      m_chdir, &
+                      m_flush, &
+                      m_getcwd, &
+                      m_memory, &
+                      m_memory_max, &
+                      m_walltime
+   USE mc_run, ONLY: do_mon_car
+   USE md_run, ONLY: qs_mol_dyn
+   USE message_passing, ONLY: mp_any_source, &
+                              mp_comm_type, &
+                              mp_para_env_release, &
+                              mp_para_env_type
+   USE mimic_loop, ONLY: do_mimic_loop
+   USE mscfg_methods, ONLY: do_mol_loop, &
+                            loop_over_molecules
+   USE mtlr_u_j_methods, ONLY: do_mtlr_u_j
+   USE neb_methods, ONLY: neb
+   USE negf_methods, ONLY: do_negf
+   USE offload_api, ONLY: offload_get_chosen_device, &
+                          offload_get_device_count, &
+                          offload_mempool_stats_print
+   USE optimize_basis, ONLY: run_optimize_basis
+   USE optimize_input, ONLY: run_optimize_input
+   USE pint_methods, ONLY: do_pint_run
+   USE qs_environment_types, ONLY: get_qs_env
+   USE qs_linres_module, ONLY: linres_calculation
+   USE reference_manager, ONLY: export_references_as_xml
+   USE rt_bse, ONLY: run_propagation_bse
+   USE rt_bse_linearized, ONLY: run_propagation_linearized_bse
+   USE rt_propagation, ONLY: rt_prop_setup
+   USE swarm, ONLY: run_swarm
+   USE tamc_run, ONLY: qs_tamc
+   USE tmc_setup, ONLY: do_analyze_files, &
+                        do_tmc
+   USE vibrational_analysis, ONLY: vb_anal
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -139,8 +146,10 @@ MODULE cp2k_runs
 
    PUBLIC :: write_xml_file, run_input
 
+   CHARACTER(len=*), PARAMETER, PRIVATE :: aics_multiple_force_eval_error = &
+                                       "Multiple AICS-enabled FORCE_EVAL sections in one CP2K run are currently not supported. "// &
+                                           "Use at most one AICS FORCE_EVAL per cp2k_run."
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_runs'
-
 CONTAINS
 
 ! **************************************************************************************************
@@ -174,28 +183,57 @@ CONTAINS
       CLASS(mp_comm_type)                                 :: mpi_comm
       CHARACTER(len=default_path_length), &
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
+      CHARACTER(LEN=1023)                               :: aics_error
 
-      INTEGER                                            :: f_env_handle, grid_backend, ierr, &
+      INTEGER                                            :: aics_force_eval_count, aics_failing_rank, &
+                                                            f_env_handle, grid_backend, ierr, &
+                                                            iforce_eval, nforce_eval, &
                                                             iter_level, method_name_id, &
-                                                            new_env_id, prog_name_id, run_type_id
+                                                            new_env_id, prog_name_id, run_type_id, &
+                                                            scope_failed
+      INTEGER(c_int)                                     :: scope_status
 #if defined(__DBCSR_ACC)
       INTEGER, TARGET                                    :: offload_chosen_device
 #endif
       INTEGER, POINTER                                   :: active_device_id
       INTEGER(KIND=int_8)                                :: m_memory_max_mpi
-      LOGICAL                                            :: echo_input, grid_apply_cutoff, &
-                                                            grid_validate, I_was_ionode
+      LOGICAL                                            :: aics_enabled, echo_input, grid_apply_cutoff, &
+                                                            grid_validate, I_was_ionode, sccs_enabled
       TYPE(cp_logger_type), POINTER                      :: logger, sublogger
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_environment_type), POINTER             :: globenv
-      TYPE(section_vals_type), POINTER                   :: glob_section, input_file, root_section
+      TYPE(section_vals_type), POINTER                   :: aics_section, dft_section, force_eval_sections, &
+                                                            glob_section, input_file, root_section, sccs_section
 
       NULLIFY (para_env, f_env, dft_control, active_device_id)
       ALLOCATE (para_env)
       para_env = mpi_comm
+
+#if defined(__AICS)
+      CALL clear_aics_field_registrations()
+      CALL cp2k_aics_scope_enter_from_fortran(scope_status)
+      scope_failed = MERGE(1, 0, scope_status /= 0_c_int)
+      CALL para_env%max(scope_failed)
+      IF (scope_failed /= 0) THEN
+         aics_failing_rank = MERGE(para_env%mepos, para_env%num_pe, scope_status /= 0_c_int)
+         CALL para_env%min(aics_failing_rank)
+         aics_error = ""
+         IF (para_env%mepos == aics_failing_rank) THEN
+            CALL cp2k_aics_get_last_error_from_fortran(aics_error)
+         END IF
+         CALL para_env%bcast(aics_error, aics_failing_rank)
+         IF (scope_status == 0_c_int) THEN
+            CALL cp2k_aics_scope_leave_from_fortran(scope_status)
+         END IF
+         IF (LEN_TRIM(aics_error) == 0) THEN
+            aics_error = "CP2K-AICS Python runtime initialization failed."
+         END IF
+         CPABORT(TRIM(aics_error))
+      END IF
+#endif
 
 #if defined(__DBCSR_ACC)
       IF (offload_get_device_count() > 0) THEN
@@ -231,6 +269,23 @@ CONTAINS
 
       CALL check_cp2k_input(input_declaration, input_file, para_env=para_env, output_unit=output_unit)
       root_section => input_file
+
+      force_eval_sections => section_vals_get_subs_vals(root_section, "FORCE_EVAL")
+      CALL section_vals_get(force_eval_sections, n_repetition=nforce_eval)
+      aics_force_eval_count = 0
+      DO iforce_eval = 1, nforce_eval
+         dft_section => section_vals_get_subs_vals(force_eval_sections, "DFT", &
+                                                   i_rep_section=iforce_eval)
+         sccs_section => section_vals_get_subs_vals(dft_section, "SCCS")
+         aics_section => section_vals_get_subs_vals(sccs_section, "AICS")
+         CALL section_vals_val_get(sccs_section, "_SECTION_PARAMETERS_", l_val=sccs_enabled)
+         CALL section_vals_val_get(aics_section, "_SECTION_PARAMETERS_", l_val=aics_enabled)
+         IF (sccs_enabled .AND. aics_enabled) aics_force_eval_count = aics_force_eval_count + 1
+      END DO
+      IF (aics_force_eval_count > 1) THEN
+         CPABORT(aics_multiple_force_eval_error)
+      END IF
+
       CALL section_vals_val_get(input_file, "GLOBAL%PROGRAM_NAME", &
                                 i_val=prog_name_id)
       CALL section_vals_val_get(input_file, "GLOBAL%RUN_TYPE", &
@@ -447,7 +502,30 @@ CONTAINS
 
       CALL dbcsr_finalize_lib()
 
+#if defined(__AICS)
+      CALL clear_aics_field_registrations()
+      CALL cp2k_aics_scope_leave_from_fortran(scope_status)
+      scope_failed = MERGE(1, 0, scope_status /= 0_c_int)
+      CALL para_env%max(scope_failed)
+      IF (scope_failed /= 0) THEN
+         aics_failing_rank = MERGE(para_env%mepos, para_env%num_pe, scope_status /= 0_c_int)
+         CALL para_env%min(aics_failing_rank)
+         aics_error = ""
+         IF (para_env%mepos == aics_failing_rank) THEN
+            CALL cp2k_aics_get_last_error_from_fortran(aics_error)
+         END IF
+         CALL para_env%bcast(aics_error, aics_failing_rank)
+      END IF
+#endif
       CALL mp_para_env_release(para_env)
+#if defined(__AICS)
+      IF (scope_failed /= 0) THEN
+         IF (LEN_TRIM(aics_error) == 0) THEN
+            aics_error = "CP2K-AICS Python runtime finalization failed."
+         END IF
+         CPABORT(TRIM(aics_error))
+      END IF
+#endif
 
    END SUBROUTINE cp2k_run
 

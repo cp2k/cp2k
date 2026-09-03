@@ -97,7 +97,7 @@ MODULE bibliography
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
-                            Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
+                            Chai2025a, Chai2025b, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
                             Cances2000, Herbst2022, Zhang2025
 
 CONTAINS
@@ -2266,6 +2266,13 @@ CONTAINS
                          "on the solvent-aware interface", &
                          source="Comput. Phys. Commun.", volume="311", pages="109563", &
                          year=2025, doi="10.1016/j.cpc.2025.109563")
+
+      CALL add_reference(key=Chai2025b, &
+                         authors=s2a("Z. Chai", "S. Luber"), &
+                         title="Anisotropic Interface Continuum Solvation Model and the "// &
+                         "Finite-Element Anisotropic Poisson Solver", &
+                         source="J. Chem. Theory Comput.", volume="21", pages="11747-11760", &
+                         year=2025, doi="10.1021/acs.jctc.5c01517")
 
       CALL add_reference(key=Chai2024b, &
                          authors=s2a("Z. Chai", "R. Si", "M. Chen", "G. Teobaldi", "D. O'Regan", "L. Liu"), &

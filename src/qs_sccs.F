@@ -28,6 +28,17 @@
 
 MODULE qs_sccs
 
+   USE aics_interface,                  ONLY: &
+        clear_aics_field_registrations, cp2k_aics_cancel_initialize_from_fortran, &
+        cp2k_aics_get_last_error_from_fortran, cp2k_aics_initialize_from_fortran, &
+        cp2k_aics_initialize_prepared_from_fortran, cp2k_aics_set_electrostatic_potential, &
+        cp2k_aics_set_fd_field_squared_sensitivity_parallel, &
+        cp2k_aics_set_fd_field_squared_sensitivity_perpendicular, cp2k_aics_set_grid_metadata, &
+        cp2k_aics_set_relative_permittivity_parallel, &
+        cp2k_aics_set_relative_permittivity_perpendicular, cp2k_aics_set_solute_charge_density, &
+        cp2k_aics_solve_from_fortran
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc
    USE cp_control_types,                ONLY: dft_control_type,&
                                               sccs_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -42,17 +53,20 @@ MODULE qs_sccs
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
-   USE input_constants,                 ONLY: sccs_andreussi,&
-                                              sccs_derivative_cd3,&
-                                              sccs_derivative_cd5,&
-                                              sccs_derivative_cd7,&
-                                              sccs_derivative_fft,&
-                                              sccs_fattebert_gygi,&
-                                              sccs_saa_andreussi
+   USE input_constants,                 ONLY: &
+        aics_interface_plane_ab, aics_interface_plane_bc, aics_interface_plane_ca, &
+        aics_poisson_solver_finite_difference, aics_poisson_solver_finite_element, sccs_andreussi, &
+        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
+        sccs_fattebert_gygi, sccs_saa_andreussi
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_get_lval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type
+   USE iso_c_binding,                   ONLY: c_double,&
+                                              c_int,&
+                                              c_loc,&
+                                              c_null_ptr,&
+                                              c_size_t
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
@@ -62,6 +76,8 @@ MODULE qs_sccs
                                               twopi
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_list_types,             ONLY: particle_list_type
+   USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: angstrom
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -105,9 +121,38 @@ MODULE qs_sccs
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_sccs'
 
-   PUBLIC :: print_sccs_results, sccs
+   TYPE, PRIVATE :: aics_interface_geometry_type
+      REAL(KIND=dp) :: upper_interface_coordinate
+      REAL(KIND=dp) :: lower_interface_coordinate
+      REAL(KIND=dp) :: unit_normal(3)
+      INTEGER :: normal_axis
+      INTEGER :: normal_sign
+      INTEGER :: n_upper_surface_atoms
+      INTEGER :: n_lower_surface_atoms
+      LOGICAL, ALLOCATABLE :: upper_surface_atom(:)
+      LOGICAL, ALLOCATABLE :: lower_surface_atom(:)
+   END TYPE aics_interface_geometry_type
+
+   PUBLIC :: get_aics_interface_normal, print_sccs_results, sccs, sccs_aics
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief   Return the Cartesian unit normal for the selected AICS interface plane.
+!> \param   cell              CP2K simulation cell.
+!> \param   interface_plane   Selected AB, BC, or CA interface plane.
+!> \param   unit_normal       Cartesian unit normal.
+! **************************************************************************************************
+   SUBROUTINE get_aics_interface_normal(cell, interface_plane, unit_normal)
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      INTEGER, INTENT(IN)                                :: interface_plane
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: unit_normal
+
+      TYPE(aics_interface_geometry_type)                 :: interface_geometry
+
+      CALL determine_aics_orientation(cell, interface_plane, interface_geometry)
+      unit_normal = interface_geometry%unit_normal
+   END SUBROUTINE get_aics_interface_normal
 
 ! **************************************************************************************************
 !> \brief   Self-consistent continuum solvation (SCCS) model implementation
@@ -1010,6 +1055,1090 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE sccs
+
+! **************************************************************************************************
+!> \brief   Compute the AICS anisotropic dielectric electrostatic contribution.
+!> \param   qs_env ...
+!> \param   rho_tot_gspace ...
+!> \param   v_hartree_gspace ...
+!> \param   v_sccs ...
+!> \param   calculate_forces ...
+!> \param   h_stress Optional AICS stress contribution; its presence is rejected because it is
+!>                   unsupported.
+!> \author  Ziwei Chai
+!> \note    The supported scope is the ANDREUSSI electrostatic/polarization contribution. The
+!>          selected AB, BC, or CA cell-vector plane is mapped to an oriented Cartesian normal.
+!>          Its normal axis uses the perpendicular parameters and the two in-plane Cartesian axes
+!>          use the parallel parameters. Current discretizations require an axis-aligned
+!>          orthorhombic cell.
+!> \note    The explicitly selected surface coordinates must describe one contiguous, unwrapped
+!>          slab along the selected normal, with solvent at both normal cell boundaries. A slab
+!>          wrapping across the periodic normal boundary is unsupported. AICS stress is not
+!>          implemented.
+!> \note    FEM Cartesian potential gradients use CP2K's fixed seven-point central-difference
+!>          CD7 derivative. The FD backend instead uses its discrete dielectric sensitivities.
+!>          The parent SCCS DERIVATIVE_METHOD keyword does not control AICS.
+! **************************************************************************************************
+   SUBROUTINE sccs_aics(qs_env, rho_tot_gspace, v_hartree_gspace, v_sccs, calculate_forces, h_stress)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_tot_gspace, v_hartree_gspace
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: v_sccs
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT), &
+         OPTIONAL                                        :: h_stress
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'sccs_aics'
+
+      CHARACTER(LEN=1023)                                :: bridge_cause, bridge_error
+      CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename
+      CHARACTER(LEN=default_string_length)               :: component_filename, cube_file_position, &
+                                                            cube_path, print_path
+      INTEGER :: bridge_failed, cube_unit, failing_rank, handle, i, iatom, ispin, j, k, &
+         mpi_comm_handle, natom, nspin, output_unit, parallel_axis
+      INTEGER(KIND=c_int)                                :: bridge_status
+      INTEGER, DIMENSION(3)                              :: aics_parameter_direction, glb, lb, &
+                                                            local_end, local_npts, local_start, ub
+      LOGICAL                                            :: append_cube, mpi_io, should_output, &
+                                                            use_fd_dielectric_sensitivity
+      REAL(KIND=dp) :: density_weighted_gradient_squared, dielectric_potential_prefactor, dvol, &
+         epsilon_solvent, grid_point_coordinate, lower_interface_force_integral, &
+         upper_interface_force_integral
+      REAL(KIND=dp), DIMENSION(3)                        :: alpha, beta, d0, epsilon_dist_near, sigma
+      TYPE(aics_interface_geometry_type)                 :: interface_geometry
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_subsys_type), POINTER                      :: cp_subsys
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type), DIMENSION(2) :: dielectric_field_squared_sensitivity
+      TYPE(pw_r3d_rs_type), DIMENSION(3) :: aics_permittivity, d_permittivity_d_density, &
+         interface_permittivity_derivative, potential_gradient
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_pw_r
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(sccs_control_type), POINTER                   :: sccs_control
+      TYPE(section_vals_type), POINTER                   :: input
+
+      CALL timeset(routineN, handle)
+      CPASSERT(ASSOCIATED(qs_env))
+      IF (PRESENT(h_stress)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "The stress tensor is not implemented for AICS. AICS cannot currently be used "// &
+                       "when FORCE_EVAL requests stress.")
+      END IF
+
+      NULLIFY (auxbas_pw_pool)
+      NULLIFY (cp_subsys)
+      NULLIFY (cell)
+      NULLIFY (dft_control)
+      NULLIFY (energy)
+      NULLIFY (input)
+      NULLIFY (logger)
+      NULLIFY (para_env)
+      NULLIFY (particles)
+      NULLIFY (particle_set)
+      NULLIFY (poisson_env)
+      NULLIFY (pw_env)
+      NULLIFY (rho)
+      NULLIFY (rho_pw_r)
+      NULLIFY (sccs_control)
+      NULLIFY (scf_env)
+
+      ! Load data from the Quickstep environment.
+      CALL get_qs_env(qs_env=qs_env, &
+                      cp_subsys=cp_subsys, &
+                      cell=cell, &
+                      dft_control=dft_control, &
+                      energy=energy, &
+                      input=input, &
+                      para_env=para_env, &
+                      particle_set=particle_set, &
+                      pw_env=pw_env, &
+                      rho=rho, &
+                      scf_env=scf_env)
+      CALL cp_subsys_get(cp_subsys, particles=particles)
+
+      CPASSERT(ASSOCIATED(particle_set))
+
+      sccs_control => dft_control%sccs_control
+      logger => cp_get_default_logger()
+      CALL determine_aics_orientation(cell, sccs_control%aics%interface_plane, interface_geometry)
+      CALL determine_aics_interface_geometry(particle_set, &
+                                             sccs_control%aics%upper_surface_atoms, &
+                                             sccs_control%aics%lower_surface_atoms, &
+                                             interface_geometry)
+      aics_parameter_direction(:) = 1
+      aics_parameter_direction(interface_geometry%normal_axis) = 2
+      parallel_axis = MERGE(2, 1, interface_geometry%normal_axis == 1)
+      use_fd_dielectric_sensitivity = &
+         sccs_control%aics%poisson_solver == aics_poisson_solver_finite_difference
+
+      CALL pw_env_get(pw_env, &
+                      auxbas_pw_pool=auxbas_pw_pool, &
+                      poisson_env=poisson_env)
+
+      IF (.NOT. ALL(cell%perd == 1)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Both current AICS backends support only three-dimensional XYZ periodic boundary "// &
+                       "conditions; set SUBSYS%CELL%PERIODIC XYZ.")
+      END IF
+      IF (.NOT. ALL(poisson_env%parameters%periodic == 1)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Both current AICS backends support only three-dimensional XYZ periodic boundary "// &
+                       "conditions; set DFT%POISSON%PERIODIC XYZ.")
+      END IF
+
+      CALL pw_zero(v_sccs)
+
+      ! Delay activation of the implicit-solvent contribution until the requested
+      ! electronic SCF threshold has been reached.
+      IF (.NOT. sccs_control%sccs_activated) THEN
+         IF (sccs_control%eps_scf > 0.0_dp) THEN
+            IF ((scf_env%iter_delta > sccs_control%eps_scf) .OR. &
+                ((qs_env%scf_env%outer_scf%iter_count == 0) .AND. &
+                 (qs_env%scf_env%iter_count <= 1))) THEN
+               CALL pw_poisson_solve(poisson_env=poisson_env, &
+                                     density=rho_tot_gspace, &
+                                     ehartree=energy%hartree, &
+                                     vhartree=v_hartree_gspace)
+               energy%sccs_pol = 0.0_dp
+               energy%sccs_cav = 0.0_dp
+               energy%sccs_dis = 0.0_dp
+               energy%sccs_rep = 0.0_dp
+               energy%sccs_sol = 0.0_dp
+               energy%sccs_hartree = energy%hartree
+               CALL timestop(handle)
+               RETURN
+            END IF
+         END IF
+
+         ! Initialise the external anisotropic Poisson solver once SCCS/AICS is activated.
+         mpi_comm_handle = para_env%get_handle()
+         glb(1:3) = v_sccs%pw_grid%bounds(1, 1:3)
+         lb(1:3) = v_sccs%pw_grid%bounds_local(1, 1:3)
+         ub(1:3) = v_sccs%pw_grid%bounds_local(2, 1:3)
+         local_npts(1:3) = MAX(ub(1:3) - lb(1:3) + 1, 0)
+         local_start(1:3) = lb(1:3) - glb(1:3)
+         local_end(1:3) = local_start(1:3) + local_npts(1:3)
+
+         CALL clear_aics_field_registrations()
+         CALL cp2k_aics_set_grid_metadata(INT(v_sccs%pw_grid%npts(1), KIND=c_size_t), &
+                                          INT(v_sccs%pw_grid%npts(2), KIND=c_size_t), &
+                                          INT(v_sccs%pw_grid%npts(3), KIND=c_size_t), &
+                                          INT(local_npts(1), KIND=c_size_t), &
+                                          INT(local_npts(2), KIND=c_size_t), &
+                                          INT(local_npts(3), KIND=c_size_t), &
+                                          INT(local_start(1), KIND=c_size_t), &
+                                          INT(local_start(2), KIND=c_size_t), &
+                                          INT(local_start(3), KIND=c_size_t), &
+                                          INT(local_end(1), KIND=c_size_t), &
+                                          INT(local_end(2), KIND=c_size_t), &
+                                          INT(local_end(3), KIND=c_size_t), &
+                                          REAL(v_sccs%pw_grid%dr(1), KIND=c_double), &
+                                          REAL(v_sccs%pw_grid%dr(2), KIND=c_double), &
+                                          REAL(v_sccs%pw_grid%dr(3), KIND=c_double))
+         CALL cp2k_aics_initialize_from_fortran(mpi_comm_handle, &
+                                                MERGE(1, 0, para_env%is_source()), &
+                                                sccs_control%aics%poisson_solver, &
+                                                interface_geometry%normal_axis - 1, &
+                                                sccs_control%aics%relative_tolerance, &
+                                                sccs_control%aics%absolute_tolerance, &
+                                                sccs_control%aics%max_iterations, bridge_status)
+         bridge_failed = MERGE(1, 0, bridge_status /= 0_c_int)
+         CALL para_env%max(bridge_failed)
+         IF (bridge_failed /= 0) THEN
+            CALL cp2k_aics_cancel_initialize_from_fortran()
+            CALL clear_aics_field_registrations()
+            failing_rank = MERGE(para_env%mepos, para_env%num_pe, bridge_status /= 0_c_int)
+            CALL para_env%min(failing_rank)
+            bridge_error = ""
+            IF (para_env%mepos == failing_rank) THEN
+               CALL cp2k_aics_get_last_error_from_fortran(bridge_error)
+            END IF
+            CALL para_env%bcast(bridge_error, failing_rank)
+            IF (LEN_TRIM(bridge_error) == 0) THEN
+               bridge_error = "CP2K-AICS Python initialization failed."
+            END IF
+            bridge_cause = bridge_error
+            WRITE (bridge_error, '(A,I0,A,A)') "CP2K-AICS pre-Dup initialization failed on rank ", &
+               failing_rank, ": ", TRIM(bridge_cause)
+            CPABORT(TRIM(bridge_error))
+         END IF
+         CALL cp2k_aics_initialize_prepared_from_fortran(bridge_status)
+         CALL clear_aics_field_registrations()
+         bridge_failed = MERGE(1, 0, bridge_status /= 0_c_int)
+         CALL para_env%max(bridge_failed)
+         IF (bridge_failed /= 0) THEN
+            failing_rank = MERGE(para_env%mepos, para_env%num_pe, bridge_status /= 0_c_int)
+            CALL para_env%min(failing_rank)
+            bridge_error = ""
+            IF (para_env%mepos == failing_rank) THEN
+               CALL cp2k_aics_get_last_error_from_fortran(bridge_error)
+            END IF
+            CALL para_env%bcast(bridge_error, failing_rank)
+            IF (LEN_TRIM(bridge_error) == 0) THEN
+               bridge_error = "CP2K-AICS Python context initialization failed."
+            END IF
+            CPABORT(TRIM(bridge_error))
+         END IF
+         sccs_control%sccs_activated = .TRUE.
+      END IF
+
+      nspin = dft_control%nspins
+
+      ! Manage SCCS print output using the standard CP2K print-key machinery.
+      print_path = "DFT%PRINT%SCCS"
+      should_output = BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                                       TRIM(print_path)), cp_p_file)
+      output_unit = cp_print_key_unit_nr(logger, input, TRIM(print_path), &
+                                         extension=".sccs", &
+                                         ignore_should_output=should_output, &
+                                         log_filename=.FALSE.)
+
+      CALL qs_rho_get(rho_struct=rho, &
+                      rho_r=rho_pw_r)
+
+      ! Construct the anisotropic dielectric tensor and its density- and
+      ! interface-position derivatives.
+      BLOCK
+         TYPE(pw_r3d_rs_type) :: rho_elec
+
+         CALL auxbas_pw_pool%create_pw(rho_elec)
+         dvol = rho_elec%pw_grid%dvol
+         lb(1:3) = rho_elec%pw_grid%bounds_local(1, 1:3)
+         ub(1:3) = rho_elec%pw_grid%bounds_local(2, 1:3)
+
+         CALL pw_copy(rho_pw_r(1), rho_elec)
+         DO ispin = 2, nspin
+            CALL pw_axpy(rho_pw_r(ispin), rho_elec)
+         END DO
+
+         DO i = 1, 3
+            CALL auxbas_pw_pool%create_pw(aics_permittivity(i))
+            CALL auxbas_pw_pool%create_pw(d_permittivity_d_density(i))
+            CALL auxbas_pw_pool%create_pw(interface_permittivity_derivative(i))
+            CALL pw_zero(aics_permittivity(i))
+            CALL pw_zero(d_permittivity_d_density(i))
+            CALL pw_zero(interface_permittivity_derivative(i))
+         END DO
+
+         epsilon_solvent = sccs_control%epsilon_solvent
+         ! Expand the physical (parallel, perpendicular) controls into the
+         ! Cartesian (x, y, z) ordering consumed by the existing evaluator.
+         epsilon_dist_near = sccs_control%aics%epsilon_dist_near(aics_parameter_direction)
+         sigma = sccs_control%aics%sigma(aics_parameter_direction)
+         d0 = sccs_control%aics%d0(aics_parameter_direction)
+         alpha = sccs_control%aics%alpha(aics_parameter_direction)
+         beta = sccs_control%aics%beta(aics_parameter_direction)
+
+         SELECT CASE (sccs_control%method_id)
+         CASE (sccs_andreussi)
+            CALL build_aics_dielectric_fields(rho_elec, aics_permittivity, d_permittivity_d_density, &
+                                              interface_permittivity_derivative, epsilon_solvent, &
+                                              epsilon_dist_near, sigma, d0, alpha, beta, &
+                                              sccs_control%rho_max, sccs_control%rho_min, &
+                                              particle_set, cell, interface_geometry, auxbas_pw_pool)
+         CASE DEFAULT
+            CPABORT("AICS currently supports only the Andreussi density-switching method")
+         END SELECT
+
+         ! Use the first in-plane construction as the parallel dielectric. Keep the other
+         ! in-plane component identical for dielectric cube output and Fortran bookkeeping.
+         DO i = 2, 3
+            IF (aics_parameter_direction(i) == aics_parameter_direction(1)) THEN
+               CALL pw_copy(aics_permittivity(1), aics_permittivity(i))
+            END IF
+         END DO
+
+         ! Optional output of the three diagonal dielectric-tensor components.
+         filename = "DIELECTRIC_FUNCTION"
+         cube_path = TRIM(print_path)//"%"//TRIM(filename)
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, input, TRIM(cube_path)), &
+                   cp_p_file)) THEN
+            append_cube = section_get_lval(input, TRIM(cube_path)//"%APPEND")
+            cube_file_position = "REWIND"
+            IF (append_cube) cube_file_position = "APPEND"
+            mpi_io = .TRUE.
+            cube_unit = cp_print_key_unit_nr(logger, input, TRIM(cube_path), &
+                                             extension=".cube", middle_name=TRIM(filename), &
+                                             file_position=cube_file_position, log_filename=.FALSE., &
+                                             mpi_io=mpi_io, fout=mpi_filename)
+            IF (output_unit > 0) THEN
+               IF (.NOT. mpi_io) THEN
+                  INQUIRE (UNIT=cube_unit, NAME=filename)
+               ELSE
+                  filename = mpi_filename
+               END IF
+               WRITE (UNIT=output_unit, FMT="(T3,A)") &
+                  "SCCS| The dielectric tensor is written in cube format to the file:", &
+                  "SCCS| "//TRIM(filename)
+            END IF
+            DO i = 1, 3
+               SELECT CASE (i)
+               CASE (1)
+                  component_filename = "DIELECTRIC_FUNCTION_X"
+               CASE (2)
+                  component_filename = "DIELECTRIC_FUNCTION_Y"
+               CASE (3)
+                  component_filename = "DIELECTRIC_FUNCTION_Z"
+               END SELECT
+               CALL cp_pw_to_cube(aics_permittivity(i), cube_unit, TRIM(component_filename), particles=particles, &
+                                  stride=section_get_ivals(input, TRIM(cube_path)//"%STRIDE"), &
+                                  mpi_io=mpi_io)
+            END DO
+            CALL cp_print_key_finished_output(cube_unit, logger, input, TRIM(cube_path), mpi_io=mpi_io)
+         END IF
+
+         CALL auxbas_pw_pool%give_back_pw(rho_elec)
+      END BLOCK
+
+      ! Solve the anisotropic Poisson equation and construct the electrostatic energy.
+      BLOCK
+         TYPE(pw_r3d_rs_type) :: phi_tot, rho_solute
+
+         CALL auxbas_pw_pool%create_pw(rho_solute)
+         CALL pw_zero(rho_solute)
+         CALL pw_transfer(rho_tot_gspace, rho_solute)
+
+         IF (sccs_control%aics%poisson_solver == aics_poisson_solver_finite_element) THEN
+            DO i = 1, 3
+               CALL auxbas_pw_pool%create_pw(potential_gradient(i))
+               CALL pw_zero(potential_gradient(i))
+            END DO
+         END IF
+         IF (use_fd_dielectric_sensitivity) THEN
+            DO i = 1, 2
+               CALL auxbas_pw_pool%create_pw(dielectric_field_squared_sensitivity(i))
+               CALL pw_zero(dielectric_field_squared_sensitivity(i))
+            END DO
+         END IF
+
+         CALL auxbas_pw_pool%create_pw(phi_tot)
+         CALL pw_zero(phi_tot)
+
+         IF (use_fd_dielectric_sensitivity) THEN
+            CALL solve_aics_poisson_zero_copy(rho_solute, aics_permittivity, phi_tot, para_env, &
+                                              interface_geometry%normal_axis, &
+                                              dielectric_field_squared_sensitivity)
+         ELSE
+            CALL solve_aics_poisson_zero_copy(rho_solute, aics_permittivity, phi_tot, para_env, &
+                                              interface_geometry%normal_axis)
+         END IF
+
+         IF (sccs_control%aics%poisson_solver == aics_poisson_solver_finite_element) THEN
+            CALL derive(phi_tot, potential_gradient, sccs_derivative_cd7, pw_env, input)
+         END IF
+         CALL pw_transfer(phi_tot, v_hartree_gspace)
+
+         energy%sccs_hartree = 0.5_dp*pw_integral_ab(rho_solute, phi_tot)
+
+         ! Vacuum Hartree energy of the same solute charge density.
+         CALL pw_poisson_solve(poisson_env=poisson_env, &
+                               density=rho_solute, &
+                               ehartree=energy%hartree)
+
+         energy%sccs_pol = energy%sccs_hartree - energy%hartree
+
+         CALL auxbas_pw_pool%give_back_pw(rho_solute)
+         CALL auxbas_pw_pool%give_back_pw(phi_tot)
+      END BLOCK
+
+      ! The present AICS implementation contains only the electrostatic term.
+      IF ((ABS(sccs_control%gamma_solvent) > 0.0_dp) .OR. &
+          (ABS(sccs_control%beta_solvent) > 0.0_dp) .OR. &
+          (ABS(sccs_control%alpha_solvent) > 0.0_dp)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "AICS supports only the ANDREUSSI electrostatic/polarization contribution. "// &
+                       "Top-level SCCS ALPHA, BETA, and GAMMA must be zero; these controls are distinct "// &
+                       "from SCCS%AICS%ALPHA and SCCS%AICS%BETA.")
+      END IF
+      energy%sccs_cav = 0.0_dp
+      energy%sccs_dis = 0.0_dp
+      energy%sccs_rep = 0.0_dp
+      energy%sccs_sol = energy%sccs_pol
+
+      IF (should_output .AND. (output_unit > 0)) THEN
+         WRITE (UNIT=output_unit, FMT="(T3,A)") "SCCS|"
+         CALL print_sccs_results(energy, sccs_control, output_unit)
+      END IF
+
+      natom = SIZE(particle_set)
+
+      glb(1:3) = d_permittivity_d_density(1)%pw_grid%bounds(1, 1:3)
+
+      ! Density-dependent contribution to the Kohn-Sham potential and the
+      ! force associated with motion of the two dielectric interfaces.
+      ! The FD backend returns the unprefactored g_parallel and
+      ! g_perpendicular quantities, so the -dV/(8*pi) prefactor is applied
+      ! explicitly here. In contrast, the interface-permittivity derivative
+      ! used below already includes (1/(8*pi))*d epsilon/dd, consistent with
+      ! the established FEM formulation.
+      dielectric_potential_prefactor = -0.5_dp*dvol/fourpi
+      upper_interface_force_integral = 0.0_dp
+      lower_interface_force_integral = 0.0_dp
+
+      !$OMP PARALLEL DO DEFAULT(NONE) &
+      !$OMP             PRIVATE(density_weighted_gradient_squared,grid_point_coordinate,i,j,k) &
+      !$OMP             SHARED(calculate_forces,d_permittivity_d_density,dielectric_potential_prefactor,dvol,glb, &
+      !$OMP                    dielectric_field_squared_sensitivity,interface_geometry, &
+      !$OMP                    interface_permittivity_derivative,lb,parallel_axis,potential_gradient,ub, &
+      !$OMP                    use_fd_dielectric_sensitivity,v_sccs) &
+      !$OMP             REDUCTION(+:lower_interface_force_integral,upper_interface_force_integral)
+      DO k = lb(3), ub(3)
+         DO j = lb(2), ub(2)
+            DO i = lb(1), ub(1)
+               IF (use_fd_dielectric_sensitivity) THEN
+                  density_weighted_gradient_squared = &
+                     d_permittivity_d_density(parallel_axis)%array(i, j, k)* &
+                     dielectric_field_squared_sensitivity(1)%array(i, j, k) + &
+                     d_permittivity_d_density(interface_geometry%normal_axis)%array(i, j, k)* &
+                     dielectric_field_squared_sensitivity(2)%array(i, j, k)
+               ELSE
+                  density_weighted_gradient_squared = &
+                     d_permittivity_d_density(1)%array(i, j, k)*potential_gradient(1)%array(i, j, k)**2 + &
+                     d_permittivity_d_density(2)%array(i, j, k)*potential_gradient(2)%array(i, j, k)**2 + &
+                     d_permittivity_d_density(3)%array(i, j, k)*potential_gradient(3)%array(i, j, k)**2
+               END IF
+
+               v_sccs%array(i, j, k) = v_sccs%array(i, j, k) + &
+                                       dielectric_potential_prefactor*density_weighted_gradient_squared
+
+               IF (calculate_forces) THEN
+                  SELECT CASE (interface_geometry%normal_axis)
+                  CASE (1)
+                     grid_point_coordinate = interface_geometry%normal_sign* &
+                                             (0.5_dp + REAL(i - glb(1), KIND=dp))*d_permittivity_d_density(1)%pw_grid%dr(1)
+                  CASE (2)
+                     grid_point_coordinate = interface_geometry%normal_sign* &
+                                             (0.5_dp + REAL(j - glb(2), KIND=dp))*d_permittivity_d_density(1)%pw_grid%dr(2)
+                  CASE (3)
+                     grid_point_coordinate = interface_geometry%normal_sign* &
+                                             (0.5_dp + REAL(k - glb(3), KIND=dp))*d_permittivity_d_density(1)%pw_grid%dr(3)
+                  END SELECT
+                  IF (grid_point_coordinate > interface_geometry%upper_interface_coordinate) THEN
+                     IF (use_fd_dielectric_sensitivity) THEN
+                        upper_interface_force_integral = upper_interface_force_integral + &
+                                                         (interface_permittivity_derivative(parallel_axis)%array(i, j, k)* &
+                                                          dielectric_field_squared_sensitivity(1)%array(i, j, k) + &
+                                                 interface_permittivity_derivative(interface_geometry%normal_axis)%array(i, j, k)* &
+                                                          dielectric_field_squared_sensitivity(2)%array(i, j, k))*dvol
+                     ELSE
+                        upper_interface_force_integral = upper_interface_force_integral + &
+                                                         (interface_permittivity_derivative(1)%array(i, j, k)* &
+                                                          potential_gradient(1)%array(i, j, k)**2 + &
+                                                          interface_permittivity_derivative(2)%array(i, j, k)* &
+                                                          potential_gradient(2)%array(i, j, k)**2 + &
+                                                          interface_permittivity_derivative(3)%array(i, j, k)* &
+                                                          potential_gradient(3)%array(i, j, k)**2)*dvol
+                     END IF
+
+                  ELSE IF (grid_point_coordinate < interface_geometry%lower_interface_coordinate) THEN
+                     IF (use_fd_dielectric_sensitivity) THEN
+                        lower_interface_force_integral = lower_interface_force_integral + &
+                                                         (interface_permittivity_derivative(parallel_axis)%array(i, j, k)* &
+                                                          dielectric_field_squared_sensitivity(1)%array(i, j, k) + &
+                                                 interface_permittivity_derivative(interface_geometry%normal_axis)%array(i, j, k)* &
+                                                          dielectric_field_squared_sensitivity(2)%array(i, j, k))*dvol
+                     ELSE
+                        lower_interface_force_integral = lower_interface_force_integral + &
+                                                         (interface_permittivity_derivative(1)%array(i, j, k)* &
+                                                          potential_gradient(1)%array(i, j, k)**2 + &
+                                                          interface_permittivity_derivative(2)%array(i, j, k)* &
+                                                          potential_gradient(2)%array(i, j, k)**2 + &
+                                                          interface_permittivity_derivative(3)%array(i, j, k)* &
+                                                          potential_gradient(3)%array(i, j, k)**2)*dvol
+                     END IF
+                  END IF
+               END IF
+
+            END DO
+         END DO
+      END DO
+      !$OMP END PARALLEL DO
+
+      IF (calculate_forces) THEN
+         ! Reduce the direct interface-force integrals and apply each integral
+         ! to atoms in its corresponding explicit surface list.
+         CALL para_env%sum(upper_interface_force_integral)
+         CALL para_env%sum(lower_interface_force_integral)
+
+         DO iatom = 1, natom
+            IF (interface_geometry%upper_surface_atom(iatom)) THEN
+               particle_set(iatom)%f(interface_geometry%normal_axis) = &
+                  particle_set(iatom)%f(interface_geometry%normal_axis) - &
+                  interface_geometry%normal_sign*upper_interface_force_integral
+            END IF
+
+            IF (interface_geometry%lower_surface_atom(iatom)) THEN
+               particle_set(iatom)%f(interface_geometry%normal_axis) = &
+                  particle_set(iatom)%f(interface_geometry%normal_axis) - &
+                  interface_geometry%normal_sign*lower_interface_force_integral
+            END IF
+         END DO
+      END IF
+
+      DEALLOCATE (interface_geometry%upper_surface_atom)
+      DEALLOCATE (interface_geometry%lower_surface_atom)
+
+      DO i = 1, 3
+         CALL auxbas_pw_pool%give_back_pw(aics_permittivity(i))
+         CALL auxbas_pw_pool%give_back_pw(d_permittivity_d_density(i))
+         CALL auxbas_pw_pool%give_back_pw(interface_permittivity_derivative(i))
+         IF (sccs_control%aics%poisson_solver == aics_poisson_solver_finite_element) THEN
+            CALL auxbas_pw_pool%give_back_pw(potential_gradient(i))
+         END IF
+      END DO
+      IF (use_fd_dielectric_sensitivity) THEN
+         DO i = 1, 2
+            CALL auxbas_pw_pool%give_back_pw(dielectric_field_squared_sensitivity(i))
+         END DO
+      END IF
+
+      CALL cp_print_key_finished_output(output_unit, logger, input, TRIM(print_path), &
+                                        ignore_should_output=should_output)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE sccs_aics
+
+! **************************************************************************************************
+!> \brief   Perform one synchronous collective zero-copy AICS Poisson solve.
+!> \param   rho_solute                              Local real-space solute charge-density field
+!>                                                  borrowed by the bridge.
+!> \param   aics_permittivity                       Three Cartesian diagonal dielectric fields on
+!>                                                  the local PW domain.
+!> \param   phi_tot                                 Local real-space electrostatic-potential output
+!>                                                  field borrowed by the bridge.
+!> \param   para_env ...
+!> \param   normal_axis                             Cartesian component index of the oriented
+!>                                                  interface normal.
+!> \param   dielectric_field_squared_sensitivity    Optional CP2K-owned parallel/perpendicular FD
+!>                                                  outputs.
+!> \author  Ziwei Chai
+!> \note    Each MPI rank owns only its local portion of the global real-space grid. The bridge
+!>          passes the local array pointers together with their global-grid location and size to
+!>          the Python backend for this solve only. A rank with no local grid points passes
+!>          C_NULL_PTR and zero extents. The pointers are borrowed from CP2K and must not be
+!>          retained after the synchronous solve returns.
+! **************************************************************************************************
+   SUBROUTINE solve_aics_poisson_zero_copy(rho_solute, aics_permittivity, phi_tot, para_env, normal_axis, &
+                                           dielectric_field_squared_sensitivity)
+
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho_solute
+      TYPE(pw_r3d_rs_type), DIMENSION(3), INTENT(INOUT)  :: aics_permittivity
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: phi_tot
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(IN)                                :: normal_axis
+      TYPE(pw_r3d_rs_type), DIMENSION(2), INTENT(INOUT), OPTIONAL :: &
+         dielectric_field_squared_sensitivity
+
+      CHARACTER(LEN=1023)                                :: bridge_error
+      INTEGER                                            :: bridge_failed, failing_rank, &
+                                                            parallel_axis
+      INTEGER(KIND=c_int)                                :: bridge_status
+      INTEGER, DIMENSION(3)                              :: glb, lb, local_end, local_npts, &
+                                                            local_start, ub
+
+      glb(1:3) = aics_permittivity(1)%pw_grid%bounds(1, 1:3)
+      lb(1:3) = aics_permittivity(1)%pw_grid%bounds_local(1, 1:3)
+      ub(1:3) = aics_permittivity(1)%pw_grid%bounds_local(2, 1:3)
+      local_npts(1:3) = MAX(ub(1:3) - lb(1:3) + 1, 0)
+      local_start(1:3) = lb(1:3) - glb(1:3)
+      local_end(1:3) = local_start(1:3) + local_npts(1:3)
+
+      parallel_axis = MERGE(2, 1, normal_axis == 1)
+      CALL clear_aics_field_registrations()
+      IF (ALL(local_npts > 0)) THEN
+         CALL cp2k_aics_set_solute_charge_density(c_loc(rho_solute%array(lb(1), lb(2), lb(3))))
+         CALL cp2k_aics_set_relative_permittivity_parallel( &
+            c_loc(aics_permittivity(parallel_axis)%array(lb(1), lb(2), lb(3))))
+         CALL cp2k_aics_set_relative_permittivity_perpendicular( &
+            c_loc(aics_permittivity(normal_axis)%array(lb(1), lb(2), lb(3))))
+         CALL cp2k_aics_set_electrostatic_potential(c_loc(phi_tot%array(lb(1), lb(2), lb(3))))
+         IF (PRESENT(dielectric_field_squared_sensitivity)) THEN
+            CALL cp2k_aics_set_fd_field_squared_sensitivity_parallel( &
+               c_loc(dielectric_field_squared_sensitivity(1)%array(lb(1), lb(2), lb(3))))
+            CALL cp2k_aics_set_fd_field_squared_sensitivity_perpendicular( &
+               c_loc(dielectric_field_squared_sensitivity(2)%array(lb(1), lb(2), lb(3))))
+         END IF
+      ELSE
+         CALL cp2k_aics_set_solute_charge_density(c_null_ptr)
+         CALL cp2k_aics_set_relative_permittivity_parallel(c_null_ptr)
+         CALL cp2k_aics_set_relative_permittivity_perpendicular(c_null_ptr)
+         CALL cp2k_aics_set_electrostatic_potential(c_null_ptr)
+         IF (PRESENT(dielectric_field_squared_sensitivity)) THEN
+            CALL cp2k_aics_set_fd_field_squared_sensitivity_parallel(c_null_ptr)
+            CALL cp2k_aics_set_fd_field_squared_sensitivity_perpendicular(c_null_ptr)
+         END IF
+      END IF
+
+      CALL cp2k_aics_set_grid_metadata(INT(aics_permittivity(1)%pw_grid%npts(1), KIND=c_size_t), &
+                                       INT(aics_permittivity(1)%pw_grid%npts(2), KIND=c_size_t), &
+                                       INT(aics_permittivity(1)%pw_grid%npts(3), KIND=c_size_t), &
+                                       INT(local_npts(1), KIND=c_size_t), &
+                                       INT(local_npts(2), KIND=c_size_t), &
+                                       INT(local_npts(3), KIND=c_size_t), &
+                                       INT(local_start(1), KIND=c_size_t), &
+                                       INT(local_start(2), KIND=c_size_t), &
+                                       INT(local_start(3), KIND=c_size_t), &
+                                       INT(local_end(1), KIND=c_size_t), &
+                                       INT(local_end(2), KIND=c_size_t), &
+                                       INT(local_end(3), KIND=c_size_t), &
+                                       REAL(aics_permittivity(1)%pw_grid%dr(1), KIND=c_double), &
+                                       REAL(aics_permittivity(1)%pw_grid%dr(2), KIND=c_double), &
+                                       REAL(aics_permittivity(1)%pw_grid%dr(3), KIND=c_double))
+
+      CALL cp2k_aics_solve_from_fortran(bridge_status)
+      CALL clear_aics_field_registrations()
+      bridge_failed = MERGE(1, 0, bridge_status /= 0_c_int)
+      CALL para_env%max(bridge_failed)
+      IF (bridge_failed /= 0) THEN
+         failing_rank = MERGE(para_env%mepos, para_env%num_pe, bridge_status /= 0_c_int)
+         CALL para_env%min(failing_rank)
+         bridge_error = ""
+         IF (para_env%mepos == failing_rank) THEN
+            CALL cp2k_aics_get_last_error_from_fortran(bridge_error)
+         END IF
+         CALL para_env%bcast(bridge_error, failing_rank)
+         IF (LEN_TRIM(bridge_error) == 0) THEN
+            bridge_error = "CP2K-AICS Python solve failed."
+         END IF
+         CPABORT(TRIM(bridge_error))
+      END IF
+
+   END SUBROUTINE solve_aics_poisson_zero_copy
+
+! **************************************************************************************************
+!> \brief   Construct explicit upper and lower surface masks and their mean coordinates along the
+!>          oriented interface normal.
+!> \param   particle_set ...
+!> \param   upper_surface_atoms     Global 1-based atom indices defining the upper reference
+!>                                  plane.
+!> \param   lower_surface_atoms     Global 1-based atom indices defining the lower reference
+!>                                  plane.
+!> \param   interface_geometry      Interface orientation together with the constructed surface
+!>                                  masks, atom counts, and mean coordinates.
+!> \author  Ziwei Chai
+!> \note    Each reference coordinate is the arithmetic mean of the selected atomic coordinates
+!>          projected onto unit_normal. The selected atoms must represent one contiguous,
+!>          unwrapped slab, with solvent at both normal cell boundaries. A slab crossing the
+!>          periodic normal boundary is not supported.
+! **************************************************************************************************
+   SUBROUTINE determine_aics_interface_geometry(particle_set, upper_surface_atoms, &
+                                                lower_surface_atoms, interface_geometry)
+
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: upper_surface_atoms, lower_surface_atoms
+      TYPE(aics_interface_geometry_type), INTENT(INOUT)  :: interface_geometry
+
+      INTEGER                                            :: iatom, natom
+      REAL(KIND=dp)                                      :: atom_coordinate
+
+      CPASSERT(ASSOCIATED(particle_set))
+
+      natom = SIZE(particle_set)
+      ALLOCATE (interface_geometry%upper_surface_atom(natom))
+      ALLOCATE (interface_geometry%lower_surface_atom(natom))
+      interface_geometry%upper_surface_atom(:) = .FALSE.
+      interface_geometry%lower_surface_atom(:) = .FALSE.
+
+      IF (ANY(upper_surface_atoms > natom)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "DFT%SCCS%AICS%UPPER_SURFACE_ATOMS contains an atom index greater than NATOM")
+      END IF
+      IF (ANY(lower_surface_atoms > natom)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "DFT%SCCS%AICS%LOWER_SURFACE_ATOMS contains an atom index greater than NATOM")
+      END IF
+
+      interface_geometry%upper_interface_coordinate = 0.0_dp
+      interface_geometry%lower_interface_coordinate = 0.0_dp
+      interface_geometry%n_upper_surface_atoms = SIZE(upper_surface_atoms)
+      interface_geometry%n_lower_surface_atoms = SIZE(lower_surface_atoms)
+      DO iatom = 1, SIZE(upper_surface_atoms)
+         interface_geometry%upper_surface_atom(upper_surface_atoms(iatom)) = .TRUE.
+         atom_coordinate = DOT_PRODUCT(particle_set(upper_surface_atoms(iatom))%r, &
+                                       interface_geometry%unit_normal)
+         interface_geometry%upper_interface_coordinate = &
+            interface_geometry%upper_interface_coordinate + atom_coordinate
+      END DO
+      DO iatom = 1, SIZE(lower_surface_atoms)
+         interface_geometry%lower_surface_atom(lower_surface_atoms(iatom)) = .TRUE.
+         atom_coordinate = DOT_PRODUCT(particle_set(lower_surface_atoms(iatom))%r, &
+                                       interface_geometry%unit_normal)
+         interface_geometry%lower_interface_coordinate = &
+            interface_geometry%lower_interface_coordinate + atom_coordinate
+      END DO
+
+      interface_geometry%upper_interface_coordinate = interface_geometry%upper_interface_coordinate/ &
+                                                      REAL(interface_geometry%n_upper_surface_atoms, KIND=dp)
+      interface_geometry%lower_interface_coordinate = interface_geometry%lower_interface_coordinate/ &
+                                                      REAL(interface_geometry%n_lower_surface_atoms, KIND=dp)
+
+      IF (interface_geometry%upper_interface_coordinate == &
+          interface_geometry%lower_interface_coordinate) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "DFT%SCCS%AICS%UPPER_SURFACE_ATOMS and "// &
+                       "DFT%SCCS%AICS%LOWER_SURFACE_ATOMS define coincident planes")
+      END IF
+      IF (interface_geometry%upper_interface_coordinate < &
+          interface_geometry%lower_interface_coordinate) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "DFT%SCCS%AICS%UPPER_SURFACE_ATOMS must define a plane above "// &
+                       "DFT%SCCS%AICS%LOWER_SURFACE_ATOMS along the oriented interface normal")
+      END IF
+
+   END SUBROUTINE determine_aics_interface_geometry
+
+! **************************************************************************************************
+!> \brief   Map an AB, BC, or CA cell-vector plane to its oriented Cartesian normal.
+!> \param   cell                 CP2K cell whose vector columns define the A, B, and C lattice
+!>                               vectors.
+!> \param   interface_plane      Selected AB, BC, or CA interface plane.
+!> \param   interface_geometry   Stores the unit normal, aligned Cartesian axis, and orientation
+!>                               sign of the selected interface plane.
+!> \author  Ziwei Chai
+!> \note    The oriented normals are defined by the cross products A x B, B x C, and C x A.
+!>          unit_normal is the corresponding normalized Cartesian vector, normal_axis identifies
+!>          its aligned Cartesian component, and normal_sign gives the sign of that component.
+!>          The current implementation requires an axis-aligned orthorhombic cell, for which AB
+!>          maps to z, BC to x, and CA to y.
+! **************************************************************************************************
+   SUBROUTINE determine_aics_orientation(cell, interface_plane, interface_geometry)
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      INTEGER, INTENT(IN)                                :: interface_plane
+      TYPE(aics_interface_geometry_type), INTENT(INOUT)  :: interface_geometry
+
+      REAL(KIND=dp), PARAMETER :: alignment_tolerance = 1.0E-12_dp
+
+      INTEGER                                            :: i, j, vector_1, vector_2
+      REAL(KIND=dp)                                      :: cell_scale, normal_norm
+      REAL(KIND=dp), DIMENSION(3)                        :: normal
+
+      SELECT CASE (interface_plane)
+      CASE (aics_interface_plane_ab)
+         vector_1 = 1; vector_2 = 2
+      CASE (aics_interface_plane_bc)
+         vector_1 = 2; vector_2 = 3
+      CASE (aics_interface_plane_ca)
+         vector_1 = 3; vector_2 = 1
+      CASE DEFAULT
+         CPABORT("Invalid AICS INTERFACE_PLANE")
+      END SELECT
+      normal = [cell%hmat(2, vector_1)*cell%hmat(3, vector_2) - &
+                cell%hmat(3, vector_1)*cell%hmat(2, vector_2), &
+                cell%hmat(3, vector_1)*cell%hmat(1, vector_2) - &
+                cell%hmat(1, vector_1)*cell%hmat(3, vector_2), &
+                cell%hmat(1, vector_1)*cell%hmat(2, vector_2) - &
+                cell%hmat(2, vector_1)*cell%hmat(1, vector_2)]
+      normal_norm = SQRT(DOT_PRODUCT(normal, normal))
+      cell_scale = MAXVAL(ABS(cell%hmat))
+      IF (normal_norm <= alignment_tolerance*cell_scale*cell_scale) THEN
+         CPABORT("AICS INTERFACE_PLANE is degenerate in the current CP2K cell")
+      END IF
+      interface_geometry%unit_normal = normal/normal_norm
+      interface_geometry%normal_axis = MAXLOC(ABS(interface_geometry%unit_normal), DIM=1)
+      IF (MAXVAL(ABS(interface_geometry%unit_normal), &
+                 MASK=[(i /= interface_geometry%normal_axis, i=1, 3)]) > alignment_tolerance) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "The current AICS implementation requires the normal of INTERFACE_PLANE "// &
+                       "to be aligned with a Cartesian real-space grid axis.")
+      END IF
+      interface_geometry%normal_sign = MERGE(1, -1, &
+                                             interface_geometry%unit_normal(interface_geometry%normal_axis) > 0.0_dp)
+
+      ! The AICS Cartesian dr-based coordinates, seven-point stencil, and box FE mesh
+      ! do not represent metric cross terms of a non-orthorhombic working cell.
+      DO j = 1, 3
+         DO i = 1, 3
+            IF (i /= j .AND. ABS(cell%hmat(i, j)) > alignment_tolerance*cell_scale) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "The current AICS Cartesian real-space discretizations require an "// &
+                             "axis-aligned orthorhombic CP2K cell.")
+            END IF
+         END DO
+      END DO
+   END SUBROUTINE determine_aics_orientation
+
+! **************************************************************************************************
+!> \brief   Build the Cartesian diagonal AICS dielectric tensor and its derivative fields.
+!> \param   rho_elec ...
+!> \param   aics_permittivity                   Output Cartesian diagonal dielectric components
+!>                                              epsilon_xx, epsilon_yy, and epsilon_zz.
+!> \param   d_permittivity_d_density            Output derivatives of each dielectric component
+!>                                              with respect to the electronic density.
+!> \param   interface_permittivity_derivative   Output derivatives associated with displacement
+!>                                              of the dielectric interfaces.
+!> \param   bulk_relative_permittivity          Bulk-solvent relative permittivity.
+!> \param   epsilon_dist_near                   Three Cartesian near-interface relative
+!>                                              permittivities.
+!> \param   sigma                               Three Cartesian interface-transition widths in
+!>                                              CP2K internal units.
+!> \param   d0                                  Three Cartesian interface midpoint distances in
+!>                                              CP2K internal units.
+!> \param   alpha                               Three Cartesian dimensionless mapping-asymmetry
+!>                                              parameters.
+!> \param   beta                                Three Cartesian mapping parameters in inverse
+!>                                              CP2K length units.
+!> \param   rho_max                             Upper electronic-density switching threshold.
+!> \param   rho_min                             Lower electronic-density switching threshold.
+!> \param   particle_set                        Atomic positions used to construct the exclusion
+!>                                              mask.
+!> \param   cell                                Periodic simulation cell used for minimum-image
+!>                                              atom-grid displacements.
+!> \param   interface_geometry                  Oriented interface normal and explicit upper and
+!>                                              lower reference surfaces.
+!> \param   auxbas_pw_pool                      PW pool supplying the temporary atom-exclusion
+!>                                              mask.
+!> \author  Ziwei Chai
+!> \note    All Cartesian dielectric components use the same scalar distance coordinate relative
+!>          to the explicit interfaces. The Cartesian axis aligned with the oriented normal uses
+!>          the perpendicular parameter set, while the two in-plane axes use the parallel set.
+!>          Negative exclusion-mask values identify atom-excluded grid points, where the
+!>          dielectric components are set to unity and their derivatives are set to zero.
+! **************************************************************************************************
+   SUBROUTINE build_aics_dielectric_fields(rho_elec, aics_permittivity, d_permittivity_d_density, &
+                                           interface_permittivity_derivative, bulk_relative_permittivity, &
+                                           epsilon_dist_near, sigma, d0, alpha, beta, rho_max, &
+                                           rho_min, particle_set, cell, interface_geometry, auxbas_pw_pool)
+
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_elec
+      TYPE(pw_r3d_rs_type), DIMENSION(3), INTENT(INOUT) :: aics_permittivity, &
+         d_permittivity_d_density, interface_permittivity_derivative
+      REAL(KIND=dp), INTENT(IN)                          :: bulk_relative_permittivity, &
+                                                            epsilon_dist_near(3), sigma(3), d0(3), &
+                                                            alpha(3), beta(3), rho_max, rho_min
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(aics_interface_geometry_type), INTENT(IN)     :: interface_geometry
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_aics_dielectric_fields'
+      REAL(KIND=dp), PARAMETER                           :: rhotol = 1.0E-12_dp
+
+      INTEGER                                            :: handle, i, icomponent, interface_side, &
+                                                            j, k
+      INTEGER, DIMENSION(3)                              :: glb, lb, ub
+      REAL(KIND=dp) :: density_log, density_switch_derivative_factor, density_switch_exponent, &
+         density_switch_phase, density_switch_phase_derivative, diff, exclusion_mask_value, &
+         grid_point_coordinate, interface_distance, ln_rho_max, ln_rho_min, &
+         mapped_interface_distance, near_interface_log_factor, q, rho
+      TYPE(pw_r3d_rs_type)                               :: atom_exclusion_mask
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(particle_set))
+      CPASSERT(ASSOCIATED(auxbas_pw_pool))
+
+      diff = rho_max - rho_min
+      IF (diff < SQRT(rhotol)) THEN
+         CPABORT("DFT%SCCS%ANDREUSSI%RHO_MAX - DFT%SCCS%ANDREUSSI%RHO_MIN must be at least 1.0E-6 for AICS")
+      END IF
+      IF (rho_min < rhotol) THEN
+         CPABORT("DFT%SCCS%ANDREUSSI%RHO_MIN must be at least 1.0E-12 for AICS")
+      END IF
+
+      ln_rho_max = LOG(rho_max)
+      ln_rho_min = LOG(rho_min)
+      q = twopi/(ln_rho_max - ln_rho_min)
+
+      lb(1:3) = rho_elec%pw_grid%bounds_local(1, 1:3)
+      ub(1:3) = rho_elec%pw_grid%bounds_local(2, 1:3)
+      glb(1:3) = rho_elec%pw_grid%bounds(1, 1:3)
+
+      CALL auxbas_pw_pool%create_pw(atom_exclusion_mask)
+      CALL build_aics_atom_exclusion_mask(atom_exclusion_mask, particle_set, cell, glb, lb, ub)
+
+      ! Construct the diagonal dielectric and its density and interface-position derivatives.
+      DO icomponent = 1, 3
+         IF (ABS(alpha(icomponent)) >= 1.0_dp) THEN
+            CPABORT("DFT%SCCS%AICS%ALPHA values must satisfy ABS(ALPHA) < 1")
+         END IF
+         IF (sigma(icomponent) <= 0.0_dp) THEN
+            CPABORT("DFT%SCCS%AICS%SIGMA values must be strictly positive")
+         END IF
+
+         near_interface_log_factor = LOG(epsilon_dist_near(icomponent))/twopi
+         density_switch_derivative_factor = -near_interface_log_factor*q
+
+         ! Calculate the dielectric function and its derivatives.
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(density_log,density_switch_exponent,density_switch_phase, &
+!$OMP                     density_switch_phase_derivative,exclusion_mask_value,grid_point_coordinate,i, &
+!$OMP                     interface_distance,interface_side,j,k,mapped_interface_distance,rho) &
+!$OMP             SHARED(aics_permittivity,alpha,atom_exclusion_mask,beta,bulk_relative_permittivity, &
+!$OMP                    d_permittivity_d_density,density_switch_derivative_factor,glb, &
+!$OMP                    icomponent,interface_permittivity_derivative,lb,ln_rho_max, &
+!$OMP                    epsilon_dist_near,interface_geometry,near_interface_log_factor, &
+!$OMP                    q,rho_elec,rho_max,rho_min,d0,sigma,ub)
+         DO k = lb(3), ub(3)
+            DO j = lb(2), ub(2)
+               DO i = lb(1), ub(1)
+                  rho = rho_elec%array(i, j, k)
+                  exclusion_mask_value = atom_exclusion_mask%array(i, j, k)
+
+                  IF ((rho < rho_min) .AND. (exclusion_mask_value > 0.0_dp)) THEN
+                     ! Pure solvent. Solvent is permitted only outside the two
+                     ! reference surfaces; low-density points inside the slab are
+                     ! treated as solute to avoid an undefined interface direction.
+                     SELECT CASE (interface_geometry%normal_axis)
+                     CASE (1)
+                        grid_point_coordinate = interface_geometry%normal_sign* &
+                                                (0.5_dp + REAL(i - glb(1), KIND=dp))*aics_permittivity(icomponent)%pw_grid%dr(1)
+                     CASE (2)
+                        grid_point_coordinate = interface_geometry%normal_sign* &
+                                                (0.5_dp + REAL(j - glb(2), KIND=dp))*aics_permittivity(icomponent)%pw_grid%dr(2)
+                     CASE (3)
+                        grid_point_coordinate = interface_geometry%normal_sign* &
+                                                (0.5_dp + REAL(k - glb(3), KIND=dp))*aics_permittivity(icomponent)%pw_grid%dr(3)
+                     END SELECT
+                     IF (grid_point_coordinate > interface_geometry%upper_interface_coordinate) THEN
+                        interface_distance = &
+                           grid_point_coordinate - interface_geometry%upper_interface_coordinate
+                        interface_side = 1
+                     ELSE IF (grid_point_coordinate < interface_geometry%lower_interface_coordinate) THEN
+                        interface_distance = &
+                           interface_geometry%lower_interface_coordinate - grid_point_coordinate
+                        interface_side = -1
+                     ELSE
+                        aics_permittivity(icomponent)%array(i, j, k) = 1.0_dp
+                        d_permittivity_d_density(icomponent)%array(i, j, k) = 0.0_dp
+                        interface_permittivity_derivative(icomponent)%array(i, j, k) = 0.0_dp
+                        CYCLE
+                     END IF
+
+                     mapped_interface_distance = interface_distance + &
+                                                 (interface_distance - d0(icomponent))/ &
+                                                 (1.0_dp + alpha(icomponent)*TANH(beta(icomponent)* &
+                                                                                  (interface_distance - d0(icomponent))))
+
+                     aics_permittivity(icomponent)%array(i, j, k) = epsilon_dist_near(icomponent) + &
+                                                                    (bulk_relative_permittivity - &
+                                                                     epsilon_dist_near(icomponent))* &
+                                                                    (1.0_dp + ERF((mapped_interface_distance - &
+                                                                                   d0(icomponent))/sigma(icomponent)))*0.5_dp
+                     d_permittivity_d_density(icomponent)%array(i, j, k) = 0.0_dp
+
+                     ! Analytical permittivity derivative for displacement of one
+                     ! contributing interface atom.  The lower-surface convention
+                     ! is negative and the upper-surface convention is positive;
+                     ! each is divided by its corresponding surface-atom count.
+                     interface_permittivity_derivative(icomponent)%array(i, j, k) = &
+                        (0.5_dp/fourpi)*(bulk_relative_permittivity - &
+                                         epsilon_dist_near(icomponent))/(SQRT(twopi/2.0_dp)*sigma(icomponent))* &
+                        EXP(-((mapped_interface_distance - d0(icomponent))/sigma(icomponent))**2)* &
+                        (1.0_dp + &
+                         ((1.0_dp + alpha(icomponent)*TANH(beta(icomponent)*(interface_distance - &
+                                                                           d0(icomponent)))) - alpha(icomponent)*beta(icomponent)* &
+                          (interface_distance - d0(icomponent))* &
+                          (1.0_dp - TANH(beta(icomponent)*(interface_distance - &
+                                                           d0(icomponent)))**2))/ &
+                         (1.0_dp + alpha(icomponent)*TANH(beta(icomponent)*(interface_distance - &
+                                                                            d0(icomponent))))**2)
+
+                     IF (interface_side < 0) THEN
+                        interface_permittivity_derivative(icomponent)%array(i, j, k) = &
+                           -interface_permittivity_derivative(icomponent)%array(i, j, k)/ &
+                           REAL(interface_geometry%n_lower_surface_atoms, KIND=dp)
+                     ELSE
+                        interface_permittivity_derivative(icomponent)%array(i, j, k) = &
+                           interface_permittivity_derivative(icomponent)%array(i, j, k)/ &
+                           REAL(interface_geometry%n_upper_surface_atoms, KIND=dp)
+                     END IF
+
+                  ELSE IF ((rho <= rho_max) .AND. (exclusion_mask_value > 0.0_dp)) THEN
+                     ! Density-defined transition region.
+                     density_log = LOG(rho)
+                     density_switch_phase = q*(ln_rho_max - density_log)
+                     density_switch_exponent = near_interface_log_factor* &
+                                               (density_switch_phase - SIN(density_switch_phase))
+                     aics_permittivity(icomponent)%array(i, j, k) = EXP(density_switch_exponent)
+                     density_switch_phase_derivative = density_switch_derivative_factor* &
+                                                       (1.0_dp - COS(density_switch_phase))
+                     d_permittivity_d_density(icomponent)%array(i, j, k) = &
+                        aics_permittivity(icomponent)%array(i, j, k)*density_switch_phase_derivative/rho
+                     interface_permittivity_derivative(icomponent)%array(i, j, k) = 0.0_dp
+
+                  ELSE
+                     ! Pure solute or an atom-centred exclusion point.
+                     aics_permittivity(icomponent)%array(i, j, k) = 1.0_dp
+                     d_permittivity_d_density(icomponent)%array(i, j, k) = 0.0_dp
+                     interface_permittivity_derivative(icomponent)%array(i, j, k) = 0.0_dp
+                  END IF
+               END DO
+            END DO
+         END DO
+!$OMP END PARALLEL DO
+      END DO
+
+      CALL auxbas_pw_pool%give_back_pw(atom_exclusion_mask)
+      CALL timestop(handle)
+
+   END SUBROUTINE build_aics_dielectric_fields
+
+! **************************************************************************************************
+!> \brief   Build the hard all-atom exclusion mask for the local AICS grid domain.
+!> \param   atom_exclusion_mask   Output mask: +1 permits dielectric mapping and -1 excludes it.
+!> \param   particle_set ...
+!> \param   cell ...
+!> \param   glb                   Global PW lower bounds used to construct Cartesian grid-point
+!>                                coordinates.
+!> \param   lb                    Inclusive local lower PW bounds.
+!> \param   ub                    Inclusive local upper PW bounds.
+!> \author  Ziwei Chai
+!> \note    Every atom defines a hard exclusion sphere of radius 0.25 angstrom on the cell-centred
+!>          real-space grid, using a strict distance test and periodic minimum images. No analytical
+!>          force is included for motion of the discontinuous mask boundary.
+! **************************************************************************************************
+   SUBROUTINE build_aics_atom_exclusion_mask(atom_exclusion_mask, particle_set, cell, glb, lb, ub)
+
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: atom_exclusion_mask
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(cell_type), POINTER                           :: cell
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: glb, lb, ub
+
+      REAL(KIND=dp), PARAMETER :: exclusion_radius_angstrom = 0.25_dp
+
+      INTEGER                                            :: i, iatom, j, k, natom
+      REAL(KIND=dp)                                      :: atom_distance, exclusion_radius
+      REAL(KIND=dp), DIMENSION(3)                        :: atom_displacement, grid_point
+
+      natom = SIZE(particle_set)
+
+      exclusion_radius = exclusion_radius_angstrom/angstrom
+
+      ! Prevent solvent dielectric occupation within the atom-centred exclusion radius.
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(atom_displacement,atom_distance,grid_point,i,iatom,j,k) &
+!$OMP             SHARED(atom_exclusion_mask,cell,exclusion_radius,glb,lb,natom,particle_set,ub)
+      DO k = lb(3), ub(3)
+         DO j = lb(2), ub(2)
+            DO i = lb(1), ub(1)
+               atom_exclusion_mask%array(i, j, k) = 1.0_dp
+               grid_point = [(0.5_dp + REAL(i - glb(1), KIND=dp))*atom_exclusion_mask%pw_grid%dr(1), &
+                             (0.5_dp + REAL(j - glb(2), KIND=dp))*atom_exclusion_mask%pw_grid%dr(2), &
+                             (0.5_dp + REAL(k - glb(3), KIND=dp))*atom_exclusion_mask%pw_grid%dr(3)]
+               DO iatom = 1, natom
+                  atom_displacement = pbc(grid_point - particle_set(iatom)%r, cell)
+                  atom_distance = SQRT(DOT_PRODUCT(atom_displacement, atom_displacement))
+                  IF (atom_distance < exclusion_radius) THEN
+                     atom_exclusion_mask%array(i, j, k) = -1.0_dp
+                     EXIT
+                  END IF
+               END DO
+            END DO
+         END DO
+      END DO
+!$OMP END PARALLEL DO
+
+   END SUBROUTINE build_aics_atom_exclusion_mask
 
 ! **************************************************************************************************
 !> \brief      Calculate the smoothed dielectric function of Andreussi et al.

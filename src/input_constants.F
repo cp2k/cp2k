@@ -1246,6 +1246,15 @@ MODULE input_constants
                                                sccs_fattebert_gygi = 1, &
                                                sccs_saa_andreussi = 2
 
+   ! AICS Poisson discretizations
+   INTEGER, PARAMETER, PUBLIC               :: aics_poisson_solver_finite_difference = 0, &
+                                               aics_poisson_solver_finite_element = 1
+
+   ! AICS cell-vector interface planes (cyclic, right-handed orientation)
+   INTEGER, PARAMETER, PUBLIC               :: aics_interface_plane_ab = 0, &
+                                               aics_interface_plane_bc = 1, &
+                                               aics_interface_plane_ca = 2
+
    ! Derivative method used by the SCCS
    INTEGER, PARAMETER, PUBLIC               :: sccs_derivative_fft = 0, &
                                                sccs_derivative_cd3 = 1, &

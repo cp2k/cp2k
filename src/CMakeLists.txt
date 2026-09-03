@@ -36,6 +36,7 @@ list(
   admm_methods.F
   admm_types.F
   admm_utils.F
+  aics_interface.F
   almo_scf_diis_types.F
   almo_scf_env_methods.F
   almo_scf.F
@@ -1448,6 +1449,15 @@ list(
   base/openmp_trace.c
   common/cp_data_dir.c)
 
+if(CP2K_USE_AICS)
+  list(APPEND CP2K_SRCS_C aics_python_bridge.c aics_python_loader_posix.c)
+  list(APPEND CP2K_EXCLUDED_SRCS_C aics_python_stub.c)
+else()
+  list(APPEND CP2K_SRCS_C aics_python_stub.c)
+  list(APPEND CP2K_EXCLUDED_SRCS_C aics_python_bridge.c
+       aics_python_loader_posix.c)
+endif()
+
 set(CP2K_OFFLOAD_SRCS_C offload/offload_buffer.c offload/offload_library.c
                         offload/offload_mempool.c)
 
@@ -1653,6 +1663,116 @@ if(CP2K_ENABLE_CONSISTENCY_CHECKS)
   return()
 endif()
 
+if(CP2K_USE_AICS)
+  if(NOT BUILD_SHARED_LIBS)
+    message(
+      FATAL_ERROR
+        "CP2K_USE_AICS requires a shared CP2K build for the private Python runtime loader"
+    )
+  endif()
+  if(NOT UNIX OR APPLE)
+    message(
+      FATAL_ERROR
+        "CP2K_USE_AICS exact-path Python loading is currently supported only on validated POSIX/Linux builds"
+    )
+  endif()
+  find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Embed)
+  foreach(_aics_python_module IN ITEMS numpy mpi4py petsc4py)
+    if(_aics_python_module STREQUAL "mpi4py")
+      set(_aics_import_probe "import mpi4py\nfrom mpi4py import MPI")
+    elseif(_aics_python_module STREQUAL "petsc4py")
+      set(_aics_import_probe "import petsc4py\nfrom petsc4py import PETSc")
+    else()
+      set(_aics_import_probe "import ${_aics_python_module}")
+    endif()
+    execute_process(
+      COMMAND "${Python3_EXECUTABLE}" -c "${_aics_import_probe}"
+      RESULT_VARIABLE _aics_import_result
+      ERROR_VARIABLE _aics_import_error)
+    if(NOT _aics_import_result EQUAL 0)
+      string(STRIP "${_aics_import_error}" _aics_import_error)
+      message(
+        FATAL_ERROR
+          "CP2K_USE_AICS requires the Python module '${_aics_python_module}' "
+          "to be importable with the selected interpreter "
+          "'${Python3_EXECUTABLE}'.\n${_aics_import_error}")
+    endif()
+  endforeach()
+  include(GNUInstallDirs)
+  get_target_property(CP2K_CONFIGURED_PYTHON_LIBRARY Python3::Python
+                      IMPORTED_LOCATION)
+  if(NOT CP2K_CONFIGURED_PYTHON_LIBRARY)
+    get_target_property(CP2K_CONFIGURED_PYTHON_LIBRARY Python3::Python
+                        IMPORTED_LOCATION_RELEASE)
+  endif()
+  if(NOT CP2K_CONFIGURED_PYTHON_LIBRARY)
+    message(FATAL_ERROR "Cannot determine the Python3::Python library location")
+  endif()
+  if(NOT IS_ABSOLUTE "${CP2K_CONFIGURED_PYTHON_LIBRARY}"
+     OR NOT EXISTS "${CP2K_CONFIGURED_PYTHON_LIBRARY}"
+     OR NOT CP2K_CONFIGURED_PYTHON_LIBRARY MATCHES "\\.so(\\.|$)")
+    message(
+      FATAL_ERROR
+        "CP2K_USE_AICS requires an exact absolute shared libpython path")
+  endif()
+  set(CP2K_AICS_PYTHON_RELATIVE_DIR
+      "python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages")
+  set_property(
+    SOURCE aics_python_bridge.c aics_python_loader_posix.c
+    APPEND
+    PROPERTY
+      COMPILE_DEFINITIONS
+      CP2K_AICS_PYTHON_RELATIVE_DIR="${CP2K_AICS_PYTHON_RELATIVE_DIR}"
+      CP2K_CONFIGURED_PYTHON_EXECUTABLE="${Python3_EXECUTABLE}"
+      CP2K_CONFIGURED_PYTHON_LIBRARY="${CP2K_CONFIGURED_PYTHON_LIBRARY}"
+      CP2K_CONFIGURED_PYTHON_VERSION="${Python3_VERSION}"
+      CP2K_CONFIGURED_PYTHON_MAJOR_MINOR="${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}"
+  )
+  set(CP2K_AICS_PYTHON_SOURCE_DIR "${PROJECT_SOURCE_DIR}/python/cp2k_aics")
+  set(CP2K_AICS_PYTHON_BUILD_DIR
+      "${CMAKE_CURRENT_BINARY_DIR}/${CP2K_AICS_PYTHON_RELATIVE_DIR}/cp2k_aics")
+  file(
+    GLOB_RECURSE CP2K_AICS_PYTHON_SOURCES CONFIGURE_DEPENDS
+    RELATIVE "${CP2K_AICS_PYTHON_SOURCE_DIR}"
+    "${CP2K_AICS_PYTHON_SOURCE_DIR}/*.py")
+  set(CP2K_AICS_PYTHON_COPY_COMMANDS)
+  set(CP2K_AICS_PYTHON_DEPENDS)
+  foreach(_aics_python_source IN LISTS CP2K_AICS_PYTHON_SOURCES)
+    get_filename_component(_aics_python_subdir "${_aics_python_source}"
+                           DIRECTORY)
+    list(
+      APPEND
+      CP2K_AICS_PYTHON_COPY_COMMANDS
+      COMMAND
+      "${CMAKE_COMMAND}"
+      -E
+      make_directory
+      "${CP2K_AICS_PYTHON_BUILD_DIR}/${_aics_python_subdir}"
+      COMMAND
+      "${CMAKE_COMMAND}"
+      -E
+      copy_if_different
+      "${CP2K_AICS_PYTHON_SOURCE_DIR}/${_aics_python_source}"
+      "${CP2K_AICS_PYTHON_BUILD_DIR}/${_aics_python_source}")
+    list(APPEND CP2K_AICS_PYTHON_DEPENDS
+         "${CP2K_AICS_PYTHON_SOURCE_DIR}/${_aics_python_source}")
+  endforeach()
+  add_custom_target(
+    cp2k_aics_python_package ALL
+    COMMAND "${CMAKE_COMMAND}" -E remove_directory
+            "${CP2K_AICS_PYTHON_BUILD_DIR}" ${CP2K_AICS_PYTHON_COPY_COMMANDS}
+    DEPENDS ${CP2K_AICS_PYTHON_DEPENDS}
+    COMMENT "Copying the cp2k_aics Python package")
+
+  install(
+    DIRECTORY "${CP2K_AICS_PYTHON_SOURCE_DIR}/"
+    DESTINATION
+      "${CMAKE_INSTALL_LIBDIR}/${CP2K_AICS_PYTHON_RELATIVE_DIR}/cp2k_aics"
+    COMPONENT runtime
+    FILES_MATCHING
+    PATTERN "*.py")
+endif()
+
 # ##############################################################################
 # alias targets encapsulating cuda and hip libraries
 # ##############################################################################
@@ -1804,6 +1924,12 @@ include_directories(
 
 add_library(cp2k_link_libs INTERFACE)
 
+if(CP2K_USE_AICS)
+  target_include_directories(cp2k PRIVATE ${Python3_INCLUDE_DIRS})
+  target_link_libraries(cp2k PRIVATE ${CMAKE_DL_LIBS})
+  add_dependencies(cp2k cp2k_aics_python_package)
+endif()
+
 # the order is important so keep it that way
 target_link_libraries(
   cp2k_link_libs
@@ -1873,6 +1999,7 @@ target_compile_definitions(
   cp2k
   PUBLIC
     $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
+    $<$<BOOL:${CP2K_USE_AICS}>:__AICS>
     $<$<BOOL:${CP2K_USE_MPI_F08}>:__MPI_F08>
     __COMPILE_HOST=\"${CP2K_HOST_NAME}\"
     __DATA_DIR=\"${CP2K_DATA_DIR}\"
@@ -2033,6 +2160,12 @@ set_target_properties(
              POSITION_INDEPENDENT_CODE ON
              LINKER_LANGUAGE "Fortran"
              OUTPUT_NAME "cp2k.${__cp2k_ext}")
+
+if(CP2K_USE_AICS)
+  set_target_properties(
+    cp2k-bin PROPERTIES BUILD_RPATH "$<TARGET_FILE_DIR:cp2k>"
+                        INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+endif()
 
 target_link_libraries(cp2k-bin PRIVATE stdc++)
 target_link_libraries(cp2k-bin PUBLIC cp2k)

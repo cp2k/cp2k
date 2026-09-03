@@ -14,7 +14,8 @@ MODULE cp_control_types
                                               cp_fm_type
    USE eeq_input,                       ONLY: eeq_solver_type
    USE input_constants,                 ONLY: &
-        do_full_density, rtp_bse_ham_gw, rtp_method_tddft, tblite_cli_born_kernel_auto, &
+        aics_interface_plane_ab, aics_poisson_solver_finite_difference, do_full_density, &
+        rtp_bse_ham_gw, rtp_method_tddft, tblite_cli_born_kernel_auto, &
         tblite_cli_solution_state_gsolv, tblite_cli_solvation_none, tblite_guess_ceh, &
         tblite_guess_sad, tblite_mixer_damping_default, tblite_mixer_iterations_default, &
         tblite_mixer_max_weight_default, tblite_mixer_min_weight_default, &
@@ -558,6 +559,25 @@ MODULE cp_control_types
    END TYPE qs_control_type
 
 ! **************************************************************************************************
+! \brief Control parameters for AICS
+! **************************************************************************************************
+   TYPE aics_control_type
+      LOGICAL                              :: enabled = .FALSE.
+      INTEGER, ALLOCATABLE                 :: upper_surface_atoms(:), &
+                                              lower_surface_atoms(:)
+      INTEGER                              :: interface_plane = aics_interface_plane_ab, &
+                                              poisson_solver = aics_poisson_solver_finite_difference, &
+                                              max_iterations = 100000
+      REAL(KIND=dp)                        :: relative_tolerance = 1.0e-10_dp, &
+                                              absolute_tolerance = 1.0e-12_dp, &
+                                              epsilon_dist_near(2) = 78.3_dp, &
+                                              sigma(2) = 1.5_dp, &
+                                              d0(2) = 5.0_dp, &
+                                              alpha(2) = 0.5_dp, &
+                                              beta(2) = 2.0_dp
+   END TYPE aics_control_type
+
+! **************************************************************************************************
 ! \brief Control parameters for the SCCS models
 ! **************************************************************************************************
    TYPE sccs_control_type
@@ -566,6 +586,7 @@ MODULE cp_control_types
       INTEGER                              :: derivative_method = 0, &
                                               max_iter = 0, &
                                               method_id = 0
+      TYPE(aics_control_type)              :: aics
       REAL(KIND=dp)                        :: alpha_solvent = 0.0_dp, &
                                               beta = 0.0_dp, &
                                               beta_solvent = 0.0_dp, &

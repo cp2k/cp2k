@@ -13,8 +13,10 @@ MODULE gce_methods
 
    USE cp_control_types,                ONLY: dft_control_type,&
                                               pcc_control_type
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
+   USE physcon,                         ONLY: angstrom
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_integrate_function,&
                                               pw_scale,&
@@ -88,7 +90,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'planar_averaged_v_hartree_3d'
 
-      INTEGER                                            :: a, b, c, handle, x, y, z
+      INTEGER                                            :: a, b, c, handle, output_unit, x, y, z
       REAL(KIND=dp)                                      :: my_ref_esp, ngrids_in_plane
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: profile, profile_local
 
@@ -170,6 +172,17 @@ CONTAINS
 
          CALL para_env%sum(profile(:))
          profile(:) = profile(:)/ngrids_in_plane
+
+         output_unit = cp_logger_get_default_io_unit()
+         IF (output_unit > 0) THEN
+            WRITE (unit=output_unit, fmt='(A,2A24)') &
+               "PLANAR_AVERAGED_V_HARTREE|", "Position [angstrom]", "V_HARTREE [hartree]"
+            DO z = v_rspace%pw_grid%bounds(1, c), v_rspace%pw_grid%bounds(2, c)
+               WRITE (unit=output_unit, fmt='(A,2F24.12)') &
+                  "PLANAR_AVERAGED_V_HARTREE|", &
+                  REAL(z, dp)*v_rspace%pw_grid%dr(c)*angstrom, profile(z)
+            END DO
+         END IF
 
          DEALLOCATE (profile)
 

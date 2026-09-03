@@ -10,11 +10,11 @@
 ! **************************************************************************************************
 MODULE cp_control_utils
    USE bibliography,                    ONLY: &
-        Andreussi2012, Andreussi2019, Chai2025a, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, &
-        Grimme2017, Hu2007, Katbashev2025, Krack2000, Lippert1997, Lippert1999, Porezag1995, &
-        Pracht2019, Repasky2002, Rocha2006, Schenter2008, Seifert1996, Souza2002, Stengel2009, &
-        Stewart1989, Stewart2007, Thiel1992, Umari2002, VanVoorhis2015, VandeVondele2005a, &
-        VandeVondele2005b, Yin2017, Zhechkov2005, cite_reference
+        Andreussi2012, Andreussi2019, Chai2025a, Chai2025b, Dewar1977, Dewar1985, Elstner1998, &
+        Fattebert2002, Grimme2017, Hu2007, Katbashev2025, Krack2000, Lippert1997, Lippert1999, &
+        Porezag1995, Pracht2019, Repasky2002, Rocha2006, Schenter2008, Seifert1996, Souza2002, &
+        Stengel2009, Stewart1989, Stewart2007, Thiel1992, Umari2002, VanVoorhis2015, &
+        VandeVondele2005a, VandeVondele2005b, Yin2017, Zhechkov2005, cite_reference
    USE cell_types,                      ONLY: cell_transform_input_cartesian,&
                                               cell_type
    USE cp_control_types,                ONLY: &
@@ -39,8 +39,10 @@ MODULE cp_control_utils
    USE eeq_input,                       ONLY: read_eeq_param
    USE force_fields_input,              ONLY: read_gp_section
    USE input_constants,                 ONLY: &
-        admm1_type, admm2_type, admmp_type, admmq_type, admms_type, constant_env, custom_env, &
-        do_admm_aux_exch_func_bee, do_admm_aux_exch_func_bee_libxc, do_admm_aux_exch_func_default, &
+        admm1_type, admm2_type, admmp_type, admmq_type, admms_type, aics_interface_plane_ab, &
+        aics_interface_plane_bc, aics_interface_plane_ca, aics_poisson_solver_finite_difference, &
+        aics_poisson_solver_finite_element, constant_env, custom_env, do_admm_aux_exch_func_bee, &
+        do_admm_aux_exch_func_bee_libxc, do_admm_aux_exch_func_default, &
         do_admm_aux_exch_func_default_libxc, do_admm_aux_exch_func_none, &
         do_admm_aux_exch_func_opt, do_admm_aux_exch_func_opt_libxc, do_admm_aux_exch_func_pbex, &
         do_admm_aux_exch_func_pbex_libxc, do_admm_aux_exch_func_sx_libxc, &
@@ -55,12 +57,12 @@ MODULE cp_control_utils
         do_method_rm1, do_method_xtb, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, &
         do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
         do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
-        gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, gapw_1c_very_large, &
-        gaussian_env, gfn1xtb, gfn_tblite, kg_tnadd_embed, kg_tnadd_embed_ri, no_admm_type, &
-        numerical, ramp_env, real_time_propagation, rtp_method_bse, rtp_method_bse_linearized, &
-        sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
-        sccs_derivative_fft, sccs_fattebert_gygi, sccs_saa_andreussi, sic_ad, sic_eo, &
-        sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
+        do_stress_none, gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, &
+        gapw_1c_very_large, gaussian_env, gfn1xtb, gfn_tblite, kg_tnadd_embed, kg_tnadd_embed_ri, &
+        no_admm_type, numerical, ramp_env, real_time_propagation, rtp_method_bse, &
+        rtp_method_bse_linearized, sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, &
+        sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, sccs_saa_andreussi, sic_ad, &
+        sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, slater, &
         tblite_cli_born_kernel_auto, tblite_cli_solution_state_gsolv, tblite_cli_solvation_alpb, &
         tblite_cli_solvation_cpcm, tblite_cli_solvation_gb, tblite_cli_solvation_gbe, &
         tblite_cli_solvation_gbsa, tblite_guess_ceh, tblite_mixer_memory_inherit, &
@@ -80,6 +82,7 @@ MODULE cp_control_utils
                                               default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: fourpi
+   USE mathlib,                         ONLY: abnormal_value
    USE pair_potential_types,            ONLY: pair_potential_reallocate
    USE periodic_table,                  ONLY: get_ptable_info
    USE qs_cdft_utils,                   ONLY: read_cdft_control_section
@@ -114,24 +117,32 @@ CONTAINS
 !> \brief ...
 !> \param dft_control ...
 !> \param dft_section ...
+!> \param force_eval_section ...
 !> \param cell ...
 ! **************************************************************************************************
-   SUBROUTINE read_dft_control(dft_control, dft_section, cell)
+   SUBROUTINE read_dft_control(dft_control, dft_section, force_eval_section, cell)
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(section_vals_type), POINTER                   :: dft_section
+      TYPE(section_vals_type), POINTER                   :: dft_section, force_eval_section
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
+
+      REAL(KIND=dp), PARAMETER                           :: aics_rhotol = 1.0E-12_dp
 
       CHARACTER(len=default_path_length)                 :: basis_set_file_name, gauxc_model_name, &
                                                             intensities_file_name, &
                                                             potential_file_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
-      INTEGER                                            :: admmtype, irep, isize, kg_tnadd_method, &
-                                                            method_id, nrep, xc_deriv_method_id
+      INTEGER                                            :: admmtype, i, irep, isize, j, &
+                                                            kg_tnadd_method, method_id, nrep, &
+                                                            stress_tensor, xc_deriv_method_id
+      INTEGER, DIMENSION(:), POINTER                     :: aics_lower_surface_atoms, &
+                                                            aics_upper_surface_atoms
       LOGICAL :: at_end, do_hfx, do_ot, do_rpa_admm, do_rtp, exopt1, exopt2, exopt3, explicit, &
-         is_present, l_param, local_moment_possible, native_skala_grid, not_SE, was_present
+         is_present, l_param, local_moment_possible, lower_surface_present, native_skala_grid, &
+         not_SE, upper_surface_present, was_present
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: aics_alpha, aics_beta, aics_d0, &
+                                                            aics_epsilon_dist_near, aics_sigma, pol
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_parser_type)                               :: parser
       TYPE(section_vals_type), POINTER :: hairy_probes_section, hfx_section, kg_xc_fun_section, &
@@ -751,6 +762,173 @@ CONTAINS
                                       i_val=dft_control%sccs_control%max_iter)
             CALL section_vals_val_get(sccs_section, "MIXING", &
                                       r_val=dft_control%sccs_control%mixing)
+            tmp_section => section_vals_get_subs_vals(sccs_section, "AICS")
+            CALL section_vals_val_get(tmp_section, "_SECTION_PARAMETERS_", &
+                                      l_val=dft_control%sccs_control%aics%enabled)
+            IF (dft_control%sccs_control%aics%enabled) THEN
+               CALL section_vals_val_get(force_eval_section, "STRESS_TENSOR", i_val=stress_tensor)
+               IF (stress_tensor /= do_stress_none) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "AICS currently supports only FORCE_EVAL%STRESS_TENSOR NONE.")
+               END IF
+            END IF
+            CALL section_vals_val_get(tmp_section, "UPPER_SURFACE_ATOMS", &
+                                      explicit=upper_surface_present)
+            CALL section_vals_val_get(tmp_section, "LOWER_SURFACE_ATOMS", &
+                                      explicit=lower_surface_present)
+            IF (dft_control%sccs_control%aics%enabled) THEN
+               IF (.NOT. upper_surface_present) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "DFT%SCCS%AICS%UPPER_SURFACE_ATOMS is mandatory and must be nonempty.")
+               END IF
+               IF (.NOT. lower_surface_present) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "DFT%SCCS%AICS%LOWER_SURFACE_ATOMS is mandatory and must be nonempty.")
+               END IF
+               CALL section_vals_val_get(tmp_section, "UPPER_SURFACE_ATOMS", &
+                                         i_vals=aics_upper_surface_atoms)
+               CALL section_vals_val_get(tmp_section, "LOWER_SURFACE_ATOMS", &
+                                         i_vals=aics_lower_surface_atoms)
+               IF (SIZE(aics_upper_surface_atoms) == 0) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "DFT%SCCS%AICS%UPPER_SURFACE_ATOMS is mandatory and must be nonempty.")
+               END IF
+               IF (SIZE(aics_lower_surface_atoms) == 0) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "DFT%SCCS%AICS%LOWER_SURFACE_ATOMS is mandatory and must be nonempty.")
+               END IF
+               IF (ANY(aics_upper_surface_atoms < 1)) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "DFT%SCCS%AICS%UPPER_SURFACE_ATOMS contains an atom index below 1.")
+               END IF
+               IF (ANY(aics_lower_surface_atoms < 1)) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "DFT%SCCS%AICS%LOWER_SURFACE_ATOMS contains an atom index below 1.")
+               END IF
+               DO i = 1, SIZE(aics_upper_surface_atoms)
+                  IF (ANY(aics_upper_surface_atoms(i + 1:) == aics_upper_surface_atoms(i))) THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "DFT%SCCS%AICS%UPPER_SURFACE_ATOMS contains a duplicate atom index.")
+                  END IF
+               END DO
+               DO i = 1, SIZE(aics_lower_surface_atoms)
+                  IF (ANY(aics_lower_surface_atoms(i + 1:) == aics_lower_surface_atoms(i))) THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "DFT%SCCS%AICS%LOWER_SURFACE_ATOMS contains a duplicate atom index.")
+                  END IF
+               END DO
+               DO i = 1, SIZE(aics_upper_surface_atoms)
+                  DO j = 1, SIZE(aics_lower_surface_atoms)
+                     IF (aics_upper_surface_atoms(i) == aics_lower_surface_atoms(j)) THEN
+                        CALL cp_abort(__LOCATION__, &
+                                      "DFT%SCCS%AICS%UPPER_SURFACE_ATOMS and "// &
+                                      "DFT%SCCS%AICS%LOWER_SURFACE_ATOMS must be disjoint.")
+                     END IF
+                  END DO
+               END DO
+               dft_control%sccs_control%aics%upper_surface_atoms = aics_upper_surface_atoms
+               dft_control%sccs_control%aics%lower_surface_atoms = aics_lower_surface_atoms
+            END IF
+            IF (dft_control%sccs_control%aics%enabled .AND. .NOT. ALL(cell%perd == 1)) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Both current AICS backends support only three-dimensional XYZ "// &
+                             "periodic boundary conditions; set SUBSYS%CELL%PERIODIC XYZ.")
+            END IF
+            IF (dft_control%sccs_control%aics%enabled .AND. &
+                ((ABS(dft_control%sccs_control%alpha_solvent) > 0.0_dp) .OR. &
+                 (ABS(dft_control%sccs_control%beta_solvent) > 0.0_dp) .OR. &
+                 (ABS(dft_control%sccs_control%gamma_solvent) > 0.0_dp))) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "AICS supports only the ANDREUSSI electrostatic/polarization contribution. "// &
+                             "Top-level SCCS ALPHA, BETA, and GAMMA must be zero; these controls are "// &
+                             "distinct from SCCS%AICS%ALPHA and SCCS%AICS%BETA.")
+            END IF
+            CALL section_vals_val_get(tmp_section, "POISSON_SOLVER", &
+                                      i_val=dft_control%sccs_control%aics%poisson_solver)
+            CALL section_vals_val_get(tmp_section, "INTERFACE_PLANE", &
+                                      i_val=dft_control%sccs_control%aics%interface_plane)
+            CALL section_vals_val_get(tmp_section, "EPSILON_DIST_NEAR", r_vals=aics_epsilon_dist_near)
+            CALL section_vals_val_get(tmp_section, "SIGMA", &
+                                      r_vals=aics_sigma)
+            CALL section_vals_val_get(tmp_section, "D0", r_vals=aics_d0)
+            CALL section_vals_val_get(tmp_section, "ALPHA", &
+                                      r_vals=aics_alpha)
+            CALL section_vals_val_get(tmp_section, "BETA", &
+                                      r_vals=aics_beta)
+            tmp_section => section_vals_get_subs_vals(tmp_section, "LINEAR_SOLVER")
+            CALL section_vals_val_get(tmp_section, "EPS_REL", &
+                                      r_val=dft_control%sccs_control%aics%relative_tolerance)
+            CALL section_vals_val_get(tmp_section, "EPS_ABS", &
+                                      r_val=dft_control%sccs_control%aics%absolute_tolerance)
+            CALL section_vals_val_get(tmp_section, "MAX_ITER", &
+                                      i_val=dft_control%sccs_control%aics%max_iterations)
+            IF (dft_control%sccs_control%aics%enabled) THEN
+               IF (abnormal_value(aics_epsilon_dist_near(1)) .OR. &
+                   abnormal_value(aics_epsilon_dist_near(2))) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "DFT%SCCS%AICS%EPSILON_DIST_NEAR values must be finite.")
+               END IF
+               IF (abnormal_value(aics_sigma(1)) .OR. abnormal_value(aics_sigma(2))) THEN
+                  CALL cp_abort(__LOCATION__, "DFT%SCCS%AICS%SIGMA values must be finite.")
+               END IF
+               IF (abnormal_value(aics_d0(1)) .OR. abnormal_value(aics_d0(2))) THEN
+                  CALL cp_abort(__LOCATION__, "DFT%SCCS%AICS%D0 values must be finite.")
+               END IF
+               IF (abnormal_value(aics_alpha(1)) .OR. abnormal_value(aics_alpha(2))) THEN
+                  CALL cp_abort(__LOCATION__, "DFT%SCCS%AICS%ALPHA values must be finite.")
+               END IF
+               IF (abnormal_value(aics_beta(1)) .OR. abnormal_value(aics_beta(2))) THEN
+                  CALL cp_abort(__LOCATION__, "DFT%SCCS%AICS%BETA values must be finite.")
+               END IF
+               IF (abnormal_value(dft_control%sccs_control%aics%relative_tolerance)) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "DFT%SCCS%AICS%LINEAR_SOLVER%EPS_REL must be finite.")
+               END IF
+               IF (abnormal_value(dft_control%sccs_control%aics%absolute_tolerance)) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "DFT%SCCS%AICS%LINEAR_SOLVER%EPS_ABS must be finite.")
+               END IF
+               IF (ANY(aics_epsilon_dist_near <= 0.0_dp)) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "DFT%SCCS%AICS%EPSILON_DIST_NEAR values must be positive.")
+               END IF
+               IF (ANY(aics_sigma <= 0.0_dp)) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "DFT%SCCS%AICS%SIGMA values must be strictly positive.")
+               END IF
+               IF (ANY(ABS(aics_alpha) >= 1.0_dp)) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "DFT%SCCS%AICS%ALPHA values must satisfy ABS(ALPHA) < 1.")
+               END IF
+            END IF
+            IF (dft_control%sccs_control%aics%relative_tolerance <= 0.0_dp) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "DFT%SCCS%AICS%LINEAR_SOLVER%EPS_REL must be positive.")
+            END IF
+            IF (dft_control%sccs_control%aics%absolute_tolerance < 0.0_dp) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "DFT%SCCS%AICS%LINEAR_SOLVER%EPS_ABS must be non-negative.")
+            END IF
+            IF (dft_control%sccs_control%aics%max_iterations <= 0) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "DFT%SCCS%AICS%LINEAR_SOLVER%MAX_ITER must be positive.")
+            END IF
+            dft_control%sccs_control%aics%epsilon_dist_near = aics_epsilon_dist_near
+            dft_control%sccs_control%aics%sigma = aics_sigma
+            dft_control%sccs_control%aics%d0 = aics_d0
+            dft_control%sccs_control%aics%alpha = aics_alpha
+            dft_control%sccs_control%aics%beta = aics_beta
+            IF (dft_control%sccs_control%aics%enabled) CALL cite_reference(Chai2025b)
+            IF (dft_control%sccs_control%aics%enabled .AND. &
+                dft_control%sccs_control%method_id /= sccs_andreussi) THEN
+               CALL cp_abort(__LOCATION__, "AICS requires SCCS METHOD ANDREUSSI.")
+            END IF
+#if !defined(__AICS)
+            IF (dft_control%sccs_control%aics%enabled) THEN
+               CALL cp_abort(__LOCATION__, "AICS support is not available in this CP2K build. "// &
+                             "Rebuild with CP2K_USE_AICS=ON.")
+            END IF
+#endif
             SELECT CASE (dft_control%sccs_control%method_id)
             CASE (sccs_andreussi)
                tmp_section => section_vals_get_subs_vals(sccs_section, "ANDREUSSI")
@@ -758,6 +936,26 @@ CONTAINS
                                          r_val=dft_control%sccs_control%rho_max)
                CALL section_vals_val_get(tmp_section, "RHO_MIN", &
                                          r_val=dft_control%sccs_control%rho_min)
+               IF (dft_control%sccs_control%aics%enabled) THEN
+                  IF (abnormal_value(dft_control%sccs_control%rho_max)) THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "DFT%SCCS%ANDREUSSI%RHO_MAX must be finite when AICS is enabled.")
+                  END IF
+                  IF (abnormal_value(dft_control%sccs_control%rho_min)) THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "DFT%SCCS%ANDREUSSI%RHO_MIN must be finite when AICS is enabled.")
+                  END IF
+                  IF (dft_control%sccs_control%rho_min < aics_rhotol) THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "DFT%SCCS%ANDREUSSI%RHO_MIN must be at least 1.0E-12 when AICS is enabled.")
+                  END IF
+                  IF (dft_control%sccs_control%rho_max - dft_control%sccs_control%rho_min < &
+                      SQRT(aics_rhotol)) THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "DFT%SCCS%ANDREUSSI%RHO_MAX - DFT%SCCS%ANDREUSSI%RHO_MIN "// &
+                                   "must be at least 1.0E-6 when AICS is enabled.")
+                  END IF
+               END IF
                IF (dft_control%sccs_control%rho_max < dft_control%sccs_control%rho_min) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "The SCCS parameter RHO_MAX is smaller than RHO_MIN. "// &
@@ -832,6 +1030,22 @@ CONTAINS
                                       r_val=dft_control%pcc_control%gau_c)
             CALL section_vals_val_get(tmp_section, "PARALLEL_PLANE", &
                                       i_val=dft_control%pcc_control%surf_normal)
+            IF (dft_control%do_sccs .AND. dft_control%sccs_control%aics%enabled) THEN
+               SELECT CASE (dft_control%sccs_control%aics%interface_plane)
+               CASE (aics_interface_plane_ab)
+                  IF (dft_control%pcc_control%surf_normal /= 3) THEN
+                     CPABORT("AICS INTERFACE_PLANE AB requires PCC PARALLEL_PLANE XY.")
+                  END IF
+               CASE (aics_interface_plane_bc)
+                  IF (dft_control%pcc_control%surf_normal /= 1) THEN
+                     CPABORT("AICS INTERFACE_PLANE BC requires PCC PARALLEL_PLANE YZ.")
+                  END IF
+               CASE (aics_interface_plane_ca)
+                  IF (dft_control%pcc_control%surf_normal /= 2) THEN
+                     CPABORT("AICS INTERFACE_PLANE CA requires PCC PARALLEL_PLANE XZ.")
+                  END IF
+               END SELECT
+            END IF
          END IF
       END IF
 
@@ -2409,10 +2623,12 @@ CONTAINS
 !> \brief Write the DFT control parameters to the output unit.
 !> \param dft_control ...
 !> \param dft_section ...
+!> \param aics_unit_normal ...
 ! **************************************************************************************************
-   SUBROUTINE write_dft_control(dft_control, dft_section)
+   SUBROUTINE write_dft_control(dft_control, dft_section, aics_unit_normal)
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: dft_section
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: aics_unit_normal
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'write_dft_control'
 
@@ -2671,6 +2887,62 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.6)") &
                "SCCS| Numerical increment for the cavity surface calculation", &
                dft_control%sccs_control%delta_rho
+            IF (dft_control%sccs_control%aics%enabled) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+                  "AICS| Anisotropic interface continuum solvation model"
+               SELECT CASE (dft_control%sccs_control%aics%interface_plane)
+               CASE (aics_interface_plane_ab)
+                  WRITE (UNIT=output_unit, FMT="(T2,A,T76,A5)") &
+                     "AICS| Interface plane (cell vectors)", ADJUSTR("AB")
+               CASE (aics_interface_plane_bc)
+                  WRITE (UNIT=output_unit, FMT="(T2,A,T76,A5)") &
+                     "AICS| Interface plane (cell vectors)", ADJUSTR("BC")
+               CASE (aics_interface_plane_ca)
+                  WRITE (UNIT=output_unit, FMT="(T2,A,T76,A5)") &
+                     "AICS| Interface plane (cell vectors)", ADJUSTR("CA")
+               END SELECT
+               IF (PRESENT(aics_unit_normal)) THEN
+                  WRITE (UNIT=output_unit, FMT="(T2,A,T51,3F10.3)") &
+                     "AICS| Interface normal (Cartesian)", aics_unit_normal
+               END IF
+               SELECT CASE (dft_control%sccs_control%aics%poisson_solver)
+               CASE (aics_poisson_solver_finite_difference)
+                  WRITE (UNIT=output_unit, FMT="(T2,A,T61,A20)") &
+                     "AICS| Poisson solver", ADJUSTR("FINITE_DIFFERENCE")
+               CASE (aics_poisson_solver_finite_element)
+                  WRITE (UNIT=output_unit, FMT="(T2,A,T61,A20)") &
+                     "AICS| Poisson solver", ADJUSTR("FINITE_ELEMENT")
+               END SELECT
+               WRITE (UNIT=output_unit, FMT="(T2,A,T51,A30)") &
+                  "AICS| Parameter order", ADJUSTR("parallel, perpendicular")
+               WRITE (UNIT=output_unit, FMT="(T2,A,T61,I20)") &
+                  "AICS| Upper surface reference atoms", &
+                  SIZE(dft_control%sccs_control%aics%upper_surface_atoms), &
+                  "AICS| Lower surface reference atoms", &
+                  SIZE(dft_control%sccs_control%aics%lower_surface_atoms)
+               WRITE (UNIT=output_unit, FMT="(T2,A,T51,2ES15.6)") &
+                  "AICS| Relative permittivity near interface", &
+                  dft_control%sccs_control%aics%epsilon_dist_near, &
+                  "AICS| SIGMA [angstrom]", &
+                  cp_unit_from_cp2k(dft_control%sccs_control%aics%sigma(1), "angstrom"), &
+                  cp_unit_from_cp2k(dft_control%sccs_control%aics%sigma(2), "angstrom"), &
+                  "AICS| D0 [angstrom]", &
+                  cp_unit_from_cp2k(dft_control%sccs_control%aics%d0(1), "angstrom"), &
+                  cp_unit_from_cp2k(dft_control%sccs_control%aics%d0(2), "angstrom"), &
+                  "AICS| ALPHA", &
+                  dft_control%sccs_control%aics%alpha, &
+                  "AICS| BETA [angstrom^-1]", &
+                  cp_unit_from_cp2k(dft_control%sccs_control%aics%beta(1), "angstrom^-1"), &
+                  cp_unit_from_cp2k(dft_control%sccs_control%aics%beta(2), "angstrom^-1")
+               WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.6)") &
+                  "AICS| Linear solver EPS_REL", &
+                  dft_control%sccs_control%aics%relative_tolerance, &
+                  "AICS| Linear solver EPS_ABS", &
+                  dft_control%sccs_control%aics%absolute_tolerance
+               WRITE (UNIT=output_unit, FMT="(T2,A,T61,I20)") &
+                  "AICS| Linear solver MAX_ITER", &
+                  dft_control%sccs_control%aics%max_iterations
+            END IF
          END IF
 
          WRITE (UNIT=output_unit, FMT="(A)") ""
