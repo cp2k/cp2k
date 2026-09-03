@@ -2,7 +2,6 @@
   PRINT_LEVEL low
   PROJECT au-2x2x3-bulk
   RUN_TYPE energy
-  #EXTENDED_FFT_LENGTHS .true.
 &END GLOBAL
 
 &FORCE_EVAL

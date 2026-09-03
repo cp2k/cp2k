@@ -18,8 +18,7 @@ MODULE kpoint_lattice_fft
                                               fft3d,&
                                               fft_alloc,&
                                               fft_dealloc,&
-                                              fft_radix_operations,&
-                                              fft_type
+                                              fft_radix_operations
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gaussi,&
                                               twopi,&
@@ -164,7 +163,7 @@ CONTAINS
       regular = regular_kpoint_grid(xkp, nkp_grid, grid_index, k_offset)
       n = nkp_grid
       nfft = n
-      IF (regular .AND. fft_type /= 3) THEN
+      IF (regular) THEN
          DO d = 1, 3
             ! FFTSG rejects some short or non-radix lengths.  Embed the N-point
             ! transform in a supported integer multiple L: real-space samples

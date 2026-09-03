@@ -33,7 +33,7 @@ PROGRAM kpoint_lattice_fft_unittest
    TYPE(mp_comm_type)                                  :: mp_comm
 
    CALL mp_world_init(mp_comm)
-   CALL init_fft("FFTSG", alltoall=.FALSE., fftsg_sizes=.TRUE., pool_limit=4, &
+   CALL init_fft("FFTSG", alltoall=.FALSE., pool_limit=4, &
                  wisdom_file="", plan_style=1)
 
    nkp_grid = [4, 4, 4]

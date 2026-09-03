@@ -1,5 +1,4 @@
 &GLOBAL
-  EXTENDED_FFT_LENGTHS .true.
   PRINT_LEVEL low
   PROJECT au-h2-au-1x1x1-1V-forces
   RUN_TYPE energy_force

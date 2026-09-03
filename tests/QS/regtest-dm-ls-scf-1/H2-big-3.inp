@@ -64,7 +64,6 @@
   PRINT_LEVEL MEDIUM
   PROJECT H2-big-3
   RUN_TYPE ENERGY
-  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
   ! TRACE
   ! TRACE_MASTER
   ! TRACE_MAX 1000

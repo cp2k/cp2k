@@ -21,7 +21,6 @@
 @SET ly             6.0
 !---------------------------------------------------------------------------------------------------
 &GLOBAL
-  EXTENDED_FFT_LENGTHS .true.
   PREFERRED_DIAG_LIBRARY SL
   PRINT_LEVEL LOW  #SILENT #LOW #MEDIUM #HIGH #DEBUG
   PROJECT ${Project}

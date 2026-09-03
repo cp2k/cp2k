@@ -238,7 +238,7 @@ CONTAINS
       CALL section_vals_val_get(root_section, "FORCE_EVAL%METHOD", i_val=method_name_id)
 
       IF (prog_name_id /= do_cp2k) THEN
-         ! initial setup (cp2k does in in the creation of the force_env)
+         ! initial setup (cp2k does it in the creation of the force_env)
          CALL globenv_create(globenv)
          CALL section_vals_retain(input_file)
          CALL cp2k_init(para_env, output_unit, globenv, input_file_name=input_file_name)

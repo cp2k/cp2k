@@ -77,7 +77,6 @@
   &TIMINGS
     THRESHOLD 0.000001
   &END TIMINGS
-  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
   ! TRACE
   ! TRACE_MAX 1000
 &END GLOBAL

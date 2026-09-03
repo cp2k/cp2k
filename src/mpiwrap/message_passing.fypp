@@ -585,6 +585,50 @@
    END SUBROUTINE mp_alltoall_${nametype1}$54
 
 ! **************************************************************************************************
+!> \brief All-to-all data exchange, rank-4 data to rank-3 data
+!> \param sb ...
+!> \param rb ...
+!> \param count ...
+!> \param comm ...
+!> \note see mp_alltoall_${nametype1}$
+!> \note User must ensure size consistency.
+! **************************************************************************************************
+   SUBROUTINE mp_alltoall_${nametype1}$43(sb, rb, count, comm)
+
+      ${type1}$, &
+         DIMENSION(:, :, :, :), CONTIGUOUS, INTENT(IN)   :: sb
+      ${type1}$, DIMENSION(:, :, :), CONTIGUOUS, &
+         INTENT(OUT)                            :: rb
+      INTEGER, INTENT(IN)                      :: count
+      CLASS(mp_comm_type), INTENT(IN) :: comm
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'mp_alltoall_${nametype1}$54'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      INTEGER                                  :: ierr, msglen, np
+#endif
+
+      CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+      CALL mpi_alltoall(sb, count, ${mpi_type1}$, &
+                        rb, count, ${mpi_type1}$, comm%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_alltoall @ "//routineN)
+      CALL mpi_comm_size(comm%handle, np, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_size @ "//routineN)
+      msglen = 2*count*np
+      CALL add_perf(perf_id=6, count=1, msg_size=msglen*${bytes1}$)
+#else
+      MARK_USED(count)
+      MARK_USED(comm)
+      rb = RESHAPE(sb, SHAPE(rb))
+#endif
+      CALL mp_timestop(handle)
+
+   END SUBROUTINE mp_alltoall_${nametype1}$43
+
+! **************************************************************************************************
 !> \brief Send one datum to another process
 !> \param[in] msg             Scalar to send
 !> \param[in] dest            Destination process
