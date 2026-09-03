@@ -113,6 +113,9 @@ CONTAINS
 #if defined(__LIBXC)
       flags = TRIM(flags)//" libxc"
 #endif
+#if defined(__AICS)
+      flags = TRIM(flags)//" aics"
+#endif
 #if defined(__GAUXC)
       flags = TRIM(flags)//" gauxc"
 #endif

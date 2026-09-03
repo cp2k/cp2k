@@ -119,6 +119,10 @@ option(CP2K_USE_EVERYTHING
        OFF)
 
 option(CP2K_USE_ACE "Enable ACE support" ${CP2K_USE_EVERYTHING})
+# AICS embeds a private Python runtime and requires MPI/shared POSIX builds plus
+# a coherent external Python/PETSc stack, so it remains explicitly opt-in.
+option(CP2K_USE_AICS "Enable the Python-based AICS implicit-solvent feature"
+       OFF)
 option(CP2K_USE_DEEPMD "Enable DeePMD support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_DFTD4 "Enable DFTD4 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TBLITE "Enable TBLITE support" ${CP2K_USE_EVERYTHING})
@@ -145,6 +149,10 @@ option(
   "MKL has its own compatible implementation of the FFTW3 library. This option, when ON, will use the separate and original FFTW3 library."
   OFF)
 option(CP2K_USE_DBCSR_CONFIG "Return DBCSR cmake configuration parameters" OFF)
+
+if(CP2K_USE_AICS AND NOT CP2K_USE_MPI)
+  message(FATAL_ERROR "CP2K_USE_AICS requires CP2K_USE_MPI=ON")
+endif()
 
 # MPI-enabled options
 cmake_dependent_option(CP2K_USE_COSMA "Enable COSMA support"

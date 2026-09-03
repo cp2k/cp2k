@@ -186,6 +186,7 @@ MODULE qs_environment
    USE qs_rho0_types,                   ONLY: rho0_mpole_type
    USE qs_rho_atom_methods,             ONLY: init_rho_atom
    USE qs_rho_atom_types,               ONLY: rho_atom_type
+   USE qs_sccs,                         ONLY: get_aics_interface_normal
    USE qs_subsys_methods,               ONLY: qs_subsys_create
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_set,&
@@ -505,7 +506,11 @@ CONTAINS
       CALL qs_init_subsys(qs_env, para_env, subsys, my_cell, my_cell_ref, use_ref_cell, &
                           subsys_section, silent=silent, multip=multip, charge=charge)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control, do_kpoints=do_kpoints)
+      IF (dft_control%sccs_control%aics%enabled .AND. do_kpoints) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "AICS currently supports Gamma-point calculations only; remove DFT%KPOINTS.")
+      END IF
       IF (owned_kpoints) THEN
          do_dftb_scc_high_l = .FALSE.
          IF (method_id == do_method_dftb .AND. do_dftb_scc) THEN
@@ -1020,6 +1025,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, ccore, ewald_rcut, fxx, maxocc, &
                                                             rc, rcut, total_zeff_corr, &
                                                             verlet_skin, zeff_correction
+      REAL(KIND=dp), DIMENSION(3)                        :: aics_unit_normal
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1102,7 +1108,7 @@ CONTAINS
                          molecule_kind_set=molecule_kind_set)
 
       ! Read the input section with the DFT control parameters
-      CALL read_dft_control(dft_control, dft_section, cell)
+      CALL read_dft_control(dft_control, dft_section, qs_env%input, cell)
 
       ! Set periodicity flag
       dft_control%qs_control%periodicity = SUM(cell%perd)
@@ -2409,7 +2415,13 @@ CONTAINS
          IF (PRESENT(multip)) THEN
             dft_control%multiplicity = multiplicity
          END IF
-         CALL write_dft_control(dft_control, dft_section)
+         IF (dft_control%sccs_control%aics%enabled) THEN
+            CALL get_aics_interface_normal(cell, dft_control%sccs_control%aics%interface_plane, &
+                                           aics_unit_normal)
+            CALL write_dft_control(dft_control, dft_section, aics_unit_normal)
+         ELSE
+            CALL write_dft_control(dft_control, dft_section)
+         END IF
 
          ! Print the vdW control parameters
          IF (dft_control%qs_control%method_id == do_method_gpw .OR. &

@@ -16,8 +16,8 @@ MODULE input_cp2k_dft
                                               basis_sort_zet
    USE bibliography,                    ONLY: &
         Andermatt2016, Andreussi2012, Andreussi2019, Avezac2005, Bengtsson1999, Blochl1995, &
-        Brelaz1979, Chai2024a, Chai2025a, Fattebert2002, Guidon2010, Iannuzzi2006, Kunert2003, &
-        Marek2025, Merlot2014, Perdew1981, VandeVondele2005b, Yin2017
+        Brelaz1979, Chai2024a, Chai2025a, Chai2025b, Fattebert2002, Guidon2010, Iannuzzi2006, &
+        Kunert2003, Marek2025, Merlot2014, Perdew1981, VandeVondele2005b, Yin2017
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level,&
@@ -28,7 +28,9 @@ MODULE input_cp2k_dft
                                               spline3_pbc_interp
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
-        admm1_type, admm2_type, admmp_type, admmq_type, admms_type, do_admm_aux_exch_func_bee, &
+        admm1_type, admm2_type, admmp_type, admmq_type, admms_type, aics_interface_plane_ab, &
+        aics_interface_plane_bc, aics_interface_plane_ca, aics_poisson_solver_finite_difference, &
+        aics_poisson_solver_finite_element, do_admm_aux_exch_func_bee, &
         do_admm_aux_exch_func_bee_libxc, do_admm_aux_exch_func_default, &
         do_admm_aux_exch_func_default_libxc, do_admm_aux_exch_func_none, &
         do_admm_aux_exch_func_opt, do_admm_aux_exch_func_opt_libxc, do_admm_aux_exch_func_pbex, &
@@ -2380,7 +2382,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
+      TYPE(section_type), POINTER                        :: linear_solver_section, subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
@@ -2388,8 +2390,8 @@ CONTAINS
                           name="SCCS", &
                           description="Define the parameters for self-consistent continuum solvation (SCCS) model", &
                           citations=[Fattebert2002, Andreussi2012, Yin2017], &
-                          n_keywords=8, &
-                          n_subsections=3, &
+                          n_keywords=9, &
+                          n_subsections=4, &
                           repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -2548,6 +2550,164 @@ CONTAINS
       CALL keyword_release(keyword)
 
       NULLIFY (subsection)
+
+      CALL section_create(subsection, __LOCATION__, &
+                          name="AICS", &
+                          description="Configures the anisotropic interface continuum solvation (AICS) model, "// &
+                          "which allows different dielectric responses parallel and perpendicular "// &
+                          "to a planar interface. For every two-value directional keyword, the first "// &
+                          "value applies parallel to the interface and the second perpendicular to it. "// &
+                          "AICS requires a fully periodic, axis-aligned orthorhombic cell and currently "// &
+                          "supports Gamma-point calculations only.", &
+                          citations=[Chai2025b], &
+                          n_keywords=10, &
+                          n_subsections=1, &
+                          repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Enables the AICS model. AICS requires SCCS METHOD ANDREUSSI.", &
+                          usage="&AICS ON", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="INTERFACE_PLANE", &
+                          description="Selects the cell plane parallel to the interface. AB, BC, and CA are "// &
+                          "spanned by the corresponding cell vectors; their normals are along z, x, "// &
+                          "and y, respectively, for a supported cell.", &
+                          default_i_val=aics_interface_plane_ab, &
+                          enum_c_vals=s2a("AB", "BC", "CA"), &
+                          enum_i_vals=[aics_interface_plane_ab, aics_interface_plane_bc, &
+                                       aics_interface_plane_ca])
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="UPPER_SURFACE_ATOMS", &
+                          description="Lists the atoms defining the upper reference surface. Use global CP2K atom "// &
+                          "numbers starting from 1. The surface position is their average position "// &
+                          "along the interface normal. The list must be nonempty and must not overlap "// &
+                          "with LOWER_SURFACE_ATOMS.", &
+                          repeats=.FALSE., n_var=-1, type_of_var=integer_t, &
+                          usage="UPPER_SURFACE_ATOMS 5 6")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="LOWER_SURFACE_ATOMS", &
+                          description="Lists the atoms defining the lower reference surface. Use global CP2K atom "// &
+                          "numbers starting from 1. The surface position is their average position "// &
+                          "along the interface normal. The list must be nonempty and must not overlap "// &
+                          "with UPPER_SURFACE_ATOMS.", &
+                          repeats=.FALSE., n_var=-1, type_of_var=integer_t, &
+                          usage="LOWER_SURFACE_ATOMS 1 2")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="POISSON_SOLVER", &
+                          description="Selects the solver for the anisotropic Poisson equation. FINITE_DIFFERENCE "// &
+                          "uses PETSc; FINITE_ELEMENT uses DOLFINx and PETSc.", &
+                          usage="POISSON_SOLVER (FINITE_DIFFERENCE|FINITE_ELEMENT)", &
+                          default_i_val=aics_poisson_solver_finite_difference, &
+                          enum_c_vals=s2a("FINITE_DIFFERENCE", "FINITE_ELEMENT"), &
+                          enum_i_vals=[aics_poisson_solver_finite_difference, &
+                                       aics_poisson_solver_finite_element], &
+                          enum_desc=s2a("Periodic finite-difference solver using PETSc", &
+                                        "Periodic finite-element solver using DOLFINx and PETSc"))
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="EPSILON_DIST_NEAR", &
+                          description="Relative permittivities near the interface. Both values must be finite and "// &
+                          "positive.", &
+                          repeats=.FALSE., n_var=2, type_of_var=real_t, default_r_val=78.3_dp, &
+                          usage="EPSILON_DIST_NEAR 78.3 78.3")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="SIGMA", &
+                          description="Widths of the dielectric transition, in angstrom. Both values must be finite "// &
+                          "and strictly positive.", &
+                          repeats=.FALSE., n_var=2, type_of_var=real_t, &
+                          default_r_vals=[cp_unit_to_cp2k(1.5_dp, "angstrom"), &
+                                          cp_unit_to_cp2k(1.5_dp, "angstrom")], &
+                          unit_str="angstrom", usage="SIGMA 1.5 1.5")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="D0", &
+                          description="Characteristic midpoint positions of the dielectric transition, in angstrom.", &
+                          repeats=.FALSE., n_var=2, type_of_var=real_t, &
+                          default_r_vals=[cp_unit_to_cp2k(5.0_dp, "angstrom"), &
+                                          cp_unit_to_cp2k(5.0_dp, "angstrom")], &
+                          unit_str="angstrom", usage="D0 5.0 5.0")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="ALPHA", &
+                          description="Dimensionless asymmetry of the distance mapping. Each value must satisfy "// &
+                          "ABS(ALPHA) < 1.", &
+                          repeats=.FALSE., n_var=2, type_of_var=real_t, default_r_val=0.5_dp, &
+                          usage="ALPHA 0.5 0.5")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="BETA", &
+                          description="Controls how rapidly the distance mapping changes, in inverse angstrom.", &
+                          repeats=.FALSE., n_var=2, type_of_var=real_t, &
+                          default_r_vals=[cp_unit_to_cp2k(2.0_dp, "angstrom^-1"), &
+                                          cp_unit_to_cp2k(2.0_dp, "angstrom^-1")], &
+                          unit_str="angstrom^-1", usage="BETA 2.0 2.0")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY (linear_solver_section)
+      CALL section_create(linear_solver_section, __LOCATION__, &
+                          name="LINEAR_SOLVER", &
+                          description="Controls convergence of the iterative AICS Poisson solver.", &
+                          n_keywords=3, &
+                          n_subsections=0, &
+                          repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="EPS_REL", &
+                          description="Relative convergence tolerance of the iterative Poisson solver. Must be positive.", &
+                          repeats=.FALSE., n_var=1, type_of_var=real_t, default_r_val=1.0e-10_dp, &
+                          usage="EPS_REL 1.0E-10")
+      CALL section_add_keyword(linear_solver_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="EPS_ABS", &
+                          description="Absolute convergence tolerance of the iterative Poisson solver. "// &
+                          "Must be non-negative.", &
+                          repeats=.FALSE., n_var=1, type_of_var=real_t, default_r_val=1.0e-12_dp, &
+                          usage="EPS_ABS 1.0E-12")
+      CALL section_add_keyword(linear_solver_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="MAX_ITER", &
+                          description="Maximum number of iterations allowed for the AICS Poisson solver. Must be positive.", &
+                          repeats=.FALSE., n_var=1, type_of_var=integer_t, default_i_val=100000, &
+                          usage="MAX_ITER 100000")
+      CALL section_add_keyword(linear_solver_section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(subsection, linear_solver_section)
+      CALL section_release(linear_solver_section)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
       CALL section_create(subsection, __LOCATION__, &
                           name="ANDREUSSI", &

@@ -18,6 +18,9 @@
 !> \author fawzi & Johanna
 ! **************************************************************************************************
 MODULE f77_interface
+   USE ISO_C_BINDING,                   ONLY: C_INT
+   USE aics_interface,                  ONLY: cp2k_aics_get_last_error_from_fortran,&
+                                              cp2k_python_finalize_from_fortran
    USE base_hooks,                      ONLY: cp_abort_hook,&
                                               cp_warn_hook,&
                                               timeset_hook,&
@@ -341,7 +344,9 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: finalize_mpi
       INTEGER, INTENT(out)                               :: ierr
 
+      CHARACTER(LEN=1023)                                :: aics_error
       INTEGER                                            :: ienv
+      INTEGER(C_INT)                                     :: python_status
       TYPE(cp_gauxc_status_type)                         :: gauxc_status
 
 !sample peak memory
@@ -375,6 +380,15 @@ CONTAINS
          ! Finalize DLA-Future and pika runtime; if already finalized does nothing
          CALL cp_dlaf_free_all_grids()
          CALL cp_dlaf_finalize()
+
+         CALL cp2k_python_finalize_from_fortran(python_status)
+         IF (python_status /= 0_C_INT) THEN
+            CALL cp2k_aics_get_last_error_from_fortran(aics_error)
+            IF (LEN_TRIM(aics_error) == 0) THEN
+               aics_error = "CP2K-AICS Python runtime finalization failed."
+            END IF
+            CPABORT(TRIM(aics_error))
+         END IF
 
          CALL mp_para_env_release(default_para_env)
          CALL cp_rm_default_logger()

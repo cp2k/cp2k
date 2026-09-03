@@ -136,7 +136,8 @@ MODULE qs_ks_methods
    USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_sccs,                         ONLY: sccs
+   USE qs_sccs,                         ONLY: sccs,&
+                                              sccs_aics
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom,&
                                               gapw_cdft_one_center
@@ -437,6 +438,14 @@ CONTAINS
          CALL pw_zero(v_hartree_gspace)
       END IF
 
+      IF (dft_control%do_sccs .AND. dft_control%sccs_control%aics%enabled .AND. &
+          (.NOT. qs_env%scf_control%gce%do_gce) .AND. dft_control%charge /= 0 .AND. &
+          (.NOT. dft_control%do_pcc)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Charged AICS calculations require DFT%PLANAR_COUNTER_CHARGE. "// &
+                       "AICS does not support an implicit uniform-background charged model.")
+      END IF
+
       ! Get the total density in g-space [ions + electrons]
       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
 
@@ -462,14 +471,25 @@ CONTAINS
          IF (poisson_env%parameters%solver == pw_poisson_implicit) THEN
             CPABORT("The implicit Poisson solver cannot be used together with SCCS.")
          END IF
-
-         IF (use_virial .AND. calculate_forces) THEN
-            CALL sccs(qs_env, rho_tot_gspace, v_hartree_gspace, v_sccs_rspace, &
-                      h_stress=h_stress)
-            virial%pv_ehartree = virial%pv_ehartree + h_stress/REAL(para_env%num_pe, dp)
-            virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
+         IF (.NOT. dft_control%sccs_control%aics%enabled) THEN
+            IF (use_virial .AND. calculate_forces) THEN
+               CALL sccs(qs_env, rho_tot_gspace, v_hartree_gspace, v_sccs_rspace, &
+                         h_stress=h_stress)
+               virial%pv_ehartree = virial%pv_ehartree + h_stress/REAL(para_env%num_pe, dp)
+               virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
+            ELSE
+               CALL sccs(qs_env, rho_tot_gspace, v_hartree_gspace, v_sccs_rspace)
+            END IF
          ELSE
-            CALL sccs(qs_env, rho_tot_gspace, v_hartree_gspace, v_sccs_rspace)
+            IF (use_virial .AND. calculate_forces) THEN
+               CALL sccs_aics(qs_env, rho_tot_gspace, v_hartree_gspace, v_sccs_rspace, &
+                              calculate_forces=calculate_forces, h_stress=h_stress)
+               virial%pv_ehartree = virial%pv_ehartree + h_stress/REAL(para_env%num_pe, dp)
+               virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
+            ELSE
+               CALL sccs_aics(qs_env, rho_tot_gspace, v_hartree_gspace, v_sccs_rspace, &
+                              calculate_forces=calculate_forces)
+            END IF
          END IF
       ELSE
          ! Getting the Hartree energy and Hartree potential.  Also getting the stress tensor
