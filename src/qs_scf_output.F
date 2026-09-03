@@ -382,7 +382,7 @@ CONTAINS
                      ! Prepare printout of the additional unoccupied MOs when OT is being employed
                      CALL cp_fm_init_random(umo_coeff)
 
-                     ! The FULL_ALL preconditioner makes not much sense for the unoccupied orbitals
+                     ! FULL_ALL has column-dependent occupied-state weights and cannot be reused here.
                      NULLIFY (local_preconditioner)
                      IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
                         local_preconditioner => scf_env%ot_preconditioner(1)%preconditioner

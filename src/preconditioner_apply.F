@@ -35,10 +35,12 @@ MODULE preconditioner_apply
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE input_constants,                 ONLY: &
-        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_s_inverse, ot_precond_solver_chebyshev, &
-        ot_precond_solver_direct, ot_precond_solver_inv_chol, ot_precond_solver_update
+        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_s_inverse, &
+        ot_precond_solver_chebyshev, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
+        ot_precond_solver_update
    USE kinds,                           ONLY: dp
+   USE low_rank_preconditioner_model,   ONLY: low_rank_inverse_weight
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -79,6 +81,8 @@ CONTAINS
          CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_full_all)
          CALL apply_full_all(preconditioner_env, matrix_in, matrix_out)
+      CASE (ot_precond_fermi_low_rank)
+         CALL apply_low_rank_fm(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_full_kinetic, ot_precond_full_single_inverse, ot_precond_s_inverse)
          SELECT CASE (preconditioner_env%solver)
          CASE (ot_precond_solver_inv_chol, ot_precond_solver_update)
@@ -122,6 +126,8 @@ CONTAINS
          CALL apply_single(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_full_all)
          CALL apply_all(preconditioner_env, matrix_in, matrix_out)
+      CASE (ot_precond_fermi_low_rank)
+         CALL apply_low_rank_dbcsr(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_full_kinetic, ot_precond_full_single_inverse, ot_precond_s_inverse)
          SELECT CASE (preconditioner_env%solver)
          CASE (ot_precond_solver_inv_chol, ot_precond_solver_update)
@@ -435,6 +441,150 @@ CONTAINS
       CALL dbcsr_release(direction)
 
    END SUBROUTINE apply_chebyshev_dbcsr
+
+! **************************************************************************************************
+!> \brief Applies the overlap-inverse base and a bounded low-rank spectral correction.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_low_rank_fm(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_low_rank_fm'
+
+      INTEGER                                            :: handle, i, j, k, n, ncol_local, nocc, &
+                                                            nrow_local, rank_used
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: correction
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
+      TYPE(cp_fm_type)                                   :: matrix_tmp
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(preconditioner_env%base_fm))
+      CPASSERT(ASSOCIATED(preconditioner_env%fm))
+      CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
+      CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
+
+      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
+      nocc = SIZE(preconditioner_env%occ_evals)
+      CPASSERT(n == SIZE(preconditioner_env%full_evals))
+      rank_used = MIN(preconditioner_env%spectral_rank, n - nocc)
+
+      ! Since V V^T = S^-1, replace the remote spectral weights by 1/window:
+      ! P = S^-1/window + V_r diag(1/max(gap, epsilon_a-mu) - 1/window) V_r^T.
+      ! The common reference mu makes the operator right-covariant for any number
+      ! of orbital columns. Retained and base directions all have positive weights.
+      CALL parallel_gemm('N', 'N', n, k, n, preconditioner_env%spectral_base_scale, &
+                         preconditioner_env%base_fm, matrix_in, 0.0_dp, matrix_out)
+
+      IF (rank_used > 0) THEN
+         CALL cp_fm_create(matrix_tmp, matrix_in%matrix_struct, name=routineN, &
+                           nrow=rank_used, ncol=k)
+         CALL cp_fm_get_info(matrix_tmp, nrow_local=nrow_local, ncol_local=ncol_local, &
+                             row_indices=row_indices, col_indices=col_indices, local_data=local_data)
+
+         CALL parallel_gemm('T', 'N', rank_used, k, n, 1.0_dp, preconditioner_env%fm, &
+                            matrix_in, 0.0_dp, matrix_tmp, a_first_col=nocc + 1)
+
+         DO j = 1, ncol_local
+            DO i = 1, nrow_local
+               correction = low_rank_inverse_weight( &
+                            preconditioner_env%full_evals(nocc + row_indices(i)), &
+                            preconditioner_env%spectral_reference, &
+                            preconditioner_env%energy_gap) &
+                            - preconditioner_env%spectral_base_scale
+               local_data(i, j) = local_data(i, j)*correction
+            END DO
+         END DO
+
+         CALL parallel_gemm('N', 'N', n, k, rank_used, 1.0_dp, preconditioner_env%fm, &
+                            matrix_tmp, 1.0_dp, matrix_out, a_first_col=nocc + 1)
+         CALL cp_fm_release(matrix_tmp)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_low_rank_fm
+
+! **************************************************************************************************
+!> \brief DBCSR variant of the bounded low-rank spectral correction.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_low_rank_dbcsr(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_low_rank_dbcsr'
+
+      INTEGER                                            :: col, col_offset, col_size, handle, i, j, &
+                                                            k, n, nocc, rank_used, row, &
+                                                            row_offset, row_size
+      REAL(KIND=dp)                                      :: correction
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: DATA
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_type)                                   :: matrix_tmp
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(preconditioner_env%base_dbcsr_matrix))
+      CPASSERT(ASSOCIATED(preconditioner_env%dbcsr_matrix))
+      CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
+      CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
+
+      CALL dbcsr_get_info(matrix_in, nfullrows_total=n, nfullcols_total=k)
+      nocc = SIZE(preconditioner_env%occ_evals)
+      CPASSERT(n == SIZE(preconditioner_env%full_evals))
+      rank_used = MIN(preconditioner_env%spectral_rank, n - nocc)
+
+      ! DBCSR form of the same overlap-inverse base plus positive low-rank update.
+      CALL dbcsr_multiply('N', 'N', preconditioner_env%spectral_base_scale, &
+                          preconditioner_env%base_dbcsr_matrix, matrix_in, 0.0_dp, matrix_out)
+
+      IF (rank_used > 0) THEN
+         CALL dbcsr_copy(matrix_tmp, matrix_in, name=routineN)
+         CALL dbcsr_set(matrix_tmp, 0.0_dp)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, preconditioner_env%dbcsr_matrix, &
+                             matrix_in, 0.0_dp, matrix_tmp, &
+                             first_row=nocc + 1, last_row=nocc + rank_used)
+
+         CALL dbcsr_iterator_start(iter, matrix_tmp)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row, col, DATA, &
+                                           row_size=row_size, col_size=col_size, &
+                                           row_offset=row_offset, col_offset=col_offset)
+            DO j = 1, col_size
+               DO i = 1, row_size
+                  IF (row_offset + i - 1 >= nocc + 1 .AND. &
+                      row_offset + i - 1 <= nocc + rank_used) THEN
+                     correction = low_rank_inverse_weight( &
+                                  preconditioner_env%full_evals(row_offset + i - 1), &
+                                  preconditioner_env%spectral_reference, &
+                                  preconditioner_env%energy_gap) &
+                                  - preconditioner_env%spectral_base_scale
+                     DATA(i, j) = DATA(i, j)*correction
+                  END IF
+               END DO
+            END DO
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, preconditioner_env%dbcsr_matrix, &
+                             matrix_tmp, 1.0_dp, matrix_out, &
+                             first_k=nocc + 1, last_k=nocc + rank_used)
+         CALL dbcsr_release(matrix_tmp)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_low_rank_dbcsr
 
 ! **************************************************************************************************
 !> \brief full all to a full matrix
