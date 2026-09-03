@@ -20,9 +20,17 @@ MODULE integral_library_types
    INTEGER, PARAMETER, PUBLIC :: library_native = 0, &
                                  library_libint = 1
 
+#if defined(__LIBINT)
+   INTEGER, PARAMETER, PUBLIC :: default_coulomb_library = library_libint
+   LOGICAL, PARAMETER         :: libint_available = .TRUE.
+#else
+   INTEGER, PARAMETER, PUBLIC :: default_coulomb_library = library_native
+   LOGICAL, PARAMETER         :: libint_available = .FALSE.
+#endif
+
    TYPE, PUBLIC :: integral_library_type
-      INTEGER :: coulomb2_library = library_native
-      INTEGER :: coulomb3_library = library_native
+      INTEGER :: coulomb2_library = default_coulomb_library
+      INTEGER :: coulomb3_library = default_coulomb_library
    END TYPE integral_library_type
 
    TYPE, PUBLIC :: coulomb_operator_type
@@ -35,5 +43,36 @@ MODULE integral_library_types
    END TYPE coulomb_operator_type
 
    TYPE(integral_library_type), SAVE, PUBLIC :: active_integral_library = integral_library_type()
+
+   PUBLIC :: integral_library_init
+
+CONTAINS
+
+! **************************************************************************************************
+!> \brief Resolves requested Coulomb integral libraries against the compiled-in backends.
+!> \param coulomb2_library requested two-center Coulomb integral library
+!> \param coulomb3_library requested three-center Coulomb integral library
+!> \param fallback_applied whether an unavailable Libint request was replaced by the native backend
+! **************************************************************************************************
+   SUBROUTINE integral_library_init(coulomb2_library, coulomb3_library, fallback_applied)
+      INTEGER, INTENT(IN)                                :: coulomb2_library, coulomb3_library
+      LOGICAL, INTENT(OUT)                               :: fallback_applied
+
+      active_integral_library%coulomb2_library = coulomb2_library
+      active_integral_library%coulomb3_library = coulomb3_library
+      fallback_applied = .FALSE.
+
+      IF (.NOT. libint_available) THEN
+         IF (active_integral_library%coulomb2_library == library_libint) THEN
+            active_integral_library%coulomb2_library = library_native
+            fallback_applied = .TRUE.
+         END IF
+         IF (active_integral_library%coulomb3_library == library_libint) THEN
+            active_integral_library%coulomb3_library = library_native
+            fallback_applied = .TRUE.
+         END IF
+      END IF
+
+   END SUBROUTINE integral_library_init
 
 END MODULE integral_library_types

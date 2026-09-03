@@ -71,7 +71,8 @@ MODULE input_cp2k_global
    USE input_val_types,                 ONLY: char_t,&
                                               integer_t,&
                                               logical_t
-   USE integral_library_types,          ONLY: library_libint,&
+   USE integral_library_types,          ONLY: default_coulomb_library,&
+                                              library_libint,&
                                               library_native
    USE kinds,                           ONLY: dp
    USE string_utilities,                ONLY: s2a
@@ -298,24 +299,26 @@ CONTAINS
                           n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="COULOMB_2C", &
-                          description="Library used for two-center Coulomb integrals (Coulomb_2c).", &
-                          usage="COULOMB_2C NATIVE", &
+                          description="Preferred library for two-center Coulomb integrals (Coulomb_2c). "// &
+                          "Libint is used by default when available; otherwise the native implementation is used.", &
+                          usage="COULOMB_2C LIBINT", &
                           enum_c_vals=s2a("NATIVE", "LIBINT"), &
                           enum_i_vals=[library_native, library_libint], &
                           enum_desc=s2a("Use CP2K's native implementation.", &
                                         "Use the Libint implementation."), &
-                          default_i_val=library_native)
+                          default_i_val=default_coulomb_library)
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="COULOMB_3C", &
-                          description="Library used for three-center Coulomb integrals (Coulomb_3c).", &
-                          usage="COULOMB_3C NATIVE", &
+                          description="Preferred library for three-center Coulomb integrals (Coulomb_3c). "// &
+                          "Libint is used by default when available; otherwise the native implementation is used.", &
+                          usage="COULOMB_3C LIBINT", &
                           enum_c_vals=s2a("NATIVE", "LIBINT"), &
                           enum_i_vals=[library_native, library_libint], &
                           enum_desc=s2a("Use CP2K's native implementation.", &
                                         "Use the Libint implementation."), &
-                          default_i_val=library_native)
+                          default_i_val=default_coulomb_library)
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
