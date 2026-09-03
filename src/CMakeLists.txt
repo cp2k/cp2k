@@ -1277,7 +1277,6 @@ list(
   pw/ps_implicit_methods.F
   pw/ps_implicit_types.F
   pw/ps_wavelet_base.F
-  pw/ps_wavelet_fft3d.F
   pw/ps_wavelet_kernel.F
   pw/ps_wavelet_methods.F
   pw/ps_wavelet_scaling_function.F

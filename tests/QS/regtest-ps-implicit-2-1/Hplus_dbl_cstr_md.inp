@@ -2,7 +2,6 @@
   PRINT_LEVEL MEDIUM
   PROJECT Hplus_dbl_cstr_md
   RUN_TYPE MD
-  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
 &END GLOBAL
 
 &MOTION

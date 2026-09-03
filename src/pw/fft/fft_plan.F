@@ -26,10 +26,10 @@ MODULE fft_plan
 
    TYPE fft_plan_type
 
-      INTEGER                             :: fft_type = -1
       INTEGER                             :: fsign = 0
-      LOGICAL                             :: trans = .FALSE., fft_in_place = .FALSE., valid = .FALSE., separated_plans = .FALSE.
-      INTEGER                             :: n = -1, m = -1
+      LOGICAL                             :: trans_in = .FALSE., trans_out = .FALSE., fft_in_place = .FALSE., &
+                                             valid = .FALSE., separated_plans = .FALSE.
+      INTEGER                             :: n = -1, m = -1, ldx_in = -1, ldy_in = -1, ldx_out = -1, ldy_out = -1
       INTEGER, DIMENSION(3)               :: n_3d = -1
 
 !   Handle for the FFTW plan

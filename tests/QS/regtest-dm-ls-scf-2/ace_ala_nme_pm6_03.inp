@@ -4,7 +4,6 @@
   ! TRACE_MASTER FALSE
   ! TRACE
   RUN_TYPE ENERGY
-  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
 &END GLOBAL
 
 &FORCE_EVAL

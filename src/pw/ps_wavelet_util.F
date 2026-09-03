@@ -10,13 +10,13 @@
 !> \author Florian Schiffmann (09.2007,fschiff)
 ! **************************************************************************************************
 MODULE ps_wavelet_util
-
+   USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
+                                              fft_radix_operations
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi
    USE ps_wavelet_base,                 ONLY: f_poissonsolver,&
                                               p_poissonsolver,&
                                               s_poissonsolver
-   USE ps_wavelet_fft3d,                ONLY: fourier_dim
    USE pw_grid_types,                   ONLY: pw_grid_type
 #include "../base/base_uses.f90"
 
@@ -109,7 +109,6 @@ CONTAINS
       !array allocations
       ALLOCATE (zf(md1, md3, md2/nproc))
 
-      !  CALL timing(iproc,'Exchangecorr  ','ON')
       !dimension for exchange-correlation (different in the global or distributed case)
       !let us calculate the dimension of the portion of the rhopot array to be passed
       !to the xc routine
@@ -145,9 +144,6 @@ CONTAINS
          nlim = n2/2
       END IF
 
-      !!$  print *,'density must go from',min(istart+1,m2),'to',iend,'with n2/2=',n2/2
-      !!$  print *,'        it goes from',i3start+nwbl+nxcl-1,'to',i3start+nxc-1
-
       IF (istart + 1 <= m2) THEN
          red_fact = 1._dp
          CALL scale_and_distribute(m1, m3, md1, md2, md3, nxc, rhopot, zf, nproc, red_fact)
@@ -180,8 +176,6 @@ CONTAINS
                               scal, pw_grid%para%group)
          factor = 0.5_dp*hgrid**3
       END IF
-
-      !  call timing(iproc,'PSolv_comput  ','ON')
 
       !the value of the shift depends on the distributed i/o or not
       IF (geocode == 'F') THEN
@@ -253,20 +247,20 @@ CONTAINS
       l1 = m1
       l2 = m2
       l3 = m3 !beware of the half dimension
-      CALL fourier_dim(l1, n1)
+      ! Find suitable and fast radices (in principal, every radix is possible, but not every radix is reasonably fast)
+      CALL fft_radix_operations(l1, n1, FFT_RADIX_NEXT)
       IF (n1 == m1) THEN
       ELSE
          WRITE (err, *) 'the FFT in the x direction is not allowed; n01 dimension ', n01
          CPABORT(TRIM(err))
       END IF
-      l1 = l1 + 1
-      CALL fourier_dim(l2, n2)
+      CALL fft_radix_operations(l2, n2, FFT_RADIX_NEXT)
       IF (n2 == m2) THEN
       ELSE
          WRITE (err, *) 'the FFT in the z direction is not allowed; n03 dimension ', n03
          CPABORT(TRIM(err))
       END IF
-      CALL fourier_dim(l3, n3)
+      CALL fft_radix_operations(l3, n3, FFT_RADIX_NEXT)
       IF (n3 == m3) THEN
       ELSE
          WRITE (err, *) 'the FFT in the y direction is not allowed; n02 dimension ', n02
@@ -350,21 +344,21 @@ CONTAINS
       l1 = m1
       l2 = m2
       l3 = m3 !beware of the half dimension
-      CALL fourier_dim(l1, n1)
+      ! Find suitable and fast radices (in principal, every radix is possible, but not every radix is reasonably fast)
+      CALL fft_radix_operations(l1, n1, FFT_RADIX_NEXT)
       IF (n1 == m1) THEN
       ELSE
          WRITE (err, *) 'the FFT in the x direction is not allowed; n01 dimension', n01
          CPABORT(TRIM(err))
       END IF
-      l1 = l1 + 1
-      CALL fourier_dim(l2, n2)
+      CALL fft_radix_operations(l2, n2, FFT_RADIX_NEXT)
       IF (n2 == m2) THEN
       ELSE
          WRITE (err, *) 'the FFT in the z direction is not allowed; n03 dimension', n03
          CPABORT(TRIM(err))
       END IF
       DO
-         CALL fourier_dim(l3, n3)
+         CALL fft_radix_operations(l3, n3, FFT_RADIX_NEXT)
          IF (MODULO(n3, 2) == 0) THEN
             EXIT
          END IF
@@ -451,22 +445,23 @@ CONTAINS
       l1 = 2*m1
       l2 = 2*m2
       l3 = m3 !beware of the half dimension
+      ! Find suitable and fast radices (in principal, every radix is possible, but not every radix is reasonably fast)
       DO
-         CALL fourier_dim(l1, n1)
+         CALL fft_radix_operations(l1, n1, FFT_RADIX_NEXT)
          IF (MODULO(n1, 2) == 0) THEN
             EXIT
          END IF
          l1 = l1 + 1
       END DO
       DO
-         CALL fourier_dim(l2, n2)
+         CALL fft_radix_operations(l2, n2, FFT_RADIX_NEXT)
          IF (MODULO(n2, 2) == 0) THEN
             EXIT
          END IF
          l2 = l2 + 1
       END DO
       DO
-         CALL fourier_dim(l3, n3)
+         CALL fft_radix_operations(l3, n3, FFT_RADIX_NEXT)
          IF (MODULO(n3, 2) == 0) THEN
             EXIT
          END IF

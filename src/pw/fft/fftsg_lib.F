@@ -96,11 +96,11 @@ CONTAINS
 
          ALLOCATE (xf(nx*ny*nz), yf(nx*ny*nz))
 
-         CALL mltfftsg('N', 'T', zin, nx, ny*nz, xf, ny*nz, nx, nx, &
+         CALL mltfftsg(.FALSE., .TRUE., zin, nx, ny*nz, xf, ny*nz, nx, nx, &
                        ny*nz, fsign, 1.0_dp)
-         CALL mltfftsg('N', 'T', xf, ny, nx*nz, yf, nx*nz, ny, ny, &
+         CALL mltfftsg(.FALSE., .TRUE., xf, ny, nx*nz, yf, nx*nz, ny, ny, &
                        nx*nz, fsign, 1.0_dp)
-         CALL mltfftsg('N', 'T', yf, nz, ny*nx, zin, ny*nx, nz, nz, &
+         CALL mltfftsg(.FALSE., .TRUE., yf, nz, ny*nx, zin, ny*nx, nz, nz, &
                        ny*nx, fsign, scale)
 
          DEALLOCATE (xf, yf)
@@ -109,11 +109,11 @@ CONTAINS
 
          ALLOCATE (xf(nx*ny*nz))
 
-         CALL mltfftsg('N', 'T', zin, nx, ny*nz, zout, ny*nz, nx, nx, &
+         CALL mltfftsg(.FALSE., .TRUE., zin, nx, ny*nz, zout, ny*nz, nx, nx, &
                        ny*nz, fsign, 1.0_dp)
-         CALL mltfftsg('N', 'T', zout, ny, nx*nz, xf, nx*nz, ny, ny, &
+         CALL mltfftsg(.FALSE., .TRUE., zout, ny, nx*nz, xf, nx*nz, ny, ny, &
                        nx*nz, fsign, 1.0_dp)
-         CALL mltfftsg('N', 'T', xf, nz, ny*nx, zout, ny*nx, nz, nz, &
+         CALL mltfftsg(.FALSE., .TRUE., xf, nz, ny*nx, zout, ny*nx, nz, nz, &
                        ny*nx, fsign, scale)
 
          DEALLOCATE (xf)
@@ -125,33 +125,28 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param fsign ...
-!> \param trans ...
+!> \param trans_in ...
+!> \param trans_out ...
 !> \param n ...
 !> \param m ...
+!> \param ldx_in ...
+!> \param ldy_in ...
+!> \param ldx_out ...
+!> \param ldy_out ...
 !> \param zin ...
 !> \param zout ...
 !> \param scale ...
 ! **************************************************************************************************
-   SUBROUTINE fftsg1dm(fsign, trans, n, m, zin, zout, scale)
+   SUBROUTINE fftsg1dm(fsign, trans_in, trans_out, n, m, ldx_in, ldy_in, ldx_out, ldy_out, zin, zout, scale)
 
       INTEGER, INTENT(INOUT)                             :: fsign
-      LOGICAL, INTENT(IN)                                :: trans
-      INTEGER, INTENT(IN)                                :: n, m
+      LOGICAL, INTENT(IN)                                :: trans_in, trans_out
+      INTEGER, INTENT(IN)                                :: n, m, ldx_in, ldy_in, ldx_out, ldy_out
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(OUT)        :: zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
-!------------------------------------------------------------------------------
-
-      IF (trans) THEN
-         IF (fsign > 0) THEN
-            CALL mltfftsg("T", "N", zin, m, n, zout, n, m, n, m, fsign, scale)
-         ELSE
-            CALL mltfftsg("N", "T", zin, n, m, zout, m, n, n, m, fsign, scale)
-         END IF
-      ELSE
-         CALL mltfftsg("N", "N", zin, n, m, zout, n, m, n, m, fsign, scale)
-      END IF
+      CALL mltfftsg(trans_in, trans_out, zin, ldx_in, ldy_in, zout, ldx_out, ldy_out, n, m, fsign, scale)
 
    END SUBROUTINE fftsg1dm
 

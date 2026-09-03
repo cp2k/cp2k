@@ -42,7 +42,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mltfftsg(transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign, scale)
 
-      CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
+      LOGICAL, INTENT(IN)                                :: transa, transb
       INTEGER, INTENT(IN)                                :: ldax, lday
       COMPLEX(dp), INTENT(INOUT)                         :: a(ldax, lday)
       INTEGER, INTENT(IN)                                :: ldbx, ldby
@@ -92,7 +92,7 @@ CONTAINS
       DO ITR = istart, iend, LOT
 
          NFFT = MIN(M - ITR + 1, LOT)
-         IF (TRANSA == 'N' .OR. TRANSA == 'n') THEN
+         IF (.NOT. transa) THEN
             CALL fftpre_cmplx(NFFT, NFFT, LDAX, LOT, N, A(1, ITR), Z(1, 1, id), &
                               TRIG, NOW(1), AFTER(1), BEFORE(1), ISIG)
          ELSE
@@ -109,7 +109,7 @@ CONTAINS
             END IF
          END IF
          IF (IC == 1) THEN
-            IF (TRANSB == 'N' .OR. TRANSB == 'n') THEN
+            IF (.NOT. transb) THEN
                CALL zgetmo(Z(1, 1, id), LOT, NFFT, N, B(1, ITR), LDBX)
             ELSE
                CALL matmov(NFFT, N, Z(1, 1, id), LOT, B(ITR, 1), LDBX)
@@ -122,7 +122,7 @@ CONTAINS
                                  BEFORE(I), ISIG)
                INZEE = 3 - INZEE
             END DO
-            IF (TRANSB == 'N' .OR. TRANSB == 'n') THEN
+            IF (.NOT. transb) THEN
                CALL fftrot_cmplx(LOT, NFFT, N, NFFT, LDBX, Z(1, INZEE, id), &
                                  B(1, ITR), TRIG, NOW(IC), AFTER(IC), BEFORE(IC), ISIG)
             ELSE
@@ -136,7 +136,7 @@ CONTAINS
 
       DEALLOCATE (Z)
 
-      IF (TRANSB == 'N' .OR. TRANSB == 'n') THEN
+      IF (.NOT. transb) THEN
          B(1:LDBX, M + 1:LDBY) = CMPLX(0._dp, 0._dp, dp)
          B(N + 1:LDBX, 1:M) = CMPLX(0._dp, 0._dp, dp)
       ELSE
