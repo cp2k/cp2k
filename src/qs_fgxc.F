@@ -214,9 +214,10 @@ CONTAINS
             uf_pw_pool => auxbas_pw_pool
          END IF
 
-         ! only spinflip is activated !?
-         IF (.NOT. spinflip) THEN
-            CPABORT("Analytic 3rd EXC derivatives not available")
+         ! Analytic third derivatives cover the spin-flip case and, in the
+         ! reduced-gradient (gamma) formulation, the spin-restricted singlet one.
+         IF (.NOT. spinflip .AND. is_triplet) THEN
+            CPABORT("Analytic 3rd XC derivatives: no restricted triplets yet")
          END IF
          CALL qs_fgxc_analytic(rho0_uf, rho1_uf, xc_section, uf_pw_pool, weights_uf, &
                                is_triplet, spinflip, &
@@ -387,9 +388,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(rho0_struct))
       CPASSERT(ASSOCIATED(rho1_struct))
 
-      ! only tested for spinflip
       CPASSERT(.NOT. is_triplet)
-      CPASSERT(spinflip)
 
       ! Initialize parameters
       do_sf = spinflip
@@ -397,6 +396,12 @@ CONTAINS
       ! Get the values on the gridpoints of the rho0 density
       CALL qs_rho_get(rho0_struct, rho_r=rho0_r, rho_g=rho0_g, tau_r=tau0_r)
       nspins = SIZE(rho0_r)
+
+      ! Analytic third derivatives cover the spin-flip case and, in the
+      ! reduced-gradient (gamma) formulation, the spin-restricted singlet one.
+      IF (.NOT. (do_sf .OR. nspins == 1 .OR. nspins == 2)) THEN
+         CPABORT("Analytic 3rd XC derivatives: unsupported spin case")
+      END IF
       lsd = (nspins == 2)
       !
       IF (do_sf) THEN
