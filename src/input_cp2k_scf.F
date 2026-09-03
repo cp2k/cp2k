@@ -35,18 +35,18 @@ MODULE input_cp2k_scf
         jacobian_fd2_backward, ls_2pnt, ls_3pnt, ls_adapt, ls_gold, ls_none, mopac_guess, &
         no_guess, numerical, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, &
         ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_lbfgs, ot_mini_sd, ot_poly_irac, &
-        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        ot_precond_solver_chebyshev, ot_precond_solver_default, ot_precond_solver_direct, &
-        ot_precond_solver_inv_chol, ot_precond_solver_update, outer_scf_basis_center_opt, &
-        outer_scf_becke_constraint, outer_scf_cdft_constraint, outer_scf_ddapc_constraint, &
-        outer_scf_hirshfeld_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
-        outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
-        outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
-        outer_scf_optimizer_secant, outer_scf_s2_constraint, radius_covalent, radius_default, &
-        radius_single, radius_user, radius_vdw, random_guess, restart_guess, &
-        shape_function_density, shape_function_gaussian, smear_energy_window, smear_fermi_dirac, &
-        smear_gaussian, smear_list, smear_mp, smear_mv, sparse_guess
+        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
+        ot_precond_s_inverse, ot_precond_solver_chebyshev, ot_precond_solver_default, &
+        ot_precond_solver_direct, ot_precond_solver_inv_chol, ot_precond_solver_update, &
+        outer_scf_basis_center_opt, outer_scf_becke_constraint, outer_scf_cdft_constraint, &
+        outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, outer_scf_none, &
+        outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, outer_scf_optimizer_diis, &
+        outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, &
+        outer_scf_optimizer_sd, outer_scf_optimizer_secant, outer_scf_s2_constraint, &
+        radius_covalent, radius_default, radius_single, radius_user, radius_vdw, random_guess, &
+        restart_guess, shape_function_density, shape_function_gaussian, smear_energy_window, &
+        smear_fermi_dirac, smear_gaussian, smear_list, smear_mp, smear_mv, sparse_guess
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -856,12 +856,16 @@ CONTAINS
          "Properly preconditioned minimization can be orders of magnitude faster than doing nothing.", &
          usage="PRECONDITIONER FULL_ALL", &
          default_i_val=ot_precond_full_kinetic, &
-         enum_c_vals=s2a("FULL_ALL", "FULL_SINGLE_INVERSE", "FULL_SINGLE", "FULL_KINETIC", "FULL_S_INVERSE", &
-                         "NONE"), &
+         enum_c_vals=s2a("FULL_ALL", "FERMI_LOW_RANK", "FULL_SINGLE_INVERSE", "FULL_SINGLE", &
+                         "FULL_KINETIC", "FULL_S_INVERSE", "NONE"), &
          enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "// &
                        "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "// &
                        "This preconditioner is recommended for almost all systems, except very large systems where "// &
                        "make_preconditioner would dominate the total computational cost.", &
+                       "Experimental rotationally covariant bounded spectral preconditioner. It applies an "// &
+                       "overlap-inverse base plus at most 48 complementary-state corrections relative to a "// &
+                       "common occupied reference level. Construction currently retains a full diagonalization. "// &
+                       "Application can be cheaper when the complementary space is larger than the retained rank.", &
                        "Based on H-eS cholesky inversion, similar to FULL_SINGLE in preconditioning efficiency "// &
                        "but cheaper to construct, "// &
                        "might be somewhat less robust. Recommended for large systems.", &
@@ -870,8 +874,8 @@ CONTAINS
                        "use for very large systems.", &
                        "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.", &
                        "skip preconditioning"), &
-         enum_i_vals=[ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_full_single, &
-                      ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_none], &
+         enum_i_vals=[ot_precond_full_all, ot_precond_fermi_low_rank, ot_precond_full_single_inverse, &
+                      ot_precond_full_single, ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_none], &
          citations=[VandeVondele2003, Weber2008, Schiffmann2015])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

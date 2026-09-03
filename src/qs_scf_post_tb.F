@@ -1013,11 +1013,10 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_init_random(unoccupied_orbs(ispin), nlumos)
 
-         ! the full_all preconditioner makes not much sense for lumos search
+         ! FULL_ALL has column-dependent occupied-state weights and cannot be reused here.
          NULLIFY (local_preconditioner)
          IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
             local_preconditioner => scf_env%ot_preconditioner(1)%preconditioner
-            ! this one can for sure not be right (as it has to match a given C0)
             IF (local_preconditioner%in_use == ot_precond_full_all) THEN
                NULLIFY (local_preconditioner)
             END IF

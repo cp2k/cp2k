@@ -490,6 +490,7 @@ list(
   pme.F
   pme_tools.F
   population_analyses.F
+  low_rank_preconditioner_model.F
   preconditioner_apply.F
   preconditioner.F
   preconditioner_makes.F
@@ -1565,6 +1566,7 @@ set(CP2K_PROGS_F
     qs_ot_minimizer_unittest.F
     optbas_frontier_orbitals_utils_unittest.F
     rirs_grid_utils_unittest.F
+    low_rank_preconditioner_unittest.F
     qs_charge_mixing_unittest.F
     qs_ot_complex_ref_unittest.F
     subsys/cell_types_unittest.F
@@ -1979,6 +1981,7 @@ list(
   "qs_ot_minimizer_unittest"
   "optbas_frontier_orbitals_utils_unittest"
   "rirs_grid_utils_unittest"
+  "low_rank_preconditioner_unittest"
   "qs_charge_mixing_unittest"
   "qs_ot_complex_ref_unittest"
   "cell_types_unittest"
@@ -2010,6 +2013,8 @@ add_executable(qs_ot_minimizer_unittest qs_ot_minimizer_unittest.F)
 add_executable(optbas_frontier_orbitals_utils_unittest
                optbas_frontier_orbitals_utils_unittest.F)
 add_executable(rirs_grid_utils_unittest rirs_grid_utils_unittest.F)
+add_executable(low_rank_preconditioner_unittest
+               low_rank_preconditioner_unittest.F)
 add_executable(qs_charge_mixing_unittest qs_charge_mixing_unittest.F)
 add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F)
 add_executable(cell_types_unittest subsys/cell_types_unittest.F)
