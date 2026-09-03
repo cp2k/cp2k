@@ -23,7 +23,6 @@ MODULE qs_kp_evp_methods
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_types,                     ONLY: copy_info_type,&
-                                              cp_fm_cleanup_copy_general,&
                                               cp_fm_finish_copy_general,&
                                               cp_fm_start_copy_general,&
                                               cp_fm_type
@@ -171,8 +170,9 @@ CONTAINS
 
    END SUBROUTINE kp_evp_op_finish_cfm
 
-!> \brief Split a complex matrix into the real and imaginary MO sets and keep the
-!>        eigenvalues of both spin-imaginary sets in sync.
+! **************************************************************************************************
+!> \brief Split a complex matrix into the real and imaginary MO sets and copy
+!>        the eigenvalues to the imaginary set.
 !> \param cmat complex MO coefficients
 !> \param mo_re real part MO set
 !> \param mo_im imaginary part MO set
