@@ -23,6 +23,7 @@ MODULE preconditioner_types
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE input_constants,                 ONLY: cholesky_reduce,&
+                                              ot_low_rank_base_overlap,&
                                               ot_precond_solver_default
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_release,&
@@ -64,6 +65,11 @@ MODULE preconditioner_types
       INTEGER :: spectral_rank = 0
       REAL(KIND=dp) :: spectral_reference = 0.0_dp, spectral_window = 1.0_dp, &
                        spectral_base_scale = 1.0_dp
+      INTEGER :: low_rank_base = ot_low_rank_base_overlap
+      INTEGER, DIMENSION(3) :: lattice_dims = [1, 1, 1]
+      INTEGER :: lattice_block_size = 0
+      REAL(KIND=dp) :: lattice_projection_error = 0.0_dp
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: lattice_inverse_k
    END TYPE preconditioner_type
 
 ! **************************************************************************************************
@@ -124,6 +130,10 @@ CONTAINS
       preconditioner_env%spectral_reference = 0.0_dp
       preconditioner_env%spectral_window = 1.0_dp
       preconditioner_env%spectral_base_scale = 1.0_dp
+      preconditioner_env%low_rank_base = ot_low_rank_base_overlap
+      preconditioner_env%lattice_dims = [1, 1, 1]
+      preconditioner_env%lattice_block_size = 0
+      preconditioner_env%lattice_projection_error = 0.0_dp
       preconditioner_env%ihistory = 0
 
       CALL preconditioner_env%para_env%retain()
@@ -185,6 +195,9 @@ CONTAINS
       END IF
       IF (ASSOCIATED(preconditioner_env%full_evals)) THEN
          DEALLOCATE (preconditioner_env%full_evals)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_inverse_k)) THEN
+         DEALLOCATE (preconditioner_env%lattice_inverse_k)
       END IF
       IF (ASSOCIATED(preconditioner_env%inverse_history)) THEN
          DO i = 1, SIZE(preconditioner_env%inverse_history)

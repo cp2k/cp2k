@@ -9,7 +9,11 @@ PROGRAM kpoint_lattice_fft_unittest
                                               init_fft
    USE kinds,                           ONLY: dp
    USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
+                                              k_grid_to_cell_fft,&
                                               regular_kpoint_grid
+   USE lattice_low_rank_preconditioner, ONLY: apply_lattice_inverse_dense,&
+                                              build_lattice_inverse,&
+                                              lattice_grid
    USE mathconstants,                   ONLY: gaussi,&
                                               twopi,&
                                               z_zero
@@ -19,17 +23,31 @@ PROGRAM kpoint_lattice_fft_unittest
 
    IMPLICIT NONE
 
-   INTEGER, PARAMETER                                  :: ncell = 31, nkp = 64, nselected = 3
+   INTEGER, PARAMETER                                  :: base_block = 2, base_cell = 8, base_n = 16, &
+                                                          base_ncol = 3, ncell = 31, nkp = 64, &
+                                                          nround = 16, nselected = 3
+   COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)   :: inverse_k
    COMPLEX(KIND=dp), DIMENSION(2, 3, nkp)              :: direct, transformed
+   COMPLEX(KIND=dp), DIMENSION(2, 3, nround)           :: reconstructed, round_k
    COMPLEX(KIND=dp), DIMENSION(2, 3, nselected)         :: selected_transformed
-   INTEGER                                             :: d, icell, ik, ix, iy, iz
+   INTEGER                                             :: d, i, icell, info, j, jcell, ik, ix, iy, iz
+   INTEGER, DIMENSION(3)                               :: base_dims, delta
+   INTEGER, DIMENSION(3, base_cell)                    :: base_index
    INTEGER, DIMENSION(3)                               :: nkp_grid
    INTEGER, DIMENSION(3, ncell)                        :: index_to_cell
+   INTEGER, DIMENSION(3, nround)                       :: round_index
    INTEGER, DIMENSION(nselected)                       :: selected_kpoints
    LOGICAL                                             :: used_fft
    REAL(KIND=dp), DIMENSION(3, 3)                      :: hmat
+   REAL(KIND=dp)                                       :: imaginary_residual, projection_error
+   REAL(KIND=dp), DIMENSION(3, base_cell)              :: base_xkp
+   REAL(KIND=dp), DIMENSION(base_n, base_n)            :: base_overlap
+   REAL(KIND=dp), DIMENSION(base_n, base_ncol)          :: base_input, base_input_rotated, &
+                                                           base_output, base_output_rotated
+   REAL(KIND=dp), DIMENSION(base_ncol, base_ncol)       :: column_rotation
    REAL(KIND=dp), DIMENSION(3, nkp)                    :: xkp, xkp_bad
    REAL(KIND=dp), DIMENSION(2, 3, ncell)               :: values_rs
+   REAL(KIND=dp), DIMENSION(2, 3, nround)              :: round_rs
    TYPE(mp_comm_type)                                  :: mp_comm
 
    CALL mp_world_init(mp_comm)
@@ -103,6 +121,22 @@ PROGRAM kpoint_lattice_fft_unittest
       ERROR STOP "Padded lattice FFT differs from direct transform"
    END IF
 
+   icell = 0
+   DO iy = 0, nkp_grid(2) - 1
+      DO ix = 0, nkp_grid(1) - 1
+         icell = icell + 1
+         round_index(:, icell) = [ix, iy, 0]
+         round_rs(:, :, icell) = values_rs(:, :, icell)
+      END DO
+   END DO
+   CALL cell_to_k_grid_fft(round_rs, round_index, xkp(:, 1:ik), nkp_grid, round_k, used_fft)
+   IF (.NOT. used_fft) ERROR STOP "Round-trip forward transform did not use lattice FFT"
+   CALL k_grid_to_cell_fft(round_k, xkp(:, 1:ik), nkp_grid, round_index, reconstructed, used_fft)
+   IF (.NOT. used_fft) ERROR STOP "Round-trip inverse transform did not use lattice FFT"
+   IF (MAXVAL(ABS(reconstructed - CMPLX(round_rs, KIND=dp))) > 3.0E-12_dp) THEN
+      ERROR STOP "Forward/inverse lattice-FFT round trip is inconsistent"
+   END IF
+
    nkp_grid = [4, 4, 4]
 
    xkp_bad = xkp
@@ -113,6 +147,61 @@ PROGRAM kpoint_lattice_fft_unittest
    IF (MAXVAL(ABS(transformed - direct)) > 1.0E-14_dp) THEN
       ERROR STOP "Direct lattice-transform fallback is inconsistent"
    END IF
+
+   ! Verify the block-circulant inverse against direct matrix application and right covariance.
+   base_dims = [4, 2, 1]
+   CALL lattice_grid(base_dims, base_index, base_xkp)
+   base_overlap = 0.0_dp
+   DO jcell = 1, base_cell
+      DO icell = 1, base_cell
+         delta = MODULO(base_index(:, icell) - base_index(:, jcell), base_dims)
+         DO i = 1, base_block
+            IF (ALL(delta == 0)) THEN
+               base_overlap((icell - 1)*base_block + i, (jcell - 1)*base_block + i) = &
+                  2.8_dp + 0.2_dp*REAL(i, KIND=dp)
+            ELSE IF ((delta(1) == 1 .OR. delta(1) == base_dims(1) - 1) .AND. &
+                     delta(2) == 0) THEN
+               base_overlap((icell - 1)*base_block + i, (jcell - 1)*base_block + i) = -0.12_dp
+            ELSE IF (delta(1) == 0 .AND. delta(2) == 1) THEN
+               base_overlap((icell - 1)*base_block + i, (jcell - 1)*base_block + i) = -0.08_dp
+            END IF
+         END DO
+         IF (ALL(delta == 0)) THEN
+            base_overlap((icell - 1)*base_block + 1, (jcell - 1)*base_block + 2) = 0.15_dp
+            base_overlap((icell - 1)*base_block + 2, (jcell - 1)*base_block + 1) = 0.15_dp
+         END IF
+      END DO
+   END DO
+   DO j = 1, base_ncol
+      DO i = 1, base_n
+         base_input(i, j) = SIN(0.11_dp*REAL(2*i + 3*j, KIND=dp))
+      END DO
+   END DO
+   CALL build_lattice_inverse(base_overlap, base_dims, inverse_k, projection_error, used_fft, info)
+   IF (info /= 0) ERROR STOP "Positive lattice overlap failed block Cholesky inversion"
+   IF (.NOT. used_fft) ERROR STOP "Block-circulant overlap construction did not use lattice FFT"
+   IF (projection_error > 2.0E-15_dp) ERROR STOP "Exact block-circulant overlap was changed by projection"
+   CALL apply_lattice_inverse_dense(inverse_k, base_dims, base_input, base_output, &
+                                    used_fft, imaginary_residual)
+   IF (.NOT. used_fft) ERROR STOP "Block-circulant inverse application did not use lattice FFT"
+   IF (imaginary_residual > 3.0E-13_dp) ERROR STOP "Lattice inverse did not reconstruct a real matrix"
+   IF (MAXVAL(ABS(MATMUL(base_overlap, base_output) - base_input)) > 2.0E-11_dp) THEN
+      ERROR STOP "FFT block-circulant inverse differs from the dense operator inverse"
+   END IF
+
+   column_rotation = 0.0_dp
+   column_rotation(1, 1) = COS(0.31_dp)
+   column_rotation(1, 2) = -SIN(0.31_dp)
+   column_rotation(2, 1) = SIN(0.31_dp)
+   column_rotation(2, 2) = COS(0.31_dp)
+   column_rotation(3, 3) = 1.0_dp
+   base_input_rotated = MATMUL(base_input, column_rotation)
+   CALL apply_lattice_inverse_dense(inverse_k, base_dims, base_input_rotated, &
+                                    base_output_rotated, used_fft)
+   IF (MAXVAL(ABS(base_output_rotated - MATMUL(base_output, column_rotation))) > 3.0E-12_dp) THEN
+      ERROR STOP "FFT lattice base is not right-covariant under orbital rotations"
+   END IF
+   DEALLOCATE (inverse_k)
 
    CALL finalize_fft(mp_comm, "")
    CALL mp_world_finalize()

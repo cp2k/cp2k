@@ -1585,7 +1585,8 @@ CONTAINS
                                      scf_control%diagonalization%ot_settings%preconditioner_type, &
                                      scf_control%diagonalization%ot_settings%precond_solver_type, &
                                      scf_control%diagonalization%ot_settings%energy_gap, dft_control%nspins, &
-                                     chebyshev_degree=scf_control%diagonalization%ot_settings%chebyshev_degree)
+                                     chebyshev_degree=scf_control%diagonalization%ot_settings%chebyshev_degree, &
+                                     low_rank_base=scf_control%diagonalization%ot_settings%low_rank_base)
 
       CASE (block_davidson_diag_method_nr)
          ! Preconditioner initialized within the loop, when required
@@ -1782,7 +1783,8 @@ CONTAINS
                                            scf_env%qs_ot_env(1)%settings%energy_gap, dft_control%nspins, &
                                            has_unit_metric=has_unit_metric, &
                                            chol_type=scf_env%qs_ot_env(1)%settings%cholesky_type, &
-                                           chebyshev_degree=scf_env%qs_ot_env(1)%settings%chebyshev_degree)
+                                           chebyshev_degree=scf_env%qs_ot_env(1)%settings%chebyshev_degree, &
+                                           low_rank_base=scf_env%qs_ot_env(1)%settings%low_rank_base)
             END IF
             IF (reuse_precond) reuse_precond = .FALSE.
 

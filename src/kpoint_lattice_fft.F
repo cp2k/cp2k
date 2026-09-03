@@ -15,6 +15,7 @@
 MODULE kpoint_lattice_fft
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
+                                              FWFFT,&
                                               fft3d,&
                                               fft_alloc,&
                                               fft_dealloc,&
@@ -32,6 +33,7 @@ MODULE kpoint_lattice_fft
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kpoint_lattice_fft'
 
    PUBLIC :: cell_to_k_grid_fft, &
+             k_grid_to_cell_fft, &
              regular_kpoint_grid
 
 CONTAINS
@@ -243,6 +245,147 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cell_to_k_grid_fft
+
+! **************************************************************************************************
+!> \brief Transform complete reciprocal-grid data back to image-cell values.
+!> \param values_k complex matrices on a complete regular reciprocal grid
+!> \param xkp reciprocal coordinates, in units of reciprocal lattice vectors
+!> \param nkp_grid dimensions of the reciprocal grid
+!> \param index_to_cell integer lattice vector for every requested image cell
+!> \param values_rs reconstructed complex matrices in the requested image cells
+!> \param used_fft reports whether the regular-grid FFT path was used
+! **************************************************************************************************
+   SUBROUTINE k_grid_to_cell_fft(values_k, xkp, nkp_grid, index_to_cell, values_rs, used_fft)
+
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: values_k
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: nkp_grid
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_rs
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: used_fft
+
+      COMPLEX(KIND=dp)                                   :: phase
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: fft_in, fft_out
+      INTEGER                                            :: attempt, d, handle, i, icell, ik, j, &
+                                                            radix_length, stat
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cell_index, grid_index
+      INTEGER, DIMENSION(3)                              :: n, nfft
+      LOGICAL                                            :: compatible, regular
+      REAL(KIND=dp)                                      :: arg, normalization
+      REAL(KIND=dp), DIMENSION(3)                        :: k_offset
+
+      CALL timeset("k_grid_to_cell_fft", handle)
+
+      IF (SIZE(xkp, 1) < 3 .OR. SIZE(index_to_cell, 1) < 3 .OR. &
+          SIZE(values_k, 3) /= SIZE(xkp, 2)) THEN
+         CPABORT("Inconsistent reciprocal-grid mapping in inverse lattice FFT")
+      END IF
+      IF (SIZE(values_rs, 1) /= SIZE(values_k, 1) .OR. &
+          SIZE(values_rs, 2) /= SIZE(values_k, 2) .OR. &
+          SIZE(values_rs, 3) /= SIZE(index_to_cell, 2)) THEN
+         CPABORT("Inconsistent input and output matrix batches in inverse lattice FFT")
+      END IF
+
+      ALLOCATE (grid_index(3, SIZE(xkp, 2)))
+      regular = regular_kpoint_grid(xkp, nkp_grid, grid_index, k_offset)
+      n = nkp_grid
+      nfft = n
+      IF (regular) THEN
+         DO d = 1, 3
+            compatible = .FALSE.
+            DO attempt = 0, 15
+               IF (nfft(d) >= 3) THEN
+                  CALL fft_radix_operations(nfft(d), radix_length, FFT_RADIX_NEXT)
+                  IF (radix_length == nfft(d)) THEN
+                     compatible = .TRUE.
+                     EXIT
+                  END IF
+               END IF
+               nfft(d) = nfft(d) + n(d)
+            END DO
+            IF (.NOT. compatible) regular = .FALSE.
+         END DO
+      END IF
+      IF (.NOT. regular) THEN
+         CALL direct_k_to_cell(values_k, xkp, index_to_cell, values_rs)
+         IF (PRESENT(used_fft)) used_fft = .FALSE.
+         DEALLOCATE (grid_index)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      CALL fft_alloc(fft_in, nfft)
+      CALL fft_alloc(fft_out, nfft)
+      ALLOCATE (cell_index(3, SIZE(index_to_cell, 2)))
+      DO icell = 1, SIZE(index_to_cell, 2)
+         DO d = 1, 3
+            cell_index(d, icell) = MODULO(index_to_cell(d, icell), n(d))*(nfft(d)/n(d)) + 1
+         END DO
+      END DO
+      normalization = REAL(PRODUCT(nfft), KIND=dp)/REAL(PRODUCT(n), KIND=dp)
+
+      stat = 0
+      DO j = 1, SIZE(values_k, 2)
+         DO i = 1, SIZE(values_k, 1)
+            fft_in = z_zero
+            DO ik = 1, SIZE(values_k, 3)
+               fft_in(grid_index(1, ik), grid_index(2, ik), grid_index(3, ik)) = values_k(i, j, ik)
+            END DO
+            CALL fft3d(FWFFT, nfft, fft_in, fft_out, status=stat)
+            IF (stat /= 0) EXIT
+            DO icell = 1, SIZE(index_to_cell, 2)
+               arg = SUM(k_offset*REAL(index_to_cell(1:3, icell), KIND=dp))
+               phase = EXP(-gaussi*twopi*arg)
+               values_rs(i, j, icell) = normalization*phase* &
+                                        fft_out(cell_index(1, icell), cell_index(2, icell), cell_index(3, icell))
+            END DO
+         END DO
+         IF (stat /= 0) EXIT
+      END DO
+
+      IF (stat /= 0) THEN
+         CALL direct_k_to_cell(values_k, xkp, index_to_cell, values_rs)
+         regular = .FALSE.
+      END IF
+      IF (PRESENT(used_fft)) used_fft = regular
+
+      CALL fft_dealloc(fft_in)
+      CALL fft_dealloc(fft_out)
+      DEALLOCATE (cell_index, grid_index)
+      CALL timestop(handle)
+
+   END SUBROUTINE k_grid_to_cell_fft
+
+! **************************************************************************************************
+!> \brief Direct inverse phase sum for arbitrary reciprocal-point lists.
+!> \param values_k ...
+!> \param xkp ...
+!> \param index_to_cell ...
+!> \param values_rs ...
+! **************************************************************************************************
+   SUBROUTINE direct_k_to_cell(values_k, xkp, index_to_cell, values_rs)
+
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: values_k
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_rs
+
+      COMPLEX(KIND=dp)                                   :: factor
+      INTEGER                                            :: icell, ik
+      REAL(KIND=dp)                                      :: arg, normalization
+
+      values_rs = z_zero
+      normalization = 1.0_dp/REAL(SIZE(xkp, 2), KIND=dp)
+      DO icell = 1, SIZE(index_to_cell, 2)
+         DO ik = 1, SIZE(xkp, 2)
+            arg = SUM(xkp(1:3, ik)*REAL(index_to_cell(1:3, icell), KIND=dp))
+            factor = normalization*EXP(-gaussi*twopi*arg)
+            values_rs(:, :, icell) = values_rs(:, :, icell) + factor*values_k(:, :, ik)
+         END DO
+      END DO
+
+   END SUBROUTINE direct_k_to_cell
 
 ! **************************************************************************************************
 !> \brief Direct phase-sum fallback for arbitrary reciprocal-point lists.
