@@ -76,7 +76,7 @@ async def main() -> None:
     parser.add_argument("--valgrind", action="store_true", help=help)
     help = "Use a persistent cp2k-shell process to reduce startup time."
     parser.add_argument("--keepalive", dest="keepalive", action="store_true", help=help)
-    help = "Flag slow tests in the final summary and status report."
+    help = "Flag slow tests and directories in the final summary and status report."
     parser.add_argument("--flagslow", dest="flagslow", action="store_true", help=help)
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--restrictdir", action="append")
@@ -192,10 +192,13 @@ async def main() -> None:
 
     # Wait for tasks to finish and print their results.
     all_results: List[TestResult] = []
+    initial_batch_times: Dict[str, float] = {}
     with open(cfg.error_summary, "wt", encoding="utf8", errors="replace") as err_fh:
         for num_done, task in enumerate(asyncio.as_completed(tasks)):
             batch_result = await task
             all_results += batch_result.results
+            if batch_result.batch.regtests:
+                initial_batch_times[batch_result.batch.name] = batch_result.duration
             print(f">>> {batch_result.batch.workdir}")
             print("\n".join(str(r) for r in batch_result.results))
             print(f"<<< {batch_result.batch.workdir} ({num_done + 1}", end="")
@@ -246,6 +249,22 @@ async def main() -> None:
         for k, v in slow_tests.items():
             print(f"    {k :<80s} ( {mean(v):6.2f} ±{stdev(v):4.2f} sec)")
 
+        test_dir_timings = sorted(initial_batch_times.values())
+        if test_dir_timings:
+            test_dir_threshold = 2 * percentile(test_dir_timings, 0.95)
+            slow_test_dirs = {
+                k: v for k, v in initial_batch_times.items() if v > test_dir_threshold
+            }
+        else:
+            test_dir_threshold = 0.0
+            slow_test_dirs = {}
+
+        print("\n" + "-" * 15 + "---------- Slow Test Directories ---------" + "-" * 15)
+        print(f"Duration threshold (2x 95th %ile): {test_dir_threshold:.2f} sec")
+        print(f"Found {len(slow_test_dirs)} slow test directories:")
+        for name, duration in sorted(slow_test_dirs.items()):
+            print(f"    {name :<80s} ( {duration:.2f} sec)")
+
     print("\n------------------------------- Summary --------------------------------")
     total_duration = time.perf_counter() - start_time
     num_tests = len(all_results)
@@ -254,7 +273,9 @@ async def main() -> None:
     num_wrong = sum(r.status == "WRONG RESULT" for r in all_results)
     num_na = sum(r.status == "N/A" for r in all_results)
     num_ok = sum(r.status == "OK" for r in all_results)
-    status_ok = (num_ok == num_tests) and (not cfg.flag_slow or not slow_tests)
+    status_ok = (num_ok == num_tests) and (
+        not cfg.flag_slow or (not slow_tests and not slow_test_dirs)
+    )
     print(f"Number of FAILED  tests {num_failed}")
     print(f"Number of WRONG   tests {num_wrong}")
     print(f"Number of CORRECT tests {num_ok}")
@@ -264,6 +285,11 @@ async def main() -> None:
     summary += f"; failed: {num_failed}" if num_failed > 0 else ""
     summary += f"; n/a: {num_na}" if num_na > 0 else ""
     summary += f"; slow: {len(slow_tests)}" if cfg.flag_slow and slow_tests else ""
+    summary += (
+        f"; slow dirs: {len(slow_test_dirs)}"
+        if cfg.flag_slow and slow_test_dirs
+        else ""
+    )
     summary += f"; {total_duration/60.0:.0f}min"
     print(summary)
     print("Status: " + ("OK" if status_ok else "FAILED") + "\n")

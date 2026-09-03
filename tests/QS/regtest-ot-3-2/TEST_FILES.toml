@@ -1,0 +1,19 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"Al-kpoint-mermin-gaussian.inp"         = [{matcher="E_total", tol=1e-9, ref=-2.201247329326454},
+                                           {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+                                           {matcher="NO_TEXT", text="K-point smearing includes the last band"}]
+"Al-kpoint-mermin-methfessel-paxton.inp" = [{matcher="E_total", tol=1e-9, ref=-2.200056176959800},
+                                             {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+                                             {matcher="NO_TEXT", text="K-point smearing includes the last band"}]
+"Al-kpoint-mermin-marzari-vanderbilt.inp" = [{matcher="E_total", tol=1e-9, ref=-2.199902246256291},
+                                              {matcher="NO_TEXT", text="K-point smearing includes the first band"},
+                                              {matcher="NO_TEXT", text="K-point smearing includes the last band"}]
+"Al-kpoint-mermin-auto.inp"             = [
+  {matcher="E_total", tol=1e-9, ref=-3.0042081326234},
+  {matcher="OT_added_mos_auto_grow"},
+]
+#EOF
