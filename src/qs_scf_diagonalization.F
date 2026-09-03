@@ -1052,21 +1052,13 @@ CONTAINS
                ELSE
                   ! complex wavefunctions: assemble KS and S and start their
                   ! transfer to the k-point group
-                  IF (my_kpgrp) THEN
-                     CALL kp_evp_op_start(effective_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                          ks_grid(ispin), use_grid_fft, rmatrix, cmatrix, tmpmat, &
-                                          fmwork(1), fmwork(2), fmlocal, para_env, info(indx, 1), info(indx, 2))
-                     CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, s_grid, &
-                                          use_grid_fft, rmatrix, cmatrix, tmpmat, fmwork(3), fmwork(4), &
-                                          fmlocal, para_env, info(indx, 3), info(indx, 4))
-                  ELSE
-                     CALL kp_evp_op_start(effective_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                          ks_grid(ispin), use_grid_fft, rmatrix, cmatrix, tmpmat, &
-                                          fmwork(1), fmwork(2), fmdummy, para_env, info(indx, 1), info(indx, 2))
-                     CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, s_grid, &
-                                          use_grid_fft, rmatrix, cmatrix, tmpmat, fmwork(3), fmwork(4), &
-                                          fmdummy, para_env, info(indx, 3), info(indx, 4))
-                  END IF
+                  CALL kp_evp_op_start(effective_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                       ks_grid(ispin), use_grid_fft, rmatrix, cmatrix, tmpmat, &
+                                       fmwork(1), fmwork(2), fmlocal, fmdummy, my_kpgrp, para_env, &
+                                       info(indx, 1), info(indx, 2))
+                  CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, s_grid, &
+                                       use_grid_fft, rmatrix, cmatrix, tmpmat, fmwork(3), fmwork(4), &
+                                       fmlocal, fmdummy, my_kpgrp, para_env, info(indx, 3), info(indx, 4))
                END IF
                IF (my_store_ot_kinetic) THEN
                   IF (use_real_wfn) THEN
@@ -1081,19 +1073,11 @@ CONTAINS
                         CALL cp_fm_start_copy_general(fmwork(3), fmdummy, para_env, info(indx, 3))
                      END IF
                   ELSE
-                     IF (my_kpgrp) THEN
-                        CALL kp_evp_op_start(matrix_t, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                             use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
-                                             tmpmat=tmpmat, fm_re=fmwork(3), fm_im=fmwork(4), &
-                                             target_fm=fmlocal, para_env=para_env, &
-                                             info_re=info(indx, 5), info_im=info(indx, 6))
-                     ELSE
-                        CALL kp_evp_op_start(matrix_t, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                             use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
-                                             tmpmat=tmpmat, fm_re=fmwork(3), fm_im=fmwork(4), &
-                                             target_fm=fmdummy, para_env=para_env, &
-                                             info_re=info(indx, 5), info_im=info(indx, 6))
-                     END IF
+                     CALL kp_evp_op_start(matrix_t, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                          use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
+                                          tmpmat=tmpmat, fm_re=fmwork(3), fm_im=fmwork(4), &
+                                          fmlocal=fmlocal, fmdummy=fmdummy, my_kpgrp=my_kpgrp, &
+                                          para_env=para_env, info_re=info(indx, 5), info_im=info(indx, 6))
                   END IF
                END IF
             END DO
@@ -1183,20 +1167,14 @@ CONTAINS
                      DO igroup = 1, nkp_groups
                         ik = kp_dist(1, igroup) + ikp - 1
                         my_kpgrp = ik >= kp_range(1) .AND. ik <= kp_range(2)
+                        CALL kp_evp_op_start(adiis_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                             use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
+                                             tmpmat=tmpmat, fm_re=fmwork(1), fm_im=fmwork(2), &
+                                             fmlocal=fmlocal, fmdummy=fmdummy, my_kpgrp=my_kpgrp, &
+                                             para_env=para_env, info_re=blend_info(1), info_im=blend_info(2))
                         IF (my_kpgrp) THEN
-                           CALL kp_evp_op_start(adiis_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                                use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
-                                                tmpmat=tmpmat, fm_re=fmwork(1), fm_im=fmwork(2), &
-                                                target_fm=fmlocal, para_env=para_env, &
-                                                info_re=blend_info(1), info_im=blend_info(2))
                            CALL kp_evp_op_finish_cfm(fmlocal, blend_info(1), cwork, .FALSE.)
                            CALL kp_evp_op_finish_cfm(fmlocal, blend_info(2), cwork, .TRUE.)
-                        ELSE
-                           CALL kp_evp_op_start(adiis_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                                use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
-                                                tmpmat=tmpmat, fm_re=fmwork(1), fm_im=fmwork(2), &
-                                                target_fm=fmdummy, para_env=para_env, &
-                                                info_re=blend_info(1), info_im=blend_info(2))
                         END IF
                         CALL cp_fm_cleanup_copy_general(blend_info(1))
                         CALL cp_fm_cleanup_copy_general(blend_info(2))
@@ -1993,25 +1971,16 @@ CONTAINS
                ELSE
                   ! complex wavefunctions: assemble KS and S and start their
                   ! transfer to the k-point group
-                  IF (my_kpgrp) THEN
-                     CALL kp_evp_op_start(matrix_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                          use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
-                                          fm_re=fmwork(1), fm_im=fmwork(2), target_fm=fmlocal, &
-                                          para_env=para_env, info_re=info(indx, 1), info_im=info(indx, 2))
-                     CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                          use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
-                                          fm_re=fmwork(3), fm_im=fmwork(4), target_fm=fmlocal, &
-                                          para_env=para_env, info_re=info(indx, 3), info_im=info(indx, 4))
-                  ELSE
-                     CALL kp_evp_op_start(matrix_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                          use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
-                                          fm_re=fmwork(1), fm_im=fmwork(2), target_fm=fmdummy, &
-                                          para_env=para_env, info_re=info(indx, 1), info_im=info(indx, 2))
-                     CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                          use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
-                                          fm_re=fmwork(3), fm_im=fmwork(4), target_fm=fmdummy, &
-                                          para_env=para_env, info_re=info(indx, 3), info_im=info(indx, 4))
-                  END IF
+                  CALL kp_evp_op_start(matrix_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                       use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
+                                       fm_re=fmwork(1), fm_im=fmwork(2), fmlocal=fmlocal, fmdummy=fmdummy, &
+                                       my_kpgrp=my_kpgrp, para_env=para_env, &
+                                       info_re=info(indx, 1), info_im=info(indx, 2))
+                  CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                       use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
+                                       fm_re=fmwork(3), fm_im=fmwork(4), fmlocal=fmlocal, fmdummy=fmdummy, &
+                                       my_kpgrp=my_kpgrp, para_env=para_env, &
+                                       info_re=info(indx, 3), info_im=info(indx, 4))
                END IF
             END DO
          END DO
@@ -3934,17 +3903,11 @@ CONTAINS
             ELSE
                ! complex wavefunctions: assemble S and start its transfer
                ! to the k-point group
-               IF (my_kpgrp) THEN
-                  CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                       use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
-                                       fm_re=fmwork(1), fm_im=fmwork(2), target_fm=fmlocal, &
-                                       para_env=para_env, info_re=info(indx, 1), info_im=info(indx, 2))
-               ELSE
-                  CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                       use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
-                                       fm_re=fmwork(1), fm_im=fmwork(2), target_fm=fmdummy, &
-                                       para_env=para_env, info_re=info(indx, 1), info_im=info(indx, 2))
-               END IF
+               CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                    use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
+                                    fm_re=fmwork(1), fm_im=fmwork(2), fmlocal=fmlocal, fmdummy=fmdummy, &
+                                    my_kpgrp=my_kpgrp, para_env=para_env, &
+                                    info_re=info(indx, 1), info_im=info(indx, 2))
             END IF
          END DO
       END DO

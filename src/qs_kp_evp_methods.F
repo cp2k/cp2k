@@ -59,7 +59,8 @@ CONTAINS
 !>        Each transfer receives its data in a private buffer. For this reason, several
 !>        starts can use the same target matrix.
 !>        Finish a start with kp_evp_op_finish_cfm when its target received data.
-!>        For target fmdummy, clean the start up with cp_fm_cleanup_copy_general and
+!>        On the groups that do not own this k point, my_kpgrp routes the transfer
+!>        to fmdummy; clean such a start up with cp_fm_cleanup_copy_general and
 !>        do not finish it.
 !> \param rsmat real-space image matrices of the operator
 !> \param ispin spin component of rsmat (1 for spin-free matrices such as S)
@@ -74,15 +75,17 @@ CONTAINS
 !> \param tmpmat unsymmetric DBCSR workspace
 !> \param fm_re full-matrix workspace of the global communicator holding the real part
 !> \param fm_im full-matrix workspace of the global communicator holding the imaginary part
-!> \param target_fm transfer target on the k-point group. Use fmlocal on the group
-!>        that owns this k point. Use fmdummy on the other groups. This keeps the
-!>        collective calls balanced.
+!> \param fmlocal transfer target on the group that owns this k point
+!> \param fmdummy transfer target on the other groups. This keeps the collective
+!>        calls balanced.
+!> \param my_kpgrp true when the calling group owns this k point
 !> \param para_env communicator that spans the source and the target distributions
 !> \param info_re transfer state of the real part
 !> \param info_im transfer state of the imaginary part
 ! **************************************************************************************************
    SUBROUTINE kp_evp_op_start(rsmat, ispin, ik, xkp, cell_to_index, sab_nl, grid, use_grid, &
-                              rmatrix, cmatrix, tmpmat, fm_re, fm_im, target_fm, para_env, info_re, info_im)
+                              rmatrix, cmatrix, tmpmat, fm_re, fm_im, fmlocal, fmdummy, my_kpgrp, &
+                              para_env, info_re, info_im)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
       INTEGER, INTENT(IN)                                :: ispin, ik
@@ -93,7 +96,8 @@ CONTAINS
       TYPE(rskp_grid_type), INTENT(IN), OPTIONAL         :: grid
       LOGICAL, INTENT(IN)                                :: use_grid
       TYPE(dbcsr_type)                                   :: rmatrix, cmatrix, tmpmat
-      TYPE(cp_fm_type)                                   :: fm_re, fm_im, target_fm
+      TYPE(cp_fm_type)                                   :: fm_re, fm_im, fmlocal, fmdummy
+      LOGICAL, INTENT(IN)                                :: my_kpgrp
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(copy_info_type)                               :: info_re, info_im
 
@@ -117,8 +121,13 @@ CONTAINS
       CALL dbcsr_desymmetrize(cmatrix, tmpmat)
       CALL copy_dbcsr_to_fm(tmpmat, fm_im)
 
-      CALL cp_fm_start_copy_general(fm_re, target_fm, para_env, info_re)
-      CALL cp_fm_start_copy_general(fm_im, target_fm, para_env, info_im)
+      IF (my_kpgrp) THEN
+         CALL cp_fm_start_copy_general(fm_re, fmlocal, para_env, info_re)
+         CALL cp_fm_start_copy_general(fm_im, fmlocal, para_env, info_im)
+      ELSE
+         CALL cp_fm_start_copy_general(fm_re, fmdummy, para_env, info_re)
+         CALL cp_fm_start_copy_general(fm_im, fmdummy, para_env, info_im)
+      END IF
 
       CALL timestop(handle)
 
