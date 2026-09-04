@@ -22,8 +22,6 @@ source "${INSTALLDIR}"/toolchain.env
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-source "${INSTALLDIR}/setup_skala"
-
 retrieve_github_archive() {
   local __sha256="$1" __filename="$2" __urlpath="$3" __outfile="$4" __attempt
   if ! [ -f "${__outfile}" ] || ! checksum "${__sha256}" "${__outfile}"; then
@@ -46,6 +44,7 @@ retrieve_github_archive() {
 case "${with_skala_ftorch}" in
   __INSTALL__)
     echo "==================== Installing FTorch + skala bindings ===================="
+    source "${INSTALLDIR}/setup_skala"
     pkg_install_dir="${INSTALLDIR}/ftorch-${ftorch_ver}"
     install_lock_file="${pkg_install_dir}/install_successful"
 
