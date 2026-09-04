@@ -41,7 +41,7 @@ MODULE qs_vcd
    USE qs_linres_types,                 ONLY: linres_control_type,&
                                               vcd_env_type
    USE qs_mo_types,                     ONLY: mo_set_type
-   USE qs_moments,                      ONLY: dipole_velocity_deriv
+   USE qs_moments,                      ONLY: build_local_moments_der_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_vcd_ao,                       ONLY: build_dSdV_matrix,&
@@ -328,6 +328,8 @@ CONTAINS
          END DO
 
          !  mag_vel, vel, mag
+         ! matrix_difdip2 stores nuclear derivatives; the electronic-coordinate
+         ! derivative contributions below therefore use a negative sign.
          ! Ai)   + ε_{alpha gamma delta} * R_beta R_gamma * < mu | ∂_delta | nu > * (mu - nu)
          ! Aii)  + ε_{alpha gamma delta} * (-R_beta) * < mu | r_gamma ∂_delta | nu > * (mu - nu)
          ! Aiii) + ε_{alpha gamma delta} * (-R_gamma) * < mu | r_beta ∂_delta | nu > * (mu - nu)
@@ -346,8 +348,6 @@ CONTAINS
                                                tmp_aomo, ncol=nmo)
                   CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
 
-                  ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
-                  !   the derivatives with respect to nuclear positions and we need electronic positions
                   aat_tmp = aat_tmp - lc_tmp*aat_prefactor*tmp_trace*(-vcd_env%magnetic_origin_atom(gamma))
 
                   ! This part doesn't appear in the APT
@@ -359,8 +359,6 @@ CONTAINS
                                                tmp_aomo, ncol=nmo)
                   CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
 
-                  ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
-                  !   the derivatives with respect to nuclear positions and we need electronic positions
                   aat_tmp = aat_tmp - lc_tmp*aat_prefactor*tmp_trace*(-vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta))
 
                   ! i)   + R_beta R_gamma * < mu | ∂_delta | nu > * (mu - nu)
@@ -691,13 +689,12 @@ CONTAINS
 
       !! difdip(j, idir) = < a | r_j | ∂_idir b >
       !! matrix_difdip2(beta, alpha) = < a | r_beta | ∂_alpha b >
+         ! matrix_difdip2 stores nuclear derivatives.
          DO alpha = 1, 3 ! x/y/z for differentiated AO
             CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_difdip2(vcd_env%dcdr_env%beta, alpha)%matrix, mo_coeff, &
                                          buf, ncol=nmo, alpha=1._dp, beta=0._dp)
 
             CALL cp_fm_trace(mo_coeff, buf, apt_difdip)
-            ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
-            !   the derivatives with respect to nuclear positions and we need electronic positions
             apt_difdip = -f_spin*apt_difdip
             apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
                = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + apt_difdip
@@ -893,8 +890,9 @@ CONTAINS
                              deltaR=vcd_env%dcdr_env%delta_basis_function, &
                              rcc=vcd_env%spatial_origin_atom)
 
-      CALL dipole_velocity_deriv(qs_env, vcd_env%matrix_difdip2, 1, lambda=vcd_env%dcdr_env%lambda, &
-                                 rc=[0._dp, 0._dp, 0._dp])
+      CALL build_local_moments_der_matrix(qs_env, vcd_env%matrix_difdip2, 1, 0, &
+                                          ref_point=[0._dp, 0._dp, 0._dp], basis_type="ORB", &
+                                          ordered=.TRUE., lambda=vcd_env%dcdr_env%lambda)
       ! AAT
       ! moments_throw: x, y, z, xx, xy, xz, yy, yz, zz
       ! moments_der:  (moment, xyz derivative)

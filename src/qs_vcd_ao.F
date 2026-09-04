@@ -22,7 +22,7 @@ MODULE qs_vcd_ao
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_desymmetrize, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init_p, &
-        dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_work_create
+        dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_work_create
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE external_potential_types,        ONLY: get_potential,&
@@ -57,7 +57,7 @@ MODULE qs_vcd_ao
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_types,                 ONLY: vcd_env_type
-   USE qs_moments,                      ONLY: build_dsdv_moments
+   USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: &
         get_iterator_info, get_neighbor_list_set_p, neighbor_list_iterate, &
         neighbor_list_iterator_create, neighbor_list_iterator_p_type, &
@@ -98,7 +98,7 @@ MODULE qs_vcd_ao
 ! *** Public subroutines ***
 
    PUBLIC :: build_dSdV_matrix, build_com_rpnl_r, &
-             hr_mult_by_delta_3d, hr_mult_by_delta_1d, build_dcom_rpnl, &
+             hr_mult_by_delta_3d, build_dcom_rpnl, &
              build_tr_matrix, &
              build_rcore_matrix, &
              build_rpnl_matrix, &
@@ -123,7 +123,6 @@ CONTAINS
       INTEGER, PARAMETER                                 :: ispin = 1
 
       INTEGER                                            :: handle, i
-      REAL(KIND=dp)                                      :: eps_ppnl
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -141,7 +140,6 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       cell=cell)
 
-      eps_ppnl = dft_control%qs_control%eps_ppnl
       DO i = 1, 3
          CALL dbcsr_set(vcd_env%matrix_hr(ispin, i)%matrix, 0._dp)
          CALL dbcsr_set(vcd_env%matrix_rh(ispin, i)%matrix, 0._dp)
@@ -1507,7 +1505,8 @@ CONTAINS
          CALL dbcsr_set(matrix_dsdv(i)%matrix, 0.0_dp)
       END DO
 
-      CALL build_dsdv_moments(qs_env, my_matrix_mom, 1, rcc)
+      CALL build_local_moment_matrix(qs_env, my_matrix_mom, 1, ref_point=rcc, &
+                                     neighbor_image=.TRUE.)
 
       DO i = 1, 3
          CALL dbcsr_desymmetrize(my_matrix_mom(i)%matrix, my_matrix_dsdv(i)%matrix)
@@ -2372,145 +2371,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE ab_opr
-
-! **************************************************************************************************
-!> \brief Apply the operator \delta_\mu^\lambda to zero out all elements of the matrix
-!>         which don't fulfill the condition.
-!> \param matrix ...
-!> \param qs_kind_set ...
-!> \param basis_type ...
-!> \param sab_nl ...
-!> \param lambda ...
-!> \param direction_Or ...
-!> \author Edward Ditler
-! **************************************************************************************************
-   SUBROUTINE hr_mult_by_delta_1d(matrix, qs_kind_set, basis_type, sab_nl, lambda, direction_Or)
-
-      TYPE(dbcsr_type)                                   :: matrix
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
-      INTEGER, INTENT(IN)                                :: lambda
-      LOGICAL                                            :: direction_Or
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'hr_mult_by_delta_1d'
-
-      INTEGER                                            :: handle, iatom, icol, ikind, irow, jatom, &
-                                                            jkind, ldsab, mepos, nkind, nseta, &
-                                                            nsetb, nthread
-      INTEGER, DIMENSION(3)                              :: cell
-      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
-                                                            npgfb, nsgfa, nsgfb
-      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: do_symmetric, found
-      REAL(KIND=dp), DIMENSION(3)                        :: rab
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: k_block, rpgfa, rpgfb, scon_a, scon_b, &
-                                                            sphi_a, sphi_b, zeta, zetb
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
-
-      CALL timeset(routineN, handle)
-
-      nkind = SIZE(qs_kind_set)
-
-      ! check for symmetry
-      CPASSERT(SIZE(sab_nl) > 0)
-      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
-
-      ! prepare basis set
-      ALLOCATE (basis_set_list(nkind))
-      CALL basis_set_list_setup(basis_set_list, basis_type, qs_kind_set)
-
-      ! *** Allocate work storage ***
-      ldsab = get_memory_usage(qs_kind_set, basis_type)
-
-      nthread = 1
-!$    nthread = omp_get_max_threads()
-      ! Iterate of neighbor list
-      CALL neighbor_list_iterator_create(nl_iterator, sab_nl, nthread=nthread)
-
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (nthread,ldsab,nl_iterator, do_symmetric) &
-!$OMP SHARED (ncoset,matrix,basis_set_list) &
-!$OMP SHARED (direction_or, lambda) &
-!$OMP PRIVATE (k_block,mepos,ikind,jkind,iatom,jatom,rab,cell) &
-!$OMP PRIVATE (basis_set_a,basis_set_b) &
-!$OMP PRIVATE (first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a) &
-!$OMP PRIVATE (zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb) &
-!$OMP PRIVATE (zetb, scon_a, scon_b, irow, icol, found, sphi_a, sphi_b)
-
-      mepos = 0
-!$    mepos = omp_get_thread_num()
-
-      DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
-         CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, r=rab, cell=cell)
-         basis_set_a => basis_set_list(ikind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
-         basis_set_b => basis_set_list(jkind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-         ! basis ikind
-         first_sgfa => basis_set_a%first_sgf
-         la_max => basis_set_a%lmax
-         la_min => basis_set_a%lmin
-         npgfa => basis_set_a%npgf
-         nsgfa => basis_set_a%nsgf_set
-         rpgfa => basis_set_a%pgf_radius
-         set_radius_a => basis_set_a%set_radius
-         sphi_a => basis_set_a%sphi
-         zeta => basis_set_a%zet
-         scon_a => basis_set_a%scon
-         ! basis jkind
-         first_sgfb => basis_set_b%first_sgf
-         lb_max => basis_set_b%lmax
-         lb_min => basis_set_b%lmin
-         npgfb => basis_set_b%npgf
-         nsgfb => basis_set_b%nsgf_set
-         rpgfb => basis_set_b%pgf_radius
-         set_radius_b => basis_set_b%set_radius
-         sphi_b => basis_set_b%sphi
-         zetb => basis_set_b%zet
-         scon_b => basis_set_b%scon
-
-         nseta = basis_set_a%nset
-         nsetb = basis_set_b%nset
-
-         IF (do_symmetric) THEN
-            IF (iatom <= jatom) THEN
-               irow = iatom
-               icol = jatom
-            ELSE
-               irow = jatom
-               icol = iatom
-            END IF
-         ELSE
-            irow = iatom
-            icol = jatom
-         END IF
-
-         NULLIFY (k_block)
-         CALL dbcsr_get_block_p(matrix, irow, icol, k_block, found)
-         CPASSERT(found)
-
-         IF (direction_Or) THEN
-            IF (jatom /= lambda) k_block(:, :) = 0._dp
-         ELSE IF (.NOT. direction_Or) THEN
-            IF (iatom /= lambda) k_block(:, :) = 0._dp
-         END IF
-      END DO
-!$OMP END PARALLEL
-      CALL neighbor_list_iterator_release(nl_iterator)
-
-      ! Release work storage
-      DEALLOCATE (basis_set_list)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE hr_mult_by_delta_1d
 
 ! **************************************************************************************************
 !> \brief Apply the operator \delta_\mu^\lambda to zero out all elements of the matrix

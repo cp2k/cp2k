@@ -66,7 +66,7 @@ MODULE qs_dcdr
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_moments,                      ONLY: build_local_moment_matrix,&
-                                              dipole_deriv_ao
+                                              build_local_moments_der_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
 #include "./base/base_uses.f90"
@@ -176,7 +176,9 @@ CONTAINS
          END DO
       END DO
 
-      CALL dipole_deriv_ao(qs_env, dcdr_env%matrix_difdip, dcdr_env%delta_basis_function, 1, dcdr_env%ref_point)
+      CALL build_local_moments_der_matrix(qs_env, dcdr_env%matrix_difdip, 1, 0, &
+                                          ref_point=dcdr_env%ref_point, ordered=.TRUE., &
+                                          deltaR=dcdr_env%delta_basis_function, neighbor_image=.FALSE.)
 
       CALL timestop(handle)
    END SUBROUTINE prepare_per_atom
@@ -482,7 +484,7 @@ CONTAINS
                                          tmp_fm_like_mos, ncol=nmo)
             CALL cp_fm_trace(mo_coeff, tmp_fm_like_mos, apt_basis_derivative)
 
-            ! The negative sign is due to dipole_deriv_ao computing the derivatives with respect to nuclear coordinates.
+            ! The negative sign compensates for the nuclear-coordinate derivative convention.
             apt_basis_derivative = -f_spin*apt_basis_derivative
             apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) = &
                apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) + apt_basis_derivative
@@ -707,8 +709,10 @@ CONTAINS
                CALL dbcsr_set(dcdr_env%matrix_difdip(1, dcdr_env%beta)%matrix, 0._dp)
                CALL dbcsr_set(dcdr_env%matrix_difdip(2, dcdr_env%beta)%matrix, 0._dp)
                CALL dbcsr_set(dcdr_env%matrix_difdip(3, dcdr_env%beta)%matrix, 0._dp)
-               CALL dipole_deriv_ao(qs_env, dcdr_env%matrix_difdip, dcdr_env%delta_basis_function, &
-                                    1, centers_set(ispin)%array(1:3, icenter))
+               CALL build_local_moments_der_matrix(qs_env, dcdr_env%matrix_difdip, 1, 0, &
+                                                   ref_point=centers_set(ispin)%array(1:3, icenter), &
+                                                   ordered=.TRUE., deltaR=dcdr_env%delta_basis_function, &
+                                                   neighbor_image=.FALSE.)
                CALL multiply_localization(ao_matrix=dcdr_env%matrix_difdip(alpha, dcdr_env%beta)%matrix, &
                                           mo_coeff=mo_coeff, work=tmp_fm, nmo=nmo, &
                                           icenter=icenter, &
@@ -732,7 +736,7 @@ CONTAINS
                   = apt_center(dcdr_env%beta, alpha, dcdr_env%lambda, icenter) + tmp_aptcontr
             END DO
 
-            ! The negative sign is due to dipole_deriv_ao computing the derivatives with respect to nuclear coordinates.
+            ! The negative sign compensates for the nuclear-coordinate derivative convention.
             apt_basis_derivative = this_factor*SUM(diagonal_elements)
 
             apt_el(dcdr_env%beta, alpha, dcdr_env%lambda) &
@@ -771,4 +775,3 @@ CONTAINS
    END SUBROUTINE apt_dR_localization
 
 END MODULE qs_dcdr
-
