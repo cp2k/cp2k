@@ -259,7 +259,9 @@ CONTAINS
 !> \param ctx context to initialize
 !> \param kpoints host k-point environment, referenced, not copied
 !> \param ao_ao_fm any square full matrix on the environment-wide communicator;
-!>        its matrix struct is the template for the context work buffers
+!>        its matrix struct is the template for the context work buffers,
+!>        which densify on the source side of transfers that cross into the
+!>        k-point groups
 ! **************************************************************************************************
    SUBROUTINE kpoint_operator_context_create(ctx, kpoints, ao_ao_fm)
 
@@ -373,6 +375,8 @@ CONTAINS
       END IF
 
       IF (.NOT. ALLOCATED(ctx%fmlocal)) THEN
+         ! The group pool owns the storage; the release returns the matrix
+         ! to the pool instead of destroying it.
          ctx%group_mpools => ctx%kpoints%mpools
          CALL mpools_get(ctx%group_mpools, ao_ao_fm_pools=ctx%group_fm_pools)
          ALLOCATE (ctx%fmlocal)
@@ -392,6 +396,8 @@ CONTAINS
          nspin = SIZE(rsmat, 1)
          ALLOCATE (ctx%status(kplocal, nspin, kpoint_num_slots))
          ctx%status = kpoint_slot_idle
+         ! One copy_info per in-flight part: start takes it INTENT(OUT),
+         ! so two concurrent starts cannot share one instance.
          ALLOCATE (ctx%info(kplocal*ngrp, nspin, kpoint_num_slots, 2))
       END IF
 
