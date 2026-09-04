@@ -102,9 +102,9 @@ MODULE xas_methods
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type,&
                                               set_mo_set
+   USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
-                                              rRc_xyz_ao
+   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
    USE qs_pdos,                         ONLY: calculate_projected_dos
    USE qs_scf,                          ONLY: scf_env_cleanup
    USE qs_scf_initialization,           ONLY: qs_scf_env_initialize
@@ -1088,7 +1088,8 @@ CONTAINS
                NULLIFY (op_sm(i)%matrix)
                op_sm(i)%matrix => ostrength_sm(i)%matrix
             END DO
-            CALL rRc_xyz_ao(op_sm, qs_env, rc, order=1, minimum_image=.TRUE.)
+            CALL build_local_moment_matrix(qs_env, op_sm, 1, ref_point=rc, &
+                                           all_images=.TRUE., minimum_image=.TRUE.)
             CALL spectrum_dip_vel(dip_fm_set, op_sm, mos, excvec_coeff, &
                                   all_vectors, all_evals, &
                                   sp_em, sp_ab, xas_estate, nvirtual, my_spin)

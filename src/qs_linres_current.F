@@ -104,14 +104,14 @@ MODULE qs_linres_current
    USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE qs_moments,                      ONLY: build_local_moments_der_matrix
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
-   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix,&
-                                              rRc_xyz_der_ao
+   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
@@ -2263,6 +2263,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi_many_centers'
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER :: handle, icenter, idir, idir2, ii, iiB, iii, iiiB, ispin, istate, j, jstate, &
          max_states, nao, natom, nbr_center(2), nmo, nspins, nstate_loc, nstates(2), output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
@@ -2318,6 +2319,8 @@ CONTAINS
 
       nspins = dft_control%nspins
       gapw = dft_control%qs_control%gapw
+      basis_type = "ORB"
+      IF (gapw) basis_type = "ORB_SOFT"
 
       CALL get_current_env(current_env=current_env, &
                            chi_pbc=chi_pbc, &
@@ -2463,8 +2466,9 @@ CONTAINS
                   CALL dbcsr_set(op_mom_der_ao(idir, idir2)%matrix, 0.0_dp)
                END DO
             END DO
-            CALL rRc_xyz_der_ao(op_mom_ao, op_mom_der_ao, qs_env, dk, order=2, &
-                                minimum_image=.FALSE., soft=gapw)
+            CALL build_local_moments_der_matrix(qs_env, op_mom_der_ao, 2, 2, ref_point=dk, &
+                                                moments=op_mom_ao, basis_type=basis_type, &
+                                                minimum_image=.FALSE., ordered=.TRUE.)
             !
             ! collecte the states that belong to a given center
             CALL cp_fm_set_all(psi0, 0.0_dp)
@@ -2687,6 +2691,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'current_build_chi_one_center'
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER :: handle, idir, idir2, iiB, iiiB, ispin, jdir, jjdir, kdir, max_states, nao, natom, &
          nbr_center(2), nmo, nspins, nstates(2), output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
@@ -2737,6 +2742,8 @@ CONTAINS
 
       nspins = dft_control%nspins
       gapw = dft_control%qs_control%gapw
+      basis_type = "ORB"
+      IF (gapw) basis_type = "ORB_SOFT"
 
       CALL get_current_env(current_env=current_env, &
                            chi_pbc=chi_pbc, &
@@ -2846,8 +2853,9 @@ CONTAINS
                CALL dbcsr_set(op_mom_der_ao(idir, idir2)%matrix, 0.0_dp)
             END DO
          END DO
-         CALL rRc_xyz_der_ao(op_mom_ao, op_mom_der_ao, qs_env, dk, order=2, &
-                             minimum_image=.FALSE., soft=gapw)
+         CALL build_local_moments_der_matrix(qs_env, op_mom_der_ao, 2, 2, ref_point=dk, &
+                                             moments=op_mom_ao, basis_type=basis_type, &
+                                             minimum_image=.FALSE., ordered=.TRUE.)
          !
          !
          ! Multuply left and right by the appropriate coefficients and sum into the
