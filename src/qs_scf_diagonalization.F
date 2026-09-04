@@ -942,7 +942,8 @@ CONTAINS
                ! transfer to the k-point group
                CALL kpoint_operator_start(op_ctx, ikp, ispin, effective_ks, kpoint_slot_ks, &
                                           ks_grid(ispin), use_grid_fft)
-               CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_s, kpoint_slot_s, s_grid, use_grid_fft)
+               CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_s, kpoint_slot_s, s_grid, &
+                                          use_grid_fft, ispin_matrix=1)
                IF (my_store_ot_kinetic) THEN
                   CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_t, kpoint_slot_t, &
                                              use_grid=.FALSE., ispin_matrix=1)

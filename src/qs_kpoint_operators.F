@@ -379,8 +379,17 @@ CONTAINS
          CALL fm_pool_create_fm(ctx%group_fm_pools(1)%pool, ctx%fmlocal)
       END IF
 
+      ! The bookkeeping spin space is sized by the first start. A later
+      ! operator with more spin rows may grow it, but only while nothing is
+      ! in flight (the one-shot callers finish every get before the next).
+      IF (ALLOCATED(ctx%status)) THEN
+         IF (SIZE(ctx%status, 2) < SIZE(rsmat, 1)) THEN
+            CPASSERT(ALL(ctx%status == kpoint_slot_idle))
+            DEALLOCATE (ctx%status, ctx%info)
+         END IF
+      END IF
       IF (.NOT. ALLOCATED(ctx%status)) THEN
-         nspin = SIZE(rsmat, 2)
+         nspin = SIZE(rsmat, 1)
          ALLOCATE (ctx%status(kplocal, nspin, kpoint_num_slots))
          ctx%status = kpoint_slot_idle
          ALLOCATE (ctx%info(kplocal*ngrp, nspin, kpoint_num_slots, 2))
@@ -432,10 +441,16 @@ CONTAINS
       IF (PRESENT(ispin_matrix)) ispin_mat = ispin_matrix
       CPASSERT(ASSOCIATED(ctx%kpoints))
       CPASSERT(ASSOCIATED(ctx%kpoints%sab_nl))
-      CPASSERT(ispin_mat >= 1 .AND. ispin_mat <= SIZE(rsmat, 2))
+      ! The matrix row is bounded by this operator's rows; the instance key
+      ! is bounded by the bookkeeping spin space, sized by the first start.
+      CPASSERT(ispin_mat >= 1 .AND. ispin_mat <= SIZE(rsmat, 1))
       kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
       CPASSERT(ikp >= 1 .AND. ikp <= kplocal)
-      CPASSERT(ispin >= 1 .AND. ispin <= SIZE(rsmat, 2))
+      IF (ALLOCATED(ctx%status)) THEN
+         CPASSERT(ispin >= 1 .AND. ispin <= SIZE(ctx%status, 2))
+      ELSE
+         CPASSERT(ispin >= 1 .AND. ispin <= SIZE(rsmat, 1))
+      END IF
       CPASSERT(slot >= kpoint_slot_ks .AND. slot <= kpoint_slot_t)
       IF (ALLOCATED(ctx%status)) THEN
          CPASSERT(ctx%status(ikp, ispin, slot) == kpoint_slot_idle)
