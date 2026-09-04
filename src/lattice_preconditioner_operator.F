@@ -410,29 +410,26 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Estimate balanced-local-correction work relative to a dense inverse application.
 !> \param lattice_dims number of replicated cells
-!> \param rhs_count number of orbital columns transformed together
 !> \param local_cell_count number of cell blocks retained in the correction
 !> \return estimated correction-to-dense work ratio
 ! **************************************************************************************************
-   PURE REAL(KIND=dp) FUNCTION lattice_local_cost_ratio(lattice_dims, rhs_count, local_cell_count) &
+   PURE REAL(KIND=dp) FUNCTION lattice_local_cost_ratio(lattice_dims, local_cell_count) &
       RESULT(ratio)
 
       INTEGER, DIMENSION(3), INTENT(IN)                  :: lattice_dims
-      INTEGER, INTENT(IN)                                :: rhs_count, local_cell_count
+      INTEGER, INTENT(IN)                                :: local_cell_count
 
-      INTEGER                                            :: ncell, nrhs
+      INTEGER                                            :: ncell
       REAL(KIND=dp)                                      :: local_fraction
 
       ncell = MAX(1, PRODUCT(lattice_dims))
-      nrhs = MAX(1, rhs_count)
       IF (local_cell_count <= 0) THEN
          ratio = 0.0_dp
          RETURN
       END IF
       local_fraction = REAL(local_cell_count, KIND=dp)/REAL(ncell, KIND=dp)
-      ! Two A U products and two coarse solves are required for each right-hand side.
-      ratio = REAL(nrhs, KIND=dp)*(2.0_dp*local_fraction + 2.0_dp*local_fraction**2)/ &
-              REAL(nrhs, KIND=dp)
+      ! Both corrected and dense applications scale linearly with the right-hand-side count.
+      ratio = 2.0_dp*(local_fraction + local_fraction**2)
 
    END FUNCTION lattice_local_cost_ratio
 

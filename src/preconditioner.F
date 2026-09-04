@@ -185,7 +185,7 @@ CONTAINS
                                               preconditioner_env%lattice_dims, block_size, rhs_count, &
                                               preconditioner_env%para_env%num_pe) + &
                                               lattice_local_cost_ratio( &
-                                              preconditioner_env%lattice_dims, rhs_count, &
+                                              preconditioner_env%lattice_dims, &
                                               preconditioner_env%lattice_local_cells)
       preconditioner_env%lattice_storage_ratio = lattice_fft_storage_ratio( &
                                                  preconditioner_env%lattice_dims, 1) + &
@@ -459,7 +459,7 @@ CONTAINS
                                                  preconditioner_env%lattice_dims, nstate)
       preconditioner_env%lattice_cost_ratio = preconditioner_env%lattice_cost_ratio + &
                                               lattice_local_cost_ratio( &
-                                              preconditioner_env%lattice_dims, nstate, &
+                                              preconditioner_env%lattice_dims, &
                                               preconditioner_env%lattice_local_cells)
       preconditioner_env%lattice_storage_ratio = preconditioner_env%lattice_storage_ratio + &
                                                  lattice_local_storage_ratio( &

@@ -237,7 +237,7 @@ PROGRAM kpoint_lattice_fft_unittest
    IF (ABS(lattice_fft_storage_ratio(base_dims, 1) - 0.25_dp) > 1.0E-14_dp) THEN
       ERROR STOP "Lattice-FFT storage estimate is inconsistent"
    END IF
-   IF (ABS(lattice_local_cost_ratio(base_dims, base_ncol, 1) - 0.28125_dp) > 1.0E-14_dp) THEN
+   IF (ABS(lattice_local_cost_ratio(base_dims, 1) - 0.28125_dp) > 1.0E-14_dp) THEN
       ERROR STOP "Lattice local-correction cost estimate is inconsistent"
    END IF
    IF (ABS(lattice_local_storage_ratio(base_dims, 3, 1) - 0.421875_dp) > 1.0E-14_dp) THEN
@@ -303,9 +303,9 @@ PROGRAM kpoint_lattice_fft_unittest
    CALL apply_balanced_local_inverse(inverse_k, base_dims, correction_indices, local_operator, &
                                      coarse_inverse, base_input, defect_corrected_output)
    defect_residual = MATMUL(defect_operator, defect_base_output) - base_input
-   base_residual_norm = SQRT(SUM(defect_residual**2))
+   base_residual_norm = NORM2(defect_residual)
    defect_residual = MATMUL(defect_operator, defect_corrected_output) - base_input
-   corrected_residual_norm = SQRT(SUM(defect_residual**2))
+   corrected_residual_norm = NORM2(defect_residual)
    IF (corrected_residual_norm >= base_residual_norm) THEN
       ERROR STOP "Balanced local correction did not improve inverse application"
    END IF
