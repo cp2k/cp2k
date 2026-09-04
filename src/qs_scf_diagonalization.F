@@ -123,9 +123,9 @@ MODULE qs_scf_diagonalization
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gspace_mixing,                ONLY: gspace_mixing
-   USE qs_kp_evp_methods,               ONLY: kp_evp_cfm_to_mo,&
-                                              kp_evp_op_finish_cfm,&
-                                              kp_evp_op_start
+   USE qs_kpoint_operators,             ONLY: kpoint_operator_cfm_to_mo,&
+                                              kpoint_operator_raw_finish_cfm,&
+                                              kpoint_operator_raw_start
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
@@ -1052,13 +1052,13 @@ CONTAINS
                ELSE
                   ! complex wavefunctions: assemble KS and S and start their
                   ! transfer to the k-point group
-                  CALL kp_evp_op_start(effective_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                       ks_grid(ispin), use_grid_fft, rmatrix, cmatrix, tmpmat, &
-                                       fmwork(1), fmwork(2), fmlocal, fmdummy, my_kpgrp, para_env, &
-                                       info(indx, 1), info(indx, 2))
-                  CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, s_grid, &
-                                       use_grid_fft, rmatrix, cmatrix, tmpmat, fmwork(3), fmwork(4), &
-                                       fmlocal, fmdummy, my_kpgrp, para_env, info(indx, 3), info(indx, 4))
+                  CALL kpoint_operator_raw_start(effective_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                                 ks_grid(ispin), use_grid_fft, rmatrix, cmatrix, tmpmat, &
+                                                 fmwork(1), fmwork(2), fmlocal, fmdummy, my_kpgrp, para_env, &
+                                                 info(indx, 1), info(indx, 2))
+                  CALL kpoint_operator_raw_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, s_grid, &
+                                                 use_grid_fft, rmatrix, cmatrix, tmpmat, fmwork(3), fmwork(4), &
+                                                 fmlocal, fmdummy, my_kpgrp, para_env, info(indx, 3), info(indx, 4))
                END IF
                IF (my_store_ot_kinetic) THEN
                   IF (use_real_wfn) THEN
@@ -1073,11 +1073,11 @@ CONTAINS
                         CALL cp_fm_start_copy_general(fmwork(3), fmdummy, para_env, info(indx, 3))
                      END IF
                   ELSE
-                     CALL kp_evp_op_start(matrix_t, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                          use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
-                                          tmpmat=tmpmat, fm_re=fmwork(3), fm_im=fmwork(4), &
-                                          fmlocal=fmlocal, fmdummy=fmdummy, my_kpgrp=my_kpgrp, &
-                                          para_env=para_env, info_re=info(indx, 5), info_im=info(indx, 6))
+                     CALL kpoint_operator_raw_start(matrix_t, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                                    use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
+                                                    tmpmat=tmpmat, fm_re=fmwork(3), fm_im=fmwork(4), &
+                                                    fmlocal=fmlocal, fmdummy=fmdummy, my_kpgrp=my_kpgrp, &
+                                                    para_env=para_env, info_re=info(indx, 5), info_im=info(indx, 6))
                   END IF
                END IF
             END DO
@@ -1108,13 +1108,13 @@ CONTAINS
                         CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, rksmat)
                         CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, rsmat)
                      ELSE
-                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 1), cksmat, .FALSE.)
-                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 2), cksmat, .TRUE.)
-                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 3), csmat, .FALSE.)
-                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 4), csmat, .TRUE.)
+                        CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 1), cksmat, .FALSE.)
+                        CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 2), cksmat, .TRUE.)
+                        CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 3), csmat, .FALSE.)
+                        CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 4), csmat, .TRUE.)
                         IF (my_store_ot_kinetic) THEN
-                           CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 5), ctmat, .FALSE.)
-                           CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 6), ctmat, .TRUE.)
+                           CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 5), ctmat, .FALSE.)
+                           CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 6), ctmat, .TRUE.)
                         END IF
                      END IF
                   END IF
@@ -1167,14 +1167,14 @@ CONTAINS
                      DO igroup = 1, nkp_groups
                         ik = kp_dist(1, igroup) + ikp - 1
                         my_kpgrp = ik >= kp_range(1) .AND. ik <= kp_range(2)
-                        CALL kp_evp_op_start(adiis_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                             use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
-                                             tmpmat=tmpmat, fm_re=fmwork(1), fm_im=fmwork(2), &
-                                             fmlocal=fmlocal, fmdummy=fmdummy, my_kpgrp=my_kpgrp, &
-                                             para_env=para_env, info_re=blend_info(1), info_im=blend_info(2))
+                        CALL kpoint_operator_raw_start(adiis_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                                       use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, &
+                                                       tmpmat=tmpmat, fm_re=fmwork(1), fm_im=fmwork(2), &
+                                                       fmlocal=fmlocal, fmdummy=fmdummy, my_kpgrp=my_kpgrp, &
+                                                       para_env=para_env, info_re=blend_info(1), info_im=blend_info(2))
                         IF (my_kpgrp) THEN
-                           CALL kp_evp_op_finish_cfm(fmlocal, blend_info(1), cwork, .FALSE.)
-                           CALL kp_evp_op_finish_cfm(fmlocal, blend_info(2), cwork, .TRUE.)
+                           CALL kpoint_operator_raw_finish_cfm(fmlocal, blend_info(1), cwork, .FALSE.)
+                           CALL kpoint_operator_raw_finish_cfm(fmlocal, blend_info(2), cwork, .TRUE.)
                         END IF
                         CALL cp_fm_cleanup_copy_general(blend_info(1))
                         CALL cp_fm_cleanup_copy_general(blend_info(2))
@@ -1214,7 +1214,7 @@ CONTAINS
                      CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
                   END IF
                   ! split the real and imaginary parts of the mos and copy the eigenvalues to the imaginary set
-                  CALL kp_evp_cfm_to_mo(cmos, kp%mos(1, ispin), kp%mos(2, ispin), eigenvalues)
+                  CALL kpoint_operator_cfm_to_mo(cmos, kp%mos(1, ispin), kp%mos(2, ispin), eigenvalues)
                END IF
             END DO
          END DO
@@ -1237,13 +1237,13 @@ CONTAINS
                            CALL cp_fm_finish_copy_general(rtmat, info(indx, 3))
                         END IF
                      ELSE
-                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 1), cksmat, .FALSE.)
-                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 2), cksmat, .TRUE.)
-                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 3), csmat, .FALSE.)
-                        CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 4), csmat, .TRUE.)
+                        CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 1), cksmat, .FALSE.)
+                        CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 2), cksmat, .TRUE.)
+                        CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 3), csmat, .FALSE.)
+                        CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 4), csmat, .TRUE.)
                         IF (my_store_ot_kinetic) THEN
-                           CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 5), ctmat, .FALSE.)
-                           CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 6), ctmat, .TRUE.)
+                           CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 5), ctmat, .FALSE.)
+                           CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 6), ctmat, .TRUE.)
                         END IF
                      END IF
                   END IF
@@ -1288,7 +1288,7 @@ CONTAINS
                         CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
                      END IF
                      ! split the real and imaginary parts of the mos and copy the eigenvalues to the imaginary set
-                     CALL kp_evp_cfm_to_mo(cmos, kp%mos(1, ispin), kp%mos(2, ispin), eigenvalues)
+                     CALL kpoint_operator_cfm_to_mo(cmos, kp%mos(1, ispin), kp%mos(2, ispin), eigenvalues)
                   END IF
                END IF
             END DO
@@ -1971,16 +1971,16 @@ CONTAINS
                ELSE
                   ! complex wavefunctions: assemble KS and S and start their
                   ! transfer to the k-point group
-                  CALL kp_evp_op_start(matrix_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                       use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
-                                       fm_re=fmwork(1), fm_im=fmwork(2), fmlocal=fmlocal, fmdummy=fmdummy, &
-                                       my_kpgrp=my_kpgrp, para_env=para_env, &
-                                       info_re=info(indx, 1), info_im=info(indx, 2))
-                  CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                       use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
-                                       fm_re=fmwork(3), fm_im=fmwork(4), fmlocal=fmlocal, fmdummy=fmdummy, &
-                                       my_kpgrp=my_kpgrp, para_env=para_env, &
-                                       info_re=info(indx, 3), info_im=info(indx, 4))
+                  CALL kpoint_operator_raw_start(matrix_ks, ispin, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                                 use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
+                                                 fm_re=fmwork(1), fm_im=fmwork(2), fmlocal=fmlocal, fmdummy=fmdummy, &
+                                                 my_kpgrp=my_kpgrp, para_env=para_env, &
+                                                 info_re=info(indx, 1), info_im=info(indx, 2))
+                  CALL kpoint_operator_raw_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                                 use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
+                                                 fm_re=fmwork(3), fm_im=fmwork(4), fmlocal=fmlocal, fmdummy=fmdummy, &
+                                                 my_kpgrp=my_kpgrp, para_env=para_env, &
+                                                 info_re=info(indx, 3), info_im=info(indx, 4))
                END IF
             END DO
          END DO
@@ -2000,10 +2000,10 @@ CONTAINS
                      CALL cp_fm_finish_copy_general(rksmat, info(indx, 1))
                      CALL cp_fm_finish_copy_general(rsmat, info(indx, 2))
                   ELSE
-                     CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 1), cksmat, .FALSE.)
-                     CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 2), cksmat, .TRUE.)
-                     CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 3), csmat, .FALSE.)
-                     CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 4), csmat, .TRUE.)
+                     CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 1), cksmat, .FALSE.)
+                     CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 2), cksmat, .TRUE.)
+                     CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 3), csmat, .FALSE.)
+                     CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 4), csmat, .TRUE.)
                   END IF
                END IF
             END DO
@@ -2018,7 +2018,7 @@ CONTAINS
                CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
                CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
                ! split the real and imaginary parts of the mos and copy the eigenvalues to the imaginary set
-               CALL kp_evp_cfm_to_mo(cmos, kp%mos(1, ispin), kp%mos(2, ispin), eigenvalues)
+               CALL kpoint_operator_cfm_to_mo(cmos, kp%mos(1, ispin), kp%mos(2, ispin), eigenvalues)
             END IF
          END DO
       END DO
@@ -3903,11 +3903,11 @@ CONTAINS
             ELSE
                ! complex wavefunctions: assemble S and start its transfer
                ! to the k-point group
-               CALL kp_evp_op_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
-                                    use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
-                                    fm_re=fmwork(1), fm_im=fmwork(2), fmlocal=fmlocal, fmdummy=fmdummy, &
-                                    my_kpgrp=my_kpgrp, para_env=para_env, &
-                                    info_re=info(indx, 1), info_im=info(indx, 2))
+               CALL kpoint_operator_raw_start(matrix_s, 1, ik, xkp(1:3, ik), cell_to_index, sab_nl, &
+                                              use_grid=.FALSE., rmatrix=rmatrix, cmatrix=cmatrix, tmpmat=tmpmat, &
+                                              fm_re=fmwork(1), fm_im=fmwork(2), fmlocal=fmlocal, fmdummy=fmdummy, &
+                                              my_kpgrp=my_kpgrp, para_env=para_env, &
+                                              info_re=info(indx, 1), info_im=info(indx, 2))
             END IF
          END DO
       END DO
@@ -3924,8 +3924,8 @@ CONTAINS
                IF (use_real_wfn) THEN
                   CALL cp_fm_finish_copy_general(rsmat, info(indx, 1))
                ELSE
-                  CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 1), csmat, .FALSE.)
-                  CALL kp_evp_op_finish_cfm(fmlocal, info(indx, 2), csmat, .TRUE.)
+                  CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 1), csmat, .FALSE.)
+                  CALL kpoint_operator_raw_finish_cfm(fmlocal, info(indx, 2), csmat, .TRUE.)
                END IF
             END IF
          END DO

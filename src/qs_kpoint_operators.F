@@ -13,7 +13,7 @@
 !>        any of them. The STANDARD k-point driver uses this order.
 !> \author MI
 ! **************************************************************************************************
-MODULE qs_kp_evp_methods
+MODULE qs_kpoint_operators
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_to_fm,&
                                               cp_cfm_type
@@ -43,9 +43,9 @@ MODULE qs_kp_evp_methods
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kp_evp_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpoint_operators'
 
-   PUBLIC :: kp_evp_op_start, kp_evp_op_finish_cfm, kp_evp_cfm_to_mo
+   PUBLIC :: kpoint_operator_raw_start, kpoint_operator_raw_finish_cfm, kpoint_operator_cfm_to_mo
 
 CONTAINS
 
@@ -57,7 +57,7 @@ CONTAINS
 !>        It then starts the transfer of both parts to the target matrix.
 !>        Each transfer receives its data in a private buffer. For this reason, several
 !>        starts can use the same target matrix.
-!>        Finish a start with kp_evp_op_finish_cfm when its target received data.
+!>        Finish a start with kpoint_operator_raw_finish_cfm when its target received data.
 !>        On the groups that do not own this k point, my_kpgrp routes the transfer
 !>        to fmdummy; clean such a start up with cp_fm_cleanup_copy_general and
 !>        do not finish it.
@@ -82,9 +82,9 @@ CONTAINS
 !> \param info_re transfer state of the real part
 !> \param info_im transfer state of the imaginary part
 ! **************************************************************************************************
-   SUBROUTINE kp_evp_op_start(rsmat, ispin, ik, xkp, cell_to_index, sab_nl, grid, use_grid, &
-                              rmatrix, cmatrix, tmpmat, fm_re, fm_im, fmlocal, fmdummy, my_kpgrp, &
-                              para_env, info_re, info_im)
+   SUBROUTINE kpoint_operator_raw_start(rsmat, ispin, ik, xkp, cell_to_index, sab_nl, grid, use_grid, &
+                                        rmatrix, cmatrix, tmpmat, fm_re, fm_im, fmlocal, fmdummy, my_kpgrp, &
+                                        para_env, info_re, info_im)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
       INTEGER, INTENT(IN)                                :: ispin, ik
@@ -100,7 +100,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(copy_info_type)                               :: info_re, info_im
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kp_evp_op_start'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_raw_start'
 
       INTEGER                                            :: handle
 
@@ -130,10 +130,10 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE kp_evp_op_start
+   END SUBROUTINE kpoint_operator_raw_start
 
 ! **************************************************************************************************
-!> \brief Finish one transfer that kp_evp_op_start started and add the received
+!> \brief Finish one transfer that kpoint_operator_raw_start started and add the received
 !>        matrix to a complex matrix.
 !>        The finish of the real part overwrites cmat.
 !>        The finish of the imaginary part adds to cmat.
@@ -146,14 +146,14 @@ CONTAINS
 !> \param cmat complex matrix accumulating the operator
 !> \param imaginary_part add fmlocal as the imaginary part instead of the real part
 ! **************************************************************************************************
-   SUBROUTINE kp_evp_op_finish_cfm(fmlocal, info, cmat, imaginary_part)
+   SUBROUTINE kpoint_operator_raw_finish_cfm(fmlocal, info, cmat, imaginary_part)
 
       TYPE(cp_fm_type)                                   :: fmlocal
       TYPE(copy_info_type)                               :: info
       TYPE(cp_cfm_type)                                  :: cmat
       LOGICAL, INTENT(IN)                                :: imaginary_part
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kp_evp_op_finish_cfm'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_raw_finish_cfm'
 
       INTEGER                                            :: handle
 
@@ -168,7 +168,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE kp_evp_op_finish_cfm
+   END SUBROUTINE kpoint_operator_raw_finish_cfm
 
 ! **************************************************************************************************
 !> \brief Split a complex matrix into the real and imaginary MO sets and copy
@@ -178,13 +178,13 @@ CONTAINS
 !> \param mo_im imaginary part MO set
 !> \param eigenvalues eigenvalues of mo_re, copied to mo_im
 ! **************************************************************************************************
-   SUBROUTINE kp_evp_cfm_to_mo(cmat, mo_re, mo_im, eigenvalues)
+   SUBROUTINE kpoint_operator_cfm_to_mo(cmat, mo_re, mo_im, eigenvalues)
 
       TYPE(cp_cfm_type)                                  :: cmat
       TYPE(mo_set_type)                                  :: mo_re, mo_im
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kp_evp_cfm_to_mo'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_cfm_to_mo'
 
       INTEGER                                            :: handle
       TYPE(cp_fm_type), POINTER                          :: imos, rmos
@@ -198,6 +198,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE kp_evp_cfm_to_mo
+   END SUBROUTINE kpoint_operator_cfm_to_mo
 
-END MODULE qs_kp_evp_methods
+END MODULE qs_kpoint_operators
