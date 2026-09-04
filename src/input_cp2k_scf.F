@@ -36,20 +36,19 @@ MODULE input_cp2k_scf
         mopac_guess, no_guess, numerical, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
         ot_lattice_fft_auto, ot_lattice_fft_off, ot_lattice_fft_on, ot_low_rank_base_lattice_fft, &
         ot_low_rank_base_overlap, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, &
-        ot_mini_lbfgs, ot_mini_sd, ot_poly_irac, &
-        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_all_covariant, &
-        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
-        ot_precond_none, ot_precond_s_inverse, ot_precond_solver_chebyshev, &
-        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
-        ot_precond_solver_update, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
-        outer_scf_cdft_constraint, outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, &
-        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
-        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
-        outer_scf_s2_constraint, radius_covalent, radius_default, radius_single, radius_user, &
-        radius_vdw, random_guess, restart_guess, shape_function_density, shape_function_gaussian, &
-        smear_energy_window, smear_fermi_dirac, smear_gaussian, smear_list, smear_mp, smear_mv, &
-        sparse_guess
+        ot_mini_lbfgs, ot_mini_sd, ot_poly_irac, ot_precond_fermi_low_rank, ot_precond_full_all, &
+        ot_precond_full_all_covariant, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+        ot_precond_solver_chebyshev, ot_precond_solver_default, ot_precond_solver_direct, &
+        ot_precond_solver_inv_chol, ot_precond_solver_update, outer_scf_basis_center_opt, &
+        outer_scf_becke_constraint, outer_scf_cdft_constraint, outer_scf_ddapc_constraint, &
+        outer_scf_hirshfeld_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
+        outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
+        outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
+        outer_scf_optimizer_secant, outer_scf_s2_constraint, radius_covalent, radius_default, &
+        radius_single, radius_user, radius_vdw, random_guess, restart_guess, &
+        shape_function_density, shape_function_gaussian, smear_energy_window, smear_fermi_dirac, &
+        smear_gaussian, smear_list, smear_mp, smear_mv, sparse_guess
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
