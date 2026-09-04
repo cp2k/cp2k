@@ -485,6 +485,9 @@ CONTAINS
       my_neighbor_image = my_ordered
       IF (PRESENT(neighbor_image)) my_neighbor_image = neighbor_image
       CPASSERT(.NOT. (PRESENT(deltaR) .AND. PRESENT(lambda)))
+      IF (PRESENT(lambda) .OR. PRESENT(deltaR)) THEN
+         CPASSERT(my_ordered)
+      END IF
       accumulate_images = my_ordered .AND. my_neighbor_image
       IF (PRESENT(deltaR) .OR. PRESENT(lambda)) accumulate_images = .FALSE.
       derivative_sign = 1._dp
@@ -507,6 +510,7 @@ CONTAINS
          CPASSERT(nmoments_der > 0)
          CPASSERT(dbcsr_get_matrix_type(moments_der(1, 1)%matrix) == dbcsr_type_no_symmetry)
          IF (nmoments > 0) THEN
+            CPASSERT(PRESENT(moments))
             CPASSERT(dbcsr_get_matrix_type(moments(1)%matrix) == dbcsr_type_no_symmetry)
          END IF
       END IF
@@ -519,10 +523,10 @@ CONTAINS
 
       ! Work storage
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set, &
-                           maxco=maxco, maxsgf=maxsgf)
+                           maxco=maxco, maxsgf=maxsgf, &
+                           basis_type=basis_type)
 
       IF (nmoments > 0) THEN
-         CPASSERT(PRESENT(moments))
          nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
          CPASSERT(SIZE(moments) == nm)
          ! storage for integrals
