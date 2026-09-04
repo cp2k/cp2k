@@ -953,6 +953,7 @@ list(
   aobasis/aux_basis_set.F
   aobasis/basis_set_container_types.F
   aobasis/basis_set_types.F
+  aobasis/gaunt_coefficients.F
   aobasis/orbital_pointers.F
   aobasis/orbital_symbols.F
   aobasis/orbital_transformation_matrices.F
@@ -1036,7 +1037,8 @@ list(
   common/util.F
   common/xmgrace.F
   common/erf_complex.F
-  common/whittaker.F)
+  common/whittaker.F
+  common/wignernj_interface.F)
 
 list(APPEND CP2K_SRCS_F dbm/dbm_api.F dbm/dbm_tests.F)
 
@@ -1843,6 +1845,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
     $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
     hdf5::hdf5_fortran>
+    cp2k::libwignernj::wignernj
     DBCSR::dbcsr
     $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
     cp2k_linalg_libs

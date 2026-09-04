@@ -46,6 +46,8 @@
 - Remove the deprecated USE_PREV_RHO_R wavefunction-extrapolation alias
   ([#5666](https://github.com/cp2k/cp2k/pull/5666))
 - Remove the SPLINE3_NOPBC multigrid interpolator ([#5719](https://github.com/cp2k/cp2k/pull/5719))
+- Require libwignernj for the angular momentum algebra, replacing the in-tree Clebsch-Gordon
+  coefficient tables (TODO: PR link)
 - **TODO**
 
 ### Fixes

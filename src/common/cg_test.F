@@ -6,10 +6,17 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Test of Clebsch-Gordon Coefficients
+!> \brief Test of the Gaunt coefficients
+!> \note
+!>      Checks that the Gaunt coefficients returned by libwignernj agree with a
+!>      Lebedev quadrature of the corresponding triple product of the spherical
+!>      harmonics of spherical_harmonics::y_lm. This guards the phase and
+!>      normalisation conventions on both sides; the values themselves are
+!>      exact by construction in libwignernj.
 !> \par History
-!>      none
-!> \author JGH (28.02.2002)
+!>      JGH  1-Mar-2002 : Clebsch-Gordon coefficients
+!>      09.2026 rewritten against libwignernj [Susi Lehtola]
+!> \author JGH  1-Mar-2002
 ! **************************************************************************************************
 MODULE cg_test
 
@@ -19,146 +26,104 @@ MODULE cg_test
                                               get_number_of_lebedev_grid,&
                                               init_lebedev_grids,&
                                               lebedev_grid
-   USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: pi
-   USE spherical_harmonics,             ONLY: clebsch_gordon,&
-                                              clebsch_gordon_deallocate,&
-                                              clebsch_gordon_init,&
-                                              y_lm
+   USE spherical_harmonics,             ONLY: y_lm
+   USE wignernj_interface,              ONLY: complex_gaunt,&
+                                              real_gaunt
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
-
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cg_test'
-   PUBLIC :: clebsch_gordon_test
+   PUBLIC :: gaunt_coefficient_test
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Compare the Gaunt coefficients against a Lebedev quadrature of the
+!>        triple product of spherical harmonics
 ! **************************************************************************************************
-   SUBROUTINE clebsch_gordon_test()
+   SUBROUTINE gaunt_coefficient_test()
 
-      INTEGER, PARAMETER                                 :: l = 7
+      INTEGER, PARAMETER                                 :: lmax = 7
+      REAL(KIND=dp), PARAMETER                           :: eps = 1.0E-10_dp
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: a1, a2, a3
-      INTEGER                                            :: il, iw, l1, l2, ll, lp, m1, m2, mm, mp, &
-                                                            na
-      REAL(KIND=dp)                                      :: ca, cga(10), cn, rga(10, 21), tend, &
-                                                            tstart
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: b1, b2, b3, wa
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: yc
+      INTEGER                                            :: i1, i2, i3, iw, l, ll, m, n, na, nfun, &
+                                                            nfun1
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: lof, mof
+      REAL(KIND=dp)                                      :: dmax_complex, dmax_real, ref
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wa
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: yr
 
       iw = cp_logger_get_default_io_unit()
 
-      IF (iw > 0) THEN
+      IF (iw <= 0) RETURN
 
-         WRITE (iw, '(/,A,/)') " Test of Clebsch-Gordon Coefficients"
-         WRITE (iw, '(T40,A,T77,I4)') " Maximum l value tested:", l
+      WRITE (iw, '(/,A,/)') " Test of the Gaunt coefficients"
+      WRITE (iw, '(T40,A,T77,I4)') " Maximum l value tested:", lmax
 
-         na = 500
-         CALL init_lebedev_grids
-         ll = get_number_of_lebedev_grid(n=na)
-         na = lebedev_grid(ll)%n
-         ALLOCATE (wa(na))
-         ALLOCATE (a1(na), a2(na), a3(na))
-         ALLOCATE (b1(na), b2(na), b3(na))
+      na = 500
+      CALL init_lebedev_grids()
+      ll = get_number_of_lebedev_grid(n=na)
+      na = lebedev_grid(ll)%n
+      ALLOCATE (wa(na))
+      wa(1:na) = 4.0_dp*pi*lebedev_grid(ll)%w(1:na)
 
-         wa(1:na) = 4.0_dp*pi*lebedev_grid(ll)%w(1:na)
-
-         tstart = m_walltime()
-         CALL clebsch_gordon_init(l)
-         tend = m_walltime()
-         tend = tend - tstart
-         WRITE (iw, '(T30,A,T71,F10.3)') " Time for Clebsch-Gordon Table [s] ", tend
-         lp = (l**4 + 6*l**3 + 15*l**2 + 18*l + 8)/8
-         lp = 2*lp*(l + 1)
-         WRITE (iw, '(T30,A,T71,I10)') "      Size of Clebsch-Gordon Table ", lp
-         WRITE (iw, '(/,A)') " Start Test for Complex Spherical Harmonics "
-
-         DO l1 = 0, l
-            DO m1 = -l1, l1
-               CALL y_lm(lebedev_grid(ll)%r, a1, l1, m1)
-               DO l2 = 0, l
-                  DO m2 = -l2, l2
-                     CALL y_lm(lebedev_grid(ll)%r, a2, l2, m2)
-                     CALL clebsch_gordon(l1, m1, l2, m2, cga)
-                     DO lp = MOD(l1 + l2, 2), l1 + l2, 2
-                        mp = m1 + m2
-                        IF (lp < ABS(mp)) CYCLE
-                        CALL y_lm(lebedev_grid(ll)%r, a3, lp, mp)
-                        cn = REAL(SUM(a1*a2*CONJG(a3)*wa), KIND=dp)
-                        il = lp/2 + 1
-                        ca = cga(il)
-                        IF (ABS(ca - cn) > 1.e-10_dp) THEN
-                           WRITE (*, '(A,3I5,A,F20.12)') " l ", l1, l2, lp, " A ", ca
-                           WRITE (*, '(A,3I5,A,F20.12)') " m ", m1, m2, mp, " N ", cn
-                           WRITE (*, *)
-                        END IF
-                     END DO
-                  END DO
-               END DO
-            END DO
-            WRITE (iw, '(A,i2,A)') " Test for l = ", l1, " done"
+      ! The two harmonics that are multiplied run up to lmax, their product
+      ! is expanded in harmonics up to 2*lmax
+      nfun1 = (lmax + 1)**2
+      nfun = (2*lmax + 1)**2
+      ALLOCATE (lof(nfun), mof(nfun))
+      ALLOCATE (yr(na, nfun), yc(na, nfun))
+      n = 0
+      DO l = 0, 2*lmax
+         DO m = -l, l
+            n = n + 1
+            lof(n) = l
+            mof(n) = m
+            CALL y_lm(lebedev_grid(ll)%r, yr(:, n), l, m)
+            CALL y_lm(lebedev_grid(ll)%r, yc(:, n), l, m)
          END DO
+      END DO
+      CPASSERT(n == nfun)
 
-         WRITE (iw, '(/,A)') " Start Test for Real Spherical Harmonics "
-         DO l1 = 0, l
-            DO m1 = -l1, l1
-               CALL y_lm(lebedev_grid(ll)%r, b1, l1, m1)
-               DO l2 = 0, l
-                  DO m2 = -l2, l2
-                     CALL y_lm(lebedev_grid(ll)%r, b2, l2, m2)
-                     CALL clebsch_gordon(l1, m1, l2, m2, rga)
-                     mp = m1 + m2
-                     mm = m1 - m2
-                     IF (m1*m2 < 0 .OR. (m1*m2 == 0 .AND. (m1 < 0 .OR. m2 < 0))) THEN
-                        mp = -ABS(mp)
-                        mm = -ABS(mm)
-                     ELSE
-                        mp = ABS(mp)
-                        mm = ABS(mm)
-                     END IF
-                     DO lp = MOD(l1 + l2, 2), l1 + l2, 2
-                        IF (ABS(mp) <= lp) THEN
-                           CALL y_lm(lebedev_grid(ll)%r, b3, lp, mp)
-                           cn = SUM(b1*b2*b3*wa)
-                           il = lp/2 + 1
-                           ca = rga(il, 1)
-                           IF (ABS(ca - cn) > 1.e-10_dp) THEN
-                              WRITE (*, '(A,3I5,A,F20.12)') " l ", l1, l2, lp, " A ", ca
-                              WRITE (*, '(A,3I5,A,F20.12)') " m ", m1, m2, mp, " N ", cn
-                              WRITE (*, *)
-                           END IF
-                        END IF
-                        IF (mp /= mm .AND. ABS(mm) <= lp) THEN
-                           CALL y_lm(lebedev_grid(ll)%r, b3, lp, mm)
-                           cn = SUM(b1*b2*b3*wa)
-                           il = lp/2 + 1
-                           ca = rga(il, 2)
-                           IF (ABS(ca - cn) > 1.e-10_dp) THEN
-                              WRITE (*, '(A,3I5,A,F20.12)') " l ", l1, l2, lp, " A ", ca
-                              WRITE (*, '(A,3I5,A,F20.12)') " m ", m1, m2, mm, " N ", cn
-                              WRITE (*, *)
-                           END IF
-                        END IF
-                     END DO
-                  END DO
-               END DO
+      dmax_real = 0.0_dp
+      dmax_complex = 0.0_dp
+      DO i1 = 1, nfun1
+         DO i2 = 1, nfun1
+            DO i3 = 1, nfun
+               ! Real spherical harmonics
+               ref = real_gaunt(lof(i1), mof(i1), lof(i2), mof(i2), lof(i3), mof(i3))
+               dmax_real = MAX(dmax_real, &
+                               ABS(ref - SUM(wa*yr(:, i1)*yr(:, i2)*yr(:, i3))))
+               ! Complex spherical harmonics. Unlike the real ones, the complex
+               ! harmonics of y_lm are defined without the Condon-Shortley phase
+               ! (see cvy_lm: P_l^|m| with no (-1)^m), so they are related to the
+               ! Condon-Shortley harmonics that libwignernj uses by
+               !     Y_cp2k(l,m) = (-1)^max(m,0) Y_cs(l,m).
+               ! The Gaunt coefficient vanishes unless m1 + m2 + m3 = 0, in which
+               ! case the integral is real.
+               ref = complex_gaunt(lof(i1), mof(i1), lof(i2), mof(i2), lof(i3), mof(i3))
+               ref = ref*(-1.0_dp)**(MAX(mof(i1), 0) + MAX(mof(i2), 0) + MAX(mof(i3), 0))
+               dmax_complex = MAX(dmax_complex, &
+                                  ABS(CMPLX(ref, 0.0_dp, KIND=dp) - &
+                                      SUM(wa*yc(:, i1)*yc(:, i2)*yc(:, i3))))
             END DO
-            WRITE (iw, '(A,i2,A)') " Test for l = ", l1, " done"
          END DO
+         WRITE (iw, '(A,I2,A)') " Test for l = ", lof(i1), " done"
+      END DO
 
-         DEALLOCATE (wa)
-         DEALLOCATE (a1, a2, a3)
-         DEALLOCATE (b1, b2, b3)
+      WRITE (iw, '(/,T30,A,T71,ES10.3)') " Real spherical harmonics, max deviation ", dmax_real
+      WRITE (iw, '(T30,A,T71,ES10.3)') " Complex spherical harmonics, max deviation ", dmax_complex
 
-         CALL deallocate_lebedev_grids()
-         CALL clebsch_gordon_deallocate()
+      DEALLOCATE (wa, lof, mof, yr, yc)
+      CALL deallocate_lebedev_grids()
 
+      IF (MAX(dmax_real, dmax_complex) > eps) THEN
+         CPABORT("The Gaunt coefficients disagree with the numerical integration")
       END IF
 
-   END SUBROUTINE clebsch_gordon_test
+   END SUBROUTINE gaunt_coefficient_test
 
 END MODULE cg_test
-

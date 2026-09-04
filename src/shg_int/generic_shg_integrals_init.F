@@ -19,12 +19,6 @@ MODULE generic_shg_integrals_init
    USE mathconstants,                   ONLY: fac,&
                                               ifac,&
                                               pi
-   USE memory_utilities,                ONLY: reallocate
-   USE orbital_pointers,                ONLY: indso,&
-                                              nsoset
-   USE spherical_harmonics,             ONLY: clebsch_gordon,&
-                                              clebsch_gordon_deallocate,&
-                                              clebsch_gordon_init
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -33,8 +27,7 @@ MODULE generic_shg_integrals_init
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'generic_shg_integrals_init'
 
-   PUBLIC :: contraction_matrix_shg, contraction_matrix_shg_mix, contraction_matrix_shg_rx2m, &
-             get_clebsch_gordon_coefficients
+   PUBLIC :: contraction_matrix_shg, contraction_matrix_shg_mix, contraction_matrix_shg_rx2m
 
 ! **************************************************************************************************
 
@@ -293,105 +286,5 @@ CONTAINS
       DEALLOCATE (shg_fac)
 
    END SUBROUTINE contraction_matrix_shg_rx2m
-
-! **************************************************************************************************
-!> \brief calculate the Clebsch-Gordon (CG) coefficients for expansion of the
-!>        product of two spherical harmonic Gaussians
-!> \param my_cg matrix storing CG coefficients
-!> \param cg_none0_list list of none-zero CG coefficients
-!> \param ncg_none0 number of none-zero CG coefficients
-!> \param maxl1 maximal l quantum number of 1st spherical function
-!> \param maxl2 maximal l quantum number of 2nd spherical function
-! **************************************************************************************************
-   SUBROUTINE get_clebsch_gordon_coefficients(my_cg, cg_none0_list, ncg_none0, &
-                                              maxl1, maxl2)
-
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: my_cg
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cg_none0_list
-      INTEGER, DIMENSION(:, :), POINTER                  :: ncg_none0
-      INTEGER, INTENT(IN)                                :: maxl1, maxl2
-
-      INTEGER                                            :: il, ilist, iso, iso1, iso2, l1, l1l2, &
-                                                            l2, lc1, lc2, lp, m1, m2, maxl, mm, &
-                                                            mp, nlist, nlist_max, nsfunc, nsfunc1, &
-                                                            nsfunc2
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rga
-
-      nlist_max = 6
-      nsfunc1 = nsoset(maxl1)
-      nsfunc2 = nsoset(maxl2)
-      maxl = maxl1 + maxl2
-      nsfunc = nsoset(maxl)
-
-      CALL clebsch_gordon_init(maxl)
-
-      ALLOCATE (my_cg(nsfunc1, nsfunc2, nsfunc))
-      my_cg = 0.0_dp
-      ALLOCATE (ncg_none0(nsfunc1, nsfunc2))
-      ncg_none0 = 0
-      ALLOCATE (cg_none0_list(nsfunc1, nsfunc2, nlist_max))
-      cg_none0_list = 0
-
-      ALLOCATE (rga(maxl, 2))
-      rga = 0.0_dp
-      DO lc1 = 0, maxl1
-         DO iso1 = nsoset(lc1 - 1) + 1, nsoset(lc1)
-            l1 = indso(1, iso1)
-            m1 = indso(2, iso1)
-            DO lc2 = 0, maxl2
-               DO iso2 = nsoset(lc2 - 1) + 1, nsoset(lc2)
-                  l2 = indso(1, iso2)
-                  m2 = indso(2, iso2)
-                  CALL clebsch_gordon(l1, m1, l2, m2, rga)
-                  l1l2 = l1 + l2
-                  mp = m1 + m2
-                  mm = m1 - m2
-                  IF (m1*m2 < 0 .OR. (m1*m2 == 0 .AND. (m1 < 0 .OR. m2 < 0))) THEN
-                     mp = -ABS(mp)
-                     mm = -ABS(mm)
-                  ELSE
-                     mp = ABS(mp)
-                     mm = ABS(mm)
-                  END IF
-                  DO lp = MOD(l1 + l2, 2), l1l2, 2
-                     il = lp/2 + 1
-                     IF (ABS(mp) <= lp) THEN
-                        IF (mp >= 0) THEN
-                           iso = nsoset(lp - 1) + lp + 1 + mp
-                        ELSE
-                           iso = nsoset(lp - 1) + lp + 1 - ABS(mp)
-                        END IF
-                        my_cg(iso1, iso2, iso) = rga(il, 1)
-                     END IF
-                     IF (mp /= mm .AND. ABS(mm) <= lp) THEN
-                        IF (mm >= 0) THEN
-                           iso = nsoset(lp - 1) + lp + 1 + mm
-                        ELSE
-                           iso = nsoset(lp - 1) + lp + 1 - ABS(mm)
-                        END IF
-                        my_cg(iso1, iso2, iso) = rga(il, 2)
-                     END IF
-                  END DO
-                  nlist = 0
-                  DO ilist = 1, nsfunc
-                     IF (ABS(my_cg(iso1, iso2, ilist)) > 1.E-8_dp) THEN
-                        nlist = nlist + 1
-                        IF (nlist > nlist_max) THEN
-                           CALL reallocate(cg_none0_list, 1, nsfunc1, 1, nsfunc2, 1, nlist)
-                           nlist_max = nlist
-                        END IF
-                        cg_none0_list(iso1, iso2, nlist) = ilist
-                     END IF
-                  END DO
-                  ncg_none0(iso1, iso2) = nlist
-               END DO ! iso2
-            END DO ! lc2
-         END DO ! iso1
-      END DO ! lc1
-
-      DEALLOCATE (rga)
-      CALL clebsch_gordon_deallocate()
-
-   END SUBROUTINE get_clebsch_gordon_coefficients
 
 END MODULE generic_shg_integrals_init
