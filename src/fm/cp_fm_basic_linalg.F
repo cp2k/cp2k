@@ -450,7 +450,7 @@ CONTAINS
 !> \brief computes matrix_c = beta * matrix_c + alpha * ( matrix_a  ** transa ) * ( matrix_b ** transb )
 !> \param transa : 'N' -> normal   'T' -> transpose
 !>      alpha,beta :: can be 0.0_dp and 1.0_dp
-!> \param transb ...
+!> \param transb same operation choices as transa
 !> \param m ...
 !> \param n ...
 !> \param k ...
@@ -1792,7 +1792,7 @@ CONTAINS
 !> \brief Convenience function. Computes the matrix multiplications needed
 !>        for the multiplication of complex matrices.
 !>        C = beta * C + alpha * ( A  ** transa ) * ( B ** transb )
-!> \param transa : 'N' -> normal   'T' -> transpose
+!> \param transa : 'N' -> normal   'T' -> transpose   'C' -> conjugate transpose
 !>      alpha,beta :: can be 0.0_dp and 1.0_dp
 !> \param transb ...
 !> \param m ...
@@ -1830,32 +1830,48 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_complex_fm_gemm'
 
+      CHARACTER(LEN=1)                                   :: transa_real, transb_real
       INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: sign_a, sign_b
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_gemm(transa, transb, m, n, k, alpha, A_re, B_re, beta, C_re, &
+      transa_real = transa
+      transb_real = transb
+      sign_a = 1.0_dp
+      sign_b = 1.0_dp
+      IF (transa == "C") THEN
+         transa_real = "T"
+         sign_a = -1.0_dp
+      END IF
+      IF (transb == "C") THEN
+         transb_real = "T"
+         sign_b = -1.0_dp
+      END IF
+
+      CALL cp_fm_gemm(transa_real, transb_real, m, n, k, alpha, A_re, B_re, beta, C_re, &
                       a_first_col=a_first_col, &
                       a_first_row=a_first_row, &
                       b_first_col=b_first_col, &
                       b_first_row=b_first_row, &
                       c_first_col=c_first_col, &
                       c_first_row=c_first_row)
-      CALL cp_fm_gemm(transa, transb, m, n, k, -alpha, A_im, B_im, 1.0_dp, C_re, &
+      CALL cp_fm_gemm(transa_real, transb_real, m, n, k, -sign_a*sign_b*alpha, &
+                      A_im, B_im, 1.0_dp, C_re, &
                       a_first_col=a_first_col, &
                       a_first_row=a_first_row, &
                       b_first_col=b_first_col, &
                       b_first_row=b_first_row, &
                       c_first_col=c_first_col, &
                       c_first_row=c_first_row)
-      CALL cp_fm_gemm(transa, transb, m, n, k, alpha, A_re, B_im, beta, C_im, &
+      CALL cp_fm_gemm(transa_real, transb_real, m, n, k, sign_b*alpha, A_re, B_im, beta, C_im, &
                       a_first_col=a_first_col, &
                       a_first_row=a_first_row, &
                       b_first_col=b_first_col, &
                       b_first_row=b_first_row, &
                       c_first_col=c_first_col, &
                       c_first_row=c_first_row)
-      CALL cp_fm_gemm(transa, transb, m, n, k, alpha, A_im, B_re, 1.0_dp, C_im, &
+      CALL cp_fm_gemm(transa_real, transb_real, m, n, k, sign_a*alpha, A_im, B_re, 1.0_dp, C_im, &
                       a_first_col=a_first_col, &
                       a_first_row=a_first_row, &
                       b_first_col=b_first_col, &
