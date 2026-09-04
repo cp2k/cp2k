@@ -24,13 +24,13 @@ MODULE scf_control_types
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE input_constants,                 ONLY: &
         atomic_guess, diag_ot, diag_update_method_adiis, diag_update_method_mixing, direct_p_mix, &
-        general_roks, high_spin_roks, no_guess, no_mix, ot_algo_taylor_or_diag, &
-        outer_scf_basis_center_opt, outer_scf_cdft_constraint, outer_scf_ddapc_constraint, &
-        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
-        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
-        outer_scf_s2_constraint, smear_energy_window, smear_fermi_dirac, smear_gaussian, &
-        smear_list, smear_mp, smear_mv
+        external_density_guess, general_roks, high_spin_roks, no_guess, no_mix, &
+        ot_algo_taylor_or_diag, outer_scf_basis_center_opt, outer_scf_cdft_constraint, &
+        outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
+        outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
+        outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
+        outer_scf_optimizer_secant, outer_scf_s2_constraint, smear_energy_window, &
+        smear_fermi_dirac, smear_gaussian, smear_list, smear_mp, smear_mv
    USE input_cp2k_scf,                  ONLY: create_scf_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -43,7 +43,8 @@ MODULE scf_control_types
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE outer_scf_control_types,         ONLY: outer_scf_control_type,&
                                               outer_scf_read_parameters
@@ -134,6 +135,7 @@ MODULE scf_control_types
       TYPE(diagonalization_type)            :: diagonalization = diagonalization_type()
       TYPE(gce_type), POINTER               :: gce => NULL()
       INTEGER                               :: density_guess = -1, mixing_method = -1
+      CHARACTER(LEN=default_path_length)     :: external_density_file_name = ""
       REAL(KIND=dp)                         :: eps_eigval = -1.0_dp, eps_scf = -1.0_dp, eps_scf_hist = -1.0_dp, &
                                                level_shift = -1.0_dp, &
                                                eps_lumos = -1.0_dp, eps_diis = -1.0_dp
@@ -375,6 +377,12 @@ CONTAINS
       CALL section_vals_val_get(scf_section, "OT%ALGORITHM", i_val=ialgo)
       scf_control%do_outer_scf_reortho = ialgo == ot_algo_taylor_or_diag
       CALL section_vals_val_get(scf_section, "SCF_GUESS", i_val=scf_control%density_guess)
+      CALL section_vals_val_get(scf_section, "EXTERNAL_DENSITY_FILE_NAME", &
+                                c_val=scf_control%external_density_file_name)
+      IF (scf_control%density_guess == external_density_guess .AND. &
+          LEN_TRIM(scf_control%external_density_file_name) == 0) THEN
+         CPABORT("SCF_GUESS EXTERNAL_DENSITY requires EXTERNAL_DENSITY_FILE_NAME")
+      END IF
       CALL section_vals_val_get(scf_section, "eps_eigval", r_val=scf_control%eps_eigval)
       CALL section_vals_val_get(scf_section, "cholesky", i_val=cholesky_flag)
       IF (scf_control%use_ot) THEN
@@ -695,6 +703,11 @@ CONTAINS
                   "eps_diis:          ", scf_control%eps_diis, &
                   "eps_eigval:        ", scf_control%eps_eigval, &
                   "level_shift [a.u.]:", scf_control%level_shift
+
+               IF (scf_control%density_guess == external_density_guess) THEN
+                  WRITE (UNIT=output_unit, FMT="(T25,A,T51,A30)") &
+                     "External density:   ", ADJUSTR(TRIM(scf_control%external_density_file_name))
+               END IF
 
                IF (scf_control%use_diag) THEN
                   keyword => section_get_keyword(section, "DIAGONALIZATION%UPDATE_METHOD")
