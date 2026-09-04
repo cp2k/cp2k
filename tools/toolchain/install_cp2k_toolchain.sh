@@ -1064,11 +1064,12 @@ fi
 if [ "${with_gauxc}" != "__DONTUSE__" ] || [ "${with_skala_ftorch}" != "__DONTUSE__" ]; then
   echo "Info: Installing shared skala model for GauXC or Skala_Ftorch"
   with_skala="__INSTALL__"
-  export with_skala
   export SKALA="__TRUE__"
 else
+  with_skala="__DONTUSE__"
   export SKALA="__FALSE__"
 fi
+export with_skala
 
 # If OpenCL is enabled, ensure LIBXS and LIBXSTREAM are available.
 if [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
