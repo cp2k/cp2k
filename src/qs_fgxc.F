@@ -214,9 +214,10 @@ CONTAINS
             uf_pw_pool => auxbas_pw_pool
          END IF
 
-         ! only spinflip is activated !?
-         IF (.NOT. spinflip) THEN
-            CPABORT("Analytic 3rd EXC derivatives not available")
+         ! Analytic third derivatives cover the spin-flip case and, in the
+         ! reduced-gradient (gamma) formulation, the spin-restricted singlet one.
+         IF (.NOT. spinflip .AND. is_triplet) THEN
+            CPABORT("Analytic 3rd XC derivatives: no restricted triplets yet")
          END IF
          CALL qs_fgxc_analytic(rho0_uf, rho1_uf, xc_section, uf_pw_pool, weights_uf, &
                                is_triplet, spinflip, &
@@ -387,9 +388,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(rho0_struct))
       CPASSERT(ASSOCIATED(rho1_struct))
 
-      ! only tested for spinflip
       CPASSERT(.NOT. is_triplet)
-      CPASSERT(spinflip)
 
       ! Initialize parameters
       do_sf = spinflip
@@ -397,6 +396,16 @@ CONTAINS
       ! Get the values on the gridpoints of the rho0 density
       CALL qs_rho_get(rho0_struct, rho_r=rho0_r, rho_g=rho0_g, tau_r=tau0_r)
       nspins = SIZE(rho0_r)
+      ! The perturbed fields have to be fetched here too: the meta-GGA branch
+      ! below tests ASSOCIATED(tau1_r) before rho1_set is built, and tau1_r is a
+      ! local pointer until this call defines it.
+      CALL qs_rho_get(rho1_struct, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
+
+      ! Analytic third derivatives cover the spin-flip case and, in the
+      ! reduced-gradient (gamma) formulation, the spin-restricted singlet one.
+      IF (.NOT. (do_sf .OR. nspins == 1 .OR. nspins == 2)) THEN
+         CPABORT("Analytic 3rd XC derivatives: unsupported spin case")
+      END IF
       lsd = (nspins == 2)
       !
       IF (do_sf) THEN
@@ -453,8 +462,6 @@ CONTAINS
                              xc_section, tau_r=tau0_r, do_sf=do_sf)
 
       ! Build rho1_set
-      ! Get the values on the gridpoints of the rho1 density
-      CALL qs_rho_get(rho1_struct, rho_r=rho1_r, rho_g=rho1_g, tau_r=tau1_r)
       bo = rho1_r(1)%pw_grid%bounds_local
       ! create the place where to store the argument for the functionals
       ! Needs
