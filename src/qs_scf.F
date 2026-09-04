@@ -86,11 +86,12 @@ MODULE qs_scf
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
         broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
         cdft2ot, cholesky_dbcsr, diag_update_method_adiis, history_guess, ot2cdft, &
-        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_kinetic, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
-        ot_precond_s_inverse, outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, &
-        outer_scf_optimizer_broyden, outer_scf_optimizer_newton_ls, sic_eo, smear_fermi_dirac, &
-        smear_gaussian, smear_mp, smear_mv, tblite_scc_mixer_tblite
+        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_all_covariant, &
+        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
+        ot_precond_none, ot_precond_s_inverse, outer_scf_becke_constraint, &
+        outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
+        outer_scf_optimizer_newton_ls, sic_eo, smear_fermi_dirac, smear_gaussian, smear_mp, &
+        smear_mv, tblite_scc_mixer_tblite
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -111,13 +112,12 @@ MODULE qs_scf
                                               mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
-   USE preconditioner,                  ONLY: make_preconditioner_complex_full_all,&
-                                              make_preconditioner_complex_full_kinetic,&
-                                              make_preconditioner_complex_full_s_inverse,&
-                                              make_preconditioner_complex_full_single,&
-                                              make_preconditioner_complex_full_single_inverse,&
-                                              prepare_preconditioner,&
-                                              restart_preconditioner
+   USE preconditioner,                  ONLY: &
+        make_preconditioner_complex_fermi_low_rank, make_preconditioner_complex_full_all, &
+        make_preconditioner_complex_full_all_covariant, make_preconditioner_complex_full_kinetic, &
+        make_preconditioner_complex_full_s_inverse, make_preconditioner_complex_full_single, &
+        make_preconditioner_complex_full_single_inverse, prepare_preconditioner, &
+        restart_preconditioner
    USE preconditioner_types,            ONLY: destroy_preconditioner,&
                                               init_preconditioner
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -1586,7 +1586,12 @@ CONTAINS
                                      scf_control%diagonalization%ot_settings%precond_solver_type, &
                                      scf_control%diagonalization%ot_settings%energy_gap, dft_control%nspins, &
                                      chebyshev_degree=scf_control%diagonalization%ot_settings%chebyshev_degree, &
-                                     low_rank_base=scf_control%diagonalization%ot_settings%low_rank_base)
+                                     low_rank_base=scf_control%diagonalization%ot_settings%low_rank_base, &
+                                     fermi_low_rank_max_rank= &
+                                     scf_control%diagonalization%ot_settings%fermi_low_rank_max_rank, &
+                                     lattice_fft=scf_control%diagonalization%ot_settings%lattice_fft, &
+                                     lattice_fft_local_cells= &
+                                     scf_control%diagonalization%ot_settings%lattice_fft_local_cells)
 
       CASE (block_davidson_diag_method_nr)
          ! Preconditioner initialized within the loop, when required
@@ -1754,6 +1759,17 @@ CONTAINS
                                      kp_range=kp_range, &
                                      wkp=wkp)
 
+            IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == &
+                ot_precond_full_all_covariant) THEN
+               IF (.NOT. do_kpoints) THEN
+                  DO ispin = 1, SIZE(mos)
+                     IF (.NOT. mos(ispin)%uniform_occupation) THEN
+                        CPABORT('PRECONDITIONER FULL_ALL_COVARIANT currently requires uniform occupations.')
+                     END IF
+                  END DO
+               END IF
+            END IF
+
             ! might need the KS matrix to init properly
             CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
                                      calculate_forces=.FALSE.)
@@ -1784,7 +1800,12 @@ CONTAINS
                                            has_unit_metric=has_unit_metric, &
                                            chol_type=scf_env%qs_ot_env(1)%settings%cholesky_type, &
                                            chebyshev_degree=scf_env%qs_ot_env(1)%settings%chebyshev_degree, &
-                                           low_rank_base=scf_env%qs_ot_env(1)%settings%low_rank_base)
+                                           low_rank_base=scf_env%qs_ot_env(1)%settings%low_rank_base, &
+                                           fermi_low_rank_max_rank= &
+                                           scf_env%qs_ot_env(1)%settings%fermi_low_rank_max_rank, &
+                                           lattice_fft=scf_env%qs_ot_env(1)%settings%lattice_fft, &
+                                           lattice_fft_local_cells= &
+                                           scf_env%qs_ot_env(1)%settings%lattice_fft_local_cells)
             END IF
             IF (reuse_precond) reuse_precond = .FALSE.
 
@@ -1794,7 +1815,8 @@ CONTAINS
 
             SELECT CASE (scf_env%qs_ot_env(1)%settings%preconditioner_type)
             CASE (ot_precond_none)
-            CASE (ot_precond_full_all, ot_precond_fermi_low_rank, ot_precond_full_single_inverse)
+            CASE (ot_precond_full_all, ot_precond_fermi_low_rank, ot_precond_full_all_covariant, &
+                  ot_precond_full_single_inverse)
                DO ispin = 1, SIZE(scf_env%qs_ot_env)
                   CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin), &
                                                 scf_env%ot_preconditioner(ispin)%preconditioner)
@@ -1856,10 +1878,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
 
       CHARACTER(len=*), PARAMETER :: kpoint_precond_error = &
-         "Complex K-point OT supports PRECONDITIONER NONE, FULL_S_INVERSE, "// &
-         "FULL_KINETIC, FULL_SINGLE_INVERSE, or FULL_ALL.", kpoint_solver_error = &
-         "Complex K-point FULL_ALL supports PRECOND_SOLVER DEFAULT; inverse "// &
-         "preconditioners support DEFAULT or INVERSE_CHOLESKY."
+         "Complex K-point OT supports PRECONDITIONER NONE, FERMI_LOW_RANK, "// &
+         "FULL_S_INVERSE, FULL_KINETIC, FULL_SINGLE, FULL_SINGLE_INVERSE, FULL_ALL, or "// &
+         "FULL_ALL_COVARIANT.", kpoint_solver_error = &
+         "Complex K-point FERMI_LOW_RANK, FULL_SINGLE, FULL_ALL, and FULL_ALL_COVARIANT "// &
+         "support PRECOND_SOLVER DEFAULT; FULL_S_INVERSE, FULL_KINETIC, and "// &
+         "FULL_SINGLE_INVERSE support DEFAULT or INVERSE_CHOLESKY."
 
       INTEGER                                            :: ikpoint, ispin, local_kpoint, &
                                                             number_of_OT_envs, ot_channel
@@ -1883,6 +1907,12 @@ CONTAINS
       END IF
 
       CALL ot_scf_read_input(scf_env%qs_ot_env, scf_section, do_kpoints)
+
+      IF (dft_control%restricted .AND. .NOT. do_kpoints .AND. &
+          scf_env%qs_ot_env(1)%settings%preconditioner_type == &
+          ot_precond_full_all_covariant) THEN
+         CPABORT('Gamma-point PRECONDITIONER FULL_ALL_COVARIANT does not currently support ROKS.')
+      END IF
 
       IF (do_kpoints) THEN
          do_smear = dft_control%smear .OR. scf_control%smear%do_smear
@@ -2237,16 +2267,18 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_qs_ot_kpoint_preconditioners'
 
-      INTEGER                                            :: handle, ikpoint, ispin, ks_spin, &
-                                                            local_kpoint, n_ot_channels, &
-                                                            ot_channel, prec_type, source_channel
+      INTEGER :: handle, ikpoint, ispin, ks_spin, local_kpoint, n_ot_channels, nocc, &
+         occupation_spin, ot_channel, prec_type, source_channel
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: occupation_signature
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
       TYPE(dbcsr_type), POINTER                          :: matrix_h_im, matrix_h_re, matrix_s_im, &
                                                             matrix_s_re, matrix_t_im, matrix_t_re
       TYPE(kpoint_env_type), POINTER                     :: kp
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (kp, matrix_h_im, matrix_h_re, matrix_s_im, matrix_s_re, matrix_t_im, matrix_t_re)
+      NULLIFY (kp, matrix_h_im, matrix_h_re, matrix_s_im, matrix_s_re, matrix_t_im, matrix_t_re, &
+               occupation_numbers)
       CPASSERT(ASSOCIATED(scf_env%qs_ot_env))
       CPASSERT(ASSOCIATED(kpoints))
       CPASSERT(ASSOCIATED(matrix_ks))
@@ -2258,7 +2290,8 @@ CONTAINS
          RETURN
       END IF
       SELECT CASE (prec_type)
-      CASE (ot_precond_full_all, ot_precond_full_single, ot_precond_full_single_inverse, &
+      CASE (ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_all_covariant, &
+            ot_precond_full_single, ot_precond_full_single_inverse, &
             ot_precond_full_kinetic, ot_precond_s_inverse)
       CASE DEFAULT
          CPABORT("Unsupported complex K-point OT preconditioner")
@@ -2325,7 +2358,9 @@ CONTAINS
                                              scf_env%ot_preconditioner(ot_channel)%preconditioner)
                CYCLE
             END IF
-            IF (prec_type == ot_precond_full_all .OR. &
+            IF (prec_type == ot_precond_fermi_low_rank .OR. &
+                prec_type == ot_precond_full_all .OR. &
+                prec_type == ot_precond_full_all_covariant .OR. &
                 prec_type == ot_precond_full_single .OR. &
                 prec_type == ot_precond_full_single_inverse) THEN
                ks_spin = MIN(ispin, SIZE(kp%ot_hmat, 2))
@@ -2335,6 +2370,15 @@ CONTAINS
                                                   matrix_h_re, matrix_h_im)
             END IF
             SELECT CASE (prec_type)
+            CASE (ot_precond_fermi_low_rank)
+               CALL make_preconditioner_complex_fermi_low_rank( &
+                  scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+                  scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                  scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
+                  matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
+                  scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
+                  scf_env%qs_ot_env(ot_channel)%settings%fermi_low_rank_max_rank, &
+                  scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
             CASE (ot_precond_full_all)
                CALL make_preconditioner_complex_full_all( &
                   scf_env%ot_preconditioner(ot_channel)%preconditioner, &
@@ -2351,6 +2395,36 @@ CONTAINS
                   kp%mos(1, ispin), &
                   scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
                   scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
+            CASE (ot_precond_full_all_covariant)
+               IF (nspin_ot == 1 .AND. SIZE(kp%mos, 2) > 1) THEN
+                  CALL dbcsr_get_info(scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                                      nfullcols_total=nocc)
+                  ALLOCATE (occupation_signature(nocc, SIZE(kp%mos, 2)))
+                  DO occupation_spin = 1, SIZE(kp%mos, 2)
+                     CALL get_mo_set(kp%mos(1, occupation_spin), &
+                                     occupation_numbers=occupation_numbers)
+                     CPASSERT(ASSOCIATED(occupation_numbers))
+                     CPASSERT(SIZE(occupation_numbers) >= nocc)
+                     occupation_signature(:, occupation_spin) = occupation_numbers(1:nocc)
+                  END DO
+                  CALL make_preconditioner_complex_full_all_covariant( &
+                     scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+                     scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                     scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
+                     matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
+                     scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
+                     scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type, &
+                     occupation_signature)
+                  DEALLOCATE (occupation_signature)
+               ELSE
+                  CALL make_preconditioner_complex_full_all_covariant( &
+                     scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+                     scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                     scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
+                     matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
+                     scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
+                     scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
+               END IF
             CASE (ot_precond_full_single_inverse)
                CALL make_preconditioner_complex_full_single_inverse( &
                   scf_env%ot_preconditioner(ot_channel)%preconditioner, &

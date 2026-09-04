@@ -8,6 +8,7 @@ kpoint_lattice_fft_unittest
 kpoint_smearing_unittest
 qs_ot_minimizer_unittest
 low_rank_preconditioner_unittest
+ot_covariant_preconditioner_unittest
 libcp2k_unittest
 gemm_square_unittest
 memory_utilities_unittest

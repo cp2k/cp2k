@@ -37,9 +37,10 @@ MODULE qs_ot_types
                                               cp_fm_type
    USE input_constants,                 ONLY: &
         cholesky_reduce, ls_2pnt, ls_3pnt, ls_adapt, ls_gold, ls_none, ot_algo_irac, &
-        ot_algo_taylor_or_diag, ot_chol_irac, ot_low_rank_base_lattice_fft, &
-        ot_low_rank_base_overlap, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, &
-        ot_mini_lbfgs, ot_mini_sd, ot_poly_irac, ot_precond_fermi_low_rank, ot_precond_full_all, &
+        ot_algo_taylor_or_diag, ot_chol_irac, ot_lattice_fft_auto, ot_lattice_fft_off, &
+        ot_lattice_fft_on, ot_low_rank_base_lattice_fft, ot_low_rank_base_overlap, ot_lwdn_irac, &
+        ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_lbfgs, ot_mini_sd, ot_poly_irac, &
+        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_all_covariant, &
         ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
         ot_precond_none, ot_precond_s_inverse, ot_precond_solver_chebyshev, &
         ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
@@ -57,6 +58,7 @@ MODULE qs_ot_types
    PRIVATE
 
    PUBLIC  :: qs_ot_type
+   PUBLIC  :: qs_ot_physical_secant_type
    PUBLIC  :: qs_ot_settings_type
    PUBLIC  :: qs_ot_destroy
    PUBLIC  :: qs_ot_allocate
@@ -85,11 +87,15 @@ MODULE qs_ot_types
       INTEGER           :: preconditioner_type = -1
       CHARACTER(LEN=20) :: low_rank_base_name = ""
       INTEGER           :: low_rank_base = ot_low_rank_base_overlap
+      CHARACTER(LEN=20) :: lattice_fft_name = ""
+      INTEGER           :: lattice_fft = ot_lattice_fft_off
+      INTEGER           :: lattice_fft_local_cells = 0
       INTEGER           :: cholesky_type = -1
       INTEGER           :: ot_state = 0
       CHARACTER(LEN=20) :: precond_solver_name = ""
       INTEGER           :: precond_solver_type = -1
       INTEGER           :: chebyshev_degree = 8
+      INTEGER           :: fermi_low_rank_max_rank = 48
       LOGICAL           :: safer_diis = .FALSE.
       REAL(KIND=dp)     :: ds_min = -1.0_dp
       REAL(KIND=dp)     :: energy_gap = -1.0_dp
@@ -116,6 +122,18 @@ MODULE qs_ot_types
       LOGICAL           :: broyden_forget_history = .FALSE., broyden_adaptive_sigma = .FALSE.
       LOGICAL           :: broyden_enable_flip = .FALSE.
    END TYPE qs_ot_settings_type
+
+! **************************************************************************************************
+!> \brief bounded physical endpoint history for one spin density at one K point
+! **************************************************************************************************
+   TYPE qs_ot_physical_secant_type
+      TYPE(cp_fm_type), POINTER :: c0 => NULL(), c0_im => NULL()
+      TYPE(cp_fm_type), POINTER :: h0 => NULL(), h0_im => NULL()
+      TYPE(cp_fm_type), POINTER :: c_previous => NULL(), c_previous_im => NULL()
+      TYPE(cp_fm_type), POINTER :: y_previous => NULL(), y_previous_im => NULL()
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: occupation0, occupation_previous
+      LOGICAL :: reference_valid = .FALSE., secant_valid = .FALSE.
+   END TYPE qs_ot_physical_secant_type
 
 ! **************************************************************************************************
    TYPE qs_ot_type
@@ -184,17 +202,9 @@ MODULE qs_ot_types
       TYPE(dbcsr_type), POINTER :: matrix_response_gx => NULL(), matrix_response_gx_im => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_mermin_g0 => NULL(), matrix_mermin_g0_im => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_ref_inv_sqrt => NULL(), matrix_ref_inv_sqrt_im => NULL()
-      ! Owned physical endpoints for the bounded, gauge-invariant Hxc response secant.
-      TYPE(cp_fm_type), POINTER :: fm_mermin_c0 => NULL(), fm_mermin_c0_im => NULL()
-      TYPE(cp_fm_type), POINTER :: fm_mermin_h0 => NULL(), fm_mermin_h0_im => NULL()
-      TYPE(cp_fm_type), POINTER :: fm_mermin_c_previous => NULL(), &
-                                   fm_mermin_c_previous_im => NULL()
-      TYPE(cp_fm_type), POINTER :: fm_mermin_y_previous => NULL(), &
-                                   fm_mermin_y_previous_im => NULL()
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mermin_occupation0, &
-                                                  mermin_occupation_previous, &
-                                                  ener_mermin_g0
-      LOGICAL :: mermin_physical_ref_valid = .FALSE., mermin_physical_secant_valid = .FALSE.
+      ! ROKS shares one orbital channel between two physical spin-density histories.
+      TYPE(qs_ot_physical_secant_type), DIMENSION(2) :: mermin_physical
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ener_mermin_g0
       LOGICAL :: mermin_gradient_ref_valid = .FALSE.
       TYPE(dbcsr_type), POINTER :: matrix_dx => NULL(), matrix_gx_old => NULL()
       TYPE(dbcsr_type), POINTER :: matrix_dx_im => NULL(), matrix_gx_old_im => NULL()
@@ -307,10 +317,14 @@ CONTAINS
       settings%preconditioner_type = ot_precond_full_kinetic
       settings%low_rank_base_name = "OVERLAP_INVERSE"
       settings%low_rank_base = ot_low_rank_base_overlap
+      settings%lattice_fft_name = "OFF"
+      settings%lattice_fft = ot_lattice_fft_off
+      settings%lattice_fft_local_cells = 0
       settings%cholesky_type = cholesky_reduce
       settings%precond_solver_name = "CHOLESKY_INVERSE"
       settings%precond_solver_type = ot_precond_solver_inv_chol
       settings%chebyshev_degree = 8
+      settings%fermi_low_rank_max_rank = 48
       settings%line_search_method = "2PNT"
       settings%ds_min = 0.15_dp
       settings%safer_diis = .TRUE.
@@ -400,8 +414,10 @@ CONTAINS
       supported = .FALSE.
       IF (.NOT. use_real_wfn) THEN
          supported = preconditioner_type == ot_precond_none .OR. &
+                     preconditioner_type == ot_precond_fermi_low_rank .OR. &
                      preconditioner_type == ot_precond_full_all .OR. &
                      preconditioner_type == ot_precond_full_single .OR. &
+                     preconditioner_type == ot_precond_full_all_covariant .OR. &
                      preconditioner_type == ot_precond_full_single_inverse .OR. &
                      preconditioner_type == ot_precond_full_kinetic .OR. &
                      preconditioner_type == ot_precond_s_inverse
@@ -424,7 +440,9 @@ CONTAINS
 
       supported = qs_ot_kpoint_preconditioner_supported(preconditioner_type, use_real_wfn)
       IF (.NOT. supported) RETURN
-      IF (preconditioner_type == ot_precond_full_all .OR. &
+      IF (preconditioner_type == ot_precond_fermi_low_rank .OR. &
+          preconditioner_type == ot_precond_full_all .OR. &
+          preconditioner_type == ot_precond_full_all_covariant .OR. &
           preconditioner_type == ot_precond_full_single) THEN
          supported = solver_type == ot_precond_solver_default
       ELSE IF (preconditioner_type == ot_precond_full_single_inverse .OR. &
@@ -817,16 +835,18 @@ CONTAINS
       NULLIFY (qs_ot_env%matrix_mermin_g0_im)
       NULLIFY (qs_ot_env%matrix_ref_inv_sqrt)
       NULLIFY (qs_ot_env%matrix_ref_inv_sqrt_im)
-      NULLIFY (qs_ot_env%fm_mermin_c0)
-      NULLIFY (qs_ot_env%fm_mermin_c0_im)
-      NULLIFY (qs_ot_env%fm_mermin_h0)
-      NULLIFY (qs_ot_env%fm_mermin_h0_im)
-      NULLIFY (qs_ot_env%fm_mermin_c_previous)
-      NULLIFY (qs_ot_env%fm_mermin_c_previous_im)
-      NULLIFY (qs_ot_env%fm_mermin_y_previous)
-      NULLIFY (qs_ot_env%fm_mermin_y_previous_im)
-      qs_ot_env%mermin_physical_ref_valid = .FALSE.
-      qs_ot_env%mermin_physical_secant_valid = .FALSE.
+      DO i = 1, SIZE(qs_ot_env%mermin_physical)
+         NULLIFY (qs_ot_env%mermin_physical(i)%c0)
+         NULLIFY (qs_ot_env%mermin_physical(i)%c0_im)
+         NULLIFY (qs_ot_env%mermin_physical(i)%h0)
+         NULLIFY (qs_ot_env%mermin_physical(i)%h0_im)
+         NULLIFY (qs_ot_env%mermin_physical(i)%c_previous)
+         NULLIFY (qs_ot_env%mermin_physical(i)%c_previous_im)
+         NULLIFY (qs_ot_env%mermin_physical(i)%y_previous)
+         NULLIFY (qs_ot_env%mermin_physical(i)%y_previous_im)
+         qs_ot_env%mermin_physical(i)%reference_valid = .FALSE.
+         qs_ot_env%mermin_physical(i)%secant_valid = .FALSE.
+      END DO
       qs_ot_env%mermin_gradient_ref_valid = .FALSE.
       NULLIFY (qs_ot_env%matrix_gx_old)
       NULLIFY (qs_ot_env%matrix_gx_old_im)
@@ -1338,6 +1358,8 @@ CONTAINS
    SUBROUTINE qs_ot_destroy(qs_ot_env)
       TYPE(qs_ot_type)                                   :: qs_ot_env
 
+      INTEGER                                            :: physical_spin
+
       IF (.NOT. qs_ot_env%state_allocated) RETURN
 
       CALL mp_para_env_release(qs_ot_env%para_env)
@@ -1402,45 +1424,49 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_ot_env%matrix_ref_inv_sqrt)) CALL dbcsr_release_p(qs_ot_env%matrix_ref_inv_sqrt)
       IF (ASSOCIATED(qs_ot_env%matrix_ref_inv_sqrt_im)) CALL dbcsr_release_p(qs_ot_env%matrix_ref_inv_sqrt_im)
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_c0)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_c0)
-         DEALLOCATE (qs_ot_env%fm_mermin_c0)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_c0_im)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_c0_im)
-         DEALLOCATE (qs_ot_env%fm_mermin_c0_im)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_h0)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_h0)
-         DEALLOCATE (qs_ot_env%fm_mermin_h0)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_h0_im)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_h0_im)
-         DEALLOCATE (qs_ot_env%fm_mermin_h0_im)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_c_previous)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_c_previous)
-         DEALLOCATE (qs_ot_env%fm_mermin_c_previous)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_c_previous_im)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_c_previous_im)
-         DEALLOCATE (qs_ot_env%fm_mermin_c_previous_im)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_y_previous)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_y_previous)
-         DEALLOCATE (qs_ot_env%fm_mermin_y_previous)
-      END IF
-      IF (ASSOCIATED(qs_ot_env%fm_mermin_y_previous_im)) THEN
-         CALL cp_fm_release(qs_ot_env%fm_mermin_y_previous_im)
-         DEALLOCATE (qs_ot_env%fm_mermin_y_previous_im)
-      END IF
-      IF (ALLOCATED(qs_ot_env%mermin_occupation0)) DEALLOCATE (qs_ot_env%mermin_occupation0)
-      IF (ALLOCATED(qs_ot_env%mermin_occupation_previous)) THEN
-         DEALLOCATE (qs_ot_env%mermin_occupation_previous)
-      END IF
+      DO physical_spin = 1, SIZE(qs_ot_env%mermin_physical)
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%c0)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%c0)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%c0)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%c0_im)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%c0_im)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%c0_im)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%h0)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%h0)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%h0)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%h0_im)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%h0_im)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%h0_im)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%c_previous)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%c_previous)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%c_previous)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%c_previous_im)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%c_previous_im)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%c_previous_im)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%y_previous)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%y_previous)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%y_previous)
+         END IF
+         IF (ASSOCIATED(qs_ot_env%mermin_physical(physical_spin)%y_previous_im)) THEN
+            CALL cp_fm_release(qs_ot_env%mermin_physical(physical_spin)%y_previous_im)
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%y_previous_im)
+         END IF
+         IF (ALLOCATED(qs_ot_env%mermin_physical(physical_spin)%occupation0)) THEN
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%occupation0)
+         END IF
+         IF (ALLOCATED(qs_ot_env%mermin_physical(physical_spin)%occupation_previous)) THEN
+            DEALLOCATE (qs_ot_env%mermin_physical(physical_spin)%occupation_previous)
+         END IF
+         qs_ot_env%mermin_physical(physical_spin)%reference_valid = .FALSE.
+         qs_ot_env%mermin_physical(physical_spin)%secant_valid = .FALSE.
+      END DO
       IF (ALLOCATED(qs_ot_env%ener_mermin_g0)) DEALLOCATE (qs_ot_env%ener_mermin_g0)
-      qs_ot_env%mermin_physical_ref_valid = .FALSE.
-      qs_ot_env%mermin_physical_secant_valid = .FALSE.
       qs_ot_env%mermin_gradient_ref_valid = .FALSE.
       IF (ASSOCIATED(qs_ot_env%matrix_dx)) CALL dbcsr_release_p(qs_ot_env%matrix_dx)
       IF (ASSOCIATED(qs_ot_env%matrix_dx_im)) CALL dbcsr_release_p(qs_ot_env%matrix_dx_im)
@@ -1577,6 +1603,8 @@ CONTAINS
       INTEGER                                            :: handle, ls_method, ot_algorithm, &
                                                             ot_method, ot_ortho_irac
       LOGICAL                                            :: energy_gap_explicit, &
+                                                            lattice_fft_explicit, &
+                                                            low_rank_base_explicit, &
                                                             use_complex_kpoints, use_eigensolver
 
       CALL timeset(routineN, handle)
@@ -1714,6 +1742,12 @@ CONTAINS
       IF (settings%chebyshev_degree < 1 .OR. settings%chebyshev_degree > 100) THEN
          CPABORT("READ OT CHEBYSHEV_DEGREE: Value must be between 1 and 100")
       END IF
+      CALL section_vals_val_get(ot_section, "FERMI_LOW_RANK_MAX_RANK", &
+                                i_val=settings%fermi_low_rank_max_rank)
+      IF (settings%fermi_low_rank_max_rank == 0 .OR. &
+          settings%fermi_low_rank_max_rank < -1) THEN
+         CPABORT("READ OT FERMI_LOW_RANK_MAX_RANK: Value must be -1 or a positive integer")
+      END IF
 
       CALL section_vals_val_get(ot_section, "MAX_SCF_DIIS", i_val=settings%max_scf_diis)
 
@@ -1744,6 +1778,10 @@ CONTAINS
          settings%preconditioner_name = "FERMI_LOW_RANK"
          IF (settings%ds_min < 0.0_dp) settings%ds_min = 0.12_dp
          IF (settings%energy_gap < 0.0_dp) settings%energy_gap = 0.08_dp
+      CASE (ot_precond_full_all_covariant)
+         settings%preconditioner_name = "FULL_ALL_COVARIANT"
+         IF (settings%ds_min < 0.0_dp) settings%ds_min = 0.15_dp
+         IF (settings%energy_gap < 0.0_dp) settings%energy_gap = 0.08_dp
       CASE (ot_precond_full_kinetic)
          settings%preconditioner_name = "FULL_KINETIC"
          IF (settings%ds_min < 0.0_dp) settings%ds_min = 0.15_dp
@@ -1758,7 +1796,8 @@ CONTAINS
       IF (use_complex_kpoints .AND. &
           settings%preconditioner_type == ot_precond_full_single_inverse .AND. &
           .NOT. energy_gap_explicit) settings%energy_gap = 0.20_dp
-      CALL section_vals_val_get(ot_section, "FERMI_LOW_RANK_BASE", i_val=settings%low_rank_base)
+      CALL section_vals_val_get(ot_section, "FERMI_LOW_RANK_BASE", &
+                                i_val=settings%low_rank_base, explicit=low_rank_base_explicit)
       SELECT CASE (settings%low_rank_base)
       CASE (ot_low_rank_base_overlap)
          settings%low_rank_base_name = "OVERLAP_INVERSE"
@@ -1767,6 +1806,48 @@ CONTAINS
       CASE DEFAULT
          CPABORT("READ OT FERMI_LOW_RANK_BASE: Value unknown")
       END SELECT
+      CALL section_vals_val_get(ot_section, "LATTICE_FFT", &
+                                i_val=settings%lattice_fft, explicit=lattice_fft_explicit)
+      SELECT CASE (settings%lattice_fft)
+      CASE (ot_lattice_fft_off)
+         settings%lattice_fft_name = "OFF"
+      CASE (ot_lattice_fft_on)
+         settings%lattice_fft_name = "ON"
+      CASE (ot_lattice_fft_auto)
+         settings%lattice_fft_name = "AUTO"
+      CASE DEFAULT
+         CPABORT("READ OT LATTICE_FFT: Value unknown")
+      END SELECT
+      CALL section_vals_val_get(ot_section, "LATTICE_FFT_LOCAL_CELLS", &
+                                i_val=settings%lattice_fft_local_cells)
+      IF (settings%lattice_fft_local_cells < 0) THEN
+         CPABORT("READ OT LATTICE_FFT_LOCAL_CELLS: Value must not be negative")
+      END IF
+      IF (settings%low_rank_base == ot_low_rank_base_lattice_fft) THEN
+         IF (settings%preconditioner_type /= ot_precond_fermi_low_rank) THEN
+            CPABORT("FERMI_LOW_RANK_BASE LATTICE_FFT requires PRECONDITIONER FERMI_LOW_RANK")
+         END IF
+         IF (lattice_fft_explicit .AND. settings%lattice_fft /= ot_lattice_fft_on) THEN
+            CPABORT("FERMI_LOW_RANK_BASE LATTICE_FFT conflicts with LATTICE_FFT OFF or AUTO")
+         END IF
+         settings%lattice_fft = ot_lattice_fft_on
+         settings%lattice_fft_name = "ON"
+      ELSE IF (low_rank_base_explicit) THEN
+         IF (settings%preconditioner_type /= ot_precond_fermi_low_rank) THEN
+            CPWARN("FERMI_LOW_RANK_BASE is ignored unless PRECONDITIONER FERMI_LOW_RANK is selected")
+         ELSE IF (lattice_fft_explicit .AND. settings%lattice_fft /= ot_lattice_fft_off) THEN
+            CPABORT("FERMI_LOW_RANK_BASE OVERLAP_INVERSE conflicts with LATTICE_FFT ON or AUTO")
+         END IF
+      END IF
+      IF (settings%lattice_fft_local_cells > 0 .AND. &
+          settings%lattice_fft /= ot_lattice_fft_on) THEN
+         CPABORT("LATTICE_FFT_LOCAL_CELLS requires LATTICE_FFT ON")
+      END IF
+      IF (use_complex_kpoints .AND. settings%lattice_fft_local_cells > 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "LATTICE_FFT_LOCAL_CELLS is a Gamma-point supercell approximation; "// &
+                       "explicit K points already use native Bloch blocks")
+      END IF
       CALL section_vals_val_get(ot_section, "CHOLESKY", i_val=settings%cholesky_type)
       CALL section_vals_val_get(ot_section, "EPS_TAYLOR", r_val=settings%eps_taylor)
       CALL section_vals_val_get(ot_section, "MAX_TAYLOR", i_val=settings%max_taylor)
@@ -1851,6 +1932,9 @@ CONTAINS
          CASE ("FERMI_LOW_RANK")
             WRITE (output_unit, '(A)') &
                "  Preconditioner : FERMI_LOW_RANK       : rotationally covariant low-rank correction"
+         CASE ("FULL_ALL_COVARIANT")
+            WRITE (output_unit, '(A)') &
+               "  Preconditioner : FULL_ALL_COVARIANT  : rotation-covariant Sylvester inverse"
          CASE ("FULL_KINETIC")
             WRITE (output_unit, '(A)') "  Preconditioner : FULL_KINETIC        : inversion of T + eS"
          CASE ("FULL_S_INVERSE")
@@ -1867,12 +1951,31 @@ CONTAINS
          END SELECT
 
          IF (settings%preconditioner_type == ot_precond_fermi_low_rank) THEN
-            WRITE (output_unit, '(A,A)') "  Low-rank base : ", TRIM(settings%low_rank_base_name)
+            IF (use_complex_kpoints .AND. settings%lattice_fft /= ot_lattice_fft_off) THEN
+               WRITE (output_unit, '(A)') "  Low-rank base : native K-point inverse of S(k)"
+            ELSE IF (settings%lattice_fft == ot_lattice_fft_auto) THEN
+               WRITE (output_unit, '(A)') "  Low-rank base : LATTICE_FFT (AUTO)"
+            ELSE IF (settings%lattice_fft == ot_lattice_fft_on) THEN
+               WRITE (output_unit, '(A)') "  Low-rank base : LATTICE_FFT"
+            ELSE
+               WRITE (output_unit, '(A,A)') "  Low-rank base : ", TRIM(settings%low_rank_base_name)
+            END IF
+         END IF
+         IF (use_complex_kpoints .AND. settings%lattice_fft /= ot_lattice_fft_off) THEN
+            WRITE (output_unit, '(A)') "  Lattice FFT   : native Bloch blocks (no additional FFT)"
+         ELSE
+            WRITE (output_unit, '(A,A)') "  Lattice FFT   : ", TRIM(settings%lattice_fft_name)
+         END IF
+         IF (settings%lattice_fft_local_cells > 0) THEN
+            WRITE (output_unit, '(A,I0)') "  Local FFT cells: ", settings%lattice_fft_local_cells
          END IF
 
          WRITE (output_unit, '(A)') "  Precond_solver : "//TRIM(settings%precond_solver_name)
          IF (settings%precond_solver_type == ot_precond_solver_chebyshev) THEN
             WRITE (output_unit, '(A,I14)') "  Chebyshev degree:", settings%chebyshev_degree
+         END IF
+         IF (settings%preconditioner_type == ot_precond_fermi_low_rank) THEN
+            WRITE (output_unit, '(A,I14)') "  Low-rank cap    :", settings%fermi_low_rank_max_rank
          END IF
 
          IF (settings%OT_METHOD == "SD" .OR. settings%OT_METHOD == "CG" .OR. &

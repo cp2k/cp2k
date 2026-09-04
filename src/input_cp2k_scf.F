@@ -34,20 +34,21 @@ MODULE input_cp2k_scf
         high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, &
         jacobian_fd2, jacobian_fd2_backward, ls_2pnt, ls_3pnt, ls_adapt, ls_gold, ls_none, &
         mopac_guess, no_guess, numerical, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
-        ot_low_rank_base_lattice_fft, ot_low_rank_base_overlap, ot_lwdn_irac, ot_mini_broyden, &
-        ot_mini_cg, ot_mini_diis, ot_mini_lbfgs, ot_mini_sd, ot_poly_irac, &
-        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_kinetic, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
-        ot_precond_s_inverse, ot_precond_solver_chebyshev, ot_precond_solver_default, &
-        ot_precond_solver_direct, ot_precond_solver_inv_chol, ot_precond_solver_update, &
-        outer_scf_basis_center_opt, outer_scf_becke_constraint, outer_scf_cdft_constraint, &
-        outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, outer_scf_none, &
-        outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, outer_scf_optimizer_diis, &
-        outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, &
-        outer_scf_optimizer_sd, outer_scf_optimizer_secant, outer_scf_s2_constraint, &
-        radius_covalent, radius_default, radius_single, radius_user, radius_vdw, random_guess, &
-        restart_guess, shape_function_density, shape_function_gaussian, smear_energy_window, &
-        smear_fermi_dirac, smear_gaussian, smear_list, smear_mp, smear_mv, sparse_guess
+        ot_lattice_fft_auto, ot_lattice_fft_off, ot_lattice_fft_on, ot_low_rank_base_lattice_fft, &
+        ot_low_rank_base_overlap, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, &
+        ot_mini_lbfgs, ot_mini_sd, ot_poly_irac, ot_precond_fermi_low_rank, ot_precond_full_all, &
+        ot_precond_full_all_covariant, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+        ot_precond_solver_chebyshev, ot_precond_solver_default, ot_precond_solver_direct, &
+        ot_precond_solver_inv_chol, ot_precond_solver_update, outer_scf_basis_center_opt, &
+        outer_scf_becke_constraint, outer_scf_cdft_constraint, outer_scf_ddapc_constraint, &
+        outer_scf_hirshfeld_constraint, outer_scf_none, outer_scf_optimizer_bisect, &
+        outer_scf_optimizer_broyden, outer_scf_optimizer_diis, outer_scf_optimizer_newton, &
+        outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, outer_scf_optimizer_sd, &
+        outer_scf_optimizer_secant, outer_scf_s2_constraint, radius_covalent, radius_default, &
+        radius_single, radius_user, radius_vdw, random_guess, restart_guess, &
+        shape_function_density, shape_function_gaussian, smear_energy_window, smear_fermi_dirac, &
+        smear_gaussian, smear_list, smear_mp, smear_mv, sparse_guess
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -869,16 +870,23 @@ CONTAINS
          "Properly preconditioned minimization can be orders of magnitude faster than doing nothing.", &
          usage="PRECONDITIONER FULL_ALL", &
          default_i_val=ot_precond_full_kinetic, &
-         enum_c_vals=s2a("FULL_ALL", "FERMI_LOW_RANK", "FULL_SINGLE_INVERSE", "FULL_SINGLE", &
+         enum_c_vals=s2a("FULL_ALL", "FERMI_LOW_RANK", "FULL_ALL_COVARIANT", &
+                         "FULL_SINGLE_INVERSE", "FULL_SINGLE", &
                          "FULL_KINETIC", "FULL_S_INVERSE", "NONE"), &
          enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "// &
                        "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "// &
                        "This preconditioner is recommended for almost all systems, except very large systems where "// &
                        "make_preconditioner would dominate the total computational cost.", &
                        "Experimental rotationally covariant bounded spectral preconditioner. It applies an "// &
-                       "overlap-inverse base plus at most 48 complementary-state corrections relative to a "// &
+                       "overlap-inverse base plus a configurable number of complementary-state corrections relative to a "// &
                        "common occupied reference level. Construction currently retains a full diagonalization. "// &
                        "Application can be cheaper when the complementary space is larger than the retained rank.", &
+                       "Experimental rotation-covariant form of FULL_ALL. It diagonalizes a private copy of the "// &
+                       "occupied projected Hamiltonian, applies the complete state-selective Sylvester spectrum "// &
+                       "in that canonical copy, and rotates every input and output consistently without changing "// &
+                       "the physical orbitals. Complex K-point ROKS canonicalization is restricted to orbital "// &
+                       "subspaces with equal alpha/beta occupation signatures. Real Gamma-point use still "// &
+                       "requires uniform occupations and excludes ROKS.", &
                        "Based on H-eS cholesky inversion, similar to FULL_SINGLE in preconditioning efficiency "// &
                        "but cheaper to construct, "// &
                        "might be somewhat less robust. Recommended for large systems.", &
@@ -887,7 +895,8 @@ CONTAINS
                        "use for very large systems.", &
                        "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.", &
                        "skip preconditioning"), &
-         enum_i_vals=[ot_precond_full_all, ot_precond_fermi_low_rank, ot_precond_full_single_inverse, &
+         enum_i_vals=[ot_precond_full_all, ot_precond_fermi_low_rank, &
+                      ot_precond_full_all_covariant, ot_precond_full_single_inverse, &
                       ot_precond_full_single, ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_none], &
          citations=[VandeVondele2003, Weber2008, Schiffmann2015])
       CALL section_add_keyword(section, keyword)
@@ -898,14 +907,66 @@ CONTAINS
          description="Base operator used only with PRECONDITIONER FERMI_LOW_RANK. OVERLAP_INVERSE "// &
          "applies the exact dense inverse overlap. LATTICE_FFT projects the overlap onto translations "// &
          "of an explicitly replicated SUBSYS multiple unit cell, inverts its small reciprocal-space "// &
-         "blocks, and applies the approximate inverse with lattice FFTs. The experimental FFT path is "// &
-         "restricted to real Gamma-point OT calculations and is never selected automatically.", &
+         "blocks, and applies the approximate inverse with lattice FFTs. This choice implies "// &
+         "LATTICE_FFT ON; use the general LATTICE_FFT keyword for AUTO selection. The experimental "// &
+         "FFT path is restricted to real Gamma-point OT calculations.", &
          usage="FERMI_LOW_RANK_BASE LATTICE_FFT", &
          default_i_val=ot_low_rank_base_overlap, &
          enum_c_vals=s2a("OVERLAP_INVERSE", "LATTICE_FFT"), &
          enum_desc=s2a("Exact dense inverse-overlap base", &
                        "Approximate block-circulant inverse applied by lattice FFT"), &
          enum_i_vals=[ot_low_rank_base_overlap, ot_low_rank_base_lattice_fft])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="FERMI_LOW_RANK_MAX_RANK", &
+         description="Maximum number of complementary eigenstates retained by PRECONDITIONER FERMI_LOW_RANK. "// &
+         "Larger values approach the complete common-reference spectral operator at higher application cost. "// &
+         "A value of -1 retains the entire complementary space. A finite cap never splits a numerically "// &
+         "degenerate boundary manifold.", &
+         usage="FERMI_LOW_RANK_MAX_RANK 64", &
+         default_i_val=48)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="LATTICE_FFT", &
+         description="Apply the inverse of a block-circulant projection of the selected OT "// &
+         "preconditioner with FFTs over explicitly replicated cells. Supported by FULL_S_INVERSE, "// &
+         "FULL_KINETIC, FULL_SINGLE_INVERSE, FULL_ALL_COVARIANT, and FERMI_LOW_RANK in real "// &
+         "Gamma-point calculations. FULL_ALL_COVARIANT projects and inverts one gap-floored "// &
+         "state-dependent Hessian operator per canonical occupied state. "// &
+         "ON requires the projected reciprocal-space blocks to be positive definite. AUTO uses the "// &
+         "FFT operator only for at least eight replicated cells and a relative projection error no "// &
+         "larger than 1.0E-3. It also requires an estimated application-work ratio no larger than "// &
+         "0.8 and limits reciprocal-block storage to four times one dense real operator; otherwise "// &
+         "it retains the conventional solver. The estimates include reference-cell block size, "// &
+         "occupied-column batch size, state-operator count, and message-passing ranks. Construction "// &
+         "of state-independent operators accumulates only the projected reference-cell blocks across "// &
+         "ranks. FULL_ALL_COVARIANT and explicit local corrections still require dense construction "// &
+         "data. Application routes complete orbital columns across ranks and distributes the FFT "// &
+         "batches over those columns.", &
+         usage="LATTICE_FFT AUTO", &
+         default_i_val=ot_lattice_fft_off, &
+         enum_c_vals=s2a("OFF", "ON", "AUTO"), &
+         enum_desc=s2a("Use the conventional OT preconditioner solver", &
+                       "Always use the approximate lattice-FFT inverse", &
+                       "Use the lattice-FFT inverse only when conservative selection criteria pass"), &
+         enum_i_vals=[ot_lattice_fft_off, ot_lattice_fft_on, ot_lattice_fft_auto])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="LATTICE_FFT_LOCAL_CELLS", &
+         description="Number of replicated cell blocks retained in an optional balanced local"// &
+         " correction to LATTICE_FFT ON. Cells are selected from the largest block-row"// &
+         " contributions to the non-circulant residual. The two-level correction is symmetric"// &
+         " positive definite and exactly inverts the selected coordinate subspace. A value of"// &
+         " zero disables the correction. The correction is deliberately unavailable with AUTO,"// &
+         " which continues to reject defective or otherwise non-circulant operators.", &
+         usage="LATTICE_FFT_LOCAL_CELLS 1", &
+         default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

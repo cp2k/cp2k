@@ -22,12 +22,14 @@ MODULE preconditioner_makes
                                               setup_arnoldi_env
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                               cp_cfm_gemm,&
+                                              cp_cfm_norm,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_triangular_multiply,&
                                               cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert
-   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
+   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
+                                              cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
@@ -60,10 +62,12 @@ MODULE preconditioner_makes
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE input_constants,                 ONLY: &
-        cholesky_inverse, cholesky_reduce, ot_precond_fermi_low_rank, ot_precond_full_all, &
-        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
-        ot_precond_s_inverse, ot_precond_solver_default, ot_precond_solver_inv_chol
+        cholesky_inverse, cholesky_reduce, ot_low_rank_base_overlap, ot_precond_fermi_low_rank, &
+        ot_precond_full_all, ot_precond_full_all_covariant, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_s_inverse, &
+        ot_precond_solver_default, ot_precond_solver_inv_chol
    USE kinds,                           ONLY: dp
+   USE low_rank_preconditioner_model,   ONLY: low_rank_select_rank
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -76,8 +80,10 @@ MODULE preconditioner_makes
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_makes'
 
-   PUBLIC :: make_complex_full_all, make_complex_full_kinetic, make_complex_full_s_inverse, &
-             make_complex_full_single, make_complex_full_single_inverse, &
+   PUBLIC :: make_complex_fermi_low_rank, make_complex_full_all, &
+             make_complex_full_all_covariant, make_complex_full_kinetic, &
+             make_complex_full_s_inverse, make_complex_full_single, &
+             make_complex_full_single_inverse, &
              make_preconditioner_matrix
 
 CONTAINS
@@ -298,6 +304,208 @@ CONTAINS
    END SUBROUTINE make_complex_full_single
 
 ! **************************************************************************************************
+!> \brief Build the bounded low-rank spectral inverse for a complex k-point channel.
+!> \param preconditioner_env preconditioner storage
+!> \param matrix_c0 complex active OT reference orbitals
+!> \param matrix_h complex Hermitian k-point Hamiltonian
+!> \param matrix_s complex Hermitian k-point overlap
+!> \param energy_gap denominator floor
+!> \param max_rank maximum retained complementary rank, or -1 for the full complement
+!> \param spectral_window overlap-inverse reference window
+!> \param degeneracy_tolerance relative tolerance for a rank-boundary cluster
+! **************************************************************************************************
+   SUBROUTINE make_complex_fermi_low_rank( &
+      preconditioner_env, matrix_c0, matrix_h, matrix_s, energy_gap, max_rank, &
+      spectral_window, degeneracy_tolerance)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_c0, matrix_h, matrix_s
+      REAL(KIND=dp), INTENT(IN)                          :: energy_gap
+      INTEGER, INTENT(IN)                                :: max_rank
+      REAL(KIND=dp), INTENT(IN)                          :: spectral_window, degeneracy_tolerance
+
+      INTEGER                                            :: k, max_rank_eff, n
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: active_evals, common_evals
+      TYPE(cp_cfm_type)                                  :: matrix_chc, matrix_hc0, matrix_vectors
+
+      CALL cp_cfm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
+      CPASSERT(k > 0 .AND. k <= n)
+      CPASSERT(max_rank == -1 .OR. max_rank > 0)
+      CPASSERT(spectral_window > 0.0_dp)
+      CPASSERT(degeneracy_tolerance >= 0.0_dp)
+
+      CALL cp_cfm_create(matrix_hc0, matrix_c0%matrix_struct, name='complex FERMI_LOW_RANK HC')
+      CALL cp_cfm_create(matrix_chc, matrix_c0%matrix_struct, nrow=k, ncol=k, &
+                         name='complex FERMI_LOW_RANK CHC')
+      CALL cp_cfm_create(matrix_vectors, matrix_chc%matrix_struct, &
+                         name='complex FERMI_LOW_RANK active vectors')
+      ALLOCATE (active_evals(k), common_evals(k))
+      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, matrix_h, matrix_c0, z_zero, matrix_hc0)
+      CALL cp_cfm_gemm('C', 'N', k, k, n, z_one, matrix_c0, matrix_hc0, z_zero, matrix_chc)
+      CALL cp_cfm_heevd(matrix_chc, matrix_vectors, active_evals)
+      preconditioner_env%spectral_reference = MAXVAL(active_evals)
+      common_evals(:) = preconditioner_env%spectral_reference
+
+      CALL make_complex_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, &
+                                 common_evals, energy_gap)
+      preconditioner_env%spectral_window = spectral_window
+      preconditioner_env%spectral_base_scale = 1.0_dp/spectral_window
+      preconditioner_env%spectral_max_rank = max_rank
+      max_rank_eff = max_rank
+      IF (max_rank_eff == -1) max_rank_eff = n - k
+      preconditioner_env%spectral_rank = low_rank_select_rank( &
+                                         preconditioner_env%full_evals, k, max_rank_eff, degeneracy_tolerance)
+      preconditioner_env%low_rank_base = ot_low_rank_base_overlap
+      preconditioner_env%lattice_fft_active = .FALSE.
+      preconditioner_env%in_use = ot_precond_fermi_low_rank
+      preconditioner_env%solver = ot_precond_solver_default
+
+      DEALLOCATE (common_evals, active_evals)
+      CALL cp_cfm_release(matrix_vectors)
+      CALL cp_cfm_release(matrix_chc)
+      CALL cp_cfm_release(matrix_hc0)
+
+   END SUBROUTINE make_complex_fermi_low_rank
+
+! **************************************************************************************************
+!> \brief Build the gauge-covariant FULL_ALL inverse for a complex k-point channel.
+!>
+!>        The occupied Rayleigh matrix C^H H C is diagonalized in a private complex gauge.
+!>        Both gradients and results are transformed through that gauge during application.
+!>        If occupation signatures are supplied, only orbitals with equal signatures are mixed.
+!> \param preconditioner_env preconditioner storage
+!> \param matrix_c0 complex active OT reference orbitals
+!> \param matrix_h complex Hermitian k-point Hamiltonian
+!> \param matrix_s complex Hermitian k-point overlap
+!> \param energy_gap denominator floor
+!> \param occupation_signature occupations that define the admissible private gauge
+! **************************************************************************************************
+   SUBROUTINE make_complex_full_all_covariant( &
+      preconditioner_env, matrix_c0, matrix_h, matrix_s, energy_gap, occupation_signature)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_c0, matrix_h, matrix_s
+      REAL(KIND=dp), INTENT(IN)                          :: energy_gap
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: occupation_signature
+
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: chc_local
+      INTEGER                                            :: group, i, j, k, n, ncol_local, ngroup, &
+                                                            nrow_local, output_column
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_representative, occupation_group
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: occupation_tolerance, rayleigh_bound, &
+                                                            shift_stride
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: group_shift, occupied_evals
+      TYPE(cp_cfm_type)                                  :: matrix_c_canonical, matrix_chc, &
+                                                            matrix_hc0, matrix_occ_vectors
+
+      CALL cp_cfm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
+      CPASSERT(k > 0 .AND. k <= n)
+
+      CALL cp_cfm_create(matrix_hc0, matrix_c0%matrix_struct, &
+                         name='complex covariant FULL_ALL HC')
+      CALL cp_cfm_create(matrix_chc, matrix_c0%matrix_struct, nrow=k, ncol=k, &
+                         name='complex covariant FULL_ALL CHC')
+      CALL cp_cfm_create(matrix_occ_vectors, matrix_chc%matrix_struct, &
+                         name='complex covariant FULL_ALL occupied rotation')
+      CALL cp_cfm_create(matrix_c_canonical, matrix_c0%matrix_struct, &
+                         name='complex covariant FULL_ALL canonical C')
+      ALLOCATE (occupied_evals(k))
+
+      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, matrix_h, matrix_c0, z_zero, matrix_hc0)
+      CALL cp_cfm_gemm('C', 'N', k, k, n, z_one, matrix_c0, matrix_hc0, z_zero, matrix_chc)
+
+      IF (PRESENT(occupation_signature)) THEN
+         CPASSERT(SIZE(occupation_signature, 1) == k)
+         CPASSERT(SIZE(occupation_signature, 2) > 0)
+         ALLOCATE (group_representative(k), occupation_group(k))
+         occupation_tolerance = 64.0_dp*EPSILON(1.0_dp)* &
+                                MAX(1.0_dp, MAXVAL(ABS(occupation_signature)))
+         ngroup = 0
+         DO i = 1, k
+            occupation_group(i) = 0
+            DO group = 1, ngroup
+               IF (MAXVAL(ABS(occupation_signature(i, :) - &
+                              occupation_signature(group_representative(group), :))) <= &
+                   occupation_tolerance) THEN
+                  occupation_group(i) = group
+                  EXIT
+               END IF
+            END DO
+            IF (occupation_group(i) == 0) THEN
+               ngroup = ngroup + 1
+               group_representative(ngroup) = i
+               occupation_group(i) = ngroup
+            END IF
+         END DO
+         DEALLOCATE (group_representative)
+
+         IF (ngroup > 1) THEN
+            rayleigh_bound = cp_cfm_norm(matrix_chc, 'I')
+            shift_stride = 4.0_dp*MAX(1.0_dp, rayleigh_bound)
+            ALLOCATE (group_shift(ngroup))
+            DO group = 1, ngroup
+               group_shift(group) = shift_stride* &
+                                    (REAL(group, KIND=dp) - 0.5_dp*REAL(ngroup + 1, KIND=dp))
+            END DO
+            CALL cp_cfm_get_info(matrix_chc, nrow_local=nrow_local, ncol_local=ncol_local, &
+                                 row_indices=row_indices, col_indices=col_indices, &
+                                 local_data=chc_local)
+            DO j = 1, ncol_local
+               DO i = 1, nrow_local
+                  IF (occupation_group(row_indices(i)) /= occupation_group(col_indices(j))) THEN
+                     chc_local(i, j) = z_zero
+                  ELSE IF (row_indices(i) == col_indices(j)) THEN
+                     group = occupation_group(row_indices(i))
+                     chc_local(i, j) = chc_local(i, j) + &
+                                       CMPLX(group_shift(group), 0.0_dp, KIND=dp)
+                  END IF
+               END DO
+            END DO
+         END IF
+      END IF
+
+      CALL cp_cfm_heevd(matrix_chc, matrix_occ_vectors, occupied_evals)
+      IF (PRESENT(occupation_signature)) THEN
+         IF (ngroup > 1) THEN
+            output_column = 0
+            DO group = 1, ngroup
+               DO i = 1, COUNT(occupation_group == group)
+                  output_column = output_column + 1
+                  occupied_evals(output_column) = occupied_evals(output_column) - group_shift(group)
+               END DO
+            END DO
+            CPASSERT(output_column == k)
+            DEALLOCATE (group_shift)
+         END IF
+         DEALLOCATE (occupation_group)
+      END IF
+      CALL cp_cfm_gemm('N', 'N', n, k, k, z_one, matrix_c0, matrix_occ_vectors, &
+                       z_zero, matrix_c_canonical)
+
+      CALL make_complex_full_all(preconditioner_env, matrix_c_canonical, matrix_h, matrix_s, &
+                                 occupied_evals, energy_gap)
+      IF (ASSOCIATED(preconditioner_env%occ_rotation_complex)) THEN
+         CALL cp_cfm_release(preconditioner_env%occ_rotation_complex)
+         DEALLOCATE (preconditioner_env%occ_rotation_complex)
+      END IF
+      ALLOCATE (preconditioner_env%occ_rotation_complex)
+      CALL cp_cfm_create(preconditioner_env%occ_rotation_complex, matrix_occ_vectors%matrix_struct, &
+                         name='complex covariant FULL_ALL occupied rotation')
+      CALL cp_cfm_to_cfm(matrix_occ_vectors, preconditioner_env%occ_rotation_complex)
+      preconditioner_env%in_use = ot_precond_full_all_covariant
+
+      DEALLOCATE (occupied_evals)
+      CALL cp_cfm_release(matrix_c_canonical)
+      CALL cp_cfm_release(matrix_occ_vectors)
+      CALL cp_cfm_release(matrix_chc)
+      CALL cp_cfm_release(matrix_hc0)
+
+   END SUBROUTINE make_complex_full_all_covariant
+
+! **************************************************************************************************
 !> \brief ...
 !> \param preconditioner_env ...
 !> \param matrix_h ...
@@ -354,7 +562,7 @@ CONTAINS
          IF (my_solver_type == ot_precond_solver_default) my_solver_type = ot_precond_solver_inv_chol
          CALL make_full_single_inverse(preconditioner_env, mo_coeff, matrix_h, energy_gap, &
                                        matrix_s=matrix_s)
-      CASE (ot_precond_full_all)
+      CASE (ot_precond_full_all, ot_precond_full_all_covariant)
          IF (my_solver_type /= ot_precond_solver_default) THEN
             CPABORT("Only PRECOND_SOLVER DEFAULT for the moment")
          END IF

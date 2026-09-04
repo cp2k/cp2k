@@ -38,10 +38,10 @@ PROGRAM qs_ot_complex_ref_unittest
                                               cp_logger_type,&
                                               cp_rm_default_logger
    USE input_constants,                 ONLY: &
-        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        ot_precond_solver_chebyshev, ot_precond_solver_default, ot_precond_solver_direct, &
-        ot_precond_solver_inv_chol
+        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_all_covariant, &
+        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
+        ot_precond_none, ot_precond_s_inverse, ot_precond_solver_chebyshev, &
+        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_ot_energy_weighted_density
    USE machine,                         ONLY: default_output_unit
@@ -53,7 +53,9 @@ PROGRAM qs_ot_complex_ref_unittest
                                               mp_world_finalize,&
                                               mp_world_init
    USE preconditioner,                  ONLY: apply_preconditioner
-   USE preconditioner_makes,            ONLY: make_complex_full_all,&
+   USE preconditioner_makes,            ONLY: make_complex_fermi_low_rank,&
+                                              make_complex_full_all,&
+                                              make_complex_full_all_covariant,&
                                               make_complex_full_kinetic,&
                                               make_complex_full_s_inverse,&
                                               make_complex_full_single,&
@@ -66,8 +68,9 @@ PROGRAM qs_ot_complex_ref_unittest
         qs_ot_complex_exp_frechet_kernel, qs_ot_density_secant_hessian, &
         qs_ot_density_secant_orbital_overlaps, qs_ot_density_secant_projected_hessian, &
         qs_ot_density_tangent, qs_ot_finite_rotation_response, qs_ot_fixed_n_energy_gradient, &
-        qs_ot_fixed_n_energy_hessian, qs_ot_fixed_n_projector_frechet, qs_ot_fixed_n_schur_block, &
-        qs_ot_generate_rotation, qs_ot_get_derivative_complex, qs_ot_get_derivative_ref_complex, &
+        qs_ot_fixed_n_energy_hessian, qs_ot_fixed_n_multigroup_schur_block, &
+        qs_ot_fixed_n_projector_frechet, qs_ot_fixed_n_schur_block, qs_ot_generate_rotation, &
+        qs_ot_get_derivative_complex, qs_ot_get_derivative_ref_complex, &
         qs_ot_get_orbitals_ref_complex, qs_ot_get_p_complex, qs_ot_projected_response_update, &
         qs_ot_rot_mat_derivative, qs_ot_symmetric_abs_solve, qs_ot_symmetric_sr1_update
    USE qs_ot_types,                     ONLY: qs_ot_kpoint_preconditioner_scale,&
@@ -111,6 +114,8 @@ PROGRAM qs_ot_complex_ref_unittest
    CALL test_fixed_n_projector_frechet(mynode, nfail)
    CALL test_finite_rotation_response(mynode, nfail)
    CALL test_fixed_n_rotation_schur(mynode, nfail)
+   CALL test_fixed_n_multigroup_schur(mynode, nfail)
+   CALL test_roks_fixed_n_rotation_schur(mynode, nfail)
    CALL test_symmetric_abs_solve(mynode, nfail)
    CALL test_projected_response_update(mynode, nfail)
    CALL test_symmetric_sr1_update(mynode, nfail)
@@ -131,6 +136,7 @@ PROGRAM qs_ot_complex_ref_unittest
    CALL test_complex_ref_rotation(para_env, nfail)
    CALL test_split_complex_fm_gemm(para_env, io_unit, nfail)
    CALL test_complex_preconditioner_gauge(para_env, nfail)
+   CALL test_complex_occupation_block_preconditioner(para_env, nfail)
    CALL test_kpoint_ot_energy_weighted_density(para_env, io_unit, nfail)
 
    x(:, 1) = [CMPLX(1.10_dp, 0.10_dp, KIND=dp), CMPLX(0.20_dp, -0.30_dp, KIND=dp), &
@@ -847,6 +853,268 @@ CONTAINS
       END IF
 
    END SUBROUTINE test_fixed_n_rotation_schur
+
+! **************************************************************************************************
+!> \brief verify the two-chemical-potential Schur reduction used by shared ROKS orbitals
+!> \param mynode MPI rank
+!> \param nfail accumulated failures
+! **************************************************************************************************
+   SUBROUTINE test_fixed_n_multigroup_schur(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: nenergy = 4, ngroups = 2, nrotation = 3
+
+      INTEGER, DIMENSION(nenergy)                        :: response_group
+      REAL(KIND=dp)                                      :: coupling_error, rhs_error, schur_error
+      REAL(KIND=dp), DIMENSION(nenergy)                  :: energy_gradient, response_weight
+      REAL(KIND=dp), DIMENSION(nenergy, nrotation)       :: rayleigh_response
+      REAL(KIND=dp), DIMENSION(nrotation)                :: rotation_gradient, schur_rhs
+      REAL(KIND=dp), DIMENSION(nrotation, ngroups)       :: coupling
+      REAL(KIND=dp), DIMENSION(nrotation, nrotation)     :: expected, rotation_hessian, schur_block
+
+      rotation_hessian(:, :) = RESHAPE( &
+                               [2.3_dp, 0.2_dp, -0.1_dp, 0.2_dp, 1.8_dp, 0.3_dp, -0.1_dp, 0.3_dp, 1.5_dp], &
+                               [nrotation, nrotation])
+      rayleigh_response(:, :) = RESHAPE( &
+                                [0.4_dp, -0.2_dp, 0.1_dp, 0.3_dp, &
+                                 -0.1_dp, 0.5_dp, 0.2_dp, -0.4_dp, &
+                                 0.3_dp, 0.1_dp, -0.5_dp, 0.2_dp], &
+                                [nenergy, nrotation])
+      response_weight(:) = [0.7_dp, 0.5_dp, 0.4_dp, 0.2_dp]
+      response_group(:) = [1, 1, 2, 2]
+      rotation_gradient(:) = [0.2_dp, -0.1_dp, 0.3_dp]
+      energy_gradient(:) = [0.04_dp, -0.03_dp, 0.02_dp, -0.01_dp]
+
+      CALL qs_ot_fixed_n_multigroup_schur_block( &
+         rotation_hessian, rayleigh_response, response_weight, response_group, &
+         rotation_gradient, energy_gradient, schur_block, coupling, schur_rhs)
+
+      expected(:, :) = rotation_hessian - &
+                       MATMUL(TRANSPOSE(rayleigh_response), &
+                              MATMUL(RESHAPE( &
+                                     [0.2916666666666667_dp, -0.2916666666666667_dp, 0.0_dp, 0.0_dp, &
+                                      -0.2916666666666667_dp, 0.2916666666666667_dp, 0.0_dp, 0.0_dp, &
+                                      0.0_dp, 0.0_dp, 0.1333333333333333_dp, -0.1333333333333333_dp, &
+                                      0.0_dp, 0.0_dp, -0.1333333333333333_dp, 0.1333333333333333_dp], &
+                                     [nenergy, nenergy]), rayleigh_response))
+      schur_error = MAXVAL(ABS( &
+                           schur_block + &
+                           MATMUL(coupling(:, 1:1), TRANSPOSE(coupling(:, 1:1)))/1.2_dp + &
+                           MATMUL(coupling(:, 2:2), TRANSPOSE(coupling(:, 2:2)))/0.6_dp - expected))
+      coupling_error = MAXVAL(ABS(coupling(:, 1) - &
+                                  MATMUL(TRANSPOSE(rayleigh_response(1:2, :)), &
+                                         response_weight(1:2))))
+      coupling_error = MAX(coupling_error, MAXVAL(ABS(coupling(:, 2) - &
+                                                      MATMUL(TRANSPOSE(rayleigh_response(3:4, :)), &
+                                                             response_weight(3:4)))))
+      rhs_error = MAXVAL(ABS(schur_rhs - rotation_gradient - &
+                             MATMUL(TRANSPOSE(rayleigh_response), energy_gradient)))
+
+      IF (MAX(schur_error, coupling_error, rhs_error) > 2.0E-14_dp) nfail = nfail + 1
+      IF (mynode == 0) THEN
+         WRITE (io_unit, '(A,3(1X,ES13.6))') "fixed-N multigroup Schur errors:", &
+            schur_error, coupling_error, rhs_error
+      END IF
+
+   END SUBROUTINE test_fixed_n_multigroup_schur
+
+! **************************************************************************************************
+!> \brief finite-difference the shared-orbital, two-fixed-N ROKS Mermin Hessian
+!> \param mynode MPI rank
+!> \param nfail accumulated failures
+! **************************************************************************************************
+   SUBROUTINE test_roks_fixed_n_rotation_schur(mynode, nfail)
+      INTEGER, INTENT(IN)                                :: mynode
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: nbands = 3, nenergy = 6, ngroups = 2, &
+                                                            nrotation = 6
+      REAL(KIND=dp), PARAMETER                           :: fd_step = 1.0E-4_dp, &
+                                                            kpoint_weight = 0.7_dp, &
+                                                            maxocc = 1.0_dp, temperature = 0.09_dp
+
+      COMPLEX(KIND=dp), DIMENSION(nbands, nbands) :: chc_a, chc_b, direction_generator, generator, &
+         hamiltonian_a, hamiltonian_b, rotation, rotation_minus, rotation_plus
+      INTEGER                                            :: i
+      INTEGER, DIMENSION(nenergy)                        :: response_group
+      REAL(KIND=dp) :: curvature, curvature_a, curvature_b, curvature_error, energy_minus, &
+         energy_minus_a, energy_minus_b, energy_plus, energy_plus_a, energy_plus_b, energy_zero, &
+         energy_zero_a, energy_zero_b, mu_a, mu_b, response_sum_a, response_sum_b, schur_error
+      REAL(KIND=dp), DIMENSION(nbands) :: energy_a, energy_a_minus, energy_a_plus, energy_b, &
+         energy_b_minus, energy_b_plus, occupation_a, occupation_b, rayleigh_a, rayleigh_a_minus, &
+         rayleigh_a_plus, rayleigh_b, rayleigh_b_minus, rayleigh_b_plus, response_a, response_b, &
+         weights
+      REAL(KIND=dp), DIMENSION(nbands, nrotation)        :: spin_rayleigh_response
+      REAL(KIND=dp), DIMENSION(nenergy)                  :: energy_direction, energy_gradient, &
+                                                            response
+      REAL(KIND=dp), DIMENSION(nenergy, nenergy)         :: energy_hessian
+      REAL(KIND=dp), DIMENSION(nenergy, nrotation)       :: rayleigh_response
+      REAL(KIND=dp), DIMENSION(nrotation)                :: rotation_direction, rotation_gradient, &
+                                                            schur_rhs, spin_gradient
+      REAL(KIND=dp), DIMENSION(nrotation, ngroups)       :: coupling
+      REAL(KIND=dp), DIMENSION(nrotation, nrotation)     :: rotation_hessian, rotation_hessian_a, &
+                                                            rotation_hessian_b, schur, &
+                                                            schur_block, spin_hessian
+
+      hamiltonian_a(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      hamiltonian_b(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      hamiltonian_a(1, 1) = -0.42_dp
+      hamiltonian_a(2, 2) = 0.03_dp
+      hamiltonian_a(3, 3) = 0.37_dp
+      hamiltonian_a(1, 2) = CMPLX(0.08_dp, -0.05_dp, KIND=dp)
+      hamiltonian_a(1, 3) = CMPLX(-0.03_dp, 0.07_dp, KIND=dp)
+      hamiltonian_a(2, 3) = CMPLX(0.09_dp, 0.04_dp, KIND=dp)
+      hamiltonian_b(1, 1) = -0.31_dp
+      hamiltonian_b(2, 2) = 0.11_dp
+      hamiltonian_b(3, 3) = 0.46_dp
+      hamiltonian_b(1, 2) = CMPLX(-0.06_dp, 0.02_dp, KIND=dp)
+      hamiltonian_b(1, 3) = CMPLX(0.05_dp, 0.04_dp, KIND=dp)
+      hamiltonian_b(2, 3) = CMPLX(-0.07_dp, 0.06_dp, KIND=dp)
+      DO i = 1, nbands
+         hamiltonian_a(i, 1:i - 1) = CONJG(hamiltonian_a(1:i - 1, i))
+         hamiltonian_b(i, 1:i - 1) = CONJG(hamiltonian_b(1:i - 1, i))
+      END DO
+
+      generator(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      generator(1, 2) = CMPLX(0.14_dp, -0.06_dp, KIND=dp)
+      generator(1, 3) = CMPLX(-0.08_dp, 0.05_dp, KIND=dp)
+      generator(2, 3) = CMPLX(0.10_dp, 0.03_dp, KIND=dp)
+      DO i = 1, nbands
+         generator(i, 1:i - 1) = -CONJG(generator(1:i - 1, i))
+      END DO
+      rotation_direction(:) = [0.09_dp, -0.04_dp, -0.07_dp, 0.06_dp, 0.03_dp, 0.08_dp]
+      energy_direction(:) = [0.05_dp, -0.04_dp, 0.02_dp, -0.03_dp, 0.06_dp, -0.01_dp]
+      direction_generator(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      direction_generator(1, 2) = CMPLX(rotation_direction(1), rotation_direction(2), KIND=dp)
+      direction_generator(2, 1) = -CONJG(direction_generator(1, 2))
+      direction_generator(1, 3) = CMPLX(rotation_direction(3), rotation_direction(4), KIND=dp)
+      direction_generator(3, 1) = -CONJG(direction_generator(1, 3))
+      direction_generator(2, 3) = CMPLX(rotation_direction(5), rotation_direction(6), KIND=dp)
+      direction_generator(3, 2) = -CONJG(direction_generator(2, 3))
+
+      rotation(:, :) = dense_antihermitian_exp(generator)
+      chc_a(:, :) = MATMUL(CONJG(TRANSPOSE(rotation)), MATMUL(hamiltonian_a, rotation))
+      chc_b(:, :) = MATMUL(CONJG(TRANSPOSE(rotation)), MATMUL(hamiltonian_b, rotation))
+      DO i = 1, nbands
+         rayleigh_a(i) = REAL(chc_a(i, i), KIND=dp)
+         rayleigh_b(i) = REAL(chc_b(i, i), KIND=dp)
+      END DO
+      energy_a(:) = rayleigh_a
+      energy_b(:) = rayleigh_b
+      weights(:) = kpoint_weight
+      CALL fixed_n_fermi_occupations(energy_a, weights, 1.65_dp, temperature, &
+                                     maxocc, occupation_a, mu_a)
+      CALL fixed_n_fermi_occupations(energy_b, weights, 0.95_dp, temperature, &
+                                     maxocc, occupation_b, mu_b)
+      response_a(:) = weights*occupation_a*(maxocc - occupation_a)/(maxocc*temperature)
+      response_b(:) = weights*occupation_b*(maxocc - occupation_b)/(maxocc*temperature)
+      response_sum_a = SUM(response_a)
+      response_sum_b = SUM(response_b)
+      response(1:nbands) = response_a
+      response(nbands + 1:nenergy) = response_b
+      response_group(:) = [1, 1, 1, 2, 2, 2]
+
+      CALL qs_ot_finite_rotation_response( &
+         chc_a, generator, occupation_a, kpoint_weight, spin_gradient, spin_hessian, &
+         spin_rayleigh_response)
+      rotation_gradient(:) = spin_gradient
+      rotation_hessian_a(:, :) = spin_hessian
+      rayleigh_response(1:nbands, :) = spin_rayleigh_response
+      CALL qs_ot_finite_rotation_response( &
+         chc_b, generator, occupation_b, kpoint_weight, spin_gradient, spin_hessian, &
+         spin_rayleigh_response)
+      rotation_gradient(:) = rotation_gradient + spin_gradient
+      rotation_hessian_b(:, :) = spin_hessian
+      rotation_hessian(:, :) = rotation_hessian_a + rotation_hessian_b
+      rayleigh_response(nbands + 1:nenergy, :) = spin_rayleigh_response
+
+      CALL qs_ot_fixed_n_energy_gradient( &
+         rayleigh_a, energy_a, response_a, response_sum_a, 0.0_dp, &
+         energy_gradient(1:nbands))
+      CALL qs_ot_fixed_n_energy_gradient( &
+         rayleigh_b, energy_b, response_b, response_sum_b, 0.0_dp, &
+         energy_gradient(nbands + 1:nenergy))
+      energy_hessian(:, :) = 0.0_dp
+      CALL qs_ot_fixed_n_energy_hessian( &
+         response_a, response_sum_a, energy_hessian(1:nbands, 1:nbands))
+      CALL qs_ot_fixed_n_energy_hessian( &
+         response_b, response_sum_b, energy_hessian(nbands + 1:nenergy, nbands + 1:nenergy))
+      CALL qs_ot_fixed_n_multigroup_schur_block( &
+         rotation_hessian, rayleigh_response, response, response_group, rotation_gradient, &
+         energy_gradient, schur_block, coupling, schur_rhs)
+      schur(:, :) = schur_block + &
+                    MATMUL(coupling(:, 1:1), TRANSPOSE(coupling(:, 1:1)))/response_sum_a + &
+                    MATMUL(coupling(:, 2:2), TRANSPOSE(coupling(:, 2:2)))/response_sum_b
+      schur_error = MAXVAL(ABS(schur - rotation_hessian + &
+                               MATMUL(TRANSPOSE(rayleigh_response), &
+                                      MATMUL(energy_hessian, rayleigh_response))))
+
+      rotation_plus(:, :) = dense_antihermitian_exp(generator + fd_step*direction_generator)
+      rotation_minus(:, :) = dense_antihermitian_exp(generator - fd_step*direction_generator)
+      DO i = 1, nbands
+         rayleigh_a_plus(i) = REAL(DOT_PRODUCT(rotation_plus(:, i), &
+                                               MATMUL(hamiltonian_a, rotation_plus(:, i))), KIND=dp)
+         rayleigh_a_minus(i) = REAL(DOT_PRODUCT(rotation_minus(:, i), &
+                                                MATMUL(hamiltonian_a, rotation_minus(:, i))), KIND=dp)
+         rayleigh_b_plus(i) = REAL(DOT_PRODUCT(rotation_plus(:, i), &
+                                               MATMUL(hamiltonian_b, rotation_plus(:, i))), KIND=dp)
+         rayleigh_b_minus(i) = REAL(DOT_PRODUCT(rotation_minus(:, i), &
+                                                MATMUL(hamiltonian_b, rotation_minus(:, i))), KIND=dp)
+      END DO
+      energy_a_plus(:) = energy_a + fd_step*energy_direction(1:nbands)
+      energy_a_minus(:) = energy_a - fd_step*energy_direction(1:nbands)
+      energy_b_plus(:) = energy_b + fd_step*energy_direction(nbands + 1:nenergy)
+      energy_b_minus(:) = energy_b - fd_step*energy_direction(nbands + 1:nenergy)
+      energy_zero_a = fixed_n_mermin_value( &
+                      rayleigh_a, energy_a, weights, 1.65_dp, temperature, maxocc)
+      energy_zero_b = fixed_n_mermin_value( &
+                      rayleigh_b, energy_b, weights, 0.95_dp, temperature, maxocc)
+      energy_plus_a = fixed_n_mermin_value( &
+                      rayleigh_a_plus, energy_a_plus, weights, 1.65_dp, temperature, maxocc)
+      energy_plus_b = fixed_n_mermin_value( &
+                      rayleigh_b_plus, energy_b_plus, weights, 0.95_dp, temperature, maxocc)
+      energy_minus_a = fixed_n_mermin_value( &
+                       rayleigh_a_minus, energy_a_minus, weights, 1.65_dp, temperature, maxocc)
+      energy_minus_b = fixed_n_mermin_value( &
+                       rayleigh_b_minus, energy_b_minus, weights, 0.95_dp, temperature, maxocc)
+      energy_zero = energy_zero_a + energy_zero_b
+      energy_plus = energy_plus_a + energy_plus_b
+      energy_minus = energy_minus_a + energy_minus_b
+      curvature_a = DOT_PRODUCT(rotation_direction, &
+                                MATMUL(rotation_hessian_a, rotation_direction)) - &
+                    2.0_dp*DOT_PRODUCT(energy_direction(1:nbands), &
+                                       MATMUL(energy_hessian(1:nbands, 1:nbands), &
+                                              MATMUL(rayleigh_response(1:nbands, :), &
+                                                     rotation_direction))) + &
+                    DOT_PRODUCT(energy_direction(1:nbands), &
+                                MATMUL(energy_hessian(1:nbands, 1:nbands), &
+                                       energy_direction(1:nbands)))
+      curvature_b = DOT_PRODUCT(rotation_direction, &
+                                MATMUL(rotation_hessian_b, rotation_direction)) - &
+                    2.0_dp*DOT_PRODUCT(energy_direction(nbands + 1:nenergy), &
+                                       MATMUL(energy_hessian(nbands + 1:nenergy, &
+                                                             nbands + 1:nenergy), &
+                                              MATMUL(rayleigh_response(nbands + 1:nenergy, :), &
+                                                     rotation_direction))) + &
+                    DOT_PRODUCT(energy_direction(nbands + 1:nenergy), &
+                                MATMUL(energy_hessian(nbands + 1:nenergy, nbands + 1:nenergy), &
+                                       energy_direction(nbands + 1:nenergy)))
+      curvature = curvature_a + curvature_b
+      curvature_error = ABS((energy_plus_a - 2.0_dp*energy_zero_a + energy_minus_a)/ &
+                            fd_step**2 - curvature_a)
+      curvature_error = MAX( &
+                        curvature_error, &
+                        ABS((energy_plus_b - 2.0_dp*energy_zero_b + energy_minus_b)/fd_step**2 - curvature_b), &
+                        ABS((energy_plus - 2.0_dp*energy_zero + energy_minus)/fd_step**2 - curvature))
+
+      IF (schur_error > 3.0E-11_dp .OR. curvature_error > 5.0E-6_dp) nfail = nfail + 1
+      IF (mynode == 0) THEN
+         WRITE (io_unit, '(A,2(1X,ES13.6))') "ROKS fixed-N rotation Schur errors:", &
+            schur_error, curvature_error
+      END IF
+
+   END SUBROUTINE test_roks_fixed_n_rotation_schur
 
 ! **************************************************************************************************
 !> \brief Check that positive and negative response modes retain their spectral magnitude.
@@ -2301,21 +2569,25 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: value
       COMPLEX(KIND=dp), DIMENSION(k)                     :: phases
       COMPLEX(KIND=dp), DIMENSION(n, k)                  :: c0, c0_phase, c0_rot, gradient, &
-                                                            gradient_phase, output, output_phase
+                                                            gradient_phase, gradient_rot, output, &
+                                                            output_phase, output_rot
       COMPLEX(KIND=dp), DIMENSION(n, n) :: eigenvectors, full_all_vectors, h, inverse, &
          inverse_rot, inverse_s, inverse_single, inverse_t, reference_s, reference_t, s, &
          spectral_metric, t
       INTEGER                                            :: i, j
-      REAL(KIND=dp) :: full_all_descent, full_all_gauge_error, full_all_orthogonality_error, &
-         full_single_hermitian_error, gauge_error, hermitian_error, s_error, t_error
+      REAL(KIND=dp) :: covariant_descent, covariant_gauge_error, full_all_descent, &
+         full_all_gauge_error, full_all_orthogonality_error, full_single_hermitian_error, &
+         gauge_error, hermitian_error, low_rank_descent, low_rank_gauge_error, s_error, t_error
       REAL(KIND=dp), DIMENSION(k)                        :: c0_evals
       REAL(KIND=dp), DIMENSION(n)                        :: eigenvalues, eigenvalues_single
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_cfm_type) :: matrix_c0, matrix_c0_phase, matrix_c0_rot, matrix_gradient, &
-         matrix_gradient_phase, matrix_h, matrix_output, matrix_output_phase, matrix_s, matrix_t
+         matrix_gradient_phase, matrix_gradient_rot, matrix_h, matrix_output, matrix_output_phase, &
+         matrix_output_rot, matrix_s, matrix_t
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct_nk, fmstruct_nn
-      TYPE(preconditioner_type) :: full_all, full_all_phase, preconditioner, preconditioner_rot, &
-         preconditioner_s, preconditioner_single, preconditioner_t
+      TYPE(preconditioner_type) :: covariant, covariant_rot, full_all, full_all_phase, low_rank, &
+         low_rank_rot, preconditioner, preconditioner_rot, preconditioner_s, &
+         preconditioner_single, preconditioner_t
 
       NULLIFY (blacs_env, fmstruct_nk, fmstruct_nn)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
@@ -2332,9 +2604,13 @@ CONTAINS
       CALL cp_cfm_create(matrix_gradient, fmstruct_nk, name='complex preconditioner gradient')
       CALL cp_cfm_create(matrix_gradient_phase, fmstruct_nk, &
                          name='complex preconditioner phased gradient')
+      CALL cp_cfm_create(matrix_gradient_rot, fmstruct_nk, &
+                         name='complex preconditioner rotated gradient')
       CALL cp_cfm_create(matrix_output, fmstruct_nk, name='complex preconditioner output')
       CALL cp_cfm_create(matrix_output_phase, fmstruct_nk, &
                          name='complex preconditioner phased output')
+      CALL cp_cfm_create(matrix_output_rot, fmstruct_nk, &
+                         name='complex preconditioner rotated output')
       CALL cp_cfm_set_all(matrix_h, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
       CALL cp_cfm_set_all(matrix_s, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
       CALL cp_cfm_set_all(matrix_t, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
@@ -2386,6 +2662,7 @@ CONTAINS
       DO j = 1, k
          gradient_phase(:, j) = phases(j)*gradient(:, j)
       END DO
+      gradient_rot = MATMUL(gradient, c0_rot(1:k, :))
       c0_evals = [REAL(h(1, 1), KIND=dp), REAL(h(2, 2), KIND=dp)]
 
       DO j = 1, n
@@ -2402,11 +2679,16 @@ CONTAINS
             CALL cp_cfm_set_element(matrix_c0_rot, i, j, c0_rot(i, j))
             CALL cp_cfm_set_element(matrix_gradient, i, j, gradient(i, j))
             CALL cp_cfm_set_element(matrix_gradient_phase, i, j, gradient_phase(i, j))
+            CALL cp_cfm_set_element(matrix_gradient_rot, i, j, gradient_rot(i, j))
          END DO
       END DO
 
       CALL init_preconditioner(full_all, para_env, blacs_env)
       CALL init_preconditioner(full_all_phase, para_env, blacs_env)
+      CALL init_preconditioner(low_rank, para_env, blacs_env)
+      CALL init_preconditioner(low_rank_rot, para_env, blacs_env)
+      CALL init_preconditioner(covariant, para_env, blacs_env)
+      CALL init_preconditioner(covariant_rot, para_env, blacs_env)
       CALL init_preconditioner(preconditioner, para_env, blacs_env)
       CALL init_preconditioner(preconditioner_rot, para_env, blacs_env)
       CALL init_preconditioner(preconditioner_s, para_env, blacs_env)
@@ -2477,6 +2759,38 @@ CONTAINS
                                                          CMPLX(0.0_dp, 0.0_dp, KIND=dp), &
                                                          CMPLX(1.0_dp, 0.0_dp, KIND=dp)], [n, n])))
       full_all_descent = REAL(SUM(CONJG(gradient)*output), KIND=dp)
+
+      CALL make_complex_fermi_low_rank(low_rank, matrix_c0, matrix_h, matrix_s, &
+                                       0.08_dp, 1, 1.0_dp, 1.0E-8_dp)
+      CALL make_complex_fermi_low_rank(low_rank_rot, matrix_c0_rot, matrix_h, matrix_s, &
+                                       0.08_dp, 1, 1.0_dp, 1.0E-8_dp)
+      CALL apply_preconditioner(low_rank, matrix_gradient, matrix_output)
+      CALL apply_preconditioner(low_rank_rot, matrix_gradient_rot, matrix_output_rot)
+      DO j = 1, k
+         DO i = 1, n
+            CALL cp_cfm_get_element(matrix_output, i, j, value)
+            output(i, j) = value
+            CALL cp_cfm_get_element(matrix_output_rot, i, j, value)
+            output_rot(i, j) = value
+         END DO
+      END DO
+      low_rank_gauge_error = MAXVAL(ABS(output_rot - MATMUL(output, c0_rot(1:k, :))))
+      low_rank_descent = REAL(SUM(CONJG(gradient)*output), KIND=dp)
+
+      CALL make_complex_full_all_covariant(covariant, matrix_c0, matrix_h, matrix_s, 0.08_dp)
+      CALL make_complex_full_all_covariant(covariant_rot, matrix_c0_rot, matrix_h, matrix_s, 0.08_dp)
+      CALL apply_preconditioner(covariant, matrix_gradient, matrix_output)
+      CALL apply_preconditioner(covariant_rot, matrix_gradient_rot, matrix_output_rot)
+      DO j = 1, k
+         DO i = 1, n
+            CALL cp_cfm_get_element(matrix_output, i, j, value)
+            output(i, j) = value
+            CALL cp_cfm_get_element(matrix_output_rot, i, j, value)
+            output_rot(i, j) = value
+         END DO
+      END DO
+      covariant_gauge_error = MAXVAL(ABS(output_rot - MATMUL(output, c0_rot(1:k, :))))
+      covariant_descent = REAL(SUM(CONJG(gradient)*output), KIND=dp)
       IF (gauge_error > 1.0E-11_dp .OR. hermitian_error > 1.0E-12_dp .OR. &
           MINVAL(eigenvalues) <= 0.0_dp) nfail = nfail + 1
       IF (s_error > 1.0E-11_dp .OR. t_error > 1.0E-11_dp) nfail = nfail + 1
@@ -2484,6 +2798,8 @@ CONTAINS
           MINVAL(eigenvalues_single) <= 0.0_dp) nfail = nfail + 1
       IF (full_all_gauge_error > 1.0E-11_dp .OR. &
           full_all_orthogonality_error > 1.0E-11_dp .OR. full_all_descent <= 0.0_dp) nfail = nfail + 1
+      IF (low_rank_gauge_error > 1.0E-11_dp .OR. low_rank_descent <= 0.0_dp) nfail = nfail + 1
+      IF (covariant_gauge_error > 1.0E-11_dp .OR. covariant_descent <= 0.0_dp) nfail = nfail + 1
       IF (para_env%is_source()) THEN
          WRITE (io_unit, '(A,3(1X,ES13.6))') 'complex FULL_SINGLE gauge/hermitian/min-eigenvalue', &
             gauge_error, hermitian_error, MINVAL(eigenvalues)
@@ -2492,8 +2808,16 @@ CONTAINS
             full_single_hermitian_error, MINVAL(eigenvalues_single)
          WRITE (io_unit, '(A,3(1X,ES13.6))') 'complex FULL_ALL phase/orthogonality/descent', &
             full_all_gauge_error, full_all_orthogonality_error, full_all_descent
+         WRITE (io_unit, '(A,2(1X,ES13.6))') 'complex FERMI_LOW_RANK covariance/descent', &
+            low_rank_gauge_error, low_rank_descent
+         WRITE (io_unit, '(A,2(1X,ES13.6))') 'complex FULL_ALL_COVARIANT covariance/descent', &
+            covariant_gauge_error, covariant_descent
       END IF
 
+      CALL destroy_preconditioner(covariant_rot)
+      CALL destroy_preconditioner(covariant)
+      CALL destroy_preconditioner(low_rank_rot)
+      CALL destroy_preconditioner(low_rank)
       CALL destroy_preconditioner(full_all_phase)
       CALL destroy_preconditioner(full_all)
       CALL destroy_preconditioner(preconditioner_t)
@@ -2506,6 +2830,8 @@ CONTAINS
       CALL cp_cfm_release(matrix_c0)
       CALL cp_cfm_release(matrix_output_phase)
       CALL cp_cfm_release(matrix_output)
+      CALL cp_cfm_release(matrix_output_rot)
+      CALL cp_cfm_release(matrix_gradient_rot)
       CALL cp_cfm_release(matrix_gradient_phase)
       CALL cp_cfm_release(matrix_gradient)
       CALL cp_cfm_release(matrix_t)
@@ -2518,6 +2844,163 @@ CONTAINS
    END SUBROUTINE test_complex_preconditioner_gauge
 
 ! **************************************************************************************************
+!> \brief Check complex covariant preconditioning within equal-occupation ROKS blocks.
+!> \param para_env parallel environment
+!> \param nfail accumulated number of failures
+! **************************************************************************************************
+   SUBROUTINE test_complex_occupation_block_preconditioner(para_env, nfail)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(INOUT)                             :: nfail
+
+      INTEGER, PARAMETER                                 :: nbas = 4, norb = 3
+
+      COMPLEX(KIND=dp)                                   :: value
+      COMPLEX(KIND=dp), DIMENSION(nbas, nbas)            :: hamiltonian, overlap
+      COMPLEX(KIND=dp), DIMENSION(nbas, norb)            :: coeff, coeff_rot, gradient, &
+                                                            gradient_rot, output, output_rot
+      COMPLEX(KIND=dp), DIMENSION(norb, norb)            :: block_rotation, private_rotation
+      INTEGER                                            :: i, j
+      REAL(KIND=dp)                                      :: covariance_error, cross_block_error, &
+                                                            descent, shifted_eigenvalue_error
+      REAL(KIND=dp), DIMENSION(norb, 2)                  :: occupation_signature
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_cfm_type) :: matrix_c, matrix_c_rot, matrix_gradient, matrix_gradient_rot, matrix_h, &
+         matrix_output, matrix_output_rot, matrix_s
+      TYPE(cp_fm_struct_type), POINTER                   :: fmstruct_nk, fmstruct_nn
+      TYPE(preconditioner_type)                          :: preconditioner, preconditioner_rot
+
+      NULLIFY (blacs_env, fmstruct_nk, fmstruct_nn)
+      CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
+      CALL cp_fm_struct_create(fmstruct=fmstruct_nn, para_env=para_env, context=blacs_env, &
+                               nrow_global=nbas, ncol_global=nbas)
+      CALL cp_fm_struct_create(fmstruct=fmstruct_nk, para_env=para_env, context=blacs_env, &
+                               nrow_global=nbas, ncol_global=norb)
+      CALL cp_cfm_create(matrix_h, fmstruct_nn, name='occupation-block H')
+      CALL cp_cfm_create(matrix_s, fmstruct_nn, name='occupation-block S')
+      CALL cp_cfm_create(matrix_c, fmstruct_nk, name='occupation-block C')
+      CALL cp_cfm_create(matrix_c_rot, fmstruct_nk, name='occupation-block C U')
+      CALL cp_cfm_create(matrix_gradient, fmstruct_nk, name='occupation-block gradient')
+      CALL cp_cfm_create(matrix_gradient_rot, fmstruct_nk, &
+                         name='occupation-block rotated gradient')
+      CALL cp_cfm_create(matrix_output, fmstruct_nk, name='occupation-block output')
+      CALL cp_cfm_create(matrix_output_rot, fmstruct_nk, name='occupation-block rotated output')
+
+      hamiltonian(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      hamiltonian(1, 1) = CMPLX(-0.42_dp, 0.0_dp, KIND=dp)
+      hamiltonian(2, 2) = CMPLX(-0.18_dp, 0.0_dp, KIND=dp)
+      hamiltonian(3, 3) = CMPLX(0.07_dp, 0.0_dp, KIND=dp)
+      hamiltonian(4, 4) = CMPLX(0.83_dp, 0.0_dp, KIND=dp)
+      hamiltonian(1, 2) = CMPLX(0.09_dp, 0.04_dp, KIND=dp)
+      hamiltonian(2, 1) = CONJG(hamiltonian(1, 2))
+      hamiltonian(1, 3) = CMPLX(-0.06_dp, 0.03_dp, KIND=dp)
+      hamiltonian(3, 1) = CONJG(hamiltonian(1, 3))
+      hamiltonian(2, 3) = CMPLX(0.05_dp, -0.02_dp, KIND=dp)
+      hamiltonian(3, 2) = CONJG(hamiltonian(2, 3))
+      hamiltonian(1, 4) = CMPLX(0.04_dp, -0.03_dp, KIND=dp)
+      hamiltonian(4, 1) = CONJG(hamiltonian(1, 4))
+      hamiltonian(2, 4) = CMPLX(-0.02_dp, 0.05_dp, KIND=dp)
+      hamiltonian(4, 2) = CONJG(hamiltonian(2, 4))
+      hamiltonian(3, 4) = CMPLX(0.07_dp, 0.01_dp, KIND=dp)
+      hamiltonian(4, 3) = CONJG(hamiltonian(3, 4))
+      overlap(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      DO i = 1, nbas
+         overlap(i, i) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+      END DO
+      coeff(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      DO i = 1, norb
+         coeff(i, i) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+      END DO
+      block_rotation(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      block_rotation(1, 1) = CMPLX(SQRT(0.7_dp), 0.0_dp, KIND=dp)
+      block_rotation(1, 3) = CMPLX(0.0_dp, SQRT(0.3_dp), KIND=dp)
+      block_rotation(2, 2) = EXP(CMPLX(0.0_dp, 0.37_dp, KIND=dp))
+      block_rotation(3, 1) = CMPLX(0.0_dp, SQRT(0.3_dp), KIND=dp)
+      block_rotation(3, 3) = CMPLX(SQRT(0.7_dp), 0.0_dp, KIND=dp)
+      coeff_rot = MATMUL(coeff, block_rotation)
+      gradient(:, 1) = [CMPLX(0.12_dp, 0.03_dp, KIND=dp), &
+                        CMPLX(-0.04_dp, 0.07_dp, KIND=dp), &
+                        CMPLX(0.08_dp, -0.02_dp, KIND=dp), &
+                        CMPLX(-0.05_dp, 0.06_dp, KIND=dp)]
+      gradient(:, 2) = [CMPLX(-0.06_dp, 0.02_dp, KIND=dp), &
+                        CMPLX(0.11_dp, -0.05_dp, KIND=dp), &
+                        CMPLX(0.03_dp, 0.09_dp, KIND=dp), &
+                        CMPLX(0.07_dp, -0.01_dp, KIND=dp)]
+      gradient(:, 3) = [CMPLX(0.04_dp, -0.08_dp, KIND=dp), &
+                        CMPLX(-0.02_dp, 0.05_dp, KIND=dp), &
+                        CMPLX(0.10_dp, 0.01_dp, KIND=dp), &
+                        CMPLX(-0.03_dp, -0.06_dp, KIND=dp)]
+      gradient_rot = MATMUL(gradient, block_rotation)
+      occupation_signature(:, 1) = [1.0_dp, 1.0_dp, 1.0_dp]
+      occupation_signature(:, 2) = [1.0_dp, 0.0_dp, 1.0_dp]
+
+      DO j = 1, nbas
+         DO i = 1, nbas
+            CALL cp_cfm_set_element(matrix_h, i, j, hamiltonian(i, j))
+            CALL cp_cfm_set_element(matrix_s, i, j, overlap(i, j))
+         END DO
+      END DO
+      DO j = 1, norb
+         DO i = 1, nbas
+            CALL cp_cfm_set_element(matrix_c, i, j, coeff(i, j))
+            CALL cp_cfm_set_element(matrix_c_rot, i, j, coeff_rot(i, j))
+            CALL cp_cfm_set_element(matrix_gradient, i, j, gradient(i, j))
+            CALL cp_cfm_set_element(matrix_gradient_rot, i, j, gradient_rot(i, j))
+         END DO
+      END DO
+
+      CALL init_preconditioner(preconditioner, para_env, blacs_env)
+      CALL init_preconditioner(preconditioner_rot, para_env, blacs_env)
+      CALL make_complex_full_all_covariant(preconditioner, matrix_c, matrix_h, matrix_s, &
+                                           0.08_dp, occupation_signature)
+      CALL make_complex_full_all_covariant(preconditioner_rot, matrix_c_rot, matrix_h, matrix_s, &
+                                           0.08_dp, occupation_signature)
+      CALL apply_preconditioner(preconditioner, matrix_gradient, matrix_output)
+      CALL apply_preconditioner(preconditioner_rot, matrix_gradient_rot, matrix_output_rot)
+      DO j = 1, norb
+         DO i = 1, nbas
+            CALL cp_cfm_get_element(matrix_output, i, j, value)
+            output(i, j) = value
+            CALL cp_cfm_get_element(matrix_output_rot, i, j, value)
+            output_rot(i, j) = value
+         END DO
+      END DO
+      DO j = 1, norb
+         DO i = 1, norb
+            CALL cp_cfm_get_element(preconditioner%occ_rotation_complex, i, j, value)
+            private_rotation(i, j) = value
+         END DO
+      END DO
+
+      covariance_error = MAXVAL(ABS(output_rot - MATMUL(output, block_rotation)))
+      cross_block_error = MAX(MAXVAL(ABS(private_rotation([1, 3], 3))), &
+                              MAXVAL(ABS(private_rotation(2, 1:2))))
+      shifted_eigenvalue_error = MAXVAL(ABS(preconditioner%occ_evals))
+      descent = REAL(SUM(CONJG(gradient)*output), KIND=dp)
+      IF (covariance_error > 1.0E-11_dp .OR. cross_block_error > 1.0E-12_dp .OR. &
+          shifted_eigenvalue_error > 1.0_dp .OR. descent <= 0.0_dp) nfail = nfail + 1
+      IF (para_env%is_source()) THEN
+         WRITE (io_unit, '(A,4(1X,ES13.6))') &
+            'complex occupation-block covariance/cross-block/max-eigenvalue/descent', &
+            covariance_error, cross_block_error, shifted_eigenvalue_error, descent
+      END IF
+
+      CALL destroy_preconditioner(preconditioner_rot)
+      CALL destroy_preconditioner(preconditioner)
+      CALL cp_cfm_release(matrix_output_rot)
+      CALL cp_cfm_release(matrix_output)
+      CALL cp_cfm_release(matrix_gradient_rot)
+      CALL cp_cfm_release(matrix_gradient)
+      CALL cp_cfm_release(matrix_c_rot)
+      CALL cp_cfm_release(matrix_c)
+      CALL cp_cfm_release(matrix_s)
+      CALL cp_cfm_release(matrix_h)
+      CALL cp_fm_struct_release(fmstruct_nk)
+      CALL cp_fm_struct_release(fmstruct_nn)
+      CALL cp_blacs_env_release(blacs_env)
+
+   END SUBROUTINE test_complex_occupation_block_preconditioner
+
+! **************************************************************************************************
 !> \brief Check the intentionally narrow complex k-point preconditioner support matrix.
 !> \param nfail accumulated number of failures
 ! **************************************************************************************************
@@ -2525,11 +3008,14 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: nfail
 
       IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_none, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_fermi_low_rank, .FALSE.)) nfail = nfail + 1
       IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_full_single_inverse, .FALSE.)) THEN
          nfail = nfail + 1
       END IF
       IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_full_all, .FALSE.)) nfail = nfail + 1
       IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_full_single, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_supported( &
+          ot_precond_full_all_covariant, .FALSE.)) nfail = nfail + 1
       IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_full_kinetic, .FALSE.)) nfail = nfail + 1
       IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_s_inverse, .FALSE.)) nfail = nfail + 1
       IF (qs_ot_kpoint_preconditioner_supported(ot_precond_full_single_inverse, .TRUE.)) nfail = nfail + 1
@@ -2551,6 +3037,14 @@ CONTAINS
           ot_precond_full_all, ot_precond_solver_default, .FALSE.)) nfail = nfail + 1
       IF (qs_ot_kpoint_preconditioner_solver_supported( &
           ot_precond_full_all, ot_precond_solver_inv_chol, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_fermi_low_rank, ot_precond_solver_default, .FALSE.)) nfail = nfail + 1
+      IF (qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_fermi_low_rank, ot_precond_solver_inv_chol, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_full_all_covariant, ot_precond_solver_default, .FALSE.)) nfail = nfail + 1
+      IF (qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_full_all_covariant, ot_precond_solver_inv_chol, .FALSE.)) nfail = nfail + 1
       IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
           ot_precond_full_kinetic, ot_precond_solver_default, .FALSE.)) nfail = nfail + 1
       IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
