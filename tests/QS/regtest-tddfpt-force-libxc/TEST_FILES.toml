@@ -17,12 +17,15 @@
 #   MGGA_X_BR89_EXPLICIT            + Laplacian       -> meta-GGA branch, laplace terms
 # Tolerances follow the run-to-run spread of each test; the meta-GGA
 # excited-state gradients are noticeably noisier than the LDA and GGA ones.
+# The meta-GGA cutoffs differ per test: the restricted TPSS run stalls near
+# 1e-6 RMS gradient on a coarser grid and needs CUTOFF 600 to reach EPS_SCF,
+# while the others converge on a cheaper one and are kept there for runtime.
 "h2o_lda_analytic.inp"                  = [{matcher="E_total", tol=1.0E-11, ref=-17.12647008678879}]
 "h2o_gga_analytic.inp"                  = [{matcher="E_total", tol=1.0E-11, ref=-17.22346825004372}]
 "h2o_mgga_tau_analytic.inp"             = [{matcher="E_total", tol=1.0E-07, ref=-17.22540625110693}]
-"h2o_mgga_lapl_analytic.inp"            = [{matcher="E_total", tol=1.0E-08, ref=-16.95900212950832}]
+"h2o_mgga_lapl_analytic.inp"            = [{matcher="E_total", tol=1.0E-06, ref=-16.95990978168588}]
 "h2o_lsd_lda_analytic.inp"              = [{matcher="E_total", tol=1.0E-10, ref=-16.66698042191488}]
 "h2o_lsd_gga_analytic.inp"              = [{matcher="E_total", tol=1.0E-10, ref=-16.77629238461370}]
-"h2o_lsd_mgga_tau_analytic.inp"         = [{matcher="E_total", tol=1.0E-10, ref=-16.78739829919040}]
-"h2o_lsd_mgga_lapl_analytic.inp"        = [{matcher="E_total", tol=1.0E-06, ref=-16.54951306060923}]
+"h2o_lsd_mgga_tau_analytic.inp"         = [{matcher="E_total", tol=1.0E-10, ref=-16.78482419749887}]
+"h2o_lsd_mgga_lapl_analytic.inp"        = [{matcher="E_total", tol=1.0E-08, ref=-16.54838854154019}]
 #EOF

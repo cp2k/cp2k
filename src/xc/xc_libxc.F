@@ -27,6 +27,14 @@
 ! **************************************************************************************************
 #:include 'xc_gamma.fypp'
 
+#! Every staging buffer of a worker, so that the component count and the
+#! release below cannot fall out of step with the allocation.
+#:set worker_1d = ["exc", "nd", "nda", "ndb"]
+#:set worker_2d = ["rho", "sigma", "lapl", "tau", "vrho", "vsigma", "vlapl", "vtau", &
+                 & "v2rho2", "v2rhosigma", "v2sigma2", "v2rholapl", "v2rhotau", &
+                 & "v2sigmalapl", "v2sigmatau", "v2lapl2", "v2lapltau", "v2tau2", &
+                 & "v3rho3", "v3rho2sigma", "v3rhosigma2", "v3sigma3"] + v3_new
+
 MODULE xc_libxc
    USE bibliography, ONLY: Lehtola2018, &
                            Marques2012, &
@@ -144,9 +152,15 @@ MODULE xc_libxc
    ! built by mixing components, a full allocate/free cycle of the component
    ! buffers) over the points in the call, so evaluating point by point paid that
    ! cost once per point. Blocking rather than passing the whole grid keeps the
-   ! staging buffers inside the cache; the timing is flat between roughly 128 and
-   ! 2048 points, so the exact value is not critical.
-   INTEGER, PARAMETER, PRIVATE :: libxc_block_size = 512
+   ! staging buffers inside the cache. How wide a point is depends on the
+   ! functional and on the derivative order: a spin-polarized meta-GGA stages 232
+   ! doubles per point at third order against twelve for a polarized LDA, a span
+   ! of twenty, so the block is chosen from a byte budget rather than fixed in
+   ! points. The timing is flat over a wide range of block lengths, so the budget
+   ! only has to keep the buffers cache-resident.
+   INTEGER, PARAMETER, PRIVATE :: libxc_block_bytes = 256*1024
+   INTEGER, PARAMETER, PRIVATE :: libxc_block_min = 64
+   INTEGER, PARAMETER, PRIVATE :: libxc_block_max = 512
 
 ! **************************************************************************************************
 !> \brief One LibXC functional object plus the buffers used to hand it a block of
@@ -157,6 +171,8 @@ MODULE xc_libxc
       TYPE(xc_f03_func_t)                                :: func = xc_f03_func_t()
       TYPE(xc_f03_func_info_t)                           :: info = xc_f03_func_info_t()
       LOGICAL                                            :: is_init = .FALSE.
+      ! number of points the staging buffers below were allocated for
+      INTEGER                                            :: nb = 0
       ! staging buffers, dimensioned (component, point)
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: rho, sigma, lapl, tau
       ! the floored gradient norms the spin-polarized chain rule is written in
@@ -181,6 +197,8 @@ MODULE xc_libxc
       INTEGER                                            :: func_id = -1
       INTEGER                                            :: nspin = -1
       INTEGER                                            :: family = -1
+      ! highest derivative order the workers' buffers were allocated for
+      INTEGER                                            :: grad_deriv = -1
       LOGICAL                                            :: has_laplace = .FALSE.
       LOGICAL                                            :: no_exc = .FALSE.
       LOGICAL                                            :: has_params = .FALSE.
@@ -660,24 +678,99 @@ CONTAINS
    END SUBROUTINE libxc_read_params
 
 ! **************************************************************************************************
-!> \brief Allocates the staging buffers of a single worker.
+!> \brief Allocates the staging buffers of a single worker, sizing the block so
+!>        that they stay within the cache budget.
 !> \param worker the worker
 !> \param family LibXC functional family
 !> \param nspin XC_UNPOLARIZED or XC_POLARIZED
+!> \param grad_deriv highest derivative order the buffers must hold
+!> \author S. Lehtola
+! **************************************************************************************************
+   SUBROUTINE libxc_worker_alloc(worker, family, nspin, grad_deriv)
+      TYPE(libxc_worker_type), INTENT(INOUT)             :: worker
+      INTEGER, INTENT(IN)                                :: family, nspin, grad_deriv
+
+      INTEGER                                            :: nb, ncomp
+
+      ! How many doubles a point occupies spans a factor of twenty over the
+      ! families, spin cases and derivative orders, so a block length fixed in
+      ! points would size the buffers anywhere between 49 KiB and 950 KiB. Derive
+      ! it from the footprint instead: build a one-point worker, ask it how wide
+      ! a point is, and cut the real block to the byte budget. Taking the count
+      ! from the buffers themselves is what stops it drifting away from the
+      ! allocation it is meant to describe.
+      BLOCK
+         TYPE(libxc_worker_type)                         :: probe
+         CALL libxc_worker_alloc_buffers(probe, family, nspin, grad_deriv, 1)
+         ncomp = libxc_worker_ncomp(probe)
+      END BLOCK
+      nb = MIN(libxc_block_max, &
+               MAX(libxc_block_min, libxc_block_bytes/(ncomp*(STORAGE_SIZE(0.0_dp)/8))))
+
+      CALL libxc_worker_alloc_buffers(worker, family, nspin, grad_deriv, nb)
+
+   END SUBROUTINE libxc_worker_alloc
+
+! **************************************************************************************************
+!> \brief Number of buffer components a single grid point occupies in a worker.
+!> \param worker the worker
+!> \return components per point, summed over the buffers it actually carries
+!> \author S. Lehtola
+! **************************************************************************************************
+   FUNCTION libxc_worker_ncomp(worker) RESULT(ncomp)
+      TYPE(libxc_worker_type), INTENT(IN)                :: worker
+      INTEGER                                            :: ncomp
+
+      ncomp = 0
+      #:for arr in worker_1d
+         IF (ALLOCATED(worker%${arr}$)) ncomp = ncomp + 1
+      #:endfor
+      #:for arr in worker_2d
+         IF (ALLOCATED(worker%${arr}$)) ncomp = ncomp + SIZE(worker%${arr}$, 1)
+      #:endfor
+
+   END FUNCTION libxc_worker_ncomp
+
+! **************************************************************************************************
+!> \brief Releases the staging buffers of a worker, keeping its functional object.
+!> \param worker the worker
+!> \author S. Lehtola
+! **************************************************************************************************
+   SUBROUTINE libxc_worker_free_buffers(worker)
+      TYPE(libxc_worker_type), INTENT(INOUT)             :: worker
+
+      #:for arr in worker_1d + worker_2d
+         IF (ALLOCATED(worker%${arr}$)) DEALLOCATE (worker%${arr}$)
+      #:endfor
+      worker%nb = 0
+
+   END SUBROUTINE libxc_worker_free_buffers
+
+! **************************************************************************************************
+!> \brief Allocates the staging buffers of a single worker for a given block length.
+!> \param worker the worker
+!> \param family LibXC functional family
+!> \param nspin XC_UNPOLARIZED or XC_POLARIZED
+!> \param grad_deriv highest derivative order the buffers must hold
+!> \param nb number of grid points per block
 !> \author S. Lehtola
 !> \note The buffers follow LibXC's own layout, i.e. the leading dimension is the
 !>       number of components of the quantity and the points run along the second
 !>       dimension. They are allocated once per worker and reused for every batch.
+!>       Only the orders this evaluation asks for are allocated: the third
+!>       derivatives alone are 130 components per point for a spin-polarized
+!>       meta-GGA, which a ground-state calculation would never fill.
 ! **************************************************************************************************
-   SUBROUTINE libxc_worker_alloc(worker, family, nspin)
+   SUBROUTINE libxc_worker_alloc_buffers(worker, family, nspin, grad_deriv, nb)
       TYPE(libxc_worker_type), INTENT(INOUT)             :: worker
-      INTEGER, INTENT(IN)                                :: family, nspin
+      INTEGER, INTENT(IN)                                :: family, nspin, grad_deriv, nb
 
-      INTEGER                                            :: nb, nl, np, ns
+      INTEGER                                            :: nl, np, ns
+      LOGICAL                                            :: is_gga, is_mgga, pol
 
-      nb = libxc_block_size
+      pol = (nspin == XC_POLARIZED)
       ! number of components per point, cf. the LibXC manual
-      IF (nspin == XC_POLARIZED) THEN
+      IF (pol) THEN
          np = 2   ! rho, vrho, lapl, tau, vlapl, vtau
          ns = 3   ! sigma, vsigma, v2rho2, v2lapl2, v2tau2
          nl = 4   ! v2rholapl, v2rhotau, v2lapltau, v3rho3
@@ -687,49 +780,69 @@ CONTAINS
          nl = 1
       END IF
 
+      is_gga = .FALSE.
+      is_mgga = .FALSE.
+      SELECT CASE (family)
+      CASE (XC_FAMILY_GGA, XC_FAMILY_HYB_GGA)
+         is_gga = .TRUE.
+      CASE (XC_FAMILY_MGGA, XC_FAMILY_HYB_MGGA)
+         is_gga = .TRUE.
+         is_mgga = .TRUE.
+      END SELECT
+
+      worker%nb = nb
+
+      ! The energy density and the first derivatives are always staged: LibXC
+      ! writes them whatever higher order was asked for.
       ALLOCATE (worker%rho(np, nb))
       ALLOCATE (worker%exc(nb))
       ALLOCATE (worker%vrho(np, nb))
-      ALLOCATE (worker%v2rho2(ns, nb))
-      ALLOCATE (worker%v3rho3(nl, nb))
+      IF (grad_deriv >= 2) ALLOCATE (worker%v2rho2(ns, nb))
+      IF (grad_deriv >= 3) ALLOCATE (worker%v3rho3(nl, nb))
 
-      SELECT CASE (family)
-      CASE (XC_FAMILY_GGA, XC_FAMILY_HYB_GGA, XC_FAMILY_MGGA, XC_FAMILY_HYB_MGGA)
+      IF (is_gga) THEN
          ALLOCATE (worker%sigma(ns, nb))
          ALLOCATE (worker%vsigma(ns, nb))
-         IF (nspin == XC_POLARIZED) THEN
+         IF (pol) THEN
             ALLOCATE (worker%nd(nb), worker%nda(nb), worker%ndb(nb))
          END IF
-         ALLOCATE (worker%v2rhosigma(MERGE(6, 1, nspin == XC_POLARIZED), nb))
-         ALLOCATE (worker%v2sigma2(MERGE(6, 1, nspin == XC_POLARIZED), nb))
-         ALLOCATE (worker%v3rho2sigma(MERGE(9, 1, nspin == XC_POLARIZED), nb))
-         ALLOCATE (worker%v3rhosigma2(MERGE(12, 1, nspin == XC_POLARIZED), nb))
-         ALLOCATE (worker%v3sigma3(MERGE(10, 1, nspin == XC_POLARIZED), nb))
-      END SELECT
+         IF (grad_deriv >= 2) THEN
+            ALLOCATE (worker%v2rhosigma(MERGE(6, 1, pol), nb))
+            ALLOCATE (worker%v2sigma2(MERGE(6, 1, pol), nb))
+         END IF
+         IF (grad_deriv >= 3) THEN
+            ALLOCATE (worker%v3rho2sigma(MERGE(9, 1, pol), nb))
+            ALLOCATE (worker%v3rhosigma2(MERGE(12, 1, pol), nb))
+            ALLOCATE (worker%v3sigma3(MERGE(10, 1, pol), nb))
+         END IF
+      END IF
 
-      SELECT CASE (family)
-      CASE (XC_FAMILY_MGGA, XC_FAMILY_HYB_MGGA)
+      IF (is_mgga) THEN
          ALLOCATE (worker%lapl(np, nb))
          ALLOCATE (worker%tau(np, nb))
          ALLOCATE (worker%vlapl(np, nb))
          ALLOCATE (worker%vtau(np, nb))
-         ALLOCATE (worker%v2rholapl(nl, nb))
-         ALLOCATE (worker%v2rhotau(nl, nb))
-         ALLOCATE (worker%v2sigmalapl(MERGE(6, 1, nspin == XC_POLARIZED), nb))
-         ALLOCATE (worker%v2sigmatau(MERGE(6, 1, nspin == XC_POLARIZED), nb))
-         ALLOCATE (worker%v2lapl2(ns, nb))
-         ALLOCATE (worker%v2lapltau(nl, nb))
-         ALLOCATE (worker%v2tau2(ns, nb))
-         #:for arr in v3_new
-            ALLOCATE (worker%${arr}$ (MERGE(${mgga_ncomp[arr]}$, 1, nspin == XC_POLARIZED), nb))
-         #:endfor
+         IF (grad_deriv >= 2) THEN
+            ALLOCATE (worker%v2rholapl(nl, nb))
+            ALLOCATE (worker%v2rhotau(nl, nb))
+            ALLOCATE (worker%v2sigmalapl(MERGE(6, 1, pol), nb))
+            ALLOCATE (worker%v2sigmatau(MERGE(6, 1, pol), nb))
+            ALLOCATE (worker%v2lapl2(ns, nb))
+            ALLOCATE (worker%v2lapltau(nl, nb))
+            ALLOCATE (worker%v2tau2(ns, nb))
+         END IF
+         IF (grad_deriv >= 3) THEN
+            #:for arr in v3_new
+               ALLOCATE (worker%${arr}$ (MERGE(${mgga_ncomp[arr]}$, 1, pol), nb))
+            #:endfor
+         END IF
          ! LibXC leaves vlapl untouched for functionals that do not use the
          ! Laplacian, and CP2K then ignores it; zero it once so it never holds
          ! uninitialized memory.
          worker%vlapl = 0.0_dp
-      END SELECT
+      END IF
 
-   END SUBROUTINE libxc_worker_alloc
+   END SUBROUTINE libxc_worker_alloc_buffers
 
 ! **************************************************************************************************
 !> \brief Makes sure the placeholder for unproduced derivatives holds npoints values.
@@ -754,17 +867,20 @@ CONTAINS
 !> \param libxc_params LibXC input section, or null when no parameters are to be set
 !> \param epsilon_rho density cutoff
 !> \param epsilon_tau kinetic energy density cutoff
+!> \param grad_deriv highest derivative order this evaluation needs
 !> \return index into libxc_cache
 !> \author S. Lehtola
 !> \note Must be called from a serial region: it is the only writer of the cache,
 !>       and keeping it serial is what makes the cache lock-free. The workers it
 !>       returns are then used concurrently, one per thread.
 ! **************************************************************************************************
-   FUNCTION libxc_get_workers(func_name, nspin, libxc_params, epsilon_rho, epsilon_tau) RESULT(idx)
+   FUNCTION libxc_get_workers(func_name, nspin, libxc_params, epsilon_rho, epsilon_tau, &
+                              grad_deriv) RESULT(idx)
       CHARACTER(LEN=*), INTENT(IN)                       :: func_name
       INTEGER, INTENT(IN)                                :: nspin
       TYPE(section_vals_type), INTENT(IN), POINTER       :: libxc_params
       REAL(KIND=dp), INTENT(IN)                          :: epsilon_rho, epsilon_tau
+      INTEGER, INTENT(IN)                                :: grad_deriv
       INTEGER                                            :: idx
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'libxc_get_workers'
@@ -800,6 +916,21 @@ CONTAINS
          END IF
       END DO
 
+      ! A set built for a lower derivative order carries buffers that are too
+      ! narrow for this call. Widening them in place keeps one set per functional
+      ! setup: the SCF fills the cache at first order and a later response
+      ! calculation grows that same slot to third order.
+      IF (idx /= 0) THEN
+         IF (libxc_cache(idx)%grad_deriv < grad_deriv) THEN
+            DO ithread = 1, SIZE(libxc_cache(idx)%worker)
+               CALL libxc_worker_free_buffers(libxc_cache(idx)%worker(ithread))
+               CALL libxc_worker_alloc(libxc_cache(idx)%worker(ithread), &
+                                       libxc_cache(idx)%family, nspin, grad_deriv)
+            END DO
+            libxc_cache(idx)%grad_deriv = grad_deriv
+         END IF
+      END IF
+
       IF (idx == 0) THEN
          ! Grow the cache by one slot and build the workers for it.
          CALL MOVE_ALLOC(libxc_cache, tmp_cache)
@@ -816,6 +947,7 @@ CONTAINS
             ws%has_params = has_params
             ws%epsilon_rho = epsilon_rho
             ws%epsilon_tau = epsilon_tau
+            ws%grad_deriv = grad_deriv
             ALLOCATE (ws%worker(nthreads))
 
             DO ithread = 1, nthreads
@@ -847,7 +979,7 @@ CONTAINS
             DO ithread = 1, nthreads
                CALL xc_libxc_wrap_set_thresholds(ws%worker(ithread)%func, ws%worker(ithread)%info, &
                                                  epsilon_rho, epsilon_tau)
-               CALL libxc_worker_alloc(ws%worker(ithread), ws%family, nspin)
+               CALL libxc_worker_alloc(ws%worker(ithread), ws%family, nspin, grad_deriv)
             END DO
          END ASSOCIATE
       ELSE
@@ -1015,9 +1147,11 @@ CONTAINS
       IF (PRESENT(func_name_override)) THEN
          ! an overriding name carries no input section, so no parameters are set
          NULLIFY (no_params)
-         iw = libxc_get_workers(func_name, XC_UNPOLARIZED, no_params, epsilon_rho, epsilon_tau)
+         iw = libxc_get_workers(func_name, XC_UNPOLARIZED, no_params, epsilon_rho, epsilon_tau, &
+                                grad_deriv)
       ELSE
-         iw = libxc_get_workers(func_name, XC_UNPOLARIZED, libxc_params, epsilon_rho, epsilon_tau)
+         iw = libxc_get_workers(func_name, XC_UNPOLARIZED, libxc_params, epsilon_rho, epsilon_tau, &
+                                grad_deriv)
       END IF
       workers => libxc_cache(iw)
       xc_info = workers%worker(1)%info
@@ -1377,9 +1511,11 @@ CONTAINS
       IF (PRESENT(func_name_override)) THEN
          ! an overriding name carries no input section, so no parameters are set
          NULLIFY (no_params)
-         iw = libxc_get_workers(func_name, XC_POLARIZED, no_params, epsilon_rho, epsilon_tau)
+         iw = libxc_get_workers(func_name, XC_POLARIZED, no_params, epsilon_rho, epsilon_tau, &
+                                grad_deriv)
       ELSE
-         iw = libxc_get_workers(func_name, XC_POLARIZED, libxc_params, epsilon_rho, epsilon_tau)
+         iw = libxc_get_workers(func_name, XC_POLARIZED, libxc_params, epsilon_rho, epsilon_tau, &
+                                grad_deriv)
       END IF
       workers => libxc_cache(iw)
       xc_info = workers%worker(1)%info
@@ -1971,11 +2107,10 @@ CONTAINS
 !$ nthreads = omp_get_num_threads()
    CPASSERT(ithread < SIZE(workers%worker))
 
-   ! Blocks are capped by libxc_block_size, which is what the staging buffers
-   ! were allocated for, but shrunk when there are too few points to give every
-   ! thread a block of its own: small atomic grids would otherwise all be
-   ! evaluated by thread 0.
-   bsize = MAX(1, MIN(libxc_block_size, (npoints + nthreads - 1)/nthreads))
+   ! Blocks are capped by what the staging buffers were actually allocated for,
+   ! but shrunk when there are too few points to give every thread a block of its
+   ! own: small atomic grids would otherwise all be evaluated by thread 0.
+   bsize = MAX(1, MIN(workers%worker(1)%nb, (npoints + nthreads - 1)/nthreads))
    nblocks = (npoints + bsize - 1)/bsize
 
    family = workers%family
@@ -2398,7 +2533,7 @@ nthreads = 1
 !$ nthreads = omp_get_num_threads()
 CPASSERT(ithread < SIZE(workers%worker))
 
-bsize = MAX(1, MIN(libxc_block_size, (npoints + nthreads - 1)/nthreads))
+bsize = MAX(1, MIN(workers%worker(1)%nb, (npoints + nthreads - 1)/nthreads))
 nblocks = (npoints + bsize - 1)/bsize
 
 family = workers%family

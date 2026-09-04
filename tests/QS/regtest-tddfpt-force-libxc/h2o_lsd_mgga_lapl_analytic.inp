@@ -19,7 +19,7 @@
       STATE 1
     &END EXCITED_STATES
     &MGRID
-      CUTOFF 600
+      CUTOFF 300
       REL_CUTOFF 60
     &END MGRID
     &POISSON
