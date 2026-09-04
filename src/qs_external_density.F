@@ -13,6 +13,7 @@ MODULE qs_external_density
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -101,7 +102,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_cube_density'
 
       INTEGER                                            :: extunit, handle, i, igrid_level, j, k, &
-                                                            nat, ndum
+                                                            nat, ndum, output_unit
       INTEGER, DIMENSION(3)                              :: lbounds, lbounds_local, npoints, &
                                                             ubounds, ubounds_local
       LOGICAL                                            :: grid_mismatch
@@ -119,6 +120,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (pw_env, rho_r, rho_g, tot_rho_r, rs_descs)
+      output_unit = cp_logger_get_default_io_unit()
 
       IF (total_density_sign /= -1 .AND. total_density_sign /= 1) THEN
          CPABORT("total_density_sign has to be -1 or 1")
@@ -147,7 +149,8 @@ CONTAINS
                  my_rank => rho_r(1)%pw_grid%para%group%mepos)
          grid_mismatch = .FALSE.
          IF (my_rank == 0) THEN
-            WRITE (*, FMT="(/,T3,A,A)") TRIM(source_label)//"| Reading electron density: ", TRIM(filename)
+            WRITE (output_unit, FMT="(/,T3,A,A)") &
+               TRIM(source_label)//"| Reading electron density: ", TRIM(filename)
             CALL open_file(file_name=filename, file_status="OLD", file_form="FORMATTED", &
                            file_action="READ", unit_number=extunit)
 
@@ -156,12 +159,12 @@ CONTAINS
             READ (extunit, *) nat, cube_origin
             IF (MAXVAL(ABS(cube_origin)) > 1.0E-4_dp) THEN
                grid_mismatch = .TRUE.
-               WRITE (*, FMT="(T3,A,3ES16.8)") TRIM(source_label)// &
+               WRITE (output_unit, FMT="(T3,A,3ES16.8)") TRIM(source_label)// &
                   "| Cube origin is not the CP2K grid origin: ", cube_origin
             END IF
             IF (nat < 0) THEN
                grid_mismatch = .TRUE.
-               WRITE (*, FMT="(T3,A)") TRIM(source_label)// &
+               WRITE (output_unit, FMT="(T3,A)") TRIM(source_label)// &
                   "| Multi-orbital cube files are not supported"
             END IF
             DO i = 1, 3
@@ -169,12 +172,12 @@ CONTAINS
                IF (ndum /= npoints(i) .OR. &
                    MAXVAL(ABS(voxel - rs_descs(igrid_level)%rs_desc%dh(:, i))) > 1.0E-4_dp) THEN
                   grid_mismatch = .TRUE.
-                  WRITE (*, FMT="(T3,A,I0)") TRIM(source_label)// &
+                  WRITE (output_unit, FMT="(T3,A,I0)") TRIM(source_label)// &
                      "| Cube grid does not coincide with CP2K grid along axis ", i
-                  WRITE (*, FMT="(T3,A,I0,A,I0)") TRIM(source_label)//"| Grid points: ", &
+                  WRITE (output_unit, FMT="(T3,A,I0,A,I0)") TRIM(source_label)//"| Grid points: ", &
                      ndum, " instead of ", npoints(i)
-                  WRITE (*, FMT="(T3,A,3ES16.8)") TRIM(source_label)//"| Cube vector: ", voxel
-                  WRITE (*, FMT="(T3,A,3ES16.8)") TRIM(source_label)//"| CP2K vector: ", &
+                  WRITE (output_unit, FMT="(T3,A,3ES16.8)") TRIM(source_label)//"| Cube vector: ", voxel
+                  WRITE (output_unit, FMT="(T3,A,3ES16.8)") TRIM(source_label)//"| CP2K vector: ", &
                      rs_descs(igrid_level)%rs_desc%dh(:, i)
                END IF
             END DO
@@ -206,7 +209,7 @@ CONTAINS
          CALL density_rs2pw(pw_env, rs_rho, rho=rho_r(1), rho_gspace=rho_g(1))
          tot_rho_r(1) = pw_integrate_function(rho_r(1), isign=total_density_sign)
          IF (my_rank == 0) THEN
-            WRITE (*, FMT="(T3,A,T61,F20.10)") TRIM(source_label)// &
+            WRITE (output_unit, FMT="(T3,A,T61,F20.10)") TRIM(source_label)// &
                "| Integrated electron density:", REAL(total_density_sign, dp)*tot_rho_r(1)
          END IF
          CALL gid%sync()
