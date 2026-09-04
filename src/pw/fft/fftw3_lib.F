@@ -800,7 +800,6 @@ CONTAINS
 
 #else
       MARK_USED(plan)
-      MARK_USED(plan_style)
       !MARK_USED does not work with assumed size arguments
       IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
 #endif
@@ -1043,7 +1042,6 @@ CONTAINS
 
 #else
       MARK_USED(plan)
-      MARK_USED(plan_style)
       !MARK_USED does not work with assumed size arguments
       IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
 #endif
