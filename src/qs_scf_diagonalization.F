@@ -126,7 +126,7 @@ MODULE qs_scf_diagonalization
    USE qs_kpoint_operators,             ONLY: &
         kpoint_operator_cfm_to_mo, kpoint_operator_context_create, &
         kpoint_operator_context_release, kpoint_operator_context_type, kpoint_operator_finish, &
-        kpoint_operator_start, kpoint_slot_ks, kpoint_slot_s, kpoint_slot_t
+        kpoint_operator_get, kpoint_operator_start, kpoint_slot_ks, kpoint_slot_s, kpoint_slot_t
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
@@ -3331,8 +3331,8 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fmlocal_im, fmlocal_re
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_operator_context_type)                 :: op_ctx
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
@@ -3447,25 +3447,16 @@ CONTAINS
          END IF
       END IF
 
-      ! work matrices: real-space Fourier scratch (dbcsr), global scratch fms,
-      ! two k-group fms as redistribution targets, and the complex H(k)/S(k)
-      ALLOCATE (rmatrix, cmatrix, tmpmat)
-      CALL dbcsr_create(rmatrix, template=matrix_ks_kp(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_symmetric)
-      CALL dbcsr_create(cmatrix, template=matrix_ks_kp(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_antisymmetric)
-      CALL dbcsr_create(tmpmat, template=matrix_ks_kp(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
-      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
-      CALL cp_dbcsr_alloc_block_from_nbl(tmpmat, sab_nl)
-
+      ! work matrices: global scratch fms (also the operator-context
+      ! template), two k-group fms as preconditioner outputs, and the
+      ! complex H(k)/S(k)
       CALL get_qs_env(qs_env, mpools=mpools)
       CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
       ALLOCATE (fmwork(4))
       DO iwork = 1, 4
          CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
       END DO
+      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1))
       CALL mpools_get(kp_mpools, ao_ao_fm_pools=kp_ao_ao_fm_pools)
       CALL fm_pool_create_fm(kp_ao_ao_fm_pools(1)%pool, fmlocal_re)
       CALL fm_pool_create_fm(kp_ao_ao_fm_pools(1)%pool, fmlocal_im)
@@ -3479,7 +3470,7 @@ CONTAINS
                                 scf_env%block_davidson_env(1)%niter_new_prec) == 0)) THEN
          CALL davidson_kp_prepare_preconditioners( &
             qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints, &
-            rmatrix, cmatrix, tmpmat, fmwork, fmlocal_re, fmlocal_im)
+            op_ctx, fmlocal_re, fmlocal_im)
       END IF
 
       DO local_kpoint = 1, kplocal
@@ -3488,18 +3479,12 @@ CONTAINS
          ! Every k-point group executes the same sequence of global transforms.
          ! Only the group owning this local_kpoint receives the redistributed
          ! matrix; the others participate through the dummy destination.
-         CALL distribute_kpoint_operator_channel( &
-            matrix_s_kp, kpoints, local_kpoint, 1, kp_dist, xkp, cell_to_index, sab_nl, &
-            rmatrix, cmatrix, tmpmat, fmwork, fmlocal_re, fmlocal_im)
-         CALL cp_cfm_scale_and_add_fm(z_zero, csmat_base, z_one, fmlocal_re)
-         CALL cp_cfm_scale_and_add_fm(z_one, csmat_base, gaussi, fmlocal_im)
+         CALL kpoint_operator_get(op_ctx, local_kpoint, 1, matrix_s_kp, kpoint_slot_s, &
+                                  cmat=csmat_base, ispin_matrix=1)
 
          DO ispin = 1, nspin
-            CALL distribute_kpoint_operator_channel( &
-               matrix_ks_kp, kpoints, local_kpoint, ispin, kp_dist, xkp, cell_to_index, sab_nl, &
-               rmatrix, cmatrix, tmpmat, fmwork, fmlocal_re, fmlocal_im)
-            CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, fmlocal_re)
-            CALL cp_cfm_scale_and_add_fm(z_one, cksmat, gaussi, fmlocal_im)
+            CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, kpoint_slot_ks, &
+                                     cmat=cksmat)
             CALL cp_cfm_to_cfm(csmat_base, csmat)
 
             IF (scf_env%iter_count == 1 .AND. .NOT. kp%mos_prefilled) THEN
@@ -3532,15 +3517,13 @@ CONTAINS
       CALL cp_cfm_release(cksmat)
       CALL cp_cfm_release(csmat)
       CALL cp_cfm_release(csmat_base)
+      CALL kpoint_operator_context_release(op_ctx)
       CALL fm_pool_give_back_fm(kp_ao_ao_fm_pools(1)%pool, fmlocal_re)
       CALL fm_pool_give_back_fm(kp_ao_ao_fm_pools(1)%pool, fmlocal_im)
       DO iwork = 1, 4
          CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
       END DO
       DEALLOCATE (fmwork)
-      CALL dbcsr_deallocate_matrix(rmatrix)
-      CALL dbcsr_deallocate_matrix(cmatrix)
-      CALL dbcsr_deallocate_matrix(tmpmat)
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, "(T15,A/)") '<<<<<<<<< END DAVIDSON ITERATION  <<<<<<<<<<'
@@ -3598,23 +3581,19 @@ CONTAINS
 !> \param matrix_ks_kp ...
 !> \param matrix_s_kp ...
 !> \param kpoints ...
-!> \param rmatrix ...
-!> \param cmatrix ...
-!> \param tmpmat ...
-!> \param fmwork ...
+!> \param op_ctx ...
 !> \param fmlocal_re ...
 !> \param fmlocal_im ...
 ! **************************************************************************************************
    SUBROUTINE davidson_kp_prepare_preconditioners( &
       qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints, &
-      rmatrix, cmatrix, tmpmat, fmwork, fmlocal_re, fmlocal_im)
+      op_ctx, fmlocal_re, fmlocal_im)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(dbcsr_type), POINTER                          :: rmatrix, cmatrix, tmpmat
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      TYPE(kpoint_operator_context_type)                 :: op_ctx
       TYPE(cp_fm_type)                                   :: fmlocal_re, fmlocal_im
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'davidson_kp_prepare_preconditioners'
@@ -3688,18 +3667,16 @@ CONTAINS
          ! S(k) is spin independent. Build it with the same global-group
          ! redistribution protocol as the Davidson operator itself, then make
          ! a group-local block-cyclic DBCSR pair for the preconditioner makers.
-         CALL distribute_kpoint_operator_channel( &
-            matrix_s_kp, kpoints, local_kpoint, 1, kp_dist, xkp, cell_to_index, sab_nl, &
-            rmatrix, cmatrix, tmpmat, fmwork, fmlocal_re, fmlocal_im)
+         CALL kpoint_operator_get(op_ctx, local_kpoint, 1, matrix_s_kp, kpoint_slot_s, &
+                                  fm_re=fmlocal_re, fm_im=fmlocal_im, ispin_matrix=1)
          CALL dbcsr_init_p(matrix_s_re)
          CALL dbcsr_init_p(matrix_s_im)
          CALL copy_fm_to_dbcsr_bc(fmlocal_re, matrix_s_re)
          CALL copy_fm_to_dbcsr_bc(fmlocal_im, matrix_s_im)
 
          IF (prec_type == ot_precond_full_kinetic) THEN
-            CALL distribute_kpoint_operator_channel( &
-               matrix_t_kp, kpoints, local_kpoint, 1, kp_dist, xkp, cell_to_index, sab_nl, &
-               rmatrix, cmatrix, tmpmat, fmwork, fmlocal_re, fmlocal_im)
+            CALL kpoint_operator_get(op_ctx, local_kpoint, 1, matrix_t_kp, kpoint_slot_t, &
+                                     fm_re=fmlocal_re, fm_im=fmlocal_im, ispin_matrix=1)
             CALL dbcsr_init_p(matrix_t_re)
             CALL dbcsr_init_p(matrix_t_im)
             CALL copy_fm_to_dbcsr_bc(fmlocal_re, matrix_t_re)
@@ -3709,9 +3686,8 @@ CONTAINS
          DO ispin = 1, nspin
             channel = (local_kpoint - 1)*nspin + ispin
             IF (prec_type == ot_precond_full_all .OR. prec_type == ot_precond_full_single_inverse) THEN
-               CALL distribute_kpoint_operator_channel( &
-                  matrix_ks_kp, kpoints, local_kpoint, ispin, kp_dist, xkp, cell_to_index, sab_nl, &
-                  rmatrix, cmatrix, tmpmat, fmwork, fmlocal_re, fmlocal_im)
+               CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, kpoint_slot_ks, &
+                                        fm_re=fmlocal_re, fm_im=fmlocal_im)
                CALL dbcsr_init_p(matrix_h_re)
                CALL dbcsr_init_p(matrix_h_im)
                CALL copy_fm_to_dbcsr_bc(fmlocal_re, matrix_h_re)

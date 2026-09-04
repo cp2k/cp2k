@@ -26,14 +26,9 @@ MODULE qs_kpoint_operators
                                               fm_pool_create_fm,&
                                               fm_pool_give_back_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: copy_info_type,&
-                                              cp_fm_cleanup_copy_general,&
-                                              cp_fm_create,&
-                                              cp_fm_finish_copy_general,&
-                                              cp_fm_get_info,&
-                                              cp_fm_release,&
-                                              cp_fm_start_copy_general,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
+        cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: rskp_grid_type,&
                                               rskp_transform,&
@@ -59,6 +54,7 @@ MODULE qs_kpoint_operators
    PUBLIC :: kpoint_operator_raw_start, kpoint_operator_raw_finish_cfm, kpoint_operator_cfm_to_mo
    PUBLIC :: kpoint_operator_context_create, kpoint_operator_context_release
    PUBLIC :: kpoint_operator_start, kpoint_operator_finish
+   PUBLIC :: kpoint_operator_get
 
    INTEGER, PARAMETER, PUBLIC :: kpoint_slot_ks = 1, &
                                  kpoint_slot_s = 2, &
@@ -515,5 +511,106 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_operator_finish
+
+! **************************************************************************************************
+!> \brief Finish one started instance into a caller real/imaginary fm pair:
+!>        on the group that owns the k point, receive both parts through the
+!>        context buffer and copy them out; on every group, reclaim the send
+!>        side. The slot returns to idle. Called from kpoint_operator_get only.
+!> \param ctx ...
+!> \param ikp ...
+!> \param ispin ...
+!> \param slot ...
+!> \param fm_re ...
+!> \param fm_im ...
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_finish_fm(ctx, ikp, ispin, slot, fm_re, fm_im)
+
+      TYPE(kpoint_operator_context_type), INTENT(INOUT)  :: ctx
+      INTEGER, INTENT(IN)                                :: ikp, ispin, slot
+      TYPE(cp_fm_type)                                   :: fm_re, fm_im
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_finish_fm'
+
+      INTEGER                                            :: handle, igroup, ik, indx, kplocal
+      INTEGER, DIMENSION(2)                              :: kp_range
+      INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
+      LOGICAL                                            :: my_kpgrp
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(ctx%kpoints))
+      CPASSERT(ALLOCATED(ctx%status))
+      CPASSERT(ctx%status(ikp, ispin, slot) == kpoint_slot_in_flight)
+
+      kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
+      kp_range = ctx%kpoints%kp_range
+      kp_dist => ctx%kpoints%kp_dist
+      DO igroup = 1, ctx%kpoints%nkp_groups
+         ik = kp_dist(1, igroup) + ikp - 1
+         my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
+         indx = ikp + (igroup - 1)*kplocal
+         IF (my_kpgrp) THEN
+            CALL cp_fm_finish_copy_general(ctx%fmlocal, ctx%info(indx, ispin, slot, 1))
+            CALL cp_fm_to_fm(ctx%fmlocal, fm_re)
+            CALL cp_fm_finish_copy_general(ctx%fmlocal, ctx%info(indx, ispin, slot, 2))
+            CALL cp_fm_to_fm(ctx%fmlocal, fm_im)
+         END IF
+         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, 1))
+         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, 2))
+      END DO
+      ctx%status(ikp, ispin, slot) = kpoint_slot_idle
+
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_operator_finish_fm
+
+! **************************************************************************************************
+!> \brief Assemble one operator for one local k point and spin in one call:
+!>        start every group transfer and finish it immediately.
+!>        Exactly one output flavor must be present: cmat receives the complex
+!>        operator (real part overwrites, imaginary part adds), or the fm pair
+!>        receives the two parts separately. Outputs are caller-allocated.
+!> \param ctx context created by kpoint_operator_context_create
+!> \param ikp local k-point index within kp_range
+!> \param ispin instance spin: keys the bookkeeping and defaults the matrix row
+!> \param rsmat real-space image matrices of the operator
+!> \param slot destination slot of the operator; the slot must be idle
+!> \param cmat complex matrix output
+!> \param fm_re real-part matrix output
+!> \param fm_im imaginary-part matrix output
+!> \param ispin_matrix row of rsmat to transform; spin-free operators pass 1
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_get(ctx, ikp, ispin, rsmat, slot, cmat, fm_re, fm_im, ispin_matrix)
+
+      TYPE(kpoint_operator_context_type), INTENT(INOUT)  :: ctx
+      INTEGER, INTENT(IN)                                :: ikp, ispin
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
+      INTEGER, INTENT(IN)                                :: slot
+      TYPE(cp_cfm_type), OPTIONAL                        :: cmat
+      TYPE(cp_fm_type), OPTIONAL                         :: fm_re, fm_im
+      INTEGER, INTENT(IN), OPTIONAL                      :: ispin_matrix
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_get'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(PRESENT(cmat) .NEQV. (PRESENT(fm_re) .AND. PRESENT(fm_im)))
+      IF (PRESENT(fm_re) .OR. PRESENT(fm_im)) THEN
+         CPASSERT(PRESENT(fm_re) .AND. PRESENT(fm_im))
+      END IF
+
+      CALL kpoint_operator_start(ctx, ikp, ispin, rsmat, slot, use_grid=.FALSE., ispin_matrix=ispin_matrix)
+      IF (PRESENT(cmat)) THEN
+         CALL kpoint_operator_finish(ctx, ikp, ispin, slot, cmat)
+      ELSE
+         CALL kpoint_operator_finish_fm(ctx, ikp, ispin, slot, fm_re, fm_im)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_operator_get
 
 END MODULE qs_kpoint_operators
