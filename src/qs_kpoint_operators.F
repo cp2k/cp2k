@@ -17,16 +17,18 @@ MODULE qs_kpoint_operators
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_to_fm,&
                                               cp_cfm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_deallocate_matrix,&
-                                              dbcsr_desymmetrize,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_p_type, dbcsr_set, &
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                              fm_pool_create_fm,&
                                               fm_pool_give_back_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: copy_info_type,&
+                                              cp_fm_cleanup_copy_general,&
+                                              cp_fm_create,&
                                               cp_fm_finish_copy_general,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
@@ -41,7 +43,8 @@ MODULE qs_kpoint_operators
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
-   USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
+   USE qs_matrix_pools,                 ONLY: mpools_get,&
+                                              qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -55,6 +58,7 @@ MODULE qs_kpoint_operators
 
    PUBLIC :: kpoint_operator_raw_start, kpoint_operator_raw_finish_cfm, kpoint_operator_cfm_to_mo
    PUBLIC :: kpoint_operator_context_create, kpoint_operator_context_release
+   PUBLIC :: kpoint_operator_start, kpoint_operator_finish
 
    INTEGER, PARAMETER, PUBLIC :: kpoint_slot_ks = 1, &
                                  kpoint_slot_s = 2, &
@@ -91,7 +95,11 @@ MODULE qs_kpoint_operators
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)         :: fmwork
       TYPE(cp_fm_type), ALLOCATABLE                       :: fmlocal
       TYPE(cp_fm_type)                                    :: fmdummy
-      TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :, :) :: info
+      ! Bookkeeping. info is keyed (local k point x group, spin, slot, part),
+      ! part 1 real and part 2 imaginary; status is keyed (local k point, spin,
+      ! slot) because start and finish treat all groups of one instance
+      ! atomically. Allocated on first start.
+      TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :, :, :) :: info
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)            :: status
    END TYPE kpoint_operator_context_type
 
@@ -318,5 +326,187 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_operator_context_release
+
+! **************************************************************************************************
+!> \brief Create the context buffers that the first start needs: the DBCSR work
+!>        trio with blocks from the current neighbor lists, two densify buffers
+!>        on the environment-wide struct, the group transfer target from the
+!>        group pools, and the per-instance bookkeeping.
+!>        Called from the service routines only.
+!> \param ctx ...
+!> \param rsmat ...
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_ensure(ctx, rsmat)
+
+      TYPE(kpoint_operator_context_type), INTENT(INOUT)  :: ctx
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_ensure'
+
+      INTEGER                                            :: handle, kplocal, ngrp, nspin
+
+      CALL timeset(routineN, handle)
+
+      kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
+      ngrp = ctx%kpoints%nkp_groups
+
+      ! The trio follows the identity of the host neighbor lists, which are
+      ! reallocated at every energy evaluation.
+      IF (ASSOCIATED(ctx%rmatrix)) THEN
+         IF (.NOT. ASSOCIATED(ctx%trio_sab, ctx%kpoints%sab_nl)) THEN
+            CALL dbcsr_deallocate_matrix(ctx%rmatrix)
+            CALL dbcsr_deallocate_matrix(ctx%cmatrix)
+            CALL dbcsr_deallocate_matrix(ctx%tmpmat)
+            NULLIFY (ctx%rmatrix, ctx%cmatrix, ctx%tmpmat)
+         END IF
+      END IF
+      IF (.NOT. ASSOCIATED(ctx%rmatrix)) THEN
+         ALLOCATE (ctx%rmatrix, ctx%cmatrix, ctx%tmpmat)
+         CALL dbcsr_create(ctx%rmatrix, template=rsmat(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
+         CALL dbcsr_create(ctx%cmatrix, template=rsmat(1, 1)%matrix, matrix_type=dbcsr_type_antisymmetric)
+         CALL dbcsr_create(ctx%tmpmat, template=rsmat(1, 1)%matrix, matrix_type=dbcsr_type_no_symmetry)
+         CALL cp_dbcsr_alloc_block_from_nbl(ctx%rmatrix, ctx%kpoints%sab_nl)
+         CALL cp_dbcsr_alloc_block_from_nbl(ctx%cmatrix, ctx%kpoints%sab_nl)
+         ctx%trio_sab => ctx%kpoints%sab_nl
+      END IF
+
+      IF (.NOT. ALLOCATED(ctx%fmwork)) THEN
+         ALLOCATE (ctx%fmwork(2))
+         CALL cp_fm_create(ctx%fmwork(1), ctx%ao_ao_fmstruct, name="KPOINT-OPERATOR-WORK-RE")
+         CALL cp_fm_create(ctx%fmwork(2), ctx%ao_ao_fmstruct, name="KPOINT-OPERATOR-WORK-IM")
+      END IF
+
+      IF (.NOT. ALLOCATED(ctx%fmlocal)) THEN
+         ctx%group_mpools => ctx%kpoints%mpools
+         CALL mpools_get(ctx%group_mpools, ao_ao_fm_pools=ctx%group_fm_pools)
+         ALLOCATE (ctx%fmlocal)
+         CALL fm_pool_create_fm(ctx%group_fm_pools(1)%pool, ctx%fmlocal)
+      END IF
+
+      IF (.NOT. ALLOCATED(ctx%status)) THEN
+         nspin = SIZE(rsmat, 2)
+         ALLOCATE (ctx%status(kplocal, nspin, kpoint_num_slots))
+         ctx%status = kpoint_slot_idle
+         ALLOCATE (ctx%info(kplocal*ngrp, nspin, kpoint_num_slots, 2))
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_operator_ensure
+
+! **************************************************************************************************
+!> \brief Start the assembly of one operator for one local k point and spin and
+!>        launch its transfers to every k-point group. The caller index ikp is
+!>        local; the walk over groups happens here, so no caller can express a
+!>        group-local loop. Finish every started instance with
+!>        kpoint_operator_finish.
+!> \param ctx context created by kpoint_operator_context_create
+!> \param ikp local k-point index within kp_range
+!> \param ispin spin component of rsmat (1 for spin-free matrices such as S)
+!> \param rsmat real-space image matrices of the operator
+!> \param slot destination slot of the operator (one of kpoint_slot_ks/s/t);
+!>        the slot must be idle
+!> \param grid prepared reciprocal-grid cache of the caller
+!> \param use_grid extract from grid instead of a direct phase sum
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_start(ctx, ikp, ispin, rsmat, slot, grid, use_grid)
+
+      TYPE(kpoint_operator_context_type), INTENT(INOUT)  :: ctx
+      INTEGER, INTENT(IN)                                :: ikp, ispin
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
+      INTEGER, INTENT(IN)                                :: slot
+      TYPE(rskp_grid_type), INTENT(IN), OPTIONAL         :: grid
+      LOGICAL, INTENT(IN)                                :: use_grid
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_start'
+
+      INTEGER                                            :: handle, igroup, ik, indx, kplocal
+      INTEGER, DIMENSION(2)                              :: kp_range
+      INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
+      LOGICAL                                            :: my_kpgrp
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(ctx%kpoints))
+      CPASSERT(ASSOCIATED(ctx%kpoints%sab_nl))
+      kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
+      CPASSERT(ikp >= 1 .AND. ikp <= kplocal)
+      CPASSERT(ispin >= 1 .AND. ispin <= SIZE(rsmat, 2))
+      CPASSERT(slot >= kpoint_slot_ks .AND. slot <= kpoint_slot_t)
+      IF (ALLOCATED(ctx%status)) THEN
+         CPASSERT(ctx%status(ikp, ispin, slot) == kpoint_slot_idle)
+      END IF
+
+      CALL kpoint_operator_ensure(ctx, rsmat)
+
+      kp_range = ctx%kpoints%kp_range
+      kp_dist => ctx%kpoints%kp_dist
+      para_env => ctx%kpoints%blacs_env_all%para_env
+      DO igroup = 1, ctx%kpoints%nkp_groups
+         ik = kp_dist(1, igroup) + ikp - 1
+         my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
+         indx = ikp + (igroup - 1)*kplocal
+         CALL kpoint_operator_raw_start(rsmat, ispin, ik, ctx%kpoints%xkp(1:3, ik), &
+                                        ctx%kpoints%cell_to_index, ctx%kpoints%sab_nl, grid, use_grid, &
+                                        ctx%rmatrix, ctx%cmatrix, ctx%tmpmat, &
+                                        ctx%fmwork(1), ctx%fmwork(2), ctx%fmlocal, ctx%fmdummy, my_kpgrp, &
+                                        para_env, ctx%info(indx, ispin, slot, 1), ctx%info(indx, ispin, slot, 2))
+      END DO
+      ctx%status(ikp, ispin, slot) = kpoint_slot_in_flight
+
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_operator_start
+
+! **************************************************************************************************
+!> \brief Finish the transfers of one started instance: on the group that owns
+!>        the k point, merge the received parts into cmat (real part first,
+!>        overwrite then add); on every group, reclaim the send side.
+!>        The slot returns to idle.
+!> \param ctx context that started the instance
+!> \param ikp local k-point index of the start call
+!> \param ispin spin component of the start call
+!> \param slot slot of the start call; the slot must be in flight
+!> \param cmat caller-allocated complex matrix that receives the operator
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_finish(ctx, ikp, ispin, slot, cmat)
+
+      TYPE(kpoint_operator_context_type), INTENT(INOUT)  :: ctx
+      INTEGER, INTENT(IN)                                :: ikp, ispin, slot
+      TYPE(cp_cfm_type)                                  :: cmat
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_finish'
+
+      INTEGER                                            :: handle, igroup, ik, indx, kplocal
+      INTEGER, DIMENSION(2)                              :: kp_range
+      INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
+      LOGICAL                                            :: my_kpgrp
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(ctx%kpoints))
+      CPASSERT(ALLOCATED(ctx%status))
+      CPASSERT(ctx%status(ikp, ispin, slot) == kpoint_slot_in_flight)
+
+      kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
+      kp_range = ctx%kpoints%kp_range
+      kp_dist => ctx%kpoints%kp_dist
+      DO igroup = 1, ctx%kpoints%nkp_groups
+         ik = kp_dist(1, igroup) + ikp - 1
+         my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
+         indx = ikp + (igroup - 1)*kplocal
+         IF (my_kpgrp) THEN
+            CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, ctx%info(indx, ispin, slot, 1), cmat, .FALSE.)
+            CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, ctx%info(indx, ispin, slot, 2), cmat, .TRUE.)
+         END IF
+         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, 1))
+         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, 2))
+      END DO
+      ctx%status(ikp, ispin, slot) = kpoint_slot_idle
+
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_operator_finish
 
 END MODULE qs_kpoint_operators
