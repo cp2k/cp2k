@@ -27,8 +27,8 @@ MODULE qs_scf_loop_utils
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_external_control,             ONLY: external_control
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_gemm,&
+   USE cp_fm_basic_linalg,              ONLY: cp_complex_fm_gemm,&
+                                              cp_fm_column_scale,&
                                               cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -1449,10 +1449,7 @@ CONTAINS
       CALL cp_fm_get_info(b_re, nrow_global=k_b, ncol_global=n)
       CALL cp_fm_get_info(c_re, nrow_global=m_c, ncol_global=n_c)
       CPASSERT(k_b == k .AND. m_c == m .AND. n_c == n)
-      CALL cp_fm_gemm('N', 'N', m, n, k, alpha, a_re, b_re, beta, c_re)
-      CALL cp_fm_gemm('N', 'N', m, n, k, -alpha, a_im, b_im, 1.0_dp, c_re)
-      CALL cp_fm_gemm('N', 'N', m, n, k, alpha, a_re, b_im, beta, c_im)
-      CALL cp_fm_gemm('N', 'N', m, n, k, alpha, a_im, b_re, 1.0_dp, c_im)
+      CALL cp_complex_fm_gemm('N', 'N', m, n, k, alpha, a_re, a_im, b_re, b_im, beta, c_re, c_im)
 
    END SUBROUTINE multiply_complex_fm_nn
 
@@ -1477,10 +1474,7 @@ CONTAINS
       CALL cp_fm_get_info(b_re, nrow_global=k_b, ncol_global=n)
       CALL cp_fm_get_info(c_re, nrow_global=m_c, ncol_global=n_c)
       CPASSERT(k_b == k .AND. m_c == m .AND. n_c == n)
-      CALL cp_fm_gemm('T', 'N', m, n, k, alpha, a_re, b_re, beta, c_re)
-      CALL cp_fm_gemm('T', 'N', m, n, k, alpha, a_im, b_im, 1.0_dp, c_re)
-      CALL cp_fm_gemm('T', 'N', m, n, k, alpha, a_re, b_im, beta, c_im)
-      CALL cp_fm_gemm('T', 'N', m, n, k, -alpha, a_im, b_re, 1.0_dp, c_im)
+      CALL cp_complex_fm_gemm('C', 'N', m, n, k, alpha, a_re, a_im, b_re, b_im, beta, c_re, c_im)
 
    END SUBROUTINE multiply_complex_fm_adjoint
 
@@ -1505,10 +1499,7 @@ CONTAINS
       CALL cp_fm_get_info(b_re, nrow_global=n, ncol_global=k_b)
       CALL cp_fm_get_info(c_re, nrow_global=m_c, ncol_global=n_c)
       CPASSERT(k_b == k .AND. m_c == m .AND. n_c == n)
-      CALL cp_fm_gemm('N', 'T', m, n, k, alpha, a_re, b_re, beta, c_re)
-      CALL cp_fm_gemm('N', 'T', m, n, k, alpha, a_im, b_im, 1.0_dp, c_re)
-      CALL cp_fm_gemm('N', 'T', m, n, k, -alpha, a_re, b_im, beta, c_im)
-      CALL cp_fm_gemm('N', 'T', m, n, k, alpha, a_im, b_re, 1.0_dp, c_im)
+      CALL cp_complex_fm_gemm('N', 'C', m, n, k, alpha, a_re, a_im, b_re, b_im, beta, c_re, c_im)
 
    END SUBROUTINE multiply_complex_fm_right_adjoint
 
