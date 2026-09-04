@@ -38,6 +38,8 @@
 - Remove the SPLINE3_NOPBC multigrid interpolator ([#5719](https://github.com/cp2k/cp2k/pull/5719))
 - Require `MPI_THREAD_MULTIPLE` for all MPI builds ([#5811](https://github.com/cp2k/cp2k/pull/5811),
   [#5817](https://github.com/cp2k/cp2k/pull/5817))
+- Require libwignernj for the angular momentum algebra, replacing the in-tree Clebsch-Gordon
+  coefficient tables (TODO: PR link)
 - **TODO**
 
 ### Fixes
