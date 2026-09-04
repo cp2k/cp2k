@@ -33,7 +33,8 @@ MODULE qs_ot
                                               cp_dbcsr_syevd
    USE kinds,                           ONLY: dp
    USE mathlib,                         ONLY: diag_complex,&
-                                              diamat_all
+                                              diamat_all,&
+                                              gemm_square
    USE message_passing,                 ONLY: mp_comm_type
    USE preconditioner,                  ONLY: apply_preconditioner
    USE preconditioner_types,            ONLY: preconditioner_type
@@ -766,9 +767,9 @@ CONTAINS
 
       ALLOCATE (cross_mode(n, n))
       DO mode = 1, nmode
-         cross_mode(:, :) = MATMUL(overlap_start_current, &
-                                   MATMUL(density_modes(:, :, mode), &
-                                          CONJG(TRANSPOSE(overlap_start_current))))
+         ! GCC 15 miscompiles the equivalent complex array expressions with -march=znver3.
+         CALL gemm_square(overlap_start_current, "N", density_modes(:, :, mode), "N", &
+                          overlap_start_current, "C", cross_mode)
          DO i = 1, n
             density_overlap(mode) = density_overlap(mode) + &
                                     occupation_current(i)* &
@@ -776,7 +777,9 @@ CONTAINS
                                     occupation_start(i)*REAL(cross_mode(i, i), KIND=dp)
          END DO
          response_overlap(mode) = &
-            REAL(SUM(CONJG(hamiltonian_step_current)*density_modes(:, :, mode)), KIND=dp)
+            SUM(REAL(hamiltonian_step_current, KIND=dp)* &
+                REAL(density_modes(:, :, mode), KIND=dp) + &
+                AIMAG(hamiltonian_step_current)*AIMAG(density_modes(:, :, mode)))
       END DO
       DEALLOCATE (cross_mode)
 
