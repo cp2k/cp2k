@@ -17,23 +17,31 @@ MODULE qs_kpoint_operators
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_to_fm,&
                                               cp_cfm_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_desymmetrize,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_deallocate_matrix,&
+                                              dbcsr_desymmetrize,&
                                               dbcsr_p_type,&
                                               dbcsr_set,&
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                              fm_pool_give_back_fm
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: copy_info_type,&
                                               cp_fm_finish_copy_general,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
                                               cp_fm_start_copy_general,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: rskp_grid_type,&
                                               rskp_transform,&
                                               rskp_transform_grid_extract
+   USE kpoint_types,                    ONLY: kpoint_type
    USE mathconstants,                   ONLY: gaussi,&
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
+   USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -46,6 +54,46 @@ MODULE qs_kpoint_operators
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpoint_operators'
 
    PUBLIC :: kpoint_operator_raw_start, kpoint_operator_raw_finish_cfm, kpoint_operator_cfm_to_mo
+   PUBLIC :: kpoint_operator_context_create, kpoint_operator_context_release
+
+   INTEGER, PARAMETER, PUBLIC :: kpoint_slot_ks = 1, &
+                                 kpoint_slot_s = 2, &
+                                 kpoint_slot_t = 3
+
+   !> Number of defined slots; grows only inside this module.
+   INTEGER, PARAMETER, PRIVATE :: kpoint_num_slots = 3
+
+   !> Instance states of one (k point, spin, slot) transfer.
+   !> State transitions happen only inside the service routines.
+   INTEGER, PARAMETER, PRIVATE :: kpoint_slot_idle = 0, &
+                                  kpoint_slot_in_flight = 1
+
+! **************************************************************************************************
+!> \brief Caller-owned assembly context for one driver call.
+!>        Created and released in the same driver routine and passed to helpers
+!>        as an argument; never stored on the host kpoint_type.
+!>        Components are private and touched only by this module.
+! **************************************************************************************************
+   TYPE, PUBLIC :: kpoint_operator_context_type
+      PRIVATE
+      ! Host references, read fresh at every use: sab_nl and cell_to_index
+      ! are reallocated at every energy evaluation.
+      TYPE(kpoint_type), POINTER                          :: kpoints => NULL()
+      TYPE(cp_fm_struct_type), POINTER                    :: ao_ao_fmstruct => NULL()
+      TYPE(qs_matrix_pools_type), POINTER                 :: group_mpools => NULL()
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER      :: group_fm_pools => NULL()
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                          :: trio_sab => NULL()
+      ! Owned scratch, created on first use and released with the context.
+      TYPE(dbcsr_type), POINTER                           :: rmatrix => NULL()
+      TYPE(dbcsr_type), POINTER                           :: cmatrix => NULL()
+      TYPE(dbcsr_type), POINTER                           :: tmpmat => NULL()
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)         :: fmwork
+      TYPE(cp_fm_type), ALLOCATABLE                       :: fmlocal
+      TYPE(cp_fm_type)                                    :: fmdummy
+      TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :, :) :: info
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)            :: status
+   END TYPE kpoint_operator_context_type
 
 CONTAINS
 
@@ -199,5 +247,76 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_operator_cfm_to_mo
+
+! **************************************************************************************************
+!> \brief Create an empty operator context.
+!>        The context owns no buffers after this call; they are created on first
+!>        use and released with the context.
+!> \param ctx context to initialize
+!> \param kpoints host k-point environment, referenced, not copied
+!> \param ao_ao_fm any square full matrix on the environment-wide communicator;
+!>        its matrix struct is the template for the context work buffers
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_context_create(ctx, kpoints, ao_ao_fm)
+
+      TYPE(kpoint_operator_context_type), INTENT(OUT)    :: ctx
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(cp_fm_type), INTENT(IN)                       :: ao_ao_fm
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_context_create'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(kpoints))
+      ctx%kpoints => kpoints
+      CALL cp_fm_get_info(ao_ao_fm, matrix_struct=ctx%ao_ao_fmstruct)
+      CPASSERT(ASSOCIATED(ctx%ao_ao_fmstruct))
+
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_operator_context_create
+
+! **************************************************************************************************
+!> \brief Release the context together with every buffer it created.
+!>        Call once, at the exit of the routine that created the context.
+!> \param ctx context to release
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_context_release(ctx)
+
+      TYPE(kpoint_operator_context_type), INTENT(INOUT)  :: ctx
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_context_release'
+
+      INTEGER                                            :: handle, iwork
+
+      CALL timeset(routineN, handle)
+
+      IF (ASSOCIATED(ctx%rmatrix)) CALL dbcsr_deallocate_matrix(ctx%rmatrix)
+      IF (ASSOCIATED(ctx%cmatrix)) CALL dbcsr_deallocate_matrix(ctx%cmatrix)
+      IF (ASSOCIATED(ctx%tmpmat)) CALL dbcsr_deallocate_matrix(ctx%tmpmat)
+      NULLIFY (ctx%rmatrix, ctx%cmatrix, ctx%tmpmat, ctx%trio_sab)
+      IF (ALLOCATED(ctx%fmwork)) THEN
+         DO iwork = 1, SIZE(ctx%fmwork)
+            CALL cp_fm_release(ctx%fmwork(iwork))
+         END DO
+         DEALLOCATE (ctx%fmwork)
+      END IF
+      IF (ALLOCATED(ctx%fmlocal)) THEN
+         IF (ASSOCIATED(ctx%group_fm_pools)) THEN
+            CALL fm_pool_give_back_fm(ctx%group_fm_pools(1)%pool, ctx%fmlocal)
+         ELSE
+            CALL cp_fm_release(ctx%fmlocal)
+         END IF
+         DEALLOCATE (ctx%fmlocal)
+      END IF
+      IF (ALLOCATED(ctx%info)) DEALLOCATE (ctx%info)
+      IF (ALLOCATED(ctx%status)) DEALLOCATE (ctx%status)
+      NULLIFY (ctx%kpoints, ctx%ao_ao_fmstruct, ctx%group_mpools, ctx%group_fm_pools)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_operator_context_release
 
 END MODULE qs_kpoint_operators
