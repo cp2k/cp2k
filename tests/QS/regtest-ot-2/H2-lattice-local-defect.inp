@@ -1,0 +1,64 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT_NAME H2-lattice-local-defect
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &MGRID
+      CUTOFF 80
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.E-9
+    &END QS
+    &SCF
+      EPS_SCF 1.E-05
+      MAX_SCF 40
+      SCF_GUESS ATOMIC
+      &OT T
+        LATTICE_FFT ON
+        LATTICE_FFT_LOCAL_CELLS 1
+        LINESEARCH ADAPT
+        MINIMIZER CG
+        PRECONDITIONER FULL_KINETIC
+      &END OT
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      MULTIPLE_UNIT_CELL 4 1 1
+    &END CELL
+    &COORD
+      UNIT bohr
+      H   0.0  0.0  0.0
+      H   1.4  0.0  0.0
+      H   6.0  0.0  0.0
+      H   7.4  0.0  0.0
+      H  12.0  0.0  0.0
+      H  13.7  0.0  0.0
+      H  18.0  0.0  0.0
+      H  19.4  0.0  0.0
+    &END COORD
+    &KIND H
+      BASIS_SET ORB SZV-MOLOPT-SR-GTH
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

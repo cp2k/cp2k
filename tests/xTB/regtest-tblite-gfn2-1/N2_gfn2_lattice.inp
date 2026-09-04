@@ -1,0 +1,49 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT N2_gfn2_lattice
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD xTB
+      &XTB
+        GFN_TYPE TBLITE
+        SCC_MIXER TBLITE
+        &TBLITE
+          METHOD GFN2
+        &END TBLITE
+      &END XTB
+    &END QS
+    &SCF
+      EPS_SCF 1.e-8
+      MAX_SCF 60
+      SCF_GUESS MOPAC
+      &OT
+        LATTICE_FFT ON
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_S_INVERSE
+      &END OT
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0
+      MULTIPLE_UNIT_CELL 2 1 1
+    &END CELL
+    &COORD
+      N  0.0  0.0  0.0
+      N  1.0  0.0  0.0
+    &END COORD
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL 2 1 1
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
