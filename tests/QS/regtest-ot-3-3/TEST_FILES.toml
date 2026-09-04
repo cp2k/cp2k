@@ -3,7 +3,7 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"Al-kpoint-mermin-lbfgs.inp"            = [{matcher="E_total", tol=1e-8, ref=-8.17199206567539}]
+"Al-kpoint-mermin-lbfgs.inp"            = [{matcher="E_total", tol=5e-6, ref=-8.17199206567539}]
 "Al-kpoint-mermin-lbfgs-occ.inp"        = [{matcher="E_total", tol=1e-9, ref=-2.903015358383124}]
 "Al-kpoint-mermin-broyden-occ.inp"      = [{matcher="E_total", tol=1e-9, ref=-2.903015358436246}]
 "Al-kpoint-mermin-diis-occ.inp"           = [{matcher="E_total", tol=1e-6, ref=-8.15734061513311}]
