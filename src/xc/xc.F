@@ -16,6 +16,7 @@
 ! **************************************************************************************************
 MODULE xc
    #:include 'xc.fypp'
+   #:include 'xc_gamma.fypp'
    USE cp_array_utils, ONLY: cp_3d_r_cp_type
    USE cp_linked_list_xc_deriv, ONLY: cp_sll_xc_deriv_next, &
                                       cp_sll_xc_deriv_type
@@ -50,7 +51,8 @@ MODULE xc
    USE xc_derivative_desc, ONLY: &
       deriv_rho, deriv_rhoa, deriv_rhob, &
       deriv_norm_drhoa, deriv_norm_drhob, deriv_norm_drho, deriv_tau_a, deriv_tau_b, deriv_tau, &
-      deriv_laplace_rho, deriv_laplace_rhoa, deriv_laplace_rhob, id_to_desc
+      deriv_laplace_rho, deriv_laplace_rhoa, deriv_laplace_rhob, id_to_desc, &
+      deriv_gamma, deriv_gamma_aa, deriv_gamma_ab, deriv_gamma_bb
    USE xc_derivative_set_types, ONLY: xc_derivative_set_type, &
                                       xc_dset_create, &
                                       xc_dset_get_derivative, &
@@ -2583,7 +2585,7 @@ CONTAINS
 !>    * 07.2024 Created [LHS]
 ! **************************************************************************************************
    SUBROUTINE xc_calc_3rd_deriv_analytical(v_xc, v_xc_tau, deriv_set, rho_set, rho1_set, &
-                                           pw_pool, xc_section, spinflip)
+                                           pw_pool, xc_section, spinflip, gapw, vxg)
 
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_xc, v_xc_tau
       TYPE(xc_derivative_set_type)                       :: deriv_set
@@ -2591,20 +2593,54 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(section_vals_type), POINTER                   :: xc_section
       LOGICAL, INTENT(in), OPTIONAL                      :: spinflip
+      LOGICAL, INTENT(IN), OPTIONAL                      :: gapw
+      REAL(kind=dp), DIMENSION(:, :, :, :), OPTIONAL, POINTER :: vxg
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_3rd_deriv_analytical'
 
       INTEGER                                            :: handle, i, idir, ispin, j, &
                                                             k, nspins, xc_deriv_method_id
       INTEGER, DIMENSION(2, 3)                           :: bo
+      LOGICAL                                            :: my_gapw
       LOGICAL                                            :: lsd, do_spinflip, alda0, &
                                                             rho_f, gradient_f, tau_f, laplace_f
       REAL(KIND=dp)                                      :: s, S_THRESH, S_THRESH2, gradient_cut
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dr1dr, dra1dra, drb1drb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dr1dr, dra1dra, drb1drb, dr1dr1
+      REAL(KIND=dp)                                      :: g1, g11, uu, aa, bb
+      ! restricted meta-GGA (gamma formulation)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET :: zero_f
+      TYPE(pw_r3d_rs_type), DIMENSION(:), ALLOCATABLE    :: v_laplace
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: tau1, laplace1
+      ! open-shell meta-GGA
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: tau1a, tau1b, laplace1a, laplace1b
+#:for v in mgga_vars
+      REAL(KIND=dp) :: mp_${v}$, q_${v}$
+#:endfor
+#:for K in mgga_vars[2:5]
+      REAL(KIND=dp) :: mpp_${K}$, nB_${K}$
+#:endfor
+#:for descs, arr, idx in mgga_deriv_2 + mgga_deriv_3
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: n_${'_'.join(descs)}$
+#:endfor
+      REAL(KIND=dp) :: mp_rho, mp_gamma, mp_laplace_rho, mp_tau, mpp_gamma
+      REAL(KIND=dp) :: m_rho, m_gamma, m_laplace_rho, m_tau, m_B
+#:for descs, arr, idx in umgga_deriv_2 + umgga_deriv_3
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: m_${'_'.join(descs)}$
+#:endfor
+      ! open-shell gamma formulation
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gaa1, gab1, gbb1, gaa11, gab11, gbb11
+      REAL(KIND=dp) :: p_rhoa, p_rhob, p_gamma_aa, p_gamma_ab, p_gamma_bb
+      REAL(KIND=dp) :: pp_gamma_aa, pp_gamma_ab, pp_gamma_bb
+      REAL(KIND=dp) :: u_a, u_b, A_gamma_aa, A_gamma_ab, A_gamma_bb, &
+                       B_gamma_aa, B_gamma_ab, B_gamma_bb
+#:for descs, arr, idx in gamma_deriv_2 + gamma_deriv_3
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: g_${'_'.join(descs)}$
+#:endfor
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: deriv_data, deriv_data2, e_drhoa, e_drhob, &
                                                             e_drho, norm_drho, norm_drhoa, &
                                                             norm_drhob, rho1a, rho1b, &
-                                                            rhoa, rhob
+                                                            rhoa, rhob, rho1, &
+                                                            e_rrr, e_rrg, e_rgg, e_ggg, e_rg, e_gg
       TYPE(cp_3d_r_cp_type), DIMENSION(3)                :: drho, drho1, drho1a, drho1b, drhoa, drhob
       TYPE(pw_r3d_rs_type), DIMENSION(:), ALLOCATABLE    :: v_drhoa, v_drhob, v_drho
       TYPE(pw_r3d_rs_type), DIMENSION(:, :), ALLOCATABLE :: v_drho_r
@@ -2627,6 +2663,14 @@ CONTAINS
       !
       do_spinflip = .FALSE.
       IF (PRESENT(spinflip)) do_spinflip = spinflip
+      my_gapw = .FALSE.
+      IF (PRESENT(gapw)) my_gapw = gapw
+      IF (my_gapw) THEN
+         CPASSERT(PRESENT(vxg))
+         ! the atomic path integrates the gradient channel itself, and CP2K does
+         ! not support Laplacian-dependent functionals in GAPW at all
+         IF (laplace_f) CPABORT("Laplace-dependent functional not implemented with GAPW!")
+      END IF
       !
       bo = rho_set%local_bounds
       !
@@ -2721,19 +2765,311 @@ CONTAINS
 
          END IF
 
-         IF (laplace_f) THEN
+         ! The gamma formulation below covers tau and the Laplacian for the
+         ! ordinary unrestricted case; the spin-flip kernel and the closed-shell
+         ! triplet path are still LDA/GGA only.
+         IF (laplace_f .AND. (do_spinflip .OR. nspins == 1)) THEN
             CPABORT("Exchange-correlation's laplace analytic third derivative not implemented")
          END IF
 
-         IF (tau_f) THEN
+         IF (tau_f .AND. (do_spinflip .OR. nspins == 1)) THEN
             CPABORT("Exchange-correlation's mGGA analytic third derivative not implemented")
          END IF
 
          IF (nspins /= 1) THEN
 
             IF (.NOT. do_spinflip) THEN
-               ! Analytic third derivative of the excchange-correlation functional
-               CPABORT("Exchange-correlation's analytic third derivative not implemented")
+
+               ! Spin-polarized third derivative in the reduced-gradient variables
+               ! gamma_ij = grad rho_i . grad rho_j, contracted twice with rho1:
+               !
+               !   u_s   = sum_XY e_{rho_s X Y} X1 Y1 + sum_K e_{rho_s gK} gK11
+               !   A_K   = sum_XY e_{gK X Y}   X1 Y1 + sum_L e_{gK gL}   gL11
+               !   B_K   = sum_Y  e_{gK Y}     Y1
+               !   v_a   = 2 grad rhoa A_aa + grad rhob A_ab
+               !           + 2 ( 2 grad rho1a B_aa + grad rho1b B_ab )
+               !
+               ! and g_xc,s = u_s - div(v_s). X, Y run over rhoa, rhob and the three
+               ! gammas. Nothing here divides by |grad rho|.
+
+               IF (tau_f .OR. laplace_f) THEN
+
+                  ! Spin-polarized meta-GGA. The same gamma formulation, with the
+                  ! variable set widened to nine: rhoa, rhob, the three gammas,
+                  ! the two Laplacians and the two taus. Only gamma is nonlinear
+                  ! in the density, so only it carries a second variation.
+
+                  CALL xc_rho_set_get(rho_set, drhoa=drhoa, drhob=drhob)
+                  CALL xc_rho_set_get(rho1_set, drhoa=drho1a, drhob=drho1b)
+                  IF (tau_f) CALL xc_rho_set_get(rho1_set, tau_a=tau1a, tau_b=tau1b)
+                  IF (laplace_f) CALL xc_rho_set_get(rho1_set, laplace_rhoa=laplace1a, &
+                                                     laplace_rhob=laplace1b)
+                  CALL prepare_dr1dr(gaa1, drhoa, drho1a)
+                  CALL prepare_dr1dr(gbb1, drhob, drho1b)
+                  CALL prepare_dr1dr(gab1, drhoa, drho1b)
+                  CALL prepare_dr1dr(gaa11, drho1a, drho1a)
+                  CALL prepare_dr1dr(gbb11, drho1b, drho1b)
+                  CALL prepare_dr1dr(gab11, drho1a, drho1b)
+                  BLOCK
+                     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: tmp_ba
+                     CALL prepare_dr1dr(tmp_ba, drhob, drho1a)
+                     gab1(:, :, :) = gab1(:, :, :) + tmp_ba(:, :, :)
+                  END BLOCK
+
+                  ALLOCATE (zero_f(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
+                  zero_f = 0.0_dp
+#:for descs, arr, idx in mgga_deriv_2 + mgga_deriv_3
+                  deriv_att => xc_dset_get_derivative(deriv_set, &
+                                                      [${', '.join('deriv_' + d for d in descs)}$])
+                  IF (ASSOCIATED(deriv_att)) THEN
+                     CALL xc_derivative_get(deriv_att, deriv_data=n_${'_'.join(descs)}$)
+                  ELSE
+                     n_${'_'.join(descs)}$ => zero_f
+                  END IF
+#:endfor
+                  IF (laplace_f) THEN
+                     ALLOCATE (v_laplace(nspins))
+                     DO ispin = 1, nspins
+                        CALL allocate_pw(v_laplace(ispin), pw_pool, bo)
+                     END DO
+                  END IF
+
+!$OMP             PARALLEL DO DEFAULT(SHARED) COLLAPSE(3) &
+!$OMP                         PRIVATE(k, j, i) &
+#:for v in mgga_vars
+!$OMP                         PRIVATE(mp_${v}$, q_${v}$) &
+#:endfor
+#:for K in mgga_vars[2:5]
+!$OMP                         PRIVATE(mpp_${K}$, nB_${K}$) &
+#:endfor
+!$OMP                         SHARED(bo)
+                  DO k = bo(1, 3), bo(2, 3)
+                     DO j = bo(1, 2), bo(2, 2)
+                        DO i = bo(1, 1), bo(2, 1)
+                           mp_rhoa = rho1a(i, j, k)
+                           mp_rhob = rho1b(i, j, k)
+                           mp_gamma_aa = 2.0_dp*gaa1(i, j, k)
+                           mp_gamma_ab = gab1(i, j, k)
+                           mp_gamma_bb = 2.0_dp*gbb1(i, j, k)
+                           mpp_gamma_aa = 2.0_dp*gaa11(i, j, k)
+                           mpp_gamma_ab = 2.0_dp*gab11(i, j, k)
+                           mpp_gamma_bb = 2.0_dp*gbb11(i, j, k)
+                           mp_tau_a = 0.0_dp
+                           mp_tau_b = 0.0_dp
+                           IF (tau_f) mp_tau_a = tau1a(i, j, k)
+                           IF (tau_f) mp_tau_b = tau1b(i, j, k)
+                           mp_laplace_rhoa = 0.0_dp
+                           mp_laplace_rhob = 0.0_dp
+                           IF (laplace_f) mp_laplace_rhoa = laplace1a(i, j, k)
+                           IF (laplace_f) mp_laplace_rhob = laplace1b(i, j, k)
+
+#:for Z in mgga_vars
+                           q_${Z}$ = 0.0_dp
+  #:for iX, X in enumerate(mgga_vars)
+    #:for Y in mgga_vars[iX:]
+                           q_${Z}$ = q_${Z}$ + ${1 if X == Y else 2}$.0_dp* &
+                              n_${'_'.join(sorted([Z, X, Y], key=mgga_vars.index))}$ (i, j, k)*mp_${X}$*mp_${Y}$
+    #:endfor
+  #:endfor
+  #:for K in mgga_vars[2:5]
+                           q_${Z}$ = q_${Z}$ + n_${'_'.join(sorted([Z, K], key=mgga_vars.index))}$ (i, j, k)*mpp_${K}$
+  #:endfor
+#:endfor
+#:for K in mgga_vars[2:5]
+                           nB_${K}$ = 0.0_dp
+  #:for Y in mgga_vars
+                           nB_${K}$ = nB_${K}$ + n_${'_'.join(sorted([K, Y], key=mgga_vars.index))}$ (i, j, k)*mp_${Y}$
+  #:endfor
+#:endfor
+
+                           v_xc(1)%array(i, j, k) = v_xc(1)%array(i, j, k) + q_rhoa
+                           v_xc(2)%array(i, j, k) = v_xc(2)%array(i, j, k) + q_rhob
+                           IF (tau_f) THEN
+                              v_xc_tau(1)%array(i, j, k) = v_xc_tau(1)%array(i, j, k) + q_tau_a
+                              v_xc_tau(2)%array(i, j, k) = v_xc_tau(2)%array(i, j, k) + q_tau_b
+                           END IF
+                           IF (laplace_f) THEN
+                              v_laplace(1)%array(i, j, k) = v_laplace(1)%array(i, j, k) + q_laplace_rhoa
+                              v_laplace(2)%array(i, j, k) = v_laplace(2)%array(i, j, k) + q_laplace_rhob
+                           END IF
+
+                           ! xc_pw_divergence ADDS div(field), and g_xc = u - div(v)
+#:for idir in range(1, 4)
+                           v_drho_r(${idir}$, 1)%array(i, j, k) = &
+                              -(2.0_dp*drhoa(${idir}$)%array(i, j, k)*q_gamma_aa &
+                                + drhob(${idir}$)%array(i, j, k)*q_gamma_ab &
+                                + 2.0_dp*(2.0_dp*drho1a(${idir}$)%array(i, j, k)*nB_gamma_aa &
+                                          + drho1b(${idir}$)%array(i, j, k)*nB_gamma_ab))
+                           v_drho_r(${idir}$, 2)%array(i, j, k) = &
+                              -(2.0_dp*drhob(${idir}$)%array(i, j, k)*q_gamma_bb &
+                                + drhoa(${idir}$)%array(i, j, k)*q_gamma_ab &
+                                + 2.0_dp*(2.0_dp*drho1b(${idir}$)%array(i, j, k)*nB_gamma_bb &
+                                          + drho1a(${idir}$)%array(i, j, k)*nB_gamma_ab))
+#:endfor
+                        END DO
+                     END DO
+                  END DO
+
+                  IF (my_gapw) THEN
+                     ! vxg carries +V; the plane-wave field above is -V
+                     DO idir = 1, 3
+                        vxg(idir, :, :, 1) = -v_drho_r(idir, 1)%array(:, :, 1)
+                     END DO
+                  ELSE
+                     IF (my_gapw) THEN
+               DO idir = 1, 3
+                  vxg(idir, :, :, 1) = -v_drho_r(idir, 1)%array(:, :, 1)
+               END DO
+            ELSE
+               CALL xc_pw_divergence(xc_deriv_method_id, v_drho_r(:, 1), tmp_g, vxc_g, v_xc(1))
+            END IF
+                  END IF
+                  CALL xc_pw_divergence(xc_deriv_method_id, v_drho_r(:, 2), tmp_g, vxc_g, v_xc(2))
+                  IF (laplace_f) THEN
+                     DO ispin = 1, nspins
+                        CALL xc_pw_laplace(v_laplace(ispin), pw_pool, xc_deriv_method_id)
+                        CALL pw_axpy(v_laplace(ispin), v_xc(ispin))
+                        CALL deallocate_pw(v_laplace(ispin), pw_pool)
+                     END DO
+                     DEALLOCATE (v_laplace)
+                  END IF
+                  DEALLOCATE (zero_f)
+
+               ELSE
+
+               IF (.NOT. gradient_f) THEN
+                  ! LDA: only the pure-density third derivatives contribute
+#:for descs, arr, idx in rho3_entries
+                  deriv_att => xc_dset_get_derivative(deriv_set, &
+                                                      [${', '.join('deriv_' + d for d in descs)}$])
+                  CPASSERT(ASSOCIATED(deriv_att))
+                  CALL xc_derivative_get(deriv_att, deriv_data=g_${'_'.join(descs)}$)
+#:endfor
+!$OMP             PARALLEL DO PRIVATE(k,j,i,p_rhoa,p_rhob,u_a,u_b) DEFAULT(SHARED) COLLAPSE(3)
+                  DO k = bo(1, 3), bo(2, 3)
+                     DO j = bo(1, 2), bo(2, 2)
+                        DO i = bo(1, 1), bo(2, 1)
+                           p_rhoa = rho1a(i, j, k)
+                           p_rhob = rho1b(i, j, k)
+#:for out, first in [("u_a", "rhoa"), ("u_b", "rhob")]
+                           ${out}$ = 0.0_dp
+  #:for X in GVARS[:2]
+    #:for Y in GVARS[:2]
+                           ${out}$ = ${out}$ + g_${'_'.join(sorted([first, X, Y], key=GVARS.index))}$ (i, j, k)*p_${X}$*p_${Y}$
+    #:endfor
+  #:endfor
+#:endfor
+                           v_xc(1)%array(i, j, k) = v_xc(1)%array(i, j, k) + u_a
+                           v_xc(2)%array(i, j, k) = v_xc(2)%array(i, j, k) + u_b
+                        END DO
+                     END DO
+                  END DO
+
+               ELSE
+
+#:for descs, arr, idx in gamma_deriv_2 + gamma_deriv_3
+               NULLIFY (g_${'_'.join(descs)}$)
+               deriv_att => xc_dset_get_derivative(deriv_set, &
+                                                   [${', '.join('deriv_' + d for d in descs)}$])
+               IF (ASSOCIATED(deriv_att)) THEN
+                  CALL xc_derivative_get(deriv_att, deriv_data=g_${'_'.join(descs)}$)
+               ELSE
+                  CPABORT("Analytic 3rd GGA derivatives need the LibXC gamma derivatives")
+               END IF
+#:endfor
+
+               ! perturbed reduced gradients: first order (gK1) and second (gK11)
+               CALL prepare_dr1dr(gaa1, drhoa, drho1a)
+               CALL prepare_dr1dr(gbb1, drhob, drho1b)
+               CALL prepare_dr1dr(gab1, drhoa, drho1b)
+               CALL prepare_dr1dr(gaa11, drho1a, drho1a)
+               CALL prepare_dr1dr(gbb11, drho1b, drho1b)
+               CALL prepare_dr1dr(gab11, drho1a, drho1b)
+               BLOCK
+                  REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: tmp_ba
+                  CALL prepare_dr1dr(tmp_ba, drhob, drho1a)
+                  gab1(:, :, :) = gab1(:, :, :) + tmp_ba(:, :, :)
+               END BLOCK
+
+!$OMP          PARALLEL DO PRIVATE(k,j,i,p_rhoa,p_rhob,p_gamma_aa,p_gamma_ab,p_gamma_bb, &
+!$OMP                              pp_gamma_aa,pp_gamma_ab,pp_gamma_bb,u_a,u_b, &
+!$OMP                              A_gamma_aa,A_gamma_ab,A_gamma_bb, &
+!$OMP                              B_gamma_aa,B_gamma_ab,B_gamma_bb) DEFAULT(SHARED) COLLAPSE(3)
+               DO k = bo(1, 3), bo(2, 3)
+                  DO j = bo(1, 2), bo(2, 2)
+                     DO i = bo(1, 1), bo(2, 1)
+                        p_rhoa = rho1a(i, j, k)
+                        p_rhob = rho1b(i, j, k)
+                        p_gamma_aa = 2.0_dp*gaa1(i, j, k)
+                        p_gamma_ab = gab1(i, j, k)
+                        p_gamma_bb = 2.0_dp*gbb1(i, j, k)
+                        pp_gamma_aa = 2.0_dp*gaa11(i, j, k)
+                        pp_gamma_ab = 2.0_dp*gab11(i, j, k)
+                        pp_gamma_bb = 2.0_dp*gbb11(i, j, k)
+
+#:for out, first in [("u_a", "rhoa"), ("u_b", "rhob"), ("A_gamma_aa", "gamma_aa"), ("A_gamma_ab", "gamma_ab"), ("A_gamma_bb", "gamma_bb")]
+                        ${out}$ = 0.0_dp
+  #:for X in GVARS
+    #:for Y in GVARS
+                        ${out}$ = ${out}$ + g_${'_'.join(sorted([first, X, Y], key=GVARS.index))}$ (i, j, k)*p_${X}$*p_${Y}$
+    #:endfor
+  #:endfor
+  #:for K in GVARS[2:]
+                        ${out}$ = ${out}$ + g_${'_'.join(sorted([first, K], key=GVARS.index))}$ (i, j, k)*pp_${K}$
+  #:endfor
+#:endfor
+#:for K in GVARS[2:]
+                        B_${K}$ = 0.0_dp
+  #:for Y in GVARS
+                        B_${K}$ = B_${K}$ + g_${'_'.join(sorted([K, Y], key=GVARS.index))}$ (i, j, k)*p_${Y}$
+  #:endfor
+#:endfor
+
+                        v_xc(1)%array(i, j, k) = v_xc(1)%array(i, j, k) + u_a
+                        v_xc(2)%array(i, j, k) = v_xc(2)%array(i, j, k) + u_b
+
+                        ! xc_pw_divergence ADDS div(field); g_xc = u - div(v)
+#:for idir in range(1, 4)
+                        v_drho_r(${idir}$, 1)%array(i, j, k) = &
+                           -(2.0_dp*drhoa(${idir}$)%array(i, j, k)*A_gamma_aa &
+                             + drhob(${idir}$)%array(i, j, k)*A_gamma_ab &
+                             + 2.0_dp*(2.0_dp*drho1a(${idir}$)%array(i, j, k)*B_gamma_aa &
+                                       + drho1b(${idir}$)%array(i, j, k)*B_gamma_ab))
+                        v_drho_r(${idir}$, 2)%array(i, j, k) = &
+                           -(2.0_dp*drhob(${idir}$)%array(i, j, k)*A_gamma_bb &
+                             + drhoa(${idir}$)%array(i, j, k)*A_gamma_ab &
+                             + 2.0_dp*(2.0_dp*drho1b(${idir}$)%array(i, j, k)*B_gamma_bb &
+                                       + drho1a(${idir}$)%array(i, j, k)*B_gamma_ab))
+#:endfor
+                     END DO
+                  END DO
+               END DO
+
+               IF (my_gapw) THEN
+                  DO ispin = 1, nspins
+                     DO idir = 1, 3
+                        vxg(idir, :, :, ispin) = -v_drho_r(idir, ispin)%array(:, :, 1)
+                     END DO
+                  END DO
+               ELSE
+                  IF (my_gapw) THEN
+                     ! vxg carries +V; the plane-wave field above is -V
+                     DO idir = 1, 3
+                        vxg(idir, :, :, 1) = -v_drho_r(idir, 1)%array(:, :, 1)
+                     END DO
+                  ELSE
+                     IF (my_gapw) THEN
+               DO idir = 1, 3
+                  vxg(idir, :, :, 1) = -v_drho_r(idir, 1)%array(:, :, 1)
+               END DO
+            ELSE
+               CALL xc_pw_divergence(xc_deriv_method_id, v_drho_r(:, 1), tmp_g, vxc_g, v_xc(1))
+            END IF
+                  END IF
+                  CALL xc_pw_divergence(xc_deriv_method_id, v_drho_r(:, 2), tmp_g, vxc_g, v_xc(2))
+               END IF
+               END IF
+               END IF
 
             ELSE
 
@@ -3098,7 +3434,10 @@ CONTAINS
          END IF
 
          IF (gradient_f) THEN
-            IF (.NOT. alda0) THEN
+            ! This partial integration is written for the spin-flip kernel only;
+            ! the gamma-form branch above does its own divergence. The cleanup
+            ! below, however, has to run for both.
+            IF (.NOT. alda0 .AND. do_spinflip) THEN
 
                ! partial integration
                DO idir = 1, 3
@@ -3194,7 +3533,209 @@ CONTAINS
          !-----------------!
          ! restricted case !
          !-----------------!
-         CPABORT("Exchange-correlation's analytic third derivative not implemented")
+         !
+         ! Third functional derivative contracted twice with the response density,
+         ! in the reduced-gradient variables gamma = |grad rho|^2 (LibXC's sigma):
+         !
+         !   g_xc = u - div(v)
+         !   u    = e_rrr rho1^2 + 2 e_rrg rho1 g1 + e_rgg g1^2 + e_rg  g11
+         !   A    = e_rrg rho1^2 + 2 e_rgg rho1 g1 + e_ggg g1^2 + e_gg  g11
+         !   B    = e_rg  rho1   +   e_gg  g1
+         !   v    = 2 grad rho A + 4 grad rho1 B
+         !
+         ! with g1 = 2 grad rho . grad rho1 and g11 = 2 |grad rho1|^2. Working in
+         ! gamma rather than in |grad rho| is what makes this terminate: gamma is
+         ! quadratic in grad rho, so its third variation vanishes identically and
+         ! no inverse powers of |grad rho| appear anywhere.
+
+         CALL xc_rho_set_get(rho1_set, rho=rho1)
+
+         NULLIFY (e_rrr, e_rrg, e_rgg, e_ggg, e_rg, e_gg)
+         deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho])
+         IF (ASSOCIATED(deriv_att)) CALL xc_derivative_get(deriv_att, deriv_data=e_rrr)
+
+         IF (gradient_f) THEN
+            CALL xc_rho_set_get(rho_set, drho=drho)
+            CALL xc_rho_set_get(rho1_set, drho=drho1)
+            CALL prepare_dr1dr(dr1dr, drho, drho1)
+            CALL prepare_dr1dr(dr1dr1, drho1, drho1)
+
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_gamma])
+            IF (ASSOCIATED(deriv_att)) CALL xc_derivative_get(deriv_att, deriv_data=e_rrg)
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_gamma, deriv_gamma])
+            IF (ASSOCIATED(deriv_att)) CALL xc_derivative_get(deriv_att, deriv_data=e_rgg)
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_gamma, deriv_gamma, deriv_gamma])
+            IF (ASSOCIATED(deriv_att)) CALL xc_derivative_get(deriv_att, deriv_data=e_ggg)
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_gamma])
+            IF (ASSOCIATED(deriv_att)) CALL xc_derivative_get(deriv_att, deriv_data=e_rg)
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_gamma, deriv_gamma])
+            IF (ASSOCIATED(deriv_att)) CALL xc_derivative_get(deriv_att, deriv_data=e_gg)
+
+            ! The gamma derivatives are supplied by the LibXC path. Functionals
+            ! implemented natively in CP2K still deliver only the norm_drho ones,
+            ! for which the third derivative has not been written out.
+            IF (.NOT. (ASSOCIATED(e_rrr) .AND. ASSOCIATED(e_rrg) .AND. ASSOCIATED(e_rgg) &
+                       .AND. ASSOCIATED(e_ggg) .AND. ASSOCIATED(e_rg) .AND. ASSOCIATED(e_gg))) THEN
+               CPABORT("Analytic 3rd GGA derivatives need the LibXC gamma derivatives")
+            END IF
+         END IF
+
+         IF (gradient_f .AND. (tau_f .OR. laplace_f)) THEN
+
+            ! Restricted meta-GGA. Same gamma formulation as the GGA branch, with
+            ! the variable set widened to (rho, gamma, laplace_rho, tau). tau and
+            ! the Laplacian are linear in the density, so their second variations
+            ! vanish and only gamma contributes a gK11 term.
+            !
+            !   out_Z = sum_XY e_{Z X Y} X1 Y1 + e_{Z gamma} gamma11
+            !   A     = out_gamma,   B = sum_Y e_{gamma Y} Y1
+            !   v     = 2 grad rho A + 4 grad rho1 B
+            !
+            ! out_rho -> v_xc, out_tau -> v_xc_tau, out_laplace_rho -> v_laplace
+            ! (folded back through xc_pw_laplace below).
+
+            CALL xc_rho_set_get(rho_set, drho=drho)
+            CALL xc_rho_set_get(rho1_set, drho=drho1)
+            CALL prepare_dr1dr(dr1dr, drho, drho1)
+            CALL prepare_dr1dr(dr1dr1, drho1, drho1)
+            IF (tau_f) CALL xc_rho_set_get(rho1_set, tau=tau1)
+            IF (laplace_f) CALL xc_rho_set_get(rho1_set, laplace_rho=laplace1)
+
+            ! a zero field stands in for derivatives this functional does not have
+            ALLOCATE (zero_f(bo(1, 1):bo(2, 1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, 3)))
+            zero_f = 0.0_dp
+#:for descs, arr, idx in umgga_deriv_2 + umgga_deriv_3
+            deriv_att => xc_dset_get_derivative(deriv_set, &
+                                                [${', '.join('deriv_' + d for d in descs)}$])
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=m_${'_'.join(descs)}$)
+            ELSE
+               m_${'_'.join(descs)}$ => zero_f
+            END IF
+#:endfor
+
+            IF (laplace_f) THEN
+               ALLOCATE (v_laplace(nspins))
+               DO ispin = 1, nspins
+                  CALL allocate_pw(v_laplace(ispin), pw_pool, bo)
+               END DO
+            END IF
+
+!$OMP       PARALLEL DO PRIVATE(k,j,i,mp_rho,mp_gamma,mp_laplace_rho,mp_tau,mpp_gamma, &
+!$OMP                           m_rho,m_gamma,m_laplace_rho,m_tau,m_B) DEFAULT(SHARED) COLLAPSE(3)
+            DO k = bo(1, 3), bo(2, 3)
+               DO j = bo(1, 2), bo(2, 2)
+                  DO i = bo(1, 1), bo(2, 1)
+                     mp_rho = rho1(i, j, k)
+                     mp_gamma = 2.0_dp*dr1dr(i, j, k)
+                     mpp_gamma = 2.0_dp*dr1dr1(i, j, k)
+                     mp_tau = 0.0_dp
+                     IF (tau_f) mp_tau = tau1(i, j, k)
+                     mp_laplace_rho = 0.0_dp
+                     IF (laplace_f) mp_laplace_rho = laplace1(i, j, k)
+
+#:for Z in umgga_vars
+                     m_${Z}$ = 0.0_dp
+  #:for iX, X in enumerate(umgga_vars)
+    #:for Y in umgga_vars[iX:]
+                     m_${Z}$ = m_${Z}$ + ${1 if X == Y else 2}$.0_dp* &
+                        m_${'_'.join(sorted([Z, X, Y], key=umgga_vars.index))}$ (i, j, k)*mp_${X}$*mp_${Y}$
+    #:endfor
+  #:endfor
+                     m_${Z}$ = m_${Z}$ + m_${'_'.join(sorted([Z, "gamma"], key=umgga_vars.index))}$ (i, j, k)*mpp_gamma
+#:endfor
+                     m_B = 0.0_dp
+#:for Y in umgga_vars
+                     m_B = m_B + m_${'_'.join(sorted(["gamma", Y], key=umgga_vars.index))}$ (i, j, k)*mp_${Y}$
+#:endfor
+
+                     v_xc(1)%array(i, j, k) = v_xc(1)%array(i, j, k) + m_rho
+                     IF (tau_f) v_xc_tau(1)%array(i, j, k) = &
+                        v_xc_tau(1)%array(i, j, k) + m_tau
+                     IF (laplace_f) v_laplace(1)%array(i, j, k) = &
+                        v_laplace(1)%array(i, j, k) + m_laplace_rho
+
+                     ! xc_pw_divergence ADDS div(field), and g_xc = u - div(v)
+#:for idir in range(1, 4)
+                     v_drho_r(${idir}$, 1)%array(i, j, k) = &
+                        -(2.0_dp*drho(${idir}$)%array(i, j, k)*m_gamma &
+                          + 4.0_dp*drho1(${idir}$)%array(i, j, k)*m_B)
+#:endfor
+                  END DO
+               END DO
+            END DO
+
+            IF (my_gapw) THEN
+               DO idir = 1, 3
+                  vxg(idir, :, :, 1) = -v_drho_r(idir, 1)%array(:, :, 1)
+               END DO
+            ELSE
+               CALL xc_pw_divergence(xc_deriv_method_id, v_drho_r(:, 1), tmp_g, vxc_g, v_xc(1))
+            END IF
+
+            IF (laplace_f) THEN
+               DO ispin = 1, nspins
+                  CALL xc_pw_laplace(v_laplace(ispin), pw_pool, xc_deriv_method_id)
+                  CALL pw_axpy(v_laplace(ispin), v_xc(ispin))
+                  CALL deallocate_pw(v_laplace(ispin), pw_pool)
+               END DO
+               DEALLOCATE (v_laplace)
+            END IF
+            DEALLOCATE (zero_f)
+
+         ELSE IF (.NOT. gradient_f) THEN
+            IF (ASSOCIATED(e_rrr)) THEN
+!$OMP          PARALLEL DO PRIVATE(k,j,i) DEFAULT(NONE) SHARED(bo,v_xc,e_rrr,rho1) COLLAPSE(3)
+               DO k = bo(1, 3), bo(2, 3)
+                  DO j = bo(1, 2), bo(2, 2)
+                     DO i = bo(1, 1), bo(2, 1)
+                        v_xc(1)%array(i, j, k) = v_xc(1)%array(i, j, k) + &
+                                                 e_rrr(i, j, k)*rho1(i, j, k)**2
+                     END DO
+                  END DO
+               END DO
+            END IF
+         ELSE
+!$OMP       PARALLEL DO PRIVATE(k,j,i,g1,g11,uu,aa,bb) DEFAULT(NONE) &
+!$OMP       SHARED(bo,v_xc,v_drho_r,rho1,dr1dr,dr1dr1,drho,drho1, &
+!$OMP              e_rrr,e_rrg,e_rgg,e_ggg,e_rg,e_gg) COLLAPSE(3)
+            DO k = bo(1, 3), bo(2, 3)
+               DO j = bo(1, 2), bo(2, 2)
+                  DO i = bo(1, 1), bo(2, 1)
+                     g1 = 2.0_dp*dr1dr(i, j, k)
+                     g11 = 2.0_dp*dr1dr1(i, j, k)
+
+                     uu = e_rrr(i, j, k)*rho1(i, j, k)**2 &
+                          + 2.0_dp*e_rrg(i, j, k)*rho1(i, j, k)*g1 &
+                          + e_rgg(i, j, k)*g1**2 &
+                          + e_rg(i, j, k)*g11
+                     aa = e_rrg(i, j, k)*rho1(i, j, k)**2 &
+                          + 2.0_dp*e_rgg(i, j, k)*rho1(i, j, k)*g1 &
+                          + e_ggg(i, j, k)*g1**2 &
+                          + e_gg(i, j, k)*g11
+                     bb = e_rg(i, j, k)*rho1(i, j, k) + e_gg(i, j, k)*g1
+
+                     v_xc(1)%array(i, j, k) = v_xc(1)%array(i, j, k) + uu
+                     ! xc_pw_divergence ADDS div(field), and g_xc = u - div(v),
+                     ! so the field handed over is -v
+                     v_drho_r(1, 1)%array(i, j, k) = -(2.0_dp*drho(1)%array(i, j, k)*aa &
+                                                       + 4.0_dp*drho1(1)%array(i, j, k)*bb)
+                     v_drho_r(2, 1)%array(i, j, k) = -(2.0_dp*drho(2)%array(i, j, k)*aa &
+                                                       + 4.0_dp*drho1(2)%array(i, j, k)*bb)
+                     v_drho_r(3, 1)%array(i, j, k) = -(2.0_dp*drho(3)%array(i, j, k)*aa &
+                                                       + 4.0_dp*drho1(3)%array(i, j, k)*bb)
+                  END DO
+               END DO
+            END DO
+
+            IF (my_gapw) THEN
+               DO idir = 1, 3
+                  vxg(idir, :, :, 1) = -v_drho_r(idir, 1)%array(:, :, 1)
+               END DO
+            ELSE
+               CALL xc_pw_divergence(xc_deriv_method_id, v_drho_r(:, 1), tmp_g, vxc_g, v_xc(1))
+            END IF
+         END IF
 
       END IF
 
@@ -3589,11 +4130,14 @@ CONTAINS
                ELSE
                   CPABORT("Normalization of derivative requires any of norm_drhob or drhob!")
                END IF
-            CASE (deriv_rho, deriv_tau, deriv_laplace_rho)
+            CASE (deriv_rho, deriv_tau, deriv_laplace_rho, deriv_gamma)
+               ! gamma derivatives need no normalization: unlike norm_drho they
+               ! are already the variables LibXC differentiated with respect to
                IF (lsd) THEN
                   CPABORT(TRIM(id_to_desc(split_desc(idesc)))//" not handled in lsd!'")
                END IF
-            CASE (deriv_rhoa, deriv_rhob, deriv_tau_a, deriv_tau_b, deriv_laplace_rhoa, deriv_laplace_rhob)
+            CASE (deriv_rhoa, deriv_rhob, deriv_tau_a, deriv_tau_b, deriv_laplace_rhoa, deriv_laplace_rhob, &
+                  deriv_gamma_aa, deriv_gamma_ab, deriv_gamma_bb)
             CASE default
                CPABORT("Unknown derivative id")
             END SELECT
@@ -3777,7 +4321,8 @@ CONTAINS
                SELECT CASE (split_desc(iorder))
                CASE (deriv_rhoa, deriv_rhob)
                   rho_f = .TRUE.
-               CASE (deriv_norm_drho, deriv_norm_drhoa, deriv_norm_drhob)
+               CASE (deriv_norm_drho, deriv_norm_drhoa, deriv_norm_drhob, &
+                     deriv_gamma_aa, deriv_gamma_ab, deriv_gamma_bb)
                   gradient_f = .TRUE.
                CASE (deriv_tau_a, deriv_tau_b)
                   tau_f = .TRUE.
@@ -3796,7 +4341,7 @@ CONTAINS
                   rho_f = .TRUE.
                CASE (deriv_tau)
                   tau_f = .TRUE.
-               CASE (deriv_norm_drho)
+               CASE (deriv_norm_drho, deriv_gamma)
                   gradient_f = .TRUE.
                CASE (deriv_laplace_rho)
                   laplace_f = .TRUE.

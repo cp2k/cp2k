@@ -46,9 +46,13 @@ MODULE xc_libxc_wrap
                            xc_f03_gga_exc, &
                            xc_f03_gga_exc_vxc, &
                            xc_f03_gga_exc_vxc_fxc, &
+                           xc_f03_gga_exc_vxc_fxc_kxc, &
+                           xc_f03_mgga_exc_vxc_fxc_kxc, &
+                           xc_f03_mgga_vxc_fxc_kxc, &
                            xc_f03_gga_fxc, &
                            xc_f03_gga_vxc, &
                            xc_f03_gga_vxc_fxc, &
+                           xc_f03_gga_vxc_fxc_kxc, &
                            !
                            xc_f03_func_get_info, &
                            xc_f03_func_info_get_family, &
@@ -121,7 +125,9 @@ MODULE xc_libxc_wrap
              xc_f03_func_info_get_ext_params_description, xc_f03_func_info_get_ext_params_default_value, &
              xc_f03_func_info_get_n_ext_params
    PUBLIC :: xc_f03_gga_exc, xc_f03_gga_exc_vxc, xc_f03_gga_exc_vxc_fxc, xc_f03_gga_fxc, &
-             xc_f03_gga_vxc, xc_f03_gga_vxc_fxc
+             xc_f03_gga_vxc, xc_f03_gga_vxc_fxc, &
+             xc_f03_gga_exc_vxc_fxc_kxc, xc_f03_gga_vxc_fxc_kxc
+   PUBLIC :: xc_f03_mgga_exc_vxc_fxc_kxc, xc_f03_mgga_vxc_fxc_kxc
    PUBLIC :: xc_f03_lda, &
              xc_f03_lda_exc, xc_f03_lda_exc_vxc, xc_f03_lda_exc_vxc_fxc, &
              xc_f03_lda_fxc, xc_f03_lda_kxc, xc_f03_lda_vxc
