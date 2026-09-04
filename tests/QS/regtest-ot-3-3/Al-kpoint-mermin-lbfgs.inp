@@ -23,8 +23,8 @@
     &END QS
     &SCF
       ADDED_MOS 16
-      EPS_SCF 1.0E-4
-      MAX_SCF 300
+      EPS_SCF 1.0E-6
+      MAX_SCF 25
       SCF_GUESS ATOMIC
       &OT
         ALGORITHM STRICT
@@ -34,12 +34,16 @@
         PRECONDITIONER FULL_KINETIC
         ROTATION
       &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 20
+      &END OUTER_SCF
       &PRINT
         &RESTART OFF
         &END RESTART
       &END PRINT
       &SMEAR
-        ELECTRONIC_TEMPERATURE 3000
+        ELECTRONIC_TEMPERATURE 300
         METHOD FERMI_DIRAC
       &END SMEAR
     &END SCF
