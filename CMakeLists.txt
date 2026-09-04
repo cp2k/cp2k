@@ -446,6 +446,9 @@ endif()
 # BLAS & LAPACK, PkgConfig
 find_package(Lapack REQUIRED) # also calls find_package(BLAS)
 
+# Exact angular momentum algebra (Wigner symbols, Gaunt coefficients)
+find_package(Libwignernj REQUIRED)
+
 # in practice it is always for any decent configuration. But I add a flags to
 # turn it off
 if(CP2K_USE_MPI)
@@ -1255,6 +1258,9 @@ endif()
 if(CP2K_USE_VORI)
   message("  - Libvori\n" "    - Libraries: ${CP2K_LIBVORI_LINK_LIBRARIES}\n")
 endif()
+
+message("  - Libwignernj\n"
+        "    - Libraries: ${CP2K_LIBWIGNERNJ_LINK_LIBRARIES}\n")
 
 if(CP2K_USE_ELPA)
   message("  - ELPA\n" "    - Include directories: ${CP2K_ELPA_INCLUDE_DIRS}\n"
