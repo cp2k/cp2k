@@ -15,6 +15,7 @@ MODULE qs_external_density
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE gaussian_gridlevels,             ONLY: gridlevel_info_type
+   USE hfx_types,                       ONLY: hfx_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -28,6 +29,7 @@ MODULE qs_external_density
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_set,&
                                               qs_rho_type
    USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                               realspace_grid_type,&
@@ -43,9 +45,59 @@ MODULE qs_external_density
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_external_density'
 
-   PUBLIC :: external_read_density, read_cube_density
+   PUBLIC :: external_read_density, read_cube_density, read_scf_guess_density
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Read a cube density for one-time use as the first SCF input density
+!> \param qs_env QS environment
+!> \param filename cube filename
+! **************************************************************************************************
+   SUBROUTINE read_scf_guess_density(qs_env, filename)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
+
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      NULLIFY (dft_control, rho, x_data)
+
+      IF (LEN_TRIM(filename) == 0) THEN
+         CPABORT("SCF_GUESS EXTERNAL_DENSITY requires a cube filename")
+      END IF
+
+      CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho, x_data=x_data)
+      IF (.NOT. dft_control%qs_control%gpw) THEN
+         CPABORT("SCF_GUESS EXTERNAL_DENSITY currently supports GPW only")
+      END IF
+      IF (dft_control%nspins /= 1) THEN
+         CPABORT("SCF_GUESS EXTERNAL_DENSITY currently requires a spin-restricted calculation")
+      END IF
+      IF (dft_control%use_kinetic_energy_density) THEN
+         CPABORT("SCF_GUESS EXTERNAL_DENSITY does not provide a kinetic-energy density")
+      END IF
+      IF (dft_control%drho_by_collocation) THEN
+         CPABORT("SCF_GUESS EXTERNAL_DENSITY is incompatible with DRHO_BY_COLLOCATION")
+      END IF
+      IF (dft_control%dft_plus_u) THEN
+         CPABORT("SCF_GUESS EXTERNAL_DENSITY currently does not support DFT+U")
+      END IF
+      IF (ASSOCIATED(x_data)) THEN
+         CPABORT("SCF_GUESS EXTERNAL_DENSITY does not support HFX")
+      END IF
+      IF (dft_control%apply_external_density) THEN
+         CPABORT("SCF_GUESS EXTERNAL_DENSITY cannot be combined with DFT%EXTERNAL_DENSITY")
+      END IF
+
+      CALL read_cube_density(qs_env, rho, TRIM(filename), total_density_sign=-1, &
+                             source_label="SCF GUESS")
+      CALL qs_rho_set(rho, rho_r_valid=.TRUE., rho_g_valid=.TRUE., &
+                      drho_r_valid=.FALSE., drho_g_valid=.FALSE., &
+                      tau_r_valid=.FALSE., tau_g_valid=.FALSE., soft_valid=.FALSE.)
+
+   END SUBROUTINE read_scf_guess_density
 
 ! **************************************************************************************************
 !> \brief  Computes the external density on the grid

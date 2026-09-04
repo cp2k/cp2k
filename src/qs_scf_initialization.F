@@ -63,10 +63,10 @@ MODULE qs_scf_initialization
    USE input_constants,                 ONLY: &
         broy_mix, cholesky_dbcsr, cholesky_inverse, cholesky_off, diag_block_davidson, &
         diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, diag_update_method_adiis, &
-        direct_p_mix, gfn2xtb, kerker_mix, modified_broy_mix, multisec_mix, new_pulay_mix, no_mix, &
-        ot2cdft, outer_scf_none, plus_u_lowdin, plus_u_tensorial, pulay_mix, &
-        smeagol_runtype_emtransport, wfi_frozen_method_nr, wfi_ps_method_nr, &
-        wfi_use_guess_method_nr
+        direct_p_mix, external_density_guess, gfn2xtb, kerker_mix, modified_broy_mix, &
+        multisec_mix, new_pulay_mix, no_mix, ot2cdft, outer_scf_none, plus_u_lowdin, &
+        plus_u_tensorial, pulay_mix, smeagol_runtype_emtransport, wfi_frozen_method_nr, &
+        wfi_ps_method_nr, wfi_use_guess_method_nr
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -88,6 +88,7 @@ MODULE qs_scf_initialization
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
+   USE qs_external_density,             ONLY: read_scf_guess_density
    USE qs_fb_distribution_methods,      ONLY: fb_distribution_build
    USE qs_fb_env_methods,               ONLY: fb_env_build_atomic_halos,&
                                               fb_env_build_rcut_auto,&
@@ -1358,6 +1359,9 @@ CONTAINS
                       para_env=para_env)
 
       do_harris = qs_env%harris_method
+      IF (do_harris .AND. scf_control%density_guess == external_density_guess) THEN
+         CPABORT("EXTERNAL_DENSITY SCF guess is incompatible with HARRIS_METHOD")
+      END IF
 
       extrapolation_method_nr = wfi_use_guess_method_nr
       IF (ASSOCIATED(qs_env%wf_history)) THEN
@@ -1409,7 +1413,11 @@ CONTAINS
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
       ELSE IF (extrapolation_method_nr == wfi_use_guess_method_nr) THEN
          CALL calculate_first_density_matrix(scf_env=scf_env, qs_env=qs_env)
-         CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         IF (scf_control%density_guess == external_density_guess) THEN
+            CALL read_scf_guess_density(qs_env, scf_control%external_density_file_name)
+         ELSE
+            CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         END IF
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
       END IF
 
