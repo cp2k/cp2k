@@ -402,14 +402,16 @@ CONTAINS
 !>        kpoint_operator_finish.
 !> \param ctx context created by kpoint_operator_context_create
 !> \param ikp local k-point index within kp_range
-!> \param ispin spin component of rsmat (1 for spin-free matrices such as S)
+!> \param ispin instance spin: keys the bookkeeping and defaults the matrix row
 !> \param rsmat real-space image matrices of the operator
 !> \param slot destination slot of the operator (one of kpoint_slot_ks/s/t);
 !>        the slot must be idle
 !> \param grid prepared reciprocal-grid cache of the caller
 !> \param use_grid extract from grid instead of a direct phase sum
+!> \param ispin_matrix row of rsmat to transform; spin-free operators such as
+!>        T pass 1 while still launching one instance per spin
 ! **************************************************************************************************
-   SUBROUTINE kpoint_operator_start(ctx, ikp, ispin, rsmat, slot, grid, use_grid)
+   SUBROUTINE kpoint_operator_start(ctx, ikp, ispin, rsmat, slot, grid, use_grid, ispin_matrix)
 
       TYPE(kpoint_operator_context_type), INTENT(INOUT)  :: ctx
       INTEGER, INTENT(IN)                                :: ikp, ispin
@@ -417,10 +419,12 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: slot
       TYPE(rskp_grid_type), INTENT(IN), OPTIONAL         :: grid
       LOGICAL, INTENT(IN)                                :: use_grid
+      INTEGER, INTENT(IN), OPTIONAL                      :: ispin_matrix
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_start'
 
-      INTEGER                                            :: handle, igroup, ik, indx, kplocal
+      INTEGER                                            :: handle, igroup, ik, indx, ispin_mat, &
+                                                            kplocal
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       LOGICAL                                            :: my_kpgrp
@@ -428,8 +432,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      ispin_mat = ispin
+      IF (PRESENT(ispin_matrix)) ispin_mat = ispin_matrix
       CPASSERT(ASSOCIATED(ctx%kpoints))
       CPASSERT(ASSOCIATED(ctx%kpoints%sab_nl))
+      CPASSERT(ispin_mat >= 1 .AND. ispin_mat <= SIZE(rsmat, 2))
       kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
       CPASSERT(ikp >= 1 .AND. ikp <= kplocal)
       CPASSERT(ispin >= 1 .AND. ispin <= SIZE(rsmat, 2))
@@ -447,7 +454,7 @@ CONTAINS
          ik = kp_dist(1, igroup) + ikp - 1
          my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
          indx = ikp + (igroup - 1)*kplocal
-         CALL kpoint_operator_raw_start(rsmat, ispin, ik, ctx%kpoints%xkp(1:3, ik), &
+         CALL kpoint_operator_raw_start(rsmat, ispin_mat, ik, ctx%kpoints%xkp(1:3, ik), &
                                         ctx%kpoints%cell_to_index, ctx%kpoints%sab_nl, grid, use_grid, &
                                         ctx%rmatrix, ctx%cmatrix, ctx%tmpmat, &
                                         ctx%fmwork(1), ctx%fmwork(2), ctx%fmlocal, ctx%fmdummy, my_kpgrp, &
