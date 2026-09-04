@@ -219,7 +219,8 @@ MODULE input_constants
                                                sparse_guess = 8, &
                                                almo_scf_guess = 9, &
                                                molecular_guess = 10, &
-                                               eht_guess = 11
+                                               eht_guess = 11, &
+                                               external_density_guess = 12
 
    ! Projection formulas for the maximum overlap method
    INTEGER, PARAMETER, PUBLIC               :: momproj_norm = 0, &
