@@ -3068,7 +3068,7 @@ CONTAINS
 
                !set up fft plans
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(1), FWFFT, .TRUE., .FALSE., &
-                                       mx1*my1, n(3), n(1), my3*mz3, &
+                                       mx1*my1, n(3), n(3), mx1*my1, &
                                        fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a3buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(2), FWFFT, .TRUE., .FALSE., &
                                        mx1*mz1, n(2), n(2), mx1*mz1, &
