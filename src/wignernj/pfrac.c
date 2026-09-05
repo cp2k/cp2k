@@ -5,6 +5,8 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+#include "cp2k_wignernj_prefix.h"
+
 /* SPDX-License-Identifier: BSD-3-Clause
  * Copyright (c) 2026 Susi Lehtola */
 #include "pfrac.h"
