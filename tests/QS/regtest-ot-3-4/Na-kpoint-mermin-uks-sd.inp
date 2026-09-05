@@ -24,7 +24,8 @@
     &END QS
     &SCF
       ADDED_MOS 1
-      EPS_SCF 5.0E-9
+      # Keep the first REF rebuild window below the late-SCF residual plateau.
+      EPS_SCF 1.0E-9
       MAX_SCF 40
       SCF_GUESS ATOMIC
       &OT
