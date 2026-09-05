@@ -321,6 +321,7 @@ MODULE post_scf_bandstructure_types
                                                       tensor_group_color = -1, &
                                                       num_tensor_groups = -1
       REAL(KIND=dp)                                :: input_memory_per_proc_GB = -1.0_dp
+      LOGICAL                                      :: auto_memory_per_proc = .FALSE.
       TYPE(mp_para_env_type), POINTER              :: para_env => NULL(), &
                                                       para_env_tensor => NULL()
       REAL(KIND=dp)                                :: occupation_3c_int = -1.0_dp, &
