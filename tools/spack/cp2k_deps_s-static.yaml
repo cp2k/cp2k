@@ -82,10 +82,6 @@ spack:
         - "+fortran"
         - "~shared"
 
-    libwignernj:
-      require:
-        - "~shared"
-
     libxc:
       require:
         - "+kxc"
@@ -118,7 +114,6 @@ spack:
     - "libfci@0.1.0"
     - "libint@2.13.1-cp2k-lmax-5"
     - "libvori@220621"
-    - "libwignernj@0.8.0"
     - "libxc@7.1.2"
     - "libxs@1.0.0"
     - "libxsmm@2.1.0"

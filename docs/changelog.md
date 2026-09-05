@@ -28,6 +28,12 @@
   [#5887](https://github.com/cp2k/cp2k/pull/5887))
 - **TODO**
 
+### New Libraries
+
+- Bundle libwignernj for the exact evaluation of the Wigner symbols and the Gaunt coefficients,
+  replacing the in-tree Clebsch-Gordon coefficient tables
+  ([#5961](https://github.com/cp2k/cp2k/pull/5961))
+
 ### Breaking Changes
 
 - Rename the RI-RS GW keyword `CUTOFF_RADIUS_RI_RS` to `CUTOFF_RADIUS_RL_RI`
@@ -38,8 +44,6 @@
 - Remove the SPLINE3_NOPBC multigrid interpolator ([#5719](https://github.com/cp2k/cp2k/pull/5719))
 - Require `MPI_THREAD_MULTIPLE` for all MPI builds ([#5811](https://github.com/cp2k/cp2k/pull/5811),
   [#5817](https://github.com/cp2k/cp2k/pull/5817))
-- Require libwignernj for the angular momentum algebra, replacing the in-tree Clebsch-Gordon
-  coefficient tables (TODO: PR link)
 - **TODO**
 
 ### Fixes
