@@ -303,7 +303,7 @@ while [[ $# -gt 0 ]]; do
             # Enable or disable all features
             CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=${ON_OFF}"
             for package in adios2 cosma deepmdkit dla-future dla-future-fortran elpa \
-              gauxc greenx hdf5 libfabric libfci libint libvdwxc libsmeagol libvori \
+              gauxc greenx hdf5 libfabric libfci libint libvdwxc libsmeagol libtorch libvori \
               libxc libxs libxsmm mimic-mcl openpmd-api pace pexsi plumed py-torch sirius \
               spfft spglib spla tblite trexio; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
@@ -1628,7 +1628,7 @@ if ((EXIT_CODE != 0)); then
 fi
 
 # Install Skala resource files if needed
-export GAUXC_SKALA_MODEL="(not available)"
+export SKALA_MODEL="(not available)"
 if spack location -i gauxc &> /dev/null; then
   GAUXC_PATH="share/gauxc/onedft_models"
   GAUXC_PREFIX="$(spack location -i gauxc)"
@@ -1646,14 +1646,14 @@ if spack location -i gauxc &> /dev/null; then
     MATCHES=("${GAUXC_MODEL_TARGET_PATH}"/skala*)
     shopt -u nullglob
     if ((${#MATCHES[@]} > 0)); then
-      export GAUXC_SKALA_MODEL="${MATCHES[${#MATCHES[@]} - 1]}"
+      export SKALA_MODEL="${MATCHES[${#MATCHES[@]} - 1]}"
     else
-      echo -e "\nERROR: Failed to resolve GAUXC_SKALA_MODEL in target path ${GAUXC_MODEL_TARGET_PATH}"
+      echo -e "\nERROR: Failed to resolve SKALA_MODEL in target path ${GAUXC_MODEL_TARGET_PATH}"
       ${EXIT_CMD} 1
     fi
   fi
 fi
-echo -e "\nGAUXC_SKALA_MODEL = ${GAUXC_SKALA_MODEL}"
+echo -e "\nSKALA_MODEL = ${SKALA_MODEL}"
 
 # Collect and compress all log files when building within a container
 if [[ "${IN_CONTAINER}" == "yes" ]]; then
@@ -1767,7 +1767,7 @@ export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-2}
 export OMP_STACKSIZE=256M
 ${OMPI_VARS}
-export GAUXC_SKALA_MODEL=${GAUXC_SKALA_MODEL}
+export SKALA_MODEL=${SKALA_MODEL}
 exec "\$@"
 ***
 chmod 750 "${LAUNCH_SCRIPT}"
@@ -1780,7 +1780,7 @@ if [[ "${VERSION}" =~ ^(s|p)dbg$ ]]; then
   echo "LSAN_OPTIONS = \${LSAN_OPTIONS}"
 fi
 ldd -- ${INSTALL_PREFIX}/bin/cp2k.${VERSION} 2>&1 | grep -E 'not ' | sort | uniq
-export GAUXC_SKALA_MODEL=${GAUXC_SKALA_MODEL}
+export SKALA_MODEL=${SKALA_MODEL}
 ${CP2K_ROOT}/tests/do_regtest.py ${TESTOPTS} \$* ${INSTALL_PREFIX}/bin ${VERSION}
 ***
 chmod 750 "${INSTALL_PREFIX}"/bin/run_tests

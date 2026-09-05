@@ -90,6 +90,8 @@ if(NOT TARGET cp2k::cp2k)
     find_dependency(gauxc REQUIRED CONFIG)
   endif()
 
+  set(CP2K_USE_SKALA_FTORCH @CP2K_USE_SKALA_FTORCH@)
+
   set(CP2K_USE_COSMA @CP2K_USE_COSMA@)
   if(CP2K_USE_COSMA)
     find_dependency(cosma REQUIRED)

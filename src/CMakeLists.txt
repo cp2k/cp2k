@@ -1903,6 +1903,8 @@ target_compile_definitions(
     # GauXC feature flags GAUXC_HAS_MPI, GAUXC_HAS_ONEDFT, GAUXC_HAS_HOST,
     # GAUXC_HAS_DEVICE, GAUXC_HAS_CUDA, and GAUXC_HAS_HDF5 are provided by
     # gauxc/gauxc_config.f in the Fortran sources.
+    $<$<BOOL:${CP2K_USE_SKALA_FTORCH}>:__SKALA_FTORCH>
+    $<$<OR:$<BOOL:${CP2K_USE_GAUXC}>,$<BOOL:${CP2K_USE_SKALA_FTORCH}>>:__SKALA>
     $<$<BOOL:${CP2K_USE_SPLA}>:__SPLA>
     $<$<BOOL:${CP2K_USE_SPLA_GEMM_OFFLOADING}>:__OFFLOAD_GEMM>
     $<$<BOOL:${CP2K_USE_ELPA}>:__ELPA>
