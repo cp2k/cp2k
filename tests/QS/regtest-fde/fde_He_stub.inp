@@ -1,0 +1,65 @@
+&GLOBAL
+  PROJECT fde_He_stub
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &QS
+      METHOD GPW
+    &END QS
+    &MGRID
+      CUTOFF 50
+      REL_CUTOFF 20
+    &END MGRID
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END POISSON
+    &KG_METHOD
+      &XC
+        &XC_FUNCTIONAL
+          &KE_GGA
+            FUNCTIONAL PBE
+          &END KE_GGA
+        &END XC_FUNCTIONAL
+      &END XC
+    &END KG_METHOD
+    &FDE ON
+      FREEZE_AND_THAW T
+      MAX_FT_ITER 3
+      EPS_FT_DENSITY 1.0E-8
+      DENSITY_MIXING 1.0
+      COMMAND "python3 fde_stub.py"
+    &END FDE
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-8
+      MAX_SCF 50
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.0 4.0 4.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      He 2.0 2.0 2.0
+    &END COORD
+    &KIND He
+      BASIS_SET DZV-GTH-q2
+      POTENTIAL GTH-PBE-q2
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
