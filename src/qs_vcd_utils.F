@@ -377,10 +377,8 @@ CONTAINS
       CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, dft_control%qs_control%eps_ppnl, &
                             particle_set, cell=cell, matrix_rv=vcd_env%hcom)
       ! <[V, r] * r> and <r * [V, r]>
-      CALL build_com_rpnl_r(vcd_env%matrix_rcomr, qs_kind_set, sab_all, sap_ppnl, &
-                            dft_control%qs_control%eps_ppnl, particle_set, cell, .TRUE.)
-      CALL build_com_rpnl_r(vcd_env%matrix_rrcom, qs_kind_set, sab_all, sap_ppnl, &
-                            dft_control%qs_control%eps_ppnl, particle_set, cell, .FALSE.)
+      CALL build_com_rpnl_r(vcd_env%matrix_rcomr, vcd_env%matrix_rrcom, qs_kind_set, sab_all, sap_ppnl, &
+                            dft_control%qs_control%eps_ppnl, particle_set, cell)
 
       ! lin_mom
       CALL build_lin_mom_matrix(qs_env, vcd_env%dipvel_ao)
