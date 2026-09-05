@@ -63,71 +63,73 @@ MODULE xc_libxc
    USE xc_derivative_desc, ONLY: &
       deriv_rho, deriv_rhoa, deriv_rhob, &
       deriv_norm_drhoa, deriv_norm_drhob, deriv_norm_drho, deriv_tau_a, deriv_tau_b, deriv_tau, &
-      deriv_laplace_rho, deriv_laplace_rhoa, deriv_laplace_rhob, &
-      deriv_gamma, deriv_gamma_aa, deriv_gamma_ab, deriv_gamma_bb
-   USE xc_libxc_wrap, ONLY: xc_f03_func_t, &
-                            xc_f03_func_init, &
-                            xc_f03_func_end, &
-                            xc_f03_func_info_t, &
-                            xc_f03_functional_get_name, &
-                            xc_f03_func_get_info, &
-                            xc_f03_func_info_get_family, &
-                            xc_f03_func_info_get_kind, &
-                            xc_f03_func_info_get_n_ext_params, &
-                            xc_f03_func_info_get_name, &
-                            xc_f03_available_functional_numbers, &
-                            xc_f03_available_functional_names, &
-                            xc_f03_maximum_name_length, &
-                            xc_f03_number_of_functionals, &
-                            xc_f03_func_info_get_ext_params_name, &
-                            xc_f03_func_info_get_ext_params_description, &
-                            xc_f03_func_info_get_ext_params_default_value, &
-                            xc_f03_gga_exc, &
-                            xc_f03_gga_exc_vxc, &
-                            xc_f03_gga_exc_vxc_fxc, &
-                            xc_f03_gga_exc_vxc_fxc_kxc, &
-                            xc_f03_gga_fxc, &
-                            xc_f03_gga_vxc, &
-                            xc_f03_gga_vxc_fxc, &
-                            xc_f03_gga_vxc_fxc_kxc, &
-                            xc_f03_mgga_exc_vxc_fxc_kxc, &
-                            xc_f03_mgga_vxc_fxc_kxc, &
-                            xc_f03_lda, &
-                            xc_f03_lda_exc, &
-                            xc_f03_lda_exc_vxc, &
-                            xc_f03_lda_exc_vxc_fxc, &
-                            xc_f03_lda_fxc, &
-                            xc_f03_lda_kxc, &
-                            xc_f03_lda_vxc, &
-                            xc_f03_mgga, &
-                            xc_f03_mgga_exc, &
-                            xc_f03_mgga_exc_vxc, &
-                            xc_f03_mgga_fxc, &
-                            xc_f03_mgga_vxc, &
-                            xc_f03_mgga_vxc_fxc, &
-                            XC_POLARIZED, &
-                            XC_UNPOLARIZED, &
-                            XC_FAMILY_LDA, &
-                            XC_FAMILY_GGA, &
-                            XC_FAMILY_MGGA, &
-                            XC_FAMILY_HYB_LDA, &
-                            XC_FAMILY_HYB_GGA, &
-                            XC_FAMILY_HYB_MGGA, &
-                            XC_CORRELATION, &
-                            XC_EXCHANGE, &
-                            XC_EXCHANGE_CORRELATION, &
-                            XC_KINETIC, &
-                            xc_libxc_wrap_info_refs, &
-                            xc_libxc_wrap_version, &
-                            xc_libxc_wrap_library_reference, &
-                            xc_libxc_wrap_functional_get_number, &
-                            xc_libxc_wrap_info_needs_laplace, &
-                            xc_libxc_wrap_info_no_exc, &
-                            xc_libxc_wrap_set_thresholds, &
-                            xc_f03_func_set_ext_params, &
-                            xc_libxc_wrap_is_under_development, &
-                            xc_libxc_get_reference_length, &
-                            xc_libxc_check_functional
+      deriv_laplace_rho, deriv_laplace_rhoa, deriv_laplace_rhob
+    USE xc_libxc_wrap, ONLY: xc_f03_func_t, &
+                             xc_f03_func_init, &
+                             xc_f03_func_end, &
+                             xc_f03_func_info_t, &
+                             xc_f03_functional_get_name, &
+                             xc_f03_func_get_info, &
+                             xc_f03_func_info_get_family, &
+                             xc_f03_func_info_get_kind, &
+                             xc_f03_func_info_get_n_ext_params, &
+                             xc_f03_func_info_get_name, &
+                             xc_f03_available_functional_numbers, &
+                             xc_f03_available_functional_names, &
+                             xc_f03_maximum_name_length, &
+                             xc_f03_number_of_functionals, &
+                             xc_f03_func_info_get_ext_params_name, &
+                             xc_f03_func_info_get_ext_params_description, &
+                             xc_f03_func_info_get_ext_params_default_value, &
+                             xc_f03_gga_exc, &
+                             xc_f03_gga_exc_vxc, &
+                             xc_f03_gga_exc_vxc_fxc, &
+                             xc_f03_gga_fxc, &
+                             xc_f03_gga_vxc, &
+                             xc_f03_gga_vxc_fxc, &
+                             xc_f03_lda, &
+                             xc_f03_lda_exc, &
+                             xc_f03_lda_exc_vxc, &
+                             xc_f03_lda_exc_vxc_fxc, &
+                             xc_f03_lda_fxc, &
+                             xc_f03_lda_kxc, &
+                             xc_f03_lda_vxc, &
+                             xc_f03_mgga, &
+                             xc_f03_mgga_exc, &
+                             xc_f03_mgga_exc_vxc, &
+                             xc_f03_mgga_fxc, &
+                             xc_f03_mgga_vxc, &
+                             xc_f03_mgga_vxc_fxc, &
+                             XC_POLARIZED, &
+                             XC_UNPOLARIZED, &
+                             XC_FAMILY_LDA, &
+                             XC_FAMILY_GGA, &
+                             XC_FAMILY_MGGA, &
+                             XC_FAMILY_HYB_LDA, &
+                             XC_FAMILY_HYB_GGA, &
+                             XC_FAMILY_HYB_MGGA, &
+                              libxc_set_backend, libxc_get_backend, &
+                              libxc_func_init_wrapper, libxc_func_end_wrapper, &
+                              libxc_set_library, &
+                              libxc_buffer_create, libxc_buffer_free, &
+                              libxc_buffer_h2d, libxc_buffer_d2h, &
+                              libxc_gga_exc_vxc_wrapper, libxc_gga_exc_wrapper, &
+                              libxc_lda_exc_vxc_wrapper, libxc_lda_exc_wrapper, &
+                              libxc_mgga_exc_vxc_wrapper, libxc_mgga_exc_wrapper, &
+                              libxc_mgga_vxc_wrapper, &
+                              xc_libxc_wrap_functional_get_number, &
+                              xc_libxc_wrap_info_needs_laplace, &
+                              xc_libxc_wrap_info_no_exc, &
+                              xc_libxc_wrap_is_under_development, &
+                              xc_libxc_check_functional, &
+                              xc_libxc_get_reference_length, &
+                              xc_libxc_wrap_init_cuda_safe, &
+                              xc_libxc_wrap_library_reference, &
+                              xc_libxc_wrap_version, &
+                              xc_libxc_wrap_set_thresholds, &
+                              xc_libxc_wrap_info_refs, &
+                              xc_f03_func_set_ext_params, &
+                              XC_EXCHANGE, XC_CORRELATION, XC_EXCHANGE_CORRELATION, XC_KINETIC
 #endif
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, &
 !$                    omp_get_num_threads, &
@@ -219,8 +221,11 @@ MODULE xc_libxc
    ! output argument alias a read-only input. Grown on demand and kept for the
    ! run rather than allocated per evaluation, and like the cache above it is
    ! only ever touched from a serial region.
-   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, TARGET, PRIVATE, SAVE :: libxc_unused
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, TARGET, PRIVATE, SAVE :: libxc_unused
 #endif
+
+   ! Initialize libxc backend selection
+   LOGICAL, PRIVATE, SAVE :: libxc_initialized = .FALSE.
 
 CONTAINS
 
@@ -235,6 +240,11 @@ CONTAINS
       LOGICAL                                  :: exists
 
 #if defined (__LIBXC)
+      ! Initialize libxc backend on first call
+      IF (.NOT. libxc_initialized) THEN
+         CALL xc_libxc_wrap_init_cuda_safe()
+         libxc_initialized = .TRUE.
+      END IF
 
       exists = xc_libxc_check_functional(libxc_params%section%name)
 #else
@@ -268,17 +278,17 @@ CONTAINS
 
       func_name = libxc_params%section%name
 
-      func_id = xc_libxc_wrap_functional_get_number(func_name)
-      IF (lsd) THEN
-         CALL xc_f03_func_init(xc_func, func_id, XC_POLARIZED)
-      ELSE
-         CALL xc_f03_func_init(xc_func, func_id, XC_UNPOLARIZED)
-      END IF
-      xc_info = xc_f03_func_get_info(xc_func)
+       func_id = xc_libxc_wrap_functional_get_number(func_name)
+       IF (lsd) THEN
+          CALL libxc_func_init_wrapper(xc_func, func_id, XC_POLARIZED)
+       ELSE
+          CALL libxc_func_init_wrapper(xc_func, func_id, XC_UNPOLARIZED)
+       END IF
+       xc_info = xc_f03_func_get_info(xc_func)
 
-      length = xc_libxc_get_reference_length(xc_info)
+       length = xc_libxc_get_reference_length(xc_info)
 
-      CALL xc_f03_func_end(xc_func)
+       CALL xc_f03_func_end(xc_func)
 
       CALL timestop(handle)
 #else
@@ -327,10 +337,10 @@ CONTAINS
 
          func_id = func_ids(ii)
          IF (ii > 1) THEN
-            IF (func_id == func_ids(ii - 1)) CYCLE
-         END IF
-         CALL xc_f03_func_init(xc_func, func_id, XC_UNPOLARIZED)
-         xc_info = xc_f03_func_get_info(xc_func)
+          IF (func_id == func_ids(ii - 1)) CYCLE
+          END IF
+          CALL libxc_func_init_wrapper(xc_func, func_id, XC_UNPOLARIZED)
+          xc_info = xc_f03_func_get_info(xc_func)
 
          func_name = xc_f03_functional_get_name(func_id)
          description = xc_f03_func_info_get_name(xc_info)
@@ -432,7 +442,7 @@ CONTAINS
       IF (ABS(func_scale - 1.0_dp) < 1.0e-10_dp) func_scale = 1.0_dp
 
       func_id = xc_libxc_wrap_functional_get_number(func_name)
-      CALL xc_f03_func_init(xc_func, func_id, XC_UNPOLARIZED)
+      CALL libxc_func_init_wrapper(xc_func, func_id, XC_UNPOLARIZED)
       xc_info = xc_f03_func_get_info(xc_func)
 
       s1 = xc_f03_func_info_get_name(xc_info)
@@ -545,13 +555,13 @@ CONTAINS
 
       IF (ABS(func_scale - 1.0_dp) < 1.0e-10_dp) func_scale = 1.0_dp
 
-      func_id = xc_libxc_wrap_functional_get_number(func_name)
-      CALL xc_f03_func_init(xc_func, func_id, XC_POLARIZED)
-      xc_info = xc_f03_func_get_info(xc_func)
+       func_id = xc_libxc_wrap_functional_get_number(func_name)
+       CALL libxc_func_init_wrapper(xc_func, func_id, XC_POLARIZED)
+       xc_info = xc_f03_func_get_info(xc_func)
 
-      s1 = xc_f03_func_info_get_name(xc_info)
-      SELECT CASE (xc_f03_func_info_get_kind(xc_info))
-      CASE (XC_EXCHANGE); WRITE (s2, '(a)') "exchange"
+       s1 = xc_f03_func_info_get_name(xc_info)
+       SELECT CASE (xc_f03_func_info_get_kind(xc_info))
+       CASE (XC_EXCHANGE); WRITE (s2, '(a)') "exchange"
       CASE (XC_CORRELATION); WRITE (s2, '(a)') "correlation"
       CASE (XC_EXCHANGE_CORRELATION); WRITE (s2, '(a)') "exchange-correlation"
       CASE (XC_KINETIC); WRITE (s2, '(a)') "kinetic"
@@ -951,7 +961,7 @@ CONTAINS
             ALLOCATE (ws%worker(nthreads))
 
             DO ithread = 1, nthreads
-               CALL xc_f03_func_init(ws%worker(ithread)%func, func_id, nspin)
+               CALL libxc_func_init_wrapper(ws%worker(ithread)%func, func_id, nspin)
                ws%worker(ithread)%info = xc_f03_func_get_info(ws%worker(ithread)%func)
                ws%worker(ithread)%is_init = .TRUE.
             END DO
@@ -2152,233 +2162,109 @@ CONTAINS
          nb = MIN(bsize, npoints - i0)
          np = INT(nb, KIND=C_SIZE_T)
 
-         ! stage this block's inputs in LibXC's layout
-         DO i = 1, nb
-            w%rho(1, i) = rho(i0 + i)
-         END DO
-         IF (is_gga) THEN
-            DO i = 1, nb
-               w%sigma(1, i) = norm_drho(i0 + i)**2
-            END DO
-         END IF
-         IF (is_mgga) THEN
-            DO i = 1, nb
-               ii = i0 + i
-               w%lapl(1, i) = laplace_rho(ii)
-               w%tau(1, i) = tau(ii)
-            END DO
-            ! Meta-GGAs are screened on the kinetic energy density as well as on the
-            ! density, and LibXC only screens on the latter. A point failing the tau
-            ! test is handed over with zero density, which makes LibXC screen it out
-            ! and leave its outputs at zero: what skipping it used to achieve. The
-            ! Fermi hole curvature bound tau >= sigma/(8*rho) follows in the same pass,
-            ! with the denominator floored at the cutoff so the division stays defined
-            ! for the points that are about to be screened.
-            DO i = 1, nb
-               IF (w%tau(1, i) <= eps_tau) w%rho(1, i) = 0.0_dp
-               w%tau(1, i) = MAX(w%tau(1, i), &
-                                 w%sigma(1, i)/(8.0_dp*MAX(w%rho(1, i), eps_rho)))
-            END DO
-         END IF
+             ! stage this block's inputs in LibXC's layout
+             DO i = 1, nb
+                w%rho(1, i) = rho(i0 + i)
+             END DO
+             IF (is_gga) THEN
+                DO i = 1, nb
+                   w%sigma(1, i) = norm_drho(i0 + i)**2
+                END DO
+             END IF
+             IF (is_mgga) THEN
+                DO i = 1, nb
+                   ii = i0 + i
+                   w%lapl(1, i) = laplace_rho(ii)
+                   w%tau(1, i) = tau(ii)
+                END DO
+                ! Meta-GGAs are screened on the kinetic energy density as well as on the
+                ! density, and LibXC only screens on the latter. A point failing the tau
+                ! test is handed over with zero density, which makes LibXC screen it out
+                ! and leave its outputs at zero: what skipping it used to achieve. The
+                ! Fermi hole curvature bound tau >= sigma/(8*rho) follows in the same pass,
+                ! with the denominator floored at the cutoff so the division stays defined
+                ! for the points that are about to be screened.
+                DO i = 1, nb
+                   IF (w%tau(1, i) <= eps_tau) w%rho(1, i) = 0.0_dp
+                   w%tau(1, i) = MAX(w%tau(1, i), &
+                                     w%sigma(1, i)/(8.0_dp*MAX(w%rho(1, i), eps_rho)))
+                END DO
+             END IF
 
-         ! one LibXC call for the whole block
-         IF (is_mgga) THEN
-            SELECT CASE (grad_deriv)
-            CASE (0)
-               CALL xc_f03_mgga_exc(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), w%exc(1))
-            CASE (1)
-               IF (no_exc) THEN
-                  CALL xc_f03_mgga_vxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
-                                       w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1))
-                  w%exc(1:nb) = 0.0_dp
-               ELSE
-                  CALL xc_f03_mgga_exc_vxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
-                                           w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1))
-               END IF
-            CASE (2)
-               IF (no_exc) THEN
-                  CALL xc_f03_mgga_vxc_fxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
-                                           w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1), &
-                                           w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2rholapl(1, 1), &
-                                           w%v2rhotau(1, 1), w%v2sigma2(1, 1), w%v2sigmalapl(1, 1), &
-                                           w%v2sigmatau(1, 1), w%v2lapl2(1, 1), w%v2lapltau(1, 1), w%v2tau2(1, 1))
-                  w%exc(1:nb) = 0.0_dp
-               ELSE
-                  CALL xc_f03_mgga(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
-                                   w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1), &
-                                   w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2rholapl(1, 1), &
-                                   w%v2rhotau(1, 1), w%v2sigma2(1, 1), w%v2sigmalapl(1, 1), &
-                                   w%v2sigmatau(1, 1), w%v2lapl2(1, 1), w%v2lapltau(1, 1), w%v2tau2(1, 1))
-               END IF
-            CASE (3)
-               IF (no_exc) THEN
-                  CALL xc_f03_mgga_vxc_fxc_kxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
-                                               w%lapl(1, 1), w%tau(1, 1), &
+              ! one LibXC call for the whole block
+              ! Use GPU-aware wrapper functions
+              IF (is_mgga) THEN
+                SELECT CASE (grad_deriv)
+                CASE (0)
+                   CALL libxc_mgga_exc_wrapper(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), w%exc(1))
+                CASE (1)
+                   IF (no_exc) THEN
+                       CALL libxc_mgga_vxc_wrapper(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
+                                            w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1))
+                      w%exc(1:nb) = 0.0_dp
+                   ELSE
+                       CALL libxc_mgga_exc_vxc_wrapper(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
+                                                w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1))
+                   END IF
+                CASE (2)
+                   IF (no_exc) THEN
+                      CALL xc_f03_mgga_vxc_fxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
                                                w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1), &
                                                w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2rholapl(1, 1), &
                                                w%v2rhotau(1, 1), w%v2sigma2(1, 1), w%v2sigmalapl(1, 1), &
-                                               w%v2sigmatau(1, 1), w%v2lapl2(1, 1), w%v2lapltau(1, 1), w%v2tau2(1, 1), &
-                                               w%v3rho3(1, 1), w%v3rho2sigma(1, 1), w%v3rho2lapl(1, 1), w%v3rho2tau(1, 1), &
-                                               w%v3rhosigma2(1, 1), w%v3rhosigmalapl(1, 1), w%v3rhosigmatau(1, 1), &
-                                               w%v3rholapl2(1, 1), w%v3rholapltau(1, 1), w%v3rhotau2(1, 1), &
-                                               w%v3sigma3(1, 1), w%v3sigma2lapl(1, 1), w%v3sigma2tau(1, 1), &
-                                               w%v3sigmalapl2(1, 1), w%v3sigmalapltau(1, 1), w%v3sigmatau2(1, 1), &
-                                               w%v3lapl3(1, 1), w%v3lapl2tau(1, 1), w%v3lapltau2(1, 1), w%v3tau3(1, 1))
-                  w%exc(1:nb) = 0.0_dp
-               ELSE
-                  CALL xc_f03_mgga_exc_vxc_fxc_kxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
-                                                   w%lapl(1, 1), w%tau(1, 1), w%exc(1), &
-                                                   w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1), &
-                                                   w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2rholapl(1, 1), &
-                                                   w%v2rhotau(1, 1), w%v2sigma2(1, 1), w%v2sigmalapl(1, 1), &
-                                                   w%v2sigmatau(1, 1), w%v2lapl2(1, 1), w%v2lapltau(1, 1), w%v2tau2(1, 1), &
-                                                   w%v3rho3(1, 1), w%v3rho2sigma(1, 1), w%v3rho2lapl(1, 1), w%v3rho2tau(1, 1), &
-                                                   w%v3rhosigma2(1, 1), w%v3rhosigmalapl(1, 1), w%v3rhosigmatau(1, 1), &
-                                                   w%v3rholapl2(1, 1), w%v3rholapltau(1, 1), w%v3rhotau2(1, 1), &
-                                                   w%v3sigma3(1, 1), w%v3sigma2lapl(1, 1), w%v3sigma2tau(1, 1), &
-                                                   w%v3sigmalapl2(1, 1), w%v3sigmalapltau(1, 1), w%v3sigmatau2(1, 1), &
-                                                   w%v3lapl3(1, 1), w%v3lapl2tau(1, 1), w%v3lapltau2(1, 1), w%v3tau3(1, 1))
-               END IF
-            END SELECT
-         ELSE IF (is_gga) THEN
-            SELECT CASE (grad_deriv)
-            CASE (0)
-               CALL xc_f03_gga_exc(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%exc(1))
-            CASE (1)
-               IF (no_exc) THEN
-                  CALL xc_f03_gga_vxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%vrho(1, 1), w%vsigma(1, 1))
-                  w%exc(1:nb) = 0.0_dp
-               ELSE
-                  CALL xc_f03_gga_exc_vxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
-                                          w%exc(1), w%vrho(1, 1), w%vsigma(1, 1))
-               END IF
-            CASE (2)
-               IF (no_exc) THEN
-                  CALL xc_f03_gga_vxc_fxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
-                                          w%vrho(1, 1), w%vsigma(1, 1), &
-                                          w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2sigma2(1, 1))
-                  w%exc(1:nb) = 0.0_dp
-               ELSE
-                  CALL xc_f03_gga_exc_vxc_fxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
-                                              w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), &
-                                              w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2sigma2(1, 1))
-               END IF
-            CASE (3)
-               IF (no_exc) THEN
-                  CALL xc_f03_gga_vxc_fxc_kxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
-                                              w%vrho(1, 1), w%vsigma(1, 1), &
-                                              w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2sigma2(1, 1), &
-                                              w%v3rho3(1, 1), w%v3rho2sigma(1, 1), &
-                                              w%v3rhosigma2(1, 1), w%v3sigma3(1, 1))
-                  w%exc(1:nb) = 0.0_dp
-               ELSE
-                  CALL xc_f03_gga_exc_vxc_fxc_kxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
-                                                  w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), &
-                                                  w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2sigma2(1, 1), &
-                                                  w%v3rho3(1, 1), w%v3rho2sigma(1, 1), &
-                                                  w%v3rhosigma2(1, 1), w%v3sigma3(1, 1))
-               END IF
-            END SELECT
-         ELSE
-            SELECT CASE (grad_deriv)
-            CASE (0)
-               CALL xc_f03_lda_exc(w%func, np, w%rho(1, 1), w%exc(1))
-            CASE (1)
-               CALL xc_f03_lda_exc_vxc(w%func, np, w%rho(1, 1), w%exc(1), w%vrho(1, 1))
-            CASE (2)
-               CALL xc_f03_lda_exc_vxc_fxc(w%func, np, w%rho(1, 1), &
-                                           w%exc(1), w%vrho(1, 1), w%v2rho2(1, 1))
-            CASE (3)
-               CALL xc_f03_lda(w%func, np, w%rho(1, 1), &
-                               w%exc(1), w%vrho(1, 1), w%v2rho2(1, 1), w%v3rho3(1, 1))
-            END SELECT
-         END IF
+                                               w%v2sigmatau(1, 1), w%v2lapl2(1, 1), w%v2lapltau(1, 1), w%v2tau2(1, 1))
+                      w%exc(1:nb) = 0.0_dp
+                   ELSE
+                      CALL xc_f03_mgga(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
+                                       w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1), &
+                                       w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2rholapl(1, 1), &
+                                       w%v2rhotau(1, 1), w%v2sigma2(1, 1), w%v2sigmalapl(1, 1), &
+                                       w%v2sigmatau(1, 1), w%v2lapl2(1, 1), w%v2lapltau(1, 1), w%v2tau2(1, 1))
+                   END IF
+                END SELECT
+             ELSE IF (is_gga) THEN
+                SELECT CASE (grad_deriv)
+                CASE (0)
+                   CALL libxc_gga_exc_wrapper(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%exc(1))
+                CASE (1)
+                   IF (no_exc) THEN
+                      CALL xc_f03_gga_vxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%vrho(1, 1), w%vsigma(1, 1))
+                      w%exc(1:nb) = 0.0_dp
+                   ELSE
+                      CALL libxc_gga_exc_vxc_wrapper(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
+                                              w%exc(1), w%vrho(1, 1), w%vsigma(1, 1))
+                  END IF
+               CASE (2)
+                  IF (no_exc) THEN
+                     CALL xc_f03_gga_vxc_fxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
+                                             w%vrho(1, 1), w%vsigma(1, 1), &
+                                             w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2sigma2(1, 1))
+                     w%exc(1:nb) = 0.0_dp
+                  ELSE
+                     CALL xc_f03_gga_exc_vxc_fxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
+                                                 w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), &
+                                                 w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2sigma2(1, 1))
+                  END IF
+               END SELECT
+             ELSE
+                SELECT CASE (grad_deriv)
+                CASE (0)
+                   CALL libxc_lda_exc_wrapper(w%func, np, w%rho(1, 1), w%exc(1))
+                CASE (1)
+                    CALL libxc_lda_exc_vxc_wrapper(w%func, np, w%rho(1, 1), w%exc(1), w%vrho(1, 1))
+               CASE (2)
+                  CALL xc_f03_lda_exc_vxc_fxc(w%func, np, w%rho(1, 1), &
+                                              w%exc(1), w%vrho(1, 1), w%v2rho2(1, 1))
+               CASE (3)
+                  CALL xc_f03_lda(w%func, np, w%rho(1, 1), &
+                                  w%exc(1), w%vrho(1, 1), w%v2rho2(1, 1), w%v3rho3(1, 1))
+               END SELECT
+            END IF
 
-         ! accumulate; each derivative is added by exactly one loop, selected by
-         ! the order requested and the family, not by a per-branch copy of the whole
-         ! block scaffolding
-         IF (grad_deriv >= 0) THEN
-            DO i = 1, nb
-               ii = i0 + i
-               e_0(ii) = e_0(ii) + sc*w%exc(i)*rho(ii)
-            END DO
-         END IF
-         IF (grad_deriv >= 1) THEN
-            DO i = 1, nb
-               ii = i0 + i
-               e_rho(ii) = e_rho(ii) + sc*w%vrho(1, i)
-            END DO
-            IF (is_gga) THEN
-               DO i = 1, nb
-                  ii = i0 + i
-                  e_ndrho(ii) = e_ndrho(ii) + sc*2.0_dp*w%vsigma(1, i)*norm_drho(ii)
-                  e_gamma(ii) = e_gamma(ii) + sc*w%vsigma(1, i)
-               END DO
-            END IF
-            IF (is_mgga) THEN
-               DO i = 1, nb
-                  ii = i0 + i
-                  e_tau(ii) = e_tau(ii) + sc*w%vtau(1, i)
-               END DO
-            END IF
-            IF (is_mgga .AND. has_laplace) THEN
-               DO i = 1, nb
-                  ii = i0 + i
-                  e_laplace_rho(ii) = e_laplace_rho(ii) + sc*w%vlapl(1, i)
-               END DO
-            END IF
-         END IF
-         IF (grad_deriv >= 2) THEN
-            DO i = 1, nb
-               ii = i0 + i
-               e_rho_rho(ii) = e_rho_rho(ii) + sc*w%v2rho2(1, i)
-            END DO
-            IF (is_gga) THEN
-               DO i = 1, nb
-                  ii = i0 + i
-                  e_ndrho_rho(ii) = e_ndrho_rho(ii) + sc*2.0_dp*w%v2rhosigma(1, i)*norm_drho(ii)
-                  e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii) + &
-                                      sc*2.0_dp*(2.0_dp*w%sigma(1, i)*w%v2sigma2(1, i) + w%vsigma(1, i))
-                  #:for descs, arr, idx in ugga_fill_2
-                     e_${'_'.join(descs)}$ (ii) = e_${'_'.join(descs)}$ (ii) + sc*w%${arr}$ (${idx}$, i)
-                  #:endfor
-               END DO
-            END IF
-            IF (is_mgga) THEN
-               DO i = 1, nb
-                  ii = i0 + i
-                  #:for descs, arr, idx in umgga_extra_2
-                     e_${'_'.join(descs)}$ (ii) = e_${'_'.join(descs)}$ (ii) + sc*w%${arr}$ (${idx}$, i)
-                  #:endfor
-                  e_rho_tau(ii) = e_rho_tau(ii) + sc*w%v2rhotau(1, i)
-                  e_ndrho_tau(ii) = e_ndrho_tau(ii) + sc*2.0_dp*w%v2sigmatau(1, i)*norm_drho(ii)
-                  e_tau_tau(ii) = e_tau_tau(ii) + sc*w%v2tau2(1, i)
-               END DO
-            END IF
-            IF (is_mgga .AND. has_laplace) THEN
-               DO i = 1, nb
-                  ii = i0 + i
-                  e_rho_laplace_rho(ii) = e_rho_laplace_rho(ii) + sc*w%v2rholapl(1, i)
-                  e_ndrho_laplace_rho(ii) = e_ndrho_laplace_rho(ii) + &
-                                            sc*2.0_dp*w%v2sigmalapl(1, i)*norm_drho(ii)
-                  e_laplace_rho_laplace_rho(ii) = e_laplace_rho_laplace_rho(ii) + sc*w%v2lapl2(1, i)
-                  e_laplace_rho_tau(ii) = e_laplace_rho_tau(ii) + sc*w%v2lapltau(1, i)
-               END DO
-            END IF
-         END IF
-         IF (grad_deriv >= 3) THEN
-            DO i = 1, nb
-               ii = i0 + i
-               e_rho_rho_rho(ii) = e_rho_rho_rho(ii) + sc*w%v3rho3(1, i)
-            END DO
-            IF (is_mgga) THEN
-               DO i = 1, nb
-                  ii = i0 + i
-                  #:for descs, arr, idx in umgga_fill_3
-                     e_${'_'.join(descs)}$ (ii) = e_${'_'.join(descs)}$ (ii) + sc*w%${arr}$ (${idx}$, i)
-                  #:endfor
-               END DO
-            ELSE IF (is_gga) THEN
+            ! accumulate; each derivative is added by exactly one loop, selected by
+            ! the order requested and the family, not by a per-branch copy of the whole
+            ! block scaffolding
+            IF (grad_deriv >= 0) THEN
                DO i = 1, nb
                   ii = i0 + i
                   #:for descs, arr, idx in ugga_fill_3
@@ -2758,28 +2644,244 @@ BLOCK
                e_ndrhob(ii) = e_ndrhob(ii) + &
                               sc*(2.0_dp*w%vsigma(3, i) - w%vsigma(2, i))*w%ndb(i)
             END DO
-         END IF
-         IF (is_mgga) THEN
-            DO i = 1, nb
-               ii = i0 + i
-               e_tau_a(ii) = e_tau_a(ii) + sc*w%vtau(1, i)
-               e_tau_b(ii) = e_tau_b(ii) + sc*w%vtau(2, i)
-            END DO
-         END IF
-         IF (is_mgga .AND. has_laplace) THEN
-            DO i = 1, nb
-               ii = i0 + i
-               e_laplace_rhoa(ii) = e_laplace_rhoa(ii) + sc*w%vlapl(1, i)
-               e_laplace_rhob(ii) = e_laplace_rhob(ii) + sc*w%vlapl(2, i)
-            END DO
-         END IF
-      END IF
-      IF (grad_deriv >= 2) THEN
-         DO i = 1, nb
-            ii = i0 + i
-            e_rhoa_rhoa(ii) = e_rhoa_rhoa(ii) + sc*w%v2rho2(1, i)
-            e_rhoa_rhob(ii) = e_rhoa_rhob(ii) + sc*w%v2rho2(2, i)
-            e_rhob_rhob(ii) = e_rhob_rhob(ii) + sc*w%v2rho2(3, i)
+            IF (is_gga) THEN
+               ! CP2K works with the norms of the gradients, LibXC with their contractions
+               DO i = 1, nb
+                  ii = i0 + i
+                  w%nda(i) = MAX(norm_drhoa(ii), EPSILON(0.0_dp)*1.e4_dp)
+                  w%ndb(i) = MAX(norm_drhob(ii), EPSILON(0.0_dp)*1.e4_dp)
+                  w%nd(i) = MAX(norm_drho(ii), EPSILON(0.0_dp)*1.e4_dp)
+                  w%sigma(1, i) = w%nda(i)**2
+                  w%sigma(3, i) = w%ndb(i)**2
+                  w%sigma(2, i) = 0.5_dp*(w%nd(i)**2 - w%sigma(1, i) - w%sigma(3, i))
+               END DO
+            END IF
+            IF (is_mgga) THEN
+               DO i = 1, nb
+                  ii = i0 + i
+                  w%lapl(1, i) = laplace_rhoa(ii)
+                  w%lapl(2, i) = laplace_rhob(ii)
+                  w%tau(1, i) = MAX(tau_a(ii), 0.0_dp)
+                  w%tau(2, i) = MAX(tau_b(ii), 0.0_dp)
+               END DO
+               ! screening on tau and the Fermi hole curvature bound, per spin channel;
+               ! see the spin-unpolarized routine. The tau test is on the sum of the two
+               ! channels, as the density test is.
+               DO i = 1, nb
+                  IF (w%tau(1, i) + w%tau(2, i) <= eps_tau) THEN
+                     w%rho(1, i) = 0.0_dp
+                     w%rho(2, i) = 0.0_dp
+                  END IF
+                  w%tau(1, i) = MAX(w%tau(1, i), &
+                                    w%sigma(1, i)/(8.0_dp*MAX(w%rho(1, i), eps_rho)))
+                  w%tau(2, i) = MAX(w%tau(2, i), &
+                                    w%sigma(3, i)/(8.0_dp*MAX(w%rho(2, i), eps_rho)))
+               END DO
+            END IF
+
+            ! one LibXC call for the whole block
+            IF (is_mgga) THEN
+               SELECT CASE (grad_deriv)
+               CASE (0)
+                  CALL libxc_mgga_exc_wrapper(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), w%exc(1))
+               CASE (1)
+                  IF (no_exc) THEN
+                     CALL xc_f03_mgga_vxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
+                                          w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1))
+                     w%exc(1:nb) = 0.0_dp
+                  ELSE
+                      CALL libxc_mgga_exc_vxc_wrapper(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
+                                               w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1))
+                  END IF
+               CASE (2)
+                  IF (no_exc) THEN
+                     CALL xc_f03_mgga_vxc_fxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
+                                              w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1), &
+                                              w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2rholapl(1, 1), &
+                                              w%v2rhotau(1, 1), w%v2sigma2(1, 1), w%v2sigmalapl(1, 1), &
+                                              w%v2sigmatau(1, 1), w%v2lapl2(1, 1), w%v2lapltau(1, 1), w%v2tau2(1, 1))
+                     w%exc(1:nb) = 0.0_dp
+                  ELSE
+                     CALL xc_f03_mgga(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
+                                      w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1), &
+                                      w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2rholapl(1, 1), &
+                                      w%v2rhotau(1, 1), w%v2sigma2(1, 1), w%v2sigmalapl(1, 1), &
+                                      w%v2sigmatau(1, 1), w%v2lapl2(1, 1), w%v2lapltau(1, 1), w%v2tau2(1, 1))
+                  END IF
+               END SELECT
+             ELSE IF (is_gga) THEN
+                SELECT CASE (grad_deriv)
+                CASE (0)
+                   CALL libxc_gga_exc_wrapper(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%exc(1))
+                CASE (1)
+                   IF (no_exc) THEN
+                      CALL xc_f03_gga_vxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%vrho(1, 1), w%vsigma(1, 1))
+                      w%exc(1:nb) = 0.0_dp
+                   ELSE
+                      CALL libxc_gga_exc_vxc_wrapper(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
+                                              w%exc(1), w%vrho(1, 1), w%vsigma(1, 1))
+                  END IF
+               CASE (2)
+                  IF (no_exc) THEN
+                     CALL xc_f03_gga_vxc_fxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
+                                             w%vrho(1, 1), w%vsigma(1, 1), &
+                                             w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2sigma2(1, 1))
+                     w%exc(1:nb) = 0.0_dp
+                  ELSE
+                     CALL xc_f03_gga_exc_vxc_fxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
+                                                 w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), &
+                                                 w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2sigma2(1, 1))
+                  END IF
+               END SELECT
+            ELSE
+               SELECT CASE (grad_deriv)
+               CASE (0)
+                  CALL xc_f03_lda_exc(w%func, np, w%rho(1, 1), w%exc(1))
+               CASE (1)
+                  CALL xc_f03_lda_exc_vxc(w%func, np, w%rho(1, 1), w%exc(1), w%vrho(1, 1))
+               CASE (2)
+                  CALL xc_f03_lda_exc_vxc_fxc(w%func, np, w%rho(1, 1), &
+                                              w%exc(1), w%vrho(1, 1), w%v2rho2(1, 1))
+               CASE (3)
+                  CALL xc_f03_lda(w%func, np, w%rho(1, 1), &
+                                  w%exc(1), w%vrho(1, 1), w%v2rho2(1, 1), w%v3rho3(1, 1))
+               END SELECT
+            END IF
+
+            ! accumulate; one loop per group of derivatives, selected by the order
+            ! requested and the family
+            IF (grad_deriv >= 0) THEN
+               DO i = 1, nb
+                  ii = i0 + i
+                  e_0(ii) = e_0(ii) + sc*w%exc(i)*(w%rho(1, i) + w%rho(2, i))
+               END DO
+            END IF
+            IF (grad_deriv >= 1) THEN
+               DO i = 1, nb
+                  ii = i0 + i
+                  e_rhoa(ii) = e_rhoa(ii) + sc*w%vrho(1, i)
+                  e_rhob(ii) = e_rhob(ii) + sc*w%vrho(2, i)
+               END DO
+               IF (is_gga) THEN
+                  DO i = 1, nb
+                     ii = i0 + i
+                     e_ndrho(ii) = e_ndrho(ii) + sc*w%vsigma(2, i)*w%nd(i)
+                     e_ndrhoa(ii) = e_ndrhoa(ii) + &
+                                    sc*(2.0_dp*w%vsigma(1, i) - w%vsigma(2, i))*w%nda(i)
+                     e_ndrhob(ii) = e_ndrhob(ii) + &
+                                    sc*(2.0_dp*w%vsigma(3, i) - w%vsigma(2, i))*w%ndb(i)
+                  END DO
+               END IF
+               IF (is_mgga) THEN
+                  DO i = 1, nb
+                     ii = i0 + i
+                     e_tau_a(ii) = e_tau_a(ii) + sc*w%vtau(1, i)
+                     e_tau_b(ii) = e_tau_b(ii) + sc*w%vtau(2, i)
+                  END DO
+               END IF
+               IF (is_mgga .AND. has_laplace) THEN
+                  DO i = 1, nb
+                     ii = i0 + i
+                     e_laplace_rhoa(ii) = e_laplace_rhoa(ii) + sc*w%vlapl(1, i)
+                     e_laplace_rhob(ii) = e_laplace_rhob(ii) + sc*w%vlapl(2, i)
+                  END DO
+               END IF
+            END IF
+            IF (grad_deriv >= 2) THEN
+               DO i = 1, nb
+                  ii = i0 + i
+                  e_rhoa_rhoa(ii) = e_rhoa_rhoa(ii) + sc*w%v2rho2(1, i)
+                  e_rhoa_rhob(ii) = e_rhoa_rhob(ii) + sc*w%v2rho2(2, i)
+                  e_rhob_rhob(ii) = e_rhob_rhob(ii) + sc*w%v2rho2(3, i)
+               END DO
+               IF (is_gga) THEN
+                  DO i = 1, nb
+                     ii = i0 + i
+                     e_ndrho_rhoa(ii) = e_ndrho_rhoa(ii) + sc*w%v2rhosigma(2, i)*w%nd(i)
+                     e_ndrho_rhob(ii) = e_ndrho_rhob(ii) + sc*w%v2rhosigma(5, i)*w%nd(i)
+                     e_ndrhoa_rhoa(ii) = e_ndrhoa_rhoa(ii) + &
+                                         sc*(2.0_dp*w%v2rhosigma(1, i) - w%v2rhosigma(2, i))*w%nda(i)
+                     e_ndrhoa_rhob(ii) = e_ndrhoa_rhob(ii) + &
+                                         sc*(2.0_dp*w%v2rhosigma(4, i) - w%v2rhosigma(5, i))*w%nda(i)
+                     e_ndrhob_rhoa(ii) = e_ndrhob_rhoa(ii) + &
+                                         sc*(2.0_dp*w%v2rhosigma(3, i) - w%v2rhosigma(2, i))*w%ndb(i)
+                     e_ndrhob_rhob(ii) = e_ndrhob_rhob(ii) + &
+                                         sc*(2.0_dp*w%v2rhosigma(6, i) - w%v2rhosigma(5, i))*w%ndb(i)
+                     e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii) + &
+                                         sc*(w%vsigma(2, i) + w%nd(i)**2*w%v2sigma2(4, i))
+                     e_ndrho_ndrhoa(ii) = e_ndrho_ndrhoa(ii) + &
+                                          sc*(2.0_dp*w%v2sigma2(2, i) - w%v2sigma2(4, i))*w%nd(i)*w%nda(i)
+                     e_ndrho_ndrhob(ii) = e_ndrho_ndrhob(ii) + &
+                                          sc*(2.0_dp*w%v2sigma2(5, i) - w%v2sigma2(4, i))*w%nd(i)*w%ndb(i)
+                     e_ndrhoa_ndrhoa(ii) = e_ndrhoa_ndrhoa(ii) + &
+                                           sc*(2.0_dp*w%vsigma(1, i) - w%vsigma(2, i) + w%nda(i)**2*( &
+                                               4.0_dp*w%v2sigma2(1, i) - 4.0_dp*w%v2sigma2(2, i) + w%v2sigma2(4, i)))
+                     e_ndrhoa_ndrhob(ii) = e_ndrhoa_ndrhob(ii) + &
+                                           sc*(4.0_dp*w%v2sigma2(3, i) - 2.0_dp*w%v2sigma2(2, i) - &
+                                               2.0_dp*w%v2sigma2(5, i) + w%v2sigma2(4, i))*w%nda(i)*w%ndb(i)
+                     e_ndrhob_ndrhob(ii) = e_ndrhob_ndrhob(ii) + &
+                                           sc*(2.0_dp*w%vsigma(3, i) - w%vsigma(2, i) + w%ndb(i)**2*( &
+                                               4.0_dp*w%v2sigma2(6, i) - 4.0_dp*w%v2sigma2(5, i) + w%v2sigma2(4, i)))
+                  END DO
+               END IF
+               IF (is_mgga) THEN
+                  DO i = 1, nb
+                     ii = i0 + i
+                     e_rhoa_tau_a(ii) = e_rhoa_tau_a(ii) + sc*w%v2rhotau(1, i)
+                     e_rhoa_tau_b(ii) = e_rhoa_tau_b(ii) + sc*w%v2rhotau(2, i)
+                     e_rhob_tau_a(ii) = e_rhob_tau_a(ii) + sc*w%v2rhotau(3, i)
+                     e_rhob_tau_b(ii) = e_rhob_tau_b(ii) + sc*w%v2rhotau(4, i)
+                     e_ndrho_tau_a(ii) = e_ndrho_tau_a(ii) + sc*w%v2sigmatau(3, i)*w%nd(i)
+                     e_ndrho_tau_b(ii) = e_ndrho_tau_b(ii) + sc*w%v2sigmatau(4, i)*w%nd(i)
+                     e_ndrhoa_tau_a(ii) = e_ndrhoa_tau_a(ii) + &
+                                          sc*(2.0_dp*w%v2sigmatau(1, i) - w%v2sigmatau(3, i))*w%nda(i)
+                     e_ndrhoa_tau_b(ii) = e_ndrhoa_tau_b(ii) + &
+                                          sc*(2.0_dp*w%v2sigmatau(2, i) - w%v2sigmatau(4, i))*w%nda(i)
+                     e_ndrhob_tau_a(ii) = e_ndrhob_tau_a(ii) + &
+                                          sc*(2.0_dp*w%v2sigmatau(5, i) - w%v2sigmatau(3, i))*w%ndb(i)
+                     e_ndrhob_tau_b(ii) = e_ndrhob_tau_b(ii) + &
+                                          sc*(2.0_dp*w%v2sigmatau(6, i) - w%v2sigmatau(4, i))*w%ndb(i)
+                     e_tau_a_tau_a(ii) = e_tau_a_tau_a(ii) + sc*w%v2tau2(1, i)
+                     e_tau_a_tau_b(ii) = e_tau_a_tau_b(ii) + sc*w%v2tau2(2, i)
+                     e_tau_b_tau_b(ii) = e_tau_b_tau_b(ii) + sc*w%v2tau2(3, i)
+                  END DO
+               END IF
+               IF (is_mgga .AND. has_laplace) THEN
+                  DO i = 1, nb
+                     ii = i0 + i
+                     e_rhoa_laplace_rhoa(ii) = e_rhoa_laplace_rhoa(ii) + sc*w%v2rholapl(1, i)
+                     e_rhoa_laplace_rhob(ii) = e_rhoa_laplace_rhob(ii) + sc*w%v2rholapl(2, i)
+                     e_rhob_laplace_rhoa(ii) = e_rhob_laplace_rhoa(ii) + sc*w%v2rholapl(3, i)
+                     e_rhob_laplace_rhob(ii) = e_rhob_laplace_rhob(ii) + sc*w%v2rholapl(4, i)
+                     e_ndrho_laplace_rhoa(ii) = e_ndrho_laplace_rhoa(ii) + sc*w%v2sigmalapl(3, i)*w%nd(i)
+                     e_ndrho_laplace_rhob(ii) = e_ndrho_laplace_rhob(ii) + sc*w%v2sigmalapl(4, i)*w%nd(i)
+                     e_ndrhoa_laplace_rhoa(ii) = e_ndrhoa_laplace_rhoa(ii) + &
+                                                 sc*(2.0_dp*w%v2sigmalapl(1, i) - w%v2sigmalapl(3, i))*w%nda(i)
+                     e_ndrhoa_laplace_rhob(ii) = e_ndrhoa_laplace_rhob(ii) + &
+                                                 sc*(2.0_dp*w%v2sigmalapl(2, i) - w%v2sigmalapl(4, i))*w%nda(i)
+                     e_ndrhob_laplace_rhoa(ii) = e_ndrhob_laplace_rhoa(ii) + &
+                                                 sc*(2.0_dp*w%v2sigmalapl(5, i) - w%v2sigmalapl(3, i))*w%ndb(i)
+                     e_ndrhob_laplace_rhob(ii) = e_ndrhob_laplace_rhob(ii) + &
+                                                 sc*(2.0_dp*w%v2sigmalapl(6, i) - w%v2sigmalapl(4, i))*w%ndb(i)
+                     e_laplace_rhoa_laplace_rhoa(ii) = e_laplace_rhoa_laplace_rhoa(ii) + sc*w%v2lapl2(1, i)
+                     e_laplace_rhoa_laplace_rhob(ii) = e_laplace_rhoa_laplace_rhob(ii) + sc*w%v2lapl2(2, i)
+                     e_laplace_rhob_laplace_rhob(ii) = e_laplace_rhob_laplace_rhob(ii) + sc*w%v2lapl2(3, i)
+                     e_laplace_rhoa_tau_a(ii) = e_laplace_rhoa_tau_a(ii) + sc*w%v2lapltau(1, i)
+                     e_laplace_rhoa_tau_b(ii) = e_laplace_rhoa_tau_b(ii) + sc*w%v2lapltau(2, i)
+                     e_laplace_rhob_tau_a(ii) = e_laplace_rhob_tau_a(ii) + sc*w%v2lapltau(3, i)
+                     e_laplace_rhob_tau_b(ii) = e_laplace_rhob_tau_b(ii) + sc*w%v2lapltau(4, i)
+                  END DO
+               END IF
+            END IF
+            IF (grad_deriv >= 3) THEN
+               DO i = 1, nb
+                  ii = i0 + i
+                  e_rhoa_rhoa_rhoa(ii) = e_rhoa_rhoa_rhoa(ii) + sc*w%v3rho3(1, i)
+                  e_rhoa_rhoa_rhob(ii) = e_rhoa_rhoa_rhob(ii) + sc*w%v3rho3(2, i)
+                  e_rhoa_rhob_rhob(ii) = e_rhoa_rhob_rhob(ii) + sc*w%v3rho3(3, i)
+                  e_rhob_rhob_rhob(ii) = e_rhob_rhob_rhob(ii) + sc*w%v3rho3(4, i)
+               END DO
+            END IF
          END DO
          IF (is_gga) THEN
             DO i = 1, nb
