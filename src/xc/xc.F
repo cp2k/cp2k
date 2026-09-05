@@ -2834,7 +2834,7 @@ CONTAINS
                      END DO
                   END IF
 
-!$OMP             PARALLEL DO DEFAULT(SHARED) COLLAPSE(3) &
+!$OMP             PARALLEL DO DEFAULT(NONE) COLLAPSE(3) &
 !$OMP                         PRIVATE(k, j, i) &
 #:for v in mgga_vars
 !$OMP                         PRIVATE(mp_${v}$, q_${v}$) &
@@ -2842,7 +2842,12 @@ CONTAINS
 #:for K in mgga_vars[2:5]
 !$OMP                         PRIVATE(mpp_${K}$, nB_${K}$) &
 #:endfor
-!$OMP                         SHARED(bo)
+#:for descs, arr, idx in mgga_deriv_2 + mgga_deriv_3
+!$OMP                         SHARED(n_${'_'.join(descs)}$) &
+#:endfor
+!$OMP                         SHARED(bo,rho1a,rho1b,gaa1,gab1,gbb1,gaa11,gab11,gbb11, &
+!$OMP                                tau_f,tau1a,tau1b,laplace_f,laplace1a,laplace1b, &
+!$OMP                                v_xc,v_xc_tau,v_laplace,v_drho_r,drhoa,drhob,drho1a,drho1b)
                   DO k = bo(1, 3), bo(2, 3)
                      DO j = bo(1, 2), bo(2, 2)
                         DO i = bo(1, 1), bo(2, 1)
@@ -2945,7 +2950,11 @@ CONTAINS
                   CPASSERT(ASSOCIATED(deriv_att))
                   CALL xc_derivative_get(deriv_att, deriv_data=g_${'_'.join(descs)}$)
 #:endfor
-!$OMP             PARALLEL DO PRIVATE(k,j,i,p_rhoa,p_rhob,u_a,u_b) DEFAULT(SHARED) COLLAPSE(3)
+!$OMP             PARALLEL DO PRIVATE(k,j,i,p_rhoa,p_rhob,u_a,u_b) DEFAULT(NONE) COLLAPSE(3) &
+#:for descs, arr, idx in rho3_entries
+!$OMP                         SHARED(g_${'_'.join(descs)}$) &
+#:endfor
+!$OMP                         SHARED(bo,rho1a,rho1b,v_xc)
                   DO k = bo(1, 3), bo(2, 3)
                      DO j = bo(1, 2), bo(2, 2)
                         DO i = bo(1, 1), bo(2, 1)
@@ -2994,7 +3003,12 @@ CONTAINS
 !$OMP          PARALLEL DO PRIVATE(k,j,i,p_rhoa,p_rhob,p_gamma_aa,p_gamma_ab,p_gamma_bb, &
 !$OMP                              pp_gamma_aa,pp_gamma_ab,pp_gamma_bb,u_a,u_b, &
 !$OMP                              A_gamma_aa,A_gamma_ab,A_gamma_bb, &
-!$OMP                              B_gamma_aa,B_gamma_ab,B_gamma_bb) DEFAULT(SHARED) COLLAPSE(3)
+!$OMP                              B_gamma_aa,B_gamma_ab,B_gamma_bb) DEFAULT(NONE) COLLAPSE(3) &
+#:for descs, arr, idx in gamma_deriv_2 + gamma_deriv_3
+!$OMP                      SHARED(g_${'_'.join(descs)}$) &
+#:endfor
+!$OMP                      SHARED(bo,rho1a,rho1b,gaa1,gab1,gbb1,gaa11,gab11,gbb11, &
+!$OMP                             v_xc,v_drho_r,drhoa,drhob,drho1a,drho1b)
                DO k = bo(1, 3), bo(2, 3)
                   DO j = bo(1, 2), bo(2, 2)
                      DO i = bo(1, 1), bo(2, 1)
@@ -3622,7 +3636,12 @@ CONTAINS
             END IF
 
 !$OMP       PARALLEL DO PRIVATE(k,j,i,mp_rho,mp_gamma,mp_laplace_rho,mp_tau,mpp_gamma, &
-!$OMP                           m_rho,m_gamma,m_laplace_rho,m_tau,m_B) DEFAULT(SHARED) COLLAPSE(3)
+!$OMP                           m_rho,m_gamma,m_laplace_rho,m_tau,m_B) DEFAULT(NONE) COLLAPSE(3) &
+#:for descs, arr, idx in umgga_deriv_2 + umgga_deriv_3
+!$OMP                   SHARED(m_${'_'.join(descs)}$) &
+#:endfor
+!$OMP                   SHARED(bo,rho1,dr1dr,dr1dr1,tau_f,tau1,laplace_f,laplace1, &
+!$OMP                          v_xc,v_xc_tau,v_laplace,v_drho_r,drho,drho1)
             DO k = bo(1, 3), bo(2, 3)
                DO j = bo(1, 2), bo(2, 2)
                   DO i = bo(1, 1), bo(2, 1)
