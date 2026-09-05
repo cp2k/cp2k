@@ -126,7 +126,8 @@ MODULE qs_scf_diagonalization
    USE qs_kpoint_operators,             ONLY: &
         kpoint_operator_cfm_to_mo, kpoint_operator_context_create, &
         kpoint_operator_context_release, kpoint_operator_context_type, kpoint_operator_finish, &
-        kpoint_operator_get, kpoint_operator_start, kpoint_slot_ks, kpoint_slot_s, kpoint_slot_t
+        kpoint_operator_get, kpoint_operator_start, kpoint_slot_ks, kpoint_slot_s, kpoint_slot_t, &
+        kpoint_spin_free
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
@@ -943,10 +944,10 @@ CONTAINS
                CALL kpoint_operator_start(op_ctx, ikp, ispin, effective_ks, kpoint_slot_ks, &
                                           ks_grid(ispin), use_grid_fft)
                CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_s, kpoint_slot_s, s_grid, &
-                                          use_grid_fft, ispin_matrix=1)
+                                          use_grid_fft, ispin_matrix=kpoint_spin_free)
                IF (my_store_ot_kinetic) THEN
                   CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_t, kpoint_slot_t, &
-                                             use_grid=.FALSE., ispin_matrix=1)
+                                             use_grid=.FALSE., ispin_matrix=kpoint_spin_free)
                END IF
             END IF
          END DO
@@ -1823,7 +1824,7 @@ CONTAINS
                ! transfer to the k-point group
                CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_ks, kpoint_slot_ks, use_grid=.FALSE.)
                CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_s, kpoint_slot_s, &
-                                          use_grid=.FALSE., ispin_matrix=1)
+                                          use_grid=.FALSE., ispin_matrix=kpoint_spin_free)
             END IF
          END DO
       END DO
@@ -3347,8 +3348,8 @@ CONTAINS
          ! Every k-point group executes the same sequence of global transforms.
          ! Only the group owning this local_kpoint receives the redistributed
          ! matrix; the others participate through the dummy destination.
-         CALL kpoint_operator_get(op_ctx, local_kpoint, 1, matrix_s_kp, kpoint_slot_s, &
-                                  cmat=csmat_base, ispin_matrix=1)
+         CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_s_kp, &
+                                  kpoint_slot_s, cmat=csmat_base, ispin_matrix=kpoint_spin_free)
 
          DO ispin = 1, nspin
             CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, kpoint_slot_ks, &
@@ -3535,16 +3536,18 @@ CONTAINS
          ! S(k) is spin independent. Build it with the same global-group
          ! redistribution protocol as the Davidson operator itself, then make
          ! a group-local block-cyclic DBCSR pair for the preconditioner makers.
-         CALL kpoint_operator_get(op_ctx, local_kpoint, 1, matrix_s_kp, kpoint_slot_s, &
-                                  fm_re=fmlocal_re, fm_im=fmlocal_im, ispin_matrix=1)
+         CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_s_kp, &
+                                  kpoint_slot_s, fm_re=fmlocal_re, fm_im=fmlocal_im, &
+                                  ispin_matrix=kpoint_spin_free)
          CALL dbcsr_init_p(matrix_s_re)
          CALL dbcsr_init_p(matrix_s_im)
          CALL copy_fm_to_dbcsr_bc(fmlocal_re, matrix_s_re)
          CALL copy_fm_to_dbcsr_bc(fmlocal_im, matrix_s_im)
 
          IF (prec_type == ot_precond_full_kinetic) THEN
-            CALL kpoint_operator_get(op_ctx, local_kpoint, 1, matrix_t_kp, kpoint_slot_t, &
-                                     fm_re=fmlocal_re, fm_im=fmlocal_im, ispin_matrix=1)
+            CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_t_kp, &
+                                     kpoint_slot_t, fm_re=fmlocal_re, fm_im=fmlocal_im, &
+                                     ispin_matrix=kpoint_spin_free)
             CALL dbcsr_init_p(matrix_t_re)
             CALL dbcsr_init_p(matrix_t_im)
             CALL copy_fm_to_dbcsr_bc(fmlocal_re, matrix_t_re)
@@ -3722,7 +3725,8 @@ CONTAINS
          ELSE
             ! complex wavefunctions: assemble S and start its transfer
             ! to the k-point group
-            CALL kpoint_operator_start(op_ctx, ikp, 1, matrix_s, kpoint_slot_s, use_grid=.FALSE.)
+            CALL kpoint_operator_start(op_ctx, ikp, kpoint_spin_free, matrix_s, kpoint_slot_s, &
+                                       use_grid=.FALSE.)
          END IF
       END DO
 
@@ -3740,7 +3744,7 @@ CONTAINS
                END IF
             END DO
          ELSE
-            CALL kpoint_operator_finish(op_ctx, ikp, 1, kpoint_slot_s, csmat)
+            CALL kpoint_operator_finish(op_ctx, ikp, kpoint_spin_free, kpoint_slot_s, csmat)
          END IF
 
          ! Each kpoint group has now information on a kpoint to be diagonalized
