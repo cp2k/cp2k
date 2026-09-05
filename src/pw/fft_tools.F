@@ -3256,7 +3256,7 @@ CONTAINS
                                        fft_scratch_new%fft_scratch%p4buf, fft_scratch_new%fft_scratch%p3buf)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(6), BWFFT, .FALSE., .TRUE., &
                                        n(3), mx1*my1, n(3), mx1*my1, &
-                                       fft_scratch_new%fft_scratch%p3buf, fft_scratch_new%fft_scratch%p1buf)
+                                       fft_scratch_new%fft_scratch%p2buf, fft_scratch_new%fft_scratch%p1buf)
 
             CASE (400) ! serial FFT
                np = 0
