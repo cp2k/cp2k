@@ -53,13 +53,13 @@ MODULE input_cp2k_global
                                               GRID_BACKEND_GPU,&
                                               GRID_BACKEND_REF
    USE input_constants,                 ONLY: &
-        bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
-        do_atom, do_band, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_farming, &
-        do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, &
-        do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, energy_force_run, energy_run, &
-        fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, &
-        geo_opt_run, linear_response_run, mimic_run, mol_dyn_run, mon_car_run, mtlr_run, negf_run, &
-        none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
+         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
+         do_atom, do_band, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_farming, &
+         do_fft_fftw3, do_fft_sg, do_libxc_cpu, do_libxc_gpu, do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, &
+         do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, energy_force_run, energy_run, &
+         fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, &
+         geo_opt_run, linear_response_run, mimic_run, mol_dyn_run, mon_car_run, mtlr_run, negf_run, &
+         none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -97,9 +97,9 @@ CONTAINS
    SUBROUTINE create_global_section(section)
       TYPE(section_type), POINTER                        :: section
 
-      INTEGER                                            :: default_dgemm
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, sub_section
+      INTEGER                                            :: default_dgemm, default_libxc
+       TYPE(keyword_type), POINTER                        :: keyword
+       TYPE(section_type), POINTER                        :: print_key, sub_section
 
       NULLIFY (print_key)
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -186,10 +186,29 @@ CONTAINS
                           enum_i_vals=[do_dgemm_spla, do_dgemm_blas], &
                           enum_c_vals=s2a("SPLA", "BLAS"), &
                           enum_desc=s2a("SPLA library", "BLAS library"))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
+       CALL section_add_keyword(section, keyword)
+       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_CHECK_DIAG", &
+#if defined(__LIBXC)
+#if defined(__LIBXC_CUDA)
+       default_libxc = do_libxc_gpu
+#else
+       default_libxc = do_libxc_cpu
+#endif
+       CALL keyword_create(keyword, __LOCATION__, name="PREFERRED_LIBXC_LIBRARY", &
+                           description="Specifies the LIBXC library to be used. "// &
+                           "If CUDA version is available and not explicitly set, "// &
+                           "GPU is used by default for better performance.", &
+                           usage="PREFERRED_LIBXC_LIBRARY GPU", &
+                           default_i_val=default_libxc, &
+                           enum_i_vals=[do_libxc_cpu, do_libxc_gpu], &
+                           enum_c_vals=s2a("CPU", "GPU"), &
+                           enum_desc=s2a("CPU library", "GPU library"))
+       CALL section_add_keyword(section, keyword)
+       CALL keyword_release(keyword)
+#endif
+
+       CALL keyword_create(keyword, __LOCATION__, name="EPS_CHECK_DIAG", &
                           description="Check that the orthonormality of the eigenvectors after a diagonalization "// &
                           "fulfills the specified numerical accuracy. A negative threshold value disables the check.", &
                           usage="EPS_CHECK_DIAG 1.0E-14", &

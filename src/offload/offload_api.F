@@ -28,7 +28,8 @@ MODULE offload_api
    PUBLIC :: offload_get_device_count
    PUBLIC :: offload_set_chosen_device, offload_get_chosen_device, offload_activate_chosen_device
    PUBLIC :: offload_timeset, offload_timestop, offload_mem_info
-   PUBLIC :: offload_buffer_type, offload_create_buffer, offload_free_buffer
+    PUBLIC :: offload_buffer_type, offload_create_buffer, offload_free_buffer, &
+               offload_buffer_h2d, offload_buffer_d2h
    PUBLIC :: offload_malloc_pinned_mem, offload_free_pinned_mem
    PUBLIC :: offload_mempool_stats_print
 
@@ -363,11 +364,45 @@ CONTAINS
 !> \param output_unit used for output.
 !> \author Hans Pabst
 ! **************************************************************************************************
-   SUBROUTINE print_func(msg, msglen, output_unit) BIND(C, name="offload_api_print_func")
-      CHARACTER(KIND=C_CHAR), INTENT(IN)                 :: msg(*)
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: msglen, output_unit
+    SUBROUTINE print_func(msg, msglen, output_unit) BIND(C, name="offload_api_print_func")
+       CHARACTER(KIND=C_CHAR), INTENT(IN)                 :: msg(*)
+       INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: msglen, output_unit
 
-      IF (output_unit <= 0) RETURN ! Omit to print the message.
-      WRITE (output_unit, FMT="(100A)", ADVANCE="NO") msg(1:msglen)
-   END SUBROUTINE print_func
+       IF (output_unit <= 0) RETURN ! Omit to print the message.
+       WRITE (output_unit, FMT="(100A)", ADVANCE="NO") msg(1:msglen)
+    END SUBROUTINE print_func
+
+   ! GPU data transfer functions
+   SUBROUTINE offload_buffer_h2d(buffer, length)
+      TYPE(offload_buffer_type), INTENT(INOUT)           :: buffer
+      INTEGER, INTENT(IN)                                :: length
+
+      INTERFACE
+         SUBROUTINE offload_buffer_h2d_c(buffer, length) &
+            BIND(C, name="offload_buffer_h2d")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                            :: buffer
+            INTEGER(KIND=C_INT), VALUE                    :: length
+         END SUBROUTINE offload_buffer_h2d_c
+      END INTERFACE
+
+      CALL offload_buffer_h2d_c(buffer%c_ptr, length)
+   END SUBROUTINE offload_buffer_h2d
+
+   SUBROUTINE offload_buffer_d2h(buffer, length)
+      TYPE(offload_buffer_type), INTENT(INOUT)           :: buffer
+      INTEGER, INTENT(IN)                                :: length
+
+      INTERFACE
+         SUBROUTINE offload_buffer_d2h_c(buffer, length) &
+            BIND(C, name="offload_buffer_d2h")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                            :: buffer
+            INTEGER(KIND=C_INT), VALUE                    :: length
+         END SUBROUTINE offload_buffer_d2h_c
+      END INTERFACE
+
+      CALL offload_buffer_d2h_c(buffer%c_ptr, length)
+   END SUBROUTINE offload_buffer_d2h
+
 END MODULE offload_api

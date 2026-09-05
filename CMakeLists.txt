@@ -689,49 +689,76 @@ if(CP2K_USE_ELPA)
 endif()
 
 if(CP2K_USE_LIBXC)
-  # Find CPU version of Libxc
-  find_package(Libxc 7 REQUIRED)
-  set(LIBXC_CPU_FOUND TRUE)
-  set(LIBXC_CPU_INCLUDE_DIRS ${Libxc_INCLUDE_DIRS})
-  set(LIBXC_CPU_LIBRARIES ${Libxc_LIBRARIES})
-
-    # Check if CUDA-enabled Libxc is available
-    if(CP2K_USE_CUDA)
-      set(LIBXC_CUDA_FOUND FALSE)
-
-      # LIBXC_ROOT from environment (set by toolchain, already points to -cuda variant when ENABLE_CUDA is set)
-      # Try shared library first (preferred for CUDA), then fall back to static
-      if(EXISTS "$ENV{LIBXC_ROOT}/lib/libxcf03.so")
-        set(LIBXC_CUDA_LIBRARY_PATH "$ENV{LIBXC_ROOT}/lib/libxcf03.so")
-        set(LIBXC_CUDA_IS_SHARED TRUE)
-      elseif(EXISTS "$ENV{LIBXC_ROOT}/lib/libxcf03.a")
-        set(LIBXC_CUDA_LIBRARY_PATH "$ENV{LIBXC_ROOT}/lib/libxcf03.a")
-        set(LIBXC_CUDA_IS_SHARED FALSE)
-      endif()
-      if(LIBXC_CUDA_LIBRARY_PATH)
-        set(LIBXC_CUDA_FOUND TRUE)
-        set(CP2K_LIBXC_CUDA_SUPPORT ON CACHE BOOL "libxc CUDA support available")
-        message(STATUS "Found CUDA-enabled Libxc in $ENV{LIBXC_ROOT}/lib")
-        message(STATUS "CUDA Libxc library type: ${LIBXC_CUDA_LIBRARY_PATH}")
-        # Create imported target for CUDA-enabled Libxc
-        if(LIBXC_CUDA_IS_SHARED)
-          # Shared library - CUDA device link handled by Libxc during its build
-          add_library(Libxc::xc_cuda SHARED IMPORTED GLOBAL)
-          set_target_properties(Libxc::xc_cuda PROPERTIES
-            IMPORTED_LOCATION "${LIBXC_CUDA_LIBRARY_PATH}"
-            INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/")
-        else()
-          # Static library - need special handling for fatbin symbols
-          add_library(Libxc::xc_cuda STATIC IMPORTED GLOBAL)
-          set_target_properties(Libxc::xc_cuda PROPERTIES
-            IMPORTED_LOCATION "${LIBXC_CUDA_LIBRARY_PATH}"
-            INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/"
-            INTERFACE_LINK_OPTIONS "-Wl,--whole-archive;${LIBXC_CUDA_LIBRARY_PATH};-Wl,--no-whole-archive")
-        endif()
-      else()
-        message(FATAL_ERROR "CUDA-enabled Libxc not found in $ENV{LIBXC_ROOT}/lib. Please install CUDA-enabled Libxc or disable CUDA support.")
-      endif()
+  if(CP2K_USE_CUDA)
+    # CUDA-only libxc: use LIBXC_ROOT directly (libxc does not install CMake config files)
+    set(LIBXC_CUDA_FOUND FALSE)
+    if(EXISTS "$ENV{LIBXC_ROOT}/lib/libxcf03.so")
+      set(LIBXC_CUDA_LIBRARY_PATH "$ENV{LIBXC_ROOT}/lib/libxcf03.so")
+      set(LIBXC_CUDA_IS_SHARED TRUE)
+    elseif(EXISTS "$ENV{LIBXC_ROOT}/lib/libxcf03.a")
+      set(LIBXC_CUDA_LIBRARY_PATH "$ENV{LIBXC_ROOT}/lib/libxcf03.a")
+      set(LIBXC_CUDA_IS_SHARED FALSE)
     endif()
+    if(LIBXC_CUDA_LIBRARY_PATH)
+      set(LIBXC_CUDA_FOUND TRUE)
+      set(CP2K_LIBXC_CUDA_SUPPORT ON CACHE BOOL "libxc CUDA support available")
+      message(STATUS "Found CUDA Libxc in $ENV{LIBXC_ROOT}/lib")
+      message(STATUS "CUDA Libxc library type: ${LIBXC_CUDA_LIBRARY_PATH}")
+      if(LIBXC_CUDA_IS_SHARED)
+        add_library(Libxc::xc_cuda SHARED IMPORTED GLOBAL)
+        set_target_properties(Libxc::xc_cuda PROPERTIES
+          IMPORTED_LOCATION "${LIBXC_CUDA_LIBRARY_PATH}"
+          INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/")
+        # CUDA libxc serves as both CPU and CUDA backend; create Libxc::xcf03 alias
+        add_library(Libxc::xcf03 SHARED IMPORTED GLOBAL)
+        set_target_properties(Libxc::xcf03 PROPERTIES
+          IMPORTED_LOCATION "${LIBXC_CUDA_LIBRARY_PATH}"
+          INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/")
+      else()
+        add_library(Libxc::xc_cuda STATIC IMPORTED GLOBAL)
+        set_target_properties(Libxc::xc_cuda PROPERTIES
+          IMPORTED_LOCATION "${LIBXC_CUDA_LIBRARY_PATH}"
+          INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/"
+          INTERFACE_LINK_OPTIONS "-Wl,--whole-archive;${LIBXC_CUDA_LIBRARY_PATH};-Wl,--no-whole-archive")
+        add_library(Libxc::xcf03 STATIC IMPORTED GLOBAL)
+        set_target_properties(Libxc::xcf03 PROPERTIES
+          IMPORTED_LOCATION "${LIBXC_CUDA_LIBRARY_PATH}"
+          INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/"
+          INTERFACE_LINK_OPTIONS "-Wl,--whole-archive;${LIBXC_CUDA_LIBRARY_PATH};-Wl,--no-whole-archive")
+      endif()
+      set(LIBXC_CPU_INCLUDE_DIRS "$ENV{LIBXC_ROOT}/include/")
+      set(LIBXC_CPU_LIBRARIES "${LIBXC_CUDA_LIBRARY_PATH}")
+      set(LIBXC_CPU_FOUND TRUE)
+    else()
+      message(FATAL_ERROR "CUDA Libxc not found in $ENV{LIBXC_ROOT}/lib. Install with --enable-cuda=yes in the toolchain.")
+    endif()
+  else()
+    # CPU-only libxc: use LIBXC_ROOT directly
+    if(EXISTS "$ENV{LIBXC_ROOT}/lib/libxcf03.a")
+      set(LIBXC_CPU_LIBRARY_PATH "$ENV{LIBXC_ROOT}/lib/libxcf03.a")
+      add_library(Libxc::xcf03 STATIC IMPORTED GLOBAL)
+      set_target_properties(Libxc::xcf03 PROPERTIES
+        IMPORTED_LOCATION "${LIBXC_CPU_LIBRARY_PATH}"
+        INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/"
+        INTERFACE_LINK_OPTIONS "-Wl,--whole-archive;${LIBXC_CPU_LIBRARY_PATH};-Wl,--no-whole-archive")
+      set(LIBXC_CPU_INCLUDE_DIRS "$ENV{LIBXC_ROOT}/include/")
+      set(LIBXC_CPU_LIBRARIES "${LIBXC_CPU_LIBRARY_PATH}")
+      set(LIBXC_CPU_FOUND TRUE)
+    elseif(EXISTS "$ENV{LIBXC_ROOT}/lib/libxcf03.so")
+      set(LIBXC_CPU_LIBRARY_PATH "$ENV{LIBXC_ROOT}/lib/libxcf03.so")
+      add_library(Libxc::xcf03 SHARED IMPORTED GLOBAL)
+      set_target_properties(Libxc::xcf03 PROPERTIES
+        IMPORTED_LOCATION "${LIBXC_CPU_LIBRARY_PATH}"
+        INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/")
+      set(LIBXC_CPU_INCLUDE_DIRS "$ENV{LIBXC_ROOT}/include/")
+      set(LIBXC_CPU_LIBRARIES "${LIBXC_CPU_LIBRARY_PATH}")
+      set(LIBXC_CPU_FOUND TRUE)
+    endif()
+    if(NOT LIBXC_CPU_FOUND)
+      message(FATAL_ERROR "CPU Libxc not found in $ENV{LIBXC_ROOT}/lib. Install with the toolchain.")
+    endif()
+    message(STATUS "Found CPU Libxc in $ENV{LIBXC_ROOT}/lib")
+  endif()
 endif()
 
 if(CP2K_USE_GAUXC)
