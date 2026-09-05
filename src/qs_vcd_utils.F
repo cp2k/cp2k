@@ -397,11 +397,7 @@ CONTAINS
 
       CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, dft_control%qs_control%eps_ppnl, &
                             particle_set, ref_point=[0._dp, 0._dp, 0._dp], cell=cell, &
-                            matrix_r_rxvr=vcd_env%matrix_r_rxvr)
-
-      CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, dft_control%qs_control%eps_ppnl, &
-                            particle_set, ref_point=[0._dp, 0._dp, 0._dp], cell=cell, &
-                            matrix_rxvr_r=vcd_env%matrix_rxvr_r)
+                            matrix_r_rxvr=vcd_env%matrix_r_rxvr, matrix_rxvr_r=vcd_env%matrix_rxvr_r)
 
       ! Done with NVP matrices
 
