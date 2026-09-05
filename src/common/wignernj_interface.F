@@ -25,6 +25,11 @@
 !>          S(l, m<0) = ( Y(l,m) - (-1)^|m| Y(l,-m) )*i/sqrt(2)
 !>      which is the same convention as spherical_harmonics::y_lm, so no
 !>      additional phase is needed on either side.
+!>
+!>      The interfaces below bind to the cp2k_gaunt* wrappers of
+!>      src/wignernj_c_api.c rather than to libwignernj directly, because the
+!>      copy bundled in src/wignernj has its symbols namespaced while an
+!>      installed libwignernj exports the plain upstream names.
 !> \par History
 !>      09.2026 created [Susi Lehtola]
 !> \author Susi Lehtola
@@ -55,7 +60,7 @@ MODULE wignernj_interface
 !> \param tm3 twice the magnetic quantum number of the third harmonic
 !> \return integral of Y(l1,m1)*Y(l2,m2)*Y(l3,m3) over the unit sphere
 ! **************************************************************************************************
-      FUNCTION gaunt_c(tl1, tm1, tl2, tm2, tl3, tm3) BIND(C, name="gaunt")
+      FUNCTION gaunt_c(tl1, tm1, tl2, tm2, tl3, tm3) BIND(C, name="cp2k_gaunt")
          IMPORT :: C_DOUBLE, C_INT
          INTEGER(KIND=C_INT), VALUE                      :: tl1, tm1, tl2, tm2, tl3, tm3
          REAL(KIND=C_DOUBLE)                             :: gaunt_c
@@ -71,7 +76,7 @@ MODULE wignernj_interface
 !> \param tm3 twice the magnetic quantum number of the third harmonic
 !> \return integral of S(l1,m1)*S(l2,m2)*S(l3,m3) over the unit sphere
 ! **************************************************************************************************
-      FUNCTION gaunt_real_c(tl1, tm1, tl2, tm2, tl3, tm3) BIND(C, name="gaunt_real")
+      FUNCTION gaunt_real_c(tl1, tm1, tl2, tm2, tl3, tm3) BIND(C, name="cp2k_gaunt_real")
          IMPORT :: C_DOUBLE, C_INT
          INTEGER(KIND=C_INT), VALUE                      :: tl1, tm1, tl2, tm2, tl3, tm3
          REAL(KIND=C_DOUBLE)                             :: gaunt_real_c

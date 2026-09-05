@@ -1533,6 +1533,8 @@ list(
 
 list(APPEND CP2K_SRCS_F grpp/libgrpp.F)
 
+list(APPEND CP2K_SRCS_C wignernj_c_api.c)
+
 # Bundled copy of libwignernj, compiled into the CP2K library whenever CMake did
 # not find an installed one. The sources include each other with quoted
 # includes, so they need no extra include directory.
@@ -1942,6 +1944,9 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_LIBINT2}>:__LIBINT>
     $<$<BOOL:${CP2K_USE_LIBGINT}>:__LIBGINT>
     $<$<BOOL:${CP2K_USE_LIBFCI}>:__LIBFCI>
+    # The bundled libwignernj has its symbols namespaced, see
+    # src/wignernj/cp2k_wignernj_prefix.h
+    $<$<NOT:$<BOOL:${CP2K_LIBWIGNERNJ_FOUND}>>:__LIBWIGNERNJ_BUNDLED>
     $<$<BOOL:${CP2K_USE_LIBTORCH}>:__LIBTORCH>
     $<$<BOOL:${CP2K_USE_LIBTORCH_CUDA}>:__LIBTORCH_CUDA>
     $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
