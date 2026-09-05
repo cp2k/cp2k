@@ -115,4 +115,37 @@ double *offload_get_buffer_host_pointer(offload_buffer *buffer) {
   return buffer->host_buffer;
 }
 
+/*******************************************************************************
+ * \brief Returns a pointer to the device buffer (Fortran API).
+ * \author Ole Schuett
+ ******************************************************************************/
+double *offload_get_buffer_device_pointer(offload_buffer *buffer) {
+  assert(NULL != buffer);
+  return buffer->device_buffer;
+}
+
+/*******************************************************************************
+ * \brief Copy data from host to device (Fortran API).
+ * \author Ole Schuett
+ ******************************************************************************/
+void offload_buffer_h2d(offload_buffer *buffer, const int length) {
+  assert(NULL != buffer);
+  if (buffer->host_buffer != NULL && buffer->device_buffer != NULL) {
+    const size_t bytes = sizeof(double) * length;
+    offloadMemcpyAsyncHtoD(buffer->device_buffer, buffer->host_buffer, bytes, 0);
+  }
+}
+
+/*******************************************************************************
+ * \brief Copy data from device to host (Fortran API).
+ * \author Ole Schuett
+ ******************************************************************************/
+void offload_buffer_d2h(offload_buffer *buffer, const int length) {
+  assert(NULL != buffer);
+  if (buffer->host_buffer != NULL && buffer->device_buffer != NULL) {
+    const size_t bytes = sizeof(double) * length;
+    offloadMemcpyAsyncDtoH(buffer->host_buffer, buffer->device_buffer, bytes, 0);
+  }
+}
+
 // EOF
