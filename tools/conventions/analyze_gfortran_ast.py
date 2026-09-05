@@ -3,8 +3,12 @@
 # author: Ole Schuett
 
 import argparse
-import re
 import collections
+import io
+import re
+import sys
+from concurrent.futures import ProcessPoolExecutor
+from contextlib import redirect_stdout
 from os import path
 from typing import Dict, TextIO, List
 
@@ -205,6 +209,15 @@ def process_log_file(fhandle: TextIO) -> None:
 
 
 # ======================================================================================
+def process_file(fn: str) -> str:
+    assert fn.endswith(".ast")
+    output = io.StringIO()
+    with open(fn, encoding="utf8") as fhandle, redirect_stdout(output):
+        process_log_file(fhandle)
+    return output.getvalue()
+
+
+# ======================================================================================
 def parse_args(line: str) -> List[str]:
     assert line[0] == "("
     parentheses = 1
@@ -243,12 +256,27 @@ in the cp2k arch-file.
         nargs="+",
         help="files containing dumps of the AST",
     )
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=1,
+        help="number of worker processes (0: auto, default: 1)",
+    )
     args = parser.parse_args()
 
-    for fn in args.files:
-        assert fn.endswith(".ast")
+    if args.jobs < 0:
+        parser.error("--jobs must be non-negative")
 
-        with open(fn, encoding="utf8") as fhandle:
-            process_log_file(fhandle)
+    if args.jobs == 1 or len(args.files) == 1:
+        for fn in args.files:
+            assert fn.endswith(".ast")
+            with open(fn, encoding="utf8") as fhandle:
+                process_log_file(fhandle)
+    else:
+        max_workers = None if args.jobs == 0 else min(args.jobs, len(args.files))
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            for output in executor.map(process_file, args.files):
+                sys.stdout.write(output)
 
 # EOF

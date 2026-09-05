@@ -75,7 +75,7 @@ RUN ./build_cp2k.sh toolchain_conventions psmp
 
 # Run test for conventions.
 COPY ./tools/conventions ./tools/conventions
-RUN /bin/bash -ec "./tools/conventions/test_conventions.sh |& tee report.log"
+RUN /bin/bash -ec "./tools/conventions/test_conventions.sh -j $(nproc) |& tee report.log"
 
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
