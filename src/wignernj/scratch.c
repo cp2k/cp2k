@@ -5,10 +5,12 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+#include "cp2k_wignernj_prefix.h"
+
 /* SPDX-License-Identifier: BSD-3-Clause
  * Copyright (c) 2026 Susi Lehtola */
-#include "scratch.h"
 #include "primes.h"
+#include "scratch.h"
 #include "wignernj.h"
 #include "wignernj_tls.h"
 #include "xalloc.h"
