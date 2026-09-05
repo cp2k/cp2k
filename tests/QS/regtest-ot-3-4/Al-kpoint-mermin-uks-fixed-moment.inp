@@ -37,7 +37,7 @@
         ROTATION
       &END OT
       &PRINT
-        &RESTART OFF
+        &RESTART ON
         &END RESTART
       &END PRINT
       &SMEAR
