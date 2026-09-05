@@ -66,9 +66,9 @@ MODULE environment
    USE header,                          ONLY: cp2k_footer,&
                                               cp2k_header
    USE input_constants,                 ONLY: &
-        callgraph_all, callgraph_none, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_eip, &
-        do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_scalapack, do_sirius, do_test, &
-        energy_run, mol_dyn_run, none_run
+         callgraph_all, callgraph_none, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_eip, &
+         do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_scalapack, do_sirius, do_test, &
+         do_libxc_cpu, do_libxc_gpu, energy_run, mol_dyn_run, none_run
    USE input_cp2k_global,               ONLY: create_global_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -118,6 +118,7 @@ MODULE environment
                                               timings_report_print
    USE voronoi_interface,               ONLY: finalize_libvori
    USE xc_libxc,                        ONLY: libxc_release_workers
+   USE xc_libxc_wrap,                   ONLY: libxc_set_library
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 #include "./base/base_uses.f90"
@@ -518,7 +519,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: trace_routines
       INTEGER :: cpuid, cpuid_static, i_cholesky, i_dgemm, i_diag, i_fft, i_grid_backend, &
-         iforce_eval, method_name_id, n_rep_val, nforce_eval, node_count, num_threads, &
+         i_libxc, iforce_eval, method_name_id, n_rep_val, nforce_eval, node_count, num_threads, &
          output_unit, print_level, trace_max, unit_nr
       INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, Cached, Cached_avr, &
          Cached_max, Cached_min, MemFree, MemFree_avr, MemFree_max, MemFree_min, MemLikelyFree, &
@@ -547,6 +548,11 @@ CONTAINS
                                 l_val=globenv%direct_generalized_diagonalization)
       CALL section_vals_val_get(global_section, "PREFERRED_CHOLESKY_LIBRARY", i_val=i_cholesky)
       CALL section_vals_val_get(global_section, "PREFERRED_DGEMM_LIBRARY", i_val=i_dgemm)
+      CALL section_vals_val_get(global_section, "PREFERRED_LIBXC_LIBRARY", i_val=i_libxc)
+      CALL section_vals_val_get(global_section, "PREFERRED_INTEGRAL_LIBRARY%COULOMB_2C", &
+                                i_val=active_integral_library%coulomb2_library)
+      CALL section_vals_val_get(global_section, "PREFERRED_INTEGRAL_LIBRARY%COULOMB_3C", &
+                                i_val=active_integral_library%coulomb3_library)
       CALL section_vals_val_get(global_section, "EPS_CHECK_DIAG", r_val=globenv%eps_check_diag)
       CALL section_vals_val_get(global_section, "ENABLE_MPI_IO", l_val=flag)
       CALL cp_mpi_io_set(flag)
@@ -652,6 +658,18 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Unknown DGEMM library specified")
       END SELECT
+
+      SELECT CASE (i_libxc)
+      CASE (do_libxc_cpu)
+         globenv%default_libxc_library = "CPU"
+      CASE (do_libxc_gpu)
+         globenv%default_libxc_library = "GPU"
+      CASE DEFAULT
+         CPABORT("Unknown LIBXC library specified")
+      END SELECT
+
+      ! Set the libxc library based on input selection
+      CALL libxc_set_library(i_libxc)
 
       IF (globenv%run_type_id == 0) THEN
          SELECT CASE (globenv%prog_name_id)
@@ -818,7 +836,9 @@ CONTAINS
             start_section_label//"| Cholesky decomposition library", &
             ADJUSTR(globenv%cholesky_library(:40)), &
             start_section_label//"| DGEMM library", &
-            ADJUSTR(globenv%default_dgemm_library(:40))
+            ADJUSTR(globenv%default_dgemm_library(:40)), &
+            start_section_label//"| LIBXC library", &
+            ADJUSTR(globenv%default_libxc_library(:40))
 
          IF (globenv%diag_library == "ELPA") THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
