@@ -28,7 +28,8 @@ MODULE qs_kpoint_operators
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm,&
                                               fm_pool_give_back_fm
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
         cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
@@ -292,6 +293,9 @@ CONTAINS
       ctx%kpoints => kpoints
       CALL cp_fm_get_info(ao_ao_fm, matrix_struct=ctx%ao_ao_fmstruct)
       CPASSERT(ASSOCIATED(ctx%ao_ao_fmstruct))
+      ! The template must live on the transfer world. A template from
+      ! another communicator fails during the transfers, far from this call.
+      CPASSERT(ASSOCIATED(ctx%ao_ao_fmstruct%para_env, kpoints%blacs_env_all%para_env))
 
       CALL timestop(handle)
 
@@ -542,6 +546,9 @@ CONTAINS
       CPASSERT(ASSOCIATED(ctx%kpoints))
       CPASSERT(ALLOCATED(ctx%status))
       CPASSERT(ctx%status(ikp, ispin, slot) == kpoint_slot_in_flight)
+      ! The merge writes cmat in place. A foreign distribution would fail
+      ! inside the BLACS calls, far from this argument.
+      CPASSERT(cp_fm_struct_equivalent(cmat%matrix_struct, ctx%fmlocal%matrix_struct))
 
       kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
       kp_range = ctx%kpoints%kp_range
@@ -595,6 +602,9 @@ CONTAINS
       CPASSERT(ASSOCIATED(ctx%kpoints))
       CPASSERT(ALLOCATED(ctx%status))
       CPASSERT(ctx%status(ikp, ispin, slot) == kpoint_slot_in_flight)
+      ! cp_fm_to_fm copies between equivalent structures only.
+      CPASSERT(cp_fm_struct_equivalent(fm_re%matrix_struct, ctx%fmlocal%matrix_struct))
+      CPASSERT(cp_fm_struct_equivalent(fm_im%matrix_struct, ctx%fmlocal%matrix_struct))
 
       kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
       kp_range = ctx%kpoints%kp_range
