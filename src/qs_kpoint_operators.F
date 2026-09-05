@@ -11,6 +11,9 @@
 !>        The module splits this work into a start step and a finish step.
 !>        One process can start the MPI transfers of many operators before it finishes
 !>        any of them. The STANDARD k-point driver uses this order.
+!>        A context references its host kpoint environment without owning it,
+!>        so it must not outlive that environment. The module is not thread
+!>        safe. Give each thread its own context.
 !> \author MI
 ! **************************************************************************************************
 MODULE qs_kpoint_operators
@@ -60,8 +63,17 @@ MODULE qs_kpoint_operators
                                  kpoint_slot_s = 2, &
                                  kpoint_slot_t = 3
 
+   !> Row of rsmat that carries the spin-free operator image. S and T arrive
+   !> with a single spin row. Callers launch their one instance under this
+   !> spin key and read this row.
+   INTEGER, PARAMETER, PUBLIC :: kpoint_spin_free = 1
+
    !> Number of defined slots; grows only inside this module.
-   INTEGER, PARAMETER, PRIVATE :: kpoint_num_slots = 3
+   INTEGER, PARAMETER, PRIVATE :: kpoint_num_slots = kpoint_slot_t - kpoint_slot_ks + 1
+
+   !> Part indices of one transfer: its real and its imaginary half.
+   INTEGER, PARAMETER, PRIVATE :: kpoint_part_re = 1, &
+                                  kpoint_part_im = 2
 
    !> Instance states of one (k point, spin, slot) transfer.
    !> State transitions happen only inside the service routines.
@@ -92,8 +104,9 @@ MODULE qs_kpoint_operators
       TYPE(cp_fm_type), ALLOCATABLE                       :: fmlocal
       TYPE(cp_fm_type)                                    :: fmdummy
       ! Bookkeeping. info is keyed (local k point x group, spin, slot, part),
-      ! part 1 real and part 2 imaginary; status is keyed (local k point, spin,
-      ! slot) because start and finish treat all groups of one instance
+      ! part kpoint_part_re holding the real half and kpoint_part_im holding
+      ! the imaginary half. Status is keyed (local k point, spin, slot)
+      ! because start and finish treat all groups of one instance
       ! atomically. Allocated on first start.
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :, :, :) :: info
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)            :: status
@@ -114,7 +127,7 @@ CONTAINS
 !>        to fmdummy; clean such a start up with cp_fm_cleanup_copy_general and
 !>        do not finish it.
 !> \param rsmat real-space image matrices of the operator
-!> \param ispin spin component of rsmat (1 for spin-free matrices such as S)
+!> \param ispin spin component of rsmat (kpoint_spin_free for spin-free matrices such as S)
 !> \param ik global k-point index
 !> \param xkp coordinates of this k point
 !> \param cell_to_index mapping of cell indices to real-space index
@@ -375,9 +388,11 @@ CONTAINS
       END IF
 
       IF (.NOT. ALLOCATED(ctx%fmwork)) THEN
-         ALLOCATE (ctx%fmwork(2))
-         CALL cp_fm_create(ctx%fmwork(1), ctx%ao_ao_fmstruct, name="KPOINT-OPERATOR-WORK-RE")
-         CALL cp_fm_create(ctx%fmwork(2), ctx%ao_ao_fmstruct, name="KPOINT-OPERATOR-WORK-IM")
+         ALLOCATE (ctx%fmwork(kpoint_part_im))
+         CALL cp_fm_create(ctx%fmwork(kpoint_part_re), ctx%ao_ao_fmstruct, &
+                           name="KPOINT-OPERATOR-WORK-RE")
+         CALL cp_fm_create(ctx%fmwork(kpoint_part_im), ctx%ao_ao_fmstruct, &
+                           name="KPOINT-OPERATOR-WORK-IM")
       END IF
 
       IF (.NOT. ALLOCATED(ctx%fmlocal)) THEN
@@ -404,7 +419,7 @@ CONTAINS
          ctx%status = kpoint_slot_idle
          ! One copy_info per in-flight part: start takes it INTENT(OUT),
          ! so two concurrent starts cannot share one instance.
-         ALLOCATE (ctx%info(kplocal*ngrp, nspin, kpoint_num_slots, 2))
+         ALLOCATE (ctx%info(kplocal*ngrp, nspin, kpoint_num_slots, kpoint_part_im))
       END IF
 
       CALL timestop(handle)
@@ -417,16 +432,20 @@ CONTAINS
 !>        local; the walk over groups happens here, so no caller can express a
 !>        group-local loop. Finish every started instance with
 !>        kpoint_operator_finish.
+!>        Collective over the environment-wide communicator: every rank must
+!>        call the same sequence of service calls.
 !> \param ctx context created by kpoint_operator_context_create
 !> \param ikp local k-point index within kp_range
 !> \param ispin instance spin: keys the bookkeeping and defaults the matrix row
-!> \param rsmat real-space image matrices of the operator
+!> \param rsmat real-space image matrices of the operator, read at start
+!>        time only. The matching finish does not read them
 !> \param slot destination slot of the operator (one of kpoint_slot_ks/s/t);
 !>        the slot must be idle
 !> \param grid prepared reciprocal-grid cache of the caller
 !> \param use_grid extract from grid instead of a direct phase sum
-!> \param ispin_matrix row of rsmat to transform; spin-free operators such as
-!>        T pass 1 while still launching one instance per spin
+!> \param ispin_matrix row of rsmat to transform. Spin-free operators such
+!>        as T pass kpoint_spin_free while still launching one instance per
+!>        spin
 ! **************************************************************************************************
    SUBROUTINE kpoint_operator_start(ctx, ikp, ispin, rsmat, slot, grid, use_grid, ispin_matrix)
 
@@ -480,8 +499,10 @@ CONTAINS
          CALL kpoint_operator_raw_start(rsmat, ispin_mat, ik, ctx%kpoints%xkp(1:3, ik), &
                                         ctx%kpoints%cell_to_index, ctx%kpoints%sab_nl, grid, use_grid, &
                                         ctx%rmatrix, ctx%cmatrix, ctx%tmpmat, &
-                                        ctx%fmwork(1), ctx%fmwork(2), ctx%fmlocal, ctx%fmdummy, my_kpgrp, &
-                                        para_env, ctx%info(indx, ispin, slot, 1), ctx%info(indx, ispin, slot, 2))
+                                        ctx%fmwork(kpoint_part_re), ctx%fmwork(kpoint_part_im), &
+                                        ctx%fmlocal, ctx%fmdummy, my_kpgrp, para_env, &
+                                        ctx%info(indx, ispin, slot, kpoint_part_re), &
+                                        ctx%info(indx, ispin, slot, kpoint_part_im))
       END DO
       ctx%status(ikp, ispin, slot) = kpoint_slot_in_flight
 
@@ -494,11 +515,14 @@ CONTAINS
 !>        the k point, merge the received parts into cmat (real part first,
 !>        overwrite then add); on every group, reclaim the send side.
 !>        The slot returns to idle.
+!>        Collective over the environment-wide communicator: every rank must
+!>        call the same sequence of service calls.
 !> \param ctx context that started the instance
 !> \param ikp local k-point index of the start call
 !> \param ispin spin component of the start call
 !> \param slot slot of the start call; the slot must be in flight
-!> \param cmat caller-allocated complex matrix that receives the operator
+!> \param cmat caller-allocated complex matrix that receives the operator.
+!>        It must share the distribution of the k-point group
 ! **************************************************************************************************
    SUBROUTINE kpoint_operator_finish(ctx, ikp, ispin, slot, cmat)
 
@@ -527,11 +551,13 @@ CONTAINS
          my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
          indx = ikp + (igroup - 1)*kplocal
          IF (my_kpgrp) THEN
-            CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, ctx%info(indx, ispin, slot, 1), cmat, .FALSE.)
-            CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, ctx%info(indx, ispin, slot, 2), cmat, .TRUE.)
+            CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, ctx%info(indx, ispin, slot, kpoint_part_re), &
+                                                cmat, .FALSE.)
+            CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, ctx%info(indx, ispin, slot, kpoint_part_im), &
+                                                cmat, .TRUE.)
          END IF
-         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, 1))
-         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, 2))
+         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, kpoint_part_re))
+         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, kpoint_part_im))
       END DO
       ctx%status(ikp, ispin, slot) = kpoint_slot_idle
 
@@ -578,13 +604,13 @@ CONTAINS
          my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
          indx = ikp + (igroup - 1)*kplocal
          IF (my_kpgrp) THEN
-            CALL cp_fm_finish_copy_general(ctx%fmlocal, ctx%info(indx, ispin, slot, 1))
+            CALL cp_fm_finish_copy_general(ctx%fmlocal, ctx%info(indx, ispin, slot, kpoint_part_re))
             CALL cp_fm_to_fm(ctx%fmlocal, fm_re)
-            CALL cp_fm_finish_copy_general(ctx%fmlocal, ctx%info(indx, ispin, slot, 2))
+            CALL cp_fm_finish_copy_general(ctx%fmlocal, ctx%info(indx, ispin, slot, kpoint_part_im))
             CALL cp_fm_to_fm(ctx%fmlocal, fm_im)
          END IF
-         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, 1))
-         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, 2))
+         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, kpoint_part_re))
+         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, kpoint_part_im))
       END DO
       ctx%status(ikp, ispin, slot) = kpoint_slot_idle
 
@@ -597,7 +623,10 @@ CONTAINS
 !>        start every group transfer and finish it immediately.
 !>        Exactly one output flavor must be present: cmat receives the complex
 !>        operator (real part overwrites, imaginary part adds), or the fm pair
-!>        receives the two parts separately. Outputs are caller-allocated.
+!>        receives the two parts separately. Outputs are caller-allocated and
+!>        must share the distribution of the k-point group.
+!>        Collective over the environment-wide communicator: every rank must
+!>        call the same sequence of service calls.
 !> \param ctx context created by kpoint_operator_context_create
 !> \param ikp local k-point index within kp_range
 !> \param ispin instance spin: keys the bookkeeping and defaults the matrix row
@@ -606,7 +635,8 @@ CONTAINS
 !> \param cmat complex matrix output
 !> \param fm_re real-part matrix output
 !> \param fm_im imaginary-part matrix output
-!> \param ispin_matrix row of rsmat to transform; spin-free operators pass 1
+!> \param ispin_matrix row of rsmat to transform. Spin-free operators pass
+!>        kpoint_spin_free
 ! **************************************************************************************************
    SUBROUTINE kpoint_operator_get(ctx, ikp, ispin, rsmat, slot, cmat, fm_re, fm_im, ispin_matrix)
 
