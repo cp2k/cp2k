@@ -297,7 +297,9 @@ def run_format_fortran(fn: str) -> None:
 
 # ======================================================================================
 def run_check_file_properties(fn: str) -> None:
-    run_local_tool("./tools/precommit/check_file_properties.py", fn)
+    # The path prefixes that select the non-GPL licenses of the bundled
+    # third-party sources are repo-relative, so pass a relative path here.
+    run_local_tool("./tools/precommit/check_file_properties.py", os.path.relpath(fn))
 
 
 # ======================================================================================

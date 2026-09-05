@@ -321,10 +321,6 @@ Specific options of --with-PKG:
   --with-libvori          Enable libvori for the Voronoi integration and the
                           BQB compressed trajectory format.
                           Default = install
-  --with-libwignernj      Use libwignernj for the exact evaluation of the
-                          Wigner symbols and the Gaunt coefficients. This is a
-                          mandatory dependency of CP2K.
-                          Default = install
   --with-spglib           Enable the spg library for symmetry groups detection.
                           This package depends on CMake.
                           Default = install
@@ -422,7 +418,7 @@ mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw eigen libint libxc gauxc libxsmm libxs libxstream cosma scalapack
           elpa dbcsr cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
-          libvori libwignernj libtorch deepmd ace dftd4 tblite pugixml libsmeagol fmt trexio
+          libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol fmt trexio
           libfci greenx gmp mcl libgint"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
@@ -464,7 +460,6 @@ with_spfft="__DONTUSE__"
 with_spla="__DONTUSE__"
 with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
-with_libwignernj="__INSTALL__"
 with_libtorch="__DONTUSE__"
 with_ninja="__DONTUSE__"
 with_dftd4="__DONTUSE__"
@@ -866,9 +861,6 @@ Otherwise use option no."
       ;;
     --with-libvori*)
       with_libvori=$(read_with "${1}")
-      ;;
-    --with-libwignernj*)
-      with_libwignernj=$(read_with "${1}")
       ;;
     --with-libtorch*)
       with_libtorch=$(read_with "${1}")
