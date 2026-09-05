@@ -10,6 +10,10 @@
 #
 # CP2K binds to the C interface directly through ISO_C_BINDING, so only the C
 # library is needed; the Fortran interface library of libwignernj is not used.
+#
+# This dependency is optional: CP2K bundles a copy of libwignernj in
+# src/wignernj and compiles it into the CP2K library when no installed copy is
+# found here.
 
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
