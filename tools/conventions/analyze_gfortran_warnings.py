@@ -3,10 +3,14 @@
 # author: Ole Schuett
 
 import argparse
-import re
 import ast
-from os import path
+import io
+import re
+import sys
 from argparse import RawTextHelpFormatter  # enable newline
+from concurrent.futures import ProcessPoolExecutor
+from contextlib import redirect_stdout
+from os import path
 
 blas_re = re.compile(
     r"[SDCZ]"
@@ -134,6 +138,14 @@ def check_warnings(fhandle):
 
 
 # ======================================================================================
+def process_file(fn: str) -> str:
+    output = io.StringIO()
+    with open(fn, encoding="utf8") as fhandle, redirect_stdout(output):
+        check_warnings(fhandle)
+    return output.getvalue()
+
+
+# ======================================================================================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Checks given stderr output files from gfortran for violations of the coding conventions",
@@ -152,10 +164,26 @@ in the cp2k arch-file.
         nargs="+",
         help="files containing the compiler warnings",
     )
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=1,
+        help="number of worker processes (0: auto, default: 1)",
+    )
     args = parser.parse_args()
 
-    for fn in args.files:
-        with open(fn, encoding="utf8") as fhandle:
-            check_warnings(fhandle)
+    if args.jobs < 0:
+        parser.error("--jobs must be non-negative")
+
+    if args.jobs == 1 or len(args.files) == 1:
+        for fn in args.files:
+            with open(fn, encoding="utf8") as fhandle:
+                check_warnings(fhandle)
+    else:
+        max_workers = None if args.jobs == 0 else min(args.jobs, len(args.files))
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            for output in executor.map(process_file, args.files):
+                sys.stdout.write(output)
 
 # EOF
