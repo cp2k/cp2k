@@ -299,6 +299,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      ! Every started instance must have been finished: an unfinished start
+      ! holds MPI requests that nothing would ever wait for.
+      IF (ALLOCATED(ctx%status)) THEN
+         CPASSERT(ALL(ctx%status == kpoint_slot_idle))
+      END IF
+
       IF (ASSOCIATED(ctx%rmatrix)) CALL dbcsr_deallocate_matrix(ctx%rmatrix)
       IF (ASSOCIATED(ctx%cmatrix)) CALL dbcsr_deallocate_matrix(ctx%cmatrix)
       IF (ASSOCIATED(ctx%tmpmat)) CALL dbcsr_deallocate_matrix(ctx%tmpmat)
