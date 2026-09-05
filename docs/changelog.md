@@ -36,6 +36,12 @@
   ([#5730](https://github.com/cp2k/cp2k/pull/5730))
 - **TODO**
 
+### New Libraries
+
+- Bundle libwignernj for the exact evaluation of the Wigner symbols and the Gaunt coefficients,
+  replacing the in-tree Clebsch-Gordon coefficient tables
+  ([#5961](https://github.com/cp2k/cp2k/pull/5961))
+
 ### Breaking Changes
 
 - Require `MPI_THREAD_MULTIPLE` for all MPI builds ([#5811](https://github.com/cp2k/cp2k/pull/5811),

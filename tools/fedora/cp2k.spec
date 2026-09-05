@@ -30,6 +30,7 @@ BuildRequires: cmake(libxc)
 BuildRequires: cmake(Spglib)
 # Test dependencies
 BuildRequires: python3
+BuildRequires: libwignernj-devel
 
 Requires:      %{name}-common = %{version}-%{release}
 

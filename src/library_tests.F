@@ -22,7 +22,7 @@ MODULE library_tests
                                               init_cell
    USE cell_types,                      ONLY: cell_release,&
                                               cell_type
-   USE cg_test,                         ONLY: clebsch_gordon_test
+   USE cg_test,                         ONLY: gaunt_coefficient_test
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -157,7 +157,7 @@ CONTAINS
       !
       IF (runtest(4) /= 0) CALL eri_test(iw)
       !
-      IF (runtest(6) /= 0) CALL clebsch_gordon_test()
+      IF (runtest(6) /= 0) CALL gaunt_coefficient_test()
       !
       ! runtest 7 has been deleted and can be recycled
       !
@@ -239,7 +239,7 @@ CONTAINS
 !> I    FFT      n                                                             I
 !> I    ERI      n                                                             I
 !> I    PW_FFT   n                                                             I
-!> I    Clebsch-Gordon n                                                       I
+!> I    Clebsch-Gordon n         -> Gaunt coefficients                         I
 !> I    RS_GRIDS n                                                             I
 !> I    MPI      n                                                             I
 !> I    RNG      n             -> Parallel random number generator             I

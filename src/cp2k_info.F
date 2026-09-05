@@ -341,6 +341,12 @@ CONTAINS
 #if defined(__LIBGINT)
       flags = TRIM(flags)//" libGint"
 #endif
+
+#if defined(__LIBWIGNERNJ_BUNDLED)
+      flags = TRIM(flags)//" libwignernj(bundled)"
+#else
+      flags = TRIM(flags)//" libwignernj"
+#endif
    END FUNCTION cp2k_flags
 
 ! **************************************************************************************************

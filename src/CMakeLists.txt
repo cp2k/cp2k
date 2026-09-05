@@ -953,6 +953,7 @@ list(
   aobasis/aux_basis_set.F
   aobasis/basis_set_container_types.F
   aobasis/basis_set_types.F
+  aobasis/gaunt_coefficients.F
   aobasis/orbital_pointers.F
   aobasis/orbital_symbols.F
   aobasis/orbital_transformation_matrices.F
@@ -1036,7 +1037,8 @@ list(
   common/util.F
   common/xmgrace.F
   common/erf_complex.F
-  common/whittaker.F)
+  common/whittaker.F
+  common/wignernj_interface.F)
 
 list(APPEND CP2K_SRCS_F dbm/dbm_api.F dbm/dbm_tests.F)
 
@@ -1531,6 +1533,31 @@ list(
 
 list(APPEND CP2K_SRCS_F grpp/libgrpp.F)
 
+list(APPEND CP2K_SRCS_C wignernj_c_api.c)
+
+# Bundled copy of libwignernj, compiled into the CP2K library whenever CMake did
+# not find an installed one. The sources include each other with quoted
+# includes, so they need no extra include directory.
+if(NOT CP2K_LIBWIGNERNJ_FOUND)
+  list(
+    APPEND
+    CP2K_SRCS_C
+    wignernj/bigint.c
+    wignernj/clebsch.c
+    wignernj/fano_x.c
+    wignernj/gaunt.c
+    wignernj/pfrac.c
+    wignernj/primes.c
+    wignernj/racah.c
+    wignernj/real_ylm_in_complex_ylm.c
+    wignernj/scratch.c
+    wignernj/wigner3j.c
+    wignernj/wigner6j.c
+    wignernj/wigner9j.c
+    wignernj/wigner_exact.c
+    wignernj/xalloc.c)
+endif()
+
 set(CP2K_FPGA_SRC_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)
 set(CP2K_PW_SRCS_C pw/gpu/pw_gpu_internal.c)
 set(CP2K_SRCS_CPP torch_c_api.cpp ace_c_api.cpp)
@@ -1843,6 +1870,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
     $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
     hdf5::hdf5_fortran>
+    $<$<BOOL:${CP2K_LIBWIGNERNJ_FOUND}>:cp2k::libwignernj::wignernj>
     DBCSR::dbcsr
     $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
     cp2k_linalg_libs
@@ -1916,6 +1944,9 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_LIBINT2}>:__LIBINT>
     $<$<BOOL:${CP2K_USE_LIBGINT}>:__LIBGINT>
     $<$<BOOL:${CP2K_USE_LIBFCI}>:__LIBFCI>
+    # The bundled libwignernj has its symbols namespaced, see
+    # src/wignernj/cp2k_wignernj_prefix.h
+    $<$<NOT:$<BOOL:${CP2K_LIBWIGNERNJ_FOUND}>>:__LIBWIGNERNJ_BUNDLED>
     $<$<BOOL:${CP2K_USE_LIBTORCH}>:__LIBTORCH>
     $<$<BOOL:${CP2K_USE_LIBTORCH_CUDA}>:__LIBTORCH_CUDA>
     $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>

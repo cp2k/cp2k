@@ -74,6 +74,13 @@ FLAG_EXCEPTIONS = (
     r"LIBXSMM_VERSION4",
     r"LIBGRPP_.+",
     r"TEST_LIBGRPP_.+",
+    # Bundled libwignernj, see src/wignernj/README.md
+    r"WIGNERNJ_.+",
+    r"BIGINT_.+",
+    r"KARATSUBA_THRESHOLD",
+    r"MAX_FACTORIAL_ARG",
+    r"LDBL_MANT_DIG",
+    r"_MSC_VER",
     r"__LIBXSMM2",
     r"CPVERSION",
     r"_WIN32",
@@ -141,8 +148,12 @@ BSD_PATHS = (
     "src/offload/",
     "src/grid/",
     "src/dbm/",
+    "src/wignernj/",
 )
 MIT_PATHS = ("src/grpp/",)
+
+# Bundled third-party sources, which keep their upstream LICENSE file verbatim
+BUNDLED_PATHS = ("src/grpp/", "src/wignernj/")
 
 
 @lru_cache(maxsize=None)
@@ -252,8 +263,12 @@ def check_file(path: pathlib.Path) -> List[str]:
             warnings += [f"{path}: Copyright banner malformed"]
     if fn_ext in C_EXTENSIONS and not content.startswith(BANNER_C.format(year, spdx)):
         warnings += [f"{path}: Copyright banner malformed"]
-    if path.name == "LICENSE" and bsd_licensed and f"2000-{year}" not in content:
-        warnings += [f"{path}: Copyright banner malformed"]
+    # The LICENSE files of the bundled third-party libraries carry their
+    # upstream copyright statement and must not be rewritten.
+    is_bundled = any(str(path).startswith(p) for p in BUNDLED_PATHS)
+    if path.name == "LICENSE" and bsd_licensed and not is_bundled:
+        if f"2000-{year}" not in content:
+            warnings += [f"{path}: Copyright banner malformed"]
     if path.name == "cp2k_info.F" and f'cp2k_year = "{year}"' not in content:
         warnings += [f"{path}: Wrong year."]
 

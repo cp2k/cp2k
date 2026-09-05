@@ -33,6 +33,7 @@ MODULE qs_cneo_methods
    USE cp_control_types,                ONLY: gapw_control_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE gaunt_coefficients,              ONLY: real_gaunt_coefficients
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
                                               fourpi,&
@@ -56,7 +57,6 @@ MODULE qs_cneo_methods
    USE qs_cneo_utils,                   ONLY: atom_solve_cneo,&
                                               cneo_gather,&
                                               create_harmonics_atom_cneo,&
-                                              create_my_CG_cneo,&
                                               get_maxl_CG_cneo
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -329,8 +329,7 @@ CONTAINS
       max_s_harm = nsoset(llmax)
       max_s = nsoset(maxl)
       NULLIFY (my_CG)
-      CALL reallocate(my_CG, 1, max_s, 1, max_s, 1, max_s_harm)
-      CALL create_my_CG_cneo(my_CG, MAX(llmax, 2*maxl, 1), maxl, llmax)
+      CALL real_gaunt_coefficients(my_CG, maxl, maxl, llmax)
 
       ! initialize harmonics
       CALL allocate_harmonics_atom(harmonics)
