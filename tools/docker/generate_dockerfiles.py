@@ -402,7 +402,7 @@ COPY ./tools/conventions/redirect_gfortran_output.py /usr/bin/
         + f"""
 # Run test for conventions.
 COPY ./tools/conventions ./tools/conventions
-RUN /bin/bash -ec "./tools/conventions/test_conventions.sh |& tee report.log"
+RUN /bin/bash -ec "./tools/conventions/test_conventions.sh -j $(nproc) |& tee report.log"
 """
         + print_cached_report()
     )
