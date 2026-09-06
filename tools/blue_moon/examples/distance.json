@@ -1,0 +1,8 @@
+{
+  "cv": {"type": "distance", "atoms": [1, 2]},
+  "cell_angstrom": [[30, 0, 0], [0, 30, 0], [0, 0, 30]],
+  "masses_amu": {"1": 39.948, "2": 39.948},
+  "temperature_kelvin": 300,
+  "target_au": 7.558904531543,
+  "target_tolerance_au": 0.00001
+}

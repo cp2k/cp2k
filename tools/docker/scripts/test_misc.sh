@@ -31,6 +31,7 @@ unzip -q -d ./tools/minimax_tools/1_xData 1_xData.zip
 run_test ./tools/precommit/format_fortran_test.py
 run_test ./tools/minimax_tools/minimax_to_fortran_source.py --check
 run_test ./tools/docker/generate_dockerfiles.py --check
+run_test python3 -m unittest discover -s ./tools/blue_moon -p 'test_*.py'
 
 # Test pao-ml training.
 # Passing example.pao twice to have enough samples to split off 20% for validation.
