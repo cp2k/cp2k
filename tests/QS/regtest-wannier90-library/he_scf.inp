@@ -1,0 +1,7 @@
+@SET seed he_scf
+@SET gamma_centered F
+@SET source SCF
+@SET reuse T
+@SET bloch T
+@SET write_inputs T
+@INCLUDE he_common.inc

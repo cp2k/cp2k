@@ -114,17 +114,36 @@ def compare_mmn(
     return raw_max, sv_max, worst_raw, worst_sv
 
 
+def check_reciprocity(data: MmnData) -> float:
+    """Check M(k,b) = M(k+b,-b)^H, independently of the MO gauge."""
+    nbands, nkpts, nneigh, blocks = data
+    matrices = dict(blocks)
+    if len(matrices) != nkpts * nneigh:
+        raise ValueError("Repeated or missing overlap block headers")
+    maximum = 0.0
+    for (k, neighbor, gx, gy, gz), matrix in blocks:
+        reverse = (neighbor, k, -gx, -gy, -gz)
+        if reverse not in matrices:
+            raise ValueError(f"Missing reverse overlap block: {reverse}")
+        if matrix.shape != (nbands, nbands) or not np.all(np.isfinite(matrix)):
+            raise ValueError("Invalid overlap matrix")
+        maximum = max(
+            maximum, float(np.max(np.abs(matrix - matrices[reverse].conj().T)))
+        )
+    return maximum
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("left", help="first Wannier90 .mmn file")
     parser.add_argument("right", help="second Wannier90 .mmn file")
     parser.add_argument("--raw-tol", type=float, default=None)
     parser.add_argument("--sv-tol", type=float, default=None)
+    parser.add_argument("--reciprocity-tol", type=float, default=None)
     args = parser.parse_args(argv)
 
-    raw_max, sv_max, worst_raw, worst_sv = compare_mmn(
-        read_mmn(args.left), read_mmn(args.right)
-    )
+    left, right = read_mmn(args.left), read_mmn(args.right)
+    raw_max, sv_max, worst_raw, worst_sv = compare_mmn(left, right)
     print(f"raw_max = {raw_max:.16e}")
     print(f"sv_max  = {sv_max:.16e}")
     if worst_raw is not None:
@@ -133,6 +152,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"worst_sv_block  = {worst_sv[0]} header={worst_sv[1]}")
 
     failed = False
+    if args.reciprocity_tol is not None:
+        for label, data in (("left", left), ("right", right)):
+            deviation = check_reciprocity(data)
+            print(f"{label}_reciprocity = {deviation:.16e}")
+            failed |= deviation > args.reciprocity_tol
     if args.raw_tol is not None and raw_max > args.raw_tol:
         failed = True
     if args.sv_tol is not None and sv_max > args.sv_tol:
