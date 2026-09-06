@@ -7,9 +7,11 @@
 # TDDFPT excited-state forces with 3RD_DERIV_ANALYTICAL, i.e. the analytic
 # third derivative of Exc in xc_calc_3rd_deriv_analytical. The GGA and
 # meta-GGA branches need the reduced-gradient (gamma) derivatives, which only
-# the LibXC path supplies. Each run is a single excited-state geometry step, so
-# the final total energy depends on the excited-state gradient and hence on the
-# third derivative. The four functional classes select the four branches of the
+# the LibXC path supplies. Most runs take a single excited-state geometry step,
+# so the final total energy depends on the excited-state gradient and hence on
+# the third derivative. The restricted TPSS test instead checks individual
+# forces directly, avoiding a second expensive SCF and force evaluation.
+# The four functional classes select the four branches of the
 # routine, and each is run closed shell (H2O) and open shell (H2O+):
 #   LDA_X/LDA_C_PW                  no gradient       -> pure-density branch
 #   GGA_X_PBE/GGA_C_PBE             gradient          -> gamma branch
@@ -22,7 +24,11 @@
 # while the others converge on a cheaper one and are kept there for runtime.
 "h2o_lda_analytic.inp"                  = [{matcher="E_total", tol=1.0E-11, ref=-17.12647008678879}]
 "h2o_gga_analytic.inp"                  = [{matcher="E_total", tol=1.0E-11, ref=-17.22346825004372}]
-"h2o_mgga_tau_analytic.inp"             = [{matcher="E_total", tol=1.0E-07, ref=-17.22540625110693}]
+"h2o_mgga_tau_analytic.inp"             = [{matcher="E_total", tol=1.0E-07, ref=-17.24684298922764},
+                                        {matcher="M011", tol=1.0E-07, ref=-16.913913274397984},
+                                        {matcher="Atomic_force_1_z", tol=1.0E-06, ref=-0.112424874},
+                                        {matcher="Atomic_force_2_y", tol=1.0E-06, ref=-0.112900268},
+                                        {matcher="Atomic_force_2_z", tol=1.0E-06, ref=0.0592044729}]
 "h2o_mgga_lapl_analytic.inp"            = [{matcher="E_total", tol=1.0E-06, ref=-16.95990978168588}]
 "h2o_lsd_lda_analytic.inp"              = [{matcher="E_total", tol=1.0E-10, ref=-16.66698042191488}]
 "h2o_lsd_gga_analytic.inp"              = [{matcher="E_total", tol=1.0E-10, ref=-16.77629238461370}]

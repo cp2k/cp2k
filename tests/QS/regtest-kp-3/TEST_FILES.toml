@@ -18,6 +18,12 @@
 "cc8.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.389916356641265},
                                            {matcher="gext", tol=5.0E-08, ref=0.7099959941}]
 "cc9.inp"                               = [{matcher="M011", tol=5.0E-10, ref=-45.270016601865670}]
+# blocked Davidson at symmetry-reduced complex K points with fractional occupations,
+# the Davidson counterpart of the STANDARD Al smearing family in regtest-kp-2
+"Al-kpoint-dav-smear.inp"               = [{matcher="E_total", tol=1e-9, ref=-8.159987079852488}]
+# same with the adaptive inner tolerance (EPS_ADAPT): loose early SCF steps,
+# unoccupied MOS converge five times looser
+"Al-kpoint-dav-smear-adapt.inp"         = [{matcher="E_total", tol=1e-9, ref=-8.159987079852488}]
 # blocked Davidson at complex K points, same oracle energy as the OT family below
 "he_dav.inp"                            = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]

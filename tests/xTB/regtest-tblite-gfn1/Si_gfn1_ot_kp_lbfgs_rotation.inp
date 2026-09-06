@@ -30,7 +30,8 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-6
-      MAX_SCF 25
+      ! Refresh the preconditioner earlier through the outer SCF loop.
+      MAX_SCF 10
       SCF_GUESS MOPAC
       &OT
         ALGORITHM IRAC

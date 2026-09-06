@@ -1,4 +1,6 @@
 # Keep the td_dipole restart tests in this order.
+# h2o_f01_fine.inp also starts from the restart produced by h2o_f01.inp,
+# but writes td_dipole_fine so it does not replace the shared restart.
 "h2o_f01.inp"                           = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.138486E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.38340656E-01}]
 "h2o_f01_fine.inp"                      = [{matcher="TDDFPT_Check_Energy", tol=1.0E-4, ref=0.1323667E+00},

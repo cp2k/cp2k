@@ -8,15 +8,16 @@
   {matcher="OT_kpoint_ref_refresh"},
 ]
 "Na-kpoint-mermin-uks-cg.inp"           = [{matcher="E_total", tol=1e-9, ref=-0.280830319393724}]
-"Al-kpoint-mermin-uks-common-mu.inp"    = [
-  {matcher="E_total", tol=1e-9, ref=-2.092003830373816},
-  {matcher="Electronic_entropic_energy", tol=2e-3, ref=-0.00000831502199},
-  {matcher="Integrated_spin_density", tol=1e-6, ref=0.9997353341},
+# The fixed-moment state provides the initial wavefunction for the common-mu test.
+"Al-kpoint-mermin-uks-fixed-moment.inp" = [
+  {matcher="E_total", tol=1e-9, ref=-2.092002995440775},
   {matcher="NO_TEXT", text="K-point smearing includes the first band"},
   {matcher="NO_TEXT", text="K-point smearing includes the last band"},
 ]
-"Al-kpoint-mermin-uks-fixed-moment.inp" = [
-  {matcher="E_total", tol=1e-9, ref=-2.092002995440775},
+"Al-kpoint-mermin-uks-common-mu.inp"    = [
+  {matcher="E_total", tol=1e-9, ref=-2.092003031767048},
+  {matcher="Electronic_entropic_energy", tol=2e-3, ref=-0.00000046433265},
+  {matcher="Integrated_spin_density", tol=1e-6, ref=0.9999844248},
   {matcher="NO_TEXT", text="K-point smearing includes the first band"},
   {matcher="NO_TEXT", text="K-point smearing includes the last band"},
 ]
