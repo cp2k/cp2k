@@ -266,7 +266,7 @@ while [[ $# -gt 0 ]]; do
             case "${CP2K_VERSION}" in
               ssmp-static)
                 CMAKE_FEATURE_FLAG_ALL="-DCP2K_USE_EVERYTHING=ON"
-                for package in libfci libint2 libxc libxs spglib vori tblite; do
+                for package in libfci libint2 libxc libxs spglib vori tblite wannier90; do
                   CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${package^^}=ON"
                 done
                 for package in ace deepmd gauxc greenx hdf5 libgint libtorch pexsi trexio; do
@@ -305,7 +305,7 @@ while [[ $# -gt 0 ]]; do
             for package in adios2 cosma deepmdkit dla-future dla-future-fortran elpa \
               gauxc greenx hdf5 libfabric libfci libint libvdwxc libsmeagol libvori \
               libxc libxs libxsmm mimic-mcl openpmd-api pace pexsi plumed py-torch sirius \
-              spfft spglib spla tblite trexio; do
+              spfft spglib spla tblite trexio wannier90; do
               SED_PATTERN_LIST+=" -e '/\s*-\s+\"${package}@/ ${SUBST}"
             done
             # dbcsr must use blas as fallback when libxs/libxsmm is disabled
@@ -315,7 +315,7 @@ while [[ $# -gt 0 ]]; do
             ;;
           ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci | \
             libgint | libint2 | libsmeagol | libtorch | libxc | libxs | mimic | openpmd | pexsi | \
-            plumed | spglib | tblite | trexio | vori)
+            plumed | spglib | tblite | trexio | vori | wannier90)
             CMAKE_FEATURE_FLAGS+=" -DCP2K_USE_${2^^}=${ON_OFF}"
             # Translate package selection to sed pattern
             case "${2,,}" in
@@ -323,7 +323,7 @@ while [[ $# -gt 0 ]]; do
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"p${2,,}@/ ${SUBST}"
                 ;;
               cosma | elpa | greenx | hdf5 | libfci | libgint | libsmeagol | libxc | pexsi | plumed | \
-                spglib | trexio)
+                spglib | trexio | wannier90)
                 SED_PATTERN_LIST+=" -e '/\s*-\s+\"${2,,}@/ ${SUBST}"
                 ;;
               deepmd)
@@ -855,7 +855,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo ""
   echo "Packages: all | ace | cosma | deepmd | dftd4 | dlaf | elpa | fftw3 | gauxc | greenx | hdf5 | libfci |"
   echo "          libgint | libint | libsmeagol | libtorch | libvdwxc | libxs | mimic | openpmd | pexsi | plumed |"
-  echo "          sirius | spfft | spglib | spla | tblite | trexio | vori "
+  echo "          sirius | spfft | spglib | spla | tblite | trexio | vori | wannier90 "
   echo ""
   echo "Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | pw_gpu |"
   echo "          spla_gemm_offloading | unified_memory"

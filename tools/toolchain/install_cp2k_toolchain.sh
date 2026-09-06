@@ -324,6 +324,9 @@ Specific options of --with-PKG:
   --with-spglib           Enable the spg library for symmetry groups detection.
                           This package depends on CMake.
                           Default = install
+  --with-wannier90        Enable the Wannier90 v4 library for k-point localization.
+                          Requires CMake and BLAS/LAPACK; follows --mpi-mode.
+                          Default = install
   --with-dftd4            Enable the standalone DFTD4 package by Grimme for the
                           DFT-D4 dispersion correction method.
                           This package requires CMake.
@@ -419,7 +422,7 @@ math_list="mkl acml openblas"
 lib_list="fftw eigen libint libxc gauxc libxsmm libxs libxstream cosma scalapack
           elpa dbcsr cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
           libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol fmt trexio
-          libfci greenx gmp mcl libgint"
+          libfci greenx gmp mcl libgint wannier90"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -450,6 +453,7 @@ with_sirius="__DONTUSE__"
 with_gsl="__DONTUSE__"
 with_fmt="__DONTUSE__"
 with_spglib="__INSTALL__"
+with_wannier90="__INSTALL__"
 with_hdf5="__DONTUSE__"
 with_trexio="__DONTUSE__"
 with_libfci="__DONTUSE__"
@@ -846,6 +850,9 @@ Otherwise use option no."
       ;;
     --with-spglib*)
       with_spglib=$(read_with "${1}")
+      ;;
+    --with-wannier90*)
+      with_wannier90=$(read_with "${1}")
       ;;
     --with-hdf5*)
       with_hdf5=$(read_with "${1}")

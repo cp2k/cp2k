@@ -145,6 +145,7 @@ spack:
     - "spglib@2.7.0"
     - "tblite@0.7.0"
     - "trexio@2.6.1"
+    - "wannier90@4.0.2 ~mpi"
 
   view:
     default:

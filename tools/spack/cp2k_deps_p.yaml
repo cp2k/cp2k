@@ -236,6 +236,7 @@ spack:
     - "spla@1.6.1"
     - "tblite@0.7.0"
     - "trexio@2.6.1"
+    - "wannier90@4.0.2 +mpi"
 
   view:
     default:

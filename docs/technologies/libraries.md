@@ -288,6 +288,12 @@ The optional
 provides in-process disentanglement and Wannier localization. The existing file export does not
 require this dependency.
 
+The CP2K toolchain installs Wannier90 4.0.2 by default, with the MPI mode selected by `--mpi-mode`.
+Use `--with-wannier90=no` to omit it, `--with-wannier90=system` to find a CMake installation through
+pkg-config, or `--with-wannier90=/path/to/prefix` to reuse an installation. Source the generated
+`install/setup` before configuring CP2K. The Spack build also supports `-ef wannier90` and
+`-df wannier90` in `make_cp2k.sh`.
+
 Build Wannier90 with the same Fortran compiler, MPI implementation, and BLAS integer width as CP2K.
 For example, starting from the Wannier90 4.0.2 sources:
 

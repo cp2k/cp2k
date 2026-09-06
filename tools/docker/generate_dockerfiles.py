@@ -592,6 +592,7 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
         with_libxsmm="install",
         with_libxs="install",
         with_spglib="no",
+        with_wannier90="no",
         with_libvori="no",
         with_tblite="no",
     )
