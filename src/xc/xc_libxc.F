@@ -2094,7 +2094,7 @@ CONTAINS
    INTEGER, INTENT(in)                                :: grad_deriv, npoints
    CHARACTER(LEN=default_string_length), INTENT(IN)   :: func_name
    REAL(KIND=dp), INTENT(in)                          :: sc
-   TYPE(libxc_worker_set_type), INTENT(INOUT)         :: workers
+   TYPE(libxc_worker_set_type), INTENT(INOUT), TARGET :: workers
 
    INTEGER                                            :: bsize, family, i, i0, ib, ii, ithread, &
                                                          nb, nblocks, nthreads
@@ -2134,9 +2134,18 @@ CONTAINS
    ! to the functional object in xc_libxc_wrap_set_thresholds, and LibXC leaves
    ! the outputs of the points it screens at zero, so accumulating them is a
    ! no-op.
-   ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace, &
-              no_exc => workers%no_exc, eps_rho => workers%epsilon_rho, &
-              eps_tau => workers%epsilon_tau)
+   BLOCK
+      TYPE(libxc_worker_type), POINTER :: w
+      LOGICAL :: has_laplace, no_exc
+      REAL(KIND=dp) :: eps_rho, eps_tau
+
+      ! Avoid ASSOCIATE aliases across the orphaned OpenMP worksharing loop:
+      ! ifx can lose their bindings even at -O0.
+      w => workers%worker(ithread + 1)
+      has_laplace = workers%has_laplace
+      no_exc = workers%no_exc
+      eps_rho = workers%epsilon_rho
+      eps_tau = workers%epsilon_tau
 !$OMP    DO
       DO ib = 1, nblocks
          i0 = (ib - 1)*bsize
@@ -2380,7 +2389,7 @@ CONTAINS
          END IF
       END DO
 !$OMP    END DO
-   END ASSOCIATE
+   END BLOCK
 
 END SUBROUTINE libxc_spin_unpolarized_calc
 #endif
@@ -2520,7 +2529,7 @@ REAL(KIND=dp), DIMENSION(*), INTENT(INOUT) :: e_ndrhoa_laplace_rhob, e_ndrhob_la
 INTEGER, INTENT(in)                                :: grad_deriv, npoints
 CHARACTER(LEN=default_string_length), INTENT(IN)   :: func_name
 REAL(KIND=dp), INTENT(in)                          :: sc
-TYPE(libxc_worker_set_type), INTENT(INOUT)         :: workers
+TYPE(libxc_worker_set_type), INTENT(INOUT), TARGET :: workers
 
 INTEGER                                            :: bsize, family, i, i0, ib, ii, ithread, &
                                                       nb, nblocks, nthreads
@@ -2555,9 +2564,17 @@ END SELECT
 
 ! As in the spin-unpolarized case the density and kinetic energy density
 ! cutoffs are applied by LibXC itself.
-ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace, &
-           no_exc => workers%no_exc, eps_rho => workers%epsilon_rho, &
-           eps_tau => workers%epsilon_tau)
+BLOCK
+   TYPE(libxc_worker_type), POINTER :: w
+   LOGICAL :: has_laplace, no_exc
+   REAL(KIND=dp) :: eps_rho, eps_tau
+
+! Keep the per-thread bindings explicit, as in the spin-unpolarized routine.
+   w => workers%worker(ithread + 1)
+   has_laplace = workers%has_laplace
+   no_exc = workers%no_exc
+   eps_rho = workers%epsilon_rho
+   eps_tau = workers%epsilon_tau
 !$OMP    DO
    DO ib = 1, nblocks
       i0 = (ib - 1)*bsize
@@ -2896,7 +2913,7 @@ ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace,
       END IF
    END DO
 !$OMP    END DO
-END ASSOCIATE
+END BLOCK
 
 END SUBROUTINE libxc_spin_polarized_calc
 #endif
