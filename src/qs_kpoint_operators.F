@@ -11,6 +11,9 @@
 !>        The module splits this work into a start step and a finish step.
 !>        One process can start the MPI transfers of many operators before it finishes
 !>        any of them. The STANDARD k-point driver uses this order.
+!>        The routines start, finish and get are collective over the
+!>        environment-wide communicator. Every rank must call the same
+!>        sequence of service calls.
 !>        A context references its host kpoint environment without owning it,
 !>        so it must not outlive that environment. The module is not thread
 !>        safe. Give each thread its own context.
@@ -23,7 +26,8 @@ MODULE qs_kpoint_operators
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_p_type, dbcsr_set, &
         dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr_bc
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm,&
                                               fm_pool_give_back_fm
@@ -97,7 +101,7 @@ MODULE qs_kpoint_operators
       ! loop that start and finish key. Declared once at creation. It never
       ! comes from the operators: the first matrix dimension of a spin-free
       ! operator such as S counts real-space blocks, not spins, so callers
-      ! address operator rows through ispin_matrix instead.
+      ! address operator rows through matrix_row instead.
       INTEGER                                            :: nspin = 0
       ! Host references, read fresh at every use: sab_nl and cell_to_index
       ! are reallocated at every energy evaluation.
@@ -367,6 +371,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Release the context together with every buffer it created.
 !>        Call once, at the exit of the routine that created the context.
+!>        Every started instance must be idle at this point. The call aborts
+!>        when a transfer is still in flight, because nothing would ever wait
+!>        for its MPI requests.
 !> \param ctx context to release
 ! **************************************************************************************************
    SUBROUTINE kpoint_operator_context_release(ctx)
@@ -416,9 +423,16 @@ CONTAINS
 !>        trio with blocks from the current neighbor lists, two densify buffers
 !>        on the environment-wide struct, the group transfer target from the
 !>        group pools, and the per-instance bookkeeping.
+!>        The trio follows the identity of the host neighbor lists. The host
+!>        reallocates these lists at every energy evaluation. This call
+!>        releases and rebuilds the trio when the lists changed. Buffers from
+!>        an earlier call stay in place.
 !>        Called from the service routines only.
-!> \param ctx ...
-!> \param rsmat ...
+!> \param ctx context that receives the buffers
+!> \param rsmat real-space image matrices of one operator. The call uses the
+!>        first matrix as the DBCSR template of the work trio. It reads no
+!>        matrix data. The bookkeeping spin space comes from the value that
+!>        context creation stored, never from the row count of rsmat
 ! **************************************************************************************************
    SUBROUTINE kpoint_operator_ensure(ctx, rsmat)
 
@@ -475,7 +489,7 @@ CONTAINS
       ! context creation. The operator row count never enters the sizing:
       ! spin-free operators such as S carry their real-space blocks in the
       ! first matrix dimension, and the row choice is made through
-      ! ispin_matrix, so a fixed spin space serves every operator of the call.
+      ! matrix_row, so a fixed spin space serves every operator of the call.
       IF (.NOT. ALLOCATED(ctx%status)) THEN
          ALLOCATE (ctx%status(kplocal, ctx%nspin, kpoint_num_slots))
          ctx%status = kpoint_slot_idle
@@ -505,11 +519,13 @@ CONTAINS
 !>        the slot must be idle
 !> \param grid prepared reciprocal-grid cache of the caller
 !> \param use_grid extract from grid instead of a direct phase sum
-!> \param ispin_matrix row of rsmat to transform. Spin-free operators such
-!>        as T pass kpoint_spin_free while still launching one instance per
-!>        spin
+!> \param matrix_row row of rsmat to transform. Spin-free operators such
+!>        as S and T must pass kpoint_spin_free: their first matrix
+!>        dimension counts real-space blocks, not spins, so passing the
+!>        instance spin of a spin loop reads a different block and no size
+!>        check can catch it
 ! **************************************************************************************************
-   SUBROUTINE kpoint_operator_start(ctx, ikp, ispin, rsmat, slot, grid, use_grid, ispin_matrix)
+   SUBROUTINE kpoint_operator_start(ctx, ikp, ispin, rsmat, slot, grid, use_grid, matrix_row)
 
       TYPE(kpoint_operator_context_type), INTENT(INOUT)  :: ctx
       INTEGER, INTENT(IN)                                :: ikp, ispin
@@ -517,7 +533,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: slot
       TYPE(rskp_grid_type), INTENT(IN), OPTIONAL         :: grid
       LOGICAL, INTENT(IN)                                :: use_grid
-      INTEGER, INTENT(IN), OPTIONAL                      :: ispin_matrix
+      INTEGER, INTENT(IN), OPTIONAL                      :: matrix_row
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_start'
 
@@ -531,7 +547,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ispin_mat = ispin
-      IF (PRESENT(ispin_matrix)) ispin_mat = ispin_matrix
+      IF (PRESENT(matrix_row)) ispin_mat = matrix_row
       CPASSERT(ASSOCIATED(ctx%kpoints))
       CPASSERT(ASSOCIATED(ctx%kpoints%sab_nl))
       ! The instance spin is bounded by the spin space declared at creation;
@@ -633,39 +649,50 @@ CONTAINS
 !>        start every group transfer and finish it immediately.
 !>        Exactly one output flavor must be present: cmat receives the complex
 !>        operator (real part overwrites, imaginary part adds) through the
-!>        context buffer, or the fm pair receives the two parts separately,
-!>        transferred directly into fm_re and fm_im on the owning group. The
-!>        fm pair may live on any distribution: the transfers use the general
-!>        copy, which redistributes between the source and the target.
-!>        Outputs are caller-allocated; the cmat flavor must share the
-!>        distribution of the k-point group.
+!>        context buffer; the fm pair receives the two parts separately,
+!>        transferred directly into fm_re and fm_im on the owning group (any
+!>        distribution: the general copy redistributes); or the dbcsr pair
+!>        receives the two parts as block-cyclic matrices built by the service,
+!>        replacing the caller-side copy_fm_to_dbcsr_bc detour. The dbcsr
+!>        matrices must be freshly initialized (dbcsr_init_p) and the cmat
+!>        flavor must share the distribution of the k-point group.
 !>        Collective over the environment-wide communicator: every rank must
 !>        call the same sequence of service calls.
 !> \param ctx context created by kpoint_operator_context_create
 !> \param ikp local k-point index within kp_range
 !> \param ispin instance spin: keys the bookkeeping and defaults the matrix row
 !> \param rsmat real-space image matrices of the operator
-!> \param slot destination slot of the operator; the slot must be idle
+!> \param slot destination slot of the operator. Optional: a one-shot caller
+!>        has no pipeline to key, so an omitted slot takes the lowest idle
+!>        one, a deterministic pick because every rank runs the same
+!>        sequence of service calls
 !> \param cmat complex matrix output
 !> \param fm_re real-part matrix output
 !> \param fm_im imaginary-part matrix output
-!> \param ispin_matrix row of rsmat to transform. Spin-free operators pass
-!>        kpoint_spin_free
+!> \param mat_re real-part block-cyclic dbcsr output
+!> \param mat_im imaginary-part block-cyclic dbcsr output
+!> \param matrix_row row of rsmat to transform. Spin-free operators such
+!>        as S and T must pass kpoint_spin_free: their first matrix
+!>        dimension counts real-space blocks, not spins, so passing the
+!>        instance spin of a spin loop reads a different block and no size
+!>        check can catch it
 ! **************************************************************************************************
-   SUBROUTINE kpoint_operator_get(ctx, ikp, ispin, rsmat, slot, cmat, fm_re, fm_im, ispin_matrix)
+   SUBROUTINE kpoint_operator_get(ctx, ikp, ispin, rsmat, slot, cmat, fm_re, fm_im, &
+                                  mat_re, mat_im, matrix_row)
 
       TYPE(kpoint_operator_context_type), INTENT(INOUT)  :: ctx
       INTEGER, INTENT(IN)                                :: ikp, ispin
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
-      INTEGER, INTENT(IN)                                :: slot
+      INTEGER, INTENT(IN), OPTIONAL                      :: slot
       TYPE(cp_cfm_type), OPTIONAL                        :: cmat
       TYPE(cp_fm_type), OPTIONAL                         :: fm_re, fm_im
-      INTEGER, INTENT(IN), OPTIONAL                      :: ispin_matrix
+      TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: mat_re, mat_im
+      INTEGER, INTENT(IN), OPTIONAL                      :: matrix_row
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_get'
 
-      INTEGER                                            :: handle, igroup, ik, indx, ispin_mat, &
-                                                            kplocal
+      INTEGER                                            :: handle, igroup, ik, indx, islot, &
+                                                            ispin_mat, kplocal, my_slot
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       LOGICAL                                            :: my_kpgrp
@@ -673,27 +700,44 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(PRESENT(cmat) .NEQV. (PRESENT(fm_re) .AND. PRESENT(fm_im)))
+      CPASSERT(COUNT([PRESENT(cmat), PRESENT(fm_re), PRESENT(mat_re)]) == 1)
       IF (PRESENT(fm_re) .OR. PRESENT(fm_im)) THEN
          CPASSERT(PRESENT(fm_re) .AND. PRESENT(fm_im))
       END IF
+      IF (PRESENT(mat_re) .OR. PRESENT(mat_im)) THEN
+         CPASSERT(PRESENT(mat_re) .AND. PRESENT(mat_im))
+      END IF
 
-      IF (PRESENT(cmat)) THEN
-         CALL kpoint_operator_start(ctx, ikp, ispin, rsmat, slot, use_grid=.FALSE., ispin_matrix=ispin_matrix)
-         CALL kpoint_operator_finish(ctx, ikp, ispin, slot, cmat)
-      ELSE
-         ispin_mat = ispin
-         IF (PRESENT(ispin_matrix)) ispin_mat = ispin_matrix
-         CPASSERT(ASSOCIATED(ctx%kpoints))
-         CPASSERT(ASSOCIATED(ctx%kpoints%sab_nl))
-         CPASSERT(ispin >= 1 .AND. ispin <= ctx%nspin)
-         CPASSERT(ispin_mat >= 1 .AND. ispin_mat <= SIZE(rsmat, 1))
-         CALL kpoint_operator_ensure(ctx, rsmat)
-         kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
-         CPASSERT(ikp >= 1 .AND. ikp <= kplocal)
+      ispin_mat = ispin
+      IF (PRESENT(matrix_row)) ispin_mat = matrix_row
+      CPASSERT(ASSOCIATED(ctx%kpoints))
+      CPASSERT(ASSOCIATED(ctx%kpoints%sab_nl))
+      CPASSERT(ispin >= 1 .AND. ispin <= ctx%nspin)
+      CPASSERT(ispin_mat >= 1 .AND. ispin_mat <= SIZE(rsmat, 1))
+      CALL kpoint_operator_ensure(ctx, rsmat)
+      kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
+      CPASSERT(ikp >= 1 .AND. ikp <= kplocal)
+
+      IF (PRESENT(slot)) THEN
          CPASSERT(slot >= kpoint_slot_ks .AND. slot <= kpoint_slot_t)
          CPASSERT(ctx%status(ikp, ispin, slot) == kpoint_slot_idle)
-         ctx%status(ikp, ispin, slot) = kpoint_slot_in_flight
+         my_slot = slot
+      ELSE
+         my_slot = 0
+         DO islot = kpoint_slot_ks, kpoint_slot_t
+            IF (ctx%status(ikp, ispin, islot) == kpoint_slot_idle) THEN
+               my_slot = islot
+               EXIT
+            END IF
+         END DO
+         CPASSERT(my_slot /= 0)
+      END IF
+
+      IF (PRESENT(cmat)) THEN
+         CALL kpoint_operator_start(ctx, ikp, ispin, rsmat, my_slot, use_grid=.FALSE., matrix_row=matrix_row)
+         CALL kpoint_operator_finish(ctx, ikp, ispin, my_slot, cmat)
+      ELSE
+         ctx%status(ikp, ispin, my_slot) = kpoint_slot_in_flight
 
          kp_range = ctx%kpoints%kp_range
          kp_dist => ctx%kpoints%kp_dist
@@ -708,22 +752,37 @@ CONTAINS
                                          tmpmat=ctx%tmpmat, fm_re=ctx%fmwork(kpoint_part_re), &
                                          fm_im=ctx%fmwork(kpoint_part_im))
             IF (my_kpgrp) THEN
-               CALL cp_fm_start_copy_general(ctx%fmwork(kpoint_part_re), fm_re, para_env, &
-                                             ctx%info(indx, ispin, slot, kpoint_part_re))
-               CALL cp_fm_start_copy_general(ctx%fmwork(kpoint_part_im), fm_im, para_env, &
-                                             ctx%info(indx, ispin, slot, kpoint_part_im))
-               CALL cp_fm_finish_copy_general(fm_re, ctx%info(indx, ispin, slot, kpoint_part_re))
-               CALL cp_fm_finish_copy_general(fm_im, ctx%info(indx, ispin, slot, kpoint_part_im))
+               IF (PRESENT(mat_re)) THEN
+                  ! dbcsr flavor: receive both parts through the context
+                  ! buffer, then emit the block-cyclic pair
+                  CALL cp_fm_start_copy_general(ctx%fmwork(kpoint_part_re), ctx%fmlocal, para_env, &
+                                                ctx%info(indx, ispin, my_slot, kpoint_part_re))
+                  CALL cp_fm_start_copy_general(ctx%fmwork(kpoint_part_im), ctx%fmlocal, para_env, &
+                                                ctx%info(indx, ispin, my_slot, kpoint_part_im))
+                  CALL cp_fm_finish_copy_general(ctx%fmlocal, ctx%info(indx, ispin, my_slot, kpoint_part_re))
+                  CALL copy_fm_to_dbcsr_bc(ctx%fmlocal, mat_re)
+                  CALL cp_fm_finish_copy_general(ctx%fmlocal, ctx%info(indx, ispin, my_slot, kpoint_part_im))
+                  CALL copy_fm_to_dbcsr_bc(ctx%fmlocal, mat_im)
+               ELSE
+                  ! fm flavor: transfer each part straight into the caller
+                  ! matrices
+                  CALL cp_fm_start_copy_general(ctx%fmwork(kpoint_part_re), fm_re, para_env, &
+                                                ctx%info(indx, ispin, my_slot, kpoint_part_re))
+                  CALL cp_fm_start_copy_general(ctx%fmwork(kpoint_part_im), fm_im, para_env, &
+                                                ctx%info(indx, ispin, my_slot, kpoint_part_im))
+                  CALL cp_fm_finish_copy_general(fm_re, ctx%info(indx, ispin, my_slot, kpoint_part_re))
+                  CALL cp_fm_finish_copy_general(fm_im, ctx%info(indx, ispin, my_slot, kpoint_part_im))
+               END IF
             ELSE
                CALL cp_fm_start_copy_general(ctx%fmwork(kpoint_part_re), ctx%fmdummy, para_env, &
-                                             ctx%info(indx, ispin, slot, kpoint_part_re))
+                                             ctx%info(indx, ispin, my_slot, kpoint_part_re))
                CALL cp_fm_start_copy_general(ctx%fmwork(kpoint_part_im), ctx%fmdummy, para_env, &
-                                             ctx%info(indx, ispin, slot, kpoint_part_im))
+                                             ctx%info(indx, ispin, my_slot, kpoint_part_im))
             END IF
-            CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, kpoint_part_re))
-            CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, kpoint_part_im))
+            CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, my_slot, kpoint_part_re))
+            CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, my_slot, kpoint_part_im))
          END DO
-         ctx%status(ikp, ispin, slot) = kpoint_slot_idle
+         ctx%status(ikp, ispin, my_slot) = kpoint_slot_idle
       END IF
 
       CALL timestop(handle)

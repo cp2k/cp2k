@@ -57,6 +57,7 @@ MODULE qs_scf_diagonalization
                                               direct_generalized_diagonalization
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm,&
+                                              fm_pool_get_el_struct,&
                                               fm_pool_give_back_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -944,10 +945,10 @@ CONTAINS
                CALL kpoint_operator_start(op_ctx, ikp, ispin, effective_ks, kpoint_slot_ks, &
                                           ks_grid(ispin), use_grid_fft)
                CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_s, kpoint_slot_s, s_grid, &
-                                          use_grid_fft, ispin_matrix=kpoint_spin_free)
+                                          use_grid_fft, matrix_row=kpoint_spin_free)
                IF (my_store_ot_kinetic) THEN
                   CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_t, kpoint_slot_t, &
-                                             use_grid=.FALSE., ispin_matrix=kpoint_spin_free)
+                                             use_grid=.FALSE., matrix_row=kpoint_spin_free)
                END IF
             END IF
          END DO
@@ -1824,7 +1825,7 @@ CONTAINS
                ! transfer to the k-point group
                CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_ks, kpoint_slot_ks, use_grid=.FALSE.)
                CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_s, kpoint_slot_s, &
-                                          use_grid=.FALSE., ispin_matrix=kpoint_spin_free)
+                                          use_grid=.FALSE., matrix_row=kpoint_spin_free)
             END IF
          END DO
       END DO
@@ -3197,7 +3198,6 @@ CONTAINS
       TYPE(cp_cfm_type)                                  :: cksmat, csmat, csmat_base
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools, kp_ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type)                                   :: fmlocal_im, fmlocal_re
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -3327,9 +3327,7 @@ CONTAINS
       END DO
       CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
       CALL mpools_get(kp_mpools, ao_ao_fm_pools=kp_ao_ao_fm_pools)
-      CALL fm_pool_create_fm(kp_ao_ao_fm_pools(1)%pool, fmlocal_re)
-      CALL fm_pool_create_fm(kp_ao_ao_fm_pools(1)%pool, fmlocal_im)
-      CALL cp_fm_get_info(fmlocal_re, matrix_struct=matrix_struct)
+      matrix_struct => fm_pool_get_el_struct(kp_ao_ao_fm_pools(1)%pool)
       CALL cp_cfm_create(cksmat, matrix_struct, name="dav_hk")
       CALL cp_cfm_create(csmat, matrix_struct, name="dav_sk")
       CALL cp_cfm_create(csmat_base, matrix_struct, name="dav_sk_base")
@@ -3338,8 +3336,7 @@ CONTAINS
                          MODULO(scf_env%iter_count, &
                                 scf_env%block_davidson_env(1)%niter_new_prec) == 0)) THEN
          CALL davidson_kp_prepare_preconditioners( &
-            qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints, &
-            op_ctx, fmlocal_re, fmlocal_im)
+            qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints, op_ctx)
       END IF
 
       DO local_kpoint = 1, kplocal
@@ -3349,10 +3346,10 @@ CONTAINS
          ! Only the group owning this local_kpoint receives the redistributed
          ! matrix; the others participate through the dummy destination.
          CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_s_kp, &
-                                  kpoint_slot_s, cmat=csmat_base, ispin_matrix=kpoint_spin_free)
+                                  cmat=csmat_base, matrix_row=kpoint_spin_free)
 
          DO ispin = 1, nspin
-            CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, kpoint_slot_ks, &
+            CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, &
                                      cmat=cksmat)
             CALL cp_cfm_to_cfm(csmat_base, csmat)
 
@@ -3387,8 +3384,6 @@ CONTAINS
       CALL cp_cfm_release(csmat)
       CALL cp_cfm_release(csmat_base)
       CALL kpoint_operator_context_release(op_ctx)
-      CALL fm_pool_give_back_fm(kp_ao_ao_fm_pools(1)%pool, fmlocal_re)
-      CALL fm_pool_give_back_fm(kp_ao_ao_fm_pools(1)%pool, fmlocal_im)
       DO iwork = 1, 4
          CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
       END DO
@@ -3451,19 +3446,15 @@ CONTAINS
 !> \param matrix_s_kp ...
 !> \param kpoints ...
 !> \param op_ctx ...
-!> \param fmlocal_re ...
-!> \param fmlocal_im ...
 ! **************************************************************************************************
    SUBROUTINE davidson_kp_prepare_preconditioners( &
-      qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints, &
-      op_ctx, fmlocal_re, fmlocal_im)
+      qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints, op_ctx)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(kpoint_operator_context_type)                 :: op_ctx
-      TYPE(cp_fm_type)                                   :: fmlocal_re, fmlocal_im
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'davidson_kp_prepare_preconditioners'
 
@@ -3534,35 +3525,30 @@ CONTAINS
          kp => kpoints%kp_env(local_kpoint)%kpoint_env
 
          ! S(k) is spin independent. Build it with the same global-group
-         ! redistribution protocol as the Davidson operator itself, then make
-         ! a group-local block-cyclic DBCSR pair for the preconditioner makers.
-         CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_s_kp, &
-                                  kpoint_slot_s, fm_re=fmlocal_re, fm_im=fmlocal_im, &
-                                  ispin_matrix=kpoint_spin_free)
+         ! redistribution protocol as the Davidson operator itself, directly
+         ! as the group-local block-cyclic DBCSR pair of the preconditioner
+         ! makers.
          CALL dbcsr_init_p(matrix_s_re)
          CALL dbcsr_init_p(matrix_s_im)
-         CALL copy_fm_to_dbcsr_bc(fmlocal_re, matrix_s_re)
-         CALL copy_fm_to_dbcsr_bc(fmlocal_im, matrix_s_im)
+         CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_s_kp, &
+                                  mat_re=matrix_s_re, mat_im=matrix_s_im, &
+                                  matrix_row=kpoint_spin_free)
 
          IF (prec_type == ot_precond_full_kinetic) THEN
-            CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_t_kp, &
-                                     kpoint_slot_t, fm_re=fmlocal_re, fm_im=fmlocal_im, &
-                                     ispin_matrix=kpoint_spin_free)
             CALL dbcsr_init_p(matrix_t_re)
             CALL dbcsr_init_p(matrix_t_im)
-            CALL copy_fm_to_dbcsr_bc(fmlocal_re, matrix_t_re)
-            CALL copy_fm_to_dbcsr_bc(fmlocal_im, matrix_t_im)
+            CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_t_kp, &
+                                     mat_re=matrix_t_re, mat_im=matrix_t_im, &
+                                     matrix_row=kpoint_spin_free)
          END IF
 
          DO ispin = 1, nspin
             channel = (local_kpoint - 1)*nspin + ispin
             IF (prec_type == ot_precond_full_all .OR. prec_type == ot_precond_full_single_inverse) THEN
-               CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, kpoint_slot_ks, &
-                                        fm_re=fmlocal_re, fm_im=fmlocal_im)
                CALL dbcsr_init_p(matrix_h_re)
                CALL dbcsr_init_p(matrix_h_im)
-               CALL copy_fm_to_dbcsr_bc(fmlocal_re, matrix_h_re)
-               CALL copy_fm_to_dbcsr_bc(fmlocal_im, matrix_h_im)
+               CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, &
+                                        mat_re=matrix_h_re, mat_im=matrix_h_im)
                ! Davidson iterates the full MO set, so its active space is all nmo
                ! MOs of the channel: assemble the complex channel matrices on the
                ! kpoint-group context and call the complex H-based cores directly

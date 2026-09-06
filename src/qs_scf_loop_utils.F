@@ -76,8 +76,7 @@ MODULE qs_scf_loop_utils
    USE qs_kpoint_operators,             ONLY: kpoint_operator_context_create,&
                                               kpoint_operator_context_release,&
                                               kpoint_operator_context_type,&
-                                              kpoint_operator_get,&
-                                              kpoint_slot_ks
+                                              kpoint_operator_get
    USE qs_kpp1_env_types,               ONLY: kpp1_release,&
                                               qs_kpp1_env_type
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
@@ -1682,7 +1681,7 @@ CONTAINS
             CALL kpoint_operator_context_create(hxc_op_ctx, kpoints, fmwork(1), nspin_ot)
             DO local_kpoint = 1, nlocal_kpoints
                DO ispin = 1, nspin_ot
-                  CALL kpoint_operator_get(hxc_op_ctx, local_kpoint, ispin, potential_rs, kpoint_slot_ks, &
+                  CALL kpoint_operator_get(hxc_op_ctx, local_kpoint, ispin, potential_rs, &
                                            fm_re=operator_re(local_kpoint, ispin), &
                                            fm_im=operator_im(local_kpoint, ispin))
                END DO
