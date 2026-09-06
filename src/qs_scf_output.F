@@ -42,7 +42,8 @@ MODULE qs_scf_output
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE kpoint_types,                    ONLY: kpoint_type
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
    USE machine,                         ONLY: m_flush
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
@@ -197,9 +198,10 @@ CONTAINS
       CHARACTER(LEN=5)                                   :: spin
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
-      INTEGER                                            :: handle, homo, ikp, ispin, iw, kpoint, &
-                                                            nao, nelectron, nkp, nmo, nspin, numo
-      INTEGER, DIMENSION(2)                              :: nmos_occ
+      INTEGER                                            :: handle, homo, ikp, ikp_local, ispin, iw, &
+                                                            nao, nelectron, nkp, nmo, nmo_occ, &
+                                                            nspin, numo
+      INTEGER, DIMENSION(2)                              :: kp_range, nmos_occ
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range
       LOGICAL                                            :: do_kpoints, do_printout, print_eigvals, &
                                                             print_eigvecs, print_mo_info, &
@@ -218,7 +220,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set, umo_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_inter_kp
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
       TYPE(qs_environment_type), POINTER                 :: cart_overlap_qs_env
@@ -263,39 +265,67 @@ CONTAINS
          RETURN
       END IF
 
-      NULLIFY (fm_struct_tmp)
-      NULLIFY (mo_coeff)
-      NULLIFY (mo_coeff_deriv)
-      NULLIFY (mo_eigenvalues)
-      NULLIFY (mo_set)
-      NULLIFY (umo_coeff)
-      NULLIFY (umo_eigenvalues)
-      NULLIFY (umo_set)
-
       do_printout = .TRUE.
       nspin = dft_control%nspins
       nmos_occ = 0
 
-      ! Check, if we have k points
       IF (do_kpoints) THEN
          CALL get_qs_env(qs_env, kpoints=kpoints)
-         nkp = SIZE(kpoints%kp_env)
+         CALL get_kpoint_info(kpoints, nkp=nkp, kp_range=kp_range, para_env_inter_kp=para_env_inter_kp)
+         CPASSERT(ASSOCIATED(para_env_inter_kp))
+         IF (scf_env%method == ot_method_nr) THEN
+            solver_method = "OT"
+         ELSE
+            solver_method = "TD"
+         END IF
+         DO ikp = 1, nkp
+            DO ispin = 1, nspin
+               ! Optional MO dummies are absent when their pointers are unassociated.
+               NULLIFY (mo_set, cart_overlap_qs_env)
+               nmo_occ = 0
+               IF ((ikp >= kp_range(1)) .AND. (ikp <= kp_range(2))) THEN
+                  ikp_local = ikp - kp_range(1) + 1
+                  mo_set => kpoints%kp_env(ikp_local)%kpoint_env%mos(1, ispin)
+                  IF (print_occup_stats) THEN
+                     nmo_occ = COUNT(mo_set%occupation_numbers > occup_stats_occ_threshold)
+                  END IF
+               END IF
+               IF (print_occup_stats) THEN
+                  CALL para_env_inter_kp%max(nmo_occ)
+                  nmos_occ(ispin) = MAX(nmos_occ(ispin), nmo_occ)
+               END IF
+               IF ((ikp == 1) .AND. (ikp >= kp_range(1)) .AND. &
+                   (ikp <= kp_range(2)) .AND. (ispin == 1)) THEN
+                  cart_overlap_qs_env => qs_env
+               END IF
+               IF (nspin > 1) THEN
+                  SELECT CASE (ispin)
+                  CASE (1)
+                     spin = "ALPHA"
+                  CASE (2)
+                     spin = "BETA"
+                  CASE DEFAULT
+                     CPABORT("Invalid spin")
+                  END SELECT
+                  CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, ikp, &
+                                                   final_mos=final_mos, spin=TRIM(spin), &
+                                                   solver_method=solver_method, qs_env=cart_overlap_qs_env, &
+                                                   para_env_inter_kp=para_env_inter_kp)
+               ELSE
+                  CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, ikp, &
+                                                   final_mos=final_mos, solver_method=solver_method, &
+                                                   qs_env=cart_overlap_qs_env, para_env_inter_kp=para_env_inter_kp)
+               END IF
+            END DO
+         END DO
       ELSE
-         CALL get_qs_env(qs_env, matrix_ks=ks, matrix_s=s)
+
+         NULLIFY (fm_struct_tmp, mo_coeff, mo_coeff_deriv, mo_eigenvalues, &
+                  mo_set, umo_coeff, umo_eigenvalues, umo_set)
+
+         CALL get_qs_env(qs_env, matrix_ks=ks, matrix_s=s, mos=mos)
          CPASSERT(ASSOCIATED(ks))
          CPASSERT(ASSOCIATED(s))
-         nkp = 1
-      END IF
-
-      kp_loop: DO ikp = 1, nkp
-
-         IF (do_kpoints) THEN
-            mos => kpoints%kp_env(ikp)%kpoint_env%mos(1, :)
-            kpoint = ikp
-         ELSE
-            CALL get_qs_env(qs_env, matrix_ks=ks, mos=mos)
-            kpoint = 0 ! Gamma point only
-         END IF
          CPASSERT(ASSOCIATED(mos))
 
          ! Prepare MO information for printout
@@ -306,10 +336,7 @@ CONTAINS
 
                solver_method = "OT"
 
-               IF (do_kpoints) THEN
-                  mo_set => mos(ispin)
-                  NULLIFY (umo_set)
-               ELSE IF (final_mos) THEN
+               IF (final_mos) THEN
 
                   matrix_ks => ks(ispin)%matrix
                   matrix_s => s(1)%matrix
@@ -419,9 +446,9 @@ CONTAINS
                             "is achieved when the orbital transformation (OT) method is used"
                   CPWARN(TRIM(message))
                   do_printout = .FALSE.
-                  EXIT kp_loop
+                  EXIT
 
-               END IF ! final MOs / k-point OT
+               END IF ! final MOs / gamma OT
 
             ELSE
 
@@ -433,7 +460,7 @@ CONTAINS
 
             ! Print MO information
             NULLIFY (cart_overlap_qs_env)
-            IF ((ikp == 1) .AND. (ispin == 1)) cart_overlap_qs_env => qs_env
+            IF (ispin == 1) cart_overlap_qs_env => qs_env
             IF (nspin > 1) THEN
                SELECT CASE (ispin)
                CASE (1)
@@ -443,28 +470,17 @@ CONTAINS
                CASE DEFAULT
                   CPABORT("Invalid spin")
                END SELECT
-               IF (ASSOCIATED(umo_set)) THEN
-                  CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, kpoint, &
-                                                   final_mos=final_mos, spin=TRIM(spin), solver_method=solver_method, &
-                                                   umo_set=umo_set, qs_env=cart_overlap_qs_env)
-               ELSE
-                  CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, kpoint, &
-                                                   final_mos=final_mos, spin=TRIM(spin), solver_method=solver_method, &
-                                                   qs_env=cart_overlap_qs_env)
-               END IF
+               CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, 0, &
+                                                final_mos=final_mos, spin=TRIM(spin), solver_method=solver_method, &
+                                                umo_set=umo_set, qs_env=cart_overlap_qs_env)
             ELSE
-               IF (ASSOCIATED(umo_set)) THEN
-                  CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, kpoint, &
-                                                   final_mos=final_mos, solver_method=solver_method, &
-                                                   umo_set=umo_set, qs_env=cart_overlap_qs_env)
-               ELSE
-                  CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, kpoint, &
-                                                   final_mos=final_mos, solver_method=solver_method, &
-                                                   qs_env=cart_overlap_qs_env)
-               END IF
+               CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, 0, &
+                                                final_mos=final_mos, solver_method=solver_method, &
+                                                umo_set=umo_set, qs_env=cart_overlap_qs_env)
             END IF
 
-            nmos_occ(ispin) = MAX(nmos_occ(ispin), COUNT(mo_set%occupation_numbers > occup_stats_occ_threshold))
+            IF (print_occup_stats) nmos_occ(ispin) = MAX(nmos_occ(ispin), &
+                                                         COUNT(mo_set%occupation_numbers > occup_stats_occ_threshold))
 
             ! Deallocate temporary objects needed for OT
             IF (scf_env%method == ot_method_nr) THEN
@@ -478,15 +494,14 @@ CONTAINS
             NULLIFY (mo_set)
 
          END DO ! ispin
-
-      END DO kp_loop
+      END IF
 
       IF (do_printout .AND. print_mo_info .AND. print_occup_stats) THEN
          iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%MO", &
                                    ignore_should_output=print_mo_info, &
                                    extension=".MOLog")
          IF (iw > 0) THEN
-            IF (SIZE(mos) > 1) THEN
+            IF (nspin > 1) THEN
                WRITE (UNIT=iw, FMT="(A,I4)") " MO| Total occupied (ALPHA):", nmos_occ(1)
                WRITE (UNIT=iw, FMT="(A,I4)") " MO| Total occupied (BETA): ", nmos_occ(2)
             ELSE
