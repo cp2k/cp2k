@@ -225,7 +225,18 @@ CONTAINS
          END IF
       END IF
 
-      fftw_plan_type = plan_style
+      SELECT CASE (plan_style)
+      CASE (1)
+         fftw_plan_type = FFTW_ESTIMATE
+      CASE (2)
+         fftw_plan_type = FFTW_MEASURE
+      CASE (3)
+         fftw_plan_type = FFTW_PATIENT
+      CASE (4)
+         fftw_plan_type = FFTW_EXHAUSTIVE
+      CASE DEFAULT
+         CPABORT("Invalid FFTW_PLAN_TYPE")
+      END SELECT
 #else
       MARK_USED(wisdom_file)
       MARK_USED(plan_style)
@@ -692,7 +703,7 @@ CONTAINS
 !$OMP END PARALLEL
 
       IF ((.NOT. fftw3_is_guru_supported()) .OR. &
-          (.NOT. fftw_plan_type == 1) .OR. &
+          (.NOT. fftw_plan_type == FFTW_ESTIMATE) .OR. &
           (n1 < 256 .AND. n2 < 256 .AND. n3 < 256 .AND. nt == 1)) THEN
          ! If the plan type is MEASURE, PATIENT and EXHAUSTIVE or
          ! the grid size is small (and we are single-threaded) then
