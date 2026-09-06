@@ -46,6 +46,49 @@ additional bands for the export, and
 from it. Choose the exported band window and the subsequent Wannier90 settings for the particular
 material and target property.
 
+## In-process localization
+
+When CP2K is compiled with `CP2K_USE_WANNIER90=ON`, the optional
+[LIBRARY](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.LIBRARY) subsection runs Wannier90 v4 directly,
+without starting a separate executable. See [](../../technologies/libraries) for build instructions.
+The ordinary file-export interface remains the default and does not require this dependency.
+
+```text
+&WANNIER90 ON
+  KPOINTS_SOURCE SCF
+  WANNIER_FUNCTIONS 1
+  &LIBRARY ON
+    NUM_ITER 1000
+    CONV_WINDOW 5
+    CONV_TOL 1.e-10
+    WRITE_INPUTS T
+  &END LIBRARY
+&END WANNIER90
+```
+
+The library obtains the complete mesh through the existing export path, including reconstruction of
+symmetry-reduced SCF orbitals. Neighbour connectivity is supplied by Wannier90. Overlap blocks are
+distributed over the CP2K communicator by k-point. The reported centres and quadratic spreads are
+converted to bohr and bohr squared; `CONV_TOL` uses Wannier90's angstrom-squared convention. The
+optimizer log is written to `SEED_NAME.library.wout`. A calculation that reaches `NUM_ITER` without
+satisfying the convergence criterion is rejected, even if the library reports no runtime error. In
+Wannier90 4.0.2 this requires checking its explicit convergence report, since exhaustion of the
+iteration budget is not reflected in the API return code.
+
+`WRITE_INPUTS T` also writes matching `.win`, `.amn`, `.mmn`, and `.eig` files for comparison with
+an external Wannier90 run. By default these additional files are not written. The library uses
+`INITIAL_PROJECTIONS AO_SCDM` by default: CP2K projects the exported MOs onto its AO basis with the
+complex overlap metric and selects one fixed set of AO trials over the complete mesh using pivoted
+QR. This is an AO-based, SCDM-inspired construction, not sampling of the density matrix on a
+real-space grid. The projections use the same Bloch gauge as the overlap matrices. Per-k-point rank
+checks reject a trial set that does not span the target space.
+
+`INITIAL_PROJECTIONS IDENTITY` is available for diagnostics but retains the arbitrary MO gauge. It
+can converge to different local minima for symmetry-reconstructed and newly diagonalized MOs. The
+initial library path requires a spin-unpolarized calculation with as many Wannier functions as
+exported bands, without `EXCLUDE_BANDS`. Even with AO trials, convergence to a stationary
+localization result does not guarantee the global minimum of the spread functional.
+
 ## Generated files
 
 With `SEED_NAME silicon`, CP2K writes the following Wannier90 files:
@@ -95,9 +138,10 @@ irreducible subset.
 
 ### Use a separate Monkhorst--Pack mesh
 
-`KPOINTS_SOURCE MP_GRID` is the historical default. It builds a full Monkhorst--Pack mesh from
+`KPOINTS_SOURCE MP_GRID` is the historical default. It builds a full Gamma-centred uniform mesh from
 [MP_GRID](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.MP_GRID), independently of the SCF k-point
-setup:
+setup. For a like-for-like comparison with `KPOINTS_SOURCE SCF`, use the same dimensions and
+`GAMMA_CENTERED T` in `&DFT%KPOINTS`:
 
 ```text
 &PRINT
