@@ -1,0 +1,16 @@
+# Library/external Wannier90 parity and SCF/full-mesh consistency.
+"he_scf.inp" = [{matcher="E_total", tol=1e-12, ref=-2.95145706672897},
+                {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21970225224014},
+                {matcher="WANNIER90_SCF_MO_REUSE", tol=0.0, ref=1.0}]
+"he_scf_nophase.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21970225224014}]
+"he_scf_diagonalize.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21970225224014}]
+# MP_GRID is Gamma-centred, unlike the standard even Monkhorst-Pack scheme above.
+"he_mp_grid.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21934101912863}]
+"he_scf_gamma.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21934101912863}]
+"he2_scf.inp" = [{matcher="E_total", tol=1e-12, ref=-5.78478325058176},
+                 {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=2.39300643054920}]
+"he2_skew.inp" = [{matcher="E_total", tol=1e-12, ref=-5.73937460312148},
+                  {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=2.36614530121042}]
+"h_fcc_scf.inp" = [{matcher="E_total", tol=1e-12, ref=-4.30964310650676},
+                   {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-8, ref=36.4609535554485},
+                   {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]
