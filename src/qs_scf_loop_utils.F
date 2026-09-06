@@ -1677,7 +1677,9 @@ CONTAINS
          IF (nkp_groups > 1) THEN
             ! The group communicators do not own the complete real-space
             ! operator; redistribute it to every group through the service.
-            CALL kpoint_operator_context_create(hxc_op_ctx, kpoints, fmwork(1))
+            ! The fm pair lives on the OT channel distribution; the service
+            ! transfers into it directly, whatever that distribution is.
+            CALL kpoint_operator_context_create(hxc_op_ctx, kpoints, fmwork(1), nspin_ot)
             DO local_kpoint = 1, nlocal_kpoints
                DO ispin = 1, nspin_ot
                   CALL kpoint_operator_get(hxc_op_ctx, local_kpoint, ispin, potential_rs, kpoint_slot_ks, &

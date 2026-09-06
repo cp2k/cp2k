@@ -793,7 +793,8 @@ CONTAINS
       ! The operator context spans this routine; the complex path assembles
       ! every operator through it. The real-wavefunction path keeps its own
       ! transfers below.
-      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1))
+      nspin = SIZE(matrix_ks, 1)
+      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
 
       ! fm pools to be used within a kpoint group
       CALL get_kpoint_info(kpoints, mpools=mpools)
@@ -821,7 +822,6 @@ CONTAINS
       END IF
 
       para_env => kpoints%blacs_env_all%para_env
-      nspin = SIZE(matrix_ks, 1)
 
       ! For a complete Monkhorst-Pack grid, transform every MPI-local DBCSR block over all k points
       ! in one lattice FFT. The established per-k phase sum remains the exact memory/irregular-grid
@@ -1784,7 +1784,7 @@ CONTAINS
 
       para_env => kpoints%blacs_env_all%para_env
       nspin = SIZE(matrix_ks, 1)
-      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1))
+      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
       ! The real-wavefunction path keeps its own transfer bookkeeping.
       IF (use_real_wfn) ALLOCATE (info(kplocal*nspin*nkp_groups, 2))
 
@@ -3325,7 +3325,7 @@ CONTAINS
       DO iwork = 1, 4
          CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
       END DO
-      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1))
+      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
       CALL mpools_get(kp_mpools, ao_ao_fm_pools=kp_ao_ao_fm_pools)
       CALL fm_pool_create_fm(kp_ao_ao_fm_pools(1)%pool, fmlocal_re)
       CALL fm_pool_create_fm(kp_ao_ao_fm_pools(1)%pool, fmlocal_im)
@@ -3697,7 +3697,9 @@ CONTAINS
       ALLOCATE (eigenvalues(nao), ceig(nao))
 
       para_env => kpoints%blacs_env_all%para_env
-      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1))
+      ! The overlap is spin free: the routine drives every instance under the
+      ! single spin-free key.
+      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), 1)
       ! The real-wavefunction path keeps its own transfer bookkeeping.
       IF (use_real_wfn) ALLOCATE (info(kplocal*nkp_groups, 1))
 
