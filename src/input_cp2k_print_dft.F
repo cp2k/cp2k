@@ -2887,6 +2887,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: print_key
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       NULLIFY (keyword)
 
@@ -2973,6 +2974,46 @@ CONTAINS
                           repeats=.TRUE., type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+
+      NULLIFY (subsection)
+      CALL section_create(subsection, __LOCATION__, name="LIBRARY", &
+                          description="Run the optional Wannier90 v4 library directly after the SCF calculation.", &
+                          n_keywords=6, n_subsections=0, repeats=.FALSE.)
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Enable in-process Wannier90 localization.", usage="&LIBRARY ON", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="INITIAL_PROJECTIONS", &
+                          description="Initial trial orbitals for in-process Wannier90 localization. "// &
+                          "AO_SCDM selects fixed AO candidates by pivoted QR on their projections "// &
+                          "over the full k-point mesh. IDENTITY retains the input MO gauge and can "// &
+                          "converge to different local minima for equivalent MO representations.", &
+                          type_of_var=enum_t, enum_c_vals=s2a("IDENTITY", "AO_SCDM"), &
+                          enum_i_vals=[0, 1], default_i_val=1)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="WRITE_INPUTS", &
+                          description="Also write the Wannier90 input and matrices for an external reference run.", &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_ITER", &
+                          description="Maximum number of Wannier90 localization iterations.", default_i_val=1000)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="CONV_WINDOW", &
+                          description="Number of consecutive iterations in the Wannier90 convergence test (at least two).", &
+                          default_i_val=5)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="CONV_TOL", &
+                          description="Wannier90 spread-change convergence tolerance in angstrom squared.", &
+                          default_r_val=1.0e-10_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(print_key, subsection)
+      CALL section_release(subsection)
 
    END SUBROUTINE create_wannier_section
 

@@ -25,8 +25,9 @@ MODULE qs_wannier90
                                               cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_p_type, dbcsr_set, &
-        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_get_block_p, &
+        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set
@@ -80,11 +81,26 @@ MODULE qs_wannier90
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_moments,                      ONLY: build_berry_kpoint_matrix
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                              get_neighbor_list_set_p,&
+                                              neighbor_list_iterate,&
+                                              neighbor_list_iterator_create,&
+                                              neighbor_list_iterator_p_type,&
+                                              neighbor_list_iterator_release,&
+                                              neighbor_list_set_p_type
    USE qs_scf_diagonalization,          ONLY: do_general_diag_kp
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE scf_control_types,               ONLY: scf_control_type
    USE wannier90,                       ONLY: wannier_setup
+   USE wannier90_library,               ONLY: w90_library_eigenvalues,&
+                                              w90_library_init,&
+                                              w90_library_overlap,&
+                                              w90_library_projections,&
+                                              w90_library_release,&
+                                              w90_library_run,&
+                                              w90_library_type,&
+                                              w90_library_write_options
+   USE wannier90_projections,           ONLY: wannier90_select_projections
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -168,10 +184,14 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: filename, input_kp_scheme, reuse_reason, &
                                                             seed_name
       CHARACTER(LEN=timestamp_length)                    :: timestamp
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: ao_projections(:, :, :), &
+                                                            initial_amn(:, :, :), &
+                                                            overlap_block(:, :)
       INTEGER :: aligned_degenerate_blocks, aligned_degenerate_max_size, i, i_rep, ib, ib1, ib2, &
-         ibs, ik, ik2, ikk, ikpgr, ispin, iunit, ix, iy, iz, k, kpoints_source, n_rep, nadd, nao, &
-         nbs, nexcl, nkp, nmo, nntot, nspins, num_atoms, num_bands, num_bands_tot, num_kpts, &
-         num_wann
+         ibs, ik, ik2, ikk, ikpgr, initial_projections, ispin, iunit, ix, iy, iz, k, &
+         kpoints_source, n_rep, nadd, nao, nbs, nexcl, nkp, nmo, nntot, nspins, num_atoms, &
+         num_bands, num_bands_tot, num_kpts, num_wann
+      INTEGER, ALLOCATABLE                               :: projection_pivots(:)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: exclude_bands
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: nblist, nnlist
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: nncell
@@ -180,14 +200,15 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: invals
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL :: diis_step, do_kpoints, full_mesh_diagonalized, gamma_only, input_full_grid, &
-         input_gamma_centered, input_kpoint_symmetry, mp_grid_explicit, mp_grid_valid, my_kpgrp, &
-         mygrp, reuse_scf_mos, reused_scf_mos, spinors, use_bloch_phases, validate_reuse_ok, &
-         validate_reuse_scf_mos
+         input_gamma_centered, input_kpoint_symmetry, library_converged, mp_grid_explicit, &
+         mp_grid_valid, my_kpgrp, mygrp, reuse_scf_mos, reused_scf_mos, run_library, spinors, &
+         use_bloch_phases, validate_reuse_ok, validate_reuse_scf_mos, write_files
       REAL(KIND=dp) :: aligned_degenerate_min_svalue, cmmn, gauge_arg, gauge_imag, gauge_real, &
-         gauge_tmp, ksign, reuse_candidate_deviation, reuse_candidate_metric_deviation, &
-         reuse_candidate_min_svalue, reuse_candidate_residual, rmmn, &
-         validation_eigenvalue_deviation, validation_min_svalue, validation_subspace_deviation, &
-         wkp_ref
+         gauge_tmp, ksign, projection_min_svalue, reuse_candidate_deviation, &
+         reuse_candidate_metric_deviation, reuse_candidate_min_svalue, reuse_candidate_residual, &
+         rmmn, validation_eigenvalue_deviation, validation_min_svalue, &
+         validation_subspace_deviation, wkp_ref
+      REAL(KIND=dp), ALLOCATABLE                         :: wannier_centres(:, :), wannier_spreads(:)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atoms_cart, b_latt, kpt_latt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: reference_eigenvalues
@@ -207,8 +228,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(2)                     :: fmk1, fmk2
       TYPE(cp_fm_type), POINTER                          :: fmdummy, fmi, fmr
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
-      TYPE(dbcsr_type), POINTER                          :: cmatrix, cmatrix_full, rmatrix, &
-                                                            rmatrix_full
+      TYPE(dbcsr_type), POINTER                          :: cmatrix_full, rmatrix_full
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoint, qs_kpoint
@@ -220,6 +240,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env_kp
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
+      TYPE(section_vals_type), POINTER                   :: library_input
+      TYPE(w90_library_type)                             :: library
 
       !--------------------------------------------------------------------------------------------!
 
@@ -234,6 +256,13 @@ CONTAINS
       CALL section_vals_val_get(input, "REUSE_SCF_MOS", l_val=reuse_scf_mos)
       CALL section_vals_val_get(input, "VALIDATE_REUSE_SCF_MOS", l_val=validate_reuse_scf_mos)
       CALL section_vals_val_get(input, "USE_BLOCH_PHASES", l_val=use_bloch_phases)
+      library_input => section_vals_get_subs_vals(input, "LIBRARY")
+      CALL section_vals_val_get(library_input, "_SECTION_PARAMETERS_", l_val=run_library)
+      write_files = .TRUE.
+      IF (run_library) THEN
+         CALL section_vals_val_get(library_input, "WRITE_INPUTS", l_val=write_files)
+         CALL section_vals_val_get(library_input, "INITIAL_PROJECTIONS", i_val=initial_projections)
+      END IF
       reuse_scf_mos = reuse_scf_mos .AND. kpoints_source == w90_kpoints_scf
       validate_reuse_scf_mos = validate_reuse_scf_mos .AND. reuse_scf_mos
       mp_grid(1:3) = invals(1:3)
@@ -308,9 +337,8 @@ CONTAINS
          kpoint%nkp = num_kpts
          ALLOCATE (kpoint%xkp(3, num_kpts), kpoint%wkp(num_kpts))
          kpoint%wkp(:) = 1._dp/REAL(num_kpts, KIND=dp)
-         DO i = 1, num_kpts
-            kpoint%xkp(1:3, i) = (angstrom/twopi)*MATMUL(recip_lattice, kpt_latt(:, i))
-         END DO
+         ! rskp_transform uses reduced coordinates in exp(2*pi*i*k.R), with integer cell shifts R.
+         kpoint%xkp(:, :) = kpt_latt(:, :)
 
       CASE (w90_kpoints_scf)
          IF (.NOT. do_kpoints .OR. .NOT. ASSOCIATED(qs_kpoint)) THEN
@@ -440,25 +468,33 @@ CONTAINS
       END DO
       gamma_only = .FALSE.
       spinors = .FALSE.
-      ! output
-      ALLOCATE (nnlist(num_kpts, num_nnmax))
-      ALLOCATE (nncell(3, num_kpts, num_nnmax))
-      nnlist(:, :) = 0
-      nncell(:, :, :) = 0
-      nntot = 0
-
-      IF (iw > 0) THEN
-         ! setup
-         CALL wannier_setup(mp_grid, num_kpts, real_lattice, recip_lattice, &
-                            kpt_latt, nntot, nnlist, nncell, iw)
+      IF (run_library) THEN
+         CALL get_qs_env(qs_env, dft_control=dft_control)
+         IF (dft_control%nspins /= 1) THEN
+            CPABORT("WANNIER90 LIBRARY currently requires a spin-unpolarized calculation.")
+         END IF
+         IF (nexcl > 0) THEN
+            CPABORT("WANNIER90 LIBRARY does not yet support EXCLUDE_BANDS.")
+         END IF
+         CALL w90_library_init(library, library_input, para_env, seed_name, real_lattice, kpt_latt, &
+                               mp_grid, num_bands, num_wann, nnlist, nncell)
+         nntot = SIZE(nnlist, 2)
+         ALLOCATE (overlap_block(num_bands, num_bands))
+      ELSE
+         ALLOCATE (nnlist(num_kpts, num_nnmax), nncell(3, num_kpts, num_nnmax))
+         nnlist(:, :) = 0
+         nncell(:, :, :) = 0
+         nntot = 0
+         IF (iw > 0) THEN
+            CALL wannier_setup(mp_grid, num_kpts, real_lattice, recip_lattice, &
+                               kpt_latt, nntot, nnlist, nncell, iw)
+         END IF
+         CALL para_env%sum(nntot)
+         CALL para_env%sum(nnlist)
+         CALL para_env%sum(nncell)
       END IF
 
-      CALL get_qs_env(qs_env, para_env=para_env)
-      CALL para_env%sum(nntot)
-      CALL para_env%sum(nnlist)
-      CALL para_env%sum(nncell)
-
-      IF (para_env%is_source()) THEN
+      IF (para_env%is_source() .AND. write_files) THEN
          ! Write the Wannier90 input file "seed_name.win"
          WRITE (filename, '(A,A)') TRIM(seed_name), ".win"
          CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
@@ -468,21 +504,33 @@ CONTAINS
          WRITE (iunit, "(A,/)") "! Creation date "//timestamp
          !
          WRITE (iunit, "(A,I5)") "num_wann     = ", num_wann
+         IF (run_library) CALL w90_library_write_options(library, iunit)
          IF (num_bands /= num_wann .OR. use_bloch_phases) THEN
             WRITE (iunit, "(A,I5)") "num_bands    = ", num_bands
          END IF
-         IF (use_bloch_phases) THEN
+         IF (use_bloch_phases .AND. .NOT. run_library) THEN
             ! Keep the external Wannier90 projection matrix fully defined for
             ! complete-band Bloch-phase subspaces by writing explicit identity projections.
             WRITE (iunit, "(A)") "! CP2K writes identity projections for Bloch-phase complete subspaces."
          END IF
-         WRITE (iunit, "(/,A,/)") "length_unit  = bohr "
+         IF (run_library) THEN
+            WRITE (iunit, "(/,A,/)") "length_unit = ang"
+         ELSE
+            WRITE (iunit, "(/,A,/)") "length_unit = bohr"
+         END IF
          WRITE (iunit, "(/,A,/)") "! System"
          WRITE (iunit, "(/,A)") "begin unit_cell_cart"
-         WRITE (iunit, "(A)") "bohr"
-         DO i = 1, 3
-            WRITE (iunit, "(3F12.6)") cell%hmat(i, 1:3)
-         END DO
+         IF (run_library) THEN
+            WRITE (iunit, "(A)") "ang"
+            DO i = 1, 3
+               WRITE (iunit, "(3ES24.16)") real_lattice(:, i)
+            END DO
+         ELSE
+            WRITE (iunit, "(A)") "bohr"
+            DO i = 1, 3
+               WRITE (iunit, "(3F12.6)") cell%hmat(i, 1:3)
+            END DO
+         END IF
          WRITE (iunit, "(A,/)") "end unit_cell_cart"
          WRITE (iunit, "(/,A)") "begin atoms_cart"
          WRITE (iunit, "(A)") "bohr"
@@ -494,11 +542,11 @@ CONTAINS
          WRITE (iunit, "(/,A,3I6/)") "mp_grid      = ", mp_grid(1:3)
          WRITE (iunit, "(A)") "begin kpoints"
          DO i = 1, num_kpts
-            WRITE (iunit, "(3F12.6)") kpt_latt(1:3, i)
+            WRITE (iunit, "(3ES24.16)") kpt_latt(1:3, i)
          END DO
          WRITE (iunit, "(A)") "end kpoints"
          CALL close_file(iunit)
-         IF (use_bloch_phases) THEN
+         IF (use_bloch_phases .AND. .NOT. run_library) THEN
             WRITE (filename, '(A,A)') TRIM(seed_name), ".amn"
             CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
             WRITE (iunit, "(A)") "! Wannier90 identity projections generated by CP2K"
@@ -617,7 +665,7 @@ CONTAINS
             IF (reused_scf_mos) THEN
                WRITE (iw, '(T2,A)') &
                   "WANNIER90| Reused SCF MO coefficients for the Wannier90 full k-point mesh."
-               IF (use_bloch_phases) THEN
+               IF (use_bloch_phases .AND. .NOT. run_library) THEN
                   WRITE (iw, '(T2,A)') &
                      "WANNIER90| Wrote identity projections for Bloch-phase complete band subspaces."
                   WRITE (iw, '(T2,A,3F10.6)') &
@@ -645,6 +693,31 @@ CONTAINS
       IF (ALLOCATED(reference_mo_real)) DEALLOCATE (reference_mo_real)
       IF (ALLOCATED(reference_mo_imag)) DEALLOCATE (reference_mo_imag)
       IF (ALLOCATED(reference_eigenvalues)) DEALLOCATE (reference_eigenvalues)
+      IF (run_library) THEN
+         ALLOCATE (initial_amn(num_bands, num_wann, num_kpts))
+         IF (initial_projections == 0) THEN
+            initial_amn(:, :, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+            DO i = 1, num_wann
+               initial_amn(i, i, :) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+            END DO
+         ELSE
+            CALL build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, num_bands, &
+                                                reused_scf_mos .AND. use_bloch_phases, phase_center, ao_projections)
+            ALLOCATE (projection_pivots(num_wann))
+            CALL wannier90_select_projections(ao_projections, para_env, initial_amn, projection_pivots, &
+                                              projection_min_svalue)
+            IF (iw > 0) THEN
+               WRITE (iw, '(T2,A,ES12.4)') "WANNIER90| AO_SCDM minimum projection singular value ", projection_min_svalue
+               WRITE (iw, '(T2,A,*(I6))') "WANNIER90| Selected AO projections ", projection_pivots
+            END IF
+            IF (projection_min_svalue < 1.0e-10_dp) THEN
+               CPABORT("Rank-deficient Wannier90 AO projections; change the band space.")
+            END IF
+            DEALLOCATE (ao_projections, projection_pivots)
+         END IF
+         CALL w90_library_projections(library, initial_amn, para_env, seed_name, write_files)
+         DEALLOCATE (initial_amn)
+      END IF
       !
       IF (iw > 0) THEN
          WRITE (iw, '(T69,A)') "... Finished"
@@ -652,7 +725,7 @@ CONTAINS
       !
       ! Calculate and print Overlaps
       !
-      IF (para_env%is_source()) THEN
+      IF (para_env%is_source() .AND. write_files) THEN
          WRITE (filename, '(A,A)') TRIM(seed_name), ".mmn"
          CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
          CALL m_timestamp(timestamp)
@@ -697,7 +770,7 @@ CONTAINS
       DO i = 1, nbs
          NULLIFY (berry_matrix(i)%cosmat)
          NULLIFY (berry_matrix(i)%sinmat)
-         bvec(1:3) = twopi*MATMUL(TRANSPOSE(cell%h_inv(1:3, 1:3)), b_latt(1:3, i))
+         bvec(1:3) = -twopi*MATMUL(TRANSPOSE(cell%h_inv(1:3, 1:3)), b_latt(1:3, i))
          CALL build_berry_kpoint_matrix(qs_env_kp, berry_matrix(i)%cosmat, &
                                         berry_matrix(i)%sinmat, bvec)
       END DO
@@ -733,17 +806,13 @@ CONTAINS
       CALL cp_fm_create(mmn_imag, matrix_struct_mmn)
       CALL cp_cfm_create(mmn_cfm, matrix_struct_mmn)
       ! allocate some work matrices
-      ALLOCATE (rmatrix, cmatrix, rmatrix_full, cmatrix_full)
-      CALL dbcsr_create(rmatrix, template=matrix_s(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_symmetric)
-      CALL dbcsr_create(cmatrix, template=matrix_s(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_antisymmetric)
+      ALLOCATE (rmatrix_full, cmatrix_full)
       CALL dbcsr_create(rmatrix_full, template=matrix_s(1, 1)%matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(cmatrix_full, template=matrix_s(1, 1)%matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
-      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
+      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix_full, sab_nl, desymmetrize=.TRUE.)
+      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix_full, sab_nl, desymmetrize=.TRUE.)
       !
       CALL get_kpoint_info(kpoint=kpoint, cell_to_index=cell_to_index)
       NULLIFY (fmdummy)
@@ -791,18 +860,11 @@ CONTAINS
                ibs = nblist(ik, i)
                ksign = SIGN(1.0_dp, REAL(ibs, KIND=dp))
                ibs = ABS(ibs)
-               CALL dbcsr_set(rmatrix, 0.0_dp)
-               CALL dbcsr_set(cmatrix, 0.0_dp)
-               CALL rskp_transform(rmatrix, cmatrix, rsmat=berry_matrix(ibs)%cosmat, ispin=1, &
-                                   xkp=kpoint%xkp(1:3, ik2), cell_to_index=cell_to_index, sab_nl=sab_nl, &
-                                   is_complex=.FALSE., rs_sign=ksign)
-               CALL rskp_transform(cmatrix, rmatrix, rsmat=berry_matrix(ibs)%sinmat, ispin=1, &
-                                   xkp=kpoint%xkp(1:3, ik2), cell_to_index=cell_to_index, sab_nl=sab_nl, &
-                                   is_complex=.TRUE., rs_sign=ksign)
+               CALL transform_wannier90_overlap(berry_matrix(ibs)%cosmat, berry_matrix(ibs)%sinmat, &
+                                                ksign, kpoint%xkp(:, ik), kpoint%xkp(:, ik2), &
+                                                cell_to_index, sab_nl, rmatrix_full, cmatrix_full)
                !
                ! calculate M_(mn)^(k,b) = C(k)^H O(k,b) C(k+b)
-               CALL dbcsr_desymmetrize(rmatrix, rmatrix_full)
-               CALL dbcsr_desymmetrize(cmatrix, cmatrix_full)
                CALL copy_dbcsr_to_fm(rmatrix_full, mat_real)
                CALL copy_dbcsr_to_fm(cmatrix_full, mat_imag)
                CALL cp_fm_to_cfm(mat_real, mat_imag, omat_cfm)
@@ -823,9 +885,15 @@ CONTAINS
                   gauge_real = 1.0_dp
                   gauge_imag = 0.0_dp
                END IF
-               IF (para_env%is_source()) THEN
+               IF (run_library) THEN
+                  CALL cp_cfm_get_submatrix(mmn_cfm, overlap_block)
+                  overlap_block(:, :) = overlap_block(:, :)*CMPLX(gauge_real, gauge_imag, KIND=dp)
+                  CALL w90_library_overlap(library, ik, i, overlap_block)
+               END IF
+               IF (iunit > 0) THEN
                   WRITE (iunit, "(2I8,3I5)") ik, ik2, nncell(1:3, ik, i)
                END IF
+               IF (write_files) THEN
                DO ib2 = 1, nmo
                   DO ib1 = 1, nmo
                      CALL cp_fm_get_element(mmn_real, ib1, ib2, rmmn)
@@ -838,6 +906,7 @@ CONTAINS
                      END IF
                   END DO
                END DO
+               END IF
                !
             END DO
          END DO
@@ -863,12 +932,10 @@ CONTAINS
       CALL cp_fm_release(mmn_real)
       CALL cp_fm_release(mmn_imag)
       CALL cp_cfm_release(mmn_cfm)
-      CALL dbcsr_deallocate_matrix(rmatrix)
-      CALL dbcsr_deallocate_matrix(cmatrix)
       CALL dbcsr_deallocate_matrix(rmatrix_full)
       CALL dbcsr_deallocate_matrix(cmatrix_full)
       !
-      IF (para_env%is_source()) THEN
+      IF (iunit > 0) THEN
          CALL close_file(iunit)
       END IF
       !
@@ -880,7 +947,7 @@ CONTAINS
       CALL get_mo_set(kp%mos(1, 1), nmo=nmo)
       ALLOCATE (eigval(nmo))
       CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp)
-      IF (para_env%is_source()) THEN
+      IF (para_env%is_source() .AND. write_files) THEN
          WRITE (filename, '(A,A)') TRIM(seed_name), ".eig"
          CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
       ELSE
@@ -900,6 +967,7 @@ CONTAINS
             END IF
             CALL kpoint%para_env_inter_kp%sum(eigval)
             eigval(1:nmo) = eigval(1:nmo)*evolt
+            IF (run_library) CALL w90_library_eigenvalues(library, ik, eigval)
             ! output
             IF (iunit > 0) THEN
                DO ib = 1, nmo
@@ -908,8 +976,23 @@ CONTAINS
             END IF
          END DO
       END DO
-      IF (para_env%is_source()) THEN
+      IF (iunit > 0) THEN
          CALL close_file(iunit)
+      END IF
+      IF (run_library) THEN
+         CALL w90_library_run(library, para_env, wannier_centres, wannier_spreads, library_converged)
+         IF (.NOT. library_converged) THEN
+            CPABORT("Wannier90 library localization did not converge; see the .library.wout file.")
+         END IF
+         IF (iw > 0) THEN
+            WRITE (iw, '(T2,A)') "WANNIER90| Library centres [bohr] and spreads [bohr^2]"
+            DO i = 1, num_wann
+               WRITE (iw, '(T2,A,I6,4ES24.14)') "WANNIER90| WF ", i, wannier_centres(:, i), wannier_spreads(i)
+            END DO
+            WRITE (iw, '(T2,A,ES24.14)') "WANNIER90| Total spread [bohr^2] ", SUM(wannier_spreads)
+         END IF
+         CALL w90_library_release(library)
+         DEALLOCATE (overlap_block, wannier_centres, wannier_spreads)
       END IF
       !
       ! clean up
@@ -2043,6 +2126,161 @@ CONTAINS
       DEALLOCATE (source_buffer, destination_buffer)
 
    END SUBROUTINE copy_wannier90_mo_window
+
+! **************************************************************************************************
+!> \brief Form C(k)^H S(k) projections on all AO trials using the exported MO coefficients.
+!> \param kpoint Full export mesh and its distributed MO coefficients.
+!> \param matrix_s Real-space overlap matrices.
+!> \param sab_nl Overlap neighbour lists.
+!> \param para_env Global parallel environment.
+!> \param nb Number of exported bands.
+!> \param apply_phase Whether the overlap export uses the additional global Bloch gauge.
+!> \param phase_center Fractional origin for that gauge.
+!> \param projections Band/AO/k-point projections, stored only on the source rank.
+! **************************************************************************************************
+   SUBROUTINE build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, nb, &
+                                             apply_phase, phase_center, projections)
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(dbcsr_p_type), POINTER                        :: matrix_s(:, :)
+      TYPE(neighbor_list_set_p_type), POINTER            :: sab_nl(:)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(IN)                                :: nb
+      LOGICAL, INTENT(IN)                                :: apply_phase
+      REAL(KIND=dp), INTENT(IN)                          :: phase_center(3)
+      COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: projections(:, :, :)
+
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: buffer(:, :)
+      INTEGER                                            :: ik, iklocal, nao, nk
+      INTEGER, POINTER                                   :: cell_to_index(:, :, :)
+      REAL(KIND=dp)                                      :: phase
+      TYPE(cp_cfm_type)                                  :: sc_cfm
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      TYPE(cp_fm_type)                                   :: mo_imag, mo_real, sc_imag, sc_real
+      TYPE(cp_fm_type), POINTER                          :: source_imag, source_real
+
+      NULLIFY (matrix_struct, cell_to_index, source_real, source_imag)
+      CALL get_mo_set(kpoint%kp_env(1)%kpoint_env%mos(1, 1), nao=nao)
+      nk = SIZE(kpoint%xkp, 2)
+      CALL get_kpoint_info(kpoint, cell_to_index=cell_to_index)
+      CALL cp_fm_struct_create(matrix_struct, nrow_global=nao, ncol_global=nb, &
+                               para_env=para_env, context=kpoint%blacs_env)
+      CALL cp_fm_create(mo_real, matrix_struct)
+      CALL cp_fm_create(mo_imag, matrix_struct)
+      CALL cp_fm_create(sc_real, matrix_struct)
+      CALL cp_fm_create(sc_imag, matrix_struct)
+      CALL cp_cfm_create(sc_cfm, matrix_struct)
+      ALLOCATE (buffer(nb, nao))
+      IF (para_env%is_source()) THEN
+         ALLOCATE (projections(nb, nao, nk))
+      ELSE
+         ALLOCATE (projections(0, 0, 0))
+      END IF
+      DO ik = 1, nk
+         IF (ik >= kpoint%kp_range(1) .AND. ik <= kpoint%kp_range(2)) THEN
+            iklocal = ik - kpoint%kp_range(1) + 1
+            source_real => kpoint%kp_env(iklocal)%kpoint_env%mos(1, 1)%mo_coeff
+            source_imag => kpoint%kp_env(iklocal)%kpoint_env%mos(2, 1)%mo_coeff
+         ELSE
+            NULLIFY (source_real, source_imag)
+         END IF
+         CALL cp_fm_copy_general(source_real, mo_real, para_env)
+         CALL cp_fm_copy_general(source_imag, mo_imag, para_env)
+         CALL apply_wannier90_kp_matrix(matrix_s, 1, kpoint%xkp(:, ik), cell_to_index, sab_nl, &
+                                        mo_real, mo_imag, sc_real, sc_imag)
+         CALL cp_fm_to_cfm(sc_real, sc_imag, sc_cfm)
+         CALL cp_cfm_get_submatrix(sc_cfm, buffer, transpose=.TRUE.)
+         IF (para_env%is_source()) THEN
+            projections(:, :, ik) = CONJG(buffer)
+            IF (apply_phase) THEN
+               ! M'(k,b) = exp(i[phi(k+b)-phi(k)]) M(k,b) requires A'(k) = exp(-i phi(k)) A(k).
+               phase = -twopi*DOT_PRODUCT(kpoint%xkp(:, ik), phase_center)
+               projections(:, :, ik) = projections(:, :, ik)*CMPLX(COS(phase), SIN(phase), KIND=dp)
+            END IF
+         END IF
+      END DO
+      DEALLOCATE (buffer)
+      CALL cp_fm_release(mo_real)
+      CALL cp_fm_release(mo_imag)
+      CALL cp_fm_release(sc_real)
+      CALL cp_fm_release(sc_imag)
+      CALL cp_cfm_release(sc_cfm)
+      CALL cp_fm_struct_release(matrix_struct)
+   END SUBROUTINE build_wannier90_ao_projections
+
+! **************************************************************************************************
+!> \brief Assemble the non-Hermitian inter-k-point AO overlap from its real-space images.
+!> \param cosmat Real part of <mu,0|exp(-i b.r)|nu,R> for the stored direction of b.
+!> \param sinmat Imaginary part of the same integrals.
+!> \param bsign Sign of b relative to the stored integrals; cosine is even and sine is odd.
+!> \param kleft Reduced left k-point.
+!> \param kright Reduced right k-point, equal to kleft+b modulo a reciprocal lattice vector.
+!> \param cell_to_index Real-space image index table.
+!> \param sab_nl Symmetric orbital neighbour list.
+!> \param real_matrix Real part of the general AO overlap matrix.
+!> \param imag_matrix Imaginary part of the general AO overlap matrix.
+! **************************************************************************************************
+   SUBROUTINE transform_wannier90_overlap(cosmat, sinmat, bsign, kleft, kright, cell_to_index, &
+                                          sab_nl, real_matrix, imag_matrix)
+      TYPE(dbcsr_p_type), POINTER                        :: cosmat(:, :), sinmat(:, :)
+      REAL(KIND=dp), INTENT(IN)                          :: bsign, kleft(3), kright(3)
+      INTEGER, POINTER                                   :: cell_to_index(:, :, :)
+      TYPE(neighbor_list_set_p_type), POINTER            :: sab_nl(:)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: real_matrix, imag_matrix
+
+      INTEGER                                            :: direction, iatom, ic, icol, &
+                                                            image_cell(3), irow, jatom
+      LOGICAL                                            :: found, symmetric, transposed
+      REAL(KIND=dp)                                      :: ci, cr, phase
+      REAL(KIND=dp), POINTER                             :: cb(:, :), ib(:, :), rb(:, :), sb(:, :)
+      TYPE(neighbor_list_iterator_p_type), POINTER       :: iterator(:)
+
+      CALL get_neighbor_list_set_p(sab_nl, symmetric=symmetric)
+      CPASSERT(symmetric)
+      CALL dbcsr_set(real_matrix, 0.0_dp)
+      CALL dbcsr_set(imag_matrix, 0.0_dp)
+      CALL neighbor_list_iterator_create(iterator, sab_nl)
+      DO WHILE (neighbor_list_iterate(iterator) == 0)
+         CALL get_iterator_info(iterator, iatom=iatom, jatom=jatom, cell=image_cell)
+         ic = cell_to_index(image_cell(1), image_cell(2), image_cell(3))
+         CPASSERT(ic > 0)
+         irow = MIN(iatom, jatom)
+         icol = MAX(iatom, jatom)
+         CALL dbcsr_get_block_p(cosmat(1, ic)%matrix, irow, icol, cb, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(sinmat(1, ic)%matrix, irow, icol, sb, found=found)
+         CPASSERT(found)
+         DO direction = 1, 2
+            IF (direction == 1) THEN
+               irow = iatom
+               icol = jatom
+               transposed = iatom > jatom
+               phase = twopi*DOT_PRODUCT(kright, REAL(image_cell, KIND=dp))
+            ELSE
+               ! B_nu,mu(-R,b) = exp(i b.R) B_mu,nu(R,b)^T, not its Hermitian transpose.
+               ! Self-pair images already occur in both directions in the neighbour list.
+               IF (iatom == jatom) CYCLE
+               irow = jatom
+               icol = iatom
+               transposed = iatom < jatom
+               phase = -twopi*DOT_PRODUCT(kleft, REAL(image_cell, KIND=dp))
+            END IF
+            CALL dbcsr_get_block_p(real_matrix, irow, icol, rb, found=found)
+            CPASSERT(found)
+            CALL dbcsr_get_block_p(imag_matrix, irow, icol, ib, found=found)
+            CPASSERT(found)
+            cr = COS(phase)
+            ci = SIN(phase)
+            IF (transposed) THEN
+               rb(:, :) = rb(:, :) + cr*TRANSPOSE(cb) - bsign*ci*TRANSPOSE(sb)
+               ib(:, :) = ib(:, :) + ci*TRANSPOSE(cb) + bsign*cr*TRANSPOSE(sb)
+            ELSE
+               rb(:, :) = rb(:, :) + cr*cb(:, :) - bsign*ci*sb(:, :)
+               ib(:, :) = ib(:, :) + ci*cb(:, :) + bsign*cr*sb(:, :)
+            END IF
+         END DO
+      END DO
+      CALL neighbor_list_iterator_release(iterator)
+   END SUBROUTINE transform_wannier90_overlap
 
 ! **************************************************************************************************
 !> \brief Apply a complex k-point matrix to a complex MO coefficient matrix.

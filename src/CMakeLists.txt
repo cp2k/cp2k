@@ -892,6 +892,8 @@ list(
   virial_methods.F
   voronoi_interface.F
   wannier90.F
+  wannier90_library.F
+  wannier90_projections.F
   wannier_states.F
   wannier_states_types.F
   xas_control.F
