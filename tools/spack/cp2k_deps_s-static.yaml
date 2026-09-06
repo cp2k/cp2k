@@ -121,6 +121,7 @@ spack:
     - "pace@2025.12.4.1"
     - "spglib@2.7.0"
     - "tblite@0.7.0"
+    - "wannier90@4.0.2 ~mpi ~shared"
 
   view:
     default:
