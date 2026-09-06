@@ -1,0 +1,165 @@
+# Blue-moon postprocessing for one collective constraint
+
+This standalone NumPy tool addresses the common single-coordinate cases in
+[CP2K issue #5863](https://github.com/cp2k/cp2k/issues/5863), without changing the MD engine. It
+computes the scalar mass metric and its derivative from the saved geometry, then combines them with
+CP2K's SHAKE multiplier:
+
+```text
+g = grad(xi), H = Hessian(xi), v = M^-1 g
+Z = g . v
+G = v . H . v / Z^2
+w = Z^(-1/2)
+dA/dxi = sum[w * (-lambda_SHAKE + kB*T*G)] / sum[w]
+```
+
+The derivatives are obtained by second-order forward automatic differentiation of the coordinate
+definition; no finite-difference step size is needed. All occurrences of a shared atom use the same
+Cartesian independent variables. Plane atoms and bond-center atoms move in the differentiation too.
+The implementation is intentionally separate from CP2K and can be adapted or incorporated into a
+postprocessing package.
+
+## Supported scope and prerequisites
+
+- Exactly **one** fixed collective constraint in an equilibrated, fixed-cell trajectory. Additional
+  fixed atoms, rigid molecules, other SHAKE constraints, PIMD, RESPA, moving targets and changing
+  cells are **not supported**. The log parser rejects multiple multipliers, but cannot detect fixed
+  atoms or other omitted simulation settings: check the original CP2K input. This tool does not
+  parse or validate that input.
+- Standard velocity-Verlet output with one SHAKE/RATTLE pair per recorded step. RATTLE is validated
+  but never counted as another configurational-force sample.
+- A CP2K XYZ position trajectory in **Angstrom**, retaining the `i = ...,` step labels. The atomic
+  order, geometry representation, cell and image choices must match the run. Use the original
+  trajectory, not a wrapped/reordered visualization export. In particular, reconstructing molecular
+  images can change centroid-based CVs.
+- The **actual masses used by CP2K**, including isotope or KIND/MASS overrides, for every
+  participating real atom. All must be finite and positive; element labels are not used to guess
+  masses. Common conversion from amu to electron masses cancels in G and in the normalized weighted
+  average, so Z is reported with masses in amu.
+- The equilibrium temperature in kelvin, and the exact fixed CV target and tolerance in CP2K
+  internal coordinate units (bohr for distances, radians for angles). Mixed-coordinate coefficients
+  must reproduce the units and normalization of the original `COMBINE_COLVAR`. Changing the
+  normalization without transforming lambda changes the result.
+
+## Run
+
+Requires Python 3.9+ and NumPy. From the repository root:
+
+```shell
+python3 tools/blue_moon/blue_moon.py \
+  tools/blue_moon/examples/distance.json \
+  tools/blue_moon/examples/trajectory.xyz \
+  tools/blue_moon/examples/constraint.LagrangeMultLog \
+  --first-step 1
+```
+
+The included five-step, two-argon-atom CP2K 2026.1 output is only an I/O smoke test, **not an
+equilibrated free-energy calculation**. Its generating input is `examples/distance.inp`.
+`examples/coordinates.inp` independently checks all six coordinate forms against CP2K's
+`METADYN/COLVAR` output, without depositing bias hills. Run those inputs in a scratch directory. A
+suitable production configuration looks like:
+
+```json
+{
+  "cv": {
+    "type": "linear_combination",
+    "terms": [
+      {"coefficient": 1, "cv": {"type": "distance", "atoms": [1, 2]}},
+      {"coefficient": -1, "cv": {"type": "distance", "atoms": [3, 2]}}
+    ]
+  },
+  "cell_angstrom": [[20, 0, 0], [0, 20, 0], [0, 0, 20]],
+  "masses_amu": {"1": 15.9994, "2": 1.00794, "3": 15.9994},
+  "temperature_kelvin": 300,
+  "target_au": -1.0,
+  "target_tolerance_au": 0.00001
+}
+```
+
+Substitute the values from your simulation. Atom indices are one-based and masses are keyed by those
+indices. Cell vectors A, B, C are **rows**, in Angstrom. A fixed nonsingular cell must be provided
+even for isolated systems, since CP2K's DISTANCE, ANGLE and TORSION implementations apply
+minimum-image wrapping using the cell. The tolerance must accommodate constraint and trajectory
+output precision, while remaining tight enough to detect a mismatched CV.
+
+The multiplier file has **no step labels**. `--first-step` is therefore mandatory: it specifies the
+MD step of the first SHAKE record, not the first XYZ frame. For a fresh standard run without
+`CONSTRAINT_INIT`, this is normally 1; the initial XYZ frame at step 0 is ignored. Do not infer this
+offset from matching array lengths. Inspect initialization/restart behavior and split appended runs
+before analysis. Remove any initialization constraint records explicitly.
+
+Print XYZ and multipliers at the same cadence (preferably every MD step). Set `--stride` to that
+cadence if it differs from 1. Every XYZ frame at or after `--first-step` must have a matching pair;
+gaps, count mismatches and repeated/decreasing XYZ steps are rejected. Initial XYZ frames before
+`--first-step` are ignored, but no SHAKE records are silently dropped. `--discard N` discards N
+**paired samples** as equilibration, after alignment and validation.
+
+CSV on standard output contains step, CV, lambda, Z, G, weight and instantaneous corrected force.
+The final JSON summary is on standard error and is printed **only on success**. On failure, discard
+any partial CSV and inspect the nonzero exit status. Free-energy gradients are in hartree per
+internal CV unit; for a distance, divide by `0.52917720859` to convert from hartree/bohr to
+hartree/Angstrom. This program does not integrate windows or claim statistical convergence. Check
+time-step/constraint-tolerance convergence and use block analysis or block bootstrap of the weighted
+numerator **and** denominator for correlated uncertainty estimates.
+
+## Coordinate definitions
+
+| `type`               | `atoms` ordering and CP2K correspondence                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `distance`           | `[i,j]`: ordinary, unsigned `DISTANCE` with `AXIS XYZ`; also usable as a term in `DISTANCE_FUNCTION`                      |
+| `angle`              | `[i,j,k]`: `ANGLE`, with j at the vertex, in radians                                                                      |
+| `torsion`            | `[a,b,c,d]`: `TORSION`, with CP2K's sign; also requires `"reference": angle_in_radians` to choose its continuous branch   |
+| `point_plane`        | `[i,j,k,l]`: `DISTANCE_POINT_PLANE`, plane atoms i,j,k followed by point l; signed normal `(ri-rj) x (rk-rj)`             |
+| `point_bond_center`  | `[p,i,j]`: `DISTANCE` from atom p to a `POINT TYPE GEO_CENTER` of i,j; this is an arithmetic, not mass-weighted, midpoint |
+| `linear_combination` | `terms` containing `coefficient` and another `cv`; any number of terms, including nested combinations                     |
+
+This covers the eight common coordinate forms listed in the issue, **not** arbitrary CP2K
+`COMBINE_COLVAR` expressions. No Python expression evaluation or automatic CP2K input translation is
+performed. Unsupported types, options and keys are rejected.
+
+Each primitive defaults to `"pbc": true`, using CP2K's fractional-coordinate minimum-image
+convention, including triclinic cells. `"pbc": false` is available for matching
+`DISTANCE_FUNCTION/PBC FALSE` terms or `DISTANCE_POINT_PLANE/PBC FALSE`; do not use it to disable
+wrapping that the original CP2K coordinate applies. Half-cell branch boundaries, zero distances and
+degenerate angle/plane/torsion geometries are rejected. A torsion `reference` must select the same
+branch as CP2K throughout the trajectory; derivatives do not fix a wrong branch inside a
+combination. The fixed-target check provides an additional consistency test.
+
+For a point-plane CV the centroid displacement and the two plane vectors are wrapped separately, as
+in CP2K. For the bond center the arithmetic mean is formed **before** wrapping its distance to the
+point. Keep the bond constituents in the same molecular image as in the run. Other virtual-point
+definitions, signed/projected distances and per-axis PBC are not supported. For torsions, the
+minimum images of the 1-3 displacements must agree with the sum of adjacent bond images, as required
+for CP2K's implemented gradient to match the differentiated coordinate; inconsistent images are
+rejected.
+
+## Validation and the distance-difference special case
+
+```shell
+python3 -m unittest discover -s tools/blue_moon -p 'test_*.py' -v
+```
+
+Tests cover analytic distance and bond-center metrics, shared-atom distance differences,
+finite-difference checks of every supported primitive's gradient and Hessian, mass/CV scaling,
+triclinic images, torsion branches, the weighted estimator and strict input alignment.
+
+For `xi = rij - rkj`, with `c = rho_ij . rho_kj`, direct differentiation gives:
+
+```text
+Z = 1/mi + 1/mk + 2*(1-c)/mj
+G = (1-c*c) * (1/rij - 1/rkj) / (mj*mj*Z*Z)
+```
+
+G is not generally zero: equal distances or collinear bonds are special cases. For example,
+positions `[(2,0,0),(0,0,0),(1,3,0)]` in bohr and masses `[12,1,16]` in amu give
+`Z = 1.5133778012996573` and `G = 0.07221504489510591` per bohr. The tests compare the Hessian
+contraction, this closed form and an independent directional finite difference of Z.
+
+The general estimator is Eq. (6)-(8) of
+[Komeiji (2007), Chem-Bio Informatics Journal 7, 12](https://doi.org/10.1273/cbij.7.12). The `G=0`
+claim in that paper's Eq. (35) does not follow from Eq. (8) for a general three-atom distance
+difference. The implementation uses the general expression, also consistent with the
+single-constraint specialization of the
+[VASP blue-moon expression](https://vasp.at/wiki/Blue_moon_ensemble), accounting for CP2K's opposite
+lambda sign convention. See also the CP2K manual's
+[constrained-dynamics chapter](https://manual.cp2k.org/trunk/methods/sampling/constrained_dynamics.html).
