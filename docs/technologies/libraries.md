@@ -281,6 +281,29 @@ SPLA support requires an MPI build and is enabled with `-DCP2K_USE_SPLA=ON`. To 
 SPLA must be built with its Fortran interface and a GPU backend. SPLA decides at runtime whether an
 individual operation is suitable for offloading.
 
+## Wannier90 (k-point Wannier localization)
+
+The optional
+[Wannier90 v4 library](https://wannier90.readthedocs.io/en/latest/user_guide/wannier90/library_mode/)
+provides in-process disentanglement and Wannier localization. The existing file export does not
+require this dependency.
+
+Build Wannier90 with the same Fortran compiler, MPI implementation, and BLAS integer width as CP2K.
+For example, starting from the Wannier90 4.0.2 sources:
+
+```shell
+cmake -S . -B build -DCMAKE_INSTALL_PREFIX=/path/to/wannier90 \
+  -DCMAKE_Fortran_COMPILER=mpifort -DWANNIER90_MPI=ON -DWANNIER90_TEST=OFF
+cmake --build build --parallel
+cmake --install build
+```
+
+Configure CP2K with `-DCP2K_USE_WANNIER90=ON` and
+`-DWannier90_DIR=/path/to/wannier90/lib/cmake/Wannier90`. This defines `__WANNIER90`. Use
+`WANNIER90_MPI=OFF` and a non-MPI Fortran compiler for a serial CP2K build. Install serial and MPI
+variants in separate prefixes. The CMake-built Wannier90 library uses integer MPI handles; CP2K's
+MPI wrapper supplies these also when CP2K itself uses `mpi_f08`.
+
 ## DeePMD-kit (wider range of interaction potentials)
 
 DeePMD-kit provides Deep Potential models. Support for its C interface can be enabled by passing
