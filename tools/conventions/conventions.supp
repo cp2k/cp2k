@@ -234,4 +234,9 @@ fde_methods.F: Found CALL EXECUTE_COMMAND_LINE in procedure "fde_spawn" https://
 tblite_interface.F: Found CALL EXECUTE_COMMAND_LINE in procedure "tb_reference_cli_compare" https://cp2k.org/conv#c106
 tblite_interface.F: Found CALL EXECUTE_COMMAND_LINE in procedure "tb_reference_cli_execute" https://cp2k.org/conv#c106
 
+# GFortran imports the W90 module symbol with USE-ONLY but without PRIVATE in
+# the AST, despite the wrapper's ONLY clause and default PRIVATE accessibility.
+# Explicit PRIVATE :: w90_library is rejected because the symbol is a module.
+wannier90_library.F: Module "w90_library" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
+
 # EOF
