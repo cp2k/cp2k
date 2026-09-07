@@ -10,6 +10,7 @@
 !> \author Thomas D. Kuehne, tkuehne@cp2k.org
 ! **************************************************************************************************
 MODULE wannier90_library
+   USE bibliography, ONLY: cite_reference, Pizzi2020, Marzari1997, Souza2001
    USE cp_files, ONLY: close_file, open_file
    USE ieee_arithmetic, ONLY: ieee_is_finite
    USE input_section_types, ONLY: section_vals_type, section_vals_val_get
@@ -89,6 +90,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length) :: log_seed
 
       CPASSERT(.NOT. ALLOCATED(context%data))
+      CALL cite_reference(Pizzi2020)
+      CALL cite_reference(Marzari1997)
       context%inputs_consumed = .FALSE.
       context%converged = .FALSE.
       ALLOCATE (context%data)
@@ -474,6 +477,7 @@ CONTAINS
       nw = SIZE(context%rotations, 1)
       dis_converged = .TRUE.
       IF (SIZE(context%eigenvalues, 1) > nw) THEN
+         CALL cite_reference(Souza2001)
          CALL w90_disentangle(context%data, context%output_unit, context%output_unit, ierr)
          CALL check_w90_error(ierr, 'disentanglement')
          dis_converged = w90_library_report_contains(context, 'Disentanglement convergence criteria satisfied')
