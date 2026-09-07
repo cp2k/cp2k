@@ -1,0 +1,4 @@
+@SET seed he_auto
+@SET projections AUTO
+@SET windows frozen.inc
+@INCLUDE he_common.inc
