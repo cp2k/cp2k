@@ -52,7 +52,7 @@ MODULE wannier90_library
    PUBLIC :: w90_library_type, w90_library_init, w90_library_overlap, w90_library_eigenvalues, &
              w90_library_run, w90_library_release, w90_library_write_options, w90_library_projections, &
              w90_library_copy_matrices, w90_library_promote_output, w90_write_amn, w90_library_write_input, &
-             w90_library_project_trials, w90_library_write_results
+             w90_library_project_trials, w90_library_write_results, w90_library_invariant_spread
 
 CONTAINS
 
@@ -514,6 +514,24 @@ CONTAINS
       CPABORT("WANNIER90 library is not available.")
 #endif
    END SUBROUTINE w90_library_run
+
+! **************************************************************************************************
+!> \brief Return the spread fixed by the selected band subspace, independent of its Wannier gauge.
+!> \param context Converged library state.
+!> \return Invariant spread in bohr squared.
+! **************************************************************************************************
+   FUNCTION w90_library_invariant_spread(context) RESULT(spread)
+      TYPE(w90_library_type), INTENT(IN) :: context
+      REAL(KIND=dp) :: spread
+
+#if defined(__WANNIER90)
+      CPASSERT(context%converged)
+      spread = context%data%omega%invariant/angstrom**2
+#else
+      spread = 0.0_dp
+      CPABORT("WANNIER90 library is not available.")
+#endif
+   END FUNCTION w90_library_invariant_spread
 
 ! **************************************************************************************************
 !> \brief Write native optimized matrices only after selecting a converged library result.
