@@ -164,7 +164,10 @@ Wigner-Seitz displacement file (`SEED_NAME_wsvec.dat`) through Wannier90's publi
 API. `WRITE_U_MATRICES T` writes `SEED_NAME_u.mat`; with disentanglement it also writes
 `SEED_NAME_u_dis.mat` and their product `SEED_NAME_v.mat`. These options are independent of
 `WRITE_INPUTS` and default to false. In AUTO mode, only the selected converged state produces these
-canonical outputs; later losing trials cannot overwrite them.
+canonical outputs; later losing trials cannot overwrite them. When `WRITE_U_MATRICES T` is used for
+a complete-space rerun with the same seed, CP2K removes obsolete `_u_dis.mat` and `_v.mat` files
+from a previous disentangled calculation. Outputs whose write options are disabled are not
+refreshed.
 
 The matrix formats and conventions match external Wannier90. In particular, Wannier90 v4 stores the
 rows of `u_dis` and `v` in **packed outer-window order**, with zero padding beyond the window. Do
