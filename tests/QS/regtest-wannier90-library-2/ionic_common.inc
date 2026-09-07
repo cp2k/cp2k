@@ -1,3 +1,11 @@
+# Reuse the same converged ionic SCF for the subsequent projection/window tests.
+@SET scf_guess RESTART
+@IF ( ${seed} == lif_ao )
+  @SET scf_guess ATOMIC
+@ENDIF
+@IF ( ${seed} == nacl_hybrid )
+  @SET scf_guess ATOMIC
+@ENDIF
 &GLOBAL
   PROJECT ${seed}
   PRINT_LEVEL LOW
@@ -7,6 +15,7 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT_UZH
     POTENTIAL_FILE_NAME POTENTIAL_UZH
+    WFN_RESTART_FILE_NAME ${cation}-RESTART.wfn
     &KPOINTS
       SCHEME MONKHORST-PACK 2 2 2
       GAMMA_CENTERED T
@@ -31,14 +40,16 @@
       EPS_SCF 1.e-9
       EPS_EIGVAL 1.e-10
       MAX_SCF 150
-      SCF_GUESS ATOMIC
+      SCF_GUESS ${scf_guess}
       CHOLESKY OFF
       &MIXING
         METHOD BROYDEN_MIXING
-        ALPHA 0.3
+        ALPHA 0.5
       &END MIXING
       &PRINT
-        &RESTART OFF
+        &RESTART ON
+          FILENAME =${cation}-RESTART.wfn
+          BACKUP_COPIES 0
         &END RESTART
       &END PRINT
     &END SCF
