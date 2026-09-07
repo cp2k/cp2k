@@ -1,0 +1,20 @@
+# Collinear spins: two alpha Wannier functions and one beta Wannier function.
+# The k-point SCF supplies two bands to each channel; beta therefore disentangles.
+# Beta spread tolerance accounts for independent SCF convergence and MPI/OpenMP roundoff.
+# Same-Hamiltonian MO reconstruction is also checked by VALIDATE_REUSE_SCF_MOS.
+"li_both.inp" = [{matcher="WANNIER90_LIBRARY_ALPHA_SPREAD", tol=1e-8, ref=13.7267529278196},
+                 {matcher="WANNIER90_LIBRARY_BETA_SPREAD", tol=1e-7, ref=0.450784385964393},
+                 {matcher="WANNIER90_SCF_MO_REUSE", tol=0.0, ref=1.0}]
+# Independently diagonalized full mesh and the historical MP_GRID path.
+"li_reference.inp" = [{matcher="WANNIER90_LIBRARY_ALPHA_SPREAD", tol=1e-8, ref=13.7267529278196},
+                      {matcher="WANNIER90_LIBRARY_BETA_SPREAD", tol=1e-7, ref=0.450784385964393}]
+"li_mp_grid.inp" = [{matcher="WANNIER90_LIBRARY_ALPHA_SPREAD", tol=1e-8, ref=13.7267529278196},
+                    {matcher="WANNIER90_LIBRARY_BETA_SPREAD", tol=1e-7, ref=0.450784385964393}]
+# Selecting a single channel must select its corresponding repeated Wannier count.
+"li_alpha.inp" = [{matcher="WANNIER90_LIBRARY_ALPHA_SPREAD", tol=1e-8, ref=13.7267529278196},
+                  {matcher="WANNIER90_SCF_MO_REUSE", tol=0.0, ref=1.0}]
+"li_beta.inp" = [{matcher="WANNIER90_LIBRARY_BETA_SPREAD", tol=1e-7, ref=0.450784385964393},
+                 {matcher="WANNIER90_SCF_MO_REUSE", tol=0.0, ref=1.0}]
+# Gamma-only SCF has unequal MO dimensions: two alpha bands but one beta band.
+"li_gamma.inp" = [{matcher="WANNIER90_LIBRARY_ALPHA_SPREAD", tol=1e-8, ref=14.0287432997641},
+                  {matcher="WANNIER90_LIBRARY_BETA_SPREAD", tol=1e-8, ref=0.462550723156743}]
