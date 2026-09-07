@@ -844,6 +844,7 @@ RUN ldconfig
 # Install benchmark inputs for performance test
 COPY ./benchmarks/QS ./benchmarks/QS
 COPY ./benchmarks/QS_reference ./benchmarks/QS_reference
+COPY ./benchmarks/QS_kp ./benchmarks/QS_kp
 COPY ./benchmarks/QS_single_node ./benchmarks/QS_single_node
 COPY ./benchmarks/QMMM_MQAE ./benchmarks/QMMM_MQAE
 RUN mkdir -p ./tools/docker/scripts

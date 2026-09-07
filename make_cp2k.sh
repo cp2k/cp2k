@@ -1850,6 +1850,7 @@ BENCHMARKS=(
   "${CP2K_ROOT}/benchmarks/QS/H2O-64_nonortho.inp"
   "${CP2K_ROOT}/benchmarks/QS_reference/w64PBE.inp"
   "${CP2K_ROOT}/benchmarks/QS_reference/w64SCAN.inp"
+  "${CP2K_ROOT}/benchmarks/QS_kp/ZnO.inp"
   "${CP2K_ROOT}/benchmarks/QS_single_node/H2O-hyb.inp"
   "${CP2K_ROOT}/benchmarks/QS_single_node/GW_PBE_4benzene.inp"
   "${CP2K_ROOT}/benchmarks/QS_single_node/RI-HFX_H2O-32.inp"
