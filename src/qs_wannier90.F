@@ -98,10 +98,10 @@ MODULE qs_wannier90
    USE scf_control_types,               ONLY: scf_control_type
    USE wannier90,                       ONLY: wannier_setup
    USE wannier90_library,               ONLY: &
-        w90_library_copy_matrices, w90_library_eigenvalues, w90_library_init, w90_library_overlap, &
-        w90_library_project_trials, w90_library_projections, w90_library_promote_output, &
-        w90_library_release, w90_library_run, w90_library_type, w90_library_write_input, &
-        w90_library_write_results, w90_write_amn
+        w90_library_copy_matrices, w90_library_eigenvalues, w90_library_init, &
+        w90_library_invariant_spread, w90_library_overlap, w90_library_project_trials, &
+        w90_library_projections, w90_library_promote_output, w90_library_release, w90_library_run, &
+        w90_library_type, w90_library_write_input, w90_library_write_results, w90_write_amn
    USE wannier90_projections,           ONLY: wannier90_hybrid_candidates,&
                                               wannier90_projection_rank,&
                                               wannier90_select_projections
@@ -1004,6 +1004,8 @@ CONTAINS
                WRITE (iw, '(T2,A,I6,4ES24.14)') "WANNIER90| WF ", i, wannier_centres(:, i), wannier_spreads(i)
             END DO
             WRITE (iw, '(T2,A,ES24.14)') "WANNIER90| Total spread [bohr^2] ", SUM(wannier_spreads)
+            WRITE (iw, '(T2,A,ES24.14)') "WANNIER90| Invariant spread [bohr^2] ", &
+               w90_library_invariant_spread(library)
          END IF
          CALL w90_library_release(library)
          DEALLOCATE (library, overlap_block, wannier_centres, wannier_spreads)

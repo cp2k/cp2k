@@ -26,6 +26,7 @@ MODULE qs_moments
    USE block_p_types, ONLY: block_p_type
    USE cell_types, ONLY: cell_type, &
                          pbc, &
+                         pbc_stable, &
                          get_cell
    USE commutator_rpnl, ONLY: build_com_mom_nl
    USE cp_blacs_env, ONLY: cp_blacs_env_type
@@ -1091,7 +1092,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: icell
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: found, use_cell_mapping
+      LOGICAL                                            :: found, stable_images, use_cell_mapping
       REAL(dp), DIMENSION(:, :), POINTER                 :: cblock, cosab, sblock, sinab, work
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
@@ -1115,9 +1116,10 @@ CONTAINS
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
                       dft_control=dft_control)
+      CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+      stable_images = kpoints%nkp > 0 .AND. kpoints%symmetry
       nimg = dft_control%nimages
       IF (nimg > 1) THEN
-         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
          use_cell_mapping = .TRUE.
       ELSE
@@ -1234,7 +1236,12 @@ CONTAINS
                                    row=irow, col=icol, BLOCK=cblock, found=found)
             CPASSERT(found)
 
-            ra(:) = pbc(particle_set(iatom)%r(:), cell)
+            ! Absolute phases must use the same atom images as the orbital neighbour list.
+            IF (stable_images) THEN
+               ra(:) = pbc_stable(particle_set(iatom)%r(:), cell)
+            ELSE
+               ra(:) = pbc(particle_set(iatom)%r(:), cell)
+            END IF
             rb(:) = ra + rab
             dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
 

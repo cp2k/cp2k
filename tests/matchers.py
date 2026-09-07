@@ -108,6 +108,9 @@ registry["WANNIER90_SCF_MO_REUSE"] = TextPresenceMatcher(
     "WANNIER90| Reused SCF MO coefficients for the Wannier90 full k-point mesh."
 )
 registry["WANNIER90_LIBRARY_SPREAD"] = GenericMatcher("WANNIER90| Total spread", col=5)
+registry["WANNIER90_LIBRARY_INVARIANT_SPREAD"] = GenericMatcher(
+    "WANNIER90| Invariant spread", col=5
+)
 registry["WANNIER90_FULL_MESH_DIAG"] = TextPresenceMatcher(
     "WANNIER90| Falling back to full-mesh diagonalization for the Wannier90 files."
 )
