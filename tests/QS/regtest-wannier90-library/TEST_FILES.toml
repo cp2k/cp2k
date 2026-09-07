@@ -7,6 +7,11 @@
 # MP_GRID is Gamma-centred, unlike the standard even Monkhorst-Pack scheme above.
 "he_mp_grid.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21934101912863}]
 "he_scf_gamma.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21934101912863}]
+# The same Gamma-centred mesh through the other SCF schemes.
+"he_scf_macdonald.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21934101912863},
+                         {matcher="WANNIER90_SCF_MO_REUSE", tol=0.0, ref=1.0}]
+"he_scf_general.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21934101912863},
+                       {matcher="WANNIER90_SCF_MO_REUSE", tol=0.0, ref=1.0}]
 "he2_scf.inp" = [{matcher="E_total", tol=1e-12, ref=-5.78478325058176},
                  {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=2.39300643054920}]
 "he2_skew.inp" = [{matcher="E_total", tol=1e-12, ref=-5.73937460312148},
