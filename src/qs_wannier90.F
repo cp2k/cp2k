@@ -711,7 +711,7 @@ CONTAINS
                WRITE (iw, '(T2,A,*(I6))') "WANNIER90| Selected AO projections ", projection_pivots
             END IF
             IF (projection_min_svalue < 1.0e-10_dp) THEN
-               CPABORT("Rank-deficient Wannier90 AO projections; change the band space.")
+               CPABORT("No full-rank Wannier90 AO trial set was found on the entire k-point mesh.")
             END IF
             DEALLOCATE (ao_projections, projection_pivots)
          END IF
