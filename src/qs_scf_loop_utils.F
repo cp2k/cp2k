@@ -1607,6 +1607,15 @@ CONTAINS
          END DO
       END DO
       ALLOCATE (dense_re(nmo, nmo), dense_im(nmo, nmo), projected(nmo, nmo))
+      ! The group communicators do not own the complete real-space operator;
+      ! redistribute it to every group through the service. The fm pair lives
+      ! on the OT channel distribution; the service transfers into it
+      ! directly, whatever that distribution is. The context spans every
+      ! response mode: nothing inside the loop changes the host k-point
+      ! environment.
+      IF (nkp_groups > 1) THEN
+         CALL kpoint_operator_context_create(hxc_op_ctx, kpoints, fmwork(1), nspin_ot)
+      END IF
       DO response_mode = 1, nmode
          ALLOCATE (density_kp(nlocal_kpoints, 2, nspin_ot))
          DO local_kpoint = 1, nlocal_kpoints
@@ -1674,11 +1683,6 @@ CONTAINS
 
          CALL apply_hxc_kernel_kp(qs_env, kernel_env, density_rs, potential_rs)
          IF (nkp_groups > 1) THEN
-            ! The group communicators do not own the complete real-space
-            ! operator; redistribute it to every group through the service.
-            ! The fm pair lives on the OT channel distribution; the service
-            ! transfers into it directly, whatever that distribution is.
-            CALL kpoint_operator_context_create(hxc_op_ctx, kpoints, fmwork(1), nspin_ot)
             DO local_kpoint = 1, nlocal_kpoints
                DO ispin = 1, nspin_ot
                   CALL kpoint_operator_get(hxc_op_ctx, local_kpoint, ispin, potential_rs, &
@@ -1686,7 +1690,6 @@ CONTAINS
                                            fm_im=operator_im(local_kpoint, ispin), matrix_row=ispin)
                END DO
             END DO
-            CALL kpoint_operator_context_release(hxc_op_ctx)
          END IF
          DO local_kpoint = 1, nlocal_kpoints
             kp => kpoints%kp_env(local_kpoint)%kpoint_env
@@ -1738,6 +1741,9 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(potential_rs)
          NULLIFY (density_rs, potential_rs)
       END DO
+      IF (nkp_groups > 1) THEN
+         CALL kpoint_operator_context_release(hxc_op_ctx)
+      END IF
 
       CALL para_env_inter_kp%sum(projected_hxc)
       symmetry_error = MAXVAL(ABS( &
