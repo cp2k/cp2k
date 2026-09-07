@@ -15,8 +15,10 @@
 !>        environment-wide communicator. Every rank must call the same
 !>        sequence of service calls.
 !>        A context references its host kpoint environment without owning it,
-!>        so it must not outlive that environment. The module is not thread
-!>        safe. Give each thread its own context.
+!>        so it must not outlive that environment. The calls are not thread
+!>        safe: the caller must serialize them, because their collective
+!>        communication tolerates no concurrent service call. A separate
+!>        context per thread only keeps the scratch from aliasing.
 ! **************************************************************************************************
 MODULE qs_kpoint_operators
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
