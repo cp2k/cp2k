@@ -140,7 +140,7 @@ CONTAINS
             min_svalue = wannier90_projection_rank(amn, defect)
             IF (defect < best_defect) THEN
                best_defect = defect
-               best_pivots = pivots
+               best_pivots(:) = pivots(:)
             END IF
             IF (min_svalue >= 1.0e-10_dp) EXIT
          END DO
@@ -203,7 +203,7 @@ CONTAINS
       nc = SIZE(qr, 2)
       CPASSERT(SIZE(pivots) <= MIN(nr, nc))
       ALLOCATE (column(nr), work(MAX(1, nc)), order(nc), norms(nc))
-      order = [(ic, ic=1, nc)]
+      order(:) = [(ic, ic=1, nc)]
       DO iw = 1, SIZE(pivots)
          DO ic = iw, nc
             norms(ic) = SUM(ABS(qr(iw:nr, ic))**2)
@@ -218,7 +218,7 @@ CONTAINS
                original = order(ic)
             END IF
          END DO
-         column = qr(:, iw)
+         column(:) = qr(:, iw)
          qr(:, iw) = qr(:, ip)
          qr(:, ip) = column
          order(ip) = order(iw)
@@ -256,7 +256,7 @@ CONTAINS
       nw = SIZE(amn, 2)
       CPASSERT(nb >= nw .AND. nw > 0 .AND. SIZE(amn, 3) > 0)
       ALLOCATE (matrix(nb, nw), svalues(nw), rwork(5*nw))
-      matrix = amn(:, :, 1)
+      matrix(:, :) = amn(:, :, 1)
       CALL zgesvd('N', 'N', nb, nw, matrix, nb, svalues, unused_u, 1, unused_v, 1, query, -1, rwork, info)
       CPASSERT(info == 0)
       lwork = MAX(1, INT(REAL(query(1), KIND=dp)))
@@ -264,7 +264,7 @@ CONTAINS
       min_svalue = HUGE(0.0_dp)
       IF (PRESENT(rank_defect)) rank_defect = 0
       DO ik = 1, SIZE(amn, 3)
-         matrix = amn(:, :, ik)
+         matrix(:, :) = amn(:, :, ik)
          CALL zgesvd('N', 'N', nb, nw, matrix, nb, svalues, unused_u, 1, unused_v, 1, work, lwork, rwork, info)
          CPASSERT(info == 0)
          min_svalue = MIN(min_svalue, MINVAL(svalues))
