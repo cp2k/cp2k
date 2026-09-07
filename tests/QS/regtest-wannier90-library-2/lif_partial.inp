@@ -8,6 +8,7 @@
 @SET half_a 2.015
 @SET num_wann 5
 @SET projections AUTO
-@SET num_iter 10000
+@SET num_iter 3000
+@SET num_cg_steps 20
 @SET conv_tol 1.e-12
 @INCLUDE ionic_common.inc
