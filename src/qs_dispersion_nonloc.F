@@ -70,8 +70,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_nonloc_init'
 
       CHARACTER(LEN=default_path_length)                 :: filename
-      INTEGER                                            :: funit, handle, nqs, nr_points, q1_i, &
-                                                            q2_i, vdw_type
+      INTEGER                                            :: funit, handle, ipair, itable, nqs, &
+                                                            nr_points, vdw_type
 
       CALL timeset(routineN, handle)
 
@@ -101,37 +101,23 @@ CONTAINS
          CALL para_env%bcast(nqs)
          CALL para_env%bcast(nr_points)
          CALL para_env%bcast(dispersion_env%r_max)
-         ALLOCATE (dispersion_env%q_mesh(nqs), dispersion_env%kernel(0:nr_points, nqs, nqs), &
-                   dispersion_env%d2phi_dk2(0:nr_points, nqs, nqs))
+         ALLOCATE (dispersion_env%q_mesh(nqs), dispersion_env%kernel_table(nqs*(nqs + 1)/2, 0:nr_points, 2))
          dispersion_env%nqs = nqs
          dispersion_env%nr_points = nr_points
          IF (para_env%is_source()) THEN
             !! Read in the values of the q points used to generate this kernel
             READ (funit, "(1p, 4e23.14)") dispersion_env%q_mesh
-            !! For each pair of q values, read in the function phi_q1_q2(k).
-            !! That is, the fourier transformed kernel function assuming q1 and q2
-            !! for all the values of r used.
-            DO q1_i = 1, nqs
-               DO q2_i = 1, q1_i
-                  READ (funit, "(1p, 4e23.14)") dispersion_env%kernel(0:nr_points, q1_i, q2_i)
-                  dispersion_env%kernel(0:nr_points, q2_i, q1_i) = dispersion_env%kernel(0:nr_points, q1_i, q2_i)
-               END DO
-            END DO
-            !! Again, for each pair of q values (q1 and q2), read in the value
-            !! of the second derivative of the above mentiond Fourier transformed
-            !! kernel function phi_alpha_beta(k).  These are used for spline
-            !! interpolation of the Fourier transformed kernel.
-            DO q1_i = 1, nqs
-               DO q2_i = 1, q1_i
-                  READ (funit, "(1p, 4e23.14)") dispersion_env%d2phi_dk2(0:nr_points, q1_i, q2_i)
-                  dispersion_env%d2phi_dk2(0:nr_points, q2_i, q1_i) = dispersion_env%d2phi_dk2(0:nr_points, q1_i, q2_i)
+            ! The file stores kernel values followed by second derivatives, both in
+            ! lower-triangular pair order. Keep this immutable table in packed form.
+            DO itable = 1, 2
+               DO ipair = 1, nqs*(nqs + 1)/2
+                  READ (funit, "(1p, 4e23.14)") dispersion_env%kernel_table(ipair, 0:nr_points, itable)
                END DO
             END DO
             CALL close_file(unit_number=funit)
          END IF
          CALL para_env%bcast(dispersion_env%q_mesh)
-         CALL para_env%bcast(dispersion_env%kernel)
-         CALL para_env%bcast(dispersion_env%d2phi_dk2)
+         CALL para_env%bcast(dispersion_env%kernel_table)
          ! 2nd derivates for interpolation
          ALLOCATE (dispersion_env%d2y_dx2(nqs, nqs))
          CALL initialize_spline_interpolation(dispersion_env%q_mesh, dispersion_env%d2y_dx2)
@@ -456,13 +442,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vdW_energy'
 
-      INTEGER                                            :: handle, ig, ipair, iq, ir, l, m, &
-                                                            nl_type, nqs, nr_used, q1_i, q2_i
+      INTEGER                                            :: handle, ig, iq, l, m, nl_type, nqs, &
+                                                            q1_i, q2_i
       LOGICAL                                            :: use_virial
       REAL(KIND=dp)                                      :: g, g2, g2_last, g_multiplier, gm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: theta_im, theta_re, u_im, u_re
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dkernel_of_dk, kernel_of_k
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: kernel_table
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_thread
       TYPE(pw_grid_type), POINTER                        :: grid
 
@@ -483,32 +468,9 @@ CONTAINS
 
       nl_type = dispersion_env%nl_type
 
-      ! Pack the symmetric radial tables once per evaluation. The interpolation then
-      ! reads adjacent channel pairs instead of striding over the radial dimension.
-      ! Copy only the radial prefix needed by the local G points, including its upper endpoint.
-      nr_used = 0
-      IF (grid%ngpts_cut_local > 0) THEN
-         nr_used = MIN(dispersion_env%nr_points, &
-                       INT(SQRT(MAXVAL(grid%gsq(1:grid%ngpts_cut_local)))/dispersion_env%dk) + 1)
-      END IF
-      ALLOCATE (kernel_table(nqs*(nqs + 1)/2, 0:nr_used, 2))
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(kernel_table, dispersion_env, nqs, nr_used) &
-!$OMP             PRIVATE(q1_i, q2_i, ipair) SCHEDULE(STATIC)
-      DO ir = 0, nr_used
-         ipair = 0
-         DO q1_i = 1, nqs
-            DO q2_i = 1, q1_i
-               ipair = ipair + 1
-               kernel_table(ipair, ir, 1) = dispersion_env%kernel(ir, q1_i, q2_i)
-               kernel_table(ipair, ir, 2) = dispersion_env%d2phi_dk2(ir, q1_i, q2_i)
-            END DO
-         END DO
-      END DO
-!$OMP END PARALLEL DO
-
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP          SHARED(nqs, energy_only, grid, dispersion_env, use_virial, thetas_g, &
-!$OMP                 g_multiplier, nl_type, kernel_table) &
+!$OMP                 g_multiplier, nl_type) &
 !$OMP          PRIVATE(g2_last, kernel_of_k, dkernel_of_dk, theta_re, theta_im, &
 !$OMP                  g2, g, iq, q2_i, u_re, u_im, q1_i, gm, l, m) &
 !$OMP          REDUCTION(+:vdW_xc_energy, virial_thread)
@@ -526,9 +488,9 @@ CONTAINS
             g2_last = g2
             g = SQRT(g2)
             IF (use_virial) THEN
-               CALL interpolate_kernel(g, kernel_of_k, dispersion_env, kernel_table, dkernel_of_dk)
+               CALL interpolate_kernel(g, kernel_of_k, dispersion_env, dispersion_env%kernel_table, dkernel_of_dk)
             ELSE
-               CALL interpolate_kernel(g, kernel_of_k, dispersion_env, kernel_table)
+               CALL interpolate_kernel(g, kernel_of_k, dispersion_env, dispersion_env%kernel_table)
             END IF
          END IF
          ! Save all inputs before in-place output. Vectorize over output channels;
@@ -583,8 +545,6 @@ CONTAINS
       IF (use_virial) DEALLOCATE (dkernel_of_dk)
 
 !$OMP END PARALLEL
-
-      DEALLOCATE (kernel_table)
 
       vdW_xc_energy = vdW_xc_energy*grid%vol*0.5_dp
 
