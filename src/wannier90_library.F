@@ -20,7 +20,7 @@ MODULE wannier90_library
    USE w90_library, ONLY: lib_common_type, w90_get_centres, w90_get_gkpb, w90_get_nn, &
                           w90_get_nnkp, w90_get_spreads, w90_input_setopt, w90_project_overlap, &
                           w90_set_comm, w90_set_eigval, w90_set_m_local, w90_set_option, &
-                          w90_set_u_matrix, w90_set_u_opt, w90_wannierise, w90_disentangle
+                          w90_set_u_matrix, w90_set_u_opt, w90_wannierise, w90_disentangle, w90_plot
 #endif
 #include "./base/base_uses.f90"
    IMPLICIT NONE
@@ -37,6 +37,7 @@ MODULE wannier90_library
 #endif
       INTEGER :: output_unit = -1, num_iter = 0, conv_window = 0, num_cg_steps = 5, num_print_cycles = 10
       LOGICAL :: keep_output = .FALSE., inputs_consumed = .FALSE.
+      LOGICAL :: write_hr = .FALSE., write_u_matrices = .FALSE., converged = .FALSE.
       REAL(KIND=dp) :: conv_tol = 0.0_dp
       INTEGER :: dis_num_iter = 1000, dis_conv_window = 5
       REAL(KIND=dp) :: dis_conv_tol = 1.0e-10_dp, dis_mix_ratio = 0.5_dp, energy_window(4) = 0.0_dp
@@ -50,7 +51,7 @@ MODULE wannier90_library
    PUBLIC :: w90_library_type, w90_library_init, w90_library_overlap, w90_library_eigenvalues, &
              w90_library_run, w90_library_release, w90_library_write_options, w90_library_projections, &
              w90_library_copy_matrices, w90_library_promote_output, w90_write_amn, w90_library_write_input, &
-             w90_library_project_trials
+             w90_library_project_trials, w90_library_write_results
 
 CONTAINS
 
@@ -89,6 +90,7 @@ CONTAINS
 
       CPASSERT(.NOT. ALLOCATED(context%data))
       context%inputs_consumed = .FALSE.
+      context%converged = .FALSE.
       ALLOCATE (context%data)
       IF (LEN_TRIM(seed_name) > LEN(context%data%seedname)) THEN
          CPABORT("SEED_NAME exceeds the filename prefix length supported by the Wannier90 library.")
@@ -99,6 +101,8 @@ CONTAINS
       CALL section_vals_val_get(input, "CONV_TOL", r_val=context%conv_tol)
       CALL section_vals_val_get(input, "NUM_CG_STEPS", i_val=context%num_cg_steps)
       CALL section_vals_val_get(input, "NUM_PRINT_CYCLES", i_val=context%num_print_cycles)
+      CALL section_vals_val_get(input, 'WRITE_HR', l_val=context%write_hr)
+      CALL section_vals_val_get(input, 'WRITE_U_MATRICES', l_val=context%write_u_matrices)
       IF (PRESENT(num_cg_steps)) context%num_cg_steps = num_cg_steps
       IF (context%num_cg_steps < 0) CPABORT("Wannier90 NUM_CG_STEPS must be nonnegative.")
       IF (context%num_print_cycles < 1) CPABORT("Wannier90 NUM_PRINT_CYCLES must be positive.")
@@ -164,6 +168,8 @@ CONTAINS
       CALL w90_set_option(context%data, "conv_window", context%conv_window)
       CALL w90_set_option(context%data, "num_cg_steps", context%num_cg_steps)
       CALL w90_set_option(context%data, "num_print_cycles", context%num_print_cycles)
+      CALL w90_set_option(context%data, 'write_hr', context%write_hr)
+      CALL w90_set_option(context%data, 'write_u_matrices', context%write_u_matrices)
       CALL w90_set_option(context%data, 'dis_num_iter', context%dis_num_iter)
       CALL w90_set_option(context%data, 'dis_conv_window', context%dis_conv_window)
       CALL w90_set_option(context%data, 'dis_conv_tol', context%dis_conv_tol)
@@ -385,6 +391,8 @@ CONTAINS
       WRITE (iunit, '(A,I0)') "num_print_cycles = ", context%num_print_cycles
       WRITE (iunit, '(A,I0)') "conv_window = ", context%conv_window
       WRITE (iunit, '(A,ES24.16)') "conv_tol = ", context%conv_tol
+      WRITE (iunit, '(A,L1)') 'write_hr = ', context%write_hr
+      WRITE (iunit, '(A,L1)') 'write_u_matrices = ', context%write_u_matrices
       IF (SIZE(context%eigenvalues, 1) > SIZE(context%rotations, 1)) THEN
          WRITE (iunit, '(A,I0)') 'dis_num_iter = ', context%dis_num_iter
          WRITE (iunit, '(A,I0)') 'dis_conv_window = ', context%dis_conv_window
@@ -497,10 +505,54 @@ CONTAINS
          converged = converged .AND. ALL(ieee_is_finite(centres)) .AND. ALL(ieee_is_finite(spreads))
       END IF
       CALL para_env%bcast(converged)
+      context%converged = converged
 #else
       CPABORT("WANNIER90 library is not available.")
 #endif
    END SUBROUTINE w90_library_run
+
+! **************************************************************************************************
+!> \brief Write native optimized matrices only after selecting a converged library result.
+!> \param context Converged state, including the winning trial for AUTO.
+!> \param para_env Communicator shared by all export ranks.
+! **************************************************************************************************
+   SUBROUTINE w90_library_write_results(context, para_env)
+      TYPE(w90_library_type), INTENT(INOUT)              :: context
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+#if defined(__WANNIER90)
+      INTEGER                                            :: ierr, iunit, ik, ib, packed_band, mapped_band
+
+      CPASSERT(context%converged)
+      IF (.NOT. (context%write_hr .OR. context%write_u_matrices)) RETURN
+      CALL w90_plot(context%data, context%output_unit, context%output_unit, ierr)
+      CALL check_w90_error(ierr, 'optimized output')
+      IF (context%write_u_matrices .AND. para_env%is_source()) THEN
+         ! Native U_dis/V rows follow the packed outer window, not the original
+         ! band indices. Keep Wannier90's format and publish that mapping explicitly.
+         CALL open_file(TRIM(context%data%seedname)//'_band_map.dat', unit_number=iunit, &
+                        file_status='REPLACE', file_action='WRITE')
+         WRITE (iunit, '(A)') '# k-point, exported band, matrix row (0 outside window), eigenvalue [eV]'
+         WRITE (iunit, '(2I10)') SIZE(context%eigenvalues, 2), SIZE(context%eigenvalues, 1)
+         DO ik = 1, SIZE(context%eigenvalues, 2)
+            packed_band = 0
+            DO ib = 1, SIZE(context%eigenvalues, 1)
+               mapped_band = ib
+               IF (context%data%have_disentangled) THEN
+                  mapped_band = 0
+                  IF (context%data%dis_manifold%lwindow(ib, ik)) THEN
+                     packed_band = packed_band + 1
+                     mapped_band = packed_band
+                  END IF
+               END IF
+               WRITE (iunit, '(3I10,ES24.16)') ik, ib, mapped_band, context%eigenvalues(ib, ik)
+            END DO
+         END DO
+         CALL close_file(iunit)
+      END IF
+#else
+      CPABORT('WANNIER90 library is not available.')
+#endif
+   END SUBROUTINE w90_library_write_results
 
 ! **************************************************************************************************
 !> \brief Release a library instance and the arrays whose pointers it borrowed.
