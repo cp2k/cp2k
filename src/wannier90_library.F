@@ -542,13 +542,27 @@ CONTAINS
       TYPE(w90_library_type), INTENT(INOUT)              :: context
       TYPE(mp_para_env_type), POINTER                    :: para_env
 #if defined(__WANNIER90)
-      INTEGER                                            :: ierr, iunit, ik, ib, packed_band, mapped_band
+      CHARACTER(LEN=10), PARAMETER                       :: dis_files(2) = &
+                                                            [CHARACTER(LEN=10) :: '_u_dis.mat', '_v.mat']
+      CHARACTER(LEN=default_string_length)               :: filename
+      INTEGER                                            :: ierr, iunit, ik, ib, packed_band, mapped_band, ifile
+      LOGICAL                                            :: exists
 
       CPASSERT(context%converged)
       IF (.NOT. (context%write_hr .OR. context%write_u_matrices)) RETURN
       CALL w90_plot(context%data, context%output_unit, context%output_unit, ierr)
       CALL check_w90_error(ierr, 'optimized output')
       IF (context%write_u_matrices .AND. para_env%is_source()) THEN
+         IF (.NOT. context%data%have_disentangled) THEN
+            ! A complete-space rerun must not retain rotations from an earlier disentangled export.
+            DO ifile = 1, SIZE(dis_files)
+               filename = TRIM(context%data%seedname)//TRIM(dis_files(ifile))
+               INQUIRE (FILE=filename, EXIST=exists)
+               IF (.NOT. exists) CYCLE
+               CALL open_file(filename, unit_number=iunit, file_status='OLD', file_action='READWRITE')
+               CALL close_file(iunit, file_status='DELETE')
+            END DO
+         END IF
          ! Native U_dis/V rows follow the packed outer window, not the original
          ! band indices. Keep Wannier90's format and publish that mapping explicitly.
          CALL open_file(TRIM(context%data%seedname)//'_band_map.dat', unit_number=iunit, &
