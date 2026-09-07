@@ -18,9 +18,36 @@ MODULE wannier90_projections
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'wannier90_projections'
-   PUBLIC :: wannier90_select_projections, wannier90_projection_rank, wannier90_hybrid_candidates
+   PUBLIC :: wannier90_select_projections, wannier90_projection_rank, wannier90_hybrid_candidates, &
+             wannier90_mix_projections
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Mix neighbouring trial columns by fixed real Givens rotations on the entire mesh.
+!> \param amn Band/trial/k-point projections, rotated in place without changing their column space.
+!> \param angle Rotation angle in radians, identical at every k-point.
+! **************************************************************************************************
+   SUBROUTINE wannier90_mix_projections(amn, angle)
+      COMPLEX(KIND=dp), INTENT(INOUT)                    :: amn(:, :, :)
+      REAL(KIND=dp), INTENT(IN)                          :: angle
+
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: first(:)
+      INTEGER                                            :: ik, iw
+      REAL(KIND=dp)                                      :: cosine, sine
+
+      cosine = COS(angle)
+      sine = SIN(angle)
+      ALLOCATE (first(SIZE(amn, 1)))
+      DO ik = 1, SIZE(amn, 3)
+         DO iw = 1, SIZE(amn, 2) - 1
+            first(:) = amn(:, iw, ik)
+            amn(:, iw, ik) = cosine*first + sine*amn(:, iw + 1, ik)
+            amn(:, iw + 1, ik) = -sine*first + cosine*amn(:, iw + 1, ik)
+         END DO
+      END DO
+      DEALLOCATE (first)
+   END SUBROUTINE wannier90_mix_projections
 
 ! **************************************************************************************************
 !> \brief Form tetrahedral s/p trials from the full AO bank before selecting projections.
