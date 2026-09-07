@@ -1,0 +1,4 @@
+@SET project he2_hexagonal_diagonalize
+@SET backend K290
+@SET reuse F
+@INCLUDE "he2_hexagonal.inc"

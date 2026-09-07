@@ -1,0 +1,4 @@
+@SET project he2_hexagonal_spglib
+@SET backend SPGLIB
+@SET reuse T
+@INCLUDE "../regtest-wannier90-library/he2_hexagonal.inc"

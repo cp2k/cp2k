@@ -1,4 +1,8 @@
 # Primitive ionic cells with semicore states and radial s/p trial banks.
+"he2_hexagonal_spglib.inp" = [{matcher="E_total", tol=1e-11, ref=-5.78227075343919},
+                              {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-8, ref=2.38976876039089},
+                              {matcher="WANNIER90_SCF_MO_REUSE", tol=0.0, ref=1.0},
+                              {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]
 "lif_ao.inp" = [{matcher="E_total", tol=1e-10, ref=-31.808005348350662},
                 {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-7, ref=5.55070214036933},
                 {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]
