@@ -156,6 +156,8 @@ CONTAINS
                                                             require_z2
       REAL(KIND=dp)                                      :: error, movement, tolerance
       REAL(KIND=dp), ALLOCATABLE                         :: centres(:, :), previous(:, :)
+      INTEGER :: first_spin, last_spin, ispin, selection
+      TYPE(dft_control_type), POINTER :: dft_control
       TYPE(section_vals_type), POINTER                   :: w_input
 
       !--------------------------------------------------------------------------------------------!
@@ -176,6 +178,17 @@ CONTAINS
                '!-----------------------------------------------------------------------------!'
          END IF
 
+         CALL get_qs_env(qs_env, dft_control=dft_control)
+         first_spin = 1
+         last_spin = dft_control%nspins
+         IF (last_spin /= 1 .AND. last_spin /= 2) CPABORT('Wannier90 requires collinear spin channels.')
+         CALL section_vals_val_get(w_input, 'SPIN_CHANNEL', i_val=selection)
+         IF (selection /= 0) THEN
+            IF (selection > last_spin) CPABORT('The requested Wannier90 spin channel is not present.')
+            first_spin = selection
+            last_spin = selection
+         END IF
+         DO ispin = first_spin, last_spin
          CALL section_vals_val_get(w_input, "KPOINTS_SOURCE", i_val=source)
          CALL section_vals_val_get(w_input, "WILSON_MAX_REFINEMENT", i_val=max_refinement)
          CALL section_vals_val_get(w_input, "WILSON_TOL", r_val=tolerance)
@@ -190,7 +203,7 @@ CONTAINS
             old_z2 = -1
             old_chern = HUGE(0)
             DO refinement = 0, max_refinement
-               CALL wannier90_files(qs_env, w_input, iw, refinement, centres, iz2, ichern)
+               CALL wannier90_files(qs_env, w_input, iw, ispin, refinement, centres, iz2, ichern)
                IF (refinement > 0) THEN
                   error = 0.0_dp
                   DO i = 1, SIZE(previous, 2)
@@ -220,8 +233,10 @@ CONTAINS
                IF (require_chern) WRITE (iw, '(T2,A,I0)') "TOPOLOGY| Converged first Chern number: ", ichern
             END IF
          ELSE
-            CALL wannier90_files(qs_env, w_input, iw, 0, centres, iz2, ichern)
+            CALL wannier90_files(qs_env, w_input, iw, ispin, 0, centres, iz2, ichern)
          END IF
+         IF (ALLOCATED(previous)) DEALLOCATE (previous)
+         END DO
 
          IF (iw > 0) THEN
             WRITE (iw, '(/,T2,A)') &
@@ -258,15 +273,16 @@ CONTAINS
 !> \param qs_env ...
 !> \param input ...
 !> \param iw ...
+!> \param ispin selected spin channel
 !> \param refinement number of joint mesh doublings
 !> \param wcc_out Wilson centres for each closed loop
 !> \param z2_value candidate Z2 parity, or -1 when not requested
 !> \param chern_value candidate first Chern number, or HUGE(0) when unavailable
 ! **************************************************************************************************
-   SUBROUTINE wannier90_files(qs_env, input, iw, refinement, wcc_out, z2_value, chern_value)
+   SUBROUTINE wannier90_files(qs_env, input, iw, ispin, refinement, wcc_out, z2_value, chern_value)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: input
-      INTEGER, INTENT(IN)                                :: iw, refinement
+      INTEGER, INTENT(IN)                                :: iw, ispin, refinement
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: wcc_out(:, :)
       INTEGER, INTENT(OUT)                               :: z2_value, chern_value
 
@@ -287,11 +303,11 @@ CONTAINS
          parity_metric(:, :), parity_phase(:), scalar_overlap(:, :), soc_h(:, :), soc_u(:, :), &
          soc_xyz(:, :, :), spinor_coeff(:, :, :), wilson_product(:, :, :)
       COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :)                           :: reference_mo
+         DIMENSION(:, :, :)                           :: reference_mo
       INTEGER :: aligned_degenerate_blocks, aligned_degenerate_max_size, axis, base_mesh(2), &
          counts(2), first_point, i, i_rep, ib, ib1, ib2, ibs, ik, ik2, ikk, ikpgr, iloop, ipoint, &
-         ispin, iunit, ix, iy, iz, jpar, k, kpoints_source, loop_direction(3), n_rep, nadd, nao, &
-         nberry_images, nbs, nelectron, nexcl, nkp, nloop, nmo, nntot, npoint, nscalar, nspins, &
+         iunit, ix, iy, iz, jpar, k, kpoints_source, loop_direction(3), n_rep, nadd, nao, &
+         nberry_images, nbs, nelectron, nexcl, nkp, nloop, nmo, nntot, npoint, nscalar, &
          num_atoms, num_bands, num_bands_tot, num_kpts, num_wann, spin_channel, state_components, &
          state_unit, status, strong, tqc_dimension, trim_id, weak(3), z4, initial_projections, kept_index
       INTEGER, ALLOCATABLE                               :: ebr_coefficients(:, :), loop_index(:), &
@@ -324,7 +340,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE                         :: wannier_centres(:, :), wannier_spreads(:)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atoms_cart, b_latt, kpt_latt
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: reference_eigenvalues
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: reference_eigenvalues
       REAL(KIND=dp), DIMENSION(3)                        :: bvec, input_kp_shift, phase_center
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv, real_lattice, recip_lattice
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, wkp, wkp_source
@@ -359,11 +375,20 @@ CONTAINS
 
       ! generate all arrays needed for the setup call
       CALL section_vals_val_get(input, "SEED_NAME", c_val=seed_name)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      IF (dft_control%nspins == 2) THEN
+         IF (LEN_TRIM(seed_name) + 5 > LEN(seed_name)) THEN
+            CPABORT('Wannier90 seed is too long for the spin suffix.')
+         END IF
+         IF (ispin == 1) seed_name = TRIM(seed_name)//'_up'
+         IF (ispin == 2) seed_name = TRIM(seed_name)//'_down'
+         IF (iw > 0) WRITE (iw, '(T2,A,I0,2A)') 'WANNIER90| Spin channel ', ispin, ' file prefix ', TRIM(seed_name)
+      END IF
       CALL section_vals_val_get(input, "MP_GRID", i_vals=invals, explicit=mp_grid_explicit)
       CALL section_vals_val_get(input, "KPOINTS_SOURCE", i_val=kpoints_source)
       ordered_berry = kpoints_source >= w90_kpoints_nnkp
       CALL section_vals_val_get(input, "NNKP_FILE", c_val=nnkp_file)
-      CALL section_vals_val_get(input, "SPIN_CHANNEL", i_val=spin_channel)
+      spin_channel = ispin
       CALL section_vals_val_get(input, "WILSON_LOOP", l_val=do_wilson)
       CALL section_vals_val_get(input, "Z2", l_val=do_z2)
       CALL section_vals_val_get(input, "CHERN", l_val=do_chern)
@@ -421,7 +446,13 @@ CONTAINS
       IF (do_soc .AND. dft_control%nspins /= 1) THEN
          CPABORT("WANNIER90 SOC currently requires a restricted SCF.")
       END IF
-      CALL section_vals_val_get(input, "WANNIER_FUNCTIONS", i_val=num_wann)
+      CALL section_vals_val_get(input, "WANNIER_FUNCTIONS", n_rep_val=n_rep)
+      IF (n_rep > 1 .AND. n_rep /= dft_control%nspins) THEN
+         CPABORT('Specify WANNIER_FUNCTIONS once, or once per spin channel.')
+      END IF
+      i_rep = 1
+      IF (n_rep > 1) i_rep = ispin
+      CALL section_vals_val_get(input, "WANNIER_FUNCTIONS", i_rep_val=i_rep, i_val=num_wann)
       CALL section_vals_val_get(input, "ADDED_MOS", i_val=nadd)
       CALL section_vals_val_get(input, "REUSE_SCF_MOS", l_val=reuse_scf_mos)
       CALL section_vals_val_get(input, "VALIDATE_REUSE_SCF_MOS", l_val=validate_reuse_scf_mos)
@@ -706,7 +737,7 @@ CONTAINS
       END SELECT
       ! number of bands in calculation
       CALL get_qs_env(qs_env, mos=mos)
-      CALL get_mo_set(mo_set=mos(1), nao=nao, nmo=num_bands_tot, nelectron=nelectron)
+      CALL get_mo_set(mo_set=mos(ispin), nao=nao, nmo=num_bands_tot, nelectron=nelectron)
       num_bands_tot = MIN(nao, num_bands_tot + nadd)
       nscalar = num_bands_tot
       IF (do_soc) num_bands_tot = 2*nscalar
@@ -722,7 +753,6 @@ CONTAINS
       IF (num_bands == 0) CPABORT("WANNIER90: no bands left after EXCLUDE_BANDS.")
       ALLOCATE (band_map(num_bands))
       band_map(:) = PACK([(i, i=1, num_bands_tot)], keep_band)
-      DEALLOCATE (keep_band)
       lowest_bands = num_bands < num_bands_tot .AND. ALL(band_map == [(i, i=1, num_bands)])
       IF (require_global_gap .AND. .NOT. lowest_bands) THEN
          CPABORT("REQUIRE_GLOBAL_GAP needs a lowest-band prefix and an excluded band above it.")
@@ -784,9 +814,6 @@ CONTAINS
       spinors = .FALSE.
       IF (run_library) THEN
          CALL get_qs_env(qs_env, dft_control=dft_control)
-         IF (dft_control%nspins /= 1) THEN
-            CPABORT("WANNIER90 LIBRARY currently requires a spin-unpolarized calculation.")
-         END IF
          ALLOCATE (library)
          CALL w90_library_init(library, library_input, para_env, seed_name, real_lattice, kpt_latt, &
                                mp_grid, num_bands, num_wann, nnlist, nncell)
@@ -892,13 +919,14 @@ CONTAINS
          qs_env_kp => qs_env
       ELSE
          ! we start from gamma point only
-         ALLOCATE (qs_env_kp)
          CALL create_kp_from_gamma(qs_env, qs_env_kp)
       END IF
       IF (iw > 0) THEN
          WRITE (unit=iw, FMT="(/,T2,A)") "Start K-Point Calculation ..."
       END IF
-      CALL get_qs_env(qs_env=qs_env_kp, para_env=para_env, blacs_env=blacs_env)
+      ! The Gamma-to-k-point conversion normalizes the spin dimensions for diagonalization.
+      ! Keep the original band selection, but use the converted MO sizes for its workspace.
+      CALL get_qs_env(qs_env=qs_env_kp, para_env=para_env, blacs_env=blacs_env, mos=mos)
       CALL kpoint_env_initialize(kpoint, para_env, blacs_env)
       CALL kpoint_initialize_mos(kpoint, mos, nadd)
       CALL kpoint_initialize_mo_set(kpoint)
@@ -925,11 +953,10 @@ CONTAINS
             END IF
             CALL do_general_diag_kp(matrix_ks, matrix_s, kpoint, scf_env, scf_control, .FALSE., diis_step)
             full_mesh_diagonalized = .TRUE.
-            nspins = dft_control%nspins
-            CALL save_wannier90_mo_snapshot(kpoint, nspins, para_env, reference_mo, &
+            CALL save_wannier90_mo_snapshot(kpoint, ispin, para_env, ispin, reference_mo, &
                                             reference_eigenvalues)
             CALL diagnose_wannier90_scf_reuse_candidates(kpoint, qs_kpoint, matrix_s, matrix_ks, &
-                                                         cell_to_index, sab_nl, para_env, iw, &
+                                                         cell_to_index, sab_nl, para_env, iw, ispin, &
                                                          reuse_candidate_deviation, &
                                                          reuse_candidate_min_svalue, &
                                                          reuse_candidate_metric_deviation, &
@@ -945,7 +972,7 @@ CONTAINS
          CALL prepare_wannier90_scf_mos(kpoint, qs_kpoint, matrix_s, matrix_ks, cell_to_index, &
                                         sab_nl, para_env, reused_scf_mos, reuse_reason, &
                                         aligned_degenerate_blocks, aligned_degenerate_max_size, &
-                                        aligned_degenerate_min_svalue)
+                                        aligned_degenerate_min_svalue, spin_channel=ispin)
          IF (validate_reuse_scf_mos) THEN
             IF (reused_scf_mos) THEN
                CALL validate_wannier90_reused_mos(kpoint, matrix_s, cell_to_index, sab_nl, &
@@ -968,7 +995,7 @@ CONTAINS
                END IF
             END IF
             IF (.NOT. reused_scf_mos) THEN
-               CALL restore_wannier90_mo_snapshot(kpoint, reference_mo, &
+               CALL restore_wannier90_mo_snapshot(kpoint, ispin, reference_mo, &
                                                   reference_eigenvalues)
             END IF
          END IF
@@ -1005,10 +1032,9 @@ CONTAINS
       IF (ALLOCATED(reference_eigenvalues)) DEALLOCATE (reference_eigenvalues)
       ! Print eigenvalues
       IF (.NOT. ordered_berry) THEN
-      nspins = dft_control%nspins
       kp => kpoint%kp_env(1)%kpoint_env
-      CALL get_mo_set(kp%mos(1, 1), nmo=nmo)
-      CPASSERT(nmo == num_bands_tot)
+      CALL get_mo_set(kp%mos(1, ispin), nmo=nmo)
+      CPASSERT(nmo >= num_bands_tot)
       ALLOCATE (eigval(nmo))
       CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp)
       IF (para_env%is_source() .AND. write_files) THEN
@@ -1020,36 +1046,34 @@ CONTAINS
       !
       DO ik = 1, nkp
          my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-         DO ispin = 1, nspins
-            IF (my_kpgrp) THEN
-               ikpgr = ik - kp_range(1) + 1
-               kp => kpoint%kp_env(ikpgr)%kpoint_env
-               CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
-               eigval(1:nmo) = eigenvalues(1:nmo)
-            ELSE
-               eigval(1:nmo) = 0.0_dp
-            END IF
-            CALL kpoint%para_env_inter_kp%sum(eigval)
-            IF (run_library .AND. nexcl > 0) THEN
-               DO ib = 1, nmo - 1
-                  IF (keep_band(ib) .EQV. keep_band(ib + 1)) CYCLE
-                  ! Degenerate states outside the outer window cannot enter the Wannier subspace.
-                  kept_index = MERGE(ib, ib + 1, keep_band(ib))
-                  IF (eigval(kept_index) < outer_window_min .OR. eigval(kept_index) > outer_window_max) CYCLE
-                  IF (ABS(eigval(ib + 1) - eigval(ib)) < 1.0e-8_dp) THEN
-                     CPABORT("WANNIER90 EXCLUDE_BANDS must retain or remove complete degenerate subspaces.")
-                  END IF
-               END DO
-            END IF
-            eigval(1:nmo) = eigval(1:nmo)*evolt
-            IF (run_library) CALL w90_library_eigenvalues(library, ik, eigval(band_indices))
-            ! output
-            IF (iunit > 0) THEN
-               DO ib = 1, num_bands
-                  WRITE (iunit, "(2I8,F24.14)") ib, ik, eigval(band_indices(ib))
-               END DO
-            END IF
-         END DO
+         IF (my_kpgrp) THEN
+            ikpgr = ik - kp_range(1) + 1
+            kp => kpoint%kp_env(ikpgr)%kpoint_env
+            CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
+            eigval(1:nmo) = eigenvalues(1:nmo)
+         ELSE
+            eigval(1:nmo) = 0.0_dp
+         END IF
+         CALL kpoint%para_env_inter_kp%sum(eigval)
+         IF (run_library .AND. nexcl > 0) THEN
+            DO ib = 1, num_bands_tot - 1
+               IF (keep_band(ib) .EQV. keep_band(ib + 1)) CYCLE
+               ! Degenerate states outside the outer window cannot enter the Wannier subspace.
+               kept_index = MERGE(ib, ib + 1, keep_band(ib))
+               IF (eigval(kept_index) < outer_window_min .OR. eigval(kept_index) > outer_window_max) CYCLE
+               IF (ABS(eigval(ib + 1) - eigval(ib)) < 1.0e-8_dp) THEN
+                  CPABORT("WANNIER90 EXCLUDE_BANDS must retain or remove complete degenerate subspaces.")
+               END IF
+            END DO
+         END IF
+         eigval(1:nmo) = eigval(1:nmo)*evolt
+         IF (run_library) CALL w90_library_eigenvalues(library, ik, eigval(band_indices))
+         ! output
+         IF (iunit > 0) THEN
+            DO ib = 1, num_bands
+               WRITE (iunit, "(2I8,F24.14)") ib, ik, eigval(band_indices(ib))
+            END DO
+         END IF
       END DO
       IF (iunit > 0) THEN
          CALL close_file(iunit)
@@ -1063,7 +1087,7 @@ CONTAINS
                initial_amn(i, i, :) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
             END DO
          ELSE
-            CALL build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, band_indices, &
+            CALL build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, ispin, band_indices, &
                                                 reused_scf_mos .AND. use_bloch_phases, phase_center, ao_projections)
             CALL w90_library_project_trials(library, ao_projections)
             IF (initial_projections == 2) THEN
@@ -1156,7 +1180,7 @@ CONTAINS
       END DO
       ! work matrices for MOs (all group)
       kp => kpoint%kp_env(1)%kpoint_env
-      CALL get_mo_set(kp%mos(1), nmo=nmo)
+      CALL get_mo_set(kp%mos(ispin), nmo=nmo)
       IF (nmo /= nscalar) CPABORT("WANNIER90: unexpected orbital count in export.")
       NULLIFY (matrix_struct_ao, matrix_struct_work)
       CALL cp_fm_struct_create(matrix_struct_work, nrow_global=nao, &
@@ -1200,7 +1224,6 @@ CONTAINS
       END IF
       !
       CALL get_kpoint_info(kpoint=kpoint, cell_to_index=cell_to_index)
-      nspins = dft_control%nspins
       IF (do_soc) THEN
          ! Second variation in the scalar KS eigenbasis. Retain selected spinors at each k.
          CPASSERT(ALL(kpoint%kp_range == [1, num_kpts]))
@@ -1253,7 +1276,6 @@ CONTAINS
          DEALLOCATE (soc_xyz, soc_h, soc_u, scalar_values)
          IF (iw > 0) WRITE (iw, '(T2,A,I0)') "TOPOLOGY| Scalar bands in SOC second variation: ", nmo
       END IF
-      DO ispin = spin_channel, spin_channel
          ! loop over all k-points
          DO ik = 1, num_kpts
             ! get the MO coefficients for this k-point
@@ -1372,7 +1394,6 @@ CONTAINS
                !
             END DO
          END DO
-      END DO
       ! Optional full-state snapshots, before the distributed work matrices are released.
       IF (export_state .OR. do_parity) THEN
          state_components = 1
@@ -1530,9 +1551,8 @@ CONTAINS
       ! Calculate and print Projections
       !
       ! Print eigenvalues
-      nspins = dft_control%nspins
       kp => kpoint%kp_env(1)%kpoint_env
-      CALL get_mo_set(kp%mos(1), nmo=nmo)
+      CALL get_mo_set(kp%mos(ispin), nmo=nmo)
       ALLOCATE (eigval(num_bands_tot))
       direct_gap = HUGE(1.0_dp)
       valence_max = -HUGE(1.0_dp)
@@ -1547,7 +1567,6 @@ CONTAINS
       !
       DO ik = 1, nkp
          my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-         DO ispin = spin_channel, spin_channel
             IF (do_soc) THEN
                eigval(:) = spinor_values(:, ik)
             ELSE IF (my_kpgrp) THEN
@@ -1579,7 +1598,6 @@ CONTAINS
                   WRITE (iunit, "(2I8,F24.14)") ib, ik, eigval(band_map(ib))
                END DO
             END IF
-         END DO
       END DO
       IF (iunit > 0) THEN
          CALL close_file(iunit)
@@ -1605,6 +1623,8 @@ CONTAINS
                WRITE (iw, '(T2,A,I6,4ES24.14)') "WANNIER90| WF ", i, wannier_centres(:, i), wannier_spreads(i)
             END DO
             WRITE (iw, '(T2,A,ES24.14)') "WANNIER90| Total spread [bohr^2] ", SUM(wannier_spreads)
+            IF (dft_control%nspins == 2) WRITE (iw, '(T2,A,I0,A,ES24.14)') &
+               'WANNIER90| Spin ', ispin, ' total spread [bohr^2] ', SUM(wannier_spreads)
             WRITE (iw, '(T2,A,ES24.14)') "WANNIER90| Invariant spread [bohr^2] ", &
                w90_library_invariant_spread(library)
          END IF
@@ -1707,9 +1727,73 @@ CONTAINS
 !> \param aligned_degenerate_blocks number of aligned degenerate MO blocks
 !> \param aligned_degenerate_max_size largest aligned degenerate MO block
 !> \param aligned_degenerate_min_svalue smallest S(k)-metric subspace singular value
+!> \param spin_channel Optional single spin channel; otherwise reconstruct all channels.
 ! **************************************************************************************************
    SUBROUTINE prepare_wannier90_scf_mos(kpoint, qs_kpoint, matrix_s, matrix_ks, cell_to_index, &
                                         sab_nl, para_env, success, reason, aligned_degenerate_blocks, &
+                                        aligned_degenerate_max_size, aligned_degenerate_min_svalue, spin_channel)
+      TYPE(kpoint_type), POINTER                         :: kpoint, qs_kpoint
+      TYPE(dbcsr_p_type), POINTER                        :: matrix_s(:, :), matrix_ks(:, :)
+      INTEGER, POINTER                                   :: cell_to_index(:, :, :)
+      TYPE(neighbor_list_set_p_type), POINTER            :: sab_nl(:)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(OUT)                               :: success
+      CHARACTER(LEN=*), INTENT(OUT)                      :: reason
+      INTEGER, INTENT(OUT)                               :: aligned_degenerate_blocks, &
+                                                            aligned_degenerate_max_size
+      REAL(KIND=dp), INTENT(OUT)                         :: aligned_degenerate_min_svalue
+      INTEGER, INTENT(IN), OPTIONAL                      :: spin_channel
+
+      INTEGER                                            :: blocks, first_spin, ispin, last_spin, &
+                                                            max_size
+      REAL(KIND=dp)                                      :: min_svalue
+
+      success = .FALSE.
+      reason = 'Wannier90 export k-point MOs are not initialized'
+      aligned_degenerate_blocks = 0
+      aligned_degenerate_max_size = 0
+      aligned_degenerate_min_svalue = 0.0_dp
+      IF (.NOT. ASSOCIATED(kpoint)) RETURN
+      IF (.NOT. ASSOCIATED(kpoint%kp_env)) RETURN
+      IF (SIZE(kpoint%kp_env) == 0) RETURN
+      first_spin = 1
+      last_spin = SIZE(kpoint%kp_env(1)%kpoint_env%mos)
+      IF (PRESENT(spin_channel)) THEN
+         CPASSERT(spin_channel >= 1 .AND. spin_channel <= last_spin)
+         first_spin = spin_channel
+         last_spin = spin_channel
+      END IF
+      DO ispin = first_spin, last_spin
+         CALL prepare_wannier90_spin_mos(kpoint, qs_kpoint, matrix_s, matrix_ks, cell_to_index, &
+                                         sab_nl, para_env, ispin, success, reason, blocks, max_size, min_svalue)
+         IF (.NOT. success) RETURN
+         IF (blocks > 0) THEN
+            IF (aligned_degenerate_blocks == 0) aligned_degenerate_min_svalue = min_svalue
+            aligned_degenerate_min_svalue = MIN(aligned_degenerate_min_svalue, min_svalue)
+            aligned_degenerate_blocks = aligned_degenerate_blocks + blocks
+            aligned_degenerate_max_size = MAX(aligned_degenerate_max_size, max_size)
+         END IF
+      END DO
+   END SUBROUTINE prepare_wannier90_scf_mos
+
+! **************************************************************************************************
+!> \brief Reconstruct one spin channel with its own MO dimensions and Hamiltonian.
+!> \param kpoint Full Wannier90 export k-point object.
+!> \param qs_kpoint Source SCF k-point object.
+!> \param matrix_s Real-space overlap matrices.
+!> \param matrix_ks Spin-dependent real-space Hamiltonians.
+!> \param cell_to_index Real-space cell index table.
+!> \param sab_nl Overlap neighbour list.
+!> \param para_env Global parallel environment.
+!> \param ispin Selected spin channel.
+!> \param success Whether all MOs in this channel were reconstructed.
+!> \param reason Explanation if reconstruction is unavailable.
+!> \param aligned_degenerate_blocks Number of aligned blocks.
+!> \param aligned_degenerate_max_size Largest aligned block.
+!> \param aligned_degenerate_min_svalue Smallest metric singular value.
+! **************************************************************************************************
+   SUBROUTINE prepare_wannier90_spin_mos(kpoint, qs_kpoint, matrix_s, matrix_ks, cell_to_index, &
+                                        sab_nl, para_env, ispin, success, reason, aligned_degenerate_blocks, &
                                         aligned_degenerate_max_size, &
                                         aligned_degenerate_min_svalue)
       TYPE(kpoint_type), POINTER                         :: kpoint, qs_kpoint
@@ -1718,6 +1802,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(IN) :: ispin
       LOGICAL, INTENT(OUT)                               :: success
       CHARACTER(LEN=*), INTENT(OUT)                      :: reason
       INTEGER, INTENT(OUT)                               :: aligned_degenerate_blocks, &
@@ -1726,8 +1811,8 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: best_reason, candidate_reason
       INTEGER :: aligned_blocks, aligned_max_size, candidate_aligned_blocks, &
-         candidate_aligned_max_size, ik, ikpgr, ikred, ispin, isym_try, min_gap_band, &
-         min_gap_kpoint, min_gap_spin, nao, nao_src, nmo, nmo_src, nspins, nsymmetry, &
+         candidate_aligned_max_size, ik, ikpgr, ikred, isym_try, min_gap_band, &
+         min_gap_kpoint, min_gap_spin, nao, nao_src, nmo, nmo_src, nsymmetry, &
          num_candidates
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: source_kpoint, sym_index
       INTEGER, DIMENSION(2)                              :: kp_range, source_kp_range
@@ -1777,21 +1862,20 @@ CONTAINS
       nsymmetry = COUNT(sym_index > 0)
 
       kp => kpoint%kp_env(1)%kpoint_env
-      nspins = SIZE(kp%mos)
-      IF (.NOT. ASSOCIATED(kp%mos(1)%cmo_coeff)) THEN
+      IF (.NOT. ASSOCIATED(kp%mos(ispin)%cmo_coeff)) THEN
          reason = "Wannier90 export k-point MOs are not complex-valued"
          DEALLOCATE (source_kpoint, sym_index)
          RETURN
       END IF
-      CALL get_mo_set(kp%mos(1), nao=nao, nmo=nmo)
+      CALL get_mo_set(kp%mos(ispin), nao=nao, nmo=nmo)
 
       kp_source => qs_kpoint%kp_env(1)%kpoint_env
-      IF (.NOT. ASSOCIATED(kp_source%mos(1)%cmo_coeff)) THEN
+      IF (.NOT. ASSOCIATED(kp_source%mos(ispin)%cmo_coeff)) THEN
          reason = "SCF MOs are real-valued; complex symmetry phases cannot be reconstructed"
          DEALLOCATE (source_kpoint, sym_index)
          RETURN
       END IF
-      CALL get_mo_set(kp_source%mos(1), nao=nao_src, nmo=nmo_src)
+      CALL get_mo_set(kp_source%mos(ispin), nao=nao_src, nmo=nmo_src)
       CALL para_env%max(nao_src)
       CALL para_env%max(nmo_src)
       IF (nao_src /= nao) THEN
@@ -1823,16 +1907,14 @@ CONTAINS
          DO ikred = source_kp_range(1), source_kp_range(2)
             ikpgr = ikred - source_kp_range(1) + 1
             kp_source => qs_kpoint%kp_env(ikpgr)%kpoint_env
-            DO ispin = 1, nspins
-               CALL get_mo_set(kp_source%mos(ispin), eigenvalues=eigenvalues)
-               band_gap = ABS(eigenvalues(nmo + 1) - eigenvalues(nmo))
-               IF (band_gap < local_min_band_gap) THEN
-                  local_min_band_gap = band_gap
-                  min_gap_band = nmo
-                  min_gap_kpoint = ikred
-                  min_gap_spin = ispin
-               END IF
-            END DO
+            CALL get_mo_set(kp_source%mos(ispin), eigenvalues=eigenvalues)
+            band_gap = ABS(eigenvalues(nmo + 1) - eigenvalues(nmo))
+            IF (band_gap < local_min_band_gap) THEN
+               local_min_band_gap = band_gap
+               min_gap_band = nmo
+               min_gap_kpoint = ikred
+               min_gap_spin = ispin
+            END IF
          END DO
          min_band_gap = local_min_band_gap
          CALL para_env%min(min_band_gap)
@@ -1872,188 +1954,186 @@ CONTAINS
          ikred = source_kpoint(ik)
          my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
          my_source_kpgrp = (ikred >= source_kp_range(1) .AND. ikred <= source_kp_range(2))
-         DO ispin = 1, nspins
-            source_eigenvalues_buffer(1:nmo_src) = 0.0_dp
-            source_occupation_buffer(1:nmo_src) = 0.0_dp
-            NULLIFY (source_cfm)
-            IF (my_source_kpgrp) THEN
-               ikpgr = ikred - source_kp_range(1) + 1
-               kp_source => qs_kpoint%kp_env(ikpgr)%kpoint_env
-               source_cfm => kp_source%mos(ispin)%cmo_coeff
-               CALL get_mo_set(kp_source%mos(ispin), eigenvalues=eigenvalues, &
-                               occupation_numbers=occupation)
-               source_eigenvalues_buffer(1:nmo_src) = eigenvalues(1:nmo_src)
-               source_occupation_buffer(1:nmo_src) = occupation(1:nmo_src)
-            END IF
-            IF (source_window) THEN
-               CALL wannier90_copy_cfm_general(source_cfm, src_cfm_full, para_env)
-            ELSE
-               CALL wannier90_copy_cfm_general(source_cfm, src_cfm, para_env)
-            END IF
-            IF (my_source_kpgrp) THEN
-               source_owner_count = 1.0_dp
-            ELSE
-               source_owner_count = 0.0_dp
-            END IF
-            CALL para_env%sum(source_owner_count)
-            CALL para_env%sum(source_eigenvalues_buffer)
-            CALL para_env%sum(source_occupation_buffer)
-            IF (source_owner_count > 0.0_dp) THEN
-               source_eigenvalues_buffer(1:nmo_src) = &
-                  source_eigenvalues_buffer(1:nmo_src)/source_owner_count
-               source_occupation_buffer(1:nmo_src) = &
-                  source_occupation_buffer(1:nmo_src)/source_owner_count
-            END IF
-            eigenvalues_buffer(1:nmo) = source_eigenvalues_buffer(1:nmo)
-            occupation_buffer(1:nmo) = source_occupation_buffer(1:nmo)
-            IF (source_window) THEN
-               CALL cp_cfm_to_cfm(src_cfm_full, src_cfm, nmo)
-            END IF
+         source_eigenvalues_buffer(1:nmo_src) = 0.0_dp
+         source_occupation_buffer(1:nmo_src) = 0.0_dp
+         NULLIFY (source_cfm)
+         IF (my_source_kpgrp) THEN
+            ikpgr = ikred - source_kp_range(1) + 1
+            kp_source => qs_kpoint%kp_env(ikpgr)%kpoint_env
+            source_cfm => kp_source%mos(ispin)%cmo_coeff
+            CALL get_mo_set(kp_source%mos(ispin), eigenvalues=eigenvalues, &
+                            occupation_numbers=occupation)
+            source_eigenvalues_buffer(1:nmo_src) = eigenvalues(1:nmo_src)
+            source_occupation_buffer(1:nmo_src) = occupation(1:nmo_src)
+         END IF
+         IF (source_window) THEN
+            CALL wannier90_copy_cfm_general(source_cfm, src_cfm_full, para_env)
+         ELSE
+            CALL wannier90_copy_cfm_general(source_cfm, src_cfm, para_env)
+         END IF
+         IF (my_source_kpgrp) THEN
+            source_owner_count = 1.0_dp
+         ELSE
+            source_owner_count = 0.0_dp
+         END IF
+         CALL para_env%sum(source_owner_count)
+         CALL para_env%sum(source_eigenvalues_buffer)
+         CALL para_env%sum(source_occupation_buffer)
+         IF (source_owner_count > 0.0_dp) THEN
+            source_eigenvalues_buffer(1:nmo_src) = &
+               source_eigenvalues_buffer(1:nmo_src)/source_owner_count
+            source_occupation_buffer(1:nmo_src) = &
+               source_occupation_buffer(1:nmo_src)/source_owner_count
+         END IF
+         eigenvalues_buffer(1:nmo) = source_eigenvalues_buffer(1:nmo)
+         occupation_buffer(1:nmo) = source_occupation_buffer(1:nmo)
+         IF (source_window) THEN
+            CALL cp_cfm_to_cfm(src_cfm_full, src_cfm, nmo)
+         END IF
 
-            ok = .FALSE.
-            reason = ""
-            aligned_blocks = 0
-            aligned_max_size = 0
-            aligned_min_svalue = 0.0_dp
-            IF (sym_index(ik) > 0) THEN
-               kpsym => qs_kpoint%kp_sym(ikred)%kpoint_sym
-               IF (ASSOCIATED(kpsym)) THEN
-                  best_reason = ""
-                  best_residual = HUGE(1.0_dp)
-                  num_candidates = 0
-                  ! Little-group operations can reach the same target k-point; keep the first valid eigenspace.
-                  DO isym_try = 1, kpsym%nwred
-                     IF (.NOT. kpoint_same_periodic(kpoint%xkp(1:3, ik), &
-                                                    kpsym%xkp(1:3, isym_try))) CYCLE
-                     num_candidates = num_candidates + 1
-                     CALL kpoint_transform_scf_mo(src_cfm, dst_cfm, &
-                                                  qs_kpoint, ikred, isym_try, ok, &
-                                                  candidate_reason)
-                     IF (.NOT. ok) THEN
-                        reason = candidate_reason
-                        CYCLE
-                     END IF
-                     CALL ritz_stabilize_wannier90_subspace(dst_cfm, matrix_s, matrix_ks, &
-                                                            kpoint%xkp(1:3, ik), cell_to_index, &
-                                                            sab_nl, ispin, eigenvalues_buffer, &
-                                                            degenerate_band_tol, ok, candidate_reason, &
-                                                            candidate_aligned_blocks, &
-                                                            candidate_aligned_max_size, &
-                                                            aligned_min_svalue, candidate_residual)
-                     IF (candidate_residual < best_residual) THEN
-                        best_residual = candidate_residual
-                        best_reason = candidate_reason
-                     END IF
-                     IF (.NOT. ok) THEN
-                        IF (source_window) THEN
-                           CALL kpoint_transform_scf_mo(src_cfm_full, dst_cfm_full, qs_kpoint, &
-                                                        ikred, isym_try, ok, candidate_reason)
-                           IF (ok) THEN
-                              CALL ritz_reconstruct_wannier90_window(dst_cfm_full, dst_cfm, matrix_s, &
-                                                                     matrix_ks, kpoint%xkp(1:3, ik), &
-                                                                     cell_to_index, sab_nl, ispin, &
-                                                                     eigenvalues_buffer, nmo, ok, &
-                                                                     candidate_reason, source_window_min_svalue, &
-                                                                     candidate_residual)
-                              IF (candidate_residual < best_residual) THEN
-                                 best_residual = candidate_residual
-                                 best_reason = candidate_reason
-                              END IF
-                           END IF
-                        ELSE
-                           CALL ritz_reconstruct_wannier90_window(dst_cfm, dst_cfm, matrix_s, matrix_ks, &
-                                                                  kpoint%xkp(1:3, ik), cell_to_index, &
-                                                                  sab_nl, ispin, eigenvalues_buffer, nmo, &
-                                                                  ok, candidate_reason, source_window_min_svalue, &
+         ok = .FALSE.
+         reason = ""
+         aligned_blocks = 0
+         aligned_max_size = 0
+         aligned_min_svalue = 0.0_dp
+         IF (sym_index(ik) > 0) THEN
+            kpsym => qs_kpoint%kp_sym(ikred)%kpoint_sym
+            IF (ASSOCIATED(kpsym)) THEN
+               best_reason = ""
+               best_residual = HUGE(1.0_dp)
+               num_candidates = 0
+               ! Little-group operations can reach the same target k-point; keep the first valid eigenspace.
+               DO isym_try = 1, kpsym%nwred
+                  IF (.NOT. kpoint_same_periodic(kpoint%xkp(1:3, ik), &
+                                                 kpsym%xkp(1:3, isym_try))) CYCLE
+                  num_candidates = num_candidates + 1
+                  CALL kpoint_transform_scf_mo(src_cfm, dst_cfm, &
+                                               qs_kpoint, ikred, isym_try, ok, &
+                                               candidate_reason)
+                  IF (.NOT. ok) THEN
+                     reason = candidate_reason
+                     CYCLE
+                  END IF
+                  CALL ritz_stabilize_wannier90_subspace(dst_cfm, matrix_s, matrix_ks, &
+                                                         kpoint%xkp(1:3, ik), cell_to_index, &
+                                                         sab_nl, ispin, eigenvalues_buffer, &
+                                                         degenerate_band_tol, ok, candidate_reason, &
+                                                         candidate_aligned_blocks, &
+                                                         candidate_aligned_max_size, &
+                                                         aligned_min_svalue, candidate_residual)
+                  IF (candidate_residual < best_residual) THEN
+                     best_residual = candidate_residual
+                     best_reason = candidate_reason
+                  END IF
+                  IF (.NOT. ok) THEN
+                     IF (source_window) THEN
+                        CALL kpoint_transform_scf_mo(src_cfm_full, dst_cfm_full, qs_kpoint, &
+                                                     ikred, isym_try, ok, candidate_reason)
+                        IF (ok) THEN
+                           CALL ritz_reconstruct_wannier90_window(dst_cfm_full, dst_cfm, matrix_s, &
+                                                                  matrix_ks, kpoint%xkp(1:3, ik), &
+                                                                  cell_to_index, sab_nl, ispin, &
+                                                                  eigenvalues_buffer, nmo, ok, &
+                                                                  candidate_reason, source_window_min_svalue, &
                                                                   candidate_residual)
                            IF (candidate_residual < best_residual) THEN
                               best_residual = candidate_residual
                               best_reason = candidate_reason
                            END IF
                         END IF
+                     ELSE
+                        CALL ritz_reconstruct_wannier90_window(dst_cfm, dst_cfm, matrix_s, matrix_ks, &
+                                                               kpoint%xkp(1:3, ik), cell_to_index, &
+                                                               sab_nl, ispin, eigenvalues_buffer, nmo, &
+                                                               ok, candidate_reason, source_window_min_svalue, &
+                                                               candidate_residual)
+                        IF (candidate_residual < best_residual) THEN
+                           best_residual = candidate_residual
+                           best_reason = candidate_reason
+                        END IF
                      END IF
-                     IF (ok) THEN
-                        aligned_blocks = candidate_aligned_blocks
-                        aligned_max_size = candidate_aligned_max_size
-                        sym_index(ik) = isym_try
-                        EXIT
-                     END IF
-                     reason = candidate_reason
-                  END DO
-                  IF (.NOT. ok .AND. num_candidates > 0 .AND. best_residual < HUGE(1.0_dp)) THEN
-                     WRITE (reason, "(A,I0,A,ES9.2,A,I0,A,A32)") &
-                        "atom/AO W90 guarded: best/", num_candidates, "=", best_residual, &
-                        " k=", ik, " ", TRIM(best_reason)
-                  ELSE IF (.NOT. ok .AND. num_candidates == 0) THEN
-                     reason = "no matching SCF symmetry operation candidate"
                   END IF
-               ELSE
-                  reason = "SCF k-point symmetry operation is not available"
-               END IF
-            ELSE
-               CALL kpoint_transform_scf_mo(src_cfm, dst_cfm, qs_kpoint, &
-                                            ikred, sym_index(ik), ok, reason)
-            END IF
-            IF (ok .AND. sym_index(ik) <= 0) THEN
-               ! Even a direct k-point copy must be a closed H(k),S(k) subspace. This catches
-               ! incomplete degenerate band windows before they can be exported to Wannier90.
-               CALL ritz_stabilize_wannier90_subspace(dst_cfm, matrix_s, matrix_ks, &
-                                                      kpoint%xkp(1:3, ik), cell_to_index, sab_nl, &
-                                                      ispin, eigenvalues_buffer, degenerate_band_tol, &
-                                                      ok, reason, aligned_blocks, aligned_max_size, &
-                                                      aligned_min_svalue, candidate_residual)
-               IF (.NOT. ok .AND. source_window) THEN
-                  CALL kpoint_transform_scf_mo(src_cfm_full, dst_cfm_full, qs_kpoint, &
-                                               ikred, sym_index(ik), ok, reason)
                   IF (ok) THEN
-                     CALL ritz_reconstruct_wannier90_window(dst_cfm_full, dst_cfm, matrix_s, matrix_ks, &
-                                                            kpoint%xkp(1:3, ik), cell_to_index, &
-                                                            sab_nl, ispin, eigenvalues_buffer, nmo, ok, &
-                                                            reason, source_window_min_svalue, &
-                                                            candidate_residual)
+                     aligned_blocks = candidate_aligned_blocks
+                     aligned_max_size = candidate_aligned_max_size
+                     sym_index(ik) = isym_try
+                     EXIT
                   END IF
-               ELSE IF (.NOT. ok) THEN
-                  CALL ritz_reconstruct_wannier90_window(dst_cfm, dst_cfm, matrix_s, matrix_ks, &
-                                                         kpoint%xkp(1:3, ik), &
-                                                         cell_to_index, sab_nl, ispin, &
-                                                         eigenvalues_buffer, nmo, ok, reason, &
-                                                         source_window_min_svalue, candidate_residual)
+                  reason = candidate_reason
+               END DO
+               IF (.NOT. ok .AND. num_candidates > 0 .AND. best_residual < HUGE(1.0_dp)) THEN
+                  WRITE (reason, "(A,I0,A,ES9.2,A,I0,A,A32)") &
+                     "atom/AO W90 guarded: best/", num_candidates, "=", best_residual, &
+                     " k=", ik, " ", TRIM(best_reason)
+               ELSE IF (.NOT. ok .AND. num_candidates == 0) THEN
+                  reason = "no matching SCF symmetry operation candidate"
                END IF
-            END IF
-            IF (.NOT. ok) THEN
-               CALL cp_cfm_release(src_cfm)
-               CALL cp_cfm_release(dst_cfm)
-               CALL cp_fm_struct_release(matrix_struct_work)
-               IF (source_window) THEN
-                  CALL cp_cfm_release(src_cfm_full)
-                  CALL cp_cfm_release(dst_cfm_full)
-                  CALL cp_fm_struct_release(matrix_struct_source)
-               END IF
-               DEALLOCATE (source_kpoint, sym_index, eigenvalues_buffer, occupation_buffer, &
-                           source_eigenvalues_buffer, source_occupation_buffer)
-               RETURN
-            END IF
-            IF (sym_index(ik) /= 0) THEN
-               aligned_degenerate_blocks = aligned_degenerate_blocks + aligned_blocks
-               aligned_degenerate_max_size = MAX(aligned_degenerate_max_size, aligned_max_size)
-               IF (aligned_blocks > 0) THEN
-                  aligned_degenerate_min_svalue = MIN(aligned_degenerate_min_svalue, aligned_min_svalue)
-               END IF
-            END IF
-
-            IF (my_kpgrp) THEN
-               ikpgr = ik - kp_range(1) + 1
-               kp => kpoint%kp_env(ikpgr)%kpoint_env
-               CALL get_mo_set(kp%mos(ispin), eigenvalues=eigenvalues, &
-                               occupation_numbers=occupation)
-               eigenvalues(1:nmo) = eigenvalues_buffer(1:nmo)
-               occupation(1:nmo) = occupation_buffer(1:nmo)
-               destination_cfm => kp%mos(ispin)%cmo_coeff
             ELSE
-               destination_cfm => empty_destination
+               reason = "SCF k-point symmetry operation is not available"
             END IF
-            CALL cp_cfm_copy_general(dst_cfm, destination_cfm, para_env)
-         END DO
+         ELSE
+            CALL kpoint_transform_scf_mo(src_cfm, dst_cfm, qs_kpoint, &
+                                         ikred, sym_index(ik), ok, reason)
+         END IF
+         IF (ok .AND. sym_index(ik) <= 0) THEN
+            ! Even a direct k-point copy must be a closed H(k),S(k) subspace. This catches
+            ! incomplete degenerate band windows before they can be exported to Wannier90.
+            CALL ritz_stabilize_wannier90_subspace(dst_cfm, matrix_s, matrix_ks, &
+                                                   kpoint%xkp(1:3, ik), cell_to_index, sab_nl, &
+                                                   ispin, eigenvalues_buffer, degenerate_band_tol, &
+                                                   ok, reason, aligned_blocks, aligned_max_size, &
+                                                   aligned_min_svalue, candidate_residual)
+            IF (.NOT. ok .AND. source_window) THEN
+               CALL kpoint_transform_scf_mo(src_cfm_full, dst_cfm_full, qs_kpoint, &
+                                            ikred, sym_index(ik), ok, reason)
+               IF (ok) THEN
+                  CALL ritz_reconstruct_wannier90_window(dst_cfm_full, dst_cfm, matrix_s, matrix_ks, &
+                                                         kpoint%xkp(1:3, ik), cell_to_index, &
+                                                         sab_nl, ispin, eigenvalues_buffer, nmo, ok, &
+                                                         reason, source_window_min_svalue, &
+                                                         candidate_residual)
+               END IF
+            ELSE IF (.NOT. ok) THEN
+               CALL ritz_reconstruct_wannier90_window(dst_cfm, dst_cfm, matrix_s, matrix_ks, &
+                                                      kpoint%xkp(1:3, ik), &
+                                                      cell_to_index, sab_nl, ispin, &
+                                                      eigenvalues_buffer, nmo, ok, reason, &
+                                                      source_window_min_svalue, candidate_residual)
+            END IF
+         END IF
+         IF (.NOT. ok) THEN
+            CALL cp_cfm_release(src_cfm)
+            CALL cp_cfm_release(dst_cfm)
+            CALL cp_fm_struct_release(matrix_struct_work)
+            IF (source_window) THEN
+               CALL cp_cfm_release(src_cfm_full)
+               CALL cp_cfm_release(dst_cfm_full)
+               CALL cp_fm_struct_release(matrix_struct_source)
+            END IF
+            DEALLOCATE (source_kpoint, sym_index, eigenvalues_buffer, occupation_buffer, &
+                        source_eigenvalues_buffer, source_occupation_buffer)
+            RETURN
+         END IF
+         IF (sym_index(ik) /= 0) THEN
+            aligned_degenerate_blocks = aligned_degenerate_blocks + aligned_blocks
+            aligned_degenerate_max_size = MAX(aligned_degenerate_max_size, aligned_max_size)
+            IF (aligned_blocks > 0) THEN
+               aligned_degenerate_min_svalue = MIN(aligned_degenerate_min_svalue, aligned_min_svalue)
+            END IF
+         END IF
+
+         IF (my_kpgrp) THEN
+            ikpgr = ik - kp_range(1) + 1
+            kp => kpoint%kp_env(ikpgr)%kpoint_env
+            CALL get_mo_set(kp%mos(ispin), eigenvalues=eigenvalues, &
+                            occupation_numbers=occupation)
+            eigenvalues(1:nmo) = eigenvalues_buffer(1:nmo)
+            occupation(1:nmo) = occupation_buffer(1:nmo)
+            destination_cfm => kp%mos(ispin)%cmo_coeff
+         ELSE
+            destination_cfm => empty_destination
+         END IF
+         CALL cp_cfm_copy_general(dst_cfm, destination_cfm, para_env)
       END DO
 
       CALL cp_cfm_release(src_cfm)
@@ -2069,61 +2149,57 @@ CONTAINS
       IF (aligned_degenerate_blocks == 0) aligned_degenerate_min_svalue = 0.0_dp
       success = .TRUE.
 
-   END SUBROUTINE prepare_wannier90_scf_mos
+   END SUBROUTINE prepare_wannier90_spin_mos
 
 ! **************************************************************************************************
 !> \brief Save a full-mesh Wannier90 MO reference on all ranks for diagnostic validation.
 !> \param kpoint full Wannier90 export k-point object
-!> \param nspins number of spin channels
+!> \param ispin Selected spin channel.
 !> \param para_env global parallel environment
 !> \param mo MO coefficients, indexed as AO, MO, k-point, spin
 !> \param eigenvalue_snapshot MO eigenvalues, indexed as MO, k-point, spin
 ! **************************************************************************************************
-   SUBROUTINE save_wannier90_mo_snapshot(kpoint, nspins, para_env, mo, &
+   SUBROUTINE save_wannier90_mo_snapshot(kpoint, para_env, mo, &
                                          eigenvalue_snapshot)
       TYPE(kpoint_type), POINTER                         :: kpoint
-      INTEGER, INTENT(IN)                                :: nspins
+      INTEGER, INTENT(IN)                                :: ispin
       TYPE(mp_para_env_type), POINTER                    :: para_env
       COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :), INTENT(OUT)              :: mo
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         DIMENSION(:, :, :), INTENT(OUT)              :: mo
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: eigenvalue_snapshot
 
-      INTEGER                                            :: ik, ikpgr, ispin, nao, nkp, nmo
+      INTEGER                                            :: ik, ikpgr, nao, nkp, nmo
       INTEGER, DIMENSION(2)                              :: kp_range
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: owner_weight
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: owner_weight
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(kpoint_env_type), POINTER                     :: kp
 
       CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range)
       kp => kpoint%kp_env(1)%kpoint_env
-      CALL get_mo_set(kp%mos(1), nao=nao, nmo=nmo)
-      ALLOCATE (mo(nao, nmo, nkp, nspins), &
-                eigenvalue_snapshot(nmo, nkp, nspins), owner_weight(nkp, nspins))
-      mo(:, :, :, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-      eigenvalue_snapshot(:, :, :) = 0.0_dp
-      owner_weight(:, :) = 0.0_dp
+      CALL get_mo_set(kp%mos(ispin), nao=nao, nmo=nmo)
+      ALLOCATE (mo(nao, nmo, nkp), &
+                eigenvalue_snapshot(nmo, nkp), owner_weight(nkp))
+      mo(:, :, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      eigenvalue_snapshot(:, :) = 0.0_dp
+      owner_weight(:) = 0.0_dp
       DO ik = kp_range(1), kp_range(2)
          ikpgr = ik - kp_range(1) + 1
          kp => kpoint%kp_env(ikpgr)%kpoint_env
-         DO ispin = 1, nspins
-            CALL cp_cfm_get_submatrix(kp%mos(ispin)%cmo_coeff, mo(:, :, ik, ispin))
-            CALL get_mo_set(kp%mos(ispin), eigenvalues=eigenvalues)
-            eigenvalue_snapshot(1:nmo, ik, ispin) = eigenvalues(1:nmo)
-            owner_weight(ik, ispin) = 1.0_dp
-         END DO
+         CALL cp_cfm_get_submatrix(kp%mos(ispin)%cmo_coeff, mo(:, :, ik))
+         CALL get_mo_set(kp%mos(ispin), eigenvalues=eigenvalues)
+         eigenvalue_snapshot(1:nmo, ik) = eigenvalues(1:nmo)
+         owner_weight(ik) = 1.0_dp
       END DO
       CALL para_env%sum(mo)
       CALL para_env%sum(eigenvalue_snapshot)
       CALL para_env%sum(owner_weight)
       DO ik = 1, nkp
-         DO ispin = 1, nspins
-            IF (owner_weight(ik, ispin) > 0.0_dp) THEN
-               mo(:, :, ik, ispin) = mo(:, :, ik, ispin)/owner_weight(ik, ispin)
-               eigenvalue_snapshot(:, ik, ispin) = &
-                  eigenvalue_snapshot(:, ik, ispin)/owner_weight(ik, ispin)
-            END IF
-         END DO
+         IF (owner_weight(ik) > 0.0_dp) THEN
+            mo(:, :, ik) = mo(:, :, ik)/owner_weight(ik)
+            eigenvalue_snapshot(:, ik) = &
+               eigenvalue_snapshot(:, ik)/owner_weight(ik)
+         END IF
       END DO
       DEALLOCATE (owner_weight)
 
@@ -2135,28 +2211,26 @@ CONTAINS
 !> \param mo complex MO coefficient snapshot
 !> \param eigenvalue_snapshot MO eigenvalue snapshot
 ! **************************************************************************************************
-   SUBROUTINE restore_wannier90_mo_snapshot(kpoint, mo, eigenvalue_snapshot)
+   SUBROUTINE restore_wannier90_mo_snapshot(kpoint, ispin, mo, eigenvalue_snapshot)
       TYPE(kpoint_type), POINTER                         :: kpoint
-      COMPLEX(KIND=dp), DIMENSION(:, :, :, :), &
+      INTEGER, INTENT(IN) :: ispin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(IN)                                      :: mo
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: eigenvalue_snapshot
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: eigenvalue_snapshot
 
-      INTEGER                                            :: ik, ikpgr, ispin, nmo, nspins
+      INTEGER                                            :: ik, ikpgr, nmo
       INTEGER, DIMENSION(2)                              :: kp_range
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(kpoint_env_type), POINTER                     :: kp
 
       CALL get_kpoint_info(kpoint, kp_range=kp_range)
       nmo = SIZE(eigenvalue_snapshot, 1)
-      nspins = SIZE(eigenvalue_snapshot, 3)
       DO ik = kp_range(1), kp_range(2)
          ikpgr = ik - kp_range(1) + 1
          kp => kpoint%kp_env(ikpgr)%kpoint_env
-         DO ispin = 1, nspins
-            CALL cp_cfm_set_submatrix(kp%mos(ispin)%cmo_coeff, mo(:, :, ik, ispin))
-            CALL get_mo_set(kp%mos(ispin), eigenvalues=eigenvalues)
-            eigenvalues(1:nmo) = eigenvalue_snapshot(1:nmo, ik, ispin)
-         END DO
+         CALL cp_cfm_set_submatrix(kp%mos(ispin)%cmo_coeff, mo(:, :, ik))
+         CALL get_mo_set(kp%mos(ispin), eigenvalues=eigenvalues)
+         eigenvalues(1:nmo) = eigenvalue_snapshot(1:nmo, ik)
       END DO
 
    END SUBROUTINE restore_wannier90_mo_snapshot
@@ -2175,7 +2249,7 @@ CONTAINS
 !> \param min_svalue smallest S(k)-metric singular value
 !> \param max_eigenvalue_deviation largest eigenvalue deviation
 ! **************************************************************************************************
-   SUBROUTINE validate_wannier90_reused_mos(kpoint, matrix_s, cell_to_index, sab_nl, para_env, &
+   SUBROUTINE validate_wannier90_reused_mos(kpoint, matrix_s, cell_to_index, sab_nl, para_env, ispin, &
                                             reference_mo, reference_eigenvalues, &
                                             success, max_subspace_deviation, min_svalue, &
                                             max_eigenvalue_deviation)
@@ -2185,9 +2259,10 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      COMPLEX(KIND=dp), DIMENSION(:, :, :, :), &
+      INTEGER, INTENT(IN) :: ispin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
          INTENT(IN)                                      :: reference_mo
-      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: reference_eigenvalues
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: reference_eigenvalues
       LOGICAL, INTENT(OUT)                               :: success
       REAL(KIND=dp), INTENT(OUT)                         :: max_subspace_deviation, min_svalue, &
                                                             max_eigenvalue_deviation
@@ -2195,7 +2270,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: eigenvalue_tol = 1.0e-8_dp, &
                                                             subspace_tol = 1.0e-4_dp
 
-      INTEGER                                            :: ik, ikpgr, ispin, nao, nkp, nmo, nspins
+      INTEGER                                            :: ik, ikpgr, nao, nkp, nmo
       INTEGER, DIMENSION(2)                              :: kp_range
       LOGICAL                                            :: my_kpgrp, ok
       REAL(KIND=dp)                                      :: candidate_deviation, candidate_svalue, &
@@ -2215,54 +2290,50 @@ CONTAINS
 
       CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range)
       kp => kpoint%kp_env(1)%kpoint_env
-      nspins = SIZE(kp%mos)
-      CALL get_mo_set(kp%mos(1), nao=nao, nmo=nmo)
+      CALL get_mo_set(kp%mos(ispin), nao=nao, nmo=nmo)
       CPASSERT(SIZE(reference_mo, 1) == nao)
       CPASSERT(SIZE(reference_mo, 2) == nmo)
       CPASSERT(SIZE(reference_mo, 3) == nkp)
-      CPASSERT(SIZE(reference_mo, 4) == nspins)
 
-      matrix_struct_work => kp%mos(1)%cmo_coeff%matrix_struct
+      matrix_struct_work => kp%mos(ispin)%cmo_coeff%matrix_struct
       CALL cp_cfm_create(ref_cfm, matrix_struct_work)
       CALL cp_cfm_create(cand_cfm, matrix_struct_work)
       ALLOCATE (eigenvalue_buffer(nmo))
 
-      DO ispin = 1, nspins
-         DO ik = 1, nkp
-            CALL cp_cfm_set_submatrix(ref_cfm, reference_mo(:, :, ik, ispin))
-            my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-            NULLIFY (candidate_source)
-            IF (my_kpgrp) THEN
-               ikpgr = ik - kp_range(1) + 1
-               kp => kpoint%kp_env(ikpgr)%kpoint_env
-               candidate_source => kp%mos(ispin)%cmo_coeff
-               CALL get_mo_set(kp%mos(ispin), eigenvalues=eigenvalues)
-               eigenvalue_buffer(1:nmo) = eigenvalues(1:nmo)
-            ELSE
-               eigenvalue_buffer(1:nmo) = 0.0_dp
-            END IF
-            CALL wannier90_copy_cfm_general(candidate_source, cand_cfm, para_env)
-            IF (my_kpgrp) THEN
-               owner_count = 1.0_dp
-            ELSE
-               owner_count = 0.0_dp
-            END IF
-            CALL para_env%sum(owner_count)
-            CALL para_env%sum(eigenvalue_buffer)
-            IF (owner_count > 0.0_dp) eigenvalue_buffer(1:nmo) = eigenvalue_buffer(1:nmo)/owner_count
-            max_eigenvalue_deviation = MAX(max_eigenvalue_deviation, &
-                                           MAXVAL(ABS(eigenvalue_buffer(1:nmo) - &
-                                                      reference_eigenvalues(1:nmo, ik, ispin))))
-            CALL measure_wannier90_subspace_error(ref_cfm, cand_cfm, matrix_s, &
-                                                  kpoint%xkp(1:3, ik), cell_to_index, sab_nl, para_env, &
-                                                  ok, candidate_deviation, candidate_svalue)
-            IF (.NOT. ok) THEN
-               max_subspace_deviation = HUGE(1.0_dp)
-            ELSE
-               max_subspace_deviation = MAX(max_subspace_deviation, candidate_deviation)
-               min_svalue = MIN(min_svalue, candidate_svalue)
-            END IF
-         END DO
+      DO ik = 1, nkp
+         CALL cp_cfm_set_submatrix(ref_cfm, reference_mo(:, :, ik))
+         my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
+         NULLIFY (candidate_source)
+         IF (my_kpgrp) THEN
+            ikpgr = ik - kp_range(1) + 1
+            kp => kpoint%kp_env(ikpgr)%kpoint_env
+            candidate_source => kp%mos(ispin)%cmo_coeff
+            CALL get_mo_set(kp%mos(ispin), eigenvalues=eigenvalues)
+            eigenvalue_buffer(1:nmo) = eigenvalues(1:nmo)
+         ELSE
+            eigenvalue_buffer(1:nmo) = 0.0_dp
+         END IF
+         CALL wannier90_copy_cfm_general(candidate_source, cand_cfm, para_env)
+         IF (my_kpgrp) THEN
+            owner_count = 1.0_dp
+         ELSE
+            owner_count = 0.0_dp
+         END IF
+         CALL para_env%sum(owner_count)
+         CALL para_env%sum(eigenvalue_buffer)
+         IF (owner_count > 0.0_dp) eigenvalue_buffer(1:nmo) = eigenvalue_buffer(1:nmo)/owner_count
+         max_eigenvalue_deviation = MAX(max_eigenvalue_deviation, &
+                                        MAXVAL(ABS(eigenvalue_buffer(1:nmo) - &
+                                                   reference_eigenvalues(1:nmo, ik))))
+         CALL measure_wannier90_subspace_error(ref_cfm, cand_cfm, matrix_s, &
+                                               kpoint%xkp(1:3, ik), cell_to_index, sab_nl, para_env, &
+                                               ok, candidate_deviation, candidate_svalue)
+         IF (.NOT. ok) THEN
+            max_subspace_deviation = HUGE(1.0_dp)
+         ELSE
+            max_subspace_deviation = MAX(max_subspace_deviation, candidate_deviation)
+            min_svalue = MIN(min_svalue, candidate_svalue)
+         END IF
       END DO
       CALL para_env%max(max_subspace_deviation)
       CALL para_env%min(min_svalue)
@@ -2285,13 +2356,14 @@ CONTAINS
 !> \param sab_nl overlap neighbor list
 !> \param para_env global parallel environment
 !> \param iw output unit
+!> \param ispin Selected spin channel.
 !> \param max_subspace_deviation largest best-candidate subspace deviation
 !> \param min_svalue smallest best-candidate singular value
 !> \param max_metric_deviation largest S(k)-metric deviation of a candidate
 !> \param max_residual largest H(k),S(k) eigen-residual of a candidate
 ! **************************************************************************************************
    SUBROUTINE diagnose_wannier90_scf_reuse_candidates(kpoint, qs_kpoint, matrix_s, matrix_ks, &
-                                                      cell_to_index, sab_nl, para_env, iw, &
+                                                      cell_to_index, sab_nl, para_env, iw, ispin, &
                                                       max_subspace_deviation, min_svalue, &
                                                       max_metric_deviation, max_residual)
       TYPE(kpoint_type), POINTER                         :: kpoint, qs_kpoint
@@ -2300,7 +2372,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: iw
+      INTEGER, INTENT(IN)                                :: iw, ispin
       REAL(KIND=dp), INTENT(OUT)                         :: max_subspace_deviation, min_svalue, &
                                                             max_metric_deviation, max_residual
 
@@ -2308,8 +2380,8 @@ CONTAINS
                                                             residual_print_tol = 1.0e-3_dp
 
       CHARACTER(LEN=default_string_length)               :: reason
-      INTEGER                                            :: ik, ikpgr, ikred, ispin, isym_try, nao, &
-                                                            nao_src, nkp, nmo, nmo_src, nspins
+      INTEGER                                            :: ik, ikpgr, ikred, isym_try, nao, &
+                                                            nao_src, nkp, nmo, nmo_src
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: source_kpoint, sym_index
       INTEGER, DIMENSION(2)                              :: kp_range, source_kp_range
       LOGICAL                                            :: my_kpgrp, ok, source_window
@@ -2335,14 +2407,13 @@ CONTAINS
       IF (.NOT. ok) RETURN
       kp => kpoint%kp_env(1)%kpoint_env
       kp_source => qs_kpoint%kp_env(1)%kpoint_env
-      IF (.NOT. ASSOCIATED(kp%mos(1)%cmo_coeff) .OR. &
-          .NOT. ASSOCIATED(kp_source%mos(1)%cmo_coeff)) THEN
+      IF (.NOT. ASSOCIATED(kp%mos(ispin)%cmo_coeff) .OR. &
+          .NOT. ASSOCIATED(kp_source%mos(ispin)%cmo_coeff)) THEN
          DEALLOCATE (source_kpoint, sym_index)
          RETURN
       END IF
-      nspins = SIZE(kp%mos)
-      CALL get_mo_set(kp%mos(1), nao=nao, nmo=nmo)
-      CALL get_mo_set(kp_source%mos(1), nao=nao_src, nmo=nmo_src)
+      CALL get_mo_set(kp%mos(ispin), nao=nao, nmo=nmo)
+      CALL get_mo_set(kp_source%mos(ispin), nao=nao_src, nmo=nmo_src)
       CALL para_env%max(nao_src)
       CALL para_env%max(nmo_src)
       IF (nao_src /= nao .OR. nmo_src < nmo) THEN
@@ -2373,127 +2444,125 @@ CONTAINS
       min_svalue = HUGE(1.0_dp)
       max_metric_deviation = 0.0_dp
       max_residual = 0.0_dp
-      DO ispin = 1, nspins
-         DO ik = 1, nkp
-            my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-            NULLIFY (source_cfm)
-            IF (my_kpgrp) THEN
-               ikpgr = ik - kp_range(1) + 1
-               kp => kpoint%kp_env(ikpgr)%kpoint_env
-               source_cfm => kp%mos(ispin)%cmo_coeff
-            END IF
-            CALL wannier90_copy_cfm_general(source_cfm, ref_cfm, para_env)
+      DO ik = 1, nkp
+         my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
+         NULLIFY (source_cfm)
+         IF (my_kpgrp) THEN
+            ikpgr = ik - kp_range(1) + 1
+            kp => kpoint%kp_env(ikpgr)%kpoint_env
+            source_cfm => kp%mos(ispin)%cmo_coeff
+         END IF
+         CALL wannier90_copy_cfm_general(source_cfm, ref_cfm, para_env)
 
-            ikred = source_kpoint(ik)
-            my_kpgrp = (ikred >= source_kp_range(1) .AND. ikred <= source_kp_range(2))
-            NULLIFY (source_cfm)
-            IF (my_kpgrp) THEN
-               ikpgr = ikred - source_kp_range(1) + 1
-               kp_source => qs_kpoint%kp_env(ikpgr)%kpoint_env
-               source_cfm => kp_source%mos(ispin)%cmo_coeff
-               CALL get_mo_set(kp_source%mos(ispin), eigenvalues=eigenvalues)
-               eigenvalues_buffer(1:nmo) = eigenvalues(1:nmo)
-            ELSE
-               eigenvalues_buffer(1:nmo) = 0.0_dp
-            END IF
-            IF (source_window) THEN
-               CALL wannier90_copy_cfm_general(source_cfm, src_cfm_full, para_env)
-            ELSE
-               CALL wannier90_copy_cfm_general(source_cfm, src_cfm, para_env)
-            END IF
-            IF (my_kpgrp) THEN
-               owner_count = 1.0_dp
-            ELSE
-               owner_count = 0.0_dp
-            END IF
-            CALL para_env%sum(owner_count)
-            CALL para_env%sum(eigenvalues_buffer)
-            IF (owner_count > 0.0_dp) eigenvalues_buffer(1:nmo) = eigenvalues_buffer(1:nmo)/owner_count
-            CALL measure_wannier90_eigenspace_quality(ref_cfm, matrix_s, matrix_ks, &
-                                                      kpoint%xkp(1:3, ik), cell_to_index, sab_nl, &
-                                                      para_env, ispin, eigenvalues_buffer, ok, &
-                                                      ref_metric_deviation, ref_metric_min, ref_residual)
-            IF (ok .AND. para_env%is_source() .AND. iw > 0 .AND. &
-                (ref_metric_deviation > print_tol .OR. ref_residual > residual_print_tol)) THEN
-               WRITE (iw, '(T2,A,I0,A,ES10.3,A,ES10.3,A,ES10.3)') &
-                  "WANNIER90| reference k=", ik, " dM=", ref_metric_deviation, &
-                  " smin=", ref_metric_min, " resid=", ref_residual
-            END IF
-            IF (source_window) THEN
-               CALL cp_cfm_to_cfm(src_cfm_full, src_cfm, nmo)
-            END IF
+         ikred = source_kpoint(ik)
+         my_kpgrp = (ikred >= source_kp_range(1) .AND. ikred <= source_kp_range(2))
+         NULLIFY (source_cfm)
+         IF (my_kpgrp) THEN
+            ikpgr = ikred - source_kp_range(1) + 1
+            kp_source => qs_kpoint%kp_env(ikpgr)%kpoint_env
+            source_cfm => kp_source%mos(ispin)%cmo_coeff
+            CALL get_mo_set(kp_source%mos(ispin), eigenvalues=eigenvalues)
+            eigenvalues_buffer(1:nmo) = eigenvalues(1:nmo)
+         ELSE
+            eigenvalues_buffer(1:nmo) = 0.0_dp
+         END IF
+         IF (source_window) THEN
+            CALL wannier90_copy_cfm_general(source_cfm, src_cfm_full, para_env)
+         ELSE
+            CALL wannier90_copy_cfm_general(source_cfm, src_cfm, para_env)
+         END IF
+         IF (my_kpgrp) THEN
+            owner_count = 1.0_dp
+         ELSE
+            owner_count = 0.0_dp
+         END IF
+         CALL para_env%sum(owner_count)
+         CALL para_env%sum(eigenvalues_buffer)
+         IF (owner_count > 0.0_dp) eigenvalues_buffer(1:nmo) = eigenvalues_buffer(1:nmo)/owner_count
+         CALL measure_wannier90_eigenspace_quality(ref_cfm, matrix_s, matrix_ks, &
+                                                   kpoint%xkp(1:3, ik), cell_to_index, sab_nl, &
+                                                   para_env, ispin, eigenvalues_buffer, ok, &
+                                                   ref_metric_deviation, ref_metric_min, ref_residual)
+         IF (ok .AND. para_env%is_source() .AND. iw > 0 .AND. &
+             (ref_metric_deviation > print_tol .OR. ref_residual > residual_print_tol)) THEN
+            WRITE (iw, '(T2,A,I0,A,ES10.3,A,ES10.3,A,ES10.3)') &
+               "WANNIER90| reference k=", ik, " dM=", ref_metric_deviation, &
+               " smin=", ref_metric_min, " resid=", ref_residual
+         END IF
+         IF (source_window) THEN
+            CALL cp_cfm_to_cfm(src_cfm_full, src_cfm, nmo)
+         END IF
 
-            best_deviation = HUGE(1.0_dp)
-            best_metric_deviation = 0.0_dp
-            best_residual = 0.0_dp
-            best_svalue = 0.0_dp
-            IF (sym_index(ik) <= 0) THEN
-               CALL kpoint_transform_scf_mo(src_cfm, dst_cfm, qs_kpoint, &
-                                            ikred, sym_index(ik), ok, reason)
+         best_deviation = HUGE(1.0_dp)
+         best_metric_deviation = 0.0_dp
+         best_residual = 0.0_dp
+         best_svalue = 0.0_dp
+         IF (sym_index(ik) <= 0) THEN
+            CALL kpoint_transform_scf_mo(src_cfm, dst_cfm, qs_kpoint, &
+                                         ikred, sym_index(ik), ok, reason)
+            IF (ok) THEN
+               CALL measure_wannier90_subspace_error(ref_cfm, dst_cfm, matrix_s, &
+                                                     kpoint%xkp(1:3, ik), cell_to_index, sab_nl, &
+                                                     para_env, ok, candidate_deviation, candidate_svalue)
                IF (ok) THEN
-                  CALL measure_wannier90_subspace_error(ref_cfm, dst_cfm, matrix_s, &
-                                                        kpoint%xkp(1:3, ik), cell_to_index, sab_nl, &
-                                                        para_env, ok, candidate_deviation, candidate_svalue)
+                  CALL measure_wannier90_eigenspace_quality(dst_cfm, matrix_s, matrix_ks, &
+                                                            kpoint%xkp(1:3, ik), cell_to_index, sab_nl, &
+                                                            para_env, ispin, eigenvalues_buffer, ok, &
+                                                            candidate_metric_deviation, &
+                                                            candidate_metric_min, candidate_residual)
+               END IF
+               IF (ok) THEN
+                  best_deviation = candidate_deviation
+                  best_metric_deviation = candidate_metric_deviation
+                  best_residual = candidate_residual
+                  best_svalue = candidate_svalue
+                  IF (para_env%is_source() .AND. iw > 0 .AND. &
+                      (candidate_deviation > print_tol .OR. candidate_metric_deviation > print_tol .OR. &
+                       candidate_residual > residual_print_tol)) THEN
+                     WRITE (iw, '(T2,A,I0,A,I0,A,I0,A,ES10.3,A,ES10.3,A,ES10.3,A,ES10.3)') &
+                        "WANNIER90| reuse candidate k=", ik, " src=", ikred, " sym=", &
+                        sym_index(ik), " dRef=", candidate_deviation, " dM=", &
+                        candidate_metric_deviation, " smin=", candidate_metric_min, &
+                        " resid=", candidate_residual
+                  END IF
+               END IF
+            END IF
+         ELSE IF (ASSOCIATED(qs_kpoint%kp_sym)) THEN
+            kpsym => qs_kpoint%kp_sym(ikred)%kpoint_sym
+            IF (ASSOCIATED(kpsym)) THEN
+               DO isym_try = 1, kpsym%nwred
+                  IF (.NOT. kpoint_same_periodic(kpoint%xkp(1:3, ik), &
+                                                 kpsym%xkp(1:3, isym_try))) CYCLE
+                  CALL kpoint_transform_scf_mo(src_cfm, dst_cfm, &
+                                               qs_kpoint, ikred, isym_try, ok, reason)
+                  IF (.NOT. ok) CYCLE
+                  CALL measure_wannier90_subspace_error(ref_cfm, dst_cfm, &
+                                                        matrix_s, kpoint%xkp(1:3, ik), cell_to_index, &
+                                                        sab_nl, para_env, ok, candidate_deviation, &
+                                                        candidate_svalue)
                   IF (ok) THEN
                      CALL measure_wannier90_eigenspace_quality(dst_cfm, matrix_s, matrix_ks, &
-                                                               kpoint%xkp(1:3, ik), cell_to_index, sab_nl, &
-                                                               para_env, ispin, eigenvalues_buffer, ok, &
+                                                               kpoint%xkp(1:3, ik), cell_to_index, &
+                                                               sab_nl, para_env, ispin, &
+                                                               eigenvalues_buffer, ok, &
                                                                candidate_metric_deviation, &
                                                                candidate_metric_min, candidate_residual)
                   END IF
-                  IF (ok) THEN
+                  IF (ok .AND. candidate_deviation < best_deviation) THEN
                      best_deviation = candidate_deviation
                      best_metric_deviation = candidate_metric_deviation
                      best_residual = candidate_residual
                      best_svalue = candidate_svalue
-                     IF (para_env%is_source() .AND. iw > 0 .AND. &
-                         (candidate_deviation > print_tol .OR. candidate_metric_deviation > print_tol .OR. &
-                          candidate_residual > residual_print_tol)) THEN
-                        WRITE (iw, '(T2,A,I0,A,I0,A,I0,A,ES10.3,A,ES10.3,A,ES10.3,A,ES10.3)') &
-                           "WANNIER90| reuse candidate k=", ik, " src=", ikred, " sym=", &
-                           sym_index(ik), " dRef=", candidate_deviation, " dM=", &
-                           candidate_metric_deviation, " smin=", candidate_metric_min, &
-                           " resid=", candidate_residual
-                     END IF
                   END IF
-               END IF
-            ELSE IF (ASSOCIATED(qs_kpoint%kp_sym)) THEN
-               kpsym => qs_kpoint%kp_sym(ikred)%kpoint_sym
-               IF (ASSOCIATED(kpsym)) THEN
-                  DO isym_try = 1, kpsym%nwred
-                     IF (.NOT. kpoint_same_periodic(kpoint%xkp(1:3, ik), &
-                                                    kpsym%xkp(1:3, isym_try))) CYCLE
-                     CALL kpoint_transform_scf_mo(src_cfm, dst_cfm, &
-                                                  qs_kpoint, ikred, isym_try, ok, reason)
-                     IF (.NOT. ok) CYCLE
-                     CALL measure_wannier90_subspace_error(ref_cfm, dst_cfm, &
-                                                           matrix_s, kpoint%xkp(1:3, ik), cell_to_index, &
-                                                           sab_nl, para_env, ok, candidate_deviation, &
-                                                           candidate_svalue)
-                     IF (ok) THEN
-                        CALL measure_wannier90_eigenspace_quality(dst_cfm, matrix_s, matrix_ks, &
-                                                                  kpoint%xkp(1:3, ik), cell_to_index, &
-                                                                  sab_nl, para_env, ispin, &
-                                                                  eigenvalues_buffer, ok, &
-                                                                  candidate_metric_deviation, &
-                                                                  candidate_metric_min, candidate_residual)
-                     END IF
-                     IF (ok .AND. candidate_deviation < best_deviation) THEN
-                        best_deviation = candidate_deviation
-                        best_metric_deviation = candidate_metric_deviation
-                        best_residual = candidate_residual
-                        best_svalue = candidate_svalue
-                     END IF
-                  END DO
-               END IF
+               END DO
             END IF
-            IF (best_deviation < HUGE(1.0_dp)) THEN
-               max_subspace_deviation = MAX(max_subspace_deviation, best_deviation)
-               min_svalue = MIN(min_svalue, best_svalue)
-               max_metric_deviation = MAX(max_metric_deviation, best_metric_deviation)
-               max_residual = MAX(max_residual, best_residual)
-            END IF
-         END DO
+         END IF
+         IF (best_deviation < HUGE(1.0_dp)) THEN
+            max_subspace_deviation = MAX(max_subspace_deviation, best_deviation)
+            min_svalue = MIN(min_svalue, best_svalue)
+            max_metric_deviation = MAX(max_metric_deviation, best_metric_deviation)
+            max_residual = MAX(max_residual, best_residual)
+         END IF
       END DO
       CALL para_env%max(max_subspace_deviation)
       CALL para_env%min(min_svalue)
@@ -2946,18 +3015,19 @@ CONTAINS
 !> \param matrix_s Real-space overlap matrices.
 !> \param sab_nl Overlap neighbour lists.
 !> \param para_env Global parallel environment.
+!> \param ispin Selected spin channel.
 !> \param bands Original MO indices retained in the export.
 !> \param apply_phase Whether the overlap export uses the additional global Bloch gauge.
 !> \param phase_center Fractional origin for that gauge.
 !> \param projections Band/AO/k-point projections, stored only on the source rank.
 ! **************************************************************************************************
-   SUBROUTINE build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, bands, &
+   SUBROUTINE build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, ispin, bands, &
                                              apply_phase, phase_center, projections)
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(dbcsr_p_type), POINTER                        :: matrix_s(:, :)
       TYPE(neighbor_list_set_p_type), POINTER            :: sab_nl(:)
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: bands(:)
+      INTEGER, INTENT(IN)                                :: ispin, bands(:)
       LOGICAL, INTENT(IN)                                :: apply_phase
       REAL(KIND=dp), INTENT(IN)                          :: phase_center(3)
       COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: projections(:, :, :)
@@ -2972,7 +3042,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: source_imag, source_real
 
       NULLIFY (matrix_struct, cell_to_index, source_real, source_imag)
-      CALL get_mo_set(kpoint%kp_env(1)%kpoint_env%mos(1, 1), nao=nao, nmo=nmo)
+      CALL get_mo_set(kpoint%kp_env(1)%kpoint_env%mos(1, ispin), nao=nao, nmo=nmo)
       nk = SIZE(kpoint%xkp, 2)
       CALL get_kpoint_info(kpoint, cell_to_index=cell_to_index)
       CALL cp_fm_struct_create(matrix_struct, nrow_global=nao, ncol_global=nmo, &
@@ -2991,8 +3061,8 @@ CONTAINS
       DO ik = 1, nk
          IF (ik >= kpoint%kp_range(1) .AND. ik <= kpoint%kp_range(2)) THEN
             iklocal = ik - kpoint%kp_range(1) + 1
-            source_real => kpoint%kp_env(iklocal)%kpoint_env%mos(1, 1)%mo_coeff
-            source_imag => kpoint%kp_env(iklocal)%kpoint_env%mos(2, 1)%mo_coeff
+            source_real => kpoint%kp_env(iklocal)%kpoint_env%mos(1, ispin)%mo_coeff
+            source_imag => kpoint%kp_env(iklocal)%kpoint_env%mos(2, ispin)%mo_coeff
          ELSE
             NULLIFY (source_real, source_imag)
          END IF
