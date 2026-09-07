@@ -63,7 +63,7 @@ MODULE qs_kpoint_operators
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpoint_operators'
 
-   PUBLIC :: kpoint_operator_raw_finish_cfm, kpoint_operator_cfm_to_mo
+   PUBLIC :: kpoint_operator_cfm_to_mo
    PUBLIC :: kpoint_operator_context_create, kpoint_operator_context_release
    PUBLIC :: kpoint_operator_start, kpoint_operator_finish
    PUBLIC :: kpoint_operator_get
