@@ -15,6 +15,10 @@
 "nacl_auto.inp" = [{matcher="E_total", tol=1e-10, ref=-62.458479958873482},
                    {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-7, ref=14.2945304491194},
                    {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]
+# Retain the noncontiguous MO set 1,3,4,5, independently checked with external Wannier90.
+"lif_excluded.inp" = [{matcher="E_total", tol=1e-10, ref=-31.80800534835234},
+                      {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-7, ref=5.28090697816293},
+                      {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]
 # Conduction states expose inconsistent atom images at the half-cell boundary.
 "lif_partial.inp" = [{matcher="E_total", tol=1e-10, ref=-31.80800534835234},
                      {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-7, ref=4.44678842483627},

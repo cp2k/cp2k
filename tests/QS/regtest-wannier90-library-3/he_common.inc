@@ -26,6 +26,13 @@
         SEED_NAME ${seed}
         USE_BLOCH_PHASES T
         WANNIER_FUNCTIONS 1
+        @IF ( ${exclude} == T )
+          EXCLUDE_BANDS 5 2 4
+          EXCLUDE_BANDS 3 2
+        @ENDIF
+        @IF ( ${exclude} == WINDOW )
+          EXCLUDE_BANDS 3
+        @ENDIF
         &LIBRARY ON
           INITIAL_PROJECTIONS ${projections}
           WRITE_HR T
