@@ -1,4 +1,5 @@
 @SET seed lif_auto
+@SET exclude 0
 @SET disentangle F
 @SET cation Li
 @SET anion F

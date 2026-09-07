@@ -2962,7 +2962,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EXCLUDE_BANDS", &
-                          description="List of Bands excluded in the Wannier calculation.", &
+                          description="One-based MO indices removed before the Wannier calculation. "// &
+                          "Retained bands are exported in ascending order and renumbered from one; "// &
+                          "the original indices are written to SEED_NAME_band_indices.dat. "// &
+                          "Library localization requires complete degenerate subspaces.", &
                           usage="EXCLUDE_BANDS b1 b2 ...", n_var=-1, repeats=.TRUE., &
                           type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
