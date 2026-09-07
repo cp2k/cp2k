@@ -6,6 +6,11 @@
 "he_frozen.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21970225224015}]
 "he_outer.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21970225224015}]
 "he_auto.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21970225224015}]
+# Explicit, repeated and unsorted exclusion must select the same occupied state.
+"he_excluded.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21970225224015},
+                     {matcher="WANNIER90_SCF_MO_REUSE", tol=0.0, ref=1.0}]
+# An excluded member of a degenerate group outside the outer window is harmless.
+"he_excluded_window.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21970225224015}]
 # Ten bands to two frozen occupied states: QR must ignore the irrelevant conduction space.
 "he2_frozen.inp" = [{matcher="E_total", tol=1e-12, ref=-5.78478325058176},
                     {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=2.39300643054920}]
