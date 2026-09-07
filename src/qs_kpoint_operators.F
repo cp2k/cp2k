@@ -425,10 +425,12 @@ CONTAINS
    END SUBROUTINE kpoint_operator_context_release
 
 ! **************************************************************************************************
-!> \brief Create the context buffers that the first start needs: the DBCSR work
-!>        trio with blocks from the current neighbor lists, two densify buffers
-!>        on the environment-wide struct, the group transfer target from the
-!>        group pools, and the per-instance bookkeeping.
+!> \brief Create the context scratch that the first service call needs: the
+!>        DBCSR work trio with blocks from the current neighbor lists, two
+!>        densify buffers on the environment-wide struct, and the group
+!>        transfer target from the group pools.
+!>        The per-instance slot bookkeeping is not scratch: start creates it
+!>        on its first call, because the synchronous get call never touches it.
 !>        The buffers assume the context lifetime of one driver call: the
 !>        host neighbor lists do not change within it, and every buffer use
 !>        asserts this identity. Buffers from an earlier call stay in place.
@@ -446,12 +448,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_ensure'
 
-      INTEGER                                            :: handle, kplocal, ngrp
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-
-      kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
-      ngrp = ctx%kpoints%nkp_groups
 
       ! The trio must still match the host neighbor lists: they are
       ! reallocated at every energy evaluation, while the context spans one
@@ -486,19 +485,6 @@ CONTAINS
          CALL fm_pool_create_fm(ctx%group_fm_pools(1)%pool, ctx%fmlocal)
       END IF
 
-      ! The bookkeeping spin space is the instance spin space declared at
-      ! context creation. The operator row count never enters the sizing:
-      ! spin-free operators such as S carry their real-space blocks in the
-      ! first matrix dimension, and the row choice is made through
-      ! matrix_row, so a fixed spin space serves every operator of the call.
-      IF (.NOT. ALLOCATED(ctx%status)) THEN
-         ALLOCATE (ctx%status(kplocal, ctx%nspin, kpoint_num_slots))
-         ctx%status = kpoint_slot_idle
-         ! One copy_info per in-flight part: start takes it INTENT(OUT),
-         ! so two concurrent starts cannot share one instance.
-         ALLOCATE (ctx%info(kplocal*ngrp, ctx%nspin, kpoint_num_slots, kpoint_part_im))
-      END IF
-
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_operator_ensure
@@ -508,7 +494,8 @@ CONTAINS
 !>        launch its transfers to every k-point group. The caller index ikp is
 !>        local; the walk over groups happens here, so no caller can express a
 !>        group-local loop. Finish every started instance with
-!>        kpoint_operator_finish.
+!>        kpoint_operator_finish. The first start also creates the slot
+!>        bookkeeping of the context.
 !>        Collective over the environment-wide communicator: every rank must
 !>        call the same sequence of service calls.
 !> \param ctx context created by kpoint_operator_context_create
@@ -562,6 +549,21 @@ CONTAINS
       END IF
 
       CALL kpoint_operator_ensure(ctx, rsmat)
+
+      ! The slot bookkeeping serves the asynchronous paths alone: the first
+      ! start creates it, and a get-only context never carries it. The spin
+      ! space of the sizing is the instance spin space declared at context
+      ! creation. The operator row count never enters it: spin-free
+      ! operators such as S carry their real-space blocks in the first
+      ! matrix dimension, and the row choice is made through matrix_row.
+      IF (.NOT. ALLOCATED(ctx%status)) THEN
+         ALLOCATE (ctx%status(kplocal, ctx%nspin, kpoint_num_slots))
+         ctx%status = kpoint_slot_idle
+         ! One copy_info per in-flight part: start takes it INTENT(OUT),
+         ! so two concurrent starts cannot share one instance.
+         ALLOCATE (ctx%info(kplocal*ctx%kpoints%nkp_groups, ctx%nspin, &
+                            kpoint_num_slots, kpoint_part_im))
+      END IF
 
       kp_range = ctx%kpoints%kp_range
       kp_dist => ctx%kpoints%kp_dist
@@ -661,7 +663,7 @@ CONTAINS
 !>        call the same sequence of service calls.
 !> \param ctx context created by kpoint_operator_context_create
 !> \param ikp local k-point index within kp_range
-!> \param ispin instance spin: keys the bookkeeping
+!> \param ispin instance spin: bounds-checked against the context spin space
 !> \param rsmat real-space image matrices of the operator
 !> \param cmat complex matrix output
 !> \param fm_re real-part matrix output
