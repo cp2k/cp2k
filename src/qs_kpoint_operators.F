@@ -135,7 +135,7 @@ CONTAINS
 !>        Densify means: copy the blocks of a DBCSR matrix into a full matrix.
 !>        Stateless: fills caller-provided scratch.
 !> \param rsmat real-space image matrices of the operator
-!> \param ispin matrix row of rsmat to transform (kpoint_spin_free for
+!> \param matrix_row row of rsmat to transform (kpoint_spin_free for
 !>        spin-free matrices such as S)
 !> \param ik global k-point index
 !> \param xkp coordinates of this k point
@@ -149,11 +149,11 @@ CONTAINS
 !> \param fm_re full-matrix workspace holding the real part
 !> \param fm_im full-matrix workspace holding the imaginary part
 ! **************************************************************************************************
-   SUBROUTINE kpoint_operator_densify(rsmat, ispin, ik, xkp, cell_to_index, sab_nl, grid, use_grid, &
+   SUBROUTINE kpoint_operator_densify(rsmat, matrix_row, ik, xkp, cell_to_index, sab_nl, grid, use_grid, &
                                       rmatrix, cmatrix, tmpmat, fm_re, fm_im)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rsmat
-      INTEGER, INTENT(IN)                                :: ispin, ik
+      INTEGER, INTENT(IN)                                :: matrix_row, ik
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -175,7 +175,7 @@ CONTAINS
       ELSE
          CALL dbcsr_set(rmatrix, 0.0_dp)
          CALL dbcsr_set(cmatrix, 0.0_dp)
-         CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=rsmat, ispin=ispin, &
+         CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix, rsmat=rsmat, ispin=matrix_row, &
                              xkp=xkp, cell_to_index=cell_to_index, sab_nl=sab_nl)
       END IF
       CALL dbcsr_desymmetrize(rmatrix, tmpmat)
@@ -512,7 +512,7 @@ CONTAINS
 !>        call the same sequence of service calls.
 !> \param ctx context created by kpoint_operator_context_create
 !> \param ikp local k-point index within kp_range
-!> \param ispin instance spin: keys the bookkeeping and defaults the matrix row
+!> \param ispin instance spin: keys the bookkeeping
 !> \param rsmat real-space image matrices of the operator, read at start
 !>        time only. The matching finish does not read them
 !> \param slot destination slot of the operator (one of kpoint_slot_ks/s/t);
@@ -533,12 +533,11 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: slot
       TYPE(rskp_grid_type), INTENT(IN), OPTIONAL         :: grid
       LOGICAL, INTENT(IN)                                :: use_grid
-      INTEGER, INTENT(IN), OPTIONAL                      :: matrix_row
+      INTEGER, INTENT(IN)                                :: matrix_row
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_start'
 
-      INTEGER                                            :: handle, igroup, ik, indx, ispin_mat, &
-                                                            kplocal
+      INTEGER                                            :: handle, igroup, ik, indx, kplocal
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       LOGICAL                                            :: my_kpgrp
@@ -546,8 +545,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ispin_mat = ispin
-      IF (PRESENT(matrix_row)) ispin_mat = matrix_row
       CPASSERT(ASSOCIATED(ctx%kpoints))
       CPASSERT(ASSOCIATED(ctx%kpoints%sab_nl))
       ! The instance spin is bounded by the spin space declared at creation;
@@ -555,7 +552,7 @@ CONTAINS
       ! spin-free operators such as S, whose first dimension counts
       ! real-space blocks.
       CPASSERT(ispin >= 1 .AND. ispin <= ctx%nspin)
-      CPASSERT(ispin_mat >= 1 .AND. ispin_mat <= SIZE(rsmat, 1))
+      CPASSERT(matrix_row >= 1 .AND. matrix_row <= SIZE(rsmat, 1))
       kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
       CPASSERT(ikp >= 1 .AND. ikp <= kplocal)
       CPASSERT(slot >= kpoint_slot_ks .AND. slot <= kpoint_slot_t)
@@ -572,7 +569,7 @@ CONTAINS
          ik = kp_dist(1, igroup) + ikp - 1
          my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
          indx = ikp + (igroup - 1)*kplocal
-         CALL kpoint_operator_raw_start(rsmat, ispin_mat, ik, ctx%kpoints%xkp(1:3, ik), &
+         CALL kpoint_operator_raw_start(rsmat, matrix_row, ik, ctx%kpoints%xkp(1:3, ik), &
                                         ctx%kpoints%cell_to_index, ctx%kpoints%sab_nl, grid, use_grid, &
                                         ctx%rmatrix, ctx%cmatrix, ctx%tmpmat, &
                                         ctx%fmwork(kpoint_part_re), ctx%fmwork(kpoint_part_im), &
@@ -660,7 +657,7 @@ CONTAINS
 !>        call the same sequence of service calls.
 !> \param ctx context created by kpoint_operator_context_create
 !> \param ikp local k-point index within kp_range
-!> \param ispin instance spin: keys the bookkeeping and defaults the matrix row
+!> \param ispin instance spin: keys the bookkeeping
 !> \param rsmat real-space image matrices of the operator
 !> \param slot destination slot of the operator. Optional: a one-shot caller
 !>        has no pipeline to key, so an omitted slot takes the lowest idle
@@ -687,12 +684,12 @@ CONTAINS
       TYPE(cp_cfm_type), OPTIONAL                        :: cmat
       TYPE(cp_fm_type), OPTIONAL                         :: fm_re, fm_im
       TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: mat_re, mat_im
-      INTEGER, INTENT(IN), OPTIONAL                      :: matrix_row
+      INTEGER, INTENT(IN)                                :: matrix_row
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_get'
 
       INTEGER                                            :: handle, igroup, ik, indx, islot, &
-                                                            ispin_mat, kplocal, my_slot
+                                                            kplocal, my_slot
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       LOGICAL                                            :: my_kpgrp
@@ -708,12 +705,10 @@ CONTAINS
          CPASSERT(PRESENT(mat_re) .AND. PRESENT(mat_im))
       END IF
 
-      ispin_mat = ispin
-      IF (PRESENT(matrix_row)) ispin_mat = matrix_row
       CPASSERT(ASSOCIATED(ctx%kpoints))
       CPASSERT(ASSOCIATED(ctx%kpoints%sab_nl))
       CPASSERT(ispin >= 1 .AND. ispin <= ctx%nspin)
-      CPASSERT(ispin_mat >= 1 .AND. ispin_mat <= SIZE(rsmat, 1))
+      CPASSERT(matrix_row >= 1 .AND. matrix_row <= SIZE(rsmat, 1))
       CALL kpoint_operator_ensure(ctx, rsmat)
       kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
       CPASSERT(ikp >= 1 .AND. ikp <= kplocal)
@@ -746,7 +741,7 @@ CONTAINS
             ik = kp_dist(1, igroup) + ikp - 1
             my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
             indx = ikp + (igroup - 1)*kplocal
-            CALL kpoint_operator_densify(rsmat, ispin_mat, ik, ctx%kpoints%xkp(1:3, ik), &
+            CALL kpoint_operator_densify(rsmat, matrix_row, ik, ctx%kpoints%xkp(1:3, ik), &
                                          ctx%kpoints%cell_to_index, ctx%kpoints%sab_nl, &
                                          use_grid=.FALSE., rmatrix=ctx%rmatrix, cmatrix=ctx%cmatrix, &
                                          tmpmat=ctx%tmpmat, fm_re=ctx%fmwork(kpoint_part_re), &

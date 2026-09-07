@@ -1683,7 +1683,7 @@ CONTAINS
                DO ispin = 1, nspin_ot
                   CALL kpoint_operator_get(hxc_op_ctx, local_kpoint, ispin, potential_rs, &
                                            fm_re=operator_re(local_kpoint, ispin), &
-                                           fm_im=operator_im(local_kpoint, ispin))
+                                           fm_im=operator_im(local_kpoint, ispin), matrix_row=ispin)
                END DO
             END DO
             CALL kpoint_operator_context_release(hxc_op_ctx)

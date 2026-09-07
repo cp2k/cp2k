@@ -943,7 +943,7 @@ CONTAINS
                ! complex wavefunctions: assemble KS and S and start their
                ! transfer to the k-point group
                CALL kpoint_operator_start(op_ctx, ikp, ispin, effective_ks, kpoint_slot_ks, &
-                                          ks_grid(ispin), use_grid_fft)
+                                          ks_grid(ispin), use_grid_fft, matrix_row=ispin)
                CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_s, kpoint_slot_s, s_grid, &
                                           use_grid_fft, matrix_row=kpoint_spin_free)
                IF (my_store_ot_kinetic) THEN
@@ -1033,7 +1033,8 @@ CONTAINS
                   IF (diis_weight < 1.0_dp) THEN
                      ! The ks slot is idle again after the harvest above; the
                      ! service reclaims every transfer within the finish call.
-                     CALL kpoint_operator_start(op_ctx, ikp, ispin, adiis_ks, kpoint_slot_ks, use_grid=.FALSE.)
+                     CALL kpoint_operator_start(op_ctx, ikp, ispin, adiis_ks, kpoint_slot_ks, &
+                                                use_grid=.FALSE., matrix_row=ispin)
                      CALL kpoint_operator_finish(op_ctx, ikp, ispin, kpoint_slot_ks, cwork)
                   END IF
                END IF
@@ -1823,7 +1824,8 @@ CONTAINS
             ELSE
                ! complex wavefunctions: assemble KS and S and start their
                ! transfer to the k-point group
-               CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_ks, kpoint_slot_ks, use_grid=.FALSE.)
+               CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_ks, kpoint_slot_ks, &
+                                          use_grid=.FALSE., matrix_row=ispin)
                CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_s, kpoint_slot_s, &
                                           use_grid=.FALSE., matrix_row=kpoint_spin_free)
             END IF
@@ -3350,7 +3352,7 @@ CONTAINS
 
          DO ispin = 1, nspin
             CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, &
-                                     cmat=cksmat)
+                                     cmat=cksmat, matrix_row=ispin)
             CALL cp_cfm_to_cfm(csmat_base, csmat)
 
             IF (scf_env%iter_count == 1 .AND. .NOT. kp%mos_prefilled) THEN
@@ -3548,7 +3550,7 @@ CONTAINS
                CALL dbcsr_init_p(matrix_h_re)
                CALL dbcsr_init_p(matrix_h_im)
                CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, &
-                                        mat_re=matrix_h_re, mat_im=matrix_h_im)
+                                        mat_re=matrix_h_re, mat_im=matrix_h_im, matrix_row=ispin)
                ! Davidson iterates the full MO set, so its active space is all nmo
                ! MOs of the channel: assemble the complex channel matrices on the
                ! kpoint-group context and call the complex H-based cores directly
@@ -3714,7 +3716,7 @@ CONTAINS
             ! complex wavefunctions: assemble S and start its transfer
             ! to the k-point group
             CALL kpoint_operator_start(op_ctx, ikp, kpoint_spin_free, matrix_s, kpoint_slot_s, &
-                                       use_grid=.FALSE.)
+                                       use_grid=.FALSE., matrix_row=kpoint_spin_free)
          END IF
       END DO
 
