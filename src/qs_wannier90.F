@@ -48,6 +48,7 @@ MODULE qs_wannier90
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_logger_type
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -96,15 +97,12 @@ MODULE qs_wannier90
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE scf_control_types,               ONLY: scf_control_type
    USE wannier90,                       ONLY: wannier_setup
-   USE wannier90_library,               ONLY: w90_library_eigenvalues,&
-                                              w90_library_init,&
-                                              w90_library_overlap,&
-                                              w90_library_projections,&
-                                              w90_library_release,&
-                                              w90_library_run,&
-                                              w90_library_type,&
-                                              w90_library_write_options
+   USE wannier90_library,               ONLY: &
+        w90_library_copy_matrices, w90_library_eigenvalues, w90_library_init, w90_library_overlap, &
+        w90_library_projections, w90_library_promote_output, w90_library_release, w90_library_run, &
+        w90_library_type, w90_library_write_input, w90_write_amn
    USE wannier90_projections,           ONLY: wannier90_hybrid_candidates,&
+                                              wannier90_projection_rank,&
                                               wannier90_select_projections
 #include "./base/base_uses.f90"
 
@@ -247,7 +245,7 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: library_input
-      TYPE(w90_library_type)                             :: library
+      TYPE(w90_library_type), ALLOCATABLE                :: library
 
       !--------------------------------------------------------------------------------------------!
 
@@ -482,6 +480,7 @@ CONTAINS
          IF (nexcl > 0) THEN
             CPABORT("WANNIER90 LIBRARY does not yet support EXCLUDE_BANDS.")
          END IF
+         ALLOCATE (library)
          CALL w90_library_init(library, library_input, para_env, seed_name, real_lattice, kpt_latt, &
                                mp_grid, num_bands, num_wann, nnlist, nncell)
          nntot = SIZE(nnlist, 2)
@@ -500,8 +499,12 @@ CONTAINS
          CALL para_env%sum(nncell)
       END IF
 
-      IF (para_env%is_source() .AND. write_files) THEN
-         ! Write the Wannier90 input file "seed_name.win"
+      IF (run_library .AND. write_files) THEN
+         CALL w90_library_write_input(library, para_env, seed_name, real_lattice, kpt_latt, &
+                                      mp_grid, atoms_cart, atom_symbols)
+      END IF
+      IF (para_env%is_source() .AND. write_files .AND. .NOT. run_library) THEN
+         ! Write the ordinary file-export input "seed_name.win".
          WRITE (filename, '(A,A)') TRIM(seed_name), ".win"
          CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
          !
@@ -510,33 +513,21 @@ CONTAINS
          WRITE (iunit, "(A,/)") "! Creation date "//timestamp
          !
          WRITE (iunit, "(A,I5)") "num_wann     = ", num_wann
-         IF (run_library) CALL w90_library_write_options(library, iunit)
          IF (num_bands /= num_wann .OR. use_bloch_phases) THEN
             WRITE (iunit, "(A,I5)") "num_bands    = ", num_bands
          END IF
-         IF (use_bloch_phases .AND. .NOT. run_library) THEN
+         IF (use_bloch_phases) THEN
             ! Keep the external Wannier90 projection matrix fully defined for
             ! complete-band Bloch-phase subspaces by writing explicit identity projections.
             WRITE (iunit, "(A)") "! CP2K writes identity projections for Bloch-phase complete subspaces."
          END IF
-         IF (run_library) THEN
-            WRITE (iunit, "(/,A,/)") "length_unit = ang"
-         ELSE
-            WRITE (iunit, "(/,A,/)") "length_unit = bohr"
-         END IF
+         WRITE (iunit, "(/,A,/)") "length_unit = bohr"
          WRITE (iunit, "(/,A,/)") "! System"
          WRITE (iunit, "(/,A)") "begin unit_cell_cart"
-         IF (run_library) THEN
-            WRITE (iunit, "(A)") "ang"
-            DO i = 1, 3
-               WRITE (iunit, "(3ES24.16)") real_lattice(:, i)
-            END DO
-         ELSE
-            WRITE (iunit, "(A)") "bohr"
-            DO i = 1, 3
-               WRITE (iunit, "(3F12.6)") cell%hmat(i, 1:3)
-            END DO
-         END IF
+         WRITE (iunit, "(A)") "bohr"
+         DO i = 1, 3
+            WRITE (iunit, "(3F12.6)") cell%hmat(i, 1:3)
+         END DO
          WRITE (iunit, "(A,/)") "end unit_cell_cart"
          WRITE (iunit, "(/,A)") "begin atoms_cart"
          WRITE (iunit, "(A)") "bohr"
@@ -552,7 +543,7 @@ CONTAINS
          END DO
          WRITE (iunit, "(A)") "end kpoints"
          CALL close_file(iunit)
-         IF (use_bloch_phases .AND. .NOT. run_library) THEN
+         IF (use_bloch_phases) THEN
             WRITE (filename, '(A,A)') TRIM(seed_name), ".amn"
             CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
             WRITE (iunit, "(A)") "! Wannier90 identity projections generated by CP2K"
@@ -723,13 +714,14 @@ CONTAINS
                WRITE (iw, '(T2,A,ES12.4)') "WANNIER90| Minimum projection singular value ", projection_min_svalue
                WRITE (iw, '(T2,A,*(I6))') "WANNIER90| Selected projection candidates ", projection_pivots
             END IF
-            IF (projection_min_svalue < 1.0e-10_dp) THEN
+            IF (projection_min_svalue < 1.0e-10_dp .AND. initial_projections /= 3) THEN
                CPABORT("No full-rank Wannier90 AO trial set was found on the entire k-point mesh.")
             END IF
-            DEALLOCATE (ao_projections, projection_pivots)
+            DEALLOCATE (projection_pivots)
+            IF (initial_projections /= 3) DEALLOCATE (ao_projections)
          END IF
          CALL w90_library_projections(library, initial_amn, para_env, seed_name, write_files)
-         DEALLOCATE (initial_amn)
+         IF (initial_projections /= 3) DEALLOCATE (initial_amn)
       END IF
       !
       IF (iw > 0) THEN
@@ -993,9 +985,17 @@ CONTAINS
          CALL close_file(iunit)
       END IF
       IF (run_library) THEN
-         CALL w90_library_run(library, para_env, wannier_centres, wannier_spreads, library_converged)
+         IF (initial_projections == 3) THEN
+            CALL run_wannier90_projection_trials(library, library_input, para_env, qs_env, seed_name, &
+                                                 real_lattice, kpt_latt, mp_grid, atoms_cart, atom_symbols, nnlist, nncell, &
+                                                 ao_projections, initial_amn, write_files, iw, &
+                                                 wannier_centres, wannier_spreads, library_converged)
+            DEALLOCATE (ao_projections, initial_amn)
+         ELSE
+            CALL w90_library_run(library, para_env, wannier_centres, wannier_spreads, library_converged)
+         END IF
          IF (.NOT. library_converged) THEN
-            CPABORT("Wannier90 library localization did not converge; see the .library.wout file.")
+            CPABORT("Wannier90 localization did not converge; see the .library.wout or trial logs.")
          END IF
          IF (iw > 0) THEN
             WRITE (iw, '(T2,A)') "WANNIER90| Library centres [bohr] and spreads [bohr^2]"
@@ -1005,7 +1005,7 @@ CONTAINS
             WRITE (iw, '(T2,A,ES24.14)') "WANNIER90| Total spread [bohr^2] ", SUM(wannier_spreads)
          END IF
          CALL w90_library_release(library)
-         DEALLOCATE (overlap_block, wannier_centres, wannier_spreads)
+         DEALLOCATE (library, overlap_block, wannier_centres, wannier_spreads)
       END IF
       !
       ! clean up
@@ -2141,13 +2141,182 @@ CONTAINS
    END SUBROUTINE copy_wannier90_mo_window
 
 ! **************************************************************************************************
+!> \brief Independently minimize physical projection families and retain the converged winner.
+!> \param library Original input matrices; replaced by the winning optimized library instance.
+!> \param input Library settings shared by all trials.
+!> \param para_env Global parallel environment.
+!> \param qs_env Basis and atomic-kind metadata.
+!> \param seed_name Canonical output prefix.
+!> \param lattice Real lattice vectors in columns, in angstrom.
+!> \param kpoints Full mesh in fractional coordinates.
+!> \param mp_grid Mesh dimensions.
+!> \param atoms_cart Atomic positions in bohr for the external reference inputs.
+!> \param atom_symbols Element symbols for the external reference inputs.
+!> \param nnlist Original neighbour indices, checked for every fresh instance.
+!> \param nncell Original reciprocal-cell shifts.
+!> \param ao Full AO projection bank, stored only on the source rank.
+!> \param initial_amn Initial AO selection in the exported MO gauge.
+!> \param write_files Write initial projections for each trial and the winner.
+!> \param iw CP2K output unit.
+!> \param centres Winning centres in bohr.
+!> \param spreads Winning individual spreads in bohr squared.
+!> \param converged Whether at least one admissible trial converged.
+! **************************************************************************************************
+   SUBROUTINE run_wannier90_projection_trials(library, input, para_env, qs_env, seed_name, &
+                                             lattice, kpoints, mp_grid, atoms_cart, atom_symbols, nnlist, nncell, ao, initial_amn, &
+                                              write_files, iw, centres, spreads, converged)
+      TYPE(w90_library_type), ALLOCATABLE, INTENT(INOUT) :: library
+      TYPE(section_vals_type), POINTER                   :: input
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      CHARACTER(LEN=*), INTENT(IN)                       :: seed_name
+      REAL(KIND=dp), INTENT(IN)                          :: lattice(3, 3), kpoints(:, :)
+      INTEGER, INTENT(IN)                                :: mp_grid(3)
+      REAL(KIND=dp), INTENT(IN)                          :: atoms_cart(:, :)
+      CHARACTER(LEN=*), INTENT(IN)                       :: atom_symbols(:)
+      INTEGER, INTENT(IN)                                :: nnlist(:, :), nncell(:, :, :)
+      COMPLEX(KIND=dp), INTENT(IN)                       :: ao(:, :, :), initial_amn(:, :, :)
+      LOGICAL, INTENT(IN)                                :: write_files
+      INTEGER, INTENT(IN)                                :: iw
+      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: centres(:, :), spreads(:)
+      LOGICAL, INTENT(OUT)                               :: converged
+
+      CHARACTER(LEN=32)                                  :: suffix
+      CHARACTER(LEN=64)                                  :: best_label, label, projection_label
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: amn(:, :, :), bank(:, :, :), &
+                                                            best_amn(:, :, :)
+      INTEGER                                            :: best_id, cg_steps, ig, input_cg_steps, &
+                                                            itrial, last_trial, nb, ng, nw, &
+                                                            optimizer, trial_id
+      INTEGER, ALLOCATABLE                               :: group_kinds(:), groups(:, :), pivots(:), &
+                                                            selected(:), trial_cell(:, :, :), &
+                                                            trial_nn(:, :)
+      LOGICAL                                            :: new_best, trial_converged
+      REAL(KIND=dp)                                      :: best_total, min_svalue
+      REAL(KIND=dp), ALLOCATABLE                         :: trial_centres(:, :), trial_spreads(:)
+      TYPE(w90_library_type), ALLOCATABLE                :: best, trial
+
+      nb = SIZE(initial_amn, 1)
+      nw = SIZE(initial_amn, 2)
+      ALLOCATE (amn(nb, nw, SIZE(kpoints, 2)), best_amn(nb, nw, SIZE(kpoints, 2)), pivots(nw))
+      CALL build_wannier90_hybrid_groups(qs_env, groups, group_kinds)
+      CALL section_vals_val_get(input, 'NUM_CG_STEPS', i_val=input_cg_steps)
+      ng = SIZE(groups, 2)
+      last_trial = 0
+      IF (ng > 0) last_trial = MAXVAL(group_kinds) + 1
+      best_total = HUGE(0.0_dp)
+      best_id = 0
+      best_label = ''
+      DO itrial = 0, last_trial
+         IF (itrial == 0) THEN
+            projection_label = 'AO_SCDM'
+            amn(:, :, :) = initial_amn(:, :, :)
+            min_svalue = 0.0_dp
+            IF (para_env%is_source()) min_svalue = wannier90_projection_rank(amn)
+            CALL para_env%bcast(min_svalue)
+         ELSE
+            IF (itrial == 1) THEN
+               projection_label = 'AO_HYBRID all kinds'
+               ALLOCATE (selected(ng))
+               selected(:) = [(ig, ig=1, ng)]
+            ELSE
+               ! A one-kind hybrid bank would duplicate the preceding all-kind trial.
+               ig = COUNT(group_kinds == itrial - 1)
+               IF (ig == 0 .OR. ig == ng) CYCLE
+               ALLOCATE (selected(ig))
+               selected(:) = PACK([(ig, ig=1, ng)], group_kinds == itrial - 1)
+               WRITE (projection_label, '(A,I0)') 'AO_HYBRID kind ', itrial - 1
+            END IF
+            CALL wannier90_hybrid_candidates(ao, groups(:, selected), bank)
+            CALL wannier90_select_projections(bank, para_env, amn, pivots, min_svalue)
+            DEALLOCATE (bank, selected)
+         END IF
+         IF (min_svalue < 1.0e-10_dp) THEN
+            IF (iw > 0) WRITE (iw, '(T2,3A)') &
+               'WANNIER90| ', TRIM(projection_label), ' skipped: rank-deficient projection set.'
+            CYCLE
+         END IF
+         DO optimizer = 1, 2
+            cg_steps = input_cg_steps
+            IF (optimizer == 2) THEN
+               IF (input_cg_steps == 0) CYCLE
+               cg_steps = 0
+            END IF
+            trial_id = 2*itrial + optimizer
+            WRITE (suffix, '(A,I0)') '.trial-', trial_id
+            WRITE (label, '(A,A,I0)') TRIM(projection_label), ' CG steps ', cg_steps
+            IF (iw > 0) WRITE (iw, '(T2,A,I0,2A,ES12.4)') &
+               'WANNIER90| Trial ', trial_id, ' '//TRIM(label), ' minimum projection singular value ', min_svalue
+            ALLOCATE (trial)
+            CALL w90_library_init(trial, input, para_env, seed_name, lattice, kpoints, mp_grid, &
+                                  nb, nw, trial_nn, trial_cell, log_suffix=TRIM(suffix), num_cg_steps=cg_steps)
+            IF (write_files) THEN
+               CALL w90_library_write_input(trial, para_env, TRIM(seed_name)//TRIM(suffix), lattice, kpoints, &
+                                            mp_grid, atoms_cart, atom_symbols)
+               CALL w90_write_amn(amn, para_env, TRIM(seed_name)//TRIM(suffix))
+            END IF
+            CPASSERT(ALL(SHAPE(trial_nn) == SHAPE(nnlist)))
+            CPASSERT(ALL(SHAPE(trial_cell) == SHAPE(nncell)))
+            CPASSERT(ALL(trial_nn == nnlist) .AND. ALL(trial_cell == nncell))
+            DEALLOCATE (trial_nn, trial_cell)
+            CALL w90_library_copy_matrices(library, trial)
+            CALL w90_library_projections(trial, amn, para_env, seed_name, .FALSE.)
+            CALL w90_library_run(trial, para_env, trial_centres, trial_spreads, trial_converged)
+            IF (para_env%is_source()) THEN
+               trial_converged = trial_converged .AND. ALL(ieee_is_finite(trial_spreads)) &
+                                 .AND. ALL(ieee_is_finite(trial_centres))
+            END IF
+            CALL para_env%bcast(trial_converged)
+            IF (iw > 0) WRITE (iw, '(T2,A,L1,A,ES24.14)') &
+               'WANNIER90| Trial converged ', trial_converged, ' total spread [bohr^2] ', SUM(trial_spreads)
+            new_best = .FALSE.
+            IF (para_env%is_source() .AND. trial_converged) new_best = SUM(trial_spreads) < best_total
+            CALL para_env%bcast(new_best)
+            IF (new_best) THEN
+               IF (ALLOCATED(best)) THEN
+                  CALL w90_library_release(best)
+                  DEALLOCATE (best)
+               END IF
+               ! Moving ownership preserves the winning U matrices and avoids aliasing library pointers.
+               CALL MOVE_ALLOC(trial, best)
+               CALL MOVE_ALLOC(trial_centres, centres)
+               CALL MOVE_ALLOC(trial_spreads, spreads)
+               best_amn(:, :, :) = amn(:, :, :)
+               best_total = SUM(spreads)
+               CALL para_env%bcast(best_total)
+               best_id = trial_id
+               best_label = label
+            ELSE
+               CALL w90_library_release(trial)
+               DEALLOCATE (trial, trial_centres, trial_spreads)
+            END IF
+         END DO
+      END DO
+      converged = ALLOCATED(best)
+      IF (converged) THEN
+         CALL w90_library_release(library)
+         DEALLOCATE (library)
+         CALL MOVE_ALLOC(best, library)
+         CALL w90_library_promote_output(library, seed_name)
+         IF (write_files) THEN
+            CALL w90_write_amn(best_amn, para_env, seed_name)
+            CALL w90_library_write_input(library, para_env, seed_name, lattice, kpoints, mp_grid, atoms_cart, atom_symbols)
+         END IF
+         IF (iw > 0) WRITE (iw, '(T2,A,I0,2A,ES24.14)') &
+            'WANNIER90| Selected trial ', best_id, ' '//TRIM(best_label), ' total spread [bohr^2] ', best_total
+      END IF
+   END SUBROUTINE run_wannier90_projection_trials
+
+! **************************************************************************************************
 !> \brief Enumerate all on-atom radial s/p shell pairs in global spherical-AO ordering.
 !> \param qs_env Electronic environment providing the basis and atom ordering.
 !> \param groups Global indices of an s function and the three functions of a p shell.
+!> \param group_kinds Optional atomic-kind index of each group.
 ! **************************************************************************************************
-   SUBROUTINE build_wannier90_hybrid_groups(qs_env, groups)
+   SUBROUTINE build_wannier90_hybrid_groups(qs_env, groups, group_kinds)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, ALLOCATABLE, INTENT(OUT)                  :: groups(:, :)
+      INTEGER, ALLOCATABLE, INTENT(OUT), OPTIONAL        :: group_kinds(:)
 
       INTEGER                                            :: iatom, ig, ikind, ip, is, iset, ishell, &
                                                             n, ng, np, ns, nset, nsgf, offset, pass
@@ -2191,6 +2360,7 @@ CONTAINS
                         ig = ig + 1
                         n = p_shells(ip)
                         groups(:, ig) = [s_shells(is), n, n + 1, n + 2]
+                        IF (PRESENT(group_kinds)) group_kinds(ig) = ikind
                      END DO
                   END DO
                END IF
@@ -2198,7 +2368,10 @@ CONTAINS
             END IF
             offset = offset + nsgf
          END DO
-         IF (pass == 1) ALLOCATE (groups(4, ng))
+         IF (pass == 1) THEN
+            ALLOCATE (groups(4, ng))
+            IF (PRESENT(group_kinds)) ALLOCATE (group_kinds(ng))
+         END IF
       END DO
    END SUBROUTINE build_wannier90_hybrid_groups
 

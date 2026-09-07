@@ -2978,7 +2978,7 @@ CONTAINS
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, name="LIBRARY", &
                           description="Run the optional Wannier90 v4 library directly after the SCF calculation.", &
-                          n_keywords=6, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=8, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Enable in-process Wannier90 localization.", usage="&LIBRARY ON", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -2989,10 +2989,13 @@ CONTAINS
                           "AO_SCDM selects fixed AO candidates by pivoted QR on their projections "// &
                           "over the full k-point mesh. AO_HYBRID instead forms tetrahedral trials from "// &
                           "every radial s/p shell pair on each atom before this selection; other "// &
-                          "AOs remain available. IDENTITY retains the input MO gauge and can "// &
+                          "AOs remain available. AUTO independently minimizes the AO start, the full "// &
+                          "hybrid start and mixed AO/hybrid starts for each eligible atomic kind, "// &
+                          "then retains the converged result with the smallest total spread. "// &
+                          "IDENTITY retains the input MO gauge and can "// &
                           "converge to different local minima for equivalent MO representations.", &
-                          type_of_var=enum_t, enum_c_vals=s2a("IDENTITY", "AO_SCDM", "AO_HYBRID"), &
-                          enum_i_vals=[0, 1, 2], default_i_val=1)
+                          type_of_var=enum_t, enum_c_vals=s2a("IDENTITY", "AO_SCDM", "AO_HYBRID", "AUTO"), &
+                          enum_i_vals=[0, 1, 2, 3], default_i_val=1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="WRITE_INPUTS", &
@@ -3002,6 +3005,17 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="NUM_ITER", &
                           description="Maximum number of Wannier90 localization iterations.", default_i_val=1000)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_CG_STEPS", &
+                          description="Wannier90 conjugate-gradient steps before resetting to steepest descent. "// &
+                          "Zero uses steepest descent throughout. AUTO also tries zero independently "// &
+                          "for every projection family to check for other localization minima.", default_i_val=5)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_CYCLES", &
+                          description="Print every Nth Wannier90 localization iteration (positive integer). "// &
+                          "Initial and final states and the convergence report are always retained.", default_i_val=10)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="CONV_WINDOW", &

@@ -1,10 +1,10 @@
-@SET seed lif_hybrid
+@SET seed lif_auto
 @SET cation Li
 @SET anion F
 @SET q_cation 3
 @SET half_a 2.015
 @SET num_wann 5
-@SET projections AO_HYBRID
+@SET projections AUTO
 @SET num_iter 2000
 @SET conv_tol 1.e-10
 @INCLUDE ionic_common.inc
