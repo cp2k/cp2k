@@ -112,6 +112,17 @@ hybrids on one eligible atomic kind at a time. Each family is minimized independ
 requested `NUM_CG_STEPS` and with pure steepest descent (`NUM_CG_STEPS 0`), avoiding duplicate runs
 when zero was already requested. This checks sensitivity to the optimization path as well as to the
 projections. The default `NUM_CG_STEPS 5` matches Wannier90's conjugate-gradient reset interval.
+
+For more than one Wannier function, AUTO also tests two fixed unitary mixtures of the best original
+trial set. These apply successive real Givens rotations of +30 and -30 degrees to adjacent trial
+columns, identically on the entire mesh. Both start from the same original projections, not from the
+localized orbitals. The band subspace, projection singular values, raw overlaps and eigenvalues are
+unchanged. Each mixed start is minimized with the requested reset interval and with
+`MAX(20, NUM_CG_STEPS)`, skipping duplicate settings. This adds at most four minimizations and
+reduces the observed sensitivity to the minimization path in degenerate band spaces. It does not use
+random noise or alter the convergence criteria. A one-function calculation skips these mixtures,
+which would have no effect.
+
 `NUM_PRINT_CYCLES 10` limits the iteration log volume without changing the optimization or its
 convergence test. Set it to one to retain every iteration; initial and final states and the explicit
 convergence report are always written. All trials use the same `NUM_ITER`, `CONV_WINDOW`, and
