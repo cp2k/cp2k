@@ -111,6 +111,8 @@ MODULE qs_kpoint_operators
       TYPE(cp_fm_struct_type), POINTER                    :: ao_ao_fmstruct => NULL()
       TYPE(qs_matrix_pools_type), POINTER                 :: group_mpools => NULL()
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER      :: group_fm_pools => NULL()
+      ! Identity of the neighbor lists the work trio was built from; every
+      ! buffer use asserts it.
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                          :: trio_sab => NULL()
       ! Owned scratch, created on first use and released with the context.
@@ -427,10 +429,9 @@ CONTAINS
 !>        trio with blocks from the current neighbor lists, two densify buffers
 !>        on the environment-wide struct, the group transfer target from the
 !>        group pools, and the per-instance bookkeeping.
-!>        The trio follows the identity of the host neighbor lists. The host
-!>        reallocates these lists at every energy evaluation. This call
-!>        releases and rebuilds the trio when the lists changed. Buffers from
-!>        an earlier call stay in place.
+!>        The buffers assume the context lifetime of one driver call: the
+!>        host neighbor lists do not change within it, and every buffer use
+!>        asserts this identity. Buffers from an earlier call stay in place.
 !>        Called from the service routines only.
 !> \param ctx context that receives the buffers
 !> \param rsmat real-space image matrices of one operator. The call uses the
@@ -452,15 +453,11 @@ CONTAINS
       kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
       ngrp = ctx%kpoints%nkp_groups
 
-      ! The trio follows the identity of the host neighbor lists, which are
-      ! reallocated at every energy evaluation.
+      ! The trio must still match the host neighbor lists: they are
+      ! reallocated at every energy evaluation, while the context spans one
+      ! driver call within it.
       IF (ASSOCIATED(ctx%rmatrix)) THEN
-         IF (.NOT. ASSOCIATED(ctx%trio_sab, ctx%kpoints%sab_nl)) THEN
-            CALL dbcsr_deallocate_matrix(ctx%rmatrix)
-            CALL dbcsr_deallocate_matrix(ctx%cmatrix)
-            CALL dbcsr_deallocate_matrix(ctx%tmpmat)
-            NULLIFY (ctx%rmatrix, ctx%cmatrix, ctx%tmpmat)
-         END IF
+         CPASSERT(ASSOCIATED(ctx%trio_sab, ctx%kpoints%sab_nl))
       END IF
       IF (.NOT. ASSOCIATED(ctx%rmatrix)) THEN
          ALLOCATE (ctx%rmatrix, ctx%cmatrix, ctx%tmpmat)
