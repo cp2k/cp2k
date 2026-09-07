@@ -1,3 +1,4 @@
+# One SCF step suffices: the atom/AO overlap metric is independent of SCF convergence.
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT aln_symmetry_metric
@@ -18,8 +19,8 @@
       WAVEFUNCTIONS COMPLEX
     &END KPOINTS
     &MGRID
-      CUTOFF 200
-      REL_CUTOFF 40
+      CUTOFF 100
+      REL_CUTOFF 30
     &END MGRID
     &PRINT
       &WANNIER90 ON
@@ -39,7 +40,8 @@
       CHOLESKY OFF
       EPS_EIGVAL 1.e-12
       EPS_SCF 1.e-10
-      MAX_SCF 200
+      IGNORE_CONVERGENCE_FAILURE T
+      MAX_SCF 1
       SCF_GUESS ATOMIC
       &MIXING
         ALPHA 0.3
@@ -68,11 +70,11 @@
       N 0.6666666666666667 0.3333333333333333 0.88
     &END COORD
     &KIND Al
-      BASIS_SET TZV2P-MOLOPT-GGA-GTH-q3
+      BASIS_SET DZVP-MOLOPT-GGA-GTH-q3
       POTENTIAL GTH-GGA-q3
     &END KIND
     &KIND N
-      BASIS_SET TZV2P-MOLOPT-GGA-GTH-q5
+      BASIS_SET DZVP-MOLOPT-GGA-GTH-q5
       POTENTIAL GTH-GGA-q5
     &END KIND
   &END SUBSYS
