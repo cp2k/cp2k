@@ -10,4 +10,5 @@
 @SET projections AO_SCDM
 @SET num_iter 2000
 @SET conv_tol 1.e-10
+@SET num_cg_steps 5
 @INCLUDE ionic_common.inc

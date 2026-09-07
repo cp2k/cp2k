@@ -71,11 +71,13 @@
         &LIBRARY ON
           @IF ( ${disentangle} == T )
             DIS_FROZ_MAX -11.0
-            DIS_NUM_ITER 2000
+            # The hybrid trials converge in about 70 steps; bound unsuccessful starts.
+            DIS_NUM_ITER 300
             DIS_CONV_TOL 1.e-12
           @ENDIF
           INITIAL_PROJECTIONS ${projections}
           NUM_ITER ${num_iter}
+          NUM_CG_STEPS ${num_cg_steps}
           CONV_TOL ${conv_tol}
           NUM_PRINT_CYCLES 100
         &END LIBRARY
