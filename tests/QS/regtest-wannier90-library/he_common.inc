@@ -12,7 +12,23 @@
       EPS_SYMMETRY 1.e-8
       GAMMA_CENTERED ${gamma_centered}
       PARALLEL_GROUP_SIZE 0
-      SCHEME MONKHORST-PACK 2 2 2
+      @IF ( ${scheme} == MP )
+        SCHEME MONKHORST-PACK 2 2 2
+      @ENDIF
+      @IF ( ${scheme} == MACDONALD )
+        SCHEME MACDONALD 2 2 2 0.0 0.0 0.0
+      @ENDIF
+      @IF ( ${scheme} == GENERAL )
+        SCHEME GENERAL
+        KPOINT 0.0 0.0 0.0 1.0
+        KPOINT 0.0 0.0 0.5 1.0
+        KPOINT 0.0 0.5 0.0 1.0
+        KPOINT 0.0 0.5 0.5 1.0
+        KPOINT 0.5 0.0 0.0 1.0
+        KPOINT 0.5 0.0 0.5 1.0
+        KPOINT 0.5 0.5 0.0 1.0
+        KPOINT 0.5 0.5 0.5 1.0
+      @ENDIF
       SYMMETRY ON
       SYMMETRY_BACKEND K290
       WAVEFUNCTIONS COMPLEX
