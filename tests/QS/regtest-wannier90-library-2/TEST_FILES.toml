@@ -8,3 +8,9 @@
 "nacl_hybrid.inp" = [{matcher="E_total", tol=1e-10, ref=-62.458479958873468},
                      {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-7, ref=14.4286057810505},
                      {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]
+"lif_auto.inp" = [{matcher="E_total", tol=1e-10, ref=-31.808005348399817},
+                  {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-7, ref=6.05436775145047},
+                  {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]
+"nacl_auto.inp" = [{matcher="E_total", tol=1e-10, ref=-62.458479958873482},
+                   {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-7, ref=14.4286003304481},
+                   {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]
