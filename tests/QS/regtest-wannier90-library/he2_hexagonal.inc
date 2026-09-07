@@ -20,7 +20,7 @@
     &END KPOINTS
     &MGRID
       CUTOFF 1000
-      REL_CUTOFF 200
+      REL_CUTOFF 100
     &END MGRID
     &PRINT
       &WANNIER90 ON
@@ -47,7 +47,7 @@
       MAX_SCF 100
       SCF_GUESS ATOMIC
       &MIXING
-        ALPHA 0.50
+        ALPHA 0.70
         METHOD BROYDEN_MIXING
       &END MIXING
       &PRINT

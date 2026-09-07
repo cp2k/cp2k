@@ -54,12 +54,20 @@
       CHOLESKY OFF
       EPS_EIGVAL 1.e-9
       EPS_SCF 1.e-12
+      @IF ( ${kpoints} == F )
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
+      &END OT
+      @ENDIF
       MAX_SCF 300
       SCF_GUESS ATOMIC
+      @IF ( ${kpoints} == T )
       &MIXING
         METHOD BROYDEN_MIXING
         ALPHA 0.3
       &END MIXING
+      @ENDIF
       &PRINT
         &RESTART OFF
         &END RESTART
