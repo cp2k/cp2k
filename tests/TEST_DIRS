@@ -28,6 +28,7 @@ QS/regtest-kp-1                                             libint !ifx
 QS/regtest-wannier90-library                                wannier90 libint !ifx
 QS/regtest-wannier90-library-2                              wannier90 libint spglib !ifx
 QS/regtest-wannier90-library-3                              wannier90 libint !ifx
+QS/regtest-wannier90-library-4                              wannier90 libint !ifx
 xTB/regtest-gfn0-m1                                         libdftd4
 Fist/regtest-7-1
 QS/regtest-acc-2                                            libint libxc !ifx

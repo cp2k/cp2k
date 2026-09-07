@@ -132,12 +132,44 @@ projections, and log. Writing these files does not reset the optimized library m
 
 `INITIAL_PROJECTIONS IDENTITY` is available for diagnostics but retains the arbitrary MO gauge. It
 can converge to different local minima for symmetry-reconstructed and newly diagonalized MOs. The
-library path requires a spin-unpolarized calculation. Even with AO trials, convergence to a
+library handles collinear spin channels independently. Even with AO trials, convergence to a
 stationary localization result does not guarantee the global minimum of the spread functional.
 
 CP2K reports both the total spread and its gauge-invariant contribution. The latter depends on the
 selected band subspace, but not on the unitary rotations used to localize it. It therefore helps
 distinguish a change of subspace from different local minima within the same subspace.
+
+### Spin-polarized calculations
+
+[SPIN_CHANNEL](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.SPIN_CHANNEL) selects `BOTH` (the
+default), `ALPHA`, or `BETA`. For two-spin calculations, CP2K writes independent files with the seed
+suffixes `_up` and `_down`. Each channel uses its own eigenvalues, MO coefficients, projections,
+Hamiltonian and library instance. The ordinary file exporter uses the same separation; it does not
+concatenate the two spin channels into a single `.eig` or `.mmn` file. With one spin channel, the
+original seed name is unchanged, and selecting `BETA` is an input error.
+
+Specify `WANNIER_FUNCTIONS` once to use the same count in both channels, or twice to select the
+alpha and beta counts in that order. The order is independent of `SPIN_CHANNEL`, so the following
+exports only the beta channel with three Wannier functions:
+
+```text
+&WANNIER90 ON
+  SEED_NAME magnetic_crystal
+  KPOINTS_SOURCE SCF
+  SPIN_CHANNEL BETA
+  WANNIER_FUNCTIONS 5
+  WANNIER_FUNCTIONS 3
+  &LIBRARY ON
+    INITIAL_PROJECTIONS AUTO
+  &END LIBRARY
+&END WANNIER90
+```
+
+Band exclusions and library settings, including energy windows, apply to every selected channel.
+They must be valid for each channel individually. One spin can require disentanglement while the
+other has equal band and Wannier counts. The printed total and invariant spreads belong to the
+preceding spin channel, not to a sum over spins. This is collinear spin support, not a spinor or
+spin-orbit-coupled Wannierization.
 
 ### Disentanglement
 

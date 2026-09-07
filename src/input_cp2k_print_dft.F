@@ -2902,6 +2902,15 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SPIN_CHANNEL", &
+                          description="Collinear spin channel to export or localize. "// &
+                          "Spin-polarized calculations use separate SEED_NAME_up and SEED_NAME_down files. "// &
+                          "BOTH runs the channels independently with their respective MO band counts.", &
+                          usage="SPIN_CHANNEL BOTH", default_i_val=0, n_var=1, type_of_var=enum_t, &
+                          enum_c_vals=s2a("BOTH", "ALPHA", "BETA"), enum_i_vals=[0, 1, 2])
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="MP_GRID", &
                           description="The dimensions of the Monkhorst-Pack k-point grid. ", &
                           usage="MP_GRID 6 6 6", n_var=-1, default_i_vals=[10, 10, 10], type_of_var=integer_t)
@@ -2972,7 +2981,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="WANNIER_FUNCTIONS", &
-                          description="Number of Wannier functions to be calculated. ", &
+                          description="Number of Wannier functions to be calculated. "// &
+                          "Specify once for all spin channels, or twice for separate alpha and beta counts.", &
                           usage="WANNIER_FUNCTIONS 6", n_var=1, default_i_val=0, &
                           repeats=.TRUE., type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
