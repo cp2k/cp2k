@@ -1,4 +1,11 @@
 # Library/external Wannier90 parity and SCF/full-mesh consistency.
+# All-electron GAPW, including reconstructed SCF MOs and both diagonalization paths.
+"h2_gapw_scf.inp" = [{matcher="E_total", tol=1e-10, ref=-1.166165383233841},
+                     {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=2.50844508686109},
+                     {matcher="WANNIER90_SCF_MO_REUSE", tol=0.0, ref=1.0},
+                     {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]
+"h2_gapw_diagonalize.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=2.50844508686109}]
+"h2_gapw_mp_grid.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=2.50844508686109}]
 # Hexagonal atom positions exercise nontrivial reciprocal-lattice folding phases.
 "he2_hexagonal.inp" = [{matcher="E_total", tol=1e-11, ref=-5.78227075343919},
                        {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-8, ref=2.38976876039089},
