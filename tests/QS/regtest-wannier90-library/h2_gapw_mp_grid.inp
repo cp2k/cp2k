@@ -1,0 +1,4 @@
+@SET seed h2_gapw_mp_grid
+@SET source MP_GRID
+@SET reuse F
+@INCLUDE h2_gapw.inc
