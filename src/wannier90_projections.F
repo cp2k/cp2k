@@ -10,8 +10,11 @@
 !> \author Thomas D. Kuehne, tkuehne@cp2k.org
 ! **************************************************************************************************
 MODULE wannier90_projections
-   USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
+#if defined (__HAS_IEEE_EXCEPTIONS)
+   USE ieee_exceptions, ONLY: IEEE_ALL, ieee_get_halting_mode, ieee_set_halting_mode
+#endif
+   USE kinds, ONLY: dp
+   USE message_passing, ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -278,6 +281,9 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE                      :: matrix(:, :), work(:)
       INTEGER                                            :: ik, info, lwork, nb, nw
       REAL(KIND=dp), ALLOCATABLE                         :: rwork(:), svalues(:)
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL                                            :: halt(SIZE(IEEE_ALL))
+#endif
 
       nb = SIZE(amn, 1)
       nw = SIZE(amn, 2)
@@ -292,7 +298,15 @@ CONTAINS
       IF (PRESENT(rank_defect)) rank_defect = 0
       DO ik = 1, SIZE(amn, 3)
          matrix(:, :) = amn(:, :, ik)
+         ! The values-only SVD uses DLASQ, whose IEEECK probe deliberately raises exceptions.
+#if defined (__HAS_IEEE_EXCEPTIONS)
+         CALL ieee_get_halting_mode(IEEE_ALL, halt)
+         CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
          CALL zgesvd('N', 'N', nb, nw, matrix, nb, svalues, unused_u, 1, unused_v, 1, work, lwork, rwork, info)
+#if defined (__HAS_IEEE_EXCEPTIONS)
+         CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
          CPASSERT(info == 0)
          min_svalue = MIN(min_svalue, MINVAL(svalues))
          IF (PRESENT(rank_defect)) rank_defect = rank_defect + COUNT(svalues < 1.0e-10_dp)

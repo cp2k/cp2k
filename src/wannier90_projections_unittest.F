@@ -10,16 +10,20 @@
 !> \author Thomas D. Kuehne, tkuehne@cp2k.org
 ! **************************************************************************************************
 PROGRAM wannier90_projections_unittest
-   USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_para_env_release,&
-                                              mp_para_env_type,&
-                                              mp_world_finalize,&
-                                              mp_world_init
-   USE wannier90_projections,           ONLY: wannier90_hybrid_candidates,&
-                                              wannier90_mix_projections,&
-                                              wannier90_projection_rank,&
-                                              wannier90_select_projections
+#if defined (__HAS_IEEE_EXCEPTIONS)
+   USE ieee_exceptions, ONLY: IEEE_ALL, IEEE_DIVIDE_BY_ZERO, IEEE_INVALID, IEEE_OVERFLOW, &
+                              ieee_get_halting_mode, ieee_set_halting_mode, ieee_support_halting
+#endif
+   USE kinds, ONLY: dp
+   USE message_passing, ONLY: mp_comm_type, &
+                              mp_para_env_release, &
+                              mp_para_env_type, &
+                              mp_world_finalize, &
+                              mp_world_init
+   USE wannier90_projections, ONLY: wannier90_hybrid_candidates, &
+                                    wannier90_mix_projections, &
+                                    wannier90_projection_rank, &
+                                    wannier90_select_projections
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -34,11 +38,21 @@ PROGRAM wannier90_projections_unittest
    REAL(KIND=dp) :: angle, min_svalue
    TYPE(mp_comm_type) :: comm
    TYPE(mp_para_env_type), POINTER :: para_env
+#if defined (__HAS_IEEE_EXCEPTIONS)
+   LOGICAL :: saved_halt(SIZE(IEEE_ALL)), expected_halt(SIZE(IEEE_ALL)), actual_halt(SIZE(IEEE_ALL))
+#endif
 
    CALL mp_world_init(comm)
    ALLOCATE (para_env)
    CALL para_env%from_dup(comm)
    nfail = 0
+#if defined (__HAS_IEEE_EXCEPTIONS)
+   CALL ieee_get_halting_mode(IEEE_ALL, saved_halt)
+   IF (ieee_support_halting(IEEE_INVALID)) CALL ieee_set_halting_mode(IEEE_INVALID, .TRUE.)
+   IF (ieee_support_halting(IEEE_DIVIDE_BY_ZERO)) CALL ieee_set_halting_mode(IEEE_DIVIDE_BY_ZERO, .TRUE.)
+   IF (ieee_support_halting(IEEE_OVERFLOW)) CALL ieee_set_halting_mode(IEEE_OVERFLOW, .TRUE.)
+   CALL ieee_get_halting_mode(IEEE_ALL, expected_halt)
+#endif
    IF (para_env%is_source()) THEN
       ALLOCATE (candidates(2, 3, 2))
       candidates = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
@@ -181,6 +195,16 @@ PROGRAM wannier90_projections_unittest
       END DO
    END DO
    min_svalue = wannier90_projection_rank(mixed_reference)
+#if defined (__HAS_IEEE_EXCEPTIONS)
+   CALL ieee_get_halting_mode(IEEE_ALL, actual_halt)
+   IF (ANY(actual_halt .NEQV. expected_halt)) nfail = nfail + 1
+   ! Also check that a caller with traps disabled is left unchanged.
+   CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+   IF (ABS(wannier90_projection_rank(mixed_reference) - min_svalue) > 1.0e-14_dp) nfail = nfail + 1
+   CALL ieee_get_halting_mode(IEEE_ALL, actual_halt)
+   IF (ANY(actual_halt)) nfail = nfail + 1
+   CALL ieee_set_halting_mode(IEEE_ALL, expected_halt)
+#endif
    mixed = mixed_reference
    CALL wannier90_mix_projections(mixed, 0.53_dp)
    IF (ABS(wannier90_projection_rank(mixed) - min_svalue) > 1.0e-14_dp) nfail = nfail + 1
@@ -198,6 +222,11 @@ PROGRAM wannier90_projections_unittest
    single = mixed(:, 1:1, :)
    CALL wannier90_mix_projections(single, -0.53_dp)
    IF (MAXVAL(ABS(single - mixed(:, 1:1, :))) /= 0.0_dp) nfail = nfail + 1
+#if defined (__HAS_IEEE_EXCEPTIONS)
+   CALL ieee_get_halting_mode(IEEE_ALL, actual_halt)
+   IF (ANY(actual_halt .NEQV. expected_halt)) nfail = nfail + 1
+   CALL ieee_set_halting_mode(IEEE_ALL, saved_halt)
+#endif
    CALL comm%sum(nfail)
    CPASSERT(nfail == 0)
    CALL mp_para_env_release(para_env)
