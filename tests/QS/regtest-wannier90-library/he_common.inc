@@ -34,6 +34,8 @@
           CONV_WINDOW 5
           NUM_ITER 100
           WRITE_INPUTS ${write_inputs}
+          WRITE_HR T
+          WRITE_U_MATRICES T
         &END LIBRARY
       &END WANNIER90
     &END PRINT

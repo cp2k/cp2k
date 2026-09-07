@@ -101,7 +101,7 @@ MODULE qs_wannier90
         w90_library_copy_matrices, w90_library_eigenvalues, w90_library_init, w90_library_overlap, &
         w90_library_project_trials, w90_library_projections, w90_library_promote_output, &
         w90_library_release, w90_library_run, w90_library_type, w90_library_write_input, &
-        w90_write_amn
+        w90_library_write_results, w90_write_amn
    USE wannier90_projections,           ONLY: wannier90_hybrid_candidates,&
                                               wannier90_projection_rank,&
                                               wannier90_select_projections
@@ -997,6 +997,7 @@ CONTAINS
          IF (.NOT. library_converged) THEN
             CPABORT("Wannier90 did not converge; see disentanglement/localization in the library logs.")
          END IF
+         CALL w90_library_write_results(library, para_env)
          IF (iw > 0) THEN
             WRITE (iw, '(T2,A)') "WANNIER90| Library centres [bohr] and spreads [bohr^2]"
             DO i = 1, num_wann

@@ -2978,7 +2978,7 @@ CONTAINS
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, name="LIBRARY", &
                           description="Run the optional Wannier90 v4 library directly after the SCF calculation.", &
-                          n_keywords=16, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=18, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Enable in-process Wannier90 localization.", usage="&LIBRARY ON", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -3001,6 +3001,18 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="WRITE_INPUTS", &
                           description="Also write the Wannier90 input and matrices for an external reference run.", &
                           default_l_val=.FALSE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="WRITE_HR", &
+                          description="Write the native Wannier90 real-space Hamiltonian and Wigner-Seitz vectors "// &
+                          "after convergence. AUTO writes only the winning trial's optimized result.", &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="WRITE_U_MATRICES", &
+                          description="Write the native Wannier90 optimized rotation matrices and a band-index map. "// &
+                          "Disentanglement matrices use packed outer-window rows, as in external Wannier90. "// &
+                          "AUTO writes only the winning trial's optimized result.", default_l_val=.FALSE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="NUM_ITER", &
