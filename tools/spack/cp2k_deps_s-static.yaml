@@ -95,6 +95,11 @@ spack:
       require:
         - "~shared"
 
+    wannier90:
+      require:
+        - "~mpi"
+        - "~shared"
+
   repos:
     builtin:
       commit: 4d092a104627e9871a0d74f853d6df9c8e6105c2 # 2026-08-11
@@ -121,7 +126,7 @@ spack:
     - "pace@2025.12.4.1"
     - "spglib@2.7.0"
     - "tblite@0.7.0"
-    - "wannier90@4.0.2 ~mpi ~shared"
+    - "wannier90@4.0.2"
 
   view:
     default:
