@@ -2978,7 +2978,7 @@ CONTAINS
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, name="LIBRARY", &
                           description="Run the optional Wannier90 v4 library directly after the SCF calculation.", &
-                          n_keywords=8, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=16, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Enable in-process Wannier90 localization.", usage="&LIBRARY ON", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -3026,6 +3026,45 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="CONV_TOL", &
                           description="Wannier90 spread-change convergence tolerance in angstrom squared.", &
                           default_r_val=1.0e-10_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DIS_NUM_ITER", &
+                          description="Maximum number of Wannier90 disentanglement iterations.", default_i_val=1000)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DIS_CONV_WINDOW", &
+                          description="Number of consecutive iterations in the disentanglement convergence test (at least two).", &
+                          default_i_val=5)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DIS_CONV_TOL", &
+                          description="Relative convergence tolerance for the gauge-invariant spread during disentanglement.", &
+                          default_r_val=1.0e-10_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DIS_MIX_RATIO", &
+                          description="Wannier90 disentanglement mixing ratio, greater than zero and at most one.", &
+                          default_r_val=0.5_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DIS_WIN_MIN", &
+                 description="Lower edge of the disentanglement outer energy window; defaults to the lowest exported eigenvalue.", &
+                          type_of_var=real_t, unit_str="eV")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DIS_WIN_MAX", &
+                description="Upper edge of the disentanglement outer energy window; defaults to the highest exported eigenvalue.", &
+                          type_of_var=real_t, unit_str="eV")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DIS_FROZ_MIN", &
+                          description="Lower edge of the frozen energy window. Requires DIS_FROZ_MAX; "// &
+                          "if omitted, the lower spectrum edge is used.", type_of_var=real_t, unit_str="eV")
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DIS_FROZ_MAX", &
+                          description="Upper edge of the frozen energy window. States inside this window "// &
+                          "must be retained in the optimized subspace.", type_of_var=real_t, unit_str="eV")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_key, subsection)

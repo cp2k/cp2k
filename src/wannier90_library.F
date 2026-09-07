@@ -11,21 +11,24 @@
 ! **************************************************************************************************
 MODULE wannier90_library
    USE cp_files, ONLY: close_file, open_file
+   USE ieee_arithmetic, ONLY: ieee_is_finite
    USE input_section_types, ONLY: section_vals_type, section_vals_val_get
    USE kinds, ONLY: dp, default_string_length
    USE message_passing, ONLY: mp_para_env_type
-   USE physcon, ONLY: angstrom
+   USE physcon, ONLY: angstrom, evolt
 #if defined(__WANNIER90)
    USE w90_library, ONLY: lib_common_type, w90_get_centres, w90_get_gkpb, w90_get_nn, &
                           w90_get_nnkp, w90_get_spreads, w90_input_setopt, w90_project_overlap, &
                           w90_set_comm, w90_set_eigval, w90_set_m_local, w90_set_option, &
-                          w90_set_u_matrix, w90_set_u_opt, w90_wannierise
+                          w90_set_u_matrix, w90_set_u_opt, w90_wannierise, w90_disentangle
 #endif
 #include "./base/base_uses.f90"
    IMPLICIT NONE
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'wannier90_library'
+   CHARACTER(LEN=12), PARAMETER :: window_keywords(4) = &
+                                   [CHARACTER(LEN=12) :: 'dis_win_min', 'dis_win_max', 'dis_froz_min', 'dis_froz_max']
 
    TYPE w90_library_type
       PRIVATE
@@ -35,6 +38,9 @@ MODULE wannier90_library
       INTEGER :: output_unit = -1, num_iter = 0, conv_window = 0, num_cg_steps = 5, num_print_cycles = 10
       LOGICAL :: keep_output = .FALSE., inputs_consumed = .FALSE.
       REAL(KIND=dp) :: conv_tol = 0.0_dp
+      INTEGER :: dis_num_iter = 1000, dis_conv_window = 5
+      REAL(KIND=dp) :: dis_conv_tol = 1.0e-10_dp, dis_mix_ratio = 0.5_dp, energy_window(4) = 0.0_dp
+      LOGICAL :: window_set(4) = .FALSE.
       INTEGER, ALLOCATABLE :: local_index(:)
       COMPLEX(KIND=dp), POINTER :: overlaps(:, :, :, :) => NULL()
       COMPLEX(KIND=dp), POINTER :: projections(:, :, :) => NULL(), rotations(:, :, :) => NULL()
@@ -43,7 +49,8 @@ MODULE wannier90_library
 
    PUBLIC :: w90_library_type, w90_library_init, w90_library_overlap, w90_library_eigenvalues, &
              w90_library_run, w90_library_release, w90_library_write_options, w90_library_projections, &
-             w90_library_copy_matrices, w90_library_promote_output, w90_write_amn, w90_library_write_input
+             w90_library_copy_matrices, w90_library_promote_output, w90_write_amn, w90_library_write_input, &
+             w90_library_project_trials
 
 CONTAINS
 
@@ -75,7 +82,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: log_suffix
       INTEGER, INTENT(IN), OPTIONAL :: num_cg_steps
 #if defined(__WANNIER90)
-      INTEGER :: ierr, ik, iwann, nk, nn, nlocal
+      INTEGER :: ierr, ik, iwann, nk, nn, nlocal, iwindow
       INTEGER, ALLOCATABLE :: distk(:)
       CHARACTER(LEN=16) :: rank_suffix
       CHARACTER(LEN=default_string_length) :: log_seed
@@ -98,8 +105,28 @@ CONTAINS
       IF (context%num_iter < 1 .OR. context%conv_window < 2 .OR. context%conv_tol <= 0.0_dp) THEN
          CPABORT("WANNIER90 LIBRARY requires NUM_ITER > 0, CONV_WINDOW >= 2 and CONV_TOL > 0.")
       END IF
-      IF (num_wann < 1 .OR. num_wann /= num_bands) THEN
-         CPABORT("WANNIER90 LIBRARY identity projections require a complete band subspace.")
+      IF (num_wann < 1 .OR. num_wann > num_bands) THEN
+         CPABORT("WANNIER90 LIBRARY requires 1 <= WANNIER_FUNCTIONS <= number of exported bands.")
+      END IF
+      CALL section_vals_val_get(input, 'DIS_NUM_ITER', i_val=context%dis_num_iter)
+      CALL section_vals_val_get(input, 'DIS_CONV_WINDOW', i_val=context%dis_conv_window)
+      CALL section_vals_val_get(input, 'DIS_CONV_TOL', r_val=context%dis_conv_tol)
+      CALL section_vals_val_get(input, 'DIS_MIX_RATIO', r_val=context%dis_mix_ratio)
+      IF (context%dis_num_iter < 1 .OR. context%dis_conv_window < 2 .OR. context%dis_conv_tol <= 0.0_dp) THEN
+         CPABORT('Invalid Wannier90 disentanglement convergence settings.')
+      END IF
+      IF (context%dis_mix_ratio <= 0.0_dp .OR. context%dis_mix_ratio > 1.0_dp) THEN
+         CPABORT('Wannier90 DIS_MIX_RATIO must be in (0, 1].')
+      END IF
+      DO iwindow = 1, SIZE(window_keywords)
+         CALL section_vals_val_get(input, TRIM(window_keywords(iwindow)), explicit=context%window_set(iwindow))
+         IF (context%window_set(iwindow)) THEN
+            CALL section_vals_val_get(input, TRIM(window_keywords(iwindow)), r_val=context%energy_window(iwindow))
+            context%energy_window(iwindow) = context%energy_window(iwindow)*evolt
+         END IF
+      END DO
+      IF (ANY(context%window_set) .AND. num_wann == num_bands) THEN
+         CPABORT('Wannier90 energy windows require more exported bands than Wannier functions.')
       END IF
       ! Each overlap block has exactly one owner, including when some ranks have no k-points.
       ALLOCATE (distk(nk), context%local_index(nk))
@@ -137,6 +164,14 @@ CONTAINS
       CALL w90_set_option(context%data, "conv_window", context%conv_window)
       CALL w90_set_option(context%data, "num_cg_steps", context%num_cg_steps)
       CALL w90_set_option(context%data, "num_print_cycles", context%num_print_cycles)
+      CALL w90_set_option(context%data, 'dis_num_iter', context%dis_num_iter)
+      CALL w90_set_option(context%data, 'dis_conv_window', context%dis_conv_window)
+      CALL w90_set_option(context%data, 'dis_conv_tol', context%dis_conv_tol)
+      CALL w90_set_option(context%data, 'dis_mix_ratio', context%dis_mix_ratio)
+      DO iwindow = 1, SIZE(window_keywords)
+         IF (.NOT. context%window_set(iwindow)) CYCLE
+         CALL w90_set_option(context%data, TRIM(window_keywords(iwindow)), context%energy_window(iwindow))
+      END DO
       CALL w90_input_setopt(context%data, seed_name, context%output_unit, context%output_unit, ierr)
       CALL check_w90_error(ierr, "initialization")
       CALL w90_get_nn(context%data, nn, context%output_unit, context%output_unit, ierr)
@@ -197,6 +232,47 @@ CONTAINS
 
       context%eigenvalues(:, ik) = eigenvalues(:)
    END SUBROUTINE w90_library_eigenvalues
+
+! **************************************************************************************************
+!> \brief Restrict AO trial selection to the subspace admitted by explicit energy windows.
+!> \param context Library state with the exported eigenvalues already populated.
+!> \param ao Band/AO/k-point projections, empty on non-source ranks.
+! **************************************************************************************************
+   SUBROUTINE w90_library_project_trials(context, ao)
+      TYPE(w90_library_type), INTENT(IN)                 :: context
+      COMPLEX(KIND=dp), INTENT(INOUT)                    :: ao(:, :, :)
+
+      INTEGER                                            :: ib, ik, nb, nw
+      LOGICAL, ALLOCATABLE                               :: allowed(:), frozen(:)
+
+      nb = SIZE(ao, 1)
+      IF (nb == 0 .OR. .NOT. ANY(context%window_set)) RETURN
+      nw = SIZE(context%rotations, 1)
+      CPASSERT(nb == SIZE(context%eigenvalues, 1))
+      CPASSERT(SIZE(ao, 3) == SIZE(context%eigenvalues, 2))
+      ALLOCATE (allowed(nb), frozen(nb))
+      DO ik = 1, SIZE(ao, 3)
+         allowed(:) = .TRUE.
+         IF (context%window_set(1)) allowed(:) = allowed .AND. context%eigenvalues(:, ik) >= context%energy_window(1)
+         IF (context%window_set(2)) allowed(:) = allowed .AND. context%eigenvalues(:, ik) <= context%energy_window(2)
+         IF (COUNT(allowed) < nw) CPABORT('Wannier90 outer energy window contains too few bands.')
+         IF (context%window_set(4)) THEN
+            frozen(:) = context%eigenvalues(:, ik) <= context%energy_window(4)
+            IF (context%window_set(3)) frozen(:) = frozen .AND. context%eigenvalues(:, ik) >= context%energy_window(3)
+            IF (COUNT(frozen) > nw) CPABORT('Wannier90 frozen window contains too many bands.')
+            IF (ANY(frozen .AND. .NOT. allowed)) THEN
+               CPABORT('Wannier90 frozen states lie outside the outer window.')
+            END IF
+            ! If every target state is frozen there is no remaining subspace freedom:
+            ! scoring trials against unoccupied states would select irrelevant AOs.
+            IF (COUNT(frozen) == nw) allowed(:) = frozen(:)
+         END IF
+         DO ib = 1, nb
+            IF (.NOT. allowed(ib)) ao(ib, :, ik) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+         END DO
+      END DO
+      DEALLOCATE (allowed, frozen)
+   END SUBROUTINE w90_library_project_trials
 
 ! **************************************************************************************************
 !> \brief Copy immutable input matrices into an independently initialized library instance.
@@ -302,11 +378,23 @@ CONTAINS
       TYPE(w90_library_type), INTENT(IN)                 :: context
       INTEGER, INTENT(IN)                                :: iunit
 
+      INTEGER                                            :: iwindow
+
       WRITE (iunit, '(A,I0)') "num_iter = ", context%num_iter
       WRITE (iunit, '(A,I0)') "num_cg_steps = ", context%num_cg_steps
       WRITE (iunit, '(A,I0)') "num_print_cycles = ", context%num_print_cycles
       WRITE (iunit, '(A,I0)') "conv_window = ", context%conv_window
       WRITE (iunit, '(A,ES24.16)') "conv_tol = ", context%conv_tol
+      IF (SIZE(context%eigenvalues, 1) > SIZE(context%rotations, 1)) THEN
+         WRITE (iunit, '(A,I0)') 'dis_num_iter = ', context%dis_num_iter
+         WRITE (iunit, '(A,I0)') 'dis_conv_window = ', context%dis_conv_window
+         WRITE (iunit, '(A,ES24.16)') 'dis_conv_tol = ', context%dis_conv_tol
+         WRITE (iunit, '(A,ES24.16)') 'dis_mix_ratio = ', context%dis_mix_ratio
+         DO iwindow = 1, SIZE(window_keywords)
+            IF (.NOT. context%window_set(iwindow)) CYCLE
+            WRITE (iunit, '(2A,ES24.16)') TRIM(window_keywords(iwindow)), ' = ', context%energy_window(iwindow)
+         END DO
+      END IF
    END SUBROUTINE w90_library_write_options
 
 ! **************************************************************************************************
@@ -369,35 +457,46 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT) :: centres(:, :), spreads(:)
       LOGICAL, INTENT(OUT) :: converged
 #if defined(__WANNIER90)
-      CHARACTER(LEN=256) :: line
-      INTEGER :: ierr, ios, nw
+      INTEGER :: ierr, nw
+      LOGICAL :: dis_converged
+      COMPLEX(KIND=dp), POINTER :: reduced_overlaps(:, :, :, :)
 
       CPASSERT(.NOT. context%inputs_consumed)
       context%inputs_consumed = .TRUE.
+      nw = SIZE(context%rotations, 1)
+      dis_converged = .TRUE.
+      IF (SIZE(context%eigenvalues, 1) > nw) THEN
+         CALL w90_disentangle(context%data, context%output_unit, context%output_unit, ierr)
+         CALL check_w90_error(ierr, 'disentanglement')
+         dis_converged = w90_library_report_contains(context, 'Disentanglement convergence criteria satisfied')
+         CALL para_env%bcast(dis_converged)
+         ! The v4 API leaves the optimized overlaps in the leading nw-by-nw block
+         ! of nb-by-nb storage. Wannierisation's BLAS calls require compact nw strides.
+         ALLOCATE (reduced_overlaps(nw, nw, SIZE(context%overlaps, 3), SIZE(context%overlaps, 4)))
+         reduced_overlaps(:, :, :, :) = context%overlaps(1:nw, 1:nw, :, :)
+         CALL w90_set_m_local(context%data, reduced_overlaps)
+         DEALLOCATE (context%overlaps)
+         context%overlaps => reduced_overlaps
+         NULLIFY (reduced_overlaps)
+      END IF
       CALL w90_project_overlap(context%data, context%output_unit, context%output_unit, ierr)
       CALL check_w90_error(ierr, "projection")
       CALL w90_wannierise(context%data, context%output_unit, context%output_unit, ierr)
       CALL check_w90_error(ierr, "localization")
       ! Wannier90 4.0.2 does not return nonconvergence in ierr. Fail closed if its
       ! explicit convergence report is absent; do not select an unconverged minimum.
-      converged = .FALSE.
-      IF (para_env%is_source()) THEN
-         FLUSH (context%output_unit)
-         REWIND (context%output_unit)
-         DO
-            READ (context%output_unit, '(A)', IOSTAT=ios) line
-            IF (IS_IOSTAT_END(ios)) EXIT
-            CPASSERT(ios == 0)
-            IF (INDEX(line, 'Wannierisation convergence criteria satisfied') > 0) converged = .TRUE.
-         END DO
-      END IF
+      converged = w90_library_report_contains(context, 'Wannierisation convergence criteria satisfied')
+      converged = converged .AND. dis_converged
       CALL para_env%bcast(converged)
-      nw = SIZE(context%rotations, 1)
       ALLOCATE (centres(3, nw), spreads(nw))
       CALL w90_get_centres(context%data, centres)
       CALL w90_get_spreads(context%data, spreads)
       centres(:, :) = centres(:, :)/angstrom
       spreads(:) = spreads(:)/angstrom**2
+      IF (para_env%is_source()) THEN
+         converged = converged .AND. ALL(ieee_is_finite(centres)) .AND. ALL(ieee_is_finite(spreads))
+      END IF
+      CALL para_env%bcast(converged)
 #else
       CPABORT("WANNIER90 library is not available.")
 #endif
@@ -425,6 +524,33 @@ CONTAINS
    END SUBROUTINE w90_library_release
 
 #if defined(__WANNIER90)
+! **************************************************************************************************
+!> \brief Read a library convergence report and restore its position for subsequent output.
+!> \param context Library instance, whose root log is readable.
+!> \param marker Exact success marker emitted by the library.
+!> \return Whether the source-rank log contains the marker; false on other ranks.
+! **************************************************************************************************
+   FUNCTION w90_library_report_contains(context, marker) RESULT(found)
+      TYPE(w90_library_type), INTENT(IN)                 :: context
+      CHARACTER(LEN=*), INTENT(IN)                       :: marker
+      LOGICAL                                            :: found
+
+      CHARACTER(LEN=default_string_length)               :: line
+      INTEGER                                            :: ios
+
+      found = .FALSE.
+      IF (.NOT. context%keep_output) RETURN
+      FLUSH (context%output_unit)
+      REWIND (context%output_unit)
+      DO
+         READ (context%output_unit, '(A)', IOSTAT=ios) line
+         IF (IS_IOSTAT_END(ios)) EXIT
+         CPASSERT(ios == 0)
+         IF (INDEX(line, marker) > 0) found = .TRUE.
+      END DO
+      BACKSPACE (context%output_unit)
+   END FUNCTION w90_library_report_contains
+
 ! **************************************************************************************************
 !> \brief Translate library errors to CP2K's collective error handling.
 !> \param ierr Library error code.

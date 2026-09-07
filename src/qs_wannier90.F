@@ -99,8 +99,9 @@ MODULE qs_wannier90
    USE wannier90,                       ONLY: wannier_setup
    USE wannier90_library,               ONLY: &
         w90_library_copy_matrices, w90_library_eigenvalues, w90_library_init, w90_library_overlap, &
-        w90_library_projections, w90_library_promote_output, w90_library_release, w90_library_run, &
-        w90_library_type, w90_library_write_input, w90_write_amn
+        w90_library_project_trials, w90_library_projections, w90_library_promote_output, &
+        w90_library_release, w90_library_run, w90_library_type, w90_library_write_input, &
+        w90_write_amn
    USE wannier90_projections,           ONLY: wannier90_hybrid_candidates,&
                                               wannier90_projection_rank,&
                                               wannier90_select_projections
@@ -459,7 +460,7 @@ CONTAINS
       CALL get_mo_set(mo_set=mos(1), nao=nao, nmo=num_bands_tot)
       num_bands_tot = MIN(nao, num_bands_tot + nadd)
       num_bands = num_bands_tot
-      IF (use_bloch_phases .AND. num_wann /= num_bands) THEN
+      IF (use_bloch_phases .AND. num_wann /= num_bands .AND. .NOT. run_library) THEN
          CPABORT("WANNIER90%USE_BLOCH_PHASES requires WANNIER_FUNCTIONS to match the number of bands.")
       END IF
       num_atoms = SIZE(particle_set)
@@ -690,6 +691,44 @@ CONTAINS
       IF (ALLOCATED(reference_mo_real)) DEALLOCATE (reference_mo_real)
       IF (ALLOCATED(reference_mo_imag)) DEALLOCATE (reference_mo_imag)
       IF (ALLOCATED(reference_eigenvalues)) DEALLOCATE (reference_eigenvalues)
+      ! Print eigenvalues
+      nspins = dft_control%nspins
+      kp => kpoint%kp_env(1)%kpoint_env
+      CALL get_mo_set(kp%mos(1, 1), nmo=nmo)
+      ALLOCATE (eigval(nmo))
+      CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp)
+      IF (para_env%is_source() .AND. write_files) THEN
+         WRITE (filename, '(A,A)') TRIM(seed_name), ".eig"
+         CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
+      ELSE
+         iunit = -1
+      END IF
+      !
+      DO ik = 1, nkp
+         my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
+         DO ispin = 1, nspins
+            IF (my_kpgrp) THEN
+               ikpgr = ik - kp_range(1) + 1
+               kp => kpoint%kp_env(ikpgr)%kpoint_env
+               CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
+               eigval(1:nmo) = eigenvalues(1:nmo)
+            ELSE
+               eigval(1:nmo) = 0.0_dp
+            END IF
+            CALL kpoint%para_env_inter_kp%sum(eigval)
+            eigval(1:nmo) = eigval(1:nmo)*evolt
+            IF (run_library) CALL w90_library_eigenvalues(library, ik, eigval)
+            ! output
+            IF (iunit > 0) THEN
+               DO ib = 1, nmo
+                  WRITE (iunit, "(2I8,F24.14)") ib, ik, eigval(ib)
+               END DO
+            END IF
+         END DO
+      END DO
+      IF (iunit > 0) THEN
+         CALL close_file(iunit)
+      END IF
       IF (run_library) THEN
          ALLOCATE (initial_amn(num_bands, num_wann, num_kpts))
          IF (initial_projections == 0) THEN
@@ -700,6 +739,7 @@ CONTAINS
          ELSE
             CALL build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, num_bands, &
                                                 reused_scf_mos .AND. use_bloch_phases, phase_center, ao_projections)
+            CALL w90_library_project_trials(library, ao_projections)
             IF (initial_projections == 2) THEN
                CALL build_wannier90_hybrid_groups(qs_env, hybrid_groups)
                CALL wannier90_hybrid_candidates(ao_projections, hybrid_groups, hybrid_projections)
@@ -944,46 +984,6 @@ CONTAINS
          CALL close_file(iunit)
       END IF
       !
-      ! Calculate and print Projections
-      !
-      ! Print eigenvalues
-      nspins = dft_control%nspins
-      kp => kpoint%kp_env(1)%kpoint_env
-      CALL get_mo_set(kp%mos(1, 1), nmo=nmo)
-      ALLOCATE (eigval(nmo))
-      CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp)
-      IF (para_env%is_source() .AND. write_files) THEN
-         WRITE (filename, '(A,A)') TRIM(seed_name), ".eig"
-         CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
-      ELSE
-         iunit = -1
-      END IF
-      !
-      DO ik = 1, nkp
-         my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-         DO ispin = 1, nspins
-            IF (my_kpgrp) THEN
-               ikpgr = ik - kp_range(1) + 1
-               kp => kpoint%kp_env(ikpgr)%kpoint_env
-               CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
-               eigval(1:nmo) = eigenvalues(1:nmo)
-            ELSE
-               eigval(1:nmo) = 0.0_dp
-            END IF
-            CALL kpoint%para_env_inter_kp%sum(eigval)
-            eigval(1:nmo) = eigval(1:nmo)*evolt
-            IF (run_library) CALL w90_library_eigenvalues(library, ik, eigval)
-            ! output
-            IF (iunit > 0) THEN
-               DO ib = 1, nmo
-                  WRITE (iunit, "(2I8,F24.14)") ib, ik, eigval(ib)
-               END DO
-            END IF
-         END DO
-      END DO
-      IF (iunit > 0) THEN
-         CALL close_file(iunit)
-      END IF
       IF (run_library) THEN
          IF (initial_projections == 3) THEN
             CALL run_wannier90_projection_trials(library, library_input, para_env, qs_env, seed_name, &
@@ -995,7 +995,7 @@ CONTAINS
             CALL w90_library_run(library, para_env, wannier_centres, wannier_spreads, library_converged)
          END IF
          IF (.NOT. library_converged) THEN
-            CPABORT("Wannier90 localization did not converge; see the .library.wout or trial logs.")
+            CPABORT("Wannier90 did not converge; see disentanglement/localization in the library logs.")
          END IF
          IF (iw > 0) THEN
             WRITE (iw, '(T2,A)') "WANNIER90| Library centres [bohr] and spreads [bohr^2]"

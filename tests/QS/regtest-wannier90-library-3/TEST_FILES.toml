@@ -1,0 +1,11 @@
+# Five SCF bands to one Wannier function: rectangular projections and energy windows.
+"he_free.inp" = [{matcher="E_total", tol=1e-12, ref=-2.95145706672897},
+                 {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-8, ref=5.49834276960155},
+                 {matcher="WANNIER90_SCF_MO_REUSE", tol=0.0, ref=1.0}]
+# Both constrained cases recover the occupied-only reference spread.
+"he_frozen.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21970225224015}]
+"he_outer.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21970225224015}]
+"he_auto.inp" = [{matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=1.21970225224015}]
+# Ten bands to two frozen occupied states: QR must ignore the irrelevant conduction space.
+"he2_frozen.inp" = [{matcher="E_total", tol=1e-12, ref=-5.78478325058176},
+                    {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-9, ref=2.39300643054920}]

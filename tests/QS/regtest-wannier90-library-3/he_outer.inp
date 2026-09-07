@@ -1,0 +1,4 @@
+@SET seed he_outer
+@SET projections AO_SCDM
+@SET windows outer.inc
+@INCLUDE he_common.inc
