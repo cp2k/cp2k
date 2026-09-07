@@ -546,7 +546,7 @@ CONTAINS
             fung = 0.0_dp
             DO indf = 1, ndf
                fun = fun + dg(indf)**2/(ln - eigval(indf))
-               fung = fung - dg(indf)**2/(ln - eigval(indf)**2)
+               fung = fung - dg(indf)**2/((ln - eigval(indf))**2)
             END DO
             fun = fun - ln
             fung = fung - one
@@ -584,7 +584,7 @@ CONTAINS
                   fun2 = 0.0_dp
                   lam2 = lam1 - iter*step
                   DO indf = 1, ndf
-                     fun2 = fun2 + eigval(indf)**2/(lam2 - eigval(indf))
+                     fun2 = fun2 + dg(indf)**2/(lam2 - eigval(indf))
                   END DO
                   fun2 = fun2 - lam2
                   IF (fun2*fun1 < 0.0_dp) THEN
