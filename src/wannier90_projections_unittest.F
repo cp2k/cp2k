@@ -18,6 +18,7 @@ PROGRAM wannier90_projections_unittest
                                               mp_world_init
    USE wannier90_projections,           ONLY: wannier90_hybrid_candidates,&
                                               wannier90_select_projections
+#include "./base/base_uses.f90"
 
    IMPLICIT NONE
 
@@ -165,8 +166,7 @@ PROGRAM wannier90_projections_unittest
    IF (.NOT. ALL(pivots == [1, 3])) nfail = nfail + 1
    DEALLOCATE (candidates)
    CALL comm%sum(nfail)
-   IF (para_env%is_source()) WRITE (*, '(A,I0)') 'Wannier90 projection test failures: ', nfail
+   CPASSERT(nfail == 0)
    CALL mp_para_env_release(para_env)
    CALL mp_world_finalize()
-   IF (nfail /= 0) STOP 1
 END PROGRAM wannier90_projections_unittest
