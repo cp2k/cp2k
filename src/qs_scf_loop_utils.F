@@ -73,6 +73,10 @@ MODULE qs_scf_loop_utils
                                               qs_environment_type
    USE qs_fb_env_methods,               ONLY: fb_env_do_diag
    USE qs_gspace_mixing,                ONLY: gspace_mixing
+   USE qs_kpoint_operators,             ONLY: kpoint_operator_context_create,&
+                                              kpoint_operator_context_release,&
+                                              kpoint_operator_context_type,&
+                                              kpoint_operator_get
    USE qs_kpp1_env_types,               ONLY: kpp1_release,&
                                               qs_kpp1_env_type
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
@@ -106,7 +110,7 @@ MODULE qs_scf_loop_utils
    USE qs_scf_diagonalization,          ONLY: &
         do_block_davidson_diag, do_block_davidson_diag_kp, do_block_krylov_diag, do_general_diag, &
         do_general_diag_kp, do_ot_diag, do_ot_diag_kp, do_roks_diag, do_scf_diag_subspace, &
-        do_special_diag, qs_scf_distribute_kpoint_operator, qs_scf_get_ot_kpoint_operator
+        do_special_diag, qs_scf_get_ot_kpoint_operator
    USE qs_scf_methods,                  ONLY: cp_sm_mix,&
                                               scf_env_density_mixing
    USE qs_scf_output,                   ONLY: qs_scf_print_summary
@@ -1555,6 +1559,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: matrix_k_im, matrix_k_re, template
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_operator_context_type)                 :: hxc_op_ctx
       TYPE(qs_kpp1_env_type)                             :: kernel_env
       TYPE(section_vals_type), POINTER                   :: hfx_section, input
 
@@ -1602,6 +1607,16 @@ CONTAINS
          END DO
       END DO
       ALLOCATE (dense_re(nmo, nmo), dense_im(nmo, nmo), projected(nmo, nmo))
+      ! The group communicators do not own the complete real-space operator;
+      ! redistribute it to every group through the service. The fm pair lives
+      ! on the OT channel distribution; the service transfers into it
+      ! directly, whatever that distribution is. The context spans every
+      ! response mode: nothing inside the loop changes the host k-point
+      ! environment, and every mode rebuilds potential_rs from the same
+      ! rho_ao_kp template, so the work trio distribution stays valid.
+      IF (nkp_groups > 1) THEN
+         CALL kpoint_operator_context_create(hxc_op_ctx, kpoints, fmwork(1), nspin_ot)
+      END IF
       DO response_mode = 1, nmode
          ALLOCATE (density_kp(nlocal_kpoints, 2, nspin_ot))
          DO local_kpoint = 1, nlocal_kpoints
@@ -1669,8 +1684,13 @@ CONTAINS
 
          CALL apply_hxc_kernel_kp(qs_env, kernel_env, density_rs, potential_rs)
          IF (nkp_groups > 1) THEN
-            CALL qs_scf_distribute_kpoint_operator( &
-               potential_rs, kpoints, fmwork, operator_re, operator_im)
+            DO local_kpoint = 1, nlocal_kpoints
+               DO ispin = 1, nspin_ot
+                  CALL kpoint_operator_get(hxc_op_ctx, local_kpoint, ispin, potential_rs, &
+                                           fm_re=operator_re(local_kpoint, ispin), &
+                                           fm_im=operator_im(local_kpoint, ispin), matrix_row=ispin)
+               END DO
+            END DO
          END IF
          DO local_kpoint = 1, nlocal_kpoints
             kp => kpoints%kp_env(local_kpoint)%kpoint_env
@@ -1722,6 +1742,9 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(potential_rs)
          NULLIFY (density_rs, potential_rs)
       END DO
+      IF (nkp_groups > 1) THEN
+         CALL kpoint_operator_context_release(hxc_op_ctx)
+      END IF
 
       CALL para_env_inter_kp%sum(projected_hxc)
       symmetry_error = MAXVAL(ABS( &
