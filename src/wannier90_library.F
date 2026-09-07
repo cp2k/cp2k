@@ -206,6 +206,19 @@ CONTAINS
       CALL w90_set_eigval(context%data, context%eigenvalues)
       DEALLOCATE (distk)
 #else
+      MARK_USED(context)
+      MARK_USED(input)
+      MARK_USED(para_env)
+      MARK_USED(seed_name)
+      MARK_USED(lattice)
+      MARK_USED(kpoints)
+      MARK_USED(mp_grid)
+      MARK_USED(num_bands)
+      MARK_USED(num_wann)
+      MARK_USED(nnlist)
+      MARK_USED(nncell)
+      MARK_USED(log_suffix)
+      MARK_USED(num_cg_steps)
       CPABORT("WANNIER90 LIBRARY requires CP2K compiled with CP2K_USE_WANNIER90=ON.")
 #endif
    END SUBROUTINE w90_library_init
@@ -511,6 +524,11 @@ CONTAINS
       CALL para_env%bcast(converged)
       context%converged = converged
 #else
+      MARK_USED(context)
+      MARK_USED(para_env)
+      MARK_USED(centres)
+      MARK_USED(spreads)
+      MARK_USED(converged)
       CPABORT("WANNIER90 library is not available.")
 #endif
    END SUBROUTINE w90_library_run
@@ -528,6 +546,7 @@ CONTAINS
       CPASSERT(context%converged)
       spread = context%data%omega%invariant/angstrom**2
 #else
+      MARK_USED(context)
       spread = 0.0_dp
       CPABORT("WANNIER90 library is not available.")
 #endif
@@ -586,6 +605,8 @@ CONTAINS
          CALL close_file(iunit)
       END IF
 #else
+      MARK_USED(context)
+      MARK_USED(para_env)
       CPABORT('WANNIER90 library is not available.')
 #endif
    END SUBROUTINE w90_library_write_results
