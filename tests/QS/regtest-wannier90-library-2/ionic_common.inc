@@ -25,6 +25,9 @@
       REL_CUTOFF 30
     &END MGRID
     &SCF
+      @IF ( ${disentangle} == T )
+        ADDED_MOS 4
+      @ENDIF
       EPS_SCF 1.e-9
       EPS_EIGVAL 1.e-10
       MAX_SCF 150
@@ -52,6 +55,11 @@
         VALIDATE_REUSE_SCF_MOS T
         USE_BLOCH_PHASES T
         &LIBRARY ON
+          @IF ( ${disentangle} == T )
+            DIS_FROZ_MAX -11.0
+            DIS_NUM_ITER 2000
+            DIS_CONV_TOL 1.e-12
+          @ENDIF
           INITIAL_PROJECTIONS ${projections}
           NUM_ITER ${num_iter}
           CONV_TOL ${conv_tol}

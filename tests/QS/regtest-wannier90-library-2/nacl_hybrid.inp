@@ -1,10 +1,11 @@
 @SET seed nacl_hybrid
+@SET disentangle F
 @SET cation Na
 @SET anion Cl
 @SET q_cation 9
 @SET half_a 2.82
 @SET num_wann 8
 @SET projections AO_HYBRID
-@SET num_iter 2000
-@SET conv_tol 1.e-10
+@SET num_iter 10000
+@SET conv_tol 1.e-12
 @INCLUDE ionic_common.inc

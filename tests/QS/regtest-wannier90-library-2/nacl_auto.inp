@@ -1,4 +1,5 @@
 @SET seed nacl_auto
+@SET disentangle F
 @SET cation Na
 @SET anion Cl
 @SET q_cation 9

@@ -1,4 +1,5 @@
 @SET seed lif_ao
+@SET disentangle F
 @SET cation Li
 @SET anion F
 @SET q_cation 3
