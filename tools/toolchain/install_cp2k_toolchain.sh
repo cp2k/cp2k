@@ -326,7 +326,7 @@ Specific options of --with-PKG:
                           Default = install
   --with-wannier90        Enable the Wannier90 v4 library for k-point localization.
                           Requires CMake and BLAS/LAPACK; follows --mpi-mode.
-                          Default = install
+                          Default = no
   --with-dftd4            Enable the standalone DFTD4 package by Grimme for the
                           DFT-D4 dispersion correction method.
                           This package requires CMake.
@@ -453,7 +453,7 @@ with_sirius="__DONTUSE__"
 with_gsl="__DONTUSE__"
 with_fmt="__DONTUSE__"
 with_spglib="__INSTALL__"
-with_wannier90="__INSTALL__"
+with_wannier90="__DONTUSE__"
 with_hdf5="__DONTUSE__"
 with_trexio="__DONTUSE__"
 with_libfci="__DONTUSE__"

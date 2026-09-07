@@ -863,7 +863,10 @@ if(CP2K_USE_WANNIER90)
   include(CheckFortranSourceCompiles)
   cmake_push_check_state(RESET)
   set(CMAKE_REQUIRED_LIBRARIES Wannier90::wannier90 LAPACK::LAPACK)
-  # Recheck when an existing build is pointed at a different installation.
+  # Fortran .mod compatibility and the integer communicator API cannot be
+  # inferred from the package version. Recheck on reconfiguration in case the
+  # installation was replaced (even at the same path); this does not test for
+  # release-specific bugs.
   unset(CP2K_WANNIER90_INTERFACE_WORKS CACHE)
   CHECK_Fortran_SOURCE_COMPILES(
     "program check_wannier90
