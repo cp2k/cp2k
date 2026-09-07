@@ -1,0 +1,53 @@
+! Regression test for the plan-6 scratch buffer of the 2D-distributed FFT path.
+! The cell makes the coarsest multigrid level (2, 24, 25), which drops below the
+! number of ranks and takes a 2D processor layout: there the plan-6 buffers are
+! paired. FFTW_PLAN_TYPE MEASURE lets the planner touch the planning buffers,
+! so a mispaired buffer corrupts the heap from 4 ranks on (1 OpenMP thread).
+! The SCF converges and matches the energy also on 1, 2 and 8 ranks.
+&GLOBAL
+  FFTW_PLAN_TYPE MEASURE
+  PRINT_LEVEL LOW
+  PROJECT H2O-fft-plan6
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD QS
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 200
+      NGRIDS 4
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      MAX_SCF 20
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 1.1 14.5 15.5
+    &END CELL
+    &COORD
+      O    0.000000    0.000000   -0.065587
+      H    0.000000   -0.757136    0.520545
+      H    0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+      BASIS_SET DZV-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
