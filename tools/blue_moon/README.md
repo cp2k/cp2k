@@ -43,7 +43,7 @@ postprocessing package.
 
 ## Run
 
-Requires Python 3.9+ and NumPy. From the repository root:
+Requires Python 3.9+ and NumPy 1.21+ (including `numpy.typing`). From the repository root:
 
 ```shell
 python3 tools/blue_moon/blue_moon.py \
@@ -137,11 +137,45 @@ rejected.
 
 ```shell
 python3 -m unittest discover -s tools/blue_moon -p 'test_*.py' -v
+python3 -m mypy --strict tools/blue_moon/
 ```
 
 Tests cover analytic distance and bond-center metrics, shared-atom distance differences,
 finite-difference checks of every supported primitive's gradient and Hessian, mass/CV scaling,
-triclinic images, torsion branches, the weighted estimator and strict input alignment.
+triclinic images, torsion branches, the weighted estimator and strict input alignment. The
+miscellaneous CI job runs both the unit tests and strict type checking for the complete directory,
+including tests. Runtime validation of JSON input remains necessary; the numerical evaluator uses a
+typed coordinate tree only after the input has been checked.
+
+### Equivalent logarithmic derivative
+
+For one constraint the correction can also be expressed as `G = (1/2) D_xi ln Z`, provided the
+derivative direction is specified:
+
+```text
+b = M^-1 grad(xi) / Z
+D_xi = b . grad
+D_xi xi = 1
+G = (1/2) D_xi ln Z = b . grad(Z) / (2*Z)
+```
+
+This is the local mass-weighted normal derivative at each saved configuration, not a time derivative
+along a constrained trajectory. Within a fixed window `xi` is constant, while `Z` can change with
+other degrees of freedom (for example the angle between bonds at fixed distance difference). Ratios
+of frame-to-frame changes `Delta ln Z / Delta xi`, or differences of window averages, therefore do
+not in general give the required correction. Constraint-tolerance noise must not be used as the
+denominator of that ratio.
+
+The full Cartesian Hessian need not be stored to evaluate this identity: a Hessian-vector product or
+a directional derivative of `Z` is sufficient. Such a derivative still requires differentiating the
+coordinate gradients or evaluating them at displaced geometries; it is not determined by the values
+of `Z` on the saved trajectory alone. This implementation retains the exact second-order
+forward-differentiation formulation for the supported small coordinate definitions. An additional
+regression compares its result with `(ln Z(r+h*b) - ln Z(r-h*b)) / (4*h)` at several step sizes for
+all supported primitive types, combinations and a rescaled coordinate. It also verifies
+`D_xi xi = 1`.
+
+### Distance difference
 
 For `xi = rij - rkj`, with `c = rho_ij . rho_kj`, direct differentiation gives:
 

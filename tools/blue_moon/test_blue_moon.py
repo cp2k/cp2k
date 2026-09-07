@@ -21,6 +21,7 @@ from blue_moon import (
     ANGSTROM_PER_BOHR,
     KB_HARTREE_PER_K,
     Coordinate,
+    FloatArray,
     analyze,
     metric,
     read_multipliers,
@@ -28,11 +29,11 @@ from blue_moon import (
 )
 
 
-def primitive(kind, atoms, **kwargs):
+def primitive(kind: str, atoms: list[int], **kwargs: object) -> dict[str, object]:
     return {"type": kind, "atoms": atoms, **kwargs}
 
 
-def combination(*terms):
+def combination(*terms: tuple[float, object]) -> dict[str, object]:
     return {
         "type": "linear_combination",
         "terms": [{"coefficient": c, "cv": cv} for c, cv in terms],
@@ -48,9 +49,9 @@ POSITIONS = np.array(
 
 
 class DerivativeTests(unittest.TestCase):
-    def test_distance(self):
+    def test_distance(self) -> None:
         result = Coordinate(DISTANCE, CELL).evaluate(POSITIONS)
-        r = np.linalg.norm(POSITIONS[0] - POSITIONS[1])
+        r = float(np.linalg.norm(POSITIONS[0] - POSITIONS[1]))
         unit = (POSITIONS[0] - POSITIONS[1]) / r
         h = (np.eye(3) - np.outer(unit, unit)) / r
         self.assertAlmostEqual(result.value, r)
@@ -62,7 +63,7 @@ class DerivativeTests(unittest.TestCase):
         self.assertAlmostEqual(z, 1 / 12 + 1)
         self.assertAlmostEqual(g, 0)
 
-    def test_distance_difference_shared_atom(self):
+    def test_distance_difference_shared_atom(self) -> None:
         x = np.array([[2.0, 0, 0], [0, 0, 0], [1.0, 3, 0]])
         coordinate = Coordinate(DIFFERENCE, CELL)
         result = coordinate.evaluate(x)
@@ -79,10 +80,10 @@ class DerivativeTests(unittest.TestCase):
         self.assertAlmostEqual(g, 0.07221504489510591)
 
         # An independent directional derivative of the analytic metric (no Hessian).
-        def analytic_z(y):
+        def analytic_z(y: FloatArray) -> float:
             a, b = y[0] - y[1], y[2] - y[1]
             c = np.dot(a, b) / np.linalg.norm(a) / np.linalg.norm(b)
-            return 1 / 12 + 1 / 16 + 2 * (1 - c)
+            return float(1 / 12 + 1 / 16 + 2 * (1 - c))
 
         direction = result.gradient.reshape(3, 3) / masses[:, None]
         for step in (1e-3, 1e-4, 1e-5):
@@ -95,18 +96,18 @@ class DerivativeTests(unittest.TestCase):
             x[2] = end
             self.assertAlmostEqual(metric(coordinate.evaluate(x), masses)[1], 0)
 
-    def test_point_center(self):
+    def test_point_center(self) -> None:
         coordinate = Coordinate(primitive("point_bond_center", [1, 2, 3]), CELL)
         result = coordinate.evaluate(POSITIONS)
         z, g = metric(result, [12, 1, 16])
         self.assertAlmostEqual(
             result.value,
-            np.linalg.norm(POSITIONS[0] - (POSITIONS[1] + POSITIONS[2]) / 2),
+            float(np.linalg.norm(POSITIONS[0] - (POSITIONS[1] + POSITIONS[2]) / 2)),
         )
         self.assertAlmostEqual(z, 1 / 12 + 1 / 4 + 1 / 64)
         self.assertAlmostEqual(g, 0)
 
-    def test_all_primitive_derivatives(self):
+    def test_all_primitive_derivatives(self) -> None:
         cvs = [
             DISTANCE,
             DIFFERENCE,
@@ -152,7 +153,7 @@ class DerivativeTests(unittest.TestCase):
                 )
                 np.testing.assert_allclose(result.hessian, result.hessian.T, atol=1e-15)
 
-    def test_angle_and_signed_plane_values(self):
+    def test_angle_and_signed_plane_values(self) -> None:
         angle = (
             Coordinate(primitive("angle", [1, 2, 3]), CELL).evaluate(POSITIONS).value
         )
@@ -172,7 +173,7 @@ class DerivativeTests(unittest.TestCase):
             / np.linalg.norm(normal),
         )
 
-    def test_mass_and_coordinate_scaling(self):
+    def test_mass_and_coordinate_scaling(self) -> None:
         result = Coordinate(DIFFERENCE, CELL).evaluate(POSITIONS)
         z, g = metric(result, [12, 1, 16])
         z2, g2 = metric(result, [24, 2, 32])
@@ -186,7 +187,66 @@ class DerivativeTests(unittest.TestCase):
             self.assertAlmostEqual(zs, factor**2 * z)
             self.assertAlmostEqual(gs, g / factor)
 
-    def test_triclinic_images(self):
+    def test_log_metric_normal_derivative(self) -> None:
+        # G = 1/2 D_xi ln Z, with D_xi = (M^-1 grad(xi) / Z) . grad.
+        # Perturb the geometry in that direction, NOT along the MD trajectory.
+        cvs = [
+            DISTANCE,
+            DIFFERENCE,
+            primitive("angle", [1, 2, 3]),
+            primitive("torsion", [1, 2, 3, 4], reference=0),
+            primitive("point_plane", [1, 2, 3, 4]),
+            primitive("point_bond_center", [1, 2, 3]),
+            combination(
+                (0.7, DISTANCE), (-1.4, primitive("point_plane", [1, 2, 3, 4]))
+            ),
+            combination(
+                (1, DISTANCE),
+                (-2, primitive("distance", [3, 2])),
+                (3, primitive("distance", [3, 4])),
+            ),
+            combination((-3, DIFFERENCE)),
+        ]
+        for cv in cvs:
+            with self.subTest(cv=cv):
+                coordinate = Coordinate(cv, CELL)
+                atom_indices = np.array(coordinate.atoms) - 1
+                masses = np.array([12.0, 1.0, 16.0, 14.0])[atom_indices]
+                result = coordinate.evaluate(POSITIONS)
+                z, g = metric(result, masses)
+                displacement = np.zeros_like(POSITIONS)
+                displacement[atom_indices] = (
+                    result.gradient.reshape(-1, 3) / masses[:, None] / z
+                )
+                for h in (1e-4, 3e-5, 1e-5):
+                    plus = coordinate.evaluate(POSITIONS + h * displacement)
+                    minus = coordinate.evaluate(POSITIONS - h * displacement)
+                    # Only gradients enter Z at the displaced geometries.
+                    z_plus = float(
+                        np.sum(plus.gradient.reshape(-1, 3) ** 2 / masses[:, None])
+                    )
+                    z_minus = float(
+                        np.sum(minus.gradient.reshape(-1, 3) ** 2 / masses[:, None])
+                    )
+                    numerical_g = (math.log(z_plus) - math.log(z_minus)) / (4 * h)
+                    self.assertAlmostEqual(
+                        (plus.value - minus.value) / (2 * h), 1, delta=2e-8
+                    )
+                    self.assertAlmostEqual(g, numerical_g, delta=2e-8)
+
+    def test_metric_varies_at_fixed_coordinate(self) -> None:
+        coordinate = Coordinate(DIFFERENCE, CELL)
+        first = coordinate.evaluate([[2, 0, 0], [0, 0, 0], [0, 3, 0]])
+        second = coordinate.evaluate(np.array([[2, 0, 0], [0, 0, 0], [1.8, 2.4, 0]]))
+        self.assertAlmostEqual(first.value, -1)
+        self.assertAlmostEqual(second.value, -1)
+        z_first, _ = metric(first, [12, 1, 16])
+        z_second, _ = metric(second, [12, 1, 16])
+        self.assertNotAlmostEqual(z_first, z_second)
+        # Z is not generally a single-valued function of xi; Delta Z / Delta xi
+        # between fixed-window frames cannot supply the normal derivative.
+
+    def test_triclinic_images(self) -> None:
         cell = np.array([[20, 0, 0], [3, 24, 0], [-1, 2, 22]])
         shifted = POSITIONS.copy()
         shifted[0] += cell[1] - 2 * cell[2]
@@ -197,10 +257,11 @@ class DerivativeTests(unittest.TestCase):
         np.testing.assert_allclose(a.hessian, b.hessian, atol=1e-14)
         nonperiodic = Coordinate(primitive("distance", [1, 2], pbc=False), cell)
         self.assertAlmostEqual(
-            nonperiodic.evaluate(shifted).value, np.linalg.norm(shifted[0] - shifted[1])
+            nonperiodic.evaluate(shifted).value,
+            float(np.linalg.norm(shifted[0] - shifted[1])),
         )
 
-    def test_torsion_branch(self):
+    def test_torsion_branch(self) -> None:
         phi = Coordinate(
             primitive("torsion", [1, 2, 3, 4], reference=0), CELL
         ).evaluate(POSITIONS)
@@ -220,7 +281,7 @@ class DerivativeTests(unittest.TestCase):
             0,
         )
 
-    def test_cp2k_coordinate_values(self):
+    def test_cp2k_coordinate_values(self) -> None:
         # CP2K 2026.1 METADYN/COLVAR output for examples/coordinates.inp.
         # Values are printed with five decimal places, in internal units.
         cvs = [
@@ -238,7 +299,7 @@ class DerivativeTests(unittest.TestCase):
             )
             self.assertAlmostEqual(result.value, value, delta=5e-6)
 
-    def test_rotational_invariance(self):
+    def test_rotational_invariance(self) -> None:
         rotation = np.array([[0.6, -0.8, 0], [0.8, 0.6, 0], [0, 0, 1]])
         coordinate = Coordinate(DIFFERENCE, CELL)
         original = coordinate.evaluate(POSITIONS)
@@ -247,14 +308,14 @@ class DerivativeTests(unittest.TestCase):
             metric(original, [12, 1, 16]), metric(rotated, [12, 1, 16]), atol=1e-14
         )
 
-    def test_inconsistent_torsion_images(self):
+    def test_inconsistent_torsion_images(self) -> None:
         coordinate = Coordinate(primitive("torsion", [1, 2, 3, 4], reference=0), CELL)
         # Adjacent bonds are shorter than half a cell, their 1-3 sum is not.
         positions = np.array([[0, 0, 0], [9, 1, 0], [18, 0, 0], [19, 1, 2]])
         with self.assertRaisesRegex(ValueError, "Inconsistent CP2K torsion images"):
             coordinate.evaluate(positions)
 
-    def test_invalid_coordinates(self):
+    def test_invalid_coordinates(self) -> None:
         invalid = [
             primitive("distance", [1, 1]),
             primitive("distance", [0, 2]),
@@ -284,7 +345,7 @@ class DerivativeTests(unittest.TestCase):
             )
 
 
-def config():
+def config() -> dict[str, object]:
     return {
         "cv": DISTANCE,
         "cell_angstrom": (CELL * ANGSTROM_PER_BOHR).tolist(),
@@ -296,7 +357,34 @@ def config():
 
 
 class InputTests(unittest.TestCase):
-    def test_multiplier_pairs(self):
+    def test_coordinate_schema_validation(self) -> None:
+        invalid: list[object] = [
+            None,
+            [],
+            {1: "distance"},
+            {"type": []},
+            {"type": "distance", "atoms": "1 2"},
+            {"type": "distance", "atoms": [1, {}]},
+            {"type": "distance", "atoms": [1, 2], "pbc": 1},
+            {"type": "linear_combination", "terms": []},
+            {"type": "linear_combination", "terms": [None]},
+            combination((float("nan"), DISTANCE)),
+            combination((True, DISTANCE)),
+            primitive("torsion", [1, 2, 3, 4], reference="0"),
+        ]
+        for value in invalid:
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                Coordinate(value, CELL)
+
+    def test_nested_coordinate_tree(self) -> None:
+        nested = combination((2, DIFFERENCE), (-1, combination((1, DIFFERENCE))))
+        result = Coordinate(nested, CELL).evaluate(POSITIONS)
+        expected = Coordinate(DIFFERENCE, CELL).evaluate(POSITIONS)
+        self.assertAlmostEqual(result.value, expected.value)
+        np.testing.assert_allclose(result.gradient, expected.gradient, atol=1e-15)
+        np.testing.assert_allclose(result.hessian, expected.hessian, atol=1e-15)
+
+    def test_multiplier_pairs(self) -> None:
         text = "Shake  Lagrangian Multipliers: -0.1\nRattle Lagrangian Multipliers: 999\nShake  Lagrangian Multipliers: 0.2D+0\nRattle Lagrangian Multipliers: -888\n"
         self.assertEqual(list(read_multipliers(io.StringIO(text))), [-0.1, 0.2])
         for bad in (
@@ -311,7 +399,7 @@ class InputTests(unittest.TestCase):
             with self.subTest(text=bad), self.assertRaises(ValueError):
                 list(read_multipliers(io.StringIO(bad)))
 
-    def test_xyz(self):
+    def test_xyz(self) -> None:
         xyz = "2\n i = 0, time = 0.0\nC 0 0 0\nH 1 0 0\n2\n i = 1, time = 0.5\nC 0 0 0\nH 1 1 0\n"
         frames = list(read_xyz(io.StringIO(xyz)))
         self.assertEqual([x[0] for x in frames], [0, 1])
@@ -326,7 +414,7 @@ class InputTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 list(read_xyz(io.StringIO(bad)))
 
-    def test_alignment_and_units(self):
+    def test_alignment_and_units(self) -> None:
         positions = np.array([[2.0, 0, 0], [0, 0, 0]])
         frames = [(0, positions), (1, positions), (2, positions)]
         result = list(analyze(config(), iter(frames), iter([0.1, 0.2]), 1))
@@ -346,7 +434,7 @@ class InputTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Invalid keys"):
             list(analyze({**config(), "unknown": 1}, iter(frames), iter([0.1, 0.2]), 1))
 
-    def test_weighted_estimator(self):
+    def test_weighted_estimator(self) -> None:
         # Two geometries on the SAME nonzero distance-difference window.
         frames = [
             (1, np.array([[2, 0, 0], [0, 0, 0], [0, 3, 0]])),
@@ -368,7 +456,7 @@ class InputTests(unittest.TestCase):
         self.assertAlmostEqual(actual, expected)
         self.assertNotAlmostEqual(actual, 0.05)
 
-    def test_cli_example(self):
+    def test_cli_example(self) -> None:
         directory = Path(__file__).parent
         command = [
             sys.executable,
