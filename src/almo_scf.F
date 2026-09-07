@@ -263,8 +263,10 @@ CONTAINS
          almo_scf_env%ndomains = almo_scf_env%natoms
       END IF
 
-      IF (ALLOCATED(almo_scf_env%activate) .AND. almo_scf_env%activate(1) > 1) THEN
-         DEALLOCATE (almo_scf_env%activate)
+      IF (ALLOCATED(almo_scf_env%activate)) THEN
+         IF (almo_scf_env%activate(1) > 1) THEN
+            DEALLOCATE (almo_scf_env%activate)
+         END IF
       END IF
 
       IF (.NOT. ALLOCATED(almo_scf_env%activate)) THEN
