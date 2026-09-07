@@ -852,6 +852,7 @@ if(CP2K_USE_SPGLIB)
 endif()
 
 if(CP2K_USE_WANNIER90)
+  # Even the 4.0.2 release reports 4.0.0 in its CMake package metadata.
   find_package(Wannier90 4.0 REQUIRED CONFIG)
   if((CP2K_USE_MPI AND NOT Wannier90_MPI) OR (NOT CP2K_USE_MPI AND Wannier90_MPI
                                              ))
@@ -862,6 +863,8 @@ if(CP2K_USE_WANNIER90)
   include(CheckFortranSourceCompiles)
   cmake_push_check_state(RESET)
   set(CMAKE_REQUIRED_LIBRARIES Wannier90::wannier90 LAPACK::LAPACK)
+  # Recheck when an existing build is pointed at a different installation.
+  unset(CP2K_WANNIER90_INTERFACE_WORKS CACHE)
   CHECK_Fortran_SOURCE_COMPILES(
     "program check_wannier90
        use w90_library, only: lib_common_type, w90_set_comm
