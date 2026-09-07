@@ -122,9 +122,27 @@ projections, and log. Writing these files does not reset the optimized library m
 
 `INITIAL_PROJECTIONS IDENTITY` is available for diagnostics but retains the arbitrary MO gauge. It
 can converge to different local minima for symmetry-reconstructed and newly diagonalized MOs. The
-initial library path requires a spin-unpolarized calculation with as many Wannier functions as
-exported bands, without `EXCLUDE_BANDS`. Even with AO trials, convergence to a stationary
-localization result does not guarantee the global minimum of the spread functional.
+library path requires a spin-unpolarized calculation without `EXCLUDE_BANDS`. Even with AO trials,
+convergence to a stationary localization result does not guarantee the global minimum of the spread
+functional.
+
+### Disentanglement
+
+When the number of exported bands is larger than `WANNIER_FUNCTIONS`, the library first minimizes
+the gauge-invariant spread to select a connected subspace, then localizes that subspace. Use
+`ADDED_MOS` to include extra bands in the export. The AO projection matrix may be rectangular; the
+same initial candidates and raw band-space overlaps are used for the external reference.
+
+`DIS_NUM_ITER`, `DIS_CONV_WINDOW`, `DIS_CONV_TOL`, and `DIS_MIX_RATIO` control this first stage.
+Both disentanglement and localization must converge for an AUTO candidate to be admissible.
+`DIS_WIN_MIN` and `DIS_WIN_MAX` optionally restrict the outer energy window. `DIS_FROZ_MAX` enables
+a frozen inner window; `DIS_FROZ_MIN` is optional. Energies are in eV unless an explicit CP2K unit
+is provided, and refer to the exported eigenvalues, not to a shifted Fermi-energy zero. These
+windows must leave at least `WANNIER_FUNCTIONS` bands at every k-point and cannot freeze more than
+that many states. With equal band and Wannier counts, energy windows are rejected. AO candidates are
+projected into the allowed outer window before their selection. If the frozen states already fill
+the entire target subspace, only those states enter the projection selection; irrelevant unoccupied
+bands cannot steer the choice of initial orbitals in this case.
 
 ## Generated files
 
