@@ -1612,7 +1612,8 @@ CONTAINS
       ! on the OT channel distribution; the service transfers into it
       ! directly, whatever that distribution is. The context spans every
       ! response mode: nothing inside the loop changes the host k-point
-      ! environment.
+      ! environment, and every mode rebuilds potential_rs from the same
+      ! rho_ao_kp template, so the work trio distribution stays valid.
       IF (nkp_groups > 1) THEN
          CALL kpoint_operator_context_create(hxc_op_ctx, kpoints, fmwork(1), nspin_ot)
       END IF

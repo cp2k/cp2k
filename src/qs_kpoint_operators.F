@@ -74,9 +74,9 @@ MODULE qs_kpoint_operators
                                  kpoint_slot_s = 2, &
                                  kpoint_slot_t = 3
 
-   !> Row of rsmat that carries the spin-free operator image. S and T arrive
-   !> with a single spin row. Callers launch their one instance under this
-   !> spin key and read this row.
+   !> Row of rsmat that carries the spin-free operator image. S and T carry
+   !> no spin copies: drivers launch one instance per spin of their loop and
+   !> read this same row in every instance.
    INTEGER, PARAMETER, PUBLIC :: kpoint_spin_free = 1
 
    !> Number of defined slots; grows only inside this module.
@@ -102,8 +102,8 @@ MODULE qs_kpoint_operators
       ! Instance spin space of the owning driver call: the bound of the spin
       ! loop that start and finish key. Declared once at creation. It never
       ! comes from the operators: the first matrix dimension of a spin-free
-      ! operator such as S counts real-space blocks, not spins, so callers
-      ! address operator rows through matrix_row instead.
+      ! operator such as S counts derivatives, and the images live in the
+      ! second, so callers address operator rows through matrix_row instead.
       INTEGER                                            :: nspin = 0
       ! Host references, read fresh at every use: sab_nl and cell_to_index
       ! are reallocated at every energy evaluation.
@@ -438,8 +438,7 @@ CONTAINS
 !> \param ctx context that receives the buffers
 !> \param rsmat real-space image matrices of one operator. The call uses the
 !>        first matrix as the DBCSR template of the work trio. It reads no
-!>        matrix data. The bookkeeping spin space comes from the value that
-!>        context creation stored, never from the row count of rsmat
+!>        matrix data.
 ! **************************************************************************************************
    SUBROUTINE kpoint_operator_ensure(ctx, rsmat)
 
@@ -509,9 +508,9 @@ CONTAINS
 !> \param use_grid extract from grid instead of a direct phase sum
 !> \param matrix_row row of rsmat to transform. Spin-free operators such
 !>        as S and T must pass kpoint_spin_free: their first matrix
-!>        dimension counts real-space blocks, not spins, so passing the
-!>        instance spin of a spin loop reads a different block and no size
-!>        check can catch it
+!>        dimension counts derivatives, not spins. A spin index is out of
+!>        bounds in plain SCF, but with derivatives stored it reads another
+!>        valid row silently
 ! **************************************************************************************************
    SUBROUTINE kpoint_operator_start(ctx, ikp, ispin, rsmat, slot, grid, use_grid, matrix_row)
 
@@ -672,9 +671,9 @@ CONTAINS
 !> \param mat_im imaginary-part block-cyclic dbcsr output
 !> \param matrix_row row of rsmat to transform. Spin-free operators such
 !>        as S and T must pass kpoint_spin_free: their first matrix
-!>        dimension counts real-space blocks, not spins, so passing the
-!>        instance spin of a spin loop reads a different block and no size
-!>        check can catch it
+!>        dimension counts derivatives, not spins. A spin index is out of
+!>        bounds in plain SCF, but with derivatives stored it reads another
+!>        valid row silently
 ! **************************************************************************************************
    SUBROUTINE kpoint_operator_get(ctx, ikp, ispin, rsmat, cmat, fm_re, fm_im, &
                                   mat_re, mat_im, matrix_row)
