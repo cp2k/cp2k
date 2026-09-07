@@ -1,0 +1,4 @@
+@SET seed he_free
+@SET projections AO_SCDM
+@SET windows free.inc
+@INCLUDE he_common.inc

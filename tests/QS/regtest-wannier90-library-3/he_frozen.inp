@@ -1,0 +1,4 @@
+@SET seed he_frozen
+@SET projections AO_SCDM
+@SET windows frozen.inc
+@INCLUDE he_common.inc
