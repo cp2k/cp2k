@@ -11,7 +11,7 @@ class Wannier90(CMakePackage):
     homepage = "https://wannier.org"
     url = "https://github.com/wannier-developers/wannier90/archive/refs/tags/v4.0.2.tar.gz"
 
-    license("GPL-2.0-or-later")
+    license("LGPL-2.1-or-later")
 
     version("4.0.2", sha256="2d48b371eefa8b58a6c8088c1bdffc13fe3e761111e15c8566e2ee055d8bcdb0")
 
@@ -40,3 +40,9 @@ class Wannier90(CMakePackage):
         if "+mpi" in self.spec:
             args.append(self.define("MPI_Fortran_COMPILER", self.spec["mpi"].mpifc))
         return args
+
+    @run_after("install")
+    def install_license(self):
+        license_dir = join_path(self.prefix.share, "licenses", "wannier90")
+        mkdirp(license_dir)
+        install(join_path(self.stage.source_path, "LICENSE"), license_dir)
