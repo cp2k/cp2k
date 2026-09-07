@@ -28,6 +28,8 @@
         WANNIER_FUNCTIONS 1
         &LIBRARY ON
           INITIAL_PROJECTIONS ${projections}
+          WRITE_HR T
+          WRITE_U_MATRICES T
           CONV_TOL 1.e-10
           CONV_WINDOW 5
           NUM_ITER 100

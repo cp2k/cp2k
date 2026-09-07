@@ -144,6 +144,26 @@ projected into the allowed outer window before their selection. If the frozen st
 the entire target subspace, only those states enter the projection selection; irrelevant unoccupied
 bands cannot steer the choice of initial orbitals in this case.
 
+### Optimized outputs
+
+`WRITE_HR T` writes the converged real-space Hamiltonian (`SEED_NAME_hr.dat`, in eV) and the native
+Wigner-Seitz displacement file (`SEED_NAME_wsvec.dat`) through Wannier90's public postprocessing
+API. `WRITE_U_MATRICES T` writes `SEED_NAME_u.mat`; with disentanglement it also writes
+`SEED_NAME_u_dis.mat` and their product `SEED_NAME_v.mat`. These options are independent of
+`WRITE_INPUTS` and default to false. In AUTO mode, only the selected converged state produces these
+canonical outputs; later losing trials cannot overwrite them.
+
+The matrix formats and conventions match external Wannier90. In particular, Wannier90 v4 stores the
+rows of `u_dis` and `v` in **packed outer-window order**, with zero padding beyond the window. Do
+not multiply these rows directly by the original SCF coefficients when the outer window excludes
+lower bands. CP2K additionally writes `SEED_NAME_band_map.dat`: after a comment and the number of
+k-points and exported bands, each row lists the one-based k-point index, exported band index, matrix
+row (zero for an excluded band), and eigenvalue in eV. With no disentanglement, this is the identity
+band mapping for `u`. No `.chk` restart file is produced by these options.
+
+Real-space interpolation requires a suitable, converged k-point mesh. Wannier90 warns when the mesh
+lacks Gamma; generating an `_hr.dat` file alone does not validate off-mesh interpolation.
+
 ## Generated files
 
 With `SEED_NAME silicon`, CP2K writes the following Wannier90 files:
