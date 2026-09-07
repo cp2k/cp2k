@@ -12,47 +12,45 @@
 ! **************************************************************************************************
 MODULE cg_optimizer
 
-   USE cell_types, ONLY: cell_type
-   USE cg_utils, ONLY: cg_linmin, &
-                       get_conjugate_direction
-   USE cp_external_control, ONLY: external_control
-   USE cp_log_handling, ONLY: cp_get_default_logger, &
-                              cp_logger_type
-   USE cp_output_handling, ONLY: cp_iterate, &
-                                 cp_print_key_finished_output, &
-                                 cp_print_key_unit_nr
-   USE cp_subsys_types, ONLY: cp_subsys_type
-   USE force_env_types, ONLY: force_env_get, &
-                              force_env_type
-   USE global_types, ONLY: global_environment_type
-   USE gopt_f_methods, ONLY: gopt_f_ii, &
-                             gopt_f_io, &
-                             gopt_f_io_finalize, &
-                             gopt_f_io_init, &
-                             print_geo_opt_header, &
-                             print_geo_opt_nc
-   USE gopt_f_types, ONLY: gopt_f_type
-   USE gopt_param_types, ONLY: gopt_param_type
-   USE input_constants, ONLY: default_cell_method_id, &
-                              default_minimization_method_id, &
-                              default_ts_method_id
-   USE input_section_types, ONLY: section_vals_type, &
-                                  section_vals_val_get, &
-                                  section_vals_val_set
-   USE kinds, ONLY: dp
-   USE machine, ONLY: m_walltime
-   USE message_passing, ONLY: mp_para_env_type
-   USE space_groups, ONLY: identify_space_group, &
-                           print_spgr, &
-                           spgr_apply_rotations_coord, &
-                           spgr_apply_rotations_force
-   USE space_groups_types, ONLY: spgr_type
+   USE cell_types,                      ONLY: cell_type
+   USE cg_utils,                        ONLY: cg_linmin,&
+                                              get_conjugate_direction
+   USE cp_external_control,             ONLY: external_control
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_iterate,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
+   USE cp_subsys_types,                 ONLY: cp_subsys_type
+   USE force_env_types,                 ONLY: force_env_get,&
+                                              force_env_type
+   USE global_types,                    ONLY: global_environment_type
+   USE gopt_f_methods,                  ONLY: cp_eval_at,&
+                                              gopt_f_ii,&
+                                              gopt_f_io,&
+                                              gopt_f_io_finalize,&
+                                              gopt_f_io_init,&
+                                              print_geo_opt_header,&
+                                              print_geo_opt_nc
+   USE gopt_f_types,                    ONLY: gopt_f_type
+   USE gopt_param_types,                ONLY: gopt_param_type
+   USE input_constants,                 ONLY: default_cell_method_id,&
+                                              default_minimization_method_id,&
+                                              default_ts_method_id
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_get,&
+                                              section_vals_val_set
+   USE kinds,                           ONLY: dp
+   USE machine,                         ONLY: m_walltime
+   USE space_groups,                    ONLY: identify_space_group,&
+                                              print_spgr,&
+                                              spgr_apply_rotations_coord,&
+                                              spgr_apply_rotations_force
+   USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-
-   #:include "gopt_f77_methods.fypp"
 
    PUBLIC :: geoopt_cg
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
@@ -212,7 +210,7 @@ CONTAINS
       gopt_env%require_consistent_energy_force = .FALSE.
 
       CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
-                      .FALSE., gopt_env%force_env%para_env)
+                      gopt_env%force_env%para_env)
 
       gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
@@ -276,7 +274,7 @@ CONTAINS
          gopt_env%require_consistent_energy_force = .FALSE.
 
          CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
-                         .FALSE., gopt_env%force_env%para_env)
+                         gopt_env%force_env%para_env)
 
          gopt_env%require_consistent_energy_force = save_consistent_energy_force
 

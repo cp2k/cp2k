@@ -1164,7 +1164,6 @@ list(
   motion/free_energy_methods.F
   motion/geo_opt.F
   motion/glbopt_callback.F
-  motion/gopt_f77_methods.F
   motion/gopt_f_methods.F
   motion/gopt_f_types.F
   motion/gopt_param_types.F

@@ -20,34 +20,33 @@
 !>      @version 2.2002
 ! **************************************************************************************************
 MODULE cp_lbfgs_optimizer_gopt
-   USE cp_lbfgs, ONLY: setulb
-   USE cp_log_handling, ONLY: cp_get_default_logger, &
-                              cp_logger_type, &
-                              cp_to_string
-   USE cp_output_handling, ONLY: cp_print_key_finished_output, &
-                                 cp_print_key_unit_nr
-   USE message_passing, ONLY: mp_para_env_release
-   USE message_passing, ONLY: mp_para_env_type
-   USE cp_subsys_types, ONLY: cp_subsys_type
-   USE force_env_types, ONLY: force_env_get, &
-                              force_env_type
-   USE gopt_f_methods, ONLY: gopt_f_io
-   USE gopt_f_types, ONLY: gopt_f_release, &
-                           gopt_f_retain, &
-                           gopt_f_type
-   USE gopt_param_types, ONLY: gopt_param_type
-   USE input_section_types, ONLY: section_vals_type
-   USE kinds, ONLY: dp
-   USE machine, ONLY: m_walltime
-   USE space_groups, ONLY: spgr_apply_rotations_coord, &
-                           spgr_apply_rotations_force
-   USE space_groups_types, ONLY: spgr_type
+   USE cp_lbfgs,                        ONLY: setulb
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type,&
+                                              cp_to_string
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
+   USE cp_subsys_types,                 ONLY: cp_subsys_type
+   USE force_env_types,                 ONLY: force_env_get,&
+                                              force_env_type
+   USE gopt_f_methods,                  ONLY: cp_eval_at,&
+                                              gopt_f_io
+   USE gopt_f_types,                    ONLY: gopt_f_release,&
+                                              gopt_f_retain,&
+                                              gopt_f_type
+   USE gopt_param_types,                ONLY: gopt_param_type
+   USE input_section_types,             ONLY: section_vals_type
+   USE kinds,                           ONLY: dp
+   USE machine,                         ONLY: m_walltime
+   USE message_passing,                 ONLY: mp_para_env_release,&
+                                              mp_para_env_type
+   USE space_groups,                    ONLY: spgr_apply_rotations_coord,&
+                                              spgr_apply_rotations_force
+   USE space_groups_types,              ONLY: spgr_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-
-   #:include "gopt_f77_methods.fypp"
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs_optimizer_gopt'
@@ -598,7 +597,6 @@ CONTAINS
             CALL cp_eval_at(optimizer%obj_funct, x=optimizer%x, &
                             f=optimizer%f, &
                             gradient=optimizer%gradient, &
-                            final_evaluation=.FALSE., &
                             master=optimizer%master, para_env=optimizer%para_env)
             ! do not use keywords?
             dataunit = cp_print_key_unit_nr(logger, geo_section, &
@@ -796,7 +794,7 @@ CONTAINS
 !>      @version 2.2002
 ! **************************************************************************************************
    SUBROUTINE cp_opt_gopt_stop(optimizer)
-      TYPE(cp_lbfgs_opt_gopt_type), INTENT(INOUT)       :: optimizer
+      TYPE(cp_lbfgs_opt_gopt_type), INTENT(INOUT)        :: optimizer
 
       optimizer%task = 'STOPPED on user request'
       optimizer%status = 4 ! normal exit

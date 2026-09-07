@@ -13,76 +13,80 @@
 ! **************************************************************************************************
 MODULE gopt_f_methods
 
-   USE atomic_kind_list_types, ONLY: atomic_kind_list_type
-   USE atomic_kind_types, ONLY: atomic_kind_type, &
-                                get_atomic_kind_set
-   USE cell_methods, ONLY: cell_create, &
-                           init_cell
-   USE cell_types, ONLY: cell_copy, &
-                         cell_release, &
-                         cell_type, &
-                         real_to_scaled, &
-                         scaled_to_real
-   USE cp_log_handling, ONLY: cp_to_string
-   USE cp_subsys_types, ONLY: cp_subsys_get, &
-                              cp_subsys_set, &
-                              cp_subsys_type, &
-                              pack_subsys_particles
-   USE cp_units, ONLY: cp_unit_from_cp2k
-   USE dimer_types, ONLY: dimer_env_type
-   USE dimer_utils, ONLY: update_dimer_vec
-   USE distribution_1d_types, ONLY: distribution_1d_type
-   USE force_env_types, ONLY: force_env_get, &
-                              force_env_get_natom, &
-                              force_env_get_nparticle, &
-                              force_env_type, &
-                              use_qmmm, &
-                              use_qmmmx
-   USE gopt_f_types, ONLY: gopt_f_type
-   USE gopt_param_types, ONLY: gopt_param_type
-   USE input_constants, ONLY: default_cell_method_id, &
-                              default_minimization_method_id, &
-                              default_shellcore_method_id, &
-                              default_ts_method_id, &
-                              fix_none, &
-                              fix_x, &
-                              fix_xy, &
-                              fix_xz, &
-                              fix_y, &
-                              fix_yz, &
-                              fix_z
-   USE input_cp2k_restarts, ONLY: write_restart
-   USE input_section_types, ONLY: section_vals_type, &
-                                  section_vals_val_get
-   USE kinds, ONLY: default_string_length, &
-                    dp, &
-                    int_8
-   USE machine, ONLY: m_flush
-   USE md_energies, ONLY: sample_memory
-   USE message_passing, ONLY: mp_para_env_type
-   USE motion_utils, ONLY: write_simulation_cell, &
-                           write_stress_tensor_to_file, &
-                           write_trajectory
-   USE particle_list_types, ONLY: particle_list_type
-   USE particle_methods, ONLY: write_final_structure, &
-                               write_structure_data
-   USE particle_types, ONLY: particle_type
-   USE qmmm_util, ONLY: apply_qmmm_translate
-   USE qmmmx_util, ONLY: apply_qmmmx_translate
-   USE space_groups, ONLY: spgr_project_cell_metric
-   USE virial_methods, ONLY: virial_evaluate
-   USE virial_types, ONLY: virial_type
+   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind_set
+   USE bibliography,                    ONLY: Henkelman1999,&
+                                              cite_reference
+   USE cell_methods,                    ONLY: cell_create,&
+                                              init_cell,&
+                                              write_cell
+   USE cell_opt_utils,                  ONLY: get_dg_dh,&
+                                              rescale_new_cell_volume
+   USE cell_types,                      ONLY: cell_copy,&
+                                              cell_release,&
+                                              cell_type,&
+                                              real_to_scaled,&
+                                              scaled_to_real
+   USE cp_log_handling,                 ONLY: cp_to_string
+   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                              cp_subsys_set,&
+                                              cp_subsys_type,&
+                                              pack_subsys_particles,&
+                                              unpack_subsys_particles
+   USE cp_units,                        ONLY: cp_unit_from_cp2k
+   USE dimer_methods,                   ONLY: cp_eval_at_ts
+   USE dimer_types,                     ONLY: dimer_env_type
+   USE dimer_utils,                     ONLY: update_dimer_vec
+   USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE force_env_methods,               ONLY: force_env_calc_energy_force
+   USE force_env_types,                 ONLY: force_env_get,&
+                                              force_env_get_natom,&
+                                              force_env_get_nparticle,&
+                                              force_env_type,&
+                                              use_qmmm,&
+                                              use_qmmmx
+   USE gopt_f_types,                    ONLY: gopt_f_type
+   USE gopt_param_types,                ONLY: gopt_param_type
+   USE input_constants,                 ONLY: &
+        default_cell_method_id, default_minimization_method_id, default_shellcore_method_id, &
+        default_ts_method_id, fix_none, fix_x, fix_xy, fix_xz, fix_y, fix_yz, fix_z
+   USE input_cp2k_restarts,             ONLY: write_restart
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_get
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp,&
+                                              int_8
+   USE machine,                         ONLY: m_flush
+   USE md_energies,                     ONLY: sample_memory
+   USE message_passing,                 ONLY: mp_para_env_type
+   USE motion_utils,                    ONLY: write_simulation_cell,&
+                                              write_stress_tensor_to_file,&
+                                              write_trajectory
+   USE particle_list_types,             ONLY: particle_list_type
+   USE particle_methods,                ONLY: write_final_structure,&
+                                              write_structure_data
+   USE particle_types,                  ONLY: particle_type
+   USE qmmm_util,                       ONLY: apply_qmmm_translate
+   USE qmmmx_util,                      ONLY: apply_qmmmx_translate
+   USE space_groups,                    ONLY: spgr_apply_rotations_force,&
+                                              spgr_apply_rotations_stress,&
+                                              spgr_project_cell_metric,&
+                                              spgr_write_stress_tensor
+   USE space_groups_types,              ONLY: spgr_type
+   USE virial_methods,                  ONLY: virial_evaluate,&
+                                              virial_update
+   USE virial_types,                    ONLY: virial_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
 
-   #:include "gopt_f77_methods.fypp"
-
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = "gopt_f_methods"
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
 
-   PUBLIC :: gopt_f_create_x0, &
+   PUBLIC :: cp_eval_at, &
+             gopt_f_create_x0, &
              print_geo_opt_header, print_geo_opt_nc, &
              gopt_f_io_init, gopt_f_io, gopt_f_io_finalize, gopt_f_ii, &
              apply_cell_change
@@ -150,6 +154,219 @@ CONTAINS
    END SUBROUTINE gopt_f_create_x0
 
 ! **************************************************************************************************
+!> \brief evaluete the potential energy and its gradients using an array
+!>      with same dimension as the particle_set
+!> \param gopt_env the geometry optimization environment
+!> \param x the position where the function should be evaluated
+!> \param f the function value
+!> \param gradient the value of its gradient
+!> \param master ...
+!> \param para_env ...
+!> \par History
+!>       CELL OPTIMIZATION:  Teodoro Laino [tlaino] - University of Zurich - 03.2008
+!>       07.2020 Pierre Cazade [pcazade] Space Group Symmetry
+!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
+! **************************************************************************************************
+   SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env)
+
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: x
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: f
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: gradient
+      INTEGER, INTENT(IN)                                :: master
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_eval_at'
+
+      INTEGER                                            :: handle, idg, idir, ip, nparticle, nsize, &
+                                                            shell_index
+      REAL(KIND=dp)                                      :: f_ts
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: av_ptens, av_ptens_opt
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: cell_gradient, gradient_ts
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
+                                                            shell_particles
+      TYPE(spgr_type), POINTER                           :: spgr
+      TYPE(virial_type), POINTER                         :: virial
+
+      NULLIFY (cell)
+      NULLIFY (core_particles)
+      NULLIFY (gradient_ts)
+      NULLIFY (particles)
+      NULLIFY (shell_particles)
+      NULLIFY (subsys)
+      NULLIFY (virial)
+      NULLIFY (spgr)
+
+      CALL timeset(routineN, handle)
+
+      CALL force_env_get(gopt_env%force_env, subsys=subsys, cell=cell)
+      CALL cp_subsys_get(subsys, &
+                         core_particles=core_particles, &
+                         particles=particles, &
+                         shell_particles=shell_particles, &
+                         virial=virial)
+
+      spgr => gopt_env%spgr
+
+      SELECT CASE (gopt_env%type_id)
+      CASE (default_minimization_method_id, default_ts_method_id)
+         CALL unpack_subsys_particles(subsys=subsys, r=x)
+         CALL write_structure_data(particles%els, cell, gopt_env%motion_section)
+         SELECT CASE (gopt_env%type_id)
+         CASE (default_minimization_method_id)
+            ! Geometry Minimization
+            CALL force_env_calc_energy_force(gopt_env%force_env, &
+                                             calc_force=PRESENT(gradient), &
+                                             require_consistent_energy_force=gopt_env%require_consistent_energy_force)
+            ! Possibly take the potential energy
+            IF (PRESENT(f)) THEN
+               CALL force_env_get(gopt_env%force_env, potential_energy=f)
+            END IF
+            ! Possibly take the gradients
+            IF (PRESENT(gradient)) THEN
+               IF (master == para_env%mepos) THEN ! we are on the master
+                  CALL pack_subsys_particles(subsys=subsys, f=gradient, fscale=-1.0_dp)
+                  IF (spgr%keep_space_group) THEN
+                     CALL spgr_apply_rotations_force(spgr, gradient)
+                     CALL unpack_subsys_particles(subsys=subsys, f=gradient, fscale=-1.0_dp)
+                  END IF
+               END IF
+            END IF
+         CASE (default_ts_method_id)
+            ! Transition State Optimization
+            ALLOCATE (gradient_ts(particles%n_els*3))
+            ! Real calculation of energy and forces for transition state optimization:
+            ! When doing dimer methods forces have to be always computed since the function
+            ! to minimize is not the energy but the effective force
+            CALL cp_eval_at_ts(gopt_env, x, f_ts, gradient_ts, calc_force=.TRUE.)
+            CALL cite_reference(Henkelman1999)
+            ! Possibly take the potential energy
+            IF (PRESENT(f)) f = f_ts
+            ! Possibly take the gradients
+            IF (PRESENT(gradient)) THEN
+               IF (master == para_env%mepos) THEN ! we are on the master
+                  CPASSERT(ASSOCIATED(gradient))
+                  gradient = gradient_ts
+               END IF
+            END IF
+            DEALLOCATE (gradient_ts)
+         END SELECT
+         ! This call is necessary for QM/MM if a Translation is applied
+         ! this makes the geometry optimizer consistent
+         CALL unpack_subsys_particles(subsys=subsys, r=x)
+      CASE (default_cell_method_id)
+         ! Check for VIRIAL
+         IF (.NOT. virial%pv_availability) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "For the CELL_OPT task, the FORCE_EVAL/STRESS_TENSOR "// &
+                          "keyword MUST be defined in the input file for the "// &
+                          "evaluation of the stress tensor, but none is found!")
+         END IF
+         IF (gopt_env%cell_env%keep_volume) THEN
+            nparticle = force_env_get_nparticle(gopt_env%force_env)
+            idg = 3*nparticle
+            CALL rescale_new_cell_volume(cell%deth, x, idg)
+         END IF
+
+         CALL apply_cell_change(gopt_env, cell, x, update_forces=.FALSE.)
+         ! Possibly output the new cell used for the next calculation
+         CALL write_cell(cell, gopt_env%geo_section)
+         ! Compute the pressure tensor
+         BLOCK
+            TYPE(virial_type) :: virial_avg
+            CALL force_env_calc_energy_force(gopt_env%force_env, &
+                                             calc_force=PRESENT(gradient), &
+                                             require_consistent_energy_force=gopt_env%require_consistent_energy_force)
+            ! Possibly take the potential energy
+            virial_avg = virial
+            CALL virial_update(virial_avg, subsys, para_env)
+            IF (PRESENT(f)) THEN
+               CALL force_env_get(gopt_env%force_env, potential_energy=f)
+            END IF
+            ! Possibly take the gradients
+            IF (PRESENT(gradient)) THEN
+               CPASSERT(ANY(virial_avg%pv_total /= 0))
+               ! Convert the average ptens
+               av_ptens(:, :) = virial_avg%pv_total(:, :)/cell%deth
+               IF (master == para_env%mepos) THEN ! we are on the master
+                  CPASSERT(ASSOCIATED(gradient))
+                  nparticle = force_env_get_nparticle(gopt_env%force_env)
+                  nsize = 3*nparticle
+                  CPASSERT((SIZE(gradient) == nsize + 6))
+                  CALL pack_subsys_particles(subsys=subsys, f=gradient(1:nsize), fscale=-1.0_dp)
+                  CALL apply_cell_change(gopt_env, cell, gradient, update_forces=.TRUE.)
+                  IF (spgr%keep_space_group) THEN
+                     CALL spgr_apply_rotations_force(spgr, gradient)
+                     CALL spgr_apply_rotations_stress(spgr, cell, av_ptens)
+                     CALL spgr_write_stress_tensor(av_ptens, spgr)
+                  END IF
+                  cell_gradient => gradient(nsize + 1:nsize + 6)
+                  cell_gradient = 0.0_dp
+                  av_ptens_opt = MATMUL(gopt_env%cell_env%input_to_opt, &
+                                        MATMUL(av_ptens, gopt_env%cell_env%opt_to_input))
+                  CALL get_dg_dh(cell_gradient, av_ptens_opt, gopt_env%cell_env%pres_ext, &
+                                 gopt_env%cell_env%opt_cell, gopt_env%cell_env%mtrx, &
+                                 keep_angles=gopt_env%cell_env%keep_angles, &
+                                 keep_symmetry=gopt_env%cell_env%keep_symmetry, &
+                                 pres_int=gopt_env%cell_env%pres_int, &
+                                 pres_constr=gopt_env%cell_env%pres_constr, &
+                                 constraint_id=gopt_env%cell_env%constraint_id)
+               END IF
+               ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank.
+               ! Assume at least master==0
+               CALL para_env%bcast(gopt_env%cell_env%pres_int, 0)
+               IF (gopt_env%cell_env%constraint_id /= fix_none) THEN
+                  CALL para_env%bcast(gopt_env%cell_env%pres_constr, 0)
+               END IF
+            END IF
+         END BLOCK
+      CASE (default_shellcore_method_id)
+         idg = 0
+         DO ip = 1, particles%n_els
+            shell_index = particles%els(ip)%shell_index
+            IF (shell_index /= 0) THEN
+               DO idir = 1, 3
+                  idg = 3*(shell_index - 1) + idir
+                  shell_particles%els(shell_index)%r(idir) = core_particles%els(ip)%r(idir) - x(idg)
+               END DO
+            END IF
+         END DO
+         CALL write_structure_data(particles%els, cell, gopt_env%motion_section)
+
+         ! Shell-core optimization
+         CALL force_env_calc_energy_force(gopt_env%force_env, &
+                                          calc_force=PRESENT(gradient), &
+                                          require_consistent_energy_force=gopt_env%require_consistent_energy_force)
+
+         ! Possibly take the potential energy
+         IF (PRESENT(f)) THEN
+            CALL force_env_get(gopt_env%force_env, potential_energy=f)
+         END IF
+
+         ! Possibly take the gradients
+         IF (PRESENT(gradient)) THEN
+            IF (master == para_env%mepos) THEN ! we are on the master
+               CPASSERT(ASSOCIATED(gradient))
+               idg = 0
+               DO ip = 1, shell_particles%n_els
+                  DO idir = 1, 3
+                     idg = idg + 1
+                     gradient(idg) = -(core_particles%els(ip)%f(idir) - shell_particles%els(ip)%f(idir))
+                  END DO
+               END DO
+            END IF
+         END IF
+      CASE DEFAULT
+         CPABORT("Invalid or not yet implemented type of optimization")
+      END SELECT
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_eval_at
+
+! **************************************************************************************************
 !> \brief Prints iteration step of the optimization procedure on screen
 !> \param its ...
 !> \param output_unit ...
@@ -187,11 +404,11 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: its
       REAL(KIND=dp)                                      :: used_time
 
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       CHARACTER(LEN=default_string_length)               :: energy_unit, stress_unit
-      REAL(KIND=dp)                                      :: pres_int
       INTEGER(KIND=int_8)                                :: max_memory
       LOGICAL                                            :: print_memory
+      REAL(KIND=dp)                                      :: pres_int
+      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (para_env)
       CALL section_vals_val_get(gopt_env%motion_section, "PRINT%MEMORY_INFO", l_val=print_memory)
@@ -469,6 +686,9 @@ CONTAINS
 !> \param pres_int ...
 !> \param wildcard ...
 !> \param used_time ...
+!> \param max_memory ...
+!> \param energy_unit ...
+!> \param stress_unit ...
 ! **************************************************************************************************
    SUBROUTINE write_cycle_infos(output_unit, it, etot, ediff, pred, rat, step, rad, emin, &
                                 pres_int, wildcard, used_time, max_memory, energy_unit, stress_unit)
@@ -554,6 +774,7 @@ CONTAINS
 !> \param dimer_env ...
 !> \param used_time ...
 !> \param wildcard ...
+!> \param max_memory ...
 !> \date  01.2008
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino]
 ! **************************************************************************************************
@@ -616,6 +837,7 @@ CONTAINS
 !> \param conv ...
 !> \param gopt_param ...
 !> \param max_memory ...
+!> \param stress_unit ...
 !> \param pres_diff ...
 !> \param pres_tol ...
 !> \param pres_diff_constr ...
@@ -852,8 +1074,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: motion_section, root_section
 
       CHARACTER(LEN=4)                                   :: constraint_label
-      LOGICAL                                            :: keep_angles, keep_symmetry, &
-                                                            keep_volume
+      LOGICAL                                            :: keep_angles, keep_symmetry, keep_volume
       REAL(KIND=dp)                                      :: etot
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -905,7 +1126,7 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(/,T20,' Reevaluating energy at the minimum')")
          END IF
 
-         CALL cp_eval_at(gopt_env, x0, f=etot, master=master, final_evaluation=.TRUE., &
+         CALL cp_eval_at(gopt_env, x0, f=etot, master=master, &
                          para_env=para_env)
          CALL write_geo_traj(force_env, root_section, it, etot)
       END IF
