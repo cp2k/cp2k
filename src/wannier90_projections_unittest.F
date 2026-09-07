@@ -16,11 +16,14 @@ PROGRAM wannier90_projections_unittest
                                               mp_para_env_type,&
                                               mp_world_finalize,&
                                               mp_world_init
-   USE wannier90_projections,           ONLY: wannier90_select_projections
+   USE wannier90_projections,           ONLY: wannier90_hybrid_candidates,&
+                                              wannier90_select_projections
 
    IMPLICIT NONE
 
    COMPLEX(KIND=dp), ALLOCATABLE :: candidates(:, :, :)
+   COMPLEX(KIND=dp), ALLOCATABLE :: hybrids(:, :, :), rotated_hybrids(:, :, :)
+   COMPLEX(KIND=dp) :: quartet(2, 4)
    COMPLEX(KIND=dp) :: amn(2, 2, 2), reference(2, 2, 2), rotation(2, 2, 2)
    COMPLEX(KIND=dp) :: repaired(2, 2, 3)
    INTEGER :: anchor, ik, nfail, pivots(2), reference_pivots(2)
@@ -71,6 +74,56 @@ PROGRAM wannier90_projections_unittest
    IF (min_svalue /= 0.0_dp) nfail = nfail + 1
    DEALLOCATE (candidates)
    IF (para_env%is_source()) THEN
+      ALLOCATE (candidates(2, 5, 2))
+      DO ik = 1, 2
+         DO anchor = 1, 5
+            candidates(1, anchor, ik) = CMPLX(0.1_dp*anchor, 0.2_dp*ik, KIND=dp)
+            candidates(2, anchor, ik) = CMPLX(-0.3_dp*anchor, 0.05_dp*ik*anchor, KIND=dp)
+         END DO
+      END DO
+   ELSE
+      ALLOCATE (candidates(0, 0, 0))
+   END IF
+   CALL wannier90_hybrid_candidates(candidates, RESHAPE([1, 2, 3, 4], [4, 1]), hybrids)
+   IF (para_env%is_source()) THEN
+      IF (.NOT. ALL(SHAPE(hybrids) == [2, 5, 2])) nfail = nfail + 1
+      IF (MAXVAL(ABS(hybrids(:, 1, :) - candidates(:, 5, :))) > 1.0e-14_dp) nfail = nfail + 1
+      DO ik = 1, 2
+         ! A full tetrahedral quartet is a unitary change of the four AO trials.
+         quartet = hybrids(:, 2:5, ik)
+         IF (MAXVAL(ABS(MATMUL(quartet, CONJG(TRANSPOSE(quartet))) - &
+                        MATMUL(candidates(:, 1:4, ik), CONJG(TRANSPOSE(candidates(:, 1:4, ik)))))) &
+             > 1.0e-14_dp) nfail = nfail + 1
+         candidates(:, :, ik) = MATMUL(rotation(:, :, ik), candidates(:, :, ik))
+      END DO
+   END IF
+   CALL wannier90_hybrid_candidates(candidates, RESHAPE([1, 2, 3, 4], [4, 1]), rotated_hybrids)
+   IF (para_env%is_source()) THEN
+      DO ik = 1, 2
+         IF (MAXVAL(ABS(rotated_hybrids(:, :, ik) - MATMUL(rotation(:, :, ik), hybrids(:, :, ik)))) &
+             > 1.0e-14_dp) nfail = nfail + 1
+      END DO
+   ELSE
+      IF (SIZE(hybrids) /= 0 .OR. SIZE(rotated_hybrids) /= 0) nfail = nfail + 1
+   END IF
+   DEALLOCATE (hybrids, rotated_hybrids)
+   CALL wannier90_hybrid_candidates(candidates, RESHAPE([1, 2, 3, 4, 5, 2, 3, 4], [4, 2]), hybrids)
+   IF (para_env%is_source()) THEN
+      IF (.NOT. ALL(SHAPE(hybrids) == [2, 8, 2])) nfail = nfail + 1
+      DO ik = 1, 2
+         IF (MAXVAL(ABS(SUM(hybrids(:, 1:4, ik), DIM=2)*0.5_dp - candidates(:, 1, ik))) &
+             > 1.0e-14_dp) nfail = nfail + 1
+         IF (MAXVAL(ABS(SUM(hybrids(:, 5:8, ik), DIM=2)*0.5_dp - candidates(:, 5, ik))) &
+             > 1.0e-14_dp) nfail = nfail + 1
+      END DO
+   END IF
+   DEALLOCATE (hybrids)
+   CALL wannier90_hybrid_candidates(candidates, RESHAPE([1, 2, 3, 4], [4, 0]), hybrids)
+   IF (para_env%is_source()) THEN
+      IF (MAXVAL(ABS(hybrids - candidates)) > 1.0e-14_dp) nfail = nfail + 1
+   END IF
+   DEALLOCATE (hybrids, candidates)
+   IF (para_env%is_source()) THEN
       ALLOCATE (candidates(2, 4, 3))
       candidates = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       ! Every QR anchor chooses at least one column that vanishes elsewhere.
@@ -91,6 +144,25 @@ PROGRAM wannier90_projections_unittest
    CALL wannier90_select_projections(candidates, para_env, repaired, pivots, min_svalue)
    IF (ABS(min_svalue - 1.0_dp) > 1.0e-14_dp) nfail = nfail + 1
    IF (.NOT. ALL(pivots == [3, 4])) nfail = nfail + 1
+   DEALLOCATE (candidates)
+   IF (para_env%is_source()) THEN
+      ALLOCATE (candidates(2, 3, 2))
+      candidates = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      candidates(1, 1, :) = 1.0_dp
+      candidates(1, 2, :) = 1.0_dp + 1.0e-14_dp
+      candidates(2, 3, :) = 1.0_dp
+   ELSE
+      ALLOCATE (candidates(0, 0, 0))
+   END IF
+   CALL wannier90_select_projections(candidates, para_env, amn, pivots, min_svalue)
+   IF (.NOT. ALL(pivots == [1, 3])) nfail = nfail + 1
+   IF (para_env%is_source()) THEN
+      DO ik = 1, 2
+         candidates(:, :, ik) = MATMUL(rotation(:, :, ik), candidates(:, :, ik))
+      END DO
+   END IF
+   CALL wannier90_select_projections(candidates, para_env, amn, pivots, min_svalue)
+   IF (.NOT. ALL(pivots == [1, 3])) nfail = nfail + 1
    DEALLOCATE (candidates)
    CALL comm%sum(nfail)
    IF (para_env%is_source()) WRITE (*, '(A,I0)') 'Wannier90 projection test failures: ', nfail

@@ -1,0 +1,8 @@
+@SET seed nacl_hybrid
+@SET cation Na
+@SET anion Cl
+@SET q_cation 9
+@SET half_a 2.82
+@SET num_wann 8
+@SET projections AO_HYBRID
+@INCLUDE ionic_common.inc

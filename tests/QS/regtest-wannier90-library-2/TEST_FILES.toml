@@ -1,0 +1,10 @@
+# Primitive ionic cells with semicore states and radial s/p trial banks.
+"lif_ao.inp" = [{matcher="E_total", tol=1e-10, ref=-31.808005348350662},
+                {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-7, ref=6.05436775782822},
+                {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]
+"lif_hybrid.inp" = [{matcher="E_total", tol=1e-10, ref=-31.808005348401554},
+                    {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-7, ref=6.05436775609392},
+                    {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]
+"nacl_hybrid.inp" = [{matcher="E_total", tol=1e-10, ref=-62.458479958873468},
+                     {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-7, ref=14.4286057810505},
+                     {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]

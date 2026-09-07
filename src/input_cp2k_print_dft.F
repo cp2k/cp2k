@@ -2987,10 +2987,12 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="INITIAL_PROJECTIONS", &
                           description="Initial trial orbitals for in-process Wannier90 localization. "// &
                           "AO_SCDM selects fixed AO candidates by pivoted QR on their projections "// &
-                          "over the full k-point mesh. IDENTITY retains the input MO gauge and can "// &
+                          "over the full k-point mesh. AO_HYBRID instead forms tetrahedral trials from "// &
+                          "every radial s/p shell pair on each atom before this selection; other "// &
+                          "AOs remain available. IDENTITY retains the input MO gauge and can "// &
                           "converge to different local minima for equivalent MO representations.", &
-                          type_of_var=enum_t, enum_c_vals=s2a("IDENTITY", "AO_SCDM"), &
-                          enum_i_vals=[0, 1], default_i_val=1)
+                          type_of_var=enum_t, enum_c_vals=s2a("IDENTITY", "AO_SCDM", "AO_HYBRID"), &
+                          enum_i_vals=[0, 1, 2], default_i_val=1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="WRITE_INPUTS", &

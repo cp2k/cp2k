@@ -81,7 +81,21 @@ an external Wannier90 run. By default these additional files are not written. Th
 complex overlap metric and selects one fixed set of AO trials over the complete mesh using pivoted
 QR. This is an AO-based, SCDM-inspired construction, not sampling of the density matrix on a
 real-space grid. The projections use the same Bloch gauge as the overlap matrices. Per-k-point rank
-checks reject a trial set that does not span the target space.
+checks detect trial sets that lose rank at individual k-points. CP2K then tries other QR anchors and
+column exchanges that reduce the total rank defect, without changing the band space. If no full-rank
+set is found, the calculation stops. Numerically tied QR columns are selected in their original
+candidate order, so roundoff in equivalent MO gauges does not arbitrarily select a different
+physical trial.
+
+`INITIAL_PROJECTIONS AO_HYBRID` forms tetrahedral s/p combinations from every radial s-shell and
+p-shell pair on each atom before selecting the projections. AOs not used in a hybrid group remain
+available, including d and higher angular momenta. These candidates are constructed from the full AO
+projection bank, not by rotating an already selected `.amn` matrix. They can provide different,
+better localized starting functions for degenerate valence and semicore spaces. This is an
+alternative start, not an automatic guarantee of the lowest minimum: compare converged spreads and
+centres with the AO-based start and converge the localization settings for the desired observable.
+Equal spreads alone do not establish equality of individual centres in a nearly flat localization
+minimum.
 
 `INITIAL_PROJECTIONS IDENTITY` is available for diagnostics but retains the arbitrary MO gauge. It
 can converge to different local minima for symmetry-reconstructed and newly diagonalized MOs. The

@@ -13,6 +13,8 @@
 ! **************************************************************************************************
 MODULE qs_wannier90
    USE atomic_kind_types,               ONLY: get_atomic_kind
+   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                              gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -78,6 +80,8 @@ MODULE qs_wannier90
                                               qs_env_release,&
                                               qs_environment_type
    USE qs_gamma2kp,                     ONLY: create_kp_from_gamma
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_moments,                      ONLY: build_berry_kpoint_matrix
@@ -100,7 +104,8 @@ MODULE qs_wannier90
                                               w90_library_run,&
                                               w90_library_type,&
                                               w90_library_write_options
-   USE wannier90_projections,           ONLY: wannier90_select_projections
+   USE wannier90_projections,           ONLY: wannier90_hybrid_candidates,&
+                                              wannier90_select_projections
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -185,13 +190,14 @@ CONTAINS
                                                             seed_name
       CHARACTER(LEN=timestamp_length)                    :: timestamp
       COMPLEX(KIND=dp), ALLOCATABLE                      :: ao_projections(:, :, :), &
+                                                            hybrid_projections(:, :, :), &
                                                             initial_amn(:, :, :), &
                                                             overlap_block(:, :)
       INTEGER :: aligned_degenerate_blocks, aligned_degenerate_max_size, i, i_rep, ib, ib1, ib2, &
          ibs, ik, ik2, ikk, ikpgr, initial_projections, ispin, iunit, ix, iy, iz, k, &
          kpoints_source, n_rep, nadd, nao, nbs, nexcl, nkp, nmo, nntot, nspins, num_atoms, &
          num_bands, num_bands_tot, num_kpts, num_wann
-      INTEGER, ALLOCATABLE                               :: projection_pivots(:)
+      INTEGER, ALLOCATABLE                               :: hybrid_groups(:, :), projection_pivots(:)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: exclude_bands
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: nblist, nnlist
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: nncell
@@ -703,12 +709,19 @@ CONTAINS
          ELSE
             CALL build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, num_bands, &
                                                 reused_scf_mos .AND. use_bloch_phases, phase_center, ao_projections)
+            IF (initial_projections == 2) THEN
+               CALL build_wannier90_hybrid_groups(qs_env, hybrid_groups)
+               CALL wannier90_hybrid_candidates(ao_projections, hybrid_groups, hybrid_projections)
+               DEALLOCATE (ao_projections, hybrid_groups)
+               CALL MOVE_ALLOC(hybrid_projections, ao_projections)
+               IF (iw > 0) WRITE (iw, '(T2,A)') "WANNIER90| Selecting from the full radial s/p hybrid candidate bank."
+            END IF
             ALLOCATE (projection_pivots(num_wann))
             CALL wannier90_select_projections(ao_projections, para_env, initial_amn, projection_pivots, &
                                               projection_min_svalue)
             IF (iw > 0) THEN
-               WRITE (iw, '(T2,A,ES12.4)') "WANNIER90| AO_SCDM minimum projection singular value ", projection_min_svalue
-               WRITE (iw, '(T2,A,*(I6))') "WANNIER90| Selected AO projections ", projection_pivots
+               WRITE (iw, '(T2,A,ES12.4)') "WANNIER90| Minimum projection singular value ", projection_min_svalue
+               WRITE (iw, '(T2,A,*(I6))') "WANNIER90| Selected projection candidates ", projection_pivots
             END IF
             IF (projection_min_svalue < 1.0e-10_dp) THEN
                CPABORT("No full-rank Wannier90 AO trial set was found on the entire k-point mesh.")
@@ -2126,6 +2139,68 @@ CONTAINS
       DEALLOCATE (source_buffer, destination_buffer)
 
    END SUBROUTINE copy_wannier90_mo_window
+
+! **************************************************************************************************
+!> \brief Enumerate all on-atom radial s/p shell pairs in global spherical-AO ordering.
+!> \param qs_env Electronic environment providing the basis and atom ordering.
+!> \param groups Global indices of an s function and the three functions of a p shell.
+! **************************************************************************************************
+   SUBROUTINE build_wannier90_hybrid_groups(qs_env, groups)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, ALLOCATABLE, INTENT(OUT)                  :: groups(:, :)
+
+      INTEGER                                            :: iatom, ig, ikind, ip, is, iset, ishell, &
+                                                            n, ng, np, ns, nset, nsgf, offset, pass
+      INTEGER, ALLOCATABLE                               :: p_shells(:), s_shells(:)
+      INTEGER, POINTER                                   :: first_sgf(:, :), l(:, :), nshell(:)
+      TYPE(gto_basis_set_type), POINTER                  :: basis
+      TYPE(particle_type), POINTER                       :: particles(:)
+      TYPE(qs_kind_type), POINTER                        :: qs_kinds(:)
+
+      CALL get_qs_env(qs_env, particle_set=particles, qs_kind_set=qs_kinds)
+      ng = 0
+      DO pass = 1, 2
+         offset = 0
+         ig = 0
+         DO iatom = 1, SIZE(particles)
+            CALL get_atomic_kind(particles(iatom)%atomic_kind, kind_number=ikind)
+            CALL get_qs_kind(qs_kinds(ikind), basis_set=basis, nsgf=nsgf)
+            IF (ASSOCIATED(basis)) THEN
+               CALL get_gto_basis_set(basis, nset=nset, nshell=nshell, l=l, first_sgf=first_sgf)
+               ALLOCATE (s_shells(SUM(nshell)), p_shells(SUM(nshell)))
+               ns = 0
+               np = 0
+               DO iset = 1, nset
+                  DO ishell = 1, nshell(iset)
+                     n = offset + first_sgf(ishell, iset)
+                     SELECT CASE (l(ishell, iset))
+                     CASE (0)
+                        ns = ns + 1
+                        s_shells(ns) = n
+                     CASE (1)
+                        np = np + 1
+                        p_shells(np) = n
+                     END SELECT
+                  END DO
+               END DO
+               IF (pass == 1) THEN
+                  ng = ng + ns*np
+               ELSE
+                  DO is = 1, ns
+                     DO ip = 1, np
+                        ig = ig + 1
+                        n = p_shells(ip)
+                        groups(:, ig) = [s_shells(is), n, n + 1, n + 2]
+                     END DO
+                  END DO
+               END IF
+               DEALLOCATE (s_shells, p_shells)
+            END IF
+            offset = offset + nsgf
+         END DO
+         IF (pass == 1) ALLOCATE (groups(4, ng))
+      END DO
+   END SUBROUTINE build_wannier90_hybrid_groups
 
 ! **************************************************************************************************
 !> \brief Form C(k)^H S(k) projections on all AO trials using the exported MO coefficients.
