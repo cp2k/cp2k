@@ -51,6 +51,9 @@
         KPOINTS_SOURCE SCF
         SEED_NAME ${seed}
         WANNIER_FUNCTIONS ${num_wann}
+        @IF ( ${exclude} /= 0 )
+          EXCLUDE_BANDS ${exclude}
+        @ENDIF
         REUSE_SCF_MOS T
         VALIDATE_REUSE_SCF_MOS T
         USE_BLOCH_PHASES T
