@@ -8,6 +8,8 @@
 @SET half_a 2.82
 @SET num_wann 8
 @SET projections AUTO
-@SET num_iter 10000
+# Bound unsuccessful AUTO starts; longer CG histories converge the useful trials.
+@SET num_iter 4000
+@SET num_cg_steps 20
 @SET conv_tol 1.e-12
 @INCLUDE ionic_common.inc
