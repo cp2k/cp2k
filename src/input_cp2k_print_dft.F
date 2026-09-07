@@ -2955,10 +2955,10 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="USE_BLOCH_PHASES", &
-                          description="Apply the CP2K Bloch-phase gauge to complete exported band subspaces "// &
-                          "and write an explicit identity .amn projection file for Wannier90. It is only "// &
-                          "valid when WANNIER_FUNCTIONS matches the number of exported bands; disentangled "// &
-                          "Wannier90 calculations still need explicit projections.", &
+                          description="Apply the CP2K Bloch-phase gauge to the exported band subspaces. "// &
+                          "Without LIBRARY, write identity .amn projections and require WANNIER_FUNCTIONS "// &
+                          "to match the number of exported bands. With LIBRARY, INITIAL_PROJECTIONS "// &
+                          "determines the projections in the same gauge, including for disentanglement.", &
                           usage="USE_BLOCH_PHASES T", default_l_val=.FALSE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)

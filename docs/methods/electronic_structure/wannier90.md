@@ -226,18 +226,22 @@ lacks Gamma; generating an `_hr.dat` file alone does not validate off-mesh inter
 
 ## Generated files
 
-With `SEED_NAME silicon`, CP2K writes the following Wannier90 files:
+In the ordinary file-export mode, `SEED_NAME silicon` produces the following Wannier90 files:
 
 - `silicon.win`: a starting Wannier90 input file containing the cell, atomic positions, exported
   band count, and k-point mesh;
 - `silicon.mmn`: overlap matrices between neighbouring k-points;
-- `silicon.eig`: eigenvalues for the exported bands; and
+- `silicon.eig`: eigenvalues for the exported bands;
 - `silicon.amn`: an identity projection matrix, only when `USE_BLOCH_PHASES T` is used; and
 - `silicon_band_indices.dat`: the mapping from exported bands to original MO indices, including the
   identity mapping when no bands are excluded.
 
-CP2K regenerates these files when the calculation is run. Preserve a separate copy of a completed
-Wannier90 input file, or add project-specific settings after the CP2K export has finished.
+With `LIBRARY ON`, the additional input files require `WRITE_INPUTS T`, and `.amn` contains the
+selected `INITIAL_PROJECTIONS` rather than necessarily an identity matrix. Optimized outputs are
+controlled separately by `WRITE_HR` and `WRITE_U_MATRICES`.
+
+CP2K regenerates the enabled files when the calculation is run. Preserve a separate copy of a
+completed Wannier90 input file, or add project-specific settings after the CP2K export has finished.
 
 ## Selecting the k-point source
 
@@ -335,9 +339,13 @@ testing quantitative reconstruction; SCF convergence alone does not remove grid 
 ## Bloch phases and projections
 
 [USE_BLOCH_PHASES](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.USE_BLOCH_PHASES) applies the CP2K
-Bloch-phase gauge and writes an identity `.amn` projection file. It is valid only when
-`WANNIER_FUNCTIONS` equals the number of exported bands. Disentanglement calculations, or any case
-with fewer Wannier functions than exported bands, still require explicit Wannier90 projections.
+Bloch-phase gauge. In the ordinary file-export mode, it also writes identity `.amn` projections and
+requires `WANNIER_FUNCTIONS` to equal the number of exported bands. Disentanglement in that mode
+still requires explicit Wannier90 projections.
+
+With `LIBRARY ON`, `INITIAL_PROJECTIONS` determines the trial matrix instead. The physical AO and
+hybrid projections use the same gauge as the overlaps, including when there are more bands than
+Wannier functions. The equal-count restriction therefore does not apply to the library path.
 
 ## Limitations
 
