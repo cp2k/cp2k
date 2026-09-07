@@ -53,8 +53,9 @@
         USE_BLOCH_PHASES T
         &LIBRARY ON
           INITIAL_PROJECTIONS ${projections}
-          NUM_ITER 2000
-          CONV_TOL 1.e-10
+          NUM_ITER ${num_iter}
+          CONV_TOL ${conv_tol}
+          NUM_PRINT_CYCLES 100
         &END LIBRARY
       &END WANNIER90
     &END PRINT
