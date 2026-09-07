@@ -3239,21 +3239,31 @@ CONTAINS
                END DO
 
                !set up fft plans
+               ! The scratch buffers must cover the geometry declared in each call
+               ! below, because the FFTW planner may write the buffers during
+               ! planning. The plans pair the buffers such that each of p1-p6 is
+               ! checked once; p7 shares the size of p6.
+               CPASSERT(SIZE(fft_scratch_new%fft_scratch%p1buf) >= mx1*my1*n(3))
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(1), FWFFT, .TRUE., .FALSE., &
                                        mx1*my1, n(3), n(3), mx1*my1, &
                                        fft_scratch_new%fft_scratch%p1buf, fft_scratch_new%fft_scratch%p2buf)
+               CPASSERT(SIZE(fft_scratch_new%fft_scratch%p3buf) >= mx2*mz2*n(2))
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(2), FWFFT, .TRUE., .FALSE., &
                                        mx2*mz2, n(2), n(2), mx2*mz2, &
                                        fft_scratch_new%fft_scratch%p3buf, fft_scratch_new%fft_scratch%p4buf)
+               CPASSERT(SIZE(fft_scratch_new%fft_scratch%p5buf) >= nyzray*n(1))
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(3), FWFFT, .TRUE., .FALSE., &
                                        nyzray, n(1), n(1), nyzray, &
                                        fft_scratch_new%fft_scratch%p5buf, fft_scratch_new%fft_scratch%p6buf)
+               CPASSERT(SIZE(fft_scratch_new%fft_scratch%p6buf) >= n(1)*nyzray)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(4), BWFFT, .FALSE., .TRUE., &
                                        n(1), nyzray, n(1), nyzray, &
                                        fft_scratch_new%fft_scratch%p6buf, fft_scratch_new%fft_scratch%p7buf)
+               CPASSERT(SIZE(fft_scratch_new%fft_scratch%p4buf) >= n(2)*mx2*mz2)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(5), BWFFT, .FALSE., .TRUE., &
                                        n(2), mx2*mz2, n(2), mx2*mz2, &
                                        fft_scratch_new%fft_scratch%p4buf, fft_scratch_new%fft_scratch%p3buf)
+               CPASSERT(SIZE(fft_scratch_new%fft_scratch%p2buf) >= n(3)*mx1*my1)
                CALL fft_create_plan_1d(fft_scratch_new%fft_scratch%fft_plan(6), BWFFT, .FALSE., .TRUE., &
                                        n(3), mx1*my1, n(3), mx1*my1, &
                                        fft_scratch_new%fft_scratch%p2buf, fft_scratch_new%fft_scratch%p1buf)
