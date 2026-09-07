@@ -1,4 +1,5 @@
 @SET seed lif_partial
+@SET reuse T
 @SET exclude 0
 @SET disentangle T
 @SET cation Li

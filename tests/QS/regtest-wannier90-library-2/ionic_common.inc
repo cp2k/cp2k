@@ -54,8 +54,8 @@
         @IF ( ${exclude} /= 0 )
           EXCLUDE_BANDS ${exclude}
         @ENDIF
-        REUSE_SCF_MOS T
-        VALIDATE_REUSE_SCF_MOS T
+        REUSE_SCF_MOS ${reuse}
+        VALIDATE_REUSE_SCF_MOS ${reuse}
         USE_BLOCH_PHASES T
         &LIBRARY ON
           @IF ( ${disentangle} == T )
