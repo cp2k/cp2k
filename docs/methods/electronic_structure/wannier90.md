@@ -126,6 +126,10 @@ library path requires a spin-unpolarized calculation without `EXCLUDE_BANDS`. Ev
 convergence to a stationary localization result does not guarantee the global minimum of the spread
 functional.
 
+CP2K reports both the total spread and its gauge-invariant contribution. The latter depends on the
+selected band subspace, but not on the unitary rotations used to localize it. It therefore helps
+distinguish a change of subspace from different local minima within the same subspace.
+
 ### Disentanglement
 
 When the number of exported bands is larger than `WANNIER_FUNCTIONS`, the library first minimizes
