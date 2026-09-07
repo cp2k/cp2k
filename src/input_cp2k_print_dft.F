@@ -3005,6 +3005,7 @@ CONTAINS
                           "every radial s/p shell pair on each atom before this selection; other "// &
                           "AOs remain available. AUTO independently minimizes the AO start, the full "// &
                           "hybrid start and mixed AO/hybrid starts for each eligible atomic kind, "// &
+                          "then tests fixed unitary mixtures of the best original start, "// &
                           "then retains the converged result with the smallest total spread. "// &
                           "IDENTITY retains the input MO gauge and can "// &
                           "converge to different local minima for equivalent MO representations.", &
@@ -3036,7 +3037,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="NUM_CG_STEPS", &
                           description="Wannier90 conjugate-gradient steps before resetting to steepest descent. "// &
                           "Zero uses steepest descent throughout. AUTO also tries zero independently "// &
-                          "for every projection family to check for other localization minima.", default_i_val=5)
+                          "for every projection family to check for other localization minima. "// &
+                          "Its final mixed-start trials also test a reset interval of at least 20.", default_i_val=5)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_CYCLES", &

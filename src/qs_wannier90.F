@@ -103,6 +103,7 @@ MODULE qs_wannier90
         w90_library_projections, w90_library_promote_output, w90_library_release, w90_library_run, &
         w90_library_type, w90_library_write_input, w90_library_write_results, w90_write_amn
    USE wannier90_projections,           ONLY: wannier90_hybrid_candidates,&
+                                              wannier90_mix_projections,&
                                               wannier90_projection_rank,&
                                               wannier90_select_projections
 #include "./base/base_uses.f90"
@@ -2282,10 +2283,11 @@ CONTAINS
       CHARACTER(LEN=32)                                  :: suffix
       CHARACTER(LEN=64)                                  :: best_label, label, projection_label
       COMPLEX(KIND=dp), ALLOCATABLE                      :: amn(:, :, :), bank(:, :, :), &
-                                                            best_amn(:, :, :)
+                                                            best_amn(:, :, :), &
+                                                            refinement_amn(:, :, :)
       INTEGER                                            :: best_id, cg_steps, ig, input_cg_steps, &
                                                             itrial, last_trial, nb, ng, nw, &
-                                                            optimizer, trial_id
+                                                            optimizer, refinement_id, trial_id
       INTEGER, ALLOCATABLE                               :: group_kinds(:), groups(:, :), pivots(:), &
                                                             selected(:), trial_cell(:, :, :), &
                                                             trial_nn(:, :)
@@ -2305,8 +2307,29 @@ CONTAINS
       best_total = HUGE(0.0_dp)
       best_id = 0
       best_label = ''
-      DO itrial = 0, last_trial
-         IF (itrial == 0) THEN
+      refinement_id = 0
+      DO itrial = 0, last_trial + 2
+         IF (itrial > last_trial) THEN
+            IF (nw == 1 .OR. .NOT. ALLOCATED(best)) CYCLE
+            IF (itrial == last_trial + 1) THEN
+               ! Both perturbations start from the same original projections, not
+               ! the localized U or the result of the preceding perturbation.
+               ALLOCATE (refinement_amn(nb, nw, SIZE(kpoints, 2)))
+               refinement_amn(:, :, :) = best_amn(:, :, :)
+               refinement_id = best_id
+            END IF
+            amn(:, :, :) = refinement_amn(:, :, :)
+            IF (itrial == last_trial + 1) THEN
+               CALL wannier90_mix_projections(amn, twopi/12.0_dp)
+               WRITE (projection_label, '(A,I0,A)') 'original trial ', refinement_id, ' mixed +30 deg'
+            ELSE
+               CALL wannier90_mix_projections(amn, -twopi/12.0_dp)
+               WRITE (projection_label, '(A,I0,A)') 'original trial ', refinement_id, ' mixed -30 deg'
+            END IF
+            min_svalue = 0.0_dp
+            IF (para_env%is_source()) min_svalue = wannier90_projection_rank(amn)
+            CALL para_env%bcast(min_svalue)
+         ELSE IF (itrial == 0) THEN
             projection_label = 'AO_SCDM'
             amn(:, :, :) = initial_amn(:, :, :)
             min_svalue = 0.0_dp
@@ -2337,8 +2360,9 @@ CONTAINS
          DO optimizer = 1, 2
             cg_steps = input_cg_steps
             IF (optimizer == 2) THEN
-               IF (input_cg_steps == 0) CYCLE
                cg_steps = 0
+               IF (itrial > last_trial) cg_steps = MAX(20, input_cg_steps)
+               IF (cg_steps == input_cg_steps) CYCLE
             END IF
             trial_id = 2*itrial + optimizer
             WRITE (suffix, '(A,I0)') '.trial-', trial_id

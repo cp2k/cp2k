@@ -1,5 +1,5 @@
-@SET seed nacl_auto
-@SET reuse T
+@SET seed nacl_auto_diagonalize
+@SET reuse F
 @SET exclude 0
 @SET disentangle F
 @SET cation Na
