@@ -9,6 +9,8 @@
 
 """Postprocess ONE fixed collective constraint; see README.md for limitations."""
 
+from __future__ import annotations
+
 import argparse
 import csv
 import itertools
@@ -18,8 +20,14 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Iterable, Iterator, Sequence, TextIO, Union, cast
 
 import numpy as np
+from numpy.typing import ArrayLike, NDArray
+
+FloatArray = NDArray[np.float64]
+Frame = tuple[int, FloatArray]
+Sample = tuple[int, float, float, float, float, float, float]
 
 # Match src/common/physcon.F, not a different vintage of CODATA constants.
 ANGSTROM_PER_BOHR = 0.52917720859
@@ -31,10 +39,10 @@ class Derivative:
     """Scalar, Cartesian gradient and Hessian (second-order forward differentiation)."""
 
     value: float
-    gradient: np.ndarray
-    hessian: np.ndarray
+    gradient: FloatArray
+    hessian: FloatArray
 
-    def __add__(self, other):
+    def __add__(self, other: Union[Derivative, float]) -> Derivative:
         if not isinstance(other, Derivative):
             return Derivative(self.value + other, self.gradient, self.hessian)
         return Derivative(
@@ -45,16 +53,16 @@ class Derivative:
 
     __radd__ = __add__
 
-    def __neg__(self):
+    def __neg__(self) -> Derivative:
         return self * -1
 
-    def __sub__(self, other):
+    def __sub__(self, other: Union[Derivative, float]) -> Derivative:
         return self + (-other)
 
-    def __rsub__(self, other):
+    def __rsub__(self, other: Union[Derivative, float]) -> Derivative:
         return -self + other
 
-    def __mul__(self, other):
+    def __mul__(self, other: Union[Derivative, float]) -> Derivative:
         if not isinstance(other, Derivative):
             return Derivative(
                 self.value * other, self.gradient * other, self.hessian * other
@@ -68,27 +76,27 @@ class Derivative:
 
     __rmul__ = __mul__
 
-    def compose(self, value, first, second):
+    def compose(self, value: float, first: float, second: float) -> Derivative:
         return Derivative(
             value,
             first * self.gradient,
             first * self.hessian + second * np.outer(self.gradient, self.gradient),
         )
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Union[Derivative, float]) -> Derivative:
         if not isinstance(other, Derivative):
             return self * (1 / other)
         x = other.value
         return self * other.compose(1 / x, -1 / x**2, 2 / x**3)
 
-    def sqrt(self):
+    def sqrt(self) -> Derivative:
         if self.value <= 1e-24:
             raise ValueError("Degenerate CV: zero distance or collinear plane/torsion")
         root = math.sqrt(self.value)
         return self.compose(root, 0.5 / root, -0.25 / root**3)
 
 
-def atan2(y, x):
+def atan2(y: Derivative, x: Derivative) -> Derivative:
     """Differentiate atan2 without dividing by x (which may be zero)."""
     r2 = x.value**2 + y.value**2
     if r2 <= 1e-24:
@@ -108,11 +116,14 @@ def atan2(y, x):
     )
 
 
-def dot(a, b):
-    return sum(x * y for x, y in zip(a, b))
+def dot(a: Sequence[Derivative], b: Sequence[Derivative]) -> Derivative:
+    result = a[0] * b[0]
+    for x, y in zip(a[1:], b[1:]):
+        result = result + x * y
+    return result
 
 
-def cross(a, b):
+def cross(a: Sequence[Derivative], b: Sequence[Derivative]) -> list[Derivative]:
     return [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -120,22 +131,28 @@ def cross(a, b):
     ]
 
 
-def subtract(a, b):
+def subtract(a: Sequence[Derivative], b: Sequence[Derivative]) -> list[Derivative]:
     return [x - y for x, y in zip(a, b)]
 
 
-def check_keys(mapping, required, optional=()):
-    if not isinstance(mapping, dict):
-        raise ValueError("Expected a JSON object")
-    missing = set(required) - mapping.keys()
-    extra = mapping.keys() - set(required) - set(optional)
+def check_keys(
+    mapping: object, required: Iterable[str], optional: Iterable[str] = ()
+) -> dict[str, object]:
+    if not isinstance(mapping, dict) or not all(isinstance(k, str) for k in mapping):
+        raise ValueError("Expected a JSON object with string keys")
+    # The container and its keys have been checked; values remain untrusted.
+    mapping = cast(dict[str, object], mapping)
+    required_keys = set(required)
+    missing = required_keys - mapping.keys()
+    extra = mapping.keys() - required_keys - set(optional)
     if missing or extra:
         raise ValueError(
             f"Invalid keys: missing {sorted(missing)}, unknown {sorted(extra)}"
         )
+    return mapping
 
 
-def finite_number(value):
+def finite_number(value: object) -> float:
     if (
         isinstance(value, bool)
         or not isinstance(value, (int, float))
@@ -145,20 +162,36 @@ def finite_number(value):
     return float(value)
 
 
-def validate_cv(cv):
-    """Return the real atom indices; shared atoms are differentiated only once."""
-    if not isinstance(cv, dict) or "type" not in cv:
-        raise ValueError("Each CV needs a type")
-    if cv["type"] == "linear_combination":
+@dataclass(frozen=True)
+class PrimitiveCV:
+    kind: str
+    atoms: tuple[int, ...]
+    pbc: bool
+    reference: float
+
+
+@dataclass(frozen=True)
+class LinearCombinationCV:
+    terms: tuple[tuple[float, CV], ...]
+
+
+CV = Union[PrimitiveCV, LinearCombinationCV]
+
+
+def parse_cv(value: object) -> CV:
+    """Validate raw JSON before creating the typed coordinate tree."""
+    cv = check_keys(value, ("type",), ("atoms", "pbc", "reference", "terms"))
+    kind = cv["type"]
+    if kind == "linear_combination":
         check_keys(cv, ("type", "terms"))
-        if not isinstance(cv["terms"], list) or not cv["terms"]:
+        raw_terms = cv["terms"]
+        if not isinstance(raw_terms, list) or not raw_terms:
             raise ValueError("A linear combination needs nonempty terms")
-        atoms = set()
-        for term in cv["terms"]:
-            check_keys(term, ("coefficient", "cv"))
-            finite_number(term["coefficient"])
-            atoms.update(validate_cv(term["cv"]))
-        return atoms
+        terms: list[tuple[float, CV]] = []
+        for raw_term in raw_terms:
+            term = check_keys(raw_term, ("coefficient", "cv"))
+            terms.append((finite_number(term["coefficient"]), parse_cv(term["cv"])))
+        return LinearCombinationCV(tuple(terms))
     counts = {
         "distance": 2,
         "angle": 3,
@@ -166,35 +199,47 @@ def validate_cv(cv):
         "point_plane": 4,
         "point_bond_center": 3,
     }
-    if cv["type"] not in counts:
-        raise ValueError(f"Unsupported CV type: {cv['type']}")
+    if not isinstance(kind, str) or kind not in counts:
+        raise ValueError(f"Unsupported CV type: {kind}")
     check_keys(
         cv,
         ("type", "atoms"),
-        ("pbc", "reference") if cv["type"] == "torsion" else ("pbc",),
+        ("pbc", "reference") if kind == "torsion" else ("pbc",),
     )
-    atoms = cv["atoms"]
-    if not isinstance(atoms, list) or len(atoms) != counts[cv["type"]]:
-        raise ValueError(f"Wrong atom count for {cv['type']}")
-    if any(type(i) is not int or i < 1 for i in atoms) or len(set(atoms)) != len(atoms):
-        raise ValueError(
-            "Primitive CV atoms must be distinct, positive, one-based integers"
-        )
-    if type(cv.get("pbc", True)) is not bool:
+    raw_atoms = cv["atoms"]
+    if not isinstance(raw_atoms, list) or len(raw_atoms) != counts[kind]:
+        raise ValueError(f"Wrong atom count for {kind}")
+    atoms: list[int] = []
+    for atom in raw_atoms:
+        if type(atom) is not int or atom < 1 or atom in atoms:
+            raise ValueError(
+                "Primitive CV atoms must be distinct, positive, one-based integers"
+            )
+        atoms.append(atom)
+    pbc = cv.get("pbc", True)
+    if not isinstance(pbc, bool):
         raise ValueError("pbc must be true or false")
-    if cv["type"] == "torsion":
+    reference = 0.0
+    if kind == "torsion":
         # CP2K follows a continuous torsion branch. The branch must be specified,
         # especially when torsions occur inside linear combinations.
         if "reference" not in cv:
             raise ValueError("A torsion needs a reference angle in radians")
-        finite_number(cv["reference"])
-    return set(atoms)
+        reference = finite_number(cv["reference"])
+    return PrimitiveCV(kind, tuple(atoms), pbc, reference)
+
+
+def cv_atoms(cv: CV) -> set[int]:
+    """Shared atoms are differentiated only once, also across nested terms."""
+    if isinstance(cv, PrimitiveCV):
+        return set(cv.atoms)
+    return {atom for _, term in cv.terms for atom in cv_atoms(term)}
 
 
 class Coordinate:
-    def __init__(self, definition, cell_bohr):
-        self.definition = definition
-        self.atoms = sorted(validate_cv(definition))
+    def __init__(self, definition: object, cell_bohr: ArrayLike) -> None:
+        self.definition = parse_cv(definition)
+        self.atoms = sorted(cv_atoms(self.definition))
         self.cell = np.asarray(cell_bohr, dtype=float)
         if self.cell.shape != (3, 3) or not np.isfinite(self.cell).all():
             raise ValueError(
@@ -204,9 +249,11 @@ class Coordinate:
             raise ValueError("Singular or ill-conditioned cell")
         self.inverse = np.linalg.inv(self.cell)
 
-    def minimum_image(self, vector, enabled):
+    def minimum_image(
+        self, vector: Sequence[Derivative], enabled: bool
+    ) -> list[Derivative]:
         if not enabled:
-            return vector
+            return list(vector)
         fractional = np.array([x.value for x in vector]) @ self.inverse
         nearest = np.copysign(np.floor(np.abs(fractional) + 0.5), fractional)
         if np.any(np.abs(np.abs(fractional - nearest) - 0.5) < 1e-8):
@@ -214,7 +261,7 @@ class Coordinate:
         shift = nearest @ self.cell
         return [x - s for x, s in zip(vector, shift)]
 
-    def evaluate(self, positions_bohr):
+    def evaluate(self, positions_bohr: ArrayLike) -> Derivative:
         positions = np.asarray(positions_bohr, dtype=float)
         if (
             positions.ndim != 2
@@ -243,17 +290,18 @@ class Coordinate:
             raise ValueError("Non-finite CV or derivatives")
         return result
 
-    def _evaluate(self, cv, points):
-        kind = cv["type"]
-        if kind == "linear_combination":
-            return sum(
-                term["coefficient"] * self._evaluate(term["cv"], points)
-                for term in cv["terms"]
-            )
-        p = [points[i] for i in cv["atoms"]]
+    def _evaluate(self, cv: CV, points: dict[int, list[Derivative]]) -> Derivative:
+        if isinstance(cv, LinearCombinationCV):
+            initial_term, *rest = cv.terms
+            result = initial_term[0] * self._evaluate(initial_term[1], points)
+            for coefficient, term in rest:
+                result = result + coefficient * self._evaluate(term, points)
+            return result
+        kind = cv.kind
+        p = [points[i] for i in cv.atoms]
 
-        def mic(v):
-            return self.minimum_image(v, cv.get("pbc", True))
+        def mic(v: Sequence[Derivative]) -> list[Derivative]:
+            return self.minimum_image(v, cv.pbc)
 
         if kind == "distance":
             v = mic(subtract(p[0], p[1]))
@@ -295,14 +343,14 @@ class Coordinate:
             dot(t, t).sqrt()
             dot(u, u).sqrt()
             phi = atan2(dot(b, cross(t, u)) / dot(b, b).sqrt(), dot(t, u))
-            difference = math.remainder(phi.value - cv["reference"], 2 * math.pi)
+            difference = math.remainder(phi.value - cv.reference, 2 * math.pi)
             if abs(abs(difference) - math.pi) < 1e-8:
                 raise ValueError("Torsion lies on the specified branch boundary")
-            return phi + (cv["reference"] + difference - phi.value)
+            return phi + (cv.reference + difference - phi.value)
         raise ValueError(f"Unsupported CV type: {kind}")
 
 
-def metric(derivative, masses):
+def metric(derivative: Derivative, masses: ArrayLike) -> tuple[float, float]:
     """Z = g^T M^-1 g; G = (M^-1 g)^T H (M^-1 g) / Z^2.
 
     A common mass-unit conversion cancels from G and normalized reweighting.
@@ -325,7 +373,7 @@ def metric(derivative, masses):
     return z, g
 
 
-def read_xyz(stream):
+def read_xyz(stream: TextIO) -> Iterator[Frame]:
     """Read CP2K XYZ coordinates (Angstrom) with strictly increasing MD steps."""
     previous = -1
     labels = None
@@ -348,23 +396,23 @@ def read_xyz(stream):
                 "Repeated/decreasing XYZ steps: split restarted runs before analysis"
             )
         previous = step
-        frame_labels, positions = [], []
+        frame_labels, rows = [], []
         for _ in range(count):
             fields = stream.readline().split()
             if len(fields) != 4:
                 raise ValueError(f"Incomplete/invalid XYZ coordinates at step {step}")
             frame_labels.append(fields[0])
-            positions.append([float(x) for x in fields[1:]])
+            rows.append([float(x) for x in fields[1:]])
         if labels is not None and labels != frame_labels:
             raise ValueError("Atom count/order/labels changed in XYZ trajectory")
         labels = frame_labels
-        positions = np.asarray(positions) / ANGSTROM_PER_BOHR
+        positions = np.asarray(rows, dtype=np.float64) / ANGSTROM_PER_BOHR
         if not np.isfinite(positions).all():
             raise ValueError("Non-finite XYZ coordinates")
         yield step, positions
 
 
-def read_multipliers(stream):
+def read_multipliers(stream: TextIO) -> Iterator[float]:
     """Strict velocity-Verlet SHAKE/RATTLE pairs, with exactly one constraint.
 
     Accept the standard fixed-width output and reject wrapped multi-constraint
@@ -397,8 +445,14 @@ def read_multipliers(stream):
         raise ValueError("Incomplete final SHAKE/RATTLE pair")
 
 
-def analyze(config, frames, multipliers, first_step, stride=1):
-    check_keys(
+def analyze(
+    config: object,
+    frames: Iterable[Frame],
+    multipliers: Iterable[float],
+    first_step: int,
+    stride: int = 1,
+) -> Iterator[Sample]:
+    settings = check_keys(
         config,
         (
             "cv",
@@ -410,14 +464,14 @@ def analyze(config, frames, multipliers, first_step, stride=1):
         ),
     )
     coordinate = Coordinate(
-        config["cv"],
-        np.asarray(config["cell_angstrom"], dtype=float) / ANGSTROM_PER_BOHR,
+        settings["cv"],
+        np.asarray(settings["cell_angstrom"], dtype=float) / ANGSTROM_PER_BOHR,
     )
-    check_keys(config["masses_amu"], [str(i) for i in coordinate.atoms])
-    masses = [finite_number(config["masses_amu"][str(i)]) for i in coordinate.atoms]
-    temperature = finite_number(config["temperature_kelvin"])
-    target = finite_number(config["target_au"])
-    tolerance = finite_number(config["target_tolerance_au"])
+    mass_values = check_keys(settings["masses_amu"], [str(i) for i in coordinate.atoms])
+    masses = [finite_number(mass_values[str(i)]) for i in coordinate.atoms]
+    temperature = finite_number(settings["temperature_kelvin"])
+    target = finite_number(settings["target_au"])
+    tolerance = finite_number(settings["target_tolerance_au"])
     if temperature <= 0 or tolerance <= 0 or first_step < 0 or stride < 1:
         raise ValueError(
             "Temperature, tolerance and stride must be positive; first step nonnegative"
@@ -447,7 +501,7 @@ def analyze(config, frames, multipliers, first_step, stride=1):
         yield step, derivative.value, multiplier, z, g, z**-0.5, corrected
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "config",
@@ -481,7 +535,7 @@ def main():
         parser.error("--discard must be nonnegative")
     try:
         with args.config.open() as stream:
-            config = json.load(stream)
+            config: object = json.load(stream)
         with args.trajectory.open() as xyz, args.multipliers.open() as lagrange:
             samples = analyze(
                 config,

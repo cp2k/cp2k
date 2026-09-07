@@ -94,6 +94,14 @@ G = \frac{(M^{-1}\mathbf g)^T H (M^{-1}\mathbf g)}{Z^2}
   = \frac{(M^{-1}\mathbf g)\mathbin{\cdot}\nabla Z}{2Z^2}.
 $$
 
+Equivalently, define the local mass-weighted normal derivative
+$D_\xi=(M^{-1}\mathbf g/Z)\mathbin{\cdot}\nabla$. Then $D_\xi\xi=1$ and $G=\tfrac12 D_\xi\ln Z$.
+This is **not** a derivative along the constrained MD trajectory: within a fixed window $\xi$ is
+constant, while $Z$ can vary with the other degrees of freedom. Consequently, dividing changes of
+$\ln Z$ between saved frames by changes of $\xi$ does not provide this derivative. It can instead be
+evaluated at each frame by differentiating the metric in the specified normal direction; a full
+Hessian is not mathematically required.
+
 CP2K currently writes $\lambda$ but does not evaluate or print the complete corrected blue-moon
 estimator. The required metric terms therefore have to be evaluated during postprocessing for the
 chosen reaction coordinate. The standalone
