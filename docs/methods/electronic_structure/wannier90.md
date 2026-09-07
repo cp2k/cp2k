@@ -97,6 +97,29 @@ centres with the AO-based start and converge the localization settings for the d
 Equal spreads alone do not establish equality of individual centres in a nearly flat localization
 minimum.
 
+`INITIAL_PROJECTIONS AUTO` compares the AO start, the all-atom hybrid start and mixed starts with
+hybrids on one eligible atomic kind at a time. Each family is minimized independently with the
+requested `NUM_CG_STEPS` and with pure steepest descent (`NUM_CG_STEPS 0`), avoiding duplicate runs
+when zero was already requested. This checks sensitivity to the optimization path as well as to the
+projections. The default `NUM_CG_STEPS 5` matches Wannier90's conjugate-gradient reset interval.
+`NUM_PRINT_CYCLES 10` limits the iteration log volume without changing the optimization or its
+convergence test. Set it to one to retain every iteration; initial and final states and the explicit
+convergence report are always written. All trials use the same `NUM_ITER`, `CONV_WINDOW`, and
+`CONV_TOL`; an unconverged or rank-deficient trial cannot win. CP2K stops if no admissible trial
+converges.
+
+Trials run sequentially in fresh Wannier90 instances sharing copies of the original input matrices,
+not the overlaps modified by an earlier minimization. CP2K retains the optimized state with the
+smallest converged total spread. This is a finite candidate comparison, not a guarantee of a
+globally optimal or unique set of Wannier functions.
+
+With `WRITE_INPUTS T`, each executed trial writes `SEED_NAME.trial-N.win` and
+`SEED_NAME.trial-N.amn`; its log is `SEED_NAME.trial-N.library.wout`. The raw `.mmn` and `.eig`
+matrices are shared by all trials. For an external comparison of a particular trial, use its `.win`
+and `.amn` together with those raw matrices under a common seed name in a separate directory. The
+canonical `.win`, `.amn`, and `.library.wout` are replaced by the winning trial's settings, initial
+projections, and log. Writing these files does not reset the optimized library matrices.
+
 `INITIAL_PROJECTIONS IDENTITY` is available for diagnostics but retains the arbitrary MO gauge. It
 can converge to different local minima for symmetry-reconstructed and newly diagonalized MOs. The
 initial library path requires a spin-unpolarized calculation with as many Wannier functions as
