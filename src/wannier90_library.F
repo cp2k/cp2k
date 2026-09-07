@@ -12,7 +12,7 @@
 MODULE wannier90_library
    USE cp_files, ONLY: close_file, open_file
    USE input_section_types, ONLY: section_vals_type, section_vals_val_get
-   USE kinds, ONLY: dp
+   USE kinds, ONLY: dp, default_string_length
    USE message_passing, ONLY: mp_para_env_type
    USE physcon, ONLY: angstrom
 #if defined(__WANNIER90)
@@ -32,8 +32,8 @@ MODULE wannier90_library
 #if defined(__WANNIER90)
       TYPE(lib_common_type), ALLOCATABLE :: data
 #endif
-      INTEGER :: output_unit = -1, num_iter = 0, conv_window = 0
-      LOGICAL :: keep_output = .FALSE.
+      INTEGER :: output_unit = -1, num_iter = 0, conv_window = 0, num_cg_steps = 5, num_print_cycles = 10
+      LOGICAL :: keep_output = .FALSE., inputs_consumed = .FALSE.
       REAL(KIND=dp) :: conv_tol = 0.0_dp
       INTEGER, ALLOCATABLE :: local_index(:)
       COMPLEX(KIND=dp), POINTER :: overlaps(:, :, :, :) => NULL()
@@ -42,7 +42,8 @@ MODULE wannier90_library
    END TYPE w90_library_type
 
    PUBLIC :: w90_library_type, w90_library_init, w90_library_overlap, w90_library_eigenvalues, &
-             w90_library_run, w90_library_release, w90_library_write_options, w90_library_projections
+             w90_library_run, w90_library_release, w90_library_write_options, w90_library_projections, &
+             w90_library_copy_matrices, w90_library_promote_output, w90_write_amn, w90_library_write_input
 
 CONTAINS
 
@@ -59,9 +60,11 @@ CONTAINS
 !> \param num_wann Number of Wannier functions.
 !> \param nnlist Neighbour k-point indices.
 !> \param nncell Reciprocal-cell shifts for the neighbours.
+!> \param log_suffix Optional trial suffix for log files, without changing the library seed name.
+!> \param num_cg_steps Optional optimizer override for an independent trial.
 ! **************************************************************************************************
    SUBROUTINE w90_library_init(context, input, para_env, seed_name, lattice, kpoints, mp_grid, &
-                               num_bands, num_wann, nnlist, nncell)
+                               num_bands, num_wann, nnlist, nncell, log_suffix, num_cg_steps)
       TYPE(w90_library_type), INTENT(INOUT) :: context
       TYPE(section_vals_type), POINTER :: input
       TYPE(mp_para_env_type), POINTER :: para_env
@@ -69,12 +72,16 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN) :: lattice(3, 3), kpoints(:, :)
       INTEGER, INTENT(IN) :: mp_grid(3), num_bands, num_wann
       INTEGER, ALLOCATABLE, INTENT(OUT) :: nnlist(:, :), nncell(:, :, :)
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: log_suffix
+      INTEGER, INTENT(IN), OPTIONAL :: num_cg_steps
 #if defined(__WANNIER90)
       INTEGER :: ierr, ik, iwann, nk, nn, nlocal
       INTEGER, ALLOCATABLE :: distk(:)
       CHARACTER(LEN=16) :: rank_suffix
+      CHARACTER(LEN=default_string_length) :: log_seed
 
       CPASSERT(.NOT. ALLOCATED(context%data))
+      context%inputs_consumed = .FALSE.
       ALLOCATE (context%data)
       IF (LEN_TRIM(seed_name) > LEN(context%data%seedname)) THEN
          CPABORT("SEED_NAME exceeds the filename prefix length supported by the Wannier90 library.")
@@ -83,6 +90,11 @@ CONTAINS
       CALL section_vals_val_get(input, "NUM_ITER", i_val=context%num_iter)
       CALL section_vals_val_get(input, "CONV_WINDOW", i_val=context%conv_window)
       CALL section_vals_val_get(input, "CONV_TOL", r_val=context%conv_tol)
+      CALL section_vals_val_get(input, "NUM_CG_STEPS", i_val=context%num_cg_steps)
+      CALL section_vals_val_get(input, "NUM_PRINT_CYCLES", i_val=context%num_print_cycles)
+      IF (PRESENT(num_cg_steps)) context%num_cg_steps = num_cg_steps
+      IF (context%num_cg_steps < 0) CPABORT("Wannier90 NUM_CG_STEPS must be nonnegative.")
+      IF (context%num_print_cycles < 1) CPABORT("Wannier90 NUM_PRINT_CYCLES must be positive.")
       IF (context%num_iter < 1 .OR. context%conv_window < 2 .OR. context%conv_tol <= 0.0_dp) THEN
          CPABORT("WANNIER90 LIBRARY requires NUM_ITER > 0, CONV_WINDOW >= 2 and CONV_TOL > 0.")
       END IF
@@ -100,13 +112,15 @@ CONTAINS
             context%local_index(ik) = nlocal
          END IF
       END DO
+      log_seed = seed_name
+      IF (PRESENT(log_suffix)) log_seed = TRIM(seed_name)//log_suffix
       IF (para_env%is_source()) THEN
          context%keep_output = .TRUE.
-         CALL open_file(TRIM(seed_name)//".library.wout", unit_number=context%output_unit, &
+         CALL open_file(TRIM(log_seed)//".library.wout", unit_number=context%output_unit, &
                         file_status="REPLACE", file_action="READWRITE")
       ELSE
          WRITE (rank_suffix, '(I0)') para_env%mepos
-         CALL open_file(TRIM(seed_name)//".library-rank-"//TRIM(rank_suffix)//".wout", &
+         CALL open_file(TRIM(log_seed)//".library-rank-"//TRIM(rank_suffix)//".wout", &
                         unit_number=context%output_unit, file_status="REPLACE", file_action="WRITE")
       END IF
 #if defined(__parallel)
@@ -121,6 +135,8 @@ CONTAINS
       CALL w90_set_option(context%data, "num_iter", context%num_iter)
       CALL w90_set_option(context%data, "conv_tol", context%conv_tol)
       CALL w90_set_option(context%data, "conv_window", context%conv_window)
+      CALL w90_set_option(context%data, "num_cg_steps", context%num_cg_steps)
+      CALL w90_set_option(context%data, "num_print_cycles", context%num_print_cycles)
       CALL w90_input_setopt(context%data, seed_name, context%output_unit, context%output_unit, ierr)
       CALL check_w90_error(ierr, "initialization")
       CALL w90_get_nn(context%data, nn, context%output_unit, context%output_unit, ierr)
@@ -183,6 +199,23 @@ CONTAINS
    END SUBROUTINE w90_library_eigenvalues
 
 ! **************************************************************************************************
+!> \brief Copy immutable input matrices into an independently initialized library instance.
+!> \param source Unused library instance holding the original overlaps and eigenvalues.
+!> \param destination Fresh library instance with the same mesh, distribution and dimensions.
+! **************************************************************************************************
+   SUBROUTINE w90_library_copy_matrices(source, destination)
+      TYPE(w90_library_type), INTENT(IN)                 :: source
+      TYPE(w90_library_type), INTENT(INOUT)              :: destination
+
+      CPASSERT(.NOT. source%inputs_consumed .AND. .NOT. destination%inputs_consumed)
+      CPASSERT(ALL(SHAPE(source%overlaps) == SHAPE(destination%overlaps)))
+      CPASSERT(ALL(source%local_index == destination%local_index))
+      CPASSERT(ALL(SHAPE(source%eigenvalues) == SHAPE(destination%eigenvalues)))
+      destination%overlaps = source%overlaps
+      destination%eigenvalues = source%eigenvalues
+   END SUBROUTINE w90_library_copy_matrices
+
+! **************************************************************************************************
 !> \brief Set the replicated initial projections and optionally export them before optimization.
 !> \param context Library state.
 !> \param amn Band/trial/k-point projections in the same Bloch gauge as the overlap matrices.
@@ -197,10 +230,25 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: seed_name
       LOGICAL, INTENT(IN)                                :: write_files
 
+      CPASSERT(.NOT. context%inputs_consumed)
+      context%projections(:, :, :) = amn(:, :, :)
+      IF (write_files) CALL w90_write_amn(amn, para_env, seed_name)
+   END SUBROUTINE w90_library_projections
+
+! **************************************************************************************************
+!> \brief Write initial projections without overwriting the optimized library state.
+!> \param amn Initial band/trial/k-point projections.
+!> \param para_env Global parallel environment.
+!> \param seed_name Output filename prefix.
+! **************************************************************************************************
+   SUBROUTINE w90_write_amn(amn, para_env, seed_name)
+      COMPLEX(KIND=dp), INTENT(IN)                       :: amn(:, :, :)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      CHARACTER(LEN=*), INTENT(IN)                       :: seed_name
+
       INTEGER                                            :: ib, ik, iunit, iwann, nb, nk, nw
 
-      context%projections(:, :, :) = amn(:, :, :)
-      IF (write_files .AND. para_env%is_source()) THEN
+      IF (para_env%is_source()) THEN
          nb = SIZE(amn, 1)
          nw = SIZE(amn, 2)
          nk = SIZE(amn, 3)
@@ -217,7 +265,33 @@ CONTAINS
          END DO
          CALL close_file(iunit)
       END IF
-   END SUBROUTINE w90_library_projections
+   END SUBROUTINE w90_write_amn
+
+! **************************************************************************************************
+!> \brief Publish the winning trial log under the canonical output name.
+!> \param context Winning library state; the original canonical log must already be closed.
+!> \param seed_name Canonical output filename prefix.
+! **************************************************************************************************
+   SUBROUTINE w90_library_promote_output(context, seed_name)
+      TYPE(w90_library_type), INTENT(INOUT)              :: context
+      CHARACTER(LEN=*), INTENT(IN)                       :: seed_name
+
+      CHARACTER(LEN=default_string_length)               :: line
+      INTEGER                                            :: ios, output_unit
+
+      IF (.NOT. context%keep_output) RETURN
+      CALL open_file(TRIM(seed_name)//'.library.wout', unit_number=output_unit, &
+                     file_status='REPLACE', file_action='READWRITE')
+      REWIND (context%output_unit)
+      DO
+         READ (context%output_unit, '(A)', IOSTAT=ios) line
+         IF (IS_IOSTAT_END(ios)) EXIT
+         CPASSERT(ios == 0)
+         WRITE (output_unit, '(A)') TRIM(line)
+      END DO
+      CALL close_file(context%output_unit)
+      context%output_unit = output_unit
+   END SUBROUTINE w90_library_promote_output
 
 ! **************************************************************************************************
 !> \brief Write options matching the in-process calculation for external validation.
@@ -229,9 +303,57 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iunit
 
       WRITE (iunit, '(A,I0)') "num_iter = ", context%num_iter
+      WRITE (iunit, '(A,I0)') "num_cg_steps = ", context%num_cg_steps
+      WRITE (iunit, '(A,I0)') "num_print_cycles = ", context%num_print_cycles
       WRITE (iunit, '(A,I0)') "conv_window = ", context%conv_window
       WRITE (iunit, '(A,ES24.16)') "conv_tol = ", context%conv_tol
    END SUBROUTINE w90_library_write_options
+
+! **************************************************************************************************
+!> \brief Write a complete external input matching this library instance and its optimizer.
+!> \param context Library state providing dimensions and localization options.
+!> \param para_env Global parallel environment.
+!> \param seed_name Output filename prefix.
+!> \param lattice Real lattice vectors in columns, in angstrom.
+!> \param kpoints Full mesh in fractional coordinates.
+!> \param mp_grid Mesh dimensions.
+!> \param atoms_cart Atomic positions in bohr.
+!> \param atom_symbols Element symbols.
+! **************************************************************************************************
+   SUBROUTINE w90_library_write_input(context, para_env, seed_name, lattice, kpoints, mp_grid, atoms_cart, atom_symbols)
+      TYPE(w90_library_type), INTENT(IN)                 :: context
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      CHARACTER(LEN=*), INTENT(IN)                       :: seed_name
+      REAL(KIND=dp), INTENT(IN)                          :: lattice(3, 3), kpoints(:, :)
+      INTEGER, INTENT(IN)                                :: mp_grid(3)
+      REAL(KIND=dp), INTENT(IN)                          :: atoms_cart(:, :)
+      CHARACTER(LEN=*), INTENT(IN)                       :: atom_symbols(:)
+
+      INTEGER                                            :: i, iunit
+
+      IF (.NOT. para_env%is_source()) RETURN
+      CALL open_file(TRIM(seed_name)//'.win', unit_number=iunit, file_status='REPLACE', file_action='WRITE')
+      WRITE (iunit, '(A)') '! CP2K Wannier90 library input'
+      WRITE (iunit, '(A,I0)') 'num_wann = ', SIZE(context%rotations, 1)
+      WRITE (iunit, '(A,I0)') 'num_bands = ', SIZE(context%eigenvalues, 1)
+      CALL w90_library_write_options(context, iunit)
+      WRITE (iunit, '(A)') 'length_unit = ang', 'begin unit_cell_cart', 'ang'
+      DO i = 1, 3
+         WRITE (iunit, '(3ES24.16)') lattice(:, i)
+      END DO
+      WRITE (iunit, '(A)') 'end unit_cell_cart', 'begin atoms_cart', 'bohr'
+      DO i = 1, SIZE(atom_symbols)
+         WRITE (iunit, '(A,3ES24.16)') atom_symbols(i), atoms_cart(:, i)
+      END DO
+      WRITE (iunit, '(A)') 'end atoms_cart'
+      WRITE (iunit, '(A,3I6)') 'mp_grid = ', mp_grid
+      WRITE (iunit, '(A)') 'begin kpoints'
+      DO i = 1, SIZE(kpoints, 2)
+         WRITE (iunit, '(3ES24.16)') kpoints(:, i)
+      END DO
+      WRITE (iunit, '(A)') 'end kpoints'
+      CALL close_file(iunit)
+   END SUBROUTINE w90_library_write_input
 
 ! **************************************************************************************************
 !> \brief Localize the supplied subspace and return centres and spreads in atomic units.
@@ -250,6 +372,8 @@ CONTAINS
       CHARACTER(LEN=256) :: line
       INTEGER :: ierr, ios, nw
 
+      CPASSERT(.NOT. context%inputs_consumed)
+      context%inputs_consumed = .TRUE.
       CALL w90_project_overlap(context%data, context%output_unit, context%output_unit, ierr)
       CALL check_w90_error(ierr, "projection")
       CALL w90_wannierise(context%data, context%output_unit, context%output_unit, ierr)
