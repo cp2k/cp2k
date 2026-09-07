@@ -288,6 +288,11 @@ The optional
 provides in-process disentanglement and Wannier localization. The existing file export does not
 require this dependency.
 
+Use release 4.0.1 or newer: 4.0.0 can return an undefined error status when retrieving the
+reciprocal neighbour-cell shifts from an initialized library mesh. The CMake metadata alone cannot
+distinguish these releases: even release 4.0.2 advertises version 4.0.0. The supported toolchain and
+Spack installations use the fixed 4.0.2 sources.
+
 The CP2K toolchain installs Wannier90 4.0.2 by default, with the MPI mode selected by `--mpi-mode`.
 Use `--with-wannier90=no` to omit it, `--with-wannier90=system` to find a CMake installation through
 pkg-config, or `--with-wannier90=/path/to/prefix` to reuse an installation. Source the generated
