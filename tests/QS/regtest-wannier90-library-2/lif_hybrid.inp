@@ -1,0 +1,8 @@
+@SET seed lif_hybrid
+@SET cation Li
+@SET anion F
+@SET q_cation 3
+@SET half_a 2.015
+@SET num_wann 5
+@SET projections AO_HYBRID
+@INCLUDE ionic_common.inc
