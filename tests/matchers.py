@@ -135,6 +135,11 @@ registry["WANNIER90_BLOCH_PHASE_GAUGE"] = TextPresenceMatcher(
 registry["WANNIER90_REUSE_VALIDATION"] = TextPresenceMatcher(
     "WANNIER90| Reused MO validation: subspace deviation"
 )
+registry["WANNIER90_CANDIDATE_METRIC_DEVIATION"] = GenericMatcher(
+    r"WANNIER90\| Best atom/AO candidate.*max metric deviation\s+([^,\s]+)",
+    col=1,
+    regex=True,
+)
 registry["M012"] = GenericMatcher(r"B2(T) =", col=4)
 registry["M013"] = GenericMatcher(r"sparseness function f2 =", col=5)
 registry["M014"] = GenericMatcher(r"CheckSum Shifts =", col=4)

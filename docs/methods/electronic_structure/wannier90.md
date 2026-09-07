@@ -322,6 +322,16 @@ well-defined exported subspace.
 full-mesh reference and compares it with the reconstructed orbitals. It is expensive and intended
 for development and diagnostic use, not routine production calculations.
 
+The atom/AO transformation uses the same lattice-periodic Bloch gauge as the SCF matrices. Atom cell
+shifts contribute phases; folding a k-point by a reciprocal lattice vector does not add an extra
+atom-position phase to the SCF coefficients. This is distinct from the optional export gauge
+described below.
+
+A finite integration grid can weakly break crystal symmetry even when the AO overlap metric is
+preserved. The reference validation can then reject the reconstructed eigenvalues and select
+full-mesh diagonalization. Converge both `CUTOFF` and `REL_CUTOFF` as well as the SCF threshold when
+testing quantitative reconstruction; SCF convergence alone does not remove grid errors.
+
 ## Bloch phases and projections
 
 [USE_BLOCH_PHASES](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.USE_BLOCH_PHASES) applies the CP2K
