@@ -46,6 +46,7 @@ case "${with_wannier90}" in
       fi
       # Examples and reference data are large and are not needed for the library build.
       tar -xzf "${archive}" "wannier90-${wannier90_ver}/CMakeLists.txt" \
+        "wannier90-${wannier90_ver}/LICENSE" \
         "wannier90-${wannier90_ver}/cmake" "wannier90-${wannier90_ver}/src"
       build_dir="wannier90-${wannier90_ver}/build-${wannier90_variant}"
       mkdir -p "${build_dir}"
@@ -71,6 +72,8 @@ case "${with_wannier90}" in
         > "${build_dir}/build.log" 2>&1 || tail_excerpt "${build_dir}/build.log"
       cmake --install "${build_dir}" \
         > "${build_dir}/install.log" 2>&1 || tail_excerpt "${build_dir}/install.log"
+      mkdir -p "${pkg_install_dir}/share/licenses/wannier90"
+      cp "wannier90-${wannier90_ver}/LICENSE" "${pkg_install_dir}/share/licenses/wannier90/LICENSE"
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/install_wannier90.sh" \
         "${INSTALLDIR}/toolchain.conf"
     fi
