@@ -276,10 +276,10 @@ CONTAINS
          ispin, iunit, ix, iy, iz, jpar, k, kpoints_source, loop_direction(3), n_rep, nadd, nao, &
          nberry_images, nbs, nelectron, nexcl, nkp, nloop, nmo, nntot, npoint, nscalar, nspins, &
          num_atoms, num_bands, num_bands_tot, num_kpts, num_wann, spin_channel, state_components, &
-         state_unit, status, strong, tqc_dimension, trim_id, weak(3), z4, initial_projections
+         state_unit, status, strong, tqc_dimension, trim_id, weak(3), z4, initial_projections, kept_index
       INTEGER, ALLOCATABLE                               :: ebr_coefficients(:, :), loop_index(:), &
                                                             parity_map(:), parity_odd(:)
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: band_map, exclude_bands
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: band_map, band_indices, exclude_bands
       INTEGER, ALLOCATABLE                               :: hybrid_groups(:, :), projection_pivots(:)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: nblist, nnlist
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: nncell
@@ -292,7 +292,7 @@ CONTAINS
          input_kpoint_symmetry, lowest_bands, mp_grid_explicit, mp_grid_valid, my_kpgrp, mygrp, &
          nonnegative_atomic, ordered_berry, require_global_gap, reuse_scf_mos, reused_scf_mos, &
          signed_atomic, spinors, time_reversal, use_bloch_phases, validate_reuse_ok, &
-         validate_reuse_scf_mos, library_converged, run_library, write_files
+         validate_reuse_scf_mos, library_converged, run_library, write_files, window_explicit
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: keep_band
       REAL(KIND=dp) :: aligned_degenerate_min_svalue, berry_phase, chern_winding, cmmn, &
          conduction_min, direct_gap, gap_tol, gauge_arg, gauge_imag, gauge_real, gauge_tmp, ksign, &
@@ -301,7 +301,7 @@ CONTAINS
          reuse_candidate_deviation, reuse_candidate_metric_deviation, reuse_candidate_min_svalue, &
          reuse_candidate_residual, rmmn, transverse(3), valence_max, &
          validation_eigenvalue_deviation, validation_min_svalue, validation_subspace_deviation, &
-         wkp_ref, projection_min_svalue
+         wkp_ref, projection_min_svalue, outer_window_max, outer_window_min
       REAL(KIND=dp), ALLOCATABLE                         :: loop_sv(:), parity_energies(:), &
                                                             scalar_values(:), spinor_values(:, :)
       REAL(KIND=dp), ALLOCATABLE                         :: wannier_centres(:, :), wannier_spreads(:)
@@ -752,6 +752,8 @@ CONTAINS
          ALLOCATE (wcc_out(0, 0))
       END IF
       ALLOCATE (link_matrix(num_bands, num_bands))
+      ALLOCATE (band_indices(num_bands))
+      band_indices(:) = band_map
       IF (use_bloch_phases .AND. num_wann /= num_bands .AND. .NOT. run_library) THEN
          CPABORT("WANNIER90%USE_BLOCH_PHASES requires WANNIER_FUNCTIONS to match the number of bands.")
       END IF
@@ -770,14 +772,17 @@ CONTAINS
          IF (dft_control%nspins /= 1) THEN
             CPABORT("WANNIER90 LIBRARY currently requires a spin-unpolarized calculation.")
          END IF
-         IF (nexcl > 0) THEN
-            CPABORT("WANNIER90 LIBRARY does not yet support EXCLUDE_BANDS.")
-         END IF
          ALLOCATE (library)
          CALL w90_library_init(library, library_input, para_env, seed_name, real_lattice, kpt_latt, &
                                mp_grid, num_bands, num_wann, nnlist, nncell)
+         outer_window_min = -HUGE(0.0_dp)
+         outer_window_max = HUGE(0.0_dp)
+         CALL section_vals_val_get(library_input, 'DIS_WIN_MIN', explicit=window_explicit)
+         IF (window_explicit) CALL section_vals_val_get(library_input, 'DIS_WIN_MIN', r_val=outer_window_min)
+         CALL section_vals_val_get(library_input, 'DIS_WIN_MAX', explicit=window_explicit)
+         IF (window_explicit) CALL section_vals_val_get(library_input, 'DIS_WIN_MAX', r_val=outer_window_max)
          nntot = SIZE(nnlist, 2)
-         ALLOCATE (overlap_block(num_bands, num_bands))
+         ALLOCATE (overlap_block(num_bands_tot, num_bands_tot))
       ELSE IF (kpoints_source < w90_kpoints_nnkp) THEN
          ALLOCATE (nnlist(num_kpts, num_nnmax), nncell(3, num_kpts, num_nnmax))
          nnlist(:, :) = 0
@@ -989,6 +994,7 @@ CONTAINS
       nspins = dft_control%nspins
       kp => kpoint%kp_env(1)%kpoint_env
       CALL get_mo_set(kp%mos(1, 1), nmo=nmo)
+      CPASSERT(nmo == num_bands_tot)
       ALLOCATE (eigval(nmo))
       CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp)
       IF (para_env%is_source() .AND. write_files) THEN
@@ -1010,12 +1016,23 @@ CONTAINS
                eigval(1:nmo) = 0.0_dp
             END IF
             CALL kpoint%para_env_inter_kp%sum(eigval)
+            IF (run_library .AND. nexcl > 0) THEN
+               DO ib = 1, nmo - 1
+                  IF (keep_band(ib) .EQV. keep_band(ib + 1)) CYCLE
+                  ! Degenerate states outside the outer window cannot enter the Wannier subspace.
+                  kept_index = MERGE(ib, ib + 1, keep_band(ib))
+                  IF (eigval(kept_index) < outer_window_min .OR. eigval(kept_index) > outer_window_max) CYCLE
+                  IF (ABS(eigval(ib + 1) - eigval(ib)) < 1.0e-8_dp) THEN
+                     CPABORT("WANNIER90 EXCLUDE_BANDS must retain or remove complete degenerate subspaces.")
+                  END IF
+               END DO
+            END IF
             eigval(1:nmo) = eigval(1:nmo)*evolt
-            IF (run_library) CALL w90_library_eigenvalues(library, ik, eigval)
+            IF (run_library) CALL w90_library_eigenvalues(library, ik, eigval(band_indices))
             ! output
             IF (iunit > 0) THEN
-               DO ib = 1, nmo
-                  WRITE (iunit, "(2I8,F24.14)") ib, ik, eigval(ib)
+               DO ib = 1, num_bands
+                  WRITE (iunit, "(2I8,F24.14)") ib, ik, eigval(band_indices(ib))
                END DO
             END IF
          END DO
@@ -1032,7 +1049,7 @@ CONTAINS
                initial_amn(i, i, :) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
             END DO
          ELSE
-            CALL build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, num_bands, &
+            CALL build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, band_indices, &
                                                 reused_scf_mos .AND. use_bloch_phases, phase_center, ao_projections)
             CALL w90_library_project_trials(library, ao_projections)
             IF (initial_projections == 2) THEN
@@ -1326,7 +1343,7 @@ CONTAINS
                IF (run_library) THEN
                   CALL cp_cfm_get_submatrix(mmn_cfm, overlap_block)
                   overlap_block(:, :) = overlap_block(:, :)*CMPLX(gauge_real, gauge_imag, KIND=dp)
-                  CALL w90_library_overlap(library, ik, i, overlap_block)
+                  CALL w90_library_overlap(library, ik, i, overlap_block(band_indices, band_indices))
                END IF
                IF (iunit > 0) THEN
                   WRITE (iunit, "(2I8,3I5)") ik, ik2, nncell(1:3, ik, i)
@@ -1667,9 +1684,18 @@ CONTAINS
       DEALLOCATE (nnlist, nncell)
       DEALLOCATE (nblist, b_latt)
       DEALLOCATE (band_map)
-      IF (nexcl > 0) THEN
-         DEALLOCATE (exclude_bands)
+      IF (para_env%is_source()) THEN
+         ! Also replace an earlier exclusion map when the seed is reused without exclusions.
+         CALL open_file(TRIM(seed_name)//'_band_indices.dat', unit_number=iunit, &
+                        file_status='REPLACE', file_action='WRITE')
+         WRITE (iunit, '(A)') '# Exported band, original MO index (before EXCLUDE_BANDS)'
+         DO ib = 1, num_bands
+            WRITE (iunit, '(2I10)') ib, band_indices(ib)
+         END DO
+         CALL close_file(iunit)
       END IF
+      IF (nexcl > 0) DEALLOCATE (exclude_bands)
+      DEALLOCATE (band_indices, keep_band)
       IF (do_kpoints) THEN
          NULLIFY (qs_env_kp)
       ELSE
@@ -3036,24 +3062,24 @@ CONTAINS
 !> \param matrix_s Real-space overlap matrices.
 !> \param sab_nl Overlap neighbour lists.
 !> \param para_env Global parallel environment.
-!> \param nb Number of exported bands.
+!> \param bands Original MO indices retained in the export.
 !> \param apply_phase Whether the overlap export uses the additional global Bloch gauge.
 !> \param phase_center Fractional origin for that gauge.
 !> \param projections Band/AO/k-point projections, stored only on the source rank.
 ! **************************************************************************************************
-   SUBROUTINE build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, nb, &
+   SUBROUTINE build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, bands, &
                                              apply_phase, phase_center, projections)
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(dbcsr_p_type), POINTER                        :: matrix_s(:, :)
       TYPE(neighbor_list_set_p_type), POINTER            :: sab_nl(:)
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN)                                :: nb
+      INTEGER, INTENT(IN)                                :: bands(:)
       LOGICAL, INTENT(IN)                                :: apply_phase
       REAL(KIND=dp), INTENT(IN)                          :: phase_center(3)
       COMPLEX(KIND=dp), ALLOCATABLE, INTENT(OUT)         :: projections(:, :, :)
 
       COMPLEX(KIND=dp), ALLOCATABLE                      :: buffer(:, :)
-      INTEGER                                            :: ik, iklocal, nao, nk
+      INTEGER                                            :: ik, iklocal, nao, nk, nmo
       INTEGER, POINTER                                   :: cell_to_index(:, :, :)
       REAL(KIND=dp)                                      :: phase
       TYPE(cp_cfm_type)                                  :: sc_cfm
@@ -3062,19 +3088,19 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: source_imag, source_real
 
       NULLIFY (matrix_struct, cell_to_index, source_real, source_imag)
-      CALL get_mo_set(kpoint%kp_env(1)%kpoint_env%mos(1, 1), nao=nao)
+      CALL get_mo_set(kpoint%kp_env(1)%kpoint_env%mos(1, 1), nao=nao, nmo=nmo)
       nk = SIZE(kpoint%xkp, 2)
       CALL get_kpoint_info(kpoint, cell_to_index=cell_to_index)
-      CALL cp_fm_struct_create(matrix_struct, nrow_global=nao, ncol_global=nb, &
+      CALL cp_fm_struct_create(matrix_struct, nrow_global=nao, ncol_global=nmo, &
                                para_env=para_env, context=kpoint%blacs_env)
       CALL cp_fm_create(mo_real, matrix_struct)
       CALL cp_fm_create(mo_imag, matrix_struct)
       CALL cp_fm_create(sc_real, matrix_struct)
       CALL cp_fm_create(sc_imag, matrix_struct)
       CALL cp_cfm_create(sc_cfm, matrix_struct)
-      ALLOCATE (buffer(nb, nao))
+      ALLOCATE (buffer(nmo, nao))
       IF (para_env%is_source()) THEN
-         ALLOCATE (projections(nb, nao, nk))
+         ALLOCATE (projections(SIZE(bands), nao, nk))
       ELSE
          ALLOCATE (projections(0, 0, 0))
       END IF
@@ -3093,7 +3119,7 @@ CONTAINS
          CALL cp_fm_to_cfm(sc_real, sc_imag, sc_cfm)
          CALL cp_cfm_get_submatrix(sc_cfm, buffer, transpose=.TRUE.)
          IF (para_env%is_source()) THEN
-            projections(:, :, ik) = CONJG(buffer)
+            projections(:, :, ik) = CONJG(buffer(bands, :))
             IF (apply_phase) THEN
                ! M'(k,b) = exp(i[phi(k+b)-phi(k)]) M(k,b) requires A'(k) = exp(-i phi(k)) A(k).
                phase = -twopi*DOT_PRODUCT(kpoint%xkp(:, ik), phase_center)

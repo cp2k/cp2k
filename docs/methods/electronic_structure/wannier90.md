@@ -46,6 +46,16 @@ additional bands for the export, and
 from it. Choose the exported band window and the subsequent Wannier90 settings for the particular
 material and target property.
 
+`EXCLUDE_BANDS` refers to the original, one-based MO indices, including the additional bands. CP2K
+removes these states consistently from the eigenvalues, overlap matrices, and library projections
+before passing data to Wannier90. The retained bands are renumbered from one in ascending original
+order. Repeated indices are ignored, and out-of-range indices are rejected. A companion
+`SEED_NAME_band_indices.dat` file lists the exported band index and its original MO index. The
+generated files are already filtered: do not add the same exclusion list to the `.win` file. Library
+localization rejects an exclusion that cuts a degenerate band group inside the outer energy window
+(adjacent eigenvalues within `1.e-8` hartree), since selecting individual states there would depend
+on the arbitrary MO gauge. Retain or remove the entire group instead.
+
 ## In-process localization
 
 When CP2K is compiled with `CP2K_USE_WANNIER90=ON`, the optional
@@ -122,9 +132,8 @@ projections, and log. Writing these files does not reset the optimized library m
 
 `INITIAL_PROJECTIONS IDENTITY` is available for diagnostics but retains the arbitrary MO gauge. It
 can converge to different local minima for symmetry-reconstructed and newly diagonalized MOs. The
-library path requires a spin-unpolarized calculation without `EXCLUDE_BANDS`. Even with AO trials,
-convergence to a stationary localization result does not guarantee the global minimum of the spread
-functional.
+library path requires a spin-unpolarized calculation. Even with AO trials, convergence to a
+stationary localization result does not guarantee the global minimum of the spread functional.
 
 CP2K reports both the total spread and its gauge-invariant contribution. The latter depends on the
 selected band subspace, but not on the unitary rotations used to localize it. It therefore helps
@@ -163,7 +172,8 @@ not multiply these rows directly by the original SCF coefficients when the outer
 lower bands. CP2K additionally writes `SEED_NAME_band_map.dat`: after a comment and the number of
 k-points and exported bands, each row lists the one-based k-point index, exported band index, matrix
 row (zero for an excluded band), and eigenvalue in eV. With no disentanglement, this is the identity
-band mapping for `u`. No `.chk` restart file is produced by these options.
+band mapping for `u`. No `.chk` restart file is produced by these options. When `EXCLUDE_BANDS` is
+used, compose this packed-window mapping with `_band_indices.dat` to obtain the original MO indices.
 
 Real-space interpolation requires a suitable, converged k-point mesh. Wannier90 warns when the mesh
 lacks Gamma; generating an `_hr.dat` file alone does not validate off-mesh interpolation.
@@ -176,7 +186,9 @@ With `SEED_NAME silicon`, CP2K writes the following Wannier90 files:
   band count, and k-point mesh;
 - `silicon.mmn`: overlap matrices between neighbouring k-points;
 - `silicon.eig`: eigenvalues for the exported bands; and
-- `silicon.amn`: an identity projection matrix, only when `USE_BLOCH_PHASES T` is used.
+- `silicon.amn`: an identity projection matrix, only when `USE_BLOCH_PHASES T` is used; and
+- `silicon_band_indices.dat`: the mapping from exported bands to original MO indices, including the
+  identity mapping when no bands are excluded.
 
 CP2K regenerates these files when the calculation is run. Preserve a separate copy of a completed
 Wannier90 input file, or add project-specific settings after the CP2K export has finished.

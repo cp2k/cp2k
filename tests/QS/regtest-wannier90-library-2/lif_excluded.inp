@@ -1,11 +1,11 @@
-@SET seed lif_partial
-@SET exclude 0
-@SET disentangle T
+@SET seed lif_excluded
+@SET disentangle F
+@SET exclude 2
 @SET cation Li
 @SET anion F
 @SET q_cation 3
 @SET half_a 2.015
-@SET num_wann 5
+@SET num_wann 4
 @SET projections AUTO
 @SET num_iter 10000
 @SET conv_tol 1.e-12
