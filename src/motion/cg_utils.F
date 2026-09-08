@@ -11,30 +11,28 @@
 !>      10.2005
 ! **************************************************************************************************
 MODULE cg_utils
-   USE cp_external_control, ONLY: external_control
-   USE dimer_types, ONLY: dimer_env_type
-   USE dimer_utils, ONLY: dimer_thrs, &
-                          rotate_dimer
-   USE global_types, ONLY: global_environment_type
-   USE gopt_f_types, ONLY: gopt_f_type
-   USE gopt_param_types, ONLY: gopt_param_type
-   USE input_constants, ONLY: default_cell_method_id, &
-                              default_minimization_method_id, &
-                              default_shellcore_method_id, &
-                              default_ts_method_id, &
-                              ls_2pnt, &
-                              ls_fit, &
-                              ls_gold
-   USE kinds, ONLY: dp
-   USE mathconstants, ONLY: pi
-   USE memory_utilities, ONLY: reallocate
-   USE message_passing, ONLY: mp_para_env_type
+   USE cp_external_control,             ONLY: external_control
+   USE dimer_types,                     ONLY: dimer_env_type
+   USE dimer_utils,                     ONLY: dimer_thrs,&
+                                              rotate_dimer
+   USE global_types,                    ONLY: global_environment_type
+   USE gopt_f_methods,                  ONLY: cp_eval_at
+   USE gopt_f_types,                    ONLY: gopt_f_type
+   USE gopt_param_types,                ONLY: gopt_param_type
+   USE input_constants,                 ONLY: default_cell_method_id,&
+                                              default_minimization_method_id,&
+                                              default_shellcore_method_id,&
+                                              default_ts_method_id,&
+                                              ls_2pnt,&
+                                              ls_fit,&
+                                              ls_gold
+   USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: pi
+   USE memory_utilities,                ONLY: reallocate
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-
-   #:include "gopt_f77_methods.fypp"
 
    PUBLIC :: cg_linmin, get_conjugate_direction
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
@@ -178,7 +176,7 @@ CONTAINS
          save_consistent_energy_force = gopt_env%require_consistent_energy_force
          gopt_env%require_consistent_energy_force = .NOT. my_use_only_grad
          CALL cp_eval_at(gopt_env, x0, opt_energy2, gradient2, master=gopt_env%force_env%para_env%mepos, &
-                         final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
+                         para_env=gopt_env%force_env%para_env)
          gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
          norm_grad1 = -DOT_PRODUCT(g, ls_norm)
@@ -273,7 +271,7 @@ CONTAINS
          IF (dimer_env%rot%curvature > 0) dx = dx_thrs
          x0 = x0 + dx*tls_norm
          CALL cp_eval_at(gopt_env, x0, opt_energy2, master=gopt_env%force_env%para_env%mepos, &
-                         final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
+                         para_env=gopt_env%force_env%para_env)
          IF (dimer_env%rot%curvature > 0) THEN
             dx_min = 0.0_dp
             dx_min_save = dx
@@ -307,7 +305,7 @@ CONTAINS
 
          ! Here we compute the value of the energy in point zero..
          CALL cp_eval_at(gopt_env, x0, opt_energy, master=gopt_env%force_env%para_env%mepos, &
-                         final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
+                         para_env=gopt_env%force_env%para_env)
 
          DEALLOCATE (tls_norm)
       ELSE
@@ -352,7 +350,7 @@ CONTAINS
          CALL rotate_dimer(dimer_env%nvec, theta, angle)
          ! Re-compute energy, gradients and rotation vector for new R1
          CALL cp_eval_at(gopt_env, x0, f, master=gopt_env%force_env%para_env%mepos, &
-                         final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
+                         para_env=gopt_env%force_env%para_env)
 
          curvature1 = dimer_env%rot%curvature
          a1 = (curvature0 - curvature1 + b1*SIN(2.0_dp*angle))/(1.0_dp - COS(2.0_dp*angle))
@@ -907,7 +905,7 @@ CONTAINS
       ALLOCATE (xvec(SIZE(pcom)))
       xvec = pcom + x*xicom
       CALL cp_eval_at(gopt_env, xvec, my_val, master=gopt_env%force_env%para_env%mepos, &
-                      final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
+                      para_env=gopt_env%force_env%para_env)
       DEALLOCATE (xvec)
 
       CALL timestop(handle)
@@ -945,7 +943,7 @@ CONTAINS
       ALLOCATE (grad(SIZE(pcom)))
       xvec = pcom + x*xicom
       CALL cp_eval_at(gopt_env, xvec, energy, grad, master=gopt_env%force_env%para_env%mepos, &
-                      final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
+                      para_env=gopt_env%force_env%para_env)
       my_val = DOT_PRODUCT(grad, xicom)
       fval = energy
       DEALLOCATE (xvec)
