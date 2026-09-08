@@ -668,8 +668,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL :: adiis_cdiis, cdiis_step, do_diis, my_added_mos_auto_grow, my_kpgrp, &
-         my_store_ot_kinetic, my_store_ot_matrices, my_transfer_only, spin_grid_fft, use_adiis, &
+      LOGICAL :: adiis_cdiis, cache_smat, cdiis_step, do_diis, my_added_mos_auto_grow, my_kpgrp, &
+         my_store_ot_kinetic, my_store_ot_matrices, my_transfer_only, reuse_smat, spin_grid_fft, use_adiis, &
          use_grid_fft, use_omp_kpoints, use_real_wfn
       REAL(KIND=dp)                                      :: diis_weight
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
@@ -825,6 +825,22 @@ CONTAINS
 
       para_env => kpoints%blacs_env_all%para_env
 
+      ! Retain the unmodified S(k) for this SCF run, outside the driver-local
+      ! operator context. Solvers receive work copies because they overwrite S.
+      cache_smat = para_env%num_pe > 1 .AND. update_p .AND. .NOT. use_real_wfn .AND. &
+                   .NOT. my_store_ot_matrices
+      reuse_smat = .FALSE.
+      IF (cache_smat) THEN
+         reuse_smat = ALLOCATED(kpoints%scf_smat)
+         IF (.NOT. reuse_smat) THEN
+            ALLOCATE (kpoints%scf_smat(kplocal))
+            DO ikp = 1, kplocal
+               CALL cp_cfm_create(kpoints%scf_smat(ikp), matrix_struct)
+            END DO
+         END IF
+         CPASSERT(SIZE(kpoints%scf_smat) == kplocal)
+      END IF
+
       ! For a complete Monkhorst-Pack grid, transform every MPI-local DBCSR block over all k points
       ! in one lattice FFT. The established per-k phase sum remains the exact memory/irregular-grid
       ! fallback. Divide the conservative memory budget between H spins and S.
@@ -839,7 +855,7 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Unknown lattice FFT selection mode")
       END SELECT
-      IF (use_grid_fft) THEN
+      IF (use_grid_fft .AND. .NOT. reuse_smat) THEN
          CALL rskp_transform_grid_prepare(s_grid, rmatrix, matrix_s, 1, xkp, nkp_grid, &
                                           cell_to_index, sab_nl, use_grid_fft, &
                                           max_storage_bytes=512_int_8*1024_int_8**2/INT(nspin + 1, int_8))
@@ -946,8 +962,10 @@ CONTAINS
                ! transfer to the k-point group
                CALL kpoint_operator_start(op_ctx, ikp, ispin, effective_ks, kpoint_slot_ks, &
                                           ks_grid(ispin), use_grid_fft, matrix_row=ispin)
-               CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_s, kpoint_slot_s, s_grid, &
-                                          use_grid_fft, matrix_row=kpoint_spin_free)
+               IF (.NOT. cache_smat .OR. (.NOT. reuse_smat .AND. ispin == 1)) THEN
+                  CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_s, kpoint_slot_s, s_grid, &
+                                             use_grid_fft, matrix_row=kpoint_spin_free)
+               END IF
                IF (my_store_ot_kinetic) THEN
                   CALL kpoint_operator_start(op_ctx, ikp, ispin, matrix_t, kpoint_slot_t, &
                                              use_grid=.FALSE., matrix_row=kpoint_spin_free)
@@ -983,7 +1001,9 @@ CONTAINS
                   END DO  !igroup
                ELSE
                   CALL kpoint_operator_finish(op_ctx, ikp, ispin, kpoint_slot_ks, cksmat)
-                  CALL kpoint_operator_finish(op_ctx, ikp, ispin, kpoint_slot_s, csmat)
+                  IF (.NOT. cache_smat .OR. (.NOT. reuse_smat .AND. ispin == 1)) THEN
+                     CALL kpoint_operator_finish(op_ctx, ikp, ispin, kpoint_slot_s, csmat)
+                  END IF
                   IF (my_store_ot_kinetic) THEN
                      CALL kpoint_operator_finish(op_ctx, ikp, ispin, kpoint_slot_t, ctmat)
                   END IF
@@ -991,6 +1011,13 @@ CONTAINS
 
                IF (ikp > kplocal) CYCLE
                kp => kpoints%kp_env(ikp)%kpoint_env
+               IF (cache_smat) THEN
+                  IF (.NOT. reuse_smat .AND. ispin == 1) THEN
+                     CALL cp_cfm_to_cfm(csmat, kpoints%scf_smat(ikp))
+                  ELSE
+                     CALL cp_cfm_to_cfm(kpoints%scf_smat(ikp), csmat)
+                  END IF
+               END IF
                CALL qs_diis_b_calc_err_kp(kpoints%scf_diis_buffer, ib, kp%mos, cksmat, csmat, &
                                           ispin, ikp, kplocal, scf_section, real_wfn=use_real_wfn)
 
@@ -1102,7 +1129,9 @@ CONTAINS
                   END DO
                ELSE
                   CALL kpoint_operator_finish(op_ctx, ikp, ispin, kpoint_slot_ks, cksmat)
-                  CALL kpoint_operator_finish(op_ctx, ikp, ispin, kpoint_slot_s, csmat)
+                  IF (.NOT. cache_smat .OR. (.NOT. reuse_smat .AND. ispin == 1)) THEN
+                     CALL kpoint_operator_finish(op_ctx, ikp, ispin, kpoint_slot_s, csmat)
+                  END IF
                   IF (my_store_ot_kinetic) THEN
                      CALL kpoint_operator_finish(op_ctx, ikp, ispin, kpoint_slot_t, ctmat)
                   END IF
@@ -1112,6 +1141,13 @@ CONTAINS
                ! General eigensolver Hermite or Symmetric
                IF (ikp > kplocal) CYCLE
                kp => kpoints%kp_env(ikp)%kpoint_env
+               IF (cache_smat) THEN
+                  IF (.NOT. reuse_smat .AND. ispin == 1) THEN
+                     CALL cp_cfm_to_cfm(csmat, kpoints%scf_smat(ikp))
+                  ELSE
+                     CALL cp_cfm_to_cfm(kpoints%scf_smat(ikp), csmat)
+                  END IF
+               END IF
                IF (use_real_wfn) THEN
                   CALL get_mo_set(kp%mos(1, ispin), mo_coeff=mo_coeff, eigenvalues=eigenvalues)
                   IF (my_store_ot_matrices) THEN
