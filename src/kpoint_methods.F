@@ -736,13 +736,12 @@ CONTAINS
          kpoint%nkp_groups = 1
       ELSE
          IF (kpoint%parallel_group_size == -1) THEN
-            ! maximum parallelization over kpoints
-            ! making sure that the group size divides the npe and the nkp_grp the nkp
-            ! in the worst case, there will be no parallelism over kpoints.
+            ! Maximum parallelization over kpoints with equal-sized MPI groups.
+            ! Each group must own at least one kpoint; their kpoint counts may differ.
             DO igr = npe, 1, -1
                IF (MOD(npe, igr) /= 0) CYCLE
                nkp_grp = npe/igr
-               IF (MOD(nkp, nkp_grp) /= 0) CYCLE
+               IF (nkp_grp > nkp) CYCLE
                ngr = igr
             END DO
          ELSE IF (kpoint%parallel_group_size == 0) THEN
@@ -757,11 +756,11 @@ CONTAINS
          ! processor dimensions
          dims(1) = ngr
          dims(2) = nkp_grp
-         CPASSERT(MOD(nkp, nkp_grp) == 0)
-         nkp_loc = nkp/nkp_grp
-
          IF ((dims(1)*dims(2) /= npe)) THEN
             CPABORT("Number of processors is not divisible by the kpoint group size.")
+         END IF
+         IF (nkp_grp > nkp) THEN
+            CPABORT("Number of kpoint groups exceeds the number of kpoints. Increase PARALLEL_GROUP_SIZE.")
          END IF
 
          ! Create the subgroups, one for each k-point group and one interconnecting group
@@ -789,6 +788,7 @@ CONTAINS
          END DO
          ! local kpoints
          kpoint%kp_range(1:2) = kpoint%kp_dist(1:2, para_env_inter_kp%mepos + 1)
+         nkp_loc = kpoint%kp_range(2) - kpoint%kp_range(1) + 1
 
          ALLOCATE (kp_env(nkp_loc))
          DO ik = 1, nkp_loc
@@ -822,9 +822,15 @@ CONTAINS
 
          IF (unit_nr > 0 .AND. kpoint%verbose) THEN
             WRITE (unit_nr, *)
+            WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Total number of kpoints", nkp
             WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Number of kpoint groups ", nkp_grp
             WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Size of each kpoint group", ngr
-            WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Number of kpoints per group", nkp_loc
+            IF (MOD(nkp, nkp_grp) == 0) THEN
+               WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Number of kpoints per group", nkp_loc
+            ELSE
+               WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Minimum number of kpoints per group", nkp/nkp_grp
+               WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Maximum number of kpoints per group", nkp/nkp_grp + 1
+            END IF
          END IF
          kpoint%nkp_groups = nkp_grp
 

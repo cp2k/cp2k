@@ -1537,6 +1537,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
+      TYPE(cp_fm_type)                                   :: inactive_re, inactive_im
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :), &
@@ -1684,11 +1685,17 @@ CONTAINS
 
          CALL apply_hxc_kernel_kp(qs_env, kernel_env, density_rs, potential_rs)
          IF (nkp_groups > 1) THEN
-            DO local_kpoint = 1, nlocal_kpoints
+            DO local_kpoint = 1, MAXVAL(kpoints%kp_dist(2, :) - kpoints%kp_dist(1, :) + 1)
                DO ispin = 1, nspin_ot
-                  CALL kpoint_operator_get(hxc_op_ctx, local_kpoint, ispin, potential_rs, &
-                                           fm_re=operator_re(local_kpoint, ispin), &
-                                           fm_im=operator_im(local_kpoint, ispin), matrix_row=ispin)
+                  IF (local_kpoint <= nlocal_kpoints) THEN
+                     CALL kpoint_operator_get(hxc_op_ctx, local_kpoint, ispin, potential_rs, &
+                                              fm_re=operator_re(local_kpoint, ispin), &
+                                              fm_im=operator_im(local_kpoint, ispin), matrix_row=ispin)
+                  ELSE
+                     ! Participate in the global transfers without a local output in this round.
+                     CALL kpoint_operator_get(hxc_op_ctx, local_kpoint, ispin, potential_rs, &
+                                              fm_re=inactive_re, fm_im=inactive_im, matrix_row=ispin)
+                  END IF
                END DO
             END DO
          END IF

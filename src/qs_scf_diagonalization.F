@@ -662,7 +662,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag_kp'
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeffs
-      INTEGER :: cdiis_ncall, handle, ib, ic, igroup, ik, ikp, indx, ispin, jb, kplocal, &
+      INTEGER :: cdiis_ncall, handle, ib, ic, igroup, ik, ikp, indx, ispin, jb, kplocal, kpmax, &
          lattice_fft, nb, ninfo, nkp, nkp_groups, nspin, omp_threads, ot_components
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(3)                              :: nkp_grid
@@ -713,6 +713,7 @@ CONTAINS
                            cell_to_index=cell_to_index, nkp_grid=nkp_grid, lattice_fft=lattice_fft)
       CPASSERT(ASSOCIATED(sab_nl))
       kplocal = kp_range(2) - kp_range(1) + 1
+      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
 
       !Whether we use DIIS for k-points
       do_diis = .FALSE.
@@ -885,17 +886,18 @@ CONTAINS
       IF (use_real_wfn) THEN
          ninfo = 4
          IF (my_store_ot_kinetic) ninfo = 6
-         ALLOCATE (info(kplocal*nspin*nkp_groups, ninfo))
+         ALLOCATE (info(nkp*nspin, ninfo))
       END IF
 
       ! Setup and start all the communication
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO ispin = 1, nspin
             IF (use_real_wfn) THEN
                DO igroup = 1, nkp_groups
                   ! number of current kpoint
                   ik = kp_dist(1, igroup) + ikp - 1
+                  IF (ik > kp_dist(2, igroup)) CYCLE
                   my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                   indx = indx + 1
                   ! FT of matrices KS and S, then transfer to FM type
@@ -960,12 +962,13 @@ CONTAINS
          cdiis_ncall = kpoints%scf_diis_buffer%ncall
          CALL qs_diis_b_info_kp(kpoints%scf_diis_buffer, ib, nb)
          indx = 0
-         DO ikp = 1, kplocal
+         DO ikp = 1, kpmax
             DO ispin = 1, nspin
                IF (use_real_wfn) THEN
                   DO igroup = 1, nkp_groups
                      ! number of current kpoint
                      ik = kp_dist(1, igroup) + ikp - 1
+                     IF (ik > kp_dist(2, igroup)) CYCLE
                      my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                      indx = indx + 1
                      IF (my_kpgrp) THEN
@@ -986,6 +989,7 @@ CONTAINS
                   END IF
                END IF
 
+               IF (ikp > kplocal) CYCLE
                kp => kpoints%kp_env(ikp)%kpoint_env
                CALL qs_diis_b_calc_err_kp(kpoints%scf_diis_buffer, ib, kp%mos, cksmat, csmat, &
                                           ispin, ikp, kplocal, scf_section, real_wfn=use_real_wfn)
@@ -1026,7 +1030,7 @@ CONTAINS
          END IF
 
          !build the ks matrices and diagonalize
-         DO ikp = 1, kplocal
+         DO ikp = 1, kpmax
             DO ispin = 1, nspin
                IF (use_adiis) THEN
                   IF (diis_weight < 1.0_dp) THEN
@@ -1037,6 +1041,7 @@ CONTAINS
                      CALL kpoint_operator_finish(op_ctx, ikp, ispin, kpoint_slot_ks, cwork)
                   END IF
                END IF
+               IF (ikp > kplocal) CYCLE
                kp => kpoints%kp_env(ikp)%kpoint_env
                CALL cp_cfm_to_cfm(kpoints%scf_diis_buffer%smat(ikp), csmat)
 
@@ -1078,12 +1083,13 @@ CONTAINS
       ELSE !no DIIS
          IF (.NOT. update_p .OR. use_adiis) diis_step = .FALSE.
          indx = 0
-         DO ikp = 1, kplocal
+         DO ikp = 1, kpmax
             DO ispin = 1, nspin
                IF (use_real_wfn) THEN
                   DO igroup = 1, nkp_groups
                      ! number of current kpoint
                      ik = kp_dist(1, igroup) + ikp - 1
+                     IF (ik > kp_dist(2, igroup)) CYCLE
                      my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                      indx = indx + 1
                      IF (my_kpgrp) THEN
@@ -1104,6 +1110,7 @@ CONTAINS
 
                ! Each kpoint group has now information on a kpoint to be diagonalized
                ! General eigensolver Hermite or Symmetric
+               IF (ikp > kplocal) CYCLE
                kp => kpoints%kp_env(ikp)%kpoint_env
                IF (use_real_wfn) THEN
                   CALL get_mo_set(kp%mos(1, ispin), mo_coeff=mo_coeff, eigenvalues=eigenvalues)
@@ -1153,11 +1160,12 @@ CONTAINS
       ! its finish calls.
       IF (use_real_wfn) THEN
          indx = 0
-         DO ikp = 1, kplocal
+         DO ikp = 1, kpmax
             DO ispin = 1, nspin
                DO igroup = 1, nkp_groups
                   ! number of current kpoint
                   ik = kp_dist(1, igroup) + ikp - 1
+                  IF (ik > kp_dist(2, igroup)) CYCLE
                   my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                   indx = indx + 1
                   CALL cp_fm_cleanup_copy_general(info(indx, 1))
@@ -1720,7 +1728,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'diag_kp_basic'
 
       INTEGER                                            :: handle, igroup, ik, ikp, indx, ispin, &
-                                                            kplocal, nkp, nkp_groups, nspin
+                                                            kplocal, kpmax, nkp, nkp_groups, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -1749,6 +1757,7 @@ CONTAINS
                            cell_to_index=cell_to_index)
       CPASSERT(ASSOCIATED(sab_nl))
       kplocal = kp_range(2) - kp_range(1) + 1
+      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
 
       ! use as template
       tempmat => matrix_ks(1, 1)%matrix
@@ -1785,16 +1794,17 @@ CONTAINS
       nspin = SIZE(matrix_ks, 1)
       CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
       ! The real-wavefunction path keeps its own transfer bookkeeping.
-      IF (use_real_wfn) ALLOCATE (info(kplocal*nspin*nkp_groups, 2))
+      IF (use_real_wfn) ALLOCATE (info(nkp*nspin, 2))
 
       ! Setup and start all the communication
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO ispin = 1, nspin
             IF (use_real_wfn) THEN
                DO igroup = 1, nkp_groups
                   ! number of current kpoint
                   ik = kp_dist(1, igroup) + ikp - 1
+                  IF (ik > kp_dist(2, igroup)) CYCLE
                   my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                   indx = indx + 1
                   ! FT of matrices KS and S, then transfer to FM type
@@ -1831,12 +1841,13 @@ CONTAINS
 
       ! Finish communication then diagonalise in each group
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO ispin = 1, nspin
             IF (use_real_wfn) THEN
                DO igroup = 1, nkp_groups
                   ! number of current kpoint
                   ik = kp_dist(1, igroup) + ikp - 1
+                  IF (ik > kp_dist(2, igroup)) CYCLE
                   my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                   indx = indx + 1
                   IF (my_kpgrp) THEN
@@ -1851,6 +1862,7 @@ CONTAINS
 
             ! Each kpoint group has now information on a kpoint to be diagonalized
             ! General eigensolver Hermite or Symmetric
+            IF (ikp > kplocal) CYCLE
             kp => kpoints%kp_env(ikp)%kpoint_env
             IF (use_real_wfn) THEN
                CALL get_mo_set(kp%mos(1, ispin), mo_coeff=mo_coeff, eigenvalues=eigenvalues)
@@ -1869,11 +1881,12 @@ CONTAINS
       ! its finish calls.
       IF (use_real_wfn) THEN
          indx = 0
-         DO ikp = 1, kplocal
+         DO ikp = 1, kpmax
             DO ispin = 1, nspin
                DO igroup = 1, nkp_groups
                   ! number of current kpoint
                   ik = kp_dist(1, igroup) + ikp - 1
+                  IF (ik > kp_dist(2, igroup)) CYCLE
                   my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                   indx = indx + 1
                   CALL cp_fm_cleanup_copy_general(info(indx, 1))
@@ -3186,7 +3199,7 @@ CONTAINS
                                                             eps_iter_cap = 1.0E-4_dp
 
       INTEGER                                            :: channel, first_prec, handle, ispin, iw, &
-                                                            iwork, kplocal, local_kpoint, &
+                                                            iwork, kplocal, kpmax, local_kpoint, &
                                                             nchannels, nspin, output_unit
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
@@ -3235,6 +3248,7 @@ CONTAINS
       END IF
       para_env => kpoints%blacs_env_all%para_env
       kplocal = kp_range(2) - kp_range(1) + 1
+      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
       nspin = SIZE(matrix_ks_kp, 1)
       nchannels = kplocal*nspin
 
@@ -3338,18 +3352,18 @@ CONTAINS
             qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints, op_ctx)
       END IF
 
-      DO local_kpoint = 1, kplocal
-         kp => kpoints%kp_env(local_kpoint)%kpoint_env
-
+      DO local_kpoint = 1, kpmax
          ! Every k-point group executes the same sequence of global transforms.
-         ! Only the group owning this local_kpoint receives the redistributed
-         ! matrix; the others participate through the dummy destination.
+         ! Groups without a k point in the last round still participate
+         ! in the service calls, but skip their local solver work.
          CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_s_kp, &
                                   cmat=csmat_base, matrix_row=kpoint_spin_free)
 
          DO ispin = 1, nspin
             CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, &
                                      cmat=cksmat, matrix_row=ispin)
+            IF (local_kpoint > kplocal) CYCLE
+            kp => kpoints%kp_env(local_kpoint)%kpoint_env
             CALL cp_cfm_to_cfm(csmat_base, csmat)
 
             IF (scf_env%iter_count == 1 .AND. .NOT. kp%mos_prefilled) THEN
@@ -3457,7 +3471,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'davidson_kp_prepare_preconditioners'
 
-      INTEGER                                            :: channel, handle, ispin, kplocal, &
+      INTEGER                                            :: channel, handle, ispin, kplocal, kpmax, &
                                                             local_kpoint, nchannels, nmo, nspin, &
                                                             prec_type, solver_type
       INTEGER, DIMENSION(2)                              :: kp_range
@@ -3487,6 +3501,7 @@ CONTAINS
       blacs_env => kpoints%blacs_env
       para_env => kpoints%para_env_kp
       kplocal = kp_range(2) - kp_range(1) + 1
+      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
       nspin = SIZE(matrix_ks_kp, 1)
       nchannels = kplocal*nspin
       prec_type = scf_env%block_davidson_env(1)%prec_type
@@ -3520,9 +3535,7 @@ CONTAINS
          CPASSERT(ASSOCIATED(matrix_t_kp))
       END IF
 
-      DO local_kpoint = 1, kplocal
-         kp => kpoints%kp_env(local_kpoint)%kpoint_env
-
+      DO local_kpoint = 1, kpmax
          ! S(k) is spin independent. Build it with the same global-group
          ! redistribution protocol as the Davidson operator itself, directly
          ! as the group-local block-cyclic DBCSR pair of the preconditioner
@@ -3542,52 +3555,59 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspin
-            channel = (local_kpoint - 1)*nspin + ispin
             IF (prec_type == ot_precond_full_all .OR. prec_type == ot_precond_full_single_inverse) THEN
                CALL dbcsr_init_p(matrix_h_re)
                CALL dbcsr_init_p(matrix_h_im)
                CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, &
                                         mat_re=matrix_h_re, mat_im=matrix_h_im, matrix_row=ispin)
-               ! Davidson iterates the full MO set, so its active space is all nmo
-               ! MOs of the channel: assemble the complex channel matrices on the
-               ! kpoint-group context and call the complex H-based cores directly
-               ! (mirrors the complex preconditioners of the K-point OT case; the
-               ! FULL_SINGLE_INVERSE variant trades the state selectivity of
-               ! FULL_ALL for one shifted factorization and a gemm application)
-               CALL get_mo_set(kp%mos(1, ispin), mo_coeff=mo_coeff_re, eigenvalues=eigenvalues, &
-                               nmo=nmo)
-               CALL get_mo_set(kp%mos(2, ispin), mo_coeff=mo_coeff_im)
-               CALL cp_cfm_create(matrix_c, mo_coeff_re%matrix_struct, name="dav pc C")
-               CALL cp_cfm_scale_and_add_fm(z_zero, matrix_c, z_one, mo_coeff_re)
-               CALL cp_cfm_scale_and_add_fm(z_one, matrix_c, gaussi, mo_coeff_im)
-               CALL dbcsr_pair_to_cfm(matrix_h_re, matrix_h_im, &
-                                      scf_env%ot_preconditioner(channel)%preconditioner, &
-                                      'dav pc H', matrix_h)
-               CALL dbcsr_pair_to_cfm(matrix_s_re, matrix_s_im, &
-                                      scf_env%ot_preconditioner(channel)%preconditioner, &
-                                      'dav pc S', matrix_s)
-               IF (prec_type == ot_precond_full_all) THEN
-                  CALL make_complex_full_all(scf_env%ot_preconditioner(channel)%preconditioner, &
-                                             matrix_c, matrix_h, matrix_s, eigenvalues(1:nmo), &
-                                             energy_gap)
-               ELSE
-                  CALL make_complex_full_single_inverse( &
+            END IF
+            IF (local_kpoint <= kplocal) THEN
+               kp => kpoints%kp_env(local_kpoint)%kpoint_env
+               channel = (local_kpoint - 1)*nspin + ispin
+               IF (prec_type == ot_precond_full_all .OR. prec_type == ot_precond_full_single_inverse) THEN
+                  ! Davidson iterates the full MO set, so its active space is all nmo
+                  ! MOs of the channel: assemble the complex channel matrices on the
+                  ! kpoint-group context and call the complex H-based cores directly
+                  ! (mirrors the complex preconditioners of the K-point OT case; the
+                  ! FULL_SINGLE_INVERSE variant trades the state selectivity of
+                  ! FULL_ALL for one shifted factorization and a gemm application)
+                  CALL get_mo_set(kp%mos(1, ispin), mo_coeff=mo_coeff_re, eigenvalues=eigenvalues, &
+                                  nmo=nmo)
+                  CALL get_mo_set(kp%mos(2, ispin), mo_coeff=mo_coeff_im)
+                  CALL cp_cfm_create(matrix_c, mo_coeff_re%matrix_struct, name="dav pc C")
+                  CALL cp_cfm_scale_and_add_fm(z_zero, matrix_c, z_one, mo_coeff_re)
+                  CALL cp_cfm_scale_and_add_fm(z_one, matrix_c, gaussi, mo_coeff_im)
+                  CALL dbcsr_pair_to_cfm(matrix_h_re, matrix_h_im, &
+                                         scf_env%ot_preconditioner(channel)%preconditioner, &
+                                         'dav pc H', matrix_h)
+                  CALL dbcsr_pair_to_cfm(matrix_s_re, matrix_s_im, &
+                                         scf_env%ot_preconditioner(channel)%preconditioner, &
+                                         'dav pc S', matrix_s)
+                  IF (prec_type == ot_precond_full_all) THEN
+                     CALL make_complex_full_all(scf_env%ot_preconditioner(channel)%preconditioner, &
+                                                matrix_c, matrix_h, matrix_s, eigenvalues(1:nmo), &
+                                                energy_gap)
+                  ELSE
+                     CALL make_complex_full_single_inverse( &
+                        scf_env%ot_preconditioner(channel)%preconditioner, &
+                        matrix_c, matrix_h, matrix_s, energy_gap)
+                  END IF
+                  CALL cp_cfm_release(matrix_c)
+                  CALL cp_cfm_release(matrix_h)
+                  CALL cp_cfm_release(matrix_s)
+               ELSE IF (prec_type == ot_precond_full_kinetic) THEN
+                  CALL make_preconditioner_complex_full_kinetic( &
                      scf_env%ot_preconditioner(channel)%preconditioner, &
-                     matrix_c, matrix_h, matrix_s, energy_gap)
+                     matrix_t_re, matrix_t_im, matrix_s_re, matrix_s_im, energy_gap, solver_type)
+               ELSE IF (prec_type == ot_precond_s_inverse) THEN
+                  CALL make_preconditioner_complex_full_s_inverse( &
+                     scf_env%ot_preconditioner(channel)%preconditioner, &
+                     matrix_s_re, matrix_s_im, solver_type)
                END IF
-               CALL cp_cfm_release(matrix_c)
-               CALL cp_cfm_release(matrix_h)
-               CALL cp_cfm_release(matrix_s)
+            END IF
+            IF (prec_type == ot_precond_full_all .OR. prec_type == ot_precond_full_single_inverse) THEN
                CALL dbcsr_release_p(matrix_h_re)
                CALL dbcsr_release_p(matrix_h_im)
-            ELSE IF (prec_type == ot_precond_full_kinetic) THEN
-               CALL make_preconditioner_complex_full_kinetic( &
-                  scf_env%ot_preconditioner(channel)%preconditioner, &
-                  matrix_t_re, matrix_t_im, matrix_s_re, matrix_s_im, energy_gap, solver_type)
-            ELSE IF (prec_type == ot_precond_s_inverse) THEN
-               CALL make_preconditioner_complex_full_s_inverse( &
-                  scf_env%ot_preconditioner(channel)%preconditioner, &
-                  matrix_s_re, matrix_s_im, solver_type)
             END IF
          END DO
 
@@ -3623,7 +3643,7 @@ CONTAINS
                                                             czero = (0.0_dp, 0.0_dp)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: ceig
-      INTEGER                                            :: handle, igroup, ik, ikp, indx, kplocal, &
+      INTEGER                                            :: handle, igroup, ik, ikp, indx, kplocal, kpmax, &
                                                             nao, nkp, nkp_groups
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
@@ -3652,6 +3672,7 @@ CONTAINS
                            cell_to_index=cell_to_index)
       CPASSERT(ASSOCIATED(sab_nl))
       kplocal = kp_range(2) - kp_range(1) + 1
+      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
 
       ! allocate some work matrices
       ALLOCATE (rmatrix, cmatrix, tmpmat)
@@ -3686,15 +3707,16 @@ CONTAINS
       ! single spin-free key.
       CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), 1)
       ! The real-wavefunction path keeps its own transfer bookkeeping.
-      IF (use_real_wfn) ALLOCATE (info(kplocal*nkp_groups, 1))
+      IF (use_real_wfn) ALLOCATE (info(nkp, 1))
 
       ! Setup and start all the communication
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          IF (use_real_wfn) THEN
             DO igroup = 1, nkp_groups
                ! number of current kpoint
                ik = kp_dist(1, igroup) + ikp - 1
+               IF (ik > kp_dist(2, igroup)) CYCLE
                my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                indx = indx + 1
                CALL dbcsr_set(rmatrix, 0.0_dp)
@@ -3719,11 +3741,12 @@ CONTAINS
 
       ! Finish communication then diagonalise in each group
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          IF (use_real_wfn) THEN
             DO igroup = 1, nkp_groups
                ! number of current kpoint
                ik = kp_dist(1, igroup) + ikp - 1
+               IF (ik > kp_dist(2, igroup)) CYCLE
                my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                indx = indx + 1
                IF (my_kpgrp) THEN
@@ -3736,6 +3759,7 @@ CONTAINS
 
          ! Each kpoint group has now information on a kpoint to be diagonalized
          ! Eigensolver Hermite or Symmetric
+         IF (ikp > kplocal) CYCLE
          kp => kpoints%kp_env(ikp)%kpoint_env
          IF (use_real_wfn) THEN
             CALL choose_eigv_solver(rsmat, fmlocal, eigenvalues)
@@ -3767,10 +3791,11 @@ CONTAINS
       ! finish calls.
       IF (use_real_wfn) THEN
          indx = 0
-         DO ikp = 1, kplocal
+         DO ikp = 1, kpmax
             DO igroup = 1, nkp_groups
                ! number of current kpoint
                ik = kp_dist(1, igroup) + ikp - 1
+               IF (ik > kp_dist(2, igroup)) CYCLE
                my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                indx = indx + 1
                CALL cp_fm_cleanup_copy_general(info(indx, 1))

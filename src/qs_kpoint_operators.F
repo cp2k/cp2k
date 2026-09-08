@@ -122,9 +122,9 @@ MODULE qs_kpoint_operators
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)         :: fmwork
       TYPE(cp_fm_type), ALLOCATABLE                       :: fmlocal
       TYPE(cp_fm_type)                                    :: fmdummy
-      ! Bookkeeping. info is keyed (local k point x group, spin, slot, part),
+      ! Bookkeeping. info is keyed (global k point, spin, slot, part),
       ! part kpoint_part_re holding the real half and kpoint_part_im holding
-      ! the imaginary half. Status is keyed (local k point, spin, slot)
+      ! the imaginary half. Status is keyed (global round, spin, slot)
       ! because start and finish treat all groups of one instance
       ! atomically. Allocated on first start.
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :, :, :) :: info
@@ -489,16 +489,16 @@ CONTAINS
    END SUBROUTINE kpoint_operator_ensure
 
 ! **************************************************************************************************
-!> \brief Start the assembly of one operator for one local k point and spin and
-!>        launch its transfers to every k-point group. The caller index ikp is
-!>        local; the walk over groups happens here, so no caller can express a
-!>        group-local loop. Finish every started instance with
+!> \brief Start one operator for one global round and spin. The service walks
+!>        all groups with a k point in this round; groups without one still
+!>        participate in the transfers. Every rank must iterate through the
+!>        maximum local k-point count. Finish every started instance with
 !>        kpoint_operator_finish. The first start also creates the slot
 !>        bookkeeping of the context.
 !>        Collective over the environment-wide communicator: every rank must
 !>        call the same sequence of service calls.
 !> \param ctx context created by kpoint_operator_context_create
-!> \param ikp local k-point index within kp_range
+!> \param ikp global round, up to the maximum k-point count across groups
 !> \param ispin instance spin: keys the bookkeeping
 !> \param rsmat real-space image matrices of the operator, read at start
 !>        time only. The matching finish does not read them
@@ -524,7 +524,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_start'
 
-      INTEGER                                            :: handle, igroup, ik, indx, kplocal
+      INTEGER                                            :: handle, igroup, ik, kpmax
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       LOGICAL                                            :: my_kpgrp
@@ -540,8 +540,8 @@ CONTAINS
       ! real-space blocks.
       CPASSERT(ispin >= 1 .AND. ispin <= ctx%nspin)
       CPASSERT(matrix_row >= 1 .AND. matrix_row <= SIZE(rsmat, 1))
-      kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
-      CPASSERT(ikp >= 1 .AND. ikp <= kplocal)
+      kpmax = MAXVAL(ctx%kpoints%kp_dist(2, :) - ctx%kpoints%kp_dist(1, :) + 1)
+      CPASSERT(ikp >= 1 .AND. ikp <= kpmax)
       CPASSERT(slot >= kpoint_slot_ks .AND. slot <= kpoint_slot_t)
       IF (ALLOCATED(ctx%status)) THEN
          CPASSERT(ctx%status(ikp, ispin, slot) == kpoint_slot_idle)
@@ -556,11 +556,11 @@ CONTAINS
       ! operators such as S carry their real-space blocks in the first
       ! matrix dimension, and the row choice is made through matrix_row.
       IF (.NOT. ALLOCATED(ctx%status)) THEN
-         ALLOCATE (ctx%status(kplocal, ctx%nspin, kpoint_num_slots))
+         ALLOCATE (ctx%status(kpmax, ctx%nspin, kpoint_num_slots))
          ctx%status = kpoint_slot_idle
          ! One copy_info per in-flight part: start takes it INTENT(OUT),
          ! so two concurrent starts cannot share one instance.
-         ALLOCATE (ctx%info(kplocal*ctx%kpoints%nkp_groups, ctx%nspin, &
+         ALLOCATE (ctx%info(SIZE(ctx%kpoints%xkp, 2), ctx%nspin, &
                             kpoint_num_slots, kpoint_part_im))
       END IF
 
@@ -569,16 +569,16 @@ CONTAINS
       para_env => ctx%kpoints%blacs_env_all%para_env
       DO igroup = 1, ctx%kpoints%nkp_groups
          ik = kp_dist(1, igroup) + ikp - 1
+         IF (ik > kp_dist(2, igroup)) CYCLE
          my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-         indx = ikp + (igroup - 1)*kplocal
          CALL kpoint_operator_launch(rsmat, matrix_row, ik, ctx%kpoints%xkp(1:3, ik), &
                                      ctx%kpoints%cell_to_index, ctx%kpoints%sab_nl, grid, use_grid, &
                                      ctx%rmatrix, ctx%cmatrix, ctx%tmpmat, &
                                      ctx%fmwork(kpoint_part_re), ctx%fmwork(kpoint_part_im), &
                                      target_re=ctx%fmlocal, target_im=ctx%fmlocal, fmdummy=ctx%fmdummy, &
                                      my_kpgrp=my_kpgrp, para_env=para_env, &
-                                     info_re=ctx%info(indx, ispin, slot, kpoint_part_re), &
-                                     info_im=ctx%info(indx, ispin, slot, kpoint_part_im))
+                                     info_re=ctx%info(ik, ispin, slot, kpoint_part_re), &
+                                     info_im=ctx%info(ik, ispin, slot, kpoint_part_im))
       END DO
       ctx%status(ikp, ispin, slot) = kpoint_slot_in_flight
 
@@ -594,11 +594,12 @@ CONTAINS
 !>        Collective over the environment-wide communicator: every rank must
 !>        call the same sequence of service calls.
 !> \param ctx context that started the instance
-!> \param ikp local k-point index of the start call
+!> \param ikp global round of the start call
 !> \param ispin spin component of the start call
 !> \param slot slot of the start call; the slot must be in flight
 !> \param cmat caller-allocated complex matrix that receives the operator.
-!>        It must share the distribution of the k-point group
+!>        It must share the distribution of the k-point group. Unchanged on
+!>        groups without a k point in this round
 ! **************************************************************************************************
    SUBROUTINE kpoint_operator_finish(ctx, ikp, ispin, slot, cmat)
 
@@ -608,7 +609,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_finish'
 
-      INTEGER                                            :: handle, igroup, ik, indx, kplocal
+      INTEGER                                            :: handle, igroup, ik, kpmax
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       LOGICAL                                            :: my_kpgrp
@@ -617,26 +618,29 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(ctx%kpoints))
       CPASSERT(ALLOCATED(ctx%status))
+      kpmax = SIZE(ctx%status, 1)
+      CPASSERT(ikp >= 1 .AND. ikp <= kpmax)
+      CPASSERT(ispin >= 1 .AND. ispin <= ctx%nspin)
+      CPASSERT(slot >= kpoint_slot_ks .AND. slot <= kpoint_slot_t)
       CPASSERT(ctx%status(ikp, ispin, slot) == kpoint_slot_in_flight)
       ! The merge writes cmat in place. A foreign distribution would fail
       ! inside the BLACS calls, far from this argument.
       CPASSERT(cp_fm_struct_equivalent(cmat%matrix_struct, ctx%fmlocal%matrix_struct))
 
-      kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
       kp_range = ctx%kpoints%kp_range
       kp_dist => ctx%kpoints%kp_dist
       DO igroup = 1, ctx%kpoints%nkp_groups
          ik = kp_dist(1, igroup) + ikp - 1
+         IF (ik > kp_dist(2, igroup)) CYCLE
          my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-         indx = ikp + (igroup - 1)*kplocal
          IF (my_kpgrp) THEN
-            CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, ctx%info(indx, ispin, slot, kpoint_part_re), &
+            CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, ctx%info(ik, ispin, slot, kpoint_part_re), &
                                                 cmat, .FALSE.)
-            CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, ctx%info(indx, ispin, slot, kpoint_part_im), &
+            CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, ctx%info(ik, ispin, slot, kpoint_part_im), &
                                                 cmat, .TRUE.)
          END IF
-         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, kpoint_part_re))
-         CALL cp_fm_cleanup_copy_general(ctx%info(indx, ispin, slot, kpoint_part_im))
+         CALL cp_fm_cleanup_copy_general(ctx%info(ik, ispin, slot, kpoint_part_re))
+         CALL cp_fm_cleanup_copy_general(ctx%info(ik, ispin, slot, kpoint_part_im))
       END DO
       ctx%status(ikp, ispin, slot) = kpoint_slot_idle
 
@@ -645,7 +649,7 @@ CONTAINS
    END SUBROUTINE kpoint_operator_finish
 
 ! **************************************************************************************************
-!> \brief Assemble one operator for one local k point and spin in one call:
+!> \brief Assemble one operator for one global round and spin in one call:
 !>        run the single-group transfer of the service for every group and
 !>        finish it immediately, through transfer states local to this call.
 !>        The persistent slot machinery stays with start and finish.
@@ -661,7 +665,7 @@ CONTAINS
 !>        Collective over the environment-wide communicator: every rank must
 !>        call the same sequence of service calls.
 !> \param ctx context created by kpoint_operator_context_create
-!> \param ikp local k-point index within kp_range
+!> \param ikp global round, up to the maximum k-point count across groups
 !> \param ispin instance spin: bounds-checked against the context spin space
 !> \param rsmat real-space image matrices of the operator
 !> \param cmat complex matrix output
@@ -688,7 +692,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_get'
 
-      INTEGER                                            :: handle, igroup, ik, kplocal
+      INTEGER                                            :: handle, igroup, ik, kpmax
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       LOGICAL                                            :: my_kpgrp
@@ -710,8 +714,8 @@ CONTAINS
       CPASSERT(ispin >= 1 .AND. ispin <= ctx%nspin)
       CPASSERT(matrix_row >= 1 .AND. matrix_row <= SIZE(rsmat, 1))
       CALL kpoint_operator_ensure(ctx, rsmat)
-      kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
-      CPASSERT(ikp >= 1 .AND. ikp <= kplocal)
+      kpmax = MAXVAL(ctx%kpoints%kp_dist(2, :) - ctx%kpoints%kp_dist(1, :) + 1)
+      CPASSERT(ikp >= 1 .AND. ikp <= kpmax)
       IF (PRESENT(cmat)) THEN
          ! The merge writes cmat in place. A foreign distribution would fail
          ! inside the BLACS calls, far from this argument.
@@ -723,6 +727,7 @@ CONTAINS
       para_env => ctx%kpoints%blacs_env_all%para_env
       DO igroup = 1, ctx%kpoints%nkp_groups
          ik = kp_dist(1, igroup) + ikp - 1
+         IF (ik > kp_dist(2, igroup)) CYCLE
          my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
          IF (PRESENT(cmat)) THEN
             ! cmat flavor: both parts pass through the context buffer; the

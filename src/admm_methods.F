@@ -289,8 +289,8 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, i, igroup, ik, ikp, img, indx, &
-                                                            ispin, kplocal, nao_aux_fit, nao_orb, &
-                                                            natom, nkp, nkp_groups, nmo, nspins
+                                                            ispin, kplocal, kpmax, nao_aux_fit, &
+                                                            nao_orb, natom, nkp, nkp_groups, nmo, nspins
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -420,30 +420,23 @@ CONTAINS
 
       para_env => kpoints%blacs_env_all%para_env
       kplocal = kp_range(2) - kp_range(1) + 1
+      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
 
       !We querry the maximum absolute value of the KP MOs to see if they are populated at all. If not, we
       !need to get the KP Pmat from the RS ones (happens at first SCF step, for example)
       maxval_mos = 0.0_dp
-      indx = 0
       DO ikp = 1, kplocal
+         CALL get_kpoint_env(kpoints%kp_env(ikp)%kpoint_env, mos=mos_kp)
          DO ispin = 1, nspins
-            DO igroup = 1, nkp_groups
-               ! number of current kpoint
-               ik = kp_dist(1, igroup) + ikp - 1
-               my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
-               indx = indx + 1
+            mos => mos_kp(1, :)
+            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
+            maxval_mos = MAX(maxval_mos, MAXVAL(ABS(mo_coeff%local_data)))
 
-               CALL get_kpoint_env(kpoints%kp_env(ikp)%kpoint_env, mos=mos_kp)
-               mos => mos_kp(1, :)
+            IF (.NOT. use_real_wfn) THEN
+               mos => mos_kp(2, :)
                CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
                maxval_mos = MAX(maxval_mos, MAXVAL(ABS(mo_coeff%local_data)))
-
-               IF (.NOT. use_real_wfn) THEN
-                  mos => mos_kp(2, :)
-                  CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-                  maxval_mos = MAX(maxval_mos, MAXVAL(ABS(mo_coeff%local_data)))
-               END IF
-            END DO
+            END IF
          END DO
       END DO
       CALL para_env%sum(maxval_mos) !I think para_env is the global one
@@ -453,15 +446,16 @@ CONTAINS
 
       !TODO: issue a warning when doing ADMM with ATOMIC guess. If small number of K-points => leads to bad things
 
-      ALLOCATE (info(kplocal*nspins*nkp_groups, 2))
+      ALLOCATE (info(nkp*nspins, 2))
       !Start communication: only P matrix, and only if required
       indx = 0
       IF (pmat_from_rs) THEN
-         DO ikp = 1, kplocal
+         DO ikp = 1, kpmax
             DO ispin = 1, nspins
                DO igroup = 1, nkp_groups
                   ! number of current kpoint
                   ik = kp_dist(1, igroup) + ikp - 1
+                  IF (ik > kp_dist(2, igroup)) CYCLE
                   my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                   indx = indx + 1
 
@@ -500,11 +494,12 @@ CONTAINS
       END IF !pmat_from_rs
 
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO ispin = 1, nspins
             DO igroup = 1, nkp_groups
                ! number of current kpoint
                ik = kp_dist(1, igroup) + ikp - 1
+               IF (ik > kp_dist(2, igroup)) CYCLE
                my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                indx = indx + 1
                IF (my_kpgrp .AND. pmat_from_rs) THEN
@@ -516,6 +511,7 @@ CONTAINS
                END IF
             END DO
 
+            IF (ikp > kplocal) CYCLE
             IF (use_real_wfn) THEN
 
                nmo = admm_env%nmo(ispin)
@@ -594,19 +590,9 @@ CONTAINS
 
       !Clean-up communication
       IF (pmat_from_rs) THEN
-         indx = 0
-         DO ikp = 1, kplocal
-            DO ispin = 1, nspins
-               DO igroup = 1, nkp_groups
-                  ! number of current kpoint
-                  ik = kp_dist(1, igroup) + ikp - 1
-                  my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
-                  indx = indx + 1
-
-                  CALL cp_fm_cleanup_copy_general(info(indx, 1))
-                  IF (.NOT. use_real_wfn) CALL cp_fm_cleanup_copy_general(info(indx, 2))
-               END DO
-            END DO
+         DO indx = 1, SIZE(info, 1)
+            CALL cp_fm_cleanup_copy_general(info(indx, 1))
+            IF (.NOT. use_real_wfn) CALL cp_fm_cleanup_copy_general(info(indx, 2))
          END DO
       END IF
 
@@ -1947,8 +1933,8 @@ CONTAINS
 
       COMPLEX(dp)                                        :: fac, fac2
       INTEGER                                            :: handle, i, igroup, ik, ikp, img, indx, &
-                                                            ispin, kplocal, nao_aux_fit, nao_orb, &
-                                                            natom, nkp, nkp_groups, nspins
+                                                            ispin, kplocal, kpmax, nao_aux_fit, &
+                                                            nao_orb, natom, nkp, nkp_groups, nspins
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -2112,6 +2098,7 @@ CONTAINS
       CALL cp_dbcsr_alloc_block_from_nbl(ksmatrix(2), sab_aux_fit)
 
       kplocal = kp_range(2) - kp_range(1) + 1
+      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
       para_env => kpoints%blacs_env_all%para_env
 
       CALL cp_fm_struct_create(struct_aux_aux, context=kpoints%blacs_env, para_env=kpoints%para_env_kp, &
@@ -2152,13 +2139,14 @@ CONTAINS
       CALL cp_fm_struct_release(struct_aux_orb)
       CALL cp_fm_struct_release(struct_orb_orb)
 
-      ALLOCATE (info(kplocal*nspins*nkp_groups, 2))
+      ALLOCATE (info(nkp*nspins, 2))
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO ispin = 1, nspins
             DO igroup = 1, nkp_groups
                ! number of current kpoint
                ik = kp_dist(1, igroup) + ikp - 1
+               IF (ik > kp_dist(2, igroup)) CYCLE
                my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                indx = indx + 1
 
@@ -2196,11 +2184,12 @@ CONTAINS
       END DO
 
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO ispin = 1, nspins
             DO igroup = 1, nkp_groups
                ! number of current kpoint
                ik = kp_dist(1, igroup) + ikp - 1
+               IF (ik > kp_dist(2, igroup)) CYCLE
                my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                indx = indx + 1
                IF (my_kpgrp) THEN
@@ -2212,6 +2201,7 @@ CONTAINS
                END IF
             END DO
 
+            IF (ikp > kplocal) CYCLE
             kp => kpoints%kp_aux_env(ikp)%kpoint_env
             IF (use_real_wfn) THEN
 
@@ -2255,18 +2245,9 @@ CONTAINS
          END DO
       END DO
 
-      indx = 0
-      DO ikp = 1, kplocal
-         DO ispin = 1, nspins
-            DO igroup = 1, nkp_groups
-               ! number of current kpoint
-               ik = kp_dist(1, igroup) + ikp - 1
-               my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
-               indx = indx + 1
-               CALL cp_fm_cleanup_copy_general(info(indx, 1))
-               IF (.NOT. use_real_wfn) CALL cp_fm_cleanup_copy_general(info(indx, 2))
-            END DO
-         END DO
+      DO indx = 1, SIZE(info, 1)
+         CALL cp_fm_cleanup_copy_general(info(indx, 1))
+         IF (.NOT. use_real_wfn) CALL cp_fm_cleanup_copy_general(info(indx, 2))
       END DO
 
       DEALLOCATE (info)
@@ -2801,8 +2782,8 @@ CONTAINS
 
       COMPLEX(dp)                                        :: fac, fac2
       INTEGER                                            :: handle, i, igroup, ik, ikp, img, indx, &
-                                                            ispin, kplocal, nao_aux_fit, nao_orb, &
-                                                            natom, nimg, nkp, nkp_groups, nspins
+                                                            ispin, kplocal, kpmax, nao_aux_fit, &
+                                                            nao_orb, natom, nimg, nkp, nkp_groups, nspins
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -2911,8 +2892,9 @@ CONTAINS
       CALL cp_dbcsr_alloc_block_from_nbl(kmatrix(2), sab_aux_fit)
 
       kplocal = kp_range(2) - kp_range(1) + 1
+      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
       para_env => kpoints%blacs_env_all%para_env
-      ALLOCATE (info(kplocal*nspins*nkp_groups, 2))
+      ALLOCATE (info(nkp*nspins, 2))
 
       CALL cp_fm_struct_create(struct_aux_aux, context=kpoints%blacs_env, para_env=kpoints%para_env_kp, &
                                nrow_global=nao_aux_fit, ncol_global=nao_aux_fit)
@@ -2959,11 +2941,12 @@ CONTAINS
       CALL cp_fm_struct_release(struct_orb_orb)
 
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO ispin = 1, nspins
             DO igroup = 1, nkp_groups
                ! number of current kpoint
                ik = kp_dist(1, igroup) + ikp - 1
+               IF (ik > kp_dist(2, igroup)) CYCLE
                my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                indx = indx + 1
 
@@ -3001,11 +2984,12 @@ CONTAINS
       END DO
 
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO ispin = 1, nspins
             DO igroup = 1, nkp_groups
                ! number of current kpoint
                ik = kp_dist(1, igroup) + ikp - 1
+               IF (ik > kp_dist(2, igroup)) CYCLE
                my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
                indx = indx + 1
                IF (my_kpgrp) THEN
@@ -3016,6 +3000,7 @@ CONTAINS
                   END IF
                END IF
             END DO
+            IF (ikp > kplocal) CYCLE
             kp => kpoints%kp_aux_env(ikp)%kpoint_env
 
             IF (use_real_wfn) THEN
@@ -3100,18 +3085,9 @@ CONTAINS
          END DO
       END DO
 
-      indx = 0
-      DO ikp = 1, kplocal
-         DO ispin = 1, nspins
-            DO igroup = 1, nkp_groups
-               ! number of current kpoint
-               ik = kp_dist(1, igroup) + ikp - 1
-               my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
-               indx = indx + 1
-               CALL cp_fm_cleanup_copy_general(info(indx, 1))
-               IF (.NOT. use_real_wfn) CALL cp_fm_cleanup_copy_general(info(indx, 2))
-            END DO
-         END DO
+      DO indx = 1, SIZE(info, 1)
+         CALL cp_fm_cleanup_copy_general(info(indx, 1))
+         IF (.NOT. use_real_wfn) CALL cp_fm_cleanup_copy_general(info(indx, 2))
       END DO
 
       DEALLOCATE (info)
@@ -3865,7 +3841,7 @@ CONTAINS
       LOGICAL                                            :: calculate_forces
 
       INTEGER                                            :: ic, igroup, ik, ikp, indx, kplocal, &
-                                                            nao_aux_fit, nao_orb, nc, nkp, &
+                                                            kpmax, nao_aux_fit, nao_orb, nc, nkp, &
                                                             nkp_groups
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
@@ -3904,6 +3880,7 @@ CONTAINS
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
                            nkp_groups=nkp_groups, kp_dist=kp_dist, cell_to_index=cell_to_index)
       kplocal = kp_range(2) - kp_range(1) + 1
+      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
       nc = 1
       IF (.NOT. use_real_wfn) nc = 2
 
@@ -3960,13 +3937,14 @@ CONTAINS
       CALL cp_cfm_create(cwork_aux_fit_vs_orb, matrix_struct_aux_fit_vs_orb)
       CALL cp_cfm_create(cmat_aux_fit_vs_orb, matrix_struct_aux_fit_vs_orb)
 
-      ALLOCATE (info(kplocal*nkp_groups, 4))
+      ALLOCATE (info(nkp, 4))
 
       ! Steup and start all the communication
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO igroup = 1, nkp_groups
             ik = kp_dist(1, igroup) + ikp - 1
+            IF (ik > kp_dist(2, igroup)) CYCLE
             my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
             indx = indx + 1
 
@@ -4025,9 +4003,10 @@ CONTAINS
 
       ! Finish communication and store
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO igroup = 1, nkp_groups
             ik = kp_dist(1, igroup) + ikp - 1
+            IF (ik > kp_dist(2, igroup)) CYCLE
             my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
             indx = indx + 1
 
@@ -4041,6 +4020,7 @@ CONTAINS
             END IF
          END DO
 
+         IF (ikp > kplocal) CYCLE
          kp => kpoints%kp_aux_env(ikp)%kpoint_env
 
          !Allocate local KP matrices
@@ -4087,23 +4067,13 @@ CONTAINS
       END DO
 
       ! Clean up communication
-      indx = 0
-      DO ikp = 1, kplocal
-         DO igroup = 1, nkp_groups
-            ik = kp_dist(1, igroup) + ikp - 1
-            my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
-            indx = indx + 1
-
-            IF (my_kpgrp) THEN
-               CALL cp_fm_cleanup_copy_general(info(indx, 1))
-               CALL cp_fm_cleanup_copy_general(info(indx, 3))
-               IF (.NOT. use_real_wfn) THEN
-                  CALL cp_fm_cleanup_copy_general(info(indx, 2))
-                  CALL cp_fm_cleanup_copy_general(info(indx, 4))
-               END IF
-            END IF
-
-         END DO
+      DO indx = 1, SIZE(info, 1)
+         CALL cp_fm_cleanup_copy_general(info(indx, 1))
+         CALL cp_fm_cleanup_copy_general(info(indx, 3))
+         IF (.NOT. use_real_wfn) THEN
+            CALL cp_fm_cleanup_copy_general(info(indx, 2))
+            CALL cp_fm_cleanup_copy_general(info(indx, 4))
+         END IF
       END DO
 
       CALL cp_fm_release(rmat_aux_fit)

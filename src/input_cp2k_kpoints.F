@@ -232,7 +232,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PARALLEL_GROUP_SIZE", &
                           description="Number of MPI processes to be used for a single k-point."// &
                           " This number must divide the total number of processes."// &
-                          " The number of groups must divide the total number of kpoints."// &
+                          " The number of groups must not exceed the number of kpoints."// &
+                          " Kpoints are distributed as evenly as possible among the groups."// &
                           " Value=-1 (smallest possible number of processes per group, satisfying the constraints)."// &
                           " Value=0 (all processes)."// &
                           " Value=n (exactly n processes).", &
