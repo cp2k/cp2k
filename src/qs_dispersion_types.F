@@ -102,13 +102,9 @@ MODULE qs_dispersion_types
       !! q_cut
       REAL(KIND=dp), DIMENSION(:), POINTER    :: q_mesh => NULL() !! The values of all the q points used
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER &
-         :: kernel => NULL() !! A matrix holding the Fourier transformed kernel function
-      !! for each pair of q values.  The ordering is
-      !! kernel(k_point, q1_value, q2_value)
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER &
-         :: d2phi_dk2 => NULL() !! A matrix holding the second derivatives of the above
-      !! kernel matrix at each of the q points.  Stored as
-      !! d2phi_dk2(k_point, q1_value, q2_value)
+         :: kernel_table => NULL() !! Fourier transformed kernel and its second radial derivatives
+      !! kernel_table(q1*(q1 - 1)/2 + q2, k_point, itable), with q2 <= q1 and k_point starting at zero.
+      !! itable = 1 for kernel values and 2 for second derivatives.
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d2y_dx2 => NULL() !! 2nd derivatives of q_mesh for interpolation
       INTEGER, DIMENSION(:, :), POINTER  :: d3_exclude_pair => NULL()
       INTEGER  :: nd3_exclude_pair = -1
@@ -185,11 +181,8 @@ CONTAINS
          IF (ASSOCIATED(dispersion_env%q_mesh)) THEN
             DEALLOCATE (dispersion_env%q_mesh)
          END IF
-         IF (ASSOCIATED(dispersion_env%kernel)) THEN
-            DEALLOCATE (dispersion_env%kernel)
-         END IF
-         IF (ASSOCIATED(dispersion_env%d2phi_dk2)) THEN
-            DEALLOCATE (dispersion_env%d2phi_dk2)
+         IF (ASSOCIATED(dispersion_env%kernel_table)) THEN
+            DEALLOCATE (dispersion_env%kernel_table)
          END IF
          IF (ASSOCIATED(dispersion_env%d2y_dx2)) THEN
             DEALLOCATE (dispersion_env%d2y_dx2)

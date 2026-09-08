@@ -194,8 +194,7 @@ CONTAINS
       NULLIFY (dispersion_env%c6ab, dispersion_env%maxci, dispersion_env%r0ab, dispersion_env%rcov, &
                dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist, &
                dispersion_env%d3_exclude_pair)
-      NULLIFY (dispersion_env%q_mesh, dispersion_env%kernel, dispersion_env%d2phi_dk2, &
-               dispersion_env%d2y_dx2)
+      NULLIFY (dispersion_env%q_mesh, dispersion_env%kernel_table, dispersion_env%d2y_dx2)
       NULLIFY (dispersion_env%sab_vdw, dispersion_env%sab_cn)
       NULLIFY (dispersion_env%dftd_section)
       NULLIFY (vdw_section, xc_fun_section)
