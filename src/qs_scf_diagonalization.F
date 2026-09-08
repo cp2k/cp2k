@@ -33,7 +33,7 @@ MODULE qs_scf_diagonalization
    USE cp_control_types,                ONLY: dft_control_type,&
                                               hairy_probes_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
         dbcsr_get_readonly_block_p, dbcsr_init_p, dbcsr_p_type, dbcsr_release_p, dbcsr_set, &
         dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -782,7 +782,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: adiis_ks, effective_ks
-      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
+      TYPE(dbcsr_type), POINTER                          :: rmatrix
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_operator_context_type)                 :: op_ctx
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -881,15 +881,10 @@ CONTAINS
       END IF
 
       ! allocate some work matrices
-      ALLOCATE (rmatrix, cmatrix, tmpmat)
+      ALLOCATE (rmatrix)
       CALL dbcsr_create(rmatrix, template=matrix_ks(1, 1)%matrix, &
                         matrix_type=dbcsr_type_symmetric)
-      CALL dbcsr_create(cmatrix, template=matrix_ks(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_antisymmetric)
-      CALL dbcsr_create(tmpmat, template=matrix_ks(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
       CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
-      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
 
       fmwork => scf_env%scf_work1
       ! The operator context spans this routine; the complex path assembles
@@ -1024,8 +1019,7 @@ CONTAINS
                      CALL rskp_transform(rmatrix=rmatrix, rsmat=effective_ks, ispin=ispin, &
                                          xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   END IF
-                  CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
+                  CALL copy_dbcsr_to_fm(rmatrix, fmwork(1))
                   ! s matrix is not spin dependent
                   IF (use_grid_fft) THEN
                      CALL rskp_transform_grid_extract(s_grid, ik, rmatrix)
@@ -1034,8 +1028,7 @@ CONTAINS
                      CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_s, ispin=1, &
                                          xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
                   END IF
-                  CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
+                  CALL copy_dbcsr_to_fm(rmatrix, fmwork(3))
                   ! transfer to the kpoint group with a new blacs environment
                   IF (my_kpgrp) THEN
                      CALL cp_fm_start_copy_general(fmwork(1), rksmat, para_env, info(indx, 1))
@@ -1048,8 +1041,7 @@ CONTAINS
                      CALL dbcsr_set(rmatrix, 0.0_dp)
                      CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_t, ispin=1, &
                                          xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                     CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                     CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
+                     CALL copy_dbcsr_to_fm(rmatrix, fmwork(3))
                      IF (my_kpgrp) THEN
                         CALL cp_fm_start_copy_general(fmwork(3), rtmat, para_env, info(indx, 3))
                      ELSE
@@ -1350,8 +1342,6 @@ CONTAINS
       END IF
 
       CALL dbcsr_deallocate_matrix(rmatrix)
-      CALL dbcsr_deallocate_matrix(cmatrix)
-      CALL dbcsr_deallocate_matrix(tmpmat)
       CALL rskp_transform_grid_release(s_grid)
       DO ispin = 1, nspin
          CALL rskp_transform_grid_release(ks_grid(ispin))
@@ -1891,7 +1881,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
       TYPE(cp_fm_type)                                   :: fmdummy, fmlocal, rksmat, rsmat
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tempmat, tmpmat
+      TYPE(dbcsr_type), POINTER                          :: rmatrix, tempmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_operator_context_type)                 :: op_ctx
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -1913,12 +1903,11 @@ CONTAINS
       tempmat => matrix_ks(1, 1)%matrix
 
       ! allocate some work matrices
-      ALLOCATE (rmatrix, cmatrix, tmpmat)
-      CALL dbcsr_create(rmatrix, template=tempmat, matrix_type=dbcsr_type_symmetric)
-      CALL dbcsr_create(cmatrix, template=tempmat, matrix_type=dbcsr_type_antisymmetric)
-      CALL dbcsr_create(tmpmat, template=tempmat, matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
-      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
+      IF (use_real_wfn) THEN
+         ALLOCATE (rmatrix)
+         CALL dbcsr_create(rmatrix, template=tempmat, matrix_type=dbcsr_type_symmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
+      END IF
 
       ! fm pools to be used within a kpoint group
       CALL get_kpoint_info(kpoints, mpools=mpools)
@@ -1961,14 +1950,12 @@ CONTAINS
                   CALL dbcsr_set(rmatrix, 0.0_dp)
                   CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_ks, ispin=ispin, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                  CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
+                  CALL copy_dbcsr_to_fm(rmatrix, fmwork(1))
                   ! s matrix is not spin dependent
                   CALL dbcsr_set(rmatrix, 0.0_dp)
                   CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_s, ispin=1, &
                                       xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-                  CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-                  CALL copy_dbcsr_to_fm(tmpmat, fmwork(3))
+                  CALL copy_dbcsr_to_fm(rmatrix, fmwork(3))
                   ! transfer to the kpoint group with a new blacs environment
                   IF (my_kpgrp) THEN
                      CALL cp_fm_start_copy_general(fmwork(1), rksmat, para_env, info(indx, 1))
@@ -2051,9 +2038,7 @@ CONTAINS
       ! All done
       IF (ALLOCATED(info)) DEALLOCATE (info)
 
-      CALL dbcsr_deallocate_matrix(rmatrix)
-      CALL dbcsr_deallocate_matrix(cmatrix)
-      CALL dbcsr_deallocate_matrix(tmpmat)
+      IF (use_real_wfn) CALL dbcsr_deallocate_matrix(rmatrix)
 
       IF (use_real_wfn) THEN
          CALL cp_fm_release(rksmat)
@@ -3819,7 +3804,7 @@ CONTAINS
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type)                                   :: fmdummy, fmlocal, rsmat
-      TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
+      TYPE(dbcsr_type), POINTER                          :: rmatrix
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_operator_context_type)                 :: op_ctx
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -3838,15 +3823,12 @@ CONTAINS
       kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
 
       ! allocate some work matrices
-      ALLOCATE (rmatrix, cmatrix, tmpmat)
-      CALL dbcsr_create(rmatrix, template=matrix_s(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_symmetric)
-      CALL dbcsr_create(cmatrix, template=matrix_s(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_antisymmetric)
-      CALL dbcsr_create(tmpmat, template=matrix_s(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
-      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
+      IF (use_real_wfn) THEN
+         ALLOCATE (rmatrix)
+         CALL dbcsr_create(rmatrix, template=matrix_s(1, 1)%matrix, &
+                           matrix_type=dbcsr_type_symmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
+      END IF
 
       ! fm pools to be used within a kpoint group
       CALL get_kpoint_info(kpoints, mpools=mpools)
@@ -3885,8 +3867,7 @@ CONTAINS
                CALL dbcsr_set(rmatrix, 0.0_dp)
                CALL rskp_transform(rmatrix=rmatrix, rsmat=matrix_s, ispin=1, &
                                    xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-               CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-               CALL copy_dbcsr_to_fm(tmpmat, fmwork(1))
+               CALL copy_dbcsr_to_fm(rmatrix, fmwork(1))
                ! transfer to the kpoint group with a new blacs environment
                IF (my_kpgrp) THEN
                   CALL cp_fm_start_copy_general(fmwork(1), rsmat, para_env, info(indx, 1))
@@ -3972,9 +3953,7 @@ CONTAINS
       IF (ALLOCATED(info)) DEALLOCATE (info)
       DEALLOCATE (eigenvalues, ceig)
 
-      CALL dbcsr_deallocate_matrix(rmatrix)
-      CALL dbcsr_deallocate_matrix(cmatrix)
-      CALL dbcsr_deallocate_matrix(tmpmat)
+      IF (use_real_wfn) CALL dbcsr_deallocate_matrix(rmatrix)
 
       IF (use_real_wfn) THEN
          CALL cp_fm_release(rsmat)
