@@ -161,19 +161,22 @@ CONTAINS
 !> \param f the function value
 !> \param gradient the value of its gradient
 !> \param master ...
+!> \param final_evaluation ...
 !> \param para_env ...
 !> \par History
 !>       CELL OPTIMIZATION:  Teodoro Laino [tlaino] - University of Zurich - 03.2008
 !>       07.2020 Pierre Cazade [pcazade] Space Group Symmetry
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! **************************************************************************************************
-   SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env)
+   SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
+                         final_evaluation, para_env)
 
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: f
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: gradient
       INTEGER, INTENT(IN)                                :: master
+      LOGICAL, INTENT(IN), OPTIONAL                      :: final_evaluation
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_eval_at'
@@ -189,6 +192,8 @@ CONTAINS
                                                             shell_particles
       TYPE(spgr_type), POINTER                           :: spgr
       TYPE(virial_type), POINTER                         :: virial
+
+      MARK_USED(final_evaluation)
 
       NULLIFY (cell)
       NULLIFY (core_particles)
@@ -1126,7 +1131,7 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(/,T20,' Reevaluating energy at the minimum')")
          END IF
 
-         CALL cp_eval_at(gopt_env, x0, f=etot, master=master, &
+         CALL cp_eval_at(gopt_env, x0, f=etot, master=master, final_evaluation=.TRUE., &
                          para_env=para_env)
          CALL write_geo_traj(force_env, root_section, it, etot)
       END IF

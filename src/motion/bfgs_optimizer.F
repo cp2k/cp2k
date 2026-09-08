@@ -289,8 +289,8 @@ CONTAINS
       CALL print_geo_opt_header(gopt_env, output_unit, wildcard)
 
       ! Calculate Energy & Gradients
-      CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                      gopt_env%force_env%para_env)
+      CALL cp_eval_at(gopt_env, x0, etot, g, master=gopt_env%force_env%para_env%mepos, &
+                      para_env=gopt_env%force_env%para_env)
 
       ! Symmetrize coordinates and forces
       IF (spgr%keep_space_group) THEN
@@ -410,8 +410,8 @@ CONTAINS
          eold = etot
 
          ! Energy & Gradients at new step
-         CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos, &
-                         gopt_env%force_env%para_env)
+         CALL cp_eval_at(gopt_env, x0, etot, g, master=gopt_env%force_env%para_env%mepos, &
+                         para_env=gopt_env%force_env%para_env)
 
          ediff = etot - eold
 

@@ -209,8 +209,8 @@ CONTAINS
       save_consistent_energy_force = gopt_env%require_consistent_energy_force
       gopt_env%require_consistent_energy_force = .FALSE.
 
-      CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
-                      gopt_env%force_env%para_env)
+      CALL cp_eval_at(gopt_env, x0, opt_energy, xi, master=gopt_env%force_env%para_env%mepos, &
+                      para_env=gopt_env%force_env%para_env)
 
       gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
@@ -273,8 +273,8 @@ CONTAINS
          save_consistent_energy_force = gopt_env%require_consistent_energy_force
          gopt_env%require_consistent_energy_force = .FALSE.
 
-         CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos, &
-                         gopt_env%force_env%para_env)
+         CALL cp_eval_at(gopt_env, x0, opt_energy, xi, master=gopt_env%force_env%para_env%mepos, &
+                         para_env=gopt_env%force_env%para_env)
 
          gopt_env%require_consistent_energy_force = save_consistent_energy_force
 
