@@ -290,6 +290,7 @@ list(
   input_cp2k_embed.F
   input_cp2k_exstate.F
   input_cp2k_external.F
+  input_cp2k_fde.F
   input_cp2k_field.F
   input_cp2k_force_eval.F
   input_cp2k_free_energy.F
