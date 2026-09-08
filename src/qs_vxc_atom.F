@@ -311,8 +311,10 @@ CONTAINS
                                                             smooth_kin_adjoint_storage
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :) :: composite_cross_grad, composite_grad, &
          composite_grad_grad, composite_int_h, composite_int_s, composite_partition_datom, &
-         composite_partition_dstrain, composite_smooth_gradient_cache
+         composite_partition_dstrain, composite_smooth_gradient_cache, vtau_h_local, vtau_s_local, &
+         vxc_h_local, vxc_s_local
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :), TARGET  :: smooth_grad_adjoint_storage
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :, :)       :: vxg_h_local, vxg_s_local
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
       REAL(dp), DIMENSION(2) :: composite_smooth_density_adjoint_value, &
@@ -2224,76 +2226,111 @@ CONTAINS
                                                   cross_cutoff*SQRT(SUM(cell%h_inv(idir, :)**2))) + 1
                            END IF
                         END DO
-                        DO composite_local_atom = 1, composite_local_natom
-                           target_atom = composite_local_atoms(composite_local_atom)
-                           DO composite_row = composite_atom_start(target_atom), &
-                              composite_atom_end(target_atom)
-                              cross_density_adjoint = 0.0_dp
-                              cross_grad_adjoint = 0.0_dp
-                              cross_kin_adjoint = 0.0_dp
-                              IF (lsd) THEN
-                                 IF (use_atom_composite_density) THEN
-                                    cross_density_adjoint(1:2) = &
-                                       composite_density_grad(composite_row, 1:2)
-                                 END IF
-                                 IF (use_atom_composite_gradient) THEN
-                                    cross_grad_adjoint(:, 1:2) = &
-                                       composite_grad_grad(composite_row, :, 1:2)
-                                 END IF
-                                 IF (use_atom_composite_tau) THEN
-                                    cross_kin_adjoint(1:2) = &
-                                       composite_kin_grad(composite_row, 1:2)
-                                 END IF
-                              ELSE
-                                 IF (use_atom_composite_density) THEN
-                                    cross_density_adjoint(1) = 0.5_dp* &
-                                                               SUM(composite_density_grad(composite_row, :))
-                                 END IF
-                                 IF (use_atom_composite_gradient) THEN
-                                    DO idir = 1, 3
-                                       cross_grad_adjoint(idir, 1) = 0.5_dp* &
-                                                                     SUM(composite_grad_grad(composite_row, idir, :))
-                                    END DO
-                                 END IF
-                                 IF (use_atom_composite_tau) THEN
-                                    cross_kin_adjoint(1) = 0.5_dp* &
-                                                           SUM(composite_kin_grad(composite_row, :))
-                                 END IF
+                        ! Each thread accumulates its own one-center potentials; combine them
+                        ! before the existing MPI reduction over target-atom owners.
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP PRIVATE(base_shift, composite_row, cross_density_adjoint, cross_displacement, &
+!$OMP         cross_grad_adjoint, cross_kin_adjoint, fractional, idir, image_i1, &
+!$OMP         image_i2, image_i3, image_shift, image_translation, jdir, target_atom, &
+!$OMP         vxc_h_local, vxc_s_local, vxg_h_local, vxg_s_local, vtau_h_local, vtau_s_local) &
+!$OMP SHARED(cell, composite_density_grad, composite_grad_grad, composite_grid_atom, &
+!$OMP        composite_grid_coords, composite_kin_grad, composite_nflat, cross_cutoff, &
+!$OMP        grid_atom, harmonics, iatom, image_shell, lsd, nspins, particle_set, &
+!$OMP        use_atom_composite_density, use_atom_composite_gradient, use_atom_composite_tau, &
+!$OMP        vxc_h, vxc_s, vxg_h, vxg_s, vtau_h, vtau_s)
+                        ALLOCATE (vxc_h_local, MOLD=vxc_h)
+                        ALLOCATE (vxc_s_local, MOLD=vxc_s)
+                        ALLOCATE (vxg_h_local, MOLD=vxg_h)
+                        ALLOCATE (vxg_s_local, MOLD=vxg_s)
+                        ALLOCATE (vtau_h_local, MOLD=vtau_h)
+                        ALLOCATE (vtau_s_local, MOLD=vtau_s)
+                        vxc_h_local = 0.0_dp
+                        vxc_s_local = 0.0_dp
+                        vxg_h_local = 0.0_dp
+                        vxg_s_local = 0.0_dp
+                        vtau_h_local = 0.0_dp
+                        vtau_s_local = 0.0_dp
+!$OMP DO SCHEDULE(STATIC)
+                        DO composite_row = 1, composite_nflat
+                           target_atom = composite_grid_atom(composite_row)
+                           cross_density_adjoint = 0.0_dp
+                           cross_grad_adjoint = 0.0_dp
+                           cross_kin_adjoint = 0.0_dp
+                           IF (lsd) THEN
+                              IF (use_atom_composite_density) THEN
+                                 cross_density_adjoint(1:2) = &
+                                    composite_density_grad(composite_row, 1:2)
                               END IF
-                              fractional = 0.0_dp
-                              DO idir = 1, 3
-                                 DO jdir = 1, 3
-                                    fractional(idir) = fractional(idir) + cell%h_inv(idir, jdir)* &
-                                                       (composite_grid_coords(jdir, composite_row) - &
-                                                        particle_set(iatom)%r(jdir))
+                              IF (use_atom_composite_gradient) THEN
+                                 cross_grad_adjoint(:, 1:2) = &
+                                    composite_grad_grad(composite_row, :, 1:2)
+                              END IF
+                              IF (use_atom_composite_tau) THEN
+                                 cross_kin_adjoint(1:2) = &
+                                    composite_kin_grad(composite_row, 1:2)
+                              END IF
+                           ELSE
+                              IF (use_atom_composite_density) THEN
+                                 cross_density_adjoint(1) = 0.5_dp* &
+                                                            SUM(composite_density_grad(composite_row, :))
+                              END IF
+                              IF (use_atom_composite_gradient) THEN
+                                 DO idir = 1, 3
+                                    cross_grad_adjoint(idir, 1) = 0.5_dp* &
+                                                                  SUM(composite_grad_grad(composite_row, idir, :))
                                  END DO
+                              END IF
+                              IF (use_atom_composite_tau) THEN
+                                 cross_kin_adjoint(1) = 0.5_dp* &
+                                                        SUM(composite_kin_grad(composite_row, :))
+                              END IF
+                           END IF
+                           fractional = 0.0_dp
+                           DO idir = 1, 3
+                              DO jdir = 1, 3
+                                 fractional(idir) = fractional(idir) + cell%h_inv(idir, jdir)* &
+                                                    (composite_grid_coords(jdir, composite_row) - &
+                                                     particle_set(iatom)%r(jdir))
                               END DO
-                              DO idir = 1, 3
-                                 base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
-                              END DO
-                              DO image_i3 = base_shift(3) - image_shell(3), &
-                                 base_shift(3) + image_shell(3)
-                                 DO image_i2 = base_shift(2) - image_shell(2), &
-                                    base_shift(2) + image_shell(2)
-                                    DO image_i1 = base_shift(1) - image_shell(1), &
-                                       base_shift(1) + image_shell(1)
-                                       image_shift = [image_i1, image_i2, image_i3]
-                                       IF (target_atom == iatom .AND. ALL(image_shift == 0)) CYCLE
-                                       image_translation = MATMUL( &
-                                                           cell%hmat, REAL(image_shift, dp))
-                                       cross_displacement = &
-                                          composite_grid_coords(:, composite_row) - &
-                                          particle_set(iatom)%r - image_translation
-                                       CALL add_gapw_atom_grid_interpolation_adjoint( &
-                                          grid_atom, harmonics, cross_displacement, cross_cutoff, &
-                                          nspins, cross_density_adjoint, cross_grad_adjoint, &
-                                          cross_kin_adjoint, vxc_h, vxc_s, vxg_h, vxg_s, &
-                                          vtau_h, vtau_s)
-                                    END DO
+                           END DO
+                           DO idir = 1, 3
+                              base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
+                           END DO
+                           DO image_i3 = base_shift(3) - image_shell(3), &
+                              base_shift(3) + image_shell(3)
+                              DO image_i2 = base_shift(2) - image_shell(2), &
+                                 base_shift(2) + image_shell(2)
+                                 DO image_i1 = base_shift(1) - image_shell(1), &
+                                    base_shift(1) + image_shell(1)
+                                    image_shift = [image_i1, image_i2, image_i3]
+                                    IF (target_atom == iatom .AND. ALL(image_shift == 0)) CYCLE
+                                    image_translation = MATMUL( &
+                                                        cell%hmat, REAL(image_shift, dp))
+                                    cross_displacement = &
+                                       composite_grid_coords(:, composite_row) - &
+                                       particle_set(iatom)%r - image_translation
+                                    ! Reject inactive images before allocating interpolation scratch.
+                                    IF (SQRT(SUM(cross_displacement**2)) > cross_cutoff) CYCLE
+                                    CALL add_gapw_atom_grid_interpolation_adjoint( &
+                                       grid_atom, harmonics, cross_displacement, cross_cutoff, &
+                                       nspins, cross_density_adjoint, cross_grad_adjoint, &
+                                       cross_kin_adjoint, vxc_h_local, vxc_s_local, vxg_h_local, vxg_s_local, &
+                                       vtau_h_local, vtau_s_local)
                                  END DO
                               END DO
                            END DO
                         END DO
+!$OMP END DO
+!$OMP CRITICAL(skala_atom_composite_adjoint_reduction)
+                        vxc_h = vxc_h + vxc_h_local
+                        vxc_s = vxc_s + vxc_s_local
+                        vxg_h = vxg_h + vxg_h_local
+                        vxg_s = vxg_s + vxg_s_local
+                        vtau_h = vtau_h + vtau_h_local
+                        vtau_s = vtau_s + vtau_s_local
+!$OMP END CRITICAL(skala_atom_composite_adjoint_reduction)
+                        DEALLOCATE (vxc_h_local, vxc_s_local, vxg_h_local, vxg_s_local, vtau_h_local, vtau_s_local)
+!$OMP END PARALLEL
                      END IF
 
                      ! Model rows are distributed by target atom, while CP2K stores each
@@ -3491,10 +3528,10 @@ CONTAINS
 !> \param cutoff compact support radius
 !> \param radial_indices active radial nodes
 !> \param radial_weights interpolation weights on the active radial nodes
-!> \param radial_derivative_weights radial derivatives of the interpolation weights
+!> \param radial_derivative_weights optional radial derivatives of the interpolation weights
 !> \param nradial number of active radial nodes
 !> \param angular_weights angular interpolation weights
-!> \param angular_derivative_weights Cartesian derivatives of the angular weights
+!> \param angular_derivative_weights optional Cartesian derivatives of the angular weights
 !> \param active whether the point lies inside the compact support
 ! **************************************************************************************************
    SUBROUTINE atom_grid_interpolation_weights( &
@@ -3505,10 +3542,11 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: displacement
       REAL(dp), INTENT(IN)                               :: cutoff
       INTEGER, DIMENSION(4), INTENT(OUT)                 :: radial_indices
-      REAL(dp), DIMENSION(4), INTENT(OUT)                :: radial_weights, radial_derivative_weights
+      REAL(dp), DIMENSION(4), INTENT(OUT)                :: radial_weights
+      REAL(dp), DIMENSION(4), INTENT(OUT), OPTIONAL      :: radial_derivative_weights
       INTEGER, INTENT(OUT)                               :: nradial
       REAL(dp), DIMENSION(:), INTENT(OUT)                :: angular_weights
-      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: angular_derivative_weights
+      REAL(dp), DIMENSION(:, :), INTENT(OUT), OPTIONAL   :: angular_derivative_weights
       LOGICAL, INTENT(OUT)                               :: active
 
       INTEGER                                            :: ia, ic, inode, iso, l, left, left_pos, &
@@ -3528,14 +3566,16 @@ CONTAINS
       CPASSERT(ASSOCIATED(grid_atom))
       CPASSERT(ASSOCIATED(harmonics))
       CPASSERT(SIZE(angular_weights) == grid_atom%ng_sphere)
-      CPASSERT(SIZE(angular_derivative_weights, 1) == 3)
-      CPASSERT(SIZE(angular_derivative_weights, 2) == grid_atom%ng_sphere)
+      IF (PRESENT(angular_derivative_weights)) THEN
+         CPASSERT(SIZE(angular_derivative_weights, 1) == 3)
+         CPASSERT(SIZE(angular_derivative_weights, 2) == grid_atom%ng_sphere)
+      END IF
 
       radial_indices = 0
       radial_weights = 0.0_dp
-      radial_derivative_weights = 0.0_dp
+      IF (PRESENT(radial_derivative_weights)) radial_derivative_weights = 0.0_dp
       angular_weights = 0.0_dp
-      angular_derivative_weights = 0.0_dp
+      IF (PRESENT(angular_derivative_weights)) angular_derivative_weights = 0.0_dp
       nradial = 0
       active = .FALSE.
       n = grid_atom%nr
@@ -3579,12 +3619,6 @@ CONTAINS
       h01 = 10.0_dp*t**3 - 15.0_dp*t**4 + 6.0_dp*t**5
       h11 = -4.0_dp*t**3 + 7.0_dp*t**4 - 3.0_dp*t**5
       h21 = 0.5_dp*(t**3 - 2.0_dp*t**4 + t**5)
-      dh00 = -30.0_dp*t**2 + 60.0_dp*t**3 - 30.0_dp*t**4
-      dh10 = 1.0_dp - 18.0_dp*t**2 + 32.0_dp*t**3 - 15.0_dp*t**4
-      dh20 = 0.5_dp*(2.0_dp*t - 9.0_dp*t**2 + 12.0_dp*t**3 - 5.0_dp*t**4)
-      dh01 = 30.0_dp*t**2 - 60.0_dp*t**3 + 30.0_dp*t**4
-      dh11 = -12.0_dp*t**2 + 28.0_dp*t**3 - 15.0_dp*t**4
-      dh21 = 0.5_dp*(3.0_dp*t**2 - 8.0_dp*t**3 + 5.0_dp*t**4)
 
       CALL radial_node_derivative_coefficients( &
          grid_atom, descending, left, logical_start, slope_left, curvature_left)
@@ -3597,22 +3631,30 @@ CONTAINS
                                               h11*slope_right(1:nradial)) + &
                                   h_interval**2*(h20*curvature_left(1:nradial) + &
                                                  h21*curvature_right(1:nradial))
-      radial_derivative_weights(left_pos) = &
-         radial_derivative_weights(left_pos) + dh00/h_interval
-      radial_derivative_weights(right_pos) = &
-         radial_derivative_weights(right_pos) + dh01/h_interval
-      radial_derivative_weights(1:nradial) = radial_derivative_weights(1:nradial) + &
-                                             dh10*slope_left(1:nradial) + &
-                                             dh11*slope_right(1:nradial) + &
-                                             h_interval*(dh20*curvature_left(1:nradial) + &
-                                                         dh21*curvature_right(1:nradial))
+      IF (PRESENT(radial_derivative_weights)) THEN
+         dh00 = -30.0_dp*t**2 + 60.0_dp*t**3 - 30.0_dp*t**4
+         dh10 = 1.0_dp - 18.0_dp*t**2 + 32.0_dp*t**3 - 15.0_dp*t**4
+         dh20 = 0.5_dp*(2.0_dp*t - 9.0_dp*t**2 + 12.0_dp*t**3 - 5.0_dp*t**4)
+         dh01 = 30.0_dp*t**2 - 60.0_dp*t**3 + 30.0_dp*t**4
+         dh11 = -12.0_dp*t**2 + 28.0_dp*t**3 - 15.0_dp*t**4
+         dh21 = 0.5_dp*(3.0_dp*t**2 - 8.0_dp*t**3 + 5.0_dp*t**4)
+         radial_derivative_weights(left_pos) = &
+            radial_derivative_weights(left_pos) + dh00/h_interval
+         radial_derivative_weights(right_pos) = &
+            radial_derivative_weights(right_pos) + dh01/h_interval
+         radial_derivative_weights(1:nradial) = radial_derivative_weights(1:nradial) + &
+                                                dh10*slope_left(1:nradial) + &
+                                                dh11*slope_right(1:nradial) + &
+                                                h_interval*(dh20*curvature_left(1:nradial) + &
+                                                            dh21*curvature_right(1:nradial))
+      END IF
 
       angular_values = 0.0_dp
-      angular_value_derivatives = 0.0_dp
+      IF (PRESENT(angular_derivative_weights)) angular_value_derivatives = 0.0_dp
       DO iso = 1, harmonics%max_s_harm
          l = indso(1, iso)
          CALL y_lm(direction, angular_values(iso), l, indso(2, iso))
-         IF (l == 0) CYCLE
+         IF (l == 0 .OR. .NOT. PRESENT(angular_derivative_weights)) CYCLE
          shell_index = iso - nsoset(l - 1)
          DO ic = 1, nco(l)
             lx = indco(1, ic + ncoset(l - 1))
@@ -3649,11 +3691,13 @@ CONTAINS
          angular_weights(ia) = grid_atom%wa(ia)* &
                                DOT_PRODUCT(harmonics%slm(ia, 1:harmonics%max_s_harm), &
                                            angular_values)
-         DO inode = 1, 3
-            angular_derivative_weights(inode, ia) = grid_atom%wa(ia)* &
-                                                    DOT_PRODUCT(harmonics%slm(ia, 1:harmonics%max_s_harm), &
-                                                                angular_value_derivatives(inode, :))
-         END DO
+         IF (PRESENT(angular_derivative_weights)) THEN
+            DO inode = 1, 3
+               angular_derivative_weights(inode, ia) = grid_atom%wa(ia)* &
+                                                       DOT_PRODUCT(harmonics%slm(ia, 1:harmonics%max_s_harm), &
+                                                                   angular_value_derivatives(inode, :))
+            END DO
+         END IF
       END DO
       active = .TRUE.
 
@@ -3785,13 +3829,12 @@ CONTAINS
       INTEGER, DIMENSION(4)                              :: radial_indices
       LOGICAL                                            :: active
       REAL(dp)                                           :: value
+      REAL(dp), DIMENSION(4)                             :: radial_weights
       REAL(dp), DIMENSION(grid_atom%ng_sphere)           :: angular_weights
-      REAL(dp), DIMENSION(4)                             :: radial_derivative_weights, radial_weights
-      REAL(dp), DIMENSION(3, grid_atom%ng_sphere)        :: angular_derivative_weights
 
       CALL atom_grid_interpolation_weights( &
          grid_atom, harmonics, displacement, cutoff, radial_indices, radial_weights, &
-         radial_derivative_weights, nradial, angular_weights, angular_derivative_weights, active)
+         nradial=nradial, angular_weights=angular_weights, active=active)
       IF (active) THEN
          DO inode = 1, nradial
             ir = radial_indices(inode)
