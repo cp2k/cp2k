@@ -685,7 +685,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_operator_context_type)                 :: op_ctx
-      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_global
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(qs_matrix_pools_type), POINTER                :: mpools
@@ -956,7 +956,6 @@ CONTAINS
 
       ! Finish communication then diagonalise in each group
       IF (do_diis) THEN
-         CALL get_qs_env(qs_env, para_env=para_env_global)
          scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
          cdiis_ncall = kpoints%scf_diis_buffer%ncall
          CALL qs_diis_b_info_kp(kpoints%scf_diis_buffer, ib, nb)
@@ -998,7 +997,7 @@ CONTAINS
          CALL qs_diis_b_step_kp(kpoints%scf_diis_buffer, coeffs, ib, nb, scf_env%iter_delta, diis_error, &
                                 cdiis_step, scf_control%eps_diis, nspin, nkp, kplocal, &
                                 MERGE(2, scf_control%nmixing, use_adiis), &
-                                scf_section, para_env_global)
+                                scf_section, kpoints%para_env_inter_kp)
          diis_weight = 1.0_dp
          IF (use_adiis) THEN
             diis_weight = scf_env%scf_subspace_buffer%diis_weight
@@ -1281,11 +1280,10 @@ CONTAINS
          DIMENSION(:)                                    :: workspace
       TYPE(kp_transform_plan_type)                       :: transform_plan
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(mp_para_env_type), POINTER                    :: para_env_global
       TYPE(section_vals_type), POINTER                   :: scf_section
 
       CALL timeset(routineN, handle)
-      NULLIFY (matrix_struct, mo_struct, mo_coeff, kp, para_env_global, scf_section)
+      NULLIFY (matrix_struct, mo_struct, mo_coeff, kp, scf_section)
 
       kplocal = SIZE(xkp, 2)
       nspin = SIZE(matrix_ks, 1)
@@ -1302,7 +1300,6 @@ CONTAINS
                                     matrix_ks(1, 1)%matrix)
 
       IF (do_diis) THEN
-         CALL get_qs_env(qs_env, para_env=para_env_global)
          scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
          cdiis_ncall = kpoints%scf_diis_buffer%ncall
          CALL qs_diis_b_info_kp(kpoints%scf_diis_buffer, ib, nb)
@@ -1324,7 +1321,7 @@ CONTAINS
          CALL qs_diis_b_step_kp(kpoints%scf_diis_buffer, coeffs, ib, nb, scf_env%iter_delta, diis_error, &
                                 cdiis_step, scf_control%eps_diis, nspin, kplocal, kplocal, &
                                 MERGE(2, scf_control%nmixing, use_adiis), &
-                                scf_section, para_env_global)
+                                scf_section, kpoints%para_env_inter_kp)
          diis_weight = 1.0_dp
          IF (use_adiis) THEN
             diis_weight = scf_env%scf_subspace_buffer%diis_weight
