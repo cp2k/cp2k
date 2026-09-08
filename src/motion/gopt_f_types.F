@@ -23,7 +23,6 @@ MODULE gopt_f_types
                                               dimer_env_retain,&
                                               dimer_env_type
    USE force_env_types,                 ONLY: force_env_get,&
-                                              force_env_get_natom,&
                                               force_env_release,&
                                               force_env_retain,&
                                               force_env_type
@@ -74,9 +73,27 @@ MODULE gopt_f_types
       TYPE(gopt_param_type), POINTER           :: gopt_dimer_param => NULL()
       TYPE(cell_opt_env_type), POINTER         :: cell_env => NULL()
       TYPE(spgr_type), POINTER                 :: spgr => NULL()
+      PROCEDURE(gopt_f_dimer_rotation_optimizer), POINTER, NOPASS :: dimer_rotation_optimizer => NULL()
       REAL(KIND=dp), DIMENSION(3, 3)           :: h_ref = 0.0_dp
       LOGICAL                                  :: require_consistent_energy_force = .FALSE.
    END TYPE gopt_f_type
+
+   ABSTRACT INTERFACE
+! **************************************************************************************************
+!> \brief ...
+!> \param gopt_env ...
+!> \param x0 ...
+!> \param gopt_param ...
+!> \param geo_section ...
+! **************************************************************************************************
+      SUBROUTINE gopt_f_dimer_rotation_optimizer(gopt_env, x0, gopt_param, geo_section)
+         IMPORT :: dp, gopt_f_type, gopt_param_type, section_vals_type
+         TYPE(gopt_f_type), POINTER                         :: gopt_env
+         REAL(KIND=dp), DIMENSION(:), POINTER               :: x0
+         TYPE(gopt_param_type), POINTER                     :: gopt_param
+         TYPE(section_vals_type), POINTER                   :: geo_section
+      END SUBROUTINE gopt_f_dimer_rotation_optimizer
+   END INTERFACE
 
 CONTAINS
 
@@ -102,7 +119,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: geo_opt_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: eval_opt_geo
 
-      INTEGER                                            :: natom, nshell
+      INTEGER                                            :: nshell
       TYPE(cp_subsys_type), POINTER                      :: subsys
       TYPE(particle_list_type), POINTER                  :: particles, shell_particles
       TYPE(section_vals_type), POINTER                   :: dimer_section, rot_opt_section
@@ -144,7 +161,6 @@ CONTAINS
             CASE (default_dimer_method_id)
                ! For the Dimer method we use the same framework of geometry optimizers
                ! already defined for cp2k..
-               natom = force_env_get_natom(force_env)
                dimer_section => section_vals_get_subs_vals(geo_opt_section, "TRANSITION_STATE%DIMER")
                CALL dimer_env_create(gopt_env%dimer_env, subsys, globenv, dimer_section, force_env)
 

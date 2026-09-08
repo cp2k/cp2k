@@ -44,7 +44,7 @@ MODULE geo_opt
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'geo_opt'
 
-   PUBLIC :: cp_geo_opt, cp_rot_opt
+   PUBLIC :: cp_geo_opt
 
 CONTAINS
 
@@ -91,6 +91,7 @@ CONTAINS
       CALL gopt_param_read(gopt_param, geo_section)
       CALL gopt_f_create(gopt_env, gopt_param, force_env=force_env, globenv=globenv, &
                          geo_opt_section=geo_section, eval_opt_geo=eval_opt_geo)
+      gopt_env%dimer_rotation_optimizer => cp_rot_opt
       CALL gopt_f_create_x0(gopt_env, x0)
 
       CALL section_vals_val_get(geo_section, "STEP_START_VAL", i_val=step_start_val)

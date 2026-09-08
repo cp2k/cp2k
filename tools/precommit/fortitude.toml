@@ -47,7 +47,6 @@ exclude = [
 "eri_mme_lattice_summation.F" = ["trailing-whitespace"]
 "pilaenv_hack.F" = ["procedure-not-in-module"]
 "semi_empirical_int_debug.F" = ["procedure-not-in-module"]
-"gopt_f77_methods.F" = ["procedure-not-in-module"]
 "libgint_wrapper.F" = ["trailing-backslash"]
 "qs_tddfpt2_subgroups.F" = ["trailing-backslash"]
 "dft_plus_u.F" = ["trailing-backslash"]
