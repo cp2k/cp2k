@@ -127,7 +127,8 @@ MODULE qs_scf_diagonalization
    USE qs_kpoint_operators,             ONLY: &
         kpoint_operator_cfm_to_mo, kpoint_operator_context_create, &
         kpoint_operator_context_release, kpoint_operator_context_type, kpoint_operator_finish, &
-        kpoint_operator_get, kpoint_operator_start, kpoint_slot_ks, kpoint_slot_s, kpoint_slot_t, &
+        kpoint_operator_get, kpoint_operator_prepare, kpoint_operator_start, &
+        kpoint_slot_ks, kpoint_slot_s, kpoint_slot_t, &
         kpoint_spin_free
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
@@ -669,8 +670,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL :: adiis_cdiis, cache_smat, cdiis_step, do_diis, my_added_mos_auto_grow, my_kpgrp, &
-         my_store_ot_kinetic, my_store_ot_matrices, my_transfer_only, reuse_smat, spin_grid_fft, use_adiis, &
-         use_grid_fft, use_omp_kpoints, use_real_wfn
+         my_store_ot_kinetic, my_store_ot_matrices, my_transfer_only, prepared_ops, reuse_smat, spin_grid_fft, &
+         use_adiis, use_grid_fft, use_omp_kpoints, use_real_wfn
       REAL(KIND=dp)                                      :: diis_weight
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
@@ -836,6 +837,17 @@ CONTAINS
          CPASSERT(SIZE(kpoints%scf_smat) == kplocal)
       END IF
 
+      ! Freeze the immutable SCF operators inside the service. ADIIS/handover
+      ! can select another Fock operator later and keeps the existing backend.
+      prepared_ops = .FALSE.
+      IF (cache_smat .AND. nkp_groups > 1 .AND. .NOT. use_adiis) THEN
+         IF (reuse_smat) THEN
+            CALL kpoint_operator_prepare(op_ctx, effective_ks, prepared_ops)
+         ELSE
+            CALL kpoint_operator_prepare(op_ctx, effective_ks, prepared_ops, matrix_s)
+         END IF
+      END IF
+
       ! For a complete Monkhorst-Pack grid, transform every MPI-local DBCSR block over all k points
       ! in one lattice FFT. The established per-k phase sum remains the exact memory/irregular-grid
       ! fallback. Divide the conservative memory budget between H spins and S.
@@ -850,6 +862,7 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Unknown lattice FFT selection mode")
       END SELECT
+      IF (prepared_ops) use_grid_fft = .FALSE.
       IF (use_grid_fft .AND. .NOT. reuse_smat) THEN
          CALL rskp_transform_grid_prepare(s_grid, rmatrix, matrix_s, 1, xkp, nkp_grid, &
                                           cell_to_index, sab_nl, use_grid_fft, &
