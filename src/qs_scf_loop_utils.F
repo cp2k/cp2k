@@ -1541,7 +1541,6 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      TYPE(cp_fm_type)                                   :: inactive_re, inactive_im
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       COMPLEX(KIND=dp), DIMENSION(:, :, :, :), &
@@ -1557,7 +1556,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: symmetry_error, symmetry_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dense_im, dense_re
       TYPE(cp_fm_type)                                   :: action_im, action_re, density_im, &
-                                                            density_re, projected_im, projected_re
+                                                            density_re, inactive_im, inactive_re, &
+                                                            projected_im, projected_re
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: operator_im, operator_re
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :, :)  :: density_kp
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: density_rs, potential_rs
