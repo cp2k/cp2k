@@ -252,10 +252,14 @@ CONTAINS
                         dbcsr_type_no_symmetry, row_blk_size, col_blk_size, reuse_arrays=.TRUE.)
       CALL dbcsr_distribution_release(bc_dist)
 
-      CALL dbcsr_create(matrix_nosym, template=matrix, matrix_type="N")
-      CALL dbcsr_desymmetrize(matrix, matrix_nosym)
-      CALL dbcsr_complete_redistribute(matrix_nosym, bc_mat)
-      CALL dbcsr_release(matrix_nosym)
+      IF (dbcsr_get_matrix_type(matrix) == dbcsr_type_no_symmetry) THEN
+         CALL dbcsr_complete_redistribute(matrix, bc_mat)
+      ELSE
+         CALL dbcsr_create(matrix_nosym, template=matrix, matrix_type=dbcsr_type_no_symmetry)
+         CALL dbcsr_desymmetrize(matrix, matrix_nosym)
+         CALL dbcsr_complete_redistribute(matrix_nosym, bc_mat)
+         CALL dbcsr_release(matrix_nosym)
+      END IF
 
       CALL copy_dbcsr_to_fm_bc(bc_mat, fm)
 
