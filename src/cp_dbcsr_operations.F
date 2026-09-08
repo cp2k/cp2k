@@ -39,7 +39,7 @@ MODULE cp_dbcsr_operations
                                               cp_fm_type
    USE distribution_2d_types,           ONLY: distribution_2d_get,&
                                               distribution_2d_type
-   USE kinds,                          ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
    USE mathlib,                         ONLY: gcd,&
@@ -231,7 +231,8 @@ CONTAINS
    SUBROUTINE copy_dbcsr_to_fm(matrix, fm, plan)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm
-      TYPE(dbcsr_fm_copy_plan_type), INTENT(INOUT), OPTIONAL :: plan
+      TYPE(dbcsr_fm_copy_plan_type), INTENT(INOUT), &
+         OPTIONAL                                        :: plan
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'copy_dbcsr_to_fm'
 
@@ -242,8 +243,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       TYPE(dbcsr_distribution_type)                      :: bc_dist, dist
-      TYPE(dbcsr_type)                                   :: bc_mat, matrix_nosym
       TYPE(dbcsr_fm_copy_plan_type)                      :: local_plan
+      TYPE(dbcsr_type)                                   :: bc_mat, matrix_nosym
 
       CALL timeset(routineN, handle)
 
@@ -317,11 +318,12 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm
       TYPE(dbcsr_fm_copy_plan_type), INTENT(INOUT)       :: plan
 
-      INTEGER                                            :: col, col_offset, i, iblock, j, k, mirror, &
-                                                            ncol, nrow, pos, row, row_offset, thread
+      INTEGER                                            :: col, col_offset, i, iblock, j, k, &
+                                                            mirror, ncol, nrow, pos, row, &
+                                                            row_offset, thread
       LOGICAL                                            :: block_matches, transposed
       REAL(KIND=dp)                                      :: symmetry_sign, value
-      REAL(KIND=dp), DIMENSION(:, :), POINTER             :: block
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
@@ -396,15 +398,16 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm
       TYPE(dbcsr_fm_copy_plan_type), INTENT(OUT)         :: plan
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbcsr_to_fm_plan_create'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_to_fm_plan_create'
 
-      INTEGER                                            :: col, col_offset, dest, handle, i, iblock, j, k, mirror, &
-                                                            ncol, nproc, nrow, nthreads, pass, pos, row, &
+      INTEGER                                            :: col, col_offset, dest, handle, i, &
+                                                            iblock, j, k, mirror, ncol, nproc, &
+                                                            nrow, nthreads, pass, pos, row, &
                                                             row_offset, thread, x, y
-      INTEGER(KIND=int_8)                                 :: count, offset
-      INTEGER, ALLOCATABLE, DIMENSION(:)                  :: col_local, col_owner, nblocks, row_local, row_owner
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)               :: send_index
-      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)   :: thread_pos
+      INTEGER(KIND=int_8)                                :: count, offset
+      INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:, :)  :: thread_pos
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nblocks
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: send_index
       TYPE(cp_fm_struct_type), POINTER                   :: fms
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -415,26 +418,16 @@ CONTAINS
       plan%matrix_type = dbcsr_get_matrix_type(matrix)
       para_env => fms%context%para_env
       nproc = para_env%num_pe
-      ALLOCATE (row_owner(fms%nrow_global), row_local(fms%nrow_global), &
-                col_owner(fms%ncol_global), col_local(fms%ncol_global))
-      DO i = 1, fms%nrow_global
-         row_owner(i) = fms%g2p_row(i)
-         row_local(i) = fms%g2l_row(i)
-      END DO
-      DO j = 1, fms%ncol_global
-         col_owner(j) = fms%g2p_col(j)
-         col_local(j) = fms%g2l_col(j)
-      END DO
       nthreads = 1
 !$    nthreads = omp_get_max_threads()
       ALLOCATE (thread_pos(0:nproc - 1, 0:nthreads - 1), nblocks(0:nthreads - 1))
       ALLOCATE (plan%send_count(0:nproc - 1), plan%send_disp(0:nproc - 1), &
                 plan%recv_count(0:nproc - 1), plan%recv_disp(0:nproc - 1))
-      thread_pos = 0
-      nblocks = 0
+      thread_pos(:, :) = 0
+      nblocks(:) = 0
 
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED(matrix, fms, row_owner, row_local, col_owner, col_local, nproc, nthreads, &
+!$OMP SHARED(matrix, fms, nproc, nthreads, &
 !$OMP thread_pos, nblocks, send_index, plan) &
 !$OMP PRIVATE(iter, row, col, row_offset, col_offset, nrow, ncol, &
 !$OMP thread, iblock, pos, pass, mirror, i, j, x, y, dest, k, offset, count)
@@ -446,7 +439,7 @@ CONTAINS
          IF (pass == 2) THEN
 !$OMP SINGLE
             CPASSERT(SUM(thread_pos) <= INT(HUGE(0), int_8)/2)
-            plan%send_count = INT(SUM(thread_pos, DIM=2))
+            plan%send_count(:) = INT(SUM(thread_pos, DIM=2))
 !$          nthreads = omp_get_num_threads()
             ALLOCATE (plan%thread(0:nthreads - 1))
             DO k = 0, nthreads - 1
@@ -464,8 +457,8 @@ CONTAINS
             END DO
             ALLOCATE (send_index(2, MAX(1, SUM(plan%send_count))), &
                       plan%send_values(MAX(1, SUM(plan%send_count))))
-            send_index = 0
-            plan%send_values = 0.0_dp
+            send_index(:, :) = 0
+            plan%send_values(:) = 0.0_dp
 !$OMP END SINGLE
          END IF
          CALL dbcsr_iterator_readonly_start(iter, matrix, dynamic=.FALSE.)
@@ -488,11 +481,11 @@ CONTAINS
                         x = col_offset + j - 1
                         y = row_offset + i - 1
                      END IF
-                     dest = fms%context%blacs2mpi(row_owner(x), col_owner(y))
+                     dest = fms%context%blacs2mpi(fms%g2p_row(x), fms%g2p_col(y))
                      thread_pos(dest, thread) = thread_pos(dest, thread) + 1
                      IF (pass == 1) CYCLE
                      k = INT(thread_pos(dest, thread))
-                     send_index(:, k) = [row_local(x), col_local(y)]
+                     send_index(:, k) = [fms%g2l_row(x), fms%g2l_col(y)]
                      pos = pos + 1
                      plan%thread(thread)%slots(pos) = k
                   END DO
@@ -503,7 +496,7 @@ CONTAINS
 !$OMP BARRIER
       END DO
 !$OMP END PARALLEL
-      DEALLOCATE (thread_pos, nblocks, row_owner, row_local, col_owner, col_local)
+      DEALLOCATE (thread_pos, nblocks)
 
       CALL para_env%alltoall(plan%send_count, plan%recv_count, 1)
       CPASSERT(SUM(INT(plan%recv_count, int_8)) <= INT(HUGE(0), int_8)/2)
@@ -513,8 +506,8 @@ CONTAINS
       END DO
       ALLOCATE (plan%recv_index(2, MAX(1, SUM(plan%recv_count))), &
                 plan%recv_values(MAX(1, SUM(plan%recv_count))))
-      plan%recv_index = 0
-      plan%recv_values = 0.0_dp
+      plan%recv_index(:, :) = 0
+      plan%recv_values(:) = 0.0_dp
       CALL para_env%alltoall(send_index, 2*plan%send_count, 2*plan%send_disp, &
                              plan%recv_index, 2*plan%recv_count, 2*plan%recv_disp)
       CALL timestop(handle)

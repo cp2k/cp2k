@@ -32,9 +32,9 @@ MODULE qs_scf_diagonalization
    USE cp_control_types,                ONLY: dft_control_type,&
                                               hairy_probes_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_get_readonly_block_p, dbcsr_init_p, dbcsr_p_type, dbcsr_release_p, dbcsr_set, &
-        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_readonly_block_p, &
+        dbcsr_init_p, dbcsr_p_type, dbcsr_release_p, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -127,9 +127,8 @@ MODULE qs_scf_diagonalization
    USE qs_kpoint_operators,             ONLY: &
         kpoint_operator_cfm_to_mo, kpoint_operator_context_create, &
         kpoint_operator_context_release, kpoint_operator_context_type, kpoint_operator_finish, &
-        kpoint_operator_get, kpoint_operator_prepare, kpoint_operator_start, &
-        kpoint_slot_ks, kpoint_slot_s, kpoint_slot_t, &
-        kpoint_spin_free
+        kpoint_operator_get, kpoint_operator_prepare, kpoint_operator_start, kpoint_slot_ks, &
+        kpoint_slot_s, kpoint_slot_t, kpoint_spin_free
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
@@ -664,14 +663,14 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeffs
       INTEGER :: cdiis_ncall, handle, ib, ic, igroup, ik, ikp, indx, ispin, jb, kplocal, kpmax, &
-         lattice_fft, nb, ninfo, nkp, nkp_groups, nspin, omp_threads, ot_components
+         lattice_fft, nb, nkp, nkp_groups, nspin, omp_threads, ot_components
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL :: adiis_cdiis, cache_smat, cdiis_step, do_diis, my_added_mos_auto_grow, my_kpgrp, &
-         my_store_ot_kinetic, my_store_ot_matrices, my_transfer_only, prepared_ops, reuse_smat, spin_grid_fft, &
-         use_adiis, use_grid_fft, use_omp_kpoints, use_real_wfn
+         my_store_ot_kinetic, my_store_ot_matrices, my_transfer_only, prepared_ops, reuse_smat, &
+         spin_grid_fft, use_adiis, use_grid_fft, use_omp_kpoints, use_real_wfn
       REAL(KIND=dp)                                      :: diis_weight
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
@@ -781,17 +780,12 @@ CONTAINS
          RETURN
       END IF
 
-      ! allocate some work matrices
-      ALLOCATE (rmatrix)
-      CALL dbcsr_create(rmatrix, template=matrix_ks(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_symmetric)
-      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
+      NULLIFY (rmatrix)
 
       fmwork => scf_env%scf_work1
       ! The operator context spans this routine; the complex path assembles
       ! every operator through it. The real-wavefunction path keeps its own
       ! transfers below.
-      nspin = SIZE(matrix_ks, 1)
       CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
 
       ! fm pools to be used within a kpoint group
@@ -818,8 +812,6 @@ CONTAINS
             CALL cp_cfm_create(cmos, mo_struct)
          END IF
       END IF
-
-      para_env => kpoints%blacs_env_all%para_env
 
       ! Retain the unmodified S(k) for this SCF run, outside the driver-local
       ! operator context. Solvers receive work copies because they overwrite S.
@@ -863,6 +855,13 @@ CONTAINS
          CPABORT("Unknown lattice FFT selection mode")
       END SELECT
       IF (prepared_ops) use_grid_fft = .FALSE.
+      ! The service owns complex transform scratch. The driver only needs this
+      ! matrix for the real-wavefunction path or forward lattice-FFT preparation.
+      IF (use_real_wfn .OR. use_grid_fft) THEN
+         ALLOCATE (rmatrix)
+         CALL dbcsr_create(rmatrix, template=matrix_ks(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
+      END IF
       IF (use_grid_fft .AND. .NOT. reuse_smat) THEN
          CALL rskp_transform_grid_prepare(s_grid, rmatrix, matrix_s, 1, xkp, nkp_grid, &
                                           cell_to_index, sab_nl, use_grid_fft, &
@@ -908,9 +907,7 @@ CONTAINS
 
       ! The real-wavefunction path keeps its own transfer bookkeeping.
       IF (use_real_wfn) THEN
-         ninfo = 4
-         IF (my_store_ot_kinetic) ninfo = 6
-         ALLOCATE (info(nkp*nspin, ninfo))
+         ALLOCATE (info(nkp*nspin, 2 + MERGE(1, 0, my_store_ot_kinetic)))
       END IF
 
       ! Setup and start all the communication
@@ -1200,29 +1197,15 @@ CONTAINS
       ! transfers; the service reclaimed every complex-path transfer inside
       ! its finish calls.
       IF (use_real_wfn) THEN
-         indx = 0
-         DO ikp = 1, kpmax
-            DO ispin = 1, nspin
-               DO igroup = 1, nkp_groups
-                  ! number of current kpoint
-                  ik = kp_dist(1, igroup) + ikp - 1
-                  IF (ik > kp_dist(2, igroup)) CYCLE
-                  my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
-                  indx = indx + 1
-                  CALL cp_fm_cleanup_copy_general(info(indx, 1))
-                  CALL cp_fm_cleanup_copy_general(info(indx, 2))
-                  IF (my_store_ot_kinetic) THEN
-                     CALL cp_fm_cleanup_copy_general(info(indx, 3))
-                  END IF
-               END DO
-            END DO
+         DO indx = 1, SIZE(info, 1)
+            CALL cp_fm_cleanup_copy_general(info(indx, 1))
+            CALL cp_fm_cleanup_copy_general(info(indx, 2))
+            IF (my_store_ot_kinetic) CALL cp_fm_cleanup_copy_general(info(indx, 3))
          END DO
+         DEALLOCATE (info)
       END IF
 
       CALL kpoint_operator_context_release(op_ctx)
-
-      ! All done
-      IF (ALLOCATED(info)) DEALLOCATE (info)
 
       IF (update_p .AND. .NOT. my_transfer_only) THEN
          ! MO occupations
@@ -1246,7 +1229,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL dbcsr_deallocate_matrix(rmatrix)
+      IF (ASSOCIATED(rmatrix)) CALL dbcsr_deallocate_matrix(rmatrix)
       CALL rskp_transform_grid_release(s_grid)
       DO ispin = 1, nspin
          CALL rskp_transform_grid_release(ks_grid(ispin))
@@ -1916,26 +1899,14 @@ CONTAINS
       ! transfers; the service reclaimed every complex-path transfer inside
       ! its finish calls.
       IF (use_real_wfn) THEN
-         indx = 0
-         DO ikp = 1, kpmax
-            DO ispin = 1, nspin
-               DO igroup = 1, nkp_groups
-                  ! number of current kpoint
-                  ik = kp_dist(1, igroup) + ikp - 1
-                  IF (ik > kp_dist(2, igroup)) CYCLE
-                  my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
-                  indx = indx + 1
-                  CALL cp_fm_cleanup_copy_general(info(indx, 1))
-                  CALL cp_fm_cleanup_copy_general(info(indx, 2))
-               END DO
-            END DO
+         DO indx = 1, SIZE(info, 1)
+            CALL cp_fm_cleanup_copy_general(info(indx, 1))
+            CALL cp_fm_cleanup_copy_general(info(indx, 2))
          END DO
+         DEALLOCATE (info)
       END IF
 
       CALL kpoint_operator_context_release(op_ctx)
-
-      ! All done
-      IF (ALLOCATED(info)) DEALLOCATE (info)
 
       IF (use_real_wfn) CALL dbcsr_deallocate_matrix(rmatrix)
 
@@ -3677,8 +3648,8 @@ CONTAINS
                                                             czero = (0.0_dp, 0.0_dp)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: ceig
-      INTEGER                                            :: handle, igroup, ik, ikp, indx, kplocal, kpmax, &
-                                                            nao, nkp, nkp_groups
+      INTEGER                                            :: handle, igroup, ik, ikp, indx, kplocal, &
+                                                            kpmax, nao, nkp, nkp_groups
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -3820,23 +3791,15 @@ CONTAINS
       ! transfer; the service reclaimed the complex-path transfer inside its
       ! finish calls.
       IF (use_real_wfn) THEN
-         indx = 0
-         DO ikp = 1, kpmax
-            DO igroup = 1, nkp_groups
-               ! number of current kpoint
-               ik = kp_dist(1, igroup) + ikp - 1
-               IF (ik > kp_dist(2, igroup)) CYCLE
-               my_kpgrp = (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2))
-               indx = indx + 1
-               CALL cp_fm_cleanup_copy_general(info(indx, 1))
-            END DO
+         DO indx = 1, SIZE(info, 1)
+            CALL cp_fm_cleanup_copy_general(info(indx, 1))
          END DO
+         DEALLOCATE (info)
       END IF
 
       CALL kpoint_operator_context_release(op_ctx)
 
       ! All done
-      IF (ALLOCATED(info)) DEALLOCATE (info)
       DEALLOCATE (eigenvalues, ceig)
 
       IF (use_real_wfn) CALL dbcsr_deallocate_matrix(rmatrix)

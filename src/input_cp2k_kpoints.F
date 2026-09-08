@@ -161,7 +161,7 @@ CONTAINS
                           enum_i_vals=[lattice_fft_auto, lattice_fft_on, lattice_fft_off], &
                           enum_desc=s2a("Select the FFT from a conservative cost threshold.", &
                                         "Prefer the FFT whenever the grid and memory checks allow it.", &
-                                        "Always use the direct real-cell to k-point transform."), &
+                                        "Use direct phase sums instead of lattice FFTs."), &
                           default_i_val=lattice_fft_auto)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

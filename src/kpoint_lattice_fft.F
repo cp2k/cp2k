@@ -6,11 +6,12 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Batched lattice Fourier transforms for complete regular k-point grids.
+!> \brief Batched lattice Fourier transforms on regular k-point grids.
 !>
-!>        Real-space image cells are folded modulo the reciprocal grid.  Shifted Monkhorst-Pack
-!>        meshes are handled by a phase twist before the FFT.  Non-regular or incomplete k-point
-!>        lists transparently use the direct phase sum.
+!>        Image cells are folded modulo the reciprocal grid; shifted meshes use a phase twist.
+!>        Forward transforms require a complete grid. The inverse transform can also embed
+!>        an explicitly allowed subset with its supplied weights and zero missing points.
+!>        Unsupported grids retain the direct phase-sum fallback.
 ! **************************************************************************************************
 MODULE kpoint_lattice_fft
    USE fft_lib,                         ONLY: fft_supports_arbitrary_lengths
@@ -41,7 +42,7 @@ MODULE kpoint_lattice_fft
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Test and map a complete, uniformly shifted reciprocal grid.
+!> \brief Test and map a uniformly shifted reciprocal grid or an explicitly allowed subset.
 !> \param xkp reciprocal coordinates, in units of reciprocal lattice vectors
 !> \param nkp_grid regular-grid dimensions
 !> \param grid_index FFT-grid index for every k point
@@ -87,22 +88,14 @@ CONTAINS
          DO d = 1, 3
             scaled = REAL(nkp_grid(d), KIND=dp)*(xkp(d, ik) - offset(d))
             m = NINT(scaled)
-            IF (ABS(scaled - REAL(m, KIND=dp)) > map_tolerance) THEN
-               DEALLOCATE (occupied)
-               RETURN
-            END IF
+            IF (ABS(scaled - REAL(m, KIND=dp)) > map_tolerance) RETURN
             INDEX(d) = MODULO(m, nkp_grid(d)) + 1
          END DO
-         IF (occupied(INDEX(1), INDEX(2), INDEX(3))) THEN
-            DEALLOCATE (occupied)
-            RETURN
-         END IF
+         IF (occupied(INDEX(1), INDEX(2), INDEX(3))) RETURN
          occupied(INDEX(1), INDEX(2), INDEX(3)) = .TRUE.
          IF (PRESENT(grid_index)) grid_index(1:3, ik) = index
       END DO
       regular = .TRUE.
-      IF (require_complete) regular = ALL(occupied)
-      DEALLOCATE (occupied)
 
       IF (regular .AND. PRESENT(k_offset)) k_offset = offset
 
@@ -177,7 +170,8 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cell_factor
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: fft_in, fft_out
-      INTEGER                                            :: d, handle, i, icell, ik, ik_out, j, nout, stat
+      INTEGER                                            :: d, handle, i, icell, ik, ik_out, j, &
+                                                            nout, stat
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cell_index, grid_index
       INTEGER, DIMENSION(3)                              :: n, nfft
       LOGICAL                                            :: regular
@@ -293,7 +287,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_rs
       LOGICAL, INTENT(OUT), OPTIONAL                     :: used_fft
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL :: weights
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
       LOGICAL, INTENT(IN), OPTIONAL                      :: allow_incomplete
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cell_phase
@@ -339,7 +333,7 @@ CONTAINS
       CALL fft_alloc(fft_out, nfft)
       ALLOCATE (cell_index(3, SIZE(index_to_cell, 2)), cell_phase(SIZE(index_to_cell, 2)))
       ALLOCATE (k_weight(SIZE(xkp, 2)))
-      k_weight = 1.0_dp
+      k_weight(:) = 1.0_dp
       IF (PRESENT(weights)) k_weight(:) = weights
       DO icell = 1, SIZE(index_to_cell, 2)
          DO d = 1, 3
@@ -397,7 +391,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_rs
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL :: weights
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
 
       COMPLEX(KIND=dp)                                   :: factor
       INTEGER                                            :: icell, ik

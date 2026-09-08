@@ -172,7 +172,8 @@ CONTAINS
 
       INTEGER                                            :: handle, ic, igroup, ik, ikp, img, &
                                                             indx_ft, ispin, kplocal, kpmax, nc, &
-                                                            nimg, nkp_all, nkp_grps, nspin_kp, nspins
+                                                            nimg, nkp_all, nkp_grps, nspin_kp, &
+                                                            nspins
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index

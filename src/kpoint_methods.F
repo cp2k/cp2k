@@ -2550,16 +2550,7 @@ CONTAINS
                         matrix_type=MERGE(dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, do_symmetric))
       CALL cp_dbcsr_alloc_block_from_nbl(cpmat, sab_nl)
       CALL dbcsr_set(cpmat, 0.0_dp)
-      IF (.NOT. kpoint%full_grid) THEN
-         ALLOCATE (srpmat)
-         CALL dbcsr_create(srpmat, template=rpmat)
-         CALL cp_dbcsr_alloc_block_from_nbl(srpmat, sab_nl)
-         CALL dbcsr_set(srpmat, 0.0_dp)
-         ALLOCATE (scpmat)
-         CALL dbcsr_create(scpmat, template=cpmat)
-         CALL cp_dbcsr_alloc_block_from_nbl(scpmat, sab_nl)
-         CALL dbcsr_set(scpmat, 0.0_dp)
-      END IF
+      NULLIFY (srpmat, scpmat)
 
       CALL get_kpoint_info(kpoint, nkp=nkp, xkp=xkp, wkp=wkp, &
                            cell_to_index=cell_to_index)
@@ -2595,6 +2586,18 @@ CONTAINS
             IF (kpoint%kp_sym(ik)%kpoint_sym%apply_symmetry) use_grouped = .FALSE.
          END DO
       END IF
+      ! Grouped accumulation does not apply spatial rotations and needs no symmetry scratch.
+      IF (.NOT. kpoint%full_grid .AND. .NOT. use_grouped) THEN
+         ALLOCATE (srpmat)
+         CALL dbcsr_create(srpmat, template=rpmat)
+         CALL cp_dbcsr_alloc_block_from_nbl(srpmat, sab_nl)
+         CALL dbcsr_set(srpmat, 0.0_dp)
+         ALLOCATE (scpmat)
+         CALL dbcsr_create(scpmat, template=cpmat)
+         CALL cp_dbcsr_alloc_block_from_nbl(scpmat, sab_nl)
+         CALL dbcsr_set(scpmat, 0.0_dp)
+      END IF
+
       IF ((para_env%num_pe == 1 .AND. omp_threads > 1) .OR. use_grouped) THEN
          IF (use_grouped) THEN
             CALL kpoint_density_transform_grouped(kpoint, denmat, wtype, aux_fit, pmat_ext, &
@@ -2607,7 +2610,7 @@ CONTAINS
          CALL kp_transform_plan_release(transform_plan)
          CALL dbcsr_deallocate_matrix(rpmat)
          CALL dbcsr_deallocate_matrix(cpmat)
-         IF (.NOT. kpoint%full_grid) THEN
+         IF (ASSOCIATED(srpmat)) THEN
             CALL dbcsr_deallocate_matrix(srpmat)
             CALL dbcsr_deallocate_matrix(scpmat)
          END IF
@@ -2757,19 +2760,19 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform_grouped'
 
-      INTEGER                                            :: element, handle, i, ic, ik, ikp, image, ispin, j, &
-                                                            kplocal, ncol, nrow
-      INTEGER, DIMENSION(2)                             :: fft_range
-      INTEGER, DIMENSION(14)                            :: layout, layout_max, layout_min
+      INTEGER                                            :: element, handle, i, ic, ik, ikp, image, &
+                                                            ispin, j, kplocal, ncol, nrow
+      INTEGER, DIMENSION(14)                             :: layout, layout_max, layout_min
+      INTEGER, DIMENSION(2)                              :: fft_range
       LOGICAL                                            :: same_layout
       REAL(KIND=dp)                                      :: arg
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: phase
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: fft_density
-      TYPE(copy_info_type), DIMENSION(2)                :: info
+      TYPE(copy_info_type), DIMENSION(2)                 :: info
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: source
-      TYPE(cp_fm_type)                                   :: dummy
-      TYPE(cp_fm_type), DIMENSION(2)                    :: partial
       TYPE(cp_fm_struct_type), POINTER                   :: fms
+      TYPE(cp_fm_type)                                   :: dummy
+      TYPE(cp_fm_type), DIMENSION(2)                     :: partial
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mp_para_env_type), POINTER                    :: inter, para_env
 
@@ -2826,10 +2829,10 @@ CONTAINS
 
          CALL kp_density_fft(kpoint, source, nrow, ncol, SIZE(denmat, 2), fft_range, fft_density)
          DO image = 1, SIZE(denmat, 2)
+            DO ic = 1, nc
+               partial(ic)%local_data(:, :) = 0.0_dp
+            END DO
             IF (ALLOCATED(fft_density)) THEN
-               DO ic = 1, nc
-                  partial(ic)%local_data = 0.0_dp
-               END DO
                ! FFT pencils are disjoint across the inter-group communicator.
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
 !$OMP SHARED(partial, fft_density, fft_range, image, nc, nrow) PRIVATE(element, i, j, ic)
@@ -2848,9 +2851,6 @@ CONTAINS
                   phase(ikp, 1) = kpoint%wkp(ik)*COS(arg)
                   IF (nc == 2) phase(ikp, 2) = kpoint%wkp(ik)*SIN(arg)
                END DO
-               DO ic = 1, nc
-                  partial(ic)%local_data = 0.0_dp
-               END DO
                ! Workers own disjoint columns; neither MPI nor nested BLAS is called.
                ! Sum real/imaginary components separately: the neighbor list determines
                ! the sign of the imaginary contribution to each stored DBCSR block.
@@ -2860,7 +2860,7 @@ CONTAINS
                   DO ikp = 1, kplocal
                      DO ic = 1, nc
                         partial(ic)%local_data(1:nrow, j) = partial(ic)%local_data(1:nrow, j) + &
-                           phase(ikp, ic)*source(ikp, ic)%matrix%local_data(1:nrow, j)
+                                                            phase(ikp, ic)*source(ikp, ic)%matrix%local_data(1:nrow, j)
                      END DO
                   END DO
                END DO
@@ -2884,7 +2884,7 @@ CONTAINS
             CALL copy_fm_to_dbcsr(fmwork(1), rpmat, keep_sparsity=.TRUE.)
             IF (nc == 2) CALL copy_fm_to_dbcsr(fmwork(2), cpmat, keep_sparsity=.TRUE.)
             CALL kp_accumulate_density_image(denmat(ispin, image)%matrix, rpmat, cpmat, &
-                                              image, nc == 1, plan)
+                                             image, nc == 1, plan)
          END DO
          IF (ALLOCATED(fft_density)) DEALLOCATE (fft_density)
          DO ic = 1, nc
@@ -2907,7 +2907,7 @@ CONTAINS
 !> \param ncol number of valid local FM columns
 !> \param nimg number of requested real-space images
 !> \param owned local FM element range assigned to this inter-group rank
-!> \param density allocated on success; unallocated selects the O5 direct sum
+!> \param density allocated on success; unallocated selects the group-local direct sum
 ! **************************************************************************************************
    SUBROUTINE kp_density_fft(kpoint, source, nrow, ncol, nimg, owned, density)
 
@@ -2915,25 +2915,27 @@ CONTAINS
       TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(IN)    :: source
       INTEGER, INTENT(IN)                                :: nrow, ncol, nimg
       INTEGER, DIMENSION(2), INTENT(OUT)                 :: owned
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), INTENT(OUT) :: density
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: density
 
-      INTEGER(KIND=int_8), PARAMETER :: max_bytes = 64_int_8*1024*1024
-      INTEGER, PARAMETER :: max_batch = 32
-      INTEGER, PARAMETER :: min_fft_peer_bytes = 32*1024
+      INTEGER(KIND=int_8), PARAMETER :: max_bytes = 64_int_8*1024*1024, &
+         min_fft_peer_bytes = 32_int_8*1024
+      INTEGER, PARAMETER                                 :: max_batch = 32
 
-      COMPLEX(KIND=dp), ALLOCATABLE, TARGET, DIMENSION(:) :: recvbuf
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)         :: sendbuf
-      COMPLEX(KIND=dp), POINTER, CONTIGUOUS, DIMENSION(:, :, :) :: values_k
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)   :: values_rs
-      INTEGER                                            :: batch, count, element, first, group, handle, i, &
-                                                            ikp, j, last, local_k, mine, min_local_k, nc, nel, &
-                                                            ngroup, nkp, nowned, offset, pos, width
-      INTEGER(KIND=int_8)                               :: fixed_bytes, per_entry, tile_size
-      INTEGER                                            :: peer_bytes
-      INTEGER, DIMENSION(2)                             :: choice
-      INTEGER, DIMENSION(3)                             :: nfft
-      INTEGER, ALLOCATABLE, DIMENSION(:)                :: rcount, rdispl, scount, sdispl
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: sendbuf
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         TARGET                                          :: recvbuf
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: values_rs
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: values_k
+      INTEGER :: batch, count, element, first, group, handle, i, ikp, j, last, local_k, &
+         min_local_k, mine, nc, nel, ngroup, nkp, nowned, offset, pos, width
+      INTEGER(KIND=int_8)                                :: fixed_bytes, peer_bytes, per_entry, &
+                                                            tile_size
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount, rdispl, scount, sdispl
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cells, ranges
+      INTEGER, DIMENSION(2)                              :: choice
+      INTEGER, DIMENSION(3)                              :: nfft
       LOGICAL                                            :: compatible
       TYPE(mp_para_env_type), POINTER                    :: inter
 
@@ -2980,8 +2982,7 @@ CONTAINS
          ! With several k-point groups, small per-peer payloads do not amortize
          ! the all-to-all latency and the group-local direct sum is faster.
          min_local_k = MINVAL(kpoint%kp_dist(2, :) - kpoint%kp_dist(1, :) + 1)
-         peer_bytes = INT(MIN(INT(HUGE(peer_bytes), int_8), &
-                              16_int_8*INT(width, int_8)*INT(min_local_k, int_8)))
+         peer_bytes = 16_int_8*INT(width, int_8)*INT(min_local_k, int_8)
          IF (peer_bytes < min_fft_peer_bytes) RETURN
       END IF
 
@@ -3016,7 +3017,7 @@ CONTAINS
                   pos = sdispl(group) + (ikp - 1)*(last - first + 1) + element - first + 1
                   sendbuf(pos) = CMPLX(source(ikp, 1)%matrix%local_data(i, j), 0.0_dp, dp)
                   IF (nc == 2) sendbuf(pos) = CMPLX(REAL(sendbuf(pos), dp), &
-                                                   source(ikp, 2)%matrix%local_data(i, j), dp)
+                                                    source(ikp, 2)%matrix%local_data(i, j), dp)
                END DO
             END DO
 !$OMP END PARALLEL DO
@@ -3032,9 +3033,9 @@ CONTAINS
                density(batch:batch + count - 1, 1, i) = REAL(values_rs(1:count, 1, i), dp)
             ELSE
                density(batch:batch + count - 1, 1, i) = 0.5_dp* &
-                  REAL(values_rs(1:count, 1, i) + values_rs(1:count, 1, nimg + i), dp)
+                                                        REAL(values_rs(1:count, 1, i) + values_rs(1:count, 1, nimg + i), dp)
                density(batch:batch + count - 1, 2, i) = 0.5_dp* &
-                  REAL(values_rs(1:count, 1, i) - values_rs(1:count, 1, nimg + i), dp)
+                                                        REAL(values_rs(1:count, 1, i) - values_rs(1:count, 1, nimg + i), dp)
             END IF
          END DO
       END DO

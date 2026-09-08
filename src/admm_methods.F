@@ -290,7 +290,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, i, igroup, ik, ikp, img, indx, &
                                                             ispin, kplocal, kpmax, nao_aux_fit, &
-                                                            nao_orb, natom, nkp, nkp_groups, nmo, nspins
+                                                            nao_orb, natom, nkp, nkp_groups, nmo, &
+                                                            nspins
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -2783,7 +2784,8 @@ CONTAINS
       COMPLEX(dp)                                        :: fac, fac2
       INTEGER                                            :: handle, i, igroup, ik, ikp, img, indx, &
                                                             ispin, kplocal, kpmax, nao_aux_fit, &
-                                                            nao_orb, natom, nimg, nkp, nkp_groups, nspins
+                                                            nao_orb, natom, nimg, nkp, nkp_groups, &
+                                                            nspins
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
