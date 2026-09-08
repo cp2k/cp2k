@@ -53,7 +53,8 @@ MODULE qs_external_potential
 
 ! *** Public subroutines ***
    PUBLIC :: external_e_potential, &
-             external_c_potential
+             external_c_potential, &
+             interpolate_external_potential
 
 CONTAINS
 
