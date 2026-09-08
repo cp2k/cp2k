@@ -171,8 +171,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'wfs_update'
 
       INTEGER                                            :: handle, ic, igroup, ik, ikp, img, &
-                                                            indx_ft, ispin, kplocal, nc, nimg, &
-                                                            nkp_all, nkp_grps, nspin_kp, nspins
+                                                            indx_ft, ispin, kplocal, kpmax, nc, &
+                                                            nimg, nkp_all, nkp_grps, nspin_kp, nspins
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -372,6 +372,7 @@ CONTAINS
                                     nkp_groups=nkp_grps, kp_dist=kp_dist, &
                                     sab_nl=sab_nl, cell_to_index=cell_to_index)
                kplocal = kp_range(2) - kp_range(1) + 1
+               kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
                para_env_ft => kpoints%blacs_env_all%para_env
 
                ! Allocate dbcsr work matrices for FT (same pattern as do_general_diag_kp)
@@ -402,13 +403,14 @@ CONTAINS
                CALL cp_fm_get_info(fmlocal_ft, matrix_struct=ao_ao_struct_ft)
 
                ! Communication info array
-               ALLOCATE (info_ft(kplocal*nkp_grps, 2))
+               ALLOCATE (info_ft(nkp_all, 2))
 
                ! Phase A: Start async FT + redistribute for each k-point
                indx_ft = 0
-               DO ikp = 1, kplocal
+               DO ikp = 1, kpmax
                   DO igroup = 1, nkp_grps
                      ik = kp_dist(1, igroup) + ikp - 1
+                     IF (ik > kp_dist(2, igroup)) CYCLE
                      my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
                      indx_ft = indx_ft + 1
 
@@ -438,11 +440,14 @@ CONTAINS
 
                ! Phase B: Finish communication and assemble S(k) as cfm
                indx_ft = 0
-               DO ikp = 1, kplocal
-                  CALL cp_cfm_create(snapshot%overlap_cfm_kp(ikp), ao_ao_struct_ft)
-                  CALL cp_cfm_set_all(snapshot%overlap_cfm_kp(ikp), z_zero)
+               DO ikp = 1, kpmax
+                  IF (ikp <= kplocal) THEN
+                     CALL cp_cfm_create(snapshot%overlap_cfm_kp(ikp), ao_ao_struct_ft)
+                     CALL cp_cfm_set_all(snapshot%overlap_cfm_kp(ikp), z_zero)
+                  END IF
                   DO igroup = 1, nkp_grps
                      ik = kp_dist(1, igroup) + ikp - 1
+                     IF (ik > kp_dist(2, igroup)) CYCLE
                      my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
                      indx_ft = indx_ft + 1
                      IF (my_kpgrp) THEN
@@ -457,7 +462,7 @@ CONTAINS
                END DO
 
                ! Cleanup
-               DO indx_ft = 1, kplocal*nkp_grps
+               DO indx_ft = 1, nkp_all
                   CALL cp_fm_cleanup_copy_general(info_ft(indx_ft, 1))
                   CALL cp_fm_cleanup_copy_general(info_ft(indx_ft, 2))
                END DO
@@ -1310,8 +1315,8 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: col_scaling
       INTEGER                                            :: chol_info, handle, igroup, ik, ikp, &
-                                                            indx, ispin, j, kplocal, nao, nkp, &
-                                                            nkp_groups, nmo, nspin
+                                                            indx, ispin, j, kplocal, kpmax, nao, &
+                                                            nkp, nkp_groups, nmo, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: pbc_shift_cur, pbc_shift_src
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
@@ -1351,6 +1356,7 @@ CONTAINS
                            kp_range=kp_range, nkp_groups=nkp_groups, kp_dist=kp_dist, &
                            sab_nl=sab_nl, cell_to_index=cell_to_index)
       kplocal = kp_range(2) - kp_range(1) + 1
+      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
 
       IF (use_real_wfn) THEN
          CALL timestop(handle)
@@ -1412,7 +1418,7 @@ CONTAINS
       CALL cp_fm_struct_release(nmo_nmo_struct)
 
       para_env => kpoints%blacs_env_all%para_env
-      ALLOCATE (info(kplocal*nkp_groups, 2))
+      ALLOCATE (info(nkp, 2))
 
       ALLOCATE (csmat_cur(kplocal))
       DO ikp = 1, kplocal
@@ -1421,9 +1427,10 @@ CONTAINS
 
       ! Phase A: Fourier Transform S(R) -> S(k)
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO igroup = 1, nkp_groups
             ik = kp_dist(1, igroup) + ikp - 1
+            IF (ik > kp_dist(2, igroup)) CYCLE
             my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
             indx = indx + 1
 
@@ -1448,9 +1455,10 @@ CONTAINS
 
       ! Finish Communication
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO igroup = 1, nkp_groups
             ik = kp_dist(1, igroup) + ikp - 1
+            IF (ik > kp_dist(2, igroup)) CYCLE
             my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
             indx = indx + 1
             IF (my_kpgrp) THEN
@@ -1462,7 +1470,7 @@ CONTAINS
          END DO
       END DO
 
-      DO indx = 1, kplocal*nkp_groups
+      DO indx = 1, nkp
          CALL cp_fm_cleanup_copy_general(info(indx, 1))
          CALL cp_fm_cleanup_copy_general(info(indx, 2))
       END DO
@@ -1908,7 +1916,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate_gext_proj_kp'
 
       INTEGER                                            :: handle, i, igroup, ik, ikp, indx, ispin, &
-                                                            kplocal, method_nr, nao, nkp, &
+                                                            kplocal, kpmax, method_nr, nao, nkp, &
                                                             nkp_groups, nmo, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
@@ -1950,6 +1958,7 @@ CONTAINS
                            kp_dist=kp_dist, cell_to_index=cell_to_index, sab_nl=sab_nl, &
                            mpools=mpools_kp, para_env_inter_kp=para_env_inter_kp)
       kplocal = kp_range(2) - kp_range(1) + 1
+      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
 
       IF (use_real_wfn) THEN
          CALL cp_warn(__LOCATION__, "GExt with k-points requires complex wavefunctions; "// &
@@ -1991,7 +2000,7 @@ CONTAINS
       CALL cp_fm_get_info(fmlocal, matrix_struct=ao_ao_struct)
 
       para_env => kpoints%blacs_env_all%para_env
-      ALLOCATE (info(kplocal*nkp_groups, 2))
+      ALLOCATE (info(nkp, 2))
       ALLOCATE (csmat_cur(kplocal), weight_kp(kplocal))
       DO ikp = 1, kplocal
          CALL cp_cfm_create(csmat_cur(ikp), ao_ao_struct)
@@ -1999,9 +2008,10 @@ CONTAINS
       END DO
 
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO igroup = 1, nkp_groups
             ik = kp_dist(1, igroup) + ikp - 1
+            IF (ik > kp_dist(2, igroup)) CYCLE
             my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
             indx = indx + 1
 
@@ -2025,9 +2035,10 @@ CONTAINS
       END DO
 
       indx = 0
-      DO ikp = 1, kplocal
+      DO ikp = 1, kpmax
          DO igroup = 1, nkp_groups
             ik = kp_dist(1, igroup) + ikp - 1
+            IF (ik > kp_dist(2, igroup)) CYCLE
             my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
             indx = indx + 1
             IF (my_kpgrp) THEN
@@ -2039,7 +2050,7 @@ CONTAINS
          END DO
       END DO
 
-      DO indx = 1, kplocal*nkp_groups
+      DO indx = 1, nkp
          CALL cp_fm_cleanup_copy_general(info(indx, 1))
          CALL cp_fm_cleanup_copy_general(info(indx, 2))
       END DO
