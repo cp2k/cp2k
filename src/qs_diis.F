@@ -1109,10 +1109,10 @@ CONTAINS
 !> \param nkp_local ...
 !> \param nmixing ...
 !> \param scf_section ...
-!> \param para_env ...
+!> \param para_env_inter_kp communicator connecting the k-point groups
 ! **************************************************************************************************
    SUBROUTINE qs_diis_b_step_kp(diis_buffer, coeffs, ib, nb, delta, error_max, diis_step, eps_diis, &
-                                nspin, nkp, nkp_local, nmixing, scf_section, para_env)
+                                nspin, nkp, nkp_local, nmixing, scf_section, para_env_inter_kp)
 
       TYPE(qs_diis_buffer_type_kp), POINTER              :: diis_buffer
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT)      :: coeffs
@@ -1124,7 +1124,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nspin, nkp, nkp_local
       INTEGER, INTENT(IN), OPTIONAL                      :: nmixing
       TYPE(section_vals_type), POINTER                   :: scf_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_diis_b_step_kp'
       REAL(KIND=dp), PARAMETER :: eigenvalue_threshold = 1.0E-12_dp
@@ -1185,7 +1185,10 @@ CONTAINS
       CALL cp_fm_release(ierr)
       CALL cp_fm_release(rerr)
       CALL cp_cfm_release(old_errors)
-      CALL para_env%sum(b)
+      ! cp_cfm_trace has already reduced each trace over the ranks of its
+      ! k-point group. Reduce the group contributions only once, over the
+      ! communicator that connects the k-point groups.
+      CALL para_env_inter_kp%sum(b)
 
       error_max = SQRT(REAL(b(ib, ib))**2 + AIMAG(b(ib, ib))**2)
 
