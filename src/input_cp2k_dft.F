@@ -58,6 +58,7 @@ MODULE input_cp2k_dft
    USE input_cp2k_external,             ONLY: create_ext_den_section,&
                                               create_ext_pot_section,&
                                               create_ext_vxc_section
+   USE input_cp2k_fde,                  ONLY: create_fde_section
    USE input_cp2k_field,                ONLY: create_efield_section,&
                                               create_per_efield_section
    USE input_cp2k_harris,               ONLY: create_harris_section
@@ -379,6 +380,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_kg_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_fde_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

@@ -20,8 +20,8 @@ MODULE cp_control_utils
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, expot_control_create, &
-        maxwell_control_create, qs_control_type, rixs_control_type, tddfpt2_control_type, &
-        xtb_control_type, xtb_reference_cli_type
+        fde_control_create, maxwell_control_create, qs_control_type, rixs_control_type, &
+        tddfpt2_control_type, xtb_control_type, xtb_reference_cli_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -228,6 +228,31 @@ CONTAINS
                                                                                        dft_control%lsd)
             END IF
          END IF
+      END IF
+
+      ! CASSCF-in-DFT frozen-density embedding (FDE)
+      tmp_section => section_vals_get_subs_vals(dft_section, "FDE")
+      CALL section_vals_get(tmp_section, explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(tmp_section, "_SECTION_PARAMETERS_", l_val=dft_control%do_fde)
+      END IF
+      IF (dft_control%do_fde) THEN
+         CALL fde_control_create(dft_control%fde_control)
+         ASSOCIATE (fde => dft_control%fde_control)
+            CALL section_vals_val_get(tmp_section, "FREEZE_AND_THAW", l_val=fde%freeze_and_thaw)
+            CALL section_vals_val_get(tmp_section, "MAX_FT_ITER", i_val=fde%max_ft_iter)
+            CALL section_vals_val_get(tmp_section, "EPS_FT_DENSITY", r_val=fde%eps_ft_density)
+            CALL section_vals_val_get(tmp_section, "EPS_FT_ENERGY", r_val=fde%eps_ft_energy)
+            CALL section_vals_val_get(tmp_section, "DENSITY_MIXING", r_val=fde%density_mixing)
+            CALL section_vals_val_get(tmp_section, "COMMAND", c_val=fde%openmolcas_command)
+            CALL section_vals_val_get(tmp_section, "PROJECT", c_val=fde%molcas_project)
+            CALL section_vals_val_get(tmp_section, "WORKDIR", c_val=fde%molcas_workdir)
+            CALL section_vals_val_get(tmp_section, "MOLCAS_INPUT_TEMPLATE", c_val=fde%molcas_input_template)
+            CALL section_vals_val_get(tmp_section, "POT_FILE", c_val=fde%pot_file)
+            CALL section_vals_val_get(tmp_section, "GRID_FILE", c_val=fde%grid_file)
+            CALL section_vals_val_get(tmp_section, "RHOA_FILE", c_val=fde%rhoa_file)
+            CALL section_vals_val_get(tmp_section, "RESULT_FILE", c_val=fde%result_file)
+         END ASSOCIATE
       END IF
 
       xc_deriv_method_id = section_get_ival(xc_section, "XC_GRID%XC_DERIV")
