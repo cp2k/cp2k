@@ -148,11 +148,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LATTICE_FFT", &
-                          description="Control the FFT-based transformation of real-space matrices "// &
-                          "to complete regular k-point grids. AUTO uses the lattice FFT for at least "// &
-                          "27 k points when the grid and memory requirements are satisfied. ON bypasses "// &
-                          "this performance threshold. OFF always uses the established direct phase sum. "// &
-                          "Unsupported, incomplete, or oversized grids retain the direct fallback.", &
+                          description="Control lattice FFTs for real-space operators and grouped k-point densities. "// &
+                          "The density path also accepts regular-grid subsets with their original weights. "// &
+                          "AUTO uses the lattice FFT for at least "// &
+                          "27 k points when the grid, memory, and communication-granularity requirements "// &
+                          "are satisfied. ON bypasses these performance thresholds. OFF always uses the "// &
+                          "established direct phase sum. "// &
+                          "Unsupported or oversized grids retain the direct fallback; the forward operator "// &
+                          "FFT still requires a complete grid.", &
                           usage="LATTICE_FFT AUTO", type_of_var=enum_t, &
                           enum_c_vals=s2a("AUTO", "ON", "OFF"), &
                           enum_i_vals=[lattice_fft_auto, lattice_fft_on, lattice_fft_off], &

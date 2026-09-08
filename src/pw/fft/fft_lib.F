@@ -27,6 +27,7 @@ MODULE fft_lib
 
    PUBLIC :: fft_do_cleanup, fft_do_init, fft_get_lengths, fft_create_plan_3d
    PUBLIC :: fft_create_plan_1d, fft_1d, fft_library, fft_3d, fft_destroy_plan
+   PUBLIC :: fft_supports_arbitrary_lengths
    PUBLIC :: fft_alloc, fft_dealloc
 
 CONTAINS
@@ -54,6 +55,16 @@ CONTAINS
       END SELECT
 
    END FUNCTION fft_library
+
+! **************************************************************************************************
+!> \brief Query whether the active FFT backend supports arbitrary transform lengths.
+!> \return whether arbitrary positive transform lengths are supported
+! **************************************************************************************************
+   LOGICAL FUNCTION fft_supports_arbitrary_lengths() RESULT(supported)
+
+      supported = fft_type == fft_library("FFTW3")
+
+   END FUNCTION fft_supports_arbitrary_lengths
 
 ! **************************************************************************************************
 !> \brief ...
