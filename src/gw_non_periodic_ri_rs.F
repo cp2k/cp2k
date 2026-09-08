@@ -2197,8 +2197,12 @@ CONTAINS
 
       INTEGER                                            :: atom_j, atom_k, c, handle, handle_dgemm, &
                                                             j, jk_idx, jsize, jstart, k, ksize, &
-                                                            kstart, l, l0, ri
+                                                            kstart, l, l0, n_grid_pair, point, ri
+      INTEGER, ALLOCATABLE                               :: grid_index(:)
       LOGICAL                                            :: screened
+      LOGICAL, ALLOCATABLE                               :: skip_grid_point(:, :)
+      REAL(KIND=dp)                                      :: pair_factor
+      REAL(KIND=dp), ALLOCATABLE                         :: grid_result(:, :)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: d_lp_prv, int_2d_prv, rho_chunk
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: int_3c_prv
       TYPE(gw_3c_ws_type)                                :: ws
@@ -2206,9 +2210,10 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       !$OMP PARALLEL DEFAULT(NONE) &
-      !$OMP SHARED(bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &
+      !$OMP SHARED(skip_grid_point, bs_env, ctx, phi_val, ao_col_map, d_lp, n_grid_total, n_loc_ri, atom_P, max_ao_size, &
       !$OMP        atom_j_mepos, atom_j_stride) &
-      !$OMP PRIVATE(atom_j, atom_k, c, handle_dgemm, j, jk_idx, jsize, jstart, k, ksize, kstart, &
+      !$OMP PRIVATE(grid_index, grid_result, n_grid_pair, point, pair_factor, &
+      !$OMP         atom_j, atom_k, c, handle_dgemm, j, jk_idx, jsize, jstart, k, ksize, kstart, &
       !$OMP         l, l0, ri, screened, d_lp_prv, int_2d_prv, rho_chunk, int_3c_prv, ws)
 
       CALL gw_3c_ws_create(ws, ctx)
@@ -2216,19 +2221,35 @@ CONTAINS
       ALLOCATE (int_2d_prv(max_ao_size*max_ao_size, n_loc_ri))
       ALLOCATE (rho_chunk(grid_chunk, max_ao_size*max_ao_size))
       ALLOCATE (d_lp_prv(n_grid_total, n_loc_ri))
+      ALLOCATE (grid_index(n_grid_total), grid_result(grid_chunk, n_loc_ri))
       d_lp_prv(:, :) = 0.0_dp
 
-      ! MPI-stride atom_j over the subgroup (atom_j_stride = 1 for the BLAS
-      ! path, > 1 for the ScaLAPACK path). The OMP DO parallelizes the inner
-      ! atom_k while the outer atom_j carries the MPI stride.
+      !$OMP SINGLE
+      ALLOCATE (skip_grid_point(n_grid_total, bs_env%n_atom))
+      CALL compute_skip_grid_point(bs_env, phi_val, ao_col_map, skip_grid_point)
+      !$OMP END SINGLE
+
+      ! MPI assigns each unordered pair through its first atom; OpenMP divides those atoms.
+      ! Skip only exact-zero pair-grid support, without a new screening threshold.
       !$OMP DO SCHEDULE(DYNAMIC)
-      DO atom_j = atom_j_mepos + 1, SIZE(bs_env%i_ao_start_from_atom), atom_j_stride
-         DO atom_k = 1, SIZE(bs_env%i_ao_start_from_atom)
+      DO atom_j = atom_j_mepos + 1, bs_env%n_atom, atom_j_stride
+         DO atom_k = atom_j, bs_env%n_atom
             jstart = ao_col_map(bs_env%i_ao_start_from_atom(atom_j))
             kstart = ao_col_map(bs_env%i_ao_start_from_atom(atom_k))
             IF (jstart == 0 .OR. kstart == 0) CYCLE
             jsize = bs_env%i_ao_end_from_atom(atom_j) - bs_env%i_ao_start_from_atom(atom_j) + 1
             ksize = bs_env%i_ao_end_from_atom(atom_k) - bs_env%i_ao_start_from_atom(atom_k) + 1
+
+            n_grid_pair = 0
+            DO point = 1, n_grid_total
+               IF (skip_grid_point(point, atom_j) .OR. skip_grid_point(point, atom_k)) CYCLE
+               n_grid_pair = n_grid_pair + 1
+               grid_index(n_grid_pair) = point
+            END DO
+            IF (n_grid_pair == 0) CYCLE
+            ! (μν|P) = (νμ|P): distinct atom pairs contribute twice.
+            pair_factor = 1.0_dp
+            IF (atom_j /= atom_k) pair_factor = 2.0_dp
 
             int_3c_prv(1:jsize, 1:ksize, 1:n_loc_ri) = 0.0_dp
 
@@ -2252,22 +2273,29 @@ CONTAINS
 
             ! Pair density ρ(l, μν) = Φ_μ(r_l) Φ_ν(r_l) in grid chunks, contracted on the fly:
             ! d_{l,P} += ρ(l, μν) B_{(μν),P}  (dgemm runs serially inside the parallel region)
-            DO l0 = 1, n_grid_total, grid_chunk
-               c = MIN(grid_chunk, n_grid_total - l0 + 1)
+            DO l0 = 1, n_grid_pair, grid_chunk
+               c = MIN(grid_chunk, n_grid_pair - l0 + 1)
                DO k = 1, ksize
                   DO j = 1, jsize
                      jk_idx = (k - 1)*jsize + j
                      DO l = 1, c
-                        rho_chunk(l, jk_idx) = phi_val(l0 + l - 1, jstart + j - 1)* &
-                                               phi_val(l0 + l - 1, kstart + k - 1)
+                        point = grid_index(l0 + l - 1)
+                        rho_chunk(l, jk_idx) = phi_val(point, jstart + j - 1)* &
+                                               phi_val(point, kstart + k - 1)
                      END DO
                   END DO
                END DO
                CALL timeset(routineN//"_dgemm", handle_dgemm)
                CALL dgemm("N", "N", c, n_loc_ri, jsize*ksize, &
-                          1.0_dp, rho_chunk, grid_chunk, &
+                          pair_factor, rho_chunk, grid_chunk, &
                           int_2d_prv, max_ao_size*max_ao_size, &
-                          1.0_dp, d_lp_prv(l0, 1), n_grid_total)
+                          0.0_dp, grid_result, grid_chunk)
+               DO ri = 1, n_loc_ri
+                  DO l = 1, c
+                     point = grid_index(l0 + l - 1)
+                     d_lp_prv(point, ri) = d_lp_prv(point, ri) + grid_result(l, ri)
+                  END DO
+               END DO
                CALL timestop(handle_dgemm)
             END DO
          END DO
@@ -2279,14 +2307,44 @@ CONTAINS
                                          d_lp_prv(1:n_grid_total, 1:n_loc_ri)
       !$OMP END CRITICAL (compute_d_lp_reduce)
 
-      DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk, d_lp_prv)
+      DEALLOCATE (int_3c_prv, int_2d_prv, rho_chunk, d_lp_prv, grid_index, grid_result)
       CALL gw_3c_ws_release(ws)
+
+      !$OMP SINGLE
+      DEALLOCATE (skip_grid_point)
+      !$OMP END SINGLE
 
       !$OMP END PARALLEL
 
       CALL timestop(handle)
 
    END SUBROUTINE compute_d_lp
+
+! **************************************************************************************************
+!> \brief Marks grid points where all stored AO values of an atom are exactly zero.
+!> \param bs_env ...
+!> \param phi_val ...
+!> \param ao_col_map ...
+!> \param skip_grid_point ...
+! **************************************************************************************************
+   SUBROUTINE compute_skip_grid_point(bs_env, phi_val, ao_col_map, skip_grid_point)
+
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: phi_val
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_col_map
+      LOGICAL, DIMENSION(:, :), INTENT(OUT)              :: skip_grid_point
+
+      INTEGER                                            :: atom, first_ao, number_of_aos
+
+      skip_grid_point(:, :) = .TRUE.
+      DO atom = 1, bs_env%n_atom
+         first_ao = ao_col_map(bs_env%i_ao_start_from_atom(atom))
+         IF (first_ao == 0) CYCLE
+         number_of_aos = bs_env%i_ao_end_from_atom(atom) - bs_env%i_ao_start_from_atom(atom) + 1
+         skip_grid_point(:, atom) = ALL(phi_val(:, first_ao:first_ao + number_of_aos - 1) == 0.0_dp, DIM=2)
+      END DO
+
+   END SUBROUTINE compute_skip_grid_point
 
 ! **************************************************************************************************
 !> \brief Distributed pdpotrf/pdpotrs solve of D x = b for one atom of the
