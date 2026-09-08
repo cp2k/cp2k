@@ -17,7 +17,7 @@ source "${INSTALLDIR}"/toolchain.conf
 source "${INSTALLDIR}"/toolchain.env
 
 find_openblas_dir() {
-  find . -maxdepth 1 -type d -name '*OpenBLAS*' 2>/dev/null | head -1
+  find . -maxdepth 1 -type d -name '*OpenBLAS*' 2> /dev/null | head -1
 }
 
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
@@ -30,9 +30,9 @@ get_system_openblas_arch() {
   local openblas_dir=""
 
   if [ "${with_openblas}" = "__SYSTEM__" ]; then
-    openblas_lib=$(find /usr/lib /usr/local/lib -maxdepth 3 -name "libopenblas*" -type f 2>/dev/null | head -1)
+    openblas_lib=$(find /usr/lib /usr/local/lib -maxdepth 3 -name "libopenblas*" -type f 2> /dev/null | head -1)
   elif [ "${with_openblas}" != "__INSTALL__" ] && [ -d "${with_openblas}" ]; then
-    openblas_lib=$(find "${with_openblas}/lib" -maxdepth 2 -name "libopenblas*" -type f 2>/dev/null | head -1)
+    openblas_lib=$(find "${with_openblas}/lib" -maxdepth 2 -name "libopenblas*" -type f 2> /dev/null | head -1)
   fi
 
   if [ -z "$openblas_lib" ]; then
