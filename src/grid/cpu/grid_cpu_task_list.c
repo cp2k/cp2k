@@ -380,7 +380,7 @@ static void collocate_one_grid_level(
             /*o2=*/jpgf * ncosetb,
             /*n1=*/ncoa,
             /*n2=*/ncob,
-            /*pab=*/(const double(*)[ncoa])pab,
+            /*pab=*/(const double (*)[ncoa])pab,
             /*grid=*/my_grid);
 
       } // end of task loop
@@ -609,8 +609,8 @@ static void integrate_one_grid_level(
             /*n1=*/ncoa,
             /*n2=*/ncob,
             /*grid=*/grid->host_buffer,
-            /*hab=*/(double(*)[ncoa])hab,
-            /*pab=*/(pab_required) ? (const double(*)[ncoa])pab : NULL,
+            /*hab=*/(double (*)[ncoa])hab,
+            /*pab=*/(pab_required) ? (const double (*)[ncoa])pab : NULL,
             /*forces=*/(forces != NULL) ? my_forces : NULL,
             /*virials=*/(virial != NULL) ? my_virials : NULL,
             /*hdab=*/NULL,
