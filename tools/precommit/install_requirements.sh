@@ -19,7 +19,7 @@ apt-get install -qq --no-install-recommends \
   python3-wheel \
   python3-setuptools \
   shellcheck \
-  wget
+  shfmt
 rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment for Python packages.
@@ -28,16 +28,9 @@ export PATH="/opt/venv/bin:$PATH"
 
 # TODO Add a pylock.toml file (https://peps.python.org/pep-0751/)
 # Install Python packages. Upgrade via:
-#   pip3 install black flask gunicorn cmake-format fortitude-lint \
-#      mdformat mdformat-gfm mdformat_frontmatter mdformat_myst mdformat_tables
+#   pip3 install black flask gunicorn cmakelang fortitude-lint \
+#      mdformat mdformat-gfm mdformat-myst
 #   pip3 freeze > requirements.txt
 pip3 install --quiet -r requirements.txt
-
-# Install shfmt.
-# https://github.com/mvdan/sh
-wget -q https://github.com/mvdan/sh/releases/download/v3.2.2/shfmt_v3.2.2_linux_amd64
-echo '3a32a69286a19491a81fcd854154f0d886c379ff28d99e32d5594490b8bbef4b shfmt_v3.2.2_linux_amd64' | sha256sum --check
-chmod +x shfmt_v3.2.2_linux_amd64
-ln -s /opt/cp2k-precommit/shfmt_v3.2.2_linux_amd64 /usr/bin/shfmt
 
 #EOF

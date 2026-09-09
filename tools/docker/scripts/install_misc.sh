@@ -18,7 +18,8 @@ apt-get install -qq --no-install-recommends \
   cmake \
   golang \
   unzip \
-  wget
+  wget \
+  git
 rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment for Python packages.
