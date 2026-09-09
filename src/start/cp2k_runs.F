@@ -76,8 +76,8 @@ MODULE cp2k_runs
         bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_embed, do_farming, &
         do_fist, do_ipi, do_mixed, do_nnp, do_opt_basis, do_optimize_input, do_qmmm, do_qs, &
         do_sirius, do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
-        energy_force_run, energy_run, geo_opt_run, linear_response_run, mimic_run, mol_dyn_run, &
-        mon_car_run, mtlr_run, negf_run, none_run, pint_run, real_time_propagation, &
+        energy_force_run, energy_run, geo_opt_run, history_guess, linear_response_run, mimic_run, &
+        mol_dyn_run, mon_car_run, mtlr_run, negf_run, none_run, pint_run, real_time_propagation, &
         rtp_method_bse, rtp_method_bse_linearized, tree_mc_run, vib_anal
    USE input_cp2k,                      ONLY: create_cp2k_root_section
    USE input_cp2k_check,                ONLY: check_cp2k_input
@@ -86,9 +86,9 @@ MODULE cp2k_runs
    USE input_keyword_types,             ONLY: keyword_release
    USE input_parsing,                   ONLY: section_vals_parse
    USE input_section_types,             ONLY: &
-        section_release, section_type, section_vals_create, section_vals_get_subs_vals, &
-        section_vals_release, section_vals_retain, section_vals_type, section_vals_val_get, &
-        section_vals_write, write_section_xml
+        section_release, section_type, section_vals_create, section_vals_get, &
+        section_vals_get_subs_vals, section_vals_release, section_vals_retain, section_vals_type, &
+        section_vals_val_get, section_vals_write, write_section_xml
    USE ipi_driver,                      ONLY: run_driver
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -184,14 +184,16 @@ CONTAINS
       INTEGER, POINTER                                   :: active_device_id
       INTEGER(KIND=int_8)                                :: m_memory_max_mpi
       LOGICAL                                            :: echo_input, grid_apply_cutoff, &
-                                                            grid_validate, I_was_ionode
+                                                            grid_validate, has_excited_states, has_properties, &
+                                                            I_was_ionode
       TYPE(cp_logger_type), POINTER                      :: logger, sublogger
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_environment_type), POINTER             :: globenv
-      TYPE(section_vals_type), POINTER                   :: glob_section, input_file, root_section
+      TYPE(section_vals_type), POINTER                   :: glob_section, input_file, root_section, &
+                                                            section
 
       NULLIFY (para_env, f_env, dft_control, active_device_id)
       ALLOCATE (para_env)
@@ -331,6 +333,22 @@ CONTAINS
             CALL loop_over_molecules(globenv, force_env)
          END IF
 
+         ! Only this driver knows that no later geometry step will be requested.
+         ! Keep history for nested/repeated SCF consumers and for library/shell use.
+         IF (method_name_id == do_qs) THEN
+            CALL get_qs_env(force_env%qs_env, dft_control=dft_control)
+            section => section_vals_get_subs_vals(force_env%qs_env%input, "PROPERTIES")
+            CALL section_vals_get(section, explicit=has_properties)
+            section => section_vals_get_subs_vals(force_env%qs_env%input, "DFT%EXCITED_STATES")
+            CALL section_vals_get(section, explicit=has_excited_states)
+            force_env%qs_env%skip_wf_history = .NOT. (has_properties .OR. has_excited_states .OR. &
+                                                      dft_control%qs_control%cdft .OR. &
+                                                      dft_control%qs_control%et_coupling_calc .OR. &
+                                                      dft_control%do_xas_calculation .OR. &
+                                                      dft_control%do_xas_tdp_calculation .OR. &
+                                                      force_env%qs_env%scf_control%density_guess == history_guess)
+         END IF
+
          SELECT CASE (globenv%run_type_id)
          CASE (energy_run)
             CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
@@ -339,6 +357,7 @@ CONTAINS
          CASE default
             CPABORT("Unknown run type")
          END SELECT
+         IF (method_name_id == do_qs) force_env%qs_env%skip_wf_history = .FALSE.
          CALL cp_rm_iter_level(sublogger%iter_info, level_name="JUST_ENERGY", n_rlevel_att=iter_level)
       CASE (mol_dyn_run)
          CALL qs_mol_dyn(force_env, globenv)

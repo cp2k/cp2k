@@ -230,6 +230,8 @@ MODULE qs_environment_types
       LOGICAL :: calc_image_preconditioner = .FALSE.
       LOGICAL :: do_transport = .FALSE.
       LOGICAL :: single_point_run = .FALSE.
+      ! Set only by the standalone single-point driver, not by library callers.
+      LOGICAL :: skip_wf_history = .FALSE.
       LOGICAL :: given_embed_pot = .FALSE.
       LOGICAL :: energy_correction = .FALSE.
       LOGICAL :: harris_method = .FALSE.
@@ -985,6 +987,7 @@ CONTAINS
       qs_env%run_rtp = .FALSE.
       qs_env%linres_run = .FALSE.
       qs_env%single_point_run = .FALSE.
+      qs_env%skip_wf_history = .FALSE.
       qs_env%qmmm = .FALSE.
       qs_env%qmmm_periodic = .FALSE.
       qs_env%mimic = .FALSE.
