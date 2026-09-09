@@ -32,9 +32,8 @@ MODULE qs_scf_diagonalization
    USE cp_control_types,                ONLY: dft_control_type,&
                                               hairy_probes_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_readonly_block_p, &
-        dbcsr_init_p, dbcsr_p_type, dbcsr_release_p, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_symmetric
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_init_p, dbcsr_p_type, &
+        dbcsr_release_p, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -86,7 +85,7 @@ MODULE qs_scf_diagonalization
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_methods,                  ONLY: &
-        kp_transform_plan_create, kp_transform_plan_release, kp_transform_plan_type, &
+        kp_build_cfm, kp_transform_plan_create, kp_transform_plan_release, kp_transform_plan_type, &
         kpoint_density_matrices, kpoint_density_transform, kpoint_set_mo_occupation, &
         rskp_grid_type, rskp_transform, rskp_transform_grid_extract, rskp_transform_grid_prepare, &
         rskp_transform_grid_release
@@ -96,7 +95,6 @@ MODULE qs_scf_diagonalization
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathconstants,                   ONLY: gaussi,&
-                                              twopi,&
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
@@ -1480,54 +1478,6 @@ CONTAINS
       DEALLOCATE (workspace)
 
    END SUBROUTINE kp_diag_omp_workspaces_release
-
-! **************************************************************************************************
-!> \brief Fuse the real-space Fourier transform and DBCSR-to-dense expansion.
-!>        The target is private to one worker and the source blocks are read-only.
-!> \param source ...
-!> \param ispin ...
-!> \param xkp ...
-!> \param plan ...
-!> \param TARGET ...
-! **************************************************************************************************
-   SUBROUTINE kp_build_cfm(source, ispin, xkp, plan, TARGET)
-
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: source
-      INTEGER, INTENT(IN)                                :: ispin
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
-      TYPE(kp_transform_plan_type), INTENT(IN)           :: plan
-      TYPE(cp_cfm_type), INTENT(IN)                      :: target
-
-      COMPLEX(KIND=dp)                                   :: phase
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: full
-      INTEGER                                            :: col_offset, i, row_offset
-      LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: arg
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
-
-      full => target%local_data
-      full = z_zero
-      DO i = 1, plan%nentry
-         CALL dbcsr_get_readonly_block_p(source(ispin, plan%image(i))%matrix, &
-                                         plan%row(i), plan%col(i), block, found)
-         IF (.NOT. found) CYCLE
-         row_offset = plan%row_offset(i)
-         col_offset = plan%col_offset(i)
-         arg = DOT_PRODUCT(REAL(plan%cell(:, i), KIND=dp), xkp)
-         phase = CMPLX(COS(twopi*arg), plan%symmetry_sign(i)*SIN(twopi*arg), KIND=dp)
-         full(row_offset:row_offset + SIZE(block, 1) - 1, &
-              col_offset:col_offset + SIZE(block, 2) - 1) = &
-            full(row_offset:row_offset + SIZE(block, 1) - 1, &
-                 col_offset:col_offset + SIZE(block, 2) - 1) + phase*block
-         IF (plan%symmetric .AND. plan%row(i) /= plan%col(i)) THEN
-            full(col_offset:col_offset + SIZE(block, 2) - 1, &
-                 row_offset:row_offset + SIZE(block, 1) - 1) = &
-               full(col_offset:col_offset + SIZE(block, 2) - 1, &
-                    row_offset:row_offset + SIZE(block, 1) - 1) + CONJG(phase)*TRANSPOSE(block)
-         END IF
-      END DO
-
-   END SUBROUTINE kp_build_cfm
 
 ! **************************************************************************************************
 !> \brief Transform and diagonalize one k-point without DIIS.

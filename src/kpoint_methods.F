@@ -82,7 +82,8 @@ MODULE kpoint_methods
                                               kpoint_sym_create,&
                                               kpoint_sym_type,&
                                               kpoint_type
-   USE mathconstants,                   ONLY: twopi
+   USE mathconstants,                   ONLY: twopi,&
+                                              z_zero
    USE mathlib,                         ONLY: inv_3x3
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_cart_type,&
@@ -134,7 +135,7 @@ MODULE kpoint_methods
    PUBLIC :: kpoint_smearing_edge_status
    PUBLIC :: kpoint_density_matrices, kpoint_density_transform
    PUBLIC :: kpoint_ot_energy_weighted_density, kpoint_ot_energy_weighted_matrices
-   PUBLIC :: kp_transform_plan_create, kp_transform_plan_release
+   PUBLIC :: kp_build_cfm, kp_transform_plan_create, kp_transform_plan_release
    PUBLIC :: rskp_transform, lowdin_kp_trans, lowdin_kp_mo_coeff
    PUBLIC :: rskp_grid_type, rskp_transform_grid_prepare, rskp_transform_grid_extract, &
              rskp_transform_grid_release
@@ -3373,6 +3374,56 @@ CONTAINS
       END IF
 
    END SUBROUTINE kp_transform_plan_create
+
+! **************************************************************************************************
+!> \brief Fuse the real-space Fourier transform and DBCSR-to-dense expansion.
+!>        Only for globally single-rank matrices: the target contains the full matrix.
+!>        The target is private to one worker and the source blocks are read-only.
+!>        Build the traversal plan and allocate targets before entering OpenMP.
+!> \param source ...
+!> \param ispin ...
+!> \param xkp ...
+!> \param plan ...
+!> \param TARGET ...
+! **************************************************************************************************
+   SUBROUTINE kp_build_cfm(source, ispin, xkp, plan, TARGET)
+
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: source
+      INTEGER, INTENT(IN)                                :: ispin
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
+      TYPE(kp_transform_plan_type), INTENT(IN)           :: plan
+      TYPE(cp_cfm_type), INTENT(IN)                      :: target
+
+      COMPLEX(KIND=dp)                                   :: phase
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: full
+      INTEGER                                            :: col_offset, i, row_offset
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: arg
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+
+      full => target%local_data
+      full = z_zero
+      DO i = 1, plan%nentry
+         CALL dbcsr_get_readonly_block_p(source(ispin, plan%image(i))%matrix, &
+                                         plan%row(i), plan%col(i), block, found)
+         IF (.NOT. found) CYCLE
+         row_offset = plan%row_offset(i)
+         col_offset = plan%col_offset(i)
+         arg = DOT_PRODUCT(REAL(plan%cell(:, i), KIND=dp), xkp)
+         phase = CMPLX(COS(twopi*arg), plan%symmetry_sign(i)*SIN(twopi*arg), KIND=dp)
+         full(row_offset:row_offset + SIZE(block, 1) - 1, &
+              col_offset:col_offset + SIZE(block, 2) - 1) = &
+            full(row_offset:row_offset + SIZE(block, 1) - 1, &
+                 col_offset:col_offset + SIZE(block, 2) - 1) + phase*block
+         IF (plan%symmetric .AND. plan%row(i) /= plan%col(i)) THEN
+            full(col_offset:col_offset + SIZE(block, 2) - 1, &
+                 row_offset:row_offset + SIZE(block, 1) - 1) = &
+               full(col_offset:col_offset + SIZE(block, 2) - 1, &
+                    row_offset:row_offset + SIZE(block, 1) - 1) + CONJG(phase)*TRANSPOSE(block)
+         END IF
+      END DO
+
+   END SUBROUTINE kp_build_cfm
 
 ! **************************************************************************************************
 !> \brief Release a K-to-R traversal plan.
