@@ -24,6 +24,7 @@ extensions = [
 ]
 
 myst_heading_anchors = 3
+myst_links_external_new_tab = True
 
 myst_enable_extensions = [
     "attrs_inline",
@@ -65,6 +66,8 @@ html_context = {
 
 html_theme_options = {
     "collapse_navigation": False,
+    "prev_next_buttons_location": "both",
+    "style_external_links": True,
 }
 
 redirects = {
