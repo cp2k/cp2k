@@ -76,7 +76,9 @@ MODULE qs_scf_loop_utils
    USE qs_kpoint_operators,             ONLY: kpoint_operator_context_create,&
                                               kpoint_operator_context_release,&
                                               kpoint_operator_context_type,&
-                                              kpoint_operator_get
+                                              kpoint_operator_get,&
+                                              kpoint_operator_prepare,&
+                                              kpoint_slot_ks
    USE qs_kpp1_env_types,               ONLY: kpp1_release,&
                                               qs_kpp1_env_type
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
@@ -1685,16 +1687,19 @@ CONTAINS
 
          CALL apply_hxc_kernel_kp(qs_env, kernel_env, density_rs, potential_rs)
          IF (nkp_groups > 1) THEN
+            ! Refresh every response mode. The OT channel can use a different
+            ! group-local BLACS layout from the default AO/AO pool.
+            CALL kpoint_operator_prepare(hxc_op_ctx, potential_rs, kpoint_slot_ks, TARGET=operator_re(1, 1))
             DO local_kpoint = 1, MAXVAL(kpoints%kp_dist(2, :) - kpoints%kp_dist(1, :) + 1)
                DO ispin = 1, nspin_ot
                   IF (local_kpoint <= nlocal_kpoints) THEN
                      CALL kpoint_operator_get(hxc_op_ctx, local_kpoint, ispin, potential_rs, &
                                               fm_re=operator_re(local_kpoint, ispin), &
-                                              fm_im=operator_im(local_kpoint, ispin), matrix_row=ispin)
+                                              fm_im=operator_im(local_kpoint, ispin), matrix_row=ispin, slot=kpoint_slot_ks)
                   ELSE
                      ! Participate in the global transfers without a local output in this round.
                      CALL kpoint_operator_get(hxc_op_ctx, local_kpoint, ispin, potential_rs, &
-                                              fm_re=inactive_re, fm_im=inactive_im, matrix_row=ispin)
+                                              fm_re=inactive_re, fm_im=inactive_im, matrix_row=ispin, slot=kpoint_slot_ks)
                   END IF
                END DO
             END DO

@@ -669,8 +669,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL :: adiis_cdiis, cache_smat, cdiis_step, do_diis, my_added_mos_auto_grow, my_kpgrp, &
-         my_store_ot_kinetic, my_store_ot_matrices, my_transfer_only, prepared_ops, reuse_smat, &
-         spin_grid_fft, use_adiis, use_grid_fft, use_omp_kpoints, use_real_wfn
+         my_store_ot_kinetic, my_store_ot_matrices, my_transfer_only, prepared_ops, prepared_part, &
+         reuse_smat, spin_grid_fft, use_adiis, use_grid_fft, use_omp_kpoints, use_real_wfn
       REAL(KIND=dp)                                      :: diis_weight
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
@@ -829,14 +829,18 @@ CONTAINS
          CPASSERT(SIZE(kpoints%scf_smat) == kplocal)
       END IF
 
-      ! Freeze the immutable SCF operators inside the service. ADIIS/handover
-      ! can select another Fock operator later and keeps the existing backend.
+      ! Prepare H/S/T before starting any round. ADIIS can replace only the
+      ! idle KS slot later, retaining the overlap and kinetic snapshots.
       prepared_ops = .FALSE.
-      IF (cache_smat .AND. nkp_groups > 1 .AND. .NOT. use_adiis) THEN
-         IF (reuse_smat) THEN
-            CALL kpoint_operator_prepare(op_ctx, effective_ks, prepared_ops)
-         ELSE
-            CALL kpoint_operator_prepare(op_ctx, effective_ks, prepared_ops, matrix_s)
+      IF (.NOT. use_real_wfn .AND. nkp_groups > 1) THEN
+         CALL kpoint_operator_prepare(op_ctx, effective_ks, kpoint_slot_ks, prepared_ops)
+         IF (.NOT. reuse_smat) THEN
+            CALL kpoint_operator_prepare(op_ctx, matrix_s, kpoint_slot_s, prepared_part, matrix_row=kpoint_spin_free)
+            prepared_ops = prepared_ops .AND. prepared_part
+         END IF
+         IF (my_store_ot_kinetic) THEN
+            CALL kpoint_operator_prepare(op_ctx, matrix_t, kpoint_slot_t, prepared_part, matrix_row=kpoint_spin_free)
+            prepared_ops = prepared_ops .AND. prepared_part
          END IF
       END IF
 
@@ -1056,6 +1060,12 @@ CONTAINS
             IF (.NOT. diis_step) diis_error = scf_env%scf_subspace_buffer%last_old_fock_weight
          ELSE
             diis_step = cdiis_step
+         END IF
+
+         ! All first-pass instances have finished. Capture the selected
+         ! ADIIS operator once instead of retransferring it in every round.
+         IF (use_adiis .AND. diis_weight < 1.0_dp) THEN
+            CALL kpoint_operator_prepare(op_ctx, adiis_ks, kpoint_slot_ks)
          END IF
 
          !build the ks matrices and diagonalize
@@ -1814,6 +1824,10 @@ CONTAINS
       para_env => kpoints%blacs_env_all%para_env
       nspin = SIZE(matrix_ks, 1)
       CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
+      IF (.NOT. use_real_wfn) THEN
+         CALL kpoint_operator_prepare(op_ctx, matrix_ks, kpoint_slot_ks)
+         CALL kpoint_operator_prepare(op_ctx, matrix_s, kpoint_slot_s, matrix_row=kpoint_spin_free)
+      END IF
       ! The real-wavefunction path keeps its own transfer bookkeeping.
       IF (use_real_wfn) ALLOCATE (info(nkp*nspin, 2))
 
@@ -3344,6 +3358,8 @@ CONTAINS
          CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
       END DO
       CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
+      CALL kpoint_operator_prepare(op_ctx, matrix_ks_kp, kpoint_slot_ks)
+      CALL kpoint_operator_prepare(op_ctx, matrix_s_kp, kpoint_slot_s, matrix_row=kpoint_spin_free)
       CALL mpools_get(kp_mpools, ao_ao_fm_pools=kp_ao_ao_fm_pools)
       matrix_struct => fm_pool_get_el_struct(kp_ao_ao_fm_pools(1)%pool)
       CALL cp_cfm_create(cksmat, matrix_struct, name="dav_hk")
@@ -3362,11 +3378,11 @@ CONTAINS
          ! Groups without a k point in the last round still participate
          ! in the service calls, but skip their local solver work.
          CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_s_kp, &
-                                  cmat=csmat_base, matrix_row=kpoint_spin_free)
+                                  cmat=csmat_base, matrix_row=kpoint_spin_free, slot=kpoint_slot_s)
 
          DO ispin = 1, nspin
             CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, &
-                                     cmat=cksmat, matrix_row=ispin)
+                                     cmat=cksmat, matrix_row=ispin, slot=kpoint_slot_ks)
             IF (local_kpoint > kplocal) CYCLE
             kp => kpoints%kp_env(local_kpoint)%kpoint_env
             CALL cp_cfm_to_cfm(csmat_base, csmat)
@@ -3538,6 +3554,7 @@ CONTAINS
                matrix_t_im, matrix_t_re, mo_coeff_im, mo_coeff_re)
       IF (prec_type == ot_precond_full_kinetic) THEN
          CPASSERT(ASSOCIATED(matrix_t_kp))
+         CALL kpoint_operator_prepare(op_ctx, matrix_t_kp, kpoint_slot_t, matrix_row=kpoint_spin_free)
       END IF
 
       DO local_kpoint = 1, kpmax
@@ -3549,14 +3566,14 @@ CONTAINS
          CALL dbcsr_init_p(matrix_s_im)
          CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_s_kp, &
                                   mat_re=matrix_s_re, mat_im=matrix_s_im, &
-                                  matrix_row=kpoint_spin_free)
+                                  matrix_row=kpoint_spin_free, slot=kpoint_slot_s)
 
          IF (prec_type == ot_precond_full_kinetic) THEN
             CALL dbcsr_init_p(matrix_t_re)
             CALL dbcsr_init_p(matrix_t_im)
             CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_t_kp, &
                                      mat_re=matrix_t_re, mat_im=matrix_t_im, &
-                                     matrix_row=kpoint_spin_free)
+                                     matrix_row=kpoint_spin_free, slot=kpoint_slot_t)
          END IF
 
          DO ispin = 1, nspin
@@ -3564,7 +3581,7 @@ CONTAINS
                CALL dbcsr_init_p(matrix_h_re)
                CALL dbcsr_init_p(matrix_h_im)
                CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, &
-                                        mat_re=matrix_h_re, mat_im=matrix_h_im, matrix_row=ispin)
+                                        mat_re=matrix_h_re, mat_im=matrix_h_im, matrix_row=ispin, slot=kpoint_slot_ks)
             END IF
             IF (local_kpoint <= kplocal) THEN
                kp => kpoints%kp_env(local_kpoint)%kpoint_env
@@ -3708,6 +3725,9 @@ CONTAINS
       ! The overlap is spin free: the routine drives every instance under the
       ! single spin-free key.
       CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), 1)
+      IF (.NOT. use_real_wfn) THEN
+         CALL kpoint_operator_prepare(op_ctx, matrix_s, kpoint_slot_s, matrix_row=kpoint_spin_free)
+      END IF
       ! The real-wavefunction path keeps its own transfer bookkeeping.
       IF (use_real_wfn) ALLOCATE (info(nkp, 1))
 
