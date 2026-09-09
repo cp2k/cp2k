@@ -104,7 +104,7 @@ MODULE qs_kpoint_operators
    ! Structural route shared by all captured rows. Whole blocks go to one
    ! representative group, then only equivalent tiles are replicated.
    TYPE kpoint_operator_rs_route_type
-      TYPE(kp_transform_plan_type) :: traversal
+      TYPE(kp_transform_plan_type) :: traversal = kp_transform_plan_type()
       TYPE(cp_fm_struct_type), POINTER :: matrix_struct => NULL()
       INTEGER :: nimage = 0, nvalue = 0
       INTEGER(KIND=int_8) :: storage = 0
