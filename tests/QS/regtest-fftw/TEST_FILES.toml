@@ -1,2 +1,4 @@
 "H2-big-1.inp"                          = [{matcher="M011", tol=2e-13, ref=-27.808422055041117}]
+# Loose tolerance because FFTW_MEASURE planning varies with the machine load.
+"H2O-fft-plan6.inp"                     = [{matcher="E_total", tol=1e-10, ref=-17.922937036203987}]
 #EOF
