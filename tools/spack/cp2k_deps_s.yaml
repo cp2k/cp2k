@@ -7,7 +7,7 @@ spack:
     unify: true
 
   config:
-    connect_timeout: 60
+    connect_timeout: 240
     install_tree:
       padded_length: 128
       root: /opt/spack
