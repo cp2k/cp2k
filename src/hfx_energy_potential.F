@@ -278,13 +278,15 @@ CONTAINS
 
       ehfx = 0.0_dp
 
-      ! ** This is not very clean, but effective. ispin can only be 2 if we do the beta spin part in core
+      ! This is not very clean, but effective. ispin can only be 2 if we do the beta spin part in core
       my_geo_change = geometry_did_change
       IF (ispin == 2) my_geo_change = .FALSE.
 
       logger => cp_get_default_logger()
 
       is_anti_symmetric = dbcsr_get_matrix_type(rho_ao(1, 1)%matrix) == dbcsr_type_antisymmetric
+
+      iw = -1
 
       IF (my_geo_change) THEN
          CALL m_memory(memsize_before)
@@ -494,18 +496,18 @@ CONTAINS
       max_val_memory = 1_int_8
 
       ! Set the integral engine
-      if (general_parameter%hfx_library == hfx_library_is_libint) then
+      IF (general_parameter%hfx_library == hfx_library_is_libint) THEN
          use_libint = .true.
          use_libGint = .false.
-      end if
-      if (general_parameter%hfx_library == hfx_library_is_libGint) then
+      END IF
+      IF (general_parameter%hfx_library == hfx_library_is_libGint) THEN
          use_libint = .false.
          use_libGint = .true.
-      end if
-      if (general_parameter%hfx_library == hfx_library_is_both) then
+      END IF
+      IF (general_parameter%hfx_library == hfx_library_is_both) THEN
          use_libint = .true.
          use_libGint = .true.
-      end if
+      END IF
 
       max_am = basis_info%max_am
 
@@ -1830,71 +1832,79 @@ CONTAINS
 
       !!!
       ! IF running both libint and libGint, uses the values from libint to check libGint values
-      if (use_libGint .and. use_libint) then
+      IF (use_libGint .and. use_libint) THEN
          ! barrier needed after allocate  full_ks_alpha(beta)_from_gpu before libGint get K
          ! to feed libgint a valid position for full_ks_alpha(beta)_from_gpu
-         allocate (full_ks_alpha_from_gpu, Mold=full_ks_alpha)
+         ALLOCATE (full_ks_alpha_from_gpu, Mold=full_ks_alpha)
          !$OMP BARRIER
-         if (use_only_alpha_spin) then
+         IF (use_only_alpha_spin) THEN
             call libGint_get_fock_matrix(full_ks_alpha_from_gpu)
-         else
-            allocate (full_ks_beta_from_gpu, Mold=full_ks_beta)
+         ELSE
+            ALLOCATE (full_ks_beta_from_gpu, Mold=full_ks_beta)
             !$OMP BARRIER
-            call libGint_get_fock_matrix(full_ks_alpha_from_gpu, full_ks_beta_from_gpu)
-         end if
+            CALL libGint_get_fock_matrix(full_ks_alpha_from_gpu, full_ks_beta_from_gpu)
+         END IF
 
          !$OMP BARRIER
          !$omp single
          max_abs_delta_KS = 0.0_dp
-         do i = 1, size(full_ks_alpha)
-            max_abs_delta_KS = max(max_abs_delta_ks, abs(full_ks_alpha(i, 1) - full_ks_alpha_from_gpu(i, 1)))
-         end do
-         write (UNIT=iw, FMT=*) " ------------------------------------ "
-         write (UNIT=iw, FMT=*) " | rank ", para_env%mepos
-         write (UNIT=iw, FMT=*) " |  max abs dif: ", max_abs_delta_KS
-         write (UNIT=iw, FMT=*) " ------------------------------------ "
+         DO i = 1, SIZE(full_ks_alpha)
+            max_abs_delta_KS = MAX(max_abs_delta_ks, ABS(full_ks_alpha(i, 1) - full_ks_alpha_from_gpu(i, 1)))
+         END DO
+         IF (iw > 0) THEN
+            WRITE (UNIT=iw, FMT=*) " ------------------------------------ "
+            WRITE (UNIT=iw, FMT=*) " | rank ", para_env%mepos
+            WRITE (UNIT=iw, FMT=*) " |  max abs dif: ", max_abs_delta_KS
+            WRITE (UNIT=iw, FMT=*) " ------------------------------------ "
+         END IF
 
          ! Print all F if delta is too large or (suspiciously) too small
-         if (max_abs_delta_KS > 100*eps_schwarz .or. max_abs_delta_KS < 1.E-20) then
-            write (UNIT=iw, FMT=*) " K from CPU  |  K from GPU  |  Delta | Ratio "
-            do i = 1, size(full_ks_alpha)
-               write (UNIT=iw, FMT=*) i, full_ks_alpha(i, 1), full_ks_alpha_from_gpu(i, 1), &
-                  full_ks_alpha(i, 1) - full_ks_alpha_from_gpu(i, 1), &
-                  full_ks_alpha(i, 1)/full_ks_alpha_from_gpu(i, 1)
-            end do
-         end if
+         IF (iw > 0) THEN
+            if (max_abs_delta_KS > 100.0_dp*eps_schwarz .or. max_abs_delta_KS < 1.0E-20_dp) THEN
+               WRITE (UNIT=iw, FMT=*) " K from CPU  |  K from GPU  |  Delta | Ratio "
+               DO i = 1, SIZE(full_ks_alpha)
+                  write (UNIT=iw, FMT=*) i, full_ks_alpha(i, 1), full_ks_alpha_from_gpu(i, 1), &
+                     full_ks_alpha(i, 1) - full_ks_alpha_from_gpu(i, 1), &
+                     full_ks_alpha(i, 1)/full_ks_alpha_from_gpu(i, 1)
+               END DO
+            END IF
+         END IF
 
-         if (.not. use_only_alpha_spin) then
+         IF (.NOT. use_only_alpha_spin) THEN
             max_abs_delta_KS = 0.0_dp
-            do i = 1, size(full_ks_beta)
+            DO i = 1, size(full_ks_beta)
                max_abs_delta_KS = max(max_abs_delta_ks, abs(full_ks_beta(i, 1) - full_ks_beta_from_gpu(i, 1)))
-            end do
-            write (UNIT=iw, FMT=*) " ------------------------------------ "
-            write (UNIT=iw, FMT=*) " | rank ", para_env%mepos
-            write (UNIT=iw, FMT=*) " |  max abs dif B: ", max_abs_delta_KS
-            write (UNIT=iw, FMT=*) " ------------------------------------ "
+            END DO
+            IF (iw > 0) THEN
+               WRITE (UNIT=iw, FMT=*) " ------------------------------------ "
+               WRITE (UNIT=iw, FMT=*) " | rank ", para_env%mepos
+               WRITE (UNIT=iw, FMT=*) " |  max abs dif B: ", max_abs_delta_KS
+               WRITE (UNIT=iw, FMT=*) " ------------------------------------ "
+            END IF
 
             ! Print all F if delta is too large or (suspiciously) too small
-            if (max_abs_delta_KS > 100*eps_schwarz .or. max_abs_delta_KS < 1.E-18) then
-               write (UNIT=iw, FMT=*) " BETA K from CPU  |  K from GPU  |  Delta | Ratio "
-               do i = 1, size(full_ks_beta)
-                  write (UNIT=iw, FMT=*) i, full_ks_beta(i, 1), full_ks_beta_from_gpu(i, 1), &
-                     full_ks_beta(i, 1) - full_ks_beta_from_gpu(i, 1), &
-                     full_ks_beta(i, 1)/full_ks_beta_from_gpu(i, 1)
-               end do
-            end if
-         end if
+            IF (max_abs_delta_KS > 100.0_dp*eps_schwarz .or. max_abs_delta_KS < 1.0E-18_dp) THEN
+               IF (iw > 0) THEN
+                  WRITE (UNIT=iw, FMT=*) " BETA K from CPU  |  K from GPU  |  Delta | Ratio "
+                  DO i = 1, size(full_ks_beta)
+                     WRITE (UNIT=iw, FMT=*) i, full_ks_beta(i, 1), full_ks_beta_from_gpu(i, 1), &
+                        full_ks_beta(i, 1) - full_ks_beta_from_gpu(i, 1), &
+                        full_ks_beta(i, 1)/full_ks_beta_from_gpu(i, 1)
+                  END DO
+               END IF
+            END IF
+         END IF
          !$omp end single
-      end if
+      END IF
 
       ! Copy the KS matrix from device to host.
-      if (use_libGint .and. .not. use_libint) then
-         if (use_only_alpha_spin) then
-            call libGint_get_fock_matrix(full_ks_alpha)
-         else
-            call libGint_get_fock_matrix(full_ks_alpha, full_ks_beta)
-         end if
-      end if
+      IF (use_libGint .AND. (.NOT. use_libint)) THEN
+         IF (use_only_alpha_spin) THEN
+            CALL libGint_get_fock_matrix(full_ks_alpha)
+         ELSE
+            CALL libGint_get_fock_matrix(full_ks_alpha, full_ks_beta)
+         END IF
+      END IF
 
 !$OMP MASTER
       logger => cp_get_default_logger()
