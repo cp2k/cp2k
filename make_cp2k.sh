@@ -773,7 +773,7 @@ if [[ "${TEST_COVERAGE}" == "yes" ]]; then
   CP2K_BUILD_TYPE="RelWithDebInfo"
   CMAKE_PRESET="coverage"
   RUN_TEST="yes"
-  TESTOPTS+=" --ompthreads=1"
+  TESTOPTS+=" --ompthreads=1 --keepalive"
 fi
 
 export BENCHMARK_PROFILE BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CHECK_CONVENTIONS CMAKE_FEATURE_FLAGS \
