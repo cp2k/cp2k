@@ -120,9 +120,19 @@ MODULE qs_kpoint_operators
       INTEGER :: matrix_row = 0
       TYPE(dbcsr_p_type), POINTER :: source(:, :) => NULL()
       REAL(KIND=dp), ALLOCATABLE :: values(:)
-      COMPLEX(KIND=dp), ALLOCATABLE :: phase(:)
       LOGICAL, ALLOCATABLE :: nonzero(:)
    END TYPE kpoint_operator_rs_type
+
+   ! Small read-ahead window per prepared row. Keep mutable output separate
+   ! from the immutable snapshot; prepare invalidates only the selected slot.
+   TYPE kpoint_operator_rs_batch_type
+      INTEGER :: first = 0, last = -1
+      COMPLEX(KIND=dp), ALLOCATABLE :: data(:, :, :)
+   END TYPE kpoint_operator_rs_batch_type
+
+   INTEGER, PARAMETER :: rs_batch_size = 4
+   ! Includes cached tiles and batch phase scratch, divided between all rows/slots.
+   INTEGER(KIND=int_8), PARAMETER :: rs_batch_bytes = 32_int_8*1024_int_8**2
 
 ! **************************************************************************************************
 !> \brief Caller-owned assembly context for one driver call.
@@ -152,10 +162,11 @@ MODULE qs_kpoint_operators
       TYPE(cp_fm_type), ALLOCATABLE                       :: fmlocal, fmimag
       ! Plans share the lifetime and fixed layouts of the two densify workspaces.
       TYPE(dbcsr_fm_copy_plan_type), ALLOCATABLE          :: copy_plan(:)
-      ! Optional immutable operator snapshots. No per-k matrices or outstanding
-      ! MPI requests are needed for starts served by this backend.
+      ! Immutable snapshots and bounded local output batches. Prepared starts
+      ! need neither per-k transfers nor outstanding MPI requests.
       TYPE(kpoint_operator_rs_type), ALLOCATABLE          :: rs(:, :)
       TYPE(kpoint_operator_rs_route_type), ALLOCATABLE    :: rs_route
+      TYPE(kpoint_operator_rs_batch_type), ALLOCATABLE    :: rs_batch(:, :)
       ! Bookkeeping. info is keyed (global k point, spin, slot, part),
       ! part kpoint_part_re holding the real half and kpoint_part_im holding
       ! the imaginary half. Status is keyed (global round, spin, slot)
@@ -394,7 +405,7 @@ CONTAINS
       IF (ASSOCIATED(ctx%cmatrix)) CALL dbcsr_deallocate_matrix(ctx%cmatrix)
       NULLIFY (ctx%rmatrix, ctx%cmatrix, ctx%work_sab)
       IF (ALLOCATED(ctx%copy_plan)) DEALLOCATE (ctx%copy_plan)
-      IF (ALLOCATED(ctx%rs)) DEALLOCATE (ctx%rs)
+      IF (ALLOCATED(ctx%rs)) DEALLOCATE (ctx%rs, ctx%rs_batch)
       IF (ALLOCATED(ctx%rs_route)) THEN
          CALL cp_fm_struct_release(ctx%rs_route%matrix_struct)
          DEALLOCATE (ctx%rs_route)
@@ -538,9 +549,14 @@ CONTAINS
       IF (ALLOCATED(ctx%status)) THEN
          CPASSERT(ALL(ctx%status == kpoint_slot_idle))
       END IF
-      IF (.NOT. ALLOCATED(ctx%rs)) ALLOCATE (ctx%rs(ctx%nspin, kpoint_num_slots))
+      IF (.NOT. ALLOCATED(ctx%rs)) THEN
+         ALLOCATE (ctx%rs(ctx%nspin, kpoint_num_slots), ctx%rs_batch(ctx%nspin, kpoint_num_slots))
+      END IF
       DO ispin = 1, ctx%nspin
          CALL kpoint_operator_rs_clear(ctx%rs(ispin, slot))
+         IF (ALLOCATED(ctx%rs_batch(ispin, slot)%data)) DEALLOCATE (ctx%rs_batch(ispin, slot)%data)
+         ctx%rs_batch(ispin, slot)%first = 0
+         ctx%rs_batch(ispin, slot)%last = -1
       END DO
       IF (ctx%kpoints%nkp_groups <= 1) THEN
          CALL timestop(handle)
@@ -583,12 +599,13 @@ CONTAINS
          IF (.NOT. kpoint_operator_rs_compatible(ctx%rs_route, rsmat, row)) compatible = 0
       END DO
       CALL para_env%min(compatible)
+      ! Keep the single-k phase allowance in the snapshot budget for the uncached fallback.
       retained = 0_int_8
       DO jslot = kpoint_slot_ks, kpoint_slot_t
          DO ispin = 1, ctx%nspin
             IF (.NOT. ALLOCATED(ctx%rs(ispin, jslot)%values)) CYCLE
             retained = retained + 8_int_8*SIZE(ctx%rs(ispin, jslot)%values, KIND=int_8) + &
-                       20_int_8*SIZE(ctx%rs(ispin, jslot)%phase, KIND=int_8)
+                       20_int_8*SIZE(ctx%rs(ispin, jslot)%nonzero, KIND=int_8)
          END DO
       END DO
       storage = ctx%rs_route%storage + retained + INT(nrow, int_8)* &
@@ -615,7 +632,7 @@ CONTAINS
 
       TYPE(kpoint_operator_rs_type), INTENT(INOUT)       :: snapshot
 
-      IF (ALLOCATED(snapshot%values)) DEALLOCATE (snapshot%values, snapshot%phase, snapshot%nonzero)
+      IF (ALLOCATED(snapshot%values)) DEALLOCATE (snapshot%values, snapshot%nonzero)
       NULLIFY (snapshot%source)
       snapshot%matrix_row = 0
 
@@ -902,8 +919,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       world => kpoints%blacs_env_all%para_env
       inter => kpoints%para_env_inter_kp
-      ALLOCATE (snapshot%values(route%nvalue), snapshot%phase(SIZE(route%entry, 2)), &
-                snapshot%nonzero(SIZE(route%entry, 2)))
+      ALLOCATE (snapshot%values(route%nvalue), snapshot%nonzero(SIZE(route%entry, 2)))
       route%send_values(:) = 0.0_dp
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(source, matrix_row, route) &
 !$OMP PRIVATE(iblock, i, block, found, nrow, ncol, pos, row, col) SCHEDULE(STATIC)
@@ -941,46 +957,135 @@ CONTAINS
    END SUBROUTINE kpoint_operator_rs_capture
 
 ! **************************************************************************************************
-!> \brief Build this group's k point into its CFM tiles without MPI or BLACS.
-!>        Columns are independent OpenMP work items. The snapshot's phase
-!>        workspace is reused, so builds through the same context are serialized.
-!> \param snapshot prepared real-space contributions
-!> \param route structural block routing and target tile map
-!> \param xkp the owning group's actual k-point coordinates
-!> \param TARGET optional complex matrix on the prepared group distribution
+!> \brief Deliver one prepared operator, building a bounded window of local k points on a miss.
+!>        The callers retain their round/spin/slot ordering. Each row has its own
+!>        window so interleaved spins and H/S/T do not evict one another.
+!>        Only prepared values are read ahead; transfer and grid paths are unchanged.
+!> \param ctx serialized operator context
+!> \param irs captured row, possibly shared by spin-free instances
+!> \param slot prepared operator slot
+!> \param ik global k-point index owned by this group
+!> \param TARGET optional complex output on the prepared distribution
 !> \param fm_re optional real output, with fm_im instead of target
 !> \param fm_im optional imaginary output on the same distribution
 ! **************************************************************************************************
-   SUBROUTINE kpoint_operator_rs_build(snapshot, route, xkp, TARGET, fm_re, fm_im)
+   SUBROUTINE kpoint_operator_rs_build(ctx, irs, slot, ik, TARGET, fm_re, fm_im)
 
-      TYPE(kpoint_operator_rs_type), INTENT(INOUT)       :: snapshot
-      TYPE(kpoint_operator_rs_route_type), INTENT(IN)    :: route
-      REAL(KIND=dp), INTENT(IN)                          :: xkp(3)
+      TYPE(kpoint_operator_context_type), INTENT(INOUT)  :: ctx
+      INTEGER, INTENT(IN)                                :: irs, slot, ik
       TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: target
       TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: fm_re, fm_im
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_rs_build'
 
-      COMPLEX(KIND=dp)                                   :: value
-      INTEGER                                            :: c0, col, handle, iblock, j, local_row, &
-                                                            nc, nr, pos, r0, row
-      REAL(KIND=dp)                                      :: arg
+      INTEGER                                            :: first, handle, k, last, ncol, nrow, width
+      INTEGER(KIND=int_8)                                :: bytes_per_k
 
       CALL timeset(routineN, handle)
+      first = ctx%kpoints%kp_range(1)
+      last = ctx%kpoints%kp_range(2)
+      CPASSERT(ik >= first .AND. ik <= last)
+      nrow = SIZE(ctx%rs_route%matrix_struct%row_indices)
+      ncol = SIZE(ctx%rs_route%matrix_struct%col_indices)
+      bytes_per_k = 16_int_8*(INT(nrow, int_8)*ncol + SIZE(ctx%rs_route%entry, 2, KIND=int_8))
+      width = MIN(rs_batch_size, last - first + 1, &
+                  INT(rs_batch_bytes/(INT(ctx%nspin*kpoint_num_slots, int_8)*MAX(1_int_8, bytes_per_k))))
+      IF (width < 2 .OR. nrow == 0 .OR. ncol == 0) THEN
+         ! No extra dense tile for a large/empty layout or a single local k point.
+         CALL kpoint_operator_rs_build_batch(ctx%rs(irs, slot), ctx%rs_route, ctx%kpoints%xkp(:, ik:ik), &
+                                             TARGET=TARGET, fm_re=fm_re, fm_im=fm_im)
+      ELSE
+         ASSOCIATE (work => ctx%rs_batch(irs, slot))
+            IF (.NOT. ALLOCATED(work%data)) ALLOCATE (work%data(width, nrow, ncol))
+            IF (ik < work%first .OR. ik > work%last) THEN
+               work%first = first + ((ik - first)/width)*width
+               work%last = MIN(work%first + width - 1, last)
+               CALL kpoint_operator_rs_build_batch(ctx%rs(irs, slot), ctx%rs_route, &
+                                                   ctx%kpoints%xkp(:, work%first:work%last), batch=work%data)
+            END IF
+            k = ik - work%first + 1
+            ! Deliver a work copy: eigensolvers may overwrite H/S without corrupting the window.
+            IF (PRESENT(TARGET)) THEN
+               target%local_data(1:nrow, 1:ncol) = work%data(k, :, :)
+               target%local_data(nrow + 1:, :) = z_zero
+               target%local_data(:, ncol + 1:) = z_zero
+            ELSE
+               CPASSERT(PRESENT(fm_re) .AND. PRESENT(fm_im))
+               fm_re%local_data(1:nrow, 1:ncol) = REAL(work%data(k, :, :), dp)
+               fm_im%local_data(1:nrow, 1:ncol) = AIMAG(work%data(k, :, :))
+               fm_re%local_data(nrow + 1:, :) = 0.0_dp
+               fm_re%local_data(:, ncol + 1:) = 0.0_dp
+               fm_im%local_data(nrow + 1:, :) = 0.0_dp
+               fm_im%local_data(:, ncol + 1:) = 0.0_dp
+            END IF
+         END ASSOCIATE
+      END IF
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_operator_rs_build
+
+! **************************************************************************************************
+!> \brief Accumulate several k points in one route/value traversal, without MPI or BLACS.
+!>        The leading batch dimension makes updates to different k points contiguous.
+!>        Columns remain independent OpenMP work items; each target retains the
+!>        original normal/mirrored contribution order. Phase scratch is call-local.
+!>        The singleton fallback writes directly to the supplied CFM or FM pair.
+!> \param snapshot immutable real-space contributions
+!> \param route structural block routing and target tile map
+!> \param xkp actual coordinates, one column per k point
+!> \param batch optional packed complex output (k point, local row, local column)
+!> \param TARGET optional single complex output instead of batch
+!> \param fm_re optional single real output, with fm_im instead of batch/target
+!> \param fm_im optional single imaginary output
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_rs_build_batch(snapshot, route, xkp, batch, TARGET, fm_re, fm_im)
+
+      TYPE(kpoint_operator_rs_type), INTENT(IN)          :: snapshot
+      TYPE(kpoint_operator_rs_route_type), INTENT(IN)    :: route
+      REAL(KIND=dp), INTENT(IN)                          :: xkp(:, :)
+      COMPLEX(KIND=dp), CONTIGUOUS, INTENT(INOUT), &
+         OPTIONAL, TARGET                                :: batch(:, :, :)
+      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: target
+      TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: fm_re, fm_im
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_rs_build_batch'
+
+      COMPLEX(KIND=dp)                                   :: value
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: phase(:, :)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: output(:, :, :)
+      INTEGER                                            :: c0, col, handle, iblock, j, k, &
+                                                            local_row, nbatch, nc, nr, pos, r0, row
+      REAL(KIND=dp)                                      :: arg, element
+
+      CALL timeset(routineN, handle)
+      nbatch = SIZE(xkp, 2)
+      CPASSERT(nbatch >= 1 .AND. SIZE(xkp, 1) == 3)
+      CPASSERT(COUNT([PRESENT(batch), PRESENT(TARGET), PRESENT(fm_re)]) == 1)
+      NULLIFY (output)
+      IF (PRESENT(batch)) THEN
+         CPASSERT(SIZE(batch, 1) >= nbatch)
+         output => batch
+      ELSE
+         CPASSERT(nbatch == 1)
+         IF (PRESENT(TARGET)) THEN
+            output(1:1, 1:SIZE(target%local_data, 1), 1:SIZE(target%local_data, 2)) => target%local_data
+         ELSE
+            CPASSERT(PRESENT(fm_re) .AND. PRESENT(fm_im))
+            fm_re%local_data(:, :) = 0.0_dp
+            fm_im%local_data(:, :) = 0.0_dp
+         END IF
+      END IF
+      IF (ASSOCIATED(output)) output(:, :, :) = z_zero
+      ALLOCATE (phase(nbatch, SIZE(route%entry, 2)))
       DO iblock = 1, SIZE(route%entry, 2)
          IF (.NOT. snapshot%nonzero(iblock)) CYCLE
-         arg = twopi*DOT_PRODUCT(REAL(route%entry(5:7, iblock), dp), xkp)
-         snapshot%phase(iblock) = CMPLX(COS(arg), SIN(arg), KIND=dp)
+         DO k = 1, nbatch
+            arg = twopi*DOT_PRODUCT(REAL(route%entry(5:7, iblock), dp), xkp(:, k))
+            phase(k, iblock) = CMPLX(COS(arg), SIN(arg), KIND=dp)
+         END DO
       END DO
-      IF (PRESENT(TARGET)) THEN
-         target%local_data(:, :) = z_zero
-      ELSE
-         CPASSERT(PRESENT(fm_re) .AND. PRESENT(fm_im))
-         fm_re%local_data(:, :) = 0.0_dp
-         fm_im%local_data(:, :) = 0.0_dp
-      END IF
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(snapshot, route, target, fm_re, fm_im) &
-!$OMP PRIVATE(j, col, iblock, row, local_row, r0, c0, nr, nc, pos, value) SCHEDULE(STATIC)
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(snapshot, route, phase, output, fm_re, fm_im, nbatch) &
+!$OMP PRIVATE(j, col, iblock, row, local_row, r0, c0, nr, nc, pos, value, element, k) SCHEDULE(STATIC)
       DO j = 1, SIZE(route%matrix_struct%col_indices)
          col = route%matrix_struct%col_indices(j)
          DO iblock = 1, SIZE(route%entry, 2)
@@ -994,10 +1099,14 @@ CONTAINS
                DO row = r0, r0 + nr - 1
                   local_row = route%row_local(row)
                   IF (local_row == 0) CYCLE
-                  value = snapshot%phase(iblock)*snapshot%values(pos + row - r0)
-                  IF (PRESENT(TARGET)) THEN
-                     target%local_data(local_row, j) = target%local_data(local_row, j) + value
+                  element = snapshot%values(pos + row - r0)
+                  IF (ASSOCIATED(output)) THEN
+!$OMP SIMD
+                     DO k = 1, nbatch
+                        output(k, local_row, j) = output(k, local_row, j) + phase(k, iblock)*element
+                     END DO
                   ELSE
+                     value = phase(1, iblock)*element
                      fm_re%local_data(local_row, j) = fm_re%local_data(local_row, j) + REAL(value, dp)
                      fm_im%local_data(local_row, j) = fm_im%local_data(local_row, j) + AIMAG(value)
                   END IF
@@ -1009,10 +1118,14 @@ CONTAINS
                DO row = c0, c0 + nc - 1
                   local_row = route%row_local(row)
                   IF (local_row == 0) CYCLE
-                  value = CONJG(snapshot%phase(iblock))*snapshot%values(pos + (row - c0)*nr)
-                  IF (PRESENT(TARGET)) THEN
-                     target%local_data(local_row, j) = target%local_data(local_row, j) + value
+                  element = snapshot%values(pos + (row - c0)*nr)
+                  IF (ASSOCIATED(output)) THEN
+!$OMP SIMD
+                     DO k = 1, nbatch
+                        output(k, local_row, j) = output(k, local_row, j) + CONJG(phase(k, iblock))*element
+                     END DO
                   ELSE
+                     value = CONJG(phase(1, iblock))*element
                      fm_re%local_data(local_row, j) = fm_re%local_data(local_row, j) + REAL(value, dp)
                      fm_im%local_data(local_row, j) = fm_im%local_data(local_row, j) + AIMAG(value)
                   END IF
@@ -1023,7 +1136,7 @@ CONTAINS
 !$OMP END PARALLEL DO
       CALL timestop(handle)
 
-   END SUBROUTINE kpoint_operator_rs_build
+   END SUBROUTINE kpoint_operator_rs_build_batch
 
 ! **************************************************************************************************
 !> \brief Start one operator for one global round and spin. The service walks
@@ -1172,7 +1285,7 @@ CONTAINS
          IF (.NOT. ASSOCIATED(ctx%rs(irs, slot)%source)) irs = 1
          ik = kp_range(1) + ikp - 1
          IF (ik <= kp_range(2)) THEN
-            CALL kpoint_operator_rs_build(ctx%rs(irs, slot), ctx%rs_route, ctx%kpoints%xkp(:, ik), cmat)
+            CALL kpoint_operator_rs_build(ctx, irs, slot, ik, cmat)
          END IF
          ctx%status(ikp, ispin, slot) = kpoint_slot_idle
          CALL timestop(handle)
@@ -1282,13 +1395,13 @@ CONTAINS
                IF (PRESENT(cmat)) THEN
                   layout_ok = cp_fm_struct_equivalent(cmat%matrix_struct, ctx%rs_route%matrix_struct)
                   CPASSERT(layout_ok)
-                  CALL kpoint_operator_rs_build(ctx%rs(irs, slot), ctx%rs_route, ctx%kpoints%xkp(:, ik), cmat)
+                  CALL kpoint_operator_rs_build(ctx, irs, slot, ik, cmat)
                ELSE IF (PRESENT(fm_re)) THEN
                   layout_ok = cp_fm_struct_equivalent(fm_re%matrix_struct, ctx%rs_route%matrix_struct)
                   CPASSERT(layout_ok)
                   layout_ok = cp_fm_struct_equivalent(fm_im%matrix_struct, ctx%rs_route%matrix_struct)
                   CPASSERT(layout_ok)
-                  CALL kpoint_operator_rs_build(ctx%rs(irs, slot), ctx%rs_route, ctx%kpoints%xkp(:, ik), &
+                  CALL kpoint_operator_rs_build(ctx, irs, slot, ik, &
                                                 fm_re=fm_re, fm_im=fm_im)
                ELSE
                   layout_ok = cp_fm_struct_equivalent(ctx%fmlocal%matrix_struct, ctx%rs_route%matrix_struct)
@@ -1297,7 +1410,7 @@ CONTAINS
                      ALLOCATE (ctx%fmimag)
                      CALL cp_fm_create(ctx%fmimag, ctx%fmlocal%matrix_struct)
                   END IF
-                  CALL kpoint_operator_rs_build(ctx%rs(irs, slot), ctx%rs_route, ctx%kpoints%xkp(:, ik), &
+                  CALL kpoint_operator_rs_build(ctx, irs, slot, ik, &
                                                 fm_re=ctx%fmlocal, fm_im=ctx%fmimag)
                   CALL copy_fm_to_dbcsr_bc(ctx%fmlocal, mat_re)
                   CALL copy_fm_to_dbcsr_bc(ctx%fmimag, mat_im)
