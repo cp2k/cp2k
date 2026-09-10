@@ -94,13 +94,15 @@ CONTAINS
 
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: correction
+      REAL(KIND=dp), DIMENSION(SIZE(matrix_in, 2))       :: projections
 
       matrix_out = MATMUL(overlap_inverse, matrix_in)/spectral_window
       DO i = 1, SIZE(eigenvalues)
          correction = low_rank_inverse_weight(eigenvalues(i), reference, energy_gap) - &
                       1.0_dp/spectral_window
+         projections(:) = MATMUL(vectors(:, i), matrix_in)
          matrix_out = matrix_out + correction*SPREAD(vectors(:, i), 2, SIZE(matrix_in, 2))* &
-                      SPREAD(MATMUL(vectors(:, i), matrix_in), 1, SIZE(matrix_in, 1))
+                      SPREAD(projections, 1, SIZE(matrix_in, 1))
       END DO
 
    END SUBROUTINE apply_low_rank_dense

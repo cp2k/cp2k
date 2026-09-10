@@ -8,6 +8,7 @@
 "H2SO4_gfn2.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-20.535208593}]
 "N2_gfn2.inp"                            = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]
 "N2_gfn2_ot.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]
+"N2_gfn2_lattice.inp"                    = [{matcher="E_total", tol=1.0E-8, ref=-11.45791031045108}]
 "N2_gfn2_ls.inp"                         = [{matcher="M011", tol=1.0E-8, ref=-5.72892260298788}]
 "N2_gfn2_uks.inp"                        = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]
 "N2_gfn2_uks_cp2k_mixer.inp"             = [{matcher="E_total", tol=1.0E-8, ref=-5.7289226128}]
