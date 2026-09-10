@@ -61,8 +61,9 @@ MODULE preconditioner_makes
                                               cp_fm_type
    USE input_constants,                 ONLY: &
         cholesky_inverse, cholesky_reduce, ot_precond_fermi_low_rank, ot_precond_full_all, &
-        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
-        ot_precond_s_inverse, ot_precond_solver_default, ot_precond_solver_inv_chol
+        ot_precond_full_all_covariant, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_s_inverse, ot_precond_solver_default, &
+        ot_precond_solver_inv_chol
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
@@ -354,7 +355,7 @@ CONTAINS
          IF (my_solver_type == ot_precond_solver_default) my_solver_type = ot_precond_solver_inv_chol
          CALL make_full_single_inverse(preconditioner_env, mo_coeff, matrix_h, energy_gap, &
                                        matrix_s=matrix_s)
-      CASE (ot_precond_full_all)
+      CASE (ot_precond_full_all, ot_precond_full_all_covariant)
          IF (my_solver_type /= ot_precond_solver_default) THEN
             CPABORT("Only PRECOND_SOLVER DEFAULT for the moment")
          END IF

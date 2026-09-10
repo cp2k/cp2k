@@ -21,11 +21,14 @@ MODULE preconditioner
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
                                               dbcsr_p_type,&
+                                              dbcsr_release_p,&
                                               dbcsr_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -40,10 +43,10 @@ MODULE preconditioner
                                               cp_logger_type
    USE input_constants,                 ONLY: &
         cholesky_reduce, ot_low_rank_base_lattice_fft, ot_low_rank_base_overlap, &
-        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_kinetic, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
-        ot_precond_s_inverse, ot_precond_solver_default, ot_precond_solver_inv_chol, &
-        ot_precond_solver_update
+        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_all_covariant, &
+        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
+        ot_precond_none, ot_precond_s_inverse, ot_precond_solver_default, &
+        ot_precond_solver_inv_chol, ot_precond_solver_update
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -53,6 +56,7 @@ MODULE preconditioner
    USE low_rank_preconditioner_model,   ONLY: low_rank_inverse_weight,&
                                               low_rank_select_rank
    USE message_passing,                 ONLY: mp_para_env_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner_apply,            ONLY: apply_preconditioner_cfm_complex,&
                                               apply_preconditioner_dbcsr,&
                                               apply_preconditioner_dbcsr_complex,&
@@ -73,7 +77,9 @@ MODULE preconditioner
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
-   USE qs_mo_types,                     ONLY: get_mo_set,&
+   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
+                                              duplicate_mo_set,&
+                                              get_mo_set,&
                                               mo_set_type,&
                                               set_mo_set
 #include "./base/base_uses.f90"
@@ -292,7 +298,7 @@ CONTAINS
       needs_homo = .FALSE.
 
       SELECT CASE (precon_type)
-      CASE (ot_precond_full_all, ot_precond_fermi_low_rank)
+      CASE (ot_precond_full_all, ot_precond_fermi_low_rank, ot_precond_full_all_covariant)
          needs_full_spectrum = .TRUE.
          ! both of them need the coefficients as fm's, more matrix mess
          IF (use_mo_coeff_b) THEN
@@ -750,6 +756,7 @@ CONTAINS
       IF (ASSOCIATED(preconditioner)) THEN
          SELECT CASE (prec_type)
          CASE (ot_precond_full_all, ot_precond_fermi_low_rank, &
+               ot_precond_full_all_covariant, &
                ot_precond_full_single) ! these depend on the ks matrix
             DO ispin = 1, SIZE(preconditioner)
                CALL destroy_preconditioner(preconditioner(ispin)%preconditioner)
@@ -767,7 +774,8 @@ CONTAINS
       ! add an OT preconditioner if none is present
       IF (.NOT. ASSOCIATED(preconditioner)) THEN
          SELECT CASE (prec_type)
-         CASE (ot_precond_full_all, ot_precond_fermi_low_rank, ot_precond_full_single_inverse)
+         CASE (ot_precond_full_all, ot_precond_fermi_low_rank, ot_precond_full_all_covariant, &
+               ot_precond_full_single_inverse)
             ALLOCATE (preconditioner(nspins))
          CASE DEFAULT
             ALLOCATE (preconditioner(1))
@@ -826,14 +834,14 @@ CONTAINS
                                                             n_loops
       INTEGER, DIMENSION(5)                              :: nocc, norb
       INTEGER, DIMENSION(:), POINTER                     :: multiple_unit_cell
-      LOGICAL                                            :: do_co_rotate, do_kpoints, &
-                                                            my_convert_to_dbcsr, my_full_mo_set, &
-                                                            my_has_unit_metric, use_mo_coeff_b
+      LOGICAL :: do_co_rotate, do_kpoints, my_convert_to_dbcsr, my_full_mo_set, &
+         my_has_unit_metric, use_covariant_full_all, use_mo_coeff_b
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: kinetic
       TYPE(dbcsr_type), POINTER                          :: matrix_t, mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: canonical_mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: input, subsys_section
 
@@ -851,6 +859,7 @@ CONTAINS
       my_low_rank_base = ot_low_rank_base_overlap
       IF (PRESENT(low_rank_base)) my_low_rank_base = low_rank_base
       do_kpoints = .FALSE.
+      use_covariant_full_all = prec_type == ot_precond_full_all_covariant
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -945,6 +954,22 @@ CONTAINS
          ! The common-reference low-rank operator depends only on the occupied projector.
          ! Keep the input gauge unchanged so that OT ROTATION remains well defined.
          n_loops = nspins
+      CASE (ot_precond_full_all_covariant)
+         ! Diagonalize a private occupied copy. The physical MOs and their
+         ! derivatives remain in the user-selected gauge.
+         n_loops = nspins
+         ALLOCATE (canonical_mos(nspins))
+         DO ispin = 1, nspins
+            CALL duplicate_mo_set(canonical_mos(ispin), mos(ispin))
+            CALL get_mo_set(mo_set=canonical_mos(ispin), mo_coeff_b=mo_coeff_b, mo_coeff=mo_coeff)
+            IF (canonical_mos(ispin)%use_mo_coeff_b) THEN
+               CALL copy_dbcsr_to_fm(mo_coeff_b, mo_coeff)
+               canonical_mos(ispin)%use_mo_coeff_b = .FALSE.
+            END IF
+            CALL canonicalize_full_all_copy(ot_preconditioner(ispin)%preconditioner, &
+                                            mo_coeff, matrix_ks(ispin)%matrix, &
+                                            canonical_mos(ispin)%homo)
+         END DO
       CASE DEFAULT
          ! No need to rotate the MOs
       END SELECT
@@ -963,26 +988,48 @@ CONTAINS
                ot_preconditioner(icall)%preconditioner%lattice_dims = multiple_unit_cell
             END IF
             IF (my_has_unit_metric) THEN
-               CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, &
-                                        prec_type, &
-                                        solver_type, &
-                                        matrix_h=matrix_ks(icall)%matrix, &
-                                        mo_set=mos(icall), &
-                                        energy_gap=energy_gap, &
-                                        convert_precond_to_dbcsr=my_convert_to_dbcsr)
+               IF (use_covariant_full_all) THEN
+                  CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, &
+                                           prec_type, solver_type, &
+                                           matrix_h=matrix_ks(icall)%matrix, &
+                                           mo_set=canonical_mos(icall), &
+                                           energy_gap=energy_gap, &
+                                           convert_precond_to_dbcsr=my_convert_to_dbcsr)
+               ELSE
+                  CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, &
+                                           prec_type, solver_type, &
+                                           matrix_h=matrix_ks(icall)%matrix, &
+                                           mo_set=mos(icall), &
+                                           energy_gap=energy_gap, &
+                                           convert_precond_to_dbcsr=my_convert_to_dbcsr)
+               END IF
             ELSE
-               CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, &
-                                        prec_type, &
-                                        solver_type, &
-                                        matrix_h=matrix_ks(icall)%matrix, &
-                                        matrix_s=matrix_s(1)%matrix, &
-                                        matrix_t=matrix_t, &
-                                        mo_set=mos(icall), &
-                                        energy_gap=energy_gap, &
-                                        convert_precond_to_dbcsr=my_convert_to_dbcsr, chol_type=chol_type)
+               IF (use_covariant_full_all) THEN
+                  CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, &
+                                           prec_type, solver_type, &
+                                           matrix_h=matrix_ks(icall)%matrix, &
+                                           matrix_s=matrix_s(1)%matrix, matrix_t=matrix_t, &
+                                           mo_set=canonical_mos(icall), &
+                                           energy_gap=energy_gap, &
+                                           convert_precond_to_dbcsr=my_convert_to_dbcsr, chol_type=chol_type)
+               ELSE
+                  CALL make_preconditioner(ot_preconditioner(icall)%preconditioner, &
+                                           prec_type, solver_type, &
+                                           matrix_h=matrix_ks(icall)%matrix, &
+                                           matrix_s=matrix_s(1)%matrix, matrix_t=matrix_t, &
+                                           mo_set=mos(icall), energy_gap=energy_gap, &
+                                           convert_precond_to_dbcsr=my_convert_to_dbcsr, chol_type=chol_type)
+               END IF
             END IF
          END DO
       END SELECT
+
+      IF (ALLOCATED(canonical_mos)) THEN
+         DO ispin = 1, SIZE(canonical_mos)
+            CALL deallocate_mo_set(canonical_mos(ispin))
+         END DO
+         DEALLOCATE (canonical_mos)
+      END IF
 
       ! reset homo values
       IF (my_full_mo_set) THEN
@@ -994,5 +1041,71 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE prepare_preconditioner
+
+! **************************************************************************************************
+!> \brief Canonicalize an occupied copy and retain the occupied-space rotation.
+!> \param preconditioner_env ...
+!> \param mo_coeff ...
+!> \param matrix_h ...
+!> \param nocc ...
+! **************************************************************************************************
+   SUBROUTINE canonicalize_full_all_copy(preconditioner_env, mo_coeff, matrix_h, nocc)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_type), POINTER                          :: matrix_h
+      INTEGER, INTENT(IN)                                :: nocc
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'canonicalize_full_all_copy'
+
+      INTEGER                                            :: handle, nao
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occupied_evals
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: canonical_coeff, h_block, weighted_coeff
+
+      CALL timeset(routineN, handle)
+      CALL cp_fm_get_info(mo_coeff, nrow_global=nao)
+      CPASSERT(nocc > 0)
+
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nocc, &
+                               context=preconditioner_env%ctxt, &
+                               para_env=preconditioner_env%para_env)
+      CALL cp_fm_create(canonical_coeff, fm_struct, name=routineN)
+      CALL cp_fm_create(weighted_coeff, fm_struct, name=routineN)
+      CALL cp_fm_struct_release(fm_struct)
+      CALL cp_fm_to_fm(mo_coeff, canonical_coeff, nocc)
+
+      CALL cp_fm_struct_create(fm_struct, nrow_global=nocc, ncol_global=nocc, &
+                               context=preconditioner_env%ctxt, &
+                               para_env=preconditioner_env%para_env)
+      CALL cp_fm_create(h_block, fm_struct, name=routineN)
+      IF (ASSOCIATED(preconditioner_env%occ_rotation_dbcsr)) THEN
+         CALL dbcsr_release_p(preconditioner_env%occ_rotation_dbcsr)
+      END IF
+      IF (ASSOCIATED(preconditioner_env%occ_rotation)) THEN
+         CALL cp_fm_release(preconditioner_env%occ_rotation)
+         DEALLOCATE (preconditioner_env%occ_rotation)
+      END IF
+      ALLOCATE (preconditioner_env%occ_rotation)
+      CALL cp_fm_create(preconditioner_env%occ_rotation, fm_struct, name="occupied rotation")
+      CALL cp_fm_struct_release(fm_struct)
+
+      CALL cp_dbcsr_sm_fm_multiply(matrix_h, canonical_coeff, weighted_coeff, nocc)
+      CALL parallel_gemm('T', 'N', nocc, nocc, nao, 1.0_dp, canonical_coeff, &
+                         weighted_coeff, 0.0_dp, h_block)
+      ALLOCATE (occupied_evals(nocc))
+      CALL choose_eigv_solver(h_block, preconditioner_env%occ_rotation, occupied_evals)
+
+      CALL parallel_gemm('N', 'N', nao, nocc, nocc, 1.0_dp, canonical_coeff, &
+                         preconditioner_env%occ_rotation, 0.0_dp, weighted_coeff)
+      CALL cp_fm_to_fm(weighted_coeff, mo_coeff, nocc, 1, 1)
+
+      DEALLOCATE (occupied_evals)
+      CALL cp_fm_release(canonical_coeff)
+      CALL cp_fm_release(h_block)
+      CALL cp_fm_release(weighted_coeff)
+      CALL timestop(handle)
+
+   END SUBROUTINE canonicalize_full_all_copy
 
 END MODULE preconditioner

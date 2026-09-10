@@ -49,7 +49,8 @@ MODULE qs_scf_post_tb
                                               put_results
    USE cp_result_types,                 ONLY: cp_result_type
    USE eeq_method,                      ONLY: eeq_print
-   USE input_constants,                 ONLY: ot_precond_full_all
+   USE input_constants,                 ONLY: ot_precond_full_all,&
+                                              ot_precond_full_all_covariant
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
@@ -1017,7 +1018,8 @@ CONTAINS
          NULLIFY (local_preconditioner)
          IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
             local_preconditioner => scf_env%ot_preconditioner(1)%preconditioner
-            IF (local_preconditioner%in_use == ot_precond_full_all) THEN
+            IF (local_preconditioner%in_use == ot_precond_full_all .OR. &
+                local_preconditioner%in_use == ot_precond_full_all_covariant) THEN
                NULLIFY (local_preconditioner)
             END IF
          END IF

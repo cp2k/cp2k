@@ -27,6 +27,8 @@
 "H2O-1.inp"                             = [{matcher="E_total", tol=5e-14, ref=-15.42239209735920}]
 # outer scf with FULL_ALL
 "H2O.inp"                               = [{matcher="E_total", tol=4e-13, ref=-17.1615063648948}]
+# rotation-covariant FULL_ALL Sylvester preconditioner
+"H2O-covariant.inp"                     = [{matcher="E_total", tol=1e-12, ref=-17.1615063648941}]
 # different parallel distributions
 "H2O-dist-1.inp"                        = [{matcher="E_total", tol=8e-14, ref=-34.28553811389267}]
 "H2O-dist-2.inp"                        = [{matcher="E_total", tol=8e-14, ref=-34.28553811389267}]
