@@ -749,7 +749,8 @@ if [[ "${CHECK_CONVENTIONS}" == "yes" ]]; then
     echo ""
     CP2K_VERSION="psmp"
   fi
-  CP2K_BUILD_TYPE="Conventions"
+  CP2K_BUILD_TYPE="RelWithDebInfo"
+  CMAKE_PRESET="conventions"
   Fortran_COMPILER_LAUNCHER="${CP2K_ROOT}/tools/conventions/redirect_gfortran_output.py"
 else
   Fortran_COMPILER_LAUNCHER=""
@@ -769,9 +770,10 @@ if [[ "${TEST_COVERAGE}" == "yes" ]]; then
     echo -e "       Install the missing package and re-run the script\n"
     ${EXIT_CMD} 1
   fi
-  CP2K_BUILD_TYPE="Coverage"
+  CP2K_BUILD_TYPE="RelWithDebInfo"
+  CMAKE_PRESET="coverage"
   RUN_TEST="yes"
-  TESTOPTS+=" --ompthreads=1 --timeout 400"
+  TESTOPTS+=" --ompthreads=1 --keepalive"
 fi
 
 export BENCHMARK_PROFILE BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CHECK_CONVENTIONS CMAKE_FEATURE_FLAGS \
@@ -963,7 +965,7 @@ esac
 
 # Check if a valid CMake build type is selected for CP2K
 case "${CP2K_BUILD_TYPE^}" in
-  Conventions | Coverage | Debug | Release | RelWithDebInfo)
+  Debug | Release | RelWithDebInfo)
     true
     ;;
   *)
