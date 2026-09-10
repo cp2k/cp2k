@@ -1908,10 +1908,10 @@ CONTAINS
 
       CALL ot_scf_read_input(scf_env%qs_ot_env, scf_section, do_kpoints)
 
-      IF (dft_control%restricted .AND. &
+      IF (dft_control%restricted .AND. .NOT. do_kpoints .AND. &
           scf_env%qs_ot_env(1)%settings%preconditioner_type == &
           ot_precond_full_all_covariant) THEN
-         CPABORT('PRECONDITIONER FULL_ALL_COVARIANT does not currently support ROKS.')
+         CPABORT('Gamma-point PRECONDITIONER FULL_ALL_COVARIANT does not currently support ROKS.')
       END IF
 
       IF (do_kpoints) THEN
@@ -2267,16 +2267,18 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_qs_ot_kpoint_preconditioners'
 
-      INTEGER                                            :: handle, ikpoint, ispin, ks_spin, &
-                                                            local_kpoint, n_ot_channels, &
-                                                            ot_channel, prec_type, source_channel
+      INTEGER :: handle, ikpoint, ispin, ks_spin, local_kpoint, n_ot_channels, nocc, &
+         occupation_spin, ot_channel, prec_type, source_channel
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: occupation_signature
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
       TYPE(dbcsr_type), POINTER                          :: matrix_h_im, matrix_h_re, matrix_s_im, &
                                                             matrix_s_re, matrix_t_im, matrix_t_re
       TYPE(kpoint_env_type), POINTER                     :: kp
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (kp, matrix_h_im, matrix_h_re, matrix_s_im, matrix_s_re, matrix_t_im, matrix_t_re)
+      NULLIFY (kp, matrix_h_im, matrix_h_re, matrix_s_im, matrix_s_re, matrix_t_im, matrix_t_re, &
+               occupation_numbers)
       CPASSERT(ASSOCIATED(scf_env%qs_ot_env))
       CPASSERT(ASSOCIATED(kpoints))
       CPASSERT(ASSOCIATED(matrix_ks))
@@ -2394,13 +2396,35 @@ CONTAINS
                   scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
                   scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
             CASE (ot_precond_full_all_covariant)
-               CALL make_preconditioner_complex_full_all_covariant( &
-                  scf_env%ot_preconditioner(ot_channel)%preconditioner, &
-                  scf_env%qs_ot_env(ot_channel)%matrix_c0, &
-                  scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
-                  matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
-                  scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
-                  scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
+               IF (nspin_ot == 1 .AND. SIZE(kp%mos, 2) > 1) THEN
+                  CALL dbcsr_get_info(scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                                      nfullcols_total=nocc)
+                  ALLOCATE (occupation_signature(nocc, SIZE(kp%mos, 2)))
+                  DO occupation_spin = 1, SIZE(kp%mos, 2)
+                     CALL get_mo_set(kp%mos(1, occupation_spin), &
+                                     occupation_numbers=occupation_numbers)
+                     CPASSERT(ASSOCIATED(occupation_numbers))
+                     CPASSERT(SIZE(occupation_numbers) >= nocc)
+                     occupation_signature(:, occupation_spin) = occupation_numbers(1:nocc)
+                  END DO
+                  CALL make_preconditioner_complex_full_all_covariant( &
+                     scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+                     scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                     scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
+                     matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
+                     scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
+                     scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type, &
+                     occupation_signature)
+                  DEALLOCATE (occupation_signature)
+               ELSE
+                  CALL make_preconditioner_complex_full_all_covariant( &
+                     scf_env%ot_preconditioner(ot_channel)%preconditioner, &
+                     scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                     scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
+                     matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
+                     scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
+                     scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
+               END IF
             CASE (ot_precond_full_single_inverse)
                CALL make_preconditioner_complex_full_single_inverse( &
                   scf_env%ot_preconditioner(ot_channel)%preconditioner, &

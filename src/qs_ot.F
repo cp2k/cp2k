@@ -64,6 +64,7 @@ MODULE qs_ot
    PUBLIC  :: qs_ot_density_tangent
    PUBLIC  :: qs_ot_fixed_n_energy_gradient
    PUBLIC  :: qs_ot_fixed_n_energy_hessian
+   PUBLIC  :: qs_ot_fixed_n_multigroup_schur_block
    PUBLIC  :: qs_ot_fixed_n_schur_block
    PUBLIC  :: qs_ot_fixed_n_projector_frechet
    PUBLIC  :: qs_ot_fixed_n_response_mu_shift
@@ -231,32 +232,80 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: schur_block
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: coupling_vector, schur_rhs
 
-      INTEGER                                            :: i, nenergy, nrotation
+      INTEGER                                            :: nenergy
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: response_group
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coupling_matrix
+
+      nenergy = SIZE(response_weight)
+      ALLOCATE (response_group(nenergy), coupling_matrix(SIZE(coupling_vector), 1))
+      response_group(:) = 1
+      CALL qs_ot_fixed_n_multigroup_schur_block( &
+         rotation_hessian, rayleigh_response, response_weight, response_group, &
+         rotation_gradient, energy_gradient, schur_block, coupling_matrix, schur_rhs)
+      coupling_vector(:) = coupling_matrix(:, 1)
+      DEALLOCATE (response_group, coupling_matrix)
+
+   END SUBROUTINE qs_ot_fixed_n_schur_block
+
+! **************************************************************************************************
+!> \brief eliminate spin-resolved auxiliary energies while retaining every fixed-N constraint
+!>
+!>        Each energy variable belongs to one particle-number group. The diagonal occupation
+!>        response is eliminated locally, while one coupling column per group is retained for the
+!>        subsequent global chemical-potential projection. A single group reduces exactly to
+!>        qs_ot_fixed_n_schur_block.
+!> \param rotation_hessian finite orbital-rotation Hessian
+!> \param rayleigh_response derivative of all spin-resolved Rayleigh energies
+!> \param response_weight positive occupation-response weights
+!> \param response_group fixed-N group of every energy variable
+!> \param rotation_gradient orbital-rotation gradient
+!> \param energy_gradient auxiliary-energy gradient
+!> \param schur_block energy-eliminated rotation block
+!> \param coupling_matrix retained chemical-potential coupling columns
+!> \param schur_rhs energy-eliminated rotation right-hand side
+! **************************************************************************************************
+   SUBROUTINE qs_ot_fixed_n_multigroup_schur_block( &
+      rotation_hessian, rayleigh_response, response_weight, response_group, &
+      rotation_gradient, energy_gradient, schur_block, coupling_matrix, schur_rhs)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: rotation_hessian, rayleigh_response
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: response_weight
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: response_group
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rotation_gradient, energy_gradient
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: schur_block, coupling_matrix
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: schur_rhs
+
+      INTEGER                                            :: group, i, nenergy, ngroups, nrotation
       REAL(KIND=dp)                                      :: weight
 
       nenergy = SIZE(response_weight)
       nrotation = SIZE(rotation_gradient)
+      ngroups = SIZE(coupling_matrix, 2)
+      CPASSERT(ngroups > 0)
       CPASSERT(ALL(SHAPE(rotation_hessian) == [nrotation, nrotation]))
       CPASSERT(ALL(SHAPE(rayleigh_response) == [nenergy, nrotation]))
       CPASSERT(SIZE(energy_gradient) == nenergy)
+      CPASSERT(SIZE(response_group) == nenergy)
+      CPASSERT(ALL(response_group >= 1 .AND. response_group <= ngroups))
       CPASSERT(ALL(SHAPE(schur_block) == [nrotation, nrotation]))
-      CPASSERT(SIZE(coupling_vector) == nrotation)
+      CPASSERT(SIZE(coupling_matrix, 1) == nrotation)
       CPASSERT(SIZE(schur_rhs) == nrotation)
 
       schur_block(:, :) = rotation_hessian(:, :)
+      coupling_matrix(:, :) = 0.0_dp
       DO i = 1, nenergy
          weight = response_weight(i)
          schur_block(:, :) = schur_block(:, :) - weight* &
                              SPREAD(rayleigh_response(i, :), DIM=2, NCOPIES=nrotation)* &
                              SPREAD(rayleigh_response(i, :), DIM=1, NCOPIES=nrotation)
+         group = response_group(i)
+         coupling_matrix(:, group) = coupling_matrix(:, group) + &
+                                     weight*rayleigh_response(i, :)
       END DO
       schur_block(:, :) = 0.5_dp*(schur_block + TRANSPOSE(schur_block))
-      coupling_vector(:) = MATMUL(TRANSPOSE(rayleigh_response), &
-                                  response_weight)
       schur_rhs(:) = rotation_gradient + &
                      MATMUL(TRANSPOSE(rayleigh_response), energy_gradient)
 
-   END SUBROUTINE qs_ot_fixed_n_schur_block
+   END SUBROUTINE qs_ot_fixed_n_multigroup_schur_block
 
 ! **************************************************************************************************
 !> \brief apply a positive spectral inverse of a real symmetric response matrix
