@@ -35,4 +35,14 @@
                                              {matcher="Electronic_entropic_energy", tol=1.0E-9, ref=-1.18720770936E-3},
                                              {matcher="N_special_kpoints", tol=0.0, ref=2},
                                              {matcher="NO_TEXT", text="SCF run NOT converged"}]
+"Al_fcc_gfn2_kp_otdiag_fermi_low_rank.inp" = [{matcher="E_total", tol=1.0E-9, ref=-1.194939346653323},
+                                                {matcher="Electronic_entropic_energy", tol=1.0E-9, ref=-1.18720770936E-3},
+                                                {matcher="N_special_kpoints", tol=0.0, ref=2},
+                                                {matcher="NO_TEXT", text="SCF run NOT converged"},
+                                                {matcher="NO_TEXT", text="Unsupported complex K-point OT eigensolver preconditioner"}]
+"Al_fcc_gfn2_kp_otdiag_covariant.inp"     = [{matcher="E_total", tol=1.0E-9, ref=-1.194939346653323},
+                                               {matcher="Electronic_entropic_energy", tol=1.0E-9, ref=-1.18720770936E-3},
+                                               {matcher="N_special_kpoints", tol=0.0, ref=2},
+                                               {matcher="NO_TEXT", text="SCF run NOT converged"},
+                                               {matcher="NO_TEXT", text="Unsupported complex K-point OT eigensolver preconditioner"}]
 #EOF

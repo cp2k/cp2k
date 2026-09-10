@@ -182,18 +182,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_cfm_complex'
 
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: local_data
-      INTEGER                                            :: handle, i, j, k, n, ncol_local, npre, &
-                                                            nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: scale
-      TYPE(cp_cfm_type)                                  :: matrix_spectral
+      INTEGER                                            :: handle, k, n, npre
+      TYPE(cp_cfm_type)                                  :: canonical_in, canonical_out
 
       CALL timeset(routineN, handle)
 
       SELECT CASE (preconditioner_env%in_use)
-      CASE (ot_precond_full_all, ot_precond_full_single, ot_precond_full_single_inverse, &
+      CASE (ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_all_covariant, &
+            ot_precond_full_single, ot_precond_full_single_inverse, &
             ot_precond_full_kinetic, ot_precond_s_inverse)
       CASE DEFAULT
          CPABORT("Unsupported complex K-point OT preconditioner")
@@ -203,36 +199,125 @@ CONTAINS
       CALL cp_cfm_get_info(preconditioner_env%complex_fm, nrow_global=npre)
       CPASSERT(n == npre)
 
-      IF (preconditioner_env%in_use == ot_precond_full_all) THEN
-         CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
-         CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
-         CPASSERT(n == SIZE(preconditioner_env%full_evals))
-         CPASSERT(k == SIZE(preconditioner_env%occ_evals))
-         CALL cp_cfm_create(matrix_spectral, matrix_in%matrix_struct, &
-                            name='complex FULL_ALL spectral input')
-         CALL cp_cfm_gemm('C', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
-                          matrix_in, z_zero, matrix_spectral)
-         CALL cp_cfm_get_info(matrix_spectral, nrow_local=nrow_local, ncol_local=ncol_local, &
-                              row_indices=row_indices, col_indices=col_indices, local_data=local_data)
-         DO j = 1, ncol_local
-            DO i = 1, nrow_local
-               scale = 1.0_dp/MAX(preconditioner_env%energy_gap, &
-                                  preconditioner_env%full_evals(row_indices(i)) - &
-                                  preconditioner_env%occ_evals(col_indices(j)))
-               local_data(i, j) = scale*local_data(i, j)
-            END DO
-         END DO
-         CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
-                          matrix_spectral, z_zero, matrix_out)
-         CALL cp_cfm_release(matrix_spectral)
-      ELSE
+      SELECT CASE (preconditioner_env%in_use)
+      CASE (ot_precond_full_all)
+         CALL apply_complex_full_all_spectral(preconditioner_env, matrix_in, matrix_out)
+      CASE (ot_precond_full_all_covariant)
+         CPASSERT(ASSOCIATED(preconditioner_env%occ_rotation_complex))
+         CALL cp_cfm_create(canonical_in, matrix_in%matrix_struct, &
+                            name='complex covariant FULL_ALL input')
+         CALL cp_cfm_create(canonical_out, matrix_out%matrix_struct, &
+                            name='complex covariant FULL_ALL output')
+         CALL cp_cfm_gemm('N', 'N', n, k, k, z_one, matrix_in, &
+                          preconditioner_env%occ_rotation_complex, z_zero, canonical_in)
+         CALL apply_complex_full_all_spectral(preconditioner_env, canonical_in, canonical_out)
+         CALL cp_cfm_gemm('N', 'C', n, k, k, z_one, canonical_out, &
+                          preconditioner_env%occ_rotation_complex, z_zero, matrix_out)
+         CALL cp_cfm_release(canonical_out)
+         CALL cp_cfm_release(canonical_in)
+      CASE (ot_precond_fermi_low_rank)
+         CALL apply_complex_fermi_low_rank(preconditioner_env, matrix_in, matrix_out)
+      CASE DEFAULT
          CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
                           matrix_in, z_zero, matrix_out)
-      END IF
+      END SELECT
 
       CALL timestop(handle)
 
    END SUBROUTINE apply_preconditioner_cfm_complex
+
+! **************************************************************************************************
+!> \brief Apply the spectral FULL_ALL inverse in its canonical complex basis.
+!> \param preconditioner_env complex spectral preconditioner
+!> \param matrix_in input orbital-gradient matrix
+!> \param matrix_out preconditioned orbital-gradient matrix
+! **************************************************************************************************
+   SUBROUTINE apply_complex_full_all_spectral(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in, matrix_out
+
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
+      INTEGER                                            :: i, j, k, n, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: scale
+      TYPE(cp_cfm_type)                                  :: matrix_spectral
+
+      CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
+      CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
+      CALL cp_cfm_get_info(matrix_in, nrow_global=n, ncol_global=k)
+      CPASSERT(n == SIZE(preconditioner_env%full_evals))
+      CPASSERT(k == SIZE(preconditioner_env%occ_evals))
+      CALL cp_cfm_create(matrix_spectral, matrix_in%matrix_struct, &
+                         name='complex FULL_ALL spectral input')
+      CALL cp_cfm_gemm('C', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
+                       matrix_in, z_zero, matrix_spectral)
+      CALL cp_cfm_get_info(matrix_spectral, nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices, local_data=local_data)
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            scale = 1.0_dp/MAX(preconditioner_env%energy_gap, &
+                               preconditioner_env%full_evals(row_indices(i)) - &
+                               preconditioner_env%occ_evals(col_indices(j)))
+            local_data(i, j) = scale*local_data(i, j)
+         END DO
+      END DO
+      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
+                       matrix_spectral, z_zero, matrix_out)
+      CALL cp_cfm_release(matrix_spectral)
+
+   END SUBROUTINE apply_complex_full_all_spectral
+
+! **************************************************************************************************
+!> \brief Apply an exact-overlap base plus bounded complex complementary low-rank correction.
+!> \param preconditioner_env complex low-rank preconditioner
+!> \param matrix_in input orbital-gradient matrix
+!> \param matrix_out preconditioned orbital-gradient matrix
+! **************************************************************************************************
+   SUBROUTINE apply_complex_fermi_low_rank(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in, matrix_out
+
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
+      INTEGER                                            :: i, j, k, n, ncol_local, nocc, &
+                                                            nrow_local, rank_used
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: scale
+      TYPE(cp_cfm_type)                                  :: matrix_spectral
+
+      CPASSERT(ASSOCIATED(preconditioner_env%complex_fm))
+      CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
+      CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
+      CALL cp_cfm_get_info(matrix_in, nrow_global=n, ncol_global=k)
+      nocc = SIZE(preconditioner_env%occ_evals)
+      rank_used = MIN(preconditioner_env%spectral_rank, n - nocc)
+      CPASSERT(n == SIZE(preconditioner_env%full_evals))
+
+      CALL cp_cfm_create(matrix_spectral, matrix_in%matrix_struct, &
+                         name='complex FERMI_LOW_RANK spectral input')
+      CALL cp_cfm_gemm('C', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
+                       matrix_in, z_zero, matrix_spectral)
+      CALL cp_cfm_get_info(matrix_spectral, nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices, local_data=local_data)
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            scale = preconditioner_env%spectral_base_scale
+            IF (row_indices(i) > nocc .AND. row_indices(i) <= nocc + rank_used) THEN
+               scale = low_rank_inverse_weight( &
+                       preconditioner_env%full_evals(row_indices(i)), &
+                       preconditioner_env%spectral_reference, preconditioner_env%energy_gap)
+            END IF
+            local_data(i, j) = scale*local_data(i, j)
+         END DO
+      END DO
+      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
+                       matrix_spectral, z_zero, matrix_out)
+      CALL cp_cfm_release(matrix_spectral)
+
+   END SUBROUTINE apply_complex_fermi_low_rank
 
 ! **************************************************************************************************
 !> \brief Apply a complex orbital preconditioner to paired real/imaginary DBCSR matrices.

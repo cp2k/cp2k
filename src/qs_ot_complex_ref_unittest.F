@@ -38,10 +38,10 @@ PROGRAM qs_ot_complex_ref_unittest
                                               cp_logger_type,&
                                               cp_rm_default_logger
    USE input_constants,                 ONLY: &
-        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        ot_precond_solver_chebyshev, ot_precond_solver_default, ot_precond_solver_direct, &
-        ot_precond_solver_inv_chol
+        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_all_covariant, &
+        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
+        ot_precond_none, ot_precond_s_inverse, ot_precond_solver_chebyshev, &
+        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_ot_energy_weighted_density
    USE machine,                         ONLY: default_output_unit
@@ -53,7 +53,9 @@ PROGRAM qs_ot_complex_ref_unittest
                                               mp_world_finalize,&
                                               mp_world_init
    USE preconditioner,                  ONLY: apply_preconditioner
-   USE preconditioner_makes,            ONLY: make_complex_full_all,&
+   USE preconditioner_makes,            ONLY: make_complex_fermi_low_rank,&
+                                              make_complex_full_all,&
+                                              make_complex_full_all_covariant,&
                                               make_complex_full_kinetic,&
                                               make_complex_full_s_inverse,&
                                               make_complex_full_single,&
@@ -2301,21 +2303,25 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: value
       COMPLEX(KIND=dp), DIMENSION(k)                     :: phases
       COMPLEX(KIND=dp), DIMENSION(n, k)                  :: c0, c0_phase, c0_rot, gradient, &
-                                                            gradient_phase, output, output_phase
+                                                            gradient_phase, gradient_rot, output, &
+                                                            output_phase, output_rot
       COMPLEX(KIND=dp), DIMENSION(n, n) :: eigenvectors, full_all_vectors, h, inverse, &
          inverse_rot, inverse_s, inverse_single, inverse_t, reference_s, reference_t, s, &
          spectral_metric, t
       INTEGER                                            :: i, j
-      REAL(KIND=dp) :: full_all_descent, full_all_gauge_error, full_all_orthogonality_error, &
-         full_single_hermitian_error, gauge_error, hermitian_error, s_error, t_error
+      REAL(KIND=dp) :: covariant_descent, covariant_gauge_error, full_all_descent, &
+         full_all_gauge_error, full_all_orthogonality_error, full_single_hermitian_error, &
+         gauge_error, hermitian_error, low_rank_descent, low_rank_gauge_error, s_error, t_error
       REAL(KIND=dp), DIMENSION(k)                        :: c0_evals
       REAL(KIND=dp), DIMENSION(n)                        :: eigenvalues, eigenvalues_single
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_cfm_type) :: matrix_c0, matrix_c0_phase, matrix_c0_rot, matrix_gradient, &
-         matrix_gradient_phase, matrix_h, matrix_output, matrix_output_phase, matrix_s, matrix_t
+         matrix_gradient_phase, matrix_gradient_rot, matrix_h, matrix_output, matrix_output_phase, &
+         matrix_output_rot, matrix_s, matrix_t
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct_nk, fmstruct_nn
-      TYPE(preconditioner_type) :: full_all, full_all_phase, preconditioner, preconditioner_rot, &
-         preconditioner_s, preconditioner_single, preconditioner_t
+      TYPE(preconditioner_type) :: covariant, covariant_rot, full_all, full_all_phase, low_rank, &
+         low_rank_rot, preconditioner, preconditioner_rot, preconditioner_s, &
+         preconditioner_single, preconditioner_t
 
       NULLIFY (blacs_env, fmstruct_nk, fmstruct_nn)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
@@ -2332,9 +2338,13 @@ CONTAINS
       CALL cp_cfm_create(matrix_gradient, fmstruct_nk, name='complex preconditioner gradient')
       CALL cp_cfm_create(matrix_gradient_phase, fmstruct_nk, &
                          name='complex preconditioner phased gradient')
+      CALL cp_cfm_create(matrix_gradient_rot, fmstruct_nk, &
+                         name='complex preconditioner rotated gradient')
       CALL cp_cfm_create(matrix_output, fmstruct_nk, name='complex preconditioner output')
       CALL cp_cfm_create(matrix_output_phase, fmstruct_nk, &
                          name='complex preconditioner phased output')
+      CALL cp_cfm_create(matrix_output_rot, fmstruct_nk, &
+                         name='complex preconditioner rotated output')
       CALL cp_cfm_set_all(matrix_h, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
       CALL cp_cfm_set_all(matrix_s, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
       CALL cp_cfm_set_all(matrix_t, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
@@ -2386,6 +2396,7 @@ CONTAINS
       DO j = 1, k
          gradient_phase(:, j) = phases(j)*gradient(:, j)
       END DO
+      gradient_rot = MATMUL(gradient, c0_rot(1:k, :))
       c0_evals = [REAL(h(1, 1), KIND=dp), REAL(h(2, 2), KIND=dp)]
 
       DO j = 1, n
@@ -2402,11 +2413,16 @@ CONTAINS
             CALL cp_cfm_set_element(matrix_c0_rot, i, j, c0_rot(i, j))
             CALL cp_cfm_set_element(matrix_gradient, i, j, gradient(i, j))
             CALL cp_cfm_set_element(matrix_gradient_phase, i, j, gradient_phase(i, j))
+            CALL cp_cfm_set_element(matrix_gradient_rot, i, j, gradient_rot(i, j))
          END DO
       END DO
 
       CALL init_preconditioner(full_all, para_env, blacs_env)
       CALL init_preconditioner(full_all_phase, para_env, blacs_env)
+      CALL init_preconditioner(low_rank, para_env, blacs_env)
+      CALL init_preconditioner(low_rank_rot, para_env, blacs_env)
+      CALL init_preconditioner(covariant, para_env, blacs_env)
+      CALL init_preconditioner(covariant_rot, para_env, blacs_env)
       CALL init_preconditioner(preconditioner, para_env, blacs_env)
       CALL init_preconditioner(preconditioner_rot, para_env, blacs_env)
       CALL init_preconditioner(preconditioner_s, para_env, blacs_env)
@@ -2477,6 +2493,38 @@ CONTAINS
                                                          CMPLX(0.0_dp, 0.0_dp, KIND=dp), &
                                                          CMPLX(1.0_dp, 0.0_dp, KIND=dp)], [n, n])))
       full_all_descent = REAL(SUM(CONJG(gradient)*output), KIND=dp)
+
+      CALL make_complex_fermi_low_rank(low_rank, matrix_c0, matrix_h, matrix_s, &
+                                       0.08_dp, 1, 1.0_dp, 1.0E-8_dp)
+      CALL make_complex_fermi_low_rank(low_rank_rot, matrix_c0_rot, matrix_h, matrix_s, &
+                                       0.08_dp, 1, 1.0_dp, 1.0E-8_dp)
+      CALL apply_preconditioner(low_rank, matrix_gradient, matrix_output)
+      CALL apply_preconditioner(low_rank_rot, matrix_gradient_rot, matrix_output_rot)
+      DO j = 1, k
+         DO i = 1, n
+            CALL cp_cfm_get_element(matrix_output, i, j, value)
+            output(i, j) = value
+            CALL cp_cfm_get_element(matrix_output_rot, i, j, value)
+            output_rot(i, j) = value
+         END DO
+      END DO
+      low_rank_gauge_error = MAXVAL(ABS(output_rot - MATMUL(output, c0_rot(1:k, :))))
+      low_rank_descent = REAL(SUM(CONJG(gradient)*output), KIND=dp)
+
+      CALL make_complex_full_all_covariant(covariant, matrix_c0, matrix_h, matrix_s, 0.08_dp)
+      CALL make_complex_full_all_covariant(covariant_rot, matrix_c0_rot, matrix_h, matrix_s, 0.08_dp)
+      CALL apply_preconditioner(covariant, matrix_gradient, matrix_output)
+      CALL apply_preconditioner(covariant_rot, matrix_gradient_rot, matrix_output_rot)
+      DO j = 1, k
+         DO i = 1, n
+            CALL cp_cfm_get_element(matrix_output, i, j, value)
+            output(i, j) = value
+            CALL cp_cfm_get_element(matrix_output_rot, i, j, value)
+            output_rot(i, j) = value
+         END DO
+      END DO
+      covariant_gauge_error = MAXVAL(ABS(output_rot - MATMUL(output, c0_rot(1:k, :))))
+      covariant_descent = REAL(SUM(CONJG(gradient)*output), KIND=dp)
       IF (gauge_error > 1.0E-11_dp .OR. hermitian_error > 1.0E-12_dp .OR. &
           MINVAL(eigenvalues) <= 0.0_dp) nfail = nfail + 1
       IF (s_error > 1.0E-11_dp .OR. t_error > 1.0E-11_dp) nfail = nfail + 1
@@ -2484,6 +2532,8 @@ CONTAINS
           MINVAL(eigenvalues_single) <= 0.0_dp) nfail = nfail + 1
       IF (full_all_gauge_error > 1.0E-11_dp .OR. &
           full_all_orthogonality_error > 1.0E-11_dp .OR. full_all_descent <= 0.0_dp) nfail = nfail + 1
+      IF (low_rank_gauge_error > 1.0E-11_dp .OR. low_rank_descent <= 0.0_dp) nfail = nfail + 1
+      IF (covariant_gauge_error > 1.0E-11_dp .OR. covariant_descent <= 0.0_dp) nfail = nfail + 1
       IF (para_env%is_source()) THEN
          WRITE (io_unit, '(A,3(1X,ES13.6))') 'complex FULL_SINGLE gauge/hermitian/min-eigenvalue', &
             gauge_error, hermitian_error, MINVAL(eigenvalues)
@@ -2492,8 +2542,16 @@ CONTAINS
             full_single_hermitian_error, MINVAL(eigenvalues_single)
          WRITE (io_unit, '(A,3(1X,ES13.6))') 'complex FULL_ALL phase/orthogonality/descent', &
             full_all_gauge_error, full_all_orthogonality_error, full_all_descent
+         WRITE (io_unit, '(A,2(1X,ES13.6))') 'complex FERMI_LOW_RANK covariance/descent', &
+            low_rank_gauge_error, low_rank_descent
+         WRITE (io_unit, '(A,2(1X,ES13.6))') 'complex FULL_ALL_COVARIANT covariance/descent', &
+            covariant_gauge_error, covariant_descent
       END IF
 
+      CALL destroy_preconditioner(covariant_rot)
+      CALL destroy_preconditioner(covariant)
+      CALL destroy_preconditioner(low_rank_rot)
+      CALL destroy_preconditioner(low_rank)
       CALL destroy_preconditioner(full_all_phase)
       CALL destroy_preconditioner(full_all)
       CALL destroy_preconditioner(preconditioner_t)
@@ -2506,6 +2564,8 @@ CONTAINS
       CALL cp_cfm_release(matrix_c0)
       CALL cp_cfm_release(matrix_output_phase)
       CALL cp_cfm_release(matrix_output)
+      CALL cp_cfm_release(matrix_output_rot)
+      CALL cp_cfm_release(matrix_gradient_rot)
       CALL cp_cfm_release(matrix_gradient_phase)
       CALL cp_cfm_release(matrix_gradient)
       CALL cp_cfm_release(matrix_t)
@@ -2525,11 +2585,14 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: nfail
 
       IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_none, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_fermi_low_rank, .FALSE.)) nfail = nfail + 1
       IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_full_single_inverse, .FALSE.)) THEN
          nfail = nfail + 1
       END IF
       IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_full_all, .FALSE.)) nfail = nfail + 1
       IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_full_single, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_supported( &
+          ot_precond_full_all_covariant, .FALSE.)) nfail = nfail + 1
       IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_full_kinetic, .FALSE.)) nfail = nfail + 1
       IF (.NOT. qs_ot_kpoint_preconditioner_supported(ot_precond_s_inverse, .FALSE.)) nfail = nfail + 1
       IF (qs_ot_kpoint_preconditioner_supported(ot_precond_full_single_inverse, .TRUE.)) nfail = nfail + 1
@@ -2551,6 +2614,14 @@ CONTAINS
           ot_precond_full_all, ot_precond_solver_default, .FALSE.)) nfail = nfail + 1
       IF (qs_ot_kpoint_preconditioner_solver_supported( &
           ot_precond_full_all, ot_precond_solver_inv_chol, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_fermi_low_rank, ot_precond_solver_default, .FALSE.)) nfail = nfail + 1
+      IF (qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_fermi_low_rank, ot_precond_solver_inv_chol, .FALSE.)) nfail = nfail + 1
+      IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_full_all_covariant, ot_precond_solver_default, .FALSE.)) nfail = nfail + 1
+      IF (qs_ot_kpoint_preconditioner_solver_supported( &
+          ot_precond_full_all_covariant, ot_precond_solver_inv_chol, .FALSE.)) nfail = nfail + 1
       IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
           ot_precond_full_kinetic, ot_precond_solver_default, .FALSE.)) nfail = nfail + 1
       IF (.NOT. qs_ot_kpoint_preconditioner_solver_supported( &
