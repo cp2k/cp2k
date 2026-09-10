@@ -40,18 +40,13 @@ exclude = [
 
 # ==============================================================================
 [check.per-file-ignores]
-"environment.F" = ["line-too-long"]
 "qs_local_properties.F" = ["unreachable-statement"]
 "semi_empirical_int_ana.F" = ["misleading-inline-if-semicolon"]
 "fftw3_lib.F" = ["misleading-inline-if-semicolon"]
 "eri_mme_lattice_summation.F" = ["trailing-whitespace"]
 "pilaenv_hack.F" = ["procedure-not-in-module"]
 "semi_empirical_int_debug.F" = ["procedure-not-in-module"]
-"libgint_wrapper.F" = ["trailing-backslash"]
-"qs_tddfpt2_subgroups.F" = ["trailing-backslash"]
 "dft_plus_u.F" = ["trailing-backslash"]
-"tmc_tree_types.F" = ["trailing-backslash"]
-"tmc_types.F" = ["trailing-backslash"]
 "qs_linres_current.F" = ["trailing-backslash"]
 
 #EOF

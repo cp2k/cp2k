@@ -8,13 +8,15 @@
 ! **************************************************************************************************
 !> \brief module handles definition of the tree nodes for the global and
 !>      the subtrees binary tree
-!>                   parent element
-!>                      /      \
-!>      accepted (acc) /        \  not accepted (nacc)
-!>                    /          \
-!>                  child       child
-!>                   / \         / \
-!>
+!>      --------------------------------------------------
+!>      |              parent element                    |
+!>      |                 /      \                       |
+!>      | accepted (acc) /        \  not accepted (nacc) |
+!>      |               /          \                     |
+!>      |             child       child                  |
+!>      |              / \         / \                   |
+!>      |                    ...                         |
+!>      --------------------------------------------------
 !>      tree creation assuming acceptance (acc) AND rejectance (nacc)
 !>        of configuration
 !>      if configuration is accepted: new configuration (child on acc) on basis
