@@ -21,11 +21,12 @@ MODULE preconditioner_apply
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_add, dbcsr_copy, dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_release, dbcsr_set, dbcsr_type
+        dbcsr_multiply, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              copy_fm_to_dbcsr
+                                              copy_fm_to_dbcsr,&
+                                              cp_dbcsr_m_by_n_from_template
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_restore
@@ -39,9 +40,10 @@ MODULE preconditioner_apply
                                               cp_fm_type
    USE input_constants,                 ONLY: &
         ot_low_rank_base_lattice_fft, ot_low_rank_base_overlap, ot_precond_fermi_low_rank, &
-        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_s_inverse, ot_precond_solver_chebyshev, &
-        ot_precond_solver_direct, ot_precond_solver_inv_chol, ot_precond_solver_update
+        ot_precond_full_all, ot_precond_full_all_covariant, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_s_inverse, &
+        ot_precond_solver_chebyshev, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
+        ot_precond_solver_update
    USE kinds,                           ONLY: dp
    USE lattice_low_rank_preconditioner, ONLY: apply_lattice_inverse_dense
    USE low_rank_preconditioner_model,   ONLY: low_rank_inverse_weight
@@ -87,6 +89,8 @@ CONTAINS
          CALL apply_full_all(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_fermi_low_rank)
          CALL apply_low_rank_fm(preconditioner_env, matrix_in, matrix_out)
+      CASE (ot_precond_full_all_covariant)
+         CALL apply_full_all_covariant(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_full_kinetic, ot_precond_full_single_inverse, ot_precond_s_inverse)
          SELECT CASE (preconditioner_env%solver)
          CASE (ot_precond_solver_inv_chol, ot_precond_solver_update)
@@ -132,6 +136,8 @@ CONTAINS
          CALL apply_all(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_fermi_low_rank)
          CALL apply_low_rank_dbcsr(preconditioner_env, matrix_in, matrix_out)
+      CASE (ot_precond_full_all_covariant)
+         CALL apply_all_covariant(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_full_kinetic, ot_precond_full_single_inverse, ot_precond_s_inverse)
          SELECT CASE (preconditioner_env%solver)
          CASE (ot_precond_solver_inv_chol, ot_precond_solver_update)
@@ -791,5 +797,82 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE apply_all
+
+! **************************************************************************************************
+!> \brief Apply the state-selective inverse in a private canonical occupied gauge.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_full_all_covariant(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_full_all_covariant'
+
+      INTEGER                                            :: handle, k, n
+      TYPE(cp_fm_type)                                   :: canonical_in, canonical_out
+
+      CALL timeset(routineN, handle)
+      CPASSERT(ASSOCIATED(preconditioner_env%occ_rotation))
+      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
+
+      CALL cp_fm_create(canonical_in, matrix_in%matrix_struct, name=routineN)
+      CALL cp_fm_create(canonical_out, matrix_out%matrix_struct, name=routineN)
+      CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, matrix_in, &
+                         preconditioner_env%occ_rotation, 0.0_dp, canonical_in)
+      CALL apply_full_all(preconditioner_env, canonical_in, canonical_out)
+      CALL parallel_gemm('N', 'T', n, k, k, 1.0_dp, canonical_out, &
+                         preconditioner_env%occ_rotation, 0.0_dp, matrix_out)
+      CALL cp_fm_release(canonical_in)
+      CALL cp_fm_release(canonical_out)
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_full_all_covariant
+
+! **************************************************************************************************
+!> \brief DBCSR form of the rotation-covariant state-selective inverse.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_all_covariant(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_all_covariant'
+
+      INTEGER                                            :: handle, k
+      TYPE(dbcsr_type)                                   :: canonical_in, canonical_out
+
+      CALL timeset(routineN, handle)
+      CPASSERT(ASSOCIATED(preconditioner_env%occ_rotation))
+      CALL dbcsr_get_info(matrix_in, nfullcols_total=k)
+
+      IF (.NOT. ASSOCIATED(preconditioner_env%occ_rotation_dbcsr)) THEN
+         CALL dbcsr_init_p(preconditioner_env%occ_rotation_dbcsr)
+         CALL cp_dbcsr_m_by_n_from_template(preconditioner_env%occ_rotation_dbcsr, &
+                                            template=matrix_in, m=k, n=k, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL copy_fm_to_dbcsr(preconditioner_env%occ_rotation, &
+                               preconditioner_env%occ_rotation_dbcsr)
+      END IF
+
+      CALL dbcsr_copy(canonical_in, matrix_in, name=routineN)
+      CALL dbcsr_set(canonical_in, 0.0_dp)
+      CALL dbcsr_copy(canonical_out, matrix_out, name=routineN)
+      CALL dbcsr_set(canonical_out, 0.0_dp)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_in, &
+                          preconditioner_env%occ_rotation_dbcsr, 0.0_dp, canonical_in)
+      CALL apply_all(preconditioner_env, canonical_in, canonical_out)
+      CALL dbcsr_multiply('N', 'T', 1.0_dp, canonical_out, &
+                          preconditioner_env%occ_rotation_dbcsr, 0.0_dp, matrix_out)
+      CALL dbcsr_release(canonical_in)
+      CALL dbcsr_release(canonical_out)
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_all_covariant
 
 END MODULE preconditioner_apply

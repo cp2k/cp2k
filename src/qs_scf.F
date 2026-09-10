@@ -86,11 +86,12 @@ MODULE qs_scf
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
         broyden_type_2, broyden_type_2_explicit, broyden_type_2_explicit_ls, broyden_type_2_ls, &
         cdft2ot, cholesky_dbcsr, diag_update_method_adiis, history_guess, ot2cdft, &
-        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_kinetic, &
-        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
-        ot_precond_s_inverse, outer_scf_becke_constraint, outer_scf_hirshfeld_constraint, &
-        outer_scf_optimizer_broyden, outer_scf_optimizer_newton_ls, sic_eo, smear_fermi_dirac, &
-        smear_gaussian, smear_mp, smear_mv, tblite_scc_mixer_tblite
+        ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_all_covariant, &
+        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
+        ot_precond_none, ot_precond_s_inverse, outer_scf_becke_constraint, &
+        outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
+        outer_scf_optimizer_newton_ls, sic_eo, smear_fermi_dirac, smear_gaussian, smear_mp, &
+        smear_mv, tblite_scc_mixer_tblite
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -1754,6 +1755,18 @@ CONTAINS
                                      kp_range=kp_range, &
                                      wkp=wkp)
 
+            IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == &
+                ot_precond_full_all_covariant) THEN
+               IF (scf_env%qs_ot_env(1)%restricted) THEN
+                  CPABORT('PRECONDITIONER FULL_ALL_COVARIANT does not currently support ROKS.')
+               END IF
+               DO ispin = 1, SIZE(mos)
+                  IF (.NOT. mos(ispin)%uniform_occupation) THEN
+                     CPABORT('PRECONDITIONER FULL_ALL_COVARIANT currently requires uniform occupations.')
+                  END IF
+               END DO
+            END IF
+
             ! might need the KS matrix to init properly
             CALL qs_ks_update_qs_env(qs_env, just_energy=.FALSE., &
                                      calculate_forces=.FALSE.)
@@ -1794,7 +1807,8 @@ CONTAINS
 
             SELECT CASE (scf_env%qs_ot_env(1)%settings%preconditioner_type)
             CASE (ot_precond_none)
-            CASE (ot_precond_full_all, ot_precond_fermi_low_rank, ot_precond_full_single_inverse)
+            CASE (ot_precond_full_all, ot_precond_fermi_low_rank, ot_precond_full_all_covariant, &
+                  ot_precond_full_single_inverse)
                DO ispin = 1, SIZE(scf_env%qs_ot_env)
                   CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin), &
                                                 scf_env%ot_preconditioner(ispin)%preconditioner)
