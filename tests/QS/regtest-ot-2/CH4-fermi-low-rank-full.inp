@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT_NAME CH4-fermi-low-rank-fft
+  PROJECT_NAME CH4-fermi-low-rank-full
   RUN_TYPE ENERGY
 &END GLOBAL
 
@@ -20,7 +20,7 @@
       MAX_SCF 30
       SCF_GUESS ATOMIC
       &OT T
-        LATTICE_FFT ON
+        FERMI_LOW_RANK_MAX_RANK -1
         LINESEARCH ADAPT
         MINIMIZER CG
         PRECONDITIONER FERMI_LOW_RANK
