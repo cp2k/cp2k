@@ -32,6 +32,52 @@
       }
     },
     {
+      "name": "_developer-profile",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "conventions",
+      "inherits": "_developer-profile",
+      "displayName": "GNU conventions check",
+      "description": "Build CP2K with additional GNU Fortran convention diagnostics.",
+      "cacheVariables": {
+        "CMAKE_C_FLAGS_RELWITHDEBINFO": "-O1",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O1",
+        "CMAKE_Fortran_FLAGS_RELWITHDEBINFO": "-O1 -Wno-pedantic -Wall -Wextra -Wsurprising -Warray-temporaries -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip -fdump-fortran-original"
+      }
+    },
+    {
+      "name": "coverage",
+      "inherits": "_developer-profile",
+      "displayName": "Coverage build",
+      "description": "Build CP2K with GNU coverage instrumentation.",
+      "cacheVariables": {
+        "CMAKE_C_FLAGS_RELWITHDEBINFO": "-coverage -fkeep-static-functions -O1 -D__NO_ABORT",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-coverage -fkeep-static-functions -O1 -D__NO_ABORT",
+        "CMAKE_Fortran_FLAGS_RELWITHDEBINFO": "-coverage -fkeep-static-functions -O1 -D__NO_ABORT",
+        "CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO": "-coverage",
+        "CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO": "-coverage",
+        "CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO": "-coverage"
+      }
+    },
+    {
+      "name": "asan",
+      "inherits": "_developer-profile",
+      "displayName": "AddressSanitizer build",
+      "description": "Build CP2K with AddressSanitizer instrumentation.",
+      "cacheVariables": {
+        "CMAKE_C_FLAGS_RELWITHDEBINFO": "-fsanitize=address -no-pie -O3 -funroll-loops",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-fsanitize=address -no-pie -O3 -funroll-loops",
+        "CMAKE_Fortran_FLAGS_RELWITHDEBINFO": "-fsanitize=address -no-pie -O3 -funroll-loops",
+        "CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO": "-fsanitize=address",
+        "CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO": "-fsanitize=address",
+        "CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO": "-fsanitize=address"
+      }
+    },
+    {
       "name": "none",
       "displayName": "No preset",
       "description": "Use parent environment without any preset.",

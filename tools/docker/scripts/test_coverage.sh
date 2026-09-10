@@ -25,7 +25,7 @@ rm -rf /var/lib/apt/lists/*
 
 echo -e "\n========== Running Regtests =========="
 cd /opt/cp2k || exit 1
-./tests/do_regtest.py --ompthreads=1 ./build/bin/ psmp
+./tests/do_regtest.py --ompthreads=1 --keepalive ./build/bin/ psmp
 
 # gcov gets stuck on some files...
 # Maybe related: https://bugs.launchpad.net/gcc-arm-embedded/+bug/1694644

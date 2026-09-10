@@ -198,9 +198,8 @@ elif [[ "${PROFILE}" == "toolchain_generic" ]] && [[ "${VERSION}" == "psmp" ]]; 
 
 elif [[ "${PROFILE}" == "toolchain_conventions" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
-    --preset "native-gnu-x86_64" \
+    --preset "conventions" \
     -GNinja \
-    -DCMAKE_BUILD_TYPE="Conventions" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCMAKE_Fortran_COMPILER_LAUNCHER="redirect_gfortran_output.py" \
     -DCP2K_USE_EVERYTHING=ON \
@@ -213,9 +212,8 @@ elif [[ "${PROFILE}" == "toolchain_conventions" ]] && [[ "${VERSION}" == "psmp" 
 
 elif [[ "${PROFILE}" == "toolchain_coverage" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
-    --preset "native-gnu-x86_64" \
+    --preset "coverage" \
     -GNinja \
-    -DCMAKE_BUILD_TYPE="Coverage" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_DLAF=OFF \
@@ -229,9 +227,8 @@ elif [[ "${PROFILE}" == "toolchain_asan" ]] && [[ "${VERSION}" == "psmp" ]]; the
   # TODO Re-enable GREENX. It currently leads to a heap-buffer-overflow
   # in `greenx_refine_pade()` at greenx_interface.F:80.
   cmake \
-    --preset "native-gnu-x86_64" \
+    --preset "asan" \
     -GNinja \
-    -DCMAKE_BUILD_TYPE="ASAN" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_DLAF=OFF \
