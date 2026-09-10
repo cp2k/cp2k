@@ -22,6 +22,7 @@ MODULE preconditioner_makes
                                               setup_arnoldi_env
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                               cp_cfm_gemm,&
+                                              cp_cfm_norm,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_triangular_multiply,&
                                               cp_cfm_uplo_to_full
@@ -371,21 +372,32 @@ CONTAINS
 !>
 !>        The occupied Rayleigh matrix C^H H C is diagonalized in a private complex gauge.
 !>        Both gradients and results are transformed through that gauge during application.
+!>        If occupation signatures are supplied, only orbitals with equal signatures are mixed.
 !> \param preconditioner_env preconditioner storage
 !> \param matrix_c0 complex active OT reference orbitals
 !> \param matrix_h complex Hermitian k-point Hamiltonian
 !> \param matrix_s complex Hermitian k-point overlap
 !> \param energy_gap denominator floor
+!> \param occupation_signature occupations that define the admissible private gauge
 ! **************************************************************************************************
    SUBROUTINE make_complex_full_all_covariant( &
-      preconditioner_env, matrix_c0, matrix_h, matrix_s, energy_gap)
+      preconditioner_env, matrix_c0, matrix_h, matrix_s, energy_gap, occupation_signature)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_c0, matrix_h, matrix_s
       REAL(KIND=dp), INTENT(IN)                          :: energy_gap
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: occupation_signature
 
-      INTEGER                                            :: k, n
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occupied_evals
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: chc_local
+      INTEGER                                            :: group, i, j, k, n, ncol_local, ngroup, &
+                                                            nrow_local, output_column
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_representative, occupation_group
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: occupation_tolerance, rayleigh_bound, &
+                                                            shift_stride
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: group_shift, occupied_evals
       TYPE(cp_cfm_type)                                  :: matrix_c_canonical, matrix_chc, &
                                                             matrix_hc0, matrix_occ_vectors
 
@@ -404,7 +416,72 @@ CONTAINS
 
       CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, matrix_h, matrix_c0, z_zero, matrix_hc0)
       CALL cp_cfm_gemm('C', 'N', k, k, n, z_one, matrix_c0, matrix_hc0, z_zero, matrix_chc)
+
+      IF (PRESENT(occupation_signature)) THEN
+         CPASSERT(SIZE(occupation_signature, 1) == k)
+         CPASSERT(SIZE(occupation_signature, 2) > 0)
+         ALLOCATE (group_representative(k), occupation_group(k))
+         occupation_tolerance = 64.0_dp*EPSILON(1.0_dp)* &
+                                MAX(1.0_dp, MAXVAL(ABS(occupation_signature)))
+         ngroup = 0
+         DO i = 1, k
+            occupation_group(i) = 0
+            DO group = 1, ngroup
+               IF (MAXVAL(ABS(occupation_signature(i, :) - &
+                              occupation_signature(group_representative(group), :))) <= &
+                   occupation_tolerance) THEN
+                  occupation_group(i) = group
+                  EXIT
+               END IF
+            END DO
+            IF (occupation_group(i) == 0) THEN
+               ngroup = ngroup + 1
+               group_representative(ngroup) = i
+               occupation_group(i) = ngroup
+            END IF
+         END DO
+         DEALLOCATE (group_representative)
+
+         IF (ngroup > 1) THEN
+            rayleigh_bound = cp_cfm_norm(matrix_chc, 'I')
+            shift_stride = 4.0_dp*MAX(1.0_dp, rayleigh_bound)
+            ALLOCATE (group_shift(ngroup))
+            DO group = 1, ngroup
+               group_shift(group) = shift_stride* &
+                                    (REAL(group, KIND=dp) - 0.5_dp*REAL(ngroup + 1, KIND=dp))
+            END DO
+            CALL cp_cfm_get_info(matrix_chc, nrow_local=nrow_local, ncol_local=ncol_local, &
+                                 row_indices=row_indices, col_indices=col_indices, &
+                                 local_data=chc_local)
+            DO j = 1, ncol_local
+               DO i = 1, nrow_local
+                  IF (occupation_group(row_indices(i)) /= occupation_group(col_indices(j))) THEN
+                     chc_local(i, j) = z_zero
+                  ELSE IF (row_indices(i) == col_indices(j)) THEN
+                     group = occupation_group(row_indices(i))
+                     chc_local(i, j) = chc_local(i, j) + &
+                                       CMPLX(group_shift(group), 0.0_dp, KIND=dp)
+                  END IF
+               END DO
+            END DO
+         END IF
+      END IF
+
       CALL cp_cfm_heevd(matrix_chc, matrix_occ_vectors, occupied_evals)
+      IF (PRESENT(occupation_signature)) THEN
+         IF (ngroup > 1) THEN
+            output_column = 0
+            DO group = 1, ngroup
+               DO i = 1, COUNT(occupation_group == group)
+                  output_column = output_column + 1
+                  occupied_evals(output_column) = occupied_evals(output_column) - group_shift(group)
+               END DO
+            END DO
+            CPASSERT(output_column == k)
+            DEALLOCATE (group_shift)
+         END IF
+         DEALLOCATE (occupation_group)
+      END IF
       CALL cp_cfm_gemm('N', 'N', n, k, k, z_one, matrix_c0, matrix_occ_vectors, &
                        z_zero, matrix_c_canonical)
 

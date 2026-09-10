@@ -884,7 +884,9 @@ CONTAINS
                        "Experimental rotation-covariant form of FULL_ALL. It diagonalizes a private copy of the "// &
                        "occupied projected Hamiltonian, applies the complete state-selective Sylvester spectrum "// &
                        "in that canonical copy, and rotates every input and output consistently without changing "// &
-                       "the physical orbitals. It currently requires uniform occupations and excludes ROKS.", &
+                       "the physical orbitals. Complex K-point ROKS canonicalization is restricted to orbital "// &
+                       "subspaces with equal alpha/beta occupation signatures. Real Gamma-point use still "// &
+                       "requires uniform occupations and excludes ROKS.", &
                        "Based on H-eS cholesky inversion, similar to FULL_SINGLE in preconditioning efficiency "// &
                        "but cheaper to construct, "// &
                        "might be somewhat less robust. Recommended for large systems.", &
