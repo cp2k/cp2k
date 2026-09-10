@@ -970,10 +970,6 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-      ! matrix_hr(nspin, 3) and matrix_rh(nspin, 3) were allocated as
-      ! CALL dbcsr_init_p(vcd_env%matrix_hr(ispin, i)%matrix)
-      ! CALL dbcsr_copy(vcd_env%matrix_hr(ispin, i)%matrix, vcd_env%matrix_nosym_temp(1)%matrix)
-
       NULLIFY (matrix_rvxc, matrix_rvxc_desymm)
       CALL dbcsr_allocate_matrix_set(matrix_rvxc, nspins, 3)
       CALL dbcsr_allocate_matrix_set(matrix_rvxc_desymm, nspins, 3)
