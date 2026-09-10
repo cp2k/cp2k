@@ -1059,7 +1059,7 @@ CONTAINS
 
             CALL dbcsr_reserve_all_blocks(mat_dm_global_work(jspin, i_img)%matrix)
 
-            CALL dbcsr_set(mat_dm_global_work(ispin, i_img)%matrix, 0.0_dp)
+            CALL dbcsr_set(mat_dm_global_work(jspin, i_img)%matrix, 0.0_dp)
 
          END DO
 
