@@ -26,14 +26,10 @@ cp_fm_elpa.F: Module "elpa" USEd without ONLY clause or not PRIVATE https://cp2k
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_int_to_string" https://cp2k.org/conv#c012
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_logger_get_default_unit_nr" https://cp2k.org/conv#c012
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_real_dp_to_string" https://cp2k.org/conv#c012
-cp_output_handling_openpmd.F: Found CLOSE statement in procedure "cp_openpmd_print_key_finished_output" https://cp2k.org/conv#c204
-cp_output_handling_openpmd.F: Found OPEN statement in procedure "cp_openpmd_print_key_unit_nr" https://cp2k.org/conv#c203
 cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive" https://cp2k.org/conv#c001
-cube_utils.F: Found WRITE statement with hardcoded unit in "return_cube_nonortho" https://cp2k.org/conv#c012
 d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random" https://cp2k.org/conv#c104
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral_a" https://cp2k.org/conv#c012
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral" https://cp2k.org/conv#c012
-domain_submatrix_methods.F: Found WRITE statement with hardcoded unit in "print_submatrices" https://cp2k.org/conv#c012
 dumpdcd.F: Found CLOSE statement in procedure "dumpdcd" https://cp2k.org/conv#c204
 dumpdcd.F: Found OPEN statement in procedure "dumpdcd" https://cp2k.org/conv#c203
 dumpdcd.F: Found STOP statement in procedure "abort_program" https://cp2k.org/conv#c205
@@ -48,7 +44,6 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b" https://cp2k.org/conv#c012
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https://cp2k.org/conv#c012
-extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables" https://cp2k.org/conv#c012
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input" https://cp2k.org/conv#c204
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input" https://cp2k.org/conv#c203
 fftw3_lib.F: Found CLOSE statement in procedure "fftw3_do_cleanup" https://cp2k.org/conv#c204
@@ -106,11 +101,9 @@ machine.F: Found OPEN statement in procedure "m_memory" https://cp2k.org/conv#c2
 machine.F: Found WRITE statement with hardcoded unit in "m_getcwd" https://cp2k.org/conv#c012
 machine.F: Found WRITE statement with hardcoded unit in "m_hostnm" https://cp2k.org/conv#c012
 machine.F: Found WRITE statement with hardcoded unit in "m_mov" https://cp2k.org/conv#c012
-mathlib.F: Found WRITE statement with hardcoded unit in "diag" https://cp2k.org/conv#c012
 mc_coordinates.F: Found WRITE statement with hardcoded unit in "generate_cbmc_swap_config" https://cp2k.org/conv#c012
 mcl_api.F: Module "mcl" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 mcl_requests.F: Module "mcl" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
-mc_move_control.F: Found WRITE statement with hardcoded unit in "mc_move_update" https://cp2k.org/conv#c012
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_allocated" https://cp2k.org/conv#c012
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank1_unallocated" https://cp2k.org/conv#c012
 memory_utilities_unittest.F: Found WRITE statement with hardcoded unit in "check_real_rank2_allocated" https://cp2k.org/conv#c012
@@ -141,7 +134,6 @@ message_passing.F: Module "mpi_f08" USEd without ONLY clause or not PRIVATE http
 message_passing.F: Module "pmpi_f08" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 message_passing.fypp: Type mismatch between actual argument at (1) and actual argument at (2) (COMPLEX(8)/COMPLEX(4)).
-mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig" https://cp2k.org/conv#c012
 mp_perf_test.F: Module "mpi_f08" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 negf_methods.F: Found CALL with NULL() as argument in procedure "converge_density" https://cp2k.org/conv#c007
 negf_methods.F: Found CALL with NULL() as argument in procedure "guess_fermi_level" https://cp2k.org/conv#c007
@@ -154,8 +146,6 @@ parallel_rng_types_unittest.F: Found WRITE statement with hardcoded unit in "shu
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all" https://cp2k.org/conv#c012
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all_ortho" https://cp2k.org/conv#c012
 ps_implicit_methods.F: OMP PARALLEL without DEFAULT(NONE) found in "ps_implicit_prepare_blocks" https://cp2k.org/conv#c006
-ps_wavelet_kernel.F: Found WRITE statement with hardcoded unit in "indices" https://cp2k.org/conv#c012
-ps_wavelet_scaling_function.F: Found WRITE statement with hardcoded unit in "ftest" https://cp2k.org/conv#c012
 pwdft_environment_types.F: Module "sirius" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 pw_grids.F: Found WRITE statement with hardcoded unit in "pw_grid_sort" https://cp2k.org/conv#c012
 qs_active_space_methods.F: Found type eri_fcidump_checksum without initializer https://cp2k.org/conv#c016
@@ -163,7 +153,6 @@ qs_active_space_methods.F: Found type eri_fcidump_print without initializer http
 qs_dispersion_d4.F: Module "dftd4" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_dispersion_d4.F: Module "multicharge" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 qs_dispersion_s_dftd3.F: Module "dftd3_param" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
-qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_density" https://cp2k.org/conv#c012
 qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag" https://cp2k.org/conv#c101
 qs_linres_atom_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_atom_rad" https://cp2k.org/conv#c012
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms" https://cp2k.org/conv#c012
@@ -171,8 +160,6 @@ qs_linres_current.F: Found WRITE statement with hardcoded unit in "box_atoms_new
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "calculate_jrho_resp" https://cp2k.org/conv#c012
 qs_linres_current.F: Found WRITE statement with hardcoded unit in "collocate_gauge_new" https://cp2k.org/conv#c012
 qs_linres_issc_utils.F: Found WRITE statement with hardcoded unit in "issc_issc" https://cp2k.org/conv#c012
-qs_rho_atom_methods.F: Found WRITE statement with hardcoded unit in "init_rho_atom" https://cp2k.org/conv#c012
-realspace_grid_openpmd.F: Module "mpi_f08" USEd without ONLY clause or not PRIVATE https://cp2k.org/conv#c002
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "aa" https://cp2k.org/conv#c012
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "makeds" https://cp2k.org/conv#c012
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "makes" https://cp2k.org/conv#c012

@@ -1636,8 +1636,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: v
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'diag'
+      INTEGER, PARAMETER                                 :: maxit = 100
       REAL(KIND=dp), PARAMETER                           :: a_eps = 1.0E-10_dp, d_eps = 1.0E-3_dp
 
+      CHARACTER(LEN=default_string_length)               :: max_iter
       INTEGER                                            :: handle, i, ip, iq
       REAL(KIND=dp)                                      :: a_max, apq, c, d_min, dip, diq, g, h, s, &
                                                             t, tau, theta, tresh
@@ -1654,8 +1656,7 @@ CONTAINS
 
       CALL unit_matrix(v)
 
-      ! Go for 50 iterations
-      DO i = 1, 50
+      DO i = 1, maxit
          d = b
          d_min = MAX(d_eps, MINVAL(ABS(b)))
          IF (a_max < a_eps*d_min) THEN
@@ -1705,7 +1706,10 @@ CONTAINS
             a_max = MAX(a_max, MAXVAL(ABS(a(ip, ip + 1:n))))
          END DO
       END DO
-      WRITE (*, '(/,T2,A,/)') 'Too many iterations in jacobi'
+      WRITE (max_iter, *) maxit
+      CALL cp_warn(__LOCATION__, &
+                   "Jacobi matrix diagonalization does not converge after "// &
+                   TRIM(ADJUSTL(max_iter))//" iterations; stop here anyway")
 
       CALL timestop(handle)
 

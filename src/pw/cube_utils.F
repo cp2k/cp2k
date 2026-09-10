@@ -104,8 +104,10 @@ CONTAINS
          ! This error can invariably be fixed by improving the computation of maxradius
          ! in the call to init_cube_info
          !
-         WRITE (*, *) info%max_rad_ga, radius
-         CPABORT("Called with too large radius.")
+         ! WRITE (*, *) info%max_rad_ga, radius
+         CALL cp_abort(__LOCATION__, &
+                       "The required radius is too large to match the maxradius "// &
+                       "in cube info when calling return_cube_nonortho")
       END IF
 
       ! get the min/max indices of a cube that contains a sphere of the given radius around rp
@@ -154,7 +156,9 @@ CONTAINS
             ! This error can invariably be fixed by improving the computation of maxradius
             ! in the call to init_cube_info
             !
-            CPABORT("Called with too large radius.")
+            CALL cp_abort(__LOCATION__, &
+                          "The required radius is too large to match the maxradius "// &
+                          "in cube info when calling return_cube")
          END IF
          lb_cube(:) = info%lb_cube(:, imr)
          ub_cube(:) = info%ub_cube(:, imr)

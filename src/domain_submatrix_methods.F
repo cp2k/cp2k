@@ -1496,23 +1496,33 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'print_submatrices'
 
       CHARACTER(len=30)                                  :: colstr, formatstr
-      INTEGER                                            :: handle, i, irow, n, ncols, nrows
+      INTEGER                                            :: handle, i, irow, n, ncols, nrows, unit_nr
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
 
       n = SIZE(submatrices)
 
+      logger => cp_get_default_logger()
+      IF (logger%para_env%is_source()) THEN
+         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         unit_nr = -1
+      END IF
+
       DO i = 1, n
          nrows = SIZE(submatrices(i)%mdata, 1)
          ncols = SIZE(submatrices(i)%mdata, 2)
          WRITE (colstr, *) ncols
-         formatstr = '('//TRIM(ADJUSTL(colstr))//'F16.9)'
+         formatstr = '(T2,'//TRIM(ADJUSTL(colstr))//'F16.9)'
          IF (submatrices(i)%domain > 0) THEN
-            WRITE (*, *) "SUBMATRIX: ", i, nrows, 'x', ncols
-            nrows = SIZE(submatrices(i)%mdata, 1)
-            DO irow = 1, nrows
-               WRITE (*, formatstr) submatrices(i)%mdata(irow, :)
-            END DO
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, *) " SUBMATRIX: ", i, nrows, 'x', ncols
+               nrows = SIZE(submatrices(i)%mdata, 1)
+               DO irow = 1, nrows
+                  WRITE (unit_nr, formatstr) submatrices(i)%mdata(irow, :)
+               END DO
+            END IF
          END IF
          CALL mpgroup%sync()
       END DO

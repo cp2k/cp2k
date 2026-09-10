@@ -387,8 +387,9 @@ CONTAINS
 
       SELECT CASE (flag)
       CASE DEFAULT
-         WRITE (*, *) 'flag =', flag
-         CPABORT("Wrong option passed")
+         CALL cp_abort(__LOCATION__, &
+                       "<trans>, <volume> are supported as the <flag> for mc_move_update, "// &
+                       "found unknown option <"//TRIM(flag)//">")
       CASE ("trans")
 
 ! we need to update all the displacements for every molecule type

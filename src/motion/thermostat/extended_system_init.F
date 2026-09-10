@@ -793,7 +793,6 @@ CONTAINS
             DO j = 1, nhc%nhc_len
                icount = icount + 1
                nhc%nvt(j, i)%v = array_of_rn(icount)
-               ! WRITE ( *, * ) 'VEL', para_env%mepos, i,j, nhc%nvt(j,i)%v
                nhc%nvt(j, i)%eta = 0.0_dp
             END DO
          END DO
@@ -909,7 +908,6 @@ CONTAINS
             IF (debug_isotropic_limit) THEN
                npt(j, i)%v = 0.0_dp
                npt(i, j)%v = 0.0_dp
-               WRITE (*, *) 'DEBUG ISOTROPIC LIMIT| INITIAL v_eps', npt(j, i)%v
             END IF
          END DO
       END DO

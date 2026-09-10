@@ -911,6 +911,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'init_rho_atom'
 
+      CHARACTER(LEN=4)                                   :: my_ikind, my_la, my_llmax
       INTEGER :: handle, ikind, il, iso, iso1, iso2, l1, l1l2, l2, la, lc1, lc2, lcleb, ll, llmax, &
          lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, maxl, maxlgto, maxs, mm, mp, na, nat, &
          natom, nr, nspins, quadrature
@@ -1023,12 +1024,16 @@ CONTAINS
          grid_atom%nr = nr
 
          IF (llmax > la) THEN
-            WRITE (*, '(/,72("*"))')
-            WRITE (*, '(T2,A,T66,I4)') &
-               "WARNING: the lebedev grid is built for angular momentum l up to ", la, &
-               "         the max l of spherical harmonics is larger, l_max = ", llmax, &
-               "         good integration is guaranteed only for l <= ", la
-            WRITE (*, '(72("*"),/)')
+            IF (para_env%is_source()) THEN
+               WRITE (my_la, "(I4)") la
+               WRITE (my_ikind, "(I4)") ikind
+               WRITE (my_llmax, "(I4)") llmax
+               CALL cp_warn(__LOCATION__, &
+                            "The Lebedev grid has been built for angular momentum l up "// &
+                            "to "//TRIM(my_la)//" for atom kind "//TRIM(my_ikind)//", "// &
+                            "but the max l of spherical harmonics "//TRIM(my_llmax)//" is "// &
+                            "larger and good integration cannot be guaranteed")
+            END IF
          END IF
 
 !     *** calculate the radial grid ***
