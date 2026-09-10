@@ -10,6 +10,7 @@ MODULE mltfftsg_tools
    USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
                                               C_LOC
    USE fft_kinds,                       ONLY: dp
+   USE mathconstants,                   ONLY: twopi
 
 !$ USE OMP_LIB, ONLY: omp_get_num_threads, omp_get_thread_num
 
@@ -3514,7 +3515,7 @@ CONTAINS
          ctrig_length, 4, 4, 4, 4, 4, 1], [7, nt])
 
       INTEGER                                            :: i, itt, j
-      REAL(dp)                                           :: angle, twopi
+      REAL(dp)                                           :: angle
 
       mloop: DO i = 1, nt
          IF (n == idata(1, i)) THEN
@@ -3531,10 +3532,11 @@ CONTAINS
             EXIT mloop
          END IF
          IF (i == nt) THEN
-            WRITE (*, '(A,i5,A)') " Value of ", n, &
-               " not allowed for fft, allowed values are:"
-            WRITE (*, '(15i5)') (idata(1, j), j=1, nt)
-            CPABORT('ctrig')
+            ! WRITE (*, '(A,i5,A)') " Value of ", n, &
+            !    " not allowed for fft, allowed values are:"
+            ! WRITE (*, '(15i5)') (idata(1, j), j=1, nt)
+            CALL cp_abort(__LOCATION__, &
+                          "Value of n not supported for ctrig in mltfftsg")
          END IF
       END DO mloop
 
@@ -3545,7 +3547,6 @@ CONTAINS
          before(ic - i + 1) = before(ic - i + 2)*now(ic - i + 2)
       END DO
 
-      twopi = 8._dp*ATAN(1._dp)
       angle = isign*twopi/REAL(n, dp)
       trig(1, 1) = 1._dp
       trig(2, 1) = 0._dp
