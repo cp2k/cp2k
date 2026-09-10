@@ -423,7 +423,7 @@ RUN ./test_manual.sh "${{ADD_EDIT_LINKS}}" 2>&1 | tee report.log
 # ======================================================================================
 def precommit() -> str:
     return rf"""
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 # Install dependencies.
 WORKDIR /opt/cp2k-precommit
@@ -453,7 +453,7 @@ RUN ./test_{name}.sh 2>&1 | tee report.log
 # ======================================================================================
 def test_without_build(name: str) -> str:
     return rf"""
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 # Install dependencies.
 WORKDIR /opt/cp2k

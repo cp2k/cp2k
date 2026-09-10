@@ -245,20 +245,19 @@ __attribute__((reqd_work_group_size(WG, 1, 1)))
 __attribute__((intel_reqd_sub_group_size(SG)))
 #endif
 #endif
-kernel void
-dbm_multiply(double alpha, int itask, int ntasks, int size, int param_format,
-             CONSTANT const int *restrict params,
+kernel void dbm_multiply(double alpha, int itask, int ntasks, int size,
+                         int param_format, CONSTANT const int *restrict params,
 /* CLINEAR swaps a/b in the signature so that the host's
    fixed arg order (adata=arg6, bdata=arg7) transposes
    the access pattern for coalesced memory reads. */
 #if !defined(CLINEAR)
-             CONSTANT const double *restrict a,
-             CONSTANT const double *restrict b,
+                         CONSTANT const double *restrict a,
+                         CONSTANT const double *restrict b,
 #else
-             CONSTANT const double *restrict b,
-             CONSTANT const double *restrict a,
+                         CONSTANT const double *restrict b,
+                         CONSTANT const double *restrict a,
 #endif
-             global double *restrict c) {
+                         global double *restrict c) {
 #if defined(SM) && (0 < SM)
   local TYPE tls[WG][BN + SM - 1];
   local TYPE *restrict const cvec = &tls[get_local_id(0)][0];
