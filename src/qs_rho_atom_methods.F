@@ -16,6 +16,7 @@ MODULE qs_rho_atom_methods
                                               gapw_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_p_type
+   USE gaunt_coefficients,              ONLY: real_gaunt_coefficients
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
@@ -55,9 +56,6 @@ MODULE qs_rho_atom_methods
    USE sap_kind_types,                  ONLY: alist_pre_align_blk,&
                                               alist_type,&
                                               get_alist
-   USE spherical_harmonics,             ONLY: clebsch_gordon,&
-                                              clebsch_gordon_deallocate,&
-                                              clebsch_gordon_init
    USE util,                            ONLY: get_limit
    USE whittaker,                       ONLY: whittaker_c0a,&
                                               whittaker_ci
@@ -911,12 +909,12 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'init_rho_atom'
 
-      INTEGER :: handle, ikind, il, iso, iso1, iso2, l1, l1l2, l2, la, lc1, lc2, lcleb, ll, llmax, &
-         lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, maxl, maxlgto, maxs, mm, mp, na, nat, &
-         natom, nr, nspins, quadrature
+      INTEGER                                            :: handle, ikind, la, ll, llmax, &
+                                                            lmax_sphere, max_s_harm, max_s_set, &
+                                                            maxl, maxlgto, maxs, na, nat, natom, &
+                                                            nr, nspins, quadrature
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: paw_atom
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rga
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG
       TYPE(gapw_control_type), POINTER                   :: gapw_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
@@ -946,61 +944,8 @@ CONTAINS
       max_s_harm = nsoset(llmax)
       max_s_set = nsoset(maxlgto)
 
-      lcleb = MAX(llmax, 2*maxlgto, 1)
-
-!   *** allocate calculate the CG coefficients up to the maxl ***
-      CALL clebsch_gordon_init(lcleb)
-      CALL reallocate(my_CG, 1, max_s_set, 1, max_s_set, 1, max_s_harm)
-
-      ALLOCATE (rga(lcleb, 2))
-      DO lc1 = 0, maxlgto
-         DO iso1 = nsoset(lc1 - 1) + 1, nsoset(lc1)
-            l1 = indso(1, iso1)
-            m1 = indso(2, iso1)
-            DO lc2 = 0, maxlgto
-               DO iso2 = nsoset(lc2 - 1) + 1, nsoset(lc2)
-                  l2 = indso(1, iso2)
-                  m2 = indso(2, iso2)
-                  CALL clebsch_gordon(l1, m1, l2, m2, rga)
-                  IF (l1 + l2 > llmax) THEN
-                     l1l2 = llmax
-                  ELSE
-                     l1l2 = l1 + l2
-                  END IF
-                  mp = m1 + m2
-                  mm = m1 - m2
-                  IF (m1*m2 < 0 .OR. (m1*m2 == 0 .AND. (m1 < 0 .OR. m2 < 0))) THEN
-                     mp = -ABS(mp)
-                     mm = -ABS(mm)
-                  ELSE
-                     mp = ABS(mp)
-                     mm = ABS(mm)
-                  END IF
-                  DO lp = MOD(l1 + l2, 2), l1l2, 2
-                     il = lp/2 + 1
-                     IF (ABS(mp) <= lp) THEN
-                     IF (mp >= 0) THEN
-                        iso = nsoset(lp - 1) + lp + 1 + mp
-                     ELSE
-                        iso = nsoset(lp - 1) + lp + 1 - ABS(mp)
-                     END IF
-                     my_CG(iso1, iso2, iso) = rga(il, 1)
-                     END IF
-                     IF (mp /= mm .AND. ABS(mm) <= lp) THEN
-                     IF (mm >= 0) THEN
-                        iso = nsoset(lp - 1) + lp + 1 + mm
-                     ELSE
-                        iso = nsoset(lp - 1) + lp + 1 - ABS(mm)
-                     END IF
-                     my_CG(iso1, iso2, iso) = rga(il, 2)
-                     END IF
-                  END DO
-               END DO ! iso2
-            END DO ! lc2
-         END DO ! iso1
-      END DO ! lc1
-      DEALLOCATE (rga)
-      CALL clebsch_gordon_deallocate()
+!   *** calculate the Gaunt coefficients up to the maxl ***
+      CALL real_gaunt_coefficients(my_CG, maxlgto, maxlgto, llmax)
 
 !   *** initialize the Lebedev grids ***
       CALL init_lebedev_grids()

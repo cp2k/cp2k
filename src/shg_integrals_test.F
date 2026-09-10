@@ -23,6 +23,7 @@ MODULE shg_integrals_test
                                               operator_verfc,&
                                               operator_vgauss
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE gaunt_coefficients,              ONLY: real_gaunt_coefficients
    USE generic_os_integrals,            ONLY: int_operators_r12_ab_os,&
                                               int_overlap_ab_os,&
                                               int_overlap_aba_os,&
@@ -35,8 +36,7 @@ MODULE shg_integrals_test
                                               int_ra2m_ab_shg
    USE generic_shg_integrals_init,      ONLY: contraction_matrix_shg,&
                                               contraction_matrix_shg_mix,&
-                                              contraction_matrix_shg_rx2m,&
-                                              get_clebsch_gordon_coefficients
+                                              contraction_matrix_shg_rx2m
    USE input_cp2k_subsys,               ONLY: create_basis_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -724,7 +724,8 @@ CONTAINS
          ddmax_overlap_aba = 0.0_dp
          dmax_overlap_abb = 0.0_dp
          ddmax_overlap_abb = 0.0_dp
-         CALL get_clebsch_gordon_coefficients(cg_coeff, cg_none0_list, ncg_none0, maxl_orb, maxl_ri)
+         CALL real_gaunt_coefficients(cg_coeff, maxl_orb, maxl_ri, maxl_orb + maxl_ri, &
+                                      cg_none0_list=cg_none0_list, ncg_none0=ncg_none0)
          nab = SIZE(rab, 2)
          IF (test_overlap_aba) THEN
             DO irep = 1, nrep

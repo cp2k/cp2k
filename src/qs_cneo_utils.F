@@ -18,13 +18,8 @@ MODULE qs_cneo_utils
                                               gto_basis_set_type
    USE kinds,                           ONLY: dp
    USE memory_utilities,                ONLY: reallocate
-   USE orbital_pointers,                ONLY: indso,&
-                                              nsoset
    USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                               harmonics_atom_type
-   USE spherical_harmonics,             ONLY: clebsch_gordon,&
-                                              clebsch_gordon_deallocate,&
-                                              clebsch_gordon_init
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -36,80 +31,9 @@ MODULE qs_cneo_utils
 
    ! *** Public subroutines ***
    PUBLIC :: atom_solve_cneo, cneo_gather, cneo_scatter, create_harmonics_atom_cneo, &
-             create_my_CG_cneo, get_maxl_CG_cneo
+             get_maxl_CG_cneo
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Mostly copied from qs_rho_atom_methods::init_rho_atom
-!> \param my_CG ...
-!> \param lcleb ...
-!> \param maxl ...
-!> \param llmax ...
-! **************************************************************************************************
-   SUBROUTINE create_my_CG_cneo(my_CG, lcleb, maxl, llmax)
-
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: my_CG
-      INTEGER, INTENT(IN)                                :: lcleb, maxl, llmax
-
-      INTEGER                                            :: il, iso, iso1, iso2, l1, l1l2, l2, lc1, &
-                                                            lc2, lp, m1, m2, mm, mp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rga
-
-!   *** allocate calculate the CG coefficients up to the maxl ***
-      CALL clebsch_gordon_init(lcleb)
-
-      ALLOCATE (rga(lcleb, 2))
-      DO lc1 = 0, maxl
-         DO iso1 = nsoset(lc1 - 1) + 1, nsoset(lc1)
-            l1 = indso(1, iso1)
-            m1 = indso(2, iso1)
-            DO lc2 = 0, maxl
-               DO iso2 = nsoset(lc2 - 1) + 1, nsoset(lc2)
-                  l2 = indso(1, iso2)
-                  m2 = indso(2, iso2)
-                  CALL clebsch_gordon(l1, m1, l2, m2, rga)
-                  IF (l1 + l2 > llmax) THEN
-                     l1l2 = llmax
-                  ELSE
-                     l1l2 = l1 + l2
-                  END IF
-                  mp = m1 + m2
-                  mm = m1 - m2
-                  IF (m1*m2 < 0 .OR. (m1*m2 == 0 .AND. (m1 < 0 .OR. m2 < 0))) THEN
-                     mp = -ABS(mp)
-                     mm = -ABS(mm)
-                  ELSE
-                     mp = ABS(mp)
-                     mm = ABS(mm)
-                  END IF
-                  DO lp = MOD(l1 + l2, 2), l1l2, 2
-                     il = lp/2 + 1
-                     IF (ABS(mp) <= lp) THEN
-                     IF (mp >= 0) THEN
-                        iso = nsoset(lp - 1) + lp + 1 + mp
-                     ELSE
-                        iso = nsoset(lp - 1) + lp + 1 - ABS(mp)
-                     END IF
-                     my_CG(iso1, iso2, iso) = rga(il, 1)
-                     END IF
-                     IF (mp /= mm .AND. ABS(mm) <= lp) THEN
-                     IF (mm >= 0) THEN
-                        iso = nsoset(lp - 1) + lp + 1 + mm
-                     ELSE
-                        iso = nsoset(lp - 1) + lp + 1 - ABS(mm)
-                     END IF
-                     my_CG(iso1, iso2, iso) = rga(il, 2)
-                     END IF
-                  END DO
-               END DO ! iso2
-            END DO ! lc2
-         END DO ! iso1
-      END DO ! lc1
-      DEALLOCATE (rga)
-      CALL clebsch_gordon_deallocate()
-
-   END SUBROUTINE create_my_CG_cneo
 
 ! **************************************************************************************************
 !> \brief Mostly copied from qs_harmonics_atom::create_harmonics_atom

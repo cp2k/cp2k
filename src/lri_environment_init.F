@@ -22,10 +22,10 @@ MODULE lri_environment_init
                                               Golze2017b,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
+   USE gaunt_coefficients,              ONLY: real_gaunt_coefficients
    USE generic_shg_integrals,           ONLY: int_overlap_aba_shg
    USE generic_shg_integrals_init,      ONLY: contraction_matrix_shg,&
-                                              contraction_matrix_shg_mix,&
-                                              get_clebsch_gordon_coefficients
+                                              contraction_matrix_shg_mix
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -171,10 +171,10 @@ CONTAINS
       IF ((ri_type == "LRI") .OR. (ri_type == "P_LRI")) THEN
          ! CG coefficients needed for lri integrals
          IF (ASSOCIATED(lri_env%cg_shg)) THEN
-            CALL get_clebsch_gordon_coefficients(lri_env%cg_shg%cg_coeff, &
-                                                 lri_env%cg_shg%cg_none0_list, &
-                                                 lri_env%cg_shg%ncg_none0, &
-                                                 maxl_orb, maxl_ri)
+            CALL real_gaunt_coefficients(lri_env%cg_shg%cg_coeff, &
+                                         maxl_orb, maxl_ri, maxl_orb + maxl_ri, &
+                                         cg_none0_list=lri_env%cg_shg%cg_none0_list, &
+                                         ncg_none0=lri_env%cg_shg%ncg_none0)
          END IF
          CALL lri_basis_init(lri_env)
          ! distant pair approximation

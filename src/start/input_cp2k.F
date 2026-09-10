@@ -205,7 +205,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CLEBSCH_GORDON", variants=["CLEBSCH"], &
-                          description="Tests the Clebsch-Gordon Coefficients. "// &
+                          description="Tests the Gaunt coefficients of the spherical harmonics. "// &
                           "Tests are repeated the given number of times.", &
                           usage="clebsch_gordon 10", default_i_val=0)
 

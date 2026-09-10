@@ -442,6 +442,15 @@ endif()
 # BLAS & LAPACK, PkgConfig
 find_package(Lapack REQUIRED) # also calls find_package(BLAS)
 
+# Exact angular momentum algebra (Wigner symbols, Gaunt coefficients). CP2K
+# bundles libwignernj in src/wignernj and compiles it into the CP2K library
+# whenever no installed copy is found, so this is never a hard requirement.
+option(CP2K_USE_BUNDLED_LIBWIGNERNJ
+       "Always build the bundled copy of libwignernj in src/wignernj" OFF)
+if(NOT CP2K_USE_BUNDLED_LIBWIGNERNJ)
+  find_package(Libwignernj)
+endif()
+
 # in practice it is always for any decent configuration. But I add a flags to
 # turn it off
 if(CP2K_USE_MPI)
@@ -1223,6 +1232,13 @@ endif()
 
 if(CP2K_USE_VORI)
   message("  - Libvori\n" "    - Libraries: ${CP2K_LIBVORI_LINK_LIBRARIES}\n")
+endif()
+
+if(CP2K_LIBWIGNERNJ_FOUND)
+  message("  - Libwignernj\n"
+          "    - Libraries: ${CP2K_LIBWIGNERNJ_LINK_LIBRARIES}\n")
+else()
+  message("  - Libwignernj\n" "    - Using the bundled copy in src/wignernj\n")
 endif()
 
 if(CP2K_USE_ELPA)
