@@ -555,7 +555,6 @@ list(
   qs_cneo_types.F
   qs_cneo_utils.F
   qs_collocate_density.F
-  qs_commutators.F
   qs_condnum.F
   qs_core_energies.F
   qs_core_hamiltonian.F
