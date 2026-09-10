@@ -171,7 +171,7 @@ static void collocate_internal(
   memset(cab, 0, cab_size * sizeof(double));
 
   grid_cpu_prepare_pab(func, o1, o2, la_max, la_min, lb_max, lb_min, zeta, zetb,
-                       n1, n2, pab, n1_cab, n2_cab, (double(*)[n1_cab])cab);
+                       n1, n2, pab, n1_cab, n2_cab, (double (*)[n1_cab])cab);
   cab_to_grid(orthorhombic, border_mask, la_max_cab, la_min_cab, lb_max_cab,
               lb_min_cab, zeta, zetb, rscale, dh, dh_inv, ra, rab, npts_global,
               npts_local, shift_local, border_width, radius, cab, grid);

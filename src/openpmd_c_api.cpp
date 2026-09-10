@@ -454,8 +454,8 @@ constexpr auto access_c_to_cxx(openPMD_Access access) -> openPMD::Access {
 }
 
 template <typename... Args>
-auto Series_create(openPMD_Series *series_param,
-                   Args &&...constructor_args) -> int {
+auto Series_create(openPMD_Series *series_param, Args &&...constructor_args)
+    -> int {
   auto series = reinterpret_cast<openPMD::Series **>(series_param);
   try {
     *series = new openPMD::Series(std::forward<Args>(constructor_args)...);
