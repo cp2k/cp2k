@@ -194,7 +194,7 @@ CONTAINS
 
       INTEGER                                            :: cell_grid_dm(3), first_ikp_local, &
                                                             handle, i_dim, i_kp, ispin, jquad, &
-                                                            nspins_P_omega, periodic(3)
+                                                            nao, nspins_P_omega, periodic(3)
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wkp_V
       TYPE(cell_type), POINTER                           :: cell
@@ -204,11 +204,19 @@ CONTAINS
 
       ALLOCATE (fm_mo_coeff_occ(nspins), fm_mo_coeff_virt(nspins))
 
-      CALL cp_fm_create(fm_scaled_dm_occ_tau, mo_coeff(1)%matrix_struct)
+      CALL cp_fm_get_info(mo_coeff(1), nrow_global=nao)
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, template_fmstruct=mo_coeff(1)%matrix_struct, &
+                               nrow_global=nao, ncol_global=nao)
+
+      ! The propagator is an AO matrix, even when the MO coefficient matrix is
+      ! rectangular because linearly dependent overlap states were removed.
+      CALL cp_fm_create(fm_scaled_dm_occ_tau, fm_struct)
       CALL cp_fm_set_all(fm_scaled_dm_occ_tau, 0.0_dp)
 
-      CALL cp_fm_create(fm_scaled_dm_virt_tau, mo_coeff(1)%matrix_struct)
+      CALL cp_fm_create(fm_scaled_dm_virt_tau, fm_struct)
       CALL cp_fm_set_all(fm_scaled_dm_virt_tau, 0.0_dp)
+      CALL cp_fm_struct_release(fm_struct)
 
       DO ispin = 1, SIZE(mo_coeff)
          CALL create_occ_virt_mo_coeffs(fm_mo_coeff_occ(ispin), fm_mo_coeff_virt(ispin), mo_coeff(ispin), &
@@ -403,9 +411,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_occ_virt_mo_coeffs'
 
-      INTEGER                                            :: handle, icol_global, irow_global
+      INTEGER                                            :: handle, icol_global, irow_global, nao
 
       CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(mo_coeff, nrow_global=nao)
 
       CALL cp_fm_create(fm_mo_coeff_occ, mo_coeff%matrix_struct)
       CALL cp_fm_set_all(fm_mo_coeff_occ, 0.0_dp)
@@ -413,7 +423,7 @@ CONTAINS
 
       ! set all virtual MO coeffs to zero
       DO icol_global = homo + 1, nmo
-         DO irow_global = 1, nmo
+         DO irow_global = 1, nao
             CALL cp_fm_set_element(fm_mo_coeff_occ, irow_global, icol_global, 0.0_dp)
          END DO
       END DO
@@ -424,7 +434,7 @@ CONTAINS
 
       ! set all occupied MO coeffs to zero
       DO icol_global = 1, homo
-         DO irow_global = 1, nmo
+         DO irow_global = 1, nao
             CALL cp_fm_set_element(fm_mo_coeff_virt, irow_global, icol_global, 0.0_dp)
          END DO
       END DO
