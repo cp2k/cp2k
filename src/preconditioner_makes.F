@@ -27,7 +27,8 @@ MODULE preconditioner_makes
                                               cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert
-   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
+   USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
+                                              cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
@@ -60,11 +61,12 @@ MODULE preconditioner_makes
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE input_constants,                 ONLY: &
-        cholesky_inverse, cholesky_reduce, ot_precond_fermi_low_rank, ot_precond_full_all, &
-        ot_precond_full_all_covariant, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_s_inverse, ot_precond_solver_default, &
-        ot_precond_solver_inv_chol
+        cholesky_inverse, cholesky_reduce, ot_low_rank_base_overlap, ot_precond_fermi_low_rank, &
+        ot_precond_full_all, ot_precond_full_all_covariant, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_s_inverse, &
+        ot_precond_solver_default, ot_precond_solver_inv_chol
    USE kinds,                           ONLY: dp
+   USE low_rank_preconditioner_model,   ONLY: low_rank_select_rank
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -77,8 +79,10 @@ MODULE preconditioner_makes
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_makes'
 
-   PUBLIC :: make_complex_full_all, make_complex_full_kinetic, make_complex_full_s_inverse, &
-             make_complex_full_single, make_complex_full_single_inverse, &
+   PUBLIC :: make_complex_fermi_low_rank, make_complex_full_all, &
+             make_complex_full_all_covariant, make_complex_full_kinetic, &
+             make_complex_full_s_inverse, make_complex_full_single, &
+             make_complex_full_single_inverse, &
              make_preconditioner_matrix
 
 CONTAINS
@@ -297,6 +301,132 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE make_complex_full_single
+
+! **************************************************************************************************
+!> \brief Build the bounded low-rank spectral inverse for a complex k-point channel.
+!> \param preconditioner_env preconditioner storage
+!> \param matrix_c0 complex active OT reference orbitals
+!> \param matrix_h complex Hermitian k-point Hamiltonian
+!> \param matrix_s complex Hermitian k-point overlap
+!> \param energy_gap denominator floor
+!> \param max_rank maximum retained complementary rank, or -1 for the full complement
+!> \param spectral_window overlap-inverse reference window
+!> \param degeneracy_tolerance relative tolerance for a rank-boundary cluster
+! **************************************************************************************************
+   SUBROUTINE make_complex_fermi_low_rank( &
+      preconditioner_env, matrix_c0, matrix_h, matrix_s, energy_gap, max_rank, &
+      spectral_window, degeneracy_tolerance)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_c0, matrix_h, matrix_s
+      REAL(KIND=dp), INTENT(IN)                          :: energy_gap
+      INTEGER, INTENT(IN)                                :: max_rank
+      REAL(KIND=dp), INTENT(IN)                          :: spectral_window, degeneracy_tolerance
+
+      INTEGER                                            :: k, max_rank_eff, n
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: active_evals, common_evals
+      TYPE(cp_cfm_type)                                  :: matrix_chc, matrix_hc0, matrix_vectors
+
+      CALL cp_cfm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
+      CPASSERT(k > 0 .AND. k <= n)
+      CPASSERT(max_rank == -1 .OR. max_rank > 0)
+      CPASSERT(spectral_window > 0.0_dp)
+      CPASSERT(degeneracy_tolerance >= 0.0_dp)
+
+      CALL cp_cfm_create(matrix_hc0, matrix_c0%matrix_struct, name='complex FERMI_LOW_RANK HC')
+      CALL cp_cfm_create(matrix_chc, matrix_c0%matrix_struct, nrow=k, ncol=k, &
+                         name='complex FERMI_LOW_RANK CHC')
+      CALL cp_cfm_create(matrix_vectors, matrix_chc%matrix_struct, &
+                         name='complex FERMI_LOW_RANK active vectors')
+      ALLOCATE (active_evals(k), common_evals(k))
+      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, matrix_h, matrix_c0, z_zero, matrix_hc0)
+      CALL cp_cfm_gemm('C', 'N', k, k, n, z_one, matrix_c0, matrix_hc0, z_zero, matrix_chc)
+      CALL cp_cfm_heevd(matrix_chc, matrix_vectors, active_evals)
+      preconditioner_env%spectral_reference = MAXVAL(active_evals)
+      common_evals(:) = preconditioner_env%spectral_reference
+
+      CALL make_complex_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, &
+                                 common_evals, energy_gap)
+      preconditioner_env%spectral_window = spectral_window
+      preconditioner_env%spectral_base_scale = 1.0_dp/spectral_window
+      preconditioner_env%spectral_max_rank = max_rank
+      max_rank_eff = max_rank
+      IF (max_rank_eff == -1) max_rank_eff = n - k
+      preconditioner_env%spectral_rank = low_rank_select_rank( &
+                                         preconditioner_env%full_evals, k, max_rank_eff, degeneracy_tolerance)
+      preconditioner_env%low_rank_base = ot_low_rank_base_overlap
+      preconditioner_env%lattice_fft_active = .FALSE.
+      preconditioner_env%in_use = ot_precond_fermi_low_rank
+      preconditioner_env%solver = ot_precond_solver_default
+
+      DEALLOCATE (common_evals, active_evals)
+      CALL cp_cfm_release(matrix_vectors)
+      CALL cp_cfm_release(matrix_chc)
+      CALL cp_cfm_release(matrix_hc0)
+
+   END SUBROUTINE make_complex_fermi_low_rank
+
+! **************************************************************************************************
+!> \brief Build the gauge-covariant FULL_ALL inverse for a complex k-point channel.
+!>
+!>        The occupied Rayleigh matrix C^H H C is diagonalized in a private complex gauge.
+!>        Both gradients and results are transformed through that gauge during application.
+!> \param preconditioner_env preconditioner storage
+!> \param matrix_c0 complex active OT reference orbitals
+!> \param matrix_h complex Hermitian k-point Hamiltonian
+!> \param matrix_s complex Hermitian k-point overlap
+!> \param energy_gap denominator floor
+! **************************************************************************************************
+   SUBROUTINE make_complex_full_all_covariant( &
+      preconditioner_env, matrix_c0, matrix_h, matrix_s, energy_gap)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_c0, matrix_h, matrix_s
+      REAL(KIND=dp), INTENT(IN)                          :: energy_gap
+
+      INTEGER                                            :: k, n
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: occupied_evals
+      TYPE(cp_cfm_type)                                  :: matrix_c_canonical, matrix_chc, &
+                                                            matrix_hc0, matrix_occ_vectors
+
+      CALL cp_cfm_get_info(matrix_c0, nrow_global=n, ncol_global=k)
+      CPASSERT(k > 0 .AND. k <= n)
+
+      CALL cp_cfm_create(matrix_hc0, matrix_c0%matrix_struct, &
+                         name='complex covariant FULL_ALL HC')
+      CALL cp_cfm_create(matrix_chc, matrix_c0%matrix_struct, nrow=k, ncol=k, &
+                         name='complex covariant FULL_ALL CHC')
+      CALL cp_cfm_create(matrix_occ_vectors, matrix_chc%matrix_struct, &
+                         name='complex covariant FULL_ALL occupied rotation')
+      CALL cp_cfm_create(matrix_c_canonical, matrix_c0%matrix_struct, &
+                         name='complex covariant FULL_ALL canonical C')
+      ALLOCATE (occupied_evals(k))
+
+      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, matrix_h, matrix_c0, z_zero, matrix_hc0)
+      CALL cp_cfm_gemm('C', 'N', k, k, n, z_one, matrix_c0, matrix_hc0, z_zero, matrix_chc)
+      CALL cp_cfm_heevd(matrix_chc, matrix_occ_vectors, occupied_evals)
+      CALL cp_cfm_gemm('N', 'N', n, k, k, z_one, matrix_c0, matrix_occ_vectors, &
+                       z_zero, matrix_c_canonical)
+
+      CALL make_complex_full_all(preconditioner_env, matrix_c_canonical, matrix_h, matrix_s, &
+                                 occupied_evals, energy_gap)
+      IF (ASSOCIATED(preconditioner_env%occ_rotation_complex)) THEN
+         CALL cp_cfm_release(preconditioner_env%occ_rotation_complex)
+         DEALLOCATE (preconditioner_env%occ_rotation_complex)
+      END IF
+      ALLOCATE (preconditioner_env%occ_rotation_complex)
+      CALL cp_cfm_create(preconditioner_env%occ_rotation_complex, matrix_occ_vectors%matrix_struct, &
+                         name='complex covariant FULL_ALL occupied rotation')
+      CALL cp_cfm_to_cfm(matrix_occ_vectors, preconditioner_env%occ_rotation_complex)
+      preconditioner_env%in_use = ot_precond_full_all_covariant
+
+      DEALLOCATE (occupied_evals)
+      CALL cp_cfm_release(matrix_c_canonical)
+      CALL cp_cfm_release(matrix_occ_vectors)
+      CALL cp_cfm_release(matrix_chc)
+      CALL cp_cfm_release(matrix_hc0)
+
+   END SUBROUTINE make_complex_full_all_covariant
 
 ! **************************************************************************************************
 !> \brief ...
