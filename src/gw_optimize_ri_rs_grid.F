@@ -7,14 +7,13 @@
 
 ! **************************************************************************************************
 !> \brief Local-environment optimizer for atom-centred real-space RI grids.
-!> \author Jan Wilhelm
+!> \par History
+!>      09.2026 created [Jan Wilhelm]
 ! **************************************************************************************************
 MODULE gw_optimize_ri_rs_grid
    USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type,&
-                                              get_cell,&
-                                              pbc,&
-                                              use_perd_none
+                                              pbc
    USE cp_lbfgs,                        ONLY: setulb
    USE gw_integrals,                    ONLY: build_3c_integral_block_ctx,&
                                               gw_3c_ctx_create,&
@@ -26,6 +25,8 @@ MODULE gw_optimize_ri_rs_grid
    USE input_constants,                 ONLY: do_potential_truncated
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: libint_potential_type
+   USE machine,                         ONLY: m_flush,&
+                                              m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom
@@ -62,11 +63,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'optimize_ri_rs_grid'
 
-      INTEGER                                            :: handle, iatom, ikind, n_variable, &
-                                                            periodic(3), unit_nr
-      INTEGER, ALLOCATABLE                               :: ao_size(:), grid_offsets(:), ri_size(:)
+      INTEGER                                            :: handle, iatom, n_variable, unit_nr
+      INTEGER, ALLOCATABLE                               :: grid_offsets(:)
       LOGICAL                                            :: successful
-      REAL(KIND=dp)                                      :: f, maximum_absolute_error
+      REAL(KIND=dp)                                      :: f, maximum_absolute_error, start_time
       REAL(KIND=dp), ALLOCATABLE                         :: g(:), lower(:), upper(:), x(:)
       TYPE(cell_type), POINTER                           :: cell
       TYPE(gw_3c_ctx_type)                               :: integral_context
@@ -75,6 +75,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
+      start_time = m_walltime()
       NULLIFY (cell, para_env, particle_set)
       cell => bs_env%ri_rs%cell
       particle_set => bs_env%ri_rs%particle_set
@@ -96,25 +97,17 @@ CONTAINS
          CPABORT("RI_RS%TIKHONOV must not be negative")
       END IF
 
-      CALL get_cell(cell, periodic=periodic)
-      IF (ANY(periodic /= use_perd_none)) THEN
+      IF (bs_env%do_periodic) THEN
          CPABORT("GRID_OPTIMIZATION currently supports nonperiodic local environments only")
       END IF
 
       unit_nr = bs_env%unit_nr
-      ALLOCATE (ao_size(SIZE(particle_set)), ri_size(SIZE(particle_set)))
-      DO iatom = 1, SIZE(particle_set)
-         ikind = particle_set(iatom)%atomic_kind%kind_number
-         CPASSERT(ASSOCIATED(bs_env%basis_set_AO(ikind)%gto_basis_set))
-         CPASSERT(ASSOCIATED(bs_env%basis_set_RI(ikind)%gto_basis_set))
-         ao_size(iatom) = bs_env%basis_set_AO(ikind)%gto_basis_set%nsgf
-         ri_size(iatom) = bs_env%basis_set_RI(ikind)%gto_basis_set%nsgf
-      END DO
-      IF (ANY(ao_size < 1) .OR. ANY(ri_size < 1)) THEN
-         CPABORT("Every atom in GRID_OPTIMIZATION needs ORB and RI_AUX functions")
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A)') 'Started RI-RS grid optimization'
+         CALL m_flush(unit_nr)
       END IF
 
-      CPASSERT(SIZE(bs_env%ri_rs%grid_cache) == SIZE(particle_set))
+      CPASSERT(SIZE(bs_env%ri_rs%grid_cache) == bs_env%n_atom)
       ALLOCATE (grid_offsets(SIZE(bs_env%ri_rs%grid_cache)))
       n_variable = 0
       DO iatom = 1, SIZE(bs_env%ri_rs%grid_cache)
@@ -128,10 +121,10 @@ CONTAINS
          potential%omega = 0.0_dp
          potential%filename = "t_c_g.dat"
          CALL gw_3c_ctx_create(integral_context, qs_env, potential, &
-                               bs_env%basis_set_AO, bs_env%basis_set_AO, bs_env%basis_set_RI)
+                               bs_env%basis_set_AO, bs_env%basis_set_AO, &
+                               bs_env%basis_set_RI)
       END BLOCK
-      CALL build_local_clusters(integral_context, particle_set, cell, ao_size, ri_size, &
-                                bs_env%ri_rs%grid_opt%cutoff_atomic_cluster, para_env, clusters)
+      CALL build_local_clusters(integral_context, bs_env, clusters)
 
       ALLOCATE (x(n_variable), g(n_variable), lower(n_variable), upper(n_variable))
       CALL pack_atom_grids(bs_env%ri_rs%grid_cache, grid_offsets, x)
@@ -144,7 +137,9 @@ CONTAINS
       IF (.NOT. successful) CPABORT("RI-RS grid optimization produced no regularized fit")
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(/,T2,A)') 'RI-RS grid optimization terminated'
+         WRITE (unit_nr, '(T2,A,T69,F10.1,A)') &
+            'RI-RS grid optimization completed, execution time:', &
+            m_walltime() - start_time, ' s'
          WRITE (unit_nr, '(T2,A,T72,ES9.1)') 'Normalized 3C error:', f
          WRITE (unit_nr, '(T2,A,T72,ES9.1)') &
             'Maximum absolute 3C error:', maximum_absolute_error
@@ -188,12 +183,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: cluster_maximum_absolute_error, &
                                                             cluster_value
       REAL(KIND=dp), ALLOCATABLE                         :: cluster_gradient(:, :)
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      cell => bs_env%ri_rs%cell
-      particle_set => bs_env%ri_rs%particle_set
       para_env => bs_env%para_env
       CALL unpack_atom_grids(coordinates, bs_env%ri_rs%grid_cache, grid_offsets)
       value = 0.0_dp
@@ -202,8 +193,7 @@ CONTAINS
       maximum_absolute_error = 0.0_dp
       valid = .TRUE.
       DO icluster = 1, SIZE(clusters)
-         CALL evaluate_local_cluster(clusters(icluster), bs_env%ri_rs%grid_cache, &
-                                     bs_env, particle_set, cell, &
+         CALL evaluate_local_cluster(clusters(icluster), bs_env, &
                                      cluster_value, cluster_gradient, &
                                      cluster_maximum_absolute_error, valid)
          IF (.NOT. valid) THEN
@@ -224,14 +214,14 @@ CONTAINS
       CALL para_env%sum(successful_clusters)
       CALL para_env%sum(all_valid)
       CALL para_env%max(maximum_absolute_error)
-      valid = successful_clusters == SIZE(particle_set) .AND. all_valid == para_env%num_pe
+      valid = successful_clusters == bs_env%n_atom .AND. all_valid == para_env%num_pe
       IF (.NOT. valid) THEN
          value = HUGE(value)
          gradient = 0.0_dp
          RETURN
       END IF
-      value = value/REAL(SIZE(particle_set), dp)
-      gradient = gradient/REAL(SIZE(particle_set), dp)
+      value = value/REAL(bs_env%n_atom, dp)
+      gradient = gradient/REAL(bs_env%n_atom, dp)
    END SUBROUTINE grid_objective
 
 ! **************************************************************************************************
@@ -316,42 +306,51 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Build local clusters and precompute exact (mu nu|P) values on their owning rank.
 !> \param context Three-centre-integral evaluation context.
-!> \param particle_set Atomic positions and kinds.
-!> \param cell Simulation cell.
-!> \param ao_size Number of orbital basis functions on each atom.
-!> \param ri_size Number of auxiliary basis functions on each atom.
-!> \param cutoff Radius of each atom-centred local cluster.
-!> \param para_env MPI environment used to distribute cluster ownership.
-!> \param clusters Rank-local clusters and their exact three-centre integrals.
+!> \param bs_env GW environment containing basis, geometry, parallel, and grid data.
+!> \param clusters Rank-local clusters and their exact source-basis three-centre integrals.
 ! **************************************************************************************************
-   SUBROUTINE build_local_clusters(context, particle_set, cell, ao_size, ri_size, cutoff, &
-                                   para_env, clusters)
+   SUBROUTINE build_local_clusters(context, bs_env, clusters)
       TYPE(gw_3c_ctx_type), INTENT(IN)                   :: context
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(cell_type), POINTER                           :: cell
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: ao_size, ri_size
-      REAL(KIND=dp), INTENT(IN)                          :: cutoff
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(local_cluster_type), ALLOCATABLE, INTENT(OUT) :: clusters(:)
 
-      INTEGER                                            :: center, ia, iatom, ja, jatom, ka, katom, &
-                                                            n_ao, n_cluster, n_ri
+      INTEGER                                            :: center, ia, iatom, ikind, ja, jatom, ka, &
+                                                            katom, n_ao, n_cluster, n_optimized, &
+                                                            n_ri
       INTEGER, ALLOCATABLE                               :: ao_offset(:), atom_buffer(:), &
-                                                            ri_offset(:)
+                                                            ri_offset(:), ri_size(:)
       LOGICAL                                            :: screened
+      REAL(KIND=dp)                                      :: cutoff
+      REAL(KIND=dp), ALLOCATABLE                         :: optimized_block(:, :, :)
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(gw_3c_ws_type)                                :: workspace
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
+      cell => bs_env%ri_rs%cell
+      para_env => bs_env%para_env
+      particle_set => bs_env%ri_rs%particle_set
+      cutoff = bs_env%ri_rs%grid_opt%cutoff_atomic_cluster
+      ALLOCATE (ri_size(bs_env%n_atom))
+      DO iatom = 1, bs_env%n_atom
+         ikind = particle_set(iatom)%atomic_kind%kind_number
+         CPASSERT(ASSOCIATED(bs_env%basis_set_RI(ikind)%gto_basis_set))
+         ri_size(iatom) = bs_env%basis_set_RI(ikind)%gto_basis_set%nsgf
+      END DO
+      IF (ANY(bs_env%sizes_AO < 1) .OR. ANY(ri_size < 1)) THEN
+         CPABORT("Every atom in GRID_OPTIMIZATION needs ORB and RI_AUX functions")
+      END IF
       n_cluster = COUNT([(MOD(center - 1, para_env%num_pe) == para_env%mepos, &
-                          center=1, SIZE(particle_set))])
-      ALLOCATE (clusters(n_cluster), atom_buffer(SIZE(particle_set)), &
-                ao_offset(SIZE(particle_set)), ri_offset(SIZE(particle_set)))
+                          center=1, bs_env%n_atom)])
+      ALLOCATE (clusters(n_cluster), atom_buffer(bs_env%n_atom), &
+                ao_offset(bs_env%n_atom), ri_offset(bs_env%n_atom))
       CALL gw_3c_ws_create(workspace, context)
       n_cluster = 0
-      DO center = 1, SIZE(particle_set)
+      DO center = 1, bs_env%n_atom
          IF (MOD(center - 1, para_env%num_pe) /= para_env%mepos) CYCLE
          n_cluster = n_cluster + 1
          ia = 0
-         DO iatom = 1, SIZE(particle_set)
+         DO iatom = 1, bs_env%n_atom
             IF (SUM(pbc(particle_set(iatom)%r - particle_set(center)%r, cell)**2) <= cutoff**2) THEN
                ia = ia + 1
                atom_buffer(ia) = iatom
@@ -366,7 +365,7 @@ CONTAINS
             iatom = clusters(n_cluster)%atoms(ia)
             ao_offset(iatom) = n_ao
             ri_offset(iatom) = n_ri
-            n_ao = n_ao + ao_size(iatom)
+            n_ao = n_ao + bs_env%sizes_AO(iatom)
             n_ri = n_ri + ri_size(iatom)
          END DO
          ALLOCATE (clusters(n_cluster)%three_center(n_ao, n_ao, n_ri), source=0.0_dp)
@@ -376,14 +375,26 @@ CONTAINS
                katom = clusters(n_cluster)%atoms(ka)
                DO ja = 1, SIZE(clusters(n_cluster)%atoms)
                   jatom = clusters(n_cluster)%atoms(ja)
-                  CALL build_3c_integral_block_ctx( &
-                     clusters(n_cluster)%three_center, context, workspace, &
-                     atom_j=jatom, atom_k=katom, atom_i=iatom, &
-                     j_offset=ao_offset(jatom), k_offset=ao_offset(katom), &
-                     i_offset=ri_offset(iatom), screened=screened)
+                  CALL build_3c_integral_block_ctx(clusters(n_cluster)%three_center, &
+                                                   context, workspace, &
+                                                   atom_j=jatom, atom_k=katom, atom_i=iatom, &
+                                                   j_offset=ao_offset(jatom), k_offset=ao_offset(katom), &
+                                                   i_offset=ri_offset(iatom), screened=screened)
                END DO
             END DO
          END DO
+         ! Zero auxiliary columns contribute neither to the objective nor its derivatives.
+         n_optimized = COUNT([(ANY(clusters(n_cluster)%three_center(:, :, ia) /= 0.0_dp), ia=1, n_ri)])
+         IF (n_optimized < n_ri) THEN
+            ALLOCATE (optimized_block(n_ao, n_ao, n_optimized))
+            n_optimized = 0
+            DO ia = 1, n_ri
+               IF (.NOT. ANY(clusters(n_cluster)%three_center(:, :, ia) /= 0.0_dp)) CYCLE
+               n_optimized = n_optimized + 1
+               optimized_block(:, :, n_optimized) = clusters(n_cluster)%three_center(:, :, ia)
+            END DO
+            CALL MOVE_ALLOC(optimized_block, clusters(n_cluster)%three_center)
+         END IF
       END DO
       CALL gw_3c_ws_release(workspace)
    END SUBROUTINE build_local_clusters
@@ -391,22 +402,16 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Evaluate one complete cluster and return derivatives for its physical grid points.
 !> \param cluster Local atoms and exact three-centre integrals.
-!> \param grids Atom-centred RI-RS grids.
 !> \param bs_env GW environment containing orbital basis sets and RI-RS parameters.
-!> \param particle_set Atomic positions and kinds.
-!> \param cell Simulation cell.
 !> \param value Normalized squared three-centre-integral error.
 !> \param gradient Derivative with respect to the cluster's physical grid coordinates.
 !> \param maximum_absolute_error Largest absolute three-centre-integral error.
 !> \param successful Whether the regularized fitting equations were solved.
 ! **************************************************************************************************
-   SUBROUTINE evaluate_local_cluster(cluster, grids, bs_env, particle_set, cell, &
-                                     value, gradient, maximum_absolute_error, successful)
+   SUBROUTINE evaluate_local_cluster(cluster, bs_env, value, gradient, &
+                                     maximum_absolute_error, successful)
       TYPE(local_cluster_type), INTENT(IN)               :: cluster
-      TYPE(rirs_grid_type), DIMENSION(:), INTENT(IN)     :: grids
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(cell_type), POINTER                           :: cell
       REAL(KIND=dp), INTENT(OUT)                         :: value
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: gradient(:, :)
       REAL(KIND=dp), INTENT(OUT)                         :: maximum_absolute_error
@@ -415,13 +420,17 @@ CONTAINS
       INTEGER                                            :: ao_offset, ia, iatom, ikind, n_ao, &
                                                             n_atom_ao, n_grid, point_offset
       REAL(KIND=dp), ALLOCATABLE                         :: dphi(:, :, :), phi(:, :), points(:, :)
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(gto_basis_set_type), POINTER                  :: basis
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
+      cell => bs_env%ri_rs%cell
+      particle_set => bs_env%ri_rs%particle_set
       n_ao = SIZE(cluster%three_center, 1)
       n_grid = 0
       DO ia = 1, SIZE(cluster%atoms)
          iatom = cluster%atoms(ia)
-         n_grid = n_grid + SIZE(grids(iatom)%raw_points, 2)
+         n_grid = n_grid + SIZE(bs_env%ri_rs%grid_cache(iatom)%raw_points, 2)
       END DO
       ALLOCATE (points(3, n_grid), phi(n_grid, n_ao), &
                 dphi(3, n_grid, n_ao), gradient(3, n_grid))
@@ -430,10 +439,12 @@ CONTAINS
       point_offset = 0
       DO ia = 1, SIZE(cluster%atoms)
          iatom = cluster%atoms(ia)
-         points(:, point_offset + 1:point_offset + SIZE(grids(iatom)%raw_points, 2)) = &
-            SPREAD(particle_set(iatom)%r, 2, SIZE(grids(iatom)%raw_points, 2)) + &
-            grids(iatom)%raw_points
-         point_offset = point_offset + SIZE(grids(iatom)%raw_points, 2)
+         points(:, point_offset + 1:point_offset + &
+                SIZE(bs_env%ri_rs%grid_cache(iatom)%raw_points, 2)) = &
+            SPREAD(particle_set(iatom)%r, 2, &
+                   SIZE(bs_env%ri_rs%grid_cache(iatom)%raw_points, 2)) + &
+            bs_env%ri_rs%grid_cache(iatom)%raw_points
+         point_offset = point_offset + SIZE(bs_env%ri_rs%grid_cache(iatom)%raw_points, 2)
       END DO
       ao_offset = 0
       DO ia = 1, SIZE(cluster%atoms)
@@ -441,10 +452,10 @@ CONTAINS
          ikind = particle_set(iatom)%atomic_kind%kind_number
          basis => bs_env%basis_set_AO(ikind)%gto_basis_set
          n_atom_ao = basis%nsgf
-         CALL evaluate_ao_basis_on_points( &
-            phi(:, ao_offset + 1:ao_offset + n_atom_ao), points, basis, &
-            particle_set(iatom)%r, cell, &
-            dphi=dphi(:, :, ao_offset + 1:ao_offset + n_atom_ao))
+         CALL evaluate_ao_basis_on_points(phi(:, ao_offset + 1:ao_offset + n_atom_ao), &
+                                          points, basis, &
+                                          particle_set(iatom)%r, cell, &
+                                          dphi=dphi(:, :, ao_offset + 1:ao_offset + n_atom_ao))
          ao_offset = ao_offset + n_atom_ao
       END DO
       CALL evaluate_rirs_grid_cluster(phi, dphi, cluster%three_center, bs_env%ri_rs%tikhonov, &
