@@ -50,7 +50,7 @@
 
 # Authors: Matthias Krack (MK)
 
-# Version: 2.3
+# Version: 2.4
 
 # Facilitate the deugging of this script
 set -uo pipefail
@@ -129,6 +129,7 @@ else
 fi
 
 # Default values
+ASE_VERSION=""
 BENCHMARK_PROFILE=""
 BUILD_DEPS="if_needed"
 BUILD_DEPS_ONLY="no"
@@ -164,6 +165,7 @@ RUN_BENCHMARK="no"
 RUN_TEST="no"
 SED_PATTERN_LIST=""
 TESTOPTS=""
+TEST_ASE="no"
 TEST_COVERAGE="no"
 TEST_GROMACS="no"
 USE_CACHE="folder"
@@ -180,8 +182,9 @@ export CP2K_ROOT=${CP2K_ROOT:-${PWD}}
 export CP2K_VERSION="${CP2K_VERSION:-psmp}"
 
 # Retrieve CP2K revision if folder is a git repository
-if git -C "${CP2K_ROOT}" rev-parse --short HEAD; then
-  CP2K_REVISION="$(git -C "${CP2K_ROOT}" rev-parse --short HEAD)"
+if CP2K_REVISION=$(git -C "${CP2K_ROOT}" rev-parse --short HEAD 2> /dev/null); then
+  # Git succeeded, CP2K_REVISION is already set
+  :
 else
   CP2K_REVISION="unknown"
 fi
@@ -192,6 +195,15 @@ export INSTALL_PREFIX="${INSTALL_PREFIX:-${CP2K_ROOT}/install}"
 # Parse flags
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    -ase)
+      if (($# > 1)); then
+        ASE_VERSION="${2}"
+      else
+        echo "ERROR: No ASE version (branch or tag name) found for flag \"${1}\""
+        ${EXIT_CMD} 1
+      fi
+      shift 2
+      ;;
     -bd | --build_deps | --build_dependencies)
       BUILD_DEPS="always"
       shift 1
@@ -622,6 +634,10 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
+    -ta | --test_ase)
+      TEST_ASE="yes"
+      shift 1
+      ;;
     -tc | --test_coverage)
       TEST_COVERAGE="yes"
       shift 1
@@ -740,6 +756,11 @@ if [[ ${TEST_GROMACS} == "yes" ]]; then
   GROMACS_VERSION=${GROMACS_VERSION:-v2026.3}
 fi
 
+# Set default ASE version if ASE/CP2K testing is requested
+if [[ ${TEST_ASE} == "yes" ]]; then
+  ASE_VERSION=${ASE_VERSION:-master}
+fi
+
 # Perform setup for coding conventions check
 if [[ "${CHECK_CONVENTIONS}" == "yes" ]]; then
   if [[ "${CP2K_VERSION}" != "psmp" ]]; then
@@ -776,16 +797,17 @@ if [[ "${TEST_COVERAGE}" == "yes" ]]; then
   TESTOPTS+=" --ompthreads=1 --keepalive"
 fi
 
-export BENCHMARK_PROFILE BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CHECK_CONVENTIONS CMAKE_FEATURE_FLAGS \
+export ASE_VERSION BENCHMARK_PROFILE BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CHECK_CONVENTIONS CMAKE_FEATURE_FLAGS \
   CMAKE_FEATURE_FLAGS_GPU CP2K_BUILD_TYPE CP2K_REVISION CRAY CUDA_SM_CODE DEPS_BUILD_TYPE Fortran_COMPILER_LAUNCHER \
   GCC_VERSION GPU_MODEL GROMACS_VERSION IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PACKAGES NUM_PROCS \
-  REBUILD_CP2K RUN_BENCHMARK RUN_TEST TEST_COVERAGE TEST_GROMACS TESTOPTS USE_CACHE USE_OPENCL VERBOSE \
+  REBUILD_CP2K RUN_BENCHMARK RUN_TEST TEST_COVERAGE TEST_ASE TEST_GROMACS TESTOPTS USE_CACHE USE_OPENCL VERBOSE \
   VERBOSE_FLAG VERBOSE_MAKEFILE VERBOSE_SPACK
 
 # Show help if requested
 if [[ "${HELP}" == "yes" ]]; then
   echo ""
   echo "Usage: ${SCRIPT_NAME} [-bd | --build_deps]"
+  echo "                    [-ase ASE_VERSION]"
   echo "                    [-bd_only | --build_deps_only]"
   echo "                    [-bp | --build_path PATH]"
   echo "                    [-bsl | --build_static_libcp2k]"
@@ -807,6 +829,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-preset (native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)]"
   echo "                    [-rc | --rebuild_cp2k]"
   echo "                    [-t | --test \"TESTOPTS\"]"
+  echo "                    [-ta | --test_ase]"
   echo "                    [-tc | --test_coverage]"
   echo "                    [-tg | --test_gromacs]"
   echo "                    [-tp | --test_performance \"BENCHMARK_PROFILE\"]"
@@ -815,6 +838,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-v | --verbose]"
   echo ""
   echo "Flags:"
+  echo " -ase                  : Build CP2K ASE support"
   echo " --build_deps          : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)"
   echo " --build_deps_only     : Rebuild ONLY the CP2K dependencies from scratch (removes the spack folder)"
   echo " --build_path          : Define the CP2K build path (default: ${CP2K_ROOT})"
@@ -837,6 +861,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " -preset               : Use a CMake configure preset, see \"cmake --list-presets\" (default: native-gnu-x86_64)"
   echo " --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)"
   echo " --test                : Perform a regression test run after a successful build"
+  echo " --test_ase            : Build and test CP2K  with ASE support"
   echo " --test_coverage       : Analyse the code coverage and generate a coverage report"
   echo " --test_gromacs        : Build and test GROMACS with CP2K support"
   echo " --test_performance    : Perform a benchmark run after a successful build"
@@ -866,6 +891,9 @@ if [[ "${HELP}" == "yes" ]]; then
 fi
 
 echo ""
+if [[ -n ${ASE_VERSION} ]]; then
+  echo "ASE_VERSION         = ${ASE_VERSION}"
+fi
 echo "BUILD_DEPS          = ${BUILD_DEPS}"
 echo "BUILD_DEPS_ONLY     = ${BUILD_DEPS_ONLY}"
 echo "BUILD_PATH          = ${BUILD_PATH}"
@@ -880,7 +908,6 @@ echo "DEPS_BUILD_TYPE     = ${DEPS_BUILD_TYPE}"
 echo "GCC_VERSION         = ${GCC_VERSION}"
 if [[ -n ${GROMACS_VERSION} ]]; then
   echo "GROMACS_VERSION     = ${GROMACS_VERSION}"
-  echo "TEST_GROMACS        = ${TEST_GROMACS}"
 fi
 if ((CUDA_SM_CODE > 0)); then
   echo "GPU                 = ${GPU_MODEL} (CUDA SM code: ${CUDA_SM_CODE})"
@@ -911,7 +938,9 @@ echo "RUN_TEST            = ${RUN_TEST}"
 if [[ "${RUN_TEST}" == "yes" ]]; then
   echo "TESTOPTS            = \"${TESTOPTS}\""
 fi
+echo "TEST_ASE            = ${TEST_ASE}"
 echo "TEST_COVERAGE       = ${TEST_COVERAGE}"
+echo "TEST_GROMACS        = ${TEST_GROMACS}"
 echo "USE_CACHE           = ${USE_CACHE}"
 echo "USE_EXTERNALS       = ${USE_EXTERNALS}"
 echo "USE_OPENCL          = ${USE_OPENCL}"
@@ -1177,7 +1206,7 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
 
   # Prepare for package caching
   if [[ "${USE_CACHE}" == @("folder"|"minio") ]]; then
-    # Create the venv only once, then reuse it on a resumed dependency build.
+    # Create the venv only once, then reuse it on a resumed dependency build
     if [[ ! -x "${SPACK_BUILD_PATH}/venv/bin/python3" ]]; then
       if command -v python3 -m venv --help &> /dev/null; then
         echo "Installing virtual environment for Python packages"
@@ -1192,7 +1221,7 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
     fi
     export PATH="${SPACK_BUILD_PATH}/venv/bin:${PATH}"
 
-    # Avoid contacting PyPI again when the previously prepared venv is intact.
+    # Avoid contacting PyPI again when the previously prepared venv is intact
     if ! python3 -c 'from importlib.metadata import version; assert version("boto3") == "1.38.11"; assert version("google-cloud-storage") == "3.1.0"' &> /dev/null; then
       if ! python3 -m pip --version &> /dev/null; then
         echo "ERROR: python3 -m pip was not found"
@@ -1764,10 +1793,11 @@ cat << *** > "${LAUNCH_SCRIPT}"
 ulimit -c 0 -s unlimited
 export ASAN_OPTIONS="detect_leaks=1"
 export LSAN_OPTIONS="suppressions=${INSTALL_PREFIX}/bin/lsan.supp"
-export PATH=${INSTALL_PREFIX}/bin:${PATH}
+export PATH=${INSTALL_PREFIX}/bin:${INSTALL_PREFIX}/ase/bin:${PATH}
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-2}
 export OMP_STACKSIZE=256M
+export ASE_CONFIG_PATH=${INSTALL_PREFIX}/ase/config.ini
 ${OMPI_VARS}
 export GAUXC_SKALA_MODEL=${GAUXC_SKALA_MODEL}
 exec "\$@"
@@ -2000,14 +2030,16 @@ if [[ "${VERSION}" == "psmp" ]]; then
   fi
 fi
 
-# Build CP2K/GROMACS if requested
+# Optionally, build GROMACS/CP2K
 if [[ -n "${GROMACS_VERSION}" ]]; then
 
   # Download GROMACS
   GROMACS_ROOT="${CMAKE_BUILD_PATH}"/gromacs
   [[ -d "${GROMACS_ROOT}" ]] && rm -rf "${GROMACS_ROOT}"
   echo -e "\n*** Downloading GROMACS ${GROMACS_VERSION} ***\n"
-  git clone -c advice.detachedHead=false --depth=1 --quiet --single-branch -b "${GROMACS_VERSION}" \
+  # Spack's OpenSSL libs on LD_LIBRARY_PATH can break the system git-remote-https
+  # helper (mismatched libldap), so clone with a clean library path
+  LD_LIBRARY_PATH="" git clone -b "${GROMACS_VERSION}" -c advice.detachedHead=false --depth=1 ${VERBOSE_FLAG} --single-branch \
     https://gitlab.com/gromacs/gromacs.git "${GROMACS_ROOT}"
   cd "${GROMACS_ROOT}" || ${EXIT_CMD} 1
   GROMACS_REVISION="$(git rev-parse --short HEAD)"
@@ -2104,5 +2136,56 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
     fi
   fi
   echo ""
+
+fi
+
+# Optionally, build CP2K with ASE support
+if [[ -n "${ASE_VERSION}" ]]; then
+
+  # Download ASE
+  ASE_ROOT="${CMAKE_BUILD_PATH}"/ase
+  [[ -d "${ASE_ROOT}" ]] && rm -rf "${ASE_ROOT}"
+  echo -e "\n*** Downloading ASE ${ASE_VERSION} ***\n"
+  # Spack's OpenSSL libs on LD_LIBRARY_PATH can break the system git-remote-https
+  # helper (mismatched libldap), so clone with a clean library path
+  LD_LIBRARY_PATH="" git clone -b "${ASE_VERSION}" -c advice.detachedHead=false --depth=1 ${VERBOSE_FLAG} --single-branch \
+    https://gitlab.com/ase/ase.git "${ASE_ROOT}"
+  cd "${ASE_ROOT}" || ${EXIT_CMD} 1
+  ASE_REVISION="$(git rev-parse --short HEAD)"
+
+  # Install ASE
+  echo -e "\n*** Installing ASE ${ASE_VERSION} ***\n"
+  if ! python3 -m venv "${INSTALL_PREFIX}"/ase; then
+    echo -e "\nERROR: The creation of the virtual environment for ASE failed"
+    ${EXIT_CMD} 1
+  fi
+  export PATH="${INSTALL_PREFIX}/ase/bin:${PATH}"
+  if ! pip3 install ${VERBOSE_FLAG} ".[test]"; then
+    echo -e "\nERROR: The ASE installation (venv) failed"
+    ${EXIT_CMD} 1
+  fi
+  cat << *** > "${INSTALL_PREFIX}"/ase/config.ini
+[cp2k]
+cp2k_shell = ${INSTALL_PREFIX}/bin/cp2k_shell
+cp2k_main =  ${INSTALL_PREFIX}/bin/cp2k
+***
+
+  # Test the ASE installation
+  if [[ "${TEST_ASE}" == "yes" ]]; then
+    echo -e "\n*** Running ASE tests ***\n"
+    if [[ "${IN_CONTAINER}" == "yes" ]]; then
+      export PYTEST_DEBUG_TEMPROOT="/workspace/artifacts"
+      mkdir -p ${PYTEST_DEBUG_TEMPROOT}
+    fi
+    if ${LAUNCH_SCRIPT} ase test -j 0 -c cp2k calculator/cp2k; then
+      echo -e "\nSummary: ASE commit ${ASE_REVISION} works fine"
+      echo -e "Status: OK\n"
+      ${EXIT_CMD} 0
+    else
+      echo -e "\nSummary: Something is wrong with ASE commit ${ASE_REVISION}"
+      echo -e "Status: FAILED\n"
+      ${EXIT_CMD} 0
+    fi
+  fi
 
 fi
