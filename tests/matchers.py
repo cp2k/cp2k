@@ -412,7 +412,7 @@ registry["gext"] = GenericMatcher(r"GEXT overlap fitting error:", col=5)
 registry["E_HF_SCF_direct_gap"] = GenericMatcher(
     r"Hartree-Fock with SCF orbitals direct band gap (eV):", col=9
 )
-registry["Auto_RI_Size"] = GenericMatcher(r"AUTO_RI| Total optimized functions:", col=5)
+registry["Auto_RI_Size"] = GenericMatcher(r"Number of automatic RI functions", col=11)
 registry["RIRS_Grid"] = GenericMatcher(r"Total grid points used for RI-RS:", col=7)
 registry["RIRS_CUTOFF"] = GenericMatcher(
     r"INPUT: Cutoff radius for grid points in RI-RS", col=9
