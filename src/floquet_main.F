@@ -95,9 +95,10 @@ CONTAINS
       CALL floquet_env_create(floquet_env, bs_env)
 
       ! Equilibrium band data at every band-structure k-point k from H(k)C(k) = S(k)C(k)ε(k):
-      !   band energies    ε_nk
-      !   k-derivatives    ∇_k ε_nk = C_n(k)^† ∇_k H(k) C_n(k) - ε_nk C_n(k)^† ∇_k S(k) C_n(k)
-      !   dipoles          d_nm(k) = <ψ_nk| r |ψ_mk>
+      !   band energies:   ε_nk
+      !   k-derivatives:   ∇_k ε_nk = C_n(k)^† ∇_k H(k) C_n(k) - ε_nk C_n(k)^† ∇_k S(k) C_n(k)
+      !   off-diagonal momentum matrix elements (n ≠ m):
+      !                    p_nm(k) = - (m/ħ) (ε_nk - ε_mk) <u_nk| ∇_k |u_mk>
       ! Results are distributed across ranks (k-point ikp stored on rank MOD(ikp-1,num_pe)).
       CALL compute_e_k_de_dk_offdiagonal_momentum(qs_env, bs_env, e_k, de_dk, offdiagonal_momentum)
 
