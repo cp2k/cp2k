@@ -686,11 +686,11 @@ CONTAINS
 !> \brief Central and boundary-sector weights of every Floquet eigenvector, stored into
 !>        floquet_env%w0 and floquet_env%wE.
 !> \param floquet_env ...
-!> \param cfm_eigenvectors Floquet eigenvectors
+!> \param floquet_eigenvectors Floquet eigenvectors
 ! **************************************************************************************************
-   SUBROUTINE floquet_sector_weights(floquet_env, cfm_eigenvectors)
+   SUBROUTINE floquet_sector_weights(floquet_env, floquet_eigenvectors)
       TYPE(floquet_env_type), INTENT(INOUT)              :: floquet_env
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_eigenvectors
+      TYPE(cp_cfm_type), INTENT(IN)                      :: floquet_eigenvectors
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_sector_weights'
 
@@ -706,16 +706,16 @@ CONTAINS
       ALLOCATE (v_block(nao, n_f_size))
 
       ! Evaluate w0_α = Σ_{n=1..nao} |<n,m=0|α>|^2 (central sector)
-      CALL cp_cfm_get_submatrix(cfm_eigenvectors, v_block, 1 + nao*max_f_index, 1)
+      CALL cp_cfm_get_submatrix(floquet_eigenvectors, v_block, 1 + nao*max_f_index, 1)
       floquet_env%w0(:) = SUM(ABS(v_block)**2, DIM=1)
 
       ! Evaluate wE_α = Σ_{n=1..nao} (|<n,m=-M|α>|^2 + |<n,m=+M|α>|^2) (outermost rungs)
       floquet_env%wE(:) = 0.0_dp
       IF (max_f_index >= 1) THEN
-         CALL cp_cfm_get_submatrix(cfm_eigenvectors, v_block, 1, 1)
+         CALL cp_cfm_get_submatrix(floquet_eigenvectors, v_block, 1, 1)
          floquet_env%wE(:) = SUM(ABS(v_block)**2, DIM=1)
 
-         CALL cp_cfm_get_submatrix(cfm_eigenvectors, v_block, 1 + nao*2*max_f_index, 1)
+         CALL cp_cfm_get_submatrix(floquet_eigenvectors, v_block, 1 + nao*2*max_f_index, 1)
          floquet_env%wE(:) = floquet_env%wE(:) + SUM(ABS(v_block)**2, DIM=1)
       END IF
 

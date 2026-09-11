@@ -68,7 +68,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: e_k
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: de_dk
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      TYPE(cp_cfm_type)                                  :: cfm_eigenvectors, floquet_matrix
+      TYPE(cp_cfm_type)                                  :: floquet_eigenvectors, floquet_matrix
       TYPE(cp_fm_struct_type), POINTER                   :: floquet_struct
       TYPE(floquet_env_type)                             :: floquet_env
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
@@ -97,7 +97,7 @@ CONTAINS
       ! Equilibrium band data at every band-structure k-point k from H(k)C(k) = S(k)C(k)ε(k):
       !   band energies    ε_nk
       !   k-derivatives    ∇_k ε_nk = C_n(k)^† ∇_k H(k) C_n(k) - ε_nk C_n(k)^† ∇_k S(k) C_n(k)
-      !   dipoles          d_nm(k) = <ψ_nk| r |ψ_mk>
+      !   dipoles          d_nm(k) = i <u_nk| ∇_k |u_mk>
       ! Results are distributed across ranks (k-point ikp stored on rank MOD(ikp-1,num_pe)).
       CALL compute_e_k_de_dk_dipole(qs_env, bs_env, e_k, de_dk, dipole)
 
@@ -112,7 +112,7 @@ CONTAINS
       CALL cp_fm_struct_create(floquet_struct, context=blacs_env_sub, para_env=para_env_sub, &
                                nrow_global=floquet_env%n_f_size, ncol_global=floquet_env%n_f_size)
       CALL cp_cfm_create(floquet_matrix, floquet_struct, set_zero=.TRUE.)
-      CALL cp_cfm_create(cfm_eigenvectors, floquet_struct, set_zero=.TRUE.)
+      CALL cp_cfm_create(floquet_eigenvectors, floquet_struct, set_zero=.TRUE.)
 
       n_source_done = 0
 
@@ -135,14 +135,14 @@ CONTAINS
 
             ! Diagonalise H_F(k) F_αk = λ_αk F_αk -> quasi-energies λ_αk and eigenvector components
             ! F^{n,m}_αk = <n,m|αk> (band index n, sector m).
-            CALL cp_cfm_set_all(cfm_eigenvectors, z_zero)
-            CALL cp_cfm_heevd(floquet_matrix, cfm_eigenvectors, floquet_env%eigenvalues)
+            CALL cp_cfm_set_all(floquet_eigenvectors, z_zero)
+            CALL cp_cfm_heevd(floquet_matrix, floquet_eigenvectors, floquet_env%eigenvalues)
 
             ! Calculate sector weights,
             ! w_αk^(m) = Σ_{n=1}^{nao} |<n,m|αk>|^2 (with Σ_m w_αk^(m) = 1).
             ! Keep only the central weight w0_αk = w_αk^(0) and the outermost-rung weight
             ! wE_αk = w_αk^(-M) + w_αk^(+M)
-            CALL floquet_sector_weights(floquet_env, cfm_eigenvectors)
+            CALL floquet_sector_weights(floquet_env, floquet_eigenvectors)
 
             ! Truncation check: the m=0-dominated states (w0_αk > 1/2) must leak negligibly onto the
             ! outermost rungs, max_{α: w0_αk > 1/2} wE_αk ≤ EPS_FLOQUET, else M is too small.
@@ -184,7 +184,7 @@ CONTAINS
       DEALLOCATE (group_distribution)
       CALL floquet_env_release(floquet_env)
       CALL cp_cfm_release(floquet_matrix)
-      CALL cp_cfm_release(cfm_eigenvectors)
+      CALL cp_cfm_release(floquet_eigenvectors)
       CALL cp_fm_struct_release(floquet_struct)
       CALL cp_blacs_env_release(blacs_env_sub)
       CALL mp_para_env_release(para_env_sub)

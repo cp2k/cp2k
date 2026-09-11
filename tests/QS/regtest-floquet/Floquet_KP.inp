@@ -17,7 +17,8 @@
       CUTOFF 100
     &END MGRID
     &POISSON
-      PERIODIC XYZ
+      PERIODIC XY
+      PSOLVER ANALYTIC
     &END POISSON
     &QS
       EXTRAPOLATION USE_GUESS  ! required for K-Point sampling
