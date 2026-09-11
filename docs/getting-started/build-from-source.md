@@ -164,19 +164,21 @@ Use `./make_cp2k.sh --help` to display the complete list of options:
 
 <details>
 
-<summary>Click to see all options (version 2.1)</summary>
+<summary>Click to see all options (version 2.4)</summary>
 
 ```
 Usage: make_cp2k.sh [-bd | --build_deps]
+                    [-ase ASE_VERSION]
                     [-bd_only | --build_deps_only]
                     [-bp | --build_path PATH]
                     [-bsl | --build_static_libcp2k]
                     [-bt | --build_type (Debug | Release | RelWithDebInfo)]
+                    [-cc | --check_conventions]
                     [-cray]
                     [-cv | --cp2k_version (pdbg | psmp | sdbg | ssmp | ssmp-static)]
                     [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)
                     [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)
-                    [-gm | -gpu  | --gpu_model (<CUDA SM code> | P100 | V100 | T400 | A100 | H100 | H200 | GH200 | none)]
+                    [-gm | -gpu  | --gpu_model (<CUDA SM code> | P100 | V100 | T400 | A100 | H100 | H200 | GH200 | B200 | none)]
                     [-gromacs GROMACS_VERSION]
                     [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]
                     [-h | --help]
@@ -188,18 +190,22 @@ Usage: make_cp2k.sh [-bd | --build_deps]
                     [-preset (native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)]
                     [-rc | --rebuild_cp2k]
                     [-t | --test "TESTOPTS"]
+                    [-ta | --test_ase]
+                    [-tc | --test_coverage]
                     [-tg | --test_gromacs]
-                    [-tp | --test_performance BENCHMARK_PROFILE]
+                    [-tp | --test_performance "BENCHMARK_PROFILE"]
                     [-uc | --use_cache (folder | minio | no | none)]
                     [-ue | --use_externals]
                     [-v | --verbose]
 
 Flags:
+ -ase                  : Build CP2K with ASE support
  --build_deps          : Force a rebuild of all CP2K dependencies from scratch (removes the spack folder)
  --build_deps_only     : Rebuild ONLY the CP2K dependencies from scratch (removes the spack folder)
  --build_path          : Define the CP2K build path (default: ${CP2K_ROOT})
  --build_static_libcp2k: Build a static CP2K library libcp2k.a instead of the default shared one libcp2k.so
  --build_type          : Set preferred CMake build type for CP2K (default: "Release")
+ --check_conventions   : Check compliance with CP2K's coding conventions
  --cp2k_version        : CP2K version to be built (default: "psmp")
  -cray                 : Use Cray specific spack configuration
  --enable_feature      : Enable feature or package (default: all)
@@ -212,10 +218,12 @@ Flags:
  -j                    : Maximum number of processes used in parallel
  --mpi_mode            : Set preferred MPI mode (default: "mpich")
  --num_packages        : Maximum number of packages built by spack in parallel (default: 4)
- -opencl               : Perform build with OpenCL support
- -preset               : Use a CMake configure preset, see \"cmake --list-presets\" (default: native-gnu-x86_64)"
+ -opencl               : Enable the use of the Open Computing Language (OpenCL)
+ -preset               : Use a CMake configure preset, see "cmake --list-presets" (default: native-gnu-x86_64)
  --rebuild_cp2k        : Rebuild CP2K: removes the build folder (default: no)
  --test                : Perform a regression test run after a successful build
+ --test_ase            : Build and test CP2K with ASE support
+ --test_coverage       : Analyse the code coverage and generate a coverage report
  --test_gromacs        : Build and test GROMACS with CP2K support
  --test_performance    : Perform a benchmark run after a successful build
  --use_cache           : Use a "folder", a "MinIO" object storage container (requires podman) or "no" cache
