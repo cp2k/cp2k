@@ -2964,12 +2964,14 @@ CONTAINS
 !> \param berry_c berry curvature calculated using Ω^γ_n = Σ_m 2*Im[d^α_nm (d^β_mn)*]
 !> \param do_parallel option to distribute the result in dipole across
 !>        different MPI ranks
+!> \param compute_momentum option to calculate the momentum matrix elements
+!>        instead of the dipole matrix elements
 !> \author Shridhar Shanbhag
 ! **************************************************************************************************
-   SUBROUTINE qs_moment_kpoints_deep(qs_env, xkp, dipole, rcc, berry_c, do_parallel)
+   SUBROUTINE qs_moment_kpoints_deep(qs_env, xkp, dipole, rcc, berry_c, do_parallel, compute_momentum)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, OPTIONAL                                  :: do_parallel
-      LOGICAL                                            :: my_do_parallel, calc_bc
+      LOGICAL, OPTIONAL                                  :: do_parallel, compute_momentum
+      LOGICAL                                            :: my_do_parallel, my_compute_momentum, calc_bc
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_moment_kpoints_deep'
       COMPLEX(KIND=dp)                                   :: phase, tmp_max
       COMPLEX(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: C_k, H_k, S_k, D_k, CDC, C_dH_C, &
@@ -3006,8 +3008,10 @@ CONTAINS
       CALL timeset(routineN, handle)
       calc_bc = PRESENT(berry_c)
       my_do_parallel = .FALSE.
+      my_compute_momentum = .FALSE.
       my_rcc = 0.0_dp
       IF (PRESENT(do_parallel)) my_do_parallel = do_parallel
+      IF (PRESENT(compute_momentum)) my_compute_momentum = compute_momentum
       IF (PRESENT(rcc)) my_rcc = rcc
 
       CALL get_qs_env(qs_env, &
@@ -3063,7 +3067,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(ikp, S_k, H_k, eigenvals, C_k, ispin, n, m, &
 !$OMP i_dir, dS_dk_i, dH_dk_i, D_k, dip, bc, C_dS_C, C_dH_C, CDC, tmp_max, phase) &
 !$OMP SHARED(num_pe, mepos, dipole, berry_c, nao, nspin, periodic, &
-!$OMP nkp, xkp, S_rs, H_rs, D_rs, index_to_cell_all, hmat, calc_bc)
+!$OMP nkp, xkp, S_rs, H_rs, D_rs, index_to_cell_all, hmat, my_compute_momentum, calc_bc)
       ALLOCATE (dS_dk_i(nao, nao), C_dS_C(nao, nao), dH_dk_i(nao, nao), C_dH_C(nao, nao), source=z_zero)
       ALLOCATE (CDC(nao, nao), dip(3, nao, nao), S_k(nao, nao), H_k(nao, nao), source=z_zero)
       ALLOCATE (C_k(nao, nao), D_k(nao, nao), source=z_zero)
@@ -3121,6 +3125,11 @@ CONTAINS
                      dip(i_dir, n, m) = -gaussi*C_dH_C(n, m)/(eigenvals(n) - eigenvals(m)) &
                                         + gaussi*eigenvals(n)*C_dS_C(n, m)/(eigenvals(n) - eigenvals(m)) &
                                         + CDC(n, m)
+                     ! dip now contains momentum matrix elements instead
+                     IF (my_compute_momentum) THEN
+                        dip(i_dir, n, m) = C_dH_C(n, m) - eigenvals(n)*C_dS_C(n, m) &
+                                           + gaussi*CDC(n, m)*(eigenvals(n) - eigenvals(m))
+                     END IF
                   END DO
                END DO
             END DO
@@ -3138,7 +3147,7 @@ CONTAINS
                   END DO
                END DO
             END IF
-            ! Store the dipoles and berry curvature for each MPI rank
+            ! Store the dipoles (or momentum if compute_momentum == .TRUE.) and berry curvature for each MPI rank
             dipole(ispin, CEILING(REAL(ikp)/num_pe), :, :, :) = dip(:, :, :)
             IF (calc_bc) berry_c(ispin, CEILING(REAL(ikp)/num_pe), :, :) = bc(:, :)
          END DO

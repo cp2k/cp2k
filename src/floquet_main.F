@@ -28,8 +28,8 @@ MODULE floquet_main
                                               floquet_env_type
    USE floquet_utils,                   ONLY: &
         build_floquet_matrix, calculate_floquet_observables, check_floquet_convergence, &
-        compute_e_k_de_dk_dipole, distribute_floquet_kp_data, floquet_sector_weights, &
-        make_floquet_subgroups, write_floquet_header, write_floquet_results
+        compute_e_k_de_dk_offdiagonal_momentum, distribute_floquet_kp_data, &
+        floquet_sector_weights, make_floquet_subgroups, write_floquet_header, write_floquet_results
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_zero
    USE message_passing,                 ONLY: mp_para_env_release,&
@@ -61,7 +61,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'floquet'
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :, :)                        :: dipole
+         DIMENSION(:, :, :, :, :)                        :: offdiagonal_momentum
       INTEGER                                            :: handle, ikp, ispin, my_group, &
                                                             n_est_done, n_source_done, ngroups
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_distribution
@@ -99,7 +99,7 @@ CONTAINS
       !   k-derivatives    ∇_k ε_nk = C_n(k)^† ∇_k H(k) C_n(k) - ε_nk C_n(k)^† ∇_k S(k) C_n(k)
       !   dipoles          d_nm(k) = <ψ_nk| r |ψ_mk>
       ! Results are distributed across ranks (k-point ikp stored on rank MOD(ikp-1,num_pe)).
-      CALL compute_e_k_de_dk_dipole(qs_env, bs_env, e_k, de_dk, dipole)
+      CALL compute_e_k_de_dk_offdiagonal_momentum(qs_env, bs_env, e_k, de_dk, offdiagonal_momentum)
 
       ! Split the global communicator into Floquet subgroups (Hamiltonian distributed within each
       ! subgroup, k-points distributed across subgroups) and create the subgroup BLACS context.
@@ -124,7 +124,7 @@ CONTAINS
             ! Broadcast this k-point/spin's ε_nk, ∇_k ε_nk and d_nm(k) to every rank of the
             ! owning subgroup (its owner rank holds them from the distributed precompute above).
             CALL distribute_floquet_kp_data(para_env, para_env_sub, ispin, ikp, e_k, de_dk, &
-                                            dipole, floquet_env)
+                                            offdiagonal_momentum, floquet_env)
 
             ! Assemble H_F(k) in Sambe space (blocks m,m' = -M..M, each nao×nao)
             !  diagonal      (H_F)^{m,m}_{nn'}   = (ε_nk + m ħΩ) δ_{nn'}
@@ -180,7 +180,7 @@ CONTAINS
       ! respective files
       CALL write_floquet_results(bs_env, floquet_env)
 
-      DEALLOCATE (e_k, de_dk, dipole)
+      DEALLOCATE (e_k, de_dk, offdiagonal_momentum)
       DEALLOCATE (group_distribution)
       CALL floquet_env_release(floquet_env)
       CALL cp_cfm_release(floquet_matrix)
