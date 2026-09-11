@@ -1683,9 +1683,9 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: handle, max_nmo, maxmom, moments_format, &
                                                             moments_unit_nr, reference, unit_nr
-      LOGICAL                                            :: com_nl, do_kg, do_kpoints, magnetic, &
-                                                            new_file, periodic, second_ref_point, &
-                                                            vel_reprs
+      LOGICAL                                            :: com_nl, do_kg, do_kpoints, do_soc, &
+                                                            magnetic, new_file, periodic, &
+                                                            second_ref_point, vel_reprs
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -1716,6 +1716,8 @@ CONTAINS
                                   keyword_name="DFT%PRINT%MOMENTS%KG")
          max_nmo = section_get_ival(section_vals=input, &
                                     keyword_name="DFT%PRINT%MOMENTS%MAX_NMO")
+         do_soc = section_get_lval(section_vals=input, &
+                                   keyword_name="DFT%PRINT%MOMENTS%SOC")
 
          NULLIFY (ref_point)
          CALL section_vals_val_get(input, "DFT%PRINT%MOMENTS%REF_POINT", r_vals=ref_point)
@@ -1751,7 +1753,8 @@ CONTAINS
          END IF
 
          IF (do_kpoints) THEN
-            CALL qs_moment_kpoints(qs_env, maxmom, reference, ref_point, max_nmo, moments_unit_nr)
+            CALL qs_moment_kpoints(qs_env, maxmom, reference, ref_point, max_nmo, moments_unit_nr, &
+                                   do_soc)
          ELSE
             IF (periodic) THEN
                CALL qs_moment_berry_phase(qs_env, magnetic, maxmom, reference, ref_point, moments_unit_nr)
@@ -1792,7 +1795,8 @@ CONTAINS
             END IF
             IF (moments_format /= moments_format_trajectory) moments_unit_nr = unit_nr
             IF (do_kpoints) THEN
-               CALL qs_moment_kpoints(qs_env, maxmom, reference, ref_point, max_nmo, moments_unit_nr)
+               CALL qs_moment_kpoints(qs_env, maxmom, reference, ref_point, max_nmo, moments_unit_nr, &
+                                   do_soc)
             ELSE
                IF (periodic) THEN
                   CALL qs_moment_berry_phase(qs_env, magnetic, maxmom, reference, ref_point, moments_unit_nr)

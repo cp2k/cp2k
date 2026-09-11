@@ -1352,6 +1352,18 @@ CONTAINS
                           type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SOC", &
+                          description="Compute the k-point dipole matrix elements and Berry "// &
+                          "curvature with spin-orbit coupling (SOC) included, in the 2*n_ao "// &
+                          "spinor basis. Requires pseudopotential SOC parameters and an explicit "// &
+                          "KPOINT_SET/KPOINTS (the interband sum-rule / deep path).", &
+                          usage="SOC .TRUE.", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL create_kpoint_set_section(subsection)
       CALL section_add_subsection(print_key, subsection)
       CALL section_release(subsection)

@@ -119,6 +119,7 @@ MODULE qs_moments
                            qs_rho_type
    USE rt_propagation_types, ONLY: get_rtp, &
                                    rt_prop_type
+   USE soc_pseudopotential_methods, ONLY: V_SOC_xyz_from_pseudopotential
    USE cp_parser_methods, ONLY: read_float_object
    USE input_section_types, ONLY: section_vals_get, &
                                   section_vals_get_subs_vals, &
@@ -3334,6 +3335,302 @@ CONTAINS
    END SUBROUTINE qs_moment_kpoints_deep
 
 ! **************************************************************************************************
+!> \brief Add the spin-orbit coupling operator V^SOC(k) = sigma . V(k) (or its k-derivative) to a
+!>        2*nao spinor matrix. The real-space components VSOC_rs store V^SOC without the imaginary
+!>        unit (real, antisymmetric), so the physical Hermitian component is W_c = i*V_c(k). The
+!>        Pauli placement mirrors H_KS_spinor_kp in post_scf_bandstructure_utils.F:
+!>        uu += W_z ; dd += -W_z ; ud += W_x + i*W_y ; du += W_x - i*W_y.
+!> \param mat_spinor 2*nao spinor matrix to be updated in place
+!> \param VSOC_rs real-space SOC images, dim (3=xyz, nao, nao, n_img)
+!> \param index_to_cell image-cell coordinates
+!> \param xkp k-point
+!> \param nao number of atomic orbitals (block size)
+!> \param deriv_direction optional cartesian direction for the k-derivative of V^SOC
+!> \param hmat cell matrix, required for the derivative
+!> \author Shridhar Shanbhag
+! **************************************************************************************************
+   SUBROUTINE add_VSOC_to_spinor(mat_spinor, VSOC_rs, index_to_cell, xkp, nao, &
+                                 deriv_direction, hmat)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: mat_spinor
+      REAL(KIND=dp), DIMENSION(:, :, :, :), INTENT(IN)   :: VSOC_rs
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
+      INTEGER, INTENT(IN)                                :: nao
+      INTEGER, INTENT(IN), OPTIONAL                      :: deriv_direction
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN), &
+         OPTIONAL                                        :: hmat
+
+      COMPLEX(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: Vx, Vy, Vz
+      INTEGER                                            :: s
+
+      s = nao + 1
+      ALLOCATE (Vx(nao, nao), Vy(nao, nao), Vz(nao, nao), source=z_zero)
+
+      IF (PRESENT(deriv_direction)) THEN
+         CALL rs_to_kp(VSOC_rs(1, :, :, :), Vx, index_to_cell, xkp, deriv_direction, hmat)
+         CALL rs_to_kp(VSOC_rs(2, :, :, :), Vy, index_to_cell, xkp, deriv_direction, hmat)
+         CALL rs_to_kp(VSOC_rs(3, :, :, :), Vz, index_to_cell, xkp, deriv_direction, hmat)
+      ELSE
+         CALL rs_to_kp(VSOC_rs(1, :, :, :), Vx, index_to_cell, xkp)
+         CALL rs_to_kp(VSOC_rs(2, :, :, :), Vy, index_to_cell, xkp)
+         CALL rs_to_kp(VSOC_rs(3, :, :, :), Vz, index_to_cell, xkp)
+      END IF
+
+      ! physical component operators W_c = i * V_c (VSOC_rs stores V without the imaginary unit)
+      Vx(:, :) = gaussi*Vx(:, :)
+      Vy(:, :) = gaussi*Vy(:, :)
+      Vz(:, :) = gaussi*Vz(:, :)
+
+      mat_spinor(1:nao, 1:nao) = mat_spinor(1:nao, 1:nao) + Vz(:, :)
+      mat_spinor(s:2*nao, s:2*nao) = mat_spinor(s:2*nao, s:2*nao) - Vz(:, :)
+      mat_spinor(1:nao, s:2*nao) = mat_spinor(1:nao, s:2*nao) + Vx(:, :) + gaussi*Vy(:, :)
+      mat_spinor(s:2*nao, 1:nao) = mat_spinor(s:2*nao, 1:nao) + Vx(:, :) - gaussi*Vy(:, :)
+
+      DEALLOCATE (Vx, Vy, Vz)
+
+   END SUBROUTINE add_VSOC_to_spinor
+
+! **************************************************************************************************
+!> \brief Calculate interband k-point dipoles d_ab(k) with spin-orbit coupling (SOC) in the
+!>        2*nao spinor basis, via the length-gauge sum rule. SOC enters both the Hamiltonian and
+!>        the velocity operator (the k-derivative of V^SOC is included). Mirrors
+!>        qs_moment_kpoints_deep but promoted to spinor space; the two spin channels are merged
+!>        into 2*nao spinor bands (returned with spin dimension 1).
+!> \param qs_env ...
+!> \param xkp k-points at which the dipoles are evaluated
+!> \param dipole output dipoles, dim (1, k copy, 3, 2*nao, 2*nao)
+!> \param rcc reference point for the local dipole operator (interband dipoles are origin-independent)
+!> \param berry_c optional SOC Berry curvature, dim (1, k copy, 3, 2*nao)
+!> \param do_parallel distribute k-points over MPI ranks
+!> \author Shridhar Shanbhag
+! **************************************************************************************************
+   SUBROUTINE qs_moment_kpoints_deep_soc(qs_env, xkp, dipole, rcc, berry_c, do_parallel)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: xkp
+      COMPLEX(KIND=dp), DIMENSION(:, :, :, :, :), &
+         ALLOCATABLE                                     :: dipole
+      REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: rcc
+      REAL(KIND=dp), DIMENSION(:, :, :, :), &
+         ALLOCATABLE, OPTIONAL                           :: berry_c
+      LOGICAL, OPTIONAL                                  :: do_parallel
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_moment_kpoints_deep_soc'
+      !REAL(KIND=dp), PARAMETER                           :: eps_degenerate = 1.0E-10_dp
+
+      COMPLEX(KIND=dp)                                   :: phase, tmp_max
+      COMPLEX(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: D_k, dHd_k, dHu_k, dS_k, Hd_k, Hu_k, &
+                                                            S_k, D2, dH2, dS2, H2, S2, W, WD2W, &
+                                                            WdH2W, WdS2W
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dip
+      INTEGER                                            :: handle, i_dir, ikp, mepos, mu, m, n, &
+                                                            n_img_all, nao, nao2, nimg, nkp, &
+                                                            nspin, num_copy, num_pe, s
+      INTEGER, DIMENSION(3)                              :: periodic
+      INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_all
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_all
+      LOGICAL                                            :: calc_bc, my_do_parallel
+      REAL(KIND=dp), DIMENSION(3)                        :: my_rcc
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: eigenvals
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: bc
+      REAL(KIND=dp), DIMENSION(:, :, :, :), ALLOCATABLE  :: D_rs, H_rs, S_rs, VSOC_rs
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_V_SOC_xyz, matrix_ks_kp, &
+                                                            matrix_s_kp, moments_rs_img
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints_all, kpoints_scf
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_all
+
+      CALL timeset(routineN, handle)
+      calc_bc = PRESENT(berry_c)
+      my_do_parallel = .FALSE.
+      my_rcc = 0.0_dp
+      IF (PRESENT(do_parallel)) my_do_parallel = do_parallel
+      IF (PRESENT(rcc)) my_rcc = rcc
+
+      NULLIFY (cell, cell_to_index_all, dft_control, index_to_cell_all, kpoints_all, &
+               kpoints_scf, mat_V_SOC_xyz, matrix_ks_kp, matrix_s_kp, moments_rs_img, mos, &
+               para_env, sab_all)
+
+      CALL get_qs_env(qs_env, &
+                      matrix_ks_kp=matrix_ks_kp, &
+                      matrix_s_kp=matrix_s_kp, &
+                      sab_all=sab_all, &
+                      cell=cell, &
+                      kpoints=kpoints_scf, &
+                      para_env=para_env, &
+                      dft_control=dft_control, &
+                      mos=mos)
+
+      CALL get_mo_set(mo_set=mos(1), nao=nao)
+      CALL get_cell(cell=cell, h=hmat, periodic=periodic)
+      nspin = SIZE(matrix_ks_kp, 1)
+      nkp = SIZE(xkp, 2)
+      nao2 = 2*nao
+      s = nao + 1
+
+      ! create kpoint environment kpoints_all which contains all neighbor cells R
+      CALL kpoint_create(kpoints_all)
+      CALL kpoint_init_cell_index(kpoints_all, sab_all, para_env, nimg)
+      CALL get_kpoint_info(kpoints_all, cell_to_index=cell_to_index_all, &
+                           index_to_cell=index_to_cell_all)
+      n_img_all = SIZE(index_to_cell_all, 2)
+
+      NULLIFY (moments_rs_img)
+      CALL dbcsr_allocate_matrix_set(moments_rs_img, 3, n_img_all)
+      ! D_mu,nu = <phi_mu|r|phi_nu>
+      CALL build_local_moment_matrix_rs_img(qs_env, moments_rs_img, rcc=my_rcc)
+
+      ! Real-space SOC operator V^SOC_c^R (c=x,y,z), stored real and antisymmetric on sab_orb.
+      ! Aborts inside if the atoms carry no pseudopotential SOC parameters.
+      CALL V_SOC_xyz_from_pseudopotential(qs_env, mat_V_SOC_xyz)
+
+      ALLOCATE (S_rs(1, nao, nao, n_img_all), H_rs(nspin, nao, nao, n_img_all), source=0.0_dp)
+      ALLOCATE (D_rs(3, nao, nao, n_img_all), VSOC_rs(3, nao, nao, n_img_all), source=0.0_dp)
+
+      ! Convert real-space dbcsr matrices into arrays (S/H on the SCF kpoints, D on kpoints_all)
+      CALL replicate_rs_matrices(matrix_s_kp, kpoints_scf, S_rs, cell_to_index_all)
+      CALL replicate_rs_matrices(matrix_ks_kp, kpoints_scf, H_rs, cell_to_index_all)
+      CALL replicate_rs_matrices(moments_rs_img, kpoints_all, D_rs, cell_to_index_all)
+      CALL replicate_rs_matrices(mat_V_SOC_xyz, kpoints_scf, VSOC_rs, cell_to_index_all)
+
+      mepos = 0
+      num_pe = 1
+      num_copy = nkp
+      IF (my_do_parallel) THEN
+         mepos = para_env%mepos
+         num_pe = para_env%num_pe
+         num_copy = CEILING(REAL(nkp)/num_pe)
+      END IF
+
+      ALLOCATE (dipole(1, num_copy, 3, nao2, nao2), source=z_zero)
+      IF (calc_bc) ALLOCATE (berry_c(1, num_copy, 3, nao2), source=0.0_dp)
+
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(ikp, i_dir, n, m, mu, tmp_max, phase, eigenvals, &
+!$OMP S_k, Hu_k, Hd_k, D_k, dS_k, dHu_k, dHd_k, S2, H2, D2, dS2, dH2, W, &
+!$OMP WdH2W, WdS2W, WD2W, dip, bc) &
+!$OMP SHARED(num_pe, mepos, dipole, berry_c, nao, nao2, s, nspin, periodic, &
+!$OMP nkp, xkp, S_rs, H_rs, D_rs, VSOC_rs, index_to_cell_all, hmat, calc_bc)
+      ALLOCATE (S_k(nao, nao), Hu_k(nao, nao), Hd_k(nao, nao), D_k(nao, nao), source=z_zero)
+      ALLOCATE (dS_k(nao, nao), dHu_k(nao, nao), dHd_k(nao, nao), source=z_zero)
+      ALLOCATE (S2(nao2, nao2), H2(nao2, nao2), D2(nao2, nao2), dS2(nao2, nao2), &
+                dH2(nao2, nao2), W(nao2, nao2), source=z_zero)
+      ALLOCATE (WdH2W(nao2, nao2), WdS2W(nao2, nao2), WD2W(nao2, nao2), source=z_zero)
+      ALLOCATE (dip(3, nao2, nao2), source=z_zero)
+      ALLOCATE (eigenvals(nao2), source=0.0_dp)
+      IF (calc_bc) ALLOCATE (bc(3, nao2), source=0.0_dp)
+!$OMP DO
+      DO ikp = 1, nkp
+         IF (MOD(ikp - 1, num_pe) /= mepos) CYCLE
+
+         ! S(k), H_up(k), H_dn(k)
+         CALL rs_to_kp(S_rs(1, :, :, :), S_k, index_to_cell_all, xkp(:, ikp))
+         CALL rs_to_kp(H_rs(1, :, :, :), Hu_k, index_to_cell_all, xkp(:, ikp))
+         CALL rs_to_kp(H_rs(nspin, :, :, :), Hd_k, index_to_cell_all, xkp(:, ikp))
+
+         ! spinor overlap S2 = blockdiag(S, S)
+         S2 = z_zero
+         S2(1:nao, 1:nao) = S_k(:, :)
+         S2(s:nao2, s:nao2) = S_k(:, :)
+
+         ! spinor Hamiltonian H2 = blockdiag(H_up, H_dn) + V^SOC(k)
+         H2 = z_zero
+         H2(1:nao, 1:nao) = Hu_k(:, :)
+         H2(s:nao2, s:nao2) = Hd_k(:, :)
+         CALL add_VSOC_to_spinor(H2, VSOC_rs, index_to_cell_all, xkp(:, ikp), nao)
+
+         ! Diagonalize H2 W = S2 W E  ->  spinor bands and AO-spinor eigenvectors
+         CALL geeig_right(H2, S2, eigenvals, W)
+
+         ! Force the largest |C_mu,n| to be real for a smooth complex phase of W(k) vs k, so that
+         ! the interband dipole d_ab(k) (and Berry curvature) are continuous in k.
+         DO n = 1, nao2
+            tmp_max = W(1, n)
+            DO mu = 1, nao2
+               IF (ABS(W(mu, n)) < ABS(tmp_max)) CYCLE
+               tmp_max = W(mu, n)
+            END DO
+            phase = tmp_max/ABS(tmp_max)
+            W(:, n) = W(:, n)/phase
+         END DO
+
+         dip = z_zero
+         DO i_dir = 1, 3 ! d^x, d^y, d^z
+
+            IF (periodic(i_dir) == 0) CYCLE
+
+            ! spinor overlap derivative dS2 = blockdiag(grad S, grad S)
+            CALL rs_to_kp(S_rs(1, :, :, :), dS_k, index_to_cell_all, xkp(:, ikp), i_dir, hmat)
+            dS2 = z_zero
+            dS2(1:nao, 1:nao) = dS_k(:, :)
+            dS2(s:nao2, s:nao2) = dS_k(:, :)
+
+            ! spinor Hamiltonian derivative dH2 = blockdiag(grad H_up, grad H_dn) + grad V^SOC
+            CALL rs_to_kp(H_rs(1, :, :, :), dHu_k, index_to_cell_all, xkp(:, ikp), i_dir, hmat)
+            CALL rs_to_kp(H_rs(nspin, :, :, :), dHd_k, index_to_cell_all, xkp(:, ikp), i_dir, hmat)
+            dH2 = z_zero
+            dH2(1:nao, 1:nao) = dHu_k(:, :)
+            dH2(s:nao2, s:nao2) = dHd_k(:, :)
+            CALL add_VSOC_to_spinor(dH2, VSOC_rs, index_to_cell_all, xkp(:, ikp), nao, i_dir, hmat)
+
+            ! spinor dipole operator D2 = blockdiag(D(k), D(k))
+            CALL rs_to_kp(D_rs(i_dir, :, :, :), D_k, index_to_cell_all, xkp(:, ikp))
+            D2 = z_zero
+            D2(1:nao, 1:nao) = D_k(:, :)
+            D2(s:nao2, s:nao2) = D_k(:, :)
+
+            ! Basis transform to the spinor eigenbasis: W^H (grad S) W, W^H (grad H) W, W^H D W
+            CALL gemm_square(W, 'C', dH2, 'N', W, 'N', WdH2W)
+            CALL gemm_square(W, 'C', dS2, 'N', W, 'N', WdS2W)
+            CALL gemm_square(W, 'C', D2, 'N', W, 'N', WD2W)
+
+            ! d_nm(k) = -i/(E_n-E_m)[W^H grad H W]_nm + i E_n/(E_n-E_m)[W^H grad S W]_nm + [W^H D W]_nm
+            ! Degenerate spinor pairs (e.g. Kramers) are skipped: the length-gauge sum rule needs
+            ! degenerate perturbation theory there (same treatment as qs_moment_kpoints_scf_mos).
+            DO n = 1, nao2
+               DO m = 1, nao2
+                  IF (n == m) CYCLE
+                  !IF (ABS(eigenvals(n) - eigenvals(m)) <= eps_degenerate) CYCLE
+                  dip(i_dir, n, m) = -gaussi*WdH2W(n, m)/(eigenvals(n) - eigenvals(m)) &
+                                     + gaussi*eigenvals(n)*WdS2W(n, m)/(eigenvals(n) - eigenvals(m)) &
+                                     + WD2W(n, m)
+               END DO
+            END DO
+         END DO
+
+         ! Berry curvature Omega^gamma_n = Sum_m 2*Im[d^alpha_nm d^beta_mn], (alpha,beta,gamma) cyclic
+         IF (calc_bc) THEN
+            bc = 0.0_dp
+            DO i_dir = 1, 3
+               DO n = 1, nao2
+                  DO m = 1, nao2
+                     IF (n == m) CYCLE
+                     bc(i_dir, n) = bc(i_dir, n) &
+                                    + 2*AIMAG(dip(1 + MOD(i_dir, 3), n, m)*dip(1 + MOD(i_dir + 1, 3), m, n))
+                  END DO
+               END DO
+            END DO
+         END IF
+
+         dipole(1, CEILING(REAL(ikp)/num_pe), :, :, :) = dip(:, :, :)
+         IF (calc_bc) berry_c(1, CEILING(REAL(ikp)/num_pe), :, :) = bc(:, :)
+      END DO
+!$OMP END DO
+      DEALLOCATE (S_k, Hu_k, Hd_k, D_k, dS_k, dHu_k, dHd_k, S2, H2, D2, dS2, dH2, W, &
+                  WdH2W, WdS2W, WD2W, dip, eigenvals)
+      IF (calc_bc) DEALLOCATE (bc)
+!$OMP END PARALLEL
+      DEALLOCATE (S_rs, H_rs, D_rs, VSOC_rs)
+      CALL dbcsr_deallocate_matrix_set(moments_rs_img)
+      CALL dbcsr_deallocate_matrix_set(mat_V_SOC_xyz)
+      CALL kpoint_release(kpoints_all)
+      CALL timestop(handle)
+   END SUBROUTINE qs_moment_kpoints_deep_soc
+
+! **************************************************************************************************
 !> \brief Calculates interband k-point dipoles in the existing SCF MO basis.
 !> \param qs_env ...
 !> \param dipole ...
@@ -3564,13 +3861,15 @@ CONTAINS
 !> \param ref_point ...
 !> \param max_nmo ...
 !> \param unit_number ...
+!> \param do_soc include spin-orbit coupling (spinor sum-rule; requires an explicit KPOINT set)
 !> \author Shridhar Shanbhag
 ! **************************************************************************************************
-   SUBROUTINE qs_moment_kpoints(qs_env, nmoments, reference, ref_point, max_nmo, unit_number)
+   SUBROUTINE qs_moment_kpoints(qs_env, nmoments, reference, ref_point, max_nmo, unit_number, do_soc)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: nmoments, reference, max_nmo
       REAL(dp), DIMENSION(:), INTENT(IN), POINTER        :: ref_point
       INTEGER, INTENT(IN)                                :: unit_number
+      LOGICAL, INTENT(IN)                                :: do_soc
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_moment_kpoints'
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp
       COMPLEX(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE  :: dipole_to_print
@@ -3578,7 +3877,7 @@ CONTAINS
          ALLOCATABLE                                     :: dipole
       INTEGER                                            :: handle, i_dir, ikp, nmo_dim, nkp, nao, &
                                                             num_pe, mepos, n, m, &
-                                                            ispin, nspin, nmin, nmax, homo
+                                                            ispin, nspin, nspin_dip, nmin, nmax, homo
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: nmo_spin_scf
       LOGICAL                                            :: explicit_kpnts, explicit_kpset, use_scf_mos
       REAL(KIND=dp), DIMENSION(3)                        :: rcc
@@ -3613,11 +3912,29 @@ CONTAINS
       CALL section_vals_get(kpnts, explicit=explicit_kpnts)
       use_scf_mos = .NOT. explicit_kpset .AND. .NOT. explicit_kpnts
 
+      IF (do_soc .AND. use_scf_mos) THEN
+         CALL cp_abort(__LOCATION__, "MOMENTS with SOC requires an explicit KPOINT_SET or "// &
+                       "KPOINTS section (the interband sum-rule / deep path).")
+      END IF
+
       IF (unit_number > 0) WRITE (unit_number, FMT="(/,T2,A)") &
          '!-----------------------------------------------------------------------------!'
       IF (unit_number > 0) WRITE (unit_number, "(T22,A)") "Periodic Dipole Matrix Elements"
+      IF (unit_number > 0 .AND. do_soc) WRITE (unit_number, "(T20,A)") &
+         "with Spin-Orbit Coupling (spinor bands)"
 
-      IF (use_scf_mos) THEN
+      nspin_dip = nspin
+      IF (do_soc) THEN
+         ! spinor sum-rule: SOC merges the two spin channels into 2*nao spinor bands
+         CALL qs_moment_kpoints_deep_soc(qs_env, &
+                                         xkp, &
+                                         dipole, &
+                                         rcc, &
+                                         berry_c, &
+                                         do_parallel=.TRUE.)
+         nmo_dim = 2*nao
+         nspin_dip = 1
+      ELSE IF (use_scf_mos) THEN
          CALL qs_moment_kpoints_scf_mos(qs_env, dipole, rcc, nmo_spin_scf)
          nmo_dim = SIZE(dipole, 4)
          ALLOCATE (berry_c(nspin, nkp, 3, nmo_dim), source=0.0_dp)
@@ -3652,13 +3969,20 @@ CONTAINS
       num_pe = para_env%num_pe
 
       DO ikp = 1, nkp
-         DO ispin = 1, nspin
-            CALL get_mo_set(mo_set=mos(ispin), homo=homo)
+         DO ispin = 1, nspin_dip
+            IF (do_soc) THEN
+               ! spinor HOMO = number of occupied spin-up + spin-down states (mirrors SOC_ev)
+               CALL get_mo_set(mo_set=mos(1), homo=homo)
+               CALL get_mo_set(mo_set=mos(nspin), homo=n)
+               homo = homo + n
+            ELSE
+               CALL get_mo_set(mo_set=mos(ispin), homo=homo)
+            END IF
             nmin = max(1, homo - (max_nmo - 1)/2)
-            nmax = min(nao, homo + max_nmo/2)
+            nmax = min(nmo_dim, homo + max_nmo/2)
             IF (max_nmo == 0) THEN
                nmin = 1
-               nmax = nao
+               nmax = nmo_dim
             END IF
             IF (use_scf_mos) THEN
                nmax = min(nmax, nmo_spin_scf(ispin))
@@ -3681,7 +4005,8 @@ CONTAINS
                   "Special point: ", ADJUSTL(TRIM(special_pnts(ikp)))
                WRITE (unit_number, "(/,1X,A,I3,1X,3(A,1F12.6))") &
                   "Kpoint:", ikp, ", kx:", xkp(1, ikp), ", ky:", xkp(2, ikp), ", kz:", xkp(3, ikp)
-               IF (nspin > 1) WRITE (unit_number, "(/,2X,A,I2)") "Open Shell System. Spin:", ispin
+               IF (nspin > 1 .AND. .NOT. do_soc) WRITE (unit_number, "(/,2X,A,I2)") &
+                  "Open Shell System. Spin:", ispin
                WRITE (unit_number, "(2X,A)") "  kp   n   m  Re(dx_nm)  Im(dx_nm) &
                & Re(dy_nm)  Im(dy_nm)  Re(dz_nm)  Im(dz_nm)"
                DO n = nmin, nmax
