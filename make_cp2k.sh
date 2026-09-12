@@ -2044,6 +2044,12 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
   cd "${GROMACS_ROOT}" || ${EXIT_CMD} 1
   GROMACS_REVISION="$(git rev-parse --short HEAD)"
 
+  # GROMACS always requests MPI_THREAD_FUNNELED regardless of GMX_MPI/GMX_THREAD_MPI,
+  # but CP2K now requires MPI_THREAD_MULTIPLE when attaching to an already-initialized
+  # MPI environment
+  sed -E -e 's/MPI_Init_thread\(argc, argv, MPI_THREAD_FUNNELED,/MPI_Init_thread(argc, argv, MPI_THREAD_MULTIPLE,/' \
+    -i src/gromacs/utility/init.cpp
+
   # CMake configuration step for GROMACS
   GROMACS_BUILD_PATH="${GROMACS_ROOT}"/build
   mkdir -p "${GROMACS_BUILD_PATH}"
