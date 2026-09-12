@@ -1,0 +1,195 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT blue_moon_difference
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    SHAKE_TOLERANCE 1.0E-12
+    &COLLECTIVE
+      COLVAR 5
+      INTERMOLECULAR TRUE
+      TARGET [angstrom] -1.0
+    &END COLLECTIVE
+    &LAGRANGE_MULTIPLIERS ON
+      COMMON_ITERATION_LEVELS 1
+      FILENAME =distance_difference.LagrangeMultLog
+    &END LAGRANGE_MULTIPLIERS
+  &END CONSTRAINT
+  &FREE_ENERGY
+    METHOD METADYN
+    &METADYN
+      DO_HILLS F
+      &METAVAR
+        COLVAR 1
+        SCALE 1.0
+      &END METAVAR
+      &METAVAR
+        COLVAR 2
+        SCALE 1.0
+      &END METAVAR
+      &METAVAR
+        COLVAR 3
+        SCALE 1.0
+      &END METAVAR
+      &METAVAR
+        COLVAR 4
+        SCALE 1.0
+      &END METAVAR
+      &METAVAR
+        COLVAR 5
+        SCALE 1.0
+      &END METAVAR
+      &PRINT
+        &COLVAR
+          FILENAME =distance_difference.metadynLog
+        &END COLVAR
+      &END PRINT
+    &END METADYN
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVE
+    STEPS 32
+    TEMPERATURE 300
+    TIMESTEP 0.25
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      FILENAME =distance_difference.xyz
+      FORMAT XYZ
+      &EACH
+        MD 1
+      &END EACH
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM C
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM O
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS C C
+          EPSILON 0.0
+          RCUT 8.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS C H
+          EPSILON 0.0
+          RCUT 8.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS C O
+          EPSILON 0.0
+          RCUT 8.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS H H
+          EPSILON 0.0
+          RCUT 8.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS H O
+          EPSILON 0.0
+          RCUT 8.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS O O
+          EPSILON 0.0
+          RCUT 8.0
+          SIGMA 1.0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      PERIODIC NONE
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 30 30 30
+      PERIODIC NONE
+    &END CELL
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 2
+      &END DISTANCE
+    &END COLVAR
+    &COLVAR
+      &DISTANCE
+        ATOMS 3 2
+      &END DISTANCE
+    &END COLVAR
+    &COLVAR
+      &ANGLE
+        ATOMS 1 2 3
+      &END ANGLE
+    &END COLVAR
+    &COLVAR
+      &DISTANCE_FUNCTION
+        ATOMS 1 2 3 2
+        COEFFICIENT -1
+      &END DISTANCE_FUNCTION
+    &END COLVAR
+    &COLVAR
+      &COMBINE_COLVAR
+        FUNCTION R1-R2
+        VARIABLES R1 R2
+        &COLVAR
+          &DISTANCE
+            ATOMS 1 2
+          &END DISTANCE
+        &END COLVAR
+        &COLVAR
+          &DISTANCE
+            ATOMS 3 2
+          &END DISTANCE
+        &END COLVAR
+      &END COMBINE_COLVAR
+    &END COLVAR
+    &COORD
+      C 12 10 10
+      H 10 10 10
+      O 10 13 10
+    &END COORD
+    &KIND C
+      MASS 12.0
+    &END KIND
+    &KIND H
+      MASS 1.0
+    &END KIND
+    &KIND O
+      MASS 16.0
+    &END KIND
+    &TOPOLOGY
+      CONN_FILE_FORMAT OFF
+    &END TOPOLOGY
+    &VELOCITY
+      -0.00016551724137931 0.00011724137931034 0.0001
+      -0.00016551724137931 -0.000082758620689655 0.0
+      0.00013448275862069 -0.000082758620689655 -0.000075
+    &END VELOCITY
+  &END SUBSYS
+&END FORCE_EVAL
