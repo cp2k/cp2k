@@ -687,9 +687,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_dm_global'
       REAL(KIND=dp), PARAMETER                           :: stabilize_exp = 70.0_dp
 
-      INTEGER                                            :: handle, i_global, iiB, iquad, jjB, &
-                                                            ncol_local, nrow_local, size_dm_occ, &
-                                                            size_dm_virt
+      INTEGER                                            :: handle, i_global, iiB, iquad, jjB, nao, &
+                                                            ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: tau
 
@@ -734,6 +733,7 @@ CONTAINS
 
          ! get info of fm_mo_coeff_occ
          CALL cp_fm_get_info(matrix=fm_mo_coeff_occ, &
+                             nrow_global=nao, &
                              nrow_local=nrow_local, &
                              ncol_local=ncol_local, &
                              row_indices=row_indices, &
@@ -784,14 +784,11 @@ CONTAINS
 
          CALL para_env%sync()
 
-         size_dm_occ = nmo
-         size_dm_virt = nmo
-
-         CALL parallel_gemm(transa="N", transb="T", m=size_dm_occ, n=size_dm_occ, k=nmo, alpha=1.0_dp, &
+         CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo, alpha=1.0_dp, &
                             matrix_a=fm_mo_coeff_occ_scaled, matrix_b=fm_mo_coeff_occ_scaled, beta=0.0_dp, &
                             matrix_c=fm_scaled_dm_occ_tau)
 
-         CALL parallel_gemm(transa="N", transb="T", m=size_dm_virt, n=size_dm_virt, k=nmo, alpha=1.0_dp, &
+         CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo, alpha=1.0_dp, &
                             matrix_a=fm_mo_coeff_virt_scaled, matrix_b=fm_mo_coeff_virt_scaled, beta=0.0_dp, &
                             matrix_c=fm_scaled_dm_virt_tau)
 
