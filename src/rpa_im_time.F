@@ -13,11 +13,15 @@
 MODULE rpa_im_time
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
+                                              cp_cfm_scale
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
+                                              cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
-                                              cp_cfm_type
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_clear, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, &
@@ -26,14 +30,11 @@ MODULE rpa_im_time
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_scale
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_to_fm,&
                                               cp_fm_type
    USE dbt_api,                         ONLY: &
         dbt_batched_contract_finalize, dbt_batched_contract_init, dbt_contract, dbt_copy, &
@@ -915,11 +916,10 @@ CONTAINS
                                                             nao, nmo, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, exp_scaling, occupation
-      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type)                                   :: fwork
+      TYPE(cp_cfm_type)                                  :: cfm_density, cfm_mo_coeff, cfm_work
       TYPE(cp_fm_type), POINTER                          :: cpmat, rpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(mo_set_type), POINTER                         :: mo_set
+      TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_im
 
       CALL timeset(routineN, handle)
 
@@ -938,9 +938,6 @@ CONTAINS
 
       ALLOCATE (exp_scaling(nmo))
 
-      CALL cp_fm_get_info(mo_set%mo_coeff, matrix_struct=matrix_struct)
-      CALL cp_fm_create(fwork, matrix_struct)
-
       CALL get_kpoint_info(kpoint, kp_range=kp_range)
       kplocal = kp_range(2) - kp_range(1) + 1
 
@@ -949,21 +946,28 @@ CONTAINS
          nspin = SIZE(kp%mos, 2)
          DO ispin = 1, nspin
             mo_set => kp%mos(1, ispin)
+            mo_set_im => kp%mos(2, ispin)
             CALL get_mo_set(mo_set, eigenvalues=eigenvalues)
             rpmat => kp%wmat(1, ispin)
             cpmat => kp%wmat(2, ispin)
             CALL get_mo_set(mo_set, occupation_numbers=occupation)
-            CALL cp_fm_to_fm(mo_set%mo_coeff, fwork)
+            CALL cp_cfm_create(cfm_mo_coeff, mo_set%mo_coeff%matrix_struct)
+            CALL cp_cfm_create(cfm_work, mo_set%mo_coeff%matrix_struct)
+            CALL cp_cfm_create(cfm_density, rpmat%matrix_struct)
+            CALL cp_fm_to_cfm(msourcer=mo_set%mo_coeff, msourcei=mo_set_im%mo_coeff, &
+                              mtarget=cfm_mo_coeff)
+            CALL cp_cfm_to_cfm(cfm_mo_coeff, cfm_work)
 
             IF (sector == propagator_sector_occupied) THEN
-               CALL cp_fm_column_scale(fwork, occupation)
+               CALL cp_cfm_column_scale(cfm_work, CMPLX(occupation, 0.0_dp, KIND=dp))
             ELSE
-               CALL cp_fm_column_scale(fwork, 2.0_dp/REAL(nspin, KIND=dp) - occupation)
+               CALL cp_cfm_column_scale(cfm_work, &
+                                        CMPLX(2.0_dp/REAL(nspin, KIND=dp) - occupation, 0.0_dp, KIND=dp))
             END IF
 
             ! proper spin
             IF (nspin == 1) THEN
-               CALL cp_fm_scale(0.5_dp, fwork)
+               CALL cp_cfm_scale(0.5_dp, cfm_work)
             END IF
 
             DO i_mo = 1, nmo
@@ -975,46 +979,22 @@ CONTAINS
                END IF
             END DO
 
-            CALL cp_fm_column_scale(fwork, exp_scaling)
+            CALL cp_cfm_column_scale(cfm_work, CMPLX(exp_scaling, 0.0_dp, KIND=dp))
 
-            ! Re(c)*Re(c)
-            CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, rpmat)
-            mo_set => kp%mos(2, ispin)
-            ! Im(c)*Re(c)
-            CALL parallel_gemm("N", "T", nao, nao, nmo, -1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, cpmat)
-            ! Re(c)*Im(c)
-            CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, fwork, mo_set%mo_coeff, 1.0_dp, cpmat)
+            CALL parallel_gemm("N", "C", nao, nao, nmo, (1.0_dp, 0.0_dp), cfm_mo_coeff, cfm_work, &
+                               (0.0_dp, 0.0_dp), cfm_density)
+            CALL cp_cfm_to_fm(cfm_density, rpmat, cpmat)
+            ! The historical wmat convention stores minus the imaginary part.
+            CALL cp_fm_scale(-1.0_dp, cpmat)
 
-            CALL cp_fm_to_fm(mo_set%mo_coeff, fwork)
-
-            IF (sector == propagator_sector_occupied) THEN
-               CALL cp_fm_column_scale(fwork, occupation)
-            ELSE
-               CALL cp_fm_column_scale(fwork, 2.0_dp/REAL(nspin, KIND=dp) - occupation)
-            END IF
-
-            ! proper spin
-            IF (nspin == 1) THEN
-               CALL cp_fm_scale(0.5_dp, fwork)
-            END IF
-
-            DO i_mo = 1, nmo
-               IF (ABS(tau*0.5_dp*(eigenvalues(i_mo) - e_fermi)) < stabilize_exp) THEN
-                  exp_scaling(i_mo) = EXP(-ABS(tau*(eigenvalues(i_mo) - e_fermi)))
-               ELSE
-                  exp_scaling(i_mo) = 0.0_dp
-               END IF
-            END DO
-
-            CALL cp_fm_column_scale(fwork, exp_scaling)
-            ! Im(c)*Im(c)
-            CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 1.0_dp, rpmat)
+            CALL cp_cfm_release(cfm_density)
+            CALL cp_cfm_release(cfm_work)
+            CALL cp_cfm_release(cfm_mo_coeff)
 
          END DO
 
       END DO
 
-      CALL cp_fm_release(fwork)
       DEALLOCATE (exp_scaling)
 
       CALL timestop(handle)
