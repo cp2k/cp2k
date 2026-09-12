@@ -124,6 +124,8 @@ MODULE qs_environment_types
                                               qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               mo_set_type
+   USE qs_native_grid_cache,            ONLY: native_grid_cache_type,&
+                                              release_native_grid_cache
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_oce_types,                    ONLY: deallocate_oce_set,&
                                               oce_matrix_type
@@ -330,6 +332,7 @@ MODULE qs_environment_types
       ! tblite
       TYPE(tblite_type), POINTER                            :: tb_tblite => Null()
       TYPE(cp_gauxc_cache_type), POINTER                    :: gauxc_cache => NULL()
+      TYPE(native_grid_cache_type)                         :: native_grid_cache
    END TYPE qs_environment_type
 
 CONTAINS
@@ -1709,6 +1712,8 @@ CONTAINS
          DEALLOCATE (qs_env%gauxc_cache)
       END IF
 
+      CALL release_native_grid_cache(qs_env%native_grid_cache)
+
    END SUBROUTINE qs_env_release
 
 ! **************************************************************************************************
@@ -1939,6 +1944,8 @@ CONTAINS
          CALL gauxc_cache_release(qs_env%gauxc_cache)
          DEALLOCATE (qs_env%gauxc_cache)
       END IF
+
+      CALL release_native_grid_cache(qs_env%native_grid_cache)
 
    END SUBROUTINE qs_env_part_release
 

@@ -775,6 +775,7 @@ list(
   qs_fgxc_atom.F
   qs_vxc_atom_utils.F
   qs_vxc_atom.F
+  qs_native_grid_cache.F
   qs_vxc.F
   qs_wannier90.F
   qs_wf_history_methods.F
