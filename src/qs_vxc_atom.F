@@ -1298,7 +1298,7 @@ CONTAINS
                                     grid_atom, harmonics, cross_displacement, cross_cutoff, nspins, &
                                     rho_h, rho_s, drho_h, drho_s, tau_h, tau_s, &
                                     cross_density, cross_grad, cross_kin, cross_density_spatial, &
-                                    cross_grad_spatial, cross_kin_spatial)
+                                    cross_grad_spatial, cross_kin_spatial, calculate_spatial=.FALSE.)
                                  IF (lsd) THEN
                                     IF (use_atom_composite_density) THEN
                                        composite_cross_density(composite_row, 1:2) = &
@@ -3723,10 +3723,11 @@ CONTAINS
 !> \param density_spatial Cartesian derivatives of density
 !> \param gradient_spatial Cartesian derivatives of the density gradient
 !> \param kin_spatial Cartesian derivatives of the kinetic-energy density
+!> \param calculate_spatial evaluate spatial derivatives (default true), otherwise return zeros
 ! **************************************************************************************************
    SUBROUTINE interpolate_gapw_atom_grid_fields( &
       grid_atom, harmonics, displacement, cutoff, nspins, rho_h, rho_s, drho_h, drho_s, &
-      tau_h, tau_s, density, gradient, kin, density_spatial, gradient_spatial, kin_spatial)
+      tau_h, tau_s, density, gradient, kin, density_spatial, gradient_spatial, kin_spatial, calculate_spatial)
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: displacement
@@ -3741,10 +3742,11 @@ CONTAINS
       REAL(dp), DIMENSION(3, 2), INTENT(OUT)             :: density_spatial
       REAL(dp), DIMENSION(3, 3, 2), INTENT(OUT)          :: gradient_spatial
       REAL(dp), DIMENSION(3, 2), INTENT(OUT)             :: kin_spatial
+      LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_spatial
 
       INTEGER                                            :: ia, idir, inode, ir, ispin, jdir, nradial
       INTEGER, DIMENSION(4)                              :: radial_indices
-      LOGICAL                                            :: active
+      LOGICAL                                            :: active, need_spatial
       REAL(dp)                                           :: derivative_weight, weight
       REAL(dp), DIMENSION(grid_atom%ng_sphere)           :: angular_weights
       REAL(dp), DIMENSION(4)                             :: radial_derivative_weights, radial_weights
@@ -3756,9 +3758,17 @@ CONTAINS
       density_spatial = 0.0_dp
       gradient_spatial = 0.0_dp
       kin_spatial = 0.0_dp
-      CALL atom_grid_interpolation_weights( &
-         grid_atom, harmonics, displacement, cutoff, radial_indices, radial_weights, &
-         radial_derivative_weights, nradial, angular_weights, angular_derivative_weights, active)
+      need_spatial = .TRUE.
+      IF (PRESENT(calculate_spatial)) need_spatial = calculate_spatial
+      IF (need_spatial) THEN
+         CALL atom_grid_interpolation_weights( &
+            grid_atom, harmonics, displacement, cutoff, radial_indices, radial_weights, &
+            radial_derivative_weights, nradial, angular_weights, angular_derivative_weights, active)
+      ELSE
+         CALL atom_grid_interpolation_weights( &
+            grid_atom, harmonics, displacement, cutoff, radial_indices, radial_weights, &
+            nradial=nradial, angular_weights=angular_weights, active=active)
+      END IF
       IF (active) THEN
          DO inode = 1, nradial
             ir = radial_indices(inode)
@@ -3773,6 +3783,7 @@ CONTAINS
                      gradient(idir, ispin) = gradient(idir, ispin) + &
                                              weight*(drho_h(idir, ia, ir, ispin) - &
                                                      drho_s(idir, ia, ir, ispin))
+                     IF (.NOT. need_spatial) CYCLE
                      derivative_weight = radial_derivative_weights(inode)* &
                                          displacement(idir)/SQRT(SUM(displacement**2))* &
                                          angular_weights(ia) + radial_weights(inode)* &
