@@ -160,7 +160,9 @@ MODULE rpa_im_time_force_methods
    USE realspace_grid_types,            ONLY: map_gaussian_here,&
                                               realspace_grid_type
    USE response_solver,                 ONLY: response_equation_new
-   USE rpa_im_time,                     ONLY: compute_mat_dm_global
+   USE rpa_im_time,                     ONLY: compute_mat_dm_global,&
+                                              propagator_sector_occupied,&
+                                              propagator_sector_virtual
    USE rpa_im_time_force_types,         ONLY: im_time_force_type
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE task_list_types,                 ONLY: task_list_type
@@ -715,7 +717,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_occ, mat_dm_virt
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: propagator
       TYPE(dbcsr_type)                                   :: dbcsr_work1, dbcsr_work2, dbcsr_work3, &
                                                             exp_occ, exp_virt, R_occ, R_virt, &
                                                             virial_ovlp, Y_1, Y_2
@@ -735,11 +737,13 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: qs_section
       TYPE(virial_type), POINTER                         :: virial
 
-      NULLIFY (matrix_s, dummy_ptr, atomic_kind_set, force, matrix_s, matrix_ks, mat_dm_occ, mat_dm_virt)
+      NULLIFY (matrix_s, dummy_ptr, atomic_kind_set, force, matrix_s, matrix_ks)
       NULLIFY (dft_control, virial, particle_set, cell, para_env, orb_basis, ri_basis, qs_section)
       NULLIFY (qs_kind_set)
 
       CALL timeset(routineN, handle)
+
+      NULLIFY (propagator)
 
       CALL get_qs_env(qs_env, matrix_s=matrix_s, natom=natom, atomic_kind_set=atomic_kind_set, &
                       force=force, matrix_ks=matrix_ks, dft_control=dft_control, virial=virial, &
@@ -935,19 +939,19 @@ CONTAINS
          !Calculate the pseudo-density matrix in tensor form. There are a few useless arguments for SOS-MP2
          CALL compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, &
                                     nmo, fm_mo_coeff_occ(Pspin), fm_mo_coeff_virt(Pspin), &
-                                    fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm_occ, mat_dm_virt, &
+                                    fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, propagator, &
                                     matrix_s, Pspin, Eigenval(:, Pspin), 0.0_dp, eps_filter, &
                                     mp2_env%ri_rpa_im_time%memory_info, unit_nr, &
                                     jquad, .FALSE., .FALSE., qs_env, dummy_int, dummy_ptr, para_env)
 
-         CALL dbt_create(mat_dm_occ(jquad, 1)%matrix, t_2c_tmp)
-         CALL dbt_copy_matrix_to_tensor(mat_dm_occ(jquad, 1)%matrix, t_2c_tmp)
+         CALL dbt_create(propagator(propagator_sector_occupied, jquad, 1)%matrix, t_2c_tmp)
+         CALL dbt_copy_matrix_to_tensor(propagator(propagator_sector_occupied, jquad, 1)%matrix, t_2c_tmp)
          CALL dbt_copy(t_2c_tmp, t_dm_occ, move_data=.TRUE.)
          CALL dbt_filter(t_dm_occ, eps_filter)
          CALL dbt_destroy(t_2c_tmp)
 
-         CALL dbt_create(mat_dm_virt(jquad, 1)%matrix, t_2c_tmp)
-         CALL dbt_copy_matrix_to_tensor(mat_dm_virt(jquad, 1)%matrix, t_2c_tmp)
+         CALL dbt_create(propagator(propagator_sector_virtual, jquad, 1)%matrix, t_2c_tmp)
+         CALL dbt_copy_matrix_to_tensor(propagator(propagator_sector_virtual, jquad, 1)%matrix, t_2c_tmp)
          CALL dbt_copy(t_2c_tmp, t_dm_virt, move_data=.TRUE.)
          CALL dbt_filter(t_dm_virt, eps_filter)
          CALL dbt_destroy(t_2c_tmp)
@@ -1166,8 +1170,7 @@ CONTAINS
       CALL dbt_destroy(t_2c_RI)
       CALL dbt_destroy(t_2c_RI_2)
       CALL dbt_destroy(t_2c_AO)
-      CALL dbcsr_deallocate_matrix_set(mat_dm_occ)
-      CALL dbcsr_deallocate_matrix_set(mat_dm_virt)
+      CALL dbcsr_deallocate_matrix_set(propagator)
 
       CALL timestop(handle)
 
@@ -1269,7 +1272,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_P_tau, matrix_ks, matrix_s
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_occ, mat_dm_virt
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: propagator
       TYPE(dbcsr_type)                                   :: dbcsr_work1, dbcsr_work2, dbcsr_work3, &
                                                             dbcsr_work_symm, exp_occ, exp_virt, &
                                                             R_occ, R_virt, virial_ovlp, Y_1, Y_2
@@ -1289,11 +1292,13 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: qs_section
       TYPE(virial_type), POINTER                         :: virial
 
-      NULLIFY (matrix_s, dummy_ptr, atomic_kind_set, force, matrix_s, matrix_ks, mat_dm_occ, mat_dm_virt)
+      NULLIFY (matrix_s, dummy_ptr, atomic_kind_set, force, matrix_s, matrix_ks)
       NULLIFY (dft_control, virial, particle_set, cell, blacs_env, para_env, orb_basis, ri_basis)
       NULLIFY (qs_kind_set)
 
       CALL timeset(routineN, handle)
+
+      NULLIFY (propagator)
 
       CALL get_qs_env(qs_env, matrix_s=matrix_s, natom=natom, atomic_kind_set=atomic_kind_set, &
                       force=force, matrix_ks=matrix_ks, dft_control=dft_control, virial=virial, &
@@ -1546,19 +1551,19 @@ CONTAINS
          !Calculate the pseudo-density matrix in tensor form. There are a few useless arguments for SOS-MP2
          CALL compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, &
                                     nmo, fm_mo_coeff_occ(ispin), fm_mo_coeff_virt(ispin), &
-                                    fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, mat_dm_occ, mat_dm_virt, &
+                                    fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, propagator, &
                                     matrix_s, ispin, Eigenval(:, ispin), e_fermi, eps_filter, &
                                     mp2_env%ri_rpa_im_time%memory_info, unit_nr, &
                                     jquad, .FALSE., .FALSE., qs_env, dummy_int, dummy_ptr, para_env)
 
-         CALL dbt_create(mat_dm_occ(jquad, 1)%matrix, t_2c_tmp)
-         CALL dbt_copy_matrix_to_tensor(mat_dm_occ(jquad, 1)%matrix, t_2c_tmp)
+         CALL dbt_create(propagator(propagator_sector_occupied, jquad, 1)%matrix, t_2c_tmp)
+         CALL dbt_copy_matrix_to_tensor(propagator(propagator_sector_occupied, jquad, 1)%matrix, t_2c_tmp)
          CALL dbt_copy(t_2c_tmp, t_dm_occ, move_data=.TRUE.)
          CALL dbt_filter(t_dm_occ, eps_filter)
          CALL dbt_destroy(t_2c_tmp)
 
-         CALL dbt_create(mat_dm_virt(jquad, 1)%matrix, t_2c_tmp)
-         CALL dbt_copy_matrix_to_tensor(mat_dm_virt(jquad, 1)%matrix, t_2c_tmp)
+         CALL dbt_create(propagator(propagator_sector_virtual, jquad, 1)%matrix, t_2c_tmp)
+         CALL dbt_copy_matrix_to_tensor(propagator(propagator_sector_virtual, jquad, 1)%matrix, t_2c_tmp)
          CALL dbt_copy(t_2c_tmp, t_dm_virt, move_data=.TRUE.)
          CALL dbt_filter(t_dm_virt, eps_filter)
          CALL dbt_destroy(t_2c_tmp)
@@ -1784,8 +1789,7 @@ CONTAINS
       CALL dbt_destroy(t_2c_RI)
       CALL dbt_destroy(t_2c_RI_2)
       CALL dbt_destroy(t_2c_AO)
-      CALL dbcsr_deallocate_matrix_set(mat_dm_occ)
-      CALL dbcsr_deallocate_matrix_set(mat_dm_virt)
+      CALL dbcsr_deallocate_matrix_set(propagator)
       CALL dbcsr_deallocate_matrix_set(mat_P_tau)
 
       CALL timestop(handle)

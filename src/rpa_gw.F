@@ -140,7 +140,10 @@ MODULE rpa_gw
    USE rpa_gw_kpoints_util,             ONLY: get_mat_cell_T_from_mat_gamma,&
                                               mat_kp_from_mat_gamma,&
                                               real_space_to_kpoint_transform_rpa
-   USE rpa_im_time,                     ONLY: compute_periodic_dm
+   USE rpa_im_time,                     ONLY: compute_periodic_dm,&
+                                              create_propagator_matrix_set,&
+                                              propagator_sector_occupied,&
+                                              propagator_sector_virtual
    USE scf_control_types,               ONLY: scf_control_type
    USE util,                            ONLY: sort
    USE virial_types,                    ONLY: virial_type
@@ -5449,6 +5452,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_range_mo, dist1, dist2, mo_bsizes, &
                                                             mo_offsets, sizes_AO, sizes_RI
       INTEGER, DIMENSION(2)                              :: mo_bounds, pdims_2d
+      INTEGER, DIMENSION(3, 1)                           :: index_to_cell_zero
       LOGICAL                                            :: memory_info
       REAL(KIND=dp)                                      :: ext_scaling, omega, omega_i, omega_sign, &
                                                             sign_occ_virt, t_i_Clenshaw, tau, &
@@ -5456,7 +5460,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: vec_Sigma_c_gw_cos_omega, &
          vec_Sigma_c_gw_cos_tau, vec_Sigma_c_gw_neg_tau, vec_Sigma_c_gw_pos_tau, &
          vec_Sigma_c_gw_sin_omega, vec_Sigma_c_gw_sin_tau
-      TYPE(dbcsr_type), TARGET                           :: mat_greens_fct_occ, mat_greens_fct_virt
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: greens_fct
+      TYPE(dbcsr_type), POINTER                          :: mat_greens_fct_occ, mat_greens_fct_virt
       TYPE(dbt_pgrid_type)                               :: pgrid_2d
       TYPE(dbt_type)                                     :: t_3c_ctr_AO, t_3c_ctr_RI, t_AO_tmp, &
                                                             t_dm, t_greens_fct_occ, &
@@ -5502,15 +5507,13 @@ CONTAINS
       ALLOCATE (delta_corr_omega(1 + homo - gw_corr_lev_occ:homo + gw_corr_lev_virt, num_integ_points))
       delta_corr_omega(:, :) = z_zero
 
-      CALL dbcsr_create(matrix=mat_greens_fct_occ, &
-                        template=matrix_s(1)%matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
-
-      CALL dbcsr_create(matrix=mat_greens_fct_virt, &
-                        template=matrix_s(1)%matrix, &
-                        matrix_type=dbcsr_type_no_symmetry)
-
       e_fermi = 0.5_dp*(Eigenval(homo) + Eigenval(homo + 1))
+
+      index_to_cell_zero = 0
+      NULLIFY (greens_fct)
+      CALL create_propagator_matrix_set(greens_fct, 1, matrix_s(1)%matrix, index_to_cell_zero)
+      mat_greens_fct_occ => greens_fct(propagator_sector_occupied, 1, 1)%matrix
+      mat_greens_fct_virt => greens_fct(propagator_sector_virtual, 1, 1)%matrix
 
       nblk_mo = dbt_nblks_total(t_3c_overl_int_gw_AO, 3)
       ALLOCATE (mo_offsets(nblk_mo))
@@ -5541,7 +5544,7 @@ CONTAINS
 
       DO jquad = 1, num_integ_points
 
-         CALL compute_Greens_function_time(mat_greens_fct_occ, mat_greens_fct_virt, &
+         CALL compute_Greens_function_time(greens_fct, &
                                            fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                            fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                            fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, Eigenval, &
@@ -5635,8 +5638,7 @@ CONTAINS
       vec_Sigma_c_gw(:, 1:num_fit_points, 1) = vec_Sigma_c_gw_cos_omega(:, 1:num_fit_points) + &
                                                gaussi*vec_Sigma_c_gw_sin_omega(:, 1:num_fit_points)
 
-      CALL dbcsr_release(mat_greens_fct_occ)
-      CALL dbcsr_release(mat_greens_fct_virt)
+      CALL dbcsr_deallocate_matrix_set(greens_fct)
 
       IF (do_ri_Sigma_x .AND. count_ev_sc_GW == 1 .AND. count_sc_GW0 == 1) THEN
 
@@ -5883,8 +5885,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :) :: vec_Sigma_c_gw_cos_omega, &
          vec_Sigma_c_gw_cos_tau, vec_Sigma_c_gw_neg_tau, vec_Sigma_c_gw_pos_tau, &
          vec_Sigma_c_gw_sin_omega, vec_Sigma_c_gw_sin_tau
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_p_greens_fct_occ, &
-                                                            mat_p_greens_fct_virt
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: propagator
       TYPE(dbcsr_type), TARGET :: mat_greens_fct_occ, mat_greens_fct_virt, mat_mo_coeff, &
          mat_self_energy_ao_ao_neg_tau, mat_self_energy_ao_ao_pos_tau
       TYPE(dbt_pgrid_type)                               :: pgrid_2d
@@ -5893,6 +5894,8 @@ CONTAINS
                                                             t_greens_fct_virt, t_RI_tmp, t_W
 
       CALL timeset(routineN, handle)
+
+      NULLIFY (propagator)
 
       memory_info = mp2_env%ri_rpa_im_time%memory_info
       IF (memory_info) THEN
@@ -6022,21 +6025,21 @@ CONTAINS
 
          DO ispin = 1, nspins
 
-            CALL compute_periodic_dm(mat_p_greens_fct_occ, qs_env, &
+            CALL compute_periodic_dm(propagator, qs_env, &
                                      ispin, num_points, jquad, e_fermi(ispin), tau, &
-                                     remove_occ=.FALSE., remove_virt=.TRUE., &
-                                     alloc_dm=(jquad == 1 .AND. ispin == 1))
+                                     sector=propagator_sector_occupied)
 
-            CALL compute_periodic_dm(mat_p_greens_fct_virt, qs_env, &
+            CALL compute_periodic_dm(propagator, qs_env, &
                                      ispin, num_points, jquad, e_fermi(ispin), tau, &
-                                     remove_occ=.TRUE., remove_virt=.FALSE., &
-                                     alloc_dm=(jquad == 1 .AND. ispin == 1))
+                                     sector=propagator_sector_virtual)
 
             CALL dbcsr_set(mat_greens_fct_occ, 0.0_dp)
-            CALL dbcsr_copy(mat_greens_fct_occ, mat_p_greens_fct_occ(jquad, 1)%matrix)
+            CALL dbcsr_copy(mat_greens_fct_occ, &
+                            propagator(propagator_sector_occupied, jquad, 1)%matrix)
 
             CALL dbcsr_set(mat_greens_fct_virt, 0.0_dp)
-            CALL dbcsr_copy(mat_greens_fct_virt, mat_p_greens_fct_virt(jquad, 1)%matrix)
+            CALL dbcsr_copy(mat_greens_fct_virt, &
+                            propagator(propagator_sector_virtual, jquad, 1)%matrix)
 
             CALL dbt_copy_matrix_to_tensor(mat_greens_fct_occ, t_AO_tmp)
             CALL dbt_copy(t_AO_tmp, t_greens_fct_occ)
@@ -6185,8 +6188,7 @@ CONTAINS
       CALL dbcsr_release(mat_self_energy_ao_ao_pos_tau)
       CALL dbcsr_release(mat_mo_coeff)
 
-      CALL dbcsr_deallocate_matrix_set(mat_p_greens_fct_occ)
-      CALL dbcsr_deallocate_matrix_set(mat_p_greens_fct_virt)
+      CALL dbcsr_deallocate_matrix_set(propagator)
 
       CALL dbt_destroy(t_W)
       CALL dbt_destroy(t_RI_tmp)
@@ -6797,8 +6799,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mat_greens_fct_occ ...
-!> \param mat_greens_fct_virt ...
+!> \param greens_fct ...
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
 !> \param fm_mo_coeff_occ_scaled ...
@@ -6812,12 +6813,13 @@ CONTAINS
 !> \param tau ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE compute_Greens_function_time(mat_greens_fct_occ, mat_greens_fct_virt, fm_mo_coeff_occ, fm_mo_coeff_virt, &
+   SUBROUTINE compute_Greens_function_time(greens_fct, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                            fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
                                            fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, Eigenval, nmo, &
                                            eps_filter, e_fermi, tau, para_env)
 
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_greens_fct_occ, mat_greens_fct_virt
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), &
+         INTENT(INOUT), POINTER                          :: greens_fct
       TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
          fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
@@ -6831,6 +6833,10 @@ CONTAINS
                                                             ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: stabilize_exp
+      TYPE(dbcsr_type), POINTER                          :: mat_greens_fct_occ, mat_greens_fct_virt
+
+      mat_greens_fct_occ => greens_fct(propagator_sector_occupied, 1, 1)%matrix
+      mat_greens_fct_virt => greens_fct(propagator_sector_virtual, 1, 1)%matrix
 
       CALL timeset(routineN, handle)
 
