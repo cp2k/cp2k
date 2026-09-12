@@ -14,5 +14,5 @@
 "ice_viii_gfn2_kp_spglib_nonsymmorphic.inp" = [{matcher="E_total", tol=1.0E-10, ref=-40.71301330821884},
                                                  {matcher="N_special_kpoints", tol=0.0, ref=6}]
 "ice_ix_gfn2_kp_k290_nonsymmorphic.inp" = [{matcher="E_total", tol=1.0E-10, ref=-61.10270533472814},
-                                            {matcher="N_special_kpoints", tol=0.0, ref=14}]
+                                            {matcher="N_special_kpoints", tol=0.0, ref=6}]
 #EOF

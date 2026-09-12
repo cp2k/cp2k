@@ -1751,7 +1751,13 @@ CONTAINS
       REAL(dp)                                           :: delta
 
       INTEGER                                            :: ia, ib, il
-      REAL(dp)                                           :: vt(3), xb(3)
+      REAL(dp)                                           :: tol, vt(3), xb(3)
+
+      ! Fractional residuals at the tolerance boundary accumulate Cartesian
+      ! rotation and lattice-conversion roundoff. Account for that roundoff so
+      ! equivalent operations are not accepted or rejected by a few ulps.
+      tol = delta + 32.0_dp*EPSILON(1.0_dp)*MAX(1.0_dp, &
+                                                MAXVAL(SUM(ABS(ai), DIM=2))*MAX(MAXVAL(ABS(rx)), MAXVAL(ABS(x))))
 
       DO ia = 1, nat
          isc(ia) = 0
@@ -1765,9 +1771,7 @@ CONTAINS
                xb(3) = rx(3, ia) - x(3, ib)
                CALL rlv3(ai, xb, vt, il, delta)
                ! VT STANDS FOR V-TEST
-               oksym = (ABS((vr(1) - vt(1)) - NINT(vr(1) - vt(1))) < delta) .AND. &
-                       (ABS((vr(2) - vt(2)) - NINT(vr(2) - vt(2))) < delta) .AND. &
-                       (ABS((vr(3) - vt(3)) - NINT(vr(3) - vt(3))) < delta)
+               oksym = ALL(ABS((vr - vt) - ANINT(vr - vt)) <= tol)
                IF (oksym) THEN
                   IF (nodupli) isc(ib) = 1
                   f0(n, ia) = ib

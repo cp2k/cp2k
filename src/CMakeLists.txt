@@ -1563,6 +1563,7 @@ set(CP2K_PROGS_F
     common/parallel_rng_types_unittest.F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
+    kpsym_unittest.F
     qs_ot_minimizer_unittest.F
     optbas_frontier_orbitals_utils_unittest.F
     rirs_grid_utils_unittest.F
@@ -1978,6 +1979,7 @@ list(
   "parallel_rng_types_unittest"
   "kpoint_lattice_fft_unittest"
   "kpoint_smearing_unittest"
+  "kpsym_unittest"
   "qs_ot_minimizer_unittest"
   "optbas_frontier_orbitals_utils_unittest"
   "rirs_grid_utils_unittest"
