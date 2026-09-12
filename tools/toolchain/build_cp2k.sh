@@ -33,7 +33,6 @@ REBUILD_ONLY="__FALSE__"
 PREFIX_SET="__FALSE__"
 PRESET_SET="__FALSE__"
 CMAKE_PRESET=""
-CMAKE_PRESET_ARGS=()
 DEBUG_SET="__FALSE__"
 BUILD_STATIC_SET="__FALSE__"
 
@@ -88,7 +87,6 @@ while [ $# -ge 1 ]; do
       if [ -z "${CMAKE_PRESET}" ]; then
         report_error "A preset name must be provided to --preset."
       fi
-      CMAKE_PRESET_ARGS=(--preset "${CMAKE_PRESET}")
       ;;
     --debug)
       DEBUG_SET="__TRUE__"
@@ -131,9 +129,13 @@ fi
 # cp2k                                  <- variable ${CP2K_ROOT}; CMake option -S
 # ├── CMakeLists.txt                    <- file to be parsed for generating cmake options
 # ├── cmake                             <- directory containing CMake files
-# ├── data                              <- CP2K data directory; CMake option -DCP2K_DATA_DIR\
-# ├── build                             <- to-be-created; CMake option -B
+# ├── data                              <- CP2K data directory; CMake option -DCP2K_DATA_DIR
+# ├── build                             <- to-be-created; CMake option -B or --build
 # ├── install                           <- to-be-created; CMake option -DCMAKE_INSTALL_PREFIX
+# |   ├── bin                           <- CP2K binaries will be installed here
+# |   ├── include                       <- CP2K header and module files will be installed here
+# |   ├── lib                           <- CP2K library files will be installed here; CMake option -DCMAKE_INSTALL_LIBDIR
+# |   └── share                         <- Other files such as CP2K data
 # ├── src                               <- CP2K source code directory
 # └── tools
 #     └── toolchain                     <- working directory; variable ${TOOLCHAIN_ROOTDIR}
@@ -350,7 +352,7 @@ EOF
     fi
 
     set -o pipefail
-    cmake -S "${CP2K_ROOT}" -B "${BUILD_DIR}" "${CMAKE_PRESET_ARGS[@]}" \
+    cmake -S "${CP2K_ROOT}" -B "${BUILD_DIR}" --preset "${CMAKE_PRESET}" \
       ${CMAKE_OPTIONS} 2>&1 | tee -a cmake.log
   fi
 
@@ -358,6 +360,16 @@ EOF
   log_build "Parallel jobs: ${BUILD_JOBS}"
   set -o pipefail
   cmake --build "${BUILD_DIR}" --target install -j "${BUILD_JOBS}" 2>&1 | tee -a build.log
+  echo "=========================================================="
+
+  log_build "=============== Creating links to binaries ==============="
+  VERSION="psmp"
+  cd "${CMAKE_INSTALL_PREFIX}"/bin
+  for binary in *."${VERSION}"; do
+    ln -sfv "${binary}" "${binary%%."${VERSION}"}"
+  done
+  ln -sfv cp2k."${VERSION}" cp2k_shell
+  cd "${CP2K_ROOT}"
   echo "=========================================================="
 
   # Export variable for CMake options to cp2k_env file
