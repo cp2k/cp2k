@@ -2012,6 +2012,7 @@ add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
+add_executable(kpsym_unittest kpsym_unittest.F)
 add_executable(qs_ot_minimizer_unittest qs_ot_minimizer_unittest.F)
 add_executable(optbas_frontier_orbitals_utils_unittest
                optbas_frontier_orbitals_utils_unittest.F)
