@@ -140,8 +140,8 @@ MODULE rpa_gw
    USE rpa_gw_kpoints_util,             ONLY: get_mat_cell_T_from_mat_gamma,&
                                               mat_kp_from_mat_gamma,&
                                               real_space_to_kpoint_transform_rpa
-   USE rpa_im_time,                     ONLY: compute_periodic_dm,&
-                                              compute_gamma_propagator,&
+   USE rpa_im_time,                     ONLY: compute_gamma_propagator,&
+                                              compute_periodic_dm,&
                                               create_propagator_matrix_set,&
                                               propagator_sector_occupied,&
                                               propagator_sector_virtual
@@ -1179,8 +1179,8 @@ CONTAINS
 !> \param ic_corr_list ...
 !> \param weights_cos_tf_t_to_w ...
 !> \param weights_sin_tf_t_to_w ...
-!> \param fm_mo_coeff_occ ...
-!> \param fm_mo_coeff_virt ...
+!> \param cfm_mo_coeff_occ ...
+!> \param cfm_mo_coeff_virt ...
 !> \param mo_coeff ...
 !> \param fm_mat_W ...
 !> \param para_env ...
@@ -1217,8 +1217,8 @@ CONTAINS
                                   fermi_level_offset, delta_corr, Eigenval, &
                                   Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, &
                                   vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
-                                  weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, fm_mo_coeff_occ, &
-                                  fm_mo_coeff_virt, mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_MinvVMinv, &
+                                  weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, cfm_mo_coeff_occ, &
+                                  cfm_mo_coeff_virt, mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_MinvVMinv, &
                                   t_3c_O, t_3c_M, t_3c_overl_int_ao_mo, &
                                   t_3c_O_compressed, t_3c_O_mo_compressed, &
                                   t_3c_O_ind, t_3c_O_mo_ind, &
@@ -1255,7 +1255,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_t_to_w, &
                                                             weights_sin_tf_t_to_w
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_cfm_type), DIMENSION(:), INTENT(IN)        :: cfm_mo_coeff_occ, cfm_mo_coeff_virt
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: fm_mat_W
@@ -1309,8 +1309,8 @@ CONTAINS
 
             DO ispin = 1, nspins
                CALL compute_self_energy_cubic_gw(num_integ_points, nmo, tau_tj, tj, &
-                                                 matrix_s, fm_mo_coeff_occ(ispin), &
-                                                 fm_mo_coeff_virt(ispin), Eigenval(:, 1, ispin), eps_filter, &
+                                                 matrix_s, cfm_mo_coeff_occ(ispin), &
+                                                 cfm_mo_coeff_virt(ispin), Eigenval(:, 1, ispin), eps_filter, &
                                                  e_fermi(ispin), fm_mat_W, &
                                                  gw_corr_lev_tot, gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), homo(ispin), &
                                                  count_ev_sc_GW, count_sc_GW0, &
@@ -5332,8 +5332,8 @@ CONTAINS
 !> \param tau_tj ...
 !> \param tj ...
 !> \param matrix_s ...
-!> \param fm_mo_coeff_occ ...
-!> \param fm_mo_coeff_virt ...
+!> \param cfm_mo_coeff_occ ...
+!> \param cfm_mo_coeff_virt ...
 !> \param Eigenval ...
 !> \param eps_filter ...
 !> \param e_fermi ...
@@ -5374,7 +5374,7 @@ CONTAINS
 !> \param ispin ...
 ! **************************************************************************************************
    SUBROUTINE compute_self_energy_cubic_gw(num_integ_points, nmo, tau_tj, tj, &
-                                           matrix_s, fm_mo_coeff_occ, fm_mo_coeff_virt, Eigenval, eps_filter, &
+                                           matrix_s, cfm_mo_coeff_occ, cfm_mo_coeff_virt, Eigenval, eps_filter, &
                                            e_fermi, fm_mat_W, &
                                            gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                            count_ev_sc_GW, count_sc_GW0, &
@@ -5390,7 +5390,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj, tj
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_s
-      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mo_coeff_occ, cfm_mo_coeff_virt
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       REAL(KIND=dp), INTENT(INOUT)                       :: e_fermi
@@ -5441,10 +5441,11 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: vec_Sigma_c_gw_cos_omega, &
          vec_Sigma_c_gw_cos_tau, vec_Sigma_c_gw_neg_tau, vec_Sigma_c_gw_pos_tau, &
          vec_Sigma_c_gw_sin_omega, vec_Sigma_c_gw_sin_tau
+      TYPE(cp_cfm_type)                                  :: cfm_scaled_dm_occ_tau
+      TYPE(cp_fm_type)                                   :: fm_scaled_dm_occ_tau
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: greens_fct
       TYPE(dbcsr_type), POINTER                          :: mat_greens_fct_occ, mat_greens_fct_virt
       TYPE(dbt_pgrid_type)                               :: pgrid_2d
-      TYPE(cp_fm_type)                                   :: fm_scaled_dm_occ_tau
       TYPE(dbt_type)                                     :: t_3c_ctr_AO, t_3c_ctr_RI, t_AO_tmp, &
                                                             t_dm, t_greens_fct_occ, &
                                                             t_greens_fct_virt, t_RI_tmp, &
@@ -5452,7 +5453,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_get_info(fm_mo_coeff_occ, nrow_global=nao)
+      CALL cp_cfm_get_info(cfm_mo_coeff_occ, nrow_global=nao)
 
       CALL decompress_tensor(t_3c_overl_int_ao_mo, t_3c_O_mo_ind, t_3c_O_mo_compressed, &
                              mp2_env%ri_rpa_im_time%eps_compress)
@@ -5526,7 +5527,7 @@ CONTAINS
 
       DO jquad = 1, num_integ_points
 
-         CALL compute_gamma_propagator(greens_fct, 1, fm_mo_coeff_occ, fm_mo_coeff_virt, Eigenval, nmo, &
+         CALL compute_gamma_propagator(greens_fct, 1, cfm_mo_coeff_occ, cfm_mo_coeff_virt, Eigenval, nmo, &
                                        eps_filter, e_fermi, tau_tj(jquad), para_env)
 
          CALL dbcsr_set(mat_W, 0.0_dp)
@@ -5623,12 +5624,15 @@ CONTAINS
 
          CALL timeset(routineN//"_RI_HFX_operation_1", handle3)
 
-         CALL cp_fm_create(fm_scaled_dm_occ_tau, fm_mo_coeff_occ%matrix_struct, nrow=nao, ncol=nao)
+         CALL cp_cfm_create(cfm_scaled_dm_occ_tau, cfm_mo_coeff_occ%matrix_struct, nrow=nao, ncol=nao)
 
          ! get density matrix
-         CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo, alpha=1.0_dp, &
-                            matrix_a=fm_mo_coeff_occ, matrix_b=fm_mo_coeff_occ, beta=0.0_dp, &
-                            matrix_c=fm_scaled_dm_occ_tau)
+         CALL parallel_gemm(transa="N", transb="C", m=nao, n=nao, k=nmo, alpha=(1.0_dp, 0.0_dp), &
+                            matrix_a=cfm_mo_coeff_occ, matrix_b=cfm_mo_coeff_occ, beta=(0.0_dp, 0.0_dp), &
+                            matrix_c=cfm_scaled_dm_occ_tau)
+
+         CALL cp_fm_create(fm_scaled_dm_occ_tau, cfm_scaled_dm_occ_tau%matrix_struct)
+         CALL cp_cfm_to_fm(cfm_scaled_dm_occ_tau, fm_scaled_dm_occ_tau)
 
          CALL timestop(handle3)
 
@@ -5639,6 +5643,7 @@ CONTAINS
                                keep_sparsity=.FALSE.)
 
          CALL cp_fm_release(fm_scaled_dm_occ_tau)
+         CALL cp_cfm_release(cfm_scaled_dm_occ_tau)
 
          CALL timestop(handle3)
 
