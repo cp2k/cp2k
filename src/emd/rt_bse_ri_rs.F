@@ -163,7 +163,7 @@ CONTAINS
       CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI, bs_env%n_RI, &
                               bs_env%trunc_coulomb, do_kpoints=.FALSE.)
       ! Apply M^-1 sandwich to match the W^MIC convention; same scale as W^c when both used.
-      ! M^-1(k=0) V^tr(τ) M^-1(k=0) -> fm_Vtr_Gamma
+      ! M^-1(k=0) V^tr M^-1(k=0) -> fm_Vtr_Gamma
       CALL fm_contract_ABA(bs_env%fm_Minv_Gamma, fm_Vtr_Gamma(:, 1))
 
       ! Store the M^-1-sandwiched RI-basis Coulomb; the grid kernel Z V Z^T is applied factorized.
@@ -240,7 +240,7 @@ CONTAINS
 
       CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI, bs_env%n_RI, &
                               bs_env%trunc_coulomb, do_kpoints=.FALSE.)
-      ! M^-1(k=0) V^tr(τ) M^-1(k=0) -> fm_Vtr_Gamma
+      ! M^-1(k=0) V^tr M^-1(k=0) -> fm_Vtr_Gamma
       CALL fm_contract_ABA(bs_env%fm_Minv_Gamma, fm_Vtr_Gamma(:, 1))
 
       CALL dbcsr_create(matrix_V_aux, "V_aux_rtbse_W0", dist_aux_aux, dbcsr_type_no_symmetry, &

@@ -523,10 +523,10 @@ CONTAINS
       END IF
 
       CALL section_vals_val_get(auto_ri_sec, "RI_AO_RATIO", r_val=auto_ri%ri_ao_ratio)
-      CALL section_vals_val_get(auto_ri_sec, "OCC_EMPTY_FRONTIER_ORBITAL_WINDOW", r_val=auto_ri%delta)
+      CALL section_vals_val_get(auto_ri_sec, "OCC_EMPTY_FRONTIER_ORBITAL_WINDOW", r_val=auto_ri%occ_energy_window)
       CALL section_vals_val_get(auto_ri_sec, "NEIGHBOR_RADIUS", r_val=auto_ri%neighbor_radius)
       IF (.NOT. (auto_ri%ri_ao_ratio > 0.0_dp)) CPABORT("AUTO_RI%RI_AO_RATIO must be positive")
-      IF (.NOT. (auto_ri%delta >= 0.0_dp)) THEN
+      IF (.NOT. (auto_ri%occ_energy_window >= 0.0_dp)) THEN
          CPABORT("AUTO_RI%OCC_EMPTY_FRONTIER_ORBITAL_WINDOW must be nonnegative")
       END IF
       IF (.NOT. (auto_ri%neighbor_radius > 0.0_dp)) CPABORT("AUTO_RI%NEIGHBOR_RADIUS must be positive")
@@ -1093,7 +1093,7 @@ CONTAINS
       CALL cp_fm_create(bs_env%fm_Minv_Gamma, bs_env%fm_RI_RI%matrix_struct)
       IF (bs_env%auto_ri%enabled) THEN
          CPASSERT(bs_env%auto_ri%ready)
-         CALL cp_fm_to_fm(bs_env%auto_ri%inverse_ri_metric, bs_env%fm_Minv_Gamma)
+         CALL cp_fm_to_fm(bs_env%auto_ri%M_pq_inv, bs_env%fm_Minv_Gamma)
       ELSE
          IF (bs_env%do_gw_ri_rs) THEN
             CALL RI_2c_integral_mat(qs_env, fm_M, bs_env%fm_RI_RI, bs_env%n_RI, &
@@ -2129,7 +2129,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A,T77,F4.1)') &
             'Input: AUTO_RI requested RI/AO ratio:', bs_env%auto_ri%ri_ao_ratio
          WRITE (unit_nr, '(T2,A,T74,F4.1,A)') &
-            'Input: AUTO_RI frontier orbital window:', bs_env%auto_ri%delta*evolt, ' eV'
+            'Input: AUTO_RI frontier orbital window:', bs_env%auto_ri%occ_energy_window*evolt, ' eV'
          WRITE (unit_nr, '(T2,A,T75,F4.1,A)') &
             'Input: AUTO_RI neighbor radius:', bs_env%auto_ri%neighbor_radius*angstrom, ' Å'
       END IF

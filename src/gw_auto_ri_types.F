@@ -25,34 +25,32 @@ MODULE gw_auto_ri_types
    PUBLIC :: auto_ri_release, auto_ri_type
 
    TYPE auto_ri_type
+
       ! Input parameters.
-      REAL(KIND=dp)                                      :: delta = -1.0_dp
-      REAL(KIND=dp)                                      :: neighbor_radius = -1.0_dp
-      LOGICAL                                            :: enabled = .FALSE.
-      REAL(KIND=dp)                                      :: ri_ao_ratio = -1.0_dp
+      REAL(KIND=dp)                   :: occ_energy_window = -1.0_dp
+      REAL(KIND=dp)                   :: neighbor_radius = -1.0_dp
+      LOGICAL                         :: enabled = .FALSE.
+      REAL(KIND=dp)                   :: ri_ao_ratio = -1.0_dp
 
-      ! Heuristic parameters.
-      REAL(KIND=dp)                                      :: metric_null_threshold = 1.0E-10_dp
-      REAL(KIND=dp)                                      :: metric_rank_threshold = 1.0E-6_dp
-      REAL(KIND=dp)                                      :: min_score_ratio = 1.0E-12_dp
-      REAL(KIND=dp)                                      :: pair_absolute_threshold = 1.0E-12_dp
-      REAL(KIND=dp)                                      :: psd_tolerance = 1.0E-10_dp
+      ! Two-center matrices M_pq and V_pq of optimized RI basis set
+      TYPE(cp_fm_type)                :: V_pq = cp_fm_type()
+      TYPE(cp_fm_type)                :: M_pq_inv = cp_fm_type()
+      LOGICAL                         :: ready = .FALSE.
+      INTEGER, ALLOCATABLE            :: sizes_opt_RI(:)
 
-      ! Optimized basis and metric matrices.
-      TYPE(cp_fm_type)                                   :: coulomb_matrix = cp_fm_type()
-      TYPE(cp_fm_type)                                   :: inverse_ri_metric = cp_fm_type()
-      INTEGER                                            :: fit_group_count = 0
-      LOGICAL                                            :: ready = .FALSE.
-      INTEGER, ALLOCATABLE                               :: optimized_size(:)
-      REAL(KIND=dp), ALLOCATABLE                         :: transform(:, :, :)
+      ! U_Pp_AB contains the RI-basis contraction coefficients:
+      ! for A=B: φ_p^A(r)  = Σ_P U_Pp^AA φ_P^A(r)    (φ_P^A(r): large ref. RI basis)
+      ! for A≠B: φ_p^AB(r) = Σ_P U_Pp^AB φ_P^AB^⊥(r) (see forthcoming paper)
+      ! RI basis contains contractions of Gaussians on neighboring atoms!!
+      REAL(KIND=dp), ALLOCATABLE      :: U_Pp_AB(:)
+      INTEGER                         :: AB_block_count = 0
+      INTEGER, ALLOCATABLE            :: AB_atom_A(:), AB_atom_B(:)
+      INTEGER, ALLOCATABLE            :: AB_first_p_A(:), AB_first_p_B(:)
+      INTEGER, ALLOCATABLE            :: AB_size_opt_RI_to_A(:)
+      INTEGER, ALLOCATABLE            :: AB_size_ref_RI(:)
+      INTEGER, ALLOCATABLE            :: AB_size_opt_RI(:)
+      INTEGER, ALLOCATABLE            :: U_Pp_AB_offset(:)
 
-      ! AA and AB coefficient matrices, packed consecutively in column-major order.
-      INTEGER, ALLOCATABLE                               :: fit_group_atom_a(:), fit_group_atom_b(:)
-      INTEGER, ALLOCATABLE                               :: fit_group_first_a(:), fit_group_first_b(:)
-      INTEGER, ALLOCATABLE                               :: fit_group_n_to_a(:)
-      INTEGER, ALLOCATABLE                               :: fit_group_nrow(:), fit_group_ncolumn(:)
-      INTEGER, ALLOCATABLE                               :: fit_group_offset(:)
-      REAL(KIND=dp), ALLOCATABLE                         :: fit_group_coefficient(:)
    END TYPE auto_ri_type
 
 CONTAINS
@@ -70,20 +68,19 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ALLOCATED(auto_ri%optimized_size)) DEALLOCATE (auto_ri%optimized_size)
-      IF (ALLOCATED(auto_ri%transform)) DEALLOCATE (auto_ri%transform)
-      IF (ALLOCATED(auto_ri%fit_group_atom_a)) DEALLOCATE (auto_ri%fit_group_atom_a)
-      IF (ALLOCATED(auto_ri%fit_group_atom_b)) DEALLOCATE (auto_ri%fit_group_atom_b)
-      IF (ALLOCATED(auto_ri%fit_group_first_a)) DEALLOCATE (auto_ri%fit_group_first_a)
-      IF (ALLOCATED(auto_ri%fit_group_first_b)) DEALLOCATE (auto_ri%fit_group_first_b)
-      IF (ALLOCATED(auto_ri%fit_group_n_to_a)) DEALLOCATE (auto_ri%fit_group_n_to_a)
-      IF (ALLOCATED(auto_ri%fit_group_nrow)) DEALLOCATE (auto_ri%fit_group_nrow)
-      IF (ALLOCATED(auto_ri%fit_group_ncolumn)) DEALLOCATE (auto_ri%fit_group_ncolumn)
-      IF (ALLOCATED(auto_ri%fit_group_offset)) DEALLOCATE (auto_ri%fit_group_offset)
-      IF (ALLOCATED(auto_ri%fit_group_coefficient)) DEALLOCATE (auto_ri%fit_group_coefficient)
-      CALL cp_fm_release(auto_ri%coulomb_matrix)
-      CALL cp_fm_release(auto_ri%inverse_ri_metric)
-      auto_ri%fit_group_count = 0
+      IF (ALLOCATED(auto_ri%sizes_opt_RI)) DEALLOCATE (auto_ri%sizes_opt_RI)
+      IF (ALLOCATED(auto_ri%AB_atom_A)) DEALLOCATE (auto_ri%AB_atom_A)
+      IF (ALLOCATED(auto_ri%AB_atom_B)) DEALLOCATE (auto_ri%AB_atom_B)
+      IF (ALLOCATED(auto_ri%AB_first_p_A)) DEALLOCATE (auto_ri%AB_first_p_A)
+      IF (ALLOCATED(auto_ri%AB_first_p_B)) DEALLOCATE (auto_ri%AB_first_p_B)
+      IF (ALLOCATED(auto_ri%AB_size_opt_RI_to_A)) DEALLOCATE (auto_ri%AB_size_opt_RI_to_A)
+      IF (ALLOCATED(auto_ri%AB_size_ref_RI)) DEALLOCATE (auto_ri%AB_size_ref_RI)
+      IF (ALLOCATED(auto_ri%AB_size_opt_RI)) DEALLOCATE (auto_ri%AB_size_opt_RI)
+      IF (ALLOCATED(auto_ri%U_Pp_AB_offset)) DEALLOCATE (auto_ri%U_Pp_AB_offset)
+      IF (ALLOCATED(auto_ri%U_Pp_AB)) DEALLOCATE (auto_ri%U_Pp_AB)
+      CALL cp_fm_release(auto_ri%V_pq)
+      CALL cp_fm_release(auto_ri%M_pq_inv)
+      auto_ri%AB_block_count = 0
       auto_ri%ready = .FALSE.
 
       CALL timestop(handle)

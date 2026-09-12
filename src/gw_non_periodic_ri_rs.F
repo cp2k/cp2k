@@ -648,9 +648,10 @@ CONTAINS
    END SUBROUTINE spatial_atom_order
 
 ! **************************************************************************************************
-!> \brief Compute grid points for RI-RS
-!>        Right now based on Ivan and Xavier implementation
-!>        JCP 150, 174120 (2019), JCTC 17, 2383 (2021)
+!> \brief Compute grid points for RI-RS, two options:
+!>        1) Read tabulated atomic grids by Duchemin & Blase:
+!>           JCP 150, 174120 (2019), JCTC 17, 2383 (2021)
+!>        2) Optimize grid for specific molecule / unit cell, start from tabulated grid
 !> \param qs_env ...
 !> \param bs_env ...
 !> \param ri_rs_grid_points ...
@@ -663,10 +664,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ri_rs_grid_assembler'
 
-      INTEGER                                            :: atom_idx, end_idx, handle, i_layout, &
-                                                            natom, start_idx, total_grid_npts
-      INTEGER, ALLOCATABLE                               :: atom_order(:), ri_rs_grid_offsets(:)
-      REAL(KIND=dp)                                      :: atomic_center(3)
+      INTEGER                                            :: handle
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
@@ -675,9 +673,7 @@ CONTAINS
        !! Get the information about the atoms in the system
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, particle_set=particle_set)
 
-      natom = bs_env%n_atom
-
-       !! 1. Build the grid cache
+       !! 1. Read the tabulated atomic grids into cache
       CALL build_grid_cache(bs_env, atomic_kind_set)
 
       !! 2. Optimize RIRS grid points
@@ -685,28 +681,46 @@ CONTAINS
          CALL optimize_ri_rs_grid(qs_env, bs_env)
       END IF
 
-      !! 3. Calculate grid counts and offsets
-      ALLOCATE (ri_rs_grid_offsets(natom + 1))
+      !! 3. Assemble and store the global molecular grid
+      CALL assemble_RI_RS_grid_points(bs_env, particle_set, ri_rs_grid_points)
 
-      ! grid_atom_boundaries(k) = 1-based start of the k-th atom's grid run in LAYOUT order
-      ! (the order in which the points are laid down below). Used later to build atom-aligned
-      ! DBCSR grid row-blocks in atomic_basis_at_grid_point.
-      IF (ALLOCATED(bs_env%ri_rs%grid_atom_boundaries)) DEALLOCATE (bs_env%ri_rs%grid_atom_boundaries)
-      ALLOCATE (bs_env%ri_rs%grid_atom_boundaries(natom + 1))
+      !! 4. Release the atom-relative grid cache
+      CALL release_RI_RS_grid_cache(bs_env)
 
-      ! Lay the grid rows down in Morton (spatial) atom order, so a
-      ! contiguous grid maps to a compact spatial region.
+      CALL timestop(handle)
+
+   END SUBROUTINE ri_rs_grid_assembler
+
+! **************************************************************************************************
+!> \brief Assemble the global RI-RS grid in spatial atom order from atom-relative cached grids.
+!>        For point l on atom A, r_l = R_A + Δr_l^(A).
+!> \param bs_env GW environment containing the cached grids and receiving the atom boundaries.
+!> \param particle_set Atomic positions R_A.
+!> \param ri_rs_grid_points Global Cartesian grid coordinates in spatial atom order.
+! **************************************************************************************************
+   SUBROUTINE assemble_RI_RS_grid_points(bs_env, particle_set, ri_rs_grid_points)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: ri_rs_grid_points(:, :)
+
+      INTEGER                                            :: atom, atom_grid_end, atom_grid_start, &
+                                                            layout_position, natom, total_grid_npts
+      INTEGER, ALLOCATABLE                               :: atom_grid_offsets(:), atom_order(:)
+      REAL(KIND=dp)                                      :: atom_center(3)
+
+      natom = bs_env%n_atom
       CALL spatial_atom_order(particle_set, atom_order)
 
+      ! grid_atom_boundaries(k) starts the k-th atom's run in spatial layout order.
+      ! atom_grid_offsets(A) locates atom A in the resulting global coordinate array.
+      ALLOCATE (bs_env%ri_rs%grid_atom_boundaries(natom + 1), atom_grid_offsets(natom))
       total_grid_npts = 0
-      DO i_layout = 1, natom
-         atom_idx = atom_order(i_layout)
-         ri_rs_grid_offsets(atom_idx) = total_grid_npts + 1
-         bs_env%ri_rs%grid_atom_boundaries(i_layout) = total_grid_npts + 1
-         total_grid_npts = total_grid_npts + bs_env%ri_rs%grid_cache(atom_idx)%npts
+      DO layout_position = 1, natom
+         atom = atom_order(layout_position)
+         atom_grid_offsets(atom) = total_grid_npts + 1
+         bs_env%ri_rs%grid_atom_boundaries(layout_position) = total_grid_npts + 1
+         total_grid_npts = total_grid_npts + bs_env%ri_rs%grid_cache(atom)%npts
       END DO
-
-      ri_rs_grid_offsets(natom + 1) = total_grid_npts + 1
       bs_env%ri_rs%grid_atom_boundaries(natom + 1) = total_grid_npts + 1
 
       IF (bs_env%unit_nr > 0) THEN
@@ -715,44 +729,41 @@ CONTAINS
          WRITE (bs_env%unit_nr, "(A)") ' '
       END IF
 
-       !! 4. Allocate the global ri_rs_grid arrays
       ALLOCATE (ri_rs_grid_points(3, total_grid_npts))
-
-       !! 5. Parallelize the grid generation loop
       !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(ri_rs_grid_points, ri_rs_grid_offsets, &
-      !$OMP        particle_set, bs_env, natom) &
-      !$OMP PRIVATE(atom_idx, atomic_center, start_idx, end_idx) &
+      !$OMP SHARED(ri_rs_grid_points, atom_grid_offsets, particle_set, bs_env, natom) &
+      !$OMP PRIVATE(atom, atom_center, atom_grid_start, atom_grid_end) &
       !$OMP SCHEDULE(DYNAMIC, 1)
-      DO atom_idx = 1, natom
-         atomic_center(:) = particle_set(atom_idx)%r(:)
+      DO atom = 1, natom
+         atom_center(:) = particle_set(atom)%r(:)
+         atom_grid_start = atom_grid_offsets(atom)
+         atom_grid_end = atom_grid_start + bs_env%ri_rs%grid_cache(atom)%npts - 1
 
-         start_idx = ri_rs_grid_offsets(atom_idx)
-         end_idx = start_idx + bs_env%ri_rs%grid_cache(atom_idx)%npts - 1
-
-         !! Shift the cached origin grid by the atom's center
-         ri_rs_grid_points(1, start_idx:end_idx) = bs_env%ri_rs%grid_cache(atom_idx)%raw_points(1, :) + atomic_center(1)
-         ri_rs_grid_points(2, start_idx:end_idx) = bs_env%ri_rs%grid_cache(atom_idx)%raw_points(2, :) + atomic_center(2)
-         ri_rs_grid_points(3, start_idx:end_idx) = bs_env%ri_rs%grid_cache(atom_idx)%raw_points(3, :) + atomic_center(3)
-
+         ! Translate the cached atom-relative points Δr_l^(A) to r_l = R_A + Δr_l^(A).
+         ri_rs_grid_points(1, atom_grid_start:atom_grid_end) = &
+            bs_env%ri_rs%grid_cache(atom)%raw_points(1, :) + atom_center(1)
+         ri_rs_grid_points(2, atom_grid_start:atom_grid_end) = &
+            bs_env%ri_rs%grid_cache(atom)%raw_points(2, :) + atom_center(2)
+         ri_rs_grid_points(3, atom_grid_start:atom_grid_end) = &
+            bs_env%ri_rs%grid_cache(atom)%raw_points(3, :) + atom_center(3)
       END DO
       !$OMP END PARALLEL DO
+   END SUBROUTINE assemble_RI_RS_grid_points
 
-      !! 6. Cleanup memory
-      IF (ALLOCATED(bs_env%ri_rs%grid_cache)) THEN
-         DO atom_idx = 1, natom
-            IF (ALLOCATED(bs_env%ri_rs%grid_cache(atom_idx)%raw_points)) THEN
-               DEALLOCATE (bs_env%ri_rs%grid_cache(atom_idx)%raw_points)
-            END IF
-         END DO
-         DEALLOCATE (bs_env%ri_rs%grid_cache)
-      END IF
+! **************************************************************************************************
+!> \brief Release the atom-relative RI-RS grid cache after assembling the global molecular grid.
+!> \param bs_env GW environment containing the grid cache.
+! **************************************************************************************************
+   SUBROUTINE release_RI_RS_grid_cache(bs_env)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
-      DEALLOCATE (atom_order, ri_rs_grid_offsets)
+      INTEGER                                            :: atom
 
-      CALL timestop(handle)
-
-   END SUBROUTINE ri_rs_grid_assembler
+      DO atom = 1, SIZE(bs_env%ri_rs%grid_cache)
+         DEALLOCATE (bs_env%ri_rs%grid_cache(atom)%raw_points)
+      END DO
+      DEALLOCATE (bs_env%ri_rs%grid_cache)
+   END SUBROUTINE release_RI_RS_grid_cache
 
 ! **************************************************************************************************
 !> \brief Reads grids from .ion files and stores them in memory based on grid_select
@@ -2729,7 +2740,7 @@ CONTAINS
          ! 1a. The optimized AB functions span two atoms, so their previously transformed
          !     Coulomb matrix cannot be rebuilt by the atom-local k-point integral routine.
          ! -------------------------------------------------------------------
-         CALL cp_fm_to_fm(bs_env%auto_ri%coulomb_matrix, fm_V)
+         CALL cp_fm_to_fm(bs_env%auto_ri%V_pq, fm_V)
       ELSE
          ! -------------------------------------------------------------------
          ! 1b. Build Coulomb Matrix V(k=0) using the kp-routine but only for ikp=1.
@@ -2928,7 +2939,7 @@ CONTAINS
       IF (bs_env%auto_ri%enabled) THEN
          ALLOCATE (fm_Vtr_Gamma(1, 1))
          CALL cp_fm_create(fm_Vtr_Gamma(1, 1), bs_env%fm_RI_RI%matrix_struct)
-         CALL cp_fm_to_fm(bs_env%auto_ri%coulomb_matrix, fm_Vtr_Gamma(1, 1))
+         CALL cp_fm_to_fm(bs_env%auto_ri%V_pq, fm_Vtr_Gamma(1, 1))
       ELSE
          CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI, bs_env%n_RI, &
                                  bs_env%trunc_coulomb, do_kpoints=.FALSE.)
