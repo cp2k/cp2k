@@ -96,6 +96,8 @@ def caller_loop(source, parallel):
     region = source[start:end]
     start = region.rindex("cross_cutoff = gapw_atom_grid_support_radius(")
     region = region[start:]
+    if parallel is None:
+        parallel = "!$OMP PARALLEL" in region
     if parallel:
         start = region.index("!$OMP PARALLEL")
         end = region.index("!$OMP END PARALLEL") + len("!$OMP END PARALLEL")
@@ -112,7 +114,7 @@ def main():
     parser.add_argument(
         "--baseline",
         required=True,
-        help="Unmodified Git revision containing the serial adjoint",
+        help="Unmodified Git revision containing the serial or parallel adjoint",
     )
     parser.add_argument(
         "--check", action="store_true", help="Bounds/FPE checks, no timing"
@@ -132,7 +134,7 @@ def main():
         "interpolate_gapw_atom_grid_fields",
         "add_gapw_atom_grid_interpolation_adjoint",
     ]
-    old_loop, new_loop = caller_loop(baseline, False), caller_loop(patched, True)
+    old_loop, new_loop = caller_loop(baseline, None), caller_loop(patched, True)
     sources = []
     for name, source, loop in [
         ("original", baseline, old_loop),
@@ -232,7 +234,7 @@ def main():
         "generated_sources_sha256": {
             p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sources
         },
-        "scope": "Extracted production kernels and exact caller loop, real CP2K types/harmonics; no SCF/model test",
+        "scope": "Extracted forward/adjoint kernels and exact caller loop, real CP2K types/harmonics; no SCF/model test",
     }
     (
         work / ("checked-results.json" if args.check else "benchmark-results.json")
