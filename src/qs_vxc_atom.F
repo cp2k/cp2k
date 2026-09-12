@@ -66,6 +66,13 @@ MODULE qs_vxc_atom
                                               has_nlcc,&
                                               qs_kind_type
    USE qs_linres_types,                 ONLY: nablavks_atom_type
+   USE qs_native_grid_cache,            ONLY: fetch_native_grid_stencil,&
+                                              native_grid_interp_npts,&
+                                              native_grid_interp_offset_max,&
+                                              native_grid_interp_offset_min,&
+                                              native_grid_interpolation_stencil_type,&
+                                              prepare_native_grid_cache,&
+                                              store_native_grid_stencil
    USE qs_rho_atom_methods,             ONLY: replicate_rho_atom_radial
    USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                               rho_atom_coeff,&
@@ -119,25 +126,12 @@ MODULE qs_vxc_atom
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc_atom'
 
-   ! The wider stencil suppresses mixed-kind eggbox forces while preserving an exact transpose.
-   INTEGER, PARAMETER, PRIVATE :: native_grid_interp_offset_min = -5, &
-                                  native_grid_interp_offset_max = 6, &
-                                  native_grid_interp_npts = &
-                                  native_grid_interp_offset_max - &
-                                  native_grid_interp_offset_min + 1
    ! A wrapped stencil can touch both end tiles and one adjacent interior tile when the final
    ! tile is shorter than the stencil. Three tiles per direction are therefore sufficient.
    INTEGER, PARAMETER, PRIVATE :: native_grid_adjoint_tile_edge = 64, &
                                   native_grid_adjoint_max_tiles_per_direction = 3, &
                                   native_grid_adjoint_max_bins_per_row = &
                                   native_grid_adjoint_max_tiles_per_direction**3
-
-   TYPE native_grid_interpolation_stencil_type
-      INTEGER, DIMENSION(native_grid_interp_npts, 3)     :: relative_index = 0
-      REAL(KIND=dp), DIMENSION(native_grid_interp_npts, 3) :: weight = 0.0_dp
-      LOGICAL, DIMENSION(native_grid_interp_npts, 3)     :: valid = .FALSE.
-      LOGICAL                                            :: active = .FALSE.
-   END TYPE native_grid_interpolation_stencil_type
 
    PUBLIC :: calculate_vxc_atom, &
              calculate_vxc_atom_epr, &
@@ -668,6 +662,8 @@ CONTAINS
             CPASSERT(ASSOCIATED(smooth_rho_r))
             CPASSERT(ASSOCIATED(smooth_rho_g))
             CPASSERT(ASSOCIATED(smooth_tau_r))
+            CALL prepare_native_grid_cache(qs_env%native_grid_cache, smooth_rho_r(1)%pw_grid, &
+                                           cell, composite_nflat, image_partition_atom_composite)
             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
             CALL section_vals_val_get(my_xc_section, "XC_GRID%XC_DERIV", &
                                       i_val=xc_deriv_method_id)
@@ -895,7 +891,7 @@ CONTAINS
 !$OMP        composite_smooth_rhob, composite_smooth_tau, composite_smooth_tau_a, &
 !$OMP        composite_smooth_tau_b, drho_h, drho_s, grid_atom, iatom, &
 !$OMP        image_partition_atom_composite, lsd, my_kind_set, na, nlcc, nr, one_center_kind, &
-!$OMP        particle_set, rho_h, rho_s, smooth_rho_r, tau_h, tau_s, &
+!$OMP        particle_set, qs_env, rho_h, rho_s, smooth_rho_r, tau_h, tau_s, &
 !$OMP        use_atom_composite_density, use_atom_composite_gradient, use_atom_composite_tau)
                   DO ir = 1, nr
                      DO ia = 1, na
@@ -932,9 +928,14 @@ CONTAINS
                         composite_grid_weights(composite_row) = &
                            composite_base_grid_weights(composite_row)* &
                            partition_weight
-                        CALL create_native_grid_interpolation_stencil( &
-                           interpolation_stencil, smooth_rho_r(1)%pw_grid, cell, composite_point, &
-                           image_partition_atom_composite)
+                        IF (.NOT. fetch_native_grid_stencil(qs_env%native_grid_cache, composite_row, &
+                                                            composite_point, interpolation_stencil)) THEN
+                           CALL create_native_grid_interpolation_stencil( &
+                              interpolation_stencil, smooth_rho_r(1)%pw_grid, cell, composite_point, &
+                              image_partition_atom_composite)
+                           CALL store_native_grid_stencil(qs_env%native_grid_cache, composite_row, &
+                                                          composite_point, interpolation_stencil)
+                        END IF
                         IF (lsd) THEN
                            CALL interpolate_native_grid_fields( &
                               composite_smooth_rhoa, composite_smooth_drhoa(1)%array, &
@@ -1985,7 +1986,7 @@ CONTAINS
 !$OMP        adjoint_tile_count, cell, composite_density_grad, composite_grad_grad, &
 !$OMP        composite_grid_coords, composite_kin_grad, image_partition_atom_composite, lsd, &
 !$OMP        smooth_density_adjoint_storage, smooth_grad_adjoint_storage, &
-!$OMP        smooth_kin_adjoint_storage, smooth_rho_r)
+!$OMP        smooth_kin_adjoint_storage, smooth_rho_r, qs_env)
             DO adjoint_bin = 1, adjoint_nbins
                CALL native_grid_adjoint_tile_bounds( &
                   smooth_rho_r(1)%pw_grid, adjoint_bin, adjoint_tile_count, &
@@ -1993,9 +1994,12 @@ CONTAINS
                DO adjoint_entry = adjoint_bin_offsets(adjoint_bin), &
                   adjoint_bin_offsets(adjoint_bin + 1) - 1
                   composite_row = adjoint_bin_rows(adjoint_entry)
-                  CALL create_native_grid_interpolation_stencil( &
-                     interpolation_stencil, smooth_rho_r(1)%pw_grid, cell, &
-                     composite_grid_coords(:, composite_row), image_partition_atom_composite)
+                  IF (.NOT. fetch_native_grid_stencil(qs_env%native_grid_cache, composite_row, &
+                                                      composite_grid_coords(:, composite_row), interpolation_stencil)) THEN
+                     CALL create_native_grid_interpolation_stencil( &
+                        interpolation_stencil, smooth_rho_r(1)%pw_grid, cell, &
+                        composite_grid_coords(:, composite_row), image_partition_atom_composite)
+                  END IF
                   IF (lsd) THEN
                      composite_smooth_density_adjoint_value = &
                         composite_density_grad(composite_row, :)
