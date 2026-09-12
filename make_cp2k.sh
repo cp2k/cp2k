@@ -815,8 +815,8 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-cc | --check_conventions]"
   echo "                    [-cray]"
   echo "                    [-cv | --cp2k_version (pdbg | psmp | sdbg | ssmp | ssmp-static)]"
-  echo "                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)"
-  echo "                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)"
+  echo "                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)]"
+  echo "                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)]"
   echo "                    [-gm | -gpu  | --gpu_model (<CUDA SM code> | P100 | V100 | T400 | A100 | H100 | H200 | GH200 | B200 | none)]"
   echo "                    [-gromacs GROMACS_VERSION]"
   echo "                    [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]"
@@ -1793,11 +1793,11 @@ cat << *** > "${LAUNCH_SCRIPT}"
 ulimit -c 0 -s unlimited
 export ASAN_OPTIONS="detect_leaks=1"
 export LSAN_OPTIONS="suppressions=${INSTALL_PREFIX}/bin/lsan.supp"
-export PATH=${INSTALL_PREFIX}/bin:${INSTALL_PREFIX}/ase/bin:${PATH}
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
+export PATH="${INSTALL_PREFIX}/bin:${INSTALL_PREFIX}/ase/bin:${PATH}"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}"
 export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-2}
 export OMP_STACKSIZE=256M
-export ASE_CONFIG_PATH=${INSTALL_PREFIX}/ase/config.ini
+export ASE_CONFIG_PATH="${INSTALL_PREFIX}/ase/config.ini"
 ${OMPI_VARS}
 export GAUXC_SKALA_MODEL=${GAUXC_SKALA_MODEL}
 exec "\$@"
