@@ -5445,7 +5445,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: delta_corr_omega
       INTEGER :: gw_lev_end, gw_lev_start, handle, handle3, i, iblk_mo, iquad, jquad, mo_end, &
-         mo_start, n_level_gw, n_level_gw_ref, nblk_mo, unit_nr_prv
+         mo_start, n_level_gw, n_level_gw_ref, nao, nblk_mo, unit_nr_prv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_range_mo, dist1, dist2, mo_bsizes, &
                                                             mo_offsets, sizes_AO, sizes_RI
       INTEGER, DIMENSION(2)                              :: mo_bounds, pdims_2d
@@ -5464,6 +5464,8 @@ CONTAINS
                                                             t_SinvVSinv, t_W
 
       CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(fm_mo_coeff_occ, nrow_global=nao)
 
       CALL decompress_tensor(t_3c_overl_int_ao_mo, t_3c_O_mo_ind, t_3c_O_mo_compressed, &
                              mp2_env%ri_rpa_im_time%eps_compress)
@@ -5641,7 +5643,7 @@ CONTAINS
          CALL timeset(routineN//"_RI_HFX_operation_1", handle3)
 
          ! get density matrix
-         CALL parallel_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
+         CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo, alpha=1.0_dp, &
                             matrix_a=fm_mo_coeff_occ, matrix_b=fm_mo_coeff_occ, beta=0.0_dp, &
                             matrix_c=fm_scaled_dm_occ_tau)
 
@@ -6825,8 +6827,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Greens_function_time'
 
-      INTEGER                                            :: handle, i_global, iiB, jjB, ncol_local, &
-                                                            nrow_local
+      INTEGER                                            :: handle, i_global, iiB, jjB, nao, &
+                                                            ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: stabilize_exp
 
@@ -6836,6 +6838,7 @@ CONTAINS
 
       ! get info of fm_mo_coeff_occ
       CALL cp_fm_get_info(matrix=fm_mo_coeff_occ, &
+                          nrow_global=nao, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
@@ -6879,11 +6882,11 @@ CONTAINS
 
       CALL para_env%sync()
 
-      CALL parallel_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
+      CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo, alpha=1.0_dp, &
                          matrix_a=fm_mo_coeff_occ_scaled, matrix_b=fm_mo_coeff_occ_scaled, beta=0.0_dp, &
                          matrix_c=fm_scaled_dm_occ_tau)
 
-      CALL parallel_gemm(transa="N", transb="T", m=nmo, n=nmo, k=nmo, alpha=1.0_dp, &
+      CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo, alpha=1.0_dp, &
                          matrix_a=fm_mo_coeff_virt_scaled, matrix_b=fm_mo_coeff_virt_scaled, beta=0.0_dp, &
                          matrix_c=fm_scaled_dm_virt_tau)
 
