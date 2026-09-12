@@ -1,0 +1,59 @@
+! Three OT steps deliberately test energy and orbital-derivative updates.
+! This is a regression trajectory, not a converged molecular reference.
+&GLOBAL
+  PROJECT O2-pbe-cancel
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    ROKS
+    MULTIPLICITY 3
+    &LOW_SPIN_ROKS
+      ENERGY_SCALING -1 1
+      SPIN_CONFIGURATION 1 2
+      SPIN_CONFIGURATION 1 2
+    &END LOW_SPIN_ROKS
+    &QS
+      METHOD GAPW
+      EPS_DEFAULT 1E-10
+      EPSFIT 1E-4
+    &END QS
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1E-8
+      MAX_SCF 3
+      IGNORE_CONVERGENCE_FAILURE
+      &OT
+        ROTATION
+        MINIMIZER CG
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4 4 6
+    &END CELL
+    &COORD
+      O 2 2 2.392
+      O 2 2 3.608
+    &END COORD
+    &KIND O
+      BASIS_SET 6-31G*
+      POTENTIAL ALL
+      RADIAL_GRID 60
+      LEBEDEV_GRID 110
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

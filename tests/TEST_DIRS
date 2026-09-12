@@ -228,6 +228,7 @@ QS/regtest-tddfpt-force-gapw-3                              libint !ifx
 QS/regtest-lvlshift
 QS/regtest-mp2-block                                        libint parallel mpiranks%2==0 !ifx
 QS/regtest-lsroks                                           libint !ifx
+QS/regtest-gapw-lsroks
 QS/regtest-gpw-9                                            libxc
 SE/regtest-4
 QS/regtest-ps-implicit-2-2

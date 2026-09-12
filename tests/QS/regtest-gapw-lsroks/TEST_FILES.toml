@@ -1,0 +1,10 @@
+# Three OT steps exercise energy and orbital derivatives; intentionally not SCF references.
+# Spin exchange must preserve the singlet trajectory; cancelling terms recover the triplet.
+"O2-pade.inp" = [{matcher="E_total", tol=1e-11, ref=-144.24875832448879}]
+"O2-pbe.inp" = [{matcher="E_total", tol=1e-11, ref=-145.14330646119839}]
+"O2-pbe-spinflip.inp" = [{matcher="E_total", tol=1e-11, ref=-145.14330646119845}]
+"O2-pbe-cancel.inp" = [{matcher="E_total", tol=1e-11, ref=-145.16079488388806}]
+"O2-pbe-triplet.inp" = [{matcher="E_total", tol=1e-11, ref=-145.16079488388792}]
+# Restart files must preserve the shared orbitals; tiny OT steps isolate this behavior.
+"O2-pbe-restart-write.inp" = [{matcher="E_total", tol=1e-10, ref=-141.15493132842772}]
+"O2-pbe-restart-read.inp" = [{matcher="E_total", tol=1e-10, ref=-141.15493767394975}]

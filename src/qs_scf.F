@@ -911,7 +911,10 @@ CONTAINS
             ELSE
                IF (.NOT. dft_control%mtlr_dft_with_perturbation) THEN
                   ! Write wavefunction restart file
-                  IF (scf_env%method == ot_method_nr) THEN
+                  ! A low-spin ROKS state is not invariant under separate occupied-space
+                  ! rotations of the two spins. Preserve its shared orbitals in GAPW restarts.
+                  IF (scf_env%method == ot_method_nr .AND. &
+                      .NOT. (dft_control%low_spin_roks .AND. dft_control%qs_control%gapw)) THEN
                      ! With OT: provide the Kohn-Sham matrix for the calculation of the MO eigenvalues
                      CALL get_ks_env(ks_env=ks_env, matrix_ks=matrix_ks)
                      CALL write_mo_set_to_restart(mos, particle_set, dft_section=dft_section, qs_kind_set=qs_kind_set, &
