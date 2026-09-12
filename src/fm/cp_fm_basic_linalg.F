@@ -2547,7 +2547,10 @@ CONTAINS
       DO ic = 1, ncl
          xvl(ic) = xv(cind(ic))
       END DO
-      yvl(1:nrl) = MATMUL(amat%local_data, xvl(1:ncl))
+      yvl = 0.0_dp
+      IF (nrl > 0 .AND. ncl > 0) THEN
+         yvl(1:nrl) = MATMUL(amat%local_data(1:nrl, 1:ncl), xvl)
+      END IF
       yvm = 0.0_dp
       DO ir = 1, nrl
          yvm(rind(ir)) = yvl(ir)
