@@ -634,7 +634,7 @@ CONTAINS
       END IF
 
       ! Now start the RPA calculation
-      ! cfm_mo_coeff_occ, cfm_mo_coeff_virt will be deallocated here
+      ! cfm_mo_coeff will be deallocated here
       CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                        homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
                        Eigenval_kp, num_integ_points, num_integ_group, color_rpa_group, &
@@ -1153,7 +1153,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_last, Eigenval_scf, &
                                                             vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
-      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_mo_coeff_occ, cfm_mo_coeff_virt
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_mo_coeff
       TYPE(cp_fm_type)                                   :: fm_mat_Q_static_bse_gemm, &
                                                             fm_mat_RI_global_work, fm_mat_work
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_S_ia_bse, &
@@ -1235,7 +1235,7 @@ CONTAINS
          min_bsize = mp2_env%ri_rpa_im_time%min_bsize
 
          CALL alloc_im_time(qs_env, para_env, dimen_RI, dimen_RI_red, &
-                            num_integ_points, nspins, fm_mat_Q(1), cfm_mo_coeff_occ, cfm_mo_coeff_virt, &
+                            num_integ_points, nspins, fm_mat_Q(1), cfm_mo_coeff, &
                             fm_matrix_Minv_L_kpoints, fm_matrix_L_kpoints, mat_P_global, &
                             t_3c_O, matrix_s, kpoints, eps_filter_im_time, &
                             cut_memory, nkp, num_cells_dm, num_3c_repl, &
@@ -1248,8 +1248,7 @@ CONTAINS
                             has_mat_P_blocks, wkp_W, &
                             cfm_mat_Q, fm_mat_Minv_L_kpoints, fm_mat_L_kpoints, &
                             fm_mat_RI_global_work, fm_mat_work, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, &
-                            mat_MinvVMinv, mat_P_omega, mat_P_omega_kp, mat_work, mo_coeff, &
-                            homo, nmo)
+                            mat_MinvVMinv, mat_P_omega, mat_P_omega_kp, mat_work, mo_coeff)
 
          IF (calc_forces) CALL init_im_time_forces(force_data, fm_matrix_PQ, t_3c_M, unit_nr, mp2_env, qs_env)
 
@@ -1395,7 +1394,7 @@ CONTAINS
             CALL zero_mat_P_omega(mat_P_omega(:, :, 1))
 
             ! compute the matrix Q(it) and Fourier transform it directly to mat_P_omega(iw)
-            CALL compute_mat_P_omega(mat_P_omega(:, :, 1), cfm_mo_coeff_occ(1), cfm_mo_coeff_virt(1), &
+            CALL compute_mat_P_omega(mat_P_omega(:, :, 1), cfm_mo_coeff(1), homo(1), &
                                      mat_P_global, matrix_s, 1, &
                                      t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                      starts_array_mc, ends_array_mc, &
@@ -1409,10 +1408,10 @@ CONTAINS
                                      has_mat_P_blocks, do_ri_sos_laplace_mp2, &
                                      dbcsr_time, dbcsr_nflop)
 
-            ! the same for open shell, use cfm_mo_coeff_occ_beta and cfm_mo_coeff_virt_beta
+            ! the same for open shell, use the beta-spin MO coefficients
             IF (my_open_shell) THEN
                CALL zero_mat_P_omega(mat_P_omega(:, :, 2))
-               CALL compute_mat_P_omega(mat_P_omega(:, :, 2), cfm_mo_coeff_occ(2), cfm_mo_coeff_virt(2), &
+               CALL compute_mat_P_omega(mat_P_omega(:, :, 2), cfm_mo_coeff(2), homo(2), &
                                         mat_P_global, matrix_s, 2, &
                                         t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                         starts_array_mc, ends_array_mc, &
@@ -1638,8 +1637,7 @@ CONTAINS
                Pspin = 1
                Qspin = 2
                CALL calc_laplace_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
-                                             t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), cfm_mo_coeff_occ, &
-                                             cfm_mo_coeff_virt, &
+                                             t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), cfm_mo_coeff, homo, &
                                              starts_array_mc, ends_array_mc, starts_array_mc_block, &
                                              ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
                                              tau_tj, tau_wj, cut_memory, Pspin, Qspin, my_open_shell, &
@@ -1647,8 +1645,7 @@ CONTAINS
                Pspin = 2
                Qspin = 1
                CALL calc_laplace_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
-                                             t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), cfm_mo_coeff_occ, &
-                                             cfm_mo_coeff_virt, &
+                                             t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), cfm_mo_coeff, homo, &
                                              starts_array_mc, ends_array_mc, starts_array_mc_block, &
                                              ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
                                              tau_tj, tau_wj, cut_memory, Pspin, Qspin, my_open_shell, &
@@ -1658,8 +1655,7 @@ CONTAINS
                Pspin = 1
                Qspin = 1
                CALL calc_laplace_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
-                                             t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), cfm_mo_coeff_occ, &
-                                             cfm_mo_coeff_virt, &
+                                             t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), cfm_mo_coeff, homo, &
                                              starts_array_mc, ends_array_mc, starts_array_mc_block, &
                                              ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
                                              tau_tj, tau_wj, cut_memory, Pspin, Qspin, my_open_shell, &
@@ -1671,8 +1667,7 @@ CONTAINS
          IF (calc_forces .AND. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) THEN
             DO ispin = 1, nspins
                CALL calc_rpa_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
-                                         t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), cfm_mo_coeff_occ, &
-                                         cfm_mo_coeff_virt, &
+                                         t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), cfm_mo_coeff, homo, &
                                          starts_array_mc, ends_array_mc, starts_array_mc_block, &
                                          ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
                                          e_fermi(ispin), weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, tj, &
@@ -1713,7 +1708,7 @@ CONTAINS
                                      Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, &
                                      vec_omega_fit_gw, vec_Sigma_x_gw, mp2_env%ri_g0w0%ic_corr_list, &
                                      weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
-                                     cfm_mo_coeff_occ, cfm_mo_coeff_virt, mo_coeff(1), fm_mat_W, para_env, &
+                                     cfm_mo_coeff, mo_coeff(1), fm_mat_W, para_env, &
                                      para_env_RPA, mat_dm, mat_MinvVMinv, &
                                      t_3c_O, t_3c_M, t_3c_overl_int_ao_mo, t_3c_O_compressed, t_3c_O_mo_compressed, &
                                      t_3c_O_ind, t_3c_O_mo_ind, &
@@ -1803,7 +1798,7 @@ CONTAINS
 
       IF (do_im_time) THEN
 
-         CALL dealloc_im_time(cfm_mo_coeff_occ, cfm_mo_coeff_virt, index_to_cell_3c, &
+         CALL dealloc_im_time(cfm_mo_coeff, index_to_cell_3c, &
                               cell_to_index_3c, do_ic_model, &
                               do_kpoints_cubic_RPA, do_kpoints_from_Gamma, do_ri_Sigma_x, &
                               has_mat_P_blocks, &

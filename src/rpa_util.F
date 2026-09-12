@@ -20,7 +20,6 @@ MODULE rpa_util
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
-                                              cp_cfm_set_element,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: &
@@ -88,8 +87,7 @@ CONTAINS
 !> \param num_integ_points ...
 !> \param nspins ...
 !> \param fm_mat_Q ...
-!> \param cfm_mo_coeff_occ ...
-!> \param cfm_mo_coeff_virt ...
+!> \param cfm_mo_coeff ...
 !> \param fm_matrix_Minv_L_kpoints ...
 !> \param fm_matrix_L_kpoints ...
 !> \param mat_P_global ...
@@ -127,11 +125,9 @@ CONTAINS
 !> \param mat_P_omega_kp ...
 !> \param mat_work ...
 !> \param mo_coeff ...
-!> \param homo ...
-!> \param nmo ...
 ! **************************************************************************************************
    SUBROUTINE alloc_im_time(qs_env, para_env, dimen_RI, dimen_RI_red, num_integ_points, nspins, &
-                            fm_mat_Q, cfm_mo_coeff_occ, cfm_mo_coeff_virt, &
+                            fm_mat_Q, cfm_mo_coeff, &
                             fm_matrix_Minv_L_kpoints, fm_matrix_L_kpoints, mat_P_global, &
                             t_3c_O, matrix_s, kpoints, eps_filter_im_time, &
                             cut_memory, nkp, num_cells_dm, num_3c_repl, &
@@ -145,14 +141,14 @@ CONTAINS
                             cfm_mat_Q, fm_mat_Minv_L_kpoints, fm_mat_L_kpoints, &
                             fm_mat_RI_global_work, fm_mat_work, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, &
                             mat_MinvVMinv, mat_P_omega, mat_P_omega_kp, &
-                            mat_work, mo_coeff, homo, nmo)
+                            mat_work, mo_coeff)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red, &
                                                             num_integ_points, nspins
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
-      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_mo_coeff_occ, cfm_mo_coeff_virt
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_mo_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv_L_kpoints, &
                                                             fm_matrix_L_kpoints
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_P_global
@@ -185,8 +181,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_P_omega_kp
       TYPE(dbcsr_type), POINTER                          :: mat_work
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
-      INTEGER, INTENT(IN)                                :: nmo
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'alloc_im_time'
 
@@ -200,11 +194,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (cfm_mo_coeff_occ(nspins), cfm_mo_coeff_virt(nspins))
+      ALLOCATE (cfm_mo_coeff(nspins))
 
       DO ispin = 1, SIZE(mo_coeff)
-         CALL create_occ_virt_mo_coeffs(cfm_mo_coeff_occ(ispin), cfm_mo_coeff_virt(ispin), mo_coeff(ispin), &
-                                        nmo, homo(ispin))
+         CALL create_mo_coeff(cfm_mo_coeff(ispin), mo_coeff(ispin))
       END DO
 
       num_3c_repl = SIZE(t_3c_O, 2)
@@ -362,50 +355,26 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param cfm_mo_coeff_occ ...
-!> \param cfm_mo_coeff_virt ...
+!> \param cfm_mo_coeff ...
 !> \param mo_coeff ...
-!> \param nmo ...
-!> \param homo ...
 ! **************************************************************************************************
-   SUBROUTINE create_occ_virt_mo_coeffs(cfm_mo_coeff_occ, cfm_mo_coeff_virt, mo_coeff, &
-                                        nmo, homo)
+   SUBROUTINE create_mo_coeff(cfm_mo_coeff, mo_coeff)
 
-      TYPE(cp_cfm_type), INTENT(OUT)                     :: cfm_mo_coeff_occ, cfm_mo_coeff_virt
+      TYPE(cp_cfm_type), INTENT(OUT)                     :: cfm_mo_coeff
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
-      INTEGER, INTENT(IN)                                :: nmo, homo
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_occ_virt_mo_coeffs'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_mo_coeff'
 
-      INTEGER                                            :: handle, icol_global, irow_global, nao
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_get_info(mo_coeff, nrow_global=nao)
-
-      CALL cp_cfm_create(cfm_mo_coeff_occ, mo_coeff%matrix_struct)
-      CALL cp_fm_to_cfm(msourcer=mo_coeff, mtarget=cfm_mo_coeff_occ)
-
-      ! set all virtual MO coeffs to zero
-      DO icol_global = homo + 1, nmo
-         DO irow_global = 1, nao
-            CALL cp_cfm_set_element(cfm_mo_coeff_occ, irow_global, icol_global, z_zero)
-         END DO
-      END DO
-
-      CALL cp_cfm_create(cfm_mo_coeff_virt, mo_coeff%matrix_struct)
-      CALL cp_fm_to_cfm(msourcer=mo_coeff, mtarget=cfm_mo_coeff_virt)
-
-      ! set all occupied MO coeffs to zero
-      DO icol_global = 1, homo
-         DO irow_global = 1, nao
-            CALL cp_cfm_set_element(cfm_mo_coeff_virt, irow_global, icol_global, z_zero)
-         END DO
-      END DO
+      CALL cp_cfm_create(cfm_mo_coeff, mo_coeff%matrix_struct)
+      CALL cp_fm_to_cfm(msourcer=mo_coeff, mtarget=cfm_mo_coeff)
 
       CALL timestop(handle)
 
-   END SUBROUTINE create_occ_virt_mo_coeffs
+   END SUBROUTINE create_mo_coeff
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1042,8 +1011,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param cfm_mo_coeff_occ ...
-!> \param cfm_mo_coeff_virt ...
+!> \param cfm_mo_coeff ...
 !> \param index_to_cell_3c ...
 !> \param cell_to_index_3c ...
 !> \param do_ic_model ...
@@ -1071,7 +1039,7 @@ CONTAINS
 !> \param mat_work ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE dealloc_im_time(cfm_mo_coeff_occ, cfm_mo_coeff_virt, index_to_cell_3c, &
+   SUBROUTINE dealloc_im_time(cfm_mo_coeff, index_to_cell_3c, &
                               cell_to_index_3c, do_ic_model, &
                               do_kpoints_cubic_RPA, do_kpoints_from_Gamma, do_ri_Sigma_x, &
                               has_mat_P_blocks, &
@@ -1082,7 +1050,7 @@ CONTAINS
                               t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                               mat_work, qs_env)
 
-      TYPE(cp_cfm_type), DIMENSION(:), INTENT(INOUT)     :: cfm_mo_coeff_occ, cfm_mo_coeff_virt
+      TYPE(cp_cfm_type), DIMENSION(:), INTENT(INOUT)     :: cfm_mo_coeff
       INTEGER, ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
@@ -1119,12 +1087,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nspins = SIZE(cfm_mo_coeff_occ)
+      nspins = SIZE(cfm_mo_coeff)
       my_open_shell = (nspins == 2)
 
-      DO ispin = 1, SIZE(cfm_mo_coeff_occ)
-         CALL cp_cfm_release(cfm_mo_coeff_occ(ispin))
-         CALL cp_cfm_release(cfm_mo_coeff_virt(ispin))
+      DO ispin = 1, SIZE(cfm_mo_coeff)
+         CALL cp_cfm_release(cfm_mo_coeff(ispin))
       END DO
       CALL cp_fm_release(fm_mat_Minv_L_kpoints)
       CALL cp_fm_release(fm_mat_L_kpoints)

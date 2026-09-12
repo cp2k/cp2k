@@ -1179,8 +1179,7 @@ CONTAINS
 !> \param ic_corr_list ...
 !> \param weights_cos_tf_t_to_w ...
 !> \param weights_sin_tf_t_to_w ...
-!> \param cfm_mo_coeff_occ ...
-!> \param cfm_mo_coeff_virt ...
+!> \param cfm_mo_coeff ...
 !> \param mo_coeff ...
 !> \param fm_mat_W ...
 !> \param para_env ...
@@ -1217,8 +1216,8 @@ CONTAINS
                                   fermi_level_offset, delta_corr, Eigenval, &
                                   Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, &
                                   vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
-                                  weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, cfm_mo_coeff_occ, &
-                                  cfm_mo_coeff_virt, mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_MinvVMinv, &
+                                  weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, cfm_mo_coeff, mo_coeff, fm_mat_W, &
+                                  para_env, para_env_RPA, mat_dm, mat_MinvVMinv, &
                                   t_3c_O, t_3c_M, t_3c_overl_int_ao_mo, &
                                   t_3c_O_compressed, t_3c_O_mo_compressed, &
                                   t_3c_O_ind, t_3c_O_mo_ind, &
@@ -1255,7 +1254,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_t_to_w, &
                                                             weights_sin_tf_t_to_w
-      TYPE(cp_cfm_type), DIMENSION(:), INTENT(IN)        :: cfm_mo_coeff_occ, cfm_mo_coeff_virt
+      TYPE(cp_cfm_type), DIMENSION(:), INTENT(IN)        :: cfm_mo_coeff
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: fm_mat_W
@@ -1309,8 +1308,7 @@ CONTAINS
 
             DO ispin = 1, nspins
                CALL compute_self_energy_cubic_gw(num_integ_points, nmo, tau_tj, tj, &
-                                                 matrix_s, cfm_mo_coeff_occ(ispin), &
-                                                 cfm_mo_coeff_virt(ispin), Eigenval(:, 1, ispin), eps_filter, &
+                                                 matrix_s, cfm_mo_coeff(ispin), Eigenval(:, 1, ispin), eps_filter, &
                                                  e_fermi(ispin), fm_mat_W, &
                                                  gw_corr_lev_tot, gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), homo(ispin), &
                                                  count_ev_sc_GW, count_sc_GW0, &
@@ -5332,8 +5330,7 @@ CONTAINS
 !> \param tau_tj ...
 !> \param tj ...
 !> \param matrix_s ...
-!> \param cfm_mo_coeff_occ ...
-!> \param cfm_mo_coeff_virt ...
+!> \param cfm_mo_coeff ...
 !> \param Eigenval ...
 !> \param eps_filter ...
 !> \param e_fermi ...
@@ -5374,7 +5371,7 @@ CONTAINS
 !> \param ispin ...
 ! **************************************************************************************************
    SUBROUTINE compute_self_energy_cubic_gw(num_integ_points, nmo, tau_tj, tj, &
-                                           matrix_s, cfm_mo_coeff_occ, cfm_mo_coeff_virt, Eigenval, eps_filter, &
+                                           matrix_s, cfm_mo_coeff, Eigenval, eps_filter, &
                                            e_fermi, fm_mat_W, &
                                            gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                            count_ev_sc_GW, count_sc_GW0, &
@@ -5390,7 +5387,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj, tj
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_s
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mo_coeff_occ, cfm_mo_coeff_virt
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mo_coeff
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       REAL(KIND=dp), INTENT(INOUT)                       :: e_fermi
@@ -5453,7 +5450,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_cfm_get_info(cfm_mo_coeff_occ, nrow_global=nao)
+      CALL cp_cfm_get_info(cfm_mo_coeff, nrow_global=nao)
 
       CALL decompress_tensor(t_3c_overl_int_ao_mo, t_3c_O_mo_ind, t_3c_O_mo_compressed, &
                              mp2_env%ri_rpa_im_time%eps_compress)
@@ -5527,7 +5524,7 @@ CONTAINS
 
       DO jquad = 1, num_integ_points
 
-         CALL compute_gamma_propagator(greens_fct, 1, cfm_mo_coeff_occ, cfm_mo_coeff_virt, Eigenval, nmo, &
+         CALL compute_gamma_propagator(greens_fct, 1, cfm_mo_coeff, homo, Eigenval, nmo, &
                                        eps_filter, e_fermi, tau_tj(jquad), para_env)
 
          CALL dbcsr_set(mat_W, 0.0_dp)
@@ -5624,11 +5621,11 @@ CONTAINS
 
          CALL timeset(routineN//"_RI_HFX_operation_1", handle3)
 
-         CALL cp_cfm_create(cfm_scaled_dm_occ_tau, cfm_mo_coeff_occ%matrix_struct, nrow=nao, ncol=nao)
+         CALL cp_cfm_create(cfm_scaled_dm_occ_tau, cfm_mo_coeff%matrix_struct, nrow=nao, ncol=nao)
 
          ! get density matrix
-         CALL parallel_gemm(transa="N", transb="C", m=nao, n=nao, k=nmo, alpha=(1.0_dp, 0.0_dp), &
-                            matrix_a=cfm_mo_coeff_occ, matrix_b=cfm_mo_coeff_occ, beta=(0.0_dp, 0.0_dp), &
+         CALL parallel_gemm(transa="N", transb="C", m=nao, n=nao, k=homo, alpha=(1.0_dp, 0.0_dp), &
+                            matrix_a=cfm_mo_coeff, matrix_b=cfm_mo_coeff, beta=(0.0_dp, 0.0_dp), &
                             matrix_c=cfm_scaled_dm_occ_tau)
 
          CALL cp_fm_create(fm_scaled_dm_occ_tau, cfm_scaled_dm_occ_tau%matrix_struct)
