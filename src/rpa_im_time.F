@@ -76,6 +76,7 @@ MODULE rpa_im_time
              zero_mat_P_omega, &
              compute_periodic_dm, &
              compute_mat_dm_global, &
+             compute_gamma_propagator, &
              create_propagator_matrix_set
 
 CONTAINS
@@ -97,7 +98,6 @@ CONTAINS
 
       CPASSERT(ntime > 0)
       CPASSERT(SIZE(index_to_cell, 1) == 3)
-
       ncell = SIZE(index_to_cell, 2)
       CPASSERT(ncell > 0)
 
@@ -709,15 +709,10 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_dm_global'
-      REAL(KIND=dp), PARAMETER                           :: stabilize_exp = 70.0_dp
 
-      INTEGER                                            :: handle, i_global, iiB, jjB, nao, &
-                                                            ncol_local, nrow_local
+      INTEGER                                            :: handle
       INTEGER, DIMENSION(3, 1)                           :: index_to_cell_zero
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: tau
-      TYPE(cp_fm_type)                                   :: fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
-                                                            fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
 
       index_to_cell_zero = 0
 
@@ -756,93 +751,13 @@ CONTAINS
 
          num_cells_dm = 1
 
-         CALL para_env%sync()
-
-         ! get info of fm_mo_coeff_occ
-         CALL cp_fm_get_info(matrix=fm_mo_coeff_occ, &
-                             nrow_global=nao, &
-                             nrow_local=nrow_local, &
-                             ncol_local=ncol_local, &
-                             row_indices=row_indices, &
-                             col_indices=col_indices)
-
-         CALL cp_fm_create(fm_scaled_dm_occ_tau, fm_mo_coeff_occ%matrix_struct, nrow=nao, ncol=nao)
-         CALL cp_fm_create(fm_scaled_dm_virt_tau, fm_mo_coeff_virt%matrix_struct, nrow=nao, ncol=nao)
-         CALL cp_fm_create(fm_mo_coeff_occ_scaled, fm_mo_coeff_occ%matrix_struct)
-         CALL cp_fm_create(fm_mo_coeff_virt_scaled, fm_mo_coeff_virt%matrix_struct)
-
-         ! Multiply the occupied and the virtual MO coefficients with the factor exp((-e_i-e_F)*tau/2).
-         ! Then, we simply get the sum over all occ states and virt. states by a simple matrix-matrix
-         ! multiplication.
-
-         ! first, the occ
-         DO jjB = 1, nrow_local
-            DO iiB = 1, ncol_local
-               i_global = col_indices(iiB)
-
-               ! hard coded: exponential function gets NaN if argument is negative with large absolute value
-               ! use 69, since e^(-69) = 10^(-30) which should be sufficiently small that it does not matter
-               IF (ABS(tau*0.5_dp*(Eigenval(i_global) - e_fermi)) < stabilize_exp) THEN
-                  fm_mo_coeff_occ_scaled%local_data(jjB, iiB) = &
-                     fm_mo_coeff_occ%local_data(jjB, iiB)*EXP(tau*0.5_dp*(Eigenval(i_global) - e_fermi))
-               ELSE
-                  fm_mo_coeff_occ_scaled%local_data(jjB, iiB) = 0.0_dp
-               END IF
-
-            END DO
-         END DO
-
-         ! get info of fm_mo_coeff_virt
-         CALL cp_fm_get_info(matrix=fm_mo_coeff_virt, &
-                             nrow_local=nrow_local, &
-                             ncol_local=ncol_local, &
-                             row_indices=row_indices, &
-                             col_indices=col_indices)
-
-         ! the same for virt
-         DO jjB = 1, nrow_local
-            DO iiB = 1, ncol_local
-               i_global = col_indices(iiB)
-
-               IF (ABS(tau*0.5_dp*(Eigenval(i_global) - e_fermi)) < stabilize_exp) THEN
-                  fm_mo_coeff_virt_scaled%local_data(jjB, iiB) = &
-                     fm_mo_coeff_virt%local_data(jjB, iiB)*EXP(-tau*0.5_dp*(Eigenval(i_global) - e_fermi))
-               ELSE
-                  fm_mo_coeff_virt_scaled%local_data(jjB, iiB) = 0.0_dp
-               END IF
-
-            END DO
-         END DO
-
-         CALL para_env%sync()
-
-         CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo, alpha=1.0_dp, &
-                            matrix_a=fm_mo_coeff_occ_scaled, matrix_b=fm_mo_coeff_occ_scaled, beta=0.0_dp, &
-                            matrix_c=fm_scaled_dm_occ_tau)
-
-         CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo, alpha=1.0_dp, &
-                            matrix_a=fm_mo_coeff_virt_scaled, matrix_b=fm_mo_coeff_virt_scaled, beta=0.0_dp, &
-                            matrix_c=fm_scaled_dm_virt_tau)
-
          IF (jquad == 1) THEN
-
-            ! transfer fm density matrices to dbcsr matrix
             CALL create_propagator_matrix_set(propagator, num_integ_points, matrix_s(1)%matrix, &
                                               index_to_cell_zero)
-
          END IF
 
-         CALL copy_fm_to_dbcsr(fm_scaled_dm_occ_tau, &
-                               propagator(propagator_sector_occupied, jquad, 1)%matrix, &
-                               keep_sparsity=.FALSE.)
-
-         CALL dbcsr_filter(propagator(propagator_sector_occupied, jquad, 1)%matrix, eps_filter)
-
-         CALL copy_fm_to_dbcsr(fm_scaled_dm_virt_tau, &
-                               propagator(propagator_sector_virtual, jquad, 1)%matrix, &
-                               keep_sparsity=.FALSE.)
-
-         CALL dbcsr_filter(propagator(propagator_sector_virtual, jquad, 1)%matrix, eps_filter)
+         CALL compute_gamma_propagator(propagator, jquad, fm_mo_coeff_occ, fm_mo_coeff_virt, Eigenval, nmo, &
+                                       eps_filter, e_fermi, tau, para_env)
 
          ! release memory
          IF (jquad > 1) THEN
@@ -852,16 +767,115 @@ CONTAINS
             CALL dbcsr_filter(propagator(propagator_sector_virtual, jquad - 1, 1)%matrix, 0.0_dp)
          END IF
 
-         CALL cp_fm_release(fm_scaled_dm_occ_tau)
-         CALL cp_fm_release(fm_scaled_dm_virt_tau)
-         CALL cp_fm_release(fm_mo_coeff_occ_scaled)
-         CALL cp_fm_release(fm_mo_coeff_virt_scaled)
-
       END IF ! do kpoints
 
       CALL timestop(handle)
 
    END SUBROUTINE compute_mat_dm_global
+
+! **************************************************************************************************
+!> \brief Builds the Gamma-point occupied and virtual propagators.
+!> \param propagator sector/time/cell propagator matrix set
+!> \param jquad time-point index
+!> \param fm_mo_coeff_occ occupied-orbital coefficients
+!> \param fm_mo_coeff_virt virtual-orbital coefficients
+!> \param Eigenval orbital energies
+!> \param nmo number of orbitals
+!> \param eps_filter DBCSR filtering threshold
+!> \param e_fermi Fermi energy
+!> \param tau imaginary time
+!> \param para_env parallel environment
+! **************************************************************************************************
+   SUBROUTINE compute_gamma_propagator(propagator, jquad, fm_mo_coeff_occ, fm_mo_coeff_virt, Eigenval, nmo, &
+                                        eps_filter, e_fermi, tau, para_env)
+      TYPE(dbcsr_p_type), DIMENSION(:, :, :), INTENT(INOUT), POINTER :: propagator
+      INTEGER, INTENT(IN)                                :: jquad, nmo
+      TYPE(cp_fm_type), INTENT(IN)                        :: fm_mo_coeff_occ, fm_mo_coeff_virt
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)             :: Eigenval
+      REAL(KIND=dp), INTENT(IN)                           :: eps_filter, e_fermi, tau
+      TYPE(mp_para_env_type), INTENT(IN)                  :: para_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_gamma_propagator'
+      REAL(KIND=dp), PARAMETER                           :: stabilize_exp = 70.0_dp
+
+      INTEGER                                            :: handle, i_global, iiB, jjB, nao, &
+                                                            ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      TYPE(dbcsr_type), POINTER                          :: mat_occ, mat_virt
+      TYPE(cp_fm_type)                                   :: fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
+                                                            fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+
+      CALL timeset(routineN, handle)
+      CALL para_env%sync()
+
+      mat_occ => propagator(propagator_sector_occupied, jquad, 1)%matrix
+      mat_virt => propagator(propagator_sector_virtual, jquad, 1)%matrix
+
+      CALL cp_fm_get_info(matrix=fm_mo_coeff_occ, &
+                          nrow_global=nao, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
+      CALL cp_fm_create(fm_scaled_dm_occ_tau, fm_mo_coeff_occ%matrix_struct, nrow=nao, ncol=nao)
+      CALL cp_fm_create(fm_scaled_dm_virt_tau, fm_mo_coeff_virt%matrix_struct, nrow=nao, ncol=nao)
+      CALL cp_fm_create(fm_mo_coeff_occ_scaled, fm_mo_coeff_occ%matrix_struct)
+      CALL cp_fm_create(fm_mo_coeff_virt_scaled, fm_mo_coeff_virt%matrix_struct)
+
+      DO jjB = 1, nrow_local
+         DO iiB = 1, ncol_local
+            i_global = col_indices(iiB)
+            IF (ABS(tau*0.5_dp*(Eigenval(i_global) - e_fermi)) < stabilize_exp) THEN
+               fm_mo_coeff_occ_scaled%local_data(jjB, iiB) = &
+                  fm_mo_coeff_occ%local_data(jjB, iiB)*EXP(tau*0.5_dp*(Eigenval(i_global) - e_fermi))
+            ELSE
+               fm_mo_coeff_occ_scaled%local_data(jjB, iiB) = 0.0_dp
+            END IF
+         END DO
+      END DO
+
+      CALL cp_fm_get_info(matrix=fm_mo_coeff_virt, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices)
+
+      DO jjB = 1, nrow_local
+         DO iiB = 1, ncol_local
+            i_global = col_indices(iiB)
+            IF (ABS(tau*0.5_dp*(Eigenval(i_global) - e_fermi)) < stabilize_exp) THEN
+               fm_mo_coeff_virt_scaled%local_data(jjB, iiB) = &
+                  fm_mo_coeff_virt%local_data(jjB, iiB)*EXP(-tau*0.5_dp*(Eigenval(i_global) - e_fermi))
+            ELSE
+               fm_mo_coeff_virt_scaled%local_data(jjB, iiB) = 0.0_dp
+            END IF
+         END DO
+      END DO
+
+      CALL para_env%sync()
+
+      CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo, alpha=1.0_dp, &
+                         matrix_a=fm_mo_coeff_occ_scaled, matrix_b=fm_mo_coeff_occ_scaled, beta=0.0_dp, &
+                         matrix_c=fm_scaled_dm_occ_tau)
+      CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo, alpha=1.0_dp, &
+                         matrix_a=fm_mo_coeff_virt_scaled, matrix_b=fm_mo_coeff_virt_scaled, beta=0.0_dp, &
+                         matrix_c=fm_scaled_dm_virt_tau)
+
+      CALL dbcsr_set(mat_occ, 0.0_dp)
+      CALL copy_fm_to_dbcsr(fm_scaled_dm_occ_tau, mat_occ, keep_sparsity=.FALSE.)
+      CALL dbcsr_filter(mat_occ, eps_filter)
+      CALL dbcsr_set(mat_virt, 0.0_dp)
+      CALL copy_fm_to_dbcsr(fm_scaled_dm_virt_tau, mat_virt, keep_sparsity=.FALSE.)
+      CALL dbcsr_filter(mat_virt, eps_filter)
+
+      CALL cp_fm_release(fm_scaled_dm_occ_tau)
+      CALL cp_fm_release(fm_scaled_dm_virt_tau)
+      CALL cp_fm_release(fm_mo_coeff_occ_scaled)
+      CALL cp_fm_release(fm_mo_coeff_virt_scaled)
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_gamma_propagator
 
 ! **************************************************************************************************
 !> \brief Calculate kpoint density matrices (rho(k), owned by kpoint groups)
