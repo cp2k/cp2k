@@ -363,7 +363,7 @@ CONTAINS
       TYPE(cp_cfm_type), INTENT(OUT)                     :: cfm_mo_coeff
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'create_mo_coeff'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_mo_coeff'
 
       INTEGER                                            :: handle
 

@@ -671,8 +671,7 @@ CONTAINS
       TYPE(hfx_compression_type), DIMENSION(:)           :: t_3c_O_compressed
       TYPE(block_ind_type), DIMENSION(:), INTENT(INOUT)  :: t_3c_O_ind
       TYPE(cp_cfm_type), DIMENSION(:), INTENT(IN)        :: cfm_mo_coeff
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
       INTEGER, INTENT(IN)                                :: num_integ_points, nmo
@@ -1212,8 +1211,7 @@ CONTAINS
       TYPE(hfx_compression_type), DIMENSION(:)           :: t_3c_O_compressed
       TYPE(block_ind_type), DIMENSION(:), INTENT(INOUT)  :: t_3c_O_ind
       TYPE(cp_cfm_type), DIMENSION(:), INTENT(IN)        :: cfm_mo_coeff
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
       INTEGER, INTENT(IN)                                :: num_integ_points, nmo

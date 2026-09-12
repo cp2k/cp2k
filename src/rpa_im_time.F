@@ -1180,11 +1180,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_from_kp_to_mic'
 
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), POINTER :: cfm_data
-      INTEGER                                            :: handle, iatom, iatom_old, ik, ik_global, ik_old, &
-                                                            irow, jatom, jatom_old, jcol, &
-                                                            nao, ncol_local, nrow_local, &
-                                                            num_cells
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: cfm_data
+      INTEGER                                            :: handle, iatom, iatom_old, ik, ik_global, &
+                                                            ik_old, irow, jatom, jatom_old, jcol, &
+                                                            nao, ncol_local, nrow_local, num_cells
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_ao_index
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
@@ -1292,7 +1292,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_from_kp_to_transl'
 
-      INTEGER                                            :: handle, icell, ik, ik_global, xcell, ycell, zcell
+      INTEGER                                            :: handle, icell, ik, ik_global, xcell, &
+                                                            ycell, zcell
       REAL(KIND=dp)                                      :: arg, coskl, sinkl
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
