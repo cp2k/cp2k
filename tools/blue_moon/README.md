@@ -147,6 +147,91 @@ miscellaneous CI job runs both the unit tests and strict type checking for the c
 including tests. Runtime validation of JSON input remains necessary; the numerical evaluator uses a
 typed coordinate tree only after the input has been checked.
 
+### Recorded CP2K distance-difference trajectory
+
+`examples/distance_difference.inp` generates a 32-step NVE reference for three noninteracting
+particles with explicit KIND masses of 12, 1 and 16 amu. It constrains `COMBINE_COLVAR R1-R2` to -1
+Angstrom and also prints the individual distances, their angle and the equivalent
+`DISTANCE_FUNCTION` without depositing metadynamics hills. The supplied initial velocities are
+tangent to the constraint and have zero total momentum; `SHAKE_TOLERANCE` is tightened to `1e-12`.
+
+The accompanying `.xyz`, `.LagrangeMultLog` and `.metadynLog` files were generated with **CP2K
+2026.1, revision 5e54ba2**, one MPI process and one OpenMP thread. Reproduce them in an empty
+scratch directory with:
+
+```shell
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 cp2k.psmp -i /path/to/examples/distance_difference.inp -o reference.out
+```
+
+From the repository root, analyze the recorded data with:
+
+```shell
+python3 tools/blue_moon/blue_moon.py \
+  tools/blue_moon/examples/distance_difference.json \
+  tools/blue_moon/examples/distance_difference.xyz \
+  tools/blue_moon/examples/distance_difference.LagrangeMultLog \
+  --first-step 1 --discard 4
+```
+
+The regression checks every frame against the native CV output (allowing for its five printed
+decimal places), independently evaluates Z and G using the distance-difference formulas below, and
+tests the actual CLI's pairing, discard, units, CSV columns and final weighted reduction. Both Z and
+G vary and G is nonzero. An initial-time inertial-force calculation using the specified velocities
+also checks the SHAKE multiplier's sign and normalization within timestep and printed precision.
+Regenerating with another CP2K version should be compared with these invariant checks; the recorded
+data are not an assertion of bitwise reproducibility across versions and platforms.
+
+For the initial-time check, reducing the timestep from 0.25 to 0.125 and 0.0625 fs changes the
+printed first multiplier from `-3.092e-6` to `-3.091e-6` and `-3.091e-6` hartree/bohr, approaching
+the continuous-time value `-3.0905654669e-6`. The nine-decimal-place multiplier output limits this
+comparison. This checks the initial inertial force, not an equilibrated mean force.
+
+For the recorded files, 28 retained samples give `2.21025541695497e-5` hartree/bohr versus the
+uncorrected `3.2065e-6`. These numbers are **I/O/estimator regression values, not a physical
+free-energy result**: this short unthermostatted, unconfined trajectory is not an equilibrium sample
+at 300 K. The temperature and discarded prefix exercise the processing options only.
+
+### Independent canonical-ensemble reference
+
+`test_ensemble.py` separately checks the thermodynamic mean-force identity for a confined,
+three-particle model with `U = k*(r12^2+r32^2)/2`, `xi = r12-r32`, and `k = kB*T/bohr^2`. In atomic
+length units, removing translation/rotation constants gives
+
+```text
+P(xi) = integral_0^infinity r1^2 r2^2 exp(-(r1^2+r2^2)/2) ds
+r1 = s + max(xi, 0), r2 = s + max(-xi, 0)
+dA/dxi = -kB*T * d(ln P)/dxi
+```
+
+The reference integrates this one-dimensional expression by Gauss-Legendre quadrature and
+finite-differences `ln P`. It contains neither Z nor G nor calls to the postprocessor. Quadrature
+order and finite-difference step are checked separately.
+
+For comparison, the constrained configurational measure is proportional to
+`sqrt(Z)*r1^2*r2^2*exp(-U/(kB*T)) ds d(cos(theta))`. The test integrates the tangent-space Maxwell
+velocities analytically. With `g = grad(xi)`, their covariance is
+`C = kB*T*(M^-1 - (M^-1*g)*(M^-1*g)^T/Z)`. Twice differentiating the fixed constraint yields
+
+```text
+<-lambda | positions> = (g . M^-1 . grad(U) - trace(H*C))/Z
+```
+
+The gradients and radial Hessian blocks used here are constructed explicitly, independently of the
+tool's automatic differentiation and metric functions. Those conditional multipliers and geometries
+are passed through `analyze`; numerical integration of its weighted numerator and denominator is
+then compared with `-kB*T*d(ln P)/dxi`.
+
+The two windows `xi = -1` and `0.75` bohr give respectively `-1.1238227746` and `0.8527258234` for
+`(dA/dxi)/(kB*T)` in inverse bohr. Both mass sets `[12,1,16]` and `[1,2,3]` recover the same
+thermodynamic answer to within the test tolerance of `2e-7` inverse bohr, although their constrained
+distributions differ. Removing either the G term or the Z reweighting fails this comparison.
+
+This is deterministic equilibrium integration, **not a synthetic CP2K trajectory or a CP2K MD
+convergence benchmark**. Together with the recorded-data test it checks complementary parts of the
+workflow, but does not establish long-time sampling, thermostat or timestep convergence in CP2K.
+Independent scientific review of the distance-difference specialization remains appropriate; these
+tests do not substitute for that review.
+
 ### Equivalent logarithmic derivative
 
 For one constraint the correction can also be expressed as `G = (1/2) D_xi ln Z`, provided the

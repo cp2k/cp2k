@@ -154,7 +154,11 @@ Thus $G$ vanishes for equal distances or collinear bonds, but not for a general 
 reweighting and the $k_\mathrm{B}TG$ term must otherwise be retained. In particular, the $G=0$
 simplification stated in Eq. (35) of Komeiji does not follow from the general Eq. (8) for unequal,
 noncollinear bonds; the postprocessor tests the general expression against independent analytic and
-finite-difference evaluations.
+finite-difference evaluations. Its tests also include a recorded CP2K distance-difference trajectory
+and a separate canonical-ensemble integration against the derivative of a model partition function.
+The former checks the data-processing path, while the latter checks the thermodynamic estimator;
+neither is a long-time CP2K sampling-convergence benchmark. Reproduction details and limitations are
+given in `tools/blue_moon/README.md`.
 
 Simplifications for a particular coordinate must not be assumed for an arbitrary
 [COMBINE_COLVAR](#CP2K_INPUT.FORCE_EVAL.SUBSYS.COLVAR.COMBINE_COLVAR), coordination number, or

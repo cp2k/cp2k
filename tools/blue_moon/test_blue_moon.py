@@ -7,6 +7,7 @@
 #   SPDX-License-Identifier: GPL-2.0-or-later
 # --------------------------------------------------------------------------------------------------
 
+import csv
 import io
 import json
 import math
@@ -480,6 +481,91 @@ class InputTests(unittest.TestCase):
         )
         self.assertNotEqual(failed.returncode, 0)
         self.assertIn("No production samples", failed.stderr)
+
+    def test_cp2k_distance_difference_pipeline(self) -> None:
+        directory = Path(__file__).parent
+        example = directory / "examples"
+        with (example / "distance_difference.xyz").open() as stream:
+            frames = list(read_xyz(stream))
+        with (example / "distance_difference.LagrangeMultLog").open() as stream:
+            lambdas = np.array(list(read_multipliers(stream)))
+        native = np.loadtxt(example / "distance_difference.metadynLog")
+        self.assertEqual([frame[0] for frame in frames], list(range(33)))
+        np.testing.assert_allclose(native[:, 0], np.arange(33) * 0.25, atol=1e-12)
+        self.assertEqual(len(lambdas), 32)
+
+        positions = np.array([frame[1] for frame in frames])
+        bond1 = positions[:, 0] - positions[:, 1]
+        bond2 = positions[:, 2] - positions[:, 1]
+        r1, r2 = np.linalg.norm(bond1, axis=1), np.linalg.norm(bond2, axis=1)
+        cosine = np.sum(bond1 * bond2, axis=1) / (r1 * r2)
+        # Native DISTANCE, ANGLE, DISTANCE_FUNCTION and COMBINE_COLVAR values
+        # have only five printed decimal places. No bias hills were deposited.
+        reference_cvs = np.column_stack((r1, r2, np.arccos(cosine), r1 - r2, r1 - r2))
+        np.testing.assert_allclose(native[:, 1:6], reference_cvs, rtol=0, atol=5e-6)
+
+        z = 1 / 12 + 1 / 16 + 2 * (1 - cosine)
+        g = (1 - cosine**2) * (1 / r1 - 1 / r2) / z**2
+        self.assertGreater(float(np.ptp(z)), 0.05)
+        self.assertGreater(float(g.min()), 0.01)
+
+        # Independent initial-time force check: U=0 and the specified velocities
+        # are tangent to xi. Twice differentiating the constraint gives the
+        # CP2K-sign multiplier (v_rel1,perp^2/r1-v_rel2,perp^2/r2)/Z_electron_mass.
+        # The first SHAKE sample differs by the finite timestep and log rounding.
+        amu_per_electron_mass = 1.660538782e-27 / 9.10938215e-31
+        lambda_initial = (5e-8 / r1[0] - 9.5625e-8 / r2[0]) / (
+            z[0] / amu_per_electron_mass
+        )
+        self.assertAlmostEqual(float(lambdas[0]), float(lambda_initial), delta=5e-9)
+
+        # Exercise the real CLI, not only analyze(), including discard, units,
+        # scalar correction, reweighting, CSV and the final JSON reduction.
+        command = [
+            sys.executable,
+            str(directory / "blue_moon.py"),
+            str(example / "distance_difference.json"),
+            str(example / "distance_difference.xyz"),
+            str(example / "distance_difference.LagrangeMultLog"),
+            "--first-step",
+            "1",
+            "--discard",
+            "4",
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        summary = json.loads(result.stderr)
+        rows = np.array(
+            [
+                [float(x) for x in row.values()]
+                for row in csv.DictReader(io.StringIO(result.stdout))
+            ]
+        )
+        expected = -lambdas[4:] + KB_HARTREE_PER_K * 300 * g[5:]
+        np.testing.assert_allclose(rows[:, 0], np.arange(5, 33), rtol=0, atol=0)
+        np.testing.assert_allclose(rows[:, 1], (r1 - r2)[5:], rtol=0, atol=1e-12)
+        np.testing.assert_allclose(rows[:, 2], lambdas[4:], rtol=0, atol=0)
+        np.testing.assert_allclose(rows[:, 3], z[5:], rtol=1e-12)
+        np.testing.assert_allclose(rows[:, 4], g[5:], rtol=1e-12)
+        np.testing.assert_allclose(rows[:, 5], z[5:] ** -0.5, rtol=1e-12)
+        np.testing.assert_allclose(rows[:, 6], expected, rtol=1e-12)
+        self.assertEqual(summary["samples"], 28)
+        self.assertAlmostEqual(
+            summary["free_energy_gradient_au"],
+            float(np.average(expected, weights=z[5:] ** -0.5)),
+            delta=1e-14,
+        )
+        self.assertAlmostEqual(
+            summary["uncorrected_minus_mean_lambda_au"],
+            float(-lambdas[4:].mean()),
+            delta=1e-14,
+        )
+        self.assertGreater(
+            abs(
+                summary["free_energy_gradient_au"]
+                - summary["uncorrected_minus_mean_lambda_au"]
+            ),
+            1e-5,
+        )
 
 
 if __name__ == "__main__":
