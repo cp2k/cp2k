@@ -100,4 +100,12 @@ QS/regtest-gauxc-gpw-mech/H2P_NATIVE_SKALA_GPW_UKS_PBC_FORCE_DEBUG.inp
 QS/regtest-gauxc-gapw-gth/H2_NATIVE_SKALA_GAPW_GTH_STRESS_DEBUG.inp
 QS/regtest-gauxc-gapw-ecp/H2_NATIVE_SKALA_GAPW_ECP_STRESS_DEBUG.inp
 
+# The semicore/TZV2P LiF reference supplies the SCF restart for the subsequent
+# projection and band-window tests. Retain its validated radial trial space.
+QS/regtest-wannier90-library-2/lif_ao.inp
+
+# Gamma-to-k-point conversion of both spin channels dominates this test; the
+# unequal alpha/beta MO dimensions are not covered by the direct k-point tests.
+QS/regtest-wannier90-library-4/li_gamma.inp
+
 #EOF

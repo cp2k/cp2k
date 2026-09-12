@@ -1,0 +1,5 @@
+@SET seed he_outer
+@SET exclude F
+@SET projections AO_SCDM
+@SET windows outer.inc
+@INCLUDE he_common.inc

@@ -174,4 +174,9 @@ NNP/regtest-1/H2O-64_C-NNP_MD-NpT-numeric.inp
 # Test produced 14.19 MiB of output. (restart kp and wfn)
 QS/regtest-harris-kp/cc_kp_01.inp
 
+# K-point SCF restarts (about 30 and 13 MiB) are reused by the subsequent
+# projection/window tests to avoid repeating the same expensive ionic SCF.
+QS/regtest-wannier90-library-2/lif_ao.inp
+QS/regtest-wannier90-library-2/nacl_hybrid.inp
+
 #EOF

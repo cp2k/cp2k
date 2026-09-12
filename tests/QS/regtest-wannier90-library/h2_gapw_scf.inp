@@ -1,0 +1,4 @@
+@SET seed h2_gapw_scf
+@SET source SCF
+@SET reuse T
+@INCLUDE h2_gapw.inc

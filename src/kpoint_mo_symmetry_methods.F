@@ -179,9 +179,8 @@ CONTAINS
          arg = REAL(kpsym%fcell_gauge(1, source_atom, isym), KIND=dp)*xkp_phase(1) + &
                REAL(kpsym%fcell_gauge(2, source_atom, isym), KIND=dp)*xkp_phase(2) + &
                REAL(kpsym%fcell_gauge(3, source_atom, isym), KIND=dp)*xkp_phase(3)
-         IF (ASSOCIATED(kpsym%kgphase)) THEN
-            arg = arg + kpsym%kgphase(source_atom, isym)
-         END IF
+         ! Match symtrans_phase: SCF AOs use the lattice-periodic gauge, so reciprocal
+         ! folding adds no atom-position phase to the coefficients.
          IF (reverse_phase) arg = -arg
          coskl = COS(twopi*arg)
          sinkl = SIN(twopi*arg)

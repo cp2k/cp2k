@@ -112,6 +112,16 @@ registry["SKALA_GAPW_composite_electrons"] = GenericMatcher(
 registry["WANNIER90_SCF_MO_REUSE"] = TextPresenceMatcher(
     "WANNIER90| Reused SCF MO coefficients for the Wannier90 full k-point mesh."
 )
+registry["WANNIER90_LIBRARY_SPREAD"] = GenericMatcher("WANNIER90| Total spread", col=5)
+registry["WANNIER90_LIBRARY_ALPHA_SPREAD"] = GenericMatcher(
+    "WANNIER90| Spin 1 total spread", col=7
+)
+registry["WANNIER90_LIBRARY_BETA_SPREAD"] = GenericMatcher(
+    "WANNIER90| Spin 2 total spread", col=7
+)
+registry["WANNIER90_LIBRARY_INVARIANT_SPREAD"] = GenericMatcher(
+    "WANNIER90| Invariant spread", col=5
+)
 registry["WANNIER90_FULL_MESH_DIAG"] = TextPresenceMatcher(
     "WANNIER90| Falling back to full-mesh diagonalization for the Wannier90 files."
 )
@@ -129,6 +139,11 @@ registry["WANNIER90_BLOCH_PHASE_GAUGE"] = TextPresenceMatcher(
 )
 registry["WANNIER90_REUSE_VALIDATION"] = TextPresenceMatcher(
     "WANNIER90| Reused MO validation: subspace deviation"
+)
+registry["WANNIER90_CANDIDATE_METRIC_DEVIATION"] = GenericMatcher(
+    r"WANNIER90\| Best atom/AO candidate.*max metric deviation\s+([^,\s]+)",
+    col=1,
+    regex=True,
 )
 registry["M012"] = GenericMatcher(r"B2(T) =", col=4)
 registry["M013"] = GenericMatcher(r"sparseness function f2 =", col=5)

@@ -98,7 +98,7 @@ MODULE bibliography
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
                             Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
-                            Cances2000, Herbst2022, Zhang2025
+                            Cances2000, Herbst2022, Zhang2025, Pizzi2020, Marzari1997, Souza2001
 
 CONTAINS
 
@@ -1286,6 +1286,30 @@ CONTAINS
                          "and molecular dynamics simulations", &
                          source="J. Am. Chem. Soc.", volume="114", pages="10024-10035", &
                          year=1992, doi="10.1021/ja00051a040")
+
+      CALL add_reference(key=Pizzi2020, &
+                         authors=s2a("G. Pizzi", "V. Vitale", "R. Arita", "S. Blugel", "F. Freimuth", &
+                                     "G. Geranton", "M. Gibertini", "D. Gresch", "C. Johnson", "T. Koretsune", &
+                                     "J. Ibanez-Azpiroz", "H. Lee", "J.-M. Lihm", "D. Marchand", "A. Marrazzo", &
+                                     "Y. Mokrousov", "J. I. Mustafa", "Y. Nohara", "Y. Nomura", "L. Paulatto", &
+                                     "S. Ponce", "T. Ponweiser", "J. Qiao", "F. Thole", "S. S. Tsirkin", &
+                                     "M. Wierzbowska", "N. Marzari", "D. Vanderbilt", "I. Souza", &
+                                     "A. A. Mostofi", "J. R. Yates"), &
+                         title="Wannier90 as a community code: new features and applications", &
+                         source="J. Phys.: Condens. Matter", volume="32", pages="165902", &
+                         year=2020, doi="10.1088/1361-648X/ab51ff")
+
+      CALL add_reference(key=Marzari1997, &
+                         authors=s2a("N. Marzari", "D. Vanderbilt"), &
+                         title="Maximally localized generalized Wannier functions for composite energy bands", &
+                         source="Phys. Rev. B", volume="56", pages="12847-12865", &
+                         year=1997, doi="10.1103/PhysRevB.56.12847")
+
+      CALL add_reference(key=Souza2001, &
+                         authors=s2a("I. Souza", "N. Marzari", "D. Vanderbilt"), &
+                         title="Maximally localized Wannier functions for entangled energy bands", &
+                         source="Phys. Rev. B", volume="65", pages="035109", &
+                         year=2001, doi="10.1103/PhysRevB.65.035109")
 
       CALL add_reference(key=Monkhorst1976, &
                          authors=s2a("H. J. Monkhorst", "J. D. Pack"), &

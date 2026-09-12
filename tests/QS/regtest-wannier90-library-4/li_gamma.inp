@@ -1,0 +1,6 @@
+@SET seed li_gamma
+@SET kpoints F
+@SET source MP_GRID
+@SET reuse F
+@SET spin BOTH
+@INCLUDE li_common.inc

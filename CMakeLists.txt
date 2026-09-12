@@ -138,6 +138,8 @@ option(CP2K_USE_LIBXS
 option(CP2K_USE_SPGLIB "Enable Spglib support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_VORI "Enable Libvori support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_WANNIER90 "Enable the Wannier90 v4 library"
+       ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_CRAY_PM_ENERGY "Enable Cray PM energy framework" OFF)
 option(BUILD_SHARED_LIBS "Build CP2K shared library" ON)
 option(
@@ -849,6 +851,42 @@ if(CP2K_USE_SPGLIB)
                       INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
+if(CP2K_USE_WANNIER90)
+  # Even the 4.0.2 release reports 4.0.0 in its CMake package metadata.
+  find_package(Wannier90 4.0 REQUIRED CONFIG)
+  if((CP2K_USE_MPI AND NOT Wannier90_MPI) OR (NOT CP2K_USE_MPI AND Wannier90_MPI
+                                             ))
+    message(
+      FATAL_ERROR "CP2K and Wannier90 must both be serial or both use MPI")
+  endif()
+  include(CMakePushCheckState)
+  include(CheckFortranSourceCompiles)
+  cmake_push_check_state(RESET)
+  set(CMAKE_REQUIRED_LIBRARIES Wannier90::wannier90 LAPACK::LAPACK)
+  # Fortran .mod compatibility and the integer communicator API cannot be
+  # inferred from the package version. Recheck on reconfiguration in case the
+  # installation was replaced (even at the same path); this does not test for
+  # release-specific bugs.
+  unset(CP2K_WANNIER90_INTERFACE_WORKS CACHE)
+  CHECK_Fortran_SOURCE_COMPILES(
+    "program check_wannier90
+       use w90_library, only: lib_common_type, w90_set_comm
+       implicit none
+       type(lib_common_type) :: context
+       call w90_set_comm(context, 0)
+     end program"
+    CP2K_WANNIER90_INTERFACE_WORKS
+    SRC_EXT
+    F90)
+  cmake_pop_check_state()
+  if(NOT CP2K_WANNIER90_INTERFACE_WORKS)
+    message(
+      FATAL_ERROR
+        "Wannier90 requires a compatible Fortran compiler and integer MPI communicator interface"
+    )
+  endif()
+endif()
+
 if(CP2K_USE_LIBSMEAGOL)
   find_package(libsmeagol REQUIRED)
 endif()
@@ -1105,6 +1143,10 @@ endif()
 if(CP2K_USE_SPGLIB)
   message("  - Spglib\n"
           "    - Include directories: ${CP2K_SPGLIB_INCLUDE_DIRS}\n")
+endif()
+
+if(CP2K_USE_WANNIER90)
+  message("  - Wannier90\n" "    - Library: Wannier90::wannier90\n")
 endif()
 
 if(CP2K_USE_LIBTORCH)

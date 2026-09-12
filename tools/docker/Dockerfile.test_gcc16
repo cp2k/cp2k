@@ -65,6 +65,7 @@ RUN ./install_cp2k_toolchain.sh \
     --with-libxsmm=install \
     --with-libxs=install \
     --with-spglib=no \
+    --with-wannier90=no \
     --with-libvori=no \
     --with-tblite=no \
     --dry-run

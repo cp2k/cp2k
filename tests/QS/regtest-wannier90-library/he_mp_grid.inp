@@ -1,0 +1,8 @@
+@SET seed he_mp_grid
+@SET scheme MP
+@SET gamma_centered T
+@SET source MP_GRID
+@SET reuse F
+@SET bloch T
+@SET write_inputs T
+@INCLUDE he_common.inc

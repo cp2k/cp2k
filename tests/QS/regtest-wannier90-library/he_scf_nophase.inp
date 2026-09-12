@@ -1,0 +1,8 @@
+@SET seed he_scf_nophase
+@SET scheme MP
+@SET gamma_centered F
+@SET source SCF
+@SET reuse T
+@SET bloch F
+@SET write_inputs F
+@INCLUDE he_common.inc

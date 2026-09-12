@@ -112,6 +112,10 @@ spack:
       require:
         - "+hdf5"
 
+    wannier90:
+      require:
+        - "~mpi"
+
   repos:
     builtin:
       commit: 4d092a104627e9871a0d74f853d6df9c8e6105c2 # 2026-08-11
@@ -145,6 +149,7 @@ spack:
     - "spglib@2.7.0"
     - "tblite@0.7.0"
     - "trexio@2.6.1"
+    - "wannier90@4.0.2"
 
   view:
     default:

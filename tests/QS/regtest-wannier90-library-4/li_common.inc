@@ -1,0 +1,94 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ${seed}
+  RUN_TYPE ENERGY
+&END GLOBAL
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT_UZH
+    POTENTIAL_FILE_NAME POTENTIAL_UZH
+    UKS T
+    MULTIPLICITY 2
+    @IF ( ${kpoints} == T )
+    &KPOINTS
+      SCHEME MONKHORST-PACK 2 2 2
+      GAMMA_CENTERED T
+      EPS_SYMMETRY 1.e-8
+      PARALLEL_GROUP_SIZE 0
+      SYMMETRY ON
+      SYMMETRY_BACKEND K290
+      WAVEFUNCTIONS COMPLEX
+    &END KPOINTS
+    @ENDIF
+    &MGRID
+      CUTOFF 200
+      REL_CUTOFF 30
+    &END MGRID
+    &PRINT
+      &WANNIER90 ON
+        KPOINTS_SOURCE ${source}
+        MP_GRID 2 2 2
+        REUSE_SCF_MOS ${reuse}
+        VALIDATE_REUSE_SCF_MOS T
+        SEED_NAME ${seed}
+        SPIN_CHANNEL ${spin}
+        WANNIER_FUNCTIONS 2
+        WANNIER_FUNCTIONS 1
+        USE_BLOCH_PHASES T
+        &LIBRARY ON
+          INITIAL_PROJECTIONS AO_SCDM
+          WRITE_INPUTS T
+          WRITE_HR T
+          WRITE_U_MATRICES T
+          CONV_TOL 1.e-10
+          CONV_WINDOW 5
+          NUM_ITER 1000
+        &END LIBRARY
+      &END WANNIER90
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.e-12
+      METHOD GPW
+    &END QS
+    &SCF
+      CHOLESKY OFF
+      EPS_EIGVAL 1.e-9
+      EPS_SCF 1.e-12
+      @IF ( ${kpoints} == F )
+      &OT
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_ALL
+      &END OT
+      @ENDIF
+      MAX_SCF 300
+      SCF_GUESS ATOMIC
+      @IF ( ${kpoints} == T )
+      &MIXING
+        METHOD BROYDEN_MIXING
+        ALPHA 0.3
+      &END MIXING
+      @ENDIF
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+    &END CELL
+    &COORD
+      SCALED
+      Li 0.5 0.5 0.5
+    &END COORD
+    &KIND Li
+      BASIS_SET ORB DZVP-MOLOPT-GGA-GTH-q3
+      POTENTIAL GTH-GGA-q3
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
