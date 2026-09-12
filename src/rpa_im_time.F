@@ -1000,23 +1000,20 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_transl_dm'
 
-      INTEGER                                            :: handle, i_dim, i_img, jspin, nao, nspin
+      INTEGER                                            :: handle, i_dim, i_img, nao
       INTEGER, DIMENSION(3)                              :: cell_grid_dm
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_cfm_type)                                  :: cfm_density
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_global_work, matrix_s_kp
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_dm_global_work
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, &
                       matrix_s_kp=matrix_s_kp, &
-                      mos=mos, &
                       kpoints=kpoints, &
                       cell=cell)
-
-      nspin = SIZE(mos)
 
       ! we always use an odd number of image cells
       ! CAUTION: also at another point, cell_grid_dm is defined, these definitions have to be identical
@@ -1027,21 +1024,18 @@ CONTAINS
       num_cells_dm = cell_grid_dm(1)*cell_grid_dm(2)*cell_grid_dm(3)
 
       NULLIFY (mat_dm_global_work)
-      CALL dbcsr_allocate_matrix_set(mat_dm_global_work, nspin, num_cells_dm)
+      ! Only the requested spin is built.
+      CALL dbcsr_allocate_matrix_set(mat_dm_global_work, num_cells_dm)
 
-      DO jspin = 1, nspin
+      DO i_img = 1, num_cells_dm
 
-         DO i_img = 1, num_cells_dm
+         ALLOCATE (mat_dm_global_work(i_img)%matrix)
+         CALL dbcsr_create(matrix=mat_dm_global_work(i_img)%matrix, &
+                           template=matrix_s_kp(1, 1)%matrix, &
+                           !                           matrix_type=dbcsr_type_symmetric)
+                           matrix_type=dbcsr_type_no_symmetry)
 
-            ALLOCATE (mat_dm_global_work(jspin, i_img)%matrix)
-            CALL dbcsr_create(matrix=mat_dm_global_work(jspin, i_img)%matrix, &
-                              template=matrix_s_kp(1, 1)%matrix, &
-                              !                              matrix_type=dbcsr_type_symmetric)
-                              matrix_type=dbcsr_type_no_symmetry)
-
-            CALL dbcsr_reserve_all_blocks(mat_dm_global_work(jspin, i_img)%matrix)
-
-         END DO
+         CALL dbcsr_reserve_all_blocks(mat_dm_global_work(i_img)%matrix)
 
       END DO
 
@@ -1056,7 +1050,7 @@ CONTAINS
       ! density matrices in real space, the cell vectors T for transforming are taken from kpoints%index_to_cell
       ! (custom made for RPA) and not from sab_nl (which is symmetric and from SCF)
       CALL density_matrix_from_kp_to_transl(kpoints, cfm_density, mat_dm_global_work, kpoints%index_to_cell, &
-                                            tau, e_fermi, sector)
+                                            ispin, tau, e_fermi, sector)
 
       CALL cp_cfm_release(cfm_density)
 
@@ -1072,10 +1066,10 @@ CONTAINS
       DO i_img = 1, num_cells_dm
 
          ! filter to get rid of the blocks full with zeros on the lower half, otherwise blocks doubled
-         CALL dbcsr_filter(mat_dm_global_work(ispin, i_img)%matrix, eps_filter)
+         CALL dbcsr_filter(mat_dm_global_work(i_img)%matrix, eps_filter)
 
          CALL dbcsr_copy(propagator(sector, jquad, i_img)%matrix, &
-                         mat_dm_global_work(ispin, i_img)%matrix)
+                         mat_dm_global_work(i_img)%matrix)
 
       END DO
 
@@ -1107,30 +1101,28 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_periodic_dm'
 
-      INTEGER                                            :: handle, jspin, nao, nspin, num_cells_dm
+      INTEGER                                            :: handle, nao, num_cells_dm
       INTEGER, DIMENSION(3, 1)                           :: index_to_cell_zero
       TYPE(cp_cfm_type)                                  :: cfm_density
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_global_work, matrix_s_kp
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_dm_global_work
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(kpoint_type), POINTER                         :: kpoints_G
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (matrix_s_kp, mos)
+      NULLIFY (matrix_s_kp)
 
       CALL get_qs_env(qs_env, &
-                      matrix_s_kp=matrix_s_kp, &
-                      mos=mos)
+                      matrix_s_kp=matrix_s_kp)
 
       kpoints_G => qs_env%mp2_env%ri_rpa_im_time%kpoints_G
-
-      nspin = SIZE(mos)
 
       num_cells_dm = 1
       index_to_cell_zero = 0
 
       NULLIFY (mat_dm_global_work)
-      CALL dbcsr_allocate_matrix_set(mat_dm_global_work, nspin, num_cells_dm)
+      ! Only the requested spin is built.
+      CALL dbcsr_allocate_matrix_set(mat_dm_global_work, num_cells_dm)
 
       ! The first request owns allocation of the complete time-indexed propagator set.
       IF (.NOT. ASSOCIATED(propagator)) THEN
@@ -1138,30 +1130,26 @@ CONTAINS
                                            index_to_cell_zero)
       END IF
 
-      DO jspin = 1, nspin
+      ALLOCATE (mat_dm_global_work(1)%matrix)
+      CALL dbcsr_create(matrix=mat_dm_global_work(1)%matrix, &
+                        template=matrix_s_kp(1, 1)%matrix, &
+                        matrix_type=dbcsr_type_no_symmetry)
 
-         ALLOCATE (mat_dm_global_work(jspin, 1)%matrix)
-         CALL dbcsr_create(matrix=mat_dm_global_work(jspin, 1)%matrix, &
-                           template=matrix_s_kp(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_reserve_all_blocks(mat_dm_global_work(1)%matrix)
 
-         CALL dbcsr_reserve_all_blocks(mat_dm_global_work(jspin, 1)%matrix)
-
-         CALL dbcsr_set(mat_dm_global_work(jspin, 1)%matrix, 0.0_dp)
-
-      END DO
+      CALL dbcsr_set(mat_dm_global_work(1)%matrix, 0.0_dp)
 
       ! Reusable complex AO scratch for the k-point density source.
       CALL get_mo_set(kpoints_G%kp_env(1)%kpoint_env%mos(1, 1), nao=nao)
       CALL cp_cfm_create(cfm_density, kpoints_G%kp_env(1)%kpoint_env%mos(1, 1)%mo_coeff%matrix_struct, &
                          nrow=nao, ncol=nao)
 
-      CALL density_matrix_from_kp_to_mic(kpoints_G, cfm_density, mat_dm_global_work, qs_env, tau, e_fermi, sector)
+      CALL density_matrix_from_kp_to_mic(kpoints_G, cfm_density, mat_dm_global_work, qs_env, ispin, tau, e_fermi, sector)
 
       CALL cp_cfm_release(cfm_density)
 
       CALL dbcsr_copy(propagator(sector, jquad, 1)%matrix, &
-                      mat_dm_global_work(ispin, 1)%matrix)
+                      mat_dm_global_work(1)%matrix)
 
       CALL dbcsr_deallocate_matrix_set(mat_dm_global_work)
 
@@ -1175,16 +1163,18 @@ CONTAINS
 !> \param density complex AO density scratch matrix
 !> \param mat_dm_global_work ...
 !> \param qs_env ...
+!> \param ispin ...
 !> \param tau ...
 !> \param e_fermi ...
 !> \param sector ...
 ! **************************************************************************************************
-   SUBROUTINE density_matrix_from_kp_to_mic(kpoints_G, density, mat_dm_global_work, qs_env, tau, e_fermi, sector)
+   SUBROUTINE density_matrix_from_kp_to_mic(kpoints_G, density, mat_dm_global_work, qs_env, ispin, tau, e_fermi, sector)
 
       TYPE(kpoint_type), POINTER                         :: kpoints_G
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: density
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_global_work
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_dm_global_work
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: ispin
       REAL(KIND=dp), INTENT(IN)                          :: tau, e_fermi
       INTEGER, INTENT(IN)                                :: sector
 
@@ -1192,8 +1182,8 @@ CONTAINS
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), POINTER :: cfm_data
       INTEGER                                            :: handle, iatom, iatom_old, ik, ik_global, ik_old, &
-                                                            irow, ispin, jatom, jatom_old, jcol, &
-                                                            nao, ncol_local, nrow_local, nspin, &
+                                                            irow, jatom, jatom_old, jcol, &
+                                                            nao, ncol_local, nrow_local, &
                                                             num_cells
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_ao_index
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
@@ -1215,8 +1205,6 @@ CONTAINS
       index_to_cell => kpoints_G%index_to_cell
       num_cells = SIZE(index_to_cell, 2)
 
-      nspin = SIZE(mat_dm_global_work, 1)
-
       CALL cp_cfm_get_info(density, nrow_global=nao, nrow_local=nrow_local, ncol_local=ncol_local, &
                            row_indices=row_indices, col_indices=col_indices)
       CALL cp_fm_create(fm_mat_work, density%matrix_struct, set_zero=.TRUE.)
@@ -1233,48 +1221,45 @@ CONTAINS
       jatom_old = 0
       ik_old = 0
 
-      DO ispin = 1, nspin
+      CALL dbcsr_set(mat_dm_global_work(1)%matrix, 0.0_dp)
 
-         CALL dbcsr_set(mat_dm_global_work(ispin, 1)%matrix, 0.0_dp)
+      DO ik = 1, SIZE(kpoints_G%kp_env)
 
-         DO ik = 1, SIZE(kpoints_G%kp_env)
+         kp => kpoints_G%kp_env(ik)%kpoint_env
+         ik_global = kp%nkpoint
+         CALL build_kpoint_density_matrix_rpa(kpoints_G, ik, ispin, tau, e_fermi, sector, density)
+         CALL cp_cfm_get_info(density, local_data=cfm_data)
 
-            kp => kpoints_G%kp_env(ik)%kpoint_env
-            ik_global = kp%nkpoint
-            CALL build_kpoint_density_matrix_rpa(kpoints_G, ik, ispin, tau, e_fermi, sector, density)
-            CALL cp_cfm_get_info(density, local_data=cfm_data)
+         DO irow = 1, nrow_local
+            DO jcol = 1, ncol_local
 
-            DO irow = 1, nrow_local
-               DO jcol = 1, ncol_local
+               iatom = atom_from_ao_index(row_indices(irow))
+               jatom = atom_from_ao_index(col_indices(jcol))
 
-                  iatom = atom_from_ao_index(row_indices(irow))
-                  jatom = atom_from_ao_index(col_indices(jcol))
+               IF (ik_global /= ik_old .OR. iatom /= iatom_old .OR. jatom /= jatom_old) THEN
 
-                  IF (ik_global /= ik_old .OR. iatom /= iatom_old .OR. jatom /= jatom_old) THEN
+                  CALL compute_weight_re_im(weight_re, weight_im, &
+                                            num_cells, iatom, jatom, xkp(1:3, ik_global), wkp(ik_global), &
+                                            cell, index_to_cell, hmat, particle_set)
 
-                     CALL compute_weight_re_im(weight_re, weight_im, &
-                                               num_cells, iatom, jatom, xkp(1:3, ik_global), wkp(ik_global), &
-                                               cell, index_to_cell, hmat, particle_set)
+                  iatom_old = iatom
+                  jatom_old = jatom
+                  ik_old = ik_global
 
-                     iatom_old = iatom
-                     jatom_old = jatom
-                     ik_old = ik_global
+               END IF
 
-                  END IF
+               contribution = REAL(CMPLX(weight_re, -weight_im, KIND=dp)*cfm_data(irow, jcol), KIND=dp)
 
-                  contribution = REAL(CMPLX(weight_re, -weight_im, KIND=dp)*cfm_data(irow, jcol), KIND=dp)
+               fm_mat_work%local_data(irow, jcol) = fm_mat_work%local_data(irow, jcol) + contribution
 
-                  fm_mat_work%local_data(irow, jcol) = fm_mat_work%local_data(irow, jcol) + contribution
-
-               END DO
             END DO
+         END DO
 
-         END DO ! ik
+      END DO ! ik
 
-         CALL copy_fm_to_dbcsr(fm_mat_work, mat_dm_global_work(ispin, 1)%matrix, keep_sparsity=.FALSE.)
-         CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
+      CALL copy_fm_to_dbcsr(fm_mat_work, mat_dm_global_work(1)%matrix, keep_sparsity=.FALSE.)
 
-      END DO
+      CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
 
       CALL cp_fm_release(fm_mat_work)
       DEALLOCATE (atom_from_ao_index)
@@ -1289,24 +1274,25 @@ CONTAINS
 !> \param density complex AO density scratch matrix
 !> \param mat_dm_global_work ...
 !> \param index_to_cell ...
+!> \param ispin ...
 !> \param tau ...
 !> \param e_fermi ...
 !> \param sector ...
 ! **************************************************************************************************
    SUBROUTINE density_matrix_from_kp_to_transl(kpoints, density, mat_dm_global_work, index_to_cell, &
-                                               tau, e_fermi, sector)
+                                               ispin, tau, e_fermi, sector)
 
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: density
-      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(IN)    :: mat_dm_global_work
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mat_dm_global_work
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
+      INTEGER, INTENT(IN)                                :: ispin
       REAL(KIND=dp), INTENT(IN)                          :: tau, e_fermi
       INTEGER, INTENT(IN)                                :: sector
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_from_kp_to_transl'
 
-      INTEGER                                            :: handle, icell, ik, ik_global, ispin, &
-                                                            nspin, xcell, ycell, zcell
+      INTEGER                                            :: handle, icell, ik, ik_global, xcell, ycell, zcell
       REAL(KIND=dp)                                      :: arg, coskl, sinkl
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
@@ -1321,13 +1307,13 @@ CONTAINS
       NULLIFY (mat_work_re)
       CALL dbcsr_init_p(mat_work_re)
       CALL dbcsr_create(matrix=mat_work_re, &
-                        template=mat_dm_global_work(1, 1)%matrix, &
+                        template=mat_dm_global_work(1)%matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
 
       NULLIFY (mat_work_im)
       CALL dbcsr_init_p(mat_work_im)
       CALL dbcsr_create(matrix=mat_work_im, &
-                        template=mat_dm_global_work(1, 1)%matrix, &
+                        template=mat_dm_global_work(1)%matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
 
       CALL cp_fm_create(fm_mat_re, density%matrix_struct)
@@ -1335,50 +1321,41 @@ CONTAINS
 
       CALL get_kpoint_info(kpoints, xkp=xkp, wkp=wkp)
 
-      nspin = SIZE(mat_dm_global_work, 1)
+      CPASSERT(SIZE(mat_dm_global_work) == SIZE(index_to_cell, 2))
 
-      CPASSERT(SIZE(mat_dm_global_work, 2) == SIZE(index_to_cell, 2))
+      DO icell = 1, SIZE(mat_dm_global_work)
 
-      DO ispin = 1, nspin
-
-         DO icell = 1, SIZE(mat_dm_global_work, 2)
-
-            CALL dbcsr_set(mat_dm_global_work(ispin, icell)%matrix, 0.0_dp)
-
-         END DO
+         CALL dbcsr_set(mat_dm_global_work(icell)%matrix, 0.0_dp)
 
       END DO
 
-      DO ispin = 1, nspin
+      DO ik = 1, SIZE(kpoints%kp_env)
 
-         DO ik = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(ik)%kpoint_env
+         ik_global = kp%nkpoint
+         CALL build_kpoint_density_matrix_rpa(kpoints, ik, ispin, tau, e_fermi, sector, density)
+         CALL cp_cfm_to_fm(density, fm_mat_re, fm_mat_im)
 
-            kp => kpoints%kp_env(ik)%kpoint_env
-            ik_global = kp%nkpoint
-            CALL build_kpoint_density_matrix_rpa(kpoints, ik, ispin, tau, e_fermi, sector, density)
-            CALL cp_cfm_to_fm(density, fm_mat_re, fm_mat_im)
+         CALL copy_fm_to_dbcsr(fm_mat_re, mat_work_re, keep_sparsity=.FALSE.)
+         CALL copy_fm_to_dbcsr(fm_mat_im, mat_work_im, keep_sparsity=.FALSE.)
 
-            CALL copy_fm_to_dbcsr(fm_mat_re, mat_work_re, keep_sparsity=.FALSE.)
-            CALL copy_fm_to_dbcsr(fm_mat_im, mat_work_im, keep_sparsity=.FALSE.)
+         DO icell = 1, SIZE(mat_dm_global_work)
 
-            DO icell = 1, SIZE(mat_dm_global_work, 2)
+            xcell = index_to_cell(1, icell)
+            ycell = index_to_cell(2, icell)
+            zcell = index_to_cell(3, icell)
 
-               xcell = index_to_cell(1, icell)
-               ycell = index_to_cell(2, icell)
-               zcell = index_to_cell(3, icell)
+            arg = REAL(xcell, dp)*xkp(1, ik_global) + REAL(ycell, dp)*xkp(2, ik_global) + &
+                  REAL(zcell, dp)*xkp(3, ik_global)
+            coskl = wkp(ik_global)*COS(twopi*arg)
+            sinkl = wkp(ik_global)*SIN(twopi*arg)
 
-               arg = REAL(xcell, dp)*xkp(1, ik_global) + REAL(ycell, dp)*xkp(2, ik_global) + &
-                     REAL(zcell, dp)*xkp(3, ik_global)
-               coskl = wkp(ik_global)*COS(twopi*arg)
-               sinkl = wkp(ik_global)*SIN(twopi*arg)
-
-               CALL dbcsr_add(mat_dm_global_work(ispin, icell)%matrix, mat_work_re, 1.0_dp, coskl)
-               ! The real-space convention is Re(exp(i k R) G(k)).
-               CALL dbcsr_add(mat_dm_global_work(ispin, icell)%matrix, mat_work_im, 1.0_dp, -sinkl)
-
-            END DO
+            CALL dbcsr_add(mat_dm_global_work(icell)%matrix, mat_work_re, 1.0_dp, coskl)
+            ! The real-space convention is Re(exp(i k R) G(k)).
+            CALL dbcsr_add(mat_dm_global_work(icell)%matrix, mat_work_im, 1.0_dp, -sinkl)
 
          END DO
+
       END DO
 
       CALL dbcsr_release_p(mat_work_re)
