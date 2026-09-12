@@ -1194,7 +1194,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'density_matrix_from_kp_to_mic'
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), POINTER :: cfm_data
-      INTEGER                                            :: handle, iatom, iatom_old, ik, ik_global, &
+      INTEGER                                            :: handle, iatom, iatom_old, ik, ik_global, ik_old, &
                                                             irow, ispin, jatom, jatom_old, jcol, &
                                                             nao, ncol_local, nrow_local, nspin, &
                                                             num_cells
@@ -1234,6 +1234,7 @@ CONTAINS
 
       iatom_old = 0
       jatom_old = 0
+      ik_old = 0
 
       DO ispin = 1, nspin
 
@@ -1252,7 +1253,7 @@ CONTAINS
                   iatom = atom_from_ao_index(row_indices(irow))
                   jatom = atom_from_ao_index(col_indices(jcol))
 
-                  IF (iatom /= iatom_old .OR. jatom /= jatom_old) THEN
+                  IF (ik_global /= ik_old .OR. iatom /= iatom_old .OR. jatom /= jatom_old) THEN
 
                      CALL compute_weight_re_im(weight_re, weight_im, &
                                                num_cells, iatom, jatom, xkp(1:3, ik_global), wkp(ik_global), &
@@ -1260,6 +1261,7 @@ CONTAINS
 
                      iatom_old = iatom
                      jatom_old = jatom
+                     ik_old = ik_global
 
                   END IF
 
