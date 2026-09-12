@@ -282,8 +282,6 @@ CONTAINS
       DO jquad = 1, num_integ_points
 
          CALL cp_fm_create(fm_mat_W(jquad), fm_mat_Q%matrix_struct, set_zero=.TRUE.)
-         CALL cp_fm_to_fm(fm_mat_Q, fm_mat_W(jquad))
-         CALL cp_fm_set_all(fm_mat_W(jquad), 0.0_dp)
 
       END DO
 
@@ -1180,12 +1178,8 @@ CONTAINS
 !> \param ic_corr_list ...
 !> \param weights_cos_tf_t_to_w ...
 !> \param weights_sin_tf_t_to_w ...
-!> \param fm_mo_coeff_occ_scaled ...
-!> \param fm_mo_coeff_virt_scaled ...
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
-!> \param fm_scaled_dm_occ_tau ...
-!> \param fm_scaled_dm_virt_tau ...
 !> \param mo_coeff ...
 !> \param fm_mat_W ...
 !> \param para_env ...
@@ -1222,10 +1216,8 @@ CONTAINS
                                   fermi_level_offset, delta_corr, Eigenval, &
                                   Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, &
                                   vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
-                                  weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
-                                  fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_mo_coeff_occ, &
-                                  fm_mo_coeff_virt, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                                  mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_MinvVMinv, &
+                                  weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, fm_mo_coeff_occ, &
+                                  fm_mo_coeff_virt, mo_coeff, fm_mat_W, para_env, para_env_RPA, mat_dm, mat_MinvVMinv, &
                                   t_3c_O, t_3c_M, t_3c_overl_int_ao_mo, &
                                   t_3c_O_compressed, t_3c_O_mo_compressed, &
                                   t_3c_O_ind, t_3c_O_mo_ind, &
@@ -1262,11 +1254,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_t_to_w, &
                                                             weights_sin_tf_t_to_w
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ_scaled, &
-                                                            fm_mo_coeff_virt_scaled
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
-                                                            fm_scaled_dm_virt_tau, mo_coeff
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: fm_mat_W
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_RPA
@@ -1320,9 +1309,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL compute_self_energy_cubic_gw(num_integ_points, nmo, tau_tj, tj, &
                                                  matrix_s, fm_mo_coeff_occ(ispin), &
-                                                 fm_mo_coeff_virt(ispin), fm_mo_coeff_occ_scaled, &
-                                                 fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
-                                                 fm_scaled_dm_virt_tau, Eigenval(:, 1, ispin), eps_filter, &
+                                                 fm_mo_coeff_virt(ispin), Eigenval(:, 1, ispin), eps_filter, &
                                                  e_fermi(ispin), fm_mat_W, &
                                                  gw_corr_lev_tot, gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), homo(ispin), &
                                                  count_ev_sc_GW, count_sc_GW0, &
@@ -5346,10 +5333,6 @@ CONTAINS
 !> \param matrix_s ...
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
-!> \param fm_mo_coeff_occ_scaled ...
-!> \param fm_mo_coeff_virt_scaled ...
-!> \param fm_scaled_dm_occ_tau ...
-!> \param fm_scaled_dm_virt_tau ...
 !> \param Eigenval ...
 !> \param eps_filter ...
 !> \param e_fermi ...
@@ -5390,9 +5373,7 @@ CONTAINS
 !> \param ispin ...
 ! **************************************************************************************************
    SUBROUTINE compute_self_energy_cubic_gw(num_integ_points, nmo, tau_tj, tj, &
-                                           matrix_s, fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
-                                           fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
-                                           fm_scaled_dm_virt_tau, Eigenval, eps_filter, &
+                                           matrix_s, fm_mo_coeff_occ, fm_mo_coeff_virt, Eigenval, eps_filter, &
                                            e_fermi, fm_mat_W, &
                                            gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                            count_ev_sc_GW, count_sc_GW0, &
@@ -5408,8 +5389,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj, tj
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_s
-      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
-         fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       REAL(KIND=dp), INTENT(INOUT)                       :: e_fermi
@@ -5463,6 +5443,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: greens_fct
       TYPE(dbcsr_type), POINTER                          :: mat_greens_fct_occ, mat_greens_fct_virt
       TYPE(dbt_pgrid_type)                               :: pgrid_2d
+      TYPE(cp_fm_type)                                   :: fm_scaled_dm_occ_tau
       TYPE(dbt_type)                                     :: t_3c_ctr_AO, t_3c_ctr_RI, t_AO_tmp, &
                                                             t_dm, t_greens_fct_occ, &
                                                             t_greens_fct_virt, t_RI_tmp, &
@@ -5544,10 +5525,7 @@ CONTAINS
 
       DO jquad = 1, num_integ_points
 
-         CALL compute_Greens_function_time(greens_fct, &
-                                           fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                           fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
-                                           fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, Eigenval, &
+         CALL compute_Greens_function_time(greens_fct, fm_mo_coeff_occ, fm_mo_coeff_virt, Eigenval, &
                                            nmo, eps_filter, e_fermi, tau_tj(jquad), para_env)
 
          CALL dbcsr_set(mat_W, 0.0_dp)
@@ -5644,6 +5622,8 @@ CONTAINS
 
          CALL timeset(routineN//"_RI_HFX_operation_1", handle3)
 
+         CALL cp_fm_create(fm_scaled_dm_occ_tau, fm_mo_coeff_occ%matrix_struct, nrow=nao, ncol=nao)
+
          ! get density matrix
          CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=nmo, alpha=1.0_dp, &
                             matrix_a=fm_mo_coeff_occ, matrix_b=fm_mo_coeff_occ, beta=0.0_dp, &
@@ -5656,6 +5636,8 @@ CONTAINS
          CALL copy_fm_to_dbcsr(fm_scaled_dm_occ_tau, &
                                mat_dm%matrix, &
                                keep_sparsity=.FALSE.)
+
+         CALL cp_fm_release(fm_scaled_dm_occ_tau)
 
          CALL timestop(handle3)
 
@@ -6458,8 +6440,6 @@ CONTAINS
 
       CALL cp_fm_create(fm_mat_re, cfm_mat%matrix_struct)
       CALL cp_fm_create(fm_mat_im, cfm_mat%matrix_struct)
-      CALL cp_fm_set_all(fm_mat_re, 0.0_dp)
-      CALL cp_fm_set_all(fm_mat_im, 0.0_dp)
 
       CALL copy_dbcsr_to_fm(dbcsr_re, fm_mat_re)
       CALL copy_dbcsr_to_fm(dbcsr_im, fm_mat_im)
@@ -6802,10 +6782,6 @@ CONTAINS
 !> \param greens_fct ...
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
-!> \param fm_mo_coeff_occ_scaled ...
-!> \param fm_mo_coeff_virt_scaled ...
-!> \param fm_scaled_dm_occ_tau ...
-!> \param fm_scaled_dm_virt_tau ...
 !> \param Eigenval ...
 !> \param nmo ...
 !> \param eps_filter ...
@@ -6813,15 +6789,12 @@ CONTAINS
 !> \param tau ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE compute_Greens_function_time(greens_fct, fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                           fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
-                                           fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, Eigenval, nmo, &
+   SUBROUTINE compute_Greens_function_time(greens_fct, fm_mo_coeff_occ, fm_mo_coeff_virt, Eigenval, nmo, &
                                            eps_filter, e_fermi, tau, para_env)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), &
          INTENT(INOUT), POINTER                          :: greens_fct
-      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
-         fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: nmo
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter, e_fermi, tau
@@ -6834,6 +6807,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: stabilize_exp
       TYPE(dbcsr_type), POINTER                          :: mat_greens_fct_occ, mat_greens_fct_virt
+      TYPE(cp_fm_type)                                   :: fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
+                                                            fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
 
       mat_greens_fct_occ => greens_fct(propagator_sector_occupied, 1, 1)%matrix
       mat_greens_fct_virt => greens_fct(propagator_sector_virtual, 1, 1)%matrix
@@ -6849,6 +6824,11 @@ CONTAINS
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
                           col_indices=col_indices)
+
+      CALL cp_fm_create(fm_scaled_dm_occ_tau, fm_mo_coeff_occ%matrix_struct, nrow=nao, ncol=nao)
+      CALL cp_fm_create(fm_scaled_dm_virt_tau, fm_mo_coeff_virt%matrix_struct, nrow=nao, ncol=nao)
+      CALL cp_fm_create(fm_mo_coeff_occ_scaled, fm_mo_coeff_occ%matrix_struct)
+      CALL cp_fm_create(fm_mo_coeff_virt_scaled, fm_mo_coeff_virt%matrix_struct)
 
       ! Multiply the occupied and the virtual MO coefficients with the factor exp((-e_i-e_F)*tau/2).
       ! Then, we simply get the sum over all occ states and virt. states by a simple matrix-matrix
@@ -6911,6 +6891,11 @@ CONTAINS
                             keep_sparsity=.FALSE.)
 
       CALL dbcsr_filter(mat_greens_fct_virt, eps_filter)
+
+      CALL cp_fm_release(fm_scaled_dm_occ_tau)
+      CALL cp_fm_release(fm_scaled_dm_virt_tau)
+      CALL cp_fm_release(fm_mo_coeff_occ_scaled)
+      CALL cp_fm_release(fm_mo_coeff_virt_scaled)
 
       CALL timestop(handle)
 

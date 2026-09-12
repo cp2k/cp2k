@@ -119,12 +119,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param mat_P_omega ...
-!> \param fm_scaled_dm_occ_tau ...
-!> \param fm_scaled_dm_virt_tau ...
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
-!> \param fm_mo_coeff_occ_scaled ...
-!> \param fm_mo_coeff_virt_scaled ...
 !> \param mat_P_global ...
 !> \param matrix_s ...
 !> \param ispin ...
@@ -159,9 +155,7 @@ CONTAINS
 !> \param dbcsr_time ...
 !> \param dbcsr_nflop ...
 ! **************************************************************************************************
-   SUBROUTINE compute_mat_P_omega(mat_P_omega, fm_scaled_dm_occ_tau, &
-                                  fm_scaled_dm_virt_tau, fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                  fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
+   SUBROUTINE compute_mat_P_omega(mat_P_omega, fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                   mat_P_global, &
                                   matrix_s, &
                                   ispin, &
@@ -178,8 +172,7 @@ CONTAINS
                                   has_mat_P_blocks, do_ri_sos_laplace_mp2, &
                                   dbcsr_time, dbcsr_nflop)
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(IN)    :: mat_P_omega
-      TYPE(cp_fm_type), INTENT(IN) :: fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-         fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled
+      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_P_global
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       INTEGER, INTENT(IN)                                :: ispin
@@ -281,9 +274,7 @@ CONTAINS
          CALL para_env%sync()
          t1 = m_walltime()
 
-         CALL compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, nmo, &
-                                    fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
-                                    fm_mo_coeff_virt_scaled, propagator, &
+         CALL compute_mat_dm_global(tau_tj, num_integ_points, nmo, fm_mo_coeff_occ, fm_mo_coeff_virt, propagator, &
                                     matrix_s, ispin, &
                                     Eigenval, e_fermi, eps_filter, memory_info, unit_nr, &
                                     jquad, do_kpoints_cubic_RPA, do_kpoints_from_Gamma, qs_env, &
@@ -672,15 +663,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param fm_scaled_dm_occ_tau ...
-!> \param fm_scaled_dm_virt_tau ...
 !> \param tau_tj ...
 !> \param num_integ_points ...
 !> \param nmo ...
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
-!> \param fm_mo_coeff_occ_scaled ...
-!> \param fm_mo_coeff_virt_scaled ...
 !> \param propagator ...
 !> \param matrix_s ...
 !> \param ispin ...
@@ -697,21 +684,15 @@ CONTAINS
 !> \param index_to_cell_dm ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, nmo, &
-                                    fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
-                                    fm_mo_coeff_virt_scaled, propagator, &
+   SUBROUTINE compute_mat_dm_global(tau_tj, num_integ_points, nmo, fm_mo_coeff_occ, fm_mo_coeff_virt, propagator, &
                                     matrix_s, ispin, &
                                     Eigenval, e_fermi, eps_filter, memory_info, unit_nr, &
                                     jquad, do_kpoints_cubic_RPA, do_kpoints_from_Gamma, qs_env, &
                                     num_cells_dm, index_to_cell_dm, para_env)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
-                                                            fm_scaled_dm_virt_tau
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tau_tj
       INTEGER, INTENT(IN)                                :: num_integ_points, nmo
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                                            fm_mo_coeff_occ_scaled, &
-                                                            fm_mo_coeff_virt_scaled
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), &
          INTENT(INOUT), POINTER                          :: propagator
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_s
@@ -735,6 +716,8 @@ CONTAINS
       INTEGER, DIMENSION(3, 1)                           :: index_to_cell_zero
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: tau
+      TYPE(cp_fm_type)                                   :: fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, &
+                                                            fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
 
       index_to_cell_zero = 0
 
@@ -782,6 +765,11 @@ CONTAINS
                              ncol_local=ncol_local, &
                              row_indices=row_indices, &
                              col_indices=col_indices)
+
+         CALL cp_fm_create(fm_scaled_dm_occ_tau, fm_mo_coeff_occ%matrix_struct, nrow=nao, ncol=nao)
+         CALL cp_fm_create(fm_scaled_dm_virt_tau, fm_mo_coeff_virt%matrix_struct, nrow=nao, ncol=nao)
+         CALL cp_fm_create(fm_mo_coeff_occ_scaled, fm_mo_coeff_occ%matrix_struct)
+         CALL cp_fm_create(fm_mo_coeff_virt_scaled, fm_mo_coeff_virt%matrix_struct)
 
          ! Multiply the occupied and the virtual MO coefficients with the factor exp((-e_i-e_F)*tau/2).
          ! Then, we simply get the sum over all occ states and virt. states by a simple matrix-matrix
@@ -863,6 +851,11 @@ CONTAINS
             CALL dbcsr_filter(propagator(propagator_sector_occupied, jquad - 1, 1)%matrix, 0.0_dp)
             CALL dbcsr_filter(propagator(propagator_sector_virtual, jquad - 1, 1)%matrix, 0.0_dp)
          END IF
+
+         CALL cp_fm_release(fm_scaled_dm_occ_tau)
+         CALL cp_fm_release(fm_scaled_dm_virt_tau)
+         CALL cp_fm_release(fm_mo_coeff_occ_scaled)
+         CALL cp_fm_release(fm_mo_coeff_virt_scaled)
 
       END IF ! do kpoints
 
@@ -1218,8 +1211,7 @@ CONTAINS
 
       NULLIFY (xkp, wkp)
 
-      CALL cp_fm_create(fm_mat_work, kpoints_G%kp_env(1)%kpoint_env%wmat(1, 1)%matrix_struct)
-      CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
+      CALL cp_fm_create(fm_mat_work, kpoints_G%kp_env(1)%kpoint_env%wmat(1, 1)%matrix_struct, set_zero=.TRUE.)
 
       CALL get_kpoint_info(kpoints_G, nkp=nkp, xkp=xkp, wkp=wkp)
       index_to_cell => kpoints_G%index_to_cell

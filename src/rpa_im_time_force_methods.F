@@ -636,12 +636,8 @@ CONTAINS
 !> \param t_3c_O ...
 !> \param t_3c_O_compressed ...
 !> \param t_3c_O_ind ...
-!> \param fm_scaled_dm_occ_tau ...
-!> \param fm_scaled_dm_virt_tau ...
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
-!> \param fm_mo_coeff_occ_scaled ...
-!> \param fm_mo_coeff_virt_scaled ...
 !> \param starts_array_mc ...
 !> \param ends_array_mc ...
 !> \param starts_array_mc_block ...
@@ -663,9 +659,7 @@ CONTAINS
 !> \note In open-shell, we need to take Q from one spin, and everything from the other
 ! **************************************************************************************************
    SUBROUTINE calc_laplace_loop_forces(force_data, mat_P_omega, t_3c_M, t_3c_O, t_3c_O_compressed, &
-                                       t_3c_O_ind, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                                       fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
-                                       fm_mo_coeff_virt_scaled, starts_array_mc, ends_array_mc, &
+                                       t_3c_O_ind, fm_mo_coeff_occ, fm_mo_coeff_virt, starts_array_mc, ends_array_mc, &
                                        starts_array_mc_block, ends_array_mc_block, num_integ_points, &
                                        nmo, Eigenval, tau_tj, tau_wj, cut_memory, Pspin, Qspin, &
                                        open_shell, unit_nr, dbcsr_time, dbcsr_nflop, mp2_env, qs_env)
@@ -675,11 +669,7 @@ CONTAINS
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_M, t_3c_O
       TYPE(hfx_compression_type), DIMENSION(:)           :: t_3c_O_compressed
       TYPE(block_ind_type), DIMENSION(:), INTENT(INOUT)  :: t_3c_O_ind
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
-                                                            fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ_scaled, &
-                                                            fm_mo_coeff_virt_scaled
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
@@ -937,9 +927,8 @@ CONTAINS
          CALL get_tensor_occupancy(t_KQKT, nze_KQK, occ_KQK)
 
          !Calculate the pseudo-density matrix in tensor form. There are a few useless arguments for SOS-MP2
-         CALL compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, &
-                                    nmo, fm_mo_coeff_occ(Pspin), fm_mo_coeff_virt(Pspin), &
-                                    fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, propagator, &
+         CALL compute_mat_dm_global(tau_tj, num_integ_points, nmo, fm_mo_coeff_occ(Pspin), &
+                                    fm_mo_coeff_virt(Pspin), propagator, &
                                     matrix_s, Pspin, Eigenval(:, Pspin), 0.0_dp, eps_filter, &
                                     mp2_env%ri_rpa_im_time%memory_info, unit_nr, &
                                     jquad, .FALSE., .FALSE., qs_env, dummy_int, dummy_ptr, para_env)
@@ -1185,12 +1174,8 @@ CONTAINS
 !> \param t_3c_O ...
 !> \param t_3c_O_compressed ...
 !> \param t_3c_O_ind ...
-!> \param fm_scaled_dm_occ_tau ...
-!> \param fm_scaled_dm_virt_tau ...
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
-!> \param fm_mo_coeff_occ_scaled ...
-!> \param fm_mo_coeff_virt_scaled ...
 !> \param starts_array_mc ...
 !> \param ends_array_mc ...
 !> \param starts_array_mc_block ...
@@ -1214,9 +1199,7 @@ CONTAINS
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE calc_rpa_loop_forces(force_data, mat_P_omega, t_3c_M, t_3c_O, t_3c_O_compressed, &
-                                   t_3c_O_ind, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, &
-                                   fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
-                                   fm_mo_coeff_virt_scaled, starts_array_mc, ends_array_mc, &
+                                   t_3c_O_ind, fm_mo_coeff_occ, fm_mo_coeff_virt, starts_array_mc, ends_array_mc, &
                                    starts_array_mc_block, ends_array_mc_block, num_integ_points, &
                                    nmo, Eigenval, e_fermi, weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, &
                                    tj, wj, tau_tj, cut_memory, ispin, open_shell, unit_nr, dbcsr_time, &
@@ -1227,11 +1210,7 @@ CONTAINS
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_M, t_3c_O
       TYPE(hfx_compression_type), DIMENSION(:)           :: t_3c_O_compressed
       TYPE(block_ind_type), DIMENSION(:), INTENT(INOUT)  :: t_3c_O_ind
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
-                                                            fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ_scaled, &
-                                                            fm_mo_coeff_virt_scaled
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
@@ -1549,9 +1528,8 @@ CONTAINS
          CALL get_tensor_occupancy(t_KBKT, nze_KBK, occ_KBK)
 
          !Calculate the pseudo-density matrix in tensor form. There are a few useless arguments for SOS-MP2
-         CALL compute_mat_dm_global(fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, tau_tj, num_integ_points, &
-                                    nmo, fm_mo_coeff_occ(ispin), fm_mo_coeff_virt(ispin), &
-                                    fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, propagator, &
+         CALL compute_mat_dm_global(tau_tj, num_integ_points, nmo, fm_mo_coeff_occ(ispin), &
+                                    fm_mo_coeff_virt(ispin), propagator, &
                                     matrix_s, ispin, Eigenval(:, ispin), e_fermi, eps_filter, &
                                     mp2_env%ri_rpa_im_time%memory_info, unit_nr, &
                                     jquad, .FALSE., .FALSE., qs_env, dummy_int, dummy_ptr, para_env)
