@@ -1,0 +1,5 @@
+"AR4_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=1e-7, ref=-84.34351783199259}]
+"H2_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=5e-6, ref=-0.97943165590781}]
+"H2O_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=1e-8, ref=-17.06733787704884}]
+"NE4_NATIVE_SKALA_GPW.inp" = [{matcher="E_total", tol=1e-8, ref=-139.37721907310967}]
+ "OH_NATIVE_SKALA_GPW_UKS.inp" = [{matcher="E_total", tol=1e-8, ref=-16.40806539453419}]
