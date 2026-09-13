@@ -1,0 +1,81 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT blue_moon_distance
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      COLVAR 1
+      INTERMOLECULAR TRUE
+      TARGET [angstrom] 4.0
+    &END COLLECTIVE
+    &LAGRANGE_MULTIPLIERS ON
+      COMMON_ITERATION_LEVELS 1
+      FILENAME =constraint.LagrangeMultLog
+    &END LAGRANGE_MULTIPLIERS
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TEMPERATURE 300
+    TIMESTEP 0.5
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      FILENAME =trajectory.xyz
+      FORMAT XYZ
+      &EACH
+        MD 1
+      &END EACH
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Ar Ar
+          EPSILON 119.8
+          RCUT [angstrom] 8.0
+          SIGMA [angstrom] 3.405
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      PERIODIC NONE
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 30 30 30
+      PERIODIC NONE
+    &END CELL
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 2
+      &END DISTANCE
+    &END COLVAR
+    &COORD
+      Ar 10 10 10
+      Ar 14 10 10
+    &END COORD
+    &KIND Ar
+      MASS 39.948
+    &END KIND
+    &TOPOLOGY
+      CONN_FILE_FORMAT OFF
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
