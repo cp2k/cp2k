@@ -33,6 +33,8 @@ MODULE mp2_grids
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE time_frequency_grid_types,       ONLY: time_frequency_grid_release,&
+                                              time_frequency_grid_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -41,10 +43,111 @@ MODULE mp2_grids
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_grids'
 
-   PUBLIC :: get_minimax_grid, get_clenshaw_grid, test_least_square_ft, get_l_sq_wghts_cos_tf_t_to_w, &
-             get_l_sq_wghts_cos_tf_w_to_t, get_l_sq_wghts_sin_tf_t_to_w
+   PUBLIC :: build_minimax_time_frequency_grid, get_minimax_grid, get_clenshaw_grid, test_least_square_ft, &
+             get_l_sq_wghts_cos_tf_t_to_w, get_l_sq_wghts_cos_tf_w_to_t, get_l_sq_wghts_sin_tf_t_to_w
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Build a minimax time/frequency grid without caller-specific energy-range logic.
+!> \param num_points Number of minimax points.
+!> \param energy_min Lower end of the physical energy interval.
+!> \param energy_max Upper end of the physical energy interval.
+!> \param regularization Regularization used for the fitted transform weights.
+!> \param num_points_per_magnitude Number of fitting points per decade.
+!> \param grid Grid object to fill.
+!> \param build_time Whether to construct the imaginary-time components.
+!> \param build_sine Whether to construct the sine time-to-frequency weights.
+!> \param time_scaling Scaling applied to the imaginary-time abscissas.
+!> \param time_weight_scaling Scaling applied to the imaginary-time weights.
+!> \param max_fit_error Maximum fitting error returned by the last requested transform.
+!> \param print_warning Whether the minimax coefficient routine prints warnings.
+   SUBROUTINE build_minimax_time_frequency_grid(num_points, energy_min, energy_max, regularization, &
+                                                num_points_per_magnitude, grid, build_time, build_sine, time_scaling, &
+                                                time_weight_scaling, max_fit_error, print_warning)
+
+      INTEGER, INTENT(IN)                                :: num_points, num_points_per_magnitude
+      REAL(KIND=dp), INTENT(IN)                           :: energy_min, energy_max, regularization, time_scaling, &
+                                                            time_weight_scaling
+      TYPE(time_frequency_grid_type), INTENT(INOUT)      :: grid
+      LOGICAL, INTENT(IN)                                :: build_time, build_sine
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: max_fit_error
+      LOGICAL, INTENT(IN), OPTIONAL                       :: print_warning
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_minimax_time_frequency_grid'
+
+      INTEGER                                            :: handle, ierr, jquad
+      LOGICAL                                            :: my_print_warning
+      REAL(KIND=dp)                                      :: e_range, max_error
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: points_and_weights
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(num_points > 0)
+      CPASSERT(energy_min > 0.0_dp)
+      CPASSERT(energy_max >= energy_min)
+      CPASSERT(time_scaling > 0.0_dp)
+      CPASSERT(time_weight_scaling > 0.0_dp)
+      CPASSERT(.NOT. build_sine .OR. build_time)
+      max_error = 0.0_dp
+
+      CALL time_frequency_grid_release(grid)
+
+      e_range = energy_max/energy_min
+      ALLOCATE (points_and_weights(2*num_points))
+
+      my_print_warning = .TRUE.
+      IF (PRESENT(print_warning)) my_print_warning = print_warning
+
+      IF (num_points <= 20) THEN
+         CALL get_rpa_minimax_coeff(num_points, e_range, points_and_weights, ierr, my_print_warning)
+      ELSE
+         CALL get_rpa_minimax_coeff_larger_grid(num_points, e_range, points_and_weights)
+      END IF
+
+      ALLOCATE (grid%frequency(num_points))
+      ALLOCATE (grid%frequency_weights(num_points))
+      grid%frequency(:) = points_and_weights(1:num_points)*energy_min
+      grid%frequency_weights(:) = points_and_weights(num_points + 1:)*energy_min
+      IF (num_points >= 26) grid%frequency_weights(:) = grid%frequency_weights(:)*4.0_dp
+
+      IF (build_time) THEN
+         IF (num_points <= 20) THEN
+            CALL get_exp_minimax_coeff(num_points, e_range, points_and_weights)
+         ELSE
+            CALL get_exp_minimax_coeff_gw(num_points, e_range, points_and_weights)
+         END IF
+
+         ALLOCATE (grid%imaginary_time(num_points))
+         ALLOCATE (grid%time_weights_at_zero_frequency(num_points))
+         grid%imaginary_time(:) = points_and_weights(1:num_points)/time_scaling/energy_min
+         grid%time_weights_at_zero_frequency(:) = points_and_weights(num_points + 1:)/time_weight_scaling/energy_min
+
+         ALLOCATE (grid%cosine_time_to_frequency_weights(num_points, num_points))
+         CALL get_l_sq_wghts_cos_tf_t_to_w(num_points, grid%imaginary_time, &
+                                           grid%cosine_time_to_frequency_weights, grid%frequency, energy_min, energy_max, &
+                                           max_error, num_points_per_magnitude, regularization)
+
+         ALLOCATE (grid%cosine_frequency_to_time_weights(num_points, num_points))
+         CALL get_l_sq_wghts_cos_tf_w_to_t(num_points, grid%imaginary_time, &
+                                           grid%cosine_frequency_to_time_weights, grid%frequency, energy_min, energy_max, &
+                                           max_error, num_points_per_magnitude, regularization)
+
+         IF (build_sine) THEN
+            ALLOCATE (grid%sine_time_to_frequency_weights(num_points, num_points))
+            CALL get_l_sq_wghts_sin_tf_t_to_w(num_points, grid%imaginary_time, &
+                                              grid%sine_time_to_frequency_weights, grid%frequency, energy_min, energy_max, &
+                                              max_error, num_points_per_magnitude, regularization)
+         END IF
+      END IF
+
+      IF (PRESENT(max_fit_error)) max_fit_error = max_error
+
+      DEALLOCATE (points_and_weights)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE build_minimax_time_frequency_grid
 
 ! **************************************************************************************************
 !> \brief ...
@@ -323,13 +426,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_clenshaw_grid'
 
-      INTEGER                                            :: handle, jquad, nspins
-      LOGICAL                                            :: my_open_shell
+      INTEGER                                            :: handle, jquad
 
       CALL timeset(routineN, handle)
-
-      nspins = SIZE(homo)
-      my_open_shell = (nspins == 2)
 
       ! Now, start to prepare the different grid
       ALLOCATE (tj(num_integ_points))

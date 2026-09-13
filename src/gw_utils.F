@@ -95,16 +95,11 @@ MODULE gw_utils
                                               gcd
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_para_env_type
-   USE minimax_exp,                     ONLY: get_exp_minimax_coeff
-   USE minimax_exp_gw,                  ONLY: get_exp_minimax_coeff_gw
-   USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff,&
-                                              get_rpa_minimax_coeff_larger_grid
    USE mp2_gpw,                         ONLY: create_mat_munu
-   USE mp2_grids,                       ONLY: get_l_sq_wghts_cos_tf_t_to_w,&
-                                              get_l_sq_wghts_cos_tf_w_to_t,&
-                                              get_l_sq_wghts_sin_tf_t_to_w
+   USE mp2_grids,                       ONLY: build_minimax_time_frequency_grid
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat,&
                                               trunc_coulomb_for_exchange
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
@@ -2318,23 +2313,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_time_and_frequency_minimax_grid'
 
-      INTEGER                                            :: handle, homo, i_w, ierr, ispin, j_w, &
-                                                            n_mo, n_top, num_time_freq_points, u
+      INTEGER                                            :: handle, homo, i_w, ispin, j_w, n_mo, &
+                                                            n_top, num_time_freq_points, u
       REAL(KIND=dp)                                      :: E_max, E_max_ispin, E_min, E_min_ispin, &
                                                             E_range, max_error_min
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: points_and_weights
 
       CALL timeset(routineN, handle)
 
       n_mo = bs_env%n_ao
       num_time_freq_points = bs_env%num_time_freq_points
-
-      ALLOCATE (bs_env%time_frequency_grid%frequency(num_time_freq_points))
-      ALLOCATE (bs_env%time_frequency_grid%imaginary_time(num_time_freq_points))
-      ALLOCATE (bs_env%time_frequency_grid%time_weights_at_zero_frequency(num_time_freq_points))
-      ALLOCATE (bs_env%time_frequency_grid%cosine_time_to_frequency_weights(num_time_freq_points, num_time_freq_points))
-      ALLOCATE (bs_env%time_frequency_grid%cosine_frequency_to_time_weights(num_time_freq_points, num_time_freq_points))
-      ALLOCATE (bs_env%time_frequency_grid%sine_time_to_frequency_weights(num_time_freq_points, num_time_freq_points))
 
       ! minimum and maximum difference between eigenvalues of unoccupied and an occupied MOs
       E_min = 1000.0_dp
@@ -2374,18 +2361,9 @@ CONTAINS
 
       E_range = E_max/E_min
 
-      ALLOCATE (points_and_weights(2*num_time_freq_points))
-
-      ! frequency points
-      IF (num_time_freq_points <= 20) THEN
-         CALL get_rpa_minimax_coeff(num_time_freq_points, E_range, points_and_weights, ierr, .FALSE.)
-      ELSE
-         CALL get_rpa_minimax_coeff_larger_grid(num_time_freq_points, E_range, points_and_weights)
-      END IF
-
-      ! one needs to scale the minimax grids, see Azizi, Wilhelm, Golze, Panades-Barrueta,
-      ! Giantomassi, Rinke, Draxl, Gonze et al., 2 publications
-      bs_env%time_frequency_grid%frequency(:) = points_and_weights(1:num_time_freq_points)*E_min
+      CALL build_minimax_time_frequency_grid(num_time_freq_points, E_min, E_max, bs_env%regularization_minimax, &
+                                             bs_env%num_points_per_magnitude, bs_env%time_frequency_grid, .TRUE., .TRUE., &
+                                             2.0_dp, 1.0_dp, max_error_min, .FALSE.)
 
       ! determine number of fit points in the interval [0,ω_max] for virt, or [-ω_max,0] for occ
       bs_env%num_freq_points_fit = 0
@@ -2411,18 +2389,6 @@ CONTAINS
          bs_env%nparam_pade = bs_env%num_freq_points_fit
       END IF
 
-      ! time points
-      IF (num_time_freq_points <= 20) THEN
-         CALL get_exp_minimax_coeff(num_time_freq_points, E_range, points_and_weights)
-      ELSE
-         CALL get_exp_minimax_coeff_gw(num_time_freq_points, E_range, points_and_weights)
-      END IF
-
-      bs_env%time_frequency_grid%imaginary_time(:) = points_and_weights(1:num_time_freq_points)/(2.0_dp*E_min)
-      bs_env%time_frequency_grid%time_weights_at_zero_frequency(:) = points_and_weights(num_time_freq_points + 1:)/(E_min)
-
-      DEALLOCATE (points_and_weights)
-
       u = bs_env%unit_nr
       IF (u > 0) THEN
          WRITE (u, '(T2,A)') ''
@@ -2438,33 +2404,6 @@ CONTAINS
       ! e^(iwt) = cos(wt) + i sin(wt); we thus calculate weights for trafos with a cos and
       ! sine prefactor; details in Azizi, Wilhelm, Golze, Giantomassi, Panades-Barrueta,
       ! Rinke, Draxl, Gonze et al., 2 publications
-
-      ! cosine transform weights imaginary time to imaginary frequency
-      CALL get_l_sq_wghts_cos_tf_t_to_w(num_time_freq_points, &
-                                        bs_env%time_frequency_grid%imaginary_time, &
-                                        bs_env%time_frequency_grid%cosine_time_to_frequency_weights, &
-                                        bs_env%time_frequency_grid%frequency, &
-                                        E_min, E_max, max_error_min, &
-                                        bs_env%num_points_per_magnitude, &
-                                        bs_env%regularization_minimax)
-
-      ! cosine transform weights imaginary frequency to imaginary time
-      CALL get_l_sq_wghts_cos_tf_w_to_t(num_time_freq_points, &
-                                        bs_env%time_frequency_grid%imaginary_time, &
-                                        bs_env%time_frequency_grid%cosine_frequency_to_time_weights, &
-                                        bs_env%time_frequency_grid%frequency, &
-                                        E_min, E_max, max_error_min, &
-                                        bs_env%num_points_per_magnitude, &
-                                        bs_env%regularization_minimax)
-
-      ! sine transform weights imaginary time to imaginary frequency
-      CALL get_l_sq_wghts_sin_tf_t_to_w(num_time_freq_points, &
-                                        bs_env%time_frequency_grid%imaginary_time, &
-                                        bs_env%time_frequency_grid%sine_time_to_frequency_weights, &
-                                        bs_env%time_frequency_grid%frequency, &
-                                        E_min, E_max, max_error_min, &
-                                        bs_env%num_points_per_magnitude, &
-                                        bs_env%regularization_minimax)
 
       CALL timestop(handle)
 
