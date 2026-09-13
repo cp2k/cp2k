@@ -577,7 +577,13 @@ CONTAINS
       CASE (block_davidson_diag_method_nr)
          CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
          CALL do_block_davidson_diag_kp(qs_env, scf_env, matrix_ks, matrix_s, kpoints, &
-                                        scf_control)
+                                        scf_control, added_mos_auto_grow=my_added_mos_auto_grow)
+         IF (my_added_mos_auto_grow) THEN
+            IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
+            IF (disable_diis) scf_control%eps_diis = saved_eps_diis
+            CALL timestop(handle)
+            RETURN
+         END IF
       CASE (ot_method_nr)
          CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
          base_state = .NOT. scf_env%qs_ot_env(1)%energy_only .AND. &

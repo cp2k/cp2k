@@ -3171,15 +3171,17 @@ CONTAINS
 !> \param matrix_s_kp real-space overlap matrix, dbcsr image set
 !> \param kpoints ...
 !> \param scf_control ...
+!> \param added_mos_auto_grow ...
 ! **************************************************************************************************
    SUBROUTINE do_block_davidson_diag_kp(qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints, &
-                                        scf_control)
+                                        scf_control, added_mos_auto_grow)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(scf_control_type), POINTER                    :: scf_control
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: added_mos_auto_grow
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'do_block_davidson_diag_kp'
       REAL(KIND=dp), PARAMETER                           :: empty_factor = 5.0_dp, &
@@ -3191,7 +3193,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_prec, use_real_wfn
+      LOGICAL                                            :: do_prec, my_added_mos_auto_grow, &
+                                                            use_real_wfn
       REAL(KIND=dp)                                      :: eps_iter, eps_iter_empty
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_cfm_type)                                  :: cksmat, csmat, csmat_base
@@ -3374,10 +3377,20 @@ CONTAINS
       END DO
 
       ! occupations and density, same exit chain as do_general_diag_kp
-      CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
-      CALL kpoint_density_matrices(kpoints)
-      CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
-                                    matrix_s_kp(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s_kp)
+      my_added_mos_auto_grow = .FALSE.
+      CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
+                                    added_mos_auto=scf_control%added_mos_auto, &
+                                    added_mos_auto_grow=my_added_mos_auto_grow)
+      IF (my_added_mos_auto_grow) THEN
+         ! the virtual-space buffer is too small for the smearing tail; the
+         ! outer loop grows the MOS and redoes this SCF step, the density of
+         ! the abandoned step must not be assembled
+         IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
+      ELSE
+         CALL kpoint_density_matrices(kpoints)
+         CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
+                                       matrix_s_kp(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s_kp)
+      END IF
 
       CALL cp_cfm_release(cksmat)
       CALL cp_cfm_release(csmat)
