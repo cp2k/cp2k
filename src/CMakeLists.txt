@@ -222,6 +222,12 @@ list(
   group_dist_types.F
   grrm_utils.F
   gapw_1c_basis_set.F
+  gw_compute_Z_lP.F
+  gw_compute_Z_lP_utils.F
+  gw_auto_ri_generate_RI_basis.F
+  gw_auto_ri_types.F
+  gw_dbcsr_utils.F
+  gw_fm_utils.F
   gw_communication.F
   gw_main.F
   gw_large_cell_gamma.F
