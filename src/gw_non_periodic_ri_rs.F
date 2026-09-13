@@ -64,10 +64,10 @@ MODULE gw_non_periodic_ri_rs
                                               max_line_length
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
    USE machine,                         ONLY: m_flush,&
-                                              m_hostnm,&
-                                              m_memory_details,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
+                                              mp_para_env_type,&
+                                              mp_print_mem_per_rank
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -163,6 +163,9 @@ CONTAINS
       ! flag the RI-RS grid as built so a subsequent RT-BSE run reuses Z_lP
       ! instead of rebuilding it
       bs_env%ri_rs%grid_built = .TRUE.
+
+      CALL mp_print_mem_per_rank(bs_env%para_env, bs_env%unit_nr, &
+                                 label='Memory per MPI process after computing Z_lP:')
 
       ! ==============================================================================
       ! 4. Polarizability matrix χ on the imaginary-time grid
@@ -1500,7 +1503,7 @@ CONTAINS
 
       IF (use_cutoff) THEN
          ! Half of the measured free memory as panel budget.
-         CALL ri_rs_mem_avail_per_proc_GB(bs_env, mem_avail_GB)
+         CALL mp_mem_avail_per_rank_GB(bs_env%para_env, mem_avail_GB)
          mem_budget_GB = 0.5_dp*mem_avail_GB
          CALL plan_grid_panels(bs_env, r_blk_sizes, panel_size, min_dim, pan_first, pan_last, &
                                centroids=bs_env%ri_rs%chunk_centroids, &
@@ -1656,7 +1659,7 @@ CONTAINS
 
       ! Available memory per process = node MemLikelyFree / ranks-per-node, min across ranks
       ! (0 on non-Linux => warnings suppressed below).
-      CALL ri_rs_mem_avail_per_proc_GB(bs_env, mem_avail_GB)
+      CALL mp_mem_avail_per_rank_GB(bs_env%para_env, mem_avail_GB)
 
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(A)') ' '
@@ -3412,48 +3415,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE print_matrix_occupation
-
-! **************************************************************************************************
-!> \brief Returns the available memory per MPI process on the most constrained node.
-!> \param bs_env GW calculation environment and MPI communicator
-!> \param mem_avail_GB Available memory per MPI process in GB
-! **************************************************************************************************
-   SUBROUTINE ri_rs_mem_avail_per_proc_GB(bs_env, mem_avail_GB)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), INTENT(OUT)                         :: mem_avail_GB
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ri_rs_mem_avail_per_proc_GB'
-
-      CHARACTER(LEN=default_string_length)               :: hostname
-      INTEGER                                            :: handle, host_hash, ic, n_procs, &
-                                                            ranks_per_node
-      INTEGER(KIND=int_8)                                :: h8, mem_buffers, mem_cached, mem_free, &
-                                                            mem_likely_free, mem_slab, &
-                                                            mem_sreclaimable, mem_total
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: all_host_hashes
-
-      CALL timeset(routineN, handle)
-
-      n_procs = bs_env%para_env%num_pe
-      CALL m_hostnm(hostname)
-      h8 = 0_int_8
-      DO ic = 1, LEN_TRIM(hostname)
-         h8 = MOD(h8*127_int_8 + INT(ICHAR(hostname(ic:ic)), int_8), 2147483647_int_8)
-      END DO
-      host_hash = INT(h8)
-      ALLOCATE (all_host_hashes(n_procs))
-      CALL bs_env%para_env%allgather(host_hash, all_host_hashes)
-      ranks_per_node = MAX(COUNT(all_host_hashes == host_hash), 1)
-      DEALLOCATE (all_host_hashes)
-
-      CALL m_memory_details(MemTotal=mem_total, MemFree=mem_free, Buffers=mem_buffers, &
-                            Cached=mem_cached, Slab=mem_slab, SReclaimable=mem_sreclaimable, &
-                            MemLikelyFree=mem_likely_free)
-      mem_avail_GB = REAL(mem_likely_free, dp)*1.0E-9_dp/REAL(ranks_per_node, dp)
-      CALL bs_env%para_env%min(mem_avail_GB)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE ri_rs_mem_avail_per_proc_GB
 
 END MODULE gw_non_periodic_ri_rs

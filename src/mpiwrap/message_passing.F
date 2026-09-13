@@ -29,7 +29,7 @@ MODULE message_passing
    USE kinds, ONLY: &
       dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
       real_8_size, default_string_length
-   USE machine, ONLY: m_abort
+   USE machine, ONLY: m_abort, m_memory, m_memory_details
    USE mp_perf_env, ONLY: add_perf, add_mp_perf_env, rm_mp_perf_env
    USE OMP_LIB, ONLY: omp_get_level, omp_get_thread_num, omp_in_parallel
 #if defined(__MIMIC)
@@ -169,6 +169,7 @@ MODULE message_passing
    PUBLIC :: mp_para_env_type, mp_para_env_p_type, mp_para_cart_type
    PUBLIC :: mp_para_env_create, mp_para_env_release, &
              mp_para_cart_create, mp_para_cart_release
+   PUBLIC :: mp_mem_avail_per_rank_GB, mp_mem_used_per_rank_GB, mp_print_mem_per_rank
 
 #if defined(__MIMIC)
    ! Stores the split world communicator to finalize a MiMiC run
@@ -2561,6 +2562,101 @@ CONTAINS
          CALL mp_timestop(handle)
 
       END SUBROUTINE mp_comm_split_type
+! **************************************************************************************************
+!> \brief Memory that is currently free on the node, per MPI rank of that node, in GB.
+!>
+!>        The operating system reports node-wide memory (/proc/meminfo on Linux), so every rank
+!>        of a node reads the same figure. It is divided by the number of ranks sharing that node,
+!>        which are identified by splitting comm with mp_comm_split_type_shared. The result is
+!>        minimized over all ranks of comm, such that every rank ends up with the same, most
+!>        pessimistic figure.
+!>
+!>        Returns 0.0 if the operating system does not expose the free memory.
+!> \param comm communicator over which the result is minimized
+!> \param mem_avail_GB free memory per MPI rank in GB, identical on all ranks of comm
+! **************************************************************************************************
+      SUBROUTINE mp_mem_avail_per_rank_GB(comm, mem_avail_GB)
+         CLASS(mp_comm_type), INTENT(IN)                    :: comm
+         REAL(KIND=dp), INTENT(OUT)                         :: mem_avail_GB
+
+         CHARACTER(len=*), PARAMETER :: routineN = 'mp_mem_avail_per_rank_GB'
+
+         INTEGER                                            :: handle, ranks_per_node
+         INTEGER(KIND=int_8)                                :: mem_buffers, mem_cached, mem_free, &
+                                                               mem_likely_free, mem_slab, &
+                                                               mem_sreclaimable, mem_total
+         TYPE(mp_comm_type)                                 :: node_comm
+
+         CALL mp_assert_outside_parallel(routineN)
+         CALL mp_timeset(routineN, handle)
+
+         CALL node_comm%from_split_type(comm, mp_comm_split_type_shared, key=comm%mepos)
+         ranks_per_node = MAX(node_comm%num_pe, 1)
+         CALL node_comm%free()
+
+         ! m_memory_details assigns all of its (optional) arguments, so all of them must be given
+         CALL m_memory_details(MemTotal=mem_total, MemFree=mem_free, Buffers=mem_buffers, &
+                               Cached=mem_cached, Slab=mem_slab, SReclaimable=mem_sreclaimable, &
+                               MemLikelyFree=mem_likely_free)
+         mem_avail_GB = REAL(mem_likely_free, dp)*1.0E-9_dp/REAL(ranks_per_node, dp)
+         CALL comm%min(mem_avail_GB)
+
+         CALL mp_timestop(handle)
+
+      END SUBROUTINE mp_mem_avail_per_rank_GB
+
+! **************************************************************************************************
+!> \brief Memory that is currently occupied by this process, in GB, maximized over all ranks of
+!>        comm, such that every rank ends up with the same, most pessimistic figure.
+!> \param comm communicator over which the result is maximized
+!> \param mem_used_GB occupied memory per MPI rank in GB, identical on all ranks of comm
+! **************************************************************************************************
+      SUBROUTINE mp_mem_used_per_rank_GB(comm, mem_used_GB)
+         CLASS(mp_comm_type), INTENT(IN)                    :: comm
+         REAL(KIND=dp), INTENT(OUT)                         :: mem_used_GB
+
+         CHARACTER(len=*), PARAMETER :: routineN = 'mp_mem_used_per_rank_GB'
+
+         INTEGER                                            :: handle
+         INTEGER(KIND=int_8)                                :: mem_used
+
+         CALL mp_assert_outside_parallel(routineN)
+         CALL mp_timeset(routineN, handle)
+
+         CALL m_memory(mem_used)
+         mem_used_GB = REAL(mem_used, dp)*1.0E-9_dp
+         CALL comm%max(mem_used_GB)
+
+         CALL mp_timestop(handle)
+
+      END SUBROUTINE mp_mem_used_per_rank_GB
+
+! **************************************************************************************************
+!> \brief Prints the memory available to and used by a single MPI rank at the moment of the call.
+!>        Collective on comm; only ranks with unit_nr > 0 write.
+!> \param comm communicator whose ranks share the reported memory
+!> \param unit_nr output unit, nothing is printed for unit_nr <= 0
+!> \param label text identifying the point of the run at which the memory is reported
+! **************************************************************************************************
+      SUBROUTINE mp_print_mem_per_rank(comm, unit_nr, label)
+         CLASS(mp_comm_type), INTENT(IN)                    :: comm
+         INTEGER, INTENT(IN)                                :: unit_nr
+         CHARACTER(len=*), INTENT(IN), OPTIONAL             :: label
+
+         REAL(KIND=dp)                                      :: mem_avail_GB, mem_used_GB
+
+         CALL mp_mem_avail_per_rank_GB(comm, mem_avail_GB)
+         CALL mp_mem_used_per_rank_GB(comm, mem_used_GB)
+
+         IF (unit_nr > 0) THEN
+            IF (PRESENT(label)) WRITE (unit_nr, '(T2,A)') TRIM(label)
+            WRITE (unit_nr, '(T2,A,F35.1,A)') 'Available memory per MPI process', &
+               mem_avail_GB, ' GB'
+            WRITE (unit_nr, '(T2,A,F40.1,A)') 'Used memory per MPI process', &
+               mem_used_GB, ' GB'
+         END IF
+
+      END SUBROUTINE mp_print_mem_per_rank
 ! **************************************************************************************************
 !> \brief splits the given communicator in group in subgroups trying to organize
 !>      them in a way that the communication within each subgroup is

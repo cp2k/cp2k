@@ -86,17 +86,15 @@ MODULE gw_utils
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
                                               cp_libint_static_init
-   USE machine,                         ONLY: m_memory,&
-                                              m_memory_details,&
-                                              m_walltime
+   USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: gaussi,&
                                               z_one,&
                                               z_zero
    USE mathlib,                         ONLY: diag_complex,&
                                               gcd
    USE message_passing,                 ONLY: mp_cart_type,&
-                                              mp_comm_split_type_shared,&
-                                              mp_comm_type,&
+                                              mp_mem_avail_per_rank_GB,&
+                                              mp_mem_used_per_rank_GB,&
                                               mp_para_env_type
    USE minimax_exp,                     ONLY: get_exp_minimax_coeff
    USE minimax_exp_gw,                  ONLY: get_exp_minimax_coeff_gw
@@ -556,10 +554,7 @@ CONTAINS
          fallback_memory_per_proc_GB = 2.0_dp
 
       INTEGER                                            :: handle
-      INTEGER(KIND=int_8)                                :: mem_occ_per_proc
-      REAL(KIND=dp)                                      :: mem_free_per_proc_GB
-
-! Safet net over detected memory fraction
+      REAL(KIND=dp)                                      :: mem_free_per_proc_GB, mem_occ_per_proc_GB
 
       CALL timeset(routineN, handle)
 
@@ -567,15 +562,14 @@ CONTAINS
 
       IF (bs_env%auto_memory_per_proc) THEN
 
-         CALL mem_avail_per_proc_GB(bs_env%para_env, mem_free_per_proc_GB)
+         CALL mp_mem_avail_per_rank_GB(bs_env%para_env, mem_free_per_proc_GB)
+         CALL mp_mem_used_per_rank_GB(bs_env%para_env, mem_occ_per_proc_GB)
 
-         CALL m_memory(mem_occ_per_proc)
-         CALL bs_env%para_env%max(mem_occ_per_proc)
-
+         ! detected_memory_fraction is a safety net on the detected free memory
          bs_env%input_memory_per_proc_GB = detected_memory_fraction*mem_free_per_proc_GB &
-                                           + REAL(mem_occ_per_proc, KIND=dp)*1.0E-9_dp
+                                           + mem_occ_per_proc_GB
 
-         ! m_memory_details returns zero if /proc/meminfo is not readable
+         ! mp_mem_avail_per_rank_GB returns zero if the free memory cannot be detected
          IF (mem_free_per_proc_GB <= 0.0_dp) THEN
             bs_env%auto_memory_per_proc = .FALSE.
             bs_env%input_memory_per_proc_GB = fallback_memory_per_proc_GB
@@ -597,46 +591,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE resolve_memory_per_proc
-
-! **************************************************************************************************
-!> \brief Memory that is currently free on the node, per MPI rank of this node, in GB.
-!>
-!>        /proc/meminfo reports node-wide memory, so every rank on a node reads the same figure
-!>        and divided by the number of ranks sharing that node, identified with
-!>        MPI_COMM_TYPE_SHARED, which splits the communicator by shared-memory
-!>        domain. The result is minimized over all ranks so that every rank works with the same, most
-!>        pessimistic figure.
-!>
-!> \param para_env ...
-!> \param mem_avail_GB ...
-! **************************************************************************************************
-   SUBROUTINE mem_avail_per_proc_GB(para_env, mem_avail_GB)
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      REAL(KIND=dp), INTENT(OUT)                         :: mem_avail_GB
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mem_avail_per_proc_GB'
-
-      INTEGER                                            :: handle, ranks_per_node
-      INTEGER(KIND=int_8)                                :: mem_buffers, mem_cached, mem_free, &
-                                                            mem_likely_free, mem_slab, &
-                                                            mem_sreclaimable, mem_total
-      TYPE(mp_comm_type)                                 :: node_comm
-
-      CALL timeset(routineN, handle)
-
-      CALL node_comm%from_split_type(para_env, mp_comm_split_type_shared, key=para_env%mepos)
-      ranks_per_node = MAX(node_comm%num_pe, 1)
-      CALL node_comm%free()
-
-      CALL m_memory_details(MemTotal=mem_total, MemFree=mem_free, Buffers=mem_buffers, &
-                            Cached=mem_cached, Slab=mem_slab, SReclaimable=mem_sreclaimable, &
-                            MemLikelyFree=mem_likely_free)
-      mem_avail_GB = REAL(mem_likely_free, dp)*1.0E-9_dp/REAL(ranks_per_node, dp)
-      CALL para_env%min(mem_avail_GB)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE mem_avail_per_proc_GB
 
 ! **************************************************************************************************
 !> \brief Read the RI-RS grid optimization input.
@@ -2594,7 +2548,6 @@ CONTAINS
          i_cell_x_min, i_size, ikind, img, j, j_cell, j_cell_max, j_cell_y, j_cell_y_max, &
          j_cell_y_min, j_size, k_cell, k_cell_max, k_cell_z, k_cell_z_max, k_cell_z_min, k_size, &
          nimage_pairs_3c, nimages_3c, nimages_3c_max, nkind, u
-      INTEGER(KIND=int_8)                                :: mem_occ_per_proc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, n_other_3c_images_max
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c_max, nblocks_3c_max
       INTEGER, DIMENSION(3)                              :: cell_index, n_max
@@ -2833,10 +2786,7 @@ CONTAINS
       mem_3c_GB = REAL(bs_env%n_RI, KIND=dp)*REAL(bs_env%n_ao, KIND=dp)**2 &
                   *REAL(nimage_pairs_3c, KIND=dp)*8E-9_dp
 
-      CALL m_memory(mem_occ_per_proc)
-      CALL bs_env%para_env%max(mem_occ_per_proc)
-
-      mem_occ_per_proc_GB = REAL(mem_occ_per_proc, KIND=dp)/1.0E9_dp
+      CALL mp_mem_used_per_rank_GB(bs_env%para_env, mem_occ_per_proc_GB)
 
       ! number of processors per group that entirely stores the 3c integrals and does tensor ops
       avail_mem_per_proc_GB = bs_env%input_memory_per_proc_GB - mem_occ_per_proc_GB
