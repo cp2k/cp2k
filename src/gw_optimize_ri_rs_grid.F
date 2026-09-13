@@ -40,7 +40,6 @@ MODULE gw_optimize_ri_rs_grid
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_optimize_ri_rs_grid'
    REAL(KIND=dp), PARAMETER, PRIVATE :: optimizer_accuracy = 1.0E-9_dp
-   REAL(KIND=dp), PARAMETER, PRIVATE :: truncated_coulomb_cutoff = 3.0_dp/angstrom
 
    TYPE :: local_cluster_type
       INTEGER, ALLOCATABLE                 :: atoms(:)
@@ -124,7 +123,7 @@ CONTAINS
       BLOCK
          TYPE(libint_potential_type) :: potential
          potential%potential_type = do_potential_truncated
-         potential%cutoff_radius = truncated_coulomb_cutoff
+         potential%cutoff_radius = bs_env%ri_metric%cutoff_radius
          potential%omega = 0.0_dp
          potential%filename = "t_c_g.dat"
          CALL gw_3c_ctx_create(integral_context, qs_env, potential, &

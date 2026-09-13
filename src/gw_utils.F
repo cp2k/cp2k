@@ -82,6 +82,7 @@ MODULE gw_utils
    USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
                                               cp_libint_static_init
    USE machine,                         ONLY: m_memory,&
+                                              m_memory_details,&
                                               m_walltime
    USE mathconstants,                   ONLY: gaussi,&
                                               z_one,&
@@ -89,6 +90,8 @@ MODULE gw_utils
    USE mathlib,                         ONLY: diag_complex,&
                                               gcd
    USE message_passing,                 ONLY: mp_cart_type,&
+                                              mp_comm_split_type_shared,&
+                                              mp_comm_type,&
                                               mp_para_env_type
    USE minimax_exp,                     ONLY: get_exp_minimax_coeff
    USE minimax_exp_gw,                  ONLY: get_exp_minimax_coeff_gw
@@ -424,9 +427,109 @@ CONTAINS
                       "check the convergence of the reported states.")
       END IF
 
+      CALL resolve_memory_per_proc(bs_env)
+
       CALL timestop(handle)
 
    END SUBROUTINE read_gw_input_parameters
+
+! **************************************************************************************************
+!> \brief Determine memory per processor available for low-sclaing tensor GW routines.
+!>
+!>        MEMORY_PER_PROC = -1 (the default) : Automatically detect available memory from the system.
+!>        MEMORY_PER_PROC > 0.0 : Override with user-defined value (in GB).
+!>
+!> \param bs_env ...
+! **************************************************************************************************
+   SUBROUTINE resolve_memory_per_proc(bs_env)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'resolve_memory_per_proc'
+      REAL(KIND=dp), PARAMETER :: detected_memory_fraction = 0.8_dp, &
+         fallback_memory_per_proc_GB = 2.0_dp
+
+      INTEGER                                            :: handle
+      INTEGER(KIND=int_8)                                :: mem_occ_per_proc
+      REAL(KIND=dp)                                      :: mem_free_per_proc_GB
+
+! Safet net over detected memory fraction
+
+      CALL timeset(routineN, handle)
+
+      bs_env%auto_memory_per_proc = bs_env%input_memory_per_proc_GB <= 0.0_dp
+
+      IF (bs_env%auto_memory_per_proc) THEN
+
+         CALL mem_avail_per_proc_GB(bs_env%para_env, mem_free_per_proc_GB)
+
+         CALL m_memory(mem_occ_per_proc)
+         CALL bs_env%para_env%max(mem_occ_per_proc)
+
+         bs_env%input_memory_per_proc_GB = detected_memory_fraction*mem_free_per_proc_GB &
+                                           + REAL(mem_occ_per_proc, KIND=dp)*1.0E-9_dp
+
+         ! m_memory_details returns zero if /proc/meminfo is not readable
+         IF (mem_free_per_proc_GB <= 0.0_dp) THEN
+            bs_env%auto_memory_per_proc = .FALSE.
+            bs_env%input_memory_per_proc_GB = fallback_memory_per_proc_GB
+            CALL cp_warn(__LOCATION__, &
+                         "Could not detect the available memory per MPI process. Falling back "// &
+                         "to MEMORY_PER_PROC = 2 GB. Set MEMORY_PER_PROC in the GW section "// &
+                         "explicitly for good performance.")
+         END IF
+
+      ELSE IF (bs_env%do_gw_ri_rs) THEN
+
+         CALL cp_warn(__LOCATION__, &
+                      "MEMORY_PER_PROC is set, but it is not used by the RI-RS GW code, which "// &
+                      "detects the available memory per MPI process automatically. The keyword "// &
+                      "is ignored.")
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE resolve_memory_per_proc
+
+! **************************************************************************************************
+!> \brief Memory that is currently free on the node, per MPI rank of this node, in GB.
+!>
+!>        /proc/meminfo reports node-wide memory, so every rank on a node reads the same figure
+!>        and divided by the number of ranks sharing that node, identified with
+!>        MPI_COMM_TYPE_SHARED, which splits the communicator by shared-memory
+!>        domain. The result is minimized over all ranks so that every rank works with the same, most
+!>        pessimistic figure.
+!>
+!> \param para_env ...
+!> \param mem_avail_GB ...
+! **************************************************************************************************
+   SUBROUTINE mem_avail_per_proc_GB(para_env, mem_avail_GB)
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp), INTENT(OUT)                         :: mem_avail_GB
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mem_avail_per_proc_GB'
+
+      INTEGER                                            :: handle, ranks_per_node
+      INTEGER(KIND=int_8)                                :: mem_buffers, mem_cached, mem_free, &
+                                                            mem_likely_free, mem_slab, &
+                                                            mem_sreclaimable, mem_total
+      TYPE(mp_comm_type)                                 :: node_comm
+
+      CALL timeset(routineN, handle)
+
+      CALL node_comm%from_split_type(para_env, mp_comm_split_type_shared, key=para_env%mepos)
+      ranks_per_node = MAX(node_comm%num_pe, 1)
+      CALL node_comm%free()
+
+      CALL m_memory_details(MemTotal=mem_total, MemFree=mem_free, Buffers=mem_buffers, &
+                            Cached=mem_cached, Slab=mem_slab, SReclaimable=mem_sreclaimable, &
+                            MemLikelyFree=mem_likely_free)
+      mem_avail_GB = REAL(mem_likely_free, dp)*1.0E-9_dp/REAL(ranks_per_node, dp)
+      CALL para_env%min(mem_avail_GB)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE mem_avail_per_proc_GB
 
 ! **************************************************************************************************
 !> \brief Read the RI-RS grid optimization input.
@@ -1865,8 +1968,13 @@ CONTAINS
          WRITE (u, '(T2,A,ES27.1)') 'Input: Filter threshold for sparse tensor operations', &
             bs_env%eps_filter
          WRITE (u, "(T2,A,L55)") 'Input: Apply Hedin shift', bs_env%do_hedin_shift
-         WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
-            bs_env%input_memory_per_proc_GB, ' GB'
+         IF (bs_env%auto_memory_per_proc) THEN
+            WRITE (u, '(T2,A,F34.1,A)') 'Detected: Available memory per MPI process', &
+               bs_env%input_memory_per_proc_GB, ' GB'
+         ELSE
+            WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
+               bs_env%input_memory_per_proc_GB, ' GB'
+         END IF
          IF (bs_env%do_gw_ri_rs) THEN
             WRITE (u, '(A)') ' '
             WRITE (u, '(T2,A,ES43.2)') 'Input: RI-RS Tikhonov regularization', &
@@ -2494,8 +2602,13 @@ CONTAINS
          WRITE (u, FMT="(T2,A,I47)") "Number of cells for 3c integrals", nimages_3c
          WRITE (u, FMT="(T2,A,I42)") "Number of cell pairs for 3c integrals", nimage_pairs_3c
          WRITE (u, '(T2,A)') ''
-         WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
-            bs_env%input_memory_per_proc_GB, ' GB'
+         IF (bs_env%auto_memory_per_proc) THEN
+            WRITE (u, '(T2,A,F34.1,A)') 'Detected: Available memory per MPI process', &
+               bs_env%input_memory_per_proc_GB, ' GB'
+         ELSE
+            WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
+               bs_env%input_memory_per_proc_GB, ' GB'
+         END IF
          WRITE (u, '(T2,A,F35.1,A)') 'Used memory per MPI process before GW run', &
             mem_occ_per_proc_GB, ' GB'
          WRITE (u, '(T2,A,F44.1,A)') 'Memory of three-center integrals', mem_3c_GB, ' GB'

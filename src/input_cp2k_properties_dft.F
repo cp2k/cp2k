@@ -2472,26 +2472,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_PER_PROC", &
-                          description="Specify the available memory per MPI process. Set "// &
-                          "`MEMORY_PER_PROC` as accurately as possible for good performance. If "// &
-                          "`MEMORY_PER_PROC` is set lower as the actually available "// &
-                          "memory per MPI process, the performance will be "// &
-                          "bad; if `MEMORY_PER_PROC` is set higher as the actually "// &
-                          "available memory per MPI process, the program might run out of "// &
-                          "memory. You can calculate `MEMORY_PER_PROC` as follows: "// &
-                          "Get the memory per node on your machine, mem_per_node "// &
-                          "(for example, from a supercomputer website, typically between "// &
-                          "100 GB and 2 TB), get the number of "// &
-                          "MPI processes per node, n_MPI_proc_per_node"// &
-                          " (for example from your run-script; if you "// &
-                          "use slurm, the number behind '--ntasks-per-node' is the number "// &
-                          "of MPI processes per node). Then calculate "// &
-                          "`MEMORY_PER_PROC` = mem_per_node / n_MPI_proc_per_node "// &
-                          "(typically between 2 GB and 50 GB). Unit of keyword: Gigabyte (GB). "// &
+                          description="Specify the available memory per MPI process (in GB). The "// &
+                          "default value -1 means that the available memory per MPI process is detected "// &
+                          "automatically from the free memory of the node divided by the number "// &
+                          "of MPI processes running on that node; this is the recommended setting. "// &
                           "Note: This keyword is not used for GW calculations with RI-RS, "// &
-                          "where the available memory is detected automatically.", &
+                          "where the available memory is always detected automatically.", &
                           usage="MEMORY_PER_PROC 16", &
-                          default_r_val=2.0_dp)
+                          default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
