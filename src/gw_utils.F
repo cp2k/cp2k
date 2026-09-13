@@ -99,7 +99,6 @@ MODULE gw_utils
    USE mp2_grids,                       ONLY: build_minimax_time_frequency_grid
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat,&
                                               trunc_coulomb_for_exchange
-   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
@@ -2362,8 +2361,11 @@ CONTAINS
       E_range = E_max/E_min
 
       CALL build_minimax_time_frequency_grid(num_time_freq_points, E_min, E_max, bs_env%regularization_minimax, &
-                                             bs_env%num_points_per_magnitude, bs_env%time_frequency_grid, .TRUE., .TRUE., &
-                                             2.0_dp, 1.0_dp, max_error_min, .FALSE.)
+                                             bs_env%num_points_per_magnitude, bs_env%time_frequency_grid, &
+                                             build_frequency=.TRUE., build_time=.TRUE., build_transforms=.TRUE., &
+                                             build_sine=.TRUE., &
+                                             time_scaling=2.0_dp, time_weight_scaling=1.0_dp, &
+                                             max_fit_error=max_error_min, print_warning=.FALSE.)
 
       ! determine number of fit points in the interval [0,ω_max] for virt, or [-ω_max,0] for occ
       bs_env%num_freq_points_fit = 0
