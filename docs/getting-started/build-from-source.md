@@ -357,7 +357,11 @@ Here are some other important general options you may want to know:
 - `-DCMAKE_BUILD_TYPE` Valid vaules are `Release` (default) and `Debug` (enables debug settings and
   generates `pdbg` or `sdbg` instead of `psmp` or `ssmp`; recommended for development).
 - `-DCMAKE_INSTALL_PREFIX` Specifies the installation path.
-- `-DCMAKE_INSTALL_LIBDIR` Specifies the library path under the installation path. Default is `lib`.
+- `-DCMAKE_INSTALL_LIBDIR` Specifies the library path under the installation path. The default is
+  defined by CMake's `GNUInstallDirs` module and is dependent on the host system and architecture.
+  Both toolchain `build_cp2k.sh` and Spack-based `make_cp2k.sh` set `-DCMAKE_INSTALL_LIBDIR=lib` for
+  convenience, while an install from [package manager distributions](./distributions) respects the
+  `GNUInstallDirs` convention.
 - `-DBUILD_SHARED_LIBS` Specifies if shared libraries (e.g. `libcp2k.so`) will be built. Default is
   `ON`; if set `OFF`, static libraries (e.g. `libcp2k.a`) will be built instead.
 - `-DCMAKE_POSITION_INDEPENDENT_CODE` Specifies if position-independent code is enabled.

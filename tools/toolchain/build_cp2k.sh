@@ -83,10 +83,15 @@ while [ $# -ge 1 ]; do
       ;;
     --preset=*)
       PRESET_SET="__TRUE__"
-      CMAKE_PRESET="${1#*=}"
-      if [ -z "${CMAKE_PRESET}" ]; then
-        report_error "A preset name must be provided to --preset."
-      fi
+      case "${1#*=}" in
+        native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)
+          CMAKE_PRESET="${1#*=}"
+          ;;
+        *)
+          report_warning "Unknown CMake preset: ${1#*=}. Default to \"none\"."
+          CMAKE_PRESET="none"
+          ;;
+      esac
       ;;
     --debug)
       DEBUG_SET="__TRUE__"
@@ -120,6 +125,11 @@ ERROR: "--rebuild-only" cannot be used together with options that affect CMake c
 Please run this script without "--rebuild-only" if you want to change CMake settings.
 EOF
     exit 1
+  fi
+else
+  if [ "${PRESET_SET}" = "__FALSE__" ]; then
+    report_warning "No CMake preset is specified; default to \"none\"."
+    CMAKE_PRESET="none"
   fi
 fi
 
@@ -360,16 +370,6 @@ EOF
   log_build "Parallel jobs: ${BUILD_JOBS}"
   set -o pipefail
   cmake --build "${BUILD_DIR}" --target install -j "${BUILD_JOBS}" 2>&1 | tee -a build.log
-  echo "=========================================================="
-
-  log_build "=============== Creating links to binaries ==============="
-  VERSION="psmp"
-  cd "${CMAKE_INSTALL_PREFIX}"/bin
-  for binary in *."${VERSION}"; do
-    ln -sfv "${binary}" "${binary%%."${VERSION}"}"
-  done
-  ln -sfv cp2k."${VERSION}" cp2k_shell
-  cd "${CP2K_ROOT}"
   echo "=========================================================="
 
   # Export variable for CMake options to cp2k_env file

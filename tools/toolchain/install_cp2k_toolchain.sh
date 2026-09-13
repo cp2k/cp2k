@@ -1179,7 +1179,10 @@ if [ "${MATH_MODE}" = "mkl" ]; then
   # Block libtorch installation bacause of compatibility issue
   if [ "${with_libtorch}" = "__INSTALL__" ]; then
     report_error ${LINENO} \
-      "Installing prebuilt libtorch is disabled for oneMKL builds due to known conflicts between bundled and externally linked oneMKL libraries. Please provide a compatible libtorch installation via --with-libtorch=system or --with-libtorch=<path>."
+      "Installing prebuilt libtorch is disabled for oneMKL builds due to known
+conflicts between bundled and externally linked oneMKL libraries. Please provide
+a compatible libtorch installation via --with-libtorch=system or
+--with-libtorch=<path>."
   fi
 fi
 
@@ -1247,12 +1250,6 @@ Otherwise use option no."
     exit 1
     ;;
 esac
-
-# variables used for generating cp2k ARCH file
-export CP_DFLAGS=""
-export CP_LIBS=""
-export CP_CFLAGS=""
-export CP_LDFLAGS="-Wl,--enable-new-dtags"
 
 # ------------------------------------------------------------------------
 # Special settings for CRAY Linux Environment (CLE)
@@ -1539,7 +1536,9 @@ this script:
 
 It will source the file "install/setup", generate proper CMake flags based on
 toolchain options, and then build and install CP2K. For available options
-with the script, run "./build_cp2k.sh -h".
+with the script, run "./build_cp2k.sh -h". In particular, watch out for the
+--preset option; with --target-cpu=native used here, a corresponding "native-*"
+preset based on the compiler and architecture should be specified.
 EOF
 fi
 
