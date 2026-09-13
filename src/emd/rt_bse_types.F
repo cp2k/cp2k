@@ -56,10 +56,10 @@ MODULE rt_bse_types
                               do_exact, &
                               rtp_bse_ham_gw, &
                               rtp_method_bse_linearized
-   USE bse_util, ONLY: determine_cutoff_indices
    USE cp_log_handling, ONLY: cp_to_string
    USE physcon, ONLY: evolt
    USE mathconstants, ONLY: z_zero
+   USE mo_window, ONLY: combine_mo_windows, determine_mo_window, mo_window_type
    USE input_section_types, ONLY: section_vals_type, &
                                   section_vals_val_get, &
                                   section_vals_get_subs_vals
@@ -1020,12 +1020,11 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER          :: bs_env
       CHARACTER(LEN=*), PARAMETER                         :: routineN = "determine_active_mo_window"
 
-      INTEGER                                             :: handle, ispin, n_ao_full, n_virt
-      INTEGER                                             :: homo_red, virt_red, homo_incl, virt_incl
-      INTEGER                                             :: combined_first_occ, combined_last_virt
-      INTEGER                                             :: first_occ_prev, last_virt_prev
+      INTEGER                                             :: handle, ispin, n_ao_full
       LOGICAL                                             :: spins_differ, do_truncation
       REAL(KIND=dp)                                       :: cutoff_occ, cutoff_empty
+      TYPE(mo_window_type), ALLOCATABLE, DIMENSION(:)     :: spin_windows
+      TYPE(mo_window_type)                                :: combined_window
 
       CALL timeset(routineN, handle)
 
@@ -1045,42 +1044,27 @@ CONTAINS
          RETURN
       END IF
 
-      combined_first_occ = n_ao_full
-      combined_last_virt = 1
-      first_occ_prev = -1
-      last_virt_prev = -1
-      spins_differ = .FALSE.
-
+      ALLOCATE (spin_windows(rtbse_env%n_spin))
       DO ispin = 1, rtbse_env%n_spin
-         n_virt = n_ao_full - rtbse_env%n_occ(ispin)
          ! Cut on the DFT axis, as LRBSE does: it is ascending by construction, so the window is a
          ! well-defined contiguous MO range, which is all C_active can extract. The G0W0 axis is
          ! not ordered.
-         CALL determine_cutoff_indices(bs_env%eigenval_scf_Gamma(:, ispin), &
-                                       rtbse_env%n_occ(ispin), n_virt, &
-                                       homo_red, virt_red, homo_incl, virt_incl, &
-                                       cutoff_occ, cutoff_empty)
-         ! Translate the per-spin candidate to global MO indices [homo_incl, homo + virt_incl]
-         IF (ispin > 1) THEN
-            IF (homo_incl /= first_occ_prev .OR. (rtbse_env%n_occ(ispin) + virt_incl) /= last_virt_prev) THEN
-               spins_differ = .TRUE.
-            END IF
-         END IF
-         first_occ_prev = homo_incl
-         last_virt_prev = rtbse_env%n_occ(ispin) + virt_incl
-         combined_first_occ = MIN(combined_first_occ, homo_incl)
-         combined_last_virt = MAX(combined_last_virt, rtbse_env%n_occ(ispin) + virt_incl)
+         CALL determine_mo_window(bs_env%eigenval_scf_Gamma(:, ispin), n_ao_full, &
+                                  rtbse_env%n_occ(ispin), cutoff_occ, cutoff_empty, &
+                                  spin_windows(ispin))
       END DO
 
+      CALL combine_mo_windows(spin_windows, combined_window, spins_differ)
       IF (spins_differ) THEN
          CPWARN("RTBSE: spin-resolved active MO cutoff candidates differ; using combined window.")
       END IF
 
-      rtbse_env%first_active_mo = combined_first_occ
-      rtbse_env%last_active_mo = combined_last_virt
-      rtbse_env%mo_active = combined_last_virt - combined_first_occ + 1
+      rtbse_env%first_active_mo = combined_window%first_mo
+      rtbse_env%last_active_mo = combined_window%last_mo
+      rtbse_env%mo_active = combined_window%last_mo - combined_window%first_mo + 1
       rtbse_env%active_mo_truncation = (rtbse_env%mo_active < n_ao_full)
 
+      DEALLOCATE (spin_windows)
       CALL timestop(handle)
    END SUBROUTINE determine_active_mo_window
 
