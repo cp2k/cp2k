@@ -38,13 +38,13 @@ MODULE rt_bse_ri_rs
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE gw_large_cell_Gamma_ri_rs,       ONLY: contract_A_B_A,&
-                                              hadamard_product_inplace,&
+   USE gw_compute_Z_lP,                 ONLY: compute_Z_lP
+   USE gw_dbcsr_utils,                  ONLY: dbcsr_contract_ABA
+   USE gw_fm_utils,                     ONLY: fm_contract_ABA
+   USE gw_large_cell_Gamma_ri_rs,       ONLY: hadamard_product_inplace,&
                                               release_dbcsr_topology_and_matrices,&
                                               setup_square_topology
-   USE gw_large_cell_gamma,             ONLY: multiply_fm_W_MIC_time_with_Minv_Gamma
    USE gw_non_periodic_ri_rs,           ONLY: atomic_basis_at_grid_point,&
-                                              compute_coeff_Z_lP,&
                                               precompute_ri_rs_radii,&
                                               reserve_blocks_within_radius,&
                                               ri_rs_grid_assembler
@@ -110,8 +110,8 @@ CONTAINS
       END IF
       CALL atomic_basis_at_grid_point(qs_env, bs_env, bs_env%ri_rs%grid_points, &
                                       bs_env%ri_rs%mat_phi_mu_l)
-      CALL compute_coeff_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
-                              bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
+      CALL compute_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
+                        bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
 
       bs_env%ri_rs%grid_built = .TRUE.
 
@@ -163,7 +163,8 @@ CONTAINS
       CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI, bs_env%n_RI, &
                               bs_env%trunc_coulomb, do_kpoints=.FALSE.)
       ! Apply M^-1 sandwich to match the W^MIC convention; same scale as W^c when both used.
-      CALL multiply_fm_W_MIC_time_with_Minv_Gamma(bs_env, qs_env, fm_Vtr_Gamma(:, 1))
+      ! M^-1(k=0) V^tr M^-1(k=0) -> fm_Vtr_Gamma
+      CALL fm_contract_ABA(bs_env%fm_Minv_Gamma, fm_Vtr_Gamma(:, 1))
 
       ! Store the M^-1-sandwiched RI-basis Coulomb; the grid kernel Z V Z^T is applied factorized.
       CALL dbcsr_create(bs_env%ri_rs%mat_V_aux_rtbse, "V_aux_rtbse", dist_aux_aux, &
@@ -239,7 +240,8 @@ CONTAINS
 
       CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI, bs_env%n_RI, &
                               bs_env%trunc_coulomb, do_kpoints=.FALSE.)
-      CALL multiply_fm_W_MIC_time_with_Minv_Gamma(bs_env, qs_env, fm_Vtr_Gamma(:, 1))
+      ! M^-1(k=0) V^tr M^-1(k=0) -> fm_Vtr_Gamma
+      CALL fm_contract_ABA(bs_env%fm_Minv_Gamma, fm_Vtr_Gamma(:, 1))
 
       CALL dbcsr_create(matrix_V_aux, "V_aux_rtbse_W0", dist_aux_aux, dbcsr_type_no_symmetry, &
                         blk_aux, blk_aux)
@@ -275,12 +277,12 @@ CONTAINS
          ! keep_sparsity is set (dbcsr_mm_multrec.F: "IF (use_eps .AND. .NOT. keep_sparsity)").
          ! So a radius wider than the cell equals the uncut build only while eps_filter prunes
          ! nothing on W0, which holds for every system measured so far but is not guaranteed.
-         CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_Z_lP, matrix_W_aux, &
-                             bs_env%ri_rs%mat_W0_grid_rtbse, bs_env%eps_filter, &
-                             retain_sparsity=.TRUE.)
+         CALL dbcsr_contract_ABA("N", "T", bs_env%ri_rs%mat_Z_lP, matrix_W_aux, &
+                                 bs_env%ri_rs%mat_W0_grid_rtbse, bs_env%eps_filter, &
+                                 retain_sparsity=.TRUE.)
       ELSE
-         CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_Z_lP, matrix_W_aux, &
-                             bs_env%ri_rs%mat_W0_grid_rtbse, bs_env%eps_filter)
+         CALL dbcsr_contract_ABA("N", "T", bs_env%ri_rs%mat_Z_lP, matrix_W_aux, &
+                                 bs_env%ri_rs%mat_W0_grid_rtbse, bs_env%eps_filter)
       END IF
 
       bs_env%ri_rs%W0_grid_built = .TRUE.
@@ -369,8 +371,8 @@ CONTAINS
       CALL dbcsr_create(matrix_rho_grid, template=bs_env%ri_rs%mat_W0_grid_rtbse)
       CALL dbcsr_copy(matrix_rho_grid, bs_env%ri_rs%mat_W0_grid_rtbse)
       CALL dbcsr_set(matrix_rho_grid, 0.0_dp)
-      CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_AO, &
-                          matrix_rho_grid, 0.0_dp, retain_sparsity=.TRUE.)
+      CALL dbcsr_contract_ABA("N", "T", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_AO, &
+                              matrix_rho_grid, 0.0_dp, retain_sparsity=.TRUE.)
 
       ! Harvest n_l = diag(ρ^grid) BEFORE the in-place Hadamard destroys it; the Hartree reuses it
       ! (compute_hartree_ri_rs_from_diag) instead of rebuilding φρφ^T. Bare accumulate (caller
@@ -394,8 +396,8 @@ CONTAINS
       ! Σ_µν = sum_ll' φ_lµ [ρ^grid ∘ W^0]_ll' φ_l'ν
       CALL dbcsr_create(matrix_Sigma_AO, template=matrix_rho_AO)
       ! Unfiltered for self-adjointness (see the forward projection above; PERF note there).
-      CALL contract_A_B_A("T", "N", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_grid, &
-                          matrix_Sigma_AO, 0.0_dp)
+      CALL dbcsr_contract_ABA("T", "N", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_grid, &
+                              matrix_Sigma_AO, 0.0_dp)
 
       CALL dbcsr_scale(matrix_Sigma_AO, prefactor)
       CALL copy_dbcsr_to_fm(matrix_Sigma_AO, sigma_AO_fm)
@@ -512,8 +514,8 @@ CONTAINS
       ! pairs and breaks Hartree self-adjointness (L non-Hermitian).
       ! PERF(rirs-selfadjoint): this full grid×grid is built only for its diagonal n_l; a
       ! diagonal-only build would avoid it. NOT YET APPLIED, needs a perf test.
-      CALL contract_A_B_A("N", "T", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_AO, &
-                          matrix_rho_grid, 0.0_dp)
+      CALL dbcsr_contract_ABA("N", "T", bs_env%ri_rs%mat_phi_mu_l, matrix_rho_AO, &
+                              matrix_rho_grid, 0.0_dp)
       n_vec = 0.0_dp
       CALL dbcsr_get_diag(matrix_rho_grid, n_vec)
       CALL bs_env%para_env%sum(n_vec)

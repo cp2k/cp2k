@@ -34,6 +34,7 @@ MODULE gw_small_cell_full_kp
                                               fm_to_local_tensor,&
                                               local_array_to_fm,&
                                               local_dbt_to_global_fm
+   USE gw_fm_utils,                     ONLY: cfm_contract_ABA
    USE gw_utils,                        ONLY: add_R,&
                                               analyt_conti_and_print,&
                                               de_init_bs_env,&
@@ -1485,31 +1486,26 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'trafo_to_k_and_nn'
 
-      INTEGER                                            :: handle, n_ao
-      TYPE(cp_cfm_type)                                  :: cfm_ikp, cfm_tmp
+      INTEGER                                            :: handle
+      TYPE(cp_cfm_type)                                  :: cfm_ikp
       TYPE(cp_fm_type)                                   :: fm_ikp_re
 
       CALL timeset(routineN, handle)
 
       CALL cp_cfm_create(cfm_ikp, cfm_mo_coeff%matrix_struct)
-      CALL cp_cfm_create(cfm_tmp, cfm_mo_coeff%matrix_struct)
       CALL cp_fm_create(fm_ikp_re, cfm_mo_coeff%matrix_struct)
 
       ! Σ_µν(k_i) = sum_R e^ik_iR Σ_µν^R
       CALL fm_rs_to_kp(cfm_ikp, fm_rs, bs_env%kpoints_DOS, ikp)
 
-      n_ao = bs_env%n_ao
-
       ! Σ_nm(k_i) = sum_µν C^*_µn(k_i) Σ_µν(k_i) C_νn(k_i)
-      CALL parallel_gemm('N', 'N', n_ao, n_ao, n_ao, z_one, cfm_ikp, cfm_mo_coeff, z_zero, cfm_tmp)
-      CALL parallel_gemm('C', 'N', n_ao, n_ao, n_ao, z_one, cfm_mo_coeff, cfm_tmp, z_zero, cfm_ikp)
+      CALL cfm_contract_ABA(cfm_mo_coeff, cfm_ikp)
 
       ! get Σ_nn(k_i) which is a real quantity as Σ^x and Σ^c(iτ) is Hermitian
       CALL cp_cfm_to_fm(cfm_ikp, fm_ikp_re)
       CALL cp_fm_get_diag(fm_ikp_re, array_ikp_n)
 
       CALL cp_cfm_release(cfm_ikp)
-      CALL cp_cfm_release(cfm_tmp)
       CALL cp_fm_release(fm_ikp_re)
 
       CALL timestop(handle)

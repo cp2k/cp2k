@@ -24,6 +24,8 @@ MODULE post_scf_bandstructure_types
                                               cp_fm_type
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
+   USE gw_auto_ri_types,                ONLY: auto_ri_release,&
+                                              auto_ri_type
    USE input_constants,                 ONLY: G0W0,&
                                               rtp_method_bse,&
                                               rtp_method_bse_linearized,&
@@ -50,8 +52,8 @@ MODULE post_scf_bandstructure_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'post_scf_bandstructure_types'
 
-   PUBLIC :: post_scf_bandstructure_type, ri_rs_env, rirs_grid_type, ri_rs_grid_opt_type, &
-             band_edges_type, data_3_type, bs_env_release
+   PUBLIC :: post_scf_bandstructure_type, ri_rs_env, &
+             rirs_grid_type, ri_rs_grid_opt_type, band_edges_type, data_3_type, bs_env_release
 
    ! valence band maximum (VBM), conduction band minimum (CBM), direct band gap (DBG),
    ! indirect band gap (IDBG)
@@ -112,6 +114,7 @@ MODULE post_scf_bandstructure_types
 
       ! Data types for cutoffs based DBCSR matrices
       REAL(KIND=dp), ALLOCATABLE                       :: chunk_centroids(:, :)
+      ! Centers of atom-blocked AO/RI matrices for CUTOFF_RADIUS_G_W.
       REAL(KIND=dp), ALLOCATABLE                       :: atom_centers(:, :)
       INTEGER, ALLOCATABLE                             :: grid_atom_boundaries(:)
       INTEGER, ALLOCATABLE                             :: pan_first(:), pan_last(:)
@@ -186,6 +189,9 @@ MODULE post_scf_bandstructure_types
       ! parameters for RI-RS implementation of GW
       TYPE(ri_rs_env)                                 :: ri_rs
 
+      ! Parameters for automatic RI basis set optimization.
+      TYPE(auto_ri_type)                              :: auto_ri
+
       ! DBCSR ships each rank's matrix panel in one MPI message whose length is stored in a
       ! 32-bit default INTEGER (dbcsr_mpiwrap.F: msglen = SIZE(buffer)). Exceeding this ceiling
       ! overflows the count to a negative/garbage value and multiply_cannon segfaults. This is
@@ -245,6 +251,7 @@ MODULE post_scf_bandstructure_types
       INTEGER                                      :: small_cell_full_kp_or_large_cell_Gamma = -1, &
                                                       nimages_scf = -1
       INTEGER, DIMENSION(3)                        :: periodic = -1
+      LOGICAL                                      :: do_periodic = .FALSE.
       REAL(KIND=dp), DIMENSION(3, 3)               :: hmat = -1.0_dp
 
       ! imaginary time and frequency grids
@@ -283,6 +290,7 @@ MODULE post_scf_bandstructure_types
                                                       fm_mo_coeff_Gamma = cp_fm_type()
       TYPE(cp_fm_type), DIMENSION(4)               :: fm_work_mo = cp_fm_type()
       TYPE(cp_fm_type)                             :: fm_RI_RI = cp_fm_type(), &
+                                                      fm_Minv_Gamma = cp_fm_type(), &
                                                       fm_chi_Gamma_freq = cp_fm_type(), &
                                                       fm_W_MIC_freq = cp_fm_type(), &
                                                       fm_W_MIC_freq_1_extra = cp_fm_type(), &
@@ -542,6 +550,7 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_work_mo(3))
       CALL cp_fm_release(bs_env%fm_work_mo(4))
       CALL cp_fm_release(bs_env%fm_RI_RI)
+      CALL cp_fm_release(bs_env%fm_Minv_Gamma)
       CALL cp_fm_release(bs_env%fm_chi_Gamma_freq)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq)
       IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized) THEN
@@ -607,6 +616,7 @@ CONTAINS
       NULLIFY (bs_env%ri_rs%atomic_kind_set, bs_env%ri_rs%cell, bs_env%ri_rs%particle_set)
       IF (ALLOCATED(bs_env%ri_rs%pan_first)) DEALLOCATE (bs_env%ri_rs%pan_first)
       IF (ALLOCATED(bs_env%ri_rs%pan_last)) DEALLOCATE (bs_env%ri_rs%pan_last)
+      CALL auto_ri_release(bs_env%auto_ri)
 
       DEALLOCATE (bs_env)
 

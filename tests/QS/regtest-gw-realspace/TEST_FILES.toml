@@ -43,4 +43,8 @@
                                                {matcher="E_RIRS_HOMO", tol=8e-4, ref=-6.152},
                                                {matcher="E_RIRS_LUMO", tol=8e-4, ref=17.695},
                                                {matcher="E_G0W0_direct_gap", tol=1e-3, ref=23.847}]
+
+# AUTO_RI contracts a large QZ reference basis and preserves the GW result.
+"auto-ri-size-H2O.inp" = [{matcher="Auto_RI_Size", tol=1e-12, ref=18},
+                           {matcher="E_G0W0_direct_gap", tol=1e-3, ref=22.667}]
 #EOF

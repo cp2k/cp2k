@@ -16,39 +16,35 @@ MODULE gw_large_cell_Gamma_ri_rs
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
-   USE constants_operator,              ONLY: operator_coulomb
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_binary_read, dbcsr_binary_write, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix, dbcsr_distribution_get, dbcsr_distribution_new, &
-        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
-        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
+        dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_put_block, dbcsr_release, &
+        dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               dbcsr_deallocate_matrix_set,&
                                               max_elements_per_block
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
-                                              cp_fm_uplo_to_full
-   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                              cp_fm_cholesky_invert
-   USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
                                               cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
+   USE gw_compute_Z_lP_utils,           ONLY: build_gram_jacobi_blas,&
+                                              build_jacobi_diag_from_phi,&
+                                              scale_rows_by_diag,&
+                                              solve_D_lp_distributed,&
+                                              store_Z_lP_columns
+   USE gw_dbcsr_utils,                  ONLY: dbcsr_contract_ABA
+   USE gw_fm_utils,                     ONLY: fm_contract_ABA
    USE gw_integrals,                    ONLY: build_3c_integral_block_ctx,&
                                               gw_3c_ctx_create,&
                                               gw_3c_ctx_release,&
@@ -56,25 +52,22 @@ MODULE gw_large_cell_Gamma_ri_rs
                                               gw_3c_ws_create,&
                                               gw_3c_ws_release,&
                                               gw_3c_ws_type
-   USE gw_large_cell_gamma,             ONLY: &
-        Fourier_transform_w_to_t, G_occ_vir, compute_QP_energies, compute_fm_chi_Gamma_freq, &
-        create_fm_W_MIC_time, delete_unnecessary_files, fill_fm_Sigma_c_Gamma_time, fm_write, &
-        get_W_MIC, multiply_fm_W_MIC_time_with_Minv_Gamma
+   USE gw_large_cell_gamma,             ONLY: G_occ_vir,&
+                                              compute_QP_energies,&
+                                              delete_unnecessary_files,&
+                                              fill_fm_Sigma_c_Gamma_time,&
+                                              get_W_MIC
    USE gw_non_periodic_ri_rs,           ONLY: get_basis_offsets,&
                                               precompute_ri_rs_radii,&
-                                              ri_rs_grid_assembler,&
-                                              solve_D_lp_distributed
+                                              ri_rs_grid_assembler
    USE gw_utils,                        ONLY: de_init_bs_env
-   USE input_constants,                 ONLY: rtp_method_bse
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
-   USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
    USE orbital_pointers,                ONLY: indco,&
                                               ncoset
-   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -90,7 +83,6 @@ MODULE gw_large_cell_Gamma_ri_rs
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_large_cell_Gamma_ri_rs'
 
    PUBLIC :: gw_calc_large_cell_Gamma_ri_rs, &
-             contract_A_B_A, &
              hadamard_product_inplace, &
              release_dbcsr_topology_and_matrices, &
              setup_square_topology
@@ -154,8 +146,8 @@ CONTAINS
        !!    d. Solve: Σ_l' D'_ll' * Z'_l'P = D'_lP (Equation 14)
        !!    e. Rescale: Z_lP = Z'_lP * Dvec_l   (Z_lP stored in mat_Z_lP)
        !!========================================================================
-      CALL compute_coeff_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
-                              bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
+      CALL compute_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
+                        bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
       bs_env%ri_rs%grid_built = .TRUE.
 
        !!========================================================================
@@ -251,7 +243,7 @@ CONTAINS
                       qs_kind_set=qs_kind_set, particle_set=particle_set, &
                       para_env=para_env)
 
-      natom = SIZE(particle_set)
+      natom = bs_env%n_atom
       total_grid_npts = SIZE(ri_rs_grid_points, 2)
 
       ! Map the starting indices of spherical gaussian functions (SGF) for each atom
@@ -488,7 +480,7 @@ CONTAINS
 !> \param mat_Z_lP ...
 ! **************************************************************************************************
 
-   SUBROUTINE compute_coeff_Z_lP(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP)
+   SUBROUTINE compute_Z_lP(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l, mat_Z_lP)
 
       ! Arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -498,14 +490,13 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_Z_lP
 
       CHARACTER(LEN=*), PARAMETER :: key = 'PROPERTIES%BANDSTRUCTURE%GW%PRINT%RESTART', &
-         routineN = 'compute_coeff_Z_lP'
+         routineN = 'compute_Z_lP'
 
       INTEGER :: atom_j_mepos, atom_j_stride, atom_P, atom_P_start, atom_P_stride, col_end, &
-         col_start, current_chunk_size, g, group_handle, handle, handle_dpotrf, handle_dpotrs, &
-         handle_dsyrk, i, i_blk, ikind, info, j, j_ri, l, loc_idx, loc_ptr, max_ao_size, &
-         max_loc_ri, my_group, n_ao_total, n_grid_total, n_groups, n_loc_ri, n_local_grid, &
-         n_procs_per_atom, natom, nkind, npcol_phi, num_grid_chunks, P_loop_atom, r_end, r_start, &
-         source_atom
+         col_start, group_handle, handle, handle_dpotrf, handle_dpotrs, i_blk, ikind, info, j, l, &
+         loc_idx, max_ao_size, max_loc_ri, my_group, n_ao_total, n_grid_total, n_groups, n_loc_ri, &
+         n_local_grid, n_procs_per_atom, natom, nkind, npcol_phi, num_grid_chunks, P_loop_atom, &
+         ri_atom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_grid_idx, row_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_dist_ri, r_blk_sizes, ri_blk_sizes, &
                                                             row_dist_grid
@@ -514,7 +505,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom, cutoff_ri_per_kind, &
                                                             d_vec_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: D_local, d_lp_local, phi_local, &
-                                                            sphere_grid, Z_blk
+                                                            sphere_grid
       REAL(KIND=dp), DIMENSION(3)                        :: dist_vec_raw, pos_P
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -565,7 +556,7 @@ CONTAINS
          atom_j_stride = 1
       END IF
 
-      natom = SIZE(bs_env%i_RI_start_from_atom)
+      natom = bs_env%n_atom
       n_ao_total = bs_env%i_ao_end_from_atom(natom)
       n_grid_total = SIZE(ri_rs_grid_points, 2)
 
@@ -608,7 +599,7 @@ CONTAINS
                            row_blk_size=r_blk_sizes, col_blk_size=ri_blk_sizes)
 
          max_ao_size = 0
-         DO j = 1, SIZE(bs_env%i_ao_start_from_atom)
+         DO j = 1, natom
             max_ao_size = MAX(max_ao_size, bs_env%i_ao_end_from_atom(j) - bs_env%i_ao_start_from_atom(j) + 1)
          END DO
          max_loc_ri = MAXVAL(ri_blk_sizes)
@@ -697,7 +688,7 @@ CONTAINS
             !    Only source atoms whose AO basis can reach the cutoff sphere of
             !    atom_P (MIC distance) contribute; the rest are pruned. The
             !    periodic fill_phi_for_atom sums over (ix, iy, iz) images of
-            !    source_atom internally.
+            !    ri_atom internally.
             ! ---------------------------------------------------------------------
             ALLOCATE (sphere_grid(3, n_local_grid))
             DO loc_idx = 1, n_local_grid
@@ -707,17 +698,17 @@ CONTAINS
             ALLOCATE (phi_local(n_local_grid, n_ao_total))
             phi_local = 0.0_dp
 
-            DO source_atom = 1, natom
-               dist_vec_raw = pbc(particle_set(source_atom)%r(:), pos_P(:), cell)
+            DO ri_atom = 1, natom
+               dist_vec_raw = pbc(particle_set(ri_atom)%r(:), pos_P(:), cell)
                d_sP = NORM2(dist_vec_raw)
-               IF (d_sP > bs_env%ri_rs%radius_ao_per_atom(source_atom) + cutoff_ri) CYCLE
+               IF (d_sP > bs_env%ri_rs%radius_ao_per_atom(ri_atom) + cutoff_ri) CYCLE
 
-               col_start = bs_env%i_ao_start_from_atom(source_atom)
-               col_end = bs_env%i_ao_end_from_atom(source_atom)
-               r2_threshold = bs_env%ri_rs%radius_ao_per_atom(source_atom)**2
+               col_start = bs_env%i_ao_start_from_atom(ri_atom)
+               col_end = bs_env%i_ao_end_from_atom(ri_atom)
+               r2_threshold = bs_env%ri_rs%radius_ao_per_atom(ri_atom)**2
 
                CALL fill_phi_for_atom(phi_local(:, col_start:col_end), sphere_grid, &
-                                      n_local_grid, source_atom, particle_set, qs_kind_set, &
+                                      n_local_grid, ri_atom, particle_set, qs_kind_set, &
                                       cell, r2_threshold)
             END DO
 
@@ -750,71 +741,20 @@ CONTAINS
             ALLOCATE (d_vec_local(n_local_grid))
 
             IF (n_procs_per_atom == 1) THEN
-               ! BLAS path: build D_local densely, compute d_vec as side-effect
-               ! of the Jacobi step (preserves bit-identical arithmetic with the
-               ! previous branch).
-               ALLOCATE (D_local(n_local_grid, n_local_grid))
-               D_local = 0.0_dp
-
-               CALL timeset(routineN//"_dsyrk", handle_dsyrk)
-               CALL dsyrk("L", "N", n_local_grid, n_ao_total, 1.0_dp, phi_local, &
-                          n_local_grid, 0.0_dp, D_local, n_local_grid)
-               CALL timestop(handle_dsyrk)
-
-               !$OMP PARALLEL DO DEFAULT(NONE) &
-               !$OMP SHARED(n_local_grid, D_local, d_vec_local, bs_env) &
-               !$OMP PRIVATE(i) &
-               !$OMP SCHEDULE(STATIC)
-               DO i = 1, n_local_grid
-                  D_local(i, i) = D_local(i, i)**2
-                  d_vec_local(i) = 1.0_dp/SQRT(MAX(D_local(i, i), 1.0E-16_dp))
-                  D_local(i, i) = (D_local(i, i)*d_vec_local(i)**2) + bs_env%ri_rs%tikhonov
-               END DO
-               !$OMP END PARALLEL DO
-
-               !$OMP PARALLEL DO DEFAULT(NONE) &
-               !$OMP SHARED(n_local_grid, D_local, d_vec_local) &
-               !$OMP PRIVATE(j, i) &
-               !$OMP SCHEDULE(DYNAMIC)
-               DO j = 1, n_local_grid
-                  DO i = j + 1, n_local_grid
-                     D_local(i, j) = D_local(i, j)**2
-                     D_local(i, j) = D_local(i, j)*d_vec_local(i)*d_vec_local(j)
-                     D_local(j, i) = D_local(i, j)
-                  END DO
-               END DO
-               !$OMP END PARALLEL DO
+               CALL build_gram_jacobi_blas(phi_local, n_local_grid, n_ao_total, &
+                                           bs_env%ri_rs%tikhonov, D_local, d_vec_local)
             ELSE
                ! ScaLAPACK path: d_vec computed directly from phi (= 1/||phi_i||^2);
                ! solve_D_lp_distributed builds D block-cyclic internally with
                ! the squared+scaled values, so no dense D_local on this rank.
-               !$OMP PARALLEL DO DEFAULT(NONE) &
-               !$OMP SHARED(n_local_grid, n_ao_total, phi_local, d_vec_local) &
-               !$OMP PRIVATE(i, j) &
-               !$OMP SCHEDULE(STATIC)
-               DO i = 1, n_local_grid
-                  d_vec_local(i) = 0.0_dp
-                  DO j = 1, n_ao_total
-                     d_vec_local(i) = d_vec_local(i) + phi_local(i, j)*phi_local(i, j)
-                  END DO
-                  d_vec_local(i) = 1.0_dp/MAX(d_vec_local(i), 1.0E-16_dp)
-               END DO
-               !$OMP END PARALLEL DO
+               CALL build_jacobi_diag_from_phi(phi_local, n_local_grid, n_ao_total, &
+                                               d_vec_local)
             END IF
 
             ! ---------------------------------------------------------------------
             ! E. Pre-scale d_lp by d_vec
             ! ---------------------------------------------------------------------
-            !$OMP PARALLEL DO DEFAULT(NONE) &
-            !$OMP SHARED(n_loc_ri, n_local_grid, d_lp_local, d_vec_local) &
-            !$OMP PRIVATE(j_ri, i) &
-            !$OMP SCHEDULE(STATIC)
-            DO j_ri = 1, n_loc_ri
-               DO i = 1, n_local_grid
-                  d_lp_local(i, j_ri) = d_lp_local(i, j_ri)*d_vec_local(i)
-               END DO
-            END DO
-            !$OMP END PARALLEL DO
+            CALL scale_rows_by_diag(d_lp_local, d_vec_local, n_local_grid, n_loc_ri)
 
             ! ---------------------------------------------------------------------
             ! F. Solve — BLAS dpotrf/dpotrs or ScaLAPACK pdpotrf/pdpotrs
@@ -823,10 +763,12 @@ CONTAINS
                CALL timeset(routineN//"_dpotrf", handle_dpotrf)
                CALL dpotrf('L', n_local_grid, D_local, n_local_grid, info)
                CALL timestop(handle_dpotrf)
+               IF (info /= 0) CPABORT("RI-RS Cholesky factorization failed")
                CALL timeset(routineN//"_dpotrs", handle_dpotrs)
                CALL dpotrs('L', n_local_grid, n_loc_ri, D_local, n_local_grid, &
                            d_lp_local, n_local_grid, info)
                CALL timestop(handle_dpotrs)
+               IF (info /= 0) CPABORT("RI-RS Cholesky solve failed")
                DEALLOCATE (D_local)
             ELSE
                CALL solve_D_lp_distributed(phi_local, d_vec_local, d_lp_local, &
@@ -834,21 +776,13 @@ CONTAINS
                                            bs_env%ri_rs%tikhonov, &
                                            para_env_sub, blacs_env_sub, &
                                            fm_struct_D, fm_struct_b, fm_D, fm_b, info)
+               IF (info /= 0) CPABORT("Distributed RI-RS Cholesky solve failed")
             END IF
 
             ! ---------------------------------------------------------------------
             ! G. Post-scale solution by d_vec (common to both paths)
             ! ---------------------------------------------------------------------
-            !$OMP PARALLEL DO DEFAULT(NONE) &
-            !$OMP SHARED(n_loc_ri, n_local_grid, d_lp_local, d_vec_local) &
-            !$OMP PRIVATE(j_ri, i) &
-            !$OMP SCHEDULE(STATIC)
-            DO j_ri = 1, n_loc_ri
-               DO i = 1, n_local_grid
-                  d_lp_local(i, j_ri) = d_lp_local(i, j_ri)*d_vec_local(i)
-               END DO
-            END DO
-            !$OMP END PARALLEL DO
+            CALL scale_rows_by_diag(d_lp_local, d_vec_local, n_local_grid, n_loc_ri)
 
             ! ---------------------------------------------------------------------
             ! H. Scatter Local Solution Back to Global DBCSR Matrix.
@@ -860,30 +794,9 @@ CONTAINS
             !    a single walking pointer over chunks works.
             ! ---------------------------------------------------------------------
             IF (n_procs_per_atom == 1 .OR. para_env_sub%mepos == 0) THEN
-               ALLOCATE (Z_blk(MAXVAL(r_blk_sizes), n_loc_ri))
-               loc_ptr = 1
-
-               DO i_blk = 1, num_grid_chunks
-                  r_start = row_offset(i_blk) + 1
-                  r_end = row_offset(i_blk) + r_blk_sizes(i_blk)
-                  current_chunk_size = r_blk_sizes(i_blk)
-
-                  Z_blk = 0.0_dp
-
-                  DO WHILE (loc_ptr <= n_local_grid)
-                     g = local_grid_idx(loc_ptr)
-                     IF (g > r_end) EXIT
-                     Z_blk(g - r_start + 1, 1:n_loc_ri) = d_lp_local(loc_ptr, 1:n_loc_ri)
-                     loc_ptr = loc_ptr + 1
-                  END DO
-
-                  IF (MAXVAL(ABS(Z_blk(1:current_chunk_size, 1:n_loc_ri))) > bs_env%eps_filter) THEN
-                     CALL dbcsr_put_block(mat_Z_lP, row=i_blk, col=atom_P, &
-                                          block=Z_blk(1:current_chunk_size, 1:n_loc_ri))
-                  END IF
-               END DO
-
-               DEALLOCATE (Z_blk)
+               CALL store_Z_lP_columns(mat_Z_lP, d_lp_local, local_grid_idx, n_local_grid, &
+                                       n_loc_ri, atom_P, r_blk_sizes, row_offset, &
+                                       bs_env%eps_filter)
             END IF
 
             DEALLOCATE (d_vec_local, d_lp_local)
@@ -923,7 +836,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_coeff_Z_lP
+   END SUBROUTINE compute_Z_lP
 
 ! **************************************************************************************************
 !> \brief Computes the dense localized RHS d_lp(l,P) = Σ_{μν,R,S} Φ_μ(r_l)·Φ_ν(r_l)·(μν|P) for one
@@ -972,7 +885,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      natom = SIZE(bs_env%i_ao_start_from_atom)
+      natom = bs_env%n_atom
 
       IF (cell%perd(1) == 1) THEN; ix_min = -1; ix_max = 1; ELSE; ix_min = 0; ix_max = 0
       END IF
@@ -1026,11 +939,11 @@ CONTAINS
 
                   int_3c_prv(1:jsize, 1:ksize, 1:n_loc_ri) = 0.0_dp
 
-                  CALL build_3c_integral_block_ctx( &
-                     int_3c_prv(1:jsize, 1:ksize, 1:n_loc_ri), ctx, ws, &
-                     atom_j=atom_j, atom_k=atom_k, atom_i=atom_P, &
-                     cell_j=cell_R_vec, cell_k=cell_S_vec, cell_i=[0, 0, 0], &
-                     screened=screened)
+                  CALL build_3c_integral_block_ctx(int_3c_prv( &
+                                                   1:jsize, 1:ksize, 1:n_loc_ri), ctx, ws, &
+                                                   atom_j=atom_j, atom_k=atom_k, atom_i=atom_P, &
+                                                   cell_j=cell_R_vec, cell_k=cell_S_vec, cell_i=[0, 0, 0], &
+                                                   screened=screened)
                   IF (screened) CYCLE
 
                   any_kept = .TRUE.
@@ -1181,8 +1094,8 @@ CONTAINS
          ! χ_PQ(iτ,k=0) = sum_ll' Z_lP χ_ll'(iτ,k=0) Z_l'Q
          ! Result is dumped directly into the final array mat_chi_Gamma_tau!
          ! ----------------------------------------------------------------------
-         CALL contract_A_B_A("T", "N", mat_Z_lP, matrix_chi_grid, &
-                             mat_chi_Gamma_tau(i_t)%matrix, bs_env%eps_filter)
+         CALL dbcsr_contract_ABA("T", "N", mat_Z_lP, matrix_chi_grid, &
+                                 mat_chi_Gamma_tau(i_t)%matrix, bs_env%eps_filter)
 
          IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(T2,A,I13,A,I3,A,F7.1,A)') &
@@ -1262,7 +1175,8 @@ CONTAINS
 
       ! 5. Transform to Grid Basis: G_grid = phi * G_ao * phi^T
       ! G^occ/vir_ll'(i|τ|,k=0) = sum_µν Φ_µ(r_l) G^occ/vir_µν Φ_ν(r_l')
-      CALL contract_A_B_A("N", "T", mat_phi_mu_l, matrix_G_ao, matrix_G_grid, eps_filter)
+      CALL dbcsr_contract_ABA("N", "T", mat_phi_mu_l, matrix_G_ao, matrix_G_grid, &
+                              eps_filter)
 
       ! 6. Release AO matrix and topology
       CALL release_dbcsr_topology_and_matrices(dist=dist_ao_ao, mapped_dist=dist_row_ao, m1=matrix_G_ao)
@@ -1270,64 +1184,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_G_grid
-
-! **************************************************************************************************
-!> \brief Generalized routine to compute OUT = A * B * A^T  OR  OUT = A^T * B * A using DBCSR
-!> \param transA_left ...
-!> \param transA_right ...
-!> \param matrix_A ...
-!> \param matrix_B ...
-!> \param matrix_out ...
-!> \param eps_filter ...
-!> \param retain_sparsity if .TRUE., the outer multiply fills only the blocks matrix_out already
-!>        carries, so the caller pre-seeds it with the pattern to keep. Default .FALSE.
-! **************************************************************************************************
-
-   SUBROUTINE contract_A_B_A(transA_left, transA_right, matrix_A, matrix_B, matrix_out, eps_filter, &
-                             retain_sparsity)
-
-      CHARACTER(LEN=1), INTENT(IN)                       :: transA_left, transA_right
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_A, matrix_B, matrix_out
-      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
-      LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_A_B_A'
-
-      INTEGER                                            :: handle
-      LOGICAL                                            :: my_retain
-      TYPE(dbcsr_type)                                   :: matrix_tmp
-
-      CALL timeset(routineN, handle)
-
-      ! Only the outer multiply writes matrix_out, so the mask applies there; the inner product
-      ! stays exact, which is what makes a pre-seeded pattern lossless for a subsequent Hadamard.
-      my_retain = .FALSE.
-      IF (PRESENT(retain_sparsity)) my_retain = retain_sparsity
-
-      CALL dbcsr_create(matrix_tmp, template=matrix_A)
-
-      IF (transA_left == "N" .AND. transA_right == "T") THEN
-         ! Path 1: Out = A * B * A^T
-         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_A, matrix_B, &
-                             0.0_dp, matrix_tmp, filter_eps=eps_filter)
-         CALL dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp, matrix_A, &
-                             0.0_dp, matrix_out, filter_eps=eps_filter, retain_sparsity=my_retain)
-
-      ELSE IF (transA_left == "T" .AND. transA_right == "N") THEN
-         ! Path 2: Out = A^T * B * A
-         CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_B, matrix_A, &
-                             0.0_dp, matrix_tmp, filter_eps=eps_filter)
-         CALL dbcsr_multiply("T", "N", 1.0_dp, matrix_A, matrix_tmp, &
-                             0.0_dp, matrix_out, filter_eps=eps_filter, retain_sparsity=my_retain)
-      ELSE
-         CPABORT("Unsupported transposition pair in contract_A_B_A")
-      END IF
-
-      CALL dbcsr_release(matrix_tmp)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE contract_A_B_A
 
 ! **************************************************************************************************
 !> \brief Computes C = A ◦ B (Element-wise Hadamard product) for sparse DBCSR matrices.
@@ -1413,348 +1269,6 @@ CONTAINS
    END SUBROUTINE hadamard_product_inplace
 
 ! **************************************************************************************************
-!> \brief Compute screened Coulomb interaction matrix
-!> \param bs_env ...
-!> \param qs_env ...
-!> \param mat_chi_Gamma_tau ...
-!> \param fm_W_time ...
-! **************************************************************************************************
-
-   SUBROUTINE compute_W(bs_env, qs_env, mat_chi_Gamma_tau, fm_W_time)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_chi_Gamma_tau
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_W_time
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_W'
-
-      INTEGER                                            :: handle, i_t, j_w
-      REAL(KIND=dp)                                      :: t1
-      TYPE(cp_fm_type)                                   :: fm_M_inv_V_sqrt, fm_V, fm_V_sqrt
-
-      CALL timeset(routineN, handle)
-
-      t1 = m_walltime()
-
-      CALL create_fm_W_MIC_time(bs_env, fm_W_time)
-
-      ! 1. Allocate V and M matrices
-      CALL cp_fm_create(fm_V, bs_env%fm_RI_RI%matrix_struct)
-      CALL cp_fm_create(fm_V_sqrt, bs_env%fm_RI_RI%matrix_struct)
-      CALL cp_fm_create(fm_M_inv_V_sqrt, bs_env%fm_RI_RI%matrix_struct)
-
-      ! Compute V and M^-1 * V^0.5
-      CALL compute_V_MinvVsqrt(bs_env, qs_env, fm_V, fm_V_sqrt, fm_M_inv_V_sqrt)
-
-      ! 2. Loop over frequencies
-      DO j_w = 1, bs_env%num_time_freq_points
-         ! Fourier transformation of χ_PQ(iτ) to χ_PQ(iω_j)
-         CALL compute_fm_chi_Gamma_freq(bs_env, bs_env%fm_chi_Gamma_freq, j_w, mat_chi_Gamma_tau)
-
-         ! ε(iω_j) = Id - V^0.5*M^-1*χ(iω_j)*M^-1*V^0.5
-         ! W(iω_j) = V^0.5*(ε^-1(iω_j)-Id)*V^0.5
-         CALL compute_fm_W_freq(bs_env, bs_env%fm_chi_Gamma_freq, fm_V_sqrt, &
-                                fm_M_inv_V_sqrt, bs_env%fm_W_MIC_freq)
-
-         ! Fourier transform from W_PQ^MIC(iω_j) to W_PQ^MIC(iτ)
-         CALL Fourier_transform_w_to_t(bs_env, fm_W_time, bs_env%fm_W_MIC_freq, j_w)
-      END DO
-
-      ! M^-1*W^MIC(iτ)*M^-1
-      CALL multiply_fm_W_MIC_time_with_Minv_Gamma(bs_env, qs_env, fm_W_time)
-
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,T55,A,F10.1,A)') &
-            'Computed W(iτ),', ' Execution time', m_walltime() - t1, ' s'
-      END IF
-
-      CALL dbcsr_deallocate_matrix_set(mat_chi_Gamma_tau)
-
-      ! Cleanup
-      CALL cp_fm_release(fm_V)
-      CALL cp_fm_release(fm_V_sqrt)
-      CALL cp_fm_release(fm_M_inv_V_sqrt)
-
-      ! Marek : Fourier transform W^MIC(itau) back to get it at a specific im.frequency point - iomega = 0
-      IF (bs_env%rtp_method == rtp_method_bse) THEN
-         t1 = m_walltime()
-         CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
-         ! Set to zero
-         CALL cp_fm_set_all(bs_env%fm_W_MIC_freq_zero, 0.0_dp)
-         ! Sum over all times
-         DO i_t = 1, bs_env%num_time_freq_points
-            ! Add the relevant structure with correct weight
-            CALL cp_fm_scale_and_add(1.0_dp, bs_env%fm_W_MIC_freq_zero, &
-                                     bs_env%imag_time_weights_freq_zero(i_t), fm_W_time(i_t))
-         END DO
-         ! Done, save to file
-         CALL fm_write(bs_env%fm_W_MIC_freq_zero, 0, "W_freq_rtp", qs_env)
-         ! Report calculation
-         IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A,T55,A,F10.1,A)') &
-               'Computed W(0),', ' Execution time', m_walltime() - t1, ' s'
-         END IF
-      END IF
-
-      IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
-
-      CALL timestop(handle)
-
-   END SUBROUTINE compute_W
-
-! **************************************************************************************************
-!> \brief Computes V, V^0.5, and M^-1 * V^0.5
-!> \param bs_env ...
-!> \param qs_env ...
-!> \param fm_V ...
-!> \param fm_V_sqrt ...
-!> \param fm_Minv_Vsqrt ...
-! **************************************************************************************************
-
-   SUBROUTINE compute_V_MinvVsqrt(bs_env, qs_env, fm_V, fm_V_sqrt, fm_Minv_Vsqrt)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_V, fm_V_sqrt, fm_Minv_Vsqrt
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_V_MinvVsqrt'
-
-      INTEGER                                            :: handle, info, n_RI, ndep
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_type)                                   :: fm_work
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_M
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_V_kp
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      CALL timeset(routineN, handle)
-
-      n_RI = bs_env%n_RI
-      CALL cp_fm_create(fm_work, fm_V%matrix_struct)
-
-      ! -----------------------------------------------------------------------
-      ! 1. Build Coulomb Matrix V(k=0) using the kp-routine but only for ikp=1
-      ! -----------------------------------------------------------------------
-      CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, cell=cell, &
-                      qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set)
-
-      ALLOCATE (mat_V_kp(1:1, 1:2))
-      NULLIFY (mat_V_kp(1, 1)%matrix, mat_V_kp(1, 2)%matrix)
-      ALLOCATE (mat_V_kp(1, 1)%matrix, mat_V_kp(1, 2)%matrix)
-
-      CALL dbcsr_create(mat_V_kp(1, 1)%matrix, template=bs_env%mat_RI_RI%matrix)
-      CALL dbcsr_reserve_all_blocks(mat_V_kp(1, 1)%matrix)
-      CALL dbcsr_set(mat_V_kp(1, 1)%matrix, 0.0_dp)
-
-      ! Dummy imaginary part just to satisfy the routine
-      CALL dbcsr_create(mat_V_kp(1, 2)%matrix, template=bs_env%mat_RI_RI%matrix)
-      CALL dbcsr_reserve_all_blocks(mat_V_kp(1, 2)%matrix)
-      CALL dbcsr_set(mat_V_kp(1, 2)%matrix, 0.0_dp)
-
-      bs_env%kpoints_chi_eps_W%nkp_grid = bs_env%nkp_grid_chi_eps_W_orig
-
-      CALL build_2c_coulomb_matrix_kp(mat_V_kp, bs_env%kpoints_chi_eps_W, "RI_AUX", cell, &
-                                      particle_set, qs_kind_set, atomic_kind_set, &
-                                      bs_env%size_lattice_sum_V, operator_coulomb, 1, 1)
-
-      ! Copy real part to fm_V
-      CALL copy_dbcsr_to_fm(mat_V_kp(1, 1)%matrix, fm_V)
-
-      CALL dbcsr_deallocate_matrix(mat_V_kp(1, 1)%matrix)
-      CALL dbcsr_deallocate_matrix(mat_V_kp(1, 2)%matrix)
-      DEALLOCATE (mat_V_kp)
-
-      ! -----------------------------------------------------------------------
-      ! 2. Get RI-Metric Matrix M(k=0)
-      ! -----------------------------------------------------------------------
-      CALL RI_2c_integral_mat(qs_env, fm_M, fm_V, n_RI, bs_env%ri_metric, &
-                              do_kpoints=.FALSE., regularization_RI=bs_env%regularization_RI)
-
-      ! -----------------------------------------------------------------------
-      ! 3. M -> M^-1
-      ! -----------------------------------------------------------------------
-      CALL cp_fm_cholesky_decompose(fm_M(1, 1), info_out=info)
-      IF (info == 0) THEN
-         CALL cp_fm_cholesky_invert(fm_M(1, 1))
-         CALL cp_fm_uplo_to_full(fm_M(1, 1), fm_work)
-      ELSE
-         ! Fallback if Cholesky fails due to conditioning
-         CALL cp_fm_power(fm_M(1, 1), fm_work, -1.0_dp, bs_env%eps_eigval_mat_RI, ndep)
-         CALL cp_fm_to_fm(fm_work, fm_M(1, 1))
-      END IF
-
-      ! -----------------------------------------------------------------------
-      ! 4. V -> V^0.5
-      ! -----------------------------------------------------------------------
-      CALL cp_fm_to_fm(fm_V, fm_V_sqrt)
-      CALL cp_fm_cholesky_decompose(fm_V_sqrt, info_out=info)
-      IF (info == 0) THEN
-         CALL clean_lower_part(fm_V_sqrt)
-      ELSE
-         CALL cp_fm_power(fm_V, fm_V_sqrt, 0.5_dp, bs_env%eps_eigval_mat_RI, ndep)
-      END IF
-
-      ! -----------------------------------------------------------------------
-      ! 5. M^-1 * V^0.5
-      ! -----------------------------------------------------------------------
-      CALL parallel_gemm("N", "T", n_RI, n_RI, n_RI, 1.0_dp, fm_M(1, 1), fm_V_sqrt, &
-                         0.0_dp, fm_Minv_Vsqrt)
-
-      CALL cp_fm_release(fm_M)
-      CALL cp_fm_release(fm_work)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE compute_V_MinvVsqrt
-
-! **************************************************************************************************
-!> \brief Computes W(iω) from χ_PQ(iω_j)
-!> \param bs_env ...
-!> \param fm_chi_freq_j ...
-!> \param fm_V_sqrt ...
-!> \param fm_Minv_Vsqrt ...
-!> \param fm_W_freq_j ...
-! **************************************************************************************************
-
-   SUBROUTINE compute_fm_W_freq(bs_env, fm_chi_freq_j, fm_V_sqrt, fm_Minv_Vsqrt, fm_W_freq_j)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_chi_freq_j, fm_V_sqrt, fm_Minv_Vsqrt
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_W_freq_j
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_fm_W_freq'
-
-      INTEGER                                            :: handle, info, n_RI, ndep
-      TYPE(cp_fm_type)                                   :: fm_eps_freq_j, fm_work
-
-      CALL timeset(routineN, handle)
-
-      n_RI = bs_env%n_RI
-
-      CALL cp_fm_create(fm_eps_freq_j, fm_chi_freq_j%matrix_struct)
-      CALL cp_fm_create(fm_work, fm_chi_freq_j%matrix_struct)
-
-      ! -----------------------------------------------------------------------
-      ! 1. ε(iω_j) = Id - (M^-1 * V^0.5)^T * χ(iω_j) * (M^-1 * V^0.5)
-      ! -----------------------------------------------------------------------
-      ! work = χ(iω_j) * (M^-1 * V^0.5)
-      CALL parallel_gemm('N', 'N', n_RI, n_RI, n_RI, 1.0_dp, &
-                         fm_chi_freq_j, fm_Minv_Vsqrt, 0.0_dp, fm_work)
-
-      ! eps_work = (M^-1 * V^0.5)^T * work
-      CALL parallel_gemm('T', 'N', n_RI, n_RI, n_RI, 1.0_dp, &
-                         fm_Minv_Vsqrt, fm_work, 0.0_dp, fm_eps_freq_j)
-
-      ! ε(iω_j) = Id - eps_work  -->  -eps_work + Id
-      CALL fm_add_on_diag(fm_eps_freq_j, 1.0_dp)
-
-      ! Force perfect symmetry before Cholesky to avoid info != 0 due to GEMM noise
-      CALL cp_fm_uplo_to_full(fm_eps_freq_j, fm_work)
-
-      ! -----------------------------------------------------------------------
-      ! 2. W(iω_j) = V^0.5^T * (ε^-1(iω_j) - Id) * V^0.5
-      ! -----------------------------------------------------------------------
-
-      ! a) Cholesky decomposition of ε(iω_j)
-      CALL cp_fm_cholesky_decompose(fm_eps_freq_j, info_out=info)
-
-      ! b) Inversion
-      IF (info == 0) THEN
-         CALL cp_fm_cholesky_invert(fm_eps_freq_j)
-         CALL cp_fm_uplo_to_full(fm_eps_freq_j, fm_work)
-      ELSE
-         ! Fallback to expensive diagonalization if Cholesky fails
-         CALL cp_fm_power(fm_eps_freq_j, fm_work, -1.0_dp, bs_env%eps_eigval_mat_RI, ndep)
-         CALL cp_fm_to_fm(fm_work, fm_eps_freq_j)
-      END IF
-
-      ! c) ε^-1(iω_j) - Id
-      CALL fm_add_on_diag(fm_eps_freq_j, -1.0_dp)
-
-      ! d) work = (ε^-1(iω_j) - Id) * V^0.5
-      CALL parallel_gemm('N', 'N', n_RI, n_RI, n_RI, 1.0_dp, fm_eps_freq_j, fm_V_sqrt, &
-                         0.0_dp, fm_work)
-
-      ! e) W(iw) = V^0.5^T * work
-      CALL parallel_gemm('T', 'N', n_RI, n_RI, n_RI, 1.0_dp, fm_V_sqrt, fm_work, &
-                         0.0_dp, fm_W_freq_j)
-
-      ! Cleanup
-      CALL cp_fm_release(fm_work)
-      CALL cp_fm_release(fm_eps_freq_j)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE compute_fm_W_freq
-
-! **************************************************************************************************
-!> \brief Adds a real scalar value to the diagonal of a real full matrix (fm)
-!> \param fm ...
-!> \param alpha ...
-! **************************************************************************************************
-
-   SUBROUTINE fm_add_on_diag(fm, alpha)
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm
-      REAL(KIND=dp), INTENT(IN)                          :: alpha
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_add_on_diag'
-
-      INTEGER                                            :: handle, i_global, i_row, j_col, &
-                                                            j_global, ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_get_info(matrix=fm, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      DO j_col = 1, ncol_local
-         j_global = col_indices(j_col)
-         DO i_row = 1, nrow_local
-            i_global = row_indices(i_row)
-            IF (j_global == i_global) THEN
-               fm%local_data(i_row, j_col) = fm%local_data(i_row, j_col) + alpha
-            END IF
-         END DO
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE fm_add_on_diag
-
-! **************************************************************************************************
-!> \brief Zeroes out the strictly lower triangular part of a real matrix
-!> \param fm_mat ...
-! **************************************************************************************************
-   SUBROUTINE clean_lower_part(fm_mat)
-      TYPE(cp_fm_type)                                   :: fm_mat
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'clean_lower_part'
-
-      INTEGER                                            :: handle, i_row, j_col, j_global, &
-                                                            ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_get_info(matrix=fm_mat, &
-                          nrow_local=nrow_local, ncol_local=ncol_local, &
-                          row_indices=row_indices, col_indices=col_indices)
-
-      DO j_col = 1, ncol_local
-         j_global = col_indices(j_col)
-         DO i_row = 1, nrow_local
-            IF (j_global < row_indices(i_row)) fm_mat%local_data(i_row, j_col) = 0.0_dp
-         END DO
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE clean_lower_part
-
-! **************************************************************************************************
 !> \brief Computes the exact exchange part of the GW self-energy
 !> \param bs_env ...
 !> \param qs_env ...
@@ -1805,8 +1319,8 @@ CONTAINS
       CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI, bs_env%n_RI, &
                               bs_env%trunc_coulomb, do_kpoints=.FALSE.)
 
-      ! M^-1 * V^tr * M^-1 directly modifies fm_Vtr_Gamma(:, 1)
-      CALL multiply_fm_W_MIC_time_with_Minv_Gamma(bs_env, qs_env, fm_Vtr_Gamma(:, 1))
+      ! M^-1(k=0) V^tr(τ) M^-1(k=0) -> fm_Vtr_Gamma
+      CALL fm_contract_ABA(bs_env%fm_Minv_Gamma, fm_Vtr_Gamma(:, 1))
 
       CALL dbcsr_create(matrix_V_aux, "V_aux", dist_aux_aux, dbcsr_type_no_symmetry, blk_aux, blk_aux)
       CALL dbcsr_create(matrix_V_grid, "V_grid", dist_grid_grid, dbcsr_type_no_symmetry, blk_grid, blk_grid)
@@ -1814,7 +1328,8 @@ CONTAINS
       CALL copy_fm_to_dbcsr(fm_Vtr_Gamma(1, 1), matrix_V_aux, keep_sparsity=.FALSE.)
 
       ! V^tr_ll' = sum_PQ Z_lP V^trunc_PQ Z_l'Q
-      CALL contract_A_B_A("N", "T", mat_Z_lP, matrix_V_aux, matrix_V_grid, bs_env%eps_filter)
+      CALL dbcsr_contract_ABA("N", "T", mat_Z_lP, matrix_V_aux, matrix_V_grid, &
+                              bs_env%eps_filter)
       CALL dbcsr_release(matrix_V_aux)
 
       ! =========================================================================
@@ -1837,7 +1352,8 @@ CONTAINS
 
          ! Transform back to AO basis: Σ^x_ao = -1.0 * phi^T * Σ^x_grid * phi
          ! Σ^x_λσ(k=0)   = -sum_ll' Φ_λ(r_l) Σ^x_ll' Φ_σ(r_l')
-         CALL contract_A_B_A("T", "N", mat_phi_mu_l, matrix_Sigma_x_grid, mat_Sigma_x_Gamma, bs_env%eps_filter)
+         CALL dbcsr_contract_ABA("T", "N", mat_phi_mu_l, matrix_Sigma_x_grid, &
+                                 mat_Sigma_x_Gamma, bs_env%eps_filter)
          CALL dbcsr_scale(mat_Sigma_x_Gamma, -1.0_dp)
 
          CALL dbcsr_release(matrix_Sigma_x_grid)
@@ -1930,7 +1446,8 @@ CONTAINS
          CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.FALSE.)
 
          ! W^MIC_ll'(iτ,k=0) = sum_PQ Z_lP W^MIC_PQ(iτ) Z_l'Q
-         CALL contract_A_B_A("N", "T", mat_Z_lP, matrix_W_aux, matrix_W_grid, bs_env%eps_filter)
+         CALL dbcsr_contract_ABA("N", "T", mat_Z_lP, matrix_W_aux, matrix_W_grid, &
+                                 bs_env%eps_filter)
 
          CALL dbcsr_release(matrix_W_aux) ! Clean up aux basis immediately
 
@@ -1975,13 +1492,13 @@ CONTAINS
             ! -------------------------------------------------------------------
 
             ! Σ^c_λσ(iτ,k=0)    = sum_ll' Φ_λ(r_l) Σ^c_ll'(iτ,k=0) Φ_σ(r_l'), for τ < 0
-            CALL contract_A_B_A("T", "N", mat_phi_mu_l, matrix_Sigma_neg_grid, &
-                                mat_Sigma_neg_tau(i_t, ispin)%matrix, bs_env%eps_filter)
+            CALL dbcsr_contract_ABA("T", "N", mat_phi_mu_l, matrix_Sigma_neg_grid, &
+                                    mat_Sigma_neg_tau(i_t, ispin)%matrix, bs_env%eps_filter)
             CALL dbcsr_scale(mat_Sigma_neg_tau(i_t, ispin)%matrix, -1.0_dp)
 
             ! Σ^c_λσ(iτ,k=0)    = sum_ll' Φ_λ(r_l) Σ^c_ll'(iτ,k=0) Φ_σ(r_l'), for τ > 0
-            CALL contract_A_B_A("T", "N", mat_phi_mu_l, matrix_Sigma_pos_grid, &
-                                mat_Sigma_pos_tau(i_t, ispin)%matrix, bs_env%eps_filter)
+            CALL dbcsr_contract_ABA("T", "N", mat_phi_mu_l, matrix_Sigma_pos_grid, &
+                                    mat_Sigma_pos_tau(i_t, ispin)%matrix, bs_env%eps_filter)
 
             ! Purge Grid Sigma arrays
             CALL dbcsr_release(matrix_Sigma_neg_grid)

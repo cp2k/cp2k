@@ -2407,7 +2407,7 @@ CONTAINS
                           "For the GW algorithm for molecules, see "// &
                           "<https://doi.org/10.1021/acs.jctc.0c01282>. "// &
                           "For 2D materials, see <https://doi.org/10.1021/acs.jctc.3c01230>.", &
-                          n_keywords=1, n_subsections=3, repeats=.FALSE.)
+                          n_keywords=1, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, &
@@ -2451,9 +2451,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="REGULARIZATION_RI", &
-                          description="Parameter for RI regularization, setting a negative "// &
-                          "value triggers the default value. Affects RI basis set convergence "// &
-                          "but in any case large RI basis will give RI basis set convergence.", &
+                          description="Regularization applied to the GW RI fitting matrix "// &
+                          "$M_{PQ}$. A negative value selects the context-dependent default: "// &
+                          "zero for molecules and 1.0E-2 for periodic systems.", &
                           usage="REGULARIZATION_RI 1.0E-4", &
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
@@ -2586,11 +2586,69 @@ CONTAINS
       CALL section_release(subsection)
 
       NULLIFY (subsection)
+      CALL create_auto_ri_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      NULLIFY (subsection)
       CALL create_evgw0_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
    END SUBROUTINE create_gw_section
+
+! **************************************************************************************************
+!> \brief Creates the automatic RI basis set optimization section.
+!> \param section AUTO_RI input section
+! **************************************************************************************************
+   SUBROUTINE create_auto_ri_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="AUTO_RI", &
+                          description="Optimizes the RI basis for non-periodic RI-RS GW "// &
+                          "calculations. The fitting target combines occupied-empty "// &
+                          "transitions and exchange products. Atom-local (AA) functions are "// &
+                          "selected first. Neighbor-pair (AB) functions are also used to fit "// &
+                          "occupied-empty transitions and exchange products. Currently only "// &
+                          "non-periodic molecules are supported.", &
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="RI_AO_RATIO", &
+                          description="Ratio between the numbers of optimized RI and AO basis "// &
+                          "functions. For example, RI_AO_RATIO 3 requires an RI basis with "// &
+                          "three times as many functions as the AO basis. Compare values such "// &
+                          "as 1, 1.5, 2, 3 and 4 until the GW energies are converged. "// &
+                          "Larger values increase time and memory, but also increase the "// &
+                          "numerical accuracy.", &
+                          default_r_val=2.0_dp, usage="RI_AO_RATIO 2")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="OCC_EMPTY_FRONTIER_ORBITAL_WINDOW", &
+                          description="The exchange contribution to the RI optimization "// &
+                          "objective includes GW levels within the energy window "// &
+                          "$[\epsilon_{\mathrm{HOMO}}-w,\epsilon_{\mathrm{LUMO}}+w]$. "// &
+                          "The default of 5 eV is usually sufficient, for example for "// &
+                          "GW-BSE excitations up to 10 eV.", &
+                          default_r_val=cp_unit_to_cp2k(value=5.0_dp, unit_str="eV"), &
+                          unit_str="eV", usage="OCC_EMPTY_FRONTIER_ORBITAL_WINDOW [eV] 5.0")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="NEIGHBOR_RADIUS", &
+                          description="The RI basis also contains contractions of Gaussian "// &
+                          "functions centered on different atoms. An atom pair A-B is "// &
+                          "included for these contractions when its distance is smaller than "// &
+                          "NEIGHBOR_RADIUS. Larger radii increase the computational cost. "// &
+                          "Three angstrom is a reasonable value and usually does not need to "// &
+                          "be changed.", &
+                          default_r_val=cp_unit_to_cp2k(value=3.0_dp, unit_str="angstrom"), &
+                          unit_str="angstrom", usage="NEIGHBOR_RADIUS [angstrom] 3.0")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_auto_ri_section
 
 ! **************************************************************************************************
 !> \brief creates the input section collecting all parameters of the real-space resolution of

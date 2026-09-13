@@ -483,7 +483,7 @@ CONTAINS
 
       u = bs_env%unit_nr
 
-      IF (u > 0) THEN
+      IF (u > 0 .AND. bs_env%do_periodic) THEN
          IF (nkp_only_bs > 0) THEN
             WRITE (u, FMT="(T2,1A,T77,I4)") &
                "Number of special k-points for the bandstructure", n_special_kp
@@ -999,11 +999,12 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, cell=cell)
       CALL get_cell(cell=cell, periodic=periodic, h=hmat)
       bs_env%periodic(1:3) = periodic(1:3)
+      bs_env%do_periodic = ANY(bs_env%periodic /= 0)
       bs_env%hmat(1:3, 1:3) = hmat
       bs_env%nimages_scf = dft_control%nimages
       IF (dft_control%nimages == 1) THEN
          IF (bs_env%do_gw_ri_rs) THEN
-            IF (ANY(periodic /= 0)) THEN
+            IF (bs_env%do_periodic) THEN
                bs_env%small_cell_full_kp_or_large_cell_Gamma = large_cell_Gamma_ri_rs
             ELSE
                bs_env%small_cell_full_kp_or_large_cell_Gamma = non_periodic_ri_rs
@@ -1299,10 +1300,6 @@ CONTAINS
 
       IF (bs_env%do_ldos) THEN
          CPASSERT(bs_env%int_ldos_xyz == int_ldos_z)
-      END IF
-
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(A)') ''
       END IF
 
       IF (bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp) THEN
