@@ -29,7 +29,7 @@ MODULE input_cp2k_motion
                                  medium_print_level
    USE cp_units, ONLY: cp_unit_to_cp2k
    USE input_constants, ONLY: &
-      debug_lbfgs, default_bfgs_method_id, default_cg_method_id, default_dimer_method_id, &
+      bfgs_direct, bfgs_inverse, debug_lbfgs, default_bfgs_method_id, default_cg_method_id, default_dimer_method_id, &
       default_lbfgs_method_id, default_minimization_method_id, default_ts_method_id, &
       dimer_init_molden, dimer_init_random, &
       do_mc_gemc_npt, do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fix_none, fix_x, fix_xy, &
@@ -1321,6 +1321,15 @@ CONTAINS
                           description="Provides parameters to tune the BFGS optimization", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
+      CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
+                          description="Matrix updated by full-memory BFGS. DIRECT updates the Hessian; "// &
+                          "INVERSE updates its inverse without a full diagonalization at each step.", &
+                          usage="METHOD INVERSE", &
+                          enum_c_vals=s2a("DIRECT", "INVERSE"), &
+                          enum_i_vals=[bfgs_direct, bfgs_inverse], default_i_val=bfgs_direct)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="TRUST_RADIUS", &
                           description="Trust radius used in BFGS. Previously set to 0.1. "// &
                           "Large values can lead to instabilities", &
@@ -1339,15 +1348,17 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="USE_RAT_FUN_OPT", &
-                          description="Includes a rational function optimization to determine the step."// &
-                          " Previously default but did not improve convergence in many cases", &
+                          description="Includes a rational function optimization to determine the step. "// &
+                          "Previously default but did not improve convergence in many cases. "// &
+                          "Not supported by inverse-Hessian update method.", &
                           usage="USE_RAT_FUN_OPT", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="RESTART_HESSIAN", &
-                          description="Controls the reading of the initial Hessian from file.", &
+                          description="Reads the initial BFGS matrix from file. Hessian and inverse-Hessian "// &
+                          "restarts are converted to the selected METHOD when necessary.", &
                           usage="RESTART_HESSIAN", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)

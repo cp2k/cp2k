@@ -5,7 +5,7 @@
 #
 # Geometry optimisation
 "geo_opt_bfgs.inp"                      = [{matcher="M011", tol=1.0E-14, ref=-35.282422070543703}]
-"geo_opt_cg_2pnt.inp"                   = [{matcher="M011", tol=2e-14, ref=-35.282422123859703}]
+"geo_opt_cg_2pnt.inp"                   = [{matcher="M011", tol=2.0e-14, ref=-35.282422123859703}]
 "geo_opt_cg_fit.inp"                    = [{matcher="M011", tol=1.0E-12, ref=-35.2824221258401}]
 "geo_opt_cg_gold.inp"                   = [{matcher="M011", tol=1.0E-14, ref=-35.282422125930793}]
 "geo_opt_lbfgs.inp"                     = [{matcher="M011", tol=1.0E-14, ref=-35.282422125160856}]
@@ -49,4 +49,9 @@
 # Cell optimisation with fixed volume
 "cell_opt_keep_volume.inp"              = [{matcher="M011", tol=1.0E-10, ref=-16.134435240023702}]
 "cell_opt_keep_volume_symmetry.inp"     = [{matcher="M011", tol=1.0E-10, ref=-16.13443523996058}]
+# Inverse BFGS
+"geo_opt_bfgs_inverse.inp"                  = [{matcher="M011", tol=1.0E-14, ref=-35.282422070543689}]
+"cell_opt_direct_bfgs_inverse.inp"          = [{matcher="M011", tol=1.0E-14, ref=-35.644084205321576}]
+"cell_opt_bfgs_inverse_restart_direct.inp"  = [{matcher="M011", tol=1.0E-14, ref=-35.644084205353230}]
+"cell_opt_bfgs_inverse_vib.inp"             = [{matcher="M018", tol=1.0E-14, ref=587.912968}]
 #EOF

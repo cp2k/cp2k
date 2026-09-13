@@ -20,4 +20,8 @@
 # write vibrational normal modes to molden, then re-read as initial dimer vector
 "argon_vib_molden_write.inp"            = [{matcher="Vib_freq", tol=1.0E-14, ref=33.245417079}]
 "argon_dimer_molden_read.inp"           = [{matcher="M007", tol=1.0E-7, ref=0.0000033386}]
+
+# Inverse BFGS Hessian as mode-selective initial guess
+"N3dye_geoopt_inverse.inp"              = [{matcher="M007", tol=1.0E-14, ref=0.5616277602}]
+"N3dye_vib_bfgs_inverse.inp"            = [{matcher="M018", tol=5.0E-08, ref=1721.581032}]
 #EOF
