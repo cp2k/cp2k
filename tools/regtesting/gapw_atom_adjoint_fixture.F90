@@ -19,7 +19,8 @@ PROGRAM gapw_atom_adjoint_fixture
    USE qs_harmonics_atom,               ONLY: harmonics_atom_type
    USE screened_kernel,                 ONLY: screened_project => project
    USE spherical_harmonics,             ONLY: y_lm
-   USE values_only_kernel,              ONLY: new_fields => interpolate_gapw_atom_grid_fields,&
+   USE values_only_kernel,              ONLY: image_bounds => atom_grid_image_bounds,&
+                                              new_fields => interpolate_gapw_atom_grid_fields,&
                                               new_weights => atom_grid_interpolation_weights,&
                                               value_project => project
 
@@ -48,6 +49,7 @@ PROGRAM gapw_atom_adjoint_fixture
    CALL init_spherical_harmonics(6, i)
    CALL init_lebedev_grids()
    ALLOCATE (grid, harmonics, cell, particles(3))
+   CALL check_image_bounds()
    max_error = 0.0_dp
    DO n = 1, SIZE(counts)
       CALL make_grid(counts(n), 5, 4)
@@ -211,6 +213,72 @@ CONTAINS
          WRITE (*, '(A,3F12.6)') 'FORWARD seconds full/values-only and speedup: ', elapsed, elapsed(1)/elapsed(2)
       END DO
    END SUBROUTINE
+
+   SUBROUTINE check_image_bounds()
+      USE ieee_arithmetic, ONLY: ieee_next_after
+      INTEGER                                            :: c, center(3), hi(3), i1, i2, i3, idir, &
+                                                            k, lo(3), m, p, shell(3), shift(3)
+      INTEGER(KIND=8)                                    :: kept, new_count, old_count
+      REAL(dp)                                           :: displacement(3), distance, frac(3), &
+                                                            point(3), radius
+
+      old_count = 0; new_count = 0; kept = 0
+      DO c = 1, 3
+         CALL make_cell(2)
+         IF (c == 1) THEN
+            cell%hmat(1, 2) = 0.0_dp
+            cell%h_inv(1, 2) = 0.0_dp
+         ELSE IF (c == 3) THEN
+            cell%hmat(1, 2) = 32.0_dp
+            cell%h_inv(1, 2) = -0.5_dp
+         END IF
+         DO m = 0, 7
+            DO idir = 1, 3
+               cell%perd(idir) = MERGE(1, 0, BTEST(m, idir - 1))
+            END DO
+            DO p = 0, 35
+               point = MATMUL(cell%hmat, [SIN(REAL(p, dp)), COS(0.7_dp*p), SIN(1.3_dp*p)])
+               IF (p > 20) point = point + MATMUL(cell%hmat, cell%perd*[100.0_dp, -51.0_dp, 77.0_dp])
+               IF (p > 30) point = point + MATMUL(cell%hmat, cell%perd*[0.0_dp, 1.0E8_dp, 0.0_dp])
+               frac = MATMUL(cell%h_inv, point)
+               DO k = 0, 6
+                  SELECT CASE (k)
+                  CASE (0:3)
+                     radius = REAL(k, dp)*1.7_dp
+                  CASE (4:6)
+                     ! Place an image exactly at, just within and just outside the support.
+                     shift = cell%perd*NINT(frac)
+                     radius = SQRT(SUM((point - MATMUL(cell%hmat, REAL(shift, dp)))**2))
+                     IF (k == 5) radius = ieee_next_after(radius, HUGE(radius))
+                     IF (k == 6) radius = ieee_next_after(radius, 0.0_dp)
+                  END SELECT
+                  DO idir = 1, 3
+                     center(idir) = cell%perd(idir)*NINT(frac(idir))
+                     shell(idir) = cell%perd(idir)*(CEILING(radius*SQRT(SUM(cell%h_inv(idir, :)**2))) + 1)
+                  END DO
+                  CALL image_bounds(cell, frac, radius, shell, lo, hi)
+                  old_count = old_count + PRODUCT(INT(2*shell + 1, 8))
+                  new_count = new_count + PRODUCT(INT(MAX(0, hi - lo + 1), 8))
+                  IF (ANY(lo < center - shell) .OR. ANY(hi > center + shell)) ERROR STOP 'Bounds expanded'
+                  DO i3 = center(3) - shell(3), center(3) + shell(3)
+                     DO i2 = center(2) - shell(2), center(2) + shell(2)
+                        DO i1 = center(1) - shell(1), center(1) + shell(1)
+                           shift = [i1, i2, i3]
+                           displacement = point - MATMUL(cell%hmat, REAL(shift, dp))
+                           distance = SQRT(SUM(displacement**2))
+                           IF (distance > radius) CYCLE
+                           kept = kept + 1
+                           IF (ANY(shift < lo) .OR. ANY(shift > hi)) ERROR STOP 'Image within support omitted'
+                        END DO
+                     END DO
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
+      WRITE (*, '(A,3(1X,I0))') 'PASS: image bounds, all periodicity masks, skew, translation, changing cutoff; old/new/kept:', &
+         old_count, new_count, kept
+   END SUBROUTINE check_image_bounds
 
    SUBROUTINE make_grid(nr, lg, lmax)
       INTEGER, INTENT(IN)                                :: nr, lg, lmax
