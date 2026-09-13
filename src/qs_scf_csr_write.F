@@ -426,9 +426,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_matrix_kp_csr'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, fileformat, subs_string
-      INTEGER                                            :: handle, igroup, ik, ikp, ispin, kplocal, &
+      INTEGER                                            :: handle, igroup, ik, ikp, ispin, kpmax, &
                                                             nkp_groups, output_unit, unit_nr
-      INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       LOGICAL                                            :: bin, uptr, use_real_wfn
       REAL(KIND=dp)                                      :: thld
@@ -461,7 +460,7 @@ CONTAINS
       NULLIFY (sab_nl)
 
       !  Calculate the Hamiltonian at the k-points
-      CALL get_kpoint_info(kpoints, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
+      CALL get_kpoint_info(kpoints, xkp=xkp, use_real_wfn=use_real_wfn, &
                            nkp_groups=nkp_groups, kp_dist=kp_dist, sab_nl=sab_nl)
 
       ALLOCATE (rmatrix)
@@ -483,12 +482,13 @@ CONTAINS
          CALL cp_dbcsr_alloc_block_from_nbl(imatrix_nosym, sab_nl)
       END IF
 
-      kplocal = kp_range(2) - kp_range(1) + 1
-      DO ikp = 1, kplocal
+      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
+      DO ikp = 1, kpmax
          DO ispin = 1, SIZE(mat, 1)
             DO igroup = 1, nkp_groups
                ! number of current kpoint
                ik = kp_dist(1, igroup) + ikp - 1
+               IF (ik > kp_dist(2, igroup)) CYCLE
                CALL dbcsr_set(rmatrix, 0.0_dp)
                IF (use_real_wfn) THEN
                   ! FT of the matrix

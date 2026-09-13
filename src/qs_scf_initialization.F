@@ -72,6 +72,7 @@ MODULE qs_scf_initialization
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_clear_scf_smat,&
                                               kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -1063,6 +1064,12 @@ CONTAINS
                       do_kpoints=do_kpoints, &
                       para_env=para_env, &
                       xas_env=xas_env)
+
+      ! A new SCF run may use a different geometry, cell or basis.
+      IF (do_kpoints) THEN
+         CALL get_qs_env(qs_env, kpoints=kpoints)
+         CALL kpoint_clear_scf_smat(kpoints)
+      END IF
 
       ! Check restricted optimizers available for tblite library
       IF (dft_control%qs_control%xtb_control%do_tblite) THEN

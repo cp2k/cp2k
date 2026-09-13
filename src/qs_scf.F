@@ -345,7 +345,10 @@ CONTAINS
              ((scf_control%density_guess /= history_guess) .OR. &
               (.NOT. first_step_flag))) THEN
             IF (.NOT. dft_control%qs_control%cdft) THEN
-               CALL wfi_update(qs_env%wf_history, qs_env=qs_env, dt=1.0_dp)
+               ! No next geometry step in a standalone single-point calculation.
+               IF (.NOT. qs_env%skip_wf_history) THEN
+                  CALL wfi_update(qs_env%wf_history, qs_env=qs_env, dt=1.0_dp)
+               END IF
             ELSE
                IF (dft_control%qs_control%cdft_control%should_purge) THEN
                   CALL wfi_purge_history(qs_env)
