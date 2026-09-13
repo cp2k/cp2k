@@ -23,7 +23,6 @@ MODULE bse_main
    USE bse_print,                       ONLY: print_BSE_start_flag
    USE bse_util,                        ONLY: adapt_BSE_input_params,&
                                               deallocate_matrices_bse,&
-                                              determine_bse_combined_window,&
                                               estimate_BSE_resources,&
                                               get_bse_spin_block_layout,&
                                               mult_B_with_W,&
@@ -47,6 +46,9 @@ MODULE bse_main
                                               bse_tda
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
+   USE mo_window,                       ONLY: combine_mo_windows,&
+                                              determine_mo_window,&
+                                              mo_window_type
    USE mp2_types,                       ONLY: mp2_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -105,12 +107,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'start_bse_calculation'
 
-      INTEGER                                            :: first_active_mo, handle, ispin, &
-                                                            last_active_mo, n_ov_joint, nspins
+      INTEGER                                            :: handle, ispin, n_ov_joint, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: homo_red_arr, n_ov_arr, offsets_arr, &
                                                             virt_red_arr
       LOGICAL                                            :: my_do_abba, my_do_fulldiag, &
-                                                            my_do_iterat_diag, my_do_tda
+                                                            my_do_iterat_diag, my_do_tda, &
+                                                            spins_differ
       REAL(KIND=dp)                                      :: diag_runtime_est
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced, Eigenval_reduced_1, &
                                                             Eigenval_reduced_2, &
@@ -125,6 +127,8 @@ CONTAINS
          fm_mat_S_ij_trunc_arr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_window_type)                               :: combined_window
+      TYPE(mo_window_type), ALLOCATABLE, DIMENSION(:)    :: spin_windows
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
@@ -168,8 +172,15 @@ CONTAINS
       CALL fm_mat_S_ia_bse(1)%matrix_struct%para_env%sync()
 
       ALLOCATE (homo_red_arr(nspins), virt_red_arr(nspins))
+      ALLOCATE (spin_windows(nspins))
       ALLOCATE (fm_mat_S_ia_trunc_arr(nspins), fm_mat_S_ij_trunc_arr(nspins), fm_mat_S_ab_trunc_arr(nspins))
       ALLOCATE (fm_mat_S_bar_ia_bse_arr(nspins), fm_mat_S_bar_ij_bse_arr(nspins))
+
+      DO ispin = 1, nspins
+         CALL determine_mo_window(Eigenval_scf(:, 1, ispin), homo(ispin) + virtual(ispin), homo(ispin), &
+                                  mp2_env%bse%bse_cutoff_occ, mp2_env%bse%bse_cutoff_empty, &
+                                  spin_windows(ispin))
+      END DO
 
       IF (nspins > 1) THEN
          CALL cp_warn(__LOCATION__, &
@@ -177,11 +188,10 @@ CONTAINS
                       "extensively validated. Verify results carefully before using them "// &
                       "for production calculations.")
          ! === Open-shell path: combined-window cutoff, per-spin truncation, joint A (+B for ABBA) ===
-         ! Determine union of per-spin active MO windows
-         CALL determine_bse_combined_window(Eigenval_scf(:, 1, :), homo, virtual, &
-                                            mp2_env%bse%bse_cutoff_occ, &
-                                            mp2_env%bse%bse_cutoff_empty, &
-                                            first_active_mo, last_active_mo)
+         CALL combine_mo_windows(spin_windows, combined_window, spins_differ)
+         IF (spins_differ) THEN
+            CPWARN("BSE: spin-resolved active MO cutoff candidates differ; using combined window.")
+         END IF
          DO ispin = 1, nspins
             CALL truncate_BSE_matrices(fm_mat_S_ia_bse(ispin), fm_mat_S_ij_bse(ispin), &
                                        fm_mat_S_ab_bse(ispin), &
@@ -190,9 +200,7 @@ CONTAINS
                                        Eigenval_scf(:, 1, ispin), Eigenval(:, 1, ispin), &
                                        Eigenval_reduced, homo(ispin), virtual(ispin), dimen_RI, &
                                        unit_nr, bse_lev_virt(ispin), homo_red_arr(ispin), &
-                                       virt_red_arr(ispin), mp2_env, &
-                                       homo_incl_in=first_active_mo, &
-                                       virt_incl_in=last_active_mo - homo(ispin))
+                                       virt_red_arr(ispin), mp2_env, combined_window, .FALSE.)
             IF (ispin == 1) THEN
                ALLOCATE (Eigenval_reduced_1(SIZE(Eigenval_reduced)))
                Eigenval_reduced_1(:) = Eigenval_reduced(:)
@@ -285,7 +293,8 @@ CONTAINS
                                     fm_mat_S_ab_trunc_arr(1), &
                                     Eigenval_scf(:, 1, 1), Eigenval(:, 1, 1), Eigenval_reduced, &
                                     homo(1), virtual(1), dimen_RI, unit_nr, &
-                                    bse_lev_virt(1), homo_red_arr(1), virt_red_arr(1), mp2_env)
+                                    bse_lev_virt(1), homo_red_arr(1), virt_red_arr(1), mp2_env, &
+                                    spin_windows(1), .TRUE.)
          CALL mult_B_with_W(fm_mat_S_ij_trunc_arr(1), fm_mat_S_ia_trunc_arr(1), &
                             fm_mat_S_bar_ia_bse_arr(1), fm_mat_S_bar_ij_bse_arr(1), &
                             fm_mat_Q_static_bse_gemm, dimen_RI_red, homo_red_arr(1), virt_red_arr(1))
@@ -359,6 +368,7 @@ CONTAINS
       END IF
 
       DEALLOCATE (homo_red_arr, virt_red_arr)
+      DEALLOCATE (spin_windows)
       DEALLOCATE (fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr)
       DEALLOCATE (fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr)
 
