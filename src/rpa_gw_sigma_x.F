@@ -16,7 +16,6 @@ MODULE rpa_gw_sigma_x
    USE admm_methods,                    ONLY: admm_mo_merge_ks_matrix
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
-   USE bse_util,                        ONLY: determine_cutoff_indices
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
@@ -65,6 +64,8 @@ MODULE rpa_gw_sigma_x
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
+   USE mo_window,                       ONLY: determine_mo_window,&
+                                              mo_window_type
    USE mp2_integrals,                   ONLY: compute_kpoints
    USE mp2_ri_2c,                       ONLY: trunc_coulomb_for_exchange
    USE mp2_types,                       ONLY: mp2_type
@@ -123,9 +124,9 @@ CONTAINS
       CHARACTER(4)                                       :: occ_virt
       CHARACTER(LEN=40)                                  :: line
       INTEGER :: dimen, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, handle, homo, &
-         homo_reduced_bse, homo_startindex_bse, i_img, ikp, irep, ispin, iunit, max_corr_lev_occ, &
-         max_corr_lev_virt, myfun, myfun_aux, myfun_prim, n_level_gw, n_level_gw_ref, n_rep_hf, &
-         nkp, nkp_Sigma, nmo, nspins, print_exx, virtual_reduced_bse, virtual_startindex_bse
+         homo_reduced_bse, i_img, ikp, irep, ispin, iunit, max_corr_lev_occ, max_corr_lev_virt, &
+         myfun, myfun_aux, myfun_prim, n_level_gw, n_level_gw_ref, n_rep_hf, nkp, nkp_Sigma, nmo, &
+         nspins, print_exx, virtual_reduced_bse
       LOGICAL :: calc_ints, charge_constrain_tmp, do_admm_rpa, do_hfx, do_kpoints_cubic_RPA, &
          do_kpoints_from_Gamma, do_ri_Sigma_x, really_read_line
       REAL(KIND=dp) :: E_GAP_GW, E_HOMO_GW, E_LUMO_GW, eh1, ehfx, eigval_dft, eigval_hf_at_dft, &
@@ -148,6 +149,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_tmp, matrix_tmp_2, mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_Sigma
+      TYPE(mo_window_type)                               :: bse_window
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -587,11 +589,10 @@ CONTAINS
                END IF
 
                ! Obtain indices from DFT if gw_corr... are set to -2
-               CALL determine_cutoff_indices(mo_eigenvalues, &
-                                             homo, max_corr_lev_virt, &
-                                             homo_reduced_bse, virtual_reduced_bse, &
-                                             homo_startindex_bse, virtual_startindex_bse, &
-                                             mp2_env%bse%bse_cutoff_occ, mp2_env%bse%bse_cutoff_empty)
+               CALL determine_mo_window(mo_eigenvalues, nmo, homo, &
+                                        mp2_env%bse%bse_cutoff_occ, mp2_env%bse%bse_cutoff_empty, bse_window)
+               homo_reduced_bse = homo - bse_window%first_mo + 1
+               virtual_reduced_bse = bse_window%last_mo - homo
                IF (gw_corr_lev_occ == -2) THEN
                   CPWARN("BSE cutoff overwrites user input for CORR_MOS_OCC")
                   gw_corr_lev_occ = homo_reduced_bse
@@ -1099,4 +1100,3 @@ CONTAINS
    END SUBROUTINE allocate_matrix_ks_kp
 
 END MODULE rpa_gw_sigma_x
-

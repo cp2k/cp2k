@@ -53,6 +53,7 @@ MODULE bse_util
                                               int_8
    USE message_passing,                 ONLY: mp_para_env_type,&
                                               mp_request_type
+   USE mo_window,                       ONLY: mo_window_type
    USE moments_utils,                   ONLY: get_reference_point
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type
@@ -91,9 +92,9 @@ MODULE bse_util
    PUBLIC :: mult_B_with_W, fm_general_add_bse, truncate_fm, &
              deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations, &
              estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices, &
-             determine_cutoff_indices, adapt_BSE_input_params, get_multipoles_mo, &
+             adapt_BSE_input_params, get_multipoles_mo, &
              reshuffle_eigvec, print_bse_nto_cubes, trace_exciton_descr, &
-             get_bse_spin_block_layout, determine_bse_combined_window, assemble_joint_ov_slab
+             get_bse_spin_block_layout, assemble_joint_ov_slab
 
 CONTAINS
 
@@ -1167,89 +1168,6 @@ CONTAINS
    END SUBROUTINE filter_eigvec_contrib
 
 ! **************************************************************************************************
-!> \brief Reads cutoffs for BSE from mp2_env and compares to energies in Eigenval to extract
-!>        reduced homo/virtual and
-!> \param Eigenval array (1d) with energies, can be e.g. from GW or DFT
-!> \param homo Total number of occupied orbitals
-!> \param virtual Total number of unoccupied orbitals
-!> \param homo_red Total number of occupied orbitals to include after cutoff
-!> \param virt_red Total number of unoccupied orbitals to include after ctuoff
-!> \param homo_incl First occupied index to include after cutoff
-!> \param virt_incl Last unoccupied index to include after cutoff
-!> \param cutoff_occ ...
-!> \param cutoff_empty ...
-! **************************************************************************************************
-   SUBROUTINE determine_cutoff_indices(Eigenval, &
-                                       homo, virtual, &
-                                       homo_red, virt_red, &
-                                       homo_incl, virt_incl, &
-                                       cutoff_occ, cutoff_empty)
-
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
-      INTEGER, INTENT(IN)                                :: homo, virtual
-      INTEGER, INTENT(OUT)                               :: homo_red, virt_red, homo_incl, virt_incl
-      REAL(KIND=dp), INTENT(IN)                          :: cutoff_occ, cutoff_empty
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'determine_cutoff_indices'
-
-      INTEGER                                            :: handle, i_chk, i_homo, j_virt
-
-      CALL timeset(routineN, handle)
-      ! Determine index in homo and virtual for truncation
-      ! Uses indices of outermost orbitals within energy range (-cutoff_occ,cutoff_empty)
-      IF (cutoff_occ > 0 .OR. cutoff_empty > 0) THEN
-         ! The scans below EXIT at the first orbital beyond the cutoff, which only yields the correct
-         ! window on an ascending axis. A non-monotonic one (G0W0) stops at the first inversion and
-         ! silently drops in-window orbitals.
-         DO i_chk = 2, homo + virtual
-            IF (Eigenval(i_chk) < Eigenval(i_chk - 1)) THEN
-               CALL cp_abort(__LOCATION__, &
-                             "determine_cutoff_indices: eigenvalues are not ascending. Take the "// &
-                             "energy cutoff on the DFT axis; the G0W0 axis is not ordered.")
-            END IF
-         END DO
-
-         IF (-cutoff_occ < Eigenval(1) - Eigenval(homo) &
-             .OR. cutoff_occ < 0) THEN
-            homo_red = homo
-            homo_incl = 1
-         ELSE
-            homo_incl = 1
-            DO i_homo = 1, homo
-               IF (Eigenval(i_homo) - Eigenval(homo) > -cutoff_occ) THEN
-                  homo_incl = i_homo
-                  EXIT
-               END IF
-            END DO
-            homo_red = homo - homo_incl + 1
-         END IF
-
-         IF (cutoff_empty > Eigenval(homo + virtual) - Eigenval(homo + 1) &
-             .OR. cutoff_empty < 0) THEN
-            virt_red = virtual
-            virt_incl = virtual
-         ELSE
-            virt_incl = homo + 1
-            DO j_virt = 1, virtual
-               IF (Eigenval(homo + j_virt) - Eigenval(homo + 1) > cutoff_empty) THEN
-                  virt_incl = j_virt - 1
-                  EXIT
-               END IF
-            END DO
-            virt_red = virt_incl
-         END IF
-      ELSE
-         homo_red = homo
-         virt_red = virtual
-         homo_incl = 1
-         virt_incl = virtual
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE determine_cutoff_indices
-
-! **************************************************************************************************
 !> \brief Spin-block layout for the open-shell (joint) BSE matrix: per-spin OV-pair counts and the
 !>        block offsets into the joint matrix of dimension n_ov_joint = sum_sigma homo*virtual.
 !> \param homo_red per-spin (reduced) number of occupied levels
@@ -1275,66 +1193,6 @@ CONTAINS
    END SUBROUTINE get_bse_spin_block_layout
 
 ! **************************************************************************************************
-!> \brief Determine a single combined active-MO window covering all spin channels for open-shell
-!>        BSE truncation (per-spin determine_cutoff_indices, then union of bounds). Cuts on the DFT
-!>        axis, as the closed-shell path in truncate_BSE_matrices and linRTBSE's
-!>        determine_active_mo_window do, so the pipelines truncate to the same active space.
-!>        CPWARN if the per-spin cutoff candidates differ.
-!> \param Eigenval_scf per-spin SCF eigenvalues, shape (level, spin)
-!> \param homo per-spin number of occupied levels
-!> \param virtual per-spin number of virtual levels
-!> \param cutoff_occ occupied-orbital energy cutoff
-!> \param cutoff_empty empty-orbital energy cutoff
-!> \param first_active_mo combined first occupied MO index (OUT)
-!> \param last_active_mo combined last MO index (OUT)
-! **************************************************************************************************
-   SUBROUTINE determine_bse_combined_window(Eigenval_scf, homo, virtual, &
-                                            cutoff_occ, cutoff_empty, &
-                                            first_active_mo, last_active_mo)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval_scf
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
-      REAL(KIND=dp), INTENT(IN)                          :: cutoff_occ, cutoff_empty
-      INTEGER, INTENT(OUT)                               :: first_active_mo, last_active_mo
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'determine_bse_combined_window'
-
-      INTEGER                                            :: first_occ_prev, handle, homo_incl, &
-                                                            homo_red, isp, last_virt_prev, &
-                                                            virt_incl, virt_red
-      LOGICAL                                            :: spins_differ
-
-      CALL timeset(routineN, handle)
-
-      first_active_mo = HUGE(0)
-      last_active_mo = 0
-      first_occ_prev = -1
-      last_virt_prev = -1
-      spins_differ = .FALSE.
-
-      DO isp = 1, SIZE(homo)
-         CALL determine_cutoff_indices(Eigenval_scf(:, isp), homo(isp), virtual(isp), &
-                                       homo_red, virt_red, homo_incl, virt_incl, &
-                                       cutoff_occ, cutoff_empty)
-         IF (isp > 1) THEN
-            IF (homo_incl /= first_occ_prev .OR. homo(isp) + virt_incl /= last_virt_prev) THEN
-               spins_differ = .TRUE.
-            END IF
-         END IF
-         first_occ_prev = homo_incl
-         last_virt_prev = homo(isp) + virt_incl
-         first_active_mo = MIN(first_active_mo, homo_incl)
-         last_active_mo = MAX(last_active_mo, homo(isp) + virt_incl)
-      END DO
-
-      IF (spins_differ) THEN
-         CPWARN("BSE: spin-resolved active MO cutoff candidates differ; using combined window.")
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE determine_bse_combined_window
-
-! **************************************************************************************************
 !> \brief Determines indices within the given energy cutoffs and truncates Eigenvalues and matrices
 !> \param fm_mat_S_ia_bse ...
 !> \param fm_mat_S_ij_bse ...
@@ -1353,8 +1211,8 @@ CONTAINS
 !> \param homo_red ...
 !> \param virt_red ...
 !> \param mp2_env ...
-!> \param homo_incl_in ...
-!> \param virt_incl_in ...
+!> \param window Absolute MO window to retain.
+!> \param print_window Whether to print the cutoff summary.
 ! **************************************************************************************************
    SUBROUTINE truncate_BSE_matrices(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                     fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
@@ -1363,7 +1221,7 @@ CONTAINS
                                     bse_lev_virt, &
                                     homo_red, virt_red, &
                                     mp2_env, &
-                                    homo_incl_in, virt_incl_in)
+                                    window, print_window)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
@@ -1375,7 +1233,8 @@ CONTAINS
                                                             bse_lev_virt
       INTEGER, INTENT(OUT)                               :: homo_red, virt_red
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-      INTEGER, INTENT(IN), OPTIONAL                      :: homo_incl_in, virt_incl_in
+      TYPE(mo_window_type), INTENT(IN)                   :: window
+      LOGICAL, INTENT(IN)                                :: print_window
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'truncate_BSE_matrices'
 
@@ -1386,52 +1245,41 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! Determine index in homo and virtual for truncation.
-      ! When homo_incl_in/virt_incl_in are provided (combined-window path), skip per-spin
-      ! determine_cutoff_indices and the print; caller already printed via determine_bse_combined_window.
-      IF (PRESENT(homo_incl_in)) THEN
-         homo_incl = homo_incl_in
-         virt_incl = virt_incl_in
-         homo_red = homo - homo_incl + 1
-         virt_red = virt_incl
-      ELSE
-         CALL determine_cutoff_indices(Eigenval_scf, &
-                                       homo, virtual, &
-                                       homo_red, virt_red, &
-                                       homo_incl, virt_incl, &
-                                       mp2_env%bse%bse_cutoff_occ, mp2_env%bse%bse_cutoff_empty)
+      homo_incl = window%first_mo
+      virt_incl = window%last_mo - homo
+      homo_red = homo - homo_incl + 1
+      virt_red = virt_incl
 
-         IF (unit_nr > 0) THEN
-            IF (mp2_env%bse%bse_cutoff_occ > 0) THEN
-               WRITE (unit_nr, '(T2,A4,T7,A29,T71,F10.3)') 'BSE|', 'Cutoff occupied orbitals [eV]', &
-                  mp2_env%bse%bse_cutoff_occ*evolt
-            ELSE
-               WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No cutoff given for occupied orbitals'
-            END IF
-            IF (mp2_env%bse%bse_cutoff_empty > 0) THEN
-               WRITE (unit_nr, '(T2,A4,T7,A26,T71,F10.3)') 'BSE|', 'Cutoff empty orbitals [eV]', &
-                  mp2_env%bse%bse_cutoff_empty*evolt
-            ELSE
-               WRITE (unit_nr, '(T2,A4,T7,A34)') 'BSE|', 'No cutoff given for empty orbitals'
-            END IF
-            WRITE (unit_nr, '(T2,A4,T7,A20,T71,I10)') 'BSE|', 'First occupied index', homo_incl
-            WRITE (unit_nr, '(T2,A4,T7,A32,T71,I10)') 'BSE|', 'Last empty index (not MO index!)', virt_incl
-            WRITE (unit_nr, '(T2,A4,T7,A35,T71,F10.3)') 'BSE|', 'Energy of first occupied index [eV]', &
-               Eigenval(homo_incl)*evolt
-            WRITE (unit_nr, '(T2,A4,T7,A31,T71,F10.3)') 'BSE|', 'Energy of last empty index [eV]', &
-               Eigenval(homo + virt_incl)*evolt
-            WRITE (unit_nr, '(T2,A4,T7,A54,T71,F10.3)') 'BSE|', &
-               'Energy difference of first occupied index to HOMO [eV]', &
-               -(Eigenval(homo_incl) - Eigenval(homo))*evolt
-            WRITE (unit_nr, '(T2,A4,T7,A50,T71,F10.3)') 'BSE|', &
-               'Energy difference of last empty index to LUMO [eV]', &
-               (Eigenval(homo + virt_incl) - Eigenval(homo + 1))*evolt
-            WRITE (unit_nr, '(T2,A4,T7,A35,T71,I10)') 'BSE|', 'Number of GW-corrected occupied MOs', &
-               mp2_env%ri_g0w0%corr_mos_occ
-            WRITE (unit_nr, '(T2,A4,T7,A32,T71,I10)') 'BSE|', 'Number of GW-corrected empty MOs', &
-               bse_lev_virt
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+      IF (print_window .AND. unit_nr > 0) THEN
+         IF (mp2_env%bse%bse_cutoff_occ > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A29,T71,F10.3)') 'BSE|', 'Cutoff occupied orbitals [eV]', &
+               mp2_env%bse%bse_cutoff_occ*evolt
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No cutoff given for occupied orbitals'
          END IF
+         IF (mp2_env%bse%bse_cutoff_empty > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A26,T71,F10.3)') 'BSE|', 'Cutoff empty orbitals [eV]', &
+               mp2_env%bse%bse_cutoff_empty*evolt
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T7,A34)') 'BSE|', 'No cutoff given for empty orbitals'
+         END IF
+         WRITE (unit_nr, '(T2,A4,T7,A20,T71,I10)') 'BSE|', 'First occupied index', homo_incl
+         WRITE (unit_nr, '(T2,A4,T7,A32,T71,I10)') 'BSE|', 'Last empty index (not MO index!)', virt_incl
+         WRITE (unit_nr, '(T2,A4,T7,A35,T71,F10.3)') 'BSE|', 'Energy of first occupied index [eV]', &
+            Eigenval(homo_incl)*evolt
+         WRITE (unit_nr, '(T2,A4,T7,A31,T71,F10.3)') 'BSE|', 'Energy of last empty index [eV]', &
+            Eigenval(homo + virt_incl)*evolt
+         WRITE (unit_nr, '(T2,A4,T7,A54,T71,F10.3)') 'BSE|', &
+            'Energy difference of first occupied index to HOMO [eV]', &
+            -(Eigenval(homo_incl) - Eigenval(homo))*evolt
+         WRITE (unit_nr, '(T2,A4,T7,A50,T71,F10.3)') 'BSE|', &
+            'Energy difference of last empty index to LUMO [eV]', &
+            (Eigenval(homo + virt_incl) - Eigenval(homo + 1))*evolt
+         WRITE (unit_nr, '(T2,A4,T7,A35,T71,I10)') 'BSE|', 'Number of GW-corrected occupied MOs', &
+            mp2_env%ri_g0w0%corr_mos_occ
+         WRITE (unit_nr, '(T2,A4,T7,A32,T71,I10)') 'BSE|', 'Number of GW-corrected empty MOs', &
+            bse_lev_virt
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
       IF (unit_nr > 0) THEN
          IF (homo - homo_incl + 1 > mp2_env%ri_g0w0%corr_mos_occ) THEN

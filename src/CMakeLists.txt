@@ -395,6 +395,7 @@ list(
   molecular_dipoles.F
   molecular_moments.F
   molecular_states.F
+  mo_window.F
   mol_force.F
   molsym.F
   moments_utils.F
