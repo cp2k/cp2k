@@ -223,6 +223,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_SYMMETRY", variants=["EPS_GEO"], &
                           description="Accuracy in k-point symmetry determination."//newline// &
+                          "K290 applies this value in lattice and fractional-coordinate checks. "// &
+                          "SPGLIB uses a Cartesian distance tolerance in bohr. The same numerical "// &
+                          "value is therefore not an equivalent geometric tolerance for both backends."//newline// &
                           "EPS_GEO is accepted as an alias.", &
                           usage="EPS_SYMMETRY <real>", &
                           default_r_val=1.0e-6_dp)
