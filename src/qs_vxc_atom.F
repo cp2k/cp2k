@@ -249,13 +249,14 @@ CONTAINS
 
       INTEGER :: adjoint_bin, adjoint_entry, adjoint_nbins, adjoint_nchannels, &
          adjoint_tile_count(3), adjoint_tile_lower(3), adjoint_tile_upper(3), &
-         atom_composite_components, base_shift(3), bo(2), composite_descriptor_target_image, &
+         atom_composite_components, bo(2), composite_descriptor_target_image, &
          composite_image_periodicity(3), composite_local_atom, composite_local_natom, &
          composite_nflat, composite_partition_target_image, composite_pw_nflat, composite_row, &
          gapw_density_partition, gapw_representation, handle, ia, iat, iatom, icomponent, idir, &
-         ikind, image_i1, image_i2, image_i3, image_shell(3), image_shift(3), ir, ispin, iw, jdir, &
-         myfun, na, natom, nr, nspins
-      INTEGER :: num_pe, source_atom, target_atom, xc_deriv_method_id, xc_rho_smooth_id, zatom
+         ikind, image_i1, image_i2, image_i3, image_lower(3), image_shell(3), image_shift(3), &
+         image_upper(3), ir, ispin, iw, jdir, myfun, na
+      INTEGER :: natom, nr, nspins, num_pe, source_atom, target_atom, xc_deriv_method_id, &
+         xc_rho_smooth_id, zatom
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: composite_atomic_grid_sizes, &
                                                             composite_local_grid_sizes
       INTEGER, ALLOCATABLE, DIMENSION(:) :: adjoint_bin_offsets, adjoint_bin_rows, &
@@ -1259,7 +1260,7 @@ CONTAINS
                      END DO
 
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
-!$OMP PRIVATE(base_shift, composite_row, cross_density, cross_density_spatial, &
+!$OMP PRIVATE(image_lower, image_upper, composite_row, cross_density, cross_density_spatial, &
 !$OMP         cross_displacement, cross_grad, cross_grad_spatial, cross_kin, &
 !$OMP         cross_kin_spatial, fractional, idir, image_i1, image_i2, image_i3, jdir, &
 !$OMP         image_shift, image_translation, target_atom) &
@@ -1278,15 +1279,11 @@ CONTAINS
                                                   particle_set(source_atom)%r(jdir))
                            END DO
                         END DO
-                        DO idir = 1, 3
-                           base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
-                        END DO
-                        DO image_i3 = base_shift(3) - image_shell(3), &
-                           base_shift(3) + image_shell(3)
-                           DO image_i2 = base_shift(2) - image_shell(2), &
-                              base_shift(2) + image_shell(2)
-                              DO image_i1 = base_shift(1) - image_shell(1), &
-                                 base_shift(1) + image_shell(1)
+                        CALL atom_grid_image_bounds(cell, fractional, cross_cutoff, image_shell, &
+                                                    image_lower, image_upper)
+                        DO image_i3 = image_lower(3), image_upper(3)
+                           DO image_i2 = image_lower(2), image_upper(2)
+                              DO image_i1 = image_lower(1), image_upper(1)
                                  image_shift = [image_i1, image_i2, image_i3]
                                  IF (target_atom == source_atom .AND. &
                                      ALL(image_shift == 0)) CYCLE
@@ -1295,6 +1292,7 @@ CONTAINS
                                  cross_displacement = composite_grid_coords(:, composite_row) - &
                                                       particle_set(source_atom)%r - &
                                                       image_translation
+                                 IF (SQRT(SUM(cross_displacement**2)) > cross_cutoff) CYCLE
                                  CALL interpolate_gapw_atom_grid_fields( &
                                     grid_atom, harmonics, cross_displacement, cross_cutoff, nspins, &
                                     rho_h, rho_s, drho_h, drho_s, tau_h, tau_s, &
@@ -1702,7 +1700,7 @@ CONTAINS
                         END DO
 
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP PRIVATE(base_shift, composite_cross_force_local, composite_cross_image_virial_local, &
+!$OMP PRIVATE(image_lower, image_upper, composite_cross_force_local, composite_cross_image_virial_local, &
 !$OMP         composite_row, cross_density, cross_density_adjoint, cross_density_spatial, &
 !$OMP         cross_displacement, cross_grad, cross_grad_adjoint, cross_grad_spatial, &
 !$OMP         cross_kin, cross_kin_adjoint, cross_kin_spatial, cross_spatial_derivative, &
@@ -1764,15 +1762,11 @@ CONTAINS
                                                      particle_set(source_atom)%r(jdir))
                               END DO
                            END DO
-                           DO idir = 1, 3
-                              base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
-                           END DO
-                           DO image_i3 = base_shift(3) - image_shell(3), &
-                              base_shift(3) + image_shell(3)
-                              DO image_i2 = base_shift(2) - image_shell(2), &
-                                 base_shift(2) + image_shell(2)
-                                 DO image_i1 = base_shift(1) - image_shell(1), &
-                                    base_shift(1) + image_shell(1)
+                           CALL atom_grid_image_bounds(cell, fractional, cross_cutoff, image_shell, &
+                                                       image_lower, image_upper)
+                           DO image_i3 = image_lower(3), image_upper(3)
+                              DO image_i2 = image_lower(2), image_upper(2)
+                                 DO image_i1 = image_lower(1), image_upper(1)
                                     image_shift = [image_i1, image_i2, image_i3]
                                     IF (target_atom == source_atom .AND. &
                                         ALL(image_shift == 0)) CYCLE
@@ -1781,6 +1775,7 @@ CONTAINS
                                     cross_displacement = &
                                        composite_grid_coords(:, composite_row) - &
                                        particle_set(source_atom)%r - image_translation
+                                    IF (SQRT(SUM(cross_displacement**2)) > cross_cutoff) CYCLE
                                     CALL interpolate_gapw_atom_grid_fields( &
                                        grid_atom, harmonics, cross_displacement, cross_cutoff, &
                                        nspins, rho_h, rho_s, drho_h, drho_s, tau_h, tau_s, &
@@ -2233,7 +2228,7 @@ CONTAINS
                         ! Each thread accumulates its own one-center potentials; combine them
                         ! before the existing MPI reduction over target-atom owners.
 !$OMP PARALLEL DEFAULT(NONE) &
-!$OMP PRIVATE(base_shift, composite_row, cross_density_adjoint, cross_displacement, &
+!$OMP PRIVATE(image_lower, image_upper, composite_row, cross_density_adjoint, cross_displacement, &
 !$OMP         cross_grad_adjoint, cross_kin_adjoint, fractional, idir, image_i1, &
 !$OMP         image_i2, image_i3, image_shift, image_translation, jdir, target_atom, &
 !$OMP         vxc_h_local, vxc_s_local, vxg_h_local, vxg_s_local, vtau_h_local, vtau_s_local) &
@@ -2297,15 +2292,11 @@ CONTAINS
                                                      particle_set(iatom)%r(jdir))
                               END DO
                            END DO
-                           DO idir = 1, 3
-                              base_shift(idir) = cell%perd(idir)*NINT(fractional(idir))
-                           END DO
-                           DO image_i3 = base_shift(3) - image_shell(3), &
-                              base_shift(3) + image_shell(3)
-                              DO image_i2 = base_shift(2) - image_shell(2), &
-                                 base_shift(2) + image_shell(2)
-                                 DO image_i1 = base_shift(1) - image_shell(1), &
-                                    base_shift(1) + image_shell(1)
+                           CALL atom_grid_image_bounds(cell, fractional, cross_cutoff, image_shell, &
+                                                       image_lower, image_upper)
+                           DO image_i3 = image_lower(3), image_upper(3)
+                              DO image_i2 = image_lower(2), image_upper(2)
+                                 DO image_i1 = image_lower(1), image_upper(1)
                                     image_shift = [image_i1, image_i2, image_i3]
                                     IF (target_atom == iatom .AND. ALL(image_shift == 0)) CYCLE
                                     image_translation = MATMUL( &
@@ -3468,6 +3459,40 @@ CONTAINS
       END DO
 
    END SUBROUTINE native_grid_lagrange_weights
+
+! **************************************************************************************************
+!> \brief Conservatively bound periodic images that can intersect a Cartesian support sphere.
+!> \param cell current cell and periodicity
+!> \param fractional target-minus-source displacement in lattice coordinates
+!> \param cutoff current, density-dependent Cartesian support radius
+!> \param image_shell original enclosing image shell
+!> \param lower inclusive lower image indices
+!> \param upper inclusive upper image indices (may be smaller than lower)
+! **************************************************************************************************
+   SUBROUTINE atom_grid_image_bounds(cell, fractional, cutoff, image_shell, lower, upper)
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      REAL(dp), INTENT(IN)                               :: fractional(3), cutoff
+      INTEGER, INTENT(IN)                                :: image_shell(3)
+      INTEGER, INTENT(OUT)                               :: lower(3), upper(3)
+
+      INTEGER                                            :: center, idir
+      REAL(dp)                                           :: condition_bound, padding, radius
+
+      ! |(H^-1 d)_i| <= cutoff ||(H^-1)_i|| also holds for triclinic cells.
+      ! Inflate the bounds for cancellation in fractional coordinates and the inverse cell.
+      condition_bound = MAX(1.0_dp, SUM(ABS(cell%hmat))*SUM(ABS(cell%h_inv)))
+      lower = 0
+      upper = 0
+      DO idir = 1, 3
+         IF (cell%perd(idir) == 0) CYCLE
+         center = NINT(fractional(idir))
+         radius = cutoff*SQRT(SUM(cell%h_inv(idir, :)**2))
+         padding = 128.0_dp*EPSILON(1.0_dp)*condition_bound* &
+                   MAX(1.0_dp, MAXVAL(ABS(fractional)), radius)
+         lower(idir) = MAX(center - image_shell(idir), CEILING(fractional(idir) - radius - padding))
+         upper(idir) = MIN(center + image_shell(idir), FLOOR(fractional(idir) + radius + padding))
+      END DO
+   END SUBROUTINE atom_grid_image_bounds
 
 ! **************************************************************************************************
 !> \brief Express one radial node's first and second derivatives as linear combinations of the

@@ -52,6 +52,7 @@ WRAPPER = """
  REAL(dp), ALLOCATABLE :: vxc_h_local(:, :, :), vxc_s_local(:, :, :), vtau_h_local(:, :, :), vtau_s_local(:, :, :)
  REAL(dp), ALLOCATABLE :: vxg_h_local(:, :, :, :), vxg_s_local(:, :, :, :)
  INTEGER :: base_shift(3), composite_row, idir, image_i1, image_i2, image_i3
+ INTEGER :: image_lower(3), image_upper(3)
  INTEGER :: image_shift(3), image_shell(3), jdir, target_atom, iatom
  INTEGER :: composite_local_atom, composite_local_natom, composite_nflat
  REAL(dp) :: cross_density_adjoint(2), cross_grad_adjoint(3, 2), cross_kin_adjoint(2)
@@ -148,6 +149,8 @@ def main():
             f"MODULE {name}_kernel\n"
             + USES
             + "\n".join(routine(source, n) for n in helpers)
+            + "\n"
+            + routine(patched, "atom_grid_image_bounds")
             + WRAPPER.format(loop=loop)
             + f"\nEND MODULE {name}_kernel\n"
         )
