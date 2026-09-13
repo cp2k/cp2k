@@ -2329,12 +2329,12 @@ CONTAINS
       n_mo = bs_env%n_ao
       num_time_freq_points = bs_env%num_time_freq_points
 
-      ALLOCATE (bs_env%imag_freq_points(num_time_freq_points))
-      ALLOCATE (bs_env%imag_time_points(num_time_freq_points))
-      ALLOCATE (bs_env%imag_time_weights_freq_zero(num_time_freq_points))
-      ALLOCATE (bs_env%weights_cos_t_to_w(num_time_freq_points, num_time_freq_points))
-      ALLOCATE (bs_env%weights_cos_w_to_t(num_time_freq_points, num_time_freq_points))
-      ALLOCATE (bs_env%weights_sin_t_to_w(num_time_freq_points, num_time_freq_points))
+      ALLOCATE (bs_env%time_frequency_grid%frequency(num_time_freq_points))
+      ALLOCATE (bs_env%time_frequency_grid%imaginary_time(num_time_freq_points))
+      ALLOCATE (bs_env%time_frequency_grid%time_weights_at_zero_frequency(num_time_freq_points))
+      ALLOCATE (bs_env%time_frequency_grid%cosine_time_to_frequency_weights(num_time_freq_points, num_time_freq_points))
+      ALLOCATE (bs_env%time_frequency_grid%cosine_frequency_to_time_weights(num_time_freq_points, num_time_freq_points))
+      ALLOCATE (bs_env%time_frequency_grid%sine_time_to_frequency_weights(num_time_freq_points, num_time_freq_points))
 
       ! minimum and maximum difference between eigenvalues of unoccupied and an occupied MOs
       E_min = 1000.0_dp
@@ -2385,12 +2385,12 @@ CONTAINS
 
       ! one needs to scale the minimax grids, see Azizi, Wilhelm, Golze, Panades-Barrueta,
       ! Giantomassi, Rinke, Draxl, Gonze et al., 2 publications
-      bs_env%imag_freq_points(:) = points_and_weights(1:num_time_freq_points)*E_min
+      bs_env%time_frequency_grid%frequency(:) = points_and_weights(1:num_time_freq_points)*E_min
 
       ! determine number of fit points in the interval [0,ω_max] for virt, or [-ω_max,0] for occ
       bs_env%num_freq_points_fit = 0
       DO i_w = 1, num_time_freq_points
-         IF (bs_env%imag_freq_points(i_w) < bs_env%freq_max_fit) THEN
+         IF (bs_env%time_frequency_grid%frequency(i_w) < bs_env%freq_max_fit) THEN
             bs_env%num_freq_points_fit = bs_env%num_freq_points_fit + 1
          END IF
       END DO
@@ -2399,9 +2399,9 @@ CONTAINS
       ALLOCATE (bs_env%imag_freq_points_fit(bs_env%num_freq_points_fit))
       j_w = 0
       DO i_w = 1, num_time_freq_points
-         IF (bs_env%imag_freq_points(i_w) < bs_env%freq_max_fit) THEN
+         IF (bs_env%time_frequency_grid%frequency(i_w) < bs_env%freq_max_fit) THEN
             j_w = j_w + 1
-            bs_env%imag_freq_points_fit(j_w) = bs_env%imag_freq_points(i_w)
+            bs_env%imag_freq_points_fit(j_w) = bs_env%time_frequency_grid%frequency(i_w)
          END IF
       END DO
 
@@ -2418,8 +2418,8 @@ CONTAINS
          CALL get_exp_minimax_coeff_gw(num_time_freq_points, E_range, points_and_weights)
       END IF
 
-      bs_env%imag_time_points(:) = points_and_weights(1:num_time_freq_points)/(2.0_dp*E_min)
-      bs_env%imag_time_weights_freq_zero(:) = points_and_weights(num_time_freq_points + 1:)/(E_min)
+      bs_env%time_frequency_grid%imaginary_time(:) = points_and_weights(1:num_time_freq_points)/(2.0_dp*E_min)
+      bs_env%time_frequency_grid%time_weights_at_zero_frequency(:) = points_and_weights(num_time_freq_points + 1:)/(E_min)
 
       DEALLOCATE (points_and_weights)
 
@@ -2441,27 +2441,27 @@ CONTAINS
 
       ! cosine transform weights imaginary time to imaginary frequency
       CALL get_l_sq_wghts_cos_tf_t_to_w(num_time_freq_points, &
-                                        bs_env%imag_time_points, &
-                                        bs_env%weights_cos_t_to_w, &
-                                        bs_env%imag_freq_points, &
+                                        bs_env%time_frequency_grid%imaginary_time, &
+                                        bs_env%time_frequency_grid%cosine_time_to_frequency_weights, &
+                                        bs_env%time_frequency_grid%frequency, &
                                         E_min, E_max, max_error_min, &
                                         bs_env%num_points_per_magnitude, &
                                         bs_env%regularization_minimax)
 
       ! cosine transform weights imaginary frequency to imaginary time
       CALL get_l_sq_wghts_cos_tf_w_to_t(num_time_freq_points, &
-                                        bs_env%imag_time_points, &
-                                        bs_env%weights_cos_w_to_t, &
-                                        bs_env%imag_freq_points, &
+                                        bs_env%time_frequency_grid%imaginary_time, &
+                                        bs_env%time_frequency_grid%cosine_frequency_to_time_weights, &
+                                        bs_env%time_frequency_grid%frequency, &
                                         E_min, E_max, max_error_min, &
                                         bs_env%num_points_per_magnitude, &
                                         bs_env%regularization_minimax)
 
       ! sine transform weights imaginary time to imaginary frequency
       CALL get_l_sq_wghts_sin_tf_t_to_w(num_time_freq_points, &
-                                        bs_env%imag_time_points, &
-                                        bs_env%weights_sin_t_to_w, &
-                                        bs_env%imag_freq_points, &
+                                        bs_env%time_frequency_grid%imaginary_time, &
+                                        bs_env%time_frequency_grid%sine_time_to_frequency_weights, &
+                                        bs_env%time_frequency_grid%frequency, &
                                         E_min, E_max, max_error_min, &
                                         bs_env%num_points_per_magnitude, &
                                         bs_env%regularization_minimax)
@@ -3705,11 +3705,11 @@ CONTAINS
 
          DO j_w = 1, bs_env%num_time_freq_points
 
-            freq_j = bs_env%imag_freq_points(j_w)
-            time_i = bs_env%imag_time_points(i_t)
+            freq_j = bs_env%time_frequency_grid%frequency(j_w)
+            time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
             ! integration weights for cosine and sine transform
-            w_cos_ij = bs_env%weights_cos_t_to_w(j_w, i_t)*COS(freq_j*time_i)
-            w_sin_ij = bs_env%weights_sin_t_to_w(j_w, i_t)*SIN(freq_j*time_i)
+            w_cos_ij = bs_env%time_frequency_grid%cosine_time_to_frequency_weights(j_w, i_t)*COS(freq_j*time_i)
+            w_sin_ij = bs_env%time_frequency_grid%sine_time_to_frequency_weights(j_w, i_t)*SIN(freq_j*time_i)
 
             ! 1. Re(Σ^c_nn(k_i,iω)) from cosine transform
             Sigma_c_n_freq(:, j_w, 1) = Sigma_c_n_freq(:, j_w, 1) + &

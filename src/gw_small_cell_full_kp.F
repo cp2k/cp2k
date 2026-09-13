@@ -148,7 +148,7 @@ CONTAINS
          CALL dbt_create_3c_R1_R2(t_Gvir, bs_env%t_RI_AO__AO, bs_env%nimages_3c, bs_env%nimages_3c)
 
          t1 = m_walltime()
-         tau = bs_env%imag_time_points(i_t)
+         tau = bs_env%time_frequency_grid%imaginary_time(i_t)
 
          DO ispin = 1, bs_env%n_spin
 
@@ -606,9 +606,9 @@ CONTAINS
          ! χ_PQ^R(iτ) -> χ_PQ^R(iω_j) (which is stored in chi_R, single ω_j from j_w loop)
          chi_R(:, :, :) = 0.0_dp
          DO i_t = 1, bs_env%num_time_freq_points
-            freq_j = bs_env%imag_freq_points(j_w)
-            time_i = bs_env%imag_time_points(i_t)
-            weight_ij = bs_env%weights_cos_t_to_w(j_w, i_t)*COS(time_i*freq_j)
+            freq_j = bs_env%time_frequency_grid%frequency(j_w)
+            time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
+            weight_ij = bs_env%time_frequency_grid%cosine_time_to_frequency_weights(j_w, i_t)*COS(time_i*freq_j)
 
             CALL fm_to_local_array(bs_env%fm_chi_R_t(:, i_t), chi_R, weight_ij, add=.TRUE.)
          END DO
@@ -663,9 +663,9 @@ CONTAINS
 
          ! 7. Ŵ^R(iω) -> Ŵ^R(iτ) and to fully distributed fm matrix bs_env%fm_MWM_R_t
          DO i_t = 1, bs_env%num_time_freq_points
-            freq_j = bs_env%imag_freq_points(j_w)
-            time_i = bs_env%imag_time_points(i_t)
-            weight_ij = bs_env%weights_cos_w_to_t(i_t, j_w)*COS(time_i*freq_j)
+            freq_j = bs_env%time_frequency_grid%frequency(j_w)
+            time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
+            weight_ij = bs_env%time_frequency_grid%cosine_frequency_to_time_weights(i_t, j_w)*COS(time_i*freq_j)
             CALL local_array_to_fm(MWM_R, bs_env%fm_MWM_R_t(:, i_t), weight_ij, add=.TRUE.)
          END DO ! i_t
 
@@ -958,7 +958,7 @@ CONTAINS
 
             t1 = m_walltime()
 
-            tau = bs_env%imag_time_points(i_t)
+            tau = bs_env%time_frequency_grid%imaginary_time(i_t)
 
             ! G^occ_µλ(i|τ|,k) = sum_n^occ C_µn(k)^* e^(-|(ϵ_nk-ϵ_F)τ|) C_λn(k), τ < 0
             ! G^vir_µλ(i|τ|,k) = sum_n^vir C_µn(k)^* e^(-|(ϵ_nk-ϵ_F)τ|) C_λn(k), τ > 0

@@ -1115,7 +1115,7 @@ CONTAINS
       ! =========================================================================
       DO i_t = 1, bs_env%num_time_freq_points
          t1 = m_walltime()
-         tau = bs_env%imag_time_points(i_t)
+         tau = bs_env%time_frequency_grid%imaginary_time(i_t)
 
          DO ispin = 1, bs_env%n_spin
 
@@ -2692,7 +2692,7 @@ CONTAINS
          DO i_t = 1, bs_env%num_time_freq_points
             ! Add the relevant structure with correct weight
             CALL cp_fm_scale_and_add(1.0_dp, bs_env%fm_W_MIC_freq_zero, &
-                                     bs_env%imag_time_weights_freq_zero(i_t), fm_W_time(i_t))
+                                     bs_env%time_frequency_grid%time_weights_at_zero_frequency(i_t), fm_W_time(i_t))
          END DO
          ! Done, save to file
          CALL fm_write(bs_env%fm_W_MIC_freq_zero, 0, "W_freq_rtp", qs_env)
@@ -3064,7 +3064,7 @@ CONTAINS
       ! Σ^c_pos_λσ(iτ) =  φ^T ( (φ G^vir φ^T) ∘ (Z W^MIC Z^T) ) φ
       ! =========================================================================
       DO i_t = 1, bs_env%num_time_freq_points
-         tau = bs_env%imag_time_points(i_t)
+         tau = bs_env%time_frequency_grid%imaginary_time(i_t)
 
          CALL dbcsr_create(matrix_W_aux, "W_aux", dist_aux_aux, dbcsr_type_no_symmetry, &
                            blk_aux, blk_aux)
