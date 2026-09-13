@@ -190,7 +190,7 @@ MODULE post_scf_bandstructure_types
       TYPE(ri_rs_env)                                 :: ri_rs
 
       ! Parameters for automatic RI basis set optimization.
-      TYPE(auto_ri_type)                              :: auto_ri
+      TYPE(auto_ri_type)                              :: auto_ri = auto_ri_type()
 
       ! DBCSR ships each rank's matrix panel in one MPI message whose length is stored in a
       ! 32-bit default INTEGER (dbcsr_mpiwrap.F: msglen = SIZE(buffer)). Exceeding this ceiling

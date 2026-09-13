@@ -33,6 +33,7 @@ MODULE gw_compute_Z_lP_utils
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_compute_Z_lP_utils'
+   REAL(KIND=dp), PARAMETER, PRIVATE :: jacobi_floor = 1.0E-16_dp
 
    PUBLIC :: build_gram_jacobi_blas, &
              build_jacobi_diag_from_phi, &
@@ -87,7 +88,7 @@ CONTAINS
       !$OMP SCHEDULE(STATIC)
       DO i = 1, n_local_grid
          D_local(i, i) = D_local(i, i)**2
-         d_vec_local(i) = 1.0_dp/SQRT(MAX(D_local(i, i), 1.0E-16_dp))
+         d_vec_local(i) = 1.0_dp/SQRT(MAX(D_local(i, i), jacobi_floor))
          D_local(i, i) = (D_local(i, i)*d_vec_local(i)**2) + tikhonov
       END DO
       !$OMP END PARALLEL DO
@@ -137,7 +138,7 @@ CONTAINS
          DO j = 1, n_ao_used
             d_vec_local(i) = d_vec_local(i) + phi_local(i, j)*phi_local(i, j)
          END DO
-         d_vec_local(i) = 1.0_dp/MAX(d_vec_local(i), 1.0E-16_dp)
+         d_vec_local(i) = 1.0_dp/MAX(d_vec_local(i), jacobi_floor)
       END DO
       !$OMP END PARALLEL DO
 
