@@ -24,6 +24,12 @@
 # same with the adaptive inner tolerance (EPS_ADAPT): loose early SCF steps,
 # unoccupied MOS converge five times looser
 "Al-kpoint-dav-smear-adapt.inp"         = [{matcher="E_total", tol=1e-9, ref=-8.159987079852488}]
+# same with ADDED_MOS AUTO: the raised temperature pushes the Fermi tail onto
+# the top band, so the run must grow the virtual space twice (4 -> 8 -> 16) and
+# land on the energy of the fixed-count twin with 16 added MOS. Without the
+# growth the energy misses the reference by 3.4E-8. The default k-point group
+# split gives two single-rank groups at the two CI ranks
+"Al-kpoint-dav-smear-auto.inp"          = [{matcher="E_total", tol=1e-9, ref=-8.173546695860358}]
 # blocked Davidson at complex K points, same oracle energy as the OT family below
 "he_dav.inp"                            = [{matcher="E_total", tol=1e-9, ref=-2.89466358139099},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
