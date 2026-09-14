@@ -121,6 +121,7 @@ MODULE xc_libxc
                                libxc_is_cuda, &
                                libxc_device_buffer_alloc, libxc_device_buffer_free, &
                                libxc_host_to_device, libxc_device_to_host, &
+                               libxc_d2h_issue, libxc_d2h_read, &
                                libxc_assert_device_buffer, &
                                 libxc_lda_exc_vxc_device, libxc_lda_exc_device, &
                                 libxc_gga_exc_device, libxc_gga_exc_vxc_device, &
@@ -140,6 +141,7 @@ MODULE xc_libxc
                                xc_libxc_wrap_info_refs, &
                                xc_f03_func_set_ext_params, &
                                XC_EXCHANGE, XC_CORRELATION, XC_EXCHANGE_CORRELATION, XC_KINETIC
+USE offload_api, ONLY: offload_device_synchronize !Bibek
 #endif
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, &
 !$                    omp_get_num_threads, &
@@ -159,20 +161,7 @@ MODULE xc_libxc
              libxc_check_existence_in_libxc, libxc_release_workers
 
 #if defined (__LIBXC)
-   ! Number of grid points handed to LibXC in a single call. LibXC amortizes its
-   ! per-call work (argument checks, output initialization and, for functionals
-   ! built by mixing components, a full allocate/free cycle of the component
-   ! buffers) over the points in the call, so evaluating point by point paid that
-   ! cost once per point. Blocking rather than passing the whole grid keeps the
-   ! staging buffers inside the cache. How wide a point is depends on the
-   ! functional and on the derivative order: a spin-polarized meta-GGA stages 232
-   ! doubles per point at third order against twelve for a polarized LDA, a span
-   ! of twenty, so the block is chosen from a byte budget rather than fixed in
-   ! points. The timing is flat over a wide range of block lengths, so the budget
-   ! only has to keep the buffers cache-resident.
-   INTEGER, PARAMETER, PRIVATE :: libxc_block_bytes = 256*1024
-   INTEGER, PARAMETER, PRIVATE :: libxc_block_min = 64
-   INTEGER, PARAMETER, PRIVATE :: libxc_block_max = 512
+   INTEGER, PARAMETER, PRIVATE :: libxc_block_size = 4096
 
 ! **************************************************************************************************
 !> \brief One LibXC functional object plus the buffers used to hand it a block of
@@ -2149,7 +2138,7 @@ CONTAINS
        ! to the functional object in xc_libxc_wrap_set_thresholds, and LibXC leaves
        ! the outputs of the points it screens at zero, so accumulating them is a
        ! no-op.
-        ! Determine number of sigma components based on spin polarization
+       ! Determine number of sigma components based on spin polarization
         ns = MERGE(3, 1, workers%nspin == XC_POLARIZED)
        ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace, &
                   no_exc => workers%no_exc, eps_rho => workers%epsilon_rho, &
@@ -2258,18 +2247,49 @@ CONTAINS
                    END SELECT
                  END IF
 
-                  ! Copy results back to host
-                  CALL libxc_device_to_host(w%exc(1:nb), w%exc_d, INT(nb))
+
+                  ! Issue all device-to-host copies first (async, same default
+                  ! stream => CUDA guarantees they execute in the order issued),
+                  ! then a single synchronize() covers all of them, then read
+                  ! every result. Replaces one synchronize() per buffer with
+                  ! one synchronize() total for this whole D2H group.
+                  IF (.NOT. no_exc) THEN
+                     CALL libxc_d2h_issue(w%exc_d, INT(nb))
+                  END IF
                   IF (grad_deriv >= 1) THEN
-                     CALL libxc_device_to_host(w%vrho(1, 1:nb), w%vrho_d, INT(np*nb))
+                     CALL libxc_d2h_issue(w%vrho_d, INT(nb))
                      IF (is_gga) THEN
-                        CALL libxc_device_to_host(w%vsigma(1, 1:nb), w%vsigma_d, INT(ns*nb))
+                        CALL libxc_d2h_issue(w%vsigma_d, INT(ns*nb))
                      END IF
                      IF (is_mgga) THEN
-                        CALL libxc_device_to_host(w%vlapl(1, 1:nb), w%vlapl_d, INT(np*nb))
-                        CALL libxc_device_to_host(w%vtau(1, 1:nb), w%vtau_d, INT(np*nb))
+                        CALL libxc_d2h_issue(w%vlapl_d, INT(nb))
+                        CALL libxc_d2h_issue(w%vtau_d, INT(nb))
                      END IF
                   END IF
+
+                  CALL offload_device_synchronize()
+
+                  IF (.NOT. no_exc) THEN
+                     CALL libxc_d2h_read(w%exc(1:nb), w%exc_d, INT(nb))
+                  END IF
+                  IF (grad_deriv >= 1) THEN
+                     CALL libxc_d2h_read(w%vrho(1, 1), w%vrho_d, INT(nb))
+                     IF (is_gga) THEN
+                        CALL libxc_d2h_read(w%vsigma(1, 1), w%vsigma_d, INT(ns*nb))
+                     END IF
+                     IF (is_mgga) THEN
+                        CALL libxc_d2h_read(w%vlapl(1, 1), w%vlapl_d, INT(nb))
+                        CALL libxc_d2h_read(w%vtau(1, 1), w%vtau_d, INT(nb))
+                     END IF
+                  END IF
+               IF (ANY(w%exc(1:nb) /= w%exc(1:nb)) .OR. &
+                   (grad_deriv >= 1 .AND. ANY(w%vrho(:, 1:nb) /= w%vrho(:, 1:nb)))) THEN
+                  WRITE(*,*) "NaN DETECTED: family=", family, " is_gga=", is_gga, " is_mgga=", is_mgga, &
+                             " grad_deriv=", grad_deriv, " no_exc=", no_exc, " nb=", nb
+                  WRITE(*,*) "exc has NaN:", ANY(w%exc(1:nb) /= w%exc(1:nb))
+                  IF (grad_deriv >= 1) WRITE(*,*) "vrho has NaN:", ANY(w%vrho(:, 1:nb) /= w%vrho(:, 1:nb))
+                  CPABORT("NaN found right after device_to_host")
+               END IF
               ELSE
                  ! Use CPU path (existing implementation)
                  IF (is_mgga) THEN
@@ -2508,8 +2528,9 @@ nthreads = 1
 !$ nthreads = omp_get_num_threads()
 CPASSERT(ithread < SIZE(workers%worker))
 
-bsize = MAX(1, MIN(workers%worker(1)%nb, (npoints + nthreads - 1)/nthreads))
-nblocks = (npoints + bsize - 1)/bsize
+      bsize = MAX(1, MIN(libxc_block_size, (npoints + nthreads - 1)/nthreads))
+      nblocks = (npoints + bsize - 1)/bsize
+      IF (ithread == 0) WRITE(*,*) "DIAG bsize=", bsize, "npoints=", npoints, "nthreads=", nthreads, "nblocks=", nblocks
 
 family = workers%family
 SELECT CASE (family)
@@ -2760,6 +2781,113 @@ BLOCK
             END IF
 
             ! one LibXC call for the whole block
+
+            IF (libxc_is_cuda()) THEN
+               CALL libxc_host_to_device(w%rho_d, w%rho(1, 1), INT(2*np))
+               IF (is_gga) THEN
+                  CALL libxc_host_to_device(w%sigma_d, w%sigma(1, 1), INT(3*np))
+               END IF
+               IF (is_mgga) THEN
+                  CALL libxc_host_to_device(w%lapl_d, w%lapl(1, 1), INT(2*np))
+                  CALL libxc_host_to_device(w%tau_d, w%tau(1, 1), INT(2*np))
+               END IF
+
+               IF (is_mgga) THEN
+                  SELECT CASE (grad_deriv)
+                  CASE (0)
+                     CALL libxc_mgga_exc_device(w%func, w%rho_d, w%sigma_d, w%lapl_d, w%tau_d, w%exc_d, np)
+                  CASE (1)
+                     IF (no_exc) THEN
+                        CALL libxc_mgga_vxc_device(w%func, w%rho_d, w%sigma_d, w%lapl_d, w%tau_d, &
+                                                     w%vrho_d, w%vsigma_d, w%vlapl_d, w%vtau_d, np)
+                        w%exc(1:nb) = 0.0_dp
+                     ELSE
+                        CALL libxc_mgga_exc_vxc_device(w%func, w%rho_d, w%sigma_d, w%lapl_d, w%tau_d, &
+                                                 w%exc_d, w%vrho_d, w%vsigma_d, w%vlapl_d, w%vtau_d, np)
+                     END IF
+                  CASE (2)
+                     CALL xc_f03_mgga(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
+                                      w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1), &
+                                      w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2rholapl(1, 1), &
+                                      w%v2rhotau(1, 1), w%v2sigma2(1, 1), w%v2sigmalapl(1, 1), &
+                                      w%v2sigmatau(1, 1), w%v2lapl2(1, 1), w%v2lapltau(1, 1), w%v2tau2(1, 1))
+                  END SELECT
+               ELSE IF (is_gga) THEN
+                  SELECT CASE (grad_deriv)
+                  CASE (0)
+                     CALL libxc_gga_exc_device(w%func, w%rho_d, w%sigma_d, w%exc_d, np)
+                  CASE (1)
+                     IF (no_exc) THEN
+                        CALL libxc_gga_vxc_device(w%func, w%rho_d, w%sigma_d, w%vrho_d, w%vsigma_d, np)
+                        w%exc(1:nb) = 0.0_dp
+                     ELSE
+                        CALL libxc_gga_exc_vxc_device(w%func, w%rho_d, w%sigma_d, w%exc_d, w%vrho_d, w%vsigma_d, np)
+                     END IF
+                  CASE (2)
+                     CALL xc_f03_gga_exc_vxc_fxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
+                                                 w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), &
+                                                 w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2sigma2(1, 1))
+                  END SELECT
+               ELSE
+                  SELECT CASE (grad_deriv)
+                  CASE (0)
+                     CALL libxc_lda_exc_device(w%func, w%rho_d, w%exc_d, np)
+                  CASE (1)
+                     CALL libxc_lda_exc_vxc_device(w%func, w%rho_d, w%exc_d, w%vrho_d, np)
+                  CASE (2)
+                     CALL xc_f03_lda_exc_vxc_fxc(w%func, np, w%rho(1, 1), &
+                                                 w%exc(1), w%vrho(1, 1), w%v2rho2(1, 1))
+                  CASE (3)
+                     CALL xc_f03_lda(w%func, np, w%rho(1, 1), &
+                                     w%exc(1), w%vrho(1, 1), w%v2rho2(1, 1), w%v3rho3(1, 1))
+                  END SELECT
+               END IF
+
+
+               ! Issue all device-to-host copies first (async, same default
+               ! stream => CUDA guarantees they execute in the order issued),
+               ! then a single synchronize() covers all of them, then read
+               ! every result. Replaces one synchronize() per buffer with
+               ! one synchronize() total for this whole D2H group.
+               IF (.NOT. no_exc) THEN
+                   CALL libxc_d2h_issue(w%exc_d, INT(nb))
+               END IF
+               IF (grad_deriv >= 1) THEN
+                  CALL libxc_d2h_issue(w%vrho_d, INT(2*nb))
+                  IF (is_gga) THEN
+                     CALL libxc_d2h_issue(w%vsigma_d, INT(3*nb))
+                  END IF
+                  IF (is_mgga) THEN
+                     CALL libxc_d2h_issue(w%vlapl_d, INT(2*nb))
+                     CALL libxc_d2h_issue(w%vtau_d, INT(2*nb))
+                  END IF
+               END IF
+
+               CALL offload_device_synchronize()
+
+               IF (.NOT. no_exc) THEN
+                   CALL libxc_d2h_read(w%exc(1:nb), w%exc_d, INT(nb))
+               END IF
+               IF (grad_deriv >= 1) THEN
+                  CALL libxc_d2h_read(w%vrho(1, 1), w%vrho_d, INT(2*nb))
+                  IF (is_gga) THEN
+                     CALL libxc_d2h_read(w%vsigma(1, 1), w%vsigma_d, INT(3*nb))
+                  END IF
+                  IF (is_mgga) THEN
+                     CALL libxc_d2h_read(w%vlapl(1, 1), w%vlapl_d, INT(2*nb))
+                     CALL libxc_d2h_read(w%vtau(1, 1), w%vtau_d, INT(2*nb))
+                  END IF
+               END IF
+
+               IF (ANY(w%exc(1:nb) /= w%exc(1:nb)) .OR. &
+                   (grad_deriv >= 1 .AND. ANY(w%vrho(:, 1:nb) /= w%vrho(:, 1:nb)))) THEN
+                  WRITE(*,*) "NaN DETECTED: family=", family, " is_gga=", is_gga, " is_mgga=", is_mgga, &
+                             " grad_deriv=", grad_deriv, " no_exc=", no_exc, " nb=", nb
+                  WRITE(*,*) "exc has NaN:", ANY(w%exc(1:nb) /= w%exc(1:nb))
+                  IF (grad_deriv >= 1) WRITE(*,*) "vrho has NaN:", ANY(w%vrho(:, 1:nb) /= w%vrho(:, 1:nb))
+                  CPABORT("NaN found right after device_to_host")
+               END IF
+            ELSE 
             IF (is_mgga) THEN
                SELECT CASE (grad_deriv)
                CASE (0)
@@ -2827,7 +2955,7 @@ BLOCK
                                   w%exc(1), w%vrho(1, 1), w%v2rho2(1, 1), w%v3rho3(1, 1))
                END SELECT
             END IF
-
+          END IF
             ! accumulate; one loop per group of derivatives, selected by the order
             ! requested and the family
             IF (grad_deriv >= 0) THEN

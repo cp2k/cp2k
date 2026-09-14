@@ -195,4 +195,16 @@ int offload_host_free(void *ptr__) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Blocks until all outstanding device work has completed.
+ * \author Samal Bibek
+ ******************************************************************************/
+void offload_device_synchronize(void) {
+#if defined(__OFFLOAD_CUDA)
+  OFFLOAD_CHECK(cudaDeviceSynchronize());
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(hipDeviceSynchronize());
+#endif
+}
+
 // EOF
