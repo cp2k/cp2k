@@ -738,7 +738,7 @@ filter_setup() {
   local target_file="$2"
 
   # Check if setup_xxx file exists
-  if [[ ! -f "$source_file" ]]; then
+  if [ ! -f "$source_file" ]; then
     report_error "File '$source_file' does not exist."
   fi
 

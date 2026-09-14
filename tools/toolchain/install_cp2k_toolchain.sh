@@ -585,10 +585,8 @@ while [ $# -ge 1 ]; do
       export NPROCS_OVERWRITE="${1#-j}"
       ;;
     --install-dir=*)
-      if [[ "${1#--install-dir=}" != /* ]]; then
-        report_error "The path for --install-dir must be an absolute path."
-      fi
-      export INSTALLDIR="${1#--install-dir=}"
+      INSTALLDIR="$(real_path "${1#--install-dir=}")"
+      export INSTALLDIR
       ;;
     --no-check-certificate)
       export DOWNLOADER_FLAGS="--no-check-certificate"
@@ -1179,7 +1177,10 @@ if [ "${MATH_MODE}" = "mkl" ]; then
   # Block libtorch installation bacause of compatibility issue
   if [ "${with_libtorch}" = "__INSTALL__" ]; then
     report_error ${LINENO} \
-      "Installing prebuilt libtorch is disabled for oneMKL builds due to known conflicts between bundled and externally linked oneMKL libraries. Please provide a compatible libtorch installation via --with-libtorch=system or --with-libtorch=<path>."
+      "Installing prebuilt libtorch is disabled for oneMKL builds due to known
+conflicts between bundled and externally linked oneMKL libraries. Please provide
+a compatible libtorch installation via --with-libtorch=system or
+--with-libtorch=<path>."
   fi
 fi
 
@@ -1247,12 +1248,6 @@ Otherwise use option no."
     exit 1
     ;;
 esac
-
-# variables used for generating cp2k ARCH file
-export CP_DFLAGS=""
-export CP_LIBS=""
-export CP_CFLAGS=""
-export CP_LDFLAGS="-Wl,--enable-new-dtags"
 
 # ------------------------------------------------------------------------
 # Special settings for CRAY Linux Environment (CLE)
@@ -1324,7 +1319,7 @@ echo "ENABLE_CUDA=\"${ENABLE_CUDA}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "ENABLE_GAUXC_CUTLASS=\"${ENABLE_GAUXC_CUTLASS}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "ENABLE_HIP=\"${ENABLE_HIP}\"" >> "${INSTALLDIR}"/toolchain.conf
 echo "ENABLE_OPENCL=\"${ENABLE_OPENCL}\"" >> "${INSTALLDIR}"/toolchain.conf
-if [ "${ENABLE_CUDA}" == "__TRUE__" ] || [ "${ENABLE_HIP}" == "__TRUE__" ]; then
+if [ "${ENABLE_CUDA}" = "__TRUE__" ] || [ "${ENABLE_HIP}" = "__TRUE__" ]; then
   echo "GPU_VER=\"${GPUVER}\"" >> "${INSTALLDIR}"/toolchain.conf
 fi
 for ii in ${package_list}; do
@@ -1530,16 +1525,46 @@ else
   "${SCRIPTDIR}"/stage8/install_stage8.sh
   "${SCRIPTDIR}"/stage9/install_stage9.sh
   echo
+  # Determine native preset if --target-cpu=native is used. The compiler option
+  # and architecture found by get_openblas_arch.sh will be used to select a
+  # corresponding preset for the build_cp2k.sh script.
+  preset_option="--preset none"
+  if [ "${TARGET_CPU}" = "native" ]; then
+    OPENBLAS_ARCH="unknown"
+    load "${BUILDDIR}/openblas_arch"
+    if [ "${with_gcc}" != "__DONTUSE__" ]; then
+      if [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
+        preset_option="--preset native-gnu-x86_64"
+      elif [ "${OPENBLAS_ARCH}" = "arm64" ]; then
+        preset_option="--preset native-gnu-arm64"
+      else
+        report_warning ${LINENO} "${OPENBLAS_ARCH} is not a known architecture
+for GNU compiler; falling back to \"--preset none\" for build_cp2k.sh."
+      fi
+    elif [ "${with_intel}" != "__DONTUSE__" ]; then
+      preset_option="--preset native-intel"
+    elif [ "${with_amd}" != "__DONTUSE__" ]; then
+      report_warning ${LINENO} "Native preset for AMD compiler is not yet
+implemented; falling back to \"--preset none\" for build_cp2k.sh."
+    else
+      report_error ${LINENO} "Unknown compiler choice for --target-cpu=native."
+    fi
+  else
+    echo "Note: a non-native target CPU has been used, thus falling back to
+\"--preset none\" for build_cp2k.sh."
+  fi
   cat << EOF
 ========================== Epilogue =========================
 Done! To build CP2K with dependencies you installed via toolchain, simply run
 this script:
 
-  ./build_cp2k.sh -j $(get_nprocs)
+  ./build_cp2k.sh -j $(get_nprocs) ${preset_option}
 
 It will source the file "install/setup", generate proper CMake flags based on
 toolchain options, and then build and install CP2K. For available options
-with the script, run "./build_cp2k.sh -h".
+with the script, run "./build_cp2k.sh -h". In particular, watch out for the
+--preset option; with --target-cpu=native used here, a corresponding "native-*"
+preset based on the compiler and architecture should be specified.
 EOF
 fi
 

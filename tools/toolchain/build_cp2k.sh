@@ -33,7 +33,6 @@ REBUILD_ONLY="__FALSE__"
 PREFIX_SET="__FALSE__"
 PRESET_SET="__FALSE__"
 CMAKE_PRESET=""
-CMAKE_PRESET_ARGS=()
 DEBUG_SET="__FALSE__"
 BUILD_STATIC_SET="__FALSE__"
 
@@ -77,18 +76,13 @@ while [ $# -ge 1 ]; do
       ;;
     --prefix=*)
       PREFIX_SET="__TRUE__"
-      if [[ "${1#*=}" != /* ]]; then
-        report_error "The path for --prefix must be an absolute path."
-      fi
-      CMAKE_INSTALL_PREFIX="${1#*=}"
+      CMAKE_INSTALL_PREFIX="$(real_path "${1#--prefix=}")"
       ;;
     --preset=*)
-      PRESET_SET="__TRUE__"
-      CMAKE_PRESET="${1#*=}"
-      if [ -z "${CMAKE_PRESET}" ]; then
-        report_error "A preset name must be provided to --preset."
+      CMAKE_PRESET="${1#--preset=}"
+      if [ ! -z "${CMAKE_PRESET}" ]; then
+        PRESET_SET="__TRUE__"
       fi
-      CMAKE_PRESET_ARGS=(--preset "${CMAKE_PRESET}")
       ;;
     --debug)
       DEBUG_SET="__TRUE__"
@@ -123,6 +117,9 @@ Please run this script without "--rebuild-only" if you want to change CMake sett
 EOF
     exit 1
   fi
+elif [ "${PRESET_SET}" = "__FALSE__" ]; then
+  report_warning "No CMake preset is specified; default to \"none\"."
+  CMAKE_PRESET="none"
 fi
 
 # ====================== Pre-checks ======================
@@ -131,9 +128,13 @@ fi
 # cp2k                                  <- variable ${CP2K_ROOT}; CMake option -S
 # ├── CMakeLists.txt                    <- file to be parsed for generating cmake options
 # ├── cmake                             <- directory containing CMake files
-# ├── data                              <- CP2K data directory; CMake option -DCP2K_DATA_DIR\
-# ├── build                             <- to-be-created; CMake option -B
+# ├── data                              <- CP2K data directory; CMake option -DCP2K_DATA_DIR
+# ├── build                             <- to-be-created; CMake option -B or --build
 # ├── install                           <- to-be-created; CMake option -DCMAKE_INSTALL_PREFIX
+# |   ├── bin                           <- CP2K binaries will be installed here
+# |   ├── include                       <- CP2K header and module files will be installed here
+# |   ├── lib                           <- CP2K library files will be installed here; CMake option -DCMAKE_INSTALL_LIBDIR
+# |   └── share                         <- Other files such as CP2K data
 # ├── src                               <- CP2K source code directory
 # └── tools
 #     └── toolchain                     <- working directory; variable ${TOOLCHAIN_ROOTDIR}
@@ -194,7 +195,7 @@ CMAKE_OPTIONS+=" -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}"
 if [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
   CMAKE_OPTIONS+=" -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
 fi
-if [ ${DEBUG_BUILD} == "__TRUE__" ]; then
+if [ "${DEBUG_BUILD}" = "__TRUE__" ]; then
   CMAKE_OPTIONS+=" -DCMAKE_BUILD_TYPE=Debug"
 fi
 if [ -n "$(grep -- "--install-all" "${TOOLCHAIN_ROOTDIR}/toolchain_settings")" ]; then
@@ -350,7 +351,7 @@ EOF
     fi
 
     set -o pipefail
-    cmake -S "${CP2K_ROOT}" -B "${BUILD_DIR}" "${CMAKE_PRESET_ARGS[@]}" \
+    cmake -S "${CP2K_ROOT}" -B "${BUILD_DIR}" --preset "${CMAKE_PRESET}" \
       ${CMAKE_OPTIONS} 2>&1 | tee -a cmake.log
   fi
 
@@ -392,7 +393,7 @@ EOF
 Please always source this script to load CP2K environment before running CP2K:
   source ${CMAKE_INSTALL_PREFIX}/cp2k_env
 
-It's suggested to run regtests after installation:
+It is suggested to run regtests after installation:
   ${CP2K_ROOT}/tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin psmp
 Run \`${CP2K_ROOT}/tests/do_regtest.py --help\` for help message.
 
