@@ -53,7 +53,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Build a minimax time/frequency grid through the common backend boundary.
-!> \param unit_nr Output unit used by an external backend.
 !> \param num_points Number of minimax points.
 !> \param energy_min Lower end of the physical energy interval.
 !> \param energy_max Upper end of the physical energy interval.
@@ -66,10 +65,11 @@ CONTAINS
 !> \param build_sine Whether to construct the sine time-to-frequency weights.
 !> \param time_scaling Scaling applied to the imaginary-time abscissas.
 !> \param time_weight_scaling Scaling applied to the imaginary-time weights.
-!> \param prefer_external_backend Whether to try an available external backend first.
-!> \param used_external_backend Whether the external backend supplied the grid.
 !> \param max_fit_error Maximum fitting error across all requested transforms.
 !> \param print_warning Whether the minimax coefficient routine prints warnings.
+!> \param unit_nr Output unit used by an external backend.
+!> \param prefer_external_backend Whether to try an available external backend first.
+!> \param used_external_backend Whether the external backend supplied the grid.
 ! **************************************************************************************************
    SUBROUTINE build_minimax_time_frequency_grid(num_points, energy_min, energy_max, regularization, &
                                                 num_points_per_magnitude, grid, build_frequency, build_time, &
@@ -213,8 +213,8 @@ CONTAINS
       INTEGER, PARAMETER                                 :: num_points_per_magnitude = 200
 
       INTEGER                                            :: handle, jquad
-      REAL(KIND=dp)                                      :: E_Range, Emax, Emin, max_error_min
       LOGICAL                                            :: used_external_backend
+      REAL(KIND=dp)                                      :: E_Range, Emax, Emin, max_error_min
 
       CALL timeset(routineN, handle)
 
@@ -231,16 +231,16 @@ CONTAINS
       END IF
 
       CALL build_minimax_time_frequency_grid(num_integ_points, Emin, Emax, &
-                                              qs_env%mp2_env%ri_g0w0%regularization_minimax, &
-                                              num_points_per_magnitude, grid, &
-                                              build_frequency=.NOT. do_ri_sos_laplace_mp2, &
+                                             qs_env%mp2_env%ri_g0w0%regularization_minimax, &
+                                             num_points_per_magnitude, grid, &
+                                             build_frequency=.NOT. do_ri_sos_laplace_mp2, &
                                              build_time=do_im_time .OR. do_ri_sos_laplace_mp2, &
                                              build_transforms=do_im_time .AND. .NOT. do_ri_sos_laplace_mp2, &
                                              build_sine=do_im_time .AND. (.NOT. do_ri_sos_laplace_mp2) .AND. do_gw_im_time, &
-                                              time_scaling=MERGE(1.0_dp, 2.0_dp, do_ri_sos_laplace_mp2), &
-                                              time_weight_scaling=MERGE(1.0_dp, 2.0_dp, do_ri_sos_laplace_mp2), &
-                                              max_fit_error=max_error_min, print_warning=.TRUE., unit_nr=unit_nr, &
-                                              prefer_external_backend=.TRUE., used_external_backend=used_external_backend)
+                                             time_scaling=MERGE(1.0_dp, 2.0_dp, do_ri_sos_laplace_mp2), &
+                                             time_weight_scaling=MERGE(1.0_dp, 2.0_dp, do_ri_sos_laplace_mp2), &
+                                             max_fit_error=max_error_min, print_warning=.TRUE., unit_nr=unit_nr, &
+                                             prefer_external_backend=.TRUE., used_external_backend=used_external_backend)
 
       ! Keep the native diagnostics and warning behavior in this RPA policy wrapper. The external
       ! backend provides its own diagnostics through greenx_interface.

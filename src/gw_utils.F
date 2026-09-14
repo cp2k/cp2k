@@ -2312,8 +2312,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_time_and_frequency_minimax_grid'
 
-      INTEGER                                            :: handle, homo, ispin, n_mo, &
-                                                            n_top, num_time_freq_points, u
+      INTEGER                                            :: handle, homo, ispin, n_mo, n_top, &
+                                                            num_time_freq_points, u
       REAL(KIND=dp)                                      :: E_max, E_max_ispin, E_min, E_min_ispin, &
                                                             E_range, max_error_min
 
