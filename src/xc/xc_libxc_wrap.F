@@ -131,8 +131,9 @@ MODULE xc_libxc_wrap
    PUBLIC :: xc_f03_gga_exc, xc_f03_gga_exc_vxc, xc_f03_gga_exc_vxc_fxc, xc_f03_gga_fxc, &
              xc_f03_gga_vxc, xc_f03_gga_vxc_fxc, &
              xc_f03_gga_exc_vxc_fxc_kxc, xc_f03_gga_vxc_fxc_kxc
-   PUBLIC :: xc_f03_mgga_exc_vxc_fxc_kxc, xc_f03_mgga_vxc_fxc_kxc
-   PUBLIC :: xc_f03_lda, &
+   PUBLIC :: xc_f03_mgga_exc_vxc_fxc_kxc, xc_f03_mgga_vxc_fxc_kxc, &
+             xc_f03_mgga_exc, xc_f03_mgga_exc_vxc, xc_f03_mgga_fxc, &
+             xc_f03_mgga_vxc, xc_f03_mgga_vxc_fxc
 
    PUBLIC :: XC_FAMILY_LDA, XC_FAMILY_GGA, XC_FAMILY_MGGA, &
              XC_FAMILY_HYB_LDA, XC_FAMILY_HYB_GGA, XC_FAMILY_HYB_MGGA
@@ -144,6 +145,8 @@ MODULE xc_libxc_wrap
 
    ! Create aliases for backward compatibility with LibXC 5.x interface
    PUBLIC :: xc_f03_lda, xc_f03_mgga
+   PUBLIC :: xc_f03_lda_exc, xc_f03_lda_exc_vxc, xc_f03_lda_exc_vxc_fxc, &
+             xc_f03_lda_fxc, xc_f03_lda_kxc, xc_f03_lda_vxc
 
    ! Backend selection constants (similar to SPLA)
    INTEGER, PARAMETER, PUBLIC :: do_libxc_cpu = 1, &
@@ -167,9 +170,8 @@ MODULE xc_libxc_wrap
              xc_libxc_get_reference_length, &
              xc_libxc_check_functional, &
              xc_libxc_wrap_init_cuda_safe, &
-             libxc_set_backend, libxc_get_backend, &
+             libxc_get_backend, &
              libxc_func_init_wrapper, libxc_func_end_wrapper, &
-             libxc_set_library, &
              libxc_is_cuda, &
              libxc_device_buffer_alloc, libxc_device_buffer_free, &
              libxc_host_to_device, libxc_device_to_host, &
@@ -187,69 +189,13 @@ MODULE xc_libxc_wrap
              libxc_mgga_exc_device, libxc_mgga_exc_vxc_device, &
              libxc_mgga_vxc_device
 
-   ! Backend selection for CPU vs GPU Libxc
-   INTEGER, PARAMETER :: LIBXC_BACKEND_CPU = 1
-   INTEGER, PARAMETER :: LIBXC_BACKEND_GPU = 2
-   INTEGER :: libxc_current_backend = LIBXC_BACKEND_CPU
-   INTEGER :: libxc_selected_library = do_libxc_cpu
-
    ! Alias definitions for backward compatibility
    PROCEDURE(xc_f03_lda_exc_vxc_fxc_kxc), POINTER :: xc_f03_lda => xc_f03_lda_exc_vxc_fxc_kxc
    PROCEDURE(xc_f03_mgga_exc_vxc_fxc), POINTER :: xc_f03_mgga => xc_f03_mgga_exc_vxc_fxc
 
 CONTAINS
 
-   ! Backend selection functions
-! **************************************************************************************************
-!> \brief ...
-!> \param backend ...
-! **************************************************************************************************
-   SUBROUTINE libxc_set_backend(backend)
-      INTEGER, INTENT(IN)                                :: backend
-
-      SELECT CASE (backend)
-      CASE (LIBXC_BACKEND_CPU)
-         libxc_current_backend = LIBXC_BACKEND_CPU
-      CASE (LIBXC_BACKEND_GPU)
-#if defined (__LIBXC_CUDA)
-         libxc_current_backend = LIBXC_BACKEND_GPU
-#else
-         CPABORT("GPU backend requested but CUDA Libxc not available")
-#endif
-      CASE DEFAULT
-         CPABORT("Invalid Libxc backend specified")
-      END SELECT
-   END SUBROUTINE libxc_set_backend
-
-! **************************************************************************************************
-!> \brief Set the libxc library to use (CPU or GPU), similar to SPLA backend selection
-!> \param library The library to use (do_libxc_cpu or do_libxc_gpu)
-! **************************************************************************************************
-   SUBROUTINE libxc_set_library(library)
-      INTEGER, INTENT(IN)                                :: library
-
-      SELECT CASE (library)
-      CASE (do_libxc_cpu)
-         libxc_selected_library = do_libxc_cpu
-#if defined (__LIBXC_CUDA)
-      CASE (do_libxc_gpu)
-         libxc_selected_library = do_libxc_gpu
-#else
-      CASE (do_libxc_gpu)
-         CPABORT("GPU library requested but CUDA Libxc not available")
-#endif
-      CASE DEFAULT
-         CPABORT("Invalid Libxc library specified")
-      END SELECT
-
-      ! Automatically set the backend based on library selection
-      IF (libxc_selected_library == do_libxc_gpu) THEN
-         libxc_current_backend = LIBXC_BACKEND_GPU
-      ELSE
-         libxc_current_backend = LIBXC_BACKEND_CPU
-      END IF
-   END SUBROUTINE libxc_set_library
-
+   ! Backend selection functions (compile-time only via __LIBXC_GPU flag)
 ! **************************************************************************************************
 !> \brief ...
 !> \return ...
@@ -257,7 +203,11 @@ CONTAINS
    FUNCTION libxc_get_backend() RESULT(backend)
       INTEGER                                            :: backend
 
-      backend = libxc_current_backend
+#if defined(__LIBXC_GPU)
+      backend = 2  ! GPU backend
+#else
+      backend = 1  ! CPU backend
+#endif
    END FUNCTION libxc_get_backend
 
 ! **************************************************************************************************
@@ -271,16 +221,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! Set default flags based on CUDA availability
-#if defined (__LIBXC_CUDA)
-      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
-      libxc_selected_library = do_libxc_gpu
-      libxc_current_backend = LIBXC_BACKEND_GPU
-#else
+      ! Set default flags
       CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
-      libxc_selected_library = do_libxc_cpu
-      libxc_current_backend = LIBXC_BACKEND_CPU
-#endif
 
       CALL timestop(handle)
    END SUBROUTINE xc_libxc_wrap_init_cuda_safe
@@ -659,26 +601,21 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: functional
       INTEGER, INTENT(IN), OPTIONAL                      :: nspin
 
-      SELECT CASE (libxc_current_backend)
-      CASE (LIBXC_BACKEND_CPU)
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
-         IF (PRESENT(nspin)) THEN
-            CALL xc_f03_func_init(func, functional, nspin)
-         ELSE
-            CALL xc_f03_func_init(func, functional, XC_UNPOLARIZED)
-         END IF
-      CASE (LIBXC_BACKEND_GPU)
-#if defined (__LIBXC_CUDA)
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
-         IF (PRESENT(nspin)) THEN
-            CALL xc_f03_func_init(func, functional, nspin)
-         ELSE
-            CALL xc_f03_func_init(func, functional, XC_UNPOLARIZED)
-         END IF
+#if defined(__LIBXC_GPU)
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
+      IF (PRESENT(nspin)) THEN
+         CALL xc_f03_func_init(func, functional, nspin)
+      ELSE
+         CALL xc_f03_func_init(func, functional, XC_UNPOLARIZED)
+      END IF
 #else
-         CPABORT("GPU backend requested but CUDA Libxc not available")
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
+      IF (PRESENT(nspin)) THEN
+         CALL xc_f03_func_init(func, functional, nspin)
+      ELSE
+         CALL xc_f03_func_init(func, functional, XC_UNPOLARIZED)
+      END IF
 #endif
-      END SELECT
    END SUBROUTINE libxc_func_init_wrapper
 
 ! **************************************************************************************************
@@ -688,18 +625,7 @@ CONTAINS
    SUBROUTINE libxc_func_end_wrapper(func)
       TYPE(xc_f03_func_t), INTENT(INOUT)                 :: func
 
-      SELECT CASE (libxc_current_backend)
-      CASE (LIBXC_BACKEND_CPU)
-         CALL xc_f03_func_end(func)
-      CASE (LIBXC_BACKEND_GPU)
-#if defined (__LIBXC_CUDA)
-         ! For now, use CPU version until proper CUDA symbols are available
-         CALL xc_f03_func_end(func)
-         ! Directly call CUDA-enabled functions (same symbols, GPU-accelerated internally)
-#else
-         CPABORT("GPU backend requested but CUDA Libxc not available")
-#endif
-      END SELECT
+      CALL xc_f03_func_end(func)
    END SUBROUTINE libxc_func_end_wrapper
 
 #endif
@@ -713,7 +639,11 @@ CONTAINS
    FUNCTION libxc_is_cuda() RESULT(is_cuda)
       LOGICAL                                            :: is_cuda
 
-      is_cuda = (libxc_current_backend == LIBXC_BACKEND_GPU)
+#if defined(__LIBXC_GPU)
+      is_cuda = .TRUE.
+#else
+      is_cuda = .FALSE.
+#endif
    END FUNCTION libxc_is_cuda
 
 ! **************************************************************************************************
@@ -1178,13 +1108,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, sigma
       REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: exc, vrho, vsigma
 
-      IF (libxc_current_backend == LIBXC_BACKEND_GPU) THEN
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
-         CALL xc_f03_gga_exc_vxc(func, np, rho, sigma, exc, vrho, vsigma)
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
-      ELSE
-         CALL xc_f03_gga_exc_vxc(func, np, rho, sigma, exc, vrho, vsigma)
-      END IF
+#if defined(__LIBXC_GPU)
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
+      CALL xc_f03_gga_exc_vxc(func, np, rho, sigma, exc, vrho, vsigma)
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
+#else
+      CALL xc_f03_gga_exc_vxc(func, np, rho, sigma, exc, vrho, vsigma)
+#endif
    END SUBROUTINE libxc_gga_exc_vxc_wrapper
 
 ! **************************************************************************************************
@@ -1202,13 +1132,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, sigma
       REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: exc
 
-      IF (libxc_current_backend == LIBXC_BACKEND_GPU) THEN
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
-         CALL xc_f03_gga_exc(func, np, rho, sigma, exc)
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
-      ELSE
-         CALL xc_f03_gga_exc(func, np, rho, sigma, exc)
-      END IF
+#if defined(__LIBXC_GPU)
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
+      CALL xc_f03_gga_exc(func, np, rho, sigma, exc)
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
+#else
+      CALL xc_f03_gga_exc(func, np, rho, sigma, exc)
+#endif
    END SUBROUTINE libxc_gga_exc_wrapper
 
 ! **************************************************************************************************
@@ -1226,13 +1156,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho
       REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: exc, vrho
 
-      IF (libxc_current_backend == LIBXC_BACKEND_GPU) THEN
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
-         CALL xc_f03_lda_exc_vxc(func, np, rho, exc, vrho)
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
-      ELSE
-         CALL xc_f03_lda_exc_vxc(func, np, rho, exc, vrho)
-      END IF
+#if defined(__LIBXC_GPU)
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
+      CALL xc_f03_lda_exc_vxc(func, np, rho, exc, vrho)
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
+#else
+      CALL xc_f03_lda_exc_vxc(func, np, rho, exc, vrho)
+#endif
    END SUBROUTINE libxc_lda_exc_vxc_wrapper
 
 ! **************************************************************************************************
@@ -1249,13 +1179,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho
       REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: exc
 
-      IF (libxc_current_backend == LIBXC_BACKEND_GPU) THEN
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
-         CALL xc_f03_lda_exc(func, np, rho, exc)
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
-      ELSE
-         CALL xc_f03_lda_exc(func, np, rho, exc)
-      END IF
+#if defined(__LIBXC_GPU)
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
+      CALL xc_f03_lda_exc(func, np, rho, exc)
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
+#else
+      CALL xc_f03_lda_exc(func, np, rho, exc)
+#endif
    END SUBROUTINE libxc_lda_exc_wrapper
 
 ! **************************************************************************************************
@@ -1279,15 +1209,15 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, sigma, lapl, tau
       REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: exc, vrho, vsigma, vlapl, vtau
 
-      IF (libxc_current_backend == LIBXC_BACKEND_GPU) THEN
-         WRITE (*, *) "MGGA exc_vxc: Using GPU backend, np =", np
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
-         CALL xc_f03_mgga_exc_vxc(func, np, rho, sigma, lapl, tau, exc, vrho, vsigma, vlapl, vtau)
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
-      ELSE
-         WRITE (*, *) "MGGA exc_vxc: Using CPU backend, np =", np
-         CALL xc_f03_mgga_exc_vxc(func, np, rho, sigma, lapl, tau, exc, vrho, vsigma, vlapl, vtau)
-      END IF
+#if defined(__LIBXC_GPU)
+      WRITE (*, *) "MGGA exc_vxc: Using GPU backend, np =", np
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
+      CALL xc_f03_mgga_exc_vxc(func, np, rho, sigma, lapl, tau, exc, vrho, vsigma, vlapl, vtau)
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
+#else
+      WRITE (*, *) "MGGA exc_vxc: Using CPU backend, np =", np
+      CALL xc_f03_mgga_exc_vxc(func, np, rho, sigma, lapl, tau, exc, vrho, vsigma, vlapl, vtau)
+#endif
    END SUBROUTINE libxc_mgga_exc_vxc_wrapper
 
 ! **************************************************************************************************
@@ -1307,15 +1237,15 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, sigma, lapl, tau
       REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: exc
 
-      IF (libxc_current_backend == LIBXC_BACKEND_GPU) THEN
-         WRITE (*, *) "MGGA exc: Using GPU backend, np =", np
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
-         CALL xc_f03_mgga_exc(func, np, rho, sigma, lapl, tau, exc)
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
-      ELSE
-         WRITE (*, *) "MGGA exc: Using CPU backend, np =", np
-         CALL xc_f03_mgga_exc(func, np, rho, sigma, lapl, tau, exc)
-      END IF
+#if defined(__LIBXC_GPU)
+      WRITE (*, *) "MGGA exc: Using GPU backend, np =", np
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
+      CALL xc_f03_mgga_exc(func, np, rho, sigma, lapl, tau, exc)
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
+#else
+      WRITE (*, *) "MGGA exc: Using CPU backend, np =", np
+      CALL xc_f03_mgga_exc(func, np, rho, sigma, lapl, tau, exc)
+#endif
    END SUBROUTINE libxc_mgga_exc_wrapper
 
 ! **************************************************************************************************
@@ -1338,15 +1268,15 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, sigma, lapl, tau
       REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: vrho, vsigma, vlapl, vtau
 
-      IF (libxc_current_backend == LIBXC_BACKEND_GPU) THEN
-         WRITE (*, *) "MGGA vxc: Using GPU backend, np =", np
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
-         CALL xc_f03_mgga_vxc(func, np, rho, sigma, lapl, tau, vrho, vsigma, vlapl, vtau)
-         CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
-      ELSE
-         WRITE (*, *) "MGGA vxc: Using CPU backend, np =", np
-         CALL xc_f03_mgga_vxc(func, np, rho, sigma, lapl, tau, vrho, vsigma, vlapl, vtau)
-      END IF
+#if defined(__LIBXC_GPU)
+      WRITE (*, *) "MGGA vxc: Using GPU backend, np =", np
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
+      CALL xc_f03_mgga_vxc(func, np, rho, sigma, lapl, tau, vrho, vsigma, vlapl, vtau)
+      CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_HOST)
+#else
+      WRITE (*, *) "MGGA vxc: Using CPU backend, np =", np
+      CALL xc_f03_mgga_vxc(func, np, rho, sigma, lapl, tau, vrho, vsigma, vlapl, vtau)
+#endif
    END SUBROUTINE libxc_mgga_vxc_wrapper
 
 END MODULE xc_libxc_wrap
