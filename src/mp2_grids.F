@@ -53,7 +53,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Build a minimax time/frequency grid through the common backend boundary.
-!> \param unit_nr Optional output unit used by an external backend.
+!> \param unit_nr Output unit used by an external backend.
 !> \param num_points Number of minimax points.
 !> \param energy_min Lower end of the physical energy interval.
 !> \param energy_max Upper end of the physical energy interval.
@@ -86,13 +86,13 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: time_scaling, time_weight_scaling
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: max_fit_error
       LOGICAL, INTENT(IN), OPTIONAL                      :: print_warning
-      INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
-      LOGICAL, INTENT(IN), OPTIONAL                      :: prefer_external_backend
+      INTEGER, INTENT(IN)                                :: unit_nr
+      LOGICAL, INTENT(IN)                                :: prefer_external_backend
       LOGICAL, INTENT(OUT), OPTIONAL                     :: used_external_backend
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_minimax_time_frequency_grid'
 
-      INTEGER                                            :: external_ierr, handle, ierr, my_unit_nr
+      INTEGER                                            :: external_ierr, handle, ierr
       LOGICAL                                            :: my_print_warning, used_external
       REAL(KIND=dp)                                      :: e_range, max_error
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: points_and_weights
@@ -100,19 +100,15 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       used_external = .FALSE.
-      IF (PRESENT(prefer_external_backend)) THEN
-         IF (prefer_external_backend) THEN
-            my_unit_nr = 0
-            IF (PRESENT(unit_nr)) my_unit_nr = unit_nr
-            CALL greenx_get_minimax_grid(my_unit_nr, num_points, energy_min, energy_max, regularization, grid, &
-                                         external_ierr)
-            used_external = (external_ierr == 0)
-            IF (used_external) THEN
-               IF (PRESENT(max_fit_error)) max_fit_error = 0.0_dp
-               IF (PRESENT(used_external_backend)) used_external_backend = .TRUE.
-               CALL timestop(handle)
-               RETURN
-            END IF
+      IF (prefer_external_backend) THEN
+         CALL greenx_get_minimax_grid(unit_nr, num_points, energy_min, energy_max, regularization, grid, &
+                                      external_ierr)
+         used_external = (external_ierr == 0)
+         IF (used_external) THEN
+            IF (PRESENT(max_fit_error)) max_fit_error = 0.0_dp
+            IF (PRESENT(used_external_backend)) used_external_backend = .TRUE.
+            CALL timestop(handle)
+            RETURN
          END IF
       END IF
 
@@ -204,11 +200,10 @@ CONTAINS
 !> \param do_kpoints_cubic_RPA ...
 !> \param e_fermi ...
 !> \param grid ...
-!> \param regularization ...
 ! **************************************************************************************************
    SUBROUTINE get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, &
                                do_im_time, do_ri_sos_laplace_mp2, do_print, qs_env, do_gw_im_time, &
-                               do_kpoints_cubic_RPA, e_fermi, grid, regularization)
+                               do_kpoints_cubic_RPA, e_fermi, grid)
 
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -221,14 +216,12 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_kpoints_cubic_RPA
       REAL(KIND=dp), INTENT(OUT)                         :: e_fermi
       TYPE(time_frequency_grid_type), INTENT(INOUT)      :: grid
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: regularization
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_minimax_grid'
       INTEGER, PARAMETER                                 :: num_points_per_magnitude = 200
 
       INTEGER                                            :: handle, jquad
-      REAL(KIND=dp)                                      :: E_Range, Emax, Emin, max_error_min, &
-                                                            my_regularization
+      REAL(KIND=dp)                                      :: E_Range, Emax, Emin, max_error_min
       LOGICAL                                            :: used_external_backend
 
       CALL timeset(routineN, handle)
@@ -245,18 +238,16 @@ CONTAINS
                       "strongly spin-asymmetric systems.")
       END IF
 
-      my_regularization = qs_env%mp2_env%ri_g0w0%regularization_minimax
-      IF (PRESENT(regularization)) my_regularization = regularization
-
-      CALL build_minimax_time_frequency_grid(num_integ_points, Emin, Emax, my_regularization, &
+      CALL build_minimax_time_frequency_grid(num_integ_points, Emin, Emax, &
+                                              qs_env%mp2_env%ri_g0w0%regularization_minimax, &
                                               num_points_per_magnitude, grid, &
                                               build_frequency=.NOT. do_ri_sos_laplace_mp2, &
-                                              build_time=do_im_time .OR. do_ri_sos_laplace_mp2, &
-                                              build_transforms=do_im_time .AND. .NOT. do_ri_sos_laplace_mp2, &
-                                              build_sine=do_im_time .AND. (.NOT. do_ri_sos_laplace_mp2) .AND. do_gw_im_time, &
+                                             build_time=do_im_time .OR. do_ri_sos_laplace_mp2, &
+                                             build_transforms=do_im_time .AND. .NOT. do_ri_sos_laplace_mp2, &
+                                             build_sine=do_im_time .AND. (.NOT. do_ri_sos_laplace_mp2) .AND. do_gw_im_time, &
                                               time_scaling=MERGE(1.0_dp, 2.0_dp, do_ri_sos_laplace_mp2), &
                                               time_weight_scaling=MERGE(1.0_dp, 2.0_dp, do_ri_sos_laplace_mp2), &
-                                              max_fit_error=max_error_min, unit_nr=unit_nr, &
+                                              max_fit_error=max_error_min, print_warning=.TRUE., unit_nr=unit_nr, &
                                               prefer_external_backend=.TRUE., used_external_backend=used_external_backend)
 
       ! Keep the native diagnostics and warning behavior in this RPA policy wrapper. The external
@@ -266,53 +257,51 @@ CONTAINS
          RETURN
       END IF
 
-      IF (PRESENT(regularization)) THEN
-         IF (num_integ_points > 20 .AND. e_range < 100.0_dp) THEN
-            IF (unit_nr > 0) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "You requested a large minimax grid (> 20 points) for a small minimax range R (R < 100). "// &
-                            "That may lead to numerical "// &
-                            "instabilities when computing minimax grid weights. You can prevent small ranges by choosing "// &
-                            "a larger basis set with higher angular momenta or alternatively using all-electron calculations.")
-            END IF
+      IF (num_integ_points > 20 .AND. e_range < 100.0_dp) THEN
+         IF (unit_nr > 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "You requested a large minimax grid (> 20 points) for a small minimax range R (R < 100). "// &
+                         "That may lead to numerical "// &
+                         "instabilities when computing minimax grid weights. You can prevent small ranges by choosing "// &
+                         "a larger basis set with higher angular momenta or alternatively using all-electron calculations.")
+         END IF
+      END IF
+
+      IF (.NOT. do_ri_sos_laplace_mp2) THEN
+         IF (unit_nr > 0 .AND. do_print) THEN
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+               "MINIMAX_INFO| Number of integration points:", num_integ_points
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+               "MINIMAX_INFO| Gap for the minimax approximation:", Emin
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+               "MINIMAX_INFO| Range for the minimax approximation:", e_range
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") "MINIMAX_INFO| Minimax parameters:", "Weights", "Abscissas"
+            DO jquad = 1, num_integ_points
+               WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") &
+                  grid%frequency_weights(jquad)/Emin, grid%frequency(jquad)/Emin
+            END DO
+            CALL m_flush(unit_nr)
+         END IF
+      END IF
+
+      IF (do_im_time .OR. do_ri_sos_laplace_mp2) THEN
+         IF (unit_nr > 0 .AND. do_print) THEN
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+               "MINIMAX_INFO| Range for the minimax approximation:", e_range
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+               "MINIMAX_INFO| Gap:", Emin
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
+               "MINIMAX_INFO| Minimax parameters of the time grid:", "Weights", "Abscissas"
+            DO jquad = 1, num_integ_points
+               WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") &
+                  grid%time_weights_at_zero_frequency(jquad)*Emin, grid%imaginary_time(jquad)*Emin
+            END DO
+            CALL m_flush(unit_nr)
          END IF
 
-         IF (.NOT. do_ri_sos_laplace_mp2) THEN
-            IF (unit_nr > 0 .AND. do_print) THEN
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                  "MINIMAX_INFO| Number of integration points:", num_integ_points
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-                  "MINIMAX_INFO| Gap for the minimax approximation:", Emin
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-                  "MINIMAX_INFO| Range for the minimax approximation:", e_range
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") "MINIMAX_INFO| Minimax parameters:", "Weights", "Abscissas"
-               DO jquad = 1, num_integ_points
-                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") &
-                     grid%frequency_weights(jquad)/Emin, grid%frequency(jquad)/Emin
-               END DO
-               CALL m_flush(unit_nr)
-            END IF
-         END IF
-
-         IF (do_im_time .OR. do_ri_sos_laplace_mp2) THEN
-            IF (unit_nr > 0 .AND. do_print) THEN
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-                  "MINIMAX_INFO| Range for the minimax approximation:", e_range
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-                  "MINIMAX_INFO| Gap:", Emin
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
-                  "MINIMAX_INFO| Minimax parameters of the time grid:", "Weights", "Abscissas"
-               DO jquad = 1, num_integ_points
-                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") &
-                     grid%time_weights_at_zero_frequency(jquad)*Emin, grid%imaginary_time(jquad)*Emin
-               END DO
-               CALL m_flush(unit_nr)
-            END IF
-
-            IF (unit_nr > 0 .AND. do_im_time .AND. do_gw_im_time .AND. .NOT. do_ri_sos_laplace_mp2) THEN
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
-                  "MINIMAX_INFO| Maximum deviation among requested minimax transform fits:", max_error_min
-            END IF
+         IF (unit_nr > 0 .AND. do_im_time .AND. do_gw_im_time .AND. .NOT. do_ri_sos_laplace_mp2) THEN
+            WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
+               "MINIMAX_INFO| Maximum deviation among requested minimax transform fits:", max_error_min
          END IF
       END IF
 

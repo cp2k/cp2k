@@ -1292,8 +1292,7 @@ CONTAINS
          do_print = .NOT. do_ic_model
          CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
                                do_ri_sos_laplace_mp2, do_print, &
-                               qs_env, do_gw_im_time, do_kpoints_cubic_RPA, e_fermi(1), time_frequency_grid, &
-                               qs_env%mp2_env%ri_g0w0%regularization_minimax)
+                               qs_env, do_gw_im_time, do_kpoints_cubic_RPA, e_fermi(1), time_frequency_grid)
 
          !For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
          IF (qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN

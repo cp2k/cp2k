@@ -2312,7 +2312,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_time_and_frequency_minimax_grid'
 
-      INTEGER                                            :: handle, homo, i_w, ispin, j_w, n_mo, &
+      INTEGER                                            :: handle, homo, ispin, n_mo, &
                                                             n_top, num_time_freq_points, u
       REAL(KIND=dp)                                      :: E_max, E_max_ispin, E_min, E_min_ispin, &
                                                             E_range, max_error_min
@@ -2364,25 +2364,16 @@ CONTAINS
                                              bs_env%num_points_per_magnitude, bs_env%time_frequency_grid, &
                                              build_frequency=.TRUE., build_time=.TRUE., build_transforms=.TRUE., &
                                              build_sine=.TRUE., time_scaling=2.0_dp, time_weight_scaling=1.0_dp, &
-                                             max_fit_error=max_error_min, print_warning=.FALSE.)
+                                             max_fit_error=max_error_min, print_warning=.FALSE., unit_nr=0, &
+                                             prefer_external_backend=.FALSE.)
 
       ! determine number of fit points in the interval [0,ω_max] for virt, or [-ω_max,0] for occ
-      bs_env%num_freq_points_fit = 0
-      DO i_w = 1, num_time_freq_points
-         IF (bs_env%time_frequency_grid%frequency(i_w) < bs_env%freq_max_fit) THEN
-            bs_env%num_freq_points_fit = bs_env%num_freq_points_fit + 1
-         END IF
-      END DO
+      bs_env%num_freq_points_fit = COUNT(bs_env%time_frequency_grid%frequency < bs_env%freq_max_fit)
 
       ! iω values for the analytic continuation Σ^c_n(iω,k) -> Σ^c_n(ϵ,k)
       ALLOCATE (bs_env%imag_freq_points_fit(bs_env%num_freq_points_fit))
-      j_w = 0
-      DO i_w = 1, num_time_freq_points
-         IF (bs_env%time_frequency_grid%frequency(i_w) < bs_env%freq_max_fit) THEN
-            j_w = j_w + 1
-            bs_env%imag_freq_points_fit(j_w) = bs_env%time_frequency_grid%frequency(i_w)
-         END IF
-      END DO
+      bs_env%imag_freq_points_fit(:) = PACK(bs_env%time_frequency_grid%frequency, &
+                                            bs_env%time_frequency_grid%frequency < bs_env%freq_max_fit)
 
       ! reset the number of Padé parameters if smaller than the number of
       ! imaginary-frequency points for the fit
