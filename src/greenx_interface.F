@@ -333,9 +333,9 @@ CONTAINS
                            max_errors_greenx, cosft_duality_error_greenx, ierr, &
                            bare_cos_sin_weights=.TRUE., &
                            regularization=regularization_minimax)
-      ! Factor 4 is hard-coded in the RPA weights in the internal CP2K minimax routines
-      grid%frequency_weights(:) = grid%frequency_weights(:)*4.0_dp
       IF (ierr == 0) THEN
+         ! Factor 4 is hard-coded in the RPA weights in the internal CP2K minimax routines
+         grid%frequency_weights(:) = grid%frequency_weights(:)*4.0_dp
          IF (unit_nr > 0) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "GREENX MINIMAX_INFO| Number of integration points:", num_integ_points

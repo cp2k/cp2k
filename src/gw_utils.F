@@ -2363,8 +2363,7 @@ CONTAINS
       CALL build_minimax_time_frequency_grid(num_time_freq_points, E_min, E_max, bs_env%regularization_minimax, &
                                              bs_env%num_points_per_magnitude, bs_env%time_frequency_grid, &
                                              build_frequency=.TRUE., build_time=.TRUE., build_transforms=.TRUE., &
-                                             build_sine=.TRUE., &
-                                             time_scaling=2.0_dp, time_weight_scaling=1.0_dp, &
+                                             build_sine=.TRUE., time_scaling=2.0_dp, time_weight_scaling=1.0_dp, &
                                              max_fit_error=max_error_min, print_warning=.FALSE.)
 
       ! determine number of fit points in the interval [0,ω_max] for virt, or [-ω_max,0] for occ

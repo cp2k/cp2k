@@ -52,7 +52,8 @@ MODULE mp2_grids
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Build a minimax time/frequency grid without caller-specific energy-range logic.
+!> \brief Build a minimax time/frequency grid through the common backend boundary.
+!> \param unit_nr Optional output unit used by an external backend.
 !> \param num_points Number of minimax points.
 !> \param energy_min Lower end of the physical energy interval.
 !> \param energy_max Upper end of the physical energy interval.
@@ -65,13 +66,16 @@ CONTAINS
 !> \param build_sine Whether to construct the sine time-to-frequency weights.
 !> \param time_scaling Scaling applied to the imaginary-time abscissas.
 !> \param time_weight_scaling Scaling applied to the imaginary-time weights.
+!> \param prefer_external_backend Whether to try an available external backend first.
+!> \param used_external_backend Whether the external backend supplied the grid.
 !> \param max_fit_error Maximum fitting error across all requested transforms.
 !> \param print_warning Whether the minimax coefficient routine prints warnings.
 ! **************************************************************************************************
    SUBROUTINE build_minimax_time_frequency_grid(num_points, energy_min, energy_max, regularization, &
                                                 num_points_per_magnitude, grid, build_frequency, build_time, &
                                                 build_transforms, build_sine, time_scaling, time_weight_scaling, &
-                                                max_fit_error, print_warning)
+                                                max_fit_error, print_warning, unit_nr, prefer_external_backend, &
+                                                used_external_backend)
 
       INTEGER, INTENT(IN)                                :: num_points
       REAL(KIND=dp), INTENT(IN)                          :: energy_min, energy_max, regularization
@@ -82,15 +86,35 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: time_scaling, time_weight_scaling
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: max_fit_error
       LOGICAL, INTENT(IN), OPTIONAL                      :: print_warning
+      INTEGER, INTENT(IN), OPTIONAL                      :: unit_nr
+      LOGICAL, INTENT(IN), OPTIONAL                      :: prefer_external_backend
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: used_external_backend
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_minimax_time_frequency_grid'
 
-      INTEGER                                            :: handle, ierr
-      LOGICAL                                            :: my_print_warning
+      INTEGER                                            :: external_ierr, handle, ierr, my_unit_nr
+      LOGICAL                                            :: my_print_warning, used_external
       REAL(KIND=dp)                                      :: e_range, max_error
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: points_and_weights
 
       CALL timeset(routineN, handle)
+
+      used_external = .FALSE.
+      IF (PRESENT(prefer_external_backend)) THEN
+         IF (prefer_external_backend) THEN
+            my_unit_nr = 0
+            IF (PRESENT(unit_nr)) my_unit_nr = unit_nr
+            CALL greenx_get_minimax_grid(my_unit_nr, num_points, energy_min, energy_max, regularization, grid, &
+                                         external_ierr)
+            used_external = (external_ierr == 0)
+            IF (used_external) THEN
+               IF (PRESENT(max_fit_error)) max_fit_error = 0.0_dp
+               IF (PRESENT(used_external_backend)) used_external_backend = .TRUE.
+               CALL timestop(handle)
+               RETURN
+            END IF
+         END IF
+      END IF
 
       CPASSERT(num_points > 0)
       CPASSERT(energy_min > 0.0_dp)
@@ -161,6 +185,8 @@ CONTAINS
 
       CALL timestop(handle)
 
+      IF (PRESENT(used_external_backend)) used_external_backend = .FALSE.
+
    END SUBROUTINE build_minimax_time_frequency_grid
 
 ! **************************************************************************************************
@@ -200,9 +226,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_minimax_grid'
       INTEGER, PARAMETER                                 :: num_points_per_magnitude = 200
 
-      INTEGER                                            :: handle, ierr, jquad
+      INTEGER                                            :: handle, jquad
       REAL(KIND=dp)                                      :: E_Range, Emax, Emin, max_error_min, &
-                                                            my_regularization, scaling
+                                                            my_regularization
+      LOGICAL                                            :: used_external_backend
 
       CALL timeset(routineN, handle)
 
@@ -221,11 +248,20 @@ CONTAINS
       my_regularization = qs_env%mp2_env%ri_g0w0%regularization_minimax
       IF (PRESENT(regularization)) my_regularization = regularization
 
-      CALL greenx_get_minimax_grid(unit_nr, num_integ_points, emin, emax, &
-                                   my_regularization, grid, ierr)
+      CALL build_minimax_time_frequency_grid(num_integ_points, Emin, Emax, my_regularization, &
+                                              num_points_per_magnitude, grid, &
+                                              build_frequency=.NOT. do_ri_sos_laplace_mp2, &
+                                              build_time=do_im_time .OR. do_ri_sos_laplace_mp2, &
+                                              build_transforms=do_im_time .AND. .NOT. do_ri_sos_laplace_mp2, &
+                                              build_sine=do_im_time .AND. (.NOT. do_ri_sos_laplace_mp2) .AND. do_gw_im_time, &
+                                              time_scaling=MERGE(1.0_dp, 2.0_dp, do_ri_sos_laplace_mp2), &
+                                              time_weight_scaling=MERGE(1.0_dp, 2.0_dp, do_ri_sos_laplace_mp2), &
+                                              max_fit_error=max_error_min, unit_nr=unit_nr, &
+                                              prefer_external_backend=.TRUE., used_external_backend=used_external_backend)
 
-      ! Shortcut if Greenx was available and successful
-      IF (ierr == 0) THEN
+      ! Keep the native diagnostics and warning behavior in this RPA policy wrapper. The external
+      ! backend provides its own diagnostics through greenx_interface.
+      IF (used_external_backend) THEN
          CALL timestop(handle)
          RETURN
       END IF
@@ -240,17 +276,6 @@ CONTAINS
                             "a larger basis set with higher angular momenta or alternatively using all-electron calculations.")
             END IF
          END IF
-
-         scaling = 2.0_dp
-         IF (do_ri_sos_laplace_mp2) scaling = 1.0_dp
-         CALL build_minimax_time_frequency_grid(num_integ_points, Emin, Emax, my_regularization, &
-                                                num_points_per_magnitude, grid, &
-                                                build_frequency=.NOT. do_ri_sos_laplace_mp2, &
-                                                build_time=do_im_time .OR. do_ri_sos_laplace_mp2, &
-                                                build_transforms=do_im_time .AND. .NOT. do_ri_sos_laplace_mp2, &
-                                                build_sine=do_im_time .AND. (.NOT. do_ri_sos_laplace_mp2) .AND. do_gw_im_time, &
-                                                time_scaling=scaling, time_weight_scaling=scaling, &
-                                                max_fit_error=max_error_min)
 
          IF (.NOT. do_ri_sos_laplace_mp2) THEN
             IF (unit_nr > 0 .AND. do_print) THEN
