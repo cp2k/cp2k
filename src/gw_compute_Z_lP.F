@@ -47,15 +47,12 @@ MODULE gw_compute_Z_lP
                                               gw_3c_ws_release,&
                                               gw_3c_ws_type
    USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
-                                              int_8
+   USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: eri_3center
    USE machine,                         ONLY: m_flush,&
-                                              m_hostnm,&
-                                              m_memory_details,&
                                               m_walltime
-   USE message_passing,                 ONLY: mp_para_env_type
+   USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
+                                              mp_para_env_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom
@@ -2546,7 +2543,7 @@ CONTAINS
       ! 1 = force single-rank BLAS for every atom; >1 = classify by memory but use this
       ! fixed subgroup size G for the big atoms.
       auto_mode = (bs_env%ri_rs%n_procs_per_atom_z_lp <= 0)
-      CALL ri_rs_mem_avail_per_proc_GB(bs_env, mem_avail_GB)  ! collective over all ranks
+      CALL mp_mem_avail_per_rank_GB(bs_env%para_env, mem_avail_GB)  ! collective over all ranks
       budget_bytes = mem_safety*mem_avail_GB*1.0E9_dp
 
       n_small = 0
@@ -2823,52 +2820,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_phi_on_sphere
-
-! **************************************************************************************************
-!> \brief Available memory per MPI process (GB). /proc/meminfo reports node-wide memory, so
-!>        every rank on a node reads the SAME MemLikelyFree; the per-process share is
-!>        node_free / ranks_per_node (ranks grouped by a hostname hash exchanged via allgather).
-!>        Returns the MIN across all ranks (most-constrained node)
-!> \param bs_env ...
-!> \param mem_avail_GB ...
-! **************************************************************************************************
-   SUBROUTINE ri_rs_mem_avail_per_proc_GB(bs_env, mem_avail_GB)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), INTENT(OUT)                         :: mem_avail_GB
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ri_rs_mem_avail_per_proc_GB'
-
-      CHARACTER(LEN=default_string_length)               :: hostname
-      INTEGER                                            :: handle, host_hash, ic, n_procs, &
-                                                            ranks_per_node
-      INTEGER(KIND=int_8)                                :: h8, mem_buffers, mem_cached, mem_free, &
-                                                            mem_likely_free, mem_slab, &
-                                                            mem_sreclaimable, mem_total
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: all_host_hashes
-
-      CALL timeset(routineN, handle)
-
-      n_procs = bs_env%para_env%num_pe
-      CALL m_hostnm(hostname)
-      h8 = 0_int_8
-      DO ic = 1, LEN_TRIM(hostname)
-         h8 = MOD(h8*127_int_8 + INT(ICHAR(hostname(ic:ic)), int_8), 2147483647_int_8)
-      END DO
-      host_hash = INT(h8)
-      ALLOCATE (all_host_hashes(n_procs))
-      CALL bs_env%para_env%allgather(host_hash, all_host_hashes)
-      ranks_per_node = MAX(COUNT(all_host_hashes == host_hash), 1)
-      DEALLOCATE (all_host_hashes)
-
-      CALL m_memory_details(MemTotal=mem_total, MemFree=mem_free, Buffers=mem_buffers, &
-                            Cached=mem_cached, Slab=mem_slab, SReclaimable=mem_sreclaimable, &
-                            MemLikelyFree=mem_likely_free)
-      mem_avail_GB = REAL(mem_likely_free, dp)*1.0E-9_dp/REAL(ranks_per_node, dp)
-      CALL bs_env%para_env%min(mem_avail_GB)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE ri_rs_mem_avail_per_proc_GB
 
 ! **************************************************************************************************
 !> \brief Computes a three-center integral block directly in AUTO_RI contraction columns.
