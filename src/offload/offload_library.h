@@ -70,7 +70,7 @@ int offload_host_malloc(void **ptr__, const size_t size__);
  ******************************************************************************/
 int offload_host_free(void *ptr__);
 
-void offload_device_synchronize(void); 
+void offload_device_synchronize(void);
 
 #ifdef __cplusplus
 }

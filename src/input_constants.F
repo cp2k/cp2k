@@ -969,15 +969,15 @@ MODULE input_constants
                                                fftw_plan_measure = 2, &
                                                fftw_plan_patient = 3, &
                                                fftw_plan_exhaustive = 4
-    ! Local DGEMM library
-    INTEGER, PARAMETER, PUBLIC               :: do_dgemm_spla = 1, &
-                                                do_dgemm_blas = 2
+   ! Local DGEMM library
+   INTEGER, PARAMETER, PUBLIC               :: do_dgemm_spla = 1, &
+                                               do_dgemm_blas = 2
 
-    ! Libxc library selection (similar to DGEMM)
-    INTEGER, PARAMETER, PUBLIC               :: do_libxc_cpu = 1, &
-                                                do_libxc_gpu = 2
+   ! Libxc library selection (similar to DGEMM)
+   INTEGER, PARAMETER, PUBLIC               :: do_libxc_cpu = 1, &
+                                               do_libxc_gpu = 2
 
-    !real time propagation
+   !real time propagation
    INTEGER, PARAMETER, PUBLIC               :: do_taylor = 1, &
                                                do_pade = 2, &
                                                do_arnoldi = 3, &
