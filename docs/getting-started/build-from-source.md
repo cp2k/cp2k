@@ -26,18 +26,23 @@ produced by either method is the root of the CP2K source tree, referred to below
 
 ### Release tarballs
 
-For a stable released version, download the versioned `cp2k-<version>.tar.bz2` asset from the
+For a stable released version, download the versioned `cp2k-{version}.tar.bz2` asset from the
 [CP2K releases](https://github.com/cp2k/cp2k/releases) page and unpack it:
 
 ```shell
-tar -xjf cp2k-<version>.tar.bz2
-cd cp2k-<version>
+tar -xjf cp2k-{version}.tar.bz2
+cd cp2k-{version}
 ```
 
 ```{tip}
 It is strongly recommended to use the versioned release tarball rather than GitHub's automatically
-generated `Source code` archive, especially for version <=2025.2. The versioned tarball is the
+generated `Source code` archive, especially for version \<=2025.2. The versioned tarball is the
 release artifact and contains any source components bundled for that release.
+
+A good practice for downloading anything from the Internet is to verify the file integrity with a
+checksum. Use `sha256sum cp2k-{version}.tar.bz2` (or the equivalent on other Linux distro) to get
+the SHA256 string of the downloaded file, and compare it with what is provided on the releases page
+for the version tarball; only when they match should the file be trusted.
 ```
 
 ### Git checkout
@@ -52,7 +57,7 @@ cd cp2k
 To check out a supported release branch, replace the branch name as appropriate:
 
 ```shell
-git clone --recursive -b support/v<version> https://github.com/cp2k/cp2k.git cp2k
+git clone --recursive -b support/v{version} https://github.com/cp2k/cp2k.git cp2k
 cd cp2k
 ```
 
@@ -91,14 +96,14 @@ Utilities available from package managers `apt-get`, `dnf` and the like, such as
 exhaustive list) are assumed to be readily available infrastructure.
 
 The following two methods provide a CP2K-managed dependency stack. For a manually managed
-environment, use the CMake configuration described below.
+environment, use the [CMake configuration](#cmake-configuration-options) described at the end.
 
 ### Toolchain-based build
 
 The toolchain scripts under the `tools/toolchain` directory build a CP2K-compatible, self-contained
 dependency stack and prepare the environment for a subsequent CP2K build. It is operated from the
-`install_cp2k_toolchain.sh` script and accompanied by `build_cp2k.sh`. To enter the directory and
-read help messages and the complete list of options, run:
+`install_cp2k_toolchain.sh` script and accompanied by `build_cp2k.sh`. To enter the directory from
+`CP2K_ROOT` and read help messages and the complete list of options, run:
 
 ```shell
 cd ./tools/toolchain/
@@ -112,29 +117,64 @@ To configure and install the dependencies requested by default options, run:
 ./install_cp2k_toolchain.sh
 ```
 
-After that, to build and install CP2K linked against them, run:
+By default, the dependencies will be built under `tools/toolchain/build/` and installed under
+`tools/toolchain/install/`. After completion, run the suggested command in the same working
+directory to build and install a copy of CP2K that is linked against them:
 
 ```shell
-./build_cp2k.sh
+./build_cp2k.sh -j {nprocs} --preset native-gnu-x86_64
 ```
 
-Everything is under the `CP2K_ROOT` directory mentioned above by default: the binaries and libraries
-of the dependencies are in `tools/toolchain/install/`, the CP2K build tree in `build/`, and the
-headers, modules, binary executables and a `cp2k_env` file in `install/`. (Before running CP2K, one
-must always source the `cp2k_env` file.) Options are also available to make installed dependencies
-and program outside of the source tree.
+The `-j {nprocs}` argument sets the number of parallel build jobs; it can be omitted for automatic
+detection of all available CPUs on the current machine, or it can be specified to overwrite the
+default value. The `--preset` argument specifies a CMake preset, which will be explained below at
+[](#cmake-configuration-options); here, the `install_cp2k_toolchain.sh` option `--target-cpu=native`
+(default if omitted) will suggest an appropriate preset based on the compiler and architecture.
+
+Everything is under the `CP2K_ROOT` directory mentioned above by default: the CP2K build tree in
+`build/`, and the headers, modules, binary executables and a `cp2k_env` file in `install/`. Options
+are also available to make installed dependencies and program outside of the source tree.
 
 ```shell
 ./install_cp2k_toolchain.sh --install-dir=/opt/cp2k/toolchain
-./build_cp2k.sh --prefix /opt/cp2k
+./build_cp2k.sh --prefix /opt/cp2k -j {nprocs} --preset native-gnu-x86_64
 ```
 
-```{note}
-The toolchain does not cover every optional dependency or feature combination, such as DLA-Future,
-PEXSI, and optional SIRIUS features including NLCG. If these features are needed, the Spack-based
-build as detailed below is the more recommended method. While the toolchain offers some support for
-GPU builds, it is more limited than the Spack-based method.
+Remember to always source the `cp2k_env` file before starting the program in the current shell and
+session. (This is easy to miss on a HPC server where one submits jobs from a login node to another
+computing node with job scripts!) For instance, if `CP2K_ROOT` is `/opt/cp2k`, the `--prefix` option
+of `build_cp2k.sh` is the default (i.e. `install`), then a quick look at the version information
+would use the commands below (as input to the command line prompt or as part of the job script).
+
+```shell
+source /opt/cp2k/install/cp2k_env
+cp2k.psmp -v
 ```
+
+The intended output is something like this, with the block of compiler options omitted for brevity.
+
+```text
+ CP2K version 2026.2
+ Source code revision git:c92cc08
+ cp2kflags: omp libint fftw3 libxc elpa parallel scalapack mpi_f08 cosma libxs spglib openblas libdftd4 s_dftd3 mctc-lib tblite libvori libbqb
+ compiler: GCC version 14.3.1 20251022 (Red Hat 14.3.1-4)
+ compiler target: cpuid   1002 (x86_avx2)
+ compiler options:
+   [...]
+```
+
+#### Pros and Cons
+
+The toolchain-based build is suitable for cases where only the (near-)minimal essential dependencies
+are desired. Its reliance and interference with external package managers and internet connection is
+also minimal, and as such it comes in more handy in an offline scenario.
+
+The toolchain does not cover every optional dependency or feature combination, such as DLA-Future,
+PEXSI, and optional SIRIUS features including NLCG. Its support for GPU-accelerated builds is also
+limited. If these features are needed, the Spack-based build as detailed in the next section is the
+more recommended method. In fact, due to difficulties in extending the toolchain for increasingly
+sophisticated configurations involving nested dependencies, it _may_ be slimmed down or retired in
+favor of the modern, well-maintained Spack workflow in the future.
 
 ### Spack-based build via `make_cp2k.sh`
 
@@ -176,8 +216,8 @@ Usage: make_cp2k.sh [-bd | --build_deps]
                     [-cc | --check_conventions]
                     [-cray]
                     [-cv | --cp2k_version (pdbg | psmp | sdbg | ssmp | ssmp-static)]
-                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)
-                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)
+                    [-df | --disable | --disable_feature (all | FEATURE | PACKAGE | none)]
+                    [-ef | --enable | --enable_feature (all | FEATURE | PACKAGE | none)]
                     [-gm | -gpu  | --gpu_model (<CUDA SM code> | P100 | V100 | T400 | A100 | H100 | H200 | GH200 | B200 | none)]
                     [-gromacs GROMACS_VERSION]
                     [-gv | --gcc_version (10 | 11 | 12 | 13 | 14 | 15 | 16)]
@@ -251,28 +291,40 @@ Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | p
 
 </details><br>
 
-`make_cp2k.sh` creates and reuses the following directories below `CP2K_ROOT`:
-
-- `spack/` contains the local Spack installation and dependency stack. Remove or rename it to
-  rebuild all dependencies from scratch; `--build_deps` and `--build_deps_only` provide the same
-  behavior from the script.
-- `build/` contains the CMake build tree. Remove or rename it, or use `--rebuild_cp2k`, to
-  reconfigure and rebuild CP2K from scratch.
-- `install/` contains the installed CP2K files and is updated after each successful build.
+`make_cp2k.sh` creates and reuses a `spack/` directory under the `CP2K_ROOT`. It contains the local
+Spack installation and dependency stack. Remove or rename it to rebuild all dependencies from
+scratch; `--build_deps` and `--build_deps_only` provide the same behavior from the script.
 
 By default, compiled packages are also stored in a local cache. This significantly accelerates later
 dependency builds; see `--use_cache` for the available cache backends.
 
+```{note}
+The way Spack resolves a dependency stack is very different from that in a toolchain-based build;
+even with the same set of libraries intended to be freshly installed and linked to CP2K, the package
+download and disk usage can still make an overall difference.
+```
+
+The CP2K built with Spack can be started with the launcher script `install/bin/launch`. Suppose
+`CP2K_ROOT` is `/opt/cp2k`, then a version check goes as follows.
+
+```shell
+/opt/cp2k/install/bin/launch cp2k.psmp -v
+```
+
 #### Testing
 
-Add `-t` or `--test` followed by `TESTOPTS` to run a regression test after a successful build:
+To run a regression test immediately after a successful build, add `-t` or `--test` followed by test
+options surrounded by double quotes (`"TESTOPTS"`). The test options will be passed to the script
+`tests/do_regtest.py` as arguments.
 
 ```shell
 ./make_cp2k.sh --test "--maxtasks 16 --flagslow"
+# Alternatively: in case no options are needed, use an empty quote string
+./make_cp2k.sh --test ""
 ```
 
-Alternatively, run `install/bin/run_tests` after a successful build. The script prints usage
-examples at the end of a successful run.
+Alternatively, the script `install/bin/run_tests` produced after a successful build can be used to
+start a regression test later. The script prints usage examples at the end of a successful run.
 
 (build-gromacs-cp2k)=
 
@@ -297,50 +349,74 @@ example is given in the header of that
 
 ## CMake configuration options
 
-Detailed descriptions of most build options can be found in the technologies section together with
-description of available dependencies.
+Both toolchain and Spack utilize CMake configurations automatically for convenience after preparing
+the dependencies. Many of these options allow for CP2K to be built with support of a linked library;
+refer to the technologies section for details together with description of available dependencies.
 
 Here are some other important general options you may want to know:
 
-- `-G <Generator>` Specifies which type of build files would be generated. Default is
+- `-S {Source}` Specifies the path to source tree that contains the `src` directory and the
+  `CMakeLists.txt` file. With `CP2K_ROOT` as the working directory, simply use `-S .` for it.
+- `-B {Build}` Specifies the path to build. CMake is typically run *out-of-tree* in a separate
+  `build/` directory under the `CP2K_ROOT`, corresponding to the `-B build` usage. Note that any
+  in-source build or build in any directory with a `CMakeLists.txt` file is strictly *forbidden*.
+- `-G {Generator}` Specifies which type of build files would be generated. Default is
   `Unix Makefiles`, which generates a GNU Makefile and allows you to build with running `make` in
   the build directory. For GPU-accelerated builds, it is strongly advised to use `Ninja` as
   generator, which is also used by `make_cp2k.sh`; in this case, please ensure that Ninja is
   installed on your host system.
 - `-DCMAKE_BUILD_TYPE` Valid vaules are `Release` (default) and `Debug` (enables debug settings and
   generates `pdbg` or `sdbg` instead of `psmp` or `ssmp`; recommended for development).
-- `-DCMAKE_INSTALL_PREFIX` Specifies the installation path of CP2K. Assuming it is set to
-  `/path/to/installation`, there will be several subdirectories: `bin` for binaries like
-  `cp2k.psmp`, `include` for module files and headers, `lib` or `lib64` for libraries, and `share`
-  for some other files such as basis data. Default is `/usr/local`.
-- `-DBUILD_SHARED_LIBS` Specifies if shared libraries are built. Default is `ON`; if set `OFF`, a
-  static library will be built instead.
+- `-DCMAKE_INSTALL_PREFIX` Specifies the installation path.
+- `-DCMAKE_INSTALL_LIBDIR` Specifies the library path under the installation path. The default is
+  defined by CMake's `GNUInstallDirs` module and is dependent on the host system and architecture.
+  Both toolchain `build_cp2k.sh` and Spack-based `make_cp2k.sh` set `-DCMAKE_INSTALL_LIBDIR=lib` for
+  convenience, while an install from [package manager distributions](./distributions) respects the
+  `GNUInstallDirs` convention.
+- `-DBUILD_SHARED_LIBS` Specifies if shared libraries (e.g. `libcp2k.so`) will be built. Default is
+  `ON`; if set `OFF`, static libraries (e.g. `libcp2k.a`) will be built instead.
 - `-DCMAKE_POSITION_INDEPENDENT_CODE` Specifies if position-independent code is enabled.
 
 Along with some options with CP2K:
 
 - `-DCP2K_USE_EVERYTHING` Enables all dependencies or not.
-- `-DCP2K_DATA_DIR` Specifies the location of the data of basis and potentials. Default is
-  `/path/to/installation/share/cp2k/data`.
+- `-DCP2K_DATA_DIR` Specifies the location of the data for basis sets, pseudopotentials, etc. Any
+  data filename specified in the CP2K input without absolute path will be interpreted as under this
+  directory, which CP2K prioritizes when attempting to retrieve the data. It should *always* be
+  specified as an absolute path. It is created by copying over the existing `data` directory to the
+  location during installation. Default is `share/cp2k/data` under `-DCMAKE_INSTALL_PREFIX`.
 - `-DCP2K_ENABLE_CONSISTENCY_CHECKS` Only used for
   [testing](https://dashboard.cp2k.org/archive/misc/index.html).
 - `-DCP2K_USE_CRAY_PM_ENERGY` Enables power monitoring on Cray systems.
 - `-DCP2K_USE_CRAY_PM_ACCEL_ENERGY` Enables power monitoring of accelerators on Cray systems.
 - `-DCP2K_USE_DBCSR_CONFIG` Make dbcsr cmake options (`DBCSR_USE_BLA`) available.
 
-Note that CMake is typically run *out-of-tree* in a seperate `build/` directory. We don't allow
-in-source builds; if you run CMake in the root directory, it will give error.
+The options above do not cover architecture- and compiler-specific optimization profiles. Instead,
+they are handled by [CMake presets](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html)
+as defined in `CMakePresets.json`. For instance, the preset `native-gnu-x86_64` applies the flag
+`-march=native` to the GNU compilers (namely `gfortran`, `gcc`, `g++`; use `--help=target` on any of
+these, say `gfortran --help=target`, for more information on the flag) via `CMAKE_{LANG}_FLAGS`
+variables. It will produce binary executables that are optimized against the *host* machine by
+detecting and utilizing the appropriate native CPU instruction sets on the target x86_64
+architecture. (Again, be careful on a HPC server where login node and computing node are distinct!)
+
+Currently available CMake presets are listed with the command `cmake -S . --list-presets` under the
+`CP2K_ROOT`; the `native-*` ones are more relevant to practical use, while others are meant for
+specific developer instrumentation. For non-native optimization, just fall back to the preset `none`
+which does not apply any extraneous compiler flags.
 
 ### Example
 
-The following example builds CP2K with CUDA acceleration for Nvidia A100 GPUs and a few optional
-dependencies :
+The following example builds CP2K on a x86_64 machine with native optimization in GNU compilers,
+also enabling CUDA acceleration for Nvidia A100 GPUs and a few optional dependencies:
 
 ```bash
-cd <CP2K_REPOSITORY>
+cd {CP2K_ROOT}
 mkdir build/
-cmake -S . -B build \
+cmake -S . -B build --preset native-gnu-x86_64 \
     -GNinja \
+    -DCMAKE_INSTALL_PREFIX=install \
+    -DCMAKE_INSTALL_LIBDIR=lib \
     -DCP2K_USE_MPI=ON \
     -DCP2K_USE_LIBXC=ON \
     -DCP2K_USE_LIBINT2=ON \
@@ -356,7 +432,21 @@ cmake --build build -j 32
 cmake --install build
 ```
 
-- The commands `cmake --build build -j 32` and `cmake --install build` can be replaced by a single
-  command `cmake --build build --target install -j 32`.
-- If you want to clean your build cache after installing in order to save space, simply run
-  `cmake --build build --target clean`.
+```{tip}
+The commands `cmake --build build -j 32` and `cmake --install build` can be replaced by a single
+command `cmake --build build --target install -j 32`.
+```
+
+Two directories will be created under `CP2K_ROOT` in this procedure.
+
+- `build/` (name determined by CMake `-B` or `--build` options) contains the CMake build tree and
+  cache. It can be preserved for future rebuilds of CP2K with the same configuration. It can also be
+  removed after installation in order to save disk space or to make way for reconfiguring and
+  rebuilding from scratch; either the CMake command `cmake --build build --target clean` or the
+  generic `rm -r build/` will work.
+- `install/` (name determined by `-DCMAKE_INSTALL_PREFIX`) contains the installed CP2K files. Unlike
+  `build/`, `install/` must be kept in place as it includes several important subdirectories:
+  - `bin` for binary executables like `cp2k.psmp` and soft links;
+  - `include` for module files and headers;
+  - `lib` or `lib64` (name determined by `-DCMAKE_INSTALL_LIBDIR`) for libraries; and
+  - `share` for some other files such as basis data (`-DCP2K_DATA_DIR`).
