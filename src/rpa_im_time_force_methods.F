@@ -3963,41 +3963,47 @@ CONTAINS
       INTEGER                                            :: jquad
 
       IF (do_laplace .OR. do_im_time) THEN
-         IF (.NOT. ASSOCIATED(qs_env%mp2_env%ri_rpa_im_time%tau_tj)) THEN
-            ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%tau_tj(num_integ_points))
-            ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%tau_wj(num_integ_points))
-            qs_env%mp2_env%ri_rpa_im_time%tau_tj(:) = tau_tj(:)
-            qs_env%mp2_env%ri_rpa_im_time%tau_wj(:) = tau_wj(:)
+         IF (.NOT. ALLOCATED(qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%imaginary_time)) THEN
+            ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%imaginary_time(num_integ_points))
+            ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%time_weights_at_zero_frequency(num_integ_points))
+            qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%imaginary_time(:) = tau_tj(:)
+            qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%time_weights_at_zero_frequency(:) = tau_wj(:)
          ELSE
             !If weights already stored, we overwrite the new ones
-            tau_tj(:) = qs_env%mp2_env%ri_rpa_im_time%tau_tj(:)
-            tau_wj(:) = qs_env%mp2_env%ri_rpa_im_time%tau_wj(:)
+            tau_tj(:) = qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%imaginary_time(:)
+            tau_wj(:) = qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%time_weights_at_zero_frequency(:)
          END IF
       END IF
       IF (.NOT. do_laplace) THEN
-         IF (.NOT. ASSOCIATED(qs_env%mp2_env%ri_rpa_im_time%tj)) THEN
-            ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%tj(num_integ_points))
-            ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%wj(num_integ_points))
-            qs_env%mp2_env%ri_rpa_im_time%tj(:) = tj(:)
-            qs_env%mp2_env%ri_rpa_im_time%wj(:) = wj(:)
+         IF (.NOT. ALLOCATED(qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%frequency)) THEN
+            ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%frequency(num_integ_points))
+            ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%frequency_weights(num_integ_points))
+            qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%frequency(:) = tj(:)
+            qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%frequency_weights(:) = wj(:)
             IF (do_im_time) THEN
-               ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w(num_integ_points, num_integ_points))
-               ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t(num_integ_points, num_integ_points))
-               qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w(:, :) = weights_cos_tf_t_to_w(:, :)
-               qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t(:, :) = weights_cos_tf_w_to_t(:, :)
+               ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_time_to_frequency_weights( &
+                         num_integ_points, num_integ_points))
+               ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_frequency_to_time_weights( &
+                         num_integ_points, num_integ_points))
+               qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_time_to_frequency_weights(:, :) = &
+                  weights_cos_tf_t_to_w(:, :)
+               qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_frequency_to_time_weights(:, :) = &
+                  weights_cos_tf_w_to_t(:, :)
             END IF
          ELSE
-            tj(:) = qs_env%mp2_env%ri_rpa_im_time%tj(:)
-            wj(:) = qs_env%mp2_env%ri_rpa_im_time%wj(:)
+            tj(:) = qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%frequency(:)
+            wj(:) = qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%frequency_weights(:)
             IF (do_im_time) THEN
-               weights_cos_tf_t_to_w(:, :) = qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_t_to_w(:, :)
-               weights_cos_tf_w_to_t(:, :) = qs_env%mp2_env%ri_rpa_im_time%weights_cos_tf_w_to_t(:, :)
+               weights_cos_tf_t_to_w(:, :) = &
+                  qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_time_to_frequency_weights(:, :)
+               weights_cos_tf_w_to_t(:, :) = &
+                  qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%cosine_frequency_to_time_weights(:, :)
             END IF
          END IF
       END IF
       IF (unit_nr > 0) THEN
          !Printing order same as in mp2_grids.F for consistency
-         IF (ASSOCIATED(qs_env%mp2_env%ri_rpa_im_time%tj) .AND. (.NOT. do_laplace)) THEN
+         IF (ALLOCATED(qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%frequency) .AND. (.NOT. do_laplace)) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "MINIMAX_INFO| Number of integration points:", num_integ_points
             WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
@@ -4007,7 +4013,7 @@ CONTAINS
             END DO
             CALL m_flush(unit_nr)
          END IF
-         IF (ASSOCIATED(qs_env%mp2_env%ri_rpa_im_time%tau_tj)) THEN
+         IF (ALLOCATED(qs_env%mp2_env%ri_rpa_im_time%time_frequency_grid%imaginary_time)) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                "MINIMAX_INFO| Number of integration points:", num_integ_points
             WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &

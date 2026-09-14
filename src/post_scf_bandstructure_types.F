@@ -44,6 +44,8 @@ MODULE post_scf_bandstructure_types
    USE physcon,                         ONLY: angstrom,&
                                               evolt
    USE qs_tensors_types,                ONLY: neighbor_list_3c_type
+   USE time_frequency_grid_types,       ONLY: time_frequency_grid_release,&
+                                              time_frequency_grid_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -257,13 +259,8 @@ MODULE post_scf_bandstructure_types
       ! imaginary time and frequency grids
       INTEGER                                         :: num_time_freq_points = -1, &
                                                          num_freq_points_fit = -1
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE        :: imag_time_points, &
-                                                         imag_time_weights_freq_zero, &
-                                                         imag_freq_points, &
-                                                         imag_freq_points_fit
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE     :: weights_cos_t_to_w, &
-                                                         weights_cos_w_to_t, &
-                                                         weights_sin_t_to_w
+      TYPE(time_frequency_grid_type)                  :: time_frequency_grid
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE        :: imag_freq_points_fit
       INTEGER                                         :: nparam_pade = -1, &
                                                          num_points_per_magnitude = -1
       REAL(KIND=dp)                                   :: freq_max_fit = -1.0_dp, &
@@ -493,9 +490,7 @@ CONTAINS
       IF (ALLOCATED(bs_env%wkp_no_extra)) DEALLOCATE (bs_env%wkp_no_extra)
       IF (ALLOCATED(bs_env%l_RI)) DEALLOCATE (bs_env%l_RI)
       IF (ALLOCATED(bs_env%xkp_special)) DEALLOCATE (bs_env%xkp_special)
-      IF (ALLOCATED(bs_env%imag_time_points)) DEALLOCATE (bs_env%imag_time_points)
-      IF (ALLOCATED(bs_env%imag_time_weights_freq_zero)) DEALLOCATE (bs_env%imag_time_weights_freq_zero)
-      IF (ALLOCATED(bs_env%imag_freq_points)) DEALLOCATE (bs_env%imag_freq_points)
+      CALL time_frequency_grid_release(bs_env%time_frequency_grid)
       IF (ALLOCATED(bs_env%eigenval_scf_Gamma)) DEALLOCATE (bs_env%eigenval_scf_Gamma)
       IF (ALLOCATED(bs_env%eigenval_scf)) DEALLOCATE (bs_env%eigenval_scf)
       IF (ALLOCATED(bs_env%eigenval_GW)) DEALLOCATE (bs_env%eigenval_GW)
