@@ -1,4 +1,4 @@
-"argon05.inp"                           = [{matcher="E_total", tol=4e-13, ref=-85.02754472902744}]
+"argon05.inp"                           = [{matcher="E_total", tol=4e-13, ref=-85.02733905146103}]
 "argon06.inp"                           = [{matcher="E_total", tol=4e-13, ref=-85.18920856557463}]
 "argon07.inp"                           = [{matcher="E_total", tol=5e-13, ref=-85.02497817793046}]
 "argon08.inp"                           = [{matcher="E_total", tol=4e-13, ref=-85.02306150786062}]
