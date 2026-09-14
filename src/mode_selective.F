@@ -64,6 +64,7 @@ MODULE mode_selective
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mode_selective'
    LOGICAL, PARAMETER                   :: debug_this_module = .FALSE.
+   REAL(KIND=dp), PARAMETER             :: bfgs_guess_degeneracy_tol = 1.0E-8_dp
 
    TYPE ms_vib_type
       INTEGER                                  :: mat_size = -1
@@ -595,6 +596,7 @@ CONTAINS
                tmp(i) = ABS(my_val - ms_vib%eig_bfgs(i))
             END DO
          ELSE IF (ms_vib%select_id == 3) THEN
+            CALL bfgs_canonicalize_degenerate_modes(ms_vib%hes_bfgs, ms_vib%eig_bfgs)
             DO i = 1, ncoord
                DO j = 1, SIZE(ms_vib%inv_atoms)
                   DO k = 1, 3
@@ -627,6 +629,86 @@ CONTAINS
       ms_vib%mat_size = 0
 
    END SUBROUTINE bfgs_guess
+
+! **************************************************************************************************
+!> \brief Replace arbitrary bases of near-degenerate BFGS eigenspaces by deterministic ones.
+!>        This leaves the existing involved-atom scoring and mode ordering unchanged.
+!> \param modes Orthonormal Hessian eigenvectors
+!> \param eigenvalues Ascending Hessian eigenvalues
+! **************************************************************************************************
+   SUBROUTINE bfgs_canonicalize_degenerate_modes(modes, eigenvalues)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: modes
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues
+
+      INTEGER                                            :: first, last, n
+      REAL(KIND=dp)                                      :: cutoff, scale
+
+      n = SIZE(eigenvalues)
+      CPASSERT(SIZE(modes, 1) == n .AND. SIZE(modes, 2) == n)
+      cutoff = (400.0_dp/vibfac)**2/massunit
+
+      first = 1
+      DO WHILE (first <= n)
+         IF (eigenvalues(first) <= cutoff) THEN
+            first = first + 1
+            CYCLE
+         END IF
+         last = first
+         DO WHILE (last < n)
+            scale = MAX(ABS(eigenvalues(first)), ABS(eigenvalues(last + 1)))
+            IF (eigenvalues(last + 1) - eigenvalues(first) > bfgs_guess_degeneracy_tol*scale) EXIT
+            last = last + 1
+         END DO
+         IF (last > first) CALL bfgs_canonical_modes(modes(:, first:last))
+         first = last + 1
+      END DO
+   END SUBROUTINE bfgs_canonicalize_degenerate_modes
+
+! **************************************************************************************************
+!> \brief Fix a subspace basis using projections of Cartesian coordinate axes.
+!> \param modes Orthonormal basis, replaced by a deterministic orthonormal basis
+! **************************************************************************************************
+   SUBROUTINE bfgs_canonical_modes(modes)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: modes
+
+      INTEGER                                            :: i, j, k, m, n, pass, pivot
+      REAL(KIND=dp)                                      :: maximum, norm
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: norms, projection, vector
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: residual, rotation
+
+      n = SIZE(modes, 1)
+      m = SIZE(modes, 2)
+      ALLOCATE (residual(n, m), rotation(m, m), norms(n), projection(n), vector(m))
+      residual(:, :) = modes(:, :)
+      rotation(:, :) = 0.0_dp
+      DO j = 1, m
+         norms(:) = SUM(residual(:, :)**2, DIM=2)
+         maximum = MAXVAL(norms)
+         pivot = 1
+         DO i = 1, n
+            IF (norms(i) >= maximum*(1.0_dp - bfgs_guess_degeneracy_tol)) THEN
+               pivot = i
+               EXIT
+            END IF
+         END DO
+         vector(:) = residual(pivot, :)
+         DO pass = 1, 2
+            DO k = 1, j - 1
+               vector(:) = vector(:) - DOT_PRODUCT(rotation(:, k), vector)*rotation(:, k)
+            END DO
+         END DO
+         norm = NORM2(vector)
+         CPASSERT(norm > SQRT(EPSILON(1.0_dp)))
+         rotation(:, j) = vector(:)/norm
+         projection(:) = MATMUL(residual, rotation(:, j))
+         DO k = 1, m
+            residual(:, k) = residual(:, k) - projection(:)*rotation(k, j)
+         END DO
+      END DO
+      residual(:, :) = MATMUL(modes, rotation)
+      modes(:, :) = residual(:, :)
+      DEALLOCATE (residual, rotation, norms, projection, vector)
+   END SUBROUTINE bfgs_canonical_modes
 
 ! **************************************************************************************************
 !> \brief ...
