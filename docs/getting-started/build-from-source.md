@@ -26,18 +26,23 @@ produced by either method is the root of the CP2K source tree, referred to below
 
 ### Release tarballs
 
-For a stable released version, download the versioned `cp2k-<version>.tar.bz2` asset from the
+For a stable released version, download the versioned `cp2k-{version}.tar.bz2` asset from the
 [CP2K releases](https://github.com/cp2k/cp2k/releases) page and unpack it:
 
 ```shell
-tar -xjf cp2k-<version>.tar.bz2
-cd cp2k-<version>
+tar -xjf cp2k-{version}.tar.bz2
+cd cp2k-{version}
 ```
 
 ```{tip}
 It is strongly recommended to use the versioned release tarball rather than GitHub's automatically
-generated `Source code` archive, especially for version <=2025.2. The versioned tarball is the
+generated `Source code` archive, especially for version \<=2025.2. The versioned tarball is the
 release artifact and contains any source components bundled for that release.
+
+A good practice for downloading anything from the Internet is to verify the file integrity with a
+checksum. Use `sha256sum cp2k-{version}.tar.bz2` (or the equivalent on other Linux distro) to get
+the SHA256 string of the downloaded file, and compare it with what is provided on the releases page
+for the version tarball; only when they match should the file be trusted.
 ```
 
 ### Git checkout
@@ -52,7 +57,7 @@ cd cp2k
 To check out a supported release branch, replace the branch name as appropriate:
 
 ```shell
-git clone --recursive -b support/v<version> https://github.com/cp2k/cp2k.git cp2k
+git clone --recursive -b support/v{version} https://github.com/cp2k/cp2k.git cp2k
 cd cp2k
 ```
 
@@ -97,8 +102,8 @@ environment, use the [CMake configuration](#cmake-configuration-options) describ
 
 The toolchain scripts under the `tools/toolchain` directory build a CP2K-compatible, self-contained
 dependency stack and prepare the environment for a subsequent CP2K build. It is operated from the
-`install_cp2k_toolchain.sh` script and accompanied by `build_cp2k.sh`. To enter the directory and
-read help messages and the complete list of options, run:
+`install_cp2k_toolchain.sh` script and accompanied by `build_cp2k.sh`. To enter the directory from
+`CP2K_ROOT` and read help messages and the complete list of options, run:
 
 ```shell
 cd ./tools/toolchain/
@@ -112,21 +117,27 @@ To configure and install the dependencies requested by default options, run:
 ./install_cp2k_toolchain.sh
 ```
 
-After that, to build and install CP2K linked against them, run:
+By default, the dependencies will be built under `tools/toolchain/build/` and installed under
+`tools/toolchain/install/`. After completion, run the suggested command in the same working
+directory to build and install a copy of CP2K that is linked against them:
 
 ```shell
-./build_cp2k.sh
+./build_cp2k.sh -j {nprocs} --preset native-gnu-x86_64
 ```
 
-Everything is under the `CP2K_ROOT` directory mentioned above by default: the binaries and libraries
-of the dependencies are in `tools/toolchain/install/`, the CP2K build tree in `build/`, and the
-headers, modules, binary executables and a `cp2k_env` file in `install/`. Options are also available
-to make installed dependencies and program outside of the source tree, and to specify a CMake preset
-based on the target architecture.
+The `-j {nprocs}` argument sets the number of parallel build jobs; it can be omitted for automatic
+detection of all available CPUs on the current machine, or it can be specified to overwrite the
+default value. The `--preset` argument specifies a CMake preset, which will be explained below at
+[](#cmake-configuration-options); here, the `install_cp2k_toolchain.sh` option `--target-cpu=native`
+(default if omitted) will suggest an appropriate preset based on the compiler and architecture.
+
+Everything is under the `CP2K_ROOT` directory mentioned above by default: the CP2K build tree in
+`build/`, and the headers, modules, binary executables and a `cp2k_env` file in `install/`. Options
+are also available to make installed dependencies and program outside of the source tree.
 
 ```shell
 ./install_cp2k_toolchain.sh --install-dir=/opt/cp2k/toolchain
-./build_cp2k.sh --prefix /opt/cp2k --preset native-gnu-x86_64
+./build_cp2k.sh --prefix /opt/cp2k -j {nprocs} --preset native-gnu-x86_64
 ```
 
 Remember to always source the `cp2k_env` file before starting the program in the current shell and
@@ -344,12 +355,12 @@ refer to the technologies section for details together with description of avail
 
 Here are some other important general options you may want to know:
 
-- `-S <Source>` Specifies the path to source tree that contains the `src` directory and the
+- `-S {Source}` Specifies the path to source tree that contains the `src` directory and the
   `CMakeLists.txt` file. With `CP2K_ROOT` as the working directory, simply use `-S .` for it.
-- `-B <Build>` Specifies the path to build. CMake is typically run *out-of-tree* in a separate
+- `-B {Build}` Specifies the path to build. CMake is typically run *out-of-tree* in a separate
   `build/` directory under the `CP2K_ROOT`, corresponding to the `-B build` usage. Note that any
   in-source build or build in any directory with a `CMakeLists.txt` file is strictly *forbidden*.
-- `-G <Generator>` Specifies which type of build files would be generated. Default is
+- `-G {Generator}` Specifies which type of build files would be generated. Default is
   `Unix Makefiles`, which generates a GNU Makefile and allows you to build with running `make` in
   the build directory. For GPU-accelerated builds, it is strongly advised to use `Ninja` as
   generator, which is also used by `make_cp2k.sh`; in this case, please ensure that Ninja is
@@ -384,11 +395,15 @@ The options above do not cover architecture- and compiler-specific optimization 
 they are handled by [CMake presets](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html)
 as defined in `CMakePresets.json`. For instance, the preset `native-gnu-x86_64` applies the flag
 `-march=native` to the GNU compilers (namely `gfortran`, `gcc`, `g++`; use `--help=target` on any of
-these for more information on the flag) via `CMAKE_<LANG>_FLAGS` variables. It will produce binary
-executables that are optimized against the host machine by detecting and utilizing the appropriate
-native CPU instruction sets on the target x86_64 architecture. CMake presets are listed with the
-command `cmake -S . --list-presets` under the `CP2K_ROOT`; the `native-*` ones are more relevant to
-practical use, while others are meant for developer instrumentation.
+these, say `gfortran --help=target`, for more information on the flag) via `CMAKE_{LANG}_FLAGS`
+variables. It will produce binary executables that are optimized against the *host* machine by
+detecting and utilizing the appropriate native CPU instruction sets on the target x86_64
+architecture. (Again, be careful on a HPC server where login node and computing node are distinct!)
+
+Currently available CMake presets are listed with the command `cmake -S . --list-presets` under the
+`CP2K_ROOT`; the `native-*` ones are more relevant to practical use, while others are meant for
+specific developer instrumentation. For non-native optimization, just fall back to the preset `none`
+which does not apply any extraneous compiler flags.
 
 ### Example
 
@@ -396,7 +411,7 @@ The following example builds CP2K on a x86_64 machine with native optimization i
 also enabling CUDA acceleration for Nvidia A100 GPUs and a few optional dependencies:
 
 ```bash
-cd <CP2K_ROOT>
+cd {CP2K_ROOT}
 mkdir build/
 cmake -S . -B build --preset native-gnu-x86_64 \
     -GNinja \

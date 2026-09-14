@@ -76,22 +76,13 @@ while [ $# -ge 1 ]; do
       ;;
     --prefix=*)
       PREFIX_SET="__TRUE__"
-      if [[ "${1#*=}" != /* ]]; then
-        report_error "The path for --prefix must be an absolute path."
-      fi
-      CMAKE_INSTALL_PREFIX="${1#*=}"
+      CMAKE_INSTALL_PREFIX="$(real_path "${1#--prefix=}")"
       ;;
     --preset=*)
-      PRESET_SET="__TRUE__"
-      case "${1#*=}" in
-        native-gnu-x86_64 | native-gnu-arm64 | native-intel | none)
-          CMAKE_PRESET="${1#*=}"
-          ;;
-        *)
-          report_warning "Unknown CMake preset: ${1#*=}. Default to \"none\"."
-          CMAKE_PRESET="none"
-          ;;
-      esac
+      CMAKE_PRESET="${1#--preset=}"
+      if [ ! -z "${CMAKE_PRESET}" ]; then
+        PRESET_SET="__TRUE__"
+      fi
       ;;
     --debug)
       DEBUG_SET="__TRUE__"
@@ -126,11 +117,9 @@ Please run this script without "--rebuild-only" if you want to change CMake sett
 EOF
     exit 1
   fi
-else
-  if [ "${PRESET_SET}" = "__FALSE__" ]; then
-    report_warning "No CMake preset is specified; default to \"none\"."
-    CMAKE_PRESET="none"
-  fi
+elif [ "${PRESET_SET}" = "__FALSE__" ]; then
+  report_warning "No CMake preset is specified; default to \"none\"."
+  CMAKE_PRESET="none"
 fi
 
 # ====================== Pre-checks ======================
@@ -206,7 +195,7 @@ CMAKE_OPTIONS+=" -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}"
 if [[ ${CMAKE_INSTALL_PREFIX} == ${CP2K_ROOT}/* ]]; then
   CMAKE_OPTIONS+=" -DCP2K_DATA_DIR=${CP2K_ROOT}/data"
 fi
-if [ ${DEBUG_BUILD} == "__TRUE__" ]; then
+if [ "${DEBUG_BUILD}" = "__TRUE__" ]; then
   CMAKE_OPTIONS+=" -DCMAKE_BUILD_TYPE=Debug"
 fi
 if [ -n "$(grep -- "--install-all" "${TOOLCHAIN_ROOTDIR}/toolchain_settings")" ]; then
@@ -404,7 +393,7 @@ EOF
 Please always source this script to load CP2K environment before running CP2K:
   source ${CMAKE_INSTALL_PREFIX}/cp2k_env
 
-It's suggested to run regtests after installation:
+It is suggested to run regtests after installation:
   ${CP2K_ROOT}/tests/do_regtest.py ${CMAKE_INSTALL_PREFIX}/bin psmp
 Run \`${CP2K_ROOT}/tests/do_regtest.py --help\` for help message.
 

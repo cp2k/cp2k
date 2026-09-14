@@ -85,7 +85,7 @@ case "${with_elpa}" in
         echo "Installing from scratch into ${pkg_install_dir}/${TARGET}"
 
         gnu_ldflags="-Wl,--allow-multiple-definition -Wl,--enable-new-dtags"
-        if [[ "$(uname)" == "Darwin" ]]; then
+        if [ "$(uname)" = "Darwin" ]; then
           gnu_ldflags=""
           config_flags="${config_flags} --enable-affinity-checking=no"
         fi
