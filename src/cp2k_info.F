@@ -115,6 +115,9 @@ CONTAINS
 #if defined(__LIBXC)
       flags = TRIM(flags)//" libxc"
 #endif
+#if defined(__LIBXC_GPU)
+      flags = TRIM(flags)//" libxc_gpu"
+#endif
 #if defined(__GAUXC)
       flags = TRIM(flags)//" gauxc"
 #endif

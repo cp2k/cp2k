@@ -1101,7 +1101,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
             FORCE)
   # set the possible values of build type for cmake-gui
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
-                                               "Coverage")
+                                               "RelWithDebInfo")
 endif()
 
 # compiler configuration could have impacted package discovery (above)
@@ -1188,8 +1188,9 @@ if(CP2K_USE_CUSOLVER_MP)
 endif()
 
 if(CP2K_USE_LIBXC)
-  message("  - LibXC\n" "    - Include directories: ${Libxc_INCLUDE_DIRS}\n"
-          "    - Libraries: ${Libxc_LIBRARIES}\n")
+  message("  - LibXC\n"
+          "    - Include directories: ${LIBXC_CPU_INCLUDE_DIRS}\n"
+          "    - Libraries: ${LIBXC_CPU_LIBRARIES}\n")
 endif()
 
 if(CP2K_USE_GAUXC)
