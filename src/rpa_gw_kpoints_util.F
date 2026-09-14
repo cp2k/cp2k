@@ -77,6 +77,7 @@ MODULE rpa_gw_kpoints_util
                                               get_atom_index_from_basis_function_index
    USE rpa_im_time,                     ONLY: init_cell_index_rpa
    USE scf_control_types,               ONLY: scf_control_type
+   USE time_frequency_grid_types,       ONLY: time_frequency_grid_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -94,16 +95,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param dimen_RI ...
-!> \param num_integ_points ...
 !> \param jquad ...
 !> \param nkp ...
 !> \param count_ev_sc_GW ...
 !> \param para_env ...
 !> \param Erpa ...
-!> \param tau_tj ...
-!> \param tj ...
-!> \param wj ...
-!> \param weights_cos_tf_w_to_t ...
+!> \param grid ...
 !> \param wkp_W ...
 !> \param do_gw_im_time ...
 !> \param do_ri_Sigma_x ...
@@ -124,8 +121,8 @@ CONTAINS
 !> \param fm_matrix_Minv ...
 !> \param fm_matrix_Minv_Vtrunc_Minv ...
 ! **************************************************************************************************
-   SUBROUTINE invert_eps_compute_W_and_Erpa_kp(dimen_RI, num_integ_points, jquad, nkp, count_ev_sc_GW, para_env, &
-                                               Erpa, tau_tj, tj, wj, weights_cos_tf_w_to_t, wkp_W, do_gw_im_time, &
+   SUBROUTINE invert_eps_compute_W_and_Erpa_kp(dimen_RI, jquad, nkp, count_ev_sc_GW, para_env, &
+                                               Erpa, grid, wkp_W, do_gw_im_time, &
                                                do_ri_Sigma_x, do_kpoints_from_Gamma, &
                                                cfm_mat_Q, ikp_local, mat_P_omega, mat_P_omega_kp, &
                                                qs_env, eps_filter_im_time, unit_nr, kpoints, fm_mat_Minv_L_kpoints, &
@@ -133,13 +130,10 @@ CONTAINS
                                                fm_mat_RI_global_work, mat_MinvVMinv, fm_matrix_Minv, &
                                                fm_matrix_Minv_Vtrunc_Minv)
 
-      INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, nkp, &
-                                                            count_ev_sc_GW
+      INTEGER, INTENT(IN)                                :: dimen_RI, jquad, nkp, count_ev_sc_GW
       TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tau_tj, tj, wj
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(IN)                                      :: weights_cos_tf_w_to_t
+      TYPE(time_frequency_grid_type), INTENT(IN)         :: grid
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp_W
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_ri_Sigma_x, &
                                                             do_kpoints_from_Gamma
@@ -160,12 +154,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_eps_compute_W_and_Erpa_kp'
 
-      INTEGER                                            :: handle, ikp
+      INTEGER                                            :: handle, ikp, num_integ_points
       LOGICAL                                            :: do_this_ikp
       REAL(KIND=dp)                                      :: t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: trace_Qomega
 
       CALL timeset(routineN, handle)
+
+      num_integ_points = SIZE(grid%frequency)
 
       t1 = m_walltime()
 
@@ -201,7 +197,7 @@ CONTAINS
 
          ! 3. Computing E_c^RPA = E_c^RPA + a_w/N_k*sum_k ln[det(1+Q(iw,k))-Tr(Q(iw,k))]
          CALL frequency_and_kpoint_integration(Erpa, cfm_mat_Q, para_env, trace_Qomega, &
-                                               dimen_RI, wj(jquad), kpoints%wkp(ikp))
+                                               dimen_RI, grid%frequency_weights(jquad), kpoints%wkp(ikp))
 
          IF (do_gw_im_time) THEN
 
@@ -216,8 +212,8 @@ CONTAINS
                CALL compute_Wc_real_space_tau_GW(fm_mat_W, cfm_mat_Q, &
                                                  fm_matrix_L_kpoints(ikp, 1), &
                                                  fm_matrix_L_kpoints(ikp, 2), &
-                                                 dimen_RI, num_integ_points, jquad, &
-                                                 ikp, tj, tau_tj, weights_cos_tf_w_to_t, &
+                                                 dimen_RI, jquad, &
+                                                 ikp, grid, &
                                                  ikp_local, para_env, kpoints, qs_env, wkp_W)
             END IF
 
@@ -626,64 +622,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param tj_dummy ...
-!> \param tau_tj_dummy ...
-!> \param weights_cos_tf_w_to_t_dummy ...
-! **************************************************************************************************
-   SUBROUTINE get_dummys(tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy)
-
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: tj_dummy, tau_tj_dummy
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: weights_cos_tf_w_to_t_dummy
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_dummys'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      ALLOCATE (weights_cos_tf_w_to_t_dummy(1, 1))
-      ALLOCATE (tj_dummy(1))
-      ALLOCATE (tau_tj_dummy(1))
-
-      tj_dummy(1) = 0.0_dp
-      tau_tj_dummy(1) = 0.0_dp
-      weights_cos_tf_w_to_t_dummy(1, 1) = 1.0_dp
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_dummys
-
-! **************************************************************************************************
-!> \brief ...
-!> \param tj_dummy ...
-!> \param tau_tj_dummy ...
-!> \param weights_cos_tf_w_to_t_dummy ...
-! **************************************************************************************************
-   SUBROUTINE release_dummys(tj_dummy, tau_tj_dummy, weights_cos_tf_w_to_t_dummy)
-
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: tj_dummy, tau_tj_dummy
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT)                                   :: weights_cos_tf_w_to_t_dummy
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'release_dummys'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      DEALLOCATE (weights_cos_tf_w_to_t_dummy)
-      DEALLOCATE (tj_dummy)
-      DEALLOCATE (tau_tj_dummy)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE release_dummys
-
-! **************************************************************************************************
-!> \brief ...
 !> \param mat_P_omega ...
 !> \param qs_env ...
 !> \param kpoints ...
@@ -978,12 +916,9 @@ CONTAINS
 !> \param fm_mat_L_re ...
 !> \param fm_mat_L_im ...
 !> \param dimen_RI ...
-!> \param num_integ_points ...
 !> \param jquad ...
 !> \param ikp ...
-!> \param tj ...
-!> \param tau_tj ...
-!> \param weights_cos_tf_w_to_t ...
+!> \param grid ...
 !> \param ikp_local ...
 !> \param para_env ...
 !> \param kpoints ...
@@ -991,18 +926,15 @@ CONTAINS
 !> \param wkp_W ...
 ! **************************************************************************************************
    SUBROUTINE compute_Wc_real_space_tau_GW(fm_mat_W_tau, cfm_mat_Q, fm_mat_L_re, fm_mat_L_im, &
-                                           dimen_RI, num_integ_points, jquad, &
-                                           ikp, tj, tau_tj, weights_cos_tf_w_to_t, ikp_local, &
+                                           dimen_RI, jquad, &
+                                           ikp, grid, ikp_local, &
                                            para_env, kpoints, qs_env, wkp_W)
 
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W_tau
       TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L_re, fm_mat_L_im
-      INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, ikp
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tj
-      REAL(KIND=dp), DIMENSION(num_integ_points), &
-         INTENT(IN)                                      :: tau_tj
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: weights_cos_tf_w_to_t
+      INTEGER, INTENT(IN)                                :: dimen_RI, jquad, ikp
+      TYPE(time_frequency_grid_type), INTENT(IN)         :: grid
       INTEGER, INTENT(IN)                                :: ikp_local
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
@@ -1012,7 +944,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Wc_real_space_tau_GW'
 
       INTEGER :: handle, handle2, i_global, iatom, iatom_old, iiB, iquad, irow, j_global, jatom, &
-         jatom_old, jcol, jjB, jkp, ncol_local, nkp, nrow_local, num_cells
+         jatom_old, jcol, jjB, jkp, ncol_local, nkp, nrow_local, num_cells, num_integ_points
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_RI_index
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
@@ -1028,6 +960,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
+
+      num_integ_points = SIZE(grid%imaginary_time)
 
       CALL timeset(routineN//"_1", handle2)
 
@@ -1151,9 +1085,9 @@ CONTAINS
 
          DO iquad = 1, num_integ_points
 
-            omega = tj(jquad)
-            tau = tau_tj(iquad)
-            weight = weights_cos_tf_w_to_t(iquad, jquad)*COS(tau*omega)
+            omega = grid%frequency(jquad)
+            tau = grid%imaginary_time(iquad)
+            weight = grid%cosine_frequency_to_time_weights(iquad, jquad)*COS(tau*omega)
 
             IF (jquad == 1 .AND. ikp == 1) THEN
                CALL cp_fm_set_all(matrix=fm_mat_W_tau(iquad), alpha=0.0_dp)
@@ -1179,9 +1113,9 @@ CONTAINS
 
             DO iquad = 1, num_integ_points
 
-               omega = tj(jquad)
-               tau = tau_tj(iquad)
-               weight = weights_cos_tf_w_to_t(iquad, jquad)*COS(tau*omega)
+               omega = grid%frequency(jquad)
+               tau = grid%imaginary_time(iquad)
+               weight = grid%cosine_frequency_to_time_weights(iquad, jquad)*COS(tau*omega)
 
                IF (jquad == 1 .AND. jkp == 1) THEN
                   CALL cp_fm_set_all(matrix=fm_mat_W_tau(iquad), alpha=0.0_dp)

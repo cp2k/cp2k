@@ -62,6 +62,7 @@ MODULE rpa_im_time
    USE qs_tensors_types,                ONLY: create_2c_tensor
    USE rpa_gw_im_time_util,             ONLY: compute_weight_re_im,&
                                               get_atom_index_from_basis_function_index
+   USE time_frequency_grid_types,       ONLY: time_frequency_grid_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -136,16 +137,13 @@ CONTAINS
 !> \param ends_array_mc ...
 !> \param starts_array_mc_block ...
 !> \param ends_array_mc_block ...
-!> \param weights_cos_tf_t_to_w ...
-!> \param tj ...
-!> \param tau_tj ...
+!> \param grid ...
 !> \param e_fermi ...
 !> \param eps_filter ...
 !> \param alpha ...
 !> \param eps_filter_im_time ...
 !> \param Eigenval ...
 !> \param nmo ...
-!> \param num_integ_points ...
 !> \param cut_memory ...
 !> \param unit_nr ...
 !> \param mp2_env ...
@@ -166,10 +164,9 @@ CONTAINS
                                   t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                   starts_array_mc, ends_array_mc, &
                                   starts_array_mc_block, ends_array_mc_block, &
-                                  weights_cos_tf_t_to_w, &
-                                  tj, tau_tj, e_fermi, eps_filter, &
+                                  grid, e_fermi, eps_filter, &
                                   alpha, eps_filter_im_time, Eigenval, nmo, &
-                                  num_integ_points, cut_memory, unit_nr, &
+                                  cut_memory, unit_nr, &
                                   mp2_env, para_env, &
                                   qs_env, do_kpoints_from_Gamma, &
                                   index_to_cell_3c, cell_to_index_3c, &
@@ -190,16 +187,11 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(IN)                                      :: weights_cos_tf_t_to_w
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: tj
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tau_tj
+      TYPE(time_frequency_grid_type), INTENT(IN)         :: grid
       REAL(KIND=dp), INTENT(IN)                          :: e_fermi, eps_filter, alpha, &
                                                             eps_filter_im_time
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
-      INTEGER, INTENT(IN)                                :: nmo, num_integ_points, cut_memory, &
-                                                            unit_nr
+      INTEGER, INTENT(IN)                                :: nmo, cut_memory, unit_nr
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -216,7 +208,8 @@ CONTAINS
 
       INTEGER :: comm_2d_handle, handle, handle2, handle3, i, i_cell, i_cell_R_1, &
          i_cell_R_1_minus_S, i_cell_R_1_minus_T, i_cell_R_2, i_cell_R_2_minus_S_minus_T, i_cell_S, &
-         i_cell_T, i_mem, iquad, j, j_mem, jquad, num_3c_repl, num_cells_dm, unit_nr_dbcsr
+         i_cell_T, i_mem, iquad, j, j_mem, jquad, num_3c_repl, num_cells_dm, num_integ_points, &
+         unit_nr_dbcsr
       INTEGER(int_8)                                     :: nze, nze_dm_occ, nze_dm_virt, nze_M_occ, &
                                                             nze_M_virt, nze_O
       INTEGER(KIND=int_8)                                :: flops_1_occ, flops_1_virt, flops_2
@@ -244,6 +237,12 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: comm_2d
 
       CALL timeset(routineN, handle)
+
+      IF (do_ri_sos_laplace_mp2) THEN
+         num_integ_points = SIZE(grid%imaginary_time)
+      ELSE
+         num_integ_points = SIZE(grid%frequency)
+      END IF
 
       NULLIFY (propagator)
 
@@ -279,7 +278,7 @@ CONTAINS
          CALL para_env%sync()
          t1 = m_walltime()
 
-         CALL compute_mat_dm_global(tau_tj, num_integ_points, nmo, cfm_mo_coeff, homo, propagator, &
+         CALL compute_mat_dm_global(grid, nmo, cfm_mo_coeff, homo, propagator, &
                                     matrix_s, ispin, &
                                     Eigenval, e_fermi, eps_filter, memory_info, unit_nr, &
                                     jquad, do_kpoints_cubic_RPA, do_kpoints_from_Gamma, qs_env, &
@@ -544,12 +543,12 @@ CONTAINS
                ! Fourier transform of P(it) to P(iw)
                first_cycle_omega_loop = .TRUE.
 
-               tau = tau_tj(jquad)
+               tau = grid%imaginary_time(jquad)
 
                DO iquad = 1, num_integ_points
 
-                  omega = tj(iquad)
-                  weight = weights_cos_tf_t_to_w(iquad, jquad)
+                  omega = grid%frequency(iquad)
+                  weight = grid%cosine_time_to_frequency_weights(iquad, jquad)
 
                   IF (first_cycle_omega_loop) THEN
                      ! no multiplication with 2.0 as in Kresses paper (Kaltak, JCTC 10, 2498 (2014), Eq. 12)
@@ -668,8 +667,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param tau_tj ...
-!> \param num_integ_points ...
+!> \param grid ...
 !> \param nmo ...
 !> \param cfm_mo_coeff ...
 !> \param homo ...
@@ -689,14 +687,14 @@ CONTAINS
 !> \param index_to_cell_dm ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE compute_mat_dm_global(tau_tj, num_integ_points, nmo, cfm_mo_coeff, homo, propagator, &
+   SUBROUTINE compute_mat_dm_global(grid, nmo, cfm_mo_coeff, homo, propagator, &
                                     matrix_s, ispin, &
                                     Eigenval, e_fermi, eps_filter, memory_info, unit_nr, &
                                     jquad, do_kpoints_cubic_RPA, do_kpoints_from_Gamma, qs_env, &
                                     num_cells_dm, index_to_cell_dm, para_env)
 
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tau_tj
-      INTEGER, INTENT(IN)                                :: num_integ_points, nmo
+      TYPE(time_frequency_grid_type), INTENT(IN)         :: grid
+      INTEGER, INTENT(IN)                                :: nmo
       TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mo_coeff
       INTEGER, INTENT(IN)                                :: homo
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), &
@@ -716,18 +714,19 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_mat_dm_global'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, num_integ_points
       INTEGER, DIMENSION(3, 1)                           :: index_to_cell_zero
       REAL(KIND=dp)                                      :: tau
 
       index_to_cell_zero = 0
+      num_integ_points = SIZE(grid%imaginary_time)
 
       CALL timeset(routineN, handle)
 
       IF (memory_info .AND. unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
          "RPA_LOW_SCALING_INFO| Started with time point: ", jquad
 
-      tau = tau_tj(jquad)
+      tau = grid%imaginary_time(jquad)
 
       IF (do_kpoints_cubic_RPA) THEN
 

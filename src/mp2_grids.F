@@ -173,23 +173,16 @@ CONTAINS
 !> \param do_im_time ...
 !> \param do_ri_sos_laplace_mp2 ...
 !> \param do_print ...
-!> \param tau_tj ...
-!> \param tau_wj ...
 !> \param qs_env ...
 !> \param do_gw_im_time ...
 !> \param do_kpoints_cubic_RPA ...
 !> \param e_fermi ...
-!> \param tj ...
-!> \param wj ...
-!> \param weights_cos_tf_t_to_w ...
-!> \param weights_cos_tf_w_to_t ...
-!> \param weights_sin_tf_t_to_w ...
+!> \param grid ...
 !> \param regularization ...
 ! **************************************************************************************************
    SUBROUTINE get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, &
-                               do_im_time, do_ri_sos_laplace_mp2, do_print, tau_tj, tau_wj, qs_env, do_gw_im_time, &
-                               do_kpoints_cubic_RPA, e_fermi, tj, wj, weights_cos_tf_t_to_w, &
-                               weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, regularization)
+                               do_im_time, do_ri_sos_laplace_mp2, do_print, qs_env, do_gw_im_time, &
+                               do_kpoints_cubic_RPA, e_fermi, grid, regularization)
 
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -198,17 +191,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_integ_points
       LOGICAL, INTENT(IN)                                :: do_im_time, do_ri_sos_laplace_mp2, &
                                                             do_print
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: tau_tj, tau_wj
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_kpoints_cubic_RPA
       REAL(KIND=dp), INTENT(OUT)                         :: e_fermi
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: tj, wj
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT)                                     :: weights_cos_tf_t_to_w, &
-                                                            weights_cos_tf_w_to_t, &
-                                                            weights_sin_tf_t_to_w
+      TYPE(time_frequency_grid_type), INTENT(INOUT)      :: grid
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: regularization
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_minimax_grid'
@@ -217,7 +203,6 @@ CONTAINS
       INTEGER                                            :: handle, ierr, jquad
       REAL(KIND=dp)                                      :: E_Range, Emax, Emin, max_error_min, &
                                                             my_regularization, scaling
-      TYPE(time_frequency_grid_type)                     :: grid
 
       CALL timeset(routineN, handle)
 
@@ -237,11 +222,9 @@ CONTAINS
       IF (PRESENT(regularization)) my_regularization = regularization
 
       CALL greenx_get_minimax_grid(unit_nr, num_integ_points, emin, emax, &
-                                   tau_tj, tau_wj, my_regularization, &
-                                   tj, wj, weights_cos_tf_t_to_w, &
-                                   weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, ierr)
+                                   my_regularization, grid, ierr)
 
-! Shortcut if Greenx was available and successful
+      ! Shortcut if Greenx was available and successful
       IF (ierr == 0) THEN
          CALL timestop(handle)
          RETURN
@@ -270,8 +253,6 @@ CONTAINS
                                                 max_fit_error=max_error_min)
 
          IF (.NOT. do_ri_sos_laplace_mp2) THEN
-            ALLOCATE (tj, SOURCE=grid%frequency)
-            ALLOCATE (wj, SOURCE=grid%frequency_weights)
             IF (unit_nr > 0 .AND. do_print) THEN
                WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                   "MINIMAX_INFO| Number of integration points:", num_integ_points
@@ -281,23 +262,14 @@ CONTAINS
                   "MINIMAX_INFO| Range for the minimax approximation:", e_range
                WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") "MINIMAX_INFO| Minimax parameters:", "Weights", "Abscissas"
                DO jquad = 1, num_integ_points
-                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(jquad)/Emin, tj(jquad)/Emin
+                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") &
+                     grid%frequency_weights(jquad)/Emin, grid%frequency(jquad)/Emin
                END DO
                CALL m_flush(unit_nr)
             END IF
          END IF
 
          IF (do_im_time .OR. do_ri_sos_laplace_mp2) THEN
-            ALLOCATE (tau_tj, SOURCE=grid%imaginary_time)
-            ALLOCATE (tau_wj, SOURCE=grid%time_weights_at_zero_frequency)
-            IF (do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) THEN
-               ALLOCATE (weights_cos_tf_t_to_w, SOURCE=grid%cosine_time_to_frequency_weights)
-               ALLOCATE (weights_cos_tf_w_to_t, SOURCE=grid%cosine_frequency_to_time_weights)
-               IF (ALLOCATED(grid%sine_time_to_frequency_weights)) THEN
-                  ALLOCATE (weights_sin_tf_t_to_w, SOURCE=grid%sine_time_to_frequency_weights)
-               END IF
-            END IF
-
             IF (unit_nr > 0 .AND. do_print) THEN
                WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
                   "MINIMAX_INFO| Range for the minimax approximation:", e_range
@@ -306,7 +278,8 @@ CONTAINS
                WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
                   "MINIMAX_INFO| Minimax parameters of the time grid:", "Weights", "Abscissas"
                DO jquad = 1, num_integ_points
-                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") tau_wj(jquad)*Emin, tau_tj(jquad)*Emin
+                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") &
+                     grid%time_weights_at_zero_frequency(jquad)*Emin, grid%imaginary_time(jquad)*Emin
                END DO
                CALL m_flush(unit_nr)
             END IF
@@ -336,13 +309,11 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param my_do_gw ...
 !> \param ext_scaling ...
-!> \param a_scaling ...
-!> \param tj ...
-!> \param wj ...
+!> \param grid ...
 ! **************************************************************************************************
    SUBROUTINE get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &
                                 num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
-                                ext_scaling, a_scaling, tj, wj)
+                                ext_scaling, grid)
 
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_RPA
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -353,41 +324,42 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: my_do_gw
       REAL(KIND=dp), INTENT(IN)                          :: ext_scaling
-      REAL(KIND=dp), INTENT(OUT)                         :: a_scaling
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: tj, wj
+      TYPE(time_frequency_grid_type), INTENT(INOUT)      :: grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_clenshaw_grid'
 
       INTEGER                                            :: handle, jquad
+      REAL(KIND=dp)                                      :: a_scaling
 
       CALL timeset(routineN, handle)
 
-      ! Now, start to prepare the different grid
-      ALLOCATE (tj(num_integ_points))
-      tj = 0.0_dp
+      CALL time_frequency_grid_release(grid)
 
-      ALLOCATE (wj(num_integ_points))
-      wj = 0.0_dp
+      ! Now, start to prepare the different grid
+      ALLOCATE (grid%frequency(num_integ_points), grid%frequency_weights(num_integ_points))
+      grid%frequency = 0.0_dp
+      grid%frequency_weights = 0.0_dp
 
       DO jquad = 1, num_integ_points - 1
-         tj(jquad) = jquad*pi/(2.0_dp*num_integ_points)
-         wj(jquad) = pi/(num_integ_points*SIN(tj(jquad))**2)
+         grid%frequency(jquad) = jquad*pi/(2.0_dp*num_integ_points)
+         grid%frequency_weights(jquad) = pi/(num_integ_points*SIN(grid%frequency(jquad))**2)
       END DO
-      tj(num_integ_points) = pi/2.0_dp
-      wj(num_integ_points) = pi/(2.0_dp*num_integ_points*SIN(tj(num_integ_points))**2)
+      grid%frequency(num_integ_points) = pi/2.0_dp
+      grid%frequency_weights(num_integ_points) = &
+         pi/(2.0_dp*num_integ_points*SIN(grid%frequency(num_integ_points))**2)
 
       IF (my_do_gw .AND. ext_scaling > 0.0_dp) THEN
          a_scaling = ext_scaling
       ELSE
          CALL calc_scaling_factor(a_scaling, para_env, para_env_RPA, homo, virtual, Eigenval, &
                                   num_integ_points, num_integ_group, color_rpa_group, &
-                                  tj, wj, fm_mat_S)
+                                  grid%frequency, grid%frequency_weights, fm_mat_S)
       END IF
 
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.5)') 'INTEG_INFO| Scaling parameter:', a_scaling
 
-      wj(:) = wj(:)*a_scaling
+      grid%frequency_weights(:) = grid%frequency_weights(:)*a_scaling
+      grid%frequency(:) = a_scaling/TAN(grid%frequency(:))
 
       CALL timestop(handle)
 

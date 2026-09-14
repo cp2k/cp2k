@@ -23,6 +23,8 @@ MODULE greenx_interface
    USE input_section_types, ONLY: section_vals_type
    USE machine, ONLY: m_flush
    USE physcon, ONLY: evolt
+   USE time_frequency_grid_types, ONLY: time_frequency_grid_release, &
+                                        time_frequency_grid_type
 #if defined (__GREENX)
    USE gx_ac, ONLY: create_thiele_pade, &
                     evaluate_thiele_pade_at, &
@@ -302,45 +304,37 @@ CONTAINS
 !> \param num_integ_points ...
 !> \param emin ...
 !> \param emax ...
-!> \param tau_tj ...
-!> \param tau_wj ...
 !> \param regularization_minimax ...
-!> \param tj ...
-!> \param wj ...
-!> \param weights_cos_tf_t_to_w ...
-!> \param weights_cos_tf_w_to_t ...
-!> \param weights_sin_tf_t_to_w ...
+!> \param grid ...
 !> \param ierr ...
 ! **************************************************************************************************
    SUBROUTINE greenx_get_minimax_grid(unit_nr, num_integ_points, emin, emax, &
-                                      tau_tj, tau_wj, regularization_minimax, &
-                                      tj, wj, weights_cos_tf_t_to_w, &
-                                      weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, ierr)
+                                      regularization_minimax, grid, ierr)
 
       INTEGER, INTENT(IN)                                :: unit_nr, num_integ_points
       REAL(KIND=dp), INTENT(IN)                          :: emin, emax
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: tau_tj, tau_wj
-      REAL(KIND=dp), INTENT(IN)                 :: regularization_minimax
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: tj, wj
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT)                                     :: weights_cos_tf_t_to_w, &
-                                                            weights_cos_tf_w_to_t, &
-                                                            weights_sin_tf_t_to_w
+      REAL(KIND=dp), INTENT(IN)                           :: regularization_minimax
+      TYPE(time_frequency_grid_type), INTENT(INOUT)      :: grid
       INTEGER, INTENT(OUT) :: ierr
+
 #if defined (__GREENX)
       INTEGER :: gi
       REAL(KIND=dp)                                      :: cosft_duality_error_greenx, &
                                                             max_errors_greenx(3)
+#endif
 
-      CALL gx_minimax_grid(num_integ_points, Emin, Emax, tau_tj, tau_wj, tj, wj, &
-                           weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
+      CALL time_frequency_grid_release(grid)
+
+#if defined (__GREENX)
+      CALL gx_minimax_grid(num_integ_points, Emin, Emax, grid%imaginary_time, &
+                           grid%time_weights_at_zero_frequency, grid%frequency, grid%frequency_weights, &
+                           grid%cosine_time_to_frequency_weights, grid%cosine_frequency_to_time_weights, &
+                           grid%sine_time_to_frequency_weights, &
                            max_errors_greenx, cosft_duality_error_greenx, ierr, &
                            bare_cos_sin_weights=.TRUE., &
                            regularization=regularization_minimax)
       ! Factor 4 is hard-coded in the RPA weights in the internal CP2K minimax routines
-      wj(:) = wj(:)*4.0_dp
+      grid%frequency_weights(:) = grid%frequency_weights(:)*4.0_dp
       IF (ierr == 0) THEN
          IF (unit_nr > 0) THEN
             WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
@@ -354,12 +348,14 @@ CONTAINS
             WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
                "GREENX MINIMAX_INFO| Frequency grid (scaled):", "Weights", "Abscissas"
             DO gi = 1, num_integ_points
-               WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(gi), tj(gi)
+               WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") &
+                  grid%frequency_weights(gi), grid%frequency(gi)
             END DO
             WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
                "GREENX MINIMAX_INFO| Time grid (scaled):", "Weights", "Abscissas"
             DO gi = 1, num_integ_points
-               WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") tau_wj(gi), tau_tj(gi)
+               WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") &
+                  grid%time_weights_at_zero_frequency(gi), grid%imaginary_time(gi)
             END DO
             CALL m_flush(unit_nr)
          END IF
@@ -369,27 +365,7 @@ CONTAINS
                "GREENX MINIMAX_INFO| Grid not available, use internal CP2K grids"
             CALL m_flush(unit_nr)
          END IF
-         IF (ALLOCATED(tau_tj)) THEN
-            DEALLOCATE (tau_tj)
-         END IF
-         IF (ALLOCATED(tau_wj)) THEN
-            DEALLOCATE (tau_wj)
-         END IF
-         IF (ALLOCATED(tj)) THEN
-            DEALLOCATE (tj)
-         END IF
-         IF (ALLOCATED(wj)) THEN
-            DEALLOCATE (wj)
-         END IF
-         IF (ALLOCATED(weights_cos_tf_t_to_w)) THEN
-            DEALLOCATE (weights_cos_tf_t_to_w)
-         END IF
-         IF (ALLOCATED(weights_cos_tf_w_to_t)) THEN
-            DEALLOCATE (weights_cos_tf_w_to_t)
-         END IF
-         IF (ALLOCATED(weights_sin_tf_t_to_w)) THEN
-            DEALLOCATE (weights_sin_tf_t_to_w)
-         END IF
+         CALL time_frequency_grid_release(grid)
       END IF
 #else
       ierr = 1
@@ -397,14 +373,8 @@ CONTAINS
       MARK_USED(num_integ_points)
       MARK_USED(emin)
       MARK_USED(emax)
-      MARK_USED(tau_tj)
-      MARK_USED(tau_wj)
       MARK_USED(regularization_minimax)
-      MARK_USED(tj)
-      MARK_USED(wj)
-      MARK_USED(weights_cos_tf_t_to_w)
-      MARK_USED(weights_cos_tf_w_to_t)
-      MARK_USED(weights_sin_tf_t_to_w)
+      MARK_USED(grid)
 #endif
 
    END SUBROUTINE greenx_get_minimax_grid

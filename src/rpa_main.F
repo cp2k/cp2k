@@ -113,6 +113,8 @@ MODULE rpa_main
                                               contract_P_omega_with_mat_L,&
                                               dealloc_im_time,&
                                               remove_scaling_factor_rpa
+   USE time_frequency_grid_types,       ONLY: time_frequency_grid_release,&
+                                              time_frequency_grid_type
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
@@ -1141,15 +1143,12 @@ CONTAINS
          do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
-      REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
+      REAL(KIND=dp) :: alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
          eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
          my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
-                                                            trace_Qomega, vec_omega_fit_gw, wj, &
-                                                            wkp_W
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vec_W_gw, weights_cos_tf_t_to_w, &
-                                                            weights_cos_tf_w_to_t, &
-                                                            weights_sin_tf_t_to_w
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, trace_Qomega, &
+                                                            vec_omega_fit_gw, wkp_W
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vec_W_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_last, Eigenval_scf, &
                                                             vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
@@ -1179,6 +1178,7 @@ CONTAINS
       TYPE(rpa_exchange_work_type)                       :: exchange_work
       TYPE(rpa_grad_type)                                :: rpa_grad
       TYPE(rpa_sigma_type)                               :: rpa_sigma
+      TYPE(time_frequency_grid_type)                     :: time_frequency_grid
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
 
       CALL timeset(routineN, handle)
@@ -1292,22 +1292,18 @@ CONTAINS
          do_print = .NOT. do_ic_model
          CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
                                do_ri_sos_laplace_mp2, do_print, &
-                               tau_tj, tau_wj, qs_env, do_gw_im_time, &
-                               do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
-                               weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
+                               qs_env, do_gw_im_time, do_kpoints_cubic_RPA, e_fermi(1), time_frequency_grid, &
                                qs_env%mp2_env%ri_g0w0%regularization_minimax)
 
          !For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
          IF (qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
-            CALL keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, &
-                                   weights_cos_tf_w_to_t, do_ri_sos_laplace_mp2, do_im_time, &
-                                   num_integ_points, unit_nr, qs_env)
+            CALL keep_initial_quad(time_frequency_grid, do_ri_sos_laplace_mp2, do_im_time, unit_nr, qs_env)
          END IF
       ELSE
          IF (calc_forces) CPABORT("Forces with Clenshaw-Curtis grid not implemented.")
          CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &
                                 num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
-                                ext_scaling, a_scaling, tj, wj)
+                                ext_scaling, time_frequency_grid)
       END IF
 
       ! This array is needed for RPA
@@ -1325,11 +1321,11 @@ CONTAINS
       IF (my_do_gw) THEN
          CALL allocate_matrices_gw(vec_Sigma_c_gw, color_rpa_group, dimen_nm_gw, &
                                    gw_corr_lev_occ, gw_corr_lev_virt, homo, &
-                                   nmo, num_integ_group, num_integ_points, unit_nr, &
+                                   nmo, num_integ_group, unit_nr, &
                                    gw_corr_lev_tot, num_fit_points, omega_max_fit, &
                                    do_minimax_quad, do_periodic, do_ri_Sigma_x,.NOT. do_im_time, &
                                    first_cycle_periodic_correction, &
-                                   a_scaling, Eigenval, tj, vec_omega_fit_gw, vec_Sigma_x_gw, &
+                                   time_frequency_grid, Eigenval, vec_omega_fit_gw, vec_Sigma_x_gw, &
                                    delta_corr, Eigenval_last, Eigenval_scf, vec_W_gw, &
                                    fm_mat_S_gw, fm_mat_S_gw_work, &
                                    para_env, mp2_env, kpoints, nkp, nkp_self_energy, &
@@ -1399,9 +1395,9 @@ CONTAINS
                                      t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                      starts_array_mc, ends_array_mc, &
                                      starts_array_mc_block, ends_array_mc_block, &
-                                     weights_cos_tf_t_to_w, tj, tau_tj, e_fermi(1), eps_filter, alpha, &
+                                     time_frequency_grid, e_fermi(1), eps_filter, alpha, &
                                      eps_filter_im_time, Eigenval(:, 1, 1), nmo, &
-                                     num_integ_points, cut_memory, &
+                                     cut_memory, &
                                      unit_nr, mp2_env, para_env, &
                                      qs_env, do_kpoints_from_Gamma, &
                                      index_to_cell_3c, cell_to_index_3c, &
@@ -1416,9 +1412,9 @@ CONTAINS
                                         t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                         starts_array_mc, ends_array_mc, &
                                         starts_array_mc_block, ends_array_mc_block, &
-                                        weights_cos_tf_t_to_w, tj, tau_tj, e_fermi(2), eps_filter, alpha, &
+                                        time_frequency_grid, e_fermi(2), eps_filter, alpha, &
                                         eps_filter_im_time, Eigenval(:, 1, 2), nmo, &
-                                        num_integ_points, cut_memory, &
+                                        cut_memory, &
                                         unit_nr, mp2_env, para_env, &
                                         qs_env, do_kpoints_from_Gamma, &
                                         index_to_cell_3c, cell_to_index_3c, &
@@ -1448,13 +1444,9 @@ CONTAINS
             CALL timeset(routineN//"_RPA_matrix_operations", handle3)
 
             IF (do_ri_sos_laplace_mp2) THEN
-               omega = tau_tj(jquad)
+               omega = time_frequency_grid%imaginary_time(jquad)
             ELSE
-               IF (do_minimax_quad) THEN
-                  omega = tj(jquad)
-               ELSE
-                  omega = a_scaling/TAN(tj(jquad))
-               END IF
+               omega = time_frequency_grid%frequency(jquad)
             END IF ! do_ri_sos_laplace_mp2
 
             IF (do_im_time) THEN
@@ -1539,29 +1531,32 @@ CONTAINS
                CALL exchange_work%compute(fm_mat_Q(1), Eigenval(:, 1, :), fm_mat_S, omega, e_exchange_corr, mp2_env)
 
                ! Evaluate the final exchange energy correction
-               e_exchange = e_exchange + e_exchange_corr*wj(jquad)
+               e_exchange = e_exchange + e_exchange_corr*time_frequency_grid%frequency_weights(jquad)
             END IF
 
             ! for developing Sigma functional  closed and open shell are taken cared for
             IF (mp2_env%ri_rpa%sigma_param /= sigma_none) THEN
-               CALL rpa_sigma_matrix_spectral(rpa_sigma, fm_mat_Q(1), wj(jquad), para_env_RPA)
+               CALL rpa_sigma_matrix_spectral(rpa_sigma, fm_mat_Q(1), time_frequency_grid%frequency_weights(jquad), para_env_RPA)
             END IF
 
             IF (do_ri_sos_laplace_mp2) THEN
 
-               CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wj(jquad))
+               CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, time_frequency_grid%time_weights_at_zero_frequency(jquad))
 
-               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
-                                                           fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
-                                                                                       Eigenval(:, 1, :), tau_wj(jquad), unit_nr)
+               IF (calc_forces .AND. .NOT. do_im_time) THEN
+                  CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
+                                                  fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
+                                                  Eigenval(:, 1, :), time_frequency_grid%time_weights_at_zero_frequency(jquad), &
+                                                  unit_nr)
+               END IF
             ELSE
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_copy_Q(fm_mat_Q(1), rpa_grad)
 
                CALL Q_trace_and_add_unit_matrix(dimen_RI_red, trace_Qomega, fm_mat_Q(1))
 
                IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
-                  CALL invert_eps_compute_W_and_Erpa_kp(dimen_RI, num_integ_points, jquad, nkp, count_ev_sc_GW, para_env, &
-                                                        Erpa, tau_tj, tj, wj, weights_cos_tf_w_to_t, &
+                  CALL invert_eps_compute_W_and_Erpa_kp(dimen_RI, jquad, nkp, count_ev_sc_GW, para_env, &
+                                                        Erpa, time_frequency_grid, &
                                                         wkp_W, do_gw_im_time, do_ri_Sigma_x, do_kpoints_from_Gamma, &
                                                         cfm_mat_Q, ikp_local, &
                                                         mat_P_omega(:, :, 1), mat_P_omega_kp, qs_env, eps_filter_im_time, unit_nr, &
@@ -1569,12 +1564,15 @@ CONTAINS
                                                         fm_mat_W, fm_mat_RI_global_work, mat_MinvVMinv, &
                                                         fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv)
                ELSE
-                  CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA, Erpa, wj(jquad))
+                  CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA, Erpa, &
+                                                time_frequency_grid%frequency_weights(jquad))
                END IF
 
-               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
-                                                           fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
-                                                                                       Eigenval(:, 1, :), wj(jquad), unit_nr)
+               IF (calc_forces .AND. .NOT. do_im_time) THEN
+                  CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
+                                                  fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
+                                                  Eigenval(:, 1, :), time_frequency_grid%frequency_weights(jquad), unit_nr)
+               END IF
             END IF ! do_ri_sos_laplace_mp2
 
             ! save omega and reset the first_cycle flag
@@ -1591,15 +1589,16 @@ CONTAINS
                IF (do_im_time) THEN
                   ! only for molecules
                   IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
-                    CALL compute_W_cubic_GW(fm_mat_W, fm_mat_Q(1), fm_mat_work, dimen_RI, fm_mat_Minv_L_kpoints, num_integ_points, &
-                                             tj, tau_tj, weights_cos_tf_w_to_t, jquad, omega)
+                     CALL compute_W_cubic_GW(fm_mat_W, fm_mat_Q(1), fm_mat_work, dimen_RI, fm_mat_Minv_L_kpoints, &
+                                             time_frequency_grid, jquad, omega)
                   END IF
                ELSE
                   CALL compute_GW_self_energy(vec_Sigma_c_gw, dimen_nm_gw, dimen_RI_red, gw_corr_lev_occ, &
                                               gw_corr_lev_virt, homo, jquad, nmo, num_fit_points, &
                                               do_im_time, do_periodic, first_cycle_periodic_correction, &
                                               fermi_level_offset, &
-                                              omega, Eigenval(:, 1, :), delta_corr, vec_omega_fit_gw, vec_W_gw, wj, &
+                                              omega, Eigenval(:, 1, :), delta_corr, vec_omega_fit_gw, vec_W_gw, &
+                                              time_frequency_grid, &
                                               fm_mat_Q(1), fm_mat_R_gw, fm_mat_S_gw, &
                                               fm_mat_S_gw_work, mo_coeff(1), para_env, &
                                               para_env_RPA, matrix_berry_im_mo_mo, matrix_berry_re_mo_mo, &
@@ -1639,16 +1638,18 @@ CONTAINS
                CALL calc_laplace_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
                                              t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), cfm_mo_coeff, homo, &
                                              starts_array_mc, ends_array_mc, starts_array_mc_block, &
-                                             ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
-                                             tau_tj, tau_wj, cut_memory, Pspin, Qspin, my_open_shell, &
+                                             ends_array_mc_block, nmo, Eigenval(:, 1, :), &
+                                             time_frequency_grid, &
+                                             cut_memory, Pspin, Qspin, my_open_shell, &
                                              unit_nr, dbcsr_time, dbcsr_nflop, mp2_env, qs_env)
                Pspin = 2
                Qspin = 1
                CALL calc_laplace_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
                                              t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), cfm_mo_coeff, homo, &
                                              starts_array_mc, ends_array_mc, starts_array_mc_block, &
-                                             ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
-                                             tau_tj, tau_wj, cut_memory, Pspin, Qspin, my_open_shell, &
+                                             ends_array_mc_block, nmo, Eigenval(:, 1, :), &
+                                             time_frequency_grid, &
+                                             cut_memory, Pspin, Qspin, my_open_shell, &
                                              unit_nr, dbcsr_time, dbcsr_nflop, mp2_env, qs_env)
 
             ELSE
@@ -1657,8 +1658,9 @@ CONTAINS
                CALL calc_laplace_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
                                              t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), cfm_mo_coeff, homo, &
                                              starts_array_mc, ends_array_mc, starts_array_mc_block, &
-                                             ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
-                                             tau_tj, tau_wj, cut_memory, Pspin, Qspin, my_open_shell, &
+                                             ends_array_mc_block, nmo, Eigenval(:, 1, :), &
+                                             time_frequency_grid, &
+                                             cut_memory, Pspin, Qspin, my_open_shell, &
                                              unit_nr, dbcsr_time, dbcsr_nflop, mp2_env, qs_env)
             END IF
             CALL calc_post_loop_forces(force_data, unit_nr, qs_env)
@@ -1669,9 +1671,9 @@ CONTAINS
                CALL calc_rpa_loop_forces(force_data, mat_P_omega(:, 1, :), t_3c_M, t_3c_O(1, 1), &
                                          t_3c_O_compressed(1, 1, :), t_3c_O_ind(1, 1, :), cfm_mo_coeff, homo, &
                                          starts_array_mc, ends_array_mc, starts_array_mc_block, &
-                                         ends_array_mc_block, num_integ_points, nmo, Eigenval(:, 1, :), &
-                                         e_fermi(ispin), weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, tj, &
-                                         wj, tau_tj, cut_memory, ispin, my_open_shell, unit_nr, dbcsr_time, &
+                                         ends_array_mc_block, nmo, Eigenval(:, 1, :), &
+                                         e_fermi(ispin), time_frequency_grid, cut_memory, ispin, my_open_shell, &
+                                         unit_nr, dbcsr_time, &
                                          dbcsr_nflop, mp2_env, qs_env)
             END DO
             CALL calc_post_loop_forces(force_data, unit_nr, qs_env)
@@ -1700,14 +1702,14 @@ CONTAINS
 
             CALL compute_QP_energies(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
                                      gw_corr_lev_tot, gw_corr_lev_virt, homo, &
-                                     nmo, num_fit_points, num_integ_points, &
+                                     nmo, num_fit_points, &
                                      unit_nr, do_apply_ic_corr_to_gw, do_im_time, &
                                      do_periodic, do_ri_Sigma_x, first_cycle_periodic_correction, &
                                      e_fermi, eps_filter, fermi_level_offset, &
                                      delta_corr, Eigenval, &
-                                     Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, tau_tj, tj, &
-                                     vec_omega_fit_gw, vec_Sigma_x_gw, mp2_env%ri_g0w0%ic_corr_list, &
-                                     weights_cos_tf_t_to_w, weights_sin_tf_t_to_w, &
+                                     Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, &
+                                     time_frequency_grid, vec_omega_fit_gw, vec_Sigma_x_gw, &
+                                     mp2_env%ri_g0w0%ic_corr_list, &
                                      cfm_mo_coeff, mo_coeff(1), fm_mat_W, para_env, &
                                      para_env_RPA, mat_dm, mat_MinvVMinv, &
                                      t_3c_O, t_3c_M, t_3c_overl_int_ao_mo, t_3c_O_compressed, t_3c_O_mo_compressed, &
@@ -1809,8 +1811,7 @@ CONTAINS
                               t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, mat_work, qs_env)
 
          IF (my_do_gw) THEN
-            CALL deallocate_matrices_gw_im_time(weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, do_ic_model, &
-                                                do_kpoints_cubic_RPA, fm_mat_W, &
+            CALL deallocate_matrices_gw_im_time(do_ic_model, do_kpoints_cubic_RPA, fm_mat_W, &
                                                 t_3c_overl_int_ao_mo, t_3c_O_mo_compressed, t_3c_O_mo_ind, &
                                                 t_3c_overl_int_gw_RI, t_3c_overl_int_gw_AO, &
                                                 t_3c_overl_nnP_ic, t_3c_overl_nnP_ic_reflected, &
@@ -1822,15 +1823,10 @@ CONTAINS
       IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) CALL exchange_work%release()
 
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
-         DEALLOCATE (tj)
-         DEALLOCATE (wj)
          DEALLOCATE (trace_Qomega)
       END IF
 
-      IF (do_im_time .OR. do_ri_sos_laplace_mp2) THEN
-         DEALLOCATE (tau_tj)
-         DEALLOCATE (tau_wj)
-      END IF
+      CALL time_frequency_grid_release(time_frequency_grid)
 
       IF (do_im_time .AND. calc_forces) THEN
          CALL im_time_force_release(force_data)
