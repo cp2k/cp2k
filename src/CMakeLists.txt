@@ -1886,7 +1886,7 @@ endif()
 target_link_libraries(cp2k PUBLIC cp2k_link_libs)
 
 if(CP2K_USE_ACCEL MATCHES "CUDA" AND CP2K_LIBXC_CUDA_SUPPORT)
-  target_compile_definitions(cp2k PUBLIC __LIBXC_CUDA)
+  target_compile_definitions(cp2k PUBLIC __LIBXC_GPU)
 endif()
 target_compile_definitions(
   cp2k
@@ -2091,7 +2091,7 @@ foreach(_app ${__CP2K_APPS})
   endif()
 
   if(CP2K_USE_ACCEL MATCHES "CUDA" AND CP2K_LIBXC_CUDA_SUPPORT)
-    target_compile_definitions(${_app} PUBLIC __LIBXC_CUDA)
+    target_compile_definitions(${_app} PUBLIC __LIBXC_GPU)
   endif()
 
   target_link_libraries(${_app} PUBLIC cp2k)
