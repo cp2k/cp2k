@@ -546,6 +546,7 @@ CONTAINS
                          vels=vels)
       CALL cp_rm_default_logger()
 
+      IF (output_unit > 0) CALL m_flush(output_unit)
       CALL timestop(handle)
 
    END SUBROUTINE dump_neb_info
