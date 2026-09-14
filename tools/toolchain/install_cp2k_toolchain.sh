@@ -1044,7 +1044,7 @@ fi
 if [ "${ENABLE_GAUXC_CUTLASS}" = "__TRUE__" ]; then
   if [ "${ENABLE_CUDA}" != "__TRUE__" ]; then
     report_error ${LINENO} "--enable-gauxc-cutlass requires --enable-cuda=yes."
-  elif ! case "${GPUVER}" in A100 | A40 | H100 | B200 | GB10) true ;; *) false ;; esac; then
+  elif ! case "${GPUVER}" in A100 | A40 | H100 | B200 | GB10) true ;; *) false ;; esac then
     report_error ${LINENO} "--enable-gauxc-cutlass requires CUDA compute capability >= 8.0 (found: ${GPUVER})."
   fi
   if [ "${with_gauxc}" = "__DONTUSE__" ]; then
