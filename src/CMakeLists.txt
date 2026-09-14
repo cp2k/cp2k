@@ -404,6 +404,7 @@ list(
   molecular_dipoles.F
   molecular_moments.F
   molecular_states.F
+  mo_window.F
   mol_force.F
   molsym.F
   moments_utils.F
@@ -873,6 +874,7 @@ list(
   tblite_ks_matrix.F
   tblite_scc_mixer.F
   tblite_types.F
+  time_frequency_grid_types.F
   tip_scan_methods.F
   tip_scan_types.F
   topology_amber.F

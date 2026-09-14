@@ -1059,7 +1059,7 @@ CONTAINS
       DO i_t = 1, bs_env%num_time_freq_points
          t1 = m_walltime()
 
-         tau = bs_env%imag_time_points(i_t)
+         tau = bs_env%time_frequency_grid%imaginary_time(i_t)
          CALL dbcsr_set(matrix_chi_grid, 0.0_dp)
 
          ! ----------------------------------------------------------------------
@@ -1435,7 +1435,7 @@ CONTAINS
       ! 2. MAIN IMAGINARY TIME LOOP
       ! =========================================================================
       DO i_t = 1, bs_env%num_time_freq_points
-         tau = bs_env%imag_time_points(i_t)
+         tau = bs_env%time_frequency_grid%imaginary_time(i_t)
 
          ! -------------------------------------------------------------------
          ! Compute W_grid = Z * W_aux * Z^T
