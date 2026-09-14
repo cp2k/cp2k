@@ -66,9 +66,9 @@ MODULE environment
    USE header,                          ONLY: cp2k_footer,&
                                               cp2k_header
    USE input_constants,                 ONLY: &
-         callgraph_all, callgraph_none, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_eip, &
-         do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_qs, do_scalapack, do_sirius, do_test, &
-         do_libxc_cpu, do_libxc_gpu, energy_run, mol_dyn_run, none_run
+        callgraph_all, callgraph_none, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_eip, &
+        do_farming, do_fft_fftw3, do_fft_sg, do_fist, do_libxc_cpu, do_libxc_gpu, do_qs, &
+        do_scalapack, do_sirius, do_test, energy_run, mol_dyn_run, none_run
    USE input_cp2k_global,               ONLY: create_global_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -521,8 +521,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: env_num, model_name, project_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: trace_routines
-      INTEGER :: cpuid, cpuid_static, i_cholesky, i_dgemm, i_diag, i_fft, i_grid_backend, &
-         i_libxc, iforce_eval, method_name_id, n_rep_val, nforce_eval, node_count, num_threads, &
+      INTEGER :: cpuid, cpuid_static, i_cholesky, i_dgemm, i_diag, i_fft, i_grid_backend, i_libxc, &
+         iforce_eval, method_name_id, n_rep_val, nforce_eval, node_count, num_threads, &
          output_unit, print_level, trace_max, unit_nr
       INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, Cached, Cached_avr, &
          Cached_max, Cached_min, MemFree, MemFree_avr, MemFree_max, MemFree_min, MemLikelyFree, &

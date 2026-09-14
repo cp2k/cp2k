@@ -124,7 +124,7 @@ EOF
     cat << EOF >> "${BUILDDIR}/setup_libxc"
 prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
-prepend_path LIBRARY_TYPE "${pkg_install_dir}/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
