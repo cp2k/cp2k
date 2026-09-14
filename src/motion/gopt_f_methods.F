@@ -1371,11 +1371,12 @@ CONTAINS
 
       IF (update_forces) THEN
 
-         ! Transform particle forces back to reference cell
+         ! r = h * h_ref^{-1} * x: gradients transform with the transpose Jacobian.
+         ! Include the independent shell coordinates as well as atomic/core coordinates.
          idg = 1
-         DO iatom = 1, natom
-            CALL real_to_scaled(s, x(idg:idg + 2), cell)
-            CALL scaled_to_real(x(idg:idg + 2), s, cell_ref)
+         DO iatom = 1, nparticle
+            s = MATMUL(TRANSPOSE(cell%hmat), x(idg:idg + 2))
+            x(idg:idg + 2) = MATMUL(TRANSPOSE(cell_ref%h_inv), s)
             idg = idg + 3
          END DO
 
