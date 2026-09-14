@@ -80,12 +80,12 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_points
       REAL(KIND=dp), INTENT(IN)                          :: energy_min, energy_max, regularization
       INTEGER, INTENT(IN)                                :: num_points_per_magnitude
-      TYPE(time_frequency_grid_type), INTENT(INOUT)      :: grid
+      TYPE(time_frequency_grid_type), INTENT(OUT)        :: grid
       LOGICAL, INTENT(IN)                                :: build_frequency, build_time, &
                                                             build_transforms, build_sine
       REAL(KIND=dp), INTENT(IN)                          :: time_scaling, time_weight_scaling
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: max_fit_error
-      LOGICAL, INTENT(IN), OPTIONAL                      :: print_warning
+      REAL(KIND=dp), INTENT(OUT)                         :: max_fit_error
+      LOGICAL, INTENT(IN)                                :: print_warning
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: prefer_external_backend
       LOGICAL, INTENT(OUT), OPTIONAL                     :: used_external_backend
@@ -93,23 +93,22 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_minimax_time_frequency_grid'
 
       INTEGER                                            :: external_ierr, handle, ierr
-      LOGICAL                                            :: my_print_warning, used_external
       REAL(KIND=dp)                                      :: e_range, max_error
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: points_and_weights
 
       CALL timeset(routineN, handle)
 
-      used_external = .FALSE.
+      IF (PRESENT(used_external_backend)) used_external_backend = .FALSE.
       IF (prefer_external_backend) THEN
          CALL greenx_get_minimax_grid(unit_nr, num_points, energy_min, energy_max, regularization, grid, &
                                       external_ierr)
-         used_external = (external_ierr == 0)
-         IF (used_external) THEN
-            IF (PRESENT(max_fit_error)) max_fit_error = 0.0_dp
+         IF (external_ierr == 0) THEN
+            max_fit_error = 0.0_dp
             IF (PRESENT(used_external_backend)) used_external_backend = .TRUE.
             CALL timestop(handle)
             RETURN
          END IF
+         CALL time_frequency_grid_release(grid)
       END IF
 
       CPASSERT(num_points > 0)
@@ -121,17 +120,12 @@ CONTAINS
       CPASSERT(.NOT. build_sine .OR. build_transforms)
       max_error = 0.0_dp
 
-      CALL time_frequency_grid_release(grid)
-
       e_range = energy_max/energy_min
       ALLOCATE (points_and_weights(2*num_points))
 
-      my_print_warning = .TRUE.
-      IF (PRESENT(print_warning)) my_print_warning = print_warning
-
       IF (build_frequency) THEN
          IF (num_points <= 20) THEN
-            CALL get_rpa_minimax_coeff(num_points, e_range, points_and_weights, ierr, my_print_warning)
+            CALL get_rpa_minimax_coeff(num_points, e_range, points_and_weights, ierr, print_warning)
          ELSE
             CALL get_rpa_minimax_coeff_larger_grid(num_points, e_range, points_and_weights)
          END IF
@@ -175,13 +169,11 @@ CONTAINS
          END IF
       END IF
 
-      IF (PRESENT(max_fit_error)) max_fit_error = max_error
+      max_fit_error = max_error
 
       DEALLOCATE (points_and_weights)
 
       CALL timestop(handle)
-
-      IF (PRESENT(used_external_backend)) used_external_backend = .FALSE.
 
    END SUBROUTINE build_minimax_time_frequency_grid
 
@@ -215,7 +207,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_kpoints_cubic_RPA
       REAL(KIND=dp), INTENT(OUT)                         :: e_fermi
-      TYPE(time_frequency_grid_type), INTENT(INOUT)      :: grid
+      TYPE(time_frequency_grid_type), INTENT(OUT)        :: grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_minimax_grid'
       INTEGER, PARAMETER                                 :: num_points_per_magnitude = 200
@@ -338,7 +330,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: my_do_gw
       REAL(KIND=dp), INTENT(IN)                          :: ext_scaling
-      TYPE(time_frequency_grid_type), INTENT(INOUT)      :: grid
+      TYPE(time_frequency_grid_type), INTENT(OUT)        :: grid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_clenshaw_grid'
 
@@ -346,8 +338,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: a_scaling
 
       CALL timeset(routineN, handle)
-
-      CALL time_frequency_grid_release(grid)
 
       ! Now, start to prepare the different grid
       ALLOCATE (grid%frequency(num_integ_points), grid%frequency_weights(num_integ_points))

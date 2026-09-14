@@ -23,8 +23,7 @@ MODULE greenx_interface
    USE input_section_types, ONLY: section_vals_type
    USE machine, ONLY: m_flush
    USE physcon, ONLY: evolt
-   USE time_frequency_grid_types, ONLY: time_frequency_grid_release, &
-                                        time_frequency_grid_type
+   USE time_frequency_grid_types, ONLY: time_frequency_grid_type
 #if defined (__GREENX)
    USE gx_ac, ONLY: create_thiele_pade, &
                     evaluate_thiele_pade_at, &
@@ -314,7 +313,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr, num_integ_points
       REAL(KIND=dp), INTENT(IN)                          :: emin, emax
       REAL(KIND=dp), INTENT(IN)                           :: regularization_minimax
-      TYPE(time_frequency_grid_type), INTENT(INOUT)      :: grid
+      TYPE(time_frequency_grid_type), INTENT(OUT)        :: grid
       INTEGER, INTENT(OUT) :: ierr
 
 #if defined (__GREENX)
@@ -322,8 +321,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: cosft_duality_error_greenx, &
                                                             max_errors_greenx(3)
 #endif
-
-      CALL time_frequency_grid_release(grid)
 
 #if defined (__GREENX)
       CALL gx_minimax_grid(num_integ_points, Emin, Emax, grid%imaginary_time, &
@@ -365,7 +362,6 @@ CONTAINS
                "GREENX MINIMAX_INFO| Grid not available, use internal CP2K grids"
             CALL m_flush(unit_nr)
          END IF
-         CALL time_frequency_grid_release(grid)
       END IF
 #else
       ierr = 1
