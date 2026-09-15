@@ -137,6 +137,9 @@ CONTAINS
 #if defined(GAUXC_HAS_HDF5)
       flags = TRIM(flags)//" gauxc_hdf5"
 #endif
+#if defined(__SKALA)
+      flags = TRIM(flags)//" skala"
+#endif
 #if defined(__PEXSI)
       flags = TRIM(flags)//" pexsi"
 #endif
@@ -272,6 +275,9 @@ CONTAINS
 #endif
 #if defined(__LIBTORCH_CUDA)
       flags = TRIM(flags)//" libtorch_cuda"
+#endif
+#if defined(__SKALA_FTORCH)
+      flags = TRIM(flags)//" skala_ftorch"
 #endif
 #if defined(__MIMIC)
       flags = TRIM(flags)//" mimic"
