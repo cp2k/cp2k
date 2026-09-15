@@ -21,8 +21,9 @@ MODULE mtlr_u_j_methods
                                               cp_logger_type
    USE force_env_methods,               ONLY: force_env_calc_energy_force
    USE force_env_types,                 ONLY: force_env_type
-   USE input_constants,                 ONLY: atomic_guess,&
-                                              restart_guess
+   USE input_constants,                 ONLY: mtlr_atomic_perturbations,&
+                                              mtlr_reference_from_atomic,&
+                                              mtlr_reference_from_restart
    USE kinds,                           ONLY: dp
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env
@@ -31,7 +32,6 @@ MODULE mtlr_u_j_methods
                                               duplicate_mo_set,&
                                               mo_set_type,&
                                               reassign_allocated_mos
-   USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -65,7 +65,8 @@ CONTAINS
       INTEGER                                            :: handle, ikind, iset, k, max_mtlr_iter, &
                                                             n, nkind, output_unit, p_iter, u_iter
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: any_dft_plus_u, any_mtlr_kind, converged
+      LOGICAL                                            :: any_dft_plus_u, any_mtlr_kind, &
+                                                            converged, do_reference_scf
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: mtlr_kind
       REAL(KIND=dp) :: delta_j, delta_u, denominator_minus, denominator_plus, eps_u_j_loop, &
          fhxc_minus, fhxc_plus, intercept_minus, intercept_plus, l, max_delta_j, max_delta_u, &
@@ -81,7 +82,6 @@ CONTAINS
       TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: reference_mos
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
 
@@ -97,14 +97,12 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       dft_control=dft_control, &
                       mos=mos, &
-                      scf_control=scf_control, &
                       atomic_kind_set=atomic_kind_set)
 
       CPASSERT(ASSOCIATED(atomic_kind_set))
       CPASSERT(ASSOCIATED(dft_control))
       CPASSERT(ASSOCIATED(mos))
       CPASSERT(ASSOCIATED(qs_kind_set))
-      CPASSERT(ASSOCIATED(scf_control))
 
       nkind = SIZE(atomic_kind_set)
       IF (SIZE(qs_kind_set) /= nkind) THEN
@@ -131,31 +129,41 @@ CONTAINS
                        "MINIMUM_TRACKING_LINEAR_RESPONSE subsection.")
       END IF
 
-      SELECT CASE (scf_control%density_guess)
-      CASE (restart_guess)
-      CASE (atomic_guess)
+      SELECT CASE (dft_control%mtlr_initialization_mode)
+      CASE (mtlr_atomic_perturbations)
+         do_reference_scf = .FALSE.
+      CASE (mtlr_reference_from_atomic, mtlr_reference_from_restart)
+         do_reference_scf = .TRUE.
       CASE DEFAULT
-         CPABORT("MTLR requires SCF_GUESS RESTART or SCF_GUESS ATOMIC.")
+         CPABORT("The MTLR SCF initialization mode was not resolved.")
       END SELECT
 
       IF (output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T2,78('='))")
          WRITE (UNIT=output_unit, FMT="(T2,A)") &
-            "MTLR| SCF initialization settings"
+            "MTLR| SCF initialization"
          WRITE (UNIT=output_unit, FMT="(T2,78('-'))")
-         IF (scf_control%density_guess == restart_guess) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,T68,A12)") &
-               "MTLR| SCF initial guess:", "RESTART"
-         ELSE
-            WRITE (UNIT=output_unit, FMT="(T2,A,T68,A12)") &
-               "MTLR| SCF initial guess:", "ATOMIC"
-         END IF
-         WRITE (UNIT=output_unit, FMT="(T2,A,T68,A12)") &
-            "MTLR| Internal extrapolation:", "USE_PREV_WF"
-         WRITE (UNIT=output_unit, FMT="(T2,A)") &
-            "MTLR| A reference SCF will precede each U/J iteration."
-         WRITE (UNIT=output_unit, FMT="(T2,A)") &
-            "MTLR| Every perturbation SCF will start from the fixed reference WFN."
+         SELECT CASE (dft_control%mtlr_initialization_mode)
+         CASE (mtlr_atomic_perturbations)
+            WRITE (UNIT=output_unit, FMT="(T2,A,T66,A13)") &
+               "MTLR| Reference SCF:", "OFF"
+            WRITE (UNIT=output_unit, FMT="(T2,A,T66,A13)") &
+               "MTLR| Perturbation initial guess:", "ATOMIC"
+         CASE (mtlr_reference_from_atomic)
+            WRITE (UNIT=output_unit, FMT="(T2,A,T66,A13)") &
+               "MTLR| Reference SCF:", "ON"
+            WRITE (UNIT=output_unit, FMT="(T2,A,T66,A13)") &
+               "MTLR| Reference SCF initial guess:", "ATOMIC"
+            WRITE (UNIT=output_unit, FMT="(T2,A,T66,A13)") &
+               "MTLR| Perturbation initial guess:", "REFERENCE MOs"
+         CASE (mtlr_reference_from_restart)
+            WRITE (UNIT=output_unit, FMT="(T2,A,T66,A13)") &
+               "MTLR| Reference SCF:", "ON"
+            WRITE (UNIT=output_unit, FMT="(T2,A,T66,A13)") &
+               "MTLR| Reference SCF initial guess:", "RESTART"
+            WRITE (UNIT=output_unit, FMT="(T2,A,T66,A13)") &
+               "MTLR| Perturbation initial guess:", "REFERENCE MOs"
+         END SELECT
          WRITE (UNIT=output_unit, FMT="(T2,78('='))")
       END IF
 
@@ -199,13 +207,27 @@ CONTAINS
 
          dft_control%mtlr_dft_with_perturbation = .FALSE.
 
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(/,T2,78('='))")
-            WRITE (UNIT=output_unit, FMT="(T2,A)") &
-               "MTLR| Starting the unperturbed reference SCF."
-            WRITE (UNIT=output_unit, FMT="(T2,A,T72,I8)") &
-               "MTLR| U/J iteration:", u_iter
-            WRITE (UNIT=output_unit, FMT="(T2,78('='))")
+         IF (do_reference_scf) THEN
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T2,78('='))")
+               WRITE (UNIT=output_unit, FMT="(T2,A)") &
+                  "MTLR| Starting the unperturbed reference SCF."
+               WRITE (UNIT=output_unit, FMT="(T2,A,T72,I8)") &
+                  "MTLR| U/J iteration:", u_iter
+               WRITE (UNIT=output_unit, FMT="(T2,78('='))")
+            END IF
+            CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
+
+            IF (.NOT. ALLOCATED(reference_mos)) THEN
+               ALLOCATE (reference_mos(SIZE(mos)))
+            ELSE
+               DO iset = 1, SIZE(reference_mos)
+                  CALL deallocate_mo_set(reference_mos(iset))
+               END DO
+            END IF
+            DO iset = 1, SIZE(mos)
+               CALL duplicate_mo_set(reference_mos(iset), mos(iset))
+            END DO
          END IF
          CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
 
@@ -282,7 +304,7 @@ CONTAINS
                dft_control%perturbation_strength = perturbation_strength(p_iter)
                dft_control%mtlr_dft_with_perturbation = .TRUE.
 
-               CALL restore_reference_mos(mos, reference_mos)
+               IF (do_reference_scf) CALL restore_reference_mos(mos, reference_mos)
                CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
 
                trq_plus(p_iter) = dft_control%trq(1) + dft_control%trq(2)
@@ -432,7 +454,7 @@ CONTAINS
 
          END DO
 
-         CALL restore_reference_mos(mos, reference_mos)
+         IF (do_reference_scf) CALL restore_reference_mos(mos, reference_mos)
 
          DO ikind = 1, nkind
             IF (.NOT. mtlr_kind(ikind)) CYCLE
@@ -481,7 +503,7 @@ CONTAINS
                   "MTLR| U and J have not yet converged."
 
                WRITE (UNIT=output_unit, FMT="(T2,A)") &
-                  "MTLR| Proceeding to the next linear-response U/J iteration."
+                  "MTLR| Proceeding to the next linear response U/J iteration."
 
             ELSE
                WRITE (UNIT=output_unit, FMT="(T2,A)") &
@@ -569,10 +591,12 @@ CONTAINS
 
       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
 
-      DO iset = 1, SIZE(reference_mos)
-         CALL deallocate_mo_set(reference_mos(iset))
-      END DO
-      DEALLOCATE (reference_mos)
+      IF (ALLOCATED(reference_mos)) THEN
+         DO iset = 1, SIZE(reference_mos)
+            CALL deallocate_mo_set(reference_mos(iset))
+         END DO
+         DEALLOCATE (reference_mos)
+      END IF
       DEALLOCATE (u_new)
       DEALLOCATE (j_new)
       DEALLOCATE (u_old)

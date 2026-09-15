@@ -483,6 +483,12 @@ CONTAINS
       ! Minimum tracking linear response U and J
       CALL section_vals_val_get(dft_section, "EPS_U_J_LOOP", r_val=dft_control%eps_u_j_loop)
       CALL section_vals_val_get(dft_section, "MAX_MTLR_LOOP", i_val=dft_control%max_mtlr_iter)
+      CALL section_vals_val_get(dft_section, "MTLR_REFERENCE_SCF", &
+                                explicit=dft_control%mtlr_reference_scf_explicit)
+      IF (dft_control%mtlr_reference_scf_explicit) THEN
+         CALL section_vals_val_get(dft_section, "MTLR_REFERENCE_SCF", &
+                                   l_val=dft_control%mtlr_reference_scf)
+      END IF
 
       ! Smearing in use
       dft_control%smear = .FALSE.

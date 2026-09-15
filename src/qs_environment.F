@@ -88,16 +88,18 @@ MODULE qs_environment
    USE hfx_types,                       ONLY: compare_hfx_sections,&
                                               hfx_create
    USE input_constants,                 ONLY: &
-        debug_run, diag_ot, dispersion_d2, dispersion_d3, dispersion_d3bj, do_et_ddapc, &
-        do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
-        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, do_method_pdg, &
-        do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, do_method_rigpw, &
-        do_method_rm1, do_method_xtb, do_qmmm_gauss, do_qmmm_swave, general_roks, gfn1xtb, &
-        hden_atomic, kg_tnadd_embed_ri, linear_response_run, rel_none, rel_trans_atom, &
-        smear_fermi_dirac, tblite_scc_mixer_tblite, tddfpt_kernel_none, vdw_pairpot_dftd2, &
-        vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, wfi_linear_ps_method_nr, &
-        wfi_linear_wf_method_nr, wfi_use_prev_wf_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, &
-        xc_vdw_fun_pairpot, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
+        atomic_guess, debug_run, diag_ot, dispersion_d2, dispersion_d3, dispersion_d3bj, &
+        do_et_ddapc, do_method_am1, do_method_dftb, do_method_gapw, do_method_gapw_xc, &
+        do_method_gpw, do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, &
+        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pm6fm, do_method_pnnl, &
+        do_method_rigpw, do_method_rm1, do_method_xtb, do_qmmm_gauss, do_qmmm_swave, general_roks, &
+        gfn1xtb, hden_atomic, kg_tnadd_embed_ri, linear_response_run, mtlr_atomic_perturbations, &
+        mtlr_reference_from_atomic, mtlr_reference_from_restart, rel_none, rel_trans_atom, &
+        restart_guess, smear_fermi_dirac, tblite_scc_mixer_tblite, tddfpt_kernel_none, &
+        vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, &
+        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_use_guess_method_nr, &
+        wfi_use_prev_wf_method_nr, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot, &
+        xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_vals_get,&
@@ -1678,10 +1680,41 @@ CONTAINS
       END IF
       CALL set_qs_env(qs_env, has_unit_metric=has_unit_metric)
 
-      ! MTLR restores a fixed reference wavefunction before every perturbation.
+      ! Select the MTLR SCF initialization after reading SCF_GUESS.
       IF (dft_control%mtlr_u_j) THEN
-         dft_control%qs_control%wf_interpolation_method_nr = &
-            wfi_use_prev_wf_method_nr
+         SELECT CASE (scf_control%density_guess)
+         CASE (atomic_guess)
+            IF (dft_control%mtlr_reference_scf_explicit .AND. &
+                dft_control%mtlr_reference_scf) THEN
+               dft_control%mtlr_initialization_mode = mtlr_reference_from_atomic
+            ELSE
+               dft_control%mtlr_initialization_mode = mtlr_atomic_perturbations
+            END IF
+         CASE (restart_guess)
+            IF (dft_control%mtlr_reference_scf_explicit .AND. &
+                .NOT. dft_control%mtlr_reference_scf) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "MTLR_REFERENCE_SCF OFF is incompatible with SCF_GUESS RESTART. "// &
+                             "Use MTLR_REFERENCE_SCF ON or SCF_GUESS ATOMIC.")
+            END IF
+            dft_control%mtlr_initialization_mode = mtlr_reference_from_restart
+         CASE DEFAULT
+            CPABORT("MTLR requires SCF_GUESS RESTART or SCF_GUESS ATOMIC.")
+         END SELECT
+
+         dft_control%mtlr_reference_scf = &
+            dft_control%mtlr_initialization_mode /= mtlr_atomic_perturbations
+
+         SELECT CASE (dft_control%mtlr_initialization_mode)
+         CASE (mtlr_atomic_perturbations)
+            ! Initialize every perturbation SCF from the atomic guess.
+            dft_control%qs_control%wf_interpolation_method_nr = wfi_use_guess_method_nr
+         CASE (mtlr_reference_from_atomic, mtlr_reference_from_restart)
+            ! Initialize every perturbation SCF from the restored reference MOs.
+            dft_control%qs_control%wf_interpolation_method_nr = wfi_use_prev_wf_method_nr
+         CASE DEFAULT
+            CPABORT("The MTLR SCF initialization mode was not resolved.")
+         END SELECT
       END IF
 
       !  Activate the interpolation

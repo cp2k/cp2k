@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT H2plus_mtlr_tensorial
+  PROJECT H2plus_mtlr_lowdin_reference_reversed
   RUN_TYPE MTLR
 &END GLOBAL
 
@@ -11,9 +11,9 @@
     CHARGE +1
     EPS_U_J_LOOP [eV] 0.01
     LSD
-    PLUS_U_METHOD TENSORIAL
+    MTLR_REFERENCE_SCF ON
+    PLUS_U_METHOD LOWDIN
     POTENTIAL_FILE_NAME POTENTIAL
-    WFN_RESTART_FILE_NAME H2plus_reference-RESTART.wfn
     &MGRID
       CUTOFF 100
       REL_CUTOFF 40
@@ -25,7 +25,7 @@
     &SCF
       EPS_SCF 1.0E-6
       MAX_SCF 100
-      SCF_GUESS RESTART
+      SCF_GUESS ATOMIC
       &OT
         MINIMIZER DIIS
         N_HISTORY_VEC 2
@@ -33,7 +33,6 @@
       &END OT
       &PRINT
         &RESTART OFF
-          LOG_PRINT_KEY T
         &END RESTART
       &END PRINT
     &END SCF
@@ -56,14 +55,10 @@
       &DFT_PLUS_U ON
         J [eV] 0.001
         L 0
-        N 1
         U_MINUS_J [eV] 5.0
-        &ATOMIC_PROJECTOR_TENSORIAL ON
-          SHELL_CHARGE 0.1 0.0 0.0 0.0
-        &END ATOMIC_PROJECTOR_TENSORIAL
         &MINIMUM_TRACKING_LINEAR_RESPONSE ON
           INDEX_PERTURBED_ATOM 1
-          PERTURBATION_STRENGTH [eV] -0.20 -0.10 0.00 0.10 0.20
+          PERTURBATION_STRENGTH [eV] 0.20 0.10 0.00 -0.10 -0.20
         &END MINIMUM_TRACKING_LINEAR_RESPONSE
       &END DFT_PLUS_U
     &END KIND

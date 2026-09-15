@@ -1,5 +1,18 @@
 # runs are executed in the same order as in this file
-"H2plus_mtlr-tensorial.inp"                    = [{matcher="MTLR_U_MINUS_J", tol=1e-2, ref=4.7101}]
-"H2plus_mtlr-tensorial-restart.inp"            = [{matcher="MTLR_U_MINUS_J", tol=1e-2, ref=4.7101}]
+"H2plus_reference-wfn.inp"                      = []
+"H2plus_mtlr-tensorial.inp"                    = [{matcher="MTLR_U_MINUS_J", tol=1e-2, ref=4.7101},
+                                                   {matcher="MTLR_REFERENCE_MOS"}]
+"H2plus_mtlr-tensorial-restart.inp"            = [{matcher="MTLR_U_MINUS_J", tol=1e-2, ref=4.7101},
+                                                   {matcher="MTLR_REFERENCE_MOS"},
+                                                   {matcher="WFN_RESTART_READ"}]
 "H2plus_mtlr-lowdin.inp"                       = [{matcher="MTLR_U_MINUS_J", tol=1e-2, ref=4.0093}]
-"H2plus_mtlr-lowdin-restart.inp"               = [{matcher="MTLR_U_MINUS_J", tol=1e-2, ref=4.0093}]
+"H2plus_mtlr-lowdin-reference.inp"             = [{matcher="MTLR_U_MINUS_J", tol=1e-2, ref=4.0093},
+                                                   {matcher="MTLR_REFERENCE_MOS"}]
+"H2plus_mtlr-lowdin-reference-reversed.inp"    = [{matcher="MTLR_U_MINUS_J", tol=1e-2, ref=4.0093},
+                                                   {matcher="MTLR_REFERENCE_MOS"}]
+"H2plus_mtlr-lowdin-restart.inp"               = [{matcher="MTLR_U_MINUS_J", tol=1e-2, ref=4.0093},
+                                                   {matcher="MTLR_REFERENCE_MOS"},
+                                                   {matcher="WFN_RESTART_READ"}]
+"H2O_mtlr-lowdin-atomic.inp"                   = [{matcher="MTLR_U_MINUS_J", tol=1e-2, ref=1.4939}]
+"H2O_mtlr-lowdin-reference.inp"                = [{matcher="MTLR_U_MINUS_J", tol=1e-2, ref=1.4958},
+                                                   {matcher="MTLR_REFERENCE_MOS"}]
