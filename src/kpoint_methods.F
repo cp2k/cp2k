@@ -45,10 +45,11 @@ MODULE kpoint_methods
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm,&
                                               fm_pool_give_back_fm
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
-        cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_release, &
+        cp_fm_get_diag, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_p_type, cp_fm_release, &
         cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cryssym,                         ONLY: crys_sym_gen,&
@@ -63,11 +64,15 @@ MODULE kpoint_methods
                                               smear_gaussian,&
                                               smear_mp,&
                                               smear_mv
-   USE input_cp2k_kpoints,              ONLY: use_spglib_kpoint_backend,&
+   USE input_cp2k_kpoints,              ONLY: lattice_fft_auto,&
+                                              lattice_fft_off,&
+                                              use_spglib_kpoint_backend,&
                                               use_spglib_kpoint_symmetry
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
+                                              k_grid_to_cell_fft,&
+                                              lattice_fft_shape,&
                                               regular_kpoint_grid
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kind_rotmat_type,&
@@ -77,7 +82,8 @@ MODULE kpoint_methods
                                               kpoint_sym_create,&
                                               kpoint_sym_type,&
                                               kpoint_type
-   USE mathconstants,                   ONLY: twopi
+   USE mathconstants,                   ONLY: twopi,&
+                                              z_zero
    USE mathlib,                         ONLY: inv_3x3
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_cart_type,&
@@ -129,7 +135,7 @@ MODULE kpoint_methods
    PUBLIC :: kpoint_smearing_edge_status
    PUBLIC :: kpoint_density_matrices, kpoint_density_transform
    PUBLIC :: kpoint_ot_energy_weighted_density, kpoint_ot_energy_weighted_matrices
-   PUBLIC :: kp_transform_plan_create, kp_transform_plan_release
+   PUBLIC :: kp_build_cfm, kp_transform_plan_create, kp_transform_plan_release
    PUBLIC :: rskp_transform, lowdin_kp_trans, lowdin_kp_mo_coeff
    PUBLIC :: rskp_grid_type, rskp_transform_grid_prepare, rskp_transform_grid_extract, &
              rskp_transform_grid_release
@@ -736,13 +742,12 @@ CONTAINS
          kpoint%nkp_groups = 1
       ELSE
          IF (kpoint%parallel_group_size == -1) THEN
-            ! maximum parallelization over kpoints
-            ! making sure that the group size divides the npe and the nkp_grp the nkp
-            ! in the worst case, there will be no parallelism over kpoints.
+            ! Maximum parallelization over kpoints with equal-sized MPI groups.
+            ! Each group must own at least one kpoint; their kpoint counts may differ.
             DO igr = npe, 1, -1
                IF (MOD(npe, igr) /= 0) CYCLE
                nkp_grp = npe/igr
-               IF (MOD(nkp, nkp_grp) /= 0) CYCLE
+               IF (nkp_grp > nkp) CYCLE
                ngr = igr
             END DO
          ELSE IF (kpoint%parallel_group_size == 0) THEN
@@ -757,11 +762,11 @@ CONTAINS
          ! processor dimensions
          dims(1) = ngr
          dims(2) = nkp_grp
-         CPASSERT(MOD(nkp, nkp_grp) == 0)
-         nkp_loc = nkp/nkp_grp
-
          IF ((dims(1)*dims(2) /= npe)) THEN
             CPABORT("Number of processors is not divisible by the kpoint group size.")
+         END IF
+         IF (nkp_grp > nkp) THEN
+            CPABORT("Too many kpoint groups. Increase PARALLEL_GROUP_SIZE.")
          END IF
 
          ! Create the subgroups, one for each k-point group and one interconnecting group
@@ -789,6 +794,7 @@ CONTAINS
          END DO
          ! local kpoints
          kpoint%kp_range(1:2) = kpoint%kp_dist(1:2, para_env_inter_kp%mepos + 1)
+         nkp_loc = kpoint%kp_range(2) - kpoint%kp_range(1) + 1
 
          ALLOCATE (kp_env(nkp_loc))
          DO ik = 1, nkp_loc
@@ -822,9 +828,15 @@ CONTAINS
 
          IF (unit_nr > 0 .AND. kpoint%verbose) THEN
             WRITE (unit_nr, *)
+            WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Total number of kpoints", nkp
             WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Number of kpoint groups ", nkp_grp
             WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Size of each kpoint group", ngr
-            WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Number of kpoints per group", nkp_loc
+            IF (MOD(nkp, nkp_grp) == 0) THEN
+               WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Number of kpoints per group", nkp_loc
+            ELSE
+               WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Minimum number of kpoints per group", nkp/nkp_grp
+               WRITE (unit_nr, FMT="(T2,A,T71,I10)") "KPOINTS| Maximum number of kpoints per group", nkp/nkp_grp + 1
+            END IF
          END IF
          kpoint%nkp_groups = nkp_grp
 
@@ -2501,7 +2513,7 @@ CONTAINS
                                                             nimg, nkp, nspin, omp_threads
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: aux_fit, do_ext, do_symmetric, my_kpgrp, &
-                                                            real_only
+                                                            real_only, use_grouped
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:)    :: info
@@ -2539,16 +2551,7 @@ CONTAINS
                         matrix_type=MERGE(dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, do_symmetric))
       CALL cp_dbcsr_alloc_block_from_nbl(cpmat, sab_nl)
       CALL dbcsr_set(cpmat, 0.0_dp)
-      IF (.NOT. kpoint%full_grid) THEN
-         ALLOCATE (srpmat)
-         CALL dbcsr_create(srpmat, template=rpmat)
-         CALL cp_dbcsr_alloc_block_from_nbl(srpmat, sab_nl)
-         CALL dbcsr_set(srpmat, 0.0_dp)
-         ALLOCATE (scpmat)
-         CALL dbcsr_create(scpmat, template=cpmat)
-         CALL cp_dbcsr_alloc_block_from_nbl(scpmat, sab_nl)
-         CALL dbcsr_set(scpmat, 0.0_dp)
-      END IF
+      NULLIFY (srpmat, scpmat)
 
       CALL get_kpoint_info(kpoint, nkp=nkp, xkp=xkp, wkp=wkp, &
                            cell_to_index=cell_to_index)
@@ -2571,14 +2574,44 @@ CONTAINS
       para_env => kpoint%blacs_env_all%para_env
       omp_threads = 1
 !$    omp_threads = omp_get_max_threads()
-      IF (para_env%num_pe == 1 .AND. omp_threads > 1) THEN
-         CALL kpoint_density_transform_local(kpoint, denmat, wtype, aux_fit, do_ext, pmat_ext, &
-                                             rpmat, cpmat, srpmat, scpmat, real_only, nspin, nimg, &
-                                             nkp, xkp, wkp, transform_plan)
+      ! Image-wise accumulation replaces per-k communication only when there
+      ! are fewer images than k-points. Spatial rotations keep the generic path.
+      use_grouped = para_env%num_pe > 1 .AND. nimg < nkp
+      IF (ASSOCIATED(kpoint%index_to_cell)) THEN
+         use_grouped = use_grouped .AND. nimg <= SIZE(kpoint%index_to_cell, 2)
+      ELSE
+         use_grouped = .FALSE.
+      END IF
+      IF (use_grouped) THEN
+         DO ik = 1, nkp
+            IF (kpoint%kp_sym(ik)%kpoint_sym%apply_symmetry) use_grouped = .FALSE.
+         END DO
+      END IF
+      ! Grouped accumulation does not apply spatial rotations and needs no symmetry scratch.
+      IF (.NOT. kpoint%full_grid .AND. .NOT. use_grouped) THEN
+         ALLOCATE (srpmat)
+         CALL dbcsr_create(srpmat, template=rpmat)
+         CALL cp_dbcsr_alloc_block_from_nbl(srpmat, sab_nl)
+         CALL dbcsr_set(srpmat, 0.0_dp)
+         ALLOCATE (scpmat)
+         CALL dbcsr_create(scpmat, template=cpmat)
+         CALL cp_dbcsr_alloc_block_from_nbl(scpmat, sab_nl)
+         CALL dbcsr_set(scpmat, 0.0_dp)
+      END IF
+
+      IF ((para_env%num_pe == 1 .AND. omp_threads > 1) .OR. use_grouped) THEN
+         IF (use_grouped) THEN
+            CALL kpoint_density_transform_grouped(kpoint, denmat, wtype, aux_fit, pmat_ext, &
+                                                  rpmat, cpmat, fmwork, nc, nspin, transform_plan)
+         ELSE
+            CALL kpoint_density_transform_local(kpoint, denmat, wtype, aux_fit, do_ext, pmat_ext, &
+                                                rpmat, cpmat, srpmat, scpmat, real_only, nspin, nimg, &
+                                                nkp, xkp, wkp, transform_plan)
+         END IF
          CALL kp_transform_plan_release(transform_plan)
          CALL dbcsr_deallocate_matrix(rpmat)
          CALL dbcsr_deallocate_matrix(cpmat)
-         IF (.NOT. kpoint%full_grid) THEN
+         IF (ASSOCIATED(srpmat)) THEN
             CALL dbcsr_deallocate_matrix(srpmat)
             CALL dbcsr_deallocate_matrix(scpmat)
          END IF
@@ -2694,6 +2727,367 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_density_transform
+
+! **************************************************************************************************
+!> \brief Sum local k-points on their FM distribution before redistributing each image.
+!>        With no spatial rotations, the Fourier sum commutes with FM-to-DBCSR
+!>        conversion. Equal-sized groups have equivalent FM tiles connected by
+!>        para_env_inter_kp. Only the IO group forwards their sum to the global FM.
+!>        Two group-local FMs suffice, independent of the number of images/k-points.
+!> \param kpoint ...
+!> \param denmat ...
+!> \param wtype ...
+!> \param aux_fit ...
+!> \param pmat_ext ...
+!> \param rpmat ...
+!> \param cpmat ...
+!> \param fmwork global FM work matrices
+!> \param nc ...
+!> \param nspin ...
+!> \param plan ...
+! **************************************************************************************************
+   SUBROUTINE kpoint_density_transform_grouped(kpoint, denmat, wtype, aux_fit, pmat_ext, &
+                                               rpmat, cpmat, fmwork, nc, nspin, plan)
+
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(dbcsr_p_type), DIMENSION(:, :)                :: denmat
+      LOGICAL, INTENT(IN)                                :: wtype, aux_fit
+      TYPE(cp_fm_type), DIMENSION(:, :, :), INTENT(IN), &
+         OPTIONAL, TARGET                                :: pmat_ext
+      TYPE(dbcsr_type), POINTER                          :: rpmat, cpmat
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fmwork
+      INTEGER, INTENT(IN)                                :: nc, nspin
+      TYPE(kp_transform_plan_type), INTENT(IN)           :: plan
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform_grouped'
+
+      INTEGER                                            :: element, handle, i, ic, ik, ikp, image, &
+                                                            ispin, j, kplocal, ncol, nrow
+      INTEGER, DIMENSION(14)                             :: layout, layout_max, layout_min
+      INTEGER, DIMENSION(2)                              :: fft_range
+      LOGICAL                                            :: same_layout
+      REAL(KIND=dp)                                      :: arg
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: phase
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: fft_density
+      TYPE(copy_info_type), DIMENSION(2)                 :: info
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:, :)   :: source
+      TYPE(cp_fm_struct_type), POINTER                   :: fms
+      TYPE(cp_fm_type)                                   :: dummy
+      TYPE(cp_fm_type), DIMENSION(2)                     :: partial
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(mp_para_env_type), POINTER                    :: inter, para_env
+
+      CALL timeset(routineN, handle)
+      para_env => kpoint%blacs_env_all%para_env
+      inter => kpoint%para_env_inter_kp
+      kplocal = kpoint%kp_range(2) - kpoint%kp_range(1) + 1
+      CPASSERT(nc >= 1 .AND. nc <= 2)
+      CPASSERT(SIZE(fmwork) >= nc)
+      ALLOCATE (source(kplocal, nc), phase(kplocal, nc))
+
+      DO ispin = 1, nspin
+         ! Borrow current sources only for this call; no density data are cached.
+         DO ikp = 1, kplocal
+            IF (PRESENT(pmat_ext)) THEN
+               DO ic = 1, nc
+                  source(ikp, ic)%matrix => pmat_ext(ikp, ic, ispin)
+               END DO
+            ELSE
+               IF (aux_fit) THEN
+                  kp => kpoint%kp_aux_env(ikp)%kpoint_env
+               ELSE
+                  kp => kpoint%kp_env(ikp)%kpoint_env
+               END IF
+               DO ic = 1, nc
+                  IF (wtype) THEN
+                     source(ikp, ic)%matrix => kp%wmat(ic, ispin)
+                  ELSE
+                     source(ikp, ic)%matrix => kp%pmat(ic, ispin)
+                  END IF
+               END DO
+            END IF
+         END DO
+         fms => source(1, 1)%matrix%matrix_struct
+         DO ic = 1, nc
+            DO ikp = 1, kplocal
+               same_layout = cp_fm_struct_equivalent(fms, source(ikp, ic)%matrix%matrix_struct)
+               CPASSERT(same_layout)
+               same_layout = ALL(fms%first_p_pos == source(ikp, ic)%matrix%matrix_struct%first_p_pos)
+               CPASSERT(same_layout)
+            END DO
+            CALL cp_fm_create(partial(ic), fms)
+         END DO
+         CALL cp_fm_get_info(partial(1), nrow_local=nrow, ncol_local=ncol)
+         ! Validate the host's equivalent-tile invariant before reducing arrays.
+         layout = [fms%nrow_global, fms%ncol_global, fms%nrow_block, fms%ncol_block, &
+                   fms%first_p_pos, fms%context%num_pe, fms%context%mepos, &
+                   SHAPE(partial(1)%local_data), nrow, ncol]
+         layout_min = layout
+         layout_max = layout
+         CALL inter%min(layout_min)
+         CALL inter%max(layout_max)
+         CPASSERT(ALL(layout_min == layout_max))
+
+         CALL kp_density_fft(kpoint, source, nrow, ncol, SIZE(denmat, 2), fft_range, fft_density)
+         DO image = 1, SIZE(denmat, 2)
+            DO ic = 1, nc
+               partial(ic)%local_data(:, :) = 0.0_dp
+            END DO
+            IF (ALLOCATED(fft_density)) THEN
+               ! FFT pencils are disjoint across the inter-group communicator.
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(partial, fft_density, fft_range, image, nc, nrow) PRIVATE(element, i, j, ic)
+               DO element = fft_range(1), fft_range(2)
+                  i = MODULO(element - 1, nrow) + 1
+                  j = (element - 1)/nrow + 1
+                  DO ic = 1, nc
+                     partial(ic)%local_data(i, j) = fft_density(element - fft_range(1) + 1, ic, image)
+                  END DO
+               END DO
+!$OMP END PARALLEL DO
+            ELSE
+               DO ikp = 1, kplocal
+                  ik = kpoint%kp_range(1) + ikp - 1
+                  arg = twopi*DOT_PRODUCT(REAL(kpoint%index_to_cell(:, image), dp), kpoint%xkp(:, ik))
+                  phase(ikp, 1) = kpoint%wkp(ik)*COS(arg)
+                  IF (nc == 2) phase(ikp, 2) = kpoint%wkp(ik)*SIN(arg)
+               END DO
+               ! Workers own disjoint columns; neither MPI nor nested BLAS is called.
+               ! Sum real/imaginary components separately: the neighbor list determines
+               ! the sign of the imaginary contribution to each stored DBCSR block.
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(partial, source, phase, nc, nrow, ncol, kplocal) PRIVATE(j, ikp, ic)
+               DO j = 1, ncol
+                  DO ikp = 1, kplocal
+                     DO ic = 1, nc
+                        partial(ic)%local_data(1:nrow, j) = partial(ic)%local_data(1:nrow, j) + &
+                                                            phase(ikp, ic)*source(ikp, ic)%matrix%local_data(1:nrow, j)
+                     END DO
+                  END DO
+               END DO
+!$OMP END PARALLEL DO
+            END IF
+
+            ! Every group completes its (possibly different) local k-point count
+            ! before these collectives. No communication is performed per k-point.
+            DO ic = 1, nc
+               CALL inter%sum(partial(ic)%local_data)
+               IF (kpoint%iogrp) THEN
+                  CALL cp_fm_start_copy_general(partial(ic), fmwork(ic), para_env, info(ic))
+               ELSE
+                  CALL cp_fm_start_copy_general(dummy, fmwork(ic), para_env, info(ic))
+               END IF
+            END DO
+            DO ic = 1, nc
+               CALL cp_fm_finish_copy_general(fmwork(ic), info(ic))
+               IF (kpoint%iogrp) CALL cp_fm_cleanup_copy_general(info(ic))
+            END DO
+            CALL copy_fm_to_dbcsr(fmwork(1), rpmat, keep_sparsity=.TRUE.)
+            IF (nc == 2) CALL copy_fm_to_dbcsr(fmwork(2), cpmat, keep_sparsity=.TRUE.)
+            CALL kp_accumulate_density_image(denmat(ispin, image)%matrix, rpmat, cpmat, &
+                                             image, nc == 1, plan)
+         END DO
+         IF (ALLOCATED(fft_density)) DEALLOCATE (fft_density)
+         DO ic = 1, nc
+            CALL cp_fm_release(partial(ic))
+         END DO
+      END DO
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_density_transform_grouped
+
+! **************************************************************************************************
+!> \brief Exchange k-distributed FM entries into batched FFT pencils.
+!>        Each inter-group rank transforms disjoint FM entries, not a full replicated
+!>        set of matrices. Real F(R) = A(R)+B(R), real F(-R) = A(R)-B(R), where A and B
+!>        are the weighted cosine/real and sine/imaginary sums needed by the DBCSR
+!>        storage convention. Original reduced-grid weights are used without doubling.
+!> \param kpoint ...
+!> \param source current group-local real/imaginary density matrices
+!> \param nrow number of valid local FM rows (excluding padding)
+!> \param ncol number of valid local FM columns
+!> \param nimg number of requested real-space images
+!> \param owned local FM element range assigned to this inter-group rank
+!> \param density allocated on success; unallocated selects the group-local direct sum
+! **************************************************************************************************
+   SUBROUTINE kp_density_fft(kpoint, source, nrow, ncol, nimg, owned, density)
+
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(cp_fm_p_type), DIMENSION(:, :), INTENT(IN)    :: source
+      INTEGER, INTENT(IN)                                :: nrow, ncol, nimg
+      INTEGER, DIMENSION(2), INTENT(OUT)                 :: owned
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+         INTENT(OUT)                                     :: density
+
+      INTEGER(KIND=int_8), PARAMETER :: max_bytes = 64_int_8*1024*1024, &
+         min_fft_peer_bytes = 32_int_8*1024
+      INTEGER, PARAMETER                                 :: max_batch = 32
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: sendbuf
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         TARGET                                          :: recvbuf
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: values_rs
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
+         POINTER                                         :: values_k
+      INTEGER :: batch, count, element, first, group, handle, i, ikp, j, last, local_k, &
+         min_local_k, mine, nc, nel, ngroup, nkp, nowned, offset, pos, width
+      INTEGER(KIND=int_8)                                :: fixed_bytes, peer_bytes, per_entry, &
+                                                            tile_size
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount, rdispl, scount, sdispl
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cells, ranges
+      INTEGER, DIMENSION(2)                              :: choice
+      INTEGER, DIMENSION(3)                              :: nfft
+      LOGICAL                                            :: compatible
+      TYPE(mp_para_env_type), POINTER                    :: inter
+
+      owned = [1, 0]
+      IF (kpoint%lattice_fft == lattice_fft_off) RETURN
+      nkp = SIZE(kpoint%xkp, 2)
+      IF (kpoint%lattice_fft == lattice_fft_auto .AND. nkp < 27) RETURN
+      IF (ANY(kpoint%nkp_grid <= 0)) RETURN
+      ! Bound map/scratch allocations before attempting a candidate-grid mapping.
+      IF (32_int_8*PRODUCT(INT(kpoint%nkp_grid, int_8)) > max_bytes) RETURN
+      compatible = lattice_fft_shape(kpoint%nkp_grid, nfft, allow_arbitrary=.TRUE.)
+      IF (.NOT. compatible) RETURN
+      IF (32_int_8*PRODUCT(INT(nfft, int_8)) > max_bytes) RETURN
+      compatible = regular_kpoint_grid(kpoint%xkp, kpoint%nkp_grid, allow_incomplete=.TRUE.)
+      IF (.NOT. compatible) RETURN
+
+      inter => kpoint%para_env_inter_kp
+      ngroup = inter%num_pe
+      mine = inter%mepos + 1
+      local_k = SIZE(source, 1)
+      nc = SIZE(source, 2)
+      tile_size = INT(nrow, int_8)*ncol
+      ! Avoid default-integer overflow, including float-rounded partition limits.
+      nel = 0
+      IF (tile_size <= HUGE(nel)) nel = INT(tile_size)
+      ALLOCATE (ranges(2, ngroup))
+      DO group = 1, ngroup
+         ranges(1, group) = INT(INT(nel, int_8)*(group - 1)/ngroup) + 1
+         ranges(2, group) = INT(INT(nel, int_8)*group/ngroup)
+      END DO
+      owned = ranges(:, mine)
+      nowned = MAX(0, owned(2) - owned(1) + 1)
+      fixed_bytes = 8_int_8*nowned*nc*nimg + 32_int_8*PRODUCT(INT(nfft, int_8)) + &
+                    4_int_8*PRODUCT(INT(kpoint%nkp_grid, int_8)) + 20_int_8*nkp + 40_int_8*nc*nimg + &
+                    24_int_8*ngroup + 64_int_8
+      per_entry = 16_int_8*(INT(ngroup, int_8)*local_k + nkp + INT(nc, int_8)*nimg)
+      width = INT(MAX(0_int_8, MIN(INT(max_batch, int_8), (max_bytes - fixed_bytes)/per_entry)))
+      choice = [MERGE(1, 0, tile_size <= HUGE(nel)), width]
+      ! All global ranks must either use FFT pencils or retain the direct path.
+      CALL kpoint%blacs_env_all%para_env%min(choice)
+      IF (choice(1) == 0 .OR. choice(2) == 0) RETURN
+      width = choice(2)
+      IF (kpoint%lattice_fft == lattice_fft_auto .AND. ngroup > 1) THEN
+         ! With several k-point groups, small per-peer payloads do not amortize
+         ! the all-to-all latency and the group-local direct sum is faster.
+         min_local_k = MINVAL(kpoint%kp_dist(2, :) - kpoint%kp_dist(1, :) + 1)
+         peer_bytes = 16_int_8*INT(width, int_8)*INT(min_local_k, int_8)
+         IF (peer_bytes < min_fft_peer_bytes) RETURN
+      END IF
+
+      CALL timeset("kp_density_fft", handle)
+      ALLOCATE (density(nowned, nc, nimg))
+      ALLOCATE (cells(3, nc*nimg))
+      cells(:, 1:nimg) = kpoint%index_to_cell(:, 1:nimg)
+      IF (nc == 2) cells(:, nimg + 1:) = -cells(:, 1:nimg)
+      ALLOCATE (scount(ngroup), sdispl(ngroup), rcount(ngroup), rdispl(ngroup))
+      ALLOCATE (sendbuf(MAX(1, width*ngroup*local_k)), recvbuf(MAX(1, width*nkp)))
+      ALLOCATE (values_rs(width, 1, nc*nimg))
+      DO batch = 1, MAXVAL(ranges(2, :) - ranges(1, :) + 1), width
+         count = MAX(0, MIN(width, nowned - batch + 1))
+         offset = 0
+         DO group = 1, ngroup
+            first = ranges(1, group) + batch - 1
+            last = MIN(first + width - 1, ranges(2, group))
+            scount(group) = MAX(0, last - first + 1)*local_k
+            sdispl(group) = offset
+            offset = offset + scount(group)
+            rcount(group) = count*(kpoint%kp_dist(2, group) - kpoint%kp_dist(1, group) + 1)
+            rdispl(group) = count*(kpoint%kp_dist(1, group) - 1)
+            ! Pack elements in k-major order; displacements already encode the
+            ! unequal k ranges, so neither counts nor indices need an exchange.
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(source, sendbuf, sdispl, group, first, last, nc, nrow, local_k) &
+!$OMP PRIVATE(ikp, element, i, j, pos)
+            DO ikp = 1, local_k
+               DO element = first, last
+                  i = MODULO(element - 1, nrow) + 1
+                  j = (element - 1)/nrow + 1
+                  pos = sdispl(group) + (ikp - 1)*(last - first + 1) + element - first + 1
+                  sendbuf(pos) = CMPLX(source(ikp, 1)%matrix%local_data(i, j), 0.0_dp, dp)
+                  IF (nc == 2) sendbuf(pos) = CMPLX(REAL(sendbuf(pos), dp), &
+                                                    source(ikp, 2)%matrix%local_data(i, j), dp)
+               END DO
+            END DO
+!$OMP END PARALLEL DO
+         END DO
+         CALL inter%alltoall(sendbuf, scount, sdispl, recvbuf, rcount, rdispl)
+         IF (count == 0) CYCLE
+         values_k(1:count, 1:1, 1:nkp) => recvbuf(1:count*nkp)
+         ! Keep fft_tools pool/planner access outside OpenMP worker regions.
+         CALL k_grid_to_cell_fft(values_k, kpoint%xkp, kpoint%nkp_grid, cells, &
+                                 values_rs(1:count, :, :), weights=kpoint%wkp, allow_incomplete=.TRUE.)
+         DO i = 1, nimg
+            IF (nc == 1) THEN
+               density(batch:batch + count - 1, 1, i) = REAL(values_rs(1:count, 1, i), dp)
+            ELSE
+               density(batch:batch + count - 1, 1, i) = 0.5_dp* &
+                                                        REAL(values_rs(1:count, 1, i) + values_rs(1:count, 1, nimg + i), dp)
+               density(batch:batch + count - 1, 2, i) = 0.5_dp* &
+                                                        REAL(values_rs(1:count, 1, i) - values_rs(1:count, 1, nimg + i), dp)
+            END IF
+         END DO
+      END DO
+      CALL timestop(handle)
+
+   END SUBROUTINE kp_density_fft
+
+! **************************************************************************************************
+!> \brief Apply the neighbor-list storage convention to an already k-summed image.
+!>        Cell phases and k weights have been applied in the FM distribution;
+!>        retain the multiplicity and imaginary sign of each neighbor-list entry.
+!> \param denmat ...
+!> \param rpmat ...
+!> \param cpmat ...
+!> \param image ...
+!> \param real_only ...
+!> \param plan ...
+! **************************************************************************************************
+   SUBROUTINE kp_accumulate_density_image(denmat, rpmat, cpmat, image, real_only, plan)
+
+      TYPE(dbcsr_type), POINTER                          :: denmat, rpmat, cpmat
+      INTEGER, INTENT(IN)                                :: image
+      LOGICAL, INTENT(IN)                                :: real_only
+      TYPE(kp_transform_plan_type), INTENT(IN)           :: plan
+
+      INTEGER                                            :: first, igroup, last
+      LOGICAL                                            :: found
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, dblock, rblock
+
+      CALL dbcsr_set(denmat, 0.0_dp)
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) &
+!$OMP SHARED(denmat, rpmat, cpmat, image, real_only, plan) &
+!$OMP PRIVATE(igroup, first, last, found, dblock, rblock, cblock)
+      DO igroup = 1, plan%ngroup
+         first = plan%group_start(igroup)
+         IF (plan%image(first) /= image) CYCLE
+         last = plan%group_start(igroup + 1) - 1
+         CALL dbcsr_get_block_p(denmat, plan%row(first), plan%col(first), dblock, found=found)
+         IF (.NOT. found) CYCLE
+         CALL dbcsr_get_readonly_block_p(rpmat, plan%row(first), plan%col(first), rblock, found=found)
+         IF (.NOT. found) CYCLE
+         IF (.NOT. real_only) THEN
+            CALL dbcsr_get_readonly_block_p(cpmat, plan%row(first), plan%col(first), cblock, found=found)
+            IF (.NOT. found) CYCLE
+         END IF
+         dblock = REAL(last - first + 1, dp)*rblock
+         IF (.NOT. real_only) dblock = dblock + SUM(plan%symmetry_sign(first:last))*cblock
+      END DO
+!$OMP END PARALLEL DO
+
+   END SUBROUTINE kp_accumulate_density_image
 
 ! **************************************************************************************************
 !> \brief One-rank K-to-R density transform without full-matrix redistribution.
@@ -2980,6 +3374,56 @@ CONTAINS
       END IF
 
    END SUBROUTINE kp_transform_plan_create
+
+! **************************************************************************************************
+!> \brief Fuse the real-space Fourier transform and DBCSR-to-dense expansion.
+!>        Only for globally single-rank matrices: the target contains the full matrix.
+!>        The target is private to one worker and the source blocks are read-only.
+!>        Build the traversal plan and allocate targets before entering OpenMP.
+!> \param source ...
+!> \param ispin ...
+!> \param xkp ...
+!> \param plan ...
+!> \param TARGET ...
+! **************************************************************************************************
+   SUBROUTINE kp_build_cfm(source, ispin, xkp, plan, TARGET)
+
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: source
+      INTEGER, INTENT(IN)                                :: ispin
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
+      TYPE(kp_transform_plan_type), INTENT(IN)           :: plan
+      TYPE(cp_cfm_type), INTENT(IN)                      :: target
+
+      COMPLEX(KIND=dp)                                   :: phase
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: full
+      INTEGER                                            :: col_offset, i, row_offset
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: arg
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+
+      full => target%local_data
+      full = z_zero
+      DO i = 1, plan%nentry
+         CALL dbcsr_get_readonly_block_p(source(ispin, plan%image(i))%matrix, &
+                                         plan%row(i), plan%col(i), block, found)
+         IF (.NOT. found) CYCLE
+         row_offset = plan%row_offset(i)
+         col_offset = plan%col_offset(i)
+         arg = DOT_PRODUCT(REAL(plan%cell(:, i), KIND=dp), xkp)
+         phase = CMPLX(COS(twopi*arg), plan%symmetry_sign(i)*SIN(twopi*arg), KIND=dp)
+         full(row_offset:row_offset + SIZE(block, 1) - 1, &
+              col_offset:col_offset + SIZE(block, 2) - 1) = &
+            full(row_offset:row_offset + SIZE(block, 1) - 1, &
+                 col_offset:col_offset + SIZE(block, 2) - 1) + phase*block
+         IF (plan%symmetric .AND. plan%row(i) /= plan%col(i)) THEN
+            full(col_offset:col_offset + SIZE(block, 2) - 1, &
+                 row_offset:row_offset + SIZE(block, 1) - 1) = &
+               full(col_offset:col_offset + SIZE(block, 2) - 1, &
+                    row_offset:row_offset + SIZE(block, 1) - 1) + CONJG(phase)*TRANSPOSE(block)
+         END IF
+      END DO
+
+   END SUBROUTINE kp_build_cfm
 
 ! **************************************************************************************************
 !> \brief Release a K-to-R traversal plan.

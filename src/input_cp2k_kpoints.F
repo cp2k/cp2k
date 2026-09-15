@@ -148,17 +148,20 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LATTICE_FFT", &
-                          description="Control the FFT-based transformation of real-space matrices "// &
-                          "to complete regular k-point grids. AUTO uses the lattice FFT for at least "// &
-                          "27 k points when the grid and memory requirements are satisfied. ON bypasses "// &
-                          "this performance threshold. OFF always uses the established direct phase sum. "// &
-                          "Unsupported, incomplete, or oversized grids retain the direct fallback.", &
+                          description="Control lattice FFTs for real-space operators and grouped k-point densities. "// &
+                          "The density path also accepts regular-grid subsets with their original weights. "// &
+                          "AUTO uses the lattice FFT for at least "// &
+                          "27 k points when the grid, memory, and communication-granularity requirements "// &
+                          "are satisfied. ON bypasses these performance thresholds. OFF always uses the "// &
+                          "established direct phase sum. "// &
+                          "Unsupported or oversized grids retain the direct fallback; the forward operator "// &
+                          "FFT still requires a complete grid.", &
                           usage="LATTICE_FFT AUTO", type_of_var=enum_t, &
                           enum_c_vals=s2a("AUTO", "ON", "OFF"), &
                           enum_i_vals=[lattice_fft_auto, lattice_fft_on, lattice_fft_off], &
                           enum_desc=s2a("Select the FFT from a conservative cost threshold.", &
                                         "Prefer the FFT whenever the grid and memory checks allow it.", &
-                                        "Always use the direct real-cell to k-point transform."), &
+                                        "Use direct phase sums instead of lattice FFTs."), &
                           default_i_val=lattice_fft_auto)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -235,7 +238,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PARALLEL_GROUP_SIZE", &
                           description="Number of MPI processes to be used for a single k-point."// &
                           " This number must divide the total number of processes."// &
-                          " The number of groups must divide the total number of kpoints."// &
+                          " The number of groups must not exceed the number of kpoints."// &
+                          " Kpoints are distributed as evenly as possible among the groups."// &
                           " Value=-1 (smallest possible number of processes per group, satisfying the constraints)."// &
                           " Value=0 (all processes)."// &
                           " Value=n (exactly n processes).", &

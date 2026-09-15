@@ -60,6 +60,7 @@ MODULE kpoint_types
    PUBLIC :: kpoint_type
    PUBLIC :: kpoint_create, kpoint_release, kpoint_reset_initialization, get_kpoint_info, set_kpoint_info
    PUBLIC :: read_kpoint_section, write_kpoint_info
+   PUBLIC :: kpoint_clear_scf_smat
    PUBLIC :: kpoint_env_type, kpoint_env_p_type
    PUBLIC :: kpoint_env_create, get_kpoint_env
    PUBLIC :: kind_rotmat_type
@@ -234,6 +235,8 @@ MODULE kpoint_types
       ! pools
       TYPE(qs_matrix_pools_type), POINTER     :: mpools => Null()
       TYPE(qs_diis_buffer_type_kp), POINTER   :: scf_diis_buffer => Null()
+      ! Unmodified complex overlaps for the current SCF run, indexed by local k-point.
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:) :: scf_smat
       TYPE(qs_matrix_pools_type), POINTER     :: mpools_aux_fit => Null()
    END TYPE kpoint_type
 
@@ -304,6 +307,7 @@ CONTAINS
       INTEGER                                            :: i, ik, j
 
       IF (ASSOCIATED(kpoint)) THEN
+         CALL kpoint_clear_scf_smat(kpoint)
 
          IF (ASSOCIATED(kpoint%xkp)) THEN
             DEALLOCATE (kpoint%xkp)
@@ -381,6 +385,24 @@ CONTAINS
    END SUBROUTINE kpoint_release
 
 ! **************************************************************************************************
+!> \brief Release overlap matrices cached for a single SCF run.
+!> \param kpoint The kpoint environment
+! **************************************************************************************************
+   SUBROUTINE kpoint_clear_scf_smat(kpoint)
+      TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
+
+      INTEGER                                            :: ikp
+
+      IF (ALLOCATED(kpoint%scf_smat)) THEN
+         DO ikp = 1, SIZE(kpoint%scf_smat)
+            CALL cp_cfm_release(kpoint%scf_smat(ikp))
+         END DO
+         DEALLOCATE (kpoint%scf_smat)
+      END IF
+
+   END SUBROUTINE kpoint_clear_scf_smat
+
+! **************************************************************************************************
 !> \brief Reset all data derived from a concrete k-point initialization.
 !>        Input options such as the scheme, grid, shifts and symmetry settings are kept.
 !> \param kpoint  The kpoint environment
@@ -389,6 +411,8 @@ CONTAINS
       TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
 
       INTEGER                                            :: i, ik, j
+
+      CALL kpoint_clear_scf_smat(kpoint)
 
       IF (ASSOCIATED(kpoint%xkp)) THEN
          DEALLOCATE (kpoint%xkp)
