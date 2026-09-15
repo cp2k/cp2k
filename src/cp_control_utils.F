@@ -244,13 +244,13 @@ CONTAINS
             CALL section_vals_val_get(tmp_section, "EPS_FT_DENSITY", r_val=fde%eps_ft_density)
             CALL section_vals_val_get(tmp_section, "EPS_FT_ENERGY", r_val=fde%eps_ft_energy)
             CALL section_vals_val_get(tmp_section, "DENSITY_MIXING", r_val=fde%density_mixing)
-            CALL section_vals_val_get(tmp_section, "COMMAND", c_val=fde%openmolcas_command)
-            CALL section_vals_val_get(tmp_section, "PROJECT", c_val=fde%molcas_project)
-            CALL section_vals_val_get(tmp_section, "WORKDIR", c_val=fde%molcas_workdir)
+            CALL section_vals_val_get(tmp_section, "COMMAND", c_val=fde%command)
+            CALL section_vals_val_get(tmp_section, "PROJECT", c_val=fde%project)
+            CALL section_vals_val_get(tmp_section, "WORKDIR", c_val=fde%workdir)
             CALL section_vals_val_get(tmp_section, "MOLCAS_INPUT_TEMPLATE", c_val=fde%molcas_input_template)
             CALL section_vals_val_get(tmp_section, "POT_FILE", c_val=fde%pot_file)
             CALL section_vals_val_get(tmp_section, "GRID_FILE", c_val=fde%grid_file)
-            CALL section_vals_val_get(tmp_section, "RHOA_FILE", c_val=fde%rhoa_file)
+            CALL section_vals_val_get(tmp_section, "RHO_FILE", c_val=fde%rho_file)
             CALL section_vals_val_get(tmp_section, "RESULT_FILE", c_val=fde%result_file)
          END ASSOCIATE
       END IF

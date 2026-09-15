@@ -184,6 +184,8 @@ list(
   f77_interface.F
   farming_methods.F
   farming_types.F
+  fde_main.F
+  fde_methods.F
   fist_efield_methods.F
   fist_efield_types.F
   fist_energy_types.F

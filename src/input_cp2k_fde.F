@@ -81,7 +81,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DENSITY_MIXING", &
                           description="Linear mixing factor applied to the subsystem density "// &
-                          "returned by OpenMolcas between macro-iterations. 1.0 = no damping.", &
+                          "between macro-iterations. 1.0 = no damping.", &
                           usage="DENSITY_MIXING 0.5", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -109,16 +109,15 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MOLCAS_INPUT_TEMPLATE", &
-                          description="Path to the OpenMolcas input template for the active "// &
-                          "subsystem (GATEWAY/SEWARD/RASSCF). The driver appends the EMBEDDING "// &
-                          "directives.", &
+                          description="Path to the OpenMolcas input template for the subsystem "// &
+                          "(GATEWAY/SEWARD/RASSCF). The driver appends the EMBEDDING block.", &
                           usage="MOLCAS_INPUT_TEMPLATE sub.template.inp", default_c_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="POT_FILE", &
                           description="File name (in WORKDIR) for the embedding potential "// &
-                          "written in OpenMolcas format."
+                          "written in OpenMolcas format.", &
                           usage="POT_FILE EMBPOT", default_c_val="EMBPOT")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -133,7 +132,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="RHO_FILE", &
                           description="File name (in WORKDIR) with the subsystem density "// &
                           "returned by the subsystem solver on the output grid.", &
-                          usage="RHOA_FILE EMBRHOA", default_c_val="EMBRHOA")
+                          usage="RHO_FILE EMBRHOA", default_c_val="EMBRHOA")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
