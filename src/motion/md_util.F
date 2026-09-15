@@ -65,7 +65,7 @@ CONTAINS
 !>         in cp2k internal units. See "Note the unit conversion
 !>         here" in SUBROUTINE print_thermal_regions_temperature
 !>         in thermal_region_utils.F for output processing.
-!> \author HE Zilong
+!> \author Zilong HE
 ! **************************************************************************************************
    SUBROUTINE update_expected_temperature(md_env)
       TYPE(md_environment_type), POINTER                 :: md_env

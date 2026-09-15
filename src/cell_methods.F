@@ -896,7 +896,7 @@ CONTAINS
 !> \par    History
 !>         03.2026 - Created as read_cell_extxyz with extended XYZ parser
 !>         06.2026 - Refactored the parser to allow for reftraj use
-!> \author  HE Zilong
+!> \author Zilong HE
 ! **************************************************************************************************
    SUBROUTINE read_cell_xyz(xyz_file_name, cell, para_env)
 
@@ -971,7 +971,7 @@ CONTAINS
 !>         History
 !>         06.2026 - Created by combining the extxyz parser from former read_cell_extxyz
 !>                   and the parser for reftraj in src/motion/integrator.F
-!> \author  HE Zilong
+!> \author Zilong HE
 ! **************************************************************************************************
    SUBROUTINE read_xyz_comment(line, cell, has_cell, step, time, ener)
 

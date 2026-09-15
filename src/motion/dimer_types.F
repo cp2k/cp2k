@@ -358,7 +358,7 @@ CONTAINS
 !> \param force_env ...
 !> \par History
 !>      2026/05  created
-!> \author HE Zilong
+!> \author Zilong HE
 ! **************************************************************************************************
    SUBROUTINE dimer_init_vector(dimer_env, dimer_section, natom, unit, globenv, force_env)
       TYPE(dimer_env_type), INTENT(INOUT), POINTER       :: dimer_env
@@ -472,7 +472,7 @@ CONTAINS
 !> \param unit ...
 !> \par History
 !>      2026/05  created
-!> \author HE Zilong
+!> \author Zilong HE
 ! **************************************************************************************************
    SUBROUTINE vib_get_index_weight(dimer_section, vib_id_list, vib_wt_list, vib_list_size, unit)
       TYPE(section_vals_type), INTENT(IN), POINTER       :: dimer_section

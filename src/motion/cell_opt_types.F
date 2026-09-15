@@ -15,7 +15,8 @@ MODULE cell_opt_types
 
    USE cell_methods,                    ONLY: canonicalize_cell_matrix,&
                                               cell_create
-   USE cell_opt_utils,                  ONLY: read_external_press_tensor
+   USE cell_opt_utils,                  ONLY: parse_cell_constraint,&
+                                              read_external_press_tensor
    USE cell_types,                      ONLY: cell_clone,&
                                               cell_release,&
                                               cell_type
@@ -26,13 +27,6 @@ MODULE cell_opt_types
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
-   USE input_constants,                 ONLY: fix_none,&
-                                              fix_x,&
-                                              fix_xy,&
-                                              fix_xz,&
-                                              fix_y,&
-                                              fix_yz,&
-                                              fix_z
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -56,7 +50,8 @@ MODULE cell_opt_types
 ! **************************************************************************************************
    TYPE cell_opt_env_type
       ! Simulation cell optimization parameters
-      INTEGER                                    :: constraint_id = fix_none
+      CHARACTER(LEN=32)                          :: constraint_label = "NONE"
+      INTEGER, DIMENSION(6)                      :: cell_relax = 1
       LOGICAL                                    :: keep_angles = .FALSE., &
                                                     keep_symmetry = .FALSE., &
                                                     keep_volume = .FALSE.
@@ -85,9 +80,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: geo_section
 
-      CHARACTER(LEN=4)                                   :: label
-      INTEGER                                            :: output_unit, required_constraint_id
-      LOGICAL                                            :: constraint_explicit, valid_constraint
+      INTEGER                                            :: output_unit
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -104,40 +97,9 @@ CONTAINS
       CALL section_vals_val_get(geo_section, "KEEP_ANGLES", l_val=cell_env%keep_angles)
       CALL section_vals_val_get(geo_section, "KEEP_SYMMETRY", l_val=cell_env%keep_symmetry)
       CALL section_vals_val_get(geo_section, "PRESSURE_TOLERANCE", r_val=cell_env%pres_tol)
-      CALL section_vals_val_get(geo_section, "CONSTRAINT", &
-                                i_val=cell_env%constraint_id, explicit=constraint_explicit)
-      IF (COUNT(cell%perd /= 0) == 2) THEN
-         required_constraint_id = fix_none
-         IF (cell%perd(1) == 0) required_constraint_id = fix_x
-         IF (cell%perd(2) == 0) required_constraint_id = fix_y
-         IF (cell%perd(3) == 0) required_constraint_id = fix_z
 
-         SELECT CASE (required_constraint_id)
-         CASE (fix_x)
-            valid_constraint = cell_env%constraint_id == fix_x .OR. &
-                               cell_env%constraint_id == fix_xy .OR. &
-                               cell_env%constraint_id == fix_xz
-         CASE (fix_y)
-            valid_constraint = cell_env%constraint_id == fix_y .OR. &
-                               cell_env%constraint_id == fix_xy .OR. &
-                               cell_env%constraint_id == fix_yz
-         CASE (fix_z)
-            valid_constraint = cell_env%constraint_id == fix_z .OR. &
-                               cell_env%constraint_id == fix_xz .OR. &
-                               cell_env%constraint_id == fix_yz
-         CASE DEFAULT
-            valid_constraint = .FALSE.
-         END SELECT
-
-         IF (cell_env%constraint_id == fix_none .AND. .NOT. constraint_explicit) THEN
-            cell_env%constraint_id = required_constraint_id
-            CALL cp_warn(__LOCATION__, &
-                         "2D CELL_OPT: constraining non-periodic cell direction.")
-         ELSE IF (.NOT. valid_constraint) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "2D CELL_OPT needs constrained non-periodic cell direction.")
-         END IF
-      END IF
+      ! Parse and check cell constraints
+      CALL parse_cell_constraint(geo_section, cell, cell_env%cell_relax, cell_env%constraint_label)
 
       ! Get the external pressure
       CALL read_external_press_tensor(geo_section, cell_env%opt_cell, cell_env%pres_ext, &
@@ -171,24 +133,8 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
                "CELL_OPT| Keep cell symmetry: ", " NO"
          END IF
-         SELECT CASE (cell_env%constraint_id)
-         CASE (fix_x)
-            label = "   X"
-         CASE (fix_y)
-            label = "   Y"
-         CASE (fix_z)
-            label = "   Z"
-         CASE (fix_xy)
-            label = "  XY"
-         CASE (fix_xz)
-            label = "  XZ"
-         CASE (fix_yz)
-            label = "  YZ"
-         CASE (fix_none)
-            label = "NONE"
-         END SELECT
-         WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-            "CELL_OPT| Constraint: ", label
+         WRITE (UNIT=output_unit, FMT="(T2,A,T49,A32)") &
+            "CELL_OPT| Constraint: ", ADJUSTR(cell_env%constraint_label)
       END IF
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, "PRINT%CELL")
 

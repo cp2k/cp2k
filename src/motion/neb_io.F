@@ -169,7 +169,7 @@ CONTAINS
 !> \par
 !>          History
 !>          06.2026 - Created
-!> \author  HE Zilong
+!> \author  Zilong HE
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE dump_neb_final(neb_env, energies, coords, particle_set, logger, output_unit, converged)
