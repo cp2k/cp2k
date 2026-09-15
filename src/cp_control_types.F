@@ -500,7 +500,7 @@ MODULE cp_control_types
       CHARACTER(LEN=default_path_length)   :: molcas_input_template = ""
       CHARACTER(LEN=default_path_length)   :: pot_file = "EMBPOT"
       CHARACTER(LEN=default_path_length)   :: grid_file = "EMBGRID"
-      CHARACTER(LEN=default_path_length)   :: rhoa_file = "EMBRHOA"
+      CHARACTER(LEN=default_path_length)   :: rho_file = "EMBRHOA"
       CHARACTER(LEN=default_path_length)   :: result_file = "EMBRES"
    END TYPE fde_control_type
 
