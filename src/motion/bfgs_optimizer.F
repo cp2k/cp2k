@@ -660,6 +660,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bfgs'
       REAL(KIND=dp), PARAMETER                           :: min_curvature = 0.2_dp, one = 1.0_dp, &
+                                                            min_sbs = 10.0_dp*TINY(one), &
                                                             zero = 0.0_dp
 
       INTEGER                                            :: exit_flag, handle, i, invalid, j, k, l, &
@@ -669,6 +670,9 @@ CONTAINS
                                                             sy, theta
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_hes
+
+! Smallest predicted curvature we divide by: below it, 0.2*sbs (the least
+! possible seta) would sink below the smallest normal number.
 
       CALL timeset(routineN, handle)
       hess_reset = .FALSE.
@@ -697,11 +701,15 @@ CONTAINS
 
       ! One collective decision covers every early exit, so that all ranks take
       ! the same path: 0 = update, 1 = skip the update, 2 = reset the Hessian.
+      ! sbs and sy share the units of the energy, so the curvature floor is
+      ! relative to sy; min_sbs only fences off values for which the divisions
+      ! below would overflow. The floor is never negative, so a non-positive
+      ! sbs (lost positive definiteness) is caught as well.
       exit_flag = 0
       IF (DDOT(ndf, dx, 1, dx, 1) == zero .OR. DDOT(ndf, dg, 1, dg, 1) == zero) THEN
          exit_flag = 1
       ELSE IF (.NOT. ieee_is_finite(sy) .OR. .NOT. ieee_is_finite(sbs) .OR. &
-               sbs <= EPSILON(one)) THEN
+               sbs <= MAX(EPSILON(one)*ABS(sy), min_sbs)) THEN
          exit_flag = 2
       END IF
       ! The max folds the votes into the safest action all ranks can agree on
@@ -726,8 +734,10 @@ CONTAINS
       ! eq. 3.7: whenever the measured curvature sy drops below 20% of the predicted
       ! curvature s.B.s, replace y by eta = theta*y + (1-theta)*B*s. The blended
       ! curvature satisfies eta.s = 0.2*s.B.s exactly, so the update stays positive
-      ! definite in exact arithmetic, also for secant pairs that no line search checked. The guarantee
-      ! seta >= 0.2*sbs makes a separate floor on seta unnecessary.
+      ! definite in exact arithmetic, also for secant pairs that no line search
+      ! checked. Because sbs passed the floor above, seta >= 0.2*sbs stays a
+      ! normal number, so one/seta cannot overflow and no further floor on seta
+      ! is needed.
       theta = one
       IF (sy < min_curvature*sbs) THEN
          theta = ((one - min_curvature)*sbs)/(sbs - sy)
