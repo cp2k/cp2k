@@ -659,6 +659,8 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: hess_reset
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bfgs'
+      INTEGER, PARAMETER                                 :: exit_reset = 2, exit_skip = 1, &
+                                                            exit_update = 0
       REAL(KIND=dp), PARAMETER                           :: min_curvature = 0.2_dp, one = 1.0_dp, &
                                                             min_sbs = 10.0_dp*TINY(one), &
                                                             zero = 0.0_dp
@@ -670,9 +672,6 @@ CONTAINS
                                                             sy, theta
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_hes
-
-! Smallest predicted curvature we divide by: below it, 0.2*sbs (the least
-! possible seta) would sink below the smallest normal number.
 
       CALL timeset(routineN, handle)
       hess_reset = .FALSE.
@@ -699,77 +698,78 @@ CONTAINS
       sy = DDOT(ndf, dg, 1, dx, 1)
       sbs = DDOT(ndf, dx, 1, work, 1)
 
-      ! One collective decision covers every early exit, so that all ranks take
-      ! the same path: 0 = update, 1 = skip the update, 2 = reset the Hessian.
-      ! sbs and sy share the units of the energy, so the curvature floor is
-      ! relative to sy; min_sbs only fences off values for which the divisions
-      ! below would overflow. The floor is never negative, so a non-positive
+      ! One collective decision covers every early exit, so that all ranks
+      ! take the same path. sbs and sy share the units of the energy, so the
+      ! curvature floor is relative to sy. min_sbs only fences off values for
+      ! which the divisions in the update below would overflow: with a
+      ! smaller sbs, 0.2*sbs (the least possible seta) falls below the
+      ! smallest normal number. The floor is never negative, so a non-positive
       ! sbs (lost positive definiteness) is caught as well.
-      exit_flag = 0
+      exit_flag = exit_update
       IF (DDOT(ndf, dx, 1, dx, 1) == zero .OR. DDOT(ndf, dg, 1, dg, 1) == zero) THEN
-         exit_flag = 1
+         exit_flag = exit_skip
       ELSE IF (.NOT. ieee_is_finite(sy) .OR. .NOT. ieee_is_finite(sbs) .OR. &
                sbs <= MAX(EPSILON(one)*ABS(sy), min_sbs)) THEN
-         exit_flag = 2
+         exit_flag = exit_reset
       END IF
-      ! The max folds the votes into the safest action all ranks can agree on
-      ! (a zero-norm vote on one rank and a reset vote on another reset both).
+      ! The max folds the votes into the most conservative action all ranks
+      ! can agree on. The exit codes are ordered by severity, so a skip vote
+      ! on one rank and a reset vote on another reset both. Every rank takes
+      ! the same branch, so the rebuild stays collective.
       IF (PRESENT(para_env)) CALL para_env%max(exit_flag)
 
-      IF (exit_flag == 1) THEN
-         CALL timestop(handle)
-         RETURN
-      ELSE IF (exit_flag == 2) THEN
+      IF (exit_flag == exit_skip) THEN
+         ! A zero displacement or gradient difference carries no curvature
+         ! information, so there is nothing to learn from this step.
+      ELSE IF (exit_flag == exit_reset) THEN
          ! The Hessian has lost positive definiteness along dx or the predicted
          ! curvature is not representable, so the secant pair cannot be damped:
          ! the caller restarts from the initial Hessian and skips this update.
          CALL cp_warn(__LOCATION__, &
                       "BFGS: vanishing or non-positive predicted curvature, resetting the Hessian")
          hess_reset = .TRUE.
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      ! Damped update after M.J.D. Powell, Lecture Notes in Mathematics 630 (1978),
-      ! eq. 3.7: whenever the measured curvature sy drops below 20% of the predicted
-      ! curvature s.B.s, replace y by eta = theta*y + (1-theta)*B*s. The blended
-      ! curvature satisfies eta.s = 0.2*s.B.s exactly, so the update stays positive
-      ! definite in exact arithmetic, also for secant pairs that no line search
-      ! checked. Because sbs passed the floor above, seta >= 0.2*sbs stays a
-      ! normal number, so one/seta cannot overflow and no further floor on seta
-      ! is needed.
-      theta = one
-      IF (sy < min_curvature*sbs) THEN
-         theta = ((one - min_curvature)*sbs)/(sbs - sy)
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A,F10.4,A,F3.1,A)") &
-               "BFGS| Damped update, curvature ratio y.s/(s.B.s): ", sy/sbs, &
-               " (threshold ", min_curvature, ")"
-            CALL m_flush(output_unit)
+      ELSE
+         ! Damped update after M.J.D. Powell, Lecture Notes in Mathematics 630 (1978),
+         ! eq. 3.7: whenever the measured curvature sy drops below 20% of the predicted
+         ! curvature s.B.s, replace y by eta = theta*y + (1-theta)*B*s. The blended
+         ! curvature satisfies eta.s = 0.2*s.B.s exactly, so the update stays positive
+         ! definite in exact arithmetic, also for secant pairs that no line search
+         ! checked. Because sbs passed the floor above, seta >= 0.2*sbs stays a
+         ! normal number, so one/seta cannot overflow and no further floor on seta
+         ! is needed.
+         theta = one
+         IF (sy < min_curvature*sbs) THEN
+            theta = ((one - min_curvature)*sbs)/(sbs - sy)
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,F10.4,A,F3.1,A)") &
+                  "BFGS| Damped update, curvature ratio y.s/(s.B.s): ", sy/sbs, &
+                  " (threshold ", min_curvature, ")"
+               CALL m_flush(output_unit)
+            END IF
          END IF
-      END IF
-      seta = theta*sy + (one - theta)*sbs
-      gdx = one/seta
-      dxw = one/sbs
+         seta = theta*sy + (one - theta)*sbs
+         gdx = one/seta
+         dxw = one/sbs
 
-      DO i = 1, nrow_local
-         j = row_indices(i)
-         eta_i = theta*dg(j) + (one - theta)*work(j)
-         DO k = 1, ncol_local
-            l = col_indices(k)
-            eta_j = theta*dg(l) + (one - theta)*work(l)
-            local_hes(i, k) = local_hes(i, k) + gdx*eta_i*eta_j - &
-                              dxw*work(j)*work(l)
+         DO i = 1, nrow_local
+            j = row_indices(i)
+            eta_i = theta*dg(j) + (one - theta)*work(j)
+            DO k = 1, ncol_local
+               l = col_indices(k)
+               eta_j = theta*dg(l) + (one - theta)*work(l)
+               local_hes(i, k) = local_hes(i, k) + gdx*eta_i*eta_j - &
+                                 dxw*work(j)*work(l)
+            END DO
          END DO
-      END DO
 
-      ! Collective verdict: if any local block is corrupted, every rank resets.
-      invalid = 0
-      IF (.NOT. ALL(ieee_is_finite(local_hes(1:nrow_local, 1:ncol_local)))) invalid = 1
-      IF (PRESENT(para_env)) CALL para_env%max(invalid)
-      IF (invalid /= 0) THEN
-         CALL cp_warn(__LOCATION__, "BFGS: non-finite Hessian after the update, resetting")
-         hess_reset = .TRUE.
+         ! Collective verdict: if any local block is corrupted, every rank resets.
+         invalid = 0
+         IF (.NOT. ALL(ieee_is_finite(local_hes(1:nrow_local, 1:ncol_local)))) invalid = 1
+         IF (PRESENT(para_env)) CALL para_env%max(invalid)
+         IF (invalid /= 0) THEN
+            CALL cp_warn(__LOCATION__, "BFGS: non-finite Hessian after the update, resetting")
+            hess_reset = .TRUE.
+         END IF
       END IF
 
       CALL timestop(handle)
