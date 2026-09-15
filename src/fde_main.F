@@ -5,6 +5,8 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE fde_main
+   USE bibliography,                    ONLY: cite_reference,&
+                                              Schreder2024_3
    USE cp_control_types,                ONLY: dft_control_type,&
                                               fde_control_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -106,6 +108,8 @@ CONTAINS
       TYPE(qs_energy_type), POINTER               :: qs_energy
 
       CALL timeset(routineN, handle)
+
+      CALL cite_reference(Schreder2024_3)
 
       logger => cp_get_default_logger()
       iounit = cp_logger_get_default_io_unit(logger)
