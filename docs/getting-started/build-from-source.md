@@ -326,12 +326,34 @@ options surrounded by double quotes (`"TESTOPTS"`). The test options will be pas
 Alternatively, the script `install/bin/run_tests` produced after a successful build can be used to
 start a regression test later. The script prints usage examples at the end of a successful run.
 
+#### ASE/CP2K
+
+CP2K (>2026.2) can be built and tested with support for the
+[Atomic Simulation Environment (ASE)](https://ase.gitlab.io/ase/index.html) using
+
+```shell
+./make_cp2k.sh -bd --test_ase
+```
+
+A Dockerfile for building ASE/CP2K within a container with `podman` is also available. A usage
+example is given in the header of that
+[Dockerfile](https://raw.githubusercontent.com/cp2k/cp2k/refs/heads/master/tools/docker/Dockerfile.test_spack_ase).
+
+By default, ASE/CP2K is built using the ASE [master branch](https://gitlab.com/ase/ase/).
+Alternatively, the ASE version can be specified explicitly using the `-ase` flag
+
+```shell
+./make_cp2k.sh -bd -ase 3.29.0 --test_ase
+```
+
+but note that the current CP2K development works only with the ASE master branch.
+
 (build-gromacs-cp2k)=
 
 #### GROMACS/CP2K QM/MM
 
-The latest supported GROMACS release (currently v2026.3) for GROMACS/CP2K QM/MM simulations can be
-built and tested with
+The latest supported [GROMACS release](https://manual.gromacs.org/) (currently v2026.3) for
+GROMACS/CP2K QM/MM simulations can be built and tested with
 
 ```shell
 ./make_cp2k.sh -bd --test_gromacs
