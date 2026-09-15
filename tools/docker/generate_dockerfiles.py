@@ -875,7 +875,7 @@ RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts} || e
     elif test_type == "ase":
         output += rf"""
 # Install packages needed by ASE
-RUN /opt/cp2k/install/bin/launch pip install matplotlib numpy packaging six spglib
+RUN /opt/cp2k/install/bin/launch pip install --ignore-installed --quiet matplotlib numpy packaging six spglib
 """
     elif test_type == "conventions":
         output += rf"""
