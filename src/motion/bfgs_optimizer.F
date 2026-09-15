@@ -813,6 +813,7 @@ CONTAINS
             ! In rare cases the diagonalization fails (bug in scalapack?)
             CALL cp_warn(__LOCATION__, "BFGS: model Hessian diagonalization failed, using unity")
             CALL cp_fm_set_all(hess_mat, alpha=zero, beta=one)
+            eigval = one
          ELSE
             DO indf = 1, ndf
                IF (eigval(indf) < min_eig) eigval(indf) = min_eig
@@ -823,8 +824,10 @@ CONTAINS
          END IF
       ELSE
          ! No sanitized prior exists (user opt-out, cell optimization, or
-         ! core-shell model): fall back to unity.
+         ! core-shell model): fall back to unity. eigval mirrors the unity
+         ! spectrum, keeping the INTENT(OUT) argument defined on every path.
          CALL cp_fm_set_all(hess_mat, alpha=zero, beta=one)
+         eigval = one
       END IF
 
       CALL timestop(handle)
