@@ -249,14 +249,14 @@ def main() -> None:
             )
         )
 
-    with OutputFile(f"Dockerfile.test_spack_gromacs", args.check) as f:
+    with OutputFile(f"Dockerfile.test_spack_ase", args.check) as f:
         f.write(
             install_cp2k_spack(
                 version="psmp",
                 mpi_mode="mpich",
-                feature_flags="--test_gromacs",
+                feature_flags="--test_ase",
                 image_tag=f.image_tag,
-                test_type="gromacs",
+                test_type="ase",
             )
         )
 
@@ -279,6 +279,17 @@ def main() -> None:
                 feature_flags="--test_coverage",
                 image_tag=f.image_tag,
                 test_type="coverage",
+            )
+        )
+
+    with OutputFile(f"Dockerfile.test_spack_gromacs", args.check) as f:
+        f.write(
+            install_cp2k_spack(
+                version="psmp",
+                mpi_mode="mpich",
+                feature_flags="--test_gromacs",
+                image_tag=f.image_tag,
+                test_type="gromacs",
             )
         )
 
@@ -861,6 +872,11 @@ RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_benchmarks {benchmark
 # Run CP2K regression test
 RUN /opt/cp2k/install/bin/launch /opt/cp2k/install/bin/run_tests {testopts} || echo "ERROR: Regression test run failed"
 """
+    elif test_type == "ase":
+        output += rf"""
+# Install packages needed by ASE
+RUN /opt/cp2k/install/bin/launch pip install matplotlib numpy packaging six spglib
+"""
     elif test_type == "conventions":
         output += rf"""
 # Copy data from convention check
@@ -1050,7 +1066,16 @@ RUN dnf -y install dnf-plugins-core && \
     && dnf clean -q all
 """
         elif "ubuntu" in base_image:
-            if test_type == "gromacs":
+            if test_type == "ase":
+                # ASE requires ca-certificates
+                output += rf"""
+RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    ca-certificates \
+    {gcc_compilers} \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+"""
+            elif test_type == "gromacs":
                 # GROMACS requires the shared C-library version of Python at runtime
                 output += rf"""
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \

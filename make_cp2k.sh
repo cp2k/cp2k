@@ -2166,7 +2166,7 @@ if [[ -n "${ASE_VERSION}" ]]; then
     ${EXIT_CMD} 1
   fi
   export PATH="${INSTALL_PREFIX}/ase/bin:${PATH}"
-  if ! pip3 install ${VERBOSE_FLAG} ".[test]"; then
+  if ! "${INSTALL_PREFIX}"/ase/bin/python3 -m pip install --ignore-installed ${VERBOSE_FLAG} ".[test]"; then
     echo -e "\nERROR: The ASE installation (venv) failed"
     ${EXIT_CMD} 1
   fi
@@ -2175,15 +2175,26 @@ if [[ -n "${ASE_VERSION}" ]]; then
 cp2k_shell = ${INSTALL_PREFIX}/bin/cp2k_shell
 cp2k_main =  ${INSTALL_PREFIX}/bin/cp2k
 ***
+  # Install additional packages for ASE
+  if ! "${INSTALL_PREFIX}"/ase/bin/python3 -m pip install --ignore-installed ${VERBOSE_FLAG} matplotlib numpy packaging six spglib; then
+    echo -e "\nERROR: The installation of additional packages for ASE failed"
+    ${EXIT_CMD} 1
+  fi
+  echo ""
+  echo "*** The ASE/CP2K installation can be tested with"
+  echo "    ${LAUNCH_SCRIPT} test_ase"
+  echo ""
 
   # Test the ASE installation
+  echo "${LAUNCH_SCRIPT} ase test -j 0 -c cp2k calculator/cp2k" > "${INSTALL_PREFIX}"/ase/bin/test_ase
+  chmod 750 "${INSTALL_PREFIX}"/ase/bin/test_ase
   if [[ "${TEST_ASE}" == "yes" ]]; then
     echo -e "\n*** Running ASE tests ***\n"
     if [[ "${IN_CONTAINER}" == "yes" ]]; then
       export PYTEST_DEBUG_TEMPROOT="/workspace/artifacts"
       mkdir -p ${PYTEST_DEBUG_TEMPROOT}
     fi
-    if ${LAUNCH_SCRIPT} ase test -j 0 -c cp2k calculator/cp2k; then
+    if "${INSTALL_PREFIX}"/ase/bin/test_ase; then
       echo -e "\nSummary: ASE commit ${ASE_REVISION} works fine"
       echo -e "Status: OK\n"
       ${EXIT_CMD} 0
