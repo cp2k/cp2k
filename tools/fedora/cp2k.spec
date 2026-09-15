@@ -16,7 +16,6 @@ BuildRequires: cmake
 BuildRequires: gcc
 BuildRequires: gcc-gfortran
 BuildRequires: gcc-c++
-BuildRequires: ninja-build
 BuildRequires: python3-fypp
 # Project dependencies
 BuildRequires: flexiblas-devel
@@ -34,14 +33,11 @@ BuildRequires: python3
 Requires:      %{name}-common = %{version}-%{release}
 
 %global _description %{expand:
-CP2K is a freely available (GPL) program, written in Fortran 95, to
-perform atomistic and molecular simulations of solid state, liquid,
-molecular and biological systems. It provides a general framework for
-different methods such as e.g. density functional theory (DFT) using a
-mixed Gaussian and plane waves approach (GPW), and classical pair and
-many-body potentials.
-
-CP2K does not implement Car-Parinello Molecular Dynamics (CPMD).}
+CP2K is a quantum chemistry and solid state physics software package that can
+perform atomistic simulations of solid state, liquid, molecular, periodic,
+material, crystal, and biological systems. It provides a general framework for
+different modeling methods such as DFT using the mixed Gaussian and plane waves
+approaches GPW and GAPW.}
 
 %description
 %{_description}
@@ -119,7 +115,6 @@ rm tools/build_utils/fypp
 
 # $MPI_SUFFIX will be evaluated in the loops below, set by mpi modules
 %global _vpath_builddir %{_vendor}-%{_target_os}-build${MPI_SUFFIX:-_serial}
-
 
 %conf
 cmake_common_args=(
