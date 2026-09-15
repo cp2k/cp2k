@@ -560,6 +560,8 @@ MODULE input_constants
                                                default_bfgs_method_id = 2, &
                                                default_cg_method_id = 3
 
+   INTEGER, PARAMETER, PUBLIC               :: bfgs_direct = 1, bfgs_inverse = 2
+
    INTEGER, PARAMETER, PUBLIC               :: default_minimization_method_id = 1, &
                                                default_ts_method_id = 2, &
                                                default_cell_method_id = 3, &

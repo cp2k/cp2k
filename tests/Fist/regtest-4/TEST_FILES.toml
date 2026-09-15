@@ -72,4 +72,9 @@
 "H2O-meta-combine.inp"                  = [{matcher="M002", tol=3.5e-02, ref=0.00104137484729}]
 "lewis.inp"                             = [{matcher="M011", tol=7e-10, ref=-25.423499443424980}]
 "test_combine.inp"                      = [{matcher="M002", tol=3.5e-02, ref=0.000971980822777}]
+
+# Inverse BFGS restart interoperability
+"nh3_bfgs_r_inverse.inp"                = [{matcher="M007", tol=1.0E-14, ref=-0.0000637306}]
+"nh3_bfgs_inverse.inp"                  = [{matcher="M007", tol=1.0E-14, ref=-0.0000637288}]
+"nh3_bfgs_inverse_r_direct.inp"         = [{matcher="M007", tol=1.0E-14, ref=-0.0000637306}]
 #EOF

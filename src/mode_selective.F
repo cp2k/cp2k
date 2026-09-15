@@ -18,6 +18,7 @@
 !> \author Florian Schiffmann 08.2006
 ! **************************************************************************************************
 MODULE mode_selective
+   USE bfgs_optimizer,                  ONLY: bfgs_read_restart_header
    USE cell_types,                      ONLY: cell_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -28,7 +29,10 @@ MODULE mode_selective
                                               cp_print_key_unit_nr
    USE cp_result_methods,               ONLY: get_results
    USE global_types,                    ONLY: global_environment_type
-   USE input_constants,                 ONLY: ms_guess_atomic,&
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
+   USE input_constants,                 ONLY: bfgs_direct,&
+                                              bfgs_inverse,&
+                                              ms_guess_atomic,&
                                               ms_guess_bfgs,&
                                               ms_guess_molden,&
                                               ms_guess_restart,&
@@ -37,6 +41,7 @@ MODULE mode_selective
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
+   USE iso_fortran_env,                 ONLY: iostat_end
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
@@ -59,6 +64,7 @@ MODULE mode_selective
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mode_selective'
    LOGICAL, PARAMETER                   :: debug_this_module = .FALSE.
+   REAL(KIND=dp), PARAMETER             :: bfgs_guess_degeneracy_tol = 1.0E-8_dp
 
    TYPE ms_vib_type
       INTEGER                                  :: mat_size = -1
@@ -436,6 +442,96 @@ CONTAINS
    END SUBROUTINE MS_initial_moves
 
 ! **************************************************************************************************
+!> \brief Read a legacy or tagged BFGS restart as a direct ionic Hessian.
+!> \param unit File unit
+!> \param ncoord Number of ionic coordinates needed by mode-selective analysis
+!> \param hessian Direct ionic Hessian
+! **************************************************************************************************
+   SUBROUTINE read_bfgs_guess_hessian(unit, ncoord, hessian)
+      INTEGER, INTENT(IN)                                :: unit, ncoord
+      REAL(KIND=dp), DIMENSION(ncoord, ncoord), &
+         INTENT(OUT)                                     :: hessian
+
+      INTEGER                                            :: i, ios, stored_method, stored_ndf, &
+                                                            stored_type
+      LOGICAL                                            :: tagged
+      REAL(KIND=dp)                                      :: extra
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: column, eigenvalues
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: stored_matrix
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: cell_frame, reference_cell
+
+      CALL bfgs_read_restart_header(unit, stored_method, stored_ndf, stored_type, tagged, &
+                                    reference_cell, cell_frame)
+
+      IF (.NOT. tagged) THEN
+         ! Legacy restart: preserve the historical behaviour. Reading ncoord values from
+         ! the first ncoord records also extracts the ionic block from a CELL_OPT Hessian.
+         DO i = 1, ncoord
+            READ (unit, IOSTAT=ios) hessian(:, i)
+            IF (ios /= 0) CPABORT("Error while reading legacy BFGS Hessian")
+         END DO
+         RETURN
+      END IF
+
+      IF (stored_ndf < ncoord) THEN
+         CPABORT("BFGS restart matrix is smaller than the mode-selective ionic Hessian")
+      END IF
+
+      SELECT CASE (stored_method)
+      CASE (bfgs_direct)
+         ALLOCATE (column(stored_ndf))
+         DO i = 1, stored_ndf
+            READ (unit, IOSTAT=ios) column(:)
+            IF (ios /= 0) CPABORT("Truncated BFGS restart matrix")
+            IF (.NOT. ALL(ieee_is_finite(column(:)))) CPABORT("Non-finite BFGS restart matrix")
+            IF (i <= ncoord) hessian(:, i) = column(1:ncoord)
+         END DO
+         DEALLOCATE (column)
+
+      CASE (bfgs_inverse)
+         ALLOCATE (stored_matrix(stored_ndf, stored_ndf), eigenvalues(stored_ndf))
+         DO i = 1, stored_ndf
+            READ (unit, IOSTAT=ios) stored_matrix(:, i)
+            IF (ios /= 0) CPABORT("Truncated inverse BFGS restart matrix")
+         END DO
+         IF (.NOT. ALL(ieee_is_finite(stored_matrix(:, :)))) THEN
+            CPABORT("Non-finite inverse BFGS restart matrix")
+         END IF
+
+         ! Invert the complete matrix before taking the ionic block. For CELL_OPT,
+         ! inverse(H_RR) is not in general equal to the RR block of inverse(H).
+         CALL diamat_all(stored_matrix, eigenvalues)
+         IF (.NOT. ALL(ieee_is_finite(eigenvalues(:)))) THEN
+            CPABORT("Non-finite inverse BFGS restart spectrum")
+         END IF
+         IF (MINVAL(eigenvalues(:)) <= 0.0_dp) THEN
+            CPABORT("Inverse BFGS restart matrix is not positive definite")
+         END IF
+         eigenvalues(:) = 1.0_dp/eigenvalues(:)
+         IF (.NOT. ALL(ieee_is_finite(eigenvalues(:)))) THEN
+            CPABORT("Unrepresentable inverse BFGS restart matrix")
+         END IF
+         DO i = 1, stored_ndf
+            stored_matrix(1:ncoord, i) = &
+               SQRT(eigenvalues(i))*stored_matrix(1:ncoord, i)
+         END DO
+         hessian(:, :) = MATMUL(stored_matrix(1:ncoord, :), &
+                                TRANSPOSE(stored_matrix(1:ncoord, :)))
+         DEALLOCATE (stored_matrix, eigenvalues)
+
+      CASE DEFAULT
+         CPABORT("Unknown matrix representation in BFGS restart")
+      END SELECT
+
+      ! Tagged files have a known matrix dimension, so reject trailing/corrupt data.
+      READ (unit, IOSTAT=ios) extra
+      IF (ios /= iostat_end) CPABORT("Extra data in BFGS restart matrix")
+      MARK_USED(stored_type)
+      MARK_USED(reference_cell)
+      MARK_USED(cell_frame)
+   END SUBROUTINE read_bfgs_guess_hessian
+
+! **************************************************************************************************
 !> \brief ...
 !> \param ms_vib_section ...
 !> \param ms_vib ...
@@ -455,8 +551,8 @@ CONTAINS
       INTEGER                                            :: nrep
 
       CHARACTER(LEN=default_path_length)                 :: hes_filename
-      INTEGER                                            :: hesunit, i, istat, j, jj, k, natoms, &
-                                                            ncoord, output_unit, stat
+      INTEGER                                            :: hesunit, i, j, jj, k, natoms, ncoord, &
+                                                            output_unit
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       REAL(KIND=dp)                                      :: my_val, norm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tmp
@@ -479,20 +575,11 @@ CONTAINS
          ALLOCATE (tmp(ncoord))
          ALLOCATE (tmplist(ncoord))
 
-         ! should use the cp_fm_read_unformatted...
-         istat = 0
-         DO i = 1, ncoord
-            READ (UNIT=hesunit, IOSTAT=stat) ms_vib%hes_bfgs(:, i)
-            istat = istat + stat
-         END DO
+         CALL read_bfgs_guess_hessian(hesunit, ncoord, ms_vib%hes_bfgs)
          CALL close_file(hesunit)
          IF (output_unit > 0) THEN
-            IF (istat /= 0) THEN
-               WRITE (output_unit, FMT="(/,T2,A)") "**  Error while reading HESSIAN **"
-            ELSE
-               WRITE (output_unit, FMT="(/,T2,A)") &
-                  "*** Initial Hessian has been read successfully ***"
-            END IF
+            WRITE (output_unit, FMT="(/,T2,A)") &
+               "*** Initial Hessian has been read successfully ***"
          END IF
          DO i = 1, ncoord
             DO j = 1, ncoord
@@ -509,6 +596,7 @@ CONTAINS
                tmp(i) = ABS(my_val - ms_vib%eig_bfgs(i))
             END DO
          ELSE IF (ms_vib%select_id == 3) THEN
+            CALL bfgs_canonicalize_degenerate_modes(ms_vib%hes_bfgs, ms_vib%eig_bfgs)
             DO i = 1, ncoord
                DO j = 1, SIZE(ms_vib%inv_atoms)
                   DO k = 1, 3
@@ -541,6 +629,86 @@ CONTAINS
       ms_vib%mat_size = 0
 
    END SUBROUTINE bfgs_guess
+
+! **************************************************************************************************
+!> \brief Replace arbitrary bases of near-degenerate BFGS eigenspaces by deterministic ones.
+!>        This leaves the existing involved-atom scoring and mode ordering unchanged.
+!> \param modes Orthonormal Hessian eigenvectors
+!> \param eigenvalues Ascending Hessian eigenvalues
+! **************************************************************************************************
+   SUBROUTINE bfgs_canonicalize_degenerate_modes(modes, eigenvalues)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: modes
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenvalues
+
+      INTEGER                                            :: first, last, n
+      REAL(KIND=dp)                                      :: cutoff, scale
+
+      n = SIZE(eigenvalues)
+      CPASSERT(SIZE(modes, 1) == n .AND. SIZE(modes, 2) == n)
+      cutoff = (400.0_dp/vibfac)**2/massunit
+
+      first = 1
+      DO WHILE (first <= n)
+         IF (eigenvalues(first) <= cutoff) THEN
+            first = first + 1
+            CYCLE
+         END IF
+         last = first
+         DO WHILE (last < n)
+            scale = MAX(ABS(eigenvalues(first)), ABS(eigenvalues(last + 1)))
+            IF (eigenvalues(last + 1) - eigenvalues(first) > bfgs_guess_degeneracy_tol*scale) EXIT
+            last = last + 1
+         END DO
+         IF (last > first) CALL bfgs_canonical_modes(modes(:, first:last))
+         first = last + 1
+      END DO
+   END SUBROUTINE bfgs_canonicalize_degenerate_modes
+
+! **************************************************************************************************
+!> \brief Fix a subspace basis using projections of Cartesian coordinate axes.
+!> \param modes Orthonormal basis, replaced by a deterministic orthonormal basis
+! **************************************************************************************************
+   SUBROUTINE bfgs_canonical_modes(modes)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: modes
+
+      INTEGER                                            :: i, j, k, m, n, pass, pivot
+      REAL(KIND=dp)                                      :: maximum, norm
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: norms, projection, vector
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: residual, rotation
+
+      n = SIZE(modes, 1)
+      m = SIZE(modes, 2)
+      ALLOCATE (residual(n, m), rotation(m, m), norms(n), projection(n), vector(m))
+      residual(:, :) = modes(:, :)
+      rotation(:, :) = 0.0_dp
+      DO j = 1, m
+         norms(:) = SUM(residual(:, :)**2, DIM=2)
+         maximum = MAXVAL(norms)
+         pivot = 1
+         DO i = 1, n
+            IF (norms(i) >= maximum*(1.0_dp - bfgs_guess_degeneracy_tol)) THEN
+               pivot = i
+               EXIT
+            END IF
+         END DO
+         vector(:) = residual(pivot, :)
+         DO pass = 1, 2
+            DO k = 1, j - 1
+               vector(:) = vector(:) - DOT_PRODUCT(rotation(:, k), vector)*rotation(:, k)
+            END DO
+         END DO
+         norm = NORM2(vector)
+         CPASSERT(norm > SQRT(EPSILON(1.0_dp)))
+         rotation(:, j) = vector(:)/norm
+         projection(:) = MATMUL(residual, rotation(:, j))
+         DO k = 1, m
+            residual(:, k) = residual(:, k) - projection(:)*rotation(k, j)
+         END DO
+      END DO
+      residual(:, :) = MATMUL(modes, rotation)
+      modes(:, :) = residual(:, :)
+      DEALLOCATE (residual, rotation, norms, projection, vector)
+   END SUBROUTINE bfgs_canonical_modes
 
 ! **************************************************************************************************
 !> \brief ...
