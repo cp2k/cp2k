@@ -21,7 +21,7 @@ case "${with_cmake}" in
   __INSTALL__)
     echo "==================== Installing CMake ===================="
     cmake_ver="4.3.0"
-    if [ "${OPENBLAS_ARCH}" = "arm64" ]; then
+    if [ "${SYSTEM_ARCH}" = "arm64" ]; then
       if [ "$(uname -s)" = "Darwin" ]; then
         cmake_arch="macos-universal"
         cmake_sha256="5bd933daf6e9234a53a9a43092746993870d9f162b6c399fd6e4a05cdd475e67"
@@ -30,14 +30,14 @@ case "${with_cmake}" in
         cmake_sha256="26fe3011f497eb9398115dcabcc094685e634b1841f7c01dc01c5a89b8b0ea0d"
       else
         report_error ${LINENO} \
-          "cmake installation for ARCH=${OPENBLAS_ARCH} under $(uname -s) is not supported. You can try to use the system installation using the flag --with-cmake=system instead."
+          "cmake installation for ARCH=${SYSTEM_ARCH} under $(uname -s) is not supported. You can try to use the system installation using the flag --with-cmake=system instead."
       fi
-    elif [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
+    elif [ "${SYSTEM_ARCH}" = "x86_64" ]; then
       cmake_arch="linux-x86_64"
       cmake_sha256="201bdabe17a54e017f119cffa247648e9c44327e52473c2cc60a88fded94652a"
     else
       report_error ${LINENO} \
-        "cmake installation for ARCH=${OPENBLAS_ARCH} under $(uname -s) is not supported. You can try to use the system installation using the flag --with-cmake=system instead."
+        "cmake installation for ARCH=${SYSTEM_ARCH} under $(uname -s) is not supported. You can try to use the system installation using the flag --with-cmake=system instead."
     fi
     pkg_install_dir="${INSTALLDIR}/cmake-${cmake_ver}"
     install_lock_file="${pkg_install_dir}/install_successful"

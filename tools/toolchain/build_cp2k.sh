@@ -118,7 +118,7 @@ EOF
     exit 1
   fi
 elif [ "${PRESET_SET}" = "__FALSE__" ]; then
-  report_warning "No CMake preset is specified; default to \"none\"."
+  echo "No CMake preset is specified; default to \"none\"."
   CMAKE_PRESET="none"
 fi
 
