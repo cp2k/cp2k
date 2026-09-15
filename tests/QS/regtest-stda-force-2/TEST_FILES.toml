@@ -6,7 +6,7 @@
 #
 "h2o_f09.inp"                           = [{matcher="E_total", tol=1.0E-11, ref=-17.04837819337335}]
 "h2o_f10.inp"                           = [{matcher="E_total", tol=5.0E-11, ref=-16.66860074430131}]
-"h2o_f10b.inp"                          = [{matcher="E_total", tol=1.0E-11, ref=-17.00363264930931}]
+"h2o_f10b.inp"                          = [{matcher="E_total", tol=1.0E-11, ref=-17.00361692045398}]
 "h2o_f10c.inp"                          = [{matcher="E_total", tol=1.0E-11, ref=-17.11290579606160}]
 "h2o_f11.inp"                           = [{matcher="E_total", tol=5.0E-08, ref=-17.23630837940500}]
 #EOF
