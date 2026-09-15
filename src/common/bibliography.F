@@ -97,7 +97,8 @@ MODULE bibliography
                             FuHo1983, MethfesselPaxton1989, Marzari1999, dosSantos2023, Mermin1965, &
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
-                            Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005
+                            Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
+                            Schreder2024_3
 
 CONTAINS
 
@@ -2252,6 +2253,14 @@ CONTAINS
                          "effective interaction parameters in the LDA+U method", &
                          source="Phys. Rev. B", volume="71", pages="035105", &
                          year=2005, doi="10.1103/PhysRevB.71.035105")
+
+      CALL add_reference(key=Schreder2024_3, &
+                         authors=s2a("L. Schreder", "S. Luber"), &
+                         title="Implementation of frozen density embedding in CP2K and "// &
+                         "OpenMolcas: CASSCF wavefunctions embedded in a Gaussian and plane "// &
+                         "wave DFT environment", &
+                         source="J. Chem. Phys.", volume="161", pages="144110", &
+                         year=2024, doi="10.1063/5.0222409")
 
    END SUBROUTINE add_all_references
 
