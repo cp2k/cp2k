@@ -22,7 +22,7 @@ MODULE qs_vcd_ao
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_desymmetrize, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init_p, &
-        dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_work_create
+        dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_work_create
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE external_potential_types,        ONLY: get_potential,&
@@ -57,7 +57,7 @@ MODULE qs_vcd_ao
                                               qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_types,                 ONLY: vcd_env_type
-   USE qs_moments,                      ONLY: build_dsdv_moments
+   USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: &
         get_iterator_info, get_neighbor_list_set_p, neighbor_list_iterate, &
         neighbor_list_iterator_create, neighbor_list_iterator_p_type, &
@@ -94,15 +94,14 @@ MODULE qs_vcd_ao
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vcd_ao'
    INTEGER, PARAMETER :: bi_1 = 1, bi_x = 2, bi_y = 3, bi_z = 4, bi_xx = 5, &
                          bi_xy = 6, bi_xz = 7, bi_yy = 8, bi_yz = 9, bi_zz = 10
+   INTEGER, DIMENSION(3), PARAMETER :: bi_r = [bi_x, bi_y, bi_z]
+   INTEGER, DIMENSION(3, 3), PARAMETER :: bi_rr = RESHAPE([bi_xx, bi_xy, bi_xz, bi_xy, bi_yy, bi_yz, &
+                                                           bi_xz, bi_yz, bi_zz], [3, 3])
 
 ! *** Public subroutines ***
 
    PUBLIC :: build_dSdV_matrix, build_com_rpnl_r, &
-             hr_mult_by_delta_3d, hr_mult_by_delta_1d, build_dcom_rpnl, build_drpnl_matrix, &
-             build_tr_matrix, &
-             build_rcore_matrix, &
-             build_rpnl_matrix, &
-             build_matrix_r_vhxc, &
+             hr_mult_by_delta_3d, build_dcom_rpnl, &
              build_matrix_hr_rh
 
 CONTAINS
@@ -123,7 +122,6 @@ CONTAINS
       INTEGER, PARAMETER                                 :: ispin = 1
 
       INTEGER                                            :: handle, i
-      REAL(KIND=dp)                                      :: eps_ppnl
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -141,37 +139,26 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       cell=cell)
 
-      eps_ppnl = dft_control%qs_control%eps_ppnl
       DO i = 1, 3
          CALL dbcsr_set(vcd_env%matrix_hr(ispin, i)%matrix, 0._dp)
          CALL dbcsr_set(vcd_env%matrix_rh(ispin, i)%matrix, 0._dp)
       END DO
 
-      ASSOCIATE (my_matrix_hr_1d => vcd_env%matrix_hr(ispin, 1:3))
-         CALL build_rpnl_matrix(my_matrix_hr_1d, qs_kind_set, particle_set, sab_all, sap_ppnl, &
-                                dft_control%qs_control%eps_ppnl, cell, rc, &
-                                direction_Or=.TRUE.)
-         CALL build_tr_matrix(my_matrix_hr_1d, qs_env, qs_kind_set, "ORB", sab_all, &
-                              direction_Or=.TRUE., rc=rc)
-         CALL build_rcore_matrix(my_matrix_hr_1d, qs_env, qs_kind_set, "ORB", sab_all, rc)
-         CALL build_matrix_r_vhxc(vcd_env%matrix_hr, qs_env, rc)
-      END ASSOCIATE
-
-      ASSOCIATE (my_matrix_hr_1d => vcd_env%matrix_rh(ispin, 1:3))
-         CALL build_rpnl_matrix(my_matrix_hr_1d, qs_kind_set, particle_set, sab_all, sap_ppnl, &
-                                dft_control%qs_control%eps_ppnl, cell, rc, &
-                                direction_Or=.FALSE.)
-         CALL build_tr_matrix(my_matrix_hr_1d, qs_env, qs_kind_set, "ORB", sab_all, &
-                              direction_Or=.FALSE., rc=rc)
-         CALL build_rcore_matrix(my_matrix_hr_1d, qs_env, qs_kind_set, "ORB", sab_all, rc)
-         CALL build_matrix_r_vhxc(vcd_env%matrix_rh, qs_env, rc)
+      ASSOCIATE (matrix_hr_1d => vcd_env%matrix_hr(ispin, 1:3), &
+                 matrix_rh_1d => vcd_env%matrix_rh(ispin, 1:3))
+         CALL build_rpnl_matrices(matrix_hr_1d, matrix_rh_1d, qs_kind_set, particle_set, sab_all, sap_ppnl, &
+                                  dft_control%qs_control%eps_ppnl, cell, rc)
+         CALL build_tr_matrices(matrix_hr_1d, matrix_rh_1d, qs_env, qs_kind_set, "ORB", sab_all, rc)
+         CALL build_rcore_matrices(matrix_hr_1d, matrix_rh_1d, qs_env, qs_kind_set, "ORB", sab_all, rc)
+         CALL build_vhxc_matrices(vcd_env%matrix_hr, vcd_env%matrix_rh, qs_env, rc)
       END ASSOCIATE
 
       CALL timestop(handle)
    END SUBROUTINE build_matrix_hr_rh
 
 ! **************************************************************************************************
-!> \brief Product of r with V_nl. Adapted from build_com_rpnl.
+!> \brief Build the ordered products V_nl*r and r*V_nl.
+!> \param matrix_vr ...
 !> \param matrix_rv ...
 !> \param qs_kind_set ...
 !> \param particle_set ...
@@ -180,13 +167,12 @@ CONTAINS
 !> \param eps_ppnl ...
 !> \param cell ...
 !> \param ref_point ...
-!> \param direction_Or ...
 !> \author Edward Ditler, Tomas Zimmermann
 ! **************************************************************************************************
-   SUBROUTINE build_rpnl_matrix(matrix_rv, qs_kind_set, particle_set, sab_all, sap_ppnl, eps_ppnl, &
-                                cell, ref_point, direction_Or)
+   SUBROUTINE build_rpnl_matrices(matrix_vr, matrix_rv, qs_kind_set, particle_set, sab_all, sap_ppnl, eps_ppnl, &
+                                  cell, ref_point)
 
-      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix_rv
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix_vr, matrix_rv
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -194,9 +180,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_ppnl
       TYPE(cell_type), INTENT(IN), OPTIONAL, POINTER     :: cell
       REAL(KIND=dp), DIMENSION(3)                        :: ref_point
-      LOGICAL                                            :: direction_Or
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_rpnl_matrix'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_rpnl_matrices'
 
       INTEGER                                            :: handle, i, iab, iac, iatom, ibc, icol, &
                                                             ikind, irow, jatom, jkind, kac, kbc, &
@@ -205,7 +190,7 @@ CONTAINS
       LOGICAL                                            :: found, ppnl_present
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
-      TYPE(block_p_type), DIMENSION(3)                   :: blocks_rv
+      TYPE(block_p_type), DIMENSION(3)                   :: blocks_rv, blocks_vr
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
@@ -249,14 +234,14 @@ CONTAINS
       END DO
 
       ! *** All integrals needed have been calculated and stored in sap_int
-      ! *** We now calculate the commutator matrix elements
+      ! *** We now calculate the ordered product matrix elements
 
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED  (basis_set, matrix_rv, &
-!$OMP          sap_int, nkind, eps_ppnl, locks, sab_all, direction_Or) &
+!$OMP SHARED  (basis_set, matrix_vr, matrix_rv, &
+!$OMP          sap_int, nkind, eps_ppnl, locks, sab_all) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, &
-!$OMP          iab, irow, icol, blocks_rv, &
+!$OMP          iab, irow, icol, blocks_vr, blocks_rv, &
 !$OMP          found, iac, ibc, alist_ac, alist_bc, &
 !$OMP          na, np, nb, kkind, kac, kbc, i, lock_num, &
 !$OMP          hash, natom, acint, bcint, achint, bchint)
@@ -289,6 +274,8 @@ CONTAINS
          irow = iatom
          icol = jatom
          DO i = 1, 3
+            CALL dbcsr_get_block_p(matrix_vr(i)%matrix, irow, icol, blocks_vr(i)%block, found)
+            CPASSERT(found)
             CALL dbcsr_get_block_p(matrix_rv(i)%matrix, irow, icol, blocks_rv(i)%block, found)
             CPASSERT(found)
          END DO
@@ -318,23 +305,16 @@ CONTAINS
                      nb = SIZE(bcint, 1)
 !$                   hash = MOD((iatom - 1)*natom + jatom, nlock) + 1
 !$                   CALL omp_set_lock(locks(hash))
-                     IF (direction_Or) THEN
+                     DO i = 1, 3
                         ! Vnl*r
-                        blocks_rv(1)%block(1:na, 1:nb) = blocks_rv(1)%block(1:na, 1:nb) + &
-                                                         MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 2)))
-                        blocks_rv(2)%block(1:na, 1:nb) = blocks_rv(2)%block(1:na, 1:nb) + &
-                                                         MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 3)))
-                        blocks_rv(3)%block(1:na, 1:nb) = blocks_rv(3)%block(1:na, 1:nb) + &
-                                                         MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, 4)))
-                     ELSE
+                        blocks_vr(i)%block(1:na, 1:nb) = blocks_vr(i)%block(1:na, 1:nb) + &
+                                                         MATMUL(achint(1:na, 1:np, 1), &
+                                                                TRANSPOSE(bcint(1:nb, 1:np, i + 1)))
                         ! r*Vnl
-                        blocks_rv(1)%block(1:na, 1:nb) = blocks_rv(1)%block(1:na, 1:nb) + &
-                                                         MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 1)))
-                        blocks_rv(2)%block(1:na, 1:nb) = blocks_rv(2)%block(1:na, 1:nb) + &
-                                                         MATMUL(achint(1:na, 1:np, 3), TRANSPOSE(bcint(1:nb, 1:np, 1)))
-                        blocks_rv(3)%block(1:na, 1:nb) = blocks_rv(3)%block(1:na, 1:nb) + &
-                                                         MATMUL(achint(1:na, 1:np, 4), TRANSPOSE(bcint(1:nb, 1:np, 1)))
-                     END IF
+                        blocks_rv(i)%block(1:na, 1:nb) = blocks_rv(i)%block(1:na, 1:nb) + &
+                                                         MATMUL(achint(1:na, 1:np, i + 1), &
+                                                                TRANSPOSE(bcint(1:nb, 1:np, 1)))
+                     END DO
 !$                   CALL omp_unset_lock(locks(hash))
                      EXIT ! We have found a match and there can be only one single match
                   END IF
@@ -342,6 +322,7 @@ CONTAINS
             END DO
          END DO
          DO i = 1, 3
+            NULLIFY (blocks_vr(i)%block)
             NULLIFY (blocks_rv(i)%block)
          END DO
       END DO
@@ -364,16 +345,16 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE build_rpnl_matrix
+   END SUBROUTINE build_rpnl_matrices
 
 ! **************************************************************************************************
 !> \brief   Calculation of the product Tr or rT over Cartesian Gaussian functions.
 !> \param   matrix_tr ...
+!> \param matrix_rt ...
 !> \param   qs_env ...
 !> \param   qs_kind_set ...
 !> \param   basis_type basis set to be used
 !> \param   sab_nl pair list (must be consistent with basis sets!)
-!> \param   direction_Or ...
 !> \param   rc ...
 !> \date    11.10.2010
 !> \par     History
@@ -381,24 +362,23 @@ CONTAINS
 !>          Refactoring [07.2014] JGH
 !>          Simplify options and use new kinetic energy integral routine
 !>          Adapted from qs_kinetic [07.2016]
-!>          Adapted from build_com_tr_matrix [2021] by ED
+!>          Adapted from the kinetic position-product recurrence [2021] by ED
 !> \author  JGH
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE build_tr_matrix(matrix_tr, qs_env, qs_kind_set, basis_type, sab_nl, direction_Or, rc)
+   SUBROUTINE build_tr_matrices(matrix_tr, matrix_rt, qs_env, qs_kind_set, basis_type, sab_nl, rc)
 
-      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix_tr
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix_tr, matrix_rt
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      LOGICAL                                            :: direction_Or
-      REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: rc
+      REAL(KIND=dp), DIMENSION(3)                        :: rc
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'build_tr_matrix'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'build_tr_matrices'
 
-      INTEGER                                            :: handle, iatom, icol, ikind, ir, irow, &
+      INTEGER                                            :: handle, i, iatom, icol, ikind, ir, irow, &
                                                             iset, jatom, jkind, jset, ldsab, ltab, &
                                                             natom, ncoa, ncob, nkind, nseta, &
                                                             nsetb, sgfa, sgfb, slot
@@ -412,8 +392,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: kab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rac, rb, rbc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: kx_block, ky_block, kz_block, rpgfa, &
-                                                            rpgfb, scon_a, scon_b, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rpgfa, rpgfb, scon_a, scon_b, zeta, zetb
+      TYPE(block_p_type), DIMENSION(3, 2)                :: blocks_tr
       TYPE(cell_type), POINTER                           :: qs_cell
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
@@ -449,14 +429,14 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (ldsab,do_symmetric, sab_nl, rc,&
-!$OMP         ncoset,matrix_tr,basis_set_list,qs_cell,natom,locks)  &
-!$OMP PRIVATE (kx_block,ky_block,kz_block,kab,qab,tab,ikind,jkind,iatom,jatom,rab,rac,rbc,cell, &
+!$OMP         ncoset,matrix_tr,matrix_rt,basis_set_list,qs_cell,natom,locks)  &
+!$OMP PRIVATE (blocks_tr,kab,qab,tab,ikind,jkind,iatom,jatom,rab,rac,rbc,cell, &
 !$OMP          basis_set_a, basis_set_b, nseta, ncoa, ncob, ltab, nsetb, tkab, &
-!$OMP          irow, icol, found, trans, sgfa, sgfb, iset, jset, &
+!$OMP          irow, icol, found, trans, sgfa, sgfb, iset, jset, i, &
 !$OMP          hash, hash1, hash2, iatom8, slot, lock_num) &
 !$OMP PRIVATE (first_sgfa, la_max, la_min, npgfa, nsgfa, rpgfa, set_radius_a, zeta, scon_a) &
 !$OMP PRIVATE (first_sgfb, lb_max, lb_min, npgfb, nsgfb, rpgfb, set_radius_b, zetb, scon_b) &
-!$OMP SHARED(particle_set, direction_or) &
+!$OMP SHARED(particle_set) &
 !$OMP PRIVATE(ra, rb)
 
 !$OMP SINGLE
@@ -525,18 +505,16 @@ CONTAINS
             irow = iatom
             icol = jatom
          END IF
-         NULLIFY (kx_block)
-         CALL dbcsr_get_block_p(matrix=matrix_tr(1)%matrix, &
-                                row=irow, col=icol, BLOCK=kx_block, found=found)
-         CPASSERT(found)
-         NULLIFY (ky_block)
-         CALL dbcsr_get_block_p(matrix=matrix_tr(2)%matrix, &
-                                row=irow, col=icol, BLOCK=ky_block, found=found)
-         CPASSERT(found)
-         NULLIFY (kz_block)
-         CALL dbcsr_get_block_p(matrix=matrix_tr(3)%matrix, &
-                                row=irow, col=icol, BLOCK=kz_block, found=found)
-         CPASSERT(found)
+         DO ir = 1, 3
+            NULLIFY (blocks_tr(ir, 1)%block)
+            CALL dbcsr_get_block_p(matrix=matrix_tr(ir)%matrix, &
+                                   row=irow, col=icol, BLOCK=blocks_tr(ir, 1)%block, found=found)
+            CPASSERT(found)
+            NULLIFY (blocks_tr(ir, 2)%block)
+            CALL dbcsr_get_block_p(matrix=matrix_rt(ir)%matrix, &
+                                   row=irow, col=icol, BLOCK=blocks_tr(ir, 2)%block, found=found)
+            CPASSERT(found)
+         END DO
 
          ! The kinetic integrals depend only on rab (also for the screening)
          tab = NORM2(rab)
@@ -570,28 +548,22 @@ CONTAINS
                CALL kinetic(la_max(iset) + 1, la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                             lb_max(jset) + 1, lb_min(jset), npgfb(jset), rpgfb(:, jset), zetb(:, jset), &
                             rab, tkab)
-               ! commutator
-               CALL ab_opr(la_max(iset), npgfa(iset), rpgfa(:, iset), la_min(iset), &
-                           lb_max(jset), npgfb(jset), rpgfb(:, jset), lb_min(jset), &
-                           tab, tkab, kab, rac, rbc, direction_Or)
+               ! Ordered products T*r and r*T
+               DO i = 1, 2
+                  CALL ab_opr(la_max(iset), npgfa(iset), rpgfa(:, iset), la_min(iset), &
+                              lb_max(jset), npgfb(jset), rpgfb(:, jset), lb_min(jset), &
+                              tab, tkab, kab, rac, rbc, direction_Or=(i == 1))
+                  DO ir = 1, 3
+                     CALL contraction(kab(:, :, ir), qab, ca=scon_a(:, sgfa:), na=ncoa, ma=nsgfa(iset), &
+                                      cb=scon_b(:, sgfb:), nb=ncob, mb=nsgfb(jset), trans=trans)
 
-               DEALLOCATE (tkab)
-               ! Contraction step
-               DO ir = 1, 3
-                  CALL contraction(kab(:, :, ir), qab, ca=scon_a(:, sgfa:), na=ncoa, ma=nsgfa(iset), &
-                                   cb=scon_b(:, sgfb:), nb=ncob, mb=nsgfb(jset), trans=trans)
-
-!$                CALL omp_set_lock(locks(hash))
-                  SELECT CASE (ir)
-                  CASE (1)
-                     CALL block_add("IN", qab, nsgfa(iset), nsgfb(jset), kx_block, sgfa, sgfb, trans=trans)
-                  CASE (2)
-                     CALL block_add("IN", qab, nsgfa(iset), nsgfb(jset), ky_block, sgfa, sgfb, trans=trans)
-                  CASE (3)
-                     CALL block_add("IN", qab, nsgfa(iset), nsgfb(jset), kz_block, sgfa, sgfb, trans=trans)
-                  END SELECT
-!$                CALL omp_unset_lock(locks(hash))
+!$                   CALL omp_set_lock(locks(hash))
+                     CALL block_add("IN", qab, nsgfa(iset), nsgfb(jset), blocks_tr(ir, i)%block, &
+                                    sgfa, sgfb, trans=trans)
+!$                   CALL omp_unset_lock(locks(hash))
+                  END DO
                END DO
+               DEALLOCATE (tkab)
 
             END DO
          END DO
@@ -613,11 +585,12 @@ CONTAINS
       DEALLOCATE (basis_set_list)
       CALL timestop(handle)
 
-   END SUBROUTINE build_tr_matrix
+   END SUBROUTINE build_tr_matrices
 
 ! **************************************************************************************************
-!> \brief Commutator of the of the local part of the pseudopotential with r
-!> \param matrix_rcore ...
+!> \brief Build the ordered products V_core*r and r*V_core.
+!> \param matrix_rcore_hr ...
+!> \param matrix_rcore_rh ...
 !> \param qs_env ...
 !> \param qs_kind_set ...
 !> \param basis_type ...
@@ -625,16 +598,16 @@ CONTAINS
 !> \param rf ...
 !> \author Edward Ditler, Tomas Zimmermann
 ! **************************************************************************************************
-   SUBROUTINE build_rcore_matrix(matrix_rcore, qs_env, qs_kind_set, basis_type, sab_nl, rf)
-      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix_rcore
+   SUBROUTINE build_rcore_matrices(matrix_rcore_hr, matrix_rcore_rh, qs_env, qs_kind_set, basis_type, sab_nl, rf)
+      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix_rcore_hr, matrix_rcore_rh
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       CHARACTER(LEN=*)                                   :: basis_type
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: rf
+      REAL(KIND=dp), DIMENSION(3)                        :: rf
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_rcore_matrix'
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_rcore_matrices'
       INTEGER, PARAMETER                                 :: nexp_max = 30
 
       INTEGER :: atom_a, atom_b, handle, i, iatom, icol, idir, ikind, inode, irow, iset, jatom, &
@@ -658,11 +631,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(4, nexp_max)              :: cval_ppl
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_local, alpha_lpot, c_local, cexp_ppl, &
                                                             set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_lpot, hx_block, hy_block, hz_block, &
-                                                            rpgfa, rpgfb, scon_a, scon_b, sphi_a, &
-                                                            sphi_b, zeta, zetb
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_lpot, rpgfa, rpgfb, scon_a, scon_b, &
+                                                            sphi_a, sphi_b, zeta, zetb
       REAL(KIND=dp), DIMENSION(nexp_max)                 :: alpha_ppl
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(block_p_type), DIMENSION(3, 2)                :: blocks_rcore
       TYPE(cell_type), POINTER                           :: cell
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
@@ -744,11 +717,11 @@ CONTAINS
 !$OMP          sab_nl, sac_ppl, nthread, ncoset, nkind, &
 !$OMP          atom_of_kind, ldsab,  maxnset, maxder, &
 !$OMP          maxlgto, nder, maxco, dokp, cell) &
-!$OMP SHARED (matrix_rcore, rf) &
+!$OMP SHARED (matrix_rcore_hr, matrix_rcore_rh, rf) &
 !$OMP PRIVATE (ikind, jkind, inode, iatom, jatom, rab, basis_set_a, basis_set_b, atom_a) &
 !$OMP PRIVATE (atom_b) &
 !$OMP PRIVATE (nsetb) &
-!$OMP PRIVATE (dab, irow, icol, hx_block, hy_block, hz_block, found, iset, ncoa) &
+!$OMP PRIVATE (dab, irow, icol, blocks_rcore, found, iset, ncoa, i) &
 !$OMP PRIVATE (sgfa, jset, ncob, sgfb, work, hab, rhab, kkind, nseta) &
 !$OMP PRIVATE (gth_potential, sgp_potential, alpha, cexp_ppl, lpotextended) &
 !$OMP PRIVATE (ppl_radius, nexp_lpot, nexp_ppl, alpha_ppl, alpha_lpot, nct_ppl) &
@@ -812,18 +785,16 @@ CONTAINS
          irow = iatom
          icol = jatom
 
-         NULLIFY (hx_block)
-         NULLIFY (hy_block)
-         NULLIFY (hz_block)
-         CALL dbcsr_get_block_p(matrix=matrix_rcore(1)%matrix, &
-                                row=irow, col=icol, BLOCK=hx_block, found=found)
-         CPASSERT(found)
-         CALL dbcsr_get_block_p(matrix=matrix_rcore(2)%matrix, &
-                                row=irow, col=icol, BLOCK=hy_block, found=found)
-         CPASSERT(found)
-         CALL dbcsr_get_block_p(matrix=matrix_rcore(3)%matrix, &
-                                row=irow, col=icol, BLOCK=hz_block, found=found)
-         CPASSERT(found)
+         DO idir = 1, 3
+            NULLIFY (blocks_rcore(idir, 1)%block)
+            CALL dbcsr_get_block_p(matrix=matrix_rcore_hr(idir)%matrix, &
+                                   row=irow, col=icol, BLOCK=blocks_rcore(idir, 1)%block, found=found)
+            CPASSERT(found)
+            NULLIFY (blocks_rcore(idir, 2)%block)
+            CALL dbcsr_get_block_p(matrix=matrix_rcore_rh(idir)%matrix, &
+                                   row=irow, col=icol, BLOCK=blocks_rcore(idir, 2)%block, found=found)
+            CPASSERT(found)
+         END DO
 
          dab = NORM2(rab)
          ra = pbc(particle_set(iatom)%r(:), cell)
@@ -930,23 +901,13 @@ CONTAINS
                                    sphi_b(1, sgfb), SIZE(sphi_b, 1), &
                                    0.0_dp, work(1, 1, idir), SIZE(work, 1))
 !$OMP CRITICAL(h_block_critical)
-                        SELECT CASE (idir)
-                        CASE (1)
+                        DO i = 1, 2
                            CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
                                       1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
                                       work(1, 1, idir), SIZE(work, 1), &
-                                      1.0_dp, hx_block(sgfa, sgfb), SIZE(hx_block, 1))
-                        CASE (2)
-                           CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
-                                      1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                      work(1, 1, idir), SIZE(work, 1), &
-                                      1.0_dp, hy_block(sgfa, sgfb), SIZE(hy_block, 1))
-                        CASE (3)
-                           CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
-                                      1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                                      work(1, 1, idir), SIZE(work, 1), &
-                                      1.0_dp, hz_block(sgfa, sgfb), SIZE(hz_block, 1))
-                        END SELECT
+                                      1.0_dp, blocks_rcore(idir, i)%block(sgfa, sgfb), &
+                                      SIZE(blocks_rcore(idir, i)%block, 1))
+                        END DO
 !$OMP END CRITICAL(h_block_critical)
                      END DO
                   END DO
@@ -966,22 +927,23 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE build_rcore_matrix
+   END SUBROUTINE build_rcore_matrices
 
 ! **************************************************************************************************
-!> \brief Commutator of the Hartree+XC potentials with r
-!> \param matrix_rv ...
+!> \brief Build the ordered Hartree+XC products V_HXC*r and r*V_HXC.
+!> \param matrix_hr ...
+!> \param matrix_rh ...
 !> \param qs_env ...
 !> \param rc ...
 !> \author Edward Ditler, Tomas Zimmermann
 ! **************************************************************************************************
-   SUBROUTINE build_matrix_r_vhxc(matrix_rv, qs_env, rc)
+   SUBROUTINE build_vhxc_matrices(matrix_hr, matrix_rh, qs_env, rc)
       TYPE(dbcsr_p_type), DIMENSION(:, :), &
-         INTENT(INOUT), POINTER                          :: matrix_rv
+         INTENT(INOUT), POINTER                          :: matrix_hr, matrix_rh
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(KIND=dp), DIMENSION(3)                        :: rc
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_matrix_r_vhxc'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_vhxc_matrices'
       INTEGER, PARAMETER                                 :: nspins = 1
 
       INTEGER                                            :: handle, idir, ispin
@@ -1008,10 +970,6 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
-      ! matrix_rv(nspin, 3) was allocated as
-      ! CALL dbcsr_init_p(vcd_env%matrix_hr(ispin, i)%matrix)
-      ! CALL dbcsr_copy(vcd_env%matrix_hr(ispin, i)%matrix, vcd_env%matrix_nosym_temp(1)%matrix)
-
       NULLIFY (matrix_rvxc, matrix_rvxc_desymm)
       CALL dbcsr_allocate_matrix_set(matrix_rvxc, nspins, 3)
       CALL dbcsr_allocate_matrix_set(matrix_rvxc_desymm, nspins, 3)
@@ -1021,7 +979,7 @@ CONTAINS
             CALL dbcsr_init_p(matrix_rvxc(ispin, idir)%matrix)
             CALL dbcsr_init_p(matrix_rvxc_desymm(ispin, idir)%matrix)
 
-            CALL dbcsr_copy(matrix_rvxc_desymm(ispin, idir)%matrix, matrix_rv(1, 1)%matrix)
+            CALL dbcsr_copy(matrix_rvxc_desymm(ispin, idir)%matrix, matrix_hr(1, 1)%matrix)
             CALL dbcsr_set(matrix_rvxc_desymm(ispin, idir)%matrix, 0._dp)
 
             CALL dbcsr_copy(matrix_rvxc(ispin, idir)%matrix, matrix_ks(ispin)%matrix)
@@ -1055,7 +1013,8 @@ CONTAINS
          DO idir = 1, 3
             CALL dbcsr_scale(matrix_rvxc(ispin, idir)%matrix, v_rspace(ispin)%pw_grid%dvol)
             CALL dbcsr_desymmetrize(matrix_rvxc(ispin, idir)%matrix, matrix_rvxc_desymm(ispin, idir)%matrix)
-            CALL dbcsr_add(matrix_rv(ispin, idir)%matrix, matrix_rvxc_desymm(ispin, idir)%matrix, 1.0_dp, 1.0_dp)
+            CALL dbcsr_add(matrix_hr(ispin, idir)%matrix, matrix_rvxc_desymm(ispin, idir)%matrix, 1.0_dp, 1.0_dp)
+            CALL dbcsr_add(matrix_rh(ispin, idir)%matrix, matrix_rvxc_desymm(ispin, idir)%matrix, 1.0_dp, 1.0_dp)
          END DO
       END DO
 
@@ -1070,7 +1029,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE build_matrix_r_vhxc
+   END SUBROUTINE build_vhxc_matrices
 
 ! **************************************************************************************************
 !> \brief Calculates the integrals < mu | r * V | nu >
@@ -1507,7 +1466,8 @@ CONTAINS
          CALL dbcsr_set(matrix_dsdv(i)%matrix, 0.0_dp)
       END DO
 
-      CALL build_dsdv_moments(qs_env, my_matrix_mom, 1, rcc)
+      CALL build_local_moment_matrix(qs_env, my_matrix_mom, 1, ref_point=rcc, &
+                                     neighbor_image=.TRUE.)
 
       DO i = 1, 3
          CALL dbcsr_desymmetrize(my_matrix_mom(i)%matrix, my_matrix_dsdv(i)%matrix)
@@ -1534,21 +1494,21 @@ CONTAINS
    END SUBROUTINE build_dSdV_matrix
 
 ! **************************************************************************************************
-!> \brief Builds the  [Vnl, r] * r from either side
-!> \param matrix_rv ...
+!> \brief Build the two ordered nonlocal second-position products.
+!> \param matrix_rcomr ...
+!> \param matrix_rrcom ...
 !> \param qs_kind_set ...
 !> \param sab_all ...
 !> \param sap_ppnl ...
 !> \param eps_ppnl ...
 !> \param particle_set ...
 !> \param cell ...
-!> \param direction_Or ...
 !> \author Edward Ditler, Tomas Zimmermann
 ! **************************************************************************************************
-   SUBROUTINE build_com_rpnl_r(matrix_rv, qs_kind_set, sab_all, sap_ppnl, eps_ppnl, &
-                               particle_set, cell, direction_Or)
+   SUBROUTINE build_com_rpnl_r(matrix_rcomr, matrix_rrcom, qs_kind_set, sab_all, sap_ppnl, eps_ppnl, &
+                               particle_set, cell)
 
-      TYPE(dbcsr_p_type), DIMENSION(:, :)                :: matrix_rv
+      TYPE(dbcsr_p_type), DIMENSION(:, :)                :: matrix_rcomr, matrix_rrcom
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_all, sap_ppnl
@@ -1556,7 +1516,6 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
-      LOGICAL, INTENT(IN)                                :: direction_Or
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_com_rpnl_r'
 
@@ -1569,7 +1528,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: rab
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
-      TYPE(block_p_type), DIMENSION(3, 3)                :: blocks_rvr
+      TYPE(block_p_type), DIMENSION(3, 3, 2)             :: blocks_rvr
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
@@ -1617,11 +1576,11 @@ CONTAINS
       END DO
 
       ! *** All integrals needed have been calculated and stored in sap_int
-      ! *** We now calculate the commutator matrix elements
+      ! *** We now calculate the ordered second-position product matrix elements
 
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
-!$OMP SHARED  (basis_set, matrix_rv, direction_Or, &
+!$OMP SHARED  (basis_set, matrix_rcomr, matrix_rrcom, &
 !$OMP          sap_int, nkind, eps_ppnl, locks, sab_all) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
 !$OMP          iab, irow, icol, blocks_rvr, lock_num, &
@@ -1662,7 +1621,9 @@ CONTAINS
                ! t_alpha = MOD(i - 1, 3) + 1
                ! t_beta = FLOOR(REAL(i - 1, dp)/3._dp) + 1
 
-               CALL dbcsr_get_block_p(matrix_rv(i, j)%matrix, irow, icol, blocks_rvr(i, j)%block, found)
+               CALL dbcsr_get_block_p(matrix_rcomr(i, j)%matrix, irow, icol, blocks_rvr(i, j, 1)%block, found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix_rrcom(i, j)%matrix, irow, icol, blocks_rvr(i, j, 2)%block, found)
                CPASSERT(found)
             END DO
          END DO
@@ -1701,110 +1662,19 @@ CONTAINS
 !$                   hash = MOD((iatom - 1)*natom + jatom, nlock) + 1
 !$                   CALL omp_set_lock(locks(hash))
 
-                     ! Template:
-                     ! blocks_rv(1)%block(1:na, 1:nb) = blocks_rv(1)%block(1:na, 1:nb) + &
-                     !                                  MATMUL(achint(1:na, 1:np, 2), TRANSPOSE(bcint(1:nb, 1:np, 1))) ! xV
-                     ! 1, x, y, z, xx, xy, xz, yy, yz, zz
-                     IF (direction_Or) THEN
-                        ! (Vnl*r_alpha)*r_beta
+                     DO i = 1, 3
+                        DO j = 1, 3
+                           ! matrix_rcomr(i, j) = (Vnl*r_i)*r_j - (r_i*Vnl)*r_j
+                           blocks_rvr(i, j, 1)%block(1:na, 1:nb) = blocks_rvr(i, j, 1)%block(1:na, 1:nb) + &
+                                                     MATMUL(achint(1:na, 1:np, bi_1), TRANSPOSE(bcint(1:nb, 1:np, bi_rr(i, j)))) - &
+                                                          MATMUL(achint(1:na, 1:np, bi_r(i)), TRANSPOSE(bcint(1:nb, 1:np, bi_r(j))))
 
-                        ! This part is symmetric because [r_beta, r_alpha] = 0
-                        ! matrix_rvr(x, gamma) += <mu|p>h_ij * <p|x*gamma|nu>
-                        blocks_rvr(1, 1)%block(1:na, 1:nb) = blocks_rvr(1, 1)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_1), TRANSPOSE(bcint(1:nb, 1:np, bi_xx)))
-                        blocks_rvr(1, 2)%block(1:na, 1:nb) = blocks_rvr(1, 2)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_1), TRANSPOSE(bcint(1:nb, 1:np, bi_xy)))
-                        blocks_rvr(1, 3)%block(1:na, 1:nb) = blocks_rvr(1, 3)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_1), TRANSPOSE(bcint(1:nb, 1:np, bi_xz)))
-
-                        ! matrix_rvr(y, gamma) += <mu|p>h_ij * <p|y*gamma|nu>
-                        blocks_rvr(2, 1)%block(1:na, 1:nb) = blocks_rvr(2, 1)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_1), TRANSPOSE(bcint(1:nb, 1:np, bi_xy)))
-                        blocks_rvr(2, 2)%block(1:na, 1:nb) = blocks_rvr(2, 2)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_1), TRANSPOSE(bcint(1:nb, 1:np, bi_yy)))
-                        blocks_rvr(2, 3)%block(1:na, 1:nb) = blocks_rvr(2, 3)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_1), TRANSPOSE(bcint(1:nb, 1:np, bi_yz)))
-
-                        ! matrix_rvr(z, gamma) += <mu|p>h_ij * <p|z*gamma|nu>
-                        blocks_rvr(3, 1)%block(1:na, 1:nb) = blocks_rvr(3, 1)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_1), TRANSPOSE(bcint(1:nb, 1:np, bi_xz)))
-                        blocks_rvr(3, 2)%block(1:na, 1:nb) = blocks_rvr(3, 2)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_1), TRANSPOSE(bcint(1:nb, 1:np, bi_yz)))
-                        blocks_rvr(3, 3)%block(1:na, 1:nb) = blocks_rvr(3, 3)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_1), TRANSPOSE(bcint(1:nb, 1:np, bi_zz)))
-
-                        ! -(r_alpha*Vnl)*r_beta
-                        ! matrix_rvr(x, gamma) += <mu|gamma|p>h_ij * <p|x|nu>
-                        blocks_rvr(1, 1)%block(1:na, 1:nb) = blocks_rvr(1, 1)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_x), TRANSPOSE(bcint(1:nb, 1:np, bi_x)))
-                        blocks_rvr(1, 2)%block(1:na, 1:nb) = blocks_rvr(1, 2)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_x), TRANSPOSE(bcint(1:nb, 1:np, bi_y)))
-                        blocks_rvr(1, 3)%block(1:na, 1:nb) = blocks_rvr(1, 3)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_x), TRANSPOSE(bcint(1:nb, 1:np, bi_z)))
-
-                        ! matrix_rvr(y, gamma) += <mu|gamma|p>h_ij * <p|y|nu>
-                        blocks_rvr(2, 1)%block(1:na, 1:nb) = blocks_rvr(2, 1)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_y), TRANSPOSE(bcint(1:nb, 1:np, bi_x)))
-                        blocks_rvr(2, 2)%block(1:na, 1:nb) = blocks_rvr(2, 2)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_y), TRANSPOSE(bcint(1:nb, 1:np, bi_y)))
-                        blocks_rvr(2, 3)%block(1:na, 1:nb) = blocks_rvr(2, 3)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_y), TRANSPOSE(bcint(1:nb, 1:np, bi_z)))
-
-                        ! matrix_rvr(z, gamma) += <mu|gamma|p>h_ij * <p|z|nu>
-                        blocks_rvr(3, 1)%block(1:na, 1:nb) = blocks_rvr(3, 1)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_z), TRANSPOSE(bcint(1:nb, 1:np, bi_x)))
-                        blocks_rvr(3, 2)%block(1:na, 1:nb) = blocks_rvr(3, 2)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_z), TRANSPOSE(bcint(1:nb, 1:np, bi_y)))
-                        blocks_rvr(3, 3)%block(1:na, 1:nb) = blocks_rvr(3, 3)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_z), TRANSPOSE(bcint(1:nb, 1:np, bi_z)))
-
-                        ! This means that we have
-                        ! blocks_rvr(1:3, 1:3) = blocks_rvr(alpha, beta)
-                     ELSE
-                        ! r_beta*(Vnl*r_alpha)
-                        blocks_rvr(1, 1)%block(1:na, 1:nb) = blocks_rvr(1, 1)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_x), TRANSPOSE(bcint(1:nb, 1:np, bi_x)))
-                        blocks_rvr(1, 2)%block(1:na, 1:nb) = blocks_rvr(1, 2)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_y), TRANSPOSE(bcint(1:nb, 1:np, bi_x)))
-                        blocks_rvr(1, 3)%block(1:na, 1:nb) = blocks_rvr(1, 3)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_z), TRANSPOSE(bcint(1:nb, 1:np, bi_x)))
-
-                        blocks_rvr(2, 1)%block(1:na, 1:nb) = blocks_rvr(2, 1)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_x), TRANSPOSE(bcint(1:nb, 1:np, bi_y)))
-                        blocks_rvr(2, 2)%block(1:na, 1:nb) = blocks_rvr(2, 2)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_y), TRANSPOSE(bcint(1:nb, 1:np, bi_y)))
-                        blocks_rvr(2, 3)%block(1:na, 1:nb) = blocks_rvr(2, 3)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_z), TRANSPOSE(bcint(1:nb, 1:np, bi_y)))
-
-                        blocks_rvr(3, 1)%block(1:na, 1:nb) = blocks_rvr(3, 1)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_x), TRANSPOSE(bcint(1:nb, 1:np, bi_z)))
-                        blocks_rvr(3, 2)%block(1:na, 1:nb) = blocks_rvr(3, 2)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_y), TRANSPOSE(bcint(1:nb, 1:np, bi_z)))
-                        blocks_rvr(3, 3)%block(1:na, 1:nb) = blocks_rvr(3, 3)%block(1:na, 1:nb) + &
-                                                             MATMUL(achint(1:na, 1:np, bi_z), TRANSPOSE(bcint(1:nb, 1:np, bi_z)))
-
-                        ! -r_beta*(r_alpha*Vnl)
-                        blocks_rvr(1, 1)%block(1:na, 1:nb) = blocks_rvr(1, 1)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_xx), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
-                        blocks_rvr(1, 2)%block(1:na, 1:nb) = blocks_rvr(1, 2)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_xy), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
-                        blocks_rvr(1, 3)%block(1:na, 1:nb) = blocks_rvr(1, 3)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_xz), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
-
-                        blocks_rvr(2, 1)%block(1:na, 1:nb) = blocks_rvr(2, 1)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_xy), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
-                        blocks_rvr(2, 2)%block(1:na, 1:nb) = blocks_rvr(2, 2)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_yy), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
-                        blocks_rvr(2, 3)%block(1:na, 1:nb) = blocks_rvr(2, 3)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_yz), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
-
-                        blocks_rvr(3, 1)%block(1:na, 1:nb) = blocks_rvr(3, 1)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_xz), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
-                        blocks_rvr(3, 2)%block(1:na, 1:nb) = blocks_rvr(3, 2)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_yz), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
-                        blocks_rvr(3, 3)%block(1:na, 1:nb) = blocks_rvr(3, 3)%block(1:na, 1:nb) - &
-                                                             MATMUL(achint(1:na, 1:np, bi_zz), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
-                     END IF
+                           ! matrix_rrcom(i, j) = r_j*(Vnl*r_i) - r_j*(r_i*Vnl)
+                           blocks_rvr(i, j, 2)%block(1:na, 1:nb) = blocks_rvr(i, j, 2)%block(1:na, 1:nb) + &
+                                                      MATMUL(achint(1:na, 1:np, bi_r(j)), TRANSPOSE(bcint(1:nb, 1:np, bi_r(i)))) - &
+                                                         MATMUL(achint(1:na, 1:np, bi_rr(i, j)), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
+                        END DO
+                     END DO
 
 !$                   CALL omp_unset_lock(locks(hash))
                      EXIT ! We have found a match and there can be only one single match
@@ -1813,9 +1683,10 @@ CONTAINS
             END DO
          END DO
          DO i = 1, 3
-            NULLIFY (blocks_rvr(i, 1)%block)
-            NULLIFY (blocks_rvr(i, 2)%block)
-            NULLIFY (blocks_rvr(i, 3)%block)
+            DO j = 1, 3
+               NULLIFY (blocks_rvr(i, j, 1)%block)
+               NULLIFY (blocks_rvr(i, j, 2)%block)
+            END DO
          END DO
       END DO
 
@@ -2256,198 +2127,7 @@ CONTAINS
    END SUBROUTINE build_dcom_rpnl
 
 ! **************************************************************************************************
-!> \brief dV_nl/dV. Adapted from build_com_rpnl.
-!> \param matrix_rv ...
-!> \param qs_kind_set ...
-!> \param sab_all ...
-!> \param sap_ppnl ...
-!> \param eps_ppnl ...
-!> \param particle_set ...
-!> \param pseudoatom ...
-!> \author Edward Ditler
-! **************************************************************************************************
-   SUBROUTINE build_drpnl_matrix(matrix_rv, qs_kind_set, sab_all, sap_ppnl, eps_ppnl, particle_set, pseudoatom)
-
-      TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix_rv
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_all, sap_ppnl
-      REAL(KIND=dp), INTENT(IN)                          :: eps_ppnl
-      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
-         POINTER                                         :: particle_set
-      INTEGER                                            :: pseudoatom
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_drpnl_matrix'
-
-      INTEGER                                            :: handle, i, iab, iac, iatom, ibc, icol, &
-                                                            ikind, irow, jatom, jkind, kac, kbc, &
-                                                            kkind, na, natom, nb, nkind, np, slot
-      INTEGER, DIMENSION(3)                              :: cell_b
-      LOGICAL                                            :: found, ppnl_present
-      REAL(KIND=dp), DIMENSION(3)                        :: rab
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: achint, acint, bchint, bcint
-      TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
-      TYPE(block_p_type), DIMENSION(3)                   :: blocks_rv
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
-      TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
-
-!$    INTEGER(kind=omp_lock_kind), &
-!$       ALLOCATABLE, DIMENSION(:) :: locks
-!$    INTEGER                                            :: lock_num, hash
-!$    INTEGER, PARAMETER                                 :: nlock = 501
-
-      ppnl_present = ASSOCIATED(sap_ppnl)
-      IF (.NOT. ppnl_present) RETURN
-
-      CALL timeset(routineN, handle)
-      nkind = SIZE(qs_kind_set)
-      natom = SIZE(particle_set)
-
-      ! sap_int needs to be shared as multiple threads need to access this
-      NULLIFY (sap_int)
-      ALLOCATE (sap_int(nkind*nkind))
-      DO i = 1, nkind*nkind
-         NULLIFY (sap_int(i)%alist, sap_int(i)%asort, sap_int(i)%aindex)
-         sap_int(i)%nalist = 0
-      END DO
-
-      ! "nder" in moment_mode is "order"
-      CALL build_sap_ints(sap_int, sap_ppnl, qs_kind_set, nder=1, moment_mode=.TRUE., pseudoatom=pseudoatom)
-
-      ! *** Set up a sorting index
-      CALL sap_sort(sap_int)
-
-      ALLOCATE (basis_set(nkind))
-      DO ikind = 1, nkind
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set)
-         IF (ASSOCIATED(orb_basis_set)) THEN
-            basis_set(ikind)%gto_basis_set => orb_basis_set
-         ELSE
-            NULLIFY (basis_set(ikind)%gto_basis_set)
-         END IF
-      END DO
-
-      ! *** All integrals needed have been calculated and stored in sap_int
-      ! *** We now calculate the commutator matrix elements
-
-!$OMP PARALLEL &
-!$OMP DEFAULT (NONE) &
-!$OMP SHARED  (basis_set, matrix_rv, &
-!$OMP          sap_int, nkind, eps_ppnl, locks, sab_all) &
-!$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
-!$OMP          iab, irow, icol, blocks_rv, lock_num, &
-!$OMP          found, iac, ibc, alist_ac, alist_bc, &
-!$OMP          na, np, nb, kkind, kac, kbc, i, &
-!$OMP          hash, natom, acint, bcint, achint, bchint)
-
-!$OMP SINGLE
-!$    ALLOCATE (locks(nlock))
-!$OMP END SINGLE
-
-!$OMP DO
-!$    DO lock_num = 1, nlock
-!$       call omp_init_lock(locks(lock_num))
-!$    END DO
-!$OMP END DO
-
-!$OMP DO SCHEDULE(GUIDED)
-
-      DO slot = 1, sab_all(1)%nl_size
-
-         ikind = sab_all(1)%nlist_task(slot)%ikind
-         jkind = sab_all(1)%nlist_task(slot)%jkind
-         iatom = sab_all(1)%nlist_task(slot)%iatom
-         jatom = sab_all(1)%nlist_task(slot)%jatom
-         cell_b(:) = sab_all(1)%nlist_task(slot)%cell(:)
-         rab(1:3) = sab_all(1)%nlist_task(slot)%r(1:3)
-
-         IF (.NOT. ASSOCIATED(basis_set(ikind)%gto_basis_set)) CYCLE
-         IF (.NOT. ASSOCIATED(basis_set(jkind)%gto_basis_set)) CYCLE
-         iab = ikind + nkind*(jkind - 1)
-
-         ! *** Create matrix blocks for a new matrix block column ***
-         irow = iatom
-         icol = jatom
-         DO i = 1, 3
-            CALL dbcsr_get_block_p(matrix_rv(i)%matrix, irow, icol, blocks_rv(i)%block, found)
-            CPASSERT(found)
-         END DO
-
-         ! loop over all kinds for projector atom
-         DO kkind = 1, nkind
-            iac = ikind + nkind*(kkind - 1)
-            ibc = jkind + nkind*(kkind - 1)
-            IF (.NOT. ASSOCIATED(sap_int(iac)%alist)) CYCLE
-            IF (.NOT. ASSOCIATED(sap_int(ibc)%alist)) CYCLE
-            CALL get_alist(sap_int(iac), alist_ac, iatom)
-            CALL get_alist(sap_int(ibc), alist_bc, jatom)
-
-            IF (.NOT. ASSOCIATED(alist_ac)) CYCLE
-            IF (.NOT. ASSOCIATED(alist_bc)) CYCLE
-            DO kac = 1, alist_ac%nclist
-               DO kbc = 1, alist_bc%nclist
-                  IF (alist_ac%clist(kac)%catom /= alist_bc%clist(kbc)%catom) CYCLE
-                  IF (ALL(cell_b + alist_bc%clist(kbc)%cell - alist_ac%clist(kac)%cell == 0)) THEN
-                     IF (alist_ac%clist(kac)%maxac*alist_bc%clist(kbc)%maxach < eps_ppnl) CYCLE
-                     acint => alist_ac%clist(kac)%acint
-                     bcint => alist_bc%clist(kbc)%acint
-                     achint => alist_ac%clist(kac)%achint
-                     bchint => alist_bc%clist(kbc)%achint
-                     na = SIZE(acint, 1)
-                     np = SIZE(acint, 2)
-                     nb = SIZE(bcint, 1)
-!$                   hash = MOD((iatom - 1)*natom + jatom, nlock) + 1
-!$                   CALL omp_set_lock(locks(hash))
-                     ! Vnl*r
-                     blocks_rv(1)%block(1:na, 1:nb) = blocks_rv(1)%block(1:na, 1:nb) + &
-                                                      MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, bi_x)))
-                     blocks_rv(2)%block(1:na, 1:nb) = blocks_rv(2)%block(1:na, 1:nb) + &
-                                                      MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, bi_y)))
-                     blocks_rv(3)%block(1:na, 1:nb) = blocks_rv(3)%block(1:na, 1:nb) + &
-                                                      MATMUL(achint(1:na, 1:np, 1), TRANSPOSE(bcint(1:nb, 1:np, bi_z)))
-
-                     ! r*Vnl
-                     blocks_rv(1)%block(1:na, 1:nb) = blocks_rv(1)%block(1:na, 1:nb) - &
-                                                      MATMUL(achint(1:na, 1:np, bi_x), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
-                     blocks_rv(2)%block(1:na, 1:nb) = blocks_rv(2)%block(1:na, 1:nb) - &
-                                                      MATMUL(achint(1:na, 1:np, bi_y), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
-                     blocks_rv(3)%block(1:na, 1:nb) = blocks_rv(3)%block(1:na, 1:nb) - &
-                                                      MATMUL(achint(1:na, 1:np, bi_z), TRANSPOSE(bcint(1:nb, 1:np, bi_1)))
-
-!$                   CALL omp_unset_lock(locks(hash))
-                     EXIT ! We have found a match and there can be only one single match
-                  END IF
-               END DO
-            END DO
-         END DO
-         DO i = 1, 3
-            NULLIFY (blocks_rv(i)%block)
-         END DO
-      END DO
-
-!$OMP DO
-!$    DO lock_num = 1, nlock
-!$       call omp_destroy_lock(locks(lock_num))
-!$    END DO
-!$OMP END DO
-
-!$OMP SINGLE
-!$    DEALLOCATE (locks)
-!$OMP END SINGLE NOWAIT
-
-!$OMP END PARALLEL
-
-      CALL release_sap_int(sap_int)
-
-      DEALLOCATE (basis_set)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE build_drpnl_matrix
-
-! **************************************************************************************************
-!> \brief   Adapted from comab_opr. Calculate the product O*r or r*O from the integrals [a|O|b].
+!> \brief   Calculate the product O*r or r*O from the integrals [a|O|b].
 !>          We assume that on input all integrals [a+1|O|b+1] are available.
 !> \param la_max ...
 !> \param npgfa ...
@@ -2563,145 +2243,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE ab_opr
-
-! **************************************************************************************************
-!> \brief Apply the operator \delta_\mu^\lambda to zero out all elements of the matrix
-!>         which don't fulfill the condition.
-!> \param matrix ...
-!> \param qs_kind_set ...
-!> \param basis_type ...
-!> \param sab_nl ...
-!> \param lambda ...
-!> \param direction_Or ...
-!> \author Edward Ditler
-! **************************************************************************************************
-   SUBROUTINE hr_mult_by_delta_1d(matrix, qs_kind_set, basis_type, sab_nl, lambda, direction_Or)
-
-      TYPE(dbcsr_type)                                   :: matrix
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
-      INTEGER, INTENT(IN)                                :: lambda
-      LOGICAL                                            :: direction_Or
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'hr_mult_by_delta_1d'
-
-      INTEGER                                            :: handle, iatom, icol, ikind, irow, jatom, &
-                                                            jkind, ldsab, mepos, nkind, nseta, &
-                                                            nsetb, nthread
-      INTEGER, DIMENSION(3)                              :: cell
-      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
-                                                            npgfb, nsgfa, nsgfb
-      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
-      LOGICAL                                            :: do_symmetric, found
-      REAL(KIND=dp), DIMENSION(3)                        :: rab
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: k_block, rpgfa, rpgfb, scon_a, scon_b, &
-                                                            sphi_a, sphi_b, zeta, zetb
-      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
-      TYPE(neighbor_list_iterator_p_type), &
-         DIMENSION(:), POINTER                           :: nl_iterator
-
-      CALL timeset(routineN, handle)
-
-      nkind = SIZE(qs_kind_set)
-
-      ! check for symmetry
-      CPASSERT(SIZE(sab_nl) > 0)
-      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
-
-      ! prepare basis set
-      ALLOCATE (basis_set_list(nkind))
-      CALL basis_set_list_setup(basis_set_list, basis_type, qs_kind_set)
-
-      ! *** Allocate work storage ***
-      ldsab = get_memory_usage(qs_kind_set, basis_type)
-
-      nthread = 1
-!$    nthread = omp_get_max_threads()
-      ! Iterate of neighbor list
-      CALL neighbor_list_iterator_create(nl_iterator, sab_nl, nthread=nthread)
-
-!$OMP PARALLEL DEFAULT(NONE) &
-!$OMP SHARED (nthread,ldsab,nl_iterator, do_symmetric) &
-!$OMP SHARED (ncoset,matrix,basis_set_list) &
-!$OMP SHARED (direction_or, lambda) &
-!$OMP PRIVATE (k_block,mepos,ikind,jkind,iatom,jatom,rab,cell) &
-!$OMP PRIVATE (basis_set_a,basis_set_b) &
-!$OMP PRIVATE (first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a) &
-!$OMP PRIVATE (zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb) &
-!$OMP PRIVATE (zetb, scon_a, scon_b, irow, icol, found, sphi_a, sphi_b)
-
-      mepos = 0
-!$    mepos = omp_get_thread_num()
-
-      DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
-         CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, r=rab, cell=cell)
-         basis_set_a => basis_set_list(ikind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
-         basis_set_b => basis_set_list(jkind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-         ! basis ikind
-         first_sgfa => basis_set_a%first_sgf
-         la_max => basis_set_a%lmax
-         la_min => basis_set_a%lmin
-         npgfa => basis_set_a%npgf
-         nsgfa => basis_set_a%nsgf_set
-         rpgfa => basis_set_a%pgf_radius
-         set_radius_a => basis_set_a%set_radius
-         sphi_a => basis_set_a%sphi
-         zeta => basis_set_a%zet
-         scon_a => basis_set_a%scon
-         ! basis jkind
-         first_sgfb => basis_set_b%first_sgf
-         lb_max => basis_set_b%lmax
-         lb_min => basis_set_b%lmin
-         npgfb => basis_set_b%npgf
-         nsgfb => basis_set_b%nsgf_set
-         rpgfb => basis_set_b%pgf_radius
-         set_radius_b => basis_set_b%set_radius
-         sphi_b => basis_set_b%sphi
-         zetb => basis_set_b%zet
-         scon_b => basis_set_b%scon
-
-         nseta = basis_set_a%nset
-         nsetb = basis_set_b%nset
-
-         IF (do_symmetric) THEN
-            IF (iatom <= jatom) THEN
-               irow = iatom
-               icol = jatom
-            ELSE
-               irow = jatom
-               icol = iatom
-            END IF
-         ELSE
-            irow = iatom
-            icol = jatom
-         END IF
-
-         NULLIFY (k_block)
-         CALL dbcsr_get_block_p(matrix, irow, icol, k_block, found)
-         CPASSERT(found)
-
-         IF (direction_Or) THEN
-            IF (jatom /= lambda) k_block(:, :) = 0._dp
-         ELSE IF (.NOT. direction_Or) THEN
-            IF (iatom /= lambda) k_block(:, :) = 0._dp
-         END IF
-      END DO
-!$OMP END PARALLEL
-      CALL neighbor_list_iterator_release(nl_iterator)
-
-      ! Release work storage
-      DEALLOCATE (basis_set_list)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE hr_mult_by_delta_1d
 
 ! **************************************************************************************************
 !> \brief Apply the operator \delta_\mu^\lambda to zero out all elements of the matrix
@@ -2872,4 +2413,3 @@ CONTAINS
    END SUBROUTINE hr_mult_by_delta_3d
 
 END MODULE qs_vcd_ao
-

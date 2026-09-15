@@ -68,15 +68,15 @@
     &END POISSON
     &PRINT
       &IMPLICIT_PSOLVER
-        &DIELECTRIC_CUBE off
-          STRIDE 1 1 1
+        &DIELECTRIC_CUBE on
+          STRIDE 4 4 4
         &END DIELECTRIC_CUBE
-        &DIRICHLET_BC_CUBE off
-          STRIDE 1 1 1
+        &DIRICHLET_BC_CUBE on
+          STRIDE 4 4 4
           TILE_CUBES .false.
         &END DIRICHLET_BC_CUBE
-        &DIRICHLET_CSTR_CHARGE_CUBE off
-          STRIDE 1 1 1
+        &DIRICHLET_CSTR_CHARGE_CUBE on
+          STRIDE 4 4 4
         &END DIRICHLET_CSTR_CHARGE_CUBE
       &END IMPLICIT_PSOLVER
       &V_HARTREE_CUBE off

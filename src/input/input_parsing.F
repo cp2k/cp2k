@@ -491,19 +491,17 @@ CONTAINS
       CASE (char_t)
          NULLIFY (c_val_p)
          IF (parser_test_next_token(parser) == "EOL") THEN
-            IF (n_var < 1) THEN
+            IF (ASSOCIATED(default_value)) THEN
+               CPASSERT(ASSOCIATED(default_value%c_val))
+               CALL val_create(val, c_vals=default_value%c_val)
+            ELSE IF (n_var < 1) THEN
                ALLOCATE (c_val_p(1))
                c_val_p(1) = ' '
                CALL val_create(val, c_vals_ptr=c_val_p)
             ELSE
-               IF (.NOT. ASSOCIATED(default_value)) THEN
-                  CALL cp_abort(__LOCATION__, &
-                                "no value was given and there is no default value"// &
-                                TRIM(parser_location(parser)))
-               ELSE
-                  CPASSERT(ASSOCIATED(default_value%c_val))
-                  CALL val_create(val, c_vals=default_value%c_val)
-               END IF
+               CALL cp_abort(__LOCATION__, &
+                             "no value was given and there is no default value"// &
+                             TRIM(parser_location(parser)))
             END IF
          ELSE
             IF (n_var < 1) THEN

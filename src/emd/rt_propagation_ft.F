@@ -10,12 +10,11 @@
 !> \author Stepan Marek (08.24)
 ! **************************************************************************************************
 MODULE rt_propagation_ft
-   USE fft_lib,                         ONLY: fft_1dm,&
+   USE fft_lib,                         ONLY: fft_1d,&
                                               fft_alloc,&
-                                              fft_create_plan_1dm,&
+                                              fft_create_plan_1d,&
                                               fft_dealloc,&
-                                              fft_destroy_plan,&
-                                              fft_library
+                                              fft_destroy_plan
    USE fft_plan,                        ONLY: fft_plan_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
@@ -204,10 +203,11 @@ CONTAINS
          END DO
       END DO
       ! Create the plan (this overwrites samples and ft_samples with planning data)
-      CALL fft_create_plan_1dm(fft_plan, fft_library("FFTW3"), -1, .FALSE., nsamples, nseries, samples, ft_samples, 3)
+      CALL fft_create_plan_1d(fft_plan, -1, .FALSE., .FALSE., &
+                              nsamples, nsamples, nsamples, nseries, samples, ft_samples)
       ! Carry out the transform
       ! Scale by dt - to transform to an integral
-      CALL fft_1dm(fft_plan, samples_input, ft_samples, delta_t, stat)
+      CALL fft_1d(fft_plan, samples_input, ft_samples, delta_t, stat)
       IF (stat /= 0) THEN
          ! Failed fftw3 - go to backup
          ! Uses value_series and result_series - no need to reassign data

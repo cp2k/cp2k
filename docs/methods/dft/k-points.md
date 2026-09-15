@@ -57,7 +57,7 @@ support.
 | Feature                       | Compatibility and limitations                                           |
 | ----------------------------- | ----------------------------------------------------------------------- |
 | Standard diagonalization      | **Supported.**                                                          |
-| Orbital transformation (OT)   | **Unsupported.** No k-point path available.                             |
+| Orbital transformation (OT)   | **Supported.** See [](orbital_transformation.md).                       |
 | Atomic symmetry reduction     | **Experimental.** Validate against an equivalent unreduced calculation. |
 | WFN extrapolation             | **Supported.**                                                          |
 | Other diagonalization methods | **Unsupported.** No k-point path available.                             |

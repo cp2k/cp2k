@@ -15,9 +15,7 @@ titlesonly:
 maxdepth: 1
 ---
 getting-started/foreword-and-faq
-getting-started/build-from-source
-getting-started/build-with-spack
-getting-started/distributions
+getting-started/installation
 getting-started/first-calculation
 getting-started/troubleshooting
 ```
@@ -38,6 +36,7 @@ methods/sampling/index
 methods/optimization/index
 methods/electronic_structure/index
 methods/properties/index
+methods/restarting
 ```
 
 ```{toctree}

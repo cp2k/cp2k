@@ -10,4 +10,8 @@
 "H2-emd.inp"                            = [{matcher="M002", tol=1.0E-14, ref=-0.902240019418E+00}]
 "H2plus-emd-1.inp"                      = [{matcher="M002", tol=1.0E-14, ref=-0.650541653984E+00}]
 "H2plus-emd.inp"                        = [{matcher="M002", tol=1.0E-14, ref=-0.640455127882E+00}]
+# H2O has real GTH nonlocal-PP projectors on O, unlike the H-only tests above,
+# so these exercise the nonlocal-PP correction to the integrated RTP current.
+"H2O-current-nl.inp"                    = [{matcher="RTP_current_checksum", tol=1.0E-8, ref=0.3605481285496976E-01}]
+"H2O-current-nl-vg.inp"                 = [{matcher="RTP_current_checksum", tol=1.0E-8, ref=0.1191796372925447E-01}]
 #EOF

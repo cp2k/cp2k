@@ -3,13 +3,23 @@
 
 dbt_tas_unittest
 dbt_unittest
+cell_types_unittest
 grid_unittest
+kpoint_lattice_fft_unittest
+kpoint_smearing_unittest
+kpsym_unittest
+qs_ot_minimizer_unittest
+low_rank_preconditioner_unittest
+ot_covariant_preconditioner_unittest
 libcp2k_unittest
 gemm_square_unittest
 memory_utilities_unittest
+message_passing_thread_unittest                          parallel
 orbital_transformation_matrices_unittest
 nequip_unittest                                          libtorch
 parallel_rng_types_unittest
+qs_charge_mixing_unittest
+qs_ot_complex_ref_unittest
 realspace_grid_cube_unittest
 gx_ac_unittest                                           greenx
 

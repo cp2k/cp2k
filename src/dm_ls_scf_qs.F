@@ -30,7 +30,8 @@ MODULE dm_ls_scf_qs
                                               ls_cluster_molecular,&
                                               ls_mstruct_type,&
                                               ls_scf_env_type
-   USE input_constants,                 ONLY: ls_cluster_atomic,&
+   USE input_constants,                 ONLY: external_density_guess,&
+                                              ls_cluster_atomic,&
                                               ls_cluster_molecular
    USE kinds,                           ONLY: default_string_length,&
                                               dp
@@ -52,6 +53,7 @@ MODULE dm_ls_scf_qs
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_external_density,             ONLY: read_scf_guess_density
    USE qs_gspace_mixing,                ONLY: gspace_mixing
    USE qs_harris_types,                 ONLY: harris_type
    USE qs_harris_utils,                 ONLY: harris_density_update
@@ -71,6 +73,7 @@ MODULE dm_ls_scf_qs
                                               qs_rho_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
+   USE scf_control_types,               ONLY: scf_control_type
    USE tblite_interface,                ONLY: tb_get_energy
    USE tblite_types,                    ONLY: tblite_type
 #include "./base/base_uses.f90"
@@ -478,9 +481,10 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
-      NULLIFY (rho, rho_ao)
+      NULLIFY (rho, rho_ao, scf_control)
 
       ! get a useful output_unit
       logger => cp_get_default_logger()
@@ -502,11 +506,15 @@ CONTAINS
                       has_unit_metric=has_unit_metric, &
                       para_env=para_env, &
                       nelectron_spin=nelectron_spin, &
-                      rho=rho)
+                      rho=rho, &
+                      scf_control=scf_control)
 
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
       nspin = dft_control%nspins
+      IF (qs_env%harris_method .AND. scf_control%density_guess == external_density_guess) THEN
+         CPABORT("EXTERNAL_DENSITY SCF guess is incompatible with HARRIS_METHOD")
+      END IF
 
       ! create an initial atomic guess
       IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical .OR. &
@@ -522,7 +530,11 @@ CONTAINS
       do_scf = .TRUE.
       IF (PRESENT(nonscf)) do_scf = .NOT. nonscf
       IF (do_scf) THEN
-         CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         IF (scf_control%density_guess == external_density_guess) THEN
+            CALL read_scf_guess_density(qs_env, scf_control%external_density_file_name)
+         ELSE
+            CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         END IF
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
          CALL ls_scf_tblite_energy(qs_env, qs_energy)

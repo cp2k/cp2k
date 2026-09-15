@@ -7,7 +7,27 @@ import shutil
 import sys
 
 from format_fortran import main
+from prettify_cp2k import normalizeFortranFile
 from prettify_cp2k import selftest
+
+interface_cpp_content = """\
+MODULE interface_cpp_test
+   IMPLICIT NONE
+
+CONTAINS
+
+   SUBROUTINE initialize()
+      INTERFACE
+         SUBROUTINE initialize_aux() BIND(C, name='initialize_aux')
+         END SUBROUTINE initialize_aux
+      END INTERFACE
+
+#if defined(__DLAF)
+      CALL initialize_aux()
+#endif
+   END SUBROUTINE initialize
+END MODULE interface_cpp_test
+"""
 
 
 class TestSingleFileFolder(unittest.TestCase):
@@ -31,6 +51,36 @@ class TestSingleFileFolder(unittest.TestCase):
             result = fhandle.read()
 
         self.assertEqual(result.splitlines(), selftest.content.splitlines())
+
+    def test_large_declaration_dependency_pass(self):
+        declarations = []
+        for idx in range(500):
+            declarations.append(
+                {
+                    "attributes": [],
+                    "parameters": None,
+                    "vars": [f"var_{idx:03d}"],
+                    "normalizedType": f"TYPE_{idx:03d}",
+                }
+            )
+
+        normalizeFortranFile.enforceDeclDependecies(declarations)
+        self.assertEqual(sum(len(d["vars"]) for d in declarations), 500)
+
+
+class TestInterfaceCppDirective(unittest.TestCase):
+    def test_prettify_preserves_interface(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            fname = os.path.join(tempdir, "prettify_interface.F")
+            with open(fname, "w", encoding="utf8") as fhandle:
+                fhandle.write(interface_cpp_content)
+
+            self.assertEqual(main([fname]), 0)
+
+            with open(fname, encoding="utf8") as fhandle:
+                result = fhandle.read()
+
+        self.assertEqual(result, interface_cpp_content)
 
 
 if __name__ == "__main__":

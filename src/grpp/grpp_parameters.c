@@ -42,17 +42,23 @@ void libgrpp_set_default_parameters() {
 
 void libgrpp_set_radial_tolerance(double tolerance) {
   // #pragma omp critical
-  { libgrpp_params.radial_tolerance = tolerance; }
+  {
+    libgrpp_params.radial_tolerance = tolerance;
+  }
 }
 
 void libgrpp_set_angular_screening_tolerance(double tolerance) {
   // #pragma omp critical
-  { libgrpp_params.angular_screening_tolerance = tolerance; }
+  {
+    libgrpp_params.angular_screening_tolerance = tolerance;
+  }
 }
 
 void libgrpp_set_modified_bessel_tolerance(double tolerance) {
   // #pragma omp critical
-  { libgrpp_params.modified_bessel_tolerance = tolerance; }
+  {
+    libgrpp_params.modified_bessel_tolerance = tolerance;
+  }
 }
 
 void libgrpp_set_cartesian_order(int order) {
@@ -72,7 +78,9 @@ void libgrpp_set_cartesian_order(int order) {
 void libgrpp_set_cartesian_generator(
     int (*cartesian_generator)(int L, int *cart_list)) {
   // #pragma omp critical
-  { libgrpp_params.cartesian_generator = cartesian_generator; }
+  {
+    libgrpp_params.cartesian_generator = cartesian_generator;
+  }
 }
 
 static int cartesian_generator_dirac(int L, int *cart_list) {

@@ -114,14 +114,14 @@ CONTAINS
       DO i = 1, nnp%n_ele
          IF (nnp%ele(i) == 'He') THEN
             nnp%atoms(ig) = 'He'
-            CALL get_ptable_info(nnp%atoms(ig), number=nnp%nuc_atoms(ig))
+            CALL get_ptable_info(nnp%atoms(ig) (1:2), number=nnp%nuc_atoms(ig))
             nnp%ele_ind(ig) = i
             ig = ig + 1
          END IF
          DO j = 1, helium%solute_atoms
             IF (nnp%ele(i) == helium%solute_element(j)) THEN
                nnp%atoms(ig) = nnp%ele(i)
-               CALL get_ptable_info(nnp%atoms(ig), number=nnp%nuc_atoms(ig))
+               CALL get_ptable_info(nnp%atoms(ig) (1:2), number=nnp%nuc_atoms(ig))
                nnp%ele_ind(ig) = i
                nnp%sort(is) = j
                ig = ig + 1
@@ -308,7 +308,7 @@ CONTAINS
       mass = 0.0_dp
       DO i = 1, nnp%num_atoms
          IF (i == ind_he) CYCLE
-         CALL get_ptable_info(nnp%atoms(i), amass=unit_conv)
+         CALL get_ptable_info(nnp%atoms(i) (1:2), amass=unit_conv)
          com(:) = com(:) + nnp%coord(:, i)*unit_conv
          mass = mass + unit_conv
       END DO

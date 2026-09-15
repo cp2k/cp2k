@@ -54,12 +54,12 @@ MODULE rt_bse_types
    USE input_constants, ONLY: use_mom_ref_coac, &
                               do_bch, &
                               do_exact, &
-                              rtp_bse_ham_g0w0, &
+                              rtp_bse_ham_gw, &
                               rtp_method_bse_linearized
-   USE bse_util, ONLY: determine_cutoff_indices
    USE cp_log_handling, ONLY: cp_to_string
    USE physcon, ONLY: evolt
    USE mathconstants, ONLY: z_zero
+   USE mo_window, ONLY: combine_mo_windows, determine_mo_window, mo_window_type
    USE input_section_types, ONLY: section_vals_type, &
                                   section_vals_val_get, &
                                   section_vals_get_subs_vals
@@ -458,6 +458,10 @@ CONTAINS
       CALL rtbse_resolve_rirs_flag(force_env%qs_env, bs_env, rirs_kernel=rtbse_env%rirs_kernel)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%DIAGNOSE_LIOUVILLIAN_EIG", &
                                 l_val=rtbse_env%diagnose_liouvillian_eig)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%EPS_FILTER_RHO", &
+                                r_val=bs_env%ri_rs%eps_filter_rho)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%CUTOFF_RADIUS_W0", &
+                                r_val=bs_env%ri_rs%cutoff_radius_w0)
 
       IF (.NOT. rtbse_env%dft_control%rtp_control%rtp_method == rtp_method_bse_linearized) THEN
          rtbse_env%rtbse_energy_cutoff_occ = -1.0_dp
@@ -468,6 +472,8 @@ CONTAINS
          rtbse_env%tda_shift_to_first_peak = .FALSE.
          ! rirs_kernel is already forced .FALSE. here by rtbse_resolve_rirs_flag.
          rtbse_env%diagnose_liouvillian_eig = .FALSE.
+         bs_env%ri_rs%eps_filter_rho = -1.0_dp
+         bs_env%ri_rs%cutoff_radius_w0 = -1.0_dp
       END IF
       ! First-peak shift only makes sense within TDA; force-disable otherwise.
       IF (.NOT. rtbse_env%tda_active) rtbse_env%tda_shift_to_first_peak = .FALSE.
@@ -967,14 +973,14 @@ CONTAINS
       INTEGER                                            :: homo, ispin
       REAL(KIND=dp)                                      :: gap, gap_scf
 
-      IF (rtbse_env%ham_reference_type /= rtp_bse_ham_g0w0) RETURN
+      IF (rtbse_env%ham_reference_type /= rtp_bse_ham_gw) RETURN
 
       DO ispin = 1, rtbse_env%n_spin
          homo = rtbse_env%n_occ(ispin)
          IF (homo < 1 .OR. homo >= rtbse_env%n_ao) CYCLE
 
-         gap = MINVAL(bs_env%eigenval_G0W0(homo + 1:rtbse_env%n_ao, 1, ispin)) - &
-               MAXVAL(bs_env%eigenval_G0W0(1:homo, 1, ispin))
+         gap = MINVAL(bs_env%eigenval_GW(homo + 1:rtbse_env%n_ao, 1, ispin)) - &
+               MAXVAL(bs_env%eigenval_GW(1:homo, 1, ispin))
          gap_scf = MINVAL(bs_env%eigenval_scf_Gamma(homo + 1:rtbse_env%n_ao, ispin)) - &
                    MAXVAL(bs_env%eigenval_scf_Gamma(1:homo, ispin))
 
@@ -1014,12 +1020,11 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER          :: bs_env
       CHARACTER(LEN=*), PARAMETER                         :: routineN = "determine_active_mo_window"
 
-      INTEGER                                             :: handle, ispin, n_ao_full, n_virt
-      INTEGER                                             :: homo_red, virt_red, homo_incl, virt_incl
-      INTEGER                                             :: combined_first_occ, combined_last_virt
-      INTEGER                                             :: first_occ_prev, last_virt_prev
+      INTEGER                                             :: handle, ispin, n_ao_full
       LOGICAL                                             :: spins_differ, do_truncation
       REAL(KIND=dp)                                       :: cutoff_occ, cutoff_empty
+      TYPE(mo_window_type), ALLOCATABLE, DIMENSION(:)     :: spin_windows
+      TYPE(mo_window_type)                                :: combined_window
 
       CALL timeset(routineN, handle)
 
@@ -1039,42 +1044,27 @@ CONTAINS
          RETURN
       END IF
 
-      combined_first_occ = n_ao_full
-      combined_last_virt = 1
-      first_occ_prev = -1
-      last_virt_prev = -1
-      spins_differ = .FALSE.
-
+      ALLOCATE (spin_windows(rtbse_env%n_spin))
       DO ispin = 1, rtbse_env%n_spin
-         n_virt = n_ao_full - rtbse_env%n_occ(ispin)
          ! Cut on the DFT axis, as LRBSE does: it is ascending by construction, so the window is a
          ! well-defined contiguous MO range, which is all C_active can extract. The G0W0 axis is
          ! not ordered.
-         CALL determine_cutoff_indices(bs_env%eigenval_scf_Gamma(:, ispin), &
-                                       rtbse_env%n_occ(ispin), n_virt, &
-                                       homo_red, virt_red, homo_incl, virt_incl, &
-                                       cutoff_occ, cutoff_empty)
-         ! Translate the per-spin candidate to global MO indices [homo_incl, homo + virt_incl]
-         IF (ispin > 1) THEN
-            IF (homo_incl /= first_occ_prev .OR. (rtbse_env%n_occ(ispin) + virt_incl) /= last_virt_prev) THEN
-               spins_differ = .TRUE.
-            END IF
-         END IF
-         first_occ_prev = homo_incl
-         last_virt_prev = rtbse_env%n_occ(ispin) + virt_incl
-         combined_first_occ = MIN(combined_first_occ, homo_incl)
-         combined_last_virt = MAX(combined_last_virt, rtbse_env%n_occ(ispin) + virt_incl)
+         CALL determine_mo_window(bs_env%eigenval_scf_Gamma(:, ispin), n_ao_full, &
+                                  rtbse_env%n_occ(ispin), cutoff_occ, cutoff_empty, &
+                                  spin_windows(ispin))
       END DO
 
+      CALL combine_mo_windows(spin_windows, combined_window, spins_differ)
       IF (spins_differ) THEN
          CPWARN("RTBSE: spin-resolved active MO cutoff candidates differ; using combined window.")
       END IF
 
-      rtbse_env%first_active_mo = combined_first_occ
-      rtbse_env%last_active_mo = combined_last_virt
-      rtbse_env%mo_active = combined_last_virt - combined_first_occ + 1
+      rtbse_env%first_active_mo = combined_window%first_mo
+      rtbse_env%last_active_mo = combined_window%last_mo
+      rtbse_env%mo_active = combined_window%last_mo - combined_window%first_mo + 1
       rtbse_env%active_mo_truncation = (rtbse_env%mo_active < n_ao_full)
 
+      DEALLOCATE (spin_windows)
       CALL timestop(handle)
    END SUBROUTINE determine_active_mo_window
 

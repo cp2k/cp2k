@@ -2,7 +2,6 @@
   PRINT_LEVEL MEDIUM
   PROJECT H2_H2O_lsks
   RUN_TYPE ENERGY
-  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
 &END GLOBAL
 
 &FORCE_EVAL

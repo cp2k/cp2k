@@ -131,6 +131,9 @@ CONTAINS
 #if defined(GAUXC_HAS_CUDA)
       flags = TRIM(flags)//" gauxc_cuda"
 #endif
+#if defined(GAUXC_HAS_CUTLASS)
+      flags = TRIM(flags)//" gauxc_cutlass"
+#endif
 #if defined(GAUXC_HAS_HDF5)
       flags = TRIM(flags)//" gauxc_hdf5"
 #endif
@@ -222,6 +225,9 @@ CONTAINS
 #endif
 #if defined(__MKL)
       flags = TRIM(flags)//" mkl"
+#endif
+#if defined(__OPENBLAS)
+      flags = TRIM(flags)//" openblas"
 #endif
 #if defined(__DFTD4)
       flags = TRIM(flags)//" libdftd4"

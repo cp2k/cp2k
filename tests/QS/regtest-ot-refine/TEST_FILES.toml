@@ -12,5 +12,5 @@
 "o2_ot_refine_diis_1.inp"               = [{matcher="E_total", tol=8e-14, ref=-31.68975974949591}]
 "o2_ot_refine_diis_2.inp"               = [{matcher="E_total", tol=5e-14, ref=-31.26277230138910}]
 "ethylene_l1_loc.inp"                   = [{matcher="M013", tol=1.0E-14, ref=0.4063601640E+02}]
-"o2_ot_refine_roks.inp"                 = [{matcher="E_total", tol=1e-13, ref=-31.33473048057817}]
+"o2_ot_refine_roks.inp"                 = [{matcher="E_total", tol=1e-13, ref=-31.34843768570860}]
 #EOF

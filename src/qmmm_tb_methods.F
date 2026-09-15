@@ -36,6 +36,7 @@ MODULE qmmm_tb_methods
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: rootpi
    USE message_passing,                 ONLY: mp_para_env_type
    USE mulliken,                        ONLY: mulliken_charges
    USE particle_types,                  ONLY: allocate_particle_set,&
@@ -78,13 +79,18 @@ MODULE qmmm_tb_methods
    REAL(dp), PARAMETER                    :: eta_mm = 0.47_dp
    ! step size for qmmm finite difference
    REAL(dp), PARAMETER                    :: ddrmm = 0.0001_dp
+   INTEGER, PARAMETER                     :: pot_tb_nonperiodic = 0
+   INTEGER, PARAMETER                     :: pot_tb_short_range = 1
+   INTEGER, PARAMETER                     :: pot_ewald_short_range = 2
+   INTEGER, PARAMETER                     :: pot_gauss_nonperiodic = 3
+   INTEGER, PARAMETER                     :: pot_gauss_short_range = 4
 
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_tb_methods'
 
-   PUBLIC :: build_tb_qmmm_matrix, build_tb_qmmm_matrix_zero, &
-             build_tb_qmmm_matrix_pc, deriv_tb_qmmm_matrix, &
+   PUBLIC :: build_tb_qmmm_matrix, build_tb_qmmm_matrix_gauss, build_tb_qmmm_matrix_zero, &
+             build_tb_qmmm_matrix_pc, deriv_tb_qmmm_matrix, deriv_tb_qmmm_matrix_gauss, &
              deriv_tb_qmmm_matrix_pc
 
 CONTAINS
@@ -187,12 +193,14 @@ CONTAINS
          END IF
          DO i = 1, SIZE(list)
             iatom = list(i)
-            CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%Potentials, particles_mm, &
+            CALL build_mm_pot(qpot(iatom), pot_tb_nonperiodic, eta_a(0), &
+                              qmmm_env%Potentials, particles_mm, &
                               qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, &
                               qmmm_env%spherical_cutoff, particles_qm)
             ! Possibly added charges
             IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
-               CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
+               CALL build_mm_pot(qpot(iatom), pot_tb_nonperiodic, eta_a(0), &
+                                 qmmm_env%added_charges%potentials, &
                                  qmmm_env%added_charges%added_particles, &
                                  qmmm_env%added_charges%mm_atom_chrg, &
                                  qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
@@ -314,11 +322,57 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: mm_cell
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'build_tb_qmmm_matrix_pc'
+      CALL build_tb_qmmm_matrix_smeared(qs_env, qmmm_env, particles_mm, mm_cell, para_env, &
+                                        gaussian=.FALSE.)
 
-      INTEGER                                            :: do_ipol, ewald_type, handle, i, iatom, &
-                                                            ikind, imm, imp, indmm, ipot, jatom, &
-                                                            natom, natorb, nkind, nmm
+   END SUBROUTINE build_tb_qmmm_matrix_pc
+
+! **************************************************************************************************
+!> \brief Constructs the tight-binding QM/MM Hamiltonian for Gaussian MM charges
+!> \param qs_env ...
+!> \param qmmm_env ...
+!> \param particles_mm ...
+!> \param mm_cell ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE build_tb_qmmm_matrix_gauss(qs_env, qmmm_env, particles_mm, mm_cell, para_env)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particles_mm
+      TYPE(cell_type), POINTER                           :: mm_cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      IF (qmmm_env%compatibility) THEN
+         CPABORT("Gaussian QM/MM coupling for tight-binding methods requires NOCOMPATIBILITY.")
+      END IF
+      CALL build_tb_qmmm_matrix_smeared(qs_env, qmmm_env, particles_mm, mm_cell, para_env, &
+                                        gaussian=.TRUE.)
+
+   END SUBROUTINE build_tb_qmmm_matrix_gauss
+
+! **************************************************************************************************
+!> \brief Constructs the tight-binding QM/MM Hamiltonian for smeared electrostatic coupling
+!> \param qs_env ...
+!> \param qmmm_env ...
+!> \param particles_mm ...
+!> \param mm_cell ...
+!> \param para_env ...
+!> \param gaussian Use Gaussian MM charges instead of the tight-binding point-charge regularization
+! **************************************************************************************************
+   SUBROUTINE build_tb_qmmm_matrix_smeared(qs_env, qmmm_env, particles_mm, mm_cell, para_env, gaussian)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particles_mm
+      TYPE(cell_type), POINTER                           :: mm_cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: gaussian
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'build_tb_qmmm_matrix_smeared'
+
+      INTEGER :: do_ipol, ewald_type, handle, i, iatom, ikind, imm, imp, indmm, ipot, jatom, &
+         natom, natorb, nkind, nmm, nonperiodic_pot_type, short_range_pot_type
       INTEGER, DIMENSION(:), POINTER                     :: list
       LOGICAL                                            :: defined, do_dftb, do_multipoles, do_xtb, &
                                                             found
@@ -349,6 +403,14 @@ CONTAINS
       TYPE(xtb_control_type), POINTER                    :: xtb_control
 
       CALL timeset(routineN, handle)
+
+      IF (gaussian) THEN
+         nonperiodic_pot_type = pot_gauss_nonperiodic
+         short_range_pot_type = pot_gauss_short_range
+      ELSE
+         nonperiodic_pot_type = pot_tb_nonperiodic
+         short_range_pot_type = pot_tb_short_range
+      END IF
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
@@ -452,7 +514,7 @@ CONTAINS
             END DO
          END IF
          CALL para_env%sum(qpot)
-         ! Add Ewald and TB short range corrections
+         ! Add the Ewald real-space term and the method-specific short-range correction
          ! This is effectively using a minimum image convention!
          ! Set rcutoff to values compatible with alpha Ewald
          CALL ewald_env_get(ewald_env, rcut=rcutoff(1), alpha=alpha)
@@ -477,20 +539,24 @@ CONTAINS
             END IF
             DO i = 1, SIZE(list)
                iatom = list(i)
-               CALL build_mm_pot(qpot(iatom), 1, eta_a(0), qmmm_env%Potentials, particles_mm, &
+               CALL build_mm_pot(qpot(iatom), short_range_pot_type, eta_a(0), &
+                                 qmmm_env%Potentials, particles_mm, &
                                  qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, rcutoff, &
                                  particles_qm)
-               CALL build_mm_pot(qpot(iatom), 2, alpha, qmmm_env%Potentials, particles_mm, &
+               CALL build_mm_pot(qpot(iatom), pot_ewald_short_range, alpha, &
+                                 qmmm_env%Potentials, particles_mm, &
                                  qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, rcutoff, &
                                  particles_qm)
                ! Possibly added charges
                IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
-                  CALL build_mm_pot(qpot(iatom), 1, eta_a(0), qmmm_env%added_charges%potentials, &
+                  CALL build_mm_pot(qpot(iatom), short_range_pot_type, eta_a(0), &
+                                    qmmm_env%added_charges%potentials, &
                                     qmmm_env%added_charges%added_particles, &
                                     qmmm_env%added_charges%mm_atom_chrg, &
                                     qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, &
                                     particles_qm)
-                  CALL build_mm_pot(qpot(iatom), 2, alpha, qmmm_env%added_charges%potentials, &
+                  CALL build_mm_pot(qpot(iatom), pot_ewald_short_range, alpha, &
+                                    qmmm_env%added_charges%potentials, &
                                     qmmm_env%added_charges%added_particles, &
                                     qmmm_env%added_charges%mm_atom_chrg, &
                                     qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, &
@@ -500,7 +566,7 @@ CONTAINS
             END DO
          END DO
       CASE (do_ewald_none)
-         ! Simply summing up charges with 1/R (DFTB corrected)
+         ! Directly sum the nonperiodic regularized electrostatic potential
          nkind = SIZE(atomic_kind_set)
          DO ikind = 1, nkind
             CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
@@ -520,12 +586,14 @@ CONTAINS
             END IF
             DO i = 1, SIZE(list)
                iatom = list(i)
-               CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%Potentials, particles_mm, &
+               CALL build_mm_pot(qpot(iatom), nonperiodic_pot_type, eta_a(0), &
+                                 qmmm_env%Potentials, particles_mm, &
                                  qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, &
                                  qmmm_env%spherical_cutoff, particles_qm)
                ! Possibly added charges
                IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
-                  CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
+                  CALL build_mm_pot(qpot(iatom), nonperiodic_pot_type, eta_a(0), &
+                                    qmmm_env%added_charges%potentials, &
                                     qmmm_env%added_charges%added_particles, &
                                     qmmm_env%added_charges%mm_atom_chrg, &
                                     qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
@@ -574,7 +642,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE build_tb_qmmm_matrix_pc
+   END SUBROUTINE build_tb_qmmm_matrix_smeared
 
 ! **************************************************************************************************
 !> \brief Constructs the derivative w.r.t. 1-el DFTB hamiltonian QMMM terms
@@ -709,22 +777,26 @@ CONTAINS
             DO i = 1, SIZE(list)
                iatom = list(i)
                iqm = iqm + 1
-               CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%Potentials, particles_mm, &
+               CALL build_mm_pot(qpot(iatom), pot_tb_nonperiodic, eta_a(0), &
+                                 qmmm_env%Potentials, particles_mm, &
                                  qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, &
                                  qmmm_env%spherical_cutoff, particles_qm)
-               CALL build_mm_dpot(mcharge(iatom), 0, eta_a(0), qmmm_env%Potentials, particles_mm, &
+               CALL build_mm_dpot(mcharge(iatom), pot_tb_nonperiodic, eta_a(0), &
+                                  qmmm_env%Potentials, particles_mm, &
                                   qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, &
                                   mm_cell, iatom, Forces, Forces_QM(:, iqm), &
                                   qmmm_env%spherical_cutoff, particles_qm)
                ! Possibly added charges
                IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
-                  CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
+                  CALL build_mm_pot(qpot(iatom), pot_tb_nonperiodic, eta_a(0), &
+                                    qmmm_env%added_charges%potentials, &
                                     qmmm_env%added_charges%added_particles, &
                                     qmmm_env%added_charges%mm_atom_chrg, &
                                     qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
                                     qmmm_env%spherical_cutoff, &
                                     particles_qm)
-                  CALL build_mm_dpot(mcharge(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
+                  CALL build_mm_dpot(mcharge(iatom), pot_tb_nonperiodic, eta_a(0), &
+                                     qmmm_env%added_charges%potentials, &
                                      qmmm_env%added_charges%added_particles, &
                                      qmmm_env%added_charges%mm_atom_chrg, &
                                      qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
@@ -833,13 +905,70 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles_mm
       TYPE(cell_type), POINTER                           :: mm_cell
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      LOGICAL, INTENT(in), OPTIONAL                      :: calc_force
+      LOGICAL, INTENT(IN), OPTIONAL                      :: calc_force
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: Forces, Forces_added_charges
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'deriv_tb_qmmm_matrix_pc'
+      CALL deriv_tb_qmmm_matrix_smeared(qs_env, qmmm_env, particles_mm, mm_cell, para_env, &
+                                        calc_force, Forces, Forces_added_charges, gaussian=.FALSE.)
+
+   END SUBROUTINE deriv_tb_qmmm_matrix_pc
+
+! **************************************************************************************************
+!> \brief Constructs tight-binding QM/MM derivatives for Gaussian MM charges
+!> \param qs_env ...
+!> \param qmmm_env ...
+!> \param particles_mm ...
+!> \param mm_cell ...
+!> \param para_env ...
+!> \param calc_force ...
+!> \param Forces ...
+!> \param Forces_added_charges ...
+! **************************************************************************************************
+   SUBROUTINE deriv_tb_qmmm_matrix_gauss(qs_env, qmmm_env, particles_mm, mm_cell, para_env, &
+                                         calc_force, Forces, Forces_added_charges)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particles_mm
+      TYPE(cell_type), POINTER                           :: mm_cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: calc_force
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: Forces, Forces_added_charges
+
+      CALL deriv_tb_qmmm_matrix_smeared(qs_env, qmmm_env, particles_mm, mm_cell, para_env, &
+                                        calc_force, Forces, Forces_added_charges, gaussian=.TRUE.)
+
+   END SUBROUTINE deriv_tb_qmmm_matrix_gauss
+
+! **************************************************************************************************
+!> \brief Constructs tight-binding QM/MM derivatives for smeared electrostatic coupling
+!> \param qs_env ...
+!> \param qmmm_env ...
+!> \param particles_mm ...
+!> \param mm_cell ...
+!> \param para_env ...
+!> \param calc_force ...
+!> \param Forces ...
+!> \param Forces_added_charges ...
+!> \param gaussian Use Gaussian MM charges instead of the tight-binding point-charge regularization
+! **************************************************************************************************
+   SUBROUTINE deriv_tb_qmmm_matrix_smeared(qs_env, qmmm_env, particles_mm, mm_cell, para_env, &
+                                           calc_force, Forces, Forces_added_charges, gaussian)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particles_mm
+      TYPE(cell_type), POINTER                           :: mm_cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(in), OPTIONAL                      :: calc_force
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: Forces, Forces_added_charges
+      LOGICAL, INTENT(IN)                                :: gaussian
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'deriv_tb_qmmm_matrix_smeared'
 
       INTEGER :: atom_a, do_ipol, ewald_type, handle, i, iatom, ikind, imm, imp, indmm, ipot, iqm, &
-         jatom, natom, natorb, nkind, nmm, nspins, number_qm_atoms
+         jatom, natom, natorb, nkind, nmm, nonperiodic_pot_type, nspins, number_qm_atoms, &
+         short_range_pot_type
       INTEGER, DIMENSION(:), POINTER                     :: list
       LOGICAL                                            :: defined, do_dftb, do_multipoles, do_xtb, &
                                                             found
@@ -871,6 +1000,13 @@ CONTAINS
       TYPE(xtb_control_type), POINTER                    :: xtb_control
 
       CALL timeset(routineN, handle)
+      IF (gaussian) THEN
+         nonperiodic_pot_type = pot_gauss_nonperiodic
+         short_range_pot_type = pot_gauss_short_range
+      ELSE
+         nonperiodic_pot_type = pot_tb_nonperiodic
+         short_range_pot_type = pot_tb_short_range
+      END IF
       IF (calc_force) THEN
          NULLIFY (rho, atomic_kind_set, qs_kind_set, particles_qm)
          CALL get_qs_env(qs_env=qs_env, &
@@ -1036,7 +1172,7 @@ CONTAINS
             END IF
             CALL para_env%sum(qpot)
             CALL para_env%sum(Forces_QM)
-            ! Add Ewald and DFTB short range corrections
+            ! Add the Ewald real-space term and the method-specific short-range correction
             ! This is effectively using a minimum image convention!
             ! Set rcutoff to values compatible with alpha Ewald
             CALL ewald_env_get(ewald_env, rcut=rcutoff(1), alpha=alpha)
@@ -1060,40 +1196,48 @@ CONTAINS
                DO i = 1, SIZE(list)
                   iatom = list(i)
                   iqm = iqm + 1
-                  CALL build_mm_pot(qpot(iatom), 1, eta_a(0), qmmm_env%Potentials, particles_mm, &
+                  CALL build_mm_pot(qpot(iatom), short_range_pot_type, eta_a(0), &
+                                    qmmm_env%Potentials, particles_mm, &
                                     qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, &
                                     mm_cell, iatom, rcutoff, particles_qm)
-                  CALL build_mm_dpot(mcharge(iatom), 1, eta_a(0), qmmm_env%Potentials, particles_mm, &
+                  CALL build_mm_dpot(mcharge(iatom), short_range_pot_type, eta_a(0), &
+                                     qmmm_env%Potentials, particles_mm, &
                                      qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, &
                                      mm_cell, iatom, Forces, Forces_QM(:, iqm), &
                                      rcutoff, particles_qm)
-                  CALL build_mm_pot(qpot(iatom), 2, alpha, qmmm_env%Potentials, particles_mm, &
+                  CALL build_mm_pot(qpot(iatom), pot_ewald_short_range, alpha, &
+                                    qmmm_env%Potentials, particles_mm, &
                                     qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, &
                                     mm_cell, iatom, rcutoff, particles_qm)
-                  CALL build_mm_dpot(mcharge(iatom), 2, alpha, qmmm_env%Potentials, particles_mm, &
+                  CALL build_mm_dpot(mcharge(iatom), pot_ewald_short_range, alpha, &
+                                     qmmm_env%Potentials, particles_mm, &
                                      qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, &
                                      mm_cell, iatom, Forces, Forces_QM(:, iqm), &
                                      rcutoff, particles_qm)
                   ! Possibly added charges
                   IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
-                     CALL build_mm_pot(qpot(iatom), 1, eta_a(0), qmmm_env%added_charges%potentials, &
+                     CALL build_mm_pot(qpot(iatom), short_range_pot_type, eta_a(0), &
+                                       qmmm_env%added_charges%potentials, &
                                        qmmm_env%added_charges%added_particles, &
                                        qmmm_env%added_charges%mm_atom_chrg, &
                                        qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, &
                                        particles_qm)
                      CALL build_mm_dpot( &
-                        mcharge(iatom), 1, eta_a(0), qmmm_env%added_charges%potentials, &
+                        mcharge(iatom), short_range_pot_type, eta_a(0), &
+                        qmmm_env%added_charges%potentials, &
                         qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
                         qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
                         Forces_added_charges, Forces_QM(:, iqm), &
                         rcutoff, particles_qm)
-                     CALL build_mm_pot(qpot(iatom), 2, alpha, qmmm_env%added_charges%potentials, &
+                     CALL build_mm_pot(qpot(iatom), pot_ewald_short_range, alpha, &
+                                       qmmm_env%added_charges%potentials, &
                                        qmmm_env%added_charges%added_particles, &
                                        qmmm_env%added_charges%mm_atom_chrg, &
                                        qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, &
                                        particles_qm)
                      CALL build_mm_dpot( &
-                        mcharge(iatom), 2, alpha, qmmm_env%added_charges%potentials, &
+                        mcharge(iatom), pot_ewald_short_range, alpha, &
+                        qmmm_env%added_charges%potentials, &
                         qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
                         qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
                         Forces_added_charges, Forces_QM(:, iqm), &
@@ -1103,7 +1247,7 @@ CONTAINS
             END DO
 
          CASE (do_ewald_none)
-            ! Simply summing up charges with 1/R (DFTB corrected)
+            ! Directly sum the nonperiodic regularized electrostatic potential
             ! calculate potential and forces from classical charges
             iqm = 0
             DO ikind = 1, nkind
@@ -1122,22 +1266,26 @@ CONTAINS
                DO i = 1, SIZE(list)
                   iatom = list(i)
                   iqm = iqm + 1
-                  CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%Potentials, particles_mm, &
+                  CALL build_mm_pot(qpot(iatom), nonperiodic_pot_type, eta_a(0), &
+                                    qmmm_env%Potentials, particles_mm, &
                                     qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, mm_cell, iatom, &
                                     qmmm_env%spherical_cutoff, particles_qm)
-                  CALL build_mm_dpot(mcharge(iatom), 0, eta_a(0), qmmm_env%Potentials, particles_mm, &
+                  CALL build_mm_dpot(mcharge(iatom), nonperiodic_pot_type, eta_a(0), &
+                                     qmmm_env%Potentials, particles_mm, &
                                      qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, &
                                      mm_cell, iatom, Forces, Forces_QM(:, iqm), &
                                      qmmm_env%spherical_cutoff, particles_qm)
                   ! Possibly added charges
                   IF (qmmm_env%move_mm_charges .OR. qmmm_env%add_mm_charges) THEN
-                     CALL build_mm_pot(qpot(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
+                     CALL build_mm_pot(qpot(iatom), nonperiodic_pot_type, eta_a(0), &
+                                       qmmm_env%added_charges%potentials, &
                                        qmmm_env%added_charges%added_particles, &
                                        qmmm_env%added_charges%mm_atom_chrg, &
                                        qmmm_env%added_charges%mm_atom_index, &
                                        mm_cell, iatom, qmmm_env%spherical_cutoff, &
                                        particles_qm)
-                     CALL build_mm_dpot(mcharge(iatom), 0, eta_a(0), qmmm_env%added_charges%potentials, &
+                     CALL build_mm_dpot(mcharge(iatom), nonperiodic_pot_type, eta_a(0), &
+                                        qmmm_env%added_charges%potentials, &
                                         qmmm_env%added_charges%added_particles, &
                                         qmmm_env%added_charges%mm_atom_chrg, &
                                         qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, &
@@ -1234,7 +1382,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE deriv_tb_qmmm_matrix_pc
+   END SUBROUTINE deriv_tb_qmmm_matrix_smeared
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1298,18 +1446,26 @@ CONTAINS
             END IF
             IF (ABS(qeff) <= qsmall) CYCLE LoopMM
             IF (dr > rtiny) THEN
-               IF (pot_type == 0) THEN
+               IF (pot_type == pot_tb_nonperiodic) THEN
                   sr = gamma_rab_sr(dr, qm_alpha, eta_mm, 0.0_dp)
                   qpot = qpot + qeff*(1.0_dp/dr - sr)
-               ELSE IF (pot_type == 1) THEN
+               ELSE IF (pot_type == pot_tb_short_range) THEN
                   sr = gamma_rab_sr(dr, qm_alpha, eta_mm, 0.0_dp)
                   qpot = qpot - qeff*sr
-               ELSE IF (pot_type == 2) THEN
+               ELSE IF (pot_type == pot_ewald_short_range) THEN
                   sr = erfc(qm_alpha*dr)/dr
                   qpot = qpot + qeff*sr
+               ELSE IF (pot_type == pot_gauss_nonperiodic) THEN
+                  sr = erf(dr/Pot%Rc)/dr
+                  qpot = qpot + qeff*sr
+               ELSE IF (pot_type == pot_gauss_short_range) THEN
+                  sr = erfc(dr/Pot%Rc)/dr
+                  qpot = qpot - qeff*sr
                ELSE
                   CPABORT("Unknown pot_type for dr > rtiny")
                END IF
+            ELSE IF (pot_type == pot_gauss_nonperiodic) THEN
+               qpot = qpot + qeff*2.0_dp/(rootpi*Pot%Rc)
             END IF
          END DO LoopMM
       END DO MainLoopPot
@@ -1385,17 +1541,23 @@ CONTAINS
             IF (dr > rtiny) THEN
                drp = dr + ddrmm
                drm = dr - ddrmm
-               IF (pot_type == 0) THEN
+               IF (pot_type == pot_tb_nonperiodic) THEN
                   dsr = 0.5_dp*(gamma_rab_sr(drp, qm_alpha, eta_mm, 0.0_dp) - &
                                 gamma_rab_sr(drm, qm_alpha, eta_mm, 0.0_dp))/ddrmm
                   fsr = qeff*qcharge*(-1.0_dp/(dr*dr) - dsr)
-               ELSE IF (pot_type == 1) THEN
+               ELSE IF (pot_type == pot_tb_short_range) THEN
                   dsr = 0.5_dp*(gamma_rab_sr(drp, qm_alpha, eta_mm, 0.0_dp) - &
                                 gamma_rab_sr(drm, qm_alpha, eta_mm, 0.0_dp))/ddrmm
                   fsr = -qeff*qcharge*dsr
-               ELSE IF (pot_type == 2) THEN
+               ELSE IF (pot_type == pot_ewald_short_range) THEN
                   dsr = 0.5_dp*(erfc(qm_alpha*drp)/drp - erfc(qm_alpha*drm)/drm)/ddrmm
                   fsr = qeff*qcharge*dsr
+               ELSE IF (pot_type == pot_gauss_nonperiodic) THEN
+                  fsr = qeff*qcharge*(2.0_dp*EXP(-(dr/Pot%Rc)**2)/(rootpi*Pot%Rc*dr) - &
+                                      erf(dr/Pot%Rc)/dr**2)
+               ELSE IF (pot_type == pot_gauss_short_range) THEN
+                  fsr = qeff*qcharge*(2.0_dp*EXP(-(dr/Pot%Rc)**2)/(rootpi*Pot%Rc*dr) + &
+                                      erfc(dr/Pot%Rc)/dr**2)
                ELSE
                   CPABORT("Unknown pot_type for dr > rtiny")
                END IF
@@ -1415,4 +1577,3 @@ CONTAINS
    END SUBROUTINE build_mm_dpot
 
 END MODULE qmmm_tb_methods
-

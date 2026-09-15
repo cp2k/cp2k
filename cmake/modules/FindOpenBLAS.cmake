@@ -32,7 +32,9 @@ if(NOT CP2K_OPENBLAS_FOUND)
   cp2k_find_libraries(OPENBLAS_THREADS64 "openblas64_threads;openblas64_omp")
 endif()
 
-cp2k_include_dirs(OPENBLAS "cblas.h")
+if(NOT CP2K_OPENBLAS_INCLUDE_DIRS)
+  cp2k_include_dirs(OPENBLAS "cblas.h")
+endif()
 
 # check if found
 if(CP2K_OPENBLAS_INCLUDE_DIRS)

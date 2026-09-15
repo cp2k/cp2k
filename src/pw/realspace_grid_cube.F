@@ -32,8 +32,11 @@ MODULE realspace_grid_cube
    INTEGER, PARAMETER, PRIVATE          :: cube_entry_len = 13, &
                                            cube_num_entries_line = 6
    INTEGER, PARAMETER, PRIVATE          :: cube_line_len = cube_entry_len*cube_num_entries_line
-   CHARACTER(len=*), PARAMETER          :: cube_value_format = '(E13.5E3)', &
-                                           cube_values_format = '(6E13.5E3)'
+   CHARACTER(len=*), PARAMETER          :: cube_value_format = '(1X,ES12.4E3)', &
+                                           cube_values_format = '(6(1X,ES12.4E3))'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: missing_zeff_warning = &
+                                           "Effective nuclear charges were not supplied; "// &
+                                           "zeros will be written to the Cube atom records."
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
 
 CONTAINS
@@ -118,6 +121,10 @@ CONTAINS
       IF (PRESENT(mpi_io)) parallel_write = mpi_io
       IF (PRESENT(max_file_size_mb)) my_max_file_size_mb = max_file_size_mb
       CPASSERT(my_max_file_size_mb >= 0)
+      IF (.NOT. parallel_write .AND. PRESENT(particles_z) .AND. &
+          .NOT. PRESENT(particles_zeff)) THEN
+         CPWARN(missing_zeff_warning)
+      END IF
 
       my_stride = 1
       IF (PRESENT(stride)) THEN
@@ -701,6 +708,9 @@ CONTAINS
       !get rs grids and parallel envnment
       gid = grid%pw_grid%para%group
       my_rank = grid%pw_grid%para%group%mepos
+      IF (PRESENT(particles_z) .AND. .NOT. PRESENT(particles_zeff)) THEN
+         CPWARN(missing_zeff_warning)
+      END IF
 
       ! Shortcut
       lbounds = grid%pw_grid%bounds(1, :)
@@ -996,7 +1006,7 @@ CONTAINS
                       pw%pw_grid%dh(3, 3)*I3
 
                   IF (unit_nr > 0) THEN
-                     WRITE (unit_nr, '(6E13.5E3, 6E13.5E3, 6E13.5E3, 6E13.5E3)') x, y, z, buf(I3)
+                     WRITE (unit_nr, '(6(1X,ES12.4E3), 6(1X,ES12.4E3), 6(1X,ES12.4E3), 6(1X,ES12.4E3))') x, y, z, buf(I3)
                   END IF
                END DO
 
@@ -1016,7 +1026,7 @@ CONTAINS
                       pw%pw_grid%dh(3, 3)*I3
 
                   IF (unit_nr > 0) THEN
-                     WRITE (unit_nr, '(6E13.5E3, 6E13.5E3, 6E13.5E3, 6E13.5E3)') x, y, z, buf(I3), buf2(I3)
+                     WRITE (unit_nr, '(6(1X,ES12.4E3), 6(1X,ES12.4E3), 6(1X,ES12.4E3), 6(1X,ES12.4E3))') x, y, z, buf(I3), buf2(I3)
                   END IF
                END DO
 

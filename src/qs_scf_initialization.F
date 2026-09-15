@@ -11,16 +11,22 @@
 MODULE qs_scf_initialization
    USE atom_kind_orbitals,              ONLY: calculate_atomic_orbitals
    USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE bibliography,                    ONLY: Hu2010,&
+                                              cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
+                                              dbcsr_set,&
                                               dbcsr_type,&
-                                              dbcsr_type_no_symmetry
+                                              dbcsr_type_no_symmetry,&
+                                              dbcsr_type_symmetric
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template,&
-                                              cp_dbcsr_sm_fm_multiply
+                                              cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: write_fm_with_basis_info
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_row_scale,&
@@ -56,15 +62,17 @@ MODULE qs_scf_initialization
    USE hairy_probes,                    ONLY: AO_boundaries
    USE input_constants,                 ONLY: &
         broy_mix, cholesky_dbcsr, cholesky_inverse, cholesky_off, diag_block_davidson, &
-        diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, direct_p_mix, kerker_mix, &
-        modified_broy_mix, multisec_mix, new_pulay_mix, no_mix, ot2cdft, outer_scf_none, &
-        plus_u_lowdin, plus_u_tensorial, pulay_mix, smeagol_runtype_emtransport, &
-        wfi_frozen_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr
+        diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, diag_update_method_adiis, &
+        direct_p_mix, external_density_guess, gfn2xtb, kerker_mix, modified_broy_mix, &
+        multisec_mix, new_pulay_mix, no_mix, ot2cdft, outer_scf_none, plus_u_lowdin, &
+        plus_u_tensorial, pulay_mix, smeagol_runtype_emtransport, wfi_frozen_method_nr, &
+        wfi_ps_method_nr, wfi_use_guess_method_nr
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE kpoint_types,                    ONLY: kpoint_type
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
@@ -80,6 +88,7 @@ MODULE qs_scf_initialization
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
+   USE qs_external_density,             ONLY: read_scf_guess_density
    USE qs_fb_distribution_methods,      ONLY: fb_distribution_build
    USE qs_fb_env_methods,               ONLY: fb_env_build_atomic_halos,&
                                               fb_env_build_rcut_auto,&
@@ -103,6 +112,7 @@ MODULE qs_scf_initialization
                                               init_mo_set,&
                                               mo_set_type,&
                                               set_mo_set
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_outer_scf,                    ONLY: outer_loop_extrapolate,&
                                               outer_loop_switch,&
                                               outer_loop_variables_count
@@ -206,7 +216,7 @@ CONTAINS
 
       CALL qs_scf_ensure_work_matrices(qs_env, scf_env)
 
-      CALL qs_scf_ensure_mixing_store(qs_env, scf_env)
+      CALL qs_scf_ensure_mixing_store(qs_env, scf_env, my_scf_control)
 
       ! Initialize outer loop variables: handle CDFT and regular outer loop separately
       IF (dft_control%qs_control%cdft) THEN
@@ -415,20 +425,66 @@ CONTAINS
    END SUBROUTINE qs_scf_ensure_cdft_loop_vars
 
 ! **************************************************************************************************
+!> \brief Allocate the candidate density produced by diagonalization.
+!> \param qs_env ...
+!> \param candidate Candidate density matrix set.
+!> \param nspins Number of spin channels.
+!>
+!>      This workspace belongs to the generic diagonalization SCF driver.  It is
+!>      also used by density-mixing methods, but allocating it does not imply
+!>      that a density mixer is active.
+! **************************************************************************************************
+   SUBROUTINE qs_scf_allocate_candidate_density(qs_env, candidate, nspins)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: candidate
+      INTEGER, INTENT(IN)                                :: nspins
+
+      INTEGER                                            :: ic, ispin, nimg
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
+      TYPE(dbcsr_type), POINTER                          :: refmatrix
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+
+      NULLIFY (dft_control, matrix_s, refmatrix, sab_orb)
+      CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s, sab_orb=sab_orb, dft_control=dft_control)
+
+      IF (ASSOCIATED(candidate)) RETURN
+
+      refmatrix => matrix_s(1, 1)%matrix
+      nimg = dft_control%nimages
+      CALL dbcsr_allocate_matrix_set(candidate, nspins, nimg)
+      DO ic = 1, nimg
+         DO ispin = 1, nspins
+            ALLOCATE (candidate(ispin, ic)%matrix)
+            CALL dbcsr_create(matrix=candidate(ispin, ic)%matrix, template=refmatrix, &
+                              name="SCF DENSITY", matrix_type=dbcsr_type_symmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(candidate(ispin, ic)%matrix, sab_orb)
+            CALL dbcsr_set(candidate(ispin, ic)%matrix, 0.0_dp)
+         END DO
+      END DO
+
+   END SUBROUTINE qs_scf_allocate_candidate_density
+
+! **************************************************************************************************
 !> \brief performs allocation of the mixing storage
 !> \param qs_env ...
 !> \param scf_env ...
+!> \param scf_control ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_ensure_mixing_store(qs_env, scf_env)
+   SUBROUTINE qs_scf_ensure_mixing_store(qs_env, scf_env, scf_control)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(scf_control_type), POINTER                    :: scf_control
 
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       NULLIFY (dft_control)
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
 
-      IF (scf_env%mixing_method > 0) THEN
+      IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
+         CALL qs_scf_allocate_candidate_density(qs_env, scf_env%p_mix_new, dft_control%nspins)
+      ELSE IF (scf_env%mixing_method > 0) THEN
          CALL mixing_allocate(qs_env, scf_env%mixing_method, scf_env%p_mix_new, &
                               scf_env%p_delta, dft_control%nspins, &
                               scf_env%mixing_store)
@@ -498,7 +554,9 @@ CONTAINS
             END DO
          END IF
          IF ((.NOT. ASSOCIATED(scf_env%ortho)) .AND. &
-             (scf_env%method /= ot_diag_method_nr) .AND. &
+             ((scf_env%method /= ot_diag_method_nr) .OR. &
+              dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb .OR. &
+              dft_control%qs_control%semi_empirical) .AND. &
              (scf_env%method /= special_diag_method_nr)) THEN
             ! Initialize fm matrix to store the Cholesky decomposition
             ALLOCATE (scf_env%ortho)
@@ -709,6 +767,20 @@ CONTAINS
 
       TYPE(section_vals_type), POINTER                   :: mixing_section
 
+      IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
+         CALL cite_reference(Hu2010)
+         ! ADIIS is a Fock-space SCF method.  It does not use density mixing or
+         ! combine CDIIS with a separate density-mixing state.
+         scf_env%mixing_method = no_mixing_nr
+         scf_env%p_mix_alpha = 1.0_dp
+         scf_env%skip_diis = scf_control%max_diis < 2 .OR. &
+                             scf_control%eps_diis < scf_control%eps_scf
+         IF (scf_control%eps_diis < scf_control%eps_scf) THEN
+            CPWARN("the ADIIS to DIIS switch is disabled, since EPS_DIIS < EPS_SCF")
+         END IF
+         RETURN
+      END IF
+
       SELECT CASE (scf_control%mixing_method)
       CASE (no_mix)
          scf_env%mixing_method = no_mixing_nr
@@ -773,16 +845,20 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       LOGICAL                                            :: has_unit_metric
 
-      INTEGER                                            :: ispin, nao, nmo
-      LOGICAL                                            :: do_kpoints, need_coeff_b, not_se_or_tb
+      INTEGER                                            :: ispin, kplocal, nao, nmo
+      INTEGER, DIMENSION(2)                              :: kp_range
+      LOGICAL                                            :: do_kpoints, need_coeff_b, not_se_or_tb, &
+                                                            ot_energies
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
 
       CALL get_qs_env(qs_env=qs_env, do_kpoints=do_kpoints, dft_control=dft_control, mos=mos)
       not_se_or_tb = .NOT. (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb .OR. &
                             dft_control%qs_control%semi_empirical)
       need_coeff_b = .FALSE.
+      ot_energies = .FALSE.
       scf_env%needs_ortho = .FALSE.
 
       IF (dft_control%smeagol_control%smeagol_enabled .AND. &
@@ -803,9 +879,9 @@ CONTAINS
             CPABORT("OT only for restricted (ROKS)")
          END IF
          SELECT CASE (scf_control%diagonalization%method)
-         CASE (diag_ot, diag_block_krylov, diag_block_davidson)
+         CASE (diag_block_krylov, diag_block_davidson)
             IF (.NOT. not_se_or_tb) THEN
-               CPABORT("TB and SE not possible with OT diagonalization")
+               CPABORT("TB and SE not possible with block iterative diagonalization")
             END IF
          END SELECT
          SELECT CASE (scf_control%diagonalization%method)
@@ -825,13 +901,9 @@ CONTAINS
             IF (has_unit_metric) THEN
                scf_env%method = special_diag_method_nr
             END IF
-            ! OT Diagonalization: not possible with ROKS
          CASE (diag_ot)
             IF (dft_control%roks) THEN
                CPABORT("ROKS with OT diagonalization not possible")
-            END IF
-            IF (do_kpoints) THEN
-               CPABORT("OT diagonalization not possible with kpoint calculations")
             END IF
             scf_env%method = ot_diag_method_nr
             need_coeff_b = .TRUE.
@@ -852,19 +924,32 @@ CONTAINS
             CALL krylov_space_allocate(scf_env%krylov_space, scf_control, mos)
             ! Block davidson diagonlization: allocation of additional matrices is needed
          CASE (diag_block_davidson)
-            IF (do_kpoints) THEN
-               CPABORT("Block Davidson diagonalization not possible with kpoint calculations")
-            END IF
             scf_env%method = block_davidson_diag_method_nr
-            IF (.NOT. ASSOCIATED(scf_env%block_davidson_env)) THEN
-               CALL block_davidson_env_create(scf_env%block_davidson_env, dft_control%nspins, &
-                                              scf_section)
+            IF (do_kpoints) THEN
+               IF (dft_control%roks) THEN
+                  CPABORT("Block Davidson not possible with ROKS")
+               END IF
+               ! one channel per (local kpoint, spin); scratch matrices are local
+               ! to generate_extended_space_c, so only the settings are stored
+               IF (.NOT. ASSOCIATED(scf_env%block_davidson_env)) THEN
+                  CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
+                  CALL get_kpoint_info(kpoints, kp_range=kp_range)
+                  kplocal = kp_range(2) - kp_range(1) + 1
+                  CALL block_davidson_env_create(scf_env%block_davidson_env, &
+                                                 kplocal*dft_control%nspins, scf_section)
+               END IF
+               need_coeff_b = .FALSE.
+            ELSE
+               IF (.NOT. ASSOCIATED(scf_env%block_davidson_env)) THEN
+                  CALL block_davidson_env_create(scf_env%block_davidson_env, dft_control%nspins, &
+                                                 scf_section)
+               END IF
+               DO ispin = 1, dft_control%nspins
+                  CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+                  CALL block_davidson_allocate(scf_env%block_davidson_env(ispin), mo_coeff, nao, nmo)
+               END DO
+               need_coeff_b = .TRUE.
             END IF
-            DO ispin = 1, dft_control%nspins
-               CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, nao=nao, nmo=nmo)
-               CALL block_davidson_allocate(scf_env%block_davidson_env(ispin), mo_coeff, nao, nmo)
-            END DO
-            need_coeff_b = .TRUE.
             ! Filter matrix diagonalisation method
          CASE (diag_filter_matrix)
             scf_env%method = filter_matrix_diag_method_nr
@@ -895,15 +980,15 @@ CONTAINS
       ELSE IF (scf_control%use_ot) THEN
          scf_env%method = ot_method_nr
          need_coeff_b = .TRUE.
-         IF (SUM(ABS(scf_control%added_mos)) > 0) THEN
-            CPABORT("OT with ADDED_MOS/=0 not implemented")
+         CALL section_vals_val_get(scf_section, "OT%ENERGIES", l_val=ot_energies)
+         IF (SUM(ABS(scf_control%added_mos)) > 0 .AND. &
+             (.NOT. do_kpoints .OR. .NOT. ot_energies)) THEN
+            CPABORT("OT with ADDED_MOS currently requires complex K points and OT%ENERGIES.")
          END IF
          IF (dft_control%restricted .AND. dft_control%nspins /= 2) THEN
             CPABORT("nspin must be 2 for restricted (ROKS)")
          END IF
-         IF (do_kpoints) THEN
-            CPABORT("OT not possible with kpoint calculations")
-         END IF
+         ! K-point OT is allowed to reach the spin/k-point channel allocation stub.
       ELSE IF (scf_env%method /= smeagol_method_nr) THEN
          CPABORT("OT or DIAGONALIZATION have to be set")
       END IF
@@ -983,8 +1068,15 @@ CONTAINS
       IF (dft_control%qs_control%xtb_control%do_tblite) THEN
          IF (scf_env%method == ot_method_nr) THEN
             CALL cp_warn(__LOCATION__, &
-                         "CP2K/tblite with OT is restricted to Gamma-point calculations without smearing. "// &
-                         "The tblite SCC variables are updated directly from the OT density; XTB/SCC_MIXER is ignored.")
+                         "CP2K/tblite with OT updates the tblite SCC variables directly from the OT density; "// &
+                         "XTB/SCC_MIXER is ignored.")
+            IF (scf_control%smear%do_smear .AND. &
+                dft_control%qs_control%xtb_control%tblite_method == gfn2xtb) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "Direct GFN2/tblite smearing has indefinite shell and multipole SCC modes. "// &
+                            "Use SCF/DIAGONALIZATION ALGORITHM OT with XTB/SCC_MIXER TBLITE or CP2K.")
+               CPABORT("Use fixed-H OT for GFN2 smearing")
+            END IF
          END IF
       END IF
 
@@ -1243,7 +1335,7 @@ CONTAINS
 
       INTEGER                                            :: extrapolation_method_nr, handle, ispin, &
                                                             nmo, output_unit
-      LOGICAL                                            :: do_harris, orthogonal_wf
+      LOGICAL                                            :: do_harris, do_kpoints, orthogonal_wf
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1263,9 +1355,13 @@ CONTAINS
                       rho=rho, &
                       mos=mos, &
                       dft_control=dft_control, &
+                      do_kpoints=do_kpoints, &
                       para_env=para_env)
 
       do_harris = qs_env%harris_method
+      IF (do_harris .AND. scf_control%density_guess == external_density_guess) THEN
+         CPABORT("EXTERNAL_DENSITY SCF guess is incompatible with HARRIS_METHOD")
+      END IF
 
       extrapolation_method_nr = wfi_use_guess_method_nr
       IF (ASSOCIATED(qs_env%wf_history)) THEN
@@ -1276,6 +1372,7 @@ CONTAINS
          ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
          IF ((.NOT. orthogonal_wf) .AND. &
              (scf_env%method == ot_method_nr) .AND. &
+             (.NOT. do_kpoints) .AND. &
              (.NOT. (extrapolation_method_nr == wfi_use_guess_method_nr))) THEN
             DO ispin = 1, SIZE(mos)
                CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
@@ -1316,7 +1413,11 @@ CONTAINS
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
       ELSE IF (extrapolation_method_nr == wfi_use_guess_method_nr) THEN
          CALL calculate_first_density_matrix(scf_env=scf_env, qs_env=qs_env)
-         CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         IF (scf_control%density_guess == external_density_guess) THEN
+            CALL read_scf_guess_density(qs_env, scf_control%external_density_file_name)
+         ELSE
+            CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         END IF
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
       END IF
 

@@ -49,6 +49,7 @@ MODULE gw_utils
                                               cp_fm_get_diag,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
+                                              cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -58,18 +59,24 @@ MODULE gw_utils
         dbt_iterator_next_block, dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, &
         dbt_mp_environ_pgrid, dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
    USE distribution_2d_types,           ONLY: distribution_2d_type
+   USE gw_auto_ri_generate_RI_basis,    ONLY: generate_auto_ri_basis
+   USE gw_auto_ri_types,                ONLY: auto_ri_type
    USE gw_communication,                ONLY: fm_to_local_array
+   USE gw_fm_utils,                     ONLY: cfm_contract_ABA,&
+                                              fm_invert
    USE gw_integrals,                    ONLY: build_3c_integral_block
    USE input_constants,                 ONLY: &
-        do_potential_truncated, large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs, &
-        ri_rpa_g0w0_crossing_newton, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_rs, rtp_method_bse, &
-        rtp_method_bse_linearized, small_cell_full_kp, xc_none
+        G0W0, do_potential_coulomb, do_potential_truncated, evGW0, large_cell_Gamma, &
+        large_cell_Gamma_ri_rs, non_periodic_ri_rs, ri_rpa_g0w0_crossing_newton, &
+        rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_rs, rtp_method_bse, rtp_method_bse_linearized, &
+        small_cell_full_kp, xc_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp,&
                                               int_8
    USE kpoint_k_r_trafo_simple,         ONLY: rs_to_kp
@@ -79,31 +86,30 @@ MODULE gw_utils
    USE libint_2c_3c,                    ONLY: libint_potential_type
    USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
                                               cp_libint_static_init
-   USE machine,                         ONLY: m_memory,&
-                                              m_walltime
+   USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: gaussi,&
                                               z_one,&
                                               z_zero
    USE mathlib,                         ONLY: diag_complex,&
                                               gcd
    USE message_passing,                 ONLY: mp_cart_type,&
+                                              mp_mem_avail_per_rank_GB,&
+                                              mp_mem_used_per_rank_GB,&
                                               mp_para_env_type
-   USE minimax_exp,                     ONLY: get_exp_minimax_coeff
-   USE minimax_exp_gw,                  ONLY: get_exp_minimax_coeff_gw
-   USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff,&
-                                              get_rpa_minimax_coeff_larger_grid
    USE mp2_gpw,                         ONLY: create_mat_munu
-   USE mp2_grids,                       ONLY: get_l_sq_wghts_cos_tf_t_to_w,&
-                                              get_l_sq_wghts_cos_tf_w_to_t,&
-                                              get_l_sq_wghts_sin_tf_t_to_w
-   USE mp2_ri_2c,                       ONLY: trunc_coulomb_for_exchange
-   USE parallel_gemm_api,               ONLY: parallel_gemm
+   USE mp2_grids,                       ONLY: build_minimax_time_frequency_grid
+   USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat,&
+                                              trunc_coulomb_for_exchange
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
-   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
-   USE post_scf_bandstructure_utils,    ONLY: rsmat_to_kp
+   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type,&
+                                              ri_rs_env,&
+                                              ri_rs_grid_opt_type
+   USE post_scf_bandstructure_utils,    ONLY: allocate_GW_eigenvalues,&
+                                              gw_flavour_label,&
+                                              rsmat_to_kp
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_env_part_release,&
@@ -126,6 +132,8 @@ MODULE gw_utils
                                               distribution_3d_create,&
                                               distribution_3d_type,&
                                               neighbor_list_3c_type
+   USE rirs_grid_utils,                 ONLY: get_rirs_grid_filepath,&
+                                              read_rirs_grid_npoints
    USE rpa_gw,                          ONLY: continuation_pade
 #include "base/base_uses.f90"
 
@@ -143,10 +151,10 @@ MODULE gw_utils
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param bs_env ...
-!> \param bs_sec ...
+!> \brief Initializes the GW environment from the input and electronic-structure data.
+!> \param qs_env electronic-structure environment
+!> \param bs_env GW calculation environment receiving the input values
+!> \param bs_sec BAND_STRUCTURE input section
 ! **************************************************************************************************
    SUBROUTINE create_and_init_bs_env_for_gw(qs_env, bs_env, bs_sec)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -161,40 +169,44 @@ CONTAINS
 
       CALL cite_reference(Graml2024)
 
+      CALL get_parameters_from_qs_env(qs_env, bs_env)
+
       CALL read_gw_input_parameters(bs_env, bs_sec)
 
       CALL print_header_and_input_parameters(bs_env)
 
       CALL setup_AO_and_RI_basis_set(qs_env, bs_env)
 
-      CALL get_RI_basis_and_basis_function_indices(qs_env, bs_env)
-
       CALL set_heuristic_parameters(bs_env, qs_env)
 
       CALL cp_libint_static_init()
+      IF (bs_env%auto_ri%enabled) CALL generate_auto_ri_basis(qs_env, bs_env)
 
-      CALL setup_kpoints_chi_eps_W(bs_env, bs_env%kpoints_chi_eps_W)
-
-      IF (bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp) THEN
-         CALL setup_cells_3c(qs_env, bs_env)
-      END IF
-
-      CALL set_parallelization_parameters(qs_env, bs_env)
-
-      CALL allocate_matrices(qs_env, bs_env)
+      CALL get_RI_basis(qs_env, bs_env)
 
       CALL compute_V_xc(qs_env, bs_env)
 
-      CALL create_tensors(qs_env, bs_env)
+      CALL init_interaction_radii(bs_env)
+
+      ! The RI-RS drivers build their (µν|P) blocks on the fly through gw_3c_ctx
+      ! RT-BSE with the AO-RI kernel need nl_3c it after GW, so
+      ! keep everything when an RT-BSE run follows.
+      IF (.NOT. bs_env%do_gw_ri_rs .OR. &
+          bs_env%rtp_method == rtp_method_bse .OR. &
+          bs_env%rtp_method == rtp_method_bse_linearized) THEN
+         CALL create_tensors(qs_env, bs_env)
+      END IF
+
+      CALL allocate_GW_eigenvalues(bs_env)
 
       SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
       CASE (large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs)
 
-         CALL allocate_GW_eigenvalues(bs_env)
+         IF (.NOT. bs_env%do_gw_ri_rs) THEN
+            CALL check_sparsity_3c(qs_env, bs_env)
 
-         CALL check_sparsity_3c(qs_env, bs_env)
-
-         CALL set_sparsity_parallelization_parameters(bs_env)
+            CALL set_sparsity_parallelization_parameters(bs_env)
+         END IF
 
          CALL check_for_restart_files(qs_env, bs_env)
 
@@ -216,19 +228,40 @@ CONTAINS
 
       CALL setup_time_and_frequency_minimax_grid(bs_env)
 
-      ! free memory in qs_env; only if one is not calculating the LDOS because
-      ! we need real-space grid operations in pw_env, task_list for the LDOS
+      ! Free memory in qs_env. SCF real-space grids, task  lists, neighbor
+      ! lists and work arrays on large systems hold GBs per rank for the whole run.
+      ! Not required by GW. LDOS and RT-BSE still needs these information.
+      !
       ! Recommendation in case of memory issues: first perform GW calculation without calculating
-      !                                          LDOS (to safe memor). Then, use GW restart files
+      !                                          LDOS (to save memory). Then, use GW restart files
       !                                          in a subsequent calculation to calculate the LDOS
-      ! Marek : TODO - boolean that does not interfere with RTP init but sets this to correct value
-      IF (.NOT. bs_env%do_ldos .AND. .FALSE.) THEN
+      IF (.NOT. bs_env%do_ldos .AND. &
+          bs_env%rtp_method /= rtp_method_bse .AND. &
+          bs_env%rtp_method /= rtp_method_bse_linearized) THEN
          CALL qs_env_part_release(qs_env)
       END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE create_and_init_bs_env_for_gw
+
+! **************************************************************************************************
+!> \brief Store the QS environment parameters needed by GW.
+!> \param qs_env ...
+!> \param bs_env ...
+! **************************************************************************************************
+   SUBROUTINE get_parameters_from_qs_env(qs_env, bs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      TYPE(section_vals_type), POINTER                   :: input, rtbse_sec
+
+      NULLIFY (input, rtbse_sec)
+      CALL get_qs_env(qs_env, atomic_kind_set=bs_env%ri_rs%atomic_kind_set, &
+                      cell=bs_env%ri_rs%cell, particle_set=bs_env%ri_rs%particle_set, input=input)
+      rtbse_sec => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%RTBSE")
+      CALL section_vals_val_get(rtbse_sec, "CUTOFF_RADIUS_W0", r_val=bs_env%ri_rs%cutoff_radius_w0)
+   END SUBROUTINE get_parameters_from_qs_env
 
 ! **************************************************************************************************
 !> \brief Releases the memory-heavy GW intermediates that cannot be freed in bs_env_release,
@@ -318,9 +351,9 @@ CONTAINS
    END SUBROUTINE rtbse_resolve_rirs_flag
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
-!> \param bs_sec ...
+!> \brief Reads the GW input parameters.
+!> \param bs_env GW calculation environment receiving the input values
+!> \param bs_sec BAND_STRUCTURE input section
 ! **************************************************************************************************
    SUBROUTINE read_gw_input_parameters(bs_env, bs_sec)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
@@ -329,12 +362,18 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_gw_input_parameters'
 
       INTEGER                                            :: handle
-      TYPE(section_vals_type), POINTER                   :: gw_sec
+      LOGICAL                                            :: do_evgw0
+      TYPE(section_vals_type), POINTER                   :: auto_ri_sec, evgw0_sec, grid_opt_sec, &
+                                                            gw_sec, ri_rs_sec
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (gw_sec)
+      NULLIFY (auto_ri_sec, evgw0_sec, grid_opt_sec, gw_sec, ri_rs_sec)
       gw_sec => section_vals_get_subs_vals(bs_sec, "GW")
+      auto_ri_sec => section_vals_get_subs_vals(gw_sec, "AUTO_RI")
+      evgw0_sec => section_vals_get_subs_vals(gw_sec, "EVGW0")
+      ri_rs_sec => section_vals_get_subs_vals(gw_sec, "RI_RS")
+      grid_opt_sec => section_vals_get_subs_vals(ri_rs_sec, "GRID_OPTIMIZATION")
 
       CALL section_vals_val_get(gw_sec, "NUM_TIME_FREQ_POINTS", i_val=bs_env%num_time_freq_points)
       CALL section_vals_val_get(gw_sec, "EPS_FILTER", r_val=bs_env%eps_filter)
@@ -347,32 +386,290 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "KPOINTS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
       CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
       CALL section_vals_val_get(gw_sec, "FREQ_MAX_FIT", r_val=bs_env%freq_max_fit)
-      CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT", l_val=bs_env%print_contract)
-      CALL section_vals_val_get(gw_sec, "PRINT%PRINT_DBT_CONTRACT_VERBOSE", l_val=bs_env%print_contract_verbose)
-      CALL section_vals_val_get(gw_sec, "TIKHONOV", r_val=bs_env%ri_rs%tikhonov)
-      CALL section_vals_val_get(gw_sec, "GRID_SELECT", i_val=bs_env%ri_rs%grid_select)
-      CALL section_vals_val_get(gw_sec, "GRID_FILE_SUFFIX", c_val=bs_env%ri_rs%grid_file_suffix)
-      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RL_RI", r_val=bs_env%ri_rs%cutoff_radius_ri_rs)
-      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RL_AO", r_val=bs_env%ri_rs%cutoff_radius_ri_ao)
-      CALL section_vals_val_get(gw_sec, "N_PROCS_PER_ATOM_Z_LP", i_val=bs_env%ri_rs%n_procs_per_atom_z_lp)
-      CALL section_vals_val_get(gw_sec, "N_PANELS", i_val=bs_env%ri_rs%n_panels)
-      CALL section_vals_val_get(gw_sec, "KEEP_SPARSITY_RL", l_val=bs_env%ri_rs%keep_sparsity_rirs)
-      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RL_W", r_val=bs_env%ri_rs%cutoff_radius_v_w)
-      CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_G_W", r_val=bs_env%ri_rs%cutoff_radius_g_w)
+      CALL read_rirs_input(bs_env%ri_rs, ri_rs_sec)
+      CALL read_rirs_grid_opt(bs_env%ri_rs, grid_opt_sec)
+      CALL read_evgw0_input(bs_env%ri_rs, evgw0_sec, do_evgw0)
+      CALL read_auto_ri_input(bs_env%auto_ri, auto_ri_sec)
+      CALL check_gw_input(bs_env, do_evgw0)
 
-      IF (bs_env%print_contract) THEN
-         bs_env%unit_nr_contract = bs_env%unit_nr
-      ELSE
-         bs_env%unit_nr_contract = 0
-      END IF
       CALL timestop(handle)
 
    END SUBROUTINE read_gw_input_parameters
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
+!> \brief Reads the RI-RS input.
+!> \param ri_rs RI-RS calculation parameters
+!> \param ri_rs_sec RI_RS input section
+! **************************************************************************************************
+   SUBROUTINE read_rirs_input(ri_rs, ri_rs_sec)
+      TYPE(ri_rs_env), INTENT(INOUT)                     :: ri_rs
+      TYPE(section_vals_type), POINTER                   :: ri_rs_sec
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_rirs_input'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CALL section_vals_val_get(ri_rs_sec, "TIKHONOV", r_val=ri_rs%tikhonov)
+      CALL section_vals_val_get(ri_rs_sec, "GRID_SELECT", i_val=ri_rs%grid_select)
+      CALL section_vals_val_get(ri_rs_sec, "GRID_FILE_SUFFIX", c_val=ri_rs%grid_file_suffix)
+      CALL section_vals_val_get(ri_rs_sec, "CUTOFF_RADIUS_RL_RI", r_val=ri_rs%cutoff_radius_ri_rs)
+      CALL section_vals_val_get(ri_rs_sec, "CUTOFF_RADIUS_RL_AO", r_val=ri_rs%cutoff_radius_ri_ao)
+      CALL section_vals_val_get(ri_rs_sec, "N_PROCS_PER_ATOM_Z_LP", i_val=ri_rs%n_procs_per_atom_z_lp)
+      CALL section_vals_val_get(ri_rs_sec, "N_PANELS", i_val=ri_rs%n_panels)
+      CALL section_vals_val_get(ri_rs_sec, "KEEP_SPARSITY_RL", l_val=ri_rs%keep_sparsity_rirs)
+      CALL section_vals_val_get(ri_rs_sec, "CUTOFF_RADIUS_RL_W", r_val=ri_rs%cutoff_radius_v_w)
+      CALL section_vals_val_get(ri_rs_sec, "CUTOFF_RADIUS_G_W", r_val=ri_rs%cutoff_radius_g_w)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE read_rirs_input
+
+! **************************************************************************************************
+!> \brief Reads the eigenvalue-self-consistent GW input.
+!> \param ri_rs RI-RS parameters receiving the evGW0 convergence settings
+!> \param evgw0_sec EVGW0 input section
+!> \param do_evgw0 whether the EVGW0 section is activated
+! **************************************************************************************************
+   SUBROUTINE read_evgw0_input(ri_rs, evgw0_sec, do_evgw0)
+      TYPE(ri_rs_env), INTENT(INOUT)                     :: ri_rs
+      TYPE(section_vals_type), POINTER                   :: evgw0_sec
+      LOGICAL, INTENT(OUT)                               :: do_evgw0
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_evgw0_input'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CALL section_vals_val_get(evgw0_sec, "_SECTION_PARAMETERS_", l_val=do_evgw0)
+      CALL section_vals_val_get(evgw0_sec, "MAX_ITER", i_val=ri_rs%evgw0_iter)
+      CALL section_vals_val_get(evgw0_sec, "EPS_ITER", r_val=ri_rs%evgw0_eps_iter)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE read_evgw0_input
+
+! **************************************************************************************************
+!> \brief Checks compatibility among the GW input sections and assigns the GW flavour.
+!> \param bs_env GW calculation environment to validate
+!> \param do_evgw0 whether eigenvalue self-consistency is requested
+! **************************************************************************************************
+   SUBROUTINE check_gw_input(bs_env, do_evgw0)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      LOGICAL, INTENT(IN)                                :: do_evgw0
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_gw_input'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      ! GRID_OPTIMIZATION is available only with RI-RS.
+      CPASSERT(.NOT. bs_env%ri_rs%grid_opt%enabled .OR. bs_env%do_gw_ri_rs)
+      ! evGW0 implemented so far only with RI-RS.
+      CPASSERT(.NOT. do_evgw0 .OR. bs_env%do_gw_ri_rs)
+      IF (bs_env%auto_ri%enabled) THEN
+         ! AUTO_RI is available only with RI-RS.
+         CPASSERT(bs_env%do_gw_ri_rs)
+         ! AUTO_RI is implemented only for nonperiodic systems.
+         CPASSERT(.NOT. bs_env%do_periodic)
+         ! AUTO_RI is incompatible with real-space truncation of G and W.
+         CPASSERT(bs_env%ri_rs%cutoff_radius_g_w <= 0.0_dp)
+      END IF
+
+      bs_env%gw_flavour = G0W0
+      IF (do_evgw0) THEN
+         bs_env%gw_flavour = evGW0
+         CALL cp_warn(__LOCATION__, &
+                      "evGW0 in the RI-RS GW code is experimental. The quasiparticle energies "// &
+                      "of the previous cycle are fed back into the Green's function, so the "// &
+                      "error of the analytic continuation propagates and accumulates over the "// &
+                      "cycles instead of affecting one state only, as it does in G0W0. In "// &
+                      "tests on small molecules the resulting deviation stayed below 100 meV, "// &
+                      "but this has not been established in general. Use at your own risk and "// &
+                      "check the convergence of the reported states.")
+      END IF
+
+      CALL resolve_memory_per_proc(bs_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE check_gw_input
+
+! **************************************************************************************************
+!> \brief Reads and validates the automatic RI input.
+!> \param auto_ri automatic RI basis optimization parameters
+!> \param auto_ri_sec AUTO_RI input section
+! **************************************************************************************************
+   SUBROUTINE read_auto_ri_input(auto_ri, auto_ri_sec)
+      TYPE(auto_ri_type), INTENT(INOUT)                  :: auto_ri
+      TYPE(section_vals_type), POINTER                   :: auto_ri_sec
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_auto_ri_input'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CALL section_vals_get(auto_ri_sec, explicit=auto_ri%enabled)
+      IF (.NOT. auto_ri%enabled) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      CALL section_vals_val_get(auto_ri_sec, "RI_AO_RATIO", r_val=auto_ri%ri_ao_ratio)
+      CALL section_vals_val_get(auto_ri_sec, "OCC_EMPTY_FRONTIER_ORBITAL_WINDOW", r_val=auto_ri%occ_energy_window)
+      CALL section_vals_val_get(auto_ri_sec, "NEIGHBOR_RADIUS", r_val=auto_ri%neighbor_radius)
+      IF (.NOT. (auto_ri%ri_ao_ratio > 0.0_dp)) CPABORT("AUTO_RI%RI_AO_RATIO must be positive")
+      IF (.NOT. (auto_ri%occ_energy_window >= 0.0_dp)) THEN
+         CPABORT("AUTO_RI%OCC_EMPTY_FRONTIER_ORBITAL_WINDOW must be nonnegative")
+      END IF
+      IF (.NOT. (auto_ri%neighbor_radius > 0.0_dp)) CPABORT("AUTO_RI%NEIGHBOR_RADIUS must be positive")
+
+      CALL timestop(handle)
+
+   END SUBROUTINE read_auto_ri_input
+
+! **************************************************************************************************
+!> \brief Determine memory per processor available for low-sclaing tensor GW routines.
+!>
+!>        MEMORY_PER_PROC = -1 (the default) : Automatically detect available memory from the system.
+!>        MEMORY_PER_PROC > 0.0 : Override with user-defined value (in GB).
+!>
 !> \param bs_env ...
+! **************************************************************************************************
+   SUBROUTINE resolve_memory_per_proc(bs_env)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'resolve_memory_per_proc'
+      REAL(KIND=dp), PARAMETER :: detected_memory_fraction = 0.8_dp, &
+         fallback_memory_per_proc_GB = 2.0_dp
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: mem_free_per_proc_GB, mem_occ_per_proc_GB
+
+      CALL timeset(routineN, handle)
+
+      bs_env%auto_memory_per_proc = bs_env%input_memory_per_proc_GB <= 0.0_dp
+
+      IF (bs_env%auto_memory_per_proc) THEN
+
+         CALL mp_mem_avail_per_rank_GB(bs_env%para_env, mem_free_per_proc_GB)
+         CALL mp_mem_used_per_rank_GB(bs_env%para_env, mem_occ_per_proc_GB)
+
+         ! detected_memory_fraction is a safety net on the detected free memory
+         bs_env%input_memory_per_proc_GB = detected_memory_fraction*mem_free_per_proc_GB &
+                                           + mem_occ_per_proc_GB
+
+         ! mp_mem_avail_per_rank_GB returns zero if the free memory cannot be detected
+         IF (mem_free_per_proc_GB <= 0.0_dp) THEN
+            bs_env%auto_memory_per_proc = .FALSE.
+            bs_env%input_memory_per_proc_GB = fallback_memory_per_proc_GB
+            CALL cp_warn(__LOCATION__, &
+                         "Could not detect the available memory per MPI process. Falling back "// &
+                         "to MEMORY_PER_PROC = 2 GB. Set MEMORY_PER_PROC in the GW section "// &
+                         "explicitly for good performance.")
+         END IF
+
+      ELSE IF (bs_env%do_gw_ri_rs) THEN
+
+         CALL cp_warn(__LOCATION__, &
+                      "MEMORY_PER_PROC is set, but it is not used by the RI-RS GW code, which "// &
+                      "detects the available memory per MPI process automatically. The keyword "// &
+                      "is ignored.")
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE resolve_memory_per_proc
+
+! **************************************************************************************************
+!> \brief Read the RI-RS grid optimization input.
+!> \param ri_rs RI-RS parameters receiving the optimized-grid settings
+!> \param grid_opt_sec GRID_OPTIMIZATION input section
+! **************************************************************************************************
+   SUBROUTINE read_rirs_grid_opt(ri_rs, grid_opt_sec)
+      TYPE(ri_rs_env), INTENT(INOUT), TARGET             :: ri_rs
+      TYPE(section_vals_type), POINTER                   :: grid_opt_sec
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_rirs_grid_opt'
+
+      CHARACTER(LEN=default_path_length)                 :: grid_filepath
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: grid_size_vals
+      INTEGER                                            :: handle, igrid, ikind, ios, ngrid, &
+                                                            requested_npoints, source_npt
+      LOGICAL                                            :: element_found, perc_explicit
+      REAL(KIND=dp)                                      :: perc
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(ri_rs_grid_opt_type), POINTER                 :: grid_opt
+
+      CALL timeset(routineN, handle)
+
+      CALL section_vals_get(grid_opt_sec, explicit=ri_rs%grid_opt%enabled)
+      IF (.NOT. ri_rs%grid_opt%enabled) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      NULLIFY (atomic_kind_set, grid_opt, grid_size_vals)
+      atomic_kind_set => ri_rs%atomic_kind_set
+      grid_opt => ri_rs%grid_opt
+
+      CALL section_vals_val_get(grid_opt_sec, "CUTOFF_ATOMIC_CLUSTER", r_val=grid_opt%cutoff_atomic_cluster)
+      CALL section_vals_val_get(grid_opt_sec, "MAX_ITER", i_val=grid_opt%max_iter)
+      CALL section_vals_val_get(grid_opt_sec, "N_POINT_PERCENTAGE", r_val=perc, explicit=perc_explicit)
+      CALL section_vals_val_get(grid_opt_sec, "GRID_SIZE", n_rep_val=ngrid)
+
+      CPASSERT(.NOT. (perc_explicit .AND. ngrid > 0))
+      CPASSERT(perc_explicit .OR. ngrid > 0)
+      CPASSERT(.NOT. perc_explicit .OR. (perc > 0.0_dp .AND. perc <= 100.0_dp))
+
+      ALLOCATE (grid_opt%grid_elements(SIZE(atomic_kind_set)))
+      ALLOCATE (grid_opt%grid_npoints(SIZE(atomic_kind_set)), source=0)
+      DO ikind = 1, SIZE(atomic_kind_set)
+         grid_opt%grid_elements(ikind) = TRIM(atomic_kind_set(ikind)%element_symbol)
+      END DO
+
+      IF (.NOT. perc_explicit) THEN
+         DO igrid = 1, ngrid
+            CALL section_vals_val_get(grid_opt_sec, "GRID_SIZE", i_rep_val=igrid, c_vals=grid_size_vals)
+            CPASSERT(SIZE(grid_size_vals) == 2)
+            READ (grid_size_vals(2), *, IOSTAT=ios) requested_npoints
+            CPASSERT(ios == 0 .AND. requested_npoints > 0)
+            CPASSERT(LEN_TRIM(grid_size_vals(1)) > 0)
+            element_found = .FALSE.
+            DO ikind = 1, SIZE(atomic_kind_set)
+               IF (TRIM(grid_opt%grid_elements(ikind)) == TRIM(ADJUSTL(grid_size_vals(1)))) THEN
+                  CPASSERT(grid_opt%grid_npoints(ikind) == 0)
+                  grid_opt%grid_npoints(ikind) = requested_npoints
+                  element_found = .TRUE.
+               END IF
+            END DO
+            CPASSERT(element_found)
+         END DO
+         CPASSERT(ALL(grid_opt%grid_npoints > 0))
+      END IF
+
+      DO ikind = 1, SIZE(atomic_kind_set)
+         CALL get_rirs_grid_filepath(grid_opt%grid_elements(ikind), ri_rs%grid_select, &
+                                     ri_rs%grid_file_suffix, grid_filepath)
+         source_npt = read_rirs_grid_npoints(grid_filepath)
+         IF (perc_explicit) grid_opt%grid_npoints(ikind) = MAX(1, NINT(REAL(source_npt, KIND=dp)*perc/100.0_dp))
+         CPASSERT(grid_opt%grid_npoints(ikind) <= source_npt)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE read_rirs_grid_opt
+
+! **************************************************************************************************
+!> \brief Creates the AO and reference RI basis sets for every atomic kind.
+!> \param qs_env electronic-structure environment containing basis and geometry data
+!> \param bs_env GW environment receiving the RI basis and matrix distributions
 ! **************************************************************************************************
    SUBROUTINE setup_AO_and_RI_basis_set(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -408,15 +705,45 @@ CONTAINS
    END SUBROUTINE setup_AO_and_RI_basis_set
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param bs_env ...
+!> \brief Sets up the RI basis, its matrix distributions, and M^-1(k=0).
+!> \param qs_env electronic-structure environment containing basis and geometry data
+!> \param bs_env GW environment receiving the RI basis and matrix distributions
 ! **************************************************************************************************
-   SUBROUTINE get_RI_basis_and_basis_function_indices(qs_env, bs_env)
+   SUBROUTINE get_RI_basis(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_RI_basis_and_basis_function_indices'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_RI_basis'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CALL set_RI_basis_function_indices(qs_env, bs_env)
+      CALL setup_kpoints_chi_eps_W(bs_env, bs_env%kpoints_chi_eps_W)
+      IF (bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp) THEN
+         CALL setup_cells_3c(qs_env, bs_env)
+      END IF
+      CALL set_parallelization_parameters(qs_env, bs_env)
+      CALL allocate_matrices(qs_env, bs_env)
+      IF (bs_env%small_cell_full_kp_or_large_cell_Gamma /= small_cell_full_kp) THEN
+         CALL compute_Minv_Gamma(qs_env, bs_env)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_RI_basis
+
+! **************************************************************************************************
+!> \brief Determines the RI and AO basis-function indices for every atom.
+!> \param qs_env electronic-structure environment containing the atomic basis sets
+!> \param bs_env GW environment receiving atom-to-basis-function indices
+! **************************************************************************************************
+   SUBROUTINE set_RI_basis_function_indices(qs_env, bs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'set_RI_basis_function_indices'
 
       INTEGER                                            :: handle, i_RI, iatom, ikind, iset, &
                                                             max_AO_bf_per_atom, n_ao_test, n_atom, &
@@ -454,9 +781,7 @@ CONTAINS
       n_RI = 0
       DO iatom = 1, n_atom
          bs_env%i_RI_start_from_atom(iatom) = n_RI + 1
-         ikind = kind_of(iatom)
-         CALL get_qs_kind(qs_kind=qs_kind_set(ikind), nsgf=nsgf, basis_type="RI_AUX")
-         n_RI = n_RI + nsgf
+         n_RI = n_RI + bs_env%sizes_RI(iatom)
          bs_env%i_RI_end_from_atom(iatom) = n_RI
       END DO
       bs_env%n_RI = n_RI
@@ -474,41 +799,40 @@ CONTAINS
       CPASSERT(n_ao_test == bs_env%n_ao)
       bs_env%max_AO_bf_per_atom = max_AO_bf_per_atom
 
-      ALLOCATE (bs_env%l_RI(n_RI))
-      i_RI = 0
-      DO iatom = 1, n_atom
-         ikind = kind_of(iatom)
-
-         nset = bs_env%basis_set_RI(ikind)%gto_basis_set%nset
-         l_max => bs_env%basis_set_RI(ikind)%gto_basis_set%lmax
-         l_min => bs_env%basis_set_RI(ikind)%gto_basis_set%lmin
-         nsgf_set => bs_env%basis_set_RI(ikind)%gto_basis_set%nsgf_set
-
-         DO iset = 1, nset
-            CPASSERT(l_max(iset) == l_min(iset))
-            bs_env%l_RI(i_RI + 1:i_RI + nsgf_set(iset)) = l_max(iset)
-            i_RI = i_RI + nsgf_set(iset)
-         END DO
-
-      END DO
-      CPASSERT(i_RI == n_RI)
-
       u = bs_env%unit_nr
-
-      IF (u > 0) THEN
-         WRITE (u, FMT="(T2,A)") " "
-         WRITE (u, FMT="(T2,2A,T75,I8)") "Number of auxiliary Gaussian basis functions ", &
-            "for χ, ε, W", n_RI
+      ALLOCATE (bs_env%l_RI(n_RI), source=-1)
+      IF (bs_env%auto_ri%enabled) THEN
+         CPASSERT(bs_env%auto_ri%ready)
+      ELSE
+         i_RI = 0
+         DO iatom = 1, n_atom
+            ikind = kind_of(iatom)
+            nset = bs_env%basis_set_RI(ikind)%gto_basis_set%nset
+            l_max => bs_env%basis_set_RI(ikind)%gto_basis_set%lmax
+            l_min => bs_env%basis_set_RI(ikind)%gto_basis_set%lmin
+            nsgf_set => bs_env%basis_set_RI(ikind)%gto_basis_set%nsgf_set
+            DO iset = 1, nset
+               CPASSERT(l_max(iset) == l_min(iset))
+               bs_env%l_RI(i_RI + 1:i_RI + nsgf_set(iset)) = l_max(iset)
+               i_RI = i_RI + nsgf_set(iset)
+            END DO
+         END DO
+         CPASSERT(i_RI == n_RI)
+         IF (u > 0) THEN
+            WRITE (u, FMT="(T2,A)") " "
+            WRITE (u, FMT="(T2,2A,T75,I8)") "Number of auxiliary Gaussian basis functions ", &
+               "for χ, ε, W", n_RI
+         END IF
       END IF
 
       CALL timestop(handle)
 
-   END SUBROUTINE get_RI_basis_and_basis_function_indices
+   END SUBROUTINE set_RI_basis_function_indices
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
-!> \param kpoints ...
+!> \brief Sets the reciprocal mesh used for χ, ε, and W.
+!> \param bs_env GW calculation environment containing the requested mesh
+!> \param kpoints reciprocal mesh used for χ, ε, and W
 ! **************************************************************************************************
    SUBROUTINE setup_kpoints_chi_eps_W(bs_env, kpoints)
 
@@ -649,7 +973,7 @@ CONTAINS
 
       u = bs_env%unit_nr
 
-      IF (u > 0) THEN
+      IF (u > 0 .AND. bs_env%do_periodic) THEN
          WRITE (u, FMT="(T2,A)") " "
          WRITE (u, FMT="(T2,1A,T71,3I4)") "K-point mesh 1 for χ, ε, W", nkp_grid(1:3)
          WRITE (u, FMT="(T2,2A,T71,3I4)") "K-point mesh 2 for χ, ε, W ", &
@@ -767,24 +1091,27 @@ CONTAINS
       END IF
       CALL cp_fm_struct_release(fm_struct_RI_global)
 
-      ! create blacs_env for subgroups of tensor operations
-      NULLIFY (blacs_env_tensor)
-      CALL cp_blacs_env_create(blacs_env=blacs_env_tensor, para_env=bs_env%para_env_tensor)
+      IF (.NOT. bs_env%do_gw_ri_rs) THEN
+         ! create blacs_env for subgroups of tensor operations
+         NULLIFY (blacs_env_tensor)
+         CALL cp_blacs_env_create(blacs_env=blacs_env_tensor, para_env=bs_env%para_env_tensor)
 
-      ! allocate dbcsr matrices in the tensor subgroup; actually, one only needs a small
-      ! subset of blocks in the tensor subgroup, however, all atomic blocks are allocated.
-      ! One might think of creating a dbcsr matrix with only the blocks that are needed
-      ! in the tensor subgroup
-      CALL create_mat_munu(bs_env%mat_ao_ao_tensor, qs_env, bs_env%eps_atom_grid_2d_mat, &
-                           blacs_env_tensor, do_ri_aux_basis=.FALSE.)
+         ! allocate dbcsr matrices in the tensor subgroup; actually, one only needs a small
+         ! subset of blocks in the tensor subgroup, however, all atomic blocks are allocated.
+         ! One might think of creating a dbcsr matrix with only the blocks that are needed
+         ! in the tensor subgroup
+         CALL create_mat_munu(bs_env%mat_ao_ao_tensor, qs_env, bs_env%eps_atom_grid_2d_mat, &
+                              blacs_env_tensor, do_ri_aux_basis=.FALSE.)
 
-      CALL create_mat_munu(bs_env%mat_RI_RI_tensor, qs_env, bs_env%eps_atom_grid_2d_mat, &
-                           blacs_env_tensor, do_ri_aux_basis=.TRUE.)
+         CALL create_mat_munu(bs_env%mat_RI_RI_tensor, qs_env, bs_env%eps_atom_grid_2d_mat, &
+                              blacs_env_tensor, do_ri_aux_basis=.TRUE.)
+
+         CALL cp_blacs_env_release(blacs_env_tensor)
+      END IF
 
       CALL create_mat_munu(bs_env%mat_RI_RI, qs_env, bs_env%eps_atom_grid_2d_mat, &
-                           blacs_env, do_ri_aux_basis=.TRUE.)
-
-      CALL cp_blacs_env_release(blacs_env_tensor)
+                           blacs_env, do_ri_aux_basis=.TRUE., &
+                           custom_row_blk_sizes=bs_env%sizes_RI)
 
       NULLIFY (bs_env%mat_chi_Gamma_tau)
       CALL dbcsr_allocate_matrix_set(bs_env%mat_chi_Gamma_tau, bs_env%num_time_freq_points)
@@ -799,24 +1126,45 @@ CONTAINS
    END SUBROUTINE allocate_matrices
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
+!> \brief Computes and stores the inverse RI metric at the Γ point.
+!> \param qs_env electronic-structure environment used to evaluate (P|Q)
+!> \param bs_env GW environment receiving M^-1(k=0)
 ! **************************************************************************************************
-   SUBROUTINE allocate_GW_eigenvalues(bs_env)
+   SUBROUTINE compute_Minv_Gamma(qs_env, bs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_GW_eigenvalues'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Minv_Gamma'
 
       INTEGER                                            :: handle
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_M
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (bs_env%eigenval_G0W0(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
-      ALLOCATE (bs_env%eigenval_HF(bs_env%n_ao, bs_env%nkp_bs_and_DOS, bs_env%n_spin))
+      CALL cp_fm_create(bs_env%fm_Minv_Gamma, bs_env%fm_RI_RI%matrix_struct)
+      IF (bs_env%auto_ri%enabled) THEN
+         CPASSERT(bs_env%auto_ri%ready)
+         CALL cp_fm_to_fm(bs_env%auto_ri%M_pq_inv, bs_env%fm_Minv_Gamma)
+      ELSE
+         IF (bs_env%do_gw_ri_rs) THEN
+            CALL RI_2c_integral_mat(qs_env, fm_M, bs_env%fm_RI_RI, bs_env%n_RI, &
+                                    bs_env%ri_metric, do_kpoints=.FALSE., &
+                                    regularization_RI=bs_env%regularization_RI)
+            CALL fm_invert(fm_M(1, 1), bs_env%eps_eigval_mat_RI, bs_env%unit_nr)
+            CALL cp_fm_to_fm(fm_M(1, 1), bs_env%fm_Minv_Gamma)
+         ELSE
+            ! Use the tensor-GW metric definition, but construct and invert it only once here.
+            CALL RI_2c_integral_mat(qs_env, fm_M, bs_env%fm_RI_RI, bs_env%n_RI, &
+                                    bs_env%ri_metric, do_kpoints=.FALSE.)
+            CALL fm_invert(fm_M(1, 1), unit_nr=bs_env%unit_nr)
+            CALL cp_fm_to_fm(fm_M(1, 1), bs_env%fm_Minv_Gamma)
+         END IF
+         CALL cp_fm_release(fm_M)
+      END IF
 
       CALL timestop(handle)
 
-   END SUBROUTINE allocate_GW_eigenvalues
+   END SUBROUTINE compute_Minv_Gamma
 
 ! **************************************************************************************************
 !> \brief ...
@@ -832,8 +1180,6 @@ CONTAINS
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-
-      CALL init_interaction_radii(bs_env)
 
       ! split blocks does not improve load balancing/efficienfy for tensor contraction, so we go
       ! with the standard atomic blocks
@@ -1018,10 +1364,10 @@ CONTAINS
    END SUBROUTINE get_i_j_atom_ranges
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
-!> \param sizes_RI ...
-!> \param sizes_AO ...
+!> \brief Creates the AO-AO and RI-RI two-center tensors.
+!> \param bs_env GW calculation environment receiving the tensors
+!> \param sizes_RI numbers of RI functions in the atom blocks
+!> \param sizes_AO numbers of AO functions in the atom blocks
 ! **************************************************************************************************
    SUBROUTINE create_2c_t(bs_env, sizes_RI, sizes_AO)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
@@ -1128,8 +1474,8 @@ CONTAINS
    END SUBROUTINE create_3c_t
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
+!> \brief Sets the interaction radii used by the GW calculation.
+!> \param bs_env GW calculation environment receiving the interaction radii
 ! **************************************************************************************************
    SUBROUTINE init_interaction_radii(bs_env)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
@@ -1496,7 +1842,7 @@ CONTAINS
       END DO
 
       u = bs_env%unit_nr
-      IF (u > 0) THEN
+      IF (u > 0 .AND. .NOT. bs_env%do_gw_ri_rs) THEN
          WRITE (u, '(T2,A,I47)') 'Group size for tensor operations', bs_env%group_size_tensor
          IF (bs_env%group_size_tensor > 1 .AND. bs_env%n_atom < 5) THEN
             WRITE (u, '(T2,A)') 'The requested group size is > 1 which can lead to bad performance.'
@@ -1643,9 +1989,9 @@ CONTAINS
    END SUBROUTINE square_mesh
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
-!> \param qs_env ...
+!> \brief Sets internal GW heuristics that are not exposed as user input.
+!> \param bs_env GW calculation environment
+!> \param qs_env electronic-structure environment, when available
 ! **************************************************************************************************
    SUBROUTINE set_heuristic_parameters(bs_env, qs_env)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
@@ -1667,7 +2013,7 @@ CONTAINS
          ! for periodic systems and for 20 minimax points, we use a regularized minimax mesh
          ! (from experience: regularized minimax meshes converges faster for periodic systems
          !  and for 20 pts)
-         IF (SUM(bs_env%periodic) /= 0 .OR. bs_env%num_time_freq_points >= 20) THEN
+         IF (bs_env%do_periodic .OR. bs_env%num_time_freq_points >= 20) THEN
             bs_env%regularization_minimax = 1.0E-6_dp
          ELSE
             bs_env%regularization_minimax = 0.0_dp
@@ -1697,17 +2043,24 @@ CONTAINS
          bs_env%regularization_RI = 1.0E-2_dp
 
          ! 2. for molecules, no regularization is necessary
-         IF (SUM(bs_env%periodic) == 0) bs_env%regularization_RI = 0.0_dp
+         IF (.NOT. bs_env%do_periodic) bs_env%regularization_RI = 0.0_dp
 
       END IF
 
-      ! truncated Coulomb operator for exchange self-energy
-      ! (see details in Guidon, VandeVondele, Hutter, JCTC 5, 3010 (2009) and references therein)
-      do_BvK_cell = bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp
-      CALL trunc_coulomb_for_exchange(qs_env, bs_env%trunc_coulomb, &
-                                      rel_cutoff_trunc_coulomb_ri_x=0.5_dp, &
-                                      cell_grid=bs_env%cell_grid_scf_desymm, &
-                                      do_BvK_cell=do_BvK_cell)
+      ! Coulomb operator for the exchange self-energy. Periodic systems use the truncated
+      ! operator described by Guidon, VandeVondele, and Hutter, JCTC 5, 3010 (2009).
+      IF (bs_env%do_periodic) THEN
+         do_BvK_cell = bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp
+         CALL trunc_coulomb_for_exchange(qs_env, bs_env%trunc_coulomb, &
+                                         rel_cutoff_trunc_coulomb_ri_x=0.5_dp, &
+                                         cell_grid=bs_env%cell_grid_scf_desymm, &
+                                         do_BvK_cell=do_BvK_cell)
+      ELSE
+         bs_env%trunc_coulomb%potential_type = do_potential_coulomb
+         bs_env%trunc_coulomb%cutoff_radius = -1.0_dp
+         bs_env%trunc_coulomb%omega = 0.0_dp
+         bs_env%trunc_coulomb%filename = ""
+      END IF
 
       ! for small-cell GW, we need more cells than normally used by the filter bs_env%eps_filter
       ! (in particular for computing the self-energy because of higher number of cells needed)
@@ -1715,14 +2068,18 @@ CONTAINS
 
       u = bs_env%unit_nr
       IF (u > 0) THEN
-         WRITE (u, FMT="(T2,2A,F21.1,A)") "Cutoff radius for the truncated Coulomb ", &
-            "operator in Σ^x:", bs_env%trunc_coulomb%cutoff_radius*angstrom, " Å"
+         IF (bs_env%do_periodic) THEN
+            WRITE (u, FMT="(T2,2A,F21.1,A)") "Cutoff radius for the truncated Coulomb ", &
+               "operator in Σ^x:", bs_env%trunc_coulomb%cutoff_radius*angstrom, " Å"
+         END IF
          WRITE (u, FMT="(T2,2A,F15.1,A)") "Cutoff radius for the truncated Coulomb ", &
             "operator in RI metric:", bs_env%ri_metric%cutoff_radius*angstrom, " Å"
          WRITE (u, FMT="(T2,A,ES48.1)") "Regularization parameter of RI ", bs_env%regularization_RI
          WRITE (u, FMT="(T2,A,ES38.1)") "Regularization parameter of minimax grids", &
             bs_env%regularization_minimax
-         WRITE (u, FMT="(T2,A,I53)") "Lattice sum size for V(k):", bs_env%size_lattice_sum_V
+         IF (bs_env%do_periodic) THEN
+            WRITE (u, FMT="(T2,A,I53)") "Lattice sum size for V(k):", bs_env%size_lattice_sum_V
+         END IF
       END IF
 
       CALL timestop(handle)
@@ -1730,8 +2087,8 @@ CONTAINS
    END SUBROUTINE set_heuristic_parameters
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
+!> \brief Prints the common GW input parameters and the RI-RS block when active.
+!> \param bs_env GW calculation environment whose input values are printed
 ! **************************************************************************************************
    SUBROUTINE print_header_and_input_parameters(bs_env)
 
@@ -1758,39 +2115,118 @@ CONTAINS
          WRITE (u, '(T2,A,ES27.1)') 'Input: Filter threshold for sparse tensor operations', &
             bs_env%eps_filter
          WRITE (u, "(T2,A,L55)") 'Input: Apply Hedin shift', bs_env%do_hedin_shift
-         WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
-            bs_env%input_memory_per_proc_GB, ' GB'
-         IF (bs_env%do_gw_ri_rs) THEN
-            WRITE (u, '(A)') ' '
-            WRITE (u, '(T2,A,ES43.2)') 'Input: RI-RS Tikhonov regularization', &
-               bs_env%ri_rs%tikhonov
-            IF (bs_env%ri_rs%cutoff_radius_ri_rs > 0.0_dp) THEN
-               WRITE (u, '(T2,A,F39.2,A)') 'Input: RI-RS integration sphere cutoff', &
-                  bs_env%ri_rs%cutoff_radius_ri_rs*angstrom, ' Å'
-            END IF
-            IF (bs_env%ri_rs%cutoff_radius_ri_ao > 0.0_dp) THEN
-               WRITE (u, '(T2,A,F44.2,A)') 'Input: AO grid hard cutoff radius', &
-                  bs_env%ri_rs%cutoff_radius_ri_ao*angstrom, ' Å'
-            END IF
-            WRITE (u, '(T2,A,I40)') 'Input: MPI ranks per atom in Z_lP solve', &
-               bs_env%ri_rs%n_procs_per_atom_z_lp
-            WRITE (u, '(T2,A,L43)') 'Input: Keep sparsity in χ/G/W panels', &
-               bs_env%ri_rs%keep_sparsity_rirs
-            IF (bs_env%ri_rs%cutoff_radius_v_w > 0.0_dp) THEN
-               WRITE (u, '(T2,A,F43.2,A)') 'Input: G/W panel truncation radius', &
-                  bs_env%ri_rs%cutoff_radius_v_w*angstrom, ' Å'
-            END IF
-            IF (bs_env%ri_rs%cutoff_radius_g_w > 0.0_dp) THEN
-               WRITE (u, '(T2,A,F40.2,A)') 'Input: G/W operator truncation radius', &
-                  bs_env%ri_rs%cutoff_radius_g_w*angstrom, ' Å'
-            END IF
-            WRITE (u, '(A)') ' '
+         IF (bs_env%auto_memory_per_proc) THEN
+            WRITE (u, '(T2,A,F34.1,A)') 'Detected: Available memory per MPI process', &
+               bs_env%input_memory_per_proc_GB, ' GB'
+         ELSE
+            WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
+               bs_env%input_memory_per_proc_GB, ' GB'
          END IF
+         IF (bs_env%do_gw_ri_rs) CALL print_gw_rirs_input(bs_env, u)
       END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE print_header_and_input_parameters
+
+! **************************************************************************************************
+!> \brief Prints the input parameters specific to an RI-RS GW calculation.
+!> \param bs_env GW calculation environment
+!> \param unit_nr output unit
+! **************************************************************************************************
+   SUBROUTINE print_gw_rirs_input(bs_env, unit_nr)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_gw_rirs_input'
+
+      INTEGER                                            :: handle, igrid
+
+      CALL timeset(routineN, handle)
+
+      WRITE (unit_nr, '(A)') ' '
+      WRITE (unit_nr, '(T2,A,ES43.2)') 'Input: RI-RS Tikhonov regularization', &
+         bs_env%ri_rs%tikhonov
+      CALL print_cutoff_radius_input(unit_nr, 'RI-RS integration sphere cutoff', &
+                                     bs_env%ri_rs%cutoff_radius_ri_rs)
+      CALL print_cutoff_radius_input(unit_nr, 'AO grid hard cutoff radius', &
+                                     bs_env%ri_rs%cutoff_radius_ri_ao)
+      WRITE (unit_nr, '(T2,A,I40)') 'Input: MPI ranks per atom in Z_lP solve', &
+         bs_env%ri_rs%n_procs_per_atom_z_lp
+      WRITE (unit_nr, '(T2,A,L43)') 'Input: Keep sparsity in χ/G/W panels', &
+         bs_env%ri_rs%keep_sparsity_rirs
+      CALL print_cutoff_radius_input(unit_nr, 'G/W panel truncation radius', &
+                                     bs_env%ri_rs%cutoff_radius_v_w)
+      CALL print_cutoff_radius_input(unit_nr, 'G/W operator truncation radius', &
+                                     bs_env%ri_rs%cutoff_radius_g_w)
+      WRITE (unit_nr, '(T2,A,A62)') 'Input: GW flavour', TRIM(gw_flavour_label(bs_env))
+
+      IF (bs_env%ri_rs%grid_opt%enabled) THEN
+         WRITE (unit_nr, '(A)') ' '
+         WRITE (unit_nr, '(T2,A,T80,L1)') &
+            'Input: RI-RS grid optimization activated', .TRUE.
+         DO igrid = 1, SIZE(bs_env%ri_rs%grid_opt%grid_elements)
+            WRITE (unit_nr, '(T2,A,A,A,T75,I6)') &
+               'Input: Element: ', TRIM(bs_env%ri_rs%grid_opt%grid_elements(igrid)), &
+               ', number of points per atom:', bs_env%ri_rs%grid_opt%grid_npoints(igrid)
+         END DO
+         WRITE (unit_nr, '(T2,A,T73,F6.1,A)') &
+            'Input: Cutoff radius for atomic clusters', &
+            bs_env%ri_rs%grid_opt%cutoff_atomic_cluster*angstrom, ' Å'
+         WRITE (unit_nr, '(T2,A,T75,I6)') &
+            'Input: Maximum grid optimization iterations', &
+            bs_env%ri_rs%grid_opt%max_iter
+      END IF
+
+      IF (bs_env%auto_ri%enabled) THEN
+         WRITE (unit_nr, '(A)') ' '
+         WRITE (unit_nr, '(T2,A,T80,L1)') &
+            'Input: AUTO_RI basis optimization activated:', .TRUE.
+         WRITE (unit_nr, '(T2,A,T77,F4.1)') &
+            'Input: AUTO_RI requested RI/AO ratio:', bs_env%auto_ri%ri_ao_ratio
+         WRITE (unit_nr, '(T2,A,T74,F4.1,A)') &
+            'Input: AUTO_RI frontier orbital window:', bs_env%auto_ri%occ_energy_window*evolt, ' eV'
+         WRITE (unit_nr, '(T2,A,T75,F4.1,A)') &
+            'Input: AUTO_RI neighbor radius:', bs_env%auto_ri%neighbor_radius*angstrom, ' Å'
+      END IF
+
+      IF (bs_env%gw_flavour == evGW0) THEN
+         WRITE (unit_nr, '(T2,A,I42)') 'Input: Maximum number of evGW0 cycles', &
+            bs_env%ri_rs%evgw0_iter
+         WRITE (unit_nr, '(T2,A,F42.5,A)') 'Input: evGW0 convergence threshold', &
+            bs_env%ri_rs%evgw0_eps_iter*evolt, ' eV'
+      END IF
+      WRITE (unit_nr, '(A)') ' '
+
+      CALL timestop(handle)
+
+   END SUBROUTINE print_gw_rirs_input
+
+! **************************************************************************************************
+!> \brief Prints a positive RI-RS cutoff radius.
+!> \param unit_nr output unit
+!> \param label description of the cutoff radius
+!> \param cutoff_radius cutoff radius in atomic units
+! **************************************************************************************************
+   SUBROUTINE print_cutoff_radius_input(unit_nr, label, cutoff_radius)
+      INTEGER, INTENT(IN)                                :: unit_nr
+      CHARACTER(LEN=*), INTENT(IN)                       :: label
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff_radius
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_cutoff_radius_input'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (cutoff_radius > 0.0_dp) THEN
+         WRITE (unit_nr, '(T2,2A,T73,F6.2,A)') &
+            'Input: ', TRIM(label), cutoff_radius*angstrom, ' Å'
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE print_cutoff_radius_input
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1938,39 +2374,37 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_time_and_frequency_minimax_grid'
 
-      INTEGER                                            :: handle, homo, i_w, ierr, ispin, j_w, &
-                                                            n_mo, num_time_freq_points, u
+      INTEGER                                            :: handle, homo, i_w, ispin, j_w, n_mo, &
+                                                            n_top, num_time_freq_points, u
       REAL(KIND=dp)                                      :: E_max, E_max_ispin, E_min, E_min_ispin, &
                                                             E_range, max_error_min
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: points_and_weights
 
       CALL timeset(routineN, handle)
 
       n_mo = bs_env%n_ao
       num_time_freq_points = bs_env%num_time_freq_points
 
-      ALLOCATE (bs_env%imag_freq_points(num_time_freq_points))
-      ALLOCATE (bs_env%imag_time_points(num_time_freq_points))
-      ALLOCATE (bs_env%imag_time_weights_freq_zero(num_time_freq_points))
-      ALLOCATE (bs_env%weights_cos_t_to_w(num_time_freq_points, num_time_freq_points))
-      ALLOCATE (bs_env%weights_cos_w_to_t(num_time_freq_points, num_time_freq_points))
-      ALLOCATE (bs_env%weights_sin_t_to_w(num_time_freq_points, num_time_freq_points))
-
       ! minimum and maximum difference between eigenvalues of unoccupied and an occupied MOs
       E_min = 1000.0_dp
       E_max = -1000.0_dp
       DO ispin = 1, bs_env%n_spin
          homo = bs_env%n_occ(ispin)
+
+         ! Highest index that is a real state. The canonical orthogonalization removes the
+         ! linearly dependent basis modes and parks them at the top of the spectrum with a
+         ! placeholder eigenvalue; n_mo_retained is how many real states it kept.
+         n_top = MAX(MIN(bs_env%n_mo_retained, n_mo), homo + 1)
+
          SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
          CASE (large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs)
             E_min_ispin = bs_env%eigenval_scf_Gamma(homo + 1, ispin) - &
                           bs_env%eigenval_scf_Gamma(homo, ispin)
-            E_max_ispin = bs_env%eigenval_scf_Gamma(n_mo, ispin) - &
+            E_max_ispin = bs_env%eigenval_scf_Gamma(n_top, ispin) - &
                           bs_env%eigenval_scf_Gamma(1, ispin)
          CASE (small_cell_full_kp)
             E_min_ispin = MINVAL(bs_env%eigenval_scf(homo + 1, :, ispin)) - &
                           MAXVAL(bs_env%eigenval_scf(homo, :, ispin))
-            E_max_ispin = MAXVAL(bs_env%eigenval_scf(n_mo, :, ispin)) - &
+            E_max_ispin = MAXVAL(bs_env%eigenval_scf(n_top, :, ispin)) - &
                           MINVAL(bs_env%eigenval_scf(1, :, ispin))
          END SELECT
          E_min = MIN(E_min, E_min_ispin)
@@ -1988,23 +2422,17 @@ CONTAINS
 
       E_range = E_max/E_min
 
-      ALLOCATE (points_and_weights(2*num_time_freq_points))
-
-      ! frequency points
-      IF (num_time_freq_points <= 20) THEN
-         CALL get_rpa_minimax_coeff(num_time_freq_points, E_range, points_and_weights, ierr, .FALSE.)
-      ELSE
-         CALL get_rpa_minimax_coeff_larger_grid(num_time_freq_points, E_range, points_and_weights)
-      END IF
-
-      ! one needs to scale the minimax grids, see Azizi, Wilhelm, Golze, Panades-Barrueta,
-      ! Giantomassi, Rinke, Draxl, Gonze et al., 2 publications
-      bs_env%imag_freq_points(:) = points_and_weights(1:num_time_freq_points)*E_min
+      CALL build_minimax_time_frequency_grid(num_time_freq_points, E_min, E_max, bs_env%regularization_minimax, &
+                                             bs_env%num_points_per_magnitude, bs_env%time_frequency_grid, &
+                                             build_frequency=.TRUE., build_time=.TRUE., build_transforms=.TRUE., &
+                                             build_sine=.TRUE., &
+                                             time_scaling=2.0_dp, time_weight_scaling=1.0_dp, &
+                                             max_fit_error=max_error_min, print_warning=.FALSE.)
 
       ! determine number of fit points in the interval [0,ω_max] for virt, or [-ω_max,0] for occ
       bs_env%num_freq_points_fit = 0
       DO i_w = 1, num_time_freq_points
-         IF (bs_env%imag_freq_points(i_w) < bs_env%freq_max_fit) THEN
+         IF (bs_env%time_frequency_grid%frequency(i_w) < bs_env%freq_max_fit) THEN
             bs_env%num_freq_points_fit = bs_env%num_freq_points_fit + 1
          END IF
       END DO
@@ -2013,9 +2441,9 @@ CONTAINS
       ALLOCATE (bs_env%imag_freq_points_fit(bs_env%num_freq_points_fit))
       j_w = 0
       DO i_w = 1, num_time_freq_points
-         IF (bs_env%imag_freq_points(i_w) < bs_env%freq_max_fit) THEN
+         IF (bs_env%time_frequency_grid%frequency(i_w) < bs_env%freq_max_fit) THEN
             j_w = j_w + 1
-            bs_env%imag_freq_points_fit(j_w) = bs_env%imag_freq_points(i_w)
+            bs_env%imag_freq_points_fit(j_w) = bs_env%time_frequency_grid%frequency(i_w)
          END IF
       END DO
 
@@ -2024,18 +2452,6 @@ CONTAINS
       IF (bs_env%num_freq_points_fit < bs_env%nparam_pade) THEN
          bs_env%nparam_pade = bs_env%num_freq_points_fit
       END IF
-
-      ! time points
-      IF (num_time_freq_points <= 20) THEN
-         CALL get_exp_minimax_coeff(num_time_freq_points, E_range, points_and_weights)
-      ELSE
-         CALL get_exp_minimax_coeff_gw(num_time_freq_points, E_range, points_and_weights)
-      END IF
-
-      bs_env%imag_time_points(:) = points_and_weights(1:num_time_freq_points)/(2.0_dp*E_min)
-      bs_env%imag_time_weights_freq_zero(:) = points_and_weights(num_time_freq_points + 1:)/(E_min)
-
-      DEALLOCATE (points_and_weights)
 
       u = bs_env%unit_nr
       IF (u > 0) THEN
@@ -2052,33 +2468,6 @@ CONTAINS
       ! e^(iwt) = cos(wt) + i sin(wt); we thus calculate weights for trafos with a cos and
       ! sine prefactor; details in Azizi, Wilhelm, Golze, Giantomassi, Panades-Barrueta,
       ! Rinke, Draxl, Gonze et al., 2 publications
-
-      ! cosine transform weights imaginary time to imaginary frequency
-      CALL get_l_sq_wghts_cos_tf_t_to_w(num_time_freq_points, &
-                                        bs_env%imag_time_points, &
-                                        bs_env%weights_cos_t_to_w, &
-                                        bs_env%imag_freq_points, &
-                                        E_min, E_max, max_error_min, &
-                                        bs_env%num_points_per_magnitude, &
-                                        bs_env%regularization_minimax)
-
-      ! cosine transform weights imaginary frequency to imaginary time
-      CALL get_l_sq_wghts_cos_tf_w_to_t(num_time_freq_points, &
-                                        bs_env%imag_time_points, &
-                                        bs_env%weights_cos_w_to_t, &
-                                        bs_env%imag_freq_points, &
-                                        E_min, E_max, max_error_min, &
-                                        bs_env%num_points_per_magnitude, &
-                                        bs_env%regularization_minimax)
-
-      ! sine transform weights imaginary time to imaginary frequency
-      CALL get_l_sq_wghts_sin_tf_t_to_w(num_time_freq_points, &
-                                        bs_env%imag_time_points, &
-                                        bs_env%weights_sin_t_to_w, &
-                                        bs_env%imag_freq_points, &
-                                        E_min, E_max, max_error_min, &
-                                        bs_env%num_points_per_magnitude, &
-                                        bs_env%regularization_minimax)
 
       CALL timestop(handle)
 
@@ -2100,7 +2489,6 @@ CONTAINS
          i_cell_x_min, i_size, ikind, img, j, j_cell, j_cell_max, j_cell_y, j_cell_y_max, &
          j_cell_y_min, j_size, k_cell, k_cell_max, k_cell_z, k_cell_z_max, k_cell_z_min, k_size, &
          nimage_pairs_3c, nimages_3c, nimages_3c_max, nkind, u
-      INTEGER(KIND=int_8)                                :: mem_occ_per_proc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, n_other_3c_images_max
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c_max, nblocks_3c_max
       INTEGER, DIMENSION(3)                              :: cell_index, n_max
@@ -2339,10 +2727,7 @@ CONTAINS
       mem_3c_GB = REAL(bs_env%n_RI, KIND=dp)*REAL(bs_env%n_ao, KIND=dp)**2 &
                   *REAL(nimage_pairs_3c, KIND=dp)*8E-9_dp
 
-      CALL m_memory(mem_occ_per_proc)
-      CALL bs_env%para_env%max(mem_occ_per_proc)
-
-      mem_occ_per_proc_GB = REAL(mem_occ_per_proc, KIND=dp)/1.0E9_dp
+      CALL mp_mem_used_per_rank_GB(bs_env%para_env, mem_occ_per_proc_GB)
 
       ! number of processors per group that entirely stores the 3c integrals and does tensor ops
       avail_mem_per_proc_GB = bs_env%input_memory_per_proc_GB - mem_occ_per_proc_GB
@@ -2358,8 +2743,13 @@ CONTAINS
          WRITE (u, FMT="(T2,A,I47)") "Number of cells for 3c integrals", nimages_3c
          WRITE (u, FMT="(T2,A,I42)") "Number of cell pairs for 3c integrals", nimage_pairs_3c
          WRITE (u, '(T2,A)') ''
-         WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
-            bs_env%input_memory_per_proc_GB, ' GB'
+         IF (bs_env%auto_memory_per_proc) THEN
+            WRITE (u, '(T2,A,F34.1,A)') 'Detected: Available memory per MPI process', &
+               bs_env%input_memory_per_proc_GB, ' GB'
+         ELSE
+            WRITE (u, '(T2,A,F37.1,A)') 'Input: Available memory per MPI process', &
+               bs_env%input_memory_per_proc_GB, ' GB'
+         END IF
          WRITE (u, '(T2,A,F35.1,A)') 'Used memory per MPI process before GW run', &
             mem_occ_per_proc_GB, ' GB'
          WRITE (u, '(T2,A,F44.1,A)') 'Memory of three-center integrals', mem_3c_GB, ' GB'
@@ -3011,7 +3401,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ikp, img, ispin, n_ao
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index_scf
-      TYPE(cp_cfm_type)                                  :: cfm_mo_coeff, cfm_tmp, cfm_V_xc
+      TYPE(cp_cfm_type)                                  :: cfm_mo_coeff, cfm_V_xc
       TYPE(cp_fm_type)                                   :: fm_V_xc_re
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks
       TYPE(kpoint_type), POINTER                         :: kpoints_scf
@@ -3029,7 +3419,6 @@ CONTAINS
 
       CALL cp_cfm_create(cfm_V_xc, bs_env%cfm_work_mo%matrix_struct)
       CALL cp_cfm_create(cfm_mo_coeff, bs_env%cfm_work_mo%matrix_struct)
-      CALL cp_cfm_create(cfm_tmp, bs_env%cfm_work_mo%matrix_struct)
       CALL cp_fm_create(fm_V_xc_re, bs_env%cfm_work_mo%matrix_struct)
 
       DO img = 1, bs_env%nimages_scf
@@ -3053,10 +3442,7 @@ CONTAINS
             CALL cp_cfm_to_cfm(bs_env%cfm_mo_coeff_kp(ikp, ispin), cfm_mo_coeff)
 
             ! v^xc_nm(k_i) = sum_µν C^*_µn(k_i) v^xc_µν(k_i) C_νn(k_i)
-            CALL parallel_gemm('N', 'N', n_ao, n_ao, n_ao, z_one, cfm_V_xc, cfm_mo_coeff, &
-                               z_zero, cfm_tmp)
-            CALL parallel_gemm('C', 'N', n_ao, n_ao, n_ao, z_one, cfm_mo_coeff, cfm_tmp, &
-                               z_zero, cfm_V_xc)
+            CALL cfm_contract_ABA(cfm_mo_coeff, cfm_V_xc)
 
             ! get v^xc_nn(k_i) which is a real quantity as v^xc is Hermitian
             CALL cp_cfm_to_fm(cfm_V_xc, fm_V_xc_re)
@@ -3071,7 +3457,6 @@ CONTAINS
 
       CALL cp_cfm_release(cfm_V_xc)
       CALL cp_cfm_release(cfm_mo_coeff)
-      CALL cp_cfm_release(cfm_tmp)
       CALL cp_fm_release(fm_V_xc_re)
 
       CALL timestop(handle)
@@ -3324,11 +3709,11 @@ CONTAINS
 
          DO j_w = 1, bs_env%num_time_freq_points
 
-            freq_j = bs_env%imag_freq_points(j_w)
-            time_i = bs_env%imag_time_points(i_t)
+            freq_j = bs_env%time_frequency_grid%frequency(j_w)
+            time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
             ! integration weights for cosine and sine transform
-            w_cos_ij = bs_env%weights_cos_t_to_w(j_w, i_t)*COS(freq_j*time_i)
-            w_sin_ij = bs_env%weights_sin_t_to_w(j_w, i_t)*SIN(freq_j*time_i)
+            w_cos_ij = bs_env%time_frequency_grid%cosine_time_to_frequency_weights(j_w, i_t)*COS(freq_j*time_i)
+            w_sin_ij = bs_env%time_frequency_grid%sine_time_to_frequency_weights(j_w, i_t)*SIN(freq_j*time_i)
 
             ! 1. Re(Σ^c_nn(k_i,iω)) from cosine transform
             Sigma_c_n_freq(:, j_w, 1) = Sigma_c_n_freq(:, j_w, 1) + &
@@ -3374,17 +3759,28 @@ CONTAINS
 
       CHARACTER(len=3)                                   :: occ_vir
       CHARACTER(len=default_path_length)                 :: fname
+      CHARACTER(len=default_string_length)               :: gw_label
       INTEGER                                            :: handle, i_mo, ikp_for_print, iunit, &
                                                             n_mo, nkp
       LOGICAL                                            :: is_bandstruc_kpoint, print_DOS_kpoints, &
                                                             print_ikp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dummy, Sigma_c_ikp_n_qp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dummy, eigenval_G, Sigma_c_ikp_n_qp
 
       CALL timeset(routineN, handle)
 
       n_mo = bs_env%n_ao
-      ALLOCATE (dummy(n_mo), Sigma_c_ikp_n_qp(n_mo))
+      ALLOCATE (dummy(n_mo), Sigma_c_ikp_n_qp(n_mo), eigenval_G(n_mo))
       Sigma_c_ikp_n_qp(:) = 0.0_dp
+
+      ! Eigenvalues of the Green's function that produced Σ^c: the DFT ones for G0W0, the
+      ! previous cycle's quasiparticle energies for evGW0. They set the Newton start value,
+      ! the Z/m linearization point and the Hedin shift; the QP equation itself stays
+      ! referenced to the DFT eigenvalues through the Eigenval_scf argument below.
+      IF (bs_env%gw_flavour == evGW0 .AND. ALLOCATED(bs_env%eigenval_evGW0)) THEN
+         eigenval_G(:) = bs_env%eigenval_evGW0(:, ikp, ispin)
+      ELSE
+         eigenval_G(:) = eigenval_scf(:)
+      END IF
 
       DO i_mo = 1, n_mo
 
@@ -3396,7 +3792,7 @@ CONTAINS
                                 Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit, 1)*z_one + &
                                 Sigma_c_ikp_n_freq(:, 1:bs_env%num_freq_points_fit, 2)*gaussi, &
                                 Sigma_x_ikp_n(:) - V_xc_ikp_n(:), &
-                                eigenval_scf(:), eigenval_scf(:), &
+                                eigenval_G(:), eigenval_scf(:), &
                                 bs_env%do_hedin_shift, &
                                 i_mo, bs_env%n_occ(ispin), bs_env%n_vir(ispin), &
                                 bs_env%nparam_pade, bs_env%num_freq_points_fit, &
@@ -3408,10 +3804,14 @@ CONTAINS
 
       CALL correct_obvious_fitting_fails(Sigma_c_ikp_n_qp, ispin, bs_env)
 
-      bs_env%eigenval_G0W0(:, ikp, ispin) = eigenval_scf(:) + &
-                                            Sigma_c_ikp_n_qp(:) + &
-                                            Sigma_x_ikp_n(:) - &
-                                            V_xc_ikp_n(:)
+      bs_env%eigenval_GW(:, ikp, ispin) = eigenval_scf(:) + &
+                                          Sigma_c_ikp_n_qp(:) + &
+                                          Sigma_x_ikp_n(:) - &
+                                          V_xc_ikp_n(:)
+
+      IF (ALLOCATED(bs_env%eigenval_G0W0) .AND. bs_env%ri_rs%evgw0_i_iter <= 1) THEN
+         bs_env%eigenval_G0W0(:, ikp, ispin) = bs_env%eigenval_GW(:, ikp, ispin)
+      END IF
 
       bs_env%eigenval_HF(:, ikp, ispin) = eigenval_scf(:) + Sigma_x_ikp_n(:) - V_xc_ikp_n(:)
 
@@ -3433,7 +3833,9 @@ CONTAINS
 
          fname = "bandstructure_SCF_and_G0W0"
 
-         IF (ikp_for_print == 1 .AND. ispin == 1) THEN
+         ! in an evGW0 run the spectrum of every cycle is appended, so only the very first
+         ! cycle replaces the file
+         IF (ikp_for_print == 1 .AND. ispin == 1 .AND. bs_env%ri_rs%evgw0_i_iter <= 1) THEN
             CALL open_file(TRIM(fname), unit_number=iunit, file_status="REPLACE", &
                            file_action="WRITE")
          ELSE
@@ -3441,12 +3843,18 @@ CONTAINS
                            file_action="WRITE", file_position="APPEND")
          END IF
 
+         IF (bs_env%gw_flavour == evGW0 .AND. ikp_for_print == 1 .AND. ispin == 1) THEN
+            WRITE (iunit, "(A)") " "
+            WRITE (iunit, "(A,I0)") "evGW0 cycle: ", bs_env%ri_rs%evgw0_i_iter
+         END IF
+
          WRITE (iunit, "(A)") " "
          WRITE (iunit, "(A10,I7,A25,3F10.4,T90,A7,I2)") "kpoint: ", ikp_for_print, "coordinate: ", &
             bs_env%kpoints_DOS%xkp(:, ikp), "spin: ", ispin
          WRITE (iunit, "(A)") " "
+         gw_label = "ϵ_nk^"//TRIM(gw_flavour_label(bs_env))//" (eV)"
          WRITE (iunit, "(A5,A12,3A17,A16,A18)") "n", "k", "ϵ_nk^DFT (eV)", "Σ^c_nk (eV)", &
-            "Σ^x_nk (eV)", "v_nk^xc (eV)", "ϵ_nk^G0W0 (eV)"
+            "Σ^x_nk (eV)", "v_nk^xc (eV)", TRIM(gw_label)
          WRITE (iunit, "(A)") " "
 
          DO i_mo = 1, n_mo
@@ -3457,7 +3865,7 @@ CONTAINS
                Sigma_c_ikp_n_qp(i_mo)*evolt, &
                Sigma_x_ikp_n(i_mo)*evolt, &
                V_xc_ikp_n(i_mo)*evolt, &
-               bs_env%eigenval_G0W0(i_mo, ikp, ispin)*evolt
+               bs_env%eigenval_GW(i_mo, ikp, ispin)*evolt
          END DO
 
          WRITE (iunit, "(A)") " "

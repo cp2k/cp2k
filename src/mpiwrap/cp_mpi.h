@@ -19,13 +19,18 @@ typedef int cp_mpi_comm_t;
 #endif
 
 /*******************************************************************************
- * \brief Wrapper around MPI_Init.
+ * \brief Initialize MPI with MPI_THREAD_MULTIPLE or attach to an active MPI.
+ *
+ * Must be called outside OpenMP parallel regions and paired with
+ * cp_mpi_finalize.
  * \author Ole Schuett
  ******************************************************************************/
 void cp_mpi_init(int *argc, char ***argv);
 
 /*******************************************************************************
- * \brief Wrapper around MPI_Finalize.
+ * \brief Detach from MPI and finalize it only if cp_mpi_init initialized it.
+ *
+ * Must be called outside OpenMP parallel regions.
  * \author Ole Schuett
  ******************************************************************************/
 void cp_mpi_finalize(void);

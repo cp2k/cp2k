@@ -1,0 +1,4 @@
+@SET PROJECT_NAME H2_rpa_rse_coulomb3_libint
+@SET C2_BACKEND NATIVE
+@SET C3_BACKEND LIBINT
+@INCLUDE rpa_h2.inc

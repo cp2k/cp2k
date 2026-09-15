@@ -53,9 +53,10 @@
   &PROPERTIES
     &BANDSTRUCTURE
       &GW
-        GRID_SELECT 1
         NUM_TIME_FREQ_POINTS 15
-        RI_RS
+        &RI_RS
+          GRID_SELECT 1
+        &END RI_RS
       &END GW
     &END BANDSTRUCTURE
   &END PROPERTIES

@@ -44,7 +44,14 @@ MODULE xc_derivative_desc
       deriv_tau_b = 9, &
       deriv_laplace_rho = 10, &
       deriv_laplace_rhoa = 11, &
-      deriv_laplace_rhob = 12
+      deriv_laplace_rhob = 12, &
+      ! Reduced gradients gamma_ij = grad rho_i . grad rho_j.  These are the
+      ! variables LibXC itself differentiates with respect to (its sigma), and
+      ! unlike norm_drho they leave the chain rule free of 1/|grad rho| factors.
+      deriv_gamma = 13, &
+      deriv_gamma_aa = 14, &
+      deriv_gamma_ab = 15, &
+      deriv_gamma_bb = 16
 
    INTEGER, PARAMETER :: MAX_LABEL_LENGTH = 12
 
@@ -90,6 +97,14 @@ CONTAINS
          id = deriv_laplace_rhoa
       CASE ("laplace_rhob")
          id = deriv_laplace_rhob
+      CASE ("gamma")
+         id = deriv_gamma
+      CASE ("gamma_aa")
+         id = deriv_gamma_aa
+      CASE ("gamma_ab")
+         id = deriv_gamma_ab
+      CASE ("gamma_bb")
+         id = deriv_gamma_bb
       CASE DEFAULT
          CPABORT("Unknown derivative variable: "//desc)
       END SELECT
@@ -130,6 +145,14 @@ CONTAINS
          desc = "laplace_rhoa"
       CASE (deriv_laplace_rhob)
          desc = "laplace_rhob"
+      CASE (deriv_gamma)
+         desc = "gamma"
+      CASE (deriv_gamma_aa)
+         desc = "gamma_aa"
+      CASE (deriv_gamma_ab)
+         desc = "gamma_ab"
+      CASE (deriv_gamma_bb)
+         desc = "gamma_bb"
       CASE DEFAULT
          CPABORT("Unknown derivative id!")
       END SELECT

@@ -27,9 +27,45 @@ selected for each atomic [KIND](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND) with
 &END FORCE_EVAL
 ```
 
+Do not confuse the [POTENTIAL](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.POTENTIAL) *keyword* with the
+identically-named [POTENTIAL](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.POTENTIAL_SECTION) *section* that
+also defines a pseudopotential. Their distinction is that the *keyword* takes the type and name of
+the potential, while the *section* takes the complete specification and data in an internal format.
+Specifying only the *keyword* as is done above suffices for most practical usage. For those curious,
+CP2K will resolve user-provided inputs and compose restart files with more verbose but otherwise
+equivalent syntax as a new input (see [MOTION/PRINT/RESTART](#CP2K_INPUT.MOTION.PRINT.RESTART)), and
+such a restart file gives a glimpse of the usage of both the *keyword* and the *section*:
+
+```
+     &KIND "O"
+       POTENTIAL "GTH-PBE-q6"
+       &POTENTIAL
+         2 4
+           2.4455430000000000E-001 2 -1.6667214800000000E+001  2.4873113199999999E+000
+         2
+           2.2095592000000000E-001 1  1.8337458110000000E+001
+           2.1133246999999999E-001 0
+         # Potential name: GTH-PBE-Q6 for element symbol: O
+         # Potential read from the potential filename: GTH_POTENTIALS
+       &END POTENTIAL
+     &END KIND
+     &KIND "H"
+       POTENTIAL "GTH-PBE-q1"
+       &POTENTIAL
+         1
+           2.0000000000000001E-001 2 -4.1789004399999996E+000  7.2446330999999997E-001
+         0
+         # Potential name: GTH-PBE-Q1 for element symbol: H
+         # Potential read from the potential filename: GTH_POTENTIALS
+       &END POTENTIAL
+     &END KIND
+```
+
 The suffix `q6` in `GTH-PBE-q6`, for example, means that six valence electrons are treated
-explicitly. The chosen basis set should match this valence configuration; for oxygen, a common
-matching basis is `DZVP-MOLOPT-GTH`.
+explicitly. The chosen basis set should match this valence configuration; for oxygen, the common
+basis sets with the same suffix in the full name like `DZVP-MOLOPT-GTH-q6` can be used. If some
+pseudopotentials without corresponding basis sets, or vice versa, are spotted in the built-in data
+files, consult developers for help.
 
 ## Choosing a Pseudopotential
 

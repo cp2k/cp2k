@@ -25,7 +25,8 @@ MODULE kpoint_types
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE input_cp2k_kpoints,              ONLY: use_complex_wfn,&
+   USE input_cp2k_kpoints,              ONLY: lattice_fft_auto,&
+                                              use_complex_wfn,&
                                               use_k290_kpoint_backend,&
                                               use_k290_kpoint_symmetry,&
                                               use_real_wfn,&
@@ -72,10 +73,16 @@ MODULE kpoint_types
 !> \param xkp       kpoint coordinates in units of b-vector
 !> \param is_local  if this kpoint is calculated on a single thread
 !> \param mos       associated MOs (r/i,spin)
+!> \param mos_prefilled the MOS hold meaningful coefficients (refilled and
+!>                     reorthogonalized by wavefunction extrapolation for the
+!>                     current geometry) rather than being only allocated
 !> \param pmat      associated density matrix (r/i,spin)
 !> \param wmat      associated energy weighted density matrix (r/i,spin)
 !> \param smat      associated overlap matrix (for ADMM) (r/i,spin)
 !> \param amat      associated ADMM basis projection matrix (r/i,spin)
+!> \param ot_hmat   channel-local Kohn-Sham matrix for k-point OT (r/i,spin)
+!> \param ot_smat   channel-local overlap matrix for k-point OT (r/i)
+!> \param ot_tmat   channel-local kinetic-energy matrix for k-point OT (r/i)
 !> \param shalf     S(K)^(1/2) DFT+U Lowdin method (real wfn)
 !> \param cshalf    S(K)^(1/2) DFT+U Lowdin method (complex wfn)
 !> \author JGH
@@ -86,10 +93,14 @@ MODULE kpoint_types
       REAL(KIND=dp), DIMENSION(3)                       :: xkp = 0.0_dp
       LOGICAL                                           :: is_local = .FALSE.
       TYPE(mo_set_type), DIMENSION(:, :), POINTER       :: mos => NULL()
+      LOGICAL                                           :: mos_prefilled = .FALSE.
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: pmat => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: wmat => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: smat => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: amat => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: ot_hmat => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: ot_smat => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: ot_tmat => NULL()
       TYPE(cp_fm_type)                                  :: shalf
       TYPE(cp_cfm_type)                                 :: cshalf
    END TYPE kpoint_env_type
@@ -148,6 +159,7 @@ MODULE kpoint_types
 !> \param use_real_wfn        [input] real/complex wfn
 !> \param symmetry            [input] use symmetry (atoms) to reduce kpoints
 !> \param full_grid           [input] don't reduce kpoints at all
+!> \param lattice_fft         [input] lattice FFT selection mode
 !> \param inversion_symmetry_only [input] reduce kpoints only by inversion symmetry
 !> \param symmetry_backend [input] k-point symmetry backend
 !> \param symmetry_reduction_method [input] k-point symmetry reduction method
@@ -180,6 +192,7 @@ MODULE kpoint_types
       LOGICAL                                 :: use_real_wfn = .FALSE.
       LOGICAL                                 :: symmetry = .FALSE.
       LOGICAL                                 :: full_grid = .FALSE.
+      INTEGER                                 :: lattice_fft = lattice_fft_auto
       LOGICAL                                 :: inversion_symmetry_only = .FALSE.
       INTEGER                                 :: symmetry_backend = use_k290_kpoint_backend
       INTEGER                                 :: symmetry_reduction_method = use_k290_kpoint_symmetry
@@ -247,6 +260,7 @@ CONTAINS
       kpoint%symmetry = .FALSE.
       kpoint%verbose = .FALSE.
       kpoint%full_grid = .FALSE.
+      kpoint%lattice_fft = lattice_fft_auto
       kpoint%inversion_symmetry_only = .FALSE.
       kpoint%symmetry_backend = use_k290_kpoint_backend
       kpoint%symmetry_reduction_method = use_k290_kpoint_symmetry
@@ -518,6 +532,7 @@ CONTAINS
 !> \param symmetry_backend k-point symmetry backend
 !> \param symmetry_reduction_method k-point symmetry reduction method
 !> \param gamma_centered ...
+!> \param lattice_fft   lattice FFT selection mode
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE get_kpoint_info(kpoint, kp_scheme, nkp_grid, kp_shift, symmetry, verbose, &
@@ -525,7 +540,7 @@ CONTAINS
                               para_env, blacs_env_all, para_env_kp, para_env_inter_kp, blacs_env, &
                               kp_env, kp_aux_env, mpools, iogrp, nkp_groups, kp_dist, cell_to_index, index_to_cell, &
                               sab_nl, sab_nl_nosym, inversion_symmetry_only, symmetry_backend, &
-                              symmetry_reduction_method, gamma_centered)
+                              symmetry_reduction_method, gamma_centered, lattice_fft)
       TYPE(kpoint_type), INTENT(IN)                      :: kpoint
       CHARACTER(LEN=*), OPTIONAL                         :: kp_scheme
       INTEGER, DIMENSION(3), OPTIONAL                    :: nkp_grid
@@ -556,6 +571,7 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: symmetry_backend, &
                                                             symmetry_reduction_method
       LOGICAL, OPTIONAL                                  :: gamma_centered
+      INTEGER, OPTIONAL                                  :: lattice_fft
 
       IF (PRESENT(kp_scheme)) kp_scheme = kpoint%kp_scheme
       IF (PRESENT(nkp_grid)) nkp_grid = kpoint%nkp_grid
@@ -564,6 +580,7 @@ CONTAINS
       IF (PRESENT(symmetry)) symmetry = kpoint%symmetry
       IF (PRESENT(verbose)) verbose = kpoint%verbose
       IF (PRESENT(full_grid)) full_grid = kpoint%full_grid
+      IF (PRESENT(lattice_fft)) lattice_fft = kpoint%lattice_fft
       IF (PRESENT(inversion_symmetry_only)) inversion_symmetry_only = kpoint%inversion_symmetry_only
       IF (PRESENT(symmetry_backend)) symmetry_backend = kpoint%symmetry_backend
       IF (PRESENT(symmetry_reduction_method)) THEN
@@ -842,6 +859,7 @@ CONTAINS
          CALL section_vals_val_get(kpoint_section, "WAVEFUNCTIONS", i_val=wfntype)
          CALL section_vals_val_get(kpoint_section, "VERBOSE", l_val=kpoint%verbose)
          CALL section_vals_val_get(kpoint_section, "FULL_GRID", l_val=kpoint%full_grid)
+         CALL section_vals_val_get(kpoint_section, "LATTICE_FFT", i_val=kpoint%lattice_fft)
          CALL section_vals_val_get(kpoint_section, "INVERSION_SYMMETRY_ONLY", &
                                    l_val=kpoint%inversion_symmetry_only)
          CALL section_vals_val_get(kpoint_section, "SYMMETRY_BACKEND", &
@@ -1053,6 +1071,9 @@ CONTAINS
       NULLIFY (kp_env%wmat)
       NULLIFY (kp_env%smat)
       NULLIFY (kp_env%amat)
+      NULLIFY (kp_env%ot_hmat)
+      NULLIFY (kp_env%ot_smat)
+      NULLIFY (kp_env%ot_tmat)
 
    END SUBROUTINE kpoint_env_create
 
@@ -1081,6 +1102,9 @@ CONTAINS
          CALL cp_fm_release(kp_env%wmat)
          CALL cp_fm_release(kp_env%smat)
          CALL cp_fm_release(kp_env%amat)
+         CALL cp_fm_release(kp_env%ot_hmat)
+         CALL cp_fm_release(kp_env%ot_smat)
+         CALL cp_fm_release(kp_env%ot_tmat)
 
          CALL cp_fm_release(kp_env%shalf)
          CALL cp_cfm_release(kp_env%cshalf)

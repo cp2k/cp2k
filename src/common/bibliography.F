@@ -50,7 +50,7 @@ MODULE bibliography
                             Stewart1989, Thiel1992, Repasky2002, Stewart2007, Weber2008, &
                             Hunt2003, Guidon2008, Elber1987, Jonsson1998, Jonsson2000_1, &
                             Jonsson2000_2, Wales2004, Stewart1982, E2002, Laino2008, &
-                            Blochl1995, Tao2003, VandeVondele2006, VanVoorhis2015, Hu2007, Grimme2006, &
+                            Blochl1995, Tao2003, VandeVondele2006, VanVoorhis2015, Hu2007, Hu2010, Grimme2006, &
                             Branduardi2007, Schenter2008, BeckeRoussel1989, Proynov2007, &
                             VandenCic2006, Becke1997, Foiles1986, Ricci2003, Kolafa2004, &
                             Kuhne2007, Kunert2003, Ceriotti2009, ceriotti2009b, Guidon2009, &
@@ -87,7 +87,7 @@ MODULE bibliography
                             Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
                             Bussy2023, Bussy2024, Wang2018, Zeng2023, Graml2024, Solca2024, &
                             Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Wittmann2024, Freeman1977, &
-                            Gruneis2009, &
+                            Gruneis2009, Blaha2010, KresseFurthmueller1996, &
                             Stein2022, Stein2024, Pracht2019, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
@@ -98,7 +98,7 @@ MODULE bibliography
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
                             Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
-                            Schreder2024_3
+                            Cances2000, Herbst2022, Zhang2025, Schreder2024_3
 
 CONTAINS
 
@@ -184,6 +184,13 @@ CONTAINS
                          "density functional tight binding method: From molecular clusters to the liquid state", &
                          source="J. Phys. Chem. A", volume="111", pages="5685-5691", &
                          year=2007, doi="10.1021/jp070308d")
+
+      CALL add_reference(key=Hu2010, &
+                         authors=s2a("X. Hu", "W. Yang"), &
+                         title="Accelerating self-consistent field convergence "// &
+                         "with the augmented Roothaan-Hall energy function", &
+                         source="J. Chem. Phys.", volume="132", pages="054109", &
+                         year=2010, doi="10.1063/1.3304922")
 
       CALL add_reference(key=Zhao1994, &
                          authors=s2a("Q. S. Zhao", "R. C. Morrison", "R. G. Parr"), &
@@ -1906,6 +1913,21 @@ CONTAINS
                          source="J. Chem. Phys.", volume="131", pages="154115", &
                          year=2009, doi="10.1063/1.3250347")
 
+      CALL add_reference(key=Blaha2010, &
+                         authors=s2a("P. Blaha", "H. Hofstaetter", "O. Koch", &
+                                     "R. Laskowski", "K. Schwarz"), &
+                         title="Iterative diagonalization in augmented plane wave based methods "// &
+                         "in electronic structure calculations", &
+                         source="J. Comput. Phys.", volume="229", pages="453-460", &
+                         year=2010, doi="10.1016/j.jcp.2009.09.036")
+
+      CALL add_reference(key=KresseFurthmueller1996, &
+                         authors=s2a("G. Kresse", "J. Furthmueller"), &
+                         title="Efficiency of ab-initio total energy calculations for metals and "// &
+                         "semiconductors using a plane-wave basis set", &
+                         source="Comput. Mater. Sci.", volume="6", pages="15-50", &
+                         year=1996, doi="10.1016/0927-0256(96)00008-0")
+
       CALL add_reference(key=Stein2022, &
                          authors=s2a("F. Stein", "J. Hutter"), &
                          title="Double-hybrid density functionals for the condensed phase: "// &
@@ -2135,6 +2157,18 @@ CONTAINS
                          source="Math. Comput.", volume="19", pages="577-593", &
                          year=1965, doi="10.1090/S0025-5718-1965-0198670-6")
 
+      CALL add_reference(key=Cances2000, &
+                         authors=s2a("E. Cancès", "C. Le Bris"), &
+                         title="Can we outperform the DIIS approach for electronic structure calculations?", &
+                         source="Int. J. Quantum Chem.", volume="79", pages="82-90", &
+                         year=2000, doi="10.1002/1097-461X(2000)79:2<82::AID-QUA3>3.0.CO;2-I")
+
+      CALL add_reference(key=Herbst2022, &
+                         authors=s2a("M. F. Herbst", "A. Levitt"), &
+                         title="A robust and efficient line search for self-consistent field iterations", &
+                         source="J. Comput. Phys.", volume="459", pages="111127", &
+                         year=2022, doi="10.1016/j.jcp.2022.111127")
+
       CALL add_reference(key=Kerker1981, &
                          authors=s2a("G. P. Kerker"), &
                          title="Efficient iteration scheme for self-consistent pseudopotential calculations", &
@@ -2253,6 +2287,13 @@ CONTAINS
                          "effective interaction parameters in the LDA+U method", &
                          source="Phys. Rev. B", volume="71", pages="035105", &
                          year=2005, doi="10.1103/PhysRevB.71.035105")
+                         
+      CALL add_reference(key=Zhang2025, &
+                         authors=s2a("P. Zhang", "X. Xu"), &
+                         title="Propensity of Water Self-Ions at Air(Oil)-Water Interfaces Revealed by "// &
+                         "Deep Potential Molecular Dynamics with Enhanced Sampling", &
+                         source="Langmuir", volume="41", pages="3675-3683", &
+                         year=2025, doi="10.1021/acs.langmuir.4c05004")
 
       CALL add_reference(key=Schreder2024_3, &
                          authors=s2a("L. Schreder", "S. Luber"), &

@@ -14,7 +14,7 @@ def main() -> None:
     args = parser.parse_args()
 
     report = Path(args.regtest_report).read_text(encoding="utf8")
-    match = re.search(">>> (.*?)/UNIT\n", report)
+    match = re.search(r"^>>> (.*?)/UNIT/", report, re.MULTILINE)
     assert match
     report_basedir = match.group(1)
 

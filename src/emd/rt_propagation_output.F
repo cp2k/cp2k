@@ -21,7 +21,7 @@ MODULE rt_propagation_output
         dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum,&
                                               dbcsr_trace
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -101,6 +101,7 @@ MODULE rt_propagation_output
                                               rt_prop_type
    USE rt_propagation_utils,            ONLY: write_rtp_mo_cubes,&
                                               write_rtp_mos_to_output_unit
+   USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_nl_commutator
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -143,18 +144,20 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       LOGICAL                                            :: new_file
       REAL(dp)                                           :: orthonormality, strace, tot_rho_r, trace
-      REAL(kind=dp), DIMENSION(3)                        :: field, reference_point
+      REAL(kind=dp), DIMENSION(3)                        :: field, reference_point, vec_pot
       REAL(KIND=dp), DIMENSION(:), POINTER               :: qs_tot_rho_r
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: j_int
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, P_im, p_xyz, rho_new
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_cim, matrix_cre, matrix_s, P_im, &
+                                                            P_re, p_xyz, rho_new
       TYPE(dbcsr_type), POINTER                          :: tmp_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_all, sab_orb
+         POINTER                                         :: sab_all, sab_orb, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -173,6 +176,7 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
                       dft_control=dft_control, sab_all=sab_all, sab_orb=sab_orb, &
+                      sap_ppnl=sap_ppnl, cell=cell, &
                       dbcsr_dist=dbcsr_dist, nelectron_spin=nelectron_spin)
 
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
@@ -354,7 +358,59 @@ CONTAINS
 !!  j_int(spin, i) = strace
                      END DO
                   END DO
-!  PP term missing
+
+                  ! Nonlocal pseudopotential correction to the integrated current:
+                  ! the velocity operator contains i*[Vnl, r], which with C_d = [Vnl~, r_d]
+                  ! contributes j_nl(d) = -Tr[P_re^T C_im(d)] - Tr[P_im^T C_re(d)].
+                  ! Absent in all-electron calculations (no nonlocal projectors).
+                  IF (ASSOCIATED(sap_ppnl)) THEN
+                     ! the commutator is taken with the gauge-transformed Vnl only if
+                     ! the propagation Hamiltonian uses it
+                     vec_pot = 0.0_dp
+                     IF (dft_control%rtp_control%velocity_gauge .AND. &
+                         dft_control%rtp_control%nl_gauge_transform) THEN
+                        vec_pot = dft_control%rtp_control%vec_pot
+                     END IF
+
+                     NULLIFY (matrix_cre, matrix_cim)
+                     CALL dbcsr_allocate_matrix_set(matrix_cre, 3)
+                     CALL dbcsr_allocate_matrix_set(matrix_cim, 3)
+                     DO i = 1, 3
+                        CALL dbcsr_init_p(matrix_cre(i)%matrix)
+                        CALL dbcsr_create(matrix_cre(i)%matrix, template=matrix_s(1)%matrix, &
+                                          matrix_type=dbcsr_type_antisymmetric, &
+                                          name="nl commutator real part")
+                        CALL cp_dbcsr_alloc_block_from_nbl(matrix_cre(i)%matrix, sab_orb)
+                        CALL dbcsr_set(matrix_cre(i)%matrix, 0.0_dp)
+                        CALL dbcsr_init_p(matrix_cim(i)%matrix)
+                        CALL dbcsr_create(matrix_cim(i)%matrix, template=matrix_s(1)%matrix, &
+                                          matrix_type=dbcsr_type_symmetric, &
+                                          name="nl commutator imaginary part")
+                        CALL cp_dbcsr_alloc_block_from_nbl(matrix_cim(i)%matrix, sab_orb)
+                        CALL dbcsr_set(matrix_cim(i)%matrix, 0.0_dp)
+                     END DO
+
+                     CALL velocity_gauge_nl_commutator(qs_env, matrix_cre, matrix_cim, vec_pot)
+
+                     CALL qs_rho_get(rho, rho_ao=P_re)
+                     DO i = 1, 3
+                        DO spin = 1, nspin
+                           CALL dbcsr_set(tmp_ao, 0.0_dp)
+                           CALL dbcsr_multiply("T", "N", 1.0_dp, P_re(spin)%matrix, matrix_cim(i)%matrix, &
+                                               0.0_dp, tmp_ao)
+                           CALL dbcsr_trace(tmp_ao, trace)
+                           j_int(spin, i) = j_int(spin, i) - trace
+                           CALL dbcsr_set(tmp_ao, 0.0_dp)
+                           CALL dbcsr_multiply("T", "N", 1.0_dp, P_im(spin)%matrix, matrix_cre(i)%matrix, &
+                                               0.0_dp, tmp_ao)
+                           CALL dbcsr_trace(tmp_ao, trace)
+                           j_int(spin, i) = j_int(spin, i) - trace
+                        END DO
+                     END DO
+
+                     CALL dbcsr_deallocate_matrix_set(matrix_cre)
+                     CALL dbcsr_deallocate_matrix_set(matrix_cim)
+                  END IF
 
                   IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                                        dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT_INT"), cp_p_file)) THEN
@@ -364,6 +420,8 @@ CONTAINS
                                                   "REAL_TIME_PROPAGATION%PRINT%CURRENT_INT", extension=".dat", is_new_file=new_file)
 
                      IF (output_unit > 0) THEN
+                        WRITE (UNIT=output_unit, FMT="(T2,A,E24.16)") &
+                           "RTP_CURRENT| CheckSum j_int=", SQRT(SUM(j_int**2))
                         IF (new_file) THEN
                            IF (nspin == 2) THEN
                               WRITE (UNIT=unit_nr, FMT='("#",5X,A,4X,A,2X,A,2(10X,A),4X,A,2(10X,A))') &

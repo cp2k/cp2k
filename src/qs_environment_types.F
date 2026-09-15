@@ -124,6 +124,8 @@ MODULE qs_environment_types
                                               qs_matrix_pools_type
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               mo_set_type
+   USE qs_native_grid_cache,            ONLY: native_grid_cache_type,&
+                                              release_native_grid_cache
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_oce_types,                    ONLY: deallocate_oce_set,&
                                               oce_matrix_type
@@ -320,11 +322,17 @@ MODULE qs_environment_types
       ! Resp charges
       REAL(KIND=dp), DIMENSION(:), POINTER                  :: rhs => NULL()
       REAL(KIND=dp)                                         :: total_zeff_corr = -1.0_dp, surface_dipole_moment = -1.0_dp
+      ! Plane-averaged Hartree potential (incl. dipole correction) just below/above the dipole
+      ! correction reference plane, i.e. the vacuum level on either side of the slab
+      REAL(KIND=dp)                                         :: vacuum_level_below = 0.0_dp, vacuum_level_above = 0.0_dp
+      ! Position of the dipole correction reference plane [Angstrom]
+      REAL(KIND=dp)                                         :: surface_dipole_ref_pos = 0.0_dp
       LOGICAL                                               :: surface_dipole_switch_off = .FALSE.
       TYPE(mo_set_type), DIMENSION(:), POINTER              :: mos_last_converged => NULL()
       ! tblite
       TYPE(tblite_type), POINTER                            :: tb_tblite => Null()
       TYPE(cp_gauxc_cache_type), POINTER                    :: gauxc_cache => NULL()
+      TYPE(native_grid_cache_type)                         :: native_grid_cache
    END TYPE qs_environment_type
 
 CONTAINS
@@ -1005,6 +1013,9 @@ CONTAINS
 
       qs_env%total_zeff_corr = 0.0_dp
       qs_env%surface_dipole_moment = 0.0_dp
+      qs_env%vacuum_level_below = 0.0_dp
+      qs_env%vacuum_level_above = 0.0_dp
+      qs_env%surface_dipole_ref_pos = 0.0_dp
       qs_env%surface_dipole_switch_off = .FALSE.
 
       ! Zero all variables containing results
@@ -1701,6 +1712,8 @@ CONTAINS
          DEALLOCATE (qs_env%gauxc_cache)
       END IF
 
+      CALL release_native_grid_cache(qs_env%native_grid_cache)
+
    END SUBROUTINE qs_env_release
 
 ! **************************************************************************************************
@@ -1931,6 +1944,8 @@ CONTAINS
          CALL gauxc_cache_release(qs_env%gauxc_cache)
          DEALLOCATE (qs_env%gauxc_cache)
       END IF
+
+      CALL release_native_grid_cache(qs_env%native_grid_cache)
 
    END SUBROUTINE qs_env_part_release
 

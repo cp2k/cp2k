@@ -7,7 +7,7 @@
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 2
+    STEPS 6
     TEMPERATURE 300.0
     TIMESTEP 1.0
   &END MD
@@ -24,7 +24,8 @@
     &QS
       EPS_DEFAULT 1.0E-5
       EPS_FILTER_MATRIX 0.0e0
-      EXTRAPOLATION ASPC
+      EXTRAPOLATION GEXT_PROJ
+      EXTRAPOLATION_ORDER 5
     &END QS
     &SCF
       SCF_GUESS ATOMIC
@@ -58,9 +59,9 @@
       0.0 0.0 0.0
       0.0 0.0 0.0
       0.0 0.0 0.0
-      0.2 0.0 0.0
-      0.2 0.0 0.0
-      0.2 0.0 0.0
+      0.2 0.2 0.2
+      0.2 0.2 0.2
+      0.2 0.2 0.2
     &END VELOCITY
   &END SUBSYS
 &END FORCE_EVAL

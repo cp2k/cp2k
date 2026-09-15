@@ -40,20 +40,19 @@ MODULE qs_2nd_kernel_ao
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_scale
    USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_c1d_gs_type,&
-                                              pw_r3d_rs_type
+   USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kpp1_env_methods,             ONLY: calc_kpp1
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_p_env_methods,                ONLY: p_env_finish_kpp1
    USE qs_p_env_types,                  ONLY: qs_p_env_type
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE task_list_types,                 ONLY: task_list_type
-   USE xc,                              ONLY: xc_calc_2nd_deriv
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -61,7 +60,8 @@ MODULE qs_2nd_kernel_ao
    PRIVATE
 
    ! *** Public subroutines ***
-   PUBLIC :: build_dm_response, apply_2nd_order_kernel
+   PUBLIC :: build_dm_response
+   PUBLIC :: apply_2nd_order_kernel
    PUBLIC :: apply_hfx_ao
    PUBLIC :: apply_xc_admm_ao
 
@@ -157,8 +157,8 @@ CONTAINS
       END IF
 
       CALL calc_kpp1(p_env%rho1_xc, p_env%rho1, xc_section, &
-                     dft_control%qs_control%lrigpw, linres_control%lr_triplet, &
-                     qs_env, p_env, calc_forces=my_calc_forces, calc_virial=my_calc_virial, virial=virial)
+                     dft_control%qs_control%lrigpw, qs_env, p_env, &
+                     calc_forces=my_calc_forces, calc_virial=my_calc_virial, virial=virial)
 
       ! hfx section
       NULLIFY (hfx_sections)
@@ -274,20 +274,18 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_xc_admm_ao'
 
       INTEGER                                            :: handle, ispin, nao, nao_aux, nspins
-      LOGICAL                                            :: lsd, my_calc_forces
+      LOGICAL                                            :: my_calc_forces
       REAL(KIND=dp)                                      :: alpha
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type)                                 :: work_hmat
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_aux_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_aux_r, tau1_aux_r, v_xc, v_xc_tau
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: rho_aux
+      TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho0_atom_set, rho1_atom_set
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
 
@@ -311,24 +309,14 @@ CONTAINS
          IF (PRESENT(calc_forces)) my_calc_forces = calc_forces
 
          ! AUX basis contribution
-         CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-         CPASSERT(ASSOCIATED(pw_env))
-         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-         NULLIFY (v_xc)
          ! calculate the xc potential
-         lsd = (nspins == 2)
-         CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, admm_env=admm_env, xcint_weights=weights)
-         CALL get_admm_env(admm_env, task_list_aux_fit=task_list_aux_fit)
-
-         CALL qs_rho_get(p_env%rho1_admm, rho_r=rho1_aux_r, rho_g=rho1_aux_g, tau_r=tau1_aux_r)
+         NULLIFY (v_xc, v_xc_tau)
+         CALL get_qs_env(qs_env=qs_env, admm_env=admm_env)
          xc_section => admm_env%xc_section_aux
-
-         CALL xc_calc_2nd_deriv(v_xc, v_xc_tau, p_env%kpp1_env%deriv_set_admm, &
-                                p_env%kpp1_env%rho_set_admm, &
-                                rho1_aux_r, rho1_aux_g, tau1_aux_r, auxbas_pw_pool, &
-                                weights=weights, &
-                                xc_section=xc_section, gapw=.FALSE., &
-                                compute_virial=calc_virial, virial_xc=virial)
+         CALL get_admm_env(admm_env, rho_aux_fit=rho_aux)
+         CALL qs_fxc_create(qs_env, rho_aux, p_env%rho1_admm, rho0_atom_set, xc_section, &
+                            .FALSE., v_xc, v_xc_tau, rho1_atom_set, &
+                            compute_virial=calc_virial, virial_xc=virial)
 
          NULLIFY (work_hmat%matrix)
          ALLOCATE (work_hmat%matrix)
@@ -337,8 +325,8 @@ CONTAINS
          alpha = 1.0_dp
          IF (nspins == 1) alpha = 2.0_dp
 
-         CALL get_admm_env(qs_env%admm_env, rho_aux_fit=rho_aux)
          CALL qs_rho_get(rho_aux, rho_ao=rho_ao_aux)
+         CALL get_admm_env(admm_env, task_list_aux_fit=task_list_aux_fit)
 
          CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux, ncol_global=nao)
          DO ispin = 1, nspins
@@ -361,14 +349,25 @@ CONTAINS
          CALL dbcsr_release(work_hmat%matrix)
          DEALLOCATE (work_hmat%matrix)
 
+         CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+         CPASSERT(ASSOCIATED(pw_env))
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+
          DO ispin = 1, nspins
             CALL auxbas_pw_pool%give_back_pw(v_xc(ispin))
          END DO
          DEALLOCATE (v_xc)
+         IF (ASSOCIATED(v_xc_tau)) THEN
+            DO ispin = 1, nspins
+               CALL auxbas_pw_pool%give_back_pw(v_xc_tau(ispin))
+            END DO
+            DEALLOCATE (v_xc_tau)
+         END IF
 
       END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE apply_xc_admm_ao
+
 END MODULE qs_2nd_kernel_ao

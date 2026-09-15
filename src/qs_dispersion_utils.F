@@ -194,8 +194,7 @@ CONTAINS
       NULLIFY (dispersion_env%c6ab, dispersion_env%maxci, dispersion_env%r0ab, dispersion_env%rcov, &
                dispersion_env%r2r4, dispersion_env%cn, dispersion_env%cnkind, dispersion_env%cnlist, &
                dispersion_env%d3_exclude_pair)
-      NULLIFY (dispersion_env%q_mesh, dispersion_env%kernel, dispersion_env%d2phi_dk2, &
-               dispersion_env%d2y_dx2)
+      NULLIFY (dispersion_env%q_mesh, dispersion_env%kernel_table, dispersion_env%d2y_dx2)
       NULLIFY (dispersion_env%sab_vdw, dispersion_env%sab_cn)
       NULLIFY (dispersion_env%dftd_section)
       NULLIFY (vdw_section, xc_fun_section)
@@ -365,6 +364,10 @@ CONTAINS
             CALL section_vals_val_get(pp_section, "D3_REFERENCE_CODE", &
                                       l_val=dispersion_env%d3_reference_code)
             CALL section_vals_val_get(pp_section, "D4_CUTOFF", r_val=dispersion_env%rc_d4)
+            CALL section_vals_val_get(pp_section, "D4_CUTOFF_WIDTH", &
+                                      r_val=dispersion_env%d4_cutoff_width)
+            CALL section_vals_val_get(pp_section, "D4_3B_CUTOFF_WIDTH", &
+                                      r_val=dispersion_env%d4_3b_cutoff_width)
             CALL section_vals_val_get(pp_section, "D4_CN_CUTOFF", r_val=dispersion_env%rc_cn)
             CALL section_vals_val_get(pp_section, "FACTOR_S9_TERM", r_val=dispersion_env%s9)
             !C9 term default=T for D4

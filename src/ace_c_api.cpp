@@ -8,8 +8,6 @@
 #if defined(__ACE)
 
 // tested with lammps-user-pace-v.2023.11.25.fix2
-#define COMPUTE_B_GRAD
-#define EXTRA_C_PROJECTIONS
 
 #if 0
 #include <stdio.h>
@@ -74,12 +72,12 @@ extern "C" void AcePotInitialize(int ntypec, const char *symbolsc, int nlen,
   printf("\n");
 #endif
 
-    // Elements are contained in a string of length 2*ntypec
-    // Each element has two chars in the string
-    // The sequence of the elements in the string corresponds to their mapping,
-    // i.e., the first element in the string is element 1, the second element in
-    // the string is element 2, the third element in the string is element 3,
-    // ...
+  // Elements are contained in a string of length 2*ntypec
+  // Each element has two chars in the string
+  // The sequence of the elements in the string corresponds to their mapping,
+  // i.e., the first element in the string is element 1, the second element in
+  // the string is element 2, the third element in the string is element 3,
+  // ...
 
 #if 0
   printf("Filename:                                   '%s'\n",

@@ -126,15 +126,17 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
 
       INTEGER                                            :: aspc_order
-      LOGICAL                                            :: magnetic, vel_reprs
+      LOGICAL                                            :: magnetic, track_current, &
+                                                            track_current_int, vel_reprs
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
-      TYPE(section_vals_type), POINTER :: hfx_sections, input, ls_scf_section, md_section, &
-         motion_section, print_moments_section, rtp_print_section, rtp_section
+      TYPE(section_vals_type), POINTER :: current_int_section, current_section, hfx_sections, &
+         input, ls_scf_section, md_section, motion_section, print_moments_section, &
+         rtp_print_section, rtp_section
 
       NULLIFY (qs_env, rtp_control, dft_control)
 
@@ -177,13 +179,25 @@ CONTAINS
       CALL section_vals_val_get(print_moments_section, "MAGNETIC", l_val=magnetic)
       CALL section_vals_val_get(print_moments_section, "VEL_REPRS", l_val=vel_reprs)
 
+      ! The imaginary part of the density matrix (needed for the current) is generically
+      ! nonzero whenever the propagated state is not stationary, independently of whether
+      ! an explicit time-dependent field/vector potential is applied: e.g. an excited
+      ! state prepared by occupation swap, from LR-TDDFT, or via a MOM-constrained SCF.
+      ! Rather than trying to detect every possible way of preparing such a state, track
+      ! the imaginary density whenever the user actually requests output that needs it.
+      rtp_print_section => section_vals_get_subs_vals(rtp_section, "PRINT")
+      current_section => section_vals_get_subs_vals(rtp_print_section, "CURRENT")
+      current_int_section => section_vals_get_subs_vals(rtp_print_section, "CURRENT_INT")
+      CALL section_vals_get(current_section, explicit=track_current)
+      CALL section_vals_get(current_int_section, explicit=track_current_int)
+
       rtp%track_imag_density = (magnetic) .OR. (vel_reprs) .OR. (rtp_control%velocity_gauge) &
-                               .OR. (rtp%do_hfx) .OR. (.NOT. rtp_control%fixed_ions)
+                               .OR. (rtp%do_hfx) .OR. (.NOT. rtp_control%fixed_ions) &
+                               .OR. (track_current) .OR. (track_current_int)
       rtp%propagate_complex_ks = rtp%do_hfx .OR. rtp_control%velocity_gauge
 
       ! Marek : In case some print sections that apply so far only to RTBSE are present,
       !         warn the user that the quantities will not be in fact printed out
-      rtp_print_section => section_vals_get_subs_vals(rtp_section, "PRINT")
       CALL warn_section_unused(rtp_print_section, "DENSITY_MATRIX", &
                                "DENSITY_MATRIX printing not implemented for non-RTBSE code.")
 

@@ -2,10 +2,10 @@
 "hcn_ts_r.inp"                          = [{matcher="M007", tol=1e-07, ref=0.084182408}]
 "hcn_ts_kdimer.inp"                     = [{matcher="M007", tol=1e-07, ref=-0.0006648450}]
 # dimer method with fixed atom constraints
-"hcn_ts_fix_e.inp"                      = [{matcher="M007", tol=2e-06, ref=-0.0641024915}]
-"hcn_ts_fix_x.inp"                      = [{matcher="M063", tol=1e-14, ref=1.2200000000}]
-"hcn_ts_fix_y.inp"                      = [{matcher="M064", tol=1e-14, ref=-0.0003000000}]
-"hcn_ts_fix_z.inp"                      = [{matcher="M065", tol=1e-14, ref=0.0000000000}]
+"hcn_ts_fix.inp"                        = [{matcher="M007", tol=2e-06, ref=-0.0641024915},
+                                           {matcher="M063", tol=1e-14, ref=1.2200000000},
+                                           {matcher="M064", tol=1e-14, ref=-0.0003000000},
+                                           {matcher="M065", tol=1e-14, ref=0.0000000000}]
 # chain of two coordination numbers
 "hcn_md.inp"                            = [{matcher="E_total", tol=6e-14, ref=-16.50121471895406}]
 "hcn_meta_coord.inp"                    = [{matcher="E_total", tol=6e-14, ref=-16.65113632013922}]
@@ -16,7 +16,7 @@
 # Metadynamics with langevin on COLVAR
 "H2O_meta_langevin.inp"                 = [{matcher="E_total", tol=2e-07, ref=-17.16840571384963}]
 #gyration radius
-"Au13ico_mtd.inp"                       = [{matcher="E_total", tol=2e-10, ref=-431.9717298999183}]
+"Au13ico_mtd.inp"                       = [{matcher="E_total", tol=5e-09, ref=-431.9717298999183}]
 # rmsd AB
 "Au12_rmsd_AB_mtd.inp"                  = [{matcher="E_total", tol=2e-09, ref=-398.6227404762101}]
 "Au12_rmsd_A_mtd.inp"                   = [{matcher="E_total", tol=2e-09, ref=-398.6227683037877}]

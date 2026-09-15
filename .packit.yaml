@@ -41,7 +41,10 @@ jobs:
     tmt_plan: .*/smoke
   - job: copr_build
     trigger: pull_request
-    manual_trigger: true
+    require:
+      label:
+        present:
+          - packit-ci
   - <<: *tests
     identifier: smoke
     trigger: pull_request

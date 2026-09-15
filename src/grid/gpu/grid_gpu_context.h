@@ -233,7 +233,7 @@ public:
   grid_info(grid_info &&) noexcept = default;
   grid_info &operator=(grid_info &&) noexcept = default;
 
-  grid_info(){};
+  grid_info() {};
 
   grid_info(const int *full_size__, const int *local_size__,
             const int *border_width__) {

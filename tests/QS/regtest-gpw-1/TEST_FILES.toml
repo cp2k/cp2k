@@ -24,7 +24,8 @@
 "Ar-13.inp"                             = [{matcher="E_total", tol=8e-13, ref=-21.19887770475340}]
 # different pseudo style
 "K2.inp"                                = [{matcher="E_total", tol=8e-12, ref=-0.37652979317666}]
-"H2.inp"                                = [{matcher="E_total", tol=2e-14, ref=-1.06345574964568}]
+"H2.inp"                                = [{matcher="E_total", tol=2e-14, ref=-1.06345574964568},
+                                           {matcher="QS_MO_OCCUPATION_STATS"}]
 # printing of structure data
 "H2O-geoopt.inp"                        = [{matcher="E_total", tol=8e-14, ref=-17.15265559026891}]
 "H2O-fixed.inp"                         = [{matcher="E_total", tol=4e-14, ref=-17.15247383327702}]
@@ -61,9 +62,9 @@
 # EV93 xc functional
 "Li2-0-SCF-PBE.inp"                     = [{matcher="M053", tol=2e-14, ref=-3.49794779473645}]
 "Li2-1-nSCF-EV.inp"                     = [{matcher="M053", tol=4e-14, ref=-3.56444711606754}]
-"Li2-2-nSCF-EV93.inp"                   = [{matcher="M053", tol=1.0E-14, ref=-3.88884912686047}]
-"Li2-3-nSCF-EV93.inp"                   = [{matcher="E_gap_DFT_2", tol=1.0E-14, ref=0.054496680776}]
-"Li2-4-nSCF-EV93.inp"                   = [{matcher="M048", tol=1.0E-14, ref=-0.128993904859}]
+"Li2-2-nSCF-EV93.inp"                   = [{matcher="M053", tol=1.0E-14, ref=-3.88884912686047},
+                                           {matcher="E_gap_DFT_2", tol=1.0E-14, ref=0.054496680776},
+                                           {matcher="M048", tol=1.0E-14, ref=-0.128993904859}]
 # debug
 "Ne_debug.inp"                          = [{matcher="E_total", tol=1e-13, ref=-34.33457110264323}]
 # ghost md
@@ -73,7 +74,10 @@
 #
 "He_PBE.inp"                            = [{matcher="E_total", tol=1.0E-13, ref=-1.14398524502663}]
 #
-"h2q.inp"                               = [{matcher="E_total", tol=1.0E-10, ref=-0.76162210587786}]
+"h2q.inp"                               = [{matcher="E_total",          tol=1.0E-10, ref=-0.76162210587786},
+                                           {matcher="COMMUTATOR_HR_X", tol=1.0E-8, ref=4.560125368089048},
+                                           {matcher="COMMUTATOR_HR_Y", tol=1.0E-8, ref=5.46744413752473},
+                                           {matcher="COMMUTATOR_HR_Z", tol=1.0E-8, ref=4.560125368089047}]
 # Mol Dipole Voronoi
 "moldip_voronoi.inp"                    = [{matcher="E_total", tol=1.0E-10, ref=-41.88176215391840}]
 # Test printing of cartesian overlap matrix with header

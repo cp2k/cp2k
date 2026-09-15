@@ -34,6 +34,7 @@ MODULE gw_small_cell_full_kp
                                               fm_to_local_tensor,&
                                               local_array_to_fm,&
                                               local_dbt_to_global_fm
+   USE gw_fm_utils,                     ONLY: cfm_contract_ABA
    USE gw_utils,                        ONLY: add_R,&
                                               analyt_conti_and_print,&
                                               de_init_bs_env,&
@@ -147,7 +148,7 @@ CONTAINS
          CALL dbt_create_3c_R1_R2(t_Gvir, bs_env%t_RI_AO__AO, bs_env%nimages_3c, bs_env%nimages_3c)
 
          t1 = m_walltime()
-         tau = bs_env%imag_time_points(i_t)
+         tau = bs_env%time_frequency_grid%imaginary_time(i_t)
 
          DO ispin = 1, bs_env%n_spin
 
@@ -605,9 +606,9 @@ CONTAINS
          ! χ_PQ^R(iτ) -> χ_PQ^R(iω_j) (which is stored in chi_R, single ω_j from j_w loop)
          chi_R(:, :, :) = 0.0_dp
          DO i_t = 1, bs_env%num_time_freq_points
-            freq_j = bs_env%imag_freq_points(j_w)
-            time_i = bs_env%imag_time_points(i_t)
-            weight_ij = bs_env%weights_cos_t_to_w(j_w, i_t)*COS(time_i*freq_j)
+            freq_j = bs_env%time_frequency_grid%frequency(j_w)
+            time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
+            weight_ij = bs_env%time_frequency_grid%cosine_time_to_frequency_weights(j_w, i_t)*COS(time_i*freq_j)
 
             CALL fm_to_local_array(bs_env%fm_chi_R_t(:, i_t), chi_R, weight_ij, add=.TRUE.)
          END DO
@@ -662,9 +663,9 @@ CONTAINS
 
          ! 7. Ŵ^R(iω) -> Ŵ^R(iτ) and to fully distributed fm matrix bs_env%fm_MWM_R_t
          DO i_t = 1, bs_env%num_time_freq_points
-            freq_j = bs_env%imag_freq_points(j_w)
-            time_i = bs_env%imag_time_points(i_t)
-            weight_ij = bs_env%weights_cos_w_to_t(i_t, j_w)*COS(time_i*freq_j)
+            freq_j = bs_env%time_frequency_grid%frequency(j_w)
+            time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
+            weight_ij = bs_env%time_frequency_grid%cosine_frequency_to_time_weights(i_t, j_w)*COS(time_i*freq_j)
             CALL local_array_to_fm(MWM_R, bs_env%fm_MWM_R_t(:, i_t), weight_ij, add=.TRUE.)
          END DO ! i_t
 
@@ -957,7 +958,7 @@ CONTAINS
 
             t1 = m_walltime()
 
-            tau = bs_env%imag_time_points(i_t)
+            tau = bs_env%time_frequency_grid%imaginary_time(i_t)
 
             ! G^occ_µλ(i|τ|,k) = sum_n^occ C_µn(k)^* e^(-|(ϵ_nk-ϵ_F)τ|) C_λn(k), τ < 0
             ! G^vir_µλ(i|τ|,k) = sum_n^vir C_µn(k)^* e^(-|(ϵ_nk-ϵ_F)τ|) C_λn(k), τ > 0
@@ -1485,31 +1486,26 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'trafo_to_k_and_nn'
 
-      INTEGER                                            :: handle, n_ao
-      TYPE(cp_cfm_type)                                  :: cfm_ikp, cfm_tmp
+      INTEGER                                            :: handle
+      TYPE(cp_cfm_type)                                  :: cfm_ikp
       TYPE(cp_fm_type)                                   :: fm_ikp_re
 
       CALL timeset(routineN, handle)
 
       CALL cp_cfm_create(cfm_ikp, cfm_mo_coeff%matrix_struct)
-      CALL cp_cfm_create(cfm_tmp, cfm_mo_coeff%matrix_struct)
       CALL cp_fm_create(fm_ikp_re, cfm_mo_coeff%matrix_struct)
 
       ! Σ_µν(k_i) = sum_R e^ik_iR Σ_µν^R
       CALL fm_rs_to_kp(cfm_ikp, fm_rs, bs_env%kpoints_DOS, ikp)
 
-      n_ao = bs_env%n_ao
-
       ! Σ_nm(k_i) = sum_µν C^*_µn(k_i) Σ_µν(k_i) C_νn(k_i)
-      CALL parallel_gemm('N', 'N', n_ao, n_ao, n_ao, z_one, cfm_ikp, cfm_mo_coeff, z_zero, cfm_tmp)
-      CALL parallel_gemm('C', 'N', n_ao, n_ao, n_ao, z_one, cfm_mo_coeff, cfm_tmp, z_zero, cfm_ikp)
+      CALL cfm_contract_ABA(cfm_mo_coeff, cfm_ikp)
 
       ! get Σ_nn(k_i) which is a real quantity as Σ^x and Σ^c(iτ) is Hermitian
       CALL cp_cfm_to_fm(cfm_ikp, fm_ikp_re)
       CALL cp_fm_get_diag(fm_ikp_re, array_ikp_n)
 
       CALL cp_cfm_release(cfm_ikp)
-      CALL cp_cfm_release(cfm_tmp)
       CALL cp_fm_release(fm_ikp_re)
 
       CALL timestop(handle)

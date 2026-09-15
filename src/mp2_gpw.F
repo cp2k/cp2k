@@ -58,8 +58,6 @@ MODULE mp2_gpw
    USE input_section_types,             ONLY: section_vals_val_get
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
-   USE libint_wrapper,                  ONLY: cp_libint_static_cleanup,&
-                                              cp_libint_static_init
    USE machine,                         ONLY: default_output_unit,&
                                               m_flush
    USE message_passing,                 ONLY: mp_para_env_release,&
@@ -271,9 +269,6 @@ CONTAINS
                mp2_env%ri_metric%potential_type = do_potential_truncated
             END IF
          END IF
-
-         ! statically initialize libint
-         CALL cp_libint_static_init()
 
       END IF
 
@@ -568,7 +563,6 @@ CONTAINS
                DEALLOCATE (mat_P_global%matrix)
             END IF
 
-            CALL cp_libint_static_cleanup()
             IF (calc_forces) CALL cp_fm_release(fm_matrix_PQ)
          END IF
 
@@ -981,11 +975,13 @@ CONTAINS
 !> \param do_kpoints ...
 !> \param sab_orb_sub ...
 !> \param dbcsr_sym_type ...
+!> \param custom_row_blk_sizes ...
 !> \author Jan Wilhelm, code by Mauro Del Ben
 ! **************************************************************************************************
    SUBROUTINE create_mat_munu(mat_munu, qs_env, eps_grid, blacs_env_sub, &
                               do_ri_aux_basis, do_mixed_basis, group_size_prim, &
-                              do_alloc_blocks_from_nbl, do_kpoints, sab_orb_sub, dbcsr_sym_type)
+                              do_alloc_blocks_from_nbl, do_kpoints, sab_orb_sub, dbcsr_sym_type, &
+                              custom_row_blk_sizes)
 
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_munu
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -997,6 +993,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_orb_sub
       CHARACTER, OPTIONAL                                :: dbcsr_sym_type
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: custom_row_blk_sizes
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_mat_munu'
 
@@ -1160,11 +1157,15 @@ CONTAINS
       natom = SIZE(particle_set)
       ALLOCATE (row_blk_sizes(natom))
       IF (my_do_ri_aux_basis) THEN
-
-         ALLOCATE (basis_set_ri_aux(nkind))
-         CALL basis_set_list_setup(basis_set_ri_aux, "RI_AUX", qs_kind_set)
-         CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes, basis=basis_set_ri_aux)
-         DEALLOCATE (basis_set_ri_aux)
+         IF (PRESENT(custom_row_blk_sizes)) THEN
+            CPASSERT(SIZE(custom_row_blk_sizes) == natom)
+            row_blk_sizes(:) = custom_row_blk_sizes
+         ELSE
+            ALLOCATE (basis_set_ri_aux(nkind))
+            CALL basis_set_list_setup(basis_set_ri_aux, "RI_AUX", qs_kind_set)
+            CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes, basis=basis_set_ri_aux)
+            DEALLOCATE (basis_set_ri_aux)
+         END IF
 
       ELSE IF (my_do_mixed_basis) THEN
 

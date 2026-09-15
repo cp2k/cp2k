@@ -1,0 +1,28 @@
+# Fragment reference densities must be generated before the fragment CDFT test.
+"gapw_fragment_he.inp" = [{matcher="E_total", tol=1e-9, ref=-1.990365631116270}]
+"gapw_fragment_h.inp" = [{matcher="E_total", tol=1e-9, ref=-0.495250029327885}]
+"HeH_fragment_hirshfeld_molecular.inp" = [
+  {matcher="M071", tol=2e-8, ref=1.999471861833},
+]
+
+"He2_becke_spin_periodic.inp" = [
+  {matcher="M071", tol=2e-6, ref=0.211894746464},
+  {matcher="M072", tol=5e-5, ref=1.03364671e-4},
+]
+"H2_hirshfeld_molecular.inp" = [
+  {matcher="M071", tol=1e-7, ref=0.860064537137},
+  {matcher="M072", tol=5e-5, ref=1.19391737e-2},
+]
+# The atoms straddle the cell boundary to exercise minimum-image derivatives.
+"H2_hirshfeld_periodic.inp" = [
+  {matcher="M071", tol=2e-8, ref=0.906302295534},
+  {matcher="M072", tol=5e-5, ref=3.26838970e-3},
+]
+"H2He_becke_molecular.inp" = [
+  {matcher="M071", tol=1e-7, ref=0.848418046163},
+  {matcher="M072", tol=5e-5, ref=4.01333954e-2},
+]
+"H2_cdft_ci_periodic.inp" = [
+  {matcher="M073", tol=2e-8, ref=348.162067682219},
+  {matcher="M077", tol=2e-8, ref=-1.15808002417798},
+]

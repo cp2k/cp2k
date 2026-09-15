@@ -76,13 +76,14 @@
   &PROPERTIES
     &BANDSTRUCTURE
       &GW
-        GRID_SELECT 2
         NUM_TIME_FREQ_POINTS 20
-        RI_RS T
         &PRINT
           &RESTART OFF
           &END RESTART
         &END PRINT
+        &RI_RS T
+          GRID_SELECT 2
+        &END RI_RS
       &END GW
     &END BANDSTRUCTURE
   &END PROPERTIES

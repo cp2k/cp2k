@@ -47,7 +47,7 @@ case "${with_mkl}" in
     ;;
 esac
 if [ "${with_mkl}" != "__DONTUSE__" ]; then
-  case ${OPENBLAS_ARCH} in
+  case ${SYSTEM_ARCH} in
     x86_64)
       mkl_arch_dir="intel64"
       MKL_CFLAGS="-m64"
@@ -57,7 +57,7 @@ if [ "${with_mkl}" != "__DONTUSE__" ]; then
       MKL_CFLAGS="-m32"
       ;;
     *)
-      report_error $LINENO "MKL only supports intel64 (x86_64) and ia32 (i386) at the moment, and your arch obtained from OpenBLAS prebuild is $OPENBLAS_ARCH"
+      report_error $LINENO "MKL only supports intel64 (x86_64) and ia32 (i386) at the moment, and your system architecture is $SYSTEM_ARCH"
       exit 1
       ;;
   esac

@@ -38,6 +38,8 @@
           GRID FINE
           MODEL SKALA
           PRUNING_SCHEME ROBUST
+          ! Pseudopotential-only representation selectors must not alter all-electron GAPW.
+          PSEUDOPOTENTIAL_GAPW_REPRESENTATION PAW_ONE_CENTER
         &END GAUXC
       &END XC_FUNCTIONAL
     &END XC

@@ -14,7 +14,6 @@ ignore = [
     "interface-implicit-typing",
     "missing-default-case",
     "external-procedure",
-    "trailing-backslash",
 ]
 
 # ==============================================================================
@@ -41,17 +40,13 @@ exclude = [
 
 # ==============================================================================
 [check.per-file-ignores]
-"environment.F" = ["line-too-long"]
-"libgint_wrapper.F" = ["trailing-backslash"]
-"qs_block_davidson_types.F" = ["trailing-backslash"]
-"qs_linres_current.F" = ["trailing-backslash"]
 "qs_local_properties.F" = ["unreachable-statement"]
-"qs_tddfpt2_subgroups.F" = ["trailing-backslash"]
 "semi_empirical_int_ana.F" = ["misleading-inline-if-semicolon"]
+"fftw3_lib.F" = ["misleading-inline-if-semicolon"]
+"eri_mme_lattice_summation.F" = ["trailing-whitespace"]
 "pilaenv_hack.F" = ["procedure-not-in-module"]
 "semi_empirical_int_debug.F" = ["procedure-not-in-module"]
-"eri_mme_lattice_summation.F" = ["trailing-whitespace"]
-"gopt_f77_methods.F" = ["procedure-not-in-module"]
-"fftw3_lib.F" = ["misleading-inline-if-semicolon"]
+"dft_plus_u.F" = ["trailing-backslash"]
+"qs_linres_current.F" = ["trailing-backslash"]
 
 #EOF

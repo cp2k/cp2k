@@ -56,8 +56,7 @@ MODULE qs_tddfpt2_forces
                                               tddfpt_kernel_full,&
                                               tddfpt_kernel_none,&
                                               tddfpt_kernel_stda
-   USE input_section_types,             ONLY: section_get_lval,&
-                                              section_vals_get,&
+   USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -90,8 +89,7 @@ MODULE qs_tddfpt2_forces
                                               sum_qs_force,&
                                               total_qs_force,&
                                               zero_qs_force
-   USE qs_fxc,                          ONLY: qs_fxc_analytic,&
-                                              qs_fxc_fdiff
+   USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kernel_types,                 ONLY: kernel_env_type
@@ -126,7 +124,6 @@ MODULE qs_tddfpt2_forces
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
                                               tddfpt_work_matrices
-   USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
    USE task_list_types,                 ONLY: task_list_type
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
@@ -788,7 +785,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, iounit, ispin, mspin, n_rep_hf, &
                                                             nao, nao_aux, natom, norb, nspins
-      LOGICAL :: deriv2_analytic, distribute_fock_matrix, do_hfx, gapw, gapw_xc, &
+      LOGICAL :: distribute_fock_matrix, do_hfx, do_onecenter, gapw, gapw_xc, &
          hfx_treat_lsd_in_core, needs_tau_response, s_mstruct_changed
       REAL(KIND=dp)                                      :: eh1, focc, rhotot, thartree
       REAL(KIND=dp), DIMENSION(2)                        :: total_rho
@@ -820,10 +817,9 @@ CONTAINS
                                                             rhoz_tau_r_aux, trho_r, trho_tau_r, &
                                                             trho_xc_r, trho_xc_tau_r, v_xc, &
                                                             v_xc_tau
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rho_xc, rhoz_aux, trho
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit, rho_fxc, rhoz_aux, trho
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: hfx_section, input, xc_fun_section, &
                                                             xc_section
@@ -996,33 +992,36 @@ CONTAINS
       CALL get_qs_env(qs_env, rho=rho)
       CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g)
       !
-      deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
-      IF (deriv2_analytic) THEN
-         NULLIFY (v_xc, v_xc_tau)
-         CALL get_qs_env(qs_env=qs_env, xcint_weights=weights)
-         IF (gapw_xc) THEN
-            CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc)
-            CALL qs_fxc_analytic(rho_xc, trho_xc_r, trho_xc_tau_r, xc_section, weights, auxbas_pw_pool, &
-                                 .FALSE., v_xc, v_xc_tau)
+      NULLIFY (v_xc, v_xc_tau)
+      ALLOCATE (trho)
+      CALL qs_rho_create(trho)
+      IF (gapw_xc) THEN
+         CALL get_qs_env(qs_env=qs_env, rho_xc=rho_fxc)
+         IF (needs_tau_response) THEN
+            CALL qs_rho_set(trho, rho_r=trho_xc_r, tau_r=trho_xc_tau_r, &
+                            rho_r_valid=.TRUE., tau_r_valid=.TRUE.)
          ELSE
-            CALL qs_fxc_analytic(rho, trho_r, trho_tau_r, xc_section, weights, auxbas_pw_pool, &
-                                 .FALSE., v_xc, v_xc_tau)
-         END IF
-         IF (gapw .OR. gapw_xc) THEN
-            CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
-            rho1_atom_set => local_rho_set%rho_atom_set
-            CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
-                                             do_triplet=.FALSE.)
+            CALL qs_rho_set(trho, rho_r=trho_xc_r, rho_r_valid=.TRUE.)
          END IF
       ELSE
-         CPABORT("NYA 00006")
-         NULLIFY (v_xc, trho)
-         ALLOCATE (trho)
-         CALL qs_rho_create(trho)
-         CALL qs_rho_set(trho, rho_r=trho_r, rho_g=trho_g)
-         CALL qs_fxc_fdiff(ks_env, rho, trho, xc_section, 6, .FALSE., v_xc, v_xc_tau)
-         DEALLOCATE (trho)
+         rho_fxc => rho
+         IF (needs_tau_response) THEN
+            CALL qs_rho_set(trho, rho_r=trho_r, tau_r=trho_tau_r, &
+                            rho_r_valid=.TRUE., tau_r_valid=.TRUE.)
+         ELSE
+            CALL qs_rho_set(trho, rho_r=trho_r, rho_r_valid=.TRUE.)
+         END IF
       END IF
+      IF (gapw .OR. gapw_xc) THEN
+         do_onecenter = .TRUE.
+         CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
+         rho1_atom_set => local_rho_set%rho_atom_set
+      ELSE
+         do_onecenter = .FALSE.
+      END IF
+      CALL qs_fxc_create(qs_env, rho_fxc, trho, rho_atom_set, xc_section, &
+                         do_onecenter, v_xc, v_xc_tau, rho1_atom_set)
+      DEALLOCATE (trho)
 
       DO ispin = 1, nspins
          CALL dbcsr_set(matrix_hz(ispin)%matrix, 0.0_dp)
@@ -1162,20 +1161,27 @@ CONTAINS
             END DO
             !
             NULLIFY (v_xc, v_xc_tau)
-            deriv2_analytic = section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")
-            IF (deriv2_analytic) THEN
-               CALL get_qs_env(qs_env=qs_env, xcint_weights=weights)
-               CALL qs_fxc_analytic(rho_aux_fit, rhoz_r_aux, rhoz_tau_r_aux, xc_section, weights, auxbas_pw_pool, &
-                                    .FALSE., v_xc, v_xc_tau)
+            ALLOCATE (rhoz_aux)
+            CALL qs_rho_create(rhoz_aux)
+            IF (needs_tau_response) THEN
+               CALL qs_rho_set(rhoz_aux, rho_r=rhoz_r_aux, tau_r=rhoz_tau_r_aux, &
+                               rho_r_valid=.TRUE., tau_r_valid=.TRUE.)
             ELSE
-               CPABORT("NYA 00007")
-               NULLIFY (rhoz_aux)
-               ALLOCATE (rhoz_aux)
-               CALL qs_rho_create(rhoz_aux)
-               CALL qs_rho_set(rhoz_aux, rho_r=rhoz_r_aux, rho_g=rhoz_g_aux)
-               CALL qs_fxc_fdiff(ks_env, rho_aux_fit, rhoz_aux, xc_section, 6, .FALSE., v_xc, v_xc_tau)
-               DEALLOCATE (rhoz_aux)
+               CALL qs_rho_set(rhoz_aux, rho_r=rhoz_r_aux, rho_r_valid=.TRUE.)
             END IF
+            IF (admm_env%do_gapw) THEN
+               do_onecenter = .TRUE.
+               rho_atom_set => admm_env%admm_gapw_env%local_rho_set%rho_atom_set
+               rho1_atom_set => local_rho_set_admm%rho_atom_set
+               qs_kind_set => admm_env%admm_gapw_env%admm_kind_set
+            ELSE
+               do_onecenter = .FALSE.
+               CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+            END IF
+            CALL qs_fxc_create(qs_env, rho_aux_fit, rhoz_aux, rho_atom_set, xc_section, &
+                               do_onecenter, v_xc, v_xc_tau, rho1_atom_set, &
+                               kind_set_external=qs_kind_set)
+            DEALLOCATE (rhoz_aux)
             !
             DO ispin = 1, nspins
                CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
@@ -1207,8 +1213,6 @@ CONTAINS
             IF (admm_env%do_gapw) THEN
                rho_atom_set => admm_env%admm_gapw_env%local_rho_set%rho_atom_set
                rho1_atom_set => local_rho_set_admm%rho_atom_set
-               CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, &
-                                                para_env, kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
                CALL update_ks_atom(qs_env, mhz(:, 1), matrix_pe_admm, forces=.FALSE., tddft=.FALSE., &
                                    rho_atom_external=rho1_atom_set, &
                                    kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &

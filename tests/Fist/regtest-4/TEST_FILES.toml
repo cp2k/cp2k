@@ -52,8 +52,8 @@
 #BFGS optimizer with restraints
 "nh3-restraint-fixd-2.inp"              = [{matcher="M007", tol=1.0E-14, ref=0.0010863072}]
 #Restart fixed on different molecules..
-"nh3_wat-restraint-fixd-3.inp"          = [{matcher="M007", tol=1.0E-14, ref=-0.0061030813}]
-"nh3_wat-restraint-fixd-4.inp"          = [{matcher="M007", tol=1.0E-14, ref=-0.0061030820}]
+"nh3_wat-restraint-fixd-3.inp"          = [{matcher="M007", tol=1.0E-14, ref=-0.0060875633}]
+"nh3_wat-restraint-fixd-4.inp"          = [{matcher="M007", tol=1.0E-14, ref=-0.0060878932}]
 #BFGS - Restart Hessian
 "nh3_bfgs.inp"                          = [{matcher="M007", tol=1.0E-14, ref=-0.0000637288}]
 "nh3_bfgs_r.inp"                        = [{matcher="M007", tol=1.0E-14, ref=-0.0000637306}]

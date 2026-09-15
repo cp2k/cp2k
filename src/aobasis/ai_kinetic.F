@@ -78,6 +78,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rr, tt
       REAL(KIND=dp), DIMENSION(3)                        :: rap, rbp
 
+      CPASSERT(PRESENT(kab) .OR. PRESENT(dab))
+
 ! Distance of the centers a and b
 
       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)

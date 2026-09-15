@@ -1,0 +1,105 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT H2O_mo
+  RUN_TYPE RT_PROPAGATION
+&END GLOBAL
+
+&MOTION
+  &MD
+    STEPS 2
+    TIMESTEP [fs] 0.0012
+  &END MD
+&END MOTION
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    BASIS_SET_FILE_NAME BASIS_ADMM
+    POTENTIAL_FILE_NAME POTENTIAL
+    UKS
+    &AUXILIARY_DENSITY_MATRIX_METHOD  ! For hybrid functionals, it is recommended to choose ADMM
+      ##      EXCH_SCALING_MODEL NONE              ! identical
+      ##      EXCH_CORRECTION_FUNC NONE            ! Triple-zeta auxiliary basis sets are recommended (see below)
+      ADMM_PURIFICATION_METHOD NONE  ! For periodic systems (see below), only specific ADMM options
+      ADMM_TYPE ADMM1
+      METHOD BASIS_PROJECTION  ! the ADMM environment for ground and excited state has to be
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
+    &EFIELD
+      ENVELOP GAUSSIAN
+      INTENSITY 1E12
+      POLARISATION 0. 0. 1.
+      WAVELENGTH 517.1696908265759
+      &GAUSSIAN_ENV
+        SIGMA [fs] 2
+        T0 [fs] 7.5
+      &END GAUSSIAN_ENV
+    &END EFIELD
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &PRINT
+      &MOMENTS
+        COMMON_ITERATION_LEVELS 100000
+        FILENAME=OUTPUT
+        PERIODIC F
+        &EACH
+          MD 1
+        &END EACH
+      &END MOMENTS
+    &END PRINT
+    &QS
+      METHOD GAPW
+    &END QS
+    &REAL_TIME_PROPAGATION
+      EPS_ITER 1.0E-12
+      EXP_ACCURACY 1.0E-6
+      INITIAL_WFN SCF_WFN  ! RT_RESTART
+      MAT_EXP TAYLOR
+      MAX_ITER 200
+      PERIODIC .FALSE.
+      PROPAGATOR ETRS
+    &END REAL_TIME_PROPAGATION
+    &SCF
+      ADDED_MOS 4
+      EPS_SCF 1.0e-4
+      MAX_SCF 100
+      SCF_GUESS ATOMIC
+      &DIAGONALIZATION
+      &END DIAGONALIZATION
+    &END SCF
+    &XC
+      # &XC_GRID
+      #   XC_SMOOTH_RHO SPLINE3
+      #   XC_DERIV  SPLINE3_SMOOTH
+      #&END XC_GRID
+      &XC_FUNCTIONAL PBE0
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 7 7 7
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O   0.000000    0.000000   -0.065587 H2O
+      H   0.000000   -0.757136    0.520545 H2O
+      H   0.000000    0.757136    0.520545 H2O
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-GTH
+      BASIS_SET AUX_FIT FIT3
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-MOLOPT-GTH
+      BASIS_SET AUX_FIT FIT3
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+
+!&EXT_RESTART
+!  RESTART_FILE_NAME H2O_rtp-1.restart
+!&END

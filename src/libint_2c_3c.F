@@ -19,8 +19,9 @@ MODULE libint_2c_3c
                                               do_potential_mix_cl_trunc,&
                                               do_potential_short,&
                                               do_potential_truncated
-   USE kinds,                           ONLY: default_path_length,&
-                                              dp
+   USE integral_library_types,          ONLY: coulomb_operator_type,&
+                                              libint_potential_type => coulomb_operator_type
+   USE kinds,                           ONLY: dp
    USE libint_wrapper,                  ONLY: cp_libint_get_2eri_derivs,&
                                               cp_libint_get_2eris,&
                                               cp_libint_get_3eri_derivs,&
@@ -41,7 +42,7 @@ MODULE libint_2c_3c
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_2c_3c'
 
-   PUBLIC :: eri_3center, eri_2center, cutoff_screen_factor, libint_potential_type, &
+   PUBLIC :: eri_2center, eri_3center, cutoff_screen_factor, libint_potential_type, &
              eri_3center_derivs, eri_2center_derivs, compare_potential_types
 
    ! For screening of integrals with a truncated potential, it is important to use a slightly larger
@@ -62,16 +63,8 @@ MODULE libint_2c_3c
       REAL(dp), DIMENSION(prim_data_f_size) :: Fm = 0.0_dp
    END TYPE params_3c
 
-   ! A potential type based on the hfx_potential_type concept, but only for implemented
-   ! 2- and 3-center operators
-   TYPE :: libint_potential_type
-      INTEGER                               :: potential_type = do_potential_coulomb
-      REAL(dp)                              :: omega = 0.0_dp !SR: erfc(w*r)/r
-      REAL(dp)                              :: cutoff_radius = 0.0_dp !TC cutoff/effective SR range
-      CHARACTER(default_path_length)        :: filename = ""
-      REAL(dp)                              :: scale_coulomb = 0.0_dp ! Only, for WFC methods
-      REAL(dp)                              :: scale_longrange = 0.0_dp ! Only, for WFC methods
-   END TYPE libint_potential_type
+   ! Compatibility alias retained for existing callers. New interfaces should use the
+   ! backend-neutral name from integral_library_types.
 
 CONTAINS
 
@@ -125,7 +118,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rc
       REAL(KIND=dp), INTENT(IN)                          :: dab, dac, dbc
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       REAL(dp), INTENT(INOUT), OPTIONAL                  :: int_abc_ext
 
       INTEGER :: a_mysize(1), a_offset, a_start, b_offset, b_start, c_offset, c_start, i, ipgf, j, &
@@ -307,7 +300,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: ri, rj, rk
       REAL(dp), INTENT(IN), OPTIONAL                     :: zeti, zetj, zetk
       INTEGER, INTENT(IN), OPTIONAL                      :: li_max, lj_max, lk_max
-      TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN), OPTIONAL  :: potential_parameter
       TYPE(params_3c), OPTIONAL, POINTER                 :: params_in, params_out
 
       INTEGER                                            :: l
@@ -487,7 +480,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rc
       REAL(KIND=dp), INTENT(IN)                          :: dab, dac, dbc
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
       REAL(dp), DIMENSION(3), INTENT(OUT), OPTIONAL      :: der_abc_1_ext, der_abc_2_ext
 
       INTEGER :: a_mysize(1), a_offset, a_start, b_offset, b_start, c_offset, c_start, i, i_deriv, &
@@ -719,7 +712,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: ri, rj, rk
       REAL(dp), INTENT(IN)                               :: zeti, zetj, zetk
       INTEGER, INTENT(IN), OPTIONAL                      :: li_max, lj_max, lk_max
-      TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN), OPTIONAL  :: potential_parameter
       TYPE(params_3c), OPTIONAL, POINTER                 :: params_in, params_out
 
       INTEGER                                            :: l
@@ -869,7 +862,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rb
       REAL(dp), INTENT(IN)                               :: dab
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
 
       INTEGER                                            :: a_mysize(1), a_offset, a_start, &
                                                             b_offset, b_start, i, ipgf, j, jpgf, &
@@ -946,7 +939,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rj, rk
       REAL(dp), INTENT(IN)                               :: zetj, zetk
       INTEGER, INTENT(IN)                                :: lj_max, lk_max
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
 
       INTEGER                                            :: l, op
       LOGICAL                                            :: use_gamma
@@ -1053,13 +1046,13 @@ CONTAINS
    END SUBROUTINE set_params_2c
 
 ! **************************************************************************************************
-!> \brief Helper function to compare libint_potential_types
+!> \brief Helper function to compare Coulomb operator types
 !> \param potential1 first potential
 !> \param potential2 second potential
 !> \return Boolean whether both potentials are equal
 ! **************************************************************************************************
    PURE FUNCTION compare_potential_types(potential1, potential2) RESULT(equals)
-      TYPE(libint_potential_type), INTENT(IN)            :: potential1, potential2
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential1, potential2
       LOGICAL                                            :: equals
 
       IF (potential1%potential_type /= potential2%potential_type) THEN
@@ -1116,7 +1109,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rb
       REAL(dp), INTENT(IN)                               :: dab
       TYPE(cp_libint_t), INTENT(INOUT)                   :: lib
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
 
       INTEGER                                            :: a_mysize(1), a_offset, a_start, &
                                                             b_offset, b_start, i, i_deriv, ipgf, &
@@ -1199,7 +1192,7 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(IN)                 :: rj, rk
       REAL(dp), INTENT(IN)                               :: zetj, zetk
       INTEGER, INTENT(IN)                                :: lj_max, lk_max
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(coulomb_operator_type), INTENT(IN)            :: potential_parameter
 
       INTEGER                                            :: l, op
       LOGICAL                                            :: use_gamma
@@ -1307,4 +1300,3 @@ CONTAINS
    END SUBROUTINE set_params_2c_deriv
 
 END MODULE libint_2c_3c
-

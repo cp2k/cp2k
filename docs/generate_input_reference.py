@@ -162,7 +162,8 @@ def process_section(
         for keyword in keywords:
             keyword_name = get_name(keyword)
             keyword_xref = f"{section_xref}.{sanitize_name(keyword_name)}"
-            em = "**" if lookup_mentions(keyword_xref) else ""  # emphasize if mentioned
+            # emphasize if mentioned
+            em = "**" if lookup_mentions(keyword_xref, is_section=False) else ""
             output += [f"* {em}[{escape_markdown(keyword_name)}](#{keyword_xref}){em}"]
         output += [""]
         # Render keywords
@@ -263,13 +264,16 @@ def render_section_header(
     section_xref = ".".join(section_path)  # used for cross-referencing
     references = [get_name(ref) for ref in section.findall("REFERENCE")]
 
-    # Render header.
-    output = []
-    output += ["%", "% This file was created by generate_input_reference.py", "%"]
     # There are a few collisions between cross references for sections and keywords,
     # for example CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.POTENTIAL
     collision_resolution_suffix = "_SECTION" if has_name_collision else ""
-    output += [f"({section_xref}{collision_resolution_suffix})="]
+    collision_resolved_section_xref = f"{section_xref}{collision_resolution_suffix}"
+    mentions = lookup_mentions(collision_resolved_section_xref, is_section=True)
+
+    # Render header.
+    output = []
+    output += ["%", "% This file was created by generate_input_reference.py", "%"]
+    output += [f"({collision_resolved_section_xref})="]
     output += [f"# {section_name}", ""]
     if deprecation_notice:
         output += ["```{warning}"]
@@ -281,6 +285,9 @@ def render_section_header(
         citations = ", ".join([f"{{ref}}`{r}`" for r in references])
         output += [f"**References:** {citations}", ""]
     output += [escape_markdown(description), github_link(location), ""]
+    if mentions:
+        mentions_list = ", ".join([f"⭐[](project:{m})" for m in mentions])
+        output += [f"**Mentions:** {mentions_list}", ""]
     return output, section_name, section_xref
 
 
@@ -301,7 +308,7 @@ def render_keyword(
     assert keyword_names
     canonical_name = sanitize_name(keyword_names[0])
     keyword_xref = f"{section_xref}.{canonical_name}" if section_xref else None
-    mentions = lookup_mentions(keyword_xref)
+    mentions = lookup_mentions(keyword_xref, is_section=False)
 
     # Find more keyword fields.
     default_value = get_text(keyword.find("DEFAULT_VALUE"))
@@ -363,7 +370,10 @@ def render_keyword(
         metadata += [f"**Usage:** _{escape_markdown(usage)}_"]
     output += ["  \n".join(metadata), ""]
     if description:
-        output += [f"**Description:** {escape_markdown(description)}", ""]
+        output += [f"**Description:** {escape_markdown(description)}"]
+        if github:
+            output += [github_link(location)]
+        output += [""]
     if data_type == "enum":
         output += ["**Valid values:**"]
         for item in keyword.findall("DATA_TYPE/ENUMERATION/ITEM"):
@@ -377,8 +387,6 @@ def render_keyword(
     if mentions:
         mentions_list = ", ".join([f"⭐[](project:{m})" for m in mentions])
         output += [f"**Mentions:** {mentions_list}", ""]
-    if github:
-        output += [github_link(location)]
     output += ["", "```", ""]  # Close py:data directive.
 
     if deprecation_notice:
@@ -396,17 +404,18 @@ def find_all_mentions() -> Dict[str, Set[Path]]:
     mentions = defaultdict(set)
     for subdir in "getting-started", "methods", "technologies":
         for fn in (root_dir / subdir).glob("**/*.md"):
-            for xref in re.findall(r"\(#(CP2K_INPUT\..*)\)", fn.read_text()):
+            # Non-greedy match permits multiple links on the same line
+            for xref in re.findall(r"\(#(CP2K_INPUT\..*?)\)", fn.read_text()):
                 mentions[xref].add(fn.relative_to(root_dir))
     return mentions
 
 
 # ======================================================================================
-def lookup_mentions(xref: Optional[str]) -> List[str]:
+def lookup_mentions(xref: Optional[str], is_section: bool) -> List[str]:
     if not xref:
         return []
     mentions = find_all_mentions()
-    n = xref.count(".") - 1
+    n = xref.count(".") - (0 if is_section else 1)
     return [("../" * n) + str(path) for path in sorted(mentions[xref])]
 
 

@@ -68,6 +68,34 @@ MODULE molden_utils
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Write the CP2K [Cell] extension to a MOLDEN file
+!> \param iw output unit
+!> \param cell simulation cell
+!> \param unit_choice 1 for atomic units, 2 for Angstrom
+! **************************************************************************************************
+   SUBROUTINE write_cell_molden(iw, cell, unit_choice)
+      INTEGER, INTENT(IN)                                :: iw
+      TYPE(cell_type), INTENT(IN)                        :: cell
+      INTEGER, INTENT(IN)                                :: unit_choice
+
+      REAL(KIND=dp)                                      :: scale_factor
+
+      IF (unit_choice == 2) THEN
+         scale_factor = angstrom
+         WRITE (iw, '(T2,A)') "[Cell] Angs"
+      ELSE
+         scale_factor = 1.0_dp
+         WRITE (iw, '(T2,A)') "[Cell] AU"
+      END IF
+      WRITE (iw, '(T2,3(F12.6,3X))') &
+         cell%hmat(1, 1)*scale_factor, cell%hmat(2, 1)*scale_factor, cell%hmat(3, 1)*scale_factor
+      WRITE (iw, '(T2,3(F12.6,3X))') &
+         cell%hmat(1, 2)*scale_factor, cell%hmat(2, 2)*scale_factor, cell%hmat(3, 2)*scale_factor
+      WRITE (iw, '(T2,3(F12.6,3X))') &
+         cell%hmat(1, 3)*scale_factor, cell%hmat(2, 3)*scale_factor, cell%hmat(3, 3)*scale_factor
+   END SUBROUTINE write_cell_molden
+
+! **************************************************************************************************
 !> \brief Write out the MOs in molden format for visualisation
 !> \param mos the set of MOs (both spins, if UKS)
 !> \param qs_kind_set for basis set info
@@ -161,17 +189,9 @@ CONTAINS
          IF (iw > 0) THEN
             WRITE (iw, '(T2,A)') "[Molden Format]"
             IF (write_cell) THEN
-               IF (unit_choice == 2) THEN
-                  WRITE (iw, '(T2,A)') "[Cell] Angs"
-               ELSE
-                  WRITE (iw, '(T2,A)') "[Cell] AU"
-               END IF
-               WRITE (iw, '(T2,3(F12.6,3X))') &
-                  cell%hmat(1, 1)*scale_factor, cell%hmat(2, 1)*scale_factor, cell%hmat(3, 1)*scale_factor
-               WRITE (iw, '(T2,3(F12.6,3X))') &
-                  cell%hmat(1, 2)*scale_factor, cell%hmat(2, 2)*scale_factor, cell%hmat(3, 2)*scale_factor
-               WRITE (iw, '(T2,3(F12.6,3X))') &
-                  cell%hmat(1, 3)*scale_factor, cell%hmat(2, 3)*scale_factor, cell%hmat(3, 3)*scale_factor
+               CPASSERT(PRESENT(cell))
+               CPASSERT(ASSOCIATED(cell))
+               CALL write_cell_molden(iw, cell, unit_choice)
             END IF
             IF (unit_choice == 2) THEN
                WRITE (iw, '(T2,A)') "[Atoms] Angs"
@@ -598,10 +618,11 @@ CONTAINS
 !> \param dump_only_positive ...
 !> \param logger ...
 !> \param list array of mobile atom indices
+!> \param cell optional simulation cell for the CP2K [Cell] extension
 !> \author Florian Schiffmann 11.2007
 ! **************************************************************************************************
    SUBROUTINE write_vibrations_molden(input, particles, freq, eigen_vec, intensities, calc_intens, &
-                                      dump_only_positive, logger, list)
+                                      dump_only_positive, logger, list, cell)
 
       TYPE(section_vals_type), POINTER                   :: input
       TYPE(particle_type), DIMENSION(:), POINTER         :: particles
@@ -611,12 +632,14 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: calc_intens, dump_only_positive
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: list
+      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_vibrations_molden'
 
       CHARACTER(LEN=2)                                   :: element_symbol
       INTEGER                                            :: handle, i, iw, j, k, l, z
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_list
+      LOGICAL                                            :: write_cell
       REAL(KIND=dp)                                      :: fint
 
       CALL timeset(routineN, handle)
@@ -642,6 +665,13 @@ CONTAINS
             END DO
          END IF
          WRITE (iw, '(T2,A)') "[Molden Format]"
+         CALL section_vals_val_get(input, "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB%WRITE_CELL", &
+                                   l_val=write_cell)
+         IF (write_cell) THEN
+            CPASSERT(PRESENT(cell))
+            CPASSERT(ASSOCIATED(cell))
+            CALL write_cell_molden(iw, cell, 1)
+         END IF
          WRITE (iw, '(T2,A)') "[Atoms] AU"
          DO i = 1, SIZE(particles)
             CALL get_atomic_kind(atomic_kind=particles(i)%atomic_kind, &

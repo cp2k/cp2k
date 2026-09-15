@@ -1,0 +1,95 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT voronoiipz
+  RUN_TYPE DEBUG
+&END GLOBAL
+
+&DEBUG
+  CHECK_ATOM_FORCE 2 XYZ
+  CHECK_ATOM_FORCE 4 XYZ
+  CHECK_ATOM_FORCE 5 XYZ
+  DX 1.0E-4
+  MAX_RELATIVE_ERROR 0.1
+&END DEBUG
+
+&MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      COLVAR 1
+      INTERMOLECULAR
+      TARGET [angstrom] 0.0
+      &RESTRAINT
+        K [hartree*bohr^-2] 0.01
+      &END RESTRAINT
+    &END COLLECTIVE
+  &END CONSTRAINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM O
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS O O
+          EPSILON 0.0
+          RCUT 8.0
+          SIGMA 3.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS O H
+          EPSILON 0.0
+          RCUT 8.0
+          SIGMA 3.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS H H
+          EPSILON 0.0
+          RCUT 8.0
+          SIGMA 3.0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COLVAR
+      &VORONOIIPZ
+        GROUPA 2 5
+        GROUPB 1 3 4 6 7
+        LAMBDA [angstrom^-1] -2.0
+        NL_CUTOFF [angstrom] 8.0
+        ZIDX 3
+        ZMID [angstrom] 8.1
+      &END VORONOIIPZ
+    &END COLVAR
+    &COORD
+      H 5.8 5.1 7.2
+      O 5.0 5.0 7.0
+      H 4.7 5.8 6.9
+      H 6.2 5.4 8.0
+      O 7.4 5.7 9.2
+      H 8.1 5.4 9.5
+      H 7.1 6.5 9.0
+    &END COORD
+    &TOPOLOGY
+      CONNECTIVITY OFF
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

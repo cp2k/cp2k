@@ -71,7 +71,6 @@ MODULE global_types
       CHARACTER(LEN=default_string_length)    :: default_fft_library = "FFTSG"
       CHARACTER(LEN=default_path_length)      :: fftw_wisdom_file_name = "/etc/fftw/wisdom"
       CHARACTER(LEN=default_string_length)    :: default_dgemm_library = "BLAS"
-
       INTEGER :: fft_pool_scratch_limit = 0 ! limit number of used FFT scratches
       INTEGER :: fftw_plan_type = 0 ! which kind of planning to use with FFTW
       INTEGER :: idum = 0 ! random number seed
@@ -79,6 +78,7 @@ MODULE global_types
       INTEGER :: run_type_id = 0 ! index to define the run_tupe
       INTEGER :: blacs_grid_layout = BLACS_GRID_SQUARE ! will store the user preference for the BLACS grid
       INTEGER :: k_elpa = 1 ! optimized kernel for the ELPA diagonalization library
+      INTEGER :: k_elpa_c = -1 ! optimized kernel for the ELPA diagonalization library (complex matrices)
       INTEGER :: elpa_neigvec_min = 0 ! Minimum number of eigenvectors for ELPA usage
       LOGICAL :: elpa_qr = .TRUE. ! allow ELPA to use QR during diagonalization
       LOGICAL :: elpa_print = .FALSE. ! if additional information about ELPA diagonalization should be printed

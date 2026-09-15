@@ -39,13 +39,17 @@ MODULE input_cp2k_kpoints
                                               use_k290_kpoint_symmetry = 200, &
                                               use_spglib_kpoint_symmetry = 201, &
                                               use_k290_kpoint_backend = 300, &
-                                              use_spglib_kpoint_backend = 301
+                                              use_spglib_kpoint_backend = 301, &
+                                              lattice_fft_auto = 400, &
+                                              lattice_fft_on = 401, &
+                                              lattice_fft_off = 402
 
    PUBLIC :: create_kpoints_section
    PUBLIC :: create_kpoint_set_section
    PUBLIC :: use_real_wfn, use_complex_wfn
    PUBLIC :: use_k290_kpoint_symmetry, use_spglib_kpoint_symmetry
    PUBLIC :: use_k290_kpoint_backend, use_spglib_kpoint_backend
+   PUBLIC :: lattice_fft_auto, lattice_fft_on, lattice_fft_off
 
 CONTAINS
 
@@ -59,6 +63,7 @@ CONTAINS
 !>      SYMMETRY         [on, off]
 !>      WAVEFUNCTION     [real, complex]
 !>      FULL_GRID        [on, off]
+!>      LATTICE_FFT      [auto, on, off]
 !>      INVERSION_SYMMETRY_ONLY [on, off]
 !>      DEBUG_FULL_KPOINT_SYMMETRY [on, off]
 !>      SYMMETRY_BACKEND [K290, SPGLIB]
@@ -142,6 +147,22 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="LATTICE_FFT", &
+                          description="Control the FFT-based transformation of real-space matrices "// &
+                          "to complete regular k-point grids. AUTO uses the lattice FFT for at least "// &
+                          "27 k points when the grid and memory requirements are satisfied. ON bypasses "// &
+                          "this performance threshold. OFF always uses the established direct phase sum. "// &
+                          "Unsupported, incomplete, or oversized grids retain the direct fallback.", &
+                          usage="LATTICE_FFT AUTO", type_of_var=enum_t, &
+                          enum_c_vals=s2a("AUTO", "ON", "OFF"), &
+                          enum_i_vals=[lattice_fft_auto, lattice_fft_on, lattice_fft_off], &
+                          enum_desc=s2a("Select the FFT from a conservative cost threshold.", &
+                                        "Prefer the FFT whenever the grid and memory checks allow it.", &
+                                        "Always use the direct real-cell to k-point transform."), &
+                          default_i_val=lattice_fft_auto)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="INVERSION_SYMMETRY_ONLY", &
                           description="Restrict k-point reduction to k-space inversion "// &
                           "(time-reversal) symmetry.", &
@@ -202,6 +223,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_SYMMETRY", variants=["EPS_GEO"], &
                           description="Accuracy in k-point symmetry determination."//newline// &
+                          "K290 applies this value in lattice and fractional-coordinate checks. "// &
+                          "SPGLIB uses a Cartesian distance tolerance in bohr. The same numerical "// &
+                          "value is therefore not an equivalent geometric tolerance for both backends."//newline// &
                           "EPS_GEO is accepted as an alias.", &
                           usage="EPS_SYMMETRY <real>", &
                           default_r_val=1.0e-6_dp)

@@ -12,6 +12,7 @@ MODULE qs_vcd
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_desymmetrize,&
+                                              dbcsr_scale,&
                                               dbcsr_set
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
@@ -40,12 +41,11 @@ MODULE qs_vcd
    USE qs_linres_types,                 ONLY: linres_control_type,&
                                               vcd_env_type
    USE qs_mo_types,                     ONLY: mo_set_type
-   USE qs_moments,                      ONLY: dipole_velocity_deriv
+   USE qs_moments,                      ONLY: build_local_moments_der_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE qs_vcd_ao,                       ONLY: build_dSdV_matrix,&
                                               build_dcom_rpnl,&
-                                              build_drpnl_matrix,&
                                               build_matrix_hr_rh,&
                                               hr_mult_by_delta_3d
    USE qs_vcd_utils,                    ONLY: vcd_read_restart,&
@@ -328,6 +328,8 @@ CONTAINS
          END DO
 
          !  mag_vel, vel, mag
+         ! matrix_difdip2 stores nuclear derivatives; the electronic-coordinate
+         ! derivative contributions below therefore use a negative sign.
          ! Ai)   + ε_{alpha gamma delta} * R_beta R_gamma * < mu | ∂_delta | nu > * (mu - nu)
          ! Aii)  + ε_{alpha gamma delta} * (-R_beta) * < mu | r_gamma ∂_delta | nu > * (mu - nu)
          ! Aiii) + ε_{alpha gamma delta} * (-R_gamma) * < mu | r_beta ∂_delta | nu > * (mu - nu)
@@ -346,8 +348,6 @@ CONTAINS
                                                tmp_aomo, ncol=nmo)
                   CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
 
-                  ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
-                  !   the derivatives with respect to nuclear positions and we need electronic positions
                   aat_tmp = aat_tmp - lc_tmp*aat_prefactor*tmp_trace*(-vcd_env%magnetic_origin_atom(gamma))
 
                   ! This part doesn't appear in the APT
@@ -359,8 +359,6 @@ CONTAINS
                                                tmp_aomo, ncol=nmo)
                   CALL cp_fm_trace(mo_coeff, tmp_aomo, tmp_trace)
 
-                  ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
-                  !   the derivatives with respect to nuclear positions and we need electronic positions
                   aat_tmp = aat_tmp - lc_tmp*aat_prefactor*tmp_trace*(-vcd_env%spatial_origin_atom(vcd_env%dcdr_env%beta))
 
                   ! i)   + R_beta R_gamma * < mu | ∂_delta | nu > * (mu - nu)
@@ -691,13 +689,12 @@ CONTAINS
 
       !! difdip(j, idir) = < a | r_j | ∂_idir b >
       !! matrix_difdip2(beta, alpha) = < a | r_beta | ∂_alpha b >
+         ! matrix_difdip2 stores nuclear derivatives.
          DO alpha = 1, 3 ! x/y/z for differentiated AO
             CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_difdip2(vcd_env%dcdr_env%beta, alpha)%matrix, mo_coeff, &
                                          buf, ncol=nmo, alpha=1._dp, beta=0._dp)
 
             CALL cp_fm_trace(mo_coeff, buf, apt_difdip)
-            ! There is a negative sign here, because the routine dipole_velocity_deriv calculates
-            !   the derivatives with respect to nuclear positions and we need electronic positions
             apt_difdip = -f_spin*apt_difdip
             apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
                = apt_el(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + apt_difdip
@@ -871,9 +868,14 @@ CONTAINS
       CALL build_dcom_rpnl(vcd_env%matrix_dcom, qs_kind_set, sab_orb, sap_ppnl, &
                            dft_control%qs_control%eps_ppnl, particle_set, vcd_env%dcdr_env%lambda)
 
-      ! PP derivative
-      CALL build_drpnl_matrix(vcd_env%matrix_drpnl, qs_kind_set, sab_all, sap_ppnl, &
-                              dft_control%qs_control%eps_ppnl, particle_set, pseudoatom=vcd_env%dcdr_env%lambda)
+      ! PP derivative. build_com_mom_nl returns [r, Vnl], while matrix_drpnl
+      ! historically stores [Vnl, r] = -[r, Vnl].
+      CALL build_com_mom_nl(qs_kind_set, sab_all, sap_ppnl, dft_control%qs_control%eps_ppnl, &
+                            particle_set, cell=cell, matrix_rv=vcd_env%matrix_drpnl, &
+                            pseudoatom=vcd_env%dcdr_env%lambda)
+      DO j = 1, 3
+         CALL dbcsr_scale(vcd_env%matrix_drpnl(j)%matrix, alpha_scalar=-1._dp)
+      END DO
       ! lin_mom
       DO i = 1, 3
          CALL dbcsr_set(vcd_env%dipvel_ao_delta(i)%matrix, 0._dp)
@@ -888,8 +890,9 @@ CONTAINS
                              deltaR=vcd_env%dcdr_env%delta_basis_function, &
                              rcc=vcd_env%spatial_origin_atom)
 
-      CALL dipole_velocity_deriv(qs_env, vcd_env%matrix_difdip2, 1, lambda=vcd_env%dcdr_env%lambda, &
-                                 rc=[0._dp, 0._dp, 0._dp])
+      CALL build_local_moments_der_matrix(qs_env, vcd_env%matrix_difdip2, 1, 0, &
+                                          ref_point=[0._dp, 0._dp, 0._dp], basis_type="ORB", &
+                                          ordered=.TRUE., lambda=vcd_env%dcdr_env%lambda)
       ! AAT
       ! moments_throw: x, y, z, xx, xy, xz, yy, yz, zz
       ! moments_der:  (moment, xyz derivative)
@@ -996,7 +999,7 @@ CONTAINS
                                       vcd_env%op_dV(ispin), &
                                       ncol=nmo, alpha=1.0_dp, beta=1.0_dp)
 
-         ! STEP 3: +dV_ppnl/dV, but build_drpnl_matrix gives the negative of dV_ppnl
+         ! STEP 3: +dV_ppnl/dV, but matrix_drpnl stores the negative of dV_ppnl
          ! The arguments (-1, 1) are swapped wrt to the hr-rh term, implying that
          ! direction_Or and direction_hr do what they should.
          CALL cp_dbcsr_sm_fm_multiply(vcd_env%matrix_drpnl(vcd_env%dcdr_env%beta)%matrix, mo_coeff, &

@@ -27,7 +27,7 @@ MODULE qs_tddfpt2_properties
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_get_block_p, dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type
+        dbcsr_p_type, dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -99,9 +99,9 @@ MODULE qs_tddfpt2_properties
                                               init_mo_set,&
                                               mo_set_type,&
                                               set_mo_set
-   USE qs_moments,                      ONLY: build_berry_moment_matrix
+   USE qs_moments,                      ONLY: build_berry_moment_matrix,&
+                                              build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_operators_ao,                 ONLY: rRc_xyz_ao
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
@@ -286,9 +286,6 @@ CONTAINS
 
          DO ideriv = 1, nderivs
             kvec(:) = twopi*cell%h_inv(ideriv, :)
-            DO i_cos_sin = 1, 2
-               CALL dbcsr_set(berry_cossin_xyz(i_cos_sin)%matrix, 0.0_dp)
-            END DO
             CALL build_berry_moment_matrix(qs_env, berry_cossin_xyz(1)%matrix, &
                                            berry_cossin_xyz(2)%matrix, kvec)
 
@@ -386,8 +383,8 @@ CONTAINS
                                   reference=tddfpt_control%dipole_reference, &
                                   ref_point=tddfpt_control%dipole_ref_point)
 
-         CALL rRc_xyz_ao(op=rRc_xyz, qs_env=qs_env, rc=reference_point, order=1, &
-                         minimum_image=.FALSE., soft=.FALSE.)
+         CALL build_local_moment_matrix(qs_env, rRc_xyz, 1, ref_point=reference_point, &
+                                        all_images=.TRUE.)
 
          DO ispin = 1, nspins
 

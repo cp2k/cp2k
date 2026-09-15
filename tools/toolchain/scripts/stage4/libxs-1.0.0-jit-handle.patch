@@ -1,0 +1,39 @@
+diff --git a/src/libxs_gemm.c b/src/libxs_gemm.c
+index a567d3b..d5fd909 100644
+--- a/src/libxs_gemm.c
++++ b/src/libxs_gemm.c
+@@ -519,7 +519,7 @@ LIBXS_API libxs_gemm_config_t* libxs_gemm_dispatch_rt(
+           void* jitter = NULL;
+           if (2 != jcd(&jitter, 102, mkl_ta, mkl_tb,
+             km, kn, kk, kernel_shape->alpha, klda, kldb,
+-            kernel_shape->beta, kldc))
++            kernel_shape->beta, kldc) && NULL != jitter)
+           {
+             void* fn = jgd(jitter);
+             if (NULL != fn) LIBXS_FPTR_FROM_VPTR(libxs_gemm_djit_t, config.dgemm_jit, fn);
+@@ -535,7 +535,7 @@ LIBXS_API libxs_gemm_config_t* libxs_gemm_dispatch_rt(
+           void* jitter = NULL;
+           if (2 != jcs(&jitter, 102, mkl_ta, mkl_tb,
+             km, kn, kk, (float)kernel_shape->alpha, klda, kldb,
+-            (float)kernel_shape->beta, kldc))
++            (float)kernel_shape->beta, kldc) && NULL != jitter)
+           {
+             void* fn = jgs(jitter);
+             if (NULL != fn) LIBXS_FPTR_FROM_VPTR(libxs_gemm_sjit_t, config.sgemm_jit, fn);
+diff --git a/libxs/libxs_gemm.h b/libxs/libxs_gemm.h
+--- a/libxs/libxs_gemm.h
++++ b/libxs/libxs_gemm.h
+@@ -302,11 +302,9 @@ LIBXS_API_INLINE void libxs_gemm_call(
+ {
+   LIBXS_ASSERT(NULL != config);
+-  if (NULL != config->dgemm_jit) {
+-    LIBXS_ASSERT(NULL != config->jitter);
++  if (NULL != config->dgemm_jit && NULL != config->jitter) {
+     config->dgemm_jit(config->jitter, a, b, c);
+   }
+-  else if (NULL != config->sgemm_jit) {
+-    LIBXS_ASSERT(NULL != config->jitter);
++  else if (NULL != config->sgemm_jit && NULL != config->jitter) {
+     config->sgemm_jit(config->jitter, a, b, c);
+   }
+   else if (NULL != config->xgemm) {

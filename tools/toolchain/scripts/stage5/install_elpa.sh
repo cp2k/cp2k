@@ -64,7 +64,7 @@ case "${with_elpa}" in
       SSE4_flag=""
       config_flags="--disable-avx-kernels --disable-avx2-kernels --disable-avx512-kernels --disable-sse-kernels --disable-sse-assembly-kernels"
       if [ "${TARGET_CPU}" = "native" ]; then
-        if [ -f /proc/cpuinfo ] && [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
+        if [ -f /proc/cpuinfo ] && [ "${SYSTEM_ARCH}" = "x86_64" ]; then
           has_AVX=$(grep '\bavx\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
           [ "${has_AVX}" = "yes" ] && AVX_flag="-mavx" || AVX_flag=""
           has_AVX2=$(grep '\bavx2\b' /proc/cpuinfo 1> /dev/null && echo 'yes' || echo 'no')
@@ -85,7 +85,7 @@ case "${with_elpa}" in
         echo "Installing from scratch into ${pkg_install_dir}/${TARGET}"
 
         gnu_ldflags="-Wl,--allow-multiple-definition -Wl,--enable-new-dtags"
-        if [[ "$(uname)" == "Darwin" ]]; then
+        if [ "$(uname)" = "Darwin" ]; then
           gnu_ldflags=""
           config_flags="${config_flags} --enable-affinity-checking=no"
         fi

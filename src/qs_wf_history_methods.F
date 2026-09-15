@@ -74,12 +74,9 @@ MODULE qs_wf_history_methods
         wfi_aspc_nr, wfi_frozen_method_nr, wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, &
         wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, &
         wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
-        wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr
+        wfi_use_prev_wf_method_nr
    USE kinds,                           ONLY: dp
-   USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
-                                              kpoint_density_transform,&
-                                              kpoint_set_mo_occupation,&
-                                              rskp_transform
+   USE kpoint_methods,                  ONLY: rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_type,&
                                               kpoint_type
@@ -101,6 +98,7 @@ MODULE qs_wf_history_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
+   USE qs_kpoint_state,                 ONLY: qs_kpoint_state_commit
    USE qs_ks_types,                     ONLY: qs_ks_did_change
    USE qs_matrix_pools,                 ONLY: mpools_get,&
                                               qs_matrix_pools_type
@@ -529,7 +527,7 @@ CONTAINS
          wf_history%memory_depth = 0
       CASE (wfi_use_prev_wf_method_nr)
          wf_history%memory_depth = 0
-      CASE (wfi_use_prev_rho_r_method_nr, wfi_use_prev_p_method_nr)
+      CASE (wfi_use_prev_p_method_nr)
          wf_history%memory_depth = 1
          wf_history%store_rho_ao = .TRUE.
       CASE (wfi_linear_wf_method_nr)
@@ -654,8 +652,6 @@ CONTAINS
          res = "previous_p"
       CASE (wfi_use_prev_wf_method_nr)
          res = "previous_wf"
-      CASE (wfi_use_prev_rho_r_method_nr)
-         res = "previous_rho_r"
       CASE (wfi_use_guess_method_nr)
          res = "initial_guess"
       CASE (wfi_linear_wf_method_nr)
@@ -788,12 +784,7 @@ CONTAINS
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
 
          my_orthogonal_wf = .FALSE.
-      CASE (wfi_use_prev_rho_r_method_nr, wfi_use_prev_p_method_nr)
-         IF (actual_extrapolation_method_nr == wfi_use_prev_rho_r_method_nr) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "USE_PREV_RHO_R is deprecated and will be removed in a future "// &
-                         "release; it is now an alias of USE_PREV_P.")
-         END IF
+      CASE (wfi_use_prev_p_method_nr)
          t0_state => wfi_get_snapshot(wf_history, wf_index=1)
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
          CALL wfi_set_history_variables(qs_env=qs_env, nvec=nvec)
@@ -1144,6 +1135,7 @@ CONTAINS
             nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
             CPASSERT(nvec > 0)
             CALL wfi_extrapolate_gext_proj_kp(wf_history, qs_env, nvec, io_unit, print_level)
+            my_orthogonal_wf = .TRUE.
          ELSE
 
             ! figure out the actual number of vectors to use in the extrapolation:
@@ -1218,6 +1210,7 @@ CONTAINS
             nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
             CPASSERT(nvec > 0)
             CALL wfi_extrapolate_gext_proj_kp(wf_history, qs_env, nvec, io_unit, print_level)
+            my_orthogonal_wf = .TRUE.
          ELSE
 
             ! figure out the actual number of vectors to use in the extrapolation:
@@ -1336,29 +1329,24 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, nmo_nmo_struct
       TYPE(cp_fm_type)                                   :: fmdummy, fmlocal
       TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(dbcsr_type), POINTER                          :: cmatrix_db, rmatrix, tmpmat
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(qs_matrix_pools_type), POINTER                :: mpools_kp
-      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(qs_wf_snapshot_type), POINTER                 :: t1_state
-      TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (kpoints, dft_control, matrix_s_kp, scf_env, scf_control, rho, sab_nl, kp, &
+      NULLIFY (kpoints, matrix_s_kp, scf_env, sab_nl, kp, &
                mo_coeff, rmos, imos, wf_history, t1_state)
 
-      CALL get_qs_env(qs_env, kpoints=kpoints, dft_control=dft_control, &
-                      matrix_s_kp=matrix_s_kp, scf_env=scf_env, &
-                      scf_control=scf_control, rho=rho)
+      CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp, scf_env=scf_env)
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, use_real_wfn=use_real_wfn, &
                            kp_range=kp_range, nkp_groups=nkp_groups, kp_dist=kp_dist, &
                            sab_nl=sab_nl, cell_to_index=cell_to_index)
@@ -1532,17 +1520,17 @@ CONTAINS
             END IF
             CALL cp_cfm_to_fm(cmos_new, rmos, imos)
          END DO
+         ! the MOS now hold extrapolated coefficients that are orthonormal under
+         ! the S(k) of the current geometry: a valid trial subspace for solvers.
+         ! All WFN-based k-point extrapolation methods converge here (PS/ASPC
+         ! and GEXT_PROJ finish through this routine). The flag is set once
+         ! at their common write-back.
+         kp%mos_prefilled = .TRUE.
       END DO
       DEALLOCATE (eigenvalues)
 
       ! Phase C: Rebuild Density Matrix P(R)
-      CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
-      CALL kpoint_density_matrices(kpoints)
-      CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
-      CALL kpoint_density_transform(kpoints, rho_ao_kp, .FALSE., &
-                                    matrix_s_kp(1, 1)%matrix, sab_nl, scf_env%scf_work1)
-      CALL qs_rho_update_rho(rho, qs_env=qs_env)
-      CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+      CALL qs_kpoint_state_commit(qs_env, update_occupations=.TRUE.)
 
       ! Cleanup
       DO ikp = 1, kplocal
@@ -2299,8 +2287,7 @@ CONTAINS
 
       SELECT CASE (qs_env%wf_history%interpolation_method_nr)
       CASE (wfi_use_guess_method_nr, wfi_use_prev_wf_method_nr, &
-            wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
-            wfi_frozen_method_nr)
+            wfi_use_prev_p_method_nr, wfi_frozen_method_nr)
          ! do nothing
       CASE (wfi_linear_wf_method_nr, wfi_linear_p_method_nr, &
             wfi_linear_ps_method_nr, wfi_ps_method_nr, &

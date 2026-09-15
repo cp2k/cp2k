@@ -5,6 +5,10 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
+#ifdef __GAUXC
+#include "gauxc/gauxc_config.f"
+#endif
+
 MODULE xc_gauxc_functional
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
@@ -19,7 +23,8 @@ MODULE xc_gauxc_functional
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE external_potential_types,        ONLY: gth_potential_type,&
+   USE external_potential_types,        ONLY: all_potential_type,&
+                                              gth_potential_type,&
                                               sgp_potential_type
    USE input_constants,                 ONLY: xc_vdw_fun_nonloc
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -59,6 +64,7 @@ MODULE xc_gauxc_functional
         gauxc_create_grid, gauxc_create_integrator, gauxc_create_molecule, gauxc_destroy_basisset, &
         gauxc_destroy_grid, gauxc_destroy_integrator, gauxc_destroy_molecule, &
         gauxc_write_basisset_hdf5, gauxc_write_molecule_hdf5
+   USE xc_input_constants,              ONLY: skala_gapw_paw_one_center
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 #include "../base/base_uses.f90"
 
@@ -69,7 +75,8 @@ MODULE xc_gauxc_functional
    LOGICAL, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_gauxc_functional'
 
-   PUBLIC :: apply_gauxc, gauxc_gapw_has_paw_pseudopotentials, skala_info, &
+   PUBLIC :: apply_gauxc, gauxc_gapw_all_all_electron, gauxc_gapw_all_pseudopotentials, &
+             gauxc_gapw_has_paw_pseudopotentials, gauxc_gapw_has_pseudopotentials, skala_info, &
              xc_section_uses_gauxc
 
    INTERFACE
@@ -86,6 +93,32 @@ MODULE xc_gauxc_functional
    END INTERFACE
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Return whether every GAPW kind uses an all-electron potential.
+!> \param qs_kind_set ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION gauxc_gapw_all_all_electron(qs_kind_set) RESULT(all_all_electron)
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      LOGICAL                                            :: all_all_electron
+
+      INTEGER                                            :: ikind
+      TYPE(all_potential_type), POINTER                  :: all_potential
+
+      CPASSERT(ASSOCIATED(qs_kind_set))
+
+      all_all_electron = .TRUE.
+      DO ikind = 1, SIZE(qs_kind_set)
+         NULLIFY (all_potential)
+         CALL get_qs_kind(qs_kind_set(ikind), all_potential=all_potential)
+         IF (.NOT. ASSOCIATED(all_potential)) THEN
+            all_all_electron = .FALSE.
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION gauxc_gapw_all_all_electron
 
 ! **************************************************************************************************
 !> \brief Set the GauXC Skala atom chunk environment knob when the CP2K keyword is explicit.
@@ -380,6 +413,35 @@ CONTAINS
    END FUNCTION gauxc_gapw_has_pseudopotentials
 
 ! **************************************************************************************************
+!> \brief Return whether every GAPW kind uses a pseudopotential.
+!> \param qs_kind_set ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION gauxc_gapw_all_pseudopotentials(qs_kind_set) RESULT(all_pseudopotentials)
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      LOGICAL                                            :: all_pseudopotentials
+
+      INTEGER                                            :: ikind
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+
+      CPASSERT(ASSOCIATED(qs_kind_set))
+
+      all_pseudopotentials = .TRUE.
+      DO ikind = 1, SIZE(qs_kind_set)
+         NULLIFY (gth_potential, sgp_potential)
+         CALL get_qs_kind(qs_kind_set(ikind), &
+                          gth_potential=gth_potential, &
+                          sgp_potential=sgp_potential)
+         IF (.NOT. (ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential))) THEN
+            all_pseudopotentials = .FALSE.
+            EXIT
+         END IF
+      END DO
+
+   END FUNCTION gauxc_gapw_all_pseudopotentials
+
+! **************************************************************************************************
 !> \brief Return whether GauXC GAPW mode sees pseudopotential one-center GAPW kinds.
 !> \param qs_kind_set ...
 !> \return ...
@@ -389,7 +451,7 @@ CONTAINS
       LOGICAL                                            :: has_paw_pseudopotentials
 
       INTEGER                                            :: ikind
-      LOGICAL                                            :: gpw_type_forced, paw_atom
+      LOGICAL                                            :: paw_atom
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
@@ -400,11 +462,10 @@ CONTAINS
          NULLIFY (gth_potential, sgp_potential)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           gth_potential=gth_potential, &
-                          gpw_type_forced=gpw_type_forced, &
                           paw_atom=paw_atom, &
                           sgp_potential=sgp_potential)
          IF ((ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)) .AND. &
-             paw_atom .AND. .NOT. gpw_type_forced) THEN
+             paw_atom) THEN
             has_paw_pseudopotentials = .TRUE.
             EXIT
          END IF
@@ -899,11 +960,15 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name
       CHARACTER(len=default_string_length)               :: xc_fun_key, xc_fun_name
+      INTEGER                                            :: gapw_representation
       LOGICAL                                            :: native_grid
 
       CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=xc_fun_name)
       CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
       CALL section_vals_val_get(functional, "NATIVE_GRID", l_val=native_grid)
+      CALL section_vals_val_get(functional, "PSEUDOPOTENTIAL_GAPW_REPRESENTATION", &
+                                i_val=gapw_representation)
+      native_grid = native_grid .OR. gapw_representation == skala_gapw_paw_one_center
       model_key = ADJUSTL(model_name)
       xc_fun_key = ADJUSTL(xc_fun_name)
       CALL uppercase(model_key)
@@ -969,9 +1034,9 @@ CONTAINS
       REAL(KIND=dp), PARAMETER :: gapw_fd_gradient_dx = 1.0E-4_dp
 
       CHARACTER(len=default_path_length)                 :: model_key, model_name, output_path
-      CHARACTER(len=default_string_length)               :: gradient_runtime, gradient_runtime_key, &
-                                                            grid_key, pruning_key, skala_runtime, &
-                                                            skala_runtime_key, xc_fun_key
+      CHARACTER(len=default_string_length) :: gradient_runtime, gradient_runtime_key, grid_key, &
+         int_exec_space_key, lwd_kernel_key, pruning_key, skala_runtime, skala_runtime_key, &
+         xc_fun_key
       INTEGER                                            :: atom_chunk_size, env_status, img, ispin, &
                                                             nimages
       LOGICAL :: atom_chunk_size_explicit, do_kpoints, gapw_method, gapw_paw_pseudopotentials, &
@@ -1149,9 +1214,21 @@ CONTAINS
       CALL uppercase(skala_runtime_key)
       gradient_runtime_key = ADJUSTL(gradient_runtime)
       CALL uppercase(gradient_runtime_key)
+      int_exec_space_key = ADJUSTL(params%int_exec_space)
+      CALL uppercase(int_exec_space_key)
       params%use_gauxc_model = (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE" .AND. &
                                 TRIM(model_key) /= TRIM(xc_fun_key))
       use_skala_model = (INDEX(TRIM(model_key), "SKALA") > 0)
+      lwd_kernel_key = ADJUSTL(params%lwd_kernel)
+      CALL uppercase(lwd_kernel_key)
+      IF (TRIM(lwd_kernel_key) == "AUTO") THEN
+         params%lwd_kernel = "DEFAULT"
+#if defined(GAUXC_HAS_CUTLASS)
+         IF (use_skala_model .AND. TRIM(params%int_exec_space) == "DEVICE") THEN
+            params%lwd_kernel = "SCHEME1-CUTLASS"
+         END IF
+#endif
+      END IF
       params%model_eval_name = model_name
       IF (.NOT. params%use_gauxc_model) THEN
          ! MODEL NONE and MODEL equal to FUNCTIONAL select conventional GauXC.
@@ -1220,9 +1297,23 @@ CONTAINS
                "Use GRID SUPERFINE and PRUNING_SCHEME UNPRUNED for quantitative force checks.")
          END IF
          IF (TRIM(model_key) == "SKALA") THEN
-            CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_MODEL", model_name, STATUS=env_status)
+            model_name = ""
+            env_status = 1
+            IF (TRIM(int_exec_space_key) == "DEVICE") THEN
+               CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_CUDA_MODEL", model_name, STATUS=env_status)
+            END IF
             IF (env_status /= 0 .OR. LEN_TRIM(model_name) == 0) THEN
-               CPABORT("MODEL SKALA requires the GAUXC_SKALA_MODEL environment variable")
+               CALL GET_ENVIRONMENT_VARIABLE("GAUXC_SKALA_MODEL", model_name, STATUS=env_status)
+            END IF
+            IF (env_status /= 0 .OR. LEN_TRIM(model_name) == 0) THEN
+               IF (TRIM(int_exec_space_key) == "DEVICE") THEN
+                  CALL cp_abort( &
+                     __LOCATION__, &
+                     "MODEL SKALA with DEVICE execution requires GAUXC_SKALA_CUDA_MODEL or "// &
+                     "GAUXC_SKALA_MODEL")
+               ELSE
+                  CPABORT("MODEL SKALA requires the GAUXC_SKALA_MODEL environment variable")
+               END IF
             END IF
             params%model_eval_name = model_name
          END IF

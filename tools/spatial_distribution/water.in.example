@@ -1,0 +1,26 @@
+# CP2K trajectory and matching cell history. Paths are relative to this file.
+TRAJECTORY water-pos-1.xyz
+CELL_FILE water-1.cell
+
+# This trajectory lists all 128 O atoms first, followed by 128 consecutive H,H
+# pairs. Arguments: origin arm1 arm2 and their three strides, then the count.
+REFERENCE_PATTERN 1 129 130 1 2 2 128
+# For an O,H,H-interleaved trajectory, the equivalent line would be:
+# REFERENCE_PATTERN 1 2 3 3 3 3 128
+FRAME_MODE BISECTOR
+
+# The selector is an exact, case-insensitive XYZ label or a comma-separated list.
+TARGET oxygen O
+TARGET hydrogen H
+
+# Bin edges in angstrom and the number of bins along x, y, and z.
+BOUNDS -5.0 5.0  -5.0 5.0  -5.0 5.0
+GRID 101 101 101
+CUTOFF 5.0
+
+PERIODIC XYZ
+EXCLUDE_REFERENCE T
+FIRST_FRAME 1
+LAST_FRAME 0
+STRIDE 1
+OUTPUT_PREFIX water-sdf

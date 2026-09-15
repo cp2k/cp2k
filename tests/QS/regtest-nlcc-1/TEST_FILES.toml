@@ -1,0 +1,12 @@
+"h2o_polar.inp"                           = [{matcher="M087", tol=1e-05, ref=17.3795876862}]
+"h2o_polar_fdxc.inp"                      = [{matcher="M087", tol=1e-05, ref=17.3769575496}]
+"h2o_polar_hfx.inp"                       = [{matcher="M087", tol=1e-05, ref=17.1252649601}]
+"h2o_polar_gapw.inp"                      = [{matcher="M087", tol=1e-05, ref=17.8730589889}]
+"h2o_polar_acc.inp"                       = [{matcher="M087", tol=1e-05, ref=17.4782104770}]
+"h2o_polar_admm.inp"                      = [{matcher="M087", tol=1e-05, ref=16.9457444067}]
+###"h2o_polar_gapw_admm.inp"                 = [{matcher="M087", tol=1e-05, ref=0.000000000000E+00}]
+"h2o_polar_fineacc.inp"                   = [{matcher="M087", tol=1e-05, ref=17.4820130498}]
+"h2o_polar_mgga1.inp"                     = [{matcher="M087", tol=1e-05, ref=17.749939659}]
+"h2o_polar_mgga2.inp"                     = [{matcher="M087", tol=1e-05, ref=17.7509626773}]
+###"h2o_polar_mgga3.inp"                     = [{matcher="M087", tol=1e-05, ref=17.67994739}]
+#EOF

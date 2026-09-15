@@ -1,3 +1,4 @@
+import math
 import re
 import sys
 from dataclasses import dataclass
@@ -69,6 +70,10 @@ class GenericMatcher(Matcher):
             error = f"Could not parse result as float: '{value_str}'.\n"
             return MatchResult("WRONG RESULT", error, value=None)
 
+        if not math.isfinite(value):
+            error = f"Result is not finite: '{value_str}'.\n"
+            return MatchResult("WRONG RESULT", error, value)
+
         # compare result to reference
         diff = value - ref
         rel_error = abs(diff / ref if ref != 0.0 else diff)
@@ -88,6 +93,31 @@ class TextPresenceMatcher(Matcher):
         if self.text not in output:
             return MatchResult(
                 "WRONG RESULT", f"Text not found: '{self.text}'.\n", value=None
+            )
+        return MatchResult("OK", error=None, value=None)
+
+
+# ======================================================================================
+class TextAbsenceMatcher(Matcher):
+    def __init__(self, text: Optional[str] = None):
+        self.text = text
+
+    def run(self, output: str, **kwargs: Any) -> MatchResult:
+        text = kwargs.get("text", self.text)
+        assert isinstance(text, str) and text
+        count = output.count(text)
+        if count > 0:
+            first_context = ""
+            for line_nr, line in enumerate(output.splitlines(), start=1):
+                if text in line:
+                    first_context = (
+                        f"First occurrence at output line {line_nr}: {line}\n"
+                    )
+                    break
+            return MatchResult(
+                "WRONG RESULT",
+                f"Forbidden text found {count} time(s): '{text}'.\n{first_context}",
+                value=None,
             )
         return MatchResult("OK", error=None, value=None)
 

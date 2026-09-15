@@ -1,0 +1,69 @@
+#CPQA INCLUDE reftraj-output-index.xyz
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT reftraj_output_index
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE REFTRAJ
+    STEPS 3
+    &REFTRAJ
+      EVAL ENERGY_FORCES
+      FIRST_SNAPSHOT 1
+      LAST_SNAPSHOT 3
+      TRAJ_FILE_NAME reftraj-output-index.xyz
+    &END REFTRAJ
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      FILENAME =reftraj-output.xyz
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Ar Ar
+          EPSILON 119.8
+          RCUT 8.4
+          SIGMA 3.405
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES
+      COMMON_ITERATION_LEVELS 0
+      FILENAME reftraj-force
+      &EACH
+        MD 1
+      &END EACH
+    &END FORCES
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Ar 6.771300 4.342850 5.545924
+      Ar 4.592584 7.352355 9.318515
+      Ar 9.206346 8.241361 2.955620
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

@@ -38,7 +38,7 @@ CONTAINS
 !>      09.2007 created [Florian Schiffmann]
 !> \author fschiff
 ! **************************************************************************************************
-   SUBROUTINE lazy_arrays(itype, m, ch, cg, cgt, cht)
+   PURE SUBROUTINE lazy_arrays(itype, m, ch, cg, cgt, cht)
       INTEGER, INTENT(in)                                :: itype, m
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ch, cg, cgt, cht
 

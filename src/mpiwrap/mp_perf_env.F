@@ -230,6 +230,8 @@ CONTAINS
 !> \param count ...
 !> \param msg_size ...
 !> \author fawzi
+!> \note The performance-environment stack must not be modified while MPI wrappers are called
+!>       concurrently. Counter updates themselves are thread-safe.
 ! **************************************************************************************************
    SUBROUTINE add_perf(perf_id, count, msg_size)
       INTEGER, INTENT(in)                      :: perf_id
@@ -239,13 +241,16 @@ CONTAINS
 #if defined(__parallel)
       TYPE(mp_perf_type), POINTER              :: mp_perf
 
+      IF (stack_pointer < 1) RETURN
       IF (.NOT. ASSOCIATED(mp_perf_stack(stack_pointer)%mp_perf_env)) RETURN
 
       mp_perf => mp_perf_stack(stack_pointer)%mp_perf_env%mp_perfs(perf_id)
       IF (PRESENT(count)) THEN
+!$OMP ATOMIC UPDATE
          mp_perf%count = mp_perf%count + count
       END IF
       IF (PRESENT(msg_size)) THEN
+!$OMP ATOMIC UPDATE
          mp_perf%msg_size = mp_perf%msg_size + REAL(msg_size, dp)
       END IF
 #else

@@ -25,7 +25,6 @@ MODULE input_cp2k_dft
                                               medium_print_level,&
                                               silent_print_level
    USE cp_spline_utils,                 ONLY: pw_interp,&
-                                              spline3_nopbc_interp,&
                                               spline3_pbc_interp
    USE cp_units,                        ONLY: cp_unit_to_cp2k
    USE input_constants,                 ONLY: &
@@ -44,7 +43,7 @@ MODULE input_cp2k_dft
         numerical, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, plus_u_tensorial, &
         real_time_propagation, rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, &
         rel_trans_atom, rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, &
-        rtp_bse_ham_g0w0, rtp_bse_ham_ks, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_default, &
+        rtp_bse_ham_gw, rtp_bse_ham_ks, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_default, &
         rtp_bse_kernel_ri_rs, rtp_method_bse, rtp_method_tddft, sccs_andreussi, &
         sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
         sccs_fattebert_gygi, sccs_saa_andreussi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
@@ -1401,12 +1400,11 @@ CONTAINS
       NULLIFY (keyword, print_key)
 
       CALL keyword_create(keyword, __LOCATION__, name="kind", &
-                          description="the interpolator to use", &
+                          description="The interpolator to use. SPLINE3 automatically enables commensurate grids.", &
                           usage="kind spline3", &
                           default_i_val=pw_interp, &
-                          enum_c_vals=s2a("pw", "spline3_nopbc", "spline3"), &
-                          enum_i_vals=[pw_interp, &
-                                       spline3_nopbc_interp, spline3_pbc_interp])
+                          enum_c_vals=s2a("pw", "spline3"), &
+                          enum_i_vals=[pw_interp, spline3_pbc_interp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2093,12 +2091,13 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="RTBSE_HAMILTONIAN", &
                           description="Which Hamiltonian to use as the single-particle Hamiltonian"// &
                           " in the Green's propagator.", &
-                          usage="RTBSE_HAMILTONIAN G0W0", &
-                          default_i_val=rtp_bse_ham_g0w0, &
-                          enum_c_vals=s2a("KS", "G0W0"), &
-                          enum_i_vals=[rtp_bse_ham_ks, rtp_bse_ham_g0w0], &
-                          enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's propagation.", &
-                                        "Use G0W0 Hamiltonian for Green's function propagation"))
+                          usage="RTBSE_HAMILTONIAN GW", &
+                          default_i_val=rtp_bse_ham_gw, &
+                          enum_c_vals=s2a("KS", "GW"), &
+                          enum_i_vals=[rtp_bse_ham_ks, rtp_bse_ham_gw], &
+                          enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's function propagation.", &
+                                        "Use GW Hamiltonian for Green's function propagation. The GW "// &
+                                        "eigenvalues from the highest-level GW flavor will be picked."))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2226,6 +2225,29 @@ CONTAINS
                           usage="DIAGNOSE_LIOUVILLIAN_EIG", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER_RHO", &
+                          description="RI-RS linearized RT-BSE: block-filter threshold on the propagated "// &
+                          "response density Delta-rho (AO). Applied upstream of the projection the "// &
+                          "Hartree shares, so it cuts the SEX kernel and the Hartree response alike. "// &
+                          "Absolute, so its strength is the ratio to the Delta-rho scale.", &
+                          usage="EPS_FILTER_RHO 1.0E-6", &
+                          default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_W0", &
+                          description="RI-RS linearized RT-BSE: real-space truncation radius for the "// &
+                          "grid-basis screened interaction W0. Grid block pairs whose centroids lie "// &
+                          "further apart are dropped at build, and the per-step SEX grid transient is "// &
+                          "built into the same pattern. Affects the BSE kernel only, not the GW "// &
+                          "quasiparticle energies and not the Hartree response. Requires a "// &
+                          "non-periodic cell. Zero or negative disables the truncation.", &
+                          usage="CUTOFF_RADIUS_W0 30.0", &
+                          default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &
+                          type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

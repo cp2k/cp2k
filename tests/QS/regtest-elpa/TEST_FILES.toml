@@ -1,3 +1,8 @@
 "H2O-6.inp"                             = [{matcher="E_total", tol=2e-14, ref=-17.14603641519601}]
 "H2O-6-1stage.inp"                      = [{matcher="E_total", tol=2e-14, ref=-17.14603641519601}]
+# Complex-matrix (k-point) counterparts, tests from QS/regtest-scalapack-generalized
+"cplx_kp.inp"                           = [{matcher="E_total", tol=1e-10, ref=-41.897080363583584}]
+"cplx_kp_1stage.inp"                    = [{matcher="E_total", tol=1e-10, ref=-41.897080363583584}]
+# Exercises the BLOCK2 kernel and its runtime sanity check (2-stage, AVX2)
+"cplx_kp_block2.inp"                    = [{matcher="E_total", tol=1e-10, ref=-41.897080363583584}]
 #EOF

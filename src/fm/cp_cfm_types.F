@@ -277,9 +277,9 @@ CONTAINS
 
       IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
          alpha = matrix%local_data(irow_local, icol_local)
-         CALL context%ZGEBS2D('All', ' ', 1, 1, alpha, 1)
+         CALL context%ZGEBS2D('A', ' ', 1, 1, alpha, 1)
       ELSE
-         CALL context%ZGEBR2D('All', ' ', 1, 1, alpha, 1, iprow, ipcol)
+         CALL context%ZGEBR2D('A', ' ', 1, 1, alpha, 1, iprow, ipcol)
       END IF
 
 #else

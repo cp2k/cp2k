@@ -1,0 +1,8 @@
+diff --git a/src/dftd4/api.f90 b/src/dftd4/api.f90
+index 61f744c..f886e1f 100644
+--- a/src/dftd4/api.f90
++++ b/src/dftd4/api.f90
+@@ -56,2 +56,3 @@ module dftd4_api
+    public :: delete_param_api
++   public :: get_numerical_hessian_api
+    public :: get_dispersion_api, get_pairwise_dispersion_api, get_properties_api

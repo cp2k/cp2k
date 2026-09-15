@@ -23,10 +23,11 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-6
-      MAX_SCF 50
+      MAX_SCF 100
       SCF_GUESS RESTART
       &OT
         MINIMIZER DIIS
+        N_HISTORY_VEC 2
         PRECONDITIONER FULL_SINGLE_INVERSE
       &END OT
     &END SCF

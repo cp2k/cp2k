@@ -87,7 +87,7 @@ MODULE gw_integrals
 !>        buffers. Each thread creates its own (inside the parallel region is fine).
 ! **************************************************************************************************
    TYPE gw_3c_ws_type
-      TYPE(cp_libint_t)                                  :: lib
+      TYPE(cp_libint_t), ALLOCATABLE                                  :: lib
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cpp_buffer, ccp_buffer
    END TYPE gw_3c_ws_type
 
@@ -113,8 +113,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gw_3c_ctx_create'
 
       INTEGER                                            :: egfi, handle, ibasis, ilist, imax, iset, &
-                                                            jset, kset, nbasis, ncoi, sgfi, unit_id
-      INTEGER, DIMENSION(:), POINTER                     :: npgfi, npgfj, npgfk, nsgfi, nsgfj, nsgfk
+                                                            jset, kset, l, nbasis, ncoi, npgf_l, &
+                                                            sgfi, unit_id
+      INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmin_i, npgfi, npgfj, npgfk, &
+                                                            nsgfi, nsgfj, nsgfk
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -147,11 +149,18 @@ CONTAINS
       nbasis = SIZE(basis_i)
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_i(ibasis)%gto_basis_set, maxl=imax, &
-                                nset=iset, nsgf_set=nsgfi, npgf=npgfi)
+                                lmax=lmax_i, lmin=lmin_i, nset=iset, nsgf_set=nsgfi, npgf=npgfi)
          ctx%maxli = MAX(ctx%maxli, imax)
          ctx%max_nset = MAX(ctx%max_nset, iset)
          ctx%max_nsgfi = MAX(ctx%max_nsgfi, MAXVAL(nsgfi))
          ctx%max_ncoi = MAX(ctx%max_ncoi, MAXVAL(npgfi)*ncoset(ctx%maxli))
+         DO l = 0, imax
+            npgf_l = 0
+            DO jset = 1, iset
+               IF (lmin_i(jset) == l .AND. lmax_i(jset) == l) npgf_l = npgf_l + npgfi(jset)
+            END DO
+            ctx%max_ncoi = MAX(ctx%max_ncoi, npgf_l*ncoset(l))
+         END DO
       END DO
       DO ibasis = 1, nbasis
          CALL get_gto_basis_set(gto_basis_set=basis_j(ibasis)%gto_basis_set, maxl=imax, &
@@ -260,6 +269,7 @@ CONTAINS
       TYPE(gw_3c_ws_type), INTENT(OUT)                   :: ws
       TYPE(gw_3c_ctx_type), INTENT(IN)                   :: ctx
 
+      ALLOCATE (ws%lib)
       CALL cp_libint_init_3eri(ws%lib, ctx%max_am)
       CALL cp_libint_set_contrdepth(ws%lib, 1)
       ALLOCATE (ws%cpp_buffer(ctx%max_nsgfj*ctx%max_ncok), &
@@ -276,6 +286,7 @@ CONTAINS
       TYPE(gw_3c_ws_type), INTENT(INOUT)                 :: ws
 
       CALL cp_libint_cleanup_3eri(ws%lib)
+      DEALLOCATE (ws%lib)
       DEALLOCATE (ws%cpp_buffer, ws%ccp_buffer)
 
    END SUBROUTINE gw_3c_ws_release
@@ -536,4 +547,3 @@ CONTAINS
    END SUBROUTINE build_3c_integral_block
 
 END MODULE gw_integrals
-

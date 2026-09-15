@@ -291,8 +291,8 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
       }
     }
   }
-  const double(*pol)[lp + 1][2 * cmax + 1] =
-      (const double(*)[lp + 1][2 * cmax + 1]) pol_mutable;
+  const double (*pol)[lp + 1][2 * cmax + 1] =
+      (const double (*)[lp + 1][2 * cmax + 1]) pol_mutable;
 
   // Precompute mapping from cube to grid indices for each direction
   int map_mutable[3][2 * cmax + 1];
@@ -302,7 +302,7 @@ ortho_cxyz_to_grid(const int lp, const double zetp, const double dh[3][3],
           modulo(cubecenter[i] + k - shift_local[i], npts_global[i]);
     }
   }
-  const int(*map)[2 * cmax + 1] = (const int(*)[2 * cmax + 1]) map_mutable;
+  const int (*map)[2 * cmax + 1] = (const int (*)[2 * cmax + 1]) map_mutable;
 
   // Loop over k dimension of the cube.
   const int kstart = (int)ceil(-1e-8 - disr_radius * dh_inv[2][2]);

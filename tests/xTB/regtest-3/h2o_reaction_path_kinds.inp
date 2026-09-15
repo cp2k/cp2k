@@ -1,0 +1,91 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT h2o_reaction_path_kinds
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS FALSE
+      &METAVAR
+        COLVAR 1
+        SCALE 1.0
+        &WALL
+          POSITION 0.5
+          TYPE QUADRATIC
+          &QUADRATIC
+            DIRECTION WALL_PLUS
+            K 1.0
+          &END QUADRATIC
+        &END WALL
+      &END METAVAR
+      &METAVAR
+        COLVAR 2
+        SCALE 1.0
+        &WALL
+          POSITION 0.5
+          TYPE QUADRATIC
+          &QUADRATIC
+            DIRECTION WALL_PLUS
+            K 1.0
+          &END QUADRATIC
+        &END WALL
+      &END METAVAR
+    &END METADYN
+  &END FREE_ENERGY
+  &MD
+    STEPS 1
+  &END MD
+&END MOTION
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD XTB
+    &END QS
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COLVAR
+      &REACTION_PATH
+        FUNCTION T
+        RANGE 0.0 1.0
+        VARIABLE T
+        &COLVAR
+          &COORDINATION
+            ATOMS_FROM 1
+            ATOMS_TO 2 3
+          &END COORDINATION
+        &END COLVAR
+      &END REACTION_PATH
+    &END COLVAR
+    &COLVAR
+      &REACTION_PATH
+        FUNCTION T
+        RANGE 0.0 1.0
+        VARIABLE T
+        &COLVAR
+          &COORDINATION
+            ATOMS_FROM 1
+            KINDS_TO H
+          &END COORDINATION
+        &END COLVAR
+      &END REACTION_PATH
+    &END COLVAR
+    &COORD
+      O -1.37631 0.79033 0.00000
+      H -0.40631 0.79033 0.00000
+      H -1.69964 1.04112 -0.87947
+    &END COORD
+    &VELOCITY
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+      0.0 0.0 0.0
+    &END VELOCITY
+  &END SUBSYS
+&END FORCE_EVAL

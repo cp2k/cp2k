@@ -877,7 +877,7 @@ public:
     }
   }
 
-  ~smem_parameters(){};
+  ~smem_parameters() {};
 
   // copy and move are trivial
 

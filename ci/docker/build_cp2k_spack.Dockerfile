@@ -23,11 +23,11 @@ ENV FEATURE_FLAGS=${FEATURE_FLAGS:-}
 
 # Build CP2K
 WORKDIR /opt/cp2k
-COPY ./src ./src
-COPY ./data ./data
-COPY ./tools/build_utils ./tools/build_utils
+COPY ./CMakeLists.txt ./CMakePresets.json ./
 COPY ./cmake ./cmake
-COPY ./CMakeLists.txt .
+COPY ./data ./data
+COPY ./src ./src
+COPY ./tools/build_utils ./tools/build_utils
 
 RUN ./make_cp2k.sh -cray -cv ${CP2K_VERSION} -uc no -j${NUM_PROCS} ${FEATURE_FLAGS}
 
@@ -54,6 +54,7 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 
 # Install CP2K/Quickstep CI benchmarks
 COPY ./benchmarks/CI ./benchmarks/CI
+COPY ./ci ./ci
 
 # Do not rely only on LD_LIBRARY_PATH because it is fragile
 COPY --from=build_cp2k /etc/ld.so.conf.d/cp2k.conf /etc/ld.so.conf.d/cp2k.conf

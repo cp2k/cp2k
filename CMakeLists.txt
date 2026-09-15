@@ -298,6 +298,7 @@ set(CP2K_SUPPORTED_CUDA_ARCHITECTURES
     V100
     A100
     H100
+    B200
     GB10
     A40)
 set(CP2K_SUPPORTED_HIP_ARCHITECTURES
@@ -313,6 +314,7 @@ set(CP2K_SUPPORTED_HIP_ARCHITECTURES
     V100
     A100
     H100
+    B200
     GB10
     A40)
 
@@ -470,6 +472,7 @@ if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
   set(CP2K_GPU_ARCH_NUMBER_V100 70)
   set(CP2K_GPU_ARCH_NUMBER_A100 80)
   set(CP2K_GPU_ARCH_NUMBER_H100 90)
+  set(CP2K_GPU_ARCH_NUMBER_B200 100)
   set(CP2K_GPU_ARCH_NUMBER_GB10 121)
   set(CP2K_GPU_ARCH_NUMBER_A40 86)
   set(CP2K_GPU_ARCH_NUMBER_Mi50 gfx906)
@@ -529,6 +532,9 @@ if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
       set(CMAKE_HIP_ARCHITECTURES "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
     endif()
   endif()
+
+  set(CP2K_CUDA_ARCHITECTURES "${CMAKE_CUDA_ARCHITECTURES}")
+  set(CP2K_HIP_ARCHITECTURES "${CMAKE_HIP_ARCHITECTURES}")
 endif()
 
 message("\n------------------------------------------------------------")
@@ -903,6 +909,17 @@ endif()
 # SIRIUS
 if(CP2K_USE_SIRIUS)
   find_package(sirius 7.7.0 REQUIRED)
+  add_library(cp2k::sirius INTERFACE IMPORTED)
+  target_link_libraries(cp2k::sirius INTERFACE sirius::sirius)
+
+  get_target_property(CP2K_SIRIUS_LIBRARY_TYPE sirius::sirius TYPE)
+  if(CP2K_SIRIUS_LIBRARY_TYPE STREQUAL "SHARED_LIBRARY")
+    # Shared SIRIUS does not export the private C++ library's link interface.
+    find_package(sirius_cxx CONFIG REQUIRED)
+    target_link_libraries(cp2k::sirius
+                          INTERFACE "$<LINK_ONLY:sirius::sirius_cxx>")
+  endif()
+  unset(CP2K_SIRIUS_LIBRARY_TYPE)
 endif()
 
 if(CP2K_USE_PLUMED)
@@ -912,6 +929,13 @@ endif()
 set(CP2K_USE_LIBTORCH_CUDA OFF)
 if(CP2K_USE_LIBTORCH)
   find_package(Torch REQUIRED)
+  # Torch's CMake package disables CMAKE_CUDA_ARCHITECTURES after adding its own
+  # NVCC flags. Restore CP2K's selected target for the targets below.
+  if(CP2K_USE_ACCEL MATCHES CUDA)
+    set(CMAKE_CUDA_ARCHITECTURES "${CP2K_CUDA_ARCHITECTURES}")
+  elseif(CP2K_USE_ACCEL MATCHES HIP)
+    set(CMAKE_HIP_ARCHITECTURES "${CP2K_HIP_ARCHITECTURES}")
+  endif()
   if(DEFINED TORCH_CUDA_LIBRARIES AND NOT "${TORCH_CUDA_LIBRARIES}" STREQUAL "")
     set(CP2K_USE_LIBTORCH_CUDA ON)
   endif()
@@ -983,7 +1007,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
             FORCE)
   # set the possible values of build type for cmake-gui
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
-                                               "Coverage")
+                                               "RelWithDebInfo")
 endif()
 
 # compiler configuration could have impacted package discovery (above)

@@ -3,7 +3,7 @@
 "H2_GAUXC_MODEL_PBE_CDFT.inp"       = [{matcher="E_total", tol=1e-9, ref=-1.157229340943540},
                                   {matcher="M071", tol=1e-8, ref=0.197624070585}]
 "H2_SKALA_CDFT.inp"            = [{matcher="M071", tol=1e-3, ref=0.216557647288}]
-"H2_GAPW_SKALA_CDFT.inp"       = [{matcher="M071", tol=1e-3, ref=0.217417757774}]
+"H2_GAPW_SKALA_CDFT.inp"       = [{matcher="M071", tol=1e-3, ref=0.228874031134}]
 "H2_PBE_CDFT_CI_REFERENCE.inp" = [{matcher="M073", tol=1e-8, ref=345.364329058819},
                                   {matcher="M077", tol=1e-8, ref=-1.16295181842678}]
 "H2_GAUXC_MODEL_PBE_CDFT_CI_NGROUPS.inp" = [{matcher="M073", tol=1e-8, ref=345.325380057211},

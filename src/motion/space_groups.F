@@ -628,11 +628,11 @@ CONTAINS
       nparticle = spgr%nparticle
       nops = spgr%n_reduced_operations
 
-      !$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rf,rn,rot,tr) SHARED (spgr,coord,nparticle,nop,nops) DEFAULT(NONE)
+      !$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rf,rn,rot,tr) SHARED (spgr,coord,cold,nparticle,nop,nops) DEFAULT(NONE)
       DO ia = 1, nparticle
          IF (.NOT. spgr%lat(ia)) CYCLE
          ja = 3*(ia - 1)
-         CALL real_to_scaled(rf(1:3), coord(ja + 1:ja + 3), spgr%cell_ref)
+         CALL real_to_scaled(rf(1:3), cold(ja + 1:ja + 3), spgr%cell_ref)
          rn(1:3) = 0.d0
          DO ir = 1, nop
             IF (.NOT. spgr%lop(ir)) CYCLE
@@ -640,7 +640,7 @@ CONTAINS
             rot(1:3, 1:3) = spgr%rotations(1:3, 1:3, ir)
             tr(1:3) = spgr%translations(1:3, ir)
             jb = 3*(ib - 1)
-            CALL real_to_scaled(ri(1:3), coord(jb + 1:jb + 3), spgr%cell_ref)
+            CALL real_to_scaled(ri(1:3), cold(jb + 1:jb + 3), spgr%cell_ref)
             ro(1) = REAL(rot(1, 1), dp)*ri(1) + REAL(rot(2, 1), dp)*ri(2) + REAL(rot(3, 1), dp)*ri(3) + tr(1)
             ro(2) = REAL(rot(1, 2), dp)*ri(1) + REAL(rot(2, 2), dp)*ri(2) + REAL(rot(3, 2), dp)*ri(3) + tr(2)
             ro(3) = REAL(rot(1, 3), dp)*ri(1) + REAL(rot(2, 3), dp)*ri(2) + REAL(rot(3, 3), dp)*ri(3) + tr(3)
@@ -689,7 +689,7 @@ CONTAINS
       nparticle = spgr%nparticle
       nops = spgr%n_reduced_operations
 
-      !$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rn,rot) SHARED (spgr,force,nparticle,nop,nops) DEFAULT(NONE)
+      !$OMP PARALLEL DO PRIVATE (ia,ib,ja,jb,ir,ri,ro,rn,rot) SHARED (spgr,force,fold,nparticle,nop,nops) DEFAULT(NONE)
       DO ia = 1, nparticle
          IF (.NOT. spgr%lat(ia)) CYCLE
          ja = 3*(ia - 1)
@@ -699,7 +699,7 @@ CONTAINS
             ib = spgr%eqatom(ir, ia)
             rot(1:3, 1:3) = spgr%rotations(1:3, 1:3, ir)
             jb = 3*(ib - 1)
-            CALL real_to_scaled(ri(1:3), force(jb + 1:jb + 3), spgr%cell_ref)
+            CALL real_to_scaled(ri(1:3), fold(jb + 1:jb + 3), spgr%cell_ref)
             ro(1) = REAL(rot(1, 1), dp)*ri(1) + REAL(rot(2, 1), dp)*ri(2) + REAL(rot(3, 1), dp)*ri(3)
             ro(2) = REAL(rot(1, 2), dp)*ri(1) + REAL(rot(2, 2), dp)*ri(2) + REAL(rot(3, 2), dp)*ri(3)
             ro(3) = REAL(rot(1, 3), dp)*ri(1) + REAL(rot(2, 3), dp)*ri(2) + REAL(rot(3, 3), dp)*ri(3)

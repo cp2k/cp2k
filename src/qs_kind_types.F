@@ -64,6 +64,7 @@ MODULE qs_kind_types
         gapw_1c_orb, gapw_1c_small, gapw_1c_very_large, plus_u_lowdin, plus_u_tensorial
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
+                                              section_vals_get_subs_vals2,&
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
@@ -110,6 +111,10 @@ MODULE qs_kind_types
                                               se_param_set_default
    USE soft_basis_set,                  ONLY: create_soft_basis
    USE string_utilities,                ONLY: uppercase
+   USE xc_input_constants,              ONLY: skala_gapw_cp2k_default,&
+                                              skala_gapw_direct_valence,&
+                                              skala_gapw_paw_one_center,&
+                                              skala_gapw_paw_one_center_split
    USE xtb_parameters,                  ONLY: xtb_set_kab
    USE xtb_types,                       ONLY: deallocate_xtb_atom_param,&
                                               get_xtb_atom_param,&
@@ -1456,6 +1461,47 @@ CONTAINS
    END SUBROUTINE init_qs_kind_set
 
 ! **************************************************************************************************
+!> \brief Resolve the active model's pseudopotential GAPW representation.
+!> \param force_env_section ...
+!> \return CP2K default when no GauXC model replaces the XC functional
+! **************************************************************************************************
+   FUNCTION skala_gapw_representation_from_input(force_env_section) RESULT(representation)
+      TYPE(section_vals_type), POINTER                   :: force_env_section
+      INTEGER                                            :: representation
+
+      CHARACTER(LEN=default_path_length)                 :: model_key, model_name
+      CHARACTER(LEN=default_string_length)               :: functional_key, functional_name
+      INTEGER                                            :: ifun
+      TYPE(section_vals_type), POINTER                   :: functional, functionals
+
+      representation = skala_gapw_cp2k_default
+      functionals => section_vals_get_subs_vals(force_env_section, "DFT%XC%XC_FUNCTIONAL")
+      IF (.NOT. ASSOCIATED(functionals)) RETURN
+
+      ifun = 0
+      DO
+         ifun = ifun + 1
+         functional => section_vals_get_subs_vals2(functionals, i_section=ifun)
+         IF (.NOT. ASSOCIATED(functional)) EXIT
+         IF (functional%section%name /= "GAUXC") CYCLE
+
+         CALL section_vals_val_get(functional, "MODEL", c_val=model_name)
+         CALL section_vals_val_get(functional, "FUNCTIONAL", c_val=functional_name)
+         model_key = ADJUSTL(model_name)
+         functional_key = ADJUSTL(functional_name)
+         CALL uppercase(model_key)
+         CALL uppercase(functional_key)
+         IF (TRIM(model_key) /= "" .AND. TRIM(model_key) /= "NONE" .AND. &
+             TRIM(model_key) /= TRIM(functional_key)) THEN
+            CALL section_vals_val_get(functional, "PSEUDOPOTENTIAL_GAPW_REPRESENTATION", &
+                                      i_val=representation)
+         END IF
+         RETURN
+      END DO
+
+   END FUNCTION skala_gapw_representation_from_input
+
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_kind_set ...
 !> \param qs_control ...
@@ -1470,17 +1516,23 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: modify_qs_control
 
       CHARACTER(LEN=default_string_length)               :: bsname
-      INTEGER                                            :: bas1c, ikind, ilevel, nkind
-      LOGICAL                                            :: gpw, my_mod_control, paw_atom
+      INTEGER                                            :: bas1c, ikind, ilevel, nkind, &
+                                                            representation
+      LOGICAL                                            :: effective_force_paw, effective_gpw, gpw, &
+                                                            has_pseudopotential, my_mod_control, &
+                                                            paw_atom
       REAL(dp)                                           :: max_rad_local_type, rc
+      TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c, orb_basis, soft_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj
       TYPE(qs_kind_type), POINTER                        :: qs_kind
+      TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       my_mod_control = .TRUE.
       IF (PRESENT(modify_qs_control)) THEN
          my_mod_control = modify_qs_control
       END IF
+      representation = skala_gapw_representation_from_input(force_env_section)
 
       IF (ASSOCIATED(qs_kind_set)) THEN
 
@@ -1492,8 +1544,34 @@ CONTAINS
             qs_kind => qs_kind_set(ikind)
 
             CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis)
+            NULLIFY (gth_potential, sgp_potential)
             CALL get_qs_kind(qs_kind=qs_kind, hard_radius=rc, &
-                             max_rad_local=max_rad_local_type, gpw_type_forced=gpw)
+                             max_rad_local=max_rad_local_type, gpw_type_forced=gpw, &
+                             gth_potential=gth_potential, sgp_potential=sgp_potential)
+
+            has_pseudopotential = ASSOCIATED(gth_potential) .OR. ASSOCIATED(sgp_potential)
+            effective_gpw = gpw
+            effective_force_paw = qs_control%gapw_control%force_paw .OR. &
+                                  ASSOCIATED(qs_kind%cneo_potential)
+            IF (has_pseudopotential) THEN
+               SELECT CASE (representation)
+               CASE (skala_gapw_direct_valence)
+                  effective_gpw = .TRUE.
+                  effective_force_paw = .FALSE.
+               CASE (skala_gapw_paw_one_center, skala_gapw_paw_one_center_split)
+                  effective_gpw = .FALSE.
+                  effective_force_paw = .TRUE.
+               CASE (skala_gapw_cp2k_default)
+                  CONTINUE
+               CASE DEFAULT
+                  CPABORT("Unknown GAUXC PSEUDOPOTENTIAL_GAPW_REPRESENTATION value")
+               END SELECT
+               IF (ASSOCIATED(qs_kind%cneo_potential)) THEN
+                  effective_gpw = .FALSE.
+                  effective_force_paw = .TRUE.
+               END IF
+               qs_kind%gpw_type_forced = effective_gpw
+            END IF
 
             NULLIFY (soft_basis)
             CALL allocate_gto_basis_set(soft_basis)
@@ -1502,8 +1580,7 @@ CONTAINS
             ! because the local Hartree potential is needed.
             CALL create_soft_basis(orb_basis, soft_basis, &
                                    qs_control%gapw_control%eps_fit, rc, paw_atom, &
-                                   (qs_control%gapw_control%force_paw .OR. &
-                                    ASSOCIATED(qs_kind%cneo_potential)), gpw)
+                                   effective_force_paw, effective_gpw)
             CALL add_basis_set_to_container(qs_kind%basis_sets, soft_basis, "ORB_SOFT")
             CALL set_qs_kind(qs_kind=qs_kind, paw_atom=paw_atom)
 

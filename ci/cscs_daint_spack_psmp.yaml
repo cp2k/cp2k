@@ -37,12 +37,12 @@ build deps daint:
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     CP2K_VERSION: ${VERSION}
-    FEATURE_FLAGS: "-ef openpmd -np 4"
+    FEATURE_FLAGS: "-np 4"
     NUM_PROCS: 64
     KUBERNETES_CPU_REQUEST: 64
     KUBERNETES_CPU_LIMIT: 64
-    KUBERNETES_MEMORY_REQUEST: 128Gi
-    KUBERNETES_MEMORY_LIMIT: 128Gi
+    KUBERNETES_MEMORY_REQUEST: 256Gi
+    KUBERNETES_MEMORY_LIMIT: 256Gi
 
 build cp2k daint:
   extends: .container-builder-cscs-gh200
@@ -64,7 +64,7 @@ build cp2k daint:
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
-    FEATURE_FLAGS: "-ef openpmd"
+    FEATURE_FLAGS: ""
     NUM_PROCS: 32
     KUBERNETES_CPU_REQUEST: 32
     KUBERNETES_CPU_LIMIT: 32
@@ -95,7 +95,7 @@ regression test cp2k daint:
   timeout: 6h
   script:
     - git --no-pager log -1 --pretty="%nCommitSHA:%x20%H%nCommitTime:%x20%ci%nCommitAuthor:%x20%an%nCommitSubject:%x20%s%n"
-    - podman run --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --cp2kdatadir /opt/cp2k/install/share/cp2k/data --maxtasks ${SLURM_NTASKS} --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/install/bin ${VERSION} 2>&1 || true
+    - podman run --shm-size=8g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --cp2kdatadir /opt/cp2k/install/share/cp2k/data --maxtasks ${SLURM_NTASKS} --timeout 400 --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/install/bin ${VERSION} 2>&1 || true
   variables:
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
@@ -107,7 +107,7 @@ regression test cp2k daint:
 benchmark cp2k 1 daint node:
   extends: .container-runner-daint-gh200
   stage: benchmark
-  needs: ["build cp2k daint","test cp2k daint"]
+  needs: ["regression test cp2k daint"]
   timeout: 6h
   image: ${CSCS_IMAGE_NAME}
   before_script:
@@ -117,20 +117,19 @@ benchmark cp2k 1 daint node:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 3
+    SLURM_CPUS_PER_TASK: 1
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 72
-    SLURM_NTASKS_PER_NODE: 72
+    SLURM_NTASKS_PER_NODE: 256
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
 
 benchmark cp2k 1 daint node elpa:
   extends: .container-runner-daint-gh200
   stage: benchmark
-  needs: ["build cp2k daint","test cp2k daint","benchmark cp2k 1 daint node"]
+  needs: ["regression test cp2k daint"]
   timeout: 6h
   image: ${CSCS_IMAGE_NAME}
   before_script:
@@ -140,12 +139,55 @@ benchmark cp2k 1 daint node elpa:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
   variables:
     SLURM_CPU_BIND: cores
-    SLURM_CPUS_PER_TASK: 3
+    SLURM_CPUS_PER_TASK: 1
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_MPI_TYPE: pmi2
-    SLURM_NTASKS: 72
-    SLURM_NTASKS_PER_NODE: 72
+    SLURM_NTASKS_PER_NODE: 256
+    SLURM_TIMELIMIT: 30
+    USE_MPI: YES
+
+benchmark cp2k 2 daint nodes:
+  extends: .container-runner-daint-gh200
+  stage: benchmark
+  needs: ["benchmark cp2k 1 daint node"]
+  timeout: 6h
+  image: ${CSCS_IMAGE_NAME}
+  before_script:
+    - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
+  script:
+    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
+  variables:
+    SLURM_CPU_BIND: cores
+    SLURM_CPUS_PER_TASK: 1
+    SLURM_DEBUG: 1
+    SLURM_HINT: nomultithread
+    SLURM_JOB_NUM_NODES: 2
+    SLURM_MPI_TYPE: pmi2
+    SLURM_NTASKS_PER_NODE: 288
+    SLURM_TIMELIMIT: 30
+    USE_MPI: YES
+
+benchmark cp2k 2 daint nodes elpa:
+  extends: .container-runner-daint-gh200
+  stage: benchmark
+  needs: ["benchmark cp2k 1 daint node elpa"]
+  timeout: 6h
+  image: ${CSCS_IMAGE_NAME}
+  before_script:
+    - export CP2K_DATA_DIR=/opt/cp2k/install/share/cp2k/data
+    - export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
+  script:
+    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md_elpa.inp
+  variables:
+    SLURM_CPU_BIND: cores
+    SLURM_CPUS_PER_TASK: 1
+    SLURM_DEBUG: 1
+    SLURM_HINT: nomultithread
+    SLURM_JOB_NUM_NODES: 2
+    SLURM_MPI_TYPE: pmi2
+    SLURM_NTASKS_PER_NODE: 288
     SLURM_TIMELIMIT: 30
     USE_MPI: YES

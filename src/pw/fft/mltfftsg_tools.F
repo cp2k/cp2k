@@ -10,6 +10,7 @@ MODULE mltfftsg_tools
    USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
                                               C_LOC
    USE fft_kinds,                       ONLY: dp
+   USE mathconstants,                   ONLY: twopi
 
 !$ USE OMP_LIB, ONLY: omp_get_num_threads, omp_get_thread_num
 
@@ -42,7 +43,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mltfftsg(transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign, scale)
 
-      CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
+      LOGICAL, INTENT(IN)                                :: transa, transb
       INTEGER, INTENT(IN)                                :: ldax, lday
       COMPLEX(dp), INTENT(INOUT)                         :: a(ldax, lday)
       INTEGER, INTENT(IN)                                :: ldbx, ldby
@@ -92,7 +93,7 @@ CONTAINS
       DO ITR = istart, iend, LOT
 
          NFFT = MIN(M - ITR + 1, LOT)
-         IF (TRANSA == 'N' .OR. TRANSA == 'n') THEN
+         IF (.NOT. transa) THEN
             CALL fftpre_cmplx(NFFT, NFFT, LDAX, LOT, N, A(1, ITR), Z(1, 1, id), &
                               TRIG, NOW(1), AFTER(1), BEFORE(1), ISIG)
          ELSE
@@ -109,7 +110,7 @@ CONTAINS
             END IF
          END IF
          IF (IC == 1) THEN
-            IF (TRANSB == 'N' .OR. TRANSB == 'n') THEN
+            IF (.NOT. transb) THEN
                CALL zgetmo(Z(1, 1, id), LOT, NFFT, N, B(1, ITR), LDBX)
             ELSE
                CALL matmov(NFFT, N, Z(1, 1, id), LOT, B(ITR, 1), LDBX)
@@ -122,7 +123,7 @@ CONTAINS
                                  BEFORE(I), ISIG)
                INZEE = 3 - INZEE
             END DO
-            IF (TRANSB == 'N' .OR. TRANSB == 'n') THEN
+            IF (.NOT. transb) THEN
                CALL fftrot_cmplx(LOT, NFFT, N, NFFT, LDBX, Z(1, INZEE, id), &
                                  B(1, ITR), TRIG, NOW(IC), AFTER(IC), BEFORE(IC), ISIG)
             ELSE
@@ -136,7 +137,7 @@ CONTAINS
 
       DEALLOCATE (Z)
 
-      IF (TRANSB == 'N' .OR. TRANSB == 'n') THEN
+      IF (.NOT. transb) THEN
          B(1:LDBX, M + 1:LDBY) = CMPLX(0._dp, 0._dp, dp)
          B(N + 1:LDBX, 1:M) = CMPLX(0._dp, 0._dp, dp)
       ELSE
@@ -3514,7 +3515,7 @@ CONTAINS
          ctrig_length, 4, 4, 4, 4, 4, 1], [7, nt])
 
       INTEGER                                            :: i, itt, j
-      REAL(dp)                                           :: angle, twopi
+      REAL(dp)                                           :: angle
 
       mloop: DO i = 1, nt
          IF (n == idata(1, i)) THEN
@@ -3531,10 +3532,11 @@ CONTAINS
             EXIT mloop
          END IF
          IF (i == nt) THEN
-            WRITE (*, '(A,i5,A)') " Value of ", n, &
-               " not allowed for fft, allowed values are:"
-            WRITE (*, '(15i5)') (idata(1, j), j=1, nt)
-            CPABORT('ctrig')
+            ! WRITE (*, '(A,i5,A)') " Value of ", n, &
+            !    " not allowed for fft, allowed values are:"
+            ! WRITE (*, '(15i5)') (idata(1, j), j=1, nt)
+            CALL cp_abort(__LOCATION__, &
+                          "Value of n not supported for ctrig in mltfftsg")
          END IF
       END DO mloop
 
@@ -3545,7 +3547,6 @@ CONTAINS
          before(ic - i + 1) = before(ic - i + 2)*now(ic - i + 2)
       END DO
 
-      twopi = 8._dp*ATAN(1._dp)
       angle = isign*twopi/REAL(n, dp)
       trig(1, 1) = 1._dp
       trig(2, 1) = 0._dp

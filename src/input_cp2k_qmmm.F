@@ -110,7 +110,7 @@ CONTAINS
                           enum_desc=s2a("Mechanical coupling (i.e. classical point charge based)", &
                                         "Using analytical 1/r potential (Coulomb) - not available for GPW/GAPW", &
                                         "Using fast Gaussian expansion of the electrostatic potential (Erf(r/rc)/r) "// &
-                                        "- not available for DFTB.", &
+                                        "for GPW/GAPW and Gaussian MM charges for DFTB/xTB with NOCOMPATIBILITY.", &
                                         "Using fast Gaussian expansion of the s-wave electrostatic potential", &
                                         "Using quantum mechanics derived point charges interacting with MM charges"), &
                           default_i_val=do_qmmm_none)

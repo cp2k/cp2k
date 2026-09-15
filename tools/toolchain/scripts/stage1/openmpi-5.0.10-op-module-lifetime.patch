@@ -1,0 +1,43 @@
+# Backports the OpenMPI fixes requested for CP2K in open-mpi/ompi#13783.
+# Merged upstream via open-mpi/ompi#13868 as commits 4f944b5 and 0517663.
+diff --git a/ompi/mca/op/base/op_base_op_select.c b/ompi/mca/op/base/op_base_op_select.c
+--- a/ompi/mca/op/base/op_base_op_select.c
++++ b/ompi/mca/op/base/op_base_op_select.c
+@@ -17 +17 @@
+- * Copyright (c) 2020      Research Organization for Information Science
++ * Copyright (c) 2020-2024 Research Organization for Information Science
+@@ -166 +166 @@ int ompi_op_base_op_select(ompi_op_t *op)
+-                OBJ_RELEASE(op->o_func.intrinsic.modules[i]);
++                OBJ_RELEASE(op->o_3buff_intrinsic.modules[i]);
+diff --git a/ompi/mca/op/aarch64/op_aarch64_component.c b/ompi/mca/op/aarch64/op_aarch64_component.c
+--- a/ompi/mca/op/aarch64/op_aarch64_component.c
++++ b/ompi/mca/op/aarch64/op_aarch64_component.c
+@@ -6,0 +7,2 @@
++ * Copyright (c) 2024      Research Organization for Information Science
++ *                         and Technology (RIST).  All rights reserved.
+@@ -168 +169,0 @@ static struct ompi_op_base_module_1_0_0_t *
+-    ompi_op_base_module_t *module = OBJ_NEW(ompi_op_base_module_t);
+@@ -174,0 +176,4 @@ static struct ompi_op_base_module_1_0_0_t *
++    ompi_op_base_module_t *module = OBJ_NEW(ompi_op_base_module_t);
++    if (NULL == module) {
++        return NULL;
++    }
+@@ -203,6 +207,0 @@ static struct ompi_op_base_module_1_0_0_t *
+-            if( NULL != module->opm_fns[i] ) {
+-                OBJ_RETAIN(module);
+-            }
+-            if( NULL != module->opm_3buff_fns[i] ) {
+-                OBJ_RETAIN(module);
+-            }
+@@ -211,0 +211 @@ static struct ompi_op_base_module_1_0_0_t *
++        OBJ_RELEASE(module);
+@@ -214,0 +215 @@ static struct ompi_op_base_module_1_0_0_t *
++        OBJ_RELEASE(module);
+@@ -217,0 +219 @@ static struct ompi_op_base_module_1_0_0_t *
++        OBJ_RELEASE(module);
+@@ -220,0 +223 @@ static struct ompi_op_base_module_1_0_0_t *
++        OBJ_RELEASE(module);
+@@ -223,0 +227 @@ static struct ompi_op_base_module_1_0_0_t *
++        OBJ_RELEASE(module);
+@@ -226,0 +231 @@ static struct ompi_op_base_module_1_0_0_t *
++        OBJ_RELEASE(module);

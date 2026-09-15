@@ -12,6 +12,10 @@
     &MGRID
       CUTOFF 150
     &END MGRID
+    &PRINT
+      &LOWDIN
+      &END LOWDIN
+    &END PRINT
     &QS
     &END QS
     &SCF

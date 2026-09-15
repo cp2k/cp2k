@@ -24,14 +24,22 @@ MODULE qs_scf_post_gpw
                                               gto_basis_set_type
    USE casino_utils,                    ONLY: write_casino
    USE cell_types,                      ONLY: cell_type
+   USE commutator_rpnl,                 ONLY: build_com_mom_nl
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_create,&
                                               dbcsr_p_type,&
-                                              dbcsr_type
+                                              dbcsr_scale,&
+                                              dbcsr_set,&
+                                              dbcsr_type,&
+                                              dbcsr_type_antisymmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_ddapc_util,                   ONLY: get_ddapc
@@ -65,6 +73,7 @@ MODULE qs_scf_post_gpw
    USE ed_analysis,                     ONLY: edmf_analysis
    USE eeq_method,                      ONLY: eeq_print
    USE et_coupling_types,               ONLY: set_et_coupling_type
+   USE gapw_gspace_reconstruction,      ONLY: calculate_rhotot_elec_gspace
    USE hfx_ri,                          ONLY: print_ri_hfx
    USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
                                               comp_hirshfeld_i_charges,&
@@ -80,8 +89,8 @@ MODULE qs_scf_post_gpw
                                               iao_read_input
    USE input_constants,                 ONLY: &
         do_loc_both, do_loc_homo, do_loc_jacobi, do_loc_lumo, do_loc_mixed, do_loc_none, &
-        moments_format_trajectory, ot_precond_full_all, radius_covalent, radius_user, &
-        ref_charge_atomic, ref_charge_mulliken
+        moments_format_trajectory, ot_precond_full_all, ot_precond_full_all_covariant, &
+        radius_covalent, radius_user, ref_charge_atomic, ref_charge_mulliken
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
@@ -139,7 +148,6 @@ MODULE qs_scf_post_gpw
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
                                               calculate_wavefunction
-   USE qs_commutators,                  ONLY: build_com_hr_matrix
    USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_dos,                          ONLY: calculate_dos,&
                                               calculate_dos_kp
@@ -188,6 +196,7 @@ MODULE qs_scf_post_gpw
                                               neighbor_list_iterator_p_type,&
                                               neighbor_list_iterator_release,&
                                               neighbor_list_set_p_type
+   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
    USE qs_ot_eigensolver,               ONLY: ot_eigensolver
    USE qs_pdos,                         ONLY: calculate_projected_dos,&
                                               calculate_projected_dos_kp
@@ -217,8 +226,7 @@ MODULE qs_scf_post_gpw
    USE trexio_utils,                    ONLY: write_trexio
    USE virial_types,                    ONLY: virial_type
    USE voronoi_interface,               ONLY: entry_voronoi_or_bqb
-   USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
-                                              xray_diffraction_spectrum
+   USE xray_diffraction,                ONLY: xray_diffraction_spectrum
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -276,6 +284,34 @@ MODULE qs_scf_post_gpw
    END TYPE cp_section_key
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Collects the effective core charge for every atom in a QS environment
+!> \param qs_env the QS environment
+!> \param zcharge effective core charges ordered by atom index
+! **************************************************************************************************
+   SUBROUTINE get_effective_core_charges(qs_env, zcharge)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: zcharge
+
+      INTEGER                                            :: iat, iatom, ikind, nat, natom, nkind
+      REAL(KIND=dp)                                      :: zeff
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                      nkind=nkind, natom=natom)
+      ALLOCATE (zcharge(natom))
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+         CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
+         DO iatom = 1, nat
+            iat = atomic_kind_set(ikind)%atom_list(iatom)
+            zcharge(iat) = zeff
+         END DO
+      END DO
+   END SUBROUTINE get_effective_core_charges
 
 ! **************************************************************************************************
 !> \brief Append `extend_by` to the absolute path of the base section.
@@ -1288,13 +1324,13 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_init_random(unoccupied_orbs(ispin), nlumos)
 
-         ! the full_all preconditioner makes not much sense for lumos search
+         ! FULL_ALL has column-dependent occupied-state weights and cannot be reused here.
          NULLIFY (local_preconditioner)
          IF (ASSOCIATED(scf_env)) THEN
             IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
                local_preconditioner => scf_env%ot_preconditioner(1)%preconditioner
-               ! this one can for sure not be right (as it has to match a given C0)
-               IF (local_preconditioner%in_use == ot_precond_full_all) THEN
+               IF (local_preconditioner%in_use == ot_precond_full_all .OR. &
+                   local_preconditioner%in_use == ot_precond_full_all_covariant) THEN
                   NULLIFY (local_preconditioner)
                END IF
             END IF
@@ -1417,6 +1453,7 @@ CONTAINS
                                                             nlist, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: list, list_index
       LOGICAL                                            :: append_cube, mpi_io
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1435,6 +1472,7 @@ CONTAINS
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, mo_section%relative_section_key) &
  , cp_p_file) .AND. section_get_lval(dft_section, mo_section%concat_to_relative(section_key_do_write(mo_section%grid_output)))) THEN
+         CALL get_effective_core_charges(qs_env, zcharge)
          nhomo = section_get_ival(dft_section, mo_section%concat_to_relative("%NHOMO"))
          ! For openPMD, refer to access modes instead of APPEND key
          IF (mo_section%grid_output == grid_output_cubes) THEN
@@ -1495,13 +1533,14 @@ CONTAINS
                       openpmd_unit_si=openpmd_unit_si_wavefunction, &
                       sim_time=qs_env%sim_time)
             WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
-            CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, &
+            CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, zeff=zcharge, &
                                      stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), &
                                      max_file_size_mb=section_get_rval(dft_section, "PRINT%MO_CUBES%MAX_FILE_SIZE_MB"), &
                                      mpi_io=mpi_io)
             CALL mo_section%print_key_finished_output(unit_nr, logger, input, mo_section%absolute_section_key, mpi_io=mpi_io)
          END DO
          IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
+         DEALLOCATE (zcharge)
       END IF
 
       CALL timestop(handle)
@@ -1546,6 +1585,7 @@ CONTAINS
       INTEGER                                            :: handle, ifirst, index_mo, ivector, &
                                                             unit_nr
       LOGICAL                                            :: append_cube, mpi_io
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1562,6 +1602,7 @@ CONTAINS
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, mo_section%relative_section_key), cp_p_file) &
           .AND. section_get_lval(dft_section, mo_section%concat_to_relative(section_key_do_write(mo_section%grid_output)))) THEN
+         CALL get_effective_core_charges(qs_env, zcharge)
          NULLIFY (qs_kind_set, particle_set, pw_env, cell)
          ! For openPMD, refer to access modes instead of APPEND key
          IF (mo_section%grid_output == grid_output_cubes) THEN
@@ -1605,13 +1646,14 @@ CONTAINS
                       openpmd_unit_si=openpmd_unit_si_wavefunction, &
                       sim_time=qs_env%sim_time)
             WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
-            CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, &
+            CALL mo_section%write_pw(wf_r, unit_nr, title, particles=particles, zeff=zcharge, &
                                      stride=section_get_ivals(dft_section, mo_section%concat_to_relative("%STRIDE")), &
                                      max_file_size_mb=section_get_rval(dft_section, "PRINT%MO_CUBES%MAX_FILE_SIZE_MB"), &
                                      mpi_io=mpi_io)
             CALL mo_section%print_key_finished_output(unit_nr, logger, input, mo_section%absolute_section_key, mpi_io=mpi_io)
 
          END DO
+         DEALLOCATE (zcharge)
       END IF
 
       CALL timestop(handle)
@@ -1971,6 +2013,7 @@ CONTAINS
       INTEGER                                            :: handle, ispin, output_unit, unit_nr
       LOGICAL                                            :: append_cube, gapw, mpi_io
       REAL(dp)                                           :: rho_cutoff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(cp_section_key)                               :: elf_section_key
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
@@ -2010,6 +2053,7 @@ CONTAINS
             END IF
             rho_cutoff = section_get_rval(elf_section, "density_cutoff")
             CALL qs_elf_calc(qs_env, elf_r, rho_cutoff)
+            CALL get_effective_core_charges(qs_env, zcharge)
 
             ! write ELF into cube file
 
@@ -2051,7 +2095,7 @@ CONTAINS
                      TRIM(filename)
                END IF
 
-               CALL elf_section_key%write_pw(elf_r(ispin), unit_nr, title, particles=particles, &
+               CALL elf_section_key%write_pw(elf_r(ispin), unit_nr, title, particles=particles, zeff=zcharge, &
                                              stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
                CALL elf_section_key%print_key_finished_output( &
                   unit_nr, &
@@ -2064,7 +2108,7 @@ CONTAINS
             END DO
 
             ! deallocate
-            DEALLOCATE (elf_r)
+            DEALLOCATE (elf_r, zcharge)
 
          ELSE
             ! not implemented
@@ -2561,18 +2605,18 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             my_pos_voro
       CHARACTER(LEN=default_string_length)               :: name, print_density
-      INTEGER :: after, handle, i, iat, iatom, id, ikind, img, iso, ispin, iw, l, n_rep_hf, nat, &
-         natom, nd(3), ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, &
-         should_print_voro, unit_nr, unit_nr_voro
+      INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, n_rep_hf, natom, nd(3), &
+         ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, &
+         unit_nr, unit_nr_voro
       LOGICAL :: append_cube, append_voro, do_hfx, do_kpoints, mpi_io, omit_headers, print_it, &
          rho_r_valid, voro_print_txt, write_ks, write_xc, xrd_interface
       REAL(KIND=dp)                                      :: norm_factor, q_max, rho_hard, rho_soft, &
                                                             rho_total, rho_total_rspace, udvol, &
-                                                            volume, zeff
+                                                            volume
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: bfun
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: aedens, ccdens, ppdens
-      REAL(KIND=dp), DIMENSION(3)                        :: dr
+      REAL(KIND=dp), DIMENSION(3)                        :: checksum_hr, dr
       REAL(KIND=dp), DIMENSION(:), POINTER               :: my_Q0
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -2580,11 +2624,13 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_section_key)                               :: e_density_section
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hr
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_rmpv, matrix_vxc, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_rmpv, matrix_s, matrix_vxc, rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
       TYPE(iao_env_type)                                 :: iao_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb, sap_ppnl
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type)                               :: aux_g, rho_elec_gspace
@@ -2610,7 +2656,7 @@ CONTAINS
       NULLIFY (cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, hfx_section, &
                atomic_kind_set, qs_kind_set, particle_set, rho, ks_rmpv, rho_ao, rho_r, &
                dft_section, xc_section, input, particles, subsys, matrix_vxc, v_hartree_rspace, &
-               vee)
+               vee, matrix_hr, matrix_s, sab_orb, sap_ppnl)
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -2619,29 +2665,25 @@ CONTAINS
       CALL get_qs_env(qs_env, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
+                      nkind=nkind, &
+                      natom=natom, &
                       particle_set=particle_set, &
                       cell=cell, &
                       para_env=para_env, &
                       dft_control=dft_control, &
                       input=input, &
                       do_kpoints=do_kpoints, &
-                      subsys=subsys)
+                      subsys=subsys, &
+                      matrix_s_kp=matrix_s, &
+                      sab_orb=sab_orb, &
+                      sap_ppnl=sap_ppnl)
       dft_section => section_vals_get_subs_vals(input, "DFT")
       CALL qs_subsys_get(subsys, particles=particles)
 
       CALL get_qs_env(qs_env, rho=rho)
       CALL qs_rho_get(rho, rho_r=rho_r)
 
-      CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
-      ALLOCATE (zcharge(natom))
-      DO ikind = 1, nkind
-         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
-         CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
-         DO iatom = 1, nat
-            iat = atomic_kind_set(ikind)%atom_list(iatom)
-            zcharge(iat) = zeff
-         END DO
-      END DO
+      CALL get_effective_core_charges(qs_env, zcharge)
 
       ! Print the total density (electronic + core charge)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
@@ -3407,7 +3449,27 @@ CONTAINS
                                    extension=".Log")
          CALL section_vals_val_get(input, "DFT%PRINT%AO_MATRICES%NDIGITS", i_val=after)
          NULLIFY (matrix_hr)
-         CALL build_com_hr_matrix(qs_env, matrix_hr)
+         CALL dbcsr_allocate_matrix_set(matrix_hr, 3)
+         DO img = 1, 3
+            ALLOCATE (matrix_hr(img)%matrix)
+            CALL dbcsr_create(matrix_hr(img)%matrix, template=matrix_s(1, 1)%matrix, &
+                              name="COMMUTATOR", matrix_type=dbcsr_type_antisymmetric)
+            CALL cp_dbcsr_alloc_block_from_nbl(matrix_hr(img)%matrix, sab_orb)
+            CALL dbcsr_set(matrix_hr(img)%matrix, 0._dp)
+         END DO
+
+         CALL build_com_mom_nl(qs_kind_set, sab_orb, sap_ppnl, dft_control%qs_control%eps_ppnl, &
+                               particle_set, cell, matrix_rv=matrix_hr)
+         CALL build_lin_mom_matrix(qs_env, matrix_hr)
+         DO img = 1, 3
+            CALL dbcsr_scale(matrix_hr(img)%matrix, alpha_scalar=-1._dp)
+            checksum_hr(img) = dbcsr_checksum(matrix_hr(img)%matrix)
+         END DO
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, '(T2,A,E23.16)') 'COMMUTATOR_HR| CheckSum X =', checksum_hr(1)
+            WRITE (output_unit, '(T2,A,E23.16)') 'COMMUTATOR_HR| CheckSum Y =', checksum_hr(2)
+            WRITE (output_unit, '(T2,A,E23.16)') 'COMMUTATOR_HR| CheckSum Z =', checksum_hr(3)
+         END IF
          after = MIN(MAX(after, 1), 16)
          DO img = 1, 3
             CALL cp_dbcsr_write_sparse_matrix(matrix_hr(img)%matrix, 4, after, qs_env, &
@@ -3785,6 +3847,7 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube
       INTEGER                                            :: handle, io_unit, natom, unit_nr
       LOGICAL                                            :: append_cube, gapw, gapw_xc, mpi_io
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -3807,6 +3870,7 @@ CONTAINS
          CALL auxbas_pw_pool%create_pw(eden)
          !
          CALL qs_local_energy(qs_env, eden)
+         CALL get_effective_core_charges(qs_env, zcharge)
          !
          append_cube = section_get_lval(input, "DFT%PRINT%LOCAL_ENERGY_CUBE%APPEND")
          IF (append_cube) THEN
@@ -3818,7 +3882,7 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%LOCAL_ENERGY_CUBE", &
                                         extension=".cube", middle_name="local_energy", &
                                         file_position=my_pos_cube, mpi_io=mpi_io)
-         CALL cp_pw_to_cube(eden, unit_nr, "LOCAL ENERGY", particles=particles, &
+         CALL cp_pw_to_cube(eden, unit_nr, "LOCAL ENERGY", particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, "PRINT%LOCAL_ENERGY_CUBE%STRIDE"), &
                             max_file_size_mb=section_get_rval(dft_section, "PRINT%LOCAL_ENERGY_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
@@ -3836,6 +3900,7 @@ CONTAINS
                                            "DFT%PRINT%LOCAL_ENERGY_CUBE", mpi_io=mpi_io)
          !
          CALL auxbas_pw_pool%give_back_pw(eden)
+         DEALLOCATE (zcharge)
       END IF
       CALL timestop(handle)
 
@@ -3861,6 +3926,7 @@ CONTAINS
       INTEGER                                            :: handle, io_unit, natom, unit_nr
       LOGICAL                                            :: append_cube, gapw, gapw_xc, mpi_io
       REAL(KIND=dp)                                      :: beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -3887,6 +3953,7 @@ CONTAINS
          ! use beta=0: kinetic energy density in symmetric form
          beta = 0.0_dp
          CALL qs_local_stress(qs_env, beta=beta)
+         CALL get_effective_core_charges(qs_env, zcharge)
          !
          append_cube = section_get_lval(input, "DFT%PRINT%LOCAL_STRESS_CUBE%APPEND")
          IF (append_cube) THEN
@@ -3898,7 +3965,7 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%LOCAL_STRESS_CUBE", &
                                         extension=".cube", middle_name="local_stress", &
                                         file_position=my_pos_cube, mpi_io=mpi_io)
-         CALL cp_pw_to_cube(stress, unit_nr, "LOCAL STRESS", particles=particles, &
+         CALL cp_pw_to_cube(stress, unit_nr, "LOCAL STRESS", particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, "PRINT%LOCAL_STRESS_CUBE%STRIDE"), &
                             max_file_size_mb=section_get_rval(dft_section, "PRINT%LOCAL_STRESS_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
@@ -3917,6 +3984,7 @@ CONTAINS
                                            "DFT%PRINT%LOCAL_STRESS_CUBE", mpi_io=mpi_io)
          !
          CALL auxbas_pw_pool%give_back_pw(stress)
+         DEALLOCATE (zcharge)
       END IF
 
       CALL timestop(handle)
@@ -3944,6 +4012,7 @@ CONTAINS
                                                             n_cstr, n_tiles, unit_nr
       LOGICAL :: append_cube, do_cstr_charge_cube, do_dielectric_cube, do_dirichlet_bc_cube, &
          has_dirichlet_bc, has_implicit_ps, mpi_io, tile_cubes
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: zcharge
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -3970,6 +4039,7 @@ CONTAINS
       do_dielectric_cube = BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                                             "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE"), cp_p_file)
       IF (has_implicit_ps .AND. do_dielectric_cube) THEN
+         IF (.NOT. ALLOCATED(zcharge)) CALL get_effective_core_charges(qs_env, zcharge)
          append_cube = section_get_lval(input, "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
@@ -3994,7 +4064,7 @@ CONTAINS
                            poisson_env%implicit_env%dielectric%eps, aux_r)
          END SELECT
 
-         CALL cp_pw_to_cube(aux_r, unit_nr, "DIELECTRIC CONSTANT", particles=particles, &
+         CALL cp_pw_to_cube(aux_r, unit_nr, "DIELECTRIC CONSTANT", particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%STRIDE"), &
                         max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
@@ -4017,6 +4087,7 @@ CONTAINS
       END IF
 
       IF (has_implicit_ps .AND. do_cstr_charge_cube .AND. has_dirichlet_bc) THEN
+         IF (.NOT. ALLOCATED(zcharge)) CALL get_effective_core_charges(qs_env, zcharge)
          append_cube = section_get_lval(input, &
                                         "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%APPEND")
          my_pos_cube = "REWIND"
@@ -4043,7 +4114,7 @@ CONTAINS
                            poisson_env%implicit_env%cstr_charge, aux_r)
          END SELECT
 
-         CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles, &
+         CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles, zeff=zcharge, &
                             stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%STRIDE"), &
              max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%MAX_FILE_SIZE_MB"), &
                             mpi_io=mpi_io)
@@ -4065,6 +4136,7 @@ CONTAINS
       END IF
 
       IF (has_implicit_ps .AND. has_dirichlet_bc .AND. do_dirichlet_bc_cube) THEN
+         IF (.NOT. ALLOCATED(zcharge)) CALL get_effective_core_charges(qs_env, zcharge)
          append_cube = section_get_lval(input, "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
@@ -4091,7 +4163,7 @@ CONTAINS
 
                   CALL pw_copy(poisson_env%implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw, aux_r)
 
-                  CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+                  CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, zeff=zcharge, &
                                      stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"), &
                       max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%MAX_FILE_SIZE_MB"), &
                                      mpi_io=mpi_io)
@@ -4119,7 +4191,7 @@ CONTAINS
                END DO
             END DO
 
-            CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+            CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, zeff=zcharge, &
                                stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"), &
                       max_file_size_mb=section_get_rval(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%MAX_FILE_SIZE_MB"), &
                                mpi_io=mpi_io)

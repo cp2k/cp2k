@@ -35,8 +35,10 @@ MODULE fftw3_lib
    PRIVATE
 
    PUBLIC :: fftw3_do_init, fftw3_do_cleanup, fftw3_get_lengths, fftw33d, fftw31dm
-   PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1dm, fftw3_create_plan_3d
+   PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1d, fftw3_create_plan_3d
    PUBLIC :: fftw_alloc, fftw_dealloc
+
+   INTEGER, SAVE :: fftw_plan_type = -1
 
 #if defined(__FFTW3)
 #include "fftw3.f03"
@@ -181,9 +183,10 @@ CONTAINS
 !> \brief ...
 !> \param wisdom_file ...
 ! **************************************************************************************************
-   SUBROUTINE fftw3_do_init(wisdom_file)
+   SUBROUTINE fftw3_do_init(wisdom_file, plan_style)
 
       CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
+      INTEGER, INTENT(IN)                      :: plan_style
 
 #if defined(__FFTW3)
       CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
@@ -221,8 +224,22 @@ CONTAINS
             END IF
          END IF
       END IF
+
+      SELECT CASE (plan_style)
+      CASE (1)
+         fftw_plan_type = FFTW_ESTIMATE
+      CASE (2)
+         fftw_plan_type = FFTW_MEASURE
+      CASE (3)
+         fftw_plan_type = FFTW_PATIENT
+      CASE (4)
+         fftw_plan_type = FFTW_EXHAUSTIVE
+      CASE DEFAULT
+         CPABORT("Invalid FFTW_PLAN_TYPE")
+      END SELECT
 #else
       MARK_USED(wisdom_file)
+      MARK_USED(plan_style)
 #endif
 
    END SUBROUTINE fftw3_do_init
@@ -649,14 +666,12 @@ CONTAINS
 !> \param plan ...
 !> \param zin ...
 !> \param zout ...
-!> \param plan_style ...
 ! **************************************************************************************************
-   SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
+   SUBROUTINE fftw3_create_plan_3d(plan, zin, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)              :: plan
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zout
-      INTEGER                                            :: plan_style
 #if defined(__FFTW3)
       INTEGER                                            :: n1, n2, n3
       INTEGER                                            :: nt
@@ -669,20 +684,6 @@ CONTAINS
       ! GURU Interface
       INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
                  howmany_n(2), howmany_istride(2), howmany_ostride(2)
-
-      INTEGER :: fftw_plan_type
-      SELECT CASE (plan_style)
-      CASE (1)
-         fftw_plan_type = FFTW_ESTIMATE
-      CASE (2)
-         fftw_plan_type = FFTW_MEASURE
-      CASE (3)
-         fftw_plan_type = FFTW_PATIENT
-      CASE (4)
-         fftw_plan_type = FFTW_EXHAUSTIVE
-      CASE DEFAULT
-         CPABORT("fftw3_create_plan_3d")
-      END SELECT
 
       IF (plan%fsign == +1) THEN
          fft_direction = FFTW_FORWARD
@@ -702,7 +703,7 @@ CONTAINS
 !$OMP END PARALLEL
 
       IF ((.NOT. fftw3_is_guru_supported()) .OR. &
-          (.NOT. plan_style == 1) .OR. &
+          (.NOT. fftw_plan_type == FFTW_ESTIMATE) .OR. &
           (n1 < 256 .AND. n2 < 256 .AND. n3 < 256 .AND. nt == 1)) THEN
          ! If the plan type is MEASURE, PATIENT and EXHAUSTIVE or
          ! the grid size is small (and we are single-threaded) then
@@ -810,7 +811,6 @@ CONTAINS
 
 #else
       MARK_USED(plan)
-      MARK_USED(plan_style)
       !MARK_USED does not work with assumed size arguments
       IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
 #endif
@@ -987,29 +987,13 @@ CONTAINS
 !> \param plan ...
 !> \param zin ...
 !> \param zout ...
-!> \param plan_style ...
 ! **************************************************************************************************
-   SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style)
+   SUBROUTINE fftw3_create_plan_1d(plan, zin, zout)
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zout
-      INTEGER, INTENT(IN)                                :: plan_style
 #if defined(__FFTW3)
       INTEGER                                            :: istride, idist, ostride, odist, num_threads, num_rows
-
-      INTEGER :: fftw_plan_type
-      SELECT CASE (plan_style)
-      CASE (1)
-         fftw_plan_type = FFTW_ESTIMATE
-      CASE (2)
-         fftw_plan_type = FFTW_MEASURE
-      CASE (3)
-         fftw_plan_type = FFTW_PATIENT
-      CASE (4)
-         fftw_plan_type = FFTW_EXHAUSTIVE
-      CASE DEFAULT
-         CPABORT("fftw3_create_plan_1dm")
-      END SELECT
 
       num_threads = 1
       plan%separated_plans = .FALSE.
@@ -1036,14 +1020,15 @@ CONTAINS
 
 !$    plan%num_rows = num_rows
       istride = 1
-      idist = plan%n
+      idist = plan%ldx_in
       ostride = 1
-      odist = plan%n
-      IF (plan%fsign == +1 .AND. plan%trans) THEN
-         istride = plan%m
+      odist = plan%ldx_out
+      IF (plan%trans_in) THEN
+         istride = plan%ldx_in
          idist = 1
-      ELSE IF (plan%fsign == -1 .AND. plan%trans) THEN
-         ostride = plan%m
+      END IF
+      IF (plan%trans_out) THEN
+         ostride = plan%ldx_out
          odist = 1
       END IF
 
@@ -1068,12 +1053,11 @@ CONTAINS
 
 #else
       MARK_USED(plan)
-      MARK_USED(plan_style)
       !MARK_USED does not work with assumed size arguments
       IF (.FALSE.) THEN; DO; IF (ABS(zin(1)) > ABS(zout(1))) EXIT; END DO; END IF
 #endif
 
-   END SUBROUTINE fftw3_create_plan_1dm
+   END SUBROUTINE fftw3_create_plan_1d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1117,7 +1101,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fftw31dm(plan, zin, zout, scale, stat)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN), TARGET :: zin
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zin
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
          TARGET                                          :: zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
@@ -1126,10 +1111,6 @@ CONTAINS
       INTEGER                                            :: in_offset, my_id, num_rows, out_offset, &
                                                             scal_offset
       TYPE(C_PTR)                                        :: fftw_plan
-#if defined(__FFTW3)
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: zin_slice, zout_slice
-#endif
-
 !------------------------------------------------------------------------------
 
       my_id = 0
@@ -1138,9 +1119,7 @@ CONTAINS
 #if defined(__FFTW3)
       IF (plan%m <= 1) THEN
          stat = 1
-         CALL C_F_POINTER(C_LOC(zin(1)), zin_slice, [plan%n*plan%m])
-         CALL C_F_POINTER(C_LOC(zout(1)), zout_slice, [plan%n*plan%m])
-         CALL dfftw_execute_dft(plan%fftw_plan, zin_slice, zout_slice)
+         CALL fftw_execute_dft(plan%fftw_plan, zin(1), zout(1))
          IF (scale /= 1.0_dp) CALL zdscal(plan%n*plan%m, scale, zout, 1)
          RETURN
       END IF
@@ -1162,9 +1141,10 @@ CONTAINS
 
 !$       in_offset = 1 + plan%num_rows*my_id*plan%n
 !$       out_offset = 1 + plan%num_rows*my_id*plan%n
-!$       IF (plan%fsign == +1 .AND. plan%trans) THEN
+!$       IF (plan%trans_in) THEN
 !$          in_offset = 1 + plan%num_rows*my_id
-!$       ELSE IF (plan%fsign == -1 .AND. plan%trans) THEN
+!$       END IF
+!$       IF (plan%trans_out) THEN
 !$          out_offset = 1 + plan%num_rows*my_id
 !$       END IF
 !$       scal_offset = 1 + plan%n*plan%num_rows*my_id
@@ -1179,7 +1159,7 @@ CONTAINS
 !$OMP MASTER
          stat = 1
 !$OMP END MASTER
-         CALL dfftw_execute_dft(fftw_plan, zin(in_offset:in_offset), zout(out_offset:out_offset))
+         CALL fftw_execute_dft(fftw_plan, zin(in_offset), zout(out_offset))
 !$    end if
 ! all threads need to meet at this barrier
 !$OMP BARRIER

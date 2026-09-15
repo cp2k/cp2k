@@ -577,13 +577,13 @@ CONTAINS
          CASE DEFAULT
             EXIT
          CASE (1)
-            CALL init_fft("FFTSG", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file=wisdom_file, &
+            CALL init_fft("FFTSG", alltoall=.FALSE., wisdom_file=wisdom_file, &
                           pool_limit=10, plan_style=fftw_plan_type)
             method = "FFTSG  "
          CASE (2)
             CYCLE
          CASE (3)
-            CALL init_fft("FFTW3", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file=wisdom_file, &
+            CALL init_fft("FFTW3", alltoall=.FALSE., wisdom_file=wisdom_file, &
                           pool_limit=10, plan_style=fftw_plan_type)
             method = "FFTW3  "
          END SELECT
@@ -715,7 +715,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       !..set fft lib
-      CALL init_fft(globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
+      CALL init_fft(globenv%default_fft_library, alltoall=.FALSE., &
                     pool_limit=globenv%fft_pool_scratch_limit, &
                     wisdom_file=globenv%fftw_wisdom_file_name, &
                     plan_style=globenv%fftw_plan_type)
@@ -828,7 +828,7 @@ CONTAINS
 
 !..set fft lib
 
-      CALL init_fft(globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
+      CALL init_fft(globenv%default_fft_library, alltoall=.FALSE., &
                     pool_limit=globenv%fft_pool_scratch_limit, &
                     wisdom_file=globenv%fftw_wisdom_file_name, &
                     plan_style=globenv%fftw_plan_type)

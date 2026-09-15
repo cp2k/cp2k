@@ -32,6 +32,7 @@ MODULE eeq_input
       INTEGER                                :: mdiis = 12
       INTEGER                                :: sdiis = 3
       INTEGER                                :: max_diis = 500
+      INTEGER                                :: sparse_threshold = 256
    END TYPE eeq_solver_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'eeq_input'
@@ -64,8 +65,20 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SPARSE", &
-                          description="Use a sparse method to solve the EEQ equations. (NYA)", &
+                          description="Use the matrix-free projected-CG solver for periodic EEQ. "// &
+                          "The short-range response is stored sparsely and the translationally invariant "// &
+                          "long-range Coulomb response is applied by the FFT-based SPME operator. "// &
+                          "This path is shared by methods using CP2K EEQ charges, including GFN0-xTB "// &
+                          "and the internal DFT-D4 implementation.", &
                           usage="SPARSE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SPARSE_THRESHOLD", &
+                          description="Automatically use the sparse periodic EEQ solver at or above "// &
+                          "this number of atoms for every method using CP2K EEQ charges. A non-positive "// &
+                          "value disables automatic selection.", &
+                          usage="SPARSE_THRESHOLD 256", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -113,6 +126,7 @@ CONTAINS
 
       CALL section_vals_val_get(eeq_section, "DIRECT", l_val=eeq_sparam%direct)
       CALL section_vals_val_get(eeq_section, "SPARSE", l_val=eeq_sparam%sparse)
+      CALL section_vals_val_get(eeq_section, "SPARSE_THRESHOLD", i_val=eeq_sparam%sparse_threshold)
       CALL section_vals_val_get(eeq_section, "EPS_DIIS", r_val=eeq_sparam%eps_diis)
       CALL section_vals_val_get(eeq_section, "ALPHA", r_val=eeq_sparam%alpha)
       CALL section_vals_val_get(eeq_section, "MAX_DIIS", i_val=eeq_sparam%max_diis)

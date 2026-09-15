@@ -13,25 +13,47 @@
 !> \author Joost VandeVondele (09.2002)
 ! **************************************************************************************************
 MODULE preconditioner_apply
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release, dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_get_info, dbcsr_init_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              copy_fm_to_dbcsr,&
+                                              cp_dbcsr_m_by_n_from_template
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
+                                              cp_fm_scale_and_add
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_restore
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
+                                              cp_fm_to_fm,&
                                               cp_fm_type
-   USE input_constants,                 ONLY: ot_precond_full_all,&
-                                              ot_precond_full_kinetic,&
-                                              ot_precond_full_single,&
-                                              ot_precond_full_single_inverse,&
-                                              ot_precond_s_inverse,&
-                                              ot_precond_solver_direct,&
-                                              ot_precond_solver_inv_chol,&
-                                              ot_precond_solver_update
+   USE input_constants,                 ONLY: &
+        ot_low_rank_base_lattice_fft, ot_low_rank_base_overlap, ot_precond_fermi_low_rank, &
+        ot_precond_full_all, ot_precond_full_all_covariant, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_s_inverse, &
+        ot_precond_solver_chebyshev, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
+        ot_precond_solver_update
    USE kinds,                           ONLY: dp
+   USE lattice_preconditioner_operator, ONLY: apply_lattice_inverse_dense,&
+                                              apply_lattice_state_inverse_dense
+   USE low_rank_preconditioner_model,   ONLY: low_rank_inverse_weight
+   USE mathconstants,                   ONLY: z_one,&
+                                              z_zero
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE preconditioner_types,            ONLY: preconditioner_type
+   USE preconditioner_types,            ONLY: lattice_rhs_distribution_type,&
+                                              preconditioner_type,&
+                                              release_lattice_rhs_distribution
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -39,7 +61,8 @@ MODULE preconditioner_apply
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner_apply'
 
-   PUBLIC :: apply_preconditioner_fm, apply_preconditioner_dbcsr
+   PUBLIC :: apply_preconditioner_cfm_complex, apply_preconditioner_dbcsr_complex, &
+             apply_preconditioner_fm, apply_preconditioner_dbcsr
 
 CONTAINS
 
@@ -67,15 +90,25 @@ CONTAINS
          CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_full_all)
          CALL apply_full_all(preconditioner_env, matrix_in, matrix_out)
+      CASE (ot_precond_fermi_low_rank)
+         CALL apply_low_rank_fm(preconditioner_env, matrix_in, matrix_out)
+      CASE (ot_precond_full_all_covariant)
+         CALL apply_full_all_covariant(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_full_kinetic, ot_precond_full_single_inverse, ot_precond_s_inverse)
-         SELECT CASE (preconditioner_env%solver)
-         CASE (ot_precond_solver_inv_chol, ot_precond_solver_update)
-            CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
-         CASE (ot_precond_solver_direct)
-            CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
-         CASE DEFAULT
-            CPABORT("Solver not implemented")
-         END SELECT
+         IF (preconditioner_env%lattice_fft_active) THEN
+            CALL apply_lattice_operator_fm(preconditioner_env, matrix_in, matrix_out)
+         ELSE
+            SELECT CASE (preconditioner_env%solver)
+            CASE (ot_precond_solver_inv_chol, ot_precond_solver_update)
+               CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
+            CASE (ot_precond_solver_direct)
+               CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
+            CASE (ot_precond_solver_chebyshev)
+               CALL apply_chebyshev_fm(preconditioner_env, matrix_in, matrix_out)
+            CASE DEFAULT
+               CPABORT("Solver not implemented")
+            END SELECT
+         END IF
       CASE DEFAULT
          CPABORT("Unknown preconditioner")
       END SELECT
@@ -108,16 +141,26 @@ CONTAINS
          CALL apply_single(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_full_all)
          CALL apply_all(preconditioner_env, matrix_in, matrix_out)
+      CASE (ot_precond_fermi_low_rank)
+         CALL apply_low_rank_dbcsr(preconditioner_env, matrix_in, matrix_out)
+      CASE (ot_precond_full_all_covariant)
+         CALL apply_all_covariant(preconditioner_env, matrix_in, matrix_out)
       CASE (ot_precond_full_kinetic, ot_precond_full_single_inverse, ot_precond_s_inverse)
-         SELECT CASE (preconditioner_env%solver)
-         CASE (ot_precond_solver_inv_chol, ot_precond_solver_update)
-            CALL apply_single(preconditioner_env, matrix_in, matrix_out)
-         CASE (ot_precond_solver_direct)
-            CPABORT("Apply_full_direct not supported with ot")
-            !CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
-         CASE DEFAULT
-            CPABORT("Wrong solver")
-         END SELECT
+         IF (preconditioner_env%lattice_fft_active) THEN
+            CALL apply_lattice_operator_dbcsr(preconditioner_env, matrix_in, matrix_out)
+         ELSE
+            SELECT CASE (preconditioner_env%solver)
+            CASE (ot_precond_solver_inv_chol, ot_precond_solver_update)
+               CALL apply_single(preconditioner_env, matrix_in, matrix_out)
+            CASE (ot_precond_solver_direct)
+               CPABORT("Apply_full_direct not supported with ot")
+               !CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
+            CASE (ot_precond_solver_chebyshev)
+               CALL apply_chebyshev_dbcsr(preconditioner_env, matrix_in, matrix_out)
+            CASE DEFAULT
+               CPABORT("Wrong solver")
+            END SELECT
+         END IF
       CASE DEFAULT
          CPABORT("Wrong preconditioner")
       END SELECT
@@ -125,6 +168,217 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE apply_preconditioner_dbcsr
+
+! **************************************************************************************************
+!> \brief Apply a complex k-point orbital preconditioner.
+!> \param preconditioner_env complex preconditioner storage
+!> \param matrix_in complex input channel
+!> \param matrix_out complex output channel
+! **************************************************************************************************
+   SUBROUTINE apply_preconditioner_cfm_complex(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in, matrix_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_cfm_complex'
+
+      INTEGER                                            :: handle, k, n, npre
+      TYPE(cp_cfm_type)                                  :: canonical_in, canonical_out
+
+      CALL timeset(routineN, handle)
+
+      SELECT CASE (preconditioner_env%in_use)
+      CASE (ot_precond_fermi_low_rank, ot_precond_full_all, ot_precond_full_all_covariant, &
+            ot_precond_full_single, ot_precond_full_single_inverse, &
+            ot_precond_full_kinetic, ot_precond_s_inverse)
+      CASE DEFAULT
+         CPABORT("Unsupported complex K-point OT preconditioner")
+      END SELECT
+      CPASSERT(ASSOCIATED(preconditioner_env%complex_fm))
+      CALL cp_cfm_get_info(matrix_in, nrow_global=n, ncol_global=k)
+      CALL cp_cfm_get_info(preconditioner_env%complex_fm, nrow_global=npre)
+      CPASSERT(n == npre)
+
+      SELECT CASE (preconditioner_env%in_use)
+      CASE (ot_precond_full_all)
+         CALL apply_complex_full_all_spectral(preconditioner_env, matrix_in, matrix_out)
+      CASE (ot_precond_full_all_covariant)
+         CPASSERT(ASSOCIATED(preconditioner_env%occ_rotation_complex))
+         CALL cp_cfm_create(canonical_in, matrix_in%matrix_struct, &
+                            name='complex covariant FULL_ALL input')
+         CALL cp_cfm_create(canonical_out, matrix_out%matrix_struct, &
+                            name='complex covariant FULL_ALL output')
+         CALL cp_cfm_gemm('N', 'N', n, k, k, z_one, matrix_in, &
+                          preconditioner_env%occ_rotation_complex, z_zero, canonical_in)
+         CALL apply_complex_full_all_spectral(preconditioner_env, canonical_in, canonical_out)
+         CALL cp_cfm_gemm('N', 'C', n, k, k, z_one, canonical_out, &
+                          preconditioner_env%occ_rotation_complex, z_zero, matrix_out)
+         CALL cp_cfm_release(canonical_out)
+         CALL cp_cfm_release(canonical_in)
+      CASE (ot_precond_fermi_low_rank)
+         CALL apply_complex_fermi_low_rank(preconditioner_env, matrix_in, matrix_out)
+      CASE DEFAULT
+         CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
+                          matrix_in, z_zero, matrix_out)
+      END SELECT
+
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_preconditioner_cfm_complex
+
+! **************************************************************************************************
+!> \brief Apply the spectral FULL_ALL inverse in its canonical complex basis.
+!> \param preconditioner_env complex spectral preconditioner
+!> \param matrix_in input orbital-gradient matrix
+!> \param matrix_out preconditioned orbital-gradient matrix
+! **************************************************************************************************
+   SUBROUTINE apply_complex_full_all_spectral(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in, matrix_out
+
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
+      INTEGER                                            :: i, j, k, n, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: scale
+      TYPE(cp_cfm_type)                                  :: matrix_spectral
+
+      CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
+      CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
+      CALL cp_cfm_get_info(matrix_in, nrow_global=n, ncol_global=k)
+      CPASSERT(n == SIZE(preconditioner_env%full_evals))
+      CPASSERT(k == SIZE(preconditioner_env%occ_evals))
+      CALL cp_cfm_create(matrix_spectral, matrix_in%matrix_struct, &
+                         name='complex FULL_ALL spectral input')
+      CALL cp_cfm_gemm('C', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
+                       matrix_in, z_zero, matrix_spectral)
+      CALL cp_cfm_get_info(matrix_spectral, nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices, local_data=local_data)
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            scale = 1.0_dp/MAX(preconditioner_env%energy_gap, &
+                               preconditioner_env%full_evals(row_indices(i)) - &
+                               preconditioner_env%occ_evals(col_indices(j)))
+            local_data(i, j) = scale*local_data(i, j)
+         END DO
+      END DO
+      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
+                       matrix_spectral, z_zero, matrix_out)
+      CALL cp_cfm_release(matrix_spectral)
+
+   END SUBROUTINE apply_complex_full_all_spectral
+
+! **************************************************************************************************
+!> \brief Apply an exact-overlap base plus bounded complex complementary low-rank correction.
+!> \param preconditioner_env complex low-rank preconditioner
+!> \param matrix_in input orbital-gradient matrix
+!> \param matrix_out preconditioned orbital-gradient matrix
+! **************************************************************************************************
+   SUBROUTINE apply_complex_fermi_low_rank(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in, matrix_out
+
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
+      INTEGER                                            :: i, j, k, n, ncol_local, nocc, &
+                                                            nrow_local, rank_used
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: scale
+      TYPE(cp_cfm_type)                                  :: matrix_spectral
+
+      CPASSERT(ASSOCIATED(preconditioner_env%complex_fm))
+      CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
+      CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
+      CALL cp_cfm_get_info(matrix_in, nrow_global=n, ncol_global=k)
+      nocc = SIZE(preconditioner_env%occ_evals)
+      rank_used = MIN(preconditioner_env%spectral_rank, n - nocc)
+      CPASSERT(n == SIZE(preconditioner_env%full_evals))
+
+      CALL cp_cfm_create(matrix_spectral, matrix_in%matrix_struct, &
+                         name='complex FERMI_LOW_RANK spectral input')
+      CALL cp_cfm_gemm('C', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
+                       matrix_in, z_zero, matrix_spectral)
+      CALL cp_cfm_get_info(matrix_spectral, nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices, local_data=local_data)
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+            scale = preconditioner_env%spectral_base_scale
+            IF (row_indices(i) > nocc .AND. row_indices(i) <= nocc + rank_used) THEN
+               scale = low_rank_inverse_weight( &
+                       preconditioner_env%full_evals(row_indices(i)), &
+                       preconditioner_env%spectral_reference, preconditioner_env%energy_gap)
+            END IF
+            local_data(i, j) = scale*local_data(i, j)
+         END DO
+      END DO
+      CALL cp_cfm_gemm('N', 'N', n, k, n, z_one, preconditioner_env%complex_fm, &
+                       matrix_spectral, z_zero, matrix_out)
+      CALL cp_cfm_release(matrix_spectral)
+
+   END SUBROUTINE apply_complex_fermi_low_rank
+
+! **************************************************************************************************
+!> \brief Apply a complex orbital preconditioner to paired real/imaginary DBCSR matrices.
+!> \param preconditioner_env complex k-point preconditioner
+!> \param matrix_in_re real input channel
+!> \param matrix_in_im imaginary input channel
+!> \param matrix_out_re real output channel
+!> \param matrix_out_im imaginary output channel
+! **************************************************************************************************
+   SUBROUTINE apply_preconditioner_dbcsr_complex(preconditioner_env, matrix_in_re, matrix_in_im, &
+                                                 matrix_out_re, matrix_out_im)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type)                                   :: matrix_in_re, matrix_in_im, &
+                                                            matrix_out_re, matrix_out_im
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_dbcsr_complex'
+
+      INTEGER                                            :: handle, k, n
+      TYPE(cp_cfm_type)                                  :: matrix_in, matrix_out
+      TYPE(cp_fm_type)                                   :: matrix_in_im_fm, matrix_in_re_fm, &
+                                                            matrix_out_im_fm, matrix_out_re_fm
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_get_info(matrix_in_re, nfullrows_total=n, nfullcols_total=k)
+      CPASSERT(ASSOCIATED(preconditioner_env%complex_fm))
+
+      CALL cp_fm_create(matrix_in_re_fm, preconditioner_env%complex_fm%matrix_struct, &
+                        nrow=n, ncol=k, name='complex preconditioner input real')
+      CALL cp_fm_create(matrix_in_im_fm, preconditioner_env%complex_fm%matrix_struct, &
+                        nrow=n, ncol=k, name='complex preconditioner input imaginary')
+      CALL cp_fm_create(matrix_out_re_fm, preconditioner_env%complex_fm%matrix_struct, &
+                        nrow=n, ncol=k, name='complex preconditioner output real')
+      CALL cp_fm_create(matrix_out_im_fm, preconditioner_env%complex_fm%matrix_struct, &
+                        nrow=n, ncol=k, name='complex preconditioner output imaginary')
+      CALL copy_dbcsr_to_fm(matrix_in_re, matrix_in_re_fm)
+      CALL copy_dbcsr_to_fm(matrix_in_im, matrix_in_im_fm)
+
+      CALL cp_cfm_create(matrix_in, matrix_in_re_fm%matrix_struct, &
+                         name='complex preconditioner input')
+      CALL cp_cfm_create(matrix_out, matrix_in_re_fm%matrix_struct, &
+                         name='complex preconditioner output')
+      CALL cp_fm_to_cfm(matrix_in_re_fm, matrix_in_im_fm, matrix_in)
+      CALL apply_preconditioner_cfm_complex(preconditioner_env, matrix_in, matrix_out)
+      CALL cp_cfm_to_fm(matrix_out, matrix_out_re_fm, matrix_out_im_fm)
+      CALL dbcsr_set(matrix_out_re, 0.0_dp)
+      CALL dbcsr_set(matrix_out_im, 0.0_dp)
+      CALL copy_fm_to_dbcsr(matrix_out_re_fm, matrix_out_re)
+      CALL copy_fm_to_dbcsr(matrix_out_im_fm, matrix_out_im)
+
+      CALL cp_cfm_release(matrix_out)
+      CALL cp_cfm_release(matrix_in)
+      CALL cp_fm_release(matrix_out_im_fm)
+      CALL cp_fm_release(matrix_out_re_fm)
+      CALL cp_fm_release(matrix_in_im_fm)
+      CALL cp_fm_release(matrix_in_re_fm)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_preconditioner_dbcsr_complex
 
 ! **************************************************************************************************
 !> \brief apply to full matrix, complete inversion has already been done
@@ -207,6 +461,687 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE apply_full_direct
+
+! **************************************************************************************************
+!> \brief Apply a Chebyshev approximation to the inverse of the stored dense SPD operator.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_chebyshev_fm(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+
+      INTEGER                                            :: degree, iteration, k, n
+      REAL(KIND=dp)                                      :: delta, rho, rho_previous, sigma, theta
+      TYPE(cp_fm_type)                                   :: direction, residual
+
+      CPASSERT(ASSOCIATED(preconditioner_env%fm))
+      degree = preconditioner_env%polynomial_degree
+      CPASSERT(degree >= 1)
+      theta = 0.5_dp*(preconditioner_env%polynomial_max + preconditioner_env%polynomial_min)
+      delta = 0.5_dp*(preconditioner_env%polynomial_max - preconditioner_env%polynomial_min)
+      sigma = theta/delta
+      rho_previous = 1.0_dp/sigma
+      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
+      CALL cp_fm_create(direction, matrix_in%matrix_struct, name='Chebyshev direction')
+      CALL cp_fm_create(residual, matrix_in%matrix_struct, name='Chebyshev residual')
+      CALL cp_fm_to_fm(matrix_in, direction)
+      CALL cp_fm_scale(1.0_dp/theta, direction)
+      CALL cp_fm_to_fm(direction, matrix_out)
+      DO iteration = 2, degree
+         CALL cp_fm_to_fm(matrix_in, residual)
+         CALL parallel_gemm('N', 'N', n, k, n, -1.0_dp, preconditioner_env%fm, &
+                            matrix_out, 1.0_dp, residual)
+         rho = 1.0_dp/(2.0_dp*sigma - rho_previous)
+         CALL cp_fm_scale(rho*rho_previous, direction)
+         CALL cp_fm_scale_and_add(1.0_dp, direction, 2.0_dp*rho/delta, residual)
+         CALL cp_fm_scale_and_add(1.0_dp, matrix_out, 1.0_dp, direction)
+         rho_previous = rho
+      END DO
+      CALL cp_fm_release(residual)
+      CALL cp_fm_release(direction)
+
+   END SUBROUTINE apply_chebyshev_fm
+
+! **************************************************************************************************
+!> \brief Apply a Chebyshev approximation to the inverse of the stored sparse SPD operator.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_chebyshev_dbcsr(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
+
+      INTEGER                                            :: degree, iteration
+      REAL(KIND=dp)                                      :: delta, rho, rho_previous, sigma, theta
+      TYPE(dbcsr_type)                                   :: direction, residual
+
+      CPASSERT(ASSOCIATED(preconditioner_env%dbcsr_matrix))
+      degree = preconditioner_env%polynomial_degree
+      CPASSERT(degree >= 1)
+      theta = 0.5_dp*(preconditioner_env%polynomial_max + preconditioner_env%polynomial_min)
+      delta = 0.5_dp*(preconditioner_env%polynomial_max - preconditioner_env%polynomial_min)
+      sigma = theta/delta
+      rho_previous = 1.0_dp/sigma
+      CALL dbcsr_copy(direction, matrix_in, name='Chebyshev direction')
+      CALL dbcsr_copy(residual, matrix_in, name='Chebyshev residual')
+      CALL dbcsr_set(matrix_out, 0.0_dp)
+      CALL dbcsr_add(matrix_out, direction, 1.0_dp, 1.0_dp/theta)
+      CALL dbcsr_set(direction, 0.0_dp)
+      CALL dbcsr_add(direction, matrix_in, 1.0_dp, 1.0_dp/theta)
+      DO iteration = 2, degree
+         CALL dbcsr_set(residual, 0.0_dp)
+         CALL dbcsr_add(residual, matrix_in, 1.0_dp, 1.0_dp)
+         CALL dbcsr_multiply('N', 'N', -1.0_dp, preconditioner_env%dbcsr_matrix, &
+                             matrix_out, 1.0_dp, residual)
+         rho = 1.0_dp/(2.0_dp*sigma - rho_previous)
+         CALL dbcsr_add(direction, residual, rho*rho_previous, 2.0_dp*rho/delta)
+         CALL dbcsr_add(matrix_out, direction, 1.0_dp, 1.0_dp)
+         rho_previous = rho
+      END DO
+      CALL dbcsr_release(residual)
+      CALL dbcsr_release(direction)
+
+   END SUBROUTINE apply_chebyshev_dbcsr
+
+! **************************************************************************************************
+!> \brief Applies the overlap-inverse base and a bounded low-rank spectral correction.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_low_rank_fm(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_low_rank_fm'
+
+      INTEGER                                            :: handle, i, j, k, n, ncol_local, nocc, &
+                                                            nrow_local, rank_used
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: correction
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: local_data
+      TYPE(cp_fm_type)                                   :: matrix_tmp
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(preconditioner_env%fm))
+      CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
+      CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
+
+      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
+      nocc = SIZE(preconditioner_env%occ_evals)
+      CPASSERT(n == SIZE(preconditioner_env%full_evals))
+      rank_used = MIN(preconditioner_env%spectral_rank, n - nocc)
+
+      ! With the exact base V V^T = S^-1. The optional lattice base replaces
+      ! S^-1 by the inverse of its block-circulant translational projection:
+      ! P = B^-1/window + V_r diag(1/max(gap, epsilon_a-mu) - 1/window) V_r^T.
+      ! The common reference mu makes the operator right-covariant for any number
+      ! of orbital columns. The lattice path retains only non-negative corrections.
+      SELECT CASE (preconditioner_env%low_rank_base)
+      CASE (ot_low_rank_base_overlap)
+         CPASSERT(ASSOCIATED(preconditioner_env%base_fm))
+         CALL parallel_gemm('N', 'N', n, k, n, preconditioner_env%spectral_base_scale, &
+                            preconditioner_env%base_fm, matrix_in, 0.0_dp, matrix_out)
+      CASE (ot_low_rank_base_lattice_fft)
+         CALL apply_lattice_operator_fm(preconditioner_env, matrix_in, matrix_out, &
+                                        preconditioner_env%spectral_base_scale)
+      CASE DEFAULT
+         CPABORT("Unknown FERMI_LOW_RANK base operator during application")
+      END SELECT
+
+      IF (rank_used > 0) THEN
+         CALL cp_fm_create(matrix_tmp, matrix_in%matrix_struct, name=routineN, &
+                           nrow=rank_used, ncol=k)
+         CALL cp_fm_get_info(matrix_tmp, nrow_local=nrow_local, ncol_local=ncol_local, &
+                             row_indices=row_indices, col_indices=col_indices, local_data=local_data)
+
+         CALL parallel_gemm('T', 'N', rank_used, k, n, 1.0_dp, preconditioner_env%fm, &
+                            matrix_in, 0.0_dp, matrix_tmp, a_first_col=nocc + 1)
+
+         DO j = 1, ncol_local
+            DO i = 1, nrow_local
+               correction = low_rank_inverse_weight( &
+                            preconditioner_env%full_evals(nocc + row_indices(i)), &
+                            preconditioner_env%spectral_reference, &
+                            preconditioner_env%energy_gap) &
+                            - preconditioner_env%spectral_base_scale
+               local_data(i, j) = local_data(i, j)*correction
+            END DO
+         END DO
+
+         CALL parallel_gemm('N', 'N', n, k, rank_used, 1.0_dp, preconditioner_env%fm, &
+                            matrix_tmp, 1.0_dp, matrix_out, a_first_col=nocc + 1)
+         CALL cp_fm_release(matrix_tmp)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_low_rank_fm
+
+! **************************************************************************************************
+!> \brief Apply a replicated-cell inverse operator to a distributed full matrix.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+!> \param scale_factor ...
+! **************************************************************************************************
+   SUBROUTINE apply_lattice_operator_fm(preconditioner_env, matrix_in, matrix_out, scale_factor)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale_factor
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_lattice_operator_fm'
+
+      INTEGER                                            :: fft_ok, handle, i
+      LOGICAL                                            :: used_fft
+      REAL(KIND=dp)                                      :: imaginary_residual, output_max, scale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: base_input, coarse_projected, &
+                                                            coarse_residual, coarse_rhs, &
+                                                            local_input, local_output
+
+      CALL timeset(routineN, handle)
+      CPASSERT(ALLOCATED(preconditioner_env%lattice_inverse_k))
+      scale = 1.0_dp
+      IF (PRESENT(scale_factor)) scale = scale_factor
+      CALL distribute_lattice_rhs(preconditioner_env, matrix_in, &
+                                  preconditioner_env%lattice_rhs_distribution, local_input)
+      ALLOCATE (local_output(SIZE(local_input, 1), SIZE(local_input, 2)))
+      IF (ALLOCATED(preconditioner_env%lattice_local_indices)) THEN
+         CPASSERT(ALLOCATED(preconditioner_env%lattice_local_operator))
+         CPASSERT(ALLOCATED(preconditioner_env%lattice_local_coarse_inverse))
+         ALLOCATE (base_input(SIZE(local_input, 1), SIZE(local_input, 2)), &
+                   coarse_projected(SIZE(preconditioner_env%lattice_local_indices), SIZE(local_input, 2)), &
+                   coarse_rhs(SIZE(preconditioner_env%lattice_local_indices), SIZE(local_input, 2)))
+         DO i = 1, SIZE(preconditioner_env%lattice_local_indices)
+            coarse_projected(i, :) = local_input(preconditioner_env%lattice_local_indices(i), :)
+         END DO
+         coarse_rhs(:, :) = MATMUL(preconditioner_env%lattice_local_coarse_inverse, &
+                                   coarse_projected)
+         base_input(:, :) = local_input - &
+                            MATMUL(preconditioner_env%lattice_local_operator, coarse_rhs)
+      ELSE
+         ALLOCATE (base_input(SIZE(local_input, 1), SIZE(local_input, 2)), source=local_input)
+      END IF
+      used_fft = .TRUE.
+      imaginary_residual = 0.0_dp
+      IF (SIZE(local_input, 2) > 0) THEN
+         CALL apply_lattice_inverse_dense(preconditioner_env%lattice_inverse_k, &
+                                          preconditioner_env%lattice_dims, base_input, local_output, &
+                                          used_fft, imaginary_residual)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_local_indices)) THEN
+         ALLOCATE (coarse_residual(SIZE(coarse_rhs, 1), SIZE(coarse_rhs, 2)))
+         coarse_projected(:, :) = MATMUL(TRANSPOSE(preconditioner_env%lattice_local_operator), &
+                                         local_output)
+         coarse_residual(:, :) = MATMUL(preconditioner_env%lattice_local_coarse_inverse, &
+                                        coarse_projected)
+         local_output(preconditioner_env%lattice_local_indices, :) = &
+            local_output(preconditioner_env%lattice_local_indices, :) + coarse_rhs - coarse_residual
+         DEALLOCATE (coarse_projected, coarse_residual, coarse_rhs)
+      END IF
+      fft_ok = MERGE(1, 0, used_fft)
+      output_max = 0.0_dp
+      IF (SIZE(local_output) > 0) output_max = MAXVAL(ABS(local_output))
+      CALL preconditioner_env%para_env%min(fft_ok)
+      CALL preconditioner_env%para_env%max(imaginary_residual)
+      CALL preconditioner_env%para_env%max(output_max)
+      IF (fft_ok == 0) CPABORT("Lattice preconditioner inverse failed to use FFTs")
+      IF (imaginary_residual > 1.0E-10_dp*MAX(1.0_dp, output_max)) THEN
+         CPABORT("Lattice preconditioner inverse produced a non-real Gamma-point result")
+      END IF
+      CALL collect_lattice_rhs(preconditioner_env, preconditioner_env%lattice_rhs_distribution, &
+                               local_output, matrix_out, scale)
+      DEALLOCATE (base_input, local_input, local_output)
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_lattice_operator_fm
+
+! **************************************************************************************************
+!> \brief Apply state-dependent replicated-cell inverse operators to a distributed full matrix.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_lattice_state_operator_fm(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_lattice_state_operator_fm'
+
+      INTEGER                                            :: fft_ok, global_column, handle, i, j, k, &
+                                                            n, state
+      LOGICAL                                            :: used_fft
+      REAL(KIND=dp)                                      :: imaginary_residual, output_max
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: base_input, coarse_projected, &
+         coarse_residual, coarse_rhs, complement_input, local_input, local_output, &
+         occupied_component, occupied_update
+
+      CALL timeset(routineN, handle)
+      CPASSERT(ALLOCATED(preconditioner_env%lattice_state_inverse_k))
+      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
+      CPASSERT(SIZE(preconditioner_env%lattice_state_inverse_k, 4) == k)
+      CALL distribute_lattice_rhs(preconditioner_env, matrix_in, &
+                                  preconditioner_env%lattice_rhs_distribution, local_input)
+      CPASSERT(ALLOCATED(preconditioner_env%lattice_occ_vectors))
+      CPASSERT(ALLOCATED(preconditioner_env%lattice_occ_dual))
+      ALLOCATE (complement_input(n, SIZE(local_input, 2)), &
+                local_output(n, SIZE(local_input, 2)), &
+                occupied_component(k, SIZE(local_input, 2)), &
+                occupied_update(n, SIZE(local_input, 2)))
+      occupied_component(:, :) = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_vectors), &
+                                        local_input)
+      complement_input(:, :) = local_input - &
+                               MATMUL(preconditioner_env%lattice_occ_dual, occupied_component)
+      ALLOCATE (base_input(n, SIZE(local_input, 2)), source=complement_input)
+      IF (ALLOCATED(preconditioner_env%lattice_state_local_indices)) THEN
+         CPASSERT(ALLOCATED(preconditioner_env%lattice_state_local_operator))
+         CPASSERT(ALLOCATED(preconditioner_env%lattice_state_local_coarse_inverse))
+         ALLOCATE (coarse_rhs(SIZE(preconditioner_env%lattice_state_local_indices, 1), &
+                              SIZE(local_input, 2)), &
+                   coarse_projected(SIZE(preconditioner_env%lattice_state_local_indices, 1), &
+                                    SIZE(local_input, 2)))
+         DO j = 1, SIZE(local_input, 2)
+            state = preconditioner_env%lattice_rhs_distribution%global_columns(j)
+            DO i = 1, SIZE(preconditioner_env%lattice_state_local_indices, 1)
+               coarse_projected(i, j) = &
+                  complement_input(preconditioner_env%lattice_state_local_indices(i, state), j)
+            END DO
+            coarse_rhs(:, j) = MATMUL( &
+                               preconditioner_env%lattice_state_local_coarse_inverse(:, :, state), &
+                               coarse_projected(:, j))
+            base_input(:, j) = complement_input(:, j) - &
+                               MATMUL(preconditioner_env%lattice_state_local_operator(:, :, state), &
+                                      coarse_rhs(:, j))
+         END DO
+      END IF
+      used_fft = .TRUE.
+      imaginary_residual = 0.0_dp
+      IF (SIZE(local_input, 2) > 0) THEN
+         CALL apply_lattice_state_inverse_dense(preconditioner_env%lattice_state_inverse_k, &
+                                                preconditioner_env%lattice_dims, &
+                                                base_input, local_output, used_fft, imaginary_residual, &
+                                                preconditioner_env%lattice_rhs_distribution%global_columns)
+      END IF
+      IF (ALLOCATED(preconditioner_env%lattice_state_local_indices)) THEN
+         ALLOCATE (coarse_residual(SIZE(coarse_rhs, 1), SIZE(coarse_rhs, 2)))
+         DO j = 1, SIZE(local_input, 2)
+            state = preconditioner_env%lattice_rhs_distribution%global_columns(j)
+            coarse_projected(:, j) = &
+               MATMUL(TRANSPOSE(preconditioner_env%lattice_state_local_operator(:, :, state)), &
+                      local_output(:, j))
+            coarse_residual(:, j) = MATMUL( &
+                                    preconditioner_env%lattice_state_local_coarse_inverse(:, :, state), &
+                                    coarse_projected(:, j))
+            local_output(preconditioner_env%lattice_state_local_indices(:, state), j) = &
+               local_output(preconditioner_env%lattice_state_local_indices(:, state), j) + &
+               coarse_rhs(:, j) - coarse_residual(:, j)
+         END DO
+         DEALLOCATE (coarse_projected, coarse_residual, coarse_rhs)
+      END IF
+      fft_ok = MERGE(1, 0, used_fft)
+      output_max = 0.0_dp
+      IF (SIZE(local_output) > 0) output_max = MAXVAL(ABS(local_output))
+      CALL preconditioner_env%para_env%min(fft_ok)
+      CALL preconditioner_env%para_env%max(imaginary_residual)
+      CALL preconditioner_env%para_env%max(output_max)
+      IF (fft_ok == 0) THEN
+         CPABORT("State-dependent lattice preconditioner inverse failed to use FFTs")
+      END IF
+      IF (imaginary_residual > 1.0E-10_dp*MAX(1.0_dp, output_max)) THEN
+         CPABORT("State-dependent lattice preconditioner produced a non-real Gamma-point result")
+      END IF
+      occupied_component(:, :) = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_dual), &
+                                        local_output)
+      occupied_update(:, :) = MATMUL(preconditioner_env%lattice_occ_vectors, occupied_component)
+      local_output(:, :) = local_output - occupied_update
+      occupied_component(:, :) = MATMUL(TRANSPOSE(preconditioner_env%lattice_occ_vectors), &
+                                        local_input)
+      DO j = 1, SIZE(local_input, 2)
+         global_column = preconditioner_env%lattice_rhs_distribution%global_columns(j)
+         DO i = 1, k
+            occupied_component(i, j) = occupied_component(i, j)/MAX( &
+                                       preconditioner_env%energy_gap, &
+                                       preconditioner_env%full_evals(i) - &
+                                       preconditioner_env%occ_evals(global_column))
+         END DO
+      END DO
+      occupied_update(:, :) = MATMUL(preconditioner_env%lattice_occ_vectors, occupied_component)
+      local_output(:, :) = local_output + occupied_update
+      CALL collect_lattice_rhs(preconditioner_env, preconditioner_env%lattice_rhs_distribution, &
+                               local_output, matrix_out)
+      DEALLOCATE (base_input, complement_input, local_input, local_output, occupied_component, occupied_update)
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_lattice_state_operator_fm
+
+! **************************************************************************************************
+!> \brief Route complete orbital columns to distinct ranks for lattice-FFT application.
+!> \param preconditioner_env ...
+!> \param matrix_in distributed input matrix
+!> \param distribution communication map retained for the reverse route
+!> \param local_input complete columns owned by this rank
+! **************************************************************************************************
+   SUBROUTINE distribute_lattice_rhs(preconditioner_env, matrix_in, distribution, local_input)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in
+      TYPE(lattice_rhs_distribution_type), INTENT(INOUT) :: distribution
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: local_input
+
+      INTEGER                                            :: destination, i, ientry, j, k, n, &
+                                                            ncol_local, nowned, nrow_local, &
+                                                            num_pe, slot
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cursor, send_global_columns, &
+                                                            send_global_rows
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: rebuild
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_values, send_values
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: input_data
+
+      num_pe = preconditioner_env%para_env%num_pe
+      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k, &
+                          nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices, local_data=input_data)
+      rebuild = distribution%nrow_global /= n .OR. distribution%ncol_global /= k .OR. &
+                distribution%nrow_local /= nrow_local .OR. distribution%ncol_local /= ncol_local .OR. &
+                distribution%num_pe /= num_pe
+      IF (.NOT. rebuild) THEN
+         rebuild = .NOT. ALLOCATED(distribution%local_rows) .OR. &
+                   .NOT. ALLOCATED(distribution%local_columns)
+      END IF
+      IF (.NOT. rebuild) THEN
+         rebuild = ANY(distribution%local_rows /= row_indices) .OR. &
+                   ANY(distribution%local_columns /= col_indices)
+      END IF
+      IF (rebuild) THEN
+         CALL release_lattice_rhs_distribution(distribution)
+         distribution%nrow_global = n
+         distribution%ncol_global = k
+         distribution%nrow_local = nrow_local
+         distribution%ncol_local = ncol_local
+         distribution%num_pe = num_pe
+         ALLOCATE (distribution%local_rows(nrow_local), distribution%local_columns(ncol_local))
+         distribution%local_rows(:) = row_indices
+         distribution%local_columns(:) = col_indices
+         ALLOCATE (distribution%send_counts(num_pe), distribution%send_displacements(num_pe), &
+                   distribution%recv_counts(num_pe), distribution%recv_displacements(num_pe), &
+                   cursor(num_pe))
+         distribution%send_counts = 0
+         DO j = 1, ncol_local
+            destination = MODULO(col_indices(j) - 1, num_pe) + 1
+            distribution%send_counts(destination) = &
+               distribution%send_counts(destination) + nrow_local
+         END DO
+         CALL preconditioner_env%para_env%alltoall(distribution%send_counts, &
+                                                   distribution%recv_counts, 1)
+         distribution%send_displacements(1) = 0
+         distribution%recv_displacements(1) = 0
+         DO i = 2, num_pe
+            distribution%send_displacements(i) = distribution%send_displacements(i - 1) + &
+                                                 distribution%send_counts(i - 1)
+            distribution%recv_displacements(i) = distribution%recv_displacements(i - 1) + &
+                                                 distribution%recv_counts(i - 1)
+         END DO
+
+         ALLOCATE (send_global_rows(SUM(distribution%send_counts)), &
+                   send_global_columns(SUM(distribution%send_counts)), &
+                   distribution%send_local_rows(SUM(distribution%send_counts)), &
+                   distribution%send_local_columns(SUM(distribution%send_counts)), &
+                   distribution%recv_global_rows(SUM(distribution%recv_counts)), &
+                   distribution%recv_global_columns(SUM(distribution%recv_counts)))
+         cursor(:) = distribution%send_displacements
+         DO j = 1, ncol_local
+            destination = MODULO(col_indices(j) - 1, num_pe) + 1
+            DO i = 1, nrow_local
+               cursor(destination) = cursor(destination) + 1
+               ientry = cursor(destination)
+               send_global_rows(ientry) = row_indices(i)
+               send_global_columns(ientry) = col_indices(j)
+               distribution%send_local_rows(ientry) = i
+               distribution%send_local_columns(ientry) = j
+            END DO
+         END DO
+         CALL preconditioner_env%para_env%alltoall( &
+            send_global_rows, distribution%send_counts, distribution%send_displacements, &
+            distribution%recv_global_rows, distribution%recv_counts, distribution%recv_displacements)
+         CALL preconditioner_env%para_env%alltoall( &
+            send_global_columns, distribution%send_counts, distribution%send_displacements, &
+            distribution%recv_global_columns, distribution%recv_counts, distribution%recv_displacements)
+
+         nowned = 0
+         DO j = preconditioner_env%para_env%mepos + 1, k, num_pe
+            nowned = nowned + 1
+         END DO
+         ALLOCATE (distribution%global_columns(nowned))
+         nowned = 0
+         DO j = preconditioner_env%para_env%mepos + 1, k, num_pe
+            nowned = nowned + 1
+            distribution%global_columns(nowned) = j
+         END DO
+         DEALLOCATE (cursor, send_global_columns, send_global_rows)
+      END IF
+
+      nowned = SIZE(distribution%global_columns)
+      ALLOCATE (local_input(n, nowned), source=0.0_dp)
+      ALLOCATE (send_values(SUM(distribution%send_counts)), &
+                recv_values(SUM(distribution%recv_counts)))
+      DO ientry = 1, SIZE(send_values)
+         send_values(ientry) = input_data(distribution%send_local_rows(ientry), &
+                                          distribution%send_local_columns(ientry))
+      END DO
+      CALL preconditioner_env%para_env%alltoall( &
+         send_values, distribution%send_counts, distribution%send_displacements, &
+         recv_values, distribution%recv_counts, distribution%recv_displacements)
+      DO ientry = 1, SIZE(recv_values)
+         slot = (distribution%recv_global_columns(ientry) - 1)/num_pe + 1
+         local_input(distribution%recv_global_rows(ientry), slot) = recv_values(ientry)
+      END DO
+
+      DEALLOCATE (recv_values, send_values)
+
+   END SUBROUTINE distribute_lattice_rhs
+
+! **************************************************************************************************
+!> \brief Return rank-owned lattice-FFT columns to their original full-matrix layout.
+!> \param preconditioner_env ...
+!> \param distribution communication map from distribute_lattice_rhs
+!> \param local_output complete preconditioned columns owned by this rank
+!> \param matrix_out distributed output matrix
+!> \param scale_factor optional final scaling
+! **************************************************************************************************
+   SUBROUTINE collect_lattice_rhs(preconditioner_env, distribution, local_output, matrix_out, scale_factor)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(lattice_rhs_distribution_type), INTENT(IN)    :: distribution
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: local_output
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_out
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: scale_factor
+
+      INTEGER                                            :: ientry, num_pe, slot
+      REAL(KIND=dp)                                      :: scale
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_values, send_values
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: output_data
+
+      num_pe = preconditioner_env%para_env%num_pe
+      CPASSERT(SIZE(local_output, 1) == distribution%nrow_global)
+      CPASSERT(SIZE(local_output, 2) == SIZE(distribution%global_columns))
+      scale = 1.0_dp
+      IF (PRESENT(scale_factor)) scale = scale_factor
+      ALLOCATE (send_values(SUM(distribution%recv_counts)), &
+                recv_values(SUM(distribution%send_counts)))
+      DO ientry = 1, SIZE(send_values)
+         slot = (distribution%recv_global_columns(ientry) - 1)/num_pe + 1
+         send_values(ientry) = local_output(distribution%recv_global_rows(ientry), slot)
+      END DO
+      CALL preconditioner_env%para_env%alltoall( &
+         send_values, distribution%recv_counts, distribution%recv_displacements, &
+         recv_values, distribution%send_counts, distribution%send_displacements)
+
+      CALL cp_fm_get_info(matrix_out, local_data=output_data)
+      output_data = 0.0_dp
+      DO ientry = 1, SIZE(recv_values)
+         output_data(distribution%send_local_rows(ientry), &
+                     distribution%send_local_columns(ientry)) = scale*recv_values(ientry)
+      END DO
+      DEALLOCATE (recv_values, send_values)
+
+   END SUBROUTINE collect_lattice_rhs
+
+! **************************************************************************************************
+!> \brief Bridge a DBCSR OT gradient to the full-matrix lattice-FFT operator.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_lattice_operator_dbcsr(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
+
+      INTEGER                                            :: k, n
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: input_fm, output_fm
+
+      NULLIFY (fm_struct)
+      CALL dbcsr_get_info(matrix_in, nfullrows_total=n, nfullcols_total=k)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=n, ncol_global=k, &
+                               context=preconditioner_env%ctxt, &
+                               para_env=preconditioner_env%para_env)
+      CALL cp_fm_create(input_fm, fm_struct, name="lattice preconditioner input")
+      CALL cp_fm_create(output_fm, fm_struct, name="lattice preconditioner output")
+      CALL cp_fm_struct_release(fm_struct)
+      CALL copy_dbcsr_to_fm(matrix_in, input_fm)
+      CALL apply_lattice_operator_fm(preconditioner_env, input_fm, output_fm)
+      CALL copy_fm_to_dbcsr(output_fm, matrix_out)
+      CALL cp_fm_release(input_fm)
+      CALL cp_fm_release(output_fm)
+
+   END SUBROUTINE apply_lattice_operator_dbcsr
+
+! **************************************************************************************************
+!> \brief DBCSR variant of the bounded low-rank spectral correction.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_low_rank_dbcsr(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_low_rank_dbcsr'
+
+      INTEGER                                            :: col, col_offset, col_size, handle, i, j, &
+                                                            k, n, nocc, rank_used, row, &
+                                                            row_offset, row_size
+      REAL(KIND=dp)                                      :: correction
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: DATA
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_type)                                   :: matrix_tmp
+
+      CALL timeset(routineN, handle)
+
+      IF (preconditioner_env%low_rank_base == ot_low_rank_base_lattice_fft) THEN
+         CALL apply_low_rank_dbcsr_via_fm(preconditioner_env, matrix_in, matrix_out)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      CPASSERT(ASSOCIATED(preconditioner_env%base_dbcsr_matrix))
+      CPASSERT(ASSOCIATED(preconditioner_env%dbcsr_matrix))
+      CPASSERT(ASSOCIATED(preconditioner_env%full_evals))
+      CPASSERT(ASSOCIATED(preconditioner_env%occ_evals))
+
+      CALL dbcsr_get_info(matrix_in, nfullrows_total=n, nfullcols_total=k)
+      nocc = SIZE(preconditioner_env%occ_evals)
+      CPASSERT(n == SIZE(preconditioner_env%full_evals))
+      rank_used = MIN(preconditioner_env%spectral_rank, n - nocc)
+
+      ! DBCSR form of the same overlap-inverse base plus positive low-rank update.
+      CALL dbcsr_multiply('N', 'N', preconditioner_env%spectral_base_scale, &
+                          preconditioner_env%base_dbcsr_matrix, matrix_in, 0.0_dp, matrix_out)
+
+      IF (rank_used > 0) THEN
+         CALL dbcsr_copy(matrix_tmp, matrix_in, name=routineN)
+         CALL dbcsr_set(matrix_tmp, 0.0_dp)
+         CALL dbcsr_multiply('T', 'N', 1.0_dp, preconditioner_env%dbcsr_matrix, &
+                             matrix_in, 0.0_dp, matrix_tmp, &
+                             first_row=nocc + 1, last_row=nocc + rank_used)
+
+         CALL dbcsr_iterator_start(iter, matrix_tmp)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row, col, DATA, &
+                                           row_size=row_size, col_size=col_size, &
+                                           row_offset=row_offset, col_offset=col_offset)
+            DO j = 1, col_size
+               DO i = 1, row_size
+                  IF (row_offset + i - 1 >= nocc + 1 .AND. &
+                      row_offset + i - 1 <= nocc + rank_used) THEN
+                     correction = low_rank_inverse_weight( &
+                                  preconditioner_env%full_evals(row_offset + i - 1), &
+                                  preconditioner_env%spectral_reference, &
+                                  preconditioner_env%energy_gap) &
+                                  - preconditioner_env%spectral_base_scale
+                     DATA(i, j) = DATA(i, j)*correction
+                  END IF
+               END DO
+            END DO
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+
+         CALL dbcsr_multiply('N', 'N', 1.0_dp, preconditioner_env%dbcsr_matrix, &
+                             matrix_tmp, 1.0_dp, matrix_out, &
+                             first_k=nocc + 1, last_k=nocc + rank_used)
+         CALL dbcsr_release(matrix_tmp)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_low_rank_dbcsr
+
+! **************************************************************************************************
+!> \brief Bridge DBCSR OT gradients to the full-matrix lattice-FFT implementation.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_low_rank_dbcsr_via_fm(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
+
+      INTEGER                                            :: k, n
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: input_fm, output_fm
+
+      NULLIFY (fm_struct)
+      CALL dbcsr_get_info(matrix_in, nfullrows_total=n, nfullcols_total=k)
+      CALL cp_fm_struct_create(fm_struct, nrow_global=n, ncol_global=k, &
+                               context=preconditioner_env%ctxt, &
+                               para_env=preconditioner_env%para_env)
+      CALL cp_fm_create(input_fm, fm_struct, name="lattice low-rank input")
+      CALL cp_fm_create(output_fm, fm_struct, name="lattice low-rank output")
+      CALL cp_fm_struct_release(fm_struct)
+      CALL copy_dbcsr_to_fm(matrix_in, input_fm)
+      CALL apply_low_rank_fm(preconditioner_env, input_fm, output_fm)
+      CALL copy_fm_to_dbcsr(output_fm, matrix_out)
+      CALL cp_fm_release(input_fm)
+      CALL cp_fm_release(output_fm)
+
+   END SUBROUTINE apply_low_rank_dbcsr_via_fm
 
 ! **************************************************************************************************
 !> \brief full all to a full matrix
@@ -309,5 +1244,105 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE apply_all
+
+! **************************************************************************************************
+!> \brief Apply the state-selective inverse in a private canonical occupied gauge.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_full_all_covariant(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_full_all_covariant'
+
+      INTEGER                                            :: handle, k, n
+      TYPE(cp_fm_type)                                   :: canonical_in, canonical_out
+
+      CALL timeset(routineN, handle)
+      CPASSERT(ASSOCIATED(preconditioner_env%occ_rotation))
+      CALL cp_fm_get_info(matrix_in, nrow_global=n, ncol_global=k)
+
+      CALL cp_fm_create(canonical_in, matrix_in%matrix_struct, name=routineN)
+      CALL cp_fm_create(canonical_out, matrix_out%matrix_struct, name=routineN)
+      CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, matrix_in, &
+                         preconditioner_env%occ_rotation, 0.0_dp, canonical_in)
+      IF (preconditioner_env%lattice_fft_active) THEN
+         CALL apply_lattice_state_operator_fm(preconditioner_env, canonical_in, canonical_out)
+      ELSE
+         CALL apply_full_all(preconditioner_env, canonical_in, canonical_out)
+      END IF
+      CALL parallel_gemm('N', 'T', n, k, k, 1.0_dp, canonical_out, &
+                         preconditioner_env%occ_rotation, 0.0_dp, matrix_out)
+      CALL cp_fm_release(canonical_in)
+      CALL cp_fm_release(canonical_out)
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_full_all_covariant
+
+! **************************************************************************************************
+!> \brief DBCSR form of the rotation-covariant state-selective inverse.
+!> \param preconditioner_env ...
+!> \param matrix_in ...
+!> \param matrix_out ...
+! **************************************************************************************************
+   SUBROUTINE apply_all_covariant(preconditioner_env, matrix_in, matrix_out)
+
+      TYPE(preconditioner_type)                          :: preconditioner_env
+      TYPE(dbcsr_type)                                   :: matrix_in, matrix_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'apply_all_covariant'
+
+      INTEGER                                            :: handle, k, n
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: input_fm, output_fm
+      TYPE(dbcsr_type)                                   :: canonical_in, canonical_out
+
+      CALL timeset(routineN, handle)
+      CPASSERT(ASSOCIATED(preconditioner_env%occ_rotation))
+      CALL dbcsr_get_info(matrix_in, nfullrows_total=n, nfullcols_total=k)
+
+      IF (preconditioner_env%lattice_fft_active) THEN
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=n, ncol_global=k, &
+                                  context=preconditioner_env%ctxt, &
+                                  para_env=preconditioner_env%para_env)
+         CALL cp_fm_create(input_fm, fm_struct, name=routineN)
+         CALL cp_fm_create(output_fm, fm_struct, name=routineN)
+         CALL cp_fm_struct_release(fm_struct)
+         CALL copy_dbcsr_to_fm(matrix_in, input_fm)
+         CALL apply_full_all_covariant(preconditioner_env, input_fm, output_fm)
+         CALL copy_fm_to_dbcsr(output_fm, matrix_out)
+         CALL cp_fm_release(input_fm)
+         CALL cp_fm_release(output_fm)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      IF (.NOT. ASSOCIATED(preconditioner_env%occ_rotation_dbcsr)) THEN
+         CALL dbcsr_init_p(preconditioner_env%occ_rotation_dbcsr)
+         CALL cp_dbcsr_m_by_n_from_template(preconditioner_env%occ_rotation_dbcsr, &
+                                            template=matrix_in, m=k, n=k, &
+                                            sym=dbcsr_type_no_symmetry)
+         CALL copy_fm_to_dbcsr(preconditioner_env%occ_rotation, &
+                               preconditioner_env%occ_rotation_dbcsr)
+      END IF
+
+      CALL dbcsr_copy(canonical_in, matrix_in, name=routineN)
+      CALL dbcsr_set(canonical_in, 0.0_dp)
+      CALL dbcsr_copy(canonical_out, matrix_out, name=routineN)
+      CALL dbcsr_set(canonical_out, 0.0_dp)
+      CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_in, &
+                          preconditioner_env%occ_rotation_dbcsr, 0.0_dp, canonical_in)
+      CALL apply_all(preconditioner_env, canonical_in, canonical_out)
+      CALL dbcsr_multiply('N', 'T', 1.0_dp, canonical_out, &
+                          preconditioner_env%occ_rotation_dbcsr, 0.0_dp, matrix_out)
+      CALL dbcsr_release(canonical_in)
+      CALL dbcsr_release(canonical_out)
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_all_covariant
 
 END MODULE preconditioner_apply

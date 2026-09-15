@@ -149,7 +149,11 @@ MIT_PATHS = ("src/grpp/",)
 def get_src_cmakelists_txt() -> str:
     return "\n".join(
         (CP2K_DIR / fn).read_text(encoding="utf8")
-        for fn in ["src/CMakeLists.txt", "cmake/CompilerConfiguration.cmake"]
+        for fn in [
+            "src/CMakeLists.txt",
+            "cmake/CompilerConfiguration.cmake",
+            "CMakePresets.json",
+        ]
     )
 
 
@@ -297,7 +301,7 @@ def check_file(path: pathlib.Path) -> List[str]:
             continue
         if flag not in get_src_cmakelists_txt():
             warnings += [
-                f"{path}: Flag '{flag}' not mentioned in src/CMakeLists.txt nor cmake/CompilerConfiguration.cmake"
+                f"{path}: Flag '{flag}' not mentioned in src/CMakeLists.txt, cmake/CompilerConfiguration.cmake, or CMakePresets.json"
             ]
         if flag not in get_flags_src():
             warnings += [f"{path}: Flag '{flag}' not mentioned in cp2k_flags()"]

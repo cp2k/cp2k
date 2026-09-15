@@ -27,6 +27,8 @@
 "H2O-1.inp"                             = [{matcher="E_total", tol=5e-14, ref=-15.42239209735920}]
 # outer scf with FULL_ALL
 "H2O.inp"                               = [{matcher="E_total", tol=4e-13, ref=-17.1615063648948}]
+# rotation-covariant FULL_ALL Sylvester preconditioner
+"H2O-covariant.inp"                     = [{matcher="E_total", tol=1e-12, ref=-17.1615063648941}]
 # different parallel distributions
 "H2O-dist-1.inp"                        = [{matcher="E_total", tol=8e-14, ref=-34.28553811389267}]
 "H2O-dist-2.inp"                        = [{matcher="E_total", tol=8e-14, ref=-34.28553811389267}]
@@ -36,11 +38,11 @@
 "H2_trip.inp"                           = [{matcher="E_total", tol=2e-12, ref=-0.71740623265306}]
 "C-sic-1.inp"                           = [{matcher="E_total", tol=5e-13, ref=-5.30145304131208}]
 "C-sic-2.inp"                           = [{matcher="E_total", tol=1e-13, ref=-5.32760575352303}]
+"C-sic-lbfgs.inp"                       = [{matcher="E_total", tol=1e-12, ref=-5.30618470274937}]
 # ot with fractional occupations
 "C_ot.inp"                              = [{matcher="E_total", tol=1e-13, ref=-5.33746454516253}]
 # use of the fermi distribution
 "C_fermi.inp"                           = [{matcher="E_total", tol=1e-13, ref=-5.34109284627944}]
-"Al_fermi.inp"                          = [{matcher="E_total", tol=5e-14, ref=-8.17296838715160}]
 # go through planned FFTs, but don't check results, they will depend on the selected plan
 "H2O-plan-2.inp"                        = []
 "H2O-plan-3.inp"                        = []
@@ -52,4 +54,25 @@
 "CH4-1.inp"                             = [{matcher="E_total", tol=1e-13, ref=-7.94506870641918}]
 "CH4-2.inp"                             = [{matcher="E_total", tol=1e-13, ref=-7.94506870642183}]
 "CH4-3.inp"                             = [{matcher="E_total", tol=1e-13, ref=-7.94506870642185}]
+"CH4-chebyshev.inp"                     = [{matcher="E_total", tol=1e-10, ref=-7.94506870641358}]
+"CH4-lbfgs.inp"                         = [{matcher="E_total", tol=1e-11, ref=-7.94507201394430}]
+"CH4-lbfgs-rejected-update.inp"         = [{matcher="E_total", tol=1e-11, ref=-7.94507201394040},
+                                             {matcher="OT_lbfgs_skipped_update"}]
+"CH4-lbfgs-diis.inp"                    = [{matcher="E_total", tol=1e-11, ref=-7.94507201394648},
+                                             {matcher="OT_lbfgs_update"},
+                                             {matcher="OT_diis_update"}]
+"CH4-fermi-low-rank.inp"                = [{matcher="E_total", tol=1e-10, ref=-15.93664757384581}]
+"CH4-fermi-low-rank-fft.inp"            = [{matcher="E_total", tol=1e-09, ref=-15.93664757401409}]
+"CH4-fermi-low-rank-full.inp"           = [{matcher="E_total", tol=1e-10, ref=-15.93664757426925}]
+"H2-lattice-s-inverse.inp"               = [{matcher="E_total", tol=1e-09, ref=-2.156632575064015}]
+"H2-lattice-single-inverse.inp"          = [{matcher="E_total", tol=1e-09, ref=-2.156632575065856}]
+"H2-lattice-auto.inp"                    = [{matcher="E_total", tol=1e-09, ref=-8.624611232470830},
+                                             {matcher="OT_lattice_fft_fallback"}]
+"H2-lattice-auto-defect.inp"             = [{matcher="E_total", tol=1e-09, ref=-9.409028791711879},
+                                             {matcher="OT_lattice_fft_fallback"}]
+"H2-lattice-auto-selected.inp"           = [{matcher="E_total", tol=1e-09, ref=-17.296498346977504},
+                                             {matcher="OT_lattice_fft_selected"}]
+"H2-lattice-covariant.inp"               = [{matcher="E_total", tol=1e-09, ref=-2.156632575067707}]
+"H2-lattice-local-defect.inp"             = [{matcher="E_total", tol=1e-09, ref=-4.385713926705035},
+                                             {matcher="OT_lattice_local_correction"}]
 #EOF

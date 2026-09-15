@@ -40,9 +40,9 @@ MODULE pao_model
                                               qs_kind_type
    USE torch_api,                       ONLY: &
         torch_dict_create, torch_dict_get, torch_dict_insert, torch_dict_release, torch_dict_type, &
-        torch_model_forward, torch_model_get_attr, torch_model_load, torch_tensor_backward, &
-        torch_tensor_data_ptr, torch_tensor_from_array, torch_tensor_grad, torch_tensor_release, &
-        torch_tensor_type
+        torch_model_forward, torch_model_get_attr, torch_model_load, &
+        torch_model_remap_device_constants, torch_tensor_backward, torch_tensor_data_ptr, &
+        torch_tensor_from_array, torch_tensor_grad, torch_tensor_release, torch_tensor_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -84,6 +84,7 @@ CONTAINS
 
       IF (pao%iw > 0) WRITE (pao%iw, '(A)') " PAO| Loading PyTorch model from: "//TRIM(pao_model_file)
       CALL torch_model_load(model%torch_model, pao_model_file)
+      CALL torch_model_remap_device_constants(model%torch_model)
 
       ! Read model attributes.
       CALL torch_model_get_attr(model%torch_model, "pao_model_version", model%version)

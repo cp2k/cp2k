@@ -20,7 +20,11 @@ OpenCL).
 
 ## Downloading CP2K source code
 
-To clone the current master (development version):
+For end users, the preferred method is to go to [Releases](https://github.com/cp2k/cp2k/releases/)
+and download and extract one of the versioned tarballs `cp2k-X.Y.tar.bz2`.
+
+For developers, the preferred method is to fork the [`cp2k/cp2k`](https://github.com/cp2k/cp2k)
+repository and download via `git clone`. To clone the current master (development version):
 
 ```shell
 git clone https://github.com/cp2k/cp2k.git cp2k
@@ -32,19 +36,14 @@ To clone a release version v*x.y*:
 git clone -b support/vx.y --recursive https://github.com/cp2k/cp2k.git cp2k
 ```
 
-For more information on downloading CP2K, see [Downloading CP2K](https://www.cp2k.org/download). For
-help on git, see [Git Tips & Tricks](https://github.com/cp2k/cp2k/wiki/Git-Tips-&-Tricks).
-
 ## Install CP2K
 
-CP2K manual provides installation instructions for below available methods:
+The [installation instructions](https://manual.cp2k.org/trunk/getting-started/installation.html) in
+the CP2K manual provide several methods for installing CP2K with dependencies:
 
 - [Build from Source](https://manual.cp2k.org/trunk/getting-started/build-from-source.html)
 - [Build with Spack](https://manual.cp2k.org/trunk/getting-started/build-with-spack.html)
 - [Install from Distribution](https://manual.cp2k.org/trunk/getting-started/distributions.html)
-
-For building CP2K from scratch, including GPU acceleration for NVIDIA (CUDA), AMD (HIP/ROCm), or
-OpenCL devices, also see the [installation instructions](./INSTALL.md).
 
 ## Links
 
@@ -63,8 +62,9 @@ OpenCL devices, also see the [installation instructions](./INSTALL.md).
 
 - [`src`](./src): The source code
 - [`data`](./data): Simulation parameters e.g. basis sets and pseudopotentials
+- [`docs`](./docs/): The markdown source pages for documentations that is rendered as the manual
 - [`tests`](./tests): Inputs for tests and regression tests
-- [`tools`](./tools): Mixed collection of useful scripts related to cp2k
+- [`tools`](./tools): Mixed collection of useful scripts related to CP2K
 - [`benchmarks`](./benchmarks): Inputs for benchmarks
 
 [conda-badge]: https://img.shields.io/conda/vn/conda-forge/cp2k

@@ -10,12 +10,18 @@
 #include <ATen/Parallel.h>
 #if defined(__LIBTORCH_CUDA)
 #include <ATen/cuda/CUDAContextLight.h>
+#include <c10/cuda/CUDAAllocatorConfig.h>
 #endif
 #include <c10/core/DeviceGuard.h>
 #include <torch/csrc/api/include/torch/cuda.h>
+#include <torch/csrc/jit/passes/freeze_module.h>
 #include <torch/script.h>
 
 #include "offload/offload_library.h"
+
+#if defined(__OPENBLAS)
+#include <cblas.h>
+#endif
 
 #include <cassert>
 
@@ -23,9 +29,52 @@
 #include <climits>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#if defined(__OPENBLAS)
+// PyTorch's oneMKL batch ABI is not compatible with OpenBLAS's same-named
+// entry points. Expand grouped GEMMs into the portable CBLAS interface.
+extern "C" void
+cblas_sgemm_batch(const CBLAS_ORDER order, const CBLAS_TRANSPOSE *trans_a,
+                  const CBLAS_TRANSPOSE *trans_b, const int *m, const int *n,
+                  const int *k, const float *alpha, const float **a,
+                  const int *lda, const float **b, const int *ldb,
+                  const float *beta, float **c, const int *ldc,
+                  const int group_count, const int *group_size) {
+  int offset = 0;
+  for (int group = 0; group < group_count; ++group) {
+    for (int operation = 0; operation < group_size[group]; ++operation) {
+      const int index = offset + operation;
+      cblas_sgemm(order, trans_a[group], trans_b[group], m[group], n[group],
+                  k[group], alpha[group], a[index], lda[group], b[index],
+                  ldb[group], beta[group], c[index], ldc[group]);
+    }
+    offset += group_size[group];
+  }
+}
+
+extern "C" void
+cblas_dgemm_batch(const CBLAS_ORDER order, const CBLAS_TRANSPOSE *trans_a,
+                  const CBLAS_TRANSPOSE *trans_b, const int *m, const int *n,
+                  const int *k, const double *alpha, const double **a,
+                  const int *lda, const double **b, const int *ldb,
+                  const double *beta, double **c, const int *ldc,
+                  const int group_count, const int *group_size) {
+  int offset = 0;
+  for (int group = 0; group < group_count; ++group) {
+    for (int operation = 0; operation < group_size[group]; ++operation) {
+      const int index = offset + operation;
+      cblas_dgemm(order, trans_a[group], trans_b[group], m[group], n[group],
+                  k[group], alpha[group], a[index], lda[group], b[index],
+                  ldb[group], beta[group], c[index], ldc[group]);
+    }
+    offset += group_size[group];
+  }
+}
+#endif
 
 typedef torch::Tensor torch_c_tensor_t;
 typedef c10::Dict<std::string, torch::Tensor> torch_c_dict_t;
@@ -51,6 +100,22 @@ private:
  * \author Ole Schuett
  ******************************************************************************/
 static bool use_cuda_if_available = true;
+
+static void enable_expandable_cuda_segments_if_unconfigured() {
+#if defined(__LIBTORCH_CUDA)
+  static const bool initialized = []() {
+    const char *legacy_config = std::getenv("PYTORCH_CUDA_ALLOC_CONF");
+    const char *config = std::getenv("PYTORCH_ALLOC_CONF");
+    if ((legacy_config == nullptr || legacy_config[0] == '\0') &&
+        (config == nullptr || config[0] == '\0')) {
+      c10::cuda::CUDACachingAllocator::setAllocatorSettings(
+          "expandable_segments:True");
+    }
+    return true;
+  }();
+  (void)initialized;
+#endif
+}
 
 static bool get_positive_int_env(const char *name, int &value) {
   const char *raw = std::getenv(name);
@@ -87,6 +152,7 @@ static torch::Device get_device() {
   if (!use_cuda_if_available || !torch::cuda::is_available()) {
     return torch::kCPU;
   }
+  enable_expandable_cuda_segments_if_unconfigured();
   const auto device_count = torch::cuda::device_count();
   if (device_count <= 0) {
     return torch::kCPU;
@@ -161,6 +227,25 @@ static void remap_device_constants(torch::jit::Block *block,
         node->kindOf(torch::jit::attr::value) == torch::jit::AttributeKind::s) {
       node->s_(torch::jit::attr::value, device.str());
     }
+    bool has_tensor_input = false;
+    for (const torch::jit::Value *input : node->inputs()) {
+      has_tensor_input |= input->type()->kind() == c10::TypeKind::TensorType;
+    }
+    const auto *schema = node->maybeSchema();
+    if (!has_tensor_input && schema != nullptr) {
+      const auto &arguments = schema->arguments();
+      for (size_t i = 0; i < arguments.size() && i < node->inputs().size();
+           ++i) {
+        const auto input_value = torch::jit::toIValue(node->input(i));
+        if (arguments[i].name() == "device" && input_value.has_value() &&
+            input_value->isNone()) {
+          torch::jit::WithInsertPoint insertion_guard(node);
+          auto *device_value =
+              node->owningGraph()->insertConstant(torch::jit::IValue(device));
+          node->replaceInput(i, device_value);
+        }
+      }
+    }
     for (torch::jit::Block *nested_block : node->blocks()) {
       remap_device_constants(nested_block, device);
     }
@@ -169,12 +254,33 @@ static void remap_device_constants(torch::jit::Block *block,
 
 static void remap_model_device_constants(torch::jit::Module &model,
                                          const torch::Device &device) {
+  for (const auto &attribute : model.named_attributes(false)) {
+    const auto &value = attribute.value;
+    if (value.isTensor()) {
+      model.setattr(attribute.name, value.toTensor().to(device));
+    } else if (value.isTensorList()) {
+      auto tensors = value.toTensorList();
+      for (size_t i = 0; i < tensors.size(); ++i) {
+        tensors.set(i, tensors.get(i).to(device));
+      }
+      model.setattr(attribute.name, tensors);
+    }
+  }
   for (const auto &method : model.get_methods()) {
     remap_device_constants(method.graph()->block(), device);
   }
   for (auto child : model.children()) {
     remap_model_device_constants(child, device);
   }
+}
+
+static void initialize_cuda_linalg(const torch::Device &device) {
+  static std::once_flag flag;
+  std::call_once(flag, [&]() {
+    const auto options =
+        torch::TensorOptions().dtype(torch::kFloat32).device(device);
+    static_cast<void>(at::linalg_eigh(torch::eye(1, options)));
+  });
 }
 
 /*******************************************************************************
@@ -441,7 +547,11 @@ void torch_c_tensor_grad(const torch_c_tensor_t *tensor,
   get_device_with_guard(guard);
   const torch::Tensor maybe_grad = tensor->grad();
   assert(maybe_grad.defined());
-  *grad = new torch_c_tensor_t(maybe_grad.cpu().contiguous());
+  torch::Tensor host_grad = maybe_grad.detach().cpu().contiguous();
+  if (maybe_grad.is_cpu()) {
+    host_grad = host_grad.clone();
+  }
+  *grad = new torch_c_tensor_t(std::move(host_grad));
 }
 
 /*******************************************************************************
@@ -481,9 +591,11 @@ void torch_c_tensor_grad_batch3(const torch_c_tensor_t *tensor1,
     *grad2 = new torch_c_tensor_t(std::move(host2));
     *grad3 = new torch_c_tensor_t(std::move(host3));
   } else {
-    *grad1 = new torch_c_tensor_t(source1.cpu().contiguous());
-    *grad2 = new torch_c_tensor_t(source2.cpu().contiguous());
-    *grad3 = new torch_c_tensor_t(source3.cpu().contiguous());
+    // Materialize independent host buffers instead of aliasing gradients owned
+    // by the autograd graph when they are already contiguous CPU tensors.
+    *grad1 = new torch_c_tensor_t(source1.detach().cpu().contiguous().clone());
+    *grad2 = new torch_c_tensor_t(source2.detach().cpu().contiguous().clone());
+    *grad3 = new torch_c_tensor_t(source3.detach().cpu().contiguous().clone());
   }
 }
 
@@ -587,6 +699,7 @@ void torch_c_model_remap_device_constants(torch_c_model_t *model) {
   const auto device = get_device_with_guard(guard);
   if (device.is_cuda()) {
     remap_model_device_constants(*model, device);
+    initialize_cuda_linalg(device);
   }
 }
 
@@ -707,6 +820,16 @@ void torch_c_allow_tf32(const bool allow_tf32) {
 void torch_c_model_freeze(torch_c_model_t *model) {
 
   *model = torch::jit::freeze(*model);
+}
+
+/******************************************************************************
+ * \brief Freeze a Torch model while preserving one exported method.
+ ******************************************************************************/
+void torch_c_model_freeze_preserving_method(torch_c_model_t *model,
+                                            const char *method_name) {
+
+  const std::vector<std::string> preserved_methods = {method_name};
+  torch::jit::freeze_module_inplace(model, preserved_methods);
 }
 
 /*******************************************************************************

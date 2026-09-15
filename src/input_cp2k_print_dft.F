@@ -102,8 +102,8 @@ MODULE input_cp2k_print_dft
       use_restart_wfn, use_rt_restart, use_scf_wfn, wannier_projection, weight_type_mass, &
       weight_type_unit, wfi_aspc_nr, wfi_gext_proj_nr, wfi_gext_proj_qtr_nr, wfi_frozen_method_nr, &
       wfi_linear_p_method_nr, wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
-      wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
-      wfi_use_prev_wf_method_nr, wfn_mix_orig_external, wfn_mix_orig_occ, wfn_mix_orig_virtual, &
+      wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, wfi_use_prev_wf_method_nr, &
+      wfn_mix_orig_external, wfn_mix_orig_occ, wfn_mix_orig_virtual, &
       xas_1s_type, xas_2p_type, xas_2s_type, xas_3d_type, xas_3p_type, xas_3s_type, xas_4d_type, &
       xas_4f_type, xas_4p_type, xas_4s_type, xas_dip_len, xas_dip_vel, xas_dscf, xas_none, &
       xas_not_excited, xas_tdp_by_index, xas_tdp_by_kind, xas_tp_fh, xas_tp_flex, xas_tp_hh, &
@@ -541,8 +541,9 @@ CONTAINS
          print_key, __LOCATION__, "MO", &
          description="Controls the printing of the molecular orbital (MO) information. The requested MO information "// &
          "is printed for all occupied MOs by default. Use the MO_INDEX_RANGE keyword to restrict the number "// &
-         "of the MOs or to print the MO information for unoccupied MOs. With diagonalization, additional MOs "// &
-         "have to be made available for printout using the ADDED_MOS keyword in the SCF section. With OT, "// &
+         "of the MOs or to print the MO information for unoccupied MOs. With diagonalization, an explicit "// &
+         "positive range or -1 as its last index makes the requested MOs available automatically, up to the "// &
+         "AO basis size. ADDED_MOS can make extra MOs available independently of this print request. With OT, "// &
          "it is sufficient to specify the desired MO_INDEX_RANGE. The OT eigensolver can be controlled with "// &
          "the EPS_LUMO and MAX_ITER_LUMO keywords in the SCF section.", &
          print_level=high_print_level, filename="__STD_OUT__")
@@ -593,8 +594,9 @@ CONTAINS
                           name="MO_INDEX_RANGE", &
                           variants=s2a("MO_RANGE", "RANGE"), &
                           description="Print only the requested subset of MOs. The indices of the first and "// &
-                          "the last MO have to be specified to define the range. -1 as the last MO index "// &
-                          "prints all available orbitals with diagonalisation (ADDED_MOS) and all orbitals with OT.", &
+                          "the last MO have to be specified to define the range. A positive range makes the "// &
+                          "requested MOs available automatically. -1 as the last MO index makes and prints all "// &
+                          "available orbitals with diagonalization and all orbitals with OT.", &
                           repeats=.FALSE., &
                           n_var=2, &
                           type_of_var=integer_t, &

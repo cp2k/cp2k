@@ -238,7 +238,7 @@ CONTAINS
       CALL section_vals_val_get(root_section, "FORCE_EVAL%METHOD", i_val=method_name_id)
 
       IF (prog_name_id /= do_cp2k) THEN
-         ! initial setup (cp2k does in in the creation of the force_env)
+         ! initial setup (cp2k does it in the creation of the force_env)
          CALL globenv_create(globenv)
          CALL section_vals_retain(input_file)
          CALL cp2k_init(para_env, output_unit, globenv, input_file_name=input_file_name)
@@ -276,7 +276,7 @@ CONTAINS
          CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
                              accdrv_active_device_id=active_device_id)
       CASE (do_opt_basis)
-         CALL run_optimize_basis(input_declaration, root_section, para_env)
+         CALL run_optimize_basis(input_declaration, root_section, para_env, globenv)
          globenv%run_type_id = none_run
       CASE (do_cp2k)
          CALL create_force_env(new_env_id, &

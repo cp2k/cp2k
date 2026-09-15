@@ -1,5 +1,62 @@
 # Changelog
 
+## 2027.1 (Under Development)
+
+### New Features
+
+- MACE potentials interface ([#5580](https://github.com/cp2k/cp2k/pull/5580))
+- Native spin polarization for GFN1/2-xTB ([#5611](https://github.com/cp2k/cp2k/pull/5611))
+- Improved non-periodic RI-RS GW scaling ([#5621](https://github.com/cp2k/cp2k/pull/5621))
+- Linearized RT-BSE and open-shell BSE ([#5627](https://github.com/cp2k/cp2k/pull/5627))
+- Tensorial DFT+U+J and self-consistent minimum-tracking linear-response calculations of U and J
+  ([#5631](https://github.com/cp2k/cp2k/pull/5631))
+- Improved NNP CPU scaling ([#5295](https://github.com/cp2k/cp2k/pull/5295))
+- Parallelize and extend Floquet-Bloch calculations
+  ([#5642](https://github.com/cp2k/cp2k/pull/5642))
+- Electric-moment trajectory output ([#5650](https://github.com/cp2k/cp2k/pull/5650))
+- Meta-GGA DCDR APTs ([#5658](https://github.com/cp2k/cp2k/pull/5658))
+- Gaussian QM/MM for DFTB/xTB ([#5731](https://github.com/cp2k/cp2k/pull/5731))
+- Enable GAPW constrained DFT ([#5730](https://github.com/cp2k/cp2k/pull/5730))
+- 2PT/3D-2PT and anharmonic analysis ([#5772](https://github.com/cp2k/cp2k/pull/5772))
+- Spatial distribution analysis ([#5771](https://github.com/cp2k/cp2k/pull/5771))
+- Nonlocal pseudopotential contribution to integrated electronic current
+  ([#5769](https://github.com/cp2k/cp2k/pull/5769))
+- L-BFGS OT minimizer ([#5832](https://github.com/cp2k/cp2k/pull/5832))
+- ADIIS algorithm for diagonalization ([#5844](https://github.com/cp2k/cp2k/pull/5844),
+  [#5852](https://github.com/cp2k/cp2k/pull/5852), [#5866](https://github.com/cp2k/cp2k/pull/5866))
+- Extend OT to k-points and fractional occupations ([#5874](https://github.com/cp2k/cp2k/pull/5874),
+  [#5887](https://github.com/cp2k/cp2k/pull/5887))
+- **TODO**
+
+### Breaking Changes
+
+- Rename the RI-RS GW keyword `CUTOFF_RADIUS_RI_RS` to `CUTOFF_RADIUS_RL_RI`
+  ([#5621](https://github.com/cp2k/cp2k/pull/5621))
+- Drop old DFT-D4 API compatibility ([#5641](https://github.com/cp2k/cp2k/pull/5641))
+- Remove deprecated `USE_PREV_RHO_R` wfn-extrapolation alias
+  ([#5666](https://github.com/cp2k/cp2k/pull/5666))
+- Remove the SPLINE3_NOPBC multigrid interpolator ([#5719](https://github.com/cp2k/cp2k/pull/5719))
+- Require `MPI_THREAD_MULTIPLE` for all MPI builds ([#5811](https://github.com/cp2k/cp2k/pull/5811),
+  [#5817](https://github.com/cp2k/cp2k/pull/5817))
+- **TODO**
+
+### Fixes
+
+- Fix occupied-orbital index initialization ([#5616](https://github.com/cp2k/cp2k/pull/5616))
+- Fix Na/Ca UZH basis labels ([#5633](https://github.com/cp2k/cp2k/pull/5633))
+- Stabilize half-cell periodic images ([#5646](https://github.com/cp2k/cp2k/pull/5646))
+- Preserve cell orientation and space-group symmetry in CELL_OPT
+  ([#5648](https://github.com/cp2k/cp2k/pull/5648))
+- Allow POTENTIAL_FILE_NAME to be repeated ([#5649](https://github.com/cp2k/cp2k/pull/5649))
+- Fix distributed molecular moments ([#5680](https://github.com/cp2k/cp2k/pull/5680))
+- Fix quartic metadynamics wall energy ([#5687](https://github.com/cp2k/cp2k/pull/5687))
+- Fix PAO TorchScript CUDA handling ([#5726](https://github.com/cp2k/cp2k/pull/5726))
+- Fix GauXC RKS density normalization ([#5740](https://github.com/cp2k/cp2k/pull/5740))
+- Fix DDAPC forces on empty MPI ranks ([#5776](https://github.com/cp2k/cp2k/pull/5776))
+- **TODO**
+
+______________________________________________________________________
+
 ## 2026.2 (July 15, 2026)
 
 ### New Features

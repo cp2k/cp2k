@@ -7,7 +7,7 @@ spack:
     unify: true
 
   config:
-    connect_timeout: 30
+    connect_timeout: 240
     install_tree:
       padded_length: 128
       root: /opt/spack
@@ -53,6 +53,7 @@ spack:
       require:
         - "+fortran"
         - "threads=openmp"
+        - "build_system=makefile"
 
     # Libraries needed by CP2K
     dbcsr:
@@ -90,9 +91,13 @@ spack:
       require:
         - "~shared"
 
+    tblite:
+      require:
+        - "~shared"
+
   repos:
     builtin:
-      commit: 131214174051056d434e43d34f7c7645a385a835 # 2026-07-21
+      commit: 4d092a104627e9871a0d74f853d6df9c8e6105c2 # 2026-08-11
 
   specs:
     # Build tools
@@ -105,14 +110,14 @@ spack:
     - "dbcsr@2.10.0"
 #   - "dftd4@4.2.0"
     - "fftw@3.3.11"
-#   - "hdf5@2.1.0"
+#   - "hdf5@2.2.0"
     - "libfci@0.1.0"
     - "libint@2.13.1-cp2k-lmax-5"
     - "libvori@220621"
     - "libxc@7.1.2"
     - "libxs@1.0.0"
-    - "libxsmm@2.0.0"
-    - "openblas@0.3.33"
+    - "libxsmm@2.1.0"
+    - "openblas@0.3.34"
     - "pace@2025.12.4.1"
     - "spglib@2.7.0"
     - "tblite@0.7.0"

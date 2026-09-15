@@ -10,6 +10,10 @@
 ! **************************************************************************************************
 MODULE input_cp2k_harris
    USE input_constants,                 ONLY: hden_atomic,&
+                                              hden_cube,&
+                                              hden_cube_fit,&
+                                              hfit_least_squares,&
+                                              hfit_relative_entropy,&
                                               hfun_harris,&
                                               horb_default
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -18,6 +22,9 @@ MODULE input_cp2k_harris
    USE input_section_types,             ONLY: section_add_keyword,&
                                               section_create,&
                                               section_type
+   USE input_val_types,                 ONLY: char_t
+   USE kinds,                           ONLY: dp
+   USE physcon,                         ONLY: kelvin
    USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
@@ -45,7 +52,7 @@ CONTAINS
       NULLIFY (keyword)
       CALL section_create(section, __LOCATION__, name="HARRIS_METHOD", &
                           description="Sets the various options for the Harris method", &
-                          n_keywords=5, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=15, n_subsections=0, repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of the Harris method", &
@@ -69,9 +76,84 @@ CONTAINS
                           description="Method to create the input density", &
                           usage="DENSITY_SOURCE ATOMIC", &
                           default_i_val=hden_atomic, &
-                          enum_c_vals=s2a("ATOMIC"), &
-                          enum_desc=s2a("Atomic densities"), &
-                          enum_i_vals=[hden_atomic])
+                          enum_c_vals=s2a("ATOMIC", "CUBE", "CUBE_FIT"), &
+                          enum_desc=s2a("Atomic densities", &
+                                        "Electron density read directly from a Gaussian cube file", &
+                                        "Cube density fitted by a constrained AO density matrix. "// &
+                                        "This dense reference method currently requires GPW, a "// &
+                                        "spin-restricted calculation, and the Gamma point"), &
+                          enum_i_vals=[hden_atomic, hden_cube, hden_cube_fit])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FILE_DENSITY", &
+                          description="Filename of the electron density in Gaussian cube format. "// &
+                          "Used when DENSITY_SOURCE is CUBE or CUBE_FIT. The cube grid has to coincide with "// &
+                          "the finest CP2K real-space grid.", &
+                          usage="FILE_DENSITY <FILENAME>", &
+                          type_of_var=char_t, default_c_val="", n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_METHOD", &
+                          description="Objective used to reconstruct an AO density matrix for CUBE_FIT. "// &
+                          "RELATIVE_ENTROPY uses the frozen H[n_cube] Fermi matrix as a physical prior. "// &
+                          "The current implementation is a dense cubic reference method.", &
+                          usage="FIT_METHOD LEAST_SQUARES", &
+                          default_i_val=hfit_least_squares, &
+                          enum_c_vals=s2a("LEAST_SQUARES", "RELATIVE_ENTROPY"), &
+                          enum_desc=s2a("Constrained least-squares density fit", &
+                                        "Fermionic relative-entropy/Mermin reconstruction with H[n_cube] prior"), &
+                          enum_i_vals=[hfit_least_squares, hfit_relative_entropy])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_MAX_ITER", &
+                          description="Maximum number of projected-gradient iterations for CUBE_FIT.", &
+                          usage="FIT_MAX_ITER 50", default_i_val=50)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_EPS", &
+                          description="Target RMS error of the fitted density for CUBE_FIT.", &
+                          usage="FIT_EPS 1.0E-3", default_r_val=1.0E-3_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_STEP_SIZE", &
+                          description="Initial spectral projected-gradient step size for CUBE_FIT.", &
+                          usage="FIT_STEP_SIZE 1.0", default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_MAX_BACKTRACK", &
+                          description="Maximum number of line-search reductions in each CUBE_FIT iteration.", &
+                          usage="FIT_MAX_BACKTRACK 20", default_i_val=20)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_TEMPERATURE", &
+                          description="Electronic temperature of the Fermi-matrix prior used by "// &
+                          "FIT_METHOD RELATIVE_ENTROPY.", &
+                          usage="FIT_TEMPERATURE [K] 300", &
+                          default_r_val=300.0_dp/kelvin, unit_str="K")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_RELATIVE_ENTROPY_WEIGHT", &
+                          description="Weight multiplying the dimensionless fermionic relative entropy "// &
+                          "in the regularized CUBE_FIT objective.", &
+                          usage="FIT_RELATIVE_ENTROPY_WEIGHT 1.0E-3", default_r_val=1.0E-3_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DIRECT_DENSITY_MATRIX_ENERGY", &
+                          description="Evaluate the fitted AO density matrix directly, without a NONSCF "// &
+                          "eigensolver. Requires DENSITY_SOURCE CUBE_FIT. CP2K reports both the "// &
+                          "consistent trial-density-matrix energy and a Harris-like energy based on "// &
+                          "the original cube density.", &
+                          usage="DIRECT_DENSITY_MATRIX_ENERGY T", default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -56,16 +56,14 @@ MODULE realspace_grid_openpmd
 
    PRIVATE
 
-   PUBLIC ::pw_to_openpmd
+   PUBLIC :: pw_to_openpmd
 
 #ifdef __OPENPMD
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_openpmd'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
-   LOGICAL, PRIVATE                     :: parses_linebreaks = .FALSE., &
-                                           parse_test = .TRUE.
 
    TYPE cp_openpmd_write_buffer_1d
-      REAL(KIND=dp), POINTER :: buffer(:)
+      REAL(KIND=dp), DIMENSION(:), POINTER :: buffer => NULL()
    END TYPE cp_openpmd_write_buffer_1d
 #endif
 
@@ -412,7 +410,10 @@ CONTAINS
       mesh = openpmd_data%iteration%get_mesh(TRIM(openpmd_data%name_prefix))
       CALL mesh%set_axis_labels(["x", "y", "z"])
       CALL mesh%set_position([0.5_dp, 0.5_dp, 0.5_dp])
-      CALL mesh%set_grid_global_offset([0._dp, 0._dp, 0._dp])
+      CALL mesh%set_grid_global_offset([ &
+                                       pw%pw_grid%bounds(1, 1)*grid_spacing(1), &
+                                       pw%pw_grid%bounds(1, 2)*grid_spacing(2), &
+                                       pw%pw_grid%bounds(1, 3)*grid_spacing(3)])
       CALL mesh%set_grid_spacing(grid_spacing)
       CALL mesh%set_grid_unit_SI(a_bohr)
       CALL mesh%set_unit_dimension(openpmd_data%unit_dimension)

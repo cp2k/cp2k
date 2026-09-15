@@ -6,18 +6,24 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Auxiliary tools to redistribute cp_fm_type matrices before and after diagonalization.
-!>        Heuristics are used to determine the optimal number of CPUs for diagonalization and the
-!>        input matrices are redistributed if necessary
+!> \brief Auxiliary tools to redistribute cp_fm_type and cp_cfm_type matrices before and after
+!>        diagonalization. Heuristics are used to determine the optimal number of CPUs for
+!>        diagonalization and the input matrices are redistributed if necessary
 !> \par History
 !>      - [01.2018] moved redistribution related code from cp_fm_syevd here
+!>      - [08.2026] added complex matrix (cp_cfm_type) counterparts
 !> \author Nico Holmberg [01.2018]
 ! **************************************************************************************************
 MODULE cp_fm_diag_utils
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_release,&
+                                              cp_cfm_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_get,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -71,7 +77,9 @@ MODULE cp_fm_diag_utils
 
    PUBLIC :: cp_fm_redistribute_start, &
              cp_fm_redistribute_end, &
-             cp_fm_redistribute_init
+             cp_fm_redistribute_init, &
+             cp_cfm_redistribute_start, &
+             cp_cfm_redistribute_end
 
 CONTAINS
 
@@ -520,5 +528,351 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_redistribute_end
+
+#if defined(__parallel)
+! **************************************************************************************************
+!> \brief  Determines the largest number of CPUs a matrix can be distributed on without any of the
+!>         processors getting a zero-width column (currently only needed for ELPA).
+!> \param  matrix the matrix that will be diagonalized
+!> \return the maximum number of CPUs for ELPA
+! **************************************************************************************************
+   FUNCTION cp_cfm_max_ncpu_non_zero_column(matrix) RESULT(ncpu)
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
+      INTEGER                                            :: ncpu
+
+      INTEGER                                            :: gcd_max, ipe, jpe, ncol_block, &
+                                                            ncol_global, npcol, nrow_block, &
+                                                            nrow_global, num_pe_old, nzero
+      INTEGER, DIMENSION(:), POINTER                     :: ncol_locals
+      INTEGER, EXTERNAL                                  :: numroc
+
+      NULLIFY (ncol_locals)
+      ! First check if there are any zero width columns in current layout
+      CALL cp_fm_struct_get(matrix%matrix_struct, ncol_locals=ncol_locals, &
+                            nrow_global=nrow_global, ncol_global=ncol_global, &
+                            nrow_block=nrow_block, ncol_block=ncol_block)
+      nzero = COUNT(ncol_locals == 0)
+      num_pe_old = matrix%matrix_struct%para_env%num_pe
+      ncpu = num_pe_old - nzero
+
+      ! Avoid layouts with odd number of CPUs (blacs grid layout will be square)
+      IF (ncpu > 2) THEN
+         ncpu = ncpu - MODULO(ncpu, 2)
+      END IF
+
+      ! if there are no zero-width columns and the number of processors was even, leave it at that
+      IF (ncpu == num_pe_old) THEN
+         RETURN
+      END IF
+
+      ! Iteratively search for the maximum number of CPUs for ELPA
+      ! On each step, we test whether the blacs grid created with ncpu processes
+      ! contains any columns with zero width
+      DO WHILE (ncpu > 1)
+         ! Determine layout of new blacs grid with ncpu CPUs
+         ! (snippet copied from cp_blacs_env.F:cp_blacs_env_create)
+         gcd_max = -1
+         DO ipe = 1, CEILING(SQRT(REAL(ncpu, dp)))
+            jpe = ncpu/ipe
+            IF (ipe*jpe /= ncpu) THEN
+               CYCLE
+            END IF
+            IF (gcd(ipe, jpe) >= gcd_max) THEN
+               npcol = jpe
+               gcd_max = gcd(ipe, jpe)
+            END IF
+         END DO
+
+         ! Count the number of processors without any columns
+         ! (snippet copied from cp_fm_struct.F:cp_fm_struct_create)
+         nzero = 0
+         DO ipe = 0, npcol - 1
+            IF (numroc(ncol_global, ncol_block, ipe, 0, npcol) == 0) THEN
+               nzero = nzero + 1
+            END IF
+         END DO
+
+         IF (nzero == 0) THEN
+            EXIT
+         END IF
+
+         ncpu = ncpu - nzero
+
+         IF (ncpu > 2) THEN
+            ncpu = ncpu - MODULO(ncpu, 2)
+         END IF
+      END DO
+
+   END FUNCTION cp_cfm_max_ncpu_non_zero_column
+#endif
+
+! **************************************************************************************************
+!> \brief   Determines the optimal number of CPUs for matrix diagonalization and redistributes
+!>          the input matrices if necessary
+!> \param matrix           the input cp_cfm_type matrix to be diagonalized
+!> \param eigenvectors     the cp_cfm_type matrix that will hold the eigenvectors of the input matrix
+!> \param matrix_new       the redistributed input matrix which will subsequently be diagonalized,
+!>                         or a pointer to the original matrix if no redistribution is required
+!> \param eigenvectors_new the redistributed eigenvectors matrix, or a pointer to the original
+!>                         matrix if no redistribution is required
+!> \param caller_is_elpa   flag that determines if ELPA is used for diagonalization
+!> \param redist_info      get info about the redistribution
+!> \par History
+!>      - [08.2026] created by mirroring cp_fm_redistribute_start for complex matrices
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_redistribute_start(matrix, eigenvectors, matrix_new, eigenvectors_new, &
+                                        caller_is_elpa, redist_info)
+
+      TYPE(cp_cfm_type), INTENT(IN)             :: matrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(OUT)            :: matrix_new, eigenvectors_new
+      LOGICAL, OPTIONAL, INTENT(IN)             :: caller_is_elpa
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_redistribute_start'
+
+      INTEGER                                  :: handle
+      LOGICAL                                  :: is_elpa
+      TYPE(cp_fm_redistribute_info), OPTIONAL, INTENT(OUT) :: redist_info
+
+#if defined(__parallel)
+      COMPLEX(KIND=dp)                         :: fake_local_data(1, 1)
+      INTEGER                                  :: fake_descriptor(9), mepos_old, &
+                                                  io_unit, ngroups, ncol_block, blksize, nrow_block
+      TYPE(cp_fm_struct_type), POINTER         :: fm_struct_new
+      TYPE(mp_para_env_type), POINTER          :: para_env
+      TYPE(cp_logger_type), POINTER            :: logger
+      TYPE(cp_fm_redistribute_info)            :: rdinfo
+#endif
+
+      CALL timeset(routineN, handle)
+      is_elpa = .FALSE.
+      IF (PRESENT(caller_is_elpa)) THEN
+#if defined(__ELPA)
+         is_elpa = caller_is_elpa
+#else
+         CPABORT("CP2K compiled without the ELPA library.")
+#endif
+      END IF
+
+#if defined(__parallel)
+
+      logger => cp_get_default_logger()
+      io_unit = cp_logger_get_default_io_unit(logger)
+
+      ! first figure out the optimal number of cpus
+      ! this is pure heuristics, the defaults are based on rosa timings
+      ! that demonstrate that timings go up sharply if too many tasks are used
+      ! we take a multiple of 4, and approximately n/60
+      para_env => matrix%matrix_struct%para_env
+      mepos_old = para_env%mepos
+      ncol_block = -1 ! normally we also want to adjust the block size according to the optimal # of CPUs
+      nrow_block = -1
+      blksize = -1
+
+      rdinfo%matrix_order = matrix%matrix_struct%nrow_global
+      rdinfo%num_pe_old = para_env%num_pe
+      rdinfo%num_pe_opt = cp_fm_diag_get_optimal_ncpu(rdinfo%matrix_order)
+      rdinfo%num_pe_new = rdinfo%num_pe_opt
+      rdinfo%num_pe_max_nz_col = -1
+      rdinfo%redistribute = .FALSE.
+
+      IF (is_elpa) THEN
+         ! with ELPA we don't have to redistribute if not necessary (scales, unlike ScaLAPACK)
+         rdinfo%num_pe_new = rdinfo%num_pe_old
+
+         ! BUT: Diagonalization with ELPA fails when a processor column has zero width
+         ! Determine the maximum number of CPUs the matrix can be distributed without zero-width columns
+         ! for the current block size.
+         rdinfo%num_pe_max_nz_col = cp_cfm_max_ncpu_non_zero_column(matrix)
+
+         ! if the user wants to redistribute to the ScaLAPACK optimal number of CPUs anyway, let him if it's safe.
+         IF (work_redistribute%elpa_force_redistribute .AND. rdinfo%num_pe_opt < rdinfo%num_pe_max_nz_col) THEN
+            ! Use heuristics to determine the need for redistribution (when num_pe_opt is smaller than the safe maximum)
+            ! in this case we can also take the block size used for ScaLAPACK
+            rdinfo%num_pe_new = rdinfo%num_pe_opt
+         ELSE IF (rdinfo%num_pe_old > rdinfo%num_pe_max_nz_col) THEN
+            ! Otherwise, only redistribute if we have to
+            rdinfo%num_pe_new = rdinfo%num_pe_max_nz_col
+            ! do NOT let cp_fm_struct_create automatically adjust the block size because the
+            ! calculated number of processors such that no block has 0 columns wouldn't match (see #578):
+            ! if the automatically chosen block size is larger than the present one we would still end
+            ! up with empty processors
+         END IF
+
+         CALL cp_cfm_get_info(matrix, ncol_block=ncol_block, nrow_block=nrow_block)
+
+         ! On GPUs, ELPA requires the block size to be a power of 2
+         blksize = 1
+         DO WHILE (2*blksize <= MIN(nrow_block, ncol_block))
+            blksize = blksize*2
+         END DO
+         nrow_block = blksize
+         ncol_block = blksize
+      END IF
+
+      ! finally, only redistribute if we're going to use less CPUs than before or changed the block size
+      rdinfo%redistribute = (rdinfo%num_pe_old > rdinfo%num_pe_new) .OR. (blksize >= 0 .AND. &
+                                   ((blksize /= matrix%matrix_struct%ncol_block) .OR. (blksize /= matrix%matrix_struct%nrow_block)))
+
+      IF (work_redistribute%should_print .AND. io_unit > 0) THEN
+         IF (is_elpa) THEN
+            IF (work_redistribute%elpa_force_redistribute) THEN
+               WRITE (UNIT=io_unit, FMT="(T2,A,T78,A3)") &
+                  "CP_FM_DIAG| Force redistribute (ELPA):", "YES"
+            ELSE
+               WRITE (UNIT=io_unit, FMT="(T2,A,T79,A2)") &
+                  "CP_FM_DIAG| Force redistribute (ELPA):", "NO"
+            END IF
+         END IF
+         CALL rdinfo%write(io_unit)
+      END IF
+      CALL para_env%sync()
+
+      ! if the optimal is smaller than num_pe, we will redistribute the input matrix
+      IF (rdinfo%redistribute) THEN
+         ! split comm, the first num_pe_new tasks will do the work
+         ALLOCATE (work_redistribute%group_distribution(0:rdinfo%num_pe_old - 1))
+         ALLOCATE (work_redistribute%group_partition(0:1))
+         work_redistribute%group_partition = [rdinfo%num_pe_new, rdinfo%num_pe_old - rdinfo%num_pe_new]
+         ALLOCATE (work_redistribute%para_env_new)
+         CALL work_redistribute%para_env_new%from_split( &
+            comm=para_env, ngroups=ngroups, group_distribution=work_redistribute%group_distribution, &
+            n_subgroups=2, group_partition=work_redistribute%group_partition)
+
+         IF (work_redistribute%group_distribution(mepos_old) == 0) THEN
+
+            ! create blacs, should inherit the preferences for the layout and so on, from the higher level
+            NULLIFY (work_redistribute%blacs_env_new)
+            CALL cp_blacs_env_create(blacs_env=work_redistribute%blacs_env_new, para_env=work_redistribute%para_env_new)
+
+            ! create new matrix
+            NULLIFY (fm_struct_new)
+            IF (nrow_block == -1 .OR. ncol_block == -1) THEN
+               CALL cp_fm_struct_create(fmstruct=fm_struct_new, &
+                                        para_env=work_redistribute%para_env_new, &
+                                        context=work_redistribute%blacs_env_new, &
+                                        nrow_global=rdinfo%matrix_order, ncol_global=rdinfo%matrix_order, &
+                                        ncol_block=ncol_block, nrow_block=nrow_block)
+            ELSE
+               CALL cp_fm_struct_create(fmstruct=fm_struct_new, &
+                                        para_env=work_redistribute%para_env_new, &
+                                        context=work_redistribute%blacs_env_new, &
+                                        nrow_global=rdinfo%matrix_order, ncol_global=rdinfo%matrix_order, &
+                                        ncol_block=ncol_block, nrow_block=nrow_block, force_block=.TRUE.)
+            END IF
+            CALL cp_cfm_create(matrix_new, matrix_struct=fm_struct_new, name="zheevd_new_mat")
+            CALL cp_cfm_create(eigenvectors_new, matrix_struct=fm_struct_new, name="zheevd_new_vec")
+            CALL cp_fm_struct_release(fm_struct_new)
+
+            ! redistribute old
+            CALL pzgemr2d(rdinfo%matrix_order, rdinfo%matrix_order, matrix%local_data(1, 1), 1, 1, &
+                          matrix%matrix_struct%descriptor, &
+                          matrix_new%local_data(1, 1), 1, 1, matrix_new%matrix_struct%descriptor, &
+                          matrix%matrix_struct%context)
+         ELSE
+            ! these tasks must help redistribute (they own part of the data),
+            ! but need fake 'new' data, and their descriptor must indicate this with -1
+            ! see also scalapack comments on pzgemr2d
+            fake_descriptor = -1
+            CALL pzgemr2d(rdinfo%matrix_order, rdinfo%matrix_order, matrix%local_data(1, 1), 1, 1, &
+                          matrix%matrix_struct%descriptor, &
+                          fake_local_data(1, 1), 1, 1, fake_descriptor, &
+                          matrix%matrix_struct%context)
+         END IF
+      ELSE
+         ! No need to redistribute, just return pointers to the original arrays
+         matrix_new = matrix
+         eigenvectors_new = eigenvectors
+      END IF
+
+      IF (PRESENT(redist_info)) THEN
+         redist_info = rdinfo
+      END IF
+#else
+
+      MARK_USED(matrix)
+      MARK_USED(eigenvectors)
+      MARK_USED(matrix_new)
+      MARK_USED(eigenvectors_new)
+      MARK_USED(redist_info)
+      CPABORT("Routine called in non-parallel case.")
+#endif
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_redistribute_start
+
+! **************************************************************************************************
+!> \brief Redistributes eigenvectors and eigenvalues  back to the original communicator group
+!> \param matrix           the input cp_cfm_type matrix to be diagonalized
+!> \param eigenvectors     the cp_cfm_type matrix that will hold the eigenvectors of the input matrix
+!> \param eig              global array holding the eigenvalues of the input matrixmatrix
+!> \param matrix_new       the redistributed input matrix which will subsequently be diagonalized,
+!>                         or a pointer to the original matrix if no redistribution is required
+!> \param eigenvectors_new the redistributed eigenvectors matrix, or a pointer to the original
+!>                         matrix if no redistribution is required
+!> \par History
+!>      - [08.2026] created by mirroring cp_fm_redistribute_end for complex matrices
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_redistribute_end(matrix, eigenvectors, eig, matrix_new, eigenvectors_new)
+
+      TYPE(cp_cfm_type), INTENT(IN)             :: matrix, eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(INOUT) :: eig
+      TYPE(cp_cfm_type), INTENT(INOUT)          :: matrix_new, eigenvectors_new
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_redistribute_end'
+
+      INTEGER                                  :: handle
+#if defined(__parallel)
+      COMPLEX(KIND=dp)                         :: fake_local_data(1, 1)
+      INTEGER                                  :: fake_descriptor(9), mepos_old, n
+      TYPE(mp_para_env_type), POINTER          :: para_env
+#endif
+
+      CALL timeset(routineN, handle)
+
+#if defined(__parallel)
+
+      ! Check if matrix was redistributed
+      IF (ASSOCIATED(work_redistribute%group_distribution)) THEN
+         n = matrix%matrix_struct%nrow_global
+         para_env => matrix%matrix_struct%para_env
+         mepos_old = para_env%mepos
+
+         IF (work_redistribute%group_distribution(mepos_old) == 0) THEN
+            ! redistribute results on CPUs that hold the redistributed matrix
+            CALL pzgemr2d(n, n, eigenvectors_new%local_data(1, 1), 1, 1, eigenvectors_new%matrix_struct%descriptor, &
+                          eigenvectors%local_data(1, 1), 1, 1, eigenvectors%matrix_struct%descriptor, &
+                          eigenvectors%matrix_struct%context)
+            CALL cp_cfm_release(matrix_new)
+            CALL cp_cfm_release(eigenvectors_new)
+         ELSE
+            ! these tasks must help redistribute (they own part of the data),
+            ! but need fake 'new' data, and their descriptor must indicate this with -1
+            ! see also scalapack comments on pzgemr2d
+            fake_descriptor = -1
+            CALL pzgemr2d(n, n, fake_local_data(1, 1), 1, 1, fake_descriptor, &
+                          eigenvectors%local_data(1, 1), 1, 1, eigenvectors%matrix_struct%descriptor, &
+                          eigenvectors%matrix_struct%context)
+         END IF
+         ! free work
+         CALL cp_fm_redistribute_work_finalize(work_redistribute%group_distribution(mepos_old) == 0)
+
+         ! finally, also the eigenvalues need to end up on the non-group member tasks
+         CALL para_env%bcast(eig, 0)
+      END IF
+
+#else
+
+      MARK_USED(matrix)
+      MARK_USED(eigenvectors)
+      MARK_USED(eig)
+      MARK_USED(matrix_new)
+      MARK_USED(eigenvectors_new)
+      CPABORT("Routine called in non-parallel case.")
+#endif
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_redistribute_end
 
 END MODULE cp_fm_diag_utils

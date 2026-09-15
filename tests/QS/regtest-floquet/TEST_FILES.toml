@@ -6,6 +6,8 @@
 #
 # compute ground state for graphene with PBE and SZV
 # compute the floquet DOS and QUASI_ENERGIES at K-point
-"Floquet_KP.inp"  = [{matcher="Quasienergy", file="QUASI_ENERGIES.bs", tol=1.0E-06, ref=0.00534452},
-                     {matcher="Floquet_DOS", file="FLOQUET_DOS.out",   tol=1e-8,  ref=24.91}]
+"Floquet_KP.inp"  = [{matcher="Quasienergy", file="QUASI_ENERGIES.bs", tol=1.0E-06, ref=0.12012819},
+                     {matcher="Floquet_BS", file="FLOQUET_BANDSTRUCTURE.bs",   tol=1e-8,  ref=0.12012819},
+                     {matcher="Floquet_DOS", file="FLOQUET_DOS.out",   tol=1e-8,  ref=29.74},
+                     {matcher="Floquet_OCC", file="FLOQUET_DOS.out",   tol=1e-8,  ref=0.2840}]
 #EOF

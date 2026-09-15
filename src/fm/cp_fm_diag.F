@@ -31,6 +31,7 @@ MODULE cp_fm_diag
                          finalize_elpa_library, &
                          initialize_elpa_library, &
                          set_elpa_kernel
+   USE cp_cfm_elpa, ONLY: set_elpa_c_kernel
    USE cp_fm_cusolver_api, ONLY: cp_fm_diag_cusolver, &
                                  cp_fm_general_cusolver
 #if defined(__DLAF)
@@ -83,20 +84,25 @@ MODULE cp_fm_diag
 
    REAL(KIND=dp), PARAMETER, PUBLIC :: eps_check_diag_default = 5.0E-14_dp
 
+   ! Placeholder eigenvalue for linearly dependent modes removed by canonical orthogonalization.
+   ! Pushes unphysical states above the real spectrum so downstream routines can ignore them.
+   REAL(KIND=dp), PARAMETER, PUBLIC :: set_removed_eigval_to = 10000.0_dp
+
    ! The following saved variables are diagonalization global
    ! Stores the default library for diagonalization
    INTEGER, SAVE, PUBLIC    :: diag_type = 0
+   ! Whether the diagonalization library was requested explicitly (e.g. via PREFERRED_DIAG_LIBRARY);
+   ! complex matrices use ELPA only in that case.
+   LOGICAL, SAVE, PUBLIC    :: diag_lib_explicit = .FALSE.
    ! Minimum number of eigenvectors for the use of the ELPA eigensolver.
    ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
-   INTEGER, SAVE            :: elpa_neigvec_min = 0
+   INTEGER, SAVE, PUBLIC    :: elpa_neigvec_min = 0
    ! Minimum matrix size for the use of the cuSOLVERMp eigensolver.
    ! Smaller matrices use the ScaLAPACK fallback to avoid GPU launch overheads.
    INTEGER, PARAMETER, PUBLIC :: cusolver_n_min = 64
-#if defined(__DLAF)
    ! Minimum number of eigenvectors for the use of the DLAF eigensolver.
    ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
    INTEGER, SAVE, PUBLIC    :: dlaf_neigvec_min = 0
-#endif
    LOGICAL, SAVE, PUBLIC :: direct_generalized_diagonalization = .FALSE.
    ! Threshold value for the orthonormality check of the eigenvectors obtained
    ! after a diagonalization. A negative value disables the check.
@@ -137,6 +143,7 @@ CONTAINS
 !> \param fallback_applied .TRUE. if support for the requested library was not compiled-in and fallback
 !>                         to ScaLAPACK was applied, .FALSE. otherwise.
 !> \param elpa_kernel integer that determines which ELPA kernel to use for diagonalization
+!> \param elpa_c_kernel ...
 !> \param elpa_neigvec_min_input ...
 !> \param elpa_qr logical that determines if ELPA should try to use QR to accelerate the
 !>                diagonalization procedure of suitably sized matrices
@@ -146,20 +153,24 @@ CONTAINS
 !> \param dlaf_neigvec_min_input ...
 !> \param eps_check_diag_input ...
 !> \param direct_generalized_diagonalization_input ...
+!> \param diag_lib_explicit_input ...
 !> \par History
 !>      - Add support for DLA-Future (05.09.2023, RMeli)
 !> \author  MI 11.2013
 ! **************************************************************************************************
-   SUBROUTINE diag_init(diag_lib, fallback_applied, elpa_kernel, elpa_neigvec_min_input, elpa_qr, &
-                        elpa_print, elpa_one_stage, dlaf_neigvec_min_input, eps_check_diag_input, &
-                        direct_generalized_diagonalization_input)
+   SUBROUTINE diag_init(diag_lib, fallback_applied, elpa_kernel, elpa_c_kernel, elpa_neigvec_min_input, &
+                        elpa_qr, elpa_print, elpa_one_stage, dlaf_neigvec_min_input, eps_check_diag_input, &
+                        direct_generalized_diagonalization_input, diag_lib_explicit_input)
       CHARACTER(LEN=*), INTENT(IN)                       :: diag_lib
       LOGICAL, INTENT(OUT)                               :: fallback_applied
-      INTEGER, INTENT(IN)                                :: elpa_kernel, elpa_neigvec_min_input
+      INTEGER, INTENT(IN)                                :: elpa_kernel
+      INTEGER, INTENT(IN), OPTIONAL                      :: elpa_c_kernel
+      INTEGER, INTENT(IN)                                :: elpa_neigvec_min_input
       LOGICAL, INTENT(IN)                                :: elpa_qr, elpa_print, elpa_one_stage
       INTEGER, INTENT(IN)                                :: dlaf_neigvec_min_input
       REAL(KIND=dp), INTENT(IN)                          :: eps_check_diag_input
-      LOGICAL, INTENT(IN), OPTIONAL :: direct_generalized_diagonalization_input
+      LOGICAL, INTENT(IN), OPTIONAL :: direct_generalized_diagonalization_input, &
+         diag_lib_explicit_input
 
       LOGICAL, SAVE                                      :: initialized = .FALSE.
 
@@ -188,10 +199,16 @@ CONTAINS
          CPABORT("ERROR in diag_init: Initialization of unknown diagonalization library requested")
       END IF
 
+      ! Complex matrices use ELPA only when the diagonalization library was
+      ! requested explicitly (e.g. via PREFERRED_DIAG_LIBRARY ELPA).
+      diag_lib_explicit = .TRUE.
+      IF (PRESENT(diag_lib_explicit_input)) diag_lib_explicit = diag_lib_explicit_input
+
       ! Initialization of requested diagonalization library
       IF (.NOT. initialized .AND. diag_type == FM_DIAG_TYPE_ELPA) THEN
          CALL initialize_elpa_library(one_stage=elpa_one_stage, qr=elpa_qr, should_print=elpa_print)
          CALL set_elpa_kernel(elpa_kernel)
+         IF (PRESENT(elpa_c_kernel)) CALL set_elpa_c_kernel(elpa_c_kernel)
          initialized = .TRUE.
       END IF
 #if defined(__DLAF)
@@ -1352,7 +1369,7 @@ CONTAINS
       mype = matrix%matrix_struct%para_env%mepos
       npe = matrix%matrix_struct%para_env%num_pe
       ! Get a new context
-      CALL ictxt_loc%gridinit(matrix%matrix_struct%para_env, 'Row-major', nprow*npcol, 1)
+      CALL ictxt_loc%gridinit(matrix%matrix_struct%para_env, 'R', nprow*npcol, 1)
 
       CALL descinit(desc_a_block, block_dim_row, block_dim_col, block_dim_row, &
                     block_dim_col, 0, 0, ictxt_loc%get_handle(), block_dim_row, info)
@@ -1694,13 +1711,16 @@ CONTAINS
 !> \param eigenvalues ...
 !> \param work ...
 !> \param epseig ...
+!> \param nmo_retained ...
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_geeig_canon(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig)
+   SUBROUTINE cp_fm_geeig_canon(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig, &
+                                nmo_retained)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
       TYPE(cp_fm_type), INTENT(IN)                       :: work
       REAL(KIND=dp), INTENT(IN)                          :: epseig
+      INTEGER, INTENT(OUT), OPTIONAL                     :: nmo_retained
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_geeig_canon'
 
@@ -1752,7 +1772,7 @@ CONTAINS
       IF (nc /= nao) THEN
          ! set diagonal values to save large value
          DO icol = nc + 1, nao
-            CALL cp_fm_set_element(amatrix, icol, icol, 10000.0_dp)
+            CALL cp_fm_set_element(amatrix, icol, icol, set_removed_eigval_to)
          END DO
       END IF
       ! Diagonalize
@@ -1760,6 +1780,10 @@ CONTAINS
       nx = MIN(nc, nmo)
       ! Restore vectors C = U^(-1) * C*
       CALL cp_fm_gemm("N", "N", nao, nx, nc, 1.0_dp, work, bmatrix, 0.0_dp, eigenvectors)
+
+      ! Number of basis modes that survived the linear-dependency filter. The remaining
+      ! nao - nc entries of eigenvalues(:) are the placeholders set above.
+      IF (PRESENT(nmo_retained)) nmo_retained = nc
 
       DEALLOCATE (evals)
 
