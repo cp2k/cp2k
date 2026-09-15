@@ -11,9 +11,9 @@
     CHARGE +1
     EPS_U_J_LOOP [eV] 0.01
     LSD
-    MTLR_REFERENCE_SCF ON
     PLUS_U_METHOD TENSORIAL
     POTENTIAL_FILE_NAME POTENTIAL
+    WFN_RESTART_FILE_NAME H2plus_reference-RESTART.wfn
     &MGRID
       CUTOFF 100
       REL_CUTOFF 40
@@ -25,7 +25,7 @@
     &SCF
       EPS_SCF 1.0E-6
       MAX_SCF 100
-      SCF_GUESS ATOMIC
+      SCF_GUESS RESTART
       &OT
         MINIMIZER DIIS
         N_HISTORY_VEC 2
@@ -33,6 +33,7 @@
       &END OT
       &PRINT
         &RESTART OFF
+          LOG_PRINT_KEY T
         &END RESTART
       &END PRINT
     &END SCF

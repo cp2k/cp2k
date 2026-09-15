@@ -222,6 +222,12 @@ MODULE input_constants
                                                eht_guess = 11, &
                                                external_density_guess = 12
 
+   ! Minimum tracking linear response SCF initialization modes
+   INTEGER, PARAMETER, PUBLIC               :: mtlr_initialization_unresolved = 0, &
+                                               mtlr_atomic_perturbations = 1, &
+                                               mtlr_reference_from_atomic = 2, &
+                                               mtlr_reference_from_restart = 3
+
    ! Projection formulas for the maximum overlap method
    INTEGER, PARAMETER, PUBLIC               :: momproj_norm = 0, &
                                                momproj_sum = 1

@@ -233,6 +233,20 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, &
+                          name="MTLR_REFERENCE_SCF", &
+                          description="Controls the unperturbed reference SCF for minimum tracking linear "// &
+                          "response. With SCF_GUESS ATOMIC, the default is OFF. If enabled, an unperturbed "// &
+                          "reference SCF is first converged and its orbitals initialize every perturbation. "// &
+                          "With SCF_GUESS RESTART, a reference SCF is required and uses the standard "// &
+                          "restart initial guess.", &
+                          repeats=.FALSE., &
+                          type_of_var=logical_t, &
+                          lone_keyword_l_val=.TRUE., &
+                          usage="MTLR_REFERENCE_SCF ON")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
                           name="MAX_MTLR_LOOP", &
                           description="Max number of iterations for calculated self-consistent linear response U and J.", &
                           repeats=.FALSE., &
