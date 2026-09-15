@@ -96,7 +96,6 @@ MODULE gw_utils
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_para_env_type
    USE mp2_gpw,                         ONLY: create_mat_munu
-   USE mp2_grids,                       ONLY: build_minimax_time_frequency_grid
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat,&
                                               trunc_coulomb_for_exchange
    USE particle_methods,                ONLY: get_particle_set
@@ -134,6 +133,7 @@ MODULE gw_utils
    USE rirs_grid_utils,                 ONLY: get_rirs_grid_filepath,&
                                               read_rirs_grid_npoints
    USE rpa_gw,                          ONLY: continuation_pade
+   USE time_frequency_grids,            ONLY: build_minimax_time_frequency_grid
 #include "base/base_uses.f90"
 
    IMPLICIT NONE

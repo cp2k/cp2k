@@ -77,7 +77,7 @@ MODULE rpa_gw_kpoints_util
                                               get_atom_index_from_basis_function_index
    USE rpa_im_time,                     ONLY: init_cell_index_rpa
    USE scf_control_types,               ONLY: scf_control_type
-   USE time_frequency_grid_types,       ONLY: time_frequency_grid_type
+   USE time_frequency_grids,            ONLY: time_frequency_grid_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

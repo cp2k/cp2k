@@ -146,7 +146,7 @@ MODULE rpa_gw
                                               propagator_sector_occupied,&
                                               propagator_sector_virtual
    USE scf_control_types,               ONLY: scf_control_type
-   USE time_frequency_grid_types,       ONLY: time_frequency_grid_type
+   USE time_frequency_grids,            ONLY: time_frequency_grid_type
    USE util,                            ONLY: sort
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"

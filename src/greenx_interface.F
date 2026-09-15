@@ -23,13 +23,11 @@ MODULE greenx_interface
    USE input_section_types, ONLY: section_vals_type
    USE machine, ONLY: m_flush
    USE physcon, ONLY: evolt
-   USE time_frequency_grid_types, ONLY: time_frequency_grid_type
 #if defined (__GREENX)
    USE gx_ac, ONLY: create_thiele_pade, &
                     evaluate_thiele_pade_at, &
                     free_params, &
                     params
-   USE gx_minimax, ONLY: gx_minimax_grid
 #endif
 
 #include "./base/base_uses.f90"
@@ -40,7 +38,7 @@ MODULE greenx_interface
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'greenx_interface'
 
-   PUBLIC :: greenx_refine_pade, greenx_output_polarizability, greenx_refine_ft, greenx_get_minimax_grid
+   PUBLIC :: greenx_refine_pade, greenx_output_polarizability, greenx_refine_ft
 
 CONTAINS
 
@@ -296,83 +294,5 @@ CONTAINS
       CPABORT("Calls to GreenX require CP2K to be compiled with support for GreenX.")
 #endif
    END SUBROUTINE greenx_refine_ft
-
-! **************************************************************************************************
-!> \brief ...
-!> \param unit_nr ...
-!> \param num_integ_points ...
-!> \param emin ...
-!> \param emax ...
-!> \param regularization_minimax ...
-!> \param grid ...
-!> \param ierr ...
-! **************************************************************************************************
-   SUBROUTINE greenx_get_minimax_grid(unit_nr, num_integ_points, emin, emax, &
-                                      regularization_minimax, grid, ierr)
-
-      INTEGER, INTENT(IN)                                :: unit_nr, num_integ_points
-      REAL(KIND=dp), INTENT(IN)                          :: emin, emax
-      REAL(KIND=dp), INTENT(IN)                           :: regularization_minimax
-      TYPE(time_frequency_grid_type), INTENT(OUT)        :: grid
-      INTEGER, INTENT(OUT) :: ierr
-
-#if defined (__GREENX)
-      INTEGER :: gi
-      REAL(KIND=dp)                                      :: cosft_duality_error_greenx, &
-                                                            max_errors_greenx(3)
-#endif
-
-#if defined (__GREENX)
-      CALL gx_minimax_grid(num_integ_points, Emin, Emax, grid%imaginary_time, &
-                           grid%time_weights_at_zero_frequency, grid%frequency, grid%frequency_weights, &
-                           grid%cosine_time_to_frequency_weights, grid%cosine_frequency_to_time_weights, &
-                           grid%sine_time_to_frequency_weights, &
-                           max_errors_greenx, cosft_duality_error_greenx, ierr, &
-                           bare_cos_sin_weights=.TRUE., &
-                           regularization=regularization_minimax)
-      IF (ierr == 0) THEN
-         ! Factor 4 is hard-coded in the RPA weights in the internal CP2K minimax routines
-         grid%frequency_weights(:) = grid%frequency_weights(:)*4.0_dp
-         IF (unit_nr > 0) THEN
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "GREENX MINIMAX_INFO| Number of integration points:", num_integ_points
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.7)") &
-               "GREENX MINIMAX_INFO| Gap (Emin):", Emin
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.7)") &
-               "GREENX MINIMAX_INFO| Maximum eigenvalue difference (Emax):", Emax
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.4)") &
-               "GREENX MINIMAX_INFO| Energy range (Emax/Emin):", Emax/Emin
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
-               "GREENX MINIMAX_INFO| Frequency grid (scaled):", "Weights", "Abscissas"
-            DO gi = 1, num_integ_points
-               WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") &
-                  grid%frequency_weights(gi), grid%frequency(gi)
-            END DO
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
-               "GREENX MINIMAX_INFO| Time grid (scaled):", "Weights", "Abscissas"
-            DO gi = 1, num_integ_points
-               WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") &
-                  grid%time_weights_at_zero_frequency(gi), grid%imaginary_time(gi)
-            END DO
-            CALL m_flush(unit_nr)
-         END IF
-      ELSE
-         IF (unit_nr > 0) THEN
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75)") &
-               "GREENX MINIMAX_INFO| Grid not available, use internal CP2K grids"
-            CALL m_flush(unit_nr)
-         END IF
-      END IF
-#else
-      ierr = 1
-      MARK_USED(unit_nr)
-      MARK_USED(num_integ_points)
-      MARK_USED(emin)
-      MARK_USED(emax)
-      MARK_USED(regularization_minimax)
-      MARK_USED(grid)
-#endif
-
-   END SUBROUTINE greenx_get_minimax_grid
 
 END MODULE greenx_interface

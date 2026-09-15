@@ -62,7 +62,7 @@ MODULE rpa_im_time
    USE qs_tensors_types,                ONLY: create_2c_tensor
    USE rpa_gw_im_time_util,             ONLY: compute_weight_re_im,&
                                               get_atom_index_from_basis_function_index
-   USE time_frequency_grid_types,       ONLY: time_frequency_grid_type
+   USE time_frequency_grids,            ONLY: time_frequency_grid_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

@@ -167,7 +167,7 @@ MODULE rpa_im_time_force_methods
    USE rpa_im_time_force_types,         ONLY: im_time_force_type
    USE rs_pw_interface,                 ONLY: potential_pw2rs
    USE task_list_types,                 ONLY: task_list_type
-   USE time_frequency_grid_types,       ONLY: time_frequency_grid_type
+   USE time_frequency_grids,            ONLY: time_frequency_grid_type
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
