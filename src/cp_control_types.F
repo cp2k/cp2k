@@ -484,6 +484,25 @@ MODULE cp_control_types
    END TYPE expot_control_type
 
 ! **************************************************************************************************
+! \brief Parameters for frozen-density embedding (FDE)
+! **************************************************************************************************
+   TYPE fde_control_type
+      LOGICAL                              :: freeze_and_thaw = .FALSE.
+      INTEGER                              :: max_ft_iter = 50
+      REAL(KIND=dp)                        :: eps_ft_density = 1.0e-5_dp
+      REAL(KIND=dp)                        :: eps_ft_energy = 1.0e-6_dp
+      REAL(KIND=dp)                        :: density_mixing = 1.0_dp
+      CHARACTER(LEN=default_path_length)   :: command = "pymolcas"
+      CHARACTER(LEN=default_path_length)   :: project = "sub"
+      CHARACTER(LEN=default_path_length)   :: workdir = ""
+      CHARACTER(LEN=default_path_length)   :: molcas_input_template = ""
+      CHARACTER(LEN=default_path_length)   :: pot_file = "EMBPOT"
+      CHARACTER(LEN=default_path_length)   :: grid_file = "EMBGRID"
+      CHARACTER(LEN=default_path_length)   :: rho_file = "EMBRHOA"
+      CHARACTER(LEN=default_path_length)   :: result_file = "EMBRES"
+   END TYPE fde_control_type
+
+! **************************************************************************************************
 ! \brief Parameters useful for Maxwell equation evaluation of external potential
 ! **************************************************************************************************
    TYPE maxwell_control_type
@@ -769,6 +788,7 @@ MODULE cp_control_types
       TYPE(smeagol_control_type), POINTER  :: smeagol_control => NULL()
       TYPE(paep_control_type), POINTER     :: paep_control => NULL()
       TYPE(pcc_control_type), POINTER      :: pcc_control => NULL()
+      TYPE(fde_control_type), POINTER      :: fde_control => NULL()
       TYPE(efield_p_type), POINTER, &
          DIMENSION(:)                      :: efield_fields => NULL()
       TYPE(hairy_probes_type), POINTER, &
@@ -834,6 +854,7 @@ MODULE cp_control_types
                                               hairy_probes = .FALSE., &
                                               do_paep = .FALSE., &
                                               do_pcc = .FALSE., &
+                                              do_fde = .FALSE., &
                                               ! If true, then no other XC functionals are allowed
                                               use_gauxc = .FALSE., &
                                               mtlr_dft_with_perturbation = .FALSE.
@@ -866,7 +887,8 @@ MODULE cp_control_types
              smeared_type, &
              hairy_probes_type, &
              paep_control_type, &
-             pcc_control_type
+             pcc_control_type, &
+             fde_control_type
 
    ! Public subroutines
 
@@ -878,7 +900,9 @@ MODULE cp_control_types
              expot_control_create, &
              ddapc_control_create, &
              rixs_control_create, &
-             rixs_control_release
+             rixs_control_release, &
+             fde_control_create, &
+             fde_control_release
 
 CONTAINS
 
@@ -1007,6 +1031,7 @@ CONTAINS
       NULLIFY (dft_control%probe)
       NULLIFY (dft_control%paep_control)
       NULLIFY (dft_control%pcc_control)
+      NULLIFY (dft_control%fde_control)
       dft_control%do_sccs = .FALSE.
       dft_control%apply_embed_pot = .FALSE.
       dft_control%apply_dmfet_pot = .FALSE.
@@ -1059,6 +1084,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(dft_control%pcc_control)) DEALLOCATE (dft_control%pcc_control)
       IF (ASSOCIATED(dft_control%paep_control)) DEALLOCATE (dft_control%paep_control)
+      CALL fde_control_release(dft_control%fde_control)
 
    END SUBROUTINE dft_control_release
 
@@ -1456,5 +1482,30 @@ CONTAINS
       END IF
 
    END SUBROUTINE maxwell_control_release
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fde_control ...
+! **************************************************************************************************
+   SUBROUTINE fde_control_create(fde_control)
+      TYPE(fde_control_type), POINTER                    :: fde_control
+
+      CPASSERT(.NOT. ASSOCIATED(fde_control))
+      ALLOCATE (fde_control)
+
+   END SUBROUTINE fde_control_create
+
+! **************************************************************************************************
+!> \brief ...
+!> \param fde_control ...
+! **************************************************************************************************
+   SUBROUTINE fde_control_release(fde_control)
+      TYPE(fde_control_type), POINTER                    :: fde_control
+
+      IF (ASSOCIATED(fde_control)) THEN
+         DEALLOCATE (fde_control)
+      END IF
+
+   END SUBROUTINE fde_control_release
 
 END MODULE cp_control_types

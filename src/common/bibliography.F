@@ -98,7 +98,7 @@ MODULE bibliography
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
                             Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
-                            Cances2000, Herbst2022, Zhang2025
+                            Cances2000, Herbst2022, Zhang2025, Schreder2024_3
 
 CONTAINS
 
@@ -2287,13 +2287,21 @@ CONTAINS
                          "effective interaction parameters in the LDA+U method", &
                          source="Phys. Rev. B", volume="71", pages="035105", &
                          year=2005, doi="10.1103/PhysRevB.71.035105")
-
+                         
       CALL add_reference(key=Zhang2025, &
                          authors=s2a("P. Zhang", "X. Xu"), &
                          title="Propensity of Water Self-Ions at Air(Oil)-Water Interfaces Revealed by "// &
                          "Deep Potential Molecular Dynamics with Enhanced Sampling", &
                          source="Langmuir", volume="41", pages="3675-3683", &
                          year=2025, doi="10.1021/acs.langmuir.4c05004")
+
+      CALL add_reference(key=Schreder2024_3, &
+                         authors=s2a("L. Schreder", "S. Luber"), &
+                         title="Implementation of frozen density embedding in CP2K and "// &
+                         "OpenMolcas: CASSCF wavefunctions embedded in a Gaussian and plane "// &
+                         "wave DFT environment", &
+                         source="J. Chem. Phys.", volume="161", pages="144110", &
+                         year=2024, doi="10.1063/5.0222409")
 
    END SUBROUTINE add_all_references
 
