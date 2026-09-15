@@ -668,8 +668,8 @@ CONTAINS
       INTEGER                                            :: exit_flag, handle, i, invalid, j, k, l, &
                                                             ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: DDOT, dxw, eta_i, eta_j, gdx, sbs, seta, &
-                                                            sy, theta
+      REAL(KIND=dp)                                      :: dxw, eta_i, eta_j, gdx, sbs, seta, sy, &
+                                                            theta
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_hes
 
@@ -695,8 +695,8 @@ CONTAINS
 
       IF (PRESENT(para_env)) CALL para_env%sum(work)
 
-      sy = DDOT(ndf, dg, 1, dx, 1)
-      sbs = DDOT(ndf, dx, 1, work, 1)
+      sy = DOT_PRODUCT(dg(1:ndf), dx(1:ndf))
+      sbs = DOT_PRODUCT(dx(1:ndf), work(1:ndf))
 
       ! One collective decision covers every early exit, so that all ranks
       ! take the same path. sbs and sy share the units of the energy, so the
@@ -706,7 +706,8 @@ CONTAINS
       ! smallest normal number. The floor is never negative, so a non-positive
       ! sbs (lost positive definiteness) is caught as well.
       exit_flag = exit_update
-      IF (DDOT(ndf, dx, 1, dx, 1) == zero .OR. DDOT(ndf, dg, 1, dg, 1) == zero) THEN
+      IF (DOT_PRODUCT(dx(1:ndf), dx(1:ndf)) == zero .OR. &
+          DOT_PRODUCT(dg(1:ndf), dg(1:ndf)) == zero) THEN
          exit_flag = exit_skip
       ELSE IF (.NOT. ieee_is_finite(sy) .OR. .NOT. ieee_is_finite(sbs) .OR. &
                sbs <= MAX(EPSILON(one)*ABS(sy), min_sbs)) THEN
@@ -1019,13 +1020,13 @@ CONTAINS
       INTEGER                                            :: handle, i, j, k, l, ncol_local, &
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: DDOT, ener1, ener2
+      REAL(KIND=dp)                                      :: ener1, ener2
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
 
       CALL timeset(routineN, handle)
 
-      ener1 = DDOT(ndf, g, 1, dr, 1)
+      ener1 = DOT_PRODUCT(g(1:ndf), dr(1:ndf))
 
       CALL cp_fm_get_info(hess_mat, row_indices=row_indices, col_indices=col_indices, &
                           local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)
@@ -1040,7 +1041,7 @@ CONTAINS
       END DO
 
       CALL para_env%sum(work)
-      ener2 = DDOT(ndf, dr, 1, work, 1)
+      ener2 = DOT_PRODUCT(dr(1:ndf), work(1:ndf))
       pred = ener1 + 0.5_dp*ener2
       conv = .FALSE.
       CALL timestop(handle)
