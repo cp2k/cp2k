@@ -12,9 +12,20 @@ BUILDDIR=${BUILDDIR:-"${ROOTDIR}/build"}
 SETUPFILE=${SETUPFILE:-"${INSTALLDIR}/setup"}
 VERSION_FILE=${VERSION_FILE:-"${SCRIPTDIR}/VERSION"}
 
-# system arch gotten from OpenBLAS prebuild
-OPENBLAS_ARCH=${OPENBLAS_ARCH:-"x86_64"}
-OPENBLAS_LIBCORE=${OPENBLAS_LIBCORE:-''}
+# Normalize the system architecture reported by uname across supported platforms.
+SYSTEM_ARCH=${SYSTEM_ARCH:-"$(uname -m)"}
+case "${SYSTEM_ARCH}" in
+  x86_64 | amd64 | x86-64)
+    SYSTEM_ARCH="x86_64"
+    ;;
+  aarch64 | arm64)
+    SYSTEM_ARCH="arm64"
+    ;;
+  *)
+    # Keep other architectures as reported by uname.
+    ;;
+esac
+export SYSTEM_ARCH
 
 # search paths
 SYS_INCLUDE_PATH=${SYS_INCLUDE_PATH:-'/usr/local/include:/usr/include'}

@@ -43,7 +43,7 @@ case "${with_openmpi}" in
       patch -l -p1 < "${SCRIPT_DIR}/stage1/openmpi-${openmpi_ver}-pml-ob1-pending.patch" \
         > openmpi_pml_ob1_pending.patch.log 2>&1 ||
         tail_excerpt openmpi_pml_ob1_pending.patch.log
-      if [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
+      if [ "${SYSTEM_ARCH}" = "x86_64" ]; then
         # can have issue with older glibc libraries, in which case
         # we need to add the -fgnu89-inline to CFLAGS. We can check
         # the version of glibc using ldd --version, as ldd is part of

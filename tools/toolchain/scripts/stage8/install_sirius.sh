@@ -25,14 +25,13 @@ case "$with_sirius" in
 
   __INSTALL__)
     echo "==================== Installing SIRIUS ===================="
-    ARCH=$(uname -m)
     SIRIUS_OPT="-O3 -DNDEBUG -mtune=native -ftree-loop-vectorize ${MATH_CFLAGS}"
-    if [ "$ARCH" = "ppc64le" ]; then
+    if [ "${SYSTEM_ARCH}" = "ppc64le" ]; then
       SIRIUS_OPT="-O3 -DNDEBUG -mcpu=power8 -mtune=power8 -funroll-loops -ftree-vectorize  -mvsx  -maltivec  -mpopcntd  -mveclibabi=mass -fvect-cost-model -fpeel-loops -mcmodel=medium ${MATH_CFLAGS}"
       SIRIUS_DBG="-O2 -g -mcpu=power8 -mtune=power8 -funroll-loops -ftree-vectorize  -mvsx  -maltivec  -mpopcntd  -mveclibabi=mass -fvect-cost-model -fpeel-loops -mcmodel=medium ${MATH_CFLAGS}"
     fi
 
-    if [ "$ARCH" = "x86_64" ]; then
+    if [ "${SYSTEM_ARCH}" = "x86_64" ]; then
       if [ "${with_intel}" != "__DONTUSE__" ]; then
         # Avoid Intel's "-backtrace"
         unset CXXFLAGS

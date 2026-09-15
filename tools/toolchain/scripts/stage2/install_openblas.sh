@@ -6,7 +6,7 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-openblas_ver="0.3.34" # Keep in sync with get_openblas_arch.sh
+openblas_ver="0.3.34"
 openblas_sha256="cd7e129868320cc2d033afa920e31202dfe0b8066a5b66661900ccc0f197dfed"
 openblas_pkg="OpenBLAS-${openblas_ver}.tar.gz"
 
@@ -49,14 +49,14 @@ case "${with_openblas}" in
       #
       # Unfortunately, NO_SHARED=1 breaks ScaLAPACK build.
       BUILD_DYNAMIC=0
-      if [ "native" != "${TARGET_CPU}" ] || [ ! "${OPENBLAS_LIBCORE}" ]; then
+      if [ "native" != "${TARGET_CPU}" ]; then
         BUILD_DYNAMIC=1
       fi
       if [ "0" = "${BUILD_DYNAMIC}" ]; then
-        TARGET=$(tr '[:lower:]' '[:upper:]' <<< "${OPENBLAS_LIBCORE}")
-        echo "Installing OpenBLAS library for target ${TARGET}"
+        echo "Installing OpenBLAS library for native target"
+        # OpenBLAS detects the native CPU target automatically when TARGET is
+        # not specified. If that fails, fall back to a DYNAMIC_ARCH build.
         if ! make -j $(get_nprocs) \
-          TARGET=${TARGET} \
           MAKE_NB_JOBS=0 \
           NUM_THREADS=128 \
           USE_OPENMP=1 \
@@ -64,10 +64,9 @@ case "${with_openblas}" in
           CC="${CC}" \
           FC="${FC}" \
           PREFIX="${pkg_install_dir}" \
-          > make.${OPENBLAS_LIBCORE}.log 2>&1; then
-          # If failed, fallback to the dynamic-arch build
+          > make.native.log 2>&1; then
           # Not using tail_excerpt because it exits with 1
-          tail -v -n "${LOG_LINES}" make.${OPENBLAS_LIBCORE}.log
+          tail -v -n "${LOG_LINES}" make.native.log
           BUILD_DYNAMIC=1
         fi
       fi

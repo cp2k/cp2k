@@ -234,8 +234,7 @@ Specific options of --with-PKG:
   --with-intelmpi         Use Intel MPI library for parallel versions of
                           newly installed dependencies and CP2K.
                           Default = system
-  --with-openblas         Use OpenBLAS, which provides LAPACK and BLAS library,
-                          and is also used to get arch information.
+  --with-openblas         Use OpenBLAS, which provides LAPACK and BLAS library.
                           --math-mode option (see above) should be consistent.
                           Default = install
   --with-mkl              Use Intel Math Kernel Library (MKL), which provides
@@ -1512,7 +1511,7 @@ if [ "${dry_run}" = "__TRUE__" ]; then
 else
   echo "Options have been parsed successfully."
   print_toolchain_summary
-  echo "Compiling with ${NPROCS_OVERWRITE} processes for target ${TARGET_CPU}."
+  echo "Compiling with ${NPROCS_OVERWRITE} processes for target ${TARGET_CPU} on ${SYSTEM_ARCH} architecture."
   echo "# Leak suppressions" > "${INSTALLDIR}"/lsan.supp
   "${SCRIPTDIR}"/stage0/install_stage0.sh
   "${SCRIPTDIR}"/stage1/install_stage1.sh
@@ -1525,33 +1524,21 @@ else
   "${SCRIPTDIR}"/stage8/install_stage8.sh
   "${SCRIPTDIR}"/stage9/install_stage9.sh
   echo
-  # Determine native preset if --target-cpu=native is used. The compiler option
-  # and architecture found by get_openblas_arch.sh will be used to select a
-  # corresponding preset for the build_cp2k.sh script.
-  preset_option="--preset none"
+  # Determine native preset if --target-cpu=native is used. The compiler and
+  # system architecture are used to select a corresponding preset for the
+  # build_cp2k.sh script.
+  preset_option=""
   if [ "${TARGET_CPU}" = "native" ]; then
-    OPENBLAS_ARCH="unknown"
-    load "${BUILDDIR}/openblas_arch"
-    if [ "${with_gcc}" != "__DONTUSE__" ]; then
-      if [ "${OPENBLAS_ARCH}" = "x86_64" ]; then
-        preset_option="--preset native-gnu-x86_64"
-      elif [ "${OPENBLAS_ARCH}" = "arm64" ]; then
-        preset_option="--preset native-gnu-arm64"
-      else
-        report_warning ${LINENO} "${OPENBLAS_ARCH} is not a known architecture
-for GNU compiler; falling back to \"--preset none\" for build_cp2k.sh."
+    if [ "${with_gcc}" != "__DONTUSE__" ] || [ "${with_amd}" != "__DONTUSE__" ]; then
+      # AMD uses Clang/Clang++/Flang, which is compatible with GCC's native flags
+      if [ "${SYSTEM_ARCH}" = "x86_64" ]; then
+        preset_option="--preset=native-gnu-x86_64"
+      elif [ "${SYSTEM_ARCH}" = "arm64" ]; then
+        preset_option="--preset=native-gnu-arm64"
       fi
     elif [ "${with_intel}" != "__DONTUSE__" ]; then
-      preset_option="--preset native-intel"
-    elif [ "${with_amd}" != "__DONTUSE__" ]; then
-      report_warning ${LINENO} "Native preset for AMD compiler is not yet
-implemented; falling back to \"--preset none\" for build_cp2k.sh."
-    else
-      report_error ${LINENO} "Unknown compiler choice for --target-cpu=native."
+      preset_option="--preset=native-intel"
     fi
-  else
-    echo "Note: a non-native target CPU has been used, thus falling back to
-\"--preset none\" for build_cp2k.sh."
   fi
   cat << EOF
 ========================== Epilogue =========================
@@ -1561,10 +1548,12 @@ this script:
   ./build_cp2k.sh -j $(get_nprocs) ${preset_option}
 
 It will source the file "install/setup", generate proper CMake flags based on
-toolchain options, and then build and install CP2K. For available options
-with the script, run "./build_cp2k.sh -h". In particular, watch out for the
---preset option; with --target-cpu=native used here, a corresponding "native-*"
-preset based on the compiler and architecture should be specified.
+toolchain options, and then build and install CP2K.
+
+For available options with the script, run "./build_cp2k.sh -h". In particular,
+watch out for the --preset option; with --target-cpu=native used here, it's
+strongly recommended to specify a corresponding "native-*" preset based on the
+compiler and architecture should be specified.
 EOF
 fi
 
