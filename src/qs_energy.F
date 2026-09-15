@@ -25,7 +25,7 @@ MODULE qs_energy
                                               section_vals_val_get
    USE lri_environment_methods,         ONLY: lri_print_stat
    USE mp2,                             ONLY: mp2_main
-   USE fde_main,                        ONLY: fde_scf
+   USE fde_main,                        ONLY: fde_run
    USE qs_active_space_methods,         ONLY: active_space_main
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -163,7 +163,7 @@ CONTAINS
          CALL active_space_main(qs_env)
 
          ! frozen-density embedding driver (spawns a subsystem solver)
-         IF (dft_control%do_fde) CALL fde_scf(qs_env)
+         IF (dft_control%do_fde) CALL fde_run(qs_env)
 
          ! Check for energy correction
          IF (qs_env%energy_correction) THEN
