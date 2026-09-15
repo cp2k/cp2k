@@ -237,7 +237,6 @@ CONTAINS
          END IF
       END IF
 
-      ! CASSCF-in-DFT frozen-density embedding (FDE)
       tmp_section => section_vals_get_subs_vals(dft_section, "FDE")
       CALL section_vals_get(tmp_section, explicit=explicit)
       IF (explicit) THEN
