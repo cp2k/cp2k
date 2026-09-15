@@ -122,8 +122,9 @@ CONTAINS
       INTEGER                                            :: handle, hesunit_read, indf, info, &
                                                             iter_nr, its, maxiter, ndf, nfree, &
                                                             output_unit
-      LOGICAL                                            :: conv, hesrest, ionode, shell_present, &
-                                                            should_stop, use_mod_hes, use_rfo
+      LOGICAL                                            :: conv, hesrest, hess_reset, ionode, &
+                                                            shell_present, should_stop, &
+                                                            use_mod_hes, use_rfo
       REAL(KIND=dp)                                      :: ediff, emin, eold, etot, pred, rad, rat, &
                                                             step, t_diff, t_now, t_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dg, dr, dx, eigval, gold, work, xold
@@ -232,7 +233,7 @@ CONTAINS
          END IF
       END IF
 
-      CALL build_initial_hess(hess_mat, gopt_env%force_env, use_mod_hes)
+      CALL build_initial_hess(hess_mat, hess_tmp, eigvec_mat, eigval, force_env, use_mod_hes)
 
       ALLOCATE (xold(ndf))
       xold(:) = x0(:)
@@ -322,9 +323,10 @@ CONTAINS
                   dg(indf) = g(indf) - gold(indf)
                END DO
 
-               CALL bfgs(ndf, dx, dg, hess_mat, work, para_env, force_env=force_env, &
-                         cell_opt=gopt_env%type_id == default_cell_method_id, shell_present=shell_present, &
-                         output_unit=output_unit)
+               CALL bfgs(ndf, dx, dg, hess_mat, work, para_env, output_unit, hess_reset)
+               IF (hess_reset) THEN
+                  CALL build_initial_hess(hess_mat, hess_tmp, eigvec_mat, eigval, force_env, use_mod_hes)
+               END IF
 
                ! Symmetrize coordinates and forces change
                IF (spgr%keep_space_group) THEN
@@ -643,20 +645,18 @@ CONTAINS
 !> \param hess_mat Direct Hessian, updated in place
 !> \param work Replicated workspace, holds B*dx on exit
 !> \param para_env ...
-!> \param force_env Used to rebuild the model Hessian if the update is refused
-!> \param cell_opt Cell degrees of freedom are present, so no model Hessian exists
-!> \param shell_present Core-shell model, so no model Hessian exists
 !> \param output_unit Geometry log unit, activates at the default MEDIUM print level
+!> \param hess_reset Set if the update had to be refused and the caller must
+!>                  collectively rebuild the initial Hessian
 ! **************************************************************************************************
-   SUBROUTINE bfgs(ndf, dx, dg, hess_mat, work, para_env, force_env, cell_opt, shell_present, output_unit)
+   SUBROUTINE bfgs(ndf, dx, dg, hess_mat, work, para_env, output_unit, hess_reset)
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: dx(ndf), dg(ndf)
       TYPE(cp_fm_type), INTENT(IN)                       :: hess_mat
       REAL(KIND=dp), INTENT(INOUT)                       :: work(ndf)
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
-      TYPE(force_env_type), OPTIONAL, POINTER            :: force_env
-      LOGICAL, INTENT(IN)                                :: cell_opt, shell_present
       INTEGER, INTENT(IN)                                :: output_unit
+      LOGICAL, INTENT(OUT)                               :: hess_reset
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bfgs'
       REAL(KIND=dp), PARAMETER                           :: min_curvature = 0.2_dp, one = 1.0_dp, &
@@ -665,13 +665,13 @@ CONTAINS
       INTEGER                                            :: exit_flag, handle, i, invalid, j, k, l, &
                                                             ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: use_model
       REAL(KIND=dp)                                      :: DDOT, dxw, eta_i, eta_j, gdx, sbs, seta, &
                                                             sy, theta
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_hes
 
       CALL timeset(routineN, handle)
+      hess_reset = .FALSE.
 
       CALL cp_fm_get_info(hess_mat, row_indices=row_indices, col_indices=col_indices, &
                           local_data=local_hes, nrow_local=nrow_local, ncol_local=ncol_local)
@@ -680,8 +680,6 @@ CONTAINS
       IF (.NOT. ALL(ieee_is_finite(dx(1:ndf))) .OR. .NOT. ALL(ieee_is_finite(dg(1:ndf)))) THEN
          CPABORT("Non-finite displacement or gradient difference")
       END IF
-
-      use_model = PRESENT(force_env) .AND. .NOT. cell_opt .AND. .NOT. shell_present
 
       work = zero
       DO i = 1, nrow_local
@@ -715,11 +713,11 @@ CONTAINS
          RETURN
       ELSE IF (exit_flag == 2) THEN
          ! The Hessian has lost positive definiteness along dx or the predicted
-         ! curvature is not representable, so the secant pair cannot be damped.
-         ! Restart from the physical prior and skip this update.
+         ! curvature is not representable, so the secant pair cannot be damped:
+         ! the caller restarts from the initial Hessian and skips this update.
          CALL cp_warn(__LOCATION__, &
                       "BFGS: vanishing or non-positive predicted curvature, resetting the Hessian")
-         CALL build_initial_hess(hess_mat, force_env, use_model)
+         hess_reset = .TRUE.
          CALL timestop(handle)
          RETURN
       END IF
@@ -761,7 +759,7 @@ CONTAINS
       IF (PRESENT(para_env)) CALL para_env%max(invalid)
       IF (invalid /= 0) THEN
          CALL cp_warn(__LOCATION__, "BFGS: non-finite Hessian after the update, resetting")
-         CALL build_initial_hess(hess_mat, force_env, use_model)
+         hess_reset = .TRUE.
       END IF
 
       CALL timestop(handle)
@@ -771,13 +769,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Build the direct initial Hessian: sanitized model Hessian or unity
 !> \param hess_mat Direct Hessian, replaced in place
+!> \param hess_tmp Eigensolver scratch matrix, same structure as hess_mat
+!> \param eigvec Eigensolver eigenvector matrix, same structure as hess_mat
+!> \param eigval Eigensolver workspace of length ndf
 !> \param force_env Environment providing the model Hessian at the current geometry
 !> \param use_model Build the sanitized model Hessian; otherwise fall back to unity
 !> \note Must be called by all ranks together: construct_initial_hess reduces internally.
 ! **************************************************************************************************
-   SUBROUTINE build_initial_hess(hess_mat, force_env, use_model)
-      TYPE(cp_fm_type), INTENT(IN)                       :: hess_mat
-      TYPE(force_env_type), OPTIONAL, POINTER            :: force_env
+   SUBROUTINE build_initial_hess(hess_mat, hess_tmp, eigvec, eigval, force_env, use_model)
+      TYPE(cp_fm_type), INTENT(IN)                       :: hess_mat, hess_tmp, eigvec
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigval
+      TYPE(force_env_type), POINTER                      :: force_env
       LOGICAL, INTENT(IN)                                :: use_model
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_initial_hess'
@@ -785,26 +787,18 @@ CONTAINS
                                                             zero = 0.0_dp
 
       INTEGER                                            :: handle, indf, info, ndf
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
-      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type)                                   :: eigvec, scratch
 
       CALL timeset(routineN, handle)
 
       IF (use_model) THEN
-         CPASSERT(PRESENT(force_env))
          CPASSERT(ASSOCIATED(force_env))
+         ndf = SIZE(eigval)
          ! The raw model Hessian is not guaranteed positive definite, so
          ! eigenfactorize, floor the eigenvalues, and rebuild.
-         CALL cp_fm_get_info(hess_mat, matrix_struct=matrix_struct, nrow_global=ndf)
-         CALL cp_fm_create(scratch, matrix_struct, name="bfgs_reset_scratch")
-         CALL cp_fm_create(eigvec, matrix_struct, name="bfgs_reset_eigvec")
-         ALLOCATE (eigval(ndf))
-
          CALL cp_fm_set_all(hess_mat, alpha=zero)
          CALL construct_initial_hess(force_env, hess_mat)
-         CALL cp_fm_to_fm(hess_mat, scratch)
-         CALL choose_eigv_solver(scratch, eigvec, eigval, info=info)
+         CALL cp_fm_to_fm(hess_mat, hess_tmp)
+         CALL choose_eigv_solver(hess_tmp, eigvec, eigval, info=info)
          IF (info /= 0) THEN
             ! In rare cases the diagonalization fails (bug in scalapack?)
             CALL cp_warn(__LOCATION__, "BFGS: model Hessian diagonalization failed, using unity")
@@ -813,17 +807,13 @@ CONTAINS
             DO indf = 1, ndf
                IF (eigval(indf) < min_eig) eigval(indf) = min_eig
             END DO
-            CALL cp_fm_to_fm(eigvec, scratch)
+            CALL cp_fm_to_fm(eigvec, hess_tmp)
             CALL cp_fm_column_scale(eigvec, eigval)
-            CALL parallel_gemm("N", "T", ndf, ndf, ndf, one, scratch, eigvec, zero, hess_mat)
+            CALL parallel_gemm("N", "T", ndf, ndf, ndf, one, hess_tmp, eigvec, zero, hess_mat)
          END IF
-
-         CALL cp_fm_release(scratch)
-         CALL cp_fm_release(eigvec)
-         DEALLOCATE (eigval)
       ELSE
-         ! No sanitized prior exists (cell optimization or core-shell model):
-         ! fall back to unity.
+         ! No sanitized prior exists (user opt-out, cell optimization, or
+         ! core-shell model): fall back to unity.
          CALL cp_fm_set_all(hess_mat, alpha=zero, beta=one)
       END IF
 
