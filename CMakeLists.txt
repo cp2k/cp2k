@@ -689,101 +689,26 @@ if(CP2K_USE_ELPA)
 endif()
 
 if(CP2K_USE_LIBXC)
+  # libxc only installs pkg-config files, so it is located through
+  # FindLibXC.cmake. The toolchain builds a single variant (CUDA-only, HIP-only,
+  # or CPU-only) and exports the matching pkg-config path, so the variant is
+  # resolved automatically.
+  find_package(LibXC REQUIRED)
+
   if(CP2K_USE_CUDA)
-    # CUDA-only libxc: use LIBXC_ROOT directly (libxc does not install CMake
-    # config files)
-    set(LIBXC_CUDA_FOUND FALSE)
-    if(EXISTS "$ENV{LIBXC_ROOT}/lib/libxcf03.so")
-      set(LIBXC_CUDA_LIBRARY_PATH "$ENV{LIBXC_ROOT}/lib/libxcf03.so")
-      set(LIBXC_CUDA_IS_SHARED TRUE)
-    elseif(EXISTS "$ENV{LIBXC_ROOT}/lib/libxcf03.a")
-      set(LIBXC_CUDA_LIBRARY_PATH "$ENV{LIBXC_ROOT}/lib/libxcf03.a")
-      set(LIBXC_CUDA_IS_SHARED FALSE)
-    endif()
-    if(LIBXC_CUDA_LIBRARY_PATH)
-      set(LIBXC_CUDA_FOUND TRUE)
-      set(CP2K_LIBXC_CUDA_SUPPORT
-          ON
-          CACHE BOOL "libxc CUDA support available")
-      message(STATUS "Found CUDA Libxc in $ENV{LIBXC_ROOT}/lib")
-      message(STATUS "CUDA Libxc library type: ${LIBXC_CUDA_LIBRARY_PATH}")
-      if(LIBXC_CUDA_IS_SHARED)
-        add_library(Libxc::xc_cuda SHARED IMPORTED GLOBAL)
-        set_target_properties(
-          Libxc::xc_cuda
-          PROPERTIES IMPORTED_LOCATION "${LIBXC_CUDA_LIBRARY_PATH}"
-                     INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/")
-        # CUDA libxc serves as both CPU and CUDA backend; create Libxc::xcf03
-        # alias
-        add_library(Libxc::xcf03 SHARED IMPORTED GLOBAL)
-        set_target_properties(
-          Libxc::xcf03
-          PROPERTIES IMPORTED_LOCATION "${LIBXC_CUDA_LIBRARY_PATH}"
-                     INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/")
-      else()
-        add_library(Libxc::xc_cuda STATIC IMPORTED GLOBAL)
-        set_target_properties(
-          Libxc::xc_cuda
-          PROPERTIES
-            IMPORTED_LOCATION "${LIBXC_CUDA_LIBRARY_PATH}"
-            INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/"
-            INTERFACE_LINK_OPTIONS
-            "-Wl,--whole-archive;${LIBXC_CUDA_LIBRARY_PATH};-Wl,--no-whole-archive"
-        )
-        add_library(Libxc::xcf03 STATIC IMPORTED GLOBAL)
-        set_target_properties(
-          Libxc::xcf03
-          PROPERTIES
-            IMPORTED_LOCATION "${LIBXC_CUDA_LIBRARY_PATH}"
-            INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/"
-            INTERFACE_LINK_OPTIONS
-            "-Wl,--whole-archive;${LIBXC_CUDA_LIBRARY_PATH};-Wl,--no-whole-archive"
-        )
-      endif()
-      set(LIBXC_CPU_INCLUDE_DIRS "$ENV{LIBXC_ROOT}/include/")
-      set(LIBXC_CPU_LIBRARIES "${LIBXC_CUDA_LIBRARY_PATH}")
-      set(LIBXC_CPU_FOUND TRUE)
-    else()
-      message(
-        FATAL_ERROR
-          "CUDA Libxc not found in $ENV{LIBXC_ROOT}/lib. Install with --enable-cuda=yes in the toolchain."
-      )
-    endif()
+    # CUDA libxc serves as both the CUDA and the CPU backend.
+    set(CP2K_LIBXC_CUDA_SUPPORT
+        ON
+        CACHE BOOL "libxc CUDA support available")
+    set(LIBXC_CUDA_FOUND TRUE)
+    message(STATUS "Found CUDA Libxc (${CP2K_LIBXC_VERSION})")
   else()
-    # CPU-only libxc: use LIBXC_ROOT directly
-    if(EXISTS "$ENV{LIBXC_ROOT}/lib/libxcf03.a")
-      set(LIBXC_CPU_LIBRARY_PATH "$ENV{LIBXC_ROOT}/lib/libxcf03.a")
-      add_library(Libxc::xcf03 STATIC IMPORTED GLOBAL)
-      set_target_properties(
-        Libxc::xcf03
-        PROPERTIES
-          IMPORTED_LOCATION "${LIBXC_CPU_LIBRARY_PATH}"
-          INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/"
-          INTERFACE_LINK_OPTIONS
-          "-Wl,--whole-archive;${LIBXC_CPU_LIBRARY_PATH};-Wl,--no-whole-archive"
-      )
-      set(LIBXC_CPU_INCLUDE_DIRS "$ENV{LIBXC_ROOT}/include/")
-      set(LIBXC_CPU_LIBRARIES "${LIBXC_CPU_LIBRARY_PATH}")
-      set(LIBXC_CPU_FOUND TRUE)
-    elseif(EXISTS "$ENV{LIBXC_ROOT}/lib/libxcf03.so")
-      set(LIBXC_CPU_LIBRARY_PATH "$ENV{LIBXC_ROOT}/lib/libxcf03.so")
-      add_library(Libxc::xcf03 SHARED IMPORTED GLOBAL)
-      set_target_properties(
-        Libxc::xcf03
-        PROPERTIES IMPORTED_LOCATION "${LIBXC_CPU_LIBRARY_PATH}"
-                   INTERFACE_INCLUDE_DIRECTORIES "$ENV{LIBXC_ROOT}/include/")
-      set(LIBXC_CPU_INCLUDE_DIRS "$ENV{LIBXC_ROOT}/include/")
-      set(LIBXC_CPU_LIBRARIES "${LIBXC_CPU_LIBRARY_PATH}")
-      set(LIBXC_CPU_FOUND TRUE)
-    endif()
-    if(NOT LIBXC_CPU_FOUND)
-      message(
-        FATAL_ERROR
-          "CPU Libxc not found in $ENV{LIBXC_ROOT}/lib. Install with the toolchain."
-      )
-    endif()
-    message(STATUS "Found CPU Libxc in $ENV{LIBXC_ROOT}/lib")
+    # CPU-only libxc: this is the only libxc target CP2K needs.
+    set(LIBXC_CPU_FOUND TRUE)
+    message(STATUS "Found CPU Libxc (${CP2K_LIBXC_VERSION})")
   endif()
+  set(LIBXC_CPU_INCLUDE_DIRS "${CP2K_LIBXC_INCLUDE_DIRS}")
+  set(LIBXC_CPU_LIBRARIES "${CP2K_LIBXC_LINK_LIBRARIES}")
 endif()
 
 if(CP2K_USE_GAUXC)
