@@ -2182,7 +2182,11 @@ cp2k_main =  ${INSTALL_PREFIX}/bin/cp2k
   fi
   echo ""
   echo "*** The ASE/CP2K installation can be tested with"
-  echo "    ${LAUNCH_SCRIPT} test_ase"
+  if [[ "${IN_CONTAINER}" == "yes" ]]; then
+    echo "    podman run -it --rm ${IMAGE_TAG} ${LAUNCH_SCRIPT} test_ase"
+  else
+    echo "    ${LAUNCH_SCRIPT} test_ase"
+  fi
   echo ""
 
   # Test the ASE installation
