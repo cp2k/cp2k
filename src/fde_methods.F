@@ -43,7 +43,7 @@ MODULE fde_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fde_methods'
 
    PUBLIC :: &
-             fde_build_vemb_A, &
+             fde_build_v_emb, &
              fde_get_env_density, &
              fde_spawn, &
              fde_v_es, &
@@ -187,7 +187,7 @@ CONTAINS
 !> \param e_xc_na ...
 !> \param e_kin_na ...
 ! **************************************************************************************************
-   SUBROUTINE fde_build_vemb_A(qs_env, rho, v_emb, e_xc_na, e_kin_na)
+   SUBROUTINE fde_build_v_emb(qs_env, rho, v_emb, e_xc_na, e_kin_na)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho
       TYPE(pw_r3d_rs_type), INTENT(OUT)                  :: v_emb
@@ -241,7 +241,7 @@ CONTAINS
       CALL auxbas_pw_pool%give_back_pw(rho_ab)
       CALL auxbas_pw_pool%give_back_pw(rho_b_r)
 
-   END SUBROUTINE fde_build_vemb_A
+   END SUBROUTINE fde_build_v_emb
 
 ! **************************************************************************************************
 !> \brief Spawns the subsystem solver. Only the source rank launches the process; the other ranks

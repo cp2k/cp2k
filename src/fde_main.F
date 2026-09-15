@@ -12,7 +12,7 @@ MODULE fde_main
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
-   USE fde_methods,                     ONLY: fde_build_vemb_A,&
+   USE fde_methods,                     ONLY: fde_build_v_emb,&
                                               fde_read_pw,&
                                               fde_read_results,&
                                               fde_spawn,&
@@ -148,7 +148,7 @@ CONTAINS
 
       converged = .FALSE.
       DO iter = 1, max_iter
-         CALL fde_build_vemb_A(qs_env, rho, v_emb, e_xc_na, e_kin_na)
+         CALL fde_build_v_emb(qs_env, rho, v_emb, e_xc_na, e_kin_na)
          CALL fde_write_pw(v_emb, TRIM(v_path), write_value=.TRUE.)
          CALL fde_write_pw(v_emb, TRIM(grid_path), write_value=.FALSE.)
 
