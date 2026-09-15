@@ -63,6 +63,7 @@ MODULE bfgs_optimizer
                                               print_geo_opt_nc
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: default_cell_method_id,&
                                               default_ts_method_id
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -121,8 +122,9 @@ CONTAINS
       INTEGER                                            :: handle, hesunit_read, indf, info, &
                                                             iter_nr, its, maxiter, ndf, nfree, &
                                                             output_unit
-      LOGICAL                                            :: conv, hesrest, ionode, shell_present, &
-                                                            should_stop, use_mod_hes, use_rfo
+      LOGICAL                                            :: conv, hesrest, hess_reset, ionode, &
+                                                            shell_present, should_stop, &
+                                                            use_mod_hes, use_rfo
       REAL(KIND=dp)                                      :: ediff, emin, eold, etot, pred, rad, rat, &
                                                             step, t_diff, t_now, t_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dg, dr, dx, eigval, gold, work, xold
@@ -231,29 +233,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (use_mod_hes) THEN
-         CALL cp_fm_set_all(hess_mat, alpha=zero)
-         CALL construct_initial_hess(gopt_env%force_env, hess_mat)
-         CALL cp_fm_to_fm(hess_mat, hess_tmp)
-         CALL choose_eigv_solver(hess_tmp, eigvec_mat, eigval, info=info)
-         ! In rare cases the diagonalization of hess_mat fails (bug in scalapack?)
-         IF (info /= 0) THEN
-            CALL cp_fm_set_all(hess_mat, alpha=zero, beta=one)
-            IF (output_unit > 0) THEN
-               WRITE (output_unit, *) &
-                  "BFGS: Matrix diagonalization failed, using unity as model Hessian."
-            END IF
-         ELSE
-            DO its = 1, SIZE(eigval)
-               IF (eigval(its) < 0.1_dp) eigval(its) = 0.1_dp
-            END DO
-            CALL cp_fm_to_fm(eigvec_mat, hess_tmp)
-            CALL cp_fm_column_scale(eigvec_mat, eigval)
-            CALL parallel_gemm("N", "T", ndf, ndf, ndf, one, hess_tmp, eigvec_mat, zero, hess_mat)
-         END IF
-      ELSE
-         CALL cp_fm_set_all(hess_mat, alpha=zero, beta=one)
-      END IF
+      CALL build_initial_hess(hess_mat, hess_tmp, eigvec_mat, eigval, force_env, use_mod_hes)
 
       ALLOCATE (xold(ndf))
       xold(:) = x0(:)
@@ -343,7 +323,10 @@ CONTAINS
                   dg(indf) = g(indf) - gold(indf)
                END DO
 
-               CALL bfgs(ndf, dx, dg, hess_mat, work, para_env)
+               CALL bfgs(ndf, dx, dg, hess_mat, work, para_env, output_unit, hess_reset)
+               IF (hess_reset) THEN
+                  CALL build_initial_hess(hess_mat, hess_tmp, eigvec_mat, eigval, force_env, use_mod_hes)
+               END IF
 
                ! Symmetrize coordinates and forces change
                IF (spgr%keep_space_group) THEN
@@ -655,35 +638,51 @@ CONTAINS
    END SUBROUTINE rat_fun_opt
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param ndf ...
-!> \param dx ...
-!> \param dg ...
-!> \param hess_mat ...
-!> \param work ...
+!> \brief Update the direct Hessian with the damped BFGS formula
+!> \param ndf Number of optimization variables
+!> \param dx Change of the optimization variables
+!> \param dg Change of the gradients in the same coordinate system
+!> \param hess_mat Direct Hessian, updated in place
+!> \param work Replicated workspace, holds B*dx on exit
 !> \param para_env ...
+!> \param output_unit Geometry log unit, activates at the default MEDIUM print level
+!> \param hess_reset Set if the update had to be refused and the caller must
+!>                  collectively rebuild the initial Hessian
 ! **************************************************************************************************
-   SUBROUTINE bfgs(ndf, dx, dg, hess_mat, work, para_env)
+   SUBROUTINE bfgs(ndf, dx, dg, hess_mat, work, para_env, output_unit, hess_reset)
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: dx(ndf), dg(ndf)
       TYPE(cp_fm_type), INTENT(IN)                       :: hess_mat
       REAL(KIND=dp), INTENT(INOUT)                       :: work(ndf)
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
+      INTEGER, INTENT(IN)                                :: output_unit
+      LOGICAL, INTENT(OUT)                               :: hess_reset
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bfgs'
-      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
+      INTEGER, PARAMETER                                 :: exit_reset = 2, exit_skip = 1, &
+                                                            exit_update = 0
+      REAL(KIND=dp), PARAMETER                           :: min_curvature = 0.2_dp, one = 1.0_dp, &
+                                                            min_sbs = 10.0_dp*TINY(one), &
+                                                            zero = 0.0_dp
 
-      INTEGER                                            :: handle, i, j, k, l, ncol_local, &
-                                                            nrow_local
+      INTEGER                                            :: exit_flag, handle, i, invalid, j, k, l, &
+                                                            ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: DDOT, dxw, gdx
+      REAL(KIND=dp)                                      :: dxw, eta_i, eta_j, gdx, sbs, seta, sy, &
+                                                            theta
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_hes
 
       CALL timeset(routineN, handle)
+      hess_reset = .FALSE.
 
       CALL cp_fm_get_info(hess_mat, row_indices=row_indices, col_indices=col_indices, &
                           local_data=local_hes, nrow_local=nrow_local, ncol_local=ncol_local)
+
+      ! Refuse corrupted input instead of poisoning the Hessian with Inf/NaN.
+      IF (.NOT. ALL(ieee_is_finite(dx(1:ndf))) .OR. .NOT. ALL(ieee_is_finite(dg(1:ndf)))) THEN
+         CPABORT("Non-finite displacement or gradient difference")
+      END IF
 
       work = zero
       DO i = 1, nrow_local
@@ -694,25 +693,147 @@ CONTAINS
          END DO
       END DO
 
-      CALL para_env%sum(work)
+      IF (PRESENT(para_env)) CALL para_env%sum(work)
 
-      gdx = DDOT(ndf, dg, 1, dx, 1)
-      gdx = one/gdx
-      dxw = DDOT(ndf, dx, 1, work, 1)
-      dxw = one/dxw
+      sy = DOT_PRODUCT(dg(1:ndf), dx(1:ndf))
+      sbs = DOT_PRODUCT(dx(1:ndf), work(1:ndf))
 
-      DO i = 1, nrow_local
-         j = row_indices(i)
-         DO k = 1, ncol_local
-            l = col_indices(k)
-            local_hes(i, k) = local_hes(i, k) + gdx*dg(j)*dg(l) - &
-                              dxw*work(j)*work(l)
+      ! One collective decision covers every early exit, so that all ranks
+      ! take the same path. sbs and sy share the units of the energy, so the
+      ! curvature floor is relative to sy. min_sbs only fences off values for
+      ! which the divisions in the update below would overflow: with a
+      ! smaller sbs, 0.2*sbs (the least possible seta) falls below the
+      ! smallest normal number. The floor is never negative, so a non-positive
+      ! sbs (lost positive definiteness) is caught as well.
+      exit_flag = exit_update
+      IF (DOT_PRODUCT(dx(1:ndf), dx(1:ndf)) == zero .OR. &
+          DOT_PRODUCT(dg(1:ndf), dg(1:ndf)) == zero) THEN
+         exit_flag = exit_skip
+      ELSE IF (.NOT. ieee_is_finite(sy) .OR. .NOT. ieee_is_finite(sbs) .OR. &
+               sbs <= MAX(EPSILON(one)*ABS(sy), min_sbs)) THEN
+         exit_flag = exit_reset
+      END IF
+      ! The max folds the votes into the most conservative action all ranks
+      ! can agree on. The exit codes are ordered by severity, so a skip vote
+      ! on one rank and a reset vote on another reset both. Every rank takes
+      ! the same branch, so the rebuild stays collective.
+      IF (PRESENT(para_env)) CALL para_env%max(exit_flag)
+
+      IF (exit_flag == exit_skip) THEN
+         ! A zero displacement or gradient difference carries no curvature
+         ! information, so there is nothing to learn from this step.
+      ELSE IF (exit_flag == exit_reset) THEN
+         ! The Hessian has lost positive definiteness along dx or the predicted
+         ! curvature is not representable, so the secant pair cannot be damped:
+         ! the caller restarts from the initial Hessian and skips this update.
+         CALL cp_warn(__LOCATION__, &
+                      "BFGS: vanishing or non-positive predicted curvature, resetting the Hessian")
+         hess_reset = .TRUE.
+      ELSE
+         ! Damped update after M.J.D. Powell, Lecture Notes in Mathematics 630 (1978),
+         ! eq. 3.7: whenever the measured curvature sy drops below 20% of the predicted
+         ! curvature s.B.s, replace y by eta = theta*y + (1-theta)*B*s. The blended
+         ! curvature satisfies eta.s = 0.2*s.B.s exactly, so the update stays positive
+         ! definite in exact arithmetic, also for secant pairs that no line search
+         ! checked. Because sbs passed the floor above, seta >= 0.2*sbs stays a
+         ! normal number, so one/seta cannot overflow and no further floor on seta
+         ! is needed.
+         theta = one
+         IF (sy < min_curvature*sbs) THEN
+            theta = ((one - min_curvature)*sbs)/(sbs - sy)
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,F10.4,A,F3.1,A)") &
+                  "BFGS| Damped update, curvature ratio y.s/(s.B.s): ", sy/sbs, &
+                  " (threshold ", min_curvature, ")"
+               CALL m_flush(output_unit)
+            END IF
+         END IF
+         seta = theta*sy + (one - theta)*sbs
+         gdx = one/seta
+         dxw = one/sbs
+
+         DO i = 1, nrow_local
+            j = row_indices(i)
+            eta_i = theta*dg(j) + (one - theta)*work(j)
+            DO k = 1, ncol_local
+               l = col_indices(k)
+               eta_j = theta*dg(l) + (one - theta)*work(l)
+               local_hes(i, k) = local_hes(i, k) + gdx*eta_i*eta_j - &
+                                 dxw*work(j)*work(l)
+            END DO
          END DO
-      END DO
+
+         ! Collective verdict: if any local block is corrupted, every rank resets.
+         invalid = 0
+         IF (.NOT. ALL(ieee_is_finite(local_hes(1:nrow_local, 1:ncol_local)))) invalid = 1
+         IF (PRESENT(para_env)) CALL para_env%max(invalid)
+         IF (invalid /= 0) THEN
+            CALL cp_warn(__LOCATION__, "BFGS: non-finite Hessian after the update, resetting")
+            hess_reset = .TRUE.
+         END IF
+      END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE bfgs
+
+! **************************************************************************************************
+!> \brief Build the direct initial Hessian: sanitized model Hessian or unity
+!> \param hess_mat Direct Hessian, replaced in place
+!> \param hess_tmp Eigensolver scratch matrix, same structure as hess_mat
+!> \param eigvec Eigensolver eigenvector matrix, same structure as hess_mat
+!> \param eigval Eigensolver workspace of length ndf
+!> \param force_env Environment providing the model Hessian at the current geometry
+!> \param use_model Build the sanitized model Hessian; otherwise fall back to unity
+!> \note Must be called by all ranks together: construct_initial_hess reduces internally.
+! **************************************************************************************************
+   SUBROUTINE build_initial_hess(hess_mat, hess_tmp, eigvec, eigval, force_env, use_model)
+      TYPE(cp_fm_type), INTENT(IN)                       :: hess_mat, hess_tmp, eigvec
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigval
+      TYPE(force_env_type), POINTER                      :: force_env
+      LOGICAL, INTENT(IN)                                :: use_model
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_initial_hess'
+      REAL(KIND=dp), PARAMETER                           :: min_eig = 0.1_dp, one = 1.0_dp, &
+                                                            zero = 0.0_dp
+
+      INTEGER                                            :: handle, indf, info, ndf
+
+      CALL timeset(routineN, handle)
+
+      IF (use_model) THEN
+         CPASSERT(ASSOCIATED(force_env))
+         ndf = SIZE(eigval)
+         ! The raw model Hessian is not guaranteed positive definite, so
+         ! eigenfactorize, floor the eigenvalues, and rebuild.
+         CALL cp_fm_set_all(hess_mat, alpha=zero)
+         CALL construct_initial_hess(force_env, hess_mat)
+         CALL cp_fm_to_fm(hess_mat, hess_tmp)
+         CALL choose_eigv_solver(hess_tmp, eigvec, eigval, info=info)
+         IF (info /= 0) THEN
+            ! In rare cases the diagonalization fails (bug in scalapack?)
+            CALL cp_warn(__LOCATION__, "BFGS: model Hessian diagonalization failed, using unity")
+            CALL cp_fm_set_all(hess_mat, alpha=zero, beta=one)
+            eigval = one
+         ELSE
+            DO indf = 1, ndf
+               IF (eigval(indf) < min_eig) eigval(indf) = min_eig
+            END DO
+            CALL cp_fm_to_fm(eigvec, hess_tmp)
+            CALL cp_fm_column_scale(eigvec, eigval)
+            CALL parallel_gemm("N", "T", ndf, ndf, ndf, one, hess_tmp, eigvec, zero, hess_mat)
+         END IF
+      ELSE
+         ! No sanitized prior exists (user opt-out, cell optimization, or
+         ! core-shell model): fall back to unity. eigval mirrors the unity
+         ! spectrum, keeping the INTENT(OUT) argument defined on every path.
+         CALL cp_fm_set_all(hess_mat, alpha=zero, beta=one)
+         eigval = one
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE build_initial_hess
 
 ! **************************************************************************************************
 !> \brief ...
@@ -899,13 +1020,13 @@ CONTAINS
       INTEGER                                            :: handle, i, j, k, l, ncol_local, &
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: DDOT, ener1, ener2
+      REAL(KIND=dp)                                      :: ener1, ener2
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
 
       CALL timeset(routineN, handle)
 
-      ener1 = DDOT(ndf, g, 1, dr, 1)
+      ener1 = DOT_PRODUCT(g(1:ndf), dr(1:ndf))
 
       CALL cp_fm_get_info(hess_mat, row_indices=row_indices, col_indices=col_indices, &
                           local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)
@@ -920,7 +1041,7 @@ CONTAINS
       END DO
 
       CALL para_env%sum(work)
-      ener2 = DDOT(ndf, dr, 1, work, 1)
+      ener2 = DOT_PRODUCT(dr(1:ndf), work(1:ndf))
       pred = ener1 + 0.5_dp*ener2
       conv = .FALSE.
       CALL timestop(handle)

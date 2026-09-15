@@ -1,6 +1,6 @@
 # complex torsion potential
 "TNF2.inp"                              = [{matcher="M007", tol=1.0E-14, ref=-0.0277253995}]
-"TNF2_OPLS.inp"                         = [{matcher="M007", tol=1.0E-14, ref=-0.0322667243}]
+"TNF2_OPLS.inp"                         = [{matcher="M007", tol=1.0E-14, ref=-0.0322647031}]
 # isolated system
 "H+.inp"                                = [{matcher="M011", tol=3e-11, ref=0.016349647995117}]
 "ef.inp"                                = [{matcher="M011", tol=1.0E-14, ref=0.000237442973528}]
