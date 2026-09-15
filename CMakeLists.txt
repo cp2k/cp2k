@@ -689,7 +689,26 @@ if(CP2K_USE_ELPA)
 endif()
 
 if(CP2K_USE_LIBXC)
-  find_package(Libxc 7 REQUIRED)
+  # libxc only installs pkg-config files, so it is located through
+  # FindLibXC.cmake. The toolchain builds a single variant (CUDA-only, HIP-only,
+  # or CPU-only) and exports the matching pkg-config path, so the variant is
+  # resolved automatically.
+  find_package(LibXC REQUIRED)
+
+  if(CP2K_USE_CUDA)
+    # CUDA libxc serves as both the CUDA and the CPU backend.
+    set(CP2K_LIBXC_CUDA_SUPPORT
+        ON
+        CACHE BOOL "libxc CUDA support available")
+    set(LIBXC_CUDA_FOUND TRUE)
+    message(STATUS "Found CUDA Libxc (${CP2K_LIBXC_VERSION})")
+  else()
+    # CPU-only libxc: this is the only libxc target CP2K needs.
+    set(LIBXC_CPU_FOUND TRUE)
+    message(STATUS "Found CPU Libxc (${CP2K_LIBXC_VERSION})")
+  endif()
+  set(LIBXC_CPU_INCLUDE_DIRS "${CP2K_LIBXC_INCLUDE_DIRS}")
+  set(LIBXC_CPU_LIBRARIES "${CP2K_LIBXC_LINK_LIBRARIES}")
 endif()
 
 if(CP2K_USE_GAUXC)
@@ -1094,8 +1113,9 @@ if(CP2K_USE_CUSOLVER_MP)
 endif()
 
 if(CP2K_USE_LIBXC)
-  message("  - LibXC\n" "    - Include directories: ${Libxc_INCLUDE_DIRS}\n"
-          "    - Libraries: ${Libxc_LIBRARIES}\n")
+  message("  - LibXC\n"
+          "    - Include directories: ${LIBXC_CPU_INCLUDE_DIRS}\n"
+          "    - Libraries: ${LIBXC_CPU_LIBRARIES}\n")
 endif()
 
 if(CP2K_USE_GAUXC)
