@@ -1079,7 +1079,8 @@ CONTAINS
 !>          04.2026 - Created as write_final_cif
 !>          05.2026 - Generalized to write_final_structure and enable extxyz
 !>          06.2026 - Adopted write_particle_coordinates for handling kind in extxyz
-!> \author  HE Zilong
+!>          09.2026 - Adapt constraint_label to new cell constraints
+!> \author  Zilong HE
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE write_final_structure(particle_set, cell, input_section, conv, &
@@ -1091,7 +1092,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: conv, keep_angles, keep_symmetry, &
                                                             keep_volume
       CHARACTER(LEN=default_string_length), INTENT(IN)   :: gopt_env_label
-      CHARACTER(LEN=4), INTENT(IN)                       :: constraint_label
+      CHARACTER(LEN=32), INTENT(IN)                      :: constraint_label
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_final_structure'
 

@@ -1322,15 +1322,6 @@ MODULE input_constants
                                                do_eri_os = 2, &
                                                eri_default = 3
 
-   ! Cell optimisation constraints
-   INTEGER, PARAMETER, PUBLIC               :: fix_none = 0, &
-                                               fix_x = 1, &
-                                               fix_y = 2, &
-                                               fix_z = 3, &
-                                               fix_xy = 4, &
-                                               fix_xz = 5, &
-                                               fix_yz = 6
-
    ! Non-equilibrium Green's function method
    INTEGER, PARAMETER, PUBLIC               :: negfint_method_cc = 0, &
                                                negfint_method_simpson = 1

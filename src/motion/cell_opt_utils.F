@@ -26,13 +26,6 @@ MODULE cell_opt_utils
                                               cp_logger_set,&
                                               cp_logger_type,&
                                               cp_to_string
-   USE input_constants,                 ONLY: fix_none,&
-                                              fix_x,&
-                                              fix_xy,&
-                                              fix_xz,&
-                                              fix_y,&
-                                              fix_yz,&
-                                              fix_z
    USE input_cp2k_global,               ONLY: create_global_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
                                               enumeration_type
@@ -51,6 +44,7 @@ MODULE cell_opt_utils
    USE mathlib,                         ONLY: angle,&
                                               det_3x3
    USE message_passing,                 ONLY: mp_para_env_type
+   USE string_utilities,                ONLY: uppercase
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -60,8 +54,9 @@ MODULE cell_opt_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_utils'
 
    PUBLIC :: get_dg_dh, gopt_new_logger_create, &
-             gopt_new_logger_release, read_external_press_tensor, &
-             apply_cell_constraints, rescale_new_cell_volume
+             gopt_new_logger_release, parse_cell_constraint, &
+             read_external_press_tensor, apply_cell_constraints, &
+             rescale_new_cell_volume
 
 CONTAINS
 
@@ -158,6 +153,190 @@ CONTAINS
    END SUBROUTINE gopt_new_logger_release
 
 ! **************************************************************************************************
+!> \brief Parse the constraints on cell components, and validate constraint for 2-D periodicity
+!> \param geo_section ...
+!> \param cell ...
+!> \param cell_relax ...
+!> \param constraint_label ...
+!> \par History
+!>      09.2026 - Created
+!> \author Zilong HE
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE parse_cell_constraint(geo_section, cell, cell_relax, constraint_label)
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: geo_section
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      INTEGER, DIMENSION(6), INTENT(OUT)                 :: cell_relax
+      CHARACTER(LEN=32), INTENT(OUT)                     :: constraint_label
+
+      CHARACTER(LEN=2), DIMENSION(6), PARAMETER :: &
+         components = ["AX", "BX", "BY", "CX", "CY", "CZ"]
+
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: constraint_new, constraint_raw
+      INTEGER                                            :: i, n
+      LOGICAL                                            :: constraint_explicit
+
+      ! Parse input keyword
+      CALL section_vals_val_get(geo_section, "CONSTRAINT", &
+                                c_vals=constraint_raw, explicit=constraint_explicit)
+      DO i = 1, SIZE(constraint_raw)
+         CALL uppercase(constraint_raw(i))
+         SELECT CASE (constraint_raw(i))
+         CASE (components(1)) ! "AX"
+            cell_relax(1) = 0
+         CASE ("AY")
+            CALL cp_abort(__LOCATION__, &
+                          "Cell constraint on AY is not yet implemented because "// &
+                          "the cell vector A should be on the X axis with the Y "// &
+                          "component always 0")
+         CASE ("AZ")
+            CALL cp_abort(__LOCATION__, &
+                          "Cell constraint on AZ is not yet implemented because "// &
+                          "the cell vector A should be on the X axis with the Z "// &
+                          "component always 0")
+         CASE (components(2)) ! "BX"
+            cell_relax(2) = 0
+         CASE (components(3)) ! "BY"
+            cell_relax(3) = 0
+         CASE ("BZ")
+            CALL cp_abort(__LOCATION__, &
+                          "Cell constraint on BZ is not yet implemented because "// &
+                          "the cell vector B should be on the XY plane with the Z "// &
+                          "component always 0")
+         CASE (components(4)) ! "CX"
+            cell_relax(4) = 0
+         CASE (components(5)) ! "CY"
+            cell_relax(5) = 0
+         CASE (components(6)) ! "CZ"
+            cell_relax(6) = 0
+         CASE ("A")
+            cell_relax(1:1) = 0
+         CASE ("B")
+            cell_relax(2:3) = 0
+         CASE ("C")
+            cell_relax(4:6) = 0
+         CASE ("AB", "BA")
+            cell_relax(1:3) = 0
+         CASE ("BC", "CB")
+            cell_relax(2:6) = 0
+         CASE ("AC", "CA")
+            cell_relax(1:1) = 0
+            cell_relax(4:6) = 0
+         CASE ("X")
+            cell_relax(1:2) = 0
+            cell_relax(4) = 0
+         CASE ("Y")
+            cell_relax(2:3) = 0
+            cell_relax(5) = 0
+         CASE ("Z")
+            cell_relax(4:6) = 0
+         CASE ("XY", "YX")
+            cell_relax(1:5) = 0
+         CASE ("YZ", "ZY")
+            cell_relax(2:6) = 0
+         CASE ("XZ", "ZX")
+            cell_relax(1:2) = 0
+            cell_relax(4:6) = 0
+         CASE ("NONE")
+            cell_relax(1:6) = 1
+         CASE DEFAULT
+            CALL cp_abort(__LOCATION__, &
+                          "Invalid cell constraint: "//TRIM(constraint_raw(i)))
+         END SELECT
+      END DO
+      IF (ALL(cell_relax == 0)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "The constraints on cell leave no components to relax; "// &
+                       "instead of CELL_OPT, just perform a GEO_OPT task.")
+      END IF
+
+      ! For 2-D periodicity, the non-periodic direction should be constrained;
+      ! write a warning and reset automatically if no explicit input is given,
+      ! abort if the explicit input is invalid
+      IF (COUNT(cell%perd /= 0) == 2) THEN
+         IF (cell%perd(1) == 0) THEN
+            IF (constraint_explicit) THEN
+               IF ((cell_relax(1) == 1) .OR. &
+                   (cell_relax(2) == 1) .OR. &
+                   (cell_relax(4) == 1)) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "With 2-D CELL_OPT on the YZ direction, the X "// &
+                                "direction should be constrained, but the explicit "// &
+                                "input constraints do not satisfy this requirement!")
+               END IF
+            ELSE
+               CALL cp_warn(__LOCATION__, &
+                            "With 2-D CELL_OPT on the YZ direction, the X "// &
+                            "direction should be constrained; completing now.")
+               cell_relax(1) = 0
+               cell_relax(2) = 0
+               cell_relax(4) = 0
+            END IF
+         ELSE IF (cell%perd(2) == 0) THEN
+            IF (constraint_explicit) THEN
+               IF ((cell_relax(2) == 1) .OR. &
+                   (cell_relax(3) == 1) .OR. &
+                   (cell_relax(5) == 1)) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "With 2-D CELL_OPT on the XZ direction, the Y "// &
+                                "direction should be constrained, but the explicit "// &
+                                "input constraints do not satisfy this requirement!")
+               END IF
+            ELSE
+               CALL cp_warn(__LOCATION__, &
+                            "With 2-D CELL_OPT on the XZ direction, the Y "// &
+                            "direction should be constrained; completing now.")
+               cell_relax(2) = 0
+               cell_relax(3) = 0
+               cell_relax(5) = 0
+            END IF
+         ELSE IF (cell%perd(3) == 0) THEN
+            IF (constraint_explicit) THEN
+               IF ((cell_relax(4) == 1) .OR. &
+                   (cell_relax(5) == 1) .OR. &
+                   (cell_relax(6) == 1)) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "With 2-D CELL_OPT on the XY direction, the Z "// &
+                                "direction should be constrained, but the explicit "// &
+                                "input constraints do not satisfy this requirement!")
+               END IF
+            ELSE
+               CALL cp_warn(__LOCATION__, &
+                            "With 2-D CELL_OPT on the XY direction, the Z "// &
+                            "direction should be constrained; completing now.")
+               cell_relax(4) = 0
+               cell_relax(5) = 0
+               cell_relax(6) = 0
+            END IF
+         END IF
+      END IF
+      ! Maybe the same check should be done for 1-D and 0-D periodicity?
+
+      ! Reset CONSTRAINT keyword and write the constraint label
+      n = COUNT(cell_relax == 0)
+      CPASSERT((n >= 0) .AND. (n <= 6))
+      IF (n > 0) THEN
+         ALLOCATE (constraint_new(n))
+         constraint_new(:) = PACK(components, MASK=(cell_relax == 0))
+         WRITE (constraint_label, "(A)") TRIM(constraint_new(1))
+         IF (n > 1) THEN
+            DO i = 2, n
+               constraint_label = TRIM(constraint_label)//" "//TRIM(constraint_new(i))
+            END DO
+         END IF
+      ELSE IF (n == 0) THEN
+         ALLOCATE (constraint_new(1))
+         constraint_new(1) = "NONE"
+         constraint_label = "NONE"
+      END IF
+      CPASSERT(ASSOCIATED(constraint_new))
+      CALL section_vals_val_set(geo_section, "CONSTRAINT", c_vals_ptr=constraint_new)
+      CPASSERT(LEN_TRIM(constraint_label) /= 0)
+
+   END SUBROUTINE parse_cell_constraint
+
+! **************************************************************************************************
 !> \brief Reads the external pressure tensor
 !> \param geo_section ...
 !> \param cell ...
@@ -227,11 +406,11 @@ CONTAINS
 !> \param keep_symmetry ...
 !> \param pres_int ...
 !> \param pres_constr ...
-!> \param constraint_id ...
+!> \param cell_relax ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! **************************************************************************************************
    SUBROUTINE get_dg_dh(gradient, av_ptens, pres_ext, cell, mtrx, keep_angles, &
-                        keep_symmetry, pres_int, pres_constr, constraint_id)
+                        keep_symmetry, pres_int, pres_constr, cell_relax)
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: gradient
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: av_ptens
@@ -240,22 +419,20 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: mtrx
       LOGICAL, INTENT(IN), OPTIONAL                      :: keep_angles, keep_symmetry
       REAL(KIND=dp), INTENT(OUT)                         :: pres_int, pres_constr
-      INTEGER, INTENT(IN), OPTIONAL                      :: constraint_id
+      INTEGER, DIMENSION(6), INTENT(IN), OPTIONAL        :: cell_relax
 
-      INTEGER                                            :: i, my_constraint_id
-      LOGICAL                                            :: my_keep_angles, my_keep_symmetry
+      INTEGER                                            :: i
+      INTEGER, DIMENSION(6)                              :: my_cell_relax
+      LOGICAL                                            :: fix_x, fix_y, fix_z, my_keep_angles, &
+                                                            my_keep_symmetry
       REAL(KIND=dp), DIMENSION(3, 3)                     :: correction, pten_hinv_old, ptens
 
       my_keep_angles = .FALSE.
       IF (PRESENT(keep_angles)) my_keep_angles = keep_angles
       my_keep_symmetry = .FALSE.
       IF (PRESENT(keep_symmetry)) my_keep_symmetry = keep_symmetry
-      gradient = 0.0_dp
-      IF (PRESENT(constraint_id)) THEN
-         my_constraint_id = constraint_id
-      ELSE
-         my_constraint_id = fix_none
-      END IF
+      my_cell_relax(:) = 1
+      IF (PRESENT(cell_relax)) my_cell_relax = cell_relax
 
       gradient = 0.0_dp
 
@@ -268,22 +445,52 @@ CONTAINS
       END DO
       pres_int = pres_int/3.0_dp
 
-      SELECT CASE (my_constraint_id)
-      CASE (fix_x)
-         pres_constr = 0.5_dp*(ptens(2, 2) + ptens(3, 3))
-      CASE (fix_y)
-         pres_constr = 0.5_dp*(ptens(1, 1) + ptens(3, 3))
-      CASE (fix_z)
-         pres_constr = 0.5_dp*(ptens(1, 1) + ptens(2, 2))
-      CASE (fix_xy)
-         pres_constr = ptens(3, 3)
-      CASE (fix_xz)
-         pres_constr = ptens(2, 2)
-      CASE (fix_yz)
-         pres_constr = ptens(1, 1)
-      CASE (fix_none)
-         pres_constr = (ptens(1, 1) + ptens(2, 2) + ptens(3, 3))/3.0_dp
-      END SELECT
+      ! Evaluating the pressure under cell constraints
+      ! For the six cell components [AX, BX, BY, CX, CY, CZ]:
+      ! all of AX, BX, CX constrained -> fix_x -> ignore ptens(1, 1);
+      ! all of BX, BY, CY constrained -> fix_y -> ignore ptens(2, 2);
+      ! all of CX, CY, CZ constrained -> fix_z -> ignore ptens(3, 3).
+      fix_x = (my_cell_relax(1) == 0 .AND. &
+               my_cell_relax(2) == 0 .AND. &
+               my_cell_relax(4) == 0)
+      fix_y = (my_cell_relax(2) == 0 .AND. &
+               my_cell_relax(3) == 0 .AND. &
+               my_cell_relax(5) == 0)
+      fix_z = (my_cell_relax(4) == 0 .AND. &
+               my_cell_relax(5) == 0 .AND. &
+               my_cell_relax(6) == 0)
+
+      IF (fix_z) THEN
+         IF (fix_y) THEN
+            IF (fix_x) THEN ! fix_all which is not allowed yet
+               CALL cp_abort(__LOCATION__, &
+                             "The constraints on cell leave no components to relax; "// &
+                             "instead of CELL_OPT, just perform a GEO_OPT task.")
+            ELSE ! fix_yz
+               pres_constr = ptens(1, 1)
+            END IF
+         ELSE
+            IF (fix_x) THEN ! fix_xz
+               pres_constr = ptens(2, 2)
+            ELSE ! fix_z
+               pres_constr = 0.5_dp*(ptens(1, 1) + ptens(2, 2))
+            END IF
+         END IF
+      ELSE
+         IF (fix_y) THEN
+            IF (fix_x) THEN ! fix_xy
+               pres_constr = ptens(3, 3)
+            ELSE ! fix_y
+               pres_constr = 0.5_dp*(ptens(1, 1) + ptens(3, 3))
+            END IF
+         ELSE
+            IF (fix_x) THEN ! fix_x
+               pres_constr = 0.5_dp*(ptens(2, 2) + ptens(3, 3))
+            ELSE ! fix_none
+               pres_constr = (ptens(1, 1) + ptens(2, 2) + ptens(3, 3))/3.0_dp
+            END IF
+         END IF
+      END IF
 
       ptens(1, 1) = av_ptens(1, 1) - pres_ext
       ptens(2, 2) = av_ptens(2, 2) - pres_ext
@@ -299,7 +506,7 @@ CONTAINS
       gradient(5) = pten_hinv_old(3, 2) - correction(3, 2)
       gradient(6) = pten_hinv_old(3, 3) - correction(3, 3)
 
-      CALL apply_cell_constraints(gradient, cell, my_keep_angles, my_keep_symmetry, my_constraint_id)
+      CALL apply_cell_constraints(gradient, cell, my_keep_angles, my_keep_symmetry, my_cell_relax)
 
       gradient = -gradient
 
@@ -311,16 +518,17 @@ CONTAINS
 !> \param cell ...
 !> \param keep_angles ...
 !> \param keep_symmetry ...
-!> \param constraint_id ...
+!> \param cell_relax ...
 !> \author Matthias Krack (October 26, 2017, MK)
 ! **************************************************************************************************
-   SUBROUTINE apply_cell_constraints(gradient, cell, keep_angles, keep_symmetry, constraint_id)
+   SUBROUTINE apply_cell_constraints(gradient, cell, keep_angles, keep_symmetry, cell_relax)
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: gradient
       TYPE(cell_type), POINTER                           :: cell
       LOGICAL, INTENT(IN)                                :: keep_angles, keep_symmetry
-      INTEGER, INTENT(IN)                                :: constraint_id
+      INTEGER, DIMENSION(6), INTENT(IN)                  :: cell_relax
 
+      INTEGER                                            :: i
       REAL(KIND=dp)                                      :: a, a_length, ab_length, b_length, cosa, &
                                                             cosah, cosg, deriv_gamma, g, gamma, &
                                                             norm, norm_b, norm_c, sina, sinah, sing
@@ -440,25 +648,11 @@ CONTAINS
          END SELECT
       END IF
 
-      SELECT CASE (constraint_id)
-      CASE (fix_x)
-         gradient(1:2) = 0.0_dp
-         gradient(4) = 0.0_dp
-      CASE (fix_y)
-         gradient(2:3) = 0.0_dp
-         gradient(5) = 0.0_dp
-      CASE (fix_z)
-         gradient(4:6) = 0.0_dp
-      CASE (fix_xy)
-         gradient(1:5) = 0.0_dp
-      CASE (fix_xz)
-         gradient(1:2) = 0.0_dp
-         gradient(4:6) = 0.0_dp
-      CASE (fix_yz)
-         gradient(2:6) = 0.0_dp
-      CASE (fix_none)
-         ! Nothing to do
-      END SELECT
+      ! Apply cell constraints: cell_relax(i) is
+      ! 0 if constrained, or 1 if relaxed
+      DO i = 1, 6
+         gradient(i) = gradient(i)*cell_relax(i)
+      END DO
 
    END SUBROUTINE apply_cell_constraints
 

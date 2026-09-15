@@ -32,8 +32,8 @@ MODULE input_cp2k_motion
       debug_lbfgs, default_bfgs_method_id, default_cg_method_id, default_dimer_method_id, &
       default_lbfgs_method_id, default_minimization_method_id, default_ts_method_id, &
       dimer_init_molden, dimer_init_random, &
-      do_mc_gemc_npt, do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fix_none, fix_x, fix_xy, &
-      fix_xz, fix_y, fix_yz, fix_z, fmt_id_pdb, fmt_id_xyz, gaussian, helium_cell_shape_cube, &
+      do_mc_gemc_npt, do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, &
+      fmt_id_pdb, fmt_id_xyz, gaussian, helium_cell_shape_cube, &
       helium_cell_shape_octahedron, helium_forces_average, helium_forces_last, &
       helium_mdist_exponential, helium_mdist_gaussian, helium_mdist_linear, &
       helium_mdist_quadratic, helium_mdist_singlev, helium_mdist_uniform, &
@@ -1083,18 +1083,29 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="CONSTRAINT", &
-         description="Imposes a constraint on the pressure tensor by fixing the specified cell components.", &
-         usage="CONSTRAINT (none|x|y|z|xy|xz|yz)", &
-         enum_desc=s2a("Fix nothing", &
-                       "Fix only x component", &
-                       "Fix only y component", &
-                       "Fix only z component", &
-                       "Fix x and y component", &
-                       "Fix x and z component", &
-                       "Fix y and z component"), &
-         enum_c_vals=s2a("NONE", "X", "Y", "Z", "XY", "XZ", "YZ"), &
-         enum_i_vals=[fix_none, fix_x, fix_y, fix_z, fix_xy, fix_xz, fix_yz], &
-         default_i_val=fix_none)
+         description="Imposes a constraint on one or more of the cell components "// &
+         "by setting the corresponding gradient(s) to 0 and omitting "// &
+         "the corresponding component(s) of the pressure tensor from "// &
+         "the average pressure. Given the program convention of cell "// &
+         "vectors as introduced at the beginning of the section, one "// &
+         "or more of the following six components may be specified: "// &
+         "`AX`, `BX`, `BY`, `CX`, `CY`, `CZ`. Additionally:"//newline//newline// &
+         "* `A` is parsed as `AX`;"//newline// &
+         "* `B` is parsed as `BX`, `BY` combined;"//newline// &
+         "* `C` is parsed as `CX`, `CY`, `CZ` combined;"//newline// &
+         "* `AB` is parsed as `A` and `B` combined;"//newline// &
+         "* `BC` is parsed as `B` and `C` combined;"//newline// &
+         "* `AC` is parsed as `A` and `C` combined;"//newline// &
+         "* `X` is parsed as `AX`, `BX`, `CX` combined;"//newline// &
+         "* `Y` is parsed as `BX`, `BY`, `CY` combined;"//newline// &
+         "* `Z` is parsed as `CX`, `CY`, `CZ` combined;"//newline// &
+         "* `XY` is parsed as `X` and `Y` combined;"//newline// &
+         "* `YZ` is parsed as `Y` and `Z` combined;"//newline// &
+         "* `XZ` is parsed as `X` and `Z` combined."//newline// &
+         "The default is `NONE`, where no component is constrained. "// &
+         "The `NONE`, `X`, `Y`, `Z`, `XY`, `YZ`, `XZ` options are "// &
+         "backwards compatible with older versions of CP2K.", &
+         usage="CONSTRAINT AX BY CZ", default_c_vals=["NONE"], n_var=-1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

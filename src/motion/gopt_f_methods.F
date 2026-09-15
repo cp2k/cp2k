@@ -48,9 +48,10 @@ MODULE gopt_f_methods
                                               use_qmmmx
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
-   USE input_constants,                 ONLY: &
-        default_cell_method_id, default_minimization_method_id, default_shellcore_method_id, &
-        default_ts_method_id, fix_none, fix_x, fix_xy, fix_xz, fix_y, fix_yz, fix_z
+   USE input_constants,                 ONLY: default_cell_method_id,&
+                                              default_minimization_method_id,&
+                                              default_shellcore_method_id,&
+                                              default_ts_method_id
    USE input_cp2k_restarts,             ONLY: write_restart
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
@@ -317,12 +318,12 @@ CONTAINS
                                  keep_symmetry=gopt_env%cell_env%keep_symmetry, &
                                  pres_int=gopt_env%cell_env%pres_int, &
                                  pres_constr=gopt_env%cell_env%pres_constr, &
-                                 constraint_id=gopt_env%cell_env%constraint_id)
+                                 cell_relax=gopt_env%cell_env%cell_relax)
                END IF
                ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank.
                ! Assume at least master==0
                CALL para_env%bcast(gopt_env%cell_env%pres_int, 0)
-               IF (gopt_env%cell_env%constraint_id /= fix_none) THEN
+               IF (ANY(gopt_env%cell_env%cell_relax == 0)) THEN
                   CALL para_env%bcast(gopt_env%cell_env%pres_constr, 0)
                END IF
             END IF
@@ -606,7 +607,7 @@ CONTAINS
             CPASSERT(PRESENT(ndf))
             CPASSERT(PRESENT(dx))
             CPASSERT(PRESENT(xi))
-            IF (gopt_env%cell_env%constraint_id == fix_none) THEN
+            IF (ALL(gopt_env%cell_env%cell_relax == 1)) THEN
                CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory, stress_unit, &
                                   pres_diff, pres_tol)
             ELSE
@@ -1078,7 +1079,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: motion_section, root_section
 
-      CHARACTER(LEN=4)                                   :: constraint_label
+      CHARACTER(LEN=32)                                  :: constraint_label
       LOGICAL                                            :: keep_angles, keep_symmetry, keep_volume
       REAL(KIND=dp)                                      :: etot
       TYPE(cell_type), POINTER                           :: cell
@@ -1090,33 +1091,17 @@ CONTAINS
       CALL cp_subsys_get(subsys=subsys, particles=particles)
       particle_set => particles%els
 
-      ! Passing gopt_f_type pointer gopt_env to particle_methods where
-      ! write_final_structure is defined causes a circular dependency, so it
-      ! is necessary to get some flags by preprocessing...
+      ! To make particle_methods independent of gopt_f_types, better
+      ! get some flags by preprocessing gopt_f_type type gopt_env...
       keep_angles = .TRUE.
       keep_symmetry = .TRUE.
       keep_volume = .TRUE.
-      constraint_label = "NONE"
+      constraint_label = "ALL"
       IF (gopt_env%type_id == default_cell_method_id) THEN
          keep_angles = gopt_env%cell_env%keep_angles
          keep_symmetry = gopt_env%cell_env%keep_symmetry
          keep_volume = gopt_env%cell_env%keep_volume
-         SELECT CASE (gopt_env%cell_env%constraint_id)
-         CASE (fix_x)
-            constraint_label = "   X"
-         CASE (fix_y)
-            constraint_label = "   Y"
-         CASE (fix_z)
-            constraint_label = "   Z"
-         CASE (fix_xy)
-            constraint_label = "  XY"
-         CASE (fix_xz)
-            constraint_label = "  XZ"
-         CASE (fix_yz)
-            constraint_label = "  YZ"
-         CASE (fix_none)
-            constraint_label = "NONE"
-         END SELECT
+         constraint_label = gopt_env%cell_env%constraint_label
       END IF
       CALL write_final_structure(particle_set, cell, motion_section, conv, &
                                  keep_angles, keep_symmetry, keep_volume, &
