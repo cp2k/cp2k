@@ -1277,6 +1277,20 @@ CONTAINS
          END IF
 
       ELSE
+         ! Atom-composite XC also creates potential buffers for energy-only calls.
+         ! These calls skip sum_up_and_integrate, which normally returns the buffers.
+         IF (ASSOCIATED(v_rspace_new)) THEN
+            DO ispin = 1, SIZE(v_rspace_new)
+               CALL auxbas_pw_pool%give_back_pw(v_rspace_new(ispin))
+            END DO
+            DEALLOCATE (v_rspace_new)
+         END IF
+         IF (ASSOCIATED(v_tau_rspace)) THEN
+            DO ispin = 1, SIZE(v_tau_rspace)
+               CALL auxbas_pw_pool%give_back_pw(v_tau_rspace(ispin))
+            END DO
+            DEALLOCATE (v_tau_rspace)
+         END IF
          IF (do_hfx) THEN
             IF (.FALSE.) THEN
                CPWARN("KS matrix no longer correct. Check possible problems with property calculations!")
