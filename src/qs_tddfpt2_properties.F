@@ -1225,18 +1225,21 @@ CONTAINS
 !> \param gs_mos                                molecular orbitals optimised for the ground state
 !> \param matrix_s                              overlap matrix
 !> \param do_directional_exciton_descriptors    flag for computing descriptors for each (cartesian) direction
+!> \param do_directional_exciton_crosscorrelation flag for adding the crosscorrelation matrix to the directional descriptors
 !> \param qs_env                                Information on particles/geometry
 !> \par History
 !>    * 12.2024 created as 'tddfpt_print_exciton_descriptors' [Maximilian Graml]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_print_exciton_descriptors(log_unit, evects, gs_mos, matrix_s, &
-                                               do_directional_exciton_descriptors, qs_env)
+                                               do_directional_exciton_descriptors, &
+                                               do_directional_exciton_crosscorrelation, qs_env)
       INTEGER, INTENT(in)                                :: log_unit
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(dbcsr_type), POINTER                          :: matrix_s
-      LOGICAL, INTENT(IN) :: do_directional_exciton_descriptors
+      LOGICAL, INTENT(IN) :: do_directional_exciton_descriptors, &
+         do_directional_exciton_crosscorrelation
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_exciton_descriptors'
@@ -1364,7 +1367,7 @@ CONTAINS
       prefix_output = ' '
       CALL print_exciton_descriptors(exc_descr, ref_point_multipole, log_unit, &
                                      nstates, print_checkvalue, do_directional_exciton_descriptors, &
-                                     prefix_output, qs_env)
+                                     do_directional_exciton_crosscorrelation, prefix_output, qs_env)
 
       DEALLOCATE (ref_point_multipole)
       DEALLOCATE (exc_descr)

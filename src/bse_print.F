@@ -564,20 +564,21 @@ CONTAINS
 !> \param num_print_exc_descr          Number of excitation levels for which descriptors are printed
 !> \param print_checkvalue             Flag, which determines if values for regtests should be printed
 !> \param print_directional_exc_descr  Flag, which activates printing of directional descriptors
+!> \param print_directional_crosscorrelation Flag, which adds the crosscorrelation matrix to the directional descriptors
 !> \param prefix_output                String, which is put in front of prints, i.e. "BSE|" or "" for TDDFPT
 !> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE print_exciton_descriptors(exc_descr, ref_point_multipole, unit_nr, &
                                         num_print_exc_descr, print_checkvalue, print_directional_exc_descr, &
-                                        prefix_output, qs_env)
+                                        print_directional_crosscorrelation, prefix_output, qs_env)
 
       TYPE(exciton_descr_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: exc_descr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: ref_point_multipole
       INTEGER, INTENT(IN)                                :: unit_nr, num_print_exc_descr
-      LOGICAL, INTENT(IN)                                :: print_checkvalue, &
-                                                            print_directional_exc_descr
+      LOGICAL, INTENT(IN) :: print_checkvalue, print_directional_exc_descr, &
+         print_directional_crosscorrelation
       CHARACTER(LEN=4), INTENT(IN)                       :: prefix_output
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -720,12 +721,19 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
                "                 + (σ_h^x)^2 - 2 * (COV_eh^{xx}) )"
             WRITE (unit_nr, '(T2,A4)') prefix_output
-            WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
-               "Subsequently, the cross-correlation matrix R_eh^{μμ'} is printed"
-            WRITE (unit_nr, '(T2,A4)') prefix_output
-            WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
-               "R_eh^{μμ'} = COV_eh^{μμ'}/(σ^μ_e σ^μ_h) "
-            WRITE (unit_nr, '(T2,A4)') prefix_output
+            IF (print_directional_crosscorrelation) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
+                  "Subsequently, the cross-correlation matrix R_eh^{μμ'} is printed"
+               WRITE (unit_nr, '(T2,A4)') prefix_output
+               WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
+                  "R_eh^{μμ'} = COV_eh^{μμ'}/(σ^μ_e σ^μ'_h)"
+               WRITE (unit_nr, '(T2,A4)') prefix_output
+               WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
+                  "Rows: electron direction μ, columns: hole direction μ',"
+               WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
+                  "so in general R_eh^{μμ'} ≠ R_eh^{μ'μ}."
+               WRITE (unit_nr, '(T2,A4)') prefix_output
+            END IF
             WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
                'Ref.: Eqs. (33)-(36)'
             WRITE (unit_nr, '(T2,A4,T7,A,A)') prefix_output, &
@@ -755,29 +763,30 @@ CONTAINS
                END DO
                WRITE (unit_nr, '(T2,A4)') prefix_output
             END DO
-            WRITE (unit_nr, '(T2,A4)') prefix_output
-            WRITE (unit_nr, '(T2,A4)') prefix_output
-            IF (exc_descr(1)%flag_TDA) THEN
-               WRITE (unit_nr, '(T2,A4,T7,A,A,A)') prefix_output, &
-                  'Crosscorrelation matrix from solving the ', method_name, ' within the TDA:'
-            ELSE
-               WRITE (unit_nr, '(T2,A4,T7,A,A,A)') prefix_output, &
-                  'Crosscorrelation matrix from solving the ', method_name, ' without the TDA:'
+            IF (print_directional_crosscorrelation) THEN
+               WRITE (unit_nr, '(T2,A4)') prefix_output
+               WRITE (unit_nr, '(T2,A4)') prefix_output
+               IF (exc_descr(1)%flag_TDA) THEN
+                  WRITE (unit_nr, '(T2,A4,T7,A,A,A)') prefix_output, &
+                     'Crosscorrelation matrix from solving the ', method_name, ' within the TDA:'
+               ELSE
+                  WRITE (unit_nr, '(T2,A4,T7,A,A,A)') prefix_output, &
+                     'Crosscorrelation matrix from solving the ', method_name, ' without the TDA:'
+               END IF
+               WRITE (unit_nr, '(T2,A4)') prefix_output
+               WRITE (unit_nr, '(T2,A4,T12,A1,T23,A3,T44,A1,T62,A1,T80,A1)') prefix_output, &
+                  'n', 'e\h', 'x', 'y', 'z'
+               ! rows: electron direction, columns: hole direction
+               DO i_exc = 1, num_print_exc_descr
+                  WRITE (unit_nr, '(T2,A4,T9,I4,T25,A1,1X,3(11X,F7.4))') prefix_output, i_exc, &
+                     array_direction_str(1), exc_descr(i_exc)%corr_e_h_matrix(1, :)
+                  DO i_dir = 2, 3
+                     WRITE (unit_nr, '(T2,A4,T25,A1,1X,3(11X,F7.4))') prefix_output, &
+                        array_direction_str(i_dir), exc_descr(i_exc)%corr_e_h_matrix(i_dir, :)
+                  END DO
+                  WRITE (unit_nr, '(T2,A4)') prefix_output
+               END DO
             END IF
-            WRITE (unit_nr, '(T2,A4)') prefix_output
-            WRITE (unit_nr, '(T2,A4,T12,A1,8X,6(8X,A2))') prefix_output, &
-               'n', 'xx', 'yy', 'zz', 'xy', 'xz', 'yz'
-            DO i_exc = 1, num_print_exc_descr
-               WRITE (unit_nr, '(T2,A4,T9,I4,8X,6(3X,F7.4),3X,F7.4)') &
-                  prefix_output, i_exc, &
-                  exc_descr(i_exc)%corr_e_h_matrix(1, 1), &
-                  exc_descr(i_exc)%corr_e_h_matrix(2, 2), &
-                  exc_descr(i_exc)%corr_e_h_matrix(3, 3), &
-                  exc_descr(i_exc)%corr_e_h_matrix(1, 2), &
-                  exc_descr(i_exc)%corr_e_h_matrix(1, 3), &
-                  exc_descr(i_exc)%corr_e_h_matrix(2, 3)
-            END DO
-            WRITE (unit_nr, '(T2,A4)') prefix_output
          END IF
          ! Print the reference atomic geometry for the exciton descriptors
          WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &

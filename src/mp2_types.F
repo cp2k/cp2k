@@ -321,6 +321,7 @@ MODULE mp2_types
       LOGICAL                                            :: do_bse = .FALSE., &
                                                             bse_debug_print = .FALSE., &
                                                             print_directional_exc_descr = .FALSE., &
+                                                            print_directional_crosscorrelation = .FALSE., &
                                                             use_ks_energies = .FALSE.
       !BSE optical spectrum
       REAL(KIND=dp)                                      :: bse_spectrum_freq_step_size = 0.0_dp, &

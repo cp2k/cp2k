@@ -71,7 +71,7 @@ CONTAINS
                                                             print_level_NTO_analysis, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: do_mp2, do_opt_ri_basis, do_ri_mp2, &
-                                                            do_ri_sos_mp2, do_rpa
+                                                            do_ri_sos_mp2, do_rpa, explicit
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r_vals
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: bse_section, cphf_section, &
@@ -204,6 +204,13 @@ CONTAINS
                                 i_val=mp2_env%bse%num_print_exc_descr)
       CALL section_vals_val_get(bse_section, "PRINT_DIRECTIONAL_EXC_DESCR", &
                                 l_val=mp2_env%bse%print_directional_exc_descr)
+      CALL section_vals_val_get(bse_section, "PRINT_DIRECTIONAL_CROSSCORRELATION", &
+                                l_val=mp2_env%bse%print_directional_crosscorrelation, explicit=explicit)
+      IF (explicit .AND. mp2_env%bse%print_directional_crosscorrelation .AND. &
+          .NOT. mp2_env%bse%print_directional_exc_descr) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "PRINT_DIRECTIONAL_CROSSCORRELATION has no effect without PRINT_DIRECTIONAL_EXC_DESCR.")
+      END IF
       CALL section_vals_val_get(bse_section, "EPS_X", &
                                 r_val=mp2_env%bse%eps_x)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%DAVIDSON_ABORT_COND", &

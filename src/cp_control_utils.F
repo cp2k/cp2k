@@ -2218,6 +2218,13 @@ CONTAINS
       CALL section_vals_val_get(t_section, "ADMM_KERNEL_XC_CORRECTION", l_val=t_control%admm_xc_correction)
       CALL section_vals_val_get(t_section, "EXCITON_DESCRIPTORS", l_val=t_control%do_exciton_descriptors)
       CALL section_vals_val_get(t_section, "DIRECTIONAL_EXCITON_DESCRIPTORS", l_val=t_control%do_directional_exciton_descriptors)
+      CALL section_vals_val_get(t_section, "DIRECTIONAL_EXCITON_CROSSCORRELATION", &
+                                l_val=t_control%do_directional_exciton_crosscorrelation, explicit=explicit)
+      IF (explicit .AND. t_control%do_directional_exciton_crosscorrelation .AND. &
+          .NOT. t_control%do_directional_exciton_descriptors) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "DIRECTIONAL_EXCITON_CROSSCORRELATION has no effect without DIRECTIONAL_EXCITON_DESCRIPTORS.")
+      END IF
 
       ! read automatically generated auxiliary basis for LRI
       CALL section_vals_val_get(t_section, "AUTO_BASIS", n_rep_val=nrep)
