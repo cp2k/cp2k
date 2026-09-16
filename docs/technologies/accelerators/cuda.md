@@ -12,4 +12,9 @@
 - Use `-DCP2K_ENABLE_DBM_GPU=OFF` to disable the GPU backend of the sparse tensor library.
 - Use `-DCP2K_ENABLE_PW_GPU=OFF` to disable the GPU backend of FFTs and associated gather/scatter
   operations.
+- Use `-DCP2K_ENABLE_LIBXC_GPU=OFF` to disable the GPU backend of libxc (enabled by default when
+  building with `-DCP2K_USE_ACCEL=CUDA` and a CUDA-capable libxc).
+- At runtime, the LibXC backend can be selected per calculation with the `&XC/LIBXC_GPU_BACKEND`
+  keyword (`DEVICE` or `HOST`). Selecting `DEVICE` in a build compiled without the LibXC GPU
+  backend is an error.
 - Use `-DCP2K_DBCSR_USE_CPU_ONLY=ON` to disable the GPU backend of DBCSR.
