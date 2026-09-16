@@ -91,39 +91,40 @@ MODULE xc_libxc
                             xc_f03_mgga_vxc, &
                             xc_f03_mgga_vxc_fxc, &
                             XC_POLARIZED, &
-                            XC_UNPOLARIZED, &
-                            XC_FAMILY_LDA, &
-                            XC_FAMILY_GGA, &
-                            XC_FAMILY_MGGA, &
-                            XC_FAMILY_HYB_LDA, &
-                            XC_FAMILY_HYB_GGA, &
-                            XC_FAMILY_HYB_MGGA, &
-                            libxc_device_buffer_type, &
-                            libxc_get_backend, &
-                            libxc_func_init_wrapper, libxc_func_end_wrapper, &
-                            libxc_buffer_create, libxc_buffer_free, &
-                            libxc_buffer_h2d, libxc_buffer_d2h, &
-                            libxc_gga_exc_vxc_wrapper, libxc_gga_exc_wrapper, &
-                            libxc_lda_exc_vxc_wrapper, libxc_lda_exc_wrapper, &
-                            libxc_mgga_exc_vxc_wrapper, libxc_mgga_exc_wrapper, &
-                            libxc_mgga_vxc_wrapper, &
-                            libxc_is_cuda, &
-                            libxc_device_buffer_alloc, libxc_device_buffer_free, &
-                            libxc_host_to_device, libxc_device_to_host, &
-                            libxc_d2h_issue, libxc_d2h_read, &
-                            libxc_assert_device_buffer, &
-                            libxc_lda_exc_vxc_device, libxc_lda_exc_device, &
-                            libxc_gga_exc_device, libxc_gga_exc_vxc_device, &
-                            libxc_gga_vxc_device, &
-                            libxc_mgga_exc_device, libxc_mgga_exc_vxc_device, &
-                            libxc_mgga_vxc_device, &
-                            xc_libxc_wrap_functional_get_number, &
-                            xc_libxc_wrap_info_needs_laplace, &
-                            xc_libxc_wrap_info_no_exc, &
-                            xc_libxc_wrap_is_under_development, &
-                            xc_libxc_check_functional, &
-                            xc_libxc_get_reference_length, &
-                            xc_libxc_wrap_init_cuda_safe, &
+                             XC_UNPOLARIZED, &
+                             XC_FAMILY_LDA, &
+                             XC_FAMILY_GGA, &
+                             XC_FAMILY_MGGA, &
+                             XC_FAMILY_HYB_LDA, &
+                             XC_FAMILY_HYB_GGA, &
+                             XC_FAMILY_HYB_MGGA, &
+                             libxc_device_buffer_type, &
+                             libxc_get_backend, &
+                             libxc_set_backend, &
+                             libxc_func_init_wrapper, libxc_func_end_wrapper, &
+                             libxc_buffer_create, libxc_buffer_free, &
+                             libxc_buffer_h2d, libxc_buffer_d2h, &
+                             libxc_gga_exc_vxc_wrapper, libxc_gga_exc_wrapper, &
+                             libxc_lda_exc_vxc_wrapper, libxc_lda_exc_wrapper, &
+                             libxc_mgga_exc_vxc_wrapper, libxc_mgga_exc_wrapper, &
+                             libxc_mgga_vxc_wrapper, &
+                             libxc_is_gpu, &
+                             libxc_device_buffer_alloc, libxc_device_buffer_free, &
+                             libxc_host_to_device, libxc_device_to_host, &
+                             libxc_d2h_issue, libxc_d2h_read, &
+                             libxc_assert_device_buffer, &
+                             libxc_lda_exc_vxc_device, libxc_lda_exc_device, &
+                             libxc_gga_exc_device, libxc_gga_exc_vxc_device, &
+                             libxc_gga_vxc_device, &
+                             libxc_mgga_exc_device, libxc_mgga_exc_vxc_device, &
+                             libxc_mgga_vxc_device, &
+                             xc_libxc_wrap_functional_get_number, &
+                             xc_libxc_wrap_info_needs_laplace, &
+                             xc_libxc_wrap_info_no_exc, &
+                             xc_libxc_wrap_is_under_development, &
+                             xc_libxc_check_functional, &
+                             xc_libxc_get_reference_length, &
+                             xc_libxc_wrap_init_safe, &
                             xc_libxc_wrap_library_reference, &
                             xc_libxc_wrap_version, &
                             xc_libxc_wrap_set_thresholds, &
@@ -148,6 +149,9 @@ MODULE xc_libxc
              libxc_version_info, libxc_library_reference, &
              libxc_get_reference_length, libxc_add_sections, &
              libxc_check_existence_in_libxc, libxc_release_workers
+#if defined (__LIBXC)
+   PUBLIC :: libxc_set_backend, libxc_get_backend
+#endif
 
 #if defined (__LIBXC)
    ! Number of grid points handed to LibXC in a single call. LibXC amortizes its
@@ -178,7 +182,7 @@ MODULE xc_libxc
                                                             v2rholapl, v2rhotau, v2sigmalapl, &
                                                             v2sigmatau, v2lapl2, v2lapltau, v2tau2
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: v3rho3
-      ! CUDA device buffers
+      ! GPU device buffers
       TYPE(libxc_device_buffer_type)                     :: rho_d, sigma_d, lapl_d, tau_d
       TYPE(libxc_device_buffer_type)                     :: exc_d
       TYPE(libxc_device_buffer_type)                     :: vrho_d, vsigma_d, vlapl_d, vtau_d
@@ -233,7 +237,7 @@ CONTAINS
 #if defined (__LIBXC)
       ! Initialize libxc backend on first call
       IF (.NOT. libxc_initialized) THEN
-         CALL xc_libxc_wrap_init_cuda_safe()
+         CALL xc_libxc_wrap_init_safe()
          libxc_initialized = .TRUE.
       END IF
 
@@ -742,8 +746,8 @@ CONTAINS
          worker%vlapl = 0.0_dp
       END SELECT
 
-      ! Allocate CUDA device buffers if CUDA backend is available
-      IF (libxc_is_cuda()) THEN
+      ! Allocate GPU device buffers if the GPU backend is active
+      IF (libxc_is_gpu()) THEN
          CALL libxc_device_buffer_alloc(worker%rho_d, np*nb)
          CALL libxc_device_buffer_alloc(worker%exc_d, nb)
          CALL libxc_device_buffer_alloc(worker%vrho_d, np*nb)
@@ -960,8 +964,8 @@ CONTAINS
                CALL xc_f03_func_end(libxc_cache(i)%worker(ithread)%func)
                libxc_cache(i)%worker(ithread)%is_init = .FALSE.
             END IF
-            ! Free CUDA device buffers if they were allocated
-            IF (libxc_is_cuda()) THEN
+            ! Free GPU device buffers if they were allocated
+            IF (libxc_is_gpu()) THEN
                CALL libxc_device_buffer_free(libxc_cache(i)%worker(ithread)%rho_d)
                CALL libxc_device_buffer_free(libxc_cache(i)%worker(ithread)%exc_d)
                CALL libxc_device_buffer_free(libxc_cache(i)%worker(ithread)%vrho_d)
@@ -1919,8 +1923,8 @@ CONTAINS
             END IF
 
             ! one LibXC call for the whole block
-            ! Use explicit H2D/D2H path for CUDA backend
-            IF (libxc_is_cuda()) THEN
+            ! Use the explicit H2D/D2H path for the GPU backend
+            IF (libxc_is_gpu()) THEN
                ! Copy data to device
                CALL libxc_host_to_device(w%rho_d, w%rho(1, 1), INT(np))
                IF (is_gga) THEN
@@ -1988,7 +1992,7 @@ CONTAINS
                END IF
 
                ! Issue all device-to-host copies first (async, same default
-               ! stream => CUDA guarantees they execute in the order issued),
+               ! streams execute in the order issued on the same stream),
                ! then a single synchronize() covers all of them, then read
                ! every result. Replaces one synchronize() per buffer with
                ! one synchronize() total for this whole D2H group.
@@ -2395,7 +2399,7 @@ CONTAINS
 
             !claude Bibek start
 
-            IF (libxc_is_cuda()) THEN
+            IF (libxc_is_gpu()) THEN
                CALL libxc_host_to_device(w%rho_d, w%rho(1, 1), INT(2*np))
                IF (is_gga) THEN
                   CALL libxc_host_to_device(w%sigma_d, w%sigma(1, 1), INT(3*np))
@@ -2457,7 +2461,7 @@ CONTAINS
                END IF
 
                ! Issue all device-to-host copies first (async, same default
-               ! stream => CUDA guarantees they execute in the order issued),
+               ! streams execute in the order issued on the same stream),
                ! then a single synchronize() covers all of them, then read
                ! every result. Replaces one synchronize() per buffer with
                ! one synchronize() total for this whole D2H group.

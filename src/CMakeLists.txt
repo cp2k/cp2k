@@ -1900,8 +1900,8 @@ endif()
 
 target_link_libraries(cp2k PUBLIC cp2k_link_libs)
 
-if(CP2K_USE_ACCEL MATCHES "CUDA" AND CP2K_LIBXC_CUDA_SUPPORT)
-  target_compile_definitions(cp2k PUBLIC __LIBXC_GPU)
+if(CP2K_USE_ACCEL MATCHES "CUDA" AND CP2K_LIBXC_CUDA_SUPPORT AND NOT CP2K_ENABLE_LIBXC_GPU)
+  target_compile_definitions(cp2k PUBLIC __NO_OFFLOAD_LIBXC)
 endif()
 target_compile_definitions(
   cp2k
@@ -2113,8 +2113,8 @@ foreach(_app ${__CP2K_APPS})
                                          "${CMAKE_HIP_ARCHITECTURES}")
   endif()
 
-  if(CP2K_USE_ACCEL MATCHES "CUDA" AND CP2K_LIBXC_CUDA_SUPPORT)
-    target_compile_definitions(${_app} PUBLIC __LIBXC_GPU)
+  if(CP2K_USE_ACCEL MATCHES "CUDA" AND CP2K_LIBXC_CUDA_SUPPORT AND NOT CP2K_ENABLE_LIBXC_GPU)
+    target_compile_definitions(${_app} PUBLIC __NO_OFFLOAD_LIBXC)
   endif()
 
   target_link_libraries(${_app} PUBLIC cp2k)
