@@ -76,6 +76,7 @@ MODULE xc_pot_saop
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc_atom_utils,               ONLY: calc_rho_angular,&
+                                              calc_weight_function,&
                                               gaVxcgb_noGC
    USE util,                            ONLY: get_limit
    USE virial_types,                    ONLY: virial_type
@@ -486,7 +487,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: oe_corr
 
       INTEGER                                            :: ia, iat, iatom, ikind, ir, ispin, na, &
-                                                            natom, nr, ns, nspins, orb
+                                                            natom, nr, ns, nspins, on, orb
       INTEGER, DIMENSION(2)                              :: bo, homo, ncol, nrow
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
@@ -494,6 +495,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), POINTER              :: tau
       REAL(KIND=dp)                                      :: agr, alpha, density_cut, efac, exc, &
                                                             gradient_cut, tau_cut, we_GLLB, we_LB
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coeff_col, weight_h, weight_s
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: dummy, e_uniform, rho_h, rho_s, vtau, &
          vxc_GLLB_h, vxc_GLLB_s, vxc_LB_h, vxc_LB_s, vxc_SAOP_h, vxc_SAOP_s, vxc_tmp_h, vxc_tmp_s
@@ -663,18 +665,22 @@ CONTAINS
             DO ia = 1, na
                weight_h(ia, ir) = atomic_grid%wr(ir)*atomic_grid%wa(ia)
             END DO
-            IF (accint) THEN
-               alpha = dft_control%qs_control%gapw_control%aw(ikind)
-               agr = 1.0_dp - EXP(-alpha*atomic_grid%rad2(ir))
-               DO ia = 1, na
-                  weight_s(ia, ir) = atomic_grid%wr(ir)*atomic_grid%wa(ia)*agr
-               END DO
-            ELSE
-               DO ia = 1, na
-                  weight_s(ia, ir) = atomic_grid%wr(ir)*atomic_grid%wa(ia)
-               END DO
-            END IF
          END DO
+         IF (accint) THEN
+            on = dft_control%qs_control%gapw_control%oweights
+            alpha = dft_control%qs_control%gapw_control%aw(ikind)
+            ALLOCATE (fw(nr))
+            CALL calc_weight_function(fw, atomic_grid%rad2, on, alpha)
+            DO ir = 1, nr
+               agr = 1.0_dp - fw(ir)
+               DO ia = 1, na
+                  weight_s(ia, ir) = agr*atomic_grid%wr(ir)*atomic_grid%wa(ia)
+               END DO
+            END DO
+            DEALLOCATE (fw)
+         ELSE
+            weight_s(:, :) = weight_h(:, :)
+         END IF
 
          DO iat = 1, natom !bo(1),bo(2)
             iatom = atom_list(iat)

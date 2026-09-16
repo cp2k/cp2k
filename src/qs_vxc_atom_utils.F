@@ -16,6 +16,7 @@ MODULE qs_vxc_atom_utils
                                               gth_potential_type,&
                                               sgp_potential_type
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: fac
    USE orbital_pointers,                ONLY: indso,&
                                               nsoset
    USE paw_basis_types,                 ONLY: get_paw_basis_info
@@ -48,6 +49,7 @@ MODULE qs_vxc_atom_utils
              calc_rho_angular, calc_tau_atom, calc_rho_nlcc, &
              gaVxcgb_noGC, gaVxcgb_GC, dgaVtaudgb
    PUBLIC :: tau_basis_cache_type
+   PUBLIC :: calc_weight_function
 
 ! **************************************************************************************************
 
@@ -1094,5 +1096,35 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE dgaVtaudgb
+
+! **************************************************************************************************
+!> \brief Calculates the radial weight function for accurate XC integration
+!> \param fun  The weight function
+!> \param r2   Radial values of the grid (squared)
+!> \param order  Polynomila order (2n)
+!> \param alpha  Gaussian exponent
+! **************************************************************************************************
+   SUBROUTINE calc_weight_function(fun, r2, order, alpha)
+
+      REAL(dp), DIMENSION(:), INTENT(INOUT)              :: fun
+      REAL(dp), DIMENSION(:), INTENT(IN)                 :: r2
+      INTEGER, INTENT(IN)                                :: order
+      REAL(dp), INTENT(IN)                               :: alpha
+
+      INTEGER                                            :: i
+      REAL(dp)                                           :: pval
+
+      CPASSERT(SIZE(fun) == SIZE(r2))
+
+      fun(:) = 1.0_dp
+      DO i = 1, order
+         pval = alpha**i/fac(i)
+         fun(:) = fun(:) + pval*r2**i
+      END DO
+      fun(:) = fun(:)*EXP(-alpha*r2(:))
+
+   END SUBROUTINE calc_weight_function
+
+! **************************************************************************************************
 
 END MODULE qs_vxc_atom_utils

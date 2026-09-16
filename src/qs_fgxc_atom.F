@@ -32,8 +32,9 @@ MODULE qs_fgxc_atom
                                               rho_atom_coeff,&
                                               rho_atom_type
    USE qs_vxc_atom_utils,               ONLY: &
-        calc_rho_angular, calc_rho_nlcc, calc_tau_atom, create_tau_basis_cache, dgaVtaudgb, &
-        gaVxcgb_GC, gaVxcgb_noGC, release_tau_basis_cache, tau_basis_cache_type
+        calc_rho_angular, calc_rho_nlcc, calc_tau_atom, calc_weight_function, &
+        create_tau_basis_cache, dgaVtaudgb, gaVxcgb_GC, gaVxcgb_noGC, release_tau_basis_cache, &
+        tau_basis_cache_type
    USE util,                            ONLY: get_limit
    USE xc_atom,                         ONLY: fill_rho_set,&
                                               vxc_of_r_new,&
@@ -90,7 +91,7 @@ CONTAINS
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ir, &
                                                             istep, mspins, myfun, na, natom, nf, &
-                                                            nr, ns, nspins, nstep, num_pe
+                                                            nr, ns, nspins, nstep, num_pe, on
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: accint, donlcc, gradient_f, lsd, nlcc, &
@@ -98,6 +99,7 @@ CONTAINS
       REAL(dp)                                           :: agr, alpha, beta, density_cut, exc_h, &
                                                             exc_s, gradient_cut, oeps1, oeps2, &
                                                             tau_cut
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: fw
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
       REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight_h, weight_s
@@ -192,24 +194,26 @@ CONTAINS
             na = grid_atom%ng_sphere
 
             ! set integration weights
+            weight_h => grid_atom%weight
+            weight_s => grid_atom%weight
             IF (accint) THEN
-               weight_h => grid_atom%weight
+               on = dft_control%qs_control%gapw_control%oweights
                alpha = dft_control%qs_control%gapw_control%aw(ikind)
                IF (ASSOCIATED(grid_atom%gapw_weight_s)) THEN
                   IF (grid_atom%gapw_weight_alpha /= alpha) DEALLOCATE (grid_atom%gapw_weight_s)
                END IF
                IF (.NOT. ASSOCIATED(grid_atom%gapw_weight_s)) THEN
                   ALLOCATE (grid_atom%gapw_weight_s(na, nr))
+                  ALLOCATE (fw(nr))
+                  CALL calc_weight_function(fw, grid_atom%rad2, on, alpha)
                   DO ir = 1, nr
-                     agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ir))
-                     grid_atom%gapw_weight_s(:, ir) = grid_atom%weight(:, ir)*agr
+                     agr = 1.0_dp - fw(ir)
+                     grid_atom%gapw_weight_s(:, ir) = agr*grid_atom%weight(:, ir)
                   END DO
+                  DEALLOCATE (fw)
                   grid_atom%gapw_weight_alpha = alpha
                END IF
                weight_s => grid_atom%gapw_weight_s
-            ELSE
-               weight_h => grid_atom%weight
-               weight_s => grid_atom%weight
             END IF
 
             ! Prepare the structures needed to calculate and store the xc derivatives
@@ -509,13 +513,14 @@ CONTAINS
 
       INTEGER                                            :: bo(2), handle, iat, iatom, ikind, ir, &
                                                             istep, mspins, myfun, na, natom, nf, &
-                                                            nr, ns, nspins, nstep, num_pe
+                                                            nr, ns, nspins, nstep, num_pe, on
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: accint, donlcc, gradient_f, lsd, nlcc, &
                                                             paw_atom, tau_f
       REAL(dp)                                           :: agr, alpha, beta, density_cut, &
                                                             gradient_cut, oeps1, tau_cut
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: fw
       REAL(dp), CONTIGUOUS, DIMENSION(:, :, :), POINTER  :: vtau_h, vtau_s, vxc_h, vxc_s
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
@@ -609,24 +614,26 @@ CONTAINS
             na = grid_atom%ng_sphere
 
             ! set integration weights
+            weight_h => grid_atom%weight
+            weight_s => grid_atom%weight
             IF (accint) THEN
-               weight_h => grid_atom%weight
+               on = dft_control%qs_control%gapw_control%oweights
                alpha = dft_control%qs_control%gapw_control%aw(ikind)
                IF (ASSOCIATED(grid_atom%gapw_weight_s)) THEN
                   IF (grid_atom%gapw_weight_alpha /= alpha) DEALLOCATE (grid_atom%gapw_weight_s)
                END IF
                IF (.NOT. ASSOCIATED(grid_atom%gapw_weight_s)) THEN
                   ALLOCATE (grid_atom%gapw_weight_s(na, nr))
+                  ALLOCATE (fw(nr))
+                  CALL calc_weight_function(fw, grid_atom%rad2, on, alpha)
                   DO ir = 1, nr
-                     agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ir))
-                     grid_atom%gapw_weight_s(:, ir) = grid_atom%weight(:, ir)*agr
+                     agr = 1.0_dp - fw(ir)
+                     grid_atom%gapw_weight_s(:, ir) = agr*grid_atom%weight(:, ir)
                   END DO
+                  DEALLOCATE (fw)
                   grid_atom%gapw_weight_alpha = alpha
                END IF
                weight_s => grid_atom%gapw_weight_s
-            ELSE
-               weight_h => grid_atom%weight
-               weight_s => grid_atom%weight
             END IF
 
             ! Prepare the structures needed to calculate and store the xc derivatives
