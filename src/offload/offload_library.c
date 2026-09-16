@@ -83,10 +83,7 @@ int offload_get_device_count(void) {
 
 /*******************************************************************************
  * \brief Returns the number of available devices, or 0 when no accelerator is
- *        usable. Unlike offload_get_device_count this never aborts: it is meant
- *        for runtime capability checks (e.g. deciding whether a device backend
- *        can be selected) where the absence of a device is an ordinary result,
- *        not an error.
+ *        usable. Unlike offload_get_device_count this never aborts.
  * \author Johann Pototschnig
  ******************************************************************************/
 int offload_get_device_count_safe(void) {

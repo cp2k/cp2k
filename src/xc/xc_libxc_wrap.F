@@ -152,11 +152,8 @@ MODULE xc_libxc_wrap
    INTEGER, PARAMETER, PUBLIC :: do_libxc_cpu = 1, &
                                  do_libxc_gpu = 2
 
-   ! Runtime-selected backend. On a build that contains a device path the
-   ! default is the GPU backend (using the GPU unless the user opts out); on a
-   ! plain CPU or __NO_OFFLOAD_LIBXC build there is no device path and the CPU
-   ! backend is the only option. Metadata/query initialization always runs on
-   ! the host (see libxc_func_init_wrapper / force_host).
+   ! Runtime backend selection. The GPU is the default on builds with a device
+   ! path; CPU-only/__NO_OFFLOAD_LIBXC builds have only the CPU backend.
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
    INTEGER, SAVE, PRIVATE :: libxc_backend = do_libxc_gpu
 #else
@@ -212,7 +209,7 @@ CONTAINS
    ! ever be selected is a compile-time property (__OFFLOAD and
    ! !defined(__NO_OFFLOAD_LIBXC)).
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Get the runtime LibXC backend.
 !> \return ...
 ! **************************************************************************************************
    FUNCTION libxc_get_backend() RESULT(backend)
@@ -222,12 +219,8 @@ CONTAINS
    END FUNCTION libxc_get_backend
 
 ! **************************************************************************************************
-!> \brief Runtime switch for the LibXC backend.
+!> \brief Runtime switch for the LibXC backend, fed by &XC/LIBXC_GPU_BACKEND.
 !> \param backend one of do_libxc_cpu / do_libxc_gpu
-!> \note The GPU backend is only ever selected through this input-driven switch
-!>       (&XC/LIBXC_GPU_BACKEND). Requesting DEVICE is an error when the build has
-!>       no device path (__NO_OFFLOAD_LIBXC) or when no accelerator is usable at
-!>       runtime; requesting HOST always works and touches no GPU.
 ! **************************************************************************************************
    SUBROUTINE libxc_set_backend(backend)
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
@@ -236,9 +229,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: backend
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
-      ! Build has a device path: honor the request, but only when an accelerator
-      ! is actually usable at runtime. A DEVICE request without a usable GPU is
-      ! always an error and aborts.
+      ! Honor the request only when an accelerator is usable at runtime;
+      ! a DEVICE request without one is an error.
       SELECT CASE (backend)
       CASE (do_libxc_gpu)
          IF (offload_get_device_count_safe() > 0) THEN
@@ -252,7 +244,7 @@ CONTAINS
          libxc_backend = do_libxc_cpu
       END SELECT
 #else
-      ! Build has no device path: a DEVICE request is always an error, HOST runs.
+      ! Without a device path a DEVICE request is an error, HOST runs.
       IF (backend == do_libxc_gpu) THEN
          CALL cp__b(__SHORT_FILE__, __LINE__, &
                     "LibXC was compiled without a device/GPU backend, "// &
@@ -263,7 +255,7 @@ CONTAINS
    END SUBROUTINE libxc_set_backend
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Set the default LibXC functional flags to host.
 ! **************************************************************************************************
    SUBROUTINE xc_libxc_wrap_init_safe()
       CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_init_safe', &
@@ -638,12 +630,8 @@ CONTAINS
 
    END FUNCTION xc_libxc_wrap_info_no_exc
 
-   ! Backend-aware wrapper functions for key Libxc operations
-   ! These functions dispatch to either the CPU or the GPU (device) implementation
-   ! based on the current backend setting
-
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Initialize a LibXC functional honoring the runtime backend.
 !> \param func ...
 !> \param functional ...
 !> \param nspin ...
@@ -660,9 +648,7 @@ CONTAINS
       my_force_host = .FALSE.
       IF (PRESENT(force_host)) my_force_host = force_host
 
-      ! Metadata/query initializations (reference strings, section building,
-      ! functional info) must never touch the GPU, even when the GPU backend is
-      ! the runtime default: force_host is used for those.
+      ! Query/metadata initialization always runs on the host (force_host).
       IF (libxc_backend == do_libxc_gpu .AND. .NOT. my_force_host) THEN
          CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
          IF (PRESENT(nspin)) THEN
@@ -681,7 +667,7 @@ CONTAINS
    END SUBROUTINE libxc_func_init_wrapper
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief End a LibXC functional.
 !> \param func ...
 ! **************************************************************************************************
    SUBROUTINE libxc_func_end_wrapper(func)
@@ -693,9 +679,9 @@ CONTAINS
 #endif
 #endif
 
-   ! Device buffer management functions
+   ! Device buffer management
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Whether the runtime LibXC backend is the GPU.
 !> \return ...
 ! **************************************************************************************************
    FUNCTION libxc_is_gpu() RESULT(is_gpu)
@@ -705,7 +691,7 @@ CONTAINS
    END FUNCTION libxc_is_gpu
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Allocate a device buffer for LibXC.
 !> \param buffer ...
 !> \param n ...
 ! **************************************************************************************************
@@ -719,12 +705,11 @@ CONTAINS
 
       buffer%size = INT(n, KIND=C_INT64_T)
       CALL offload_create_buffer(n, offload_buffer)
-      ! Store the device pointer from the offload buffer
       buffer%ptr = offload_buffer%c_ptr
    END SUBROUTINE libxc_device_buffer_alloc
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Free a LibXC device buffer.
 !> \param buffer ...
 ! **************************************************************************************************
    SUBROUTINE libxc_device_buffer_free(buffer)
@@ -734,7 +719,6 @@ CONTAINS
 
       TYPE(offload_buffer_type)                          :: offload_buffer
 
-      ! Create a temporary offload buffer with the device pointer
       offload_buffer%c_ptr = buffer%ptr
       offload_buffer%host_buffer => NULL()
 
@@ -744,7 +728,7 @@ CONTAINS
    END SUBROUTINE libxc_device_buffer_free
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Copy host data into a LibXC device buffer.
 !> \param buffer ...
 !> \param host ...
 !> \param n ...
@@ -767,7 +751,7 @@ CONTAINS
       CALL offload_buffer_h2d(offload_buffer, n)
    END SUBROUTINE libxc_host_to_device
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Copy a LibXC device buffer back to host.
 !> \param host ...
 !> \param buffer ...
 !> \param n ...
@@ -792,7 +776,7 @@ CONTAINS
       host(1:n) = host_p(1:n)
    END SUBROUTINE libxc_device_to_host
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Issue a device-to-host copy of a LibXC buffer.
 !> \param buffer ...
 !> \param n ...
 ! **************************************************************************************************
@@ -807,7 +791,7 @@ CONTAINS
       CALL offload_buffer_d2h(offload_buffer, n)
    END SUBROUTINE libxc_d2h_issue
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Read the host side of a LibXC device buffer after a copy.
 !> \param host ...
 !> \param buffer ...
 !> \param n ...
@@ -836,7 +820,6 @@ CONTAINS
 !> \param fptr ...
 !> \author Samal Bibek
 ! **************************************************************************************************
-
    SUBROUTINE libxc_device_buffer_get_ptr(buffer, n, fptr)
       USE ISO_C_BINDING, ONLY: C_F_POINTER, C_PTR
       USE offload_api, ONLY: offload_buffer_type, offload_get_buffer_device_pointer
@@ -852,10 +835,8 @@ CONTAINS
       CALL C_F_POINTER(dptr, fptr, [n])
    END SUBROUTINE libxc_device_buffer_get_ptr
 
-!4c — replace all 8 *_device subroutine bodies, at their exact line ranges (from the pristine file — delete the old lines shown, paste the new ones in their place):
-
 ! **************************************************************************************************
-!> \brief ...
+!> \brief LDA exc and vxc on device buffers.
 !> \param func ...
 !> \param rho_d ...
 !> \param exc_d ...
@@ -879,7 +860,7 @@ CONTAINS
    END SUBROUTINE libxc_lda_exc_vxc_device
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief LDA exc on device buffers.
 !> \param func ...
 !> \param rho_d ...
 !> \param exc_d ...
@@ -901,7 +882,7 @@ CONTAINS
    END SUBROUTINE libxc_lda_exc_device
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief GGA exc on device buffers.
 !> \param func ...
 !> \param rho_d ...
 !> \param sigma_d ...
@@ -925,7 +906,7 @@ CONTAINS
    END SUBROUTINE libxc_gga_exc_device
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief GGA exc and vxc on device buffers.
 !> \param func ...
 !> \param rho_d ...
 !> \param sigma_d ...
@@ -953,7 +934,7 @@ CONTAINS
    END SUBROUTINE libxc_gga_exc_vxc_device
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief GGA vxc on device buffers.
 !> \param func ...
 !> \param rho_d ...
 !> \param sigma_d ...
@@ -979,7 +960,7 @@ CONTAINS
    END SUBROUTINE libxc_gga_vxc_device
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief MGGA exc on device buffers.
 !> \param func ...
 !> \param rho_d ...
 !> \param sigma_d ...
@@ -1007,7 +988,7 @@ CONTAINS
    END SUBROUTINE libxc_mgga_exc_device
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief MGGA exc and vxc on device buffers.
 !> \param func ...
 !> \param rho_d ...
 !> \param sigma_d ...
@@ -1045,7 +1026,7 @@ CONTAINS
    END SUBROUTINE libxc_mgga_exc_vxc_device
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief MGGA vxc on device buffers.
 !> \param func ...
 !> \param rho_d ...
 !> \param sigma_d ...
@@ -1080,7 +1061,7 @@ CONTAINS
    END SUBROUTINE libxc_mgga_vxc_device
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Assert that a LibXC device buffer is usable.
 !> \param buffer ...
 !> \return ...
 ! **************************************************************************************************
@@ -1100,7 +1081,7 @@ CONTAINS
    END FUNCTION libxc_assert_device_buffer
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Create an offload buffer.
 !> \param buffer ...
 !> \param length ...
 ! **************************************************************************************************
@@ -1113,7 +1094,7 @@ CONTAINS
    END SUBROUTINE libxc_buffer_create
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Free an offload buffer.
 !> \param buffer ...
 ! **************************************************************************************************
    SUBROUTINE libxc_buffer_free(buffer)
@@ -1124,7 +1105,7 @@ CONTAINS
    END SUBROUTINE libxc_buffer_free
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Copy an offload buffer host-to-device.
 !> \param buffer ...
 !> \param length ...
 ! **************************************************************************************************
@@ -1137,7 +1118,7 @@ CONTAINS
    END SUBROUTINE libxc_buffer_h2d
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Copy an offload buffer device-to-host.
 !> \param buffer ...
 !> \param length ...
 ! **************************************************************************************************
@@ -1150,7 +1131,7 @@ CONTAINS
    END SUBROUTINE libxc_buffer_d2h
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief GGA exc and vxc on host arrays.
 !> \param func ...
 !> \param np ...
 !> \param rho ...
@@ -1170,7 +1151,7 @@ CONTAINS
    END SUBROUTINE libxc_gga_exc_vxc_wrapper
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief GGA exc on host arrays.
 !> \param func ...
 !> \param np ...
 !> \param rho ...
@@ -1188,7 +1169,7 @@ CONTAINS
    END SUBROUTINE libxc_gga_exc_wrapper
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief LDA exc and vxc on host arrays.
 !> \param func ...
 !> \param np ...
 !> \param rho ...
@@ -1206,7 +1187,7 @@ CONTAINS
    END SUBROUTINE libxc_lda_exc_vxc_wrapper
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief LDA exc on host arrays.
 !> \param func ...
 !> \param np ...
 !> \param rho ...
@@ -1223,7 +1204,7 @@ CONTAINS
    END SUBROUTINE libxc_lda_exc_wrapper
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief MGGA exc and vxc on host arrays.
 !> \param func ...
 !> \param np ...
 !> \param rho ...
@@ -1247,7 +1228,7 @@ CONTAINS
    END SUBROUTINE libxc_mgga_exc_vxc_wrapper
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief MGGA exc on host arrays.
 !> \param func ...
 !> \param np ...
 !> \param rho ...
@@ -1267,7 +1248,7 @@ CONTAINS
    END SUBROUTINE libxc_mgga_exc_wrapper
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief MGGA vxc on host arrays.
 !> \param func ...
 !> \param np ...
 !> \param rho ...

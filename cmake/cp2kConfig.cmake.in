@@ -82,7 +82,6 @@ if(NOT TARGET cp2k::cp2k)
 
   set(CP2K_USE_LIBXC @CP2K_USE_LIBXC@)
   if(CP2K_USE_LIBXC)
-    # libxc has no CMake config; find it with the shipped FindLibXC.cmake.
     find_dependency(LibXC REQUIRED)
   endif()
 

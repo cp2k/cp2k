@@ -547,7 +547,6 @@ CONTAINS
                                 l_val=globenv%direct_generalized_diagonalization)
       CALL section_vals_val_get(global_section, "PREFERRED_CHOLESKY_LIBRARY", i_val=i_cholesky)
       CALL section_vals_val_get(global_section, "PREFERRED_DGEMM_LIBRARY", i_val=i_dgemm)
-
       CALL section_vals_val_get(global_section, "EPS_CHECK_DIAG", r_val=globenv%eps_check_diag)
       CALL section_vals_val_get(global_section, "ENABLE_MPI_IO", l_val=flag)
       CALL cp_mpi_io_set(flag)

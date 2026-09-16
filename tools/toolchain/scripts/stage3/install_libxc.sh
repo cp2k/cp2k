@@ -40,7 +40,7 @@ case "$with_libxc" in
         LIBXC_CFLAGS=""
       fi
 
-      # Build exactly one variant: CUDA, HIP, or CPU (not combinations).
+      # Build exactly one variant: CUDA, HIP, or CPU.
       if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
         echo "Installing CUDA-only libxc into ${pkg_install_dir}"
         mkdir build-cuda
