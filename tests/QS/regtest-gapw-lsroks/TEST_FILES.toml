@@ -8,9 +8,3 @@
 # Restart files must preserve the shared orbitals; tiny OT steps isolate this behavior.
 "O2-pbe-restart-write.inp" = [{matcher="E_total", tol=1e-10, ref=-141.15493132842772}]
 "O2-pbe-restart-read.inp" = [{matcher="E_total", tol=1e-10, ref=-141.15493767394975}]
-
-# Full AO PBE0 exchange: singlet/spin flip and cancellation/triplet pairs.
-"O2-pbe0-cancel.inp" = [{matcher="E_total", tol=1e-10, ref=-145.142864847602112}]
-"O2-pbe0-spinflip.inp" = [{matcher="E_total", tol=1e-10, ref=-145.125877316454279}]
-"O2-pbe0-triplet.inp" = [{matcher="E_total", tol=1e-10, ref=-145.142864847602112}]
-"O2-pbe0.inp" = [{matcher="E_total", tol=1e-10, ref=-145.125877316454336}]

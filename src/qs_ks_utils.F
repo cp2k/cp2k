@@ -178,8 +178,8 @@ CONTAINS
                                                             Nterms, vdw
       INTEGER, DIMENSION(:), POINTER                     :: ivec
       INTEGER, DIMENSION(:, :, :), POINTER               :: occupations
-      LOGICAL                                            :: ace_active, compute_virial, gapw, in_range, &
-                                                            screen_initial, uniform_occupation
+      LOGICAL                                            :: ace_active, compute_tau, compute_virial, gapw, &
+                                                            in_range, screen_initial, uniform_occupation
       REAL(KIND=dp)                                      :: ehfx, exc, exc1
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_scaling, rvec, scaling
@@ -192,7 +192,7 @@ CONTAINS
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g, tau_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: xc_pw_pool
       TYPE(pw_r3d_rs_type)                               :: work_v_rspace
@@ -212,6 +212,7 @@ CONTAINS
 
       NULLIFY (ks_env, rho_ao, rho_atom_set)
       gapw = dft_control%qs_control%gapw
+      compute_tau = .FALSE.
 
       ! Test for not compatible options
       IF (dft_control%qs_control%gapw_xc) THEN
@@ -277,8 +278,9 @@ CONTAINS
          END IF
          needs = xc_functionals_get_needs(section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL"), &
                                           lsd=.TRUE., calc_potential=.TRUE.)
-         IF (needs%tau .OR. needs%tau_spin .OR. needs%laplace_rho .OR. needs%laplace_rho_spin) THEN
-            CPABORT("GAPW low spin ROKS currently supports only LDA/GGA functionals.")
+         compute_tau = needs%tau .OR. needs%tau_spin
+         IF (needs%laplace_rho .OR. needs%laplace_rho_spin) THEN
+            CPABORT("GAPW low spin ROKS does not support density-Laplacian functionals.")
          END IF
       END IF
 
@@ -367,15 +369,20 @@ CONTAINS
       END IF
 
       ! grids in real and g space for rho and vxc
-      ! tau functionals are not supported
-      NULLIFY (tau, vxc_tau, vxc)
+      ! GAPW meta-GGAs need the kinetic-energy density of each configuration.
+      NULLIFY (tau, tau_g, vxc_tau, vxc)
       CALL pw_env_get(pw_env, xc_pw_pool=xc_pw_pool)
 
       ALLOCATE (rho_r(Nspin))
       ALLOCATE (rho_g(Nspin))
+      IF (compute_tau) ALLOCATE (tau(Nspin), tau_g(Nspin))
       DO ispin = 1, Nspin
          CALL auxbas_pw_pool%create_pw(rho_r(ispin))
          CALL auxbas_pw_pool%create_pw(rho_g(ispin))
+         IF (compute_tau) THEN
+            CALL auxbas_pw_pool%create_pw(tau(ispin))
+            CALL auxbas_pw_pool%create_pw(tau_g(ispin))
+         END IF
       END DO
       CALL auxbas_pw_pool%create_pw(work_v_rspace)
 
@@ -406,6 +413,11 @@ CONTAINS
             CALL calculate_rho_elec(matrix_p=matrix_p(ispin)%matrix, &
                                     rho=rho_r(ispin), rho_gspace=rho_g(ispin), &
                                     ks_env=ks_env, soft_valid=gapw)
+            IF (compute_tau) THEN
+               CALL calculate_rho_elec(matrix_p=matrix_p(ispin)%matrix, &
+                                       rho=tau(ispin), rho_gspace=tau_g(ispin), &
+                                       ks_env=ks_env, soft_valid=gapw, compute_tau=.TRUE.)
+            END IF
          END DO
 
          IF (gapw) THEN
@@ -448,8 +460,16 @@ CONTAINS
                CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
                                        qs_env=qs_env, calculate_forces=calculate_forces, gapw=gapw)
                CALL auxbas_pw_pool%give_back_pw(vxc(ispin))
+               IF (ASSOCIATED(vxc_tau)) THEN
+                  CALL pw_axpy(vxc_tau(ispin), work_v_rspace, &
+                               energy_scaling(iterm)*vxc_tau(ispin)%pw_grid%dvol, 0.0_dp)
+                  CALL integrate_v_rspace(v_rspace=work_v_rspace, pmat=matrix_p(ispin), hmat=matrix_h(ispin), &
+                                          qs_env=qs_env, calculate_forces=.FALSE., gapw=gapw, compute_tau=.TRUE.)
+                  CALL auxbas_pw_pool%give_back_pw(vxc_tau(ispin))
+               END IF
             END DO
             DEALLOCATE (vxc)
+            IF (ASSOCIATED(vxc_tau)) DEALLOCATE (vxc_tau)
 
             IF (gapw) THEN
                CALL update_ks_atom(qs_env, matrix_h, matrix_p, .FALSE., &
@@ -501,8 +521,13 @@ CONTAINS
       DO ispin = 1, Nspin
          CALL auxbas_pw_pool%give_back_pw(rho_r(ispin))
          CALL auxbas_pw_pool%give_back_pw(rho_g(ispin))
+         IF (compute_tau) THEN
+            CALL auxbas_pw_pool%give_back_pw(tau(ispin))
+            CALL auxbas_pw_pool%give_back_pw(tau_g(ispin))
+         END IF
       END DO
       DEALLOCATE (rho_r, rho_g)
+      IF (compute_tau) DEALLOCATE (tau, tau_g)
       CALL dbcsr_deallocate_matrix_set(matrix_p)
       CALL dbcsr_deallocate_matrix_set(matrix_h)
       IF (do_hfx) THEN

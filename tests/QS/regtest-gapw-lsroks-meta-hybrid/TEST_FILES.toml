@@ -1,0 +1,2 @@
+# Three OT steps; not converged molecular references.
+"O2-tpssh.inp" = [{matcher="E_total", tol=1e-10, ref=-145.299675536152819}]

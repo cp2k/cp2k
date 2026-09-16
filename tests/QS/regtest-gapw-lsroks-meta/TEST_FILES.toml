@@ -1,0 +1,8 @@
+# Three OT steps; not converged molecular references.
+# Cancelling terms and zero weights recover the triplet with the shared tau derivatives.
+"O2-r2scan-cancel.inp" = [{matcher="E_total", tol=1e-10, ref=-145.369716479581797}]
+"O2-r2scan-spinflip.inp" = [{matcher="E_total", tol=1e-10, ref=-145.359761558148364}]
+"O2-r2scan-triplet.inp" = [{matcher="E_total", tol=1e-10, ref=-145.36971647958302}]
+"O2-r2scan-zero.inp" = [{matcher="E_total", tol=1e-10, ref=-145.369716479581996}]
+"O2-r2scan.inp" = [{matcher="E_total", tol=1e-10, ref=-145.359761558148364}]
+"O2-tpss.inp" = [{matcher="E_total", tol=1e-10, ref=-145.314138478156934}]
