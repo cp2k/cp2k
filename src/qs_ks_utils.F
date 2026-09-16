@@ -178,8 +178,8 @@ CONTAINS
                                                             Nterms, vdw
       INTEGER, DIMENSION(:), POINTER                     :: ivec
       INTEGER, DIMENSION(:, :, :), POINTER               :: occupations
-      LOGICAL                                            :: compute_virial, gapw, in_range, &
-                                                            uniform_occupation
+      LOGICAL                                            :: ace_active, compute_virial, gapw, in_range, &
+                                                            screen_initial, uniform_occupation
       REAL(KIND=dp)                                      :: ehfx, exc, exc1
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_scaling, rvec, scaling
@@ -218,7 +218,6 @@ CONTAINS
          CALL cp_abort(__LOCATION__, "GAPW_XC is not compatible with low spin ROKS method.")
       END IF
       IF (gapw) THEN
-         IF (do_hfx) CPABORT("GAPW low spin ROKS currently supports only LDA/GGA functionals.")
          IF (dft_control%use_gauxc) CPABORT("GAPW low spin ROKS does not support GauXC.")
          IF (dft_control%qs_control%gapw_control%accurate_xcint) THEN
             CPABORT("GAPW low spin ROKS does not support GAPW_ACCURATE_XCINT.")
@@ -254,6 +253,20 @@ CONTAINS
       compute_virial = virial%pv_calculate .AND. (.NOT. virial%pv_numer)
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       hfx_section => section_vals_get_subs_vals(input, "DFT%XC%HF")
+
+      IF (gapw .AND. do_hfx) THEN
+         ! The configuration evaluator reuses full AO exchange integrals. Multiple
+         ! HF sections and approximate exchange updates need separate treatment.
+         CALL get_qs_env(qs_env, x_data=x_data)
+         IF (x_data(1, 1)%n_rep_hf /= 1) THEN
+            CPABORT("GAPW low spin ROKS requires a single HF section.")
+         END IF
+         IF (x_data(1, 1)%do_hfx_ri) CPABORT("GAPW low spin ROKS does not support RI-HFX.")
+         CALL section_vals_val_get(hfx_section, "ACE%ACTIVE", l_val=ace_active)
+         IF (ace_active) CPABORT("GAPW low spin ROKS does not support ACE-HFX.")
+         CALL section_vals_val_get(hfx_section, "SCREENING%SCREEN_ON_INITIAL_P", l_val=screen_initial)
+         IF (screen_initial) CPABORT("GAPW low spin ROKS does not support SCREEN_ON_INITIAL_P.")
+      END IF
 
       IF (gapw) THEN
          IF (compute_virial) CPABORT("GAPW low spin ROKS stress is not implemented.")
