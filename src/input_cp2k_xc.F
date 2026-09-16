@@ -1824,9 +1824,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      ! Default backend mirrors the build capability: the GPU backend when the
-      ! build actually contains a LibXC device path, CPU otherwise. This keeps
-      ! e.g. plain CPU builds from defaulting to (and aborting on) DEVICE.
+      ! The LibXC GPU backend is the default on builds that contain a device
+      ! path: the GPU is used unless the user opts out with HOST. On a build
+      ! without a device path the CPU backend is the only option and the default.
+      ! Requesting DEVICE when no usable GPU is found at runtime aborts, so on a
+      ! GPU-less machine HOST must be set explicitly.
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
       default_libxc_backend = do_libxc_gpu
 #else
@@ -1834,9 +1836,10 @@ CONTAINS
 #endif
       CALL keyword_create(keyword, __LOCATION__, name="LIBXC_GPU_BACKEND", &
                           description="Runtime device/host backend selection for LibXC. "// &
-                          "DEVICE selects the GPU backend, HOST selects the CPU backend. "// &
-                          "Selecting DEVICE in a build that was compiled without a LibXC "// &
-                          "device/GPU backend is an error; HOST always works.", &
+                          "DEVICE selects the GPU backend (the default on GPU "// &
+                          "builds), HOST the CPU backend. DEVICE is an error "// &
+                          "(abort) when no usable GPU is found at runtime; HOST "// &
+                          "always runs.", &
                           usage="LIBXC_GPU_BACKEND HOST", &
                           default_i_val=default_libxc_backend, &
                           enum_i_vals=[do_libxc_gpu, do_libxc_cpu], &

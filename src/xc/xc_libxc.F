@@ -275,9 +275,9 @@ CONTAINS
 
       func_id = xc_libxc_wrap_functional_get_number(func_name)
       IF (lsd) THEN
-         CALL libxc_func_init_wrapper(xc_func, func_id, XC_POLARIZED)
+         CALL libxc_func_init_wrapper(xc_func, func_id, XC_POLARIZED, force_host=.TRUE.)
       ELSE
-         CALL libxc_func_init_wrapper(xc_func, func_id, XC_UNPOLARIZED)
+         CALL libxc_func_init_wrapper(xc_func, func_id, XC_UNPOLARIZED, force_host=.TRUE.)
       END IF
       xc_info = xc_f03_func_get_info(xc_func)
 
@@ -334,7 +334,7 @@ CONTAINS
          IF (ii > 1) THEN
             IF (func_id == func_ids(ii - 1)) CYCLE
          END IF
-         CALL libxc_func_init_wrapper(xc_func, func_id, XC_UNPOLARIZED)
+         CALL libxc_func_init_wrapper(xc_func, func_id, XC_UNPOLARIZED, force_host=.TRUE.)
          xc_info = xc_f03_func_get_info(xc_func)
 
          func_name = xc_f03_functional_get_name(func_id)
@@ -437,7 +437,7 @@ CONTAINS
       IF (ABS(func_scale - 1.0_dp) < 1.0e-10_dp) func_scale = 1.0_dp
 
       func_id = xc_libxc_wrap_functional_get_number(func_name)
-      CALL libxc_func_init_wrapper(xc_func, func_id, XC_UNPOLARIZED)
+      CALL libxc_func_init_wrapper(xc_func, func_id, XC_UNPOLARIZED, force_host=.TRUE.)
       xc_info = xc_f03_func_get_info(xc_func)
 
       s1 = xc_f03_func_info_get_name(xc_info)
@@ -551,7 +551,7 @@ CONTAINS
       IF (ABS(func_scale - 1.0_dp) < 1.0e-10_dp) func_scale = 1.0_dp
 
       func_id = xc_libxc_wrap_functional_get_number(func_name)
-      CALL libxc_func_init_wrapper(xc_func, func_id, XC_POLARIZED)
+      CALL libxc_func_init_wrapper(xc_func, func_id, XC_POLARIZED, force_host=.TRUE.)
       xc_info = xc_f03_func_get_info(xc_func)
 
       s1 = xc_f03_func_info_get_name(xc_info)
