@@ -699,6 +699,10 @@ if(CP2K_USE_LIBXC)
   # resolved automatically.
   find_package(LibXC REQUIRED)
 
+  if(CP2K_LIBXC_VERSION VERSION_LESS "7.1.0")
+    message(FATAL_ERROR "LibXC >= 7.1.0 is required; found ${CP2K_LIBXC_VERSION}")
+  endif()
+
   if(CP2K_USE_CUDA)
     # CUDA libxc serves as both the CUDA and the CPU backend.
     set(CP2K_LIBXC_CUDA_SUPPORT
