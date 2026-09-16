@@ -229,18 +229,6 @@ CONTAINS
                CALL duplicate_mo_set(reference_mos(iset), mos(iset))
             END DO
          END IF
-         CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
-
-         IF (.NOT. ALLOCATED(reference_mos)) THEN
-            ALLOCATE (reference_mos(SIZE(mos)))
-         ELSE
-            DO iset = 1, SIZE(reference_mos)
-               CALL deallocate_mo_set(reference_mos(iset))
-            END DO
-         END IF
-         DO iset = 1, SIZE(mos)
-            CALL duplicate_mo_set(reference_mos(iset), mos(iset))
-         END DO
 
          DO ikind = 1, nkind
 
