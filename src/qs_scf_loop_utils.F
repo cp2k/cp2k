@@ -224,12 +224,6 @@ CONTAINS
       scf_env%adiis_validated = .FALSE.
       scf_env%step_norm = 0.0_dp
       scf_env%raw_map_delta = 0.0_dp
-      scf_env%oda_lambda = 0.0_dp
-      scf_env%oda_energy = 0.0_dp
-      scf_env%oda_gradient0 = 0.0_dp
-      scf_env%oda_gradient1 = 0.0_dp
-      scf_env%oda_evaluations = 0
-      scf_env%oda_status = ""
       scf_env%raw_map_delta_valid = .FALSE.
       exit_inner_loop = .FALSE.
 

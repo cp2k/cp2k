@@ -1794,6 +1794,10 @@ CONTAINS
                occupation(1:nmo) = wocc(1:nmo, ik, ispin)
                mo_set%kTS = kTS_spin(ispin)
                mo_set%mu = mus(ispin)
+               IF (.NOT. smear%do_smear) THEN
+                  ! Zero-width filling can give different occupied ranks at different k points.
+                  kp%mos(:, ispin)%homo = COUNT(occupation(1:nmo) > 0.0_dp)
+               END IF
             END DO
          END DO
 

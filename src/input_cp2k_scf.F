@@ -1114,18 +1114,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="ODA", &
-                          description="Enable safeguarded optimal damping of raw Roothaan steps used to initialize "// &
-                          "or globalize ADIIS. "// &
-                          "ODA supports STANDARD diagonalization, including k-point calculations. "// &
-                          "It is disabled with a warning when HF%ACE is active. "// &
-                          "Smearing remains unsupported for ADIIS and ODA.", &
-                          usage="ODA T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create(keyword, __LOCATION__, name="ADAPTIVE_LEVEL_SHIFT", &
+                          description="Initial occupied-space level shift for experimental ADIIS candidate stabilization. "// &
+                          "Positive values enable adaptation using the energy and gradient of successive "// &
+                          "SCF states, without additional KS builds. Zero disables the shift. "// &
+                          "The shift fades out during CDIIS handover and is omitted in raw-map checks. "// &
+                          "Requires MAX_HISTORY >= 2 and cannot be combined with SCF%LEVEL_SHIFT.", &
+                          unit_str="au_e", usage="ADAPTIVE_LEVEL_SHIFT 1.0", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="VERBOSE", &
-                          description="Print per-iteration ADIIS and ODA diagnostic metrics.", &
+                          description="Print per-iteration ADIIS and candidate shift diagnostic metrics.", &
                           usage="VERBOSE", lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

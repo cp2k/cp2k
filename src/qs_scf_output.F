@@ -565,7 +565,7 @@ CONTAINS
 !> \param t1 ...
 !> \param t2 ...
 !> \param energy ...
-!> \param adiis_verbose whether to print per-iteration ADIIS and ODA diagnostics
+!> \param adiis_verbose whether to print per-iteration ADIIS diagnostics
 ! **************************************************************************************************
    SUBROUTINE qs_scf_loop_info(scf_env, output_unit, just_energy, t1, t2, energy, adiis_verbose)
 
@@ -595,25 +595,18 @@ CONTAINS
                   t2 - t1, scf_env%iter_delta, energy%total, energy%total - energy%tot_old
             END IF
             IF (adiis_verbose) THEN
+               IF (scf_env%adiis_shift > 0.0_dp) THEN
+                  WRITE (UNIT=output_unit, FMT="(T4,A,ES11.3,A,F5.2,A,I3)") &
+                     "ADIIS shift parameter [Ha]=", scf_env%adiis_shift, &
+                     " CDIIS weight=", scf_env%scf_subspace_buffer%diis_weight, &
+                     " history=", scf_env%scf_subspace_buffer%nstored
+               END IF
                IF (scf_env%raw_map_delta_valid) THEN
                   WRITE (UNIT=output_unit, FMT="(T4,A,ES11.3,A,ES11.3)") &
                      "ADIIS metrics: step_norm=", scf_env%step_norm, &
                      " raw_map_delta=", scf_env%raw_map_delta
                END IF
-               IF (LEN_TRIM(scf_env%oda_status) > 0) THEN
-                  WRITE (UNIT=output_unit, FMT="(T4,A,F9.6,A,I3,A,A,A,ES18.10)") &
-                     "ODA metrics: lambda=", scf_env%oda_lambda, &
-                     " evaluations=", scf_env%oda_evaluations, &
-                     " status=", TRIM(scf_env%oda_status), &
-                     " trial_energy=", scf_env%oda_energy
-                  IF (scf_env%oda_evaluations > 0) THEN
-                     WRITE (UNIT=output_unit, FMT="(T17,A,ES12.4,A,ES12.4)") &
-                        "g0=", scf_env%oda_gradient0, " g_trial=", scf_env%oda_gradient1
-                  ELSE
-                     WRITE (UNIT=output_unit, FMT="(T17,A,ES12.4)") &
-                        "g0=", scf_env%oda_gradient0
-                  END IF
-               END IF
+
             END IF
          END IF
       END IF

@@ -22,6 +22,7 @@ MODULE scf_control_types
                                               cp_print_key_unit_nr
    USE cp_parser_methods,               ONLY: read_integer_object
    USE cp_units,                        ONLY: cp_unit_from_cp2k
+   USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: &
         atomic_guess, diag_ot, diag_update_method_adiis, diag_update_method_mixing, direct_p_mix, &
         external_density_guess, general_roks, high_spin_roks, no_guess, no_mix, &
@@ -110,8 +111,9 @@ MODULE scf_control_types
       INTEGER                               :: method = -1, update_method = -1, max_history = -1
       REAL(KIND=dp)                         :: eps_jacobi = -1.0_dp
       REAL(KIND=dp)                         :: jacobi_threshold = -1.0_dp
+      REAL(KIND=dp)                         :: adiis_shift = 0.0_dp
       INTEGER                               :: max_iter = -1, nkrylov = -1, nblock_krylov = -1
-      LOGICAL                               :: adiis_verbose = .FALSE., do_oda = .FALSE.
+      LOGICAL                               :: adiis_verbose = .FALSE.
       ! Maximum Overlap Method
       LOGICAL                               :: mom = .FALSE., mom_didguess = .FALSE.
       INTEGER                               :: mom_proj_formula = -1
@@ -225,7 +227,7 @@ CONTAINS
       scf_control%diagonalization%method = 0
       scf_control%diagonalization%update_method = diag_update_method_mixing
       scf_control%diagonalization%max_history = 16
-      scf_control%diagonalization%do_oda = .FALSE.
+      scf_control%diagonalization%adiis_shift = 0.0_dp
       scf_control%diagonalization%adiis_verbose = .FALSE.
       scf_control%diagonalization%eps_jacobi = 0.0_dp
       scf_control%diagonalization%jacobi_threshold = 1.0E-7_dp
@@ -459,8 +461,21 @@ CONTAINS
       adiis_section => section_vals_get_subs_vals(scf_section, "ADIIS")
       CALL section_vals_val_get(adiis_section, "MAX_HISTORY", &
                                 i_val=scf_control%diagonalization%max_history)
-      CALL section_vals_val_get(adiis_section, "ODA", &
-                                l_val=scf_control%diagonalization%do_oda)
+      CALL section_vals_val_get(adiis_section, "ADAPTIVE_LEVEL_SHIFT", &
+                                r_val=scf_control%diagonalization%adiis_shift)
+      IF (.NOT. ieee_is_finite(scf_control%diagonalization%adiis_shift) .OR. &
+          scf_control%diagonalization%adiis_shift < 0.0_dp) THEN
+         CPABORT("ADIIS%ADAPTIVE_LEVEL_SHIFT must be finite and nonnegative")
+      END IF
+      IF (scf_control%diagonalization%adiis_shift > 0.0_dp) THEN
+         IF (scf_control%diagonalization%update_method /= diag_update_method_adiis .OR. &
+             scf_control%diagonalization%max_history < 2) THEN
+            CPABORT("ADAPTIVE_LEVEL_SHIFT requires UPDATE_METHOD ADIIS and MAX_HISTORY >= 2")
+         END IF
+         IF (scf_control%level_shift /= 0.0_dp) THEN
+            CPABORT("ADAPTIVE_LEVEL_SHIFT cannot be combined with SCF%LEVEL_SHIFT")
+         END IF
+      END IF
       CALL section_vals_val_get(adiis_section, "VERBOSE", &
                                 l_val=scf_control%diagonalization%adiis_verbose)
       ! Read ROKS parameters
@@ -718,8 +733,6 @@ CONTAINS
                   IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
                      WRITE (UNIT=output_unit, FMT="(T25,A,T71,I10)") &
                         "ADIIS max history: ", scf_control%diagonalization%max_history
-                     WRITE (UNIT=output_unit, FMT="(T25,A,T71,L10)") &
-                        "ADIIS optimal damping: ", scf_control%diagonalization%do_oda
                   END IF
                END IF
             END IF

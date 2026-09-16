@@ -40,7 +40,6 @@ MODULE qs_scf_subspace_types
       INTEGER                                           :: last_status = 0
       LOGICAL                                           :: last_restart = .FALSE.
       LOGICAL                                           :: use_combined_fock = .FALSE.
-      LOGICAL                                           :: diis_state_valid = .FALSE.
       REAL(KIND=dp)                                     :: last_objective = 0.0_dp
       ! Total coefficient weight assigned to all entries older than the current raw Fock.
       REAL(KIND=dp)                                     :: last_old_fock_weight = 0.0_dp
@@ -71,7 +70,6 @@ CONTAINS
       buffer%last_status = 0
       buffer%last_restart = .FALSE.
       buffer%use_combined_fock = .FALSE.
-      buffer%diis_state_valid = .FALSE.
       buffer%last_objective = 0.0_dp
       buffer%last_old_fock_weight = 0.0_dp
       buffer%diis_weight = 0.0_dp
@@ -92,7 +90,6 @@ CONTAINS
       buffer%last_status = 0
       buffer%last_restart = .FALSE.
       buffer%use_combined_fock = .FALSE.
-      buffer%diis_state_valid = .FALSE.
       buffer%last_objective = 0.0_dp
       buffer%last_old_fock_weight = 0.0_dp
       buffer%diis_weight = 0.0_dp
