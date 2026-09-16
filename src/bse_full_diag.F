@@ -1041,6 +1041,7 @@ CONTAINS
          CALL print_exciton_descriptors(exc_descr, ref_point_multipole, unit_nr, &
                                         mp2_env%bse%num_print_exc_descr, mp2_env%bse%bse_debug_print, &
                                         mp2_env%bse%print_directional_exc_descr, &
+                                        mp2_env%bse%print_directional_crosscorrelation, &
                                         'BSE|', qs_env)
       END IF
 

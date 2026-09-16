@@ -1403,6 +1403,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_DIRECTIONAL_CROSSCORRELATION", &
+                          description="Prints the electron-hole crosscorrelation matrix as part of the "// &
+                          "exciton descriptors per direction. Only active together with "// &
+                          "PRINT_DIRECTIONAL_EXC_DESCR.", &
+                          usage="PRINT_DIRECTIONAL_CROSSCORRELATION .FALSE.", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="EPS_X", &
                           description="Threshold for printing contributions of singleparticle "// &
                           "transitions, i.e. elements of the eigenvectors $X_{ia}^{(n)}$ and $Y_{ia}^{(n)}$.", &

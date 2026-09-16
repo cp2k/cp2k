@@ -1840,6 +1840,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DIRECTIONAL_EXCITON_CROSSCORRELATION", &
+                          description="Print the electron-hole crosscorrelation matrix as part of the "// &
+                          "cartesian components of exciton descriptors. Only active together with "// &
+                          "DIRECTIONAL_EXCITON_DESCRIPTORS.", &
+                          n_var=1, type_of_var=logical_t, &
+                          default_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! Strings
       CALL keyword_create(keyword, __LOCATION__, name="WFN_RESTART_FILE_NAME", &
                           variants=["RESTART_FILE_NAME"], &

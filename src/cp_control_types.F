@@ -696,6 +696,7 @@ MODULE cp_control_types
       ! Compute exciton descriptors
       LOGICAL                              :: do_exciton_descriptors = .FALSE.
       LOGICAL                              :: do_directional_exciton_descriptors = .FALSE.
+      LOGICAL                              :: do_directional_exciton_crosscorrelation = .FALSE.
       !
       ! DIPOLE_MOMENTS subsection
       !
