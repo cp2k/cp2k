@@ -126,8 +126,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Returns the number of available devices, or 0 when none is usable.
-!>        Never aborts (unlike offload_get_device_count) so it can be used at
-!>        runtime to decide whether a device backend may be selected.
+!>        Never aborts (unlike offload_get_device_count).
 !> \return ...
 !> \author Johann Pototschnig
 ! **************************************************************************************************
@@ -401,7 +400,7 @@ CONTAINS
 
    ! GPU data transfer functions
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Copy host data to device.
 !> \param buffer ...
 !> \param length ...
 ! **************************************************************************************************
@@ -422,7 +421,7 @@ CONTAINS
    END SUBROUTINE offload_buffer_h2d
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Copy device data to host.
 !> \param buffer ...
 !> \param length ...
 ! **************************************************************************************************
@@ -478,7 +477,7 @@ CONTAINS
       CALL offload_device_synchronize_c()
    END SUBROUTINE offload_device_synchronize
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Return a C pointer to the buffer's host memory.
 !> \param buffer ...
 !> \return ...
 ! **************************************************************************************************

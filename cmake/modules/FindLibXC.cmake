@@ -12,9 +12,9 @@ include(cp2k_utils)
 cp2k_set_default_paths(LIBXC "libxc")
 
 if(PKG_CONFIG_FOUND)
-  # libxc does not install CMake config files, only pkg-config modules. Use the
-  # static resolution so the C library is pulled in explicitly (Requires.private
-  # libxc), then turn the archive names into full paths for linking.
+  # Use the static resolution so the C library is pulled in explicitly
+  # (Requires.private libxc), then turn the archive names into full paths for
+  # linking.
   pkg_check_modules(CP2K_LIBXC IMPORTED_TARGET GLOBAL libxcf03)
   if(CP2K_LIBXC_FOUND)
     unset(CP2K_LIBXC_LINK_LIBRARIES)
@@ -23,8 +23,7 @@ if(PKG_CONFIG_FOUND)
       find_library(
         _libxc_library
         NAMES ${_lib}
-        PATHS ${CP2K_LIBXC_STATIC_LIBRARY_DIRS}
-        NO_DEFAULT_PATH)
+        PATHS ${CP2K_LIBXC_STATIC_LIBRARY_DIRS})
       if(_libxc_library)
         list(APPEND CP2K_LIBXC_LINK_LIBRARIES ${_libxc_library})
       else()
