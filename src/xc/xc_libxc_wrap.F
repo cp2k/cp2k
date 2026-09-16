@@ -152,11 +152,11 @@ MODULE xc_libxc_wrap
    INTEGER, PARAMETER, PUBLIC :: do_libxc_cpu = 1, &
                                  do_libxc_gpu = 2
 
-   ! Runtime-selected backend. Defaults to the compile-time capability: the GPU
-   ! backend when this build actually contains an offload/device path (i.e.
-   ! compiled with an accelerator AND the LibXC GPU/offload variant), the CPU
-   ! backend otherwise. A runtime switch (see libxc_set_backend) can toggle
-   ! between the two as long as the build supports the device path.
+   ! Runtime-selected backend. On a build that contains a device path the
+   ! default is the GPU backend (using the GPU unless the user opts out); on a
+   ! plain CPU or __NO_OFFLOAD_LIBXC build there is no device path and the CPU
+   ! backend is the only option. Metadata/query initialization always runs on
+   ! the host (see libxc_func_init_wrapper / force_host).
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
    INTEGER, SAVE, PRIVATE :: libxc_backend = do_libxc_gpu
 #else
@@ -224,22 +224,35 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Runtime switch for the LibXC backend.
 !> \param backend one of do_libxc_cpu / do_libxc_gpu
-!> \note In a build that does not contain the device path (compiled with
-!>       __NO_OFFLOAD_LIBXC) a request for the GPU backend is an error: the
-!>       device code is absent, so silently falling back to the CPU backend
-!>       would hide a misconfigured input.
+!> \note The GPU backend is only ever selected through this input-driven switch
+!>       (&XC/LIBXC_GPU_BACKEND). Requesting DEVICE is an error when the build has
+!>       no device path (__NO_OFFLOAD_LIBXC) or when no accelerator is usable at
+!>       runtime; requesting HOST always works and touches no GPU.
 ! **************************************************************************************************
    SUBROUTINE libxc_set_backend(backend)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
+      USE offload_api, ONLY: offload_get_device_count_safe
+#endif
       INTEGER, INTENT(IN)                                :: backend
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
+      ! Build has a device path: honor the request, but only when an accelerator
+      ! is actually usable at runtime. A DEVICE request without a usable GPU is
+      ! always an error and aborts.
       SELECT CASE (backend)
       CASE (do_libxc_gpu)
-         libxc_backend = do_libxc_gpu
+         IF (offload_get_device_count_safe() > 0) THEN
+            libxc_backend = do_libxc_gpu
+         ELSE
+            CALL cp__b(__SHORT_FILE__, __LINE__, &
+                       "&XC/LIBXC_GPU_BACKEND requests DEVICE, "// &
+                       "but no usable device/GPU was found at runtime.")
+         END IF
       CASE default
          libxc_backend = do_libxc_cpu
       END SELECT
 #else
+      ! Build has no device path: a DEVICE request is always an error, HOST runs.
       IF (backend == do_libxc_gpu) THEN
          CALL cp__b(__SHORT_FILE__, __LINE__, &
                     "LibXC was compiled without a device/GPU backend, "// &
@@ -634,13 +647,23 @@ CONTAINS
 !> \param func ...
 !> \param functional ...
 !> \param nspin ...
+!> \param force_host ...
 ! **************************************************************************************************
-   SUBROUTINE libxc_func_init_wrapper(func, functional, nspin)
+   SUBROUTINE libxc_func_init_wrapper(func, functional, nspin, force_host)
       TYPE(xc_f03_func_t), INTENT(OUT)                   :: func
       INTEGER, INTENT(IN)                                :: functional
       INTEGER, INTENT(IN), OPTIONAL                      :: nspin
+      LOGICAL, INTENT(IN), OPTIONAL                      :: force_host
 
-      IF (libxc_backend == do_libxc_gpu) THEN
+      LOGICAL                                            :: my_force_host
+
+      my_force_host = .FALSE.
+      IF (PRESENT(force_host)) my_force_host = force_host
+
+      ! Metadata/query initializations (reference strings, section building,
+      ! functional info) must never touch the GPU, even when the GPU backend is
+      ! the runtime default: force_host is used for those.
+      IF (libxc_backend == do_libxc_gpu .AND. .NOT. my_force_host) THEN
          CALL xc_f03_func_info_set_default_flags(XC_FLAGS_ON_DEVICE)
          IF (PRESENT(nspin)) THEN
             CALL xc_f03_func_init(func, functional, nspin)
