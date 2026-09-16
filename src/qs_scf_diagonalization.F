@@ -28,7 +28,8 @@ MODULE qs_scf_diagonalization
                                               cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
-                                              cp_cfm_type
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type,&
                                               hairy_probes_type
    USE cp_dbcsr_api,                    ONLY: &
@@ -189,6 +190,96 @@ MODULE qs_scf_diagonalization
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Fade candidate regularization through handover; never regularize a raw-map check.
+!> \param scf_env Current SCF state.
+!> \return ...
+! **************************************************************************************************
+   FUNCTION adiis_candidate_shift(scf_env) RESULT(shift)
+      TYPE(qs_scf_env_type), INTENT(IN)                  :: scf_env
+      REAL(KIND=dp)                                      :: shift
+
+      shift = 0.0_dp
+      IF (scf_env%iter_count <= 1 .OR. scf_env%adiis_check_next) RETURN
+      IF (.NOT. ASSOCIATED(scf_env%scf_subspace_buffer)) RETURN
+      shift = scf_env%adiis_shift*(1.0_dp - scf_env%scf_subspace_buffer%diis_weight)
+   END FUNCTION adiis_candidate_shift
+
+! **************************************************************************************************
+!> \brief Add -shift*S*C*(occupation/maxocc)*C^T*S to a candidate Fock matrix.
+!>        The occupied projector does not require any stored virtual orbitals.
+!> \param fock Candidate matrix; physical F[P] and all history matrices remain unchanged.
+!> \param overlap AO overlap.
+!> \param mos Previous physical orbitals and occupations.
+!> \param shift Nonnegative regularization parameter in hartree.
+! **************************************************************************************************
+   SUBROUTINE shift_candidate_real(fock, overlap, mos, shift)
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fock
+      TYPE(cp_fm_type), INTENT(IN)                       :: overlap
+      TYPE(mo_set_type), INTENT(IN)                      :: mos
+      REAL(KIND=dp), INTENT(IN)                          :: shift
+
+      INTEGER                                            :: nao, nmo
+      REAL(KIND=dp)                                      :: maxocc
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation
+      TYPE(cp_fm_type)                                   :: sc
+      TYPE(cp_fm_type), POINTER                          :: coeff
+
+      IF (shift == 0.0_dp) RETURN
+      CALL get_mo_set(mos, nao=nao, nmo=nmo, maxocc=maxocc, occupation_numbers=occupation, mo_coeff=coeff)
+      CALL cp_fm_create(sc, coeff%matrix_struct)
+      CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, overlap, coeff, 0.0_dp, sc)
+      CALL cp_fm_column_scale(sc, SQRT(MAX(0.0_dp, occupation/maxocc)))
+      CALL parallel_gemm("N", "T", nao, nao, nmo, -shift, sc, sc, 1.0_dp, fock)
+      CALL cp_fm_release(sc)
+   END SUBROUTINE shift_candidate_real
+
+! **************************************************************************************************
+!> \brief Complex occupied-space shift, using conjugate transpose and existing eigensolver workspaces.
+!> \param fock Candidate Fock matrix, modified in place.
+!> \param overlap AO overlap, unchanged.
+!> \param mos Real and imaginary components of the previous physical MOs.
+!> \param coeff AO/MO eigensolver workspace.
+!> \param work AO/AO eigensolver workspace.
+!> \param shift Nonnegative regularization parameter in hartree.
+!> \param local Whether to use only local BLAS inside the OpenMP k-point executor.
+! **************************************************************************************************
+   SUBROUTINE shift_candidate_complex(fock, overlap, mos, coeff, work, shift, local)
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: fock
+      TYPE(cp_cfm_type), INTENT(IN)                      :: overlap
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: coeff, work
+      REAL(KIND=dp), INTENT(IN)                          :: shift
+      LOGICAL, INTENT(IN)                                :: local
+
+      INTEGER                                            :: j, nao, nmo
+      REAL(KIND=dp)                                      :: maxocc
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation
+      TYPE(cp_fm_type), POINTER                          :: imos, rmos
+
+      IF (shift == 0.0_dp) RETURN
+      CALL get_mo_set(mos(1), nao=nao, nmo=nmo, maxocc=maxocc, occupation_numbers=occupation, mo_coeff=rmos)
+      CALL get_mo_set(mos(2), mo_coeff=imos)
+      IF (local) THEN
+         DO j = 1, nmo
+            coeff%local_data(:, j) = SQRT(MAX(0.0_dp, occupation(j)/maxocc))* &
+                                     CMPLX(rmos%local_data(:, j), imos%local_data(:, j), KIND=dp)
+         END DO
+         CALL zgemm('N', 'N', nao, nmo, nao, z_one, overlap%local_data(1, 1), SIZE(overlap%local_data, 1), &
+                    coeff%local_data(1, 1), SIZE(coeff%local_data, 1), z_zero, &
+                    work%local_data(1, 1), SIZE(work%local_data, 1))
+         CALL zgemm('N', 'C', nao, nao, nmo, CMPLX(-shift, KIND=dp), &
+                    work%local_data(1, 1), SIZE(work%local_data, 1), &
+                    work%local_data(1, 1), SIZE(work%local_data, 1), z_one, &
+                    fock%local_data(1, 1), SIZE(fock%local_data, 1))
+      ELSE
+         CALL cp_fm_to_cfm(rmos, imos, coeff)
+         CALL cp_cfm_column_scale(coeff, CMPLX(SQRT(MAX(0.0_dp, occupation/maxocc)), KIND=dp))
+         CALL parallel_gemm("N", "N", nao, nmo, nao, z_one, overlap, coeff, z_zero, work)
+         CALL parallel_gemm("N", "C", nao, nao, nmo, CMPLX(-shift, KIND=dp), work, work, z_one, fock)
+      END IF
+   END SUBROUTINE shift_candidate_complex
+
+! **************************************************************************************************
 !> \brief Build one complex k-point operator for OT in the local k-point-group context.
 !>        A single group keeps the established direct real-space transform. Multiple groups use
 !>        the redistributed full-matrix cache because their communicators do not own the complete
@@ -277,8 +368,8 @@ CONTAINS
       LOGICAL                                            :: cdiis_step, do_level_shift, owns_ortho, &
                                                             use_adiis, use_cdiis, use_jacobi, &
                                                             use_subspace_fock
-      REAL(KIND=dp)                                      :: cdiis_error, diis_error, diis_weight, &
-                                                            eps_diis
+      REAL(KIND=dp)                                      :: candidate_shift, cdiis_error, &
+                                                            diis_error, diis_weight, eps_diis
       TYPE(cp_fm_type), POINTER                          :: ortho
       TYPE(dbcsr_type), POINTER                          :: effective_ks_dbcsr, ortho_dbcsr
 
@@ -299,7 +390,7 @@ CONTAINS
       IF (use_adiis .AND. ASSOCIATED(scf_env%scf_diis_buffer)) THEN
          IF (.NOT. scf_env%skip_diis .AND. scf_env%iter_count > 1 .AND. &
              .NOT. scf_env%adiis_check_next .AND. &
-             scf_env%scf_subspace_buffer%diis_state_valid .AND. &
+             .NOT. scf_env%scf_subspace_buffer%last_restart .AND. &
              scf_env%scf_subspace_buffer%nstored > 0) THEN
             use_cdiis = scf_env%iter_delta < eps_diis .OR. scf_env%scf_diis_buffer%ncall > 0
          END IF
@@ -371,6 +462,15 @@ CONTAINS
          ELSE
             diis_step = .FALSE.
          END IF
+      END IF
+
+      candidate_shift = 0.0_dp
+      IF (use_adiis) candidate_shift = adiis_candidate_shift(scf_env)
+      IF (candidate_shift > 0.0_dp) THEN
+         CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, scf_env%scf_work2)
+         DO ispin = 1, nspin
+            CALL shift_candidate_real(scf_env%scf_work1(ispin), scf_env%scf_work2, mos(ispin), candidate_shift)
+         END DO
       END IF
 
       do_level_shift = ((scf_control%level_shift /= 0.0_dp) .AND. &
@@ -724,7 +824,7 @@ CONTAINS
       IF (use_adiis .AND. ASSOCIATED(kpoints%scf_diis_buffer)) THEN
          IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis .AND. &
              .NOT. scf_env%adiis_check_next .AND. &
-             scf_env%scf_subspace_buffer%diis_state_valid .AND. &
+             .NOT. scf_env%scf_subspace_buffer%last_restart .AND. &
              scf_env%scf_subspace_buffer%nstored > 0 .AND. &
              PRESENT(diis_error) .AND. PRESENT(qs_env)) THEN
             adiis_cdiis = scf_env%iter_delta < scf_control%eps_diis .OR. &
@@ -1055,6 +1155,8 @@ CONTAINS
                   CALL cp_cfm_to_fm(cksmat, rksmat, fmlocal)
                   CALL cp_cfm_to_fm(csmat, rsmat, fmlocal)
                   CALL get_mo_set(kp%mos(1, ispin), mo_coeff=mo_coeff, eigenvalues=eigenvalues)
+                  IF (use_adiis) CALL shift_candidate_real(rksmat, rsmat, kp%mos(1, ispin), &
+                                                           adiis_candidate_shift(scf_env))
                   IF (scf_env%cholesky_method == cholesky_off) THEN
                      CALL cp_fm_geeig_canon(rksmat, rsmat, mo_coeff, eigenvalues, fmlocal, &
                                             scf_control%eps_eigval)
@@ -1063,6 +1165,8 @@ CONTAINS
                   END IF
                ELSE
                   CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
+                  IF (use_adiis) CALL shift_candidate_complex(cksmat, csmat, kp%mos(:, ispin), cmos, cwork, &
+                                                              adiis_candidate_shift(scf_env), .FALSE.)
                   IF (scf_env%cholesky_method == cholesky_off) THEN
                      CALL cp_cfm_geeig_canon(cksmat, csmat, cmos, eigenvalues, cwork, &
                                              scf_control%eps_eigval)
@@ -1115,6 +1219,8 @@ CONTAINS
                      END IF
                   END IF
                   IF (.NOT. my_transfer_only) THEN
+                     IF (use_adiis) CALL shift_candidate_real(rksmat, rsmat, kp%mos(1, ispin), &
+                                                              adiis_candidate_shift(scf_env))
                      IF (scf_env%cholesky_method == cholesky_off) THEN
                         CALL cp_fm_geeig_canon(rksmat, rsmat, mo_coeff, eigenvalues, fmlocal, &
                                                scf_control%eps_eigval)
@@ -1134,6 +1240,8 @@ CONTAINS
                      END IF
                   END IF
                   IF (.NOT. my_transfer_only) THEN
+                     IF (use_adiis) CALL shift_candidate_complex(cksmat, csmat, kp%mos(:, ispin), cmos, cwork, &
+                                                                 adiis_candidate_shift(scf_env), .FALSE.)
                      IF (scf_env%cholesky_method == cholesky_off) THEN
                         CALL cp_cfm_geeig_canon(cksmat, csmat, cmos, eigenvalues, cwork, &
                                                 scf_control%eps_eigval)
@@ -1362,13 +1470,13 @@ CONTAINS
       ELSE
          diis_step = .FALSE.
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(DYNAMIC, 1) NUM_THREADS(nworkers) &
-!$OMP SHARED(workspace,matrix_ks,matrix_s,kpoints,scf_env,scf_control,transform_plan,xkp,kplocal,nspin,nworkers) &
+!$OMP SHARED(workspace,matrix_ks,matrix_s,kpoints,scf_env,scf_control,transform_plan,xkp,kplocal,nspin,nworkers,use_adiis) &
 !$OMP PRIVATE(ikp,thread)
          DO ikp = 1, kplocal
             thread = 1
 !$          thread = omp_get_thread_num() + 1
             CALL kp_diag_job(ikp, workspace(thread), matrix_ks, matrix_s, kpoints, scf_env, scf_control, &
-                             transform_plan, xkp, nspin)
+                             transform_plan, xkp, nspin, use_adiis)
          END DO
 !$OMP END PARALLEL DO
       END IF
@@ -1501,9 +1609,10 @@ CONTAINS
 !> \param transform_plan ...
 !> \param xkp ...
 !> \param nspin ...
+!> \param use_adiis Whether this is an ADIIS SCF candidate.
 ! **************************************************************************************************
    SUBROUTINE kp_diag_job(ikp, workspace, matrix_ks, matrix_s, kpoints, scf_env, scf_control, &
-                          transform_plan, xkp, nspin)
+                          transform_plan, xkp, nspin, use_adiis)
 
       INTEGER, INTENT(IN)                                :: ikp
       TYPE(kp_diag_omp_workspace_type), INTENT(INOUT)    :: workspace
@@ -1514,6 +1623,7 @@ CONTAINS
       TYPE(kp_transform_plan_type), INTENT(IN)           :: transform_plan
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       INTEGER, INTENT(IN)                                :: nspin
+      LOGICAL, INTENT(IN)                                :: use_adiis
 
       INTEGER                                            :: ispin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
@@ -1527,6 +1637,8 @@ CONTAINS
          CALL cp_cfm_to_cfm(workspace%csmat_base, workspace%csmat)
          CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
          CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
+         IF (use_adiis) CALL shift_candidate_complex(workspace%cksmat, workspace%csmat, kp%mos(:, ispin), &
+                                                     workspace%cmos, workspace%cwork, adiis_candidate_shift(scf_env), .TRUE.)
          IF (scf_env%cholesky_method == cholesky_off) THEN
             CALL cp_cfm_geeig_canon_local(workspace%cksmat, workspace%csmat, workspace%cmos, &
                                           eigenvalues, workspace%cwork, scf_control%eps_eigval)
@@ -1625,9 +1737,9 @@ CONTAINS
                  s(1, 1), SIZE(s, 1), c(1, 1), SIZE(c, 1), z_zero, sc(1, 1), SIZE(sc, 1))
 
       error => kpoints%scf_diis_buffer%error(ib, ispin, ikp)%local_data
-      CALL zgemm('N', 'T', nao, nao, homo, z_one, sc(1, 1), SIZE(sc, 1), &
+      CALL zgemm('N', 'C', nao, nao, homo, z_one, sc(1, 1), SIZE(sc, 1), &
                  kc(1, 1), SIZE(kc, 1), z_zero, error(1, 1), SIZE(error, 1))
-      CALL zgemm('N', 'T', nao, nao, homo, z_one, kc(1, 1), SIZE(kc, 1), &
+      CALL zgemm('N', 'C', nao, nao, homo, z_one, kc(1, 1), SIZE(kc, 1), &
                  sc(1, 1), SIZE(sc, 1), -z_one, error(1, 1), SIZE(error, 1))
 
    END SUBROUTINE kp_diis_calc_err_local
@@ -1686,6 +1798,8 @@ CONTAINS
          END IF
          CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
          CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
+         IF (use_adiis) CALL shift_candidate_complex(workspace%cksmat, workspace%csmat, kp%mos(:, ispin), &
+                                                     workspace%cmos, workspace%cwork, adiis_candidate_shift(scf_env), .TRUE.)
          IF (scf_env%cholesky_method == cholesky_off) THEN
             CALL cp_cfm_geeig_canon_local(workspace%cksmat, workspace%csmat, workspace%cmos, &
                                           eigenvalues, workspace%cwork, scf_control%eps_eigval)

@@ -450,9 +450,11 @@ CONTAINS
          CPASSERT(ASSOCIATED(kp%mos))
          DO ispin = 1, SIZE(kp%mos, 2)
             DO icomponent = 1, SIZE(kp%mos, 1)
-               CALL get_mo_set(kp%mos(icomponent, ispin), homo=nocc, maxocc=maxocc, &
+               CALL get_mo_set(kp%mos(icomponent, ispin), maxocc=maxocc, &
                                nelectron=nelectron, nmo=nmo, occupation_numbers=occupation_numbers)
                CPASSERT(ASSOCIATED(occupation_numbers))
+               ! The fixed rank comes from the spin electron count, not a previous k-point filling.
+               nocc = NINT(REAL(nelectron, KIND=dp)/maxocc)
                IF (nocc < 1 .OR. nocc > nmo) THEN
                   CPABORT("Fixed-occupation k-point OT requires a nonempty occupied subspace.")
                END IF
@@ -462,6 +464,7 @@ CONTAINS
                END IF
                occupation_numbers(:) = 0.0_dp
                occupation_numbers(1:nocc) = maxocc
+               kp%mos(icomponent, ispin)%homo = nocc
                kp%mos(icomponent, ispin)%kTS = 0.0_dp
             END DO
          END DO

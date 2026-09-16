@@ -1083,9 +1083,9 @@ CONTAINS
       ! SC <- S*C
       CALL parallel_gemm("N", "N", nao, homo, nao, (2.0_dp, 0.0_dp), smat, cmos, (0.0_dp, 0.0_dp), sc)
 
-      ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K
-      CALL parallel_gemm("N", "T", nao, nao, homo, (1.0_dp, 0.0_dp), sc, kc, (0.0_dp, 0.0_dp), new_errors)
-      CALL parallel_gemm("N", "T", nao, nao, homo, (1.0_dp, 0.0_dp), kc, sc, (-1.0_dp, 0.0_dp), new_errors)
+      ! new_errors <- KC*(SC)^H - SC*(KC)^H; retain the existing factor of two.
+      CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), sc, kc, (0.0_dp, 0.0_dp), new_errors)
+      CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), kc, sc, (-1.0_dp, 0.0_dp), new_errors)
 
       !clean-up
       CALL cp_cfm_release(cmos)

@@ -37,8 +37,46 @@ MODULE qs_scf_subspace
    INTEGER, PARAMETER, PUBLIC :: scf_subspace_invalid_history = 100
 
    PUBLIC :: qs_scf_subspace_build, qs_scf_subspace_push, qs_scf_subspace_restart
+   PUBLIC :: qs_scf_subspace_update_shift
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Adapt candidate regularization from two evaluated states; no trial KS builds.
+!> \param buffer Paired physical states, including the newest evaluated density.
+!> \param shift Current occupied-space level shift in hartree.
+! **************************************************************************************************
+   SUBROUTINE qs_scf_subspace_update_shift(buffer, shift)
+      TYPE(qs_scf_subspace_buffer_type), INTENT(IN)      :: buffer
+      REAL(KIND=dp), INTENT(INOUT)                       :: shift
+
+      INTEGER                                            :: newest, previous
+      REAL(KIND=dp)                                      :: actual, predicted, tolerance
+
+      ! Only pure ADIIS steps measure the response to this regularization.
+      IF (buffer%nstored < 2 .OR. buffer%diis_weight > 0.0_dp) RETURN
+      newest = MAXLOC(buffer%generation, DIM=1)
+      previous = MAXLOC(buffer%generation, DIM=1, &
+                        MASK=buffer%generation < buffer%generation(newest))
+      ! T_ij = Tr(P_i F_j). Compare actual progress with the linear model at P_previous.
+      actual = buffer%state_energy(newest) - buffer%state_energy(previous)
+      predicted = buffer%pf_metric(newest, previous) - buffer%pf_metric(previous, previous)
+      tolerance = 64.0_dp*EPSILON(1.0_dp)*MAX(1.0_dp, &
+                                              ABS(buffer%state_energy(newest)), ABS(buffer%state_energy(previous)), &
+                                              ABS(buffer%pf_metric(newest, previous)), ABS(buffer%pf_metric(previous, previous)))
+      IF (actual > tolerance .OR. predicted > tolerance) THEN
+         ! An uphill endpoint still contains useful curvature information: retain the history.
+         shift = 2.0_dp*shift
+      ELSE IF (predicted < -tolerance) THEN
+         IF (actual > 0.25_dp*predicted) shift = 2.0_dp*shift
+         IF (actual < 0.75_dp*predicted) shift = 0.5_dp*shift
+      ELSE
+         ! Do not maintain a large penalty when changes fall below energy resolution.
+         shift = 0.5_dp*shift
+      END IF
+      CPASSERT(ieee_is_finite(shift))
+
+   END SUBROUTINE qs_scf_subspace_update_shift
 
 ! **************************************************************************************************
 !> \brief Restart the ADIIS history from the current strictly paired P, F[P] state.
@@ -290,7 +328,6 @@ CONTAINS
       buffer%last_status = failure_status
       buffer%last_restart = .TRUE.
       buffer%use_combined_fock = .FALSE.
-      buffer%diis_state_valid = .FALSE.
       buffer%last_objective = 0.0_dp
       buffer%last_old_fock_weight = 0.0_dp
       buffer%diis_weight = 0.0_dp

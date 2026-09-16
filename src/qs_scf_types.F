@@ -103,10 +103,9 @@ MODULE qs_scf_types
       REAL(KIND=dp) :: iter_param = -1.0_dp, iter_delta = -1.0_dp, p_mix_alpha = -1.0_dp, sum_zeff_corr = -1.0_dp
       ! ADIIS diagnostics: accepted-step norm and raw-map delta.
       REAL(KIND=dp) :: step_norm = -1.0_dp, raw_map_delta = -1.0_dp
-      ! ODA diagnostics for the most recent raw-step line search.
-      REAL(KIND=dp) :: oda_lambda = 0.0_dp, oda_energy = 0.0_dp, oda_gradient0 = 0.0_dp, oda_gradient1 = 0.0_dp
-      INTEGER :: oda_evaluations = 0
-      CHARACTER(len=15) :: iter_method = "", oda_status = ""
+      ! Occupied-space regularization used only to generate ADIIS candidates.
+      REAL(KIND=dp) :: adiis_shift = 0.0_dp
+      CHARACTER(len=15) :: iter_method = ""
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER :: cc_buffer => NULL()
       LOGICAL :: print_iter_line = .FALSE., skip_mixing = .FALSE., skip_diis = .FALSE., needs_ortho = .FALSE., &
                  adiis_check_next = .FALSE., adiis_validated = .FALSE., &
@@ -157,12 +156,6 @@ CONTAINS
       scf_env%iter_delta = 0.0_dp
       scf_env%step_norm = 0.0_dp
       scf_env%raw_map_delta = 0.0_dp
-      scf_env%oda_lambda = 0.0_dp
-      scf_env%oda_energy = 0.0_dp
-      scf_env%oda_gradient0 = 0.0_dp
-      scf_env%oda_gradient1 = 0.0_dp
-      scf_env%oda_evaluations = 0
-      scf_env%oda_status = ""
       scf_env%iter_method = ""
       scf_env%print_iter_line = .TRUE.
       scf_env%skip_mixing = .FALSE.
@@ -171,6 +164,7 @@ CONTAINS
       scf_env%adiis_check_next = .FALSE.
       scf_env%adiis_validated = .FALSE.
       scf_env%raw_map_delta_valid = .FALSE.
+      scf_env%adiis_shift = 0.0_dp
       scf_env%method = -1
       scf_env%mixing_method = -1
       scf_env%p_mix_alpha = 1.0_dp
