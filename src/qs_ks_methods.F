@@ -343,6 +343,17 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       natom=natom)
 
+      ! Reject force/stress requests before assembling even the baseline KS matrix.
+      IF (dft_control%low_spin_roks .AND. dft_control%qs_control%gapw) THEN
+         IF (.NOT. virial%pv_numer .AND. &
+             (virial%pv_calculate .OR. (virial%pv_availability .AND. calculate_forces))) THEN
+            CALL cp_abort(__LOCATION__, "GAPW low spin ROKS stress is not implemented.")
+         END IF
+         IF (calculate_forces) THEN
+            CALL cp_abort(__LOCATION__, "GAPW low spin ROKS forces are not implemented.")
+         END IF
+      END IF
+
       CALL qs_rho_get(rho, rho_r=rho_r, rho_ao_kp=rho_ao)
 
       nimages = dft_control%nimages
@@ -695,6 +706,10 @@ CONTAINS
          END IF
          IF (dft_control%use_gauxc) THEN
             IF (native_skala_evaluator) THEN
+               IF (gapw .AND. dft_control%low_spin_roks) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "GAPW low spin ROKS requires the molecular GauXC grid, not native Skala grids.")
+               END IF
                CALL ensure_native_skala_grid_scope(xc_section)
                gapw_representation = skala_gapw_representation(xc_section)
                IF (gapw .OR. gapw_xc) THEN

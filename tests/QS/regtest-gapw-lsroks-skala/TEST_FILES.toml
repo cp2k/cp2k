@@ -1,0 +1,6 @@
+# Three OT steps; these are regression trajectories, not SCF references.
+# Float32 model, FINE grid, one-atom chunks; CPU only.
+"O2-skala-cancel.inp" = [{matcher="E_total", tol=2e-08, ref=-144.853279742953589}]
+"O2-skala-singlet.inp" = [{matcher="E_total", tol=2e-08, ref=-144.804430508264346}]
+"O2-skala-spinflip.inp" = [{matcher="E_total", tol=2e-08, ref=-144.804430526676640}]
+"O2-skala-triplet.inp" = [{matcher="E_total", tol=2e-08, ref=-144.853279742953788}]

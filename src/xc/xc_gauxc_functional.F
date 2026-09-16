@@ -1018,15 +1018,26 @@ CONTAINS
 ! passing it to GauXC.
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Evaluate molecular GauXC, optionally for an explicit configuration density.
 !> \param qs_env ...
 !> \param xc_section ...
 !> \param calculate_forces ...
+!> \param rho_ao_external Optional spin/image AO density; supply all three external arguments together
+!> \param exc_external Configuration XC energy, leaving the baseline energy unchanged
+!> \param matrix_vxc_external Initially null; caller owns the returned spin AO potential matrices
+!> \note External-density mode preserves baseline energy and KS storage and shares
+!>       the geometry/model cache.
 ! **************************************************************************************************
-   SUBROUTINE apply_gauxc(qs_env, xc_section, calculate_forces)
+   SUBROUTINE apply_gauxc(qs_env, xc_section, calculate_forces, &
+                          rho_ao_external, exc_external, matrix_vxc_external)
       TYPE(qs_environment_type), INTENT(in), POINTER     :: qs_env
       TYPE(section_vals_type), INTENT(in), POINTER       :: xc_section
       LOGICAL, INTENT(IN)                                :: calculate_forces
+      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL, POINTER                               :: rho_ao_external
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: exc_external
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
+         OPTIONAL, POINTER                               :: matrix_vxc_external
 
       CHARACTER(len=*), PARAMETER :: nonlocal_vdw_abort_message = &
          "GauXC does not support non-local VDW_POTENTIAL corrections. "// &
@@ -1039,11 +1050,11 @@ CONTAINS
          xc_fun_key
       INTEGER                                            :: atom_chunk_size, env_status, img, ispin, &
                                                             nimages
-      LOGICAL :: atom_chunk_size_explicit, do_kpoints, gapw_method, gapw_paw_pseudopotentials, &
-         gapw_pseudopotentials, grid_explicit, hdf5_output, is_periodic, molecular_virial, &
-         molecular_virial_debug, need_xc_gradient, periodic_reference, pruning_explicit, &
-         use_skala_model, write_hdf5_output
-      REAL(KIND=dp)                                      :: molecular_virial_debug_dx
+      LOGICAL :: atom_chunk_size_explicit, do_kpoints, external_density, gapw_method, &
+         gapw_paw_pseudopotentials, gapw_pseudopotentials, grid_explicit, hdf5_output, &
+         is_periodic, low_spin_scope, molecular_virial, molecular_virial_debug, need_xc_gradient, &
+         periodic_reference, pruning_explicit, use_skala_model, write_hdf5_output
+      REAL(KIND=dp)                                      :: exc_value, molecular_virial_debug_dx
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: density_scalar, density_zeta
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -1065,6 +1076,14 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho, rho_use, rho_xc
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: gauxc_functional_section
+
+      external_density = PRESENT(rho_ao_external)
+      CPASSERT(PRESENT(exc_external) .EQV. external_density)
+      CPASSERT(PRESENT(matrix_vxc_external) .EQV. external_density)
+      IF (external_density) THEN
+         CPASSERT(ASSOCIATED(rho_ao_external))
+         CPASSERT(.NOT. ASSOCIATED(matrix_vxc_external))
+      END IF
 
       NULLIFY ( &
          atomic_kind_set, &
@@ -1117,8 +1136,18 @@ CONTAINS
          rho_use, &
          rho_ao_kp=rho_ao)
 
+      IF (external_density) THEN
+         rho_ao => rho_ao_external
+         ! get_qs_env returned the baseline pointer. Never release or replace it.
+         NULLIFY (matrix_vxc)
+      END IF
       nimages = dft_control%nimages
       params%nspins = dft_control%nspins
+      IF (external_density) THEN
+         CPASSERT(SIZE(rho_ao, 1) == params%nspins)
+         CPASSERT(SIZE(rho_ao, 2) == nimages)
+      END IF
+      low_spin_scope = external_density .OR. (dft_control%low_spin_roks .AND. gapw_method)
       is_periodic = .FALSE.
       IF (ASSOCIATED(cell)) is_periodic = ANY(cell%perd /= 0)
 
@@ -1264,6 +1293,30 @@ CONTAINS
          molecular_virial = .TRUE.
       END IF
       need_xc_gradient = calculate_forces .OR. molecular_virial
+      IF (low_spin_scope) THEN
+         IF (.NOT. dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+            CPABORT("GauXC low spin ROKS requires METHOD GAPW.")
+         END IF
+         IF (.NOT. gauxc_gapw_all_all_electron(qs_kind_set)) THEN
+            CPABORT("GAPW low spin ROKS GauXC requires all-electron kinds.")
+         END IF
+         IF (is_periodic .OR. do_kpoints .OR. nimages /= 1) THEN
+            CPABORT("GAPW low spin ROKS GauXC requires an isolated Gamma-point calculation.")
+         END IF
+         IF (need_xc_gradient) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "GAPW low spin ROKS GauXC nuclear gradients and molecular virial are not implemented.")
+         END IF
+         IF (TRIM(int_exec_space_key) /= "HOST" .OR. TRIM(params%lb_exec_space) /= "HOST") THEN
+            CPABORT("GAPW low spin ROKS GauXC currently requires HOST execution.")
+         END IF
+         IF (params%use_gauxc_model .AND. .NOT. use_skala_model) THEN
+            CPABORT("GAPW low spin ROKS GauXC supports only the SKALA model or conventional XC.")
+         END IF
+         IF (use_skala_model .AND. TRIM(skala_runtime_key) == "MPI") THEN
+            CPABORT("GAPW low spin ROKS Skala requires SKALA_RUNTIME AUTO or SELF.")
+         END IF
+      END IF
       CALL ensure_gauxc_periodic_reference_scope( &
          dft_control, cell, qs_kind_set, do_kpoints, periodic_reference)
       IF (is_periodic .AND. periodic_reference .AND. para_env%mepos == 0) THEN
@@ -1360,7 +1413,7 @@ CONTAINS
          gauxc_status)
 
       hdf5_output = (TRIM(output_path) /= "")
-      write_hdf5_output = hdf5_output .AND. para_env%mepos == 0
+      write_hdf5_output = hdf5_output .AND. para_env%mepos == 0 .AND. .NOT. external_density
       IF (write_hdf5_output .AND. ASSOCIATED(scf_env)) THEN
          write_hdf5_output = scf_env%iter_count == 1
       END IF
@@ -1385,7 +1438,7 @@ CONTAINS
          CPABORT("GAUXC XC energy currently does not support real-time propagation")
       END IF
 
-      energy%exc = 0
+      exc_value = 0.0_dp
 
       IF (ASSOCIATED(matrix_vxc)) CALL dbcsr_deallocate_matrix_set(matrix_vxc)
       CALL dbcsr_allocate_matrix_set(matrix_vxc, params%nspins)
@@ -1521,7 +1574,7 @@ CONTAINS
             END IF
          END IF
 
-         energy%exc = energy%exc + gauxc_xc_result%exc
+         exc_value = exc_value + gauxc_xc_result%exc
 
          IF (params%nspins == 1) THEN
             IF (img == 1) THEN
@@ -1556,7 +1609,13 @@ CONTAINS
       DEALLOCATE (gauxc_xc_result%vxc_scalar)
       IF (ALLOCATED(gauxc_xc_result%vxc_zeta)) DEALLOCATE (gauxc_xc_result%vxc_zeta)
 
-      CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
+      IF (external_density) THEN
+         exc_external = exc_value
+         matrix_vxc_external => matrix_vxc
+      ELSE
+         energy%exc = exc_value
+         CALL set_ks_env(ks_env, matrix_vxc=matrix_vxc)
+      END IF
       DO ispin = 1, params%nspins
          CALL dbcsr_finalize(matrix_vxc(ispin)%matrix)
       END DO

@@ -1,0 +1,5 @@
+# Three OT steps; these are regression trajectories, not SCF references.
+"O2-gauxc-pbe-cancel.inp" = [{matcher="E_total", tol=1e-10, ref=-144.777394881410032}]
+"O2-gauxc-pbe-singlet.inp" = [{matcher="E_total", tol=1e-10, ref=-144.760606027240783}]
+"O2-gauxc-pbe-spinflip.inp" = [{matcher="E_total", tol=1e-10, ref=-144.760606027240669}]
+"O2-gauxc-pbe-triplet.inp" = [{matcher="E_total", tol=1e-10, ref=-144.777394881410032}]
