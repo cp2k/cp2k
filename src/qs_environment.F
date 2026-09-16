@@ -1809,6 +1809,7 @@ CONTAINS
          CALL init_gapw_nlcc(qs_kind_set)
          ! Accurate XC integration
          IF (gapw_control%accurate_xcint) THEN
+            CPASSERT(gapw_control%oweights >= 0)
             CPASSERT(.NOT. ASSOCIATED(gapw_control%aw))
             CALL get_qs_env(qs_env, nkind=nkind)
             ALLOCATE (gapw_control%aw(nkind))

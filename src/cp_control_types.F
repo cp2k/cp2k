@@ -375,8 +375,9 @@ MODULE cp_control_types
                                               lmax_sphere = 0, &
                                               quadrature = 0
       LOGICAL                              :: accurate_xcint = .FALSE.
+      INTEGER                              :: oweights = 0
       REAL(KIND=dp)                        :: aweights = 0.0_dp
-      REAL(KIND=dp), DIMENSION(:), POINTER  :: aw => NULL()
+      REAL(KIND=dp), DIMENSION(:), POINTER :: aw => NULL()
       LOGICAL                              :: alpha0_hard_from_input = .FALSE., &
                                               force_paw = .FALSE., &
                                               non_paw_atoms = .FALSE., &

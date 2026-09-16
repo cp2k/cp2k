@@ -1156,6 +1156,7 @@ CONTAINS
       ! GAPW accurate integration
       CALL section_vals_val_get(qs_section, "GAPW_ACCURATE_XCINT", l_val=qs_control%gapw_control%accurate_xcint)
       CALL section_vals_val_get(qs_section, "ALPHA_WEIGHTS", r_val=qs_control%gapw_control%aweights)
+      CALL section_vals_val_get(qs_section, "ORDER_WEIGHTS", i_val=qs_control%gapw_control%oweights)
 
       ! Integers grids
       CALL section_vals_val_get(qs_section, "PW_GRID", i_val=itmp)
@@ -3045,8 +3046,11 @@ CONTAINS
             qs_control%eps_ppnl
          IF (qs_control%gapw) THEN
             IF (qs_control%gapw_control%accurate_xcint) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,T79,I2)") &
+                  "QS| GAPW|      XC integration using accurate scheme: Polynomial order (2n) =", &
+                  qs_control%gapw_control%oweights
                WRITE (UNIT=output_unit, FMT="(T2,A,T69,F12.6)") &
-                  "QS| GAPW|      XC integration using accurate scheme: Ref. exponent =", &
+                  "QS| GAPW|                                            Ref. exponent =", &
                   qs_control%gapw_control%aweights
             END IF
             !
