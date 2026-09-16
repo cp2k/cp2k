@@ -437,6 +437,10 @@ registry["Floquet_OCC"] = GenericMatcher(r" 0.1200", col=3)
 
 # MTLR Calculations
 registry["MTLR_U_MINUS_J"] = GenericMatcher(r"U_MINUS_J [eV]", col=4)
+registry["MTLR_REFERENCE_MOS"] = TextPresenceMatcher(
+    " MTLR| Perturbation initial guess:                               REFERENCE MOs"
+)
+registry["WFN_RESTART_READ"] = TextPresenceMatcher("WFN_RESTART| Restart file")
 
 # NNP MD matchers. M_INIT_ENERGY passes first=True because ENERGY|Total
 # FORCE_EVAL is printed once per MD step, and the default (last-line)
