@@ -19,16 +19,15 @@ MODULE input_cp2k_xc
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level
-    USE eeq_input,                       ONLY: create_eeq_control_section
-    USE input_constants,                 ONLY: &
-         do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, do_libxc_cpu, do_libxc_gpu, &
-         fxc_funct_gga, fxc_funct_lda, fxc_funct_pade, fxc_none, gaussian, slater, vdw_nl_drsll, &
-         vdw_nl_lmkll, vdw_nl_rvv10, vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, &
-         vdw_pairpot_dftd4, &
-         xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
-         xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, &
-         xc_funct_tpss, xc_none, xc_pot_energy_none, xc_pot_energy_sum_eigenvalues, &
-         xc_pot_energy_xc_functional, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+   USE eeq_input,                       ONLY: create_eeq_control_section
+   USE input_constants,                 ONLY: &
+        do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, do_libxc_cpu, do_libxc_gpu, &
+        fxc_funct_gga, fxc_funct_lda, fxc_funct_pade, fxc_none, gaussian, slater, vdw_nl_drsll, &
+        vdw_nl_lmkll, vdw_nl_rvv10, vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, &
+        vdw_pairpot_dftd4, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, &
+        xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
+        xc_funct_pbe0, xc_funct_tpss, xc_none, xc_pot_energy_none, xc_pot_energy_sum_eigenvalues, &
+        xc_pot_energy_xc_functional, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_mp2,                  ONLY: create_mp2_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -1788,9 +1787,9 @@ CONTAINS
    SUBROUTINE create_xc_section(section)
       TYPE(section_type), POINTER                        :: section
 
+      INTEGER                                            :: default_libxc_backend
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
-      INTEGER                                            :: default_libxc_backend
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="xc", &
@@ -1824,11 +1823,8 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      ! The LibXC GPU backend is the default on builds that contain a device
-      ! path: the GPU is used unless the user opts out with HOST. On a build
-      ! without a device path the CPU backend is the only option and the default.
-      ! Requesting DEVICE when no usable GPU is found at runtime aborts, so on a
-      ! GPU-less machine HOST must be set explicitly.
+      ! The GPU backend is the default on builds with a device path; HOST is the
+      ! only option without one, and DEVICE aborts when no GPU is usable.
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
       default_libxc_backend = do_libxc_gpu
 #else

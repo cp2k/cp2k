@@ -207,9 +207,8 @@ cmake_dependent_option(
   CP2K_ENABLE_PW_GPU "Enable the ffts accelerated backend (mostly GPU)." ON
   "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
 
-cmake_dependent_option(
-  CP2K_ENABLE_LIBXC_GPU "Enable the GPU backend of libxc." ON
-  "CP2K_USE_ACCEL MATCHES \"CUDA\"" OFF)
+cmake_dependent_option(CP2K_ENABLE_LIBXC_GPU "Enable the GPU backend of libxc."
+                       ON "CP2K_USE_ACCEL MATCHES \"CUDA\"" OFF)
 
 cmake_dependent_option(
   CP2K_USE_UNIFIED_MEMORY "Use CPU/GPU unified memory (Mi250x onwards)" OFF
@@ -693,14 +692,11 @@ if(CP2K_USE_ELPA)
 endif()
 
 if(CP2K_USE_LIBXC)
-  # libxc only installs pkg-config files, so it is located through
-  # FindLibXC.cmake. The toolchain builds a single variant (CUDA-only, HIP-only,
-  # or CPU-only) and exports the matching pkg-config path, so the variant is
-  # resolved automatically.
   find_package(LibXC REQUIRED)
 
   if(CP2K_LIBXC_VERSION VERSION_LESS "7.1.0")
-    message(FATAL_ERROR "LibXC >= 7.1.0 is required; found ${CP2K_LIBXC_VERSION}")
+    message(
+      FATAL_ERROR "LibXC >= 7.1.0 is required; found ${CP2K_LIBXC_VERSION}")
   endif()
 
   if(CP2K_USE_CUDA)
@@ -711,7 +707,6 @@ if(CP2K_USE_LIBXC)
     set(LIBXC_CUDA_FOUND TRUE)
     message(STATUS "Found CUDA Libxc (${CP2K_LIBXC_VERSION})")
   else()
-    # CPU-only libxc: this is the only libxc target CP2K needs.
     set(LIBXC_CPU_FOUND TRUE)
     message(STATUS "Found CPU Libxc (${CP2K_LIBXC_VERSION})")
   endif()

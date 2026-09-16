@@ -91,47 +91,47 @@ MODULE xc_libxc
                             xc_f03_mgga_vxc, &
                             xc_f03_mgga_vxc_fxc, &
                             XC_POLARIZED, &
-                             XC_UNPOLARIZED, &
-                             XC_FAMILY_LDA, &
-                             XC_FAMILY_GGA, &
-                             XC_FAMILY_MGGA, &
-                             XC_FAMILY_HYB_LDA, &
-                             XC_FAMILY_HYB_GGA, &
-                             XC_FAMILY_HYB_MGGA, &
-                             libxc_device_buffer_type, &
-                             libxc_get_backend, &
-                             libxc_set_backend, &
-                             libxc_func_init_wrapper, libxc_func_end_wrapper, &
-                             libxc_buffer_create, libxc_buffer_free, &
-                             libxc_buffer_h2d, libxc_buffer_d2h, &
-                             libxc_gga_exc_vxc_wrapper, libxc_gga_exc_wrapper, &
-                             libxc_lda_exc_vxc_wrapper, libxc_lda_exc_wrapper, &
-                             libxc_mgga_exc_vxc_wrapper, libxc_mgga_exc_wrapper, &
-                             libxc_mgga_vxc_wrapper, &
-                             libxc_is_gpu, &
-                             libxc_device_buffer_alloc, libxc_device_buffer_free, &
-                             libxc_host_to_device, libxc_device_to_host, &
-                             libxc_d2h_issue, libxc_d2h_read, &
-                             libxc_assert_device_buffer, &
-                             libxc_lda_exc_vxc_device, libxc_lda_exc_device, &
-                             libxc_gga_exc_device, libxc_gga_exc_vxc_device, &
-                             libxc_gga_vxc_device, &
-                             libxc_mgga_exc_device, libxc_mgga_exc_vxc_device, &
-                             libxc_mgga_vxc_device, &
-                             xc_libxc_wrap_functional_get_number, &
-                             xc_libxc_wrap_info_needs_laplace, &
-                             xc_libxc_wrap_info_no_exc, &
-                             xc_libxc_wrap_is_under_development, &
-                             xc_libxc_check_functional, &
-                             xc_libxc_get_reference_length, &
-                             xc_libxc_wrap_init_safe, &
+                            XC_UNPOLARIZED, &
+                            XC_FAMILY_LDA, &
+                            XC_FAMILY_GGA, &
+                            XC_FAMILY_MGGA, &
+                            XC_FAMILY_HYB_LDA, &
+                            XC_FAMILY_HYB_GGA, &
+                            XC_FAMILY_HYB_MGGA, &
+                            libxc_device_buffer_type, &
+                            libxc_get_backend, &
+                            libxc_set_backend, &
+                            libxc_func_init_wrapper, libxc_func_end_wrapper, &
+                            libxc_buffer_create, libxc_buffer_free, &
+                            libxc_buffer_h2d, libxc_buffer_d2h, &
+                            libxc_gga_exc_vxc_wrapper, libxc_gga_exc_wrapper, &
+                            libxc_lda_exc_vxc_wrapper, libxc_lda_exc_wrapper, &
+                            libxc_mgga_exc_vxc_wrapper, libxc_mgga_exc_wrapper, &
+                            libxc_mgga_vxc_wrapper, &
+                            libxc_is_gpu, &
+                            libxc_device_buffer_alloc, libxc_device_buffer_free, &
+                            libxc_host_to_device, libxc_device_to_host, &
+                            libxc_d2h_issue, libxc_d2h_read, &
+                            libxc_assert_device_buffer, &
+                            libxc_lda_exc_vxc_device, libxc_lda_exc_device, &
+                            libxc_gga_exc_device, libxc_gga_exc_vxc_device, &
+                            libxc_gga_vxc_device, &
+                            libxc_mgga_exc_device, libxc_mgga_exc_vxc_device, &
+                            libxc_mgga_vxc_device, &
+                            xc_libxc_wrap_functional_get_number, &
+                            xc_libxc_wrap_info_needs_laplace, &
+                            xc_libxc_wrap_info_no_exc, &
+                            xc_libxc_wrap_is_under_development, &
+                            xc_libxc_check_functional, &
+                            xc_libxc_get_reference_length, &
+                            xc_libxc_wrap_init_safe, &
                             xc_libxc_wrap_library_reference, &
                             xc_libxc_wrap_version, &
                             xc_libxc_wrap_set_thresholds, &
                             xc_libxc_wrap_info_refs, &
                             xc_f03_func_set_ext_params, &
                             XC_EXCHANGE, XC_CORRELATION, XC_EXCHANGE_CORRELATION, XC_KINETIC
-   USE offload_api, ONLY: offload_device_synchronize !Bibek
+   USE offload_api, ONLY: offload_device_synchronize
 #endif
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, &
 !$                    omp_get_num_threads, &
@@ -182,7 +182,7 @@ MODULE xc_libxc
                                                             v2rholapl, v2rhotau, v2sigmalapl, &
                                                             v2sigmatau, v2lapl2, v2lapltau, v2tau2
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: v3rho3
-      ! GPU device buffers
+      ! GPU device buffers for the active backend
       TYPE(libxc_device_buffer_type)                     :: rho_d, sigma_d, lapl_d, tau_d
       TYPE(libxc_device_buffer_type)                     :: exc_d
       TYPE(libxc_device_buffer_type)                     :: vrho_d, vsigma_d, vlapl_d, vtau_d
@@ -219,7 +219,7 @@ MODULE xc_libxc
    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE, TARGET, PRIVATE, SAVE :: libxc_unused
 #endif
 
-   ! Initialize libxc backend selection
+   ! Backend initialization bookkeeping
    LOGICAL, PRIVATE, SAVE :: libxc_initialized = .FALSE.
 
 CONTAINS
@@ -235,7 +235,7 @@ CONTAINS
       LOGICAL                                  :: exists
 
 #if defined (__LIBXC)
-      ! Initialize libxc backend on first call
+      ! Initialize once on first call
       IF (.NOT. libxc_initialized) THEN
          CALL xc_libxc_wrap_init_safe()
          libxc_initialized = .TRUE.
@@ -746,7 +746,7 @@ CONTAINS
          worker%vlapl = 0.0_dp
       END SELECT
 
-      ! Allocate GPU device buffers if the GPU backend is active
+      ! Allocate GPU device buffers when the GPU backend is active
       IF (libxc_is_gpu()) THEN
          CALL libxc_device_buffer_alloc(worker%rho_d, np*nb)
          CALL libxc_device_buffer_alloc(worker%exc_d, nb)
@@ -1853,13 +1853,10 @@ CONTAINS
 !$    nthreads = omp_get_num_threads()
       CPASSERT(ithread < SIZE(workers%worker))
 
-      ! Blocks are capped by libxc_block_size, which is what the staging buffers
-      ! were allocated for, but shrunk when there are too few points to give every
-      ! thread a block of its own: small atomic grids would otherwise all be
-      ! evaluated by thread 0.
+      ! Cap the block at what the staging buffers were allocated for, shrinking
+      ! it so every thread gets a block of its own on small grids.
       bsize = MAX(1, MIN(libxc_block_size, (npoints + nthreads - 1)/nthreads))
       nblocks = (npoints + bsize - 1)/bsize
-      IF (ithread == 0) WRITE (*, *) "DIAG bsize=", bsize, "npoints=", npoints, "nthreads=", nthreads, "nblocks=", nblocks
 
       family = workers%family
       SELECT CASE (family)
@@ -1878,11 +1875,8 @@ CONTAINS
          CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
       END SELECT
 
-      ! Points below the density cutoff need no test here. The cutoffs were handed
-      ! to the functional object in xc_libxc_wrap_set_thresholds, and LibXC leaves
-      ! the outputs of the points it screens at zero, so accumulating them is a
-      ! no-op.
-      ! Determine number of sigma components based on spin polarization
+      ! Below the cutoff LibXC leaves outputs at zero, so no test is needed here.
+      ! Determine number of sigma components based on spin polarization.
       ns = MERGE(3, 1, workers%nspin == XC_POLARIZED)
       ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace, &
                  no_exc => workers%no_exc, eps_rho => workers%epsilon_rho, &
@@ -1908,13 +1902,9 @@ CONTAINS
                   w%lapl(1, i) = laplace_rho(ii)
                   w%tau(1, i) = tau(ii)
                END DO
-               ! Meta-GGAs are screened on the kinetic energy density as well as on the
-               ! density, and LibXC only screens on the latter. A point failing the tau
-               ! test is handed over with zero density, which makes LibXC screen it out
-               ! and leave its outputs at zero: what skipping it used to achieve. The
-               ! Fermi hole curvature bound tau >= sigma/(8*rho) follows in the same pass,
-               ! with the denominator floored at the cutoff so the division stays defined
-               ! for the points that are about to be screened.
+               ! LibXC only screens on the density, so screen on tau here by
+               ! zeroing rho; enforce the Fermi hole curvature bound tau >=
+               ! sigma/(8*rho) with the denominator floored at the cutoff.
                DO i = 1, nb
                   IF (w%tau(1, i) <= eps_tau) w%rho(1, i) = 0.0_dp
                   w%tau(1, i) = MAX(w%tau(1, i), &
@@ -1923,7 +1913,6 @@ CONTAINS
             END IF
 
             ! one LibXC call for the whole block
-            ! Use the explicit H2D/D2H path for the GPU backend
             IF (libxc_is_gpu()) THEN
                ! Copy data to device
                CALL libxc_host_to_device(w%rho_d, w%rho(1, 1), INT(np))
@@ -1935,7 +1924,7 @@ CONTAINS
                   CALL libxc_host_to_device(w%tau_d, w%tau(1, 1), INT(np))
                END IF
 
-               ! Call device-aware Libxc functions
+               ! Device-aware library call
                IF (is_mgga) THEN
                   SELECT CASE (grad_deriv)
                   CASE (0)
@@ -1950,7 +1939,7 @@ CONTAINS
                                                        w%exc_d, w%vrho_d, w%vsigma_d, w%vlapl_d, w%vtau_d, np)
                      END IF
                   CASE (2)
-                     ! For second derivatives, fall back to CPU implementation for now
+                     ! Second derivatives: CPU path
                      CALL xc_f03_mgga(w%func, np, w%rho(1, 1), w%sigma(1, 1), w%lapl(1, 1), w%tau(1, 1), &
                                       w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), w%vlapl(1, 1), w%vtau(1, 1), &
                                       w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2rholapl(1, 1), &
@@ -1969,7 +1958,7 @@ CONTAINS
                         CALL libxc_gga_exc_vxc_device(w%func, w%rho_d, w%sigma_d, w%exc_d, w%vrho_d, w%vsigma_d, np)
                      END IF
                   CASE (2)
-                     ! For second derivatives, fall back to CPU implementation for now
+                     ! Second derivatives: CPU path
                      CALL xc_f03_gga_exc_vxc_fxc(w%func, np, w%rho(1, 1), w%sigma(1, 1), &
                                                  w%exc(1), w%vrho(1, 1), w%vsigma(1, 1), &
                                                  w%v2rho2(1, 1), w%v2rhosigma(1, 1), w%v2sigma2(1, 1))
@@ -1981,21 +1970,18 @@ CONTAINS
                   CASE (1)
                      CALL libxc_lda_exc_vxc_device(w%func, w%rho_d, w%exc_d, w%vrho_d, np)
                   CASE (2)
-                     ! For second derivatives, fall back to CPU implementation for now
+                     ! Second derivatives: CPU path
                      CALL xc_f03_lda_exc_vxc_fxc(w%func, np, w%rho(1, 1), &
                                                  w%exc(1), w%vrho(1, 1), w%v2rho2(1, 1))
                   CASE (3)
-                     ! For third derivatives, fall back to CPU implementation for now
+                     ! Third derivatives: CPU path
                      CALL xc_f03_lda(w%func, np, w%rho(1, 1), &
                                      w%exc(1), w%vrho(1, 1), w%v2rho2(1, 1), w%v3rho3(1, 1))
                   END SELECT
                END IF
 
-               ! Issue all device-to-host copies first (async, same default
-               ! streams execute in the order issued on the same stream),
-               ! then a single synchronize() covers all of them, then read
-               ! every result. Replaces one synchronize() per buffer with
-               ! one synchronize() total for this whole D2H group.
+               ! Issue all D2H copies first (async), then a single synchronize()
+               ! covers all of them, then read every result.
                IF (.NOT. no_exc) THEN
                   CALL libxc_d2h_issue(w%exc_d, INT(nb))
                END IF
@@ -2034,7 +2020,6 @@ CONTAINS
                   CPABORT("NaN found right after device_to_host")
                END IF
             ELSE
-               ! Use CPU path (existing implementation)
                IF (is_mgga) THEN
                   SELECT CASE (grad_deriv)
                   CASE (0)
@@ -2104,9 +2089,7 @@ CONTAINS
                END IF
             END IF
 
-            ! accumulate; each derivative is added by exactly one loop, selected by
-            ! the order requested and the family, not by a per-branch copy of the whole
-            ! block scaffolding
+            ! accumulate; each derivative is added by exactly one loop
             IF (grad_deriv >= 0) THEN
                DO i = 1, nb
                   ii = i0 + i
@@ -2324,7 +2307,6 @@ CONTAINS
 
       bsize = MAX(1, MIN(libxc_block_size, (npoints + nthreads - 1)/nthreads))
       nblocks = (npoints + bsize - 1)/bsize
-      IF (ithread == 0) WRITE (*, *) "DIAG bsize=", bsize, "npoints=", npoints, "nthreads=", nthreads, "nblocks=", nblocks
 
       family = workers%family
       SELECT CASE (family)
@@ -2343,8 +2325,8 @@ CONTAINS
          CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
       END SELECT
 
-      ! As in the spin-unpolarized case the density and kinetic energy density
-      ! cutoffs are applied by LibXC itself.
+      ! Density and tau cutoffs are applied by LibXC itself, as in the
+      ! spin-unpolarized case.
       ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace, &
                  no_exc => workers%no_exc, eps_rho => workers%epsilon_rho, &
                  eps_tau => workers%epsilon_tau)
@@ -2361,7 +2343,7 @@ CONTAINS
                w%rho(2, i) = MAX(rhob(ii), 0.0_dp)
             END DO
             IF (is_gga) THEN
-               ! CP2K works with the norms of the gradients, LibXC with their contractions
+               ! CP2K works with gradient norms, LibXC with their contractions.
                DO i = 1, nb
                   ii = i0 + i
                   w%nda(i) = MAX(norm_drhoa(ii), EPSILON(0.0_dp)*1.e4_dp)
@@ -2380,9 +2362,9 @@ CONTAINS
                   w%tau(1, i) = MAX(tau_a(ii), 0.0_dp)
                   w%tau(2, i) = MAX(tau_b(ii), 0.0_dp)
                END DO
-               ! screening on tau and the Fermi hole curvature bound, per spin channel;
-               ! see the spin-unpolarized routine. The tau test is on the sum of the two
-               ! channels, as the density test is.
+               ! Tau screening and Fermi hole curvature bound, per spin channel
+               ! (see the spin-unpolarized routine); the tau test uses the sum
+               ! of the channels, as the density test does.
                DO i = 1, nb
                   IF (w%tau(1, i) + w%tau(2, i) <= eps_tau) THEN
                      w%rho(1, i) = 0.0_dp
@@ -2396,8 +2378,6 @@ CONTAINS
             END IF
 
             ! one LibXC call for the whole block
-
-            !claude Bibek start
 
             IF (libxc_is_gpu()) THEN
                CALL libxc_host_to_device(w%rho_d, w%rho(1, 1), INT(2*np))
@@ -2460,11 +2440,8 @@ CONTAINS
                   END SELECT
                END IF
 
-               ! Issue all device-to-host copies first (async, same default
-               ! streams execute in the order issued on the same stream),
-               ! then a single synchronize() covers all of them, then read
-               ! every result. Replaces one synchronize() per buffer with
-               ! one synchronize() total for this whole D2H group.
+               ! Issue all D2H copies first (async), then a single synchronize()
+               ! covers all of them, then read every result.
                IF (.NOT. no_exc) THEN
                   CALL libxc_d2h_issue(w%exc_d, INT(nb))
                END IF
@@ -2503,7 +2480,7 @@ CONTAINS
                   IF (grad_deriv >= 1) WRITE (*, *) "vrho has NaN:", ANY(w%vrho(:, 1:nb) /= w%vrho(:, 1:nb))
                   CPABORT("NaN found right after device_to_host")
                END IF
-            ELSE !claude Bibek end
+            ELSE
                IF (is_mgga) THEN
                   SELECT CASE (grad_deriv)
                   CASE (0)
@@ -2572,8 +2549,8 @@ CONTAINS
                   END SELECT
                END IF
             END IF
-            ! accumulate; one loop per group of derivatives, selected by the order
-            ! requested and the family
+            ! accumulate; one loop per group of derivatives, selected by the
+            ! order requested and the family
             IF (grad_deriv >= 0) THEN
                DO i = 1, nb
                   ii = i0 + i
