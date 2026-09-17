@@ -87,7 +87,7 @@ MODULE bibliography
                             Mattiat2022, Belleflamme2023, Knizia2013, Musaelian2023, Eriksen2020, &
                             Bussy2023, Bussy2024, Wang2018, Zeng2023, Graml2024, Solca2024, &
                             Caldeweyher2017, Caldeweyher2019, Caldeweyher2020, Wittmann2024, Freeman1977, &
-                            Gruneis2009, Blaha2010, KresseFurthmueller1996, &
+                            Gruneis2009, Blaha2010, KresseFurthmueller1996, WuSimon2000, &
                             Stein2022, Stein2024, Pracht2019, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
@@ -1933,6 +1933,13 @@ CONTAINS
                          "semiconductors using a plane-wave basis set", &
                          source="Comput. Mater. Sci.", volume="6", pages="15-50", &
                          year=1996, doi="10.1016/0927-0256(96)00008-0")
+
+      CALL add_reference(key=WuSimon2000, &
+                         authors=s2a("K. Wu", "H. Simon"), &
+                         title="Thick-restart Lanczos method for large symmetric "// &
+                         "eigenvalue problems", &
+                         source="SIAM J. Matrix Anal. Appl.", volume="22", pages="602-616", &
+                         year=2000, doi="10.1137/S0895479898334605")
 
       CALL add_reference(key=Stein2022, &
                          authors=s2a("F. Stein", "J. Hutter"), &

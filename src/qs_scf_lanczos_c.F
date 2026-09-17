@@ -20,6 +20,8 @@
 !>        the kernel stays free of CP2K state and independently testable.
 ! **************************************************************************************************
 MODULE qs_scf_lanczos_c
+   USE bibliography,                    ONLY: WuSimon2000,&
+                                              cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                               cp_cfm_gemm,&
@@ -112,6 +114,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      CALL cite_reference(WuSimon2000)
       NULLIFY (fm_struct_tmp, blacs_env, para_env)
 
       para_env => c0%matrix_struct%para_env
