@@ -2928,9 +2928,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NNKP_FILE", &
-                          description="Wannier90 nnkp file for KPOINTS_SOURCE NNKP. Required blocks: "// &
+                          description="Wannier90 nnkp file for KPOINTS_SOURCE NNKP. Required literal block names: "// &
                           "real_lattice (Angstrom), recip_lattice (2*pi/Angstrom), kpoints (fractional), "// &
-                          "and nnkpts (point indices and reciprocal lattice shifts). Nonzero exclusions "// &
+                          "and nnkpts (nearest-neighbour point indices and reciprocal lattice shifts). Nonzero exclusions "// &
                           "in the file are unsupported; use EXCLUDE_BANDS in CP2K instead.", &
                           usage="NNKP_FILE loop.nnkp", default_c_val="wannier90.nnkp", &
                           n_var=1, type_of_var=char_t)

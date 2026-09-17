@@ -13,11 +13,14 @@ MODULE wannier90_nnkpts
                                               open_file
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE kinds,                           ONLY: dp
+   USE string_utilities,                ONLY: lowercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'wannier90_nnkpts'
+   ! Absolute file-format tolerances: Angstrom and reciprocal Angstrom, respectively.
+   REAL(KIND=dp), PARAMETER :: real_lattice_tol = 1.e-6_dp, recip_lattice_tol = 1.e-6_dp
    PUBLIC :: read_wannier90_nnkpts
 CONTAINS
 
@@ -68,13 +71,13 @@ CONTAINS
             IF (.NOT. ALL(ieee_is_finite(lattice))) CPABORT("NNKP_FILE: nonfinite lattice.")
             IF (block == "real_lattice") THEN
                IF (have_real) CPABORT("NNKP_FILE: duplicate real_lattice block.")
-               IF (MAXVAL(ABS(lattice - real_lattice)) > 1.e-6_dp) THEN
+               IF (MAXVAL(ABS(lattice - real_lattice)) > real_lattice_tol) THEN
                   CPABORT("NNKP_FILE: real lattice differs from the CP2K cell (Angstrom).")
                END IF
                have_real = .TRUE.
             ELSE
                IF (have_recip) CPABORT("NNKP_FILE: duplicate recip_lattice block.")
-               IF (MAXVAL(ABS(lattice - recip_lattice)) > 1.e-6_dp) THEN
+               IF (MAXVAL(ABS(lattice - recip_lattice)) > recip_lattice_tol) THEN
                   CPABORT("NNKP_FILE: reciprocal lattice differs from the CP2K cell.")
                END IF
                have_recip = .TRUE.
@@ -208,18 +211,4 @@ CONTAINS
       IF (marker /= "end" .OR. name /= block) CPABORT("NNKP_FILE: incorrect block terminator.")
    END SUBROUTINE end_block
 
-! **************************************************************************************************
-!> \brief Convert ASCII keyword to lowercase.
-!> \param string keyword
-! **************************************************************************************************
-   SUBROUTINE lowercase(string)
-      CHARACTER(len=*), INTENT(INOUT)                    :: string
-
-      INTEGER                                            :: code, i
-
-      DO i = 1, LEN_TRIM(string)
-         code = IACHAR(string(i:i))
-         IF (code >= IACHAR('A') .AND. code <= IACHAR('Z')) string(i:i) = ACHAR(code + 32)
-      END DO
-   END SUBROUTINE lowercase
 END MODULE wannier90_nnkpts

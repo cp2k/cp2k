@@ -182,7 +182,7 @@ CONTAINS
                   IF (require_z2) converged = converged .AND. iz2 >= 0 .AND. surface_resolved(centres)
                   IF (converged) EXIT
                END IF
-               previous = centres
+               CALL MOVE_ALLOC(centres, previous)
                old_z2 = iz2
             END DO
             IF (.NOT. converged) THEN
@@ -600,7 +600,7 @@ CONTAINS
       num_bands = COUNT(keep_band)
       IF (num_bands == 0) CPABORT("WANNIER90: no bands left after EXCLUDE_BANDS.")
       ALLOCATE (band_map(num_bands))
-      band_map = PACK([(i, i=1, num_bands_tot)], keep_band)
+      band_map(:) = PACK([(i, i=1, num_bands_tot)], keep_band)
       DEALLOCATE (keep_band)
       IF (do_z2) THEN
          IF (num_bands /= nelectron) THEN
@@ -1119,10 +1119,10 @@ CONTAINS
                CALL cp_cfm_to_fm(mmn_cfm, mmn_real, mmn_imag)
                IF (do_soc) THEN
                   CALL cp_cfm_get_submatrix(mmn_cfm, scalar_overlap)
-                  link_matrix = MATMUL(CONJG(TRANSPOSE(spinor_coeff(1:nmo, :, ik))), &
-                                       MATMUL(scalar_overlap, spinor_coeff(1:nmo, :, ik2))) + &
-                                MATMUL(CONJG(TRANSPOSE(spinor_coeff(nmo + 1:, :, ik))), &
-                                       MATMUL(scalar_overlap, spinor_coeff(nmo + 1:, :, ik2)))
+                  link_matrix(:, :) = MATMUL(CONJG(TRANSPOSE(spinor_coeff(1:nmo, :, ik))), &
+                                             MATMUL(scalar_overlap, spinor_coeff(1:nmo, :, ik2))) + &
+                                      MATMUL(CONJG(TRANSPOSE(spinor_coeff(nmo + 1:, :, ik))), &
+                                             MATMUL(scalar_overlap, spinor_coeff(nmo + 1:, :, ik2)))
                END IF
                !
                ! write to output file
@@ -1223,7 +1223,7 @@ CONTAINS
          my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
          DO ispin = spin_channel, spin_channel
             IF (do_soc) THEN
-               eigval = spinor_values(:, ik)
+               eigval(:) = spinor_values(:, ik)
             ELSE IF (my_kpgrp) THEN
                ikpgr = ik - kp_range(1) + 1
                kp => kpoint%kp_env(ikpgr)%kpoint_env
@@ -1241,7 +1241,7 @@ CONTAINS
                   END IF
                END DO
             END IF
-            eigval = eigval*evolt
+            eigval(:) = eigval*evolt
             ! output
             IF (iunit > 0) THEN
                DO ib = 1, num_bands

@@ -30,6 +30,7 @@ def native(tmp_path_factory):
             "-cpp",
             "-ffree-form",
             "-fcheck=all",
+            "-Werror=realloc-lhs",
             "-O0",
             "-g",
             str(ROOT / "src/base/kinds.F"),

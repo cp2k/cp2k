@@ -17,6 +17,10 @@ MODULE topology_wilson
    PRIVATE
    PUBLIC :: wilson_step, wilson_spectrum, z2_from_wcc, wcc_distance, surface_resolved
    REAL(KIND=dp), PARAMETER :: two_pi = 6.283185307179586476925286766559_dp
+   ! Reduced-coordinate tolerance for an ambiguous largest-gap crossing.
+   REAL(KIND=dp), PARAMETER :: crossing_tol = 1.e-12_dp
+   ! Fraction of the adjacent largest gap allowed for motion and gap separation.
+   REAL(KIND=dp), PARAMETER :: gap_fraction = 0.3_dp
 CONTAINS
 
 ! **************************************************************************************************
@@ -36,19 +40,20 @@ CONTAINS
       resolved = .FALSE.
       n = SIZE(wcc, 1)
       IF (n < 1 .OR. SIZE(wcc, 2) < 2) RETURN
-      sorted = MODULO(wcc, 1.0_dp)
+      ALLOCATE (sorted(n, SIZE(wcc, 2)))
+      sorted(:, :) = MODULO(wcc, 1.0_dp)
       DO i = 1, SIZE(wcc, 2)
          CALL sort_wcc(sorted(:, i))
       END DO
       DO i = 2, SIZE(wcc, 2)
          CALL largest_gap(sorted(:, i - 1), left_gap, left_size)
          CALL largest_gap(sorted(:, i), right_gap, right_size)
-         IF (wcc_distance(sorted(:, i - 1), sorted(:, i)) >= 0.3_dp*MIN(left_size, right_size)) RETURN
+         IF (wcc_distance(sorted(:, i - 1), sorted(:, i)) >= gap_fraction*MIN(left_size, right_size)) RETURN
          DO j = 1, n
             delta = ABS(sorted(j, i) - left_gap)
-            IF (MIN(delta, 1.0_dp - delta) <= 0.3_dp*left_size) RETURN
+            IF (MIN(delta, 1.0_dp - delta) <= gap_fraction*left_size) RETURN
             delta = ABS(sorted(j, i - 1) - right_gap)
-            IF (MIN(delta, 1.0_dp - delta) <= 0.3_dp*right_size) RETURN
+            IF (MIN(delta, 1.0_dp - delta) <= gap_fraction*right_size) RETURN
          END DO
       END DO
       resolved = .TRUE.
@@ -80,7 +85,7 @@ CONTAINS
       IF (.NOT. ALL(ieee_is_finite(REAL(overlap, dp)))) RETURN
       IF (.NOT. ALL(ieee_is_finite(AIMAG(overlap)))) RETURN
       ALLOCATE (a(n, n), u(n, n), vh(n, n), sv(n), rwork(5*n), work(MAX(1, 4*n)))
-      a = overlap
+      a(:, :) = overlap
       CALL zgesvd('A', 'A', n, n, a, n, sv, u, n, vh, n, work, SIZE(work), rwork, status)
       IF (status /= 0) RETURN
       minimum_sv = MINVAL(sv)
@@ -113,7 +118,7 @@ CONTAINS
       berry = 0.0_dp
       IF (n < 1 .OR. SIZE(product, 2) /= n .OR. SIZE(wcc) /= n) RETURN
       ALLOCATE (a(n, n), eig(n), work(MAX(1, 4*n)), rwork(2*n))
-      a = product
+      a(:, :) = product
       CALL zgeev('N', 'N', n, a, n, eig, dummy, 1, dummy, 1, work, SIZE(work), rwork, status)
       IF (status /= 0) RETURN
       wcc = MODULO(ATAN2(AIMAG(eig), REAL(eig, dp))/two_pi, 1.0_dp)
@@ -146,7 +151,7 @@ CONTAINS
       IF (n < 2 .OR. MOD(n, 2) /= 0 .OR. lines < 2) RETURN
       IF (.NOT. ALL(ieee_is_finite(wcc))) RETURN
       ALLOCATE (sorted(n, lines), gaps(lines))
-      sorted = MODULO(wcc, 1.0_dp)
+      sorted(:, :) = MODULO(wcc, 1.0_dp)
       DO i = 1, lines
          CALL sort_wcc(sorted(:, i))
          CALL largest_gap(sorted(:, i), gaps(i), gap_size)
@@ -159,7 +164,7 @@ CONTAINS
          lo = MIN(gaps(i - 1), gaps(i))
          hi = MAX(gaps(i - 1), gaps(i))
          DO j = 1, n
-            IF (ABS(sorted(j, i) - gaps(i - 1)) < 1.e-12_dp) THEN
+            IF (ABS(sorted(j, i) - gaps(i - 1)) < crossing_tol) THEN
                status = -3
                RETURN
             END IF
@@ -187,8 +192,9 @@ CONTAINS
       distance = HUGE(1.0_dp)
       n = SIZE(a)
       IF (n /= SIZE(b) .OR. n < 1) RETURN
-      aa = MODULO(a, 1.0_dp)
-      bb = MODULO(b, 1.0_dp)
+      ALLOCATE (aa(n), bb(n))
+      aa(:) = MODULO(a, 1.0_dp)
+      bb(:) = MODULO(b, 1.0_dp)
       CALL sort_wcc(aa)
       CALL sort_wcc(bb)
       DO shift = 0, n - 1
