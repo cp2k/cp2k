@@ -3,8 +3,11 @@
                               {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-8, ref=2.38976876039089},
                               {matcher="WANNIER90_SCF_MO_REUSE", tol=0.0, ref=1.0},
                               {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]
+# The symmetric AO start can reach different local minima even for the same subspace.
+# Check its invariant spread; lif_auto below retains the total-spread reference.
 "lif_ao.inp" = [{matcher="E_total", tol=1e-10, ref=-31.808005348350662},
-                {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-7, ref=5.55070214036933},
+                {matcher="WANNIER90_LIBRARY_INVARIANT_SPREAD", tol=1e-7, ref=4.54524424003606},
+                {matcher="WANNIER90_PROJECTION_MIN_SVALUE", tol=1e-5, ref=0.80938},
                 {matcher="WANNIER90_REUSE_VALIDATION", tol=0.0, ref=1.0}]
 "lif_hybrid.inp" = [{matcher="E_total", tol=1e-10, ref=-31.808005348401554},
                     {matcher="WANNIER90_LIBRARY_SPREAD", tol=1e-7, ref=5.55070214484094},

@@ -144,7 +144,10 @@ projections, and log. Writing these files does not reset the optimized library m
 `INITIAL_PROJECTIONS IDENTITY` is available for diagnostics but retains the arbitrary MO gauge. It
 can converge to different local minima for symmetry-reconstructed and newly diagonalized MOs. The
 library handles collinear spin channels independently. Even with AO trials, convergence to a
-stationary localization result does not guarantee the global minimum of the spread functional.
+stationary localization result does not guarantee the global minimum of the spread functional. For
+highly symmetric AO starts, small numerical perturbations can lead to different localization minima
+even with the same selected trial orbitals and band subspace. Use `AUTO` to compare independent
+starts rather than relying on one such minimization.
 
 CP2K reports both the total spread and its gauge-invariant contribution. The latter depends on the
 selected band subspace, but not on the unitary rotations used to localize it. It therefore helps
