@@ -1,4 +1,0 @@
-numpy
-scipy
-z2pack==2.2.1
-pytest
