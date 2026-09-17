@@ -2980,6 +2980,29 @@ CONTAINS
                           default_l_val=.FALSE., citations=[Soluyanov2011, Gresch2017])
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="CHERN", &
+                          description="Compute the native first Chern number from determinant Wilson winding. "// &
+                          "Requires KPOINTS_SOURCE WILSON and a closed full surface with integer transverse "// &
+                          "winding, e.g. WILSON_TRANSVERSE 0 1 0. Not compatible with Z2 half-surfaces. "// &
+                          "The selected bands must be isolated; SOC and time reversal are not required.", &
+                          default_l_val=.FALSE., citations=[Gresch2017])
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="REQUIRE_GLOBAL_GAP", &
+                          description="Require a positive sampled indirect gap above the lowest selected bands. "// &
+                          "Unlike the direct subspace gap this tests a common energy interval over all sampled "// &
+                          "points. A finite sampling does not prove a bulk gap. No per-point Fermi shifts are applied.", &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="STATE_EXPORT", &
+                          description="Export selected complex AO states, all eigenvalues and full contracted "// &
+                          "Gaussian basis to SEED_NAME.topology for cross-geometry/phason overlaps. "// &
+                          "Requires NNKP or WILSON, uses atomic units, and can generate large files. "// &
+                          "Spinor coefficients include second-variational SOC when enabled. "// &
+                          "No Wannier fit or Fermi-energy alignment is performed.", default_l_val=.FALSE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="TIME_REVERSAL", &
                           description="User confirmation that the Hamiltonian is time-reversal invariant. "// &
                           "Boundary Kramers degeneracy is additionally checked; it is not a proof of TR symmetry.", &

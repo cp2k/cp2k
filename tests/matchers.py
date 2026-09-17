@@ -121,6 +121,9 @@ registry["TOPOLOGY_SURFACE_CONVERGED"] = TextPresenceMatcher(
 registry["TOPOLOGY_Z2_TRIVIAL"] = TextPresenceMatcher(
     "TOPOLOGY| Converged Z2 invariant: 0"
 )
+registry["TOPOLOGY_CHERN_TRIVIAL"] = TextPresenceMatcher(
+    "TOPOLOGY| Converged first Chern number: 0"
+)
 registry["TOPOLOGY_BERRY_PHASE"] = GenericMatcher(
     "Berry phase [rad]:", col=7, abs_value=True
 )

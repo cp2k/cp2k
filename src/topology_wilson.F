@@ -15,13 +15,57 @@ MODULE topology_wilson
 
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: wilson_step, wilson_spectrum, z2_from_wcc, wcc_distance, surface_resolved
+   PUBLIC :: wilson_step, wilson_spectrum, z2_from_wcc, wcc_distance, surface_resolved, chern_from_wcc
    REAL(KIND=dp), PARAMETER :: two_pi = 6.283185307179586476925286766559_dp
    ! Reduced-coordinate tolerance for an ambiguous largest-gap crossing.
    REAL(KIND=dp), PARAMETER :: crossing_tol = 1.e-12_dp
    ! Fraction of the adjacent largest gap allowed for motion and gap separation.
    REAL(KIND=dp), PARAMETER :: gap_fraction = 0.3_dp
 CONTAINS
+
+! **************************************************************************************************
+!> \brief First Chern number from determinant Wilson-phase winding on a closed surface.
+!>        Both transverse endpoints must be present. This is not a Z2 half-surface.
+!>        The sign follows Z2Pack: increasing transverse coordinate, fixed loop orientation.
+!> \param wcc Wilson centres, band index first and transverse line second
+!> \param invariant candidate integer, meaningful only for status zero
+!> \param winding unrounded winding
+!> \param status 0 success, -1 invalid data, -2 unclosed surface, -3 unresolved phase step
+!> \param closure_tol maximal endpoint WCC mismatch
+! **************************************************************************************************
+   SUBROUTINE chern_from_wcc(wcc, invariant, winding, status, closure_tol)
+      REAL(KIND=dp), INTENT(IN)                          :: wcc(:, :)
+      INTEGER, INTENT(OUT)                               :: invariant
+      REAL(KIND=dp), INTENT(OUT)                         :: winding
+      INTEGER, INTENT(OUT)                               :: status
+      REAL(KIND=dp), INTENT(IN)                          :: closure_tol
+
+      REAL(KIND=dp), PARAMETER                           :: max_phase_step = 0.25_dp
+
+      INTEGER                                            :: i, nline
+      REAL(KIND=dp)                                      :: delta
+
+      invariant = 0
+      winding = 0.0_dp
+      status = -1
+      nline = SIZE(wcc, 2)
+      IF (SIZE(wcc, 1) < 1 .OR. nline < 3 .OR. closure_tol <= 0.0_dp) RETURN
+      IF (.NOT. ALL(ieee_is_finite(wcc))) RETURN
+      status = -2
+      IF (wcc_distance(wcc(:, 1), wcc(:, nline)) > closure_tol) RETURN
+      status = -3
+      DO i = 2, nline
+         ! Avoid accepting a small aliased determinant step when many centres move.
+         IF (SIZE(wcc, 1)*wcc_distance(wcc(:, i), wcc(:, i - 1)) >= max_phase_step) RETURN
+         delta = MODULO(SUM(wcc(:, i)) - SUM(wcc(:, i - 1)) + 0.5_dp, 1.0_dp) - 0.5_dp
+         IF (ABS(delta) >= max_phase_step) RETURN
+         winding = winding + delta
+      END DO
+      status = -2
+      IF (ABS(winding - NINT(winding)) > closure_tol) RETURN
+      invariant = NINT(winding)
+      status = 0
+   END SUBROUTINE chern_from_wcc
 
 ! **************************************************************************************************
 !> \brief Conservative neighbouring-line movement and largest-gap separation checks.
