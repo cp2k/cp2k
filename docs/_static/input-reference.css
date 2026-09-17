@@ -1,0 +1,81 @@
+/* Lightweight presentation for generated input-reference keywords. */
+.rst-content .cp2k-input-keyword {
+    display: grid;
+    grid-template-columns: max-content max-content minmax(0, 1fr);
+    align-items: center;
+    margin: 1em 0 1.35em;
+    padding: 0;
+}
+
+/* Compact signature-like heading without creating a Sphinx domain object. */
+.rst-content .cp2k-input-keyword > p.rubric {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0 0 0.6em;
+    padding: 5px 9px 4px;
+    border-top: 3px solid #6ab0de;
+    background: #e7f2fa;
+    color: #404040;
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+        "Courier New", monospace;
+    font-size: 90%;
+    font-weight: 700;
+    line-height: normal;
+}
+
+/* The permalink is a separate block node so it can share the heading row
+ * without becoming part of the rubric text used for implicit references. */
+.rst-content .cp2k-input-keyword > .cp2k-input-keyword-permalink {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    margin: 0 0 0.6em 0.4em;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.rst-content .cp2k-input-keyword > .cp2k-input-keyword-permalink .headerlink {
+    color: #404040;
+    font-size: 85%;
+    text-decoration: none;
+}
+
+.rst-content .cp2k-input-keyword:hover > .cp2k-input-keyword-permalink,
+.rst-content .cp2k-input-keyword > .cp2k-input-keyword-permalink:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Keyword details use the indentation of the former object-description body. */
+.rst-content .cp2k-input-keyword > :not(p.rubric):not(.cp2k-input-keyword-permalink) {
+    grid-column: 1 / -1;
+    margin-left: 1.75em;
+}
+
+/* Override the rather generous RTD paragraph spacing only inside generated
+ * keyword blocks. */
+.rst-content .cp2k-input-keyword > p:not(.rubric) {
+    margin-top: 0;
+    margin-bottom: 0.8em;
+}
+
+.rst-content .cp2k-input-keyword > ul,
+.rst-content .cp2k-input-keyword > ol {
+    margin-top: -0.25em;
+    margin-bottom: 0.8em;
+}
+
+.rst-content .cp2k-input-keyword > ul li,
+.rst-content .cp2k-input-keyword > ol li {
+    margin-bottom: 0.15em;
+}
+
+.rst-content .cp2k-input-keyword > .admonition {
+    margin-top: 0.2em;
+    margin-bottom: 0.8em;
+}
+
+.rst-content .cp2k-input-keyword > :last-child {
+    margin-bottom: 0;
+}
