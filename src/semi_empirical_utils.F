@@ -66,9 +66,9 @@ CONTAINS
       CALL section_vals_val_get(se_section, "COULOMB%CUTOFF", explicit=explicit1)
       CALL section_vals_val_get(se_section, "COULOMB%RC_TAPER", explicit=explicit2)
       IF ((.NOT. explicit1) .AND. se_control%do_ewald_gks) THEN
-         rc = MAX(0.5*plane_distance(1, 0, 0, cell), &
-                  0.5*plane_distance(0, 1, 0, cell), &
-                  0.5*plane_distance(0, 0, 1, cell))
+         rc = MAX(0.5_dp*plane_distance(1, 0, 0, cell), &
+                  0.5_dp*plane_distance(0, 1, 0, cell), &
+                  0.5_dp*plane_distance(0, 0, 1, cell))
          IF (rc /= se_control%cutoff_cou) THEN
             IF (output_unit > 0) THEN
                WRITE (output_unit, *)

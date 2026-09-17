@@ -559,7 +559,7 @@ CONTAINS
                DO j = lb(2), ub(2)
                   DO i = lb(1), ub(1)
                      t%array(i, j, k) = 0.5_dp*(1.0_dp + erf((ff%array(i, j, k) - f0)/delta_eta))
-                     dtf%array(i, j, k) = (1.0_dp/SQRT(pi))*EXP(-(ff%array(i, j, k) - f0)**2.0/(delta_eta**2.0))
+                     dtf%array(i, j, k) = (1.0_dp/SQRT(pi))*EXP(-(ff%array(i, j, k) - f0)**2.0_dp/(delta_eta**2.0_dp))
                      eps_elec%array(i, j, k) = EXP(LOG(epsilon_solvent)*(1 - (s%array(i, j, k) &
                                                                               + (1 - s%array(i, j, k))*t%array(i, j, k))))
                      rho_tot_zero%array(i, j, k) = rho_solute%array(i, j, k)/eps_elec%array(i, j, k)

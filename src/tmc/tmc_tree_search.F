@@ -230,6 +230,7 @@ CONTAINS
       INTEGER                                            :: stat, react_count
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'search_next_energy_calc'
+      REAL(KIND=dp), PARAMETER                           :: eps_exp_prob = 1.0E-10_dp
 
       INTEGER                                            :: handle
       LOGICAL                                            :: flag
@@ -250,7 +251,7 @@ CONTAINS
       stat = status_created
       ! set status for master
       !   (if TMC_STATUS_WAIT_FOR_NEW_TASK, no calculation necessary)
-      IF (.NOT. ASSOCIATED(new_gt_elem) .OR. (EXP(prob) < 1.0E-10)) THEN
+      IF (.NOT. ASSOCIATED(new_gt_elem) .OR. (EXP(prob) < eps_exp_prob)) THEN
          stat = TMC_STATUS_WAIT_FOR_NEW_TASK
       ELSE
          ! reactivate canceled elements
@@ -508,6 +509,7 @@ CONTAINS
       TYPE(tmc_env_type), POINTER                        :: tmc_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'search_canceling_elements'
+      REAL(KIND=dp), PARAMETER                           :: eps_prob = 1.0E-10_dp
 
       INTEGER                                            :: handle
       LOGICAL                                            :: ready
@@ -523,9 +525,9 @@ CONTAINS
       ready = .TRUE.
       ! if prob present select the related branch
       IF (PRESENT(prob)) THEN
-         IF (prob < 1.0E-10 .AND. ASSOCIATED(pt_elem_in%acc)) THEN
+         IF (prob < eps_prob .AND. ASSOCIATED(pt_elem_in%acc)) THEN
             pt_elem => pt_elem_in%acc
-         ELSE IF (prob > (1.0_dp - 1.0E-10) .AND. ASSOCIATED(pt_elem_in%nacc)) THEN
+         ELSE IF (prob > (1.0_dp - eps_prob) .AND. ASSOCIATED(pt_elem_in%nacc)) THEN
             pt_elem => pt_elem_in%nacc
          ELSE
             ready = .FALSE.

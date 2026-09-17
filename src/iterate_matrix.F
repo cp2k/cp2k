@@ -1215,7 +1215,7 @@ CONTAINS
       ALLOCATE (eigvals(N))
 
       ! symmetrize sm
-      eigvecs(:, :) = 0.5*(sm + TRANSPOSE(sm))
+      eigvecs(:, :) = 0.5_dp*(sm + TRANSPOSE(sm))
 
       ! probe optimal sizes for WORK and IWORK
       LWORK = -1
@@ -1263,11 +1263,11 @@ CONTAINS
       DO i = 1, N
          modified_eigval = eigvals(i) - mu_correction
          IF (modified_eigval > 0) THEN
-            sm_sign(i, i) = 1.0
+            sm_sign(i, i) = 1.0_dp
          ELSE IF (modified_eigval < 0) THEN
-            sm_sign(i, i) = -1.0
+            sm_sign(i, i) = -1.0_dp
          ELSE
-            sm_sign(i, i) = 0.0
+            sm_sign(i, i) = 0.0_dp
          END IF
       END DO
 
@@ -1308,11 +1308,11 @@ CONTAINS
       DO i = 1, sm_size
          modified_eigval = eigvals(i) - mu_correction
          IF (modified_eigval > 0) THEN
-            mapped_eigvals(i) = 1.0
+            mapped_eigvals(i) = 1.0_dp
          ELSE IF (modified_eigval < 0) THEN
-            mapped_eigvals(i) = -1.0
+            mapped_eigvals(i) = -1.0_dp
          ELSE
-            mapped_eigvals(i) = 0.0
+            mapped_eigvals(i) = 0.0_dp
          END IF
       END DO
 

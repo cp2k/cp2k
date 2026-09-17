@@ -69,7 +69,7 @@ MODULE t_c_g0
    PUBLIC :: t_c_g0_n, init, free_C0, get_lmax_init
 
    INTEGER, PARAMETER :: degree = 13
-   REAL(KIND=dp), PARAMETER :: target_error = 0.100000E-08
+   REAL(KIND=dp), PARAMETER :: target_error = 1.000000E-09_dp
    INTEGER, PARAMETER :: nderiv_max = 21
    INTEGER, SAVE      :: nderiv_init = -1
    INTEGER, SAVE      :: patches = -1

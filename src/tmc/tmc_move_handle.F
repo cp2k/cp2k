@@ -153,7 +153,7 @@ CONTAINS
          ! initilaize the move array with related sizes, probs, etc.
          CALL move_types_create(tmc_params%move_types, tmc_params%nr_temp)
 
-         IF (mv_prob_sum <= 0.0) THEN
+         IF (mv_prob_sum <= 0.0_dp) THEN
             CALL cp_abort(__LOCATION__, &
                           "The probabilities to perform the moves are "// &
                           "in total less equal 0")
@@ -303,7 +303,7 @@ CONTAINS
                              "for the move type "//inp_kind_name)
             END IF
             ! check if not already set
-            IF (move_types%mv_weight(ind) > 0.0) THEN
+            IF (move_types%mv_weight(ind) > 0.0_dp) THEN
                CPABORT("TMC: Each move type can be set only once. ")
             END IF
 

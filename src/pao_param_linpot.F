@@ -405,6 +405,7 @@ CONTAINS
       REAL(dp), DIMENSION(:, :), INTENT(INOUT), OPTIONAL :: forces
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U_linpot'
+      REAL(KIND=dp), PARAMETER                           :: eps_block_V_sym = 1.0E-12_dp
 
       INTEGER                                            :: acol, arow, handle, iatom, kterm, n, &
                                                             natoms, nterms
@@ -453,7 +454,7 @@ CONTAINS
          block_V(1:n, 1:n) => vec_V(:) ! map vector into matrix
 
          ! symmetrize
-         IF (MAXVAL(ABS(block_V - TRANSPOSE(block_V))/MAX(1.0_dp, MAXVAL(ABS(block_V)))) > 1e-12) THEN
+         IF (MAXVAL(ABS(block_V - TRANSPOSE(block_V))/MAX(1.0_dp, MAXVAL(ABS(block_V)))) > eps_block_V_sym) THEN
             CPABORT("block_V not symmetric")
          END IF
          block_V = 0.5_dp*(block_V + TRANSPOSE(block_V)) ! symmetrize exactly

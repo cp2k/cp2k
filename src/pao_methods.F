@@ -556,7 +556,7 @@ CONTAINS
 
       CALL dbcsr_release(matrix_S_desym)
 
-      IF (ABS(ls_scf_env%nelectron_total - trace_PS) > 0.5) THEN
+      IF (ABS(ls_scf_env%nelectron_total - trace_PS) > 0.5_dp) THEN
          CPABORT("Number of electrons wrong. Trace(PS) ="//cp_to_string(trace_PS))
       END IF
 

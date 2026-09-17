@@ -586,6 +586,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_apply_hfxlr_kernel'
+      REAL(KIND=dp), PARAMETER                           :: eps_dr = 1.0E-06_dp
 
       INTEGER                                            :: handle, iatom, ispin, jatom, natom, &
                                                             nsgf, nspins
@@ -651,7 +652,7 @@ CONTAINS
             rij = pbc(rij, cell)
             dr = SQRT(SUM(rij(:)**2))
             gabr = 1._dp/rcut
-            IF (dr < 1.e-6) THEN
+            IF (dr < eps_dr) THEN
                gabr = 2._dp*gabr/SQRT(3.1415926_dp)
             ELSE
                gabr = ERF(gabr*dr)/dr

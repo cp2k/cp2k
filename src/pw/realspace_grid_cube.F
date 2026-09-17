@@ -144,7 +144,7 @@ CONTAINS
       IF (my_max_file_size_mb > 0) THEN
          ! A single grid point takes up 13 bytes, which is 1.3e-05 MB.
          compression_factor = 1.3e-05_dp*PRODUCT(REAL(pw%pw_grid%npts, dp))/max_file_size_mb
-         my_stride(:) = INT(compression_factor**(1.0/3.0)) + 1
+         my_stride(:) = INT(compression_factor**(1.0_dp/3.0_dp)) + 1
       END IF
 
       CPASSERT(my_stride(1) > 0)
@@ -373,7 +373,7 @@ CONTAINS
             READ (extunit, *) nat, rdum
             DO i = 1, 3
                READ (extunit, *) ndum, rdum
-               IF ((ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4)) .AND. &
+               IF ((ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4_dp)) .AND. &
                    output_unit > 0) THEN
                   WRITE (output_unit, *) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
                   WRITE (output_unit, *) "Restart from density | ", ndum, " DIFFERS FROM ", npoints(i)
@@ -515,7 +515,7 @@ CONTAINS
          READ (extunit_handle, *) nat, rdum
          DO i = 1, 3
             READ (extunit_handle, *) ndum, rdum
-            IF ((ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4)) .AND. &
+            IF ((ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4_dp)) .AND. &
                 output_unit > 0) THEN
                WRITE (output_unit, *) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
                WRITE (output_unit, *) "Restart from density | ", ndum, " DIFFERS FROM ", npoints(i)
@@ -611,7 +611,7 @@ CONTAINS
             READ (extunit_handle, *) nat, rdum
             DO i = 1, 3
                READ (extunit_handle, *) ndum, rdum
-               IF ((ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4)) .AND. &
+               IF ((ndum /= npoints(i) .OR. (ABS(rdum(i) - dr(i)) > 1e-4_dp)) .AND. &
                    output_unit > 0) THEN
                   WRITE (output_unit, *) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
                   WRITE (output_unit, *) "Restart from density | ", ndum, " DIFFERS FROM ", npoints(i)

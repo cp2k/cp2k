@@ -766,7 +766,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: kappab
       REAL(dp), INTENT(IN)                               :: etab, kg, rcut
 
-      REAL(KIND=dp), PARAMETER                           :: rsmooth = 1.0_dp
+      REAL(KIND=dp), PARAMETER                           :: eps_rab = 1.0E-06_dp, rsmooth = 1.0_dp
 
       INTEGER                                            :: i, j
       REAL(KIND=dp)                                      :: dfcut, fcut, r, rk, x
@@ -781,7 +781,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (rab < 1.e-6) THEN
+      IF (rab < eps_rab) THEN
          ! on site terms
          dgmat(:, :) = 0.0_dp
       ELSE IF (rab > rcut) THEN

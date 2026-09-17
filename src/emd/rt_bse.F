@@ -873,7 +873,7 @@ CONTAINS
       IF (PRESENT(threshold_opt)) THEN
          threshold = threshold_opt
       ELSE
-         threshold = 1.0e-10
+         threshold = 1.0e-10_dp
       END IF
 
       IF (PRESENT(max_iter_opt)) THEN

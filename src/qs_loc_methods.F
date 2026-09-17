@@ -1025,7 +1025,7 @@ CONTAINS
       IF (PRESENT(mo_coeff)) THEN
          CPASSERT(.NOT. PRESENT(complex_mo_coeff))
          CALL cp_fm_create(squaredmat, mo_coeff%matrix_struct)
-         squaredmat%local_data = mo_coeff%local_data**2.0
+         squaredmat%local_data = mo_coeff%local_data**2.0_dp
       ELSE
          CPASSERT(PRESENT(complex_mo_coeff))
          CALL cp_fm_create(squaredmat, complex_mo_coeff%matrix_struct)
@@ -1456,13 +1456,13 @@ CONTAINS
 
                  !! XX
                CASE (1)
-                  realpart = 1.0 - 0.5*twopi*twopi/Lx/Lx/Lx/Lx &
+                  realpart = 1.0_dp - 0.5_dp*twopi*twopi/Lx/Lx/Lx/Lx &
                      *moment_set(20, istate)
                   imagpart = twopi/Lx/Lx*moment_set(4, istate) &
-                             - twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lx/Lx/6.0*moment_set(56, istate)
+                             - twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lx/Lx/6.0_dp*moment_set(56, istate)
 
                   ! third order
-                  !realpart = realpart + twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lx/Lx/Lx/Lx/24.0 * moment_set(120, istate)
+                  !realpart = realpart + twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lx/Lx/Lx/Lx/24.0_dp * moment_set(120, istate)
                   !imagpart = imagpart + twopi*twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lx/Lx/Lx/Lx/Lx/Lx/120 &
                   !     * moment_set(220, istate)
 
@@ -1471,13 +1471,13 @@ CONTAINS
 
                  !! XY
                CASE (2)
-                  realpart = 1.0 - 0.5*twopi*twopi/Lx/Ly/Lx/Ly &
+                  realpart = 1.0_dp - 0.5_dp*twopi*twopi/Lx/Ly/Lx/Ly &
                      *moment_set(23, istate)
                   imagpart = twopi/Lx/Ly*moment_set(5, istate) &
-                             - twopi*twopi*twopi/Lx/Lx/Lx/Ly/Ly/Ly/6.0*moment_set(62, istate)
+                             - twopi*twopi*twopi/Lx/Lx/Lx/Ly/Ly/Ly/6.0_dp*moment_set(62, istate)
 
                   ! third order
-                  !realpart = realpart + twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Ly/Ly/Ly/Ly/24.0 * moment_set(130, istate)
+                  !realpart = realpart + twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Ly/Ly/Ly/Ly/24.0_dp * moment_set(130, istate)
                   !imagpart = imagpart + twopi*twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lx/Ly/Ly/Ly/Ly/Ly/120 &
                   !     * moment_set(235, istate)
 
@@ -1486,13 +1486,13 @@ CONTAINS
 
                  !! XZ
                CASE (3)
-                  realpart = 1.0 - 0.5*twopi*twopi/Lx/Lz/Lx/Lz &
+                  realpart = 1.0_dp - 0.5_dp*twopi*twopi/Lx/Lz/Lx/Lz &
                      *moment_set(25, istate)
                   imagpart = twopi/Lx/Lz*moment_set(6, istate) &
-                             - twopi*twopi*twopi/Lx/Lx/Lx/Lz/Lz/Lz/6.0*moment_set(65, istate)
+                             - twopi*twopi*twopi/Lx/Lx/Lx/Lz/Lz/Lz/6.0_dp*moment_set(65, istate)
 
                   ! third order
-                  !realpart = realpart + twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lz/Lz/Lz/Lz/24.0 * moment_set(134, istate)
+                  !realpart = realpart + twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lz/Lz/Lz/Lz/24.0_dp * moment_set(134, istate)
                   !imagpart = imagpart + twopi*twopi*twopi*twopi*twopi/Lx/Lx/Lx/Lx/Lx/Ly/Ly/Ly/Ly/Ly/120 &
                   !     * moment_set(240, istate)
 
@@ -1501,13 +1501,13 @@ CONTAINS
 
                  !! YY
                CASE (4)
-                  realpart = 1.0 - 0.5*twopi*twopi/Ly/Ly/Ly/Ly &
+                  realpart = 1.0_dp - 0.5_dp*twopi*twopi/Ly/Ly/Ly/Ly &
                      *moment_set(30, istate)
                   imagpart = twopi/Ly/Ly*moment_set(7, istate) &
-                             - twopi*twopi*twopi/Ly/Ly/Ly/Ly/Ly/Ly/6.0*moment_set(77, istate)
+                             - twopi*twopi*twopi/Ly/Ly/Ly/Ly/Ly/Ly/6.0_dp*moment_set(77, istate)
 
                   ! third order
-                  !realpart = realpart + twopi*twopi*twopi*twopi/Ly/Ly/Ly/Ly/Ly/Ly/Ly/Ly/24.0 * moment_set(156, istate)
+                  !realpart = realpart + twopi*twopi*twopi*twopi/Ly/Ly/Ly/Ly/Ly/Ly/Ly/Ly/24.0_dp * moment_set(156, istate)
                   !imagpart = imagpart + twopi*twopi*twopi*twopi*twopi/Ly/Ly/Ly/Ly/Ly/Ly/Ly/Ly/Ly/Ly/120 &
                   !     * moment_set(275, istate)
 
@@ -1516,13 +1516,13 @@ CONTAINS
 
                  !! YZ
                CASE (5)
-                  realpart = 1.0 - 0.5*twopi*twopi/Ly/Lz/Ly/Lz &
+                  realpart = 1.0_dp - 0.5_dp*twopi*twopi/Ly/Lz/Ly/Lz &
                      *moment_set(32, istate)
                   imagpart = twopi/Ly/Lz*moment_set(8, istate) &
-                             - twopi*twopi*twopi/Ly/Ly/Ly/Lz/Lz/Lz/6.0*moment_set(80, istate)
+                             - twopi*twopi*twopi/Ly/Ly/Ly/Lz/Lz/Lz/6.0_dp*moment_set(80, istate)
 
                   ! third order
-                  !realpart = realpart + twopi*twopi*twopi*twopi/Lz/Lz/Lz/Lz/Ly/Ly/Ly/Ly/24.0 * moment_set(160, istate)
+                  !realpart = realpart + twopi*twopi*twopi*twopi/Lz/Lz/Lz/Lz/Ly/Ly/Ly/Ly/24.0_dp * moment_set(160, istate)
                   !imagpart = imagpart + twopi*twopi*twopi*twopi*twopi/Lz/Lz/Lz/Lz/Lz/Ly/Ly/Ly/Ly/Ly/120 &
                   !     * moment_set(280, istate)
 
@@ -1531,13 +1531,13 @@ CONTAINS
 
                  !! ZZ
                CASE (6)
-                  realpart = 1.0 - 0.5*twopi*twopi/Lz/Lz/Lz/Lz &
+                  realpart = 1.0_dp - 0.5_dp*twopi*twopi/Lz/Lz/Lz/Lz &
                      *moment_set(34, istate)
                   imagpart = twopi/Lz/Lz*moment_set(9, istate) &
-                             - twopi*twopi*twopi/Lz/Lz/Lz/Lz/Lz/Lz/6.0*moment_set(83, istate)
+                             - twopi*twopi*twopi/Lz/Lz/Lz/Lz/Lz/Lz/6.0_dp*moment_set(83, istate)
 
                   ! third order
-                  !realpart = realpart + twopi*twopi*twopi*twopi/Lz/Lz/Lz/Lz/Lz/Lz/Lz/Lz/24.0 * moment_set(164, istate)
+                  !realpart = realpart + twopi*twopi*twopi*twopi/Lz/Lz/Lz/Lz/Lz/Lz/Lz/Lz/24.0_dp * moment_set(164, istate)
                   !imagpart = imagpart + twopi*twopi*twopi*twopi*twopi/Lz/Lz/Lz/Lz/Lz/Lz/Lz/Lz/Lz/Lz/120 &
                   !     * moment_set(285, istate)
 

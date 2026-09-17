@@ -206,6 +206,7 @@ CONTAINS
       TYPE(section_vals_type), INTENT(INOUT), POINTER    :: shg_integrals_test_section
 
       CHARACTER(len=*), PARAMETER :: routineN = 'shg_integrals_perf_acc_test'
+      REAL(KIND=dp), PARAMETER                           :: d_nab = 1.0E-06_dp
 
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: count_ab, handle, iab, jab, kab, lamax, &
@@ -281,7 +282,7 @@ CONTAINS
       CALL contraction_matrix_shg(obb, sconb_shg)
 
       !*** Create range of rab (atomic distances) to be tested
-      nab_xyz = CEILING(REAL(nab_min, KIND=dp)**(1.0_dp/3.0_dp) - 1.0E-06)
+      nab_xyz = CEILING(REAL(nab_min, KIND=dp)**(1.0_dp/3.0_dp) - d_nab)
       nab = nab_xyz**3
 
       ALLOCATE (rab(3, nab))

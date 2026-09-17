@@ -129,8 +129,8 @@ CONTAINS
       DO j = 1, 3
          IF (qm_cell%perd(j) == 1) CYCLE
          DO ip = 1, SIZE(particles_qm)
-            check = (DOT_PRODUCT(qm_cell%h_inv(j, :), particles_qm(ip)%r) >= 0.0) .AND. &
-                    (DOT_PRODUCT(qm_cell%h_inv(j, :), particles_qm(ip)%r) <= 1.0)
+            check = (DOT_PRODUCT(qm_cell%h_inv(j, :), particles_qm(ip)%r) >= 0.0_dp) .AND. &
+                    (DOT_PRODUCT(qm_cell%h_inv(j, :), particles_qm(ip)%r) <= 1.0_dp)
             IF (output_unit > 0 .AND. .NOT. check) THEN
                WRITE (unit=output_unit, fmt='("ip, j, pos, lat_pos ",2I6,6F12.5)') ip, j, &
                   particles_qm(ip)%r, DOT_PRODUCT(qm_cell%h_inv(j, :), particles_qm(ip)%r)

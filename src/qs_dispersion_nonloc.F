@@ -441,6 +441,7 @@ CONTAINS
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vdW_energy'
+      REAL(KIND=dp), PARAMETER                           :: eps_g2 = 1.0E-10_dp
 
       INTEGER                                            :: handle, ig, iq, l, m, nl_type, nqs, &
                                                             q1_i, q2_i
@@ -484,7 +485,7 @@ CONTAINS
 !$OMP DO
       DO ig = 1, grid%ngpts_cut_local
          g2 = grid%gsq(ig)
-         IF (ABS(g2 - g2_last) > 1.e-10) THEN
+         IF (ABS(g2 - g2_last) > eps_g2) THEN
             g2_last = g2
             g = SQRT(g2)
             IF (use_virial) THEN
@@ -946,7 +947,7 @@ CONTAINS
             dw0_dn = 1.0_dp/(2.0_dp*w0)*(16.0_dp/3.0_dp*pi - 4.0_dp*wg2/total_rho(i_grid))
             dk_dn = k/(6.0_dp*total_rho(i_grid))
 
-            dq0_drho(i_grid) = dq0_dq*1.0_dp/(k**2.0)*(dw0_dn*k - dk_dn*w0)
+            dq0_drho(i_grid) = dq0_dq*1.0_dp/(k**2.0_dp)*(dw0_dn*k - dk_dn*w0)
             ! wg2 is proportional to |gradient_rho|**4, so this limit is zero.
             IF (gmod2 > 0.0_dp) THEN
                dq0_dgradrho(i_grid) = dq0_dq*1.0_dp/(2.0_dp*k*w0)*4.0_dp*wg2/gmod2

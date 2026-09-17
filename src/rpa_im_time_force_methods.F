@@ -389,7 +389,7 @@ CONTAINS
       END DO
 
       CALL para_env%sum(memory)
-      compression_factor = REAL(nze_tot, dp)*1.0E-06*8.0_dp/memory
+      compression_factor = REAL(nze_tot, dp)*1.0E-06_dp*8.0_dp/memory
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
             "MEMORY_INFO| Memory for 3-center derivatives (compressed):", memory, ' MiB'

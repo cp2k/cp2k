@@ -459,7 +459,7 @@ CONTAINS
             CALL section_vals_val_get(ewald_section, "ALPHA", r_val=ewald_env%alpha)
          CASE ("EEQ")
             omega = ABS(det_3x3(hmat))
-            ewald_env%alpha = SQRT(twopi)/omega**(1./3.)
+            ewald_env%alpha = SQRT(twopi)/omega**(1.0_dp/3.0_dp)
          END SELECT
       END IF
 

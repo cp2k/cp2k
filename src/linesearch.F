@@ -45,30 +45,30 @@ MODULE linesearch
    INTEGER, PARAMETER :: linesearch_method_none = 5
 
    TYPE linesearch_2pnt_type
-      REAL(KIND=dp), DIMENSION(2)                    :: energies = 0.0
-      REAL(KIND=dp)                                  :: scan_step = 0.0
-      REAL(KIND=dp)                                  :: last_step_size = 0.0
-      REAL(KIND=dp)                                  :: max_step_size = 0.0
+      REAL(KIND=dp), DIMENSION(2)                    :: energies = 0.0_dp
+      REAL(KIND=dp)                                  :: scan_step = 0.0_dp
+      REAL(KIND=dp)                                  :: last_step_size = 0.0_dp
+      REAL(KIND=dp)                                  :: max_step_size = 0.0_dp
       INTEGER                                        :: count = 1
    END TYPE linesearch_2pnt_type
 
    TYPE linesearch_3pnt_type
-      REAL(KIND=dp), DIMENSION(3)                    :: energies = 0.0
-      REAL(KIND=dp), DIMENSION(3)                    :: scan_steps = 0.0
-      REAL(KIND=dp)                                  :: last_step_size = 0.0
-      REAL(KIND=dp)                                  :: max_step_size = 0.0
-      REAL(KIND=dp)                                  :: tiny_step_size = 0.0
+      REAL(KIND=dp), DIMENSION(3)                    :: energies = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                    :: scan_steps = 0.0_dp
+      REAL(KIND=dp)                                  :: last_step_size = 0.0_dp
+      REAL(KIND=dp)                                  :: max_step_size = 0.0_dp
+      REAL(KIND=dp)                                  :: tiny_step_size = 0.0_dp
       INTEGER                                        :: count = 1
    END TYPE linesearch_3pnt_type
 
    TYPE linesearch_adapt_type
-      REAL(KIND=dp)                                  :: last_step_size = 0.0
-      REAL(KIND=dp)                                  :: left_x = 0.0
-      REAL(KIND=dp)                                  :: middle_x = 0.0
-      REAL(KIND=dp)                                  :: right_x = 0.0
-      REAL(KIND=dp)                                  :: left_e = 0.0
-      REAL(KIND=dp)                                  :: middle_e = 0.0
-      REAL(KIND=dp)                                  :: right_e = 0.0
+      REAL(KIND=dp)                                  :: last_step_size = 0.0_dp
+      REAL(KIND=dp)                                  :: left_x = 0.0_dp
+      REAL(KIND=dp)                                  :: middle_x = 0.0_dp
+      REAL(KIND=dp)                                  :: right_x = 0.0_dp
+      REAL(KIND=dp)                                  :: left_e = 0.0_dp
+      REAL(KIND=dp)                                  :: middle_e = 0.0_dp
+      REAL(KIND=dp)                                  :: right_e = 0.0_dp
       LOGICAL                                        :: have_left = .FALSE.
       LOGICAL                                        :: have_middle = .FALSE.
       LOGICAL                                        :: have_right = .FALSE.
@@ -76,15 +76,15 @@ MODULE linesearch
    END TYPE linesearch_adapt_type
 
    TYPE linesearch_gold_type
-      REAL(KIND=dp)                                  :: scan_steps = 0.0
-      REAL(KIND=dp)                                  :: last_step_size = 0.0
-      REAL(KIND=dp)                                  :: eps_step_size = 0.0
-      REAL(KIND=dp)                                  :: left_x = 0.0
-      REAL(KIND=dp)                                  :: middle_x = 0.0
-      REAL(KIND=dp)                                  :: right_x = 0.0
-      REAL(KIND=dp)                                  :: left_e = 0.0
-      REAL(KIND=dp)                                  :: middle_e = 0.0
-      REAL(KIND=dp)                                  :: right_e = 0.0
+      REAL(KIND=dp)                                  :: scan_steps = 0.0_dp
+      REAL(KIND=dp)                                  :: last_step_size = 0.0_dp
+      REAL(KIND=dp)                                  :: eps_step_size = 0.0_dp
+      REAL(KIND=dp)                                  :: left_x = 0.0_dp
+      REAL(KIND=dp)                                  :: middle_x = 0.0_dp
+      REAL(KIND=dp)                                  :: right_x = 0.0_dp
+      REAL(KIND=dp)                                  :: left_e = 0.0_dp
+      REAL(KIND=dp)                                  :: middle_e = 0.0_dp
+      REAL(KIND=dp)                                  :: right_e = 0.0_dp
       LOGICAL                                        :: have_left = .FALSE.
       LOGICAL                                        :: have_middle = .FALSE.
       LOGICAL                                        :: have_right = .FALSE.
@@ -575,12 +575,12 @@ CONTAINS
          this%have_left = .FALSE.
          this%have_middle = .FALSE.
          this%have_right = .FALSE.
-         this%left_e = 0.0
-         this%middle_e = 0.0
-         this%right_e = 0.0
-         this%left_x = 0.0
-         this%middle_x = 0.0
-         this%right_x = 0.0
+         this%left_e = 0.0_dp
+         this%middle_e = 0.0_dp
+         this%right_e = 0.0_dp
+         this%left_x = 0.0_dp
+         this%middle_x = 0.0_dp
+         this%right_x = 0.0_dp
       END IF
 
       this%last_step_size = step_size
@@ -604,7 +604,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       CHARACTER(len=*), INTENT(IN)                       :: label
 
-      REAL(KIND=dp), PARAMETER :: phi = (1.0_dp + SQRT(5.0_dp))/2.0_dp
+      REAL(KIND=dp), PARAMETER :: eps_phi = 1.0E-10_dp, phi = (1.0_dp + SQRT(5.0_dp))/2.0_dp, &
+         step_size_thre = 1.0E-10_dp
 
       REAL(KIND=dp)                                      :: a, b, d
 
@@ -686,7 +687,7 @@ CONTAINS
       IF (this%have_left .AND. this%have_middle .AND. this%have_right) THEN
          a = this%middle_x - this%left_x
          b = this%right_x - this%middle_x
-         IF (ABS(MIN(a, b)*phi - MAX(a, b)) > 1.0E-10) THEN
+         IF (ABS(MIN(a, b)*phi - MAX(a, b)) > eps_phi) THEN
             CPABORT("golden-ratio gone")
          END IF
 
@@ -707,17 +708,17 @@ CONTAINS
             this%have_left = .FALSE.
             this%have_middle = .FALSE.
             this%have_right = .FALSE.
-            this%left_e = 0.0
-            this%middle_e = 0.0
-            this%right_e = 0.0
-            this%left_x = 0.0
-            this%middle_x = 0.0
-            this%right_x = 0.0
+            this%left_e = 0.0_dp
+            this%middle_e = 0.0_dp
+            this%right_e = 0.0_dp
+            this%left_x = 0.0_dp
+            this%middle_x = 0.0_dp
+            this%right_x = 0.0_dp
          END IF
 
       END IF
 
-      IF (step_size < 1E-10) CPABORT("linesearch failed / done")
+      IF (step_size < step_size_thre) CPABORT("linesearch failed / done")
 
       this%scan_steps = step_size
    END SUBROUTINE linesearch_gold

@@ -811,7 +811,7 @@ CONTAINS
          CASE (cp_units_Newton)
             res = value*newton**(-my_power)
          CASE (cp_units_mNewton)
-            res = value*(1.0E+3*newton)**(-my_power)
+            res = value*(1.0E+3_dp*newton)**(-my_power)
          CASE (cp_units_au)
             res = value
          CASE default

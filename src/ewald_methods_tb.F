@@ -298,6 +298,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: use_virial
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tb_ewald_overlap'
+      REAL(KIND=dp), PARAMETER                           :: dr_thre = 1.0E-10_dp
 
       INTEGER                                            :: handle, i, iatom, jatom, nmat
       REAL(KIND=dp)                                      :: dfr, dr, fr, pfr, rij(3)
@@ -313,7 +314,7 @@ CONTAINS
          CALL get_iterator_info(nl_iterator, iatom=iatom, jatom=jatom, r=rij)
 
          dr = SQRT(SUM(rij(:)**2))
-         IF (dr > 1.e-10) THEN
+         IF (dr > dr_thre) THEN
             fr = erfc(alpha*dr)/dr
             gmcharge(iatom, 1) = gmcharge(iatom, 1) + mcharge(jatom)*fr
             gmcharge(jatom, 1) = gmcharge(jatom, 1) + mcharge(iatom)*fr

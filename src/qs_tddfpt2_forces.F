@@ -1283,7 +1283,7 @@ CONTAINS
                                      hf_fraction=x_data(1, 1)%general_parameter%fraction)
             ELSE
                DO ispin = 1, mspin
-                  eh1 = 0.0
+                  eh1 = 0.0_dp
                   CALL integrate_four_center(qs_env, x_data, mhz, eh1, mpe, hfx_section, &
                                              para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
                                              ispin=ispin)
@@ -1325,7 +1325,7 @@ CONTAINS
                                      hf_fraction=x_data(1, 1)%general_parameter%fraction)
             ELSE
                DO ispin = 1, mspin
-                  eh1 = 0.0
+                  eh1 = 0.0_dp
                   CALL integrate_four_center(qs_env, x_data, mhz, eh1, mpe, hfx_section, &
                                              para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
                                              ispin=ispin)

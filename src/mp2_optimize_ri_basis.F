@@ -979,8 +979,8 @@ CONTAINS
                IF (has_to_be_changed(la)) change_expo(ipos) = 1
             ELSE
                IF (max_min_exp_per_l(2, la)/max_min_exp_per_l(1, la) < 2.0_dp) THEN
-                  max_min_exp_per_l(1, la) = max_min_exp_per_l(1, la)*0.5
-                  max_min_exp_per_l(2, la) = max_min_exp_per_l(2, la)*1.5
+                  max_min_exp_per_l(1, la) = max_min_exp_per_l(1, la)*0.5_dp
+                  max_min_exp_per_l(2, la) = max_min_exp_per_l(2, la)*1.5_dp
                END IF
                geom_fact = (max_min_exp_per_l(2, la)/max_min_exp_per_l(1, la))**(1.0_dp/REAL(nf_per_l(la) - 1, dp))
                DO iexpo = 1, nf_per_l(la)

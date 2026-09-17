@@ -280,7 +280,7 @@ CONTAINS
 
       DO idim = 1, SIZE(mass_beads, 2)
          DO ist = 1, staging_env%nseg
-            e_h = e_h + 0.5*mass_beads(1, idim)*staging_env%w_j**2* &
+            e_h = e_h + 0.5_dp*mass_beads(1, idim)*staging_env%w_j**2* &
                   (ux(iii(ist), idim) - ux(jjj(ist), idim))**2
             uf_h(iii(ist), idim) = mass_beads(1, idim)*staging_env%w_j**2*( &
                                    2._dp*ux(iii(ist), idim) &

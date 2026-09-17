@@ -153,7 +153,7 @@ CONTAINS
       DO i = 1, SIZE(part)
          atomic_kind => part(i)%atomic_kind
          CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
-         IF (mass /= 0.0) THEN
+         IF (mass /= 0.0_dp) THEN
             SELECT CASE (is_fixed(i))
             CASE (use_perd_x, use_perd_y, use_perd_z, use_perd_xy, use_perd_xz, use_perd_yz, use_perd_none)
                vcom(1) = vcom(1) + part(i)%v(1)*mass
@@ -1197,7 +1197,7 @@ CONTAINS
          part(i)%v(1) = 0.0_dp
          part(i)%v(2) = 0.0_dp
          part(i)%v(3) = 0.0_dp
-         IF (mass /= 0.0) THEN
+         IF (mass /= 0.0_dp) THEN
             SELECT CASE (is_fixed(i))
             CASE (use_perd_x)
                part(i)%v(2) = globenv%gaussian_rng_stream%next()/SQRT(mass)

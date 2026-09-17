@@ -79,6 +79,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: atom_section
       INTEGER, INTENT(IN)                                :: iw
 
+      REAL(KIND=dp), PARAMETER                           :: error_threshold = 1.0E-12_dp
+
       CHARACTER(len=default_string_length)               :: abas, basname
       CHARACTER(len=default_string_length), DIMENSION(1) :: basline
       CHARACTER(len=default_string_length), DIMENSION(3) :: headline
@@ -315,7 +317,7 @@ CONTAINS
          DO i = 1, n
             amat(i, i) = amat(i, i) - 1._dp
          END DO
-         IF (MAXVAL(ABS(amat)) > 1.e-12) THEN
+         IF (MAXVAL(ABS(amat)) > error_threshold) THEN
             IF (iw > 0) WRITE (iw, '(A,G20.10)') " Orthogonality error  ", MAXVAL(ABS(amat))
          END IF
          DEALLOCATE (amat)

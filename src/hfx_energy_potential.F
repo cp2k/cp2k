@@ -3115,8 +3115,10 @@ CONTAINS
 !> \param mc_max ...
 !> \param md_max ...
 !> \param prim ...
+!> \param output_unit ...
 ! **************************************************************************************************
-   SUBROUTINE print_integrals(i, j, k, l, set_offsets, atom_offsets, iset, jset, kset, lset, ma_max, mb_max, mc_max, md_max, prim)
+   SUBROUTINE print_integrals(i, j, k, l, set_offsets, atom_offsets, iset, jset, kset, lset, &
+                              ma_max, mb_max, mc_max, md_max, prim, output_unit)
       INTEGER                                            :: i, j, k, l
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: set_offsets
       INTEGER, DIMENSION(:, :), POINTER                  :: atom_offsets
@@ -3124,8 +3126,14 @@ CONTAINS
                                                             mc_max, md_max
       REAL(dp), DIMENSION(ma_max*mb_max*mc_max*md_max), &
          INTENT(IN)                                      :: prim
+      INTEGER, OPTIONAL                                  :: output_unit
 
-      INTEGER                                            :: iint, ma, mb, mc, md
+      REAL(KIND=dp), PARAMETER                           :: eps_int = 1.0E-13_dp
+
+      INTEGER                                            :: iint, ma, mb, mc, md, my_output_unit
+
+      my_output_unit = 99
+      IF (PRESENT(output_unit)) my_output_unit = output_unit
 
       iint = 0
       DO md = 1, md_max
@@ -3133,12 +3141,14 @@ CONTAINS
             DO mb = 1, mb_max
                DO ma = 1, ma_max
                   iint = iint + 1
-                  IF (ABS(prim(iint)) > 0.0000000000001) THEN
-                     WRITE (99, *) atom_offsets(i, 1) + ma + set_offsets(iset, 1, i, 1) - 1, &
-                        atom_offsets(j, 1) + ma + set_offsets(jset, 1, j, 1) - 1, &
-                        atom_offsets(k, 1) + ma + set_offsets(kset, 1, k, 1) - 1, &
-                        atom_offsets(l, 1) + ma + set_offsets(lset, 1, l, 1) - 1, &
-                        prim(iint)
+                  IF (ABS(prim(iint)) > eps_int) THEN
+                     IF (my_output_unit > 0) THEN
+                        WRITE (my_output_unit, *) atom_offsets(i, 1) + ma + set_offsets(iset, 1, i, 1) - 1, &
+                           atom_offsets(j, 1) + ma + set_offsets(jset, 1, j, 1) - 1, &
+                           atom_offsets(k, 1) + ma + set_offsets(kset, 1, k, 1) - 1, &
+                           atom_offsets(l, 1) + ma + set_offsets(lset, 1, l, 1) - 1, &
+                           prim(iint)
+                     END IF
                   END IF
                END DO
             END DO

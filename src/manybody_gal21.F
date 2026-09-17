@@ -162,7 +162,7 @@ CONTAINS
          BO = gal21%BO1 + gal21%BO2*gal21%gcn(jparticle)
 
          !Tang and toennies potential for physisorption
-         VTT = AO*EXP(-BO*SQRT(drji2)) - (1.0 - EXP(-BO*SQRT(drji2)) &
+         VTT = AO*EXP(-BO*SQRT(drji2)) - (1.0_dp - EXP(-BO*SQRT(drji2)) &
                                           - BO*SQRT(drji2)*EXP(-BO*SQRT(drji2)) &
                                           - (((BO*SQRT(drji2))**2)/2)*EXP(-BO*SQRT(drji2)) &
                                           - (((BO*SQRT(drji2))**3)/6)*EXP(-BO*SQRT(drji2)) &
@@ -180,7 +180,7 @@ CONTAINS
                                                                                - bxy*drji2*sinalpha*sinalpha)
             IF (weight == 0 .AND. index_outfile > 0) WRITE (index_outfile, *) "Fermi  0"
             IF (index_outfile > 0) WRITE (index_outfile, *) "expO", EXP(-BO*SQRT(drji2))
-            IF (index_outfile > 0) WRITE (index_outfile, *) "cstpart", -(1.0 - EXP(-BO*SQRT(drji2)) &
+            IF (index_outfile > 0) WRITE (index_outfile, *) "cstpart", -(1.0_dp - EXP(-BO*SQRT(drji2)) &
                                                                          - BO*SQRT(drji2)*EXP(-BO*SQRT(drji2)) &
                                                                          - (((BO*SQRT(drji2))**2)/2)*EXP(-BO*SQRT(drji2)) &
                                                                          - (((BO*SQRT(drji2))**3)/6)*EXP(-BO*SQRT(drji2)) &
@@ -520,7 +520,7 @@ CONTAINS
 
          !Derivativ of the Tang and Toennies term
          dTT(:) = (-(AO*BO + (BO**7)*gal21%c/720)*EXP(-BO*drji) + 6*(gal21%c/drji**7)* &
-                   (1.0 - EXP(-BO*drji) &
+                   (1.0_dp - EXP(-BO*drji) &
                     - BO*drji*EXP(-BO*drji) &
                     - (((BO*drji)**2)/2)*EXP(-BO*drji) &
                     - (((BO*drji)**3)/6)*EXP(-BO*drji) &

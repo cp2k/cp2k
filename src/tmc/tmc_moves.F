@@ -143,7 +143,7 @@ CONTAINS
                ! displace atom
                DO d = 0, tmc_params%dim_per_elem - 1
                   rnd = rng_stream%next()
-                  elem%pos(ind + d) = elem%pos(ind + d) + (rnd - 0.5)*2.0* &
+                  elem%pos(ind + d) = elem%pos(ind + d) + (rnd - 0.5_dp)*2.0_dp* &
                                       move_types%mv_size(mv_type_atom_trans, mv_conf)
                END DO
                ! check if new position is in subbox
@@ -210,7 +210,7 @@ CONTAINS
                   ! calculate displacement
                   DO d = 1, tmc_params%dim_per_elem
                      rnd = rng_stream%next()
-                     direction(d) = (rnd - 0.5)*2.0_dp*move_types%mv_size( &
+                     direction(d) = (rnd - 0.5_dp)*2.0_dp*move_types%mv_size( &
                                     mv_type_mol_trans, mv_conf)
                   END DO
                   ! check if displaced position is still in subbox
@@ -446,8 +446,8 @@ CONTAINS
          CALL get_scaled_cell(cell=tmc_params%cell, box_scale=box_scale, &
                               vec=pos_tmp)
          ! check
-         IF (ANY(pos_tmp(:) >= tmc_params%sub_box_size(:)/2.0) .OR. &
-             ANY(pos_tmp(:) <= -tmc_params%sub_box_size(:)/2.0)) THEN
+         IF (ANY(pos_tmp(:) >= tmc_params%sub_box_size(:)/2.0_dp) .OR. &
+             ANY(pos_tmp(:) <= -tmc_params%sub_box_size(:)/2.0_dp)) THEN
             inside = .FALSE.
          END IF
       END IF
@@ -565,11 +565,11 @@ CONTAINS
 
       ! calculate rotation matrix (using quanternions)
       rnd = rng_stream%next()
-      a1 = (rnd - 0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
+      a1 = (rnd - 0.5_dp)*2.0_dp*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
       rnd = rng_stream%next()
-      a2 = (rnd - 0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
+      a2 = (rnd - 0.5_dp)*2.0_dp*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
       rnd = rng_stream%next()
-      a3 = (rnd - 0.5)*2.0*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
+      a3 = (rnd - 0.5_dp)*2.0_dp*max_angle !move_types%mv_size(mv_type_mol_rot,mv_conf)
       q0 = COS(a2/2)*COS((a1 + a3)/2.0_dp)
       q1 = SIN(a2/2)*COS((a1 - a3)/2.0_dp)
       q2 = SIN(a2/2)*SIN((a1 - a3)/2.0_dp)
@@ -633,7 +633,7 @@ CONTAINS
       ! without still the balance condition should be fulfilled
 
       rnd3 = rng_stream%next()
-      IF (rnd3 >= 0.5 .AND. rnd_sign_change) THEN
+      IF (rnd3 >= 0.5_dp .AND. rnd_sign_change) THEN
          d = -1
       ELSE
          d = 1

@@ -561,7 +561,7 @@ CONTAINS
          END DO
          auxint(0:mmax) = auxint(0:mmax) + expder(0:mmax)
       CASE (3)
-         cval = 2.*pi*cexp/q**2*EXP(-t*fa)
+         cval = 2.0_dp*pi*cexp/q**2*EXP(-t*fa)
          expder(0) = cval
          DO i = 1, mmax
             expder(i) = fa*expder(i - 1)

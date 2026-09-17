@@ -47,7 +47,7 @@ MODULE xc_perdew_zunger
    REAL(KIND=dp), DIMENSION(0:1) :: A = 0.0_dp, B = 0.0_dp, C = 0.0_dp, D = 0.0_dp, &
                                     b1 = 0.0_dp, b2 = 0.0_dp, ga = 0.0_dp
 
-   REAL(KIND=dp), PARAMETER :: epsilon = 5.E-13
+   REAL(KIND=dp), PARAMETER :: epsilon = 5.E-13_dp
    REAL(KIND=dp) :: eps_rho
 
    PUBLIC :: pz_info, pz_lda_eval, pz_lsd_eval

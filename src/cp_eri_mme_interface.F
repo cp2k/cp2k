@@ -755,6 +755,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
       TYPE(section_vals_type), POINTER                   :: eri_mme_test_section
 
+      REAL(KIND=dp), PARAMETER                           :: d_nR = 1.0E-06_dp
+
       INTEGER                                            :: count_r, G_count, GG_count, GR_count, i, &
                                                             ix, iy, iz, l_max, min_nR, nR, nR_xyz, &
                                                             nrep, nsample, nzet, potential, &
@@ -813,7 +815,7 @@ CONTAINS
       CALL init_cell(box)
 
       ! Create range of rab (atomic distances) to be tested
-      nR_xyz = CEILING(REAL(min_nR, KIND=dp)**(1.0_dp/3.0_dp) - 1.0E-06)
+      nR_xyz = CEILING(REAL(min_nR, KIND=dp)**(1.0_dp/3.0_dp) - d_nR)
       nR = nR_xyz**3
 
       ALLOCATE (rabc(3, nR))

@@ -122,6 +122,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: unit_conv
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mc_Quickstep_move'
+      REAL(KIND=dp), PARAMETER                           :: eps_energies = -1.0E-08_dp
 
       INTEGER                                            :: end_mol, handle, ibox, iparticle, &
                                                             iprint, itype, jbox, nmol_types, &
@@ -253,7 +254,7 @@ CONTAINS
                               - (SUM(old_energy(:)) - SUM(bias_energy_old(:))))
 
 ! used to prevent over and underflows
-            IF (energies >= -1.0E-8) THEN
+            IF (energies >= eps_energies) THEN
                w = 1.0_dp
             ELSE IF (energies <= -500.0_dp) THEN
                w = 0.0_dp

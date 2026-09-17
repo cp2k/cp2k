@@ -216,8 +216,8 @@ CONTAINS
 ! -> force array
       ALLOCATE (forceunroll(1:3*natom))
       forceunroll = 0.0
-      pot_ace = 0.0
-      ace_virial = 0.0
+      pot_ace = 0.0_dp
+      ace_virial = 0.0_dp
 
       CALL ace_model_compute( &
          natomc=natom, &
@@ -239,9 +239,9 @@ CONTAINS
       DEALLOCATE (forceunroll)
 
 #else
-      pot_ace = 0.0
-      ace_force = 0
-      ace_virial = 0.0
+      pot_ace = 0.0_dp
+      ace_force(:, :) = 0.0_dp
+      ace_virial = 0.0_dp
       MARK_USED(ace_natom)
       MARK_USED(ace_atype)
       MARK_USED(fist_nonbond_env)

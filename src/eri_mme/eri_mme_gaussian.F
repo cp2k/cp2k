@@ -104,7 +104,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: err_minimax
 
       INTEGER                                            :: potential_prv
-      REAL(KIND=dp)                                      :: dG, G_max, minimax_Rc
+      REAL(KIND=dp)                                      :: G_max, minimax_Rc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: a, w
 
       IF (PRESENT(potential)) THEN
@@ -121,7 +121,8 @@ CONTAINS
          CPABORT("potential parameter pot_par required for yukawa or long-range Coulomb")
       END IF
 
-      dG = 1.0E-3 ! Resolution in G to determine error of minimax approximation
+      ! REAL(KIND=dp), PARAMETER :: dG = 1.0E-03_dp is resolution in G to determine error
+      ! of minimax approximation, which is not currently used
 
       ! Note: G_c = SQRT(2*cutoff) cutoff in 1 cartesian direction
       ! G_max = SQRT(3*G_c**2) maximum absolute value of G vector

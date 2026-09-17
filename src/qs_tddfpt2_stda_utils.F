@@ -167,7 +167,7 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: ndim
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'setup_gamma'
-      REAL(KIND=dp), PARAMETER                           :: rsmooth = 1.0_dp
+      REAL(KIND=dp), PARAMETER                           :: eps_dr = 1.0E-06_dp, rsmooth = 1.0_dp
 
       INTEGER                                            :: handle, i, iatom, icol, ikind, imat, &
                                                             irow, jatom, jkind, natom, nmat
@@ -249,7 +249,7 @@ CONTAINS
 
          !>   Computes the short-range gamma parameter from
          !>   Nataga-Mishimoto-Ohno-Klopman formula equivalently as it is done for xTB
-         IF (dr < 1.e-6) THEN
+         IF (dr < eps_dr) THEN
             ! on site terms
             gblock(:, :) = gblock(:, :) + eta
          ELSE IF (dr > rcut) THEN
@@ -271,7 +271,7 @@ CONTAINS
             !>   Computes the short-range gamma parameter from
             !>   Nataga-Mishimoto-Ohno-Klopman formula equivalently as it is done for xTB
             !>   Derivatives
-            IF (dr < 1.e-6 .OR. dr > rcut) THEN
+            IF (dr < eps_dr .OR. dr > rcut) THEN
                ! on site terms or beyond cutoff
                dgb = 0.0_dp
             ELSE
@@ -296,7 +296,7 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=gamma_matrix(imat)%matrix, &
                                       row=irow, col=icol, BLOCK=dgblock, found=found)
                IF (found) THEN
-                  IF (dr > 1.e-6) THEN
+                  IF (dr > eps_dr) THEN
                      i = imat - 1
                      IF (irow == iatom) THEN
                         dgblock(:, :) = dgblock(:, :) + dgb*rij(i)/dr
@@ -519,6 +519,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'stda_calculate_kernel'
+      REAL(KIND=dp), PARAMETER                           :: eps_dr = 1.0E-06_dp
 
       INTEGER                                            :: ewald_type, handle, ia, iatom, ikind, &
                                                             is, ispin, jatom, jkind, jspin, natom, &
@@ -714,7 +715,7 @@ CONTAINS
                IF (hfx > 0.0_dp) THEN
                   gabr = (1._dp/(rbeta + (hfx*eta)**(-bp)))**(1._dp/bp)
                ELSE
-                  IF (dr < 1.e-6) THEN
+                  IF (dr < eps_dr) THEN
                      gabr = 0.0_dp
                   ELSE
                      gabr = 1._dp/dr

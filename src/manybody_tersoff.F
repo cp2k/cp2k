@@ -527,7 +527,7 @@ CONTAINS
       d2 = d*d
       hc = h - costheta
 
-      sintheta = SQRT(1.0 - costheta**2)
+      sintheta = SQRT(1.0_dp - costheta**2)
 
       ter_g_d = 0.0_dp
       ! Still need d(costheta)/dR

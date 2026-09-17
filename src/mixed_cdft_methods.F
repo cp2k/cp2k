@@ -3554,6 +3554,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(INOUT)  :: catom
 
       CHARACTER(len=*), PARAMETER :: routineN = 'mixed_becke_constraint_low'
+      REAL(KIND=dp), PARAMETER :: eps_sum_cell_f_all = 1.0E-06_dp
 
       INTEGER :: handle, i, iatom, icomm, iforce_eval, index, iounit, ip, ispecial, iwork, j, &
          jatom, jcomm, k, my_special_work, my_work, natom, nbuffs, nforce_eval, np(3), &
@@ -4099,7 +4100,7 @@ CONTAINS
                            END IF
                         END DO
                      END IF
-                     IF (ABS(sum_cell_f_all) > 0.000001) THEN
+                     IF (ABS(sum_cell_f_all) > eps_sum_cell_f_all) THEN
                         weight(k, j, i) = sum_cell_f_constr/sum_cell_f_all
                      END IF
                   END DO ! i

@@ -806,9 +806,9 @@ CONTAINS
       interval_size(3) = cell_size(3)/REAL(bin_z, dp)
 
       ! volume in [cm^3]
-      vol_cell = vol_cell*(au2a*1E-8)**3
+      vol_cell = vol_cell*(au2a*1E-8_dp)**3
       vol_sub_box = interval_size(1)*interval_size(2)*interval_size(3)* &
-                    (au2a*1E-8)**3
+                    (au2a*1E-8_dp)**3
 
       ! count every atom
       DO atom = 1, SIZE(elem%pos), ana_env%dim_per_elem
@@ -842,7 +842,7 @@ CONTAINS
       END DO
       ! check total cell density
       r_tmp = mass_total/vol_cell - SUM(mass_bin(:, :, :))/vol_sub_box/SIZE(mass_bin(:, :, :))
-      CPASSERT(ABS(r_tmp) < 1E-5)
+      CPASSERT(ABS(r_tmp) < 1E-5_dp)
 
       ! calculate density (mass per volume) and sum up for average value
       ana_env%density_3d%sum_density(:, :, :) = ana_env%density_3d%sum_density(:, :, :) + &
@@ -1043,7 +1043,7 @@ CONTAINS
 
       CALL get_cell(cell=cell, abc=cell_size)
       IF (ana_pair_correl%nr_bins <= 0) THEN
-         ana_pair_correl%nr_bins = CEILING(MAXVAL(cell_size(:))/2.0_dp/(0.03/au2a))
+         ana_pair_correl%nr_bins = CEILING(MAXVAL(cell_size(:))/2.0_dp/(0.03_dp/au2a))
       END IF
       ana_pair_correl%step_length = MAXVAL(cell_size(:))/2.0_dp/ &
                                     ana_pair_correl%nr_bins
@@ -1191,9 +1191,9 @@ CONTAINS
             ana_env%pair_correl%step_length*au2a, &
             "[A] (for Vol changes: referring to the reference cell)"
          DO bin = 1, ana_env%pair_correl%nr_bins
-            voldr = 4.0/3.0*PI*ana_env%pair_correl%step_length**3* &
+            voldr = 4.0_dp/3.0_dp*PI*ana_env%pair_correl%step_length**3* &
                     (REAL(bin, KIND=dp)**3 - REAL(bin - 1, KIND=dp)**3)
-            WRITE (file_ptr, *) (bin - 0.5)*ana_env%pair_correl%step_length*au2a, &
+            WRITE (file_ptr, *) (bin - 0.5_dp)*ana_env%pair_correl%step_length*au2a, &
                (ana_env%pair_correl%g_r(pair, bin)/ana_env%pair_correl%conf_counter)/ &
                (voldr*ana_env%pair_correl%pairs(pair)%pair_count/vol)
          END DO
