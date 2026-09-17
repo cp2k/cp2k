@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-openmpi_ver="5.0.10"
-openmpi_sha256="0acecc4fc218e5debdbcb8a41d182c6b0f1d29393015ed763b2a91d5d7374cc6"
+openmpi_ver="6.0.0rc1"
+openmpi_sha256="564a39dfe869a1e55a5dc7ea0e9010817dc81469d7c36c624b844feffc72e91f"
 openmpi_pkg="openmpi-${openmpi_ver}.tar.bz2"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -30,19 +30,18 @@ case "${with_openmpi}" in
     if verify_checksums "${install_lock_file}"; then
       echo "openmpi-${openmpi_ver} is already installed, skipping it."
     else
-      retrieve_package "${openmpi_sha256}" "${openmpi_pkg}"
+      # retrieve_package "${openmpi_sha256}" "${openmpi_pkg}"
+      if [ -f "${openmpi_pkg}" ]; then
+        echo "${openmpi_pkg} is found"
+      else
+        download_pkg_from_urlpath "${openmpi_sha256}" "${openmpi_pkg}" "https://download.open-mpi.org/release/open-mpi/v6.0"
+      fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d openmpi-${openmpi_ver} ] && rm -rf openmpi-${openmpi_ver}
       tar -xjf ${openmpi_pkg}
       cd openmpi-${openmpi_ver}
-      # Backport module lifetime fixes requested in open-mpi/ompi#13783.
-      patch -l -p1 < "${SCRIPT_DIR}/stage1/openmpi-${openmpi_ver}-op-module-lifetime.patch" \
-        > openmpi_op_module_lifetime.patch.log 2>&1 ||
-        tail_excerpt openmpi_op_module_lifetime.patch.log
-      # Backport the OB1 progress fix scheduled for OpenMPI 5.0.11.
-      patch -l -p1 < "${SCRIPT_DIR}/stage1/openmpi-${openmpi_ver}-pml-ob1-pending.patch" \
-        > openmpi_pml_ob1_pending.patch.log 2>&1 ||
-        tail_excerpt openmpi_pml_ob1_pending.patch.log
+      patch -l -p1 < "${SCRIPT_DIR}/stage1/ompi-fix-flex-detection.patch" \
+        > patch.log 2>&1 || patch.log
       if [ "${SYSTEM_ARCH}" = "x86_64" ]; then
         # can have issue with older glibc libraries, in which case
         # we need to add the -fgnu89-inline to CFLAGS. We can check
@@ -66,10 +65,7 @@ case "${with_openmpi}" in
       make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
       make -j $(get_nprocs) install > install.log 2>&1 || tail_excerpt install.log
       cd ..
-      write_checksums "${install_lock_file}" \
-        "${SCRIPT_DIR}/stage1/$(basename ${SCRIPT_NAME})" \
-        "${SCRIPT_DIR}/stage1/openmpi-${openmpi_ver}-op-module-lifetime.patch" \
-        "${SCRIPT_DIR}/stage1/openmpi-${openmpi_ver}-pml-ob1-pending.patch"
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage1/$(basename ${SCRIPT_NAME})"
     fi
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
