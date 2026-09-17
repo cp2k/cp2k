@@ -26,6 +26,11 @@ Conventions which are easily testible by reading the source files, are tested in
   - avoid FLOAT() in favour of REAL(, KIND=dp).
   - the global number of grid points (pw_grid_type%ngpts,ngpts_cut) overflows INT(KIND=4) for large
     simulations.
+- Convert magic constants (internal ad-hoc thresholds, ...) to parameters. This documents the origin
+  and meaning of these values and allows to convert them into input parameters if necessary.
+- Each `SELECT CASE`-branching should have a `DEFAULT` branch. If another value should not be
+  allowed, use `CPABORT` to indicate that and catch programming errors from passing incorrect
+  values.
 - Every derived type needs a default initializer. This means that each of its non-allocatable
   component needs a default value. This prevents errors from accessing uninitialized and thus
   non-sensical data.
