@@ -252,22 +252,24 @@ CONTAINS
 !> \param first_col ...
 !> \param ncol ...
 !> \param fm_AZ receives A Z in the same columns
-!> \param fm_BZ receives B Z in the same columns
+!> \param fm_BZ receives B Z in the same columns, or from first_col_BZ on
+!> \param first_col_BZ ...
 ! **************************************************************************************************
-   SUBROUTINE bse_matvec_apply(mv_env, fm_Z, first_col, ncol, fm_AZ, fm_BZ)
+   SUBROUTINE bse_matvec_apply(mv_env, fm_Z, first_col, ncol, fm_AZ, fm_BZ, first_col_BZ)
 
       TYPE(bse_matvec_env_type), INTENT(IN), TARGET      :: mv_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_Z
       INTEGER, INTENT(IN)                                :: first_col, ncol
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_AZ
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_BZ
+      INTEGER, INTENT(IN), OPTIONAL                      :: first_col_BZ
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_matvec_apply'
       REAL(KIND=dp), PARAMETER                           :: mem_fraction = 0.25_dp
 
-      INTEGER                                            :: col, handle, handle2, homo, ia, iloc, k, &
-                                                            n_arrays, n_ov, n_ri_loc, nb, nb_max, &
-                                                            nrow_local, p, virt
+      INTEGER                                            :: col, col_shift_B, handle, handle2, homo, &
+                                                            ia, iloc, k, n_arrays, n_ov, n_ri_loc, &
+                                                            nb, nb_max, nrow_local, p, virt
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       LOGICAL                                            :: do_B
       REAL(KIND=dp)                                      :: mem_avail_GB
@@ -288,6 +290,8 @@ CONTAINS
       IF (do_B) THEN
          CPASSERT(mv_env%do_abba)
       END IF
+      col_shift_B = 0
+      IF (PRESENT(first_col_BZ)) col_shift_B = first_col_BZ - first_col
 
       CALL cp_fm_get_info(fm_Z, nrow_local=nrow_local, row_indices=row_indices)
 
@@ -376,7 +380,7 @@ CONTAINS
             DO iloc = 1, nrow_local
                ia = row_indices(iloc)
                fm_AZ%local_data(iloc, col + k - 1) = RA(ia, k) + mv_env%eps_diff(ia)*Z(ia, k)
-               IF (do_B) fm_BZ%local_data(iloc, col + k - 1) = RB(ia, k)
+               IF (do_B) fm_BZ%local_data(iloc, col + col_shift_B + k - 1) = RB(ia, k)
             END DO
          END DO
          CALL timestop(handle2)

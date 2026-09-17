@@ -13,7 +13,10 @@
 
 MODULE bse_main
 
-   USE bse_davidson,                    ONLY: bse_davidson_refcheck_tda,&
+   USE bse_davidson,                    ONLY: abba_indefinite,&
+                                              bse_davidson_abba_mk,&
+                                              bse_davidson_refcheck_abba,&
+                                              bse_davidson_refcheck_tda,&
                                               bse_davidson_tda
    USE bse_full_diag,                   ONLY: create_A,&
                                               create_B,&
@@ -38,6 +41,7 @@ MODULE bse_main
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat_general,&
@@ -47,14 +51,15 @@ MODULE bse_main
    USE cp_output_handling,              ONLY: debug_print_level
    USE group_dist_types,                ONLY: group_dist_d1_type
    USE input_constants,                 ONLY: &
-        bse_abba, bse_both, bse_fulldiag, bse_iterdiag, bse_screening_alpha, bse_screening_rpa, &
-        bse_screening_tdhf, bse_singlet, bse_tda, bse_triplet
+        bse_abba, bse_abba_mk_davidson, bse_both, bse_fulldiag, bse_iterdiag, bse_screening_alpha, &
+        bse_screening_rpa, bse_screening_tdhf, bse_singlet, bse_tda, bse_triplet
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mo_window,                       ONLY: combine_mo_windows,&
                                               determine_mo_window,&
                                               mo_window_type
    USE mp2_types,                       ONLY: mp2_type
+   USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
 #include "./base/base_uses.f90"
@@ -420,12 +425,14 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_bse_iteratively'
       INTEGER, PARAMETER                                 :: n_ov_max_debug = 5000
 
-      INTEGER                                            :: handle, n_ov
+      CHARACTER(LEN=16)                                  :: margin_str
+      INTEGER                                            :: abba_status, handle, n_ov
       LOGICAL                                            :: do_debug
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: exc_ens
+      REAL(KIND=dp)                                      :: ab_margin
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: exc_ens, exc_ens_abba
       TYPE(bse_matvec_env_type)                          :: mv_env
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_A_BSE, fm_B_BSE, fm_X, fm_X_ia
+      TYPE(cp_fm_type)                                   :: fm_A_BSE, fm_B_BSE, fm_X, fm_X_abba, &
+                                                            fm_X_ia, fm_Y_abba, fm_Y_ia
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
@@ -471,40 +478,94 @@ CONTAINS
                              homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
             END IF
             CALL bse_matvec_selfcheck(mv_env, fm_A_BSE, unit_nr, fm_B_BSE)
-            CALL cp_fm_release(fm_B_BSE)
          ELSE
             CALL bse_matvec_selfcheck(mv_env, fm_A_BSE, unit_nr)
          END IF
       END IF
 
-      IF (do_abba) CPABORT("ABBA iterative solver not yet available")
-
       IF (do_tda) THEN
          CALL bse_davidson_tda(mv_env, mp2_env, unit_nr, exc_ens, fm_X)
          IF (do_debug) CALL bse_davidson_refcheck_tda(fm_A_BSE, exc_ens, fm_X, unit_nr)
 
-         ! postprocess_bse takes its process grid from the eigenvectors
-         NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, para_env=para_env, &
-                                  context=fm_mat_S_ia_trunc_arr(1)%matrix_struct%context, &
-                                  nrow_global=n_ov, ncol_global=SIZE(exc_ens))
-         CALL cp_fm_create(fm_X_ia, fm_struct, name="fm_X_davidson_ia")
-         CALL cp_fm_struct_release(fm_struct)
-         CALL cp_fm_to_fm_submat_general(fm_X, fm_X_ia, n_ov, SIZE(exc_ens), 1, 1, 1, 1, &
-                                         fm_mat_S_ia_trunc_arr(1)%matrix_struct%context)
-         CALL cp_fm_release(fm_X)
+         CALL copy_to_ia_context(fm_X, fm_mat_S_ia_trunc_arr(1), fm_X_ia)
          CALL postprocess_bse(exc_ens, fm_X_ia, mp2_env, qs_env, mo_coeff, &
                               homo_red_arr(1), virt_red_arr(1), homo(1), unit_nr, .TRUE.)
          CALL cp_fm_release(fm_X_ia)
          DEALLOCATE (exc_ens)
       END IF
 
-      IF (do_debug) CALL cp_fm_release(fm_A_BSE)
+      IF (do_abba) THEN
+         IF (mp2_env%bse%abba_solver /= bse_abba_mk_davidson) THEN
+            CPABORT("BSE_ITERAT%ABBA_SOLVER OLSEN_STRATMANN is not yet available")
+         END IF
+         ! the TDA vectors are the initial guess of a combined run
+         IF (do_tda) THEN
+            CALL bse_davidson_abba_mk(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+                                      abba_status, ab_margin, fm_X)
+         ELSE
+            CALL bse_davidson_abba_mk(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+                                      abba_status, ab_margin)
+         END IF
+         IF (abba_status == abba_indefinite) THEN
+            WRITE (margin_str, '(F16.6)') ab_margin*evolt
+            CALL cp_abort(__LOCATION__, &
+                          "Matrix (A-B) is not positive definite on the trial space of the iterative "// &
+                          "solver (eigenvalue "//TRIM(ADJUSTL(margin_str))//" eV). "// &
+                          "The full ABBA problem is ill-defined for this reference.")
+         END IF
+         IF (do_debug) THEN
+            CALL bse_davidson_refcheck_abba(fm_A_BSE, fm_B_BSE, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+                                            mp2_env, unit_nr)
+         END IF
+
+         CALL copy_to_ia_context(fm_X_abba, fm_mat_S_ia_trunc_arr(1), fm_X_ia)
+         CALL copy_to_ia_context(fm_Y_abba, fm_mat_S_ia_trunc_arr(1), fm_Y_ia)
+         CALL cp_fm_release(fm_X_abba)
+         CALL cp_fm_release(fm_Y_abba)
+         CALL postprocess_bse(exc_ens_abba, fm_X_ia, mp2_env, qs_env, mo_coeff, &
+                              homo_red_arr(1), virt_red_arr(1), homo(1), unit_nr, .FALSE., fm_Y_ia)
+         CALL cp_fm_release(fm_X_ia)
+         CALL cp_fm_release(fm_Y_ia)
+         DEALLOCATE (exc_ens_abba)
+      END IF
+
+      IF (do_tda) CALL cp_fm_release(fm_X)
+      IF (do_debug) THEN
+         CALL cp_fm_release(fm_A_BSE)
+         IF (do_abba) CALL cp_fm_release(fm_B_BSE)
+      END IF
       CALL bse_matvec_release(mv_env)
 
       CALL timestop(handle)
 
    END SUBROUTINE solve_bse_iteratively
+
+! **************************************************************************************************
+!> \brief Copies eigenvectors from the process grid of the solver to the one of the RI slabs, from
+!>        which postprocess_bse takes its grid
+!> \param fm_vec ...
+!> \param fm_S_ia slab that provides the target context
+!> \param fm_vec_ia ...
+! **************************************************************************************************
+   SUBROUTINE copy_to_ia_context(fm_vec, fm_S_ia, fm_vec_ia)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_vec, fm_S_ia
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_vec_ia
+
+      INTEGER                                            :: n_exc, n_ov
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+
+      CALL cp_fm_get_info(fm_vec, nrow_global=n_ov, ncol_global=n_exc)
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, para_env=fm_S_ia%matrix_struct%para_env, &
+                               context=fm_S_ia%matrix_struct%context, &
+                               nrow_global=n_ov, ncol_global=n_exc)
+      CALL cp_fm_create(fm_vec_ia, fm_struct, name="fm_davidson_ia")
+      CALL cp_fm_struct_release(fm_struct)
+      CALL cp_fm_to_fm_submat_general(fm_vec, fm_vec_ia, n_ov, n_exc, 1, 1, 1, 1, &
+                                      fm_S_ia%matrix_struct%context)
+
+   END SUBROUTINE copy_to_ia_context
 
 ! **************************************************************************************************
 !> \brief Sets up the matrix-free application of A and B with the prefactors and the screened
