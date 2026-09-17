@@ -17,14 +17,17 @@ MODULE accint_weights_forces
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE grid_api,                        ONLY: integrate_pgf_product
+   USE grid_api,                        ONLY: GRID_FUNC_AB,&
+                                              collocate_pgf_product,&
+                                              integrate_pgf_product
    USE input_constants,                 ONLY: sic_none,&
                                               xc_none
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
+   USE orbital_pointers,                ONLY: coset,&
+                                              ncoset
    USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
@@ -48,7 +51,9 @@ MODULE accint_weights_forces
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                              transfer_pw2rs
+                                              rs_grid_zero,&
+                                              transfer_pw2rs,&
+                                              transfer_rs2pw
    USE skala_gpw_functional,            ONLY: native_skala_gapw_atom_composite_requested,&
                                               native_skala_gapw_composite_reference,&
                                               native_skala_uses_atom_composite_grid,&
@@ -70,7 +75,7 @@ MODULE accint_weights_forces
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'accint_weights_forces'
 
-   PUBLIC :: accint_weight_force
+   PUBLIC :: accint_weight_force, weight_function_pwgrid
 
 CONTAINS
 
@@ -95,7 +100,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'accint_weight_force'
 
       INTEGER                                            :: atom_a, handle, i, iatom, ikind, natom, &
-                                                            natom_of_kind, nkind, ounit
+                                                            natom_of_kind, nkind, ounit, oweight
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: composite_reference, lr_triplet, &
                                                             native_grid_diagnostics, &
@@ -150,6 +155,7 @@ CONTAINS
          ALLOCATE (calpha(nkind), cvalue(nkind))
          cvalue = 1.0_dp
          calpha(1:nkind) = dft_control%qs_control%gapw_control%aw(1:nkind)
+         oweight = dft_control%qs_control%gapw_control%oweights
 
          CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, xc_pw_pool=xc_pw_pool)
@@ -181,12 +187,12 @@ CONTAINS
             END BLOCK
             CALL pw_scale(e_force_rspace, e_force_rspace%pw_grid%dvol)
             ! integrate energy field to get force
-            CALL gauss_grid_force(e_force_rspace, qs_env, calpha, cvalue, aforce, avirial)
+            CALL gauss_grid_force(e_force_rspace, qs_env, oweight, calpha, cvalue, aforce, avirial)
             !
             CALL auxbas_pw_pool%give_back_pw(e_force_rspace)
          ELSE
             CALL pw_scale(e_rspace, e_rspace%pw_grid%dvol)
-            CALL gauss_grid_force(e_rspace, qs_env, calpha, cvalue, aforce, avirial)
+            CALL gauss_grid_force(e_rspace, qs_env, oweight, calpha, cvalue, aforce, avirial)
          END IF
 
          IF (uf_grid) THEN
@@ -260,14 +266,16 @@ CONTAINS
 !> \brief computes the forces/virial due to atomic centered Gaussian functions
 !> \param e_rspace Energy density
 !> \param qs_env ...
+!> \param order ...
 !> \param calpha ...
 !> \param cvalue ...
 !> \param aforce ...
 !> \param avirial ...
 ! **************************************************************************************************
-   SUBROUTINE gauss_grid_force(e_rspace, qs_env, calpha, cvalue, aforce, avirial)
+   SUBROUTINE gauss_grid_force(e_rspace, qs_env, order, calpha, cvalue, aforce, avirial)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: e_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: order
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: calpha, cvalue
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: aforce
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: avirial
@@ -275,8 +283,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'gauss_grid_force'
 
       INTEGER                                            :: atom_a, handle, iatom, igrid, ikind, j, &
-                                                            natom_of_kind, npme
-      INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
+                                                            natom_of_kind, ni, npme, on
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cores
+      INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: use_virial
       REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
@@ -293,9 +302,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (cores(1))
-      ALLOCATE (hab(1, 1))
-      ALLOCATE (pab(1, 1))
+      on = 2*order
+      ni = ncoset(on)
+      ALLOCATE (hab(ni, 1))
+      ALLOCATE (pab(ni, 1))
 
       NULLIFY (pw_pools, rs_grids, rs_v)
 
@@ -327,13 +337,15 @@ CONTAINS
 
       DO ikind = 1, SIZE(atomic_kind_set)
 
+         alpha = calpha(ikind)
+         IF (alpha == 0.0_dp) CYCLE
+
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
 
-         alpha = calpha(ikind)
-         pab(1, 1) = -cvalue(ikind)
-         IF (alpha == 0.0_dp .OR. pab(1, 1) == 0.0_dp) CYCLE
+         CALL set_polynom_coefs(pab(:, 1), order, alpha)
+         pab(:, 1) = -cvalue(ikind)*pab(:, 1)
 
-         CALL reallocate(cores, 1, natom_of_kind)
+         ALLOCATE (cores(natom_of_kind))
          npme = 0
          cores = 0
 
@@ -357,19 +369,19 @@ CONTAINS
             iatom = cores(j)
             atom_a = atom_list(iatom)
             ra(:) = pbc(particle_set(atom_a)%r, cell)
-            hab(1, 1) = 0.0_dp
+            hab(:, 1) = 0.0_dp
             force_a(:) = 0.0_dp
             force_b(:) = 0.0_dp
             my_virial_a = 0.0_dp
             my_virial_b = 0.0_dp
 
-            radius = exp_radius_very_extended(la_min=0, la_max=0, lb_min=0, lb_max=0, &
+            radius = exp_radius_very_extended(la_min=0, la_max=on, lb_min=0, lb_max=0, &
                                               ra=ra, rb=ra, rp=ra, &
                                               zetp=alpha, eps=eps_rho_rspace, &
                                               pab=pab, o1=0, o2=0, &
                                               prefactor=1.0_dp, cutoff=1.0_dp)
 
-            CALL integrate_pgf_product(0, alpha, 0, &
+            CALL integrate_pgf_product(on, alpha, 0, &
                                        0, 0.0_dp, 0, ra, [0.0_dp, 0.0_dp, 0.0_dp], &
                                        rs_v, hab, pab=pab, o1=0, o2=0, &
                                        radius=radius, &
@@ -381,14 +393,192 @@ CONTAINS
             avirial = avirial + my_virial_a
 
          END DO
+         DEALLOCATE (cores)
 
       END DO
 
-      DEALLOCATE (hab, pab, cores)
+      DEALLOCATE (hab, pab)
 
       CALL timestop(handle)
 
    END SUBROUTINE gauss_grid_force
+
+! **************************************************************************************************
+!> \brief computes the weight function on the PW grid
+!> \param rho_core ...
+!> \param qs_env ...
+!> \param order ...
+!> \param calpha ...
+!> \param ccore ...
+! **************************************************************************************************
+   SUBROUTINE weight_function_pwgrid(rho_core, qs_env, order, calpha, ccore)
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: rho_core
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: order
+      REAL(KIND=dp), DIMENSION(:)                        :: calpha, ccore
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'weight_function_pwgrid'
+
+      INTEGER                                            :: atom_a, handle, iatom, ikind, ithread, &
+                                                            j, natom, ni, npme, nthread, on, &
+                                                            subpatch_pattern
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cores
+      INTEGER, DIMENSION(:), POINTER                     :: atom_list
+      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
+      REAL(KIND=dp), DIMENSION(3)                        :: ra
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type)                               :: rhoc_r
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(realspace_grid_type), POINTER                 :: rs_rho
+
+      CALL timeset(routineN, handle)
+
+      on = 2*order
+      ni = ncoset(on)
+      ALLOCATE (pab(ni, 1))
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      cell=cell, &
+                      dft_control=dft_control, &
+                      particle_set=particle_set, &
+                      pw_env=pw_env)
+      CALL pw_env_get(pw_env, auxbas_rs_grid=rs_rho, &
+                      auxbas_pw_pool=auxbas_pw_pool)
+      ! be careful in parallel nsmax is chosen with multigrid in mind!
+      CALL rs_grid_zero(rs_rho)
+
+      eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+
+      DO ikind = 1, SIZE(atomic_kind_set)
+         alpha = calpha(ikind)
+         IF (alpha == 0.0_dp) CYCLE
+
+         CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
+
+         CALL set_polynom_coefs(pab(:, 1), order, alpha)
+         pab(:, 1) = ccore(ikind)*pab(:, 1)
+
+         nthread = 1
+         ithread = 0
+
+         ALLOCATE (cores(natom))
+         npme = 0
+         cores = 0
+
+         DO iatom = 1, natom
+            IF (rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
+               ! replicated realspace grid, split the atoms up between procs
+               IF (MODULO(iatom, rs_rho%desc%group_size) == rs_rho%desc%my_pos) THEN
+                  npme = npme + 1
+                  cores(npme) = iatom
+               END IF
+            ELSE
+               npme = npme + 1
+               cores(npme) = iatom
+            END IF
+         END DO
+
+         IF (npme > 0) THEN
+            DO j = 1, npme
+
+               iatom = cores(j)
+               atom_a = atom_list(iatom)
+               ra(:) = pbc(particle_set(atom_a)%r, cell)
+               subpatch_pattern = 0
+               radius = exp_radius_very_extended(la_min=0, la_max=on, &
+                                                 lb_min=0, lb_max=0, &
+                                                 ra=ra, rb=ra, rp=ra, &
+                                                 zetp=alpha, eps=eps_rho_rspace, &
+                                                 pab=pab, o1=0, o2=0, &  ! without map_consistent
+                                                 prefactor=-1.0_dp, cutoff=0.0_dp)
+
+               CALL collocate_pgf_product(on, alpha, 0, 0, 0.0_dp, 0, ra, &
+                                          [0.0_dp, 0.0_dp, 0.0_dp], -1.0_dp, pab, 0, 0, rs_rho, &
+                                          radius=radius, ga_gb_function=GRID_FUNC_AB, &
+                                          use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
+
+            END DO
+         END IF
+         DEALLOCATE (cores)
+
+      END DO
+
+      DEALLOCATE (pab)
+
+      CALL auxbas_pw_pool%create_pw(rhoc_r)
+
+      CALL transfer_rs2pw(rs_rho, rhoc_r)
+
+      CALL pw_transfer(rhoc_r, rho_core)
+
+      CALL auxbas_pw_pool%give_back_pw(rhoc_r)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE weight_function_pwgrid
+
+! **************************************************************************************************
+!> \brief Set the prefactor coefficients for the expansion of the radial weight function in
+!>        cartesian spherical harmonics
+!> \param pf  output coefficients
+!> \param order  ...
+!> \param alpha  ...
+! **************************************************************************************************
+   SUBROUTINE set_polynom_coefs(pf, order, alpha)
+      REAL(kind=dp), DIMENSION(:), INTENT(OUT)           :: pf
+      INTEGER, INTENT(IN)                                :: order
+      REAL(kind=dp), INTENT(IN)                          :: alpha
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: ap
+
+      pf(:) = 0.0_dp
+
+      DO i = 0, order
+         SELECT CASE (i)
+         CASE (0)
+            pf(1) = 1.0_dp
+         CASE (1)
+            ap = alpha
+            pf(coset(2, 0, 0)) = ap
+            pf(coset(0, 2, 0)) = ap
+            pf(coset(0, 0, 2)) = ap
+         CASE (2)
+            ap = alpha**2/2.0_dp
+            pf(coset(4, 0, 0)) = ap
+            pf(coset(0, 4, 0)) = ap
+            pf(coset(0, 0, 4)) = ap
+            pf(coset(2, 2, 0)) = 2._dp*ap
+            pf(coset(2, 0, 2)) = 2._dp*ap
+            pf(coset(0, 2, 2)) = 2._dp*ap
+         CASE (3)
+            ap = alpha**3/6.0_dp
+            pf(coset(6, 0, 0)) = ap
+            pf(coset(0, 6, 0)) = ap
+            pf(coset(0, 0, 6)) = ap
+            pf(coset(4, 2, 0)) = 3._dp*ap
+            pf(coset(4, 0, 2)) = 3._dp*ap
+            pf(coset(2, 4, 0)) = 3._dp*ap
+            pf(coset(2, 0, 4)) = 3._dp*ap
+            pf(coset(0, 4, 2)) = 3._dp*ap
+            pf(coset(0, 2, 4)) = 3._dp*ap
+            pf(coset(2, 2, 2)) = 6._dp*ap
+         CASE DEFAULT
+            CALL cp_abort(__LOCATION__, &
+                          "Only 0, 1, 2, 3 are supported as the "// &
+                          "polynomial order value in accuarte XC integration.")
+         END SELECT
+      END DO
+
+   END SUBROUTINE set_polynom_coefs
 
 ! **************************************************************************************************
 !> \brief calculates the XC density:
