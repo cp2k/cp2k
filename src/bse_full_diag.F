@@ -56,6 +56,7 @@ MODULE bse_full_diag
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
+   USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
 #include "./base/base_uses.f90"
@@ -518,6 +519,10 @@ CONTAINS
       ! Create (A-B)^-0.5 (cf. EQ.II)
       CALL cp_fm_power(fm_inv_sqrt_A_minus_B, fm_dummy, -0.5_dp, 0.0_dp, n_dependent, eigvals=eigvals_AB_diff)
       CALL cp_fm_release(fm_dummy)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4,T7,A,T65,F16.6)') 'BSE|', &
+            'Smallest eigenvalue of A-B (eV)', eigvals_AB_diff(1)*evolt
+      END IF
       ! Raise an error in case the the matrix A-B is not positive definite (i.e. negative eigenvalues)
       ! In this case, the procedure for hermitian form of ABBA is not applicable
       IF (eigvals_AB_diff(1) < 0) THEN
