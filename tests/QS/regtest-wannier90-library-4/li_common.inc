@@ -1,3 +1,13 @@
+# Reuse the k-point SCF for the subsequent spin-selection/export variants.
+@SET scf_guess RESTART
+@SET write_restart OFF
+@IF ( ${seed} == li_both )
+  @SET scf_guess ATOMIC
+  @SET write_restart ON
+@ENDIF
+@IF ( ${kpoints} == F )
+  @SET scf_guess ATOMIC
+@ENDIF
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT ${seed}
@@ -7,6 +17,7 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT_UZH
     POTENTIAL_FILE_NAME POTENTIAL_UZH
+    WFN_RESTART_FILE_NAME li-RESTART.wfn
     UKS T
     MULTIPLICITY 2
     @IF ( ${kpoints} == T )
@@ -61,15 +72,19 @@
       &END OT
       @ENDIF
       MAX_SCF 300
-      SCF_GUESS ATOMIC
+      SCF_GUESS ${scf_guess}
       @IF ( ${kpoints} == T )
       &MIXING
         METHOD BROYDEN_MIXING
-        ALPHA 0.3
+        ALPHA 0.5
+        # Avoid a long convergence tail without relaxing EPS_SCF.
+        NBUFFER 8
       &END MIXING
       @ENDIF
       &PRINT
-        &RESTART OFF
+        &RESTART ${write_restart}
+          FILENAME =li-RESTART.wfn
+          BACKUP_COPIES 0
         &END RESTART
       &END PRINT
     &END SCF
