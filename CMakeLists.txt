@@ -692,26 +692,19 @@ if(CP2K_USE_ELPA)
 endif()
 
 if(CP2K_USE_LIBXC)
-  find_package(LibXC REQUIRED)
+  find_package(Libxc 7.1.0 CONFIG REQUIRED)
 
-  if(CP2K_LIBXC_VERSION VERSION_LESS "7.1.0")
-    message(
-      FATAL_ERROR "LibXC >= 7.1.0 is required; found ${CP2K_LIBXC_VERSION}")
-  endif()
+  get_target_property(LIBXC_CPU_INCLUDE_DIRS Libxc::xcf03 INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(LIBXC_CPU_LIBRARIES Libxc::xcf03 INTERFACE_LINK_LIBRARIES)
 
   if(CP2K_USE_CUDA)
-    # CUDA libxc serves as both the CUDA and the CPU backend.
-    set(CP2K_LIBXC_CUDA_SUPPORT
-        ON
-        CACHE BOOL "libxc CUDA support available")
+    set(CP2K_LIBXC_CUDA_SUPPORT ON CACHE BOOL "libxc CUDA support available")
     set(LIBXC_CUDA_FOUND TRUE)
-    message(STATUS "Found CUDA Libxc (${CP2K_LIBXC_VERSION})")
+    message(STATUS "Found CUDA Libxc (${Libxc_VERSION})")
   else()
     set(LIBXC_CPU_FOUND TRUE)
-    message(STATUS "Found CPU Libxc (${CP2K_LIBXC_VERSION})")
+    message(STATUS "Found CPU Libxc (${Libxc_VERSION})")
   endif()
-  set(LIBXC_CPU_INCLUDE_DIRS "${CP2K_LIBXC_INCLUDE_DIRS}")
-  set(LIBXC_CPU_LIBRARIES "${CP2K_LIBXC_LINK_LIBRARIES}")
 endif()
 
 if(CP2K_USE_GAUXC)
