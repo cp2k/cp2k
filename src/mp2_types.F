@@ -306,18 +306,19 @@ MODULE mp2_types
                                                             num_print_exc = 0, &
                                                             num_print_exc_descr = 0, &
                                                             screening_method = 0, &
-                                                            num_add_start_z_space = 0, &
-                                                            fac_max_z_space = 0, &
-                                                            num_new_t = 0, &
-                                                            num_davidson_iter = 0, &
-                                                            davidson_abort_cond = 0
+                                                            num_buffer_states = 0, &
+                                                            block_size = 0, &
+                                                            max_subspace_factor = 0, &
+                                                            max_iter = 0, &
+                                                            convergence_criterion = 0, &
+                                                            preconditioner = 0, &
+                                                            abba_solver = 0
       REAL(KIND=dp)                                      :: eps_res = 0.0_dp, &
-                                                            eps_exc_en = 0.0_dp, &
+                                                            eps_energy = 0.0_dp, &
                                                             eps_x = 0.0_dp, &
                                                             screening_factor = 0.0_dp, &
                                                             bse_cutoff_occ = 0.0_dp, &
-                                                            bse_cutoff_empty = 0.0_dp, &
-                                                            z_space_energy_cutoff = 0.0_dp
+                                                            bse_cutoff_empty = 0.0_dp
       LOGICAL                                            :: do_bse = .FALSE., &
                                                             bse_debug_print = .FALSE., &
                                                             print_directional_exc_descr = .FALSE., &

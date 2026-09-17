@@ -213,24 +213,26 @@ CONTAINS
       END IF
       CALL section_vals_val_get(bse_section, "EPS_X", &
                                 r_val=mp2_env%bse%eps_x)
-      CALL section_vals_val_get(bse_section, "BSE_ITERAT%DAVIDSON_ABORT_COND", &
-                                i_val=mp2_env%bse%davidson_abort_cond)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_EXC_EN", &
                                 i_val=mp2_env%bse%num_exc_en)
-      CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_ADD_START_Z_SPACE", &
-                                i_val=mp2_env%bse%num_add_start_z_space)
-      CALL section_vals_val_get(bse_section, "BSE_ITERAT%FAC_MAX_Z_SPACE", &
-                                i_val=mp2_env%bse%fac_max_z_space)
-      CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_NEW_T", &
-                                i_val=mp2_env%bse%num_new_t)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_BUFFER_STATES", &
+                                i_val=mp2_env%bse%num_buffer_states)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%BLOCK_SIZE", &
+                                i_val=mp2_env%bse%block_size)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%MAX_SUBSPACE_FACTOR", &
+                                i_val=mp2_env%bse%max_subspace_factor)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%MAX_ITER", &
+                                i_val=mp2_env%bse%max_iter)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%CONVERGENCE_CRITERION", &
+                                i_val=mp2_env%bse%convergence_criterion)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%EPS_RES", &
                                 r_val=mp2_env%bse%eps_res)
-      CALL section_vals_val_get(bse_section, "BSE_ITERAT%EPS_EXC_EN", &
-                                r_val=mp2_env%bse%eps_exc_en)
-      CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_DAVIDSON_ITER", &
-                                i_val=mp2_env%bse%num_davidson_iter)
-      CALL section_vals_val_get(bse_section, "BSE_ITERAT%Z_SPACE_ENERGY_CUTOFF", &
-                                r_val=mp2_env%bse%z_space_energy_cutoff)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%EPS_ENERGY", &
+                                r_val=mp2_env%bse%eps_energy)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%PRECONDITIONER", &
+                                i_val=mp2_env%bse%preconditioner)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%ABBA_SOLVER", &
+                                i_val=mp2_env%bse%abba_solver)
       CALL section_vals_val_get(bse_section, "BSE_DIAG_METHOD", &
                                 i_val=mp2_env%bse%bse_diag_method)
       CALL section_vals_val_get(bse_section, "TDA", &

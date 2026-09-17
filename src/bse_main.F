@@ -18,8 +18,6 @@ MODULE bse_main
                                               create_hermitian_form_of_ABBA,&
                                               diagonalize_A,&
                                               diagonalize_C
-   USE bse_iterative,                   ONLY: do_subspace_iterations,&
-                                              fill_local_3c_arrays
    USE bse_print,                       ONLY: print_BSE_start_flag
    USE bse_util,                        ONLY: adapt_BSE_input_params,&
                                               deallocate_matrices_bse,&
@@ -117,8 +115,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced, Eigenval_reduced_1, &
                                                             Eigenval_reduced_2, &
                                                             Eigenval_reduced_joint
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                                            B_bar_ijQ_bse_local, B_iaQ_bse_local
       TYPE(cp_fm_type)                                   :: fm_A_BSE, fm_B_BSE, fm_C_BSE, &
                                                             fm_inv_sqrt_A_minus_B, fm_Q_copy, &
                                                             fm_sqrt_A_minus_B
@@ -134,6 +130,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      MARK_USED(gd_array)
+      MARK_USED(color_sub)
+
       nspins = SIZE(homo)
       para_env => fm_mat_S_ia_bse(1)%matrix_struct%para_env
 
@@ -145,7 +144,6 @@ CONTAINS
       SELECT CASE (mp2_env%bse%bse_diag_method)
       CASE (bse_iterdiag)
          my_do_iterat_diag = .TRUE.
-         !MG: Basics of the Davidson solver are implemented, but not rigorously checked.
          CPABORT("Iterative BSE not yet implemented")
       CASE (bse_fulldiag)
          my_do_fulldiag = .TRUE.
@@ -299,14 +297,6 @@ CONTAINS
                             fm_mat_S_bar_ia_bse_arr(1), fm_mat_S_bar_ij_bse_arr(1), &
                             fm_mat_Q_static_bse_gemm, dimen_RI_red, homo_red_arr(1), virt_red_arr(1))
 
-         IF (my_do_iterat_diag) THEN
-            CALL fill_local_3c_arrays(fm_mat_S_ab_trunc_arr(1), fm_mat_S_ia_trunc_arr(1), &
-                                      fm_mat_S_bar_ia_bse_arr(1), fm_mat_S_bar_ij_bse_arr(1), &
-                                      B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                      B_iaQ_bse_local, dimen_RI_red, homo_red_arr(1), &
-                                      virt_red_arr(1), gd_array, color_sub, para_env)
-         END IF
-
          CALL adapt_BSE_input_params(homo_red_arr(1), virt_red_arr(1), unit_nr, mp2_env, qs_env)
 
          IF (my_do_fulldiag) THEN
@@ -357,13 +347,6 @@ CONTAINS
                                       fm_mat_S_ia_trunc_arr(1), fm_mat_S_ij_trunc_arr(1), &
                                       fm_mat_S_ab_trunc_arr(1), fm_mat_Q_static_bse_gemm, mp2_env)
          DEALLOCATE (Eigenval_reduced)
-         IF (my_do_iterat_diag) THEN
-            CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                        B_iaQ_bse_local, homo(1), virtual(1), &
-                                        mp2_env%bse%bse_spin_config, unit_nr, &
-                                        Eigenval(:, 1, 1), para_env, mp2_env)
-            DEALLOCATE (B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, B_iaQ_bse_local)
-         END IF
 
       END IF
 

@@ -1400,10 +1400,19 @@ MODULE input_constants
                                                bse_screening_rpa = 2, &
                                                bse_screening_alpha = 3
 
-   ! BSE iterative abortion condition
+   ! BSE iterative convergence criterion
    INTEGER, PARAMETER, PUBLIC               :: bse_iter_en_cond = 0, &
                                                bse_iter_res_cond = 1, &
-                                               bse_iter_both_cond = 2
+                                               bse_iter_or_cond = 2, &
+                                               bse_iter_and_cond = 3
+
+   ! BSE iterative preconditioner
+   INTEGER, PARAMETER, PUBLIC               :: bse_precond_full_diag = 0, &
+                                               bse_precond_qp_diff = 1
+
+   ! BSE iterative solver beyond the TDA
+   INTEGER, PARAMETER, PUBLIC               :: bse_abba_mk_davidson = 0, &
+                                               bse_abba_olsen_stratmann = 1
    ! SIGMA_functional parameters selection
    INTEGER, PARAMETER, PUBLIC               :: sigma_none = 0, &
                                                sigma_PBE_S2 = 1, &
