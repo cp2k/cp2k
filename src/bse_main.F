@@ -18,6 +18,10 @@ MODULE bse_main
                                               create_hermitian_form_of_ABBA,&
                                               diagonalize_A,&
                                               diagonalize_C
+   USE bse_matvec,                      ONLY: bse_matvec_create,&
+                                              bse_matvec_env_type,&
+                                              bse_matvec_release,&
+                                              bse_matvec_selfcheck
    USE bse_print,                       ONLY: print_BSE_start_flag
    USE bse_util,                        ONLY: adapt_BSE_input_params,&
                                               deallocate_matrices_bse,&
@@ -35,13 +39,9 @@ MODULE bse_main
                                               cp_logger_type
    USE cp_output_handling,              ONLY: debug_print_level
    USE group_dist_types,                ONLY: group_dist_d1_type
-   USE input_constants,                 ONLY: bse_abba,&
-                                              bse_both,&
-                                              bse_fulldiag,&
-                                              bse_iterdiag,&
-                                              bse_screening_alpha,&
-                                              bse_screening_tdhf,&
-                                              bse_tda
+   USE input_constants,                 ONLY: &
+        bse_abba, bse_both, bse_fulldiag, bse_iterdiag, bse_screening_alpha, bse_screening_rpa, &
+        bse_screening_tdhf, bse_singlet, bse_tda, bse_triplet
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mo_window,                       ONLY: combine_mo_windows,&
@@ -115,6 +115,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced, Eigenval_reduced_1, &
                                                             Eigenval_reduced_2, &
                                                             Eigenval_reduced_joint
+      TYPE(bse_matvec_env_type)                          :: mv_env
       TYPE(cp_fm_type)                                   :: fm_A_BSE, fm_B_BSE, fm_C_BSE, &
                                                             fm_inv_sqrt_A_minus_B, fm_Q_copy, &
                                                             fm_sqrt_A_minus_B
@@ -144,7 +145,6 @@ CONTAINS
       SELECT CASE (mp2_env%bse%bse_diag_method)
       CASE (bse_iterdiag)
          my_do_iterat_diag = .TRUE.
-         CPABORT("Iterative BSE not yet implemented")
       CASE (bse_fulldiag)
          my_do_fulldiag = .TRUE.
       END SELECT
@@ -181,6 +181,9 @@ CONTAINS
       END DO
 
       IF (nspins > 1) THEN
+         IF (my_do_iterat_diag) THEN
+            CPABORT("Iterative BSE is not yet available for open-shell references")
+         END IF
          CALL cp_warn(__LOCATION__, &
                       "Open-shell (UKS/LSD) BSE is a recent addition and has not been "// &
                       "extensively validated. Verify results carefully before using them "// &
@@ -299,6 +302,42 @@ CONTAINS
 
          CALL adapt_BSE_input_params(homo_red_arr(1), virt_red_arr(1), unit_nr, mp2_env, qs_env)
 
+         IF (my_do_iterat_diag) THEN
+            CALL create_matvec_env(mv_env, fm_mat_S_ia_trunc_arr(1), fm_mat_S_ij_trunc_arr(1), &
+                                   fm_mat_S_ab_trunc_arr(1), fm_mat_S_bar_ia_bse_arr(1), &
+                                   fm_mat_S_bar_ij_bse_arr(1), Eigenval_reduced, &
+                                   homo_red_arr(1), virt_red_arr(1), my_do_abba, mp2_env, unit_nr)
+            IF (mp2_env%bse%bse_debug_print) THEN
+               IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
+                   mp2_env%bse%screening_method == bse_screening_alpha) THEN
+                  CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
+                                fm_A_BSE, Eigenval_reduced, unit_nr, &
+                                homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
+               ELSE
+                  CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ij_bse_arr, fm_mat_S_ab_trunc_arr, &
+                                fm_A_BSE, Eigenval_reduced, unit_nr, &
+                                homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
+               END IF
+               IF (my_do_abba) THEN
+                  IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
+                      mp2_env%bse%screening_method == bse_screening_alpha) THEN
+                     CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ia_trunc_arr, fm_B_BSE, &
+                                   homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
+                  ELSE
+                     CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ia_bse_arr, fm_B_BSE, &
+                                   homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
+                  END IF
+                  CALL bse_matvec_selfcheck(mv_env, fm_A_BSE, unit_nr, fm_B_BSE)
+                  CALL cp_fm_release(fm_B_BSE)
+               ELSE
+                  CALL bse_matvec_selfcheck(mv_env, fm_A_BSE, unit_nr)
+               END IF
+               CALL cp_fm_release(fm_A_BSE)
+            END IF
+            CALL bse_matvec_release(mv_env)
+            CPABORT("Iterative BSE not yet implemented")
+         END IF
+
          IF (my_do_fulldiag) THEN
             n_ov_joint = homo_red_arr(1)*virt_red_arr(1)
             CALL estimate_BSE_resources(n_ov_joint, unit_nr, my_do_abba, para_env, diag_runtime_est)
@@ -362,5 +401,64 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE start_bse_calculation
+
+! **************************************************************************************************
+!> \brief Sets up the matrix-free application of A and B with the prefactors and the screened
+!>        slabs that create_A and create_B use for the chosen SPIN_CONFIG and SCREENING_IN_W
+!> \param mv_env ...
+!> \param fm_S_ia ...
+!> \param fm_S_ij ...
+!> \param fm_S_ab ...
+!> \param fm_S_bar_ia ...
+!> \param fm_S_bar_ij ...
+!> \param Eigenval_reduced ...
+!> \param homo_red ...
+!> \param virt_red ...
+!> \param do_abba ...
+!> \param mp2_env ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE create_matvec_env(mv_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_S_bar_ia, fm_S_bar_ij, &
+                                Eigenval_reduced, homo_red, virt_red, do_abba, mp2_env, unit_nr)
+
+      TYPE(bse_matvec_env_type), INTENT(OUT)             :: mv_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_S_ia, fm_S_ij, fm_S_ab, fm_S_bar_ia, &
+                                                            fm_S_bar_ij
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_reduced
+      INTEGER, INTENT(IN)                                :: homo_red, virt_red
+      LOGICAL, INTENT(IN)                                :: do_abba
+      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      REAL(KIND=dp)                                      :: alpha, w_fac
+
+      alpha = 0.0_dp
+      SELECT CASE (mp2_env%bse%bse_spin_config)
+      CASE (bse_singlet)
+         alpha = 2.0_dp
+      CASE (bse_triplet)
+         alpha = 0.0_dp
+      END SELECT
+
+      SELECT CASE (mp2_env%bse%screening_method)
+      CASE (bse_screening_alpha)
+         w_fac = mp2_env%bse%screening_factor
+      CASE (bse_screening_rpa)
+         w_fac = 0.0_dp
+      CASE DEFAULT
+         w_fac = 1.0_dp
+      END SELECT
+
+      ! TDHF and ALPHA screening contract the bare slabs, all others the W-multiplied ones
+      IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
+          mp2_env%bse%screening_method == bse_screening_alpha) THEN
+         CALL bse_matvec_create(mv_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_S_ia, Eigenval_reduced, &
+                                homo_red, virt_red, alpha, w_fac, do_abba, unit_nr)
+      ELSE
+         CALL bse_matvec_create(mv_env, fm_S_ia, fm_S_bar_ij, fm_S_ab, fm_S_bar_ia, Eigenval_reduced, &
+                                homo_red, virt_red, alpha, w_fac, do_abba, unit_nr)
+      END IF
+
+   END SUBROUTINE create_matvec_env
 
 END MODULE bse_main
