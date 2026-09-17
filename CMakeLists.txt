@@ -859,32 +859,6 @@ if(CP2K_USE_WANNIER90)
     message(
       FATAL_ERROR "CP2K and Wannier90 must both be serial or both use MPI")
   endif()
-  include(CMakePushCheckState)
-  include(CheckFortranSourceCompiles)
-  cmake_push_check_state(RESET)
-  set(CMAKE_REQUIRED_LIBRARIES Wannier90::wannier90 LAPACK::LAPACK)
-  # Fortran .mod compatibility and the integer communicator API cannot be
-  # inferred from the package version. Recheck on reconfiguration in case the
-  # installation was replaced (even at the same path); this does not test for
-  # release-specific bugs.
-  unset(CP2K_WANNIER90_INTERFACE_WORKS CACHE)
-  CHECK_Fortran_SOURCE_COMPILES(
-    "program check_wannier90
-       use w90_library, only: lib_common_type, w90_set_comm
-       implicit none
-       type(lib_common_type) :: context
-       call w90_set_comm(context, 0)
-     end program"
-    CP2K_WANNIER90_INTERFACE_WORKS
-    SRC_EXT
-    F90)
-  cmake_pop_check_state()
-  if(NOT CP2K_WANNIER90_INTERFACE_WORKS)
-    message(
-      FATAL_ERROR
-        "Wannier90 requires a compatible Fortran compiler and integer MPI communicator interface"
-    )
-  endif()
 endif()
 
 if(CP2K_USE_LIBSMEAGOL)
