@@ -9,10 +9,10 @@
 !> \brief Computes the RI-RS fitting matrix Z_lP.
 !> \par History
 !>      09.2026 created Jan Wilhelm
-!>      09.2026 moved code by Ritaj Tyagi from gw_non_periodic_ri_rs.F
+!>      09.2026 moved code by Ritaj Tyagi from gw_ri_rs_non_periodic.F
 !>      09.2026 added routine to compute Z_lP for automatic RI optimization
 ! **************************************************************************************************
-MODULE gw_compute_Z_lP
+MODULE gw_ri_rs_compute_Z_lP
    USE ai_contraction_sphi,             ONLY: abc_contract_xsmm
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: get_gto_basis_set
@@ -34,12 +34,13 @@ MODULE gw_compute_Z_lP
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_should_output
    USE gw_auto_ri_types,                ONLY: auto_ri_type
-   USE gw_compute_Z_lP_utils,           ONLY: build_gram_jacobi_blas,&
+   USE gw_ri_rs_compute_Z_lP_utils,     ONLY: build_gram_jacobi_blas,&
                                               build_jacobi_diag_from_phi,&
                                               scale_rows_by_diag,&
                                               solve_D_lp_distributed,&
                                               store_Z_lP_columns
-   USE gw_integrals,                    ONLY: build_3c_integral_block_ctx,&
+   USE gw_ri_rs_utils,                  ONLY: evaluate_ao_on_points
+   USE gw_utils_compute_integrals,      ONLY: build_3c_integral_block_ctx,&
                                               gw_3c_ctx_create,&
                                               gw_3c_ctx_release,&
                                               gw_3c_ctx_type,&
@@ -60,34 +61,36 @@ MODULE gw_compute_Z_lP
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE rirs_grid_utils,                 ONLY: evaluate_ao_on_points
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_compute_Z_lP'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_compute_Z_lP'
 
    PUBLIC :: compute_Z_lP
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Computes Z_lP in either the standard tabulated or automatically generated RI basis
-!>        set.
+!> \brief Computes Z_lP for (1) a tabulated RI basis set or (2) an on-the-fly generated RI basis set.
 !>
-!>        For both basis choices, the Z_lP coefficients solve
+!>        In both cases, the Z_lP coefficients are computed by solving the linear system
 !>
 !>          Σ_l' D_ll' Z_l'P = d_lP,
-!>          D_ll' = [Σ_μ Φ_μ(r_l) Φ_μ(r_l')]²,
-!>          d_lP = Σ_μν Φ_μ(r_l) Φ_ν(r_l) (μν|P).
 !>
-!>        An automatically optimized function P may contain RI functions on neighboring atoms.
-!>        This routine selects the implementation without exposing either implementation outside
-!>        this module.
+!>        with D_ll' and d_lP given by
+!>
+!>          D_ll' = [Σ_μ ϕ_μ(r_l) ϕ_μ(r_l')]²,
+!>
+!>          d_lP = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P).
+!>
+!>        For an on-the-fly generated RI basis set, an RI function φ_P may be a contraction of
+!>        Gaussians on neighboring atoms, which requires special computation of d_lP.
+!>
 !> \param qs_env ...
-!> \param bs_env ...
+!> \param bs_env Band-structure environment containing GW parameters.
 !> \param ri_rs_grid_points ...
 !> \param mat_phi_mu_l ...
 !> \param mat_Z_lP ...
@@ -119,15 +122,17 @@ CONTAINS
 !> \brief Computes the RI-RS fitting coefficients Z_lP by solving, independently for every RI
 !>        atom P, a Jacobi-conditioned, Tikhonov-regularized linear system restricted to the
 !>        grid points r_l inside P's integration sphere |r_l - R_P| <= cutoff_ri(P):
-!>          D_ll'  = [ Σ_μ Φ_μ(r_l) Φ_μ(r_l') ]²,
-!>          D_lP   = Σ_μν Φ_μ(r_l) Φ_ν(r_l) (μν|P),
-!>          d_l    = 1 / sqrt(D_ll)                          (Jacobi conditioning vector)
-!>          D'_ll' = d_l D_ll' d_l' + λ δ_ll'                (λ = TIKHONOV_SIGMA regularization)
-!>          Σ_l' D'_ll' Z'_l'P = d_l D_lP,
-!>          Z_lP   = d_l Z'_l'P                              (undo the conditioning)
+!>
+!>        1.  D_ll'  = [ Σ_μ ϕ_μ(r_l) ϕ_μ(r_l') ]²
+!>        2.  d_l    = 1 / sqrt(D_ll)                   (Jacobi conditioning vector)
+!>        3.  D'_ll' = d_l D_ll' d_l' + λ δ_ll'         (λ = TIKHONOV regularization)
+!>        4.  d_lP   = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P)
+!>        5.  Σ_l' D'_ll' Z'_l'P = d_l d_lP             (solve linear system for Z'_lP)
+!>        6.  Z_lP   = d_l Z'_l'P                       (undo the conditioning)
+!>
 !>        Work is distributed over atoms in two phases (planned by classify_z_lp_atoms and
 !>        lpt_assign_atoms): Phase A solves "small" atoms with single-rank LAPACK
-!>        (dpotrf/dpotrs); Phase B solves "big" atoms, whose dense Gram matrix would exceed one
+!>        (dpotrf/dpotrs); Phase B solves "big" atoms, whose dense matrix D'_ll' would exceed one
 !>        rank's memory, with ScaLAPACK (pdpotrf/pdpotrs) over rank subgroups of size G.
 !>        The solved Z columns are scattered into the sparse global mat_Z_lP.
 !>        If a Z_lP restart file exists, it is read instead and the solve is skipped entirely.
@@ -163,7 +168,6 @@ CONTAINS
                                                             item_start_time, r_c, t1
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cutoff_ri_per_atom, d_vec_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: D_local, d_lp_local, phi_local
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_b, fm_struct_D
@@ -181,7 +185,7 @@ CONTAINS
       t1 = m_walltime()
 
       CALL get_qs_env(qs_env, para_env=para_env, particle_set=particle_set, input=input, &
-                      qs_kind_set=qs_kind_set, cell=cell, atomic_kind_set=atomic_kind_set)
+                      qs_kind_set=qs_kind_set, cell=cell)
 
       NULLIFY (para_env_sub, blacs_env_sub)
 
@@ -294,7 +298,7 @@ CONTAINS
          n_done = 0
 
          ! Shared context for the three-center integrals (μν|P) of the RHS build
-         CALL gw_3c_ctx_create(ctx_3c, qs_env, bs_env%ri_metric, &
+         CALL gw_3c_ctx_create(ctx_3c, bs_env, bs_env%ri_metric, &
                                basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, &
                                basis_i=bs_env%basis_set_RI)
 
@@ -338,7 +342,7 @@ CONTAINS
                cutoff_ri = cutoff_ri_per_atom(atom_P)
 
                ! ---------------------------------------------------------------------
-               ! A. Sphere-local AO matrix Φ_μ(r_l): select the grid points with
+               ! A. Sphere-local AO matrix ϕ_μ(r_l): select the grid points with
                !    |r_l - R_P| <= cutoff_ri(P), evaluate every AO on them, and drop
                !    points whose largest AO amplitude is below EPS_FILTER.
                ! ---------------------------------------------------------------------
@@ -348,7 +352,7 @@ CONTAINS
                                         ao_col_map, n_ao_used)
 
                ! ---------------------------------------------------------------------
-               ! B. Right-hand side  D_lP = Σ_μν Φ_μ(r_l) Φ_ν(r_l) (μν|P)
+               ! B. Right-hand side  D_lP = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P)
                ! ---------------------------------------------------------------------
                ALLOCATE (d_lp_local(n_local_grid, n_loc_ri))
                d_lp_local = 0.0_dp
@@ -364,7 +368,7 @@ CONTAINS
 
                ! ---------------------------------------------------------------------
                ! C. Jacobi conditioning vector d_l = 1/sqrt(D_ll) and, on the BLAS path,
-               !    the dense conditioned Gram matrix D'_ll' = d_l D_ll' d_l' + λδ_ll'.
+               !    the dense conditioned matrix D'_ll' = d_l D_ll' d_l' + λδ_ll'.
                ! ---------------------------------------------------------------------
                ALLOCATE (d_vec_local(n_local_grid))
 
@@ -590,7 +594,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Computes the dense localized right-hand side for one RI atom P,
 !>
-!>          d_lP = Σ_μν Φ_μ(r_l) Φ_ν(r_l) (μν|P).
+!>          d_lP = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P).
 !>
 !>        RI atom P, OMP-threaded over (atom_j, atom_k) AO-pair blocks: per thread, build the 3c
 !>        block, then contract grid-chunked pair densities into a private d_lp partial; partials
@@ -699,7 +703,7 @@ CONTAINS
                END DO
             END DO
 
-            ! Pair density ρ(l, μν) = Φ_μ(r_l) Φ_ν(r_l) in grid chunks, contracted on the fly:
+            ! Pair density ρ(l, μν) = ϕ_μ(r_l) ϕ_ν(r_l) in grid chunks, contracted on the fly:
             ! d_{l,P} += ρ(l, μν) B_{(μν),P}  (dgemm runs serially inside the parallel region)
             DO l0 = 1, n_grid_pair, grid_chunk
                c = MIN(grid_chunk, n_grid_pair - l0 + 1)
@@ -780,13 +784,13 @@ CONTAINS
 !>        The fitting coefficients Z_lP satisfy
 !>
 !>          Σ_l' D_ll' Z_l'P = d_lP,
-!>          D_ll' = [Σ_μ Φ_μ(r_l) Φ_μ(r_l')]²,
-!>          d_lP = Σ_μν Φ_μ(r_l) Φ_ν(r_l) (μν|P).
+!>          D_ll' = [Σ_μ ϕ_μ(r_l) ϕ_μ(r_l')]²,
+!>          d_lP = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P).
 !>
 !>        For the standard RI-RS fit, P is an atom-centered RI function. Here an optimized
 !>        function may contain reference functions on neighboring atoms,
 !>
-!>          Φ_p(r) = Σ_A Σ_{P∈A} U_Pp^A Φ_P^A(r),
+!>          φ_p(r) = Σ_A Σ_{P∈A} U_Pp^A φ_P^A(r),
 !>
 !>        so all atomic contributions to d_lp must be accumulated before solving for Z_lp.
 !>        If every optimized column uses the complete RI-RS grid, all columns are solved in one
@@ -855,7 +859,7 @@ CONTAINS
                                 row_dist_grid, col_dist_ri, ri_blk_sizes, row_offset, &
                                 myprow, mypcol, max_ao_size)
 
-      CALL gw_3c_ctx_create(ctx_3c, qs_env, bs_env%ri_metric, &
+      CALL gw_3c_ctx_create(ctx_3c, bs_env, bs_env%ri_metric, &
                             basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, &
                             basis_i=bs_env%basis_set_RI)
 
@@ -864,7 +868,7 @@ CONTAINS
                                       common_grid_available, have_fitted_columns)
 
       IF (common_grid_available .AND. have_fitted_columns) THEN
-         ! Evaluate Φ_μ(r_l) once on the common grid.
+         ! Evaluate ϕ_μ(r_l) once on the common grid.
          CALL build_phi_on_complete_grid(bs_env, qs_kind_set, &
                                          ri_rs_grid_points, n_ao_total, local_grid_idx, ngrid, &
                                          phi_local, ao_col_map, n_ao_used)
@@ -875,7 +879,7 @@ CONTAINS
                                          max_ao_size, para_env%mepos, para_env%num_pe)
          CALL para_env%sum(d_lp_all)
          ALLOCATE (d_vec(ngrid))
-         ! D_ll' = [Σ_μ Φ_μ(r_l) Φ_μ(r_l')]², followed by D Z = d.
+         ! D_ll' = [Σ_μ ϕ_μ(r_l) ϕ_μ(r_l')]², followed by D Z = d.
          CALL build_gram_jacobi_blas(phi_local, ngrid, n_ao_used, bs_env%ri_rs%tikhonov, &
                                      D_local, d_vec)
          CALL scale_rows_by_diag(d_lp_all, d_vec, ngrid, nri)
@@ -1026,7 +1030,7 @@ CONTAINS
                                                para_env_col%mepos, para_env_col%num_pe)
                CALL para_env_col%sum(d_lp_local)
                ALLOCATE (d_vec(ngrid))
-               ! D_ll' = [Σ_μ Φ_μ(r_l) Φ_μ(r_l')]², followed by D Z = d.
+               ! D_ll' = [Σ_μ ϕ_μ(r_l) ϕ_μ(r_l')]², followed by D Z = d.
                CALL build_gram_jacobi_blas(phi_local, ngrid, n_ao_used, bs_env%ri_rs%tikhonov, &
                                            D_local, d_vec)
                CALL scale_rows_by_diag(d_lp_local, d_vec, ngrid, ncol)
@@ -1073,7 +1077,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Prints completed Z_lP atoms and execution time from the printing rank.
-!> \param bs_env GW environment containing the output unit.
+!> \param bs_env ...
 !> \param n_done Number of atoms completed by the printing rank.
 !> \param n_total Total number of atoms assigned to the printing rank.
 !> \param execution_time Wall-clock time used for the reported work.
@@ -1247,7 +1251,7 @@ CONTAINS
             END DO
          END IF
 
-         DO igrid = 1, SIZE(ri_rs_grid_points, 2)
+         DO igrid = 1, bs_env%ri_rs%n_grid_points
             IF (NORM2(ri_rs_grid_points(1:3, igrid) - center) > cutoff_ri) THEN
                common_grid_available = .FALSE.
                EXIT
@@ -1273,7 +1277,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Evaluates the AO collocation matrix on the complete RI-RS grid,
 !>
-!>          Φ_lμ = Φ_μ(r_l),  l = 1, ..., N_grid.
+!>          ϕ_lμ = ϕ_μ(r_l),  l = 1, ..., N_grid.
 !>
 !>        "Complete common grid" means that the same full set of grid points is valid for every
 !>        optimized RI column block. The enclosing sphere is only an implementation device passed
@@ -1316,7 +1320,7 @@ CONTAINS
       reference_atom = 1
       center = particle_set(reference_atom)%r
       cutoff_ri = 0.0_dp
-      DO igrid = 1, SIZE(ri_rs_grid_points, 2)
+      DO igrid = 1, bs_env%ri_rs%n_grid_points
          cutoff_ri = MAX(cutoff_ri, NORM2(ri_rs_grid_points(1:3, igrid) - center))
       END DO
       DO iatom = 1, bs_env%n_atom
@@ -1404,9 +1408,9 @@ CONTAINS
    END SUBROUTINE add_Z_lP_columns
 
 ! **************************************************************************************************
-!> \brief Computes m_l^A = OR_{μ∈A}[Φ_μ(r_l) /= 0]. The product
+!> \brief Computes m_l^A = OR_{μ∈A}[ϕ_μ(r_l) /= 0]. The product
 !>
-!>          Φ_μ(r_l) Φ_ν(r_l),  μ∈A, ν∈B,
+!>          ϕ_μ(r_l) ϕ_ν(r_l),  μ∈A, ν∈B,
 !>
 !>        is evaluated only where m_l^A AND m_l^B is true. This avoids products and contractions
 !>        whenever either atom has no nonzero AO on r_l; no additional numerical threshold is used.
@@ -1451,7 +1455,7 @@ CONTAINS
    END SUBROUTINE compute_nonzero_AO_grid_mask
 
 ! **************************************************************************************************
-!> \brief Computes d_lp = Σ_{μνP} Φ_μ(r_l)Φ_ν(r_l)(μν|P)U_Pp for all optimized
+!> \brief Computes d_lp = Σ_{μνP} ϕ_μ(r_l)ϕ_ν(r_l)(μν|P)U_Pp for all optimized
 !>        columns p that contain reference RI functions P on atom I.
 !> \param bs_env ...
 !> \param ctx ...
@@ -1605,7 +1609,7 @@ CONTAINS
    END SUBROUTINE compute_d_lp_auto_ri_atom
 
 ! **************************************************************************************************
-!> \brief Computes d_lp = Σ_{μνP} Φ_μ(r_l)Φ_ν(r_l)(μν|P)U_Pp for all AA and AB
+!> \brief Computes d_lp = Σ_{μνP} ϕ_μ(r_l)ϕ_ν(r_l)(μν|P)U_Pp for all AA and AB
 !>        columns p of one RI-RS matrix block. P can belong to either atom of an AB contraction.
 !> \param bs_env ...
 !> \param ctx ...
@@ -2028,7 +2032,7 @@ CONTAINS
 !> \brief Computes
 !>
 !>          d_lp = Σ_A Σ_{P∈A} d_lP U_Pp^A,
-!>          d_lP = Σ_μν Φ_μ(r_l) Φ_ν(r_l) (μν|P),
+!>          d_lP = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P),
 !>
 !>        on the union of the atomic RI-RS grids needed by q. Each atom's three-center integrals are
 !>        evaluated once and transformed with U_Pp^A.
@@ -2458,7 +2462,7 @@ CONTAINS
 !>        pdpotrf/pdpotrs over a rank subgroup of size G), and sizes G.
 !>        AUTO mode (N_PROCS_PER_ATOM_Z_LP <= 0, the default): estimate each atom's single-rank
 !>        peak memory
-!>          peak(P) = 8*n_local_grid(P)^2                (dense Gram matrix D_local)
+!>          peak(P) = 8*n_local_grid(P)^2                (dense matrix D'_ll', stored in D_local)
 !>                  + 8*n_local_grid(P)*n_ao_used(P)     (phi_local)
 !>                  + 8*n_local_grid(P)*n_RI(P)*(1+n_threads)   (d_lp + OMP partials)
 !>        and send atoms whose peak exceeds mem_safety * available-memory-per-proc to the
@@ -2519,7 +2523,8 @@ CONTAINS
       para_env => bs_env%para_env
       particle_set => bs_env%ri_rs%particle_set
       natom = bs_env%n_atom
-      n_grid_total = SIZE(ri_rs_grid_points, 2)
+      n_grid_total = bs_env%ri_rs%n_grid_points
+      CPASSERT(SIZE(ri_rs_grid_points, 2) == n_grid_total)
 
       ! Per-atom sphere size: n_local_grid(P) = number of l with |r_l - R_P| <= cutoff_ri(P).
       ! It sets both the memory footprint (D_local is n_local_grid^2) and the solve
@@ -2674,7 +2679,7 @@ CONTAINS
    END SUBROUTINE get_n_ao_in_sphere
 
 ! **************************************************************************************************
-!> \brief Builds the sphere-local AO matrix phi_local(l, μ) = Φ_μ(r_l) for one RI atom P
+!> \brief Builds the sphere-local AO matrix phi_local(l, μ) = ϕ_μ(r_l) for one RI atom P
 !> \param bs_env ...
 !> \param qs_kind_set ...
 !> \param ri_rs_grid_points ...
@@ -2721,7 +2726,8 @@ CONTAINS
 
       cell => bs_env%ri_rs%cell
       particle_set => bs_env%ri_rs%particle_set
-      n_grid_total = SIZE(ri_rs_grid_points, 2)
+      n_grid_total = bs_env%ri_rs%n_grid_points
+      CPASSERT(SIZE(ri_rs_grid_points, 2) == n_grid_total)
       IF (PRESENT(center)) THEN
          pos_P(:) = center(:)
       ELSE
@@ -2987,4 +2993,4 @@ CONTAINS
 
    END FUNCTION get_ref_RI_size
 
-END MODULE gw_compute_Z_lP
+END MODULE gw_ri_rs_compute_Z_lP

@@ -46,8 +46,8 @@ MODULE rt_bse_types
                                            max_qp_gap
    USE rt_propagation_types, ONLY: rt_prop_type
    USE rt_propagation_utils, ONLY: warn_section_unused
-   USE gw_integrals, ONLY: build_3c_integral_block
-   USE gw_large_cell_Gamma, ONLY: compute_3c_integrals
+   USE gw_utils_compute_integrals, ONLY: build_3c_integral_block
+   USE gw_tensor_large_cell_Gamma, ONLY: compute_3c_integrals
    USE gw_utils, ONLY: rtbse_resolve_rirs_flag
    USE qs_tensors, ONLY: neighbor_list_3c_destroy
    USE libint_2c_3c, ONLY: libint_potential_type

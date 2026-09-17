@@ -12,7 +12,7 @@
 !> \author Jan Wilhelm
 !> \date 07.2023
 ! **************************************************************************************************
-MODULE gw_large_cell_gamma
+MODULE gw_tensor_large_cell_Gamma
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bibliography,                    ONLY: Graml2024,&
                                               cite_reference
@@ -58,13 +58,13 @@ MODULE gw_large_cell_gamma
                                               dbt_destroy,&
                                               dbt_filter,&
                                               dbt_type
-   USE gw_communication,                ONLY: fm_to_local_tensor,&
-                                              local_dbt_to_global_mat
-   USE gw_fm_utils,                     ONLY: cfm_contract_ABA,&
-                                              fm_contract_ABA
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
                                               de_init_bs_env,&
                                               time_to_freq
+   USE gw_utils_communication,          ONLY: fm_to_local_tensor,&
+                                              local_dbt_to_global_mat
+   USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
+                                              fm_contract_ABA
    USE input_constants,                 ONLY: G0W0,&
                                               rtp_method_bse,&
                                               rtp_method_bse_linearized
@@ -97,9 +97,9 @@ MODULE gw_large_cell_gamma
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_large_cell_gamma'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_tensor_large_cell_Gamma'
 
-   PUBLIC :: gw_calc_large_cell_Gamma, &
+   PUBLIC :: gw_calc_tensor_large_cell_Gamma, &
              compute_3c_integrals, G_occ_vir, fm_read, write_matrix, &
              fill_fm_Sigma_c_Gamma_time, delete_unnecessary_files, get_W_MIC, &
              create_fm_W_MIC_time, Fourier_transform_w_to_t, &
@@ -110,15 +110,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Perform GW band structure calculation
 !> \param qs_env ...
-!> \param bs_env ...
+!> \param bs_env Band-structure environment containing GW parameters.
 !> \par History
 !>    * 07.2023 created [Jan Wilhelm]
 ! **************************************************************************************************
-   SUBROUTINE gw_calc_large_cell_Gamma(qs_env, bs_env)
+   SUBROUTINE gw_calc_tensor_large_cell_Gamma(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gw_calc_large_cell_Gamma'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gw_calc_tensor_large_cell_Gamma'
 
       INTEGER                                            :: handle
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_Sigma_x_Gamma, fm_W_MIC_time
@@ -151,7 +151,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE gw_calc_large_cell_Gamma
+   END SUBROUTINE gw_calc_tensor_large_cell_Gamma
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2583,4 +2583,4 @@ CONTAINS
 
    END SUBROUTINE get_bounds_from_atoms
 
-END MODULE gw_large_cell_gamma
+END MODULE gw_tensor_large_cell_Gamma

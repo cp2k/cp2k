@@ -10,7 +10,7 @@
 !> \author Jan Wilhelm
 !> \date 08.2023
 ! **************************************************************************************************
-MODULE gw_communication
+MODULE gw_utils_communication
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
         dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
@@ -39,7 +39,7 @@ MODULE gw_communication
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_communication'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils_communication'
 
    PUBLIC :: local_dbt_to_global_mat, fm_to_local_tensor, fm_to_local_array, local_array_to_fm, &
              local_dbt_to_global_fm
@@ -60,7 +60,7 @@ CONTAINS
 !> \param mat_global ...
 !> \param mat_local ...
 !> \param tensor ...
-!> \param bs_env ...
+!> \param bs_env Band-structure environment containing GW parameters.
 !> \param atom_ranges ...
 ! **************************************************************************************************
    SUBROUTINE fm_to_local_tensor(fm_global, mat_global, mat_local, tensor, bs_env, atom_ranges)
@@ -940,4 +940,4 @@ CONTAINS
 
    END SUBROUTINE local_dbt_to_global_fm
 
-END MODULE gw_communication
+END MODULE gw_utils_communication

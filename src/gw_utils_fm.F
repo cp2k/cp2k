@@ -10,7 +10,7 @@
 !> \par History
 !>      09.2026 created Jan Wilhelm
 ! **************************************************************************************************
-MODULE gw_fm_utils
+MODULE gw_utils_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
@@ -33,7 +33,7 @@ MODULE gw_fm_utils
    IMPLICIT NONE
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_fm_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils_fm'
 
    PUBLIC :: cfm_contract_ABA, fm_contract_ABA, fm_invert, fm_sqrt
 
@@ -254,4 +254,4 @@ CONTAINS
 
    END SUBROUTINE fm_contract_ABA_set
 
-END MODULE gw_fm_utils
+END MODULE gw_utils_fm

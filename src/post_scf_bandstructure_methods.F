@@ -7,7 +7,7 @@
 
 MODULE post_scf_bandstructure_methods
    USE floquet_main,                    ONLY: floquet
-   USE gw_main,                         ONLY: gw
+   USE gw,                              ONLY: run_gw
    USE input_section_types,             ONLY: section_vals_type
    USE post_scf_bandstructure_utils,    ONLY: create_and_init_bs_env,&
                                               eval_bandstructure_properties,&
@@ -53,7 +53,7 @@ CONTAINS
 
       ! GW calculation for eigenvalues/bandstructure for molecules and periodic systems
       IF (qs_env%bs_env%do_gw) THEN
-         CALL gw(qs_env, qs_env%bs_env, post_scf_bandstructure_section)
+         CALL run_gw(qs_env, qs_env%bs_env, post_scf_bandstructure_section)
       END IF
 
       ! density of states (DOS), projected DOS, local DOS for DFT, DFT+SOC, G0W0, G0W0+SOC

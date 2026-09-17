@@ -1164,13 +1164,13 @@ MODULE input_constants
                                                int_ldos_y = 20, &
                                                int_ldos_z = 21, &
                                                int_ldos_none = 22, &
-                                               small_cell_full_kp = 31, &
-                                               large_cell_Gamma = 32, &
+                                               tensor_small_cell_full_kp = 31, &
+                                               tensor_large_cell_Gamma = 32, &
                                                G0W0 = 35, &
                                                evGW0 = 36, &
                                                evGW = 37, &
-                                               non_periodic_ri_rs = 38, &
-                                               large_cell_Gamma_ri_rs = 39
+                                               ri_rs_non_periodic = 38, &
+                                               ri_rs_large_cell_Gamma = 39
 
    ! periodic RESP parameters
    INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir = 0, &

@@ -222,23 +222,27 @@ list(
   group_dist_types.F
   grrm_utils.F
   gapw_1c_basis_set.F
-  gw_compute_Z_lP.F
-  gw_compute_Z_lP_utils.F
+  gw_ri_rs_compute_Z_lP.F
+  gw_ri_rs_compute_Z_lP_utils.F
   gw_auto_ri_generate_RI_basis.F
   gw_auto_ri_types.F
-  gw_dbcsr_utils.F
-  gw_fm_utils.F
-  gw_communication.F
-  gw_main.F
-  gw_large_cell_gamma.F
-  gw_small_cell_full_kp.F
-  gw_non_periodic_ri_rs.F
-  gw_large_cell_gamma_ri_rs.F
-  gw_optimize_ri_rs_grid.F
+  gw_utils_dbcsr.F
+  gw_utils_fm.F
+  gw_utils_communication.F
+  gw.F
+  gw_tensor_large_cell_gamma.F
+  gw_tensor_small_cell_full_kp.F
+  gw_ri_rs_non_periodic.F
+  gw_ri_rs_large_cell_gamma.F
+  gw_ri_rs_grid_from_file.F
+  gw_ri_rs_grid_initialization.F
+  gw_ri_rs_grid_optimization.F
+  gw_ri_rs_grid_setup_main.F
+  gw_ri_rs_utils.F
   post_scf_bandstructure_types.F
   post_scf_bandstructure_utils.F
   gw_utils.F
-  gw_integrals.F
+  gw_utils_compute_integrals.F
   hairy_probes.F
   hartree_local_methods.F
   hartree_local_types.F
@@ -809,7 +813,6 @@ list(
   rpa_im_time_force_types.F
   rpa_im_time_force_methods.F
   rpa_util.F
-  rirs_grid_utils.F
   rtp_admm_methods.F
   rt_propagation_forces.F
   rt_propagation_types.F
@@ -1577,7 +1580,6 @@ set(CP2K_PROGS_F
     kpsym_unittest.F
     qs_ot_minimizer_unittest.F
     optbas_frontier_orbitals_utils_unittest.F
-    rirs_grid_utils_unittest.F
     low_rank_preconditioner_unittest.F
     ot_covariant_preconditioner_unittest.F
     qs_charge_mixing_unittest.F
@@ -1994,7 +1996,6 @@ list(
   "kpsym_unittest"
   "qs_ot_minimizer_unittest"
   "optbas_frontier_orbitals_utils_unittest"
-  "rirs_grid_utils_unittest"
   "low_rank_preconditioner_unittest"
   "ot_covariant_preconditioner_unittest"
   "qs_charge_mixing_unittest"
@@ -2029,7 +2030,6 @@ add_executable(kpsym_unittest kpsym_unittest.F)
 add_executable(qs_ot_minimizer_unittest qs_ot_minimizer_unittest.F)
 add_executable(optbas_frontier_orbitals_utils_unittest
                optbas_frontier_orbitals_utils_unittest.F)
-add_executable(rirs_grid_utils_unittest rirs_grid_utils_unittest.F)
 add_executable(low_rank_preconditioner_unittest
                low_rank_preconditioner_unittest.F)
 add_executable(ot_covariant_preconditioner_unittest
