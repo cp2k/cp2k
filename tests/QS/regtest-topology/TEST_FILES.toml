@@ -1,0 +1,3 @@
+"helium.inp" = [{matcher="TOPOLOGY_SURFACE_CONVERGED", tol=0.0, ref=1.0}]
+"neon-soc.inp" = [{matcher="TOPOLOGY_Z2_TRIVIAL", tol=0.0, ref=1.0}]
+"helium-nnkp.inp" = [{matcher="TOPOLOGY_BERRY_PHASE", tol=1e-4, ref=3.141592653589793}]

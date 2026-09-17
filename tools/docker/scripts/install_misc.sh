@@ -15,6 +15,7 @@ apt-get install -qq --no-install-recommends \
   python3-dev \
   build-essential \
   gfortran \
+  libopenblas-dev \
   cmake \
   golang \
   unzip \
@@ -33,6 +34,9 @@ pip3 install -r pao-ml-requirements.txt \
   requests==2.34.0 \
   types-requests==2.33.0.20260508 \
   mypy==2.1.0
+
+# Native Wilson-kernel and Z2Pack adapter tests.
+pip3 install pytest z2pack==2.2.1
 
 # download inputs for minimax_to_fortran_source.py
 wget -q https://www.cp2k.org/static/downloads/1_xData.zip
