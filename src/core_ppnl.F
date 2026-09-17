@@ -386,6 +386,9 @@ CONTAINS
                   ! GTH potential
                   prjc = 1
                   work = 0.0_dp
+                  ! Screened projector channels must not retain SOC integrals
+                  ! from the preceding shell set or atom/image pair.
+                  IF (do_soc) work_l = 0.0_dp
                   DO l = 0, lppnl
                      nprjc = nprj_ppnl(l)*nco(l)
                      IF (nprjc == 0) CYCLE
