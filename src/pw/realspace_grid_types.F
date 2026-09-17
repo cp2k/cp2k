@@ -768,9 +768,12 @@ CONTAINS
                                                             source
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount
       INTEGER, DIMENSION(3)                              :: lb, ub
+      INTEGER, DIMENSION(:, :, :, :), POINTER            :: bounds_by_rank
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recvbuf, sendbuf, swaparray
 
-      ASSOCIATE (np => pw%pw_grid%para%group%num_pe, bo => pw%pw_grid%para%bo(1:2, 1:3, 0:pw%pw_grid%para%group%num_pe - 1, 1), &
+      ! Avoid nested component array sections: GCC 16 can generate invalid bounds checks.
+      bounds_by_rank => pw%pw_grid%para%bo
+      ASSOCIATE (np => pw%pw_grid%para%group%num_pe, bo => bounds_by_rank(:, :, :, 1), &
                  pbo => pw%pw_grid%bounds, group => pw%pw_grid%para%group, mepos => pw%pw_grid%para%group%mepos, &
                  grid => rs%r)
          ALLOCATE (rcount(0:np - 1))
@@ -837,10 +840,13 @@ CONTAINS
                                                             k, km, nma, nn, source
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount
       INTEGER, DIMENSION(3)                              :: lb, ub
+      INTEGER, DIMENSION(:, :, :, :), POINTER            :: bounds_by_rank
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recvbuf, sendbuf, swaparray
       TYPE(mp_request_type), DIMENSION(2)                :: req
 
-      ASSOCIATE (np => pw%pw_grid%para%group%num_pe, bo => pw%pw_grid%para%bo(1:2, 1:3, 0:pw%pw_grid%para%group%num_pe - 1, 1), &
+      ! Keep the reverse transfer on the same compiler-safe array-section path.
+      bounds_by_rank => pw%pw_grid%para%bo
+      ASSOCIATE (np => pw%pw_grid%para%group%num_pe, bo => bounds_by_rank(:, :, :, 1), &
                  pbo => pw%pw_grid%bounds, group => pw%pw_grid%para%group, mepos => pw%pw_grid%para%group%mepos, &
                  grid => rs%r)
          ALLOCATE (rcount(0:np - 1))
