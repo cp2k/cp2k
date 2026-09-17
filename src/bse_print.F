@@ -445,22 +445,25 @@ CONTAINS
                   trans_mom_bse(3, 1, i_exc), oscill_str(i_exc)
             END DO
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-               'Check for Thomas-Reiche-Kuhn sum rule'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T35,A15)') 'BSE|', &
-               'N_e = Σ_n f^n'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            ! Open shell: caller passes homo_irred = n_alpha + n_beta (total electrons).
-            ! Closed shell: homo_irred = n_occ, i.e. 2 electrons per occupied orbital.
-            WRITE (unit_nr, '(T2,A4,T7,A24,T65,I16)') 'BSE|', &
-               'Number of electrons N_e:', MERGE(homo_irred, homo_irred*2, my_open_shell)
-            WRITE (unit_nr, '(T2,A4,T7,A40,T66,F16.3)') 'BSE|', &
-               'Sum over oscillator strengths Σ_n f^n :', SUM(oscill_str)
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "Accuracy of TRK sum rule might suffer from cutoffs.")
+            ! the sum rule needs all excitations, an iterative solver provides the lowest ones only
+            IF (SIZE(oscill_str) == homo*virtual) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+                  'Check for Thomas-Reiche-Kuhn sum rule'
+               WRITE (unit_nr, '(T2,A4)') 'BSE|'
+               WRITE (unit_nr, '(T2,A4,T35,A15)') 'BSE|', &
+                  'N_e = Σ_n f^n'
+               WRITE (unit_nr, '(T2,A4)') 'BSE|'
+               ! Open shell: caller passes homo_irred = n_alpha + n_beta (total electrons).
+               ! Closed shell: homo_irred = n_occ, i.e. 2 electrons per occupied orbital.
+               WRITE (unit_nr, '(T2,A4,T7,A24,T65,I16)') 'BSE|', &
+                  'Number of electrons N_e:', MERGE(homo_irred, homo_irred*2, my_open_shell)
+               WRITE (unit_nr, '(T2,A4,T7,A40,T66,F16.3)') 'BSE|', &
+                  'Sum over oscillator strengths Σ_n f^n :', SUM(oscill_str)
+               WRITE (unit_nr, '(T2,A4)') 'BSE|'
+               IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
+                  CALL cp_warn(__LOCATION__, &
+                               "Accuracy of TRK sum rule might suffer from cutoffs.")
+               END IF
             END IF
          END IF
 

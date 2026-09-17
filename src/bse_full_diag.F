@@ -68,7 +68,7 @@ MODULE bse_full_diag
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_full_diag'
 
    PUBLIC :: create_A, diagonalize_A, create_B, create_hermitian_form_of_ABBA, &
-             diagonalize_C
+             diagonalize_C, postprocess_bse
 
 CONTAINS
 

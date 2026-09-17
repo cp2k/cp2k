@@ -13,11 +13,14 @@
 
 MODULE bse_main
 
+   USE bse_davidson,                    ONLY: bse_davidson_refcheck_tda,&
+                                              bse_davidson_tda
    USE bse_full_diag,                   ONLY: create_A,&
                                               create_B,&
                                               create_hermitian_form_of_ABBA,&
                                               diagonalize_A,&
-                                              diagonalize_C
+                                              diagonalize_C,&
+                                              postprocess_bse
    USE bse_matvec,                      ONLY: bse_matvec_create,&
                                               bse_matvec_env_type,&
                                               bse_matvec_release,&
@@ -31,9 +34,13 @@ MODULE bse_main
                                               truncate_BSE_matrices
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
+                                              cp_fm_to_fm_submat_general,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -115,7 +122,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced, Eigenval_reduced_1, &
                                                             Eigenval_reduced_2, &
                                                             Eigenval_reduced_joint
-      TYPE(bse_matvec_env_type)                          :: mv_env
       TYPE(cp_fm_type)                                   :: fm_A_BSE, fm_B_BSE, fm_C_BSE, &
                                                             fm_inv_sqrt_A_minus_B, fm_Q_copy, &
                                                             fm_sqrt_A_minus_B
@@ -303,39 +309,11 @@ CONTAINS
          CALL adapt_BSE_input_params(homo_red_arr(1), virt_red_arr(1), unit_nr, mp2_env, qs_env)
 
          IF (my_do_iterat_diag) THEN
-            CALL create_matvec_env(mv_env, fm_mat_S_ia_trunc_arr(1), fm_mat_S_ij_trunc_arr(1), &
-                                   fm_mat_S_ab_trunc_arr(1), fm_mat_S_bar_ia_bse_arr(1), &
-                                   fm_mat_S_bar_ij_bse_arr(1), Eigenval_reduced, &
-                                   homo_red_arr(1), virt_red_arr(1), my_do_abba, mp2_env, unit_nr)
-            IF (mp2_env%bse%bse_debug_print) THEN
-               IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-                   mp2_env%bse%screening_method == bse_screening_alpha) THEN
-                  CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
-                                fm_A_BSE, Eigenval_reduced, unit_nr, &
-                                homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
-               ELSE
-                  CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ij_bse_arr, fm_mat_S_ab_trunc_arr, &
-                                fm_A_BSE, Eigenval_reduced, unit_nr, &
-                                homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
-               END IF
-               IF (my_do_abba) THEN
-                  IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-                      mp2_env%bse%screening_method == bse_screening_alpha) THEN
-                     CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ia_trunc_arr, fm_B_BSE, &
-                                   homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
-                  ELSE
-                     CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ia_bse_arr, fm_B_BSE, &
-                                   homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
-                  END IF
-                  CALL bse_matvec_selfcheck(mv_env, fm_A_BSE, unit_nr, fm_B_BSE)
-                  CALL cp_fm_release(fm_B_BSE)
-               ELSE
-                  CALL bse_matvec_selfcheck(mv_env, fm_A_BSE, unit_nr)
-               END IF
-               CALL cp_fm_release(fm_A_BSE)
-            END IF
-            CALL bse_matvec_release(mv_env)
-            CPABORT("Iterative BSE not yet implemented")
+            CALL solve_bse_iteratively(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, &
+                                       fm_mat_S_ab_trunc_arr, fm_mat_S_bar_ia_bse_arr, &
+                                       fm_mat_S_bar_ij_bse_arr, Eigenval_reduced, &
+                                       homo_red_arr, virt_red_arr, homo, dimen_RI, &
+                                       my_do_tda, my_do_abba, mp2_env, qs_env, mo_coeff, unit_nr)
          END IF
 
          IF (my_do_fulldiag) THEN
@@ -401,6 +379,132 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE start_bse_calculation
+
+! **************************************************************************************************
+!> \brief Lowest excitations of a closed-shell reference from the block Davidson solvers on top of
+!>        the matrix-free application of A and B, post-processed as in the full diagonalization
+!> \param fm_mat_S_ia_trunc_arr ...
+!> \param fm_mat_S_ij_trunc_arr ...
+!> \param fm_mat_S_ab_trunc_arr ...
+!> \param fm_mat_S_bar_ia_bse_arr ...
+!> \param fm_mat_S_bar_ij_bse_arr ...
+!> \param Eigenval_reduced ...
+!> \param homo_red_arr ...
+!> \param virt_red_arr ...
+!> \param homo ...
+!> \param dimen_RI ...
+!> \param do_tda ...
+!> \param do_abba ...
+!> \param mp2_env ...
+!> \param qs_env ...
+!> \param mo_coeff ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE solve_bse_iteratively(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, &
+                                    fm_mat_S_ab_trunc_arr, fm_mat_S_bar_ia_bse_arr, &
+                                    fm_mat_S_bar_ij_bse_arr, Eigenval_reduced, &
+                                    homo_red_arr, virt_red_arr, homo, dimen_RI, &
+                                    do_tda, do_abba, mp2_env, qs_env, mo_coeff, unit_nr)
+
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN) :: fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, &
+         fm_mat_S_ab_trunc_arr, fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_reduced
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo_red_arr, virt_red_arr, homo
+      INTEGER, INTENT(IN)                                :: dimen_RI
+      LOGICAL, INTENT(IN)                                :: do_tda, do_abba
+      TYPE(mp2_type)                                     :: mp2_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_bse_iteratively'
+      INTEGER, PARAMETER                                 :: n_ov_max_debug = 5000
+
+      INTEGER                                            :: handle, n_ov
+      LOGICAL                                            :: do_debug
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: exc_ens
+      TYPE(bse_matvec_env_type)                          :: mv_env
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: fm_A_BSE, fm_B_BSE, fm_X, fm_X_ia
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (dft_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      IF (dft_control%tddfpt2_control%do_bse .OR. dft_control%tddfpt2_control%do_bse_w_only .OR. &
+          dft_control%tddfpt2_control%do_bse_gw_only) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "BSE_DIAG_METHOD ITERDIAG cannot provide the BSE kernel of TDDFPT "// &
+                       "(DO_BSE, DO_BSE_W_ONLY, DO_BSE_GW_ONLY). Use BSE_DIAG_METHOD FULLDIAG.")
+      END IF
+
+      para_env => fm_mat_S_ia_trunc_arr(1)%matrix_struct%para_env
+      n_ov = homo_red_arr(1)*virt_red_arr(1)
+      ! the debug checks hold the explicit N_ov x N_ov matrices
+      do_debug = mp2_env%bse%bse_debug_print .AND. n_ov <= n_ov_max_debug
+
+      CALL create_matvec_env(mv_env, fm_mat_S_ia_trunc_arr(1), fm_mat_S_ij_trunc_arr(1), &
+                             fm_mat_S_ab_trunc_arr(1), fm_mat_S_bar_ia_bse_arr(1), &
+                             fm_mat_S_bar_ij_bse_arr(1), Eigenval_reduced, &
+                             homo_red_arr(1), virt_red_arr(1), do_abba, mp2_env, unit_nr)
+
+      IF (do_debug) THEN
+         IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
+             mp2_env%bse%screening_method == bse_screening_alpha) THEN
+            CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
+                          fm_A_BSE, Eigenval_reduced, unit_nr, &
+                          homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
+         ELSE
+            CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ij_bse_arr, fm_mat_S_ab_trunc_arr, &
+                          fm_A_BSE, Eigenval_reduced, unit_nr, &
+                          homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
+         END IF
+         IF (do_abba) THEN
+            IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
+                mp2_env%bse%screening_method == bse_screening_alpha) THEN
+               CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ia_trunc_arr, fm_B_BSE, &
+                             homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
+            ELSE
+               CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ia_bse_arr, fm_B_BSE, &
+                             homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
+            END IF
+            CALL bse_matvec_selfcheck(mv_env, fm_A_BSE, unit_nr, fm_B_BSE)
+            CALL cp_fm_release(fm_B_BSE)
+         ELSE
+            CALL bse_matvec_selfcheck(mv_env, fm_A_BSE, unit_nr)
+         END IF
+      END IF
+
+      IF (do_abba) CPABORT("ABBA iterative solver not yet available")
+
+      IF (do_tda) THEN
+         CALL bse_davidson_tda(mv_env, mp2_env, unit_nr, exc_ens, fm_X)
+         IF (do_debug) CALL bse_davidson_refcheck_tda(fm_A_BSE, exc_ens, fm_X, unit_nr)
+
+         ! postprocess_bse takes its process grid from the eigenvectors
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, para_env=para_env, &
+                                  context=fm_mat_S_ia_trunc_arr(1)%matrix_struct%context, &
+                                  nrow_global=n_ov, ncol_global=SIZE(exc_ens))
+         CALL cp_fm_create(fm_X_ia, fm_struct, name="fm_X_davidson_ia")
+         CALL cp_fm_struct_release(fm_struct)
+         CALL cp_fm_to_fm_submat_general(fm_X, fm_X_ia, n_ov, SIZE(exc_ens), 1, 1, 1, 1, &
+                                         fm_mat_S_ia_trunc_arr(1)%matrix_struct%context)
+         CALL cp_fm_release(fm_X)
+         CALL postprocess_bse(exc_ens, fm_X_ia, mp2_env, qs_env, mo_coeff, &
+                              homo_red_arr(1), virt_red_arr(1), homo(1), unit_nr, .TRUE.)
+         CALL cp_fm_release(fm_X_ia)
+         DEALLOCATE (exc_ens)
+      END IF
+
+      IF (do_debug) CALL cp_fm_release(fm_A_BSE)
+      CALL bse_matvec_release(mv_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE solve_bse_iteratively
 
 ! **************************************************************************************************
 !> \brief Sets up the matrix-free application of A and B with the prefactors and the screened

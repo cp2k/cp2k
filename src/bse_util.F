@@ -43,7 +43,8 @@ MODULE bse_util
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE input_constants,                 ONLY: bse_screening_alpha,&
+   USE input_constants,                 ONLY: bse_iterdiag,&
+                                              bse_screening_alpha,&
                                               bse_screening_rpa,&
                                               bse_screening_tdhf,&
                                               use_mom_ref_coac
@@ -1542,7 +1543,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'adapt_BSE_input_params'
 
-      INTEGER                                            :: handle, i, j, n, ndim_periodic_cell, &
+      INTEGER                                            :: handle, i, j, n, n_exc_max, &
+                                                            ndim_periodic_cell, &
                                                             ndim_periodic_poisson, &
                                                             num_state_list_exceptions
       TYPE(cell_type), POINTER                           :: cell_ref
@@ -1557,10 +1559,16 @@ CONTAINS
       ndim_periodic_poisson = COUNT(poisson_env%parameters%periodic == 1)
       ndim_periodic_cell = SUM(cell_ref%perd(1:3)) ! Borrowed from cell_methods.F/write_cell_low
 
+      ! The iterative solver computes the NUM_EXC_EN lowest excitations only
+      n_exc_max = homo*virtual
+      IF (mp2_env%bse%bse_diag_method == bse_iterdiag) THEN
+         n_exc_max = MIN(n_exc_max, mp2_env%bse%num_exc_en)
+      END IF
+
       ! Handle negative NUM_PRINT_EXC
       IF (mp2_env%bse%num_print_exc < 0 .OR. &
-          mp2_env%bse%num_print_exc > homo*virtual) THEN
-         mp2_env%bse%num_print_exc = homo*virtual
+          mp2_env%bse%num_print_exc > n_exc_max) THEN
+         mp2_env%bse%num_print_exc = n_exc_max
          IF (unit_nr > 0) THEN
             CALL cp_hint(__LOCATION__, &
                          "Keyword NUM_PRINT_EXC is either negative or too large. "// &
