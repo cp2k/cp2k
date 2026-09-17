@@ -131,7 +131,7 @@ MODULE xc_libxc
                             xc_libxc_wrap_info_refs, &
                             xc_f03_func_set_ext_params, &
                             XC_EXCHANGE, XC_CORRELATION, XC_EXCHANGE_CORRELATION, XC_KINETIC
-   USE offload_api, ONLY: offload_device_synchronize
+   USE offload_api, ONLY: offload_activate_chosen_device, offload_device_synchronize
 #endif
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, &
 !$                    omp_get_num_threads, &
@@ -1853,6 +1853,13 @@ CONTAINS
 !$    nthreads = omp_get_num_threads()
       CPASSERT(ithread < SIZE(workers%worker))
 
+      ! CUDA's current device is thread-local. Make sure every thread that runs
+      ! this iblock loop uses the rank's selected device, otherwise libxc's
+      ! device calls (cudaMemset/cudaMemcpy) would target the wrong context,
+      ! e.g. when an OpenMP worker thread's current device defaults to GPU 0
+      ! while the buffers were allocated on the rank's own GPU.
+      CALL offload_activate_chosen_device()
+
       ! Cap the block at what the staging buffers were allocated for, shrinking
       ! it so every thread gets a block of its own on small grids.
       bsize = MAX(1, MIN(libxc_block_size, (npoints + nthreads - 1)/nthreads))
@@ -2304,6 +2311,10 @@ CONTAINS
 !$    ithread = omp_get_thread_num()
 !$    nthreads = omp_get_num_threads()
       CPASSERT(ithread < SIZE(workers%worker))
+
+      ! See the spin-unpolarized calc: CUDA's current device is thread-local,
+      ! so activate the rank's chosen device on every thread.
+      CALL offload_activate_chosen_device()
 
       bsize = MAX(1, MIN(libxc_block_size, (npoints + nthreads - 1)/nthreads))
       nblocks = (npoints + bsize - 1)/bsize
