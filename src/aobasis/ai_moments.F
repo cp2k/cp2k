@@ -69,11 +69,12 @@ CONTAINS
 !> \param ldab ...
 !> \param work ...
 !> \param ldwork ...
+!> \param ordered retain the ordered atom pair instead of mapping to an upper block
 ! **************************************************************************************************
    SUBROUTINE contract_cossin(cos_block, sin_block, &
                               iatom, ncoa, nsgfa, sgfa, sphi_a, ldsa, &
                               jatom, ncob, nsgfb, sgfb, sphi_b, ldsb, &
-                              cosab, sinab, ldab, work, ldwork)
+                              cosab, sinab, ldab, work, ldwork, ordered)
 
       REAL(dp), DIMENSION(:, :), POINTER                 :: cos_block, sin_block
       INTEGER, INTENT(IN)                                :: iatom, ncoa, nsgfa, sgfa
@@ -85,6 +86,12 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ldab
       REAL(dp), DIMENSION(:, :)                          :: work
       INTEGER, INTENT(IN)                                :: ldwork
+      LOGICAL, INTENT(IN), OPTIONAL                      :: ordered
+
+      LOGICAL                                            :: direct_block
+
+      direct_block = iatom <= jatom
+      IF (PRESENT(ordered)) direct_block = direct_block .OR. ordered
 
 ! Calculate cosine
 
@@ -93,7 +100,7 @@ CONTAINS
                  sphi_b(1, sgfb), ldsb, &
                  0.0_dp, work(1, 1), ldwork)
 
-      IF (iatom <= jatom) THEN
+      IF (direct_block) THEN
          CALL dgemm("T", "N", nsgfa, nsgfb, ncoa, &
                     1.0_dp, sphi_a(1, sgfa), ldsa, &
                     work(1, 1), ldwork, &
@@ -113,7 +120,7 @@ CONTAINS
                  sphi_b(1, sgfb), ldsb, &
                  0.0_dp, work(1, 1), ldwork)
 
-      IF (iatom <= jatom) THEN
+      IF (direct_block) THEN
          CALL dgemm("T", "N", nsgfa, nsgfb, ncoa, &
                     1.0_dp, sphi_a(1, sgfa), ldsa, &
                     work(1, 1), ldwork, &

@@ -98,7 +98,7 @@ MODULE bibliography
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
                             Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
-                            Cances2000, Herbst2022, Zhang2025
+                            Cances2000, Herbst2022, Zhang2025, Gresch2017, Soluyanov2011
 
 CONTAINS
 
@@ -2294,6 +2294,20 @@ CONTAINS
                          "Deep Potential Molecular Dynamics with Enhanced Sampling", &
                          source="Langmuir", volume="41", pages="3675-3683", &
                          year=2025, doi="10.1021/acs.langmuir.4c05004")
+
+      CALL add_reference(key=Gresch2017, &
+                         authors=s2a("D. Gresch", "G. Autes", "O. V. Yazyev", "M. Troyer", &
+                                     "D. Vanderbilt", "B. A. Bernevig", "A. A. Soluyanov"), &
+                         title="Z2Pack: Numerical implementation of hybrid Wannier centers "// &
+                         "for identifying topological materials", &
+                         source="Phys. Rev. B", volume="95", pages="075146", &
+                         year=2017, doi="10.1103/PhysRevB.95.075146")
+
+      CALL add_reference(key=Soluyanov2011, &
+                         authors=s2a("A. A. Soluyanov", "D. Vanderbilt"), &
+                         title="Computing topological invariants without inversion symmetry", &
+                         source="Phys. Rev. B", volume="83", pages="235401", &
+                         year=2011, doi="10.1103/PhysRevB.83.235401")
 
    END SUBROUTINE add_all_references
 

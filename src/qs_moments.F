@@ -1076,22 +1076,27 @@ CONTAINS
 !> \param sinmat ...
 !> \param kvec ...
 !> \param basis_type ...
+!> \param ordered use all ordered atom pairs for a non-Hermitian cross-k overlap
+!> \param ordered_kpoints image-cell mapping for the ordered neighbour list
 ! **************************************************************************************************
-   SUBROUTINE build_berry_kpoint_matrix(qs_env, cosmat, sinmat, kvec, basis_type)
+   SUBROUTINE build_berry_kpoint_matrix(qs_env, cosmat, sinmat, kvec, basis_type, ordered, ordered_kpoints)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: cosmat, sinmat
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: kvec
       CHARACTER(len=*), OPTIONAL                         :: basis_type
+      LOGICAL, INTENT(IN), OPTIONAL                      :: ordered
+      TYPE(kpoint_type), POINTER, OPTIONAL               :: ordered_kpoints
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_berry_kpoint_matrix'
 
+      CHARACTER                                          :: matrix_symmetry
       INTEGER :: handle, i, iatom, ic, icol, ikind, inode, irow, iset, jatom, jkind, jset, ldab, &
                  ldsa, ldsb, ldwork, natom, ncoa, ncob, nimg, nkind, nseta, nsetb, sgfa, sgfb
       INTEGER, DIMENSION(3)                              :: icell
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: found, use_cell_mapping
+      LOGICAL                                            :: found, full_pairs, use_cell_mapping
       REAL(dp), DIMENSION(:, :), POINTER                 :: cblock, cosab, sblock, sinab, work
       REAL(KIND=dp)                                      :: dab
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb
@@ -1112,6 +1117,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      full_pairs = .FALSE.
+      IF (PRESENT(ordered)) full_pairs = ordered
+      matrix_symmetry = dbcsr_type_symmetric
+      IF (full_pairs) matrix_symmetry = dbcsr_type_no_symmetry
+
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
                       dft_control=dft_control)
@@ -1128,6 +1138,15 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       particle_set=particle_set, cell=cell, &
                       sab_orb=sab_orb)
+
+      IF (full_pairs) THEN
+         CALL get_qs_env(qs_env, sab_all=sab_orb)
+         IF (.NOT. ASSOCIATED(sab_orb)) CPABORT("Ordered Berry integrals require k-point neighbour lists.")
+         CPASSERT(PRESENT(ordered_kpoints))
+         CALL get_kpoint_info(ordered_kpoints, cell_to_index=cell_to_index)
+         nimg = SIZE(ordered_kpoints%index_to_cell, 2)
+         use_cell_mapping = .TRUE.
+      END IF
 
       nkind = SIZE(qs_kind_set)
       natom = SIZE(particle_set)
@@ -1154,7 +1173,7 @@ CONTAINS
          ALLOCATE (sinmat(1, i)%matrix)
          CALL dbcsr_create(matrix=sinmat(1, i)%matrix, &
                            name="SINMAT", &
-                           dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                           dist=dbcsr_dist, matrix_type=matrix_symmetry, &
                            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes)
          CALL cp_dbcsr_alloc_block_from_nbl(sinmat(1, i)%matrix, sab_orb)
          CALL dbcsr_set(sinmat(1, i)%matrix, 0.0_dp)
@@ -1162,7 +1181,7 @@ CONTAINS
          ALLOCATE (cosmat(1, i)%matrix)
          CALL dbcsr_create(matrix=cosmat(1, i)%matrix, &
                            name="COSMAT", &
-                           dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
+                           dist=dbcsr_dist, matrix_type=matrix_symmetry, &
                            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes)
          CALL cp_dbcsr_alloc_block_from_nbl(cosmat(1, i)%matrix, sab_orb)
          CALL dbcsr_set(cosmat(1, i)%matrix, 0.0_dp)
@@ -1210,7 +1229,7 @@ CONTAINS
             ldsa = SIZE(sphi_a, 1)
             ldsb = SIZE(sphi_b, 1)
 
-            IF (iatom <= jatom) THEN
+            IF (iatom <= jatom .OR. full_pairs) THEN
                irow = iatom
                icol = jatom
             ELSE
@@ -1257,7 +1276,7 @@ CONTAINS
                   CALL contract_cossin(cblock, sblock, &
                                        iatom, ncoa, nsgfa(iset), sgfa, sphi_a, ldsa, &
                                        jatom, ncob, nsgfb(jset), sgfb, sphi_b, ldsb, &
-                                       cosab, sinab, ldab, work, ldwork)
+                                       cosab, sinab, ldab, work, ldwork, ordered=full_pairs)
 
                END DO
             END DO
