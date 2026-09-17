@@ -895,6 +895,9 @@ COPY --from=build_cp2k /opt/cp2k/build/gromacs/src/gromacs/applied_forces/qmmm/t
 COPY --from=build_cp2k /opt/cp2k/build/gromacs/src/testutils/simulationdatabase /opt/cp2k/build/gromacs/src/testutils/simulationdatabase
 COPY --from=build_cp2k /opt/cp2k/build/gromacs/share/top /opt/cp2k/build/gromacs/share/top
 RUN mkdir -p /opt/cp2k/build/gromacs/build/src/gromacs/applied_forces/qmmm/tests/Testing/Temporary
+
+# Install GROMACS/CP2K benchmarks
+COPY ./benchmarks/GROMACS ./benchmarks/GROMACS
 """
     else:
         sys.exit(f"\nERROR: Unknown test type {test_type} specified\n")

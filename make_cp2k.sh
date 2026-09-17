@@ -1797,7 +1797,8 @@ export PATH="${INSTALL_PREFIX}/bin:${INSTALL_PREFIX}/ase/bin:${PATH}"
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}"
 export OMP_NUM_THREADS=\${OMP_NUM_THREADS:-2}
 export OMP_STACKSIZE=256M
-export ASE_CONFIG_PATH="${INSTALL_PREFIX}/ase/config.ini"
+[[ -f ${INSTALL_PREFIX}/ase/config.ini ]] && export ASE_CONFIG_PATH="${INSTALL_PREFIX}/ase/config.ini"
+[[ -f ${INSTALL_PREFIX}/bin/GMXRC ]] && source ${INSTALL_PREFIX}/bin/GMXRC
 ${OMPI_VARS}
 export GAUXC_SKALA_MODEL=${GAUXC_SKALA_MODEL}
 exec "\$@"
@@ -2078,7 +2079,7 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
   fi
 
   # CMake build step for GROMACS
-  echo -e "\n*** Compiling GROMACS ***\n"
+  echo -e "\n*** Compiling GROMACS ${GROMACS_VERSION} ***\n"
   cmake --build "${GROMACS_BUILD_PATH}" --parallel "${NUM_PROCS}" --target all qmmm_applied_forces-test &> "${GROMACS_BUILD_PATH}"/make.log
   EXIT_CODE=${PIPESTATUS[0]}
   if ((EXIT_CODE != 0)); then
@@ -2103,8 +2104,17 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
   # Suppress GROMACS quote and reminder messages
   export GMX_NO_QUOTES=1
 
-  # Test GROMACS/CP2K installation
+  # Print instructions for testing GROMACS/CP2K
   echo ""
+  echo "*** The GROMACS/CP2K installation can be tested with"
+  if [[ "${IN_CONTAINER}" == "yes" ]]; then
+    echo "    podman run -it --rm ${IMAGE_TAG} ${LAUNCH_SCRIPT} qmmm_applied_forces-test"
+  else
+    echo "    ${LAUNCH_SCRIPT} qmmm_applied_forces-test"
+  fi
+  echo ""
+
+  # Test GROMACS/CP2K installation
   GROMACS_BINARY="gmx"
   [[ ${USE_MPI} == "ON" ]] && GROMACS_BINARY+="_mpi"
   if [[ "${TEST_GROMACS}" == "yes" ]]; then
@@ -2125,23 +2135,8 @@ if [[ -n "${GROMACS_VERSION}" ]]; then
     fi
   fi
 
-  # Print usage hints
-  if [[ ${USE_MPI} == "ON" ]]; then
-    echo "*** An MPI/OpenMP parallel GROMACS/CP2K run using 2 OpenMP threads for each of the 4 MPI ranks can be launched with"
-    if [[ "${IN_CONTAINER}" == "yes" ]]; then
-      echo "    podman run -it --rm ${IMAGE_TAG} mpiexec -n 4 ${ENV_VAR_FLAG} OMP_NUM_THREADS=2 ${GROMACS_BINARY}"
-    else
-      echo "    export OMP_NUM_THREADS=2; ${LAUNCH_SCRIPT} mpiexec -n 4 ${GROMACS_BINARY}"
-    fi
-  else
-    echo "*** An OpenMP parallel GROMACS/CP2K run using 4 OpenMP threads can be launched with"
-    if [[ "${IN_CONTAINER}" == "yes" ]]; then
-      echo "    podman run -it --rm ${IMAGE_TAG} bash -c \"OMP_NUM_THREADS=4; ${GROMACS_BINARY}\""
-    else
-      echo "    export OMP_NUM_THREADS=4; ${LAUNCH_SCRIPT} ${GROMACS_BINARY}"
-    fi
-  fi
-  echo ""
+  # Print usage hint
+  echo -e "\n*** See benchmarks/GROMACS/MQAE/README.md for how to run GROMACS/CP2K\n"
 
 fi
 
