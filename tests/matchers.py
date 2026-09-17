@@ -115,6 +115,15 @@ registry["WANNIER90_SCF_MO_REUSE"] = TextPresenceMatcher(
 registry["WANNIER90_FULL_MESH_DIAG"] = TextPresenceMatcher(
     "WANNIER90| Falling back to full-mesh diagonalization for the Wannier90 files."
 )
+registry["TOPOLOGY_SURFACE_CONVERGED"] = TextPresenceMatcher(
+    "TOPOLOGY| Wilson surface sampling converged."
+)
+registry["TOPOLOGY_Z2_TRIVIAL"] = TextPresenceMatcher(
+    "TOPOLOGY| Converged Z2 invariant: 0"
+)
+registry["TOPOLOGY_BERRY_PHASE"] = GenericMatcher(
+    "Berry phase [rad]:", col=7, abs_value=True
+)
 registry["WANNIER90_DEGENERATE_GUARD"] = TextPresenceMatcher(
     "degenerate atom/AO W90 reuse guarded"
 )

@@ -528,6 +528,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       LOGICAL                                            :: my_kpgrp
+      REAL(KIND=dp), POINTER                             :: xkp(:, :)
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -566,12 +567,13 @@ CONTAINS
 
       kp_range = ctx%kpoints%kp_range
       kp_dist => ctx%kpoints%kp_dist
+      xkp => ctx%kpoints%xkp
       para_env => ctx%kpoints%blacs_env_all%para_env
       DO igroup = 1, ctx%kpoints%nkp_groups
          ik = kp_dist(1, igroup) + ikp - 1
          my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
          indx = ikp + (igroup - 1)*kplocal
-         CALL kpoint_operator_launch(rsmat, matrix_row, ik, ctx%kpoints%xkp(1:3, ik), &
+         CALL kpoint_operator_launch(rsmat, matrix_row, ik, xkp(:, ik), &
                                      ctx%kpoints%cell_to_index, ctx%kpoints%sab_nl, grid, use_grid, &
                                      ctx%rmatrix, ctx%cmatrix, ctx%tmpmat, &
                                      ctx%fmwork(kpoint_part_re), ctx%fmwork(kpoint_part_im), &
@@ -692,6 +694,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       LOGICAL                                            :: my_kpgrp
+      REAL(KIND=dp), POINTER                             :: xkp(:, :)
       TYPE(copy_info_type)                               :: info_im, info_re
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
@@ -711,6 +714,8 @@ CONTAINS
       CPASSERT(matrix_row >= 1 .AND. matrix_row <= SIZE(rsmat, 1))
       CALL kpoint_operator_ensure(ctx, rsmat)
       kplocal = ctx%kpoints%kp_range(2) - ctx%kpoints%kp_range(1) + 1
+      ! Avoid nested component array sections in GCC 16 bounds checks.
+      xkp => ctx%kpoints%xkp
       CPASSERT(ikp >= 1 .AND. ikp <= kplocal)
       IF (PRESENT(cmat)) THEN
          ! The merge writes cmat in place. A foreign distribution would fail
@@ -727,7 +732,7 @@ CONTAINS
          IF (PRESENT(cmat)) THEN
             ! cmat flavor: both parts pass through the context buffer; the
             ! real part overwrites cmat, the imaginary part adds to it
-            CALL kpoint_operator_launch(rsmat, matrix_row, ik, ctx%kpoints%xkp(1:3, ik), &
+            CALL kpoint_operator_launch(rsmat, matrix_row, ik, xkp(:, ik), &
                                         ctx%kpoints%cell_to_index, ctx%kpoints%sab_nl, &
                                         use_grid=.FALSE., rmatrix=ctx%rmatrix, cmatrix=ctx%cmatrix, &
                                         tmpmat=ctx%tmpmat, fm_re=ctx%fmwork(kpoint_part_re), &
@@ -740,7 +745,7 @@ CONTAINS
             END IF
          ELSE IF (PRESENT(fm_re)) THEN
             ! fm flavor: transfer each part straight into the caller matrices
-            CALL kpoint_operator_launch(rsmat, matrix_row, ik, ctx%kpoints%xkp(1:3, ik), &
+            CALL kpoint_operator_launch(rsmat, matrix_row, ik, xkp(:, ik), &
                                         ctx%kpoints%cell_to_index, ctx%kpoints%sab_nl, &
                                         use_grid=.FALSE., rmatrix=ctx%rmatrix, cmatrix=ctx%cmatrix, &
                                         tmpmat=ctx%tmpmat, fm_re=ctx%fmwork(kpoint_part_re), &
@@ -754,7 +759,7 @@ CONTAINS
          ELSE
             ! dbcsr flavor: receive both parts through the context buffer,
             ! then emit the block-cyclic pair
-            CALL kpoint_operator_launch(rsmat, matrix_row, ik, ctx%kpoints%xkp(1:3, ik), &
+            CALL kpoint_operator_launch(rsmat, matrix_row, ik, xkp(:, ik), &
                                         ctx%kpoints%cell_to_index, ctx%kpoints%sab_nl, &
                                         use_grid=.FALSE., rmatrix=ctx%rmatrix, cmatrix=ctx%cmatrix, &
                                         tmpmat=ctx%tmpmat, fm_re=ctx%fmwork(kpoint_part_re), &

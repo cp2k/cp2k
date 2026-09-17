@@ -5,9 +5,9 @@ CP2K can generate the input and matrix files required by [Wannier90](https://wan
 the k-point mesh, eigenvalues, and overlap matrices from a periodic Quickstep calculation; the
 subsequent construction and use of Wannier functions are performed by Wannier90.
 
-Wannier90 requires a complete, uniformly weighted k-point mesh with its nearest-neighbour
-connectivity. A high-symmetry band path is not a suitable input mesh. See [](../dft/k-points) for
-k-point sampling and convergence.
+Wannier-function construction requires a complete, uniformly weighted k-point mesh with its
+nearest-neighbour connectivity. A high-symmetry band path is not a suitable input mesh. See
+[](../dft/k-points) for k-point sampling and convergence.
 
 ## Basic workflow
 
@@ -113,6 +113,91 @@ This path performs the necessary full-mesh diagonalizations for the Wannier90 fi
 when the SCF calculation is Gamma-only or when the export mesh intentionally differs from the SCF
 mesh, but using a separately chosen mesh requires its own convergence assessment.
 
+### Explicit overlap loops and external topology analysis
+
+`KPOINTS_SOURCE NNKP` reads arbitrary fractional k-points and directed connections from `NNKP_FILE`.
+The Wannier90-format file must contain `real_lattice`, `recip_lattice`, `kpoints` and `nnkpts`
+blocks. The reciprocal-vector shift in each connection specifies the periodic closure; it must not
+be discarded when a loop crosses a Brillouin-zone boundary.
+
+```text
+&WANNIER90
+  KPOINTS_SOURCE NNKP
+  NNKP_FILE loop.nnkp
+  SEED_NAME loop
+  WILSON_LOOP T
+&END WANNIER90
+```
+
+CP2K keeps the converged SCF potential fixed while diagonalizing the requested post-SCF k-points.
+The SCF mesh is independent of these overlap loops and must be converged separately. The exported
+`.mmn` matrices contain the Gaussian-basis metric and periodic phase/image information:
+
+`M(k,b) = C(k)^dagger O(k,b) C(k+b)`.
+
+Plain Euclidean overlaps of AO coefficient vectors are not suitable. Directed cross-k overlaps use
+ordered, nonsymmetric AO pair matrices. `SPIN_CHANNEL` selects a single collinear channel; UKS
+channels are never concatenated in one `.mmn` file. In SOC mode, `EXCLUDE_BANDS` selects spinor
+bands instead.
+
+The NNKP/MMN file interface can be used by an external
+[Z2Pack overlap-system adapter](https://z2pack.greschd.ch/en/latest/reference/other_systems.html).
+Such an adapter supplies each requested closed loop in an NNKP file, runs CP2K with an unchanged SCF
+setup, and returns the corresponding ordered MMN matrices to Z2Pack. The Python adapter is
+maintained separately from CP2K; neither the native calculation nor CP2K's tests require Z2Pack. No
+Wannier90 library or Wannier fit is needed for explicit overlap loops.
+
+### Native Wilson loops and Z2 analysis
+
+`WILSON_LOOP T` calculates Wilson eigenphases from the SVD-unitarized links. With
+`KPOINTS_SOURCE WILSON`, CP2K generates a surface internally and doubles its longitudinal and
+transverse resolution until the convergence checks pass or `WILSON_MAX_REFINEMENT` is reached.
+`Z2 T` additionally calculates largest-gap crossing parity on a time-reversal half-plane.
+
+The following illustrates an eight-electron SOC system with five scalar bands (ten spinors), of
+which eight are retained. Adjust the band count and exclusions for the actual system:
+
+```text
+&WANNIER90
+  KPOINTS_SOURCE WILSON
+  SOC T
+  Z2 T
+  TIME_REVERSAL T
+  EXCLUDE_BANDS 9 10
+  WILSON_ORIGIN 0 0 0
+  WILSON_DIRECTION 1 0 0
+  WILSON_TRANSVERSE 0 0.5 0
+  WILSON_MESH 4 3
+  WILSON_MAX_REFINEMENT 2
+&END WANNIER90
+```
+
+SOC uses restricted SCF followed by second-variational pseudopotential SOC, not self-consistent
+noncollinear DFT. SOC-capable pseudopotentials are required. Converge the scalar unoccupied space
+(`SCF/ADDED_MOS` and `WANNIER90/ADDED_MOS`), basis, cutoffs and SCF mesh independently.
+
+`TIME_REVERSAL T` is a user assertion about the Hamiltonian, not an automatic symmetry proof. Native
+Z2 requires an even, lowest-energy occupied spinor subspace with one state per electron and an
+excluded conduction band. The supported native Z2 surfaces use two distinct reciprocal coordinate
+axes, with winding one along the loop and one half transversely. A single plane provides one 2D
+invariant, not all four strong/weak 3D indices. Arbitrary loops remain available for Wilson phases
+and external analysis.
+
+Checks cover singular links, sampled band gaps, boundary Kramers pairs, WCC changes under joint
+refinement, adjacent-line movement and gap separation, and parity stability. A coarse mesh can still
+miss a gap closing or rapid evolution between samples. Repeat with finer starting meshes and tighter
+tolerances. Gapless graphene does not have a well-defined insulating Z2 invariant without specifying
+and resolving a gap-opening Hamiltonian.
+
+The `.wilson` file contains the loop index, minimum link singular value, and sorted hybrid Wannier
+centres (WCC) in `[0,1)`. Printed Berry phases are in radians. Refinements overwrite the seed output
+with the final mesh; the log retains diagnostics from all levels.
+
+The regular CP2K test runner includes `topology_wilson_unittest` (known trivial/nontrivial BHZ
+models, gauge/reversal invariance and failure checks) and the three short helium/neon inputs in
+`tests/QS/regtest-topology`. These are mathematical and smoke tests, not material-convergence
+benchmarks. Larger DFT/SOC, adaptive-surface and MPI-scaling validations are separate manual work.
+
 ## Reusing SCF orbitals
 
 With `KPOINTS_SOURCE SCF`, [REUSE_SCF_MOS](#CP2K_INPUT.FORCE_EVAL.DFT.PRINT.WANNIER90.REUSE_SCF_MOS)
@@ -152,7 +237,7 @@ with fewer Wannier functions than exported bands, still require explicit Wannier
 
 The CP2K Wannier90 interface is experimental. In particular:
 
-- use a complete k-point mesh rather than a band path;
+- for Wannier-function construction, use a complete k-point mesh rather than a band path;
 - verify the convergence of the SCF and export meshes for the target quantity;
 - inspect CP2K output when exporting from a symmetry-reduced SCF mesh, since CP2K may reconstruct
   the missing orbitals or fall back to full-mesh diagonalization; and
