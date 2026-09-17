@@ -130,6 +130,9 @@ registry["WANNIER90_LIBRARY_BETA_SPREAD"] = GenericMatcher(
 registry["WANNIER90_LIBRARY_INVARIANT_SPREAD"] = GenericMatcher(
     "WANNIER90| Invariant spread", col=5
 )
+registry["WANNIER90_PROJECTION_MIN_SVALUE"] = GenericMatcher(
+    "WANNIER90| Minimum projection singular value", col=6
+)
 registry["WANNIER90_FULL_MESH_DIAG"] = TextPresenceMatcher(
     "WANNIER90| Falling back to full-mesh diagonalization for the Wannier90 files."
 )
