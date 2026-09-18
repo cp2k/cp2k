@@ -18,7 +18,7 @@ MODULE input_cp2k_print_dft
    USE bibliography, ONLY: &
       Andermatt2016, Andreussi2012, Avezac2005, BaniHashemian2016, Becke1988b, Bengtsson1999, &
       Blochl1995, Brehm2018, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, &
-      Ehrhardt1985, Eriksen2020, Fattebert2002, Golze2017a, Golze2017b, Guidon2010, &
+      Ehrhardt1985, Eriksen2020, Fattebert2002, Golze2017a, Golze2017b, Grimme2015FOD, Guidon2010, &
       Heinzmann1976, Holmberg2017, Holmberg2018, Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, &
       Knizia2013, Kolafa2004, Krack2000, Krack2002, Kuhne2007, Kunert2003, Lippert1997, &
       Lippert1999, Lu2004, Merlot2014, Perdew1981, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, &
@@ -892,6 +892,28 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "FOD", &
+                                       description="Fractional occupation number weighted density (FOD) of Grimme and Hansen "// &
+                                       "[doi:10.1002/anie.201501887]. Prints the orbital sum N_FOD. "// &
+                                       "Requires GPW at Gamma and positive-temperature Fermi-Dirac smearing. "// &
+                                       "FOD is a qualitative static-correlation diagnostic, not a proof of "// &
+                                       "multireference character. Results depend on the functional and electronic "// &
+                                       "temperature; metallic occupations need a different interpretation.", &
+                                       print_level=debug_print_level + 1, filename="", citations=[Grimme2015FOD])
+      CALL keyword_create(keyword, __LOCATION__, name="CUBE", &
+                          description="Also collocate the FOD density, print its grid integral and write a cube "// &
+                          "in electrons/bohr**3. Without this option only the inexpensive orbital sum is computed.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
+                          description="Cube sampling stride. Supply one value for all directions or three values.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
