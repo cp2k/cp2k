@@ -77,13 +77,14 @@ The ordinary file-export interface remains the default and does not require this
 ```
 
 The library obtains the complete mesh through the existing export path, including reconstruction of
-symmetry-reduced SCF orbitals. Neighbour connectivity is supplied by Wannier90. Overlap blocks are
-distributed over the CP2K communicator by k-point. The reported centres and quadratic spreads are
-converted to bohr and bohr squared; `CONV_TOL` uses Wannier90's angstrom-squared convention. The
-optimizer log is written to `SEED_NAME.library.wout`. A calculation that reaches `NUM_ITER` without
-satisfying the convergence criterion is rejected, even if the library reports no runtime error. In
-Wannier90 4.0.2 this requires checking its explicit convergence report, since exhaustion of the
-iteration budget is not reflected in the API return code.
+symmetry-reduced SCF orbitals. It requires `KPOINTS_SOURCE MP_GRID` or `SCF`; the explicit `NNKP`
+and `WILSON` paths remain independent of library localization. Neighbour connectivity is supplied by
+Wannier90. Overlap blocks are distributed over the CP2K communicator by k-point. The reported
+centres and quadratic spreads are converted to bohr and bohr squared; `CONV_TOL` uses Wannier90's
+angstrom-squared convention. The optimizer log is written to `SEED_NAME.library.wout`. A calculation
+that reaches `NUM_ITER` without satisfying the convergence criterion is rejected, even if the
+library reports no runtime error. In Wannier90 4.0.2 this requires checking its explicit convergence
+report, since exhaustion of the iteration budget is not reflected in the API return code.
 
 `WRITE_INPUTS T` also writes matching `.win`, `.amn`, `.mmn`, and `.eig` files for comparison with
 an external Wannier90 run. By default these additional files are not written. The library uses
@@ -160,7 +161,8 @@ default), `ALPHA`, or `BETA`. For two-spin calculations, CP2K writes independent
 suffixes `_up` and `_down`. Each channel uses its own eigenvalues, MO coefficients, projections,
 Hamiltonian and library instance. The ordinary file exporter uses the same separation; it does not
 concatenate the two spin channels into a single `.eig` or `.mmn` file. With one spin channel, the
-original seed name is unchanged, and selecting `BETA` is an input error.
+original seed name is unchanged, and selecting `BETA` is an input error. The previous numeric
+settings `1` and `2` remain aliases for `ALPHA` and `BETA`.
 
 Specify `WANNIER_FUNCTIONS` once to use the same count in both channels, or twice to select the
 alpha and beta counts in that order. The order is independent of `SPIN_CHANNEL`, so the following
@@ -324,9 +326,11 @@ The SCF mesh is independent of these overlap loops and must be converged separat
 `M(k,b) = C(k)^dagger O(k,b) C(k+b)`.
 
 Plain Euclidean overlaps of AO coefficient vectors are not suitable. Directed cross-k overlaps use
-ordered, nonsymmetric AO pair matrices. `SPIN_CHANNEL` selects a single collinear channel; UKS
-channels are never concatenated in one `.mmn` file. In SOC mode, `EXCLUDE_BANDS` selects spinor
-bands instead.
+ordered, nonsymmetric AO pair matrices. `SPIN_CHANNEL ALPHA` or `BETA` selects a single collinear
+channel; `BOTH` processes the channels separately with `_up` and `_down` seed suffixes. UKS channels
+are never concatenated in one `.mmn` file. In SOC mode, `EXCLUDE_BANDS` selects spinor bands
+instead, and the SCF must be restricted. Duplicate `EXCLUDE_BANDS` indices are rejected for explicit
+loops.
 
 The NNKP/MMN file interface can be used by an external
 [Z2Pack overlap-system adapter](https://z2pack.greschd.ch/en/latest/reference/other_systems.html).

@@ -27,9 +27,9 @@ MODULE qs_wannier90
         cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_get_block_p, dbcsr_p_type, &
-        dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_add, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_get_block_p, &
+        dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set
@@ -107,12 +107,12 @@ MODULE qs_wannier90
                                               wilson_step,&
                                               z2_from_wcc
    USE wannier90,                       ONLY: wannier_setup
-   USE wannier90_nnkpts,                ONLY: read_wannier90_nnkpts
    USE wannier90_library,               ONLY: &
         w90_library_copy_matrices, w90_library_eigenvalues, w90_library_init, &
         w90_library_invariant_spread, w90_library_overlap, w90_library_project_trials, &
         w90_library_projections, w90_library_promote_output, w90_library_release, w90_library_run, &
         w90_library_type, w90_library_write_input, w90_library_write_results, w90_write_amn
+   USE wannier90_nnkpts,                ONLY: read_wannier90_nnkpts
    USE wannier90_projections,           ONLY: wannier90_hybrid_candidates,&
                                               wannier90_mix_projections,&
                                               wannier90_projection_rank,&
@@ -150,15 +150,15 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'wannier90_interface'
 
-      INTEGER                                            :: handle, i, ichern, iw, iz2, &
-                                                            max_refinement, old_chern, old_z2, &
-                                                            refinement, source
+      INTEGER                                            :: first_spin, handle, i, ichern, ispin, &
+                                                            iw, iz2, last_spin, max_refinement, &
+                                                            old_chern, old_z2, refinement, &
+                                                            selection, source
       LOGICAL                                            :: converged, explicit, require_chern, &
                                                             require_z2
       REAL(KIND=dp)                                      :: error, movement, tolerance
       REAL(KIND=dp), ALLOCATABLE                         :: centres(:, :), previous(:, :)
-      INTEGER :: first_spin, last_spin, ispin, selection
-      TYPE(dft_control_type), POINTER :: dft_control
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: w_input
 
       !--------------------------------------------------------------------------------------------!
@@ -190,53 +190,53 @@ CONTAINS
             last_spin = selection
          END IF
          DO ispin = first_spin, last_spin
-         CALL section_vals_val_get(w_input, "KPOINTS_SOURCE", i_val=source)
-         CALL section_vals_val_get(w_input, "WILSON_MAX_REFINEMENT", i_val=max_refinement)
-         CALL section_vals_val_get(w_input, "WILSON_TOL", r_val=tolerance)
-         CALL section_vals_val_get(w_input, "Z2", l_val=require_z2)
-         CALL section_vals_val_get(w_input, "CHERN", l_val=require_chern)
-         IF (tolerance <= 0.0_dp) CPABORT("WILSON_TOL must be positive.")
-         IF (source == w90_kpoints_wilson) THEN
-            IF (max_refinement < 1 .OR. max_refinement > 10) THEN
-               CPABORT("WILSON_MAX_REFINEMENT must be between 1 and 10.")
-            END IF
-            converged = .FALSE.
-            old_z2 = -1
-            old_chern = HUGE(0)
-            DO refinement = 0, max_refinement
-               CALL wannier90_files(qs_env, w_input, iw, ispin, refinement, centres, iz2, ichern)
-               IF (refinement > 0) THEN
-                  error = 0.0_dp
-                  DO i = 1, SIZE(previous, 2)
-                     error = MAX(error, wcc_distance(previous(:, i), centres(:, 2*i - 1)))
-                  END DO
-                  movement = 0.0_dp
-                  DO i = 2, SIZE(centres, 2)
-                     movement = MAX(movement, wcc_distance(centres(:, i - 1), centres(:, i)))
-                  END DO
-                  IF (iw > 0) WRITE (iw, '(T2,A,I0,A,ES12.4,A,ES12.4)') &
-                     "TOPOLOGY| Refinement ", refinement, ": WCC change ", error, ", transverse step ", movement
-                  converged = error < tolerance .AND. movement < 0.1_dp .AND. iz2 == old_z2
-                  IF (require_z2) converged = converged .AND. iz2 >= 0 .AND. surface_resolved(centres)
-                  IF (require_chern) converged = converged .AND. ichern /= HUGE(0) .AND. ichern == old_chern
-                  IF (converged) EXIT
+            CALL section_vals_val_get(w_input, "KPOINTS_SOURCE", i_val=source)
+            CALL section_vals_val_get(w_input, "WILSON_MAX_REFINEMENT", i_val=max_refinement)
+            CALL section_vals_val_get(w_input, "WILSON_TOL", r_val=tolerance)
+            CALL section_vals_val_get(w_input, "Z2", l_val=require_z2)
+            CALL section_vals_val_get(w_input, "CHERN", l_val=require_chern)
+            IF (tolerance <= 0.0_dp) CPABORT("WILSON_TOL must be positive.")
+            IF (source == w90_kpoints_wilson) THEN
+               IF (max_refinement < 1 .OR. max_refinement > 10) THEN
+                  CPABORT("WILSON_MAX_REFINEMENT must be between 1 and 10.")
                END IF
-               CALL MOVE_ALLOC(centres, previous)
-               old_z2 = iz2
-               old_chern = ichern
-            END DO
-            IF (.NOT. converged) THEN
-               CPABORT("Wilson surface unconverged; increase WILSON_MAX_REFINEMENT or mesh.")
+               converged = .FALSE.
+               old_z2 = -1
+               old_chern = HUGE(0)
+               DO refinement = 0, max_refinement
+                  CALL wannier90_files(qs_env, w_input, iw, ispin, refinement, centres, iz2, ichern)
+                  IF (refinement > 0) THEN
+                     error = 0.0_dp
+                     DO i = 1, SIZE(previous, 2)
+                        error = MAX(error, wcc_distance(previous(:, i), centres(:, 2*i - 1)))
+                     END DO
+                     movement = 0.0_dp
+                     DO i = 2, SIZE(centres, 2)
+                        movement = MAX(movement, wcc_distance(centres(:, i - 1), centres(:, i)))
+                     END DO
+                     IF (iw > 0) WRITE (iw, '(T2,A,I0,A,ES12.4,A,ES12.4)') &
+                        "TOPOLOGY| Refinement ", refinement, ": WCC change ", error, ", transverse step ", movement
+                     converged = error < tolerance .AND. movement < 0.1_dp .AND. iz2 == old_z2
+                     IF (require_z2) converged = converged .AND. iz2 >= 0 .AND. surface_resolved(centres)
+                     IF (require_chern) converged = converged .AND. ichern /= HUGE(0) .AND. ichern == old_chern
+                     IF (converged) EXIT
+                  END IF
+                  CALL MOVE_ALLOC(centres, previous)
+                  old_z2 = iz2
+                  old_chern = ichern
+               END DO
+               IF (.NOT. converged) THEN
+                  CPABORT("Wilson surface unconverged; increase WILSON_MAX_REFINEMENT or mesh.")
+               END IF
+               IF (iw > 0) THEN
+                  WRITE (iw, '(T2,A)') "TOPOLOGY| Wilson surface sampling converged."
+                  IF (iz2 >= 0) WRITE (iw, '(T2,A,I0)') "TOPOLOGY| Converged Z2 invariant: ", iz2
+                  IF (require_chern) WRITE (iw, '(T2,A,I0)') "TOPOLOGY| Converged first Chern number: ", ichern
+               END IF
+            ELSE
+               CALL wannier90_files(qs_env, w_input, iw, ispin, 0, centres, iz2, ichern)
             END IF
-            IF (iw > 0) THEN
-               WRITE (iw, '(T2,A)') "TOPOLOGY| Wilson surface sampling converged."
-               IF (iz2 >= 0) WRITE (iw, '(T2,A,I0)') "TOPOLOGY| Converged Z2 invariant: ", iz2
-               IF (require_chern) WRITE (iw, '(T2,A,I0)') "TOPOLOGY| Converged first Chern number: ", ichern
-            END IF
-         ELSE
-            CALL wannier90_files(qs_env, w_input, iw, ispin, 0, centres, iz2, ichern)
-         END IF
-         IF (ALLOCATED(previous)) DEALLOCATE (previous)
+            IF (ALLOCATED(previous)) DEALLOCATE (previous)
          END DO
 
          IF (iw > 0) THEN
@@ -295,7 +295,6 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: filename, input_kp_scheme, reuse_reason, &
                                                             seed_name
       CHARACTER(LEN=timestamp_length)                    :: timestamp
-      COMPLEX(KIND=dp)                                   :: zmmn
       COMPLEX(KIND=dp), ALLOCATABLE                      :: ao_projections(:, :, :), &
                                                             hybrid_projections(:, :, :), &
                                                             initial_amn(:, :, :), &
@@ -303,8 +302,6 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE :: export_coeff(:, :), export_scalar(:, :), link_matrix(:, :), &
          parity_metric(:, :), parity_phase(:), scalar_overlap(:, :), soc_h(:, :), soc_u(:, :), &
          soc_xyz(:, :, :), spinor_coeff(:, :, :), wilson_product(:, :, :)
-      COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :)                           :: reference_mo
       INTEGER :: aligned_degenerate_blocks, aligned_degenerate_max_size, axis, base_mesh(2), &
          counts(2), first_point, i, i_rep, ib, ib1, ib2, ibs, ik, ik2, ikk, ikpgr, iloop, ipoint, &
          iunit, ix, iy, iz, jpar, k, kpoints_source, loop_direction(3), n_rep, nadd, nao, &
@@ -313,7 +310,7 @@ CONTAINS
          state_unit, status, strong, tqc_dimension, trim_id, weak(3), z4, initial_projections, kept_index
       INTEGER, ALLOCATABLE                               :: ebr_coefficients(:, :), loop_index(:), &
                                                             parity_map(:), parity_odd(:)
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: band_map, band_indices, exclude_bands
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: band_indices, exclude_bands
       INTEGER, ALLOCATABLE                               :: hybrid_groups(:, :), projection_pivots(:)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: nblist, nnlist
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: nncell
@@ -340,8 +337,9 @@ CONTAINS
                                                             scalar_values(:), spinor_values(:, :)
       REAL(KIND=dp), ALLOCATABLE                         :: wannier_centres(:, :), wannier_spreads(:)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atoms_cart, b_latt, kpt_latt
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: reference_eigenvalues
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atoms_cart, b_latt, kpt_latt, &
+                                                            reference_eigenvalues
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: reference_mo_imag, reference_mo_real
       REAL(KIND=dp), DIMENSION(3)                        :: bvec, input_kp_shift, phase_center
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv, real_lattice, recip_lattice
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, wkp, wkp_source
@@ -352,12 +350,14 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_cfm_type)                                  :: fmk1_cfm, fmk2_cfm, mmn_cfm, omat_cfm, &
                                                             tmp_cfm
-      TYPE(cp_cfm_type), POINTER                         :: cmo_coeff_source
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct_ao, matrix_struct_mmn, &
                                                             matrix_struct_work
-      TYPE(cp_fm_type)                                   :: mat_imag, mat_real
+      TYPE(cp_fm_type)                                   :: mat_imag, mat_real, mmn_imag, mmn_real
+      TYPE(cp_fm_type), DIMENSION(2)                     :: fmk1, fmk2
+      TYPE(cp_fm_type), POINTER                          :: fmdummy, fmi, fmr
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, soc_matrices
-      TYPE(dbcsr_type), POINTER                          :: cmatrix_full, loop_imag, loop_real, rmatrix_full
+      TYPE(dbcsr_type), POINTER                          :: cmatrix, cmatrix_full, loop_imag, &
+                                                            loop_real, rmatrix, rmatrix_full
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: berry_kpoint, kpoint, qs_kpoint
@@ -503,7 +503,7 @@ CONTAINS
       recip_lattice(1:3, 1:3) = h_inv(1:3, 1:3)
       real_lattice(1:3, 1:3) = angstrom*real_lattice(1:3, 1:3)
       recip_lattice(1:3, 1:3) = (twopi/angstrom)*TRANSPOSE(recip_lattice(1:3, 1:3))
-      NULLIFY (cmo_coeff_source, kpoint, qs_kpoint, xkp, wkp, xkp_source, wkp_source)
+      NULLIFY (kpoint, qs_kpoint, xkp, wkp, xkp_source, wkp_source)
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints, kpoints=qs_kpoint)
       input_kpoint_symmetry = .FALSE.
       input_full_grid = .FALSE.
@@ -747,14 +747,18 @@ CONTAINS
       DO i = 1, nexcl
          ib = exclude_bands(i)
          IF (ib < 1 .OR. ib > num_bands_tot) CPABORT("WANNIER90%EXCLUDE_BANDS: index out of range.")
-         IF (.NOT. keep_band(ib)) CPABORT("WANNIER90%EXCLUDE_BANDS: duplicate band index.")
+         IF (ordered_berry .AND. .NOT. keep_band(ib)) THEN
+            CPABORT("WANNIER90%EXCLUDE_BANDS: duplicate band index.")
+         END IF
          keep_band(ib) = .FALSE.
       END DO
       num_bands = COUNT(keep_band)
-      IF (num_bands == 0) CPABORT("WANNIER90: no bands left after EXCLUDE_BANDS.")
-      ALLOCATE (band_map(num_bands))
-      band_map(:) = PACK([(i, i=1, num_bands_tot)], keep_band)
-      lowest_bands = num_bands < num_bands_tot .AND. ALL(band_map == [(i, i=1, num_bands)])
+      IF (num_bands < 1 .OR. num_wann > num_bands) THEN
+         CPABORT("WANNIER90 EXCLUDE_BANDS leaves too few bands for WANNIER_FUNCTIONS.")
+      END IF
+      ALLOCATE (band_indices(num_bands))
+      band_indices(:) = PACK([(i, i=1, num_bands_tot)], keep_band)
+      lowest_bands = num_bands < num_bands_tot .AND. ALL(band_indices == [(i, i=1, num_bands)])
       IF (require_global_gap .AND. .NOT. lowest_bands) THEN
          CPABORT("REQUIRE_GLOBAL_GAP needs a lowest-band prefix and an excluded band above it.")
       END IF
@@ -765,7 +769,7 @@ CONTAINS
          IF (num_bands == num_bands_tot .OR. MOD(num_bands, 2) /= 0) THEN
             CPABORT("Z2 needs an even occupied spinor subspace and at least one excluded conduction band.")
          END IF
-         IF (ANY(band_map /= [(i, i=1, num_bands)])) THEN
+         IF (ANY(band_indices /= [(i, i=1, num_bands)])) THEN
             CPABORT("Z2 requires the lowest occupied spinor bands.")
          END IF
       END IF
@@ -798,8 +802,6 @@ CONTAINS
          ALLOCATE (wcc_out(0, 0))
       END IF
       ALLOCATE (link_matrix(num_bands, num_bands))
-      ALLOCATE (band_indices(num_bands))
-      band_indices(:) = band_map
       IF (use_bloch_phases .AND. num_wann /= num_bands .AND. .NOT. run_library) THEN
          CPABORT("WANNIER90%USE_BLOCH_PHASES requires WANNIER_FUNCTIONS to match the number of bands.")
       END IF
@@ -954,8 +956,8 @@ CONTAINS
             END IF
             CALL do_general_diag_kp(matrix_ks, matrix_s, kpoint, scf_env, scf_control, .FALSE., diis_step)
             full_mesh_diagonalized = .TRUE.
-            CALL save_wannier90_mo_snapshot(kpoint, ispin, para_env, ispin, reference_mo, &
-                                            reference_eigenvalues)
+            CALL save_wannier90_mo_snapshot(kpoint, ispin, para_env, reference_mo_real, &
+                                            reference_mo_imag, reference_eigenvalues)
             CALL diagnose_wannier90_scf_reuse_candidates(kpoint, qs_kpoint, matrix_s, matrix_ks, &
                                                          cell_to_index, sab_nl, para_env, iw, ispin, &
                                                          reuse_candidate_deviation, &
@@ -977,7 +979,7 @@ CONTAINS
          IF (validate_reuse_scf_mos) THEN
             IF (reused_scf_mos) THEN
                CALL validate_wannier90_reused_mos(kpoint, matrix_s, cell_to_index, sab_nl, &
-                                                  para_env, reference_mo, &
+                                                  para_env, ispin, reference_mo_real, reference_mo_imag, &
                                                   reference_eigenvalues, validate_reuse_ok, &
                                                   validation_subspace_deviation, validation_min_svalue, &
                                                   validation_eigenvalue_deviation)
@@ -996,7 +998,7 @@ CONTAINS
                END IF
             END IF
             IF (.NOT. reused_scf_mos) THEN
-               CALL restore_wannier90_mo_snapshot(kpoint, ispin, reference_mo, &
+               CALL restore_wannier90_mo_snapshot(kpoint, ispin, reference_mo_real, reference_mo_imag, &
                                                   reference_eigenvalues)
             END IF
          END IF
@@ -1029,91 +1031,9 @@ CONTAINS
       IF (.NOT. reused_scf_mos .AND. .NOT. full_mesh_diagonalized) THEN
          CALL do_general_diag_kp(matrix_ks, matrix_s, kpoint, scf_env, scf_control, .FALSE., diis_step)
       END IF
-      IF (ALLOCATED(reference_mo)) DEALLOCATE (reference_mo)
+      IF (ALLOCATED(reference_mo_real)) DEALLOCATE (reference_mo_real)
+      IF (ALLOCATED(reference_mo_imag)) DEALLOCATE (reference_mo_imag)
       IF (ALLOCATED(reference_eigenvalues)) DEALLOCATE (reference_eigenvalues)
-      ! Print eigenvalues
-      IF (.NOT. ordered_berry) THEN
-      kp => kpoint%kp_env(1)%kpoint_env
-      CALL get_mo_set(kp%mos(1, ispin), nmo=nmo)
-      CPASSERT(nmo >= num_bands_tot)
-      ALLOCATE (eigval(nmo))
-      CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp)
-      IF (para_env%is_source() .AND. write_files) THEN
-         WRITE (filename, '(A,A)') TRIM(seed_name), ".eig"
-         CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
-      ELSE
-         iunit = -1
-      END IF
-      !
-      DO ik = 1, nkp
-         my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-         IF (my_kpgrp) THEN
-            ikpgr = ik - kp_range(1) + 1
-            kp => kpoint%kp_env(ikpgr)%kpoint_env
-            CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
-            eigval(1:nmo) = eigenvalues(1:nmo)
-         ELSE
-            eigval(1:nmo) = 0.0_dp
-         END IF
-         CALL kpoint%para_env_inter_kp%sum(eigval)
-         IF (run_library .AND. nexcl > 0) THEN
-            DO ib = 1, num_bands_tot - 1
-               IF (keep_band(ib) .EQV. keep_band(ib + 1)) CYCLE
-               ! Degenerate states outside the outer window cannot enter the Wannier subspace.
-               kept_index = MERGE(ib, ib + 1, keep_band(ib))
-               IF (eigval(kept_index) < outer_window_min .OR. eigval(kept_index) > outer_window_max) CYCLE
-               IF (ABS(eigval(ib + 1) - eigval(ib)) < 1.0e-8_dp) THEN
-                  CPABORT("WANNIER90 EXCLUDE_BANDS must retain or remove complete degenerate subspaces.")
-               END IF
-            END DO
-         END IF
-         eigval(1:nmo) = eigval(1:nmo)*evolt
-         IF (run_library) CALL w90_library_eigenvalues(library, ik, eigval(band_indices))
-         ! output
-         IF (iunit > 0) THEN
-            DO ib = 1, num_bands
-               WRITE (iunit, "(2I8,F24.14)") ib, ik, eigval(band_indices(ib))
-            END DO
-         END IF
-      END DO
-      IF (iunit > 0) THEN
-         CALL close_file(iunit)
-      END IF
-      END IF
-      IF (run_library) THEN
-         ALLOCATE (initial_amn(num_bands, num_wann, num_kpts))
-         IF (initial_projections == 0) THEN
-            initial_amn(:, :, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-            DO i = 1, num_wann
-               initial_amn(i, i, :) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
-            END DO
-         ELSE
-            CALL build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, ispin, band_indices, &
-                                                reused_scf_mos .AND. use_bloch_phases, phase_center, ao_projections)
-            CALL w90_library_project_trials(library, ao_projections)
-            IF (initial_projections == 2) THEN
-               CALL build_wannier90_hybrid_groups(qs_env, hybrid_groups)
-               CALL wannier90_hybrid_candidates(ao_projections, hybrid_groups, hybrid_projections)
-               DEALLOCATE (ao_projections, hybrid_groups)
-               CALL MOVE_ALLOC(hybrid_projections, ao_projections)
-               IF (iw > 0) WRITE (iw, '(T2,A)') "WANNIER90| Selecting from the full radial s/p hybrid candidate bank."
-            END IF
-            ALLOCATE (projection_pivots(num_wann))
-            CALL wannier90_select_projections(ao_projections, para_env, initial_amn, projection_pivots, &
-                                              projection_min_svalue)
-            IF (iw > 0) THEN
-               WRITE (iw, '(T2,A,ES12.4)') "WANNIER90| Minimum projection singular value ", projection_min_svalue
-               WRITE (iw, '(T2,A,*(I6))') "WANNIER90| Selected projection candidates ", projection_pivots
-            END IF
-            IF (projection_min_svalue < 1.0e-10_dp .AND. initial_projections /= 3) THEN
-               CPABORT("No full-rank Wannier90 AO trial set was found on the entire k-point mesh.")
-            END IF
-            DEALLOCATE (projection_pivots)
-            IF (initial_projections /= 3) DEALLOCATE (ao_projections)
-         END IF
-         CALL w90_library_projections(library, initial_amn, para_env, seed_name, write_files)
-         IF (initial_projections /= 3) DEALLOCATE (initial_amn)
-      END IF
       !
       IF (iw > 0) THEN
          WRITE (iw, '(T69,A)') "... Finished"
@@ -1121,15 +1041,6 @@ CONTAINS
       !
       ! Calculate and print Overlaps
       !
-      IF (para_env%is_source() .AND. write_files) THEN
-         WRITE (filename, '(A,A)') TRIM(seed_name), ".mmn"
-         CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
-         CALL m_timestamp(timestamp)
-         WRITE (iunit, "(A)") "! Wannier90 file generated by CP2K "//timestamp
-         WRITE (iunit, "(3I8)") num_bands, num_kpts, nntot
-      ELSE
-         iunit = -1
-      END IF
       ! create a list of unique b vectors and a table of pointers
       ! nblist(ik,i) -> +/- b_latt(1:3,x)
       ALLOCATE (nblist(num_kpts, nntot))
@@ -1181,13 +1092,19 @@ CONTAINS
       END DO
       ! work matrices for MOs (all group)
       kp => kpoint%kp_env(1)%kpoint_env
-      CALL get_mo_set(kp%mos(ispin), nmo=nmo)
-      IF (nmo /= nscalar) CPABORT("WANNIER90: unexpected orbital count in export.")
+      CALL get_mo_set(kp%mos(1, ispin), nmo=nmo)
+      IF (ordered_berry .AND. nmo /= nscalar) THEN
+         CPABORT("WANNIER90: unexpected orbital count in export.")
+      END IF
       NULLIFY (matrix_struct_ao, matrix_struct_work)
       CALL cp_fm_struct_create(matrix_struct_work, nrow_global=nao, &
                                ncol_global=nmo, &
                                para_env=para_env, &
                                context=blacs_env)
+      DO i = 1, 2
+         CALL cp_fm_create(fmk1(i), matrix_struct_work)
+         CALL cp_fm_create(fmk2(i), matrix_struct_work)
+      END DO
       CALL cp_cfm_create(fmk1_cfm, matrix_struct_work)
       CALL cp_cfm_create(fmk2_cfm, matrix_struct_work)
       CALL cp_cfm_create(tmp_cfm, matrix_struct_work)
@@ -1204,6 +1121,8 @@ CONTAINS
                                ncol_global=nmo, &
                                para_env=para_env, &
                                context=blacs_env)
+      CALL cp_fm_create(mmn_real, matrix_struct_mmn)
+      CALL cp_fm_create(mmn_imag, matrix_struct_mmn)
       CALL cp_cfm_create(mmn_cfm, matrix_struct_mmn)
       ! allocate some work matrices
       ALLOCATE (rmatrix_full, cmatrix_full)
@@ -1220,14 +1139,20 @@ CONTAINS
          CALL cp_dbcsr_alloc_block_from_nbl(rmatrix_full, overlap_nl)
          CALL cp_dbcsr_alloc_block_from_nbl(cmatrix_full, overlap_nl)
       ELSE
-      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix_full, sab_nl, desymmetrize=.TRUE.)
-      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix_full, sab_nl, desymmetrize=.TRUE.)
+         CALL cp_dbcsr_alloc_block_from_nbl(rmatrix_full, sab_nl, desymmetrize=.TRUE.)
+         CALL cp_dbcsr_alloc_block_from_nbl(cmatrix_full, sab_nl, desymmetrize=.TRUE.)
       END IF
       !
       CALL get_kpoint_info(kpoint=kpoint, cell_to_index=cell_to_index)
+      NULLIFY (fmdummy)
       IF (do_soc) THEN
          ! Second variation in the scalar KS eigenbasis. Retain selected spinors at each k.
          CPASSERT(ALL(kpoint%kp_range == [1, num_kpts]))
+         ALLOCATE (rmatrix, cmatrix)
+         CALL dbcsr_create(rmatrix, template=matrix_s(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
+         CALL dbcsr_create(cmatrix, template=matrix_s(1, 1)%matrix, matrix_type=dbcsr_type_antisymmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
+         CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
          NULLIFY (soc_matrices)
          CALL V_SOC_xyz_from_pseudopotential(qs_env_kp, soc_matrices)
          ALLOCATE (soc_xyz(nmo, nmo, 3), soc_h(2*nmo, 2*nmo), soc_u(2*nmo, 2*nmo))
@@ -1235,8 +1160,12 @@ CONTAINS
          ALLOCATE (spinor_coeff(2*nmo, num_bands, num_kpts), scalar_overlap(nmo, nmo))
          DO ik = 1, num_kpts
             kp => kpoint%kp_env(ik)%kpoint_env
-            CALL cp_cfm_copy_general(kp%mos(1)%cmo_coeff, fmk1_cfm, para_env)
-            CALL get_mo_set(kp%mos(1), eigenvalues=eigenvalues)
+            fmr => kp%mos(1, 1)%mo_coeff
+            fmi => kp%mos(2, 1)%mo_coeff
+            CALL cp_fm_copy_general(fmr, fmk1(1), para_env)
+            CALL cp_fm_copy_general(fmi, fmk1(2), para_env)
+            CALL cp_fm_to_cfm(fmk1(1), fmk1(2), fmk1_cfm)
+            CALL get_mo_set(kp%mos(1, 1), eigenvalues=eigenvalues)
             scalar_values(1:nmo) = eigenvalues(1:nmo)
             scalar_values(nmo + 1:) = eigenvalues(1:nmo)
             DO axis = 1, 3
@@ -1250,10 +1179,10 @@ CONTAINS
                CALL copy_dbcsr_to_fm(rmatrix_full, mat_real)
                CALL copy_dbcsr_to_fm(cmatrix_full, mat_imag)
                CALL cp_fm_to_cfm(mat_real, mat_imag, omat_cfm)
-               CALL parallel_gemm("N", "N", nao, nmo, nao, CMPLX(1.0_dp, 0.0_dp, dp), &
-                                  omat_cfm, fmk1_cfm, CMPLX(0.0_dp, 0.0_dp, dp), tmp_cfm)
-               CALL parallel_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, dp), &
-                                  fmk1_cfm, tmp_cfm, CMPLX(0.0_dp, 0.0_dp, dp), mmn_cfm)
+               CALL cp_cfm_gemm("N", "N", nao, nmo, nao, CMPLX(1.0_dp, 0.0_dp, dp), &
+                                omat_cfm, fmk1_cfm, CMPLX(0.0_dp, 0.0_dp, dp), tmp_cfm)
+               CALL cp_cfm_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, dp), &
+                                fmk1_cfm, tmp_cfm, CMPLX(0.0_dp, 0.0_dp, dp), mmn_cfm)
                CALL cp_cfm_get_submatrix(mmn_cfm, soc_xyz(:, :, axis))
             END DO
             soc_h(1:nmo, 1:nmo) = soc_xyz(:, :, 3)
@@ -1271,130 +1200,249 @@ CONTAINS
                CPABORT("WANNIER90 SOC: non-Hermitian second-variational Hamiltonian.")
             END IF
             CALL diag_complex(soc_h, soc_u, spinor_values(:, ik))
-            spinor_coeff(:, :, ik) = soc_u(:, band_map)
+            spinor_coeff(:, :, ik) = soc_u(:, band_indices)
          END DO
          CALL dbcsr_deallocate_matrix_set(soc_matrices)
+         CALL dbcsr_deallocate_matrix(rmatrix)
+         CALL dbcsr_deallocate_matrix(cmatrix)
          DEALLOCATE (soc_xyz, soc_h, soc_u, scalar_values)
          IF (iw > 0) WRITE (iw, '(T2,A,I0)') "TOPOLOGY| Scalar bands in SOC second variation: ", nmo
       END IF
-         ! loop over all k-points
-         DO ik = 1, num_kpts
-            ! get the MO coefficients for this k-point
-            my_kpgrp = (ik >= kpoint%kp_range(1) .AND. ik <= kpoint%kp_range(2))
-            IF (my_kpgrp) THEN
-               ikk = ik - kpoint%kp_range(1) + 1
-               kp => kpoint%kp_env(ikk)%kpoint_env
-               cmo_coeff_source => kp%mos(ispin)%cmo_coeff
-            ELSE
-               NULLIFY (kp)
-               NULLIFY (cmo_coeff_source)
-            END IF
-            CALL wannier90_copy_cfm_general(cmo_coeff_source, fmk1_cfm, para_env)
-            ! loop over all connected neighbors
-            DO i = 1, nntot
-               ! get the MO coefficients for the connected k-point
-               ik2 = nnlist(ik, i)
-               mygrp = (ik2 >= kpoint%kp_range(1) .AND. ik2 <= kpoint%kp_range(2))
-               IF (mygrp) THEN
-                  ikk = ik2 - kpoint%kp_range(1) + 1
-                  kp => kpoint%kp_env(ikk)%kpoint_env
-                  cmo_coeff_source => kp%mos(ispin)%cmo_coeff
-               ELSE
-                  NULLIFY (kp)
-                  NULLIFY (cmo_coeff_source)
+      ! Eigenvalues are needed before library disentanglement and after SOC diagonalization.
+      kp => kpoint%kp_env(1)%kpoint_env
+      CALL get_mo_set(kp%mos(1, ispin), nmo=nmo)
+      CPASSERT(nmo >= nscalar)
+      ALLOCATE (eigval(MERGE(2*nmo, nmo, do_soc)))
+      direct_gap = HUGE(1.0_dp)
+      valence_max = -HUGE(1.0_dp)
+      conduction_min = HUGE(1.0_dp)
+      CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp)
+      IF (para_env%is_source() .AND. write_files) THEN
+         WRITE (filename, '(A,A)') TRIM(seed_name), ".eig"
+         CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
+      ELSE
+         iunit = -1
+      END IF
+      !
+      DO ik = 1, nkp
+         my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
+         IF (do_soc) THEN
+            eigval(:) = spinor_values(:, ik)
+         ELSE IF (my_kpgrp) THEN
+            ikpgr = ik - kp_range(1) + 1
+            kp => kpoint%kp_env(ikpgr)%kpoint_env
+            CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
+            eigval(1:nmo) = eigenvalues(1:nmo)
+         ELSE
+            eigval(1:nmo) = 0.0_dp
+         END IF
+         IF (.NOT. do_soc) CALL kpoint%para_env_inter_kp%sum(eigval)
+         IF (run_library .AND. nexcl > 0) THEN
+            DO ib = 1, num_bands_tot - 1
+               IF (keep_band(ib) .EQV. keep_band(ib + 1)) CYCLE
+               ! Degenerate states outside the outer window cannot enter the Wannier subspace.
+               kept_index = MERGE(ib, ib + 1, keep_band(ib))
+               IF (eigval(kept_index) < outer_window_min .OR. eigval(kept_index) > outer_window_max) CYCLE
+               IF (ABS(eigval(ib + 1) - eigval(ib)) < 1.0e-8_dp) THEN
+                  CPABORT("WANNIER90 EXCLUDE_BANDS must retain or remove complete degenerate subspaces.")
                END IF
-               CALL wannier90_copy_cfm_general(cmo_coeff_source, fmk2_cfm, para_env)
-               !
-               ! transfer realspace overlaps to connected k-point
-               ibs = nblist(ik, i)
-               ksign = SIGN(1.0_dp, REAL(ibs, KIND=dp))
-               ibs = ABS(ibs)
-               IF (ordered_berry) THEN
-                  ! The cross-k AO operator is not Hermitian. Retain ordered atom pairs
-                  ! and use exp(i*k'.R) [cos(b.r) - i*sin(b.r)] without symmetry shortcuts.
-                  CALL dbcsr_set(rmatrix_full, 0.0_dp)
-                  CALL dbcsr_set(cmatrix_full, 0.0_dp)
-                  CALL dbcsr_set(loop_real, 0.0_dp)
-                  CALL dbcsr_set(loop_imag, 0.0_dp)
-                  CALL rskp_transform(rmatrix_full, cmatrix_full, berry_matrix(ibs)%cosmat, 1, &
-                                      kpoint%xkp(:, ik2), berry_cell_index, overlap_nl)
-                  CALL rskp_transform(loop_real, loop_imag, berry_matrix(ibs)%sinmat, 1, &
-                                      kpoint%xkp(:, ik2), berry_cell_index, overlap_nl, rs_sign=ksign)
-                  CALL dbcsr_add(rmatrix_full, loop_imag, 1.0_dp, -1.0_dp)
-                  CALL dbcsr_add(cmatrix_full, loop_real, 1.0_dp, 1.0_dp)
-               ELSE
+            END DO
+         END IF
+         IF (do_wilson) THEN
+            IF (lowest_bands) THEN
+               valence_max = MAX(valence_max, eigval(num_bands))
+               conduction_min = MIN(conduction_min, eigval(num_bands + 1))
+            END IF
+            DO ib = 1, num_bands_tot - 1
+               IF (ANY(band_indices == ib) .NEQV. ANY(band_indices == ib + 1)) THEN
+                  pair_gap = eigval(ib + 1) - eigval(ib)
+                  direct_gap = MIN(direct_gap, pair_gap)
+               END IF
+            END DO
+         END IF
+         eigval(:) = eigval*evolt
+         IF (run_library) CALL w90_library_eigenvalues(library, ik, eigval(band_indices))
+         ! output
+         IF (iunit > 0) THEN
+            DO ib = 1, num_bands
+               WRITE (iunit, "(2I8,F24.14)") ib, ik, eigval(band_indices(ib))
+            END DO
+         END IF
+      END DO
+      IF (iunit > 0) THEN
+         CALL close_file(iunit)
+      END IF
+      IF (run_library) THEN
+         ALLOCATE (initial_amn(num_bands, num_wann, num_kpts))
+         IF (initial_projections == 0) THEN
+            initial_amn(:, :, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+            DO i = 1, num_wann
+               initial_amn(i, i, :) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+            END DO
+         ELSE
+            CALL build_wannier90_ao_projections(kpoint, matrix_s, sab_nl, para_env, ispin, band_indices, &
+                                                reused_scf_mos .AND. use_bloch_phases, phase_center, ao_projections)
+            CALL w90_library_project_trials(library, ao_projections)
+            IF (initial_projections == 2) THEN
+               CALL build_wannier90_hybrid_groups(qs_env, hybrid_groups)
+               CALL wannier90_hybrid_candidates(ao_projections, hybrid_groups, hybrid_projections)
+               DEALLOCATE (ao_projections, hybrid_groups)
+               CALL MOVE_ALLOC(hybrid_projections, ao_projections)
+               IF (iw > 0) WRITE (iw, '(T2,A)') "WANNIER90| Selecting from the full radial s/p hybrid candidate bank."
+            END IF
+            ALLOCATE (projection_pivots(num_wann))
+            CALL wannier90_select_projections(ao_projections, para_env, initial_amn, projection_pivots, &
+                                              projection_min_svalue)
+            IF (iw > 0) THEN
+               WRITE (iw, '(T2,A,ES12.4)') "WANNIER90| Minimum projection singular value ", projection_min_svalue
+               WRITE (iw, '(T2,A,*(I6))') "WANNIER90| Selected projection candidates ", projection_pivots
+            END IF
+            IF (projection_min_svalue < 1.0e-10_dp .AND. initial_projections /= 3) THEN
+               CPABORT("No full-rank Wannier90 AO trial set was found on the entire k-point mesh.")
+            END IF
+            DEALLOCATE (projection_pivots)
+            IF (initial_projections /= 3) DEALLOCATE (ao_projections)
+         END IF
+         CALL w90_library_projections(library, initial_amn, para_env, seed_name, write_files)
+         IF (initial_projections /= 3) DEALLOCATE (initial_amn)
+      END IF
+      IF (para_env%is_source() .AND. write_files) THEN
+         WRITE (filename, '(A,A)') TRIM(seed_name), ".mmn"
+         CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
+         CALL m_timestamp(timestamp)
+         WRITE (iunit, "(A)") "! Wannier90 file generated by CP2K "//timestamp
+         WRITE (iunit, "(3I8)") num_bands, num_kpts, nntot
+      ELSE
+         iunit = -1
+      END IF
+      ! loop over all k-points
+      DO ik = 1, num_kpts
+         ! get the MO coefficients for this k-point
+         my_kpgrp = (ik >= kpoint%kp_range(1) .AND. ik <= kpoint%kp_range(2))
+         IF (my_kpgrp) THEN
+            ikk = ik - kpoint%kp_range(1) + 1
+            kp => kpoint%kp_env(ikk)%kpoint_env
+            CPASSERT(SIZE(kp%mos, 1) == 2)
+            fmr => kp%mos(1, ispin)%mo_coeff
+            fmi => kp%mos(2, ispin)%mo_coeff
+            CALL cp_fm_copy_general(fmr, fmk1(1), para_env)
+            CALL cp_fm_copy_general(fmi, fmk1(2), para_env)
+         ELSE
+            NULLIFY (fmr, fmi, kp)
+            CALL cp_fm_copy_general(fmdummy, fmk1(1), para_env)
+            CALL cp_fm_copy_general(fmdummy, fmk1(2), para_env)
+         END IF
+         CALL cp_fm_to_cfm(fmk1(1), fmk1(2), fmk1_cfm)
+         ! loop over all connected neighbors
+         DO i = 1, nntot
+            ! get the MO coefficients for the connected k-point
+            ik2 = nnlist(ik, i)
+            mygrp = (ik2 >= kpoint%kp_range(1) .AND. ik2 <= kpoint%kp_range(2))
+            IF (mygrp) THEN
+               ikk = ik2 - kpoint%kp_range(1) + 1
+               kp => kpoint%kp_env(ikk)%kpoint_env
+               CPASSERT(SIZE(kp%mos, 1) == 2)
+               fmr => kp%mos(1, ispin)%mo_coeff
+               fmi => kp%mos(2, ispin)%mo_coeff
+               CALL cp_fm_copy_general(fmr, fmk2(1), para_env)
+               CALL cp_fm_copy_general(fmi, fmk2(2), para_env)
+            ELSE
+               NULLIFY (fmr, fmi, kp)
+               CALL cp_fm_copy_general(fmdummy, fmk2(1), para_env)
+               CALL cp_fm_copy_general(fmdummy, fmk2(2), para_env)
+            END IF
+            CALL cp_fm_to_cfm(fmk2(1), fmk2(2), fmk2_cfm)
+            !
+            ! transfer realspace overlaps to connected k-point
+            ibs = nblist(ik, i)
+            ksign = SIGN(1.0_dp, REAL(ibs, KIND=dp))
+            ibs = ABS(ibs)
+            IF (ordered_berry) THEN
+               ! The cross-k AO operator is not Hermitian. Retain ordered atom pairs
+               ! and use exp(i*k'.R) [cos(b.r) - i*sin(b.r)] without symmetry shortcuts.
+               CALL dbcsr_set(rmatrix_full, 0.0_dp)
+               CALL dbcsr_set(cmatrix_full, 0.0_dp)
+               CALL dbcsr_set(loop_real, 0.0_dp)
+               CALL dbcsr_set(loop_imag, 0.0_dp)
+               CALL rskp_transform(rmatrix_full, cmatrix_full, berry_matrix(ibs)%cosmat, 1, &
+                                   kpoint%xkp(:, ik2), berry_cell_index, overlap_nl)
+               CALL rskp_transform(loop_real, loop_imag, berry_matrix(ibs)%sinmat, 1, &
+                                   kpoint%xkp(:, ik2), berry_cell_index, overlap_nl, rs_sign=ksign)
+               CALL dbcsr_add(rmatrix_full, loop_imag, 1.0_dp, -1.0_dp)
+               CALL dbcsr_add(cmatrix_full, loop_real, 1.0_dp, 1.0_dp)
+            ELSE
                CALL transform_wannier90_overlap(berry_matrix(ibs)%cosmat, berry_matrix(ibs)%sinmat, &
                                                 ksign, kpoint%xkp(:, ik), kpoint%xkp(:, ik2), &
                                                 cell_to_index, sab_nl, rmatrix_full, cmatrix_full)
-               END IF
-               !
-               ! calculate M_(mn)^(k,b) = C(k)^H O(k,b) C(k+b)
-               CALL copy_dbcsr_to_fm(rmatrix_full, mat_real)
-               CALL copy_dbcsr_to_fm(cmatrix_full, mat_imag)
-               CALL cp_fm_to_cfm(mat_real, mat_imag, omat_cfm)
-               CALL parallel_gemm("N", "N", nao, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-                                  omat_cfm, fmk2_cfm, CMPLX(0.0_dp, 0.0_dp, KIND=dp), tmp_cfm)
-               CALL parallel_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-                                  fmk1_cfm, tmp_cfm, CMPLX(0.0_dp, 0.0_dp, KIND=dp), mmn_cfm)
-               IF (do_soc) THEN
-                  CALL cp_cfm_get_submatrix(mmn_cfm, scalar_overlap)
-                  link_matrix(:, :) = MATMUL(CONJG(TRANSPOSE(spinor_coeff(1:nmo, :, ik))), &
-                                             MATMUL(scalar_overlap, spinor_coeff(1:nmo, :, ik2))) + &
-                                      MATMUL(CONJG(TRANSPOSE(spinor_coeff(nmo + 1:, :, ik))), &
-                                             MATMUL(scalar_overlap, spinor_coeff(nmo + 1:, :, ik2)))
-               END IF
-               !
-               ! write to output file
-               IF (reused_scf_mos .AND. use_bloch_phases) THEN
-                  ! Reused SCF MOs need the same global Bloch gauge in every overlap block.
-                  gauge_arg = twopi*DOT_PRODUCT(kpoint%xkp(1:3, ik2) - kpoint%xkp(1:3, ik), &
-                                                phase_center(1:3))
-                  gauge_real = COS(gauge_arg)
-                  gauge_imag = SIN(gauge_arg)
-               ELSE
-                  gauge_real = 1.0_dp
-                  gauge_imag = 0.0_dp
-               END IF
-               IF (run_library) THEN
-                  CALL cp_cfm_get_submatrix(mmn_cfm, overlap_block)
-                  overlap_block(:, :) = overlap_block(:, :)*CMPLX(gauge_real, gauge_imag, KIND=dp)
-                  CALL w90_library_overlap(library, ik, i, overlap_block(band_indices, band_indices))
-               END IF
-               IF (iunit > 0) THEN
-                  WRITE (iunit, "(2I8,3I5)") ik, ik2, nncell(1:3, ik, i)
-               END IF
-               IF (write_files .OR. do_wilson) THEN
-               DO ib2 = 1, num_bands
-                  DO ib1 = 1, num_bands
-                     IF (do_soc) THEN
-                        rmmn = REAL(link_matrix(ib1, ib2), dp)
-                        cmmn = AIMAG(link_matrix(ib1, ib2))
-                     ELSE
-                        CALL cp_cfm_get_element(mmn_cfm, band_map(ib1), band_map(ib2), zmmn)
-                        rmmn = REAL(zmmn, KIND=dp)
-                        cmmn = AIMAG(zmmn)
-                     END IF
-                     gauge_tmp = gauge_real*rmmn - gauge_imag*cmmn
-                     cmmn = gauge_imag*rmmn + gauge_real*cmmn
-                     rmmn = gauge_tmp
-                     link_matrix(ib1, ib2) = CMPLX(rmmn, cmmn, dp)
-                     IF (iunit > 0) THEN
-                        WRITE (iunit, "(2E30.14)") rmmn, cmmn
-                     END IF
-                  END DO
-               END DO
-               END IF
-               IF (do_wilson) THEN
-                  iloop = loop_index(ik)
-                  CALL wilson_step(wilson_product(:, :, iloop), link_matrix, link_sv, status, 1.e-10_dp)
-                  IF (status /= 0) THEN
-                     CPABORT("Wilson link singular or SVD failed; refine sampling and check subspace.")
+            END IF
+            !
+            ! calculate M_(mn)^(k,b) = C(k)^H O(k,b) C(k+b)
+            CALL copy_dbcsr_to_fm(rmatrix_full, mat_real)
+            CALL copy_dbcsr_to_fm(cmatrix_full, mat_imag)
+            CALL cp_fm_to_cfm(mat_real, mat_imag, omat_cfm)
+            CALL cp_cfm_gemm("N", "N", nao, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
+                             omat_cfm, fmk2_cfm, CMPLX(0.0_dp, 0.0_dp, KIND=dp), tmp_cfm)
+            CALL cp_cfm_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
+                             fmk1_cfm, tmp_cfm, CMPLX(0.0_dp, 0.0_dp, KIND=dp), mmn_cfm)
+            CALL cp_cfm_to_fm(mmn_cfm, mmn_real, mmn_imag)
+            IF (do_soc) THEN
+               CALL cp_cfm_get_submatrix(mmn_cfm, scalar_overlap)
+               link_matrix(:, :) = MATMUL(CONJG(TRANSPOSE(spinor_coeff(1:nmo, :, ik))), &
+                                          MATMUL(scalar_overlap, spinor_coeff(1:nmo, :, ik2))) + &
+                                   MATMUL(CONJG(TRANSPOSE(spinor_coeff(nmo + 1:, :, ik))), &
+                                          MATMUL(scalar_overlap, spinor_coeff(nmo + 1:, :, ik2)))
+            END IF
+            !
+            ! write to output file
+            IF (reused_scf_mos .AND. use_bloch_phases) THEN
+               ! Reused SCF MOs need the same global Bloch gauge in every overlap block.
+               gauge_arg = twopi*DOT_PRODUCT(kpoint%xkp(1:3, ik2) - kpoint%xkp(1:3, ik), &
+                                             phase_center(1:3))
+               gauge_real = COS(gauge_arg)
+               gauge_imag = SIN(gauge_arg)
+            ELSE
+               gauge_real = 1.0_dp
+               gauge_imag = 0.0_dp
+            END IF
+            IF (run_library) THEN
+               CALL cp_cfm_get_submatrix(mmn_cfm, overlap_block)
+               overlap_block(:, :) = overlap_block(:, :)*CMPLX(gauge_real, gauge_imag, KIND=dp)
+               CALL w90_library_overlap(library, ik, i, overlap_block(band_indices, band_indices))
+            END IF
+            IF (iunit > 0) THEN
+               WRITE (iunit, "(2I8,3I5)") ik, ik2, nncell(1:3, ik, i)
+            END IF
+            IF (write_files .OR. do_wilson) THEN
+            DO ib2 = 1, num_bands
+               DO ib1 = 1, num_bands
+                  IF (do_soc) THEN
+                     rmmn = REAL(link_matrix(ib1, ib2), dp)
+                     cmmn = AIMAG(link_matrix(ib1, ib2))
+                  ELSE
+                     CALL cp_fm_get_element(mmn_real, band_indices(ib1), band_indices(ib2), rmmn)
+                     CALL cp_fm_get_element(mmn_imag, band_indices(ib1), band_indices(ib2), cmmn)
                   END IF
-                  loop_sv(iloop) = MIN(loop_sv(iloop), link_sv)
-               END IF
-               !
+                  gauge_tmp = gauge_real*rmmn - gauge_imag*cmmn
+                  cmmn = gauge_imag*rmmn + gauge_real*cmmn
+                  rmmn = gauge_tmp
+                  link_matrix(ib1, ib2) = CMPLX(rmmn, cmmn, dp)
+                  IF (iunit > 0) THEN
+                     WRITE (iunit, "(2E30.14)") rmmn, cmmn
+                  END IF
+               END DO
             END DO
+            END IF
+            IF (do_wilson) THEN
+               iloop = loop_index(ik)
+               CALL wilson_step(wilson_product(:, :, iloop), link_matrix, link_sv, status, 1.e-10_dp)
+               IF (status /= 0) THEN
+                  CPABORT("Wilson link singular or SVD failed; refine sampling and check subspace.")
+               END IF
+               loop_sv(iloop) = MIN(loop_sv(iloop), link_sv)
+            END IF
+            !
          END DO
+      END DO
       ! Optional full-state snapshots, before the distributed work matrices are released.
       IF (export_state .OR. do_parity) THEN
          state_components = 1
@@ -1402,7 +1450,7 @@ CONTAINS
          ALLOCATE (export_scalar(nao, nscalar), export_coeff(nao*state_components, num_bands))
          state_unit = -1
          IF (export_state) CALL topology_state_begin(qs_env_kp, TRIM(seed_name)//".topology", nao, num_bands, num_kpts, &
-                                                     state_components, num_bands_tot, spin_channel, band_map, state_unit)
+                                                     state_components, num_bands_tot, spin_channel, band_indices, state_unit)
          IF (do_parity) THEN
             CPASSERT(ALL(kpoint%kp_range == [1, num_kpts]))
             ALLOCATE (parity_metric(nao, nao), parity_phase(nao), parity_map(nao), &
@@ -1411,14 +1459,16 @@ CONTAINS
             parity_odd = -1
             IF (do_tqc) THEN
                IF (num_bands /= nelectron .OR. MOD(num_bands, 2) /= 0 .OR. &
-                   ANY(band_map /= [(i, i=1, num_bands)])) THEN
+                   ANY(band_indices /= [(i, i=1, num_bands)])) THEN
                   CPABORT("INVERSION_TQC requires the full occupied spinor band prefix.")
                END IF
             END IF
          END IF
          DO ik = 1, num_kpts
             kp => kpoint%kp_env(ik)%kpoint_env
-            CALL cp_cfm_copy_general(kp%mos(spin_channel)%cmo_coeff, fmk1_cfm, para_env)
+            CALL cp_fm_copy_general(kp%mos(1, spin_channel)%mo_coeff, fmk1(1), para_env)
+            CALL cp_fm_copy_general(kp%mos(2, spin_channel)%mo_coeff, fmk1(2), para_env)
+            CALL cp_fm_to_cfm(fmk1(1), fmk1(2), fmk1_cfm)
             CALL cp_cfm_get_submatrix(fmk1_cfm, export_scalar)
             IF (do_soc) THEN
                export_coeff(:nao, :) = MATMUL(export_scalar, spinor_coeff(:nscalar, :, ik))
@@ -1426,16 +1476,16 @@ CONTAINS
                CALL topology_state_point(state_unit, ik, kpt_latt(:, ik), spinor_values(:, ik), export_coeff)
                IF (do_parity) parity_energies(:) = spinor_values(:, ik)
             ELSE
-               export_coeff(:, :) = export_scalar(:, band_map)
-               CALL get_mo_set(kp%mos(spin_channel), eigenvalues=eigenvalues)
+               export_coeff(:, :) = export_scalar(:, band_indices)
+               CALL get_mo_set(kp%mos(1, spin_channel), eigenvalues=eigenvalues)
                CALL topology_state_point(state_unit, ik, kpt_latt(:, ik), eigenvalues(:nscalar), export_coeff)
                IF (do_parity) parity_energies(:) = eigenvalues(:nscalar)
             END IF
             IF (.NOT. do_parity) CYCLE
             parity_gap = HUGE(1.0_dp)
             DO jpar = 1, num_bands_tot
-               IF (ANY(band_map == jpar)) CYCLE
-               parity_gap = MIN(parity_gap, MINVAL(ABS(parity_energies(band_map) - parity_energies(jpar))))
+               IF (ANY(band_indices == jpar)) CYCLE
+               parity_gap = MIN(parity_gap, MINVAL(ABS(parity_energies(band_indices) - parity_energies(jpar))))
             END DO
             IF (num_bands == num_bands_tot .OR. parity_gap <= gap_tol) THEN
                CPABORT("PARITY requires an isolated selected subspace and computed excluded bands.")
@@ -1457,7 +1507,7 @@ CONTAINS
             CALL cp_fm_to_cfm(mat_real, mat_imag, omat_cfm)
             CALL cp_cfm_get_submatrix(omat_cfm, parity_metric)
             CALL inversion_representation(parity_metric, export_coeff, parity_map, parity_phase, &
-                                          parity_energies(band_map), do_soc .AND. time_reversal, parity_tolerance, &
+                                          parity_energies(band_indices), do_soc .AND. time_reversal, parity_tolerance, &
                                           parity_energy_tolerance, counts, parity_error, parity_energy_error, status, parity_checks)
             IF (iw > 0) THEN
                WRITE (iw, '(T2,A,3F10.5,A,2I8,A,3ES14.5)') 'TQC| TRIM ', kpt_latt(:, ik), &
@@ -1528,6 +1578,10 @@ CONTAINS
       END DO
       DEALLOCATE (berry_matrix)
       CALL cp_fm_struct_release(matrix_struct_work)
+      DO i = 1, 2
+         CALL cp_fm_release(fmk1(i))
+         CALL cp_fm_release(fmk2(i))
+      END DO
       CALL cp_cfm_release(fmk1_cfm)
       CALL cp_cfm_release(fmk2_cfm)
       CALL cp_cfm_release(tmp_cfm)
@@ -1536,6 +1590,8 @@ CONTAINS
       CALL cp_fm_release(mat_imag)
       CALL cp_cfm_release(omat_cfm)
       CALL cp_fm_struct_release(matrix_struct_mmn)
+      CALL cp_fm_release(mmn_real)
+      CALL cp_fm_release(mmn_imag)
       CALL cp_cfm_release(mmn_cfm)
       CALL dbcsr_deallocate_matrix(rmatrix_full)
       CALL dbcsr_deallocate_matrix(cmatrix_full)
@@ -1548,62 +1604,6 @@ CONTAINS
          CALL close_file(iunit)
       END IF
       !
-      IF (ordered_berry) THEN
-      ! Calculate and print Projections
-      !
-      ! Print eigenvalues
-      kp => kpoint%kp_env(1)%kpoint_env
-      CALL get_mo_set(kp%mos(ispin), nmo=nmo)
-      ALLOCATE (eigval(num_bands_tot))
-      direct_gap = HUGE(1.0_dp)
-      valence_max = -HUGE(1.0_dp)
-      conduction_min = HUGE(1.0_dp)
-      CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp)
-      IF (para_env%is_source() .AND. write_files) THEN
-         WRITE (filename, '(A,A)') TRIM(seed_name), ".eig"
-         CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
-      ELSE
-         iunit = -1
-      END IF
-      !
-      DO ik = 1, nkp
-         my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-            IF (do_soc) THEN
-               eigval(:) = spinor_values(:, ik)
-            ELSE IF (my_kpgrp) THEN
-               ikpgr = ik - kp_range(1) + 1
-               kp => kpoint%kp_env(ikpgr)%kpoint_env
-               CALL get_mo_set(kp%mos(ispin), eigenvalues=eigenvalues)
-               eigval(1:nmo) = eigenvalues(1:nmo)
-            ELSE
-               eigval(1:nmo) = 0.0_dp
-            END IF
-            IF (.NOT. do_soc) CALL kpoint%para_env_inter_kp%sum(eigval)
-            IF (do_wilson) THEN
-               IF (lowest_bands) THEN
-                  valence_max = MAX(valence_max, eigval(num_bands))
-                  conduction_min = MIN(conduction_min, eigval(num_bands + 1))
-               END IF
-               DO ib = 1, num_bands_tot - 1
-                  IF (ANY(band_map == ib) .NEQV. ANY(band_map == ib + 1)) THEN
-                     pair_gap = eigval(ib + 1) - eigval(ib)
-                     direct_gap = MIN(direct_gap, pair_gap)
-                  END IF
-               END DO
-            END IF
-            eigval(:) = eigval*evolt
-            IF (run_library) CALL w90_library_eigenvalues(library, ik, eigval)
-            ! output
-            IF (iunit > 0) THEN
-               DO ib = 1, num_bands
-                  WRITE (iunit, "(2I8,F24.14)") ib, ik, eigval(band_map(ib))
-               END DO
-            END IF
-      END DO
-      IF (iunit > 0) THEN
-         CALL close_file(iunit)
-      END IF
-      END IF
       IF (run_library) THEN
          IF (initial_projections == 3) THEN
             CALL run_wannier90_projection_trials(library, library_input, para_env, qs_env, seed_name, &
@@ -1689,7 +1689,6 @@ CONTAINS
       DEALLOCATE (kpt_latt, atoms_cart, atom_symbols, eigval)
       DEALLOCATE (nnlist, nncell)
       DEALLOCATE (nblist, b_latt)
-      DEALLOCATE (band_map)
       IF (para_env%is_source()) THEN
          ! Also replace an earlier exclusion map when the seed is reused without exclusions.
          CALL open_file(TRIM(seed_name)//'_band_indices.dat', unit_number=iunit, &

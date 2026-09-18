@@ -25,6 +25,7 @@
         KPOINTS_SOURCE NNKP
         NNKP_FILE helium.nnkp
         SEED_NAME loop
+        SPIN_CHANNEL 1
         WILSON_LOOP T
       &END WANNIER90
     &END PRINT
