@@ -156,7 +156,8 @@ void grid_free_task_list(grid_task_list *ptr) {
     grid_dgemm_free_task_list(task_list->dgemm);
     task_list->dgemm = NULL;
   }
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
+#if (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)) &&                     \
+    !defined(__NO_OFFLOAD_GRID)
   if (task_list->gpu != NULL) {
     grid_gpu_free_task_list(task_list->gpu);
     task_list->gpu = NULL;
