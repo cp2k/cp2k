@@ -1184,7 +1184,6 @@ CONTAINS
       ALLOCATE (target_val(nvar))
       ALLOCATE (dE(nvar))
       strength(:) = cdft_control%strength(:)
-      target_val(:) = cdft_control%target(:)
       sign = 1.0_dp
       dE = 0.0_dp
       dvol = group(1)%weight%pw_grid%dvol
@@ -1243,6 +1242,8 @@ CONTAINS
          CALL prepare_fragment_constraint(qs_env)
       END IF
       ! Update constraint value and energy
+      ! Fragment integration above can replace the input target.
+      target_val(:) = cdft_control%target(:)
       cdft_control%value(:) = dE(:)
       energy%cdft = 0.0_dp
       DO ivar = 1, nvar

@@ -35,6 +35,12 @@ registry["E_total"] = GenericMatcher(r"Total energy:", col=3)
 registry["OT_SCF_convergence"] = GenericMatcher(
     r"^\s*\d+\s+OT\s+\S+\s+\S+\s+\S+\s+([-+0-9.EeDd]+)", col=1, regex=True
 )
+registry["OT_SCF_initial_energy"] = GenericMatcher(
+    r"^\s*1\s+OT\s+\S+\s+\S+\s+\S+\s+\S+\s+([-+0-9.EeDd]+)",
+    col=1,
+    regex=True,
+    first=True,
+)
 registry["Electronic_entropic_energy"] = GenericMatcher(
     r"Electronic entropic energy:", col=4
 )
