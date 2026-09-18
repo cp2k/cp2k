@@ -3179,9 +3179,11 @@ CONTAINS
                WRITE (output_unit, "(T40,A,T70,E10.2)") " max norm of the residual ", max_res
             END IF
 
-            ! rotate the refined MOS back into the generalized problem, C = U^-1 X
+            ! rotate the refined MOS back into the generalized problem, C = U^-1 X;
+            ! the helper also copies the eigenvalues to the imaginary set, like
+            ! every other k-point diagonalization path
             CALL cp_cfm_triangular_multiply(csmat, cmo, side="L", invert_tr=.TRUE.)
-            CALL cp_cfm_to_fm(cmo, mo_coeff_r, mo_coeff_i)
+            CALL kpoint_operator_cfm_to_mo(cmo, kp%mos(1, ispin), kp%mos(2, ispin), mo_eigenvalues)
 
             CALL cp_cfm_release(cmo)
             CALL cp_cfm_release(cwork)
