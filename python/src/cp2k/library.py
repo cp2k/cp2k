@@ -66,6 +66,8 @@ def _load_library(path):
     }
     if hasattr(lib, "cp2k_init_without_mpi_comm"):
         signatures["init_without_mpi_comm"] = [ct.c_int]
+    if hasattr(lib, "cp2k_get_stress_tensor"):
+        signatures["get_stress_tensor"] = [ct.c_int, _DP, ct.POINTER(ct.c_int)]
     for function, arguments in signatures.items():
         try:
             symbol = getattr(lib, "cp2k_" + function)
@@ -108,10 +110,16 @@ def _array(values, shape, name):
 
 @dataclass(frozen=True)
 class CalculationResult:
-    """An energy in hartree and optional (N, 3) forces in hartree/bohr."""
+    """Atomic-unit results; stress/virial are potential-only, pressure-positive.
+
+    Stress has units hartree/bohr**3; virial = stress * volume has units hartree.
+    Both are Cartesian (3, 3) tensors, with no kinetic contribution.
+    """
 
     energy: float
     forces: np.ndarray | None
+    stress: np.ndarray | None = None
+    virial: np.ndarray | None = None
 
 
 class CP2K:
@@ -296,6 +304,7 @@ class ForceEnvironment:
         self._closed = False
         self._energy_valid = False
         self._forces_valid = False
+        self._stress_valid = False
 
     def _check(self):
         self._runtime._check()
@@ -338,7 +347,7 @@ class ForceEnvironment:
         if sized:
             args.append(array.size)
         # Invalidate before entering native code; never expose stale results.
-        self._energy_valid = self._forces_valid = False
+        self._energy_valid = self._forces_valid = self._stress_valid = False
         getattr(self._runtime._lib, "cp2k_set_" + name)(*args)
 
     @property
@@ -379,22 +388,56 @@ class ForceEnvironment:
             raise RuntimeError("Call calculate(forces=True) before requesting forces")
         return self._get_array("forces", (self.nparticle, 3))
 
-    def calculate(self, *, forces=True):
-        """Recalculate on the current geometry, reusing the native SCF state."""
+    @property
+    def stress(self):
+        """Potential pressure-positive Cartesian stress in hartree/bohr**3."""
         self._check()
-        self._energy_valid = self._forces_valid = False
-        method = "cp2k_calc_energy_force" if forces else "cp2k_calc_energy"
+        if not self._stress_valid:
+            raise RuntimeError("Call calculate(stress=True) before requesting stress")
+        result = np.empty((3, 3), dtype=np.float64, order="F")
+        available = ct.c_int()
+        self._runtime._lib.cp2k_get_stress_tensor(
+            self._handle, result.ctypes.data_as(_DP), ct.byref(available)
+        )
+        if not available.value:
+            raise RuntimeError("Enable FORCE_EVAL/STRESS_TENSOR in the CP2K input")
+        return result
+
+    @property
+    def virial(self):
+        """Potential pressure-positive Cartesian virial in hartree."""
+        return self.stress * np.linalg.det(self.cell)
+
+    def calculate(self, *, forces=True, stress=False):
+        """Recalculate, reusing the SCF state. Stress requires STRESS_TENSOR input.
+
+        Stress also computes native forces, even if forces=False was requested.
+        Older libcp2k builds remain usable for energy/forces, but not stress.
+        """
+        self._check()
+        self._energy_valid = self._forces_valid = self._stress_valid = False
+        if stress and not hasattr(self._runtime._lib, "cp2k_get_stress_tensor"):
+            raise RuntimeError("This libcp2k lacks cp2k_get_stress_tensor")
+        method = "cp2k_calc_energy_force" if forces or stress else "cp2k_calc_energy"
         getattr(self._runtime._lib, method)(self._handle)
         self._energy_valid = True
         self._forces_valid = bool(forces)
-        result = CalculationResult(
-            self.potential_energy, self.forces if forces else None
-        )
-        if not np.isfinite(result.energy) or (
-            result.forces is not None and not np.isfinite(result.forces).all()
-        ):
-            self._energy_valid = self._forces_valid = False
-            raise RuntimeError("CP2K returned non-finite energy or forces")
+        self._stress_valid = bool(stress)
+        try:
+            result = CalculationResult(
+                self.potential_energy,
+                self.forces if forces else None,
+                self.stress if stress else None,
+                self.virial if stress else None,
+            )
+            if not np.isfinite(result.energy) or any(
+                value is not None and not np.isfinite(value).all()
+                for value in (result.forces, result.stress, result.virial)
+            ):
+                raise RuntimeError("CP2K returned non-finite energy, forces, or stress")
+        except Exception:
+            self._energy_valid = self._forces_valid = self._stress_valid = False
+            raise
         return result
 
     def close(self):
