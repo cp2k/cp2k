@@ -1938,121 +1938,49 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_matrices'
 
       INTEGER                                            :: handle, ikpgr, ispin, kplocal, nao, nmo, &
-                                                            nspin, omp_threads
-      INTEGER, DIMENSION(2)                              :: kp_range
-      LOGICAL                                            :: aux_fit, wtype
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation
+                                                            nspin, nworkers, thread
+      LOGICAL                                            :: aux_fit, local, wtype
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type)                                   :: fwork
-      TYPE(cp_fm_type), POINTER                          :: cpmat, pmat, rpmat
+      TYPE(cp_fm_type), ALLOCATABLE                      :: work(:)
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(mo_set_type), POINTER                         :: mo_set
 
       CALL timeset(routineN, handle)
-
-      IF (PRESENT(energy_weighted)) THEN
-         wtype = energy_weighted
-      ELSE
-         ! default is normal density matrix
-         wtype = .FALSE.
-      END IF
-
-      IF (PRESENT(for_aux_fit)) THEN
-         aux_fit = for_aux_fit
-      ELSE
-         aux_fit = .FALSE.
-      END IF
-
+      wtype = .FALSE.
+      IF (PRESENT(energy_weighted)) wtype = energy_weighted
+      aux_fit = .FALSE.
+      IF (PRESENT(for_aux_fit)) aux_fit = for_aux_fit
       IF (aux_fit) THEN
          CPASSERT(ASSOCIATED(kpoint%kp_aux_env))
-      END IF
-
-      ! work matrix
-      IF (aux_fit) THEN
-         mo_set => kpoint%kp_aux_env(1)%kpoint_env%mos(1, 1)
-      ELSE
-         mo_set => kpoint%kp_env(1)%kpoint_env%mos(1, 1)
-      END IF
-      CALL get_mo_set(mo_set, nao=nao, nmo=nmo)
-      CALL cp_fm_get_info(mo_set%mo_coeff, matrix_struct=matrix_struct)
-
-      CALL get_kpoint_info(kpoint, kp_range=kp_range)
-      kplocal = kp_range(2) - kp_range(1) + 1
-      IF (aux_fit) THEN
          kp => kpoint%kp_aux_env(1)%kpoint_env
       ELSE
          kp => kpoint%kp_env(1)%kpoint_env
       END IF
+      CALL get_mo_set(kp%mos(1, 1), nao=nao, nmo=nmo)
+      CALL cp_fm_get_info(kp%mos(1, 1)%mo_coeff, matrix_struct=matrix_struct)
+      kplocal = kpoint%kp_range(2) - kpoint%kp_range(1) + 1
       nspin = SIZE(kp%mos, 2)
-      omp_threads = 1
-!$    omp_threads = omp_get_max_threads()
-      IF (kpoint%blacs_env_all%para_env%num_pe == 1 .AND. omp_threads > 1 .AND. &
-          kplocal*nspin > 1) THEN
-         CALL kpoint_density_matrices_omp(kpoint, wtype, aux_fit, nao, nmo, kplocal, nspin)
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      CALL cp_fm_create(fwork, matrix_struct)
-      DO ikpgr = 1, kplocal
-         IF (aux_fit) THEN
-            kp => kpoint%kp_aux_env(ikpgr)%kpoint_env
-         ELSE
-            kp => kpoint%kp_env(ikpgr)%kpoint_env
-         END IF
-         nspin = SIZE(kp%mos, 2)
-         DO ispin = 1, nspin
-            mo_set => kp%mos(1, ispin)
-            IF (wtype) THEN
-               CALL get_mo_set(mo_set, eigenvalues=eigenvalues)
-            END IF
-            IF (kpoint%use_real_wfn) THEN
-               IF (wtype) THEN
-                  pmat => kp%wmat(1, ispin)
-               ELSE
-                  pmat => kp%pmat(1, ispin)
-               END IF
-               CALL get_mo_set(mo_set, occupation_numbers=occupation)
-               CALL cp_fm_to_fm(mo_set%mo_coeff, fwork)
-               CALL cp_fm_column_scale(fwork, occupation)
-               IF (wtype) THEN
-                  CALL cp_fm_column_scale(fwork, eigenvalues)
-               END IF
-               CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, pmat)
-            ELSE
-               IF (wtype) THEN
-                  rpmat => kp%wmat(1, ispin)
-                  cpmat => kp%wmat(2, ispin)
-               ELSE
-                  rpmat => kp%pmat(1, ispin)
-                  cpmat => kp%pmat(2, ispin)
-               END IF
-               CALL get_mo_set(mo_set, occupation_numbers=occupation)
-               CALL cp_fm_to_fm(mo_set%mo_coeff, fwork)
-               CALL cp_fm_column_scale(fwork, occupation)
-               IF (wtype) THEN
-                  CALL cp_fm_column_scale(fwork, eigenvalues)
-               END IF
-               ! Re(c)*Re(c)
-               CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, rpmat)
-               mo_set => kp%mos(2, ispin)
-               ! Im(c)*Re(c)
-               CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 0.0_dp, cpmat)
-               ! Re(c)*Im(c)
-               CALL parallel_gemm("N", "T", nao, nao, nmo, -1.0_dp, fwork, mo_set%mo_coeff, 1.0_dp, cpmat)
-               CALL cp_fm_to_fm(mo_set%mo_coeff, fwork)
-               CALL cp_fm_column_scale(fwork, occupation)
-               IF (wtype) THEN
-                  CALL cp_fm_column_scale(fwork, eigenvalues)
-               END IF
-               ! Im(c)*Im(c)
-               CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, mo_set%mo_coeff, fwork, 1.0_dp, rpmat)
-            END IF
-         END DO
+      ! Only the group layout matters. Distributed GEMM stays on the calling thread.
+      local = PRODUCT(matrix_struct%context%num_pe) == 1
+      nworkers = 1
+!$    IF (local) nworkers = MIN(omp_get_max_threads(), kplocal*nspin)
+      ALLOCATE (work(nworkers))
+      DO thread = 1, nworkers
+         CALL cp_fm_create(work(thread), matrix_struct)
       END DO
 
-      CALL cp_fm_release(fwork)
-
+!$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE) SCHEDULE(DYNAMIC, 1) NUM_THREADS(nworkers) IF(nworkers > 1) &
+!$OMP SHARED(kpoint,wtype,aux_fit,nao,nmo,kplocal,nspin,nworkers,work,local) PRIVATE(ikpgr,ispin,thread)
+      DO ikpgr = 1, kplocal
+         DO ispin = 1, nspin
+            thread = 1
+!$          thread = omp_get_thread_num() + 1
+            CALL kpoint_density_matrix_job(kpoint, ikpgr, ispin, wtype, aux_fit, nao, nmo, work(thread), local)
+         END DO
+      END DO
+!$OMP END PARALLEL DO
+      DO thread = 1, nworkers
+         CALL cp_fm_release(work(thread))
+      END DO
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_density_matrices
@@ -2208,125 +2136,58 @@ CONTAINS
    END SUBROUTINE kpoint_ot_energy_weighted_matrices
 
 ! **************************************************************************************************
-!> \brief Thread k-point density-matrix construction on a one-rank BLACS grid.
-!>        The local BLAS path avoids concurrent ScaLAPACK calls and gives every
-!>        worker a private column-scaled MO buffer.
-!> \param kpoint ...
-!> \param wtype ...
-!> \param aux_fit ...
-!> \param nao ...
-!> \param nmo ...
-!> \param kplocal ...
-!> \param nspin ...
+!> \brief Common C-to-P algebra for local and distributed k-point groups.
+!> \param kpoint host environment
+!> \param ikpgr local k-point index
+!> \param ispin spin index
+!> \param wtype construct the energy-weighted density
+!> \param aux_fit use the auxiliary MO set
+!> \param nao number of atomic orbitals
+!> \param nmo number of molecular orbitals
+!> \param work private column-scaled MO scratch
+!> \param local use local BLAS, without communication
 ! **************************************************************************************************
-   SUBROUTINE kpoint_density_matrices_omp(kpoint, wtype, aux_fit, nao, nmo, kplocal, nspin)
-
-      TYPE(kpoint_type), POINTER                         :: kpoint
-      LOGICAL, INTENT(IN)                                :: wtype, aux_fit
-      INTEGER, INTENT(IN)                                :: nao, nmo, kplocal, nspin
-
-      INTEGER                                            :: ikpgr, ispin, nworkers, thread
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: work
-
-      nworkers = 1
-!$    nworkers = MIN(omp_get_max_threads(), kplocal*nspin)
-      ALLOCATE (work(nao, nmo, nworkers))
-
-!$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE) SCHEDULE(DYNAMIC, 1) NUM_THREADS(nworkers) &
-!$OMP SHARED(kpoint,wtype,aux_fit,nao,nmo,kplocal,nspin,nworkers,work) PRIVATE(ikpgr,ispin,thread)
-      DO ikpgr = 1, kplocal
-         DO ispin = 1, nspin
-            thread = 1
-!$          thread = omp_get_thread_num() + 1
-            CALL kpoint_density_matrix_job(kpoint, ikpgr, ispin, wtype, aux_fit, nao, nmo, &
-                                           work(:, :, thread))
-         END DO
-      END DO
-!$OMP END PARALLEL DO
-
-      DEALLOCATE (work)
-
-   END SUBROUTINE kpoint_density_matrices_omp
-
-! **************************************************************************************************
-!> \brief Construct one (k-point,spin) density matrix using local BLAS.
-!> \param kpoint ...
-!> \param ikpgr ...
-!> \param ispin ...
-!> \param wtype ...
-!> \param aux_fit ...
-!> \param nao ...
-!> \param nmo ...
-!> \param work ...
-! **************************************************************************************************
-   SUBROUTINE kpoint_density_matrix_job(kpoint, ikpgr, ispin, wtype, aux_fit, nao, nmo, work)
+   SUBROUTINE kpoint_density_matrix_job(kpoint, ikpgr, ispin, wtype, aux_fit, nao, nmo, work, local)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       INTEGER, INTENT(IN)                                :: ikpgr, ispin
       LOGICAL, INTENT(IN)                                :: wtype, aux_fit
       INTEGER, INTENT(IN)                                :: nao, nmo
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: work
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: work
+      LOGICAL, INTENT(IN)                                :: local
 
-      INTEGER                                            :: imo
-      REAL(KIND=dp)                                      :: scale
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: ci, cmat, cr, rmat
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation
-      TYPE(cp_fm_type), POINTER                          :: cpmat, rpmat
+      INTEGER                                            :: part
+      REAL(KIND=dp), POINTER                             :: eigenvalues(:), occupation(:)
+      TYPE(cp_fm_type), POINTER                          :: coeff, cpmat, rpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(mo_set_type), POINTER                         :: mo_set
 
       IF (aux_fit) THEN
          kp => kpoint%kp_aux_env(ikpgr)%kpoint_env
       ELSE
          kp => kpoint%kp_env(ikpgr)%kpoint_env
       END IF
-      mo_set => kp%mos(1, ispin)
-      IF (wtype) THEN
-         CALL get_mo_set(mo_set, occupation_numbers=occupation, eigenvalues=eigenvalues)
-      ELSE
-         CALL get_mo_set(mo_set, occupation_numbers=occupation)
-      END IF
-      CALL cp_fm_get_info(mo_set%mo_coeff, local_data=cr)
-
+      CALL get_mo_set(kp%mos(1, ispin), occupation_numbers=occupation, eigenvalues=eigenvalues)
       IF (wtype) THEN
          rpmat => kp%wmat(1, ispin)
       ELSE
          rpmat => kp%pmat(1, ispin)
       END IF
-      CALL cp_fm_get_info(rpmat, local_data=rmat)
-
-      DO imo = 1, nmo
-         scale = occupation(imo)
-         IF (wtype) scale = scale*eigenvalues(imo)
-         work(1:nao, imo) = scale*cr(1:nao, imo)
-      END DO
-      CALL dgemm('N', 'T', nao, nao, nmo, 1.0_dp, cr, SIZE(cr, 1), &
-                 work, SIZE(work, 1), 0.0_dp, rmat, SIZE(rmat, 1))
-
-      IF (.NOT. kpoint%use_real_wfn) THEN
-         mo_set => kp%mos(2, ispin)
-         CALL cp_fm_get_info(mo_set%mo_coeff, local_data=ci)
+      DO part = 1, MERGE(1, 2, kpoint%use_real_wfn)
+         coeff => kp%mos(part, ispin)%mo_coeff
+         CALL cp_fm_to_fm(coeff, work)
+         CALL cp_fm_column_scale(work, occupation)
+         IF (wtype) CALL cp_fm_column_scale(work, eigenvalues)
+         CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, coeff, work, REAL(part - 1, dp), rpmat, local=local)
+         IF (part /= 1 .OR. kpoint%use_real_wfn) CYCLE
          IF (wtype) THEN
             cpmat => kp%wmat(2, ispin)
          ELSE
             cpmat => kp%pmat(2, ispin)
          END IF
-         CALL cp_fm_get_info(cpmat, local_data=cmat)
-
-         CALL dgemm('N', 'T', nao, nao, nmo, 1.0_dp, ci, SIZE(ci, 1), &
-                    work, SIZE(work, 1), 0.0_dp, cmat, SIZE(cmat, 1))
-         CALL dgemm('N', 'T', nao, nao, nmo, -1.0_dp, work, SIZE(work, 1), &
-                    ci, SIZE(ci, 1), 1.0_dp, cmat, SIZE(cmat, 1))
-
-         DO imo = 1, nmo
-            scale = occupation(imo)
-            IF (wtype) scale = scale*eigenvalues(imo)
-            work(1:nao, imo) = scale*ci(1:nao, imo)
-         END DO
-         CALL dgemm('N', 'T', nao, nao, nmo, 1.0_dp, ci, SIZE(ci, 1), &
-                    work, SIZE(work, 1), 1.0_dp, rmat, SIZE(rmat, 1))
-      END IF
+         coeff => kp%mos(2, ispin)%mo_coeff
+         CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, coeff, work, 0.0_dp, cpmat, local=local)
+         CALL parallel_gemm("N", "T", nao, nao, nmo, -1.0_dp, work, coeff, 1.0_dp, cpmat, local=local)
+      END DO
 
    END SUBROUTINE kpoint_density_matrix_job
 
@@ -3790,7 +3651,8 @@ CONTAINS
          sinkl = SIN(twopi*arg)
          IF (real_only) THEN
             IF (ABS(sinkl) > 1.e-12_dp) THEN
-               CALL cp_abort(__LOCATION__, "Real k-point wavefunctions cannot represent symmetry phases")
+               CALL cp_abort(__LOCATION__, &
+                             "Real k-point wavefunctions cannot represent symmetry phases")
             END IF
             rwork(:, :) = coskl*rblock
          ELSE

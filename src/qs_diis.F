@@ -1012,11 +1012,13 @@ CONTAINS
 !> \param nkp_local ...
 !> \param scf_section ...
 !> \param real_wfn ...
+!> \param cmos_work caller-owned scratch; requires a preallocated DIIS buffer
+!> \param local use local BLAS on a one-rank k-point group
 !> \note We assume that we always have an overlap matrix.
 !> TODO: do we need to pass the kp weight for the back Fourier transform?
 ! **************************************************************************************************
    SUBROUTINE qs_diis_b_calc_err_kp(diis_buffer, ib, mos, kc, sc, ispin, ikp, nkp_local, scf_section, &
-                                    real_wfn)
+                                    real_wfn, cmos_work, local)
       TYPE(qs_diis_buffer_type_kp), POINTER              :: diis_buffer
       INTEGER, INTENT(IN)                                :: ib
       TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
@@ -1024,14 +1026,16 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin, ikp, nkp_local
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: real_wfn
+      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL, TARGET :: cmos_work
+      LOGICAL, INTENT(IN), OPTIONAL                      :: local
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_calc_err_kp'
 
       INTEGER                                            :: handle, homo, nao, nmo, nspin
       LOGICAL                                            :: my_real_wfn
       REAL(dp)                                           :: maxocc
-      TYPE(cp_cfm_type)                                  :: cmos
-      TYPE(cp_cfm_type), POINTER                         :: new_errors, parameters, smat
+      TYPE(cp_cfm_type), POINTER                         :: cmos, new_errors, parameters, smat
+      TYPE(cp_cfm_type), TARGET                          :: owned_cmos
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), POINTER                          :: imos, rmos
 
@@ -1051,17 +1055,18 @@ CONTAINS
       END IF
       nspin = SIZE(mos, 2)
 
-      CALL cp_cfm_get_info(kc, matrix_struct=matrix_struct)
-      CALL qs_diis_b_check_i_alloc_kp(diis_buffer, &
-                                      matrix_struct=matrix_struct, &
-                                      nspin=nspin, nkp=nkp_local, &
-                                      scf_section=scf_section)
-
-      !We calculate: e(ikp) = F(ikp)*P(ikp)*S(ikp) - S(ikp)*P(ikp)*F(ikp)
       CALL get_mo_set(mos(1, ispin), nao=nao, nmo=nmo, homo=homo, mo_coeff=rmos, maxocc=maxocc)
-      NULLIFY (matrix_struct)
-      CALL cp_fm_get_info(rmos, matrix_struct=matrix_struct)
-      CALL cp_cfm_create(cmos, matrix_struct)
+      IF (PRESENT(cmos_work)) THEN
+         ! The phase controller allocates the buffer and worker scratch before OpenMP.
+         cmos => cmos_work
+      ELSE
+         CALL cp_cfm_get_info(kc, matrix_struct=matrix_struct)
+         CALL qs_diis_b_check_i_alloc_kp(diis_buffer, matrix_struct, nspin, nkp_local, scf_section)
+         CALL cp_fm_get_info(rmos, matrix_struct=matrix_struct)
+         CALL cp_cfm_create(owned_cmos, matrix_struct)
+         cmos => owned_cmos
+      END IF
+
       IF (my_real_wfn) THEN
          CALL cp_cfm_scale_and_add_fm(CMPLX(0.0_dp, KIND=dp), cmos, &
                                       CMPLX(1.0_dp, KIND=dp), rmos)
@@ -1079,16 +1084,16 @@ CONTAINS
       CALL cp_cfm_to_cfm(sc, smat)
 
       ! KC <- K*C
-      CALL parallel_gemm("N", "N", nao, homo, nao, CMPLX(maxocc, KIND=dp), parameters, cmos, (0.0_dp, 0.0_dp), kc)
+      CALL parallel_gemm("N", "N", nao, homo, nao, CMPLX(maxocc, KIND=dp), parameters, cmos, (0.0_dp, 0.0_dp), kc, local=local)
       ! SC <- S*C
-      CALL parallel_gemm("N", "N", nao, homo, nao, (2.0_dp, 0.0_dp), smat, cmos, (0.0_dp, 0.0_dp), sc)
+      CALL parallel_gemm("N", "N", nao, homo, nao, (2.0_dp, 0.0_dp), smat, cmos, (0.0_dp, 0.0_dp), sc, local=local)
 
       ! new_errors <- KC*(SC)^H - SC*(KC)^H; retain the existing factor of two.
-      CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), sc, kc, (0.0_dp, 0.0_dp), new_errors)
-      CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), kc, sc, (-1.0_dp, 0.0_dp), new_errors)
+      CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), sc, kc, (0.0_dp, 0.0_dp), new_errors, local=local)
+      CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), kc, sc, (-1.0_dp, 0.0_dp), new_errors, local=local)
 
       !clean-up
-      CALL cp_cfm_release(cmos)
+      IF (.NOT. PRESENT(cmos_work)) CALL cp_cfm_release(owned_cmos)
 
       CALL timestop(handle)
 
