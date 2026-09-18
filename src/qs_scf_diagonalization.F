@@ -2987,15 +2987,12 @@ CONTAINS
                                                             nmo, nmo_conv, nmo_nc, nspin, &
                                                             output_unit
       INTEGER, DIMENSION(2)                              :: kp_range
-      INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: my_added_mos_auto_grow, &
                                                             my_check_moconv_only, use_real_wfn
       REAL(KIND=dp)                                      :: eps_iter, eps_iter_empty, max_res, &
                                                             min_res, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_col
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, occupation
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_cfm_type)                                  :: cksmat, cksmat_t, cmo, csmat, &
                                                             csmat_base, cwork
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools, kp_ao_ao_fm_pools
@@ -3024,9 +3021,9 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%LANCZOS", &
                                          extension=".scfLog")
 
-      CALL get_kpoint_info(kpoints, kp_range=kp_range, kp_dist=kp_dist, xkp=xkp, &
+      CALL get_kpoint_info(kpoints, kp_range=kp_range, &
                            use_real_wfn=use_real_wfn, sab_nl=sab_nl, &
-                           cell_to_index=cell_to_index, mpools=kp_mpools)
+                           mpools=kp_mpools)
       IF (use_real_wfn) THEN
          CPABORT('k-point Lanczos refinement requires complex k-point MOS')
       END IF
@@ -3130,7 +3127,10 @@ CONTAINS
 
             ! standardization S(k) = U^dag U: operator and MOS are pulled
             ! through the same transform, X = U C and A = U^-dag H U^-1, so
-            ! the kernel faces a standard eigenproblem
+            ! the kernel faces a standard eigenproblem. Plain Cholesky,
+            ! like the complex k-point family (cp_cfm_geeig decomposes S
+            ! the same way and ignores scf_env%cholesky_method beyond the
+            ! off switch); CHOLESKY OFF is not supported on this path
             CALL cp_cfm_cholesky_decompose(csmat)
             CALL cp_cfm_triangular_multiply(csmat, cksmat, side="R", invert_tr=.TRUE.)
             CALL cp_cfm_triangular_multiply(csmat, cksmat, side="L", transa_tr="C", invert_tr=.TRUE.)

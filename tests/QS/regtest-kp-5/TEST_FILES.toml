@@ -66,8 +66,8 @@
 # deep inner tolerance (EPS_KRYLOV 1E-12): drives execution into multiple
 # thick-restart cycles per call
 "Al-kpoint-lan-smear-deep.inp"          = [{matcher="E_total", tol=1e-8, ref=-8.159987079852488}]
-# one TRLan cycle per call (MAX_ITER 1): every call runs out of budget and
-# takes the exhaustion write-back, which only returns strictly improved pairs
+# one TRLan cycle per call (MAX_ITER 1): every call runs out of cycle budget
+# after a single re-judged write-back, stressing the single-cycle path
 "Al-kpoint-lan-smear-exh.inp"           = [{matcher="E_total", tol=1e-8, ref=-8.159987079852488}]
 # parallel layout test with PARALLEL_GROUP_SIZE 2: two ranks per k-point group
 # verify the distributed Rayleigh-Ritz execution
