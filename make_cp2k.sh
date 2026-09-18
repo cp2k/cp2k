@@ -1157,8 +1157,7 @@ case "${LIBXC_CUDA}" in
       LIBXC_CUDA="off"
     fi
     ;;
-  on | off)
-    ;;
+  on | off) ;;
   *)
     echo "ERROR: Invalid libxc CUDA variant \"${LIBXC_CUDA}\" specified"
     ${EXIT_CMD} 1
