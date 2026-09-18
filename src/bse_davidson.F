@@ -1219,7 +1219,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', title
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A5,T14,A9,T25,A9,T36,A14,T52,A13,T67,A14)') 'BSE|', &
-            'Iter.', 'Subspace', 'Converged', 'Max. residual', 'Max. dE (eV)', 'Lowest E (eV)'
+            'Iter.', 'Subspace', 'Converged', 'Max |r| (a.u.)', 'Max. dE (eV)', 'Lowest E (eV)'
       END IF
 
    END SUBROUTINE print_iteration_header
@@ -1266,8 +1266,8 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A12,T30,A11,T52,A8,T67,A14)') 'BSE|', &
-            'Excitation n', 'Energy (eV)', 'Residual', 'Converged'
+         WRITE (unit_nr, '(T2,A4,T7,A12,T30,A11,T50,A10,T67,A14)') 'BSE|', &
+            'Excitation n', 'Energy (eV)', '|r| (a.u.)', 'Converged'
          DO k = 1, SIZE(need)
             IF (k > n_req .AND. .NOT. need(k)) CYCLE
             WRITE (unit_nr, '(T2,A4,T7,I12,T27,F14.6,T46,ES14.4,T67,L14)') 'BSE|', &
@@ -1294,9 +1294,11 @@ CONTAINS
       INTEGER                                            :: k
 
       IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A10,T13,A13,T27,A9,T45,A18,T67,A14)') 'BSE|DEBUG|', &
+            'Tracked state', 'Requested', 'Energy (eV)', '|r| (a.u.)'
          DO k = 1, n_act
-            WRITE (unit_nr, '(T2,A10,T13,A,I6,L2,T45,F18.10,T67,ES14.4)') 'BSE|DEBUG|', &
-               'Tracked state, requested', k, k <= n_want, energies(k)*evolt, res(k)
+            WRITE (unit_nr, '(T2,A10,T13,I13,T27,L9,T45,F18.10,T67,ES14.4)') 'BSE|DEBUG|', &
+               k, k <= n_want, energies(k)*evolt, res(k)
          END DO
       END IF
 

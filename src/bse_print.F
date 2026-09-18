@@ -21,7 +21,9 @@ MODULE bse_print
                                               get_bse_spin_block_layout
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
-   USE input_constants,                 ONLY: bse_screening_alpha,&
+   USE input_constants,                 ONLY: bse_abba_mk_davidson,&
+                                              bse_iterdiag,&
+                                              bse_screening_alpha,&
                                               bse_screening_rpa,&
                                               bse_screening_tdhf,&
                                               bse_screening_w0
@@ -174,7 +176,9 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A14)') 'BSE|', 'Ref.: Eq. (10)'
             WRITE (unit_nr, '(T2,A4,T7,A61)') 'BSE|', 'in PRB 113,205152 (2026); https://doi.org/10.1103/38k2-d55h .'
          END IF
-         IF (.NOT. flag_TDA) THEN
+         IF (mp2_env%bse%bse_diag_method == bse_iterdiag) THEN
+            CALL print_iterative_method(flag_TDA, mp2_env%bse%abba_solver, unit_nr)
+         ELSE IF (.NOT. flag_TDA) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', 'The BSE is solved for Ω^n and X_ia^n as a hermitian problem, e.g. Eq.(42)'
             WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
@@ -205,6 +209,55 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE print_output_header
+
+! **************************************************************************************************
+!> \brief Equations of the block Davidson that BSE_DIAG_METHOD ITERDIAG runs, one arm per solver
+!> \param flag_TDA ...
+!> \param abba_solver ABBA_SOLVER, read outside the TDA
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE print_iterative_method(flag_TDA, abba_solver, unit_nr)
+
+      LOGICAL, INTENT(IN)                                :: flag_TDA
+      INTEGER, INTENT(IN)                                :: abba_solver, unit_nr
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Iterative solution (block Davidson); A (and B) are applied, never formed:'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         IF (flag_TDA) THEN
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'trial space Z_ia,m,  sum_ia Z_ia,m Z_ia,n = δ_mn'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'G_mn = sum_ia Z_ia,m sum_jb A_ia,jb Z_jb,n'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'sum_n G_mn c_n^k = θ^k c_m^k,  Ω^k = θ^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'X_ia^k = sum_m Z_ia,m c_m^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'r_ia^k = sum_jb A_ia,jb X_jb^k - θ^k X_ia^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 't_ia^k = r_ia^k/(d_ia - θ^k)'
+         ELSE IF (abba_solver == bse_abba_mk_davidson) THEN
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'trial space T_ia,m,  W_ia,m = sum_jb (A-B)_ia,jb T_jb,m,'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'with sum_ia T_ia,m W_ia,n = δ_mn'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'H_mn = sum_ia W_ia,m sum_jb (A+B)_ia,jb W_jb,n'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'sum_n H_mn c_n^k = θ^k c_m^k,  Ω^k = (θ^k)^1/2'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'X_ia^k - Y_ia^k = (Ω^k)^1/2 sum_m T_ia,m c_m^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'X_ia^k + Y_ia^k = (Ω^k)^-1/2 sum_m W_ia,m c_m^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'r_ia^k = sum_jb (A+B)_ia,jb (X_jb^k + Y_jb^k) - Ω^k (X_ia^k - Y_ia^k)'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 't_ia^k = r_ia^k/((d_ia)^2 - θ^k)'
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'one trial space b_ia,m,  sum_ia b_ia,m b_ia,n = δ_mn'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'Mr_mn = sum_ia b_ia,m sum_jb (A+B)_ia,jb b_jb,n'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'Kr_mn = sum_ia b_ia,m sum_jb (A-B)_ia,jb b_jb,n'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'sum_n Mr_mn R_n^k = Ω^k L_m^k,  sum_n Kr_mn L_n^k = Ω^k R_m^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'X_ia^k + Y_ia^k = sum_m b_ia,m R_m^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'X_ia^k - Y_ia^k = sum_m b_ia,m L_m^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'rR_ia^k = sum_jb (A+B)_ia,jb (X_jb^k+Y_jb^k) - Ω^k (X_ia^k-Y_ia^k)'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'rL_ia^k = sum_jb (A-B)_ia,jb (X_jb^k-Y_jb^k) - Ω^k (X_ia^k+Y_ia^k)'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 't_ia^k = r_ia^k/(d_ia - Ω^k),  |r^k| = max(|rR^k|, |rL^k|)'
+         END IF
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'd_ia from PRECONDITIONER, the trial space grows by the t_ia^k'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'convergence: |r^k| < EPS_RES, |ΔΩ^k| < EPS_ENERGY (CONVERGENCE_CRITERION)'
+      END IF
+
+   END SUBROUTINE print_iterative_method
 
 ! **************************************************************************************************
 !> \brief ...
