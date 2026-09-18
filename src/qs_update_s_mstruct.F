@@ -13,6 +13,7 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qs_update_s_mstruct
+   USE accint_weights_forces,           ONLY: weight_function_pwgrid
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_ddapc_types,                  ONLY: cp_ddapc_release
    USE cp_ddapc_util,                   ONLY: cp_ddapc_init
@@ -60,7 +61,9 @@ MODULE qs_update_s_mstruct
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_update_s_mstruct'
 
    PUBLIC :: qs_env_update_s_mstruct
-!***
+
+! *****************************************************************************
+
 CONTAINS
 
 ! *****************************************************************************
@@ -80,7 +83,6 @@ CONTAINS
 
       INTEGER                                            :: handle, nk
       LOGICAL                                            :: do_ppl
-      REAL(KIND=dp)                                      :: wtot
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cw
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_c1d_gs_type), POINTER                      :: rho_core, rho_nlcc_g
@@ -149,8 +151,9 @@ CONTAINS
             CALL get_qs_env(qs_env, xcint_weights=xcint_weights, nkind=nk)
             ALLOCATE (cw(nk))
             cw = 1.0_dp
-            CALL calculate_rho_core(xcint_weights, wtot, qs_env, &
-                                    dft_control%qs_control%gapw_control%aw, cw)
+            CALL weight_function_pwgrid(xcint_weights, qs_env, &
+                                        dft_control%qs_control%gapw_control%oweights, &
+                                        dft_control%qs_control%gapw_control%aw, cw)
             xcint_weights%array = 1.0_dp + xcint_weights%array
             DEALLOCATE (cw)
          END IF

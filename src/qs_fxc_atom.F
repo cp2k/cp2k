@@ -30,8 +30,9 @@ MODULE qs_fxc_atom
                                               rho_atom_coeff,&
                                               rho_atom_type
    USE qs_vxc_atom_utils,               ONLY: &
-        calc_rho_angular, calc_rho_nlcc, calc_tau_atom, create_tau_basis_cache, dgaVtaudgb, &
-        gaVxcgb_GC, gaVxcgb_noGC, release_tau_basis_cache, tau_basis_cache_type
+        calc_rho_angular, calc_rho_nlcc, calc_tau_atom, calc_weight_function, &
+        create_tau_basis_cache, dgaVtaudgb, gaVxcgb_GC, gaVxcgb_noGC, release_tau_basis_cache, &
+        tau_basis_cache_type
    USE util,                            ONLY: get_limit
    USE xc_atom,                         ONLY: fill_rho_set,&
                                               xc_2nd_deriv_of_r,&
@@ -84,7 +85,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fxc_atom_calc'
 
       INTEGER                                            :: atom, handle, iatom, ikind, ir, na, &
-                                                            natom, nr, nspins
+                                                            natom, nr, nspins, on
       INTEGER, DIMENSION(2)                              :: local_loop_limit
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
@@ -93,6 +94,7 @@ CONTAINS
                                                             scale_rho, tau_f
       REAL(KIND=dp)                                      :: agr, alpha, density_cut, gradient_cut, &
                                                             rtot, tau_cut
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: fw
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: vtau_h, vtau_s, vxc_h, vxc_s
       REAL(KIND=dp), DIMENSION(1, 1, 1)                  :: rtau
@@ -200,24 +202,26 @@ CONTAINS
          na = grid_atom%ng_sphere
 
          ! set integration weights
+         weight_h => grid_atom%weight
+         weight_s => grid_atom%weight
          IF (accint) THEN
-            weight_h => grid_atom%weight
+            on = dft_control%qs_control%gapw_control%oweights
             alpha = dft_control%qs_control%gapw_control%aw(ikind)
             IF (ASSOCIATED(grid_atom%gapw_weight_s)) THEN
                IF (grid_atom%gapw_weight_alpha /= alpha) DEALLOCATE (grid_atom%gapw_weight_s)
             END IF
             IF (.NOT. ASSOCIATED(grid_atom%gapw_weight_s)) THEN
                ALLOCATE (grid_atom%gapw_weight_s(na, nr))
+               ALLOCATE (fw(nr))
+               CALL calc_weight_function(fw, grid_atom%rad2, on, alpha)
                DO ir = 1, nr
-                  agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ir))
-                  grid_atom%gapw_weight_s(:, ir) = grid_atom%weight(:, ir)*agr
+                  agr = 1.0_dp - fw(ir)
+                  grid_atom%gapw_weight_s(:, ir) = agr*grid_atom%weight(:, ir)
                END DO
+               DEALLOCATE (fw)
                grid_atom%gapw_weight_alpha = alpha
             END IF
             weight_s => grid_atom%gapw_weight_s
-         ELSE
-            weight_h => grid_atom%weight
-            weight_s => grid_atom%weight
          END IF
 
          ! Array dimension: here only one dimensional arrays are used,

@@ -80,9 +80,9 @@ MODULE qs_vxc_atom
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_vxc_atom_utils,               ONLY: &
-        calc_rho_angular, calc_rho_nlcc, calc_tau_atom, create_tau_basis_cache, dgaVtaudgb, &
-        evaluate_nlcc_primitive_fields, gaVxcgb_GC, gaVxcgb_noGC, gapw_atom_grid_support_radius, &
-        release_tau_basis_cache, tau_basis_cache_type
+        calc_rho_angular, calc_rho_nlcc, calc_tau_atom, calc_weight_function, &
+        create_tau_basis_cache, dgaVtaudgb, evaluate_nlcc_primitive_fields, gaVxcgb_GC, &
+        gaVxcgb_noGC, gapw_atom_grid_support_radius, release_tau_basis_cache, tau_basis_cache_type
    USE skala_gpw_features,              ONLY: build_periodic_atom_image_layout,&
                                               periodic_atom_image_partition,&
                                               periodic_atom_image_partition_from_layout,&
@@ -255,7 +255,7 @@ CONTAINS
          gapw_density_partition, gapw_representation, handle, ia, iat, iatom, icomponent, idir, &
          ikind, image_i1, image_i2, image_i3, image_lower(3), image_shell(3), image_shift(3), &
          image_upper(3), ir, ispin, iw, jdir, myfun, na
-      INTEGER :: natom, nr, nspins, num_pe, source_atom, target_atom, xc_deriv_method_id, &
+      INTEGER :: natom, nr, nspins, num_pe, on, source_atom, target_atom, xc_deriv_method_id, &
          xc_rho_smooth_id, zatom
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:)     :: composite_atomic_grid_sizes, &
                                                             composite_local_grid_sizes
@@ -289,7 +289,7 @@ CONTAINS
          smooth_grid_contraction, smooth_input_contraction, target_partition_adjoint, tau_cut, zeff
       REAL(dp), ALLOCATABLE, DIMENSION(:) :: composite_atomic_grid_weight_grad, &
          composite_atomic_grid_weights, composite_base_grid_weights, composite_distances, &
-         composite_grid_weight_grad, composite_grid_weights, composite_partition_weights
+         composite_grid_weight_grad, composite_grid_weights, composite_partition_weights, fw
       REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: composite_atom_coord_grad, composite_atom_coords, &
          composite_cross_density, composite_cross_force, composite_cross_force_local, &
          composite_cross_kin, composite_density, composite_density_grad, &
@@ -756,24 +756,26 @@ CONTAINS
                bounds(2, 2) = nr
 
                ! set integration weights
+               weight_h => grid_atom%weight
+               weight_s => grid_atom%weight
                IF (accint) THEN
-                  weight_h => grid_atom%weight
+                  on = dft_control%qs_control%gapw_control%oweights
                   alpha = dft_control%qs_control%gapw_control%aw(ikind)
                   IF (ASSOCIATED(grid_atom%gapw_weight_s)) THEN
                      IF (grid_atom%gapw_weight_alpha /= alpha) DEALLOCATE (grid_atom%gapw_weight_s)
                   END IF
                   IF (.NOT. ASSOCIATED(grid_atom%gapw_weight_s)) THEN
                      ALLOCATE (grid_atom%gapw_weight_s(na, nr))
+                     ALLOCATE (fw(nr))
+                     CALL calc_weight_function(fw, grid_atom%rad2, on, alpha)
                      DO ir = 1, nr
-                        agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ir))
-                        grid_atom%gapw_weight_s(:, ir) = grid_atom%weight(:, ir)*agr
+                        agr = 1.0_dp - fw(ir)
+                        grid_atom%gapw_weight_s(:, ir) = agr*grid_atom%weight(:, ir)
                      END DO
+                     DEALLOCATE (fw)
                      grid_atom%gapw_weight_alpha = alpha
                   END IF
                   weight_s => grid_atom%gapw_weight_s
-               ELSE
-                  weight_h => grid_atom%weight
-                  weight_s => grid_atom%weight
                END IF
 
                ! create a place where to put the derivatives
@@ -3916,13 +3918,14 @@ CONTAINS
 
       INTEGER                                            :: bo(2), handle, ia, iat, iatom, idir, &
                                                             ikind, ir, ispin, myfun, na, natom, &
-                                                            nr, nspins, num_pe
+                                                            nr, nspins, num_pe, on
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: accint, donlcc, gradient_f, lsd, nlcc, &
                                                             paw_atom, tau_f
       REAL(dp)                                           :: agr, alpha, density_cut, exc_h, exc_s, &
                                                             gradient_cut, tau_cut
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: fw
       REAL(dp), DIMENSION(1, 1, 1)                       :: tau_d
       REAL(dp), DIMENSION(1, 1, 1, 1)                    :: rho_d
       REAL(dp), DIMENSION(:, :), POINTER                 :: rho_nlcc, weight_h, weight_s
@@ -4034,24 +4037,26 @@ CONTAINS
             bounds(2, 2) = nr
 
             ! set integration weights
+            weight_h => grid_atom%weight
+            weight_s => grid_atom%weight
             IF (accint) THEN
-               weight_h => grid_atom%weight
+               on = dft_control%qs_control%gapw_control%oweights
                alpha = dft_control%qs_control%gapw_control%aw(ikind)
                IF (ASSOCIATED(grid_atom%gapw_weight_s)) THEN
                   IF (grid_atom%gapw_weight_alpha /= alpha) DEALLOCATE (grid_atom%gapw_weight_s)
                END IF
                IF (.NOT. ASSOCIATED(grid_atom%gapw_weight_s)) THEN
                   ALLOCATE (grid_atom%gapw_weight_s(na, nr))
+                  ALLOCATE (fw(nr))
+                  CALL calc_weight_function(fw, grid_atom%rad2, on, alpha)
                   DO ir = 1, nr
-                     agr = 1.0_dp - EXP(-alpha*grid_atom%rad2(ir))
-                     grid_atom%gapw_weight_s(:, ir) = grid_atom%weight(:, ir)*agr
+                     agr = 1.0_dp - fw(ir)
+                     grid_atom%gapw_weight_s(:, ir) = agr*grid_atom%weight(:, ir)
                   END DO
+                  DEALLOCATE (fw)
                   grid_atom%gapw_weight_alpha = alpha
                END IF
                weight_s => grid_atom%gapw_weight_s
-            ELSE
-               weight_h => grid_atom%weight
-               weight_s => grid_atom%weight
             END IF
 
             ! create a place where to put the derivatives

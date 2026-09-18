@@ -259,8 +259,17 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="ALPHA_WEIGHTS", &
-         description="Gaussian exponent reference (rc=1.2 Bohr) for accurate integration in GAPW.", &
+         description="Gaussian exponent reference (rc=1.2 Bohr) in weight function for "// &
+         "accurate integration in GAPW.", &
          usage="ALPHA_WEIGHTS 10.0", default_r_val=6.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="ORDER_WEIGHTS", &
+         description="Order of r^2 polynomial (2n) in weight function for "// &
+         "accurate integration in GAPW.", &
+         usage="ORDER_WEIGHTS 1", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
