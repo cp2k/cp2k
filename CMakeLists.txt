@@ -694,11 +694,14 @@ endif()
 if(CP2K_USE_LIBXC)
   find_package(Libxc 7.1.0 CONFIG REQUIRED)
 
-  get_target_property(LIBXC_CPU_INCLUDE_DIRS Libxc::xcf03 INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(LIBXC_CPU_INCLUDE_DIRS Libxc::xcf03
+                      INTERFACE_INCLUDE_DIRECTORIES)
   get_target_property(LIBXC_CPU_LIBRARIES Libxc::xcf03 INTERFACE_LINK_LIBRARIES)
 
   if(CP2K_USE_CUDA)
-    set(CP2K_LIBXC_CUDA_SUPPORT ON CACHE BOOL "libxc CUDA support available")
+    set(CP2K_LIBXC_CUDA_SUPPORT
+        ON
+        CACHE BOOL "libxc CUDA support available")
     set(LIBXC_CUDA_FOUND TRUE)
     message(STATUS "Found CUDA Libxc (${Libxc_VERSION})")
   else()
