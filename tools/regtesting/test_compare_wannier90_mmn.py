@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Unit tests for the gauge-independent overlap reciprocity check."""
+"""Test the Python .mmn overlap reciprocity diagnostic.
+
+These tests validate check_reciprocity in compare_wannier90_mmn.py, including
+malformed blocks. The Fortran wannier90_projections_unittest instead exercises
+AO trial selection, rank checks, and projection covariance.
+"""
 
 import unittest
 
