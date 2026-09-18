@@ -219,6 +219,13 @@ tmc_dot_tree.F: Found WRITE statement with hardcoded unit in "create_dot_color" 
 tmc_dot_tree.F: Found WRITE statement with hardcoded unit in "create_global_tree_dot_color" https://cp2k.org/conv#c012
 tmc_messages.F: Found WRITE statement with hardcoded unit in "read_energy_result_message" https://cp2k.org/conv#c012
 tmc_messages.F: Found WRITE statement with hardcoded unit in "tmc_message" https://cp2k.org/conv#c012
+topology_curvature.F: Procedure 'zgees' called with an implicit interface at (1) [-Wimplicit-interface]
+topology_phason_analysis.F: Found CLOSE statement in procedure "analyze_mesh" https://cp2k.org/conv#c204
+topology_phason_analysis.F: Found OPEN statement in procedure "analyze_mesh" https://cp2k.org/conv#c203
+topology_phason_analysis.F: Found WRITE statement with hardcoded unit in "analyze_mesh" https://cp2k.org/conv#c012
+topology_phason_analysis.F: Found WRITE statement with hardcoded unit in "compare_refinements" https://cp2k.org/conv#c012
+topology_phasons.F: Found WRITE statement with hardcoded unit in "topology_phasons" https://cp2k.org/conv#c012
+topology_wilson_unittest.F: Found WRITE statement with hardcoded unit in "topology_wilson_unittest" https://cp2k.org/conv#c012
 topology_generate_util.F: Found WRITE statement with hardcoded unit in "generate_molname_low" https://cp2k.org/conv#c012
 topology_generate_util.F: Found WRITE statement with hardcoded unit in "topology_generate_molecule" https://cp2k.org/conv#c012
 topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos" https://cp2k.org/conv#c001
