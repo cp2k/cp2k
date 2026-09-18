@@ -75,6 +75,8 @@ MODULE xc_libxc_wrap
                            xc_f03_lda_fxc, &
                            xc_f03_lda_kxc, &
                            xc_f03_lda_vxc, &
+                           xc_f03_lda_vxc_fxc, &
+                           xc_f03_lda_vxc_fxc_kxc, &
                            !
                            xc_f03_mgga_exc_vxc_fxc, &
                            xc_f03_mgga_exc, &
@@ -132,8 +134,8 @@ MODULE xc_libxc_wrap
              xc_f03_gga_vxc, xc_f03_gga_vxc_fxc, &
              xc_f03_gga_exc_vxc_fxc_kxc, xc_f03_gga_vxc_fxc_kxc
    PUBLIC :: xc_f03_mgga_exc_vxc_fxc_kxc, xc_f03_mgga_vxc_fxc_kxc, &
-             xc_f03_mgga_exc, xc_f03_mgga_exc_vxc, xc_f03_mgga_fxc, &
-             xc_f03_mgga_vxc, xc_f03_mgga_vxc_fxc
+             xc_f03_mgga_exc, xc_f03_mgga_exc_vxc, xc_f03_mgga_exc_vxc_fxc, &
+             xc_f03_mgga_fxc, xc_f03_mgga_vxc, xc_f03_mgga_vxc_fxc
 
    PUBLIC :: XC_FAMILY_LDA, XC_FAMILY_GGA, XC_FAMILY_MGGA, &
              XC_FAMILY_HYB_LDA, XC_FAMILY_HYB_GGA, XC_FAMILY_HYB_MGGA
@@ -193,10 +195,16 @@ MODULE xc_libxc_wrap
              libxc_mgga_exc_vxc_wrapper, libxc_mgga_exc_wrapper, &
              libxc_mgga_vxc_wrapper, &
              libxc_lda_exc_vxc_device, libxc_lda_exc_device, &
-             libxc_gga_exc_device, libxc_gga_exc_vxc_device, &
-             libxc_gga_vxc_device, &
-             libxc_mgga_exc_device, libxc_mgga_exc_vxc_device, &
-             libxc_mgga_vxc_device
+             libxc_lda_vxc_fxc_device, &
+             libxc_lda_exc_vxc_fxc_device, libxc_lda_exc_vxc_fxc_kxc_device, &
+              libxc_gga_exc_device, libxc_gga_exc_vxc_device, &
+              libxc_gga_vxc_device, &
+              libxc_gga_vxc_fxc_device, libxc_gga_exc_vxc_fxc_device, &
+              libxc_gga_vxc_fxc_kxc_device, libxc_gga_exc_vxc_fxc_kxc_device, &
+              libxc_mgga_exc_device, libxc_mgga_exc_vxc_device, &
+              libxc_mgga_vxc_device, libxc_mgga_vxc_fxc_device, &
+              libxc_mgga_exc_vxc_fxc_device, &
+              libxc_mgga_vxc_fxc_kxc_device, libxc_mgga_exc_vxc_fxc_kxc_device
 
    ! Alias definitions for backward compatibility
    PROCEDURE(xc_f03_lda_exc_vxc_fxc_kxc), POINTER :: xc_f03_lda => xc_f03_lda_exc_vxc_fxc_kxc
@@ -881,6 +889,84 @@ CONTAINS
    END SUBROUTINE libxc_lda_exc_device
 
 ! **************************************************************************************************
+!> \brief LDA exc, vxc and fxc on device buffers.
+!> \param func ...
+!> \param rho_d ...
+!> \param exc_d ...
+!> \param vrho_d ...
+!> \param v2rho2_d ...
+!> \param np ...
+! **************************************************************************************************
+   SUBROUTINE libxc_lda_exc_vxc_fxc_device(func, rho_d, exc_d, vrho_d, v2rho2_d, np)
+      USE ISO_C_BINDING, ONLY: C_SIZE_T
+      TYPE(xc_f03_func_t), INTENT(IN)                    :: func
+      TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, vrho_d, v2rho2_d
+      INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: exc_p, rho_p, v2rho2_p, vrho_p
+
+      CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
+      CALL libxc_device_buffer_get_ptr(exc_d, INT(exc_d%size), exc_p)
+      CALL libxc_device_buffer_get_ptr(vrho_d, INT(vrho_d%size), vrho_p)
+      CALL libxc_device_buffer_get_ptr(v2rho2_d, INT(v2rho2_d%size), v2rho2_p)
+
+      CALL xc_f03_lda_exc_vxc_fxc(func, np, rho_p, exc_p, vrho_p, v2rho2_p)
+   END SUBROUTINE libxc_lda_exc_vxc_fxc_device
+
+! **************************************************************************************************
+!> \brief LDA vxc and fxc on device buffers.
+!> \param func ...
+!> \param rho_d ...
+!> \param vrho_d ...
+!> \param v2rho2_d ...
+!> \param np ...
+! **************************************************************************************************
+   SUBROUTINE libxc_lda_vxc_fxc_device(func, rho_d, vrho_d, v2rho2_d, np)
+      USE ISO_C_BINDING, ONLY: C_SIZE_T
+      TYPE(xc_f03_func_t), INTENT(IN)                    :: func
+      TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: vrho_d, v2rho2_d
+      INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rho_p, v2rho2_p, vrho_p
+
+      CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
+      CALL libxc_device_buffer_get_ptr(vrho_d, INT(vrho_d%size), vrho_p)
+      CALL libxc_device_buffer_get_ptr(v2rho2_d, INT(v2rho2_d%size), v2rho2_p)
+
+      CALL xc_f03_lda_vxc_fxc(func, np, rho_p, vrho_p, v2rho2_p)
+   END SUBROUTINE libxc_lda_vxc_fxc_device
+
+! **************************************************************************************************
+!> \brief LDA exc, vxc, fxc and kxc on device buffers.
+!> \param func ...
+!> \param rho_d ...
+!> \param exc_d ...
+!> \param vrho_d ...
+!> \param v2rho2_d ...
+!> \param v3rho3_d ...
+!> \param np ...
+! **************************************************************************************************
+   SUBROUTINE libxc_lda_exc_vxc_fxc_kxc_device(func, rho_d, exc_d, vrho_d, v2rho2_d, v3rho3_d, np)
+      USE ISO_C_BINDING, ONLY: C_SIZE_T
+      TYPE(xc_f03_func_t), INTENT(IN)                    :: func
+      TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, v2rho2_d, v3rho3_d, vrho_d
+      INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: exc_p, rho_p, v2rho2_p, v3rho3_p, vrho_p
+
+      CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
+      CALL libxc_device_buffer_get_ptr(exc_d, INT(exc_d%size), exc_p)
+      CALL libxc_device_buffer_get_ptr(vrho_d, INT(vrho_d%size), vrho_p)
+      CALL libxc_device_buffer_get_ptr(v2rho2_d, INT(v2rho2_d%size), v2rho2_p)
+      CALL libxc_device_buffer_get_ptr(v3rho3_d, INT(v3rho3_d%size), v3rho3_p)
+
+      CALL xc_f03_lda_exc_vxc_fxc_kxc(func, np, rho_p, exc_p, vrho_p, v2rho2_p, v3rho3_p)
+   END SUBROUTINE libxc_lda_exc_vxc_fxc_kxc_device
+
+! **************************************************************************************************
 !> \brief GGA exc on device buffers.
 !> \param func ...
 !> \param rho_d ...
@@ -931,6 +1017,180 @@ CONTAINS
 
       CALL xc_f03_gga_exc_vxc(func, np, rho_p, sigma_p, exc_p, vrho_p, vsigma_p)
    END SUBROUTINE libxc_gga_exc_vxc_device
+
+! **************************************************************************************************
+!> \brief GGA exc, vxc and fxc on device buffers.
+!> \param func ...
+!> \param rho_d ...
+!> \param sigma_d ...
+!> \param exc_d ...
+!> \param vrho_d ...
+!> \param vsigma_d ...
+!> \param v2rho2_d ...
+!> \param v2rhosigma_d ...
+!> \param v2sigma2_d ...
+!> \param np ...
+! **************************************************************************************************
+   SUBROUTINE libxc_gga_exc_vxc_fxc_device(func, rho_d, sigma_d, exc_d, vrho_d, vsigma_d, &
+                                           v2rho2_d, v2rhosigma_d, v2sigma2_d, np)
+      USE ISO_C_BINDING, ONLY: C_SIZE_T
+      TYPE(xc_f03_func_t), INTENT(IN)                    :: func
+      TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, v2rho2_d, v2rhosigma_d, &
+                                                            v2sigma2_d, vrho_d, vsigma_d
+      INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: exc_p, rho_p, sigma_p, v2rho2_p, &
+                                                            v2rhosigma_p, v2sigma2_p, vrho_p, vsigma_p
+
+      CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
+      CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
+      CALL libxc_device_buffer_get_ptr(exc_d, INT(exc_d%size), exc_p)
+      CALL libxc_device_buffer_get_ptr(vrho_d, INT(vrho_d%size), vrho_p)
+      CALL libxc_device_buffer_get_ptr(vsigma_d, INT(vsigma_d%size), vsigma_p)
+      CALL libxc_device_buffer_get_ptr(v2rho2_d, INT(v2rho2_d%size), v2rho2_p)
+      CALL libxc_device_buffer_get_ptr(v2rhosigma_d, INT(v2rhosigma_d%size), v2rhosigma_p)
+      CALL libxc_device_buffer_get_ptr(v2sigma2_d, INT(v2sigma2_d%size), v2sigma2_p)
+
+      CALL xc_f03_gga_exc_vxc_fxc(func, np, rho_p, sigma_p, exc_p, vrho_p, vsigma_p, &
+                                  v2rho2_p, v2rhosigma_p, v2sigma2_p)
+   END SUBROUTINE libxc_gga_exc_vxc_fxc_device
+
+! **************************************************************************************************
+!> \brief GGA vxc and fxc on device buffers.
+!> \param func ...
+!> \param rho_d ...
+!> \param sigma_d ...
+!> \param vrho_d ...
+!> \param vsigma_d ...
+!> \param v2rho2_d ...
+!> \param v2rhosigma_d ...
+!> \param v2sigma2_d ...
+!> \param np ...
+! **************************************************************************************************
+   SUBROUTINE libxc_gga_vxc_fxc_device(func, rho_d, sigma_d, vrho_d, vsigma_d, &
+                                       v2rho2_d, v2rhosigma_d, v2sigma2_d, np)
+      USE ISO_C_BINDING, ONLY: C_SIZE_T
+      TYPE(xc_f03_func_t), INTENT(IN)                    :: func
+      TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: v2rho2_d, v2rhosigma_d, v2sigma2_d, &
+                                                            vrho_d, vsigma_d
+      INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rho_p, sigma_p, v2rho2_p, &
+                                                            v2rhosigma_p, v2sigma2_p, vrho_p, vsigma_p
+
+      CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
+      CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
+      CALL libxc_device_buffer_get_ptr(vrho_d, INT(vrho_d%size), vrho_p)
+      CALL libxc_device_buffer_get_ptr(vsigma_d, INT(vsigma_d%size), vsigma_p)
+      CALL libxc_device_buffer_get_ptr(v2rho2_d, INT(v2rho2_d%size), v2rho2_p)
+      CALL libxc_device_buffer_get_ptr(v2rhosigma_d, INT(v2rhosigma_d%size), v2rhosigma_p)
+      CALL libxc_device_buffer_get_ptr(v2sigma2_d, INT(v2sigma2_d%size), v2sigma2_p)
+
+      CALL xc_f03_gga_vxc_fxc(func, np, rho_p, sigma_p, vrho_p, vsigma_p, &
+                              v2rho2_p, v2rhosigma_p, v2sigma2_p)
+   END SUBROUTINE libxc_gga_vxc_fxc_device
+
+! **************************************************************************************************
+!> \brief GGA exc, vxc, fxc and kxc on device buffers.
+!> \param func ...
+!> \param rho_d ...
+!> \param sigma_d ...
+!> \param exc_d ...
+!> \param vrho_d ...
+!> \param vsigma_d ...
+!> \param v2rho2_d ...
+!> \param v2rhosigma_d ...
+!> \param v2sigma2_d ...
+!> \param v3rho3_d ...
+!> \param v3rho2sigma_d ...
+!> \param v3rhosigma2_d ...
+!> \param v3sigma3_d ...
+!> \param np ...
+! **************************************************************************************************
+   SUBROUTINE libxc_gga_exc_vxc_fxc_kxc_device(func, rho_d, sigma_d, exc_d, vrho_d, vsigma_d, &
+                                               v2rho2_d, v2rhosigma_d, v2sigma2_d, &
+                                               v3rho3_d, v3rho2sigma_d, v3rhosigma2_d, v3sigma3_d, np)
+      USE ISO_C_BINDING, ONLY: C_SIZE_T
+      TYPE(xc_f03_func_t), INTENT(IN)                    :: func
+      TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, v2rho2_d, v2rhosigma_d, &
+                                                            v2sigma2_d, v3rho3_d, v3rho2sigma_d, &
+                                                            v3rhosigma2_d, v3sigma3_d, vrho_d, vsigma_d
+      INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: exc_p, rho_p, sigma_p, v2rho2_p, &
+                                                            v2rhosigma_p, v2sigma2_p, v3rho3_p, &
+                                                            v3rho2sigma_p, v3rhosigma2_p, v3sigma3_p, &
+                                                            vrho_p, vsigma_p
+
+      CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
+      CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
+      CALL libxc_device_buffer_get_ptr(exc_d, INT(exc_d%size), exc_p)
+      CALL libxc_device_buffer_get_ptr(vrho_d, INT(vrho_d%size), vrho_p)
+      CALL libxc_device_buffer_get_ptr(vsigma_d, INT(vsigma_d%size), vsigma_p)
+      CALL libxc_device_buffer_get_ptr(v2rho2_d, INT(v2rho2_d%size), v2rho2_p)
+      CALL libxc_device_buffer_get_ptr(v2rhosigma_d, INT(v2rhosigma_d%size), v2rhosigma_p)
+      CALL libxc_device_buffer_get_ptr(v2sigma2_d, INT(v2sigma2_d%size), v2sigma2_p)
+      CALL libxc_device_buffer_get_ptr(v3rho3_d, INT(v3rho3_d%size), v3rho3_p)
+      CALL libxc_device_buffer_get_ptr(v3rho2sigma_d, INT(v3rho2sigma_d%size), v3rho2sigma_p)
+      CALL libxc_device_buffer_get_ptr(v3rhosigma2_d, INT(v3rhosigma2_d%size), v3rhosigma2_p)
+      CALL libxc_device_buffer_get_ptr(v3sigma3_d, INT(v3sigma3_d%size), v3sigma3_p)
+
+      CALL xc_f03_gga_exc_vxc_fxc_kxc(func, np, rho_p, sigma_p, exc_p, vrho_p, vsigma_p, &
+                                      v2rho2_p, v2rhosigma_p, v2sigma2_p, v3rho3_p, &
+                                      v3rho2sigma_p, v3rhosigma2_p, v3sigma3_p)
+   END SUBROUTINE libxc_gga_exc_vxc_fxc_kxc_device
+
+! **************************************************************************************************
+!> \brief GGA vxc, fxc and kxc on device buffers.
+!> \param func ...
+!> \param rho_d ...
+!> \param sigma_d ...
+!> \param vrho_d ...
+!> \param vsigma_d ...
+!> \param v2rho2_d ...
+!> \param v2rhosigma_d ...
+!> \param v2sigma2_d ...
+!> \param v3rho3_d ...
+!> \param v3rho2sigma_d ...
+!> \param v3rhosigma2_d ...
+!> \param v3sigma3_d ...
+!> \param np ...
+! **************************************************************************************************
+   SUBROUTINE libxc_gga_vxc_fxc_kxc_device(func, rho_d, sigma_d, vrho_d, vsigma_d, &
+                                           v2rho2_d, v2rhosigma_d, v2sigma2_d, &
+                                           v3rho3_d, v3rho2sigma_d, v3rhosigma2_d, v3sigma3_d, np)
+      USE ISO_C_BINDING, ONLY: C_SIZE_T
+      TYPE(xc_f03_func_t), INTENT(IN)                    :: func
+      TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: v2rho2_d, v2rhosigma_d, v2sigma2_d, &
+                                                            v3rho3_d, v3rho2sigma_d, &
+                                                            v3rhosigma2_d, v3sigma3_d, vrho_d, vsigma_d
+      INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rho_p, sigma_p, v2rho2_p, &
+                                                            v2rhosigma_p, v2sigma2_p, v3rho3_p, &
+                                                            v3rho2sigma_p, v3rhosigma2_p, v3sigma3_p, &
+                                                            vrho_p, vsigma_p
+
+      CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
+      CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
+      CALL libxc_device_buffer_get_ptr(vrho_d, INT(vrho_d%size), vrho_p)
+      CALL libxc_device_buffer_get_ptr(vsigma_d, INT(vsigma_d%size), vsigma_p)
+      CALL libxc_device_buffer_get_ptr(v2rho2_d, INT(v2rho2_d%size), v2rho2_p)
+      CALL libxc_device_buffer_get_ptr(v2rhosigma_d, INT(v2rhosigma_d%size), v2rhosigma_p)
+      CALL libxc_device_buffer_get_ptr(v2sigma2_d, INT(v2sigma2_d%size), v2sigma2_p)
+      CALL libxc_device_buffer_get_ptr(v3rho3_d, INT(v3rho3_d%size), v3rho3_p)
+      CALL libxc_device_buffer_get_ptr(v3rho2sigma_d, INT(v3rho2sigma_d%size), v3rho2sigma_p)
+      CALL libxc_device_buffer_get_ptr(v3rhosigma2_d, INT(v3rhosigma2_d%size), v3rhosigma2_p)
+      CALL libxc_device_buffer_get_ptr(v3sigma3_d, INT(v3sigma3_d%size), v3sigma3_p)
+
+      CALL xc_f03_gga_vxc_fxc_kxc(func, np, rho_p, sigma_p, vrho_p, vsigma_p, &
+                                  v2rho2_p, v2rhosigma_p, v2sigma2_p, v3rho3_p, &
+                                  v3rho2sigma_p, v3rhosigma2_p, v3sigma3_p)
+   END SUBROUTINE libxc_gga_vxc_fxc_kxc_device
 
 ! **************************************************************************************************
 !> \brief GGA vxc on device buffers.
@@ -1023,6 +1283,422 @@ CONTAINS
       CALL xc_f03_mgga_exc_vxc(func, np, rho_p, sigma_p, lapl_p, tau_p, &
                                exc_p, vrho_p, vsigma_p, vlapl_p, vtau_p)
    END SUBROUTINE libxc_mgga_exc_vxc_device
+
+! **************************************************************************************************
+!> \brief MGGA exc, vxc and fxc on device buffers.
+!> \param func ...
+!> \param rho_d ...
+!> \param sigma_d ...
+!> \param lapl_d ...
+!> \param tau_d ...
+!> \param exc_d ...
+!> \param vrho_d ...
+!> \param vsigma_d ...
+!> \param vlapl_d ...
+!> \param vtau_d ...
+!> \param v2rho2_d ...
+!> \param v2rhosigma_d ...
+!> \param v2rholapl_d ...
+!> \param v2rhotau_d ...
+!> \param v2sigma2_d ...
+!> \param v2sigmalapl_d ...
+!> \param v2sigmatau_d ...
+!> \param v2lapl2_d ...
+!> \param v2lapltau_d ...
+!> \param v2tau2_d ...
+!> \param np ...
+! **************************************************************************************************
+   SUBROUTINE libxc_mgga_exc_vxc_fxc_device(func, rho_d, sigma_d, lapl_d, tau_d, exc_d, &
+                                            vrho_d, vsigma_d, vlapl_d, vtau_d, v2rho2_d, &
+                                            v2rhosigma_d, v2rholapl_d, v2rhotau_d, v2sigma2_d, &
+                                            v2sigmalapl_d, v2sigmatau_d, v2lapl2_d, v2lapltau_d, &
+                                            v2tau2_d, np)
+      USE ISO_C_BINDING, ONLY: C_SIZE_T
+      TYPE(xc_f03_func_t), INTENT(IN)                    :: func
+      TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d, lapl_d, tau_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, v2lapl2_d, v2lapltau_d, &
+                                                            v2rho2_d, v2rholapl_d, v2rhosigma_d, &
+                                                            v2rhotau_d, v2sigma2_d, v2sigmalapl_d, &
+                                                            v2sigmatau_d, v2tau2_d, vlapl_d, &
+                                                            vrho_d, vsigma_d, vtau_d
+      INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: exc_p, lapl_p, rho_p, sigma_p, tau_p, &
+                                                            v2lapl2_p, v2lapltau_p, v2rho2_p, &
+                                                            v2rholapl_p, v2rhosigma_p, v2rhotau_p, &
+                                                            v2sigma2_p, v2sigmalapl_p, v2sigmatau_p, &
+                                                            v2tau2_p, vlapl_p, vrho_p, vsigma_p, vtau_p
+
+      CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
+      CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
+      CALL libxc_device_buffer_get_ptr(lapl_d, INT(lapl_d%size), lapl_p)
+      CALL libxc_device_buffer_get_ptr(tau_d, INT(tau_d%size), tau_p)
+      CALL libxc_device_buffer_get_ptr(exc_d, INT(exc_d%size), exc_p)
+      CALL libxc_device_buffer_get_ptr(vrho_d, INT(vrho_d%size), vrho_p)
+      CALL libxc_device_buffer_get_ptr(vsigma_d, INT(vsigma_d%size), vsigma_p)
+      CALL libxc_device_buffer_get_ptr(vlapl_d, INT(vlapl_d%size), vlapl_p)
+      CALL libxc_device_buffer_get_ptr(vtau_d, INT(vtau_d%size), vtau_p)
+      CALL libxc_device_buffer_get_ptr(v2rho2_d, INT(v2rho2_d%size), v2rho2_p)
+      CALL libxc_device_buffer_get_ptr(v2rhosigma_d, INT(v2rhosigma_d%size), v2rhosigma_p)
+      CALL libxc_device_buffer_get_ptr(v2rholapl_d, INT(v2rholapl_d%size), v2rholapl_p)
+      CALL libxc_device_buffer_get_ptr(v2rhotau_d, INT(v2rhotau_d%size), v2rhotau_p)
+      CALL libxc_device_buffer_get_ptr(v2sigma2_d, INT(v2sigma2_d%size), v2sigma2_p)
+      CALL libxc_device_buffer_get_ptr(v2sigmalapl_d, INT(v2sigmalapl_d%size), v2sigmalapl_p)
+      CALL libxc_device_buffer_get_ptr(v2sigmatau_d, INT(v2sigmatau_d%size), v2sigmatau_p)
+      CALL libxc_device_buffer_get_ptr(v2lapl2_d, INT(v2lapl2_d%size), v2lapl2_p)
+      CALL libxc_device_buffer_get_ptr(v2lapltau_d, INT(v2lapltau_d%size), v2lapltau_p)
+      CALL libxc_device_buffer_get_ptr(v2tau2_d, INT(v2tau2_d%size), v2tau2_p)
+
+      CALL xc_f03_mgga_exc_vxc_fxc(func, np, rho_p, sigma_p, lapl_p, tau_p, &
+                                   exc_p, vrho_p, vsigma_p, vlapl_p, vtau_p, &
+                                   v2rho2_p, v2rhosigma_p, v2rholapl_p, &
+                                   v2rhotau_p, v2sigma2_p, v2sigmalapl_p, &
+                                   v2sigmatau_p, v2lapl2_p, v2lapltau_p, v2tau2_p)
+   END SUBROUTINE libxc_mgga_exc_vxc_fxc_device
+
+! **************************************************************************************************
+!> \brief MGGA vxc and fxc on device buffers.
+!> \param func ...
+!> \param rho_d ...
+!> \param sigma_d ...
+!> \param lapl_d ...
+!> \param tau_d ...
+!> \param vrho_d ...
+!> \param vsigma_d ...
+!> \param vlapl_d ...
+!> \param vtau_d ...
+!> \param v2rho2_d ...
+!> \param v2rhosigma_d ...
+!> \param v2rholapl_d ...
+!> \param v2rhotau_d ...
+!> \param v2sigma2_d ...
+!> \param v2sigmalapl_d ...
+!> \param v2sigmatau_d ...
+!> \param v2lapl2_d ...
+!> \param v2lapltau_d ...
+!> \param v2tau2_d ...
+!> \param np ...
+! **************************************************************************************************
+   SUBROUTINE libxc_mgga_vxc_fxc_device(func, rho_d, sigma_d, lapl_d, tau_d, vrho_d, &
+                                        vsigma_d, vlapl_d, vtau_d, v2rho2_d, &
+                                        v2rhosigma_d, v2rholapl_d, v2rhotau_d, v2sigma2_d, &
+                                        v2sigmalapl_d, v2sigmatau_d, v2lapl2_d, v2lapltau_d, &
+                                        v2tau2_d, np)
+      USE ISO_C_BINDING, ONLY: C_SIZE_T
+      TYPE(xc_f03_func_t), INTENT(IN)                    :: func
+      TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d, lapl_d, tau_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: v2lapl2_d, v2lapltau_d, &
+                                                            v2rho2_d, v2rholapl_d, v2rhosigma_d, &
+                                                            v2rhotau_d, v2sigma2_d, v2sigmalapl_d, &
+                                                            v2sigmatau_d, v2tau2_d, vlapl_d, &
+                                                            vrho_d, vsigma_d, vtau_d
+      INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: lapl_p, rho_p, sigma_p, tau_p, &
+                                                            v2lapl2_p, v2lapltau_p, v2rho2_p, &
+                                                            v2rholapl_p, v2rhosigma_p, v2rhotau_p, &
+                                                            v2sigma2_p, v2sigmalapl_p, v2sigmatau_p, &
+                                                            v2tau2_p, vlapl_p, vrho_p, vsigma_p, vtau_p
+
+      CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
+      CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
+      CALL libxc_device_buffer_get_ptr(lapl_d, INT(lapl_d%size), lapl_p)
+      CALL libxc_device_buffer_get_ptr(tau_d, INT(tau_d%size), tau_p)
+      CALL libxc_device_buffer_get_ptr(vrho_d, INT(vrho_d%size), vrho_p)
+      CALL libxc_device_buffer_get_ptr(vsigma_d, INT(vsigma_d%size), vsigma_p)
+      CALL libxc_device_buffer_get_ptr(vlapl_d, INT(vlapl_d%size), vlapl_p)
+      CALL libxc_device_buffer_get_ptr(vtau_d, INT(vtau_d%size), vtau_p)
+      CALL libxc_device_buffer_get_ptr(v2rho2_d, INT(v2rho2_d%size), v2rho2_p)
+      CALL libxc_device_buffer_get_ptr(v2rhosigma_d, INT(v2rhosigma_d%size), v2rhosigma_p)
+      CALL libxc_device_buffer_get_ptr(v2rholapl_d, INT(v2rholapl_d%size), v2rholapl_p)
+      CALL libxc_device_buffer_get_ptr(v2rhotau_d, INT(v2rhotau_d%size), v2rhotau_p)
+      CALL libxc_device_buffer_get_ptr(v2sigma2_d, INT(v2sigma2_d%size), v2sigma2_p)
+      CALL libxc_device_buffer_get_ptr(v2sigmalapl_d, INT(v2sigmalapl_d%size), v2sigmalapl_p)
+      CALL libxc_device_buffer_get_ptr(v2sigmatau_d, INT(v2sigmatau_d%size), v2sigmatau_p)
+      CALL libxc_device_buffer_get_ptr(v2lapl2_d, INT(v2lapl2_d%size), v2lapl2_p)
+      CALL libxc_device_buffer_get_ptr(v2lapltau_d, INT(v2lapltau_d%size), v2lapltau_p)
+      CALL libxc_device_buffer_get_ptr(v2tau2_d, INT(v2tau2_d%size), v2tau2_p)
+
+      CALL xc_f03_mgga_vxc_fxc(func, np, rho_p, sigma_p, lapl_p, tau_p, &
+                               vrho_p, vsigma_p, vlapl_p, vtau_p, &
+                               v2rho2_p, v2rhosigma_p, v2rholapl_p, &
+                               v2rhotau_p, v2sigma2_p, v2sigmalapl_p, &
+                               v2sigmatau_p, v2lapl2_p, v2lapltau_p, v2tau2_p)
+   END SUBROUTINE libxc_mgga_vxc_fxc_device
+
+! **************************************************************************************************
+!> \brief MGGA exc, vxc, fxc and kxc on device buffers.
+!> \param func ...
+!> \param rho_d ...
+!> \param sigma_d ...
+!> \param lapl_d ...
+!> \param tau_d ...
+!> \param exc_d ...
+!> \param vrho_d ...
+!> \param vsigma_d ...
+!> \param vlapl_d ...
+!> \param vtau_d ...
+!> \param v2rho2_d ...
+!> \param v2rhosigma_d ...
+!> \param v2rholapl_d ...
+!> \param v2rhotau_d ...
+!> \param v2sigma2_d ...
+!> \param v2sigmalapl_d ...
+!> \param v2sigmatau_d ...
+!> \param v2lapl2_d ...
+!> \param v2lapltau_d ...
+!> \param v2tau2_d ...
+!> \param v3rho3_d ...
+!> \param v3rho2sigma_d ...
+!> \param v3rho2lapl_d ...
+!> \param v3rho2tau_d ...
+!> \param v3rhosigma2_d ...
+!> \param v3rhosigmalapl_d ...
+!> \param v3rhosigmatau_d ...
+!> \param v3rholapl2_d ...
+!> \param v3rholapltau_d ...
+!> \param v3rhotau2_d ...
+!> \param v3sigma3_d ...
+!> \param v3sigma2lapl_d ...
+!> \param v3sigma2tau_d ...
+!> \param v3sigmalapl2_d ...
+!> \param v3sigmalapltau_d ...
+!> \param v3sigmatau2_d ...
+!> \param v3lapl3_d ...
+!> \param v3lapl2tau_d ...
+!> \param v3lapltau2_d ...
+!> \param v3tau3_d ...
+!> \param np ...
+! **************************************************************************************************
+   SUBROUTINE libxc_mgga_exc_vxc_fxc_kxc_device(func, rho_d, sigma_d, lapl_d, tau_d, exc_d, &
+                                                vrho_d, vsigma_d, vlapl_d, vtau_d, v2rho2_d, &
+                                                v2rhosigma_d, v2rholapl_d, v2rhotau_d, v2sigma2_d, &
+                                                v2sigmalapl_d, v2sigmatau_d, v2lapl2_d, v2lapltau_d, &
+                                                v2tau2_d, v3rho3_d, v3rho2sigma_d, v3rho2lapl_d, &
+                                                v3rho2tau_d, v3rhosigma2_d, v3rhosigmalapl_d, &
+                                                v3rhosigmatau_d, v3rholapl2_d, v3rholapltau_d, &
+                                                v3rhotau2_d, v3sigma3_d, v3sigma2lapl_d, v3sigma2tau_d, &
+                                                v3sigmalapl2_d, v3sigmalapltau_d, v3sigmatau2_d, &
+                                                v3lapl3_d, v3lapl2tau_d, v3lapltau2_d, v3tau3_d, np)
+      USE ISO_C_BINDING, ONLY: C_SIZE_T
+      TYPE(xc_f03_func_t), INTENT(IN)                    :: func
+      TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d, lapl_d, tau_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, v2lapl2_d, v2lapltau_d, &
+                                                            v2rho2_d, v2rholapl_d, v2rhosigma_d, &
+                                                            v2rhotau_d, v2sigma2_d, v2sigmalapl_d, &
+                                                            v2sigmatau_d, v2tau2_d, v3lapl2tau_d, &
+                                                            v3lapl3_d, v3lapltau2_d, v3rho2lapl_d, &
+                                                            v3rho2sigma_d, v3rho2tau_d, v3rho3_d, &
+                                                            v3rholapl2_d, v3rholapltau_d, v3rhosigma2_d, &
+                                                            v3rhosigmalapl_d, v3rhosigmatau_d, &
+                                                            v3rhotau2_d, v3sigma2lapl_d, v3sigma2tau_d, &
+                                                            v3sigma3_d, v3sigmalapl2_d, &
+                                                            v3sigmalapltau_d, v3sigmatau2_d, v3tau3_d, &
+                                                            vlapl_d, vrho_d, vsigma_d, vtau_d
+      INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: exc_p, lapl_p, rho_p, sigma_p, tau_p, &
+                                                            v2lapl2_p, v2lapltau_p, v2rho2_p, &
+                                                            v2rholapl_p, v2rhosigma_p, v2rhotau_p, &
+                                                            v2sigma2_p, v2sigmalapl_p, v2sigmatau_p, &
+                                                            v2tau2_p, v3lapl2tau_p, v3lapl3_p, &
+                                                            v3lapltau2_p, v3rho2lapl_p, v3rho2sigma_p, &
+                                                            v3rho2tau_p, v3rho3_p, v3rholapl2_p, &
+                                                            v3rholapltau_p, v3rhosigma2_p, &
+                                                            v3rhosigmalapl_p, v3rhosigmatau_p, &
+                                                            v3rhotau2_p, v3sigma2lapl_p, v3sigma2tau_p, &
+                                                            v3sigma3_p, v3sigmalapl2_p, &
+                                                            v3sigmalapltau_p, v3sigmatau2_p, v3tau3_p, &
+                                                            vlapl_p, vrho_p, vsigma_p, vtau_p
+
+      CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
+      CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
+      CALL libxc_device_buffer_get_ptr(lapl_d, INT(lapl_d%size), lapl_p)
+      CALL libxc_device_buffer_get_ptr(tau_d, INT(tau_d%size), tau_p)
+      CALL libxc_device_buffer_get_ptr(exc_d, INT(exc_d%size), exc_p)
+      CALL libxc_device_buffer_get_ptr(vrho_d, INT(vrho_d%size), vrho_p)
+      CALL libxc_device_buffer_get_ptr(vsigma_d, INT(vsigma_d%size), vsigma_p)
+      CALL libxc_device_buffer_get_ptr(vlapl_d, INT(vlapl_d%size), vlapl_p)
+      CALL libxc_device_buffer_get_ptr(vtau_d, INT(vtau_d%size), vtau_p)
+      CALL libxc_device_buffer_get_ptr(v2rho2_d, INT(v2rho2_d%size), v2rho2_p)
+      CALL libxc_device_buffer_get_ptr(v2rhosigma_d, INT(v2rhosigma_d%size), v2rhosigma_p)
+      CALL libxc_device_buffer_get_ptr(v2rholapl_d, INT(v2rholapl_d%size), v2rholapl_p)
+      CALL libxc_device_buffer_get_ptr(v2rhotau_d, INT(v2rhotau_d%size), v2rhotau_p)
+      CALL libxc_device_buffer_get_ptr(v2sigma2_d, INT(v2sigma2_d%size), v2sigma2_p)
+      CALL libxc_device_buffer_get_ptr(v2sigmalapl_d, INT(v2sigmalapl_d%size), v2sigmalapl_p)
+      CALL libxc_device_buffer_get_ptr(v2sigmatau_d, INT(v2sigmatau_d%size), v2sigmatau_p)
+      CALL libxc_device_buffer_get_ptr(v2lapl2_d, INT(v2lapl2_d%size), v2lapl2_p)
+      CALL libxc_device_buffer_get_ptr(v2lapltau_d, INT(v2lapltau_d%size), v2lapltau_p)
+      CALL libxc_device_buffer_get_ptr(v2tau2_d, INT(v2tau2_d%size), v2tau2_p)
+      CALL libxc_device_buffer_get_ptr(v3rho3_d, INT(v3rho3_d%size), v3rho3_p)
+      CALL libxc_device_buffer_get_ptr(v3rho2sigma_d, INT(v3rho2sigma_d%size), v3rho2sigma_p)
+      CALL libxc_device_buffer_get_ptr(v3rho2lapl_d, INT(v3rho2lapl_d%size), v3rho2lapl_p)
+      CALL libxc_device_buffer_get_ptr(v3rho2tau_d, INT(v3rho2tau_d%size), v3rho2tau_p)
+      CALL libxc_device_buffer_get_ptr(v3rhosigma2_d, INT(v3rhosigma2_d%size), v3rhosigma2_p)
+      CALL libxc_device_buffer_get_ptr(v3rhosigmalapl_d, INT(v3rhosigmalapl_d%size), v3rhosigmalapl_p)
+      CALL libxc_device_buffer_get_ptr(v3rhosigmatau_d, INT(v3rhosigmatau_d%size), v3rhosigmatau_p)
+      CALL libxc_device_buffer_get_ptr(v3rholapl2_d, INT(v3rholapl2_d%size), v3rholapl2_p)
+      CALL libxc_device_buffer_get_ptr(v3rholapltau_d, INT(v3rholapltau_d%size), v3rholapltau_p)
+      CALL libxc_device_buffer_get_ptr(v3rhotau2_d, INT(v3rhotau2_d%size), v3rhotau2_p)
+      CALL libxc_device_buffer_get_ptr(v3sigma3_d, INT(v3sigma3_d%size), v3sigma3_p)
+      CALL libxc_device_buffer_get_ptr(v3sigma2lapl_d, INT(v3sigma2lapl_d%size), v3sigma2lapl_p)
+      CALL libxc_device_buffer_get_ptr(v3sigma2tau_d, INT(v3sigma2tau_d%size), v3sigma2tau_p)
+      CALL libxc_device_buffer_get_ptr(v3sigmalapl2_d, INT(v3sigmalapl2_d%size), v3sigmalapl2_p)
+      CALL libxc_device_buffer_get_ptr(v3sigmalapltau_d, INT(v3sigmalapltau_d%size), v3sigmalapltau_p)
+      CALL libxc_device_buffer_get_ptr(v3sigmatau2_d, INT(v3sigmatau2_d%size), v3sigmatau2_p)
+      CALL libxc_device_buffer_get_ptr(v3lapl3_d, INT(v3lapl3_d%size), v3lapl3_p)
+      CALL libxc_device_buffer_get_ptr(v3lapl2tau_d, INT(v3lapl2tau_d%size), v3lapl2tau_p)
+      CALL libxc_device_buffer_get_ptr(v3lapltau2_d, INT(v3lapltau2_d%size), v3lapltau2_p)
+      CALL libxc_device_buffer_get_ptr(v3tau3_d, INT(v3tau3_d%size), v3tau3_p)
+
+      CALL xc_f03_mgga_exc_vxc_fxc_kxc(func, np, rho_p, sigma_p, lapl_p, tau_p, &
+                                       exc_p, vrho_p, vsigma_p, vlapl_p, vtau_p, &
+                                       v2rho2_p, v2rhosigma_p, v2rholapl_p, &
+                                       v2rhotau_p, v2sigma2_p, v2sigmalapl_p, &
+                                       v2sigmatau_p, v2lapl2_p, v2lapltau_p, v2tau2_p, &
+                                       v3rho3_p, v3rho2sigma_p, v3rho2lapl_p, v3rho2tau_p, &
+                                       v3rhosigma2_p, v3rhosigmalapl_p, v3rhosigmatau_p, &
+                                       v3rholapl2_p, v3rholapltau_p, v3rhotau2_p, &
+                                       v3sigma3_p, v3sigma2lapl_p, v3sigma2tau_p, &
+                                       v3sigmalapl2_p, v3sigmalapltau_p, v3sigmatau2_p, &
+                                       v3lapl3_p, v3lapl2tau_p, v3lapltau2_p, v3tau3_p)
+   END SUBROUTINE libxc_mgga_exc_vxc_fxc_kxc_device
+
+! **************************************************************************************************
+!> \brief MGGA vxc, fxc and kxc on device buffers.
+!> \param func ...
+!> \param rho_d ...
+!> \param sigma_d ...
+!> \param lapl_d ...
+!> \param tau_d ...
+!> \param vrho_d ...
+!> \param vsigma_d ...
+!> \param vlapl_d ...
+!> \param vtau_d ...
+!> \param v2rho2_d ...
+!> \param v2rhosigma_d ...
+!> \param v2rholapl_d ...
+!> \param v2rhotau_d ...
+!> \param v2sigma2_d ...
+!> \param v2sigmalapl_d ...
+!> \param v2sigmatau_d ...
+!> \param v2lapl2_d ...
+!> \param v2lapltau_d ...
+!> \param v2tau2_d ...
+!> \param v3rho3_d ...
+!> \param v3rho2sigma_d ...
+!> \param v3rho2lapl_d ...
+!> \param v3rho2tau_d ...
+!> \param v3rhosigma2_d ...
+!> \param v3rhosigmalapl_d ...
+!> \param v3rhosigmatau_d ...
+!> \param v3rholapl2_d ...
+!> \param v3rholapltau_d ...
+!> \param v3rhotau2_d ...
+!> \param v3sigma3_d ...
+!> \param v3sigma2lapl_d ...
+!> \param v3sigma2tau_d ...
+!> \param v3sigmalapl2_d ...
+!> \param v3sigmalapltau_d ...
+!> \param v3sigmatau2_d ...
+!> \param v3lapl3_d ...
+!> \param v3lapl2tau_d ...
+!> \param v3lapltau2_d ...
+!> \param v3tau3_d ...
+!> \param np ...
+! **************************************************************************************************
+   SUBROUTINE libxc_mgga_vxc_fxc_kxc_device(func, rho_d, sigma_d, lapl_d, tau_d, vrho_d, &
+                                            vsigma_d, vlapl_d, vtau_d, v2rho2_d, &
+                                            v2rhosigma_d, v2rholapl_d, v2rhotau_d, v2sigma2_d, &
+                                            v2sigmalapl_d, v2sigmatau_d, v2lapl2_d, v2lapltau_d, &
+                                            v2tau2_d, v3rho3_d, v3rho2sigma_d, v3rho2lapl_d, &
+                                            v3rho2tau_d, v3rhosigma2_d, v3rhosigmalapl_d, &
+                                            v3rhosigmatau_d, v3rholapl2_d, v3rholapltau_d, &
+                                            v3rhotau2_d, v3sigma3_d, v3sigma2lapl_d, v3sigma2tau_d, &
+                                            v3sigmalapl2_d, v3sigmalapltau_d, v3sigmatau2_d, &
+                                            v3lapl3_d, v3lapl2tau_d, v3lapltau2_d, v3tau3_d, np)
+      USE ISO_C_BINDING, ONLY: C_SIZE_T
+      TYPE(xc_f03_func_t), INTENT(IN)                    :: func
+      TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d, lapl_d, tau_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: v2lapl2_d, v2lapltau_d, &
+                                                            v2rho2_d, v2rholapl_d, v2rhosigma_d, &
+                                                            v2rhotau_d, v2sigma2_d, v2sigmalapl_d, &
+                                                            v2sigmatau_d, v2tau2_d, v3lapl2tau_d, &
+                                                            v3lapl3_d, v3lapltau2_d, v3rho2lapl_d, &
+                                                            v3rho2sigma_d, v3rho2tau_d, v3rho3_d, &
+                                                            v3rholapl2_d, v3rholapltau_d, v3rhosigma2_d, &
+                                                            v3rhosigmalapl_d, v3rhosigmatau_d, &
+                                                            v3rhotau2_d, v3sigma2lapl_d, v3sigma2tau_d, &
+                                                            v3sigma3_d, v3sigmalapl2_d, &
+                                                            v3sigmalapltau_d, v3sigmatau2_d, v3tau3_d, &
+                                                            vlapl_d, vrho_d, vsigma_d, vtau_d
+      INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: lapl_p, rho_p, sigma_p, tau_p, &
+                                                            v2lapl2_p, v2lapltau_p, v2rho2_p, &
+                                                            v2rholapl_p, v2rhosigma_p, v2rhotau_p, &
+                                                            v2sigma2_p, v2sigmalapl_p, v2sigmatau_p, &
+                                                            v2tau2_p, v3lapl2tau_p, v3lapl3_p, &
+                                                            v3lapltau2_p, v3rho2lapl_p, v3rho2sigma_p, &
+                                                            v3rho2tau_p, v3rho3_p, v3rholapl2_p, &
+                                                            v3rholapltau_p, v3rhosigma2_p, &
+                                                            v3rhosigmalapl_p, v3rhosigmatau_p, &
+                                                            v3rhotau2_p, v3sigma2lapl_p, v3sigma2tau_p, &
+                                                            v3sigma3_p, v3sigmalapl2_p, &
+                                                            v3sigmalapltau_p, v3sigmatau2_p, v3tau3_p, &
+                                                            vlapl_p, vrho_p, vsigma_p, vtau_p
+
+      CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
+      CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
+      CALL libxc_device_buffer_get_ptr(lapl_d, INT(lapl_d%size), lapl_p)
+      CALL libxc_device_buffer_get_ptr(tau_d, INT(tau_d%size), tau_p)
+      CALL libxc_device_buffer_get_ptr(vrho_d, INT(vrho_d%size), vrho_p)
+      CALL libxc_device_buffer_get_ptr(vsigma_d, INT(vsigma_d%size), vsigma_p)
+      CALL libxc_device_buffer_get_ptr(vlapl_d, INT(vlapl_d%size), vlapl_p)
+      CALL libxc_device_buffer_get_ptr(vtau_d, INT(vtau_d%size), vtau_p)
+      CALL libxc_device_buffer_get_ptr(v2rho2_d, INT(v2rho2_d%size), v2rho2_p)
+      CALL libxc_device_buffer_get_ptr(v2rhosigma_d, INT(v2rhosigma_d%size), v2rhosigma_p)
+      CALL libxc_device_buffer_get_ptr(v2rholapl_d, INT(v2rholapl_d%size), v2rholapl_p)
+      CALL libxc_device_buffer_get_ptr(v2rhotau_d, INT(v2rhotau_d%size), v2rhotau_p)
+      CALL libxc_device_buffer_get_ptr(v2sigma2_d, INT(v2sigma2_d%size), v2sigma2_p)
+      CALL libxc_device_buffer_get_ptr(v2sigmalapl_d, INT(v2sigmalapl_d%size), v2sigmalapl_p)
+      CALL libxc_device_buffer_get_ptr(v2sigmatau_d, INT(v2sigmatau_d%size), v2sigmatau_p)
+      CALL libxc_device_buffer_get_ptr(v2lapl2_d, INT(v2lapl2_d%size), v2lapl2_p)
+      CALL libxc_device_buffer_get_ptr(v2lapltau_d, INT(v2lapltau_d%size), v2lapltau_p)
+      CALL libxc_device_buffer_get_ptr(v2tau2_d, INT(v2tau2_d%size), v2tau2_p)
+      CALL libxc_device_buffer_get_ptr(v3rho3_d, INT(v3rho3_d%size), v3rho3_p)
+      CALL libxc_device_buffer_get_ptr(v3rho2sigma_d, INT(v3rho2sigma_d%size), v3rho2sigma_p)
+      CALL libxc_device_buffer_get_ptr(v3rho2lapl_d, INT(v3rho2lapl_d%size), v3rho2lapl_p)
+      CALL libxc_device_buffer_get_ptr(v3rho2tau_d, INT(v3rho2tau_d%size), v3rho2tau_p)
+      CALL libxc_device_buffer_get_ptr(v3rhosigma2_d, INT(v3rhosigma2_d%size), v3rhosigma2_p)
+      CALL libxc_device_buffer_get_ptr(v3rhosigmalapl_d, INT(v3rhosigmalapl_d%size), v3rhosigmalapl_p)
+      CALL libxc_device_buffer_get_ptr(v3rhosigmatau_d, INT(v3rhosigmatau_d%size), v3rhosigmatau_p)
+      CALL libxc_device_buffer_get_ptr(v3rholapl2_d, INT(v3rholapl2_d%size), v3rholapl2_p)
+      CALL libxc_device_buffer_get_ptr(v3rholapltau_d, INT(v3rholapltau_d%size), v3rholapltau_p)
+      CALL libxc_device_buffer_get_ptr(v3rhotau2_d, INT(v3rhotau2_d%size), v3rhotau2_p)
+      CALL libxc_device_buffer_get_ptr(v3sigma3_d, INT(v3sigma3_d%size), v3sigma3_p)
+      CALL libxc_device_buffer_get_ptr(v3sigma2lapl_d, INT(v3sigma2lapl_d%size), v3sigma2lapl_p)
+      CALL libxc_device_buffer_get_ptr(v3sigma2tau_d, INT(v3sigma2tau_d%size), v3sigma2tau_p)
+      CALL libxc_device_buffer_get_ptr(v3sigmalapl2_d, INT(v3sigmalapl2_d%size), v3sigmalapl2_p)
+      CALL libxc_device_buffer_get_ptr(v3sigmalapltau_d, INT(v3sigmalapltau_d%size), v3sigmalapltau_p)
+      CALL libxc_device_buffer_get_ptr(v3sigmatau2_d, INT(v3sigmatau2_d%size), v3sigmatau2_p)
+      CALL libxc_device_buffer_get_ptr(v3lapl3_d, INT(v3lapl3_d%size), v3lapl3_p)
+      CALL libxc_device_buffer_get_ptr(v3lapl2tau_d, INT(v3lapl2tau_d%size), v3lapl2tau_p)
+      CALL libxc_device_buffer_get_ptr(v3lapltau2_d, INT(v3lapltau2_d%size), v3lapltau2_p)
+      CALL libxc_device_buffer_get_ptr(v3tau3_d, INT(v3tau3_d%size), v3tau3_p)
+
+      CALL xc_f03_mgga_vxc_fxc_kxc(func, np, rho_p, sigma_p, lapl_p, tau_p, &
+                                   vrho_p, vsigma_p, vlapl_p, vtau_p, &
+                                   v2rho2_p, v2rhosigma_p, v2rholapl_p, &
+                                   v2rhotau_p, v2sigma2_p, v2sigmalapl_p, &
+                                   v2sigmatau_p, v2lapl2_p, v2lapltau_p, v2tau2_p, &
+                                   v3rho3_p, v3rho2sigma_p, v3rho2lapl_p, v3rho2tau_p, &
+                                   v3rhosigma2_p, v3rhosigmalapl_p, v3rhosigmatau_p, &
+                                   v3rholapl2_p, v3rholapltau_p, v3rhotau2_p, &
+                                   v3sigma3_p, v3sigma2lapl_p, v3sigma2tau_p, &
+                                   v3sigmalapl2_p, v3sigmalapltau_p, v3sigmatau2_p, &
+                                   v3lapl3_p, v3lapl2tau_p, v3lapltau2_p, v3tau3_p)
+   END SUBROUTINE libxc_mgga_vxc_fxc_kxc_device
 
 ! **************************************************************************************************
 !> \brief MGGA vxc on device buffers.
