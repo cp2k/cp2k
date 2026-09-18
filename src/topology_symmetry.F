@@ -19,7 +19,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Decompose a character against a complete unitary character table.
-!> \param character One character per group element (not per conjugacy class)
+!> \param CHARACTER One character per group element (not per conjugacy class)
 !> \param table Characters, group element first and irrep second; identity first
 !> \param multiplicities Nonnegative integer multiplicities, invalid unless status=0
 !> \param tolerance Absolute numerical tolerance

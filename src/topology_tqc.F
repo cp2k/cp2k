@@ -19,7 +19,7 @@ CONTAINS
 !> \brief Fu--Kane indices and inversion indicator with an explicit sign convention.
 !> \param odd Number of odd Kramers pairs at each TRIM, x-bit fastest
 !> \param pairs Number of occupied Kramers pairs
-!> \param dimension Two (kz=0 plane) or three (full reciprocal torus)
+!> \param DIMENSION Two (kz=0 plane) or three (full reciprocal torus)
 !> \param strong Plane index in 2D, strong index in 3D
 !> \param weak Three weak indices in 3D; -1 (unavailable) in 2D
 !> \param z4 sum(odd) mod 4 in 3D; -1 (unavailable) in 2D

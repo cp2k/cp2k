@@ -14,7 +14,7 @@ PROGRAM topology_symmetry_unittest
                                               inversion_indicators
 
    IMPLICIT NONE
-   COMPLEX(KIND=dp) :: table(6, 3), CHARACTER(6), metric(2, 2), coeff(4, 4), phase(2), tmp(4)
+   COMPLEX(KIND=dp) :: table(6, 3), group_chars(6), metric(2, 2), coeff(4, 4), phase(2), tmp(4)
    REAL(KIND=dp) :: error, energy_error, energies(4)
    INTEGER :: multiplicities(3), status, counts(2), odd(8), ebr(2, 8), a, k, sign, strong, weak(3), z4
    LOGICAL :: signed_atomic, nonnegative_atomic
@@ -23,11 +23,11 @@ PROGRAM topology_symmetry_unittest
    table(:, 1) = CMPLX([1, 1, 1, 1, 1, 1], 0, dp)
    table(:, 2) = CMPLX([1, 1, 1, -1, -1, -1], 0, dp)
    table(:, 3) = CMPLX([2, -1, -1, 0, 0, 0], 0, dp)
-   CHARACTER = table(:, 1) + 2*table(:, 3)
-   CALL character_multiplicities(CHARACTER, table, multiplicities, 1.e-10_dp, status)
+   group_chars = table(:, 1) + 2*table(:, 3)
+   CALL character_multiplicities(group_chars, table, multiplicities, 1.e-10_dp, status)
    IF (status /= 0 .OR. ANY(multiplicities /= [1, 0, 2])) ERROR STOP 'C3v decomposition failed'
-   CHARACTER(2) = CHARACTER(2) + 0.1_dp
-   CALL character_multiplicities(CHARACTER, table, multiplicities, 1.e-10_dp, status)
+   group_chars(2) = group_chars(2) + 0.1_dp
+   CALL character_multiplicities(group_chars, table, multiplicities, 1.e-10_dp, status)
    IF (status == 0) ERROR STOP 'Invalid character accepted'
    metric = CMPLX(0, 0, dp)
    metric(1, 1) = 2.0_dp
@@ -113,7 +113,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Compare the exact solver against independent enumeration of rank-two atomic sums.
-!> \param dimension Dimension of the inversion subgroup
+!> \param DIMENSION Dimension of the inversion subgroup
 ! **************************************************************************************************
    SUBROUTINE exhaustive_signatures(DIMENSION)
       INTEGER, INTENT(IN)                                :: dimension
