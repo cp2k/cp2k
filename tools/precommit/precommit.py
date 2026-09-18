@@ -322,12 +322,14 @@ def run_remote_tool(tool: str, fn: str) -> None:
 
     url = f"{SERVER}/{tool}"
     r = http_post(url, fn)
+    body = r.read()
+    r.close()
     if r.status == 304:
         pass  # file not modified
     elif r.status == 200:
-        Path(fn).write_bytes(r.read())
+        Path(fn).write_bytes(body)
     else:
-        raise Exception(r.read().decode("utf8"))  # something went wrong
+        raise Exception(body.decode("utf8"))  # something went wrong
 
 
 # ======================================================================================
