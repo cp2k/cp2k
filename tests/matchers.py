@@ -124,6 +124,9 @@ registry["TOPOLOGY_Z2_TRIVIAL"] = TextPresenceMatcher(
 registry["TOPOLOGY_CHERN_TRIVIAL"] = TextPresenceMatcher(
     "TOPOLOGY| Converged first Chern number: 0"
 )
+registry["TQC_PARITY_INDEX"] = GenericMatcher("TQC| Fu-Kane parity index:", col=5)
+registry["TQC_INVERSION_Z4"] = GenericMatcher("TQC| Inversion Z4 (sum odd pairs mod 4):", col=9)
+registry["TQC_ATOMIC_SIGNATURE"] = TextPresenceMatcher("TQC| Nonnegative atomic signature: T")
 registry["TOPOLOGY_BERRY_PHASE"] = GenericMatcher(
     "Berry phase [rad]:", col=7, abs_value=True
 )

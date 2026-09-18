@@ -1,0 +1,3 @@
+@SET TQC_DIMENSION 3
+@SET PARITY_ORIGIN 0.0
+@INCLUDE neon-tqc-common.inc
