@@ -210,7 +210,11 @@ def check_file(path: pathlib.Path) -> List[str]:
     if "\r\n" in content:
         warnings += [f"{path}: contains DOS linebreaks"]
 
-    if fn_ext not in (".pot", ".patch") and basefn != "Makefile" and "\t" in content:
+    if (
+        fn_ext not in (".pot", ".patch", ".mdp")
+        and basefn != "Makefile"
+        and "\t" in content
+    ):
         warnings += [f"{path}: contains tab character"]
 
     if fn_ext == ".cu" and "#if defined(_OMP_H)\n#error" not in content:
@@ -298,6 +302,8 @@ def check_file(path: pathlib.Path) -> List[str]:
         if fn_ext == ".cl":  # usually compiled at RT (no direct user-control)
             continue
         if flag == "_OMP_H" and fn_ext == ".cu":
+            continue
+        if flag == "FLEXIBLE" and fn_ext == ".top":  # GROMACS top file
             continue
         if flag not in get_src_cmakelists_txt():
             warnings += [
