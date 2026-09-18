@@ -50,6 +50,8 @@ MODULE bse_davidson
 
    ! energies closer than this belong to one multiplet (Hartree)
    REAL(KIND=dp), PARAMETER, PRIVATE :: deg_thresh = 1.0E-6_dp
+   ! a basis that is not orthonormal to this accuracy makes the residuals meaningless
+   REAL(KIND=dp), PARAMETER, PRIVATE :: ortho_tol = 1.0E-8_dp
 
    ! outcome of an ABBA solver: solved, or A-B not positive definite on the trial space
    INTEGER, PARAMETER, PUBLIC :: abba_ok = 0, abba_indefinite = 1
@@ -83,8 +85,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_davidson_tda'
 
       INTEGER                                            :: block_size, handle, iter, k, m, m_max, &
-                                                            n_act, n_kernel, n_ov, n_req, &
-                                                            n_restart, n_want, nt
+                                                            n_act, n_dep, n_dependent, n_kernel, &
+                                                            n_ov, n_req, n_restart, n_want, nt
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
       LOGICAL                                            :: all_conv, has_prev, ok, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
@@ -124,12 +126,16 @@ CONTAINS
       has_prev = .FALSE.
       stalled = .FALSE.
       n_restart = 0
+      n_dependent = 0
 
       IF (mp2_env%bse%num_guess_transitions > 0) THEN
          CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_Z, m, theta_sub, &
                                      unit_nr)
       ELSE
          CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_Z, m)
+      END IF
+      IF (extension_deviation(fm_Z, fm_Z, 0, m, para_env) > ortho_tol) THEN
+         CPABORT("BSE Davidson: the initial guess is not orthonormal")
       END IF
       CALL bse_matvec_apply(mv_env, fm_Z, 1, m, fm_AZ)
       n_kernel = m
@@ -185,8 +191,12 @@ CONTAINS
             CPABORT("BSE Davidson: correction vectors vanished before convergence")
          END IF
          stalled = nt == 0
-         CALL cholqr2(fm_Z, m + 1, nt, para_env, ok)
+         CALL cholqr2(fm_Z, m + 1, nt, para_env, ok, n_dep)
          IF (.NOT. ok) CPABORT("BSE Davidson: orthonormalisation broke down")
+         n_dependent = n_dependent + n_dep
+         IF (extension_deviation(fm_Z, fm_Z, m, nt, para_env) > ortho_tol) THEN
+            CPABORT("BSE Davidson: the basis lost orthonormality")
+         END IF
 
          IF (nt > 0) THEN
             CALL bse_matvec_apply(mv_env, fm_Z, m + 1, nt, fm_AZ)
@@ -223,7 +233,7 @@ CONTAINS
       END IF
 
       IF (ALLOCATED(theta_sub)) CALL check_guess_bound(theta_sub, theta, n_req, unit_nr)
-      CALL print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr)
+      CALL print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr, n_dependent=n_dependent)
 
       ALLOCATE (exc_ens(n_want))
       exc_ens(:) = theta(1:n_want)
@@ -276,8 +286,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_davidson_abba_mk'
 
-      INTEGER :: block_size, handle, iter, k, m, m_max, n_act, n_kernel, n_ov, n_raw, n_req, &
-         n_restart, n_seed, n_want, next_col, nrow_local, nt, nt_in
+      INTEGER :: block_size, handle, iter, k, m, m_max, n_act, n_dependent, n_kernel, n_ov, n_raw, &
+         n_req, n_restart, n_seed, n_want, next_col, nrow_local, nt, nt_in
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
       LOGICAL                                            :: all_conv, has_prev, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
@@ -326,6 +336,7 @@ CONTAINS
       all_conv = .FALSE.
       n_restart = 0
       n_kernel = 0
+      n_dependent = 0
 
       ! guess: the TDA vectors if given, then the eigenvectors of the exact guess block or unit
       ! vectors on the lowest entries of the diagonal
@@ -353,7 +364,8 @@ CONTAINS
             fm_V%local_data(1:nrow_local, m + 1:m + nt) = &
                fm_V%local_data(1:nrow_local, next_col:next_col + nt - 1)
          END IF
-         CALL extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scr, m, nt, n_kernel, abba_status, ab_margin)
+         CALL extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scr, m, nt, n_kernel, n_dependent, abba_status, &
+                              ab_margin)
          IF (abba_status /= abba_ok) EXIT
          next_col = next_col + nt_in
          m = m + nt
@@ -414,7 +426,8 @@ CONTAINS
             ! corrections t_ia,k = r_ia,k/(d_ia^2 - (Ω^k)^2) for the lowest unconverged roots
             CALL select_roots(mp2_env, need, res, MIN(block_size, m_max - m), selected, nt)
             CALL davidson_corrections(fm_work, selected(1:nt), theta, diag, fm_V, m + 1)
-            CALL extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scr, m, nt, n_kernel, abba_status, ab_margin)
+            CALL extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scr, m, nt, n_kernel, n_dependent, abba_status, &
+                                 ab_margin)
             IF (abba_status /= abba_ok) EXIT
             IF (nt == 0 .AND. stalled) THEN
                CPABORT("BSE Davidson: correction vectors vanished before convergence")
@@ -463,7 +476,7 @@ CONTAINS
          DEALLOCATE (H_new, eigval)
 
          IF (ALLOCATED(theta_sub)) CALL check_guess_bound(theta_sub, omega, n_req, unit_nr)
-         CALL print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr, ab_margin)
+         CALL print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr, ab_margin, n_dependent)
 
          ! X = (y + x)/2, Y = (y - x)/2
          ALLOCATE (exc_ens(n_want))
@@ -508,29 +521,31 @@ CONTAINS
 !> \param m ...
 !> \param nt on exit the number of columns kept
 !> \param n_kernel counter of the kernel applications
+!> \param n_dependent counter of the correction vectors dropped as dependent
 !> \param abba_status ...
 !> \param ab_margin smallest eigenvalue of T^T (A-B) T if that matrix is not positive definite
 ! **************************************************************************************************
-   SUBROUTINE extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scr, m, nt, n_kernel, abba_status, &
+   SUBROUTINE extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scr, m, nt, n_kernel, n_dependent, abba_status, &
                               ab_margin)
 
       TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_V, fm_W, fm_MW, fm_scr
       INTEGER, INTENT(IN)                                :: m
-      INTEGER, INTENT(INOUT)                             :: nt, n_kernel, abba_status
+      INTEGER, INTENT(INOUT)                             :: nt, n_kernel, n_dependent, abba_status
       REAL(KIND=dp), INTENT(INOUT)                       :: ab_margin
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'extend_basis_mk'
 
-      INTEGER                                            :: handle, nrow_local
+      INTEGER                                            :: handle, n_dep, nrow_local
       LOGICAL                                            :: ok
 
       CALL timeset(routineN, handle)
 
       CALL project_out(fm_V, m + 1, nt, fm_V, m, mv_env%para_env, fm_W)
       CALL drop_small_columns(fm_V, m + 1, nt, mv_env%para_env)
-      CALL cholqr2(fm_V, m + 1, nt, mv_env%para_env, ok)
+      CALL cholqr2(fm_V, m + 1, nt, mv_env%para_env, ok, n_dep)
       IF (.NOT. ok) CPABORT("BSE Davidson: orthonormalisation broke down")
+      n_dependent = n_dependent + n_dep
 
       IF (nt > 0) THEN
          CALL cp_fm_get_info(fm_V, nrow_local=nrow_local)
@@ -543,6 +558,9 @@ CONTAINS
          CALL cholqr2_metric(fm_V, fm_W, m + 1, nt, mv_env%para_env, abba_status, ab_margin)
 
          IF (abba_status == abba_ok) THEN
+            IF (extension_deviation(fm_V, fm_W, m, nt, mv_env%para_env) > ortho_tol) THEN
+               CPABORT("BSE Davidson: the basis lost orthonormality in the (A-B) inner product")
+            END IF
             CALL bse_matvec_apply(mv_env, fm_W, m + 1, nt, fm_MW, fm_scr, 1)
             fm_MW%local_data(1:nrow_local, m + 1:m + nt) = fm_MW%local_data(1:nrow_local, m + 1:m + nt) + &
                                                            fm_scr%local_data(1:nrow_local, 1:nt)
@@ -860,18 +878,26 @@ CONTAINS
 !> \param n_ov ...
 !> \param unit_nr ...
 !> \param ab_margin smallest eigenvalue of A-B on the trial space in Hartree
+!> \param n_dependent correction vectors dropped as dependent, printed when not zero
 ! **************************************************************************************************
-   SUBROUTINE print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr, ab_margin)
+   SUBROUTINE print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr, ab_margin, &
+                            n_dependent)
 
       INTEGER, INTENT(IN)                                :: iter, n_kernel, n_restart, n_want, &
                                                             n_req, n_act, n_ov, unit_nr
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: ab_margin
+      INTEGER, INTENT(IN), OPTIONAL                      :: n_dependent
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Davidson iterations', iter
          WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Kernel applications', n_kernel
          WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Thick restarts', n_restart
+         IF (PRESENT(n_dependent)) THEN
+            IF (n_dependent > 0) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Correction vectors dropped as dependent', n_dependent
+            END IF
+         END IF
          IF (PRESENT(ab_margin)) THEN
             WRITE (unit_nr, '(T2,A4,T7,A,T65,F16.6)') 'BSE|', &
                'A-B margin on the trial space (eV)', ab_margin*evolt
@@ -1577,37 +1603,44 @@ CONTAINS
    END SUBROUTINE drop_small_columns
 
 ! **************************************************************************************************
-!> \brief Orthonormalises nt columns by two Cholesky QR passes on the replicated Gram matrix; a
-!>        failed Cholesky factorization is repeated once with a diagonal shift and a third pass
+!> \brief Orthonormalises nt columns by two Cholesky QR passes on the replicated Gram matrix. A
+!>        failed factorization means a numerically dependent block: the directions of the Gram matrix
+!>        below the drop tolerance are removed (canonical orthogonalisation), nt shrinks, and the
+!>        passes start again
 !> \param fm_T ...
 !> \param first_col ...
 !> \param nt ...
 !> \param para_env ...
 !> \param ok ...
+!> \param n_dropped columns removed as dependent
 ! **************************************************************************************************
-   SUBROUTINE cholqr2(fm_T, first_col, nt, para_env, ok)
+   SUBROUTINE cholqr2(fm_T, first_col, nt, para_env, ok, n_dropped)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_T
-      INTEGER, INTENT(IN)                                :: first_col, nt
+      INTEGER, INTENT(IN)                                :: first_col
+      INTEGER, INTENT(INOUT)                             :: nt
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       LOGICAL, INTENT(OUT)                               :: ok
+      INTEGER, INTENT(OUT), OPTIONAL                     :: n_dropped
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cholqr2'
+      REAL(KIND=dp), PARAMETER                           :: eig_drop = 1.0E-10_dp
 
-      INTEGER                                            :: handle, info, ipass, k, n_ov, n_pass, &
-                                                            nrow_local
-      REAL(KIND=dp)                                      :: shift
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G, R
+      INTEGER                                            :: handle, info, ipass, k, n_drop_calls, &
+                                                            n_keep, nrow_local
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G, R, T_new, U
 
       ok = .TRUE.
+      IF (PRESENT(n_dropped)) n_dropped = 0
       IF (nt == 0) RETURN
       CALL timeset(routineN, handle)
-      CALL cp_fm_get_info(fm_T, nrow_local=nrow_local, nrow_global=n_ov)
+      CALL cp_fm_get_info(fm_T, nrow_local=nrow_local)
       ALLOCATE (G(nt, nt), R(nt, nt))
 
-      n_pass = 2
+      n_drop_calls = 0
       ipass = 0
-      DO WHILE (ipass < n_pass)
+      DO WHILE (ipass < 2)
          ipass = ipass + 1
          CALL subspace_gram(fm_T, first_col, nt, fm_T, first_col, nt, para_env, G)
          R(:, :) = G(:, :)
@@ -1615,24 +1648,38 @@ CONTAINS
          IF (para_env%is_source()) CALL DPOTRF('U', nt, R, nt, info)
          CALL para_env%bcast(info)
          IF (info /= 0) THEN
-            IF (n_pass == 3) THEN
+            n_drop_calls = n_drop_calls + 1
+            IF (n_drop_calls > 2) THEN
                ok = .FALSE.
                EXIT
             END IF
-            ! shifted Cholesky QR, Fukaya et al., SIAM J. Sci. Comput. (2020), doi:10.1137/18M1218212
-            n_pass = 3
-            shift = 11.0_dp*(REAL(n_ov, dp)*REAL(nt, dp) + REAL(nt, dp)*REAL(nt + 1, dp))* &
-                    EPSILON(1.0_dp)*NORM2(G)
-            R(:, :) = G(:, :)
-            DO k = 1, nt
-               R(k, k) = R(k, k) + shift
+            ! T <- T U Λ^-1/2 over the eigenpairs of G above the drop tolerance
+            ALLOCATE (eig(nt), U(nt, nt))
+            CALL solve_reduced(G, nt, para_env, eig, U)
+            n_keep = COUNT(eig > eig_drop*eig(nt))
+            IF (n_keep == 0) THEN
+               ok = .FALSE.
+               DEALLOCATE (eig, U)
+               EXIT
+            END IF
+            DO k = 1, n_keep
+               U(:, nt - n_keep + k) = U(:, nt - n_keep + k)/SQRT(eig(nt - n_keep + k))
             END DO
-            IF (para_env%is_source()) CALL DPOTRF('U', nt, R, nt, info)
-            CALL para_env%bcast(info)
-            IF (info /= 0) THEN
-               ok = .FALSE.
-               EXIT
+            IF (nrow_local > 0) THEN
+               ALLOCATE (T_new(nrow_local, n_keep))
+               CALL DGEMM('N', 'N', nrow_local, n_keep, nt, 1.0_dp, &
+                          fm_T%local_data(:, first_col:first_col + nt - 1), SIZE(fm_T%local_data, 1), &
+                          U(:, nt - n_keep + 1:nt), nt, 0.0_dp, T_new, nrow_local)
+               fm_T%local_data(1:nrow_local, first_col:first_col + n_keep - 1) = T_new(:, :)
+               fm_T%local_data(1:nrow_local, first_col + n_keep:first_col + nt - 1) = 0.0_dp
+               DEALLOCATE (T_new)
             END IF
+            IF (PRESENT(n_dropped)) n_dropped = n_dropped + nt - n_keep
+            nt = n_keep
+            DEALLOCATE (eig, U, G, R)
+            ALLOCATE (G(nt, nt), R(nt, nt))
+            ipass = 0
+            CYCLE
          END IF
          CALL para_env%bcast(R)
          IF (nrow_local > 0) THEN
@@ -1645,6 +1692,38 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cholqr2
+
+! **************************************************************************************************
+!> \brief Largest deviation of the nt new columns from orthonormality against the whole basis,
+!>        sum_ia V_ia,m D_ia,n - δ_mn for m = 1..nv+nt, n = nv+1..nv+nt; D = V in the Euclidean case
+!> \param fm_V ...
+!> \param fm_dual ...
+!> \param nv ...
+!> \param nt ...
+!> \param para_env ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION extension_deviation(fm_V, fm_dual, nv, nt, para_env) RESULT(dev)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_V, fm_dual
+      INTEGER, INTENT(IN)                                :: nv, nt
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      REAL(KIND=dp)                                      :: dev
+
+      INTEGER                                            :: k
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: S
+
+      dev = 0.0_dp
+      IF (nt == 0) RETURN
+      ALLOCATE (S(nv + nt, nt))
+      CALL subspace_gram(fm_V, 1, nv + nt, fm_dual, nv + 1, nt, para_env, S)
+      DO k = 1, nt
+         S(nv + k, k) = S(nv + k, k) - 1.0_dp
+      END DO
+      dev = MAXVAL(ABS(S))
+      DEALLOCATE (S)
+
+   END FUNCTION extension_deviation
 
 ! **************************************************************************************************
 !> \brief Debug check of the Davidson result against the full diagonalization of the explicit A:
