@@ -19,13 +19,19 @@ MODULE bse_davidson
                                               bse_matvec_env_type,&
                                               bse_matvec_subblock,&
                                               bse_matvec_vector_struct
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_release,&
+                                              cp_blacs_env_type
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_release,&
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_get_submatrix,&
                                               cp_fm_release,&
+                                              cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE input_constants,                 ONLY: bse_iter_and_cond,&
@@ -33,6 +39,7 @@ MODULE bse_davidson
                                               bse_iter_or_cond,&
                                               bse_iter_res_cond
    USE kinds,                           ONLY: dp
+   USE machine,                         ONLY: m_walltime
    USE mathlib,                         ONLY: diamat_all
    USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
                                               mp_para_env_type
@@ -91,9 +98,11 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
       LOGICAL                                            :: all_conv, has_prev, ok, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
+      REAL(KIND=dp)                                      :: t_iter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, res, theta, theta_prev, &
                                                             theta_sub
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_cand, C_ritz, G, G_new, Q
+      TYPE(cp_blacs_env_type), POINTER                   :: diag_blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_AZ, fm_work, fm_Z
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -101,6 +110,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       para_env => mv_env%para_env
+      ! the trial vectors live on an npe x 1 grid, which is a bad one to diagonalize on
+      NULLIFY (diag_blacs_env)
+      CALL cp_blacs_env_create(diag_blacs_env, para_env)
       n_ov = mv_env%n_ov
       CALL davidson_sizes(mp2_env, n_ov, n_want, n_act, block_size)
 
@@ -147,9 +159,10 @@ CONTAINS
 
       all_conv = .FALSE.
       DO iter = 1, mp2_env%bse%max_iter
+         t_iter = m_walltime()
 
          ! sum_n G_mn c_nk = θ_k c_mk, θ ascending
-         CALL solve_reduced(G, m, para_env, theta, C)
+         CALL solve_reduced(G, m, para_env, theta, C, diag_blacs_env)
 
          ! thick restart onto the current and the previous Ritz vectors, no kernel application
          IF (m + block_size > m_max .AND. m > n_act .AND. m < n_ov) THEN
@@ -162,7 +175,7 @@ CONTAINS
             CALL rotate_reduced(G, m, Q, k)
             m = k
             n_restart = n_restart + 1
-            CALL solve_reduced(G, m, para_env, theta, C)
+            CALL solve_reduced(G, m, para_env, theta, C, diag_blacs_env)
          END IF
 
          ! r_ia,k = sum_m (A Z)_ia,m c_mk - θ_k sum_m Z_ia,m c_mk for all tracked roots k
@@ -182,7 +195,7 @@ CONTAINS
          all_conv = .NOT. ANY(need)
          CALL print_iteration(iter, m, COUNT(conv(1:n_want)), &
                               MAX(MAXVAL(res(1:n_req)), MAXVAL(res, MASK=need)), &
-                              MAXVAL(dE(1:n_req)), theta(1), unit_nr)
+                              MAXVAL(dE(1:n_req)), theta(1), m_walltime() - t_iter, unit_nr)
          IF (all_conv) EXIT
 
          IF (iter == mp2_env%bse%max_iter) EXIT
@@ -254,6 +267,7 @@ CONTAINS
       CALL cp_fm_release(fm_Z)
       CALL cp_fm_release(fm_AZ)
       CALL cp_fm_release(fm_work)
+      CALL cp_blacs_env_release(diag_blacs_env)
       DEALLOCATE (G, C, C_cand, C_ritz, Q, theta, theta_prev, res, dE, conv, need, selected, diag)
       IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
 
@@ -300,10 +314,12 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
       LOGICAL                                            :: all_conv, has_prev, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
+      REAL(KIND=dp)                                      :: t_iter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, omega, omega_prev, omega_sq, &
                                                             res, theta, theta_sub
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_cand, C_x, C_x_omega, C_y, H, &
                                                             H_new, Q
+      TYPE(cp_blacs_env_type), POINTER                   :: diag_blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_MW, fm_scratch, fm_V, fm_W, fm_work
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -313,6 +329,9 @@ CONTAINS
       abba_status = abba_ok
       ab_margin = 0.0_dp
       para_env => mv_env%para_env
+      ! the trial vectors live on an npe x 1 grid, which is a bad one to diagonalize on
+      NULLIFY (diag_blacs_env)
+      CALL cp_blacs_env_create(diag_blacs_env, para_env)
       n_ov = mv_env%n_ov
       CALL davidson_sizes(mp2_env, n_ov, n_want, n_act, block_size)
 
@@ -389,9 +408,10 @@ CONTAINS
          CALL print_iteration_header('Block Davidson iterations for ABBA, (A+B)(A-B) x = E^2 x:', unit_nr)
 
          DO iter = 1, mp2_env%bse%max_iter
+            t_iter = m_walltime()
 
             ! sum_n H_mn c_nk = θ_k c_mk with θ_k = (Ω^k)^2, ascending
-            CALL solve_reduced(H, m, para_env, theta, C)
+            CALL solve_reduced(H, m, para_env, theta, C, diag_blacs_env)
 
             ! thick restart: V, W and MW are rotated alike, which keeps V^T W = 1
             IF (m + block_size > m_max .AND. m > n_act .AND. m < n_ov) THEN
@@ -405,7 +425,7 @@ CONTAINS
                CALL rotate_reduced(H, m, Q, k)
                m = k
                n_restart = n_restart + 1
-               CALL solve_reduced(H, m, para_env, theta, C)
+               CALL solve_reduced(H, m, para_env, theta, C, diag_blacs_env)
             END IF
 
             ! a Ritz value bounds an eigenvalue of (A+B)(A-B) from above
@@ -433,7 +453,7 @@ CONTAINS
             all_conv = .NOT. ANY(need)
             CALL print_iteration(iter, m, COUNT(conv(1:n_want)), &
                                  MAX(MAXVAL(res(1:n_req)), MAXVAL(res, MASK=need)), &
-                                 MAXVAL(dE(1:n_req)), omega(1), unit_nr)
+                                 MAXVAL(dE(1:n_req)), omega(1), m_walltime() - t_iter, unit_nr)
             IF (all_conv) EXIT
 
             IF (iter == mp2_env%bse%max_iter) EXIT
@@ -518,6 +538,7 @@ CONTAINS
       CALL cp_fm_release(fm_MW)
       CALL cp_fm_release(fm_work)
       CALL cp_fm_release(fm_scratch)
+      CALL cp_blacs_env_release(diag_blacs_env)
       DEALLOCATE (H, C, C_cand, C_x, C_y, C_x_omega, Q, theta, omega, omega_prev, res, dE, conv, need, &
                   selected, diag)
       IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
@@ -568,11 +589,12 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
       LOGICAL                                            :: all_conv, has_prev, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
-      REAL(KIND=dp)                                      :: kr_min
+      REAL(KIND=dp)                                      :: kr_min, t_iter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, omega, omega_prev, res, res_L, &
                                                             theta_sub
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C_cand, C_work, Kr, Kr_new, L, Mr, &
                                                             Mr_new, Q, R
+      TYPE(cp_blacs_env_type), POINTER                   :: diag_blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_b, fm_Kb, fm_Mb, fm_scratch, fm_work
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -582,6 +604,9 @@ CONTAINS
       abba_status = abba_ok
       ab_margin = 0.0_dp
       para_env => mv_env%para_env
+      ! the trial vectors live on an npe x 1 grid, which is a bad one to diagonalize on
+      NULLIFY (diag_blacs_env)
+      CALL cp_blacs_env_create(diag_blacs_env, para_env)
       n_ov = mv_env%n_ov
       CALL davidson_sizes(mp2_env, n_ov, n_want, n_act, block_size)
 
@@ -662,9 +687,11 @@ CONTAINS
                                      unit_nr)
 
          DO iter = 1, mp2_env%bse%max_iter
+            t_iter = m_walltime()
 
             ! Ω^k ascending with the coefficients R_mk of y^k and L_mk of x^k, sum_m R_mk L_mk = 1
-            CALL solve_reduced_paired(Mr, Kr, m, n_act, para_env, omega, R, L, kr_min, abba_status)
+            CALL solve_reduced_paired(Mr, Kr, m, n_act, para_env, omega, R, L, kr_min, abba_status, &
+                                      diag_blacs_env)
             IF (abba_status /= abba_ok) EXIT
 
             ! thick restart: b, Mb and Kb are rotated alike; the current pairs come first, so that
@@ -682,7 +709,8 @@ CONTAINS
                CALL rotate_reduced(Kr, m, Q, k)
                m = k
                n_restart = n_restart + 1
-               CALL solve_reduced_paired(Mr, Kr, m, n_act, para_env, omega, R, L, kr_min, abba_status)
+               CALL solve_reduced_paired(Mr, Kr, m, n_act, para_env, omega, R, L, kr_min, abba_status, &
+                                         diag_blacs_env)
                IF (abba_status /= abba_ok) EXIT
             END IF
 
@@ -710,7 +738,7 @@ CONTAINS
             all_conv = .NOT. ANY(need)
             CALL print_iteration(iter, m, COUNT(conv(1:n_want)), &
                                  MAX(MAXVAL(res(1:n_req)), MAXVAL(res, MASK=need)), &
-                                 MAXVAL(dE(1:n_req)), omega(1), unit_nr)
+                                 MAXVAL(dE(1:n_req)), omega(1), m_walltime() - t_iter, unit_nr)
             IF (all_conv) EXIT
 
             IF (iter == mp2_env%bse%max_iter) EXIT
@@ -794,6 +822,7 @@ CONTAINS
       CALL cp_fm_release(fm_Kb)
       CALL cp_fm_release(fm_work)
       CALL cp_fm_release(fm_scratch)
+      CALL cp_blacs_env_release(diag_blacs_env)
       DEALLOCATE (Mr, Kr, R, L, C_work, C_cand, Q, omega, omega_prev, res, res_L, dE, conv, need, selected, &
                   diag)
       IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
@@ -954,11 +983,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Paired reduced problem on the orthonormal basis b_ia,m: with Mr_mn = sum_ia b_ia,m (M b)_ia,n
-!>        and Kr_mn = sum_ia b_ia,m (K b)_ia,n, M = A+B, K = A-B, the pairs sum_n Mr_mn R_nk = Ω_k L_mk,
-!>        sum_n Kr_mn L_nk = Ω_k R_mk, sum_m L_mk R_mk = 1 give y_k = sum_m b_m R_mk, x_k = sum_m b_m L_mk.
+!>        and Kr_mn = sum_ia b_ia,m (K b)_ia,n, sum_n Mr_mn R_nk = Ω_k L_mk and sum_n Kr_mn L_nk = Ω_k R_mk.
 !>        Solved as in initial_guess_subblock: Kr = U diag(κ) U^T, S = U diag(√κ) U^T,
 !>        sum_nop S_mn Mr_no S_op T_pk = λ_k T_mk, Ω_k = √λ_k, R_mk = sum_n S_mn T_nk/√Ω_k,
-!>        L_mk = sum_n Mr_mn R_nk/Ω_k. κ_1 <= 0 reports K as indefinite on the span of b
+!>        L_mk = sum_n Mr_mn R_nk/Ω_k. κ_1 <= 0 reports K as indefinite on the span of b.
+!>        Every m x m step runs on the grid of blacs_env: the two eigensolves through
+!>        choose_eigv_solver and the four products through parallel_gemm; only the two reduced
+!>        matrices in and the pair coefficients out cross between replicated and distributed
 !> \param Mr ...
 !> \param Kr ...
 !> \param m ...
@@ -969,49 +1000,66 @@ CONTAINS
 !> \param L coefficients of x_k in column k, zero below row m
 !> \param kr_min κ_1, the smallest eigenvalue of Kr
 !> \param abba_status abba_indefinite when κ_1 <= 0; omega, R and L are then untouched
+!> \param blacs_env grid the reduced problem is solved on
 ! **************************************************************************************************
-   SUBROUTINE solve_reduced_paired(Mr, Kr, m, n_act, para_env, omega, R, L, kr_min, abba_status)
+   SUBROUTINE solve_reduced_paired(Mr, Kr, m, n_act, para_env, omega, R, L, kr_min, abba_status, &
+                                   blacs_env)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Mr, Kr
       INTEGER, INTENT(IN)                                :: m, n_act
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN), TARGET         :: para_env
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: omega
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: R, L
       REAL(KIND=dp), INTENT(OUT)                         :: kr_min
       INTEGER, INTENT(INOUT)                             :: abba_status
+      TYPE(cp_blacs_env_type), INTENT(IN), TARGET        :: blacs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_reduced_paired'
 
-      INTEGER                                            :: handle, k
+      INTEGER                                            :: handle
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: kappa, lambda
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: H, Mr_sym, S, U
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sym
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: fm_H, fm_L, fm_Mr, fm_R, fm_S, fm_T, &
+                                                            fm_U, fm_work
 
       CALL timeset(routineN, handle)
       CPASSERT(n_act <= m)
 
-      ALLOCATE (U(m, m), S(m, m), Mr_sym(m, m), H(m, m), kappa(m), lambda(m))
-      ! Kr = U diag(κ) U^T on the source rank; the pairs are broadcast at the end
-      U(:, :) = 0.5_dp*(Kr(1:m, 1:m) + TRANSPOSE(Kr(1:m, 1:m)))
+      ALLOCATE (kappa(m), lambda(m), sym(m, m))
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
+                               nrow_global=m, ncol_global=m)
+      CALL cp_fm_create(fm_U, fm_struct, name="bse_paired_U")
+      CALL cp_fm_create(fm_S, fm_struct, name="bse_paired_S")
+      CALL cp_fm_create(fm_Mr, fm_struct, name="bse_paired_Mr")
+      CALL cp_fm_create(fm_H, fm_struct, name="bse_paired_H")
+      CALL cp_fm_create(fm_T, fm_struct, name="bse_paired_T")
+      CALL cp_fm_create(fm_work, fm_struct, name="bse_paired_work")
+      CALL cp_fm_struct_release(fm_struct)
+
+      ! Kr = U diag(κ) U^T
+      sym(:, :) = 0.5_dp*(Kr(1:m, 1:m) + TRANSPOSE(Kr(1:m, 1:m)))
+      CALL cp_fm_set_submatrix(fm_work, sym)
       kappa(:) = 0.0_dp
-      IF (para_env%is_source()) CALL diamat_all(U, kappa)
-      CALL para_env%bcast(kappa)
+      CALL choose_eigv_solver(fm_work, fm_U, kappa)
       kr_min = kappa(1)
 
       IF (kappa(1) <= 0.0_dp) THEN
          abba_status = abba_indefinite
       ELSE
+         ! S = U diag(√κ) U^T
+         CALL cp_fm_to_fm(fm_U, fm_work)
+         CALL cp_fm_column_scale(fm_work, SQRT(kappa))
+         CALL parallel_gemm('N', 'T', m, m, m, 1.0_dp, fm_work, fm_U, 0.0_dp, fm_S)
+
+         ! H_mp = sum_no S_mn Mr_no S_op, then T holds its eigenvectors
+         sym(:, :) = 0.5_dp*(Mr(1:m, 1:m) + TRANSPOSE(Mr(1:m, 1:m)))
+         CALL cp_fm_set_submatrix(fm_Mr, sym)
+         CALL parallel_gemm('N', 'N', m, m, m, 1.0_dp, fm_Mr, fm_S, 0.0_dp, fm_work)
+         CALL parallel_gemm('N', 'N', m, m, m, 1.0_dp, fm_S, fm_work, 0.0_dp, fm_H)
          lambda(:) = 0.0_dp
-         IF (para_env%is_source()) THEN
-            ! S = Kr^1/2, H_mp = sum_no S_mn Mr_no S_op, then H holds the eigenvectors T
-            DO k = 1, m
-               S(:, k) = U(:, k)*SQRT(kappa(k))
-            END DO
-            S(:, :) = MATMUL(S, TRANSPOSE(U))
-            Mr_sym(:, :) = 0.5_dp*(Mr(1:m, 1:m) + TRANSPOSE(Mr(1:m, 1:m)))
-            H(:, :) = MATMUL(S, MATMUL(Mr_sym, S))
-            CALL diamat_all(H, lambda)
-         END IF
-         CALL para_env%bcast(lambda)
+         CALL choose_eigv_solver(fm_H, fm_T, lambda)
          IF (lambda(1) <= 0.0_dp) THEN
             CALL cp_abort(__LOCATION__, &
                           "BSE Davidson (OLSEN_STRATMANN): negative squared excitation energy. Matrix "// &
@@ -1020,24 +1068,33 @@ CONTAINS
          END IF
          omega(1:n_act) = SQRT(lambda(1:n_act))
 
+         ! R_mk = sum_n S_mn T_nk/√Ω_k, L_mk = sum_n Mr_mn R_nk/Ω_k
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
+                                  nrow_global=m, ncol_global=n_act)
+         CALL cp_fm_create(fm_R, fm_struct, name="bse_paired_R")
+         CALL cp_fm_create(fm_L, fm_struct, name="bse_paired_L")
+         CALL cp_fm_struct_release(fm_struct)
+         CALL parallel_gemm('N', 'N', m, n_act, m, 1.0_dp, fm_S, fm_T, 0.0_dp, fm_R)
+         CALL cp_fm_column_scale(fm_R, 1.0_dp/SQRT(omega(1:n_act)))
+         CALL parallel_gemm('N', 'N', m, n_act, m, 1.0_dp, fm_Mr, fm_R, 0.0_dp, fm_L)
+         CALL cp_fm_column_scale(fm_L, 1.0_dp/omega(1:n_act))
+
          R(:, :) = 0.0_dp
          L(:, :) = 0.0_dp
-         IF (para_env%is_source()) THEN
-            ! R_mk = sum_n S_mn T_nk/√Ω_k, L_mk = sum_n Mr_mn R_nk/Ω_k
-            R(1:m, 1:n_act) = MATMUL(S, H(:, 1:n_act))
-            DO k = 1, n_act
-               R(1:m, k) = R(1:m, k)/SQRT(omega(k))
-            END DO
-            L(1:m, 1:n_act) = MATMUL(Mr_sym, R(1:m, 1:n_act))
-            DO k = 1, n_act
-               L(1:m, k) = L(1:m, k)/omega(k)
-            END DO
-         END IF
-         CALL para_env%bcast(R)
-         CALL para_env%bcast(L)
+         CALL cp_fm_get_submatrix(fm_R, R(1:m, 1:n_act))
+         CALL cp_fm_get_submatrix(fm_L, L(1:m, 1:n_act))
+         CALL cp_fm_release(fm_R)
+         CALL cp_fm_release(fm_L)
       END IF
 
-      DEALLOCATE (U, S, Mr_sym, H, kappa, lambda)
+      CALL cp_fm_release(fm_U)
+      CALL cp_fm_release(fm_S)
+      CALL cp_fm_release(fm_Mr)
+      CALL cp_fm_release(fm_H)
+      CALL cp_fm_release(fm_T)
+      CALL cp_fm_release(fm_work)
+      DEALLOCATE (kappa, lambda, sym)
       CALL timestop(handle)
 
    END SUBROUTINE solve_reduced_paired
@@ -1218,8 +1275,11 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', title
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A5,T14,A9,T25,A9,T36,A14,T52,A13,T67,A14)') 'BSE|', &
-            'Iter.', 'Subspace', 'Converged', 'Max |r| (a.u.)', 'Max. dE (eV)', 'Lowest E (eV)'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+            '|r| in a.u., energies in eV, t the wall time of the iteration'
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A5,T14,A8,T24,A6,T33,A12,T47,A12,T61,A12,T74,A7)') 'BSE|', &
+            'Iter.', 'Z-space', 'Conv.', 'Max |r|', 'Max dE', 'Lowest E', 't (s)'
       END IF
 
    END SUBROUTINE print_iteration_header
@@ -1232,17 +1292,18 @@ CONTAINS
 !> \param max_res ...
 !> \param max_dE in Hartree
 !> \param lowest_E in Hartree
+!> \param t_iter wall time of the iteration in seconds
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE print_iteration(iter, m, n_conv, max_res, max_dE, lowest_E, unit_nr)
+   SUBROUTINE print_iteration(iter, m, n_conv, max_res, max_dE, lowest_E, t_iter, unit_nr)
 
       INTEGER, INTENT(IN)                                :: iter, m, n_conv
-      REAL(KIND=dp), INTENT(IN)                          :: max_res, max_dE, lowest_E
+      REAL(KIND=dp), INTENT(IN)                          :: max_res, max_dE, lowest_E, t_iter
       INTEGER, INTENT(IN)                                :: unit_nr
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4,T7,I5,T14,I9,T25,I9,T36,ES14.4,T52,ES13.4,T67,F14.6)') 'BSE|', &
-            iter, m, n_conv, max_res, max_dE*evolt, lowest_E*evolt
+         WRITE (unit_nr, '(T2,A4,T7,I5,T14,I8,T24,I6,T33,ES12.4,T47,ES12.4,T61,F12.6,T74,F7.2)') &
+            'BSE|', iter, m, n_conv, max_res, max_dE*evolt, lowest_E*evolt, t_iter
       END IF
 
    END SUBROUTINE print_iteration
@@ -1714,20 +1775,69 @@ CONTAINS
    END SUBROUTINE check_guess_bound
 
 ! **************************************************************************************************
-!> \brief Eigenpairs of the symmetrised reduced matrix, solved on one rank and broadcast
+!> \brief Eigenpairs of a replicated symmetric m x m matrix through the distributed eigensolver:
+!>        A is scattered onto the grid of blacs_env, diagonalized by choose_eigv_solver and the
+!>        eigenvectors are gathered back into A, ascending with eigval, so the caller keeps a
+!>        replicated matrix. The scatter and the gather are O(m^2), the solve O(m^3)
+!> \param A on entry the symmetric matrix, on exit its eigenvectors in the columns
+!> \param m ...
+!> \param blacs_env grid the solve runs on; the npe x 1 grid of the trial vectors is a bad one
+!> \param para_env ...
+!> \param eigval ascending
+! **************************************************************************************************
+   SUBROUTINE diag_replicated(A, m, blacs_env, para_env, eigval)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: A
+      INTEGER, INTENT(IN)                                :: m
+      TYPE(cp_blacs_env_type), INTENT(IN), TARGET        :: blacs_env
+      TYPE(mp_para_env_type), INTENT(IN), TARGET         :: para_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigval
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diag_replicated'
+
+      INTEGER                                            :: handle
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: fm_a, fm_vec
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
+                               nrow_global=m, ncol_global=m)
+      CALL cp_fm_create(fm_a, fm_struct, name="bse_reduced")
+      CALL cp_fm_create(fm_vec, fm_struct, name="bse_reduced_vectors")
+      CALL cp_fm_struct_release(fm_struct)
+
+      CALL cp_fm_set_submatrix(fm_a, A(1:m, 1:m))
+      CALL choose_eigv_solver(fm_a, fm_vec, eigval(1:m))
+      CALL cp_fm_get_submatrix(fm_vec, A(1:m, 1:m))
+
+      CALL cp_fm_release(fm_a)
+      CALL cp_fm_release(fm_vec)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE diag_replicated
+
+! **************************************************************************************************
+!> \brief Eigenpairs of the symmetrised reduced matrix, on the grid of blacs_env when it is
+!>        given, else on one rank and broadcast; the small fixed-size calls keep the serial path
 !> \param G ...
 !> \param m ...
 !> \param para_env ...
 !> \param theta ...
 !> \param C ...
+!> \param blacs_env grid for the distributed eigensolver
 ! **************************************************************************************************
-   SUBROUTINE solve_reduced(G, m, para_env, theta, C)
+   SUBROUTINE solve_reduced(G, m, para_env, theta, C, blacs_env)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: G
       INTEGER, INTENT(IN)                                :: m
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      TYPE(mp_para_env_type), INTENT(IN), TARGET         :: para_env
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: theta
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: C
+      TYPE(cp_blacs_env_type), INTENT(IN), OPTIONAL, &
+         TARGET                                          :: blacs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_reduced'
 
@@ -1740,9 +1850,13 @@ CONTAINS
       ALLOCATE (G_sym(m, m), eigval(m))
       G_sym(:, :) = 0.5_dp*(G(1:m, 1:m) + TRANSPOSE(G(1:m, 1:m)))
       eigval(:) = 0.0_dp
-      IF (para_env%is_source()) CALL diamat_all(G_sym, eigval)
-      CALL para_env%bcast(G_sym)
-      CALL para_env%bcast(eigval)
+      IF (PRESENT(blacs_env)) THEN
+         CALL diag_replicated(G_sym, m, blacs_env, para_env, eigval)
+      ELSE
+         IF (para_env%is_source()) CALL diamat_all(G_sym, eigval)
+         CALL para_env%bcast(G_sym)
+         CALL para_env%bcast(eigval)
+      END IF
 
       theta(:) = 0.0_dp
       theta(1:m) = eigval(:)
