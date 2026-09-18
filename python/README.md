@@ -5,6 +5,9 @@ This package calls the C API of `libcp2k` in the Python process using `ctypes`. 
 Python dependency; ASE and mpi4py are optional. The shared CP2K library and its numerical
 dependencies are installed separately.
 
+The optional AiiDA workflow helper described below is a separate job-management layer: it uses the
+existing AiiDA CP2K executable plugin, not the in-process calculator.
+
 ## Installation
 
 From a CP2K source checkout:
@@ -140,6 +143,92 @@ forces. No stress/cell optimizer, per-atom energy, shell-particle mapping, or di
 plugin is provided. Fixed-cell ASE optimizers and MD integrators can use the calculator. An
 OpenMM-like in-process Python API does not make CP2K into an OpenMM force field.
 
+## AiiDA common relaxation workflows
+
+`cp2k.aiida.build_relax_builder` integrates with the existing
+[`common_workflows.relax.cp2k`](https://aiida-common-workflows.readthedocs.io/en/latest/workflows/base/relax/implementations/cp2k.html)
+workflow. It returns an ordinary AiiDA builder for inspection, synchronous execution or daemon
+submission. It does not load a profile, submit a job, initialize MPI, or load libcp2k on import. The
+configured CP2K executable runs on the selected AiiDA computer/scheduler through `aiida-cp2k`. No
+shared CP2K library is needed for this path.
+
+Geometry and cell relaxation require a CP2K executable that includes the separately maintained final
+optimization-cell frame fix in `src/motion/gopt_f_methods.F`: the final call to `write_geo_traj`
+must be followed by `write_simulation_cell`. Without that fix, converged runs can write one more
+position frame than cell frames, which the AiiDA trajectory parser rejects. This Python integration
+does not itself change the native optimizer.
+
+Install in a separate Python environment (tested with Python 3.12):
+
+```sh
+python -m pip install './python[aiida]' -r python/requirements-aiida.txt
+```
+
+The requirements file pins the tested AiiDA 2.9.2/aiida-cp2k 2.1.1 stack and the upstream
+common-workflows source revision. Do not replace it with an unqualified
+`pip install aiida-common-workflows`: the older PyPI 0.1.0 release requires AiiDA 1.x. The `aiida`
+extra alone installs the core/plugin dependencies, not this unreleased common-workflows revision.
+Keep the requirements and your CP2K executable version with a reproducible project.
+
+First configure an AiiDA profile, computer and CP2K code (`default_calc_job_plugin="cp2k"`) using
+[AiiDA's setup instructions](https://aiida.readthedocs.io/projects/aiida-core/en/stable/intro/get_started.html).
+Use your scheduler's resources, MPI launcher, environment and walltime; these are not inferred by
+the helper. Existing profiles and codes are never changed automatically.
+
+```python
+from aiida import engine, load_profile, orm
+from ase import Atoms
+from cp2k.aiida import build_relax_builder
+
+load_profile("my-profile")
+structure = orm.StructureData(ase=Atoms(
+    "H2", positions=[[4.6, 5, 5], [5.4, 5, 5]], cell=[10]*3, pbc=True))
+builder = build_relax_builder(
+    structure,
+    code=orm.load_code("cp2k@localhost"),
+    electronic_type="insulator",  # choose explicitly: metal or insulator
+    protocol="fast",              # fast / moderate / precise
+    relax_type="positions",       # none / positions / positions_cell
+    options={"resources": {"num_machines": 1, "num_mpiprocs_per_machine": 1},
+             "withmpi": False, "max_wallclock_seconds": 600,
+             "environment_variables": {"OMP_NUM_THREADS": "1"}},
+)
+print(builder.cp2k.parameters.get_dict())  # inspect before executing
+results, node = engine.run_get_node(builder)  # explicit synchronous execution
+assert node.is_finished_ok, (node.exit_status, node.exit_message)
+print(node.uuid, results["total_energy"].value)  # eV
+# Alternatively: node = engine.submit(builder), with a configured running daemon.
+```
+
+This example is a **periodic** H2 smoke test, not a recommendation for an isolated-molecule model or
+production convergence settings. The common CP2K protocols are neutral and fully periodic.
+Nonperiodic/partially periodic structures are rejected: `aiida-cp2k` 2.1.1 does not automatically
+transfer `StructureData.pbc` to CP2K's cell/Poisson input. Use a custom `cp2k.base` builder with
+explicit physical settings for molecules, slabs or charged systems. Do not silently make them
+periodic. The helper does not infer charge, multiplicity or magnetization from an ASE calculator.
+
+For spin-polarized periodic calculations, use `spin_type="collinear"` and an explicit
+`magnetization_per_site` list (Bohr magnetons). The common generator chooses the corresponding CP2K
+kinds/multiplicity; inspect its generated parameters. `threshold_forces` is in eV/angstrom;
+`threshold_stress` is in eV/angstrom^3 and applies only to `positions_cell`. Unsupported
+combinations are rejected, including magnetization with `spin_type="none"`. `reference_workchain`
+forwards the existing common-workflows mechanism for keeping numerical settings consistent across
+related runs.
+
+The compatibility layer removes the obsolete `MOTION/CELL_OPT/TYPE DIRECT_CELL_OPT` keyword, selects
+the XYZ trajectory format required by the current parser and enables matching cell output. It
+preserves `GEO_OPT/TYPE` and does not change the protocol's Hamiltonian or convergence parameters.
+The generated input, structure, basis/potential files and retrieved outputs are recorded by the
+existing AiiDA calculation/workflow provenance. Common outputs include energy in eV and forces in
+eV/angstrom; not every optional common output is supplied by every workflow. Child
+`cp2k.base`/CalcJob nodes retain the detailed trajectory and parsed results.
+
+[`python/examples/aiida_relaxation.py`](https://github.com/cp2k/cp2k/blob/master/python/examples/aiida_relaxation.py)
+provides a CLI that only prepares/prints inputs unless `--run` or `--submit` is explicitly selected.
+For cross-code studies, build on the existing common-workflows ORCA/QE implementations and their
+shared input/output specification. This helper targets CP2K; it does not add or validate ORCA/QE
+executables, and common workflow settings do not guarantee identical physical approximations.
+
 ## Lifetime, MPI and safety
 
 - Create **one CP2K runtime per Python process**. CP2K's global native state and MPI must not be
@@ -196,6 +285,23 @@ run pytest explicitly with the Python interpreter in which the test dependencies
 `CP2K_DATA_DIR` to the CP2K data directory (CMake's `CP2K_DATA_DIR`) and `CP2K_TEST_LIBRARY` to the
 built shared library. Use `--basetemp=/path/to/test-output` to keep test outputs in a chosen
 directory; pytest clears that directory at the start of each run.
+
+Optional AiiDA tests use a temporary SQLite profile with local transport/direct scheduling, without
+a daemon or RabbitMQ. Install the optional workflow and test dependencies, then run:
+
+```sh
+python -m pip install './python[aiida,test]' -r python/requirements-aiida.txt
+AIIDA_PATH=/absolute/path/to/project/aiida-test-config \
+CP2K_TEST_AIIDA=1 CP2K_TEST_EXECUTABLE=/absolute/path/to/cp2k.psmp \
+OMP_NUM_THREADS=1 python -m pytest python/tests/test_aiida.py
+```
+
+Without `CP2K_TEST_AIIDA=1` the native workflow is skipped, but builder/validation tests still run
+when the optional packages are present. Without those packages the module is skipped. The native
+tests execute actual common-workflow single-point, geometry-optimization and cell-optimization jobs.
+They check finished calculation provenance, energies/forces and final structures against the stored
+position/cell trajectories. These local tests do not certify remote schedulers or a production
+daemon deployment.
 
 MPI smoke tests run separately (same environment as above, MPI-enabled library):
 
