@@ -348,6 +348,8 @@ def render_keyword(
     # a domain object.
     output += ["````{container} cp2k-input-keyword", ""]
     output += [f"```{{rubric}} {escape_markdown(canonical_name)}"]
+    # HTML headings enable Pagefind sub-results without adding Sphinx TOC entries.
+    output += [":heading-level: 3"]
     if keyword_xref:
         output += [f":name: {keyword_xref}"]
     output += ["```"]

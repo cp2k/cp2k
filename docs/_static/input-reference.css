@@ -8,7 +8,7 @@
 }
 
 /* Compact signature-like heading without creating a Sphinx domain object. */
-.rst-content .cp2k-input-keyword > p.rubric {
+.rst-content .cp2k-input-keyword > .rubric {
     grid-column: 1;
     grid-row: 1;
     margin: 0 0 0.6em;
@@ -48,7 +48,7 @@
 }
 
 /* Keyword details use the indentation of the former object-description body. */
-.rst-content .cp2k-input-keyword > :not(p.rubric):not(.cp2k-input-keyword-permalink) {
+.rst-content .cp2k-input-keyword > :not(.rubric):not(.cp2k-input-keyword-permalink) {
     grid-column: 1 / -1;
     margin-left: 1.75em;
 }

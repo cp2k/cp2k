@@ -30,13 +30,20 @@ To build a local version of the manual perform the following steps:
    ./generate_input_reference.py ./cp2k_input.xml
    ```
 
-1. Run Sphinx:
+1. Run Sphinx, followed by Pagefind to build the static search bundle:
 
    ```
    make html
    ```
 
-1. Browse the HTML output in the `_build/html` directory.
+1. Serve the HTML output locally (Pagefind needs HTTP, not `file://`):
+
+   ```
+   python3 -m http.server --bind 127.0.0.1 --directory _build/html 8000
+   ```
+
+   Open `http://127.0.0.1:8000/`. The sidebar search opens a Pagefind modal; `Ctrl+K` (`Cmd+K` on
+   macOS) opens the same modal. Classic Sphinx search remains available.
 
 > [!TIP]
 >
@@ -45,6 +52,43 @@ To build a local version of the manual perform the following steps:
 > minutes and requires a lot of memory. So for development it's advisable to build without the input
 > reference. To check cross-references one can generate the input reference and then remove all
 > pages except the relevant ones.
+
+## Static search
+
+Pagefind is installed by `requirements.txt`, including its native indexing binary; no Node.js,
+external search service, or deployment-side process is needed. `make html` runs the indexer only
+after Sphinx has exited. A failed indexing command fails the build rather than silently publishing
+an incomplete search bundle.
+
+Publish the **entire** `_build/html` directory, including `pagefind/`. Assets and result URLs are
+relative to the current manual version, so `/trunk/` and release directories have separate searches.
+The first prototype does not merge indexes across versions. Deploy HTML and its matching search
+bundle together; caches must allow the entry manifest and UI assets to refresh on updates.
+
+If a publishing job invokes Sphinx directly instead of `make html`, run the indexer afterward, from
+this directory:
+
+```
+make pagefind
+# For an HTML output at /path/to/build/html:
+make pagefind BUILDDIR=/path/to/build
+```
+
+`PAGEFIND` can be overridden to use a separately installed binary, and `PAGEFINDOPTS` passes extra
+indexer options. The index settings are in `pagefind.yml`; commands should run from `docs/` so that
+Pagefind reads this file. Other Sphinx targets, such as `linkcheck`, do not run Pagefind.
+
+The search indexes only the document body, not sidebars, breadcrumbs, footers, generated keyword
+lists, or edit links. Input-reference result titles include the section path. The Collection filter
+separates input reference from other documentation. Named keyword rubrics are rendered as HTML
+headings so Pagefind can link directly to the keyword, without adding Sphinx TOC entries or Python
+domain objects. The anonymous inlined Libxc keywords retain their existing target policy; do not
+expect unique keyword-level results for those in this first version.
+
+For comparison, test `EPS_SCF`, `SCF EPS_SCF`, `ATOMIC_NUMBER`, `CELL_OPT CONSTRAINT`, `ADDED_MOS`,
+and a prose query such as `geometry optimization`. Check keyword sub-result links as well as page
+ranking. A full dotted input path and typo tolerance are not separately tuned in this prototype. A
+missing or inaccessible search bundle leaves the original Sphinx search form available.
 
 ______________________________________________________________________
 

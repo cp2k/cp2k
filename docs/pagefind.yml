@@ -1,0 +1,11 @@
+# Applied by Pagefind when invoked from docs/ (including make html/pagefind).
+force_language: en
+include_characters: "_"
+exclude_selectors:
+  - .headerlink
+  - .toctree-wrapper
+  - .cp2k-input-keyword-permalink
+  # Search definitions, not the duplicate keyword list above them.
+  - ".cp2k-input-page #keywords"
+  # Generated input pages use <small> only for the Edit on GitHub links.
+  - ".cp2k-input-page small"
