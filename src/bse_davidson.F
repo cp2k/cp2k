@@ -85,7 +85,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_davidson_tda'
 
       INTEGER                                            :: block_size, handle, iter, k, m, m_max, &
-                                                            n_act, n_cand, n_dep, n_dependent, &
+                                                            n_act, n_cand, n_dependent, n_dropped, &
                                                             n_kernel, n_ov, n_req, n_restart, &
                                                             n_want, nt
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
@@ -93,7 +93,7 @@ CONTAINS
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, res, theta, theta_prev, &
                                                             theta_sub
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_cand, C_theta, G, G_new, Q
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_cand, C_ritz, G, G_new, Q
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_AZ, fm_work, fm_Z
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -117,7 +117,7 @@ CONTAINS
       CALL cp_fm_create(fm_work, fm_struct, name="fm_work_davidson", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
 
-      ALLOCATE (G(m_max, m_max), C(m_max, m_max), C_cand(m_max, 2*n_act), C_theta(m_max, n_act))
+      ALLOCATE (G(m_max, m_max), C(m_max, m_max), C_cand(m_max, 2*n_act), C_ritz(m_max, n_act))
       ALLOCATE (Q(m_max, 2*n_act))
       ALLOCATE (theta(m_max), theta_prev(n_act), res(n_act), dE(n_act), conv(n_act), need(n_act), &
                 selected(n_act))
@@ -167,10 +167,10 @@ CONTAINS
 
          ! r_ia,k = sum_m (A Z)_ia,m c_mk - θ_k sum_m Z_ia,m c_mk for all tracked roots k
          DO k = 1, n_act
-            C_theta(1:m, k) = C(1:m, k)*theta(k)
+            C_ritz(1:m, k) = C(1:m, k)*theta(k)
          END DO
          CALL subspace_rotate(fm_AZ, m, C(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp)
-         CALL subspace_rotate(fm_Z, m, C_theta(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
+         CALL subspace_rotate(fm_Z, m, C_ritz(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
          CALL column_norms(fm_work, 1, n_act, para_env, res)
 
          dE(:) = ABS(theta(1:n_act) - theta_prev(:))
@@ -197,9 +197,9 @@ CONTAINS
             CPABORT("BSE Davidson: correction vectors vanished before convergence")
          END IF
          stalled = nt == 0
-         CALL cholqr2(fm_Z, m + 1, nt, para_env, ok, n_dep)
+         CALL cholqr2(fm_Z, m + 1, nt, para_env, ok, n_dropped)
          IF (.NOT. ok) CPABORT("BSE Davidson: orthonormalisation broke down")
-         n_dependent = n_dependent + n_dep
+         n_dependent = n_dependent + n_dropped
          IF (extension_deviation(fm_Z, fm_Z, m, nt, para_env) > ortho_tol) THEN
             CPABORT("BSE Davidson: the basis lost orthonormality")
          END IF
@@ -254,7 +254,7 @@ CONTAINS
       CALL cp_fm_release(fm_Z)
       CALL cp_fm_release(fm_AZ)
       CALL cp_fm_release(fm_work)
-      DEALLOCATE (G, C, C_cand, C_theta, Q, theta, theta_prev, res, dE, conv, need, selected, diag)
+      DEALLOCATE (G, C, C_cand, C_ritz, Q, theta, theta_prev, res, dE, conv, need, selected, diag)
       IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
 
       CALL timestop(handle)
@@ -295,16 +295,17 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_davidson_abba_mk'
 
-      INTEGER :: block_size, handle, iter, k, m, m_max, n_act, n_cand, n_dependent, n_kernel, &
-         n_ov, n_raw, n_req, n_restart, n_seed, n_want, next_col, nrow_local, nt, nt_in
+      INTEGER :: block_size, guess_col, handle, iter, k, m, m_max, n_act, n_cand, n_dependent, &
+         n_guess_cols, n_kernel, n_ov, n_req, n_restart, n_seed, n_want, nrow_local, nt, nt_guess
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
       LOGICAL                                            :: all_conv, has_prev, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, eigval, omega, omega_prev, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, omega, omega_prev, omega_sq, &
                                                             res, theta, theta_sub
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_cand, C_wx, C_x, C_y, H, H_new, Q
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_cand, C_x, C_x_omega, C_y, H, &
+                                                            H_new, Q
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_MW, fm_scr, fm_V, fm_W, fm_work
+      TYPE(cp_fm_type)                                   :: fm_MW, fm_scratch, fm_V, fm_W, fm_work
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -329,12 +330,12 @@ CONTAINS
       CALL cp_fm_create(fm_work, fm_struct, name="fm_work_davidson", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
       CALL bse_matvec_vector_struct(mv_env, block_size, fm_struct)
-      CALL cp_fm_create(fm_scr, fm_struct, name="fm_scr_davidson", set_zero=.TRUE.)
+      CALL cp_fm_create(fm_scratch, fm_struct, name="fm_scratch_davidson", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_get_info(fm_V, nrow_local=nrow_local)
 
       ALLOCATE (H(m_max, m_max), C(m_max, m_max), C_cand(m_max, 2*n_act), Q(m_max, 2*n_act))
-      ALLOCATE (C_x(m_max, n_act), C_y(m_max, n_act), C_wx(m_max, n_act))
+      ALLOCATE (C_x(m_max, n_act), C_y(m_max, n_act), C_x_omega(m_max, n_act))
       ALLOCATE (theta(m_max), omega(n_act), omega_prev(n_act), res(n_act), dE(n_act), conv(n_act), &
                 need(n_act), selected(n_act))
       H(:, :) = 0.0_dp
@@ -356,33 +357,33 @@ CONTAINS
          fm_V%local_data(1:nrow_local, 1:n_seed) = fm_X_tda%local_data(1:nrow_local, 1:n_seed)
       END IF
       IF (mp2_env%bse%num_guess_transitions > 0) THEN
-         CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_V, n_raw, theta_sub, &
+         CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_V, n_guess_cols, theta_sub, &
                                      unit_nr, n_seed, abba_status, ab_margin)
       ELSE
-         CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_V, n_raw, n_seed)
+         CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_V, n_guess_cols, n_seed)
       END IF
       ! the corrections divide by d_ia^2 - (Ω^k)^2
       diag(:) = diag(:)**2
 
       ! the guess enters the basis in blocks of the scratch width
       m = 0
-      next_col = 1
-      DO WHILE (next_col <= n_raw)
-         nt_in = MIN(block_size, n_raw - next_col + 1)
-         nt = nt_in
-         IF (next_col > m + 1) THEN
+      guess_col = 1
+      DO WHILE (guess_col <= n_guess_cols)
+         nt_guess = MIN(block_size, n_guess_cols - guess_col + 1)
+         nt = nt_guess
+         IF (guess_col > m + 1) THEN
             fm_V%local_data(1:nrow_local, m + 1:m + nt) = &
-               fm_V%local_data(1:nrow_local, next_col:next_col + nt - 1)
+               fm_V%local_data(1:nrow_local, guess_col:guess_col + nt - 1)
          END IF
-         CALL extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scr, m, nt, n_kernel, n_dependent, abba_status, &
+         CALL extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scratch, m, nt, n_kernel, n_dependent, abba_status, &
                               ab_margin)
          IF (abba_status /= abba_ok) EXIT
-         next_col = next_col + nt_in
+         guess_col = guess_col + nt_guess
          m = m + nt
       END DO
 
       IF (abba_status == abba_ok) THEN
-         fm_V%local_data(1:nrow_local, m + 1:n_raw) = 0.0_dp
+         fm_V%local_data(1:nrow_local, m + 1:n_guess_cols) = 0.0_dp
          ! H_mn = sum_ia W_ia,m (M W)_ia,n on the guess basis
          CALL subspace_gram(fm_W, 1, m, fm_MW, 1, m, para_env, H(1:m, 1:m))
 
@@ -419,10 +420,10 @@ CONTAINS
             ! r_ia,k = sum_m (M W)_ia,m c_mk (Ω^k)^-1/2 - Ω^k (Ω^k)^1/2 sum_m V_ia,m c_mk
             DO k = 1, n_act
                C_y(1:m, k) = C(1:m, k)/SQRT(omega(k))
-               C_wx(1:m, k) = C(1:m, k)*omega(k)*SQRT(omega(k))
+               C_x_omega(1:m, k) = C(1:m, k)*omega(k)*SQRT(omega(k))
             END DO
             CALL subspace_rotate(fm_MW, m, C_y(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp)
-            CALL subspace_rotate(fm_V, m, C_wx(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
+            CALL subspace_rotate(fm_V, m, C_x_omega(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
             CALL column_norms(fm_work, 1, n_act, para_env, res)
 
             dE(:) = ABS(omega(:) - omega_prev(:))
@@ -441,7 +442,7 @@ CONTAINS
             ! corrections t_ia,k = r_ia,k/(d_ia^2 - (Ω^k)^2) for the lowest unconverged roots
             CALL select_roots(mp2_env, need, res, MIN(block_size, m_max - m), selected, nt)
             CALL davidson_corrections(fm_work, selected(1:nt), theta, diag, fm_V, m + 1)
-            CALL extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scr, m, nt, n_kernel, n_dependent, abba_status, &
+            CALL extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scratch, m, nt, n_kernel, n_dependent, abba_status, &
                                  ab_margin)
             IF (abba_status /= abba_ok) EXIT
             IF (nt == 0 .AND. stalled) THEN
@@ -471,7 +472,7 @@ CONTAINS
          IF (.NOT. all_conv) CALL abort_unconverged(omega, res, conv, need, n_req, unit_nr)
          IF (mp2_env%bse%bse_debug_print) CALL print_tracked_roots(omega, res, n_want, n_act, unit_nr)
 
-         ALLOCATE (H_new(m, m), eigval(m))
+         ALLOCATE (H_new(m, m), omega_sq(m))
          IF (mp2_env%bse%bse_debug_print) THEN
             CALL subspace_gram(fm_V, 1, m, fm_W, 1, m, para_env, H_new)
             DO k = 1, m
@@ -486,11 +487,11 @@ CONTAINS
          ! with sum_ia V_ia,m W_ia,n = δ_mn the smallest eigenvalue of A-B on the span of V is the
          ! inverse of the largest eigenvalue of S_mn = sum_ia V_ia,m V_ia,n
          CALL subspace_gram(fm_V, 1, m, fm_V, 1, m, para_env, H_new)
-         eigval(:) = 0.0_dp
-         IF (para_env%is_source()) CALL diamat_all(H_new, eigval)
-         CALL para_env%bcast(eigval)
-         ab_margin = 1.0_dp/eigval(m)
-         DEALLOCATE (H_new, eigval)
+         omega_sq(:) = 0.0_dp
+         IF (para_env%is_source()) CALL diamat_all(H_new, omega_sq)
+         CALL para_env%bcast(omega_sq)
+         ab_margin = 1.0_dp/omega_sq(m)
+         DEALLOCATE (H_new, omega_sq)
 
          IF (ALLOCATED(theta_sub)) CALL check_guess_bound(theta_sub, omega, n_req, unit_nr)
          CALL print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr, ab_margin, n_dependent)
@@ -517,8 +518,8 @@ CONTAINS
       CALL cp_fm_release(fm_W)
       CALL cp_fm_release(fm_MW)
       CALL cp_fm_release(fm_work)
-      CALL cp_fm_release(fm_scr)
-      DEALLOCATE (H, C, C_cand, C_x, C_y, C_wx, Q, theta, omega, omega_prev, res, dE, conv, need, &
+      CALL cp_fm_release(fm_scratch)
+      DEALLOCATE (H, C, C_cand, C_x, C_y, C_x_omega, Q, theta, omega, omega_prev, res, dE, conv, need, &
                   selected, diag)
       IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
 
@@ -562,19 +563,19 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_davidson_abba_os'
 
-      INTEGER :: block_size, handle, iter, k, m, m_max, n_act, n_cand, n_dependent, n_kernel, &
-         n_ov, n_pair, n_raw, n_req, n_restart, n_seed, n_want, next_col, nrow_local, nt, nt_in, &
-         nt_L, nt_R, nt_sel
+      INTEGER :: block_size, guess_col, handle, iter, k, m, m_max, n_act, n_cand, n_dependent, &
+         n_guess_cols, n_kernel, n_ov, n_pair, n_req, n_restart, n_seed, n_want, nrow_local, nt, &
+         nt_guess, nt_L, nt_R, nt_sel
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
       LOGICAL                                            :: all_conv, has_prev, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
       REAL(KIND=dp)                                      :: kr_min
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, omega, omega_prev, res, res_L, &
                                                             theta_sub
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C_cand, C_om, Kr, Kr_new, L, Mr, Mr_new, &
-                                                            Q, R
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C_cand, C_work, Kr, Kr_new, L, Mr, &
+                                                            Mr_new, Q, R
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_b, fm_Kb, fm_Mb, fm_scr, fm_work
+      TYPE(cp_fm_type)                                   :: fm_b, fm_Kb, fm_Mb, fm_scratch, fm_work
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -601,11 +602,11 @@ CONTAINS
       CALL cp_fm_create(fm_work, fm_struct, name="fm_work_davidson", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
       CALL bse_matvec_vector_struct(mv_env, 2*block_size, fm_struct)
-      CALL cp_fm_create(fm_scr, fm_struct, name="fm_scr_davidson", set_zero=.TRUE.)
+      CALL cp_fm_create(fm_scratch, fm_struct, name="fm_scratch_davidson", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_get_info(fm_b, nrow_local=nrow_local)
 
-      ALLOCATE (Mr(m_max, m_max), Kr(m_max, m_max), R(m_max, n_act), L(m_max, n_act), C_om(m_max, n_act))
+      ALLOCATE (Mr(m_max, m_max), Kr(m_max, m_max), R(m_max, n_act), L(m_max, n_act), C_work(m_max, n_act))
       ALLOCATE (C_cand(m_max, 4*n_act), Q(m_max, 4*n_act))
       ALLOCATE (omega(n_act), omega_prev(n_act), res(n_act), res_L(n_act), dE(n_act), conv(n_act), &
                 need(n_act), selected(n_act))
@@ -631,30 +632,30 @@ CONTAINS
       END IF
       n_pair = 0
       IF (mp2_env%bse%num_guess_transitions > 0) THEN
-         CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_b, n_raw, theta_sub, &
+         CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_b, n_guess_cols, theta_sub, &
                                      unit_nr, n_seed, abba_status, ab_margin, n_pair)
       ELSE
-         CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_b, n_raw, n_seed)
+         CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_b, n_guess_cols, n_seed)
       END IF
-      n_raw = n_raw + n_pair
+      n_guess_cols = n_guess_cols + n_pair
 
       ! the guess enters the basis in blocks of the scratch width
       m = 0
-      next_col = 1
-      DO WHILE (next_col <= n_raw)
-         nt_in = MIN(2*block_size, n_raw - next_col + 1)
-         nt = nt_in
-         IF (next_col > m + 1) THEN
+      guess_col = 1
+      DO WHILE (guess_col <= n_guess_cols)
+         nt_guess = MIN(2*block_size, n_guess_cols - guess_col + 1)
+         nt = nt_guess
+         IF (guess_col > m + 1) THEN
             fm_b%local_data(1:nrow_local, m + 1:m + nt) = &
-               fm_b%local_data(1:nrow_local, next_col:next_col + nt - 1)
+               fm_b%local_data(1:nrow_local, guess_col:guess_col + nt - 1)
          END IF
-         CALL extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scr, m, nt, n_kernel, n_dependent)
-         next_col = next_col + nt_in
+         CALL extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scratch, m, nt, n_kernel, n_dependent)
+         guess_col = guess_col + nt_guess
          m = m + nt
       END DO
 
       IF (abba_status == abba_ok) THEN
-         fm_b%local_data(1:nrow_local, m + 1:n_raw) = 0.0_dp
+         fm_b%local_data(1:nrow_local, m + 1:n_guess_cols) = 0.0_dp
          ! Mr_mn = sum_ia b_ia,m (M b)_ia,n and Kr_mn = sum_ia b_ia,m (K b)_ia,n on the guess basis
          CALL subspace_gram(fm_b, 1, m, fm_Mb, 1, m, para_env, Mr(1:m, 1:m))
          CALL subspace_gram(fm_b, 1, m, fm_Kb, 1, m, para_env, Kr(1:m, 1:m))
@@ -690,15 +691,15 @@ CONTAINS
             ! rR_ia,k = sum_m (M b)_ia,m R_mk - Ω^k sum_m b_ia,m L_mk into the columns 1..n_act and
             ! rL_ia,k = sum_m (K b)_ia,m L_mk - Ω^k sum_m b_ia,m R_mk into the columns n_act+1..2 n_act
             DO k = 1, n_act
-               C_om(1:m, k) = L(1:m, k)*omega(k)
+               C_work(1:m, k) = L(1:m, k)*omega(k)
             END DO
             CALL subspace_rotate(fm_Mb, m, R(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp)
-            CALL subspace_rotate(fm_b, m, C_om(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
+            CALL subspace_rotate(fm_b, m, C_work(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
             DO k = 1, n_act
-               C_om(1:m, k) = R(1:m, k)*omega(k)
+               C_work(1:m, k) = R(1:m, k)*omega(k)
             END DO
             CALL subspace_rotate(fm_Kb, m, L(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp, n_act + 1)
-            CALL subspace_rotate(fm_b, m, C_om(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp, n_act + 1)
+            CALL subspace_rotate(fm_b, m, C_work(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp, n_act + 1)
             CALL column_norms(fm_work, 1, n_act, para_env, res)
             CALL column_norms(fm_work, n_act + 1, n_act, para_env, res_L)
             res(:) = MAX(res(:), res_L(:))
@@ -722,10 +723,10 @@ CONTAINS
             CALL select_roots(mp2_env, need, res, MIN(block_size, (m_max - m + 1)/2), selected, nt_sel)
             nt_R = nt_sel
             CALL davidson_corrections(fm_work, selected(1:nt_R), omega, diag, fm_b, m + 1)
-            CALL extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scr, m, nt_R, n_kernel, n_dependent)
+            CALL extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scratch, m, nt_R, n_kernel, n_dependent)
             nt_L = MIN(nt_sel, m_max - m - nt_R)
             CALL davidson_corrections(fm_work, selected(1:nt_L), omega, diag, fm_b, m + nt_R + 1, n_act)
-            CALL extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scr, m + nt_R, nt_L, n_kernel, n_dependent)
+            CALL extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scratch, m + nt_R, nt_L, n_kernel, n_dependent)
             nt = nt_R + nt_L
             IF (nt == 0 .AND. stalled) THEN
                CPABORT("BSE Davidson: correction vectors vanished before convergence")
@@ -784,18 +785,18 @@ CONTAINS
          CALL cp_fm_create(fm_X, fm_struct, name="fm_X_davidson", set_zero=.TRUE.)
          CALL cp_fm_create(fm_Y, fm_struct, name="fm_Y_davidson", set_zero=.TRUE.)
          CALL cp_fm_struct_release(fm_struct)
-         C_om(1:m, 1:n_want) = 0.5_dp*(R(1:m, 1:n_want) + L(1:m, 1:n_want))
-         CALL subspace_rotate(fm_b, m, C_om(1:m, 1:n_want), n_want, fm_X, 1.0_dp, 0.0_dp)
-         C_om(1:m, 1:n_want) = 0.5_dp*(R(1:m, 1:n_want) - L(1:m, 1:n_want))
-         CALL subspace_rotate(fm_b, m, C_om(1:m, 1:n_want), n_want, fm_Y, 1.0_dp, 0.0_dp)
+         C_work(1:m, 1:n_want) = 0.5_dp*(R(1:m, 1:n_want) + L(1:m, 1:n_want))
+         CALL subspace_rotate(fm_b, m, C_work(1:m, 1:n_want), n_want, fm_X, 1.0_dp, 0.0_dp)
+         C_work(1:m, 1:n_want) = 0.5_dp*(R(1:m, 1:n_want) - L(1:m, 1:n_want))
+         CALL subspace_rotate(fm_b, m, C_work(1:m, 1:n_want), n_want, fm_Y, 1.0_dp, 0.0_dp)
       END IF
 
       CALL cp_fm_release(fm_b)
       CALL cp_fm_release(fm_Mb)
       CALL cp_fm_release(fm_Kb)
       CALL cp_fm_release(fm_work)
-      CALL cp_fm_release(fm_scr)
-      DEALLOCATE (Mr, Kr, R, L, C_om, C_cand, Q, omega, omega_prev, res, res_L, dE, conv, need, selected, &
+      CALL cp_fm_release(fm_scratch)
+      DEALLOCATE (Mr, Kr, R, L, C_work, C_cand, Q, omega, omega_prev, res, res_L, dE, conv, need, selected, &
                   diag)
       IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
 
@@ -812,7 +813,7 @@ CONTAINS
 !> \param fm_V ...
 !> \param fm_W ...
 !> \param fm_MW ...
-!> \param fm_scr scratch of at least nt columns
+!> \param fm_scratch scratch of at least nt columns
 !> \param m ...
 !> \param nt on exit the number of columns kept
 !> \param n_kernel counter of the kernel applications
@@ -820,18 +821,18 @@ CONTAINS
 !> \param abba_status ...
 !> \param ab_margin smallest eigenvalue of T^T (A-B) T if that matrix is not positive definite
 ! **************************************************************************************************
-   SUBROUTINE extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scr, m, nt, n_kernel, n_dependent, abba_status, &
+   SUBROUTINE extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scratch, m, nt, n_kernel, n_dependent, abba_status, &
                               ab_margin)
 
       TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_V, fm_W, fm_MW, fm_scr
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_V, fm_W, fm_MW, fm_scratch
       INTEGER, INTENT(IN)                                :: m
       INTEGER, INTENT(INOUT)                             :: nt, n_kernel, n_dependent, abba_status
       REAL(KIND=dp), INTENT(INOUT)                       :: ab_margin
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'extend_basis_mk'
 
-      INTEGER                                            :: handle, n_dep, nrow_local
+      INTEGER                                            :: handle, n_dropped, nrow_local
       LOGICAL                                            :: ok
 
       CALL timeset(routineN, handle)
@@ -839,17 +840,17 @@ CONTAINS
       ! T_ia,k <- T_ia,k - sum_m V_ia,m sum_jb W_jb,m T_jb,k, then Euclidean orthonormalisation
       CALL project_out(fm_V, m + 1, nt, fm_V, m, mv_env%para_env, fm_W)
       CALL drop_small_columns(fm_V, m + 1, nt, mv_env%para_env)
-      CALL cholqr2(fm_V, m + 1, nt, mv_env%para_env, ok, n_dep)
+      CALL cholqr2(fm_V, m + 1, nt, mv_env%para_env, ok, n_dropped)
       IF (.NOT. ok) CPABORT("BSE Davidson: orthonormalisation broke down")
-      n_dependent = n_dependent + n_dep
+      n_dependent = n_dependent + n_dropped
 
       IF (nt > 0) THEN
          CALL cp_fm_get_info(fm_V, nrow_local=nrow_local)
 
          ! W_ia,k = sum_jb (A-B)_ia,jb T_jb,k: A T into W, B T into the scratch
-         CALL bse_matvec_apply(mv_env, fm_V, m + 1, nt, fm_W, fm_scr, 1)
+         CALL bse_matvec_apply(mv_env, fm_V, m + 1, nt, fm_W, fm_scratch, 1)
          fm_W%local_data(1:nrow_local, m + 1:m + nt) = fm_W%local_data(1:nrow_local, m + 1:m + nt) - &
-                                                       fm_scr%local_data(1:nrow_local, 1:nt)
+                                                       fm_scratch%local_data(1:nrow_local, 1:nt)
          n_kernel = n_kernel + nt
 
          ! T <- T R^-1 and W <- W R^-1 with sum_p R_pk R_pl = sum_ia T_ia,k W_ia,l
@@ -860,9 +861,9 @@ CONTAINS
                CPABORT("BSE Davidson: the basis lost orthonormality in the (A-B) inner product")
             END IF
             ! (M W)_ia,k = sum_jb (A+B)_ia,jb W_jb,k: A W into MW, B W into the scratch
-            CALL bse_matvec_apply(mv_env, fm_W, m + 1, nt, fm_MW, fm_scr, 1)
+            CALL bse_matvec_apply(mv_env, fm_W, m + 1, nt, fm_MW, fm_scratch, 1)
             fm_MW%local_data(1:nrow_local, m + 1:m + nt) = fm_MW%local_data(1:nrow_local, m + 1:m + nt) + &
-                                                           fm_scr%local_data(1:nrow_local, 1:nt)
+                                                           fm_scratch%local_data(1:nrow_local, 1:nt)
             n_kernel = n_kernel + nt
          END IF
       END IF
@@ -1055,31 +1056,31 @@ CONTAINS
 !> \param fm_b ...
 !> \param fm_Mb ...
 !> \param fm_Kb ...
-!> \param fm_scr scratch of at least nt columns
+!> \param fm_scratch scratch of at least nt columns
 !> \param m ...
 !> \param nt on exit the number of columns kept
 !> \param n_kernel counter of the kernel applications
 !> \param n_dependent counter of the correction vectors dropped as dependent
 ! **************************************************************************************************
-   SUBROUTINE extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scr, m, nt, n_kernel, n_dependent)
+   SUBROUTINE extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scratch, m, nt, n_kernel, n_dependent)
 
       TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_b, fm_Mb, fm_Kb, fm_scr
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_b, fm_Mb, fm_Kb, fm_scratch
       INTEGER, INTENT(IN)                                :: m
       INTEGER, INTENT(INOUT)                             :: nt, n_kernel, n_dependent
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'extend_basis_os'
 
-      INTEGER                                            :: handle, n_dep, nrow_local
+      INTEGER                                            :: handle, n_dropped, nrow_local
       LOGICAL                                            :: ok
 
       CALL timeset(routineN, handle)
 
       CALL project_out(fm_b, m + 1, nt, fm_b, m, mv_env%para_env)
       CALL drop_small_columns(fm_b, m + 1, nt, mv_env%para_env)
-      CALL cholqr2(fm_b, m + 1, nt, mv_env%para_env, ok, n_dep)
+      CALL cholqr2(fm_b, m + 1, nt, mv_env%para_env, ok, n_dropped)
       IF (.NOT. ok) CPABORT("BSE Davidson: orthonormalisation broke down")
-      n_dependent = n_dependent + n_dep
+      n_dependent = n_dependent + n_dropped
 
       IF (nt > 0) THEN
          IF (extension_deviation(fm_b, fm_b, m, nt, mv_env%para_env) > ortho_tol) THEN
@@ -1087,11 +1088,11 @@ CONTAINS
          END IF
          CALL cp_fm_get_info(fm_b, nrow_local=nrow_local)
          ! A b into Mb and B b into the scratch, then K b = A b - B b and M b = A b + B b
-         CALL bse_matvec_apply(mv_env, fm_b, m + 1, nt, fm_Mb, fm_scr, 1)
+         CALL bse_matvec_apply(mv_env, fm_b, m + 1, nt, fm_Mb, fm_scratch, 1)
          fm_Kb%local_data(1:nrow_local, m + 1:m + nt) = fm_Mb%local_data(1:nrow_local, m + 1:m + nt) - &
-                                                        fm_scr%local_data(1:nrow_local, 1:nt)
+                                                        fm_scratch%local_data(1:nrow_local, 1:nt)
          fm_Mb%local_data(1:nrow_local, m + 1:m + nt) = fm_Mb%local_data(1:nrow_local, m + 1:m + nt) + &
-                                                        fm_scr%local_data(1:nrow_local, 1:nt)
+                                                        fm_scratch%local_data(1:nrow_local, 1:nt)
          n_kernel = n_kernel + nt
       END IF
 
