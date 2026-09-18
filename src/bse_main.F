@@ -15,6 +15,7 @@ MODULE bse_main
 
    USE bse_davidson,                    ONLY: abba_indefinite,&
                                               bse_davidson_abba_mk,&
+                                              bse_davidson_abba_os,&
                                               bse_davidson_refcheck_abba,&
                                               bse_davidson_refcheck_tda,&
                                               bse_davidson_tda
@@ -51,8 +52,9 @@ MODULE bse_main
    USE cp_output_handling,              ONLY: debug_print_level
    USE group_dist_types,                ONLY: group_dist_d1_type
    USE input_constants,                 ONLY: &
-        bse_abba, bse_abba_mk_davidson, bse_both, bse_fulldiag, bse_iterdiag, bse_screening_alpha, &
-        bse_screening_rpa, bse_screening_tdhf, bse_singlet, bse_tda, bse_triplet
+        bse_abba, bse_abba_mk_davidson, bse_abba_olsen_stratmann, bse_both, bse_fulldiag, &
+        bse_iterdiag, bse_screening_alpha, bse_screening_rpa, bse_screening_tdhf, bse_singlet, &
+        bse_tda, bse_triplet
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mo_window,                       ONLY: combine_mo_windows,&
@@ -425,7 +427,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_bse_iteratively'
       INTEGER, PARAMETER                                 :: n_ov_max_debug = 20000
 
-      CHARACTER(LEN=16)                                  :: margin_str
+      CHARACTER(LEN=16)                                  :: margin_str, solver_str
       INTEGER                                            :: abba_status, handle, n_ov
       LOGICAL                                            :: do_debug
       REAL(KIND=dp)                                      :: ab_margin
@@ -499,22 +501,34 @@ CONTAINS
       END IF
 
       IF (do_abba) THEN
-         IF (mp2_env%bse%abba_solver /= bse_abba_mk_davidson) THEN
-            CPABORT("BSE_ITERAT%ABBA_SOLVER OLSEN_STRATMANN is not yet available")
-         END IF
          ! the TDA vectors are the initial guess of a combined run
-         IF (do_tda) THEN
-            CALL bse_davidson_abba_mk(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
-                                      abba_status, ab_margin, fm_X)
-         ELSE
-            CALL bse_davidson_abba_mk(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
-                                      abba_status, ab_margin)
-         END IF
+         SELECT CASE (mp2_env%bse%abba_solver)
+         CASE (bse_abba_mk_davidson)
+            solver_str = 'MK_DAVIDSON'
+            IF (do_tda) THEN
+               CALL bse_davidson_abba_mk(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+                                         abba_status, ab_margin, fm_X)
+            ELSE
+               CALL bse_davidson_abba_mk(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+                                         abba_status, ab_margin)
+            END IF
+         CASE (bse_abba_olsen_stratmann)
+            solver_str = 'OLSEN_STRATMANN'
+            IF (do_tda) THEN
+               CALL bse_davidson_abba_os(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+                                         abba_status, ab_margin, fm_X)
+            ELSE
+               CALL bse_davidson_abba_os(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+                                         abba_status, ab_margin)
+            END IF
+         CASE DEFAULT
+            CPABORT("Unknown BSE_ITERAT%ABBA_SOLVER")
+         END SELECT
          IF (abba_status == abba_indefinite) THEN
             WRITE (margin_str, '(F16.6)') ab_margin*evolt
             CALL cp_abort(__LOCATION__, &
-                          "Matrix (A-B) is not positive definite on the trial space of the iterative "// &
-                          "solver (eigenvalue "//TRIM(ADJUSTL(margin_str))//" eV). "// &
+                          "Matrix (A-B) is not positive definite on the trial space of the "// &
+                          TRIM(solver_str)//" solver (eigenvalue "//TRIM(ADJUSTL(margin_str))//" eV). "// &
                           "The full ABBA problem is ill-defined for this reference.")
          END IF
          IF (do_debug) THEN

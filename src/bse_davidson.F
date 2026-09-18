@@ -56,7 +56,7 @@ MODULE bse_davidson
    ! outcome of an ABBA solver: solved, or A-B not positive definite on the trial space
    INTEGER, PARAMETER, PUBLIC :: abba_ok = 0, abba_indefinite = 1
 
-   PUBLIC :: bse_davidson_tda, bse_davidson_abba_mk, &
+   PUBLIC :: bse_davidson_tda, bse_davidson_abba_mk, bse_davidson_abba_os, &
              bse_davidson_refcheck_tda, bse_davidson_refcheck_abba
 
 CONTAINS
@@ -85,14 +85,15 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_davidson_tda'
 
       INTEGER                                            :: block_size, handle, iter, k, m, m_max, &
-                                                            n_act, n_dep, n_dependent, n_kernel, &
-                                                            n_ov, n_req, n_restart, n_want, nt
+                                                            n_act, n_cand, n_dep, n_dependent, &
+                                                            n_kernel, n_ov, n_req, n_restart, &
+                                                            n_want, nt
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
       LOGICAL                                            :: all_conv, has_prev, ok, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, res, theta, theta_prev, &
                                                             theta_sub
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_prev, C_theta, G, G_new, Q
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_cand, C_theta, G, G_new, Q
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_AZ, fm_work, fm_Z
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -116,12 +117,12 @@ CONTAINS
       CALL cp_fm_create(fm_work, fm_struct, name="fm_work_davidson", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
 
-      ALLOCATE (G(m_max, m_max), C(m_max, m_max), C_prev(m_max, n_act), C_theta(m_max, n_act))
+      ALLOCATE (G(m_max, m_max), C(m_max, m_max), C_cand(m_max, 2*n_act), C_theta(m_max, n_act))
       ALLOCATE (Q(m_max, 2*n_act))
       ALLOCATE (theta(m_max), theta_prev(n_act), res(n_act), dE(n_act), conv(n_act), need(n_act), &
                 selected(n_act))
       G(:, :) = 0.0_dp
-      C_prev(:, :) = 0.0_dp
+      C_cand(:, :) = 0.0_dp
       theta_prev(:) = 0.0_dp
       has_prev = .FALSE.
       stalled = .FALSE.
@@ -150,7 +151,10 @@ CONTAINS
 
          ! thick restart onto the current and the previous Ritz vectors, no kernel application
          IF (m + block_size > m_max .AND. m > n_act .AND. m < n_ov) THEN
-            CALL restart_basis(C, C_prev, m, n_act, has_prev, Q, k)
+            C_cand(1:m, 1:n_act) = C(1:m, 1:n_act)
+            n_cand = n_act
+            IF (has_prev) n_cand = 2*n_act
+            CALL restart_basis(C_cand, m, n_cand, 2*n_act, Q, k)
             CALL rotate_in_place(fm_Z, m, Q, k, fm_work)
             CALL rotate_in_place(fm_AZ, m, Q, k, fm_work)
             CALL rotate_reduced(G, m, Q, k)
@@ -209,8 +213,9 @@ CONTAINS
             DEALLOCATE (G_new)
          END IF
 
-         C_prev(:, :) = 0.0_dp
-         C_prev(1:m, 1:n_act) = C(1:m, 1:n_act)
+         ! the Ritz vectors of this iteration are the second block of restart candidates
+         C_cand(:, n_act + 1:2*n_act) = 0.0_dp
+         C_cand(1:m, n_act + 1:2*n_act) = C(1:m, 1:n_act)
          has_prev = .TRUE.
          theta_prev(:) = theta(1:n_act)
          m = m + nt
@@ -245,7 +250,7 @@ CONTAINS
       CALL cp_fm_release(fm_Z)
       CALL cp_fm_release(fm_AZ)
       CALL cp_fm_release(fm_work)
-      DEALLOCATE (G, C, C_prev, C_theta, Q, theta, theta_prev, res, dE, conv, need, selected, diag)
+      DEALLOCATE (G, C, C_cand, C_theta, Q, theta, theta_prev, res, dE, conv, need, selected, diag)
       IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
 
       CALL timestop(handle)
@@ -286,14 +291,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_davidson_abba_mk'
 
-      INTEGER :: block_size, handle, iter, k, m, m_max, n_act, n_dependent, n_kernel, n_ov, n_raw, &
-         n_req, n_restart, n_seed, n_want, next_col, nrow_local, nt, nt_in
+      INTEGER :: block_size, handle, iter, k, m, m_max, n_act, n_cand, n_dependent, n_kernel, &
+         n_ov, n_raw, n_req, n_restart, n_seed, n_want, next_col, nrow_local, nt, nt_in
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
       LOGICAL                                            :: all_conv, has_prev, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, eigval, omega, omega_prev, &
                                                             res, theta, theta_sub
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_prev, C_wx, C_x, C_y, H, H_new, Q
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_cand, C_wx, C_x, C_y, H, H_new, Q
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_MW, fm_scr, fm_V, fm_W, fm_work
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -324,12 +329,12 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_get_info(fm_V, nrow_local=nrow_local)
 
-      ALLOCATE (H(m_max, m_max), C(m_max, m_max), C_prev(m_max, n_act), Q(m_max, 2*n_act))
+      ALLOCATE (H(m_max, m_max), C(m_max, m_max), C_cand(m_max, 2*n_act), Q(m_max, 2*n_act))
       ALLOCATE (C_x(m_max, n_act), C_y(m_max, n_act), C_wx(m_max, n_act))
       ALLOCATE (theta(m_max), omega(n_act), omega_prev(n_act), res(n_act), dE(n_act), conv(n_act), &
                 need(n_act), selected(n_act))
       H(:, :) = 0.0_dp
-      C_prev(:, :) = 0.0_dp
+      C_cand(:, :) = 0.0_dp
       omega_prev(:) = 0.0_dp
       has_prev = .FALSE.
       stalled = .FALSE.
@@ -383,7 +388,10 @@ CONTAINS
 
             ! thick restart: V, W and MW are rotated alike, which keeps V^T W = 1
             IF (m + block_size > m_max .AND. m > n_act .AND. m < n_ov) THEN
-               CALL restart_basis(C, C_prev, m, n_act, has_prev, Q, k)
+               C_cand(1:m, 1:n_act) = C(1:m, 1:n_act)
+               n_cand = n_act
+               IF (has_prev) n_cand = 2*n_act
+               CALL restart_basis(C_cand, m, n_cand, 2*n_act, Q, k)
                CALL rotate_in_place(fm_V, m, Q, k, fm_work)
                CALL rotate_in_place(fm_W, m, Q, k, fm_work)
                CALL rotate_in_place(fm_MW, m, Q, k, fm_work)
@@ -442,8 +450,9 @@ CONTAINS
                DEALLOCATE (H_new)
             END IF
 
-            C_prev(:, :) = 0.0_dp
-            C_prev(1:m, 1:n_act) = C(1:m, 1:n_act)
+            ! the Ritz vectors of this iteration are the second block of restart candidates
+            C_cand(:, n_act + 1:2*n_act) = 0.0_dp
+            C_cand(1:m, n_act + 1:2*n_act) = C(1:m, 1:n_act)
             has_prev = .TRUE.
             omega_prev(:) = omega(:)
             m = m + nt
@@ -500,13 +509,287 @@ CONTAINS
       CALL cp_fm_release(fm_MW)
       CALL cp_fm_release(fm_work)
       CALL cp_fm_release(fm_scr)
-      DEALLOCATE (H, C, C_prev, C_x, C_y, C_wx, Q, theta, omega, omega_prev, res, dE, conv, need, &
+      DEALLOCATE (H, C, C_cand, C_x, C_y, C_wx, Q, theta, omega, omega_prev, res, dE, conv, need, &
                   selected, diag)
       IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
 
       CALL timestop(handle)
 
    END SUBROUTINE bse_davidson_abba_mk
+
+! **************************************************************************************************
+!> \brief Block Davidson with thick restart for the NUM_EXC_EN lowest solutions of the full problem
+!>        in the paired form of Olsen and Stratmann: with x^n = X^n - Y^n, y^n = X^n + Y^n, M = A+B and
+!>        K = A-B, sum_jb M_ia,jb y_jb^n = Ω^n x_ia^n and sum_jb K_ia,jb x_jb^n = Ω^n y_ia^n. One
+!>        orthonormal basis b_ia,m carries both vectors: Mr_mn = sum_ia b_ia,m (M b)_ia,n and
+!>        Kr_mn = sum_ia b_ia,m (K b)_ia,n are solved by solve_reduced_paired for Ω^k, R_mk and L_mk with
+!>        y_ia^k = sum_m b_ia,m R_mk, x_ia^k = sum_m b_ia,m L_mk and sum_ia x_ia^k y_ia^k = 1. The basis
+!>        grows by the corrections t_ia,k = r_ia,k/(d_ia - Ω^k) of both residuals,
+!>        rR_ia,k = sum_m (M b)_ia,m R_mk - Ω^k x_ia^k and rL_ia,k = sum_m (K b)_ia,m L_mk - Ω^k y_ia^k,
+!>        d_ia chosen by PRECONDITIONER; the rR block enters before the rL block, which is nearly
+!>        parallel to it for a small B
+!> \param mv_env ...
+!> \param mp2_env ...
+!> \param unit_nr ...
+!> \param exc_ens Ω^n in Hartree
+!> \param fm_X X_ia^n on the process grid of mv_env, column n; created only for abba_ok
+!> \param fm_Y Y_ia^n, as fm_X
+!> \param abba_status abba_indefinite if A-B is not positive definite on the trial space
+!> \param ab_margin smallest eigenvalue of A-B on the trial space in Hartree
+!> \param fm_X_tda converged TDA vectors as initial guess, x = y = X
+! **************************************************************************************************
+   SUBROUTINE bse_davidson_abba_os(mv_env, mp2_env, unit_nr, exc_ens, fm_X, fm_Y, abba_status, &
+                                   ab_margin, fm_X_tda)
+
+      TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
+      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: exc_ens
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_X, fm_Y
+      INTEGER, INTENT(OUT)                               :: abba_status
+      REAL(KIND=dp), INTENT(OUT)                         :: ab_margin
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_X_tda
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_davidson_abba_os'
+
+      INTEGER :: block_size, handle, iter, k, m, m_max, n_act, n_cand, n_dependent, n_kernel, &
+         n_ov, n_pair, n_raw, n_req, n_restart, n_seed, n_want, next_col, nrow_local, nt, nt_in, &
+         nt_L, nt_R, nt_sel
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
+      LOGICAL                                            :: all_conv, has_prev, stalled
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
+      REAL(KIND=dp)                                      :: kr_min
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, omega, omega_prev, res, res_L, &
+                                                            theta_sub
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C_cand, C_om, Kr, Kr_new, L, Mr, Mr_new, &
+                                                            Q, R
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: fm_b, fm_Kb, fm_Mb, fm_scr, fm_work
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      abba_status = abba_ok
+      ab_margin = 0.0_dp
+      para_env => mv_env%para_env
+      n_ov = mv_env%n_ov
+      CALL davidson_sizes(mp2_env, n_ov, n_want, n_act, block_size)
+
+      ALLOCATE (diag(n_ov))
+      CALL bse_matvec_diagonal(mv_env, mp2_env%bse%preconditioner, diag)
+
+      ! the current pairs and one block of corrections have to fit below the ceiling
+      CALL subspace_ceiling(mp2_env, n_ov, n_act, 3, para_env, unit_nr, m_max, min_factor=4, work_factor=4)
+
+      CALL bse_matvec_vector_struct(mv_env, m_max, fm_struct)
+      CALL cp_fm_create(fm_b, fm_struct, name="fm_b_davidson", set_zero=.TRUE.)
+      CALL cp_fm_create(fm_Mb, fm_struct, name="fm_Mb_davidson", set_zero=.TRUE.)
+      CALL cp_fm_create(fm_Kb, fm_struct, name="fm_Kb_davidson", set_zero=.TRUE.)
+      CALL cp_fm_struct_release(fm_struct)
+      ! both residual blocks, or the restart basis
+      CALL bse_matvec_vector_struct(mv_env, MAX(2*n_act, MIN(4*n_act, m_max)), fm_struct)
+      CALL cp_fm_create(fm_work, fm_struct, name="fm_work_davidson", set_zero=.TRUE.)
+      CALL cp_fm_struct_release(fm_struct)
+      CALL bse_matvec_vector_struct(mv_env, 2*block_size, fm_struct)
+      CALL cp_fm_create(fm_scr, fm_struct, name="fm_scr_davidson", set_zero=.TRUE.)
+      CALL cp_fm_struct_release(fm_struct)
+      CALL cp_fm_get_info(fm_b, nrow_local=nrow_local)
+
+      ALLOCATE (Mr(m_max, m_max), Kr(m_max, m_max), R(m_max, n_act), L(m_max, n_act), C_om(m_max, n_act))
+      ALLOCATE (C_cand(m_max, 4*n_act), Q(m_max, 4*n_act))
+      ALLOCATE (omega(n_act), omega_prev(n_act), res(n_act), res_L(n_act), dE(n_act), conv(n_act), &
+                need(n_act), selected(n_act))
+      Mr(:, :) = 0.0_dp
+      Kr(:, :) = 0.0_dp
+      C_cand(:, :) = 0.0_dp
+      omega_prev(:) = 0.0_dp
+      kr_min = 0.0_dp
+      has_prev = .FALSE.
+      stalled = .FALSE.
+      all_conv = .FALSE.
+      n_restart = 0
+      n_kernel = 0
+      n_dependent = 0
+
+      ! guess: the TDA vectors if given (each a pair by itself), then the pairs x_k, y_k of the exact
+      ! guess block or unit vectors on the lowest entries of the diagonal
+      n_seed = 0
+      IF (PRESENT(fm_X_tda)) THEN
+         CALL cp_fm_get_info(fm_X_tda, ncol_global=n_seed)
+         n_seed = MIN(n_seed, n_act)
+         fm_b%local_data(1:nrow_local, 1:n_seed) = fm_X_tda%local_data(1:nrow_local, 1:n_seed)
+      END IF
+      n_pair = 0
+      IF (mp2_env%bse%num_guess_transitions > 0) THEN
+         CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_b, n_raw, theta_sub, &
+                                     unit_nr, n_seed, abba_status, ab_margin, n_pair)
+      ELSE
+         CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_b, n_raw, n_seed)
+      END IF
+      n_raw = n_raw + n_pair
+
+      ! the guess enters the basis in blocks of the scratch width
+      m = 0
+      next_col = 1
+      DO WHILE (next_col <= n_raw)
+         nt_in = MIN(2*block_size, n_raw - next_col + 1)
+         nt = nt_in
+         IF (next_col > m + 1) THEN
+            fm_b%local_data(1:nrow_local, m + 1:m + nt) = &
+               fm_b%local_data(1:nrow_local, next_col:next_col + nt - 1)
+         END IF
+         CALL extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scr, m, nt, n_kernel, n_dependent)
+         next_col = next_col + nt_in
+         m = m + nt
+      END DO
+
+      IF (abba_status == abba_ok) THEN
+         fm_b%local_data(1:nrow_local, m + 1:n_raw) = 0.0_dp
+         CALL subspace_gram(fm_b, 1, m, fm_Mb, 1, m, para_env, Mr(1:m, 1:m))
+         CALL subspace_gram(fm_b, 1, m, fm_Kb, 1, m, para_env, Kr(1:m, 1:m))
+
+         CALL print_iteration_header('Block Davidson iterations for ABBA, Olsen-Stratmann paired subspace:', &
+                                     unit_nr)
+
+         DO iter = 1, mp2_env%bse%max_iter
+
+            CALL solve_reduced_paired(Mr, Kr, m, n_act, para_env, omega, R, L, kr_min, abba_status)
+            IF (abba_status /= abba_ok) EXIT
+
+            ! thick restart: b, Mb and Kb are rotated alike; the current pairs come first, so that
+            ! they survive the cap that leaves room for one block of corrections
+            IF (m + 2*block_size > m_max .AND. m > 2*n_act .AND. m < n_ov) THEN
+               C_cand(1:m, 1:n_act) = R(1:m, :)
+               C_cand(1:m, n_act + 1:2*n_act) = L(1:m, :)
+               n_cand = 2*n_act
+               IF (has_prev) n_cand = 4*n_act
+               CALL restart_basis(C_cand, m, n_cand, m_max - 2*block_size, Q, k)
+               CALL rotate_in_place(fm_b, m, Q, k, fm_work)
+               CALL rotate_in_place(fm_Mb, m, Q, k, fm_work)
+               CALL rotate_in_place(fm_Kb, m, Q, k, fm_work)
+               CALL rotate_reduced(Mr, m, Q, k)
+               CALL rotate_reduced(Kr, m, Q, k)
+               m = k
+               n_restart = n_restart + 1
+               CALL solve_reduced_paired(Mr, Kr, m, n_act, para_env, omega, R, L, kr_min, abba_status)
+               IF (abba_status /= abba_ok) EXIT
+            END IF
+
+            ! rR_ia,k = sum_m (M b)_ia,m R_mk - Ω^k sum_m b_ia,m L_mk into the columns 1..n_act and
+            ! rL_ia,k = sum_m (K b)_ia,m L_mk - Ω^k sum_m b_ia,m R_mk into the columns n_act+1..2 n_act
+            DO k = 1, n_act
+               C_om(1:m, k) = L(1:m, k)*omega(k)
+            END DO
+            CALL subspace_rotate(fm_Mb, m, R(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp)
+            CALL subspace_rotate(fm_b, m, C_om(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
+            DO k = 1, n_act
+               C_om(1:m, k) = R(1:m, k)*omega(k)
+            END DO
+            CALL subspace_rotate(fm_Kb, m, L(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp, n_act + 1)
+            CALL subspace_rotate(fm_b, m, C_om(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp, n_act + 1)
+            CALL column_norms(fm_work, 1, n_act, para_env, res)
+            CALL column_norms(fm_work, n_act + 1, n_act, para_env, res_L)
+            res(:) = MAX(res(:), res_L(:))
+
+            dE(:) = ABS(omega(:) - omega_prev(:))
+            CALL convergence_flags(mp2_env, dE, res, conv)
+            n_req = last_required_root(omega, n_want, n_act)
+            IF (m == n_ov) conv(:) = .TRUE.
+            CALL roots_in_need(conv, omega, res, n_req, need)
+            all_conv = .NOT. ANY(need)
+            CALL print_iteration(iter, m, COUNT(conv(1:n_want)), &
+                                 MAX(MAXVAL(res(1:n_req)), MAXVAL(res, MASK=need)), &
+                                 MAXVAL(dE(1:n_req)), omega(1), unit_nr)
+            IF (all_conv) EXIT
+
+            IF (iter == mp2_env%bse%max_iter) EXIT
+
+            ! corrections t_ia,k = r_ia,k/(d_ia - Ω^k) of the lowest unconverged roots: the rR block
+            ! against the basis, then the rL block of the same roots against the extended basis;
+            ! both fit the room, which is odd only when the ceiling is the number of transitions
+            CALL select_roots(mp2_env, need, res, MIN(block_size, (m_max - m + 1)/2), selected, nt_sel)
+            nt_R = nt_sel
+            CALL davidson_corrections(fm_work, selected(1:nt_R), omega, diag, fm_b, m + 1)
+            CALL extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scr, m, nt_R, n_kernel, n_dependent)
+            nt_L = MIN(nt_sel, m_max - m - nt_R)
+            CALL davidson_corrections(fm_work, selected(1:nt_L), omega, diag, fm_b, m + nt_R + 1, n_act)
+            CALL extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scr, m + nt_R, nt_L, n_kernel, n_dependent)
+            nt = nt_R + nt_L
+            IF (nt == 0 .AND. stalled) THEN
+               CPABORT("BSE Davidson: correction vectors vanished before convergence")
+            END IF
+            stalled = nt == 0
+
+            IF (nt > 0) THEN
+               ALLOCATE (Mr_new(m + nt, nt), Kr_new(m + nt, nt))
+               CALL subspace_gram(fm_b, 1, m + nt, fm_Mb, m + 1, nt, para_env, Mr_new)
+               CALL subspace_gram(fm_b, 1, m + nt, fm_Kb, m + 1, nt, para_env, Kr_new)
+               Mr(1:m + nt, m + 1:m + nt) = Mr_new(:, :)
+               Mr(m + 1:m + nt, 1:m) = TRANSPOSE(Mr_new(1:m, :))
+               Kr(1:m + nt, m + 1:m + nt) = Kr_new(:, :)
+               Kr(m + 1:m + nt, 1:m) = TRANSPOSE(Kr_new(1:m, :))
+               DEALLOCATE (Mr_new, Kr_new)
+            END IF
+
+            ! the pairs of this iteration are the second block of restart candidates
+            C_cand(:, 2*n_act + 1:4*n_act) = 0.0_dp
+            C_cand(1:m, 2*n_act + 1:3*n_act) = R(1:m, :)
+            C_cand(1:m, 3*n_act + 1:4*n_act) = L(1:m, :)
+            has_prev = .TRUE.
+            omega_prev(:) = omega(:)
+            m = m + nt
+         END DO
+      END IF
+
+      IF (abba_status == abba_ok) THEN
+         IF (.NOT. all_conv) CALL abort_unconverged(omega, res, conv, need, n_req, unit_nr)
+         IF (mp2_env%bse%bse_debug_print) CALL print_tracked_roots(omega, res, n_want, n_act, unit_nr)
+
+         IF (mp2_env%bse%bse_debug_print) THEN
+            ALLOCATE (Mr_new(m, m))
+            CALL subspace_gram(fm_b, 1, m, fm_b, 1, m, para_env, Mr_new)
+            DO k = 1, m
+               Mr_new(k, k) = Mr_new(k, k) - 1.0_dp
+            END DO
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A10,T13,A,T63,ES18.6)') 'BSE|DEBUG|', &
+                  'Max deviation of the basis from orthonormality', MAXVAL(ABS(Mr_new))
+            END IF
+            DEALLOCATE (Mr_new)
+         END IF
+
+         ! the smallest eigenvalue of A-B on the span of b is that of the last Kr
+         ab_margin = kr_min
+
+         IF (ALLOCATED(theta_sub)) CALL check_guess_bound(theta_sub, omega, n_req, unit_nr)
+         CALL print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr, ab_margin, n_dependent)
+
+         ! X = (y + x)/2, Y = (y - x)/2
+         ALLOCATE (exc_ens(n_want))
+         exc_ens(:) = omega(1:n_want)
+         CALL bse_matvec_vector_struct(mv_env, n_want, fm_struct)
+         CALL cp_fm_create(fm_X, fm_struct, name="fm_X_davidson", set_zero=.TRUE.)
+         CALL cp_fm_create(fm_Y, fm_struct, name="fm_Y_davidson", set_zero=.TRUE.)
+         CALL cp_fm_struct_release(fm_struct)
+         C_om(1:m, 1:n_want) = 0.5_dp*(R(1:m, 1:n_want) + L(1:m, 1:n_want))
+         CALL subspace_rotate(fm_b, m, C_om(1:m, 1:n_want), n_want, fm_X, 1.0_dp, 0.0_dp)
+         C_om(1:m, 1:n_want) = 0.5_dp*(R(1:m, 1:n_want) - L(1:m, 1:n_want))
+         CALL subspace_rotate(fm_b, m, C_om(1:m, 1:n_want), n_want, fm_Y, 1.0_dp, 0.0_dp)
+      END IF
+
+      CALL cp_fm_release(fm_b)
+      CALL cp_fm_release(fm_Mb)
+      CALL cp_fm_release(fm_Kb)
+      CALL cp_fm_release(fm_work)
+      CALL cp_fm_release(fm_scr)
+      DEALLOCATE (Mr, Kr, R, L, C_om, C_cand, Q, omega, omega_prev, res, res_L, dE, conv, need, selected, &
+                  diag)
+      IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE bse_davidson_abba_os
 
 ! **************************************************************************************************
 !> \brief Makes the nt columns T that follow column m of V orthonormal in the (A-B) inner product and
@@ -656,6 +939,149 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cholqr2_metric
+
+! **************************************************************************************************
+!> \brief Paired reduced problem on the orthonormal basis b_ia,m: with Mr_mn = sum_ia b_ia,m (M b)_ia,n
+!>        and Kr_mn = sum_ia b_ia,m (K b)_ia,n, M = A+B, K = A-B, the pairs sum_n Mr_mn R_nk = Ω_k L_mk,
+!>        sum_n Kr_mn L_nk = Ω_k R_mk, sum_m L_mk R_mk = 1 give y_k = sum_m b_m R_mk, x_k = sum_m b_m L_mk.
+!>        Solved as in initial_guess_subblock: Kr = U diag(κ) U^T, S = U diag(√κ) U^T,
+!>        sum_nop S_mn Mr_no S_op T_pk = λ_k T_mk, Ω_k = √λ_k, R_mk = sum_n S_mn T_nk/√Ω_k,
+!>        L_mk = sum_n Mr_mn R_nk/Ω_k. κ_1 <= 0 reports K as indefinite on the span of b
+!> \param Mr ...
+!> \param Kr ...
+!> \param m ...
+!> \param n_act number of pairs formed
+!> \param para_env ...
+!> \param omega Ω_k in Hartree
+!> \param R coefficients of y_k in column k, zero below row m
+!> \param L coefficients of x_k in column k, zero below row m
+!> \param kr_min κ_1, the smallest eigenvalue of Kr
+!> \param abba_status abba_indefinite when κ_1 <= 0; omega, R and L are then untouched
+! **************************************************************************************************
+   SUBROUTINE solve_reduced_paired(Mr, Kr, m, n_act, para_env, omega, R, L, kr_min, abba_status)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Mr, Kr
+      INTEGER, INTENT(IN)                                :: m, n_act
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: omega
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: R, L
+      REAL(KIND=dp), INTENT(OUT)                         :: kr_min
+      INTEGER, INTENT(INOUT)                             :: abba_status
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_reduced_paired'
+
+      INTEGER                                            :: handle, k
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: kappa, lambda
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: H, Mr_sym, S, U
+
+      CALL timeset(routineN, handle)
+      CPASSERT(n_act <= m)
+
+      ALLOCATE (U(m, m), S(m, m), Mr_sym(m, m), H(m, m), kappa(m), lambda(m))
+      ! Kr = U diag(κ) U^T on the source rank; the pairs are broadcast at the end
+      U(:, :) = 0.5_dp*(Kr(1:m, 1:m) + TRANSPOSE(Kr(1:m, 1:m)))
+      kappa(:) = 0.0_dp
+      IF (para_env%is_source()) CALL diamat_all(U, kappa)
+      CALL para_env%bcast(kappa)
+      kr_min = kappa(1)
+
+      IF (kappa(1) <= 0.0_dp) THEN
+         abba_status = abba_indefinite
+      ELSE
+         lambda(:) = 0.0_dp
+         IF (para_env%is_source()) THEN
+            ! S = Kr^1/2, H_mp = sum_no S_mn Mr_no S_op, then H holds the eigenvectors T
+            DO k = 1, m
+               S(:, k) = U(:, k)*SQRT(kappa(k))
+            END DO
+            S(:, :) = MATMUL(S, TRANSPOSE(U))
+            Mr_sym(:, :) = 0.5_dp*(Mr(1:m, 1:m) + TRANSPOSE(Mr(1:m, 1:m)))
+            H(:, :) = MATMUL(S, MATMUL(Mr_sym, S))
+            CALL diamat_all(H, lambda)
+         END IF
+         CALL para_env%bcast(lambda)
+         IF (lambda(1) <= 0.0_dp) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "BSE Davidson (OLSEN_STRATMANN): negative squared excitation energy. Matrix "// &
+                          "(A+B) is not positive definite on the trial space, or the basis lost its "// &
+                          "orthonormality.")
+         END IF
+         omega(1:n_act) = SQRT(lambda(1:n_act))
+
+         R(:, :) = 0.0_dp
+         L(:, :) = 0.0_dp
+         IF (para_env%is_source()) THEN
+            ! R_mk = sum_n S_mn T_nk/√Ω_k, L_mk = sum_n Mr_mn R_nk/Ω_k
+            R(1:m, 1:n_act) = MATMUL(S, H(:, 1:n_act))
+            DO k = 1, n_act
+               R(1:m, k) = R(1:m, k)/SQRT(omega(k))
+            END DO
+            L(1:m, 1:n_act) = MATMUL(Mr_sym, R(1:m, 1:n_act))
+            DO k = 1, n_act
+               L(1:m, k) = L(1:m, k)/omega(k)
+            END DO
+         END IF
+         CALL para_env%bcast(R)
+         CALL para_env%bcast(L)
+      END IF
+
+      DEALLOCATE (U, S, Mr_sym, H, kappa, lambda)
+      CALL timestop(handle)
+
+   END SUBROUTINE solve_reduced_paired
+
+! **************************************************************************************************
+!> \brief Makes the nt columns T that follow column m of b orthonormal to b and to each other,
+!>        T_ia,k <- T_ia,k - sum_m b_ia,m sum_jb b_jb,m T_jb,k and Cholesky QR, and stores the products
+!>        (M b)_ia,k = sum_jb (A+B)_ia,jb b_jb,k, (K b)_ia,k = sum_jb (A-B)_ia,jb b_jb,k of the kept
+!>        columns from one application of A and B
+!> \param mv_env ...
+!> \param fm_b ...
+!> \param fm_Mb ...
+!> \param fm_Kb ...
+!> \param fm_scr scratch of at least nt columns
+!> \param m ...
+!> \param nt on exit the number of columns kept
+!> \param n_kernel counter of the kernel applications
+!> \param n_dependent counter of the correction vectors dropped as dependent
+! **************************************************************************************************
+   SUBROUTINE extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scr, m, nt, n_kernel, n_dependent)
+
+      TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_b, fm_Mb, fm_Kb, fm_scr
+      INTEGER, INTENT(IN)                                :: m
+      INTEGER, INTENT(INOUT)                             :: nt, n_kernel, n_dependent
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'extend_basis_os'
+
+      INTEGER                                            :: handle, n_dep, nrow_local
+      LOGICAL                                            :: ok
+
+      CALL timeset(routineN, handle)
+
+      CALL project_out(fm_b, m + 1, nt, fm_b, m, mv_env%para_env)
+      CALL drop_small_columns(fm_b, m + 1, nt, mv_env%para_env)
+      CALL cholqr2(fm_b, m + 1, nt, mv_env%para_env, ok, n_dep)
+      IF (.NOT. ok) CPABORT("BSE Davidson: orthonormalisation broke down")
+      n_dependent = n_dependent + n_dep
+
+      IF (nt > 0) THEN
+         IF (extension_deviation(fm_b, fm_b, m, nt, mv_env%para_env) > ortho_tol) THEN
+            CPABORT("BSE Davidson: the basis lost orthonormality")
+         END IF
+         CALL cp_fm_get_info(fm_b, nrow_local=nrow_local)
+         ! A b into Mb and B b into the scratch, then K b = A b - B b and M b = A b + B b
+         CALL bse_matvec_apply(mv_env, fm_b, m + 1, nt, fm_Mb, fm_scr, 1)
+         fm_Kb%local_data(1:nrow_local, m + 1:m + nt) = fm_Mb%local_data(1:nrow_local, m + 1:m + nt) - &
+                                                        fm_scr%local_data(1:nrow_local, 1:nt)
+         fm_Mb%local_data(1:nrow_local, m + 1:m + nt) = fm_Mb%local_data(1:nrow_local, m + 1:m + nt) + &
+                                                        fm_scr%local_data(1:nrow_local, 1:nt)
+         n_kernel = n_kernel + nt
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE extend_basis_os
 
 ! **************************************************************************************************
 !> \brief Convergence flag of every tracked root from CONVERGENCE_CRITERION
@@ -962,20 +1388,31 @@ CONTAINS
 !> \param para_env ...
 !> \param unit_nr ...
 !> \param m_max ...
+!> \param min_factor smallest subspace in vectors per tracked state, 3 by default
+!> \param work_factor work columns per tracked state in the memory estimate, 2 by default
 ! **************************************************************************************************
-   SUBROUTINE subspace_ceiling(mp2_env, n_ov, n_act, n_arrays, para_env, unit_nr, m_max)
+   SUBROUTINE subspace_ceiling(mp2_env, n_ov, n_act, n_arrays, para_env, unit_nr, m_max, min_factor, &
+                               work_factor)
 
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: n_ov, n_act, n_arrays
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, INTENT(OUT)                               :: m_max
+      INTEGER, INTENT(IN), OPTIONAL                      :: min_factor, work_factor
 
       REAL(KIND=dp), PARAMETER                           :: mem_fraction = 0.5_dp
 
-      CHARACTER(LEN=16)                                  :: mem_str
+      CHARACTER(LEN=16)                                  :: fac_str, mem_str
+      INTEGER                                            :: min_fac, work_fac
       LOGICAL                                            :: from_memory
       REAL(KIND=dp)                                      :: GB_per_column, mem_avail_GB, n_columns
+
+      min_fac = 3
+      IF (PRESENT(min_factor)) min_fac = min_factor
+      work_fac = 2
+      IF (PRESENT(work_factor)) work_fac = work_factor
+      WRITE (fac_str, '(I16)') min_fac
 
       ! one column of length N_ov, spread over all ranks
       GB_per_column = 8.0E-9_dp*REAL(n_ov, dp)/REAL(para_env%num_pe, dp)
@@ -985,27 +1422,29 @@ CONTAINS
          from_memory = .TRUE.
          CALL mp_mem_avail_per_rank_GB(para_env, mem_avail_GB)
          IF (mem_avail_GB > 0.0_dp) THEN
-            ! work array of 2*n_act columns besides the n_arrays subspace arrays
-            n_columns = mem_fraction*mem_avail_GB/GB_per_column - 2.0_dp*REAL(n_act, dp)
+            ! work array of work_fac*n_act columns besides the n_arrays subspace arrays
+            n_columns = mem_fraction*mem_avail_GB/GB_per_column - REAL(work_fac*n_act, dp)
             n_columns = MIN(n_columns/REAL(n_arrays, dp), 20.0_dp*REAL(n_act, dp))
-            IF (n_columns < 3.0_dp*REAL(n_act, dp) .AND. 3*n_act <= n_ov) THEN
-               WRITE (mem_str, '(F16.3)') GB_per_column*REAL((3*n_arrays + 2)*n_act, dp)/mem_fraction
+            IF (n_columns < REAL(min_fac*n_act, dp) .AND. min_fac*n_act <= n_ov) THEN
+               WRITE (mem_str, '(F16.3)') GB_per_column*REAL((min_fac*n_arrays + work_fac)*n_act, dp)/mem_fraction
                CALL cp_abort(__LOCATION__, &
-                             "BSE Davidson: not enough memory for the smallest subspace of three "// &
-                             "vectors per state. Free memory needed per MPI rank (GB): "// &
+                             "BSE Davidson: not enough memory for the smallest subspace of "// &
+                             TRIM(ADJUSTL(fac_str))//" vectors per state. Free memory needed per MPI rank (GB): "// &
                              TRIM(ADJUSTL(mem_str)))
             END IF
             m_max = INT(n_columns)
          ELSE
             ! free memory not detectable on this system
-            m_max = 3*n_act
+            m_max = min_fac*n_act
          END IF
-      ELSE IF (mp2_env%bse%max_subspace_factor >= 3) THEN
+      ELSE IF (mp2_env%bse%max_subspace_factor >= min_fac) THEN
          m_max = mp2_env%bse%max_subspace_factor*n_act
       ELSE
-         CPABORT("BSE_ITERAT%MAX_SUBSPACE_FACTOR must be at least 3 (or -1)")
+         CALL cp_abort(__LOCATION__, &
+                       "BSE_ITERAT%MAX_SUBSPACE_FACTOR must be at least "//TRIM(ADJUSTL(fac_str))// &
+                       " (or -1) for the chosen solver")
       END IF
-      m_max = MIN(MAX(m_max, 3*n_act), n_ov)
+      m_max = MIN(MAX(m_max, min_fac*n_act), n_ov)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -1020,7 +1459,7 @@ CONTAINS
          END IF
          WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', &
             'Memory of the subspace arrays per MPI rank (GB)', &
-            GB_per_column*REAL(n_arrays*m_max + MIN(2*n_act, m_max), dp)
+            GB_per_column*REAL(n_arrays*m_max + MIN(work_fac*n_act, m_max), dp)
       END IF
 
    END SUBROUTINE subspace_ceiling
@@ -1093,9 +1532,11 @@ CONTAINS
 !> \param n_given leading columns that the caller has filled; they replace the lowest guess vectors
 !> \param abba_status ABBA problem when present; abba_indefinite if K_sub is not positive definite
 !> \param ab_margin smallest eigenvalue of K_sub in Hartree
+!> \param n_pair ABBA: partners y_k = K_sub x_k/θ_k of the guess vectors x_k not given by the caller,
+!>        written to the n_pair columns after n_used; n_used + n_pair stays within n_max
 ! **************************************************************************************************
    SUBROUTINE initial_guess_subblock(mv_env, mp2_env, diag, n_guess, n_max, deg_thresh_diag, fm_Z, n_used, &
-                                     theta_sub, unit_nr, n_given, abba_status, ab_margin)
+                                     theta_sub, unit_nr, n_given, abba_status, ab_margin, n_pair)
 
       TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
@@ -1110,20 +1551,22 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: n_given
       INTEGER, INTENT(OUT), OPTIONAL                     :: abba_status
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: ab_margin
+      INTEGER, INTENT(OUT), OPTIONAL                     :: n_pair
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'initial_guess_subblock'
 
       INTEGER                                            :: handle, iloc, k, k_first, n_ov, n_sub, &
-                                                            nrow_local
+                                                            n_top, nrow_local
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx, pos
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       LOGICAL                                            :: ok
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_sorted, eig_K
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_sub, B_sub, K_mhalf, K_phalf, U, V
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_sub, B_sub, K_mhalf, K_phalf, U, V, Y
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
+      IF (PRESENT(n_pair)) n_pair = 0
       para_env => mv_env%para_env
       n_ov = SIZE(diag)
       n_sub = MIN(n_ov, MAX(mp2_env%bse%num_guess_transitions, n_guess))
@@ -1162,6 +1605,14 @@ CONTAINS
             END IF
             theta_sub(:) = SQRT(theta_sub(:))
             V(:, :) = MATMUL(K_mhalf, U)
+            IF (PRESENT(n_pair)) THEN
+               ! partners y_k = K_sub x_k/θ_k, B_sub holds K_sub
+               ALLOCATE (Y(n_sub, n_sub))
+               Y(:, :) = MATMUL(B_sub, V)
+               DO k = 1, n_sub
+                  Y(:, k) = Y(:, k)/theta_sub(k)
+               END DO
+            END IF
          END IF
          DEALLOCATE (B_sub, U, K_phalf, K_mhalf, eig_K)
       ELSE
@@ -1170,14 +1621,17 @@ CONTAINS
       END IF
 
       IF (ok) THEN
+         k_first = 1
+         IF (PRESENT(n_given)) k_first = n_given + 1
+
          n_used = n_guess
-         DO WHILE (n_used < MIN(n_max, n_sub))
+         n_top = MIN(n_max, n_sub)
+         ! the partners of the columns k_first..n_used share the n_max columns with the guess
+         IF (PRESENT(n_pair)) n_top = MIN(n_top, (n_max + k_first - 1)/2)
+         DO WHILE (n_used < n_top)
             IF (theta_sub(n_used + 1) - theta_sub(n_used) >= deg_thresh_diag) EXIT
             n_used = n_used + 1
          END DO
-
-         k_first = 1
-         IF (PRESENT(n_given)) k_first = n_given + 1
 
          pos(:) = 0
          DO k = 1, n_sub
@@ -1189,13 +1643,28 @@ CONTAINS
                IF (pos(row_indices(iloc)) > 0) fm_Z%local_data(iloc, k) = V(pos(row_indices(iloc)), k)
             END DO
          END DO
+         IF (PRESENT(n_pair)) THEN
+            n_pair = MIN(n_used - k_first + 1, n_max - n_used)
+            DO k = 1, n_pair
+               DO iloc = 1, nrow_local
+                  IF (pos(row_indices(iloc)) > 0) THEN
+                     fm_Z%local_data(iloc, n_used + k) = Y(pos(row_indices(iloc)), k_first + k - 1)
+                  END IF
+               END DO
+            END DO
+         END IF
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Transitions in the exact guess block', n_sub
+            IF (mp2_env%bse%bse_debug_print) THEN
+               WRITE (unit_nr, '(T2,A10,T13,A,T67,F14.6)') 'BSE|DEBUG|', &
+                  'Lowest Ritz value of the guess block (eV)', theta_sub(1)*evolt
+            END IF
          END IF
       END IF
 
       DEALLOCATE (diag_sorted, idx, pos, A_sub, V)
+      IF (ALLOCATED(Y)) DEALLOCATE (Y)
 
       CALL timestop(handle)
 
@@ -1272,21 +1741,20 @@ CONTAINS
    END SUBROUTINE solve_reduced
 
 ! **************************************************************************************************
-!> \brief Orthonormal coefficient vectors of the restart basis: current Ritz vectors, then the
-!>        previous ones (modified Gram-Schmidt in the replicated m-space)
-!> \param C current Ritz coefficients
-!> \param C_prev Ritz coefficients of the previous iteration, zero-padded to m rows
+!> \brief Orthonormal coefficient vectors of the restart basis from the candidate columns in their
+!>        order of priority (modified Gram-Schmidt in the replicated m-space), at most n_cap of them
+!> \param cand candidate coefficient columns, zero-padded to m rows: the current Ritz vectors, then
+!>        the previous ones
 !> \param m ...
-!> \param n_act ...
-!> \param has_prev ...
+!> \param n_cand ...
+!> \param n_cap ...
 !> \param Q m x n_new restart basis
 !> \param n_new ...
 ! **************************************************************************************************
-   SUBROUTINE restart_basis(C, C_prev, m, n_act, has_prev, Q, n_new)
+   SUBROUTINE restart_basis(cand, m, n_cand, n_cap, Q, n_new)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: C, C_prev
-      INTEGER, INTENT(IN)                                :: m, n_act
-      LOGICAL, INTENT(IN)                                :: has_prev
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: cand
+      INTEGER, INTENT(IN)                                :: m, n_cand, n_cap
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: Q
       INTEGER, INTENT(OUT)                               :: n_new
 
@@ -1299,27 +1767,25 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (basis(m, 2*n_act))
-      basis(:, 1:n_act) = C(1:m, 1:n_act)
-      n_new = n_act
-      IF (has_prev) THEN
-         DO k = 1, n_act
-            basis(:, n_new + 1) = C_prev(1:m, k)
-            ! a previous vector is nearly parallel to its successor, one pass leaves the basis
-            ! non-orthonormal at the 1e-6 level and stalls the residuals there
-            DO ipass = 1, 2
-               DO j = 1, n_new
-                  basis(:, n_new + 1) = basis(:, n_new + 1) - &
-                                        DOT_PRODUCT(basis(:, j), basis(:, n_new + 1))*basis(:, j)
-               END DO
-               norm = NORM2(basis(:, n_new + 1))
-               IF (norm < norm_drop) EXIT
-               basis(:, n_new + 1) = basis(:, n_new + 1)/norm
+      ALLOCATE (basis(m, n_cap))
+      n_new = 0
+      DO k = 1, n_cand
+         IF (n_new == n_cap) EXIT
+         basis(:, n_new + 1) = cand(1:m, k)
+         ! a previous vector is nearly parallel to its successor, one pass leaves the basis
+         ! non-orthonormal at the 1e-6 level and stalls the residuals there
+         DO ipass = 1, 2
+            DO j = 1, n_new
+               basis(:, n_new + 1) = basis(:, n_new + 1) - &
+                                     DOT_PRODUCT(basis(:, j), basis(:, n_new + 1))*basis(:, j)
             END DO
-            IF (norm < norm_drop) CYCLE
-            n_new = n_new + 1
+            norm = NORM2(basis(:, n_new + 1))
+            IF (norm < norm_drop) EXIT
+            basis(:, n_new + 1) = basis(:, n_new + 1)/norm
          END DO
-      END IF
+         IF (norm < norm_drop) CYCLE
+         n_new = n_new + 1
+      END DO
       Q(:, :) = 0.0_dp
       Q(1:m, 1:n_new) = basis(:, 1:n_new)
       DEALLOCATE (basis)
@@ -1337,8 +1803,9 @@ CONTAINS
 !> \param fm_out ...
 !> \param alpha ...
 !> \param beta ...
+!> \param out_col first column of fm_out written, 1 by default
 ! **************************************************************************************************
-   SUBROUTINE subspace_rotate(fm_V, nv, C, nc, fm_out, alpha, beta)
+   SUBROUTINE subspace_rotate(fm_V, nv, C, nc, fm_out, alpha, beta, out_col)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_V
       INTEGER, INTENT(IN)                                :: nv
@@ -1347,17 +1814,20 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nc
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_out
       REAL(KIND=dp), INTENT(IN)                          :: alpha, beta
+      INTEGER, INTENT(IN), OPTIONAL                      :: out_col
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'subspace_rotate'
 
-      INTEGER                                            :: handle, nrow_local
+      INTEGER                                            :: handle, nrow_local, o_col
 
       CALL timeset(routineN, handle)
 
+      o_col = 1
+      IF (PRESENT(out_col)) o_col = out_col
       CALL cp_fm_get_info(fm_V, nrow_local=nrow_local)
       IF (nrow_local > 0) THEN
          CALL DGEMM('N', 'N', nrow_local, nc, nv, alpha, fm_V%local_data, SIZE(fm_V%local_data, 1), &
-                    C, SIZE(C, 1), beta, fm_out%local_data, SIZE(fm_out%local_data, 1))
+                    C, SIZE(C, 1), beta, fm_out%local_data(:, o_col:o_col + nc - 1), SIZE(fm_out%local_data, 1))
       END IF
 
       CALL timestop(handle)
@@ -1483,25 +1953,27 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Davidson corrections t_ia,k = r_ia,k/(d_ia - θ_k) of the selected roots k, written to fm_Z
-!> \param fm_R residuals, column k belongs to root k
+!> \param fm_R residuals, column r_offset + k belongs to root k
 !> \param selected ...
 !> \param theta ...
 !> \param diag ...
 !> \param fm_Z ...
 !> \param first_col ...
+!> \param r_offset columns of fm_R before the residuals, 0 by default
 ! **************************************************************************************************
-   SUBROUTINE davidson_corrections(fm_R, selected, theta, diag, fm_Z, first_col)
+   SUBROUTINE davidson_corrections(fm_R, selected, theta, diag, fm_Z, first_col, r_offset)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_R
       INTEGER, DIMENSION(:), INTENT(IN)                  :: selected
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: theta, diag
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_Z
       INTEGER, INTENT(IN)                                :: first_col
+      INTEGER, INTENT(IN), OPTIONAL                      :: r_offset
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'davidson_corrections'
       REAL(KIND=dp), PARAMETER :: eref_scale = 0.99_dp, threshold = 16.0_dp*EPSILON(1.0_dp)
 
-      INTEGER                                            :: handle, iloc, it, k, nrow_local
+      INTEGER                                            :: handle, iloc, it, k, nrow_local, r_off
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       REAL(KIND=dp)                                      :: denom
 
@@ -1509,13 +1981,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      r_off = 0
+      IF (PRESENT(r_offset)) r_off = r_offset
       CALL cp_fm_get_info(fm_Z, nrow_local=nrow_local, row_indices=row_indices)
       DO it = 1, SIZE(selected)
          k = selected(it)
          DO iloc = 1, nrow_local
             denom = diag(row_indices(iloc)) - theta(k)
             IF (ABS(denom) < threshold) denom = denom + (1.0_dp - eref_scale)*theta(k)
-            fm_Z%local_data(iloc, first_col + it - 1) = fm_R%local_data(iloc, k)/denom
+            fm_Z%local_data(iloc, first_col + it - 1) = fm_R%local_data(iloc, r_off + k)/denom
          END DO
       END DO
 
