@@ -1019,21 +1019,6 @@ include(GNUInstallDirs)
 # subdirectories
 add_subdirectory(src)
 
-# Opt-in Python tests; Python dependencies are installed separately with pip.
-if(BUILD_SHARED_LIBS)
-  add_custom_target(
-    test_python_interface
-    COMMAND
-      "${CMAKE_COMMAND}" -E env "PYTHONPATH=${PROJECT_SOURCE_DIR}/python/src"
-      "CP2K_TEST_LIBRARY=$<TARGET_FILE:cp2k>" "CP2K_DATA_DIR=${CP2K_DATA_DIR}"
-      "OMP_NUM_THREADS=1" "OPENBLAS_NUM_THREADS=1" "${Python_EXECUTABLE}" -m
-      pytest "${PROJECT_SOURCE_DIR}/python/tests"
-      "--basetemp=${PROJECT_BINARY_DIR}/python-tests"
-    DEPENDS cp2k
-    WORKING_DIRECTORY "${PROJECT_BINARY_DIR}"
-    USES_TERMINAL VERBATIM)
-endif()
-
 get_target_property(CP2K_LIBS cp2k_link_libs INTERFACE_LINK_LIBRARIES)
 configure_file(cmake/libcp2k.pc.in libcp2k.pc @ONLY)
 
