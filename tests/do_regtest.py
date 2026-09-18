@@ -64,7 +64,7 @@ async def main() -> None:
     parser = argparse.ArgumentParser(description="Runs CP2K regression test suite.")
     parser.add_argument("--mpiranks", type=int, default=2)
     parser.add_argument("--ompthreads", type=int)
-    parser.add_argument("--maxtasks", type=int, default=os.cpu_count())
+    parser.add_argument("--maxtasks", type=int, default=cpu_count())
     parser.add_argument("--num_gpus", type=int, default=0)
     parser.add_argument("--timeout", type=int, default=150)
     parser.add_argument("--maxerrors", type=int, default=50)
@@ -192,13 +192,13 @@ async def main() -> None:
 
     # Wait for tasks to finish and print their results.
     all_results: List[TestResult] = []
-    initial_batch_times: Dict[str, float] = {}
+    dir_durations: Dict[str, float] = {}
     with open(cfg.error_summary, "wt", encoding="utf8", errors="replace") as err_fh:
         for num_done, task in enumerate(asyncio.as_completed(tasks)):
             batch_result = await task
             all_results += batch_result.results
             if batch_result.batch.regtests:
-                initial_batch_times[batch_result.batch.name] = batch_result.duration
+                dir_durations[batch_result.batch.name] = batch_result.duration
             print(f">>> {batch_result.batch.workdir}")
             print("\n".join(str(r) for r in batch_result.results))
             print(f"<<< {batch_result.batch.workdir} ({num_done + 1}", end="")
@@ -249,20 +249,12 @@ async def main() -> None:
         for k, v in slow_tests.items():
             print(f"    {k :<80s} ( {mean(v):6.2f} ±{stdev(v):4.2f} sec)")
 
-        test_dir_timings = sorted(initial_batch_times.values())
-        if test_dir_timings:
-            test_dir_threshold = 2 * percentile(test_dir_timings, 0.95)
-            slow_test_dirs = {
-                k: v for k, v in initial_batch_times.items() if v > test_dir_threshold
-            }
-        else:
-            test_dir_threshold = 0.0
-            slow_test_dirs = {}
-
         print("\n" + "-" * 15 + "---------- Slow Test Directories ---------" + "-" * 15)
-        print(f"Duration threshold (2x 95th %ile): {test_dir_threshold:.2f} sec")
-        print(f"Found {len(slow_test_dirs)} slow test directories:")
-        for name, duration in sorted(slow_test_dirs.items()):
+        dir_threshold = 2 * percentile(sorted(dir_durations.values()), 0.95)
+        slow_dirs = {k: v for k, v in dir_durations.items() if v > dir_threshold}
+        print(f"Duration threshold (2x 95th %ile): {dir_threshold:.2f} sec")
+        print(f"Found {len(slow_dirs)} slow test directories:")
+        for name, duration in sorted(slow_dirs.items()):
             print(f"    {name :<80s} ( {duration:.2f} sec)")
 
     print("\n------------------------------- Summary --------------------------------")
@@ -273,9 +265,8 @@ async def main() -> None:
     num_wrong = sum(r.status == "WRONG RESULT" for r in all_results)
     num_na = sum(r.status == "N/A" for r in all_results)
     num_ok = sum(r.status == "OK" for r in all_results)
-    status_ok = (num_ok == num_tests) and (
-        not cfg.flag_slow or (not slow_tests and not slow_test_dirs)
-    )
+    slowness_detected = cfg.flag_slow and (slow_tests or slow_dirs)
+    status_ok = (num_ok == num_tests) and not slowness_detected
     print(f"Number of FAILED  tests {num_failed}")
     print(f"Number of WRONG   tests {num_wrong}")
     print(f"Number of CORRECT tests {num_ok}")
@@ -284,12 +275,9 @@ async def main() -> None:
     summary += f"; wrong: {num_wrong}" if num_wrong > 0 else ""
     summary += f"; failed: {num_failed}" if num_failed > 0 else ""
     summary += f"; n/a: {num_na}" if num_na > 0 else ""
-    summary += f"; slow: {len(slow_tests)}" if cfg.flag_slow and slow_tests else ""
-    summary += (
-        f"; slow dirs: {len(slow_test_dirs)}"
-        if cfg.flag_slow and slow_test_dirs
-        else ""
-    )
+    if cfg.flag_slow:
+        summary += f"; slow: {len(slow_tests)}" if slow_tests else ""
+        summary += f"; slow dirs: {len(slow_dirs)}" if slow_dirs else ""
     summary += f"; {total_duration/60.0:.0f}min"
     print(summary)
     print("Status: " + ("OK" if status_ok else "FAILED") + "\n")
@@ -357,10 +345,6 @@ class Config:
         self.slow_suppressions = slow_supps_fn.read_text(encoding="utf8").split("\n")
         huge_supps_fn = self.cp2k_root / "tests" / "HUGE_TESTS_SUPPRESSIONS"
         self.huge_suppressions = huge_supps_fn.read_text(encoding="utf8").split("\n")
-
-        def run_with_capture_stdout(cmd: str) -> bytes:
-            # capture_output argument not available before Python 3.7
-            return subprocess.run(cmd, shell=True, stdout=PIPE, stderr=DEVNULL).stdout
 
         # Detect number of GPU devices, if not specified by the user
         if args.num_gpus > 0:
@@ -780,6 +764,18 @@ def percentile(values: List[float], percent: float) -> float:
 # ======================================================================================
 def is_relative_to(p: Path, u: Path) -> bool:  # not in pathlib before Python 3.9
     return u == p or u in p.parents
+
+
+# ======================================================================================
+def run_with_capture_stdout(cmd: str) -> bytes:
+    # capture_output argument not available before Python 3.7
+    return subprocess.run(cmd, shell=True, stdout=PIPE, stderr=DEVNULL).stdout
+
+
+# ======================================================================================
+def cpu_count() -> int:
+    # os.cpu_count() ignores $PYTHON_CPU_COUNT before Python 3.13
+    return int(os.getenv("PYTHON_CPU_COUNT") or str(os.cpu_count()))
 
 
 # ======================================================================================
