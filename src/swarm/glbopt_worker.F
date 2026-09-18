@@ -66,7 +66,6 @@ MODULE glbopt_worker
       INTEGER                                  :: md_bumps_max = 0
       REAL(KIND=dp)                            :: fragmentation_threshold = 0.0_dp
       INTEGER                                  :: n_atoms = -1
-      !REAL(KIND=dp)                            :: adaptive_timestep = 0.0
    END TYPE glbopt_worker_type
 
 CONTAINS
@@ -127,7 +126,6 @@ CONTAINS
       CALL section_vals_val_get(glbopt_section, "BUMP_STEPS_DOWNWARDS", i_val=worker%bump_steps_downwards)
       CALL section_vals_val_get(glbopt_section, "MD_BUMPS_MAX", i_val=worker%md_bumps_max)
       CALL section_vals_val_get(glbopt_section, "FRAGMENTATION_THRESHOLD", r_val=dist_in_angstrom)
-      !CALL section_vals_val_get(glbopt_section,"MD_ADAPTIVE_TIMESTEP", r_val=worker%adaptive_timestep)
       worker%fragmentation_threshold = dist_in_angstrom/angstrom
    END SUBROUTINE glbopt_worker_init
 
@@ -193,17 +191,6 @@ CONTAINS
       mdctrl_data%output_unit = worker%iw
       mdctrl%glbopt => mdctrl_data
       mdctrl_p => mdctrl
-
-      !IF(worker%adaptive_timestep > 0.0_dp) THEN
-      !   !TODO: 300K is hard encoded
-      !   boltz = 1.0_dp + exp( -temperature * kelvin / 150.0_dp )
-      !   timestep = 4.0_dp * ( boltz - 1.0_dp ) / boltz / femtoseconds
-      !   !timestep = 0.01_dp / femtoseconds
-      !   !timestep = SQRT(MIN(0.5_dp, 2.0_dp/(1+exp(-300.0_dp/(temperature*kelvin))))) / femtoseconds
-      !   CALL section_vals_val_set(worker%root_section, "MOTION%MD%TIMESTEP", r_val=timestep)
-      !   IF(worker%iw>0)&
-      !      WRITE (worker%iw,'(A,35X,F20.3)')  ' GLBOPT| MD timestep [fs]',timestep*femtoseconds
-      !ENDIF
 
       prev_iframe = iframe
       IF (iframe == 0) iframe = 1 ! qs_mol_dyn behaves differently for STEP_START_VAL=0
@@ -276,6 +263,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: bondlength
       LOGICAL                                            :: all_connected
 
+      REAL(KIND=dp), PARAMETER                           :: bond_thre = 1.25_dp
+
       INTEGER                                            :: cluster_edge, fragment_edge, i, j, &
                                                             n_particles, stack_size
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: stack
@@ -293,7 +282,7 @@ CONTAINS
       DO WHILE (stack_size > 0)
          i = stack(stack_size); stack_size = stack_size - 1 !pop
          DO j = 1, n_particles
-            IF (NORM2(diff(positions, i, j)) < 1.25_dp*bondlength) THEN ! they are close = they are connected
+            IF (NORM2(diff(positions, i, j)) < bond_thre*bondlength) THEN ! they are close = they are connected
                IF (.NOT. marked(j)) THEN
                   marked(j) = .TRUE.
                   stack(stack_size + 1) = j; stack_size = stack_size + 1 !push

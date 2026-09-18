@@ -30,7 +30,8 @@ MODULE ai_overlap_ppl
    USE gamma,                           ONLY: fgamma => fgamma_0
    USE gfun,                            ONLY: gfun_values
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: pi
+   USE mathconstants,                   ONLY: pi,&
+                                              twopi
    USE mathlib,                         ONLY: binomial
 #include "../base/base_uses.f90"
 
@@ -561,7 +562,7 @@ CONTAINS
          END DO
          auxint(0:mmax) = auxint(0:mmax) + expder(0:mmax)
       CASE (3)
-         cval = 2.0_dp*pi*cexp/q**2*EXP(-t*fa)
+         cval = twopi*cexp/q**2*EXP(-t*fa)
          expder(0) = cval
          DO i = 1, mmax
             expder(i) = fa*expder(i - 1)

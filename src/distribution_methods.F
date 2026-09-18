@@ -1184,7 +1184,7 @@ CONTAINS
       IF (natoms <= 1) THEN
          nsplits = 1
       ELSE
-         nsplits = MIN(INT(MIN(INT(MAX(6, INT(60.00_dp/LOG(REAL(natoms, KIND=dp)))), KIND=int_8), ncluster)), natoms)
+         nsplits = MIN(INT(MIN(INT(MAX(6, INT(60.0_dp/LOG(REAL(natoms, KIND=dp)))), KIND=int_8), ncluster)), natoms)
       END IF
       IF (nsplits == 1) THEN
          icluster = icluster + 1

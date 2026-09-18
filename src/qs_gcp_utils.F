@@ -61,7 +61,7 @@ MODULE qs_gcp_utils
    !
    ! Hydrogen uses 1.2000, not the original 1.0000
    !
-   REAL(KIND=dp), DIMENSION(4, 106) :: sexp = RESHAPE([ &
+   REAL(KIND=dp), DIMENSION(4, 106), PARAMETER, PRIVATE :: sexp = RESHAPE([ &
                                  1.2000_dp, 0.0000_dp, 0.0000_dp, 0.0000_dp, 1.6469_dp, 0.0000_dp, 0.0000_dp, 0.0000_dp, & !   1   2
                                  0.6534_dp, 0.5305_dp, 0.0000_dp, 0.0000_dp, 1.0365_dp, 0.8994_dp, 0.0000_dp, 0.0000_dp, & !   3   4
                                  1.3990_dp, 1.2685_dp, 0.0000_dp, 0.0000_dp, 1.7210_dp, 1.6105_dp, 0.0000_dp, 0.0000_dp, & !   5   6
@@ -115,7 +115,7 @@ MODULE qs_gcp_utils
                                  1.9240_dp, 1.5320_dp, 2.7090_dp, 6.0690_dp, 1.9400_dp, 1.5440_dp, 2.7300_dp, 6.2130_dp, & ! 101 102
                                  2.1300_dp, 1.7200_dp, 2.9900_dp, 0.0000_dp, 1.9200_dp, 1.4500_dp, 2.9700_dp, 0.0000_dp, & ! 103 104
                                 0.0000_dp, 0.0000_dp, 0.0000_dp, 0.0000_dp, 0.0000_dp, 0.0000_dp, 0.0000_dp, 0.0000_dp], & ! 105 106
-                                                      [4, 106])
+                                                                          [4, 106])
 
    PUBLIC :: qs_gcp_env_set, qs_gcp_init
 

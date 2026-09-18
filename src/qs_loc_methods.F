@@ -1025,7 +1025,7 @@ CONTAINS
       IF (PRESENT(mo_coeff)) THEN
          CPASSERT(.NOT. PRESENT(complex_mo_coeff))
          CALL cp_fm_create(squaredmat, mo_coeff%matrix_struct)
-         squaredmat%local_data = mo_coeff%local_data**2.0_dp
+         squaredmat%local_data = mo_coeff%local_data**2
       ELSE
          CPASSERT(PRESENT(complex_mo_coeff))
          CALL cp_fm_create(squaredmat, complex_mo_coeff%matrix_struct)

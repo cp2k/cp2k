@@ -31,7 +31,8 @@ MODULE eri_mme_integrate
                                               get_minimax_from_cutoff
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE mathconstants,                   ONLY: pi
+   USE mathconstants,                   ONLY: pi,&
+                                              twopi
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
 #include "../base/base_uses.f90"
@@ -79,6 +80,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: normalize
       INTEGER, INTENT(IN), OPTIONAL                      :: potential
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pot_par
+
+      REAL(KIND=dp), PARAMETER                           :: rel_prec = 1.0E-02_dp
 
       INTEGER                                            :: ax, ay, az, bx, by, bz, grid, i_aw, &
                                                             i_xyz, ico, jco, l_max, la, lb, n_aw
@@ -150,8 +153,8 @@ CONTAINS
          G_res = 0.5_dp*param%G_min
          R_res = 0.5_dp*param%R_min
 
-         G_rad = exp_radius(l_max, alpha_G, 1.0E-02_dp*param%sum_precision, 1.0_dp, epsabs=G_res)
-         G_bounds(:) = ellipsoid_bounds(G_rad, TRANSPOSE(hmat)/(2.0_dp*pi))
+         G_rad = exp_radius(l_max, alpha_G, rel_prec*param%sum_precision, 1.0_dp, epsabs=G_res)
+         G_bounds(:) = ellipsoid_bounds(G_rad, TRANSPOSE(hmat)/twopi)
          CALL pgf_sum_2c_gspace_3d(S_G_no, l_max, -rab, alpha_G, h_inv, G_bounds, G_rad, vol, potential, pot_par)
       ELSE
 

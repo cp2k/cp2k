@@ -947,7 +947,7 @@ CONTAINS
             dw0_dn = 1.0_dp/(2.0_dp*w0)*(16.0_dp/3.0_dp*pi - 4.0_dp*wg2/total_rho(i_grid))
             dk_dn = k/(6.0_dp*total_rho(i_grid))
 
-            dq0_drho(i_grid) = dq0_dq*1.0_dp/(k**2.0_dp)*(dw0_dn*k - dk_dn*w0)
+            dq0_drho(i_grid) = dq0_dq*1.0_dp/(k**2)*(dw0_dn*k - dk_dn*w0)
             ! wg2 is proportional to |gradient_rho|**4, so this limit is zero.
             IF (gmod2 > 0.0_dp) THEN
                dq0_dgradrho(i_grid) = dq0_dq*1.0_dp/(2.0_dp*k*w0)*4.0_dp*wg2/gmod2

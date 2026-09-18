@@ -13,6 +13,7 @@ MODULE semi_empirical_mpole_methods
 
    USE input_constants,                 ONLY: do_method_pnnl
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: sqrt3
    USE semi_empirical_int_arrays,       ONLY: alm,&
                                               indexa,&
                                               indexb,&
@@ -173,7 +174,7 @@ CONTAINS
                zt = SQRT(ZS*ZP)
                zb = 0.5_dp*(ZS + ZP)
                DO k = 1, 3
-                  M1(k, indexb(1, 1 + k)) = (zt/zb)**(2*nr + 1)*REAL(2*nr + 1, dp)/(2.0_dp*zb*SQRT(3.0_dp))
+                  M1(k, indexb(1, 1 + k)) = (zt/zb)**(2*nr + 1)*REAL(2*nr + 1, dp)/(2.0_dp*zb*sqrt3)
                END DO
 
                wp = REAL((2*nr + 2)*(2*nr + 1), dp)/(40.0_dp*ZP**2)

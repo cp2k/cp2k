@@ -362,6 +362,9 @@ CONTAINS
       TYPE(swarm_message_type), INTENT(IN)               :: msg1, msg2
       LOGICAL                                            :: res
 
+      REAL(KIND=dp), PARAMETER                           :: eps_r4 = 1.0E-05_dp, &
+                                                            eps_r8 = 1.0E-10_dp
+
       LOGICAL                                            :: found
       TYPE(message_entry_type), POINTER                  :: entry1, entry2
 
@@ -398,11 +401,11 @@ CONTAINS
 
          ELSE IF (ASSOCIATED(entry1%value_r4)) THEN
             IF (.NOT. ASSOCIATED(entry2%value_r4)) RETURN
-            IF (ABS(entry1%value_r4 - entry2%value_r4) > 1e-5_dp) RETURN
+            IF (ABS(entry1%value_r4 - entry2%value_r4) > eps_r4) RETURN
 
          ELSE IF (ASSOCIATED(entry1%value_r8)) THEN
             IF (.NOT. ASSOCIATED(entry2%value_r8)) RETURN
-            IF (ABS(entry1%value_r8 - entry2%value_r8) > 1e-10_dp) RETURN
+            IF (ABS(entry1%value_r8 - entry2%value_r8) > eps_r8) RETURN
 
          ELSE IF (ASSOCIATED(entry1%value_1d_i4)) THEN
             IF (.NOT. ASSOCIATED(entry2%value_1d_i4)) RETURN
@@ -414,11 +417,11 @@ CONTAINS
 
          ELSE IF (ASSOCIATED(entry1%value_1d_r4)) THEN
             IF (.NOT. ASSOCIATED(entry2%value_1d_r4)) RETURN
-            IF (ANY(ABS(entry1%value_1d_r4 - entry2%value_1d_r4) > 1e-5_dp)) RETURN
+            IF (ANY(ABS(entry1%value_1d_r4 - entry2%value_1d_r4) > eps_r4)) RETURN
 
          ELSE IF (ASSOCIATED(entry1%value_1d_r8)) THEN
             IF (.NOT. ASSOCIATED(entry2%value_1d_r8)) RETURN
-            IF (ANY(ABS(entry1%value_1d_r8 - entry2%value_1d_r8) > 1e-10_dp)) RETURN
+            IF (ANY(ABS(entry1%value_1d_r8 - entry2%value_1d_r8) > eps_r8)) RETURN
          ELSE
             CPABORT("no value ASSOCIATED")
          END IF

@@ -121,9 +121,6 @@ CONTAINS
          CPABORT("potential parameter pot_par required for yukawa or long-range Coulomb")
       END IF
 
-      ! REAL(KIND=dp), PARAMETER :: dG = 1.0E-03_dp is resolution in G to determine error
-      ! of minimax approximation, which is not currently used
-
       ! Note: G_c = SQRT(2*cutoff) cutoff in 1 cartesian direction
       ! G_max = SQRT(3*G_c**2) maximum absolute value of G vector
       ! Minimax approx. needs to be valid in range [G_min, G_max]

@@ -518,7 +518,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: costheta
       REAL(KIND=dp)                                      :: ter_g_d
 
-      REAL(KIND=dp)                                      :: c, c2, d, d2, h, hc, sintheta
+      REAL(KIND=dp)                                      :: c, c2, d, d2, h, hc
 
       c = tersoff%c
       d = tersoff%d
@@ -526,8 +526,6 @@ CONTAINS
       c2 = c*c
       d2 = d*d
       hc = h - costheta
-
-      sintheta = SQRT(1.0_dp - costheta**2)
 
       ter_g_d = 0.0_dp
       ! Still need d(costheta)/dR

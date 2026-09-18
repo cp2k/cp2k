@@ -57,7 +57,8 @@ MODULE casino_utils
                                               kpoint_env_p_type,&
                                               kpoint_release,&
                                               kpoint_type
-   USE mathconstants,                   ONLY: pi
+   USE mathconstants,                   ONLY: pi,&
+                                              rootpi
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: nso
    USE particle_types,                  ONLY: particle_type
@@ -1507,7 +1508,7 @@ CONTAINS
       END IF
 
       cutoff_arg = SQRT(-LOG(1.0E-12_dp))
-      alpha = SQRT(pi)*(REAL(natoms, KIND=dp)/volume)**(1.0_dp/3.0_dp)
+      alpha = rootpi*(REAL(natoms, KIND=dp)/volume)**(1.0_dp/3.0_dp)
       alpha2 = alpha*alpha
       real_cut = cutoff_arg/alpha
       g_cut = 2.0_dp*alpha*cutoff_arg
@@ -1557,7 +1558,7 @@ CONTAINS
       END DO
       recip_energy = 2.0_dp*pi*recip_energy/volume
 
-      self_energy = -alpha*SUM(charge*charge)/SQRT(pi)
+      self_energy = -alpha*SUM(charge*charge)/rootpi
       neut_energy = -pi*SUM(charge)**2/(2.0_dp*alpha2*volume)
       e_nn = real_energy + recip_energy + self_energy + neut_energy
    END SUBROUTINE periodic_nuclear_repulsion_energy
