@@ -1,0 +1,8 @@
+{# Preserve the original form until the static search bundle has loaded. #}
+<div id="cp2k-classic-search">
+  {% include "!searchbox.html" %}
+</div>
+<div id="cp2k-pagefind-search" hidden>
+  <pagefind-modal-trigger placeholder="Search docs"></pagefind-modal-trigger>
+  <a class="cp2k-classic-search-link" href="{{ pathto('search') }}">Classic search</a>
+</div>

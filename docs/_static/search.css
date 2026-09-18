@@ -1,0 +1,38 @@
+/* Keep Pagefind separate from both the RTD sidebar and keyword styling. */
+#cp2k-pagefind-search {
+    text-align: left;
+    --pf-font: inherit;
+}
+
+#cp2k-pagefind-search[hidden],
+#cp2k-classic-search[hidden],
+pagefind-modal:not(:defined) {
+    display: none;
+}
+
+#cp2k-pagefind-search pagefind-modal-trigger {
+    display: block;
+    width: 100%;
+}
+
+.wy-side-nav-search .cp2k-classic-search-link {
+    display: block;
+    margin: 0.4em 0 0;
+    padding: 0;
+    font-size: 0.75em;
+    font-weight: normal;
+    text-align: right;
+}
+
+pagefind-modal {
+    --pf-font: Lato, "Helvetica Neue", Arial, sans-serif;
+    --pf-modal-max-width: 760px;
+    --pf-result-title-font-size: 16px;
+    --pf-result-excerpt-font-size: 14px;
+    --pf-outline-focus: #2980b9;
+}
+
+pagefind-modal .pf-result-title,
+pagefind-modal .pf-heading-link {
+    overflow-wrap: anywhere;
+}

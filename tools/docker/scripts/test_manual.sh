@@ -35,8 +35,12 @@ set +e # disable error trapping for remainder of script
   set -e # abort if error is encountered
   /opt/cp2k/docs/generate_input_reference.py ./cp2k_input.xml
   echo ""
-  sphinx-build /opt/cp2k/docs/ /workspace/artifacts/manual -W -n --keep-going --jobs 16
+  sphinx-build /opt/cp2k/docs/ /workspace/artifacts/manual -W -n --keep-going --jobs 32
   /opt/cp2k/docs/fix_github_links.py /workspace/artifacts/manual
+  (
+    cd /opt/cp2k/docs
+    python3 -m pagefind --site /workspace/artifacts/manual
+  )
   rm -rf /workspace/artifacts/manual/.doctrees
 )
 EXIT_CODE=$?

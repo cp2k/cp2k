@@ -1,0 +1,44 @@
+{% extends "!layout.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ pathto('pagefind/pagefind-component-ui.css', 1) }}">
+  {% if pagename.startswith('CP2K_INPUT/') %}
+  {# Distinguish identically named input sections by their complete path. #}
+  <meta data-pagefind-meta="title[content]" content="{{ pagename.replace('/', ' / ')|e }}">
+  {% endif %}
+{% endblock %}
+
+{% block document %}
+  {% if pagename not in ('search', 'genindex', 'py-modindex') %}
+  {% set input_reference = pagename == 'CP2K_INPUT' or pagename.startswith('CP2K_INPUT/') %}
+  <div data-pagefind-body{% if input_reference %} class="cp2k-input-page"{% endif %}
+       data-pagefind-filter="Collection:{{ 'Input reference' if input_reference else 'Documentation' }}">
+    {{ super() }}
+  </div>
+  {% else %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}
+
+{% block footer %}
+  {{ super() }}
+  {# Keep the modal outside the sidebar and .rst-content theme rules. #}
+  <pagefind-config></pagefind-config>
+  <pagefind-modal>
+    <pagefind-modal-header>
+      <pagefind-input placeholder="Search input keywords and documentation"></pagefind-input>
+    </pagefind-modal-header>
+    <pagefind-modal-body>
+      <pagefind-filter-dropdown filter="Collection" label="Search in"></pagefind-filter-dropdown>
+      <pagefind-summary></pagefind-summary>
+      <pagefind-results max-sub-results="5"></pagefind-results>
+    </pagefind-modal-body>
+    <pagefind-modal-footer>
+      <pagefind-keyboard-hints></pagefind-keyboard-hints>
+      <a href="{{ pathto('search') }}">Classic search</a>
+    </pagefind-modal-footer>
+  </pagefind-modal>
+  <script src="{{ pathto('_static/search.js', 1) }}"></script>
+  <script type="module" src="{{ pathto('pagefind/pagefind-component-ui.js', 1) }}"></script>
+{% endblock %}
