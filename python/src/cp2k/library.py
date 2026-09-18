@@ -311,6 +311,11 @@ class ForceEnvironment:
         if self._closed:
             raise RuntimeError("The CP2K force environment is closed")
 
+    @property
+    def communicator(self):
+        """Caller-side communicator, or None for a single-process caller."""
+        return self._runtime._comm
+
     def _count(self, name):
         self._check()
         value = ct.c_int()

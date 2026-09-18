@@ -11,9 +11,12 @@ class _Computation:
         environment._check()
         if environment.natom != environment.nparticle:
             raise ValueError("OpenMM requires one CP2K particle per atom")
-        comm = environment._runtime._comm
+        comm = environment.communicator
         if comm is not None and comm.size != 1:
-            raise ValueError("OpenMM callbacks require a single-rank CP2K communicator")
+            raise ValueError(
+                "OpenMM needs a single-rank caller; use SocketEnvironment "
+                "for a multi-rank CP2K server"
+            )
         self.environment = environment
         self.periodic = bool(periodic)
         self.nparticle = environment.nparticle
@@ -50,15 +53,18 @@ def create_force(environment, *, periodic):
     """Create an OpenMM force for the entire CP2K system, in identical atom order.
 
     Requires OpenMM >= 8.6.1 (PythonForce callbacks on the calling thread).
-    Call OpenMM from Python's main thread, with one MPI rank per simulation.
+    Call OpenMM from Python's main thread, with a single-rank caller. To use
+    multi-rank CP2K, pass a SocketEnvironment connected to an MPI server.
     Keep the caller-owned environment/runtime alive until all Contexts using
     this force are destroyed. Do not use simultaneous Contexts with it.
 
     Match ``periodic`` to CP2K SUBSYS/CELL/PERIODIC (XYZ or NONE). For periodic
     calculations the current OpenMM box is passed at every evaluation, including
     barostat trial moves. Otherwise CP2K retains its input cell. This supplies
-    the *whole* potential, not an automatic QM/MM partition; adding other
-    interaction forces double counts them unless an additive model is intended.
+    the potential supplied by the environment. For native CP2K QM/MM, configure
+    METHOD QMMM and let CP2K supply the whole potential. Alternatively pass a
+    SubtractiveQMMM correction while retaining the host's full MM potential.
+    Do not add a whole-system CP2K potential to the same host MM interactions.
     CP2K state is not part of OpenMM's XML/checkpoints: rebuild the adapter and
     use CP2K's own wavefunction restart mechanism if needed.
     """

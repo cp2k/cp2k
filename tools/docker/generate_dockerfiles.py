@@ -454,9 +454,10 @@ RUN ./tools/docker/scripts/test_precommit.sh 2>&1 | tee report.log
 
 # ======================================================================================
 def test_3rd_party(name: str) -> str:
+    python_sources = "COPY ./python ./python\n" if name == "ase" else ""
     return install_cp2k(profile="toolchain", version="ssmp") + rf"""
 # Run test for {name}.
-COPY ./tests ./tests
+{python_sources}COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_{name}.sh ./
 RUN ./test_{name}.sh 2>&1 | tee report.log
 """ + print_cached_report()

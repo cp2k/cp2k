@@ -5,6 +5,10 @@ This package calls the C API of `libcp2k` in the Python process using `ctypes`. 
 Python dependency; ASE, mpi4py, OpenMM and LAMMPS are optional. The shared CP2K library and its
 numerical dependencies are installed separately.
 
+An optional `SocketEnvironment` connects to a separately launched CP2K server. This keeps the same
+environment/adapter API for energy, forces and stress while isolating native libraries and MPI
+implementations. The default `CP2K` class remains fully in-process.
+
 ## Installation
 
 From a CP2K source checkout:
@@ -179,18 +183,20 @@ with CP2K() as cp:
 See `python/examples/argon.inp` for this small analytical test potential. Positions, forces and
 energies are converted between OpenMM's nm/kJ/mol and atomic units. With `periodic=True`, each
 evaluation forwards the current box, including barostat trial moves. Match CP2K periodicity to `XYZ`
-or `NONE`; atom order and particle count must agree. Use the main Python thread, one MPI rank, and
-no concurrent Contexts sharing the environment. This is the **whole CP2K potential**, not an
-automatic QM/MM partition: adding another force field can double count interactions. XML
-serialization of the live callback is deliberately rejected. Recreate it after restarting; native
-CP2K wavefunction restart files remain separate from OpenMM checkpoints.
+or `NONE`; atom order and particle count must agree. Use the main Python thread and no concurrent
+Contexts sharing the environment. A direct environment needs a single-rank caller; use
+`SocketEnvironment` below to let CP2K run on multiple MPI ranks. A normal environment supplies the
+**whole CP2K potential**; for QM/MM choose one of the explicit models below. XML serialization of
+the live callback is deliberately rejected. Recreate it after restarting; native CP2K wavefunction
+restart files remain separate from OpenMM checkpoints.
 
 ## LAMMPS
 
 `cp2k.lammps.ExternalForce` uses a LAMMPS shared library with `fix external` (MISC package). The
 optional `lammps` extra installs the upstream Python distribution, but its bundled MPI may not match
-your CP2K build. In that case, build/install LAMMPS against CP2K's MPI installation. Create the same
-atoms and a 3D box in LAMMPS first, using `units metal` or `units real`:
+your CP2K build. In that case, use `SocketEnvironment` to separate their processes, or build/install
+LAMMPS against CP2K's MPI installation for the direct route. Create the same atoms and a 3D box in
+LAMMPS first, using `units metal` or `units real`:
 
 ```python
 from mpi4py import MPI
@@ -215,8 +221,8 @@ Default atom tags `1..N` map to CP2K order; pass `atom_ids` for another mapping.
 migration, ranks with no local atoms, orthogonal and restricted-triclinic boxes are supported.
 Global potential energy and the extensive potential virial are supplied to LAMMPS, including the MPI
 normalization required for pressure/NPT. Kinetic pressure is supplied by LAMMPS itself. With
-`stress=False`, only fixed-cell runs are allowed. There is no per-atom energy/stress or automatic
-QM/MM partition. Forces are additive to any existing LAMMPS interactions.
+`stress=False`, only fixed-cell runs are allowed. There is no per-atom energy/stress. Forces are
+additive to any existing LAMMPS interactions; see the QM/MM models below.
 
 Use the same MPI implementation and congruent communicators in both libraries; all ranks must
 execute construction, commands, runs and cleanup. Use the adapter's `command`/`run` methods to
@@ -224,6 +230,94 @@ propagate callback errors collectively. When using raw LAMMPS commands instead, 
 every command and handle failures collectively. Callback failure requests a timeout; discard that
 run's results. CP2K native aborts cannot be caught by Python. Do not `clear` or externally `unfix`
 while attached. Recreate the callback after loading a LAMMPS restart.
+
+## Independent MPI / socket backend
+
+The socket route removes the requirement that OpenMM call CP2K collectively, and the requirement
+that LAMMPS and CP2K load compatible MPI libraries **in one process**. Each process still needs its
+own consistent native-library/mpi4py installation. Server and client may use different Python
+environments, MPI implementations and rank counts. No native pointers or MPI communicators cross the
+connection; a bounded JSON protocol carries geometry and results in atomic units. The CP2K server
+retains its force environment and SCF state between evaluations.
+
+Create a secret token file accessible only to you (at least 32 random characters), then launch the
+server from its own working directory with the CP2K-side Python and MPI installation:
+
+```sh
+mpiexec -n 4 /path/to/cp2k-python -m cp2k.server --mpi \
+  --input /path/to/argon.inp --output cp2k-server.out \
+  --library /path/to/libcp2k.so --token-file /path/to/cp2k-server.token --port 8765
+```
+
+For a serial server omit `mpiexec` and `--mpi`. Start the server first; it prints a listening
+message when ready. In the OpenMM process, replace the direct environment with:
+
+```python
+from pathlib import Path
+from cp2k import SocketEnvironment
+from cp2k.openmm import create_force
+
+token = Path("/path/to/cp2k-server.token").read_text().strip()
+with SocketEnvironment("127.0.0.1", 8765, token=token, timeout=600) as env:
+    force = create_force(env, periodic=True)
+    # Add to the OpenMM System; destroy its Context before leaving this block.
+```
+
+For parallel LAMMPS, construct `SocketEnvironment(..., comm=lmp.get_mpi_comm())` on **every LAMMPS
+rank**, then pass it to `ExternalForce` as usual. Only client rank 0 talks to the server; results
+and connection errors are broadcast to the LAMMPS communicator. All client ranks must execute
+construction, calculations and cleanup in the same order with consistent data. With serial LAMMPS
+the communicator is `None`. The client never loads libcp2k.
+
+Both sides default to a 600-second timeout; increase it for long SCF evaluations or interactive
+pauses. Server aborts, disconnects, authentication failures and timeouts become client exceptions;
+discard a failed step and start a new server/connection. One server accepts one client only.
+`close()` terminates its serve loop; the application/scheduler owns the separately launched MPI job.
+Geometry setters are local until `calculate()`, and invalidate cached results. Socket environments
+expose energy/force/stress calculations, not complete `run_input()` workflows.
+
+Authentication is **not encryption**. Bind to loopback (the default) and use a trusted SSH tunnel
+for remote machines. Do not expose this service or token on an untrusted network. The server accepts
+only calculation/shutdown requests, not arbitrary Python code, input files or file operations.
+
+## QM/MM without double counting
+
+There are two distinct, explicit choices:
+
+1. **Native CP2K QM/MM:** configure `FORCE_EVAL/METHOD QMMM` and CP2K's `QMMM`, `DFT`, `MM` and
+   topology sections, including QM atoms and the appropriate embedding/link treatment. Pass the
+   complete environment (direct or socket) to OpenMM/LAMMPS, which supplies the integrator. CP2K
+   owns the complete potential; do not add a second MM potential in the host. Availability of stress
+   remains method-dependent, exactly as for native CP2K QM/MM.
+
+1. **Subtractive mechanical embedding:** retain the host's full-system MM potential and add
+   `SubtractiveQMMM`. This selects the configured region and automatically subtracts its MM
+   reference from its QM calculation, including the mapped forces and, when available, virial:
+
+   `E_total = E_MM(all) + E_QM(region) - E_MM(region)`
+
+```python
+from cp2k.qmmm import SubtractiveQMMM
+from cp2k.openmm import create_force
+
+# qm and mm_region are independent, caller-owned environments in atomic units.
+# Both contain precisely the selected atoms, in the order given by qm_atoms.
+# Two SocketEnvironment instances allow independent persistent CP2K QM/MM models.
+correction = SubtractiveQMMM(qm, mm_region, qm_atoms=[2, 0],
+                            positions=all_positions_bohr, cell=cell_bohr)
+system.addForce(create_force(correction, periodic=True))  # keep full MM enabled
+# LAMMPS alternative: ExternalForce(lmp, correction, stress=True)
+```
+
+The wrapper handles selection, subtraction, units through the host adapter and zero correction
+forces outside the QM region. It does not infer chemistry: the user must specify the QM region,
+charge, multiplicity and a reference MM model matching the host's internal region interactions
+(including exclusions, cutoffs and electrostatic conventions). The same global cell is forwarded to
+both models; ensure compatible boundary conditions and unwrapped molecules for nonperiodic QM. The
+subtractive route supports fixed, whole-molecule regions. It is **mechanical**, not electrostatic
+embedding: QM-MM interactions stay at the MM level. It does not implement covalent boundary/link
+atoms or adaptive QM-region selection. Use native CP2K QM/MM for its supported embedding/link
+treatments rather than treating missing terms as zero.
 
 ## Lifetime, MPI and safety
 
@@ -285,6 +379,20 @@ PLUMED-enabled CP2K build. Set `CP2K_TEST_EXECUTABLE=/path/to/cp2k.psmp` for UNI
 tests (fragmented messages, changing cells, energy/force/virial and invalid requests). With i-PI
 installed, `CP2K_TEST_IPI=1` also runs a short trajectory through the real i-PI server. No optional
 package is imported by the core interface.
+
+`CP2K_TEST_REMOTE_MPI=1` additionally tests an independent two-rank CP2K server with OpenMM and two
+LAMMPS client ranks with a separate single-rank server (requires `mpiexec`, mpi4py and an
+MPI-enabled libcp2k). `MPIEXEC` can select a different launcher. Socket tests cover fragmented
+messages, authentication, server failure, result invalidation, energy/forces/virial and box changes.
+Subtractive QM/MM tests check region mapping, no double counting and finite-difference forces and
+all six cell-strain derivatives. These are interface/model-algebra tests, not a claim that an
+arbitrary QM/MM parameterization is physically appropriate.
+
+The Linux/x86-64 ASE CI job now builds a shared CP2K library and runs the Python suite, including
+OpenMM Reference/CPU, a serial LAMMPS build, socket transport and QM/MM subtraction, in addition to
+ASE's shell-interface tests. Local macOS/ARM64 tests also exercise independent MPI jobs. Added CI
+coverage is not a completed test result: check the PR's ASE job. GPU platforms and native Windows
+CP2K builds are not certified by these tests.
 
 The Python tests are independent of the top-level CMake build. Build the shared library first, then
 run pytest explicitly with the Python interpreter in which the test dependencies are installed. Set

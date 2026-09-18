@@ -16,11 +16,13 @@ class ExternalForce:
     CP2K's atom order to LAMMPS tags; default 1..N. Atom migration and sorting are
     supported. Units must be ``metal`` or ``real``; cells must be 3D restricted
     triclinic/orthogonal. ``stress=True`` requires CP2K STRESS_TENSOR and enables
-    cell changes/NPT. No per-atom energy/stress or automatic QM/MM partitioning
-    is supplied. Existing interaction forces are additive: avoid double counting.
+    cell changes/NPT. No per-atom energy/stress is supplied. For QM/MM use native
+    CP2K METHOD QMMM or SubtractiveQMMM; existing host forces are additive.
 
     For MPI, initialize mpi4py first and pass the same communicator to LAMMPS
-    and CP2K, using the same MPI implementation. All ranks execute every call.
+    and CP2K, using the same MPI implementation. Alternatively, a SocketEnvironment
+    uses the LAMMPS communicator on the client side and an independent CP2K server
+    with its own MPI implementation/rank count. All ranks execute every call.
     Use command()/run() below (or call check() after EVERY native command).
     ctypes cannot propagate callback exceptions: a failed callback requests a
     LAMMPS timeout, and check() raises the saved error. Discard any output from
@@ -51,7 +53,7 @@ class ExternalForce:
         self.units = units
         self._energy_factor = HARTREE_TO_EV if units == "metal" else HARTREE_TO_KCALMOL
         self._comm = lammps.get_mpi_comm()
-        cp_comm = environment._runtime._comm
+        cp_comm = environment.communicator
         if self._comm is not None:
             from mpi4py import MPI
 
