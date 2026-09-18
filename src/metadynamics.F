@@ -68,6 +68,9 @@ MODULE metadynamics
 #endif
    USE reference_manager, ONLY: cite_reference
    USE simpar_types, ONLY: simpar_type
+#if defined (__PLUMED2)
+   USE virial_types, ONLY: virial_type
+#endif
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -101,13 +104,14 @@ MODULE metadynamics
       SUBROUTINE plumed_gcmd_double(key, value) BIND(C, name="plumed_gcmd")
          IMPORT :: C_CHAR, C_DOUBLE
          CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: key
-         REAL(KIND=C_DOUBLE)                      :: value
+         ! PLUMED retains pointers passed by setEnergy (and the array setters).
+         REAL(KIND=C_DOUBLE), TARGET              :: value
       END SUBROUTINE plumed_gcmd_double
 
       SUBROUTINE plumed_gcmd_doubles(key, value) BIND(C, name="plumed_gcmd")
          IMPORT :: C_CHAR, C_DOUBLE
          CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: key
-         REAL(KIND=C_DOUBLE), DIMENSION(*)        :: value
+         REAL(KIND=C_DOUBLE), TARGET, DIMENSION(*) :: value
       END SUBROUTINE plumed_gcmd_doubles
 
       SUBROUTINE plumed_gcmd_char(key, value) BIND(C, name="plumed_gcmd")
@@ -161,7 +165,9 @@ CONTAINS
       MARK_USED(simpar)
 #endif
 
+#if !defined (__PLUMED2)
       MARK_USED(itimes)
+#endif
 #if defined (__PLUMED2)
       plumedavailable = plumed_installed()
 
@@ -179,6 +185,9 @@ CONTAINS
          CALL plumed_gcmd_int("setNatoms"//CHAR(0), natom_plumed)
          CALL plumed_gcmd_char("setMDEngine"//CHAR(0), "cp2k"//CHAR(0))
          CALL plumed_gcmd_double("setTimestep"//CHAR(0), timestep_plumed)
+         ! CP2K stores kBT in atomic energy units, not kelvin.
+         IF (simpar%temp_ext > 0.0_dp) CALL plumed_gcmd_double("setKbT"//CHAR(0), simpar%temp_ext)
+         IF (itimes > 0) CALL plumed_gcmd_int("setRestart"//CHAR(0), 1)
          CALL plumed_gcmd_int("init"//CHAR(0), 0)
       END IF
 #endif
@@ -236,17 +245,18 @@ CONTAINS
       INTEGER                                  :: handle, plumed_itimes
 #if defined (__PLUMED2)
       INTEGER                                  :: i_part, natom_plumed
+      TYPE(virial_type), POINTER               :: virial
       TYPE(cell_type), POINTER                 :: cell
       TYPE(cp_subsys_type), POINTER            :: subsys
 #endif
 #if defined (__PLUMED2)
       TYPE(meta_env_type), POINTER             :: meta_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass_plumed
-      REAL(KIND=dp), DIMENSION(3, 3)            :: plu_vir, celltbt
-      REAL(KIND=dp)                            :: stpcfg
-      REAL(KIND=dp), ALLOCATABLE, &
+      REAL(KIND=dp), ALLOCATABLE, TARGET, DIMENSION(:) :: mass_plumed
+      REAL(KIND=dp), TARGET, DIMENSION(3, 3)    :: plu_vir, celltbt
+      REAL(KIND=dp), TARGET                    :: stpcfg
+      REAL(KIND=dp), ALLOCATABLE, TARGET, &
          DIMENSION(:)                           :: pos_plumed_x, pos_plumed_y, pos_plumed_z
-      REAL(KIND=dp), ALLOCATABLE, &
+      REAL(KIND=dp), ALLOCATABLE, TARGET, &
          DIMENSION(:)                           :: force_plumed_x, force_plumed_y, force_plumed_z
 #endif
 
@@ -258,6 +268,7 @@ CONTAINS
             plumed_itimes = itimes
 #if defined (__PLUMED2)
             CALL force_env_get(force_env, meta_env=meta_env, subsys=subsys, cell=cell)
+            CALL cp_subsys_get(subsys, virial=virial)
             natom_plumed = subsys%particles%n_els
             ALLOCATE (pos_plumed_x(natom_plumed))
             ALLOCATE (pos_plumed_y(natom_plumed))
@@ -269,15 +280,15 @@ CONTAINS
 
             ALLOCATE (mass_plumed(natom_plumed))
 
-            force_plumed_x(:) = 0.0d0
-            force_plumed_y(:) = 0.0d0
-            force_plumed_z(:) = 0.0d0
-
             DO i_part = 1, natom_plumed
                pos_plumed_x(i_part) = subsys%particles%els(i_part)%r(1)
                pos_plumed_y(i_part) = subsys%particles%els(i_part)%r(2)
                pos_plumed_z(i_part) = subsys%particles%els(i_part)%r(3)
                mass_plumed(i_part) = subsys%particles%els(i_part)%atomic_kind%mass
+               ! ENERGY biases rescale physical forces, so these must be inputs too.
+               force_plumed_x(i_part) = subsys%particles%els(i_part)%f(1)
+               force_plumed_y(i_part) = subsys%particles%els(i_part)%f(2)
+               force_plumed_z(i_part) = subsys%particles%els(i_part)%f(3)
             END DO
 
             ! stupid cell conversion, to be fixed
@@ -291,9 +302,12 @@ CONTAINS
             celltbt(3, 2) = cell%hmat(3, 2)
             celltbt(3, 3) = cell%hmat(3, 3)
 
-            ! virial
+            ! PLUMED uses the opposite sign to CP2K's potential virial.
             plu_vir(:, :) = 0.0d0
+            IF (virial%pv_availability) plu_vir = -virial%pv_virial
 
+            ! Do not feed the previous step's bias back into the ENERGY CV.
+            meta_env%plumed_bias = 0.0_dp
             CALL force_env_get(force_env, potential_energy=stpcfg)
 
             CALL plumed_gcmd_int("setStep"//CHAR(0), plumed_itimes)
@@ -302,22 +316,26 @@ CONTAINS
             CALL plumed_gcmd_doubles("setPositionsZ"//CHAR(0), pos_plumed_z(:))
             CALL plumed_gcmd_doubles("setMasses"//CHAR(0), mass_plumed(:))
             CALL plumed_gcmd_doubles("setBox"//CHAR(0), celltbt)
-            CALL plumed_gcmd_doubles("setVirial"//CHAR(0), plu_vir) ! PluMed Output, NOT ACTUALLY USED !
+            CALL plumed_gcmd_doubles("setVirial"//CHAR(0), plu_vir)
             CALL plumed_gcmd_double("setEnergy"//CHAR(0), stpcfg)
             CALL plumed_gcmd_doubles("setForcesX"//CHAR(0), force_plumed_x(:)) ! PluMed Output !
             CALL plumed_gcmd_doubles("setForcesY"//CHAR(0), force_plumed_y(:)) ! PluMed Output !
             CALL plumed_gcmd_doubles("setForcesZ"//CHAR(0), force_plumed_z(:)) ! PluMed Output !
 
             CALL plumed_gcmd_int("prepareCalc"//CHAR(0), 0)
-            CALL plumed_gcmd_int("prepareDependencies"//CHAR(0), 0)
-            CALL plumed_gcmd_int("shareData"//CHAR(0), 0)
 
-            CALL plumed_gcmd_int("performCalc"//CHAR(0), 0)
+            CALL plumed_gcmd_int("performCalcNoUpdate"//CHAR(0), 0)
+            CALL plumed_gcmd_double("getBias"//CHAR(0), meta_env%plumed_bias)
+            CALL plumed_gcmd_int("update"//CHAR(0), 0)
+            ! PLUMED updates the box force on rank zero. CP2K stores a replicated
+            ! potential virial, including for the barostat on all MPI ranks.
+            CALL force_env%para_env%bcast(plu_vir, source=0)
+            IF (virial%pv_availability) virial%pv_virial = -plu_vir
 
             DO i_part = 1, natom_plumed
-               subsys%particles%els(i_part)%f(1) = subsys%particles%els(i_part)%f(1) + force_plumed_x(i_part)
-               subsys%particles%els(i_part)%f(2) = subsys%particles%els(i_part)%f(2) + force_plumed_y(i_part)
-               subsys%particles%els(i_part)%f(3) = subsys%particles%els(i_part)%f(3) + force_plumed_z(i_part)
+               subsys%particles%els(i_part)%f(1) = force_plumed_x(i_part)
+               subsys%particles%els(i_part)%f(2) = force_plumed_y(i_part)
+               subsys%particles%els(i_part)%f(3) = force_plumed_z(i_part)
             END DO
 
             DEALLOCATE (pos_plumed_x, pos_plumed_y, pos_plumed_z)
