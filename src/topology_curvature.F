@@ -18,6 +18,24 @@ MODULE topology_curvature
    PRIVATE
    REAL(KIND=dp), PARAMETER :: pi = 3.1415926535897932384626433832795_dp, unitary_tol = 1.e-8_dp
    PUBLIC :: polar_link, link_plaquette, curvature_density
+   INTERFACE
+      SUBROUTINE zgees(jobvs, sort, SELECT, n, a, lda, sdim, w, vs, ldvs, work, lwork, rwork, bwork, info)
+         IMPORT :: dp
+         CHARACTER(LEN=1), INTENT(IN) :: jobvs, sort
+         INTEGER, INTENT(IN) :: n, lda, ldvs, lwork
+         INTEGER, INTENT(OUT) :: sdim, info
+         COMPLEX(KIND=dp), INTENT(INOUT) :: a(lda, *)
+         COMPLEX(KIND=dp), INTENT(OUT) :: w(*), vs(ldvs, *), work(*)
+         REAL(KIND=dp), INTENT(OUT) :: rwork(*)
+         LOGICAL, INTENT(OUT) :: bwork(*)
+         INTERFACE
+            LOGICAL FUNCTION select(eigenvalue)
+               IMPORT :: dp
+               COMPLEX(KIND=dp), INTENT(IN) :: eigenvalue
+            END FUNCTION select
+         END INTERFACE
+      END SUBROUTINE zgees
+   END INTERFACE
 CONTAINS
 
 ! **************************************************************************************************
