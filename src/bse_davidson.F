@@ -354,7 +354,7 @@ CONTAINS
       IF (PRESENT(fm_X_tda)) THEN
          CALL cp_fm_get_info(fm_X_tda, ncol_global=n_seed)
          n_seed = MIN(n_seed, n_act)
-         fm_V%local_data(1:nrow_local, 1:n_seed) = fm_X_tda%local_data(1:nrow_local, 1:n_seed)
+         CALL cp_fm_to_fm(fm_X_tda, fm_V, n_seed)
       END IF
       IF (mp2_env%bse%num_guess_transitions > 0) THEN
          CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_V, n_guess_cols, theta_sub, &
@@ -372,8 +372,7 @@ CONTAINS
          nt_guess = MIN(block_size, n_guess_cols - guess_col + 1)
          nt = nt_guess
          IF (guess_col > m + 1) THEN
-            fm_V%local_data(1:nrow_local, m + 1:m + nt) = &
-               fm_V%local_data(1:nrow_local, guess_col:guess_col + nt - 1)
+            CALL cp_fm_to_fm(fm_V, fm_V, nt, guess_col, m + 1)
          END IF
          CALL extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scratch, m, nt, n_kernel, n_dependent, abba_status, &
                               ab_margin)
@@ -628,7 +627,7 @@ CONTAINS
       IF (PRESENT(fm_X_tda)) THEN
          CALL cp_fm_get_info(fm_X_tda, ncol_global=n_seed)
          n_seed = MIN(n_seed, n_act)
-         fm_b%local_data(1:nrow_local, 1:n_seed) = fm_X_tda%local_data(1:nrow_local, 1:n_seed)
+         CALL cp_fm_to_fm(fm_X_tda, fm_b, n_seed)
       END IF
       n_pair = 0
       IF (mp2_env%bse%num_guess_transitions > 0) THEN
@@ -646,8 +645,7 @@ CONTAINS
          nt_guess = MIN(2*block_size, n_guess_cols - guess_col + 1)
          nt = nt_guess
          IF (guess_col > m + 1) THEN
-            fm_b%local_data(1:nrow_local, m + 1:m + nt) = &
-               fm_b%local_data(1:nrow_local, guess_col:guess_col + nt - 1)
+            CALL cp_fm_to_fm(fm_b, fm_b, nt, guess_col, m + 1)
          END IF
          CALL extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scratch, m, nt, n_kernel, n_dependent)
          guess_col = guess_col + nt_guess
@@ -832,7 +830,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'extend_basis_mk'
 
-      INTEGER                                            :: handle, n_dropped, nrow_local
+      INTEGER                                            :: handle, n_dropped
       LOGICAL                                            :: ok
 
       CALL timeset(routineN, handle)
@@ -845,12 +843,9 @@ CONTAINS
       n_dependent = n_dependent + n_dropped
 
       IF (nt > 0) THEN
-         CALL cp_fm_get_info(fm_V, nrow_local=nrow_local)
-
          ! W_ia,k = sum_jb (A-B)_ia,jb T_jb,k: A T into W, B T into the scratch
          CALL bse_matvec_apply(mv_env, fm_V, m + 1, nt, fm_W, fm_scratch, 1)
-         fm_W%local_data(1:nrow_local, m + 1:m + nt) = fm_W%local_data(1:nrow_local, m + 1:m + nt) - &
-                                                       fm_scratch%local_data(1:nrow_local, 1:nt)
+         CALL columns_axpy(-1.0_dp, fm_scratch, 1, fm_W, m + 1, nt)
          n_kernel = n_kernel + nt
 
          ! T <- T R^-1 and W <- W R^-1 with sum_p R_pk R_pl = sum_ia T_ia,k W_ia,l
@@ -862,8 +857,7 @@ CONTAINS
             END IF
             ! (M W)_ia,k = sum_jb (A+B)_ia,jb W_jb,k: A W into MW, B W into the scratch
             CALL bse_matvec_apply(mv_env, fm_W, m + 1, nt, fm_MW, fm_scratch, 1)
-            fm_MW%local_data(1:nrow_local, m + 1:m + nt) = fm_MW%local_data(1:nrow_local, m + 1:m + nt) + &
-                                                           fm_scratch%local_data(1:nrow_local, 1:nt)
+            CALL columns_axpy(1.0_dp, fm_scratch, 1, fm_MW, m + 1, nt)
             n_kernel = n_kernel + nt
          END IF
       END IF
@@ -876,7 +870,8 @@ CONTAINS
 !> \brief Two Cholesky QR passes in the inner product of a symmetric K with the products KT at hand:
 !>        G_kl = sum_ia T_ia,k (KT)_ia,l = sum_p R_pk R_pl, T <- T R^-1, KT <- KT R^-1. A failed
 !>        factorization of a G with a negative eigenvalue reports K as indefinite, any other failure
-!>        is repeated once with a diagonal shift and a third pass
+!>        is repeated once with a diagonal shift and a third pass. The Gram is the only communication:
+!>        R is factorised on one rank and broadcast, the triangular solve runs on the local rows
 !> \param fm_T ...
 !> \param fm_KT ...
 !> \param first_col ...
@@ -1071,7 +1066,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'extend_basis_os'
 
-      INTEGER                                            :: handle, n_dropped, nrow_local
+      INTEGER                                            :: handle, n_dropped
       LOGICAL                                            :: ok
 
       CALL timeset(routineN, handle)
@@ -1086,13 +1081,11 @@ CONTAINS
          IF (extension_deviation(fm_b, fm_b, m, nt, mv_env%para_env) > ortho_tol) THEN
             CPABORT("BSE Davidson: the basis lost orthonormality")
          END IF
-         CALL cp_fm_get_info(fm_b, nrow_local=nrow_local)
          ! A b into Mb and B b into the scratch, then K b = A b - B b and M b = A b + B b
          CALL bse_matvec_apply(mv_env, fm_b, m + 1, nt, fm_Mb, fm_scratch, 1)
-         fm_Kb%local_data(1:nrow_local, m + 1:m + nt) = fm_Mb%local_data(1:nrow_local, m + 1:m + nt) - &
-                                                        fm_scratch%local_data(1:nrow_local, 1:nt)
-         fm_Mb%local_data(1:nrow_local, m + 1:m + nt) = fm_Mb%local_data(1:nrow_local, m + 1:m + nt) + &
-                                                        fm_scratch%local_data(1:nrow_local, 1:nt)
+         CALL cp_fm_to_fm(fm_Mb, fm_Kb, nt, m + 1, m + 1)
+         CALL columns_axpy(-1.0_dp, fm_scratch, 1, fm_Kb, m + 1, nt)
+         CALL columns_axpy(1.0_dp, fm_scratch, 1, fm_Mb, m + 1, nt)
          n_kernel = n_kernel + nt
       END IF
 
@@ -1483,6 +1476,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Unit vectors on the lowest entries of the diagonal, never cutting a degenerate group
+!>        The sorted diagonal is replicated; each rank writes the entries that fall on its own rows
 !> \param diag ...
 !> \param n_guess ...
 !> \param n_max largest number of guess vectors
@@ -1535,7 +1529,8 @@ CONTAINS
 !>        TDA: eigenvectors of A_sub; ABBA: x = K_sub^-1/2 t with K_sub^1/2 M_sub K_sub^1/2 t = Ω^2 t,
 !>        K = A-B, M = A+B. The Ritz values θ_k are upper bounds of the true energies (Rayleigh-Ritz for
 !>        TDA, Cauchy-type interlacing of Bai and Li for the linear response problem), kept for
-!>        check_guess_bound. A degenerate group at the upper boundary is taken as a whole.
+!>        check_guess_bound. A degenerate group at the upper boundary is taken as a whole. The block and
+!>        its eigenvectors are replicated; each rank writes the entries that fall on its own rows
 !> \param mv_env ...
 !> \param mp2_env ...
 !> \param diag ...
@@ -1813,6 +1808,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief out_ia,k = alpha sum_m V_ia,m C_mk + beta out_ia,k for m <= nv, k <= nc on the local rows ia
+!>        On the npe x 1 grid whole columns are local, so the rotation is one local DGEMM
 !> \param fm_V ...
 !> \param nv ...
 !> \param C ...
@@ -1870,11 +1866,37 @@ CONTAINS
       INTEGER                                            :: nrow_local
 
       CALL subspace_rotate(fm_V, m, Q(1:m, 1:nq), nq, fm_work, 1.0_dp, 0.0_dp)
+      CALL cp_fm_to_fm(fm_work, fm_V, nq)
       CALL cp_fm_get_info(fm_V, nrow_local=nrow_local)
-      fm_V%local_data(1:nrow_local, 1:nq) = fm_work%local_data(1:nrow_local, 1:nq)
       fm_V%local_data(1:nrow_local, nq + 1:m) = 0.0_dp
 
    END SUBROUTINE rotate_in_place
+
+! **************************************************************************************************
+!> \brief T_ia,t0+k-1 <- T_ia,t0+k-1 + alpha U_ia,u0+k-1 for k <= n
+!>        On the npe x 1 grid whole columns are local, so the update needs no communication
+!> \param alpha ...
+!> \param fm_U ...
+!> \param u0 first column read
+!> \param fm_T ...
+!> \param t0 first column written
+!> \param n ...
+! **************************************************************************************************
+   SUBROUTINE columns_axpy(alpha, fm_U, u0, fm_T, t0, n)
+
+      REAL(KIND=dp), INTENT(IN)                          :: alpha
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_U
+      INTEGER, INTENT(IN)                                :: u0
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_T
+      INTEGER, INTENT(IN)                                :: t0, n
+
+      INTEGER                                            :: nrow_local
+
+      CALL cp_fm_get_info(fm_T, nrow_local=nrow_local)
+      fm_T%local_data(1:nrow_local, t0:t0 + n - 1) = fm_T%local_data(1:nrow_local, t0:t0 + n - 1) + &
+                                                     alpha*fm_U%local_data(1:nrow_local, u0:u0 + n - 1)
+
+   END SUBROUTINE columns_axpy
 
 ! **************************************************************************************************
 !> \brief G_kl <- sum_pq Q_pk G_pq Q_ql for p, q <= m and k, l <= nq
@@ -1902,6 +1924,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief G_kl = sum_ia U_ia,u0+k-1 V_ia,v0+l-1 for k <= nu, l <= nv, local product and sum over the ranks
+!>        The npe x 1 grid splits the rows over the ranks, which is what the one allreduce completes
 !> \param fm_U ...
 !> \param u0 ...
 !> \param nu ...
@@ -1943,6 +1966,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Euclidean norms of nt columns of a row-distributed matrix
+!>        Each rank sums the squares of its own rows of the npe x 1 grid, then one allreduce
 !> \param fm_T ...
 !> \param first_col ...
 !> \param nt ...
@@ -1970,6 +1994,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Davidson corrections t_ia,k = r_ia,k/(d_ia - θ_k) of the selected roots k, written to fm_Z
+!>        Each rank divides the entries of its own rows of the npe x 1 grid, no communication
 !> \param fm_R residuals, column r_offset + k belongs to root k
 !> \param selected ...
 !> \param theta ...
@@ -2017,6 +2042,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief T_ia,k <- T_ia,k - sum_m V_ia,m sum_jb U_jb,m T_jb,k for m <= nv and nt columns k, twice;
 !>        U = V for orthonormal columns V, else the dual basis with sum_ia U_ia,m V_ia,n = δ_mn
+!>        One allreduce per pass inside the Gram, the subtraction stays on the rows of the npe x 1 grid
 !> \param fm_T ...
 !> \param first_col ...
 !> \param nt ...
@@ -2062,6 +2088,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Normalises nt columns and removes those that vanished in the projection
+!>        Only the norms communicate; the scaling and the zero-fill stay on the local rows
 !> \param fm_T ...
 !> \param first_col ...
 !> \param nt on exit the number of columns kept
@@ -2100,7 +2127,8 @@ CONTAINS
 !> \brief Orthonormalises nt columns by two Cholesky QR passes on the replicated Gram matrix. A
 !>        failed factorization means a numerically dependent block: the directions of the Gram matrix
 !>        below the drop tolerance are removed (canonical orthogonalisation), nt shrinks, and the
-!>        passes start again
+!>        passes start again. The Gram is the only communication: R is factorised on one rank and
+!>        broadcast, the triangular solve runs on the rows of the npe x 1 grid
 !> \param fm_T ...
 !> \param first_col ...
 !> \param nt ...
