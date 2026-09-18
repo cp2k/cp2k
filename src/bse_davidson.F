@@ -86,7 +86,7 @@ CONTAINS
                                                             n_restart, n_want, nt
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
       LOGICAL                                            :: all_conv, has_prev, ok, stalled
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, res, theta, theta_prev
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_prev, C_theta, G, G_new, Q
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -114,7 +114,8 @@ CONTAINS
 
       ALLOCATE (G(m_max, m_max), C(m_max, m_max), C_prev(m_max, n_act), C_theta(m_max, n_act))
       ALLOCATE (Q(m_max, 2*n_act))
-      ALLOCATE (theta(m_max), theta_prev(n_act), res(n_act), dE(n_act), conv(n_act), selected(n_act))
+      ALLOCATE (theta(m_max), theta_prev(n_act), res(n_act), dE(n_act), conv(n_act), need(n_act), &
+                selected(n_act))
       G(:, :) = 0.0_dp
       C_prev(:, :) = 0.0_dp
       theta_prev(:) = 0.0_dp
@@ -158,15 +159,17 @@ CONTAINS
          n_req = last_required_root(theta, n_want, n_act)
          ! a subspace that spans all transitions is exact
          IF (m == n_ov) conv(:) = .TRUE.
-         all_conv = ALL(conv(1:n_req))
-         CALL print_iteration(iter, m, COUNT(conv(1:n_want)), MAXVAL(res(1:n_req)), &
+         CALL roots_in_need(conv, theta, res, n_req, need)
+         all_conv = .NOT. ANY(need)
+         CALL print_iteration(iter, m, COUNT(conv(1:n_want)), &
+                              MAX(MAXVAL(res(1:n_req)), MAXVAL(res, MASK=need)), &
                               MAXVAL(dE(1:n_req)), theta(1), unit_nr)
          IF (all_conv) EXIT
 
          IF (iter == mp2_env%bse%max_iter) EXIT
 
          ! corrections for the lowest unconverged roots, t_ia,k = r_ia,k/(d_ia - θ_k)
-         CALL select_roots(mp2_env, conv, res, n_req, MIN(block_size, m_max - m), selected, nt)
+         CALL select_roots(mp2_env, need, res, MIN(block_size, m_max - m), selected, nt)
          CALL davidson_corrections(fm_work, selected(1:nt), theta, diag, fm_Z, m + 1)
          CALL project_out(fm_Z, m + 1, nt, fm_Z, m, para_env)
          CALL drop_small_columns(fm_Z, m + 1, nt, para_env)
@@ -196,7 +199,8 @@ CONTAINS
          m = m + nt
       END DO
 
-      IF (.NOT. all_conv) CALL abort_unconverged(theta, res, conv, n_req, unit_nr)
+      IF (.NOT. all_conv) CALL abort_unconverged(theta, res, conv, need, n_req, unit_nr)
+      IF (mp2_env%bse%bse_debug_print) CALL print_tracked_roots(theta, res, n_want, n_act, unit_nr)
 
       IF (mp2_env%bse%bse_debug_print) THEN
          ALLOCATE (G_new(m, m))
@@ -223,7 +227,7 @@ CONTAINS
       CALL cp_fm_release(fm_Z)
       CALL cp_fm_release(fm_AZ)
       CALL cp_fm_release(fm_work)
-      DEALLOCATE (G, C, C_prev, C_theta, Q, theta, theta_prev, res, dE, conv, selected, diag)
+      DEALLOCATE (G, C, C_prev, C_theta, Q, theta, theta_prev, res, dE, conv, need, selected, diag)
 
       CALL timestop(handle)
 
@@ -267,7 +271,7 @@ CONTAINS
          n_restart, n_seed, n_want, next_col, nrow_local, nt, nt_in
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
       LOGICAL                                            :: all_conv, has_prev, stalled
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, eigval, omega, omega_prev, &
                                                             res, theta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_prev, C_wx, C_x, C_y, H, H_new, Q
@@ -304,7 +308,7 @@ CONTAINS
       ALLOCATE (H(m_max, m_max), C(m_max, m_max), C_prev(m_max, n_act), Q(m_max, 2*n_act))
       ALLOCATE (C_x(m_max, n_act), C_y(m_max, n_act), C_wx(m_max, n_act))
       ALLOCATE (theta(m_max), omega(n_act), omega_prev(n_act), res(n_act), dE(n_act), conv(n_act), &
-                selected(n_act))
+                need(n_act), selected(n_act))
       H(:, :) = 0.0_dp
       C_prev(:, :) = 0.0_dp
       omega_prev(:) = 0.0_dp
@@ -383,15 +387,17 @@ CONTAINS
             CALL convergence_flags(mp2_env, dE, res, conv)
             n_req = last_required_root(omega, n_want, n_act)
             IF (m == n_ov) conv(:) = .TRUE.
-            all_conv = ALL(conv(1:n_req))
-            CALL print_iteration(iter, m, COUNT(conv(1:n_want)), MAXVAL(res(1:n_req)), &
+            CALL roots_in_need(conv, omega, res, n_req, need)
+            all_conv = .NOT. ANY(need)
+            CALL print_iteration(iter, m, COUNT(conv(1:n_want)), &
+                                 MAX(MAXVAL(res(1:n_req)), MAXVAL(res, MASK=need)), &
                                  MAXVAL(dE(1:n_req)), omega(1), unit_nr)
             IF (all_conv) EXIT
 
             IF (iter == mp2_env%bse%max_iter) EXIT
 
             ! corrections t_ia,k = r_ia,k/(d_ia^2 - (Ω^k)^2) for the lowest unconverged roots
-            CALL select_roots(mp2_env, conv, res, n_req, MIN(block_size, m_max - m), selected, nt)
+            CALL select_roots(mp2_env, need, res, MIN(block_size, m_max - m), selected, nt)
             CALL davidson_corrections(fm_work, selected(1:nt), theta, diag, fm_V, m + 1)
             CALL extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scr, m, nt, n_kernel, abba_status, ab_margin)
             IF (abba_status /= abba_ok) EXIT
@@ -417,7 +423,8 @@ CONTAINS
       END IF
 
       IF (abba_status == abba_ok) THEN
-         IF (.NOT. all_conv) CALL abort_unconverged(omega, res, conv, n_req, unit_nr)
+         IF (.NOT. all_conv) CALL abort_unconverged(omega, res, conv, need, n_req, unit_nr)
+         IF (mp2_env%bse%bse_debug_print) CALL print_tracked_roots(omega, res, n_want, n_act, unit_nr)
 
          ALLOCATE (H_new(m, m), eigval(m))
          IF (mp2_env%bse%bse_debug_print) THEN
@@ -464,7 +471,8 @@ CONTAINS
       CALL cp_fm_release(fm_MW)
       CALL cp_fm_release(fm_work)
       CALL cp_fm_release(fm_scr)
-      DEALLOCATE (H, C, C_prev, C_x, C_y, C_wx, Q, theta, omega, omega_prev, res, dE, conv, selected, diag)
+      DEALLOCATE (H, C, C_prev, C_x, C_y, C_wx, Q, theta, omega, omega_prev, res, dE, conv, need, &
+                  selected, diag)
 
       CALL timestop(handle)
 
@@ -666,21 +674,46 @@ CONTAINS
    END FUNCTION last_required_root
 
 ! **************************************************************************************************
-!> \brief The lowest unconverged roots, which receive a correction vector
-!> \param mp2_env ...
+!> \brief Roots that still need correction vectors: the unconverged ones up to n_req, and a tracked
+!>        root k above them as long as E_k - |r_k| < E_n_req. An eigenvalue of a symmetric matrix
+!>        lies within |r_k| of E_k, so such a root can still belong to the requested states
 !> \param conv ...
+!> \param energies ...
 !> \param res ...
 !> \param n_req ...
+!> \param need ...
+! **************************************************************************************************
+   SUBROUTINE roots_in_need(conv, energies, res, n_req, need)
+
+      LOGICAL, DIMENSION(:), INTENT(IN)                  :: conv
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: energies, res
+      INTEGER, INTENT(IN)                                :: n_req
+      LOGICAL, DIMENSION(:), INTENT(OUT)                 :: need
+
+      INTEGER                                            :: k
+
+      DO k = 1, SIZE(need)
+         need(k) = .NOT. conv(k)
+         IF (k > n_req) need(k) = need(k) .AND. energies(k) - res(k) < energies(n_req)
+      END DO
+
+   END SUBROUTINE roots_in_need
+
+! **************************************************************************************************
+!> \brief The lowest roots in need, which receive a correction vector
+!> \param mp2_env ...
+!> \param need ...
+!> \param res ...
 !> \param n_max largest number of roots
 !> \param selected ...
 !> \param nt number of selected roots
 ! **************************************************************************************************
-   SUBROUTINE select_roots(mp2_env, conv, res, n_req, n_max, selected, nt)
+   SUBROUTINE select_roots(mp2_env, need, res, n_max, selected, nt)
 
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
-      LOGICAL, DIMENSION(:), INTENT(IN)                  :: conv
+      LOGICAL, DIMENSION(:), INTENT(IN)                  :: need
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: res
-      INTEGER, INTENT(IN)                                :: n_req, n_max
+      INTEGER, INTENT(IN)                                :: n_max
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: selected
       INTEGER, INTENT(OUT)                               :: nt
 
@@ -688,8 +721,8 @@ CONTAINS
 
       selected(:) = 0
       nt = 0
-      DO k = 1, n_req
-         IF (conv(k)) CYCLE
+      DO k = 1, SIZE(need)
+         IF (.NOT. need(k)) CYCLE
          ! a root below EPS_RES only waits for its energy criterion
          IF (mp2_env%bse%convergence_criterion == bse_iter_and_cond .AND. &
              res(k) < mp2_env%bse%eps_res) CYCLE
@@ -744,17 +777,18 @@ CONTAINS
    END SUBROUTINE print_iteration
 
 ! **************************************************************************************************
-!> \brief Table of the open roots, then the abort for MAX_ITER
+!> \brief Table of the requested roots and of the tracked roots in need, then the abort for MAX_ITER
 !> \param energies in Hartree
 !> \param res ...
 !> \param conv ...
+!> \param need ...
 !> \param n_req ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE abort_unconverged(energies, res, conv, n_req, unit_nr)
+   SUBROUTINE abort_unconverged(energies, res, conv, need, n_req, unit_nr)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: energies, res
-      LOGICAL, DIMENSION(:), INTENT(IN)                  :: conv
+      LOGICAL, DIMENSION(:), INTENT(IN)                  :: conv, need
       INTEGER, INTENT(IN)                                :: n_req, unit_nr
 
       INTEGER                                            :: k
@@ -763,7 +797,8 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A12,T30,A11,T52,A8,T67,A14)') 'BSE|', &
             'Excitation n', 'Energy (eV)', 'Residual', 'Converged'
-         DO k = 1, n_req
+         DO k = 1, SIZE(need)
+            IF (k > n_req .AND. .NOT. need(k)) CYCLE
             WRITE (unit_nr, '(T2,A4,T7,I12,T27,F14.6,T46,ES14.4,T67,L14)') 'BSE|', &
                k, energies(k)*evolt, res(k), conv(k)
          END DO
@@ -771,6 +806,30 @@ CONTAINS
       CPABORT("BSE Davidson: MAX_ITER reached before convergence")
 
    END SUBROUTINE abort_unconverged
+
+! **************************************************************************************************
+!> \brief Debug table of all tracked roots of a converged solve
+!> \param energies in Hartree
+!> \param res ...
+!> \param n_want ...
+!> \param n_act ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE print_tracked_roots(energies, res, n_want, n_act, unit_nr)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: energies, res
+      INTEGER, INTENT(IN)                                :: n_want, n_act, unit_nr
+
+      INTEGER                                            :: k
+
+      IF (unit_nr > 0) THEN
+         DO k = 1, n_act
+            WRITE (unit_nr, '(T2,A10,T13,A,I6,L2,T45,F18.10,T67,ES14.4)') 'BSE|DEBUG|', &
+               'Tracked state, requested', k, k <= n_want, energies(k)*evolt, res(k)
+         END DO
+      END IF
+
+   END SUBROUTINE print_tracked_roots
 
 ! **************************************************************************************************
 !> \brief Counters of a converged solve, the multiplet note and the warning for a degenerate group
