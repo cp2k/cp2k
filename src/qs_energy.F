@@ -18,6 +18,7 @@ MODULE qs_energy
    USE dm_ls_scf,                       ONLY: ls_scf
    USE energy_corrections,              ONLY: energy_correction
    USE excited_states,                  ONLY: excited_state_energy
+   USE fde_main,                        ONLY: fde_run
    USE input_constants,                 ONLY: smeagol_runtype_emtransport
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
@@ -25,7 +26,6 @@ MODULE qs_energy
                                               section_vals_val_get
    USE lri_environment_methods,         ONLY: lri_print_stat
    USE mp2,                             ONLY: mp2_main
-   USE fde_main,                        ONLY: fde_run
    USE qs_active_space_methods,         ONLY: active_space_main
    USE qs_energy_init,                  ONLY: qs_energies_init
    USE qs_energy_types,                 ONLY: qs_energy_type

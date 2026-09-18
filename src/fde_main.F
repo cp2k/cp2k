@@ -5,10 +5,11 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE fde_main
-   USE bibliography,                    ONLY: cite_reference,&
-                                              Schreder2024_3
+   USE bibliography,                    ONLY: Schreder2024_3,&
+                                              cite_reference
    USE cp_control_types,                ONLY: dft_control_type,&
                                               fde_control_type
+   USE cp_files,                        ONLY: join_paths
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -25,6 +26,7 @@ MODULE fde_main
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_integral_ab,&
+                                              pw_integrate_function,&
                                               pw_scale,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
@@ -45,67 +47,34 @@ MODULE fde_main
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Join a working directory and a file name into a path.
-!> \param workdir ...
-!> \param filename ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION fde_join_path(workdir, filename) RESULT(path)
-      CHARACTER(len=*), INTENT(IN)       :: workdir, filename
-      CHARACTER(len=default_path_length) :: path
-
-      IF (LEN_TRIM(workdir) > 0) THEN
-         path = TRIM(workdir) // "/" // TRIM(filename)
-      ELSE
-         path = TRIM(filename)
-      END IF
-
-   END FUNCTION fde_join_path
-
-! **************************************************************************************************
-!> \brief Integrate a real-space pw
-!> \param pw ...
-!> \param para_env ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION fde_integrate_pw(pw, para_env) RESULT(res)
-      TYPE(pw_r3d_rs_type), INTENT(IN)   :: pw
-      TYPE(mp_para_env_type), INTENT(IN) :: para_env
-      REAL(KIND=dp)                      :: res
-
-      res = SUM(pw%array) * pw%pw_grid%dvol
-      CALL para_env%sum(res)
-
-   END FUNCTION fde_integrate_pw
-
-! **************************************************************************************************
 !> \brief Run the FDE self-consistency loop
 !> \param qs_env ..
 ! **************************************************************************************************
    SUBROUTINE fde_run(qs_env)
-      TYPE(qs_environment_type), POINTER          :: qs_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      CHARACTER(len=*), PARAMETER                 :: routineN = 'fde_scf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'fde_run'
 
-      CHARACTER(len=default_path_length)          :: grid_path, input, v_path, res_path, rho_path
-      INTEGER                                     :: handle, iter, iounit, max_iter
-      INTEGER                                     :: i_a, n_a
-      LOGICAL                                     :: converged
-      REAL(KIND=dp)                               :: drho, e_sub, e_sub_bare, e_emb, e_es_e, &
-                                                     e_es_int, e_es_n, e_env, e_kin_na, e_xc_na, &
-                                                     e_n, e_tot, n_el, n_el_pw, phi_at_atom
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)    :: z
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: r
-      TYPE(cp_logger_type), POINTER               :: logger
-      TYPE(dft_control_type), POINTER             :: dft_control
-      TYPE(fde_control_type), POINTER             :: fde_control
-      TYPE(mp_para_env_type), POINTER             :: para_env
-      TYPE(pw_env_type), POINTER                  :: pw_env
-      TYPE(pw_pool_type), POINTER                 :: auxbas_pw_pool
-      TYPE(pw_r3d_rs_type)                        :: rho, rho_new, v_emb
-      TYPE(pw_r3d_rs_type), TARGET                :: phi_es
-      TYPE(pw_r3d_rs_type), POINTER               :: phi_es_ptr
-      TYPE(qs_energy_type), POINTER               :: qs_energy
+      CHARACTER(len=default_path_length)                 :: grid_path, input, res_path, rho_path, &
+                                                            v_path
+      INTEGER                                            :: handle, i_a, iounit, iter, max_iter, n_a
+      LOGICAL                                            :: converged
+      REAL(KIND=dp)                                      :: drho, e_emb, e_env, e_es_e, e_es_int, &
+                                                            e_es_n, e_kin_na, e_n, e_sub, &
+                                                            e_sub_bare, e_tot, e_xc_na, n_el, &
+                                                            n_el_pw, phi_at_atom
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: z
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: r
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(fde_control_type), POINTER                    :: fde_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type)                               :: rho, rho_new, v_emb
+      TYPE(pw_r3d_rs_type), POINTER                      :: phi_es_ptr
+      TYPE(pw_r3d_rs_type), TARGET                       :: phi_es
+      TYPE(qs_energy_type), POINTER                      :: qs_energy
 
       CALL timeset(routineN, handle)
 
@@ -123,10 +92,10 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
       ! socket files
-      v_path = fde_join_path(fde_control%workdir, fde_control%pot_file)
-      grid_path = fde_join_path(fde_control%workdir, fde_control%grid_file)
-      rho_path = fde_join_path(fde_control%workdir, fde_control%rho_file)
-      res_path = fde_join_path(fde_control%workdir, fde_control%result_file)
+      v_path = join_paths(fde_control%workdir, fde_control%pot_file)
+      grid_path = join_paths(fde_control%workdir, fde_control%grid_file)
+      rho_path = join_paths(fde_control%workdir, fde_control%rho_file)
+      res_path = join_paths(fde_control%workdir, fde_control%result_file)
       input = fde_control%molcas_input_template
 
       ! bare environment DFT energy
@@ -157,9 +126,10 @@ CONTAINS
          CALL fde_read_pw(rho_new, TRIM(rho_path))
          CALL fde_read_results(TRIM(res_path), para_env, e_sub, e_emb, e_n, n_el, n_a, z, r)
 
-         n_el_pw = fde_integrate_pw(rho_new, para_env)
-         IF (n_el_pw > 1.0e-10_dp .AND. n_el > 0.0_dp) &
-            CALL pw_scale(rho_new, n_el/n_el_pw)
+         n_el_pw = pw_integrate_function(rho_new)
+         IF (n_el_pw > 1.0e-10_dp .AND. n_el > 0.0_dp) then
+           CALL pw_scale(rho_new, n_el/n_el_pw)
+         end if
 
          drho = fde_drho(rho, rho_new, para_env)
 
@@ -192,7 +162,7 @@ CONTAINS
             WRITE (iounit, '(T4,A,F20.10)') "E(kin, nonadditive)    = ", e_kin_na
             WRITE (iounit, '(T4,A,F20.10)') "E(FDE)                 = ", e_tot
             WRITE (iounit, '(T4,A,F14.6,A,F14.6)') "N(sub, e): grid = ", n_el_pw, &
-                                                   " reported = ", n_el
+               " reported = ", n_el
             WRITE (iounit, '(T4,A,ES14.6)') "int|rho(sub, new) - rho(sub, old)|dr = ", drho
          END IF
 
@@ -215,8 +185,9 @@ CONTAINS
 
       IF (iounit > 0) THEN
          WRITE (iounit, '(/,T2,A)') REPEAT("=", 78)
-         IF (fde_control%freeze_and_thaw .AND. .NOT. converged) &
-            WRITE (iounit, '(T2,A)') "FDE  WARNING: freeze-and-thaw did not converge"
+         IF (fde_control%freeze_and_thaw .AND. .NOT. converged) then
+           WRITE (iounit, '(T2,A)') "FDE  WARNING: freeze-and-thaw did not converge"
+         end if
          WRITE (iounit, '(T2,A,F20.10)') "FDE final total energy = ", e_tot
          WRITE (iounit, '(T2,A)') REPEAT("=", 78)
       END IF
@@ -238,11 +209,11 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION fde_drho(rho_a, rho_b, para_env) RESULT(drho)
-      TYPE(pw_r3d_rs_type), INTENT(IN)   :: rho_a, rho_b
-      TYPE(mp_para_env_type), INTENT(IN) :: para_env
-      REAL(KIND=dp)                      :: drho
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_a, rho_b
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      REAL(KIND=dp)                                      :: drho
 
-      drho = SUM(ABS(rho_b%array - rho_a%array)) * rho_b%pw_grid%dvol
+      drho = SUM(ABS(rho_b%array - rho_a%array))*rho_b%pw_grid%dvol
       CALL para_env%sum(drho)
 
    END FUNCTION fde_drho
