@@ -207,6 +207,19 @@ CP2K can be compiled with PLUMED 2.x by passing `-DCP2K_USE_PLUMED=ON` to CMake.
 
 See <https://cp2k.org/howto:install_with_plumed> for full instructions.
 
+Activate the native interface with `MOTION/FREE_ENERGY/METADYN/USE_PLUMED` and `PLUMED_INPUT_FILE`.
+CP2K supplies positions, the cell, masses, physical potential energy/forces and the potential
+virial. PLUMED's bias energy is included in MD energies; its force and virial contributions are
+included in integration and pressure, including `ENERGY`-dependent biases. The potential virial must
+be enabled in the force evaluation for variable-cell simulations. CP2K supplies the MD target
+temperature as `kBT` for PLUMED actions that need it.
+
+The initial biased forces are evaluated before the first MD half-step. Continuing MD with a nonzero
+step counter sets PLUMED's restart flag. Keep PLUMED's history files (for example `HILLS`) alongside
+the CP2K restart: the CP2K restart alone does not contain PLUMED's bias history. Use consistent
+PLUMED input and files when restarting. Time-dependent biases do not in general conserve the
+physical-plus-bias energy; the appropriate work/reweighting depends on the method.
+
 ## spglib (crystal symmetries tools)
 
 Spglib is a library for finding and handling crystal symmetries. For more information, refer to
