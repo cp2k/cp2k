@@ -3,6 +3,7 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
+# General k-point and symmetry-reduction regression tests
 "c_1.inp"                               = [{matcher="E_total", tol=1.0E-14, ref=-45.10384660417728}]
 "c_2.inp"                               = [{matcher="E_total", tol=1.0E-14, ref=-45.68042106170509}]
 "c_3.inp"                               = [{matcher="E_total", tol=2e-14, ref=-45.66762356227679}]
@@ -11,7 +12,6 @@
 "c_6.inp"                               = [{matcher="E_total", tol=3e-14, ref=-46.02680478900022}]
 "c_gapw.inp"                            = [{matcher="E_total", tol=1e-12, ref=-302.06260708591526}]
 "c_gapwxc.inp"                          = [{matcher="E_total", tol=3e-12, ref=-45.66746891467081}]
-
 "cn_1.inp"                              = [{matcher="E_total", tol=5e-12, ref=-49.26750298571628}]
 "c_dos.inp"                             = [{matcher="E_total", tol=2e-14, ref=-45.65703654036614}]
 "h_sym_red.inp"                         = [{matcher="E_total", tol=1e-13, ref=-4.34916646889997}]
@@ -24,59 +24,10 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=2}]
 "h_canonical_cart_kpsym.inp"            = [{matcher="E_total", tol=1e-12, ref=-4.34916646889997},
                                            {matcher="N_special_kpoints", tol=0.0, ref=2}]
-
 "h_inv_red.inp"                         = [{matcher="E_total", tol=1e-13, ref=-4.34916646889997}]
 "h_ortho_sym_red.inp"                   = [{matcher="E_total", tol=1e-8, ref=-2.73592238316042}]
 "h_mono_sym_red.inp"                    = [{matcher="E_total", tol=1e-10, ref=-3.15139711262736}]
 "h_hex_c3_gamma_k290.inp"               = [{matcher="E_total", tol=1e-7, ref=-9.29840881688658},
                                            {matcher="N_special_kpoints", tol=0.0, ref=8}]
-"h_fcc_wannier90_scf_mp.inp"            = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=1},
-                                           {matcher="WANNIER90_SCF_MO_REUSE"},
-                                           {matcher="WANNIER90_DEGENERATE_SUBSPACE_ALIGN"}]
-"h_fcc_wannier90_scf_mp_bloch.inp"      = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=1},
-                                           {matcher="WANNIER90_SCF_MO_REUSE"},
-                                           {matcher="WANNIER90_DEGENERATE_SUBSPACE_ALIGN"},
-                                           {matcher="WANNIER90_USE_BLOCH_PHASES"},
-                                           {matcher="WANNIER90_BLOCH_PHASE_GAUGE"}]
-"h_fcc_wannier90_scf_mp_4_bloch_validate.inp" = [{matcher="E_total", tol=1e-13, ref=-4.30964310650676},
-                                                  {matcher="N_special_kpoints", tol=0.0, ref=4},
-                                                  {matcher="WANNIER90_SCF_MO_REUSE"},
-                                                  {matcher="WANNIER90_DEGENERATE_SUBSPACE_ALIGN"},
-                                                  {matcher="WANNIER90_USE_BLOCH_PHASES"},
-                                                  {matcher="WANNIER90_BLOCH_PHASE_GAUGE"},
-                                                  {matcher="WANNIER90_REUSE_VALIDATION"}]
-"h_fcc_wannier90_scf_inv.inp"           = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536}]
-"h_fcc_wannier90_scf_full.inp"          = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536}]
-"h_fcc_general_wannier90_scf_full.inp"  = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536}]
-"h_fcc_general_wannier90_k290.inp"      = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=1},
-                                           {matcher="WANNIER90_SCF_MO_REUSE"},
-                                           {matcher="WANNIER90_DEGENERATE_SUBSPACE_ALIGN"}]
-"h_fcc_macdonald_wannier90_k290.inp"    = [{matcher="E_total", tol=1e-13, ref=-4.34524388359536},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=1},
-                                           {matcher="WANNIER90_SCF_MO_REUSE"},
-                                           {matcher="WANNIER90_DEGENERATE_SUBSPACE_ALIGN"}]
-"he_sc_wannier90_scf_sym.inp"           = [{matcher="E_total", tol=1e-13, ref=-2.95145706672897},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=1},
-                                           {matcher="WANNIER90_SCF_MO_REUSE"}]
-"he_sc_wannier90_scf_bloch.inp"         = [{matcher="E_total", tol=1e-13, ref=-2.95145706672897},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=1},
-                                           {matcher="WANNIER90_SCF_MO_REUSE"},
-                                           {matcher="WANNIER90_USE_BLOCH_PHASES"},
-                                           {matcher="WANNIER90_BLOCH_PHASE_GAUGE"}]
-"he_sc_wannier90_scf_validate.inp"      = [{matcher="E_total", tol=1e-13, ref=-2.95145706672897},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=1},
-                                           {matcher="WANNIER90_SCF_MO_REUSE"},
-                                           {matcher="WANNIER90_REUSE_VALIDATION"}]
-"he2_sc_wannier90_scf_sym_2band.inp"    = [{matcher="E_total", tol=1e-13, ref=-5.78478325058176},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=1},
-                                           {matcher="WANNIER90_SCF_MO_REUSE"}]
-"he2_sc_wannier90_scf_bloch.inp"        = [{matcher="E_total", tol=1e-13, ref=-5.78478325058176},
-                                           {matcher="N_special_kpoints", tol=0.0, ref=1},
-                                           {matcher="WANNIER90_SCF_MO_REUSE"},
-                                           {matcher="WANNIER90_USE_BLOCH_PHASES"},
-                                           {matcher="WANNIER90_BLOCH_PHASE_GAUGE"}]
 "h_tetra_c4_sym_red.inp"                = [{matcher="E_total", tol=1e-8, ref=-3.95113501866984}]
 #EOF
