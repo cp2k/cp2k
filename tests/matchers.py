@@ -45,6 +45,8 @@ registry["Electronic_entropic_energy"] = GenericMatcher(
     r"Electronic entropic energy:", col=4
 )
 registry["Integrated_spin_density"] = GenericMatcher(r"Integrated spin density:", col=4)
+registry["FOD_orbital_sum"] = GenericMatcher(r"FOD| N_FOD (orbital sum)", col=5)
+registry["FOD_grid_integral"] = GenericMatcher(r"FOD| Grid integral", col=4)
 registry["COMMUTATOR_HR_X"] = GenericMatcher(r"COMMUTATOR_HR| CheckSum X =", col=5)
 registry["COMMUTATOR_HR_Y"] = GenericMatcher(r"COMMUTATOR_HR| CheckSum Y =", col=5)
 registry["COMMUTATOR_HR_Z"] = GenericMatcher(r"COMMUTATOR_HR| CheckSum Z =", col=5)

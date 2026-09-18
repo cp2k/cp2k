@@ -64,7 +64,7 @@ MODULE bibliography
                             Tozer1996, Goedecker2004, Rengaraj2020, &
                             Khaliullin2013, Kruse2012, Hutter2014, Bengtsson1999, Kantorovich2008, &
                             Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
-                            Rayson2009, Grimme2011, Fattebert2002, Andreussi2012, &
+                            Rayson2009, Grimme2011, Grimme2015FOD, Fattebert2002, Andreussi2012, &
                             Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013, Lin2016ACE, &
                             Batzner2022, Batatia2022, DelBen2015, Souza2002, Umari2002, Stengel2009, &
                             Luber2014, Berghold2011, DelBen2015b, Campana2009, &
@@ -766,6 +766,12 @@ CONTAINS
                          title="Effect of the damping function in dispersion corrected density functional theory", &
                          source="J. Comput. Chem.", volume="32", pages="1456", &
                          year=2011, doi="10.1002/jcc.21759")
+
+      CALL add_reference(key=Grimme2015FOD, &
+                         authors=s2a("S. Grimme", "A. Hansen"), &
+                         title="A Practicable Real-Space Measure and Visualization of Static Electron-Correlation Effects", &
+                         source="Angew. Chem. Int. Ed.", volume="54", pages="12308-12313", &
+                         year=2015, doi="10.1002/anie.201501887")
 
       CALL add_reference(key=Grimme2013, &
                          authors=s2a("S. Grimme"), &

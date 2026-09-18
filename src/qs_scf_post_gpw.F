@@ -160,6 +160,7 @@ MODULE qs_scf_post_gpw
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_epr_hyp,                      ONLY: qs_epr_hyp_calc
+   USE qs_fod,                          ONLY: qs_scf_post_fod
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_integral_utils,               ONLY: basis_set_list_setup
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -809,6 +810,8 @@ CONTAINS
 
       ! Moments of charge distribution
       CALL qs_scf_post_moments(input, logger, qs_env, output_unit)
+
+      CALL qs_scf_post_fod(input, logger, qs_env, output_unit)
 
       ! Determine if we need to computer properties using the localized centers
       dft_section => section_vals_get_subs_vals(input, "DFT")

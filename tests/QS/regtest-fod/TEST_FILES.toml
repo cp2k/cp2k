@@ -1,0 +1,13 @@
+# Two small SCFs cover RKS cube output and UKS scalar-only output.
+# Boundary cases and occupation conventions are covered without SCF in qs_fod_unittest.
+# Energy references: FOD disabled, EPS_SCF 1e-12, verified with RKS/UKS and 1/2 MPI ranks.
+"h2-rks.inp" = [
+  {matcher="FOD_orbital_sum", tol=1.0E-8, ref=0.6455502608},
+  {matcher="FOD_grid_integral", tol=1.0E-7, ref=0.6455495380},
+  {matcher="M011", tol=1.0E-9, ref=-0.883785426739111},
+]
+"h2-uks.inp" = [
+  {matcher="FOD_orbital_sum", tol=1.0E-8, ref=0.6455502607},
+  {matcher="M011", tol=1.0E-9, ref=-0.883785426739111},
+]
+#EOF

@@ -623,6 +623,7 @@ list(
   qs_fb_matrix_data_types.F
   qs_fb_trial_fns_types.F
   qs_fermi_contact.F
+  qs_fod.F
   qs_force.F
   qs_force_types.F
   qs_fxc.F
@@ -1587,6 +1588,7 @@ set(CP2K_PROGS_F
     low_rank_preconditioner_unittest.F
     ot_covariant_preconditioner_unittest.F
     qs_charge_mixing_unittest.F
+    qs_fod_unittest.F
     qs_ot_complex_ref_unittest.F
     subsys/cell_types_unittest.F
     pw/realspace_grid_cube_unittest.F
@@ -2007,6 +2009,7 @@ list(
   "low_rank_preconditioner_unittest"
   "ot_covariant_preconditioner_unittest"
   "qs_charge_mixing_unittest"
+  "qs_fod_unittest"
   "qs_ot_complex_ref_unittest"
   "cell_types_unittest"
   "realspace_grid_cube_unittest"
@@ -2047,6 +2050,7 @@ add_executable(low_rank_preconditioner_unittest
 add_executable(ot_covariant_preconditioner_unittest
                ot_covariant_preconditioner_unittest.F)
 add_executable(qs_charge_mixing_unittest qs_charge_mixing_unittest.F)
+add_executable(qs_fod_unittest qs_fod_unittest.F)
 add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F)
 add_executable(cell_types_unittest subsys/cell_types_unittest.F)
 add_executable(realspace_grid_cube_unittest pw/realspace_grid_cube_unittest.F)

@@ -1,0 +1,73 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT fod
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    UKS ${UKS}
+    &MGRID
+      CUTOFF 150
+      NGRIDS 3
+      REL_CUTOFF 30
+    &END MGRID
+    &PRINT
+      &FOD
+        CUBE ${WRITE_CUBE}
+        STRIDE 1
+      &END FOD
+      &MO
+        EIGENVALUES T
+        NDIGITS 12
+        OCCUPATION_NUMBERS T
+        &EACH
+          QS_SCF 0
+        &END EACH
+      &END MO
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      ADDED_MOS 7
+      EPS_SCF 1.0E-11
+      MAX_SCF 60
+      &DIAGONALIZATION
+      &END DIAGONALIZATION
+      &MIXING
+        ALPHA 0.4
+        METHOD BROYDEN_MIXING
+      &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+      &SMEAR
+        ELECTRONIC_TEMPERATURE 5000
+        FIXED_MAGNETIC_MOMENT 0
+        METHOD FERMI_DIRAC
+      &END SMEAR
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6 6 6
+    &END CELL
+    &COORD
+      H 3 3 1.75
+      H 3 3 4.25
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-SR-GTH
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

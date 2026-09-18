@@ -318,6 +318,7 @@ QS/regtest-as-2                                             libint !ifx
 QS/regtest-ot-refine-3
 QS/regtest-cdft-4-3
 QS/regtest-moments-kpoints
+QS/regtest-fod
 Fist/regtest-9
 QS/regtest-gauxc-gpw-nlcc                                   gauxc
 QS/regtest-debug-3                                          libint libxc !ifx

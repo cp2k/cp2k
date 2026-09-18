@@ -14,6 +14,7 @@ maxdepth: 2
 molecular_orbitals
 band/index
 dos
+fod
 population/index
 wannier90
 phason-topology
