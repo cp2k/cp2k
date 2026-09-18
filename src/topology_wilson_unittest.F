@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 PROGRAM topology_wilson_unittest
+   USE iso_fortran_env,                 ONLY: output_unit
    USE kinds,                           ONLY: dp
    USE topology_wilson,                 ONLY: chern_from_wcc,&
                                               surface_resolved,&
@@ -18,6 +19,9 @@ PROGRAM topology_wilson_unittest
 
    REAL(KIND=dp), PARAMETER :: pi = 3.1415926535897932384626433832795_dp, tolerance = 1.e-10_dp
 
+   INTEGER :: io_unit
+
+   io_unit = output_unit
    CALL test_model(-1.0_dp, 1)
    CALL test_model(-3.0_dp, 0)
    CALL test_model(1.0_dp, 1)
@@ -27,7 +31,7 @@ PROGRAM topology_wilson_unittest
    CALL test_chern_model(1.0_dp, -1)
    CALL test_chern_model(-3.0_dp, 0)
    CALL test_chern_checks()
-   PRINT *, "Wilson-loop, Z2 and Chern unit tests passed."
+   WRITE (io_unit, *) "Wilson-loop, Z2 and Chern unit tests passed."
 
 CONTAINS
 
