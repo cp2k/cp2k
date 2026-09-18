@@ -138,6 +138,7 @@ CONTAINS
       IF (extension_deviation(fm_Z, fm_Z, 0, m, para_env) > ortho_tol) THEN
          CPABORT("BSE Davidson: the initial guess is not orthonormal")
       END IF
+      ! (A Z)_ia,m of the guess and G_mn = sum_ia Z_ia,m (A Z)_ia,n
       CALL bse_matvec_apply(mv_env, fm_Z, 1, m, fm_AZ)
       n_kernel = m
       CALL subspace_gram(fm_Z, 1, m, fm_AZ, 1, m, para_env, G(1:m, 1:m))
@@ -147,6 +148,7 @@ CONTAINS
       all_conv = .FALSE.
       DO iter = 1, mp2_env%bse%max_iter
 
+         ! sum_n G_mn c_nk = θ_k c_mk, θ ascending
          CALL solve_reduced(G, m, para_env, theta, C)
 
          ! thick restart onto the current and the previous Ritz vectors, no kernel application
@@ -206,6 +208,7 @@ CONTAINS
             CALL bse_matvec_apply(mv_env, fm_Z, m + 1, nt, fm_AZ)
             n_kernel = n_kernel + nt
 
+            ! new columns G_mn = sum_ia Z_ia,m (A Z)_ia,n of the symmetric reduced matrix
             ALLOCATE (G_new(m + nt, nt))
             CALL subspace_gram(fm_Z, 1, m + nt, fm_AZ, m + 1, nt, para_env, G_new)
             G(1:m + nt, m + 1:m + nt) = G_new(:, :)
@@ -245,6 +248,7 @@ CONTAINS
       CALL bse_matvec_vector_struct(mv_env, n_want, fm_struct)
       CALL cp_fm_create(fm_X, fm_struct, name="fm_X_davidson", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
+      ! X_ia^n = sum_m Z_ia,m c_mn
       CALL subspace_rotate(fm_Z, m, C(1:m, 1:n_want), n_want, fm_X, 1.0_dp, 0.0_dp)
 
       CALL cp_fm_release(fm_Z)
@@ -357,6 +361,7 @@ CONTAINS
       ELSE
          CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_V, n_raw, n_seed)
       END IF
+      ! the corrections divide by d_ia^2 - (Ω^k)^2
       diag(:) = diag(:)**2
 
       ! the guess enters the basis in blocks of the scratch width
@@ -378,12 +383,14 @@ CONTAINS
 
       IF (abba_status == abba_ok) THEN
          fm_V%local_data(1:nrow_local, m + 1:n_raw) = 0.0_dp
+         ! H_mn = sum_ia W_ia,m (M W)_ia,n on the guess basis
          CALL subspace_gram(fm_W, 1, m, fm_MW, 1, m, para_env, H(1:m, 1:m))
 
          CALL print_iteration_header('Block Davidson iterations for ABBA, (A+B)(A-B) x = E^2 x:', unit_nr)
 
          DO iter = 1, mp2_env%bse%max_iter
 
+            ! sum_n H_mn c_nk = θ_k c_mk with θ_k = (Ω^k)^2, ascending
             CALL solve_reduced(H, m, para_env, theta, C)
 
             ! thick restart: V, W and MW are rotated alike, which keeps V^T W = 1
@@ -443,6 +450,7 @@ CONTAINS
             stalled = nt == 0
 
             IF (nt > 0) THEN
+               ! new columns H_mn = sum_ia W_ia,m (M W)_ia,n of the symmetric reduced matrix
                ALLOCATE (H_new(m + nt, nt))
                CALL subspace_gram(fm_W, 1, m + nt, fm_MW, m + 1, nt, para_env, H_new)
                H(1:m + nt, m + 1:m + nt) = H_new(:, :)
@@ -487,6 +495,7 @@ CONTAINS
          IF (ALLOCATED(theta_sub)) CALL check_guess_bound(theta_sub, omega, n_req, unit_nr)
          CALL print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr, ab_margin, n_dependent)
 
+         ! x_ia^n = (Ω^n)^1/2 sum_m V_ia,m c_mn, y_ia^n = (Ω^n)^-1/2 sum_m W_ia,m c_mn,
          ! X = (y + x)/2, Y = (y - x)/2
          ALLOCATE (exc_ens(n_want))
          exc_ens(:) = omega(1:n_want)
@@ -646,6 +655,7 @@ CONTAINS
 
       IF (abba_status == abba_ok) THEN
          fm_b%local_data(1:nrow_local, m + 1:n_raw) = 0.0_dp
+         ! Mr_mn = sum_ia b_ia,m (M b)_ia,n and Kr_mn = sum_ia b_ia,m (K b)_ia,n on the guess basis
          CALL subspace_gram(fm_b, 1, m, fm_Mb, 1, m, para_env, Mr(1:m, 1:m))
          CALL subspace_gram(fm_b, 1, m, fm_Kb, 1, m, para_env, Kr(1:m, 1:m))
 
@@ -654,6 +664,7 @@ CONTAINS
 
          DO iter = 1, mp2_env%bse%max_iter
 
+            ! Ω^k ascending with the coefficients R_mk of y^k and L_mk of x^k, sum_m R_mk L_mk = 1
             CALL solve_reduced_paired(Mr, Kr, m, n_act, para_env, omega, R, L, kr_min, abba_status)
             IF (abba_status /= abba_ok) EXIT
 
@@ -722,6 +733,7 @@ CONTAINS
             stalled = nt == 0
 
             IF (nt > 0) THEN
+               ! new columns of the symmetric Mr and Kr
                ALLOCATE (Mr_new(m + nt, nt), Kr_new(m + nt, nt))
                CALL subspace_gram(fm_b, 1, m + nt, fm_Mb, m + 1, nt, para_env, Mr_new)
                CALL subspace_gram(fm_b, 1, m + nt, fm_Kb, m + 1, nt, para_env, Kr_new)
@@ -765,7 +777,7 @@ CONTAINS
          IF (ALLOCATED(theta_sub)) CALL check_guess_bound(theta_sub, omega, n_req, unit_nr)
          CALL print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr, ab_margin, n_dependent)
 
-         ! X = (y + x)/2, Y = (y - x)/2
+         ! X_ia^n = sum_m b_ia,m (R_mn + L_mn)/2, Y_ia^n = sum_m b_ia,m (R_mn - L_mn)/2
          ALLOCATE (exc_ens(n_want))
          exc_ens(:) = omega(1:n_want)
          CALL bse_matvec_vector_struct(mv_env, n_want, fm_struct)
@@ -824,6 +836,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      ! T_ia,k <- T_ia,k - sum_m V_ia,m sum_jb W_jb,m T_jb,k, then Euclidean orthonormalisation
       CALL project_out(fm_V, m + 1, nt, fm_V, m, mv_env%para_env, fm_W)
       CALL drop_small_columns(fm_V, m + 1, nt, mv_env%para_env)
       CALL cholqr2(fm_V, m + 1, nt, mv_env%para_env, ok, n_dep)
@@ -833,17 +846,20 @@ CONTAINS
       IF (nt > 0) THEN
          CALL cp_fm_get_info(fm_V, nrow_local=nrow_local)
 
+         ! W_ia,k = sum_jb (A-B)_ia,jb T_jb,k: A T into W, B T into the scratch
          CALL bse_matvec_apply(mv_env, fm_V, m + 1, nt, fm_W, fm_scr, 1)
          fm_W%local_data(1:nrow_local, m + 1:m + nt) = fm_W%local_data(1:nrow_local, m + 1:m + nt) - &
                                                        fm_scr%local_data(1:nrow_local, 1:nt)
          n_kernel = n_kernel + nt
 
+         ! T <- T R^-1 and W <- W R^-1 with sum_p R_pk R_pl = sum_ia T_ia,k W_ia,l
          CALL cholqr2_metric(fm_V, fm_W, m + 1, nt, mv_env%para_env, abba_status, ab_margin)
 
          IF (abba_status == abba_ok) THEN
             IF (extension_deviation(fm_V, fm_W, m, nt, mv_env%para_env) > ortho_tol) THEN
                CPABORT("BSE Davidson: the basis lost orthonormality in the (A-B) inner product")
             END IF
+            ! (M W)_ia,k = sum_jb (A+B)_ia,jb W_jb,k: A W into MW, B W into the scratch
             CALL bse_matvec_apply(mv_env, fm_W, m + 1, nt, fm_MW, fm_scr, 1)
             fm_MW%local_data(1:nrow_local, m + 1:m + nt) = fm_MW%local_data(1:nrow_local, m + 1:m + nt) + &
                                                            fm_scr%local_data(1:nrow_local, 1:nt)

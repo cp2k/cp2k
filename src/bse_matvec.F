@@ -376,6 +376,7 @@ CONTAINS
          CALL timeset(routineN//"_reduce", handle2)
          CALL mv_env%para_env%sum(RA)
          IF (do_B) CALL mv_env%para_env%sum(RB)
+         ! (A Z)_ia,k = (ε_a-ε_i) Z_ia,k + R^A_ia,k and (B Z)_ia,k = R^B_ia,k on the local rows
          DO k = 1, nb
             DO iloc = 1, nrow_local
                ia = row_indices(iloc)
