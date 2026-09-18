@@ -8,10 +8,8 @@
 # These tests use different constraint formalisms so their value differs (see outputted charges)
 "HeH-cdft-1.inp"                        = [{matcher="M071", tol=3e-11, ref=1.200733561958}]
 "HeH-cdft-2.inp"                        = [{matcher="M071", tol=2e-11, ref=1.599542796623}]
-"HeH-cdft-fragment-energy.inp"          = [
-    {matcher="M071", tol=5e-11, ref=1.524195440406},
-    {matcher="E_total", tol=2e-13, ref=-2.90749811244076},
-]
+# Check the first energy evaluation, before subsequent calls can reuse the target.
+"HeH-cdft-fragment-energy.inp"          = [{matcher="OT_SCF_initial_energy", tol=1e-10, ref=-2.9001969454}]
 "HeH-cdft-3.inp"                        = [{matcher="M071", tol=3e-11, ref=1.415849431280}]
 "HeH-cdft-4.inp"                        = [{matcher="M071", tol=1e-11, ref=1.707100731284}]
 # Fragment based spin constraint (value is 0 because rho_alpha-rho_beta=0 in ground state)

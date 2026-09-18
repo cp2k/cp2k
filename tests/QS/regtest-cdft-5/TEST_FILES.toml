@@ -8,6 +8,8 @@
 "He2H-cdft-state-2a.inp"                = [{matcher="M071", tol=2e-9, ref=1.994632273937}]
 "He2H-cdft-state-2b.inp"                = [{matcher="M071", tol=2e-9, ref=1.852668458861}]
 # CDFT-CI using a block diagonalized mixed CDFT Hamiltonian
+# These states have finite constraint residuals. The Hamiltonian must use the
+# physical state energies, excluding the residual Lagrange terms.
 "He2H-mixed-cdft-1.inp"                 = [{matcher="M077", tol=5e-8, ref=-5.88349846858685}]
 "He2H-mixed-cdft-2.inp"                 = [{matcher="M077", tol=2e-7, ref=-5.88548814096958}]
 "He2H-mixed-cdft-3.inp"                 = [{matcher="M077", tol=5e-8, ref=-5.88183558602748}]

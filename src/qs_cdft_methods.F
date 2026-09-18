@@ -1242,6 +1242,7 @@ CONTAINS
          CALL prepare_fragment_constraint(qs_env)
       END IF
       ! Update constraint value and energy
+      ! Fragment integration above can replace the input target.
       target_val(:) = cdft_control%target(:)
       cdft_control%value(:) = dE(:)
       energy%cdft = 0.0_dp
