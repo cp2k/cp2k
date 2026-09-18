@@ -17,6 +17,7 @@ MODULE bse_davidson
    USE bse_matvec,                      ONLY: bse_matvec_apply,&
                                               bse_matvec_diagonal,&
                                               bse_matvec_env_type,&
+                                              bse_matvec_subblock,&
                                               bse_matvec_vector_struct
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_release,&
@@ -87,7 +88,8 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
       LOGICAL                                            :: all_conv, has_prev, ok, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, res, theta, theta_prev
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, res, theta, theta_prev, &
+                                                            theta_sub
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_prev, C_theta, G, G_new, Q
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_AZ, fm_work, fm_Z
@@ -123,7 +125,12 @@ CONTAINS
       stalled = .FALSE.
       n_restart = 0
 
-      CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_Z, m)
+      IF (mp2_env%bse%num_guess_transitions > 0) THEN
+         CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_Z, m, theta_sub, &
+                                     unit_nr)
+      ELSE
+         CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_Z, m)
+      END IF
       CALL bse_matvec_apply(mv_env, fm_Z, 1, m, fm_AZ)
       n_kernel = m
       CALL subspace_gram(fm_Z, 1, m, fm_AZ, 1, m, para_env, G(1:m, 1:m))
@@ -215,6 +222,7 @@ CONTAINS
          DEALLOCATE (G_new)
       END IF
 
+      IF (ALLOCATED(theta_sub)) CALL check_guess_bound(theta_sub, theta, n_req, unit_nr)
       CALL print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr)
 
       ALLOCATE (exc_ens(n_want))
@@ -228,6 +236,7 @@ CONTAINS
       CALL cp_fm_release(fm_AZ)
       CALL cp_fm_release(fm_work)
       DEALLOCATE (G, C, C_prev, C_theta, Q, theta, theta_prev, res, dE, conv, need, selected, diag)
+      IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
 
       CALL timestop(handle)
 
@@ -273,7 +282,7 @@ CONTAINS
       LOGICAL                                            :: all_conv, has_prev, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, eigval, omega, omega_prev, &
-                                                            res, theta
+                                                            res, theta, theta_sub
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_prev, C_wx, C_x, C_y, H, H_new, Q
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_MW, fm_scr, fm_V, fm_W, fm_work
@@ -318,14 +327,20 @@ CONTAINS
       n_restart = 0
       n_kernel = 0
 
-      ! guess: the TDA vectors if given, then unit vectors on the lowest entries of the diagonal
+      ! guess: the TDA vectors if given, then the eigenvectors of the exact guess block or unit
+      ! vectors on the lowest entries of the diagonal
       n_seed = 0
       IF (PRESENT(fm_X_tda)) THEN
          CALL cp_fm_get_info(fm_X_tda, ncol_global=n_seed)
          n_seed = MIN(n_seed, n_act)
          fm_V%local_data(1:nrow_local, 1:n_seed) = fm_X_tda%local_data(1:nrow_local, 1:n_seed)
       END IF
-      CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_V, n_raw, n_seed)
+      IF (mp2_env%bse%num_guess_transitions > 0) THEN
+         CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_V, n_raw, theta_sub, &
+                                     unit_nr, n_seed, abba_status, ab_margin)
+      ELSE
+         CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_V, n_raw, n_seed)
+      END IF
       diag(:) = diag(:)**2
 
       ! the guess enters the basis in blocks of the scratch width
@@ -447,6 +462,7 @@ CONTAINS
          ab_margin = 1.0_dp/eigval(m)
          DEALLOCATE (H_new, eigval)
 
+         IF (ALLOCATED(theta_sub)) CALL check_guess_bound(theta_sub, omega, n_req, unit_nr)
          CALL print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr, ab_margin)
 
          ! X = (y + x)/2, Y = (y - x)/2
@@ -473,6 +489,7 @@ CONTAINS
       CALL cp_fm_release(fm_scr)
       DEALLOCATE (H, C, C_prev, C_x, C_y, C_wx, Q, theta, omega, omega_prev, res, dE, conv, need, &
                   selected, diag)
+      IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
 
       CALL timestop(handle)
 
@@ -1027,6 +1044,162 @@ CONTAINS
       DEALLOCATE (diag_sorted, idx)
 
    END SUBROUTINE initial_guess
+
+! **************************************************************************************************
+!> \brief Initial guess from the exact A (and B) on the n_sub transitions with the lowest diagonal:
+!>        TDA: eigenvectors of A_sub; ABBA: x = K_sub^-1/2 t with K_sub^1/2 M_sub K_sub^1/2 t = Ω^2 t,
+!>        K = A-B, M = A+B. The Ritz values θ_k are upper bounds of the true energies (Rayleigh-Ritz for
+!>        TDA, Cauchy-type interlacing of Bai and Li for the linear response problem), kept for
+!>        check_guess_bound. A degenerate group at the upper boundary is taken as a whole.
+!> \param mv_env ...
+!> \param mp2_env ...
+!> \param diag ...
+!> \param n_guess ...
+!> \param n_max largest number of guess vectors
+!> \param deg_thresh_diag ...
+!> \param fm_Z ...
+!> \param n_used ...
+!> \param theta_sub allocated here, the n_sub Ritz values in Hartree
+!> \param unit_nr ...
+!> \param n_given leading columns that the caller has filled; they replace the lowest guess vectors
+!> \param abba_status ABBA problem when present; abba_indefinite if K_sub is not positive definite
+!> \param ab_margin smallest eigenvalue of K_sub in Hartree
+! **************************************************************************************************
+   SUBROUTINE initial_guess_subblock(mv_env, mp2_env, diag, n_guess, n_max, deg_thresh_diag, fm_Z, n_used, &
+                                     theta_sub, unit_nr, n_given, abba_status, ab_margin)
+
+      TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
+      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: diag
+      INTEGER, INTENT(IN)                                :: n_guess, n_max
+      REAL(KIND=dp), INTENT(IN)                          :: deg_thresh_diag
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_Z
+      INTEGER, INTENT(OUT)                               :: n_used
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: theta_sub
+      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, INTENT(IN), OPTIONAL                      :: n_given
+      INTEGER, INTENT(OUT), OPTIONAL                     :: abba_status
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: ab_margin
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'initial_guess_subblock'
+
+      INTEGER                                            :: handle, iloc, k, k_first, n_ov, n_sub, &
+                                                            nrow_local
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx, pos
+      INTEGER, DIMENSION(:), POINTER                     :: row_indices
+      LOGICAL                                            :: ok
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_sorted, eig_K
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_sub, B_sub, K_mhalf, K_phalf, U, V
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      para_env => mv_env%para_env
+      n_ov = SIZE(diag)
+      n_sub = MIN(n_ov, MAX(mp2_env%bse%num_guess_transitions, n_guess))
+      ALLOCATE (diag_sorted(n_ov), idx(n_ov), pos(n_ov))
+      diag_sorted(:) = diag(:)
+      CALL sort(diag_sorted, n_ov, idx)
+
+      ALLOCATE (A_sub(n_sub, n_sub), V(n_sub, n_sub), theta_sub(n_sub))
+      ok = .TRUE.
+      IF (PRESENT(abba_status)) THEN
+         abba_status = abba_ok
+         ALLOCATE (B_sub(n_sub, n_sub), U(n_sub, n_sub), K_phalf(n_sub, n_sub), K_mhalf(n_sub, n_sub), &
+                   eig_K(n_sub))
+         CALL bse_matvec_subblock(mv_env, idx(1:n_sub), A_sub, B_sub)
+         ! K_sub^±1/2 from its eigen decomposition U diag(κ) U^T
+         B_sub(:, :) = A_sub(:, :) - B_sub(:, :)
+         CALL solve_reduced(B_sub, n_sub, para_env, eig_K, U)
+         ab_margin = eig_K(1)
+         IF (eig_K(1) <= 0.0_dp) THEN
+            abba_status = abba_indefinite
+            ok = .FALSE.
+            n_used = 0
+         ELSE
+            DO k = 1, n_sub
+               K_phalf(:, k) = U(:, k)*SQRT(eig_K(k))
+               K_mhalf(:, k) = U(:, k)/SQRT(eig_K(k))
+            END DO
+            K_phalf(:, :) = MATMUL(K_phalf, TRANSPOSE(U))
+            K_mhalf(:, :) = MATMUL(K_mhalf, TRANSPOSE(U))
+            ! M_sub = 2 A_sub - K_sub, then H = K^1/2 M K^1/2 and x = K^-1/2 t
+            A_sub(:, :) = 2.0_dp*A_sub(:, :) - B_sub(:, :)
+            A_sub(:, :) = MATMUL(K_phalf, MATMUL(A_sub, K_phalf))
+            CALL solve_reduced(A_sub, n_sub, para_env, theta_sub, U)
+            IF (theta_sub(1) <= 0.0_dp) THEN
+               CPABORT("BSE Davidson: the guess block gives a non-positive squared excitation energy")
+            END IF
+            theta_sub(:) = SQRT(theta_sub(:))
+            V(:, :) = MATMUL(K_mhalf, U)
+         END IF
+         DEALLOCATE (B_sub, U, K_phalf, K_mhalf, eig_K)
+      ELSE
+         CALL bse_matvec_subblock(mv_env, idx(1:n_sub), A_sub)
+         CALL solve_reduced(A_sub, n_sub, para_env, theta_sub, V)
+      END IF
+
+      IF (ok) THEN
+         n_used = n_guess
+         DO WHILE (n_used < MIN(n_max, n_sub))
+            IF (theta_sub(n_used + 1) - theta_sub(n_used) >= deg_thresh_diag) EXIT
+            n_used = n_used + 1
+         END DO
+
+         k_first = 1
+         IF (PRESENT(n_given)) k_first = n_given + 1
+
+         pos(:) = 0
+         DO k = 1, n_sub
+            pos(idx(k)) = k
+         END DO
+         CALL cp_fm_get_info(fm_Z, nrow_local=nrow_local, row_indices=row_indices)
+         DO k = k_first, n_used
+            DO iloc = 1, nrow_local
+               IF (pos(row_indices(iloc)) > 0) fm_Z%local_data(iloc, k) = V(pos(row_indices(iloc)), k)
+            END DO
+         END DO
+
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Transitions in the exact guess block', n_sub
+         END IF
+      END IF
+
+      DEALLOCATE (diag_sorted, idx, pos, A_sub, V)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE initial_guess_subblock
+
+! **************************************************************************************************
+!> \brief A converged energy above the Ritz value of the guess block with the same index is a
+!>        provable miss: both are upper bounds of the true eigenvalue with that index
+!> \param theta_sub ...
+!> \param energies converged energies in Hartree
+!> \param n_req ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE check_guess_bound(theta_sub, energies, n_req, unit_nr)
+
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: theta_sub, energies
+      INTEGER, INTENT(IN)                                :: n_req, unit_nr
+
+      REAL(KIND=dp)                                      :: excess
+
+      excess = MAXVAL(energies(1:n_req) - theta_sub(1:n_req))
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4,T7,A,T65,F16.6)') 'BSE|', &
+            'Largest excess over the guess-block bound (eV)', excess*evolt
+      END IF
+      IF (excess > deg_thresh) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "A converged BSE state lies above the upper bound given by the guess block, "// &
+                      "so a lower state was missed. Raise BSE_ITERAT%NUM_GUESS_TRANSITIONS or "// &
+                      "BSE_ITERAT%NUM_BUFFER_STATES.")
+      END IF
+
+   END SUBROUTINE check_guess_bound
 
 ! **************************************************************************************************
 !> \brief Eigenpairs of the symmetrised reduced matrix, solved on one rank and broadcast

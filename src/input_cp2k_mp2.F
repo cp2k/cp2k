@@ -1671,6 +1671,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_GUESS_TRANSITIONS", &
+                          description="Number of transitions with the lowest diagonal on which A (and B) "// &
+                          "are built exactly and diagonalized for the initial guess. Its eigenvalues bound "// &
+                          "the true energies from above and are checked against the converged ones. "// &
+                          "0: unit vectors on the lowest diagonal entries. Memory: the square of this "// &
+                          "number in doubles per MPI rank.", &
+                          usage="NUM_GUESS_TRANSITIONS 512", &
+                          default_i_val=512)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="BLOCK_SIZE", &
                           description="Maximum number of correction vectors (and kernel applications) "// &
                           "added per iteration. Converged states are locked.", &

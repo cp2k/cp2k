@@ -308,6 +308,7 @@ MODULE mp2_types
                                                             screening_method = 0, &
                                                             num_buffer_states = 0, &
                                                             block_size = 0, &
+                                                            num_guess_transitions = 0, &
                                                             max_subspace_factor = 0, &
                                                             max_iter = 0, &
                                                             convergence_criterion = 0, &

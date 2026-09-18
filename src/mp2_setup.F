@@ -219,6 +219,8 @@ CONTAINS
                                 i_val=mp2_env%bse%num_buffer_states)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%BLOCK_SIZE", &
                                 i_val=mp2_env%bse%block_size)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_GUESS_TRANSITIONS", &
+                                i_val=mp2_env%bse%num_guess_transitions)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%MAX_SUBSPACE_FACTOR", &
                                 i_val=mp2_env%bse%max_subspace_factor)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%MAX_ITER", &

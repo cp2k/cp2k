@@ -39,7 +39,7 @@ MODULE bse_matvec
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_matvec'
 
    PUBLIC :: bse_matvec_env_type, bse_matvec_create, bse_matvec_release, bse_matvec_apply, &
-             bse_matvec_diagonal, bse_matvec_vector_struct, bse_matvec_selfcheck
+             bse_matvec_diagonal, bse_matvec_subblock, bse_matvec_vector_struct, bse_matvec_selfcheck
 
 ! **************************************************************************************************
 !> \brief RI slabs of one spin channel, every rank holding n_ri_loc whole RI slices
@@ -435,6 +435,79 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE bse_matvec_diagonal
+
+! **************************************************************************************************
+!> \brief Exact A (and B) on a list of transitions, replicated on every rank,
+!>        A_kl = δ_kl (ε_a-ε_i) + α sum_P B^P_ia B^P_jb - w sum_P \bar{B}^P_ij B^P_ab
+!>        B_kl =                  α sum_P B^P_ia B^P_jb - w sum_P \bar{B}^P_ib B^P_ja
+!>        with k = (i,a), l = (j,b) and α, w, \bar{B} as in bse_matvec_apply
+!> \param mv_env ...
+!> \param idx global transition indices ia = (i-1)*virt + a of the block
+!> \param A_sub SIZE(idx) x SIZE(idx)
+!> \param B_sub same, only formed when present
+! **************************************************************************************************
+   SUBROUTINE bse_matvec_subblock(mv_env, idx, A_sub, B_sub)
+
+      TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: idx
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: A_sub
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+         OPTIONAL                                        :: B_sub
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_matvec_subblock'
+
+      INTEGER                                            :: handle, k, l, n_sub, p
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ai, av
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G
+
+      CALL timeset(routineN, handle)
+
+      n_sub = SIZE(idx)
+      ALLOCATE (ai(n_sub), av(n_sub), G(MAX(mv_env%n_ri_loc, 1), n_sub))
+      DO k = 1, n_sub
+         ai(k) = (idx(k) - 1)/mv_env%virt + 1
+         av(k) = idx(k) - (ai(k) - 1)*mv_env%virt
+      END DO
+
+      ! exchange, identical in A and B: α G^T G with G_Pk = B^P_ia
+      A_sub(:, :) = 0.0_dp
+      IF (mv_env%alpha /= 0.0_dp .AND. mv_env%n_ri_loc > 0) THEN
+         DO k = 1, n_sub
+            G(:, k) = mv_env%B_ia(av(k), ai(k), :)
+         END DO
+         CALL DGEMM('T', 'N', n_sub, n_sub, mv_env%n_ri_loc, mv_env%alpha, G, SIZE(G, 1), G, SIZE(G, 1), &
+                    0.0_dp, A_sub, n_sub)
+      END IF
+      IF (PRESENT(B_sub)) B_sub(:, :) = A_sub(:, :)
+
+      IF (mv_env%w_fac /= 0.0_dp) THEN
+         DO p = 1, mv_env%n_ri_loc
+            DO l = 1, n_sub
+               DO k = 1, n_sub
+                  A_sub(k, l) = A_sub(k, l) - mv_env%w_fac*mv_env%Bbar_ij(ai(l), ai(k), p)*mv_env%B_ab(av(l), av(k), p)
+               END DO
+            END DO
+            IF (PRESENT(B_sub)) THEN
+               DO l = 1, n_sub
+                  DO k = 1, n_sub
+                     B_sub(k, l) = B_sub(k, l) - mv_env%w_fac*mv_env%B_ia(av(k), ai(l), p)*mv_env%Bbar_ia(av(l), ai(k), p)
+                  END DO
+               END DO
+            END IF
+         END DO
+      END IF
+
+      CALL mv_env%para_env%sum(A_sub)
+      IF (PRESENT(B_sub)) CALL mv_env%para_env%sum(B_sub)
+      DO k = 1, n_sub
+         A_sub(k, k) = A_sub(k, k) + mv_env%eps_diff(idx(k))
+      END DO
+
+      DEALLOCATE (ai, av, G)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE bse_matvec_subblock
 
 ! **************************************************************************************************
 !> \brief Debug check of the matrix-free application against the explicit matrices A (and B):
