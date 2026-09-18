@@ -526,25 +526,40 @@ CONTAINS
          END SELECT
          IF (abba_status == abba_indefinite) THEN
             WRITE (margin_str, '(F16.6)') ab_margin*evolt
-            CALL cp_abort(__LOCATION__, &
-                          "Matrix (A-B) is not positive definite on the trial space of the "// &
-                          TRIM(solver_str)//" solver (eigenvalue "//TRIM(ADJUSTL(margin_str))//" eV). "// &
-                          "The full ABBA problem is ill-defined for this reference.")
-         END IF
-         IF (do_debug) THEN
-            CALL bse_davidson_refcheck_abba(fm_A_BSE, fm_B_BSE, exc_ens_abba, fm_X_abba, fm_Y_abba, &
-                                            mp2_env, unit_nr)
-         END IF
+            IF (.NOT. do_tda) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "Matrix (A-B) is not positive definite on the trial space of the "// &
+                             TRIM(solver_str)//" solver (eigenvalue "//TRIM(ADJUSTL(margin_str))//" eV). "// &
+                             "The full ABBA problem is ill-defined for this reference.")
+            END IF
+            ! the TDA results of a combined run stand on their own
+            CALL cp_warn(__LOCATION__, &
+                         "BSE: A-B is not positive definite on the trial space (margin "// &
+                         TRIM(ADJUSTL(margin_str))//" eV); the ABBA calculation is skipped, "// &
+                         "TDA results above are complete.")
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T2,A4)') 'BSE|'
+               WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.6)') 'BSE|', &
+                  'A-B is not positive definite on the trial space (eV)', ab_margin*evolt
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+                  'The ABBA calculation is skipped, the TDA results above are complete'
+            END IF
+         ELSE
+            IF (do_debug) THEN
+               CALL bse_davidson_refcheck_abba(fm_A_BSE, fm_B_BSE, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+                                               mp2_env, unit_nr)
+            END IF
 
-         CALL copy_to_ia_context(fm_X_abba, fm_mat_S_ia_trunc_arr(1), fm_X_ia)
-         CALL copy_to_ia_context(fm_Y_abba, fm_mat_S_ia_trunc_arr(1), fm_Y_ia)
-         CALL cp_fm_release(fm_X_abba)
-         CALL cp_fm_release(fm_Y_abba)
-         CALL postprocess_bse(exc_ens_abba, fm_X_ia, mp2_env, qs_env, mo_coeff, &
-                              homo_red_arr(1), virt_red_arr(1), homo(1), unit_nr, .FALSE., fm_Y_ia)
-         CALL cp_fm_release(fm_X_ia)
-         CALL cp_fm_release(fm_Y_ia)
-         DEALLOCATE (exc_ens_abba)
+            CALL copy_to_ia_context(fm_X_abba, fm_mat_S_ia_trunc_arr(1), fm_X_ia)
+            CALL copy_to_ia_context(fm_Y_abba, fm_mat_S_ia_trunc_arr(1), fm_Y_ia)
+            CALL cp_fm_release(fm_X_abba)
+            CALL cp_fm_release(fm_Y_abba)
+            CALL postprocess_bse(exc_ens_abba, fm_X_ia, mp2_env, qs_env, mo_coeff, &
+                                 homo_red_arr(1), virt_red_arr(1), homo(1), unit_nr, .FALSE., fm_Y_ia)
+            CALL cp_fm_release(fm_X_ia)
+            CALL cp_fm_release(fm_Y_ia)
+            DEALLOCATE (exc_ens_abba)
+         END IF
       END IF
 
       IF (do_tda) CALL cp_fm_release(fm_X)
