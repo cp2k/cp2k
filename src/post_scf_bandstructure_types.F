@@ -44,7 +44,7 @@ MODULE post_scf_bandstructure_types
    USE physcon,                         ONLY: angstrom,&
                                               evolt
    USE qs_tensors_types,                ONLY: neighbor_list_3c_type
-   USE time_frequency_grid_types,       ONLY: time_frequency_grid_release,&
+   USE time_frequency_grids,            ONLY: time_frequency_grid_release,&
                                               time_frequency_grid_type
 #include "./base/base_uses.f90"
 

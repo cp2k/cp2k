@@ -76,7 +76,6 @@ MODULE library_tests
    USE mathconstants,                   ONLY: gaussi
    USE message_passing,                 ONLY: mp_para_env_type
    USE minimax_exp,                     ONLY: validate_exp_minimax
-   USE mp2_grids,                       ONLY: test_least_square_ft
    USE mp_perf_test,                    ONLY: mpi_perf_test
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE parallel_rng_types,              ONLY: UNIFORM,&
@@ -96,6 +95,7 @@ MODULE library_tests
         rs_grid_create_descriptor, rs_grid_print, rs_grid_release, rs_grid_release_descriptor, &
         rs_grid_zero, transfer_pw2rs, transfer_rs2pw
    USE shg_integrals_test,              ONLY: shg_integrals_perf_acc_test
+   USE time_frequency_grids,            ONLY: test_least_square_ft
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

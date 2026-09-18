@@ -34,7 +34,7 @@ MODULE mp2_types
    USE message_passing,                 ONLY: mp_request_type
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
-   USE time_frequency_grid_types,       ONLY: time_frequency_grid_release,&
+   USE time_frequency_grids,            ONLY: time_frequency_grid_release,&
                                               time_frequency_grid_type
 #include "./base/base_uses.f90"
 

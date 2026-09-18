@@ -413,7 +413,6 @@ list(
   mp2.F
   mp2_gpw.F
   mp2_gpw_method.F
-  mp2_grids.F
   mp2_integrals.F
   mp2_laplace.F
   mp2_optimize_ri_basis.F
@@ -870,7 +869,7 @@ list(
   tblite_ks_matrix.F
   tblite_scc_mixer.F
   tblite_types.F
-  time_frequency_grid_types.F
+  time_frequency_grids.F
   tip_scan_methods.F
   tip_scan_types.F
   topology_amber.F
