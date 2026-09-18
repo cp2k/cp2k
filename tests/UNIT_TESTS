@@ -8,6 +8,8 @@ grid_unittest
 kpoint_lattice_fft_unittest
 kpoint_smearing_unittest
 topology_wilson_unittest
+topology_curvature_unittest
+topology_snapshot_unittest
 kpsym_unittest
 qs_ot_minimizer_unittest
 low_rank_preconditioner_unittest
