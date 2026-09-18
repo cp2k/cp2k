@@ -90,7 +90,10 @@ MODULE qs_wannier90
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE scf_control_types,               ONLY: scf_control_type
    USE soc_pseudopotential_methods,     ONLY: V_SOC_xyz_from_pseudopotential
-   USE topology_wilson,                 ONLY: surface_resolved,&
+   USE topology_state_io,               ONLY: topology_state_begin,&
+                                              topology_state_point
+   USE topology_wilson,                 ONLY: chern_from_wcc,&
+                                              surface_resolved,&
                                               wcc_distance,&
                                               wilson_spectrum,&
                                               wilson_step,&
@@ -129,9 +132,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'wannier90_interface'
 
-      INTEGER                                            :: handle, i, iw, iz2, max_refinement, &
-                                                            old_z2, refinement, source
-      LOGICAL                                            :: converged, explicit, require_z2
+      INTEGER                                            :: handle, i, ichern, iw, iz2, &
+                                                            max_refinement, old_chern, old_z2, &
+                                                            refinement, source
+      LOGICAL                                            :: converged, explicit, require_chern, &
+                                                            require_z2
       REAL(KIND=dp)                                      :: error, movement, tolerance
       REAL(KIND=dp), ALLOCATABLE                         :: centres(:, :), previous(:, :)
       TYPE(section_vals_type), POINTER                   :: w_input
@@ -158,6 +163,7 @@ CONTAINS
          CALL section_vals_val_get(w_input, "WILSON_MAX_REFINEMENT", i_val=max_refinement)
          CALL section_vals_val_get(w_input, "WILSON_TOL", r_val=tolerance)
          CALL section_vals_val_get(w_input, "Z2", l_val=require_z2)
+         CALL section_vals_val_get(w_input, "CHERN", l_val=require_chern)
          IF (tolerance <= 0.0_dp) CPABORT("WILSON_TOL must be positive.")
          IF (source == w90_kpoints_wilson) THEN
             IF (max_refinement < 1 .OR. max_refinement > 10) THEN
@@ -165,8 +171,9 @@ CONTAINS
             END IF
             converged = .FALSE.
             old_z2 = -1
+            old_chern = HUGE(0)
             DO refinement = 0, max_refinement
-               CALL wannier90_files(qs_env, w_input, iw, refinement, centres, iz2)
+               CALL wannier90_files(qs_env, w_input, iw, refinement, centres, iz2, ichern)
                IF (refinement > 0) THEN
                   error = 0.0_dp
                   DO i = 1, SIZE(previous, 2)
@@ -180,10 +187,12 @@ CONTAINS
                      "TOPOLOGY| Refinement ", refinement, ": WCC change ", error, ", transverse step ", movement
                   converged = error < tolerance .AND. movement < 0.1_dp .AND. iz2 == old_z2
                   IF (require_z2) converged = converged .AND. iz2 >= 0 .AND. surface_resolved(centres)
+                  IF (require_chern) converged = converged .AND. ichern /= HUGE(0) .AND. ichern == old_chern
                   IF (converged) EXIT
                END IF
                CALL MOVE_ALLOC(centres, previous)
                old_z2 = iz2
+               old_chern = ichern
             END DO
             IF (.NOT. converged) THEN
                CPABORT("Wilson surface unconverged; increase WILSON_MAX_REFINEMENT or mesh.")
@@ -191,9 +200,10 @@ CONTAINS
             IF (iw > 0) THEN
                WRITE (iw, '(T2,A)') "TOPOLOGY| Wilson surface sampling converged."
                IF (iz2 >= 0) WRITE (iw, '(T2,A,I0)') "TOPOLOGY| Converged Z2 invariant: ", iz2
+               IF (require_chern) WRITE (iw, '(T2,A,I0)') "TOPOLOGY| Converged first Chern number: ", ichern
             END IF
          ELSE
-            CALL wannier90_files(qs_env, w_input, iw, 0, centres, iz2)
+            CALL wannier90_files(qs_env, w_input, iw, 0, centres, iz2, ichern)
          END IF
 
          IF (iw > 0) THEN
@@ -213,13 +223,14 @@ CONTAINS
 !> \param refinement number of joint mesh doublings
 !> \param wcc_out Wilson centres for each closed loop
 !> \param z2_value candidate Z2 parity, or -1 when not requested
+!> \param chern_value candidate first Chern number, or HUGE(0) when unavailable
 ! **************************************************************************************************
-   SUBROUTINE wannier90_files(qs_env, input, iw, refinement, wcc_out, z2_value)
+   SUBROUTINE wannier90_files(qs_env, input, iw, refinement, wcc_out, z2_value, chern_value)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: input
       INTEGER, INTENT(IN)                                :: iw, refinement
       REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: wcc_out(:, :)
-      INTEGER, INTENT(OUT)                               :: z2_value
+      INTEGER, INTENT(OUT)                               :: z2_value, chern_value
 
       INTEGER, PARAMETER                                 :: num_nnmax = 12
 
@@ -229,13 +240,15 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: filename, input_kp_scheme, reuse_reason, &
                                                             seed_name
       CHARACTER(LEN=timestamp_length)                    :: timestamp
-      COMPLEX(KIND=dp), ALLOCATABLE :: link_matrix(:, :), scalar_overlap(:, :), soc_h(:, :), &
-         soc_u(:, :), soc_xyz(:, :, :), spinor_coeff(:, :, :), wilson_product(:, :, :)
+      COMPLEX(KIND=dp), ALLOCATABLE :: export_coeff(:, :), export_scalar(:, :), link_matrix(:, :), &
+         scalar_overlap(:, :), soc_h(:, :), soc_u(:, :), soc_xyz(:, :, :), spinor_coeff(:, :, :), &
+         wilson_product(:, :, :)
       INTEGER :: aligned_degenerate_blocks, aligned_degenerate_max_size, axis, base_mesh(2), &
          first_point, i, i_rep, ib, ib1, ib2, ibs, ik, ik2, ikk, ikpgr, iloop, ipoint, ispin, &
          iunit, ix, iy, iz, k, kpoints_source, loop_direction(3), n_rep, nadd, nao, nberry_images, &
          nbs, nelectron, nexcl, nkp, nloop, nmo, nntot, npoint, nscalar, nspins, num_atoms, &
-         num_bands, num_bands_tot, num_kpts, num_wann, spin_channel, status
+         num_bands, num_bands_tot, num_kpts, num_wann, spin_channel, state_components, state_unit, &
+         status
       INTEGER, ALLOCATABLE                               :: loop_index(:)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: band_map, exclude_bands
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: nblist, nnlist
@@ -244,17 +257,18 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: input_nkp_grid, mp_grid
       INTEGER, DIMENSION(:), POINTER                     :: invals
       INTEGER, DIMENSION(:, :, :), POINTER               :: berry_cell_index, cell_to_index
-      LOGICAL :: diis_step, do_kpoints, do_soc, do_wilson, do_z2, full_mesh_diagonalized, &
-         gamma_only, input_full_grid, input_gamma_centered, input_kpoint_symmetry, &
-         mp_grid_explicit, mp_grid_valid, my_kpgrp, mygrp, ordered_berry, reuse_scf_mos, &
-         reused_scf_mos, spinors, time_reversal, use_bloch_phases, validate_reuse_ok, &
-         validate_reuse_scf_mos
+      LOGICAL :: diis_step, do_chern, do_kpoints, do_soc, do_wilson, do_z2, export_state, &
+         full_mesh_diagonalized, gamma_only, input_full_grid, input_gamma_centered, &
+         input_kpoint_symmetry, lowest_bands, mp_grid_explicit, mp_grid_valid, my_kpgrp, mygrp, &
+         ordered_berry, require_global_gap, reuse_scf_mos, reused_scf_mos, spinors, time_reversal, &
+         use_bloch_phases, validate_reuse_ok, validate_reuse_scf_mos
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: keep_band
-      REAL(KIND=dp) :: aligned_degenerate_min_svalue, berry_phase, cmmn, direct_gap, gap_tol, &
-         gauge_arg, gauge_imag, gauge_real, gauge_tmp, ksign, link_sv, loop_origin(3), pair_gap, &
-         reuse_candidate_deviation, reuse_candidate_metric_deviation, reuse_candidate_min_svalue, &
-         reuse_candidate_residual, rmmn, transverse(3), validation_eigenvalue_deviation, &
-         validation_min_svalue, validation_subspace_deviation, wkp_ref
+      REAL(KIND=dp) :: aligned_degenerate_min_svalue, berry_phase, chern_winding, cmmn, &
+         conduction_min, direct_gap, gap_tol, gauge_arg, gauge_imag, gauge_real, gauge_tmp, ksign, &
+         link_sv, loop_origin(3), pair_gap, reuse_candidate_deviation, &
+         reuse_candidate_metric_deviation, reuse_candidate_min_svalue, reuse_candidate_residual, &
+         rmmn, transverse(3), valence_max, validation_eigenvalue_deviation, validation_min_svalue, &
+         validation_subspace_deviation, wkp_ref
       REAL(KIND=dp), ALLOCATABLE                         :: loop_sv(:), scalar_values(:), &
                                                             spinor_values(:, :)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
@@ -302,11 +316,18 @@ CONTAINS
       CALL section_vals_val_get(input, "SPIN_CHANNEL", i_val=spin_channel)
       CALL section_vals_val_get(input, "WILSON_LOOP", l_val=do_wilson)
       CALL section_vals_val_get(input, "Z2", l_val=do_z2)
+      CALL section_vals_val_get(input, "CHERN", l_val=do_chern)
+      CALL section_vals_val_get(input, "REQUIRE_GLOBAL_GAP", l_val=require_global_gap)
+      CALL section_vals_val_get(input, "STATE_EXPORT", l_val=export_state)
+      IF (export_state .AND. .NOT. ordered_berry) THEN
+         CPABORT("STATE_EXPORT requires explicit NNKP or WILSON points.")
+      END IF
       CALL section_vals_val_get(input, "TIME_REVERSAL", l_val=time_reversal)
       CALL section_vals_val_get(input, "SOC", l_val=do_soc)
       CALL section_vals_val_get(input, "WILSON_GAP_TOL", r_val=gap_tol)
       IF (gap_tol <= 0.0_dp) CPABORT("WILSON_GAP_TOL must be positive.")
       z2_value = -1
+      chern_value = HUGE(0)
       do_wilson = do_wilson .OR. kpoints_source == w90_kpoints_wilson
       IF (do_wilson) CALL cite_reference(Gresch2017)
       IF (do_z2) CALL cite_reference(Soluyanov2011)
@@ -315,6 +336,12 @@ CONTAINS
       END IF
       IF (do_z2 .AND. (kpoints_source /= w90_kpoints_wilson .OR. .NOT. do_soc .OR. .NOT. time_reversal)) THEN
          CPABORT("Z2 requires KPOINTS_SOURCE WILSON, SOC T, and TIME_REVERSAL T.")
+      END IF
+      IF (do_chern .AND. (kpoints_source /= w90_kpoints_wilson .OR. do_z2)) THEN
+         CPABORT("CHERN requires a full WILSON surface and cannot be combined with Z2.")
+      END IF
+      IF (require_global_gap .AND. .NOT. do_wilson) THEN
+         CPABORT("REQUIRE_GLOBAL_GAP requires Wilson analysis.")
       END IF
       CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (spin_channel < 1 .OR. spin_channel > dft_control%nspins) THEN
@@ -400,6 +427,9 @@ CONTAINS
                     loop_direction(1)*transverse(2) - loop_direction(2)*transverse(1)]
             IF (SUM(bvec**2) < 1.e-20_dp) THEN
                CPABORT("Wilson loop and transverse vectors must be linearly independent.")
+            END IF
+            IF (do_chern .AND. MAXVAL(ABS(transverse - NINT(transverse))) > 1.e-10_dp) THEN
+               CPABORT("CHERN requires integer WILSON_TRANSVERSE: a closed full surface, not a half-plane.")
             END IF
             IF (do_z2) THEN
                IF (MAXVAL(ABS(2*loop_origin - NINT(2*loop_origin))) > 1.e-10_dp .OR. &
@@ -602,6 +632,10 @@ CONTAINS
       ALLOCATE (band_map(num_bands))
       band_map(:) = PACK([(i, i=1, num_bands_tot)], keep_band)
       DEALLOCATE (keep_band)
+      lowest_bands = num_bands < num_bands_tot .AND. ALL(band_map == [(i, i=1, num_bands)])
+      IF (require_global_gap .AND. .NOT. lowest_bands) THEN
+         CPABORT("REQUIRE_GLOBAL_GAP needs a lowest-band prefix and an excluded band above it.")
+      END IF
       IF (do_z2) THEN
          IF (num_bands /= nelectron) THEN
             CPABORT("Z2 requires one occupied spinor per electron; adjust EXCLUDE_BANDS.")
@@ -1169,6 +1203,31 @@ CONTAINS
             END DO
          END DO
       END DO
+      ! Optional full-state snapshots, before the distributed work matrices are released.
+      IF (export_state) THEN
+         state_components = 1
+         IF (do_soc) state_components = 2
+         ALLOCATE (export_scalar(nao, nscalar), export_coeff(nao*state_components, num_bands))
+         CALL topology_state_begin(qs_env_kp, TRIM(seed_name)//".topology", nao, num_bands, num_kpts, &
+                                   state_components, num_bands_tot, spin_channel, band_map, state_unit)
+         DO ik = 1, num_kpts
+            kp => kpoint%kp_env(ik)%kpoint_env
+            CALL cp_fm_copy_general(kp%mos(1, spin_channel)%mo_coeff, fmk1(1), para_env)
+            CALL cp_fm_copy_general(kp%mos(2, spin_channel)%mo_coeff, fmk1(2), para_env)
+            CALL cp_fm_to_cfm(fmk1(1), fmk1(2), fmk1_cfm)
+            CALL cp_cfm_get_submatrix(fmk1_cfm, export_scalar)
+            IF (do_soc) THEN
+               export_coeff(:nao, :) = MATMUL(export_scalar, spinor_coeff(:nscalar, :, ik))
+               export_coeff(nao + 1:, :) = MATMUL(export_scalar, spinor_coeff(nscalar + 1:, :, ik))
+               CALL topology_state_point(state_unit, ik, kpt_latt(:, ik), spinor_values(:, ik), export_coeff)
+            ELSE
+               export_coeff(:, :) = export_scalar(:, band_map)
+               CALL get_mo_set(kp%mos(1, spin_channel), eigenvalues=eigenvalues)
+               CALL topology_state_point(state_unit, ik, kpt_latt(:, ik), eigenvalues(:nscalar), export_coeff)
+            END IF
+         END DO
+         IF (state_unit > 0) CALL close_file(state_unit)
+      END IF
       DO i = 1, nbs
          CALL dbcsr_deallocate_matrix_set(berry_matrix(i)%cosmat)
          CALL dbcsr_deallocate_matrix_set(berry_matrix(i)%sinmat)
@@ -1211,6 +1270,8 @@ CONTAINS
       CALL get_mo_set(kp%mos(1, 1), nmo=nmo)
       ALLOCATE (eigval(num_bands_tot))
       direct_gap = HUGE(1.0_dp)
+      valence_max = -HUGE(1.0_dp)
+      conduction_min = HUGE(1.0_dp)
       CALL get_kpoint_info(kpoint, nkp=nkp, kp_range=kp_range, xkp=xkp)
       IF (para_env%is_source()) THEN
          WRITE (filename, '(A,A)') TRIM(seed_name), ".eig"
@@ -1234,6 +1295,10 @@ CONTAINS
             END IF
             IF (.NOT. do_soc) CALL kpoint%para_env_inter_kp%sum(eigval)
             IF (do_wilson) THEN
+               IF (lowest_bands) THEN
+                  valence_max = MAX(valence_max, eigval(num_bands))
+                  conduction_min = MIN(conduction_min, eigval(num_bands + 1))
+               END IF
                DO ib = 1, num_bands_tot - 1
                   IF (ANY(band_map == ib) .NEQV. ANY(band_map == ib + 1)) THEN
                      pair_gap = eigval(ib + 1) - eigval(ib)
@@ -1258,6 +1323,21 @@ CONTAINS
          IF (iw > 0 .AND. num_bands < num_bands_tot) WRITE (iw, '(T2,A,ES18.10)') &
             "TOPOLOGY| Minimum sampled subspace gap [eV]: ", direct_gap*evolt
          IF (direct_gap < gap_tol) CPABORT("Wilson subspace is not isolated on the sampled points.")
+         IF (lowest_bands) THEN
+            IF (iw > 0) THEN
+               WRITE (iw, '(T2,A,ES18.10)') &
+                  "TOPOLOGY| Maximum selected-band energy [eV]: ", valence_max*evolt
+               WRITE (iw, '(T2,A,ES18.10)') &
+                  "TOPOLOGY| Minimum excluded-band energy [eV]: ", conduction_min*evolt
+               WRITE (iw, '(T2,A,ES18.10)') &
+                  "TOPOLOGY| Sampled indirect gap [eV]: ", (conduction_min - valence_max)*evolt
+               IF (conduction_min - valence_max <= gap_tol) WRITE (iw, '(T2,A)') &
+                  "TOPOLOGY| Isolated band subspace, but no resolved common spectral gap on these samples."
+            END IF
+            IF (require_global_gap .AND. conduction_min - valence_max <= gap_tol) THEN
+               CPABORT("No positive sampled indirect gap above the selected bands.")
+            END IF
+         END IF
          DO iloop = 1, nloop
             CALL wilson_spectrum(wilson_product(:, :, iloop), wcc_out(:, iloop), berry_phase, status)
             IF (status /= 0) CPABORT("Wilson eigenvalue calculation failed.")
@@ -1277,6 +1357,17 @@ CONTAINS
             IF (status /= 0 .AND. iw > 0) WRITE (iw, '(T2,A,I0)') &
                "TOPOLOGY| Kramers/crossing check requests refinement, status: ", status
             IF (iw > 0) WRITE (iw, '(T2,A,I0)') "TOPOLOGY| Z2 candidate (before sampling convergence): ", z2_value
+         END IF
+         IF (do_chern) THEN
+            CALL chern_from_wcc(wcc_out, chern_value, chern_winding, status, 1.e-5_dp)
+            IF (status /= 0) THEN
+               chern_value = HUGE(0)
+               IF (iw > 0) WRITE (iw, '(T2,A,I0)') &
+                  "TOPOLOGY| Chern closure/winding check requests refinement, status: ", status
+            ELSE IF (iw > 0) THEN
+               WRITE (iw, '(T2,A,I0,A,F18.12)') &
+                  "TOPOLOGY| First Chern candidate: ", chern_value, ", winding: ", chern_winding
+            END IF
          END IF
       END IF
       ! clean up

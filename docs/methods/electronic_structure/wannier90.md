@@ -194,9 +194,73 @@ centres (WCC) in `[0,1)`. Printed Berry phases are in radians. Refinements overw
 with the final mesh; the log retains diagnostics from all levels.
 
 The regular CP2K test runner includes `topology_wilson_unittest` (known trivial/nontrivial BHZ
-models, gauge/reversal invariance and failure checks) and the three short helium/neon inputs in
-`tests/QS/regtest-topology`. These are mathematical and smoke tests, not material-convergence
-benchmarks. Larger DFT/SOC, adaptive-surface and MPI-scaling validations are separate manual work.
+models, Chern models, gauge/reversal invariance and failure checks) and the four short helium/neon
+inputs in `tests/QS/regtest-topology`. These are mathematical and smoke tests, not
+material-convergence benchmarks. Larger DFT/SOC, adaptive-surface and MPI-scaling validations are
+separate manual work.
+
+### Native first Chern number and spectral gaps
+
+`CHERN T` evaluates the determinant Wilson-phase winding on a full closed surface. For example:
+
+```text
+&WANNIER90
+  KPOINTS_SOURCE WILSON
+  CHERN T
+  WILSON_DIRECTION 1 0 0
+  WILSON_TRANSVERSE 0 1 0
+  WILSON_MESH 16 17
+  WILSON_MAX_REFINEMENT 3
+  REQUIRE_GLOBAL_GAP T
+&END WANNIER90
+```
+
+Set `EXCLUDE_BANDS` for the intended isolated subspace, with at least one computed band above it
+when testing a gap. `CHERN` requires integer transverse winding, not a Z2 half-surface, and cannot
+be combined with `Z2 T`. Scalar, single-collinear-channel and second-variational SOC states are
+supported without imposing time reversal. The sign follows Z2Pack's increasing-transverse-coordinate
+Wilson winding. No magnetic field, SOC term or other change to the Hamiltonian is implied.
+
+Checks require endpoint WCC closure, resolved determinant-phase steps, stable integer winding, and
+WCC convergence under joint refinement. The native unit test includes known C1=0,+1,-1 two-band
+models, orientation reversal, direct-sum additivity and rejection of invalid surfaces. A helium
+regression exercises `CHERN`, gap checking and state export through the regular CP2K test runner.
+
+For a selected lowest-band prefix, output distinguishes the minimum sampled direct separation from
+the sampled indirect gap `min(E[N+1]) - max(E[N])`. An isolated band bundle can have positive direct
+separation but a negative indirect gap. Optional `REQUIRE_GLOBAL_GAP T` rejects a missing common
+spectral interval above the prefix; it requires Wilson analysis and an excluded band above the
+selected states. No point-dependent Fermi shifts are applied. Finite sampling cannot rule out a
+missed bulk gap closing. Across separately self-consistent geometries, a common energy reference
+must be justified before interpreting an indirect gap.
+
+### Gaussian state snapshots for external phason analysis
+
+For explicit `NNKP` or `WILSON` points, `STATE_EXPORT T` writes `SEED_NAME.topology`. The versioned
+text output can be large and is disabled by default. It provides physical AO states and basis
+metadata for external cross-geometry analysis, not a Wannier fit or a native second-Chern solver.
+Existing `.mmn` files describe cross-k links at a fixed geometry only.
+
+Version 1 uses atomic units and contains, in order:
+
+1. The header `CP2K_TOPOLOGY_STATE 1` and dimensions: atom count, AO count, selected state count,
+   k-point count, spinor component count, total computed band count and collinear channel.
+1. One-based selected band indices, the three direct lattice vectors, and three periodicity flags.
+1. For each atom: index, kind index, number of Gaussian sets, AO count and canonical periodic
+   centre. Each set stores its first atom-local AO index, spherical AO count, primitive count,
+   Cartesian count, minimum angular momentum and screening radius. Each primitive stores its
+   exponent and radius, followed by Cartesian powers and full spherical contraction coefficients.
+1. For each point: index, fractional reciprocal coordinates, all computed eigenvalues, and selected
+   complex AO coefficients in column-major order. Each complex value is a real/imaginary pair. SOC
+   spinor components are stacked by AO; a scalar export contains only its selected channel.
+
+The required moving-basis link is `C_a^dagger O_ab C_b`, with the cross-geometry Gaussian operator,
+not a Euclidean coefficient overlap or an independently orthogonalized basis identification. A
+physical phason family needs consistent cell, orbital/atom count, selected rank, spin convention and
+self-consistent branch, together with explicit endpoint geometry and subspace sewing. Dropping and
+adding atoms in a finite patch is not a fixed-rank cycle. External software must check metric
+normalization, sampled isolation and link singular values, then demonstrate mesh convergence. The
+snapshot format alone does not establish a topological invariant for a material.
 
 ## Reusing SCF orbitals
 

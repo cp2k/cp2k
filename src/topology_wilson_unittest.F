@@ -7,7 +7,8 @@
 
 PROGRAM topology_wilson_unittest
    USE kinds,                           ONLY: dp
-   USE topology_wilson,                 ONLY: surface_resolved,&
+   USE topology_wilson,                 ONLY: chern_from_wcc,&
+                                              surface_resolved,&
                                               wcc_distance,&
                                               wilson_spectrum,&
                                               wilson_step,&
@@ -22,9 +23,83 @@ PROGRAM topology_wilson_unittest
    CALL test_model(1.0_dp, 1)
    CALL test_model(3.0_dp, 0)
    CALL test_checks()
-   PRINT *, "Wilson-loop and Z2 unit tests passed."
+   CALL test_chern_model(-1.0_dp, 1)
+   CALL test_chern_model(1.0_dp, -1)
+   CALL test_chern_model(-3.0_dp, 0)
+   CALL test_chern_checks()
+   PRINT *, "Wilson-loop, Z2 and Chern unit tests passed."
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Known first Chern numbers of the occupied two-band lattice Dirac model.
+!> \param mass Dirac mass in h = (sin kx, sin ky, m+cos kx+cos ky).sigma
+!> \param expected Chern number in the native/Z2Pack Wilson-winding convention
+! **************************************************************************************************
+   SUBROUTINE test_chern_model(mass, expected)
+      REAL(KIND=dp), INTENT(IN)                          :: mass
+      INTEGER, INTENT(IN)                                :: expected
+
+      INTEGER, PARAMETER                                 :: nline = 65, npoint = 41
+
+      COMPLEX(KIND=dp)                                   :: h(2, 2), overlap(1, 1), PRODUCT(1, 1), &
+                                                            states(2, npoint), work(8)
+      INTEGER                                            :: i, invariant, j, line, status
+      REAL(KIND=dp)                                      :: berry, d, doubled(2, nline), &
+                                                            eigenvalues(2), kx, ky, minimum_sv, &
+                                                            rwork(4), wcc(1, nline), winding
+
+      DO line = 1, nline
+         ky = 2.0_dp*pi*REAL(line - 1, dp)/REAL(nline - 1, dp)
+         DO i = 1, npoint
+            kx = 2.0_dp*pi*REAL(i - 1, dp)/REAL(npoint, dp)
+            d = mass + COS(kx) + COS(ky)
+            h(1, 1) = d
+            h(2, 2) = -d
+            h(1, 2) = CMPLX(SIN(kx), -SIN(ky), dp)
+            h(2, 1) = CONJG(h(1, 2))
+            CALL zheev('V', 'U', 2, h, 2, eigenvalues, work, SIZE(work), rwork, status)
+            IF (status /= 0) ERROR STOP "Chern model diagonalization failed"
+            states(:, i) = h(:, 1)
+         END DO
+         PRODUCT(:, :) = 1.0_dp
+         DO i = 1, npoint
+            j = MOD(i, npoint) + 1
+            overlap(1, 1) = DOT_PRODUCT(states(:, i), states(:, j))
+            CALL wilson_step(product, overlap, minimum_sv, status, tolerance)
+            IF (status /= 0) ERROR STOP "Chern model overlap is singular"
+         END DO
+         CALL wilson_spectrum(product, wcc(:, line), berry, status)
+         IF (status /= 0) ERROR STOP "Chern model spectrum failed"
+      END DO
+      CALL chern_from_wcc(wcc, invariant, winding, status, tolerance)
+      IF (status /= 0 .OR. invariant /= expected) ERROR STOP "Incorrect model Chern number"
+      IF (ABS(winding - REAL(expected, dp)) > tolerance) ERROR STOP "Incorrect Chern winding"
+      CALL chern_from_wcc(wcc(:, nline:1:-1), invariant, winding, status, tolerance)
+      IF (status /= 0 .OR. invariant /= -expected) ERROR STOP "Chern orientation reversal failed"
+      doubled(1, :) = wcc(1, :)
+      doubled(2, :) = wcc(1, :)
+      CALL chern_from_wcc(doubled, invariant, winding, status, tolerance)
+      IF (status /= 0 .OR. invariant /= 2*expected) ERROR STOP "Direct-sum Chern additivity failed"
+   END SUBROUTINE test_chern_model
+
+! **************************************************************************************************
+!> \brief Reject unclosed surfaces and unresolved determinant-phase steps.
+! **************************************************************************************************
+   SUBROUTINE test_chern_checks()
+      INTEGER                                            :: invariant, status
+      REAL(KIND=dp)                                      :: surface(1, 5), winding
+
+      surface(1, :) = [0.0_dp, 0.1_dp, 0.2_dp, 0.3_dp, 0.4_dp]
+      CALL chern_from_wcc(surface, invariant, winding, status, tolerance)
+      IF (status /= -2) ERROR STOP "Unclosed Chern surface was accepted"
+      surface(1, :) = [0.0_dp, 0.3_dp, 0.6_dp, 0.9_dp, 1.0_dp]
+      CALL chern_from_wcc(surface, invariant, winding, status, tolerance)
+      IF (status /= -3) ERROR STOP "Unresolved Chern phase step was accepted"
+      surface(:, :) = 0.1_dp
+      CALL chern_from_wcc(surface, invariant, winding, status, tolerance)
+      IF (status /= 0 .OR. invariant /= 0) ERROR STOP "Constant Chern surface was rejected"
+   END SUBROUTINE test_chern_checks
 
 ! **************************************************************************************************
 !> \brief Known trivial/nontrivial lattice BHZ models, non-Abelian gauge changes and loop reversal.

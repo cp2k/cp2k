@@ -901,6 +901,7 @@ list(
   wannier90.F
   wannier90_nnkpts.F
   topology_wilson.F
+  topology_state_io.F
   wannier_states.F
   wannier_states_types.F
   xas_control.F
