@@ -16,11 +16,16 @@ export CP2K_DATA_DIR=/absolute/path/to/cp2k/data
 export OMP_NUM_THREADS=1
 ```
 
-Use a CP2K build configured with `-DBUILD_SHARED_LIBS=ON`. All its dependent libraries must be
-loadable in the same process. An explicit `CP2K(library=...)` overrides `CP2K_LIBRARY`; otherwise
-the platform library search is used. Python does not require a matching Fortran compiler or
-compiler-generated `.mod` files. An incompatible shared library produces a load/missing-symbol
-error. MPI support with a caller-owned communicator requires `cp2k_init_without_mpi_comm`.
+Use a CP2K build configured with `-DBUILD_SHARED_LIBS=ON`. A static `libcp2k.a` cannot be loaded
+directly by `ctypes`, even when compiled with position-independent code (PIC). PIC objects can be
+linked into a shared library, but that additional link step must export the C API and resolve all
+required dependencies; enabling PIC alone does not produce a loadable library.
+
+All its dependent libraries must be loadable in the same process. An explicit `CP2K(library=...)`
+overrides `CP2K_LIBRARY`; otherwise the platform library search is used. Python does not require a
+matching Fortran compiler or compiler-generated `.mod` files. An incompatible shared library
+produces a load/missing-symbol error. MPI support with a caller-owned communicator requires
+`cp2k_init_without_mpi_comm`.
 
 No package is downloaded or published by importing `cp2k`. The distribution is named `cp2k-python`,
 its import is `cp2k`. Do not install it alongside the obsolete Cython package providing the same
@@ -186,9 +191,11 @@ finite-difference check), triclinic cells, reused and sequential environments, A
 file input, full CP2K execution and a short native MD trajectory. They need CP2K basis/potential
 data and a DFT-capable shared library.
 
-With the test dependencies installed in CMake's selected `Python_EXECUTABLE`,
-`cmake --build build --target test_python_interface` runs the suite against the built shared
-library. The input data directory is CMake's `CP2K_DATA_DIR`.
+The Python tests are independent of the top-level CMake build. Build the shared library first, then
+run pytest explicitly with the Python interpreter in which the test dependencies are installed. Set
+`CP2K_DATA_DIR` to the CP2K data directory (CMake's `CP2K_DATA_DIR`) and `CP2K_TEST_LIBRARY` to the
+built shared library. Use `--basetemp=/path/to/test-output` to keep test outputs in a chosen
+directory; pytest clears that directory at the start of each run.
 
 MPI smoke tests run separately (same environment as above, MPI-enabled library):
 
