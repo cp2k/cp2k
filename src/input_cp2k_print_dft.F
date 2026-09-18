@@ -2928,9 +2928,11 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="SPIN_CHANNEL", &
                           description="Collinear spin channel to export or localize. "// &
                           "Spin-polarized calculations use separate SEED_NAME_up and SEED_NAME_down files. "// &
-                          "BOTH runs the channels independently with their respective MO band counts.", &
+                          "BOTH runs the channels independently with their respective MO band counts. "// &
+                          "The numeric values 1 and 2 remain aliases for ALPHA and BETA. "// &
+                          "With SOC, use the restricted channel ALPHA (1).", &
                           usage="SPIN_CHANNEL BOTH", default_i_val=0, n_var=1, type_of_var=enum_t, &
-                          enum_c_vals=s2a("BOTH", "ALPHA", "BETA"), enum_i_vals=[0, 1, 2])
+                          enum_c_vals=s2a("BOTH", "ALPHA", "BETA", "1", "2"), enum_i_vals=[0, 1, 2, 1, 2])
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2969,13 +2971,6 @@ CONTAINS
                           "in the file are unsupported; use EXCLUDE_BANDS in CP2K instead.", &
                           usage="NNKP_FILE loop.nnkp", default_c_val="wannier90.nnkp", &
                           n_var=1, type_of_var=char_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="SPIN_CHANNEL", &
-                          description="Collinear spin channel exported to the Wannier90 files (1 or 2). "// &
-                          "Each scalar export contains one channel. With SOC, use the restricted channel 1.", &
-                          usage="SPIN_CHANNEL 1", default_i_val=1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
