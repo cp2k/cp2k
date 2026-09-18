@@ -901,6 +901,9 @@ list(
   wannier90_nnkpts.F
   topology_wilson.F
   topology_state_io.F
+  topology_snapshot.F
+  topology_curvature.F
+  topology_phason_analysis.F
   wannier_states.F
   wannier_states_types.F
   xas_control.F
@@ -1574,6 +1577,9 @@ set(CP2K_PROGS_F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
     topology_wilson_unittest.F
+    topology_curvature_unittest.F
+    topology_snapshot_unittest.F
+    topology_phasons.F
     kpsym_unittest.F
     qs_ot_minimizer_unittest.F
     optbas_frontier_orbitals_utils_unittest.F
@@ -1991,6 +1997,9 @@ list(
   "kpoint_lattice_fft_unittest"
   "kpoint_smearing_unittest"
   "topology_wilson_unittest"
+  "topology_curvature_unittest"
+  "topology_snapshot_unittest"
+  "topology_phasons"
   "kpsym_unittest"
   "qs_ot_minimizer_unittest"
   "optbas_frontier_orbitals_utils_unittest"
@@ -2025,6 +2034,9 @@ add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(topology_wilson_unittest topology_wilson_unittest.F)
+add_executable(topology_curvature_unittest topology_curvature_unittest.F)
+add_executable(topology_snapshot_unittest topology_snapshot_unittest.F)
+add_executable(topology_phasons topology_phasons.F)
 add_executable(kpsym_unittest kpsym_unittest.F)
 add_executable(qs_ot_minimizer_unittest qs_ot_minimizer_unittest.F)
 add_executable(optbas_frontier_orbitals_utils_unittest

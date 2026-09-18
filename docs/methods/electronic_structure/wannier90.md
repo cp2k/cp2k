@@ -234,12 +234,17 @@ selected states. No point-dependent Fermi shifts are applied. Finite sampling ca
 missed bulk gap closing. Across separately self-consistent geometries, a common energy reference
 must be justified before interpreting an indirect gap.
 
-### Gaussian state snapshots for external phason analysis
+### Gaussian state snapshots for phason analysis
+
+The native [`topology_phasons` postprocessor](phason-topology.md) evaluates physical cross-geometry
+links, mixed-parameter C1 and four-parameter C2 from these snapshots, without Z2Pack or Python.
+External consumers may use the same file interface.
 
 For explicit `NNKP` or `WILSON` points, `STATE_EXPORT T` writes `SEED_NAME.topology`. The versioned
 text output can be large and is disabled by default. It provides physical AO states and basis
-metadata for external cross-geometry analysis, not a Wannier fit or a native second-Chern solver.
-Existing `.mmn` files describe cross-k links at a fixed geometry only.
+metadata for cross-geometry analysis, not a Wannier fit. The export itself does not evaluate an
+invariant; the native postprocessor or an external consumer performs that analysis. Existing `.mmn`
+files describe cross-k links at a fixed geometry only.
 
 Version 1 uses atomic units and contains, in order:
 
