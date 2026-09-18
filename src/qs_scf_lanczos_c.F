@@ -156,7 +156,7 @@ CONTAINS
       CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, hc, evec, z_zero, c_tmp)
       CALL cp_cfm_to_cfm(c1, c0, nmo, 1, 1)
       ALLOCATE (c_eval_c(nmo))
-      c_eval_c = CMPLX(eval(1:nmo), 0.0_dp, KIND=dp)
+      c_eval_c(:) = CMPLX(eval(1:nmo), 0.0_dp, KIND=dp)
       CALL cp_cfm_column_scale(c1, c_eval_c)
       DEALLOCATE (c_eval_c)
       CALL cp_cfm_scale_and_add(z_one, c_tmp, z_mone, c1)
@@ -177,7 +177,7 @@ CONTAINS
       END DO
       IF (nmo_nc_loc > 0 .AND. .NOT. my_check_moconv_only) THEN
          ALLOCATE (res_entry(nmo_nc_loc))
-         res_entry = c_res(nmo_converged + 1:nmo)
+         res_entry(:) = c_res(nmo_converged + 1:nmo)
       END IF
       DEALLOCATE (c_res)
 
@@ -216,7 +216,7 @@ CONTAINS
             ALLOCATE (g_eval(nmo), g_scale(nmo))
             CALL cp_cfm_heevd(chc, evec, g_eval)
             gfloor = 1.0E-10_dp*MAX(MAXVAL(ABS(g_eval)), TINY(1.0_dp))
-            g_scale = CMPLX(1.0_dp/SQRT(MAX(g_eval, gfloor)), 0.0_dp, KIND=dp)
+            g_scale(:) = CMPLX(1.0_dp/SQRT(MAX(g_eval, gfloor)), 0.0_dp, KIND=dp)
             CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, c0, evec, z_zero, c1)
             CALL cp_cfm_column_scale(c1, g_scale)
             CALL cp_cfm_gemm('N', 'C', nao, nmo, nmo, z_one, c1, evec, z_zero, c0)
@@ -225,7 +225,7 @@ CONTAINS
             ! renormalize every column. A fully degenerate direction
             ! reconstructs to the zero vector and stays zero
             CALL cp_cfm_vectorsnorm(c0, g_eval)
-            g_scale = CMPLX(1.0_dp/MAX(g_eval, TINY(1.0_dp)), 0.0_dp, KIND=dp)
+            g_scale(:) = CMPLX(1.0_dp/MAX(g_eval, TINY(1.0_dp)), 0.0_dp, KIND=dp)
             CALL cp_cfm_column_scale(c0, g_scale)
             DEALLOCATE (g_eval, g_scale)
          END IF
