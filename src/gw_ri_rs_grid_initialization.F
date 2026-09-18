@@ -55,8 +55,9 @@ CONTAINS
 !>
 !> (3)  N_initial^B >= α_initial N_AO^B,
 !>
-!> points, where N_AO^B is the number of atomic orbitals on atom B. The requested initial RI-RS
-!> grid of atom A contains
+!> points, where N_AO^B is the number of atomic orbitals on atom B and
+!> α_initial = max(30, 2 RS_AO_RATIO). The factor two provides candidates that can be discarded by
+!> the molecular Voronoi filter. The requested initial RI-RS grid of atom A contains
 !>
 !> (4)  N_R^A = ceil(RS_AO_RATIO * N_AO^A)
 !>
@@ -85,6 +86,17 @@ CONTAINS
 !>
 !> and the next point q_(k+1) is the point with the largest d_l^(k). Points outside V_A take part
 !> in Eqs. (7)-(10), but only selected points inside V_A are placed into the RI-RS grid of atom A.
+!> If D_ll' reaches its numerical rank before N_R^A points have been retained, let S_A contain the
+!> retained points. Every unused point r_l in V_A is assigned the distance
+!>
+!> (11) ρ_l = min_(q in S_A) |r_l - q|,
+!>
+!> and the point
+!>
+!> (12) q_new = arg max_(r_l in V_A and r_l not in S_A) ρ_l
+!>
+!> is appended to S_A. Equations (11)-(12) are repeated until Eq. (4) is satisfied. This maximin
+!> distance is only a geometric selection criterion, not the three-centre-integral fitting error.
 !> Each cluster C_A is processed independently on one MPI rank; only the completed atom grids are
 !> communicated.
 !> \param bs_env Band-structure environment containing GW parameters.
@@ -94,25 +106,26 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_ri_rs_grid'
       INTEGER, PARAMETER :: l_additional = 2, radial_quadrature = do_gapw_log
-      REAL(KIND=dp), PARAMETER                           :: rs_ao_ratio_initial = 30.0_dp
+      REAL(KIND=dp), PARAMETER :: minimum_candidate_ratio = 30.0_dp
 
       INTEGER                                            :: handle, ikind
+      REAL(KIND=dp)                                      :: candidate_ratio
       TYPE(rirs_grid_type), ALLOCATABLE                  :: radial_lebedev_grids(:)
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(bs_env%ri_rs%grid_opt%rs_ao_ratio <= rs_ao_ratio_initial)
+      candidate_ratio = MAX(minimum_candidate_ratio, 2.0_dp*bs_env%ri_rs%grid_opt%rs_ao_ratio)
 
       ! Build the Lebedev grids of Eqs. (1)-(3) for all elements in the calculation
       ALLOCATE (radial_lebedev_grids(SIZE(bs_env%basis_set_AO)))
       DO ikind = 1, SIZE(bs_env%basis_set_AO)
          CALL build_lebedev_grid(bs_env%basis_set_AO(ikind)%gto_basis_set, &
                                  bs_env%basis_set_RI(ikind)%gto_basis_set, &
-                                 rs_ao_ratio_initial, l_additional, radial_quadrature, &
+                                 candidate_ratio, l_additional, radial_quadrature, &
                                  radial_lebedev_grids(ikind))
       END DO
 
-      ! Apply Eqs. (5)-(10) for every atom and keep points inside Voronoi volume, Eq. (6)
+      ! Apply Eqs. (5)-(12) for every atom and keep points inside Voronoi volume, Eq. (6)
       CALL cholesky_selection_and_voronoi_filtering(bs_env, radial_lebedev_grids)
 
       CALL broadcast_ri_rs_grids(bs_env)
@@ -159,7 +172,7 @@ CONTAINS
    END SUBROUTINE build_lebedev_grid
 
 ! **************************************************************************************************
-!> \brief Apply Eqs. (5)-(10) independently for every atom and keep points inside Eq. (6).
+!> \brief Apply Eqs. (5)-(12) independently for every atom and keep points inside Eq. (6).
 !> \param bs_env ...
 !> \param radial_lebedev_grids ...
 ! **************************************************************************************************
@@ -186,7 +199,7 @@ CONTAINS
    END SUBROUTINE cholesky_selection_and_voronoi_filtering
 
 ! **************************************************************************************************
-!> \brief Select one atom grid with Eqs. (5)-(10) and the molecular Voronoi cell in Eq. (6).
+!> \brief Select one atom grid with Eqs. (5)-(12) and the molecular Voronoi cell in Eq. (6).
 !> \param bs_env ...
 !> \param radial_lebedev_grids ...
 !> \param iatom ...
@@ -197,7 +210,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iatom
 
       CHARACTER(LEN=3*default_string_length)             :: failure
-      INTEGER                                            :: igrid_point, npoints
+      INTEGER                                            :: igrid_point, npoints, nretained
       INTEGER, ALLOCATABLE :: ao_point_indices(:), atom_n_ao(:), atom_point_offsets(:), &
          atom_value_offsets(:), cluster_atoms(:), selected_indices(:)
       LOGICAL, ALLOCATABLE                               :: inside_voronoi(:)
@@ -225,17 +238,84 @@ CONTAINS
       CALL select_cholesky_grid_points(ao_point_indices, atom_point_offsets, atom_value_offsets, &
                                        atom_n_ao, ao_values, npoints, &
                                        inside_voronoi, selected_indices)
-      IF (ANY(selected_indices == 0)) THEN
-         WRITE (failure, '(A,I0,A,I0,A,I0,A)') 'Atom ', iatom, ': Cholesky selection retained ', &
-            COUNT(selected_indices > 0), ' of ', SIZE(selected_indices), &
-            ' points before numerical rank exhaustion. Reduce RS_AO_RATIO.'
+      nretained = COUNT(selected_indices > 0)
+      IF (nretained == 0) THEN
+         WRITE (failure, '(A,I0,A)') 'Atom ', iatom, &
+            ': Cholesky selection found no numerically independent point.'
          CPABORT(TRIM(failure))
+      ELSE IF (nretained < SIZE(selected_indices)) THEN
+         CALL complete_grid_by_maximin_distance(cluster_points, inside_voronoi, selected_indices)
       END IF
       DO igrid_point = 1, SIZE(selected_indices)
          bs_env%ri_rs%atomic_grids(iatom)%raw_points(:, igrid_point) = &
             cluster_points(:, selected_indices(igrid_point))
       END DO
    END SUBROUTINE select_cholesky_grid_iatom
+
+! **************************************************************************************************
+!> \brief Complete a rank-saturated atom grid with the geometric maximin rule in Eqs. (11)-(12).
+!> \param cluster_points Coordinates r_l of all existing cluster-grid points.
+!> \param inside_voronoi True for points inside the molecular Voronoi cell V_A.
+!> \param selected_indices Cholesky indices on entry and the completed indices on exit.
+! **************************************************************************************************
+   SUBROUTINE complete_grid_by_maximin_distance(cluster_points, inside_voronoi, selected_indices)
+      REAL(KIND=dp), INTENT(IN)                          :: cluster_points(:, :)
+      LOGICAL, INTENT(IN)                                :: inside_voronoi(:)
+      INTEGER, INTENT(INOUT)                             :: selected_indices(:)
+
+      INTEGER                                            :: igrid_point, inew_point, iselected, &
+                                                            nretained
+      LOGICAL, ALLOCATABLE                               :: unselected_inside(:)
+      REAL(KIND=dp)                                      :: distance_sq, largest_distance_sq
+      REAL(KIND=dp), ALLOCATABLE                         :: nearest_distance_sq(:)
+
+      CPASSERT(SIZE(cluster_points, 2) == SIZE(inside_voronoi))
+      CPASSERT(COUNT(inside_voronoi) >= SIZE(selected_indices))
+
+      nretained = COUNT(selected_indices > 0)
+      CPASSERT(nretained > 0)
+      ALLOCATE (unselected_inside(SIZE(inside_voronoi)), &
+                nearest_distance_sq(SIZE(inside_voronoi)))
+      unselected_inside(:) = inside_voronoi
+      nearest_distance_sq(:) = HUGE(1.0_dp)
+
+      ! Initialize ρ_l^2 in Eq. (11) from all retained Cholesky points.
+      DO iselected = 1, nretained
+         unselected_inside(selected_indices(iselected)) = .FALSE.
+         DO igrid_point = 1, SIZE(inside_voronoi)
+            IF (.NOT. unselected_inside(igrid_point)) CYCLE
+            distance_sq = SUM((cluster_points(:, igrid_point) - &
+                               cluster_points(:, selected_indices(iselected)))**2)
+            nearest_distance_sq(igrid_point) = &
+               MIN(nearest_distance_sq(igrid_point), distance_sq)
+         END DO
+      END DO
+
+      DO WHILE (nretained < SIZE(selected_indices))
+         inew_point = 0
+         largest_distance_sq = -1.0_dp
+         DO igrid_point = 1, SIZE(inside_voronoi)
+            IF (.NOT. unselected_inside(igrid_point)) CYCLE
+            ! Strict comparison makes the lowest cluster-point index win an exact tie.
+            IF (nearest_distance_sq(igrid_point) > largest_distance_sq) THEN
+               largest_distance_sq = nearest_distance_sq(igrid_point)
+               inew_point = igrid_point
+            END IF
+         END DO
+         CPASSERT(inew_point > 0)
+
+         nretained = nretained + 1
+         selected_indices(nretained) = inew_point
+         unselected_inside(inew_point) = .FALSE.
+         DO igrid_point = 1, SIZE(inside_voronoi)
+            IF (.NOT. unselected_inside(igrid_point)) CYCLE
+            distance_sq = SUM((cluster_points(:, igrid_point) - &
+                               cluster_points(:, inew_point))**2)
+            nearest_distance_sq(igrid_point) = &
+               MIN(nearest_distance_sq(igrid_point), distance_sq)
+         END DO
+      END DO
+   END SUBROUTINE complete_grid_by_maximin_distance
 
 ! **************************************************************************************************
 !> \brief Collect all cluster Lebedev points used in Eqs. (5) and (7).
@@ -472,7 +552,7 @@ CONTAINS
    END SUBROUTINE select_cholesky_grid_points
 
 ! **************************************************************************************************
-!> \brief Communicate the independently constructed atom grids after Eqs. (5)-(10).
+!> \brief Communicate the independently constructed atom grids after Eqs. (5)-(12).
 !> \param bs_env ...
 ! **************************************************************************************************
    SUBROUTINE broadcast_ri_rs_grids(bs_env)

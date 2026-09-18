@@ -75,6 +75,10 @@ CONTAINS
 
          CALL gw_calc_ri_rs_non_periodic(qs_env, bs_env)
 
+      CASE DEFAULT
+
+         CPABORT("Unknown GW implementation.")
+
       END SELECT
 
       CALL timestop(handle)
