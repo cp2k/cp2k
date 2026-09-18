@@ -391,6 +391,41 @@ CONTAINS
    END SUBROUTINE gopt_f_ii
 
 ! **************************************************************************************************
+!> \brief Retrieves the reporting metadata used during an optimization step.
+!> \param gopt_env Optimization environment supplying print configuration and units
+!> \param force_env Force environment used for memory sampling
+!> \param max_memory Sampled memory, or zero if memory reporting is disabled
+!> \param energy_unit Energy reporting unit
+!> \param stress_unit Stress reporting unit
+! **************************************************************************************************
+   SUBROUTINE get_reporting_metadata(gopt_env, force_env, max_memory, energy_unit, stress_unit)
+
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      TYPE(force_env_type), POINTER                      :: force_env
+      INTEGER(KIND=int_8), INTENT(OUT)                   :: max_memory
+      CHARACTER(LEN=default_string_length), INTENT(OUT)  :: energy_unit, stress_unit
+
+      LOGICAL                                            :: print_memory
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      NULLIFY (para_env)
+      CALL section_vals_val_get(gopt_env%motion_section, "PRINT%MEMORY_INFO", l_val=print_memory)
+      max_memory = 0
+      IF (print_memory) THEN
+         CALL force_env_get(force_env, para_env=para_env)
+         max_memory = sample_memory(para_env)
+      END IF
+
+      CALL section_vals_val_get(gopt_env%force_env%force_env_section, &
+                                "PRINT%PROGRAM_RUN_INFO%ENERGY_UNIT", &
+                                c_val=energy_unit)
+      CALL section_vals_val_get(gopt_env%force_env%force_env_section, &
+                                "PRINT%STRESS_TENSOR%STRESS_UNIT", &
+                                c_val=stress_unit)
+
+   END SUBROUTINE get_reporting_metadata
+
+! **************************************************************************************************
 !> \brief Handles the Output during an optimization run
 !> \param gopt_env ...
 !> \param output_unit ...
@@ -411,24 +446,9 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: energy_unit, stress_unit
       INTEGER(KIND=int_8)                                :: max_memory
-      LOGICAL                                            :: print_memory
       REAL(KIND=dp)                                      :: pres_int
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      NULLIFY (para_env)
-      CALL section_vals_val_get(gopt_env%motion_section, "PRINT%MEMORY_INFO", l_val=print_memory)
-      max_memory = 0
-      IF (print_memory) THEN
-         CALL force_env_get(gopt_env%force_env, para_env=para_env)
-         max_memory = sample_memory(para_env)
-      END IF
-
-      CALL section_vals_val_get(gopt_env%force_env%force_env_section, &
-                                "PRINT%PROGRAM_RUN_INFO%ENERGY_UNIT", &
-                                c_val=energy_unit)
-      CALL section_vals_val_get(gopt_env%force_env%force_env_section, &
-                                "PRINT%STRESS_TENSOR%STRESS_UNIT", &
-                                c_val=stress_unit)
+      CALL get_reporting_metadata(gopt_env, gopt_env%force_env, max_memory, energy_unit, stress_unit)
 
       SELECT CASE (gopt_env%type_id)
       CASE (default_ts_method_id, default_minimization_method_id)
@@ -521,25 +541,10 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: energy_unit, stress_unit
       INTEGER(KIND=int_8)                                :: max_memory
-      LOGICAL                                            :: print_memory
       REAL(KIND=dp)                                      :: pres_diff, pres_diff_constr, pres_int, &
                                                             pres_tol
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      NULLIFY (para_env)
-      CALL section_vals_val_get(gopt_env%motion_section, "PRINT%MEMORY_INFO", l_val=print_memory)
-      max_memory = 0
-      IF (print_memory) THEN
-         CALL force_env_get(force_env, para_env=para_env)
-         max_memory = sample_memory(para_env)
-      END IF
-
-      CALL section_vals_val_get(gopt_env%force_env%force_env_section, &
-                                "PRINT%PROGRAM_RUN_INFO%ENERGY_UNIT", &
-                                c_val=energy_unit)
-      CALL section_vals_val_get(gopt_env%force_env%force_env_section, &
-                                "PRINT%STRESS_TENSOR%STRESS_UNIT", &
-                                c_val=stress_unit)
+      CALL get_reporting_metadata(gopt_env, force_env, max_memory, energy_unit, stress_unit)
 
       SELECT CASE (gopt_env%type_id)
       CASE (default_ts_method_id, default_minimization_method_id)

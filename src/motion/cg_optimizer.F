@@ -105,12 +105,7 @@ CONTAINS
       CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=spgr%keep_space_group)
       IF (spgr%keep_space_group) THEN
          SELECT CASE (gopt_env%type_id)
-         CASE (default_minimization_method_id, default_ts_method_id)
-            CALL force_env_get(force_env, subsys=subsys)
-            CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
-            CALL spgr_apply_rotations_coord(spgr, x0)
-            CALL print_spgr(spgr)
-         CASE (default_cell_method_id)
+         CASE (default_minimization_method_id, default_ts_method_id, default_cell_method_id)
             CALL force_env_get(force_env, subsys=subsys)
             CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
             CALL spgr_apply_rotations_coord(spgr, x0)

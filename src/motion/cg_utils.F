@@ -67,24 +67,31 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cg_linmin'
 
       INTEGER                                            :: handle
+      LOGICAL                                            :: use_only_grad
 
       CALL timeset(routineN, handle)
       gopt_env%do_line_search = .TRUE.
       SELECT CASE (gopt_env%type_id)
-      CASE (default_minimization_method_id)
+      CASE (default_minimization_method_id, default_cell_method_id)
+         use_only_grad = gopt_env%type_id == default_cell_method_id
          SELECT CASE (gopt_param%cg_ls%type_id)
          CASE (ls_2pnt)
-            CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, use_only_grad=gopt_param%cg_ls%grad_only, &
-                             output_unit=output_unit)
-         CASE (ls_fit)
-            CALL linmin_fit(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brack_limit, &
-                            gopt_param%cg_ls%initial_step, output_unit, gopt_param, globenv)
-         CASE (ls_gold)
-            CALL linmin_gold(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol, &
-                             gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
-                             gopt_param%cg_ls%initial_step, output_unit, globenv)
+            IF (use_only_grad) THEN
+               CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, use_only_grad=.TRUE., &
+                                output_unit=output_unit)
+            ELSE
+               CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, &
+                                use_only_grad=gopt_param%cg_ls%grad_only, output_unit=output_unit)
+            END IF
+         CASE (ls_fit, ls_gold)
+            CALL linmin_bracketed(gopt_env, xvec, xi, opt_energy, output_unit, gopt_param, globenv, &
+                                  use_fit=gopt_param%cg_ls%type_id == ls_fit)
          CASE DEFAULT
-            CPABORT("Line Search type not yet implemented in CG.")
+            IF (use_only_grad) THEN
+               CPABORT("Line Search type not yet implemented in CG for cell optimization.")
+            ELSE
+               CPABORT("Line Search type not yet implemented in CG.")
+            END IF
          END SELECT
       CASE (default_ts_method_id)
          SELECT CASE (gopt_param%cg_ls%type_id)
@@ -97,21 +104,6 @@ CONTAINS
             END IF
          CASE DEFAULT
             CPABORT("Line Search type not yet implemented in CG for TS search.")
-         END SELECT
-      CASE (default_cell_method_id)
-         SELECT CASE (gopt_param%cg_ls%type_id)
-         CASE (ls_2pnt)
-            CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, use_only_grad=.TRUE., &
-                             output_unit=output_unit)
-         CASE (ls_fit)
-            CALL linmin_fit(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brack_limit, &
-                            gopt_param%cg_ls%initial_step, output_unit, gopt_param, globenv)
-         CASE (ls_gold)
-            CALL linmin_gold(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol, &
-                             gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
-                             gopt_param%cg_ls%initial_step, output_unit, globenv)
-         CASE DEFAULT
-            CPABORT("Line Search type not yet implemented in CG for cell optimization.")
          END SELECT
       CASE (default_shellcore_method_id)
          SELECT CASE (gopt_param%cg_ls%type_id)
@@ -386,34 +378,30 @@ CONTAINS
    END SUBROUTINE rotmin_2pnt
 
 ! **************************************************************************************************
-!> \brief Line Minimization - Fit
+!> \brief Bracketed CG line minimization using FIT or GOLD
 !> \param gopt_env ...
 !> \param xvec ...
 !> \param xi ...
 !> \param opt_energy ...
-!> \param brack_limit ...
-!> \param step ...
 !> \param output_unit ...
 !> \param gopt_param ...
 !> \param globenv ...
+!> \param use_fit Select FIT, otherwise use the GOLD search
 !> \par History
-!>      10.2005 created [tlaino]
+!>      10.2005 FIT and GOLD searches created [tlaino]
 !> \author Teodoro Laino
-!> \note
-!>      Given as input the vector XVEC and XI, finds the scalar
-!>      xmin that minimizes the energy XVEC+xmin*XI. Replace step
-!>      with the optimal value. Enhanced Version
 ! **************************************************************************************************
-   SUBROUTINE linmin_fit(gopt_env, xvec, xi, opt_energy, &
-                         brack_limit, step, output_unit, gopt_param, globenv)
+   SUBROUTINE linmin_bracketed(gopt_env, xvec, xi, opt_energy, output_unit, gopt_param, globenv, use_fit)
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: xvec, xi
-      REAL(KIND=dp)                                      :: opt_energy, brack_limit, step
+      REAL(KIND=dp)                                      :: opt_energy
       INTEGER                                            :: output_unit
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       TYPE(global_environment_type), POINTER             :: globenv
+      LOGICAL, INTENT(IN)                                :: use_fit
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'linmin_fit'
+      CHARACTER(len=*), PARAMETER                        :: fit_routineN = 'linmin_fit', &
+                                                            gold_routineN = 'linmin_gold'
 
       INTEGER                                            :: handle, loc_iter, odim
       LOGICAL                                            :: should_stop
@@ -422,49 +410,66 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pcom, xicom
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hist
 
-      CALL timeset(routineN, handle)
+      IF (use_fit) THEN
+         CALL timeset(fit_routineN, handle)
+      ELSE
+         CALL timeset(gold_routineN, handle)
+      END IF
 
       NULLIFY (pcom, xicom, hist)
-      rms_dr = gopt_param%rms_dr
-      rms_force = gopt_param%rms_force
+      IF (use_fit) THEN
+         rms_dr = gopt_param%rms_dr
+         rms_force = gopt_param%rms_force
+      END IF
       ALLOCATE (pcom(SIZE(xvec)))
       ALLOCATE (xicom(SIZE(xvec)))
 
       pcom = xvec
       xicom = xi
       xicom = xicom/NORM2(xicom)
-      step = step*0.8_dp ! target a little before the minimum for the first point
+      ! Target a little before the minimum for the first point.
+      gopt_param%cg_ls%initial_step = gopt_param%cg_ls%initial_step*0.8_dp
       ax = 0.0_dp
-      xx = step
-      CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, &
-                     histpoint=hist, globenv=globenv)
-      !
-      fprev = 0.0_dp
-      opt_energy = MINVAL(hist(:, 2))
-      odim = SIZE(hist, 1)
-      scale = 0.25_dp
-      loc_iter = 0
-      DO WHILE (ABS(hist(odim, 3)) > rms_force*scale .OR. ABS(hist(odim, 1) - hist(odim - 1, 1)) > scale*rms_dr)
-         CALL external_control(should_stop, "LINFIT", globenv=globenv)
-         IF (should_stop) EXIT
+      xx = gopt_param%cg_ls%initial_step
+      IF (use_fit) THEN
+         CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, gopt_param%cg_ls%brack_limit, output_unit, &
+                        histpoint=hist, globenv=globenv)
          !
-         loc_iter = loc_iter + 1
-         fprev = opt_energy
-         xmin = FindMin(hist(:, 1), hist(:, 2), hist(:, 3))
-         CALL reallocate(hist, 1, odim + 1, 1, 3)
-         hist(odim + 1, 1) = xmin
-         hist(odim + 1, 3) = cg_deval1d(gopt_env, xmin, pcom, xicom, opt_energy)
-         hist(odim + 1, 2) = opt_energy
+         fprev = 0.0_dp
+         opt_energy = MINVAL(hist(:, 2))
          odim = SIZE(hist, 1)
-      END DO
+         scale = 0.25_dp
+         loc_iter = 0
+         DO WHILE (ABS(hist(odim, 3)) > rms_force*scale .OR. &
+                   ABS(hist(odim, 1) - hist(odim - 1, 1)) > scale*rms_dr)
+            CALL external_control(should_stop, "LINFIT", globenv=globenv)
+            IF (should_stop) EXIT
+            !
+            loc_iter = loc_iter + 1
+            fprev = opt_energy
+            xmin = FindMin(hist(:, 1), hist(:, 2), hist(:, 3))
+            CALL reallocate(hist, 1, odim + 1, 1, 3)
+            hist(odim + 1, 1) = xmin
+            hist(odim + 1, 3) = cg_deval1d(gopt_env, xmin, pcom, xicom, opt_energy)
+            hist(odim + 1, 2) = opt_energy
+            odim = SIZE(hist, 1)
+         END DO
+      ELSE
+         CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, gopt_param%cg_ls%brack_limit, output_unit, &
+                        globenv=globenv)
+         opt_energy = cg_dbrent(gopt_env, ax, xx, bx, gopt_param%cg_ls%brent_tol, &
+                                gopt_param%cg_ls%brent_max_iter, xmin, pcom, xicom, output_unit, globenv)
+      END IF
       !
       xicom = xmin*xicom
-      step = xmin
+      gopt_param%cg_ls%initial_step = xmin
       xvec = xvec + xicom
       DEALLOCATE (pcom)
       DEALLOCATE (xicom)
-      DEALLOCATE (hist)
-      IF (output_unit > 0) THEN
+      IF (use_fit) THEN
+         DEALLOCATE (hist)
+      END IF
+      IF (use_fit .AND. output_unit > 0) THEN
          WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("*", 79)
          WRITE (UNIT=output_unit, FMT="(T2,A,T22,A,I7,T78,A)") &
             "***", "FIT LS  - NUMBER OF ENERGY EVALUATIONS : ", loc_iter, "***"
@@ -472,68 +477,7 @@ CONTAINS
       END IF
       CALL timestop(handle)
 
-   END SUBROUTINE linmin_fit
-
-! **************************************************************************************************
-!> \brief Line Minimization routine - GOLD
-!> \param gopt_env ...
-!> \param xvec ...
-!> \param xi ...
-!> \param opt_energy ...
-!> \param brent_tol ...
-!> \param brent_max_iter ...
-!> \param brack_limit ...
-!> \param step ...
-!> \param output_unit ...
-!> \param globenv ...
-!> \par History
-!>      10.2005 created [tlaino]
-!> \author Teodoro Laino
-!> \note
-!>      Given as input the vector XVEC and XI, finds the scalar
-!>      xmin that minimizes the energy XVEC+xmin*XI. Replaces XMIN
-!>      with the optimal value
-! **************************************************************************************************
-   SUBROUTINE linmin_gold(gopt_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
-                          brack_limit, step, output_unit, globenv)
-      TYPE(gopt_f_type), POINTER                         :: gopt_env
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: xvec, xi
-      REAL(KIND=dp)                                      :: opt_energy, brent_tol
-      INTEGER                                            :: brent_max_iter
-      REAL(KIND=dp)                                      :: brack_limit, step
-      INTEGER                                            :: output_unit
-      TYPE(global_environment_type), POINTER             :: globenv
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'linmin_gold'
-
-      INTEGER                                            :: handle
-      REAL(KIND=dp)                                      :: ax, bx, xmin, xx
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: pcom, xicom
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (pcom, xicom)
-      ALLOCATE (pcom(SIZE(xvec)))
-      ALLOCATE (xicom(SIZE(xvec)))
-
-      pcom = xvec
-      xicom = xi
-      xicom = xicom/NORM2(xicom)
-      step = step*0.8_dp ! target a little before the minimum for the first point
-      ax = 0.0_dp
-      xx = step
-      CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, &
-                     globenv=globenv)
-
-      opt_energy = cg_dbrent(gopt_env, ax, xx, bx, brent_tol, brent_max_iter, &
-                             xmin, pcom, xicom, output_unit, globenv)
-      xicom = xmin*xicom
-      step = xmin
-      xvec = xvec + xicom
-      DEALLOCATE (pcom)
-      DEALLOCATE (xicom)
-      CALL timestop(handle)
-   END SUBROUTINE linmin_gold
+   END SUBROUTINE linmin_bracketed
 
 ! **************************************************************************************************
 !> \brief Routine for initially bracketing a minimum based on the golden search
@@ -878,6 +822,32 @@ CONTAINS
    END FUNCTION cg_dbrent
 
 ! **************************************************************************************************
+!> \brief Evaluates energy and optionally its gradient at a one-dimensional trial point
+!> \param gopt_env ...
+!> \param x ...
+!> \param pcom ...
+!> \param xicom ...
+!> \param energy ...
+!> \param gradient ...
+! **************************************************************************************************
+   SUBROUTINE cg_eval1d_trial(gopt_env, x, pcom, xicom, energy, gradient)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      REAL(KIND=dp)                                      :: x
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: pcom, xicom
+      REAL(KIND=dp)                                      :: energy
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: gradient
+
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: xvec
+
+      ALLOCATE (xvec(SIZE(pcom)))
+      xvec = pcom + x*xicom
+      CALL cp_eval_at(gopt_env, xvec, energy, gradient, master=gopt_env%force_env%para_env%mepos, &
+                      para_env=gopt_env%force_env%para_env)
+      DEALLOCATE (xvec)
+
+   END SUBROUTINE cg_eval1d_trial
+
+! **************************************************************************************************
 !> \brief Evaluates energy in one dimensional space defined by the point
 !>      pcom and with direction xicom, position x
 !> \param gopt_env ...
@@ -898,15 +868,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cg_eval1d'
 
       INTEGER                                            :: handle
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: xvec
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (xvec(SIZE(pcom)))
-      xvec = pcom + x*xicom
-      CALL cp_eval_at(gopt_env, xvec, my_val, master=gopt_env%force_env%para_env%mepos, &
-                      para_env=gopt_env%force_env%para_env)
-      DEALLOCATE (xvec)
+      CALL cg_eval1d_trial(gopt_env, x, pcom, xicom, my_val)
 
       CALL timestop(handle)
 
@@ -935,18 +900,14 @@ CONTAINS
 
       INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: energy
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: grad, xvec
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: grad
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (xvec(SIZE(pcom)))
       ALLOCATE (grad(SIZE(pcom)))
-      xvec = pcom + x*xicom
-      CALL cp_eval_at(gopt_env, xvec, energy, grad, master=gopt_env%force_env%para_env%mepos, &
-                      para_env=gopt_env%force_env%para_env)
+      CALL cg_eval1d_trial(gopt_env, x, pcom, xicom, energy, gradient=grad)
       my_val = DOT_PRODUCT(grad, xicom)
       fval = energy
-      DEALLOCATE (xvec)
       DEALLOCATE (grad)
       CALL timestop(handle)
 
