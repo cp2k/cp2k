@@ -258,8 +258,7 @@ CONTAINS
 !> \brief Set the default LibXC functional flags to host.
 ! **************************************************************************************************
    SUBROUTINE xc_libxc_wrap_init_safe()
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_init_safe', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_libxc_wrap_init_safe'
 
       INTEGER                                            :: handle
 
