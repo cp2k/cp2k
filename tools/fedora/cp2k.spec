@@ -226,6 +226,7 @@ done
 %{_bindir}/dumpdcd.ssmp
 %{_bindir}/graph.ssmp
 %{_bindir}/grid_miniapp.ssmp
+%{_bindir}/topology_phasons.ssmp
 %{_bindir}/xyz2dcd.ssmp
 %{_libdir}/libcp2k.so.*
 
@@ -243,6 +244,7 @@ done
 %{_libdir}/openmpi/bin/dbm_miniapp.psmp
 %{_libdir}/openmpi/bin/graph.psmp
 %{_libdir}/openmpi/bin/grid_miniapp.psmp
+%{_libdir}/openmpi/bin/topology_phasons.psmp
 %{_libdir}/openmpi/bin/xyz2dcd.psmp
 %{_libdir}/openmpi/lib/libcp2k.so.*
 
@@ -260,6 +262,7 @@ done
 %{_libdir}/mpich/bin/dumpdcd.psmp
 %{_libdir}/mpich/bin/graph.psmp
 %{_libdir}/mpich/bin/grid_miniapp.psmp
+%{_libdir}/mpich/bin/topology_phasons.psmp
 %{_libdir}/mpich/bin/xyz2dcd.psmp
 %{_libdir}/mpich/lib/libcp2k.so.*
 
