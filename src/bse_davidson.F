@@ -933,7 +933,9 @@ CONTAINS
 
       IF (mp2_env%bse%num_exc_en < 1) CPABORT("BSE_ITERAT%NUM_EXC_EN must be at least 1")
       IF (mp2_env%bse%num_buffer_states < 0) CPABORT("BSE_ITERAT%NUM_BUFFER_STATES must not be negative")
-      IF (mp2_env%bse%block_size < 1) CPABORT("BSE_ITERAT%BLOCK_SIZE must be at least 1")
+      IF (mp2_env%bse%block_size < 1 .AND. mp2_env%bse%block_size /= -1) THEN
+         CPABORT("BSE_ITERAT%BLOCK_SIZE must be at least 1, or -1 for the default")
+      END IF
       IF (mp2_env%bse%max_iter < 1) CPABORT("BSE_ITERAT%MAX_ITER must be at least 1")
 
       n_want = mp2_env%bse%num_exc_en
@@ -943,6 +945,7 @@ CONTAINS
       END IF
       n_act = MIN(n_want + mp2_env%bse%num_buffer_states, n_ov)
       block_size = mp2_env%bse%block_size
+      IF (block_size == -1) block_size = MIN(32, MAX(8, n_act/4))
       IF (block_size > n_act) THEN
          CPWARN("BSE_ITERAT%BLOCK_SIZE exceeds the number of tracked states and is reduced to it.")
          block_size = n_act

@@ -1684,9 +1684,11 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BLOCK_SIZE", &
                           description="Maximum number of correction vectors (and kernel applications) "// &
-                          "added per iteration. Converged states are locked.", &
+                          "added per iteration. Converged states are locked. -1: a quarter of the tracked "// &
+                          "states (NUM_EXC_EN+NUM_BUFFER_STATES), at least 8 and at most 32; the cost of a "// &
+                          "kernel application per vector is flat up to that width.", &
                           usage="BLOCK_SIZE 8", &
-                          default_i_val=8)
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
