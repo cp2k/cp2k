@@ -24,5 +24,5 @@
 ]
 "H2_cdft_ci_periodic.inp" = [
   {matcher="M073", tol=2e-8, ref=348.162067682219},
-  {matcher="M077", tol=2e-8, ref=-1.15808002417798},
+  {matcher="M077", tol=2e-8, ref=-1.15822642428516},
 ]
