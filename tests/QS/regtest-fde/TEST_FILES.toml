@@ -1,0 +1,3 @@
+# Regression test for the frozen-density embedding (FDE) driver. The subsystem calculation is
+# replaced by the deterministic stub fde_stub.py (set as COMMAND),
+"fde_He_stub.inp"                       = [{matcher="M011", tol=1e-06, ref=-3.785841046440834}]
