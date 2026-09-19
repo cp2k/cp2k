@@ -17,6 +17,47 @@ def test_abi_signatures(runtime, fake_library):
     assert runtime.version == "CP2K test library"
     assert fake_library.cp2k_get_positions.argtypes == [ct.c_int, library._DP, ct.c_int]
     assert fake_library.cp2k_get_positions.restype is None
+    assert fake_library.cp2k_get_scf_convergence.argtypes == [
+        ct.c_int,
+        ct.POINTER(ct.c_int),
+    ]
+
+
+@pytest.mark.parametrize("status, expected", [(-1, None), (0, False), (1, True)])
+def test_scf_status(runtime, fake_library, tmp_path, monkeypatch, status, expected):
+    monkeypatch.chdir(tmp_path)
+    fake_library.scf_status = status
+    with runtime.create_force_env("x") as env:
+        assert env.scf_converged is None
+        if status == 0:
+            with pytest.raises(library.SCFConvergenceError):
+                env.calculate()
+            assert env.scf_converged is False
+            with pytest.raises(RuntimeError, match="calculate"):
+                _ = env.potential_energy
+        result = env.calculate(check_convergence=False)
+        assert result.scf_converged is expected
+        assert env.scf_converged is expected
+        env.positions = env.positions
+        assert env.scf_converged is None
+
+
+def test_old_library_has_unknown_scf_status(fake_library, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    del fake_library.cp2k_get_scf_convergence
+    with CP2K(library="test-library") as session:
+        with session.create_force_env("x") as env:
+            assert env.calculate().scf_converged is None
+
+
+def test_invalid_scf_status(runtime, fake_library, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    fake_library.scf_status = 2
+    with runtime.create_force_env("x") as env:
+        with pytest.raises(RuntimeError, match="Invalid SCF"):
+            env.calculate()
+        with pytest.raises(RuntimeError, match="calculate"):
+            _ = env.potential_energy
 
 
 def test_missing_library(monkeypatch):

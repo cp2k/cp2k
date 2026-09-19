@@ -3,15 +3,20 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from copy import deepcopy
+import json
 import os
+from pathlib import Path
+import shlex
+import subprocess
+import sys
 
 import numpy as np
 import pytest
 from ase import Atoms
 from ase.optimize import BFGS
-from ase.units import Bohr, Hartree
 
-from cp2k import CP2K, input_to_string
+from cp2k import CP2K, SCFConvergenceError, input_to_string
+from cp2k._units import BOHR_TO_ANGSTROM as Bohr, HARTREE_TO_EV as Hartree
 from cp2k.ase import CP2KCalculator
 
 pytestmark = pytest.mark.integration
@@ -36,6 +41,7 @@ def test_native_energy_force_and_cell(real_runtime, h2_input, tmp_path, monkeypa
             positions, np.array([[3.6, 4, 4], [4.4, 4, 4]]) / Bohr, rtol=1e-7
         )
         result = env.calculate()
+        assert result.scf_converged is True
         assert -1.3 < result.energy < -0.8
         np.testing.assert_allclose(result.forces.sum(axis=0), 0, atol=1e-7)
         delta = 1e-3
@@ -57,6 +63,101 @@ def test_native_energy_force_and_cell(real_runtime, h2_input, tmp_path, monkeypa
         env.positions = positions
         assert np.isfinite(env.calculate().energy)
     assert not list(tmp_path.glob("cp2k-python-*.inp"))
+
+
+@pytest.mark.parametrize("outer", [False, True])
+def test_native_scf_failure(real_runtime, h2_input, tmp_path, monkeypatch, outer):
+    monkeypatch.chdir(tmp_path)
+    scf = h2_input["FORCE_EVAL"]["DFT"]["SCF"]
+    scf.update(MAX_SCF=1, EPS_SCF=1e-30, IGNORE_CONVERGENCE_FAILURE=True)
+    if outer:
+        scf["OUTER_SCF"] = {"MAX_SCF": 1, "EPS_SCF": 1e-30}
+    with real_runtime.create_force_env(h2_input, output_file="failed.out") as env:
+        with pytest.raises(SCFConvergenceError):
+            env.calculate()
+        assert env.scf_converged is False
+        with pytest.raises(RuntimeError, match="calculate"):
+            _ = env.forces
+        result = env.calculate(forces=False, check_convergence=False)
+        assert np.isfinite(result.energy)
+        assert result.scf_converged is False
+
+
+def test_native_no_scf(real_runtime, h2_input, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    h2_input["FORCE_EVAL"]["DFT"]["SCF"]["MAX_SCF"] = 0
+    with real_runtime.create_force_env(h2_input, output_file="no-scf.out") as env:
+        assert env.calculate(forces=False).scf_converged is None
+
+
+@pytest.mark.parametrize("target, expected", [(0.0, True), (0.5, False)])
+def test_native_cdft_status(
+    real_runtime, h2_input, tmp_path, monkeypatch, target, expected
+):
+    monkeypatch.chdir(tmp_path)
+    dft = h2_input["FORCE_EVAL"]["DFT"]
+    dft["SCF"]["IGNORE_CONVERGENCE_FAILURE"] = True
+    dft["SCF"]["OUTER_SCF"] = {"MAX_SCF": 5, "EPS_SCF": 1e-9}
+    dft["QS"]["CDFT"] = {
+        "TYPE_OF_CONSTRAINT": "BECKE",
+        "STRENGTH": 0.0,
+        "TARGET": target,
+        "ATOM_GROUP": {"ATOMS": [1, 2], "COEFF": [1, -1]},
+        "BECKE_CONSTRAINT": {"IN_MEMORY": True},
+        "OUTER_SCF": {
+            "EPS_SCF": 1e-4,
+            "MAX_SCF": 1,
+            "TYPE": "CDFT_CONSTRAINT",
+            "OPTIMIZER": "BISECT",
+        },
+    }
+    with real_runtime.create_force_env(h2_input, output_file="cdft.out") as env:
+        result = env.calculate(forces=False, check_convergence=False)
+        assert result.scf_converged is expected
+
+
+@pytest.mark.parametrize("solver", ["diagonalization", "outer_scf"])
+def test_native_scf_solvers(real_runtime, h2_input, tmp_path, monkeypatch, solver):
+    monkeypatch.chdir(tmp_path)
+    scf = h2_input["FORCE_EVAL"]["DFT"]["SCF"]
+    if solver == "diagonalization":
+        del scf["OT"]
+        scf["DIAGONALIZATION"] = {}
+    else:
+        scf["OUTER_SCF"] = {"MAX_SCF": 5, "EPS_SCF": 1e-9}
+    with real_runtime.create_force_env(h2_input, output_file="solver.out") as env:
+        assert env.calculate().scf_converged is True
+
+
+def test_ase_shell_comparison(tmp_path):
+    library = os.environ.get("CP2K_TEST_LIBRARY")
+    executable = os.environ.get("CP2K_TEST_EXECUTABLE")
+    if not library or not executable:
+        pytest.skip("Set CP2K_TEST_LIBRARY and CP2K_TEST_EXECUTABLE")
+    script = Path(__file__).resolve().parents[1] / "examples" / "compare_ase.py"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--library",
+            library,
+            "--command",
+            f"{shlex.quote(executable)} -s",
+            "--steps",
+            "2",
+        ],
+        cwd=tmp_path,
+        check=False,
+        timeout=120,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    report = json.loads((tmp_path / "ase-comparison.json").read_text())
+    assert report["max_energy_difference_eV"] < 1e-6
+    assert report["max_force_difference_eV_per_angstrom"] < 1e-5
+    for backend in ("shell", "direct"):
+        assert len(report[backend]["warm_evaluation_seconds"]) == 2
 
 
 def test_ase_optimization(real_runtime, h2_input, tmp_path, monkeypatch):

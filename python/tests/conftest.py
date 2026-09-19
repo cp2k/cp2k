@@ -25,6 +25,8 @@ class FakeFunction:
             args[1]._obj.value = 2
         elif operation == "get_potential_energy":
             args[1]._obj.value = -1.0
+        elif operation == "get_scf_convergence":
+            args[1]._obj.value = self.lib.scf_status
         elif operation in ("get_positions", "get_cell", "get_forces"):
             data = getattr(self.lib, operation[4:])
             np.ctypeslib.as_array(args[1], shape=(data.size,))[:] = data.ravel()
@@ -42,6 +44,7 @@ def fake_library(monkeypatch):
     lib = SimpleNamespace(
         calls=[],
         counter=0,
+        scf_status=1,
         positions=np.arange(6.0).reshape(2, 3),
         cell=np.array([[5.0, 0, 0], [0.4, 6, 0], [0.2, 0.3, 7]]),
         forces=np.ones((2, 3)),
@@ -51,7 +54,7 @@ def fake_library(monkeypatch):
         "finalize_without_mpi create_force_env create_force_env_comm destroy_force_env "
         "get_natom get_nparticle get_potential_energy get_positions get_cell get_forces "
         "set_positions set_cell set_velocities calc_energy calc_energy_force "
-        "run_input run_input_comm"
+        "run_input run_input_comm get_scf_convergence"
     ).split()
     for name in names:
         setattr(lib, "cp2k_" + name, FakeFunction("cp2k_" + name, lib))

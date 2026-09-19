@@ -8,10 +8,11 @@ import os
 from pathlib import Path
 
 import numpy as np
-from ase.calculators.calculator import Calculator, all_changes
-from ase.units import Bohr, Hartree
+from ase.calculators.calculator import CalculationFailed, Calculator, all_changes
 
+from ._units import BOHR_TO_ANGSTROM as Bohr, HARTREE_TO_EV as Hartree
 from .input import input_to_string
+from .library import SCFConvergenceError
 
 
 def _uppercase(tree):
@@ -166,7 +167,10 @@ class CP2KCalculator(Calculator):
                 raise ValueError("ASE requires exactly one CP2K particle per atom")
         self._env.cell = cell / Bohr
         self._env.positions = self.atoms.positions / Bohr
-        result = self._env.calculate()
+        try:
+            result = self._env.calculate()
+        except SCFConvergenceError as error:
+            raise CalculationFailed(str(error)) from error
         # As in ASE's shell calculator, use CP2K's variational total energy.
         self.results = {
             "energy": result.energy * Hartree,

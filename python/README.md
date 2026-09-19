@@ -31,6 +31,14 @@ No package is downloaded or published by importing `cp2k`. The distribution is n
 its import is `cp2k`. Do not install it alongside the obsolete Cython package providing the same
 import name.
 
+The wrapper can be built as a pure-Python wheel (`py3-none-any`); it does not link to libcp2k at
+wheel-build time. Such a wheel can be distributed through PyPI without bundling CP2K. This is
+**not** a self-contained CP2K installation: the native library, CP2K data, numerical libraries and
+(where used) a compatible MPI installation are still required. The commands above install from this
+source checkout and do not assume that a release has been published on PyPI. See
+[maintenance and releases](https://github.com/cp2k/cp2k/blob/master/python/MAINTENANCE.md) for the
+proposed ownership and validation process.
+
 ## Direct calculations
 
 ```python
@@ -212,3 +220,98 @@ send output to `mainLog.out` instead of the requested file and finalize DBCSR wh
 runtime is still alive. In particular, creating a force environment after such an older
 `run_input()` can crash. Use the matching CP2K source build for complete workflows;
 force-environment-only use does not encounter these older `run_input()` bugs.
+
+## SCF convergence
+
+`result.scf_converged` and `system.scf_converged` are `True`, `False`, or `None` (unavailable). The
+native `cp2k_get_scf_convergence` query returns the corresponding values `1`, `0`, and `-1`.
+Ordinary Quickstep SCF includes both inner and outer convergence; CDFT also includes convergence of
+the constraint loop. Setting positions, cell or velocities invalidates the previous status.
+
+By default, `calculate()` raises `SCFConvergenceError` on a reported failure and does not expose the
+failed energy/forces as valid results. The ASE calculator translates this to `CalculationFailed`.
+For deliberate diagnostics, use `calculate(check_convergence=False)` and inspect the returned
+status. This option does **not** change the native input: enable `SCF/IGNORE_CONVERGENCE_FAILURE`
+explicitly if CP2K should return from an unconverged SCF instead of aborting.
+
+`None` never certifies convergence. It is returned by older libraries lacking the query, before
+calculation, and for unsupported methods such as FIST, mixed/QM/MM environments, LS-SCF, ALMO,
+non-SCF, real-time propagation and `MAX_SCF 0`. The status concerns the SCF only, not post-SCF
+correlation methods, geometry optimization or MD. `run_input()` runs complete native workflows and
+does not return an aggregate convergence status.
+
+## Comparison with ASE's shell calculator
+
+Both approaches keep CP2K and its force environment alive across repeated evaluations. ASE's
+existing calculator communicates with a persistent subprocess through pipes, not by launching CP2K
+for every point. There is no assumed speedup from avoiding repeated process startup.
+
+| Aspect              | Existing `ase.calculators.cp2k.CP2K`              | Direct `cp2k.ase.CP2KCalculator`                       |
+| ------------------- | ------------------------------------------------- | ------------------------------------------------------ |
+| Native installation | CP2K executable with shell mode                   | Shared libcp2k and its runtime dependencies            |
+| Input               | ASE parameters and optional CP2K text template    | Explicit CP2K mapping; geometry from ASE               |
+| Lifetime            | Calculator owns a persistent child process        | Caller owns the runtime and its MPI communicator       |
+| Data transfer       | Text protocol over stdin/stdout                   | C API and NumPy arrays                                 |
+| MPI                 | Launch command, e.g. `mpiexec -n 2 cp2k.psmp -s`  | Collective calls on a caller-owned mpi4py communicator |
+| Native abort        | Child process fails; parent is a separate process | Can terminate the Python interpreter                   |
+
+The adapter uses CP2K's unit-conversion constants, matching its shell protocol. ASE's default CODATA
+constants differ slightly; mixing the two would introduce a systematic energy/geometry offset even
+when the underlying CP2K calculation is identical.
+
+For the same `atoms` and method mapping `inp` (without geometry or `GLOBAL/PROJECT`), the essential
+syntax is:
+
+```python
+from ase.calculators.cp2k import CP2K as ShellCP2K
+from cp2k import CP2K, input_to_string
+from cp2k.ase import CP2KCalculator
+
+# Existing ASE backend: disable generated physical defaults when supplying
+# the complete method template, to avoid duplicate or different settings.
+with ShellCP2K(command="cp2k.psmp -s", inp=input_to_string(inp),
+               basis_set=None, basis_set_file=None, potential_file=None,
+               pseudo_potential=None, cutoff=None, max_scf=None, xc=None,
+               force_eval_method=None, print_level=None, poisson_solver=None,
+               stress_tensor=False) as calc:
+    atoms.calc = calc
+    forces = atoms.get_forces()
+
+# Direct backend: same method settings and Atoms, caller-owned runtime.
+with CP2K() as runtime:
+    with CP2KCalculator(runtime, inp) as calc:
+        atoms.calc = calc
+        forces = atoms.get_forces()
+```
+
+The runnable [comparison](https://github.com/cp2k/cp2k/blob/master/python/examples/compare_ase.py)
+builds that common input, changes the geometry at every point to prevent ASE cache hits, checks
+energies/forces against each other, and writes JSON with individual timings and software/thread
+settings. Setup, the first evaluation and subsequent evaluations are reported separately. Use the
+executable and shared library from the **same build**, with the same rank/thread counts. Run in a
+fresh directory and repeat measurements; this tiny H2 example is not a general performance claim or
+a converged production calculation.
+
+```sh
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+python /path/to/cp2k/python/examples/compare_ase.py \
+  --command '/path/to/cp2k/build/bin/cp2k.psmp -s' \
+  --library /path/to/cp2k/build/src/libcp2k.so --steps 12
+```
+
+For typical DFT jobs, electronic-structure work can dominate interface overhead. The direct
+interface primarily adds embedding and communicator control; the shell backend remains useful when
+process isolation and executable-based deployment are preferred.
+
+For orientation, two local runs of the example (12 changed geometries after the first point,
+macOS/ARM64, GCC 16, CP2K 2026.2 development, Python 3.12.13, ASE 3.29.0, NumPy 2.5.3, one MPI rank
+and one OpenMP/BLAS thread) gave the following wall times in seconds:
+
+| Backend          | Setup       | First evaluation | Median subsequent evaluation |
+| ---------------- | ----------- | ---------------- | ---------------------------- |
+| Persistent shell | 0.284-0.914 | 0.414-0.460      | 0.176-0.180                  |
+| Direct library   | 0.302-0.343 | 0.517-0.546      | 0.171-0.182                  |
+
+The maximum energy difference was `5.4e-13` eV and the maximum force-component difference was
+`1.9e-9` eV/angstrom. These small-system timings show no consistent steady-state speed advantage;
+startup variation also cautions against extrapolating them to production workloads.

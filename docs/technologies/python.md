@@ -10,6 +10,5 @@ CP2K shell subprocess.
 ```{include} ../../python/README.md
 ---
 start-after: '## Installation'
-end-before: '## Tests'
 ---
 ```

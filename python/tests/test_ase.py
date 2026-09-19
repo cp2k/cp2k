@@ -5,10 +5,23 @@ from copy import deepcopy
 import numpy as np
 import pytest
 from ase import Atoms
-from ase.calculators.calculator import PropertyNotImplementedError
-from ase.units import Bohr, Hartree
+from ase.calculators.calculator import CalculationFailed, PropertyNotImplementedError
 
+from cp2k._units import BOHR_TO_ANGSTROM as Bohr, HARTREE_TO_EV as Hartree
 from cp2k.ase import CP2KCalculator
+
+
+def test_ase_rejects_unconverged_result(runtime, fake_library, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    atoms = Atoms("H2", positions=[[0, 0, 0], [0.8, 0, 0]], cell=[8] * 3)
+    with CP2KCalculator(runtime, {}) as calc:
+        atoms.calc = calc
+        atoms.get_forces()
+        atoms.positions[1, 0] += 0.1
+        fake_library.scf_status = 0
+        with pytest.raises(CalculationFailed, match="SCF did not converge"):
+            atoms.get_forces()
+        assert calc.results == {}
 
 
 def test_ase_conversion_and_caching(runtime, fake_library, tmp_path, monkeypatch):

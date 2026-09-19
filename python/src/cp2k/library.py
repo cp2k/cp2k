@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from contextlib import contextmanager
 import ctypes as ct
 from ctypes.util import find_library
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 from pathlib import Path
 import sys
@@ -66,6 +66,8 @@ def _load_library(path):
     }
     if hasattr(lib, "cp2k_init_without_mpi_comm"):
         signatures["init_without_mpi_comm"] = [ct.c_int]
+    if hasattr(lib, "cp2k_get_scf_convergence"):
+        signatures["get_scf_convergence"] = [ct.c_int, ct.POINTER(ct.c_int)]
     for function, arguments in signatures.items():
         try:
             symbol = getattr(lib, "cp2k_" + function)
@@ -108,10 +110,15 @@ def _array(values, shape, name):
 
 @dataclass(frozen=True)
 class CalculationResult:
-    """An energy in hartree and optional (N, 3) forces in hartree/bohr."""
+    """Energy/forces in atomic units; SCF status is None when unavailable."""
 
     energy: float
     forces: np.ndarray | None
+    scf_converged: bool | None = field(default=None, kw_only=True)
+
+
+class SCFConvergenceError(RuntimeError):
+    """CP2K returned from an SCF that did not meet its convergence criteria."""
 
 
 class CP2K:
@@ -296,6 +303,7 @@ class ForceEnvironment:
         self._closed = False
         self._energy_valid = False
         self._forces_valid = False
+        self._scf_converged = None
 
     def _check(self):
         self._runtime._check()
@@ -339,6 +347,7 @@ class ForceEnvironment:
             args.append(array.size)
         # Invalidate before entering native code; never expose stale results.
         self._energy_valid = self._forces_valid = False
+        self._scf_converged = None
         getattr(self._runtime._lib, "cp2k_set_" + name)(*args)
 
     @property
@@ -379,16 +388,43 @@ class ForceEnvironment:
             raise RuntimeError("Call calculate(forces=True) before requesting forces")
         return self._get_array("forces", (self.nparticle, 3))
 
-    def calculate(self, *, forces=True):
-        """Recalculate on the current geometry, reusing the native SCF state."""
+    @property
+    def scf_converged(self):
+        """True/False for the last SCF, or None if invalidated/unavailable."""
+        self._check()
+        return self._scf_converged
+
+    def calculate(self, *, forces=True, check_convergence=True):
+        """Recalculate, raising on a reported SCF failure by default.
+
+        check_convergence=False permits diagnostic unconverged results. Unknown
+        status (older libraries or unsupported solvers) remains None, not True.
+        This does not suppress native aborts: to inspect failed SCF results,
+        explicitly enable SCF/IGNORE_CONVERGENCE_FAILURE in the CP2K input.
+        """
         self._check()
         self._energy_valid = self._forces_valid = False
+        self._scf_converged = None
         method = "cp2k_calc_energy_force" if forces else "cp2k_calc_energy"
         getattr(self._runtime._lib, method)(self._handle)
+        query = getattr(self._runtime._lib, "cp2k_get_scf_convergence", None)
+        if query is not None:
+            status = ct.c_int(-1)
+            query(self._handle, ct.byref(status))
+            if status.value not in (-1, 0, 1):
+                raise RuntimeError("Invalid SCF convergence status from libcp2k")
+            self._scf_converged = None if status.value == -1 else bool(status.value)
+        if check_convergence and self._scf_converged is False:
+            raise SCFConvergenceError(
+                "CP2K SCF did not converge. Inspect the output and SCF settings; "
+                "use check_convergence=False only to retrieve diagnostic results."
+            )
         self._energy_valid = True
         self._forces_valid = bool(forces)
         result = CalculationResult(
-            self.potential_energy, self.forces if forces else None
+            self.potential_energy,
+            self.forces if forces else None,
+            scf_converged=self._scf_converged,
         )
         if not np.isfinite(result.energy) or (
             result.forces is not None and not np.isfinite(result.forces).all()

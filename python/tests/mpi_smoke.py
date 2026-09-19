@@ -28,6 +28,8 @@ if comm != MPI.COMM_NULL:
         inp = Path(__file__).resolve().parents[1] / "examples" / "h2.inp"
         with cp.create_force_env(input_file=inp, output_file=f"mpi-{mode}.out") as env:
             result = env.calculate()
+            assert result.scf_converged is True
+            assert all(comm.allgather(env.scf_converged))
             energies = comm.allgather(result.energy)
             np.testing.assert_allclose(energies, result.energy, atol=1e-12)
             assert -1.3 < result.energy < -0.8

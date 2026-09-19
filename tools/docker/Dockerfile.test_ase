@@ -71,6 +71,7 @@ COPY ./tools/docker/scripts/build_cp2k.sh ./tools/docker/scripts/cmake_cp2k.sh .
 RUN ./build_cp2k.sh toolchain ssmp
 
 # Run test for ase.
+COPY ./python ./python
 COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_ase.sh ./
 RUN ./test_ase.sh 2>&1 | tee report.log
