@@ -309,42 +309,60 @@ CONTAINS
    END SUBROUTINE kpoint_operator_launch
 
 ! **************************************************************************************************
-!> \brief Finish one transfer that kpoint_operator_launch started and add the received
-!>        matrix to a complex matrix.
-!>        The finish of the real part overwrites cmat.
-!>        The finish of the imaginary part adds to cmat.
-!>        Finish the real part first. A real-part finish after an imaginary-part
-!>        finish erases the imaginary contribution.
-!>        The routine consumes fmlocal before it returns, so the next finish can
-!>        reuse the same matrix.
-!> \param fmlocal transfer target filled by the finished copy
-!> \param info transfer state of one part
-!> \param cmat complex matrix accumulating the operator
-!> \param imaginary_part add fmlocal as the imaginary part instead of the real part
+!> \brief Receive one group's operator and reclaim every rank's send buffers.
+!>        CFM/DBCSR outputs consume the context buffer before receiving the next part;
+!>        FM outputs receive directly. Inactive groups only clean up their sends.
+!> \param kpoints parallel environment
+!> \param fmlocal shared receive buffer, consumed before receiving the next part
+!> \param ik global k-point index
+!> \param info real/imaginary transfers started by kpoint_operator_launch
+!> \param cmat complex output, real part overwrites and imaginary part adds
+!> \param fm_re real FM output
+!> \param fm_im optional imaginary FM output
+!> \param mat_re real DBCSR output
+!> \param mat_im imaginary DBCSR output
 ! **************************************************************************************************
-   SUBROUTINE kpoint_operator_raw_finish_cfm(fmlocal, info, cmat, imaginary_part)
-
+   SUBROUTINE kpoint_operator_receive(kpoints, fmlocal, ik, info, cmat, fm_re, fm_im, mat_re, mat_im)
+      TYPE(kpoint_type), INTENT(IN), POINTER             :: kpoints
       TYPE(cp_fm_type)                                   :: fmlocal
-      TYPE(copy_info_type)                               :: info
-      TYPE(cp_cfm_type)                                  :: cmat
-      LOGICAL, INTENT(IN)                                :: imaginary_part
+      INTEGER, INTENT(IN)                                :: ik
+      TYPE(copy_info_type), INTENT(INOUT)                :: info(:)
+      TYPE(cp_cfm_type), OPTIONAL                        :: cmat
+      TYPE(cp_fm_type), OPTIONAL                         :: fm_re, fm_im
+      TYPE(dbcsr_type), INTENT(INOUT), OPTIONAL          :: mat_re, mat_im
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_raw_finish_cfm'
+      INTEGER                                            :: part
 
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_finish_copy_general(fmlocal, info)
-      IF (imaginary_part) THEN
-         CALL cp_cfm_scale_and_add_fm(z_one, cmat, gaussi, fmlocal)
-      ELSE
-         CALL cp_cfm_scale_and_add_fm(z_zero, cmat, z_one, fmlocal)
+      IF (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2)) THEN
+         IF (PRESENT(cmat)) THEN
+            CALL cp_fm_finish_copy_general(fmlocal, info(kpoint_part_re))
+            CALL cp_cfm_scale_and_add_fm(z_zero, cmat, z_one, fmlocal)
+            IF (.NOT. kpoints%use_real_wfn) THEN
+               CALL cp_fm_finish_copy_general(fmlocal, info(kpoint_part_im))
+               CALL cp_cfm_scale_and_add_fm(z_one, cmat, gaussi, fmlocal)
+            END IF
+         ELSE IF (PRESENT(fm_re)) THEN
+            CALL cp_fm_finish_copy_general(fm_re, info(kpoint_part_re))
+            IF (kpoints%use_real_wfn) THEN
+               IF (PRESENT(fm_im)) fm_im%local_data(:, :) = 0.0_dp
+            ELSE
+               CALL cp_fm_finish_copy_general(fm_im, info(kpoint_part_im))
+            END IF
+         ELSE
+            CALL cp_fm_finish_copy_general(fmlocal, info(kpoint_part_re))
+            CALL copy_fm_to_dbcsr_bc(fmlocal, mat_re)
+            IF (kpoints%use_real_wfn) THEN
+               fmlocal%local_data(:, :) = 0.0_dp
+            ELSE
+               CALL cp_fm_finish_copy_general(fmlocal, info(kpoint_part_im))
+            END IF
+            CALL copy_fm_to_dbcsr_bc(fmlocal, mat_im)
+         END IF
       END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE kpoint_operator_raw_finish_cfm
+      DO part = 1, MERGE(1, 2, kpoints%use_real_wfn)
+         CALL cp_fm_cleanup_copy_general(info(part))
+      END DO
+   END SUBROUTINE kpoint_operator_receive
 
 ! **************************************************************************************************
 !> \brief Split a complex matrix into the real and imaginary MO sets and copy
@@ -1096,9 +1114,20 @@ CONTAINS
 
       INTEGER                                            :: first, handle, k, last, ncol, nrow, width
       INTEGER(KIND=int_8)                                :: bytes_per_k
+      LOGICAL                                            :: layout_ok
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
 
       CALL timeset(routineN, handle)
+      IF (PRESENT(TARGET)) THEN
+         layout_ok = cp_fm_struct_equivalent(target%matrix_struct, ctx%rs_route%matrix_struct)
+      ELSE
+         CPASSERT(PRESENT(fm_re))
+         layout_ok = cp_fm_struct_equivalent(fm_re%matrix_struct, ctx%rs_route%matrix_struct)
+         IF (PRESENT(fm_im)) THEN
+            layout_ok = layout_ok .AND. cp_fm_struct_equivalent(fm_im%matrix_struct, ctx%rs_route%matrix_struct)
+         END IF
+      END IF
+      CPASSERT(layout_ok)
       ! Avoid nested component array sections in GCC 16 bounds checks.
       xkp => ctx%kpoints%xkp
       first = ctx%kpoints%kp_range(1)
@@ -1137,6 +1166,10 @@ CONTAINS
                IF (PRESENT(fm_im)) fm_im%local_data(:, ncol + 1:) = 0.0_dp
             END IF
          END ASSOCIATE
+      END IF
+      IF (ctx%kpoints%use_real_wfn) THEN
+         IF (PRESENT(TARGET)) target%local_data(:, :) = CMPLX(REAL(target%local_data, dp), 0.0_dp, dp)
+         IF (PRESENT(fm_im)) fm_im%local_data(:, :) = 0.0_dp
       END IF
       CALL timestop(handle)
 
@@ -1393,11 +1426,7 @@ CONTAINS
 !> \param rsmat real-space image matrices of the operator. A prepared operator
 !>        batch uses the values captured by prepare; otherwise start reads
 !>        the current values. The matching finish never reads rsmat
-!> \param slot optional prepared slot: opt in to its immutable snapshot.
-!>        Without slot, get always reads current source values. A missing or
-!>        mismatched snapshot retains the original transfer path. Prepared FM
-!>        targets must match the layout selected at prepare; inactive groups
-!>        do not inspect or modify their output arguments.
+!> \param slot instance slot, optionally backed by a prepared snapshot
 !> \param grid prepared reciprocal-grid cache of the caller
 !> \param use_grid extract from grid instead of a direct phase sum
 !> \param matrix_row row of rsmat to transform. Spin-free operators such
@@ -1504,7 +1533,7 @@ CONTAINS
       INTEGER                                            :: handle, igroup, ik, irs, kpmax
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
-      LOGICAL                                            :: layout_ok, my_kpgrp
+      LOGICAL                                            :: layout_ok
 
       CALL timeset(routineN, handle)
 
@@ -1522,20 +1551,11 @@ CONTAINS
       CPASSERT(.NOT. PRESENT(fm_re) .OR. ctx%kpoints%use_real_wfn)
       kp_range = ctx%kpoints%kp_range
       IF (ctx%status(ikp, ispin, slot) == kpoint_slot_local) THEN
-         IF (PRESENT(cmat)) THEN
-            layout_ok = cp_fm_struct_equivalent(cmat%matrix_struct, ctx%rs_route%matrix_struct)
-         ELSE
-            layout_ok = cp_fm_struct_equivalent(fm_re%matrix_struct, ctx%rs_route%matrix_struct)
-         END IF
-         CPASSERT(layout_ok)
          irs = ispin
          IF (.NOT. ASSOCIATED(ctx%rs(irs, slot)%source)) irs = 1
          ik = kp_range(1) + ikp - 1
          IF (ik <= kp_range(2)) THEN
             CALL kpoint_operator_rs_build(ctx, irs, slot, ik, cmat, fm_re=fm_re)
-            IF (PRESENT(cmat) .AND. ctx%kpoints%use_real_wfn) THEN
-               cmat%local_data(:, :) = CMPLX(REAL(cmat%local_data, dp), 0.0_dp, dp)
-            END IF
          END IF
          ctx%status(ikp, ispin, slot) = kpoint_slot_idle
          CALL timestop(handle)
@@ -1552,23 +1572,8 @@ CONTAINS
       DO igroup = 1, ctx%kpoints%nkp_groups
          ik = kp_dist(1, igroup) + ikp - 1
          IF (ik > kp_dist(2, igroup)) CYCLE
-         my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-         IF (my_kpgrp) THEN
-            IF (PRESENT(cmat)) THEN
-               CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, ctx%info(ik, ispin, slot, kpoint_part_re), &
-                                                   cmat, .FALSE.)
-               IF (.NOT. ctx%kpoints%use_real_wfn) THEN
-                  CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, ctx%info(ik, ispin, slot, kpoint_part_im), &
-                                                      cmat, .TRUE.)
-               END IF
-            ELSE
-               CALL cp_fm_finish_copy_general(fm_re, ctx%info(ik, ispin, slot, kpoint_part_re))
-            END IF
-         END IF
-         CALL cp_fm_cleanup_copy_general(ctx%info(ik, ispin, slot, kpoint_part_re))
-         IF (.NOT. ctx%kpoints%use_real_wfn) THEN
-            CALL cp_fm_cleanup_copy_general(ctx%info(ik, ispin, slot, kpoint_part_im))
-         END IF
+         CALL kpoint_operator_receive(ctx%kpoints, ctx%fmlocal, ik, ctx%info(ik, ispin, slot, :), &
+                                      cmat=cmat, fm_re=fm_re)
       END DO
       ctx%status(ikp, ispin, slot) = kpoint_slot_idle
 
@@ -1629,9 +1634,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_get'
 
       INTEGER                                            :: handle, igroup, ik, irs, kpmax
-      INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
-      LOGICAL                                            :: layout_ok, my_kpgrp
+      LOGICAL                                            :: layout_ok
       TYPE(copy_info_type)                               :: info(2)
 
       CALL timeset(routineN, handle)
@@ -1657,35 +1661,16 @@ CONTAINS
          IF (irs > 0) THEN
             ik = ctx%kpoints%kp_range(1) + ikp - 1
             IF (ik <= ctx%kpoints%kp_range(2)) THEN
-               IF (PRESENT(cmat)) THEN
-                  layout_ok = cp_fm_struct_equivalent(cmat%matrix_struct, ctx%rs_route%matrix_struct)
-                  CPASSERT(layout_ok)
-                  CALL kpoint_operator_rs_build(ctx, irs, slot, ik, cmat)
-                  IF (ctx%kpoints%use_real_wfn) THEN
-                     cmat%local_data(:, :) = CMPLX(REAL(cmat%local_data, dp), 0.0_dp, dp)
-                  END IF
-               ELSE IF (PRESENT(fm_re)) THEN
-                  layout_ok = cp_fm_struct_equivalent(fm_re%matrix_struct, ctx%rs_route%matrix_struct)
-                  CPASSERT(layout_ok)
-                  IF (PRESENT(fm_im)) THEN
-                     layout_ok = cp_fm_struct_equivalent(fm_im%matrix_struct, ctx%rs_route%matrix_struct)
-                     CPASSERT(layout_ok)
-                  END IF
-                  CALL kpoint_operator_rs_build(ctx, irs, slot, ik, &
-                                                fm_re=fm_re, fm_im=fm_im)
-                  IF (ctx%kpoints%use_real_wfn .AND. PRESENT(fm_im)) fm_im%local_data(:, :) = 0.0_dp
-               ELSE
-                  layout_ok = cp_fm_struct_equivalent(ctx%fmlocal%matrix_struct, ctx%rs_route%matrix_struct)
-                  CPASSERT(layout_ok)
+               IF (PRESENT(mat_re)) THEN
                   IF (.NOT. ALLOCATED(ctx%fmimag)) THEN
                      ALLOCATE (ctx%fmimag)
                      CALL cp_fm_create(ctx%fmimag, ctx%fmlocal%matrix_struct)
                   END IF
-                  CALL kpoint_operator_rs_build(ctx, irs, slot, ik, &
-                                                fm_re=ctx%fmlocal, fm_im=ctx%fmimag)
+                  CALL kpoint_operator_rs_build(ctx, irs, slot, ik, fm_re=ctx%fmlocal, fm_im=ctx%fmimag)
                   CALL copy_fm_to_dbcsr_bc(ctx%fmlocal, mat_re)
-                  IF (ctx%kpoints%use_real_wfn) ctx%fmimag%local_data(:, :) = 0.0_dp
                   CALL copy_fm_to_dbcsr_bc(ctx%fmimag, mat_im)
+               ELSE
+                  CALL kpoint_operator_rs_build(ctx, irs, slot, ik, TARGET=cmat, fm_re=fm_re, fm_im=fm_im)
                END IF
             END IF
             CALL timestop(handle)
@@ -1700,43 +1685,17 @@ CONTAINS
          CPASSERT(layout_ok)
       END IF
 
-      kp_range = ctx%kpoints%kp_range
       kp_dist => ctx%kpoints%kp_dist
       DO igroup = 1, ctx%kpoints%nkp_groups
          ik = kp_dist(1, igroup) + ikp - 1
          IF (ik > kp_dist(2, igroup)) CYCLE
-         my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
          ! Absent fm targets are forwarded as absent optional arguments. Both
          ! CFM and DBCSR outputs use the same context-owned receive buffer.
          CALL kpoint_operator_densify(ctx, rsmat, matrix_row, ik, grid=grid, use_grid=PRESENT(grid))
          CALL kpoint_operator_launch(ctx%kpoints, ik, ctx%fmwork, ctx%fmlocal, info, &
                                      target_re=fm_re, target_im=fm_im)
-         IF (my_kpgrp) THEN
-            IF (PRESENT(cmat)) THEN
-               CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, info(kpoint_part_re), cmat, .FALSE.)
-               IF (.NOT. ctx%kpoints%use_real_wfn) THEN
-                  CALL kpoint_operator_raw_finish_cfm(ctx%fmlocal, info(kpoint_part_im), cmat, .TRUE.)
-               END IF
-            ELSE IF (PRESENT(fm_re)) THEN
-               CALL cp_fm_finish_copy_general(fm_re, info(kpoint_part_re))
-               IF (ctx%kpoints%use_real_wfn) THEN
-                  IF (PRESENT(fm_im)) fm_im%local_data(:, :) = 0.0_dp
-               ELSE
-                  CALL cp_fm_finish_copy_general(fm_im, info(kpoint_part_im))
-               END IF
-            ELSE
-               CALL cp_fm_finish_copy_general(ctx%fmlocal, info(kpoint_part_re))
-               CALL copy_fm_to_dbcsr_bc(ctx%fmlocal, mat_re)
-               IF (ctx%kpoints%use_real_wfn) THEN
-                  ctx%fmlocal%local_data(:, :) = 0.0_dp
-               ELSE
-                  CALL cp_fm_finish_copy_general(ctx%fmlocal, info(kpoint_part_im))
-               END IF
-               CALL copy_fm_to_dbcsr_bc(ctx%fmlocal, mat_im)
-            END IF
-         END IF
-         CALL cp_fm_cleanup_copy_general(info(kpoint_part_re))
-         IF (.NOT. ctx%kpoints%use_real_wfn) CALL cp_fm_cleanup_copy_general(info(kpoint_part_im))
+         CALL kpoint_operator_receive(ctx%kpoints, ctx%fmlocal, ik, info, cmat=cmat, fm_re=fm_re, fm_im=fm_im, &
+                                      mat_re=mat_re, mat_im=mat_im)
       END DO
 
       CALL timestop(handle)

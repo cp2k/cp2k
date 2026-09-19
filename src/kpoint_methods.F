@@ -137,7 +137,7 @@ MODULE kpoint_methods
    PUBLIC :: kpoint_smearing_edge_status
    PUBLIC :: kpoint_density_matrices, kpoint_density_transform
    PUBLIC :: kpoint_ot_energy_weighted_density, kpoint_ot_energy_weighted_matrices
-   PUBLIC :: kp_transform_plan_create, kp_transform_plan_release
+   PUBLIC :: kp_transform_plan_create
    PUBLIC :: rskp_transform, lowdin_kp_trans, lowdin_kp_mo_coeff
    PUBLIC :: rskp_grid_type, rskp_transform_grid_prepare, rskp_transform_grid_extract, &
              rskp_transform_grid_release
@@ -670,12 +670,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_env_initialize'
 
-      INTEGER                                            :: handle, igr, ik, ikk, ngr, niogrp, nkp, &
+      INTEGER                                            :: handle, igr, ngr, niogrp, nkp, &
                                                             nkp_grp, nkp_loc, npe, unit_nr
       INTEGER, DIMENSION(2)                              :: dims, pos
       LOGICAL                                            :: aux_fit
-      TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_aux_env, kp_env
-      TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mp_cart_type)                                 :: comm_cart
       TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp, para_env_kp
 
@@ -697,38 +695,10 @@ CONTAINS
          CPASSERT(.NOT. ASSOCIATED(kpoint%kp_aux_env))
       END IF
 
-      NULLIFY (kp_env, kp_aux_env)
       nkp = kpoint%nkp
       npe = para_env%num_pe
       IF (npe == 1) THEN
          ! only one process available -> owns all kpoints
-         ALLOCATE (kp_env(nkp))
-         DO ik = 1, nkp
-            NULLIFY (kp_env(ik)%kpoint_env)
-            CALL kpoint_env_create(kp_env(ik)%kpoint_env)
-            kp => kp_env(ik)%kpoint_env
-            kp%nkpoint = ik
-            kp%wkp = kpoint%wkp(ik)
-            kp%xkp(1:3) = kpoint%xkp(1:3, ik)
-            kp%is_local = .TRUE.
-         END DO
-         kpoint%kp_env => kp_env
-
-         IF (aux_fit) THEN
-            ALLOCATE (kp_aux_env(nkp))
-            DO ik = 1, nkp
-               NULLIFY (kp_aux_env(ik)%kpoint_env)
-               CALL kpoint_env_create(kp_aux_env(ik)%kpoint_env)
-               kp => kp_aux_env(ik)%kpoint_env
-               kp%nkpoint = ik
-               kp%wkp = kpoint%wkp(ik)
-               kp%xkp(1:3) = kpoint%xkp(1:3, ik)
-               kp%is_local = .TRUE.
-            END DO
-
-            kpoint%kp_aux_env => kp_aux_env
-         END IF
-
          ALLOCATE (kpoint%kp_dist(2, 1))
          kpoint%kp_dist(1, 1) = 1
          kpoint%kp_dist(2, 1) = nkp
@@ -798,34 +768,6 @@ CONTAINS
          kpoint%kp_range(1:2) = kpoint%kp_dist(1:2, para_env_inter_kp%mepos + 1)
          nkp_loc = kpoint%kp_range(2) - kpoint%kp_range(1) + 1
 
-         ALLOCATE (kp_env(nkp_loc))
-         DO ik = 1, nkp_loc
-            NULLIFY (kp_env(ik)%kpoint_env)
-            ikk = kpoint%kp_range(1) + ik - 1
-            CALL kpoint_env_create(kp_env(ik)%kpoint_env)
-            kp => kp_env(ik)%kpoint_env
-            kp%nkpoint = ikk
-            kp%wkp = kpoint%wkp(ikk)
-            kp%xkp(1:3) = kpoint%xkp(1:3, ikk)
-            kp%is_local = (ngr == 1)
-         END DO
-         kpoint%kp_env => kp_env
-
-         IF (aux_fit) THEN
-            ALLOCATE (kp_aux_env(nkp_loc))
-            DO ik = 1, nkp_loc
-               NULLIFY (kp_aux_env(ik)%kpoint_env)
-               ikk = kpoint%kp_range(1) + ik - 1
-               CALL kpoint_env_create(kp_aux_env(ik)%kpoint_env)
-               kp => kp_aux_env(ik)%kpoint_env
-               kp%nkpoint = ikk
-               kp%wkp = kpoint%wkp(ikk)
-               kp%xkp(1:3) = kpoint%xkp(1:3, ikk)
-               kp%is_local = (ngr == 1)
-            END DO
-            kpoint%kp_aux_env => kp_aux_env
-         END IF
-
          unit_nr = cp_logger_get_default_io_unit()
 
          IF (unit_nr > 0 .AND. kpoint%verbose) THEN
@@ -844,7 +786,35 @@ CONTAINS
 
       END IF
 
+      nkp_loc = kpoint%kp_range(2) - kpoint%kp_range(1) + 1
+      CALL create_local_environments(kpoint%kp_env)
+      IF (aux_fit) CALL create_local_environments(kpoint%kp_aux_env)
+
       CALL timestop(handle)
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param env ...
+! **************************************************************************************************
+      SUBROUTINE create_local_environments(env)
+      TYPE(kpoint_env_p_type), INTENT(OUT), POINTER      :: env(:)
+
+      INTEGER                                            :: ik, ikk
+      TYPE(kpoint_env_type), POINTER                     :: kp
+
+         ALLOCATE (env(nkp_loc))
+         DO ik = 1, nkp_loc
+            ikk = kpoint%kp_range(1) + ik - 1
+            CALL kpoint_env_create(env(ik)%kpoint_env)
+            kp => env(ik)%kpoint_env
+            kp%nkpoint = ikk
+            kp%wkp = kpoint%wkp(ikk)
+            kp%xkp(1:3) = kpoint%xkp(1:3, ikk)
+            kp%is_local = (kpoint%para_env_kp%num_pe == 1)
+         END DO
+      END SUBROUTINE create_local_environments
 
    END SUBROUTINE kpoint_env_initialize
 
@@ -2541,9 +2511,6 @@ CONTAINS
          END DO
       END IF
 
-      ! All done
-      CALL kp_transform_plan_release(transform_plan)
-
       CALL dbcsr_deallocate_matrix(rpmat)
       CALL dbcsr_deallocate_matrix(cpmat)
       IF (ASSOCIATED(srpmat)) THEN
@@ -3068,8 +3035,6 @@ CONTAINS
       IF (store_offsets) THEN
          CALL dbcsr_get_info(block_template, row_blk_offset=row_offsets, col_blk_offset=col_offsets)
       END IF
-      plan%nentry = 0
-      plan%ngroup = 0
       CALL neighbor_list_iterator_create(iterator, sab_nl)
       DO WHILE (neighbor_list_iterate(iterator) == 0)
          CALL get_iterator_info(iterator, cell=cell)
@@ -3148,23 +3113,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE kp_transform_plan_create
-
-! **************************************************************************************************
-!> \brief Release a K-to-R traversal plan.
-!> \param plan ...
-! **************************************************************************************************
-   SUBROUTINE kp_transform_plan_release(plan)
-
-      TYPE(kp_transform_plan_type), INTENT(INOUT)        :: plan
-
-      DEALLOCATE (plan%row, plan%col, plan%image, plan%cell, plan%symmetry_sign)
-      IF (ALLOCATED(plan%row_offset)) DEALLOCATE (plan%row_offset, plan%col_offset)
-      IF (ALLOCATED(plan%group_start)) DEALLOCATE (plan%group_start)
-      plan%nentry = 0
-      plan%ngroup = 0
-      plan%symmetric = .FALSE.
-
-   END SUBROUTINE kp_transform_plan_release
 
 ! **************************************************************************************************
 !> \brief real space density matrices in DBCSR format

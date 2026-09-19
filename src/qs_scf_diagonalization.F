@@ -685,7 +685,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeffs
       INTEGER :: cdiis_ncall, handle, ib, ikp, ispin, kplocal, kpmax, &
-                 lattice_fft, nb, nkp, nkp_groups, nspin, omp_threads, nworkers, nentry
+                 lattice_fft, nb, nkp, nspin, omp_threads, nworkers, nentry
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
@@ -721,7 +721,7 @@ CONTAINS
 
       NULLIFY (adiis_ks, effective_ks, sab_nl)
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
-                           nkp_groups=nkp_groups, kp_dist=kp_dist, sab_nl=sab_nl, &
+                           kp_dist=kp_dist, sab_nl=sab_nl, &
                            cell_to_index=cell_to_index, nkp_grid=nkp_grid, lattice_fft=lattice_fft)
       CPASSERT(ASSOCIATED(sab_nl))
       kplocal = kp_range(2) - kp_range(1) + 1
@@ -907,14 +907,14 @@ CONTAINS
          CALL qs_diis_b_check_i_alloc_kp(kpoints%scf_diis_buffer, matrix_struct, nspin, kplocal, scf_section)
          IF (use_local_kpoints) THEN
             CALL kp_diag_local_phase(op_ctx, kpoints, workspace, scf_env, scf_control, nspin, &
-                                     cache_smat, reuse_smat, use_adiis, ib, scf_section, .TRUE., 1.0_dp)
+                                     cache_smat, reuse_smat, use_adiis, ib, .TRUE., 1.0_dp)
          ELSE
             DO ikp = 1, kpmax
                DO ispin = 1, nspin
                   CALL harvest_operators(ikp, ispin)
                   IF (ikp > kplocal) CYCLE
                   CALL qs_diis_b_calc_err_kp(kpoints%scf_diis_buffer, ib, kp%mos, cksmat, csmat, &
-                                             ispin, ikp, kplocal, scf_section, real_wfn=use_real_wfn, cmos_work=cmos)
+                                             ispin, ikp, cmos, real_wfn=use_real_wfn)
 
                END DO !ispin
             END DO !ikp
@@ -968,7 +968,7 @@ CONTAINS
       IF (use_local_kpoints) THEN
          ! An unallocated coeffs actual is absent at the optional dummy (Fortran 2008).
          CALL kp_diag_local_phase(op_ctx, kpoints, workspace, scf_env, scf_control, nspin, &
-                                  cache_smat, reuse_smat, use_adiis, ib, scf_section, .FALSE., diis_weight, coeffs)
+                                  cache_smat, reuse_smat, use_adiis, ib, .FALSE., diis_weight, coeffs)
       ELSE
          DO ikp = 1, kpmax
             DO ispin = 1, nspin
@@ -1098,13 +1098,12 @@ CONTAINS
 !> \param reuse_smat overlap cache is already valid
 !> \param use_adiis shift an ADIIS candidate only
 !> \param ib DIIS insertion index
-!> \param scf_section SCF input section
 !> \param store_error store raw F and its residual instead of solving
 !> \param diis_weight weight of the CDIIS candidate
 !> \param coeffs optional DIIS coefficients for the second phase
 ! **************************************************************************************************
    SUBROUTINE kp_diag_local_phase(ctx, kpoints, workspace, scf_env, scf_control, nspin, &
-                                  cache_smat, reuse_smat, use_adiis, ib, scf_section, store_error, diis_weight, coeffs)
+                                  cache_smat, reuse_smat, use_adiis, ib, store_error, diis_weight, coeffs)
       TYPE(kpoint_operator_context_type), INTENT(IN) :: ctx
       TYPE(kpoint_type), POINTER :: kpoints
       TYPE(kp_diag_workspace_type), INTENT(INOUT) :: workspace(:)
@@ -1112,7 +1111,6 @@ CONTAINS
       TYPE(scf_control_type), POINTER :: scf_control
       INTEGER, INTENT(IN) :: nspin, ib
       LOGICAL, INTENT(IN) :: cache_smat, reuse_smat, use_adiis, store_error
-      TYPE(section_vals_type), POINTER :: scf_section
       REAL(KIND=dp), INTENT(IN) :: diis_weight
       COMPLEX(KIND=dp), OPTIONAL, INTENT(IN) :: coeffs(:)
 
@@ -1127,7 +1125,7 @@ CONTAINS
       ! Each one-rank group owns complete matrices: assemble directly into solver storage.
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(DYNAMIC, 1) NUM_THREADS(nworkers) IF(nworkers > 1) &
 !$OMP SHARED(ctx,kpoints,workspace,scf_env,scf_control,nspin,cache_smat,reuse_smat,use_adiis,ib, &
-!$OMP        scf_section,store_error,diis_weight,coeffs,kplocal,nworkers,build_h,build_s) &
+!$OMP        store_error,diis_weight,coeffs,kplocal,nworkers,build_h,build_s) &
 !$OMP PRIVATE(ik,ikp,ispin,thread,kp)
       DO ikp = 1, kplocal
          thread = 1
@@ -1161,7 +1159,7 @@ CONTAINS
                END IF
                IF (store_error) THEN
                   CALL qs_diis_b_calc_err_kp(kpoints%scf_diis_buffer, ib, kp%mos, work%cksmat, work%csmat, &
-                                             ispin, ikp, kplocal, scf_section, cmos_work=work%cmos, local=.TRUE.)
+                                             ispin, ikp, work%cmos, local=.TRUE.)
                ELSE
                   CALL kp_solve_complex(kp%mos(:, ispin), work, scf_env, scf_control, use_adiis, .TRUE.)
                END IF
@@ -1224,13 +1222,13 @@ CONTAINS
       IF (scf_env%cholesky_method == cholesky_off) THEN
          IF (local) THEN
             CALL cp_cfm_geeig_canon_local(work%cksmat, work%csmat, work%cmos, eigenvalues, work%cwork, &
-                                          scf_control%eps_eigval, workspace=work%solver)
+                                          scf_control%eps_eigval, ws=work%solver)
          ELSE
             CALL cp_cfm_geeig_canon(work%cksmat, work%csmat, work%cmos, eigenvalues, work%cwork, scf_control%eps_eigval)
          END IF
       ELSE
          IF (local) THEN
-            CALL cp_cfm_geeig_local(work%cksmat, work%csmat, work%cmos, eigenvalues, workspace=work%solver)
+            CALL cp_cfm_geeig_local(work%cksmat, work%csmat, work%cmos, eigenvalues, ws=work%solver)
          ELSE
             CALL cp_cfm_geeig(work%cksmat, work%csmat, work%cmos, eigenvalues, work%cwork)
          END IF
