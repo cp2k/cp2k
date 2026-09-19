@@ -47,6 +47,7 @@ MODULE xas_tdp_atom
                                               dbt_iterator_stop,&
                                               dbt_iterator_type,&
                                               dbt_type
+   USE gaunt_coefficients,              ONLY: real_gaunt_coefficients
    USE input_constants,                 ONLY: do_potential_id
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
@@ -94,9 +95,6 @@ MODULE xas_tdp_atom
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_tddfpt2_soc_types,            ONLY: soc_atom_env_type
-   USE spherical_harmonics,             ONLY: clebsch_gordon,&
-                                              clebsch_gordon_deallocate,&
-                                              clebsch_gordon_init
    USE util,                            ONLY: get_limit,&
                                               sort_unique
    USE xas_tdp_integrals,               ONLY: build_xas_tdp_3c_nl,&
@@ -246,10 +244,10 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=default_string_length)               :: kind_name
-      INTEGER :: igrid, ikind, il, iso, iso1, iso2, l1, l1l2, l2, la, lc1, lc2, lcleb, ll, llmax, &
-         lp, m1, m2, max_s_harm, max_s_set, maxl, maxlgto, maxs, mm, mp, na, nr, quadrature, stat
+      INTEGER                                            :: igrid, ikind, la, ll, llmax, max_s_harm, &
+                                                            max_s_set, maxl, maxlgto, maxs, na, &
+                                                            nr, quadrature, stat
       REAL(dp)                                           :: kind_radius
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: rga
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
@@ -273,61 +271,8 @@ CONTAINS
       llmax = 2*maxlgto
       max_s_harm = nsoset(llmax)
       max_s_set = nsoset(maxlgto)
-      lcleb = llmax
-
-!  Allocate and compute the CG coeffs (copied from init_rho_atom)
-      CALL clebsch_gordon_init(lcleb)
-      CALL reallocate(my_CG, 1, max_s_set, 1, max_s_set, 1, max_s_harm)
-
-      ALLOCATE (rga(lcleb, 2))
-      DO lc1 = 0, maxlgto
-         DO iso1 = nsoset(lc1 - 1) + 1, nsoset(lc1)
-            l1 = indso(1, iso1)
-            m1 = indso(2, iso1)
-            DO lc2 = 0, maxlgto
-               DO iso2 = nsoset(lc2 - 1) + 1, nsoset(lc2)
-                  l2 = indso(1, iso2)
-                  m2 = indso(2, iso2)
-                  CALL clebsch_gordon(l1, m1, l2, m2, rga)
-                  IF (l1 + l2 > llmax) THEN
-                     l1l2 = llmax
-                  ELSE
-                     l1l2 = l1 + l2
-                  END IF
-                  mp = m1 + m2
-                  mm = m1 - m2
-                  IF (m1*m2 < 0 .OR. (m1*m2 == 0 .AND. (m1 < 0 .OR. m2 < 0))) THEN
-                     mp = -ABS(mp)
-                     mm = -ABS(mm)
-                  ELSE
-                     mp = ABS(mp)
-                     mm = ABS(mm)
-                  END IF
-                  DO lp = MOD(l1 + l2, 2), l1l2, 2
-                     il = lp/2 + 1
-                     IF (ABS(mp) <= lp) THEN
-                     IF (mp >= 0) THEN
-                        iso = nsoset(lp - 1) + lp + 1 + mp
-                     ELSE
-                        iso = nsoset(lp - 1) + lp + 1 - ABS(mp)
-                     END IF
-                     my_CG(iso1, iso2, iso) = rga(il, 1)
-                     END IF
-                     IF (mp /= mm .AND. ABS(mm) <= lp) THEN
-                     IF (mm >= 0) THEN
-                        iso = nsoset(lp - 1) + lp + 1 + mm
-                     ELSE
-                        iso = nsoset(lp - 1) + lp + 1 - ABS(mm)
-                     END IF
-                     my_CG(iso1, iso2, iso) = rga(il, 2)
-                     END IF
-                  END DO
-               END DO ! iso2
-            END DO ! lc2
-         END DO ! iso1
-      END DO ! lc1
-      DEALLOCATE (rga)
-      CALL clebsch_gordon_deallocate()
+!  Compute the Gaunt coefficients
+      CALL real_gaunt_coefficients(my_CG, maxlgto, maxlgto, llmax)
 
 !  Create the Lebedev grids and compute the spherical harmonics
       CALL init_lebedev_grids()

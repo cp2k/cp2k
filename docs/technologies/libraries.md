@@ -38,6 +38,29 @@ of CP2K, DBCSR must also have been built with MPI support using the CMake flag `
 `-DUSE_MPI_F08=ON` if `mpi_f08` is available. Likewise, a serial build (`ssmp`/`sdbg`) of CP2K must
 use a DBCSR configured with `-DUSE_MPI=OFF`.
 
+## libwignernj (required, angular momentum algebra)
+
+[libwignernj](https://github.com/susilehtola/libwignernj) evaluates the Wigner 3j, 6j and 9j
+symbols, the Clebsch-Gordan coefficients and the Gaunt coefficients of the complex and real
+spherical harmonics. All intermediate arithmetic is carried out exactly, in a prime factorization
+representation, and the result is rounded only once at the end, so the returned coefficients are
+correct to the last bit.
+
+CP2K uses the Gaunt coefficients of the real spherical harmonics to expand products of two spherical
+harmonics, which is needed by the GAPW atomic densities and potentials, the LRI and SHG integrals,
+the spin-orbit coupling in TDDFPT, the XAS_TDP module and the CNEO nuclear basis.
+
+CP2K requires an external installation of libwignernj 0.8 or newer, including its upstream CMake
+package. The CP2K toolchain installs it by default (`--with-libwignernj=install`); the Spack
+dependency environments also include it. The toolchain accepts `--with-libwignernj=system` or an
+installation prefix to use an existing copy. There is no bundled fallback or configure-time
+download.
+
+Only the C library is used: CP2K binds to it through `ISO_C_BINDING`, so libwignernj can be built
+with `-DWIGNERNJ_BUILD_FORTRAN=OFF`. Use `-Dwignernj_ROOT=/path/to/install` or add the installation
+prefix to `CMAKE_PREFIX_PATH` when configuring CP2K. An installed CP2K also discovers this
+dependency when a downstream project calls `find_package(cp2k)`.
+
 ## MPI and ScaLAPACK (required for MPI parallel builds)
 
 MPI (version 3 or later) and SCALAPACK are needed for parallel code. (Use the latest versions

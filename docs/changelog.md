@@ -28,8 +28,16 @@
   [#5887](https://github.com/cp2k/cp2k/pull/5887))
 - **TODO**
 
+### New Libraries
+
+- Use libwignernj for the exact evaluation of the Wigner symbols and the Gaunt coefficients,
+  replacing the in-tree Clebsch-Gordan coefficient tables
+  ([#5961](https://github.com/cp2k/cp2k/pull/5961))
+
 ### Breaking Changes
 
+- Require an external libwignernj installation (version 0.8 or newer)
+  ([#5961](https://github.com/cp2k/cp2k/pull/5961))
 - Rename the RI-RS GW keyword `CUTOFF_RADIUS_RI_RS` to `CUTOFF_RADIUS_RL_RI`
   ([#5621](https://github.com/cp2k/cp2k/pull/5621))
 - Drop old DFT-D4 API compatibility ([#5641](https://github.com/cp2k/cp2k/pull/5641))

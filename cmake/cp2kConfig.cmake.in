@@ -44,6 +44,8 @@ if(NOT TARGET cp2k::cp2k)
 
   find_dependency(DBCSR 2.8 REQUIRED)
 
+  find_dependency(wignernj 0.8 CONFIG REQUIRED)
+
   set(CP2K_USE_LIBXS @CP2K_USE_LIBXS@)
   set(CP2K_USE_LIBXSMM @CP2K_USE_LIBXSMM@)
   if(CP2K_USE_LIBXS)

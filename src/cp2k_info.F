@@ -341,6 +341,8 @@ CONTAINS
 #if defined(__LIBGINT)
       flags = TRIM(flags)//" libGint"
 #endif
+
+      flags = TRIM(flags)//" libwignernj"
    END FUNCTION cp2k_flags
 
 ! **************************************************************************************************
