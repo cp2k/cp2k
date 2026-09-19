@@ -6,13 +6,15 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Batched lattice Fourier transforms for complete regular k-point grids.
+!> \brief Batched lattice Fourier transforms on regular k-point grids.
 !>
-!>        Real-space image cells are folded modulo the reciprocal grid.  Shifted Monkhorst-Pack
-!>        meshes are handled by a phase twist before the FFT.  Non-regular or incomplete k-point
-!>        lists transparently use the direct phase sum.
+!>        Image cells are folded modulo the reciprocal grid; shifted meshes use a phase twist.
+!>        Forward transforms require a complete grid. The inverse transform can also embed
+!>        an explicitly allowed subset with its supplied weights and zero missing points.
+!>        Unsupported grids retain the direct phase-sum fallback.
 ! **************************************************************************************************
 MODULE kpoint_lattice_fft
+   USE fft_lib,                         ONLY: fft_supports_arbitrary_lengths
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
@@ -34,36 +36,43 @@ MODULE kpoint_lattice_fft
 
    PUBLIC :: cell_to_k_grid_fft, &
              k_grid_to_cell_fft, &
+             lattice_fft_shape, &
              regular_kpoint_grid
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Test and map a complete, uniformly shifted reciprocal grid.
+!> \brief Test and map a uniformly shifted reciprocal grid or an explicitly allowed subset.
 !> \param xkp reciprocal coordinates, in units of reciprocal lattice vectors
 !> \param nkp_grid regular-grid dimensions
 !> \param grid_index FFT-grid index for every k point
 !> \param k_offset common reciprocal-coordinate offset
-!> \return true for a complete regular grid
+!> \param allow_incomplete accept a subset of a regular grid (missing points are zero)
+!> \return true for a regular grid, complete unless allow_incomplete is set
 ! **************************************************************************************************
-   LOGICAL FUNCTION regular_kpoint_grid(xkp, nkp_grid, grid_index, k_offset) RESULT(regular)
+   LOGICAL FUNCTION regular_kpoint_grid(xkp, nkp_grid, grid_index, k_offset, allow_incomplete) RESULT(regular)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
       INTEGER, DIMENSION(3), INTENT(IN)                  :: nkp_grid
       INTEGER, DIMENSION(:, :), INTENT(OUT), OPTIONAL    :: grid_index
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: k_offset
+      LOGICAL, INTENT(IN), OPTIONAL                      :: allow_incomplete
 
       REAL(KIND=dp), PARAMETER                           :: map_tolerance = 2.0E-10_dp
 
       INTEGER                                            :: d, ik, m, nkp
       INTEGER, DIMENSION(3)                              :: index
+      LOGICAL                                            :: require_complete
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: occupied
       REAL(KIND=dp)                                      :: offset(3), scaled
 
       regular = .FALSE.
       IF (SIZE(xkp, 1) < 3 .OR. ANY(nkp_grid <= 0)) RETURN
       nkp = SIZE(xkp, 2)
-      IF (PRODUCT(nkp_grid) /= nkp) RETURN
+      require_complete = .TRUE.
+      IF (PRESENT(allow_incomplete)) require_complete = .NOT. allow_incomplete
+      IF (nkp < 1 .OR. nkp > PRODUCT(nkp_grid)) RETURN
+      IF (require_complete .AND. PRODUCT(nkp_grid) /= nkp) RETURN
       IF (PRESENT(grid_index)) THEN
          IF (SIZE(grid_index, 1) < 3 .OR. SIZE(grid_index, 2) < nkp) RETURN
       END IF
@@ -79,25 +88,58 @@ CONTAINS
          DO d = 1, 3
             scaled = REAL(nkp_grid(d), KIND=dp)*(xkp(d, ik) - offset(d))
             m = NINT(scaled)
-            IF (ABS(scaled - REAL(m, KIND=dp)) > map_tolerance) THEN
-               DEALLOCATE (occupied)
-               RETURN
-            END IF
+            IF (ABS(scaled - REAL(m, KIND=dp)) > map_tolerance) RETURN
             INDEX(d) = MODULO(m, nkp_grid(d)) + 1
          END DO
-         IF (occupied(INDEX(1), INDEX(2), INDEX(3))) THEN
-            DEALLOCATE (occupied)
-            RETURN
-         END IF
+         IF (occupied(INDEX(1), INDEX(2), INDEX(3))) RETURN
          occupied(INDEX(1), INDEX(2), INDEX(3)) = .TRUE.
          IF (PRESENT(grid_index)) grid_index(1:3, ik) = index
       END DO
-      regular = ALL(occupied)
-      DEALLOCATE (occupied)
+      regular = .TRUE.
 
       IF (regular .AND. PRESENT(k_offset)) k_offset = offset
 
    END FUNCTION regular_kpoint_grid
+
+! **************************************************************************************************
+!> \brief Find backend-supported FFT dimensions that preserve the original lattice grid.
+!>        Sample the padded transform at integer multiples of the original cell indices.
+!> \param n original grid dimensions
+!> \param nfft supported integer multiples, if available
+!> \param allow_arbitrary use exact dimensions when supported by the active FFT backend
+!> \return whether all dimensions have a supported multiple
+! **************************************************************************************************
+   LOGICAL FUNCTION lattice_fft_shape(n, nfft, allow_arbitrary) RESULT(compatible)
+
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: n
+      INTEGER, DIMENSION(3), INTENT(OUT)                 :: nfft
+      LOGICAL, INTENT(IN), OPTIONAL                      :: allow_arbitrary
+
+      INTEGER                                            :: attempt, d, radix_length
+
+      compatible = .FALSE.
+      nfft = n
+      IF (ANY(n <= 0)) RETURN
+      IF (PRESENT(allow_arbitrary)) THEN
+         IF (allow_arbitrary .AND. fft_supports_arbitrary_lengths()) THEN
+            ! For capable backends, the PW grid radix list is a cost heuristic, not a capability limit.
+            compatible = .TRUE.
+            RETURN
+         END IF
+      END IF
+      DO d = 1, 3
+         DO attempt = 0, 15
+            IF (nfft(d) >= 3) THEN
+               CALL fft_radix_operations(nfft(d), radix_length, FFT_RADIX_NEXT)
+               IF (radix_length == nfft(d)) EXIT
+            END IF
+            nfft(d) = nfft(d) + n(d)
+         END DO
+         IF (attempt > 15) RETURN
+      END DO
+      compatible = .TRUE.
+
+   END FUNCTION lattice_fft_shape
 
 ! **************************************************************************************************
 !> \brief Transform a batch of real matrices from image cells to every supplied k point.
@@ -128,11 +170,11 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cell_factor
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: fft_in, fft_out
-      INTEGER                                            :: attempt, d, handle, i, icell, ik, &
-                                                            ik_out, j, nout, radix_length, stat
+      INTEGER                                            :: d, handle, i, icell, ik, ik_out, j, &
+                                                            nout, stat
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cell_index, grid_index
       INTEGER, DIMENSION(3)                              :: n, nfft
-      LOGICAL                                            :: compatible, regular
+      LOGICAL                                            :: regular
       REAL(KIND=dp)                                      :: arg
       REAL(KIND=dp), DIMENSION(3)                        :: cell_vector, k_offset
 
@@ -164,28 +206,7 @@ CONTAINS
       ALLOCATE (grid_index(3, SIZE(xkp, 2)))
       regular = regular_kpoint_grid(xkp, nkp_grid, grid_index, k_offset)
       n = nkp_grid
-      nfft = n
-      IF (regular) THEN
-         DO d = 1, 3
-            ! FFTSG rejects some short or non-radix lengths.  Embed the N-point
-            ! transform in a supported integer multiple L: real-space samples
-            ! occupy every L/N-th slot, while the first N output frequencies
-            ! are exactly the desired N-point DFT.  This keeps common 4x4x1
-            ! and 2D/1D Monkhorst-Pack grids on the FFT path.
-            compatible = .FALSE.
-            DO attempt = 0, 15
-               IF (nfft(d) >= 3) THEN
-                  CALL fft_radix_operations(nfft(d), radix_length, FFT_RADIX_NEXT)
-                  IF (radix_length == nfft(d)) THEN
-                     compatible = .TRUE.
-                     EXIT
-                  END IF
-               END IF
-               nfft(d) = nfft(d) + n(d)
-            END DO
-            IF (.NOT. compatible) regular = .FALSE.
-         END DO
-      END IF
+      IF (regular) regular = lattice_fft_shape(n, nfft)
       IF (.NOT. regular) THEN
          CALL direct_cell_to_k(values_rs, index_to_cell, xkp, values_k, deriv_direction, hmat, &
                                selected_kpoints)
@@ -247,15 +268,18 @@ CONTAINS
    END SUBROUTINE cell_to_k_grid_fft
 
 ! **************************************************************************************************
-!> \brief Transform complete reciprocal-grid data back to image-cell values.
-!> \param values_k complex matrices on a complete regular reciprocal grid
+!> \brief Transform reciprocal-grid data back to image-cell values.
+!> \param values_k complex matrices on the supplied reciprocal points
 !> \param xkp reciprocal coordinates, in units of reciprocal lattice vectors
 !> \param nkp_grid dimensions of the reciprocal grid
 !> \param index_to_cell integer lattice vector for every requested image cell
 !> \param values_rs reconstructed complex matrices in the requested image cells
 !> \param used_fft reports whether the regular-grid FFT path was used
+!> \param weights optional k weights; otherwise use the existing 1/number-of-points normalization
+!> \param allow_incomplete embed a unique regular-grid subset, zero-filling missing points
 ! **************************************************************************************************
-   SUBROUTINE k_grid_to_cell_fft(values_k, xkp, nkp_grid, index_to_cell, values_rs, used_fft)
+   SUBROUTINE k_grid_to_cell_fft(values_k, xkp, nkp_grid, index_to_cell, values_rs, used_fft, &
+                                 weights, allow_incomplete)
 
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: values_k
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
@@ -263,16 +287,18 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_rs
       LOGICAL, INTENT(OUT), OPTIONAL                     :: used_fft
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
+      LOGICAL, INTENT(IN), OPTIONAL                      :: allow_incomplete
 
-      COMPLEX(KIND=dp)                                   :: phase
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cell_phase
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: fft_in, fft_out
-      INTEGER                                            :: attempt, d, handle, i, icell, ik, j, &
-                                                            radix_length, stat
+      INTEGER                                            :: d, handle, i, icell, ik, j, stat
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cell_index, grid_index
       INTEGER, DIMENSION(3)                              :: n, nfft
-      LOGICAL                                            :: compatible, regular
+      LOGICAL                                            :: regular
       REAL(KIND=dp)                                      :: arg, normalization
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: k_weight
       REAL(KIND=dp), DIMENSION(3)                        :: k_offset
 
       CALL timeset("k_grid_to_cell_fft", handle)
@@ -287,57 +313,51 @@ CONTAINS
          CPABORT("Inconsistent input and output matrix batches in inverse lattice FFT")
       END IF
 
-      ALLOCATE (grid_index(3, SIZE(xkp, 2)))
-      regular = regular_kpoint_grid(xkp, nkp_grid, grid_index, k_offset)
-      n = nkp_grid
-      nfft = n
-      IF (regular) THEN
-         DO d = 1, 3
-            compatible = .FALSE.
-            DO attempt = 0, 15
-               IF (nfft(d) >= 3) THEN
-                  CALL fft_radix_operations(nfft(d), radix_length, FFT_RADIX_NEXT)
-                  IF (radix_length == nfft(d)) THEN
-                     compatible = .TRUE.
-                     EXIT
-                  END IF
-               END IF
-               nfft(d) = nfft(d) + n(d)
-            END DO
-            IF (.NOT. compatible) regular = .FALSE.
-         END DO
+      IF (PRESENT(weights)) THEN
+         CPASSERT(SIZE(weights) == SIZE(xkp, 2))
       END IF
+      ALLOCATE (grid_index(3, SIZE(xkp, 2)))
+      regular = regular_kpoint_grid(xkp, nkp_grid, grid_index, k_offset, allow_incomplete)
+      n = nkp_grid
+      IF (regular) regular = lattice_fft_shape(n, nfft, allow_incomplete)
       IF (.NOT. regular) THEN
-         CALL direct_k_to_cell(values_k, xkp, index_to_cell, values_rs)
+         CALL direct_k_to_cell(values_k, xkp, index_to_cell, values_rs, weights)
          IF (PRESENT(used_fft)) used_fft = .FALSE.
          DEALLOCATE (grid_index)
          CALL timestop(handle)
          RETURN
       END IF
 
+      NULLIFY (fft_in, fft_out)
       CALL fft_alloc(fft_in, nfft)
       CALL fft_alloc(fft_out, nfft)
-      ALLOCATE (cell_index(3, SIZE(index_to_cell, 2)))
+      ALLOCATE (cell_index(3, SIZE(index_to_cell, 2)), cell_phase(SIZE(index_to_cell, 2)))
+      ALLOCATE (k_weight(SIZE(xkp, 2)))
+      k_weight(:) = 1.0_dp
+      IF (PRESENT(weights)) k_weight(:) = weights
       DO icell = 1, SIZE(index_to_cell, 2)
          DO d = 1, 3
             cell_index(d, icell) = MODULO(index_to_cell(d, icell), n(d))*(nfft(d)/n(d)) + 1
          END DO
+         arg = SUM(k_offset*REAL(index_to_cell(1:3, icell), dp))
+         cell_phase(icell) = EXP(-gaussi*twopi*arg)
       END DO
-      normalization = REAL(PRODUCT(nfft), KIND=dp)/REAL(PRODUCT(n), KIND=dp)
+      ! FWFFT in fft_tools includes 1/PRODUCT(nfft); the supplied weights are final.
+      normalization = REAL(PRODUCT(nfft), dp)/REAL(SIZE(xkp, 2), dp)
+      IF (PRESENT(weights)) normalization = REAL(PRODUCT(nfft), dp)
 
       stat = 0
       DO j = 1, SIZE(values_k, 2)
          DO i = 1, SIZE(values_k, 1)
             fft_in = z_zero
             DO ik = 1, SIZE(values_k, 3)
-               fft_in(grid_index(1, ik), grid_index(2, ik), grid_index(3, ik)) = values_k(i, j, ik)
+               fft_in(grid_index(1, ik), grid_index(2, ik), grid_index(3, ik)) = &
+                  k_weight(ik)*values_k(i, j, ik)
             END DO
             CALL fft3d(FWFFT, nfft, fft_in, fft_out, status=stat)
             IF (stat /= 0) EXIT
             DO icell = 1, SIZE(index_to_cell, 2)
-               arg = SUM(k_offset*REAL(index_to_cell(1:3, icell), KIND=dp))
-               phase = EXP(-gaussi*twopi*arg)
-               values_rs(i, j, icell) = normalization*phase* &
+               values_rs(i, j, icell) = normalization*cell_phase(icell)* &
                                         fft_out(cell_index(1, icell), cell_index(2, icell), cell_index(3, icell))
             END DO
          END DO
@@ -345,14 +365,14 @@ CONTAINS
       END DO
 
       IF (stat /= 0) THEN
-         CALL direct_k_to_cell(values_k, xkp, index_to_cell, values_rs)
+         CALL direct_k_to_cell(values_k, xkp, index_to_cell, values_rs, weights)
          regular = .FALSE.
       END IF
       IF (PRESENT(used_fft)) used_fft = regular
 
       CALL fft_dealloc(fft_in)
       CALL fft_dealloc(fft_out)
-      DEALLOCATE (cell_index, grid_index)
+      DEALLOCATE (cell_index, cell_phase, grid_index, k_weight)
       CALL timestop(handle)
 
    END SUBROUTINE k_grid_to_cell_fft
@@ -363,13 +383,15 @@ CONTAINS
 !> \param xkp ...
 !> \param index_to_cell ...
 !> \param values_rs ...
+!> \param weights optional k weights, otherwise 1/number-of-points
 ! **************************************************************************************************
-   SUBROUTINE direct_k_to_cell(values_k, xkp, index_to_cell, values_rs)
+   SUBROUTINE direct_k_to_cell(values_k, xkp, index_to_cell, values_rs, weights)
 
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: values_k
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_rs
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
 
       COMPLEX(KIND=dp)                                   :: factor
       INTEGER                                            :: icell, ik
@@ -379,6 +401,7 @@ CONTAINS
       normalization = 1.0_dp/REAL(SIZE(xkp, 2), KIND=dp)
       DO icell = 1, SIZE(index_to_cell, 2)
          DO ik = 1, SIZE(xkp, 2)
+            IF (PRESENT(weights)) normalization = weights(ik)
             arg = SUM(xkp(1:3, ik)*REAL(index_to_cell(1:3, icell), KIND=dp))
             factor = normalization*EXP(-gaussi*twopi*arg)
             values_rs(:, :, icell) = values_rs(:, :, icell) + factor*values_k(:, :, ik)
