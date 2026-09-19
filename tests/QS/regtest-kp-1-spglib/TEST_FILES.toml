@@ -1,4 +1,7 @@
 # runs are executed in the same order as in this file
+# The raw atom/AO map must preserve the overlap metric, even when a coarse
+# integration grid makes the Hamiltonian validation select diagonalization.
+"aln_wannier90_metric.inp" = [{matcher="WANNIER90_CANDIDATE_METRIC_DEVIATION", tol=1e-11, ref=0.0}]
 "c_gapw_kpsym.inp"                      = [{matcher="E_total", tol=1e-8, ref=-302.06260708591526},
                                            {matcher="N_special_kpoints", tol=0.0, ref=1}]
 "c_gapw_spglib_method.inp"              = [{matcher="E_total", tol=1e-8, ref=-302.06260708591526},

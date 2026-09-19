@@ -281,6 +281,40 @@ SPLA support requires an MPI build and is enabled with `-DCP2K_USE_SPLA=ON`. To 
 SPLA must be built with its Fortran interface and a GPU backend. SPLA decides at runtime whether an
 individual operation is suitable for offloading.
 
+## Wannier90 (k-point Wannier localization)
+
+The optional
+[Wannier90 v4 library](https://wannier90.readthedocs.io/en/latest/user_guide/wannier90/library_mode/)
+provides in-process disentanglement and Wannier localization. The existing file export does not
+require this dependency.
+
+Use release 4.0.1 or newer: 4.0.0 can return an undefined error status when retrieving the
+reciprocal neighbour-cell shifts from an initialized library mesh. The CMake metadata alone cannot
+distinguish these releases: even release 4.0.2 advertises version 4.0.0. The supported toolchain and
+Spack installations use the fixed 4.0.2 sources.
+
+The CP2K toolchain installs Wannier90 4.0.2 by default, with the MPI mode selected by `--mpi-mode`.
+Use `--with-wannier90=no` to omit it, `--with-wannier90=system` to find a CMake installation through
+pkg-config, or `--with-wannier90=/path/to/prefix` to reuse an installation. Source the generated
+`install/setup` before configuring CP2K. The Spack build also supports `-ef wannier90` and
+`-df wannier90` in `make_cp2k.sh`.
+
+Build Wannier90 with the same Fortran compiler, MPI implementation, and BLAS integer width as CP2K.
+For example, starting from the Wannier90 4.0.2 sources:
+
+```shell
+cmake -S . -B build -DCMAKE_INSTALL_PREFIX=/path/to/wannier90 \
+  -DCMAKE_Fortran_COMPILER=mpifort -DWANNIER90_MPI=ON -DWANNIER90_TEST=OFF
+cmake --build build --parallel
+cmake --install build
+```
+
+Configure CP2K with `-DCP2K_USE_WANNIER90=ON` and
+`-DWannier90_DIR=/path/to/wannier90/lib/cmake/Wannier90`. This defines `__WANNIER90`. Use
+`WANNIER90_MPI=OFF` and a non-MPI Fortran compiler for a serial CP2K build. Install serial and MPI
+variants in separate prefixes. The CMake-built Wannier90 library uses integer MPI handles; CP2K's
+MPI wrapper supplies these also when CP2K itself uses `mpi_f08`.
+
 ## DeePMD-kit (wider range of interaction potentials)
 
 DeePMD-kit provides Deep Potential models. Support for its C interface can be enabled by passing

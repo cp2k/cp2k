@@ -138,6 +138,8 @@ option(CP2K_USE_LIBXS
 option(CP2K_USE_SPGLIB "Enable Spglib support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_VORI "Enable Libvori support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_WANNIER90 "Enable the Wannier90 v4 library"
+       ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_CRAY_PM_ENERGY "Enable Cray PM energy framework" OFF)
 option(BUILD_SHARED_LIBS "Build CP2K shared library" ON)
 option(
@@ -849,6 +851,16 @@ if(CP2K_USE_SPGLIB)
                       INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
+if(CP2K_USE_WANNIER90)
+  # Even the 4.0.2 release reports 4.0.0 in its CMake package metadata.
+  find_package(Wannier90 4.0 REQUIRED CONFIG)
+  if((CP2K_USE_MPI AND NOT Wannier90_MPI) OR (NOT CP2K_USE_MPI AND Wannier90_MPI
+                                             ))
+    message(
+      FATAL_ERROR "CP2K and Wannier90 must both be serial or both use MPI")
+  endif()
+endif()
+
 if(CP2K_USE_LIBSMEAGOL)
   find_package(libsmeagol REQUIRED)
 endif()
@@ -1105,6 +1117,10 @@ endif()
 if(CP2K_USE_SPGLIB)
   message("  - Spglib\n"
           "    - Include directories: ${CP2K_SPGLIB_INCLUDE_DIRS}\n")
+endif()
+
+if(CP2K_USE_WANNIER90)
+  message("  - Wannier90\n" "    - Library: Wannier90::wannier90\n")
 endif()
 
 if(CP2K_USE_LIBTORCH)
