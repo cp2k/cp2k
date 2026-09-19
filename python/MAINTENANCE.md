@@ -55,3 +55,8 @@ implementation or assuming that they have accepted ownership.
 
 The wheel contains the Python wrapper, not libcp2k, MPI or numerical libraries. Packaging those
 native dependencies would be a separate distribution effort with its own compatibility testing.
+
+The proposed name/version policy, native compatibility requirements and upload-free validation
+workflow are described in [release preparation](RELEASING.md). Publication and project ownership
+remain subject to explicit agreement; the preparation script neither requests credentials nor
+uploads to PyPI or TestPyPI.
