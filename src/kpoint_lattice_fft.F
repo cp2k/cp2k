@@ -36,8 +36,21 @@ MODULE kpoint_lattice_fft
 
    PUBLIC :: cell_to_k_grid_fft, &
              k_grid_to_cell_fft, &
+             k_grid_to_cell_prepare, k_grid_to_cell_execute, k_grid_to_cell_release, &
+             k_grid_to_cell_work_type, &
              lattice_fft_shape, &
              regular_kpoint_grid
+
+   ! Call-scoped mathematical maps and buffers. Backend plans remain owned by fft_tools.
+   TYPE k_grid_to_cell_work_type
+      PRIVATE
+      LOGICAL :: regular = .FALSE.
+      INTEGER :: nfft(3) = 0
+      INTEGER, ALLOCATABLE :: cells(:, :), grid_index(:, :), cell_index(:, :)
+      REAL(KIND=dp), ALLOCATABLE :: xkp(:, :), weight(:)
+      COMPLEX(KIND=dp), ALLOCATABLE :: cell_phase(:)
+      COMPLEX(KIND=dp), CONTIGUOUS, POINTER :: fft_in(:, :, :) => NULL(), fft_out(:, :, :) => NULL()
+   END TYPE k_grid_to_cell_work_type
 
 CONTAINS
 
@@ -197,7 +210,9 @@ CONTAINS
          CPABORT("Inconsistent input and output matrix batches in lattice FFT")
       END IF
       IF (PRESENT(deriv_direction)) THEN
-         IF (.NOT. PRESENT(hmat)) CPABORT("Lattice-FFT derivative requested without a cell matrix")
+         IF (.NOT. PRESENT(hmat)) THEN
+            CALL cp_abort(__LOCATION__, "Lattice-FFT derivative requested without a cell matrix")
+         END IF
          IF (deriv_direction < 1 .OR. deriv_direction > 3) THEN
             CPABORT("Lattice-FFT derivative direction must be 1, 2, or 3")
          END IF
@@ -290,92 +305,137 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
       LOGICAL, INTENT(IN), OPTIONAL                      :: allow_incomplete
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cell_phase
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: fft_in, fft_out
-      INTEGER                                            :: d, handle, i, icell, ik, j, stat
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cell_index, grid_index
-      INTEGER, DIMENSION(3)                              :: n, nfft
-      LOGICAL                                            :: regular
-      REAL(KIND=dp)                                      :: arg, normalization
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: k_weight
-      REAL(KIND=dp), DIMENSION(3)                        :: k_offset
+      TYPE(k_grid_to_cell_work_type)                     :: work
 
-      CALL timeset("k_grid_to_cell_fft", handle)
-
-      IF (SIZE(xkp, 1) < 3 .OR. SIZE(index_to_cell, 1) < 3 .OR. &
-          SIZE(values_k, 3) /= SIZE(xkp, 2)) THEN
-         CPABORT("Inconsistent reciprocal-grid mapping in inverse lattice FFT")
-      END IF
-      IF (SIZE(values_rs, 1) /= SIZE(values_k, 1) .OR. &
-          SIZE(values_rs, 2) /= SIZE(values_k, 2) .OR. &
-          SIZE(values_rs, 3) /= SIZE(index_to_cell, 2)) THEN
-         CPABORT("Inconsistent input and output matrix batches in inverse lattice FFT")
-      END IF
-
-      IF (PRESENT(weights)) THEN
-         CPASSERT(SIZE(weights) == SIZE(xkp, 2))
-      END IF
-      ALLOCATE (grid_index(3, SIZE(xkp, 2)))
-      regular = regular_kpoint_grid(xkp, nkp_grid, grid_index, k_offset, allow_incomplete)
-      n = nkp_grid
-      IF (regular) regular = lattice_fft_shape(n, nfft, allow_incomplete)
-      IF (.NOT. regular) THEN
-         CALL direct_k_to_cell(values_k, xkp, index_to_cell, values_rs, weights)
-         IF (PRESENT(used_fft)) used_fft = .FALSE.
-         DEALLOCATE (grid_index)
-         CALL timestop(handle)
-         RETURN
-      END IF
-
-      NULLIFY (fft_in, fft_out)
-      CALL fft_alloc(fft_in, nfft)
-      CALL fft_alloc(fft_out, nfft)
-      ALLOCATE (cell_index(3, SIZE(index_to_cell, 2)), cell_phase(SIZE(index_to_cell, 2)))
-      ALLOCATE (k_weight(SIZE(xkp, 2)))
-      k_weight(:) = 1.0_dp
-      IF (PRESENT(weights)) k_weight(:) = weights
-      DO icell = 1, SIZE(index_to_cell, 2)
-         DO d = 1, 3
-            cell_index(d, icell) = MODULO(index_to_cell(d, icell), n(d))*(nfft(d)/n(d)) + 1
-         END DO
-         arg = SUM(k_offset*REAL(index_to_cell(1:3, icell), dp))
-         cell_phase(icell) = EXP(-gaussi*twopi*arg)
-      END DO
-      ! FWFFT in fft_tools includes 1/PRODUCT(nfft); the supplied weights are final.
-      normalization = REAL(PRODUCT(nfft), dp)/REAL(SIZE(xkp, 2), dp)
-      IF (PRESENT(weights)) normalization = REAL(PRODUCT(nfft), dp)
-
-      stat = 0
-      DO j = 1, SIZE(values_k, 2)
-         DO i = 1, SIZE(values_k, 1)
-            fft_in = z_zero
-            DO ik = 1, SIZE(values_k, 3)
-               fft_in(grid_index(1, ik), grid_index(2, ik), grid_index(3, ik)) = &
-                  k_weight(ik)*values_k(i, j, ik)
-            END DO
-            CALL fft3d(FWFFT, nfft, fft_in, fft_out, status=stat)
-            IF (stat /= 0) EXIT
-            DO icell = 1, SIZE(index_to_cell, 2)
-               values_rs(i, j, icell) = normalization*cell_phase(icell)* &
-                                        fft_out(cell_index(1, icell), cell_index(2, icell), cell_index(3, icell))
-            END DO
-         END DO
-         IF (stat /= 0) EXIT
-      END DO
-
-      IF (stat /= 0) THEN
-         CALL direct_k_to_cell(values_k, xkp, index_to_cell, values_rs, weights)
-         regular = .FALSE.
-      END IF
-      IF (PRESENT(used_fft)) used_fft = regular
-
-      CALL fft_dealloc(fft_in)
-      CALL fft_dealloc(fft_out)
-      DEALLOCATE (cell_index, cell_phase, grid_index, k_weight)
-      CALL timestop(handle)
+      CALL k_grid_to_cell_prepare(work, xkp, nkp_grid, index_to_cell, weights, allow_incomplete)
+      CALL k_grid_to_cell_execute(work, values_k, values_rs, used_fft)
+      CALL k_grid_to_cell_release(work)
 
    END SUBROUTINE k_grid_to_cell_fft
+
+! **************************************************************************************************
+!> \brief Prepare one inverse lattice transform for repeated matrix batches.
+!> \param work call-scoped maps, weights and buffers; no backend plan ownership
+!> \param xkp reciprocal coordinates
+!> \param nkp_grid candidate reciprocal-grid dimensions
+!> \param index_to_cell requested lattice translations
+!> \param weights final k weights, otherwise 1/number-of-points
+!> \param allow_incomplete allow missing grid points, with zero values
+! **************************************************************************************************
+   SUBROUTINE k_grid_to_cell_prepare(work, xkp, nkp_grid, index_to_cell, weights, allow_incomplete)
+
+      TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: xkp
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: nkp_grid
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: weights
+      LOGICAL, INTENT(IN), OPTIONAL                      :: allow_incomplete
+
+      INTEGER                                            :: d, icell, ncell, nkp
+      REAL(KIND=dp), DIMENSION(3)                        :: k_offset
+
+      CALL k_grid_to_cell_release(work)
+      nkp = SIZE(xkp, 2)
+      ncell = SIZE(index_to_cell, 2)
+      IF (SIZE(xkp, 1) < 3 .OR. SIZE(index_to_cell, 1) < 3 .OR. nkp == 0) THEN
+         CALL cp_abort(__LOCATION__, "Inconsistent reciprocal-grid mapping in inverse lattice FFT")
+      END IF
+      ALLOCATE (work%xkp(3, nkp), work%cells(3, ncell), work%weight(nkp), work%grid_index(3, nkp))
+      work%xkp(:, :) = xkp(1:3, :)
+      work%cells(:, :) = index_to_cell(1:3, :)
+      work%weight(:) = 1.0_dp/REAL(nkp, dp)
+      IF (PRESENT(weights)) THEN
+         CPASSERT(SIZE(weights) == nkp)
+         work%weight(:) = weights
+      END IF
+      work%regular = regular_kpoint_grid(xkp, nkp_grid, work%grid_index, k_offset, allow_incomplete)
+      IF (work%regular) work%regular = lattice_fft_shape(nkp_grid, work%nfft, allow_incomplete)
+      IF (.NOT. work%regular) RETURN
+
+      CALL fft_alloc(work%fft_in, work%nfft)
+      CALL fft_alloc(work%fft_out, work%nfft)
+      ALLOCATE (work%cell_index(3, ncell), work%cell_phase(ncell))
+      DO icell = 1, ncell
+         DO d = 1, 3
+            work%cell_index(d, icell) = MODULO(index_to_cell(d, icell), nkp_grid(d))* &
+                                        (work%nfft(d)/nkp_grid(d)) + 1
+         END DO
+         work%cell_phase(icell) = EXP(-gaussi*twopi*SUM(k_offset*REAL(index_to_cell(1:3, icell), dp)))
+      END DO
+
+   END SUBROUTINE k_grid_to_cell_prepare
+
+! **************************************************************************************************
+!> \brief Execute a matrix batch using the prepared inverse lattice transform.
+!>        Call outside OpenMP worker regions: fft_tools owns its shared pool and planner.
+!> \param work prepared transform; scratch is reused, never shared between concurrent callers
+!> \param values_k matrices at the prepared reciprocal points
+!> \param values_rs matrices at the prepared lattice translations
+!> \param used_fft whether this batch used FFT, including execution failure fallback
+! **************************************************************************************************
+   SUBROUTINE k_grid_to_cell_execute(work, values_k, values_rs, used_fft)
+
+      TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: values_k
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_rs
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: used_fft
+
+      INTEGER                                            :: handle, i, icell, ik, j, stat
+
+      CALL timeset("k_grid_to_cell_fft", handle)
+      CPASSERT(ALLOCATED(work%xkp))
+      IF (SIZE(values_k, 3) /= SIZE(work%xkp, 2) .OR. &
+          SIZE(values_rs, 1) /= SIZE(values_k, 1) .OR. &
+          SIZE(values_rs, 2) /= SIZE(values_k, 2) .OR. &
+          SIZE(values_rs, 3) /= SIZE(work%cells, 2)) THEN
+         CALL cp_abort(__LOCATION__, "Inconsistent matrix batches in inverse lattice FFT")
+      END IF
+
+      stat = 0
+      IF (work%regular) THEN
+         DO j = 1, SIZE(values_k, 2)
+            DO i = 1, SIZE(values_k, 1)
+               work%fft_in = z_zero
+               DO ik = 1, SIZE(values_k, 3)
+                  work%fft_in(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik)) = &
+                     work%weight(ik)*values_k(i, j, ik)
+               END DO
+               CALL fft3d(FWFFT, work%nfft, work%fft_in, work%fft_out, status=stat)
+               IF (stat /= 0) EXIT
+               DO icell = 1, SIZE(values_rs, 3)
+                  ! fft_tools applies 1/PRODUCT(nfft); weights are already final.
+                  values_rs(i, j, icell) = REAL(PRODUCT(work%nfft), dp)*work%cell_phase(icell)* &
+                                           work%fft_out(work%cell_index(1, icell), work%cell_index(2, icell), &
+                                                        work%cell_index(3, icell))
+               END DO
+            END DO
+            IF (stat /= 0) EXIT
+         END DO
+      END IF
+      IF (stat /= 0) work%regular = .FALSE.
+      IF (.NOT. work%regular) THEN
+         CALL direct_k_to_cell(values_k, work%xkp, work%cells, values_rs, work%weight)
+      END IF
+      IF (PRESENT(used_fft)) used_fft = work%regular
+      CALL timestop(handle)
+
+   END SUBROUTINE k_grid_to_cell_execute
+
+! **************************************************************************************************
+!> \brief Release call-scoped inverse lattice maps and FFT buffers.
+!> \param work ...
+! **************************************************************************************************
+   SUBROUTINE k_grid_to_cell_release(work)
+
+      TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
+
+      IF (ASSOCIATED(work%fft_in)) CALL fft_dealloc(work%fft_in)
+      IF (ASSOCIATED(work%fft_out)) CALL fft_dealloc(work%fft_out)
+      IF (ALLOCATED(work%xkp)) DEALLOCATE (work%xkp, work%cells, work%weight, work%grid_index)
+      IF (ALLOCATED(work%cell_index)) DEALLOCATE (work%cell_index, work%cell_phase)
+      work%regular = .FALSE.
+
+   END SUBROUTINE k_grid_to_cell_release
 
 ! **************************************************************************************************
 !> \brief Direct inverse phase sum for arbitrary reciprocal-point lists.
