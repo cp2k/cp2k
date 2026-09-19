@@ -281,23 +281,21 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: filename, input_kp_scheme, reuse_reason, &
                                                             seed_name
       CHARACTER(LEN=timestamp_length)                    :: timestamp
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: ao_projections(:, :, :), &
-                                                            hybrid_projections(:, :, :), &
-                                                            initial_amn(:, :, :), &
-                                                            overlap_block(:, :)
-      COMPLEX(KIND=dp), ALLOCATABLE :: export_coeff(:, :), export_scalar(:, :), link_matrix(:, :), &
-         parity_metric(:, :), parity_phase(:), scalar_overlap(:, :), soc_h(:, :), soc_u(:, :), &
-         soc_xyz(:, :, :), spinor_coeff(:, :, :), wilson_product(:, :, :)
+      COMPLEX(KIND=dp), ALLOCATABLE :: ao_projections(:, :, :), export_coeff(:, :), &
+         export_scalar(:, :), hybrid_projections(:, :, :), initial_amn(:, :, :), &
+         link_matrix(:, :), overlap_block(:, :), parity_metric(:, :), parity_phase(:), &
+         scalar_overlap(:, :), soc_h(:, :), soc_u(:, :), soc_xyz(:, :, :), spinor_coeff(:, :, :), &
+         wilson_product(:, :, :)
       INTEGER :: aligned_degenerate_blocks, aligned_degenerate_max_size, axis, base_mesh(2), &
-         counts(2), first_point, i, i_rep, ib, ib1, ib2, ibs, ik, ik2, ikk, ikpgr, iloop, ipoint, &
-         iunit, ix, iy, iz, jpar, k, kpoints_source, loop_direction(3), n_rep, nadd, nao, &
-         nberry_images, nbs, nelectron, nexcl, nkp, nloop, nmo, nntot, npoint, nscalar, &
-         num_atoms, num_bands, num_bands_tot, num_kpts, num_wann, spin_channel, state_components, &
-         state_unit, status, strong, tqc_dimension, trim_id, weak(3), z4, initial_projections, kept_index
-      INTEGER, ALLOCATABLE                               :: ebr_coefficients(:, :), loop_index(:), &
-                                                            parity_map(:), parity_odd(:)
+         counts(2), first_point, i, i_rep, ib, ib1, ib2, ibs, ik, ik2, ikk, ikpgr, iloop, &
+         initial_projections, ipoint, iunit, ix, iy, iz, jpar, k, kept_index, kpoints_source, &
+         loop_direction(3), n_rep, nadd, nao, nberry_images, nbs, nelectron, nexcl, nkp, nloop, &
+         nmo, nntot, npoint, nscalar, num_atoms, num_bands, num_bands_tot, num_kpts, num_wann, &
+         spin_channel, state_components, state_unit, status, strong, tqc_dimension, trim_id, &
+         weak(3), z4
+      INTEGER, ALLOCATABLE :: ebr_coefficients(:, :), hybrid_groups(:, :), loop_index(:), &
+         parity_map(:), parity_odd(:), projection_pivots(:)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: band_indices, exclude_bands
-      INTEGER, ALLOCATABLE                               :: hybrid_groups(:, :), projection_pivots(:)
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: nblist, nnlist
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: nncell
       INTEGER, DIMENSION(2)                              :: kp_range
@@ -306,22 +304,21 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: berry_cell_index, cell_to_index
       LOGICAL :: diis_step, do_chern, do_kpoints, do_parity, do_soc, do_tqc, do_wilson, do_z2, &
          export_state, full_mesh_diagonalized, gamma_only, input_full_grid, input_gamma_centered, &
-         input_kpoint_symmetry, lowest_bands, mp_grid_explicit, mp_grid_valid, my_kpgrp, mygrp, &
-         nonnegative_atomic, ordered_berry, require_global_gap, reuse_scf_mos, reused_scf_mos, &
-         signed_atomic, spinors, time_reversal, use_bloch_phases, validate_reuse_ok, &
-         validate_reuse_scf_mos, library_converged, run_library, write_files, window_explicit
+         input_kpoint_symmetry, library_converged, lowest_bands, mp_grid_explicit, mp_grid_valid, &
+         my_kpgrp, mygrp, nonnegative_atomic, ordered_berry, require_global_gap, reuse_scf_mos, &
+         reused_scf_mos, run_library, signed_atomic, spinors, time_reversal, use_bloch_phases, &
+         validate_reuse_ok, validate_reuse_scf_mos, window_explicit, write_files
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: keep_band
       REAL(KIND=dp) :: aligned_degenerate_min_svalue, berry_phase, chern_winding, cmmn, &
          conduction_min, direct_gap, gap_tol, gauge_arg, gauge_imag, gauge_real, gauge_tmp, ksign, &
-         link_sv, loop_origin(3), pair_gap, parity_checks(4), parity_energy_error, &
-         parity_energy_tolerance, parity_error, parity_gap, parity_origin(3), parity_tolerance, &
-         reuse_candidate_deviation, reuse_candidate_metric_deviation, reuse_candidate_min_svalue, &
-         reuse_candidate_residual, rmmn, transverse(3), valence_max, &
-         validation_eigenvalue_deviation, validation_min_svalue, validation_subspace_deviation, &
-         wkp_ref, projection_min_svalue, outer_window_max, outer_window_min
-      REAL(KIND=dp), ALLOCATABLE                         :: loop_sv(:), parity_energies(:), &
-                                                            scalar_values(:), spinor_values(:, :)
-      REAL(KIND=dp), ALLOCATABLE                         :: wannier_centres(:, :), wannier_spreads(:)
+         link_sv, loop_origin(3), outer_window_max, outer_window_min, pair_gap, parity_checks(4), &
+         parity_energy_error, parity_energy_tolerance, parity_error, parity_gap, parity_origin(3), &
+         parity_tolerance, projection_min_svalue, reuse_candidate_deviation, &
+         reuse_candidate_metric_deviation, reuse_candidate_min_svalue, reuse_candidate_residual, &
+         rmmn, transverse(3), valence_max, validation_eigenvalue_deviation, validation_min_svalue
+      REAL(KIND=dp) :: validation_subspace_deviation, wkp_ref
+      REAL(KIND=dp), ALLOCATABLE :: loop_sv(:), parity_energies(:), scalar_values(:), &
+         spinor_values(:, :), wannier_centres(:, :), wannier_spreads(:)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atoms_cart, b_latt, kpt_latt, &
                                                             reference_eigenvalues
@@ -1131,14 +1128,17 @@ CONTAINS
       !
       CALL get_kpoint_info(kpoint=kpoint, cell_to_index=cell_to_index)
       NULLIFY (fmdummy)
-      IF (do_soc) THEN
-         ! Second variation in the scalar KS eigenbasis. Retain selected spinors at each k.
-         CPASSERT(ALL(kpoint%kp_range == [1, num_kpts]))
+      IF (do_soc .OR. do_parity) THEN
+         ! Parity needs the overlap work matrices even without SOC, and after SOC is done.
          ALLOCATE (rmatrix, cmatrix)
          CALL dbcsr_create(rmatrix, template=matrix_s(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
          CALL dbcsr_create(cmatrix, template=matrix_s(1, 1)%matrix, matrix_type=dbcsr_type_antisymmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
          CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
+      END IF
+      IF (do_soc) THEN
+         ! Second variation in the scalar KS eigenbasis. Retain selected spinors at each k.
+         CPASSERT(ALL(kpoint%kp_range == [1, num_kpts]))
          NULLIFY (soc_matrices)
          CALL V_SOC_xyz_from_pseudopotential(qs_env_kp, soc_matrices)
          ALLOCATE (soc_xyz(nmo, nmo, 3), soc_h(2*nmo, 2*nmo), soc_u(2*nmo, 2*nmo))
@@ -1189,8 +1189,6 @@ CONTAINS
             spinor_coeff(:, :, ik) = soc_u(:, band_indices)
          END DO
          CALL dbcsr_deallocate_matrix_set(soc_matrices)
-         CALL dbcsr_deallocate_matrix(rmatrix)
-         CALL dbcsr_deallocate_matrix(cmatrix)
          DEALLOCATE (soc_xyz, soc_h, soc_u, scalar_values)
          IF (iw > 0) WRITE (iw, '(T2,A,I0)') "TOPOLOGY| Scalar bands in SOC second variation: ", nmo
       END IF
@@ -1581,6 +1579,10 @@ CONTAINS
       CALL cp_cfm_release(mmn_cfm)
       CALL dbcsr_deallocate_matrix(rmatrix_full)
       CALL dbcsr_deallocate_matrix(cmatrix_full)
+      IF (do_soc .OR. do_parity) THEN
+         CALL dbcsr_deallocate_matrix(rmatrix)
+         CALL dbcsr_deallocate_matrix(cmatrix)
+      END IF
       IF (ordered_berry) THEN
          CALL dbcsr_deallocate_matrix(loop_real)
          CALL dbcsr_deallocate_matrix(loop_imag)
