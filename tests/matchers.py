@@ -74,6 +74,15 @@ registry["Vib_frc_const"] = GenericMatcher(r"VIB|Frc consts", col=4)  # M128
 registry["M009"] = GenericMatcher(r"PINT| Total energy =", col=5)
 registry["M010"] = GenericMatcher(r"BAND TOTAL ENERGY [au]", col=6)
 registry["M011"] = GenericMatcher(r"ENERGY| Total FORCE_EVAL", col=9)
+registry["FIST_periodic_dipole_x"] = GenericMatcher(
+    r"MM_DIPOLE| Moment [a.u.]", col=4, first=True
+)
+registry["FIST_periodic_dipole_derivative_x"] = GenericMatcher(
+    r"MM_DIPOLE| Derivative [a.u.]", col=4, first=True
+)
+registry["FIST_atom_1_force_x"] = GenericMatcher(
+    r"^\s*FORCES\|\s+1\s+([-+0-9.EeDd]+)", col=1, regex=True, first=True
+)
 registry["N_special_kpoints"] = GenericMatcher(r"Number of Special K-points:", col=5)
 registry["QS_number_of_molecular_orbitals"] = GenericMatcher(
     r"Number of molecular orbitals:", col=5

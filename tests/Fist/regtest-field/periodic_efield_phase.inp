@@ -1,0 +1,80 @@
+&GLOBAL
+  PROJECT periodic_efield_phase
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 0
+  &END MD
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Na
+        CHARGE 1.0
+      &END CHARGE
+      &CHARGE
+        ATOM Cl
+        CHARGE -1.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Na Na
+          EPSILON 0.0
+          RCUT [bohr] 4.0
+          SIGMA [bohr] 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS Na Cl
+          EPSILON 0.0
+          RCUT [bohr] 4.0
+          SIGMA [bohr] 1.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS Cl Cl
+          EPSILON 0.0
+          RCUT [bohr] 4.0
+          SIGMA [bohr] 1.0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &PERIODIC_EFIELD
+      INTENSITY 0.01
+      POLARISATION 1.0 0.0 0.0
+    &END PERIODIC_EFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &DIPOLE ON
+        FILENAME __STD_OUT__
+        PERIODIC T
+      &END DIPOLE
+    &END PRINT
+  &END MM
+  &PRINT
+    &FORCES ON
+    &END FORCES
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC [bohr] 10.0 10.0 10.0
+    &END CELL
+    &COORD
+      UNIT bohr
+      Na 3.0 0.0 0.0
+      Cl 0.0 0.0 0.0
+    &END COORD
+    &VELOCITY
+      0.0002 0.0 0.0
+      0.0000 0.0 0.0
+    &END VELOCITY
+  &END SUBSYS
+&END FORCE_EVAL
