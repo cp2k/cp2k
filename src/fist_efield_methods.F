@@ -131,7 +131,7 @@ CONTAINS
 
       IF (ALL(REAL(ggamma, KIND=dp) /= 0.0_dp)) THEN
          tmp = AIMAG(ggamma)/REAL(ggamma, KIND=dp)
-         ci = ATAN(tmp)
+         ci = ATAN2(AIMAG(ggamma), REAL(ggamma, KIND=dp))
          dipole = MATMUL(cell%hmat, ci)/twopi
       END IF
 
@@ -274,7 +274,7 @@ CONTAINS
          ggamma = ggamma*zphase
          IF (ALL(REAL(ggamma, KIND=dp) /= 0.0_dp)) THEN
             tmp = AIMAG(ggamma)/REAL(ggamma, KIND=dp)
-            ci = ATAN(tmp)
+            ci = ATAN2(AIMAG(ggamma), REAL(ggamma, KIND=dp))
             dci = (1.0_dp/(1.0_dp + tmp**2))* &
                   (AIMAG(dggamma)*REAL(ggamma, KIND=dp) - AIMAG(ggamma)*REAL(dggamma, KIND=dp))/(REAL(ggamma, KIND=dp))**2
 
