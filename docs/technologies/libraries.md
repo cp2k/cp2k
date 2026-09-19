@@ -38,7 +38,7 @@ of CP2K, DBCSR must also have been built with MPI support using the CMake flag `
 `-DUSE_MPI_F08=ON` if `mpi_f08` is available. Likewise, a serial build (`ssmp`/`sdbg`) of CP2K must
 use a DBCSR configured with `-DUSE_MPI=OFF`.
 
-## libwignernj (bundled, angular momentum algebra)
+## libwignernj (required, angular momentum algebra)
 
 [libwignernj](https://github.com/susilehtola/libwignernj) evaluates the Wigner 3j, 6j and 9j
 symbols, the Clebsch-Gordan coefficients and the Gaunt coefficients of the complex and real
@@ -50,17 +50,16 @@ CP2K uses the Gaunt coefficients of the real spherical harmonics to expand produ
 harmonics, which is needed by the GAPW atomic densities and potentials, the LRI and SHG integrals,
 the spin-orbit coupling in TDDFPT, the XAS_TDP module and the CNEO nuclear basis.
 
-A copy of libwignernj is bundled in `src/wignernj` and is compiled into the CP2K library, so no
-action is needed to satisfy this dependency. If CMake finds an installed libwignernj 0.8 or newer
-through its upstream CMake package, CP2K links against that one instead and the bundled sources are
-left out of the build; set `-DCP2K_USE_BUNDLED_LIBWIGNERNJ=ON` to always use the bundled copy. Only
-the C library is used: CP2K binds to it through `ISO_C_BINDING`, so an installed libwignernj need
-not provide the Fortran interface.
+CP2K requires an external installation of libwignernj 0.8 or newer, including its upstream CMake
+package. The CP2K toolchain installs it by default (`--with-libwignernj=install`); the Spack
+dependency environments also include it. The toolchain accepts `--with-libwignernj=system` or an
+installation prefix to use an existing copy. There is no bundled fallback or configure-time
+download.
 
-Use `-Dwignernj_ROOT=/path/to/install` to select an external installation. Packagers can set
-`-DCMAKE_REQUIRE_FIND_PACKAGE_wignernj=ON` to require the external library instead of falling back
-to the bundled copy; leave `CP2K_USE_BUNDLED_LIBWIGNERNJ` off in that case. An installed CP2K built
-with the external library also finds it when a downstream project calls `find_package(cp2k)`.
+Only the C library is used: CP2K binds to it through `ISO_C_BINDING`, so libwignernj can be built
+with `-DWIGNERNJ_BUILD_FORTRAN=OFF`. Use `-Dwignernj_ROOT=/path/to/install` or add the installation
+prefix to `CMAKE_PREFIX_PATH` when configuring CP2K. An installed CP2K also discovers this
+dependency when a downstream project calls `find_package(cp2k)`.
 
 ## MPI and ScaLAPACK (required for MPI parallel builds)
 

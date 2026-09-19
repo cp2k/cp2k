@@ -351,6 +351,9 @@ Specific options of --with-PKG:
                           Default = no
   --with-trexio           Enable the trexio library for TREXIO file format.
                           Default = no
+  --with-libwignernj      Select libwignernj for the angular momentum algebra.
+                          This dependency is required.
+                          Default = install
   --with-libfci           Enable the libfci active-space solver library.
                           Default = no
   --with-mcl              Install MCL library for MiMiC with toolchain.
@@ -418,7 +421,7 @@ math_list="mkl acml openblas"
 lib_list="fftw eigen libint libxc gauxc libxsmm libxs libxstream cosma scalapack
           elpa dbcsr cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
           libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol fmt trexio
-          libfci greenx gmp mcl libgint"
+          libfci greenx gmp mcl libgint libwignernj"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -459,6 +462,7 @@ with_spfft="__DONTUSE__"
 with_spla="__DONTUSE__"
 with_cosma="__INSTALL__"
 with_libvori="__INSTALL__"
+with_libwignernj="__INSTALL__"
 with_libtorch="__DONTUSE__"
 with_ninja="__DONTUSE__"
 with_dftd4="__DONTUSE__"
@@ -876,6 +880,9 @@ Otherwise use option no."
       ;;
     --with-trexio*)
       with_trexio=$(read_with "${1}")
+      ;;
+    --with-libwignernj*)
+      with_libwignernj=$(read_with "${1}")
       ;;
     --with-libfci*)
       with_libfci=$(read_with "${1}")
