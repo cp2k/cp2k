@@ -1,3 +1,13 @@
+# Only the diagonalization variant reuses the first test's SCF restart.
+# The SPGLIB variant remains self-contained in its separate test directory.
+@SET scf_guess ATOMIC
+@SET write_restart OFF
+@IF ( ${project} == he2_hexagonal )
+  @SET write_restart ON
+@ENDIF
+@IF ( ${project} == he2_hexagonal_diagonalize )
+  @SET scf_guess RESTART
+@ENDIF
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT ${project}
@@ -8,6 +18,7 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT_UZH
     POTENTIAL_FILE_NAME POTENTIAL_UZH
+    WFN_RESTART_FILE_NAME he2_hexagonal-RESTART.wfn
     &KPOINTS
       EPS_SYMMETRY 1.e-8
       FULL_GRID OFF
@@ -45,13 +56,15 @@
       EPS_EIGVAL 1.e-12
       EPS_SCF 1.0E-12
       MAX_SCF 100
-      SCF_GUESS ATOMIC
+      SCF_GUESS ${scf_guess}
       &MIXING
         ALPHA 0.70
         METHOD BROYDEN_MIXING
       &END MIXING
       &PRINT
-        &RESTART OFF
+        &RESTART ${write_restart}
+          FILENAME =he2_hexagonal-RESTART.wfn
+          BACKUP_COPIES 0
         &END RESTART
       &END PRINT
     &END SCF

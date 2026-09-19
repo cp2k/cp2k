@@ -48,8 +48,10 @@
       &DIAGONALIZATION
       &END DIAGONALIZATION
       &MIXING
-        ALPHA 0.15
+        ALPHA 0.3
         METHOD BROYDEN_MIXING
+        # Avoid the long oscillatory tail without relaxing EPS_SCF.
+        NBUFFER 8
       &END MIXING
       &PRINT
         &RESTART OFF

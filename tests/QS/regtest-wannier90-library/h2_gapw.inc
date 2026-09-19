@@ -1,3 +1,10 @@
+# Reuse the converged GAPW wavefunctions; each export variant still reconverges the SCF.
+@SET scf_guess RESTART
+@SET write_restart OFF
+@IF ( ${seed} == h2_gapw_scf )
+  @SET scf_guess ATOMIC
+  @SET write_restart ON
+@ENDIF
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT ${seed}
@@ -8,6 +15,7 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT_UZH
     POTENTIAL_FILE_NAME POTENTIAL_UZH
+    WFN_RESTART_FILE_NAME h2_gapw-RESTART.wfn
     &KPOINTS
       SCHEME MONKHORST-PACK 2 2 2
       GAMMA_CENTERED T
@@ -49,13 +57,15 @@
       EPS_EIGVAL 1.e-12
       EPS_SCF 1.e-10
       MAX_SCF 200
-      SCF_GUESS ATOMIC
+      SCF_GUESS ${scf_guess}
       &MIXING
         ALPHA 0.3
         METHOD BROYDEN_MIXING
       &END MIXING
       &PRINT
-        &RESTART OFF
+        &RESTART ${write_restart}
+          FILENAME =h2_gapw-RESTART.wfn
+          BACKUP_COPIES 0
         &END RESTART
       &END PRINT
     &END SCF
