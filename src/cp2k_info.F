@@ -113,6 +113,12 @@ CONTAINS
 #if defined(__LIBXC)
       flags = TRIM(flags)//" libxc"
 #endif
+#if defined(__LIBXC) && !defined(__NO_OFFLOAD_LIBXC)
+      flags = TRIM(flags)//" libxc_gpu"
+#endif
+#if defined(__NO_OFFLOAD_LIBXC)
+      flags = TRIM(flags)//" no_offload_libxc"
+#endif
 #if defined(__GAUXC)
       flags = TRIM(flags)//" gauxc"
 #endif

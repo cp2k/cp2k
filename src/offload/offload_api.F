@@ -26,11 +26,15 @@ MODULE offload_api
 
    PUBLIC :: offload_init
    PUBLIC :: offload_get_device_count
+   PUBLIC :: offload_get_device_count_safe
    PUBLIC :: offload_set_chosen_device, offload_get_chosen_device, offload_activate_chosen_device
    PUBLIC :: offload_timeset, offload_timestop, offload_mem_info
-   PUBLIC :: offload_buffer_type, offload_create_buffer, offload_free_buffer
+   PUBLIC :: offload_buffer_type, offload_create_buffer, offload_free_buffer, &
+             offload_buffer_h2d, offload_buffer_d2h, &
+             offload_get_buffer_device_pointer, offload_device_synchronize
    PUBLIC :: offload_malloc_pinned_mem, offload_free_pinned_mem
    PUBLIC :: offload_mempool_stats_print
+   PUBLIC :: offload_get_buffer_host_pointer
 
    TYPE offload_buffer_type
       REAL(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: host_buffer => Null()
@@ -119,6 +123,27 @@ CONTAINS
       count = offload_get_device_count_c()
 
    END FUNCTION offload_get_device_count
+
+! **************************************************************************************************
+!> \brief Returns the number of available devices, or 0 when none is usable.
+!>        Never aborts (unlike offload_get_device_count).
+!> \return ...
+!> \author Johann Pototschnig
+! **************************************************************************************************
+   FUNCTION offload_get_device_count_safe() RESULT(count)
+      INTEGER                                            :: count
+
+      INTERFACE
+         FUNCTION offload_get_device_count_safe_c() &
+            BIND(C, name="offload_get_device_count_safe")
+            IMPORT :: C_INT
+            INTEGER(KIND=C_INT)                :: offload_get_device_count_safe_c
+         END FUNCTION offload_get_device_count_safe_c
+      END INTERFACE
+
+      count = offload_get_device_count_safe_c()
+
+   END FUNCTION offload_get_device_count_safe
 
 ! **************************************************************************************************
 !> \brief Selects the chosen device to be used.
@@ -319,10 +344,12 @@ CONTAINS
 
          buffer%c_ptr = C_NULL_PTR
 
+         IF (ASSOCIATED(buffer%host_buffer)) THEN
          IF (SIZE(buffer%host_buffer) == 0) THEN
             DEALLOCATE (buffer%host_buffer)
          ELSE
             NULLIFY (buffer%host_buffer)
+         END IF
          END IF
       END IF
 
@@ -370,4 +397,103 @@ CONTAINS
       IF (output_unit <= 0) RETURN ! Omit to print the message.
       WRITE (output_unit, FMT="(100A)", ADVANCE="NO") msg(1:msglen)
    END SUBROUTINE print_func
+
+   ! GPU data transfer functions
+! **************************************************************************************************
+!> \brief Copy host data to device.
+!> \param buffer ...
+!> \param length ...
+! **************************************************************************************************
+   SUBROUTINE offload_buffer_h2d(buffer, length)
+      TYPE(offload_buffer_type), INTENT(INOUT)           :: buffer
+      INTEGER, INTENT(IN)                                :: length
+
+      INTERFACE
+         SUBROUTINE offload_buffer_h2d_c(buffer, length) &
+            BIND(C, name="offload_buffer_h2d")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                            :: buffer
+            INTEGER(KIND=C_INT), VALUE                    :: length
+         END SUBROUTINE offload_buffer_h2d_c
+      END INTERFACE
+
+      CALL offload_buffer_h2d_c(buffer%c_ptr, length)
+   END SUBROUTINE offload_buffer_h2d
+
+! **************************************************************************************************
+!> \brief Copy device data to host.
+!> \param buffer ...
+!> \param length ...
+! **************************************************************************************************
+   SUBROUTINE offload_buffer_d2h(buffer, length)
+      TYPE(offload_buffer_type), INTENT(INOUT)           :: buffer
+      INTEGER, INTENT(IN)                                :: length
+
+      INTERFACE
+         SUBROUTINE offload_buffer_d2h_c(buffer, length) &
+            BIND(C, name="offload_buffer_d2h")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE                            :: buffer
+            INTEGER(KIND=C_INT), VALUE                    :: length
+         END SUBROUTINE offload_buffer_d2h_c
+      END INTERFACE
+
+      CALL offload_buffer_d2h_c(buffer%c_ptr, length)
+   END SUBROUTINE offload_buffer_d2h
+
+! **************************************************************************************************
+!> \brief Return a C pointer to the buffer's underlying device memory.
+!> \param buffer ...
+!> \return ...
+!> \author Samal Bibek
+! **************************************************************************************************
+   FUNCTION offload_get_buffer_device_pointer(buffer) RESULT(device_ptr)
+      TYPE(offload_buffer_type), INTENT(IN)              :: buffer
+      TYPE(C_PTR)                                        :: device_ptr
+
+      INTERFACE
+         FUNCTION offload_get_buffer_device_pointer_c(buffer) &
+            BIND(C, name="offload_get_buffer_device_pointer")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE                        :: buffer
+            TYPE(C_PTR)                               :: offload_get_buffer_device_pointer_c
+         END FUNCTION offload_get_buffer_device_pointer_c
+      END INTERFACE
+
+      device_ptr = offload_get_buffer_device_pointer_c(buffer%c_ptr)
+   END FUNCTION offload_get_buffer_device_pointer
+
+! **************************************************************************************************
+!> \brief Blocks until all outstanding device work has completed.
+!> \author Samal Bibek
+! **************************************************************************************************
+   SUBROUTINE offload_device_synchronize()
+      INTERFACE
+         SUBROUTINE offload_device_synchronize_c() &
+            BIND(C, name="offload_device_synchronize")
+         END SUBROUTINE offload_device_synchronize_c
+      END INTERFACE
+
+      CALL offload_device_synchronize_c()
+   END SUBROUTINE offload_device_synchronize
+! **************************************************************************************************
+!> \brief Return a C pointer to the buffer's host memory.
+!> \param buffer ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION offload_get_buffer_host_pointer(buffer) RESULT(host_ptr)
+      TYPE(offload_buffer_type), INTENT(IN)              :: buffer
+      TYPE(C_PTR)                                        :: host_ptr
+
+      INTERFACE
+         FUNCTION offload_get_buffer_host_pointer_c(buffer) &
+            BIND(C, name="offload_get_buffer_host_pointer")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE                        :: buffer
+            TYPE(C_PTR)                               :: offload_get_buffer_host_pointer_c
+         END FUNCTION offload_get_buffer_host_pointer_c
+      END INTERFACE
+
+      host_ptr = offload_get_buffer_host_pointer_c(buffer%c_ptr)
+   END FUNCTION offload_get_buffer_host_pointer
 END MODULE offload_api

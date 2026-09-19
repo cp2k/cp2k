@@ -21,12 +21,12 @@ MODULE input_cp2k_xc
                                               high_print_level
    USE eeq_input,                       ONLY: create_eeq_control_section
    USE input_constants,                 ONLY: &
-        do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, fxc_funct_gga, fxc_funct_lda, &
-        fxc_funct_pade, fxc_none, gaussian, slater, vdw_nl_drsll, vdw_nl_lmkll, vdw_nl_rvv10, &
-        vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, vdw_pairpot_dftd4, &
-        xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
-        xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, &
-        xc_funct_tpss, xc_none, xc_pot_energy_none, xc_pot_energy_sum_eigenvalues, &
+        do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, do_libxc_cpu, do_libxc_gpu, &
+        fxc_funct_gga, fxc_funct_lda, fxc_funct_pade, fxc_none, gaussian, slater, vdw_nl_drsll, &
+        vdw_nl_lmkll, vdw_nl_rvv10, vdw_pairpot_dftd2, vdw_pairpot_dftd3, vdw_pairpot_dftd3bj, &
+        vdw_pairpot_dftd4, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, &
+        xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
+        xc_funct_pbe0, xc_funct_tpss, xc_none, xc_pot_energy_none, xc_pot_energy_sum_eigenvalues, &
         xc_pot_energy_xc_functional, xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
    USE input_cp2k_hfx,                  ONLY: create_hfx_section
    USE input_cp2k_mp2,                  ONLY: create_mp2_section
@@ -1787,13 +1787,14 @@ CONTAINS
    SUBROUTINE create_xc_section(section)
       TYPE(section_type), POINTER                        :: section
 
+      INTEGER                                            :: default_libxc_backend
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="xc", &
                           description="Parameters needed for the calculation of the eXchange and Correlation potential", &
-                          n_keywords=5, n_subsections=2, repeats=.FALSE.)
+                          n_keywords=6, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
 
@@ -1819,6 +1820,27 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="tau_cutoff", &
                           description="The cutoff on tau used by the xc calculation", &
                           usage="tau_cutoff 1.e-11", default_r_val=1.0e-10_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! The GPU backend is the default on builds with a device path; HOST is the
+      ! only option without one, and DEVICE aborts when no GPU is usable.
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
+      default_libxc_backend = do_libxc_gpu
+#else
+      default_libxc_backend = do_libxc_cpu
+#endif
+      CALL keyword_create(keyword, __LOCATION__, name="LIBXC_GPU_BACKEND", &
+                          description="Runtime device/host backend selection for LibXC. "// &
+                          "DEVICE selects the GPU backend (the default on GPU "// &
+                          "builds), HOST the CPU backend. DEVICE is an error "// &
+                          "(abort) when no usable GPU is found at runtime; HOST "// &
+                          "always runs.", &
+                          usage="LIBXC_GPU_BACKEND HOST", &
+                          default_i_val=default_libxc_backend, &
+                          enum_i_vals=[do_libxc_gpu, do_libxc_cpu], &
+                          enum_c_vals=s2a("DEVICE", "HOST"), &
+                          enum_desc=s2a("LibXC GPU backend", "LibXC CPU backend"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

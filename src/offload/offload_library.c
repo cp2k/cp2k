@@ -82,6 +82,37 @@ int offload_get_device_count(void) {
 }
 
 /*******************************************************************************
+ * \brief Returns the number of available devices, or 0 when no accelerator is
+ *        usable. Unlike offload_get_device_count this never aborts.
+ * \author Johann Pototschnig
+ ******************************************************************************/
+int offload_get_device_count_safe(void) {
+#if defined(__OFFLOAD_CUDA)
+  int count = 0;
+  cudaError_t err = cudaGetDeviceCount(&count);
+  if (err != cudaSuccess) {
+    return 0;
+  }
+  return count;
+#elif defined(__OFFLOAD_HIP)
+  int count = 0;
+  hipError_t err = hipGetDeviceCount(&count);
+  if (err != hipSuccess) {
+    return 0;
+  }
+  return count;
+#elif defined(__OFFLOAD_OPENCL)
+  int count = 0;
+  if (libxstream_device_count(&count) != EXIT_SUCCESS) {
+    return 0;
+  }
+  return count;
+#else
+  return 0;
+#endif
+}
+
+/*******************************************************************************
  * \brief Selects the chosen device to be used.
  * \author Ole Schuett
  ******************************************************************************/
@@ -192,6 +223,18 @@ int offload_host_free(void *ptr__) {
 #else
   free(ptr__);
   return EXIT_SUCCESS;
+#endif
+}
+
+/*******************************************************************************
+ * \brief Blocks until all outstanding device work has completed.
+ * \author Samal Bibek
+ ******************************************************************************/
+void offload_device_synchronize(void) {
+#if defined(__OFFLOAD_CUDA)
+  OFFLOAD_CHECK(cudaDeviceSynchronize());
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(hipDeviceSynchronize());
 #endif
 }
 
