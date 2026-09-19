@@ -29,7 +29,6 @@ MODULE qs_wf_history_methods
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                               cp_cfm_gemm,&
                                               cp_cfm_scale_and_add,&
-                                              cp_cfm_scale_and_add_fm,&
                                               cp_cfm_trace,&
                                               cp_cfm_triangular_multiply
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
@@ -38,34 +37,38 @@ MODULE qs_wf_history_methods
         cp_cfm_create, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_release, &
         cp_cfm_set_submatrix, cp_cfm_to_cfm, cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_deallocate_matrix,&
+                                              dbcsr_get_info,&
+                                              dbcsr_multiply,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_type
    USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm,&
                                               dbcsr_trace
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              cp_dbcsr_sm_fm_multiply,&
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               cp_fm_pool_type,&
-                                              fm_pool_create_fm,&
                                               fm_pool_get_el_struct,&
-                                              fm_pool_give_back_fm,&
                                               fm_pools_create_fm_vect,&
                                               fm_pools_give_back_fm_vect
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_equivalent,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: &
-        copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
-        cp_fm_get_info, cp_fm_get_submatrix, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
-        cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_get_submatrix,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_set_submatrix,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -78,16 +81,10 @@ MODULE qs_wf_history_methods
         wfi_ps_method_nr, wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
         wfi_use_prev_wf_method_nr
    USE kinds,                           ONLY: dp
-   USE kpoint_methods,                  ONLY: kp_build_cfm,&
-                                              kp_transform_plan_create,&
-                                              kp_transform_plan_release,&
-                                              kp_transform_plan_type,&
-                                              rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_type,&
                                               kpoint_type
-   USE mathconstants,                   ONLY: gaussi,&
-                                              twopi,&
+   USE mathconstants,                   ONLY: twopi,&
                                               z_one,&
                                               z_zero
    USE mathlib,                         ONLY: binomial
@@ -104,11 +101,7 @@ MODULE qs_wf_history_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
-   USE qs_kpoint_operators,             ONLY: kpoint_operator_context_create,&
-                                              kpoint_operator_context_release,&
-                                              kpoint_operator_context_type,&
-                                              kpoint_operator_get,&
-                                              kpoint_operator_prepare,&
+   USE qs_kpoint_operators,             ONLY: kpoint_operator_get_all,&
                                               kpoint_slot_s,&
                                               kpoint_spin_free
    USE qs_kpoint_state,                 ONLY: qs_kpoint_state_commit
@@ -121,7 +114,6 @@ MODULE qs_wf_history_methods
                                               make_basis_sm
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
@@ -132,8 +124,6 @@ MODULE qs_wf_history_methods
                                               wfi_get_snapshot,&
                                               wfi_release
    USE scf_control_types,               ONLY: scf_control_type
-
-!$ USE OMP_LIB, ONLY: omp_get_max_threads
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -387,13 +377,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'wfs_overlap_kp'
 
-      INTEGER                                            :: handle, ik, ikp, kplocal, kpmax, &
-                                                            nworkers, use_cache
+      INTEGER                                            :: handle, ikp, kplocal, use_cache
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
-      TYPE(kp_transform_plan_type)                       :: plan
-      TYPE(kpoint_operator_context_type)                 :: op_ctx
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
@@ -434,31 +421,9 @@ CONTAINS
          DO ikp = 1, kplocal
             CALL cp_cfm_to_cfm(kpoints%scf_smat(ikp), snapshot%overlap_cfm_kp(ikp))
          END DO
-      ELSE IF (para_env%num_pe == 1) THEN
-         CALL kp_transform_plan_create(plan, kpoints%sab_nl, kpoints%cell_to_index, &
-                                       SIZE(matrix_s, 2), matrix_s(1, 1)%matrix)
-         nworkers = 1
-!$       nworkers = MIN(omp_get_max_threads(), kplocal)
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(DYNAMIC, 1) NUM_THREADS(nworkers) &
-!$OMP SHARED(matrix_s,kpoints,plan,snapshot,kplocal,nworkers) PRIVATE(ikp,ik)
-         DO ikp = 1, kplocal
-            ik = kpoints%kp_range(1) + ikp - 1
-            CALL kp_build_cfm(matrix_s, 1, kpoints%xkp(:, ik), plan, snapshot%overlap_cfm_kp(ikp))
-         END DO
-!$OMP END PARALLEL DO
-         CALL kp_transform_plan_release(plan)
       ELSE
-         ! A snapshot-only context cannot outlive the current overlap/neighbor list.
-         CALL kpoint_operator_context_create(op_ctx, kpoints, scf_env%scf_work1(1), nspin=1)
-         CALL kpoint_operator_prepare(op_ctx, matrix_s, kpoint_slot_s, matrix_row=kpoint_spin_free)
-         kpmax = MAXVAL(kpoints%kp_dist(2, :) - kpoints%kp_dist(1, :) + 1)
-         DO ikp = 1, kpmax
-            ! Inactive groups still participate. Their last target is valid but is not modified.
-            CALL kpoint_operator_get(op_ctx, ikp, 1, matrix_s, &
-                                     cmat=snapshot%overlap_cfm_kp(MIN(ikp, kplocal)), &
-                                     matrix_row=kpoint_spin_free, slot=kpoint_slot_s)
-         END DO
-         CALL kpoint_operator_context_release(op_ctx)
+         CALL kpoint_operator_get_all(kpoints, scf_env%scf_work1(1), matrix_s, kpoint_slot_s, &
+                                      snapshot%overlap_cfm_kp, matrix_row=kpoint_spin_free)
       END IF
       CALL timestop(handle)
 
@@ -610,7 +575,8 @@ CONTAINS
       ELSE
          ! Linear methods (except LINEAR_P) are still blocked
          IF (wf_history%store_wf .OR. wf_history%store_overlap) THEN
-            CPABORT("Linear WFN-based extrapolation methods not implemented for k-points.")
+            CALL cp_abort(__LOCATION__, &
+                          "Linear WFN-based extrapolation methods not implemented for k-points.")
          END IF
       END IF
       IF (wf_history%store_frozen_density) THEN
@@ -779,7 +745,8 @@ CONTAINS
             DO ispin = 1, SIZE(t0_state%rho_ao_kp, 1)
                DO img = 1, SIZE(t0_state%rho_ao_kp, 2)
                   IF (img > SIZE(rho_ao_kp, 2)) THEN
-                     CPWARN("Change in cell neighborlist: might affect quality of initial guess")
+                     CALL cp_warn(__LOCATION__, &
+                                  "Change in cell neighborlist: might affect quality of initial guess")
                   ELSE
                      CALL dbcsr_copy(rho_ao_kp(ispin, img)%matrix, &
                                      t0_state%rho_ao_kp(ispin, img)%matrix, &
@@ -887,7 +854,8 @@ CONTAINS
                DO img = 1, SIZE(rho_ao_kp, 2)
                   IF (img > SIZE(t0_state%rho_ao_kp, 2) .OR. &
                       img > SIZE(t1_state%rho_ao_kp, 2)) THEN
-                     CPWARN("Change in cell neighborlist: might affect quality of initial guess")
+                     CALL cp_warn(__LOCATION__, &
+                                  "Change in cell neighborlist: might affect quality of initial guess")
                   ELSE
                      CALL dbcsr_add(rho_ao_kp(ispin, img)%matrix, t1_state%rho_ao_kp(ispin, img)%matrix, &
                                     alpha_scalar=0.0_dp, beta_scalar=(t2 - t0)/(t1 - t0)) ! this copy should be unnecessary
@@ -1294,33 +1262,24 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'wfi_use_prev_wf_kp'
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: col_scaling
-      INTEGER                                            :: chol_info, handle, igroup, ik, ikp, &
-                                                            indx, ispin, j, kplocal, kpmax, nao, &
-                                                            nkp, nkp_groups, nmo, nspin
+      INTEGER                                            :: chol_info, handle, ik, ikp, ispin, j, &
+                                                            kplocal, nao, nmo, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: pbc_shift_cur, pbc_shift_src
       INTEGER, DIMENSION(2)                              :: kp_range
-      INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: my_kpgrp, reload_snapshot_wf, &
-                                                            use_pbc_phase_ref, use_real_wfn
+      LOGICAL                                            :: reload_snapshot_wf, use_pbc_phase_ref, &
+                                                            use_real_wfn
       REAL(KIND=dp)                                      :: eval_thresh
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
-      TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
       TYPE(cp_cfm_type)                                  :: cfm_evecs, cfm_mhalf, cfm_nao_nmo_work, &
                                                             cmos_new, csc_cfm
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: csmat_cur
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools_kp
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, nmo_nmo_struct
-      TYPE(cp_fm_type)                                   :: fmdummy, fmlocal
       TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
-      TYPE(dbcsr_type), POINTER                          :: cmatrix_db, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
       TYPE(qs_matrix_pools_type), POINTER                :: mpools_kp
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
@@ -1328,15 +1287,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (kpoints, matrix_s_kp, scf_env, sab_nl, kp, &
+      NULLIFY (kpoints, matrix_s_kp, scf_env, kp, &
                mo_coeff, rmos, imos, wf_history, t1_state)
 
       CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp, scf_env=scf_env)
-      CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, use_real_wfn=use_real_wfn, &
-                           kp_range=kp_range, nkp_groups=nkp_groups, kp_dist=kp_dist, &
-                           sab_nl=sab_nl, cell_to_index=cell_to_index)
+      CALL get_kpoint_info(kpoints, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range)
       kplocal = kp_range(2) - kp_range(1) + 1
-      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
 
       IF (use_real_wfn) THEN
          CALL timestop(handle)
@@ -1375,18 +1331,9 @@ CONTAINS
             "Using previous wavefunctions as initial guess for k-points (with reorthogonalization)"
       END IF
 
-      ! Allocate dbcsr work matrices
-      ALLOCATE (rmatrix, cmatrix_db, tmpmat)
-      CALL dbcsr_create(rmatrix, template=matrix_s_kp(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
-      CALL dbcsr_create(cmatrix_db, template=matrix_s_kp(1, 1)%matrix, matrix_type=dbcsr_type_antisymmetric)
-      CALL dbcsr_create(tmpmat, template=matrix_s_kp(1, 1)%matrix, matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
-      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix_db, sab_nl)
-
       CALL get_kpoint_info(kpoints, mpools=mpools_kp)
       CALL mpools_get(mpools_kp, ao_ao_fm_pools=ao_ao_fm_pools_kp)
-      CALL fm_pool_create_fm(ao_ao_fm_pools_kp(1)%pool, fmlocal)
-      CALL cp_fm_get_info(fmlocal, matrix_struct=ao_ao_struct)
+      ao_ao_struct => fm_pool_get_el_struct(ao_ao_fm_pools_kp(1)%pool)
 
       CALL cp_cfm_create(cmos_new, mo_coeff%matrix_struct)
       CALL cp_cfm_create(cfm_nao_nmo_work, mo_coeff%matrix_struct)
@@ -1397,63 +1344,13 @@ CONTAINS
       CALL cp_cfm_create(csc_cfm, nmo_nmo_struct)
       CALL cp_fm_struct_release(nmo_nmo_struct)
 
-      para_env => kpoints%blacs_env_all%para_env
-      ALLOCATE (info(nkp, 2))
-
       ALLOCATE (csmat_cur(kplocal))
       DO ikp = 1, kplocal
          CALL cp_cfm_create(csmat_cur(ikp), ao_ao_struct)
       END DO
 
-      ! Phase A: Fourier Transform S(R) -> S(k)
-      indx = 0
-      DO ikp = 1, kpmax
-         DO igroup = 1, nkp_groups
-            ik = kp_dist(1, igroup) + ikp - 1
-            IF (ik > kp_dist(2, igroup)) CYCLE
-            my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-            indx = indx + 1
-
-            CALL dbcsr_set(rmatrix, 0.0_dp)
-            CALL dbcsr_set(cmatrix_db, 0.0_dp)
-            CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix_db, rsmat=matrix_s_kp, &
-                                ispin=1, xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-            CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-            CALL copy_dbcsr_to_fm(tmpmat, scf_env%scf_work1(1))
-            CALL dbcsr_desymmetrize(cmatrix_db, tmpmat)
-            CALL copy_dbcsr_to_fm(tmpmat, scf_env%scf_work1(2))
-
-            IF (my_kpgrp) THEN
-               CALL cp_fm_start_copy_general(scf_env%scf_work1(1), fmlocal, para_env, info(indx, 1))
-               CALL cp_fm_start_copy_general(scf_env%scf_work1(2), fmlocal, para_env, info(indx, 2))
-            ELSE
-               CALL cp_fm_start_copy_general(scf_env%scf_work1(1), fmdummy, para_env, info(indx, 1))
-               CALL cp_fm_start_copy_general(scf_env%scf_work1(2), fmdummy, para_env, info(indx, 2))
-            END IF
-         END DO
-      END DO
-
-      ! Finish Communication
-      indx = 0
-      DO ikp = 1, kpmax
-         DO igroup = 1, nkp_groups
-            ik = kp_dist(1, igroup) + ikp - 1
-            IF (ik > kp_dist(2, igroup)) CYCLE
-            my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-            indx = indx + 1
-            IF (my_kpgrp) THEN
-               CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
-               CALL cp_cfm_scale_and_add_fm(z_zero, csmat_cur(ikp), z_one, fmlocal)
-               CALL cp_fm_finish_copy_general(fmlocal, info(indx, 2))
-               CALL cp_cfm_scale_and_add_fm(z_one, csmat_cur(ikp), gaussi, fmlocal)
-            END IF
-         END DO
-      END DO
-
-      DO indx = 1, nkp
-         CALL cp_fm_cleanup_copy_general(info(indx, 1))
-         CALL cp_fm_cleanup_copy_general(info(indx, 2))
-      END DO
+      CALL kpoint_operator_get_all(kpoints, scf_env%scf_work1(1), matrix_s_kp, kpoint_slot_s, &
+                                   csmat_cur, matrix_row=kpoint_spin_free)
 
       ! Phase B: bring the WFN from its saved/internal PBC image convention to
       ! the current convention, then orthogonalize it with respect to S(k).
@@ -1525,14 +1422,9 @@ CONTAINS
          CALL cp_cfm_release(csmat_cur(ikp))
       END DO
       DEALLOCATE (csmat_cur)
-      DEALLOCATE (info)
       CALL cp_cfm_release(cmos_new)
       CALL cp_cfm_release(cfm_nao_nmo_work)
       CALL cp_cfm_release(csc_cfm)
-      CALL fm_pool_give_back_fm(ao_ao_fm_pools_kp(1)%pool, fmlocal)
-      CALL dbcsr_deallocate_matrix(rmatrix)
-      CALL dbcsr_deallocate_matrix(cmatrix_db)
-      CALL dbcsr_deallocate_matrix(tmpmat)
       IF (ALLOCATED(pbc_shift_cur)) DEALLOCATE (pbc_shift_cur)
       IF (ALLOCATED(pbc_shift_src)) DEALLOCATE (pbc_shift_src)
 
@@ -1895,31 +1787,23 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate_gext_proj_kp'
 
-      INTEGER                                            :: handle, i, igroup, ik, ikp, indx, ispin, &
-                                                            kplocal, kpmax, method_nr, nao, nkp, &
-                                                            nkp_groups, nmo, nspin
+      INTEGER                                            :: handle, i, ik, ikp, ispin, kplocal, &
+                                                            method_nr, nao, nmo, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
-      INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: my_kpgrp, use_real_wfn
+      LOGICAL                                            :: use_real_wfn
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: coeffs, weight_kp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
-      TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
       TYPE(cp_cfm_type)                                  :: cfm_nao_nmo_work, cmos_1, cmos_i, &
                                                             cmos_new, csc_cfm
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: csmat_cur
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools_kp
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, nmo_nmo_struct
-      TYPE(cp_fm_type)                                   :: fmdummy, fmlocal
       TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
-      TYPE(dbcsr_type), POINTER                          :: cmatrix_db, rmatrix, tmpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_inter_kp
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
+      TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
       TYPE(qs_matrix_pools_type), POINTER                :: mpools_kp
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_wf_snapshot_type), POINTER                 :: t0_state, t1_state
@@ -1927,18 +1811,15 @@ CONTAINS
       method_nr = wf_history%interpolation_method_nr
 
       CALL timeset(routineN, handle)
-      NULLIFY (ao_ao_struct, cell_to_index, cmatrix_db, imos, kp, kpoints, matrix_s_kp, &
-               mo_coeff, mpools_kp, para_env, para_env_inter_kp, rmatrix, rmos, sab_nl, &
-               scf_env, t0_state, t1_state, tmpmat, xkp, kp_dist, wkp, nmo_nmo_struct, &
+      NULLIFY (ao_ao_struct, imos, kp, kpoints, matrix_s_kp, mo_coeff, mpools_kp, &
+               para_env_inter_kp, rmos, scf_env, t0_state, t1_state, wkp, xkp, nmo_nmo_struct, &
                ao_ao_fm_pools_kp)
 
       CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp, scf_env=scf_env)
       CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn, kp_range=kp_range, &
-                           nkp=nkp, xkp=xkp, wkp=wkp, nkp_groups=nkp_groups, &
-                           kp_dist=kp_dist, cell_to_index=cell_to_index, sab_nl=sab_nl, &
+                           wkp=wkp, xkp=xkp, &
                            mpools=mpools_kp, para_env_inter_kp=para_env_inter_kp)
       kplocal = kp_range(2) - kp_range(1) + 1
-      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
 
       IF (use_real_wfn) THEN
          CALL cp_warn(__LOCATION__, "GExt with k-points requires complex wavefunctions; "// &
@@ -1966,74 +1847,17 @@ CONTAINS
       nspin = SIZE(kp%mos, 2)
       CALL get_mo_set(kp%mos(1, 1), nao=nao, nmo=nmo, mo_coeff=mo_coeff)
 
-      ! Build the current S(k), using the same Fourier-transform pattern as
-      ! wfi_use_prev_wf_kp.  This is only needed for the GEXT coefficient fitting.
-      ALLOCATE (rmatrix, cmatrix_db, tmpmat)
-      CALL dbcsr_create(rmatrix, template=matrix_s_kp(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
-      CALL dbcsr_create(cmatrix_db, template=matrix_s_kp(1, 1)%matrix, matrix_type=dbcsr_type_antisymmetric)
-      CALL dbcsr_create(tmpmat, template=matrix_s_kp(1, 1)%matrix, matrix_type=dbcsr_type_no_symmetry)
-      CALL cp_dbcsr_alloc_block_from_nbl(rmatrix, sab_nl)
-      CALL cp_dbcsr_alloc_block_from_nbl(cmatrix_db, sab_nl)
-
       CALL mpools_get(mpools_kp, ao_ao_fm_pools=ao_ao_fm_pools_kp)
-      CALL fm_pool_create_fm(ao_ao_fm_pools_kp(1)%pool, fmlocal)
-      CALL cp_fm_get_info(fmlocal, matrix_struct=ao_ao_struct)
+      ao_ao_struct => fm_pool_get_el_struct(ao_ao_fm_pools_kp(1)%pool)
 
-      para_env => kpoints%blacs_env_all%para_env
-      ALLOCATE (info(nkp, 2))
       ALLOCATE (csmat_cur(kplocal), weight_kp(kplocal))
       DO ikp = 1, kplocal
          CALL cp_cfm_create(csmat_cur(ikp), ao_ao_struct)
          weight_kp(ikp) = wkp(kp_range(1) + ikp - 1)
       END DO
 
-      indx = 0
-      DO ikp = 1, kpmax
-         DO igroup = 1, nkp_groups
-            ik = kp_dist(1, igroup) + ikp - 1
-            IF (ik > kp_dist(2, igroup)) CYCLE
-            my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-            indx = indx + 1
-
-            CALL dbcsr_set(rmatrix, 0.0_dp)
-            CALL dbcsr_set(cmatrix_db, 0.0_dp)
-            CALL rskp_transform(rmatrix=rmatrix, cmatrix=cmatrix_db, rsmat=matrix_s_kp, &
-                                ispin=1, xkp=xkp(1:3, ik), cell_to_index=cell_to_index, sab_nl=sab_nl)
-            CALL dbcsr_desymmetrize(rmatrix, tmpmat)
-            CALL copy_dbcsr_to_fm(tmpmat, scf_env%scf_work1(1))
-            CALL dbcsr_desymmetrize(cmatrix_db, tmpmat)
-            CALL copy_dbcsr_to_fm(tmpmat, scf_env%scf_work1(2))
-
-            IF (my_kpgrp) THEN
-               CALL cp_fm_start_copy_general(scf_env%scf_work1(1), fmlocal, para_env, info(indx, 1))
-               CALL cp_fm_start_copy_general(scf_env%scf_work1(2), fmlocal, para_env, info(indx, 2))
-            ELSE
-               CALL cp_fm_start_copy_general(scf_env%scf_work1(1), fmdummy, para_env, info(indx, 1))
-               CALL cp_fm_start_copy_general(scf_env%scf_work1(2), fmdummy, para_env, info(indx, 2))
-            END IF
-         END DO
-      END DO
-
-      indx = 0
-      DO ikp = 1, kpmax
-         DO igroup = 1, nkp_groups
-            ik = kp_dist(1, igroup) + ikp - 1
-            IF (ik > kp_dist(2, igroup)) CYCLE
-            my_kpgrp = (ik >= kp_range(1) .AND. ik <= kp_range(2))
-            indx = indx + 1
-            IF (my_kpgrp) THEN
-               CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
-               CALL cp_cfm_scale_and_add_fm(z_zero, csmat_cur(ikp), z_one, fmlocal)
-               CALL cp_fm_finish_copy_general(fmlocal, info(indx, 2))
-               CALL cp_cfm_scale_and_add_fm(z_one, csmat_cur(ikp), gaussi, fmlocal)
-            END IF
-         END DO
-      END DO
-
-      DO indx = 1, nkp
-         CALL cp_fm_cleanup_copy_general(info(indx, 1))
-         CALL cp_fm_cleanup_copy_general(info(indx, 2))
-      END DO
+      CALL kpoint_operator_get_all(kpoints, scf_env%scf_work1(1), matrix_s_kp, kpoint_slot_s, &
+                                   csmat_cur, matrix_row=kpoint_spin_free)
 
       ALLOCATE (coeffs(nvec))
       IF (method_nr == wfi_gext_proj_nr) THEN
@@ -2110,11 +1934,7 @@ CONTAINS
       DO ikp = 1, kplocal
          CALL cp_cfm_release(csmat_cur(ikp))
       END DO
-      DEALLOCATE (csmat_cur, coeffs, weight_kp, info)
-      CALL fm_pool_give_back_fm(ao_ao_fm_pools_kp(1)%pool, fmlocal)
-      CALL dbcsr_deallocate_matrix(rmatrix)
-      CALL dbcsr_deallocate_matrix(cmatrix_db)
-      CALL dbcsr_deallocate_matrix(tmpmat)
+      DEALLOCATE (csmat_cur, coeffs, weight_kp)
 
       CALL timestop(handle)
 
