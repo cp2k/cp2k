@@ -152,8 +152,8 @@ BSD_PATHS = (
 )
 MIT_PATHS = ("src/grpp/",)
 
-# Bundled third-party sources, which keep their upstream LICENSE file verbatim
-BUNDLED_PATHS = ("src/grpp/", "src/wignernj/")
+# Only these LICENSE files carry CP2K's copyright statement.
+CP2K_LICENSE_PATHS = ("src/dbm/LICENSE", "src/grid/LICENSE", "src/offload/LICENSE")
 
 
 @lru_cache(maxsize=None)
@@ -271,10 +271,8 @@ def check_file(path: pathlib.Path) -> List[str]:
             warnings += [f"{path}: Copyright banner malformed"]
     if fn_ext in C_EXTENSIONS and not content.startswith(BANNER_C.format(year, spdx)):
         warnings += [f"{path}: Copyright banner malformed"]
-    # The LICENSE files of the bundled third-party libraries carry their
-    # upstream copyright statement and must not be rewritten.
-    is_bundled = any(str(path).startswith(p) for p in BUNDLED_PATHS)
-    if path.name == "LICENSE" and bsd_licensed and not is_bundled:
+    # Leave the GPL text and upstream third-party licenses unchanged.
+    if str(path) in CP2K_LICENSE_PATHS:
         if f"2000-{year}" not in content:
             warnings += [f"{path}: Copyright banner malformed"]
     if path.name == "cp2k_info.F" and f'cp2k_year = "{year}"' not in content:
