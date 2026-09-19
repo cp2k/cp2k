@@ -51,11 +51,16 @@ harmonics, which is needed by the GAPW atomic densities and potentials, the LRI 
 the spin-orbit coupling in TDDFPT, the XAS_TDP module and the CNEO nuclear basis.
 
 A copy of libwignernj is bundled in `src/wignernj` and is compiled into the CP2K library, so no
-action is needed to satisfy this dependency. If CMake finds an installed libwignernj, CP2K links
-against that one instead and the bundled sources are left out of the build; set
-`-DCP2K_USE_BUNDLED_LIBWIGNERNJ=ON` to always use the bundled copy. Only the C library is used: CP2K
-binds to it through `ISO_C_BINDING`, so an installed libwignernj need not provide the Fortran
-interface.
+action is needed to satisfy this dependency. If CMake finds an installed libwignernj 0.8 or newer
+through its upstream CMake package, CP2K links against that one instead and the bundled sources are
+left out of the build; set `-DCP2K_USE_BUNDLED_LIBWIGNERNJ=ON` to always use the bundled copy. Only
+the C library is used: CP2K binds to it through `ISO_C_BINDING`, so an installed libwignernj need
+not provide the Fortran interface.
+
+Use `-Dwignernj_ROOT=/path/to/install` to select an external installation. Packagers can set
+`-DCMAKE_REQUIRE_FIND_PACKAGE_wignernj=ON` to require the external library instead of falling back
+to the bundled copy; leave `CP2K_USE_BUNDLED_LIBWIGNERNJ` off in that case. An installed CP2K built
+with the external library also finds it when a downstream project calls `find_package(cp2k)`.
 
 ## MPI and ScaLAPACK (required for MPI parallel builds)
 
