@@ -815,7 +815,8 @@ CONTAINS
 
       ! Prepare H/S before starting any round. ADIIS can replace only the idle KS slot.
       prepared_ops = .FALSE.
-      IF (nkp_groups > 1 .OR. use_local_kpoints) THEN
+      ! A single distributed group can also assemble its prepared local tiles.
+      IF (para_env%num_pe > 1 .OR. use_local_kpoints) THEN
          CALL kpoint_operator_prepare(op_ctx, effective_ks, kpoint_slot_ks, prepared_ops)
          IF (.NOT. reuse_smat) THEN
             CALL kpoint_operator_prepare(op_ctx, matrix_s, kpoint_slot_s, prepared_part, matrix_row=kpoint_spin_free)

@@ -116,9 +116,9 @@ MODULE qs_kpoint_operators
    TYPE kpoint_operator_rs_route_type
       TYPE(kp_transform_plan_type) :: traversal = kp_transform_plan_type()
       TYPE(cp_fm_struct_type), POINTER :: matrix_struct => NULL()
-      INTEGER :: nimage = 0, nvalue = 0
+      INTEGER :: nimage = 0, nvalue = 0, nrow = 0, ncol = 0
       INTEGER(KIND=int_8) :: storage = 0
-      INTEGER, ALLOCATABLE :: row_size(:), col_size(:), ENTRY(:, :), first(:), row_local(:), col_local(:)
+      INTEGER, ALLOCATABLE :: row_size(:), col_size(:), ENTRY(:, :), first(:), tile(:, :, :)
       INTEGER, ALLOCATABLE :: send_entry(:), send_first(:), scount(:, :), rcount(:, :), &
                               sdisp(:, :), rdisp(:, :)
       REAL(KIND=dp), ALLOCATABLE :: send_values(:)
@@ -143,7 +143,7 @@ MODULE qs_kpoint_operators
    ! Small read-ahead window per prepared row. Keep mutable output separate
    ! from the immutable snapshot; prepare invalidates only the selected slot.
    TYPE kpoint_operator_rs_batch_type
-      INTEGER :: first = 0, last = -1
+      INTEGER :: first = 0
       COMPLEX(KIND=dp), ALLOCATABLE :: data(:, :, :)
    END TYPE kpoint_operator_rs_batch_type
 
@@ -611,12 +611,7 @@ CONTAINS
          CALL kpoint_operator_rs_clear(ctx%rs(ispin, slot))
          IF (ALLOCATED(ctx%rs_batch(ispin, slot)%data)) DEALLOCATE (ctx%rs_batch(ispin, slot)%data)
          ctx%rs_batch(ispin, slot)%first = 0
-         ctx%rs_batch(ispin, slot)%last = -1
       END DO
-      IF (ctx%kpoints%nkp_groups <= 1 .AND. ctx%kpoints%blacs_env_all%para_env%num_pe > 1) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
       nrow = ctx%nspin
       IF (PRESENT(matrix_row)) THEN
          CPASSERT(matrix_row >= 1 .AND. matrix_row <= SIZE(rsmat, 1))
@@ -811,7 +806,7 @@ CONTAINS
       ! one snapshot. The full batch budget is checked again by prepare.
       storage = 40_int_8*route%traversal%nentry + &
                 4_int_8*(SIZE(row_size) + SIZE(col_size) + matrix_struct%nrow_global + matrix_struct%ncol_global) + &
-                48_int_8*ns(1) + MERGE(0_int_8, 8_int_8*ns(2), world%num_pe == 1) + 36_int_8*nr(1) + &
+                48_int_8*ns(1) + MERGE(0_int_8, 8_int_8*ns(2), world%num_pe == 1) + 68_int_8*nr(1) + &
                 128_int_8*world%num_pe + 8_int_8*SIZE(owner) + 8_int_8
       route%storage = storage
       storage = storage + MERGE(0_int_8, 8_int_8*nr(2), world%num_pe == 1) + 128_int_8*nr(1)
@@ -841,8 +836,7 @@ CONTAINS
       ALLOCATE (route%send_entry(INT(ns(1))), route%send_first(INT(ns(1)) + 1), &
                 route%send_values(MERGE(0, INT(ns(2)), world%num_pe == 1)), send_metadata(8, INT(ns(1))), &
                 position(2, 0:world%num_pe - 1), route%entry(8, nblock), &
-                route%first(nblock + 1), route%row_local(matrix_struct%nrow_global), &
-                route%col_local(matrix_struct%ncol_global))
+                route%first(nblock + 1))
       position(:, :) = route%sdisp
       DO i = 1, route%traversal%nentry
          nrow = row_size(route%traversal%row(i))
@@ -874,20 +868,53 @@ CONTAINS
          route%first(i + 1) = route%first(i) + route%entry(3, i)*route%entry(4, i)
       END DO
       CPASSERT(route%first(nblock + 1) == route%nvalue + 1)
-      route%row_local(:) = 0
-      DO i = 1, SIZE(matrix_struct%row_indices)
-         route%row_local(matrix_struct%row_indices(i)) = i
-      END DO
-      route%col_local(:) = 0
-      DO i = 1, SIZE(matrix_struct%col_indices)
-         route%col_local(matrix_struct%col_indices(i)) = i
-      END DO
       route%matrix_struct => matrix_struct
       CALL cp_fm_struct_retain(route%matrix_struct)
+      CALL kpoint_operator_rs_tile_map(route)
       ready = .TRUE.
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_operator_rs_plan_create
+
+! **************************************************************************************************
+!> \brief Cache local intervals intersecting each routed block and its Hermitian mirror.
+!>        FM indices are ordered globally; dummy indices on empty tiles lie outside the matrix.
+!> \param route fixed routing and target distribution
+! **************************************************************************************************
+   SUBROUTINE kpoint_operator_rs_tile_map(route)
+      TYPE(kpoint_operator_rs_route_type), INTENT(INOUT) :: route
+
+      INTEGER :: c0, i, nc, nr, r0, rows(0:route%matrix_struct%nrow_global), &
+         cols(0:route%matrix_struct%ncol_global)
+
+      rows(:) = 0
+      cols(:) = 0
+      DO i = 1, SIZE(route%matrix_struct%row_indices)
+         r0 = route%matrix_struct%row_indices(i)
+         IF (r0 >= 1 .AND. r0 <= UBOUND(rows, 1)) rows(r0) = 1
+      END DO
+      DO i = 1, SIZE(route%matrix_struct%col_indices)
+         c0 = route%matrix_struct%col_indices(i)
+         IF (c0 >= 1 .AND. c0 <= UBOUND(cols, 1)) cols(c0) = 1
+      END DO
+      DO i = 1, UBOUND(rows, 1)
+         rows(i) = rows(i) + rows(i - 1)
+      END DO
+      DO i = 1, UBOUND(cols, 1)
+         cols(i) = cols(i) + cols(i - 1)
+      END DO
+      route%nrow = rows(UBOUND(rows, 1))
+      route%ncol = cols(UBOUND(cols, 1))
+      ALLOCATE (route%tile(4, 2, SIZE(route%entry, 2)))
+      DO i = 1, SIZE(route%entry, 2)
+         r0 = route%entry(1, i)
+         c0 = route%entry(2, i)
+         nr = route%entry(3, i)
+         nc = route%entry(4, i)
+         route%tile(:, 1, i) = [rows(r0 - 1) + 1, rows(r0 + nr - 1), cols(c0 - 1) + 1, cols(c0 + nc - 1)]
+         route%tile(:, 2, i) = [rows(c0 - 1) + 1, rows(c0 + nc - 1), cols(r0 - 1) + 1, cols(r0 + nr - 1)]
+      END DO
+   END SUBROUTINE kpoint_operator_rs_tile_map
 
 ! **************************************************************************************************
 !> \brief Find group-local FM owners intersecting a stored block or its mirror.
@@ -1077,8 +1104,8 @@ CONTAINS
       first = ctx%kpoints%kp_range(1)
       last = ctx%kpoints%kp_range(2)
       CPASSERT(ik >= first .AND. ik <= last)
-      nrow = SIZE(ctx%rs_route%matrix_struct%row_indices)
-      ncol = SIZE(ctx%rs_route%matrix_struct%col_indices)
+      nrow = ctx%rs_route%nrow
+      ncol = ctx%rs_route%ncol
       bytes_per_k = 16_int_8*(INT(nrow, int_8)*ncol + SIZE(ctx%rs_route%entry, 2, KIND=int_8))
       width = MIN(rs_batch_size, last - first + 1, &
                   INT(rs_batch_bytes/(INT(ctx%nspin*kpoint_num_slots, int_8)*MAX(1_int_8, bytes_per_k))))
@@ -1089,11 +1116,10 @@ CONTAINS
       ELSE
          ASSOCIATE (work => ctx%rs_batch(irs, slot))
             IF (.NOT. ALLOCATED(work%data)) ALLOCATE (work%data(width, nrow, ncol))
-            IF (ik < work%first .OR. ik > work%last) THEN
+            IF (work%first == 0 .OR. ik < work%first .OR. ik >= work%first + width) THEN
                work%first = first + ((ik - first)/width)*width
-               work%last = MIN(work%first + width - 1, last)
                CALL kpoint_operator_rs_build_batch(ctx%rs(irs, slot), ctx%rs_route, &
-                                                   xkp(:, work%first:work%last), batch=work%data)
+                                                   xkp(:, work%first:MIN(work%first + width - 1, last)), batch=work%data)
             END IF
             k = ik - work%first + 1
             ! Deliver a work copy: eigensolvers may overwrite H/S without corrupting the window.
@@ -1153,7 +1179,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: arg
 
       nbatch = SIZE(xkp, 2)
-      CPASSERT(nbatch >= 1 .AND. SIZE(xkp, 1) == 3)
+      CPASSERT(nbatch >= 1 .AND. nbatch <= rs_batch_size .AND. SIZE(xkp, 1) == 3)
       CPASSERT(COUNT([PRESENT(batch), PRESENT(TARGET), PRESENT(fm_re)]) == 1)
       NULLIFY (output)
       IF (PRESENT(batch)) THEN
@@ -1170,6 +1196,7 @@ CONTAINS
          END IF
       END IF
       IF (ASSOCIATED(output)) output(:, :, :) = z_zero
+      IF (route%nrow == 0 .OR. route%ncol == 0) RETURN
       IF (PRESENT(phase_work)) THEN
          CPASSERT(SIZE(phase_work, 1) >= nbatch)
          CPASSERT(SIZE(phase_work, 2) == SIZE(route%entry, 2))
@@ -1185,11 +1212,13 @@ CONTAINS
             phase(k, iblock) = CMPLX(COS(arg), SIN(arg), KIND=dp)
          END DO
       END DO
-      ncol = SIZE(route%matrix_struct%col_indices)
+      ncol = route%ncol
       parallel = .TRUE.
       IF (PRESENT(parallel_columns)) parallel = parallel_columns
-      IF (parallel) THEN
-!$OMP PARALLEL DEFAULT(NONE) SHARED(snapshot,route,phase,output,fm_re,fm_im,ncol) &
+      nthreads = 1
+!$    IF (parallel) nthreads = MIN(omp_get_max_threads(), ncol)
+      IF (nthreads > 1) THEN
+!$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nthreads) SHARED(snapshot,route,phase,output,fm_re,fm_im,ncol) &
 !$OMP PRIVATE(first,last,thread,nthreads)
          thread = 0
          nthreads = 1
@@ -1225,18 +1254,18 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, INTENT(IN), POINTER  :: output(:, :, :)
       TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: fm_re, fm_im
 
-      COMPLEX(KIND=dp)                                   :: value
+      COMPLEX(KIND=dp)                                   :: factors(rs_batch_size), value
       COMPLEX(KIND=dp), CONTIGUOUS, POINTER              :: full(:, :)
-      INTEGER                                            :: c0, col, hi, iblock, j, k, lo, &
-                                                            local_row, nc, nr, r0, row
+      INTEGER                                            :: c0, col, hi, iblock, j, k, lo, nc, nr, &
+                                                            part, r0, row, source_col, source_row
       REAL(KIND=dp)                                      :: element
 
       IF (first > last) RETURN
       NULLIFY (full)
       IF (ASSOCIATED(output)) THEN
          IF (SIZE(output, 1) == 1 .AND. &
-             SIZE(route%matrix_struct%row_indices) == route%matrix_struct%nrow_global .AND. &
-             SIZE(route%matrix_struct%col_indices) == route%matrix_struct%ncol_global) THEN
+             route%nrow == route%matrix_struct%nrow_global .AND. &
+             route%ncol == route%matrix_struct%ncol_global) THEN
             full(1:SIZE(output, 2), 1:SIZE(output, 3)) => output
          END IF
       END IF
@@ -1265,43 +1294,34 @@ CONTAINS
             END IF
             CYCLE
          END IF
-         DO col = c0, c0 + nc - 1
-            j = route%col_local(col)
-            IF (j < first .OR. j > last) CYCLE
-            DO row = r0, r0 + nr - 1
-               local_row = route%row_local(row)
-               IF (local_row == 0) CYCLE
-               element = snapshot%blocks(iblock)%data(row - r0 + 1, col - c0 + 1)
-               IF (ASSOCIATED(output)) THEN
+         DO part = 1, 2
+            IF (part == 2 .AND. route%entry(8, iblock) == 0) CYCLE
+            lo = MAX(first, route%tile(3, part, iblock))
+            hi = MIN(last, route%tile(4, part, iblock))
+            IF (lo > hi) CYCLE
+            factors(1:SIZE(phase, 1)) = phase(:, iblock)
+            IF (part == 2) factors(1:SIZE(phase, 1)) = CONJG(factors(1:SIZE(phase, 1)))
+            DO j = lo, hi
+               col = route%matrix_struct%col_indices(j)
+               DO row = route%tile(1, part, iblock), route%tile(2, part, iblock)
+                  source_row = route%matrix_struct%row_indices(row)
+                  source_col = col
+                  IF (part == 2) THEN
+                     source_col = source_row
+                     source_row = col
+                  END IF
+                  element = snapshot%blocks(iblock)%data(source_row - r0 + 1, source_col - c0 + 1)
+                  IF (ASSOCIATED(output)) THEN
 !$OMP SIMD
-                  DO k = 1, SIZE(phase, 1)
-                     output(k, local_row, j) = output(k, local_row, j) + phase(k, iblock)*element
-                  END DO
-               ELSE
-                  value = phase(1, iblock)*element
-                  fm_re%local_data(local_row, j) = fm_re%local_data(local_row, j) + REAL(value, dp)
-                  IF (PRESENT(fm_im)) fm_im%local_data(local_row, j) = fm_im%local_data(local_row, j) + AIMAG(value)
-               END IF
-            END DO
-         END DO
-         IF (route%entry(8, iblock) == 0) CYCLE
-         DO col = r0, r0 + nr - 1
-            j = route%col_local(col)
-            IF (j < first .OR. j > last) CYCLE
-            DO row = c0, c0 + nc - 1
-               local_row = route%row_local(row)
-               IF (local_row == 0) CYCLE
-               element = snapshot%blocks(iblock)%data(col - r0 + 1, row - c0 + 1)
-               IF (ASSOCIATED(output)) THEN
-!$OMP SIMD
-                  DO k = 1, SIZE(phase, 1)
-                     output(k, local_row, j) = output(k, local_row, j) + CONJG(phase(k, iblock))*element
-                  END DO
-               ELSE
-                  value = CONJG(phase(1, iblock))*element
-                  fm_re%local_data(local_row, j) = fm_re%local_data(local_row, j) + REAL(value, dp)
-                  IF (PRESENT(fm_im)) fm_im%local_data(local_row, j) = fm_im%local_data(local_row, j) + AIMAG(value)
-               END IF
+                     DO k = 1, SIZE(phase, 1)
+                        output(k, row, j) = output(k, row, j) + factors(k)*element
+                     END DO
+                  ELSE
+                     value = factors(1)*element
+                     fm_re%local_data(row, j) = fm_re%local_data(row, j) + REAL(value, dp)
+                     IF (PRESENT(fm_im)) fm_im%local_data(row, j) = fm_im%local_data(row, j) + AIMAG(value)
+                  END IF
+               END DO
             END DO
          END DO
       END DO
