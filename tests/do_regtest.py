@@ -775,7 +775,15 @@ def run_with_capture_stdout(cmd: str) -> bytes:
 # ======================================================================================
 def cpu_count() -> int:
     # os.cpu_count() ignores $PYTHON_CPU_COUNT before Python 3.13
-    return int(os.getenv("PYTHON_CPU_COUNT") or str(os.cpu_count()))
+    override = os.getenv("PYTHON_CPU_COUNT")
+    if override:
+        return int(override)
+    # Respect CPU affinity, e.g. the cpuset assigned to a CI container.
+    # os.cpu_count() reports all host CPUs and can oversubscribe the worker.
+    try:
+        return len(getattr(os, "sched_getaffinity")(0))
+    except (AttributeError, OSError):
+        return os.cpu_count() or 1
 
 
 # ======================================================================================
