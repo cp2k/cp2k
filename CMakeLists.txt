@@ -442,16 +442,8 @@ endif()
 # BLAS & LAPACK, PkgConfig
 find_package(Lapack REQUIRED) # also calls find_package(BLAS)
 
-# Exact angular momentum algebra (Wigner symbols, Gaunt coefficients). CP2K
-# bundles libwignernj in src/wignernj and compiles it into the CP2K library
-# whenever no installed copy is found, so this is never a hard requirement.
-option(CP2K_USE_BUNDLED_LIBWIGNERNJ
-       "Always build the bundled copy of libwignernj in src/wignernj" OFF)
-set(CP2K_USE_EXTERNAL_LIBWIGNERNJ OFF)
-if(NOT CP2K_USE_BUNDLED_LIBWIGNERNJ)
-  find_package(wignernj 0.8 CONFIG QUIET)
-  set(CP2K_USE_EXTERNAL_LIBWIGNERNJ ${wignernj_FOUND})
-endif()
+# Exact angular momentum algebra (Wigner symbols, Gaunt coefficients).
+find_package(wignernj 0.8 CONFIG REQUIRED)
 
 # in practice it is always for any decent configuration. But I add a flags to
 # turn it off
@@ -1236,12 +1228,8 @@ if(CP2K_USE_VORI)
   message("  - Libvori\n" "    - Libraries: ${CP2K_LIBVORI_LINK_LIBRARIES}\n")
 endif()
 
-if(CP2K_USE_EXTERNAL_LIBWIGNERNJ)
-  message("  - Libwignernj\n" "    - Version: ${wignernj_VERSION}\n"
-          "    - Libraries: wignernj::wignernj\n")
-else()
-  message("  - Libwignernj\n" "    - Using the bundled copy in src/wignernj\n")
-endif()
+message("  - Libwignernj\n" "    - Version: ${wignernj_VERSION}\n"
+        "    - Libraries: wignernj::wignernj\n")
 
 if(CP2K_USE_ELPA)
   message("  - ELPA\n" "    - Include directories: ${CP2K_ELPA_INCLUDE_DIRS}\n"
