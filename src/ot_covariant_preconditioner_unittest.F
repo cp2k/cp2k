@@ -17,6 +17,7 @@ PROGRAM ot_covariant_preconditioner_unittest
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
    USE input_constants,                 ONLY: ot_precond_full_all_covariant
+   USE iso_fortran_env,                 ONLY: error_unit
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type,&
                                               mp_world_finalize,&
@@ -298,8 +299,11 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: tolerance
       CHARACTER(LEN=*), INTENT(IN)                       :: label
 
+      INTEGER                                            :: io_unit
+
       IF (MAXVAL(ABS(actual - reference)) > tolerance) THEN
-         WRITE (*, '(A)') TRIM(label)
+         io_unit = error_unit
+         WRITE (io_unit, '(A)') TRIM(label)
          ERROR STOP "Matrix comparison failed"
       END IF
 

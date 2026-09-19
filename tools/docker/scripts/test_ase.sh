@@ -57,11 +57,41 @@ echo -
 export PYTEST_DEBUG_TEMPROOT=/workspace/artifacts
 mkdir -p ${PYTEST_DEBUG_TEMPROOT}
 
-if ase test -j 0 -c cp2k calculator/cp2k; then
-  echo -e "\nSummary: ASE commit ${ASE_REVISION} works fine."
+if ! ase test -j 0 -c cp2k calculator/cp2k; then
+  echo -e "\nSummary: Something is wrong with ASE commit ${ASE_REVISION}."
+  echo -e "Status: FAILED\n"
+  exit 0
+fi
+
+echo -e "\n========== Direct Python and MD Adapter Tests =========="
+# Keep pytest independent of the top-level CP2K CMake build. This Linux job
+# exercises the shared-library interface as well as ASE's existing shell path.
+cd /opt/cp2k
+# shellcheck disable=SC1091
+source /opt/cp2k-toolchain/install/setup
+pip3 install './python[test,openmm]'
+
+# A small serial LAMMPS build avoids relying on a wheel's bundled MPI ABI.
+git clone --quiet --depth=1 --branch stable_22Jul2025_update4 \
+  https://github.com/lammps/lammps.git /opt/lammps
+cmake -S /opt/lammps/cmake -B /opt/lammps/build \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_MPI=OFF \
+  -DPKG_MISC=ON -DBUILD_OMP=OFF
+cmake --build /opt/lammps/build --target lammps -j "$(nproc)"
+export PYTHONPATH="/opt/lammps/python${PYTHONPATH:+:${PYTHONPATH}}"
+export LD_LIBRARY_PATH="/opt/lammps/build${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+export CP2K_TEST_LIBRARY=/opt/cp2k/build/src/libcp2k.so
+export CP2K_DATA_DIR=/opt/cp2k/data
+export CP2K_TEST_LAMMPS=1
+export CP2K_TEST_EXECUTABLE=/opt/cp2k/build/bin/cp2k.ssmp
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+if timeout 15m python3 -m pytest python/tests -q \
+  --basetemp=/workspace/artifacts/python-tests; then
+  echo -e "\nSummary: ASE ${ASE_REVISION}, direct Python and MD adapters work fine."
   echo -e "Status: OK\n"
 else
-  echo -e "\nSummary: Something is wrong with ASE commit ${ASE_REVISION}."
+  echo -e "\nSummary: Direct Python / MD adapter tests failed."
   echo -e "Status: FAILED\n"
 fi
 

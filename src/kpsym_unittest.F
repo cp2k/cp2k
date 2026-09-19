@@ -5,6 +5,7 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 PROGRAM kpsym_unittest
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cryssym,                         ONLY: crys_sym_gen,&
                                               csym_type,&
                                               kpoint_gen,&
@@ -53,10 +54,11 @@ PROGRAM kpsym_unittest
                                                   0.904256_dp, 0.095744_dp, 0.750000_dp, &
                                                   0.595744_dp, 0.595744_dp, 0.500000_dp], [3, 36])
    REAL(dp) :: cell(3, 3), coords(3, 36), shifted(3, 36)
-   INTEGER :: i
+   INTEGER :: i, io_unit
    INTEGER :: types(36)
 
    CALL cp2k_init()
+   io_unit = cp_logger_get_default_io_unit()
    cell = 0.0_dp
    cell(1, 1) = 6.784903_dp*bohr
    cell(2, 2) = 6.784903_dp*bohr
@@ -85,8 +87,8 @@ PROGRAM kpsym_unittest
    coords(3, 33) = coords(3, 33) + 0.75e-6_dp
    coords(3, 36) = coords(3, 36) - 0.75e-6_dp
    CALL check_mesh(coords, cell, 1.0e-6_dp, 14, .TRUE., .FALSE.)
+   IF (io_unit > 0) WRITE (io_unit, *) "K290 tolerance-boundary and orbit-guard tests passed"
    CALL cp2k_finalize()
-   PRINT *, "K290 tolerance-boundary and orbit-guard tests passed"
 
 CONTAINS
 

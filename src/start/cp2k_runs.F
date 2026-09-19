@@ -150,6 +150,7 @@ CONTAINS
 !> \param output_unit unit to which output should be written
 !> \param mpi_comm ...
 !> \param initial_variables key-value list of initial preprocessor variables
+!> \param keep_dbcsr retain DBCSR for a surrounding library runtime
 !> \author Joost VandeVondele
 !> \note
 !>      para_env should be a valid communicator
@@ -166,7 +167,8 @@ CONTAINS
 !>      able to run simultaneously / multithreaded / sequential / parallel / ...
 !>      and able to fail safe
 ! **************************************************************************************************
-   RECURSIVE SUBROUTINE cp2k_run(input_declaration, input_file_name, output_unit, mpi_comm, initial_variables)
+   RECURSIVE SUBROUTINE cp2k_run(input_declaration, input_file_name, output_unit, mpi_comm, initial_variables, &
+                                 keep_dbcsr)
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(LEN=*), INTENT(IN)                       :: input_file_name
       INTEGER, INTENT(IN)                                :: output_unit
@@ -174,6 +176,7 @@ CONTAINS
       CLASS(mp_comm_type)                                 :: mpi_comm
       CHARACTER(len=default_path_length), &
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
+      LOGICAL, INTENT(IN), OPTIONAL                      :: keep_dbcsr
 
       INTEGER                                            :: f_env_handle, grid_backend, ierr, &
                                                             iter_level, method_name_id, &
@@ -183,9 +186,9 @@ CONTAINS
 #endif
       INTEGER, POINTER                                   :: active_device_id
       INTEGER(KIND=int_8)                                :: m_memory_max_mpi
-      LOGICAL                                            :: echo_input, grid_apply_cutoff, &
-                                                            grid_validate, has_excited_states, has_properties, &
-                                                            I_was_ionode
+      LOGICAL                                            :: echo_input, finalize_dbcsr, grid_apply_cutoff, &
+                                                            grid_validate, has_excited_states, &
+                                                            has_properties, I_was_ionode
       TYPE(cp_logger_type), POINTER                      :: logger, sublogger
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -464,7 +467,9 @@ CONTAINS
          CALL globenv_release(globenv)
       END IF
 
-      CALL dbcsr_finalize_lib()
+      finalize_dbcsr = .TRUE.
+      IF (PRESENT(keep_dbcsr)) finalize_dbcsr = .NOT. keep_dbcsr
+      IF (finalize_dbcsr) CALL dbcsr_finalize_lib()
 
       CALL mp_para_env_release(para_env)
 
@@ -940,20 +945,24 @@ CONTAINS
 !> \param initial_variables key-value list of initial preprocessor variables
 !> \param mpi_comm the mpi communicator to be used for this environment
 !>        it will not be freed
+!> \param keep_dbcsr retain DBCSR for a surrounding library runtime
 !> \author fawzi
 !> \note
 !>      moved here because of circular dependencies
 ! **************************************************************************************************
-   SUBROUTINE run_input(input_declaration, input_file_path, output_file_path, initial_variables, mpi_comm)
+   SUBROUTINE run_input(input_declaration, input_file_path, output_file_path, initial_variables, mpi_comm, keep_dbcsr)
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(len=*), INTENT(in)                       :: input_file_path, output_file_path
       CHARACTER(len=default_path_length), &
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
       TYPE(mp_comm_type), INTENT(in), OPTIONAL           :: mpi_comm
+      LOGICAL, INTENT(IN), OPTIONAL                      :: keep_dbcsr
 
       INTEGER                                            :: unit_nr
+      LOGICAL                                            :: opened, owns_output
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
+      owns_output = .FALSE.
       IF (PRESENT(mpi_comm)) THEN
          ALLOCATE (para_env)
          para_env = mpi_comm
@@ -965,12 +974,21 @@ CONTAINS
          IF (output_file_path == "__STD_OUT__") THEN
             unit_nr = default_output_unit
          ELSE
-            INQUIRE (FILE=output_file_path, NUMBER=unit_nr)
+            INQUIRE (FILE=output_file_path, OPENED=opened, NUMBER=unit_nr)
+            IF (.NOT. opened) THEN
+               CALL open_file(file_name=output_file_path, &
+                              file_status="UNKNOWN", &
+                              file_action="WRITE", &
+                              file_position="APPEND", &
+                              unit_number=unit_nr)
+               owns_output = .TRUE.
+            END IF
          END IF
       ELSE
          unit_nr = -1
       END IF
-      CALL cp2k_run(input_declaration, input_file_path, unit_nr, para_env, initial_variables)
+      CALL cp2k_run(input_declaration, input_file_path, unit_nr, para_env, initial_variables, keep_dbcsr)
+      IF (owns_output) CALL close_file(unit_number=unit_nr)
       CALL mp_para_env_release(para_env)
    END SUBROUTINE run_input
 
