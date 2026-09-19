@@ -78,7 +78,7 @@ CONTAINS
       LOGICAL                                            :: use_charges, virial
       REAL(KIND=dp)                                      :: q, theta
       REAL(KIND=dp), DIMENSION(3)                        :: ci, dfilter, di, dipole, fieldpol, fq, &
-                                                            gvec, ria, tmp
+                                                            gvec, ria
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
 
       qenergy = 0.0_dp
@@ -122,24 +122,21 @@ CONTAINS
             DO j = 1, 3
                gvec = twopi*cell%h_inv(j, :)
                theta = SUM(ria(:)*gvec(:))
-               zeta = CMPLX(COS(theta), SIN(theta), KIND=dp)**(-q)
+               zeta = CMPLX(COS(q*theta), SIN(q*theta), KIND=dp)
                ggamma(j) = ggamma(j)*zeta
             END DO
             qforce(1:3, ii) = q
          END DO
       END DO
 
-      IF (ALL(REAL(ggamma, KIND=dp) /= 0.0_dp)) THEN
-         tmp = AIMAG(ggamma)/REAL(ggamma, KIND=dp)
-         ci = ATAN(tmp)
-         dipole = MATMUL(cell%hmat, ci)/twopi
-      END IF
+      ci = ATAN2(AIMAG(ggamma), REAL(ggamma, KIND=dp))
+      dipole = MATMUL(cell%hmat, ci)/twopi
 
       IF (efield%displacement) THEN
          ! E = (omega/8Pi)(D - 4Pi*P)^2
          di = dipole/cell%deth
          DO i = 1, 3
-            theta = fieldpol(i) - 2._dp*twopi*di(i)
+            theta = fieldpol(i) + 2._dp*twopi*di(i)
             qenergy = qenergy + dfilter(i)*theta**2
             fq(i) = -dfilter(i)*theta
          END DO
@@ -151,7 +148,7 @@ CONTAINS
          ! E = -omega*E*P
          qenergy = SUM(fieldpol*dipole)
          DO i = 1, SIZE(qforce, 2)
-            qforce(1:3, i) = fieldpol(1:3)*qforce(1:3, i)
+            qforce(1:3, i) = -fieldpol(1:3)*qforce(1:3, i)
          END DO
       END IF
 
@@ -206,8 +203,10 @@ CONTAINS
       INTEGER                                            :: i, iparticle_kind, j, reference
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
       LOGICAL                                            :: do_berry, use_charges
-      REAL(KIND=dp) :: charge_tot, ci(3), dci(3), dipole(3), dipole_deriv(3), drcc(3), dria(3), &
-         dtheta, gvec(3), q, rcc(3), ria(3), theta, tmp(3), via(3)
+      REAL(KIND=dp)                                      :: charge_tot, ci(3), dci(3), dipole(3), &
+                                                            dipole_deriv(3), drcc(3), dria(3), &
+                                                            dtheta, gvec(3), q, rcc(3), ria(3), &
+                                                            theta, via(3)
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(cp_result_type), POINTER                      :: results
@@ -243,10 +242,10 @@ CONTAINS
             END DO
          END IF
          ria = twopi*MATMUL(cell%h_inv, rcc)
-         zphase = CMPLX(COS(ria), SIN(ria), dp)**charge_tot
+         zphase = CMPLX(COS(charge_tot*ria), -SIN(charge_tot*ria), KIND=dp)
 
          dria = twopi*MATMUL(cell%h_inv, drcc)
-         dzphase = charge_tot*CMPLX(-SIN(ria), COS(ria), dp)**(charge_tot - 1.0_dp)*dria
+         dzphase = -charge_tot*CMPLX(SIN(charge_tot*ria), COS(charge_tot*ria), KIND=dp)*dria
 
          ggamma = z_one
          dggamma = z_zero
@@ -263,8 +262,8 @@ CONTAINS
                   gvec = twopi*cell%h_inv(j, :)
                   theta = SUM(ria(:)*gvec(:))
                   dtheta = SUM(via(:)*gvec(:))
-                  zeta = CMPLX(COS(theta), SIN(theta), KIND=dp)**(-q)
-                  dzeta = -q*CMPLX(-SIN(theta), COS(theta), KIND=dp)**(-q - 1.0_dp)*dtheta
+                  zeta = CMPLX(COS(q*theta), SIN(q*theta), KIND=dp)
+                  dzeta = q*CMPLX(-SIN(q*theta), COS(q*theta), KIND=dp)*dtheta
                   dggamma(j) = dggamma(j)*zeta + ggamma(j)*dzeta
                   ggamma(j) = ggamma(j)*zeta
                END DO
@@ -272,15 +271,12 @@ CONTAINS
          END DO
          dggamma = dggamma*zphase + ggamma*dzphase
          ggamma = ggamma*zphase
-         IF (ALL(REAL(ggamma, KIND=dp) /= 0.0_dp)) THEN
-            tmp = AIMAG(ggamma)/REAL(ggamma, KIND=dp)
-            ci = ATAN(tmp)
-            dci = (1.0_dp/(1.0_dp + tmp**2))* &
-                  (AIMAG(dggamma)*REAL(ggamma, KIND=dp) - AIMAG(ggamma)*REAL(dggamma, KIND=dp))/(REAL(ggamma, KIND=dp))**2
+         ci = ATAN2(AIMAG(ggamma), REAL(ggamma, KIND=dp))
+         dci = (REAL(ggamma, KIND=dp)*AIMAG(dggamma) - &
+                AIMAG(ggamma)*REAL(dggamma, KIND=dp))/ABS(ggamma)**2
 
-            dipole = MATMUL(cell%hmat, ci)/twopi
-            dipole_deriv = MATMUL(cell%hmat, dci)/twopi
-         END IF
+         dipole = MATMUL(cell%hmat, ci)/twopi
+         dipole_deriv = MATMUL(cell%hmat, dci)/twopi
          CALL fist_env_get(fist_env=fist_env, results=results)
          CALL cp_results_erase(results, description)
          CALL put_results(results, description, dipole)
@@ -292,8 +288,8 @@ CONTAINS
             ! is the sum of the molecular dipoles
             CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
             IF (use_charges) q = charges(i)
-            dipole = dipole - q*(ria - rcc)
-            dipole_deriv(:) = dipole_deriv(:) - q*(particle_set(i)%v(:) - drcc)
+            dipole = dipole + q*(ria - rcc)
+            dipole_deriv(:) = dipole_deriv(:) + q*(particle_set(i)%v(:) - drcc)
          END DO
          CALL fist_env_get(fist_env=fist_env, results=results)
          CALL cp_results_erase(results, description)

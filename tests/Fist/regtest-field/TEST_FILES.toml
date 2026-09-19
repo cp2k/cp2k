@@ -2,4 +2,10 @@
 "efield.inp"                            = []
 "dfield.inp"                            = []
 "efield_md.inp"                         = [{matcher="M002", tol=1.0E-14, ref=0.374760458659E-02}]
+"periodic_efield_phase.inp"              = [
+  {matcher="M_INIT_ENERGY", tol=1.0E-12, ref=-0.113333333333333},
+  {matcher="FIST_periodic_dipole_x", tol=1.0E-12, ref=3.0},
+  {matcher="FIST_periodic_dipole_derivative_x", tol=1.0E-12, ref=0.0002},
+  {matcher="FIST_atom_1_force_x", tol=1.0E-8, ref=-0.101111111},
+]
 #EOF
