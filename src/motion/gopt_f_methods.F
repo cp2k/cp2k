@@ -1139,6 +1139,7 @@ CONTAINS
          CALL cp_eval_at(gopt_env, x0, f=etot, master=master, final_evaluation=.TRUE., &
                          para_env=para_env)
          CALL write_geo_traj(force_env, root_section, it, etot)
+         CALL write_simulation_cell(cell, motion_section, it, 0.0_dp)
       END IF
 
    END SUBROUTINE write_final_info
