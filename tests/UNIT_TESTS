@@ -8,6 +8,7 @@ grid_unittest
 kpoint_lattice_fft_unittest
 kpoint_smearing_unittest
 topology_wilson_unittest
+topology_symmetry_unittest
 topology_curvature_unittest
 topology_snapshot_unittest
 kpsym_unittest

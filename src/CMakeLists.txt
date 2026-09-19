@@ -902,6 +902,9 @@ list(
   wannier90_nnkpts.F
   topology_wilson.F
   topology_state_io.F
+  topology_symmetry.F
+  topology_inversion.F
+  topology_tqc.F
   topology_snapshot.F
   topology_curvature.F
   topology_phason_analysis.F
@@ -1578,6 +1581,7 @@ set(CP2K_PROGS_F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
     topology_wilson_unittest.F
+    topology_symmetry_unittest.F
     topology_curvature_unittest.F
     topology_snapshot_unittest.F
     topology_phasons.F
@@ -1999,6 +2003,7 @@ list(
   "kpoint_lattice_fft_unittest"
   "kpoint_smearing_unittest"
   "topology_wilson_unittest"
+  "topology_symmetry_unittest"
   "topology_curvature_unittest"
   "topology_snapshot_unittest"
   "topology_phasons"
@@ -2037,6 +2042,7 @@ add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(topology_wilson_unittest topology_wilson_unittest.F)
+add_executable(topology_symmetry_unittest topology_symmetry_unittest.F)
 add_executable(topology_curvature_unittest topology_curvature_unittest.F)
 add_executable(topology_snapshot_unittest topology_snapshot_unittest.F)
 add_executable(topology_phasons topology_phasons.F)
