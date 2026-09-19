@@ -85,6 +85,8 @@ MODULE kpoint_methods
                                               kpoint_sym_create,&
                                               kpoint_sym_type,&
                                               kpoint_type
+   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
+                                              local_gemm_ctxt_type
    USE mathconstants,                   ONLY: twopi
    USE mathlib,                         ONLY: inv_3x3
    USE memory_utilities,                ONLY: reallocate
@@ -1915,6 +1917,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), ALLOCATABLE                      :: work(:)
       TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(local_gemm_ctxt_type), ALLOCATABLE            :: gemm_ctx(:)
 
       CALL timeset(routineN, handle)
       wtype = .FALSE.
@@ -1935,22 +1938,25 @@ CONTAINS
       local = PRODUCT(matrix_struct%context%num_pe) == 1
       nworkers = 1
 !$    IF (local) nworkers = MIN(omp_get_max_threads(), kplocal*nspin)
-      ALLOCATE (work(nworkers))
+      ALLOCATE (work(nworkers), gemm_ctx(nworkers))
       DO thread = 1, nworkers
          CALL cp_fm_create(work(thread), matrix_struct)
+         IF (local) CALL gemm_ctx(thread)%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
       END DO
 
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE) SCHEDULE(DYNAMIC, 1) NUM_THREADS(nworkers) IF(nworkers > 1) &
-!$OMP SHARED(kpoint,wtype,aux_fit,nao,nmo,kplocal,nspin,nworkers,work,local) PRIVATE(ikpgr,ispin,thread)
+!$OMP SHARED(kpoint,wtype,aux_fit,nao,nmo,kplocal,nspin,nworkers,work,local,gemm_ctx) PRIVATE(ikpgr,ispin,thread)
       DO ikpgr = 1, kplocal
          DO ispin = 1, nspin
             thread = 1
 !$          thread = omp_get_thread_num() + 1
-            CALL kpoint_density_matrix_job(kpoint, ikpgr, ispin, wtype, aux_fit, nao, nmo, work(thread), local)
+            CALL kpoint_density_matrix_job(kpoint, ikpgr, ispin, wtype, aux_fit, nao, nmo, &
+                                           work(thread), local, gemm_ctx(thread))
          END DO
       END DO
 !$OMP END PARALLEL DO
       DO thread = 1, nworkers
+         CALL gemm_ctx(thread)%destroy()
          CALL cp_fm_release(work(thread))
       END DO
       CALL timestop(handle)
@@ -2117,9 +2123,10 @@ CONTAINS
 !> \param nao number of atomic orbitals
 !> \param nmo number of molecular orbitals
 !> \param work private column-scaled MO scratch
-!> \param local use local BLAS, without communication
+!> \param local use local GEMM, without communication
+!> \param gemm_ctx private local GEMM context, unused for distributed groups
 ! **************************************************************************************************
-   SUBROUTINE kpoint_density_matrix_job(kpoint, ikpgr, ispin, wtype, aux_fit, nao, nmo, work, local)
+   SUBROUTINE kpoint_density_matrix_job(kpoint, ikpgr, ispin, wtype, aux_fit, nao, nmo, work, local, gemm_ctx)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       INTEGER, INTENT(IN)                                :: ikpgr, ispin
@@ -2127,6 +2134,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nao, nmo
       TYPE(cp_fm_type), INTENT(INOUT)                    :: work
       LOGICAL, INTENT(IN)                                :: local
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
 
       INTEGER                                            :: part
       REAL(KIND=dp), POINTER                             :: eigenvalues(:), occupation(:)
@@ -2149,7 +2157,17 @@ CONTAINS
          CALL cp_fm_to_fm(coeff, work)
          CALL cp_fm_column_scale(work, occupation)
          IF (wtype) CALL cp_fm_column_scale(work, eigenvalues)
-         CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, coeff, work, REAL(part - 1, dp), rpmat, local=local)
+         IF (local) THEN
+            CPASSERT(PRODUCT(coeff%matrix_struct%context%num_pe) == 1)
+            CPASSERT(PRODUCT(work%matrix_struct%context%num_pe) == 1)
+            CPASSERT(PRODUCT(rpmat%matrix_struct%context%num_pe) == 1)
+            CALL gemm_ctx%gemm("N", "T", nao, nao, nmo, 1.0_dp, &
+                               coeff%local_data, SIZE(coeff%local_data, 1), &
+                               work%local_data, SIZE(work%local_data, 1), REAL(part - 1, dp), &
+                               rpmat%local_data, SIZE(rpmat%local_data, 1))
+         ELSE
+            CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, coeff, work, REAL(part - 1, dp), rpmat)
+         END IF
          IF (part /= 1 .OR. kpoint%use_real_wfn) CYCLE
          IF (wtype) THEN
             cpmat => kp%wmat(2, ispin)
@@ -2157,8 +2175,21 @@ CONTAINS
             cpmat => kp%pmat(2, ispin)
          END IF
          coeff => kp%mos(2, ispin)%mo_coeff
-         CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, coeff, work, 0.0_dp, cpmat, local=local)
-         CALL parallel_gemm("N", "T", nao, nao, nmo, -1.0_dp, work, coeff, 1.0_dp, cpmat, local=local)
+         IF (local) THEN
+            CPASSERT(PRODUCT(coeff%matrix_struct%context%num_pe) == 1)
+            CPASSERT(PRODUCT(cpmat%matrix_struct%context%num_pe) == 1)
+            CALL gemm_ctx%gemm("N", "T", nao, nao, nmo, 1.0_dp, &
+                               coeff%local_data, SIZE(coeff%local_data, 1), &
+                               work%local_data, SIZE(work%local_data, 1), 0.0_dp, &
+                               cpmat%local_data, SIZE(cpmat%local_data, 1))
+            CALL gemm_ctx%gemm("N", "T", nao, nao, nmo, -1.0_dp, &
+                               work%local_data, SIZE(work%local_data, 1), &
+                               coeff%local_data, SIZE(coeff%local_data, 1), 1.0_dp, &
+                               cpmat%local_data, SIZE(cpmat%local_data, 1))
+         ELSE
+            CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, coeff, work, 0.0_dp, cpmat)
+            CALL parallel_gemm("N", "T", nao, nao, nmo, -1.0_dp, work, coeff, 1.0_dp, cpmat)
+         END IF
       END DO
 
    END SUBROUTINE kpoint_density_matrix_job

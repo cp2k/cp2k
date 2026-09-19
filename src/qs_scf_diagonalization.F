@@ -95,6 +95,8 @@ MODULE qs_scf_diagonalization
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_env_type,&
                                               kpoint_type
+   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
+                                              local_gemm_ctxt_type
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathconstants,                   ONLY: gaussi,&
@@ -180,6 +182,7 @@ MODULE qs_scf_diagonalization
    TYPE, PRIVATE :: kp_diag_workspace_type
       TYPE(cp_cfm_type) :: cksmat, cmos, csmat, csmat_base, cwork
       TYPE(cp_cfm_diag_workspace_type) :: solver
+      TYPE(local_gemm_ctxt_type) :: gemm_ctx
       COMPLEX(KIND=dp), ALLOCATABLE :: phase(:, :)
    END TYPE kp_diag_workspace_type
 
@@ -243,15 +246,17 @@ CONTAINS
 !> \param coeff AO/MO eigensolver workspace.
 !> \param work AO/AO eigensolver workspace.
 !> \param shift Nonnegative regularization parameter in hartree.
-!> \param local Whether to use only local BLAS inside the OpenMP k-point executor.
+!> \param local Whether the matrices are complete on this rank.
+!> \param gemm_ctx Private local GEMM context, unused for distributed groups.
 ! **************************************************************************************************
-   SUBROUTINE shift_candidate_complex(fock, overlap, mos, coeff, work, shift, local)
+   SUBROUTINE shift_candidate_complex(fock, overlap, mos, coeff, work, shift, local, gemm_ctx)
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: fock
       TYPE(cp_cfm_type), INTENT(IN)                      :: overlap
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: coeff, work
       REAL(KIND=dp), INTENT(IN)                          :: shift
       LOGICAL, INTENT(IN)                                :: local
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
 
       INTEGER                                            :: nao, nmo
       REAL(KIND=dp)                                      :: maxocc
@@ -263,8 +268,23 @@ CONTAINS
       CALL get_mo_set(mos(2), mo_coeff=imos)
       CALL cp_fm_to_cfm(rmos, imos, coeff)
       CALL cp_cfm_column_scale(coeff, CMPLX(SQRT(MAX(0.0_dp, occupation/maxocc)), KIND=dp))
-      CALL parallel_gemm("N", "N", nao, nmo, nao, z_one, overlap, coeff, z_zero, work, local=local)
-      CALL parallel_gemm("N", "C", nao, nao, nmo, CMPLX(-shift, KIND=dp), work, work, z_one, fock, local=local)
+      IF (local) THEN
+         CPASSERT(PRODUCT(overlap%matrix_struct%context%num_pe) == 1)
+         CPASSERT(PRODUCT(coeff%matrix_struct%context%num_pe) == 1)
+         CPASSERT(PRODUCT(work%matrix_struct%context%num_pe) == 1)
+         CPASSERT(PRODUCT(fock%matrix_struct%context%num_pe) == 1)
+         CALL gemm_ctx%gemm("N", "N", nao, nmo, nao, z_one, &
+                            overlap%local_data, SIZE(overlap%local_data, 1), &
+                            coeff%local_data, SIZE(coeff%local_data, 1), z_zero, &
+                            work%local_data, SIZE(work%local_data, 1))
+         CALL gemm_ctx%gemm("N", "C", nao, nao, nmo, CMPLX(-shift, KIND=dp), &
+                            work%local_data, SIZE(work%local_data, 1), &
+                            work%local_data, SIZE(work%local_data, 1), z_one, &
+                            fock%local_data, SIZE(fock%local_data, 1))
+      ELSE
+         CALL parallel_gemm("N", "N", nao, nmo, nao, z_one, overlap, coeff, z_zero, work)
+         CALL parallel_gemm("N", "C", nao, nao, nmo, CMPLX(-shift, KIND=dp), work, work, z_one, fock)
+      END IF
    END SUBROUTINE shift_candidate_complex
 
 ! **************************************************************************************************
@@ -914,7 +934,8 @@ CONTAINS
                   CALL harvest_operators(ikp, ispin)
                   IF (ikp > kplocal) CYCLE
                   CALL qs_diis_b_calc_err_kp(kpoints%scf_diis_buffer, ib, kp%mos, cksmat, csmat, &
-                                             ispin, ikp, cmos, real_wfn=use_real_wfn)
+                                             ispin, ikp, cmos, real_wfn=use_real_wfn, &
+                                             local=.FALSE., gemm_ctx=workspace(1)%gemm_ctx)
 
                END DO !ispin
             END DO !ikp
@@ -1159,7 +1180,7 @@ CONTAINS
                END IF
                IF (store_error) THEN
                   CALL qs_diis_b_calc_err_kp(kpoints%scf_diis_buffer, ib, kp%mos, work%cksmat, work%csmat, &
-                                             ispin, ikp, work%cmos, local=.TRUE.)
+                                             ispin, ikp, work%cmos, local=.TRUE., gemm_ctx=work%gemm_ctx)
                ELSE
                   CALL kp_solve_complex(kp%mos(:, ispin), work, scf_env, scf_control, use_adiis, .TRUE.)
                END IF
@@ -1218,7 +1239,7 @@ CONTAINS
 
       CALL get_mo_set(mos(1), eigenvalues=eigenvalues)
       IF (use_adiis) CALL shift_candidate_complex(work%cksmat, work%csmat, mos, work%cmos, work%cwork, &
-                                                  adiis_candidate_shift(scf_env), local)
+                                                  adiis_candidate_shift(scf_env), local, work%gemm_ctx)
       IF (scf_env%cholesky_method == cholesky_off) THEN
          IF (local) THEN
             CALL cp_cfm_geeig_canon_local(work%cksmat, work%csmat, work%cmos, eigenvalues, work%cwork, &
@@ -1263,6 +1284,7 @@ CONTAINS
          CALL cp_cfm_create(workspace(i)%cwork, matrix_struct)
          CALL cp_cfm_create(workspace(i)%cmos, mo_struct)
          IF (.NOT. local) CYCLE
+         CALL workspace(i)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
          CALL cp_cfm_create(workspace(i)%csmat_base, matrix_struct)
          ALLOCATE (workspace(i)%phase(1, nentry))
          n = matrix_struct%nrow_global
@@ -1286,6 +1308,7 @@ CONTAINS
       INTEGER                                            :: i
 
       DO i = 1, SIZE(workspace)
+         CALL workspace(i)%gemm_ctx%destroy()
          CALL cp_cfm_release(workspace(i)%cksmat)
          CALL cp_cfm_release(workspace(i)%csmat)
          CALL cp_cfm_release(workspace(i)%csmat_base)

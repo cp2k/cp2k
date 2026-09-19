@@ -61,11 +61,10 @@ CONTAINS
 !> \param b_first_row ...
 !> \param c_first_col ...
 !> \param c_first_row ...
-!> \param local use local BLAS; all operands must have a one-rank BLACS grid
 ! **************************************************************************************************
    SUBROUTINE parallel_gemm_fm(transa, transb, m, n, k, alpha, matrix_a, matrix_b, beta, &
                                matrix_c, a_first_col, a_first_row, b_first_col, b_first_row, &
-                               c_first_col, c_first_row, local)
+                               c_first_col, c_first_row)
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
       INTEGER, INTENT(IN)                                :: m, n, k
       REAL(KIND=dp), INTENT(IN)                          :: alpha
@@ -74,36 +73,13 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_c
       INTEGER, INTENT(IN), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
                                                             b_first_row, c_first_col, c_first_row
-      LOGICAL, INTENT(IN), OPTIONAL                      :: local
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'parallel_gemm_fm'
 
-      INTEGER                                            :: cfc, cfr, handle, my_multi, origin(6)
-
-      ! Local execution is an explicit caller contract: no MPI or backend dispatch.
+      INTEGER                                            :: cfc, cfr, handle, my_multi
 
       MARK_USED(cfc)
       MARK_USED(cfr)
-
-      IF (PRESENT(local)) THEN
-         IF (local) THEN
-            CPASSERT(PRODUCT(matrix_a%matrix_struct%context%num_pe) == 1)
-            CPASSERT(PRODUCT(matrix_b%matrix_struct%context%num_pe) == 1)
-            CPASSERT(PRODUCT(matrix_c%matrix_struct%context%num_pe) == 1)
-            origin(:) = 1
-            IF (PRESENT(a_first_row)) origin(1) = a_first_row
-            IF (PRESENT(a_first_col)) origin(2) = a_first_col
-            IF (PRESENT(b_first_row)) origin(3) = b_first_row
-            IF (PRESENT(b_first_col)) origin(4) = b_first_col
-            IF (PRESENT(c_first_row)) origin(5) = c_first_row
-            IF (PRESENT(c_first_col)) origin(6) = c_first_col
-            CALL dgemm(transa, transb, m, n, k, alpha, &
-                       matrix_a%local_data(origin(1), origin(2)), SIZE(matrix_a%local_data, 1), &
-                       matrix_b%local_data(origin(3), origin(4)), SIZE(matrix_b%local_data, 1), beta, &
-                       matrix_c%local_data(origin(5), origin(6)), SIZE(matrix_c%local_data, 1))
-            RETURN
-         END IF
-      END IF
 
       my_multi = cp_fm_get_mm_type()
 
@@ -165,11 +141,10 @@ CONTAINS
 !> \param b_first_row ...
 !> \param c_first_col ...
 !> \param c_first_row ...
-!> \param local use local BLAS; all operands must have a one-rank BLACS grid
 ! **************************************************************************************************
    SUBROUTINE parallel_gemm_cfm(transa, transb, m, n, k, alpha, matrix_a, matrix_b, beta, &
                                 matrix_c, a_first_col, a_first_row, b_first_col, b_first_row, &
-                                c_first_col, c_first_row, local)
+                                c_first_col, c_first_row)
       CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
       INTEGER, INTENT(IN)                                :: m, n, k
       COMPLEX(KIND=dp), INTENT(IN)                       :: alpha
@@ -178,33 +153,10 @@ CONTAINS
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_c
       INTEGER, INTENT(IN), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
                                                             b_first_row, c_first_col, c_first_row
-      LOGICAL, INTENT(IN), OPTIONAL                      :: local
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'parallel_gemm_cfm'
 
-      INTEGER                                            :: handle, handle1, my_multi, origin(6)
-
-      ! Local execution is an explicit caller contract: no MPI or backend dispatch.
-
-      IF (PRESENT(local)) THEN
-         IF (local) THEN
-            CPASSERT(PRODUCT(matrix_a%matrix_struct%context%num_pe) == 1)
-            CPASSERT(PRODUCT(matrix_b%matrix_struct%context%num_pe) == 1)
-            CPASSERT(PRODUCT(matrix_c%matrix_struct%context%num_pe) == 1)
-            origin(:) = 1
-            IF (PRESENT(a_first_row)) origin(1) = a_first_row
-            IF (PRESENT(a_first_col)) origin(2) = a_first_col
-            IF (PRESENT(b_first_row)) origin(3) = b_first_row
-            IF (PRESENT(b_first_col)) origin(4) = b_first_col
-            IF (PRESENT(c_first_row)) origin(5) = c_first_row
-            IF (PRESENT(c_first_col)) origin(6) = c_first_col
-            CALL zgemm(transa, transb, m, n, k, alpha, &
-                       matrix_a%local_data(origin(1), origin(2)), SIZE(matrix_a%local_data, 1), &
-                       matrix_b%local_data(origin(3), origin(4)), SIZE(matrix_b%local_data, 1), beta, &
-                       matrix_c%local_data(origin(5), origin(6)), SIZE(matrix_c%local_data, 1))
-            RETURN
-         END IF
-      END IF
+      INTEGER                                            :: handle, handle1, my_multi
 
       CALL timeset(routineN, handle)
 

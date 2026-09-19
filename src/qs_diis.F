@@ -56,6 +56,7 @@ MODULE qs_diis
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE local_gemm_api,                  ONLY: local_gemm_ctxt_type
    USE mathlib,                         ONLY: diag_complex,&
                                               diamat_all
    USE message_passing,                 ONLY: mp_para_env_type
@@ -1009,11 +1010,12 @@ CONTAINS
 !> \param ikp ...
 !> \param cmos caller-owned scratch; the controller preallocates it and the DIIS buffer
 !> \param real_wfn ...
-!> \param local use local BLAS on a one-rank k-point group
+!> \param local use local GEMM on a one-rank k-point group
+!> \param gemm_ctx private local GEMM context, unused for distributed groups
 !> \note We assume that we always have an overlap matrix.
 !> TODO: do we need to pass the kp weight for the back Fourier transform?
 ! **************************************************************************************************
-   SUBROUTINE qs_diis_b_calc_err_kp(diis_buffer, ib, mos, kc, sc, ispin, ikp, cmos, real_wfn, local)
+   SUBROUTINE qs_diis_b_calc_err_kp(diis_buffer, ib, mos, kc, sc, ispin, ikp, cmos, real_wfn, local, gemm_ctx)
       TYPE(qs_diis_buffer_type_kp), POINTER              :: diis_buffer
       INTEGER, INTENT(IN)                                :: ib
       TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
@@ -1021,6 +1023,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin, ikp
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: cmos
       LOGICAL, INTENT(IN), OPTIONAL                      :: real_wfn, local
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_calc_err_kp'
 
@@ -1062,14 +1065,37 @@ CONTAINS
       CALL cp_cfm_to_cfm(kc, parameters)
       CALL cp_cfm_to_cfm(sc, smat)
 
-      ! KC <- K*C
-      CALL parallel_gemm("N", "N", nao, homo, nao, CMPLX(maxocc, KIND=dp), parameters, cmos, (0.0_dp, 0.0_dp), kc, local=local)
-      ! SC <- S*C
-      CALL parallel_gemm("N", "N", nao, homo, nao, (2.0_dp, 0.0_dp), smat, cmos, (0.0_dp, 0.0_dp), sc, local=local)
-
-      ! new_errors <- KC*(SC)^H - SC*(KC)^H; retain the existing factor of two.
-      CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), sc, kc, (0.0_dp, 0.0_dp), new_errors, local=local)
-      CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), kc, sc, (-1.0_dp, 0.0_dp), new_errors, local=local)
+      ! KC <- K*C; SC <- S*C. Retain the existing factor of two in SC.
+      ! new_errors <- KC*(SC)^H - SC*(KC)^H.
+      IF (local) THEN
+         CPASSERT(PRODUCT(parameters%matrix_struct%context%num_pe) == 1)
+         CPASSERT(PRODUCT(cmos%matrix_struct%context%num_pe) == 1)
+         CPASSERT(PRODUCT(kc%matrix_struct%context%num_pe) == 1)
+         CPASSERT(PRODUCT(smat%matrix_struct%context%num_pe) == 1)
+         CPASSERT(PRODUCT(sc%matrix_struct%context%num_pe) == 1)
+         CPASSERT(PRODUCT(new_errors%matrix_struct%context%num_pe) == 1)
+         CALL gemm_ctx%gemm("N", "N", nao, homo, nao, CMPLX(maxocc, KIND=dp), &
+                            parameters%local_data, SIZE(parameters%local_data, 1), &
+                            cmos%local_data, SIZE(cmos%local_data, 1), (0.0_dp, 0.0_dp), &
+                            kc%local_data, SIZE(kc%local_data, 1))
+         CALL gemm_ctx%gemm("N", "N", nao, homo, nao, (2.0_dp, 0.0_dp), &
+                            smat%local_data, SIZE(smat%local_data, 1), &
+                            cmos%local_data, SIZE(cmos%local_data, 1), (0.0_dp, 0.0_dp), &
+                            sc%local_data, SIZE(sc%local_data, 1))
+         CALL gemm_ctx%gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), &
+                            sc%local_data, SIZE(sc%local_data, 1), &
+                            kc%local_data, SIZE(kc%local_data, 1), (0.0_dp, 0.0_dp), &
+                            new_errors%local_data, SIZE(new_errors%local_data, 1))
+         CALL gemm_ctx%gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), &
+                            kc%local_data, SIZE(kc%local_data, 1), &
+                            sc%local_data, SIZE(sc%local_data, 1), (-1.0_dp, 0.0_dp), &
+                            new_errors%local_data, SIZE(new_errors%local_data, 1))
+      ELSE
+         CALL parallel_gemm("N", "N", nao, homo, nao, CMPLX(maxocc, KIND=dp), parameters, cmos, (0.0_dp, 0.0_dp), kc)
+         CALL parallel_gemm("N", "N", nao, homo, nao, (2.0_dp, 0.0_dp), smat, cmos, (0.0_dp, 0.0_dp), sc)
+         CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), sc, kc, (0.0_dp, 0.0_dp), new_errors)
+         CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), kc, sc, (-1.0_dp, 0.0_dp), new_errors)
+      END IF
 
       CALL timestop(handle)
 
