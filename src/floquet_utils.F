@@ -22,7 +22,7 @@ MODULE floquet_utils
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE floquet_types,                   ONLY: floquet_env_type
-   USE input_constants,                 ONLY: small_cell_full_kp
+   USE input_constants,                 ONLY: tensor_small_cell_full_kp
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
                                               int_8
@@ -783,7 +783,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: mu
 
       IF (bs_env%do_gw .OR. &
-          bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp) THEN
+          bs_env%gw_implementation == tensor_small_cell_full_kp) THEN
          mu = bs_env%band_edges_scf%VBM
       ELSE IF (bs_env%n_spin == 1) THEN
          mu = bs_env%eigenval_scf_Gamma(bs_env%n_occ(1), 1)

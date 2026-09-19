@@ -13,12 +13,8 @@
   &END FIT_KIND
   &FIT_KIND O
     BASIS_SET aug-SZV-MOLOPT-GTH-tier-2
-    INITIAL_DEGREES_OF_FREEDOM NONE
-    ! Optimize only the three tier-2 augmentation contractions.
-    ! The inherited SZV s and p contractions remain fixed.
-    SWITCH_CONTRACTION_STATE 1 0 2
-    SWITCH_CONTRACTION_STATE 1 1 2
-    SWITCH_CONTRACTION_STATE 1 2 1
+    ! Optimize only the last contraction of each l channel: s2, p2, and d1.
+    OPTIMIZE_AUGMENTATION_FUNCTIONS
   &END FIT_KIND
   &FRONTIER_ORBITAL_SCREENING
     ! Restrict the number of optimizations to 1 to save computation time.

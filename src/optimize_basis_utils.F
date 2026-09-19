@@ -974,8 +974,9 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: ikind
 
-      INTEGER                                            :: icont, idof, ipgf, irep, iset, nrep
+      INTEGER                                            :: icont, idof, il, ipgf, irep, iset, nrep
       INTEGER, DIMENSION(:), POINTER                     :: switch
+      LOGICAL :: optimize_augmentation_functions
 
       CALL parse_basis(flex_basis, template_basis_file, element, basis_name, para_env)
 
@@ -998,6 +999,20 @@ CONTAINS
             CPABORT("No initialization available?????")
          END SELECT
       END DO
+
+      CALL section_vals_val_get(kind1_section, "OPTIMIZE_AUGMENTATION_FUNCTIONS", &
+                                l_val=optimize_augmentation_functions, i_rep_section=ikind)
+      IF (optimize_augmentation_functions) THEN
+         DO iset = 1, flex_basis%nsets
+            flex_basis%subset(iset)%opt_coeff = .FALSE.
+            flex_basis%subset(iset)%opt_exps = .FALSE.
+            icont = 0
+            DO il = 1, flex_basis%subset(iset)%nl
+               icont = icont + flex_basis%subset(iset)%l(il)
+               flex_basis%subset(iset)%opt_coeff(:, icont) = .TRUE.
+            END DO
+         END DO
+      END IF
 
       CALL section_vals_val_get(kind1_section, "SWITCH_CONTRACTION_STATE", n_rep_val=nrep, i_rep_section=ikind)
       DO irep = 1, nrep

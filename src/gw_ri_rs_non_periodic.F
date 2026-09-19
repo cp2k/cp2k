@@ -11,19 +11,18 @@
 !>      04.2026 created [Ritaj Tyagi]
 ! **************************************************************************************************
 
-MODULE gw_non_periodic_ri_rs
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind_set
+MODULE gw_ri_rs_non_periodic
+   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE basis_set_types,                 ONLY: gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
    USE constants_operator,              ONLY: operator_coulomb
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_data_size, dbcsr_get_info, &
-        dbcsr_get_occupation, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_finalize, dbcsr_get_data_size, dbcsr_get_info, dbcsr_get_occupation, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, &
+        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -39,27 +38,28 @@ MODULE gw_non_periodic_ri_rs
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE gw_compute_Z_lP,                 ONLY: compute_Z_lP
-   USE gw_fm_utils,                     ONLY: fm_contract_ABA,&
-                                              fm_invert,&
-                                              fm_sqrt
-   USE gw_large_cell_gamma,             ONLY: Fourier_transform_w_to_t,&
+   USE gw_ri_rs_compute_Z_lP,           ONLY: compute_Z_lP
+   USE gw_ri_rs_grid_setup_main,        ONLY: setup_ri_rs_grid
+   USE gw_ri_rs_utils,                  ONLY: evaluate_ao_basis_on_points,&
+                                              precompute_ri_rs_radii
+   USE gw_tensor_large_cell_Gamma,      ONLY: Fourier_transform_w_to_t,&
                                               G_occ_vir,&
                                               compute_fm_chi_Gamma_freq,&
                                               create_fm_W_MIC_time,&
                                               delete_unnecessary_files,&
                                               fill_fm_Sigma_c_Gamma_time,&
                                               fm_write
-   USE gw_optimize_ri_rs_grid,          ONLY: optimize_ri_rs_grid
    USE gw_utils,                        ONLY: analyt_conti_and_print,&
                                               de_init_bs_env,&
                                               time_to_freq
+   USE gw_utils_dbcsr,                  ONLY: hadamard_product
+   USE gw_utils_fm,                     ONLY: fm_contract_ABA,&
+                                              fm_invert,&
+                                              fm_sqrt
    USE input_constants,                 ONLY: G0W0,&
                                               evGW0,&
                                               rtp_method_bse
-   USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length,&
-                                              dp,&
+   USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               max_line_length
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp
@@ -71,31 +71,21 @@ MODULE gw_non_periodic_ri_rs
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: angstrom,&
-                                              evolt
-   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type,&
-                                              rirs_grid_type
+   USE physcon,                         ONLY: evolt
+   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE post_scf_bandstructure_utils,    ONLY: get_all_VBM_CBM_bandgaps
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
-   USE rirs_grid_utils,                 ONLY: evaluate_ao_on_points,&
-                                              get_rirs_grid_filepath,&
-                                              initialize_rirs_grid,&
-                                              read_rirs_grid_file
-   USE util,                            ONLY: sort
+   USE qs_kind_types,                   ONLY: qs_kind_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_non_periodic_ri_rs'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_non_periodic'
 
-   PUBLIC :: gw_calc_non_periodic_ri_rs, ri_rs_grid_assembler, &
-             get_basis_offsets, precompute_ri_rs_radii, &
-             atomic_basis_at_grid_point, &
+   PUBLIC :: gw_calc_ri_rs_non_periodic, atomic_basis_at_grid_point, &
              reserve_blocks_within_radius
 
 CONTAINS
@@ -103,14 +93,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief GW calculation using RI-RS formalism for molecules
 !> \param qs_env ...
-!> \param bs_env ...
+!> \param bs_env Band-structure environment containing GW parameters.
 ! **************************************************************************************************
-   SUBROUTINE gw_calc_non_periodic_ri_rs(qs_env, bs_env)
+   SUBROUTINE gw_calc_ri_rs_non_periodic(qs_env, bs_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gw_calc_non_periodic_ri_rs'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gw_calc_ri_rs_non_periodic'
 
       INTEGER                                            :: handle
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_Sigma_x_Gamma, fm_W_time
@@ -125,33 +115,33 @@ CONTAINS
       !      r_ao = sqrt( -ln(ε) / α_min,ao )   (radius_ao_per_atom)
       !      r_ri = sqrt( -ln(ε) / α_min,ri )   (radius_ri_per_atom)
       ! ==============================================================================
-      CALL precompute_ri_rs_radii(qs_env, bs_env)
+      CALL precompute_ri_rs_radii(bs_env)
 
       ! ==============================================================================
       ! 1. Grid generation for RI-RS
       !    Modified Lebedev atomic grids (Duchemin & Blase), one per atom,
       !    concatenated into a flat global list:  r_l = R_A + r_l^(A)
       ! ==============================================================================
-      CALL ri_rs_grid_assembler(qs_env, bs_env, bs_env%ri_rs%grid_points)
+      CALL setup_ri_rs_grid(bs_env, bs_env%ri_rs%grid_points)
 
       ! ==============================================================================
       ! 2a. Atomic basis evaluation on the grid (grid x AO matrix)
-      !     Φ_μl = Φ_μ(r_l)   (mat_phi_mu_l)
+      !     ϕ_μl = ϕ_μ(r_l)   (mat_phi_mu_l)
       ! ==============================================================================
-      CALL atomic_basis_at_grid_point(qs_env, bs_env, bs_env%ri_rs%grid_points, &
+      CALL atomic_basis_at_grid_point(bs_env, bs_env%ri_rs%grid_points, &
                                       bs_env%ri_rs%mat_phi_mu_l)
 
       ! ==============================================================================
       ! 2b. Print the memory estimate for the RI-RS calculation
       ! ==============================================================================
-      CALL print_ri_rs_memory_estimate(qs_env, bs_env)
+      CALL print_ri_rs_memory_estimate(bs_env)
 
       ! ==============================================================================
       ! 3. RI-RS fitting coefficients Z_lP (grid x RI matrix)
       !    Per-atom regularized solve, restricted to grid points r_l within a
       !    cutoff distance of atom P:
-      !      a. D_ll' = [ Σ_μ Φ_μ(r_l) Φ_μ(r_l') ]²
-      !      b. D_lP  = Σ_μν Φ_μ(r_l) Φ_ν(r_l) (μν|P)
+      !      a. D_ll' = [ Σ_μ ϕ_μ(r_l) ϕ_μ(r_l') ]²
+      !      b. D_lP  = Σ_μν ϕ_μ(r_l) ϕ_ν(r_l) (μν|P)
       !      c. Jacobi conditioning with d_l = 1/sqrt(D_ll):
       !         D'_ll' = d_l D_ll' d_l' + λδ_ll' ,  D'_lP = d_l D_lP
       !      d. Solve Σ_l' D'_ll' Z'_l'P = D'_lP
@@ -171,7 +161,7 @@ CONTAINS
       ! 4. Polarizability matrix χ on the imaginary-time grid
       !      G^occ_µλ(i|τ|)  = Σ_n^occ C_µn e^(-|(ϵ_n-ϵ_F)τ|) C_λn
       !      G^vir_µλ(i|τ|)  = Σ_n^vir C_µn e^(-|(ϵ_n-ϵ_F)τ|) C_λn
-      !      G^occ_ll'(i|τ|) = Σ_µν Φ_µ(r_l) G^occ_µν Φ_ν(r_l')  (G^vir analogous)
+      !      G^occ_ll'(i|τ|) = Σ_µν ϕ_µ(r_l) G^occ_µν ϕ_ν(r_l')  (G^vir analogous)
       !      χ_ll'(iτ)       = G^occ_ll'(i|τ|) ∘ G^vir_ll'(i|τ|) (element-wise)
       !      χ_PQ(iτ)        = Σ_ll' Z_lP χ_ll'(iτ) Z_l'Q
       ! ==============================================================================
@@ -187,10 +177,10 @@ CONTAINS
       ! ==============================================================================
       ! 6. Exact-exchange self-energy Σ^x
       !      D_µν          = Σ_n^occ C_µn C_νn                (density matrix)
-      !      D_ll'         = Σ_µν Φ_µ(r_l) D_µν Φ_ν(r_l')
+      !      D_ll'         = Σ_µν ϕ_µ(r_l) D_µν ϕ_ν(r_l')
       !      V^tr_ll'      = Σ_PQ Z_lP V^tr_PQ Z_l'Q          (truncated Coulomb)
       !      Σ^x_ll'       = D_ll' ∘ V^tr_ll'
-      !      Σ^x_λσ(k=0)   = -Σ_ll' Φ_λ(r_l) Σ^x_ll' Φ_σ(r_l')
+      !      Σ^x_λσ(k=0)   = -Σ_ll' ϕ_λ(r_l) Σ^x_ll' ϕ_σ(r_l')
       ! ==============================================================================
       CALL compute_Sigma_x(bs_env, qs_env, bs_env%ri_rs%mat_phi_mu_l, &
                            bs_env%ri_rs%mat_Z_lP, fm_Sigma_x_Gamma)
@@ -203,7 +193,7 @@ CONTAINS
       !    (a) W_ll'(iτ)   =  Σ_PQ Z_lP W^MIC_PQ(iτ) Z_l'Q
       !        Σ^c_ll'(iτ) = -G^occ_ll'(i|τ|) ∘ W_ll'(iτ),  τ < 0
       !        Σ^c_ll'(iτ) =  G^vir_ll'(i|τ|) ∘ W_ll'(iτ),  τ > 0
-      !        Σ^c_λσ(iτ)  =  Σ_ll' Φ_λ(r_l) Σ^c_ll'(iτ) Φ_σ(r_l')
+      !        Σ^c_λσ(iτ)  =  Σ_ll' ϕ_λ(r_l) Σ^c_ll'(iτ) ϕ_σ(r_l')
       !    (b) Σ^c_λσ(iτ) -> Σ^c_nn(ϵ)
       !        ϵ_n^GW,(i) = ϵ_n^DFT + Σ^c_nn[G^(i-1),W](ϵ_n^GW,(i)) + Σ^x_nn - v^xc_nn
       ! ==============================================================================
@@ -213,7 +203,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE gw_calc_non_periodic_ri_rs
+   END SUBROUTINE gw_calc_ri_rs_non_periodic
 
 ! **************************************************************************************************
 !> \brief Correlation self-energy and quasiparticle energies, iterated to eigenvalue
@@ -259,7 +249,7 @@ CONTAINS
          ! W_ll'(iτ)   =  Σ_PQ Z_lP W^MIC_PQ(iτ) Z_l'Q
          ! Σ^c_ll'(iτ) = -G^occ_ll'(i|τ|) ∘ W_ll'(iτ),  τ < 0
          ! Σ^c_ll'(iτ) =  G^vir_ll'(i|τ|) ∘ W_ll'(iτ),  τ > 0
-         ! Σ^c_λσ(iτ)  =  Σ_ll' Φ_λ(r_l) Σ^c_ll'(iτ) Φ_σ(r_l')
+         ! Σ^c_λσ(iτ)  =  Σ_ll' ϕ_λ(r_l) Σ^c_ll'(iτ) ϕ_σ(r_l')
          CALL compute_Sigma_c(bs_env, fm_W_time, bs_env%ri_rs%mat_phi_mu_l, &
                               bs_env%ri_rs%mat_Z_lP, fm_Sigma_c_Gamma_time)
 
@@ -485,358 +475,8 @@ CONTAINS
    END SUBROUTINE print_evGW0_band_edges
 
 ! **************************************************************************************************
-!> \brief Compute per-atom AO and RI basis radii from the most diffuse Gaussian
-!>        primitive in the AO ("ORB") and RI auxiliary ("RI_AUX") basis sets.
-!>        Stores results in bs_env%ri_rs%radius_ao_per_atom(:) and
-!>        bs_env%ri_rs%radius_ri_per_atom(:) and prints a per-atom table.
-!>        Radius:  r_kind = sqrt(-log(eps) / alpha_min_kind)
-!>        with eps = eps_filter.
-!> \param qs_env ...
-!> \param bs_env ...
-! **************************************************************************************************
-   SUBROUTINE precompute_ri_rs_radii(qs_env, bs_env)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'precompute_ri_rs_radii'
-
-      INTEGER                                            :: handle, i, iatom, ikind, j, natom, nkind
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      REAL(KIND=dp)                                      :: eps
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha_min_ao_kind, alpha_min_ri_kind
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zet_ao, zet_ri
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-
-      CALL timeset(routineN, handle)
-
-      CALL get_qs_env(qs_env, nkind=nkind, atomic_kind_set=atomic_kind_set, &
-                      particle_set=particle_set)
-      natom = bs_env%n_atom
-
-      eps = bs_env%eps_filter
-
-      ALLOCATE (alpha_min_ao_kind(nkind), alpha_min_ri_kind(nkind))
-      alpha_min_ao_kind = HUGE(1.0_dp)
-      alpha_min_ri_kind = HUGE(1.0_dp)
-
-      DO ikind = 1, nkind
-         zet_ao => bs_env%basis_set_AO(ikind)%gto_basis_set%zet
-         zet_ri => bs_env%basis_set_RI(ikind)%gto_basis_set%zet
-
-         DO i = 1, SIZE(zet_ao, 1)
-            DO j = 1, SIZE(zet_ao, 2)
-               IF (zet_ao(i, j) > 1.0E-3_dp) THEN
-                  alpha_min_ao_kind(ikind) = MIN(alpha_min_ao_kind(ikind), zet_ao(i, j))
-               END IF
-            END DO
-         END DO
-         DO i = 1, SIZE(zet_ri, 1)
-            DO j = 1, SIZE(zet_ri, 2)
-               IF (zet_ri(i, j) > 1.0E-3_dp) THEN
-                  alpha_min_ri_kind(ikind) = MIN(alpha_min_ri_kind(ikind), zet_ri(i, j))
-               END IF
-            END DO
-         END DO
-      END DO
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
-
-      ALLOCATE (bs_env%ri_rs%radius_ao_per_atom(natom))
-      ALLOCATE (bs_env%ri_rs%radius_ri_per_atom(natom))
-      DO iatom = 1, natom
-         ikind = kind_of(iatom)
-         bs_env%ri_rs%radius_ao_per_atom(iatom) = SQRT(-LOG(eps)/alpha_min_ao_kind(ikind))
-         bs_env%ri_rs%radius_ri_per_atom(iatom) = SQRT(-LOG(eps)/alpha_min_ri_kind(ikind))
-      END DO
-
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A)') 'RI-RS basis radii (Å):'
-         WRITE (bs_env%unit_nr, '(T4,A6,2X,A4,2A14)') 'Kind', 'Elem', 'r_AO (Å)', 'r_RI (Å)'
-         DO ikind = 1, nkind
-            WRITE (bs_env%unit_nr, '(T4,I6,2X,A4,2F14.4)') &
-               ikind, &
-               atomic_kind_set(ikind)%element_symbol, &
-               SQRT(-LOG(eps)/alpha_min_ao_kind(ikind))*angstrom, &
-               SQRT(-LOG(eps)/alpha_min_ri_kind(ikind))*angstrom
-         END DO
-         WRITE (bs_env%unit_nr, '(A)') ' '
-      END IF
-
-      DEALLOCATE (alpha_min_ao_kind, alpha_min_ri_kind, kind_of)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE precompute_ri_rs_radii
-
-! **************************************************************************************************
-!> \brief Spreads the low 21 bits of a into every third bit (bits 0,3,6,...,60): the 1-D helper
-!>        for a 3-D Morton (Z-order) code. Standard 64-bit magic-mask implementation.
-!> \param a value in [0, 2^21)
-!> \param x a with two zero bits inserted between consecutive input bits
-! **************************************************************************************************
-   SUBROUTINE morton_split3(a, x)
-      INTEGER(KIND=int_8), INTENT(IN)                    :: a
-      INTEGER(KIND=int_8), INTENT(OUT)                   :: x
-
-      x = IAND(a, INT(z'1FFFFF', int_8))
-      x = IAND(IOR(x, ISHFT(x, 32)), INT(z'1F00000000FFFF', int_8))
-      x = IAND(IOR(x, ISHFT(x, 16)), INT(z'1F0000FF0000FF', int_8))
-      x = IAND(IOR(x, ISHFT(x, 8)), INT(z'100F00F00F00F00F', int_8))
-      x = IAND(IOR(x, ISHFT(x, 4)), INT(z'10C30C30C30C30C3', int_8))
-      x = IAND(IOR(x, ISHFT(x, 2)), INT(z'1249249249249249', int_8))
-   END SUBROUTINE morton_split3
-
-! **************************************************************************************************
-!> \brief Returns a permutation of atom indices in Morton (Z-order) space-filling order of their
-!>        Cartesian centers, so consecutive atoms are spatial neighbors. The RI-RS grid rows are
-!>        laid down in this order, so a contiguous grid panel maps to a compact spatial region and
-!>        the CUTOFF_RADIUS_RL_W neighborhood of every panel shrinks. The grid row index
-!>        is a summed contraction index, so ANY permutation is result-preserving; this one is
-!>        chosen purely to improve locality. Coordinates are normalized to the atom bounding box
-!>        and quantized to 21 bits per axis (sub-picometre for any real cell).
-!> \param particle_set ...
-!> \param order order(i) = atom index placed at layout position i
-! **************************************************************************************************
-   SUBROUTINE spatial_atom_order(particle_set, order)
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: order
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'spatial_atom_order'
-      INTEGER, PARAMETER                                 :: nbits = 21
-
-      INTEGER                                            :: handle, ia, k, natom
-      INTEGER(KIND=int_8)                                :: cmax, ic(3), m1, m2, m3
-      INTEGER(KIND=int_8), ALLOCATABLE                   :: mcode(:)
-      REAL(KIND=dp)                                      :: hi(3), lo(3), span(3)
-
-      CALL timeset(routineN, handle)
-
-      natom = SIZE(particle_set)
-      ALLOCATE (order(natom), mcode(natom))
-      cmax = ISHFT(1_int_8, nbits) - 1_int_8
-
-      lo(:) = HUGE(1.0_dp)
-      hi(:) = -HUGE(1.0_dp)
-      DO ia = 1, natom
-         DO k = 1, 3
-            lo(k) = MIN(lo(k), particle_set(ia)%r(k))
-            hi(k) = MAX(hi(k), particle_set(ia)%r(k))
-         END DO
-      END DO
-      span(:) = hi(:) - lo(:)
-      DO k = 1, 3
-         IF (span(k) <= 0.0_dp) span(k) = 1.0_dp
-      END DO
-
-      DO ia = 1, natom
-         DO k = 1, 3
-            ic(k) = INT(((particle_set(ia)%r(k) - lo(k))/span(k))*REAL(cmax, dp), int_8)
-            ic(k) = MIN(cmax, MAX(0_int_8, ic(k)))
-         END DO
-         CALL morton_split3(ic(1), m1)
-         CALL morton_split3(ic(2), m2)
-         CALL morton_split3(ic(3), m3)
-         mcode(ia) = IOR(IOR(m1, ISHFT(m2, 1)), ISHFT(m3, 2))
-      END DO
-
-      ! sort(mcode, natom, order): order(i) = original atom index with the i-th smallest code
-      CALL sort(mcode, natom, order)
-
-      DEALLOCATE (mcode)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE spatial_atom_order
-
-! **************************************************************************************************
-!> \brief Compute grid points for RI-RS, two options:
-!>        1) Read tabulated atomic grids by Duchemin & Blase:
-!>           JCP 150, 174120 (2019), JCTC 17, 2383 (2021)
-!>        2) Optimize grid for specific molecule / unit cell, start from tabulated grid
-!> \param qs_env ...
-!> \param bs_env ...
-!> \param ri_rs_grid_points ...
-! **************************************************************************************************
-   SUBROUTINE ri_rs_grid_assembler(qs_env, bs_env, ri_rs_grid_points)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: ri_rs_grid_points(:, :)
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ri_rs_grid_assembler'
-
-      INTEGER                                            :: handle
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-
-      CALL timeset(routineN, handle)
-
-       !! Get the information about the atoms in the system
-      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, particle_set=particle_set)
-
-       !! 1. Read the tabulated atomic grids into cache
-      CALL build_grid_cache(bs_env, atomic_kind_set)
-
-      !! 2. Optimize RIRS grid points
-      IF (bs_env%ri_rs%grid_opt%enabled) THEN
-         CALL optimize_ri_rs_grid(qs_env, bs_env)
-      END IF
-
-      !! 3. Assemble and store the global molecular grid
-      CALL assemble_RI_RS_grid_points(bs_env, particle_set, ri_rs_grid_points)
-
-      !! 4. Release the atom-relative grid cache
-      CALL release_RI_RS_grid_cache(bs_env)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE ri_rs_grid_assembler
-
-! **************************************************************************************************
-!> \brief Assemble the global RI-RS grid in spatial atom order from atom-relative cached grids.
-!>        For point l on atom A, r_l = R_A + Δr_l^(A).
-!> \param bs_env GW environment containing the cached grids and receiving the atom boundaries.
-!> \param particle_set Atomic positions R_A.
-!> \param ri_rs_grid_points Global Cartesian grid coordinates in spatial atom order.
-! **************************************************************************************************
-   SUBROUTINE assemble_RI_RS_grid_points(bs_env, particle_set, ri_rs_grid_points)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: ri_rs_grid_points(:, :)
-
-      INTEGER                                            :: atom, atom_grid_end, atom_grid_start, &
-                                                            layout_position, natom, total_grid_npts
-      INTEGER, ALLOCATABLE                               :: atom_grid_offsets(:), atom_order(:)
-      REAL(KIND=dp)                                      :: atom_center(3)
-
-      natom = bs_env%n_atom
-      CALL spatial_atom_order(particle_set, atom_order)
-
-      ! grid_atom_boundaries(k) starts the k-th atom's run in spatial layout order.
-      ! atom_grid_offsets(A) locates atom A in the resulting global coordinate array.
-      ALLOCATE (bs_env%ri_rs%grid_atom_boundaries(natom + 1), atom_grid_offsets(natom))
-      total_grid_npts = 0
-      DO layout_position = 1, natom
-         atom = atom_order(layout_position)
-         atom_grid_offsets(atom) = total_grid_npts + 1
-         bs_env%ri_rs%grid_atom_boundaries(layout_position) = total_grid_npts + 1
-         total_grid_npts = total_grid_npts + bs_env%ri_rs%grid_cache(atom)%npts
-      END DO
-      bs_env%ri_rs%grid_atom_boundaries(natom + 1) = total_grid_npts + 1
-
-      IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, FMT="(T2,A,T69,I12)") &
-            'Total grid points used for RI-RS:', total_grid_npts
-         WRITE (bs_env%unit_nr, "(A)") ' '
-      END IF
-
-      ALLOCATE (ri_rs_grid_points(3, total_grid_npts))
-      !$OMP PARALLEL DO DEFAULT(NONE) &
-      !$OMP SHARED(ri_rs_grid_points, atom_grid_offsets, particle_set, bs_env, natom) &
-      !$OMP PRIVATE(atom, atom_center, atom_grid_start, atom_grid_end) &
-      !$OMP SCHEDULE(DYNAMIC, 1)
-      DO atom = 1, natom
-         atom_center(:) = particle_set(atom)%r(:)
-         atom_grid_start = atom_grid_offsets(atom)
-         atom_grid_end = atom_grid_start + bs_env%ri_rs%grid_cache(atom)%npts - 1
-
-         ! Translate the cached atom-relative points Δr_l^(A) to r_l = R_A + Δr_l^(A).
-         ri_rs_grid_points(1, atom_grid_start:atom_grid_end) = &
-            bs_env%ri_rs%grid_cache(atom)%raw_points(1, :) + atom_center(1)
-         ri_rs_grid_points(2, atom_grid_start:atom_grid_end) = &
-            bs_env%ri_rs%grid_cache(atom)%raw_points(2, :) + atom_center(2)
-         ri_rs_grid_points(3, atom_grid_start:atom_grid_end) = &
-            bs_env%ri_rs%grid_cache(atom)%raw_points(3, :) + atom_center(3)
-      END DO
-      !$OMP END PARALLEL DO
-   END SUBROUTINE assemble_RI_RS_grid_points
-
-! **************************************************************************************************
-!> \brief Release the atom-relative RI-RS grid cache after assembling the global molecular grid.
-!> \param bs_env GW environment containing the grid cache.
-! **************************************************************************************************
-   SUBROUTINE release_RI_RS_grid_cache(bs_env)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-
-      INTEGER                                            :: atom
-
-      DO atom = 1, SIZE(bs_env%ri_rs%grid_cache)
-         DEALLOCATE (bs_env%ri_rs%grid_cache(atom)%raw_points)
-      END DO
-      DEALLOCATE (bs_env%ri_rs%grid_cache)
-   END SUBROUTINE release_RI_RS_grid_cache
-
-! **************************************************************************************************
-!> \brief Reads grids from .ion files and stores them in memory based on grid_select
-!> \param bs_env ...
-!> \param atomic_kind_set ...
-! **************************************************************************************************
-   SUBROUTINE build_grid_cache(bs_env, atomic_kind_set)
-
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_grid_cache'
-
-      CHARACTER(LEN=default_path_length)                 :: full_path, warning_msg
-      CHARACTER(LEN=default_string_length)               :: atom_sym
-      INTEGER                                            :: handle, iatom, ikind, &
-                                                            n_voronoi_candidates, natom, nkind, &
-                                                            requested_npts
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(rirs_grid_type), ALLOCATABLE                  :: kind_grid(:)
-
-      CALL timeset(routineN, handle)
-
-      nkind = SIZE(atomic_kind_set)
-      particle_set => bs_env%ri_rs%particle_set
-      CPASSERT(ASSOCIATED(particle_set))
-      natom = bs_env%n_atom
-      ALLOCATE (kind_grid(nkind))
-
-      DO ikind = 1, nkind
-         atom_sym = TRIM(atomic_kind_set(ikind)%element_symbol)
-         CALL get_rirs_grid_filepath(atom_sym, bs_env%ri_rs%grid_select, &
-                                     bs_env%ri_rs%grid_file_suffix, full_path)
-         CALL read_rirs_grid_file(TRIM(full_path), kind_grid(ikind)%raw_points)
-         kind_grid(ikind)%npts = SIZE(kind_grid(ikind)%raw_points, 2)
-      END DO
-
-      ! Make every atom own an independent copy.  The optimizer can therefore adapt symmetry-
-      ! equivalent atoms to their individual local environments, and GW consumes those copies
-      ! directly without writing intermediate .ion files.
-      IF (ALLOCATED(bs_env%ri_rs%grid_cache)) DEALLOCATE (bs_env%ri_rs%grid_cache)
-      ALLOCATE (bs_env%ri_rs%grid_cache(natom))
-      DO iatom = 1, natom
-         ikind = particle_set(iatom)%atomic_kind%kind_number
-         bs_env%ri_rs%grid_cache(iatom) = kind_grid(ikind)
-         IF (bs_env%ri_rs%grid_opt%enabled) THEN
-            atom_sym = TRIM(atomic_kind_set(ikind)%element_symbol)
-            requested_npts = bs_env%ri_rs%grid_opt%grid_npoints(ikind)
-            CALL initialize_rirs_grid(bs_env%ri_rs%grid_cache(iatom)%raw_points, &
-                                      requested_npts, iatom, particle_set, &
-                                      n_voronoi_candidates)
-            IF (n_voronoi_candidates < requested_npts) THEN
-               WRITE (warning_msg, '(A,I0,A,A,A,I0,A,I0,A)') &
-                  "Atom ", iatom, " (", TRIM(atom_sym), "): Grid selection requests ", requested_npts, &
-                  " points, but only ", n_voronoi_candidates, &
-                  " are inside its Voronoi volume. Selecting from the full RI-RS source grid."
-               CALL cp_warn(__LOCATION__, TRIM(warning_msg))
-            END IF
-            bs_env%ri_rs%grid_cache(iatom)%npts = requested_npts
-         END IF
-      END DO
-      DEALLOCATE (kind_grid)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE build_grid_cache
-
-! **************************************************************************************************
 !> \brief Evaluates the AO basis on the RI-RS grid and stores it as the sparse DBCSR matrix
-!>        Φ_μl = Φ_μ(r_l)  (rows = grid points in atom-aligned blocks of at most
+!>        ϕ_μl = ϕ_μ(r_l)  (rows = grid points in atom-aligned blocks of at most
 !>        max_elements_per_block points, columns = one block per atom's full AO set).
 !>        Grid points outside the reach of an atom's most
 !>        diffuse Gaussian (or the CUTOFF_RADIUS_RL_AO) are skipped, and only blocks
@@ -844,70 +484,58 @@ CONTAINS
 !>        ALL grid-dimension sparsity used downstream. Also caches the atom centers and the
 !>        per-chunk centroids needed by the optional CUTOFF_RADIUS_G_W / CUTOFF_RADIUS_RL_W
 !>        operator truncations.
-!> \param qs_env ...
 !> \param bs_env ...
 !> \param ri_rs_grid_points ...
 !> \param mat_phi_mu_l ...
 ! **************************************************************************************************
-   SUBROUTINE atomic_basis_at_grid_point(qs_env, bs_env, ri_rs_grid_points, mat_phi_mu_l)
+   SUBROUTINE atomic_basis_at_grid_point(bs_env, ri_rs_grid_points, mat_phi_mu_l)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: ri_rs_grid_points(:, :)
       TYPE(dbcsr_type), INTENT(OUT)                      :: mat_phi_mu_l
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'atomic_basis_at_grid_point'
 
-      INTEGER :: bs_eff, c_size, dimen_ORB, handle, i, i_blk, ia, iatom, natom, npcol, nprow, &
-         num_grid_chunks, r_end, r_start, remaining, run, safe_max, total_grid_npts
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_row_start, first_sgf
-      INTEGER, DIMENSION(:), POINTER                     :: c_blk_sizes, col_dist, r_blk_sizes, &
-                                                            row_dist
+      INTEGER :: bs_eff, c_size, handle, i, i_blk, ia, iatom, ikind, natom, npcol, nprow, &
+         num_grid_chunks, r_end, r_start, remaining, run, safe_max
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_row_start
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist, r_blk_sizes, row_dist, sizes_AO
       REAL(KIND=dp)                                      :: r2_threshold
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atom_col_buffer
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(dbcsr_distribution_type)                      :: dist
-      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist_ks
+      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist_ks, dist
+      TYPE(gto_basis_set_type), POINTER                  :: ao_basis
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CALL timeset(routineN, handle)
 
-      ! Extract environment variables
-      CALL get_qs_env(qs_env, cell=cell, atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, particle_set=particle_set, &
-                      para_env=para_env)
-
       natom = bs_env%n_atom
-      total_grid_npts = SIZE(ri_rs_grid_points, 2)
-
-      ! Map the starting indices of spherical gaussian functions (SGF) for each atom
-      ALLOCATE (first_sgf(natom + 1))
-      CALL get_basis_offsets(particle_set, qs_kind_set, first_sgf, dimen_ORB)
+      cell => bs_env%ri_rs%cell
+      para_env => bs_env%para_env
+      particle_set => bs_env%ri_rs%particle_set
+      sizes_AO => bs_env%sizes_AO
+      CPASSERT(ASSOCIATED(cell))
+      CPASSERT(ASSOCIATED(para_env))
+      CPASSERT(ASSOCIATED(particle_set))
+      CPASSERT(SIZE(sizes_AO) == natom)
+      CPASSERT(SIZE(ri_rs_grid_points, 2) == bs_env%ri_rs%n_grid_points)
 
       ! =========================================================================
       ! 1. SETUP DBCSR MATRIX TOPOLOGY
       ! =========================================================================
 
-      ! A. Define Column Block Sizes (1 Block = 1 Atom's full basis set)
-      ALLOCATE (c_blk_sizes(natom))
-      DO iatom = 1, natom
-         c_blk_sizes(iatom) = first_sgf(iatom + 1) - first_sgf(iatom)
-      END DO
-
       ! B. Define Row Block Sizes: atom-aligned blocks (a block never spans two atoms' grid
       ! runs), each atom's run subdivided into blocks of at most bs_eff points.
 
       ! Fetch CP2K's default process grid configuration
-      CALL get_qs_env(qs_env, dbcsr_dist=dbcsr_dist_ks)
+      CALL dbcsr_get_info(bs_env%mat_ao_ao%matrix, distribution=dbcsr_dist_ks)
       CALL dbcsr_distribution_get(dbcsr_dist_ks, nprows=nprow, npcols=npcol)
 
       ! Overflow-safe upper bound on the block size (see bs_env%dbcsr_msg_elem_limit).
       safe_max = INT(0.5_dp*REAL(bs_env%dbcsr_msg_elem_limit, dp)* &
                      REAL(MAX(MIN(nprow, npcol), 1), dp)/ &
-                     REAL(total_grid_npts, dp))
+                     REAL(bs_env%ri_rs%n_grid_points, dp))
       safe_max = MAX(1, safe_max)
       ! Block size = CP2K's global max_elements_per_block (GLOBAL/DBCSR input; default 32),
       ! overflow-capped.
@@ -936,7 +564,7 @@ CONTAINS
       IF (bs_env%unit_nr > 0) THEN
          ! T71 compensates for the two two-byte Greek characters in the label.
          WRITE (bs_env%unit_nr, '(T2,A,T71,I12)') &
-            'RI-RS grid row-blocks of Φ_μ(r_l)', num_grid_chunks
+            'RI-RS grid row-blocks of ϕ_μ(r_l)', num_grid_chunks
          WRITE (bs_env%unit_nr, '(T2,A,T69,I12)') 'RI-RS grid points per block (max)', bs_eff
       END IF
 
@@ -985,7 +613,7 @@ CONTAINS
 
       CALL dbcsr_create(mat_phi_mu_l, name="phi_val_sparse", dist=dist, &
                         matrix_type=dbcsr_type_no_symmetry, &
-                        row_blk_size=r_blk_sizes, col_blk_size=c_blk_sizes)
+                        row_blk_size=r_blk_sizes, col_blk_size=sizes_AO)
 
       ! =========================================================================
       ! 2. STREAM DATA DIRECTLY INTO SPARSE MATRIX
@@ -993,10 +621,10 @@ CONTAINS
       ! Iterate over the atoms assigned to this specific MPI rank
       DO iatom = para_env%mepos + 1, natom, para_env%num_pe
 
-         c_size = c_blk_sizes(iatom)
+         c_size = sizes_AO(iatom)
 
          ! Allocate a temporary dense buffer just for this specific atom
-         ALLOCATE (atom_col_buffer(total_grid_npts, c_size))
+         ALLOCATE (atom_col_buffer(bs_env%ri_rs%n_grid_points, c_size))
          atom_col_buffer = 0.0_dp
 
          ! Evaluate the basis functions on the grid. Skip grid points outside
@@ -1008,8 +636,10 @@ CONTAINS
          ELSE
             r2_threshold = bs_env%ri_rs%radius_ao_per_atom(iatom)**2
          END IF
-         CALL fill_phi_for_atom(atom_col_buffer, ri_rs_grid_points, total_grid_npts, &
-                                iatom, particle_set, qs_kind_set, cell, r2_threshold)
+         ikind = particle_set(iatom)%atomic_kind%kind_number
+         ao_basis => bs_env%basis_set_AO(ikind)%gto_basis_set
+         CALL evaluate_ao_basis_on_points(atom_col_buffer, ri_rs_grid_points, ao_basis, &
+                                          particle_set(iatom)%r, cell, cutoff_squared=r2_threshold)
 
          ! Slice the dense column into the atom-aligned grid row-blocks and insert into DBCSR
          DO i_blk = 1, num_grid_chunks
@@ -1030,12 +660,12 @@ CONTAINS
       CALL dbcsr_finalize(mat_phi_mu_l)
 
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
-      CALL print_matrix_occupation(mat_phi_mu_l, 'Φ_μ(r_l)', bs_env)
+      CALL print_matrix_occupation(mat_phi_mu_l, 'ϕ_μ(r_l)', bs_env)
 
       ! -------------------------------------------------------------------------
       ! CLEANUP
       ! -------------------------------------------------------------------------
-      DEALLOCATE (first_sgf, r_blk_sizes, c_blk_sizes, row_dist, col_dist, blk_row_start)
+      DEALLOCATE (r_blk_sizes, row_dist, col_dist, blk_row_start)
       CALL dbcsr_distribution_release(dist)
 
       CALL timestop(handle)
@@ -1043,44 +673,10 @@ CONTAINS
    END SUBROUTINE atomic_basis_at_grid_point
 
 ! **************************************************************************************************
-!> \brief Computes the AO basis offsets: first_sgf(iatom) is the global index of the first
-!>        spherical Gaussian function (SGF) of iatom, first_sgf(natom+1) = total_sgf + 1,
-!>        and total_sgf is the total number of AO basis functions.
-!> \param particle_set ...
-!> \param qs_kind_set ...
-!> \param first_sgf ...
-!> \param total_sgf ...
-! **************************************************************************************************
-   SUBROUTINE get_basis_offsets(particle_set, qs_kind_set, first_sgf, total_sgf)
-
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      INTEGER, INTENT(OUT)                               :: first_sgf(:), total_sgf
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_basis_offsets'
-
-      INTEGER                                            :: handle, iatom, ikind, nsgf
-
-      CALL timeset(routineN, handle)
-
-      total_sgf = 0
-      DO iatom = 1, SIZE(particle_set)
-         first_sgf(iatom) = total_sgf + 1
-         ikind = particle_set(iatom)%atomic_kind%kind_number
-         CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, basis_type="ORB")
-         total_sgf = total_sgf + nsgf
-      END DO
-      first_sgf(SIZE(particle_set) + 1) = total_sgf + 1
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_basis_offsets
-
-! **************************************************************************************************
 !> \brief Computes χ_PQ(iτ) from the occupied and virtual Green's functions.
-!> \param bs_env GW calculation environment and imaginary-time grid
+!> \param bs_env ...
 !> \param mat_chi_Gamma_tau Response matrices χ_PQ(iτ) to be computed
-!> \param mat_phi_mu_l AO values Φ_μ(r_l) on the RI-RS grid
+!> \param mat_phi_mu_l AO values ϕ_μ(r_l) on the RI-RS grid
 !> \param mat_Z_lP RI-RS fitting matrix Z_lP
 ! **************************************************************************************************
    SUBROUTINE get_mat_chi_Gamma_tau(bs_env, mat_chi_Gamma_tau, mat_phi_mu_l, mat_Z_lP)
@@ -1113,7 +709,7 @@ CONTAINS
 
       ! =========================================================================
       ! IMAGINARY TIME LOOP
-      ! χ_PQ(iτ) = Σ_s g_s · Z^T ( (φ G^occ_s φ^T) ∘ (φ G^vir_s φ^T) ) Z
+      ! χ_PQ(iτ) = Σ_s g_s · Z^T ( (ϕ G^occ_s ϕ^T) ∘ (ϕ G^vir_s ϕ^T) ) Z
       ! (g_s = spin degeneracy)
       ! =========================================================================
       DO i_t = 1, bs_env%num_time_freq_points
@@ -1126,7 +722,7 @@ CONTAINS
             CALL build_G_ao(bs_env, tau, ispin, .TRUE., .FALSE., mat_phi_mu_l, matrix_G_occ_ao)
             CALL build_G_ao(bs_env, tau, ispin, .FALSE., .TRUE., mat_phi_mu_l, matrix_G_vir_ao)
 
-            ! χ_PQ += g_s · Z^T ( (φ G^occ φ^T) ∘ (φ G^vir φ^T) ) Z
+            ! χ_PQ += g_s · Z^T ( (ϕ G^occ ϕ^T) ∘ (ϕ G^vir ϕ^T) ) Z
             CALL contract_grid_panels(L_A=mat_phi_mu_l, M_A=matrix_G_occ_ao, &
                                       L_B=mat_phi_mu_l, M_B=matrix_G_vir_ao, &
                                       L_out=mat_Z_lP, mat_out=mat_chi_Gamma_tau(i_t)%matrix, &
@@ -1532,14 +1128,12 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Estimates and prints per-process memory requirements for the RI-RS GW calculation.
-!> \param qs_env ...
 !> \param bs_env ...
 ! **************************************************************************************************
-   SUBROUTINE print_ri_rs_memory_estimate(qs_env, bs_env)
+   SUBROUTINE print_ri_rs_memory_estimate(bs_env)
 
 !$    USE OMP_LIB, ONLY: omp_get_max_threads
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_ri_rs_memory_estimate'
@@ -1564,8 +1158,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(bs_env%ri_rs%mat_phi_mu_l, nfullrows_total=n_grid_total, &
-                          row_blk_size=r_blk_sizes)
+      n_grid_total = bs_env%ri_rs%n_grid_points
+      CALL dbcsr_get_info(bs_env%ri_rs%mat_phi_mu_l, row_blk_size=r_blk_sizes)
+      CPASSERT(SUM(r_blk_sizes) == n_grid_total)
       n_RI = bs_env%n_RI
       n_procs = bs_env%para_env%num_pe
 
@@ -1608,14 +1203,15 @@ CONTAINS
 
       ! Z_lP SOLVE peak (compute_Z_lP). For the atom P with the largest integration
       ! sphere, one rank holds simultaneously:
-      !   D_local  : n_local_grid x n_local_grid  (dense Gram, BLAS path only; O(n_local_grid^2))
+      !   D_local  : n_local_grid x n_local_grid  (dense D'_ll', BLAS path only; O(n_local_grid^2))
       !   phi_local: n_local_grid x n_ao_used  (AOs reaching into the sphere only)
       !   d_lp     : n_local_grid x n_loc_ri, replicated once + one private copy per OMP thread
       ! n_local_grid = # grid points within cutoff_ri(P) = CUTOFF_RADIUS_RL_RI (if > 0) else
       ! r_c(RI metric) + r_RI(P). This is NOT evenly distributed: n_local_grid depends on the
       ! local density of atoms/grid, so the rank owning the densest atom peaks well above the
       ! average. We report the worst-case (max over atoms) as a per-rank upper bound.
-      CALL get_qs_env(qs_env, particle_set=particle_set)
+      particle_set => bs_env%ri_rs%particle_set
+      CPASSERT(ASSOCIATED(particle_set))
       natom = bs_env%n_atom
 
       max_n_local_grid = 0
@@ -1635,7 +1231,7 @@ CONTAINS
             END IF
          END DO
          max_n_local_grid = MAX(max_n_local_grid, n_local_grid)
-         CALL get_n_ao_in_sphere(bs_env, particle_set, iatom, cutoff_ri, n_ao_used_atom)
+         CALL get_n_ao_in_sphere(bs_env, iatom, cutoff_ri, n_ao_used_atom)
          max_n_ao_used = MAX(max_n_ao_used, n_ao_used_atom)
          n_loc_ri_max = MAX(n_loc_ri_max, &
                             bs_env%i_RI_end_from_atom(iatom) - bs_env%i_RI_start_from_atom(iatom) + 1)
@@ -1671,7 +1267,7 @@ CONTAINS
          WRITE (bs_env%unit_nr, '(T4,A,F25.2,A)') &
             'Required for χ, W, Σ panels (peak per panel step)', mem_panels_GB, ' GB'
          WRITE (bs_env%unit_nr, '(T4,A,F17.2,A)') &
-            'Required for Z_lP solve peak (D_local+φ, worst-case atom)', mem_Zlp_peak_GB, ' GB'
+            'Required for Z_lP solve peak (D_local+ϕ, worst-case atom)', mem_Zlp_peak_GB, ' GB'
          WRITE (bs_env%unit_nr, '(T4,A,T69,I12)') &
             'Worst-case local-grid number of grid points:', max_n_local_grid
          WRITE (bs_env%unit_nr, '(T4,A,T69,F9.2,A)') &
@@ -1702,7 +1298,7 @@ CONTAINS
          WRITE (msg, '(A,F0.2,A,F0.2,A)') &
             "The estimated peak memory of the Z_lP solve, ", mem_Zlp_peak_GB, &
             " GB per process, exceeds the available ", mem_avail_GB, &
-            " GB. The per-atom Gram matrix D_local(n_local_grid, n_local_grid) dominates and "// &
+            " GB. The per-atom matrix D'_ll' dominates and "// &
             "scales as n_local_grid^2, and it is not balanced across ranks: the rank owning "// &
             "the atom with the largest integration sphere peaks well above the average. "// &
             "Either raise N_PROCS_PER_ATOM_Z_LP to distribute D_local block-cyclic via "// &
@@ -1721,7 +1317,7 @@ CONTAINS
 !> \brief Creates an empty (panel_chunks x neighborhood_chunks) DBCSR matrix with zero blocks
 !>        pre-allocated only where |centroid(panel_row r) - centroid(column c)| <= cutoff.
 !>        Used with retain_sparsity=.TRUE. in the subsequent dbcsr_multiply so distant blocks
-!>        of the grid-basis panels (φ G φ^T, Z W Z^T, ...) are never computed at all.
+!>        of the grid-basis panels (ϕ G ϕ^T, Z W Z^T, ...) are never computed at all.
 !> \param L_pan ...
 !> \param L_full ...
 !> \param centroids ...
@@ -2314,7 +1910,7 @@ CONTAINS
                              filter_eps=eps, retain_sparsity=use_cutoff)
          CALL dbcsr_release(tmpA)
 
-         ! Grid-basis occupation of A_pan = φ G φ^T, accumulated over ALL panels into the
+         ! Grid-basis occupation of A_pan = ϕ G ϕ^T, accumulated over ALL panels into the
          ! occupation of the (never formed) full grid x grid object:
          !   sum_panels nnz(A_pan) / n_grid^2,  with nnz = occ * pan_rows * pan_cols.
          ! Panel-independent by construction -- a single-panel sample would instead report the
@@ -2395,8 +1991,8 @@ CONTAINS
 !>        panel and reusing it for both the G^occ and G^vir Hadamard contractions.
 !>
 !>        Computes:
-!>          mat_Sigma_neg = φ^T ( (φ G^occ φ^T) ∘ (Z W^MIC Z^T) ) φ
-!>          mat_Sigma_pos = φ^T ( (φ G^vir φ^T) ∘ (Z W^MIC Z^T) ) φ
+!>          mat_Sigma_neg = ϕ^T ( (ϕ G^occ ϕ^T) ∘ (Z W^MIC Z^T) ) ϕ
+!>          mat_Sigma_pos = ϕ^T ( (ϕ G^vir ϕ^T) ∘ (Z W^MIC Z^T) ) ϕ
 !>
 !> \param mat_phi ...
 !> \param mat_Z ...
@@ -2540,7 +2136,7 @@ CONTAINS
          CALL dbcsr_release(phi_panC)
          CALL dbcsr_release(Z_panC)
 
-         ! Σ^c_neg: φ^T ( A_occ ∘ W_pan ) φ
+         ! Σ^c_neg: ϕ^T ( A_occ ∘ W_pan ) ϕ
          CALL dbcsr_create(C_pan, template=A_occ)
          CALL hadamard_product(A_occ, W_pan, C_pan, 1.0_dp)
          CALL dbcsr_release(A_occ)
@@ -2550,7 +2146,7 @@ CONTAINS
          CALL dbcsr_multiply('T', 'N', 1.0_dp, phi_pan, tmp2, 1.0_dp, mat_Sigma_neg, filter_eps=eps)
          CALL dbcsr_release(tmp2)
 
-         ! Σ^c_pos: φ^T ( A_vir ∘ W_pan ) φ  — W_pan reused
+         ! Σ^c_pos: ϕ^T ( A_vir ∘ W_pan ) ϕ  — W_pan reused
          CALL dbcsr_create(C_pan, template=A_vir)
          CALL hadamard_product(A_vir, W_pan, C_pan, 1.0_dp)
          CALL dbcsr_release(A_vir)
@@ -2573,48 +2169,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE contract_grid_panels_sigma_c
-
-! **************************************************************************************************
-!> \brief Computes C = A ◦ B (Element-wise Hadamard product) for sparse DBCSR matrices.
-!> \param matrix_A ...
-!> \param matrix_B ...
-!> \param matrix_C ...
-!> \param fac (Scaling factor applied to the product)
-! **************************************************************************************************
-   SUBROUTINE hadamard_product(matrix_A, matrix_B, matrix_C, fac)
-
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_A, matrix_B, matrix_C
-      REAL(KIND=dp), INTENT(IN)                          :: fac
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hadamard_product'
-
-      INTEGER                                            :: col, handle, row
-      LOGICAL                                            :: found
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: blk_B, blk_C
-      TYPE(dbcsr_iterator_type)                          :: iter
-
-      CALL timeset(routineN, handle)
-
-      CALL dbcsr_copy(matrix_C, matrix_A)
-
-      CALL dbcsr_iterator_start(iter, matrix_C)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, blk_C)
-
-         CALL dbcsr_get_block_p(matrix_B, row, col, blk_B, found)
-
-         IF (found) THEN
-            blk_C(:, :) = fac*blk_C(:, :)*blk_B(:, :)
-         ELSE
-            ! If B is sparse here, the product is zero
-            blk_C(:, :) = 0.0_dp
-         END IF
-      END DO
-      CALL dbcsr_iterator_stop(iter)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE hadamard_product
 
 ! **************************************************************************************************
 !> \brief Computes the screened Coulomb interaction on the imaginary-time grid, entirely in the
@@ -2716,8 +2270,8 @@ CONTAINS
 !> \brief Computes V, V^0.5, and M^-1 V^0.5 for the RI-RS dielectric function.
 !>        The Coulomb matrix V is constructed by the RI-RS k-point path. The inverse metric
 !>        M^-1(k=0) is precomputed once in gw_utils and stored in bs_env.
-!> \param bs_env GW environment containing M^-1(k=0) and the RI basis
-!> \param qs_env electronic-structure environment used to evaluate V(k=0)
+!> \param bs_env ...
+!> \param qs_env ...
 !> \param fm_V Coulomb matrix V(k=0)
 !> \param fm_V_sqrt symmetric factor V^0.5
 !> \param fm_Minv_Vsqrt product M^-1(k=0) V^0.5
@@ -2749,7 +2303,8 @@ CONTAINS
          ! 1b. Build Coulomb Matrix V(k=0) using the kp-routine but only for ikp=1.
          ! -------------------------------------------------------------------
          CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, cell=cell, &
-                         qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set)
+                         qs_kind_set=qs_kind_set)
+         atomic_kind_set => bs_env%ri_rs%atomic_kind_set
 
          ALLOCATE (mat_V_kp(1:1, 1:2))
          NULLIFY (mat_V_kp(1, 1)%matrix, mat_V_kp(1, 2)%matrix)
@@ -2896,7 +2451,7 @@ CONTAINS
 !> \brief Computes the exact-exchange part of the GW self-energy:
 !>          D_μν        = Σ_n^occ C_μn C_νn                     (density matrix = G^occ at τ=0)
 !>          V^tr_PQ     = M^-1 (P|Q)_trunc M^-1                 (truncated Coulomb, RI basis)
-!>          Σ^x_λσ(k=0) = -Σ_ll' Φ_λ(r_l) [ (φ D φ^T)_ll' ∘ (Z V^tr Z^T)_ll' ] Φ_σ(r_l')
+!>          Σ^x_λσ(k=0) = -Σ_ll' ϕ_λ(r_l) [ (ϕ D ϕ^T)_ll' ∘ (Z V^tr Z^T)_ll' ] ϕ_σ(r_l')
 !> \param bs_env ...
 !> \param qs_env ...
 !> \param mat_phi_mu_l ...
@@ -2964,8 +2519,8 @@ CONTAINS
 
       ! =========================================================================
       ! 2. SPIN LOOP FOR EXACT EXCHANGE
-      ! Σ^x_λσ = -Σ_ll' Φ_λ(r_l) ( D_ll' V^tr_ll' ) Φ_σ(r_l')
-      !        = -φ^T ( (φ D φ^T) ∘ (Z V^tr Z^T) ) φ
+      ! Σ^x_λσ = -Σ_ll' ϕ_λ(r_l) ( D_ll' V^tr_ll' ) ϕ_σ(r_l')
+      !        = -ϕ^T ( (ϕ D ϕ^T) ∘ (Z V^tr Z^T) ) ϕ
       ! =========================================================================
       DO ispin = 1, bs_env%n_spin
 
@@ -3012,8 +2567,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Computes the correlation part of the GW self-energy on the imaginary-time grid:
-!>          Σ^c_λσ(iτ<0) = -Σ_ll' Φ_λ(r_l) [ (φ G^occ φ^T)_ll' ∘ (Z W^MIC Z^T)_ll' ] Φ_σ(r_l')
-!>          Σ^c_λσ(iτ>0) = +Σ_ll' Φ_λ(r_l) [ (φ G^vir φ^T)_ll' ∘ (Z W^MIC Z^T)_ll' ] Φ_σ(r_l')
+!>          Σ^c_λσ(iτ<0) = -Σ_ll' ϕ_λ(r_l) [ (ϕ G^occ ϕ^T)_ll' ∘ (Z W^MIC Z^T)_ll' ] ϕ_σ(r_l')
+!>          Σ^c_λσ(iτ>0) = +Σ_ll' ϕ_λ(r_l) [ (ϕ G^vir ϕ^T)_ll' ∘ (Z W^MIC Z^T)_ll' ] ϕ_σ(r_l')
 !> \param bs_env ...
 !> \param fm_W_time ...
 !> \param mat_phi_mu_l ...
@@ -3063,8 +2618,8 @@ CONTAINS
 
       ! =========================================================================
       ! 2. IMAGINARY TIME LOOP
-      ! Σ^c_neg_λσ(iτ) = -φ^T ( (φ G^occ φ^T) ∘ (Z W^MIC Z^T) ) φ
-      ! Σ^c_pos_λσ(iτ) =  φ^T ( (φ G^vir φ^T) ∘ (Z W^MIC Z^T) ) φ
+      ! Σ^c_neg_λσ(iτ) = -ϕ^T ( (ϕ G^occ ϕ^T) ∘ (Z W^MIC Z^T) ) ϕ
+      ! Σ^c_pos_λσ(iτ) =  ϕ^T ( (ϕ G^vir ϕ^T) ∘ (Z W^MIC Z^T) ) ϕ
       ! =========================================================================
       DO i_t = 1, bs_env%num_time_freq_points
          tau = bs_env%time_frequency_grid%imaginary_time(i_t)
@@ -3293,53 +2848,15 @@ CONTAINS
    END SUBROUTINE to_Gamma_and_mo_real
 
 ! **************************************************************************************************
-!> \brief Evaluates the atom-local AO functions Φ_μ(r_l) on the RI-RS grid points.
-!> \param phi_val Values Φ_μ(r_l) for the requested atom
-!> \param ri_rs_grid Cartesian RI-RS grid points r_l
-!> \param npts Number of RI-RS grid points
-!> \param iatom Atom whose AO functions are evaluated
-!> \param particle_set Atomic positions and kind assignments
-!> \param qs_kind_set Atomic-kind basis information
-!> \param cell Simulation cell and boundary conditions
-!> \param r2_threshold Squared radial cutoff for neglecting AO values
-! **************************************************************************************************
-   SUBROUTINE fill_phi_for_atom(phi_val, ri_rs_grid, npts, iatom, &
-                                particle_set, qs_kind_set, cell, r2_threshold)
-
-      REAL(KIND=dp), INTENT(INOUT)                       :: phi_val(:, :)
-      INTEGER, INTENT(IN)                                :: npts
-      REAL(KIND=dp), INTENT(IN)                          :: ri_rs_grid(3, npts)
-      INTEGER, INTENT(IN)                                :: iatom
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(cell_type), POINTER                           :: cell
-      REAL(KIND=dp), INTENT(IN)                          :: r2_threshold
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fill_phi_for_atom'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CALL evaluate_ao_on_points(phi_val, ri_rs_grid, iatom, particle_set, qs_kind_set, cell, &
-                                 cutoff_squared=r2_threshold)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE fill_phi_for_atom
-
-! **************************************************************************************************
 !> \brief Counts the AO functions whose radial support intersects an RI fitting sphere.
-!> \param bs_env GW calculation environment and atom-to-AO offsets
-!> \param particle_set Atomic positions
+!> \param bs_env ...
 !> \param atom_P Atom at the center of the RI fitting sphere
 !> \param cutoff_ri Radius of the RI fitting sphere
 !> \param n_ao_used Number of intersecting AO functions
 ! **************************************************************************************************
-   SUBROUTINE get_n_ao_in_sphere(bs_env, particle_set, atom_P, cutoff_ri, n_ao_used)
+   SUBROUTINE get_n_ao_in_sphere(bs_env, atom_P, cutoff_ri, n_ao_used)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       INTEGER, INTENT(IN)                                :: atom_P
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_ri
       INTEGER, INTENT(OUT)                               :: n_ao_used
@@ -3352,7 +2869,8 @@ CONTAINS
 
       n_ao_used = 0
       DO ri_atom = 1, bs_env%n_atom
-         IF (NORM2(particle_set(ri_atom)%r(:) - particle_set(atom_P)%r(:)) > &
+         IF (NORM2(bs_env%ri_rs%particle_set(ri_atom)%r(:) - &
+                   bs_env%ri_rs%particle_set(atom_P)%r(:)) > &
              bs_env%ri_rs%radius_ao_per_atom(ri_atom) + cutoff_ri) CYCLE
          n_ao_used = n_ao_used + bs_env%i_ao_end_from_atom(ri_atom) - &
                      bs_env%i_ao_start_from_atom(ri_atom) + 1
@@ -3366,7 +2884,7 @@ CONTAINS
 !> \brief Prints the percentage of non-zero elements in a distributed RI-RS matrix.
 !> \param matrix Distributed matrix whose occupation is reported
 !> \param label Mathematical matrix label used in the output
-!> \param bs_env GW calculation environment and output unit
+!> \param bs_env ...
 !> \param suffix Optional text appended to the matrix label
 ! **************************************************************************************************
    SUBROUTINE print_matrix_occupation(matrix, label, bs_env, suffix)
@@ -3416,4 +2934,4 @@ CONTAINS
 
    END SUBROUTINE print_matrix_occupation
 
-END MODULE gw_non_periodic_ri_rs
+END MODULE gw_ri_rs_non_periodic

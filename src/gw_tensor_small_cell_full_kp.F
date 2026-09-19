@@ -10,7 +10,7 @@
 !> \author Jan Wilhelm
 !> \date 05.2024
 ! **************************************************************************************************
-MODULE gw_small_cell_full_kp
+MODULE gw_tensor_small_cell_full_kp
    USE bibliography,                    ONLY: Pasquier2025,&
                                               cite_reference
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -30,11 +30,6 @@ MODULE gw_small_cell_full_kp
                                               dbt_create,&
                                               dbt_destroy,&
                                               dbt_type
-   USE gw_communication,                ONLY: fm_to_local_array,&
-                                              fm_to_local_tensor,&
-                                              local_array_to_fm,&
-                                              local_dbt_to_global_fm
-   USE gw_fm_utils,                     ONLY: cfm_contract_ABA
    USE gw_utils,                        ONLY: add_R,&
                                               analyt_conti_and_print,&
                                               de_init_bs_env,&
@@ -42,6 +37,11 @@ MODULE gw_small_cell_full_kp
                                               is_cell_in_index_to_cell,&
                                               power,&
                                               time_to_freq
+   USE gw_utils_communication,          ONLY: fm_to_local_array,&
+                                              fm_to_local_tensor,&
+                                              local_array_to_fm,&
+                                              local_dbt_to_global_fm
+   USE gw_utils_fm,                     ONLY: cfm_contract_ABA
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp_small_cell
@@ -63,24 +63,24 @@ MODULE gw_small_cell_full_kp
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_small_cell_full_kp'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_tensor_small_cell_full_kp'
 
-   PUBLIC :: gw_calc_small_cell_full_kp
+   PUBLIC :: gw_calc_tensor_small_cell_full_kp
 
 CONTAINS
 
 ! **************************************************************************************************
 !> \brief Perform GW band structure calculation
 !> \param qs_env ...
-!> \param bs_env ...
+!> \param bs_env Band-structure environment containing GW parameters.
 !> \par History
 !>    * 05.2024 created [Jan Wilhelm]
 ! **************************************************************************************************
-   SUBROUTINE gw_calc_small_cell_full_kp(qs_env, bs_env)
+   SUBROUTINE gw_calc_tensor_small_cell_full_kp(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'gw_calc_small_cell_full_kp'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gw_calc_tensor_small_cell_full_kp'
 
       INTEGER                                            :: handle
 
@@ -117,7 +117,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE gw_calc_small_cell_full_kp
+   END SUBROUTINE gw_calc_tensor_small_cell_full_kp
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1512,4 +1512,4 @@ CONTAINS
 
    END SUBROUTINE trafo_to_k_and_nn
 
-END MODULE gw_small_cell_full_kp
+END MODULE gw_tensor_small_cell_full_kp

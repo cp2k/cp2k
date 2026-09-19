@@ -1,14 +1,13 @@
 &GLOBAL
-  PRINT_LEVEL SILENT
-  PROJECT auto-ri-size-H2O
+  PRINT_LEVEL LOW
+  PROJECT rirs-grid-rank-saturation-maximin-H2O
   RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
-  METHOD Quickstep
+  METHOD QUICKSTEP
   &DFT
     BASIS_SET_FILE_NAME REGTEST_BASIS
-    BASIS_SET_FILE_NAME BASIS_RI_cc-TZ
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 300
@@ -23,7 +22,7 @@
       &END MULTIPOLE
     &END POISSON
     &QS
-      METHOD GPW
+      METHOD GAPW
     &END QS
     &SCF
       EPS_SCF 1E-6
@@ -48,16 +47,16 @@
     &BANDSTRUCTURE
       &GW
         NUM_TIME_FREQ_POINTS 10
-        &AUTO_RI
-          NEIGHBOR_RADIUS [angstrom] 3
-          OCC_EMPTY_FRONTIER_ORBITAL_WINDOW [eV] 5
-          RI_AO_RATIO 2.5
-        &END AUTO_RI
+        &PRINT
+          &RESTART OFF
+          &END RESTART
+        &END PRINT
         &RI_RS
-          GRID_SELECT 1
+          TIKHONOV 1.0E-8
           &GRID_OPTIMIZATION
-            MAX_ITER 100
-            RS_AO_RATIO 3
+            CUTOFF_ATOMIC_CLUSTER [angstrom] 3.0
+            MAX_ITER 1
+            RS_AO_RATIO 40
           &END GRID_OPTIMIZATION
         &END RI_RS
       &END GW
@@ -76,13 +75,13 @@
     &END COORD
     &KIND H
       BASIS_SET H_MINI
-      BASIS_SET RI_AUX RI_QZ
-      POTENTIAL GTH-PBE-q1
+      BASIS_SET RI_AUX RI_H_MINI
+      POTENTIAL ALL
     &END KIND
     &KIND O
       BASIS_SET O_MINI
-      BASIS_SET RI_AUX RI_QZ
-      POTENTIAL GTH-PBE-q6
+      BASIS_SET RI_AUX RI_O_MINI
+      POTENTIAL ALL
     &END KIND
     &TOPOLOGY
       MULTIPLE_UNIT_CELL 1 1 1
