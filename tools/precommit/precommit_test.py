@@ -12,7 +12,7 @@ from check_file_properties import check_file
 
 class TestFilePropertyPaths(unittest.TestCase):
     def test_explicit_and_discovered_paths(self) -> None:
-        for relative in ("src/grpp/grpp_binomial.c", "src/wignernj/gaunt.c"):
+        for relative in ("src/grpp/grpp_binomial.c", "src/grid/common/grid_common.c"):
             for filename in (relative, "./" + relative, os.path.abspath(relative)):
                 with self.subTest(filename=filename):
                     with patch.object(precommit, "run_local_tool") as run:
@@ -28,13 +28,12 @@ class TestFilePropertyPaths(unittest.TestCase):
             os.chdir(root)
             for relative in (
                 "src/grpp/grpp_binomial.c",
-                "src/wignernj/gaunt.c",
+                "src/grid/common/grid_common.c",
                 "LICENSE",
                 "src/grid/LICENSE",
                 "src/dbm/LICENSE",
                 "src/offload/LICENSE",
                 "src/grpp/LICENSE",
-                "src/wignernj/LICENSE",
             ):
                 with self.subTest(filename=relative):
                     precommit.run_check_file_properties(str(root / relative))
@@ -49,7 +48,7 @@ class TestFilePropertyPaths(unittest.TestCase):
                 license_text = (
                     "Copyright (C) 1989, 1991 Free Software Foundation, Inc.\n"
                 )
-                for filename in ("LICENSE", "src/grpp/LICENSE", "src/wignernj/LICENSE"):
+                for filename in ("LICENSE", "src/grpp/LICENSE"):
                     path = Path(filename)
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_text(license_text, encoding="utf8")

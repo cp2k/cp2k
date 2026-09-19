@@ -98,7 +98,7 @@ case "${with_dbcsr}" in
     pkg_install_dir="$(dirname $(dirname $(find_in_paths "libdbcsr.*" $LIB_PATHS)))"
     ;;
   __DONTUSE__)
-    # Nothing to do
+    report_error "DBCSR is a required dependency of CP2K and cannot be disabled"
     ;;
   *)
     echo "==================== Linking DBCSR to user paths ===================="

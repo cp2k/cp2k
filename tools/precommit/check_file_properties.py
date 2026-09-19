@@ -74,13 +74,6 @@ FLAG_EXCEPTIONS = (
     r"LIBXSMM_VERSION4",
     r"LIBGRPP_.+",
     r"TEST_LIBGRPP_.+",
-    # Bundled libwignernj, see src/wignernj/README.md
-    r"WIGNERNJ_.+",
-    r"BIGINT_.+",
-    r"KARATSUBA_THRESHOLD",
-    r"MAX_FACTORIAL_ARG",
-    r"LDBL_MANT_DIG",
-    r"_MSC_VER",
     r"__LIBXSMM2",
     r"CPVERSION",
     r"_WIN32",
@@ -148,7 +141,6 @@ BSD_PATHS = (
     "src/offload/",
     "src/grid/",
     "src/dbm/",
-    "src/wignernj/",
 )
 MIT_PATHS = ("src/grpp/",)
 
