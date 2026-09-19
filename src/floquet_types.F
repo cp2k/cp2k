@@ -45,7 +45,7 @@ MODULE floquet_types
 !> \param m0_weights central-sector weight of each m=0 band (nao)
 !> \param e_k_kp_spin band energies for the current (k-point,spin) (nao)
 !> \param de_dk_kp_spin band-energy k-derivatives for the current (k-point,spin) (3, nao)
-!> \param dipole_kp_spin dipole matrix elements for the current (k-point,spin) (3, nao, nao)
+!> \param momentum_kp_spin momentum matrix elements for the current (k-point,spin) (3, nao, nao)
 !> \param all_quasi_energies quasi-energies for every (band, spin, bs k-point) (nao, n_spin, nkp_only_bs)
 !> \param all_a_k spectral function for every (energy, spin, bs k-point) (n_E, n_spin, nkp_only_bs)
 !> \param all_m0_energies m=0 band energies for every (band, spin, bs k-point) (nao, n_spin, nkp_only_bs)
@@ -62,7 +62,7 @@ MODULE floquet_types
                                                           quasi_energies, m0_energies, &
                                                           m0_weights, e_k_kp_spin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)      :: de_dk_kp_spin
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: dipole_kp_spin
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :) :: momentum_kp_spin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)   :: all_quasi_energies, all_a_k, &
                                                           all_m0_energies, all_m0_weights
    END TYPE floquet_env_type
@@ -103,7 +103,7 @@ CONTAINS
       ALLOCATE (floquet_env%quasi_energies(nao), floquet_env%m0_energies(nao), &
                 floquet_env%m0_weights(nao))
       ALLOCATE (floquet_env%e_k_kp_spin(nao), floquet_env%de_dk_kp_spin(3, nao), &
-                floquet_env%dipole_kp_spin(3, nao, nao))
+                floquet_env%momentum_kp_spin(3, nao, nao))
 
       ! per-(spin,k-point) accumulation arrays, filled once by the owning subgroup source and
       ! summed across the global communicator after the k-point loop
@@ -138,7 +138,7 @@ CONTAINS
       IF (ALLOCATED(floquet_env%m0_weights)) DEALLOCATE (floquet_env%m0_weights)
       IF (ALLOCATED(floquet_env%e_k_kp_spin)) DEALLOCATE (floquet_env%e_k_kp_spin)
       IF (ALLOCATED(floquet_env%de_dk_kp_spin)) DEALLOCATE (floquet_env%de_dk_kp_spin)
-      IF (ALLOCATED(floquet_env%dipole_kp_spin)) DEALLOCATE (floquet_env%dipole_kp_spin)
+      IF (ALLOCATED(floquet_env%momentum_kp_spin)) DEALLOCATE (floquet_env%momentum_kp_spin)
       IF (ALLOCATED(floquet_env%all_quasi_energies)) DEALLOCATE (floquet_env%all_quasi_energies)
       IF (ALLOCATED(floquet_env%all_a_k)) DEALLOCATE (floquet_env%all_a_k)
       IF (ALLOCATED(floquet_env%all_m0_energies)) DEALLOCATE (floquet_env%all_m0_energies)
