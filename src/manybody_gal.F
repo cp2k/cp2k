@@ -97,7 +97,7 @@ CONTAINS
 
          !Angular dependance %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
          Vang = 0.0_dp
-         IF (gcn_weight2 /= 0.0) THEN
+         IF (gcn_weight2 /= 0.0_dp) THEN
 
             ! Calculation of the normal vector centered on the Me atom of the pair, only the first time
             ! that an interaction with the metal atom of the pair is evaluated
@@ -139,7 +139,7 @@ CONTAINS
          !Attractive Gaussian %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
          Vgaussian = 0.0_dp
          drji2 = DOT_PRODUCT(rji, rji)
-         IF (gcn_weight /= 0.0) THEN
+         IF (gcn_weight /= 0.0_dp) THEN
             !Alpha is the angle of the Me-O vector with the normale vector. Used for gaussian attaction
 
             cosalpha = DOT_PRODUCT(rji, nvec)/SQRT(drji2)
@@ -154,7 +154,7 @@ CONTAINS
          !END Gaussian%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
          !Tang and toennies potential for physisorption
-         VTT = gal%a*EXP(-gal%b*SQRT(drji2)) - (1.0 - EXP(-gal%b*SQRT(drji2)) &
+         VTT = gal%a*EXP(-gal%b*SQRT(drji2)) - (1.0_dp - EXP(-gal%b*SQRT(drji2)) &
                                                 - gal%b*SQRT(drji2)*EXP(-gal%b*SQRT(drji2)) &
                                                 - (((gal%b*SQRT(drji2))**2)/2)*EXP(-gal%b*SQRT(drji2)) &
                                                 - (((gal%b*SQRT(drji2))**3)/6)*EXP(-gal%b*SQRT(drji2)) &
@@ -172,7 +172,7 @@ CONTAINS
                                                                                            - gal%bxy*drji2*sinalpha*sinalpha))
             IF (weight == 0 .AND. index_outfile > 0) WRITE (index_outfile, *) "Fermi  0"
             IF (index_outfile > 0) WRITE (index_outfile, *) "expO", EXP(-gal%b*SQRT(drji2))
-            IF (index_outfile > 0) WRITE (index_outfile, *) "cstpart", -(1.0 - EXP(-gal%b*SQRT(drji2)) &
+            IF (index_outfile > 0) WRITE (index_outfile, *) "cstpart", -(1.0_dp - EXP(-gal%b*SQRT(drji2)) &
                                                                          - gal%b*SQRT(drji2)*EXP(-gal%b*SQRT(drji2)) &
                                                                          - (((gal%b*SQRT(drji2))**2)/2)*EXP(-gal%b*SQRT(drji2)) &
                                                                          - (((gal%b*SQRT(drji2))**3)/6)*EXP(-gal%b*SQRT(drji2)) &
@@ -411,7 +411,7 @@ CONTAINS
          IF (gal%gcn(jparticle) < 11.5_dp) gcn_weight2 = 1.0_dp !For angular, 0 only for true core atoms
 
          !Angular dependance %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-         IF (gcn_weight2 /= 0.0) THEN
+         IF (gcn_weight2 /= 0.0_dp) THEN
 
             ! Calculation of the normal vector centered on the Me atom of the pair, only the first time
             ! that an interaction with the metal atom of the pair is evaluated
@@ -456,7 +456,7 @@ CONTAINS
          !END Angular%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
          !Attractive Gaussian %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-         IF (gcn_weight /= 0.0) THEN
+         IF (gcn_weight /= 0.0_dp) THEN
             !Alpha is the angle of the Me-O vector with the normale vector. Used for gaussian attaction
             cosalpha = DOT_PRODUCT(rji, nvec)/drji
             IF (cosalpha < -1.0_dp) cosalpha = -1.0_dp
@@ -481,7 +481,7 @@ CONTAINS
 
          !Derivativ of the Tang and Toennies term
          dTT(:) = (-(gal%a*gal%b + (gal%b**7)*gal%c/720)*EXP(-gal%b*drji) + 6*(gal%c/drji**7)* &
-                   (1.0 - EXP(-gal%b*drji) &
+                   (1.0_dp - EXP(-gal%b*drji) &
                     - gal%b*drji*EXP(-gal%b*drji) &
                     - (((gal%b*drji)**2)/2)*EXP(-gal%b*drji) &
                     - (((gal%b*drji)**3)/6)*EXP(-gal%b*drji) &

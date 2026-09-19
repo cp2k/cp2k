@@ -1080,7 +1080,7 @@ CONTAINS
       CALL para_env%sum(charges)
       !
       ! energy:   0.5*(q^T.X - lambda*totalcharge)
-      eeq_energy = 0.5*SUM(charges(1:natom)*chia(1:natom)) - 0.5_dp*lambda*qtot
+      eeq_energy = 0.5_dp*SUM(charges(1:natom)*chia(1:natom)) - 0.5_dp*lambda*qtot
 
       CALL cp_fm_struct_release(vec_struct)
       CALL cp_fm_release(rhs_vec)
@@ -2005,7 +2005,7 @@ CONTAINS
       CALL para_env%sum(charges)
       !
       ! energy:   0.5*(q^T.X - lambda*totalcharge)
-      eeq_energy = 0.5*SUM(charges(1:natom)*chia(1:natom)) - 0.5_dp*lambda*qtot
+      eeq_energy = 0.5_dp*SUM(charges(1:natom)*chia(1:natom)) - 0.5_dp*lambda*qtot
 
       CALL cp_fm_struct_release(vec_struct)
       CALL cp_fm_release(rhs_vec)

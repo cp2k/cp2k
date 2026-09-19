@@ -189,7 +189,7 @@ CONTAINS
             END IF
          END IF
          !
-         amax = 0.0
+         amax = 0.0_dp
          amin = HUGE(0.0_dp)
          bmin = HUGE(0.0_dp)
          DO i = 1, nsets

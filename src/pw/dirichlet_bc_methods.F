@@ -885,7 +885,7 @@ CONTAINS
       IF (intern_apx_type == INSCRIBED) THEN
          h = base_radius ! inscribed uniform prism
       ELSE IF (intern_apx_type == CIRCUMSCRIBED) THEN
-         h = base_radius/COS(0.5*theta) ! circumscribed uniform prism
+         h = base_radius/COS(0.5_dp*theta) ! circumscribed uniform prism
       ELSE
          CPABORT("Unknown approximation type for cylinder.")
       END IF

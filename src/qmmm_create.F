@@ -113,6 +113,7 @@ CONTAINS
       LOGICAL, INTENT(in), OPTIONAL                      :: ignore_outside_box
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qmmm_env_create'
+      REAL(KIND=dp), PARAMETER                           :: eps_cell = 1.0E-12_dp
 
       CHARACTER(len=default_string_length), &
          DIMENSION(:), POINTER                           :: qm_atom_type
@@ -299,7 +300,7 @@ CONTAINS
       CALL get_cell(mm_cell, abc=abc_mm)
 
       IF (qmmm_env_qm%image_charge) THEN
-         IF (ANY(ABS(abc_mm - abc_qm) > 1.0E-12)) THEN
+         IF (ANY(ABS(abc_mm - abc_qm) > eps_cell)) THEN
             CPABORT("QM and MM box need to have the same size when using image charges")
          END IF
       END IF

@@ -1583,7 +1583,7 @@ CONTAINS
                pol_results(k, :) = results(3*(i - 1) + &
                                            rtc%print_pol_elements(k, 1), :)/ &
                                    (field_results(rtc%print_pol_elements(k, 2), :) + &
-                                    1.0e-10*field_results(rtc%print_pol_elements(k, 2), 2))
+                                    1.0e-10_dp*field_results(rtc%print_pol_elements(k, 2), 2))
             END DO
             ! Print to the file
             ft_unit = cp_print_key_unit_nr(logger, pol_section, extension=file_extensions(i), &
@@ -1642,7 +1642,7 @@ CONTAINS
                END DO
                pol_results_spin_total(k, :) = pol_results_spin_total(k, :)/ &
                                               (field_results(rtc%print_pol_elements(k, 2), :) + &
-                                               1.0e-10*field_results(rtc%print_pol_elements(k, 2), 2))
+                                               1.0e-10_dp*field_results(rtc%print_pol_elements(k, 2), 2))
             END DO
             ft_unit = cp_print_key_unit_nr(logger, pol_section, extension="_SPIN_TOTAL.dat", &
                                            file_form="FORMATTED", file_position="REWIND")

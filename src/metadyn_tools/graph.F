@@ -65,7 +65,7 @@ PROGRAM graph
    ndim = 1
    ndw = 1
    nt_p = 9999999
-   eps_cut = 1e-6
+   eps_cut = 1e-6_dp
    file = 'HILLS'
    out1 = 'fes.dat'
    out2 = 'fes_int.dat'
@@ -537,8 +537,8 @@ PROGRAM graph
    IF (fix) THEN
       DO it = 1, nt
          DO id = 1, ndim - ndw
-            x0(id) = MIN(x0(id), ss0(id, it) - 3.*delta_s(id, it))
-            xf(id) = MAX(xf(id), ss0(id, it) + 3.*delta_s(id, it))
+            x0(id) = MIN(x0(id), ss0(id, it) - 3.0_dp*delta_s(id, it))
+            xf(id) = MAX(xf(id), ss0(id, it) + 3.0_dp*delta_s(id, it))
          END DO
       END DO
       it = 0
@@ -554,8 +554,8 @@ PROGRAM graph
                x0(id) = -pi
                xf(id) = pi
             ELSE
-               x0(id) = MIN(x0(id), ss0(id, it) - 3.*delta_s(id, it))
-               xf(id) = MAX(xf(id), ss0(id, it) + 3.*delta_s(id, it))
+               x0(id) = MIN(x0(id), ss0(id, it) - 3.0_dp*delta_s(id, it))
+               xf(id) = MAX(xf(id), ss0(id, it) + 3.0_dp*delta_s(id, it))
             END IF
          END DO
       END DO

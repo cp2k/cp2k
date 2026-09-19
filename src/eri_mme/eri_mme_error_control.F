@@ -305,7 +305,7 @@ CONTAINS
       eps_zet = 1.0E-05_dp ! tolerance for exponent
       zet_div = 2.0_dp ! sampling constant for finding initial values of exponents
       max_iter = 100 ! maximum number of iterations in golden section search
-      G_c = SQRT(2.0*cutoff)
+      G_c = SQRT(2.0_dp*cutoff)
 
       zet_max_tmp = zet_max
 

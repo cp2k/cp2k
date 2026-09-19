@@ -497,7 +497,7 @@ CONTAINS
                             *(particle_set(vcd_env%dcdr_env%lambda)%r(gamma) - vcd_env%magnetic_origin_atom(gamma))
 
                   aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) &
-                     = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp/4.
+                     = aat_atom(vcd_env%dcdr_env%beta, alpha, vcd_env%dcdr_env%lambda) + aat_tmp/4.0_dp
                END DO
             END DO
          END IF

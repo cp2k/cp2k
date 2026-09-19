@@ -339,7 +339,7 @@ CONTAINS
       settings%max_scf_diis = 0
       settings%eps_irac = 1.0E-10_dp
       settings%eps_irac_quick_exit = 1.0E-5_dp
-      settings%eps_irac_switch = 1.0E-2
+      settings%eps_irac_switch = 1.0E-2_dp
       settings%eps_irac_filter_matrix = 0.0_dp
       settings%on_the_fly_loc = .FALSE.
       settings%ortho_irac = "CHOL"

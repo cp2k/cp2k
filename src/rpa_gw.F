@@ -1300,7 +1300,7 @@ CONTAINS
 
          CALL para_env%sync()
 
-         stop_crit = 1.0e-7
+         stop_crit = 1.0e-7_dp
          num_poles = mp2_env%ri_g0w0%num_poles
          crossing_search = mp2_env%ri_g0w0%crossing_search
 
@@ -1311,14 +1311,14 @@ CONTAINS
          z_value = 0.0_dp
          ALLOCATE (m_value(gw_corr_lev_tot, nkp_self_energy, nspins))
          m_value = 0.0_dp
-         E_VBM_GW = -1.0E3
-         E_CBM_GW = 1.0E3
-         E_VBM_SCF = -1.0E3
-         E_CBM_SCF = 1.0E3
-         E_VBM_GW_beta = -1.0E3
-         E_CBM_GW_beta = 1.0E3
-         E_VBM_SCF_beta = -1.0E3
-         E_CBM_SCF_beta = 1.0E3
+         E_VBM_GW = -1.0E3_dp
+         E_CBM_GW = 1.0E3_dp
+         E_VBM_SCF = -1.0E3_dp
+         E_CBM_SCF = 1.0E3_dp
+         E_VBM_GW_beta = -1.0E3_dp
+         E_CBM_GW_beta = 1.0E3_dp
+         E_VBM_SCF_beta = -1.0E3_dp
+         E_CBM_SCF_beta = 1.0E3_dp
 
          ndos = 0
          dos_precision = mp2_env%ri_g0w0%dos_prec
@@ -3819,6 +3819,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_gw_im_time
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_and_continuation_2pole'
+      REAL(KIND=dp), PARAMETER                           :: eps_delta = 1.0E-08_dp
 
       COMPLEX(KIND=dp)                                   :: func_val, rho1
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: dLambda, dLambda_2, Lambda, &
@@ -4119,7 +4120,7 @@ CONTAINS
 
                level_energ_GW = level_energ_GW - delta
 
-               IF (ABS(delta) < 1.0E-08) EXIT
+               IF (ABS(delta) < eps_delta) EXIT
 
             END DO
 

@@ -431,7 +431,7 @@ CONTAINS
 
       ! Set maximum and minimum trust radii
       opt_embed%max_trad = opt_embed%trust_rad*7.900_dp
-      opt_embed%min_trad = opt_embed%trust_rad*0.125*0.065_dp
+      opt_embed%min_trad = opt_embed%trust_rad*0.125_dp*0.065_dp
 
    END SUBROUTINE prepare_embed_opt
 
@@ -2289,7 +2289,7 @@ CONTAINS
          !shift_min = -2.0_dp*(diag_grad_norm/opt_embed%trust_rad - min(hess_min, 0.0_dp))
          !shift_max = max(0.0_dp, -hess_min + 0.5_dp*grad_min/opt_embed%trust_rad)
          !shift_max = MIN(-hess_min+0.5_dp*grad_min/opt_embed%trust_rad, 0.0_dp)
-         shift_max = hess_min + 0.1
+         shift_max = hess_min + 0.1_dp
          shift_min = diag_grad_norm/opt_embed%trust_rad
          shift_min = 10.0_dp
          !If (abs(shift_max) <= thresh) then

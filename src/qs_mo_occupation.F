@@ -509,7 +509,7 @@ CONTAINS
       occ_estate = 0.0_dp
       IF (PRESENT(xas_env)) THEN
          CALL get_xas_env(xas_env=xas_env, xas_nelectron=xas_nelectron, occ_estate=occ_estate, xas_estate=xas_estate)
-         nomo = CEILING(xas_nelectron + 1.0 - occ_estate - EPSILON(0.0_dp))
+         nomo = CEILING(xas_nelectron + 1.0_dp - occ_estate - EPSILON(0.0_dp))
 
          mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
          IF (xas_estate > 0) mo_set%occupation_numbers(xas_estate) = occ_estate

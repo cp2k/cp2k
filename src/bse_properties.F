@@ -443,6 +443,7 @@ CONTAINS
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calculate_NTOs'
+      REAL(KIND=dp), PARAMETER                           :: coeff_err = 1.0E-5_dp
 
       CHARACTER(LEN=20), DIMENSION(2)                    :: nto_name
       INTEGER                                            :: handle, homo_irred, i, i_nto, info_svd, &
@@ -658,7 +659,7 @@ CONTAINS
             eigval_svd_squ(:) = eigval_svd(:)**2
             ! Sanity check for TDA: In case of TDA, the sum should be \sum_ia |X_ia|^2 = 1
             IF (.NOT. PRESENT(fm_Y)) THEN
-               IF (ABS(SUM(eigval_svd_squ) - 1) >= 1e-5) THEN
+               IF (ABS(SUM(eigval_svd_squ) - 1) >= coeff_err) THEN
                   CPWARN("Sum of NTO coefficients deviates from 1!")
                END IF
             END IF

@@ -333,7 +333,7 @@ CONTAINS
 #elif defined(__CRAY_PM_ACCEL_ENERGY)
       wt = read_energy("/sys/cray/pm_counters/accel_energy")
 #else
-      wt = 0.0 ! fallback default
+      wt = 0.0_dp ! fallback default
 #endif
 
    END FUNCTION m_energy

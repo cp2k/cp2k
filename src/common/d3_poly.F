@@ -1186,7 +1186,7 @@ CONTAINS
       grad = grad_size3(size_p)
       newSize = SIZE(pRes)/my_npoly
       CPASSERT(newSize >= poly_size2(grad))
-      pRes = 0.0
+      pRes = 0.0_dp
       ALLOCATE (xi(grad + 1))
       CALL poly_p_eval3b(p, SIZE(p), x, pRes, SIZE(pRes), my_npoly, grad, xi)
       DEALLOCATE (xi)
@@ -1222,8 +1222,8 @@ CONTAINS
       IF (.NOT. module_initialized) CPABORT("module d3_poly not initialized")
       inSize = size_p/npoly
       newSize = size_pRes/npoly
-      pRes(1:size_pRes) = 0.0
-      xi(1) = 1.0
+      pRes(1:size_pRes) = 0.0_dp
+      xi(1) = 1.0_dp
       DO i = 1, grad
          xi(i + 1) = xi(i)*x
       END DO
@@ -1328,7 +1328,7 @@ CONTAINS
       inSize = size_p/npoly
       newSize = size_pRes/npoly
       upSize = (grad + 1)*(grad + 2)*(grad + 3)/6
-      xi(1) = 1.0
+      xi(1) = 1.0_dp
       DO i = 1, grad
          xi(i + 1) = xi(i)*x
       END DO

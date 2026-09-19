@@ -1298,6 +1298,7 @@ CONTAINS
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_W_MIC_time
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_extrapol_factor'
+      REAL(KIND=dp), PARAMETER                           :: eps_W_no_extra_1 = 1.0E-13_dp
 
       INTEGER                                            :: handle, i, i_t, j, ncol_local, nrow_local
       REAL(KIND=dp)                                      :: extrapol_factor, W_extra_1, W_no_extra_1
@@ -1313,7 +1314,7 @@ CONTAINS
                W_extra_1 = bs_env%fm_W_MIC_freq_1_extra%local_data(i, j)
                W_no_extra_1 = bs_env%fm_W_MIC_freq_1_no_extra%local_data(i, j)
 
-               IF (ABS(W_no_extra_1) > 1.0E-13) THEN
+               IF (ABS(W_no_extra_1) > eps_W_no_extra_1) THEN
                   extrapol_factor = ABS(W_extra_1/W_no_extra_1)
                ELSE
                   extrapol_factor = 1.0_dp

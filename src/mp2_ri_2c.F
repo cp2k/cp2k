@@ -1539,6 +1539,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: &
          routineN = 'Gamma_only_inversion_of_M_and_mult_with_chol_dec_of_Vtrunc'
+      REAL(KIND=dp), PARAMETER :: eps_eigval_S_Gamma_thre = 1.0E-18_dp
 
       INTEGER                                            :: dimen_RI, handle, ndep
       REAL(KIND=dp)                                      :: eps_eigval_S_Gamma
@@ -1556,7 +1557,7 @@ CONTAINS
 
       eps_eigval_S_Gamma = qs_env%mp2_env%ri_rpa_im_time%eps_eigval_S_Gamma
 
-      IF (eps_eigval_S_Gamma > 1.0E-18) THEN
+      IF (eps_eigval_S_Gamma > eps_eigval_S_Gamma_thre) THEN
 
          ! remove small eigenvalues
          CALL cp_fm_power(fm_matrix_Minv(1, 1), fm_matrix_RI_metric_inv_work, -0.5_dp, &

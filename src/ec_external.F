@@ -621,6 +621,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'align_vectors'
+      REAL(KIND=dp), PARAMETER                           :: diag_err = 1.0E-03_dp
 
       INTEGER                                            :: handle, i, nao, nocc, scg
       REAL(KIND=dp)                                      :: a_max
@@ -647,7 +648,7 @@ CONTAINS
       a_max = nocc - SUM(diag)
       scg = 0
       DO i = 1, nocc
-         IF (ABS(diag(i) + 1.0_dp) < 0.001) scg = scg + 1
+         IF (ABS(diag(i) + 1.0_dp) < diag_err) scg = scg + 1
       END DO
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, "(T3,A,T61,F20.8)") "External:: Orbital rotation index", a_max

@@ -50,14 +50,18 @@
 MODULE erf_complex
 
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: pi
+   USE mathconstants,                   ONLY: half,&
+                                              one,&
+                                              oorootpi,&
+                                              pi,&
+                                              two,&
+                                              zero
 
    IMPLICIT NONE
 
-   REAL(kind=dp), PARAMETER :: zero = 0.0_dp, one = 1.0_dp, &
-                               two = 2.0_dp, half = 0.5_dp, rmin = TINY(one), &
-                               eps0 = EPSILON(one), sqrt_log_rmin = SQRT(-LOG(rmin)), &
-                               pi2 = pi*pi, one_sqrt_pi = one/SQRT(pi)
+   REAL(kind=dp), PARAMETER :: rmin = TINY(one), eps0 = EPSILON(one), &
+                               sqrt_log_rmin = SQRT(-LOG(rmin)), &
+                               pi2 = pi*pi
    COMPLEX(kind=dp), PARAMETER :: &
       cmplxj = CMPLX(zero, one, kind=dp), &
       cmplx0 = CMPLX(zero, zero, kind=dp)
@@ -264,7 +268,7 @@ CONTAINS
                                                                     *exp_x_sqr*l_old + two_a_pi*half_a*sigma5)
 
       ELSE
-         faddeyeva_accurate = one_sqrt_pi*((y + cmplxj*xsign*x)/(x_sqr + y_sqr))
+         faddeyeva_accurate = oorootpi*((y + cmplxj*xsign*x)/(x_sqr + y_sqr))
       END IF outer
 
       IF (ysign < zero) THEN

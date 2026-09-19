@@ -47,7 +47,7 @@ MODULE t_sh_p_s_c
    PUBLIC :: trunc_CS_poly_n20, init, free_C0
    REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE, SAVE :: C0
    INTEGER, PARAMETER :: degree = 15
-   REAL(KIND=dp), PARAMETER :: target_error = 0.100000E-08
+   REAL(KIND=dp), PARAMETER :: target_error = 1.000000E-09_dp
    INTEGER, PARAMETER :: nderiv_max = 21
    INTEGER, SAVE      :: nderiv_init = -1
    INTEGER, SAVE      :: patches = -1

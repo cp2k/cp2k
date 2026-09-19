@@ -787,7 +787,7 @@ CONTAINS
                           nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices)
 
-      IF (al == 1.0 .AND. be == 0.0) THEN
+      IF (al == 1.0_dp .AND. be == 0.0_dp) THEN
          DO j = 1, ncol_local
             this_col = col_indices(j) - j0 + 1
             IF (this_col >= 1 .AND. this_col <= ncol) THEN

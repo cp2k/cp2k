@@ -3828,11 +3828,11 @@ CONTAINS
       ALLOCATE (f(k))
       ALLOCATE (x(k))
       ALLOCATE (circ_index(diis_bound))
-      G = 0.0
+      G = 0.0_dp
       DO i = 1, k
          G(i, i) = sigma
       END DO
-      S = 0.0
+      S = 0.0_dp
 
       j = MOD(qs_ot_env(1)%diis_iter, diis_m) + 1 ! index in the circular array
 
@@ -3953,14 +3953,14 @@ CONTAINS
       ELSE
          ! Construct G
          DO i = 2, diis_bound
-            f = 0.0
-            x = 0.0
+            f = 0.0_dp
+            x = 0.0_dp
             ! f is df_i
-            x(i) = 1.0
-            x(i - 1) = -1.0
+            x(i) = 1.0_dp
+            x(i - 1) = -1.0_dp
             ! x is dx_i
-            f(diis_bound + i) = 1.0
-            f(diis_bound + i - 1) = -1.0
+            f(diis_bound + i) = 1.0_dp
+            f(diis_bound + i - 1) = -1.0_dp
             tmp = 1.0_dp
             ! We want a pos def Hessian
             IF (enable_flip) THEN

@@ -422,9 +422,9 @@ CONTAINS
       DO ispin = 1, nspin
          is_uniform = .TRUE.
          DO mo = 1, mo_array(ispin)%nmo
-            IF (mo_array(ispin)%occupation_numbers(mo) /= 0.0 .AND. &
-                mo_array(ispin)%occupation_numbers(mo) /= 1.0 .AND. &
-                mo_array(ispin)%occupation_numbers(mo) /= 2.0) THEN
+            IF (mo_array(ispin)%occupation_numbers(mo) /= 0.0_dp .AND. &
+                mo_array(ispin)%occupation_numbers(mo) /= 1.0_dp .AND. &
+                mo_array(ispin)%occupation_numbers(mo) /= 2.0_dp) THEN
                is_uniform = .FALSE.
             END IF
          END DO

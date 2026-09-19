@@ -584,9 +584,9 @@ CONTAINS
                   CALL cp_fm_to_fm(mo_ref, mo_target, 1, m, m)
                   mo_set%eigenvalues(m) = eigenvalues(m, ispin)
                   IF (nspins > 1) THEN
-                     mo_set%occupation_numbers(m) = 1.0
+                     mo_set%occupation_numbers(m) = 1.0_dp
                   ELSE
-                     mo_set%occupation_numbers(m) = 2.0
+                     mo_set%occupation_numbers(m) = 2.0_dp
                   END IF
                END DO
 
@@ -610,7 +610,7 @@ CONTAINS
                   IF (m > nmo_available) THEN
                      CALL cp_fm_to_fm(mo_virtual, mo_target, 1, m - nmo_available, m)
                      eigenvalues(m, ispin) = evals_virtual(m - nmo_available)
-                     mo_set%occupation_numbers(m) = 0.0
+                     mo_set%occupation_numbers(m) = 0.0_dp
                   ELSE
                      CALL cp_fm_to_fm(mo_ref, mo_target, 1, m, m)
                      mo_set%occupation_numbers(m) = mos(ispin)%occupation_numbers(m)
@@ -783,7 +783,7 @@ CONTAINS
                      IF (i > nmo_available) THEN
                         CALL cp_fm_to_fm(mo_virtual, fm_target_active, 1, i - nmo_available, i)
                         eigenvalues(i, ispin) = evals_virtual(i - nmo_available)
-                        mo_set_active%occupation_numbers(i) = 0.0
+                        mo_set_active%occupation_numbers(i) = 0.0_dp
                      ELSE
                         CALL cp_fm_to_fm(fm_dummy, fm_target_active, 1, i, i)
                         mo_set_active%occupation_numbers(i) = mos(ispin)%occupation_numbers(i)
@@ -3070,7 +3070,7 @@ CONTAINS
       CALL section_vals_val_get(as_input, "MAX_ITER", i_val=max_iter)
       IF (max_iter < 0) CPABORT("Specify a non-negative number of max iterations.")
       CALL section_vals_val_get(as_input, "EPS_ITER", r_val=eps_iter)
-      IF (eps_iter < 0.0) CPABORT("Specify a non-negative convergence threshold.")
+      IF (eps_iter < 0.0_dp) CPABORT("Specify a non-negative convergence threshold.")
 
       CALL get_qs_env(qs_env, rho=rho, energy=energy, ks_env=ks_env)
       CALL qs_rho_get(rho, rho_ao=rho_ao)
@@ -3230,7 +3230,7 @@ CONTAINS
       CALL section_vals_val_get(as_input, "MAX_ITER", i_val=max_iter)
       IF (max_iter < 0) CPABORT("Specify a non-negative number of max iterations.")
       CALL section_vals_val_get(as_input, "EPS_ITER", r_val=eps_iter)
-      IF (eps_iter < 0.0) CPABORT("Specify a non-negative convergence threshold.")
+      IF (eps_iter < 0.0_dp) CPABORT("Specify a non-negative convergence threshold.")
 
       ! create the socket and wait for the client to connect
       CALL initialize_socket(socket_fd, client_fd, as_input, ionode)

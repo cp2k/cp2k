@@ -1704,7 +1704,7 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: det_diff, prev_determinant
 
-      almo_scf_env%overlap_determinant = 1.0
+      almo_scf_env%overlap_determinant = 1.0_dp
       ! KEEP: initial_vol_coeff = almo_scf_env%opt_nlmo_pcg%opt_penalty%penalty_strength
       almo_scf_env%opt_nlmo_pcg%opt_penalty%penalty_strength = &
          -1.0_dp*almo_scf_env%opt_nlmo_pcg%opt_penalty%penalty_strength !NEW1

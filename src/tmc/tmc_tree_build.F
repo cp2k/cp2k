@@ -204,7 +204,7 @@ CONTAINS
       next_el%ekin_before_md = 0.0_dp
       next_el%sub_tree_nr = 0
       next_el%nr = -1
-      next_el%rng_seed(:, :, :) = -1.0
+      next_el%rng_seed(:, :, :) = -1.0_dp
       next_el%move_type = mv_type_none
 
       ! end the timing
@@ -494,6 +494,7 @@ CONTAINS
       INTEGER                                            :: reactivation_cc_count
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_new_gt_tree_node'
+      REAL(KIND=dp), PARAMETER                           :: eps_exp_prob = 1.0E-10_dp
 
       INTEGER                                            :: handle, swap_conf
       LOGICAL                                            :: keep_on, n_acc
@@ -520,7 +521,7 @@ CONTAINS
       CALL most_prob_end(global_tree_elem=tmp_elem, prob=prob, n_acc=n_acc)
 
       keep_on = .TRUE.
-      IF (ASSOCIATED(tmp_elem) .AND. (EXP(prob) < 1.0E-10)) THEN
+      IF (ASSOCIATED(tmp_elem) .AND. (EXP(prob) < eps_exp_prob)) THEN
          new_elem => NULL()
          stat = TMC_STATUS_FAILED
          keep_on = .FALSE.

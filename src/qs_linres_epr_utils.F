@@ -163,7 +163,7 @@ CONTAINS
       ! * 2 because B_ind = 2 * B_beta
       epr_env%g_soo_factor = 2.0_dp*fourpi*(a_fine)**2*twopi/cell%deth
       ! 2 * 2 * 1/4 * e^2 / m * a_0^2 * 2/3 * mu_0 / (omega * 1e-30 )
-      epr_env%g_soo_chicorr_factor = 2.0/3.0_dp*fourpi*(a_fine)**2/cell%deth
+      epr_env%g_soo_chicorr_factor = 2.0_dp/3.0_dp*fourpi*(a_fine)**2/cell%deth
       !
       ! If the current density on the grid needs to be stored
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)

@@ -935,7 +935,7 @@ CONTAINS
       CALL dbt_batched_contract_finalize(ri_data%t_3c_int_ctr_3(1, 1))
 
       CALL para_env%sum(memory_3c)
-      compression_factor = REAL(nze_O, dp)*1.0E-06*8.0_dp/memory_3c
+      compression_factor = REAL(nze_O, dp)*1.0E-06_dp*8.0_dp/memory_3c
 
       IF (unit_nr > 0) THEN
          WRITE (UNIT=unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
@@ -1999,7 +1999,7 @@ CONTAINS
          ! 2 )Prepare the batches for this spin
          CALL dbcsr_get_info(mo_coeff(ispin), nfullcols_total=n_mos)
          !note: optimized GPU block size for SCF is 64x1x64. Here we do 8x8x64
-         CALL split_block_sizes([n_mos], bsizes_MO, max_size=FLOOR(SQRT(ri_data%max_bsize_MO - 0.1)) + 1)
+         CALL split_block_sizes([n_mos], bsizes_MO, max_size=FLOOR(SQRT(ri_data%max_bsize_MO - 0.1_dp)) + 1)
 
          !batching on MO blocks
          n_mem = n_mem_input
@@ -3257,7 +3257,7 @@ CONTAINS
       END DO
 
       CALL para_env%sum(memory)
-      compression_factor = REAL(nze_tot, dp)*1.0E-06*8.0_dp/memory
+      compression_factor = REAL(nze_tot, dp)*1.0E-06_dp*8.0_dp/memory
       IF (ri_data%unit_nr > 0) THEN
          WRITE (UNIT=ri_data%unit_nr, FMT="((T3,A,T66,F11.2,A4))") &
             "MEMORY_INFO| Memory for 3-center HFX derivatives (compressed):", memory, ' MiB'
@@ -4191,7 +4191,7 @@ CONTAINS
       END IF
 
       ALLOCATE (density_coeffs(SUM(ri_data%bsizes_RI)))
-      density_coeffs = 0.0
+      density_coeffs = 0.0_dp
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED(density_coeffs_t,ri_data,density_coeffs) &
