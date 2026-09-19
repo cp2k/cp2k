@@ -134,8 +134,12 @@ CONTAINS
          DEALLOCATE (work_redistribute%group_distribution)
          DEALLOCATE (work_redistribute%group_partition)
       END IF
-      ! Return work to its initial state
-      work_redistribute = cp_fm_redistribute_type()
+      ! Return the temporaries to their initial state; the settings written by
+      ! cp_fm_redistribute_init have to survive every redistribution
+      NULLIFY (work_redistribute%group_distribution)
+      NULLIFY (work_redistribute%group_partition)
+      NULLIFY (work_redistribute%blacs_env_new)
+      NULLIFY (work_redistribute%para_env_new)
 
    END SUBROUTINE cp_fm_redistribute_work_finalize
 
@@ -156,12 +160,13 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: a, x
       LOGICAL, INTENT(IN)                                :: should_print, elpa_force_redistribute
 
+      ! Init work first: the structure constructor resets every component, so the
+      ! settings have to be written after it, not before
+      work_redistribute = cp_fm_redistribute_type()
       work_redistribute%a = a
       work_redistribute%x = x
       work_redistribute%should_print = should_print
       work_redistribute%elpa_force_redistribute = elpa_force_redistribute
-      ! Init work
-      work_redistribute = cp_fm_redistribute_type()
 
    END SUBROUTINE cp_fm_redistribute_init
 
