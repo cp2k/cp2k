@@ -1383,14 +1383,19 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NKRYLOV", &
-                          description="Dimension of the Krylov space used for the Lanczos refinement", &
+                 description="Dimension of the Krylov space used for the Lanczos refinement, as a multiple of the block width. "// &
+                          "With k-point complex wavefunctions it is only a floor when NBLOCK covers every pending column: "// &
+                          "the shared-subspace regime then fixes its own budget", &
                           usage="NKRYLOV 20", &
                           default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NBLOCK", &
-                          description="Size of the block of vectors refined simultaneously by the Lanczos procedure", &
+                          description="Size of the block of vectors refined simultaneously by the Lanczos procedure. "// &
+                       "A value at least as large as the number of MOs still to refine covers them all in one shared subspace. "// &
+                          "With k-point complex wavefunctions that subspace holds about twice that width, a budget "// &
+                          "compatible with the thick-restart heuristics of Wu and Simon, and NKRYLOV only sets a floor", &
                           usage="NBLOCK 1", &
                           default_i_val=32)
       CALL section_add_keyword(section, keyword)
