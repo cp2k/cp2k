@@ -24,8 +24,7 @@ MODULE xc_libxc_wrap
 #include <xc_version.h>
 ! check for LibXC version - updated for LibXC 7.x
 #if (XC_MAJOR_VERSION < 7)
-   This version of CP2K requires libxc version 7.x or above for full functionality.
-   Some features may not be available with older versions.
+#error "This version of CP2K requires libxc version 7.x or above for full functionality. Some features may not be available with older versions."
 #else
    USE kinds, ONLY: dp
    USE xc_f03_lib_m, ONLY: xc_f03_func_end, &
@@ -145,7 +144,8 @@ MODULE xc_libxc_wrap
    PUBLIC :: XC_EXCHANGE, XC_CORRELATION, XC_EXCHANGE_CORRELATION, XC_KINETIC
    PUBLIC :: XC_FLAGS_ON_HOST, XC_FLAGS_ON_DEVICE
 
-   ! Create aliases for backward compatibility with LibXC 5.x interface
+   ! Create aliases for backward compatibility with the LibXC 6.x interface,
+   ! which referenced xc_f03_lda / xc_f03_mgga as all-in-one evaluation entries.
    PUBLIC :: xc_f03_lda, xc_f03_mgga
    PUBLIC :: xc_f03_lda_exc, xc_f03_lda_exc_vxc, xc_f03_lda_exc_vxc_fxc, &
              xc_f03_lda_fxc, xc_f03_lda_kxc, xc_f03_lda_vxc
@@ -182,14 +182,11 @@ MODULE xc_libxc_wrap
              xc_libxc_wrap_init_safe, &
              libxc_get_backend, &
              libxc_set_backend, &
-             libxc_func_init_wrapper, libxc_func_end_wrapper, &
+             libxc_func_init_wrapper, &
              libxc_is_gpu, &
              libxc_device_buffer_alloc, libxc_device_buffer_free, &
              libxc_host_to_device, libxc_device_to_host, &
              libxc_d2h_issue, libxc_d2h_read, &
-             libxc_assert_device_buffer, &
-             libxc_buffer_create, libxc_buffer_free, &
-             libxc_buffer_h2d, libxc_buffer_d2h, &
              libxc_gga_exc_vxc_wrapper, libxc_gga_exc_wrapper, &
              libxc_lda_exc_vxc_wrapper, libxc_lda_exc_wrapper, &
              libxc_mgga_exc_vxc_wrapper, libxc_mgga_exc_wrapper, &
@@ -197,14 +194,14 @@ MODULE xc_libxc_wrap
              libxc_lda_exc_vxc_device, libxc_lda_exc_device, &
              libxc_lda_vxc_fxc_device, &
              libxc_lda_exc_vxc_fxc_device, libxc_lda_exc_vxc_fxc_kxc_device, &
-              libxc_gga_exc_device, libxc_gga_exc_vxc_device, &
-              libxc_gga_vxc_device, &
-              libxc_gga_vxc_fxc_device, libxc_gga_exc_vxc_fxc_device, &
-              libxc_gga_vxc_fxc_kxc_device, libxc_gga_exc_vxc_fxc_kxc_device, &
-              libxc_mgga_exc_device, libxc_mgga_exc_vxc_device, &
-              libxc_mgga_vxc_device, libxc_mgga_vxc_fxc_device, &
-              libxc_mgga_exc_vxc_fxc_device, &
-              libxc_mgga_vxc_fxc_kxc_device, libxc_mgga_exc_vxc_fxc_kxc_device
+             libxc_gga_exc_device, libxc_gga_exc_vxc_device, &
+             libxc_gga_vxc_device, &
+             libxc_gga_vxc_fxc_device, libxc_gga_exc_vxc_fxc_device, &
+             libxc_gga_vxc_fxc_kxc_device, libxc_gga_exc_vxc_fxc_kxc_device, &
+             libxc_mgga_exc_device, libxc_mgga_exc_vxc_device, &
+             libxc_mgga_vxc_device, libxc_mgga_vxc_fxc_device, &
+             libxc_mgga_exc_vxc_fxc_device, &
+             libxc_mgga_vxc_fxc_kxc_device, libxc_mgga_exc_vxc_fxc_kxc_device
 
    ! Alias definitions for backward compatibility
    PROCEDURE(xc_f03_lda_exc_vxc_fxc_kxc), POINTER :: xc_f03_lda => xc_f03_lda_exc_vxc_fxc_kxc
@@ -217,8 +214,8 @@ CONTAINS
    ! ever be selected is a compile-time property (__OFFLOAD and
    ! !defined(__NO_OFFLOAD_LIBXC)).
 ! **************************************************************************************************
-!> \brief Get the runtime LibXC backend.
-!> \return ...
+!> \brief Query the runtime LibXC backend.
+!> \return backend one of do_libxc_cpu / do_libxc_gpu
 ! **************************************************************************************************
    FUNCTION libxc_get_backend() RESULT(backend)
       INTEGER                                            :: backend
@@ -229,6 +226,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Runtime switch for the LibXC backend, fed by &XC/LIBXC_GPU_BACKEND.
 !> \param backend one of do_libxc_cpu / do_libxc_gpu
+!> \note Whether a device backend can ever be selected is a compile-time property
+!>       (__OFFLOAD and !defined(__NO_OFFLOAD_LIBXC)). A DEVICE request on a build
+!>       without a device path is an error.
 ! **************************************************************************************************
    SUBROUTINE libxc_set_backend(backend)
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
@@ -639,10 +639,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Initialize a LibXC functional honoring the runtime backend.
-!> \param func ...
-!> \param functional ...
-!> \param nspin ...
-!> \param force_host ...
+!> \param func the functional object to initialize
+!> \param functional LibXC functional number
+!> \param nspin XC_UNPOLARIZED or XC_POLARIZED (defaults to XC_UNPOLARIZED)
+!> \param force_host initialize on the host even when the runtime backend is the
+!>        device (used for query/metadata functional objects)
+!> \note The functional's default flags are set to XC_FLAGS_ON_DEVICE when the
+!>       device backend is active (and the initialization is not forced to the
+!>       host), so that later evaluation calls run on the device.
 ! **************************************************************************************************
    SUBROUTINE libxc_func_init_wrapper(func, functional, nspin, force_host)
       TYPE(xc_f03_func_t), INTENT(OUT)                   :: func
@@ -672,16 +676,6 @@ CONTAINS
          END IF
       END IF
    END SUBROUTINE libxc_func_init_wrapper
-
-! **************************************************************************************************
-!> \brief End a LibXC functional.
-!> \param func ...
-! **************************************************************************************************
-   SUBROUTINE libxc_func_end_wrapper(func)
-      TYPE(xc_f03_func_t), INTENT(INOUT)                 :: func
-
-      CALL xc_f03_func_end(func)
-   END SUBROUTINE libxc_func_end_wrapper
 
 #endif
 #endif
@@ -952,7 +946,7 @@ CONTAINS
       USE ISO_C_BINDING, ONLY: C_SIZE_T
       TYPE(xc_f03_func_t), INTENT(IN)                    :: func
       TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d
-      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, v2rho2_d, v3rho3_d, vrho_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, vrho_d, v2rho2_d, v3rho3_d
       INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: exc_p, rho_p, v2rho2_p, v3rho3_p, vrho_p
@@ -1036,12 +1030,13 @@ CONTAINS
       USE ISO_C_BINDING, ONLY: C_SIZE_T
       TYPE(xc_f03_func_t), INTENT(IN)                    :: func
       TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d
-      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, v2rho2_d, v2rhosigma_d, &
-                                                            v2sigma2_d, vrho_d, vsigma_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, vrho_d, vsigma_d, v2rho2_d, &
+                                                            v2rhosigma_d, v2sigma2_d
       INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: exc_p, rho_p, sigma_p, v2rho2_p, &
-                                                            v2rhosigma_p, v2sigma2_p, vrho_p, vsigma_p
+                                                            v2rhosigma_p, v2sigma2_p, vrho_p, &
+                                                            vsigma_p
 
       CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
       CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
@@ -1073,12 +1068,12 @@ CONTAINS
       USE ISO_C_BINDING, ONLY: C_SIZE_T
       TYPE(xc_f03_func_t), INTENT(IN)                    :: func
       TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d
-      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: v2rho2_d, v2rhosigma_d, v2sigma2_d, &
-                                                            vrho_d, vsigma_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: vrho_d, vsigma_d, v2rho2_d, &
+                                                            v2rhosigma_d, v2sigma2_d
       INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
 
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: rho_p, sigma_p, v2rho2_p, &
-                                                            v2rhosigma_p, v2sigma2_p, vrho_p, vsigma_p
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rho_p, sigma_p, v2rho2_p, v2rhosigma_p, &
+                                                            v2sigma2_p, vrho_p, vsigma_p
 
       CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
       CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
@@ -1115,15 +1110,14 @@ CONTAINS
       USE ISO_C_BINDING, ONLY: C_SIZE_T
       TYPE(xc_f03_func_t), INTENT(IN)                    :: func
       TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d
-      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, v2rho2_d, v2rhosigma_d, &
-                                                            v2sigma2_d, v3rho3_d, v3rho2sigma_d, &
-                                                            v3rhosigma2_d, v3sigma3_d, vrho_d, vsigma_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, vrho_d, vsigma_d, v2rho2_d, &
+                                                            v2rhosigma_d, v2sigma2_d, v3rho3_d, &
+                                                            v3rho2sigma_d, v3rhosigma2_d, &
+                                                            v3sigma3_d
       INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
 
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: exc_p, rho_p, sigma_p, v2rho2_p, &
-                                                            v2rhosigma_p, v2sigma2_p, v3rho3_p, &
-                                                            v3rho2sigma_p, v3rhosigma2_p, v3sigma3_p, &
-                                                            vrho_p, vsigma_p
+      REAL(KIND=dp), DIMENSION(:), POINTER :: exc_p, rho_p, sigma_p, v2rho2_p, v2rhosigma_p, &
+         v2sigma2_p, v3rho2sigma_p, v3rho3_p, v3rhosigma2_p, v3sigma3_p, vrho_p, vsigma_p
 
       CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
       CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
@@ -1165,15 +1159,14 @@ CONTAINS
       USE ISO_C_BINDING, ONLY: C_SIZE_T
       TYPE(xc_f03_func_t), INTENT(IN)                    :: func
       TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d
-      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: v2rho2_d, v2rhosigma_d, v2sigma2_d, &
-                                                            v3rho3_d, v3rho2sigma_d, &
-                                                            v3rhosigma2_d, v3sigma3_d, vrho_d, vsigma_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: vrho_d, vsigma_d, v2rho2_d, &
+                                                            v2rhosigma_d, v2sigma2_d, v3rho3_d, &
+                                                            v3rho2sigma_d, v3rhosigma2_d, &
+                                                            v3sigma3_d
       INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
 
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: rho_p, sigma_p, v2rho2_p, &
-                                                            v2rhosigma_p, v2sigma2_p, v3rho3_p, &
-                                                            v3rho2sigma_p, v3rhosigma2_p, v3sigma3_p, &
-                                                            vrho_p, vsigma_p
+      REAL(KIND=dp), DIMENSION(:), POINTER :: rho_p, sigma_p, v2rho2_p, v2rhosigma_p, v2sigma2_p, &
+         v3rho2sigma_p, v3rho3_p, v3rhosigma2_p, v3sigma3_p, vrho_p, vsigma_p
 
       CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
       CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
@@ -1316,18 +1309,14 @@ CONTAINS
       USE ISO_C_BINDING, ONLY: C_SIZE_T
       TYPE(xc_f03_func_t), INTENT(IN)                    :: func
       TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d, lapl_d, tau_d
-      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, v2lapl2_d, v2lapltau_d, &
-                                                            v2rho2_d, v2rholapl_d, v2rhosigma_d, &
-                                                            v2rhotau_d, v2sigma2_d, v2sigmalapl_d, &
-                                                            v2sigmatau_d, v2tau2_d, vlapl_d, &
-                                                            vrho_d, vsigma_d, vtau_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT) :: exc_d, vrho_d, vsigma_d, vlapl_d, vtau_d, &
+         v2rho2_d, v2rhosigma_d, v2rholapl_d, v2rhotau_d, v2sigma2_d, v2sigmalapl_d, v2sigmatau_d, &
+         v2lapl2_d, v2lapltau_d, v2tau2_d
       INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
 
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: exc_p, lapl_p, rho_p, sigma_p, tau_p, &
-                                                            v2lapl2_p, v2lapltau_p, v2rho2_p, &
-                                                            v2rholapl_p, v2rhosigma_p, v2rhotau_p, &
-                                                            v2sigma2_p, v2sigmalapl_p, v2sigmatau_p, &
-                                                            v2tau2_p, vlapl_p, vrho_p, vsigma_p, vtau_p
+      REAL(KIND=dp), DIMENSION(:), POINTER :: exc_p, lapl_p, rho_p, sigma_p, tau_p, v2lapl2_p, &
+         v2lapltau_p, v2rho2_p, v2rholapl_p, v2rhosigma_p, v2rhotau_p, v2sigma2_p, v2sigmalapl_p, &
+         v2sigmatau_p, v2tau2_p, vlapl_p, vrho_p, vsigma_p, vtau_p
 
       CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
       CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
@@ -1387,18 +1376,14 @@ CONTAINS
       USE ISO_C_BINDING, ONLY: C_SIZE_T
       TYPE(xc_f03_func_t), INTENT(IN)                    :: func
       TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d, lapl_d, tau_d
-      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: v2lapl2_d, v2lapltau_d, &
-                                                            v2rho2_d, v2rholapl_d, v2rhosigma_d, &
-                                                            v2rhotau_d, v2sigma2_d, v2sigmalapl_d, &
-                                                            v2sigmatau_d, v2tau2_d, vlapl_d, &
-                                                            vrho_d, vsigma_d, vtau_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT) :: vrho_d, vsigma_d, vlapl_d, vtau_d, &
+         v2rho2_d, v2rhosigma_d, v2rholapl_d, v2rhotau_d, v2sigma2_d, v2sigmalapl_d, v2sigmatau_d, &
+         v2lapl2_d, v2lapltau_d, v2tau2_d
       INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
 
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: lapl_p, rho_p, sigma_p, tau_p, &
-                                                            v2lapl2_p, v2lapltau_p, v2rho2_p, &
-                                                            v2rholapl_p, v2rhosigma_p, v2rhotau_p, &
-                                                            v2sigma2_p, v2sigmalapl_p, v2sigmatau_p, &
-                                                            v2tau2_p, vlapl_p, vrho_p, vsigma_p, vtau_p
+      REAL(KIND=dp), DIMENSION(:), POINTER :: lapl_p, rho_p, sigma_p, tau_p, v2lapl2_p, &
+         v2lapltau_p, v2rho2_p, v2rholapl_p, v2rhosigma_p, v2rhotau_p, v2sigma2_p, v2sigmalapl_p, &
+         v2sigmatau_p, v2tau2_p, vlapl_p, vrho_p, vsigma_p, vtau_p
 
       CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
       CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
@@ -1483,33 +1468,21 @@ CONTAINS
       USE ISO_C_BINDING, ONLY: C_SIZE_T
       TYPE(xc_f03_func_t), INTENT(IN)                    :: func
       TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d, lapl_d, tau_d
-      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: exc_d, v2lapl2_d, v2lapltau_d, &
-                                                            v2rho2_d, v2rholapl_d, v2rhosigma_d, &
-                                                            v2rhotau_d, v2sigma2_d, v2sigmalapl_d, &
-                                                            v2sigmatau_d, v2tau2_d, v3lapl2tau_d, &
-                                                            v3lapl3_d, v3lapltau2_d, v3rho2lapl_d, &
-                                                            v3rho2sigma_d, v3rho2tau_d, v3rho3_d, &
-                                                            v3rholapl2_d, v3rholapltau_d, v3rhosigma2_d, &
-                                                            v3rhosigmalapl_d, v3rhosigmatau_d, &
-                                                            v3rhotau2_d, v3sigma2lapl_d, v3sigma2tau_d, &
-                                                            v3sigma3_d, v3sigmalapl2_d, &
-                                                            v3sigmalapltau_d, v3sigmatau2_d, v3tau3_d, &
-                                                            vlapl_d, vrho_d, vsigma_d, vtau_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT) :: exc_d, vrho_d, vsigma_d, vlapl_d, vtau_d, &
+         v2rho2_d, v2rhosigma_d, v2rholapl_d, v2rhotau_d, v2sigma2_d, v2sigmalapl_d, v2sigmatau_d, &
+         v2lapl2_d, v2lapltau_d, v2tau2_d, v3rho3_d, v3rho2sigma_d, v3rho2lapl_d, v3rho2tau_d, &
+         v3rhosigma2_d, v3rhosigmalapl_d, v3rhosigmatau_d, v3rholapl2_d, v3rholapltau_d, &
+         v3rhotau2_d, v3sigma3_d, v3sigma2lapl_d, v3sigma2tau_d, v3sigmalapl2_d, v3sigmalapltau_d, &
+         v3sigmatau2_d, v3lapl3_d, v3lapl2tau_d, v3lapltau2_d, v3tau3_d
       INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
 
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: exc_p, lapl_p, rho_p, sigma_p, tau_p, &
-                                                            v2lapl2_p, v2lapltau_p, v2rho2_p, &
-                                                            v2rholapl_p, v2rhosigma_p, v2rhotau_p, &
-                                                            v2sigma2_p, v2sigmalapl_p, v2sigmatau_p, &
-                                                            v2tau2_p, v3lapl2tau_p, v3lapl3_p, &
-                                                            v3lapltau2_p, v3rho2lapl_p, v3rho2sigma_p, &
-                                                            v3rho2tau_p, v3rho3_p, v3rholapl2_p, &
-                                                            v3rholapltau_p, v3rhosigma2_p, &
-                                                            v3rhosigmalapl_p, v3rhosigmatau_p, &
-                                                            v3rhotau2_p, v3sigma2lapl_p, v3sigma2tau_p, &
-                                                            v3sigma3_p, v3sigmalapl2_p, &
-                                                            v3sigmalapltau_p, v3sigmatau2_p, v3tau3_p, &
-                                                            vlapl_p, vrho_p, vsigma_p, vtau_p
+      REAL(KIND=dp), DIMENSION(:), POINTER :: exc_p, lapl_p, rho_p, sigma_p, tau_p, v2lapl2_p, &
+         v2lapltau_p, v2rho2_p, v2rholapl_p, v2rhosigma_p, v2rhotau_p, v2sigma2_p, v2sigmalapl_p, &
+         v2sigmatau_p, v2tau2_p, v3lapl2tau_p, v3lapl3_p, v3lapltau2_p, v3rho2lapl_p, &
+         v3rho2sigma_p, v3rho2tau_p, v3rho3_p, v3rholapl2_p, v3rholapltau_p, v3rhosigma2_p, &
+         v3rhosigmalapl_p, v3rhosigmatau_p, v3rhotau2_p, v3sigma2lapl_p, v3sigma2tau_p, &
+         v3sigma3_p, v3sigmalapl2_p, v3sigmalapltau_p, v3sigmatau2_p, v3tau3_p, vlapl_p, vrho_p, &
+         vsigma_p, vtau_p
 
       CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
       CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
@@ -1620,33 +1593,21 @@ CONTAINS
       USE ISO_C_BINDING, ONLY: C_SIZE_T
       TYPE(xc_f03_func_t), INTENT(IN)                    :: func
       TYPE(libxc_device_buffer_type), INTENT(IN)         :: rho_d, sigma_d, lapl_d, tau_d
-      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: v2lapl2_d, v2lapltau_d, &
-                                                            v2rho2_d, v2rholapl_d, v2rhosigma_d, &
-                                                            v2rhotau_d, v2sigma2_d, v2sigmalapl_d, &
-                                                            v2sigmatau_d, v2tau2_d, v3lapl2tau_d, &
-                                                            v3lapl3_d, v3lapltau2_d, v3rho2lapl_d, &
-                                                            v3rho2sigma_d, v3rho2tau_d, v3rho3_d, &
-                                                            v3rholapl2_d, v3rholapltau_d, v3rhosigma2_d, &
-                                                            v3rhosigmalapl_d, v3rhosigmatau_d, &
-                                                            v3rhotau2_d, v3sigma2lapl_d, v3sigma2tau_d, &
-                                                            v3sigma3_d, v3sigmalapl2_d, &
-                                                            v3sigmalapltau_d, v3sigmatau2_d, v3tau3_d, &
-                                                            vlapl_d, vrho_d, vsigma_d, vtau_d
+      TYPE(libxc_device_buffer_type), INTENT(INOUT) :: vrho_d, vsigma_d, vlapl_d, vtau_d, &
+         v2rho2_d, v2rhosigma_d, v2rholapl_d, v2rhotau_d, v2sigma2_d, v2sigmalapl_d, v2sigmatau_d, &
+         v2lapl2_d, v2lapltau_d, v2tau2_d, v3rho3_d, v3rho2sigma_d, v3rho2lapl_d, v3rho2tau_d, &
+         v3rhosigma2_d, v3rhosigmalapl_d, v3rhosigmatau_d, v3rholapl2_d, v3rholapltau_d, &
+         v3rhotau2_d, v3sigma3_d, v3sigma2lapl_d, v3sigma2tau_d, v3sigmalapl2_d, v3sigmalapltau_d, &
+         v3sigmatau2_d, v3lapl3_d, v3lapl2tau_d, v3lapltau2_d, v3tau3_d
       INTEGER(KIND=C_SIZE_T), INTENT(IN)                 :: np
 
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: lapl_p, rho_p, sigma_p, tau_p, &
-                                                            v2lapl2_p, v2lapltau_p, v2rho2_p, &
-                                                            v2rholapl_p, v2rhosigma_p, v2rhotau_p, &
-                                                            v2sigma2_p, v2sigmalapl_p, v2sigmatau_p, &
-                                                            v2tau2_p, v3lapl2tau_p, v3lapl3_p, &
-                                                            v3lapltau2_p, v3rho2lapl_p, v3rho2sigma_p, &
-                                                            v3rho2tau_p, v3rho3_p, v3rholapl2_p, &
-                                                            v3rholapltau_p, v3rhosigma2_p, &
-                                                            v3rhosigmalapl_p, v3rhosigmatau_p, &
-                                                            v3rhotau2_p, v3sigma2lapl_p, v3sigma2tau_p, &
-                                                            v3sigma3_p, v3sigmalapl2_p, &
-                                                            v3sigmalapltau_p, v3sigmatau2_p, v3tau3_p, &
-                                                            vlapl_p, vrho_p, vsigma_p, vtau_p
+      REAL(KIND=dp), DIMENSION(:), POINTER :: lapl_p, rho_p, sigma_p, tau_p, v2lapl2_p, &
+         v2lapltau_p, v2rho2_p, v2rholapl_p, v2rhosigma_p, v2rhotau_p, v2sigma2_p, v2sigmalapl_p, &
+         v2sigmatau_p, v2tau2_p, v3lapl2tau_p, v3lapl3_p, v3lapltau2_p, v3rho2lapl_p, &
+         v3rho2sigma_p, v3rho2tau_p, v3rho3_p, v3rholapl2_p, v3rholapltau_p, v3rhosigma2_p, &
+         v3rhosigmalapl_p, v3rhosigmatau_p, v3rhotau2_p, v3sigma2lapl_p, v3sigma2tau_p, &
+         v3sigma3_p, v3sigmalapl2_p, v3sigmalapltau_p, v3sigmatau2_p, v3tau3_p, vlapl_p, vrho_p, &
+         vsigma_p, vtau_p
 
       CALL libxc_device_buffer_get_ptr(rho_d, INT(rho_d%size), rho_p)
       CALL libxc_device_buffer_get_ptr(sigma_d, INT(sigma_d%size), sigma_p)
@@ -1734,76 +1695,6 @@ CONTAINS
 
       CALL xc_f03_mgga_vxc(func, np, rho_p, sigma_p, lapl_p, tau_p, vrho_p, vsigma_p, vlapl_p, vtau_p)
    END SUBROUTINE libxc_mgga_vxc_device
-
-! **************************************************************************************************
-!> \brief Assert that a LibXC device buffer is usable.
-!> \param buffer ...
-!> \return ...
-! **************************************************************************************************
-   LOGICAL FUNCTION libxc_assert_device_buffer(buffer)
-      USE ISO_C_BINDING, ONLY: C_PTR, C_NULL_PTR, C_ASSOCIATED
-      TYPE(libxc_device_buffer_type), INTENT(IN)         :: buffer
-
-      libxc_assert_device_buffer = .TRUE.
-      IF (.NOT. C_ASSOCIATED(buffer%ptr)) THEN
-         CPABORT("Device buffer pointer is not associated")
-         libxc_assert_device_buffer = .FALSE.
-      END IF
-      IF (buffer%size <= 0) THEN
-         CPABORT("Device buffer size is invalid")
-         libxc_assert_device_buffer = .FALSE.
-      END IF
-   END FUNCTION libxc_assert_device_buffer
-
-! **************************************************************************************************
-!> \brief Create an offload buffer.
-!> \param buffer ...
-!> \param length ...
-! **************************************************************************************************
-   SUBROUTINE libxc_buffer_create(buffer, length)
-      USE offload_api, ONLY: offload_buffer_type, offload_create_buffer
-      TYPE(offload_buffer_type), INTENT(OUT)             :: buffer
-      INTEGER, INTENT(IN)                                :: length
-
-      CALL offload_create_buffer(length, buffer)
-   END SUBROUTINE libxc_buffer_create
-
-! **************************************************************************************************
-!> \brief Free an offload buffer.
-!> \param buffer ...
-! **************************************************************************************************
-   SUBROUTINE libxc_buffer_free(buffer)
-      USE offload_api, ONLY: offload_buffer_type, offload_free_buffer
-      TYPE(offload_buffer_type), INTENT(INOUT)           :: buffer
-
-      CALL offload_free_buffer(buffer)
-   END SUBROUTINE libxc_buffer_free
-
-! **************************************************************************************************
-!> \brief Copy an offload buffer host-to-device.
-!> \param buffer ...
-!> \param length ...
-! **************************************************************************************************
-   SUBROUTINE libxc_buffer_h2d(buffer, length)
-      USE offload_api, ONLY: offload_buffer_type, offload_buffer_h2d
-      TYPE(offload_buffer_type), INTENT(INOUT)           :: buffer
-      INTEGER, INTENT(IN)                                :: length
-
-      CALL offload_buffer_h2d(buffer, length)
-   END SUBROUTINE libxc_buffer_h2d
-
-! **************************************************************************************************
-!> \brief Copy an offload buffer device-to-host.
-!> \param buffer ...
-!> \param length ...
-! **************************************************************************************************
-   SUBROUTINE libxc_buffer_d2h(buffer, length)
-      USE offload_api, ONLY: offload_buffer_type, offload_buffer_d2h
-      TYPE(offload_buffer_type), INTENT(INOUT)           :: buffer
-      INTEGER, INTENT(IN)                                :: length
-
-      CALL offload_buffer_d2h(buffer, length)
-   END SUBROUTINE libxc_buffer_d2h
 
 ! **************************************************************************************************
 !> \brief GGA exc and vxc on host arrays.
