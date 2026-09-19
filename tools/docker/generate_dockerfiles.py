@@ -424,6 +424,7 @@ def manual() -> str:
     return install_cp2k(profile="toolchain", version="pdbg", revision=True) + rf"""
 # Generate manual.
 COPY ./docs ./docs
+COPY ./python/README.md ./python/README.md
 COPY ./tools/input_editing ./tools/input_editing
 COPY ./tools/docker/scripts/test_manual.sh .
 ARG ADD_EDIT_LINKS=yes

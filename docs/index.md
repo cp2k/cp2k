@@ -48,6 +48,7 @@ maxdepth: 1
 technologies/eigensolvers/index
 technologies/accelerators/index
 technologies/libraries
+technologies/python
 ```
 
 ```{toctree}

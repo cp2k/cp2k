@@ -435,7 +435,7 @@ CONTAINS
 
       NULLIFY (input_declaration)
       CALL create_cp2k_root_section(input_declaration)
-      CALL run_input(input_declaration, ifp, ofp, empty_initial_variables)
+      CALL run_input(input_declaration, ifp, ofp, empty_initial_variables, keep_dbcsr=.TRUE.)
       CALL section_release(input_declaration)
    END SUBROUTINE cp2k_run_input
 
@@ -461,7 +461,7 @@ CONTAINS
       NULLIFY (input_declaration)
       CALL create_cp2k_root_section(input_declaration)
       CALL my_mpi_comm%set_handle(INT(mpi_comm))
-      CALL run_input(input_declaration, ifp, ofp, empty_initial_variables, my_mpi_comm)
+      CALL run_input(input_declaration, ifp, ofp, empty_initial_variables, my_mpi_comm, keep_dbcsr=.TRUE.)
       CALL section_release(input_declaration)
    END SUBROUTINE cp2k_run_input_comm
 
