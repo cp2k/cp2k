@@ -24,6 +24,8 @@
         EXCLUDE_BANDS 2
         KPOINTS_SOURCE NNKP
         NNKP_FILE helium.nnkp
+        PARITY T
+        PARITY_ORIGIN 0.5 0.5 0.5
         SEED_NAME loop
         SPIN_CHANNEL 1
         WILSON_LOOP T
