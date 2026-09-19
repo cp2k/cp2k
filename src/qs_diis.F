@@ -56,6 +56,7 @@ MODULE qs_diis
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
+   USE local_gemm_api,                  ONLY: local_gemm_ctxt_type
    USE mathlib,                         ONLY: diag_complex,&
                                               diamat_all
    USE message_passing,                 ONLY: mp_para_env_type
@@ -948,9 +949,7 @@ CONTAINS
          ALLOCATE (diis_buffer%smat(nkp))
          DO ikp = 1, nkp
             CALL cp_cfm_create(diis_buffer%smat(ikp), &
-                               name="kp_cfm_smat("// &
-                               TRIM(ADJUSTL(cp_to_string(ibuffer)))//","// &
-                               TRIM(ADJUSTL(cp_to_string(ibuffer)))//")", &
+                               name="kp_cfm_smat("//TRIM(cp_to_string(ikp))//")", &
                                matrix_struct=matrix_struct)
          END DO
       END IF
@@ -1009,33 +1008,32 @@ CONTAINS
 !> \param sc ...
 !> \param ispin ...
 !> \param ikp ...
-!> \param nkp_local ...
-!> \param scf_section ...
+!> \param cmos caller-owned scratch; the controller preallocates it and the DIIS buffer
 !> \param real_wfn ...
+!> \param local use local GEMM on a one-rank k-point group
+!> \param gemm_ctx private local GEMM context, unused for distributed groups
 !> \note We assume that we always have an overlap matrix.
 !> TODO: do we need to pass the kp weight for the back Fourier transform?
 ! **************************************************************************************************
-   SUBROUTINE qs_diis_b_calc_err_kp(diis_buffer, ib, mos, kc, sc, ispin, ikp, nkp_local, scf_section, &
-                                    real_wfn)
+   SUBROUTINE qs_diis_b_calc_err_kp(diis_buffer, ib, mos, kc, sc, ispin, ikp, cmos, real_wfn, local, gemm_ctx)
       TYPE(qs_diis_buffer_type_kp), POINTER              :: diis_buffer
       INTEGER, INTENT(IN)                                :: ib
       TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: kc, sc
-      INTEGER, INTENT(IN)                                :: ispin, ikp, nkp_local
-      TYPE(section_vals_type), POINTER                   :: scf_section
-      LOGICAL, INTENT(IN), OPTIONAL                      :: real_wfn
+      INTEGER, INTENT(IN)                                :: ispin, ikp
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cmos
+      LOGICAL, INTENT(IN), OPTIONAL                      :: real_wfn, local
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_calc_err_kp'
 
-      INTEGER                                            :: handle, homo, nao, nmo, nspin
+      INTEGER                                            :: handle, homo, nao
       LOGICAL                                            :: my_real_wfn
       REAL(dp)                                           :: maxocc
-      TYPE(cp_cfm_type)                                  :: cmos
       TYPE(cp_cfm_type), POINTER                         :: new_errors, parameters, smat
-      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), POINTER                          :: imos, rmos
 
-      NULLIFY (matrix_struct, imos, rmos, parameters, new_errors, smat)
+      NULLIFY (imos, rmos, parameters, new_errors, smat)
 
       CALL timeset(routineN, handle)
       my_real_wfn = .FALSE.
@@ -1049,19 +1047,8 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
-      nspin = SIZE(mos, 2)
+      CALL get_mo_set(mos(1, ispin), nao=nao, homo=homo, mo_coeff=rmos, maxocc=maxocc)
 
-      CALL cp_cfm_get_info(kc, matrix_struct=matrix_struct)
-      CALL qs_diis_b_check_i_alloc_kp(diis_buffer, &
-                                      matrix_struct=matrix_struct, &
-                                      nspin=nspin, nkp=nkp_local, &
-                                      scf_section=scf_section)
-
-      !We calculate: e(ikp) = F(ikp)*P(ikp)*S(ikp) - S(ikp)*P(ikp)*F(ikp)
-      CALL get_mo_set(mos(1, ispin), nao=nao, nmo=nmo, homo=homo, mo_coeff=rmos, maxocc=maxocc)
-      NULLIFY (matrix_struct)
-      CALL cp_fm_get_info(rmos, matrix_struct=matrix_struct)
-      CALL cp_cfm_create(cmos, matrix_struct)
       IF (my_real_wfn) THEN
          CALL cp_cfm_scale_and_add_fm(CMPLX(0.0_dp, KIND=dp), cmos, &
                                       CMPLX(1.0_dp, KIND=dp), rmos)
@@ -1078,17 +1065,37 @@ CONTAINS
       CALL cp_cfm_to_cfm(kc, parameters)
       CALL cp_cfm_to_cfm(sc, smat)
 
-      ! KC <- K*C
-      CALL parallel_gemm("N", "N", nao, homo, nao, CMPLX(maxocc, KIND=dp), parameters, cmos, (0.0_dp, 0.0_dp), kc)
-      ! SC <- S*C
-      CALL parallel_gemm("N", "N", nao, homo, nao, (2.0_dp, 0.0_dp), smat, cmos, (0.0_dp, 0.0_dp), sc)
-
-      ! new_errors <- KC*(SC)^H - SC*(KC)^H; retain the existing factor of two.
-      CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), sc, kc, (0.0_dp, 0.0_dp), new_errors)
-      CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), kc, sc, (-1.0_dp, 0.0_dp), new_errors)
-
-      !clean-up
-      CALL cp_cfm_release(cmos)
+      ! KC <- K*C; SC <- S*C. Retain the existing factor of two in SC.
+      ! new_errors <- KC*(SC)^H - SC*(KC)^H.
+      IF (local) THEN
+         CPASSERT(PRODUCT(parameters%matrix_struct%context%num_pe) == 1)
+         CPASSERT(PRODUCT(cmos%matrix_struct%context%num_pe) == 1)
+         CPASSERT(PRODUCT(kc%matrix_struct%context%num_pe) == 1)
+         CPASSERT(PRODUCT(smat%matrix_struct%context%num_pe) == 1)
+         CPASSERT(PRODUCT(sc%matrix_struct%context%num_pe) == 1)
+         CPASSERT(PRODUCT(new_errors%matrix_struct%context%num_pe) == 1)
+         CALL gemm_ctx%gemm("N", "N", nao, homo, nao, CMPLX(maxocc, KIND=dp), &
+                            parameters%local_data, SIZE(parameters%local_data, 1), &
+                            cmos%local_data, SIZE(cmos%local_data, 1), (0.0_dp, 0.0_dp), &
+                            kc%local_data, SIZE(kc%local_data, 1))
+         CALL gemm_ctx%gemm("N", "N", nao, homo, nao, (2.0_dp, 0.0_dp), &
+                            smat%local_data, SIZE(smat%local_data, 1), &
+                            cmos%local_data, SIZE(cmos%local_data, 1), (0.0_dp, 0.0_dp), &
+                            sc%local_data, SIZE(sc%local_data, 1))
+         CALL gemm_ctx%gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), &
+                            sc%local_data, SIZE(sc%local_data, 1), &
+                            kc%local_data, SIZE(kc%local_data, 1), (0.0_dp, 0.0_dp), &
+                            new_errors%local_data, SIZE(new_errors%local_data, 1))
+         CALL gemm_ctx%gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), &
+                            kc%local_data, SIZE(kc%local_data, 1), &
+                            sc%local_data, SIZE(sc%local_data, 1), (-1.0_dp, 0.0_dp), &
+                            new_errors%local_data, SIZE(new_errors%local_data, 1))
+      ELSE
+         CALL parallel_gemm("N", "N", nao, homo, nao, CMPLX(maxocc, KIND=dp), parameters, cmos, (0.0_dp, 0.0_dp), kc)
+         CALL parallel_gemm("N", "N", nao, homo, nao, (2.0_dp, 0.0_dp), smat, cmos, (0.0_dp, 0.0_dp), sc)
+         CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), sc, kc, (0.0_dp, 0.0_dp), new_errors)
+         CALL parallel_gemm("N", "C", nao, nao, homo, (1.0_dp, 0.0_dp), kc, sc, (-1.0_dp, 0.0_dp), new_errors)
+      END IF
 
       CALL timestop(handle)
 

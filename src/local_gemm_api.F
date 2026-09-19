@@ -13,16 +13,12 @@ MODULE local_gemm_api
    USE input_constants, ONLY: do_dgemm_spla
    USE ISO_C_BINDING, ONLY: C_ASSOCIATED, &
                             C_LOC
-   USE spla, ONLY: SPLA_PU_HOST, &
-                   SPLA_PU_GPU, &
-                   SPLA_OP_NONE, &
+   USE spla, ONLY: SPLA_OP_NONE, &
                    SPLA_OP_TRANSPOSE, &
                    SPLA_OP_CONJ_TRANSPOSE, &
                    spla_ctx_create, &
                    spla_ctx_destroy, &
                    spla_dgemm, &
-                   spla_sgemm, &
-                   spla_cgemm, &
                    spla_zgemm, &
                    spla_ctx_set_op_threshold_gpu, &
                    SPLA_SUCCESS
@@ -50,173 +46,168 @@ MODULE local_gemm_api
 
    TYPE local_gemm_ctxt_type
       TYPE(C_PTR) :: spla_context = C_NULL_PTR
+      LOGICAL, PRIVATE :: timing = .TRUE.
    CONTAINS
       PROCEDURE, PASS(ctx), NON_OVERRIDABLE :: create => local_gemm_create
       PROCEDURE, PASS(ctx), NON_OVERRIDABLE :: destroy => local_gemm_destroy
       PROCEDURE, PASS(ctx), NON_OVERRIDABLE :: set_op_threshold_gpu => local_gemm_set_op_threshold_gpu
-      PROCEDURE, PASS(ctx), NON_OVERRIDABLE :: gemm => local_gemm
+      PROCEDURE, PASS(ctx), NON_OVERRIDABLE, PRIVATE :: gemm_d => local_dgemm
+      PROCEDURE, PASS(ctx), NON_OVERRIDABLE, PRIVATE :: gemm_z => local_zgemm
+      GENERIC :: gemm => gemm_d, gemm_z
    END TYPE
 
 CONTAINS
 
+   #:for scalar, prefix in [('REAL', 'd'), ('COMPLEX', 'z')]
 ! **************************************************************************************************
-!> \brief ...
-!> \param opA ...
-!> \param opB ...
-!> \param m ...
-!> \param n ...
-!> \param k ...
-!> \param alpha ...
-!> \param A ...
-!> \param lda ...
-!> \param B ...
-!> \param ldb ...
-!> \param beta ...
-!> \param C ...
-!> \param ldc ...
-!> \param ctx ...
+!> \brief Local GEMM on contiguous arrays, using BLAS or the configured SPLA backend.
+!>        Each concurrent caller must own its context. No distributed matrix metadata is used.
+!> \param opA operation on A (N/T/C, case insensitive)
+!> \param opB operation on B (N/T/C, case insensitive)
+!> \param m output rows
+!> \param n output columns
+!> \param k contraction dimension
+!> \param alpha product scale
+!> \param A left operand
+!> \param lda leading dimension of A
+!> \param B right operand
+!> \param ldb leading dimension of B
+!> \param beta output scale
+!> \param C output, must not overlap A or B
+!> \param ldc leading dimension of C
+!> \param ctx caller-owned context
 ! **************************************************************************************************
-   SUBROUTINE local_gemm(opA, opB, m, n, k, &
-                         alpha, A, lda, B, ldb, &
-                         beta, C, ldc, ctx)
-      CHARACTER, INTENT(in) :: opA
-      CHARACTER, INTENT(in) :: opB
-      INTEGER, INTENT(in) :: m
-      INTEGER, INTENT(in) :: n
-      INTEGER, INTENT(in) :: k
-      REAL(KIND=dp), INTENT(in) :: alpha
+      SUBROUTINE local_${prefix}$gemm(opA, opB, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc, ctx)
+         CHARACTER, INTENT(IN)                              :: opA, opB
+         INTEGER, INTENT(IN)                                :: m, n, k, lda, ldb, ldc
+         ${scalar}$ (KIND=dp), INTENT(IN)                    :: alpha, beta
+         ${scalar}$ (KIND=dp), INTENT(IN), TARGET            :: A(lda, *), B(ldb, *)
+         ${scalar}$ (KIND=dp), INTENT(INOUT), TARGET         :: C(ldc, *)
+         CLASS(local_gemm_ctxt_type), INTENT(INOUT)        :: ctx
+
+         INTEGER                                            :: handle
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      REAL(KIND=dp), DIMENSION(*), INTENT(in), TARGET :: A
-#else
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(in), TARGET :: A
+         INTEGER                                            :: spla_error
 #endif
-      INTEGER, INTENT(in) :: lda
+         CHARACTER(LEN=*), PARAMETER :: routineN = 'local_gemm'
+
+         IF (m == 0 .OR. n == 0) RETURN
+         IF (ctx%timing) CALL timeset(routineN, handle)
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      REAL(KIND=dp), DIMENSION(*), INTENT(in), TARGET :: B
-#else
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(in), TARGET :: B
+         IF (do_dgemm == do_dgemm_spla) THEN
+            CPASSERT(C_ASSOCIATED(ctx%spla_context))
+            CALL offload_activate_chosen_device()
+            spla_error = spla_${prefix}$gemm(spla_operation(opA), spla_operation(opB), m, n, k, alpha, &
+                                             C_LOC(A(1, 1)), lda, C_LOC(B(1, 1)), ldb, beta, &
+                                             C_LOC(C(1, 1)), ldc, ctx%spla_context)
+            IF (spla_error /= SPLA_SUCCESS) &
+               CALL cp_abort(__LOCATION__, "spla_${prefix}$gemm failed: "//cp_to_string(spla_error))
+         ELSE
+#endif
+            CALL ${prefix}$gemm(opA, opB, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc)
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
+         END IF
+#endif
+         IF (ctx%timing) CALL timestop(handle)
+
+      END SUBROUTINE local_${prefix}$gemm
+   #:endfor
+
+#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
+! **************************************************************************************************
+!> \brief Translate a BLAS transpose flag for SPLA, including complex conjugation.
+!> \param trans BLAS operation
+!> \return SPLA operation
+! **************************************************************************************************
+   FUNCTION spla_operation(trans) RESULT(op)
+      CHARACTER, INTENT(IN)                              :: trans
+      INTEGER                                            :: op
+
+      SELECT CASE (trans)
+      CASE ('N', 'n')
+         op = SPLA_OP_NONE
+      CASE ('T', 't')
+         op = SPLA_OP_TRANSPOSE
+      CASE ('C', 'c')
+         op = SPLA_OP_CONJ_TRANSPOSE
+      CASE DEFAULT
+         CALL cp_abort(__LOCATION__, "Invalid local GEMM transpose flag.")
+      END SELECT
+   END FUNCTION spla_operation
 #endif
 
-      INTEGER, INTENT(in) :: ldb
-      REAL(KIND=dp), INTENT(in) :: beta
-#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      REAL(KIND=dp), DIMENSION(*), INTENT(inout), TARGET ::C
-#else
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(inout), TARGET :: C
-#endif
-      INTEGER, INTENT(in) :: ldc
-      CLASS(local_gemm_ctxt_type), INTENT(inout) :: ctx
+! **************************************************************************************************
+!> \brief Create a local GEMM context; destroy an existing context before recreating it.
+!> \param ctx newly created context, with timing enabled by default
+!> \param pu processing unit for local GEMM
+!> \param timing collect per-GEMM timings (default true); disable for timed batches
+! **************************************************************************************************
+   SUBROUTINE local_gemm_create(ctx, pu, timing)
+      CLASS(local_gemm_ctxt_type), INTENT(OUT)           :: ctx
+      INTEGER, INTENT(IN)                                :: pu
+      LOGICAL, INTENT(IN), OPTIONAL                      :: timing
 
-      INTEGER                                            :: handle
-!     no point of using SPLA offloading on CPU ONLY nodes
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      INTEGER :: spla_op_A, spla_op_B, spla_error
+      INTEGER                                            :: spla_error
 #endif
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'local_gemm'
-      CALL timeset(routineN, handle)
 
-!     no point of using SPLA offloading on CPU ONLY nodes
+      IF (PRESENT(timing)) ctx%timing = timing
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       IF (do_dgemm == do_dgemm_spla) THEN
-
-         IF (opA == 'N') spla_op_A = SPLA_OP_NONE
-         IF (opA == 'T') spla_op_A = SPLA_OP_TRANSPOSE
-
-         IF (opB == 'N') spla_op_B = SPLA_OP_NONE
-         IF (opB == 'T') spla_op_B = SPLA_OP_TRANSPOSE
-
-#if __GNUC__ >= 9
-         CPASSERT(IS_CONTIGUOUS(A))
-         CPASSERT(IS_CONTIGUOUS(B))
-         CPASSERT(IS_CONTIGUOUS(C))
-#endif
-
          CALL offload_activate_chosen_device()
-         spla_error = spla_dgemm(spla_op_A, spla_op_B, &
-                                 m, n, k, alpha, &
-                                 c_loc(A), lda, &
-                                 c_loc(B), ldb, &
-                                 beta, c_loc(C), ldc, ctx%spla_context)
+
+         spla_error = spla_ctx_create(ctx%spla_context, pu)
          IF (spla_error /= SPLA_SUCCESS) &
-            CPABORT("spla_dgemm failed: "//cp_to_string(spla_error))
-      ELSE
-#endif
-         CALL dgemm(opA, opB, m, n, k, alpha, &
-                    A, lda, &
-                    B, ldb, beta, C, ldc)
-#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      END IF
-#else
-      MARK_USED(ctx)
-#endif
-      CALL timestop(handle)
-
-   END SUBROUTINE local_gemm
-
-! **************************************************************************************************
-!> \brief create a context for handling gemm offloading
-!> \param ctx newly created context
-!> \param pu processing unit to run the (s,d,c,z}dgemm
-! **************************************************************************************************
-   SUBROUTINE local_gemm_create(ctx, pu)
-      CLASS(local_gemm_ctxt_type), INTENT(out) :: ctx
-      INTEGER, INTENT(in) :: pu
-
-#if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      INTEGER :: error_
-
-      IF (.NOT. C_ASSOCIATED(ctx%spla_context)) THEN
-         IF (do_dgemm == do_dgemm_spla) THEN
-            CALL offload_activate_chosen_device()
-
-            error_ = spla_ctx_create(ctx%spla_context, pu)
-            IF (error_ /= SPLA_SUCCESS) &
-               CPABORT("spla_ctx_create failed: "//cp_to_string(error_))
-         ELSE
-            ctx%spla_context = C_NULL_PTR
-         END IF
+            CALL cp_abort(__LOCATION__, &
+                          "spla_ctx_create failed: "//cp_to_string(spla_error))
       END IF
 #else
       MARK_USED(pu)
-      ctx%spla_context = C_NULL_PTR
 #endif
    END SUBROUTINE local_gemm_create
 
 ! **************************************************************************************************
-!> \brief release resources associated to a gemm context
-!> \param ctx handle
+!> \brief Release an owned SPLA context, independently of the current backend preference.
+!> \param ctx context to release; an empty context is allowed
 ! **************************************************************************************************
    SUBROUTINE local_gemm_destroy(ctx)
-      CLASS(local_gemm_ctxt_type), INTENT(inout) :: ctx
+      CLASS(local_gemm_ctxt_type), INTENT(INOUT)         :: ctx
 
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      INTEGER :: error_
+      INTEGER                                            :: spla_error
 
-      IF (do_dgemm == do_dgemm_spla) THEN
+      IF (C_ASSOCIATED(ctx%spla_context)) THEN
          CALL offload_activate_chosen_device()
 
-         error_ = spla_ctx_destroy(ctx%spla_context)
-         IF (error_ /= SPLA_SUCCESS) &
-            CPABORT("spla_ctx_destroy failed: "//cp_to_string(error_))
+         spla_error = spla_ctx_destroy(ctx%spla_context)
+         IF (spla_error /= SPLA_SUCCESS) &
+            CALL cp_abort(__LOCATION__, &
+                          "spla_ctx_destroy failed: "//cp_to_string(spla_error))
       END IF
 #endif
       ctx%spla_context = C_NULL_PTR
    END SUBROUTINE local_gemm_destroy
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param ctx ...
-!> \param opThresholdGPU ...
+!> \brief Set the SPLA GPU operation threshold; no-op when no SPLA context is allocated.
+!> \param ctx local GEMM context
+!> \param opThresholdGPU operation-count threshold for GPU offloading
 ! **************************************************************************************************
    SUBROUTINE local_gemm_set_op_threshold_gpu(ctx, opThresholdGPU)
-      CLASS(local_gemm_ctxt_type), INTENT(INOUT)                                        :: ctx
-      INTEGER, INTENT(in)                                :: opThresholdGPU
+      CLASS(local_gemm_ctxt_type), INTENT(INOUT)         :: ctx
+      INTEGER, INTENT(IN)                                :: opThresholdGPU
 
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-      INTEGER                                            :: error__
+      INTEGER                                            :: spla_error
 
-      CALL offload_activate_chosen_device()
-      error__ = spla_ctx_set_op_threshold_gpu(ctx%spla_context, opThresholdGPU)
+      IF (C_ASSOCIATED(ctx%spla_context)) THEN
+         CALL offload_activate_chosen_device()
+
+         spla_error = spla_ctx_set_op_threshold_gpu(ctx%spla_context, opThresholdGPU)
+         IF (spla_error /= SPLA_SUCCESS) &
+            CALL cp_abort(__LOCATION__, &
+                          "spla_ctx_set_op_threshold_gpu failed: "//cp_to_string(spla_error))
+      END IF
 #else
       MARK_USED(ctx)
       MARK_USED(opThresholdGPU)
@@ -224,8 +215,8 @@ CONTAINS
    END SUBROUTINE local_gemm_set_op_threshold_gpu
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param dgemm_library ...
+!> \brief Select the backend for subsequent local GEMM calls and context creation.
+!> \param dgemm_library backend selector from input_constants (SPLA or BLAS)
 ! **************************************************************************************************
    SUBROUTINE local_gemm_set_library(dgemm_library)
       INTEGER, INTENT(IN)                                :: dgemm_library

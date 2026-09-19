@@ -177,9 +177,9 @@ CONTAINS
       default_dgemm = do_dgemm_blas
 #endif
       CALL keyword_create(keyword, __LOCATION__, name="PREFERRED_DGEMM_LIBRARY", &
-                          description="Specifies the DGEMM library to be used. If not available, "// &
-                          "the BLAS routine is used. This keyword affects some DGEMM calls in the WFC code and turns on their "// &
-                          "acceleration with SpLA. This keyword affects only local DGEMM calls, not the calls to PDGEMM "// &
+                          description="Specifies the library for supported local real and complex matrix multiplications, "// &
+                          "including wavefunction correlation and k-point calculations. SPLA enables GPU acceleration "// &
+                          "when available; otherwise BLAS is used. This does not affect distributed matrix multiplications "// &
                           "(see keyword FM%TYPE_OF_MATRIX_MULTIPLICATION).", &
                           usage="PREFERRED_DGEMM_LIBRARY SPLA", &
                           default_i_val=default_dgemm, &

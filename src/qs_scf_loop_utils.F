@@ -77,7 +77,9 @@ MODULE qs_scf_loop_utils
                                               kpoint_operator_context_release,&
                                               kpoint_operator_context_type,&
                                               kpoint_operator_get,&
+                                              kpoint_operator_get_local,&
                                               kpoint_operator_prepare,&
+                                              kpoint_operator_store,&
                                               kpoint_slot_ks
    USE qs_kpp1_env_types,               ONLY: kpp1_release,&
                                               qs_kpp1_env_type
@@ -113,7 +115,7 @@ MODULE qs_scf_loop_utils
    USE qs_scf_diagonalization,          ONLY: &
         do_block_davidson_diag, do_block_davidson_diag_kp, do_block_krylov_diag, do_general_diag, &
         do_general_diag_kp, do_ot_diag, do_ot_diag_kp, do_roks_diag, do_scf_diag_subspace, &
-        do_special_diag, qs_scf_get_ot_kpoint_operator
+        do_special_diag
    USE qs_scf_methods,                  ONLY: cp_sm_mix,&
                                               scf_env_density_mixing
    USE qs_scf_output,                   ONLY: qs_scf_print_summary
@@ -677,7 +679,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       LOGICAL                                            :: ot_gradient_prepared, &
                                                             physical_base_state, restricted_roks, &
-                                                            transfer_step, use_real_wfn
+                                                            use_real_wfn
       REAL(KIND=dp)                                      :: trial_kTS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: orbital_scaling_factor, roks_occupation, &
                                                             trial_mu
@@ -751,9 +753,7 @@ CONTAINS
                                        require_complex_state=.TRUE.)
 
       IF (nkp_groups > 1) THEN
-         transfer_step = .FALSE.
-         CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .FALSE., &
-                                 transfer_step, store_ot_matrices=.TRUE., transfer_only=.TRUE.)
+         CALL kpoint_operator_store(kpoints, fmwork(1), matrix_ks, matrix_s)
       END IF
 
       first_channel = qs_ot_channel_index(1, kp_range(1), nspin_ot)
@@ -802,7 +802,7 @@ CONTAINS
          CPASSERT(SIZE(kp%ot_hmat, 1) >= 2)
          DO ispin = 1, nspin_ot
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
-            CALL qs_scf_get_ot_kpoint_operator( &
+            CALL kpoint_operator_get_local( &
                matrix_ks, kpoints, kp, MIN(ispin, SIZE(matrix_ks, 1)), &
                kp%ot_hmat(1, MIN(ispin, SIZE(kp%ot_hmat, 2))), &
                kp%ot_hmat(2, MIN(ispin, SIZE(kp%ot_hmat, 2))), matrix_k_re, matrix_k_im)
@@ -878,7 +878,7 @@ CONTAINS
                CALL dbcsr_release_p(matrix_k_re)
                CALL dbcsr_release_p(matrix_k_im)
 
-               CALL qs_scf_get_ot_kpoint_operator( &
+               CALL kpoint_operator_get_local( &
                   matrix_ks, kpoints, kp, 2, kp%ot_hmat(1, 2), kp%ot_hmat(2, 2), &
                   matrix_k_re, matrix_k_im)
                CALL get_mo_set(kp%mos(1, 2), occupation_numbers=occupation_numbers, nmo=nmo)
@@ -975,7 +975,9 @@ CONTAINS
             IF (physical_base_state .AND. &
                 local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
                IF (restricted_roks) THEN
-                  CPASSERT(nspin_energy <= SIZE(local_ot_env(local_channel)%mermin_physical))
+                  IF (.NOT. (nspin_energy <= SIZE(local_ot_env(local_channel)%mermin_physical))) THEN
+                     CALL cp_abort(__LOCATION__, "Missing Mermin physical spin state")
+                  END IF
                   DO energy_spin = 1, nspin_energy
                      CALL qs_scf_kp_roll_physical_secant( &
                         local_ot_env(local_channel)%mermin_physical(energy_spin), &
@@ -1083,9 +1085,9 @@ CONTAINS
          ikpoint = kp%nkpoint
          CPASSERT(ASSOCIATED(kp%ot_smat))
          CPASSERT(SIZE(kp%ot_smat) >= 2)
-         CALL qs_scf_get_ot_kpoint_operator(matrix_s, kpoints, kp, 1, &
-                                            kp%ot_smat(1), kp%ot_smat(2), &
-                                            matrix_s_re, matrix_s_im)
+         CALL kpoint_operator_get_local(matrix_s, kpoints, kp, 1, &
+                                        kp%ot_smat(1), kp%ot_smat(2), &
+                                        matrix_s_re, matrix_s_im)
          DO ispin = 1, nspin_ot
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
             CALL get_mo_set(kp%mos(1, ispin), homo=homo, mo_coeff=mo_coeff, eigenvalues=eigenvalues, &
@@ -1593,7 +1595,9 @@ CONTAINS
       CPASSERT(nmode > 0 .AND. nmode <= SIZE(channel_density_modes, 3))
       CPASSERT(SIZE(channel_density_modes, 2) == nmo)
       CPASSERT(SIZE(channel_density_modes, 4) == SIZE(local_ot_env))
-      CPASSERT(SIZE(projected_hxc, 1) >= nmode .AND. SIZE(projected_hxc, 2) >= nmode)
+      IF (.NOT. (SIZE(projected_hxc, 1) >= nmode .AND. SIZE(projected_hxc, 2) >= nmode)) THEN
+         CALL cp_abort(__LOCATION__, "Projected HXC matrix is too small")
+      END IF
       CPASSERT(SIZE(rho_ao_kp, 1) == nspin_ot)
       CPASSERT(ASSOCIATED(fmwork))
 
@@ -1631,8 +1635,12 @@ CONTAINS
             ikpoint = kp%nkpoint
             DO ispin = 1, nspin_ot
                local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
-               CPASSERT(ASSOCIATED(local_ot_env(local_channel)%mermin_physical(1)%c0))
-               CPASSERT(ASSOCIATED(local_ot_env(local_channel)%mermin_physical(1)%c0_im))
+               IF (.NOT. (ASSOCIATED(local_ot_env(local_channel)%mermin_physical(1)%c0))) THEN
+                  CALL cp_abort(__LOCATION__, "Missing physical OT coefficients")
+               END IF
+               IF (.NOT. (ASSOCIATED(local_ot_env(local_channel)%mermin_physical(1)%c0_im))) THEN
+                  CALL cp_abort(__LOCATION__, "Missing imaginary physical OT coefficients")
+               END IF
                CALL cp_fm_create( &
                   density_re, local_ot_env(local_channel)%mermin_physical(1)%c0%matrix_struct, &
                   name="hxc_density_mode_re", nrow=nmo, ncol=nmo)
@@ -1724,7 +1732,7 @@ CONTAINS
                CALL cp_fm_create( &
                   action_im, local_ot_env(local_channel)%mermin_physical(1)%c0%matrix_struct, &
                   name="hxc_potential_action_im", set_zero=.TRUE.)
-               CALL qs_scf_get_ot_kpoint_operator( &
+               CALL kpoint_operator_get_local( &
                   potential_rs, kpoints, kp, ispin, operator_re(local_kpoint, ispin), &
                   operator_im(local_kpoint, ispin), matrix_k_re, matrix_k_im)
                CALL cp_dbcsr_sm_fm_multiply( &
@@ -2019,7 +2027,9 @@ CONTAINS
             IF (restricted_roks) energy_start = (ispin - 1)*nmo + 1
             CALL get_mo_set(kp%mos(1, ispin), maxocc=maxocc, nmo=nmo)
             CPASSERT(maxocc > EPSILON(maxocc))
-            CPASSERT(energy_start + nmo - 1 <= SIZE(local_ot_env(local_channel)%ener_x))
+            IF (.NOT. (energy_start + nmo - 1 <= SIZE(local_ot_env(local_channel)%ener_x))) THEN
+               CALL cp_abort(__LOCATION__, "OT energy slice exceeds channel storage")
+            END IF
             CALL smearing_response_weight( &
                response_weight, trial_occupation(:, ikpoint, ispin), &
                trial_eigenvalues(:, ikpoint, ispin), trial_mu(ispin), sigma, maxocc, nmo, &
@@ -2313,7 +2323,9 @@ CONTAINS
             rayleigh_response(:, :) = 0.0_dp
 
             IF (restricted_roks) THEN
-               CPASSERT(ASSOCIATED(kp%ot_hmat) .AND. SIZE(kp%ot_hmat, 2) >= nspin_energy)
+               IF (.NOT. (ASSOCIATED(kp%ot_hmat) .AND. SIZE(kp%ot_hmat, 2) >= nspin_energy)) THEN
+                  CALL cp_abort(__LOCATION__, "Missing OT Hamiltonian spin cache")
+               END IF
                CALL get_mo_set(kp%mos(1, 1), mo_coeff=mo_coeff)
                CALL get_mo_set(kp%mos(2, 1), mo_coeff=mo_coeff_im)
                DO energy_spin = 1, nspin_energy
@@ -2944,8 +2956,12 @@ CONTAINS
                         response_scale*rotation_step(:, local_channel)
                      local_ot_env(local_channel)%ener_response_gx(:) = &
                         response_scale*local_ot_env(local_channel)%ener_response_gx
-                     CPASSERT(ASSOCIATED(local_ot_env(local_channel)%matrix_response_gx))
-                     CPASSERT(ASSOCIATED(local_ot_env(local_channel)%matrix_response_gx_im))
+                     IF (.NOT. (ASSOCIATED(local_ot_env(local_channel)%matrix_response_gx))) THEN
+                        CALL cp_abort(__LOCATION__, "Missing OT response gradient")
+                     END IF
+                     IF (.NOT. (ASSOCIATED(local_ot_env(local_channel)%matrix_response_gx_im))) THEN
+                        CALL cp_abort(__LOCATION__, "Missing imaginary OT response gradient")
+                     END IF
                      CALL dbcsr_copy(local_ot_env(local_channel)%matrix_response_gx, &
                                      local_ot_env(local_channel)%matrix_dx)
                      CALL dbcsr_scale(local_ot_env(local_channel)%matrix_response_gx, &

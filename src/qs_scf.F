@@ -145,6 +145,8 @@ MODULE qs_scf
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
+   USE qs_kpoint_operators,             ONLY: kpoint_operator_get_local,&
+                                              kpoint_operator_store
    USE qs_kpoint_state,                 ONLY: qs_kpoint_copy_spin_mos,&
                                               qs_kpoint_mos_initialized,&
                                               qs_kpoint_state_canonicalize_fixed,&
@@ -195,8 +197,7 @@ MODULE qs_scf
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE qs_scf_diagonalization,          ONLY: do_general_diag_kp,&
-                                              qs_scf_get_ot_kpoint_operator
+   USE qs_scf_diagonalization,          ONLY: do_general_diag_kp
    USE qs_scf_initialization,           ONLY: qs_scf_env_initialize
    USE qs_scf_loop_utils,               ONLY: &
         qs_scf_candidate_density_delta, qs_scf_check_inner_exit, qs_scf_check_outer_exit, &
@@ -1390,7 +1391,8 @@ CONTAINS
       SELECT CASE (scf_env%method)
       CASE DEFAULT
 
-         CPABORT("Unknown SCF method <"//TRIM(cp_to_string(scf_env%method))//"> found. Check the code!")
+         CALL cp_abort(__LOCATION__, &
+                       "Unknown SCF method <"//TRIM(cp_to_string(scf_env%method))//"> found. Check the code!")
 
       CASE (filter_matrix_diag_method_nr)
 
@@ -1514,10 +1516,7 @@ CONTAINS
                   CPASSERT(ASSOCIATED(rho))
                   CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
                   CPASSERT(ASSOCIATED(rho_ao_kp))
-                  kp_diis_step = .FALSE.
-                  CALL do_general_diag_kp(rho_ao_kp, matrix_s_kp, kpoints, scf_env, &
-                                          scf_control, .FALSE., kp_diis_step, &
-                                          store_ot_matrices=.TRUE., transfer_only=.TRUE.)
+                  CALL kpoint_operator_store(kpoints, scf_env%scf_work1(1), rho_ao_kp, matrix_s_kp)
                   CALL qs_kpoint_state_prepare_fixed_density(kpoints)
                   IF (SIZE(rho_ao_kp, 1) < nspin_ot) THEN
                      CPASSERT(SIZE(rho_ao_kp, 1) == 1)
@@ -1573,10 +1572,7 @@ CONTAINS
 
                ! Redistribute the physical operators to their owning k-point groups.  OT must not
                ! call the collective real-space transform independently with group-local k values.
-               kp_diis_step = .FALSE.
-               CALL do_general_diag_kp(matrix_ks_kp, matrix_s_kp, kpoints, scf_env, &
-                                       scf_control, .FALSE., kp_diis_step, matrix_t=matrix_t_kp, &
-                                       store_ot_matrices=.TRUE., transfer_only=.TRUE.)
+               CALL kpoint_operator_store(kpoints, scf_env%scf_work1(1), matrix_ks_kp, matrix_s_kp, matrix_t_kp)
 
                ! Natural orbitals define the fixed occupied projector but not its internal gauge.
                ! Canonicalize that subspace with the matching physical Hamiltonian and populate
@@ -1640,7 +1636,8 @@ CONTAINS
                IF (.NOT. do_kpoints) THEN
                   DO ispin = 1, SIZE(mos)
                      IF (.NOT. mos(ispin)%uniform_occupation) THEN
-                        CPABORT('PRECONDITIONER FULL_ALL_COVARIANT currently requires uniform occupations.')
+                        CALL cp_abort(__LOCATION__, &
+                                      'PRECONDITIONER FULL_ALL_COVARIANT currently requires uniform occupations.')
                      END IF
                   END DO
                END IF
@@ -1973,9 +1970,9 @@ CONTAINS
          ikpoint = kp%nkpoint
          CPASSERT(ikpoint >= 1)
          CPASSERT(SIZE(kp%ot_smat) >= 2)
-         CALL qs_scf_get_ot_kpoint_operator(matrix_s_kp, kpoints, kp, 1, &
-                                            kp%ot_smat(1), kp%ot_smat(2), &
-                                            matrix_sk_re, matrix_sk_im)
+         CALL kpoint_operator_get_local(matrix_s_kp, kpoints, kp, 1, &
+                                        kp%ot_smat(1), kp%ot_smat(2), &
+                                        matrix_sk_re, matrix_sk_im)
          DO ispin = 1, nspin_ot
             ot_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot)
             CPASSERT(.NOT. scf_env%qs_ot_env(ot_channel)%state_allocated)
@@ -2204,23 +2201,25 @@ CONTAINS
          CPASSERT(ASSOCIATED(kp%ot_smat))
          CPASSERT(SIZE(kp%ot_smat) >= 2)
          ikpoint = kp%nkpoint
-         CALL qs_scf_get_ot_kpoint_operator(matrix_s, kpoints, kp, 1, &
-                                            kp%ot_smat(1), kp%ot_smat(2), &
-                                            matrix_s_re, matrix_s_im)
+         CALL kpoint_operator_get_local(matrix_s, kpoints, kp, 1, &
+                                        kp%ot_smat(1), kp%ot_smat(2), &
+                                        matrix_s_re, matrix_s_im)
          IF (prec_type == ot_precond_full_kinetic) THEN
             CPASSERT(ASSOCIATED(matrix_t))
             CPASSERT(ASSOCIATED(kp%ot_tmat))
             CPASSERT(SIZE(kp%ot_tmat) >= 2)
-            CALL qs_scf_get_ot_kpoint_operator(matrix_t, kpoints, kp, 1, &
-                                               kp%ot_tmat(1), kp%ot_tmat(2), &
-                                               matrix_t_re, matrix_t_im)
+            CALL kpoint_operator_get_local(matrix_t, kpoints, kp, 1, &
+                                           kp%ot_tmat(1), kp%ot_tmat(2), &
+                                           matrix_t_re, matrix_t_im)
          END IF
          DO ispin = 1, nspin_ot
             ot_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot)
             IF (ispin > 1 .AND. &
                 (prec_type == ot_precond_full_kinetic .OR. prec_type == ot_precond_s_inverse)) THEN
                source_channel = qs_ot_channel_index(1, ikpoint, nspin_ot)
-               CPASSERT(ASSOCIATED(scf_env%ot_preconditioner(source_channel)%preconditioner%complex_fm))
+               IF (.NOT. (ASSOCIATED(scf_env%ot_preconditioner(source_channel)%preconditioner%complex_fm))) THEN
+                  CALL cp_abort(__LOCATION__, "Missing shared complex OT preconditioner")
+               END IF
                scf_env%ot_preconditioner(ot_channel)%preconditioner%complex_fm => &
                   scf_env%ot_preconditioner(source_channel)%preconditioner%complex_fm
                scf_env%ot_preconditioner(ot_channel)%preconditioner%owns_complex_fm = .FALSE.
@@ -2241,9 +2240,9 @@ CONTAINS
                 prec_type == ot_precond_full_single_inverse) THEN
                ks_spin = MIN(ispin, SIZE(kp%ot_hmat, 2))
                CPASSERT(SIZE(kp%ot_hmat, 1) >= 2)
-               CALL qs_scf_get_ot_kpoint_operator(matrix_ks, kpoints, kp, ks_spin, &
-                                                  kp%ot_hmat(1, ks_spin), kp%ot_hmat(2, ks_spin), &
-                                                  matrix_h_re, matrix_h_im)
+               CALL kpoint_operator_get_local(matrix_ks, kpoints, kp, ks_spin, &
+                                              kp%ot_hmat(1, ks_spin), kp%ot_hmat(2, ks_spin), &
+                                              matrix_h_re, matrix_h_im)
             END IF
             SELECT CASE (prec_type)
             CASE (ot_precond_fermi_low_rank)

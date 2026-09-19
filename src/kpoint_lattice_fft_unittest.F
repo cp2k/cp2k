@@ -9,7 +9,11 @@ PROGRAM kpoint_lattice_fft_unittest
                                               init_fft
    USE kinds,                           ONLY: dp
    USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
+                                              k_grid_to_cell_execute,&
                                               k_grid_to_cell_fft,&
+                                              k_grid_to_cell_prepare,&
+                                              k_grid_to_cell_release,&
+                                              k_grid_to_cell_work_type,&
                                               regular_kpoint_grid
    USE lattice_preconditioner_operator, ONLY: &
         apply_lattice_inverse_dense, apply_lattice_state_inverse_dense, build_lattice_inverse, &
@@ -64,6 +68,9 @@ PROGRAM kpoint_lattice_fft_unittest
    REAL(KIND=dp), DIMENSION(2, 3, ncell)               :: values_rs
    REAL(KIND=dp), DIMENSION(2, 3, nround)              :: round_rs
    TYPE(mp_comm_type)                                  :: mp_comm
+   TYPE(k_grid_to_cell_work_type)                      :: inverse_work
+   REAL(KIND=dp), DIMENSION(9)                         :: subset_weights
+   COMPLEX(KIND=dp), DIMENSION(2, 3, ncell)            :: weighted_reference, weighted_result
 
    CALL mp_world_init(mp_comm)
    CALL init_fft("FFTSG", alltoall=.FALSE., pool_limit=4, &
@@ -151,6 +158,39 @@ PROGRAM kpoint_lattice_fft_unittest
    IF (MAXVAL(ABS(reconstructed - CMPLX(round_rs, KIND=dp))) > 3.0E-12_dp) THEN
       ERROR STOP "Forward/inverse lattice-FFT round trip is inconsistent"
    END IF
+
+   ! An incomplete shifted grid uses the supplied weights exactly, including
+   ! negative translations. Reuse the preparation for separate matrix batches.
+   subset_weights = [(REAL(ik, dp)/45.0_dp, ik=1, 9)]
+   weighted_reference = z_zero
+   DO icell = 1, ncell
+      DO ik = 1, 9
+         weighted_reference(:, :, icell) = weighted_reference(:, :, icell) + subset_weights(ik)* &
+                                           EXP(-gaussi*twopi*SUM(xkp(:, ik)*REAL(index_to_cell(:, icell), dp)))*round_k(:, :, ik)
+      END DO
+   END DO
+   CALL k_grid_to_cell_prepare(inverse_work, xkp(:, 1:9), nkp_grid, index_to_cell, &
+                               weights=subset_weights, allow_incomplete=.TRUE.)
+   DO i = 1, 2
+      CALL k_grid_to_cell_execute(inverse_work, round_k(i:i, :, 1:9), weighted_result(i:i, :, :), used_fft)
+      IF (.NOT. used_fft) ERROR STOP "Prepared incomplete grid did not use FFT"
+   END DO
+   IF (MAXVAL(ABS(weighted_result - weighted_reference)) > 3.0E-12_dp) THEN
+      ERROR STOP "Prepared weighted inverse differs from explicit phase sum"
+   END IF
+   CALL k_grid_to_cell_fft(round_k(:, :, 1:9), xkp(:, 1:9), nkp_grid, index_to_cell, weighted_result, &
+                           used_fft, weights=subset_weights, allow_incomplete=.TRUE.)
+   IF (MAXVAL(ABS(weighted_result - weighted_reference)) > 3.0E-12_dp) THEN
+      ERROR STOP "One-shot and prepared inverse transforms disagree"
+   END IF
+   CALL k_grid_to_cell_prepare(inverse_work, xkp(:, 1:9), nkp_grid, index_to_cell, &
+                               weights=2.0_dp*subset_weights, allow_incomplete=.TRUE.)
+   CALL k_grid_to_cell_execute(inverse_work, round_k(:, :, 1:9), weighted_result, used_fft)
+   IF (MAXVAL(ABS(weighted_result - 2.0_dp*weighted_reference)) > 6.0E-12_dp) THEN
+      ERROR STOP "Repreparing inverse transform retained stale weights"
+   END IF
+   CALL k_grid_to_cell_release(inverse_work)
+   CALL k_grid_to_cell_release(inverse_work)
 
    nkp_grid = [4, 4, 4]
 
