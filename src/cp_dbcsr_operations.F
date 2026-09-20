@@ -319,7 +319,7 @@ CONTAINS
       TYPE(dbcsr_fm_copy_plan_type), INTENT(INOUT)       :: plan
 
       INTEGER                                            :: col, col_offset, i, iblock, j, k, &
-                                                            mirror, ncol, nrow, pos, row, &
+                                                            mirror, ncol, nrecv, nrow, pos, row, &
                                                             row_offset, thread
       LOGICAL                                            :: block_matches, transposed
       REAL(KIND=dp)                                      :: symmetry_sign, value
@@ -376,9 +376,10 @@ CONTAINS
       ! Counts and destination indices were exchanged once when the plan was built.
       CALL para_env%alltoall(plan%send_values, plan%send_count, plan%send_disp, &
                              plan%recv_values, plan%recv_count, plan%recv_disp)
+      nrecv = SUM(plan%recv_count)
       fm%local_data = 0.0_dp
-!$OMP PARALLEL DO DEFAULT(NONE) SHARED(fm, plan) PRIVATE(k)
-      DO k = 1, SUM(plan%recv_count)
+!$OMP PARALLEL DO DEFAULT(NONE) SHARED(fm, plan, nrecv) PRIVATE(k)
+      DO k = 1, nrecv
          fm%local_data(plan%recv_index(1, k), plan%recv_index(2, k)) = plan%recv_values(k)
       END DO
 !$OMP END PARALLEL DO
