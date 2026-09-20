@@ -38,4 +38,5 @@
 "H3-kpoint-roks.inp"                    = [{matcher="E_total", tol=1e-9, ref=-1.48796890031007},
                                            {matcher="M072", tol=1e-6, ref=6.74684616E-02},
                                            {matcher="M031", tol=1e-6, ref=-1.52567729226E+04}]
+"H3-kpoint-uks-opt.inp"                 = [{matcher="M007", tol=1e-9, ref=-1.4973404398}]
 #EOF
