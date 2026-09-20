@@ -1703,8 +1703,9 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MATVEC_BLOCK_COLUMNS", &
                           description="Trial vectors the kernel applies per pass. The replicated "// &
                           "work arrays cost 8*n_arrays*N_ov*this many bytes per MPI rank, with "// &
-                          "n_arrays 3 for the TDA and 4 otherwise. -1: as many as half the free "// &
-                          "memory per rank allows, itself capped by BLOCK_SIZE.", &
+                          "n_arrays 3 for the TDA and 4 otherwise. -1: as many as a quarter of the "// &
+                          "free memory per rank allows, never more than the columns of the call: "// &
+                          "BLOCK_SIZE in the ABBA solvers, the whole guess in the TDA.", &
                           usage="MATVEC_BLOCK_COLUMNS 32", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
