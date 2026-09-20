@@ -13,8 +13,12 @@
 ! **************************************************************************************************
 MODULE qs_matrix_w
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
-                                              dbcsr_set
+   USE cp_dbcsr_api,                    ONLY: dbcsr_init_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release_p,&
+                                              dbcsr_set,&
+                                              dbcsr_type
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -24,12 +28,19 @@ MODULE qs_matrix_w
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
                                               kpoint_density_transform,&
-                                              kpoint_ot_energy_weighted_matrices
-   USE kpoint_types,                    ONLY: kpoint_type
+                                              kpoint_ot_energy_weighted_density
+   USE kpoint_types,                    ONLY: kpoint_env_type,&
+                                              kpoint_type
    USE qs_density_matrices,             ONLY: calculate_w_matrix,&
                                               calculate_w_matrix_ot
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_kpoint_operators,             ONLY: kpoint_operator_context_create,&
+                                              kpoint_operator_context_release,&
+                                              kpoint_operator_context_type,&
+                                              kpoint_operator_get,&
+                                              kpoint_operator_prepare,&
+                                              kpoint_slot_ks
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -114,7 +125,7 @@ CONTAINS
 
                ! energy weighted density matrices in k-space
                IF (scf_control%use_ot) THEN
-                  CALL kpoint_ot_energy_weighted_matrices(kpoints, matrix_ks_kp)
+                  CALL kpoint_ot_energy_weighted_matrices(kpoints, matrix_ks_kp, fmwork(1))
                ELSE
                   CALL kpoint_density_matrices(kpoints, energy_weighted=.TRUE.)
                END IF
@@ -177,5 +188,84 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_matrix_w
+
+! **************************************************************************************************
+!> \brief Build OT energy-weighted densities using Hamiltonians on the k-point groups.
+!> \param kpoint K-point environment
+!> \param matrix_ks current real-space Kohn-Sham matrices
+!> \param ao_ao_fm square full-matrix template on the global parallel environment
+! **************************************************************************************************
+   SUBROUTINE kpoint_ot_energy_weighted_matrices(kpoint, matrix_ks, ao_ao_fm)
+
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks
+      TYPE(cp_fm_type), INTENT(IN)                       :: ao_ao_fm
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_ot_energy_weighted_matrices'
+
+      INTEGER                                            :: handle, ikpgr, ispin, kplocal, kpmax, &
+                                                            nmo, nspin
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation
+      TYPE(cp_fm_type)                                   :: hc_im, hc_re
+      TYPE(cp_fm_type), POINTER                          :: coeff_im, coeff_re
+      TYPE(dbcsr_type), POINTER                          :: matrix_k_im, matrix_k_re
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_operator_context_type)                 :: op_ctx
+
+      CALL timeset(routineN, handle)
+      NULLIFY (coeff_im, coeff_re, matrix_k_im, matrix_k_re, occupation)
+      CPASSERT(.NOT. kpoint%use_real_wfn)
+      CPASSERT(ASSOCIATED(matrix_ks))
+
+      nspin = SIZE(matrix_ks, 1)
+      kplocal = SIZE(kpoint%kp_env)
+      kpmax = MAXVAL(kpoint%kp_dist(2, :) - kpoint%kp_dist(1, :) + 1)
+      CALL kpoint_operator_context_create(op_ctx, kpoint, ao_ao_fm, nspin)
+      ! Capture the current Hamiltonian after SCF, independently of OT's iteration caches.
+      CALL kpoint_operator_prepare(op_ctx, matrix_ks, kpoint_slot_ks)
+
+      DO ikpgr = 1, kpmax
+         DO ispin = 1, nspin
+            CALL dbcsr_init_p(matrix_k_re)
+            CALL dbcsr_init_p(matrix_k_im)
+            ! All groups participate in the operator calls, including inactive groups in the
+            ! last round. The fallback may communicate over the global parallel environment.
+            CALL kpoint_operator_get(op_ctx, ikpgr, ispin, matrix_ks, &
+                                     mat_re=matrix_k_re, mat_im=matrix_k_im, &
+                                     matrix_row=ispin, slot=kpoint_slot_ks)
+            IF (ikpgr <= kplocal) THEN
+               kp => kpoint%kp_env(ikpgr)%kpoint_env
+               CALL get_mo_set(kp%mos(1, ispin), mo_coeff=coeff_re, nmo=nmo, &
+                               occupation_numbers=occupation)
+               CALL get_mo_set(kp%mos(2, ispin), mo_coeff=coeff_im)
+               CPASSERT(nmo >= 1)
+               CPASSERT(SIZE(occupation) >= nmo)
+
+               ! Smearing occupations are k-point resolved, whereas mo_set%homo is not.
+               CALL cp_fm_create(hc_re, coeff_re%matrix_struct, set_zero=.TRUE.)
+               CALL cp_fm_create(hc_im, coeff_im%matrix_struct, set_zero=.TRUE.)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, coeff_re, hc_re, nmo)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, coeff_im, hc_re, nmo, &
+                                            alpha=-1.0_dp, beta=1.0_dp)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, coeff_im, hc_im, nmo)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, coeff_re, hc_im, nmo, &
+                                            alpha=1.0_dp, beta=1.0_dp)
+
+               CALL kpoint_ot_energy_weighted_density( &
+                  coeff_re, coeff_im, hc_re, hc_im, occupation, &
+                  kp%wmat(1, ispin), kp%wmat(2, ispin))
+
+               CALL cp_fm_release(hc_im)
+               CALL cp_fm_release(hc_re)
+            END IF
+            CALL dbcsr_release_p(matrix_k_im)
+            CALL dbcsr_release_p(matrix_k_re)
+         END DO
+      END DO
+
+      CALL kpoint_operator_context_release(op_ctx)
+      CALL timestop(handle)
+
+   END SUBROUTINE kpoint_ot_energy_weighted_matrices
 
 END MODULE qs_matrix_w
