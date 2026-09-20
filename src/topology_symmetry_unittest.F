@@ -7,6 +7,7 @@
 PROGRAM topology_symmetry_unittest
    USE ieee_arithmetic,                 ONLY: ieee_quiet_nan,&
                                               ieee_value
+   USE iso_fortran_env,                 ONLY: output_unit
    USE kinds,                           ONLY: dp
    USE topology_symmetry,               ONLY: character_multiplicities,&
                                               inversion_representation
@@ -16,9 +17,10 @@ PROGRAM topology_symmetry_unittest
    IMPLICIT NONE
    COMPLEX(KIND=dp) :: table(6, 3), group_chars(6), metric(2, 2), coeff(4, 4), phase(2), tmp(4)
    REAL(KIND=dp) :: error, energy_error, energies(4)
-   INTEGER :: multiplicities(3), status, counts(2), odd(8), ebr(2, 8), a, k, sign, strong, weak(3), z4
+   INTEGER :: multiplicities(3), status, counts(2), odd(8), ebr(2, 8), a, k, sign, strong, weak(3), z4, io_unit
    LOGICAL :: signed_atomic, nonnegative_atomic
 
+   io_unit = output_unit
    ! Complete C3v/S3 character table per element, including a two-dimensional irrep.
    table(:, 1) = CMPLX([1, 1, 1, 1, 1, 1], 0, dp)
    table(:, 2) = CMPLX([1, 1, 1, -1, -1, -1], 0, dp)
@@ -108,7 +110,7 @@ PROGRAM topology_symmetry_unittest
    IF (status == 0) ERROR STOP 'Invalid multiplicity accepted'
    CALL exhaustive_signatures(2)
    CALL exhaustive_signatures(3)
-   PRINT *, 'Native characters, parity, inversion indicators and EBR tests passed.'
+   WRITE (io_unit, *) 'Native characters, parity, inversion indicators and EBR tests passed.'
 CONTAINS
 
 ! **************************************************************************************************
