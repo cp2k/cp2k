@@ -1127,7 +1127,7 @@ CONTAINS
                                   cache_smat, reuse_smat, use_adiis, ib, store_error, diis_weight, coeffs)
       TYPE(kpoint_operator_context_type), INTENT(IN) :: ctx
       TYPE(kpoint_type), POINTER :: kpoints
-      TYPE(kp_diag_workspace_type), INTENT(INOUT) :: workspace(:)
+      TYPE(kp_diag_workspace_type), TARGET, INTENT(INOUT) :: workspace(:)
       TYPE(qs_scf_env_type), POINTER :: scf_env
       TYPE(scf_control_type), POINTER :: scf_control
       INTEGER, INTENT(IN) :: nspin, ib
@@ -1138,54 +1138,55 @@ CONTAINS
       INTEGER :: ik, ikp, ispin, kplocal, nworkers, thread
       LOGICAL :: build_h, build_s
       TYPE(kpoint_env_type), POINTER :: kp
+      TYPE(kp_diag_workspace_type), POINTER :: work
 
       kplocal = kpoints%kp_range(2) - kpoints%kp_range(1) + 1
       nworkers = SIZE(workspace)
       build_s = .NOT. PRESENT(coeffs) .AND. .NOT. reuse_smat
       build_h = .NOT. PRESENT(coeffs) .OR. diis_weight < 1.0_dp
       ! Each one-rank group owns complete matrices: assemble directly into solver storage.
+      ! Keep the workspace binding explicit and thread-private for classic ifort.
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(DYNAMIC, 1) NUM_THREADS(nworkers) IF(nworkers > 1) &
 !$OMP SHARED(ctx,kpoints,workspace,scf_env,scf_control,nspin,cache_smat,reuse_smat,use_adiis,ib, &
 !$OMP        store_error,diis_weight,coeffs,kplocal,nworkers,build_h,build_s) &
-!$OMP PRIVATE(ik,ikp,ispin,thread,kp)
+!$OMP PRIVATE(ik,ikp,ispin,thread,kp,work)
       DO ikp = 1, kplocal
          thread = 1
 !$       thread = omp_get_thread_num() + 1
          ik = kpoints%kp_range(1) + ikp - 1
          kp => kpoints%kp_env(ikp)%kpoint_env
-         ASSOCIATE (work => workspace(thread))
-            IF (build_s) THEN
-               CALL kpoint_operator_evaluate(ctx, 1, kpoint_slot_s, ik, work%phase, work%csmat_base)
-            END IF
-            DO ispin = 1, nspin
-               IF (build_h) THEN
-                  IF (PRESENT(coeffs)) THEN
-                     CALL kpoint_operator_evaluate(ctx, ispin, kpoint_slot_ks, ik, work%phase, work%csmat_base)
-                  ELSE
-                     CALL kpoint_operator_evaluate(ctx, ispin, kpoint_slot_ks, ik, work%phase, work%cksmat)
-                  END IF
-               END IF
+         work => workspace(thread)
+         IF (build_s) THEN
+            CALL kpoint_operator_evaluate(ctx, 1, kpoint_slot_s, ik, work%phase, work%csmat_base)
+         END IF
+         DO ispin = 1, nspin
+            IF (build_h) THEN
                IF (PRESENT(coeffs)) THEN
-                  CALL cp_cfm_to_cfm(kpoints%scf_diis_buffer%smat(ikp), work%csmat)
-                  CALL kp_diis_candidate(kpoints, ikp, ispin, coeffs, diis_weight, work%cksmat, work%csmat_base)
+                  CALL kpoint_operator_evaluate(ctx, ispin, kpoint_slot_ks, ik, work%phase, work%csmat_base)
                ELSE
-                  IF (reuse_smat) THEN
-                     CALL cp_cfm_to_cfm(kpoints%scf_smat(ikp), work%csmat)
-                  ELSE
-                     CALL cp_cfm_to_cfm(work%csmat_base, work%csmat)
-                  END IF
-                  IF (cache_smat .AND. .NOT. reuse_smat .AND. ispin == 1) THEN
-                     CALL cp_cfm_to_cfm(work%csmat, kpoints%scf_smat(ikp))
-                  END IF
+                  CALL kpoint_operator_evaluate(ctx, ispin, kpoint_slot_ks, ik, work%phase, work%cksmat)
                END IF
-               IF (store_error) THEN
-                  CALL qs_diis_b_calc_err_kp(kpoints%scf_diis_buffer, ib, kp%mos, work%cksmat, work%csmat, &
-                                             ispin, ikp, work%cmos, local=.TRUE., gemm_ctx=work%gemm_ctx)
+            END IF
+            IF (PRESENT(coeffs)) THEN
+               CALL cp_cfm_to_cfm(kpoints%scf_diis_buffer%smat(ikp), work%csmat)
+               CALL kp_diis_candidate(kpoints, ikp, ispin, coeffs, diis_weight, work%cksmat, work%csmat_base)
+            ELSE
+               IF (reuse_smat) THEN
+                  CALL cp_cfm_to_cfm(kpoints%scf_smat(ikp), work%csmat)
                ELSE
-                  CALL kp_solve_complex(kp%mos(:, ispin), work, scf_env, scf_control, use_adiis, .TRUE.)
+                  CALL cp_cfm_to_cfm(work%csmat_base, work%csmat)
                END IF
-            END DO
-         END ASSOCIATE
+               IF (cache_smat .AND. .NOT. reuse_smat .AND. ispin == 1) THEN
+                  CALL cp_cfm_to_cfm(work%csmat, kpoints%scf_smat(ikp))
+               END IF
+            END IF
+            IF (store_error) THEN
+               CALL qs_diis_b_calc_err_kp(kpoints%scf_diis_buffer, ib, kp%mos, work%cksmat, work%csmat, &
+                                          ispin, ikp, work%cmos, local=.TRUE., gemm_ctx=work%gemm_ctx)
+            ELSE
+               CALL kp_solve_complex(kp%mos(:, ispin), work, scf_env, scf_control, use_adiis, .TRUE.)
+            END IF
+         END DO
       END DO
 !$OMP END PARALLEL DO
 
