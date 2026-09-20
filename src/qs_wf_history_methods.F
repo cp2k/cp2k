@@ -1278,19 +1278,22 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, nmo_nmo_struct
       TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_matrix_pools_type), POINTER                :: mpools_kp
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_wf_history_type), POINTER                  :: wf_history
       TYPE(qs_wf_snapshot_type), POINTER                 :: t1_state
+      TYPE(scf_control_type), POINTER                    :: scf_control
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (kpoints, matrix_s_kp, scf_env, kp, &
+      NULLIFY (dft_control, scf_control, kpoints, matrix_s_kp, scf_env, kp, &
                mo_coeff, rmos, imos, wf_history, t1_state)
 
-      CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp, scf_env=scf_env)
+      CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp, scf_env=scf_env, &
+                      dft_control=dft_control, scf_control=scf_control)
       CALL get_kpoint_info(kpoints, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range)
       kplocal = kp_range(2) - kp_range(1) + 1
 
@@ -1415,7 +1418,11 @@ CONTAINS
       DEALLOCATE (eigenvalues)
 
       ! Phase C: Rebuild Density Matrix P(R)
-      CALL qs_kpoint_state_commit(qs_env, update_occupations=.TRUE.)
+      ! Fixed-occupation OT must preserve its occupied rank after extrapolation; its energy
+      ! labels and any padded UKS columns are not a spectrum for refilling the bands.
+      CALL qs_kpoint_state_commit(qs_env, update_occupations=.TRUE., &
+                                  fixed_occupations=scf_env%method == ot_method_nr .AND. &
+                                  .NOT. (dft_control%smear .OR. scf_control%smear%do_smear))
 
       ! Cleanup
       DO ikp = 1, kplocal

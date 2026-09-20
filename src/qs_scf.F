@@ -149,6 +149,7 @@ MODULE qs_scf
                                               kpoint_operator_store
    USE qs_kpoint_state,                 ONLY: qs_kpoint_copy_spin_mos,&
                                               qs_kpoint_mos_initialized,&
+                                              qs_kpoint_set_fixed_occupations,&
                                               qs_kpoint_state_canonicalize_fixed,&
                                               qs_kpoint_state_commit,&
                                               qs_kpoint_state_prepare_fixed_density
@@ -1489,6 +1490,11 @@ CONTAINS
                                         kp_range=kp_range, &
                                         wkp=wkp)
 
+               ! A previous zero-width filling may have changed the occupied rank at each k point.
+               ! Restore the fixed OT ranks before validating or reconstructing the active space.
+               IF (.NOT. scf_env%qs_ot_env(1)%settings%do_ener) THEN
+                  CALL qs_kpoint_set_fixed_occupations(kpoints)
+               END IF
                kpoint_mos_initialized = qs_kpoint_mos_initialized( &
                                         kpoints, require_full_space=scf_env%qs_ot_env(1)%settings%do_ener)
                SELECT CASE (entry_reason)

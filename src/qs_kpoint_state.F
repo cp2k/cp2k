@@ -59,7 +59,7 @@ MODULE qs_kpoint_state
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpoint_state'
 
-   PUBLIC :: qs_kpoint_copy_spin_mos, qs_kpoint_mos_initialized, &
+   PUBLIC :: qs_kpoint_copy_spin_mos, qs_kpoint_mos_initialized, qs_kpoint_set_fixed_occupations, &
              qs_kpoint_state_canonicalize_fixed, qs_kpoint_state_commit, &
              qs_kpoint_state_prepare_fixed_density
 
