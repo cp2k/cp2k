@@ -39,8 +39,7 @@ MODULE kpoint_methods
         dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                              cp_dbcsr_sm_fm_multiply
+   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm,&
@@ -138,7 +137,7 @@ MODULE kpoint_methods
    PUBLIC :: kpoint_init_cell_index, kpoint_set_mo_occupation
    PUBLIC :: kpoint_smearing_edge_status
    PUBLIC :: kpoint_density_matrices, kpoint_density_transform
-   PUBLIC :: kpoint_ot_energy_weighted_density, kpoint_ot_energy_weighted_matrices
+   PUBLIC :: kpoint_ot_energy_weighted_density
    PUBLIC :: kp_transform_plan_create
    PUBLIC :: rskp_transform, lowdin_kp_trans, lowdin_kp_mo_coeff
    PUBLIC :: rskp_grid_type, rskp_transform_grid_prepare, rskp_transform_grid_extract, &
@@ -2026,92 +2025,6 @@ CONTAINS
       CALL cp_cfm_release(coeff)
 
    END SUBROUTINE kpoint_ot_energy_weighted_density
-
-! **************************************************************************************************
-!> \brief Build energy-weighted density matrices for complex K-point OT.
-!>        H(k) is transformed only while W(k) is needed, avoiding a persistent
-!>        dense AO-by-AO Hamiltonian for every spin and K point.
-!> \param kpoint K-point environment
-!> \param matrix_ks real-space Kohn-Sham matrices
-! **************************************************************************************************
-   SUBROUTINE kpoint_ot_energy_weighted_matrices(kpoint, matrix_ks)
-
-      TYPE(kpoint_type), POINTER                         :: kpoint
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_ot_energy_weighted_matrices'
-
-      INTEGER                                            :: handle, ikpgr, ikpoint, ispin, nmo, nspin
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: use_real_wfn
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
-      TYPE(cp_fm_type)                                   :: hc_im, hc_re
-      TYPE(cp_fm_type), POINTER                          :: coeff_im, coeff_re
-      TYPE(dbcsr_type), POINTER                          :: matrix_k_im, matrix_k_re
-      TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_nl
-
-      CALL timeset(routineN, handle)
-      NULLIFY (cell_to_index, coeff_im, coeff_re, matrix_k_im, matrix_k_re, occupation, sab_nl, xkp)
-
-      CALL get_kpoint_info(kpoint, xkp=xkp, use_real_wfn=use_real_wfn, &
-                           cell_to_index=cell_to_index, sab_nl=sab_nl)
-      CPASSERT(.NOT. use_real_wfn)
-      CPASSERT(ASSOCIATED(cell_to_index))
-      CPASSERT(ASSOCIATED(sab_nl))
-      CPASSERT(ASSOCIATED(matrix_ks))
-
-      ALLOCATE (matrix_k_re, matrix_k_im)
-      CALL dbcsr_create(matrix_k_re, template=matrix_ks(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_symmetric)
-      CALL dbcsr_create(matrix_k_im, template=matrix_ks(1, 1)%matrix, &
-                        matrix_type=dbcsr_type_antisymmetric)
-      CALL cp_dbcsr_alloc_block_from_nbl(matrix_k_re, sab_nl)
-      CALL cp_dbcsr_alloc_block_from_nbl(matrix_k_im, sab_nl)
-
-      DO ikpgr = 1, SIZE(kpoint%kp_env)
-         kp => kpoint%kp_env(ikpgr)%kpoint_env
-         ikpoint = kp%nkpoint
-         nspin = SIZE(kp%mos, 2)
-         DO ispin = 1, nspin
-            CALL dbcsr_set(matrix_k_re, 0.0_dp)
-            CALL dbcsr_set(matrix_k_im, 0.0_dp)
-            CALL rskp_transform(rmatrix=matrix_k_re, cmatrix=matrix_k_im, rsmat=matrix_ks, &
-                                ispin=ispin, xkp=xkp(1:3, ikpoint), &
-                                cell_to_index=cell_to_index, sab_nl=sab_nl)
-
-            CALL get_mo_set(kp%mos(1, ispin), mo_coeff=coeff_re, nmo=nmo, &
-                            occupation_numbers=occupation)
-            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=coeff_im)
-            CPASSERT(nmo >= 1)
-            CPASSERT(SIZE(occupation) >= nmo)
-
-            ! Smearing occupations are k-point resolved, whereas mo_set%homo is not.
-            CALL cp_fm_create(hc_re, coeff_re%matrix_struct, set_zero=.TRUE.)
-            CALL cp_fm_create(hc_im, coeff_im%matrix_struct, set_zero=.TRUE.)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, coeff_re, hc_re, nmo)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, coeff_im, hc_re, nmo, &
-                                         alpha=-1.0_dp, beta=1.0_dp)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, coeff_im, hc_im, nmo)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, coeff_re, hc_im, nmo, &
-                                         alpha=1.0_dp, beta=1.0_dp)
-
-            CALL kpoint_ot_energy_weighted_density( &
-               coeff_re, coeff_im, hc_re, hc_im, occupation, &
-               kp%wmat(1, ispin), kp%wmat(2, ispin))
-
-            CALL cp_fm_release(hc_im)
-            CALL cp_fm_release(hc_re)
-         END DO
-      END DO
-
-      CALL dbcsr_deallocate_matrix(matrix_k_im)
-      CALL dbcsr_deallocate_matrix(matrix_k_re)
-      CALL timestop(handle)
-
-   END SUBROUTINE kpoint_ot_energy_weighted_matrices
 
 ! **************************************************************************************************
 !> \brief Common C-to-P algebra for local and distributed k-point groups.
