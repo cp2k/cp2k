@@ -38,6 +38,9 @@ export CC=gcc
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
 git clone --quiet https://github.com/aiidateam/aiida-cp2k.git /opt/aiida-cp2k/
 cd /opt/aiida-cp2k/
+# CP2K always enables extended FFT lengths now. Keep the band-structure test,
+# but drop its removed input keyword until aiidateam/aiida-cp2k#233 is merged.
+sed -i '/"EXTENDED_FFT_LENGTHS": True,/d' examples/single_calculations/example_bands.py
 # For compatibility of Python 3.14
 # pip3 install './[dev]'
 pip3 install .
