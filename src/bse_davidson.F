@@ -1522,8 +1522,14 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          IF (from_memory) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', &
-               'Maximum subspace dimension (from free memory)', m_max
+            ! the memory estimate is capped at 20*n_act, so say which of the two bound it
+            IF (m_max >= 20*n_act) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', &
+                  'Maximum subspace dimension (20 x buffered states)', m_max
+            ELSE
+               WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', &
+                  'Maximum subspace dimension (from free memory)', m_max
+            END IF
             WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', &
                'Fraction of the free memory made available', mem_fraction
          ELSE
