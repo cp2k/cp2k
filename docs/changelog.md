@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.2.1 (Backport release, Sep 20, 2026)
+
+### Fixes
+- Fix Na/Ca UZH basis labels ([#5633](https://github.com/cp2k/cp2k/pull/5633))
+- Stabilize half-cell periodic images ([#5646](https://github.com/cp2k/cp2k/pull/5646))
+- Write cube values with (1X,ES12.4E3) ([#5698](https://github.com/cp2k/cp2k/pull/5698))
+
 ## 2026.2 (July 15, 2026)
 
 ### New Features
