@@ -545,7 +545,7 @@ CONTAINS
          CALL get_results(results, description=description, &
                           values=res_val_3, n_entries=i_tmp)
          CPASSERT(i_tmp == 3)
-         IF (ALL(res_val_3(:) <= 0.0)) THEN
+         IF (ALL(res_val_3(:) <= 0.0_dp)) THEN
             CALL cp_abort(__LOCATION__, &
                           " Trying to access result ("//TRIM(description)// &
                           ") which is not correctly stored.")

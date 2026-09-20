@@ -21,7 +21,7 @@ MODULE mathconstants
 
    PRIVATE
 
-   PUBLIC :: maxfac, pi, pio2, twopi, fourpi, rootpi, oorootpi, zero, one, &
+   PUBLIC :: maxfac, pi, pio2, twopi, fourpi, rootpi, oorootpi, zero, one, half, two, &
              degree, radians, gaussi, fac, ifac, dfac, gamma0, gamma1, euler, &
              sqrthalf, sqrt2, sqrt3, sqrt5, sqrt7, sqrt15, sqrt21, sqrt35, &
              sqrt105, z_mone, z_one, z_zero
@@ -122,7 +122,8 @@ MODULE mathconstants
 
    REAL(KIND=dp), PARAMETER :: zero = 0.0_dp, &
                                half = 0.5_dp, &
-                               one = 1.0_dp
+                               one = 1.0_dp, &
+                               two = 2.0_dp
 
    REAL(KIND=dp), PARAMETER :: sqrthalf = 0.70710678118654752440084436_dp, & ! SQRT(1/2)
                                sqrt2 = 1.41421356237309504880168872_dp, & ! SQRT(2)

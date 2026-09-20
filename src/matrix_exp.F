@@ -265,7 +265,7 @@ CONTAINS
                   N = 1.0_dp
                   DO i = 1, q
                      IF (i <= p) scaleN = fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i))
-                     scaleD = (-1.0)**i*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i))
+                     scaleD = (-1.0_dp)**i*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i))
                      IF (i <= p) N = N + scaleN*eval**i
                      D = D + scaleD*eval**i
                   END DO

@@ -404,12 +404,12 @@ CONTAINS
    SUBROUTINE test_least_square_ft(nR, iw)
       INTEGER, INTENT(IN)                                :: nR, iw
 
+      REAL(KIND=dp), PARAMETER                           :: Rc_max = 1.0E+07_dp
+
       INTEGER                                            :: ierr, iR, num_integ_points
-      REAL(KIND=dp)                                      :: max_error, multiplicator, Rc, Rc_max
+      REAL(KIND=dp)                                      :: max_error, multiplicator, Rc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tau_tj, tj, x_tw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: weights_cos_tf_t_to_w
-
-      Rc_max = 1.0E+7
 
       multiplicator = Rc_max**(1.0_dp/(REAL(nR, KIND=dp) - 1.0_dp))
 

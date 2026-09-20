@@ -51,7 +51,7 @@ MODULE glbopt_mincrawl
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: pos
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: escape_hist
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: tempdist
-      REAL(KIND=dp)                                       :: Epot = -1.0
+      REAL(KIND=dp)                                       :: Epot = -1.0_dp
       TYPE(history_fingerprint_type)                      :: fp
       LOGICAL                                             :: disabled = .FALSE.
       INTEGER                                             :: n_active = 0
@@ -148,9 +148,9 @@ CONTAINS
 
       ! call fermi-like stepfunction for initial temp-dist
       ALLOCATE (this%tempdist_init(this%tempstep_max))
-      this%tempdist_init = 0.0
+      this%tempdist_init = 0.0_dp
       DO i = 1, this%tempstep_max
-         this%tempdist_init(i) = 1.0/(1.0 + EXP((this%tempstep_init - i)/this%tempdist_init_width))
+         this%tempdist_init(i) = 1.0_dp/(1.0_dp + EXP((this%tempstep_init - i)/this%tempdist_init_width))
       END DO
 
       this%rng_stream = rng_stream_type(name="mincrawl")
@@ -231,7 +231,7 @@ CONTAINS
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: score, score_best
 
-      score_best = HUGE(1.0)
+      score_best = HUGE(1.0_dp)
       NULLIFY (minima)
 
       DO i = 1, this%n_minima
@@ -276,7 +276,7 @@ CONTAINS
       DO
          r = this%rng_stream%next()
          step = INT(r*SIZE(minima%tempdist)) + 1
-         a = 1.0 - 2.0*ABS(minima%tempdist(step) - 0.5)
+         a = 1.0_dp - 2.0_dp*ABS(minima%tempdist(step) - 0.5_dp)
          r = this%rng_stream%next()
          IF (r < a) EXIT
       END DO

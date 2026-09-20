@@ -168,7 +168,7 @@ CONTAINS
                      fz = MAX(xz, yz)/MIN(xz, yz)
                      fmin = MIN(fmin, fz)
                   END DO
-                  IF (fmin > fr1**0.25) THEN
+                  IF (fmin > fr1**0.25_dp) THEN
                      nn = nn + 1
                      zeta(nn, l + 1) = xz
                   END IF

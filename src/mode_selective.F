@@ -1316,6 +1316,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: intensities
       TYPE(cp_logger_type), POINTER                      :: logger
 
+      REAL(KIND=dp), PARAMETER                           :: eps_criter1 = 1.0E-07_dp, &
+                                                            eps_criter2 = 1.0E-06_dp
+
       INTEGER                                            :: i, j, msunit
       REAL(KIND=dp)                                      :: crit_a, crit_b, fint, gintval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: residuum
@@ -1405,7 +1408,7 @@ CONTAINS
 
             WRITE (iw, '(T2,A,3X,I6)') "MS| ITERATION STEP", ms_vib%mat_size/nrep
             DO i = 1, nrep
-               IF (criter(1, i) <= 1E-7 .AND. (criter(2, i)) <= 1E-6) THEN
+               IF (criter(1, i) <= eps_criter1 .AND. (criter(2, i)) <= eps_criter2) THEN
                   WRITE (iw, '(T2,A,3X,F12.6,A)') "MS| TRACKED MODE ", freq(i), "cm-1  IS  CONVERGED"
                ELSE
                   WRITE (iw, '(T2,A,3X,F12.6,A)') "MS| TRACKED MODE ", freq(i), "cm-1  NOT  CONVERGED"

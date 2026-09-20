@@ -1078,6 +1078,8 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
+      REAL(KIND=dp), PARAMETER                           :: eps_screen_thre = 1.0E-16_dp
+
       INTEGER                                            :: i
       REAL(dp)                                           :: occ
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -1196,7 +1198,7 @@ CONTAINS
                "EXACT_EXCHANGE| Effective Range: ", xas_tdp_control%x_potential%cutoff_radius*angstrom, ", (Ang)", &
                "EXACT_EXCHANGE| EPS_RANGE: ", xas_tdp_control%eps_range
          END IF
-         IF (xas_tdp_control%eps_screen > 1.0E-16) THEN
+         IF (xas_tdp_control%eps_screen > eps_screen_thre) THEN
             WRITE (UNIT=ou, FMT="(T3,A,ES7.1)") &
                "EXACT_EXCHANGE| EPS_SCREENING: ", xas_tdp_control%eps_screen
          END IF

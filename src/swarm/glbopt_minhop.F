@@ -41,23 +41,23 @@ MODULE glbopt_minhop
    PUBLIC :: minhop_steer
 
    TYPE worker_state_type
-      REAL(KIND=dp)                                       :: Eaccept = -1.0
-      REAL(KIND=dp)                                       :: temp = -1.0
+      REAL(KIND=dp)                                       :: Eaccept = -1.0_dp
+      REAL(KIND=dp)                                       :: temp = -1.0_dp
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: pos
-      REAL(KIND=dp)                                       :: Epot = -1.0
+      REAL(KIND=dp)                                       :: Epot = -1.0_dp
       TYPE(history_fingerprint_type)                      :: fp
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: pos_hop
-      REAL(KIND=dp)                                       :: Epot_hop = HUGE(1.0)
+      REAL(KIND=dp)                                       :: Epot_hop = HUGE(1.0_dp)
       TYPE(history_fingerprint_type)                      :: fp_hop
       INTEGER                                             :: minima_id = -1
       INTEGER                                             :: iframe = 1
    END TYPE worker_state_type
 
    TYPE minima_state_type
-      REAL(KIND=dp)                                       :: Eaccept = -1.0
-      REAL(KIND=dp)                                       :: temp = -1.0
+      REAL(KIND=dp)                                       :: Eaccept = -1.0_dp
+      REAL(KIND=dp)                                       :: temp = -1.0_dp
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE            :: pos
-      REAL(KIND=dp)                                       :: Epot = -1.0
+      REAL(KIND=dp)                                       :: Epot = -1.0_dp
       TYPE(history_fingerprint_type)                      :: fp
       LOGICAL                                             :: disabled = .FALSE.
       INTEGER                                             :: n_active = 0
@@ -230,7 +230,7 @@ CONTAINS
             this%worker_state(wid)%Epot = this%worker_state(wid)%Epot_hop
             this%worker_state(wid)%pos(:) = this%worker_state(wid)%pos_hop
             this%worker_state(wid)%fp = this%worker_state(wid)%fp_hop
-            this%worker_state(wid)%Epot_hop = HUGE(1.0)
+            this%worker_state(wid)%Epot_hop = HUGE(1.0_dp)
 
             this%worker_state(wid)%Eaccept = this%worker_state(wid)%Eaccept*this%alpha1 !decreasing Eaccept
             this%n_accepted = this%n_accepted + 1

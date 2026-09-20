@@ -1931,7 +1931,7 @@ CONTAINS
                         IF (tmp >= 0.005_dp) THEN
                            tmp2 = 1.0_dp - COS(tmp)
                         ELSE
-                           tmp2 = tmp**2/2.0_dp*(1.0 - tmp**2/12.0_dp)
+                           tmp2 = tmp**2/2.0_dp*(1.0_dp - tmp**2/12.0_dp)
                         END IF
                         pw%array(i) = pw%array(i)*tmp2
                      END DO

@@ -625,7 +625,7 @@ CONTAINS
             END IF
             nspins = SIZE(rho_r)
             rho_set%local_bounds = rho_r(1)%pw_grid%bounds_local
-            rho_cutoff = 0.5*rho_set%rho_cutoff
+            rho_cutoff = 0.5_dp*rho_set%rho_cutoff
 
             my_rho_g_local = .FALSE.
             ! some checks

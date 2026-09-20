@@ -2129,9 +2129,9 @@ CONTAINS
 
       alda0 = .false.
       IF (gradient_f) THEN
-         S_THRESH = 1.0E-04
+         S_THRESH = 1.0E-04_dp
       ELSE
-         S_THRESH = 1.0E-10
+         S_THRESH = 1.0E-10_dp
       END IF
 
       IF (tau_f) THEN
@@ -2680,8 +2680,8 @@ CONTAINS
       !
       !S_THRESH has to be the same as S_THRESH in xc_calc_2nd_deriv_analytical
       alda0 = .false.
-      S_THRESH = 1.0E-04
-      S_THRESH2 = 1.0E-07
+      S_THRESH = 1.0E-04_dp
+      S_THRESH2 = 1.0E-07_dp
 
       ! Initialize potential
       DO ispin = 1, nspins

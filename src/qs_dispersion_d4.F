@@ -510,7 +510,7 @@ CONTAINS
             IF (iw > 0) THEN
                tb = SUM(enerd2)
                ed2 = ta - tb
-               pd2 = ABS(ed2)/ABS(tb)*100.
+               pd2 = ABS(ed2)/ABS(tb)*100._dp
                WRITE (iw, '(A,T51,F14.8,T69,F10.4,A)') " DEBUG D4| Energy error 2-body", ed2, pd2, " %"
             END IF
             IF (dispersion_env%doabc) THEN
@@ -519,7 +519,7 @@ CONTAINS
                IF (iw > 0) THEN
                   tb = SUM(enerd3)
                   ed3 = ta - tb
-                  pd3 = ABS(ed3)/ABS(tb)*100.
+                  pd3 = ABS(ed3)/ABS(tb)*100._dp
                   WRITE (iw, '(A,T51,F14.8,T69,F10.4,A)') " DEBUG D4| Energy error 3-body", ed3, pd3, " %"
                END IF
             END IF
@@ -1204,7 +1204,7 @@ CONTAINS
       np = MAXLOC(ABS(gd - ga))
       ev3 = ABS(gd(np(1), np(2)) - ga(np(1), np(2)))
       ev4 = ABS(gd(np(1), np(2)))
-      IF (ev4 > 1.E-6) THEN
+      IF (ev4 > 1.E-6_dp) THEN
          ev4 = ev3/ev4*100._dp
       ELSE
          ev4 = 100.0_dp

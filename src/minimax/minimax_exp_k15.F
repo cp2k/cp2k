@@ -195,8 +195,8 @@ CONTAINS
          CPABORT("Only integers 1-15 are supported as the value of k")
       END SELECT
 
-      fit_coef = 0.0
-      aw = 0.0
+      fit_coef = 0.0_dp
+      aw = 0.0_dp
       IF (Rc < R_min) THEN
          CPABORT("Rc < R_min in get_minimax_coeff_k15")
       ELSE

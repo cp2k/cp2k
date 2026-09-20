@@ -1211,12 +1211,12 @@ CONTAINS
       nintegral_divisions = 3
       ALLOCATE (virial_cutoffs(1:nintegral_divisions))
       ALLOCATE (virial_stepsize(1:nintegral_divisions))
-      virial_cutoffs(1) = 8.0 ! first distance, in bohr
-      virial_cutoffs(2) = 13.0 ! second distance, in bohr
-      virial_cutoffs(3) = 22.0 ! maximum distance, in bohr
-      virial_stepsize(1) = 0.04 ! stepsize from 0 to virial_cutoffs(1)
-      virial_stepsize(2) = 0.1
-      virial_stepsize(3) = 0.2
+      virial_cutoffs(1) = 8.0_dp ! first distance, in bohr
+      virial_cutoffs(2) = 13.0_dp ! second distance, in bohr
+      virial_cutoffs(3) = 22.0_dp ! maximum distance, in bohr
+      virial_stepsize(1) = 0.04_dp ! stepsize from 0 to virial_cutoffs(1)
+      virial_stepsize(2) = 0.1_dp
+      virial_stepsize(3) = 0.2_dp
 
       nbins = CEILING(virial_cutoffs(1)/virial_stepsize(1) + (virial_cutoffs(2) - virial_cutoffs(1))/ &
                       virial_stepsize(2) + (virial_cutoffs(3) - virial_cutoffs(2))/virial_stepsize(3))

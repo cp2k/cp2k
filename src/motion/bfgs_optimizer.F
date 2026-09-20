@@ -1763,6 +1763,8 @@ CONTAINS
       INTEGER                                            :: idir, jdir, iat_der, jat_der, natom
       REAL(KIND=dp)                                      :: deriv
 
+      REAL(KIND=dp), PARAMETER                           :: rho_thre = 1.0E-5_dp
+
       INTEGER                                            :: i, iat, idr, j, jat, jdr
       REAL(KIND=dp)                                      :: d12, d23, d31, D_mat(3, 2), denom1, &
                                                             denom2, denom3, ka1, ka2, ka3, rho12, &
@@ -1772,9 +1774,9 @@ CONTAINS
       deriv = 0._dp
       IF (iat_der == jat_der) THEN
          DO i = 1, natom - 1
-            IF (rho_ij(iat_der, i) < 0.00001) CYCLE
+            IF (rho_ij(iat_der, i) < rho_thre) CYCLE
             DO j = i + 1, natom
-               IF (rho_ij(iat_der, j) < 0.00001) CYCLE
+               IF (rho_ij(iat_der, j) < rho_thre) CYCLE
                IF (i == iat_der .OR. j == iat_der) CYCLE
                IF (iat_der < i .OR. iat_der > j) THEN
                   r12 = r_ij(iat_der, i, :); r23 = r_ij(i, j, :); r31 = r_ij(j, iat_der, :)

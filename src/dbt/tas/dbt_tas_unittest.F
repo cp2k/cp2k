@@ -45,11 +45,11 @@ PROGRAM dbt_tas_unittest
    INTEGER, DIMENSION(m)          :: bsize_m
    INTEGER, DIMENSION(n)          :: bsize_n
    INTEGER, DIMENSION(k)          :: bsize_k
-   REAL(KIND=dp), PARAMETER   :: sparsity = 0.1
+   REAL(KIND=dp), PARAMETER   :: sparsity = 0.1_dp
    INTEGER                        :: mynode, io_unit
    TYPE(mp_comm_type)             :: mp_comm
    TYPE(mp_cart_type) :: mp_comm_A, mp_comm_At, mp_comm_B, mp_comm_Bt, mp_comm_C, mp_comm_Ct
-   REAL(KIND=dp), PARAMETER   :: filter_eps = 1.0E-08
+   REAL(KIND=dp), PARAMETER   :: filter_eps = 1.0E-08_dp
 
    CALL mp_world_init(mp_comm)
 

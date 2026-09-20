@@ -319,7 +319,7 @@ CONTAINS
                ! with prefactodesc to promote less cuts in Z dimension
                ratio = PRODUCT(REAL(desc%npts, KIND=dp)/n_slices_tmp)/ &
                        PRODUCT(REAL(desc%npts, KIND=dp)/n_slices_tmp + &
-                               MERGE([0.0, 0.0, 0.0], 2*[1.06*nmin, 1.05*nmin, 1.03*nmin], n_slices_tmp == [1, 1, 1]))
+                           MERGE([0.0_dp, 0.0_dp, 0.0_dp], 2*[1.06_dp*nmin, 1.05_dp*nmin, 1.03_dp*nmin], n_slices_tmp == [1, 1, 1]))
                IF (ratio > ratio_best) THEN
                   ratio_best = ratio
                   n_slices = n_slices_tmp

@@ -88,6 +88,9 @@ CONTAINS
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
+      REAL(KIND=dp), PARAMETER                           :: eps_cell = 1.0E-10_dp, &
+                                                            eps_pos = 1.0E-10_dp
+
       CHARACTER(LEN=default_string_length)               :: param
       INTEGER                                            :: iatom, ikind, natoms
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom2kind
@@ -116,7 +119,7 @@ CONTAINS
          CALL pao_read_raw(pao%restart_file, param, hmat, kinds, atom2kind, positions, xblocks)
 
          ! check cell
-         IF (MAXVAL(ABS(hmat - cell%hmat)) > 1e-10) THEN
+         IF (MAXVAL(ABS(hmat - cell%hmat)) > eps_cell) THEN
             CPWARN("Restarting from different cell")
          END IF
 
@@ -147,7 +150,7 @@ CONTAINS
          DO iatom = 1, natoms
             diff = MAX(diff, MAXVAL(ABS(positions(iatom, :) - particle_set(iatom)%r)))
          END DO
-         CPWARN_IF(diff > 1e-10, "Restarting from different atom positions")
+         CPWARN_IF(diff > eps_pos, "Restarting from different atom positions")
 
       END IF
 

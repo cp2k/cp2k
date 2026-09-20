@@ -99,9 +99,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: radius
 
       INTEGER, PARAMETER                                 :: itermax = 5000, prec_exp = sp
-      REAL(KIND=dp), PARAMETER                           :: contract(*) = [0.38, 0.62], &
-                                                            mineps = 1.0E-12, next = 2.0, &
-                                                            step = 1.0
+      REAL(KIND=dp), PARAMETER :: contract(*) = [0.38_dp, 0.62_dp], mineps = 1.0E-12_dp, &
+         next = 2.0_dp, step = 1.0_dp
 
       INTEGER                                            :: i, j
       REAL(KIND=dp)                                      :: a, d, dr, eps, r, rd, t

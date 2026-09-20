@@ -557,7 +557,7 @@ CONTAINS
          READ (extunit, *) maxl_occ
          maxnbas = MAXVAL(atom%basis%nbas)
          ALLOCATE (pmatread(maxnbas, maxnbas, 0:maxl_occ))
-         pmatread = 0.0
+         pmatread = 0.0_dp
          DO l = 0, maxl_occ
             nbas = atom%basis%nbas(l)
             READ (extunit, *) ! Read empty line
@@ -1159,7 +1159,7 @@ CONTAINS
                   CASE (2)
                      cpot(:) = cpot(:) + 0.9375_dp*erfa(:) - expa(:)*(0.875_dp + 0.25_dp*z(:)**2)
                   CASE (3)
-                     cpot(:) = cpot(:) + 3.28125_dp*erfa(:) - expa(:)*(3.5625_dp + 1.375_dp*z(:)**2 + 0.25*z(:)**4)
+                     cpot(:) = cpot(:) + 3.28125_dp*erfa(:) - expa(:)*(3.5625_dp + 1.375_dp*z(:)**2 + 0.25_dp*z(:)**4)
                   CASE DEFAULT
                      CPABORT("Invalid l number for GTO specified. Check the code!")
                   END SELECT
@@ -1194,7 +1194,7 @@ CONTAINS
                   CASE (2)
                      cpot(:) = cpot(:) + 0.9375_dp*erfa(:) - expa(:)*(0.875_dp + 0.25_dp*z(:)**2)
                   CASE (3)
-                     cpot(:) = cpot(:) + 3.28125_dp*erfa(:) - expa(:)*(3.5625_dp + 1.375_dp*z(:)**2 + 0.25*z(:)**4)
+                     cpot(:) = cpot(:) + 3.28125_dp*erfa(:) - expa(:)*(3.5625_dp + 1.375_dp*z(:)**2 + 0.25_dp*z(:)**4)
                   CASE DEFAULT
                      CPABORT("Invalid l number for CGTO specified. Check the code!")
                   END SELECT
@@ -1762,11 +1762,13 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp)                                      :: res
 
+      REAL(KIND=dp), PARAMETER                           :: z_thre = 1.0E-20_dp
+
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: z_exp
 
       IF (n >= 0) THEN
-         IF (ABS(z) < 1.0E-20) THEN
+         IF (ABS(z) < z_thre) THEN
             res = z**n/(2.0_dp*REAL(n, KIND=dp) + 1.0_dp)
          ELSE IF (n == 0) THEN
             res = rootpi/2.0_dp*ERF(z)/z

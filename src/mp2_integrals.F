@@ -911,7 +911,7 @@ CONTAINS
 
          CALL para_env%sum(memory_3c)
 
-         compression_factor = REAL(nze, dp)*1.0E-06*8.0_dp/memory_3c
+         compression_factor = REAL(nze, dp)*1.0E-06_dp*8.0_dp/memory_3c
 
          IF (unit_nr > 0) THEN
             WRITE (UNIT=unit_nr, FMT="((T3,A,T66,F11.2,A4))") &

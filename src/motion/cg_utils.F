@@ -592,7 +592,7 @@ CONTAINS
                fu = cg_eval1d(gopt_env, u, pcom, xicom)
             END IF
             loc_iter = loc_iter + 1
-         ELSE IF ((cx - u)*(u - ulim) > 0.) THEN
+         ELSE IF ((cx - u)*(u - ulim) > 0.0_dp) THEN
             IF (hist) THEN
                odim = SIZE(histpoint, 1)
                CALL reallocate(histpoint, 1, odim + 1, 1, 3)
@@ -620,7 +620,7 @@ CONTAINS
                END IF
                loc_iter = loc_iter + 1
             END IF
-         ELSE IF ((u - ulim)*(ulim - cx) >= 0.) THEN
+         ELSE IF ((u - ulim)*(ulim - cx) >= 0.0_dp) THEN
             u = ulim
             IF (hist) THEN
                odim = SIZE(histpoint, 1)
@@ -976,7 +976,7 @@ CONTAINS
          res2(i) = res1(i)/diag(i)
       END DO
       CALL dgemv('T', 3, 3, 1._dp, vt, SIZE(vt, 1), res2, 1, 0._dp, res3, 1)
-      res = -0.5*res3(2)/res3(3)
+      res = -0.5_dp*res3(2)/res3(3)
    END FUNCTION FindMin
 
 ! **************************************************************************************************

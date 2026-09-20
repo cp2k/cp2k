@@ -168,9 +168,9 @@ CONTAINS
 
       CALL qs_subsys_get(subsys, particle_set=particle_set)
 
-      shiftX = (MAXVAL(particle_set(:)%r(1)) + MINVAL(particle_set(:)%r(1)))/2.0
-      shiftY = (MAXVAL(particle_set(:)%r(2)) + MINVAL(particle_set(:)%r(2)))/2.0
-      shiftZ = (MAXVAL(particle_set(:)%r(3)) + MINVAL(particle_set(:)%r(3)))/2.0
+      shiftX = (MAXVAL(particle_set(:)%r(1)) + MINVAL(particle_set(:)%r(1)))/2.0_dp
+      shiftY = (MAXVAL(particle_set(:)%r(2)) + MINVAL(particle_set(:)%r(2)))/2.0_dp
+      shiftZ = (MAXVAL(particle_set(:)%r(3)) + MINVAL(particle_set(:)%r(3)))/2.0_dp
 
       particle_set(:)%r(1) = particle_set(:)%r(1) - shiftX
       particle_set(:)%r(2) = particle_set(:)%r(2) - shiftY

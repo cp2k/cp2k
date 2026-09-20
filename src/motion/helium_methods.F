@@ -515,8 +515,8 @@ CONTAINS
             ! physical temperature [K]
             T = kelvin/helium_env(k)%helium%tau/helium_env(k)%helium%beads
             ! prefactors for calculating superfluid fractions [Angstrom^-2]
-            helium_env(k)%helium%wpref = (((1e-20/h_bar)*mHe)/h_bar)*boltzmann*T
-            helium_env(k)%helium%apref = (((4e-20/h_bar)*mHe)/h_bar)*boltzmann*T
+            helium_env(k)%helium%wpref = (((1e-20_dp/h_bar)*mHe)/h_bar)*boltzmann*T
+            helium_env(k)%helium%apref = (((4e-20_dp/h_bar)*mHe)/h_bar)*boltzmann*T
 
             helium_env(k)%helium%he_mass_au = he_mass*massunit
             helium_env(k)%helium%hb2m = 1.0_dp/helium_env(k)%helium%he_mass_au

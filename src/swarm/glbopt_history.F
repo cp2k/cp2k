@@ -21,7 +21,7 @@ MODULE glbopt_history
 
    TYPE history_fingerprint_type
       PRIVATE
-      REAL(KIND=dp)                            :: Epot = 0.0
+      REAL(KIND=dp)                            :: Epot = 0.0_dp
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: goedecker
    END TYPE history_fingerprint_type
 
@@ -35,8 +35,8 @@ MODULE glbopt_history
       TYPE(history_entry_type), DIMENSION(:), POINTER :: entries => Null()
       INTEGER                              :: length = 0
       INTEGER                              :: iw = -1
-      REAL(KIND=dp)                        :: E_precision = 0.0
-      REAL(KIND=dp)                        :: FP_precision = 0.0
+      REAL(KIND=dp)                        :: E_precision = 0.0_dp
+      REAL(KIND=dp)                        :: FP_precision = 0.0_dp
    END TYPE history_type
 
    PUBLIC :: history_type, history_fingerprint_type
@@ -126,11 +126,11 @@ CONTAINS
 
       ALLOCATE (matrix(N, N), work(N, N))
       DO i = 1, N
-         matrix(i, i) = 1.0
+         matrix(i, i) = 1.0_dp
          DO j = i + 1, N
             d = pos(3*i - 2:3*i) - pos(3*j - 2:3*j)
             d2 = SUM(d**2)
-            t = EXP(-0.5*d2)
+            t = EXP(-0.5_dp*d2)
             matrix(i, j) = t
             matrix(j, i) = t
          END DO

@@ -270,7 +270,7 @@ CONTAINS
       t2 = t1**2
       t5 = beta*t2
       t7 = beta*t1
-      epsilon_rho43 = epsilon_rho**(4./3.)
+      epsilon_rho43 = epsilon_rho**(4._dp/3._dp)
 
       SELECT CASE (grad_deriv)
       CASE (0)

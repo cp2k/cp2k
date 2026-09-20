@@ -505,9 +505,9 @@ CONTAINS
       DO i = 1, SIZE(dgrid, 1)
          DO j = 1, SIZE(dgrid, 2)
             DO k = 1, SIZE(dgrid, 3)
-               dgrid(i, j, k, 1) = 0.5*(grid(i + 1, j, k) - grid(i - 1, j, k))/dr(1)
-               dgrid(i, j, k, 2) = 0.5*(grid(i, j + 1, k) - grid(i, j - 1, k))/dr(2)
-               dgrid(i, j, k, 3) = 0.5*(grid(i, j, k + 1) - grid(i, j, k - 1))/dr(3)
+               dgrid(i, j, k, 1) = 0.5_dp*(grid(i + 1, j, k) - grid(i - 1, j, k))/dr(1)
+               dgrid(i, j, k, 2) = 0.5_dp*(grid(i, j + 1, k) - grid(i, j - 1, k))/dr(2)
+               dgrid(i, j, k, 3) = 0.5_dp*(grid(i, j, k + 1) - grid(i, j, k - 1))/dr(3)
             END DO
          END DO
       END DO

@@ -2064,7 +2064,7 @@ CONTAINS
 
       ! for small-cell GW, we need more cells than normally used by the filter bs_env%eps_filter
       ! (in particular for computing the self-energy because of higher number of cells needed)
-      bs_env%heuristic_filter_factor = 1.0E-4
+      bs_env%heuristic_filter_factor = 1.0E-4_dp
 
       u = bs_env%unit_nr
       IF (u > 0) THEN

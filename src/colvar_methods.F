@@ -3214,7 +3214,7 @@ CONTAINS
                      shift(idim) = 1.0_dp
                      xij_shift = MATMUL(cell%hmat, shift)
                      rij_shift = NORM2(xij_shift)
-                     ncells(idim) = FLOOR(rcut/rij_shift - 0.5)
+                     ncells(idim) = FLOOR(rcut/rij_shift - 0.5_dp)
                   END DO !idim
 
                   shift(1:3) = 0.0_dp

@@ -164,7 +164,7 @@ CONTAINS
 
             ! generate new point and save it under j
             DO ic = 1, 3
-               xc = (x(3*i1 + ic) + x(3*i2 + ic))/2.0
+               xc = (x(3*i1 + ic) + x(3*i2 + ic))/2.0_dp
                xc = xc + rng_gaussian%next(variance=vrnc)
                x(3*j + ic) = xc
             END DO

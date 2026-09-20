@@ -292,8 +292,8 @@ CONTAINS
       ! the counter goes into the seed. Every new call gives a new random matrix
       randmat_counter = randmat_counter + 1
 
-      IF (sparsity > 1) THEN
-         my_sparsity = sparsity/100.0
+      IF (sparsity > 1.0_dp) THEN
+         my_sparsity = sparsity*1.0E-02_dp
       ELSE
          my_sparsity = sparsity
       END IF

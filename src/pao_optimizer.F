@@ -281,7 +281,7 @@ CONTAINS
             theta = 0.8_dp*trace_yHy/(trace_yHy - trace_sy)
             IF (pao%iw_opt > 0) WRITE (pao%iw_opt, *) "PAO|BFGS| Dampening theta:", theta
          ELSE
-            theta = 1.0
+            theta = 1.0_dp
          END IF
 
          ! r = theta*s + (1-theta)*Hy

@@ -528,7 +528,7 @@ CONTAINS
                                  IF (exclude_pair) CYCLE
                               END IF
                               ! this is an empirical scaling
-                              IF (r2abc <= 0.01*rc2*rc2*rc2) THEN
+                              IF (r2abc <= 0.01_dp*rc2*rc2*rc2) THEN
                                  kkind = kind_of(katom)
                                  atom_c = atom_of_kind(katom)
                                  zc = atomnumber(kkind)

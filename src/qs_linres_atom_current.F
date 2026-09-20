@@ -954,7 +954,7 @@ CONTAINS
                                  CPASSERT(iso2 > 0 .AND. iso1 > 0)
                                  !
                                  l = indso(1, iso1) + indso(1, iso2)
-                                 IF (l > lmax_expansion .OR. l < .0) THEN
+                                 IF (l > lmax_expansion .OR. l < 0) THEN
                                     WRITE (*, *) 'calculate_jrho_atom_rad: 1 l', l
                                     WRITE (*, *) 'calculate_jrho_atom_rad: 1 lmax_expansion', lmax_expansion
                                     WRITE (*, *) '.... will stop!'

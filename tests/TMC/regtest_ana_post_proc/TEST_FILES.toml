@@ -11,7 +11,7 @@
 # create trajectory to analyse
 "TMC_ana_create_traj_without_ana.inp"   = []
 # density calculations
-"TMC_ana_density.inp"                   = [{matcher="M039", tol=1.0E-14, ref=0.13965929400215982}]
+"TMC_ana_density.inp"                   = [{matcher="M039", tol=1.0E-14, ref=0.139659291455834}]
 # radial distribution function
 "TMC_ana_G_R.inp"                       = [{matcher="M039", tol=3.5E-03, ref=0.00512119420581984}]
 # classical dipole moment writing out TMC restart file (no ana restart file)

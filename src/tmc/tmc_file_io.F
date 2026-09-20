@@ -279,6 +279,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(4)                        :: timings
       CHARACTER(LEN=*)                                   :: file_name
 
+      REAL(KIND=dp), PARAMETER                           :: eps_temp = 5.0E-03_dp
+
       INTEGER                                            :: file_ptr, i, temp_size
       LOGICAL                                            :: flag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tmp_temp
@@ -324,7 +326,7 @@ CONTAINS
          job_counts, &
          timings
 
-      IF (ANY(ABS(tmc_env%params%Temp(:) - tmp_temp(:)) >= 0.005)) THEN
+      IF (ANY(ABS(tmc_env%params%Temp(:) - tmp_temp(:)) >= eps_temp)) THEN
          CALL cp_abort(__LOCATION__, "the temperatures differ from the previous calculation. "// &
                        "There were the following temperatures used:")
       END IF

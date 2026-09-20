@@ -450,11 +450,11 @@ CONTAINS
          NULLIFY (xdata)
          ALLOCATE (xdata(n))
          DO i = 1, 10
-            xdata(i) = 5.0_dp - REAL(i, KIND=dp)/2.0_dp + 0.1*globenv%gaussian_rng_stream%next()
+            xdata(i) = 5.0_dp - REAL(i, KIND=dp)/2.0_dp + 0.1_dp*globenv%gaussian_rng_stream%next()
             WRITE (3, *) xdata(i)
          END DO
          DO i = 11, n
-            xdata(i) = 0.1*globenv%gaussian_rng_stream%next()
+            xdata(i) = 0.1_dp*globenv%gaussian_rng_stream%next()
          END DO
 
          ! Test for trend

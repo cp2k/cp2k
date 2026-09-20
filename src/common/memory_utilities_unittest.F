@@ -36,7 +36,7 @@ CONTAINS
          ERROR STOP "check_real_rank1_allocated: reallocating changed the initial values"
       END IF
 
-      IF (.NOT. ALL(real_arr(11:20) == 0.)) THEN
+      IF (.NOT. ALL(real_arr(11:20) == 0.0_dp)) THEN
          ERROR STOP "check_real_rank1_allocated: reallocation failed to initialise new values with 0."
       END IF
 
@@ -55,7 +55,7 @@ CONTAINS
 
       CALL reallocate(real_arr, 1, 20)
 
-      IF (.NOT. ALL(real_arr(1:20) == 0.)) THEN
+      IF (.NOT. ALL(real_arr(1:20) == 0.0_dp)) THEN
          ERROR STOP "check_real_rank1_unallocated: reallocation failed to initialise new values with 0."
       END IF
 
@@ -80,7 +80,7 @@ CONTAINS
          ERROR STOP "check_real_rank2_allocated: reallocating changed the initial values"
       END IF
 
-      IF (.NOT. (ALL(real_arr(6:10, 1:2) == 0.) .AND. ALL(real_arr(1:10, 3:5) == 0.))) THEN
+      IF (.NOT. (ALL(real_arr(6:10, 1:2) == 0.0_dp) .AND. ALL(real_arr(1:10, 3:5) == 0.0_dp))) THEN
          ERROR STOP "check_real_rank2_allocated: reallocation failed to initialise new values with 0."
       END IF
 
@@ -99,7 +99,7 @@ CONTAINS
 
       CALL reallocate(real_arr, 1, 10, 1, 5)
 
-      IF (.NOT. ALL(real_arr(1:10, 1:5) == 0.)) THEN
+      IF (.NOT. ALL(real_arr(1:10, 1:5) == 0.0_dp)) THEN
          ERROR STOP "check_real_rank2_unallocated: reallocation failed to initialise new values with 0."
       END IF
 

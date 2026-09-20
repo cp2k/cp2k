@@ -901,7 +901,7 @@ CONTAINS
             ! quantities used for dynamic thresholding, when the estimated gap is larger than zero
             xi = (scaled_homo_bound - scaled_lumo_bound)
             IF (xi > 0.0_dp) THEN
-               mmin = 0.5*(scaled_homo_bound + scaled_lumo_bound)
+               mmin = 0.5_dp*(scaled_homo_bound + scaled_lumo_bound)
                max_threshold = ABS(1 - 2*mmin)*xi
 
                scaled_homo_bound = evaluate_trs4_polynomial(scaled_homo_bound, gamma_values(i:), 1)
@@ -979,7 +979,7 @@ CONTAINS
       mu_a = 0.0_dp; mu_b = 1.0_dp
       mu_fa = evaluate_trs4_polynomial(mu_a, gamma_values, i - 1) - 0.5_dp
       DO j = 1, 40
-         mu_c = 0.5*(mu_a + mu_b)
+         mu_c = 0.5_dp*(mu_a + mu_b)
          ! i-1 because in the last iteration, only convergence is checked
          mu_fc = evaluate_trs4_polynomial(mu_c, gamma_values, i - 1) - 0.5_dp
          IF (ABS(mu_fc) < 1.0E-6_dp .OR. (mu_b - mu_a)/2 < 1.0E-6_dp) EXIT !TODO: define threshold values

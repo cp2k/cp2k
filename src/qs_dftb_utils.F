@@ -405,7 +405,7 @@ CONTAINS
       END DO
       DO k = 1, nzero
          xa(ntable + k) = (ngrd + k - 1)*dgrd + slako_d0
-         ya(ntable + k) = 0.0
+         ya(ntable + k) = 0.0_dp
       END DO
       !
       ! Extrapolate matrix elements for all orbitals

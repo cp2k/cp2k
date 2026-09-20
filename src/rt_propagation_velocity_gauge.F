@@ -221,7 +221,7 @@ CONTAINS
       END DO
 
       DO image = 1, nimages
-         CALL dbcsr_add(matrix_h(1, image)%matrix, matrix_s(1, image)%matrix, one, 0.5*factor)
+         CALL dbcsr_add(matrix_h(1, image)%matrix, matrix_s(1, image)%matrix, one, 0.5_dp*factor)
       END DO
 
       ! add Non local term

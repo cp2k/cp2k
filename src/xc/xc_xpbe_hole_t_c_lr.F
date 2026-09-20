@@ -1200,7 +1200,7 @@ CONTAINS
       REAL(dp), INTENT(IN)                               :: rho, ndrho
       REAL(dp)                                           :: dsdrho
 
-      dsdrho = -2.0_dp/9.0_dp*ndrho*3.0**(2.0_dp/3.0_dp)
+      dsdrho = -2.0_dp/9.0_dp*ndrho*3.0_dp**(2.0_dp/3.0_dp)
       dsdrho = dsdrho/(pi**(2.0_dp/3.0_dp))
       dsdrho = dsdrho*MAX(1.0_dp/rho**(7.0_dp/3.0_dp), EPS_RHO)
    END FUNCTION dsdrho

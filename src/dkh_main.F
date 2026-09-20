@@ -2530,11 +2530,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(n, n), INTENT(INOUT)      :: sogt
       INTEGER, INTENT(IN)                                :: ic
 
+      REAL(KIND=dp), PARAMETER                           :: tol = 1.0E-15_dp
+
       INTEGER                                            :: i, il, im, ind, j, k, l, ll, m, mm
       REAL(KIND=dp)                                      :: cost, cost2, ext_norm, sincs, sint, &
-                                                            sint2, thr, thr_min, tol, u1, x, xy, y
+                                                            sint2, thr, thr_min, u1, x, xy, y
 
-      tol = 1.0E-15
       ext_norm = 0.0_dp
       u1 = REAL(n, KIND=dp)
       DO i = 1, n
@@ -2618,7 +2619,7 @@ CONTAINS
                   IF ((l - m + 1) == 0) EXIT
                   l = l + 1
                END DO
-               IF ((ind - 1) /= 0.0_dp) EXIT
+               IF ((ind - 1) /= 0) EXIT
                ind = 0
             END DO
             IF ((thr - thr_min) <= 0.0_dp) EXIT

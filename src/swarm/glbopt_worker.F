@@ -66,7 +66,6 @@ MODULE glbopt_worker
       INTEGER                                  :: md_bumps_max = 0
       REAL(KIND=dp)                            :: fragmentation_threshold = 0.0_dp
       INTEGER                                  :: n_atoms = -1
-      !REAL(KIND=dp)                            :: adaptive_timestep = 0.0
    END TYPE glbopt_worker_type
 
 CONTAINS
@@ -127,7 +126,6 @@ CONTAINS
       CALL section_vals_val_get(glbopt_section, "BUMP_STEPS_DOWNWARDS", i_val=worker%bump_steps_downwards)
       CALL section_vals_val_get(glbopt_section, "MD_BUMPS_MAX", i_val=worker%md_bumps_max)
       CALL section_vals_val_get(glbopt_section, "FRAGMENTATION_THRESHOLD", r_val=dist_in_angstrom)
-      !CALL section_vals_val_get(glbopt_section,"MD_ADAPTIVE_TIMESTEP", r_val=worker%adaptive_timestep)
       worker%fragmentation_threshold = dist_in_angstrom/angstrom
    END SUBROUTINE glbopt_worker_init
 
@@ -185,7 +183,7 @@ CONTAINS
 
       ! setup mdctrl callback
       ALLOCATE (mdctrl_data%epot_history(worker%bump_steps_downwards + worker%bump_steps_upwards + 1))
-      mdctrl_data%epot_history = 0.0
+      mdctrl_data%epot_history = 0.0_dp
       mdctrl_data%md_bump_counter = 0
       mdctrl_data%bump_steps_upwards = worker%bump_steps_upwards
       mdctrl_data%bump_steps_downwards = worker%bump_steps_downwards
@@ -193,17 +191,6 @@ CONTAINS
       mdctrl_data%output_unit = worker%iw
       mdctrl%glbopt => mdctrl_data
       mdctrl_p => mdctrl
-
-      !IF(worker%adaptive_timestep > 0.0) THEN
-      !   !TODO: 300K is hard encoded
-      !   boltz = 1.0 + exp( -temperature * kelvin / 150.0 )
-      !   timestep = 4.0 * ( boltz - 1.0 ) / boltz / femtoseconds
-      !   !timestep = 0.01_dp / femtoseconds
-      !   !timestep = SQRT(MIN(0.5, 2.0/(1+exp(-300.0/(temperature*kelvin))))) / femtoseconds
-      !   CALL section_vals_val_set(worker%root_section, "MOTION%MD%TIMESTEP", r_val=timestep)
-      !   IF(worker%iw>0)&
-      !      WRITE (worker%iw,'(A,35X,F20.3)')  ' GLBOPT| MD timestep [fs]',timestep*femtoseconds
-      !ENDIF
 
       prev_iframe = iframe
       IF (iframe == 0) iframe = 1 ! qs_mol_dyn behaves differently for STEP_START_VAL=0
@@ -276,6 +263,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: bondlength
       LOGICAL                                            :: all_connected
 
+      REAL(KIND=dp), PARAMETER                           :: bond_thre = 1.25_dp
+
       INTEGER                                            :: cluster_edge, fragment_edge, i, j, &
                                                             n_particles, stack_size
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: stack
@@ -293,7 +282,7 @@ CONTAINS
       DO WHILE (stack_size > 0)
          i = stack(stack_size); stack_size = stack_size - 1 !pop
          DO j = 1, n_particles
-            IF (NORM2(diff(positions, i, j)) < 1.25*bondlength) THEN ! they are close = they are connected
+            IF (NORM2(diff(positions, i, j)) < bond_thre*bondlength) THEN ! they are close = they are connected
                IF (.NOT. marked(j)) THEN
                   marked(j) = .TRUE.
                   stack(stack_size + 1) = j; stack_size = stack_size + 1 !push
@@ -308,7 +297,7 @@ CONTAINS
       ! make sure we keep the larger chunk
       IF (COUNT(marked) < n_particles/2) marked(:) = .NOT. (marked(:))
 
-      min_dist = HUGE(1.0)
+      min_dist = HUGE(1.0_dp)
       cluster_edge = -1
       fragment_edge = -1
       DO i = 1, n_particles
@@ -325,7 +314,7 @@ CONTAINS
       END DO
 
       dr = diff(positions, cluster_edge, fragment_edge)
-      s = 1.0 - bondlength/NORM2(dr)
+      s = 1.0_dp - bondlength/NORM2(dr)
       DO i = 1, n_particles
          IF (marked(i)) CYCLE
          positions(3*i - 2:3*i) = positions(3*i - 2:3*i) - s*dr

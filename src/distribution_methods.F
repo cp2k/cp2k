@@ -1184,7 +1184,7 @@ CONTAINS
       IF (natoms <= 1) THEN
          nsplits = 1
       ELSE
-         nsplits = MIN(INT(MIN(INT(MAX(6, INT(60.00/LOG(REAL(natoms, KIND=dp)))), KIND=int_8), ncluster)), natoms)
+         nsplits = MIN(INT(MIN(INT(MAX(6, INT(60.0_dp/LOG(REAL(natoms, KIND=dp)))), KIND=int_8), ncluster)), natoms)
       END IF
       IF (nsplits == 1) THEN
          icluster = icluster + 1
@@ -1199,10 +1199,10 @@ CONTAINS
 
          ! If the system is small enough try to do better in terms of balancing number of atoms per cluster
          ! by changing the seed for the initial guess
-         IF (natoms < 1000 .AND. balance > 1.1) THEN
+         IF (natoms < 1000 .AND. balance > 1.1_dp) THEN
             found = .FALSE.
             DO i = 1, 5
-               IF (balance > 1.1) THEN
+               IF (balance > 1.1_dp) THEN
                   CALL kmeans(nsplits, coord, scaled_coord, cell, cluster_inds, nat_cluster, seed + i*40, conv)
                   balance_new = MAXVAL(REAL(nat_cluster, KIND=dp))/MINVAL(REAL(nat_cluster, KIND=dp))
                   IF (balance_new < balance) THEN
@@ -1328,7 +1328,7 @@ CONTAINS
                IF (dist < devi) devi = dist
             END DO
             rn = rng_stream%next()
-            IF (rn < devi**2/169.0) EXIT
+            IF (rn < devi**2/169.0_dp) EXIT
          END DO
       END DO
 

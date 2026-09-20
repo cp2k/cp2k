@@ -120,7 +120,7 @@ CONTAINS
       ! Ignore json potentials as SIRIUS will parse those on its own.
       l = LEN_TRIM(pot%filename)
       IF (pot%filename(l - 4:l) == '.json') THEN
-         pot%zion = 0.0
+         pot%zion = 0.0_dp
          RETURN
       END IF
 

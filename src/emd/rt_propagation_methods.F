@@ -344,7 +344,7 @@ CONTAINS
          !It would be better to redo the current step with mixixng,
          !but currently the decision is made to use mixing from the next step on
          IF (rtp_control%sc_check_start < rtp%iter + 1) THEN
-            IF (rtp%delta_iter/rtp%delta_iter_old > 0.9) THEN
+            IF (rtp%delta_iter/rtp%delta_iter_old > 0.9_dp) THEN
                rtp%mixing_factor = MAX(rtp%mixing_factor/2.0_dp, 0.125_dp)
                rtp%mixing = .TRUE.
             END IF

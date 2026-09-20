@@ -524,7 +524,7 @@ CONTAINS
       ALLOCATE (sort(ntot), rep_int(ntot))
       cpl_tmp = 0_dp
       sort = 0
-      max_dev = 0.5
+      max_dev = 0.5_dp
       CALL cp_cfm_get_submatrix(evects_cfm, cpl_tmp)
 
       DO jj = 1, ntot

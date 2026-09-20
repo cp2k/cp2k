@@ -1678,7 +1678,7 @@ CONTAINS
                      ! if the next iteration is also line_search
                      ! use e1 and the calculated g1 as e0 and g0
                      e1 = energy_new
-                     appr_sec_der = 2.0*((e1 - e0)/step_size - g0)/step_size
+                     appr_sec_der = 2.0_dp*((e1 - e0)/step_size - g0)/step_size
                      g1 = appr_sec_der*step_size + g0
                      step_size = -g1/appr_sec_der
                      e0 = e1
@@ -2640,9 +2640,9 @@ CONTAINS
                      ! alternative method for finding step size
                      ! do not use quadratic approximation, only gradient signs
                      IF (g1sign /= g0sign) THEN
-                        step_size = -step_size/2.0
+                        step_size = -step_size/2.0_dp
                      ELSE
-                        step_size = step_size*1.5
+                        step_size = step_size*1.5_dp
                      END IF
                   END IF
                   ! end alternative LS types
