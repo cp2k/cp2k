@@ -1700,6 +1700,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="MATVEC_BLOCK_COLUMNS", &
+                          description="Trial vectors the kernel applies per pass. The replicated "// &
+                          "work arrays cost 8*n_arrays*N_ov*this many bytes per MPI rank, with "// &
+                          "n_arrays 3 for the TDA and 4 otherwise. -1: as many as half the free "// &
+                          "memory per rank allows, itself capped by BLOCK_SIZE.", &
+                          usage="MATVEC_BLOCK_COLUMNS 32", &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           description="Maximum number of Davidson iterations. The calculation aborts if it "// &
                           "is reached before convergence.", &

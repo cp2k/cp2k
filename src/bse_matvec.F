@@ -51,10 +51,11 @@ MODULE bse_matvec
 !> \param Bbar_ij \bar{B}^P_ij at (j, i, P)
 !> \param B_ab B^P_ab at (b, a, P)
 !> \param blacs_env npe x 1 process grid of the slabs and of all trial vectors
+!> \param block_cols trial vectors per pass in bse_matvec_apply, -1 to size it from free memory
 ! **************************************************************************************************
    TYPE bse_matvec_env_type
       INTEGER                                            :: homo = 0, virt = 0, n_ov = 0, &
-                                                            n_ri_loc = 0
+                                                            n_ri_loc = 0, block_cols = -1
       REAL(KIND=dp)                                      :: alpha = 0.0_dp, w_fac = 0.0_dp
       LOGICAL                                            :: do_abba = .FALSE.
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_diff
@@ -80,9 +81,10 @@ CONTAINS
 !> \param w_fac ...
 !> \param do_abba ...
 !> \param unit_nr ...
+!> \param block_cols ...
 ! **************************************************************************************************
    SUBROUTINE bse_matvec_create(mv_env, fm_S_ia, fm_Sw_ij, fm_S_ab, fm_Sw_ia, eps_reduced, &
-                                homo, virt, alpha, w_fac, do_abba, unit_nr)
+                                homo, virt, alpha, w_fac, do_abba, unit_nr, block_cols)
 
       TYPE(bse_matvec_env_type), INTENT(OUT)             :: mv_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_S_ia, fm_Sw_ij, fm_S_ab, fm_Sw_ia
@@ -91,6 +93,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: alpha, w_fac
       LOGICAL, INTENT(IN)                                :: do_abba
       INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, INTENT(IN), OPTIONAL                      :: block_cols
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_matvec_create'
 
@@ -102,6 +105,7 @@ CONTAINS
 
       mv_env%homo = homo
       mv_env%virt = virt
+      IF (PRESENT(block_cols)) mv_env%block_cols = block_cols
       mv_env%n_ov = homo*virt
       mv_env%alpha = alpha
       mv_env%w_fac = w_fac
@@ -298,13 +302,18 @@ CONTAINS
       ! columns per pass from the memory of the replicated work arrays Z, tmp, R^A (and R^B)
       n_arrays = 3
       IF (do_B) n_arrays = 4
-      CALL mp_mem_avail_per_rank_GB(mv_env%para_env, mem_avail_GB)
-      nb_max = ncol
-      IF (mem_avail_GB > 0.0_dp) THEN
-         nb_max = INT(MIN(REAL(ncol, dp), &
-                          mem_fraction*mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_arrays, dp)*REAL(n_ov, dp))))
-         nb_max = MAX(nb_max, 1)
+      IF (mv_env%block_cols > 0) THEN
+         ! pinned by input: the replicated work arrays are then a known n_arrays*n_ov*nb doubles
+         nb_max = MIN(ncol, mv_env%block_cols)
+      ELSE
+         CALL mp_mem_avail_per_rank_GB(mv_env%para_env, mem_avail_GB)
+         nb_max = ncol
+         IF (mem_avail_GB > 0.0_dp) THEN
+            nb_max = INT(MIN(REAL(ncol, dp), &
+                             mem_fraction*mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_arrays, dp)*REAL(n_ov, dp))))
+         END IF
       END IF
+      nb_max = MAX(nb_max, 1)
 
       ALLOCATE (Z_buf(n_ov*nb_max), RA_buf(n_ov*nb_max), tmp_buf(n_ov*nb_max))
       IF (do_B) THEN

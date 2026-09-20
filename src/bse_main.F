@@ -651,10 +651,12 @@ CONTAINS
       IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
           mp2_env%bse%screening_method == bse_screening_alpha) THEN
          CALL bse_matvec_create(mv_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_S_ia, Eigenval_reduced, &
-                                homo_red, virt_red, alpha, w_fac, do_abba, unit_nr)
+                                homo_red, virt_red, alpha, w_fac, do_abba, unit_nr, &
+                                block_cols=mp2_env%bse%matvec_block_columns)
       ELSE
          CALL bse_matvec_create(mv_env, fm_S_ia, fm_S_bar_ij, fm_S_ab, fm_S_bar_ia, Eigenval_reduced, &
-                                homo_red, virt_red, alpha, w_fac, do_abba, unit_nr)
+                                homo_red, virt_red, alpha, w_fac, do_abba, unit_nr, &
+                                block_cols=mp2_env%bse%matvec_block_columns)
       END IF
 
    END SUBROUTINE create_matvec_env
