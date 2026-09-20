@@ -27,12 +27,14 @@ myst_heading_anchors = 3
 myst_links_external_new_tab = True
 
 myst_enable_extensions = [
+    "amsmath",
     "attrs_inline",
     "dollarmath",
     "smartquotes",
     "strikethrough",
 ]
 
+myst_dmath_double_inline = True
 myst_fence_as_directive = ["mermaid"]
 
 templates_path = ["_templates"]

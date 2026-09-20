@@ -33,19 +33,16 @@ $N_\mathrm{occ}N_\mathrm{empty}$ rows and $N_\mathrm{occ}N_\mathrm{empty}$ colum
 and $B$ are different in TDDFT and *GW*/BSE; for TDDFT they read (for singlet excitations, details
 on the TDDFT page)
 
-$$ \begin{align}
-    A_{ia,jb} &= (\varepsilon_a^\text{DFT}-\varepsilon_i^\text{DFT})\delta_{ij}\delta_{ab} + 
-    2v_{ia,jb} + \langle ia|f_\text{xc}(\Omega^{(n)})|jb\rangle \quad ,\\[0.5em]
-    B_{ia,jb} &= 2v_{ia,bj} +  \langle ia|f_\text{xc}(\Omega^{(n)})|jb\rangle \quad ,
-\end{align}$$
+\\begin\{align} A\_{ia,jb} &=
+(\\varepsilon_a^\\text\{DFT}-\\varepsilon_i^\\text\{DFT})\\delta\_\{ij}\\delta\_\{ab} + 2v\_{ia,jb}
+\+ \\langle ia|f\_\\text\{xc}(\\Omega^{(n)})|jb\\rangle \\quad ,\\[0.5em] B\_{ia,jb} &= 2v\_{ia,bj} +
+\\langle ia|f\_\\text\{xc}(\\Omega^{(n)})|jb\\rangle \\quad , \\end\{align}
 
 and for *GW*/BSE (details on the *GW*/BSE page):
 
-$$ \begin{align}
-    A_{ia,jb} &= (\varepsilon_a^{GW}-\varepsilon_i^{GW})\delta_{ij}\delta_{ab} + 
-    2v_{ia,jb} - W_{ij,ab} \quad ,\\[0.5em]
-    B_{ia,jb} &= 2 v_{ia,bj} - W_{ib,aj} \quad .
-\end{align}$$
+\\begin\{align} A\_{ia,jb} &=
+(\\varepsilon_a^\{GW}-\\varepsilon_i^\{GW})\\delta\_\{ij}\\delta\_\{ab} + 2v\_{ia,jb} - W\_{ij,ab}
+\\quad ,\\[0.5em] B\_{ia,jb} &= 2 v\_{ia,bj} - W\_{ib,aj} \\quad . \\end\{align}
 
 TDDFT with the common Adiabatic Local Density Approximation (ALDA) or with a hybrid functional (i.e.
 PBE0) can be a good choice for calculating excitation energies of molecules. Exceptions include
