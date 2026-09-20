@@ -112,6 +112,7 @@ MODULE xc_libxc_wrap
 
 #include "../base/base_uses.f90"
    USE ISO_C_BINDING, ONLY: C_PTR, C_NULL_PTR, C_SIZE_T, C_ASSOCIATED, C_LOC
+   USE offload_api, ONLY: offload_buffer_type
 #endif
    IMPLICIT NONE
    PRIVATE
@@ -162,9 +163,11 @@ MODULE xc_libxc_wrap
    INTEGER, SAVE, PRIVATE :: libxc_backend = do_libxc_cpu
 #endif
 
-   ! Device buffer type for GPU memory management
+   ! Device buffer type for GPU memory management. It wraps an offload buffer so
+   ! that the host-side pinned staging memory and the device allocation share a
+   ! lifetime and are released exactly once, together.
    TYPE, PUBLIC :: libxc_device_buffer_type
-      TYPE(C_PTR) :: ptr = C_NULL_PTR
+      TYPE(offload_buffer_type) :: buffer
       INTEGER(KIND=C_SIZE_T) :: size = 0
    END TYPE libxc_device_buffer_type
 
@@ -697,16 +700,13 @@ CONTAINS
 !> \param n ...
 ! **************************************************************************************************
    SUBROUTINE libxc_device_buffer_alloc(buffer, n)
-      USE ISO_C_BINDING, ONLY: C_PTR, C_NULL_PTR, C_INT64_T
-      USE offload_api, ONLY: offload_create_buffer, offload_buffer_type
+      USE ISO_C_BINDING, ONLY: C_INT64_T
+      USE offload_api, ONLY: offload_create_buffer
       TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: buffer
       INTEGER, INTENT(IN)                                :: n
 
-      TYPE(offload_buffer_type)                          :: offload_buffer
-
       buffer%size = INT(n, KIND=C_INT64_T)
-      CALL offload_create_buffer(n, offload_buffer)
-      buffer%ptr = offload_buffer%c_ptr
+      CALL offload_create_buffer(n, buffer%buffer)
    END SUBROUTINE libxc_device_buffer_alloc
 
 ! **************************************************************************************************
@@ -714,17 +714,10 @@ CONTAINS
 !> \param buffer ...
 ! **************************************************************************************************
    SUBROUTINE libxc_device_buffer_free(buffer)
-      USE ISO_C_BINDING, ONLY: C_PTR, C_NULL_PTR
-      USE offload_api, ONLY: offload_free_buffer, offload_buffer_type
+      USE offload_api, ONLY: offload_free_buffer
       TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: buffer
 
-      TYPE(offload_buffer_type)                          :: offload_buffer
-
-      offload_buffer%c_ptr = buffer%ptr
-      offload_buffer%host_buffer => NULL()
-
-      CALL offload_free_buffer(offload_buffer)
-      buffer%ptr = C_NULL_PTR
+      CALL offload_free_buffer(buffer%buffer)
       buffer%size = 0
    END SUBROUTINE libxc_device_buffer_free
 
@@ -736,20 +729,18 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE libxc_host_to_device(buffer, host, n)
       USE ISO_C_BINDING, ONLY: C_PTR, C_F_POINTER
-      USE offload_api, ONLY: offload_buffer_type, offload_buffer_h2d, offload_get_buffer_host_pointer
-      TYPE(libxc_device_buffer_type), INTENT(IN)         :: buffer
+      USE offload_api, ONLY: offload_buffer_h2d, offload_get_buffer_host_pointer
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: buffer
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: host
       INTEGER, INTENT(IN)                                :: n
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: host_p
       TYPE(C_PTR)                                        :: hptr
-      TYPE(offload_buffer_type)                          :: offload_buffer
 
-      offload_buffer%c_ptr = buffer%ptr
-      hptr = offload_get_buffer_host_pointer(offload_buffer)
+      hptr = offload_get_buffer_host_pointer(buffer%buffer)
       CALL C_F_POINTER(hptr, host_p, [n])
       host_p(1:n) = host(1:n)
-      CALL offload_buffer_h2d(offload_buffer, n)
+      CALL offload_buffer_h2d(buffer%buffer, n)
    END SUBROUTINE libxc_host_to_device
 ! **************************************************************************************************
 !> \brief Copy a LibXC device buffer back to host.
@@ -759,20 +750,18 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE libxc_device_to_host(host, buffer, n)
       USE ISO_C_BINDING, ONLY: C_PTR, C_F_POINTER
-      USE offload_api, ONLY: offload_buffer_type, offload_buffer_d2h, offload_get_buffer_host_pointer, &
+      USE offload_api, ONLY: offload_buffer_d2h, offload_get_buffer_host_pointer, &
                              offload_device_synchronize
       REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: host
-      TYPE(libxc_device_buffer_type), INTENT(IN)         :: buffer
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: buffer
       INTEGER, INTENT(IN)                                :: n
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: host_p
       TYPE(C_PTR)                                        :: hptr
-      TYPE(offload_buffer_type)                          :: offload_buffer
 
-      offload_buffer%c_ptr = buffer%ptr
-      CALL offload_buffer_d2h(offload_buffer, n)
+      CALL offload_buffer_d2h(buffer%buffer, n)
       CALL offload_device_synchronize()
-      hptr = offload_get_buffer_host_pointer(offload_buffer)
+      hptr = offload_get_buffer_host_pointer(buffer%buffer)
       CALL C_F_POINTER(hptr, host_p, [n])
       host(1:n) = host_p(1:n)
    END SUBROUTINE libxc_device_to_host
@@ -782,14 +771,11 @@ CONTAINS
 !> \param n ...
 ! **************************************************************************************************
    SUBROUTINE libxc_d2h_issue(buffer, n)
-      USE offload_api, ONLY: offload_buffer_type, offload_buffer_d2h
-      TYPE(libxc_device_buffer_type), INTENT(IN)         :: buffer
+      USE offload_api, ONLY: offload_buffer_d2h
+      TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: buffer
       INTEGER, INTENT(IN)                                :: n
 
-      TYPE(offload_buffer_type)                          :: offload_buffer
-
-      offload_buffer%c_ptr = buffer%ptr
-      CALL offload_buffer_d2h(offload_buffer, n)
+      CALL offload_buffer_d2h(buffer%buffer, n)
    END SUBROUTINE libxc_d2h_issue
 ! **************************************************************************************************
 !> \brief Read the host side of a LibXC device buffer after a copy.
@@ -799,17 +785,15 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE libxc_d2h_read(host, buffer, n)
       USE ISO_C_BINDING, ONLY: C_PTR, C_F_POINTER
-      USE offload_api, ONLY: offload_buffer_type, offload_get_buffer_host_pointer
+      USE offload_api, ONLY: offload_get_buffer_host_pointer
       REAL(KIND=dp), DIMENSION(*), INTENT(OUT)           :: host
       TYPE(libxc_device_buffer_type), INTENT(IN)         :: buffer
       INTEGER, INTENT(IN)                                :: n
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: host_p
       TYPE(C_PTR)                                        :: hptr
-      TYPE(offload_buffer_type)                          :: offload_buffer
 
-      offload_buffer%c_ptr = buffer%ptr
-      hptr = offload_get_buffer_host_pointer(offload_buffer)
+      hptr = offload_get_buffer_host_pointer(buffer%buffer)
       CALL C_F_POINTER(hptr, host_p, [n])
       host(1:n) = host_p(1:n)
    END SUBROUTINE libxc_d2h_read
@@ -823,16 +807,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE libxc_device_buffer_get_ptr(buffer, n, fptr)
       USE ISO_C_BINDING, ONLY: C_F_POINTER, C_PTR
-      USE offload_api, ONLY: offload_buffer_type, offload_get_buffer_device_pointer
+      USE offload_api, ONLY: offload_get_buffer_device_pointer
       TYPE(libxc_device_buffer_type), INTENT(IN)         :: buffer
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT), POINTER  :: fptr
 
       TYPE(C_PTR)                                        :: dptr
-      TYPE(offload_buffer_type)                          :: offload_buffer
 
-      offload_buffer%c_ptr = buffer%ptr
-      dptr = offload_get_buffer_device_pointer(offload_buffer)
+      dptr = offload_get_buffer_device_pointer(buffer%buffer)
       CALL C_F_POINTER(dptr, fptr, [n])
    END SUBROUTINE libxc_device_buffer_get_ptr
 

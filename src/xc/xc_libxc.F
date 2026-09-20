@@ -2096,8 +2096,9 @@ CONTAINS
    ! this iblock loop uses the rank's selected device, otherwise libxc's
    ! device calls (cudaMemset/cudaMemcpy) would target the wrong context,
    ! e.g. when an OpenMP worker thread's current device defaults to GPU 0
-   ! while the buffers were allocated on the rank's own GPU.
-   CALL offload_activate_chosen_device()
+   ! while the buffers were allocated on the rank's own GPU. Only the GPU
+   ! backend needs this: on a CPU/HOST run it is a per-call CUDA-roundtrip.
+   IF (libxc_is_gpu()) CALL offload_activate_chosen_device()
 
    ! Cap the block at what the staging buffers were allocated for, shrinking
    ! it so every thread gets a block of its own on small grids.
@@ -2743,8 +2744,9 @@ nthreads = 1
 CPASSERT(ithread < SIZE(workers%worker))
 
 ! See the spin-unpolarized calc: CUDA's current device is thread-local,
-! so activate the rank's chosen device on every thread.
-CALL offload_activate_chosen_device()
+! so activate the rank's chosen device on every thread. Only the GPU
+! backend needs this; on a CPU/HOST run it is a per-call CUDA-roundtrip.
+IF (libxc_is_gpu()) CALL offload_activate_chosen_device()
 
 bsize = MAX(1, MIN(libxc_block_size, (npoints + nthreads - 1)/nthreads))
 nblocks = (npoints + bsize - 1)/bsize
