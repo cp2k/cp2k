@@ -42,6 +42,7 @@ MODULE libcp2k
                                               dp
    USE message_passing,                 ONLY: mp_comm_type
    USE qs_active_space_types,           ONLY: eri_type_eri_element_func
+   USE qs_environment_types,            ONLY: qs_environment_type
    USE string_utilities,                ONLY: strlcpy_c2f
 #include "../base/base_uses.f90"
 
@@ -55,6 +56,7 @@ MODULE libcp2k
              cp2k_set_velocities, cp2k_set_cell, cp2k_get_result, cp2k_get_natom, &
              cp2k_get_nparticle, cp2k_get_positions, cp2k_get_forces, &
              cp2k_get_potential_energy, cp2k_get_cell, cp2k_get_qmmm_cell, &
+             cp2k_get_scf_convergence, &
              cp2k_calc_energy_force, cp2k_calc_energy, cp2k_run_input, cp2k_run_input_comm, &
              cp2k_transport_set_callback, cp2k_active_space_get_mo_count, &
              cp2k_active_space_get_fock_sub, cp2k_active_space_get_eri_nze_count, &
@@ -416,6 +418,30 @@ CONTAINS
       CALL calc_energy_force(env_id, .FALSE., ierr)
       CPASSERT(ierr == 0)
    END SUBROUTINE cp2k_calc_energy
+
+! **************************************************************************************************
+!> \brief Get the last Quickstep SCF convergence status, including outer loops
+!> \param env_id force environment handle
+!> \param status -1: unavailable, 0: not converged, 1: converged
+! **************************************************************************************************
+   SUBROUTINE cp2k_get_scf_convergence(env_id, status) BIND(C)
+      INTEGER(C_INT), VALUE                              :: env_id
+      INTEGER(C_INT), INTENT(OUT)                        :: status
+
+      INTEGER                                            :: ierr, in_use
+      TYPE(f_env_type), POINTER                          :: f_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CALL f_env_add_defaults(env_id, f_env)
+      status = -1
+      CALL force_env_get(f_env%force_env, in_use=in_use)
+      IF (.NOT. f_env%is_dirty .AND. in_use == use_qs_force) THEN
+         CALL force_env_get(f_env%force_env, qs_env=qs_env)
+         IF (qs_env%scf_convergence_available) status = MERGE(1, 0, qs_env%scf_converged)
+      END IF
+      CALL f_env_rm_defaults(f_env, ierr)
+      CPASSERT(ierr == 0)
+   END SUBROUTINE cp2k_get_scf_convergence
 
 ! **************************************************************************************************
 !> \brief ...

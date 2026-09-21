@@ -289,6 +289,8 @@ CONTAINS
       CALL get_qs_env(qs_env, scf_env=scf_env, input=input, &
                       dft_control=dft_control, scf_control=scf_control)
       CALL qs_fod_validate(input, logger, qs_env)
+      qs_env%scf_convergence_available = .FALSE.
+      qs_env%scf_converged = .FALSE.
       IF (scf_control%max_scf > 0) THEN
 
          dft_section => section_vals_get_subs_vals(input, "DFT")
@@ -314,8 +316,12 @@ CONTAINS
                                 converged=converged, should_stop=should_stop, total_scf_steps=tsteps)
          ELSE
             ! Third SCF loop needed for CDFT with OT to properly restart OT inner loop
-            CALL cdft_scf(qs_env=qs_env, should_stop=should_stop)
+            CALL cdft_scf(qs_env=qs_env, should_stop=should_stop, &
+                          has_converged=converged, total_scf_steps=tsteps)
          END IF
+
+         qs_env%scf_convergence_available = .TRUE.
+         qs_env%scf_converged = converged
 
          ! If SCF has not converged, then we should not start MP2
          IF (ASSOCIATED(qs_env%mp2_env)) qs_env%mp2_env%hf_fail = .NOT. converged
@@ -2459,13 +2465,16 @@ CONTAINS
 !> \brief perform a CDFT scf procedure in the given qs_env
 !> \param qs_env the qs_environment where to perform the scf procedure
 !> \param should_stop flag determining if calculation should stop
+!> \param has_converged both the electronic and constraint loops converged
+!> \param total_scf_steps number of electronic SCF steps over the constraint loop
 !> \par History
 !>      12.2015 Created
 !> \author Nico Holmberg
 ! **************************************************************************************************
-   SUBROUTINE cdft_scf(qs_env, should_stop)
+   SUBROUTINE cdft_scf(qs_env, should_stop, has_converged, total_scf_steps)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(OUT)                               :: should_stop
+      LOGICAL, INTENT(OUT)                               :: should_stop, has_converged
+      INTEGER, INTENT(OUT)                               :: total_scf_steps
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cdft_scf'
 
@@ -2516,6 +2525,7 @@ CONTAINS
 
       scf_env%outer_scf%iter_count = 0
       cdft_control%total_steps = 0
+      total_scf_steps = 0
 
       ! Write some info about the CDFT calculation
       IF (output_unit > 0) THEN
@@ -2533,6 +2543,7 @@ CONTAINS
          ! Solve electronic structure with fixed value of constraint
          CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env, &
                              converged=converged, should_stop=should_stop, total_scf_steps=tsteps)
+         total_scf_steps = total_scf_steps + tsteps
          ! Decide whether to reuse the preconditioner on the next iteration
          IF (cdft_control%reuse_precond) THEN
             ! For convergence in exactly one step, the preconditioner is always reused (assuming max_reuse > 0)
@@ -2584,6 +2595,7 @@ CONTAINS
          CALL qs_ks_did_change(ks_env, potential_changed=.TRUE.)
       END DO cdft_outer_loop
 
+      has_converged = converged .AND. cdft_loop_converged
       cdft_control%ienergy = cdft_control%ienergy + 1
 
       ! Store needed arrays for ET coupling calculation

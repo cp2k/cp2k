@@ -85,6 +85,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      ! Alternative electronic solvers must not inherit a previous SCF status.
+      qs_env%scf_convergence_available = .FALSE.
+      qs_env%scf_converged = .FALSE.
+
       my_calc_forces = .FALSE.
       IF (PRESENT(calc_forces)) my_calc_forces = calc_forces
 
