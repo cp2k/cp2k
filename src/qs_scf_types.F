@@ -445,14 +445,32 @@ CONTAINS
 
       IF (ASSOCIATED(krylov_space)) THEN
 
-         DEALLOCATE (krylov_space%c_eval)
-         DEALLOCATE (krylov_space%t_eval)
+         ! the k-point Lanczos path creates a settings-only instance with all
+         ! buffers left disassociated, guard the Gamma buffer cleanup
+         IF (ASSOCIATED(krylov_space%c_eval)) THEN
+            DEALLOCATE (krylov_space%c_eval)
+            NULLIFY (krylov_space%c_eval)
+         END IF
+         IF (ASSOCIATED(krylov_space%t_eval)) THEN
+            DEALLOCATE (krylov_space%t_eval)
+            NULLIFY (krylov_space%t_eval)
+         END IF
 
-         CALL cp_fm_release(krylov_space%v_mat)
-         CALL cp_fm_release(krylov_space%mo_conv)
-         CALL cp_fm_release(krylov_space%mo_refine)
-         CALL cp_fm_release(krylov_space%chc_mat)
-         CALL cp_fm_release(krylov_space%c_vec)
+         IF (ASSOCIATED(krylov_space%v_mat)) THEN
+            CALL cp_fm_release(krylov_space%v_mat)
+         END IF
+         IF (ASSOCIATED(krylov_space%mo_conv)) THEN
+            CALL cp_fm_release(krylov_space%mo_conv)
+         END IF
+         IF (ASSOCIATED(krylov_space%mo_refine)) THEN
+            CALL cp_fm_release(krylov_space%mo_refine)
+         END IF
+         IF (ASSOCIATED(krylov_space%chc_mat)) THEN
+            CALL cp_fm_release(krylov_space%chc_mat)
+         END IF
+         IF (ASSOCIATED(krylov_space%c_vec)) THEN
+            CALL cp_fm_release(krylov_space%c_vec)
+         END IF
 
          IF (ASSOCIATED(krylov_space%tmp_mat)) THEN
             CALL cp_fm_release(krylov_space%tmp_mat)
