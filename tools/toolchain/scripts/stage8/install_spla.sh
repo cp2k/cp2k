@@ -49,9 +49,12 @@ case "${with_spla}" in
       make -j $(get_nprocs) install > make.log 2>&1 || tail_excerpt make.log
       cd ..
 
+      if [ "$ENABLE_CUDA" = "__TRUE__" ] || [ "$ENABLE_HIP" = "__TRUE__" ]; then
+        patch -l -p1 < "${SCRIPT_DIR}/stage8/spla-gpu.patch" \
+          > spla-gpu.patch.log 2>&1 || tail_excerpt spla-gpu.patch.log
+      fi
+
       if [ "$ENABLE_CUDA" = "__TRUE__" ]; then
-        patch -l -p1 < "${SCRIPT_DIR}/stage8/spla-cuda.patch" \
-          > spla-cuda.patch.log 2>&1 || tail_excerpt spla-cuda.patch.log
         [ -d build-cuda ] && rm -rf "build-cuda"
         mkdir build-cuda
         cd build-cuda
