@@ -20,8 +20,8 @@ MODULE environment
                                               Solca2024,&
                                               cite_reference
    USE cp2k_info,                       ONLY: &
-        compile_arch, compile_date, compile_host, compile_revision, cp2k_flags, cp2k_home, &
-        cp2k_version, cp2k_year, get_runtime_info, r_host_name, r_pid, r_user_name
+        compile_arch, compile_date, compile_host, compile_revision, compile_with, cp2k_flags, &
+        cp2k_home, cp2k_version, cp2k_year, get_runtime_info, r_host_name, r_pid, r_user_name
    USE cp_cfm_elpa,                     ONLY: check_elpa_c_kernel_correctness
    USE cp_error_handling,               ONLY: warning_counter
    USE cp_files,                        ONLY: close_file,&
@@ -225,6 +225,9 @@ CONTAINS
          WRITE (UNIT=my_output_unit, FMT="(T2,A,T31,A50)") &
             "CP2K| Program compiled on", &
             ADJUSTR(compile_host(1:MIN(50, LEN(compile_host))))
+         WRITE (UNIT=my_output_unit, FMT="(T2,A,T31,A50)") &
+            "CP2K| Program compiled with", &
+            ADJUSTR(compile_with(1:MIN(50, LEN(compile_with))))
          WRITE (UNIT=my_output_unit, FMT="(T2,A,T31,A50)") &
             "CP2K| Program compiled for", &
             ADJUSTR(compile_arch(1:MIN(50, LEN(compile_arch))))

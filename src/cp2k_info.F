@@ -21,7 +21,8 @@
 ! **************************************************************************************************
 MODULE cp2k_info
 
-   USE iso_fortran_env,                 ONLY: compiler_options
+   USE iso_fortran_env,                 ONLY: compiler_options,&
+                                              compiler_version
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
    USE machine,                         ONLY: m_getcwd,&
@@ -36,7 +37,7 @@ MODULE cp2k_info
    PRIVATE
 
    PUBLIC :: cp2k_version, cp2k_year, cp2k_home, cp2k_flags
-   PUBLIC :: compile_arch, compile_date, compile_host, compile_revision
+   PUBLIC :: compile_arch, compile_date, compile_host, compile_revision, compile_with
    PUBLIC :: print_cp2k_license, get_runtime_info, write_restart_header
 
 #if defined(__COMPILE_REVISION)
@@ -51,6 +52,7 @@ MODULE cp2k_info
    CHARACTER(LEN=*), PARAMETER :: cp2k_home = "https://www.cp2k.org/"
 
    ! compile time information
+   CHARACTER(LEN=*), PARAMETER :: compile_with = compiler_version()
 #if defined(__COMPILE_ARCH)
    CHARACTER(LEN=*), PARAMETER :: compile_arch = __COMPILE_ARCH
 #else
