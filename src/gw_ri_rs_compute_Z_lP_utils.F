@@ -10,7 +10,7 @@
 !> \par History
 !>      09.2026 created Jan Wilhelm
 ! **************************************************************************************************
-MODULE gw_compute_Z_lP_utils
+MODULE gw_ri_rs_compute_Z_lP_utils
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_put_block,&
                                               dbcsr_type
@@ -32,7 +32,7 @@ MODULE gw_compute_Z_lP_utils
    IMPLICIT NONE
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_compute_Z_lP_utils'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_ri_rs_compute_Z_lP_utils'
    REAL(KIND=dp), PARAMETER, PRIVATE :: jacobi_floor = 1.0E-16_dp
 
    PUBLIC :: build_gram_jacobi_blas, &
@@ -46,7 +46,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Forms the conditioned dense RI-RS matrix
 !>
-!>          D_ll'  = [Σ_μ Φ_μ(r_l) Φ_μ(r_l')]²,
+!>          D_ll'  = [Σ_μ ϕ_μ(r_l) ϕ_μ(r_l')]²,
 !>          d_l    = 1/sqrt(D_ll),
 !>          D'_ll' = d_l D_ll' d_l' + λ δ_ll'.
 !>
@@ -111,7 +111,7 @@ CONTAINS
    END SUBROUTINE build_gram_jacobi_blas
 
 ! **************************************************************************************************
-!> \brief Computes d_l = 1/sqrt(D_ll) = 1/Σ_μ Φ_μ(r_l)² without forming D.
+!> \brief Computes d_l = 1/sqrt(D_ll) = 1/Σ_μ ϕ_μ(r_l)² without forming D.
 !> \param phi_local ...
 !> \param n_local_grid ...
 !> \param n_ao_used ...
@@ -244,7 +244,7 @@ CONTAINS
 !>
 !>        Each rank builds its block-cyclic part of
 !>
-!>          D'_ll' = d_l [Σ_μ Φ_μ(r_l) Φ_μ(r_l')]² d_l' + λ δ_ll'.
+!>          D'_ll' = d_l [Σ_μ ϕ_μ(r_l) ϕ_μ(r_l')]² d_l' + λ δ_ll'.
 !>
 !>        The Cholesky solution is gathered into the replicated right-hand side.
 !> \param phi_local ...
@@ -379,4 +379,4 @@ CONTAINS
 
    END SUBROUTINE solve_D_lp_distributed
 
-END MODULE gw_compute_Z_lP_utils
+END MODULE gw_ri_rs_compute_Z_lP_utils

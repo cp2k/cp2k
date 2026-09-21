@@ -10,16 +10,16 @@
 !> \author Jan Wilhelm
 !> \date 07.2023
 ! **************************************************************************************************
-MODULE gw_main
-   USE gw_large_cell_Gamma,             ONLY: gw_calc_large_cell_Gamma
-   USE gw_large_cell_Gamma_ri_rs,       ONLY: gw_calc_large_cell_Gamma_ri_rs
-   USE gw_non_periodic_ri_rs,           ONLY: gw_calc_non_periodic_ri_rs
-   USE gw_small_cell_full_kp,           ONLY: gw_calc_small_cell_full_kp
+MODULE gw
+   USE gw_ri_rs_large_cell_Gamma,       ONLY: gw_calc_ri_rs_large_cell_Gamma
+   USE gw_ri_rs_non_periodic,           ONLY: gw_calc_ri_rs_non_periodic
+   USE gw_tensor_large_cell_Gamma,      ONLY: gw_calc_tensor_large_cell_Gamma
+   USE gw_tensor_small_cell_full_kp,    ONLY: gw_calc_tensor_small_cell_full_kp
    USE gw_utils,                        ONLY: create_and_init_bs_env_for_gw
-   USE input_constants,                 ONLY: large_cell_Gamma,&
-                                              large_cell_Gamma_ri_rs,&
-                                              non_periodic_ri_rs,&
-                                              small_cell_full_kp
+   USE input_constants,                 ONLY: ri_rs_large_cell_Gamma,&
+                                              ri_rs_non_periodic,&
+                                              tensor_large_cell_Gamma,&
+                                              tensor_small_cell_full_kp
    USE input_section_types,             ONLY: section_vals_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: qs_environment_type
@@ -29,9 +29,9 @@ MODULE gw_main
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_main'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw'
 
-   PUBLIC :: gw
+   PUBLIC :: run_gw
 
 CONTAINS
 
@@ -41,15 +41,15 @@ CONTAINS
 !> \param bs_env ...
 !> \param post_scf_bandstructure_section ...
 !> \par History
-!>    * 04.2026 Added GW RI-RS module
+!>    * 04.2026 Added GW RI-RS module [Ritaj Tyagi]
 !>    * 07.2023 created [Jan Wilhelm]
 ! **************************************************************************************************
-   SUBROUTINE gw(qs_env, bs_env, post_scf_bandstructure_section)
+   SUBROUTINE run_gw(qs_env, bs_env, post_scf_bandstructure_section)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(section_vals_type), POINTER                   :: post_scf_bandstructure_section
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gw'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'run_gw'
 
       INTEGER                                            :: handle
 
@@ -57,29 +57,32 @@ CONTAINS
 
       CALL create_and_init_bs_env_for_gw(qs_env, bs_env, post_scf_bandstructure_section)
 
-      SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
+      SELECT CASE (bs_env%gw_implementation)
 
-      CASE (small_cell_full_kp)
+      CASE (tensor_small_cell_full_kp)
 
-         CALL gw_calc_small_cell_full_kp(qs_env, bs_env)
+         CALL gw_calc_tensor_small_cell_full_kp(qs_env, bs_env)
 
-      CASE (large_cell_Gamma)
+      CASE (tensor_large_cell_Gamma)
 
-         CALL gw_calc_large_cell_Gamma(qs_env, bs_env)
+         CALL gw_calc_tensor_large_cell_Gamma(qs_env, bs_env)
 
-      CASE (large_cell_Gamma_ri_rs)
+      CASE (ri_rs_large_cell_Gamma)
 
-         CALL gw_calc_large_cell_Gamma_ri_rs(qs_env, bs_env)
+         CALL gw_calc_ri_rs_large_cell_Gamma(qs_env, bs_env)
 
-      CASE (non_periodic_ri_rs)
+      CASE (ri_rs_non_periodic)
 
-         CALL gw_calc_non_periodic_ri_rs(qs_env, bs_env)
+         CALL gw_calc_ri_rs_non_periodic(qs_env, bs_env)
+
+      CASE DEFAULT
+
+         CPABORT("Unknown GW implementation.")
 
       END SELECT
 
       CALL timestop(handle)
 
-   END SUBROUTINE gw
+   END SUBROUTINE run_gw
 
-END MODULE gw_main
-
+END MODULE gw

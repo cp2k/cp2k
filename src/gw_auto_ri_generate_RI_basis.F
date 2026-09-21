@@ -47,7 +47,7 @@ MODULE gw_auto_ri_generate_RI_basis
                                               cp_fm_type
    USE generic_os_integrals,            ONLY: int_operators_r12_ab_os
    USE gw_auto_ri_types,                ONLY: auto_ri_type
-   USE gw_integrals,                    ONLY: build_3c_integral_block_ctx,&
+   USE gw_utils_compute_integrals,      ONLY: build_3c_integral_block_ctx,&
                                               gw_3c_ctx_create,&
                                               gw_3c_ctx_release,&
                                               gw_3c_ctx_type,&
@@ -57,7 +57,7 @@ MODULE gw_auto_ri_generate_RI_basis
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_truncated,&
-                                              small_cell_full_kp
+                                              tensor_small_cell_full_kp
    USE integral_library_types,          ONLY: active_integral_library,&
                                               library_libint
    USE kinds,                           ONLY: default_path_length,&
@@ -91,8 +91,7 @@ MODULE gw_auto_ri_generate_RI_basis
    REAL(KIND=dp), PARAMETER :: relative_target_eigenval_threshold = 1.0E-12_dp
    REAL(KIND=dp), PARAMETER :: AB_absolute_target_eigenval_threshold = 1.0E-12_dp
    REAL(KIND=dp), PARAMETER :: negative_eigenval_tolerance = 1.0E-10_dp
-
-   PUBLIC :: generate_auto_ri_basis
+   REAL(KIND=dp), PARAMETER :: conditioned_negative_eigenval_tolerance = SQRT(EPSILON(1.0_dp))
 
    TYPE AB_block_list_type
       INTEGER, ALLOCATABLE                               :: block(:)
@@ -107,84 +106,93 @@ MODULE gw_auto_ri_generate_RI_basis
       REAL(KIND=dp), ALLOCATABLE                         :: U_Pp(:, :)
    END TYPE optimized_atom_U_type
 
+   PUBLIC :: generate_auto_ri_basis
+
 CONTAINS
 
 !**************************************************************************************************!
 ! The full derivation of the AUTO_RI algorithm will be published separately.                       !
 !                                                                                                  !
-! The equations below define the notation used throughout this module.                             !
+! The equations below define the notation used throughout this automatic RI basis optimizer.       !
 !                                                                                                  !
 ! The RI scalar product uses the truncated Coulomb operator:                                       !
 !                                                                                                  !
-! (f|g) = ∫dr∫dr' f(r) V_rc(r-r') g(r').                                                   (1)     !
+! (f|g) = ∫dr∫dr' f(r) V_rc(r-r') g(r').                                                     (1)   !
 !                                                                                                  !
-! For the RI basis-set optimization, the orbital-product density formed by                         !
-! AOs on atoms A and B is                                                                          !
+! For the RI basis-set optimization, we consider the orbital-product density formed by             !
+! AOs on atoms A and B,                                                                            !
 !                                                                                                  !
-! ρ_mn^AB(r) = Σ_{μ∈A} Σ_{ν∈B} C_μm C_νn Φ_μ(r) Φ_ν(r).                                    (2)     !
+! ρ_mn^AB(r) = Σ_{μ∈A} Σ_{ν∈B} C_μm C_νn ϕ_μ(r) ϕ_ν(r).                                      (2)   !
 !                                                                                                  !
 ! The atom-local correlation target B_PQ^{A,C} mimics contributions to the density response χ,     !
 ! and the exchange target B_PQ^{A,X} mimics contributions to the exchange self-energy:             !
 !                                                                                                  !
-! B_PQ^{A,C} = (1/N_C^A) Σ_ia^oe w_ia (φ_P^A|ρ_ia^AA)(ρ_ia^AA|φ_Q^A).                      (3)     !
+! B_PQ^{A,C} = (1/N_C^A) Σ_ia^oe w_ia (φ_P^A|ρ_ia^AA)(ρ_ia^AA|φ_Q^A).                        (3)   !
 !                                                                                                  !
-! B_PQ^{A,X} = (1/N_X^A) Σ_{n∈W_occ} Σ_i^occ (φ_P^A|ρ_ni^AA)(ρ_ni^AA|φ_Q^A).                 (4)     !
+! B_PQ^{A,X} = (1/N_X^A) Σ_{n∈W_occ} Σ_i^occ (φ_P^A|ρ_ni^AA)(ρ_ni^AA|φ_Q^A).                 (4)   !
 !                                                                                                  !
 ! W_occ = [ε_HOMO-E_win, ε_LUMO+E_win], where E_win is OCC_EMPTY_FRONTIER_ORBITAL_WINDOW.          !
 !                                                                                                  !
 ! Here w_ia gives larger weight to frontier-orbital products close to the HOMO and LUMO:           !
 !                                                                                                  !
-! w_ia = 1/(|ε_i-E_F| |ε_a-E_F|),   E_F = (ε_HOMO+ε_LUMO)/2.                               (5)     !
+! w_ia = 1/(|ε_i-E_F| |ε_a-E_F|),   E_F = (ε_HOMO+ε_LUMO)/2.                                 (5)   !
 !                                                                                                  !
 ! Diagonalizing B^A = B^{A,C}+B^{A,X} identifies the most important atom-local RI functions        !
 ! that we use in the optimized RI basis set. The contraction coefficients U_Pp^A [see Eq. (7)]     !
 ! used for optimized RI basis functions are obtained from the eigenvalue problem                   !
 !                                                                                                  !
-! B^A U^A = M^A U^A λ^A,   Σ_Q B_PQ^A U_Qp^A = λ_p^A Σ_Q M_PQ^A U_Qp^A.                    (6)     !
+! B^A U^A = M^A U^A λ^A,   Σ_Q B_PQ^A U_Qp^A = λ_p^A Σ_Q M_PQ^A U_Qp^A.                      (6)   !
 !                                                                                                  !
 ! The eigenvectors with the largest eigenvalues are the contracted RI functions φ_p^A(r)           !
 ! used for the optimized RI basis set:                                                             !
 !                                                                                                  !
-! φ_p^A(r) = Σ_P U_Pp^A φ_P^A(r).                                                          (7)     !
+! φ_p^A(r) = Σ_P U_Pp^A φ_P^A(r).                                                            (7)   !
 !                                                                                                  !
 ! We also use superpositions of Gaussians on neighboring atoms in the RI basis. Before optimizing  !
 ! the expansion coefficients, the AA from Eq. (7) used in AB contractions are projected out:       !
 !                                                                                                  !
-! span{φ_P^{AB,⊥}} = span{φ_P^A,φ_Q^B} \ span{φ_p^A,φ_q^B}.                                (8)     !
+! span{φ_P^{AB,⊥}} = span{φ_P^A,φ_Q^B} \ span{φ_p^A,φ_q^B}.                                  (8)   !
 !                                                                                                  !
 ! For obtaining the AB contraction coefficients, we use the symmetric off-diagonal density:        !
 !                                                                                                  !
-! ρ̅_mn^AB(r) = ρ_mn^AB(r)+ρ_mn^BA(r).                                                      (9)     !
+! ρ̅_mn^AB(r) = ρ_mn^AB(r)+ρ_mn^BA(r).                                                        (9)   !
 !                                                                                                  !
 ! To identify the most important functions for a neighboring pair A-B, define                      !
 ! correlation and exchange targets in this projected basis:                                        !
 !                                                                                                  !
-! B_PQ^{AB,C} = (1/N_C^{AB}) Σ_ia^oe w_ia (φ_P^{AB,⊥}|ρ̅_ia^AB)(ρ̅_ia^AB|φ_Q^{AB,⊥}).       (10)     !
+! B_PQ^{AB,C} = (1/N_C^{AB}) Σ_ia^oe w_ia (φ_P^{AB,⊥}|ρ̅_ia^AB)(ρ̅_ia^AB|φ_Q^{AB,⊥}).         (10)   !
 !                                                                                                  !
-! B_PQ^{AB,X} = (1/N_X^{AB}) Σ_{n∈W_occ} Σ_i^occ (φ_P^{AB,⊥}|ρ̅_ni^AB)(ρ̅_ni^AB|φ_Q^{AB,⊥}).  (11)     !
+! B_PQ^{AB,X} = (1/N_X^{AB}) Σ_{n∈W_occ} Σ_i^occ (φ_P^{AB,⊥}|ρ̅_ni^AB)(ρ̅_ni^AB|φ_Q^{AB,⊥}).  (11)   !
 !                                                                                                  !
 ! Diagonalizing their sum gives the AB-neighbor-pair contraction coefficients:                     !
 !                                                                                                  !
-! B^AB U^AB = U^AB λ^AB,   B^AB = B^{AB,C}+B^{AB,X}.                                      (12)     !
+! B^AB U^AB = U^AB λ^AB,   B^AB = B^{AB,C}+B^{AB,X}.                                        (12)   !
 !                                                                                                  !
 ! The eigenvectors with the largest eigenvalues are used as AB contractions in the optimized       !
 ! RI basis set:                                                                                    !
 !                                                                                                  !
-! φ_p^AB(r) = Σ_P U_Pp^AB φ_P^{AB,⊥}(r).                                                  (13)     !
+! φ_p^AB(r) = Σ_P U_Pp^AB φ_P^{AB,⊥}(r).                                                    (13)   !
 !                                                                                                  !
 ! Eq. (13) means that the RI basis is not an atom-centered basis any more, but can be delocalized  !
 ! over two neighboring atoms AB.                                                                   !
 !                                                                                                  !
 ! AUTO_RI uses the same number of AA and AB contractions in the final optimized RI basis:          !
 !                                                                                                  !
-! Σ_A N_A = Σ_{A>B} N_AB = N_RI/2.                                                        (14)     !
+! Σ_A N_A = Σ_{A>B} N_AB = N_RI/2.                                                          (14)   !
+!                                                                                                  !
+! If no atom pairs are available, as for an isolated atom or when NEIGHBOR_RADIUS is below the      !
+! minimum bond length, there is no AB space, so the full requested basis is assigned to AA:         !
+!                                                                                                  !
+! Σ_A N_A^target = N_RI^target.                                                             (15)   !
+!                                                                                                  !
+! The retained size can be smaller only when B^A or M^A has fewer numerically non-null modes.      !
 !                                                                                                  !
 !**************************************************************************************************!
 
 ! **************************************************************************************************
-!> \brief Executes the AUTO_RI algorithm defined by Eqs. (1)-(14).
+!> \brief Executes the AUTO_RI algorithm defined by Eqs. (1)-(15).
 !> \param qs_env ...
-!> \param bs_env ...
+!> \param bs_env Band-structure environment containing GW parameters.
 ! **************************************************************************************************
    SUBROUTINE generate_auto_ri_basis(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -204,7 +212,7 @@ CONTAINS
       CALL compute_AA_optimized_RI_basis(bs_env, U_Pp_A)
 
       ! Compute AB target matrices B^{AB,C}, B^{AB,X} and contraction U_Pp^AB in Eqs. (8)-(13).
-      CALL compute_AB_optimized_RI_basis(qs_env, bs_env, U_Pp_A)
+      CALL compute_AB_optimized_RI_basis(bs_env, U_Pp_A)
       DEALLOCATE (U_Pp_A)
 
       ! Compute and invert M_pq = (φ_p|φ_q) of the optimized RI basis in Eqs. (7) and (13).
@@ -222,7 +230,7 @@ CONTAINS
 !>
 !>          B_PQ^{A,C} = (1/N_C^A) Σ_ia^oe w_ia (φ_P^A|ρ_ia^AA)(ρ_ia^AA|φ_Q^A),         (3)
 !>
-!>          B_PQ^{A,X} = (1/N_X^A) Σ_{n∈W_occ} Σ_i^occ (φ_P^A|ρ_ni^AA)(ρ_ni^AA|φ_Q^A),    (4)
+!>          B_PQ^{A,X} = (1/N_X^A) Σ_{n∈W_occ} Σ_i^occ (φ_P^A|ρ_ni^AA)(ρ_ni^AA|φ_Q^A),  (4)
 !>
 !>          w_ia = 1/(|ε_i-E_F| |ε_a-E_F|),  E_F = (ε_HOMO+ε_LUMO)/2,                   (5)
 !>
@@ -249,13 +257,12 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: B_PQ, eigenval_AA, M_PQ, U_Pp_A_atom
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: M_PQ_by_kind
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: Int_3c
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
       ! Determine reference dimensions and the number of AA RI functions (i.e. number of
       ! eigenvectors U_Pp^A used for RI-basis contractions).
-      CALL initialize_AA_optimization(bs_env, para_env, kind_of_atom, natom, nkind, &
+      CALL initialize_AA_optimization(bs_env, kind_of_atom, natom, nkind, &
                                       max_nRI_kind, RI_size_opt_AA_requested)
       ALLOCATE (eigenval_AA(max_nRI_kind, natom), source=0.0_dp)
       ALLOCATE (sizes_opt_RI_AA(natom))
@@ -283,7 +290,7 @@ CONTAINS
 
       bs_env%auto_ri%sizes_opt_RI = 0
       DO iatom = 1, natom
-         root_rank = MODULO(iatom - 1, para_env%num_pe)
+         root_rank = MODULO(iatom - 1, bs_env%para_env%num_pe)
          ikind = kind_of_atom(iatom)
          nRI_kind = bs_env%basis_set_RI(ikind)%gto_basis_set%nsgf
          nAO_kind = bs_env%sizes_AO(iatom)
@@ -294,7 +301,7 @@ CONTAINS
                               Int_3c(1:nAO_kind, 1:nAO_kind, 1:nRI_kind, ikind), &
                               M_PQ, B_PQ, target_norm)
          DEALLOCATE (M_PQ)
-         IF (root_rank /= para_env%mepos) THEN
+         IF (root_rank /= bs_env%para_env%mepos) THEN
             DEALLOCATE (B_PQ)
             CYCLE
          END IF
@@ -306,9 +313,9 @@ CONTAINS
          U_Pp_A(1:SIZE(U_Pp_A_atom, 1), 1:SIZE(U_Pp_A_atom, 2), iatom) = U_Pp_A_atom
          DEALLOCATE (U_Pp_A_atom, eigenval, B_PQ)
       END DO
-      CALL para_env%sum(bs_env%auto_ri%sizes_opt_RI)
-      CALL para_env%sum(U_Pp_A)
-      CALL para_env%sum(eigenval_AA)
+      CALL bs_env%para_env%sum(bs_env%auto_ri%sizes_opt_RI)
+      CALL bs_env%para_env%sum(U_Pp_A)
+      CALL bs_env%para_env%sum(eigenval_AA)
       CALL select_RI_sizes(eigenval_AA, RI_size_opt_AA_requested, 1, sizes_opt_RI_AA)
       bs_env%auto_ri%sizes_opt_RI(:) = sizes_opt_RI_AA
       DO iatom = 1, natom
@@ -321,52 +328,53 @@ CONTAINS
    END SUBROUTINE compute_AA_optimized_RI_basis
 
 ! **************************************************************************************************
-!> \brief Initializes dimensions and atom-kind mappings for the AA optimization.
+!> \brief Initializes dimensions  for the AA optimization.
 !>
-!>        This routine does not evaluate an equation of the objective. It maps every atom
-!>        to its reference RI basis, allocates the persistent per-atom arrays, and determines
-!>        the AA part of the requested basis size from
+!>        This routine maps every atom to its reference RI basis, allocates the persistent
+!>        per-atom arrays, and determines the AA part of the requested basis size from
 !>
 !>          Σ_A N_A = N_RI/2.                                             (14)
 !>
-!>        At least one AA contraction is assigned to every atom.
+!>        If no atom pair lies within NEIGHBOR_RADIUS, so that no AB subspace
+!>        exists, it instead assigns
+!>
+!>          Σ_A N_A^target = N_RI^target.                                 (15)
+!>
 !> \param bs_env ...
-!> \param para_env ...
 !> \param kind_of_atom ...
 !> \param natom ...
 !> \param nkind ...
 !> \param max_nRI_kind ...
 !> \param RI_size_opt_AA_requested ...
 ! **************************************************************************************************
-   SUBROUTINE initialize_AA_optimization(bs_env, para_env, kind_of_atom, &
+   SUBROUTINE initialize_AA_optimization(bs_env, kind_of_atom, &
                                          natom, nkind, max_nRI_kind, &
                                          RI_size_opt_AA_requested)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, ALLOCATABLE, INTENT(OUT)                  :: kind_of_atom(:)
       INTEGER, INTENT(OUT)                               :: natom, nkind, max_nRI_kind, &
                                                             RI_size_opt_AA_requested
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_AA_optimization'
 
-      INTEGER                                            :: handle, ikind, RI_size_requested
+      INTEGER                                            :: AB_pair_count, handle, ikind, &
+                                                            RI_size_requested
       INTEGER, ALLOCATABLE                               :: sizes_ref_RI_by_kind(:)
 
       CALL timeset(routineN, handle)
 
-      para_env => bs_env%para_env
       natom = bs_env%n_atom
-      nkind = SIZE(bs_env%basis_set_RI)
       CPASSERT(ASSOCIATED(bs_env%ri_rs%atomic_kind_set))
       CPASSERT(ASSOCIATED(bs_env%ri_rs%particle_set))
-      CPASSERT(ASSOCIATED(para_env) .AND. natom > 0 .AND. nkind > 0)
+      CPASSERT(ASSOCIATED(bs_env%para_env) .AND. natom > 0)
       CPASSERT(ALLOCATED(bs_env%basis_set_AO))
       CPASSERT(ALLOCATED(bs_env%basis_set_RI))
+      nkind = SIZE(bs_env%basis_set_RI)
+      CPASSERT(nkind > 0)
       CPASSERT(SIZE(bs_env%basis_set_AO) == nkind)
-      CPASSERT(SIZE(bs_env%basis_set_RI) == nkind)
       CPASSERT(bs_env%do_gw_ri_rs)
       CPASSERT(.NOT. bs_env%do_periodic)
-      CPASSERT(bs_env%small_cell_full_kp_or_large_cell_Gamma /= small_cell_full_kp)
+      CPASSERT(bs_env%gw_implementation /= tensor_small_cell_full_kp)
 
       CALL get_atomic_kind_set(atomic_kind_set=bs_env%ri_rs%atomic_kind_set, &
                                kind_of=kind_of_atom)
@@ -382,12 +390,46 @@ CONTAINS
                           MIN(bs_env%auto_ri%ri_ao_ratio, &
                               REAL(SUM(sizes_ref_RI_by_kind(kind_of_atom)), dp)/ &
                               REAL(SUM(bs_env%sizes_AO), dp))*REAL(SUM(bs_env%sizes_AO), dp))
-      RI_size_opt_AA_requested = MAX(natom, NINT(0.5_dp*REAL(RI_size_requested, dp)))
+      CALL count_AB_neighbor_pairs(bs_env, AB_pair_count)
+      IF (AB_pair_count == 0) THEN
+         RI_size_opt_AA_requested = RI_size_requested
+      ELSE
+         RI_size_opt_AA_requested = MAX(natom, NINT(0.5_dp*REAL(RI_size_requested, dp)))
+      END IF
       DEALLOCATE (sizes_ref_RI_by_kind)
 
       CALL timestop(handle)
 
    END SUBROUTINE initialize_AA_optimization
+
+! **************************************************************************************************
+!> \brief Counts atom pairs eligible for the AB contractions in Eqs. (8)-(13).
+!> \param bs_env ...
+!> \param AB_pair_count number of pairs separated by at most NEIGHBOR_RADIUS
+! **************************************************************************************************
+   SUBROUTINE count_AB_neighbor_pairs(bs_env, AB_pair_count)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      INTEGER, INTENT(OUT)                               :: AB_pair_count
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'count_AB_neighbor_pairs'
+
+      INTEGER                                            :: handle, iatom, jatom
+
+      CALL timeset(routineN, handle)
+
+      AB_pair_count = 0
+      DO iatom = 1, bs_env%n_atom - 1
+         DO jatom = iatom + 1, bs_env%n_atom
+            IF (NORM2(bs_env%ri_rs%particle_set(iatom)%r - bs_env%ri_rs%particle_set(jatom)%r) <= &
+                bs_env%auto_ri%neighbor_radius) THEN
+               AB_pair_count = AB_pair_count + 1
+            END IF
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE count_AB_neighbor_pairs
 
 ! **************************************************************************************************
 !> \brief Sets the RI-RS block sizes to the optimized RI basis dimensions.
@@ -698,9 +740,10 @@ CONTAINS
       IF (largest_score <= 0.0_dp) THEN
          CPABORT("AUTO_RI conditioned atom-local eigensolver failed")
       END IF
-      IF (MINVAL(eigenval_B) < -negative_eigenval_tolerance*largest_score) THEN
+      IF (MINVAL(eigenval_B) < -conditioned_negative_eigenval_tolerance*largest_score) THEN
          CPABORT("AUTO_RI conditioned atom-local eigensolver failed")
       END IF
+      eigenval_B(:) = MAX(eigenval_B, 0.0_dp)
       nret = COUNT(eigenval_B/largest_score >= relative_target_eigenval_threshold)
       ALLOCATE (U_Pp_A(n, nret), eigenval(M_PQ_rank))
       DO i = 1, M_PQ_rank
@@ -868,6 +911,7 @@ CONTAINS
 !> \brief Computes orbital factors for the occupied-empty weight in Eq. (5).
 !>
 !>        weights(n) = 1/|ε_n-E_F|, so weights(i)*weights(a) = w_ia.
+!>
 !> \param eigenval_MO molecular-orbital eigenvalues, occupied first
 !> \param homo Last occupied state in this spin channel.
 !> \param weights factors whose occupied-empty products give w_ia
@@ -1130,7 +1174,7 @@ CONTAINS
 !>
 !>        The molecular-orbital coefficient rows belonging to one atom are
 !>        collected on one MPI rank. No global AO-pair matrix is formed.
-!> \param bs_env molecular spectrum and distributed MO coefficients
+!> \param bs_env ...
 !> \param iatom Atom whose AO rows are needed.
 !> \param root_rank MPI rank performing the atomic contractions.
 !> \param Int_3c atom-local three-center integrals (μν|P)
@@ -1202,6 +1246,7 @@ CONTAINS
 !> \brief Normalizes each contraction coefficient vector U_Pp.
 !>
 !>        U_Pp <- U_Pp/sqrt(Σ_P |U_Pp|^2).
+!>
 !> \param U_Pp contractions from the large RI basis P to optimized functions p
 ! **************************************************************************************************
    SUBROUTINE normalize_RI_coefficients(U_Pp)
@@ -1264,12 +1309,10 @@ CONTAINS
 !>        pair density in Eq. (9) defines B^{AB,C} and B^{AB,X} in Eqs. (10) and (11).
 !>        Diagonalizing their sum gives U^AB in Eq. (12), which expands the contracted
 !>        pair functions in Eq. (13).
-!> \param qs_env ...
 !> \param bs_env ...
 !> \param U_Pp_A temporary atom-local contractions used to project the AA space
 ! **************************************************************************************************
-   SUBROUTINE compute_AB_optimized_RI_basis(qs_env, bs_env, U_Pp_A)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+   SUBROUTINE compute_AB_optimized_RI_basis(bs_env, U_Pp_A)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: U_Pp_A
 
@@ -1290,8 +1333,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (para)
-      CALL get_qs_env(qs_env, para_env=para)
+      para => bs_env%para_env
       ALLOCATE (sizes_ref_RI(bs_env%n_atom), sizes_opt_RI_AA(bs_env%n_atom))
       DO iatom = 1, bs_env%n_atom
          sizes_ref_RI(iatom) = get_ref_RI_size(bs_env, iatom)
@@ -1300,15 +1342,7 @@ CONTAINS
       RI_size_ref = SUM(sizes_ref_RI)
       RI_size_opt_AA = SUM(sizes_opt_RI_AA)
 
-      AB_pair_count = 0
-      DO iatom = 1, bs_env%n_atom - 1
-         DO jatom = iatom + 1, bs_env%n_atom
-            IF (NORM2(bs_env%ri_rs%particle_set(iatom)%r - bs_env%ri_rs%particle_set(jatom)%r) <= &
-                bs_env%auto_ri%neighbor_radius) THEN
-               AB_pair_count = AB_pair_count + 1
-            END IF
-         END DO
-      END DO
+      CALL count_AB_neighbor_pairs(bs_env, AB_pair_count)
       ALLOCATE (AB_atom_A(AB_pair_count), AB_atom_B(AB_pair_count), &
                 AB_size_opt_RI_to_A(AB_pair_count), sizes_opt_RI_AB(AB_pair_count), &
                 U_Pp_AB_offset(AB_pair_count))
@@ -1316,8 +1350,9 @@ CONTAINS
       U_Pp_AB_offset = 0
       ALLOCATE (eigenval_AB(2*MAXVAL(sizes_ref_RI), AB_pair_count), source=0.0_dp)
 
-      CALL gw_3c_ctx_create(ctx, qs_env, bs_env%ri_metric, bs_env%basis_set_AO, &
-                            bs_env%basis_set_AO, bs_env%basis_set_RI)
+      CALL gw_3c_ctx_create(ctx, bs_env, bs_env%ri_metric, &
+                            basis_j=bs_env%basis_set_AO, basis_k=bs_env%basis_set_AO, &
+                            basis_i=bs_env%basis_set_RI)
       CALL gw_3c_ws_create(ws, ctx)
       k = 0
       DO iatom = 1, bs_env%n_atom - 1
@@ -2231,8 +2266,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_int_3c'
 
       INTEGER                                            :: handle, iset, jset, kset, max_ao_l, &
-                                                            max_l, nAO, ncoa, ncob, ncoc, nRI, &
-                                                            nsgfa, nsgfb, nsgfc, sgfa, sgfb, sgfc
+                                                            max_l, max_ri_l, nAO, ncoa, ncob, &
+                                                            ncoc, nRI, nsgfa, nsgfb, nsgfc, sgfa, &
+                                                            sgfb, sgfc
       INTEGER, DIMENSION(:), POINTER                     :: lmax_a, lmax_c, lmin_a, lmin_c, npgf_a, &
                                                             npgf_c, nsgf_set_a, nsgf_set_c
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_a, first_sgf_c
@@ -2255,7 +2291,8 @@ CONTAINS
                              pgf_radius=pgf_radius_c, sphi=sphi_c, zet=zeta_c)
       CPASSERT(nAO > 0 .AND. nRI > 0)
       max_ao_l = MAXVAL(lmax_a)
-      max_l = MAX(max_ao_l, MAXVAL(lmax_c))
+      max_ri_l = MAXVAL(lmax_c)
+      max_l = MAX(max_ao_l, max_ri_l)
       CALL init_orbital_pointers(MAX(max_l, 2*max_ao_l))
       CALL init_spherical_harmonics(max_l, -1)
       IF (potential%potential_type == do_potential_truncated) THEN
@@ -2265,10 +2302,10 @@ CONTAINS
                           "AUTO_RI TRUNCATED fitting requires LIBINT for "// &
                           "COULOMB_2C and COULOMB_3C")
          END IF
-         CALL coulomb_integral_init(context, max_am_2c=MAX(max_l, 2*max_ao_l), max_am_3c=max_l)
-      ELSE
-         CALL coulomb_integral_init(context, max_am_2c=max_l, max_am_3c=max_l)
       END IF
+      ! Libint initialization takes the maximum angular momentum of one shell,
+      ! not the sum of angular momenta entering an integral.
+      CALL coulomb_integral_init(context, max_am_2c=max_ri_l, max_am_3c=max_l)
       center = 0.0_dp
 
       ALLOCATE (M_PQ(nRI, nRI), Int_3c_spherical_all(nAO, nAO, nRI))
@@ -2357,22 +2394,31 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_auto_ri_integrals'
 
       CHARACTER(LEN=default_path_length)                 :: table_file
-      INTEGER                                            :: handle, ikind, max_l, table_lmax, unit_id
+      INTEGER                                            :: handle, ikind, max_ao_l, max_l, &
+                                                            max_ri_l, table_lmax, unit_id
 
       CALL timeset(routineN, handle)
 
-      max_l = 0
+      CPASSERT(ALLOCATED(bs_env%basis_set_AO))
+      CPASSERT(ALLOCATED(bs_env%basis_set_RI))
+      CPASSERT(SIZE(bs_env%basis_set_AO) == SIZE(bs_env%basis_set_RI))
+      CPASSERT(SIZE(bs_env%basis_set_RI) > 0)
+      max_ao_l = 0
+      max_ri_l = 0
       DO ikind = 1, SIZE(bs_env%basis_set_RI)
+         CPASSERT(ASSOCIATED(bs_env%basis_set_AO(ikind)%gto_basis_set))
          CPASSERT(ASSOCIATED(bs_env%basis_set_RI(ikind)%gto_basis_set))
-         max_l = MAX(max_l, MAXVAL(bs_env%basis_set_RI(ikind)%gto_basis_set%lmax))
+         max_ao_l = MAX(max_ao_l, MAXVAL(bs_env%basis_set_AO(ikind)%gto_basis_set%lmax))
+         max_ri_l = MAX(max_ri_l, MAXVAL(bs_env%basis_set_RI(ikind)%gto_basis_set%lmax))
       END DO
+      max_l = MAX(max_ao_l, max_ri_l)
       ! The OS two-center kernel accesses l+1 even without force evaluation.
       CALL init_orbital_pointers(max_l + 1)
       CALL init_spherical_harmonics(max_l, -1)
 
       IF (bs_env%ri_metric%potential_type == do_potential_truncated) THEN
-         ! The truncated-Coulomb kernel needs auxiliary functions through l_A+l_B+1.
-         table_lmax = 2*max_l + 1
+         ! Cover both the RI-RI two-center and AO-AO-RI three-center kernels.
+         table_lmax = MAX(2*max_ri_l + 1, 2*max_ao_l + max_ri_l)
          IF (get_lmax_init() < table_lmax) THEN
             unit_id = -1
             IF (bs_env%para_env%is_source()) THEN

@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT rirs-grid-optimization-percentage-H2O
+  PROJECT rirs-grid-cholesky-H2O
   RUN_TYPE ENERGY
 &END GLOBAL
 
@@ -16,6 +16,10 @@
     &POISSON
       PERIODIC NONE
       POISSON_SOLVER MULTIPOLE
+      &MULTIPOLE
+        &PROGRAM_RUN_INFO OFF
+        &END PROGRAM_RUN_INFO
+      &END MULTIPOLE
     &END POISSON
     &QS
       METHOD GAPW
@@ -44,12 +48,11 @@
       &GW
         NUM_TIME_FREQ_POINTS 10
         &RI_RS
-          GRID_SELECT 1
           TIKHONOV 1.0E-8
           &GRID_OPTIMIZATION
             CUTOFF_ATOMIC_CLUSTER [angstrom] 3.0
-            MAX_ITER 200
-            N_POINT_PERCENTAGE 20
+            MAX_ITER 10
+            RS_AO_RATIO 2
           &END GRID_OPTIMIZATION
         &END RI_RS
       &END GW

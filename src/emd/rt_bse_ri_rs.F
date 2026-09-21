@@ -38,16 +38,16 @@ MODULE rt_bse_ri_rs
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
-   USE gw_compute_Z_lP,                 ONLY: compute_Z_lP
-   USE gw_dbcsr_utils,                  ONLY: dbcsr_contract_ABA
-   USE gw_fm_utils,                     ONLY: fm_contract_ABA
-   USE gw_large_cell_Gamma_ri_rs,       ONLY: hadamard_product_inplace,&
-                                              release_dbcsr_topology_and_matrices,&
+   USE gw_ri_rs_compute_Z_lP,           ONLY: compute_Z_lP
+   USE gw_ri_rs_grid_setup_main,        ONLY: setup_ri_rs_grid
+   USE gw_ri_rs_large_cell_Gamma,       ONLY: release_dbcsr_topology_and_matrices,&
                                               setup_square_topology
-   USE gw_non_periodic_ri_rs,           ONLY: atomic_basis_at_grid_point,&
-                                              precompute_ri_rs_radii,&
-                                              reserve_blocks_within_radius,&
-                                              ri_rs_grid_assembler
+   USE gw_ri_rs_non_periodic,           ONLY: atomic_basis_at_grid_point,&
+                                              reserve_blocks_within_radius
+   USE gw_ri_rs_utils,                  ONLY: precompute_ri_rs_radii
+   USE gw_utils_dbcsr,                  ONLY: dbcsr_contract_ABA,&
+                                              hadamard_product_inplace
+   USE gw_utils_fm,                     ONLY: fm_contract_ABA
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE message_passing,                 ONLY: mp_para_env_type
@@ -102,13 +102,13 @@ CONTAINS
 
       t1 = m_walltime()
 
-      CALL ri_rs_grid_assembler(qs_env, bs_env, bs_env%ri_rs%grid_points)
+      CALL setup_ri_rs_grid(bs_env, bs_env%ri_rs%grid_points)
       ! Per-atom AO/RI screening radii required by the screened grid-fill and d_lP routines; the
       ! GW RI-RS driver populates these, but the standalone RT-BSE grid build must do so itself.
       IF (.NOT. ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) THEN
-         CALL precompute_ri_rs_radii(qs_env, bs_env)
+         CALL precompute_ri_rs_radii(bs_env)
       END IF
-      CALL atomic_basis_at_grid_point(qs_env, bs_env, bs_env%ri_rs%grid_points, &
+      CALL atomic_basis_at_grid_point(bs_env, bs_env%ri_rs%grid_points, &
                                       bs_env%ri_rs%mat_phi_mu_l)
       CALL compute_Z_lP(qs_env, bs_env, bs_env%ri_rs%grid_points, &
                         bs_env%ri_rs%mat_phi_mu_l, bs_env%ri_rs%mat_Z_lP)
@@ -286,7 +286,6 @@ CONTAINS
       END IF
 
       bs_env%ri_rs%W0_grid_built = .TRUE.
-      bs_env%ri_rs%rtbse_kernels_ready = .TRUE.
 
       ! Occupancy is a storage statistic with no magnitude, so pair it with the retained Frobenius
       ! weight -- the two together are the x-axis of a CUTOFF_RADIUS_W0 convergence scan. Both

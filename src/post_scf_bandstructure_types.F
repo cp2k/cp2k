@@ -29,7 +29,7 @@ MODULE post_scf_bandstructure_types
    USE input_constants,                 ONLY: G0W0,&
                                               rtp_method_bse,&
                                               rtp_method_bse_linearized,&
-                                              small_cell_full_kp
+                                              tensor_small_cell_full_kp
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp,&
@@ -55,7 +55,7 @@ MODULE post_scf_bandstructure_types
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'post_scf_bandstructure_types'
 
    PUBLIC :: post_scf_bandstructure_type, ri_rs_env, &
-             rirs_grid_type, ri_rs_grid_opt_type, band_edges_type, data_3_type, bs_env_release
+             rirs_grid_type, ri_rs_grid_opt_type, band_edges_type, bs_env_release
 
    ! valence band maximum (VBM), conduction band minimum (CBM), direct band gap (DBG),
    ! indirect band gap (IDBG)
@@ -66,24 +66,18 @@ MODULE post_scf_bandstructure_types
                                                          IDBG = -1.0_dp
    END TYPE band_edges_type
 
-   ! data type for storing 3-index quantities for small-cell, full-k-points GW code
-   TYPE data_3_type
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE :: data_3
-   END TYPE data_3_type
-
    ! data types for GW RI-RS code
    TYPE rirs_grid_type
       INTEGER                    :: npts = 0
       REAL(KIND=dp), ALLOCATABLE :: raw_points(:, :)
    END TYPE rirs_grid_type
 
-   ! Input for the optional in-memory GW RI-RS grid optimization.
+   ! User input for the in-memory GW RI-RS grid optimization.
    TYPE ri_rs_grid_opt_type
       LOGICAL                                          :: enabled = .FALSE.
       REAL(KIND=dp)                                    :: cutoff_atomic_cluster = 3.0_dp/angstrom
-      INTEGER                                          :: max_iter = 100
-      CHARACTER(LEN=2), ALLOCATABLE                    :: grid_elements(:)
-      INTEGER, ALLOCATABLE                             :: grid_npoints(:)
+      REAL(KIND=dp)                                    :: rs_ao_ratio = 5.0_dp
+      INTEGER                                          :: max_iter = 300
    END TYPE ri_rs_grid_opt_type
 
    TYPE ri_rs_env
@@ -101,7 +95,7 @@ MODULE post_scf_bandstructure_types
       CHARACTER(LEN=default_string_length)             :: grid_file_suffix = ""
       TYPE(ri_rs_grid_opt_type)                        :: grid_opt
 
-      ! Non-owning geometry references used by RI-RS grid setup and optimization.
+      ! Geometry references used by RI-RS grid setup and optimization.
       ! They remain owned by qs_env and must never be deallocated here.
       TYPE(cell_type), POINTER                         :: cell => NULL()
       TYPE(particle_type), DIMENSION(:), POINTER       :: particle_set => NULL()
@@ -122,15 +116,16 @@ MODULE post_scf_bandstructure_types
       INTEGER, ALLOCATABLE                             :: pan_first(:), pan_last(:)
 
       ! Atom-specific grids used directly by the GW grid assembler
-      TYPE(rirs_grid_type), ALLOCATABLE                :: grid_cache(:)
+      TYPE(rirs_grid_type), ALLOCATABLE                :: atomic_grids(:)
 
       ! Data types for storing RI-RS matrices
+      INTEGER                                          :: n_grid_points = 0
       TYPE(dbcsr_type)                                 :: mat_phi_mu_l
       TYPE(dbcsr_type)                                 :: mat_Z_lP
       REAL(KIND=dp), ALLOCATABLE                       :: grid_points(:, :)
       LOGICAL                                          :: Z_lP_exists = .FALSE.
 
-      ! Per-atom spatial extent of the most diffuse Gaussian primitive in each basis
+      ! Spatial extent of most diffuse Gaussian primitive of AO/RI basis for each atom
       REAL(KIND=dp), ALLOCATABLE                       :: radius_ao_per_atom(:)
       REAL(KIND=dp), ALLOCATABLE                       :: radius_ri_per_atom(:)
 
@@ -140,16 +135,18 @@ MODULE post_scf_bandstructure_types
       ! mat_W0_grid_rtbse(l, l') = sum_PQ  Z_lP W^{w=0}_PQ Z_l'Q
       TYPE(dbcsr_type)                                 :: mat_V_aux_rtbse
       TYPE(dbcsr_type)                                 :: mat_W0_grid_rtbse
-      LOGICAL                                          :: rtbse_kernels_ready = .FALSE.
-      ! RTBSE%EPS_FILTER_RHO: cuts Delta-rho_AO in compute_sigma_ri_rs, upstream of the projection
-      ! the Hartree shares, so it cuts SEX and Hartree alike.
+
+      ! RTBSE%EPS_FILTER_RHO: cuts Delta-rho_AO in compute_sigma_ri_rs, also cuts SEX and Hartree
       REAL(KIND=dp)                                    :: eps_filter_rho = -1.0_dp
-      ! RTBSE%CUTOFF_RADIUS_W0 (bohr): drops grid block pairs of W0 beyond this centroid distance.
-      ! BSE-kernel-only -- the GW quasiparticle energies use their own &GW CUTOFF_RADIUS_* family.
+
+      ! RTBSE%CUTOFF_RADIUS_W0 (bohr): drops grid block pairs of W0 beyond this distance.
+      ! BSE-only: the GW quasiparticle energies use their own &GW CUTOFF_RADIUS_* family.
       REAL(KIND=dp)                                    :: cutoff_radius_w0 = -1.0_dp
+
       ! Set TRUE once mat_phi_mu_l and mat_Z_lP have been populated in memory (by GW RI-RS
       ! or on-demand by the RT-BSE RI-RS kernel path).
       LOGICAL                                          :: grid_built = .FALSE.
+
       ! Independent toggles for V_grid / W0_grid availability
       LOGICAL                                          :: V_grid_built = .FALSE.
       LOGICAL                                          :: W0_grid_built = .FALSE.
@@ -178,7 +175,6 @@ MODULE post_scf_bandstructure_types
                                                          eigenval_G0W0, &
                                                          eigenval_evGW0, &
                                                          eigenval_HF
-      TYPE(band_edges_type), DIMENSION(2)             :: band_edges_scf_Gamma = band_edges_type()
       TYPE(band_edges_type)                           :: band_edges_scf = band_edges_type(), &
                                                          band_edges_GW = band_edges_type(), &
                                                          band_edges_HF = band_edges_type()
@@ -194,7 +190,7 @@ MODULE post_scf_bandstructure_types
       ! Parameters for automatic RI basis set optimization.
       TYPE(auto_ri_type)                              :: auto_ri = auto_ri_type()
 
-      ! DBCSR ships each rank's matrix panel in one MPI message whose length is stored in a
+      ! DBCSR stores each rank's matrix panel in one MPI message whose length is stored in a
       ! 32-bit default INTEGER (dbcsr_mpiwrap.F: msglen = SIZE(buffer)). Exceeding this ceiling
       ! overflows the count to a negative/garbage value and multiply_cannon segfaults. This is
       ! that hard limit in elements (= HUGE(int_4) = 2^31-1), the same bound DBCSR uses
@@ -229,7 +225,6 @@ MODULE post_scf_bandstructure_types
       INTEGER, DIMENSION(3)                        :: nkp_grid_chi_eps_W_orig = -1, &
                                                       nkp_grid_chi_eps_W_extra = -1
       INTEGER                                      :: nkp_chi_eps_W_orig = -1, &
-                                                      nkp_chi_eps_W_extra = -1, &
                                                       nkp_chi_eps_W_orig_plus_extra = -1, &
                                                       nkp_chi_eps_W_batch = -1, &
                                                       num_chi_eps_W_batches = -1, &
@@ -249,24 +244,24 @@ MODULE post_scf_bandstructure_types
                                                       nkp_only_DOS = -1
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: xkp_special
 
-      ! parameters for GW band structure calculation of small unit cell (with multiple unit cell)
-      INTEGER                                      :: small_cell_full_kp_or_large_cell_Gamma = -1, &
+      ! parameters for GW band structure calculation with k-points
+      INTEGER                                      :: gw_implementation = -1, &
                                                       nimages_scf = -1
       INTEGER, DIMENSION(3)                        :: periodic = -1
       LOGICAL                                      :: do_periodic = .FALSE.
       REAL(KIND=dp), DIMENSION(3, 3)               :: hmat = -1.0_dp
 
       ! imaginary time and frequency grids
-      INTEGER                                         :: num_time_freq_points = -1, &
-                                                         num_freq_points_fit = -1
-      TYPE(time_frequency_grid_type)                  :: time_frequency_grid
-      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE        :: imag_freq_points_fit
-      INTEGER                                         :: nparam_pade = -1, &
-                                                         num_points_per_magnitude = -1
-      REAL(KIND=dp)                                   :: freq_max_fit = -1.0_dp, &
-                                                         input_regularization_minimax = -1.0_dp, &
-                                                         regularization_minimax = -1.0_dp, &
-                                                         stabilize_exp = -1.0_dp
+      INTEGER                                      :: num_time_freq_points = -1, &
+                                                      num_freq_points_fit = -1
+      TYPE(time_frequency_grid_type)               :: time_frequency_grid
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: imag_freq_points_fit
+      INTEGER                                      :: nparam_pade = -1, &
+                                                      num_points_per_magnitude = -1
+      REAL(KIND=dp)                                :: freq_max_fit = -1.0_dp, &
+                                                      input_regularization_minimax = -1.0_dp, &
+                                                      regularization_minimax = -1.0_dp, &
+                                                      stabilize_exp = -1.0_dp
 
       ! filter threshold for matrix-tensor operations
       REAL(KIND=dp)                                :: eps_filter = -1.0_dp, &
@@ -292,8 +287,7 @@ MODULE post_scf_bandstructure_types
                                                       fm_W_MIC_freq = cp_fm_type(), &
                                                       fm_W_MIC_freq_1_extra = cp_fm_type(), &
                                                       fm_W_MIC_freq_1_no_extra = cp_fm_type(), &
-                                                      fm_W_MIC_freq_zero = cp_fm_type(), &
-                                                      fm_h_G0W0_Gamma = cp_fm_type()
+                                                      fm_W_MIC_freq_zero = cp_fm_type()
       TYPE(cp_cfm_type)                            :: cfm_work_mo = cp_cfm_type(), &
                                                       cfm_work_mo_2 = cp_cfm_type()
 
@@ -340,9 +334,7 @@ MODULE post_scf_bandstructure_types
                                                       n_intervals_i = -1, &
                                                       n_atom_j = -1, &
                                                       n_intervals_j = -1, &
-                                                      n_atom_per_interval_ij = -1, &
                                                       n_intervals_inner_loop_atoms = -1, &
-                                                      n_atom_per_IL_interval = -1, &
                                                       n_skip_sigma = -1, &
                                                       n_skip_chi = -1
       INTEGER, DIMENSION(:, :), ALLOCATABLE        :: i_atom_intervals, &
@@ -353,7 +345,7 @@ MODULE post_scf_bandstructure_types
       LOGICAL, DIMENSION(:, :), ALLOCATABLE        :: skip_Sigma_occ, &
                                                       skip_Sigma_vir, &
                                                       skip_chi
-      ! Marek : rtbse_method
+      ! rtbse_method (Stepan Marek)
       INTEGER                                      :: rtp_method = -1
 
       ! check-arrays and names for restarting
@@ -386,11 +378,8 @@ MODULE post_scf_bandstructure_types
       REAL(KIND=dp)                                :: soc_window_smearing = 1.0_dp/evolt
       ! sizes: mat_V_SOC_xyz: xyz, img
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: mat_V_SOC_xyz => NULL()
-      TYPE(cp_fm_type), DIMENSION(3)               :: fm_V_SOC_xyz_mo = cp_fm_type()
       ! small-cell GW: dimension = number of kpoints; large-cell GW: Gamma-point, dimension = 1
       TYPE(cp_cfm_type), DIMENSION(:), ALLOCATABLE :: cfm_SOC_spinor_ao
-      TYPE(band_edges_type)                        :: band_edges_scf_SOC = band_edges_type(), &
-                                                      band_edges_GW_SOC = band_edges_type()
 
       ! parameters for DOS and PDOS calculation
       REAL(KIND=dp)                                :: energy_window_DOS = -1.0_dp, &
@@ -419,13 +408,12 @@ MODULE post_scf_bandstructure_types
                                                       floquet_qe_file = "", &
                                                       floquet_bs_file = ""
 
-      ! quantities only needed for small cells and k-point sampling in DFT (small_cell_full_kp)
+      ! quantities only needed for small cells and k-point sampling in DFT (tensor_small_cell_full_kp)
       INTEGER                                      :: nkp_scf_desymm = -1, &
                                                       nimages_3c = -1, &
                                                       nimages_scf_desymm = -1, &
                                                       nimages_Delta_R = -1
-      TYPE(kpoint_type), POINTER                   :: kpoints_scf_desymm => NULL(), &
-                                                      kpoints_scf_desymm_2 => NULL()
+      TYPE(kpoint_type), POINTER                   :: kpoints_scf_desymm => NULL()
       INTEGER, DIMENSION(3)                        :: cell_grid_scf_desymm = -1
       INTEGER, DIMENSION(:, :), ALLOCATABLE        :: index_to_cell_3c, &
                                                       index_to_cell_Delta_R
@@ -433,7 +421,7 @@ MODULE post_scf_bandstructure_types
                                                       cell_to_index_Delta_R => NULL()
       REAL(KIND=dp)                                :: heuristic_filter_factor = -1.0_dp
 
-      ! small_cell_full_kp parallelization
+      ! tensor_small_cell_full_kp parallelization
       INTEGER                                      :: n_tasks_Delta_R_local = -1
       INTEGER, DIMENSION(:), ALLOCATABLE           :: task_Delta_R
       INTEGER, DIMENSION(:, :), ALLOCATABLE        :: nblocks_3c
@@ -485,7 +473,6 @@ CONTAINS
       CALL safe_kpoints_release(bs_env%kpoints_chi_eps_W)
       CALL safe_kpoints_release(bs_env%kpoints_DOS)
       CALL safe_kpoints_release(bs_env%kpoints_scf_desymm)
-      CALL safe_kpoints_release(bs_env%kpoints_scf_desymm_2)
 
       IF (ALLOCATED(bs_env%wkp_s_p)) DEALLOCATE (bs_env%wkp_s_p)
       IF (ALLOCATED(bs_env%wkp_no_extra)) DEALLOCATE (bs_env%wkp_no_extra)
@@ -592,9 +579,6 @@ CONTAINS
 
       ! SOC cfm_1d and arrays
       CALL safe_dbcsr_deallocate_matrix_set_2d(bs_env%mat_V_SOC_xyz)
-      CALL cp_fm_release(bs_env%fm_V_SOC_xyz_mo(1))
-      CALL cp_fm_release(bs_env%fm_V_SOC_xyz_mo(2))
-      CALL cp_fm_release(bs_env%fm_V_SOC_xyz_mo(3))
       CALL safe_cfm_destroy_1d(bs_env%cfm_SOC_spinor_ao)
 
       ! Deallocate RI-RS matrices
@@ -603,7 +587,7 @@ CONTAINS
       IF (bs_env%ri_rs%V_grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_V_aux_rtbse)
       IF (bs_env%ri_rs%W0_grid_built) CALL dbcsr_release(bs_env%ri_rs%mat_W0_grid_rtbse)
       IF (ALLOCATED(bs_env%ri_rs%grid_points)) DEALLOCATE (bs_env%ri_rs%grid_points)
-      IF (ALLOCATED(bs_env%ri_rs%grid_cache)) DEALLOCATE (bs_env%ri_rs%grid_cache)
+      IF (ALLOCATED(bs_env%ri_rs%atomic_grids)) DEALLOCATE (bs_env%ri_rs%atomic_grids)
       IF (ALLOCATED(bs_env%ri_rs%radius_ao_per_atom)) DEALLOCATE (bs_env%ri_rs%radius_ao_per_atom)
       IF (ALLOCATED(bs_env%ri_rs%radius_ri_per_atom)) DEALLOCATE (bs_env%ri_rs%radius_ri_per_atom)
       IF (ALLOCATED(bs_env%ri_rs%chunk_centroids)) DEALLOCATE (bs_env%ri_rs%chunk_centroids)

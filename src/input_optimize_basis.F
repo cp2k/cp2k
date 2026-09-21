@@ -430,6 +430,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="OPTIMIZE_AUGMENTATION_FUNCTIONS", &
+                          description="Optimizes the coefficients of the last contraction for each angular "// &
+                          "momentum in every set. This assumes that these contractions are the augmentation "// &
+                          "functions. When enabled, this selection replaces INITIAL_DEGREES_OF_FREEDOM; "// &
+                          "subsequent SWITCH_* keywords can modify it.", &
+                          usage="OPTIMIZE_AUGMENTATION_FUNCTIONS", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="SWITCH_COEFF_STATE", &
                           description="Allows to switch the state of a given coefficient from current state "// &
                           "(varibale/fixed)) to the opposite state. The three integers indicate "// &

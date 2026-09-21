@@ -59,10 +59,10 @@ MODULE post_scf_bandstructure_utils
    USE input_constants,                 ONLY: G0W0,&
                                               evGW0,&
                                               int_ldos_z,&
-                                              large_cell_Gamma,&
-                                              large_cell_Gamma_ri_rs,&
-                                              non_periodic_ri_rs,&
-                                              small_cell_full_kp
+                                              ri_rs_large_cell_Gamma,&
+                                              ri_rs_non_periodic,&
+                                              tensor_large_cell_Gamma,&
+                                              tensor_small_cell_full_kp
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -212,8 +212,8 @@ CONTAINS
 
       CALL set_heuristic_parameters(bs_env)
 
-      SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
-      CASE (large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs)
+      SELECT CASE (bs_env%gw_implementation)
+      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic)
 
          CALL setup_kpoints_DOS_large_cell_Gamma(qs_env, bs_env, bs_env%kpoints_DOS)
 
@@ -223,10 +223,9 @@ CONTAINS
 
          CALL check_positive_definite_overlap_mat(bs_env, qs_env)
 
-      CASE (small_cell_full_kp)
+      CASE (tensor_small_cell_full_kp)
 
          CALL setup_kpoints_scf_desymm(qs_env, bs_env, bs_env%kpoints_scf_desymm, .TRUE.)
-         CALL setup_kpoints_scf_desymm(qs_env, bs_env, bs_env%kpoints_scf_desymm_2, .FALSE.)
 
          CALL setup_kpoints_DOS_small_cell_full_kp(bs_env, bs_env%kpoints_DOS)
 
@@ -866,8 +865,6 @@ CONTAINS
          VBM = bs_env%eigenval_scf_Gamma(bs_env%n_occ(ispin), ispin)
          CBM = bs_env%eigenval_scf_Gamma(bs_env%n_occ(ispin) + 1, ispin)
 
-         bs_env%band_edges_scf_Gamma(ispin)%VBM = VBM
-         bs_env%band_edges_scf_Gamma(ispin)%CBM = CBM
          bs_env%e_fermi(ispin) = 0.5_dp*(VBM + CBM)
 
       END DO
@@ -1005,18 +1002,18 @@ CONTAINS
       IF (dft_control%nimages == 1) THEN
          IF (bs_env%do_gw_ri_rs) THEN
             IF (bs_env%do_periodic) THEN
-               bs_env%small_cell_full_kp_or_large_cell_Gamma = large_cell_Gamma_ri_rs
+               bs_env%gw_implementation = ri_rs_large_cell_Gamma
             ELSE
-               bs_env%small_cell_full_kp_or_large_cell_Gamma = non_periodic_ri_rs
+               bs_env%gw_implementation = ri_rs_non_periodic
             END IF
          ELSE
-            bs_env%small_cell_full_kp_or_large_cell_Gamma = large_cell_Gamma
+            bs_env%gw_implementation = tensor_large_cell_Gamma
          END IF
       ELSE IF (dft_control%nimages > 1) THEN
          IF (bs_env%do_gw_ri_rs) THEN
             CPABORT("RI-RS Not Implemented for K-point Calculations")
          ELSE
-            bs_env%small_cell_full_kp_or_large_cell_Gamma = small_cell_full_kp
+            bs_env%gw_implementation = tensor_small_cell_full_kp
          END IF
       ELSE
          CPABORT("Wrong number of cells from DFT calculation.")
@@ -1034,7 +1031,7 @@ CONTAINS
          WRITE (u, FMT="(T2,2A,T73,I8)") "Number of unoccupied (= virtual) MOs ", &
             "= Number of unoccupied bands", n_ao - homo
          WRITE (u, FMT="(T2,A,T73,I8)") "Number of Gaussian basis functions for MOs", n_ao
-         IF (bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp) THEN
+         IF (bs_env%gw_implementation == tensor_small_cell_full_kp) THEN
             WRITE (u, FMT="(T2,2A,T73,I8)") "Number of cells considered in the DFT ", &
                "calculation", bs_env%nimages_scf
          END IF
@@ -1165,7 +1162,7 @@ CONTAINS
 
       ! if we have done GW or a full kpoint SCF, we already have the band edges
       IF (bs_env%do_gw .OR. &
-          bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp) THEN
+          bs_env%gw_implementation == tensor_small_cell_full_kp) THEN
          band_edges_scf = bs_env%band_edges_scf
          band_edges_scf_guess = band_edges_scf
       ELSE
@@ -1302,7 +1299,7 @@ CONTAINS
          CPASSERT(bs_env%int_ldos_xyz == int_ldos_z)
       END IF
 
-      IF (bs_env%small_cell_full_kp_or_large_cell_Gamma == small_cell_full_kp) THEN
+      IF (bs_env%gw_implementation == tensor_small_cell_full_kp) THEN
          CALL cp_cfm_create(cfm_ks_ikp, bs_env%cfm_ks_kp(1, 1)%matrix_struct)
          CALL cp_cfm_create(cfm_s_ikp, bs_env%cfm_ks_kp(1, 1)%matrix_struct)
       END IF
@@ -1313,8 +1310,8 @@ CONTAINS
 
          DO ispin = 1, bs_env%n_spin
 
-            SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
-            CASE (large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs)
+            SELECT CASE (bs_env%gw_implementation)
+            CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic)
 
                ! 1. get H^KS_µν(k_i) from H^KS_µν(k=0)
                CALL cfm_ikp_from_fm_Gamma(cfm_ks_ikp, bs_env%fm_ks_Gamma(ispin), &
@@ -1329,7 +1326,7 @@ CONTAINS
                CALL cp_cfm_geeig(cfm_ks_ikp, cfm_s_ikp_copy, cfm_mos_ikp(ispin), &
                                  eigenval, cfm_work_ikp)
 
-            CASE (small_cell_full_kp)
+            CASE (tensor_small_cell_full_kp)
 
                ! 1. get H^KS_µν(k_i)
                CALL cp_cfm_to_cfm(bs_env%cfm_ks_kp(ikp, ispin), cfm_ks_ikp)
@@ -1791,8 +1788,8 @@ CONTAINS
       proj_mo_on_kind_spinor(:, :) = 0.0_dp
 
       ! 1. get V^SOC_µν,σσ'(k_i)
-      SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
-      CASE (large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs)
+      SELECT CASE (bs_env%gw_implementation)
+      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic)
 
          ! 1. get V^SOC_µν,σσ'(k_i) from V^SOC_µν,σσ'(k=0)
          CALL cfm_ikp_from_cfm_spinor_Gamma(cfm_SOC_ikp_spinor, &
@@ -1800,7 +1797,7 @@ CONTAINS
                                             bs_env%fm_s_Gamma%matrix_struct, &
                                             ikp, qs_env, bs_env%kpoints_DOS, "ORB")
 
-      CASE (small_cell_full_kp)
+      CASE (tensor_small_cell_full_kp)
 
          ! 1. V^SOC_µν,σσ'(k_i) already there
          CALL cp_cfm_to_cfm(bs_env%cfm_SOC_spinor_ao(ikp), cfm_SOC_ikp_spinor)
@@ -2850,13 +2847,13 @@ CONTAINS
 
       ! Calculate H^SOC_µν,σσ'(k) = sum_α V^SOC_µν^(α)(k)*Pauli-matrix^(α)_σσ'
       ! see Hartwigsen, Goedecker, Hutter, Eq.(18) (doi.org/10.1103/PhysRevB.58.3641)
-      SELECT CASE (bs_env%small_cell_full_kp_or_large_cell_Gamma)
-      CASE (large_cell_Gamma, large_cell_Gamma_ri_rs, non_periodic_ri_rs)
+      SELECT CASE (bs_env%gw_implementation)
+      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic)
 
          ! H^SOC_µν,σσ' = sum_α V^SOC_µν^(α)*Pauli-matrix^(α)_σσ'
          CALL H_KS_spinor_Gamma(bs_env)
 
-      CASE (small_cell_full_kp)
+      CASE (tensor_small_cell_full_kp)
 
          ! V^SOC_µν^(α),R -> V^SOC_µν^(α)(k); then calculate spinor H^SOC_µν,σσ'(k) (see above)
          CALL H_KS_spinor_kp(qs_env, bs_env)
