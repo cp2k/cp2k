@@ -8,7 +8,7 @@
 ! **************************************************************************************************
 !> \brief Utility method to build 3-center integrals for small cell GW
 ! **************************************************************************************************
-MODULE gw_integrals
+MODULE gw_utils_compute_integrals
    USE OMP_LIB,                         ONLY: omp_get_thread_num
    USE ai_contraction_sphi,             ONLY: abc_contract_xsmm
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -38,6 +38,7 @@ MODULE gw_integrals
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
+   USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE t_c_g0,                          ONLY: get_lmax_init,&
@@ -50,7 +51,7 @@ MODULE gw_integrals
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_integrals'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils_compute_integrals'
 
    PUBLIC :: build_3c_integral_block, build_3c_integral_block_ctx, &
              gw_3c_ctx_type, gw_3c_ctx_create, gw_3c_ctx_release, &
@@ -94,32 +95,65 @@ MODULE gw_integrals
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Builds the shared 3c-integral context: screening radii, basis maxima, contracted sphi
-!>        tables, and the one-time gamma / truncated-Coulomb table initializations.
+!> \brief Build the shared 3c-integral context from the band-structure environment and explicitly
+!>        supplied potential and basis sets.
 !> \param ctx ...
-!> \param qs_env ...
+!> \param bs_env ...
 !> \param potential_parameter ...
 !> \param basis_j ...
 !> \param basis_k ...
 !> \param basis_i ...
 ! **************************************************************************************************
-   SUBROUTINE gw_3c_ctx_create(ctx, qs_env, potential_parameter, basis_j, basis_k, basis_i)
-
+   SUBROUTINE gw_3c_ctx_create(ctx, bs_env, potential_parameter, basis_j, basis_k, basis_i)
       TYPE(gw_3c_ctx_type), INTENT(OUT)                  :: ctx
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_j, basis_k, basis_i
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'gw_3c_ctx_create'
+      CPASSERT(ASSOCIATED(bs_env%ri_rs%atomic_kind_set))
+      CPASSERT(ASSOCIATED(bs_env%ri_rs%cell))
+      CPASSERT(ASSOCIATED(bs_env%para_env))
+      CPASSERT(ASSOCIATED(bs_env%ri_rs%particle_set))
+
+      CALL gw_3c_ctx_create_core(ctx, potential_parameter, basis_j, basis_k, basis_i, &
+                                 bs_env%ri_rs%atomic_kind_set, bs_env%ri_rs%cell, &
+                                 bs_env%n_atom, bs_env%para_env, bs_env%ri_rs%particle_set)
+   END SUBROUTINE gw_3c_ctx_create
+
+! **************************************************************************************************
+!> \brief Build screening and contraction data shared by repeated 3c-integral block evaluations.
+!> \param ctx ...
+!> \param potential_parameter ...
+!> \param basis_j ...
+!> \param basis_k ...
+!> \param basis_i ...
+!> \param atomic_kind_set ...
+!> \param cell ...
+!> \param natom ...
+!> \param para_env ...
+!> \param particle_set ...
+! **************************************************************************************************
+   SUBROUTINE gw_3c_ctx_create_core(ctx, potential_parameter, basis_j, basis_k, basis_i, &
+                                    atomic_kind_set, cell, natom, para_env, particle_set)
+      TYPE(gw_3c_ctx_type), INTENT(OUT)                  :: ctx
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_j, basis_k, basis_i
+      TYPE(atomic_kind_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: atomic_kind_set
+      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      INTEGER, INTENT(IN)                                :: natom
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
+      TYPE(particle_type), DIMENSION(:), INTENT(IN), &
+         POINTER                                         :: particle_set
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'gw_3c_ctx_create_core'
 
       INTEGER                                            :: egfi, handle, ibasis, ilist, imax, iset, &
                                                             jset, kset, l, nbasis, ncoi, npgf_l, &
                                                             sgfi, unit_id
       INTEGER, DIMENSION(:), POINTER                     :: lmax_i, lmin_i, npgfi, npgfj, npgfk, &
                                                             nsgfi, nsgfj, nsgfk
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(gto_basis_set_type), POINTER                  :: basis_set
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -135,9 +169,9 @@ CONTAINS
          ctx%dr_ik = 1000000.0_dp
       END IF
 
-      NULLIFY (atomic_kind_set, para_env)
-      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, cell=ctx%cell, natom=ctx%natom, &
-                      para_env=para_env, particle_set=ctx%particle_set)
+      ctx%cell => cell
+      ctx%natom = natom
+      ctx%particle_set => particle_set
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=ctx%kind_of)
       CALL get_cell(cell=ctx%cell, h=ctx%hmat)
 
@@ -231,7 +265,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE gw_3c_ctx_create
+   END SUBROUTINE gw_3c_ctx_create_core
 
 ! **************************************************************************************************
 !> \brief Releases the shared 3c-integral context.
@@ -483,13 +517,21 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_3c_integral_block'
 
       INTEGER                                            :: at_i, at_j, at_k, handle, my_i_offset, &
-                                                            my_j_offset, my_k_offset
+                                                            my_j_offset, my_k_offset, natom
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(gw_3c_ctx_type)                               :: ctx
       TYPE(gw_3c_ws_type)                                :: ws
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
 
-      CALL gw_3c_ctx_create(ctx, qs_env, potential_parameter, basis_j, basis_k, basis_i)
+      NULLIFY (atomic_kind_set, cell, para_env, particle_set)
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, cell=cell, natom=natom, &
+                      para_env=para_env, particle_set=particle_set)
+      CALL gw_3c_ctx_create_core(ctx, potential_parameter, basis_j, basis_k, basis_i, &
+                                 atomic_kind_set, cell, natom, para_env, particle_set)
       CALL gw_3c_ws_create(ws, ctx)
 
       int_3c(:, :, :) = 0.0_dp
@@ -546,4 +588,4 @@ CONTAINS
 
    END SUBROUTINE build_3c_integral_block
 
-END MODULE gw_integrals
+END MODULE gw_utils_compute_integrals
