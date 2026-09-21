@@ -45,11 +45,10 @@ It can then be taken out of the sum, and the $\Gamma$-point formula from far abo
 In the RI-HFXk method, the real-space exact-exchange matrices are calculated with a local
 atom-specific RI basis:
 
-\\begin\{align} K\_{\\mu i,\\nu j}^\\textbf\{b} = \\sum\_{\\mathbf\{a}, \\mathbf\{c}} \\
-&P^\\mathbf\{c}\_{\\sigma,\\lambda} \\ (\\mu^\\mathbf\{0}\_i\\sigma^\\mathbf\{a}\\lfloor
-P^\\mathbf\{0}\_i)\\ (P^\\mathbf\{0}\_i\\lfloor R^\\mathbf\{0}\_i)^\{-1}\\ (R^\\mathbf\{0}\_i |
-S^\\mathbf\{b}\_j)\\ &(S^\\mathbf\{b}\_j\\lfloor Q^\\mathbf\{b}\_j)^\{-1}\\
-(Q^\\mathbf\{b}\_j\\lfloor \\nu^\\mathbf\{b}\_j \\lambda^{\\mathbf\{a}+\\mathbf\{c}}) \\end\{align}
+$$
+K_{\mu i,\nu j}^\textbf{b} = \sum_{\mathbf{a}, \mathbf{c}} \ &P^\mathbf{c}_{\sigma,\lambda} \ (\mu^\mathbf{0}_i\sigma^\mathbf{a}\lfloor P^\mathbf{0}_i)\ (P^\mathbf{0}_i\lfloor R^\mathbf{0}_i)^{-1}\ (R^\mathbf{0}_i | S^\mathbf{b}_j)\\
+&(S^\mathbf{b}_j\lfloor Q^\mathbf{b}_j)^{-1}\ (Q^\mathbf{b}_j\lfloor \nu^\mathbf{b}_j \lambda^{\mathbf{a}+\mathbf{c}})
+$$
 
 where indices $i,j$ refer to atoms, and $K^\mathbf{b}_{\mu i,\nu j}$ correspond to the $\mu,\nu$ AO
 pair in the $i,j$ atomic block of the matrix for periodic image $\mathbf{b}$. The local RI basis

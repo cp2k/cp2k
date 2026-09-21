@@ -38,10 +38,11 @@ We abbreviate $A$ and $B$ as matrices with index $A_{ia,jb}$, i.e. they have
 $N_\mathrm{occ}N_\mathrm{empty}$ rows and $N_\mathrm{occ}N_\mathrm{empty}$ columns. The entries of
 $A$ and $B$ are
 
-\\begin\{align} A\_{ia,jb} &=
-(\\varepsilon_a^\{GW}-\\varepsilon_i^\{GW})\\delta\_\{ij}\\delta\_\{ab} + \\alpha^\\mathrm{S/T}
-v\_{ia,jb} - W\_{ij,ab}(\\omega=0) \\quad ,\\ B\_{ia,jb} &= \\alpha^\\mathrm{(S/T)} v\_{ia,bj} -
-W\_{ib,aj}(\\omega=0) \\quad . \\end\{align}
+$$
+    A_{ia,jb} &= (\varepsilon_a^{GW}-\varepsilon_i^{GW})\delta_{ij}\delta_{ab} + \alpha^\mathrm{S/T}
+    v_{ia,jb} - W_{ij,ab}(\omega=0) \quad ,\\
+    B_{ia,jb} &= \alpha^\mathrm{(S/T)} v_{ia,bj} - W_{ib,aj}(\omega=0) \quad .
+$$
 
 where $\delta_{ij}$ is the Kronecker delta. The user sets $\alpha^S=2$ for computing singlet
 excitations and $\alpha^T=0$ for computing triplet excitations. $v_{pq,rs}$ is the bare Coulomb
@@ -52,9 +53,9 @@ enters the BSE. $(\mathbf{X}^{(n)},\mathbf{Y}^{(n)})$ with elements $X_{ia}^{(n)
 $Y_{ia}^{(n)}$ are the eigenvectors of the excitation $n$, which relate to the wave function of the
 electronic excitation,
 
-\\begin\{align} \\Psi\_\\text\{excitation}^{(n)}(\\mathbf\{r}_e,\\mathbf\{r}_h) = \\sum_\{ia}
-X_\{ia}^{(n)} \\varphi_i(\\mathbf\{r}\_h) \\varphi_a(\\mathbf\{r}_e) + Y_\{ia}^{(n)}
-\\varphi_i(\\mathbf\{r}\_e) \\varphi_a(\\mathbf\{r}\_h) \\quad , \\end\{align}
+$$
+\Psi_\text{excitation}^{(n)}(\mathbf{r}_e,\mathbf{r}_h) = \sum_{ia} X_{ia}^{(n)} \varphi_i(\mathbf{r}_h) \varphi_a(\mathbf{r}_e) + Y_{ia}^{(n)} \varphi_i(\mathbf{r}_e) \varphi_a(\mathbf{r}_h) \quad ,
+$$
 
 i.e. $X_{ia}^{(n)}$ and $Y_{ia}^{(n)}$ describe the transition amplitude between occupied orbital
 $\varphi_i$ and empty orbital $\varphi_a$ of the $n$-th excitation.
@@ -77,37 +78,51 @@ The BSE further allows the investigation of optical properties. For example, the
 spectrum can be computed as the imaginary part of the dynamical dipole polarizability tensor
 $\alpha_{\mu,\mu'}(\omega) $ with $(\mu,\mu'\in\{x,y,z\})$:
 
-\\begin\{align} \\alpha\_{\\mu,\\mu'}(\\omega) = - \\sum_n \\frac{2 \\Omega^{(n)} d^{(n)}_{\\mu}
-d^{(n)}_{\\mu'}}{(\\omega+i\\eta)^2-\\left(\\Omega^{(n)}\\right)^2} \\quad , \\end\{align}
+$$
+\alpha_{\mu,\mu'}(\omega) 
+= - \sum_n \frac{2 \Omega^{(n)} d^{(n)}_{\mu} d^{(n)}_{\mu'}}{(\omega+i\eta)^2-\left(\Omega^{(n)}\right)^2}
+\quad ,
+$$
 
 where we have introduced an artificial broadening $\eta$. The transition moments $d^{(n)}_{\mu}$ are
 computed in the length gauge $(\mu\in\{x,y,z\})$ as
 
-\\begin\{align} d^{(n)}_{\\mu} = \\sqrt\{2} \\sum_{i,a} \\langle \\varphi_i|\\hat{\\mu}| \\varphi_a
-\\rangle (X\_\{ia}^{(n)} + Y\_\{ia}^{(n)}) \\quad . \\end\{align}
+$$
+d^{(n)}_{\mu} = \sqrt{2} \sum_{i,a} \langle \varphi_i|\hat{\mu}| \varphi_a \rangle (X_{ia}^{(n)} + Y_{ia}^{(n)}) 
+\quad .
+$$
 
 When the molecules are not aligned, e.g. for gas phase and liquids, the spatial average is
 sufficient, i.e. the optical absorption spectrum can be computed as
 
-\\begin\{align} \\mathrm\{Im}\\left[\\bar{\\alpha}(\\omega)\\right] = \\frac\{1}\{3}
-\\sum\_{\\mu\\in{x,y,z}} \\mathrm\{Im}\\left[\\alpha\_{\\mu,\\mu}(\\omega)\\right] \\quad .
-\\end\{align}
+$$
+\mathrm{Im}\left[\bar{\alpha}(\omega)\right] = \frac{1}{3} \sum_{\mu\in\{x,y,z\}} \mathrm{Im}\left[\alpha_{\mu,\mu}(\omega)\right]
+\quad .
+$$
 
 We can rewrite the last equation as
 
-\\begin\{align} \\mathrm\{Im}\\left[\\bar{\\alpha}(\\omega)\\right] = - \\mathrm\{Im}\\left\[
-\\sum_n \\frac{f^{(n)}}{(\\omega+i\\eta)^2-\\left(\\Omega^{(n)}\\right)^2} \\right\] \\quad .
-\\end\{align}
+$$
+\mathrm{Im}\left[\bar{\alpha}(\omega)\right] 
+= - \mathrm{Im}\left[
+  \sum_n \frac{f^{(n)}}{(\omega+i\eta)^2-\left(\Omega^{(n)}\right)^2}
+  \right]
+\quad .
+$$
 
 where we introduced the oscillator strengths $f^{(n)}$, which are defined by
 
-\\begin\{align} f^{(n)} = \\frac\{2}\{3} \\Omega^{(n)} \\sum\_{\\mu\\in{x,y,z}} | d^{(n)}\_{\\mu}
-|^2 \\quad . \\end\{align}
+$$
+f^{(n)} = \frac{2}{3} \Omega^{(n)} \sum_{\mu\in\{x,y,z\}} | d^{(n)}_{\mu} |^2
+\quad .
+$$
 
 Additionally, the photoabsorption cross section tensor
 
-\\begin\{align} \\sigma\_{\\mu,\\mu'}(\\omega) = \\frac{4 \\pi \\omega}\{c}
-\\mathrm\{Im}\\left[\\alpha\_{\\mu,\\mu'}(\\omega) \\right] \\quad . \\end\{align}
+$$
+\sigma_{\mu,\mu'}(\omega)  = \frac{4 \pi \omega}{c} \mathrm{Im}\left[\alpha_{\mu,\mu'}(\omega) \right]
+\quad .
+$$
 
 is printed, where $c$ denotes the speed of light.
 
@@ -116,9 +131,11 @@ is printed, where $c$ denotes the speed of light.
 In order to analyse the excitation wave function independent of a specific choice of the molecular
 orbitals $\varphi_p(\mathbf{r})$, we can rewrite it as
 
-\\begin\{align} \\Psi\_\\text\{excitation}^{(n)}(\\mathbf\{r}\_e,\\mathbf\{r}\_h) = \\sum_I
-{\\lambda_I^{(n)}} \\phi_I^{(n)}(\\mathbf\{r}\_e) \\chi_I^{(n)}(\\mathbf\{r}\_h) \\quad .
-\\end\{align}
+$$
+\Psi_\text{excitation}^{(n)}(\mathbf{r}_e,\mathbf{r}_h) = 
+\sum_I {\lambda_I^{(n)}} \phi_I^{(n)}(\mathbf{r}_e) \chi_I^{(n)}(\mathbf{r}_h)
+\quad .
+$$
 
 in terms of the natural transitions orbitals (NTOs) $\phi_I^{(n)}(\mathbf{r}_e) $ and
 $\chi_I^{(n)}(\mathbf{r}_h)$. Here, we introduce the idea of electron and holes: In the excitation
@@ -139,8 +156,11 @@ NTO pairs.
 Assuming $\lambda_1^{(n)} = 1$ and $\lambda_{I\neq 1}=0$, the excitation wave function simply is
 given as a product
 
-\\begin\{align} \\Psi\_\\text\{excitation}^{(n)}(\\mathbf\{r}\_e,\\mathbf\{r}\_h) =
-\\phi_1^{(n)}(\\mathbf\{r}\_e) \\chi_1^{(n)}(\\mathbf\{r}\_h) \\quad . \\end\{align}
+$$
+\Psi_\text{excitation}^{(n)}(\mathbf{r}_e,\mathbf{r}_h) = 
+\phi_1^{(n)}(\mathbf{r}_e) \chi_1^{(n)}(\mathbf{r}_h)
+\quad .
+$$
 
 In this case, the electron is excited from the occupied NTO $\chi_1^{(n)}(\mathbf{r}_h)$ to the
 empty state $\phi_1^{(n)}(\mathbf{r}_e)$. This process leaves a hole at $\mathbf{r}_h$ and creates
@@ -159,11 +179,16 @@ $$
 
 i.e.:
 
-\\begin\{align} \{T}^{(n)} &=\
-\{U}^{(n)} {\\Lambda^{(n)}} \\left(\{V}^{(n)}\\right)^T \\ \\phi_I^{(n)}(\\mathbf\{r}_e) &=
-\\sum_{p=1}^\{N_b} \\varphi_p(\\mathbf\{r}_e) V_{p,I}^{(n)} \\quad , \\
-\\chi_I^{(n)}(\\mathbf\{r}_h) &= \\sum_{q=1}^\{N_b} \\varphi_q(\\mathbf\{r}_h) U_{q,I}^{(n)} \\quad
-. \\end\{align}
+$$
+    {T}^{(n)} &=  
+    {U}^{(n)} 
+    {\Lambda^{(n)}}
+    \left({V}^{(n)}\right)^T
+    \\
+    \phi_I^{(n)}(\mathbf{r}_e) &= \sum_{p=1}^{N_b} \varphi_p(\mathbf{r}_e) V_{p,I}^{(n)} \quad ,
+    \\
+    \chi_I^{(n)}(\mathbf{r}_h) &= \sum_{q=1}^{N_b} \varphi_q(\mathbf{r}_h) U_{q,I}^{(n)} \quad .
+$$
 
 ### 1.4 Measures for the size of an excited state
 
@@ -173,9 +198,15 @@ following Ref. \[[](#Mewes2018)\].
 
 To that end, we define the exciton expectation value with respect to a generic operator $\hat{O}$ as
 
-\\begin\{align} {\\langle \\hat\{O} \\rangle}_\\text\{exc}^{(n)} = \\frac{ \\langle
-\\Psi_\\text\{excitation}^{(n)} | \\hat\{O} | \\Psi\_\\text\{excitation}^{(n)}\\rangle }{ \\langle
-\\Psi\_\\text\{excitation}^{(n)} | \\Psi\_\\text\{excitation}^{(n)}\\rangle } \\quad , \\end\{align}
+$$
+{\langle \hat{O} \rangle}_\text{exc}^{(n)} =
+\frac{ 
+ \langle \Psi_\text{excitation}^{(n)} | \hat{O} | \Psi_\text{excitation}^{(n)}\rangle 
+}{
+ \langle \Psi_\text{excitation}^{(n)} | \Psi_\text{excitation}^{(n)}\rangle 
+}
+\quad ,
+$$
 
 where we drop the excitation index $n$ from now on for better readability.
 
@@ -186,8 +217,9 @@ state, i.e. distinguish between, e.g., valence, Rydberg or charge-transfer state
 
 First, we define the distance between electron and hole as
 
-\\begin\{align} d\_{h \\rightarrow e} = | {\\langle \\mathbf\{r}\_h - \\mathbf\{r}_e
-\\rangle}_\\mathrm\{exc} | \\quad , \\end\{align}
+$$
+d_{h \rightarrow e} = | {\langle \mathbf{r}_h - \mathbf{r}_e \rangle}_\mathrm{exc} | \quad ,
+$$
 
 which can be used to distinguish different classes of excitations: For example in a charge-transfer
 state, electron and hole sit on different parts of the molecule and therefore have a non-vanishing
@@ -195,17 +227,21 @@ electron-hole distance $d_{h \rightarrow e}$.
 
 Further, we can measure the size of electron and hole, respectively, as
 
-\\begin\{align} \\sigma\_{e/h} = \\sqrt{ {\\langle \\mathbf\{r}_{e/h}^2 \\rangle}_\\mathrm\{exc}
-
-- {\\langle \\mathbf\{r}_{e/h} \\rangle}_\\mathrm\{exc} ^2 } \\quad , \\end\{align}
+$$
+\sigma_{e/h} = \sqrt{ 
+  {\langle \mathbf{r}_{e/h}^2 \rangle}_\mathrm{exc} 
+  - {\langle \mathbf{r}_{e/h} \rangle}_\mathrm{exc} ^2
+  } \quad ,
+$$
 
 which allow us to distinguish between Rydberg states, where $\sigma_h \ll \sigma_e$, and valence
 states, where $\sigma_h \approx \sigma_e$.
 
 Closely related to these quantities, we can also define the exciton size
 
-\\begin\{align} d\_\\mathrm\{exc} = \\sqrt{ {\\langle |\\mathbf\{r}\_h - \\mathbf\{r}_e|^2
-\\rangle}_\\mathrm\{exc} } \\quad . \\end\{align}
+$$
+d_\mathrm{exc} = \sqrt{ {\langle |\mathbf{r}_h - \mathbf{r}_e|^2 \rangle}_\mathrm{exc} } \quad .
+$$
 
 which quantifies the spatial extent of the combined electron-hole pair. As one would expect, the
 exciton size $d_\mathrm{exc}$ increases when $d_{h \rightarrow e}$, $\sigma_{e}$ or $\sigma_{h}$
@@ -214,11 +250,11 @@ increase.
 Finally, we quantify the correlation of electron and hole by the electron-hole correlation
 coefficient
 
-\\begin\{align} R\_\{eh} = \\frac\{1}{\\sigma_e \\sigma_h} \\left( {\\langle \\mathbf\{r}\_h \\cdot
-\\mathbf\{r}_e \\rangle}_\\mathrm\{exc}
-
-- {\\langle \\mathbf\{r}_h \\rangle}_\\mathrm\{exc} \\cdot {\\langle \\mathbf\{r}_e
-  \\rangle}_\\mathrm\{exc} \\right) \\quad , \\end\{align}
+$$
+R_{eh} = \frac{1}{\sigma_e \sigma_h} \left( {\langle \mathbf{r}_h \cdot \mathbf{r}_e \rangle}_\mathrm{exc}
+- {\langle \mathbf{r}_h \rangle}_\mathrm{exc} \cdot {\langle \mathbf{r}_e \rangle}_\mathrm{exc} \right)
+\quad ,
+$$
 
 which allows us to distinguish between correlated ($R_{eh}>0$) motion, i.e. bound excitons, and
 anticorrelated ($R_{eh}<0$) motion, where electron and hole try to avoid each other.

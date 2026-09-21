@@ -27,7 +27,6 @@ myst_heading_anchors = 3
 myst_links_external_new_tab = True
 
 myst_enable_extensions = [
-    "amsmath",
     "attrs_inline",
     "dollarmath",
     "smartquotes",

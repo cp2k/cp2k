@@ -221,9 +221,9 @@ For more table formatting options, see the
 ## Math
 
 [Math shortcuts](https://myst-parser.readthedocs.io/en/latest/syntax/optional.html#math-shortcuts)
-in the MyST parser are enabled with the `amsmath` and `dollarmath` extensions, and will be rendered
-with MathJax as entities on which a right click launches a contextual menu. For MathJax support of
-TeX syntax, see [MathJax documentation](https://docs.mathjax.org/en/latest/input/tex/index.html).
+in the MyST parser are enabled with the `dollarmath` extension, and will be rendered with MathJax as
+entities on which a right click launches a contextual menu. For MathJax support of TeX syntax, see
+[MathJax documentation](https://docs.mathjax.org/en/latest/input/tex/index.html).
 
 The `dollarmath` extension parses the usual dollar-delimited math for inline and display (block)
 usage; a literal dollar sign needs escaping as `\$`.
@@ -244,16 +244,6 @@ $$
 > an `\begin{split}...\end{split}` environment automatically added to the TeX source for MathJax
 > rendering. Thus, a math block with double-dollar delimiters may conflict with other environments
 > and fail to render with an error message as `Erroneous nesting of equation structures`.
-
-The `amsmath` extension parses a number of LaTeX math environments directly, with no dollar signs
-needed as the delimiters. However, more special characters may need escaping.
-
-```
-\begin{align}
-  A_{ia,jb} &= (\varepsilon_a^{GW}-\varepsilon_i^{GW})\delta_{ij}\delta_{ab}, \\
-  B_{ia,jb} &= 2 v_{ia,bj} - W_{ib,aj} \quad .
-\end{align}
-```
 
 ## Notes and Warnings
 
