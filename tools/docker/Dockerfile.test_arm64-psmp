@@ -3,7 +3,7 @@
 # Usage: podman build --shm-size=1g -f ./Dockerfile.test_arm64-psmp ../../
 #
 
-FROM arm64v8/ubuntu:26.04
+FROM docker.io/arm64v8/ubuntu:26.04
 
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain

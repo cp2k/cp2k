@@ -3,7 +3,7 @@
 # Usage: podman build --shm-size=1g -f ./Dockerfile.test_gcc14 ../../
 #
 
-FROM ubuntu:24.04
+FROM docker.io/ubuntu:24.04
 
 # Add Ubuntu universe repository.
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends software-properties-common

@@ -7,7 +7,7 @@
 
 ARG BASE_IMAGE=${BASE_IMAGE:-ubuntu:26.04}
 
-FROM "${BASE_IMAGE}" AS build_deps
+FROM "docker.io/${BASE_IMAGE}" AS build_deps
 
 # Install packages required to build the CP2K dependencies with Spack
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
