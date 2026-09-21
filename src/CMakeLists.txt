@@ -741,6 +741,7 @@ list(
   qs_scf.F
   qs_scf_initialization.F
   qs_scf_lanczos.F
+  qs_scf_lanczos_c.F
   qs_scf_loop_utils.F
   qs_scf_methods.F
   qs_scf_output.F
