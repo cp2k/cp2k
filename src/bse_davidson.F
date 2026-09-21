@@ -594,14 +594,14 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
       LOGICAL                                            :: all_conv, has_prev, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
-      REAL(KIND=dp)                                      :: kr_min, t_iter
+      REAL(KIND=dp)                                      :: dev, kr_min, t_iter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, omega, omega_prev, res, res_L, &
                                                             theta_sub
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C_cand, C_work, Kr, Kr_new, L, Mr, &
-                                                            Mr_new, Q, R
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C_cand, C_work, Kr_new, L, Mr_new, Q, R
       TYPE(cp_blacs_env_type), POINTER                   :: diag_blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_b, fm_Kb, fm_Mb, fm_scratch, fm_work
+      TYPE(cp_fm_type)                                   :: fm_b, fm_Kb, fm_Mb, fm_red_K, fm_red_M, &
+                                                            fm_scratch, fm_work
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -633,14 +633,18 @@ CONTAINS
       CALL bse_matvec_vector_struct(mv_env, 2*block_size, fm_struct)
       CALL cp_fm_create(fm_scratch, fm_struct, name="fm_scratch_davidson", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=diag_blacs_env, &
+                               nrow_global=m_max, ncol_global=m_max)
+      CALL cp_fm_create(fm_red_M, fm_struct, name="fm_red_M_davidson", set_zero=.TRUE.)
+      CALL cp_fm_create(fm_red_K, fm_struct, name="fm_red_K_davidson", set_zero=.TRUE.)
+      CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_get_info(fm_b, nrow_local=nrow_local)
 
-      ALLOCATE (Mr(m_max, m_max), Kr(m_max, m_max), R(m_max, n_act), L(m_max, n_act), C_work(m_max, n_act))
+      ALLOCATE (R(m_max, n_act), L(m_max, n_act), C_work(m_max, n_act))
       ALLOCATE (C_cand(m_max, 4*n_act), Q(m_max, 4*n_act))
       ALLOCATE (omega(n_act), omega_prev(n_act), res(n_act), res_L(n_act), dE(n_act), conv(n_act), &
                 need(n_act), selected(n_act))
-      Mr(:, :) = 0.0_dp
-      Kr(:, :) = 0.0_dp
       C_cand(:, :) = 0.0_dp
       omega_prev(:) = 0.0_dp
       kr_min = 0.0_dp
@@ -685,8 +689,8 @@ CONTAINS
       IF (abba_status == abba_ok) THEN
          fm_b%local_data(1:nrow_local, m + 1:n_guess_cols) = 0.0_dp
          ! Mr_mn = sum_ia b_ia,m (M b)_ia,n and Kr_mn = sum_ia b_ia,m (K b)_ia,n on the guess basis
-         CALL subspace_gram(fm_b, 1, m, fm_Mb, 1, m, para_env, Mr(1:m, 1:m))
-         CALL subspace_gram(fm_b, 1, m, fm_Kb, 1, m, para_env, Kr(1:m, 1:m))
+         CALL reduced_gram_blocks(fm_b, m, fm_Mb, 1, m, block_size, para_env, fm_red_M)
+         CALL reduced_gram_blocks(fm_b, m, fm_Kb, 1, m, block_size, para_env, fm_red_K)
 
          CALL print_iteration_header('Block Davidson iterations for ABBA, Olsen-Stratmann paired subspace:', &
                                      unit_nr)
@@ -695,8 +699,8 @@ CONTAINS
             t_iter = m_walltime()
 
             ! Ω^k ascending with the coefficients R_mk of y^k and L_mk of x^k, sum_m R_mk L_mk = 1
-            CALL solve_reduced_paired(Mr, Kr, m, n_act, para_env, omega, R, L, kr_min, abba_status, &
-                                      diag_blacs_env)
+            CALL solve_reduced_paired(fm_red_M, fm_red_K, m, n_act, para_env, omega, R, L, kr_min, &
+                                      abba_status, diag_blacs_env)
             IF (abba_status /= abba_ok) EXIT
 
             ! thick restart: b, Mb and Kb are rotated alike; the current pairs come first, so that
@@ -710,12 +714,12 @@ CONTAINS
                CALL rotate_in_place(fm_b, m, Q, k, fm_work)
                CALL rotate_in_place(fm_Mb, m, Q, k, fm_work)
                CALL rotate_in_place(fm_Kb, m, Q, k, fm_work)
-               CALL rotate_reduced(Mr, m, Q, k)
-               CALL rotate_reduced(Kr, m, Q, k)
+               CALL reduced_rotate(fm_red_M, m, Q, k, para_env, diag_blacs_env)
+               CALL reduced_rotate(fm_red_K, m, Q, k, para_env, diag_blacs_env)
                m = k
                n_restart = n_restart + 1
-               CALL solve_reduced_paired(Mr, Kr, m, n_act, para_env, omega, R, L, kr_min, abba_status, &
-                                         diag_blacs_env)
+               CALL solve_reduced_paired(fm_red_M, fm_red_K, m, n_act, para_env, omega, R, L, kr_min, &
+                                         abba_status, diag_blacs_env)
                IF (abba_status /= abba_ok) EXIT
             END IF
 
@@ -769,10 +773,8 @@ CONTAINS
                ALLOCATE (Mr_new(m + nt, nt), Kr_new(m + nt, nt))
                CALL subspace_gram(fm_b, 1, m + nt, fm_Mb, m + 1, nt, para_env, Mr_new)
                CALL subspace_gram(fm_b, 1, m + nt, fm_Kb, m + 1, nt, para_env, Kr_new)
-               Mr(1:m + nt, m + 1:m + nt) = Mr_new(:, :)
-               Mr(m + 1:m + nt, 1:m) = TRANSPOSE(Mr_new(1:m, :))
-               Kr(1:m + nt, m + 1:m + nt) = Kr_new(:, :)
-               Kr(m + 1:m + nt, 1:m) = TRANSPOSE(Kr_new(1:m, :))
+               CALL reduced_extend(fm_red_M, Mr_new, m, nt)
+               CALL reduced_extend(fm_red_K, Kr_new, m, nt)
                DEALLOCATE (Mr_new, Kr_new)
             END IF
 
@@ -791,16 +793,11 @@ CONTAINS
          IF (mp2_env%bse%bse_debug_print) CALL print_tracked_roots(omega, res, n_want, n_act, unit_nr)
 
          IF (mp2_env%bse%bse_debug_print) THEN
-            ALLOCATE (Mr_new(m, m))
-            CALL subspace_gram(fm_b, 1, m, fm_b, 1, m, para_env, Mr_new)
-            DO k = 1, m
-               Mr_new(k, k) = Mr_new(k, k) - 1.0_dp
-            END DO
+            dev = orthonormality_deviation(fm_b, fm_b, m, block_size, para_env)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A10,T13,A,T63,ES18.6)') 'BSE|DEBUG|', &
-                  'Max deviation of the basis from orthonormality', MAXVAL(ABS(Mr_new))
+                  'Max deviation of the basis from orthonormality', dev
             END IF
-            DEALLOCATE (Mr_new)
          END IF
 
          ! the smallest eigenvalue of A-B on the span of b is that of the last Kr
@@ -827,9 +824,10 @@ CONTAINS
       CALL cp_fm_release(fm_Kb)
       CALL cp_fm_release(fm_work)
       CALL cp_fm_release(fm_scratch)
+      CALL cp_fm_release(fm_red_M)
+      CALL cp_fm_release(fm_red_K)
       CALL cp_blacs_env_release(diag_blacs_env)
-      DEALLOCATE (Mr, Kr, R, L, C_work, C_cand, Q, omega, omega_prev, res, res_L, dE, conv, need, selected, &
-                  diag)
+      DEALLOCATE (R, L, C_work, C_cand, Q, omega, omega_prev, res, res_L, dE, conv, need, selected, diag)
       IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
 
       CALL timestop(handle)
@@ -993,10 +991,10 @@ CONTAINS
 !>        sum_nop S_mn Mr_no S_op T_pk = λ_k T_mk, Ω_k = √λ_k, R_mk = sum_n S_mn T_nk/√Ω_k,
 !>        L_mk = sum_n Mr_mn R_nk/Ω_k. κ_1 <= 0 reports K as indefinite on the span of b.
 !>        Every m x m step runs on the grid of blacs_env: the two eigensolves through
-!>        choose_eigv_solver and the four products through parallel_gemm; only the two reduced
-!>        matrices in and the pair coefficients out cross between replicated and distributed
-!> \param Mr ...
-!> \param Kr ...
+!>        choose_eigv_solver and the four products through parallel_gemm; only the pair
+!>        coefficients come back replicated
+!> \param fm_red_M Mr in its live block, on the grid of blacs_env
+!> \param fm_red_K Kr in its live block, on the grid of blacs_env
 !> \param m ...
 !> \param n_act number of pairs formed
 !> \param para_env ...
@@ -1007,10 +1005,10 @@ CONTAINS
 !> \param abba_status abba_indefinite when κ_1 <= 0; omega, R and L are then untouched
 !> \param blacs_env grid the reduced problem is solved on
 ! **************************************************************************************************
-   SUBROUTINE solve_reduced_paired(Mr, Kr, m, n_act, para_env, omega, R, L, kr_min, abba_status, &
-                                   blacs_env)
+   SUBROUTINE solve_reduced_paired(fm_red_M, fm_red_K, m, n_act, para_env, omega, R, L, kr_min, &
+                                   abba_status, blacs_env)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Mr, Kr
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_red_M, fm_red_K
       INTEGER, INTENT(IN)                                :: m, n_act
       TYPE(mp_para_env_type), INTENT(IN), TARGET         :: para_env
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: omega
@@ -1023,7 +1021,6 @@ CONTAINS
 
       INTEGER                                            :: handle
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: kappa, lambda
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sym
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_H, fm_L, fm_Mr, fm_R, fm_S, fm_T, &
                                                             fm_U, fm_work
@@ -1031,7 +1028,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       CPASSERT(n_act <= m)
 
-      ALLOCATE (kappa(m), lambda(m), sym(m, m))
+      ALLOCATE (kappa(m), lambda(m))
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
                                nrow_global=m, ncol_global=m)
@@ -1043,9 +1040,10 @@ CONTAINS
       CALL cp_fm_create(fm_work, fm_struct, name="bse_paired_work")
       CALL cp_fm_struct_release(fm_struct)
 
-      ! Kr = U diag(κ) U^T
-      sym(:, :) = 0.5_dp*(Kr(1:m, 1:m) + TRANSPOSE(Kr(1:m, 1:m)))
-      CALL cp_fm_set_submatrix(fm_work, sym)
+      ! Kr = U diag(κ) U^T, on the symmetrised live block
+      CALL cp_fm_to_fm_submat(fm_red_K, fm_work, m, m, 1, 1, 1, 1)
+      CALL cp_fm_transpose(fm_work, fm_U)
+      CALL cp_fm_scale_and_add(0.5_dp, fm_work, 0.5_dp, fm_U)
       kappa(:) = 0.0_dp
       CALL choose_eigv_solver(fm_work, fm_U, kappa)
       kr_min = kappa(1)
@@ -1059,8 +1057,9 @@ CONTAINS
          CALL parallel_gemm('N', 'T', m, m, m, 1.0_dp, fm_work, fm_U, 0.0_dp, fm_S)
 
          ! H_mp = sum_no S_mn Mr_no S_op, then T holds its eigenvectors
-         sym(:, :) = 0.5_dp*(Mr(1:m, 1:m) + TRANSPOSE(Mr(1:m, 1:m)))
-         CALL cp_fm_set_submatrix(fm_Mr, sym)
+         CALL cp_fm_to_fm_submat(fm_red_M, fm_Mr, m, m, 1, 1, 1, 1)
+         CALL cp_fm_transpose(fm_Mr, fm_T)
+         CALL cp_fm_scale_and_add(0.5_dp, fm_Mr, 0.5_dp, fm_T)
          CALL parallel_gemm('N', 'N', m, m, m, 1.0_dp, fm_Mr, fm_S, 0.0_dp, fm_work)
          CALL parallel_gemm('N', 'N', m, m, m, 1.0_dp, fm_S, fm_work, 0.0_dp, fm_H)
          lambda(:) = 0.0_dp
@@ -1099,7 +1098,7 @@ CONTAINS
       CALL cp_fm_release(fm_H)
       CALL cp_fm_release(fm_T)
       CALL cp_fm_release(fm_work)
-      DEALLOCATE (kappa, lambda, sym)
+      DEALLOCATE (kappa, lambda)
       CALL timestop(handle)
 
    END SUBROUTINE solve_reduced_paired
@@ -1906,7 +1905,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (basis(m, n_cap))
+      ! never more columns than candidates: the paired solver's cap is close to m_max
+      ALLOCATE (basis(m, MIN(n_cap, n_cand)))
       n_new = 0
       DO k = 1, n_cand
          IF (n_new == n_cap) EXIT
@@ -2024,30 +2024,6 @@ CONTAINS
                                                      alpha*fm_U%local_data(1:nrow_local, u0:u0 + n - 1)
 
    END SUBROUTINE columns_axpy
-
-! **************************************************************************************************
-!> \brief G_kl <- sum_pq Q_pk G_pq Q_ql for p, q <= m and k, l <= nq
-!> \param G ...
-!> \param m ...
-!> \param Q ...
-!> \param nq ...
-! **************************************************************************************************
-   SUBROUTINE rotate_reduced(G, m, Q, nq)
-
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: G
-      INTEGER, INTENT(IN)                                :: m
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Q
-      INTEGER, INTENT(IN)                                :: nq
-
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_rot
-
-      ALLOCATE (G_rot(nq, nq))
-      G_rot(:, :) = MATMUL(TRANSPOSE(Q(1:m, 1:nq)), MATMUL(G(1:m, 1:m), Q(1:m, 1:nq)))
-      G(:, :) = 0.0_dp
-      G(1:nq, 1:nq) = G_rot(:, :)
-      DEALLOCATE (G_rot)
-
-   END SUBROUTINE rotate_reduced
 
 ! **************************************************************************************************
 !> \brief G_kl = sum_ia U_ia,u0+k-1 V_ia,v0+l-1 for k <= nu, l <= nv, local product and sum over the ranks
