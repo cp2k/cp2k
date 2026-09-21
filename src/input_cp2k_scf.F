@@ -1384,8 +1384,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NKRYLOV", &
                  description="Dimension of the Krylov space used for the Lanczos refinement, as a multiple of the block width. "// &
-                          "With k-point complex wavefunctions it is only a floor when NBLOCK covers every pending column: "// &
-                          "the shared-subspace budget then holds about four times the pending width", &
+                         "With k-point complex wavefunctions it only lifts the budget when NBLOCK covers every pending column: "// &
+                          "that budget then holds about four times the pending width, and a smaller NKRYLOV leaves it unchanged", &
                           usage="NKRYLOV 20", &
                           default_i_val=4)
       CALL section_add_keyword(section, keyword)
