@@ -99,7 +99,7 @@ MODULE bibliography
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
                             Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
                             Cances2000, Herbst2022, Zhang2025, Gresch2017, Soluyanov2011, Davidson1975, &
-                            Olsen1988, Stratmann1998, Vecharynski2017
+                            Olsen1988, Stratmann1998, Vecharynski2017, Stathopoulos1998, Bai2012, Fukaya2014
 
 CONTAINS
 
@@ -2342,6 +2342,27 @@ CONTAINS
                          "density functional theory", &
                          source="Comput. Phys. Commun.", volume="221", pages="42-52", &
                          year=2017, doi="10.1016/j.cpc.2017.07.017")
+
+      CALL add_reference(key=Stathopoulos1998, &
+                         authors=s2a("A. Stathopoulos", "Y. Saad", "K. Wu"), &
+                         title="Dynamic thick restarting of the Davidson, and the implicitly restarted Arnoldi "// &
+                         "methods", &
+                         source="SIAM J. Sci. Comput.", volume="19", pages="227-245", &
+                         year=1998, doi="10.1137/S1064827596304162")
+
+      CALL add_reference(key=Bai2012, &
+                         authors=s2a("Z. Bai", "R.-C. Li"), &
+                         title="Minimization principles for the linear response eigenvalue problem I: Theory", &
+                         source="SIAM J. Matrix Anal. Appl.", volume="33", pages="1075-1100", &
+                         year=2012, doi="10.1137/110838960")
+
+      CALL add_reference(key=Fukaya2014, &
+                         authors=s2a("T. Fukaya", "Y. Nakatsukasa", "Y. Yanagisawa", "Y. Yamamoto"), &
+                         title="CholeskyQR2: A simple and communication-avoiding algorithm for computing a "// &
+                         "tall-skinny QR factorization on a large-scale parallel system", &
+                         source="2014 5th Workshop on Latest Advances in Scalable Algorithms for Large-Scale "// &
+                         "Systems (ScalA)", pages="31-38", &
+                         year=2014, doi="10.1109/ScalA.2014.11")
 
    END SUBROUTINE add_all_references
 

@@ -13,8 +13,11 @@
 ! **************************************************************************************************
 MODULE bse_davidson
 
-   USE bibliography,                    ONLY: Davidson1975,&
+   USE bibliography,                    ONLY: Bai2012,&
+                                              Davidson1975,&
+                                              Fukaya2014,&
                                               Olsen1988,&
+                                              Stathopoulos1998,&
                                               Stratmann1998,&
                                               Vecharynski2017,&
                                               cite_reference
@@ -121,6 +124,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       CALL cite_reference(Davidson1975)
+      CALL cite_reference(Stathopoulos1998)
+      CALL cite_reference(Fukaya2014)
 
       para_env => mv_env%para_env
       ! the trial vectors live on an npe x 1 grid, which is a bad one to diagonalize on
@@ -345,6 +350,9 @@ CONTAINS
       CALL timeset(routineN, handle)
       CALL cite_reference(Davidson1975)
       CALL cite_reference(Vecharynski2017)
+      CALL cite_reference(Bai2012)
+      CALL cite_reference(Stathopoulos1998)
+      CALL cite_reference(Fukaya2014)
 
       abba_status = abba_ok
       ab_margin = 0.0_dp
@@ -635,6 +643,9 @@ CONTAINS
       CALL cite_reference(Davidson1975)
       CALL cite_reference(Olsen1988)
       CALL cite_reference(Stratmann1998)
+      CALL cite_reference(Bai2012)
+      CALL cite_reference(Stathopoulos1998)
+      CALL cite_reference(Fukaya2014)
 
       abba_status = abba_ok
       ab_margin = 0.0_dp
