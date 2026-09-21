@@ -19,6 +19,12 @@
 "BSE_H2O_PBE_evGW0_custom_screening.inp" = [{matcher="BSE_1st_excit_ener", tol=2e-05, ref=14.9538}]
 "BSE_H2O_PBE_evGW0_spectra.inp"         = [{matcher="M124", tol=2e-02, ref=25.3518},
                                            {matcher="M125", tol=2e-02, ref=0.7006}]
+"TDA_H2O_PBE_G0W0_ITERDIAG.inp"         = [{matcher="BSE_1st_excit_ener_TDA", tol=2e-05, ref=7.7697},
+                                           {matcher="M113", tol=7e-02, ref=0.014}]
+"BSE_H2O_PBE_G0W0_ITERDIAG_MK.inp"      = [{matcher="BSE_1st_excit_ener", tol=2e-05, ref=7.7251},
+                                           {matcher="M114", tol=2e-05, ref=0.014}]
+"BSE_H2O_PBE_G0W0_ITERDIAG_OS.inp"      = [{matcher="BSE_1st_excit_ener", tol=2e-05, ref=7.7251},
+                                           {matcher="M114", tol=2e-05, ref=0.014}]
 "TDA_H2_PBE_G0W0_CHOLESKY_OFF.inp"             = [{matcher="BSE_1st_excit_ener_TDA", tol=2e-05 , ref=16.9750}]
 "TDA_H2_PBE_UKS_KS.inp"                        = [{matcher="BSE_1st_excit_ener_UKS", tol=2e-05, ref=0.5127},
                                                    {matcher="BSE_2nd_excit_ener_UKS", tol=2e-05, ref=6.2622},
@@ -41,3 +47,5 @@
 # two checks for exciton descriptors in TDA and ABBA and custom screening for 
 # RPA, TDHF and ALPHA=0.25 is checked 
 # The two checks of spectra need coarse thresholds
+# The three ITERDIAG inputs restart the iterative solver (TDA, MK and OS) on the H2O G0W0 deck;
+# their refs are those of the FULLDIAG inputs TDA_H2O_PBE_G0W0 and BSE_H2O_PBE_G0W0
