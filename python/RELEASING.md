@@ -6,17 +6,19 @@ is no upload job or credential configuration in this change.
 
 ## Decisions before the first release
 
-- Confirm `cp2k-python` as the distribution name and `cp2k` as the import name. Check PyPI and
-  TestPyPI separately; an absent public project is not proof that a name is available or reserved.
-  Never co-install the obsolete Cython distribution exporting the same import.
+- Agree on the final distribution name (currently `cp2k-python`) and retain `cp2k` as the import
+  name. The alternatives proposed in review, including `pycp2k`, remain a maintainer decision. Check
+  PyPI and TestPyPI separately; an absent public project is not proof that a name is available or
+  reserved. Never co-install the obsolete Cython distribution exporting the same import.
 - Name a primary release maintainer and a backup, and agree who reviews native/Python API changes
   and responds to failed CI. Do not assign these duties to contributors without their agreement.
 - Agree project ownership, two-factor authentication and protected release approval with the CP2K
   organization. No personal credentials belong in the repository.
-- Keep wrapper versions separate from CP2K versions. Proposed first release: `0.1.0`, with breaking
-  pre-1.0 API changes in a new minor version and compatible fixes in a patch version. Keep
-  `pyproject.toml` and `cp2k.__version__` synchronized. Do not create a tag until approved; a
-  proposed tag convention is `python-v<VERSION>`.
+- Keep the wrapper's release schedule and versions separate from CP2K's. Python-only fixes need not
+  wait for a native CP2K release; native compatibility must still be documented and tested. Proposed
+  first release: `0.1.0`, with breaking pre-1.0 API changes in a new minor version and compatible
+  fixes in a patch version. Keep `pyproject.toml` and `cp2k.__version__` synchronized. Do not create
+  a tag until approved; a proposed tag convention is `python-v<VERSION>`.
 
 ## Native compatibility
 
@@ -27,9 +29,9 @@ string. Record the native Git revision, build options, MPI implementation and te
 | Capability                                           | Native requirement                                                                                      |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Direct calculations                                  | Loadable shared libcp2k and the required C entry points                                                 |
-| Repeated complete runs followed by force evaluations | Output-file and DBCSR lifetime fixes in #6060                                                           |
+| Repeated complete runs followed by force evaluations | Output-file and DBCSR lifetime fixes in #6078                                                           |
 | Caller-owned MPI communicator                        | `cp2k_init_without_mpi_comm` and a compatible MPI runtime                                               |
-| SCF convergence status                               | `cp2k_get_scf_convergence` from #6060; older/unsupported paths report unknown                           |
+| SCF convergence status                               | `cp2k_get_scf_convergence` from #6078; older/unsupported paths report unknown                           |
 | Stress and variable-cell adapters, if included       | Stress API and integration changes in #6061                                                             |
 | Optional AiiDA workflows, if retained                | CP2K executable, compatible AiiDA packages and the final-cell-frame fix in #6062; no libcp2k dependency |
 
