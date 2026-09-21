@@ -94,8 +94,8 @@ RUN /bin/bash -o pipefail -c " \
     ./test_regtest.sh toolchain_cuda_A100 psmp |& tee report.log && \
     rm -rf regtesting"
 
-# Output the report if the image is old and was therefore pulled from the build cache.
-CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
+# Always output the report: even a newly built image may be reused from the cache.
+CMD ["cat", "./report.log"]
 ENTRYPOINT []
 
 #EOF

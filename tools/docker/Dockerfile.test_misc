@@ -27,8 +27,8 @@ RUN bash -c "if [ -n "${GIT_COMMIT_SHA}" ] ; then echo "git:\${GIT_COMMIT_SHA::7
 COPY ./tools/docker/scripts/test_misc.sh .
 RUN ./test_misc.sh 2>&1 | tee report.log
 
-# Output the report if the image is old and was therefore pulled from the build cache.
-CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
+# Always output the report: even a newly built image may be reused from the cache.
+CMD ["cat", "./report.log"]
 ENTRYPOINT []
 
 #EOF
