@@ -21,24 +21,24 @@
 !>        coefficient bookkeeping. The kernel solves the small
 !>        Rayleigh-Ritz problem as complex Hermitian. The leading Ritz
 !>        pairs overwrite the target columns and refresh their
-!>        eigenvalues at every call. All scratch matrices are local to
-!>        the call, so the kernel stays free of CP2K state and
-!>        independently testable.
+!>        eigenvalues at every call. The kernel keeps no state of its own:
+!>        every scratch matrix and array lives in a caller-owned workspace,
+!>        created once per diagonalization call and reused by every sweep.
+!>        The workspace matrices are wider than a single call needs, and
+!>        every read stays inside the prefix the call wrote, so the reused
+!>        scratch needs no zeroing
 ! **************************************************************************************************
 MODULE qs_scf_lanczos_c
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                               cp_cfm_gemm,&
-                                              cp_cfm_scale_and_add,&
                                               cp_cfm_triangular_multiply,&
                                               cp_cfm_vectorsnorm
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
-                                              cp_cfm_get_submatrix,&
                                               cp_cfm_release,&
-                                              cp_cfm_set_submatrix,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -57,6 +57,34 @@ MODULE qs_scf_lanczos_c
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_lanczos_c'
 
    PUBLIC :: lanczos_refinement_2v_c
+   PUBLIC :: lanczos_workspace_create, lanczos_workspace_release
+
+! **************************************************************************************************
+!> \brief Caller-owned scratch of the refinement kernel: every matrix and
+!>        array that the sweeps of one channel reuse. The driver creates
+!>        the workspace once per diagonalization call and hands it to
+!>        every kernel call. The widths follow the worst case of the run:
+!>        the basis budget holds the larger of four times the MO count
+!>        and the NKRYLOV block budget, and every per-call clamp stays
+!>        below it. The small Rayleigh-Ritz pair keeps its per-block
+!>        right-sized allocation, because the solver stack diagonalizes
+!>        whole matrices and knows no leading-block argument
+! **************************************************************************************************
+   TYPE, PUBLIC :: lanczos_workspace_type
+      ! entry Rayleigh-Ritz, its rotation and the shared scratch column
+      TYPE(cp_cfm_type) :: entry_rblk, hmo, mo_gram, evec, rot_scr
+      ! entry-pass Ritz vector copies at the full MO width
+      TYPE(cp_cfm_type) :: entry_ritz_vec, entry_ritz_scaled
+      ! working basis and its A-images
+      TYPE(cp_cfm_type) :: vmat, hvmat
+      ! candidate block, single-column fallback, deflation and Ritz scratch
+      TYPE(cp_cfm_type) :: cand_blk, one_col, ritz_vec, ritz_scaled, defl_coeff
+      ! batch Gram scratch of the within-block orthogonalization
+      TYPE(cp_cfm_type) :: batch_gram
+      REAL(dp), ALLOCATABLE :: theta(:), nrm(:), rank_scale(:), pair_res(:), entry_res(:), gram_eval(:)
+      LOGICAL, ALLOCATABLE :: ldone(:)
+      COMPLEX(dp), ALLOCATABLE :: ctheta(:), col_scale(:), eval_scale(:), gram_scale(:)
+   END TYPE lanczos_workspace_type
 
 CONTAINS
 
@@ -66,11 +94,9 @@ CONTAINS
 !>        Every non-converged column block then runs a single-pass
 !>        Lanczos refinement. A full Cholesky sweep closes the call.
 !> \param ks standardized operator A = U^-dag H U^-1, nao x nao
-!> \param c0 current MOS in the standardized basis, nao x nmo, refined in place
-!> \param c1 scratch of the same shape as c0
+!> \param c0 current MOS in the standardized basis, refined in place.
+!>        The matrix dimensions of the call follow c0
 !> \param eval eigenvalues of c0, updated in place by the entry Rayleigh-Ritz
-!> \param nao number of atomic orbitals
-!> \param nmo number of molecular orbitals
 !> \param eps_col per-column convergence thresholds on the residual norms:
 !>        the driver assigns the relaxed empty threshold to the unoccupied
 !>        columns. The occupation decides, not the column index. This
@@ -79,6 +105,8 @@ CONTAINS
 !>        The kernel uses it as a floor on the budget only when NBLOCK
 !>        covers every pending column
 !> \param nblock number of columns refined jointly, one or more
+!> \param ws caller-owned scratch of the call, created by the driver at
+!>        the worst-case widths of the run
 !> \param max_res_norm largest residual column norm on exit: the entry
 !>        Rayleigh-Ritz values, or the wanted-pair residuals of the
 !>        refinement blocks when a refinement ran
@@ -90,38 +118,29 @@ CONTAINS
 !> \param check_moconv_only only run the entry Rayleigh-Ritz and the
 !>        convergence count, skip the refinement
 ! **************************************************************************************************
-   SUBROUTINE lanczos_refinement_2v_c(ks, c0, c1, eval, nao, nmo, eps_col, nkrylov, nblock, &
+   SUBROUTINE lanczos_refinement_2v_c(ks, c0, eval, eps_col, nkrylov, nblock, ws, &
                                       max_res_norm, min_res_norm, nmo_conv, nmo_nc, check_moconv_only)
 
       TYPE(cp_cfm_type), INTENT(IN)                      :: ks
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: c0, c1
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: c0
       REAL(dp), DIMENSION(:), POINTER                    :: eval
-      INTEGER, INTENT(IN)                                :: nao, nmo
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: eps_col
       INTEGER, INTENT(IN)                                :: nkrylov, nblock
+      TYPE(lanczos_workspace_type), INTENT(INOUT)        :: ws
       REAL(dp), INTENT(OUT)                              :: max_res_norm, min_res_norm
       INTEGER, INTENT(OUT)                               :: nmo_conv, nmo_nc
       LOGICAL, INTENT(IN), OPTIONAL                      :: check_moconv_only
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_refinement_2v_c'
 
-      COMPLEX(dp), ALLOCATABLE, DIMENSION(:)             :: c_eval_c, g_scale
       INTEGER                                            :: handle, info, ipass, iwork, n_conv_cols, &
-                                                            nmo_converged, nmo_nc_loc
+                                                            nao, nmo, nmo_converged, nmo_nc_loc
       LOGICAL                                            :: my_check_moconv_only, refined
       REAL(dp)                                           :: gfloor, max_norm, min_norm
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: c_res, g_eval
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_cfm_type)                                  :: c_tmp, chc, evec, hc
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (fm_struct_tmp, blacs_env, para_env)
-
-      para_env => c0%matrix_struct%para_env
-      blacs_env => c0%matrix_struct%context
+      CALL cp_cfm_get_info(c0, nrow_global=nao, ncol_global=nmo)
 
       nmo_conv = 0
       nmo_nc = 0
@@ -130,57 +149,29 @@ CONTAINS
       my_check_moconv_only = .FALSE.
       IF (PRESENT(check_moconv_only)) my_check_moconv_only = check_moconv_only
 
-      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmo, &
-                               para_env=para_env, &
-                               context=blacs_env)
-      CALL cp_cfm_create(c_tmp, matrix_struct=fm_struct_tmp, name="c_tmp")
-      CALL cp_cfm_create(hc, matrix_struct=fm_struct_tmp, name="hc")
-      CALL cp_fm_struct_release(fm_struct_tmp)
-
-      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=nmo, &
-                               para_env=para_env, &
-                               context=blacs_env)
-      CALL cp_cfm_create(chc, matrix_struct=fm_struct_tmp, name="chc")
-      CALL cp_cfm_create(evec, matrix_struct=fm_struct_tmp, name="evec")
-      CALL cp_fm_struct_release(fm_struct_tmp)
-
-      ! Compute (C^dag)HC
-      CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, ks, c0, z_zero, hc)
-      CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, c0, hc, z_zero, chc)
-
-      ! Diagonalize (C^dag)HC
-      CALL cp_cfm_heevd(chc, evec, eval)
+      ! entry Rayleigh-Ritz pass on the current MOS: A-images, then the
+      ! shared projection, solve and exact residuals
+      CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, ks, c0, z_zero, ws%hmo)
+      CALL rayleigh_ritz(ws%hmo, c0, nmo, nmo, eval, ws%mo_gram, ws%evec, &
+                         ws%entry_ritz_vec, ws%entry_ritz_scaled, ws%eval_scale, &
+                         ws%entry_rblk, ws%entry_res)
 
       ! Rotate the C vectors
-      CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, c0, evec, z_zero, c1)
-
-      ! Check for converged states: residual = H*C*Y - C*Y*diag(eval)
-      CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, hc, evec, z_zero, c_tmp)
-      CALL cp_cfm_to_cfm(c1, c0, nmo, 1, 1)
-      ALLOCATE (c_eval_c(nmo))
-      c_eval_c(:) = CMPLX(eval(1:nmo), 0.0_dp, KIND=dp)
-      CALL cp_cfm_column_scale(c1, c_eval_c)
-      DEALLOCATE (c_eval_c)
-      CALL cp_cfm_scale_and_add(z_one, c_tmp, z_mone, c1)
-      ALLOCATE (c_res(nmo))
-      CALL cp_cfm_vectorsnorm(c_tmp, c_res)
+      CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, c0, ws%evec, z_zero, ws%rot_scr)
+      CALL cp_cfm_to_cfm(ws%rot_scr, c0, nmo, 1, 1)
 
       nmo_converged = 0
       nmo_nc_loc = 0
-      max_norm = MAXVAL(c_res)
-      min_norm = MINVAL(c_res)
+      max_norm = MAXVAL(ws%entry_res)
+      min_norm = MINVAL(ws%entry_res)
       DO iwork = 1, nmo
-         IF (c_res(iwork) <= eps_col(iwork)) THEN
+         IF (ws%entry_res(iwork) <= eps_col(iwork)) THEN
             nmo_converged = nmo_converged + 1
          ELSE
             nmo_nc_loc = nmo - nmo_converged
             EXIT
          END IF
       END DO
-      DEALLOCATE (c_res)
-
-      CALL cp_cfm_release(c_tmp)
-      CALL cp_cfm_release(hc)
 
       nmo_conv = nmo_converged
       nmo_nc = nmo_nc_loc
@@ -191,7 +182,7 @@ CONTAINS
          IF (nmo_nc_loc > 0) THEN
             CALL lanczos_refine(ks, c0, eval, nao, nmo, eps_col, nkrylov, nblock, &
                                 nmo_converged, nmo_nc_loc, n_conv_cols, max_res_norm, min_res_norm, &
-                                refined)
+                                refined, ws)
             IF (.NOT. refined) THEN
                ! no refinement pass ran (degenerate Krylov budget, or every
                ! seed block was rank-deficient): keep the entry statistics
@@ -211,10 +202,10 @@ CONTAINS
          ! factorization can fail. The kernel then falls back to a
          ! spectral reorthonormalization (clamp the Gram spectrum at a
          ! floor and apply the inverse square root) instead of aborting
-         CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, c0, c0, z_zero, chc)
-         CALL cp_cfm_cholesky_decompose(chc, nmo, info)
+         CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, c0, c0, z_zero, ws%mo_gram)
+         CALL cp_cfm_cholesky_decompose(ws%mo_gram, nmo, info)
          IF (info == 0) THEN
-            CALL cp_cfm_triangular_multiply(chc, c0, 'R', invert_tr=.TRUE.)
+            CALL cp_cfm_triangular_multiply(ws%mo_gram, c0, 'R', invert_tr=.TRUE.)
          ELSE
             ! spectral fallback: clamp the Gram spectrum at a floor and
             ! apply the inverse square root. A clamped direction keeps a
@@ -224,22 +215,17 @@ CONTAINS
             ! clamped direction back to unit norm and reimport the very
             ! overlap the clamp bounds. Normalization is not
             ! re-orthogonalization
-            ALLOCATE (g_eval(nmo), g_scale(nmo))
             DO ipass = 1, 2
-               CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, c0, c0, z_zero, chc)
-               CALL cp_cfm_heevd(chc, evec, g_eval)
-               gfloor = 1.0E-10_dp*MAX(MAXVAL(ABS(g_eval)), TINY(1.0_dp))
-               g_scale(:) = CMPLX(1.0_dp/SQRT(MAX(g_eval, gfloor)), 0.0_dp, KIND=dp)
-               CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, c0, evec, z_zero, c1)
-               CALL cp_cfm_column_scale(c1, g_scale)
-               CALL cp_cfm_gemm('N', 'C', nao, nmo, nmo, z_one, c1, evec, z_zero, c0)
+               CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, c0, c0, z_zero, ws%mo_gram)
+               CALL cp_cfm_heevd(ws%mo_gram, ws%evec, ws%gram_eval)
+               gfloor = 1.0E-10_dp*MAX(MAXVAL(ABS(ws%gram_eval)), TINY(1.0_dp))
+               ws%gram_scale(1:nmo) = CMPLX(1.0_dp/SQRT(MAX(ws%gram_eval, gfloor)), 0.0_dp, KIND=dp)
+               CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, c0, ws%evec, z_zero, ws%rot_scr)
+               CALL cp_cfm_column_scale(ws%rot_scr, ws%gram_scale)
+               CALL cp_cfm_gemm('N', 'C', nao, nmo, nmo, z_one, ws%rot_scr, ws%evec, z_zero, c0)
             END DO
-            DEALLOCATE (g_eval, g_scale)
          END IF
       END IF
-
-      CALL cp_cfm_release(chc)
-      CALL cp_cfm_release(evec)
 
       CALL timestop(handle)
    END SUBROUTINE lanczos_refinement_2v_c
@@ -286,10 +272,13 @@ CONTAINS
 !> \param min_res_norm smallest such residual norm. HUGE when no
 !>        refinement pass ran at all
 !> \param refined whether any block completed a Rayleigh-Ritz pass
+!> \param ws caller-owned scratch of the call. Only the small
+!>        Rayleigh-Ritz pair stays local to a block, at its right size,
+!>        because the solver stack diagonalizes whole matrices
 ! **************************************************************************************************
    SUBROUTINE lanczos_refine(ks, c0, eval, nao, nmo, eps_col, nkrylov, nblock, &
                              nmo_converged, nmo_nc_loc, n_conv_cols, max_res_norm, min_res_norm, &
-                             refined)
+                             refined, ws)
       TYPE(cp_cfm_type), INTENT(IN)                      :: ks
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: c0
       REAL(dp), DIMENSION(:), POINTER                    :: eval
@@ -300,20 +289,16 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: n_conv_cols
       REAL(dp), INTENT(OUT)                              :: max_res_norm, min_res_norm
       LOGICAL, INTENT(OUT)                               :: refined
+      TYPE(lanczos_workspace_type), INTENT(INOUT)        :: ws
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'lanczos_refine'
 
-      COMPLEX(dp), ALLOCATABLE, DIMENSION(:)             :: ctheta
-      COMPLEX(dp), ALLOCATABLE, DIMENSION(:, :)          :: zvec
       INTEGER                                            :: col_hi, col_lo, handle, ib, j, nbasis, &
                                                             nblock_e, nbmax, nmob_c, nmobt, nres, &
                                                             nseed, nstep
       LOGICAL                                            :: prefix_open, single_block
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: ldone
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gscale, nrm, rhot, theta
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_cfm_type)                                  :: esolve, hsolve, hvmat, proj_cb, rblk, &
-                                                            tmatrix, vmat, wvec, yw1, yw2
+      TYPE(cp_cfm_type)                                  :: esolve, hsolve
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
@@ -355,49 +340,6 @@ CONTAINS
          single_block = nblock_e >= nmo_nc_loc
       END IF
 
-      ! workspaces, all local to the call
-      NULLIFY (fm_struct_tmp)
-      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nbmax, &
-                               para_env=para_env, context=blacs_env)
-      CALL cp_cfm_create(vmat, matrix_struct=fm_struct_tmp, name="lan_v", set_zero=.TRUE.)
-      CALL cp_cfm_create(hvmat, matrix_struct=fm_struct_tmp, name="lan_hv", set_zero=.TRUE.)
-      CALL cp_fm_struct_release(fm_struct_tmp)
-
-      NULLIFY (fm_struct_tmp)
-      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nblock_e, &
-                               para_env=para_env, context=blacs_env)
-      CALL cp_cfm_create(rblk, matrix_struct=fm_struct_tmp, name="lan_r", set_zero=.TRUE.)
-      CALL cp_fm_struct_release(fm_struct_tmp)
-
-      NULLIFY (fm_struct_tmp)
-      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=1, &
-                               para_env=para_env, context=blacs_env)
-      CALL cp_cfm_create(wvec, matrix_struct=fm_struct_tmp, name="lan_w", set_zero=.TRUE.)
-      CALL cp_fm_struct_release(fm_struct_tmp)
-
-      NULLIFY (fm_struct_tmp)
-      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nbmax, ncol_global=nbmax, &
-                               para_env=para_env, context=blacs_env)
-      CALL cp_cfm_create(tmatrix, matrix_struct=fm_struct_tmp, name="lan_t", set_zero=.TRUE.)
-      CALL cp_fm_struct_release(fm_struct_tmp)
-
-      NULLIFY (fm_struct_tmp)
-      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nbmax, ncol_global=nblock_e, &
-                               para_env=para_env, context=blacs_env)
-      CALL cp_cfm_create(yw1, matrix_struct=fm_struct_tmp, name="lan_yw1", set_zero=.TRUE.)
-      CALL cp_cfm_create(yw2, matrix_struct=fm_struct_tmp, name="lan_yw2", set_zero=.TRUE.)
-      CALL cp_fm_struct_release(fm_struct_tmp)
-
-      NULLIFY (fm_struct_tmp)
-      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=nblock_e, &
-                               para_env=para_env, context=blacs_env)
-      CALL cp_cfm_create(proj_cb, matrix_struct=fm_struct_tmp, name="lan_pcb", set_zero=.TRUE.)
-      CALL cp_fm_struct_release(fm_struct_tmp)
-
-      ALLOCATE (theta(nbmax), nrm(nblock_e), gscale(nblock_e), rhot(nblock_e), ldone(nblock_e))
-      ALLOCATE (ctheta(nblock_e))
-      ALLOCATE (zvec(nbmax, MAX(nmo_nc_loc, 1)))
-
       n_conv_cols = 0
       max_res_norm = 0.0_dp
       min_res_norm = HUGE(1.0_dp)
@@ -408,18 +350,17 @@ CONTAINS
          col_lo = nmo_converged + ib
          col_hi = MIN(col_lo + nblock_e - 1, nmo_converged + nmo_nc_loc)
          nmobt = col_hi - col_lo + 1
-         ldone(1:nmobt) = .FALSE.
+         ws%ldone(1:nmobt) = .FALSE.
          nres = 0
 
          ! ---------- seed block: the pending columns, purified and
          ! orthonormalized into the working basis (the clamp is defensive:
          ! the block width is already bounded by the budget above)
-         CALL cp_cfm_to_cfm(c0, rblk, nmobt, col_lo, 1)
-         CALL cp_cfm_vectorsnorm(rblk, nrm)
-         gscale(1:nmobt) = nrm(1:nmobt)
+         CALL cp_cfm_to_cfm(c0, ws%cand_blk, nmobt, col_lo, 1)
+         CALL cp_cfm_vectorsnorm(ws%cand_blk, ws%nrm)
+         ws%rank_scale(1:nmobt) = ws%nrm(1:nmobt)
          nbasis = 0
-         CALL purify_and_append(c0, col_lo - 1, rblk, MIN(nmobt, nbmax), gscale, vmat, nbasis, nseed, &
-                                yw1, proj_cb, tmatrix, wvec, nrm)
+         CALL purify_and_append(c0, col_lo - 1, ws, MIN(nmobt, nbmax), nbasis, nseed)
          IF (nseed == 0) THEN
             ! defensive branch, not reachable from orthonormal entry MOS:
             ! no seed survived the purification. No column of this block
@@ -432,21 +373,20 @@ CONTAINS
          ! ---------- expansion: extend the basis with the A-images of the
          ! last batch until the budget is exhausted
          DO WHILE (nbasis < nbmax .AND. nstep > 0)
-            CALL cp_cfm_gemm('N', 'N', nao, nstep, nao, z_one, ks, vmat, z_zero, hvmat, &
+            CALL cp_cfm_gemm('N', 'N', nao, nstep, nao, z_one, ks, ws%vmat, z_zero, ws%hvmat, &
                              b_first_col=nbasis - nstep + 1, c_first_col=nbasis - nstep + 1)
-            CALL cp_cfm_to_cfm(hvmat, rblk, nstep, nbasis - nstep + 1, 1)
-            CALL cp_cfm_vectorsnorm(rblk, nrm)
-            gscale(1:nstep) = nrm(1:nstep)
+            CALL cp_cfm_to_cfm(ws%hvmat, ws%cand_blk, nstep, nbasis - nstep + 1, 1)
+            CALL cp_cfm_vectorsnorm(ws%cand_blk, ws%nrm)
+            ws%rank_scale(1:nstep) = ws%nrm(1:nstep)
             nmob_c = MIN(nstep, nbmax - nbasis)
-            CALL purify_and_append(c0, col_lo - 1, rblk, nmob_c, gscale, vmat, nbasis, nseed, &
-                                   yw1, proj_cb, tmatrix, wvec, nrm)
+            CALL purify_and_append(c0, col_lo - 1, ws, nmob_c, nbasis, nseed)
             nstep = nseed
          END DO
          ! the last batch has no successor: its A-images must still be
-         ! formed explicitly, or the projection reads the zeroed tail of
-         ! the product buffer and silently degrades the Ritz pairs
+         ! formed explicitly, or the projection reads the stale tail of
+         ! the reused product buffer and silently degrades the Ritz pairs
          IF (nstep > 0) THEN
-            CALL cp_cfm_gemm('N', 'N', nao, nstep, nao, z_one, ks, vmat, z_zero, hvmat, &
+            CALL cp_cfm_gemm('N', 'N', nao, nstep, nao, z_one, ks, ws%vmat, z_zero, ws%hvmat, &
                              b_first_col=nbasis - nstep + 1, c_first_col=nbasis - nstep + 1)
          END IF
 
@@ -466,30 +406,14 @@ CONTAINS
          CALL cp_cfm_create(hsolve, matrix_struct=fm_struct_tmp, name="lan_h", set_zero=.TRUE.)
          CALL cp_cfm_create(esolve, matrix_struct=fm_struct_tmp, name="lan_e", set_zero=.TRUE.)
          CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_cfm_gemm('C', 'N', nbasis, nbasis, nao, z_one, vmat, hvmat, z_zero, hsolve)
-         CALL cp_cfm_heevd(hsolve, esolve, theta(1:nbasis))
          nres = MIN(nmobt, nbasis)
-         ! only the leading nres pairs, one per pending column, are ever
-         ! read, so that block alone is gathered back
-         CALL cp_cfm_get_submatrix(esolve, zvec(1:nbasis, 1:nres), 1, 1, nbasis, nres)
+         ! one shared Rayleigh-Ritz pass per block, on the stored
+         ! A-images of the working basis
+         CALL rayleigh_ritz(ws%hvmat, ws%vmat, nbasis, nres, ws%theta, hsolve, esolve, &
+                            ws%ritz_vec, ws%ritz_scaled, ws%ctheta, ws%cand_blk, ws%nrm)
          CALL cp_cfm_release(hsolve)
          CALL cp_cfm_release(esolve)
-
-         ! ---------- exact residuals of the target pairs: the leading
-         ! Ritz pairs, one per pending column
-         CALL cp_cfm_set_submatrix(yw1, zvec(1:nbasis, 1:nres), 1, 1, nbasis, nres)
-         CALL cp_cfm_set_submatrix(yw2, zvec(1:nbasis, 1:nres), 1, 1, nbasis, nres)
-         ! the scaling array spans every global column of yw2: the
-         ! parallel branch of cp_cfm_column_scale indexes it with the
-         ! global column id, and a rank owning columns above nres would
-         ! read past a shorter array. The dead tail scales by one
-         ctheta(:) = z_one
-         ctheta(1:nres) = CMPLX(theta(1:nres), 0.0_dp, KIND=dp)
-         CALL cp_cfm_column_scale(yw2, ctheta)
-         CALL cp_cfm_gemm('N', 'N', nao, nres, nbasis, z_one, hvmat, yw1, z_zero, rblk)
-         CALL cp_cfm_gemm('N', 'N', nao, nres, nbasis, z_mone, vmat, yw2, z_one, rblk)
-         CALL cp_cfm_vectorsnorm(rblk, nrm)
-         rhot(1:nres) = nrm(1:nres)
+         ws%pair_res(1:nres) = ws%nrm(1:nres)
 
          ! ---------- write-back: the pass rotates the whole target block
          ! into place and refreshes its eigenvalues. No pair-to-column
@@ -502,11 +426,11 @@ CONTAINS
          ! from above by its entry value. Columns beyond nres (basis
          ! saturated below the pending width, rank-deficient seeds) keep
          ! their entry vectors and fall to the end-of-call fallback
-         CALL cp_cfm_gemm('N', 'N', nao, nres, nbasis, z_one, vmat, yw1, z_zero, c0, &
+         CALL cp_cfm_gemm('N', 'N', nao, nres, nbasis, z_one, ws%vmat, ws%ritz_vec, z_zero, c0, &
                           c_first_col=col_lo)
          DO j = 1, nres
-            eval(col_lo + j - 1) = theta(j)
-            ldone(j) = rhot(j) < eps_col(col_lo + j - 1)
+            eval(col_lo + j - 1) = ws%theta(j)
+            ws%ldone(j) = ws%pair_res(j) < eps_col(col_lo + j - 1)
          END DO
          refined = .TRUE.
 
@@ -519,27 +443,17 @@ CONTAINS
          ! blocks then contribute nothing, even when all of their own
          ! columns converged
          DO j = 1, nres
-            max_res_norm = MAX(max_res_norm, rhot(j))
-            min_res_norm = MIN(min_res_norm, rhot(j))
+            max_res_norm = MAX(max_res_norm, ws%pair_res(j))
+            min_res_norm = MIN(min_res_norm, ws%pair_res(j))
          END DO
          IF (prefix_open) THEN
             DO j = 1, nmobt
-               IF (.NOT. ldone(j)) EXIT
+               IF (.NOT. ws%ldone(j)) EXIT
                n_conv_cols = n_conv_cols + 1
             END DO
-            prefix_open = ALL(ldone(1:nmobt))
+            prefix_open = ALL(ws%ldone(1:nmobt))
          END IF
       END DO block_loop
-
-      DEALLOCATE (theta, nrm, gscale, rhot, ldone, ctheta, zvec)
-      CALL cp_cfm_release(vmat)
-      CALL cp_cfm_release(hvmat)
-      CALL cp_cfm_release(rblk)
-      CALL cp_cfm_release(wvec)
-      CALL cp_cfm_release(proj_cb)
-      CALL cp_cfm_release(tmatrix)
-      CALL cp_cfm_release(yw1)
-      CALL cp_cfm_release(yw2)
 
       CALL timestop(handle)
    END SUBROUTINE lanczos_refine
@@ -549,65 +463,54 @@ CONTAINS
 !>        the working basis: two full projection passes against the working
 !>        basis and the leading ndefl columns of c0, modified Gram-Schmidt
 !>        within the block, then a per-column rank safeguard relative to
-!>        gscale, normalization and append. The count of appended columns
+!>        rank_scale, normalization and append. The count of appended columns
 !>        is returned in napp. The kernel advances nbasis accordingly.
 !> \param c0 MOS holding the deflation columns
 !> \param ndefl number of leading c0 columns to deflate against
-!> \param rblk candidate directions, nao columns x nblock_e, nmob live
+!> \param ws kernel workspace: cand_blk holds the candidate directions, nmob
+!>        of them live. vmat is the working basis appended in place.
+!>        rank_scale carries the per-column rank-safeguard scale, nrm the
+!>        column norms, ritz_vec the projection coefficients, defl_coeff the
+!>        deflation-projection coefficients, batch_gram the batch Gram and
+!>        one_col the scratch column of the column-at-a-time fallback
 !> \param nmob number of live candidate columns
-!> \param gscale per-column rank-safeguard scale (pre-purge norms)
-!> \param vmat working basis, appended in place
 !> \param nbasis number of basis columns on entry, advanced on exit
 !> \param napp number of appended columns
-!> \param coef scratch for the projection coefficients, nbmax x nblock_e
-!> \param proj_cb deflation-projection coefficients, nmo x nblock_e
-!> \param gram scratch for the batch Gram, nbmax x nbmax
-!> \param wvec scratch column of the column-at-a-time fallback
-!> \param nrm column norms, at least nblock_e
 ! **************************************************************************************************
-   SUBROUTINE purify_and_append(c0, ndefl, rblk, nmob, gscale, vmat, nbasis, napp, &
-                                coef, proj_cb, gram, wvec, nrm)
+   SUBROUTINE purify_and_append(c0, ndefl, ws, nmob, nbasis, napp)
       TYPE(cp_cfm_type), INTENT(IN)                      :: c0
       INTEGER, INTENT(IN)                                :: ndefl
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: rblk
+      TYPE(lanczos_workspace_type), INTENT(INOUT)        :: ws
       INTEGER, INTENT(IN)                                :: nmob
-      REAL(dp), DIMENSION(:)                             :: gscale
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: vmat
       INTEGER, INTENT(INOUT)                             :: nbasis
       INTEGER, INTENT(OUT)                               :: napp
-      TYPE(cp_cfm_type)                                  :: coef
-      TYPE(cp_cfm_type), INTENT(IN)                      :: proj_cb
-      TYPE(cp_cfm_type)                                  :: gram
-      TYPE(cp_cfm_type), INTENT(IN)                      :: wvec
-      REAL(dp), DIMENSION(:)                             :: nrm
 
-      COMPLEX(dp)                                        :: zscl1(1)
-      COMPLEX(dp), ALLOCATABLE, DIMENSION(:)             :: zscl
+      COMPLEX(dp)                                        :: col_scale1(1)
       INTEGER                                            :: i, icol, info, ipass, mlive, nao, ncolg
       LOGICAL                                            :: lseq
 
-      CALL cp_cfm_get_info(rblk, nrow_global=nao, ncol_global=ncolg)
+      CALL cp_cfm_get_info(ws%cand_blk, nrow_global=nao, ncol_global=ncolg)
 
       ! batch purge: two full passes of block gemms project the whole
       ! candidate set against the working basis and the deflation prefix.
       ! This gives the same double-pass quality as the single-column path
       DO ipass = 1, 2
          IF (nbasis > 0) THEN
-            CALL cp_cfm_gemm('C', 'N', nbasis, nmob, nao, z_one, vmat, rblk, z_zero, coef)
-            CALL cp_cfm_gemm('N', 'N', nao, nmob, nbasis, z_mone, vmat, coef, z_one, rblk)
+            CALL cp_cfm_gemm('C', 'N', nbasis, nmob, nao, z_one, ws%vmat, ws%cand_blk, z_zero, ws%ritz_vec)
+            CALL cp_cfm_gemm('N', 'N', nao, nmob, nbasis, z_mone, ws%vmat, ws%ritz_vec, z_one, ws%cand_blk)
          END IF
          IF (ndefl > 0) THEN
-            CALL cp_cfm_gemm('C', 'N', ndefl, nmob, nao, z_one, c0, rblk, z_zero, proj_cb)
-            CALL cp_cfm_gemm('N', 'N', nao, nmob, ndefl, z_mone, c0, proj_cb, z_one, rblk)
+            CALL cp_cfm_gemm('C', 'N', ndefl, nmob, nao, z_one, c0, ws%cand_blk, z_zero, ws%defl_coeff)
+            CALL cp_cfm_gemm('N', 'N', nao, nmob, ndefl, z_mone, c0, ws%defl_coeff, z_one, ws%cand_blk)
          END IF
       END DO
-      CALL cp_cfm_vectorsnorm(rblk, nrm)
+      CALL cp_cfm_vectorsnorm(ws%cand_blk, ws%nrm)
 
       ! rank safeguard: once the Krylov space saturates the available
       ! dimensions, the orthogonal complement is pure cancellation noise.
       ! A residual of 1e-16 passes a plain positivity test, as
       ! He-minimal-basis tests with NKRYLOV larger than the basis showed
-      IF (ALL(nrm(1:nmob) <= 1.0E-12_dp*gscale(1:nmob))) THEN
+      IF (ALL(ws%nrm(1:nmob) <= 1.0E-12_dp*ws%rank_scale(1:nmob))) THEN
          napp = 0
          RETURN
       END IF
@@ -625,19 +528,19 @@ CONTAINS
       ! rank deficiency on the healthy set demotes the batch
       mlive = 0
       DO i = 1, nmob
-         IF (nrm(i) > 1.0E-12_dp*gscale(i)) THEN
+         IF (ws%nrm(i) > 1.0E-12_dp*ws%rank_scale(i)) THEN
             mlive = mlive + 1
             IF (mlive /= i) THEN
-               CALL cp_cfm_to_cfm(rblk, wvec, 1, i, 1)
-               CALL cp_cfm_to_cfm(wvec, rblk, 1, 1, mlive)
-               gscale(mlive) = gscale(i)
+               CALL cp_cfm_to_cfm(ws%cand_blk, ws%one_col, 1, i, 1)
+               CALL cp_cfm_to_cfm(ws%one_col, ws%cand_blk, 1, 1, mlive)
+               ws%rank_scale(mlive) = ws%rank_scale(i)
             END IF
          END IF
       END DO
       lseq = .FALSE.
       DO ipass = 1, 2
-         CALL cp_cfm_gemm('C', 'N', mlive, mlive, nao, z_one, rblk, rblk, z_zero, gram)
-         CALL cp_cfm_cholesky_decompose(gram, mlive, info)
+         CALL cp_cfm_gemm('C', 'N', mlive, mlive, nao, z_one, ws%cand_blk, ws%cand_blk, z_zero, ws%batch_gram)
+         CALL cp_cfm_cholesky_decompose(ws%batch_gram, mlive, info)
          IF (info /= 0) THEN
             lseq = .TRUE.
             EXIT
@@ -645,24 +548,22 @@ CONTAINS
          ! n_cols restricts the transform to the live columns: the Gram
          ! scratch is wider than the batch and its stale triangle must
          ! not touch the candidates
-         CALL cp_cfm_triangular_multiply(gram, rblk, "R", invert_tr=.TRUE., n_cols=mlive)
+         CALL cp_cfm_triangular_multiply(ws%batch_gram, ws%cand_blk, "R", invert_tr=.TRUE., n_cols=mlive)
       END DO
       IF (.NOT. lseq) THEN
-         CALL cp_cfm_vectorsnorm(rblk, nrm)
-         ! the scaling array spans every global column of rblk: the
+         CALL cp_cfm_vectorsnorm(ws%cand_blk, ws%nrm)
+         ! the scaling array spans every global column of cand_blk: the
          ! parallel branch of cp_cfm_column_scale indexes it with the
          ! global column id. A shorter array reads out of bounds on
          ! ranks owning columns above the live count. The retired tail
          ! scales by one
-         ALLOCATE (zscl(ncolg))
-         zscl(:) = z_one
+         ws%col_scale(1:ncolg) = z_one
          DO i = 1, mlive
-            zscl(i) = CMPLX(1.0_dp/nrm(i), 0.0_dp, KIND=dp)
+            ws%col_scale(i) = CMPLX(1.0_dp/ws%nrm(i), 0.0_dp, KIND=dp)
          END DO
-         CALL cp_cfm_column_scale(rblk, zscl)
-         DEALLOCATE (zscl)
+         CALL cp_cfm_column_scale(ws%cand_blk, ws%col_scale)
          napp = mlive
-         CALL cp_cfm_to_cfm(rblk, vmat, mlive, 1, nbasis + 1)
+         CALL cp_cfm_to_cfm(ws%cand_blk, ws%vmat, mlive, 1, nbasis + 1)
          nbasis = nbasis + napp
          RETURN
       END IF
@@ -673,30 +574,203 @@ CONTAINS
       ! round already renormalized the batch. The rank test must
       ! therefore reference the current norms, not the pre-purge scales
       ! the caller passed
-      CALL cp_cfm_vectorsnorm(rblk, nrm)
-      gscale(1:mlive) = nrm(1:mlive)
+      CALL cp_cfm_vectorsnorm(ws%cand_blk, ws%nrm)
+      ws%rank_scale(1:mlive) = ws%nrm(1:mlive)
       napp = 0
       DO icol = 1, mlive
-         CALL cp_cfm_to_cfm(rblk, wvec, 1, icol, 1)
+         CALL cp_cfm_to_cfm(ws%cand_blk, ws%one_col, 1, icol, 1)
          DO ipass = 1, 2
             IF (nbasis + napp > 0) THEN
-               CALL cp_cfm_gemm('C', 'N', nbasis + napp, 1, nao, z_one, vmat, wvec, z_zero, coef)
-               CALL cp_cfm_gemm('N', 'N', nao, 1, nbasis + napp, z_mone, vmat, coef, z_one, wvec)
+               CALL cp_cfm_gemm('C', 'N', nbasis + napp, 1, nao, z_one, ws%vmat, ws%one_col, z_zero, ws%ritz_vec)
+               CALL cp_cfm_gemm('N', 'N', nao, 1, nbasis + napp, z_mone, ws%vmat, ws%ritz_vec, z_one, ws%one_col)
             END IF
             IF (ndefl > 0) THEN
-               CALL cp_cfm_gemm('C', 'N', ndefl, 1, nao, z_one, c0, wvec, z_zero, proj_cb)
-               CALL cp_cfm_gemm('N', 'N', nao, 1, ndefl, z_mone, c0, proj_cb, z_one, wvec)
+               CALL cp_cfm_gemm('C', 'N', ndefl, 1, nao, z_one, c0, ws%one_col, z_zero, ws%defl_coeff)
+               CALL cp_cfm_gemm('N', 'N', nao, 1, ndefl, z_mone, c0, ws%defl_coeff, z_one, ws%one_col)
             END IF
          END DO
-         CALL cp_cfm_vectorsnorm(wvec, nrm)
-         IF (nrm(1) > 1.0E-12_dp*gscale(icol)) THEN
-            zscl1(1) = CMPLX(1.0_dp/nrm(1), 0.0_dp, KIND=dp)
-            CALL cp_cfm_column_scale(wvec, zscl1)
-            CALL cp_cfm_to_cfm(wvec, vmat, 1, 1, nbasis + napp + 1)
+         CALL cp_cfm_vectorsnorm(ws%one_col, ws%nrm)
+         IF (ws%nrm(1) > 1.0E-12_dp*ws%rank_scale(icol)) THEN
+            col_scale1(1) = CMPLX(1.0_dp/ws%nrm(1), 0.0_dp, KIND=dp)
+            CALL cp_cfm_column_scale(ws%one_col, col_scale1)
+            CALL cp_cfm_to_cfm(ws%one_col, ws%vmat, 1, 1, nbasis + napp + 1)
             napp = napp + 1
          END IF
       END DO
       nbasis = nbasis + napp
    END SUBROUTINE purify_and_append
+
+! **************************************************************************************************
+!> \brief One Rayleigh-Ritz pass on a precomputed basis pair: project
+!>        the operator onto the basis, solve the small Hermitian
+!>        problem, and return the exact residual norms of the leading
+!>        Ritz pairs. The entry pass and every refinement block call
+!>        this routine. The scratch is caller-owned, because the entry
+!>        works at the full MO width while the refinement blocks stay
+!>        at their budget width
+!> \param abas A-images of the basis columns, A*B
+!> \param basis orthonormal basis B
+!> \param nbas live basis width
+!> \param npairs number of leading Ritz pairs whose residuals are formed
+!> \param ritz_val eigenvalues of the projected problem, at least nbas
+!> \param small_t scratch holding the projected matrix on entry, right
+!>        sized to nbas
+!> \param small_z scratch receiving the eigenvectors, right sized to
+!>        nbas. The caller may read it after the pass
+!> \param ritz_vec receives the leading npairs eigenvector columns, in
+!>        basis coordinates, for the caller's write-back
+!> \param ritz_scaled receives the eigenvalue-scaled copy of those
+!>        columns
+!> \param theta_scale complex scaling array spanning every global column
+!>        of ritz_scaled. The dead tail beyond npairs scales by one
+!> \param res_blk scratch receiving the residual columns
+!> \param res_norm residual norms, spans every global column of res_blk
+! **************************************************************************************************
+   SUBROUTINE rayleigh_ritz(abas, basis, nbas, npairs, ritz_val, small_t, small_z, &
+                            ritz_vec, ritz_scaled, theta_scale, res_blk, res_norm)
+      TYPE(cp_cfm_type), INTENT(IN)                      :: abas, basis
+      INTEGER, INTENT(IN)                                :: nbas, npairs
+      REAL(dp), DIMENSION(:)                             :: ritz_val
+      TYPE(cp_cfm_type)                                  :: small_t, small_z, ritz_vec, ritz_scaled
+      COMPLEX(dp), DIMENSION(:)                          :: theta_scale
+      TYPE(cp_cfm_type)                                  :: res_blk
+      REAL(dp), DIMENSION(:)                             :: res_norm
+
+      INTEGER                                            :: nao
+
+      CALL cp_cfm_get_info(abas, nrow_global=nao)
+
+      CALL cp_cfm_gemm('C', 'N', nbas, nbas, nao, z_one, basis, abas, z_zero, small_t)
+      CALL cp_cfm_heevd(small_t, small_z, ritz_val(1:nbas))
+
+      CALL cp_cfm_to_cfm(small_z, ritz_vec, npairs, 1, 1)
+      CALL cp_cfm_to_cfm(small_z, ritz_scaled, npairs, 1, 1)
+      theta_scale(:) = z_one
+      theta_scale(1:npairs) = CMPLX(ritz_val(1:npairs), 0.0_dp, KIND=dp)
+      CALL cp_cfm_column_scale(ritz_scaled, theta_scale)
+
+      CALL cp_cfm_gemm('N', 'N', nao, npairs, nbas, z_one, abas, ritz_vec, z_zero, res_blk)
+      CALL cp_cfm_gemm('N', 'N', nao, npairs, nbas, z_mone, basis, ritz_scaled, z_one, res_blk)
+      CALL cp_cfm_vectorsnorm(res_blk, res_norm)
+   END SUBROUTINE rayleigh_ritz
+
+! **************************************************************************************************
+!> \brief Create the kernel workspace at the worst-case widths of the run.
+!>        The basis budget holds the larger of four times the MO count
+!>        and the NKRYLOV block budget, and every per-call clamp of the
+!>        kernel stays below it. The candidate and Ritz widths hold the
+!>        widest block a run can form
+!> \param ws workspace to create
+!> \param mo_struct structure of the channel MOS, nao x nmo
+!> \param ao_struct structure of the channel operators, nao x nao
+!> \param nkrylov number of block expansion steps of the block regime
+!> \param nblock number of columns refined jointly
+! **************************************************************************************************
+   SUBROUTINE lanczos_workspace_create(ws, mo_struct, ao_struct, nkrylov, nblock)
+      TYPE(lanczos_workspace_type), INTENT(OUT)          :: ws
+      TYPE(cp_fm_struct_type), POINTER                   :: mo_struct, ao_struct
+      INTEGER, INTENT(IN)                                :: nkrylov, nblock
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_workspace_create'
+
+      INTEGER                                            :: handle, nao, nbe, nmo, wdth
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+
+      CALL timeset(routineN, handle)
+      NULLIFY (fm_struct_tmp)
+
+      nao = ao_struct%nrow_global
+      nmo = mo_struct%ncol_global
+      wdth = MAX(4*nmo, nkrylov*MAX(nblock, 1))
+      nbe = MIN(MAX(nblock, 1), nmo)
+
+      CALL cp_cfm_create(ws%entry_rblk, mo_struct, name="lan_ctmp")
+      CALL cp_cfm_create(ws%hmo, mo_struct, name="lan_hmo")
+      CALL cp_cfm_create(ws%rot_scr, mo_struct, name="lan_rot_scr")
+
+      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=nmo, &
+                               para_env=mo_struct%para_env, context=mo_struct%context)
+      CALL cp_cfm_create(ws%mo_gram, matrix_struct=fm_struct_tmp, name="lan_mo_gram")
+      CALL cp_cfm_create(ws%evec, matrix_struct=fm_struct_tmp, name="lan_evec")
+      CALL cp_cfm_create(ws%entry_ritz_vec, matrix_struct=fm_struct_tmp, name="lan_ev1")
+      CALL cp_cfm_create(ws%entry_ritz_scaled, matrix_struct=fm_struct_tmp, name="lan_ev2")
+      CALL cp_fm_struct_release(fm_struct_tmp)
+
+      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=wdth, &
+                               para_env=ao_struct%para_env, context=ao_struct%context)
+      CALL cp_cfm_create(ws%vmat, matrix_struct=fm_struct_tmp, name="lan_v", set_zero=.TRUE.)
+      CALL cp_cfm_create(ws%hvmat, matrix_struct=fm_struct_tmp, name="lan_hv", set_zero=.TRUE.)
+      CALL cp_fm_struct_release(fm_struct_tmp)
+
+      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nbe, &
+                               para_env=ao_struct%para_env, context=ao_struct%context)
+      CALL cp_cfm_create(ws%cand_blk, matrix_struct=fm_struct_tmp, name="lan_r", set_zero=.TRUE.)
+      CALL cp_fm_struct_release(fm_struct_tmp)
+
+      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=1, &
+                               para_env=ao_struct%para_env, context=ao_struct%context)
+      CALL cp_cfm_create(ws%one_col, matrix_struct=fm_struct_tmp, name="lan_w", set_zero=.TRUE.)
+      CALL cp_fm_struct_release(fm_struct_tmp)
+
+      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=wdth, ncol_global=wdth, &
+                               para_env=ao_struct%para_env, context=ao_struct%context)
+      CALL cp_cfm_create(ws%batch_gram, matrix_struct=fm_struct_tmp, name="lan_t", set_zero=.TRUE.)
+      CALL cp_fm_struct_release(fm_struct_tmp)
+
+      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=wdth, ncol_global=nbe, &
+                               para_env=ao_struct%para_env, context=ao_struct%context)
+      CALL cp_cfm_create(ws%ritz_vec, matrix_struct=fm_struct_tmp, name="lan_ritz_vec", set_zero=.TRUE.)
+      CALL cp_cfm_create(ws%ritz_scaled, matrix_struct=fm_struct_tmp, name="lan_ritz_scaled", set_zero=.TRUE.)
+      CALL cp_fm_struct_release(fm_struct_tmp)
+
+      CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nmo, ncol_global=nbe, &
+                               para_env=mo_struct%para_env, context=mo_struct%context)
+      CALL cp_cfm_create(ws%defl_coeff, matrix_struct=fm_struct_tmp, name="lan_pcb", set_zero=.TRUE.)
+      CALL cp_fm_struct_release(fm_struct_tmp)
+
+      ALLOCATE (ws%theta(wdth), ws%nrm(nbe), ws%rank_scale(nbe), ws%pair_res(nbe), ws%entry_res(nmo))
+      ALLOCATE (ws%ldone(nbe))
+      ALLOCATE (ws%ctheta(nbe), ws%col_scale(nbe))
+      ALLOCATE (ws%eval_scale(nmo), ws%gram_eval(nmo), ws%gram_scale(nmo))
+
+      CALL timestop(handle)
+   END SUBROUTINE lanczos_workspace_create
+
+! **************************************************************************************************
+!> \brief Release the kernel workspace. Safe on a workspace that was
+!>        never created: the matrix components default to disassociated
+!>        and the arrays to unallocated
+!> \param ws workspace to release
+! **************************************************************************************************
+   SUBROUTINE lanczos_workspace_release(ws)
+      TYPE(lanczos_workspace_type), INTENT(INOUT)        :: ws
+
+      CALL cp_cfm_release(ws%entry_rblk)
+      CALL cp_cfm_release(ws%hmo)
+      CALL cp_cfm_release(ws%mo_gram)
+      CALL cp_cfm_release(ws%evec)
+      CALL cp_cfm_release(ws%entry_ritz_vec)
+      CALL cp_cfm_release(ws%entry_ritz_scaled)
+      CALL cp_cfm_release(ws%rot_scr)
+      CALL cp_cfm_release(ws%vmat)
+      CALL cp_cfm_release(ws%hvmat)
+      CALL cp_cfm_release(ws%cand_blk)
+      CALL cp_cfm_release(ws%one_col)
+      CALL cp_cfm_release(ws%batch_gram)
+      CALL cp_cfm_release(ws%ritz_vec)
+      CALL cp_cfm_release(ws%ritz_scaled)
+      CALL cp_cfm_release(ws%defl_coeff)
+      IF (ALLOCATED(ws%theta)) DEALLOCATE (ws%theta)
+      IF (ALLOCATED(ws%nrm)) DEALLOCATE (ws%nrm)
+      IF (ALLOCATED(ws%rank_scale)) DEALLOCATE (ws%rank_scale)
+      IF (ALLOCATED(ws%pair_res)) DEALLOCATE (ws%pair_res)
+      IF (ALLOCATED(ws%entry_res)) DEALLOCATE (ws%entry_res)
+      IF (ALLOCATED(ws%ldone)) DEALLOCATE (ws%ldone)
+      IF (ALLOCATED(ws%ctheta)) DEALLOCATE (ws%ctheta)
+      IF (ALLOCATED(ws%col_scale)) DEALLOCATE (ws%col_scale)
+      IF (ALLOCATED(ws%eval_scale)) DEALLOCATE (ws%eval_scale)
+      IF (ALLOCATED(ws%gram_eval)) DEALLOCATE (ws%gram_eval)
+      IF (ALLOCATED(ws%gram_scale)) DEALLOCATE (ws%gram_scale)
+   END SUBROUTINE lanczos_workspace_release
 
 END MODULE qs_scf_lanczos_c

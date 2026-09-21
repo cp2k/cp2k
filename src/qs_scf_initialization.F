@@ -919,7 +919,7 @@ CONTAINS
                CALL krylov_space_create(scf_env%krylov_space, scf_section)
             END IF
             ! settings-only Krylov environment under k-points: the complex
-            ! kernel keeps its scratch local to the call, nothing is
+            ! kernel takes a driver-owned workspace, nothing is
             ! allocated from the Gamma MOS, and the k-point world never
             ! uses scf_env%ortho
             scf_env%needs_ortho = .NOT. do_kpoints

@@ -162,7 +162,10 @@ MODULE qs_scf_diagonalization
                                               generate_extended_space_sparse
    USE qs_scf_lanczos,                  ONLY: lanczos_refinement,&
                                               lanczos_refinement_2v
-   USE qs_scf_lanczos_c,                ONLY: lanczos_refinement_2v_c
+   USE qs_scf_lanczos_c,                ONLY: lanczos_refinement_2v_c,&
+                                              lanczos_workspace_create,&
+                                              lanczos_workspace_release,&
+                                              lanczos_workspace_type
    USE qs_scf_methods,                  ONLY: combine_ks_matrices,&
                                               eigensolver,&
                                               eigensolver_dbcsr,&
@@ -191,8 +194,8 @@ MODULE qs_scf_diagonalization
 
    TYPE, PRIVATE :: kp_diag_workspace_type
       TYPE(cp_cfm_type) :: cksmat, cmos, csmat, csmat_base, cwork
-      TYPE(cp_cfm_type) :: cmo_work
       TYPE(cp_cfm_diag_workspace_type) :: solver
+      TYPE(lanczos_workspace_type) :: lan_ws
       TYPE(local_gemm_ctxt_type) :: gemm_ctx
       COMPLEX(KIND=dp), ALLOCATABLE :: phase(:, :)
    END TYPE kp_diag_workspace_type
@@ -1278,16 +1281,26 @@ CONTAINS
 !> \param nentry number of phase-sum entries
 !> \param local allocate local phase and solver scratch
 !> \param canonical use the canonical solver
+!> \param lanczos allocate the block-Lanczos kernel scratch
+!> \param nkrylov number of block expansion steps, sizes the kernel scratch
+!> \param nblock number of columns refined jointly, sizes the kernel scratch
 ! **************************************************************************************************
-   SUBROUTINE kp_diag_workspaces_create(workspace, nworkers, matrix_struct, mo_struct, nentry, local, canonical)
+   SUBROUTINE kp_diag_workspaces_create(workspace, nworkers, matrix_struct, mo_struct, nentry, local, canonical, &
+                                        lanczos, nkrylov, nblock)
       TYPE(kp_diag_workspace_type), ALLOCATABLE, &
          INTENT(OUT)                                     :: workspace(:)
       INTEGER, INTENT(IN)                                :: nworkers
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
       INTEGER, INTENT(IN)                                :: nentry
       LOGICAL, INTENT(IN)                                :: local, canonical
+      LOGICAL, INTENT(IN), OPTIONAL                      :: lanczos
+      INTEGER, INTENT(IN), OPTIONAL                      :: nkrylov, nblock
 
       INTEGER                                            :: i, n
+      LOGICAL                                            :: my_lanczos
+
+      my_lanczos = .FALSE.
+      IF (PRESENT(lanczos)) my_lanczos = lanczos
 
       ALLOCATE (workspace(nworkers))
       DO i = 1, nworkers
@@ -1295,17 +1308,23 @@ CONTAINS
          CALL cp_cfm_create(workspace(i)%csmat, matrix_struct)
          CALL cp_cfm_create(workspace(i)%cwork, matrix_struct)
          CALL cp_cfm_create(workspace(i)%cmos, mo_struct)
-         IF (.NOT. local) CYCLE
-         CALL workspace(i)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
+         IF (.NOT. local .AND. .NOT. my_lanczos) CYCLE
+         IF (local) THEN
+            CALL workspace(i)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
+            ALLOCATE (workspace(i)%phase(1, nentry))
+            n = matrix_struct%nrow_global
+            IF (canonical) THEN
+               CALL cp_cfm_local_workspace_prepare(workspace(i)%solver, n, workspace(i)%cksmat%local_data)
+            ELSE
+               CALL cp_cfm_local_workspace_prepare(workspace(i)%solver, n, workspace(i)%cksmat%local_data, &
+                                                   workspace(i)%csmat%local_data)
+            END IF
+         END IF
+         ! the transfer rounds of the Lanczos driver also need the stored
+         ! overlap copy, although they never run the local solvers
          CALL cp_cfm_create(workspace(i)%csmat_base, matrix_struct)
-         CALL cp_cfm_create(workspace(i)%cmo_work, mo_struct)
-         ALLOCATE (workspace(i)%phase(1, nentry))
-         n = matrix_struct%nrow_global
-         IF (canonical) THEN
-            CALL cp_cfm_local_workspace_prepare(workspace(i)%solver, n, workspace(i)%cksmat%local_data)
-         ELSE
-            CALL cp_cfm_local_workspace_prepare(workspace(i)%solver, n, workspace(i)%cksmat%local_data, &
-                                                workspace(i)%csmat%local_data)
+         IF (my_lanczos) THEN
+            CALL lanczos_workspace_create(workspace(i)%lan_ws, mo_struct, matrix_struct, nkrylov, nblock)
          END IF
       END DO
    END SUBROUTINE kp_diag_workspaces_create
@@ -1327,7 +1346,7 @@ CONTAINS
          CALL cp_cfm_release(workspace(i)%csmat_base)
          CALL cp_cfm_release(workspace(i)%cwork)
          CALL cp_cfm_release(workspace(i)%cmos)
-         CALL cp_cfm_release(workspace(i)%cmo_work)
+         CALL lanczos_workspace_release(workspace(i)%lan_ws)
       END DO
       DEALLOCATE (workspace)
    END SUBROUTINE kp_diag_workspaces_release
@@ -3001,8 +3020,6 @@ CONTAINS
                                                             prepared_part, use_local_kpoints, &
                                                             use_real_wfn
       REAL(KIND=dp)                                      :: eps_iter, eps_iter_empty
-      TYPE(cp_cfm_type)                                  :: cksmat, cksmat_t, cmo, csmat, &
-                                                            csmat_base, cwork
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools, kp_ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
@@ -3086,14 +3103,13 @@ CONTAINS
 
       ! One-rank k-point groups assemble every operator locally from a
       ! prepared snapshot and refine their k points without a single
-      ! collective transfer round. This is the local layout of the
-      ! Davidson k-point driver. Unlike Davidson, the refinement runs
-      ! serially. The single-pass kernel allocates its scratch per
-      ! call. The para_env refcount guard rejects that inside an OpenMP
-      ! region. Concurrent workers would need the kernel to take a
-      ! preallocated workspace. Davidson gives its own workers
-      ! allocation-free local solvers. A diag check, a
-      ! convergence-only probe and an explicitly selected
+      ! collective transfer round, like the local phase of the general
+      ! k-point diagonalization. The refinement runs serially over the
+      ! channels of both layouts. The kernel takes a preallocated
+      ! workspace, so an OpenMP port needs no allocation inside a
+      ! parallel region. Its remaining blockers are the distributed
+      ! GEMMs, the solver dispatch and the collective column norms. A
+      ! diag check, a convergence-only probe and an explicitly selected
       ! diagonalization library also keep the rounds. The serial LAPACK
       ! branch of the local path would silently bypass such a library.
       ! The ELPA dispatch regression keeps its coverage through the
@@ -3116,19 +3132,10 @@ CONTAINS
       kp => kpoints%kp_env(1)%kpoint_env
       CALL get_mo_set(kp%mos(1, 1), mo_coeff=mo_coeff)
       CALL cp_fm_get_info(mo_coeff, matrix_struct=mo_struct)
-      IF (use_local_kpoints) THEN
-         CALL kp_diag_workspaces_create(workspace, 1, matrix_struct, mo_struct, nentry, &
-                                        use_local_kpoints, scf_env%cholesky_method == cholesky_off)
-      ELSE
-         ! the transfer rounds use these matrices for every channel
-         ! of the run
-         CALL cp_cfm_create(cksmat, matrix_struct, name="lanc_hk")
-         CALL cp_cfm_create(cksmat_t, matrix_struct, name="lanc_hk_t")
-         CALL cp_cfm_create(csmat, matrix_struct, name="lanc_sk")
-         CALL cp_cfm_create(csmat_base, matrix_struct, name="lanc_sk_base")
-         CALL cp_cfm_create(cmo, mo_struct, name="lanc_cmo")
-         CALL cp_cfm_create(cwork, mo_struct, name="lanc_cwork")
-      END IF
+      CALL kp_diag_workspaces_create(workspace, 1, matrix_struct, mo_struct, nentry, &
+                                     use_local_kpoints, scf_env%cholesky_method == cholesky_off, &
+                                     lanczos=.TRUE., nkrylov=scf_env%krylov_space%nkrylov, &
+                                     nblock=scf_env%krylov_space%nblock)
 
       IF (output_unit > 0 .AND. .NOT. my_check_moconv_only .AND. .NOT. use_local_kpoints) THEN
          WRITE (output_unit, "(/T15,A)") '<<<<<<<<<   LANCZOS REFINEMENT    <<<<<<<<<<'
@@ -3159,9 +3166,7 @@ CONTAINS
                   CYCLE
                END IF
                CALL lanczos_refine_channel(kp, ispin, scf_env, my_check_moconv_only, eps_iter, &
-                                           eps_iter_empty, max_iter, workspace(1)%cksmat, workspace(1)%cwork, &
-                                           workspace(1)%csmat_base, workspace(1)%csmat, workspace(1)%cmos, &
-                                           workspace(1)%cmo_work, output_unit, .FALSE.)
+                                           eps_iter_empty, max_iter, workspace(1), output_unit, .FALSE.)
             END DO
          END DO
       ELSE
@@ -3174,25 +3179,24 @@ CONTAINS
             ! destination. Groups without a k point in the last rounds still
             ! join the service calls and skip their local solver work.
             CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_s_kp, &
-                                     cmat=csmat_base, matrix_row=kpoint_spin_free)
+                                     cmat=workspace(1)%csmat_base, matrix_row=kpoint_spin_free)
 
             DO ispin = 1, nspin
                CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, &
-                                        cmat=cksmat, matrix_row=ispin)
+                                        cmat=workspace(1)%cksmat, matrix_row=ispin)
                IF (local_kpoint > kplocal) CYCLE
                kp => kpoints%kp_env(local_kpoint)%kpoint_env
 
                IF (scf_env%iter_count == 1 .AND. .NOT. kp%mos_prefilled) THEN
                   ! first SCF step cold-starts by a direct diagonalization,
                   ! same entry as the Davidson k-point path
-                  CALL cp_cfm_to_cfm(csmat_base, csmat)
-                  CALL cold_start_mo_init(kp, ispin, cksmat, csmat)
+                  CALL cp_cfm_to_cfm(workspace(1)%csmat_base, workspace(1)%csmat)
+                  CALL cold_start_mo_init(kp, ispin, workspace(1)%cksmat, workspace(1)%csmat)
                   CYCLE
                END IF
 
                CALL lanczos_refine_channel(kp, ispin, scf_env, my_check_moconv_only, eps_iter, &
-                                           eps_iter_empty, max_iter, cksmat, cksmat_t, csmat_base, &
-                                           csmat, cmo, cwork, output_unit, .TRUE.)
+                                           eps_iter_empty, max_iter, workspace(1), output_unit, .TRUE.)
             END DO
          END DO
       END IF
@@ -3218,15 +3222,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (.NOT. use_local_kpoints) THEN
-         CALL cp_cfm_release(cmo)
-         CALL cp_cfm_release(cwork)
-      END IF
-      IF (ALLOCATED(workspace)) CALL kp_diag_workspaces_release(workspace)
-      CALL cp_cfm_release(cksmat)
-      CALL cp_cfm_release(cksmat_t)
-      CALL cp_cfm_release(csmat)
-      CALL cp_cfm_release(csmat_base)
+      CALL kp_diag_workspaces_release(workspace)
       CALL kpoint_operator_context_release(op_ctx)
       DO iwork = 1, 4
          CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
@@ -3257,39 +3253,33 @@ CONTAINS
 !> \param eps_iter convergence threshold of the occupied columns
 !> \param eps_iter_empty relaxed threshold of the unoccupied columns
 !> \param max_iter sweeps allowed per channel
-!> \param cksmat complex H(k) of the channel, standardized in place
-!> \param ctmp scratch of the shape of cksmat
-!> \param csmat_base untouched S(k) of the k point
-!> \param csmat work copy of S(k). It holds the Cholesky factor of S(k)
-!>        after the standardization
-!> \param cmo MOS of the channel in the standardized basis, scratch and
-!>        result
-!> \param cwork scratch of the shape of cmo
+!> \param work driver workspace of the channel: cksmat holds the complex
+!>        H(k), standardized in place. csmat_base holds the untouched
+!>        S(k), csmat its work copy and the Cholesky factor after the
+!>        standardization, cwork the Hermitian-projection scratch, cmos
+!>        the MOS in the standardized basis and lan_ws the kernel scratch
 !> \param output_unit unit of the refinement table. A nonpositive unit
 !>        disables every report
 !> \param print_row report this channel in the refinement table and in
 !>        the not-converged warnings. The local-kpoint path passes
 !>        .FALSE. and reports nothing, like the local phase of the
-!>        Davidson k-point driver
+!>        general k-point diagonalization
 ! **************************************************************************************************
    SUBROUTINE lanczos_refine_channel(kp, ispin, scf_env, check_moconv_only, eps_iter, eps_iter_empty, &
-                                     max_iter, cksmat, ctmp, csmat_base, csmat, cmo, cwork, &
-                                     output_unit, print_row)
+                                     max_iter, work, output_unit, print_row)
       TYPE(kpoint_env_type), POINTER                     :: kp
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       LOGICAL, INTENT(IN)                                :: check_moconv_only
       REAL(KIND=dp), INTENT(IN)                          :: eps_iter, eps_iter_empty
       INTEGER, INTENT(IN)                                :: max_iter
-      TYPE(cp_cfm_type)                                  :: cksmat, ctmp, csmat_base, csmat, cmo, &
-                                                            cwork
+      TYPE(kp_diag_workspace_type), INTENT(INOUT)        :: work
       INTEGER, INTENT(IN)                                :: output_unit
       LOGICAL, INTENT(IN)                                :: print_row
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_refine_channel'
 
-      INTEGER                                            :: handle, imo, iter, nao, nmo, nmo_conv, &
-                                                            nmo_nc
+      INTEGER                                            :: handle, imo, iter, nmo, nmo_conv, nmo_nc
       LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: max_res, min_res, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_col
@@ -3298,12 +3288,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL get_mo_set(mo_set=kp%mos(1, ispin), nao=nao, nmo=nmo, &
+      CALL get_mo_set(mo_set=kp%mos(1, ispin), nmo=nmo, &
                       eigenvalues=mo_eigenvalues, occupation_numbers=occupation, &
                       mo_coeff=mo_coeff_r)
       CALL get_mo_set(mo_set=kp%mos(2, ispin), mo_coeff=mo_coeff_i)
 
-      CALL cp_cfm_to_cfm(csmat_base, csmat)
+      CALL cp_cfm_to_cfm(work%csmat_base, work%csmat)
 
       ! the R-space blocks of the KS matrix come from independent grid
       ! collocations, so H(k) is Hermitian only to grid accuracy. The
@@ -3311,13 +3301,13 @@ CONTAINS
       ! and never see the antisymmetric part. The refinement kernel
       ! forms its residuals with the full matrix. Project onto the
       ! Hermitian part once per channel
-      CALL cp_cfm_transpose(cksmat, "C", ctmp)
-      CALL cp_cfm_scale_and_add(CMPLX(0.5_dp, 0.0_dp, KIND=dp), cksmat, &
-                                CMPLX(0.5_dp, 0.0_dp, KIND=dp), ctmp)
+      CALL cp_cfm_transpose(work%cksmat, "C", work%cwork)
+      CALL cp_cfm_scale_and_add(CMPLX(0.5_dp, 0.0_dp, KIND=dp), work%cksmat, &
+                                CMPLX(0.5_dp, 0.0_dp, KIND=dp), work%cwork)
 
       ! complex MOS of the channel
-      CALL cp_cfm_scale_and_add_fm(z_zero, cmo, z_one, mo_coeff_r)
-      CALL cp_cfm_scale_and_add_fm(z_one, cmo, gaussi, mo_coeff_i)
+      CALL cp_cfm_scale_and_add_fm(z_zero, work%cmos, z_one, mo_coeff_r)
+      CALL cp_cfm_scale_and_add_fm(z_one, work%cmos, gaussi, mo_coeff_i)
 
       ! standardization S(k) = U^dag U: operator and MOS are pulled
       ! through the same transform, X = U C and A = U^-dag H U^-1, so
@@ -3326,10 +3316,10 @@ CONTAINS
       ! decomposes S the same way and ignores scf_env%cholesky_method
       ! beyond the off switch). CHOLESKY OFF is not supported on this
       ! path
-      CALL cp_cfm_cholesky_decompose(csmat)
-      CALL cp_cfm_triangular_multiply(csmat, cksmat, side="R", invert_tr=.TRUE.)
-      CALL cp_cfm_triangular_multiply(csmat, cksmat, side="L", transa_tr="C", invert_tr=.TRUE.)
-      CALL cp_cfm_triangular_multiply(csmat, cmo, side="L", invert_tr=.FALSE.)
+      CALL cp_cfm_cholesky_decompose(work%csmat)
+      CALL cp_cfm_triangular_multiply(work%csmat, work%cksmat, side="R", invert_tr=.TRUE.)
+      CALL cp_cfm_triangular_multiply(work%csmat, work%cksmat, side="L", transa_tr="C", invert_tr=.TRUE.)
+      CALL cp_cfm_triangular_multiply(work%csmat, work%cmos, side="L", invert_tr=.FALSE.)
 
       ! per-column thresholds: the occupation decides which columns
       ! qualify for the relaxed empty threshold
@@ -3343,9 +3333,9 @@ CONTAINS
       END DO
 
       IF (check_moconv_only) THEN
-         CALL lanczos_refinement_2v_c(cksmat, cmo, cwork, mo_eigenvalues, nao, nmo, eps_col, &
+         CALL lanczos_refinement_2v_c(work%cksmat, work%cmos, mo_eigenvalues, eps_col, &
                                       scf_env%krylov_space%nkrylov, scf_env%krylov_space%nblock, &
-                                      max_res, min_res, nmo_conv, nmo_nc, check_moconv_only=.TRUE.)
+                                      work%lan_ws, max_res, min_res, nmo_conv, nmo_nc, check_moconv_only=.TRUE.)
          DEALLOCATE (eps_col)
          IF (print_row .AND. output_unit > 0) THEN
             WRITE (output_unit, '(T8,I3,T16,I5,T24,I6,T33,E12.4,2x,E12.4)') &
@@ -3363,9 +3353,9 @@ CONTAINS
       converged = .FALSE.
       DO iter = 1, max_iter
          t1 = m_walltime()
-         CALL lanczos_refinement_2v_c(cksmat, cmo, cwork, mo_eigenvalues, nao, nmo, eps_col, &
+         CALL lanczos_refinement_2v_c(work%cksmat, work%cmos, mo_eigenvalues, eps_col, &
                                       scf_env%krylov_space%nkrylov, scf_env%krylov_space%nblock, &
-                                      max_res, min_res, nmo_conv, nmo_nc)
+                                      work%lan_ws, max_res, min_res, nmo_conv, nmo_nc)
          t2 = m_walltime()
          IF (print_row .AND. output_unit > 0) THEN
             WRITE (output_unit, '(T8,I3,T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)') &
@@ -3387,8 +3377,8 @@ CONTAINS
       ! rotate the refined MOS back into the generalized problem, C = U^-1 X.
       ! The helper also copies the eigenvalues to the imaginary set, like
       ! every other k-point diagonalization path
-      CALL cp_cfm_triangular_multiply(csmat, cmo, side="L", invert_tr=.TRUE.)
-      CALL kpoint_operator_cfm_to_mo(cmo, kp%mos(1, ispin), kp%mos(2, ispin), mo_eigenvalues)
+      CALL cp_cfm_triangular_multiply(work%csmat, work%cmos, side="L", invert_tr=.TRUE.)
+      CALL kpoint_operator_cfm_to_mo(work%cmos, kp%mos(1, ispin), kp%mos(2, ispin), mo_eigenvalues)
 
       CALL timestop(handle)
    END SUBROUTINE lanczos_refine_channel
