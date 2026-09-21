@@ -743,15 +743,6 @@ CONTAINS
             NULLIFY (diagnostics_pw_pool)
          END IF
 
-         ! remove the nlcc densities (keep stuff in original state)
-         IF (ASSOCIATED(rho_nlcc_use)) THEN
-            factor = -1.0_dp
-            DO ispin = 1, mspin
-               CALL pw_axpy(rho_nlcc_use, rho_r(ispin), factor)
-               CALL pw_axpy(rho_nlcc_g_use, rho_g(ispin), factor)
-            END DO
-         END IF
-
          ! calclulate non-local vdW functional
          ! only if this XC_SECTION has it
          ! if yes, we use the dispersion_env from ks_env
@@ -776,6 +767,15 @@ CONTAINS
                CALL vdw_pw_pool%give_back_pw(vxcnl)
             END IF
             DEALLOCATE (rhonl, drhonl)
+         END IF
+
+         ! remove the nlcc densities (keep stuff in original state)
+         IF (ASSOCIATED(rho_nlcc_use)) THEN
+            factor = -1.0_dp
+            DO ispin = 1, mspin
+               CALL pw_axpy(rho_nlcc_use, rho_r(ispin), factor)
+               CALL pw_axpy(rho_nlcc_g_use, rho_g(ispin), factor)
+            END DO
          END IF
 
          !! Apply rescaling to the potential if requested
