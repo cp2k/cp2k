@@ -1,7 +1,7 @@
 ; mdp for MQAE need to provide mqae_cp2k.inp
-integrator               = md    ; MD using leap-frog integrator
-dt                       = 0.001 ; 1fs time-step
-nsteps                   = 5   ; 100 fs simulation
+integrator  = md    ; MD using leap-frog integrator
+dt          = 0.001 ; 1fs time-step
+nsteps      = 5   ; 100 fs simulation
 
 ; Set output frequency to each step
 nstxout                  = 1 ; Coordinates to trr
@@ -10,9 +10,9 @@ nstcalcenergy            = 1 ; Energies to ener.edr
 nstenergy                = 1 ; Energies to ener.edr
 
 ; Set cut-offs
-rlist                    = 0.2 ; NB-search cut-off
-rcoulomb                 = 0.2 ; Short-range electrostatic cut-off
-rvdw                     = 0.2 ; Short-range Van der Waals cut-off
+rlist               = 0.2 ; NB-search cut-off
+rcoulomb	    = 0.2 ; Short-range electrostatic cut-off
+rvdw		    = 0.2 ; Short-range Van der Waals cut-off
 
 ;Temperature coupling options
 tcoupl                   = no
@@ -23,12 +23,12 @@ ref-t                    = 300
 
 ; GENERATE VELOCITIES FOR STARTUP RUN
 gen-vel                  = yes
-gen-temp                 = 300
+gen-temp                 = 300 
 gen-seed                 = -1
 
 ; CP2K QMMM parameters
-qmmm-cp2k-active         = true   ; Activate QMMM MdModule
-qmmm-cp2k-qmgroup        = QMatoms; Index group of QM atoms
-qmmm-cp2k-qmmethod       = INPUT  ; Method to use
-qmmm-cp2k-qmcharge       = 1      ; Charge of QM system
-qmmm-cp2k-qmmultiplicity = 1      ; Multiplicity of QM system
+qmmm-cp2k-active              = true   ; Activate QMMM MdModule
+qmmm-cp2k-qmgroup             = QMatoms; Index group of QM atoms
+qmmm-cp2k-qmmethod            = INPUT  ; Method to use
+qmmm-cp2k-qmcharge            = 1      ; Charge of QM system
+qmmm-cp2k-qmmultiplicity      = 1      ; Multiplicity of QM system
