@@ -184,9 +184,9 @@ MODULE qs_scf_diagonalization
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_diagonalization'
 
-   ! occupation below this weight sits beyond the thermal smearing tail and
-   ! converges at the relaxed empty threshold, in the Davidson k-point driver
-   ! and in both Lanczos k-point paths below
+   ! occupation below this weight sits beyond the thermal smearing tail
+   ! and converges at the relaxed empty threshold. The Davidson k-point
+   ! driver and both Lanczos k-point paths below use this rule
    REAL(KIND=dp), PARAMETER, PRIVATE :: occ_tol = 1.0E-3_dp
 
    TYPE, PRIVATE :: kp_diag_workspace_type
@@ -3088,18 +3088,18 @@ CONTAINS
 
       ! One-rank k-point groups assemble every operator locally from a
       ! prepared snapshot and refine their k points without a single
-      ! collective transfer round, the local layout of the Davidson
-      ! k-point driver. Unlike Davidson, the refinement runs serially:
-      ! the single-pass kernel allocates its scratch per call, and the
-      ! para_env refcount guard rejects that inside an OpenMP region.
-      ! Concurrent workers would need the kernel to take a preallocated
-      ! workspace, as Davidson pairs its workers with allocation-free
-      ! local solvers. Everything that needs the collective transfer
-      ! sequence also keeps the rounds below: a diag check, a
-      ! convergence-only probe, and an explicitly selected
-      ! diagonalization library. The serial LAPACK branch of the local
-      ! path would silently bypass such a library, and the ELPA dispatch
-      ! regression rides on the rounds.
+      ! collective transfer round. This is the local layout of the
+      ! Davidson k-point driver. Unlike Davidson, the refinement runs
+      ! serially. The single-pass kernel allocates its scratch per
+      ! call. The para_env refcount guard rejects that inside an OpenMP
+      ! region. Concurrent workers would need the kernel to take a
+      ! preallocated workspace. Davidson gives its own workers
+      ! allocation-free local solvers. A diag check, a
+      ! convergence-only probe and an explicitly selected
+      ! diagonalization library also keep the rounds. The serial LAPACK
+      ! branch of the local path would silently bypass such a library.
+      ! The ELPA dispatch regression keeps its coverage through the
+      ! rounds.
       use_local_kpoints = kpoints%para_env_kp%num_pe == 1
       IF (diag_check_requested()) use_local_kpoints = .FALSE.
       IF (my_check_moconv_only) use_local_kpoints = .FALSE.
@@ -3122,7 +3122,8 @@ CONTAINS
          CALL kp_diag_workspaces_create(workspace, 1, matrix_struct, mo_struct, nentry, &
                                         use_local_kpoints, scf_env%cholesky_method == cholesky_off)
       ELSE
-         ! transfer-round matrices, shared by every channel of the run
+         ! the transfer rounds use these matrices for every channel
+         ! of the run
          CALL cp_cfm_create(cksmat, matrix_struct, name="lanc_hk")
          CALL cp_cfm_create(cksmat_t, matrix_struct, name="lanc_hk_t")
          CALL cp_cfm_create(csmat, matrix_struct, name="lanc_sk")
@@ -3140,9 +3141,8 @@ CONTAINS
 
       IF (use_local_kpoints) THEN
          ! first SCF step: initialize the MOS of every local k point
-         ! directly. The cold start allocates solver matrices, so it runs
-         ! serially before the workers, which must stay free of refcount
-         ! traffic
+         ! directly, before the refinement loop below skips those
+         ! channels
          IF (scf_env%iter_count == 1) THEN
             DO ikp = 1, kplocal
                kp => kpoints%kp_env(ikp)%kpoint_env
@@ -3159,8 +3159,8 @@ CONTAINS
             END DO
          END IF
 
-         ! serial refinement of the locally owned k points, see the layout
-         ! comment above for why this loop cannot run under OpenMP
+         ! serial refinement of the locally owned k points. The layout
+         ! comment above states why this loop cannot run under OpenMP
          DO ikp = 1, kplocal
             kp => kpoints%kp_env(ikp)%kpoint_env
             ik = kp_range(1) + ikp - 1
@@ -3258,11 +3258,11 @@ CONTAINS
    END SUBROUTINE do_block_krylov_diag_kp
 
 ! **************************************************************************************************
-!> \brief Refine the MOS of one (k point, spin) channel: Hermitian projection
-!>        of H(k), standardization by the Cholesky factor of S(k), the sweep
-!>        loop over the single-pass kernel, and the write-back to the MO sets.
-!>        The caller owns every matrix. The routine allocates no CP2K matrix,
-!>        so it also runs inside the OpenMP workers of the local-kpoint path.
+!> \brief Refine the MOS of one (k point, spin) channel. The routine
+!>        projects H(k) onto its Hermitian part, standardizes the channel
+!>        by the Cholesky factor of S(k), sweeps the single-pass kernel,
+!>        and writes the MOS back to the MO sets. The caller owns every
+!>        matrix. The routine allocates no CP2K matrix.
 !> \param kp k-point environment holding the MOS pair of the channel
 !> \param ispin spin component
 !> \param scf_env SCF environment holding the Krylov settings
@@ -3281,9 +3281,10 @@ CONTAINS
 !> \param cwork scratch of the shape of cmo
 !> \param output_unit unit of the refinement table. A nonpositive unit
 !>        disables every report
-!> \param print_row report this channel in the refinement table and in the
-!>        not-converged warnings. The local-kpoint path passes .FALSE.:
-!>        concurrent workers must not interleave on the shared unit
+!> \param print_row report this channel in the refinement table and in
+!>        the not-converged warnings. The local-kpoint path passes
+!>        .FALSE. and reports nothing, like the local phase of the
+!>        Davidson k-point driver
 ! **************************************************************************************************
    SUBROUTINE lanczos_refine_channel(kp, ispin, scf_env, check_moconv_only, eps_iter, eps_iter_empty, &
                                      max_iter, cksmat, ctmp, csmat_base, csmat, cmo, cwork, &
