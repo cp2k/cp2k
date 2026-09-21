@@ -45,6 +45,7 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'precompute_ri_rs_radii'
+      REAL(KIND=dp), PARAMETER :: min_exponent_for_radius = 1.0E-3_dp
 
       INTEGER                                            :: handle, i, iatom, ikind, j, natom, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
@@ -68,14 +69,14 @@ CONTAINS
          zet_ri => bs_env%basis_set_RI(ikind)%gto_basis_set%zet
          DO i = 1, SIZE(zet_ao, 1)
             DO j = 1, SIZE(zet_ao, 2)
-               IF (zet_ao(i, j) > 1.0E-3_dp) THEN
+               IF (zet_ao(i, j) > min_exponent_for_radius) THEN
                   alpha_min_ao_kind(ikind) = MIN(alpha_min_ao_kind(ikind), zet_ao(i, j))
                END IF
             END DO
          END DO
          DO i = 1, SIZE(zet_ri, 1)
             DO j = 1, SIZE(zet_ri, 2)
-               IF (zet_ri(i, j) > 1.0E-3_dp) THEN
+               IF (zet_ri(i, j) > min_exponent_for_radius) THEN
                   alpha_min_ri_kind(ikind) = MIN(alpha_min_ri_kind(ikind), zet_ri(i, j))
                END IF
             END DO

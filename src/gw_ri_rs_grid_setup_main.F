@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Main setup driver for RI-RS grids.
+!> \brief Main setup file for RI-RS grids {r_l}.
 !> \par History
 !>      09.2026 created
 ! **************************************************************************************************
@@ -42,7 +42,7 @@ CONTAINS
       IF (bs_env%ri_rs%grid_opt%enabled) THEN
 
          ! Initialize Lebedev grids for every element from CP2K routines and then
-         ! optimize the coordinates of these grid points to minimize RIRS error
+         ! optimize the coordinates of these grid points to minimize the RIRS error
          !
          ! [(μν|P) - Σ_l ϕ_μ(r_l) ϕ_ν(r_l) Z_lP^(A)]²
          !

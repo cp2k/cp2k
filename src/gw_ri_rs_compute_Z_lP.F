@@ -2726,8 +2726,8 @@ CONTAINS
 
       cell => bs_env%ri_rs%cell
       particle_set => bs_env%ri_rs%particle_set
-      n_grid_total = bs_env%ri_rs%n_grid_points
-      CPASSERT(SIZE(ri_rs_grid_points, 2) == n_grid_total)
+      ! AUTO_RI may pass only the global grid points needed for the current atom block.
+      n_grid_total = SIZE(ri_rs_grid_points, 2)
       IF (PRESENT(center)) THEN
          pos_P(:) = center(:)
       ELSE
@@ -2736,7 +2736,7 @@ CONTAINS
 
       n_local_grid = 0
       DO l = 1, n_grid_total
-         dist = SQRT(SUM((ri_rs_grid_points(1:3, l) - pos_P(1:3))**2))
+         dist = NORM2(ri_rs_grid_points(1:3, l) - pos_P(1:3))
          IF (dist <= cutoff_ri) n_local_grid = n_local_grid + 1
       END DO
 
@@ -2744,7 +2744,7 @@ CONTAINS
 
       n_local_grid = 0
       DO l = 1, n_grid_total
-         dist = SQRT(SUM((ri_rs_grid_points(1:3, l) - pos_P(1:3))**2))
+         dist = NORM2(ri_rs_grid_points(1:3, l) - pos_P(1:3))
          IF (dist <= cutoff_ri) THEN
             n_local_grid = n_local_grid + 1
             local_grid_idx(n_local_grid) = l

@@ -62,6 +62,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      ! Validate all state and user input before the initialization consumes them.
+      CALL validate_ri_rs_grid_optimization_input(bs_env)
+
       ! setup Lebedev initial grid inside Voronoi volume, select points with Cholesky decomp.
       CALL initialize_ri_rs_grid(bs_env)
 
@@ -80,13 +83,13 @@ CONTAINS
    END SUBROUTINE optimize_ri_rs_grid
 
 ! **************************************************************************************************
-!> \brief Validate initialized RI-RS state and announce the grid optimization.
+!> \brief Validate state and user input needed to initialize and optimize RI-RS grids.
 !> \param bs_env ...
 ! **************************************************************************************************
-   SUBROUTINE prepare_ri_rs_grid_optimization(bs_env)
+   SUBROUTINE validate_ri_rs_grid_optimization_input(bs_env)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
-      INTEGER                                            :: iatom, ikind, unit_nr
+      INTEGER                                            :: iatom, ikind
 
       CPASSERT(ASSOCIATED(bs_env%ri_rs%cell))
       CPASSERT(ASSOCIATED(bs_env%ri_rs%particle_set))
@@ -94,23 +97,51 @@ CONTAINS
       CPASSERT(ALLOCATED(bs_env%basis_set_AO))
       CPASSERT(ALLOCATED(bs_env%basis_set_RI))
       CPASSERT(ALLOCATED(bs_env%sizes_AO))
-      CPASSERT(ALLOCATED(bs_env%ri_rs%atomic_grids))
+      CPASSERT(SIZE(bs_env%ri_rs%particle_set) == bs_env%n_atom)
       CPASSERT(SIZE(bs_env%sizes_AO) == bs_env%n_atom)
-      CPASSERT(SIZE(bs_env%ri_rs%atomic_grids) == bs_env%n_atom)
+      CPASSERT(SIZE(bs_env%basis_set_AO) == SIZE(bs_env%basis_set_RI))
+
+      IF (bs_env%ri_rs%grid_opt%rs_ao_ratio <= 0.0_dp) THEN
+         CPABORT("GRID_OPTIMIZATION%RS_AO_RATIO must be positive")
+      END IF
+      IF (bs_env%ri_rs%grid_opt%cutoff_atomic_cluster <= 0.0_dp) THEN
+         CPABORT("GRID_OPTIMIZATION%CUTOFF_ATOMIC_CLUSTER must be positive")
+      END IF
+      IF (bs_env%ri_rs%grid_opt%max_iter < 1) THEN
+         CPABORT("GRID_OPTIMIZATION%MAX_ITER must be positive")
+      END IF
+      IF (bs_env%ri_rs%tikhonov < 0.0_dp) THEN
+         CPABORT("RI_RS%TIKHONOV must not be negative")
+      END IF
 
       DO iatom = 1, bs_env%n_atom
-         CPASSERT(ALLOCATED(bs_env%ri_rs%atomic_grids(iatom)%raw_points))
-         CPASSERT(SIZE(bs_env%ri_rs%atomic_grids(iatom)%raw_points, 1) == 3)
-         CPASSERT(SIZE(bs_env%ri_rs%atomic_grids(iatom)%raw_points, 2) > 0)
          ikind = bs_env%ri_rs%particle_set(iatom)%atomic_kind%kind_number
          CPASSERT(ikind >= 1 .AND. ikind <= SIZE(bs_env%basis_set_AO))
-         CPASSERT(ikind <= SIZE(bs_env%basis_set_RI))
          CPASSERT(ASSOCIATED(bs_env%basis_set_AO(ikind)%gto_basis_set))
          CPASSERT(ASSOCIATED(bs_env%basis_set_RI(ikind)%gto_basis_set))
          IF (bs_env%sizes_AO(iatom) < 1 .OR. &
              bs_env%basis_set_RI(ikind)%gto_basis_set%nsgf < 1) THEN
             CPABORT("Every atom in GRID_OPTIMIZATION needs ORB and RI_AUX functions")
          END IF
+      END DO
+   END SUBROUTINE validate_ri_rs_grid_optimization_input
+
+! **************************************************************************************************
+!> \brief Validate initialized RI-RS state and announce the grid optimization.
+!> \param bs_env ...
+! **************************************************************************************************
+   SUBROUTINE prepare_ri_rs_grid_optimization(bs_env)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      INTEGER                                            :: iatom, unit_nr
+
+      CPASSERT(ALLOCATED(bs_env%ri_rs%atomic_grids))
+      CPASSERT(SIZE(bs_env%ri_rs%atomic_grids) == bs_env%n_atom)
+
+      DO iatom = 1, bs_env%n_atom
+         CPASSERT(ALLOCATED(bs_env%ri_rs%atomic_grids(iatom)%raw_points))
+         CPASSERT(SIZE(bs_env%ri_rs%atomic_grids(iatom)%raw_points, 1) == 3)
+         CPASSERT(SIZE(bs_env%ri_rs%atomic_grids(iatom)%raw_points, 2) > 0)
       END DO
 
       unit_nr = bs_env%unit_nr

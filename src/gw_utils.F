@@ -745,7 +745,7 @@ CONTAINS
          bs_env%regularization_minimax = bs_env%input_regularization_minimax
       ELSE
          ! for periodic systems and for 20 minimax points, we use a regularized minimax mesh
-         ! (from experience: regularized minimax meshes converges faster for periodic systems
+         ! (from experience: regularized minimax meshes converge faster for periodic systems
          !  and for 20 pts)
          IF (bs_env%do_periodic .OR. bs_env%num_time_freq_points >= 20) THEN
             bs_env%regularization_minimax = 1.0E-6_dp
@@ -1352,7 +1352,7 @@ CONTAINS
                                             cell_k=index_to_cell_3c_max(1:3, k_cell), &
                                             atom_k=atom_k, atom_j=atom_j, atom_i=atom_i)
 
-               frobenius_norm = SQRT(SUM(int_3c(:, :, :)**2))
+               frobenius_norm = NORM2(int_3c)
 
                DEALLOCATE (int_3c)
 
@@ -1482,7 +1482,7 @@ CONTAINS
 
       cell_dist_3(1:3) = MATMUL(hmat, REAL(cell_index_adj, KIND=dp))
 
-      cell_dist = SQRT(ABS(SUM(cell_dist_3(1:3)**2)))
+      cell_dist = NORM2(cell_dist_3)
 
       CALL timestop(handle)
 
@@ -1834,7 +1834,6 @@ CONTAINS
       xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=myfun)
       CALL section_vals_val_set(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", i_val=xc_none)
-      ! IF (ASSOCIATED(section_vals_get_subs_vals(xc_section, "HF", can_return_null=.TRUE.))) THEN
       hf_section => section_vals_get_subs_vals(input, "DFT%XC%HF", can_return_null=.TRUE.)
       hf_present = .FALSE.
       IF (ASSOCIATED(hf_section)) THEN
@@ -2121,10 +2120,6 @@ CONTAINS
       REAL(dp)                                           :: max_dist_AO_atoms, occ, occupation_sum
       REAL(KIND=dp)                                      :: t1, t2
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_3c_global_array
-
-!TYPE(dbt_type)                                     :: t_3c_global
-
-      !TYPE(neighbor_list_3c_type)                        :: nl_3c_global
 
       CALL timeset(routineN, handle)
 

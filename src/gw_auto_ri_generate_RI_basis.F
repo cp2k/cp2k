@@ -180,16 +180,17 @@ CONTAINS
 !                                                                                                  !
 ! Σ_A N_A = Σ_{A>B} N_AB = N_RI/2.                                                          (14)   !
 !                                                                                                  !
-! For an isolated atom there is no AB space, so the full requested basis is assigned to AA:        !
+! If no atom pairs are available, as for an isolated atom or when NEIGHBOR_RADIUS is below the      !
+! minimum bond length, there is no AB space, so the full requested basis is assigned to AA:         !
 !                                                                                                  !
-! N_A^target = N_RI^target.                                                                 (15)   !
+! Σ_A N_A^target = N_RI^target.                                                             (15)   !
 !                                                                                                  !
 ! The retained size can be smaller only when B^A or M^A has fewer numerically non-null modes.      !
 !                                                                                                  !
 !**************************************************************************************************!
 
 ! **************************************************************************************************
-!> \brief Executes the AUTO_RI algorithm defined by Eqs. (1)-(14).
+!> \brief Executes the AUTO_RI algorithm defined by Eqs. (1)-(15).
 !> \param qs_env ...
 !> \param bs_env Band-structure environment containing GW parameters.
 ! **************************************************************************************************
@@ -334,9 +335,10 @@ CONTAINS
 !>
 !>          Σ_A N_A = N_RI/2.                                             (14)
 !>
-!>        For an isolated atom, where no AB subspace exists, it assigns
+!>        If no atom pair lies within NEIGHBOR_RADIUS, so that no AB subspace
+!>        exists, it instead assigns
 !>
-!>          N_A = N_RI^target.                                            (15)
+!>          Σ_A N_A^target = N_RI^target.                                 (15)
 !>
 !> \param bs_env ...
 !> \param kind_of_atom ...
@@ -355,20 +357,21 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_AA_optimization'
 
-      INTEGER                                            :: handle, ikind, RI_size_requested
+      INTEGER                                            :: AB_pair_count, handle, ikind, &
+                                                            RI_size_requested
       INTEGER, ALLOCATABLE                               :: sizes_ref_RI_by_kind(:)
 
       CALL timeset(routineN, handle)
 
       natom = bs_env%n_atom
-      nkind = SIZE(bs_env%basis_set_RI)
       CPASSERT(ASSOCIATED(bs_env%ri_rs%atomic_kind_set))
       CPASSERT(ASSOCIATED(bs_env%ri_rs%particle_set))
-      CPASSERT(ASSOCIATED(bs_env%para_env) .AND. natom > 0 .AND. nkind > 0)
+      CPASSERT(ASSOCIATED(bs_env%para_env) .AND. natom > 0)
       CPASSERT(ALLOCATED(bs_env%basis_set_AO))
       CPASSERT(ALLOCATED(bs_env%basis_set_RI))
+      nkind = SIZE(bs_env%basis_set_RI)
+      CPASSERT(nkind > 0)
       CPASSERT(SIZE(bs_env%basis_set_AO) == nkind)
-      CPASSERT(SIZE(bs_env%basis_set_RI) == nkind)
       CPASSERT(bs_env%do_gw_ri_rs)
       CPASSERT(.NOT. bs_env%do_periodic)
       CPASSERT(bs_env%gw_implementation /= tensor_small_cell_full_kp)
@@ -387,7 +390,8 @@ CONTAINS
                           MIN(bs_env%auto_ri%ri_ao_ratio, &
                               REAL(SUM(sizes_ref_RI_by_kind(kind_of_atom)), dp)/ &
                               REAL(SUM(bs_env%sizes_AO), dp))*REAL(SUM(bs_env%sizes_AO), dp))
-      IF (natom == 1) THEN
+      CALL count_AB_neighbor_pairs(bs_env, AB_pair_count)
+      IF (AB_pair_count == 0) THEN
          RI_size_opt_AA_requested = RI_size_requested
       ELSE
          RI_size_opt_AA_requested = MAX(natom, NINT(0.5_dp*REAL(RI_size_requested, dp)))
@@ -397,6 +401,35 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE initialize_AA_optimization
+
+! **************************************************************************************************
+!> \brief Counts atom pairs eligible for the AB contractions in Eqs. (8)-(13).
+!> \param bs_env ...
+!> \param AB_pair_count number of pairs separated by at most NEIGHBOR_RADIUS
+! **************************************************************************************************
+   SUBROUTINE count_AB_neighbor_pairs(bs_env, AB_pair_count)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      INTEGER, INTENT(OUT)                               :: AB_pair_count
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'count_AB_neighbor_pairs'
+
+      INTEGER                                            :: handle, iatom, jatom
+
+      CALL timeset(routineN, handle)
+
+      AB_pair_count = 0
+      DO iatom = 1, bs_env%n_atom - 1
+         DO jatom = iatom + 1, bs_env%n_atom
+            IF (NORM2(bs_env%ri_rs%particle_set(iatom)%r - bs_env%ri_rs%particle_set(jatom)%r) <= &
+                bs_env%auto_ri%neighbor_radius) THEN
+               AB_pair_count = AB_pair_count + 1
+            END IF
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE count_AB_neighbor_pairs
 
 ! **************************************************************************************************
 !> \brief Sets the RI-RS block sizes to the optimized RI basis dimensions.
@@ -1309,15 +1342,7 @@ CONTAINS
       RI_size_ref = SUM(sizes_ref_RI)
       RI_size_opt_AA = SUM(sizes_opt_RI_AA)
 
-      AB_pair_count = 0
-      DO iatom = 1, bs_env%n_atom - 1
-         DO jatom = iatom + 1, bs_env%n_atom
-            IF (NORM2(bs_env%ri_rs%particle_set(iatom)%r - bs_env%ri_rs%particle_set(jatom)%r) <= &
-                bs_env%auto_ri%neighbor_radius) THEN
-               AB_pair_count = AB_pair_count + 1
-            END IF
-         END DO
-      END DO
+      CALL count_AB_neighbor_pairs(bs_env, AB_pair_count)
       ALLOCATE (AB_atom_A(AB_pair_count), AB_atom_B(AB_pair_count), &
                 AB_size_opt_RI_to_A(AB_pair_count), sizes_opt_RI_AB(AB_pair_count), &
                 U_Pp_AB_offset(AB_pair_count))
@@ -2241,8 +2266,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_int_3c'
 
       INTEGER                                            :: handle, iset, jset, kset, max_ao_l, &
-                                                            max_l, nAO, ncoa, ncob, ncoc, nRI, &
-                                                            nsgfa, nsgfb, nsgfc, sgfa, sgfb, sgfc
+                                                            max_l, max_ri_l, nAO, ncoa, ncob, &
+                                                            ncoc, nRI, nsgfa, nsgfb, nsgfc, sgfa, &
+                                                            sgfb, sgfc
       INTEGER, DIMENSION(:), POINTER                     :: lmax_a, lmax_c, lmin_a, lmin_c, npgf_a, &
                                                             npgf_c, nsgf_set_a, nsgf_set_c
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf_a, first_sgf_c
@@ -2265,7 +2291,8 @@ CONTAINS
                              pgf_radius=pgf_radius_c, sphi=sphi_c, zet=zeta_c)
       CPASSERT(nAO > 0 .AND. nRI > 0)
       max_ao_l = MAXVAL(lmax_a)
-      max_l = MAX(max_ao_l, MAXVAL(lmax_c))
+      max_ri_l = MAXVAL(lmax_c)
+      max_l = MAX(max_ao_l, max_ri_l)
       CALL init_orbital_pointers(MAX(max_l, 2*max_ao_l))
       CALL init_spherical_harmonics(max_l, -1)
       IF (potential%potential_type == do_potential_truncated) THEN
@@ -2275,10 +2302,10 @@ CONTAINS
                           "AUTO_RI TRUNCATED fitting requires LIBINT for "// &
                           "COULOMB_2C and COULOMB_3C")
          END IF
-         CALL coulomb_integral_init(context, max_am_2c=MAX(max_l, 2*max_ao_l), max_am_3c=max_l)
-      ELSE
-         CALL coulomb_integral_init(context, max_am_2c=max_l, max_am_3c=max_l)
       END IF
+      ! Libint initialization takes the maximum angular momentum of one shell,
+      ! not the sum of angular momenta entering an integral.
+      CALL coulomb_integral_init(context, max_am_2c=max_ri_l, max_am_3c=max_l)
       center = 0.0_dp
 
       ALLOCATE (M_PQ(nRI, nRI), Int_3c_spherical_all(nAO, nAO, nRI))
@@ -2367,22 +2394,31 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_auto_ri_integrals'
 
       CHARACTER(LEN=default_path_length)                 :: table_file
-      INTEGER                                            :: handle, ikind, max_l, table_lmax, unit_id
+      INTEGER                                            :: handle, ikind, max_ao_l, max_l, &
+                                                            max_ri_l, table_lmax, unit_id
 
       CALL timeset(routineN, handle)
 
-      max_l = 0
+      CPASSERT(ALLOCATED(bs_env%basis_set_AO))
+      CPASSERT(ALLOCATED(bs_env%basis_set_RI))
+      CPASSERT(SIZE(bs_env%basis_set_AO) == SIZE(bs_env%basis_set_RI))
+      CPASSERT(SIZE(bs_env%basis_set_RI) > 0)
+      max_ao_l = 0
+      max_ri_l = 0
       DO ikind = 1, SIZE(bs_env%basis_set_RI)
+         CPASSERT(ASSOCIATED(bs_env%basis_set_AO(ikind)%gto_basis_set))
          CPASSERT(ASSOCIATED(bs_env%basis_set_RI(ikind)%gto_basis_set))
-         max_l = MAX(max_l, MAXVAL(bs_env%basis_set_RI(ikind)%gto_basis_set%lmax))
+         max_ao_l = MAX(max_ao_l, MAXVAL(bs_env%basis_set_AO(ikind)%gto_basis_set%lmax))
+         max_ri_l = MAX(max_ri_l, MAXVAL(bs_env%basis_set_RI(ikind)%gto_basis_set%lmax))
       END DO
+      max_l = MAX(max_ao_l, max_ri_l)
       ! The OS two-center kernel accesses l+1 even without force evaluation.
       CALL init_orbital_pointers(max_l + 1)
       CALL init_spherical_harmonics(max_l, -1)
 
       IF (bs_env%ri_metric%potential_type == do_potential_truncated) THEN
-         ! The truncated-Coulomb kernel needs auxiliary functions through l_A+l_B+1.
-         table_lmax = 2*max_l + 1
+         ! Cover both the RI-RI two-center and AO-AO-RI three-center kernels.
+         table_lmax = MAX(2*max_ri_l + 1, 2*max_ao_l + max_ri_l)
          IF (get_lmax_init() < table_lmax) THEN
             unit_id = -1
             IF (bs_env%para_env%is_source()) THEN
