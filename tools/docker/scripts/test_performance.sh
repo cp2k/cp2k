@@ -60,7 +60,7 @@ BENCHMARKS=(
   "QS_single_node/diag_cu144_broy.inp"
   "QS_single_node/bench_dftb.inp"
   "QS_single_node/dbcsr.inp"
-  "QMMM_MQAE/MQAE_single_node.inp"
+  "QMMM/MQAE/MQAE_single_node.inp"
 )
 
 if [[ "${PROFILE}" == "toolchain" ]]; then

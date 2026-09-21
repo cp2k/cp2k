@@ -1891,7 +1891,7 @@ BENCHMARKS=(
   "${CP2K_ROOT}/benchmarks/QS_single_node/diag_cu144_broy.inp"
   "${CP2K_ROOT}/benchmarks/QS_single_node/bench_dftb.inp"
   "${CP2K_ROOT}/benchmarks/QS_single_node/dbcsr.inp"
-  "${CP2K_ROOT}/benchmarks/QMMM_MQAE/MQAE_single_node.inp"
+  "${CP2K_ROOT}/benchmarks/QMMM/MQAE/MQAE_single_node.inp"
 )
 
 if [[ "\${BENCHMARK_PROFILE}" == "openmp" ]]; then
