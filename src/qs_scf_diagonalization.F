@@ -1352,6 +1352,177 @@ CONTAINS
    END SUBROUTINE kp_diag_workspaces_release
 
 ! **************************************************************************************************
+!> \brief Adaptive inner tolerance of an iterative solver from EPS_ADAPT:
+!>        loose while the density error sits far from self-consistency,
+!>        tracking that error at a fixed fraction and capped in the early
+!>        phase. A nonpositive factor or error disables the loosening and
+!>        returns the user threshold
+!> \param eps_iter user threshold
+!> \param eps_adapt loosening factor of the tracking
+!> \param iter_error outer error the threshold tracks
+!> \param noise_scale fraction of the outer error the solver noise keeps
+!> \param cap bound of the early loose phase
+!> \return ...
+! **************************************************************************************************
+   PURE FUNCTION kp_adaptive_eps_iter(eps_iter, eps_adapt, iter_error, noise_scale, cap) RESULT(eps)
+      REAL(KIND=dp), INTENT(IN)                          :: eps_iter, eps_adapt, iter_error, &
+                                                            noise_scale, cap
+      REAL(KIND=dp)                                      :: eps
+
+      IF (eps_adapt <= 0.0_dp .OR. iter_error <= 0.0_dp) THEN
+         eps = eps_iter
+      ELSE
+         eps = MAX(eps_iter, MIN(eps_adapt*iter_error/noise_scale, cap))
+      END IF
+   END FUNCTION kp_adaptive_eps_iter
+
+! **************************************************************************************************
+!> \brief Occupations, ADDED_MOS_AUTO growth check and the density exit
+!>        chain shared by the k-point diagonalization drivers. The
+!>        routine keeps its own bookkeeping: a growing step abandons the
+!>        density of the abandoned SCF step
+!> \param kpoints ...
+!> \param scf_env ...
+!> \param scf_control ...
+!> \param matrix_s_kp real-space overlap matrix, dbcsr image set
+!> \param sab_nl ...
+!> \param fmwork global scratch fms of the driver
+!> \return ...
+!> \retval kp_diag_exit_chain TRUE when the virtual-space buffer is too
+!>         small for the smearing tail: the outer loop grows the MOS and
+!>         redoes this SCF step
+! **************************************************************************************************
+   LOGICAL FUNCTION kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s_kp, sab_nl, fmwork)
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(scf_control_type), POINTER                    :: scf_control
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+
+      LOGICAL                                            :: grow
+
+      grow = .FALSE.
+      CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
+                                    added_mos_auto=scf_control%added_mos_auto, &
+                                    added_mos_auto_grow=grow)
+      IF (grow) THEN
+         kp_diag_exit_chain = .TRUE.
+         RETURN
+      END IF
+      CALL kpoint_density_matrices(kpoints)
+      CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
+                                    matrix_s_kp(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s_kp)
+      kp_diag_exit_chain = .FALSE.
+   END FUNCTION kp_diag_exit_chain
+
+! **************************************************************************************************
+!> \brief Per-column convergence thresholds of an iterative k-point
+!>        solver: the occupation decides which columns sit beyond the
+!>        thermal smearing tail and converge at the relaxed empty
+!>        threshold
+!> \param occupation occupation numbers of the channel
+!> \param eps_iter threshold of the occupied columns
+!> \param eps_iter_empty relaxed threshold of the unoccupied columns
+!> \param eps_col per-column thresholds, at least as long as the
+!>        occupation numbers
+! **************************************************************************************************
+   SUBROUTINE kp_eps_col_by_occupation(occupation, eps_iter, eps_iter_empty, eps_col)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: occupation
+      REAL(KIND=dp), INTENT(IN)                          :: eps_iter, eps_iter_empty
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eps_col
+
+      INTEGER                                            :: imo
+
+      DO imo = 1, SIZE(occupation)
+         IF (occupation(imo) < occ_tol) THEN
+            eps_col(imo) = eps_iter_empty
+         ELSE
+            eps_col(imo) = eps_iter
+         END IF
+      END DO
+   END SUBROUTINE kp_eps_col_by_occupation
+
+! **************************************************************************************************
+!> \brief Common setup of the iterative k-point drivers: the global
+!>        scratch fms, the operator context and the group matrix
+!>        structure
+!> \param qs_env ...
+!> \param kpoints ...
+!> \param nspin number of spin components
+!> \param matrix_ks_kp real-space Kohn-Sham matrices, dbcsr image set
+!> \param matrix_s_kp real-space overlap matrix, dbcsr image set
+!> \param fmwork returned global scratch fms
+!> \param op_ctx returned operator context
+!> \param matrix_struct returned AO layout of the k-point group
+!> \param prepare prepare the operator snapshot right away. The
+!>        transfer rounds of the Lanczos driver assemble lazily through
+!>        the get path and skip the snapshot
+!> \param prepared optional returned status of the snapshot preparation
+! **************************************************************************************************
+   SUBROUTINE kp_diag_setup(qs_env, kpoints, nspin, matrix_ks_kp, matrix_s_kp, fmwork, op_ctx, &
+                            matrix_struct, prepare, prepared)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER, INTENT(IN)                                :: nspin
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      TYPE(kpoint_operator_context_type)                 :: op_ctx
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      LOGICAL, INTENT(IN)                                :: prepare
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: prepared
+
+      INTEGER                                            :: i
+      LOGICAL                                            :: ks_ready, s_ready
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools, kp_ao_ao_fm_pools
+      TYPE(qs_matrix_pools_type), POINTER                :: kp_mpools, mpools
+
+      IF (PRESENT(prepared)) prepared = .FALSE.
+      CALL get_qs_env(qs_env, mpools=mpools)
+      CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
+      ALLOCATE (fmwork(4))
+      DO i = 1, 4
+         CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmwork(i))
+      END DO
+      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
+      IF (prepare) THEN
+         CALL kpoint_operator_prepare(op_ctx, matrix_ks_kp, kpoint_slot_ks, ks_ready)
+         CALL kpoint_operator_prepare(op_ctx, matrix_s_kp, kpoint_slot_s, s_ready, &
+                                      matrix_row=kpoint_spin_free)
+         IF (PRESENT(prepared)) prepared = ks_ready .AND. s_ready
+      END IF
+      CALL get_kpoint_info(kpoints, mpools=kp_mpools)
+      CALL mpools_get(kp_mpools, ao_ao_fm_pools=kp_ao_ao_fm_pools)
+      matrix_struct => fm_pool_get_el_struct(kp_ao_ao_fm_pools(1)%pool)
+   END SUBROUTINE kp_diag_setup
+
+! **************************************************************************************************
+!> \brief Common finalization of the iterative k-point drivers: release
+!>        the operator context and return the global scratch fms
+!> \param qs_env ...
+!> \param fmwork global scratch fms of the driver
+!> \param op_ctx operator context of the driver
+! **************************************************************************************************
+   SUBROUTINE kp_diag_finalize(qs_env, fmwork, op_ctx)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      TYPE(kpoint_operator_context_type)                 :: op_ctx
+
+      INTEGER                                            :: i
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
+      TYPE(qs_matrix_pools_type), POINTER                :: mpools
+
+      CALL kpoint_operator_context_release(op_ctx)
+      CALL get_qs_env(qs_env, mpools=mpools)
+      CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
+      DO i = 1, 4
+         CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmwork(i))
+      END DO
+      DEALLOCATE (fmwork)
+   END SUBROUTINE kp_diag_finalize
+
+! **************************************************************************************************
 !> \brief Kpoint diagonalization routine
 !>        Transforms matrices to kpoint, distributes kpoint groups, performs
 !>        general diagonalization (no storgae of overlap decomposition), stores
@@ -2099,15 +2270,9 @@ CONTAINS
          IF (ASSOCIATED(matrix_t_im)) CALL dbcsr_release_p(matrix_t_im)
       END DO
 
-      CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
-                                    added_mos_auto=scf_control%added_mos_auto, &
-                                    added_mos_auto_grow=added_mos_auto_grow)
-      IF (added_mos_auto_grow) RETURN
-
-      CALL kpoint_density_matrices(kpoints)
       fmwork => scf_env%scf_work1
-      CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
-                                    matrix_s(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s)
+      added_mos_auto_grow = kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s, sab_nl, fmwork)
+      IF (added_mos_auto_grow) RETURN
       IF (scf_env%mixing_method == 0) THEN
          scf_env%iter_method = 'NoMix/OTdiag.'
       ELSE IF (scf_env%mixing_method == 1) THEN
@@ -2510,7 +2675,8 @@ CONTAINS
                " Spin ", " Cycle ", &
                " conv. MOS ", " B2MAX ", " B2MIN ", " Time", REPEAT("-", 60)
          END IF
-         eps_iter = MAX(scf_env%krylov_space%eps_conv, scf_env%krylov_space%eps_adapt*scf_env%iter_delta)
+         eps_iter = kp_adaptive_eps_iter(scf_env%krylov_space%eps_conv, scf_env%krylov_space%eps_adapt, &
+                                         scf_env%iter_delta, 1.0_dp, HUGE(1.0_dp))
          iter = 0
          converged = .FALSE.
          !Check convergence of MOS
@@ -2752,17 +2918,15 @@ CONTAINS
                                                             eps_iter_cap = 1.0E-4_dp
 
       INTEGER                                            :: channel, first_prec, handle, ispin, iw, &
-                                                            iwork, kplocal, kpmax, local_kpoint, &
+                                                            kplocal, kpmax, local_kpoint, &
                                                             nchannels, nspin, output_unit
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_prec, my_added_mos_auto_grow, &
-                                                            use_real_wfn
+      LOGICAL                                            :: do_prec, use_real_wfn
       REAL(KIND=dp)                                      :: eps_iter, eps_iter_empty
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_cfm_type)                                  :: cksmat, csmat, csmat_base
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools, kp_ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -2771,7 +2935,6 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      TYPE(qs_matrix_pools_type), POINTER                :: kp_mpools, mpools
       TYPE(section_vals_type), POINTER                   :: scf_section
 
 ! bounds of the adaptive inner tolerance. The loose phase is capped for
@@ -2796,7 +2959,7 @@ CONTAINS
 
       CALL get_kpoint_info(kpoints, kp_range=kp_range, kp_dist=kp_dist, xkp=xkp, &
                            use_real_wfn=use_real_wfn, sab_nl=sab_nl, &
-                           cell_to_index=cell_to_index, mpools=kp_mpools)
+                           cell_to_index=cell_to_index)
       IF (use_real_wfn) THEN
          CPABORT('Davidson Kp requires complex K-point MOS')
       END IF
@@ -2884,19 +3047,9 @@ CONTAINS
       END IF
 
       ! work matrices: global scratch fms (also the operator-context
-      ! template), two k-group fms as preconditioner outputs, and the
-      ! complex H(k)/S(k)
-      CALL get_qs_env(qs_env, mpools=mpools)
-      CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
-      ALLOCATE (fmwork(4))
-      DO iwork = 1, 4
-         CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
-      END DO
-      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
-      CALL kpoint_operator_prepare(op_ctx, matrix_ks_kp, kpoint_slot_ks)
-      CALL kpoint_operator_prepare(op_ctx, matrix_s_kp, kpoint_slot_s, matrix_row=kpoint_spin_free)
-      CALL mpools_get(kp_mpools, ao_ao_fm_pools=kp_ao_ao_fm_pools)
-      matrix_struct => fm_pool_get_el_struct(kp_ao_ao_fm_pools(1)%pool)
+      ! template) and the complex H(k)/S(k)
+      CALL kp_diag_setup(qs_env, kpoints, nspin, matrix_ks_kp, matrix_s_kp, fmwork, op_ctx, &
+                         matrix_struct, .TRUE.)
       CALL cp_cfm_create(cksmat, matrix_struct, name="dav_hk")
       CALL cp_cfm_create(csmat, matrix_struct, name="dav_sk")
       CALL cp_cfm_create(csmat_base, matrix_struct, name="dav_sk_base")
@@ -2943,30 +3096,15 @@ CONTAINS
          END DO
       END DO
 
-      ! occupations and density, same exit chain as do_general_diag_kp
-      my_added_mos_auto_grow = .FALSE.
-      CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
-                                    added_mos_auto=scf_control%added_mos_auto, &
-                                    added_mos_auto_grow=my_added_mos_auto_grow)
-      IF (my_added_mos_auto_grow) THEN
-         ! the virtual-space buffer is too small for the smearing tail; the
-         ! outer loop grows the MOS and redoes this SCF step, the density of
-         ! the abandoned step must not be assembled
-         IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
-      ELSE
-         CALL kpoint_density_matrices(kpoints)
-         CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
-                                       matrix_s_kp(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s_kp)
-      END IF
+      ! occupations and density: the shared exit chain, same as every
+      ! other k-point diagonalization driver
+      IF (kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s_kp, sab_nl, fmwork) .AND. &
+          PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
 
       CALL cp_cfm_release(cksmat)
       CALL cp_cfm_release(csmat)
       CALL cp_cfm_release(csmat_base)
-      CALL kpoint_operator_context_release(op_ctx)
-      DO iwork = 1, 4
-         CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
-      END DO
-      DEALLOCATE (fmwork)
+      CALL kp_diag_finalize(qs_env, fmwork, op_ctx)
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, "(T15,A/)") '<<<<<<<<< END DAVIDSON ITERATION  <<<<<<<<<<'
@@ -3010,17 +3148,14 @@ CONTAINS
                                                             eps_iter_cap = 1.0E-4_dp, &
                                                             noise_scale = 100.0_dp
 
-      INTEGER                                            :: handle, ik, ikp, ispin, iwork, kplocal, &
-                                                            kpmax, local_kpoint, max_iter, nentry, &
-                                                            nspin, output_unit
+      INTEGER                                            :: handle, ik, ikp, ispin, kplocal, kpmax, &
+                                                            local_kpoint, max_iter, nentry, nspin, &
+                                                            output_unit
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
-      LOGICAL                                            :: my_added_mos_auto_grow, &
-                                                            my_check_moconv_only, prepared_ops, &
-                                                            prepared_part, use_local_kpoints, &
-                                                            use_real_wfn
+      LOGICAL                                            :: my_check_moconv_only, prepared_ops, &
+                                                            use_local_kpoints, use_real_wfn
       REAL(KIND=dp)                                      :: eps_iter, eps_iter_empty
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools, kp_ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -3030,7 +3165,6 @@ CONTAINS
       TYPE(kpoint_operator_context_type)                 :: op_ctx
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      TYPE(qs_matrix_pools_type), POINTER                :: kp_mpools, mpools
       TYPE(section_vals_type), POINTER                   :: scf_section
 
 ! empty_factor and noise_scale mirror the defaults of the
@@ -3047,8 +3181,7 @@ CONTAINS
                                          extension=".scfLog")
 
       CALL get_kpoint_info(kpoints, kp_range=kp_range, kp_dist=kp_dist, &
-                           use_real_wfn=use_real_wfn, sab_nl=sab_nl, &
-                           mpools=kp_mpools)
+                           use_real_wfn=use_real_wfn, sab_nl=sab_nl)
       IF (use_real_wfn) THEN
          CPABORT('k-point Lanczos refinement requires complex k-point MOS')
       END IF
@@ -3065,17 +3198,8 @@ CONTAINS
          scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Lanc."
       END IF
 
-      ! work matrices: global scratch fms for the operator context and the
-      ! complex H(k)/S(k) of the channel
-      CALL get_qs_env(qs_env, mpools=mpools)
-      CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
-      ALLOCATE (fmwork(4))
-      DO iwork = 1, 4
-         CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
-      END DO
-      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
-      CALL mpools_get(kp_mpools, ao_ao_fm_pools=kp_ao_ao_fm_pools)
-      matrix_struct => fm_pool_get_el_struct(kp_ao_ao_fm_pools(1)%pool)
+      ! work matrices: the driver workspace below holds the complex
+      ! H(k)/S(k) of the channels
 
       ! adaptive inner tolerance, mirrors do_block_krylov_diag with the
       ! loosening capped as in the Davidson k-point driver: a cold-start
@@ -3090,8 +3214,8 @@ CONTAINS
       ! the monotonically sinking delta, and the entry residuals of a
       ! step sit at the previous (looser) value of the same coupling, so
       ! the refinement always finds work left
-      eps_iter = MAX(scf_env%krylov_space%eps_conv, &
-                     MIN(scf_env%krylov_space%eps_adapt*scf_env%iter_delta/noise_scale, eps_iter_cap))
+      eps_iter = kp_adaptive_eps_iter(scf_env%krylov_space%eps_conv, scf_env%krylov_space%eps_adapt, &
+                                      scf_env%iter_delta, noise_scale, eps_iter_cap)
       ! unoccupied MOS relax like the Davidson k-point driver: an occupation
       ! below occ_tol sits beyond the thermal smearing tail and carries no
       ! weight in the density. Such a column may converge at the relaxed
@@ -3118,13 +3242,10 @@ CONTAINS
       IF (diag_check_requested()) use_local_kpoints = .FALSE.
       IF (my_check_moconv_only) use_local_kpoints = .FALSE.
       IF (diag_lib_explicit) use_local_kpoints = .FALSE.
-      prepared_ops = .FALSE.
-      IF (use_local_kpoints) THEN
-         CALL kpoint_operator_prepare(op_ctx, matrix_ks_kp, kpoint_slot_ks, prepared_ops)
-         CALL kpoint_operator_prepare(op_ctx, matrix_s_kp, kpoint_slot_s, prepared_part, &
-                                      matrix_row=kpoint_spin_free)
-         prepared_ops = prepared_ops .AND. prepared_part
-      END IF
+      ! the transfer rounds assemble their operators lazily through the
+      ! get path and skip the snapshot
+      CALL kp_diag_setup(qs_env, kpoints, nspin, matrix_ks_kp, matrix_s_kp, fmwork, op_ctx, &
+                         matrix_struct, use_local_kpoints, prepared_ops)
       use_local_kpoints = use_local_kpoints .AND. prepared_ops
 
       nentry = 0
@@ -3201,33 +3322,17 @@ CONTAINS
          END DO
       END IF
 
-      ! occupations and density, same exit chain as do_general_diag_kp.
-      ! With check_moconv_only the caller falls back to the standard
-      ! k-point diagonalization, which supplies MOS and density, and the
+      ! occupations and density: the shared exit chain. With
+      ! check_moconv_only the caller falls back to the standard k-point
+      ! diagonalization, which supplies MOS and density, and the
       ! statistics above are printed for information only
       IF (.NOT. my_check_moconv_only) THEN
-         my_added_mos_auto_grow = .FALSE.
-         CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
-                                       added_mos_auto=scf_control%added_mos_auto, &
-                                       added_mos_auto_grow=my_added_mos_auto_grow)
-         IF (my_added_mos_auto_grow) THEN
-            ! the virtual-space buffer is too small for the smearing tail.
-            ! The outer loop grows the MOS and redoes this SCF step. The
-            ! density of the abandoned step must not be assembled
-            IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
-         ELSE
-            CALL kpoint_density_matrices(kpoints)
-            CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
-                                          matrix_s_kp(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s_kp)
-         END IF
+         IF (kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s_kp, sab_nl, fmwork) .AND. &
+             PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
       END IF
 
       CALL kp_diag_workspaces_release(workspace)
-      CALL kpoint_operator_context_release(op_ctx)
-      DO iwork = 1, 4
-         CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
-      END DO
-      DEALLOCATE (fmwork)
+      CALL kp_diag_finalize(qs_env, fmwork, op_ctx)
 
       IF (output_unit > 0 .AND. .NOT. my_check_moconv_only .AND. .NOT. use_local_kpoints) THEN
          WRITE (output_unit, "(T15,A/)") '<<<<<<<<< END LANCZOS REFINEMENT  <<<<<<<<<<'
@@ -3279,7 +3384,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_refine_channel'
 
-      INTEGER                                            :: handle, imo, iter, nmo, nmo_conv, nmo_nc
+      INTEGER                                            :: handle, iter, nmo, nmo_conv, nmo_nc
       LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: max_res, min_res, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_col
@@ -3324,13 +3429,7 @@ CONTAINS
       ! per-column thresholds: the occupation decides which columns
       ! qualify for the relaxed empty threshold
       ALLOCATE (eps_col(nmo))
-      DO imo = 1, nmo
-         IF (occupation(imo) < occ_tol) THEN
-            eps_col(imo) = eps_iter_empty
-         ELSE
-            eps_col(imo) = eps_iter
-         END IF
-      END DO
+      CALL kp_eps_col_by_occupation(occupation, eps_iter, eps_iter_empty, eps_col)
 
       IF (check_moconv_only) THEN
          CALL lanczos_refinement_2v_c(work%cksmat, work%cmos, mo_eigenvalues, eps_col, &
