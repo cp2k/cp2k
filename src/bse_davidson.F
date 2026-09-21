@@ -71,7 +71,8 @@ CONTAINS
 !>        sum_jb A_ia,jb X_jb^n = Ω^n X_ia^n. With the orthonormal basis Z_ia,m the reduced matrix is
 !>        G_mn = sum_ia Z_ia,m (A Z)_ia,n with eigenpairs (θ_k, c_mk), X_ia^k = sum_m Z_ia,m c_mk,
 !>        and the basis grows by the corrections t_ia,k = r_ia,k/(d_ia - θ_k) of the residuals
-!>        r_ia,k = sum_m (A Z)_ia,m c_mk - θ_k X_ia^k, d_ia being the diagonal chosen by PRECONDITIONER
+!>        r_ia,k = sum_m (A Z)_ia,m c_mk - θ_k X_ia^k, d_ia being the diagonal chosen by PRECONDITIONER.
+!>        Arrays: G_mn in fm_red_A on the process grid, c_mk in coef_ritz, θ_k c_mk in coef_ritz_theta
 !> \param mv_env ...
 !> \param mp2_env ...
 !> \param unit_nr ...
@@ -167,7 +168,8 @@ CONTAINS
          ! sum_n G_mn c_nk = θ_k c_mk, θ ascending
          CALL solve_reduced(fm_red_A, m, n_act, para_env, diag_blacs_env, theta, coef_ritz)
 
-         ! thick restart onto the current and the previous Ritz vectors, no kernel application
+         ! thick restart onto the current and the previous Ritz vectors, no kernel application; with the
+         ! restart basis Q_pk in coef_restart, Z_ia,k <- sum_p Z_ia,p Q_pk, A Z alike, G_kl <- sum_pq Q_pk G_pq Q_ql
          IF (m + block_size > m_max .AND. m > n_act .AND. m < n_ov) THEN
             coef_restart_cand(1:m, 1:n_act) = coef_ritz(1:m, 1:n_act)
             n_cand = n_act
@@ -282,7 +284,9 @@ CONTAINS
 !>        H_mn = sum_ia,jb W_ia,m (A+B)_ia,jb W_jb,n has the eigenpairs ((Ω^k)^2, c_mk). Then
 !>        x_ia^k = (Ω^k)^1/2 sum_m V_ia,m c_mk and y_ia^k = (X^k+Y^k)_ia = (Ω^k)^-1/2 sum_m W_ia,m c_mk
 !>        obey sum_ia x_ia^k y_ia^k = 1, the residual is r_ia,k = sum_jb (A+B)_ia,jb y_jb^k - Ω^k x_ia^k
-!>        and the correction t_ia,k = r_ia,k/(d_ia^2 - (Ω^k)^2), d_ia chosen by PRECONDITIONER
+!>        and the correction t_ia,k = r_ia,k/(d_ia^2 - (Ω^k)^2), d_ia chosen by PRECONDITIONER.
+!>        Arrays: H_mn in fm_red_M on the process grid, c_mk in coef_ritz, (Ω^k)^1/2 c_mk in coef_x,
+!>        (Ω^k)^-1/2 c_mk in coef_y, Ω^k (Ω^k)^1/2 c_mk in coef_x_omega
 !> \param mv_env ...
 !> \param mp2_env ...
 !> \param unit_nr ...
@@ -418,7 +422,8 @@ CONTAINS
             ! sum_n H_mn c_nk = θ_k c_mk with θ_k = (Ω^k)^2, ascending
             CALL solve_reduced(fm_red_M, m, n_act, para_env, diag_blacs_env, theta, coef_ritz)
 
-            ! thick restart: V, W and MW are rotated alike, which keeps V^T W = 1
+            ! thick restart: V, W and MW are rotated alike by Q_pk in coef_restart, which keeps
+            ! sum_ia V_ia,m W_ia,n = δ_mn, and H_kl <- sum_pq Q_pk H_pq Q_ql
             IF (m + block_size > m_max .AND. m > n_act .AND. m < n_ov) THEN
                coef_restart_cand(1:m, 1:n_act) = coef_ritz(1:m, 1:n_act)
                n_cand = n_act
@@ -524,7 +529,7 @@ CONTAINS
          CALL print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr, ab_margin, n_dependent)
 
          ! x_ia^n = (Ω^n)^1/2 sum_m V_ia,m c_mn, y_ia^n = (Ω^n)^-1/2 sum_m W_ia,m c_mn,
-         ! X = (y + x)/2, Y = (y - x)/2
+         ! X_ia^n = (y_ia^n + x_ia^n)/2, Y_ia^n = (y_ia^n - x_ia^n)/2
          ALLOCATE (exc_ens(n_want))
          exc_ens(:) = omega(1:n_want)
          DO k = 1, n_want
@@ -566,7 +571,8 @@ CONTAINS
 !>        grows by the corrections t_ia,k = r_ia,k/(d_ia - Ω^k) of both residuals,
 !>        rR_ia,k = sum_m (M b)_ia,m R_mk - Ω^k x_ia^k and rL_ia,k = sum_m (K b)_ia,m L_mk - Ω^k y_ia^k,
 !>        d_ia chosen by PRECONDITIONER; the rR block enters before the rL block, which is nearly
-!>        parallel to it for a small B
+!>        parallel to it for a small B. Arrays: Mr_mn and Kr_mn in fm_red_M and fm_red_K on the process
+!>        grid, R_mk in coef_right, L_mk in coef_left
 !> \param mv_env ...
 !> \param mp2_env ...
 !> \param unit_nr ...
@@ -710,7 +716,8 @@ CONTAINS
             IF (abba_status /= abba_ok) EXIT
 
             ! thick restart: b, Mb and Kb are rotated alike; the current pairs come first, so that
-            ! they survive the cap that leaves room for one block of corrections
+            ! they survive the cap that leaves room for one block of corrections; with Q_pk in
+            ! coef_restart, b_ia,k <- sum_p b_ia,p Q_pk and Mr_kl <- sum_pq Q_pk Mr_pq Q_ql, Kr alike
             IF (m + 2*block_size > m_max .AND. m > 2*n_act .AND. m < n_ov) THEN
                coef_restart_cand(1:m, 1:n_act) = coef_right(1:m, :)
                coef_restart_cand(1:m, n_act + 1:2*n_act) = coef_left(1:m, :)
@@ -775,7 +782,7 @@ CONTAINS
             stalled = nt == 0
 
             IF (nt > 0) THEN
-               ! new columns of the symmetric Mr and Kr
+               ! new columns n of Mr_mn = sum_ia b_ia,m (M b)_ia,n and Kr_mn = sum_ia b_ia,m (K b)_ia,n
                ALLOCATE (red_block_M(m + nt, nt), red_block_K(m + nt, nt))
                CALL subspace_gram(fm_b, 1, m + nt, fm_Mb, m + 1, nt, para_env, red_block_M)
                CALL subspace_gram(fm_b, 1, m + nt, fm_Kb, m + 1, nt, para_env, red_block_K)
@@ -844,8 +851,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Makes the nt columns T that follow column m of V orthonormal in the (A-B) inner product and
 !>        stores their products: T_ia,k <- T_ia,k - sum_m V_ia,m sum_jb W_jb,m T_jb,k, Euclidean
-!>        orthonormalisation of T, W_ia,k = sum_jb (A-B)_ia,jb T_jb,k, T <- T R^-1 and W <- W R^-1 with
-!>        sum_p R_pk R_pl = sum_ia T_ia,k W_ia,l, and (M W)_ia,k = sum_jb (A+B)_ia,jb W_jb,k
+!>        orthonormalisation of T, W_ia,k = sum_jb (A-B)_ia,jb T_jb,k, T_ia,k <- sum_l T_ia,l (R^-1)_lk and
+!>        W alike with sum_p R_pk R_pl = sum_ia T_ia,k W_ia,l, and (M W)_ia,k = sum_jb (A+B)_ia,jb W_jb,k
 !> \param mv_env ...
 !> \param fm_V ...
 !> \param fm_W ...
@@ -887,7 +894,7 @@ CONTAINS
          CALL columns_axpy(-1.0_dp, fm_scratch, 1, fm_W, m + 1, nt)
          n_kernel = n_kernel + nt
 
-         ! T <- T R^-1 and W <- W R^-1 with sum_p R_pk R_pl = sum_ia T_ia,k W_ia,l
+         ! T_ia,k <- sum_l T_ia,l (R^-1)_lk and W alike, with sum_p R_pk R_pl = sum_ia T_ia,k W_ia,l
          CALL cholqr2_metric(fm_V, fm_W, m + 1, nt, mv_env%para_env, abba_status, ab_margin)
 
          IF (abba_status == abba_ok) THEN
@@ -907,7 +914,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Two Cholesky QR passes in the inner product of a symmetric K with the products KT at hand:
-!>        G_kl = sum_ia T_ia,k (KT)_ia,l = sum_p R_pk R_pl, T <- T R^-1, KT <- KT R^-1. A failed
+!>        G_kl = sum_ia T_ia,k (KT)_ia,l = sum_p R_pk R_pl, T_ia,k <- sum_l T_ia,l (R^-1)_lk, KT alike. A failed
 !>        factorization of a G with a negative eigenvalue reports K as indefinite, any other failure
 !>        is repeated once with a diagonal shift and a third pass. The Gram is the only communication:
 !>        R is factorised on one rank and broadcast, the triangular solve runs on the local rows
@@ -943,6 +950,7 @@ CONTAINS
       ipass = 0
       DO WHILE (ipass < n_pass)
          ipass = ipass + 1
+         ! G_kl = (sum_ia T_ia,k (KT)_ia,l + sum_ia T_ia,l (KT)_ia,k)/2 = sum_p R_pk R_pl
          CALL subspace_gram(fm_T, first_col, nt, fm_KT, first_col, nt, para_env, R)
          G(:, :) = 0.5_dp*(R(:, :) + TRANSPOSE(R(:, :)))
          R(:, :) = G(:, :)
@@ -963,6 +971,7 @@ CONTAINS
                eig_min = eigval(1)
                EXIT
             END IF
+            ! a positive G that failed numerically: factorise G_kl + shift δ_kl and pass once more
             n_pass = 3
             shift = 11.0_dp*(REAL(n_ov, dp)*REAL(nt, dp) + REAL(nt, dp)*REAL(nt + 1, dp))* &
                     EPSILON(1.0_dp)*NORM2(G)
@@ -977,6 +986,7 @@ CONTAINS
                              "BSE Davidson: orthonormalisation in the (A-B) inner product broke down")
             END IF
          END IF
+         ! T_ia,k <- sum_l T_ia,l (R^-1)_lk and KT alike, on the local rows
          CALL para_env%bcast(R)
          IF (nrow_local > 0) THEN
             CALL DTRSM('R', 'U', 'N', 'N', nrow_local, nt, 1.0_dp, R, nt, &
@@ -994,12 +1004,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Paired reduced problem on the orthonormal basis b_ia,m: with Mr_mn = sum_ia b_ia,m (M b)_ia,n
 !>        and Kr_mn = sum_ia b_ia,m (K b)_ia,n, sum_n Mr_mn R_nk = Ω_k L_mk and sum_n Kr_mn L_nk = Ω_k R_mk.
-!>        Solved as in initial_guess_subblock: Kr = U diag(κ) U^T, S = U diag(√κ) U^T,
+!>        Solved as in initial_guess_subblock: Kr_mn = sum_p U_mp κ_p U_np, S_mn = sum_p U_mp √κ_p U_np,
 !>        sum_nop S_mn Mr_no S_op T_pk = λ_k T_mk, Ω_k = √λ_k, R_mk = sum_n S_mn T_nk/√Ω_k,
 !>        L_mk = sum_n Mr_mn R_nk/Ω_k. κ_1 <= 0 reports K as indefinite on the span of b.
 !>        Every m x m step runs on the grid of blacs_env: the two eigensolves through
 !>        choose_eigv_solver and the four products through parallel_gemm; only the pair
-!>        coefficients come back replicated
+!>        coefficients come back replicated, R_mk in coef_right and L_mk in coef_left
 !> \param fm_red_M Mr in its live block, on the grid of blacs_env
 !> \param fm_red_K Kr in its live block, on the grid of blacs_env
 !> \param m ...
@@ -1047,7 +1057,7 @@ CONTAINS
       CALL cp_fm_create(fm_work, fm_struct, name="bse_paired_work")
       CALL cp_fm_struct_release(fm_struct)
 
-      ! Kr = U diag(κ) U^T, on the symmetrised live block
+      ! Kr_mn = sum_p U_mp κ_p U_np on the symmetrised live block, (Kr_mn + Kr_nm)/2
       CALL cp_fm_to_fm_submat(fm_red_K, fm_work, m, m, 1, 1, 1, 1)
       CALL cp_fm_transpose(fm_work, fm_U)
       CALL cp_fm_scale_and_add(0.5_dp, fm_work, 0.5_dp, fm_U)
@@ -1058,12 +1068,12 @@ CONTAINS
       IF (kappa(1) <= 0.0_dp) THEN
          abba_status = abba_indefinite
       ELSE
-         ! S = U diag(√κ) U^T
+         ! S_mn = sum_p U_mp √κ_p U_np
          CALL cp_fm_to_fm(fm_U, fm_work)
          CALL cp_fm_column_scale(fm_work, SQRT(kappa))
          CALL parallel_gemm('N', 'T', m, m, m, 1.0_dp, fm_work, fm_U, 0.0_dp, fm_S)
 
-         ! H_mp = sum_no S_mn Mr_no S_op, then T holds its eigenvectors
+         ! H_mp = sum_no S_mn Mr_no S_op with Mr_no <- (Mr_no + Mr_on)/2, then T holds its eigenvectors
          CALL cp_fm_to_fm_submat(fm_red_M, fm_Mr, m, m, 1, 1, 1, 1)
          CALL cp_fm_transpose(fm_Mr, fm_T)
          CALL cp_fm_scale_and_add(0.5_dp, fm_Mr, 0.5_dp, fm_T)
@@ -1112,7 +1122,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Makes the nt columns T that follow column m of b orthonormal to b and to each other,
-!>        T_ia,k <- T_ia,k - sum_m b_ia,m sum_jb b_jb,m T_jb,k and Cholesky QR, and stores the products
+!>        T_ia,k <- T_ia,k - sum_m b_ia,m sum_jb b_jb,m T_jb,k, then T_ia,k <- sum_l T_ia,l (R^-1)_lk with
+!>        sum_p R_pk R_pl = sum_ia T_ia,k T_ia,l (cholqr2), and stores the products
 !>        (M b)_ia,k = sum_jb (A+B)_ia,jb b_jb,k, (K b)_ia,k = sum_jb (A-B)_ia,jb b_jb,k of the kept
 !>        columns from one application of A and B
 !> \param mv_env ...
@@ -1607,11 +1618,12 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Initial guess from the exact A (and B) on the n_sub transitions with the lowest diagonal:
-!>        TDA: eigenvectors of A_sub; ABBA: x = K_sub^-1/2 t with K_sub^1/2 M_sub K_sub^1/2 t = Ω^2 t,
-!>        K = A-B, M = A+B. The Ritz values θ_k are upper bounds of the true energies (Rayleigh-Ritz for
-!>        TDA, Cauchy-type interlacing of Bai and Li for the linear response problem), kept for
-!>        check_guess_bound. A degenerate group at the upper boundary is taken as a whole. The block and
-!>        its eigenvectors are replicated; each rank writes the entries that fall on its own rows
+!>        TDA: sum_q A_sub,pq V_qk = θ_k V_pk; ABBA: x_pk = sum_q (K_sub^-1/2)_pq t_qk with
+!>        sum_qrs (K_sub^1/2)_pq M_sub,qr (K_sub^1/2)_rs t_sk = θ_k^2 t_pk, K = A-B, M = A+B. The Ritz
+!>        values θ_k are upper bounds of the true energies (Rayleigh-Ritz for TDA, Cauchy-type
+!>        interlacing of Bai and Li for the linear response problem), kept for check_guess_bound. A
+!>        degenerate group at the upper boundary is taken as a whole. The block and its eigenvectors
+!>        are replicated; each rank writes the entries that fall on its own rows
 !> \param mv_env ...
 !> \param mp2_env ...
 !> \param diag ...
@@ -1674,7 +1686,7 @@ CONTAINS
          ALLOCATE (B_sub(n_sub, n_sub), U(n_sub, n_sub), K_phalf(n_sub, n_sub), K_mhalf(n_sub, n_sub), &
                    eig_K(n_sub))
          CALL bse_matvec_subblock(mv_env, idx(1:n_sub), A_sub, B_sub)
-         ! K_sub^±1/2 from its eigen decomposition U diag(κ) U^T
+         ! (K_sub^±1/2)_pq = sum_r U_pr κ_r^±1/2 U_qr from K_sub,pq = sum_r U_pr κ_r U_qr
          B_sub(:, :) = A_sub(:, :) - B_sub(:, :)
          CALL solve_replicated(B_sub, n_sub, para_env, eig_K, U)
          ab_margin = eig_K(1)
@@ -1689,7 +1701,7 @@ CONTAINS
             END DO
             K_phalf(:, :) = MATMUL(K_phalf, TRANSPOSE(U))
             K_mhalf(:, :) = MATMUL(K_mhalf, TRANSPOSE(U))
-            ! M_sub = 2 A_sub - K_sub, then H = K^1/2 M K^1/2 and x = K^-1/2 t
+            ! M_sub = 2 A_sub - K_sub, H_ps = sum_qr (K^1/2)_pq M_qr (K^1/2)_rs, x_pk = sum_q (K^-1/2)_pq t_qk
             A_sub(:, :) = 2.0_dp*A_sub(:, :) - B_sub(:, :)
             A_sub(:, :) = MATMUL(K_phalf, MATMUL(A_sub, K_phalf))
             CALL solve_replicated(A_sub, n_sub, para_env, theta_sub, U)
@@ -1793,8 +1805,9 @@ CONTAINS
    END SUBROUTINE check_guess_bound
 
 ! **************************************************************************************************
-!> \brief Eigenpairs of the symmetrised live block of the reduced matrix on the grid of blacs_env:
-!>        theta ascending, and the first n_vec eigenvectors gathered into coef_ritz(1:m, 1:n_vec)
+!> \brief sum_q (G_pq + G_qp)/2 c_qk = θ_k c_pk for p, q <= m, G_pq the live block of fm_red, solved
+!>        on the grid of blacs_env: θ_k in theta ascending, c_pk of the first n_vec k gathered into
+!>        coef_ritz
 !> \param fm_red ...
 !> \param m ...
 !> \param n_vec eigenvectors gathered; the drivers never read more than n_act
@@ -1822,7 +1835,7 @@ CONTAINS
 
       CALL reduced_live_block(fm_red, m, para_env, blacs_env, "bse_reduced", fm_a)
       CALL cp_fm_create(fm_t, fm_a%matrix_struct, name="bse_reduced_vectors")
-      ! a <- (a + a^T)/2: the eigensolver reads one triangle
+      ! a_pq <- (G_pq + G_qp)/2: the eigensolver reads one triangle
       CALL cp_fm_transpose(fm_a, fm_t)
       CALL cp_fm_scale_and_add(0.5_dp, fm_a, 0.5_dp, fm_t)
       ALLOCATE (eigval(m))
@@ -1844,8 +1857,9 @@ CONTAINS
    END SUBROUTINE solve_reduced
 
 ! **************************************************************************************************
-!> \brief Eigenpairs of a small replicated symmetric matrix, symmetrised, solved on one rank and
-!>        broadcast: the fixed-size blocks of the guess and of cholqr2, never the reduced matrix
+!> \brief sum_q (G_pq + G_qp)/2 coef_qk = θ_k coef_pk for p, q <= m, a small replicated block solved
+!>        on one rank and broadcast: the fixed-size blocks of the guess and of cholqr2, never the
+!>        reduced matrix
 !> \param G ...
 !> \param m ...
 !> \param para_env ...
@@ -1887,7 +1901,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Orthonormal coefficient vectors of the restart basis from the candidate columns in their
-!>        order of priority (modified Gram-Schmidt in the replicated m-space), at most n_cap of them
+!>        order of priority, at most n_cap of them: per candidate k, u_p = cand_pk -
+!>        sum_j (sum_q coef_restart_qj cand_qk) coef_restart_pj over the vectors j kept so far, twice,
+!>        then coef_restart_p,new = u_p/|u| unless |u| is below norm_drop
 !> \param cand candidate coefficient columns, zero-padded to m rows: the current Ritz vectors, then
 !>        the previous ones
 !> \param m ...
@@ -1941,7 +1957,7 @@ CONTAINS
    END SUBROUTINE restart_basis
 
 ! **************************************************************************************************
-!> \brief out_ia,k = alpha sum_m V_ia,m C_mk + beta out_ia,k for m <= nv, k <= nc on the local rows ia
+!> \brief out_ia,k = alpha sum_m V_ia,m coef_mk + beta out_ia,k for m <= nv, k <= nc on the local rows ia
 !>        On the npe x 1 grid whole columns are local, so the rotation is one local DGEMM
 !> \param fm_V ...
 !> \param nv ...
@@ -1982,7 +1998,7 @@ CONTAINS
    END SUBROUTINE subspace_rotate
 
 ! **************************************************************************************************
-!> \brief V_ia,k <- sum_p V_ia,p Q_pk for p <= m, k <= nq through the work matrix
+!> \brief V_ia,k <- sum_p V_ia,p coef_pk for p <= m, k <= nq through the work matrix
 !> \param fm_V ...
 !> \param m ...
 !> \param coef ...
@@ -2075,7 +2091,7 @@ CONTAINS
    END SUBROUTINE subspace_gram
 
 ! **************************************************************************************************
-!> \brief fm_red(1:nu, v0:v0+nv-1) <- sum_ia U_ia,k V_ia,v0+l-1 for k <= nu, l <= nv, written in
+!> \brief fm_red_k,v0+l-1 <- sum_ia U_ia,k V_ia,v0+l-1 for k <= nu, l <= nv, written in
 !>        column blocks of nb so the replicated temporary is nu x nb and never nu x nv
 !> \param fm_U ...
 !> \param nu ...
@@ -2115,8 +2131,8 @@ CONTAINS
    END SUBROUTINE reduced_gram_blocks
 
 ! **************************************************************************************************
-!> \brief fm_red(1:m+nt, m+1:m+nt) <- red_block and fm_red(m+1:m+nt, 1:m) <- red_block(1:m, :)^T, the two
-!>        blocks a basis extension by nt columns adds to the reduced matrix
+!> \brief fm_red_p,m+l <- red_block_pl for p <= m+nt and fm_red_m+l,p <- red_block_pl for p <= m,
+!>        l <= nt: the two blocks a basis extension by nt columns adds to the symmetric reduced matrix
 !> \param fm_red ...
 !> \param red_block (m+nt) x nt, the new columns' overlaps with the whole extended basis
 !> \param m ...
@@ -2163,8 +2179,8 @@ CONTAINS
    END SUBROUTINE reduced_live_block
 
 ! **************************************************************************************************
-!> \brief fm_red(1:k, 1:k) <- coef_restart^T fm_red(1:m, 1:m) coef_restart for the m x k restart basis coef_restart, the rest of the
-!>        matrix zeroed: two distributed products, no replicated m x m
+!> \brief fm_red_ij <- sum_pq coef_restart_pi fm_red_pq coef_restart_qj for p, q <= m and i, j <= k,
+!>        the rest of the matrix zeroed: two distributed products, no replicated m x m
 !> \param fm_red ...
 !> \param m ...
 !> \param coef_restart replicated, zero-padded to m rows
@@ -2202,6 +2218,7 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
 
       CALL cp_fm_set_submatrix(fm_Q, coef_restart(1:m, 1:k))
+      ! GQ_pj = sum_q fm_red_pq coef_restart_qj, then QGQ_ij = sum_p coef_restart_pi GQ_pj
       CALL parallel_gemm('N', 'N', m, k, m, 1.0_dp, fm_live, fm_Q, 0.0_dp, fm_GQ)
       CALL parallel_gemm('T', 'N', k, k, m, 1.0_dp, fm_Q, fm_GQ, 0.0_dp, fm_QGQ)
       CALL cp_fm_set_all(fm_red, 0.0_dp)
@@ -2409,7 +2426,8 @@ CONTAINS
    END SUBROUTINE drop_small_columns
 
 ! **************************************************************************************************
-!> \brief Orthonormalises nt columns by two Cholesky QR passes on the replicated Gram matrix. A
+!> \brief Orthonormalises nt columns by two Cholesky QR passes on the replicated Gram matrix,
+!>        T_ia,k <- sum_l T_ia,l (R^-1)_lk with sum_p R_pk R_pl = G_kl = sum_ia T_ia,k T_ia,l. A
 !>        failed factorization means a numerically dependent block: the directions of the Gram matrix
 !>        below the drop tolerance are removed (canonical orthogonalisation), nt shrinks, and the
 !>        passes start again. The Gram is the only communication: R is factorised on one rank and
@@ -2449,6 +2467,7 @@ CONTAINS
       ipass = 0
       DO WHILE (ipass < 2)
          ipass = ipass + 1
+         ! G_kl = sum_ia T_ia,k T_ia,l = sum_p R_pk R_pl
          CALL subspace_gram(fm_T, first_col, nt, fm_T, first_col, nt, para_env, G)
          R(:, :) = G(:, :)
          info = 0
@@ -2460,7 +2479,7 @@ CONTAINS
                ok = .FALSE.
                EXIT
             END IF
-            ! T <- T U Λ^-1/2 over the eigenpairs of G above the drop tolerance
+            ! T_ia,k <- sum_l T_ia,l U_lk Λ_k^-1/2 over the eigenpairs of G above the drop tolerance
             ALLOCATE (eig(nt), U(nt, nt))
             CALL solve_replicated(G, nt, para_env, eig, U)
             n_keep = COUNT(eig > eig_drop*eig(nt))
@@ -2488,6 +2507,7 @@ CONTAINS
             ipass = 0
             CYCLE
          END IF
+         ! T_ia,k <- sum_l T_ia,l (R^-1)_lk on the local rows
          CALL para_env%bcast(R)
          IF (nrow_local > 0) THEN
             CALL DTRSM('R', 'U', 'N', 'N', nrow_local, nt, 1.0_dp, R, nt, &
