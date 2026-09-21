@@ -434,7 +434,7 @@ RUN ./test_manual.sh "${{ADD_EDIT_LINKS}}" 2>&1 | tee report.log
 # ======================================================================================
 def precommit() -> str:
     return rf"""
-FROM ubuntu:26.04
+FROM docker.io/ubuntu:26.04
 
 # Install dependencies.
 WORKDIR /opt/cp2k-precommit
@@ -464,7 +464,7 @@ RUN ./test_{name}.sh 2>&1 | tee report.log
 # ======================================================================================
 def test_without_build(name: str) -> str:
     return rf"""
-FROM ubuntu:26.04
+FROM docker.io/ubuntu:26.04
 
 # Install dependencies.
 WORKDIR /opt/cp2k
@@ -534,7 +534,7 @@ def install_deps_toolchain(
     with_gcc: str = "system",
     **kwargs: str,
 ) -> str:
-    output = f"\nFROM {base_image}\n\n"
+    output = f"\nFROM docker.io/{base_image}\n\n"
     output += install_toolchain(
         base_image=base_image,
         install_all="",
@@ -550,7 +550,7 @@ def install_deps_toolchain(
 def install_deps_ubuntu(gcc_version: int = 15) -> str:
     assert gcc_version > 8
     base_image = "ubuntu:26.04" if gcc_version > 14 else "ubuntu:24.04"
-    output = f"\nFROM {base_image}\n"
+    output = f"\nFROM docker.io/{base_image}\n"
 
     if gcc_version > 13:
         output += rf"""
@@ -613,7 +613,7 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
 # ======================================================================================
 def install_deps_toolchain_intel(base_image: str, mpi_mode: str, with_ifx: str) -> str:
     return rf"""
-FROM {base_image}
+FROM docker.io/{base_image}
 
 """ + install_toolchain(
         base_image="ubuntu",
@@ -631,7 +631,7 @@ FROM {base_image}
 # ======================================================================================
 def install_deps_toolchain_cuda(gpu_ver: str, **kwargs: str) -> str:
     deps = rf"""
-FROM nvidia/cuda:12.9.1-devel-ubuntu24.04
+FROM docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04
 
 # Setup CUDA environment.
 ENV CUDA_PATH /usr/local/cuda
@@ -662,7 +662,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 # ======================================================================================
 def install_deps_toolchain_hip_rocm(gpu_ver: str) -> str:
     return rf"""
-FROM rocm/dev-ubuntu-24.04:7.2-complete
+FROM docker.io/rocm/dev-ubuntu-24.04:7.2-complete
 
 # Install some Ubuntu packages.
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
@@ -923,7 +923,7 @@ ARG BASE_IMAGE="{base_image}"
 
 ###### Stage 1: Build CP2K dependencies ######
 
-FROM "${{BASE_IMAGE}}" AS build_deps
+FROM "docker.io/${{BASE_IMAGE}}" AS build_deps
 """
         if "fedora" in base_image:
             output += rf"""
@@ -1041,7 +1041,7 @@ ENV CUDA_CACHE_DISABLE 1
         output = rf"""
 ###### Stage 3: Install CP2K ######
 
-FROM "${{BASE_IMAGE}}" AS install_cp2k
+FROM "docker.io/${{BASE_IMAGE}}" AS install_cp2k
 """
         if "fedora" in base_image:
             output += rf"""
