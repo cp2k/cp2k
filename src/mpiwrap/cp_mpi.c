@@ -205,6 +205,19 @@ int cp_mpi_comm_size(const cp_mpi_comm_t comm) {
 }
 
 /*******************************************************************************
+ * \brief Wrapper around MPI_Barrier; a null communicator is a no-op.
+ ******************************************************************************/
+void cp_mpi_barrier(const cp_mpi_comm_t comm) {
+#if defined(__parallel)
+  if (MPI_COMM_NULL != comm) { // !MPI_Comm_compare
+    CHECK(MPI_Barrier(comm));
+  }
+#else
+  (void)comm; // mark used
+#endif
+}
+
+/*******************************************************************************
  * \brief Wrapper around MPI_Dims_create.
  * \author Ole Schuett
  ******************************************************************************/

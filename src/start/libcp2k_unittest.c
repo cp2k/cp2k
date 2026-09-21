@@ -78,9 +78,7 @@ int main() {
     fprintf(f, "&END GLOBAL\n");
     fclose(f);
   }
-#if defined(__parallel)
-  MPI_Barrier(MPI_COMM_WORLD);
-#endif
+  cp_mpi_barrier(cp_mpi_get_comm_world());
 
   // use input file to create a force environment
   force_env_t force_env;
@@ -130,9 +128,7 @@ int main() {
   // run_input must create, close, and subsequently append to the named file.
   const char *run_out = "libcp2k_unittest_run.out";
   cp2k_run_input(inp_fn, run_out);
-#if defined(__parallel)
-  MPI_Barrier(MPI_COMM_WORLD);
-#endif
+  cp_mpi_barrier(cp_mpi_get_comm_world());
   long first_size = 0;
   if (rank == 0) {
     f = fopen(run_out, "r");
@@ -145,9 +141,7 @@ int main() {
     fclose(f);
   }
   cp2k_run_input(inp_fn, run_out);
-#if defined(__parallel)
-  MPI_Barrier(MPI_COMM_WORLD);
-#endif
+  cp_mpi_barrier(cp_mpi_get_comm_world());
   if (rank == 0) {
     f = fopen(run_out, "r");
     if (f == NULL) {
