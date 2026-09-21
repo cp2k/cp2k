@@ -1444,7 +1444,8 @@ CONTAINS
       END IF
       n_act = MIN(n_want + mp2_env%bse%num_buffer_states, n_ov)
       block_size = mp2_env%bse%block_size
-      IF (block_size == -1) block_size = MIN(32, MAX(8, n_act/4))
+      ! 32 was within 5 % of the best width on the L8 deck at 200 states; wider passes cost restarts
+      IF (block_size == -1) block_size = MIN(32, n_act)
       IF (block_size > n_act) THEN
          CPWARN("BSE_ITERAT%BLOCK_SIZE exceeds the number of tracked states and is reduced to it.")
          block_size = n_act

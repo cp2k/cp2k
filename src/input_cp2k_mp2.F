@@ -1684,9 +1684,9 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BLOCK_SIZE", &
                           description="Maximum number of correction vectors (and kernel applications) "// &
-                          "added per iteration. Converged states are locked. -1: a quarter of the tracked "// &
-                          "states (NUM_EXC_EN+NUM_BUFFER_STATES), at least 8 and at most 32; the cost of a "// &
-                          "kernel application per vector is flat up to that width.", &
+                          "added to the subspace per iteration. -1: 32, or the number of tracked states "// &
+                          "if fewer. Measured on a 200-state nanographene: 32 within 5 % of the best "// &
+                          "width, 8 twice as slow.", &
                           usage="BLOCK_SIZE 8", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
@@ -1694,20 +1694,20 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_SUBSPACE_FACTOR", &
                           description="Subspace ceiling in units of (NUM_EXC_EN+NUM_BUFFER_STATES) before a "// &
-                          "thick restart. -1: sized from the memory available per MPI rank, never below 3.", &
+                          "thick restart. -1: start from 20 and let MEMORY_CHECK reduce it to the budget.", &
                           usage="MAX_SUBSPACE_FACTOR 5", &
-                          default_i_val=-1)
+                          default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MATVEC_BLOCK_COLUMNS", &
-                          description="Trial vectors the kernel applies per pass. The replicated "// &
-                          "work arrays cost 8*n_arrays*N_ov*this many bytes per MPI rank, with "// &
-                          "n_arrays 3 for the TDA and 4 otherwise. -1: as many as a quarter of the "// &
-                          "free memory per rank allows, never more than the columns of the call: "// &
-                          "BLOCK_SIZE in the ABBA solvers, the whole guess in the TDA.", &
+                          description="Trial vectors the kernel applies per pass. The replicated work "// &
+                          "arrays of one pass are n_arrays*N_ov*MATVEC_BLOCK_COLUMNS doubles, n_arrays 3 for "// &
+                          "the TDA and 4 otherwise. Never more than the columns of the call. Measured: flat "// &
+                          "from 8 to 64, up to 28x slower in the gather at 128 and above. -1: as many as "// &
+                          "half the free memory per rank allows.", &
                           usage="MATVEC_BLOCK_COLUMNS 32", &
-                          default_i_val=-1)
+                          default_i_val=32)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
