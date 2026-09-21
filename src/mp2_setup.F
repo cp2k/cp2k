@@ -225,6 +225,10 @@ CONTAINS
                                 i_val=mp2_env%bse%max_subspace_factor)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%MATVEC_BLOCK_COLUMNS", &
                                 i_val=mp2_env%bse%matvec_block_columns)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%MEMORY_CHECK", &
+                                i_val=mp2_env%bse%memory_check)
+      CALL section_vals_val_get(bse_section, "BSE_ITERAT%MEMORY_BUDGET_GB", &
+                                r_val=mp2_env%bse%memory_budget_gb)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%MAX_ITER", &
                                 i_val=mp2_env%bse%max_iter)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%CONVERGENCE_CRITERION", &

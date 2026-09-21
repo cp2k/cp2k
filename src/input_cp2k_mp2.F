@@ -28,7 +28,8 @@ MODULE input_cp2k_mp2
       bse_fulldiag, bse_iterdiag, bse_tda, bse_abba, bse_both, &
       bse_screening_w0, bse_screening_tdhf, bse_screening_rpa, bse_screening_alpha, &
       bse_abba_mk_davidson, bse_abba_olsen_stratmann, bse_iter_and_cond, bse_iter_en_cond, &
-      bse_iter_or_cond, bse_iter_res_cond, bse_precond_full_diag, bse_precond_qp_diff, bse_singlet, &
+      bse_iter_or_cond, bse_iter_res_cond, bse_memcheck_abort, bse_memcheck_clamp, bse_memcheck_off, &
+      bse_memcheck_warn, bse_precond_full_diag, bse_precond_qp_diff, bse_singlet, &
       bse_triplet, do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
       do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
       do_potential_tshpsc, eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
@@ -1708,6 +1709,30 @@ CONTAINS
                           "half the free memory per rank allows.", &
                           usage="MATVEC_BLOCK_COLUMNS 32", &
                           default_i_val=32)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CHECK", &
+                          description="What the iterative solver does when its arrays at the subspace "// &
+                          "ceiling exceed the memory budget per MPI rank: nothing, warn, reduce the ceiling "// &
+                          "to the largest that fits (never below the solver's minimum), or abort.", &
+                          usage="MEMORY_CHECK CLAMP", &
+                          enum_c_vals=s2a("OFF", "WARN", "CLAMP", "ABORT"), &
+                          enum_i_vals=[bse_memcheck_off, bse_memcheck_warn, bse_memcheck_clamp, bse_memcheck_abort], &
+                          enum_desc=s2a("Print the estimate, no comparison.", &
+                                        "Warn when the estimate exceeds the budget.", &
+                                        "Reduce the subspace ceiling to the budget and warn.", &
+                                        "Abort when the estimate exceeds the budget."), &
+                          default_i_val=bse_memcheck_clamp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_BUDGET_GB", &
+                          description="Memory per MPI rank the iterative solver may use for its own arrays, "// &
+                          "in GB; the RI slabs are already allocated and not part of it. -1: half of the "// &
+                          "free memory per rank detected at the start of the solver.", &
+                          usage="MEMORY_BUDGET_GB 8.0", &
+                          default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

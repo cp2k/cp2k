@@ -52,11 +52,14 @@ MODULE bse_matvec
 !> \param B_ab B^P_ab at (b, a, P)
 !> \param blacs_env npe x 1 process grid of the slabs and of all trial vectors
 !> \param block_cols trial vectors per pass in bse_matvec_apply, -1 to size it from free memory
+!> \param mem_fraction share of the free memory per rank the iterative solver may use, for the
+!>        pass width at block_cols -1 and for the subspace ceiling's default budget
 ! **************************************************************************************************
    TYPE bse_matvec_env_type
       INTEGER                                            :: homo = 0, virt = 0, n_ov = 0, &
                                                             n_ri_loc = 0, block_cols = -1
-      REAL(KIND=dp)                                      :: alpha = 0.0_dp, w_fac = 0.0_dp
+      REAL(KIND=dp)                                      :: alpha = 0.0_dp, w_fac = 0.0_dp, &
+                                                            mem_fraction = 0.5_dp
       LOGICAL                                            :: do_abba = .FALSE.
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_diff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_ia, Bbar_ia, Bbar_ij, B_ab
@@ -269,7 +272,6 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: first_col_BZ
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_matvec_apply'
-      REAL(KIND=dp), PARAMETER                           :: mem_fraction = 0.25_dp
 
       INTEGER                                            :: col, col_shift_B, handle, handle2, homo, &
                                                             ia, iloc, k, n_arrays, n_ov, n_ri_loc, &
@@ -310,7 +312,7 @@ CONTAINS
          nb_max = ncol
          IF (mem_avail_GB > 0.0_dp) THEN
             nb_max = INT(MIN(REAL(ncol, dp), &
-                             mem_fraction*mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_arrays, dp)*REAL(n_ov, dp))))
+                             mv_env%mem_fraction*mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_arrays, dp)*REAL(n_ov, dp))))
          END IF
       END IF
       nb_max = MAX(nb_max, 1)

@@ -1413,6 +1413,12 @@ MODULE input_constants
    ! BSE iterative solver beyond the TDA
    INTEGER, PARAMETER, PUBLIC               :: bse_abba_mk_davidson = 0, &
                                                bse_abba_olsen_stratmann = 1
+
+   ! BSE iterative solver: what the memory check does when the budget is exceeded
+   INTEGER, PARAMETER, PUBLIC               :: bse_memcheck_off = 0, &
+                                               bse_memcheck_warn = 1, &
+                                               bse_memcheck_clamp = 2, &
+                                               bse_memcheck_abort = 3
    ! SIGMA_functional parameters selection
    INTEGER, PARAMETER, PUBLIC               :: sigma_none = 0, &
                                                sigma_PBE_S2 = 1, &

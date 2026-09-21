@@ -35,7 +35,11 @@ MODULE bse_davidson
    USE input_constants,                 ONLY: bse_iter_and_cond,&
                                               bse_iter_en_cond,&
                                               bse_iter_or_cond,&
-                                              bse_iter_res_cond
+                                              bse_iter_res_cond,&
+                                              bse_memcheck_abort,&
+                                              bse_memcheck_clamp,&
+                                              bse_memcheck_off,&
+                                              bse_memcheck_warn
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE mathlib,                         ONLY: diamat_all
@@ -60,6 +64,9 @@ MODULE bse_davidson
 
    ! outcome of an ABBA solver: solved, or A-B not positive definite on the trial space
    INTEGER, PARAMETER, PUBLIC :: abba_ok = 0, abba_indefinite = 1
+
+   ! the three drivers, for the memory estimate
+   INTEGER, PARAMETER, PRIVATE :: driver_tda = 1, driver_mk = 2, driver_os = 3
 
    PUBLIC :: bse_davidson_tda, bse_davidson_abba_mk, bse_davidson_abba_os, &
              bse_davidson_refcheck_tda, bse_davidson_refcheck_abba
@@ -119,7 +126,7 @@ CONTAINS
       ALLOCATE (diag(n_ov))
       CALL bse_matvec_diagonal(mv_env, mp2_env%bse%preconditioner, diag)
 
-      CALL subspace_ceiling(mp2_env, n_ov, n_act, 2, para_env, unit_nr, m_max)
+      CALL subspace_ceiling(mp2_env, mv_env, driver_tda, n_act, block_size, unit_nr, m_max)
 
       CALL bse_matvec_vector_struct(mv_env, m_max, fm_struct)
       CALL cp_fm_create(fm_Z, fm_struct, name="fm_Z_davidson", set_zero=.TRUE.)
@@ -343,7 +350,7 @@ CONTAINS
       ALLOCATE (diag(n_ov))
       CALL bse_matvec_diagonal(mv_env, mp2_env%bse%preconditioner, diag)
 
-      CALL subspace_ceiling(mp2_env, n_ov, n_act, 3, para_env, unit_nr, m_max)
+      CALL subspace_ceiling(mp2_env, mv_env, driver_mk, n_act, block_size, unit_nr, m_max)
 
       CALL bse_matvec_vector_struct(mv_env, m_max, fm_struct)
       CALL cp_fm_create(fm_V, fm_struct, name="fm_V_davidson", set_zero=.TRUE.)
@@ -631,7 +638,7 @@ CONTAINS
       CALL bse_matvec_diagonal(mv_env, mp2_env%bse%preconditioner, diag)
 
       ! the current pairs and one block of corrections have to fit below the ceiling
-      CALL subspace_ceiling(mp2_env, n_ov, n_act, 3, para_env, unit_nr, m_max, min_factor=4, work_factor=4)
+      CALL subspace_ceiling(mp2_env, mv_env, driver_os, n_act, block_size, unit_nr, m_max, min_factor=4)
 
       CALL bse_matvec_vector_struct(mv_env, m_max, fm_struct)
       CALL cp_fm_create(fm_b, fm_struct, name="fm_b_davidson", set_zero=.TRUE.)
@@ -1476,95 +1483,254 @@ CONTAINS
    END SUBROUTINE davidson_sizes
 
 ! **************************************************************************************************
-!> \brief Largest subspace dimension, from MAX_SUBSPACE_FACTOR or from the free memory per rank
+!> \brief Largest subspace dimension m_max: MAX_SUBSPACE_FACTOR x n_act, or 20 x n_act for -1, with
+!>        the solver's arrays at m_max checked against the memory budget per rank as MEMORY_CHECK says;
+!>        CLAMP lowers m_max to the largest that fits, never below min_factor x n_act
 !> \param mp2_env ...
-!> \param n_ov ...
+!> \param mv_env ...
+!> \param driver driver_tda, driver_mk or driver_os
 !> \param n_act ...
-!> \param n_arrays number of stored N_ov x m_max arrays
-!> \param para_env ...
+!> \param block_size ...
 !> \param unit_nr ...
 !> \param m_max ...
 !> \param min_factor smallest subspace in vectors per tracked state, 3 by default
-!> \param work_factor work columns per tracked state in the memory estimate, 2 by default
 ! **************************************************************************************************
-   SUBROUTINE subspace_ceiling(mp2_env, n_ov, n_act, n_arrays, para_env, unit_nr, m_max, min_factor, &
-                               work_factor)
+   SUBROUTINE subspace_ceiling(mp2_env, mv_env, driver, n_act, block_size, unit_nr, m_max, min_factor)
 
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
-      INTEGER, INTENT(IN)                                :: n_ov, n_act, n_arrays
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
+      INTEGER, INTENT(IN)                                :: driver, n_act, block_size, unit_nr
       INTEGER, INTENT(OUT)                               :: m_max
-      INTEGER, INTENT(IN), OPTIONAL                      :: min_factor, work_factor
+      INTEGER, INTENT(IN), OPTIONAL                      :: min_factor
 
-      REAL(KIND=dp), PARAMETER                           :: mem_fraction = 0.5_dp
-
-      CHARACTER(LEN=16)                                  :: fac_str, mem_str
-      INTEGER                                            :: min_fac, work_fac
-      LOGICAL                                            :: from_memory
-      REAL(KIND=dp)                                      :: GB_per_column, mem_avail_GB, n_columns
+      CHARACTER(LEN=16)                                  :: bud_str, fac_str, mem_str
+      INTEGER                                            :: m_floor, m_hi, m_lo, m_mid, m_start, &
+                                                            min_fac, n_ri_max, nb
+      LOGICAL                                            :: from_free, over, skipped
+      REAL(KIND=dp)                                      :: budget_GB, dist_GB, mem_avail_GB, repl_GB
 
       min_fac = 3
       IF (PRESENT(min_factor)) min_fac = min_factor
-      work_fac = 2
-      IF (PRESENT(work_factor)) work_fac = work_factor
       WRITE (fac_str, '(I16)') min_fac
 
-      ! one column of length N_ov, spread over all ranks
-      GB_per_column = 8.0E-9_dp*REAL(n_ov, dp)/REAL(para_env%num_pe, dp)
-      from_memory = .FALSE.
-
+      ! the start value: the keyword, or 20 x n_act for -1, which the check then trims
       IF (mp2_env%bse%max_subspace_factor == -1) THEN
-         from_memory = .TRUE.
-         CALL mp_mem_avail_per_rank_GB(para_env, mem_avail_GB)
-         IF (mem_avail_GB > 0.0_dp) THEN
-            ! work array of work_fac*n_act columns besides the n_arrays subspace arrays
-            n_columns = mem_fraction*mem_avail_GB/GB_per_column - REAL(work_fac*n_act, dp)
-            n_columns = MIN(n_columns/REAL(n_arrays, dp), 20.0_dp*REAL(n_act, dp))
-            IF (n_columns < REAL(min_fac*n_act, dp) .AND. min_fac*n_act <= n_ov) THEN
-               WRITE (mem_str, '(F16.3)') GB_per_column*REAL((min_fac*n_arrays + work_fac)*n_act, dp)/mem_fraction
-               CALL cp_abort(__LOCATION__, &
-                             "BSE Davidson: not enough memory for the smallest subspace of "// &
-                             TRIM(ADJUSTL(fac_str))//" vectors per state. Free memory needed per MPI rank (GB): "// &
-                             TRIM(ADJUSTL(mem_str)))
-            END IF
-            m_max = INT(n_columns)
-         ELSE
-            ! free memory not detectable on this system
-            m_max = min_fac*n_act
-         END IF
+         m_start = 20*n_act
       ELSE IF (mp2_env%bse%max_subspace_factor >= min_fac) THEN
-         m_max = mp2_env%bse%max_subspace_factor*n_act
+         m_start = mp2_env%bse%max_subspace_factor*n_act
       ELSE
          CALL cp_abort(__LOCATION__, &
                        "BSE_ITERAT%MAX_SUBSPACE_FACTOR must be at least "//TRIM(ADJUSTL(fac_str))// &
                        " (or -1) for the chosen solver")
       END IF
-      m_max = MIN(MAX(m_max, min_fac*n_act), n_ov)
+      m_floor = MIN(min_fac*n_act, mv_env%n_ov)
+      m_start = MIN(MAX(m_start, m_floor), mv_env%n_ov)
+      m_max = m_start
+
+      ! the widest kernel call of the driver caps the pass width; the largest RI share of any rank
+      ! keeps the estimate, and so m_max, identical on all ranks
+      SELECT CASE (driver)
+      CASE (driver_tda)
+         nb = n_act
+      CASE (driver_mk)
+         nb = block_size
+      CASE DEFAULT
+         nb = 2*block_size
+      END SELECT
+      IF (mv_env%block_cols > 0) nb = MIN(nb, mv_env%block_cols)
+      n_ri_max = mv_env%n_ri_loc
+      CALL mv_env%para_env%max(n_ri_max)
+
+      ! the budget: as given, or the share mem_fraction of the free memory per rank
+      from_free = mp2_env%bse%memory_budget_gb < 0.0_dp
+      skipped = .FALSE.
+      budget_GB = mp2_env%bse%memory_budget_gb
+      IF (from_free) THEN
+         CALL mp_mem_avail_per_rank_GB(mv_env%para_env, mem_avail_GB)
+         budget_GB = mv_env%mem_fraction*mem_avail_GB
+         skipped = mem_avail_GB <= 0.0_dp
+         IF (skipped .AND. mp2_env%bse%memory_check /= bse_memcheck_off) THEN
+            CALL cp_warn(__LOCATION__, "BSE Davidson: free memory not detectable, memory check skipped")
+         END IF
+      END IF
+
+      CALL davidson_footprint(driver, mv_env, m_max, n_act, block_size, nb, n_ri_max, dist_GB, repl_GB)
+      over = .NOT. skipped .AND. mp2_env%bse%memory_check /= bse_memcheck_off .AND. &
+             dist_GB + repl_GB > budget_GB
+
+      IF (over .AND. mp2_env%bse%memory_check == bse_memcheck_clamp) THEN
+         CALL davidson_footprint(driver, mv_env, m_floor, n_act, block_size, nb, n_ri_max, dist_GB, repl_GB)
+         IF (dist_GB + repl_GB > budget_GB) THEN
+            WRITE (mem_str, '(F16.3)') dist_GB + repl_GB
+            WRITE (bud_str, '(F16.3)') budget_GB
+            CALL cp_abort(__LOCATION__, &
+                          "BSE Davidson: not enough memory for the smallest subspace of "//TRIM(ADJUSTL(fac_str))// &
+                          " vectors per state: "//TRIM(ADJUSTL(mem_str))//" GB per MPI rank, the budget is "// &
+                          TRIM(ADJUSTL(bud_str))//" GB. Raise MEMORY_BUDGET_GB or use more MPI ranks.")
+         END IF
+         ! the footprint grows with m: bisect for the largest m within the budget
+         m_lo = m_floor
+         m_hi = m_start
+         DO WHILE (m_hi - m_lo > 1)
+            m_mid = (m_lo + m_hi)/2
+            CALL davidson_footprint(driver, mv_env, m_mid, n_act, block_size, nb, n_ri_max, dist_GB, repl_GB)
+            IF (dist_GB + repl_GB <= budget_GB) THEN
+               m_lo = m_mid
+            ELSE
+               m_hi = m_mid
+            END IF
+         END DO
+         m_max = m_lo
+         CALL davidson_footprint(driver, mv_env, m_max, n_act, block_size, nb, n_ri_max, dist_GB, repl_GB)
+      END IF
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (from_memory) THEN
-            ! the memory estimate is capped at 20*n_act, so say which of the two bound it
-            IF (m_max >= 20*n_act) THEN
-               WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', &
-                  'Maximum subspace dimension (20 x buffered states)', m_max
-            ELSE
-               WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', &
-                  'Maximum subspace dimension (from free memory)', m_max
-            END IF
-            WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', &
-               'Fraction of the free memory made available', mem_fraction
+         IF (mp2_env%bse%max_subspace_factor == -1) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Maximum subspace dimension (20 x buffered states)', &
+               m_start
          ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', &
-               'Maximum subspace dimension (MAX_SUBSPACE_FACTOR)', m_max
+            WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Maximum subspace dimension (MAX_SUBSPACE_FACTOR)', &
+               m_start
          END IF
-         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', &
-            'Memory of the subspace arrays per MPI rank (GB)', &
-            GB_per_column*REAL(n_arrays*m_max + MIN(work_fac*n_act, m_max), dp)
+         IF (m_max < m_start) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Maximum subspace dimension after the memory check', &
+               m_max
+         END IF
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory per MPI rank at the subspace ceiling (GB)'
+         WRITE (unit_nr, '(T2,A4,T9,A,T67,F14.3)') 'BSE|', 'Distributed arrays', dist_GB
+         WRITE (unit_nr, '(T2,A4,T9,A,T67,F14.3)') 'BSE|', 'Replicated arrays', repl_GB
+         WRITE (unit_nr, '(T2,A4,T9,A,T67,F14.3)') 'BSE|', 'Total', dist_GB + repl_GB
+         IF (.NOT. skipped) THEN
+            IF (from_free) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Fraction of the free memory made available', &
+                  mv_env%mem_fraction
+            END IF
+            WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory budget per MPI rank (GB)', budget_GB
+         END IF
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         IF (mp2_env%bse%memory_check == bse_memcheck_off) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: OFF'
+         ELSE IF (skipped) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: skipped, free memory not detectable'
+         ELSE
+            SELECT CASE (mp2_env%bse%memory_check)
+            CASE (bse_memcheck_warn)
+               IF (over) THEN
+                  WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: WARN, the total exceeds the budget'
+               ELSE
+                  WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: within the budget, no WARN raised'
+               END IF
+            CASE (bse_memcheck_clamp)
+               IF (over) THEN
+                  WRITE (unit_nr, '(T2,A4,T7,A,I0,A,I0)') 'BSE|', &
+                     'Memory check: CLAMP applied, subspace ceiling reduced from ', m_start, ' to ', m_max
+               ELSE
+                  WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: within the budget, no CLAMP applied'
+               END IF
+            CASE (bse_memcheck_abort)
+               IF (over) THEN
+                  WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: ABORT, the total exceeds the budget'
+               ELSE
+                  WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: within the budget, no ABORT raised'
+               END IF
+            END SELECT
+         END IF
+      END IF
+
+      IF (over) THEN
+         WRITE (mem_str, '(F16.3)') dist_GB + repl_GB
+         WRITE (bud_str, '(F16.3)') budget_GB
+         SELECT CASE (mp2_env%bse%memory_check)
+         CASE (bse_memcheck_warn)
+            CALL cp_warn(__LOCATION__, &
+                         "BSE Davidson: the solver's arrays at the subspace ceiling need "//TRIM(ADJUSTL(mem_str))// &
+                         " GB per MPI rank, above the budget of "//TRIM(ADJUSTL(bud_str))//" GB.")
+         CASE (bse_memcheck_clamp)
+            CALL cp_warn(__LOCATION__, &
+                         "BSE Davidson: subspace ceiling reduced to fit the memory budget; raise "// &
+                         "MEMORY_BUDGET_GB or lower MAX_SUBSPACE_FACTOR to silence this.")
+         CASE (bse_memcheck_abort)
+            CALL cp_abort(__LOCATION__, &
+                          "BSE Davidson: the solver's arrays at the subspace ceiling need "//TRIM(ADJUSTL(mem_str))// &
+                          " GB per MPI rank, the budget is "//TRIM(ADJUSTL(bud_str))//" GB. Raise MEMORY_BUDGET_GB, "// &
+                          "lower MAX_SUBSPACE_FACTOR, or set MEMORY_CHECK CLAMP.")
+         END SELECT
       END IF
 
    END SUBROUTINE subspace_ceiling
+
+! **************************************************************************************************
+!> \brief Memory per MPI rank of the solver's arrays at subspace dimension m, split into the family
+!>        spread over the ranks and the family every rank holds whole. The counts are those of the
+!>        ALLOCATE and cp_fm_create statements of the drivers at a thick restart, their peak:
+!>        distributed 8 B (N_ov (n_arrays m + n_work + n_scratch) + (n_red + n_solve) m^2)/P,
+!>        replicated 8 B (c_coef m n_act + m block_size + n_mv N_ov nb + n_ri nb + n_virt virt^2)
+!> \param driver driver_tda, driver_mk or driver_os
+!> \param mv_env ...
+!> \param m ...
+!> \param n_act ...
+!> \param block_size ...
+!> \param nb kernel pass width
+!> \param n_ri RI functions of a rank, the largest over the ranks
+!> \param dist_GB distributed family, falls as 1/P
+!> \param repl_GB replicated family, flat in P
+! **************************************************************************************************
+   SUBROUTINE davidson_footprint(driver, mv_env, m, n_act, block_size, nb, n_ri, dist_GB, repl_GB)
+
+      INTEGER, INTENT(IN)                                :: driver
+      TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
+      INTEGER, INTENT(IN)                                :: m, n_act, block_size, nb, n_ri
+      REAL(KIND=dp), INTENT(OUT)                         :: dist_GB, repl_GB
+
+      INTEGER                                            :: c_coef, n_arrays, n_mv, n_red, &
+                                                            n_scratch, n_solve, n_virt, n_work
+      REAL(KIND=dp)                                      :: rm, rn
+
+      ! trial vector arrays, work and scratch columns, reduced and per-solve m x m matrices,
+      ! m x n_act coefficient blocks with the restart work array, pass buffers, virt x virt for B
+      SELECT CASE (driver)
+      CASE (driver_tda)
+         n_arrays = 2
+         n_work = MIN(2*n_act, m)
+         n_scratch = 0
+         n_red = 1
+         n_solve = 2
+         c_coef = 8
+         n_mv = 3
+         n_virt = 0
+      CASE (driver_mk)
+         n_arrays = 3
+         n_work = MIN(2*n_act, m)
+         n_scratch = block_size
+         n_red = 1
+         n_solve = 2
+         c_coef = 10
+         n_mv = 4
+         n_virt = 1
+      CASE (driver_os)
+         n_arrays = 3
+         n_work = MAX(2*n_act, MIN(4*n_act, m))
+         n_scratch = 2*block_size
+         n_red = 2
+         n_solve = 6
+         c_coef = 15
+         n_mv = 4
+         n_virt = 1
+      CASE DEFAULT
+         CPABORT("BSE Davidson: unknown driver in the memory estimate")
+      END SELECT
+
+      ! in REAL: m^2 overflows INTEGER(4) above 46340
+      rm = REAL(m, dp)
+      rn = REAL(mv_env%n_ov, dp)
+      dist_GB = 8.0E-9_dp*(rn*REAL(n_arrays*m + n_work + n_scratch, dp) + REAL(n_red + n_solve, dp)*rm*rm)/ &
+                REAL(mv_env%para_env%num_pe, dp)
+      repl_GB = 8.0E-9_dp*(REAL(c_coef, dp)*rm*REAL(n_act, dp) + rm*REAL(block_size, dp) + &
+                           REAL(n_mv, dp)*rn*REAL(nb, dp) + REAL(n_ri, dp)*REAL(nb, dp) + &
+                           REAL(n_virt, dp)*REAL(mv_env%virt, dp)**2)
+
+   END SUBROUTINE davidson_footprint
 
 ! **************************************************************************************************
 !> \brief Unit vectors on the lowest entries of the diagonal, never cutting a degenerate group
