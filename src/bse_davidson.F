@@ -99,7 +99,8 @@ CONTAINS
       REAL(KIND=dp)                                      :: dev, t_iter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, res, theta, theta_prev, &
                                                             theta_sub
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_cand, C_ritz, G_new, Q
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coef_restart, coef_restart_cand, &
+                                                            coef_ritz, coef_ritz_theta, red_block
       TYPE(cp_blacs_env_type), POINTER                   :: diag_blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_AZ, fm_red_A, fm_work, fm_Z
@@ -132,11 +133,11 @@ CONTAINS
       CALL cp_fm_create(fm_red_A, fm_struct, name="fm_red_A_davidson", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
 
-      ALLOCATE (C(m_max, n_act), C_cand(m_max, 2*n_act), C_ritz(m_max, n_act))
-      ALLOCATE (Q(m_max, 2*n_act))
+      ALLOCATE (coef_ritz(m_max, n_act), coef_restart_cand(m_max, 2*n_act), coef_ritz_theta(m_max, n_act))
+      ALLOCATE (coef_restart(m_max, 2*n_act))
       ALLOCATE (theta(m_max), theta_prev(n_act), res(n_act), dE(n_act), conv(n_act), need(n_act), &
                 selected(n_act))
-      C_cand(:, :) = 0.0_dp
+      coef_restart_cand(:, :) = 0.0_dp
       theta_prev(:) = 0.0_dp
       has_prev = .FALSE.
       stalled = .FALSE.
@@ -164,28 +165,28 @@ CONTAINS
          t_iter = m_walltime()
 
          ! sum_n G_mn c_nk = θ_k c_mk, θ ascending
-         CALL solve_reduced(fm_red_A, m, n_act, para_env, diag_blacs_env, theta, C)
+         CALL solve_reduced(fm_red_A, m, n_act, para_env, diag_blacs_env, theta, coef_ritz)
 
          ! thick restart onto the current and the previous Ritz vectors, no kernel application
          IF (m + block_size > m_max .AND. m > n_act .AND. m < n_ov) THEN
-            C_cand(1:m, 1:n_act) = C(1:m, 1:n_act)
+            coef_restart_cand(1:m, 1:n_act) = coef_ritz(1:m, 1:n_act)
             n_cand = n_act
             IF (has_prev) n_cand = 2*n_act
-            CALL restart_basis(C_cand, m, n_cand, 2*n_act, Q, k)
-            CALL rotate_in_place(fm_Z, m, Q, k, fm_work)
-            CALL rotate_in_place(fm_AZ, m, Q, k, fm_work)
-            CALL reduced_rotate(fm_red_A, m, Q, k, para_env, diag_blacs_env)
+            CALL restart_basis(coef_restart_cand, m, n_cand, 2*n_act, coef_restart, k)
+            CALL rotate_in_place(fm_Z, m, coef_restart, k, fm_work)
+            CALL rotate_in_place(fm_AZ, m, coef_restart, k, fm_work)
+            CALL reduced_rotate(fm_red_A, m, coef_restart, k, para_env, diag_blacs_env)
             m = k
             n_restart = n_restart + 1
-            CALL solve_reduced(fm_red_A, m, n_act, para_env, diag_blacs_env, theta, C)
+            CALL solve_reduced(fm_red_A, m, n_act, para_env, diag_blacs_env, theta, coef_ritz)
          END IF
 
          ! r_ia,k = sum_m (A Z)_ia,m c_mk - θ_k sum_m Z_ia,m c_mk for all tracked roots k
          DO k = 1, n_act
-            C_ritz(1:m, k) = C(1:m, k)*theta(k)
+            coef_ritz_theta(1:m, k) = coef_ritz(1:m, k)*theta(k)
          END DO
-         CALL subspace_rotate(fm_AZ, m, C(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp)
-         CALL subspace_rotate(fm_Z, m, C_ritz(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
+         CALL subspace_rotate(fm_AZ, m, coef_ritz(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp)
+         CALL subspace_rotate(fm_Z, m, coef_ritz_theta(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
          CALL column_norms(fm_work, 1, n_act, para_env, res)
 
          dE(:) = ABS(theta(1:n_act) - theta_prev(:))
@@ -224,15 +225,15 @@ CONTAINS
             n_kernel = n_kernel + nt
 
             ! new columns G_mn = sum_ia Z_ia,m (A Z)_ia,n of the symmetric reduced matrix
-            ALLOCATE (G_new(m + nt, nt))
-            CALL subspace_gram(fm_Z, 1, m + nt, fm_AZ, m + 1, nt, para_env, G_new)
-            CALL reduced_extend(fm_red_A, G_new, m, nt)
-            DEALLOCATE (G_new)
+            ALLOCATE (red_block(m + nt, nt))
+            CALL subspace_gram(fm_Z, 1, m + nt, fm_AZ, m + 1, nt, para_env, red_block)
+            CALL reduced_extend(fm_red_A, red_block, m, nt)
+            DEALLOCATE (red_block)
          END IF
 
          ! the Ritz vectors of this iteration are the second block of restart candidates
-         C_cand(:, n_act + 1:2*n_act) = 0.0_dp
-         C_cand(1:m, n_act + 1:2*n_act) = C(1:m, 1:n_act)
+         coef_restart_cand(:, n_act + 1:2*n_act) = 0.0_dp
+         coef_restart_cand(1:m, n_act + 1:2*n_act) = coef_ritz(1:m, 1:n_act)
          has_prev = .TRUE.
          theta_prev(:) = theta(1:n_act)
          m = m + nt
@@ -258,14 +259,15 @@ CONTAINS
       CALL cp_fm_create(fm_X, fm_struct, name="fm_X_davidson", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
       ! X_ia^n = sum_m Z_ia,m c_mn
-      CALL subspace_rotate(fm_Z, m, C(1:m, 1:n_want), n_want, fm_X, 1.0_dp, 0.0_dp)
+      CALL subspace_rotate(fm_Z, m, coef_ritz(1:m, 1:n_want), n_want, fm_X, 1.0_dp, 0.0_dp)
 
       CALL cp_fm_release(fm_Z)
       CALL cp_fm_release(fm_AZ)
       CALL cp_fm_release(fm_work)
       CALL cp_fm_release(fm_red_A)
       CALL cp_blacs_env_release(diag_blacs_env)
-      DEALLOCATE (C, C_cand, C_ritz, Q, theta, theta_prev, res, dE, conv, need, selected, diag)
+      DEALLOCATE (coef_ritz, coef_restart_cand, coef_ritz_theta, coef_restart, theta, theta_prev, res, dE, conv, &
+                  need, selected, diag)
       IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
 
       CALL timestop(handle)
@@ -314,7 +316,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: dev, t_iter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, omega, omega_prev, omega_sq, &
                                                             res, theta, theta_sub
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C, C_cand, C_x, C_x_omega, C_y, H_new, Q
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coef_restart, coef_restart_cand, &
+                                                            coef_ritz, coef_x, coef_x_omega, &
+                                                            coef_y, red_block
       TYPE(cp_blacs_env_type), POINTER                   :: diag_blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_MW, fm_red_M, fm_S, fm_scratch, &
@@ -355,11 +359,11 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_get_info(fm_V, nrow_local=nrow_local)
 
-      ALLOCATE (C(m_max, n_act), C_cand(m_max, 2*n_act), Q(m_max, 2*n_act))
-      ALLOCATE (C_x(m_max, n_act), C_y(m_max, n_act), C_x_omega(m_max, n_act))
+      ALLOCATE (coef_ritz(m_max, n_act), coef_restart_cand(m_max, 2*n_act), coef_restart(m_max, 2*n_act))
+      ALLOCATE (coef_x(m_max, n_act), coef_y(m_max, n_act), coef_x_omega(m_max, n_act))
       ALLOCATE (theta(m_max), omega(n_act), omega_prev(n_act), res(n_act), dE(n_act), conv(n_act), &
                 need(n_act), selected(n_act))
-      C_cand(:, :) = 0.0_dp
+      coef_restart_cand(:, :) = 0.0_dp
       omega_prev(:) = 0.0_dp
       has_prev = .FALSE.
       stalled = .FALSE.
@@ -412,21 +416,21 @@ CONTAINS
             t_iter = m_walltime()
 
             ! sum_n H_mn c_nk = θ_k c_mk with θ_k = (Ω^k)^2, ascending
-            CALL solve_reduced(fm_red_M, m, n_act, para_env, diag_blacs_env, theta, C)
+            CALL solve_reduced(fm_red_M, m, n_act, para_env, diag_blacs_env, theta, coef_ritz)
 
             ! thick restart: V, W and MW are rotated alike, which keeps V^T W = 1
             IF (m + block_size > m_max .AND. m > n_act .AND. m < n_ov) THEN
-               C_cand(1:m, 1:n_act) = C(1:m, 1:n_act)
+               coef_restart_cand(1:m, 1:n_act) = coef_ritz(1:m, 1:n_act)
                n_cand = n_act
                IF (has_prev) n_cand = 2*n_act
-               CALL restart_basis(C_cand, m, n_cand, 2*n_act, Q, k)
-               CALL rotate_in_place(fm_V, m, Q, k, fm_work)
-               CALL rotate_in_place(fm_W, m, Q, k, fm_work)
-               CALL rotate_in_place(fm_MW, m, Q, k, fm_work)
-               CALL reduced_rotate(fm_red_M, m, Q, k, para_env, diag_blacs_env)
+               CALL restart_basis(coef_restart_cand, m, n_cand, 2*n_act, coef_restart, k)
+               CALL rotate_in_place(fm_V, m, coef_restart, k, fm_work)
+               CALL rotate_in_place(fm_W, m, coef_restart, k, fm_work)
+               CALL rotate_in_place(fm_MW, m, coef_restart, k, fm_work)
+               CALL reduced_rotate(fm_red_M, m, coef_restart, k, para_env, diag_blacs_env)
                m = k
                n_restart = n_restart + 1
-               CALL solve_reduced(fm_red_M, m, n_act, para_env, diag_blacs_env, theta, C)
+               CALL solve_reduced(fm_red_M, m, n_act, para_env, diag_blacs_env, theta, coef_ritz)
             END IF
 
             ! a Ritz value bounds an eigenvalue of (A+B)(A-B) from above
@@ -439,11 +443,11 @@ CONTAINS
 
             ! r_ia,k = sum_m (M W)_ia,m c_mk (Ω^k)^-1/2 - Ω^k (Ω^k)^1/2 sum_m V_ia,m c_mk
             DO k = 1, n_act
-               C_y(1:m, k) = C(1:m, k)/SQRT(omega(k))
-               C_x_omega(1:m, k) = C(1:m, k)*omega(k)*SQRT(omega(k))
+               coef_y(1:m, k) = coef_ritz(1:m, k)/SQRT(omega(k))
+               coef_x_omega(1:m, k) = coef_ritz(1:m, k)*omega(k)*SQRT(omega(k))
             END DO
-            CALL subspace_rotate(fm_MW, m, C_y(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp)
-            CALL subspace_rotate(fm_V, m, C_x_omega(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
+            CALL subspace_rotate(fm_MW, m, coef_y(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp)
+            CALL subspace_rotate(fm_V, m, coef_x_omega(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
             CALL column_norms(fm_work, 1, n_act, para_env, res)
 
             dE(:) = ABS(omega(:) - omega_prev(:))
@@ -472,15 +476,15 @@ CONTAINS
 
             IF (nt > 0) THEN
                ! new columns H_mn = sum_ia W_ia,m (M W)_ia,n of the symmetric reduced matrix
-               ALLOCATE (H_new(m + nt, nt))
-               CALL subspace_gram(fm_W, 1, m + nt, fm_MW, m + 1, nt, para_env, H_new)
-               CALL reduced_extend(fm_red_M, H_new, m, nt)
-               DEALLOCATE (H_new)
+               ALLOCATE (red_block(m + nt, nt))
+               CALL subspace_gram(fm_W, 1, m + nt, fm_MW, m + 1, nt, para_env, red_block)
+               CALL reduced_extend(fm_red_M, red_block, m, nt)
+               DEALLOCATE (red_block)
             END IF
 
             ! the Ritz vectors of this iteration are the second block of restart candidates
-            C_cand(:, n_act + 1:2*n_act) = 0.0_dp
-            C_cand(1:m, n_act + 1:2*n_act) = C(1:m, 1:n_act)
+            coef_restart_cand(:, n_act + 1:2*n_act) = 0.0_dp
+            coef_restart_cand(1:m, n_act + 1:2*n_act) = coef_ritz(1:m, 1:n_act)
             has_prev = .TRUE.
             omega_prev(:) = omega(:)
             m = m + nt
@@ -524,17 +528,17 @@ CONTAINS
          ALLOCATE (exc_ens(n_want))
          exc_ens(:) = omega(1:n_want)
          DO k = 1, n_want
-            C_x(1:m, k) = C(1:m, k)*SQRT(omega(k))
-            C_y(1:m, k) = C(1:m, k)/SQRT(omega(k))
+            coef_x(1:m, k) = coef_ritz(1:m, k)*SQRT(omega(k))
+            coef_y(1:m, k) = coef_ritz(1:m, k)/SQRT(omega(k))
          END DO
          CALL bse_matvec_vector_struct(mv_env, n_want, fm_struct)
          CALL cp_fm_create(fm_X, fm_struct, name="fm_X_davidson", set_zero=.TRUE.)
          CALL cp_fm_create(fm_Y, fm_struct, name="fm_Y_davidson", set_zero=.TRUE.)
          CALL cp_fm_struct_release(fm_struct)
-         CALL subspace_rotate(fm_W, m, C_y(1:m, 1:n_want), n_want, fm_X, 0.5_dp, 0.0_dp)
-         CALL subspace_rotate(fm_V, m, C_x(1:m, 1:n_want), n_want, fm_X, 0.5_dp, 1.0_dp)
-         CALL subspace_rotate(fm_W, m, C_y(1:m, 1:n_want), n_want, fm_Y, 0.5_dp, 0.0_dp)
-         CALL subspace_rotate(fm_V, m, C_x(1:m, 1:n_want), n_want, fm_Y, -0.5_dp, 1.0_dp)
+         CALL subspace_rotate(fm_W, m, coef_y(1:m, 1:n_want), n_want, fm_X, 0.5_dp, 0.0_dp)
+         CALL subspace_rotate(fm_V, m, coef_x(1:m, 1:n_want), n_want, fm_X, 0.5_dp, 1.0_dp)
+         CALL subspace_rotate(fm_W, m, coef_y(1:m, 1:n_want), n_want, fm_Y, 0.5_dp, 0.0_dp)
+         CALL subspace_rotate(fm_V, m, coef_x(1:m, 1:n_want), n_want, fm_Y, -0.5_dp, 1.0_dp)
       END IF
 
       CALL cp_fm_release(fm_V)
@@ -544,8 +548,8 @@ CONTAINS
       CALL cp_fm_release(fm_scratch)
       CALL cp_fm_release(fm_red_M)
       CALL cp_blacs_env_release(diag_blacs_env)
-      DEALLOCATE (C, C_cand, C_x, C_y, C_x_omega, Q, theta, omega, omega_prev, res, dE, conv, need, &
-                  selected, diag)
+      DEALLOCATE (coef_ritz, coef_restart_cand, coef_x, coef_y, coef_x_omega, coef_restart, theta, omega, omega_prev, &
+                  res, dE, conv, need, selected, diag)
       IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
 
       CALL timestop(handle)
@@ -597,7 +601,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: dev, kr_min, t_iter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, omega, omega_prev, res, res_L, &
                                                             theta_sub
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: C_cand, C_work, Kr_new, L, Mr_new, Q, R
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coef_left, coef_restart, &
+                                                            coef_restart_cand, coef_right, &
+                                                            coef_work, red_block_K, red_block_M
       TYPE(cp_blacs_env_type), POINTER                   :: diag_blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_b, fm_Kb, fm_Mb, fm_red_K, fm_red_M, &
@@ -641,11 +647,11 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_get_info(fm_b, nrow_local=nrow_local)
 
-      ALLOCATE (R(m_max, n_act), L(m_max, n_act), C_work(m_max, n_act))
-      ALLOCATE (C_cand(m_max, 4*n_act), Q(m_max, 4*n_act))
+      ALLOCATE (coef_right(m_max, n_act), coef_left(m_max, n_act), coef_work(m_max, n_act))
+      ALLOCATE (coef_restart_cand(m_max, 4*n_act), coef_restart(m_max, 4*n_act))
       ALLOCATE (omega(n_act), omega_prev(n_act), res(n_act), res_L(n_act), dE(n_act), conv(n_act), &
                 need(n_act), selected(n_act))
-      C_cand(:, :) = 0.0_dp
+      coef_restart_cand(:, :) = 0.0_dp
       omega_prev(:) = 0.0_dp
       kr_min = 0.0_dp
       has_prev = .FALSE.
@@ -699,26 +705,26 @@ CONTAINS
             t_iter = m_walltime()
 
             ! Ω^k ascending with the coefficients R_mk of y^k and L_mk of x^k, sum_m R_mk L_mk = 1
-            CALL solve_reduced_paired(fm_red_M, fm_red_K, m, n_act, para_env, omega, R, L, kr_min, &
+            CALL solve_reduced_paired(fm_red_M, fm_red_K, m, n_act, para_env, omega, coef_right, coef_left, kr_min, &
                                       abba_status, diag_blacs_env)
             IF (abba_status /= abba_ok) EXIT
 
             ! thick restart: b, Mb and Kb are rotated alike; the current pairs come first, so that
             ! they survive the cap that leaves room for one block of corrections
             IF (m + 2*block_size > m_max .AND. m > 2*n_act .AND. m < n_ov) THEN
-               C_cand(1:m, 1:n_act) = R(1:m, :)
-               C_cand(1:m, n_act + 1:2*n_act) = L(1:m, :)
+               coef_restart_cand(1:m, 1:n_act) = coef_right(1:m, :)
+               coef_restart_cand(1:m, n_act + 1:2*n_act) = coef_left(1:m, :)
                n_cand = 2*n_act
                IF (has_prev) n_cand = 4*n_act
-               CALL restart_basis(C_cand, m, n_cand, m_max - 2*block_size, Q, k)
-               CALL rotate_in_place(fm_b, m, Q, k, fm_work)
-               CALL rotate_in_place(fm_Mb, m, Q, k, fm_work)
-               CALL rotate_in_place(fm_Kb, m, Q, k, fm_work)
-               CALL reduced_rotate(fm_red_M, m, Q, k, para_env, diag_blacs_env)
-               CALL reduced_rotate(fm_red_K, m, Q, k, para_env, diag_blacs_env)
+               CALL restart_basis(coef_restart_cand, m, n_cand, m_max - 2*block_size, coef_restart, k)
+               CALL rotate_in_place(fm_b, m, coef_restart, k, fm_work)
+               CALL rotate_in_place(fm_Mb, m, coef_restart, k, fm_work)
+               CALL rotate_in_place(fm_Kb, m, coef_restart, k, fm_work)
+               CALL reduced_rotate(fm_red_M, m, coef_restart, k, para_env, diag_blacs_env)
+               CALL reduced_rotate(fm_red_K, m, coef_restart, k, para_env, diag_blacs_env)
                m = k
                n_restart = n_restart + 1
-               CALL solve_reduced_paired(fm_red_M, fm_red_K, m, n_act, para_env, omega, R, L, kr_min, &
+               CALL solve_reduced_paired(fm_red_M, fm_red_K, m, n_act, para_env, omega, coef_right, coef_left, kr_min, &
                                          abba_status, diag_blacs_env)
                IF (abba_status /= abba_ok) EXIT
             END IF
@@ -726,15 +732,15 @@ CONTAINS
             ! rR_ia,k = sum_m (M b)_ia,m R_mk - Ω^k sum_m b_ia,m L_mk into the columns 1..n_act and
             ! rL_ia,k = sum_m (K b)_ia,m L_mk - Ω^k sum_m b_ia,m R_mk into the columns n_act+1..2 n_act
             DO k = 1, n_act
-               C_work(1:m, k) = L(1:m, k)*omega(k)
+               coef_work(1:m, k) = coef_left(1:m, k)*omega(k)
             END DO
-            CALL subspace_rotate(fm_Mb, m, R(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp)
-            CALL subspace_rotate(fm_b, m, C_work(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
+            CALL subspace_rotate(fm_Mb, m, coef_right(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp)
+            CALL subspace_rotate(fm_b, m, coef_work(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
             DO k = 1, n_act
-               C_work(1:m, k) = R(1:m, k)*omega(k)
+               coef_work(1:m, k) = coef_right(1:m, k)*omega(k)
             END DO
-            CALL subspace_rotate(fm_Kb, m, L(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp, n_act + 1)
-            CALL subspace_rotate(fm_b, m, C_work(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp, n_act + 1)
+            CALL subspace_rotate(fm_Kb, m, coef_left(1:m, 1:n_act), n_act, fm_work, 1.0_dp, 0.0_dp, n_act + 1)
+            CALL subspace_rotate(fm_b, m, coef_work(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp, n_act + 1)
             CALL column_norms(fm_work, 1, n_act, para_env, res)
             CALL column_norms(fm_work, n_act + 1, n_act, para_env, res_L)
             res(:) = MAX(res(:), res_L(:))
@@ -770,18 +776,18 @@ CONTAINS
 
             IF (nt > 0) THEN
                ! new columns of the symmetric Mr and Kr
-               ALLOCATE (Mr_new(m + nt, nt), Kr_new(m + nt, nt))
-               CALL subspace_gram(fm_b, 1, m + nt, fm_Mb, m + 1, nt, para_env, Mr_new)
-               CALL subspace_gram(fm_b, 1, m + nt, fm_Kb, m + 1, nt, para_env, Kr_new)
-               CALL reduced_extend(fm_red_M, Mr_new, m, nt)
-               CALL reduced_extend(fm_red_K, Kr_new, m, nt)
-               DEALLOCATE (Mr_new, Kr_new)
+               ALLOCATE (red_block_M(m + nt, nt), red_block_K(m + nt, nt))
+               CALL subspace_gram(fm_b, 1, m + nt, fm_Mb, m + 1, nt, para_env, red_block_M)
+               CALL subspace_gram(fm_b, 1, m + nt, fm_Kb, m + 1, nt, para_env, red_block_K)
+               CALL reduced_extend(fm_red_M, red_block_M, m, nt)
+               CALL reduced_extend(fm_red_K, red_block_K, m, nt)
+               DEALLOCATE (red_block_M, red_block_K)
             END IF
 
             ! the pairs of this iteration are the second block of restart candidates
-            C_cand(:, 2*n_act + 1:4*n_act) = 0.0_dp
-            C_cand(1:m, 2*n_act + 1:3*n_act) = R(1:m, :)
-            C_cand(1:m, 3*n_act + 1:4*n_act) = L(1:m, :)
+            coef_restart_cand(:, 2*n_act + 1:4*n_act) = 0.0_dp
+            coef_restart_cand(1:m, 2*n_act + 1:3*n_act) = coef_right(1:m, :)
+            coef_restart_cand(1:m, 3*n_act + 1:4*n_act) = coef_left(1:m, :)
             has_prev = .TRUE.
             omega_prev(:) = omega(:)
             m = m + nt
@@ -813,10 +819,10 @@ CONTAINS
          CALL cp_fm_create(fm_X, fm_struct, name="fm_X_davidson", set_zero=.TRUE.)
          CALL cp_fm_create(fm_Y, fm_struct, name="fm_Y_davidson", set_zero=.TRUE.)
          CALL cp_fm_struct_release(fm_struct)
-         C_work(1:m, 1:n_want) = 0.5_dp*(R(1:m, 1:n_want) + L(1:m, 1:n_want))
-         CALL subspace_rotate(fm_b, m, C_work(1:m, 1:n_want), n_want, fm_X, 1.0_dp, 0.0_dp)
-         C_work(1:m, 1:n_want) = 0.5_dp*(R(1:m, 1:n_want) - L(1:m, 1:n_want))
-         CALL subspace_rotate(fm_b, m, C_work(1:m, 1:n_want), n_want, fm_Y, 1.0_dp, 0.0_dp)
+         coef_work(1:m, 1:n_want) = 0.5_dp*(coef_right(1:m, 1:n_want) + coef_left(1:m, 1:n_want))
+         CALL subspace_rotate(fm_b, m, coef_work(1:m, 1:n_want), n_want, fm_X, 1.0_dp, 0.0_dp)
+         coef_work(1:m, 1:n_want) = 0.5_dp*(coef_right(1:m, 1:n_want) - coef_left(1:m, 1:n_want))
+         CALL subspace_rotate(fm_b, m, coef_work(1:m, 1:n_want), n_want, fm_Y, 1.0_dp, 0.0_dp)
       END IF
 
       CALL cp_fm_release(fm_b)
@@ -827,7 +833,8 @@ CONTAINS
       CALL cp_fm_release(fm_red_M)
       CALL cp_fm_release(fm_red_K)
       CALL cp_blacs_env_release(diag_blacs_env)
-      DEALLOCATE (R, L, C_work, C_cand, Q, omega, omega_prev, res, res_L, dE, conv, need, selected, diag)
+      DEALLOCATE (coef_right, coef_left, coef_work, coef_restart_cand, coef_restart, omega, omega_prev, res, res_L, &
+                  dE, conv, need, selected, diag)
       IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
 
       CALL timestop(handle)
@@ -999,20 +1006,20 @@ CONTAINS
 !> \param n_act number of pairs formed
 !> \param para_env ...
 !> \param omega Ω_k in Hartree
-!> \param R coefficients of y_k in column k, zero below row m
-!> \param L coefficients of x_k in column k, zero below row m
+!> \param coef_right coefficients of y_k in column k, zero below row m
+!> \param coef_left coefficients of x_k in column k, zero below row m
 !> \param kr_min κ_1, the smallest eigenvalue of Kr
-!> \param abba_status abba_indefinite when κ_1 <= 0; omega, R and L are then untouched
+!> \param abba_status abba_indefinite when κ_1 <= 0; omega, coef_right and coef_left are then untouched
 !> \param blacs_env grid the reduced problem is solved on
 ! **************************************************************************************************
-   SUBROUTINE solve_reduced_paired(fm_red_M, fm_red_K, m, n_act, para_env, omega, R, L, kr_min, &
+   SUBROUTINE solve_reduced_paired(fm_red_M, fm_red_K, m, n_act, para_env, omega, coef_right, coef_left, kr_min, &
                                    abba_status, blacs_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_red_M, fm_red_K
       INTEGER, INTENT(IN)                                :: m, n_act
       TYPE(mp_para_env_type), INTENT(IN), TARGET         :: para_env
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: omega
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: R, L
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: coef_right, coef_left
       REAL(KIND=dp), INTENT(OUT)                         :: kr_min
       INTEGER, INTENT(INOUT)                             :: abba_status
       TYPE(cp_blacs_env_type), INTENT(IN), TARGET        :: blacs_env
@@ -1084,10 +1091,10 @@ CONTAINS
          CALL parallel_gemm('N', 'N', m, n_act, m, 1.0_dp, fm_Mr, fm_R, 0.0_dp, fm_L)
          CALL cp_fm_column_scale(fm_L, 1.0_dp/omega(1:n_act))
 
-         R(:, :) = 0.0_dp
-         L(:, :) = 0.0_dp
-         CALL cp_fm_get_submatrix(fm_R, R(1:m, 1:n_act))
-         CALL cp_fm_get_submatrix(fm_L, L(1:m, 1:n_act))
+         coef_right(:, :) = 0.0_dp
+         coef_left(:, :) = 0.0_dp
+         CALL cp_fm_get_submatrix(fm_R, coef_right(1:m, 1:n_act))
+         CALL cp_fm_get_submatrix(fm_L, coef_left(1:m, 1:n_act))
          CALL cp_fm_release(fm_R)
          CALL cp_fm_release(fm_L)
       END IF
@@ -1787,23 +1794,23 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Eigenpairs of the symmetrised live block of the reduced matrix on the grid of blacs_env:
-!>        theta ascending, and the first n_vec eigenvectors gathered into C(1:m, 1:n_vec)
+!>        theta ascending, and the first n_vec eigenvectors gathered into coef_ritz(1:m, 1:n_vec)
 !> \param fm_red ...
 !> \param m ...
 !> \param n_vec eigenvectors gathered; the drivers never read more than n_act
 !> \param para_env ...
 !> \param blacs_env ...
 !> \param theta ...
-!> \param C ...
+!> \param coef_ritz ...
 ! **************************************************************************************************
-   SUBROUTINE solve_reduced(fm_red, m, n_vec, para_env, blacs_env, theta, C)
+   SUBROUTINE solve_reduced(fm_red, m, n_vec, para_env, blacs_env, theta, coef_ritz)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_red
       INTEGER, INTENT(IN)                                :: m, n_vec
       TYPE(mp_para_env_type), INTENT(IN), TARGET         :: para_env
       TYPE(cp_blacs_env_type), INTENT(IN), TARGET        :: blacs_env
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: theta
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: C
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: coef_ritz
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_reduced'
 
@@ -1824,9 +1831,9 @@ CONTAINS
 
       theta(:) = 0.0_dp
       theta(1:m) = eigval(:)
-      C(:, :) = 0.0_dp
+      coef_ritz(:, :) = 0.0_dp
       n_get = MIN(m, n_vec)
-      CALL cp_fm_get_submatrix(fm_t, C(1:m, 1:n_get), 1, 1, m, n_get)
+      CALL cp_fm_get_submatrix(fm_t, coef_ritz(1:m, 1:n_get), 1, 1, m, n_get)
 
       DEALLOCATE (eigval)
       CALL cp_fm_release(fm_a)
@@ -1843,15 +1850,15 @@ CONTAINS
 !> \param m ...
 !> \param para_env ...
 !> \param theta ascending
-!> \param C all m eigenvectors in the columns
+!> \param coef all m eigenvectors in the columns
 ! **************************************************************************************************
-   SUBROUTINE solve_replicated(G, m, para_env, theta, C)
+   SUBROUTINE solve_replicated(G, m, para_env, theta, coef)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: G
       INTEGER, INTENT(IN)                                :: m
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: theta
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: C
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: coef
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_replicated'
 
@@ -1870,8 +1877,8 @@ CONTAINS
 
       theta(:) = 0.0_dp
       theta(1:m) = eigval(:)
-      C(:, :) = 0.0_dp
-      C(1:m, 1:m) = G_sym(:, :)
+      coef(:, :) = 0.0_dp
+      coef(1:m, 1:m) = G_sym(:, :)
       DEALLOCATE (G_sym, eigval)
 
       CALL timestop(handle)
@@ -1886,14 +1893,14 @@ CONTAINS
 !> \param m ...
 !> \param n_cand ...
 !> \param n_cap ...
-!> \param Q m x n_new restart basis
+!> \param coef_restart m x n_new restart basis
 !> \param n_new ...
 ! **************************************************************************************************
-   SUBROUTINE restart_basis(cand, m, n_cand, n_cap, Q, n_new)
+   SUBROUTINE restart_basis(cand, m, n_cand, n_cap, coef_restart, n_new)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: cand
       INTEGER, INTENT(IN)                                :: m, n_cand, n_cap
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: Q
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: coef_restart
       INTEGER, INTENT(OUT)                               :: n_new
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'restart_basis'
@@ -1925,8 +1932,8 @@ CONTAINS
          IF (norm < norm_drop) CYCLE
          n_new = n_new + 1
       END DO
-      Q(:, :) = 0.0_dp
-      Q(1:m, 1:n_new) = basis(:, 1:n_new)
+      coef_restart(:, :) = 0.0_dp
+      coef_restart(1:m, 1:n_new) = basis(:, 1:n_new)
       DEALLOCATE (basis)
 
       CALL timestop(handle)
@@ -1938,19 +1945,19 @@ CONTAINS
 !>        On the npe x 1 grid whole columns are local, so the rotation is one local DGEMM
 !> \param fm_V ...
 !> \param nv ...
-!> \param C ...
+!> \param coef ...
 !> \param nc ...
 !> \param fm_out ...
 !> \param alpha ...
 !> \param beta ...
 !> \param out_col first column of fm_out written, 1 by default
 ! **************************************************************************************************
-   SUBROUTINE subspace_rotate(fm_V, nv, C, nc, fm_out, alpha, beta, out_col)
+   SUBROUTINE subspace_rotate(fm_V, nv, coef, nc, fm_out, alpha, beta, out_col)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_V
       INTEGER, INTENT(IN)                                :: nv
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         INTENT(IN)                                      :: C
+         INTENT(IN)                                      :: coef
       INTEGER, INTENT(IN)                                :: nc
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_out
       REAL(KIND=dp), INTENT(IN)                          :: alpha, beta
@@ -1967,7 +1974,7 @@ CONTAINS
       CALL cp_fm_get_info(fm_V, nrow_local=nrow_local)
       IF (nrow_local > 0) THEN
          CALL DGEMM('N', 'N', nrow_local, nc, nv, alpha, fm_V%local_data, SIZE(fm_V%local_data, 1), &
-                    C, SIZE(C, 1), beta, fm_out%local_data(:, o_col:o_col + nc - 1), SIZE(fm_out%local_data, 1))
+                    coef, SIZE(coef, 1), beta, fm_out%local_data(:, o_col:o_col + nc - 1), SIZE(fm_out%local_data, 1))
       END IF
 
       CALL timestop(handle)
@@ -1978,21 +1985,21 @@ CONTAINS
 !> \brief V_ia,k <- sum_p V_ia,p Q_pk for p <= m, k <= nq through the work matrix
 !> \param fm_V ...
 !> \param m ...
-!> \param Q ...
+!> \param coef ...
 !> \param nq ...
 !> \param fm_work ...
 ! **************************************************************************************************
-   SUBROUTINE rotate_in_place(fm_V, m, Q, nq, fm_work)
+   SUBROUTINE rotate_in_place(fm_V, m, coef, nq, fm_work)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_V
       INTEGER, INTENT(IN)                                :: m
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Q
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: coef
       INTEGER, INTENT(IN)                                :: nq
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_work
 
       INTEGER                                            :: nrow_local
 
-      CALL subspace_rotate(fm_V, m, Q(1:m, 1:nq), nq, fm_work, 1.0_dp, 0.0_dp)
+      CALL subspace_rotate(fm_V, m, coef(1:m, 1:nq), nq, fm_work, 1.0_dp, 0.0_dp)
       CALL cp_fm_to_fm(fm_work, fm_V, nq)
       CALL cp_fm_get_info(fm_V, nrow_local=nrow_local)
       fm_V%local_data(1:nrow_local, nq + 1:m) = 0.0_dp
@@ -2108,21 +2115,21 @@ CONTAINS
    END SUBROUTINE reduced_gram_blocks
 
 ! **************************************************************************************************
-!> \brief fm_red(1:m+nt, m+1:m+nt) <- blk and fm_red(m+1:m+nt, 1:m) <- blk(1:m, :)^T, the two
+!> \brief fm_red(1:m+nt, m+1:m+nt) <- red_block and fm_red(m+1:m+nt, 1:m) <- red_block(1:m, :)^T, the two
 !>        blocks a basis extension by nt columns adds to the reduced matrix
 !> \param fm_red ...
-!> \param blk (m+nt) x nt, the new columns' overlaps with the whole extended basis
+!> \param red_block (m+nt) x nt, the new columns' overlaps with the whole extended basis
 !> \param m ...
 !> \param nt ...
 ! **************************************************************************************************
-   SUBROUTINE reduced_extend(fm_red, blk, m, nt)
+   SUBROUTINE reduced_extend(fm_red, red_block, m, nt)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_red
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: blk
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: red_block
       INTEGER, INTENT(IN)                                :: m, nt
 
-      CALL cp_fm_set_submatrix(fm_red, blk, 1, m + 1, m + nt, nt)
-      IF (m > 0) CALL cp_fm_set_submatrix(fm_red, blk(1:m, :), m + 1, 1, nt, m, transpose=.TRUE.)
+      CALL cp_fm_set_submatrix(fm_red, red_block, 1, m + 1, m + nt, nt)
+      IF (m > 0) CALL cp_fm_set_submatrix(fm_red, red_block(1:m, :), m + 1, 1, nt, m, transpose=.TRUE.)
 
    END SUBROUTINE reduced_extend
 
@@ -2156,20 +2163,20 @@ CONTAINS
    END SUBROUTINE reduced_live_block
 
 ! **************************************************************************************************
-!> \brief fm_red(1:k, 1:k) <- Q^T fm_red(1:m, 1:m) Q for the m x k restart basis Q, the rest of the
+!> \brief fm_red(1:k, 1:k) <- coef_restart^T fm_red(1:m, 1:m) coef_restart for the m x k restart basis coef_restart, the rest of the
 !>        matrix zeroed: two distributed products, no replicated m x m
 !> \param fm_red ...
 !> \param m ...
-!> \param Q replicated, zero-padded to m rows
+!> \param coef_restart replicated, zero-padded to m rows
 !> \param k ...
 !> \param para_env ...
 !> \param blacs_env ...
 ! **************************************************************************************************
-   SUBROUTINE reduced_rotate(fm_red, m, Q, k, para_env, blacs_env)
+   SUBROUTINE reduced_rotate(fm_red, m, coef_restart, k, para_env, blacs_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_red
       INTEGER, INTENT(IN)                                :: m
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Q
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: coef_restart
       INTEGER, INTENT(IN)                                :: k
       TYPE(mp_para_env_type), INTENT(IN), TARGET         :: para_env
       TYPE(cp_blacs_env_type), INTENT(IN), TARGET        :: blacs_env
@@ -2194,7 +2201,7 @@ CONTAINS
       CALL cp_fm_create(fm_QGQ, fm_struct, name="bse_reduced_QGQ")
       CALL cp_fm_struct_release(fm_struct)
 
-      CALL cp_fm_set_submatrix(fm_Q, Q(1:m, 1:k))
+      CALL cp_fm_set_submatrix(fm_Q, coef_restart(1:m, 1:k))
       CALL parallel_gemm('N', 'N', m, k, m, 1.0_dp, fm_live, fm_Q, 0.0_dp, fm_GQ)
       CALL parallel_gemm('T', 'N', k, k, m, 1.0_dp, fm_Q, fm_GQ, 0.0_dp, fm_QGQ)
       CALL cp_fm_set_all(fm_red, 0.0_dp)
