@@ -3011,7 +3011,6 @@ CONTAINS
       TYPE(kp_diag_workspace_type), ALLOCATABLE, TARGET  :: workspace(:)
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_operator_context_type)                 :: op_ctx
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(qs_matrix_pools_type), POINTER                :: kp_mpools, mpools
@@ -3036,7 +3035,6 @@ CONTAINS
       IF (use_real_wfn) THEN
          CPABORT('k-point Lanczos refinement requires complex k-point MOS')
       END IF
-      para_env => kpoints%blacs_env_all%para_env
       kplocal = kp_range(2) - kp_range(1) + 1
       ! the largest local k-point count across the groups: kp_dist can be
       ! uneven, and every group must join the service calls for every round
@@ -3140,38 +3138,26 @@ CONTAINS
       END IF
 
       IF (use_local_kpoints) THEN
-         ! first SCF step: initialize the MOS of every local k point
-         ! directly, before the refinement loop below skips those
-         ! channels
-         IF (scf_env%iter_count == 1) THEN
-            DO ikp = 1, kplocal
-               kp => kpoints%kp_env(ikp)%kpoint_env
-               IF (kp%mos_prefilled) CYCLE
-               ik = kp_range(1) + ikp - 1
-               CALL kpoint_operator_evaluate(op_ctx, 1, kpoint_slot_s, ik, workspace(1)%phase, &
-                                             workspace(1)%csmat_base)
-               DO ispin = 1, nspin
-                  CALL kpoint_operator_evaluate(op_ctx, ispin, kpoint_slot_ks, ik, workspace(1)%phase, &
-                                                workspace(1)%cksmat)
-                  CALL cp_cfm_to_cfm(workspace(1)%csmat_base, workspace(1)%csmat)
-                  CALL cold_start_mo_init(kp, ispin, workspace(1)%cksmat, workspace(1)%csmat)
-               END DO
-            END DO
-         END IF
-
-         ! serial refinement of the locally owned k points. The layout
-         ! comment above states why this loop cannot run under OpenMP
+         ! serial pass over the locally owned k points. The first SCF step
+         ! cold-starts every unprefilled channel in place, like the rounds
+         ! path below. Later steps refine. The layout comment above states
+         ! why this loop cannot run under OpenMP
          DO ikp = 1, kplocal
             kp => kpoints%kp_env(ikp)%kpoint_env
             ik = kp_range(1) + ikp - 1
             CALL kpoint_operator_evaluate(op_ctx, 1, kpoint_slot_s, ik, workspace(1)%phase, &
                                           workspace(1)%csmat_base)
             DO ispin = 1, nspin
-               ! the cold-start phase above already initialized the
-               ! first-step MOS of this k point
-               IF (scf_env%iter_count == 1 .AND. .NOT. kp%mos_prefilled) CYCLE
                CALL kpoint_operator_evaluate(op_ctx, ispin, kpoint_slot_ks, ik, workspace(1)%phase, &
                                              workspace(1)%cksmat)
+               IF (scf_env%iter_count == 1 .AND. .NOT. kp%mos_prefilled) THEN
+                  ! the K-point MOS enter the first SCF step allocated but
+                  ! uninitialized. cp_cfm_geeig overwrites its matrix
+                  ! arguments, so the stored S(k) copy is restored first
+                  CALL cp_cfm_to_cfm(workspace(1)%csmat_base, workspace(1)%csmat)
+                  CALL cold_start_mo_init(kp, ispin, workspace(1)%cksmat, workspace(1)%csmat)
+                  CYCLE
+               END IF
                CALL lanczos_refine_channel(kp, ispin, scf_env, my_check_moconv_only, eps_iter, &
                                            eps_iter_empty, max_iter, workspace(1)%cksmat, workspace(1)%cwork, &
                                            workspace(1)%csmat_base, workspace(1)%csmat, workspace(1)%cmos, &
@@ -3433,8 +3419,8 @@ CONTAINS
 
       CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
       CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
-      CALL cp_cfm_create(cmos, rmos%matrix_struct, name="dav_cold_cmos")
-      CALL cp_cfm_create(cwork, cksmat%matrix_struct, name="dav_cold_cwork")
+      CALL cp_cfm_create(cmos, rmos%matrix_struct, name="kp_cold_cmos")
+      CALL cp_cfm_create(cwork, cksmat%matrix_struct, name="kp_cold_cwork")
       CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
       kp%mos(2, ispin)%eigenvalues = eigenvalues
       CALL cp_cfm_to_fm(cmos, rmos, imos)
