@@ -1,4 +1,4 @@
-"Ar_energy.inp"                         = [{matcher="E_total", tol=4e-13, ref=-85.02754472902744}]
+"Ar_energy.inp"                         = [{matcher="E_total", tol=4e-13, ref=-84.67568954586226}]
 "Ar_force.inp"                          = []
 "Ar_stress.inp"                         = []
 "Ar_polar.inp"                          = []

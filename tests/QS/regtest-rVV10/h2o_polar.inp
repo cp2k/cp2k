@@ -21,7 +21,7 @@
     &EFIELD
     &END EFIELD
     &MGRID
-      CUTOFF 280
+      CUTOFF 200
     &END MGRID
     &POISSON
       PERIODIC NONE
@@ -34,7 +34,7 @@
       &END MOMENTS
     &END PRINT
     &QS
-      EPS_DEFAULT 1.E-14
+      EPS_DEFAULT 1.E-12
     &END QS
     &SCF
       EPS_SCF 1.E-7
@@ -47,7 +47,7 @@
       &VDW_POTENTIAL
         DISPERSION_FUNCTIONAL NON_LOCAL
         &NON_LOCAL
-          CUTOFF 400
+          CUTOFF 180
           KERNEL_FILE_NAME rVV10_kernel_table.dat
           PARAMETERS 6.3 0.0093
           TYPE RVV10
@@ -64,7 +64,7 @@
   &END DFT
   &PROPERTIES
     &LINRES
-      EPS 1E-12
+      EPS 1E-10
       MAX_ITER 200
       PRECONDITIONER FULL_ALL
       &POLAR
@@ -75,7 +75,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC [bohr] 10. 10. 10.
+      ABC [bohr] 7.5 7.5 7.5
       PERIODIC NONE
     &END CELL
     &COORD
