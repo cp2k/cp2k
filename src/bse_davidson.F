@@ -13,6 +13,11 @@
 ! **************************************************************************************************
 MODULE bse_davidson
 
+   USE bibliography,                    ONLY: Davidson1975,&
+                                              Olsen1988,&
+                                              Stratmann1998,&
+                                              Vecharynski2017,&
+                                              cite_reference
    USE bse_full_diag,                   ONLY: create_hermitian_form_of_ABBA
    USE bse_matvec,                      ONLY: bse_matvec_apply,&
                                               bse_matvec_diagonal,&
@@ -115,6 +120,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
+      CALL cite_reference(Davidson1975)
 
       para_env => mv_env%para_env
       ! the trial vectors live on an npe x 1 grid, which is a bad one to diagonalize on
@@ -337,6 +343,8 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
+      CALL cite_reference(Davidson1975)
+      CALL cite_reference(Vecharynski2017)
 
       abba_status = abba_ok
       ab_margin = 0.0_dp
@@ -624,6 +632,9 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
+      CALL cite_reference(Davidson1975)
+      CALL cite_reference(Olsen1988)
+      CALL cite_reference(Stratmann1998)
 
       abba_status = abba_ok
       ab_margin = 0.0_dp

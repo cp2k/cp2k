@@ -98,7 +98,8 @@ MODULE bibliography
                             KuhneHeskeProdan2020, Schreder2021, Schreder2024_1, Schreder2024_2, &
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
                             Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
-                            Cances2000, Herbst2022, Zhang2025, Gresch2017, Soluyanov2011
+                            Cances2000, Herbst2022, Zhang2025, Gresch2017, Soluyanov2011, Davidson1975, &
+                            Olsen1988, Stratmann1998, Vecharynski2017
 
 CONTAINS
 
@@ -2314,6 +2315,33 @@ CONTAINS
                          title="Computing topological invariants without inversion symmetry", &
                          source="Phys. Rev. B", volume="83", pages="235401", &
                          year=2011, doi="10.1103/PhysRevB.83.235401")
+
+      CALL add_reference(key=Davidson1975, &
+                         authors=s2a("E. R. Davidson"), &
+                         title="The iterative calculation of a few of the lowest eigenvalues and corresponding "// &
+                         "eigenvectors of large real-symmetric matrices", &
+                         source="J. Comput. Phys.", volume="17", pages="87-94", &
+                         year=1975, doi="10.1016/0021-9991(75)90065-0")
+
+      CALL add_reference(key=Olsen1988, &
+                         authors=s2a("J. Olsen", "H. J. Aa. Jensen", "P. Jørgensen"), &
+                         title="Solution of the large matrix equations which occur in response theory", &
+                         source="J. Comput. Phys.", volume="74", pages="265-282", &
+                         year=1988, doi="10.1016/0021-9991(88)90081-2")
+
+      CALL add_reference(key=Stratmann1998, &
+                         authors=s2a("R. E. Stratmann", "G. E. Scuseria", "M. J. Frisch"), &
+                         title="An efficient implementation of time-dependent density-functional theory for the "// &
+                         "calculation of excitation energies of large molecules", &
+                         source="J. Chem. Phys.", volume="109", pages="8218-8224", &
+                         year=1998, doi="10.1063/1.477483")
+
+      CALL add_reference(key=Vecharynski2017, &
+                         authors=s2a("E. Vecharynski", "J. Brabec", "M. Shao", "N. Govind", "C. Yang"), &
+                         title="Efficient block preconditioned eigensolvers for linear response time-dependent "// &
+                         "density functional theory", &
+                         source="Comput. Phys. Commun.", volume="221", pages="42-52", &
+                         year=2017, doi="10.1016/j.cpc.2017.07.017")
 
    END SUBROUTINE add_all_references
 
