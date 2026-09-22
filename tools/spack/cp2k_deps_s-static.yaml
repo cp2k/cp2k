@@ -100,14 +100,14 @@ spack:
         - "~mpi"
         - "~shared"
 
-    # The pinned yasm CMake recipe omits its C++ build dependency.
+    # Yasm's CMake recipe does not declare its C++ compiler dependency.
     yasm:
       require:
         - "build_system=autotools"
 
   repos:
     builtin:
-      commit: abf3f6003f33e51046a76b829b892317dab96d29 # 2026-09-15
+      commit: 3761e323f59bec2046ecafd544c3cb15aca8b514 # 2026-09-20
 
   specs:
     # Build tools

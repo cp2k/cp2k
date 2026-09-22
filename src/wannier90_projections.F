@@ -153,11 +153,11 @@ CONTAINS
             IF (anchor > 0) nr = nb
             ALLOCATE (qr(nr, nc))
             IF (anchor == 0) THEN
-            DO ik = 1, nk
-               qr((ik - 1)*nb + 1:ik*nb, :) = candidates(:, :, ik)
-            END DO
+               DO ik = 1, nk
+                  qr((ik - 1)*nb + 1:ik*nb, :) = candidates(:, :, ik)
+               END DO
             ELSE
-            qr(:, :) = candidates(:, :, anchor)
+               qr(:, :) = candidates(:, :, anchor)
             END IF
             ! A unitary change of the MO gauge acts on rows, not on the trial orbitals.
             ! The selected columns therefore represent one physical trial set on the full mesh.
