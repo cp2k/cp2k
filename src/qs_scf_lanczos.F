@@ -37,15 +37,15 @@ MODULE qs_scf_lanczos
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
-   USE qs_scf_types,                    ONLY: krylov_space_type
-   USE scf_control_types,               ONLY: scf_control_type
+   USE qs_scf_types,                    ONLY: krylov_settings_type,&
+                                              krylov_workspace_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_lanczos'
 
-   PUBLIC :: krylov_space_allocate, lanczos_refinement, lanczos_refinement_2v
+   PUBLIC :: krylov_workspace_allocate, lanczos_refinement, lanczos_refinement_2v
 
 CONTAINS
 
@@ -55,20 +55,20 @@ CONTAINS
 !> \brief  allocates matrices and vectors used in the construction of
 !>        the krylov space and for the lanczos refinement
 !> \param krylov_space ...
-!> \param scf_control ...
+!> \param krylov_settings parsed settings of the run, kept by the workspace
 !> \param mos ...
 !> \param
 !> \par History
 !>      05.2009 created [MI]
 ! **************************************************************************************************
 
-   SUBROUTINE krylov_space_allocate(krylov_space, scf_control, mos)
+   SUBROUTINE krylov_workspace_allocate(krylov_space, krylov_settings, mos)
 
-      TYPE(krylov_space_type), INTENT(INOUT)             :: krylov_space
-      TYPE(scf_control_type), POINTER                    :: scf_control
+      TYPE(krylov_workspace_type), POINTER               :: krylov_space
+      TYPE(krylov_settings_type), POINTER                :: krylov_settings
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'krylov_space_allocate'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'krylov_workspace_allocate'
 
       INTEGER                                            :: handle, ik, ispin, max_nmo, nao, nblock, &
                                                             ndim, nk, nmo, nspin
@@ -77,14 +77,14 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      IF (.NOT. ASSOCIATED(krylov_space)) ALLOCATE (krylov_space)
+
       IF (.NOT. ASSOCIATED(krylov_space%mo_conv)) THEN
          NULLIFY (fm_struct_tmp, mo_coeff)
 
-         krylov_space%nkrylov = scf_control%diagonalization%nkrylov
-         krylov_space%nblock = scf_control%diagonalization%nblock_krylov
-
-         nk = krylov_space%nkrylov
-         nblock = krylov_space%nblock
+         krylov_space%settings => krylov_settings
+         nk = krylov_space%settings%nkrylov
+         nblock = krylov_space%settings%nblock
          nspin = SIZE(mos, 1)
 
          ALLOCATE (krylov_space%mo_conv(nspin))
@@ -161,7 +161,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE krylov_space_allocate
+   END SUBROUTINE krylov_workspace_allocate
 
 ! **************************************************************************************************
 !> \brief lanczos refinement by blocks of non-converged MOs
@@ -182,7 +182,7 @@ CONTAINS
    SUBROUTINE lanczos_refinement(krylov_space, ks, c0, c1, eval, nao, &
                                  eps_iter, ispin, check_moconv_only)
 
-      TYPE(krylov_space_type), POINTER                   :: krylov_space
+      TYPE(krylov_workspace_type), POINTER               :: krylov_space
       TYPE(cp_fm_type), INTENT(IN)                       :: ks, c0, c1
       REAL(dp), DIMENSION(:), POINTER                    :: eval
       INTEGER, INTENT(IN)                                :: nao
@@ -271,7 +271,7 @@ CONTAINS
          END IF
       END DO
 
-      nblock = krylov_space%nblock
+      nblock = krylov_space%settings%nblock
       num_blocks = nmo_nc/nblock
 
       krylov_space%nmo_nc = nmo_nc
@@ -288,7 +288,7 @@ CONTAINS
 
          CALL cp_fm_to_fm(c0, c1, nmo_nc, nmo_converged + 1, 1)
 
-         nblock = krylov_space%nblock
+         nblock = krylov_space%settings%nblock
          IF (MODULO(nmo_nc, nblock) > 0.0_dp) THEN
             num_blocks = nmo_nc/nblock + 1
          ELSE
@@ -300,7 +300,7 @@ CONTAINS
             imo_low = (ib - 1)*nblock + 1
             imo_up = MIN(ib*nblock, nmo_nc)
             nmob = imo_up - imo_low + 1
-            ndim = krylov_space%nkrylov*nmob
+            ndim = krylov_space%settings%nkrylov*nmob
 
             NULLIFY (fm_struct_tmp)
             CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=ndim, &
@@ -345,8 +345,8 @@ CONTAINS
                CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmob, &
                                         para_env=c0%matrix_struct%para_env, &
                                         context=c0%matrix_struct%context)
-               ALLOCATE (v_mat(krylov_space%nkrylov))
-               DO ik = 1, krylov_space%nkrylov
+               ALLOCATE (v_mat(krylov_space%settings%nkrylov))
+               DO ik = 1, krylov_space%settings%nkrylov
                   CALL cp_fm_create(v_mat(ik), matrix_struct=fm_struct_tmp, &
                                     name="v_mat")
                END DO
@@ -383,7 +383,7 @@ CONTAINS
             CALL cp_fm_get_submatrix(a_mat, tblock, 1, 1, nmob, nmob)
             CALL cp_fm_set_submatrix(t_mat, tblock, 1, 1, nmob, nmob)
 
-            DO ik = 2, krylov_space%nkrylov
+            DO ik = 2, krylov_space%settings%nkrylov
 
                ! Call lapack for QR factorization
                CALL cp_fm_set_all(b_mat, rzero)
@@ -430,7 +430,7 @@ CONTAINS
             CALL timeset(routineN//"_build_cnew", hand4)
 !        !Compute the refined vectors
             CALL cp_fm_set_all(c2_tmp, rzero)
-            DO ik = 1, krylov_space%nkrylov
+            DO ik = 1, krylov_space%settings%nkrylov
                jt = (ik - 1)*nmob
                CALL parallel_gemm('N', 'N', nao, ndim, nmob, rone, v_mat(ik), t_vec, rone, c2_tmp, &
                                   b_first_row=(jt + 1))
@@ -517,7 +517,7 @@ CONTAINS
    SUBROUTINE lanczos_refinement_2v(krylov_space, ks, c0, c1, eval, nao, &
                                     eps_iter, ispin, check_moconv_only)
 
-      TYPE(krylov_space_type), POINTER                   :: krylov_space
+      TYPE(krylov_workspace_type), POINTER               :: krylov_space
       TYPE(cp_fm_type), INTENT(IN)                       :: ks, c0, c1
       REAL(dp), DIMENSION(:), POINTER                    :: eval
       INTEGER, INTENT(IN)                                :: nao
@@ -625,7 +625,7 @@ CONTAINS
 
          CALL cp_fm_to_fm(c0, c1, nmo_nc, nmo_converged + 1, 1)
 
-         nblock = krylov_space%nblock
+         nblock = krylov_space%settings%nblock
          IF (MODULO(nmo_nc, nblock) > 0.0_dp) THEN
             num_blocks = nmo_nc/nblock + 1
          ELSE
@@ -637,7 +637,7 @@ CONTAINS
             imo_low = (ib - 1)*nblock + 1
             imo_up = MIN(ib*nblock, nmo_nc)
             nmob = imo_up - imo_low + 1
-            ndim = krylov_space%nkrylov*nmob
+            ndim = krylov_space%settings%nkrylov*nmob
 
             ! Allocation
             CALL timeset(routineN//"alloc", hand6)
@@ -665,13 +665,13 @@ CONTAINS
             CALL cp_fm_set_all(v_tmp, rzero)
             CALL cp_fm_struct_release(fm_struct_tmp)
             NULLIFY (fm_struct_tmp)
-            ALLOCATE (v_mat(krylov_space%nkrylov))
+            ALLOCATE (v_mat(krylov_space%settings%nkrylov))
             CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=nmob, &
                                      ncol_block=nmob, &
                                      para_env=c0%matrix_struct%para_env, &
                                      context=c0%matrix_struct%context, &
                                      force_block=.TRUE.)
-            DO ik = 1, krylov_space%nkrylov
+            DO ik = 1, krylov_space%settings%nkrylov
                CALL cp_fm_create(v_mat(ik), matrix_struct=fm_struct_tmp, &
                                  name="v_mat")
             END DO
@@ -734,7 +734,7 @@ CONTAINS
                t_mat(1:nmob, i) = a_block(1:nmob, i)
             END DO
 
-            DO ik = 2, krylov_space%nkrylov
+            DO ik = 2, krylov_space%settings%nkrylov
                ! Call lapack for QR factorization
                CALL cp_fm_set_all(b_mat, rzero)
                CALL cp_fm_to_fm(c_tmp, v_mat(ik), nmob, 1, 1)
@@ -813,7 +813,7 @@ CONTAINS
             ALLOCATE (q_mat(nmob, ndim))
             q_mat = 0.0_dp
             b_loc => c2_tmp%local_data
-            DO ik = 1, krylov_space%nkrylov
+            DO ik = 1, krylov_space%settings%nkrylov
                CALL cp_fm_to_fm(v_mat(ik), v_tmp, nmob, 1, 1)
                IF (SIZE(c2_tmp%local_data, 2) == ndim) THEN
 !            a_loc => v_mat(ik)%local_data

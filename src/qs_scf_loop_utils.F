@@ -381,9 +381,9 @@ CONTAINS
                          scf_control, scf_section, diis_step)
          ! Block Krylov diagonlization
       CASE (block_krylov_diag_method_nr)
-         IF ((scf_env%krylov_space%eps_std_diag > 0.0_dp) .AND. &
-             (scf_env%iter_count == 1 .OR. scf_env%iter_delta > scf_env%krylov_space%eps_std_diag)) THEN
-            IF (scf_env%krylov_space%always_check_conv) THEN
+         IF ((scf_env%krylov_settings%eps_std_diag > 0.0_dp) .AND. &
+             (scf_env%iter_count == 1 .OR. scf_env%iter_delta > scf_env%krylov_settings%eps_std_diag)) THEN
+            IF (scf_env%krylov_settings%always_check_conv) THEN
                CALL do_block_krylov_diag(scf_env, mos, matrix_ks, &
                                          scf_control, scf_section, check_moconv_only=.TRUE.)
             END IF
@@ -570,9 +570,9 @@ CONTAINS
          END IF
       CASE (block_krylov_diag_method_nr)
          CALL get_qs_env(qs_env=qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
-         IF ((scf_env%krylov_space%eps_std_diag > 0.0_dp) .AND. &
-             (scf_env%iter_count == 1 .OR. scf_env%iter_delta > scf_env%krylov_space%eps_std_diag)) THEN
-            IF (scf_env%krylov_space%always_check_conv) THEN
+         IF ((scf_env%krylov_settings%eps_std_diag > 0.0_dp) .AND. &
+             (scf_env%iter_count == 1 .OR. scf_env%iter_delta > scf_env%krylov_settings%eps_std_diag)) THEN
+            IF (scf_env%krylov_settings%always_check_conv) THEN
                CALL do_block_krylov_diag_kp(qs_env, scf_env, matrix_ks, matrix_s, kpoints, &
                                             scf_control, check_moconv_only=.TRUE.)
             END IF

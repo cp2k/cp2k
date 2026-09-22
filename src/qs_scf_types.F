@@ -61,7 +61,8 @@ MODULE qs_scf_types
 
    PUBLIC :: qs_scf_env_type
    PUBLIC :: scf_env_release, scf_env_create, scf_env_did_change
-   PUBLIC :: krylov_space_type, krylov_space_create, subspace_env_type
+   PUBLIC :: krylov_settings_type, krylov_settings_create
+   PUBLIC :: krylov_workspace_type, krylov_workspace_release, subspace_env_type
    PUBLIC :: diag_subspace_env_create
 
 ! **************************************************************************************************
@@ -70,10 +71,26 @@ MODULE qs_scf_types
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-   TYPE krylov_space_type
-      INTEGER :: nkrylov = -1, nblock = -1, nmo_conv = -1, nmo_nc = -1, max_iter = -1
+!> \brief Parsed Krylov solver settings of the SCF section: one fully
+!>        initialized object for every run that selects the block-Krylov
+!>        diagonalization, read by the Gamma and the k-point drivers
+!>        alike
+! **************************************************************************************************
+   TYPE krylov_settings_type
+      INTEGER :: nkrylov = -1, nblock = -1, max_iter = -1
       LOGICAL :: always_check_conv = .FALSE.
-      REAL(dp) :: eps_std_diag = -1.0_dp, eps_conv = -1.0_dp, eps_adapt = -1.0_dp, max_res_norm = -1.0_dp, min_res_norm = -1.0_dp
+      REAL(dp) :: eps_std_diag = -1.0_dp, eps_conv = -1.0_dp, eps_adapt = -1.0_dp
+   END TYPE krylov_settings_type
+
+!> \brief Workspace and convergence statistics of the real-Lanczos
+!>        Gamma refinement. The k-point drivers never allocate this
+!>        type: their complex kernel takes a caller-owned workspace
+! **************************************************************************************************
+   TYPE krylov_workspace_type
+      ! the parsed settings of the run, shared with the SCF environment
+      TYPE(krylov_settings_type), POINTER :: settings => NULL()
+      INTEGER :: nmo_conv = -1, nmo_nc = -1
+      REAL(dp) :: max_res_norm = -1.0_dp, min_res_norm = -1.0_dp
       REAL(dp), DIMENSION(:), POINTER :: c_eval => NULL(), t_eval => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER :: v_mat => NULL(), mo_conv => NULL(), mo_refine => NULL()
       TYPE(cp_fm_type), POINTER ::  tmp_mat => NULL()
@@ -81,7 +98,7 @@ MODULE qs_scf_types
       TYPE(cp_fm_type), POINTER :: block1_mat => NULL(), block2_mat => NULL(), block3_mat => NULL(), &
                                    block4_mat => NULL(), block5_mat => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER ::  c_vec => NULL(), chc_mat => NULL()
-   END TYPE krylov_space_type
+   END TYPE krylov_workspace_type
 
    TYPE subspace_env_type
       INTEGER :: max_iter = -1, mixing_method = -1
@@ -115,7 +132,8 @@ MODULE qs_scf_types
       TYPE(cp_fm_type), POINTER  :: scf_work2 => NULL(), ortho => NULL(), ortho_m1 => NULL(), &
                                     s_half => NULL(), s_minus_one => NULL(), &
                                     scf_work2_red => NULL(), ortho_red => NULL(), ortho_m1_red => NULL()
-      TYPE(krylov_space_type), POINTER :: krylov_space => NULL()
+      TYPE(krylov_settings_type), POINTER :: krylov_settings => NULL()
+      TYPE(krylov_workspace_type), POINTER :: krylov_space => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: p_delta => NULL(), p_mix_new => NULL()
       TYPE(dbcsr_type), POINTER :: ortho_dbcsr => NULL(), buf1_dbcsr => NULL(), buf2_dbcsr => NULL()
       TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner => NULL()
@@ -370,7 +388,10 @@ CONTAINS
          DEALLOCATE (scf_env%mixing_store)
       END IF
       IF (ASSOCIATED(scf_env%krylov_space)) THEN
-         CALL krylov_space_release(scf_env%krylov_space)
+         CALL krylov_workspace_release(scf_env%krylov_space)
+      END IF
+      IF (ASSOCIATED(scf_env%krylov_settings)) THEN
+         DEALLOCATE (scf_env%krylov_settings)
       END IF
       IF (ASSOCIATED(scf_env%subspace_env)) THEN
          CALL diag_subspace_env_release(scf_env%subspace_env)
@@ -393,60 +414,47 @@ CONTAINS
    END SUBROUTINE scf_env_release
 
 ! **************************************************************************************************
-!> \brief  creates krylov space
-!> \param krylov_space ...
+!> \brief  creates the Krylov solver settings
+!> \param krylov_settings returned settings object
 !> \param scf_section ...
-!> \par History
-!>      05.2009 created [MI]
-!> \author [MI]
 ! **************************************************************************************************
-   SUBROUTINE krylov_space_create(krylov_space, scf_section)
+   SUBROUTINE krylov_settings_create(krylov_settings, scf_section)
 
-      TYPE(krylov_space_type), POINTER                   :: krylov_space
+      TYPE(krylov_settings_type), POINTER                :: krylov_settings
       TYPE(section_vals_type), POINTER                   :: scf_section
 
-      CPASSERT(.NOT. ASSOCIATED(krylov_space))
-      ALLOCATE (krylov_space)
-
-      NULLIFY (krylov_space%c_eval, krylov_space%t_eval)
-      NULLIFY (krylov_space%v_mat)
-      NULLIFY (krylov_space%mo_conv, krylov_space%mo_refine)
-      NULLIFY (krylov_space%chc_mat, krylov_space%c_vec)
-      NULLIFY (krylov_space%tmp_mat)
-      NULLIFY (krylov_space%block1_mat, krylov_space%block2_mat)
-      NULLIFY (krylov_space%block3_mat, krylov_space%block4_mat, krylov_space%block5_mat)
+      CPASSERT(.NOT. ASSOCIATED(krylov_settings))
+      ALLOCATE (krylov_settings)
 
       CALL section_vals_val_get(scf_section, "DIAGONALIZATION%MAX_ITER", &
-                                i_val=krylov_space%max_iter)
+                                i_val=krylov_settings%max_iter)
       CALL section_vals_val_get(scf_section, "DIAGONALIZATION%KRYLOV%NKRYLOV", &
-                                i_val=krylov_space%nkrylov)
+                                i_val=krylov_settings%nkrylov)
       CALL section_vals_val_get(scf_section, "DIAGONALIZATION%KRYLOV%NBLOCK", &
-                                i_val=krylov_space%nblock)
+                                i_val=krylov_settings%nblock)
       CALL section_vals_val_get(scf_section, "DIAGONALIZATION%KRYLOV%EPS_KRYLOV", &
-                                r_val=krylov_space%eps_conv)
+                                r_val=krylov_settings%eps_conv)
       CALL section_vals_val_get(scf_section, "DIAGONALIZATION%KRYLOV%EPS_STD_DIAG", &
-                                r_val=krylov_space%eps_std_diag)
+                                r_val=krylov_settings%eps_std_diag)
       CALL section_vals_val_get(scf_section, "DIAGONALIZATION%EPS_ADAPT", &
-                                r_val=krylov_space%eps_adapt)
+                                r_val=krylov_settings%eps_adapt)
       CALL section_vals_val_get(scf_section, "DIAGONALIZATION%KRYLOV%CHECK_MOS_CONV", &
-                                l_val=krylov_space%always_check_conv)
+                                l_val=krylov_settings%always_check_conv)
 
-   END SUBROUTINE krylov_space_create
+   END SUBROUTINE krylov_settings_create
 
 ! **************************************************************************************************
-!> \brief releases krylov space
+!> \brief releases the real-Lanczos workspace
 !> \param krylov_space ...
 !> \par History
 !>      05.2009 created [MI]
 !> \author [MI]
 ! **************************************************************************************************
-   SUBROUTINE krylov_space_release(krylov_space)
-      TYPE(krylov_space_type), POINTER                   :: krylov_space
+   SUBROUTINE krylov_workspace_release(krylov_space)
+      TYPE(krylov_workspace_type), POINTER               :: krylov_space
 
       IF (ASSOCIATED(krylov_space)) THEN
 
-         ! the k-point Lanczos path creates a settings-only instance with all
-         ! buffers left disassociated, guard the Gamma buffer cleanup
          IF (ASSOCIATED(krylov_space%c_eval)) THEN
             DEALLOCATE (krylov_space%c_eval)
             NULLIFY (krylov_space%c_eval)
@@ -502,7 +510,7 @@ CONTAINS
          NULLIFY (krylov_space)
       END IF
 
-   END SUBROUTINE krylov_space_release
+   END SUBROUTINE krylov_workspace_release
 
 ! **************************************************************************************************
 !> \brief creates subspace-rotation environment

@@ -125,11 +125,11 @@ MODULE qs_scf_initialization
                                               qs_rho_type
    USE qs_scf_diagonalization,          ONLY: diag_kp_smat,&
                                               diag_subspace_allocate
-   USE qs_scf_lanczos,                  ONLY: krylov_space_allocate
+   USE qs_scf_lanczos,                  ONLY: krylov_workspace_allocate
    USE qs_scf_output,                   ONLY: qs_scf_initial_info
    USE qs_scf_types,                    ONLY: &
         block_davidson_diag_method_nr, block_krylov_diag_method_nr, diag_subspace_env_create, &
-        filter_matrix_diag_method_nr, general_diag_method_nr, krylov_space_create, &
+        filter_matrix_diag_method_nr, general_diag_method_nr, krylov_settings_create, &
         ot_diag_method_nr, ot_method_nr, qs_scf_env_type, scf_env_create, smeagol_method_nr, &
         special_diag_method_nr
    USE qs_wf_history_methods,           ONLY: reorthogonalize_vectors,&
@@ -915,16 +915,17 @@ CONTAINS
                CPABORT("ROKS with block PF diagonalization not possible")
             END IF
             scf_env%method = block_krylov_diag_method_nr
-            IF (.NOT. ASSOCIATED(scf_env%krylov_space)) THEN
-               CALL krylov_space_create(scf_env%krylov_space, scf_section)
+            IF (.NOT. ASSOCIATED(scf_env%krylov_settings)) THEN
+               CALL krylov_settings_create(scf_env%krylov_settings, scf_section)
             END IF
-            ! settings-only Krylov environment under k-points: the complex
-            ! kernel takes a driver-owned workspace, nothing is
-            ! allocated from the Gamma MOS, and the k-point world never
-            ! uses scf_env%ortho
+            ! the Gamma workspace carries the refinement buffers. The
+            ! k-point world parses the settings only: the complex kernel
+            ! takes a driver-owned workspace, nothing is allocated from
+            ! the Gamma MOS, and the k-point world never uses
+            ! scf_env%ortho
             scf_env%needs_ortho = .NOT. do_kpoints
             IF (.NOT. do_kpoints) THEN
-               CALL krylov_space_allocate(scf_env%krylov_space, scf_control, mos)
+               CALL krylov_workspace_allocate(scf_env%krylov_space, scf_env%krylov_settings, mos)
             END IF
             ! Block davidson diagonlization: allocation of additional matrices is needed
          CASE (diag_block_davidson)

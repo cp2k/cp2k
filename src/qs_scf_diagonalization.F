@@ -2675,7 +2675,7 @@ CONTAINS
                " Spin ", " Cycle ", &
                " conv. MOS ", " B2MAX ", " B2MIN ", " Time", REPEAT("-", 60)
          END IF
-         eps_iter = kp_adaptive_eps_iter(scf_env%krylov_space%eps_conv, scf_env%krylov_space%eps_adapt, &
+         eps_iter = kp_adaptive_eps_iter(scf_env%krylov_settings%eps_conv, scf_env%krylov_settings%eps_adapt, &
                                          scf_env%iter_delta, 1.0_dp, HUGE(1.0_dp))
          iter = 0
          converged = .FALSE.
@@ -2694,7 +2694,7 @@ CONTAINS
             CYCLE
          ELSE
             !Block Lanczos refinement
-            DO iter = 1, scf_env%krylov_space%max_iter
+            DO iter = 1, scf_env%krylov_settings%max_iter
                CALL lanczos_refinement_2v(scf_env%krylov_space, ks, c0, c1, mo_eigenvalues, &
                                           nao, eps_iter, ispin)
                t2 = m_walltime()
@@ -3214,7 +3214,7 @@ CONTAINS
       ! the monotonically sinking delta, and the entry residuals of a
       ! step sit at the previous (looser) value of the same coupling, so
       ! the refinement always finds work left
-      eps_iter = kp_adaptive_eps_iter(scf_env%krylov_space%eps_conv, scf_env%krylov_space%eps_adapt, &
+      eps_iter = kp_adaptive_eps_iter(scf_env%krylov_settings%eps_conv, scf_env%krylov_settings%eps_adapt, &
                                       scf_env%iter_delta, noise_scale, eps_iter_cap)
       ! unoccupied MOS relax like the Davidson k-point driver: an occupation
       ! below occ_tol sits beyond the thermal smearing tail and carries no
@@ -3222,8 +3222,8 @@ CONTAINS
       ! empty threshold. The occupation decides, not the HOMO index (see
       ! generate_extended_space_c)
       eps_iter_empty = eps_iter
-      IF (scf_env%krylov_space%eps_adapt > 0.0_dp) eps_iter_empty = empty_factor*eps_iter
-      max_iter = scf_env%krylov_space%max_iter
+      IF (scf_env%krylov_settings%eps_adapt > 0.0_dp) eps_iter_empty = empty_factor*eps_iter
+      max_iter = scf_env%krylov_settings%max_iter
 
       ! One-rank k-point groups assemble every operator locally from a
       ! prepared snapshot and refine their k points without a single
@@ -3255,8 +3255,8 @@ CONTAINS
       CALL cp_fm_get_info(mo_coeff, matrix_struct=mo_struct)
       CALL kp_diag_workspaces_create(workspace, 1, matrix_struct, mo_struct, nentry, &
                                      use_local_kpoints, scf_env%cholesky_method == cholesky_off, &
-                                     lanczos=.TRUE., nkrylov=scf_env%krylov_space%nkrylov, &
-                                     nblock=scf_env%krylov_space%nblock)
+                                     lanczos=.TRUE., nkrylov=scf_env%krylov_settings%nkrylov, &
+                                     nblock=scf_env%krylov_settings%nblock)
 
       IF (output_unit > 0 .AND. .NOT. my_check_moconv_only .AND. .NOT. use_local_kpoints) THEN
          WRITE (output_unit, "(/T15,A)") '<<<<<<<<<   LANCZOS REFINEMENT    <<<<<<<<<<'
@@ -3433,7 +3433,7 @@ CONTAINS
 
       IF (check_moconv_only) THEN
          CALL lanczos_refinement_2v_c(work%cksmat, work%cmos, mo_eigenvalues, eps_col, &
-                                      scf_env%krylov_space%nkrylov, scf_env%krylov_space%nblock, &
+                                      scf_env%krylov_settings%nkrylov, scf_env%krylov_settings%nblock, &
                                       work%lan_ws, max_res, min_res, nmo_conv, nmo_nc, check_moconv_only=.TRUE.)
          DEALLOCATE (eps_col)
          IF (print_row .AND. output_unit > 0) THEN
@@ -3453,7 +3453,7 @@ CONTAINS
       DO iter = 1, max_iter
          t1 = m_walltime()
          CALL lanczos_refinement_2v_c(work%cksmat, work%cmos, mo_eigenvalues, eps_col, &
-                                      scf_env%krylov_space%nkrylov, scf_env%krylov_space%nblock, &
+                                      scf_env%krylov_settings%nkrylov, scf_env%krylov_settings%nblock, &
                                       work%lan_ws, max_res, min_res, nmo_conv, nmo_nc)
          t2 = m_walltime()
          IF (print_row .AND. output_unit > 0) THEN
