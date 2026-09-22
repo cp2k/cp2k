@@ -133,7 +133,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="psmp",
                 mpi_mode="mpich",
-                base_image="docker.io/rockylinux/rockylinux:10",
+                base_image="rockylinux/rockylinux:10",
                 gcc_version=14,
                 feature_flags="",
                 testopts=testopts,
@@ -202,7 +202,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="ssmp",
                 mpi_mode="no",
-                base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
+                base_image="nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
                 testopts=f"{testopts} --timeout 400",
@@ -215,7 +215,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="psmp",
                 mpi_mode="mpich",
-                base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
+                base_image="nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
                 feature_flags="",
@@ -229,7 +229,7 @@ def main() -> None:
             install_cp2k_spack(
                 version="pdbg",
                 mpi_mode="mpich",
-                base_image="docker.io/nvidia/cuda:12.9.1-devel-ubuntu24.04",
+                base_image="nvidia/cuda:12.9.1-devel-ubuntu24.04",
                 gcc_version=13,
                 gpu_model="P100",
                 feature_flags="",
@@ -785,10 +785,10 @@ def install_cp2k_spack(
     # Assemble docker file
     output = (
         install_base_image(
-            base_image=rf"{base_image}",
+            base_image=base_image,
             gcc_compilers=gcc_compilers,
             stage="build",
-            test_type=rf"{test_type}",
+            test_type=test_type,
         )
         + rf"""
 ARG IMAGE_TAG
@@ -821,10 +821,10 @@ RUN ./make_cp2k.sh -cv {version} {gcc_version_flag} -gpu {gpu_model} -mpi {mpi_m
     )
     output += (
         install_base_image(
-            base_image=rf"{base_image}",
+            base_image=base_image,
             gcc_compilers=gcc_compilers,
             stage="install",
-            test_type=rf"{test_type}",
+            test_type=test_type,
         )
         + rf"""
 WORKDIR /opt/cp2k

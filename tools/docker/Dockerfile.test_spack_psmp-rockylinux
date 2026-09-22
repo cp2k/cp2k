@@ -3,7 +3,7 @@
 # Usage: ./spack_cache_start.sh; podman build --shm-size=1g -t spack_psmp-rockylinux -f ./Dockerfile.test_spack_psmp-rockylinux ../../
 #
 
-ARG BASE_IMAGE="docker.io/rockylinux/rockylinux:10"
+ARG BASE_IMAGE="rockylinux/rockylinux:10"
 
 ###### Stage 1: Build CP2K dependencies ######
 

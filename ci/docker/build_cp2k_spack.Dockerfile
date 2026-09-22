@@ -5,10 +5,10 @@
 #
 # Stage 2: Build CP2K
 
-ARG BASE_IMAGE=${BASE_IMAGE:-ubuntu:26.04}
+ARG BASE_IMAGE=${BASE_IMAGE:-docker.io/ubuntu:26.04}
 ARG DEPS_IMAGE=${DEPS_IMAGE:-}
 
-FROM "docker.io/${DEPS_IMAGE}" AS build_cp2k
+FROM "${DEPS_IMAGE}" AS build_cp2k
 
 # Setup CUDA environment
 ENV CUDA_HOME=/usr/local/cuda
@@ -33,7 +33,7 @@ RUN ./make_cp2k.sh -cray -cv ${CP2K_VERSION} -uc no -j${NUM_PROCS} ${FEATURE_FLA
 
 # Stage 3: Install CP2K
 
-FROM "docker.io/${BASE_IMAGE}" AS install_cp2k
+FROM "${BASE_IMAGE}" AS install_cp2k
 
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     g++ gcc gfortran \

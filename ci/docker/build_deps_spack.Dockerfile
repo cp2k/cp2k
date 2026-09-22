@@ -5,9 +5,9 @@
 #
 # Stage 1: Create a base image providing the dependencies for building a CP2K binary
 
-ARG BASE_IMAGE=${BASE_IMAGE:-ubuntu:26.04}
+ARG BASE_IMAGE=${BASE_IMAGE:-docker.io/ubuntu:26.04}
 
-FROM "docker.io/${BASE_IMAGE}" AS build_deps
+FROM "${BASE_IMAGE}" AS build_deps
 
 # Install packages required to build the CP2K dependencies with Spack
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
