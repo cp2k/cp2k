@@ -134,7 +134,7 @@ CONTAINS
       mv_env%n_ri_loc = SIZE(mv_env%B_ia, 3)
 
       CALL cp_fm_get_info(fm_S_ia, nrow_global=n_ri)
-      IF (mv_env%para_env%num_pe > n_ri) THEN
+      IF (mv_env%para_env%num_pe > n_ri .AND. unit_nr > 0) THEN
          WRITE (npe_str, '(I0)') mv_env%para_env%num_pe
          WRITE (n_ri_str, '(I0)') n_ri
          WRITE (n_idle_str, '(I0)') mv_env%para_env%num_pe - n_ri

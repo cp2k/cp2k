@@ -131,7 +131,7 @@ CONTAINS
       n_ov = homo_red_arr(1)*virt_red_arr(1)
       ! the debug checks hold the explicit N_ov x N_ov matrices
       do_debug = mp2_env%bse%bse_debug_print .AND. n_ov <= n_ov_max_debug
-      IF (mp2_env%bse%bse_debug_print .AND. .NOT. do_debug) THEN
+      IF (mp2_env%bse%bse_debug_print .AND. .NOT. do_debug .AND. unit_nr > 0) THEN
          WRITE (n_ov_str, '(I0)') n_ov_max_debug
          CALL cp_warn(__LOCATION__, &
                       "BSE_DEBUG_PRINT: the checks of the iterative solver against the explicit A "// &
@@ -201,11 +201,11 @@ CONTAINS
                              "The full ABBA problem is ill-defined for this reference.")
             END IF
             ! the TDA results of a combined run stand on their own
-            CALL cp_warn(__LOCATION__, &
-                         "BSE: A-B is not positive definite on the trial space (margin "// &
-                         TRIM(ADJUSTL(margin_str))//" eV); the ABBA calculation is skipped, "// &
-                         "TDA results above are complete.")
             IF (unit_nr > 0) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "BSE: A-B is not positive definite on the trial space (margin "// &
+                            TRIM(ADJUSTL(margin_str))//" eV); the ABBA calculation is skipped, "// &
+                            "TDA results above are complete.")
                WRITE (unit_nr, '(T2,A4)') 'BSE|'
                WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.6)') 'BSE|', &
                   'A-B is not positive definite on the trial space (eV)', ab_margin*evolt

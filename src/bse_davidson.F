@@ -132,7 +132,7 @@ CONTAINS
       NULLIFY (diag_blacs_env)
       CALL cp_blacs_env_create(diag_blacs_env, para_env)
       n_ov = mv_env%n_ov
-      CALL davidson_sizes(mp2_env, n_ov, n_want, n_act, block_size)
+      CALL davidson_sizes(mp2_env, n_ov, unit_nr, n_want, n_act, block_size)
 
       ALLOCATE (diag(n_ov))
       CALL bse_matvec_diagonal(mv_env, mp2_env%bse%preconditioner, diag)
@@ -361,7 +361,7 @@ CONTAINS
       NULLIFY (diag_blacs_env)
       CALL cp_blacs_env_create(diag_blacs_env, para_env)
       n_ov = mv_env%n_ov
-      CALL davidson_sizes(mp2_env, n_ov, n_want, n_act, block_size)
+      CALL davidson_sizes(mp2_env, n_ov, unit_nr, n_want, n_act, block_size)
 
       ALLOCATE (diag(n_ov))
       CALL bse_matvec_diagonal(mv_env, mp2_env%bse%preconditioner, diag)
@@ -654,7 +654,7 @@ CONTAINS
       NULLIFY (diag_blacs_env)
       CALL cp_blacs_env_create(diag_blacs_env, para_env)
       n_ov = mv_env%n_ov
-      CALL davidson_sizes(mp2_env, n_ov, n_want, n_act, block_size)
+      CALL davidson_sizes(mp2_env, n_ov, unit_nr, n_want, n_act, block_size)
 
       ALLOCATE (diag(n_ov))
       CALL bse_matvec_diagonal(mv_env, mp2_env%bse%preconditioner, diag)
@@ -1459,7 +1459,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
 
-      IF (n_req > n_want .AND. n_req == n_act .AND. n_act < n_ov) THEN
+      IF (n_req > n_want .AND. n_req == n_act .AND. n_act < n_ov .AND. unit_nr > 0) THEN
          CALL cp_warn(__LOCATION__, &
                       "BSE Davidson: the degenerate group at NUM_EXC_EN reaches the last buffer state, "// &
                       "further members may lie above it. Increase BSE_ITERAT%NUM_BUFFER_STATES.")
@@ -1471,14 +1471,15 @@ CONTAINS
 !> \brief Number of wanted and tracked states and the block size, clamped to the problem size
 !> \param mp2_env ...
 !> \param n_ov ...
+!> \param unit_nr ...
 !> \param n_want ...
 !> \param n_act wanted plus buffer states
 !> \param block_size ...
 ! **************************************************************************************************
-   SUBROUTINE davidson_sizes(mp2_env, n_ov, n_want, n_act, block_size)
+   SUBROUTINE davidson_sizes(mp2_env, n_ov, unit_nr, n_want, n_act, block_size)
 
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
-      INTEGER, INTENT(IN)                                :: n_ov
+      INTEGER, INTENT(IN)                                :: n_ov, unit_nr
       INTEGER, INTENT(OUT)                               :: n_want, n_act, block_size
 
       IF (mp2_env%bse%num_exc_en < 1) CPABORT("BSE_ITERAT%NUM_EXC_EN must be at least 1")
@@ -1490,7 +1491,8 @@ CONTAINS
 
       n_want = mp2_env%bse%num_exc_en
       IF (n_want > n_ov) THEN
-         CPWARN("BSE_ITERAT%NUM_EXC_EN exceeds the number of transitions and is reduced to it.")
+         IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
+                                       "BSE_ITERAT%NUM_EXC_EN exceeds the number of transitions and is reduced to it.")
          n_want = n_ov
       END IF
       n_act = MIN(n_want + mp2_env%bse%num_buffer_states, n_ov)
@@ -1498,7 +1500,8 @@ CONTAINS
       ! 32 was within 5 % of the best width on the L8 deck at 200 states; wider passes cost restarts
       IF (block_size == -1) block_size = MIN(32, n_act)
       IF (block_size > n_act) THEN
-         CPWARN("BSE_ITERAT%BLOCK_SIZE exceeds the number of tracked states and is reduced to it.")
+         IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
+                                       "BSE_ITERAT%BLOCK_SIZE exceeds the number of tracked states and is reduced to it.")
          block_size = n_act
       END IF
 
@@ -1571,7 +1574,7 @@ CONTAINS
          CALL mp_mem_avail_per_rank_GB(mv_env%para_env, mem_avail_GB)
          budget_GB = mv_env%mem_fraction*mem_avail_GB
          skipped = mem_avail_GB <= 0.0_dp
-         IF (skipped .AND. mp2_env%bse%memory_check /= bse_memcheck_off) THEN
+         IF (skipped .AND. mp2_env%bse%memory_check /= bse_memcheck_off .AND. unit_nr > 0) THEN
             CALL cp_warn(__LOCATION__, "BSE Davidson: free memory not detectable, memory check skipped")
          END IF
       END IF
@@ -1665,13 +1668,14 @@ CONTAINS
          WRITE (bud_str, '(F16.3)') budget_GB
          SELECT CASE (mp2_env%bse%memory_check)
          CASE (bse_memcheck_warn)
-            CALL cp_warn(__LOCATION__, &
-                         "BSE Davidson: the solver's arrays at the subspace ceiling need "//TRIM(ADJUSTL(mem_str))// &
-                         " GB per MPI rank, above the budget of "//TRIM(ADJUSTL(bud_str))//" GB.")
+            IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
+                                          "BSE Davidson: the solver's arrays at the subspace ceiling need "// &
+                                          TRIM(ADJUSTL(mem_str))//" GB per MPI rank, above the budget of "// &
+                                          TRIM(ADJUSTL(bud_str))//" GB.")
          CASE (bse_memcheck_clamp)
-            CALL cp_warn(__LOCATION__, &
-                         "BSE Davidson: subspace ceiling reduced to fit the memory budget; raise "// &
-                         "MEMORY_BUDGET_GB or lower MAX_SUBSPACE_FACTOR to silence this.")
+            IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
+                                          "BSE Davidson: subspace ceiling reduced to fit the memory budget; raise "// &
+                                          "MEMORY_BUDGET_GB or lower MAX_SUBSPACE_FACTOR to silence this.")
          CASE (bse_memcheck_abort)
             CALL cp_abort(__LOCATION__, &
                           "BSE Davidson: the solver's arrays at the subspace ceiling need "//TRIM(ADJUSTL(mem_str))// &
@@ -1983,7 +1987,7 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A,T65,F16.6)') 'BSE|', &
             'Largest excess over the guess-block bound (eV)', excess*evolt
       END IF
-      IF (excess > deg_thresh) THEN
+      IF (excess > deg_thresh .AND. unit_nr > 0) THEN
          CALL cp_warn(__LOCATION__, &
                       "A converged BSE state lies above the upper bound given by the guess block, "// &
                       "so a lower state was missed. Raise BSE_ITERAT%NUM_GUESS_TRANSITIONS or "// &
