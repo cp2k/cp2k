@@ -6,7 +6,7 @@
 # author: Ole Schuett
 
 from configparser import ConfigParser
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 from os import path
 from pathlib import Path
@@ -167,7 +167,7 @@ def gen_frontpage(
     output += "<tr><th>Name</th><th>Host</th><th>Status</th>"
     output += "<th>Commit</th><th>Summary</th><th>Last OK</th></tr>\n\n"
 
-    now = datetime.utcnow().replace(microsecond=0)
+    now = datetime.now(timezone.utc).replace(microsecond=0)
 
     for s in config.sections():
         print("Working on summary entry of: " + s)
@@ -590,7 +590,7 @@ def html_linkbox() -> str:
 
 # ======================================================================================
 def html_gitbox(log: GitLog) -> str:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     output = '<div class="sidebox">\n'
     output += "<h2>Recent Commits</h2>\n"
     for commit in log.commits[0:10]:
@@ -609,7 +609,7 @@ def html_gitbox(log: GitLog) -> str:
 
 # ======================================================================================
 def html_footer() -> str:
-    now = datetime.utcnow().replace(microsecond=0)
+    now = datetime.now(timezone.utc).replace(microsecond=0)
     output = f"<p><small>Page last updated: {now.isoformat()}</small></p>\n"
     output += "</body></html>"
     return output
