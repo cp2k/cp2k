@@ -175,7 +175,7 @@ def gen_frontpage(
         host = config.get(s, "host")
         report_url = config.get(s, "report_url")
         do_notify = config.getboolean(s, "notify", fallback=True)
-        timeout = config.getint(s, "timeout", fallback=24)
+        timeout = config.getint(s, "timeout", fallback=30)
 
         # find latest commit that should have been tested by now
         threshold = now - timedelta(hours=timeout)
