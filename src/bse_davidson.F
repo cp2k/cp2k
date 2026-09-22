@@ -77,7 +77,7 @@ MODULE bse_davidson
    INTEGER, PARAMETER, PRIVATE :: driver_tda = 1, driver_mk = 2, driver_os = 3
 
    PUBLIC :: bse_davidson_tda, bse_davidson_abba_mk, bse_davidson_abba_os, &
-             bse_davidson_refcheck_tda, bse_davidson_refcheck_abba
+             bse_davidson_refcheck
 
 CONTAINS
 
@@ -2741,137 +2741,108 @@ CONTAINS
    END FUNCTION extension_deviation
 
 ! **************************************************************************************************
-!> \brief Debug check of the Davidson result against the full diagonalization of the explicit A:
-!>        energies, and per multiplet the smallest singular value of X_ref^T X
+!> \brief Debug check of a Davidson result against the full diagonalization of the explicit
+!>        matrices: energies, and per multiplet the smallest singular value of X_ref^T X for the
+!>        TDA, or of X_ref^T X - Y_ref^T Y for ABBA. ABBA diagonalizes the Hermitian reduction
+!>        C = (A-B)^1/2 (A+B) (A-B)^1/2 with C T^n = (Ω^n)^2 T^n,
+!>        (X+Y)^n = (Ω^n)^-1/2 (A-B)^1/2 T^n, (X-Y)^n = (Ω^n)^1/2 (A-B)^-1/2 T^n
 !> \param fm_A_explicit ...
 !> \param exc_ens ...
 !> \param fm_X ...
+!> \param mp2_env ...
 !> \param unit_nr ...
+!> \param fm_B_explicit present for an ABBA result, together with fm_Y
+!> \param fm_Y ...
 ! **************************************************************************************************
-   SUBROUTINE bse_davidson_refcheck_tda(fm_A_explicit, exc_ens, fm_X, unit_nr)
+   SUBROUTINE bse_davidson_refcheck(fm_A_explicit, exc_ens, fm_X, mp2_env, unit_nr, fm_B_explicit, fm_Y)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_A_explicit
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: exc_ens
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_X
-      INTEGER, INTENT(IN)                                :: unit_nr
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_davidson_refcheck_tda'
-
-      INTEGER                                            :: diag_info, handle, n_ov, n_ref, n_want
-      REAL(KIND=dp)                                      :: min_overlap
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ref_ens
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: X_dav, X_ref
-      TYPE(cp_fm_type)                                   :: fm_eigvec, fm_work
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_get_info(fm_A_explicit, nrow_global=n_ov)
-      n_want = SIZE(exc_ens)
-
-      ! the eigensolver destroys its input
-      CALL cp_fm_create(fm_work, fm_A_explicit%matrix_struct)
-      CALL cp_fm_to_fm(fm_A_explicit, fm_work)
-      CALL cp_fm_create(fm_eigvec, fm_A_explicit%matrix_struct)
-      ALLOCATE (ref_ens(n_ov))
-      CALL choose_eigv_solver(fm_work, fm_eigvec, ref_ens, diag_info)
-      IF (diag_info /= 0) CPABORT("Reference diagonalization of A failed in the BSE Davidson check")
-      CALL cp_fm_release(fm_work)
-
-      n_ref = last_required_root(ref_ens, n_want, n_ov)
-      ALLOCATE (X_ref(n_ov, n_ref), X_dav(n_ov, n_want))
-      CALL cp_fm_get_submatrix(fm_eigvec, X_ref, 1, 1, n_ov, n_ref)
-      CALL cp_fm_get_submatrix(fm_X, X_dav)
-      CALL cp_fm_release(fm_eigvec)
-
-      CALL min_multiplet_overlap(ref_ens, n_want, n_ref, X_ref, X_dav, min_overlap)
-      CALL print_refcheck(MAXVAL(ABS(exc_ens(:) - ref_ens(1:n_want))), min_overlap, unit_nr)
-
-      DEALLOCATE (ref_ens, X_ref, X_dav)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE bse_davidson_refcheck_tda
-
-! **************************************************************************************************
-!> \brief Debug check of an ABBA Davidson result against the Hermitian reduction of the explicit A
-!>        and B, C = (A-B)^1/2 (A+B) (A-B)^1/2 with C T^n = (Ω^n)^2 T^n,
-!>        (X+Y)^n = (Ω^n)^-1/2 (A-B)^1/2 T^n, (X-Y)^n = (Ω^n)^1/2 (A-B)^-1/2 T^n: energies, and per
-!>        multiplet the smallest singular value of X_ref^T X - Y_ref^T Y
-!> \param fm_A_explicit ...
-!> \param fm_B_explicit ...
-!> \param exc_ens ...
-!> \param fm_X ...
-!> \param fm_Y ...
-!> \param mp2_env ...
-!> \param unit_nr ...
-! **************************************************************************************************
-   SUBROUTINE bse_davidson_refcheck_abba(fm_A_explicit, fm_B_explicit, exc_ens, fm_X, fm_Y, mp2_env, &
-                                         unit_nr)
-
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_A_explicit, fm_B_explicit
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: exc_ens
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_X, fm_Y
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_B_explicit, fm_Y
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_davidson_refcheck_abba'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_davidson_refcheck'
 
       INTEGER                                            :: diag_info, handle, k, n_ov, n_ref, n_want
       REAL(KIND=dp)                                      :: min_overlap
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ref_ens
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: diff_ref, sum_ref, X_dav, X_ref, Y_dav, &
                                                             Y_ref
-      TYPE(cp_fm_type)                                   :: fm_C, fm_inv_sqrt_A_minus_B, &
-                                                            fm_sqrt_A_minus_B, fm_T, fm_work
+      TYPE(cp_fm_type)                                   :: fm_C, fm_eigvec, fm_inv_sqrt_A_minus_B, &
+                                                            fm_sqrt_A_minus_B, fm_work
 
       CALL timeset(routineN, handle)
 
+      CPASSERT(PRESENT(fm_B_explicit) .EQV. PRESENT(fm_Y))
       CALL cp_fm_get_info(fm_A_explicit, nrow_global=n_ov)
       n_want = SIZE(exc_ens)
-
-      CALL create_hermitian_form_of_ABBA(fm_A_explicit, fm_B_explicit, fm_C, fm_sqrt_A_minus_B, &
-                                         fm_inv_sqrt_A_minus_B, unit_nr, mp2_env, 0.0_dp)
-      CALL cp_fm_create(fm_T, fm_C%matrix_struct)
       ALLOCATE (ref_ens(n_ov))
-      CALL choose_eigv_solver(fm_C, fm_T, ref_ens, diag_info)
-      IF (diag_info /= 0) CPABORT("Reference diagonalization of C failed in the BSE Davidson check")
-      IF (ref_ens(1) <= 0.0_dp) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "Reference matrix C has a non-positive eigenvalue in the BSE Davidson check")
+
+      IF (PRESENT(fm_B_explicit)) THEN
+         CALL create_hermitian_form_of_ABBA(fm_A_explicit, fm_B_explicit, fm_C, fm_sqrt_A_minus_B, &
+                                            fm_inv_sqrt_A_minus_B, unit_nr, mp2_env, 0.0_dp)
+         CALL cp_fm_create(fm_eigvec, fm_C%matrix_struct)
+         CALL choose_eigv_solver(fm_C, fm_eigvec, ref_ens, diag_info)
+         IF (diag_info /= 0) CPABORT("Reference diagonalization of C failed in the BSE Davidson check")
+         IF (ref_ens(1) <= 0.0_dp) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Reference matrix C has a non-positive eigenvalue in the BSE Davidson check")
+         END IF
+         ref_ens(:) = SQRT(ref_ens(:))
+
+         n_ref = last_required_root(ref_ens, n_want, n_ov)
+         ALLOCATE (sum_ref(n_ov, n_ref), diff_ref(n_ov, n_ref))
+         CALL cp_fm_create(fm_work, fm_C%matrix_struct)
+         CALL parallel_gemm("N", "N", n_ov, n_ref, n_ov, 1.0_dp, fm_sqrt_A_minus_B, fm_eigvec, 0.0_dp, &
+                            fm_work)
+         CALL cp_fm_get_submatrix(fm_work, sum_ref, 1, 1, n_ov, n_ref)
+         CALL parallel_gemm("N", "N", n_ov, n_ref, n_ov, 1.0_dp, fm_inv_sqrt_A_minus_B, fm_eigvec, &
+                            0.0_dp, fm_work)
+         CALL cp_fm_get_submatrix(fm_work, diff_ref, 1, 1, n_ov, n_ref)
+         CALL cp_fm_release(fm_work)
+         CALL cp_fm_release(fm_C)
+         CALL cp_fm_release(fm_sqrt_A_minus_B)
+         CALL cp_fm_release(fm_inv_sqrt_A_minus_B)
+
+         ALLOCATE (X_ref(n_ov, n_ref), Y_ref(n_ov, n_ref), Y_dav(n_ov, n_want))
+         DO k = 1, n_ref
+            sum_ref(:, k) = sum_ref(:, k)/SQRT(ref_ens(k))
+            diff_ref(:, k) = diff_ref(:, k)*SQRT(ref_ens(k))
+         END DO
+         X_ref(:, :) = 0.5_dp*(sum_ref(:, :) + diff_ref(:, :))
+         Y_ref(:, :) = 0.5_dp*(sum_ref(:, :) - diff_ref(:, :))
+         DEALLOCATE (sum_ref, diff_ref)
+         CALL cp_fm_get_submatrix(fm_Y, Y_dav)
+      ELSE
+         ! the eigensolver destroys its input
+         CALL cp_fm_create(fm_work, fm_A_explicit%matrix_struct)
+         CALL cp_fm_to_fm(fm_A_explicit, fm_work)
+         CALL cp_fm_create(fm_eigvec, fm_A_explicit%matrix_struct)
+         CALL choose_eigv_solver(fm_work, fm_eigvec, ref_ens, diag_info)
+         IF (diag_info /= 0) CPABORT("Reference diagonalization of A failed in the BSE Davidson check")
+         CALL cp_fm_release(fm_work)
+
+         n_ref = last_required_root(ref_ens, n_want, n_ov)
+         ALLOCATE (X_ref(n_ov, n_ref))
+         CALL cp_fm_get_submatrix(fm_eigvec, X_ref, 1, 1, n_ov, n_ref)
       END IF
-      ref_ens(:) = SQRT(ref_ens(:))
+      CALL cp_fm_release(fm_eigvec)
 
-      n_ref = last_required_root(ref_ens, n_want, n_ov)
-      ALLOCATE (sum_ref(n_ov, n_ref), diff_ref(n_ov, n_ref))
-      CALL cp_fm_create(fm_work, fm_C%matrix_struct)
-      CALL parallel_gemm("N", "N", n_ov, n_ref, n_ov, 1.0_dp, fm_sqrt_A_minus_B, fm_T, 0.0_dp, fm_work)
-      CALL cp_fm_get_submatrix(fm_work, sum_ref, 1, 1, n_ov, n_ref)
-      CALL parallel_gemm("N", "N", n_ov, n_ref, n_ov, 1.0_dp, fm_inv_sqrt_A_minus_B, fm_T, 0.0_dp, fm_work)
-      CALL cp_fm_get_submatrix(fm_work, diff_ref, 1, 1, n_ov, n_ref)
-      CALL cp_fm_release(fm_work)
-      CALL cp_fm_release(fm_T)
-      CALL cp_fm_release(fm_C)
-      CALL cp_fm_release(fm_sqrt_A_minus_B)
-      CALL cp_fm_release(fm_inv_sqrt_A_minus_B)
-
-      ALLOCATE (X_ref(n_ov, n_ref), Y_ref(n_ov, n_ref), X_dav(n_ov, n_want), Y_dav(n_ov, n_want))
-      DO k = 1, n_ref
-         sum_ref(:, k) = sum_ref(:, k)/SQRT(ref_ens(k))
-         diff_ref(:, k) = diff_ref(:, k)*SQRT(ref_ens(k))
-      END DO
-      X_ref(:, :) = 0.5_dp*(sum_ref(:, :) + diff_ref(:, :))
-      Y_ref(:, :) = 0.5_dp*(sum_ref(:, :) - diff_ref(:, :))
+      ALLOCATE (X_dav(n_ov, n_want))
       CALL cp_fm_get_submatrix(fm_X, X_dav)
-      CALL cp_fm_get_submatrix(fm_Y, Y_dav)
 
+      ! Y_ref and Y_dav stay unallocated for the TDA and then count as absent (Fortran 2008)
       CALL min_multiplet_overlap(ref_ens, n_want, n_ref, X_ref, X_dav, min_overlap, Y_ref, Y_dav)
       CALL print_refcheck(MAXVAL(ABS(exc_ens(:) - ref_ens(1:n_want))), min_overlap, unit_nr)
 
-      DEALLOCATE (ref_ens, sum_ref, diff_ref, X_ref, Y_ref, X_dav, Y_dav)
+      DEALLOCATE (ref_ens, X_ref, X_dav)
+      IF (ALLOCATED(Y_ref)) DEALLOCATE (Y_ref, Y_dav)
 
       CALL timestop(handle)
 
-   END SUBROUTINE bse_davidson_refcheck_abba
+   END SUBROUTINE bse_davidson_refcheck
 
 ! **************************************************************************************************
 !> \brief Smallest singular value over the multiplets of O_kl = sum_ia (X_ref,ia^k X_ia^l - Y_ref,ia^k Y_ia^l),

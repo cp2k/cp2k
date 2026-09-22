@@ -16,8 +16,7 @@ MODULE bse_iterative
    USE bse_davidson,                    ONLY: abba_indefinite,&
                                               bse_davidson_abba_mk,&
                                               bse_davidson_abba_os,&
-                                              bse_davidson_refcheck_abba,&
-                                              bse_davidson_refcheck_tda,&
+                                              bse_davidson_refcheck,&
                                               bse_davidson_tda
    USE bse_full_diag,                   ONLY: create_A,&
                                               create_B,&
@@ -168,7 +167,7 @@ CONTAINS
 
       IF (do_tda) THEN
          CALL bse_davidson_tda(mv_env, mp2_env, unit_nr, exc_ens, fm_X)
-         IF (do_debug) CALL bse_davidson_refcheck_tda(fm_A_BSE, exc_ens, fm_X, unit_nr)
+         IF (do_debug) CALL bse_davidson_refcheck(fm_A_BSE, exc_ens, fm_X, mp2_env, unit_nr)
 
          CALL copy_to_ia_context(fm_X, fm_mat_S_ia_trunc_arr(1), fm_X_ia)
          CALL postprocess_bse(exc_ens, fm_X_ia, mp2_env, qs_env, mo_coeff, &
@@ -216,8 +215,8 @@ CONTAINS
             END IF
          ELSE
             IF (do_debug) THEN
-               CALL bse_davidson_refcheck_abba(fm_A_BSE, fm_B_BSE, exc_ens_abba, fm_X_abba, fm_Y_abba, &
-                                               mp2_env, unit_nr)
+               CALL bse_davidson_refcheck(fm_A_BSE, exc_ens_abba, fm_X_abba, mp2_env, unit_nr, &
+                                          fm_B_BSE, fm_Y_abba)
             END IF
 
             CALL copy_to_ia_context(fm_X_abba, fm_mat_S_ia_trunc_arr(1), fm_X_ia)
