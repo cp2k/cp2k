@@ -1658,7 +1658,8 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NUM_EXC_EN", &
-                          description="Number of lowest excitation energies computed and printed.", &
+                          description="Number of lowest excitation energies computed and printed. "// &
+                          "The absorption spectrum of BSE_SPECTRUM sums over these states only.", &
                           usage="NUM_EXC_EN 10", &
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)
