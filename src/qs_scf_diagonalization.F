@@ -1387,12 +1387,11 @@ CONTAINS
 !> \param matrix_s_kp real-space overlap matrix, dbcsr image set
 !> \param sab_nl ...
 !> \param fmwork global scratch fms of the driver
-!> \return ...
-!> \retval kp_diag_exit_chain TRUE when the virtual-space buffer is too
-!>         small for the smearing tail: the outer loop grows the MOS and
-!>         redoes this SCF step
+!> \param grow TRUE when the virtual-space buffer is too small for the
+!>        smearing tail: the outer loop grows the MOS and redoes this
+!>        SCF step
 ! **************************************************************************************************
-   LOGICAL FUNCTION kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s_kp, sab_nl, fmwork)
+   SUBROUTINE kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s_kp, sab_nl, fmwork, grow)
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
@@ -1400,22 +1399,16 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      LOGICAL, INTENT(OUT)                               :: grow
 
-      LOGICAL                                            :: grow
-
-      grow = .FALSE.
       CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
                                     added_mos_auto=scf_control%added_mos_auto, &
                                     added_mos_auto_grow=grow)
-      IF (grow) THEN
-         kp_diag_exit_chain = .TRUE.
-         RETURN
-      END IF
+      IF (grow) RETURN
       CALL kpoint_density_matrices(kpoints)
       CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
                                     matrix_s_kp(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s_kp)
-      kp_diag_exit_chain = .FALSE.
-   END FUNCTION kp_diag_exit_chain
+   END SUBROUTINE kp_diag_exit_chain
 
 ! **************************************************************************************************
 !> \brief Per-column convergence thresholds of an iterative k-point
@@ -2271,7 +2264,7 @@ CONTAINS
       END DO
 
       fmwork => scf_env%scf_work1
-      added_mos_auto_grow = kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s, sab_nl, fmwork)
+      CALL kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s, sab_nl, fmwork, added_mos_auto_grow)
       IF (added_mos_auto_grow) RETURN
       IF (scf_env%mixing_method == 0) THEN
          scf_env%iter_method = 'NoMix/OTdiag.'
@@ -2923,7 +2916,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_prec, use_real_wfn
+      LOGICAL                                            :: do_prec, my_grow, use_real_wfn
       REAL(KIND=dp)                                      :: eps_iter, eps_iter_empty
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_cfm_type)                                  :: cksmat, csmat, csmat_base
@@ -3098,8 +3091,8 @@ CONTAINS
 
       ! occupations and density: the shared exit chain, same as every
       ! other k-point diagonalization driver
-      IF (kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s_kp, sab_nl, fmwork) .AND. &
-          PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
+      CALL kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s_kp, sab_nl, fmwork, my_grow)
+      IF (my_grow .AND. PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
 
       CALL cp_cfm_release(cksmat)
       CALL cp_cfm_release(csmat)
@@ -3153,8 +3146,9 @@ CONTAINS
                                                             output_unit
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
-      LOGICAL                                            :: my_check_moconv_only, prepared_ops, &
-                                                            use_local_kpoints, use_real_wfn
+      LOGICAL                                            :: my_check_moconv_only, my_grow, &
+                                                            prepared_ops, use_local_kpoints, &
+                                                            use_real_wfn
       REAL(KIND=dp)                                      :: eps_iter, eps_iter_empty
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
@@ -3229,9 +3223,9 @@ CONTAINS
       ! prepared snapshot and refine their k points without a single
       ! collective transfer round, like the local phase of the general
       ! k-point diagonalization. The refinement runs serially over the
-      ! channels of both layouts. The kernel takes a preallocated
-      ! workspace, so an OpenMP port needs no allocation inside a
-      ! parallel region. Its remaining blockers are the distributed
+      ! channels of both layouts. The kernel keeps its heavy scratch in
+      ! a preallocated workspace. An OpenMP port still needs to address
+      ! the per-block allocation of the solver pair, the distributed
       ! GEMMs, the solver dispatch and the collective column norms. A
       ! diag check, a convergence-only probe and an explicitly selected
       ! diagonalization library also keep the rounds. The serial LAPACK
@@ -3327,8 +3321,8 @@ CONTAINS
       ! diagonalization, which supplies MOS and density, and the
       ! statistics above are printed for information only
       IF (.NOT. my_check_moconv_only) THEN
-         IF (kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s_kp, sab_nl, fmwork) .AND. &
-             PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
+         CALL kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s_kp, sab_nl, fmwork, my_grow)
+         IF (my_grow .AND. PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
       END IF
 
       CALL kp_diag_workspaces_release(workspace)
