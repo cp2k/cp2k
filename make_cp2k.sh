@@ -150,7 +150,6 @@ GPU_MODEL="none"
 GROMACS_VERSION=""
 HELP="no"
 INSTALL_MESSAGE="NEVER"
-LIBXC_CUDA="auto"
 MPI_MODE="mpich"
 if command -v nproc &> /dev/null; then
   MAX_PROCS=$(nproc)
@@ -432,7 +431,7 @@ while [[ $# -gt 0 ]]; do
           cray_pm_accel_energy | spla_gemm_offloading | unified_memory)
             CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_USE_${2^^}=${ON_OFF}"
             ;;
-          dbm_gpu | elpa_gpu | grid_gpu | pw_gpu)
+          dbm_gpu | elpa_gpu | grid_gpu | libxc_gpu | pw_gpu)
             CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_ENABLE_${2^^}=${ON_OFF}"
             ;;
           none)
@@ -556,29 +555,6 @@ while [[ $# -gt 0 ]]; do
     -j[0-9]*)
       NUM_PROCS="${1#-j}"
       shift 1
-      ;;
-    -lc | --libxc_cuda)
-      if (($# > 1)); then
-        case "${2,,}" in
-          on | yes | true)
-            LIBXC_CUDA="on"
-            ;;
-          off | no | false)
-            LIBXC_CUDA="off"
-            ;;
-          auto)
-            LIBXC_CUDA="auto"
-            ;;
-          *)
-            echo "ERROR: Invalid argument \"${2}\" for flag \"${1}\" (choose on, off, or auto)"
-            ${EXIT_CMD} 1
-            ;;
-        esac
-      else
-        echo "ERROR: No argument found for flag \"${1}\" (choose on, off, or auto)"
-        ${EXIT_CMD} 1
-      fi
-      shift 2
       ;;
     -mpi | --mpi_mode)
       if (($# > 1)); then
@@ -823,7 +799,7 @@ fi
 
 export ASE_VERSION BENCHMARK_PROFILE BUILD_DEPS BUILD_DEPS_ONLY BUILD_SHARED_LIBS CHECK_CONVENTIONS CMAKE_FEATURE_FLAGS \
   CMAKE_FEATURE_FLAGS_GPU CP2K_BUILD_TYPE CP2K_REVISION CRAY CUDA_SM_CODE DEPS_BUILD_TYPE Fortran_COMPILER_LAUNCHER \
-  GCC_VERSION GPU_MODEL GROMACS_VERSION IN_CONTAINER INSTALL_MESSAGE LIBXC_CUDA MPI_MODE NUM_PACKAGES NUM_PROCS \
+  GCC_VERSION GPU_MODEL GROMACS_VERSION IN_CONTAINER INSTALL_MESSAGE MPI_MODE NUM_PACKAGES NUM_PROCS \
   REBUILD_CP2K RUN_BENCHMARK RUN_TEST TEST_COVERAGE TEST_ASE TEST_GROMACS TESTOPTS USE_CACHE USE_OPENCL VERBOSE \
   VERBOSE_FLAG VERBOSE_MAKEFILE VERBOSE_SPACK
 
@@ -847,7 +823,6 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "                    [-h | --help]"
   echo "                    [-ip | --install_path PATH]"
   echo "                    [-j #PROCESSES]"
-  echo "                    [-lc | --libxc_cuda (on | off | auto)]"
   echo "                    [-mpi | --mpi_mode (mpich | no | openmpi)]"
   echo "                    [-np | --num_packages #PACKAGES]"
   echo "                    [-opencl]"
@@ -878,7 +853,6 @@ if [[ "${HELP}" == "yes" ]]; then
   echo " --help                : Print this help information"
   echo " --gcc_version         : Use the specified GCC version (default: automatically decided by spack)"
   echo " --gpu_model           : Select GPU model (default: none)"
-  echo " --libxc_cuda          : Build libxc with CUDA support (default: auto - CUDA builds use a CUDA-enabled libxc, all other builds a CPU-only libxc)"
   echo " --install_path        : Define the CP2K installation path (default: ./install)"
   echo " -j                    : Maximum number of processes used in parallel"
   echo " --mpi_mode            : Set preferred MPI mode (default: \"mpich\")"
@@ -910,7 +884,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "          libgint | libint | libsmeagol | libtorch | libvdwxc | libxs | mimic | openpmd | pexsi | plumed |"
   echo "          sirius | spfft | spglib | spla | tblite | trexio | vori "
   echo ""
-  echo "Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | pw_gpu |"
+  echo "Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | libxc_gpu | pw_gpu |"
   echo "          spla_gemm_offloading | unified_memory"
   echo ""
   ${EXIT_CMD}
@@ -943,7 +917,6 @@ fi
 echo "INSTALL_PREFIX      = ${INSTALL_PREFIX}"
 echo "INSTALL_MESSAGE     = ${INSTALL_MESSAGE}"
 echo "IN_CONTAINER        = ${IN_CONTAINER}"
-echo "LIBXC_CUDA          = ${LIBXC_CUDA}"
 echo "MPI_MODE            = ${MPI_MODE}"
 echo "NUM_PACKAGES        = ${NUM_PACKAGES} (packages are built by spack concurrently)"
 echo "NUM_PROCS           = ${NUM_PROCS} (processes)"
@@ -1147,36 +1120,6 @@ else
 fi
 export CMAKE_CUDA_FLAGS
 
-# Resolve the libxc CUDA variant: "auto" follows the accel backend, "on"/"off"
-# force a CUDA-enabled or a CPU-only libxc, respectively.
-case "${LIBXC_CUDA}" in
-  auto)
-    if ((CUDA_SM_CODE > 0)); then
-      LIBXC_CUDA="on"
-    else
-      LIBXC_CUDA="off"
-    fi
-    ;;
-  on | off) ;;
-  *)
-    echo "ERROR: Invalid libxc CUDA variant \"${LIBXC_CUDA}\" specified"
-    ${EXIT_CMD} 1
-    ;;
-esac
-export LIBXC_CUDA
-if [[ "${LIBXC_CUDA}" == "on" ]] && ((CUDA_SM_CODE == 0)); then
-  echo -e "\nERROR: A CUDA-enabled libxc (LIBXC_CUDA=on) requires a CUDA build (specify --gpu_model)\n"
-  ${EXIT_CMD} 1
-fi
-if [[ "${LIBXC_CUDA}" == "on" ]]; then
-  # Signal to CMake that a CUDA-enabled libxc is used as both the CUDA and the
-  # CPU backend. This gates the __LIBXC_GPU compile definition.
-  CMAKE_CUDA_FLAGS+=" -DCP2K_LIBXC_CUDA_SUPPORT=ON"
-else
-  CMAKE_CUDA_FLAGS+=" -DCP2K_LIBXC_CUDA_SUPPORT=OFF"
-fi
-export CMAKE_CUDA_FLAGS
-
 # Retrieve and print available resources
 free -h
 echo ""
@@ -1377,10 +1320,12 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
       -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_SM_CODE}/" \
       -e 's/"~cuda\s+~gpu_direct"/"\+cuda ~gpu_direct"/' \
       -e '/\s*#\s*-\s+"fabrics=efa,ucx"/ s/#/ /' \
+      -e "/^[[:space:]]+libxc:/{n; n; s/- \"~cuda\"/- \"+cuda cuda_arch=${CUDA_SM_CODE}\"/}" \
       -i "${CP2K_CONFIG_FILE}"
     # Building libfabric with CUDA causes problems
     # sed -E -e 's/"~cuda\s+~gdrcopy"/"\+cuda \+gdrcopy"/' -i "${CP2K_CONFIG_FILE}"
     sed -E -e 's/"~cuda\s+~gdrcopy"/"\~cuda"/' -i "${CP2K_CONFIG_FILE}"
+    echo -e "\nLibxc will be built with CUDA support (cuda_arch=${CUDA_SM_CODE})"
     if [[ -n "${CUDA_VERSION:-}" ]]; then
       # Set CUDA SM code
       sed -E -e "s/spec:\s+cuda@[.0-9]*/spec: cuda@${CUDA_VERSION}/" -i "${CP2K_CONFIG_FILE}"
@@ -1397,29 +1342,6 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
     export CMAKE_FEATURE_FLAGS="${CMAKE_FEATURE_FLAGS} -DCP2K_USE_LIBGINT=OFF"
     echo -e "\nLibGint requires CUDA support which is not enabled"
     echo -e "The CMAKE_FEATURE_FLAGS have been updated to disable LibGint\n"
-  fi
-
-  # Select the libxc variant: a CUDA-enabled libxc is requested with LIBXC_CUDA=on
-  if [[ "${LIBXC_CUDA}" == "on" ]]; then
-    if ((CUDA_SM_CODE > 0)); then
-      # Flip only libxc's "~cuda" require to a CUDA-enabled variant, while other
-      # packages keep their non-CUDA requirements (e.g. libfabric, py-torch).
-      sed -E \
-        -e "/^[[:space:]]+libxc:/{n; n; s/- \"~cuda\"/- \"+cuda cuda_arch=${CUDA_SM_CODE}\"/}" \
-        -i "${CP2K_CONFIG_FILE}"
-      echo -e "\nLibxc will be built with CUDA support (cuda_arch=${CUDA_SM_CODE})"
-    else
-      echo -e "\nERROR: A CUDA-enabled libxc (LIBXC_CUDA=on) requires a CUDA build\n"
-      ${EXIT_CMD} 1
-    fi
-  else
-    # Ensure a CPU-only libxc is built: revert any "~cuda" require of libxc back
-    # to the CPU-only variant. This also covers a CP2K build after a previous
-    # CUDA build of the dependencies.
-    sed -E \
-      -e "/^[[:space:]]+libxc:/{n; n; s/- \"\+cuda[^\"]*\"/- \"~cuda\"/}" \
-      -i "${CP2K_CONFIG_FILE}"
-    echo -e "\nLibxc will be built without CUDA support (CPU-only)"
   fi
 
   # Activate OpenCL support if requested
