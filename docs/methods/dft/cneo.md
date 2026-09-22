@@ -17,15 +17,13 @@ framework. The energy functional depends on both the electronic density
 $\rho^{\text{e}}(\mathbf{r})$ and nuclear densities $\rho^{\text{n}}_I(\mathbf{r})$:
 
 $$
-\begin{multline}
 E[ \rho^{\text{e}}, \{ \rho^{\text{n}}_I \} ] = T_{\text{s}}^{\text{e}} [ \rho^{\text{e}} ] + \sum_I T_{\text{s}}^{\text{n}, I} [ \rho^{\text{n}}_I ] + \int \text{d} \mathbf{r} V_{\text{ext}} (\mathbf{r}) \left[ \rho^{\text{e}} (\mathbf{r}) - \sum_I Z_I \rho^{\text{n}}_I (\mathbf{r}) \right] \\ + E_{\text{H}} [ \rho^{\text{e}}, \{ \rho^{\text{n}}_I \} ] + E_{\text{xc}}^{\text{e}} [ \rho^{\text{e}} ] + E_{\text{c}} [ \rho^{\text{e}}, \{ \rho^{\text{n}}_I \} ]
-\end{multline}
 $$
 
 The position constraint for each quantum nucleus $I$ is:
 
 $$
-\langle \mathbf{r} \rangle_I = \int \mathbf{r} \rho^{\text{n}}_I (\mathbf{r}) \text{d} \mathbf{r} = \mathbf{R}_I
+{\langle \mathbf{r} \rangle}_I = \int \mathbf{r} \rho^{\text{n}}_I (\mathbf{r}) \text{d} \mathbf{r} = \mathbf{R}_I
 $$
 
 where $\mathbf{R}_I$ is the position expectation value corresponding to classical molecular/crystal

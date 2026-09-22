@@ -33,6 +33,7 @@ myst_enable_extensions = [
     "strikethrough",
 ]
 
+myst_dmath_double_inline = True
 myst_fence_as_directive = ["mermaid"]
 
 templates_path = ["_templates"]

@@ -95,7 +95,17 @@ ______________________________________________________________________
 # Syntax Cheat Sheet
 
 The CP2K manual uses Sphinx with the [MyST parser](https://myst-parser.readthedocs.io) for Markdown
-support. The following gives a quick overview of the syntax:
+support. The following gives a quick overview of the syntax.
+
+> [!CAUTION]
+>
+> The GitHub Markdown Preview does not currently have complete support for the MyST syntax used in
+> the manual. Known differences include:
+>
+> - The empty `[]` for the displayed text of links will be resolved in the manual as the title of
+>   the target heading but will _not_ be displayable on GitHub.
+> - The `\\` in math entities will be rendered as a linebreak in the manual, but only as a single
+>   literal backslash (escaped once) on GitHub.
 
 ## Headings
 
@@ -139,7 +149,7 @@ For a all typography options see the
 - Subsection in another page: `[](../optical/tddft.md#periodic-systems)`
   - ⚠️ Also use the relative path, but the `.md` suffix must be present before the `#` sign, and
     only the first three levels of headings have these anchors auto-generated on the final page
-    ready for use; see [](#cross-references) below for an alternative
+    ready for use; see [Cross References](#cross-references) below for an alternative
 - Input section: `[FORCE_EVAL](#CP2K_INPUT.FORCE_EVAL)`
   - This will also generate a "mentions" backlink in the input reference for the section
 - Input keyword: `[STRESS_TENSOR](#CP2K_INPUT.FORCE_EVAL.STRESS_TENSOR)`
@@ -210,19 +220,30 @@ For more table formatting options, see the
 
 ## Math
 
+[Math shortcuts](https://myst-parser.readthedocs.io/en/latest/syntax/optional.html#math-shortcuts)
+in the MyST parser are enabled with the `dollarmath` extension, and will be rendered with MathJax as
+entities on which a right click launches a contextual menu. For MathJax support of TeX syntax, see
+[MathJax documentation](https://docs.mathjax.org/en/latest/input/tex/index.html).
+
+The `dollarmath` extension parses the usual dollar-delimited math for inline and display (block)
+usage; a literal dollar sign needs escaping as `\$`.
+
 ```
 Inline math: $A_{ia,jb}$.
 
 Math block:
-$$ \begin{align}
-    A_{ia,jb} &= (\varepsilon_a^{GW}-\varepsilon_i^{GW})\delta_{ij}\delta_{ab}
-    B_{ia,jb} &= 2 v_{ia,bj} - W_{ib,aj} \quad .
-\end{align} $$
+$$
+  A_{ia,jb} &= (\varepsilon_a^{GW}-\varepsilon_i^{GW})\delta_{ij}\delta_{ab}, \\
+  B_{ia,jb} &= 2 v_{ia,bj} - W_{ib,aj} \quad .
+$$
 ```
 
-See also the
-[MyST](https://myst-parser.readthedocs.io/en/latest/syntax/optional.html#math-shortcuts) and
-[MathJax](https://docs.mathjax.org/en/latest/input/tex/index.html) documentation.
+> [!NOTE]
+>
+> The math block contains `&` for tab aligning and `\\` for linebreaking. The latter will result in
+> an `\begin{split}...\end{split}` environment automatically added to the TeX source for MathJax
+> rendering. Thus, a math block with double-dollar delimiters may conflict with other environments
+> and fail to render with an error message as `Erroneous nesting of equation structures`.
 
 ## Notes and Warnings
 
