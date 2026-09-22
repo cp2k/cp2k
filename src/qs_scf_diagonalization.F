@@ -3454,7 +3454,10 @@ CONTAINS
             WRITE (output_unit, '(T8,I3,T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)') &
                ispin, iter, nmo_conv, max_res, min_res, t2 - t1
          END IF
-         IF (max_res < eps_iter) THEN
+         ! exit on the per-column thresholds: the empty columns converge
+         ! at the relaxed level under EPS_ADAPT, so the largest residual
+         ! alone cannot decide
+         IF (nmo_nc == 0) THEN
             converged = .TRUE.
             EXIT
          END IF

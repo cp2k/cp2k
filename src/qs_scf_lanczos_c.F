@@ -200,10 +200,18 @@ CONTAINS
          ! refinement leaves an orthonormal, deflated block behind. But
          ! columns beyond the pass's nres (rank-deficient seeds) keep
          ! their entry vectors and mix with the written block. The Gram
-         ! of such a set can be numerically indefinite, and the Cholesky
-         ! factorization can fail. The kernel then falls back to a
-         ! spectral reorthonormalization (clamp the Gram spectrum at a
-         ! floor and apply the inverse square root) instead of aborting
+         ! of such a full-rank set can be numerically indefinite, and
+         ! the Cholesky factorization can fail. The kernel then falls
+         ! back to a spectral reorthonormalization (clamp the Gram
+         ! spectrum at a floor and apply the inverse square root)
+         ! instead of aborting. The pass cannot repair a genuinely
+         ! rank-deficient set: a right transformation preserves the
+         ! rank, and the clamped inverse leaves a missing direction
+         ! near zero norm instead of creating it. The construction
+         ! avoids that case: the entry MOS are orthonormal, the written
+         ! block is orthonormal and deflated against the leading
+         ! prefix, and mixing the two groups loses no direction. The
+         ! next sweep also re-purifies the columns from fresh seeds
          CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, c0, c0, z_zero, ws%mo_gram)
          CALL cp_cfm_cholesky_decompose(ws%mo_gram, nmo, info)
          IF (info == 0) THEN
