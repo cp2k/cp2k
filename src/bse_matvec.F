@@ -50,6 +50,9 @@ MODULE bse_matvec
 !> \param Bbar_ia \bar{B}^P_ia at (a, i, P), only for do_abba
 !> \param Bbar_ij \bar{B}^P_ij at (j, i, P)
 !> \param B_ab B^P_ab at (b, a, P)
+!> \param row_count rows of a trial vector owned by each rank, in rank order
+!> \param row_displ first row of each rank minus one, so that row_count and row_displ describe
+!>        the contiguous ia range per rank that allgatherv and sum_scatter need
 !> \param blacs_env npe x 1 process grid of the slabs and of all trial vectors
 !> \param block_cols trial vectors per pass in bse_matvec_apply, -1 to size it from free memory
 !> \param mem_fraction share of the free memory per rank the iterative solver may use, for the
@@ -61,6 +64,7 @@ MODULE bse_matvec
       REAL(KIND=dp)                                      :: alpha = 0.0_dp, w_fac = 0.0_dp, &
                                                             mem_fraction = 0.5_dp
       LOGICAL                                            :: do_abba = .FALSE.
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: row_count, row_displ
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_diff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_ia, Bbar_ia, Bbar_ij, B_ab
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env => NULL()
@@ -101,7 +105,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_matvec_create'
 
       CHARACTER(LEN=12)                                  :: n_idle_str, n_ri_str, npe_str
-      INTEGER                                            :: a, handle, i, n_ri
+      INTEGER                                            :: a, handle, i, n_ri, n_row_block
       REAL(KIND=dp)                                      :: mem_slabs_GB
 
       CALL timeset(routineN, handle)
@@ -117,6 +121,15 @@ CONTAINS
 
       CALL cp_blacs_env_create(mv_env%blacs_env, mv_env%para_env, &
                                grid_2d=[mv_env%para_env%num_pe, 1])
+
+      ! one contiguous ia range per rank, so that a trial vector is gathered with allgatherv and
+      ! its image scattered back with sum_scatter, rather than replicated by two allreduces
+      n_row_block = contiguous_row_block(mv_env%n_ov, mv_env%para_env%num_pe)
+      ALLOCATE (mv_env%row_count(mv_env%para_env%num_pe), mv_env%row_displ(mv_env%para_env%num_pe))
+      DO i = 1, mv_env%para_env%num_pe
+         mv_env%row_displ(i) = MIN(mv_env%n_ov, (i - 1)*n_row_block)
+         mv_env%row_count(i) = MIN(mv_env%n_ov, i*n_row_block) - mv_env%row_displ(i)
+      END DO
 
       ALLOCATE (mv_env%eps_diff(mv_env%n_ov))
       DO i = 1, homo
@@ -160,6 +173,21 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE bse_matvec_create
+
+! **************************************************************************************************
+!> \brief Rows of a trial vector per rank, the smallest block that leaves no rank beyond the last
+!> \param n_ov ...
+!> \param npe ...
+!> \return ...
+! **************************************************************************************************
+   PURE FUNCTION contiguous_row_block(n_ov, npe) RESULT(n_row_block)
+
+      INTEGER, INTENT(IN)                                :: n_ov, npe
+      INTEGER                                            :: n_row_block
+
+      n_row_block = (n_ov + npe - 1)/npe
+
+   END FUNCTION contiguous_row_block
 
 ! **************************************************************************************************
 !> \brief Redistributes one N_RI x d1*d2 slab to whole RI rows per rank and copies the owned
@@ -218,6 +246,8 @@ CONTAINS
 
       TYPE(bse_matvec_env_type), INTENT(INOUT)           :: mv_env
 
+      IF (ALLOCATED(mv_env%row_count)) DEALLOCATE (mv_env%row_count)
+      IF (ALLOCATED(mv_env%row_displ)) DEALLOCATE (mv_env%row_displ)
       IF (ALLOCATED(mv_env%eps_diff)) DEALLOCATE (mv_env%eps_diff)
       IF (ALLOCATED(mv_env%B_ia)) DEALLOCATE (mv_env%B_ia)
       IF (ALLOCATED(mv_env%Bbar_ia)) DEALLOCATE (mv_env%Bbar_ia)
@@ -241,8 +271,11 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
 
       NULLIFY (fm_struct)
+      ! the row block matches mv_env%row_count, which bse_matvec_apply's collectives rely on
       CALL cp_fm_struct_create(fm_struct, para_env=mv_env%para_env, context=mv_env%blacs_env, &
-                               nrow_global=mv_env%n_ov, ncol_global=ncol_global)
+                               nrow_global=mv_env%n_ov, ncol_global=ncol_global, &
+                               nrow_block=contiguous_row_block(mv_env%n_ov, mv_env%para_env%num_pe), &
+                               force_block=.TRUE.)
 
    END SUBROUTINE bse_matvec_vector_struct
 
@@ -274,11 +307,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_matvec_apply'
 
       INTEGER                                            :: col, col_shift_B, handle, handle2, homo, &
-                                                            ia, iloc, k, n_arrays, n_ov, n_ri_loc, &
-                                                            nb, nb_max, nrow_local, p, virt
+                                                            ia, iloc, k, me, n_arrays, n_ov, &
+                                                            n_ri_loc, nb, nb_max, nrow_local, p, &
+                                                            virt
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       LOGICAL                                            :: do_B
       REAL(KIND=dp)                                      :: mem_avail_GB
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: R_loc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: RA_buf, RB_buf, tmp_buf, Z_buf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: T_Pk, tmp_ab
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
@@ -300,6 +335,12 @@ CONTAINS
       IF (PRESENT(first_col_BZ)) col_shift_B = first_col_BZ - first_col
 
       CALL cp_fm_get_info(fm_Z, nrow_local=nrow_local, row_indices=row_indices)
+      ! the collectives below read the rows of one rank as one range, as bse_matvec_vector_struct
+      ! lays them out; a vector built elsewhere would scatter into the wrong rows
+      me = mv_env%para_env%mepos + 1
+      CPASSERT(nrow_local == mv_env%row_count(me))
+      CPASSERT(nrow_local == 0 .OR. row_indices(1) == mv_env%row_displ(me) + 1)
+      ALLOCATE (R_loc(nrow_local))
 
       ! columns per pass from the memory of the replicated work arrays Z, tmp, R^A (and R^B)
       n_arrays = 3
@@ -338,15 +379,12 @@ CONTAINS
             RB_3d(1:virt, 1:homo, 1:nb) => RB_buf(1:n_ov*nb)
          END IF
 
-         ! Z_ia,k on every rank
+         ! Z_ia,k on every rank: every rank owns a contiguous ia range, so the column arrives sorted
          CALL timeset(routineN//"_gather", handle2)
-         Z(:, :) = 0.0_dp
          DO k = 1, nb
-            DO iloc = 1, nrow_local
-               Z(row_indices(iloc), k) = fm_Z%local_data(iloc, col + k - 1)
-            END DO
+            CALL mv_env%para_env%allgatherv(fm_Z%local_data(1:nrow_local, col + k - 1), Z(:, k), &
+                                            mv_env%row_count, mv_env%row_displ)
          END DO
-         CALL mv_env%para_env%sum(Z)
          CALL timestop(handle2)
 
          ! exchange, identical in A Z and B Z: R_ia,k = α sum_P B^P_ia t_Pk, t_Pk = sum_jb B^P_jb Z_jb,k
@@ -384,16 +422,19 @@ CONTAINS
          END IF
          CALL timestop(handle2)
 
+         ! the sum over the ranks lands on the owner of each row, never replicated
          CALL timeset(routineN//"_reduce", handle2)
-         CALL mv_env%para_env%sum(RA)
-         IF (do_B) CALL mv_env%para_env%sum(RB)
          ! (A Z)_ia,k = (ε_a-ε_i) Z_ia,k + R^A_ia,k and (B Z)_ia,k = R^B_ia,k on the local rows
          DO k = 1, nb
+            CALL mv_env%para_env%sum_scatter(RA(:, k:k), R_loc, mv_env%row_count)
             DO iloc = 1, nrow_local
                ia = row_indices(iloc)
-               fm_AZ%local_data(iloc, col + k - 1) = RA(ia, k) + mv_env%eps_diff(ia)*Z(ia, k)
-               IF (do_B) fm_BZ%local_data(iloc, col + col_shift_B + k - 1) = RB(ia, k)
+               fm_AZ%local_data(iloc, col + k - 1) = R_loc(iloc) + mv_env%eps_diff(ia)*Z(ia, k)
             END DO
+            IF (do_B) THEN
+               CALL mv_env%para_env%sum_scatter(RB(:, k:k), R_loc, mv_env%row_count)
+               fm_BZ%local_data(1:nrow_local, col + col_shift_B + k - 1) = R_loc(1:nrow_local)
+            END IF
          END DO
          CALL timestop(handle2)
       END DO
