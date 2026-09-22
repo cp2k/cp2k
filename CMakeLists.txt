@@ -692,7 +692,7 @@ if(CP2K_USE_ELPA)
 endif()
 
 if(CP2K_USE_LIBXC)
-  find_package(Libxc 7.1.0 CONFIG REQUIRED)
+  find_package(Libxc 7.1 CONFIG REQUIRED)
 
   get_target_property(LIBXC_CPU_INCLUDE_DIRS Libxc::xcf03
                       INTERFACE_INCLUDE_DIRECTORIES)
