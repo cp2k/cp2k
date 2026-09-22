@@ -348,6 +348,10 @@ def main() -> None:
             f.write(install_deps_toolchain(mpi_mode="no"))
             f.write(test_3rd_party(name))
 
+    with OutputFile("Dockerfile.test_python", args.check) as f:
+        f.write(install_deps_toolchain(mpi_mode="no"))
+        f.write(test_python())
+
     for name in "misc", "doxygen":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
             f.write(test_without_build(name))
@@ -458,6 +462,17 @@ def test_3rd_party(name: str) -> str:
 COPY ./tests ./tests
 COPY ./tools/docker/scripts/test_{name}.sh ./
 RUN ./test_{name}.sh 2>&1 | tee report.log
+""" + print_cached_report()
+
+
+# ======================================================================================
+def test_python() -> str:
+    return install_cp2k(profile="toolchain", version="ssmp") + r"""
+# Run the direct Python package tests independently of upstream integrations.
+COPY ./python ./python
+COPY ./docs/technologies/python.md ./docs/technologies/python.md
+COPY ./tools/docker/scripts/test_python.sh ./
+RUN ./test_python.sh 2>&1 | tee report.log
 """ + print_cached_report()
 
 

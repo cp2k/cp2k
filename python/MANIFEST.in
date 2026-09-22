@@ -1,0 +1,4 @@
+include LICENSE README.md MAINTENANCE.md RELEASING.md
+recursive-include examples *.py *.inp
+recursive-include tests *.py
+recursive-include tools *.sh
