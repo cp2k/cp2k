@@ -70,6 +70,9 @@ MODULE bse_davidson
    ! a basis that is not orthonormal to this accuracy makes the residuals meaningless
    REAL(KIND=dp), PARAMETER, PRIVATE :: ortho_tol = 1.0E-8_dp
 
+   ! smallest exact guess block the automatic NUM_GUESS_TRANSITIONS builds
+   INTEGER, PARAMETER, PRIVATE :: n_guess_floor = 128
+
    ! outcome of an ABBA solver: solved, or A-B not positive definite on the trial space
    INTEGER, PARAMETER, PUBLIC :: abba_ok = 0, abba_indefinite = 1
 
@@ -163,7 +166,7 @@ CONTAINS
       n_restart = 0
       n_dependent = 0
 
-      IF (mp2_env%bse%num_guess_transitions > 0) THEN
+      IF (mp2_env%bse%num_guess_transitions /= 0) THEN
          CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_Z, m, theta_sub, &
                                      unit_nr)
       ELSE
@@ -407,7 +410,7 @@ CONTAINS
          n_seed = MIN(n_seed, n_act)
          CALL cp_fm_to_fm(fm_X_tda, fm_V, n_seed)
       END IF
-      IF (mp2_env%bse%num_guess_transitions > 0) THEN
+      IF (mp2_env%bse%num_guess_transitions /= 0) THEN
          CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_V, n_guess_cols, theta_sub, &
                                      unit_nr, n_seed, abba_status, ab_margin)
       ELSE
@@ -705,7 +708,7 @@ CONTAINS
          CALL cp_fm_to_fm(fm_X_tda, fm_b, n_seed)
       END IF
       n_pair = 0
-      IF (mp2_env%bse%num_guess_transitions > 0) THEN
+      IF (mp2_env%bse%num_guess_transitions /= 0) THEN
          CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_b, n_guess_cols, theta_sub, &
                                      unit_nr, n_seed, abba_status, ab_margin, n_pair)
       ELSE
@@ -1866,7 +1869,13 @@ CONTAINS
       IF (PRESENT(n_pair)) n_pair = 0
       para_env => mv_env%para_env
       n_ov = SIZE(diag)
-      n_sub = MIN(n_ov, MAX(mp2_env%bse%num_guess_transitions, n_guess))
+      ! a negative keyword scales the block with the roots asked for, instead of a fixed count that
+      ! is wasteful for a handful of roots and leaves no margin above n_guess for many
+      IF (mp2_env%bse%num_guess_transitions > 0) THEN
+         n_sub = MIN(n_ov, MAX(mp2_env%bse%num_guess_transitions, n_guess))
+      ELSE
+         n_sub = MIN(n_ov, MAX(n_guess_floor, 2*n_guess))
+      END IF
       ALLOCATE (diag_sorted(n_ov), idx(n_ov), pos(n_ov))
       diag_sorted(:) = diag(:)
       CALL sort(diag_sorted, n_ov, idx)
