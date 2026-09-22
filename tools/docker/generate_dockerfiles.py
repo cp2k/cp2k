@@ -495,8 +495,8 @@ RUN ./test_{name}.sh 2>&1 | tee report.log
 # ======================================================================================
 def print_cached_report() -> str:
     return r"""
-# Always output the report: even a newly built image may be reused from the cache.
-CMD ["cat", "./report.log"]
+# Output the report if the image is old and was therefore pulled from the build cache.
+CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
 ENTRYPOINT []
 
 #EOF

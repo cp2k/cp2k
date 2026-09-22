@@ -76,8 +76,8 @@ RUN ./build_cp2k.sh toolchain_conventions psmp
 COPY ./tools/conventions ./tools/conventions
 RUN /bin/bash -ec "./tools/conventions/test_conventions.sh -j $(nproc) |& tee report.log"
 
-# Always output the report: even a newly built image may be reused from the cache.
-CMD ["cat", "./report.log"]
+# Output the report if the image is old and was therefore pulled from the build cache.
+CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
 ENTRYPOINT []
 
 #EOF
