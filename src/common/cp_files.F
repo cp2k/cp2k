@@ -128,7 +128,8 @@ CONTAINS
       CHARACTER(LEN=6)                                   :: status_string
       CHARACTER(LEN=default_path_length)                 :: file_name
       INTEGER                                            :: istat
-      LOGICAL                                            :: exists, is_open, keep_file_connection
+      LOGICAL                                            :: exists, is_named, is_open, &
+                                                            keep_file_connection
 
       keep_file_connection = .FALSE.
       IF (PRESENT(keep_preconnection)) keep_file_connection = keep_preconnection
@@ -161,25 +162,35 @@ CONTAINS
                "Attempt to close the default output unit number ", unit_number
             CPABORT(TRIM(message))
          END IF
+         ! Anonymous scratch files cannot be retained or preconnected by name.
+         INQUIRE (UNIT=unit_number, NAMED=is_named, IOSTAT=istat)
+         CPASSERT(istat == 0)
+         IF (.NOT. is_named .AND. keep_file_connection) THEN
+            CPABORT("Cannot keep a preconnection for an anonymous scratch file")
+         END IF
          ! Define status after closing the file
          IF (PRESENT(file_status)) THEN
             status_string = TRIM(file_status)
+         ELSE IF (.NOT. is_named) THEN
+            status_string = "DELETE"
          ELSE
             status_string = "KEEP"
          END IF
          ! Optionally, keep this unit preconnected
-         INQUIRE (UNIT=unit_number, NAME=file_name, IOSTAT=istat)
-         IF (istat /= 0) THEN
-            WRITE (UNIT=message, FMT="(A,I0,A,I0,A)") &
-               "An error occurred inquiring the unit with the number ", unit_number, &
-               " (IOSTAT = ", istat, ")."
-            CPABORT(TRIM(message))
+         IF (is_named) THEN
+            INQUIRE (UNIT=unit_number, NAME=file_name, IOSTAT=istat)
+            IF (istat /= 0) THEN
+               WRITE (UNIT=message, FMT="(A,I0,A,I0,A)") &
+                  "An error occurred inquiring the unit with the number ", unit_number, &
+                  " (IOSTAT = ", istat, ")."
+               CPABORT(TRIM(message))
+            END IF
          END IF
          ! Manage preconnections
          IF (keep_file_connection) THEN
             CALL assign_preconnection(file_name, unit_number)
          ELSE
-            CALL delete_preconnection(file_name, unit_number)
+            IF (is_named) CALL delete_preconnection(file_name, unit_number)
             CLOSE (UNIT=unit_number, IOSTAT=istat, STATUS=TRIM(status_string))
             IF (istat /= 0) THEN
                WRITE (UNIT=message, FMT="(A,I0,A,I0,A)") &
@@ -293,8 +304,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Opens the requested file using a free unit number
-!> \param file_name ...
-!> \param file_status ...
+!> \param file_name File name; must be empty for an anonymous SCRATCH file
+!> \param file_status Fortran file status, including SCRATCH for temporary files
 !> \param file_form ...
 !> \param file_action ...
 !> \param file_position ...
@@ -371,6 +382,25 @@ CONTAINS
          debug_unit = debug
       ELSE
          debug_unit = 0 ! use default_output_unit for debugging
+      END IF
+
+      IF (status_string == "SCRATCH") THEN
+         CPASSERT(LEN_TRIM(file_name) == 0)
+         get_a_new_unit = .TRUE.
+         IF (PRESENT(skip_get_unit_number)) get_a_new_unit = .NOT. skip_get_unit_number
+         IF (get_a_new_unit) unit_number = get_unit_number()
+         CPASSERT(unit_number > 0)
+         IF (form_string == "FORMATTED") THEN
+            OPEN (UNIT=unit_number, STATUS="SCRATCH", ACCESS=access_string, FORM=form_string, &
+                  POSITION=position_string, ACTION=action_string, PAD=pad_string, IOMSG=iomsgstr, IOSTAT=istat)
+         ELSE
+            OPEN (UNIT=unit_number, STATUS="SCRATCH", ACCESS=access_string, FORM=form_string, &
+                  POSITION=position_string, ACTION=action_string, IOMSG=iomsgstr, IOSTAT=istat)
+         END IF
+         IF (istat /= 0) THEN
+            CALL cp_abort(__LOCATION__, "Error opening an anonymous scratch file: "//TRIM(iomsgstr))
+         END IF
+         RETURN
       END IF
 
       IF (file_name(1:1) == " ") THEN

@@ -48,7 +48,7 @@
       &DIAGONALIZATION
       &END DIAGONALIZATION
       &MIXING
-        ALPHA 0.15
+        ALPHA 0.4
         METHOD BROYDEN_MIXING
       &END MIXING
       &PRINT

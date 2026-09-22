@@ -29,7 +29,7 @@ lapack_re = re.compile(
     r"|EXC|GBR|GHR|GLQ|GQL|GQR|GRQ|GST|GTR|HRD|LQF|MBR|MHR"
     r"|MLQ|MQL|MQR|MRQ|MRZ|MTR|QLF|QPF|QRF|RFS|RQF|RZF|SDC"
     r"|SEN|SJA|SNA|SQR|SVP|SYL|TRD|TRF|TRI|TRS"
-    r"|SDD|EV|GV|SV|BS2D|BR2D|LS))"
+    r"|SDD|ES|EV|GV|SV|BS2D|BR2D|LS))"
 )
 
 blacs_re = re.compile(r"BLACS_.*|IGSUM2D")

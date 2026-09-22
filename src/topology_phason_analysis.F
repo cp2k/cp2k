@@ -12,8 +12,7 @@ MODULE topology_phason_analysis
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
-   USE iso_fortran_env,                 ONLY: int64,&
-                                              output_unit
+   USE iso_fortran_env,                 ONLY: int64
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE topology_curvature,              ONLY: curvature_density,&
@@ -81,11 +80,13 @@ CONTAINS
 !> \param path Manifest or reference-link filename
 !> \param physical True for physical STATE_EXPORT frames, false for reference links
 !> \param report Mesh metadata and unrounded Chern estimate for refinement comparison
+!> \param io_unit Unit receiving mesh diagnostics
 ! **************************************************************************************************
-   SUBROUTINE analyze_mesh(path, physical, report)
+   SUBROUTINE analyze_mesh(path, physical, report, io_unit)
       CHARACTER(LEN=*), INTENT(IN) :: path
       LOGICAL, INTENT(IN) :: physical
       TYPE(phason_result_type), INTENT(OUT) :: report
+      INTEGER, INTENT(IN) :: io_unit
       CHARACTER(LEN=256) :: header
       CHARACTER(LEN=default_path_length), ALLOCATABLE :: files(:)
       INTEGER :: input, store, stat, dim, rank, nvertex, nframe, nat, vertex, axis, mu, nu, p, i, j, na, nb, nbase, idx, record_size
@@ -146,9 +147,9 @@ CONTAINS
          CPABORT('Invalid mesh tolerances')
       END IF
       ALLOCATE (raw(rank, rank), link(rank, rank), sewing(rank, rank), u(rank, rank, 4), pqs(rank, rank, dim*(dim - 1)/2))
-      ! cp_files requires a filename; an anonymous scratch stream avoids persistent, stale link caches.
-      OPEN (NEWUNIT=store, STATUS='SCRATCH', ACCESS='STREAM', FORM='UNFORMATTED', IOSTAT=stat)
-      CPASSERT(stat == 0)
+      ! Anonymous scratch storage avoids persistent, stale link caches.
+      CALL open_file('', unit_number=store, file_status='SCRATCH', file_access='STREAM', &
+                     file_form='UNFORMATTED', file_action='READWRITE')
       INQUIRE (IOLENGTH=record_size) link
       minimum = HUGE(1.0_dp)
       max_metric = 0.0_dp
@@ -309,24 +310,24 @@ CONTAINS
          compensation = (t - value) - y
          value = t
       END DO
-      CLOSE (store)
+      CALL close_file(store)
       report%value = value
-      WRITE (output_unit, '(A,I0)') 'PARAMETER_DIMENSION ', dim
-      WRITE (output_unit, '(A,*(I0,1X))') 'MESH ', shape
-      WRITE (output_unit, '(A,ES26.17)') 'CHERN_RAW ', value
-      WRITE (output_unit, '(A,ES26.17)') 'MINIMUM_LINK_SINGULAR_VALUE ', minimum
-      WRITE (output_unit, '(A,ES26.17)') 'MAXIMUM_PLAQUETTE_PHASE ', max_phase
+      WRITE (io_unit, '(A,I0)') 'PARAMETER_DIMENSION ', dim
+      WRITE (io_unit, '(A,*(I0,1X))') 'MESH ', shape
+      WRITE (io_unit, '(A,ES26.17)') 'CHERN_RAW ', value
+      WRITE (io_unit, '(A,ES26.17)') 'MINIMUM_LINK_SINGULAR_VALUE ', minimum
+      WRITE (io_unit, '(A,ES26.17)') 'MAXIMUM_PLAQUETTE_PHASE ', max_phase
       IF (physical) THEN
-         WRITE (output_unit, '(A,ES26.17)') 'MAXIMUM_METRIC_ERROR ', max_metric
-         WRITE (output_unit, '(A,ES26.17)') 'MAXIMUM_SEAM_ERROR ', seam_error
-         WRITE (output_unit, '(A,ES26.17)') 'MINIMUM_DIRECT_GAP_HA ', min_gap
+         WRITE (io_unit, '(A,ES26.17)') 'MAXIMUM_METRIC_ERROR ', max_metric
+         WRITE (io_unit, '(A,ES26.17)') 'MAXIMUM_SEAM_ERROR ', seam_error
+         WRITE (io_unit, '(A,ES26.17)') 'MINIMUM_DIRECT_GAP_HA ', min_gap
          IF (common_reference .AND. prefix) THEN
-            WRITE (output_unit, '(A,ES26.17)') 'SAMPLED_INDIRECT_GAP_HA ', conduction_min - valence_max
+            WRITE (io_unit, '(A,ES26.17)') 'SAMPLED_INDIRECT_GAP_HA ', conduction_min - valence_max
          ELSE
-            WRITE (output_unit, '(A)') 'INDIRECT_GAP_NOT_EVALUATED: no asserted common energy reference or not a lowest-band prefix'
+            WRITE (io_unit, '(A)') 'INDIRECT_GAP_NOT_EVALUATED: no asserted common energy reference or not a lowest-band prefix'
          END IF
       END IF
-      WRITE (output_unit, '(A)') 'MESH_CONVERGENCE_NOT_ESTABLISHED: repeat on finer meshes; retain unrounded C2 values.'
+      WRITE (io_unit, '(A)') 'MESH_CONVERGENCE_NOT_ESTABLISHED: repeat on finer meshes; retain unrounded C2 values.'
    CONTAINS
 ! **************************************************************************************************
 !> \brief Read one frame and update validation diagnostics on its first use.
@@ -382,10 +383,12 @@ CONTAINS
 !> \param coarse Coarser mesh report
 !> \param fine Finer mesh report
 !> \param tolerance Maximum inter-mesh difference and distance to an integer
+!> \param io_unit Unit receiving convergence diagnostics
 ! **************************************************************************************************
-   SUBROUTINE compare_refinements(coarse, fine, tolerance)
+   SUBROUTINE compare_refinements(coarse, fine, tolerance, io_unit)
       TYPE(phason_result_type), INTENT(IN) :: coarse, fine
       REAL(KIND=dp), INTENT(IN) :: tolerance
+      INTEGER, INTENT(IN) :: io_unit
       TYPE(snapshot_type), ALLOCATABLE :: a, b
       COMPLEX(KIND=dp), ALLOCATABLE :: m(:, :), metric(:, :)
       INTEGER :: dim, i
@@ -425,11 +428,11 @@ CONTAINS
       END IF
       difference = ABS(fine%value - coarse%value)
       residual = ABS(fine%value - ANINT(fine%value))
-      WRITE (output_unit, '(A,ES26.17)') 'REFINEMENT_CHANGE ', difference
-      WRITE (output_unit, '(A,ES26.17)') 'INTEGER_RESIDUAL ', residual
+      WRITE (io_unit, '(A,ES26.17)') 'REFINEMENT_CHANGE ', difference
+      WRITE (io_unit, '(A,ES26.17)') 'INTEGER_RESIDUAL ', residual
       IF (difference > tolerance .OR. residual > tolerance) THEN
          CPABORT('Chern mesh refinement has not converged to the requested tolerance')
       END IF
-      WRITE (output_unit, '(A)') 'REFINEMENT_CHECK_PASSED: numerical check, not a certificate of a bulk gap.'
+      WRITE (io_unit, '(A)') 'REFINEMENT_CHECK_PASSED: numerical check, not a certificate of a bulk gap.'
    END SUBROUTINE compare_refinements
 END MODULE topology_phason_analysis

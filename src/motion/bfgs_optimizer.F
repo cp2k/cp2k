@@ -738,8 +738,8 @@ CONTAINS
       cell_frame = 0.0_dp
       magic = ""
       READ (unit, IOSTAT=ios) magic
-      REWIND (unit)
       tagged = ios == 0 .AND. magic == bfgs_restart_magic
+      REWIND (unit)
       IF (tagged) THEN
          READ (unit, IOSTAT=ios) magic, version, stored_method, stored_ndf, stored_type, &
             reference_cell, cell_frame

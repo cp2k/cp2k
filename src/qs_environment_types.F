@@ -263,6 +263,7 @@ MODULE qs_environment_types
       TYPE(qmmm_env_qm_type), POINTER                       :: qmmm_env_qm => NULL()
       TYPE(qs_wf_history_type), POINTER                     :: wf_history => NULL()
       TYPE(qs_scf_env_type), POINTER                        :: scf_env => NULL()
+      LOGICAL :: scf_convergence_available = .FALSE., scf_converged = .FALSE.
       TYPE(qs_matrix_pools_type), POINTER                   :: mpools => NULL()
       TYPE(oce_matrix_type), POINTER                        :: oce => NULL()
       TYPE(local_rho_type), POINTER                         :: local_rho_set => NULL()

@@ -118,7 +118,8 @@ MODULE f77_interface
                                               rm_mp_perf_env
    USE nnp_environment,                 ONLY: nnp_init
    USE nnp_environment_types,           ONLY: nnp_type
-   USE offload_api,                     ONLY: offload_get_device_count,&
+   USE offload_api,                     ONLY: offload_get_chosen_device,&
+                                              offload_get_device_count,&
                                               offload_init,&
                                               offload_set_chosen_device
    USE periodic_table,                  ONLY: init_periodic_table
@@ -171,6 +172,7 @@ MODULE f77_interface
 ! **************************************************************************************************
    TYPE f_env_type
       INTEGER :: id_nr = 0
+      LOGICAL :: is_dirty = .TRUE.
       TYPE(force_env_type), POINTER      :: force_env => NULL()
       TYPE(cp_logger_type), POINTER      :: logger => NULL()
       TYPE(timer_env_type), POINTER      :: timer_env => NULL()
@@ -184,7 +186,7 @@ MODULE f77_interface
    INTEGER, SAVE :: last_f_env_id = 0, n_f_envs = 0
 
    PUBLIC :: default_para_env
-   PUBLIC :: init_cp2k, finalize_cp2k
+   PUBLIC :: init_cp2k, finalize_cp2k, configure_dbcsr
    PUBLIC :: create_force_env, destroy_force_env, set_pos, get_pos, &
              get_force, calc_energy_force, get_energy, get_stress_tensor, &
              calc_energy, calc_force, check_input, get_natom, get_nparticle, &
@@ -230,9 +232,8 @@ CONTAINS
       INTEGER, INTENT(out)                               :: ierr
       TYPE(mp_comm_type), INTENT(in), OPTIONAL           :: mpi_comm
 
-      INTEGER                                            :: offload_device_count, unit_nr
-      INTEGER, POINTER                                   :: active_device_id
-      INTEGER, TARGET                                    :: offload_chosen_device
+      INTEGER                                            :: offload_chosen_device, &
+                                                            offload_device_count, unit_nr
       TYPE(cp_gauxc_status_type)                         :: gauxc_status
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -294,21 +295,15 @@ CONTAINS
          ! Init the bibliography
          CALL add_all_references()
 
-         NULLIFY (active_device_id)
          offload_device_count = offload_get_device_count()
 
          ! Select active offload device when available.
          IF (offload_device_count > 0) THEN
             offload_chosen_device = MOD(default_para_env%mepos, offload_device_count)
             CALL offload_set_chosen_device(offload_chosen_device)
-            active_device_id => offload_chosen_device
          END IF
 
-         ! Initialize the DBCSR configuration
-         ! Attach the time handler hooks to DBCSR
-         CALL dbcsr_init_lib(default_para_env%get_handle(), timeset_hook, timestop_hook, &
-                             cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
-                             accdrv_active_device_id=active_device_id)
+         CALL configure_dbcsr(default_para_env, unit_nr)
 #if defined(__parallel)
          CALL gauxc_init(default_para_env%get_handle(), gauxc_status)
 #else
@@ -330,6 +325,31 @@ CONTAINS
       CALL m_memory()
 
    END SUBROUTINE init_cp2k
+
+! **************************************************************************************************
+!> \brief Configure DBCSR with CP2K's hooks and selected accelerator device.
+!>        For an active library the DBCSR API only updates the output unit.
+!>        Initialization belongs to init_cp2k, except for FARMING which must
+!>        temporarily initialize DBCSR on each job's own MPI communicator.
+!> \param mpi_comm communicator for initialization (ignored if already initialized)
+!> \param output_unit diagnostic output unit, negative on non-I/O ranks
+! **************************************************************************************************
+   SUBROUTINE configure_dbcsr(mpi_comm, output_unit)
+      CLASS(mp_comm_type), INTENT(IN)                    :: mpi_comm
+      INTEGER, INTENT(IN)                                :: output_unit
+
+      INTEGER, POINTER                                   :: active_device_id
+      INTEGER, TARGET                                    :: chosen_device
+
+      NULLIFY (active_device_id)
+      IF (offload_get_device_count() > 0) THEN
+         chosen_device = offload_get_chosen_device()
+         active_device_id => chosen_device
+      END IF
+      CALL dbcsr_init_lib(mpi_comm%get_handle(), timeset_hook, timestop_hook, &
+                          cp_abort_hook, cp_warn_hook, io_unit=output_unit, &
+                          accdrv_active_device_id=active_device_id)
+   END SUBROUTINE configure_dbcsr
 
 ! **************************************************************************************************
 !> \brief cleanup after you have finished using this interface
@@ -1282,6 +1302,16 @@ CONTAINS
    END SUBROUTINE get_vel
 
 ! **************************************************************************************************
+!> \brief Invalidates results associated with the previous force-environment state.
+!> \param f_env Force environment whose state has changed or is being recalculated.
+! **************************************************************************************************
+   SUBROUTINE f_env_invalidate(f_env)
+      TYPE(f_env_type), INTENT(INOUT)                    :: f_env
+
+      f_env%is_dirty = .TRUE.
+   END SUBROUTINE f_env_invalidate
+
+! **************************************************************************************************
 !> \brief sets a new cell
 !> \param env_id id of the force_env
 !> \param new_cell the array with the cell matrix
@@ -1300,6 +1330,7 @@ CONTAINS
 
       NULLIFY (f_env, cell, subsys)
       CALL f_env_add_defaults(env_id, f_env)
+      CALL f_env_invalidate(f_env)
       NULLIFY (cell)
       CALL force_env_get(f_env%force_env, cell=cell)
       CPASSERT(ASSOCIATED(cell))
@@ -1334,6 +1365,7 @@ CONTAINS
       NULLIFY (subsys)
       CALL force_env_get(f_env%force_env, subsys=subsys)
       CALL unpack_subsys_particles(subsys=subsys, r=new_pos)
+      CALL f_env_invalidate(f_env)
       CALL f_env_rm_defaults(f_env, ierr)
 
    END SUBROUTINE set_pos
@@ -1361,6 +1393,7 @@ CONTAINS
       NULLIFY (subsys)
       CALL force_env_get(f_env%force_env, subsys=subsys)
       CALL unpack_subsys_particles(subsys=subsys, v=new_vel)
+      CALL f_env_invalidate(f_env)
       CALL f_env_rm_defaults(f_env, ierr)
 
    END SUBROUTINE set_vel
@@ -1386,7 +1419,9 @@ CONTAINS
       CALL f_env_add_defaults(env_id, f_env)
       logger => cp_get_default_logger()
       CALL cp_iterate(logger%iter_info) ! add one to the iteration count
+      CALL f_env_invalidate(f_env)
       CALL force_env_calc_energy_force(f_env%force_env, calc_force=calc_force)
+      f_env%is_dirty = .FALSE.
       CALL f_env_rm_defaults(f_env, ierr)
 
    END SUBROUTINE calc_energy_force

@@ -66,6 +66,11 @@ int cp_mpi_comm_rank(const cp_mpi_comm_t comm);
 int cp_mpi_comm_size(const cp_mpi_comm_t comm);
 
 /*******************************************************************************
+ * \brief Wrapper around MPI_Barrier; a null communicator is a no-op.
+ ******************************************************************************/
+void cp_mpi_barrier(const cp_mpi_comm_t comm);
+
+/*******************************************************************************
  * \brief Wrapper around MPI_Dims_create.
  * \author Ole Schuett
  ******************************************************************************/

@@ -6,6 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 PROGRAM topology_snapshot_unittest
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE kinds,                           ONLY: dp
    USE orbital_pointers,                ONLY: init_orbital_pointers
    USE topology_snapshot,               ONLY: check_snapshot,&
@@ -19,6 +21,7 @@ PROGRAM topology_snapshot_unittest
    COMPLEX(KIND=dp) :: m(1, 1), reverse(1, 1), phase
    REAL(KIND=dp) :: metric, gap
    INTEGER :: i
+   CALL test_scratch_links()
    CALL init_orbital_pointers(1)
    a%nao = 1
    a%rank = 1
@@ -61,4 +64,50 @@ PROGRAM topology_snapshot_unittest
    CALL check_snapshot_seam(a, b, [1], tolerance)
    CALL snapshot_overlap(a, b, a%k, b%k, m)
    IF (ABS(m(1, 1) - phase) > tolerance) ERROR STOP 'Endpoint gauge sewing failed'
+
+CONTAINS
+
+! **************************************************************************************************
+!> \brief Exercise anonymous link storage without named files or shared-unit collisions.
+! **************************************************************************************************
+   SUBROUTINE test_scratch_links()
+      CHARACTER(LEN=5)                                   :: text
+      COMPLEX(KIND=dp)                                   :: link(2, 2), restored(2, 2)
+      INTEGER                                            :: binary_unit, ios, record_size, text_unit
+      LOGICAL                                            :: named, opened
+
+      link(:, :) = CMPLX(1.0_dp, 2.0_dp, dp)
+      CALL open_file('', unit_number=binary_unit, file_status='SCRATCH', file_access='STREAM', &
+                     file_form='UNFORMATTED', file_action='READWRITE')
+      INQUIRE (UNIT=binary_unit, NAMED=named, IOSTAT=ios)
+      IF (ios /= 0) ERROR STOP 'Cannot inquire scratch link storage'
+      IF (named) ERROR STOP 'Link scratch storage must be anonymous'
+      CALL open_file('', unit_number=text_unit, file_status='SCRATCH', file_pad='NO', file_action='READWRITE')
+      IF (binary_unit == text_unit) ERROR STOP 'Scratch streams share a unit'
+      INQUIRE (IOLENGTH=record_size) link
+      WRITE (binary_unit, IOSTAT=ios) link
+      IF (ios /= 0) ERROR STOP 'Cannot write first scratch link'
+      WRITE (binary_unit, IOSTAT=ios) 2.0_dp*link
+      IF (ios /= 0) ERROR STOP 'Cannot write second scratch link'
+      READ (binary_unit, POS=record_size + 1, IOSTAT=ios) restored
+      IF (ios /= 0) ERROR STOP 'Cannot read second scratch link'
+      IF (MAXVAL(ABS(restored - 2.0_dp*link)) > tolerance) ERROR STOP 'Incorrect second scratch link'
+      READ (binary_unit, POS=1, IOSTAT=ios) restored
+      IF (ios /= 0) ERROR STOP 'Cannot read first scratch link'
+      IF (MAXVAL(ABS(restored - link)) > tolerance) ERROR STOP 'Incorrect first scratch link'
+      WRITE (text_unit, '(A)', IOSTAT=ios) 'links'
+      IF (ios /= 0) ERROR STOP 'Cannot write formatted scratch file'
+      REWIND (text_unit)
+      READ (text_unit, '(A)', IOSTAT=ios) text
+      IF (ios /= 0) ERROR STOP 'Cannot read formatted scratch file'
+      IF (text /= 'links') ERROR STOP 'Incorrect formatted scratch contents'
+      CALL close_file(binary_unit)
+      CALL close_file(text_unit)
+      INQUIRE (UNIT=binary_unit, OPENED=opened, IOSTAT=ios)
+      IF (ios /= 0) ERROR STOP 'Cannot inquire closed scratch stream'
+      IF (opened) ERROR STOP 'Scratch stream was not closed'
+      INQUIRE (UNIT=text_unit, OPENED=opened, IOSTAT=ios)
+      IF (ios /= 0) ERROR STOP 'Cannot inquire closed formatted scratch file'
+      IF (opened) ERROR STOP 'Formatted scratch file was not closed'
+   END SUBROUTINE test_scratch_links
 END PROGRAM topology_snapshot_unittest

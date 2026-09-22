@@ -20,13 +20,13 @@ MODULE cp2k_runs
                                               cp2k_year
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_finalize_lib,&
-                                              dbcsr_init_lib,&
                                               dbcsr_print_config,&
                                               dbcsr_print_statistics
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_config
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_logger_would_log,&
                                               cp_note_level
@@ -47,7 +47,8 @@ MODULE cp2k_runs
                                               cp2k_init,&
                                               cp2k_read,&
                                               cp2k_setup
-   USE f77_interface,                   ONLY: create_force_env,&
+   USE f77_interface,                   ONLY: configure_dbcsr,&
+                                              create_force_env,&
                                               destroy_force_env,&
                                               f77_default_para_env => default_para_env,&
                                               f_env_add_defaults,&
@@ -114,9 +115,7 @@ MODULE cp2k_runs
    USE mtlr_u_j_methods,                ONLY: do_mtlr_u_j
    USE neb_methods,                     ONLY: neb
    USE negf_methods,                    ONLY: do_negf
-   USE offload_api,                     ONLY: offload_get_chosen_device,&
-                                              offload_get_device_count,&
-                                              offload_mempool_stats_print
+   USE offload_api,                     ONLY: offload_mempool_stats_print
    USE optimize_basis,                  ONLY: run_optimize_basis
    USE optimize_input,                  ONLY: run_optimize_input
    USE pint_methods,                    ONLY: do_pint_run
@@ -178,14 +177,10 @@ CONTAINS
       INTEGER                                            :: f_env_handle, grid_backend, ierr, &
                                                             iter_level, method_name_id, &
                                                             new_env_id, prog_name_id, run_type_id
-#if defined(__DBCSR_ACC)
-      INTEGER, TARGET                                    :: offload_chosen_device
-#endif
-      INTEGER, POINTER                                   :: active_device_id
       INTEGER(KIND=int_8)                                :: m_memory_max_mpi
       LOGICAL                                            :: echo_input, grid_apply_cutoff, &
-                                                            grid_validate, has_excited_states, has_properties, &
-                                                            I_was_ionode
+                                                            grid_validate, has_excited_states, &
+                                                            has_properties, I_was_ionode
       TYPE(cp_logger_type), POINTER                      :: logger, sublogger
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -195,18 +190,13 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: glob_section, input_file, root_section, &
                                                             section
 
-      NULLIFY (para_env, f_env, dft_control, active_device_id)
+      NULLIFY (para_env, f_env, dft_control)
       ALLOCATE (para_env)
       para_env = mpi_comm
 
-#if defined(__DBCSR_ACC)
-      IF (offload_get_device_count() > 0) THEN
-         offload_chosen_device = offload_get_chosen_device()
-         active_device_id => offload_chosen_device
-      END IF
-#endif
-      CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
-                          accdrv_active_device_id=active_device_id)
+      ! The surrounding CP2K runtime owns DBCSR. Only redirect its diagnostics
+      ! to this run's output; the DBCSR API leaves an active library initialized.
+      CALL configure_dbcsr(mpi_comm, output_unit)
 
       NULLIFY (globenv, force_env)
 
@@ -272,11 +262,12 @@ CONTAINS
          CALL run_optimize_input(input_declaration, root_section, para_env)
       CASE (do_swarm)
          CALL run_swarm(input_declaration, root_section, para_env, globenv, input_file_name)
-      CASE (do_farming) ! TODO: refactor cp2k's startup code
+      CASE (do_farming)
+         ! FARMING temporarily replaces the runtime communicator with disjoint
+         ! job communicators. Each job owns DBCSR until its communicator is freed.
          CALL dbcsr_finalize_lib()
          CALL farming_run(input_declaration, root_section, para_env, initial_variables)
-         CALL dbcsr_init_lib(mpi_comm%get_handle(), io_unit=output_unit, &
-                             accdrv_active_device_id=active_device_id)
+         CALL configure_dbcsr(mpi_comm, output_unit)
       CASE (do_opt_basis)
          CALL run_optimize_basis(input_declaration, root_section, para_env, globenv)
          globenv%run_type_id = none_run
@@ -463,8 +454,6 @@ CONTAINS
          CALL section_vals_release(root_section)
          CALL globenv_release(globenv)
       END IF
-
-      CALL dbcsr_finalize_lib()
 
       CALL mp_para_env_release(para_env)
 
@@ -882,6 +871,7 @@ CONTAINS
          END IF
 
          CALL cp2k_run(input_declaration, TRIM(farming_env%Job(i)%input), new_output_unit, new_group, initial_variables)
+         CALL dbcsr_finalize_lib()
 
          IF (new_rank == 0) CALL close_file(unit_number=new_output_unit)
 
@@ -971,6 +961,8 @@ CONTAINS
          unit_nr = -1
       END IF
       CALL cp2k_run(input_declaration, input_file_path, unit_nr, para_env, initial_variables)
+      ! Restore DBCSR diagnostics before the caller closes its output unit.
+      CALL configure_dbcsr(f77_default_para_env, cp_logger_get_default_io_unit())
       CALL mp_para_env_release(para_env)
    END SUBROUTINE run_input
 
