@@ -50,7 +50,6 @@ MODULE bse_main
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: debug_print_level
-   USE group_dist_types,                ONLY: group_dist_d1_type
    USE input_constants,                 ONLY: &
         bse_abba, bse_abba_mk_davidson, bse_abba_olsen_stratmann, bse_both, bse_fulldiag, &
         bse_iterdiag, bse_screening_alpha, bse_screening_rpa, bse_screening_tdhf, bse_singlet, &
@@ -89,8 +88,6 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param dimen_RI_red ...
 !> \param bse_lev_virt ...
-!> \param gd_array ...
-!> \param color_sub ...
 !> \param mp2_env ...
 !> \param qs_env ...
 !> \param mo_coeff ...
@@ -100,7 +97,7 @@ CONTAINS
                                     fm_mat_Q_static_bse_gemm, &
                                     Eigenval, Eigenval_scf, &
                                     homo, virtual, dimen_RI, dimen_RI_red, bse_lev_virt, &
-                                    gd_array, color_sub, mp2_env, qs_env, mo_coeff, unit_nr)
+                                    mp2_env, qs_env, mo_coeff, unit_nr)
 
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
@@ -110,8 +107,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
       INTEGER, DIMENSION(:), INTENT(IN)                  :: bse_lev_virt
-      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
-      INTEGER, INTENT(IN)                                :: color_sub
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
@@ -143,9 +138,6 @@ CONTAINS
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       CALL timeset(routineN, handle)
-
-      MARK_USED(gd_array)
-      MARK_USED(color_sub)
 
       nspins = SIZE(homo)
       para_env => fm_mat_S_ia_bse(1)%matrix_struct%para_env
