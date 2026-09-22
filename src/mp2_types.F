@@ -350,15 +350,24 @@ MODULE mp2_types
       TYPE(ri_rpa_type)                                  :: ri_rpa = ri_rpa_type()
       ! There is a bug with some older compilers preventing requiring an explicit initialization of allocatable components
 #if defined(FTN_NO_DEFAULT_INIT)
-      TYPE(ri_rpa_im_time_type)                          :: ri_rpa_im_time = ri_rpa_im_time_type(Eigenval_Gamma=NULL(), &
-                                                                                                 wkp_V=NULL(), &
-                                                                                                 starts_array_mc_RI=NULL(), &
-                                                                                                 ends_array_mc_RI=NULL(), &
-                                                                                                 starts_array_mc_block_RI=NULL(), &
-                                                                                                 ends_array_mc_block_RI=NULL(), &
-                                                                                     starts_array_mc=NULL(), ends_array_mc=NULL(), &
-                                                                                                 starts_array_mc_block=NULL(), &
-                                                                                                 ends_array_mc_block=NULL())
+      TYPE(ri_rpa_im_time_type)                          :: ri_rpa_im_time = ri_rpa_im_time_type( &
+                                                            time_frequency_grid=time_frequency_grid_type( &
+                                                            frequency=NULL(), &
+                                                            frequency_weights=NULL(), &
+                                                            imaginary_time=NULL(), &
+                                                            time_weights_at_zero_frequency=NULL(), &
+                                                            cosine_time_to_frequency_weights=NULL(), &
+                                                            cosine_frequency_to_time_weights=NULL(), &
+                                                            sine_time_to_frequency_weights=NULL()), &
+                                                            Eigenval_Gamma=NULL(), &
+                                                            wkp_V=NULL(), &
+                                                            starts_array_mc_RI=NULL(), &
+                                                            ends_array_mc_RI=NULL(), &
+                                                            starts_array_mc_block_RI=NULL(), &
+                                                            ends_array_mc_block_RI=NULL(), &
+                                                            starts_array_mc=NULL(), ends_array_mc=NULL(), &
+                                                            starts_array_mc_block=NULL(), &
+                                                            ends_array_mc_block=NULL())
       TYPE(ri_g0w0_type)                                 :: ri_g0w0 = ri_g0w0_type(vec_Sigma_x_minus_vxc_gw=NULL(), &
                                                                                    xkp_special_kp=NULL(), &
                                                                                    matrix_sigma_x_minus_vxc=NULL(), &
