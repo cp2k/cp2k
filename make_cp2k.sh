@@ -1429,6 +1429,17 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
     ${EXIT_CMD} 1
   fi
 
+  # CUDA-enabled libxc needs a C++ compiler, which the builtin recipe does not declare yet
+  if ((CUDA_SM_CODE > 0)); then
+    LIBXC_PACKAGE_FILE="$(find -L "${SPACK_USER_CACHE_PATH}/package_repos" -path "*/builtin/packages/libxc/package.py" -print -quit)"
+    if [[ -f "${LIBXC_PACKAGE_FILE}" ]] && ! grep -q "type=\"build\", when=\"+cuda\"" "${LIBXC_PACKAGE_FILE}"; then
+      sed -i \
+        -e 's/^\(    depends_on("c", type="build")\)$/\1\n    depends_on("cxx", type="build", when="+cuda")/' \
+        "${LIBXC_PACKAGE_FILE}"
+      echo "The builtin spack recipe of libxc has been patched to add the cxx build dependency for CUDA builds"
+    fi
+  fi
+
   # Add the local CP2K development Spack repository when missing
   export CP2K_REPO="cp2k_dev"
   if ! spack repo list | grep -q "${CP2K_REPO}"; then
