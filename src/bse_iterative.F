@@ -18,8 +18,7 @@ MODULE bse_iterative
                                               bse_davidson_abba_os,&
                                               bse_davidson_refcheck,&
                                               bse_davidson_tda
-   USE bse_full_diag,                   ONLY: create_A,&
-                                              create_B,&
+   USE bse_full_diag,                   ONLY: create_A_and_B,&
                                               postprocess_bse
    USE bse_matvec,                      ONLY: bse_matvec_create,&
                                               bse_matvec_env_type,&
@@ -140,25 +139,11 @@ CONTAINS
                              homo_red_arr(1), virt_red_arr(1), do_abba, mp2_env, unit_nr)
 
       IF (do_debug) THEN
-         IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-             mp2_env%bse%screening_method == bse_screening_alpha) THEN
-            CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
-                          fm_A_BSE, Eigenval_reduced, unit_nr, &
-                          homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
-         ELSE
-            CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ij_bse_arr, fm_mat_S_ab_trunc_arr, &
-                          fm_A_BSE, Eigenval_reduced, unit_nr, &
-                          homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
-         END IF
+         CALL create_A_and_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
+                             fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr, fm_A_BSE, fm_B_BSE, &
+                             do_abba, Eigenval_reduced, unit_nr, homo_red_arr, virt_red_arr, dimen_RI, &
+                             mp2_env, para_env, qs_env)
          IF (do_abba) THEN
-            IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-                mp2_env%bse%screening_method == bse_screening_alpha) THEN
-               CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ia_trunc_arr, fm_B_BSE, &
-                             homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
-            ELSE
-               CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ia_bse_arr, fm_B_BSE, &
-                             homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
-            END IF
             CALL bse_matvec_selfcheck(mv_env, fm_A_BSE, unit_nr, fm_B_BSE)
          ELSE
             CALL bse_matvec_selfcheck(mv_env, fm_A_BSE, unit_nr)

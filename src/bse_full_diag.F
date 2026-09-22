@@ -50,6 +50,7 @@ MODULE bse_full_diag
    USE exstates_types,                  ONLY: excited_energy_type
    USE input_constants,                 ONLY: bse_screening_alpha,&
                                               bse_screening_rpa,&
+                                              bse_screening_tdhf,&
                                               bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
@@ -67,7 +68,7 @@ MODULE bse_full_diag
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_full_diag'
 
-   PUBLIC :: create_A, diagonalize_A, create_B, create_hermitian_form_of_ABBA, &
+   PUBLIC :: create_A, diagonalize_A, create_B, create_A_and_B, create_hermitian_form_of_ABBA, &
              diagonalize_C, postprocess_bse
 
 CONTAINS
@@ -439,6 +440,62 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE create_B
+
+! **************************************************************************************************
+!> \brief Explicit A, and B for ABBA, from the slabs the screening method contracts: the bare ones for
+!>        TDHF and ALPHA screening, the W-multiplied ones otherwise
+!> \param fm_mat_S_ia_bse ...
+!> \param fm_mat_S_ij_bse ...
+!> \param fm_mat_S_ab_bse ...
+!> \param fm_mat_S_bar_ia_bse ...
+!> \param fm_mat_S_bar_ij_bse ...
+!> \param fm_A ...
+!> \param fm_B created only for ABBA
+!> \param do_abba ...
+!> \param Eigenval ...
+!> \param unit_nr ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen_RI ...
+!> \param mp2_env ...
+!> \param para_env ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE create_A_and_B(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S_bar_ia_bse, &
+                             fm_mat_S_bar_ij_bse, fm_A, fm_B, do_abba, Eigenval, unit_nr, &
+                             homo, virtual, dimen_RI, mp2_env, para_env, qs_env)
+
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
+                                                            fm_mat_S_ab_bse, fm_mat_S_bar_ia_bse, &
+                                                            fm_mat_S_bar_ij_bse
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A, fm_B
+      LOGICAL, INTENT(IN)                                :: do_abba
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      INTEGER, INTENT(IN)                                :: dimen_RI
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(mp_para_env_type), INTENT(INOUT)              :: para_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
+          mp2_env%bse%screening_method == bse_screening_alpha) THEN
+         CALL create_A(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_A, Eigenval, unit_nr, &
+                       homo, virtual, dimen_RI, mp2_env, para_env, qs_env)
+         IF (do_abba) THEN
+            CALL create_B(fm_mat_S_ia_bse, fm_mat_S_ia_bse, fm_B, homo, virtual, dimen_RI, unit_nr, &
+                          mp2_env)
+         END IF
+      ELSE
+         CALL create_A(fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, fm_A, Eigenval, unit_nr, &
+                       homo, virtual, dimen_RI, mp2_env, para_env, qs_env)
+         IF (do_abba) THEN
+            CALL create_B(fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse, fm_B, homo, virtual, dimen_RI, unit_nr, &
+                          mp2_env)
+         END IF
+      END IF
+
+   END SUBROUTINE create_A_and_B
 
    ! **************************************************************************************************
 !> \brief Construct Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 to solve full BSE matrix as a hermitian problem

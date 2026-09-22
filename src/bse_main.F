@@ -13,8 +13,7 @@
 
 MODULE bse_main
 
-   USE bse_full_diag,                   ONLY: create_A,&
-                                              create_B,&
+   USE bse_full_diag,                   ONLY: create_A_and_B,&
                                               create_hermitian_form_of_ABBA,&
                                               diagonalize_A,&
                                               diagonalize_C
@@ -39,8 +38,6 @@ MODULE bse_main
                                               bse_both,&
                                               bse_fulldiag,&
                                               bse_iterdiag,&
-                                              bse_screening_alpha,&
-                                              bse_screening_tdhf,&
                                               bse_tda
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -227,25 +224,11 @@ CONTAINS
 
          IF (my_do_fulldiag) THEN
             CALL estimate_BSE_resources(n_ov_joint, unit_nr, my_do_abba, para_env, diag_runtime_est)
-            IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-                mp2_env%bse%screening_method == bse_screening_alpha) THEN
-               CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
-                             fm_A_BSE, Eigenval_reduced_joint, unit_nr, &
-                             homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
-            ELSE
-               CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ij_bse_arr, fm_mat_S_ab_trunc_arr, &
-                             fm_A_BSE, Eigenval_reduced_joint, unit_nr, &
-                             homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
-            END IF
+            CALL create_A_and_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
+                                fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr, fm_A_BSE, fm_B_BSE, &
+                                my_do_abba, Eigenval_reduced_joint, unit_nr, homo_red_arr, virt_red_arr, &
+                                dimen_RI, mp2_env, para_env, qs_env)
             IF (my_do_abba) THEN
-               IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-                   mp2_env%bse%screening_method == bse_screening_alpha) THEN
-                  CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ia_trunc_arr, fm_B_BSE, &
-                                homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
-               ELSE
-                  CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ia_bse_arr, fm_B_BSE, &
-                                homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
-               END IF
                CALL create_hermitian_form_of_ABBA(fm_A_BSE, fm_B_BSE, fm_C_BSE, &
                                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
                                                   unit_nr, mp2_env, diag_runtime_est)
@@ -305,25 +288,11 @@ CONTAINS
          IF (my_do_fulldiag) THEN
             n_ov_joint = homo_red_arr(1)*virt_red_arr(1)
             CALL estimate_BSE_resources(n_ov_joint, unit_nr, my_do_abba, para_env, diag_runtime_est)
-            IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-                mp2_env%bse%screening_method == bse_screening_alpha) THEN
-               CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
-                             fm_A_BSE, Eigenval_reduced, unit_nr, &
-                             homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
-            ELSE
-               CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ij_bse_arr, fm_mat_S_ab_trunc_arr, &
-                             fm_A_BSE, Eigenval_reduced, unit_nr, &
-                             homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
-            END IF
+            CALL create_A_and_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
+                                fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr, fm_A_BSE, fm_B_BSE, &
+                                my_do_abba, Eigenval_reduced, unit_nr, homo_red_arr, virt_red_arr, &
+                                dimen_RI, mp2_env, para_env, qs_env)
             IF (my_do_abba) THEN
-               IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-                   mp2_env%bse%screening_method == bse_screening_alpha) THEN
-                  CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ia_trunc_arr, fm_B_BSE, &
-                                homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
-               ELSE
-                  CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ia_bse_arr, fm_B_BSE, &
-                                homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
-               END IF
                CALL create_hermitian_form_of_ABBA(fm_A_BSE, fm_B_BSE, fm_C_BSE, &
                                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
                                                   unit_nr, mp2_env, diag_runtime_est)
