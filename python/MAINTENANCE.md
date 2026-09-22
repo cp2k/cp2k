@@ -23,7 +23,8 @@ implementation or assuming that they have accepted ownership.
 - Test missing/older optional C API symbols. Report unavailable capabilities explicitly; do not
   silently return zero stress or successful SCF convergence.
 - Run unit tests without a native library and native integration tests against the matching CP2K
-  build. The existing Linux ASE job also exercises this package, separately from CMake.
+  build. The dedicated Linux Python tester exercises this package, separately from CMake and
+  upstream ASE's shell-calculator tests.
 - For native/lifecycle/MPI changes, run the C interface test and the WORLD, split-communicator and
   implicit-mpi4py smoke tests. Keep serial testing free of mpi4py initialization.
 - Exercise the existing shell calculator and direct calculator on common inputs. Compare numerical

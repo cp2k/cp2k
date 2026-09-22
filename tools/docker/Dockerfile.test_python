@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: podman build --shm-size=1g -f ./Dockerfile.test_ase ../../
+# Usage: podman build --shm-size=1g -f ./Dockerfile.test_python ../../
 #
 
 FROM docker.io/ubuntu:26.04
@@ -70,10 +70,11 @@ COPY ./CMakePresets.json .
 COPY ./tools/docker/scripts/build_cp2k.sh ./tools/docker/scripts/cmake_cp2k.sh ./
 RUN ./build_cp2k.sh toolchain ssmp
 
-# Run test for ase.
-COPY ./tests ./tests
-COPY ./tools/docker/scripts/test_ase.sh ./
-RUN ./test_ase.sh 2>&1 | tee report.log
+# Run the direct Python package tests independently of upstream integrations.
+COPY ./python ./python
+COPY ./docs/technologies/python.md ./docs/technologies/python.md
+COPY ./tools/docker/scripts/test_python.sh ./
+RUN ./test_python.sh 2>&1 | tee report.log
 
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'

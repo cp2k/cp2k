@@ -57,28 +57,11 @@ echo -
 export PYTEST_DEBUG_TEMPROOT=/workspace/artifacts
 mkdir -p ${PYTEST_DEBUG_TEMPROOT}
 
-if ! ase test -j 0 -c cp2k calculator/cp2k; then
-  echo -e "\nSummary: Something is wrong with ASE commit ${ASE_REVISION}."
-  echo -e "Status: FAILED\n"
-  exit 0
-fi
-
-echo -e "\n========== Direct Python Interface Tests =========="
-cd /opt/cp2k
-# shellcheck disable=SC1091
-source /opt/cp2k-toolchain/install/setup
-pip3 install './python[test]'
-export CP2K_TEST_LIBRARY=/opt/cp2k/build/src/libcp2k.so
-export CP2K_TEST_EXECUTABLE=/opt/cp2k/build/bin/cp2k.ssmp
-export CP2K_DATA_DIR=/opt/cp2k/data
-export OMP_NUM_THREADS=1
-export OPENBLAS_NUM_THREADS=1
-if timeout 15m python3 -m pytest python/tests -q \
-  --basetemp=/workspace/artifacts/python-tests; then
-  echo -e "\nSummary: ASE ${ASE_REVISION} and direct Python interface work fine."
+if ase test -j 0 -c cp2k calculator/cp2k; then
+  echo -e "\nSummary: ASE commit ${ASE_REVISION} works fine."
   echo -e "Status: OK\n"
 else
-  echo -e "\nSummary: Direct Python interface tests failed."
+  echo -e "\nSummary: Something is wrong with ASE commit ${ASE_REVISION}."
   echo -e "Status: FAILED\n"
 fi
 

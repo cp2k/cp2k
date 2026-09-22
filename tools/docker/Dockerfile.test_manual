@@ -75,7 +75,6 @@ RUN ./build_cp2k.sh toolchain pdbg
 
 # Generate manual.
 COPY ./docs ./docs
-COPY ./python/README.md ./python/README.md
 COPY ./tools/input_editing ./tools/input_editing
 COPY ./tools/docker/scripts/test_manual.sh .
 ARG ADD_EDIT_LINKS=yes
