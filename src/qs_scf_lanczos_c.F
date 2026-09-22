@@ -21,12 +21,12 @@
 !>        coefficient bookkeeping. The kernel solves the small
 !>        Rayleigh-Ritz problem as complex Hermitian. The leading Ritz
 !>        pairs overwrite the target columns and refresh their
-!>        eigenvalues at every call. The kernel keeps no state of its own:
-!>        every scratch matrix and array lives in a caller-owned workspace,
-!>        created once per diagonalization call and reused by every sweep.
-!>        The workspace matrices are wider than a single call needs, and
-!>        every read stays inside the prefix the call wrote, so the reused
-!>        scratch needs no zeroing
+!>        eigenvalues at every call. The kernel keeps no state of its
+!>        own. Every scratch matrix and array lives in a caller-owned
+!>        workspace. The driver creates it once per diagonalization
+!>        call, and every sweep reuses it. The workspace matrices are
+!>        wider than a single call needs. Every read stays inside the
+!>        prefix the call wrote, so the reused scratch needs no zeroing
 ! **************************************************************************************************
 MODULE qs_scf_lanczos_c
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -63,13 +63,12 @@ MODULE qs_scf_lanczos_c
 !> \brief Caller-owned scratch of the refinement kernel: every matrix and
 !>        array that the sweeps of one channel reuse. The driver creates
 !>        the workspace once per diagonalization call and hands it to
-!>        every kernel call. The widths follow the worst case of the run:
-!>        the basis budget holds the larger of the NKRYLOV block budget
+!>        every kernel call. The widths follow the worst case of the run.
+!>        The basis budget holds the larger of the NKRYLOV block budget
 !>        and four times the widest single block, and every per-call
 !>        clamp stays below it. The small Rayleigh-Ritz pair keeps its
-!>        per-block
-!>        right-sized allocation, because the solver stack diagonalizes
-!>        whole matrices and knows no leading-block argument
+!>        per-block right-sized allocation, because the solver stack
+!>        diagonalizes whole matrices and knows no leading-block argument
 ! **************************************************************************************************
    TYPE, PUBLIC :: lanczos_workspace_type
       ! entry Rayleigh-Ritz, its rotation and the shared scratch column
@@ -205,10 +204,10 @@ CONTAINS
          ! back to a spectral reorthonormalization (clamp the Gram
          ! spectrum at a floor and apply the inverse square root)
          ! instead of aborting. The pass cannot repair a genuinely
-         ! rank-deficient set: a right transformation preserves the
+         ! rank-deficient set. A right transformation preserves the
          ! rank, and the clamped inverse leaves a missing direction
          ! near zero norm instead of creating it. The construction
-         ! avoids that case: the entry MOS are orthonormal, the written
+         ! avoids that case. The entry MOS are orthonormal, the written
          ! block is orthonormal and deflated against the leading
          ! prefix, and mixing the two groups loses no direction. The
          ! next sweep also re-purifies the columns from fresh seeds

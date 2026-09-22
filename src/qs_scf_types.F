@@ -71,10 +71,10 @@ MODULE qs_scf_types
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-!> \brief Parsed Krylov solver settings of the SCF section: one fully
-!>        initialized object for every run that selects the block-Krylov
-!>        diagonalization, read by the Gamma and the k-point drivers
-!>        alike
+!> \brief Parsed Krylov solver settings of the SCF section. One fully
+!>        initialized object exists for every run that selects the
+!>        block-Krylov diagonalization. The Gamma and the k-point
+!>        drivers read it alike
 ! **************************************************************************************************
    TYPE krylov_settings_type
       INTEGER :: nkrylov = -1, nblock = -1, max_iter = -1

@@ -3220,9 +3220,9 @@ CONTAINS
       max_iter = scf_env%krylov_settings%max_iter
 
       ! One-rank k-point groups assemble every operator locally from a
-      ! prepared snapshot and refine their k points without a single
-      ! collective transfer round, like the local phase of the general
-      ! k-point diagonalization. The refinement runs serially over the
+      ! prepared snapshot, like the local phase of the general k-point
+      ! diagonalization. They refine their k points without a single
+      ! collective transfer round. The refinement runs serially over the
       ! channels of both layouts. The kernel keeps its heavy scratch in
       ! a preallocated workspace. An OpenMP port still needs to address
       ! the per-block allocation of the solver pair, the distributed
@@ -3318,7 +3318,7 @@ CONTAINS
 
       ! occupations and density: the shared exit chain. With
       ! check_moconv_only the caller falls back to the standard k-point
-      ! diagonalization, which supplies MOS and density, and the
+      ! diagonalization. That path supplies MOS and density, and the
       ! statistics above are printed for information only
       IF (.NOT. my_check_moconv_only) THEN
          CALL kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s_kp, sab_nl, fmwork, my_grow)
@@ -3352,11 +3352,12 @@ CONTAINS
 !> \param eps_iter convergence threshold of the occupied columns
 !> \param eps_iter_empty relaxed threshold of the unoccupied columns
 !> \param max_iter sweeps allowed per channel
-!> \param work driver workspace of the channel: cksmat holds the complex
-!>        H(k), standardized in place. csmat_base holds the untouched
-!>        S(k), csmat its work copy and the Cholesky factor after the
-!>        standardization, cwork the Hermitian-projection scratch, cmos
-!>        the MOS in the standardized basis and lan_ws the kernel scratch
+!> \param work driver workspace of the channel. cksmat holds the
+!>        complex H(k), standardized in place. csmat_base holds the
+!>        untouched S(k). csmat holds its work copy and the Cholesky
+!>        factor after the standardization. cwork holds the
+!>        Hermitian-projection scratch. cmos holds the MOS in the
+!>        standardized basis. lan_ws holds the kernel scratch
 !> \param output_unit unit of the refinement table. A nonpositive unit
 !>        disables every report
 !> \param print_row report this channel in the refinement table and in

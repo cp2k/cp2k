@@ -919,8 +919,8 @@ CONTAINS
                CALL krylov_settings_create(scf_env%krylov_settings, scf_section)
             END IF
             ! the Gamma workspace carries the refinement buffers. The
-            ! k-point world parses the settings only: the complex kernel
-            ! takes a driver-owned workspace, nothing is allocated from
+            ! k-point world parses the settings only. The complex kernel
+            ! takes a caller-owned workspace. Nothing is allocated from
             ! the Gamma MOS, and the k-point world never uses
             ! scf_env%ortho
             scf_env%needs_ortho = .NOT. do_kpoints
