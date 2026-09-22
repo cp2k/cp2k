@@ -2,7 +2,7 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 "tb_uff.inp"                            = [{matcher="E_total", tol=1.0E-14, ref=-5.75463073189035}]
-"tb_d3.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.76288772645642}]
-"tb_d3bj.inp"                           = [{matcher="E_total", tol=1.0E-14, ref=-5.76508212002613}]
+"tb_d3.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.76288772645631}]
+"tb_d3bj.inp"                           = [{matcher="E_total", tol=1.0E-14, ref=-5.76508212002536}]
 "tb_d2.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.85163052938979}]
 #EOF

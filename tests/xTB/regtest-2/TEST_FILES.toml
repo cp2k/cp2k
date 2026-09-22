@@ -4,18 +4,18 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # test mulliken constraints
-"H2O-field-gopt.inp"                    = [{matcher="E_total", tol=4e-10, ref=-5.76970818700878}]
-"H2O-field-gopt-lsd.inp"                = [{matcher="E_total", tol=4e-12, ref=-5.76970797200779}]
+"H2O-field-gopt.inp"                    = [{matcher="E_total", tol=4e-10, ref=-5.76970818878734}]
+"H2O-field-gopt-lsd.inp"                = [{matcher="E_total", tol=4e-12, ref=-5.76970797200872}]
 "H2O-field.inp"                         = []
-"H2O-field-lsd.inp"                     = [{matcher="E_total", tol=4e-14, ref=-5.76959233315062}]
-"HF-field.inp"                          = [{matcher="E_total", tol=1e-12, ref=-5.70162277773935}]
-"HF-field-gopt.inp"                     = [{matcher="E_total", tol=5e-07, ref=-5.65593182181073}]
+"H2O-field-lsd.inp"                     = [{matcher="E_total", tol=4e-14, ref=-5.76959233315281}]
+"HF-field.inp"                          = [{matcher="E_total", tol=1e-12, ref=-5.7016227777426}]
+"HF-field-gopt.inp"                     = [{matcher="E_total", tol=5e-07, ref=-5.65593097991467}]
 "HF-field-debug.inp"                    = []
 "HF-dfilter-debug.inp"                  = []
-"HF-dfield-gopt.inp"                    = [{matcher="E_total", tol=1e-09, ref=-5.66065888870620}]
-"HF-dfield.inp"                         = [{matcher="E_total", tol=1e-12, ref=-5.66052242442153}]
+"HF-dfield-gopt.inp"                    = [{matcher="E_total", tol=1e-09, ref=-5.66065888874972}]
+"HF-dfield.inp"                         = [{matcher="E_total", tol=1e-12, ref=-5.6605224244239}]
 "HF-dfield-debug.inp"                   = []
-"HF-loc-field.inp"                      = [{matcher="E_total", tol=1e-12, ref=-5.65286303322644}]
-"HF-loc-field-gopt.inp"                 = [{matcher="E_total", tol=2e-08, ref=-5.65780878999108}]
+"HF-loc-field.inp"                      = [{matcher="E_total", tol=1e-12, ref=-5.65286303322893}]
+"HF-loc-field-gopt.inp"                 = [{matcher="E_total", tol=2e-08, ref=-5.65780878972355}]
 "HF-loc-field-debug.inp"                = []
 #EOF

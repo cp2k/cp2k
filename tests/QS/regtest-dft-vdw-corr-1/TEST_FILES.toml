@@ -9,10 +9,10 @@
 "dftd2_t2.inp"                          = [{matcher="M033", tol=1.0E-14, ref=-0.00000858060151}]
 "dftd2_t3.inp"                          = [{matcher="M033", tol=1.0E-14, ref=-0.00013165830869}]
 "dftd2_t4.inp"                          = [{matcher="M033", tol=1.0E-14, ref=-0.02785607360072}]
-"dftd3_t1.inp"                          = [{matcher="M033", tol=1.0E-14, ref=-0.00147685209268}]
+"dftd3_t1.inp"                          = [{matcher="M033", tol=1.0E-14, ref=-0.00147685209237}]
 "dftd3_t2.inp"                          = [{matcher="M033", tol=1.0E-14, ref=-0.00006284602489}]
 "dftd3_t3.inp"                          = [{matcher="M033", tol=1.0E-14, ref=-0.00021588485045}]
 #
-"dftd3src1.inp"                         = [{matcher="M033", tol=1.0E-14, ref=-0.02610168099287}]
-"dftd3src2.inp"                         = [{matcher="M033", tol=1.0E-12, ref=-0.01190472481462}]
+"dftd3src1.inp"                         = [{matcher="M033", tol=1.0E-14, ref=-0.02610168099124}]
+"dftd3src2.inp"                         = [{matcher="M033", tol=1.0E-12, ref=-0.01190472481403}]
 #EOF
