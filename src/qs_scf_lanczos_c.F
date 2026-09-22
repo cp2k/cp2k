@@ -181,7 +181,7 @@ CONTAINS
 
       IF (.NOT. my_check_moconv_only) THEN
          IF (nmo_nc_loc > 0) THEN
-            CALL lanczos_refine(ks, c0, eval, nao, nmo, eps_col, nkrylov, nblock, &
+            CALL lanczos_refine(ks, c0, eval, nao, eps_col, nkrylov, nblock, &
                                 nmo_converged, nmo_nc_loc, n_conv_cols, max_res_norm, min_res_norm, &
                                 refined, ws)
             IF (.NOT. refined) THEN
@@ -264,7 +264,6 @@ CONTAINS
 !> \param c0 MOS, refined in place block by block
 !> \param eval eigenvalues, updated per converged column
 !> \param nao number of atomic orbitals
-!> \param nmo number of molecular orbitals
 !> \param eps_col per-column convergence thresholds (see lanczos_refinement_2v_c)
 !> \param nkrylov number of block expansion steps in the block regime.
 !>        The kernel uses it as a floor on the budget only when nblock
@@ -285,13 +284,13 @@ CONTAINS
 !>        Rayleigh-Ritz pair stays local to a block, at its right size,
 !>        because the solver stack diagonalizes whole matrices
 ! **************************************************************************************************
-   SUBROUTINE lanczos_refine(ks, c0, eval, nao, nmo, eps_col, nkrylov, nblock, &
+   SUBROUTINE lanczos_refine(ks, c0, eval, nao, eps_col, nkrylov, nblock, &
                              nmo_converged, nmo_nc_loc, n_conv_cols, max_res_norm, min_res_norm, &
                              refined, ws)
       TYPE(cp_cfm_type), INTENT(IN)                      :: ks
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: c0
       REAL(dp), DIMENSION(:), POINTER                    :: eval
-      INTEGER, INTENT(IN)                                :: nao, nmo
+      INTEGER, INTENT(IN)                                :: nao
       REAL(dp), DIMENSION(:), INTENT(IN)                 :: eps_col
       INTEGER, INTENT(IN)                                :: nkrylov, nblock, nmo_converged, &
                                                             nmo_nc_loc
