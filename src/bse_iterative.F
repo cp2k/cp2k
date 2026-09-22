@@ -106,8 +106,10 @@ CONTAINS
       REAL(KIND=dp)                                      :: ab_margin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: exc_ens, exc_ens_abba
       TYPE(bse_matvec_env_type)                          :: mv_env
-      TYPE(cp_fm_type)                                   :: fm_A_BSE, fm_B_BSE, fm_X, fm_X_abba, &
-                                                            fm_X_ia, fm_Y_abba, fm_Y_ia
+      TYPE(cp_fm_type)                                   :: fm_A_BSE, fm_B_BSE, fm_X_abba, fm_X_ia, &
+                                                            fm_Y_abba, fm_Y_ia
+      TYPE(cp_fm_type), POINTER                          :: fm_tda_guess
+      TYPE(cp_fm_type), TARGET                           :: fm_X
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
@@ -176,26 +178,19 @@ CONTAINS
       END IF
 
       IF (do_abba) THEN
-         ! the TDA vectors are the initial guess of a combined run
+         ! the TDA vectors are the initial guess of a combined run; a null pointer passed to the
+         ! optional argument counts as absent (Fortran 2008)
+         NULLIFY (fm_tda_guess)
+         IF (do_tda) fm_tda_guess => fm_X
          SELECT CASE (mp2_env%bse%abba_solver)
          CASE (bse_abba_mk_davidson)
             solver_str = 'MK_DAVIDSON'
-            IF (do_tda) THEN
-               CALL bse_davidson_abba_mk(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
-                                         abba_status, ab_margin, fm_X)
-            ELSE
-               CALL bse_davidson_abba_mk(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
-                                         abba_status, ab_margin)
-            END IF
+            CALL bse_davidson_abba_mk(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+                                      abba_status, ab_margin, fm_tda_guess)
          CASE (bse_abba_olsen_stratmann)
             solver_str = 'OLSEN_STRATMANN'
-            IF (do_tda) THEN
-               CALL bse_davidson_abba_os(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
-                                         abba_status, ab_margin, fm_X)
-            ELSE
-               CALL bse_davidson_abba_os(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
-                                         abba_status, ab_margin)
-            END IF
+            CALL bse_davidson_abba_os(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+                                      abba_status, ab_margin, fm_tda_guess)
          CASE DEFAULT
             CPABORT("Unknown BSE_ITERAT%ABBA_SOLVER")
          END SELECT
