@@ -85,6 +85,7 @@ set +e # disable error trapping for remainder of script
 EXIT_CODE=$?
 
 AIIDA_COMMIT=$(git rev-parse --short HEAD)
+
 if ((EXIT_CODE)); then
   echo -e "\nSummary: Something is wrong with aiida-cp2k commit ${AIIDA_COMMIT}."
   echo -e "Status: FAILED\n"
