@@ -657,6 +657,8 @@ CONTAINS
          CASE (5)
             ! op=5 abnormal exit ()
             CALL optimizer%para_env%bcast(optimizer%task, optimizer%master)
+            IF (PRESENT(converged)) converged = .FALSE.
+            EXIT
          CASE (6)
             ! deallocated
             CPABORT("step on a deallocated opt structure ")
@@ -761,7 +763,7 @@ CONTAINS
                             last_f=last_f, projected_gradient=projected_gradient, &
                             converged=converged, geo_section=geo_section, &
                             force_env=force_env, gopt_param=gopt_param, spgr=spgr)
-      res = (optimizer%status < 40) .AND. .NOT. converged
+      res = (optimizer%status < 4) .AND. .NOT. converged
 
    END FUNCTION cp_opt_gopt_next
 
