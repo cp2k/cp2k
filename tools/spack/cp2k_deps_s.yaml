@@ -116,7 +116,7 @@ spack:
       require:
         - "~mpi"
 
-    # The pinned yasm CMake recipe omits its C++ build dependency.
+    # Yasm's CMake recipe does not declare its C++ compiler dependency.
     yasm:
       require:
         - "build_system=autotools"
