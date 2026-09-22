@@ -164,7 +164,8 @@ CONTAINS
       CHARACTER(LEN=5)                                   :: wildcard
       INTEGER                                            :: handle, iter_nr, its, max_steep_steps, &
                                                             maxiter
-      LOGICAL                                            :: conv, Fletcher_Reeves, &
+      LOGICAL                                            :: conv, evaluate_before_io, &
+                                                            Fletcher_Reeves, &
                                                             save_consistent_energy_force, &
                                                             should_stop
       REAL(KIND=dp)                                      :: emin, eold, opt_energy, res_lim, t_diff, &
@@ -186,6 +187,8 @@ CONTAINS
       maxiter = gopt_param%max_iter
       max_steep_steps = gopt_param%max_steep_steps
       Fletcher_Reeves = gopt_param%Fletcher_Reeves
+      ! Dimer evaluations update the rotational state, so retain their original timing.
+      evaluate_before_io = gopt_env%type_id /= default_ts_method_id
       res_lim = gopt_param%restart_limit
       ALLOCATE (g(SIZE(x0)))
       ALLOCATE (h(SIZE(x0)))
@@ -253,6 +256,11 @@ CONTAINS
          CALL external_control(should_stop, "GEO", globenv=globenv)
          IF (should_stop) EXIT
 
+         IF (evaluate_before_io) THEN
+            ! The line search may leave x0 at an interpolated or projected point.
+            CALL cg_eval_current(gopt_env, x0, opt_energy, xi, spgr)
+         END IF
+
          ! Some IO and Convergence check
          t_now = m_walltime()
          t_diff = t_now - t_old
@@ -264,18 +272,8 @@ CONTAINS
          emin = MIN(emin, opt_energy)
 
          IF (conv .OR. (its == maxiter)) EXIT
-         ![NB] consistent energies and forces not required for CG, but some line minimizers might set it
-         save_consistent_energy_force = gopt_env%require_consistent_energy_force
-         gopt_env%require_consistent_energy_force = .FALSE.
-
-         CALL cp_eval_at(gopt_env, x0, opt_energy, xi, master=gopt_env%force_env%para_env%mepos, &
-                         para_env=gopt_env%force_env%para_env)
-
-         gopt_env%require_consistent_energy_force = save_consistent_energy_force
-
-         ! Symmetrize coordinates and forces
-         IF (spgr%keep_space_group) THEN
-            CALL spgr_apply_rotations_force(spgr, xi)
+         IF (.NOT. evaluate_before_io) THEN
+            CALL cg_eval_current(gopt_env, x0, opt_energy, xi, spgr)
          END IF
 
          ! Get Conjugate Directions:  updates the searching direction (h)
@@ -318,5 +316,31 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_cg_main
+
+! **************************************************************************************************
+!> \brief Evaluate the current CG point with the force-consistency setting used by CG.
+!> \param gopt_env Optimization environment
+!> \param x Current coordinates, possibly projected by cp_eval_at
+!> \param energy Energy at the evaluated coordinates
+!> \param gradient Gradient at the evaluated coordinates
+!> \param spgr Space-group data
+! **************************************************************************************************
+   SUBROUTINE cg_eval_current(gopt_env, x, energy, gradient, spgr)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: x
+      REAL(KIND=dp), INTENT(OUT)                         :: energy
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: gradient
+      TYPE(spgr_type), POINTER                           :: spgr
+
+      LOGICAL                                            :: save_consistent_energy_force
+
+      save_consistent_energy_force = gopt_env%require_consistent_energy_force
+      gopt_env%require_consistent_energy_force = .FALSE.
+      CALL cp_eval_at(gopt_env, x, energy, gradient, master=gopt_env%force_env%para_env%mepos, &
+                      para_env=gopt_env%force_env%para_env)
+      gopt_env%require_consistent_energy_force = save_consistent_energy_force
+
+      IF (spgr%keep_space_group) CALL spgr_apply_rotations_force(spgr, gradient)
+   END SUBROUTINE cg_eval_current
 
 END MODULE cg_optimizer
