@@ -382,9 +382,6 @@ CONTAINS
 
          IF (inverse) THEN
             CALL bfgs_inverse_step(hess_mat, g, dr)
-            IF (gopt_env%type_id == default_cell_method_id) THEN
-               CALL bfgs_project_cell_step(gopt_env, dr)
-            END IF
          ELSE
             ! Copying hessian hes to (ndf x ndf) matrix hes_mat for diagonalization
             CALL cp_fm_to_fm(hess_mat, hess_tmp)
@@ -409,6 +406,9 @@ CONTAINS
             END IF
             CALL geoopt_get_step(ndf, eigval, eigvec_mat, hess_tmp, dr, g, para_env, use_rfo)
 
+         END IF
+         IF (gopt_env%type_id == default_cell_method_id) THEN
+            CALL bfgs_project_cell_step(gopt_env, dr)
          END IF
 
          ! Symmetrize dr
@@ -437,19 +437,18 @@ CONTAINS
             CALL spgr_apply_rotations_coord(spgr, x0)
          END IF
 
-         ! This diagnostic requires B, not H. It is optional in gopt_f_io.
-         IF (.NOT. inverse) CALL energy_predict(ndf, work, hess_mat, dr, g, conv, pred, para_env)
          eold = etot
 
          ! Energy & Gradients at new step
          CALL cp_eval_at(gopt_env, x0, etot, g, master=gopt_env%force_env%para_env%mepos, &
                          para_env=gopt_env%force_env%para_env)
 
-         IF (inverse) THEN
-            ! Report/test the displacement actually accepted by constraints and cell projection.
-            dr(:) = x0(:) - xold(:)
-            step = MAXVAL(ABS(dr))
-         END IF
+         ! Use the displacement actually accepted by constraints and cell projection.
+         dr(:) = x0(:) - xold(:)
+         step = MAXVAL(ABS(dr))
+
+         ! This diagnostic requires B, not H. It is optional in gopt_f_io.
+         IF (.NOT. inverse) CALL energy_predict(ndf, work, hess_mat, dr, gold, conv, pred, para_env)
 
          ediff = etot - eold
 
@@ -641,7 +640,7 @@ CONTAINS
    END SUBROUTINE bfgs_inverse_step
 
 ! **************************************************************************************************
-!> \brief Apply existing cell restrictions to the proposed inverse-BFGS direction.
+!> \brief Apply existing cell restrictions to a proposed BFGS direction.
 !> \param gopt_env Optimization environment
 !> \param dr Search direction
 ! **************************************************************************************************
