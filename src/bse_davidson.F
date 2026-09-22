@@ -742,6 +742,8 @@ CONTAINS
             ! Ω^k ascending with the coefficients R_mk of y^k and L_mk of x^k, sum_m R_mk L_mk = 1
             CALL solve_reduced_paired(fm_red_M, fm_red_K, m, n_act, para_env, omega, coef_right, coef_left, kr_min, &
                                       abba_status, diag_blacs_env)
+            ! the smallest eigenvalue of A-B on the span of b is that of the last Kr
+            ab_margin = kr_min
             IF (abba_status /= abba_ok) EXIT
 
             ! thick restart: b, Mb and Kb are rotated alike; the current pairs come first, so that
@@ -762,6 +764,7 @@ CONTAINS
                n_restart = n_restart + 1
                CALL solve_reduced_paired(fm_red_M, fm_red_K, m, n_act, para_env, omega, coef_right, coef_left, kr_min, &
                                          abba_status, diag_blacs_env)
+               ab_margin = kr_min
                IF (abba_status /= abba_ok) EXIT
             END IF
 
@@ -841,9 +844,6 @@ CONTAINS
                   'Max deviation of the basis from orthonormality', dev
             END IF
          END IF
-
-         ! the smallest eigenvalue of A-B on the span of b is that of the last Kr
-         ab_margin = kr_min
 
          IF (ALLOCATED(theta_sub)) CALL check_guess_bound(theta_sub, omega, n_req, unit_nr)
          CALL print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr, ab_margin, n_dependent)
