@@ -100,7 +100,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_bse_iteratively'
       INTEGER, PARAMETER                                 :: n_ov_max_debug = 20000
 
-      CHARACTER(LEN=16)                                  :: margin_str, solver_str
+      CHARACTER(LEN=16)                                  :: margin_str, n_ov_str, solver_str
       INTEGER                                            :: abba_status, handle, n_ov
       LOGICAL                                            :: do_debug
       REAL(KIND=dp)                                      :: ab_margin
@@ -126,9 +126,11 @@ CONTAINS
       n_ov = homo_red_arr(1)*virt_red_arr(1)
       ! the debug checks hold the explicit N_ov x N_ov matrices
       do_debug = mp2_env%bse%bse_debug_print .AND. n_ov <= n_ov_max_debug
-      IF (mp2_env%bse%bse_debug_print .AND. .NOT. do_debug .AND. unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A10,T13,A,T71,I10)') 'BSE|DEBUG|', &
-            'Checks against the explicit A and B skipped, N_ov above', n_ov_max_debug
+      IF (mp2_env%bse%bse_debug_print .AND. .NOT. do_debug) THEN
+         WRITE (n_ov_str, '(I0)') n_ov_max_debug
+         CALL cp_warn(__LOCATION__, &
+                      "BSE_DEBUG_PRINT: the checks of the iterative solver against the explicit A "// &
+                      "and B are skipped above N_ov = "//TRIM(n_ov_str)//".")
       END IF
 
       CALL create_matvec_env(mv_env, fm_mat_S_ia_trunc_arr(1), fm_mat_S_ij_trunc_arr(1), &
