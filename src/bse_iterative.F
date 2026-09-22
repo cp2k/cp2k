@@ -24,6 +24,8 @@ MODULE bse_iterative
                                               bse_matvec_env_type,&
                                               bse_matvec_release,&
                                               bse_matvec_selfcheck
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
+                                              cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -60,7 +62,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Lowest excitations of a closed-shell reference from the block Davidson solvers on top of
-!>        the matrix-free application of A and B, post-processed as in the full diagonalization
+!>        the matrix-free application of A and B, post-processed as in the full diagonalization;
+!>        the five slabs are released once the solver holds its RI-sliced copies
 !> \param fm_mat_S_ia_trunc_arr ...
 !> \param fm_mat_S_ij_trunc_arr ...
 !> \param fm_mat_S_ab_trunc_arr ...
@@ -84,8 +87,9 @@ CONTAINS
                                     homo_red_arr, virt_red_arr, homo, dimen_RI, &
                                     do_tda, do_abba, mp2_env, qs_env, mo_coeff, unit_nr)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN) :: fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, &
-         fm_mat_S_ab_trunc_arr, fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT) :: fm_mat_S_ia_trunc_arr, &
+         fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, fm_mat_S_bar_ia_bse_arr, &
+         fm_mat_S_bar_ij_bse_arr
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_reduced
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo_red_arr, virt_red_arr, homo
       INTEGER, INTENT(IN)                                :: dimen_RI
@@ -104,6 +108,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: ab_margin
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: exc_ens, exc_ens_abba
       TYPE(bse_matvec_env_type)                          :: mv_env
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_ia
       TYPE(cp_fm_type)                                   :: fm_A_BSE, fm_B_BSE, fm_X_abba, fm_X_ia, &
                                                             fm_Y_abba, fm_Y_ia
       TYPE(cp_fm_type), POINTER                          :: fm_tda_guess
@@ -150,11 +155,20 @@ CONTAINS
          END IF
       END IF
 
+      ! the solver works on its RI-sliced copies; only the grid of the slabs is kept, for the eigenvectors
+      blacs_env_ia => fm_mat_S_ia_trunc_arr(1)%matrix_struct%context
+      CALL blacs_env_ia%retain()
+      CALL cp_fm_release(fm_mat_S_ia_trunc_arr(1))
+      CALL cp_fm_release(fm_mat_S_ij_trunc_arr(1))
+      CALL cp_fm_release(fm_mat_S_ab_trunc_arr(1))
+      CALL cp_fm_release(fm_mat_S_bar_ia_bse_arr(1))
+      CALL cp_fm_release(fm_mat_S_bar_ij_bse_arr(1))
+
       IF (do_tda) THEN
          CALL bse_davidson_tda(mv_env, mp2_env, unit_nr, exc_ens, fm_X)
          IF (do_debug) CALL bse_davidson_refcheck(fm_A_BSE, exc_ens, fm_X, mp2_env, unit_nr)
 
-         CALL copy_to_ia_context(fm_X, fm_mat_S_ia_trunc_arr(1), fm_X_ia)
+         CALL copy_to_ia_context(fm_X, blacs_env_ia, fm_X_ia)
          CALL postprocess_bse(exc_ens, fm_X_ia, mp2_env, qs_env, mo_coeff, &
                               homo_red_arr(1), virt_red_arr(1), homo(1), unit_nr, .TRUE.)
          CALL cp_fm_release(fm_X_ia)
@@ -204,8 +218,8 @@ CONTAINS
                                           fm_B_BSE, fm_Y_abba)
             END IF
 
-            CALL copy_to_ia_context(fm_X_abba, fm_mat_S_ia_trunc_arr(1), fm_X_ia)
-            CALL copy_to_ia_context(fm_Y_abba, fm_mat_S_ia_trunc_arr(1), fm_Y_ia)
+            CALL copy_to_ia_context(fm_X_abba, blacs_env_ia, fm_X_ia)
+            CALL copy_to_ia_context(fm_Y_abba, blacs_env_ia, fm_Y_ia)
             CALL cp_fm_release(fm_X_abba)
             CALL cp_fm_release(fm_Y_abba)
             CALL postprocess_bse(exc_ens_abba, fm_X_ia, mp2_env, qs_env, mo_coeff, &
@@ -221,6 +235,7 @@ CONTAINS
          CALL cp_fm_release(fm_A_BSE)
          IF (do_abba) CALL cp_fm_release(fm_B_BSE)
       END IF
+      CALL cp_blacs_env_release(blacs_env_ia)
       CALL bse_matvec_release(mv_env)
 
       CALL timestop(handle)
@@ -231,12 +246,13 @@ CONTAINS
 !> \brief Copies eigenvectors from the process grid of the solver to the one of the RI slabs, from
 !>        which postprocess_bse takes its grid
 !> \param fm_vec ...
-!> \param fm_S_ia slab that provides the target context
+!> \param blacs_env_ia process grid of the RI slabs
 !> \param fm_vec_ia ...
 ! **************************************************************************************************
-   SUBROUTINE copy_to_ia_context(fm_vec, fm_S_ia, fm_vec_ia)
+   SUBROUTINE copy_to_ia_context(fm_vec, blacs_env_ia, fm_vec_ia)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_vec, fm_S_ia
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_vec
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_ia
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_vec_ia
 
       INTEGER                                            :: n_exc, n_ov
@@ -244,13 +260,11 @@ CONTAINS
 
       CALL cp_fm_get_info(fm_vec, nrow_global=n_ov, ncol_global=n_exc)
       NULLIFY (fm_struct)
-      CALL cp_fm_struct_create(fm_struct, para_env=fm_S_ia%matrix_struct%para_env, &
-                               context=fm_S_ia%matrix_struct%context, &
+      CALL cp_fm_struct_create(fm_struct, para_env=blacs_env_ia%para_env, context=blacs_env_ia, &
                                nrow_global=n_ov, ncol_global=n_exc)
       CALL cp_fm_create(fm_vec_ia, fm_struct, name="fm_davidson_ia")
       CALL cp_fm_struct_release(fm_struct)
-      CALL cp_fm_to_fm_submat_general(fm_vec, fm_vec_ia, n_ov, n_exc, 1, 1, 1, 1, &
-                                      fm_S_ia%matrix_struct%context)
+      CALL cp_fm_to_fm_submat_general(fm_vec, fm_vec_ia, n_ov, n_exc, 1, 1, 1, 1, blacs_env_ia)
 
    END SUBROUTINE copy_to_ia_context
 
