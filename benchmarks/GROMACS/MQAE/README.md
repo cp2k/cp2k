@@ -11,17 +11,17 @@ performed with a time step of 1 fs. The following XC functional set ups are incl
 
 - BLYP - using DVZP-MOLOPT-GTH
 
-`mqae.top` - The Gromacs topology file.
+- `MQAE.top` - The GROMACS topology file
 
-`mqae.ndx` - The Gromacs index file.
+- `MQAE.ndx` - The GROMACS index file
 
-`mqae.gro` - The Gromacs coordinates and velocities file.
+- `MQAE.gro` - The GROMACS coordinates and velocities file
 
-`mqae.mdp` - The Gromacs MD parameter file.
+- `MQAE.mdp` - The GROMACS MD parameter file
 
-`mqae.inp` - The CP2K input file. Contains QM parameters.
+- `MQAE.inp` - The CP2K input file. Contains QM parameters
 
-`mqae_cp2k.pdb` - The pdb coordinates for CP2K.
+- `MQAE_cp2k.pdb` - The PDB coordinates for CP2K
 
 ### How to run the benchmark (8 MPI ranks with 2 OpenMP threads each)
 
@@ -31,10 +31,10 @@ performed with a time step of 1 fs. The following XC functional set ups are incl
 
 - Run with container
 
-  - `podman run -it --rm -v ${PWD}:/mnt spack_gromacs mpiexec -n 1 gmx_mpi grompp -f mqae.mdp -p mqae.top -c mqae.gro -n mqae.ndx -qmi mqae_cp2k.inp -o mqae.tpr -maxwarn 1`
-  - `podman run -it --rm -v ${PWD}:/mnt spack_gromacs mpiexec -n 8 gmx_mpi mdrun -s mqae.tpr`
+  - `podman run -it --rm -v ${PWD}:/mnt spack_gromacs mpiexec -n 1 gmx_mpi grompp -f MQAE.mdp -p MQAE.top -c MQAE.gro -n MQAE.ndx -qmi MQAE_cp2k.inp -o MQAE.tpr -maxwarn 1`
+  - `podman run -it --rm -v ${PWD}:/mnt spack_gromacs mpiexec -n 8 gmx_mpi mdrun -s MQAE.tpr`
 
 - Run with launch script
 
-  - `${CP2K_ROOT}/install/bin/launch mpiexec -n 1 gmx_mpi grompp -f mqae.mdp -p mqae.top -c mqae.gro -n mqae.ndx -qmi mqae_cp2k.inp -o mqae.tpr -maxwarn 1`
-  - `${CP2K_ROOT}/install/bin/launch mpiexec -n 8 gmx_mpi mdrun -s mqae.tpr`
+  - `${CP2K_ROOT}/install/bin/launch mpiexec -n 1 gmx_mpi grompp -f MQAE.mdp -p MQAE.top -c MQAE.gro -n MQAE.ndx -qmi MQAE_cp2k.inp -o MQAE.tpr -maxwarn 1`
+  - `${CP2K_ROOT}/install/bin/launch mpiexec -n 8 gmx_mpi mdrun -s MQAE.tpr`

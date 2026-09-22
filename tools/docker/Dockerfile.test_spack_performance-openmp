@@ -97,7 +97,7 @@ COPY ./benchmarks/QS ./benchmarks/QS
 COPY ./benchmarks/QS_reference ./benchmarks/QS_reference
 COPY ./benchmarks/QS_kp ./benchmarks/QS_kp
 COPY ./benchmarks/QS_single_node ./benchmarks/QS_single_node
-COPY ./benchmarks/QMMM_MQAE ./benchmarks/QMMM_MQAE
+COPY ./benchmarks/QMMM/MQAE ./benchmarks/QMMM/MQAE
 RUN mkdir -p ./tools/docker/scripts
 COPY ./tools/docker/scripts/plot_performance.py ./tools/docker/scripts/
 
