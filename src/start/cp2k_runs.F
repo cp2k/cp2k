@@ -942,10 +942,8 @@ CONTAINS
       TYPE(mp_comm_type), INTENT(in), OPTIONAL           :: mpi_comm
 
       INTEGER                                            :: unit_nr
-      LOGICAL                                            :: opened, owns_output
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      owns_output = .FALSE.
       IF (PRESENT(mpi_comm)) THEN
          ALLOCATE (para_env)
          para_env = mpi_comm
@@ -957,23 +955,14 @@ CONTAINS
          IF (output_file_path == "__STD_OUT__") THEN
             unit_nr = default_output_unit
          ELSE
-            INQUIRE (FILE=output_file_path, OPENED=opened, NUMBER=unit_nr)
-            IF (.NOT. opened) THEN
-               CALL open_file(file_name=output_file_path, &
-                              file_status="UNKNOWN", &
-                              file_action="WRITE", &
-                              file_position="APPEND", &
-                              unit_number=unit_nr)
-               owns_output = .TRUE.
-            END IF
+            INQUIRE (FILE=output_file_path, NUMBER=unit_nr)
          END IF
       ELSE
          unit_nr = -1
       END IF
       CALL cp2k_run(input_declaration, input_file_path, unit_nr, para_env, initial_variables)
-      ! Do not leave DBCSR diagnostics bound to an output unit owned by this call.
+      ! Restore DBCSR diagnostics before the caller closes its output unit.
       CALL configure_dbcsr(f77_default_para_env, cp_logger_get_default_io_unit())
-      IF (owns_output) CALL close_file(unit_number=unit_nr)
       CALL mp_para_env_release(para_env)
    END SUBROUTINE run_input
 

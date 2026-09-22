@@ -26,11 +26,14 @@ MODULE libcp2k
                                               C_NULL_CHAR
    USE cp2k_info,                       ONLY: cp2k_version
    USE cp2k_runs,                       ONLY: run_input
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_fm_types,                     ONLY: cp_fm_get_element
    USE f77_interface,                   ONLY: &
-        calc_energy_force, create_force_env, destroy_force_env, f_env_add_defaults, &
-        f_env_rm_defaults, f_env_type, finalize_cp2k, get_cell, get_energy, get_force, get_natom, &
-        get_nparticle, get_pos, get_qmmm_cell, get_result_r1, init_cp2k, set_cell, set_pos, set_vel
+        calc_energy_force, create_force_env, default_para_env, destroy_force_env, &
+        f_env_add_defaults, f_env_rm_defaults, f_env_type, finalize_cp2k, get_cell, get_energy, &
+        get_force, get_natom, get_nparticle, get_pos, get_qmmm_cell, get_result_r1, init_cp2k, &
+        set_cell, set_pos, set_vel
    USE force_env_types,                 ONLY: force_env_get,&
                                               use_qs_force
    USE input_cp2k,                      ONLY: create_cp2k_root_section
@@ -451,18 +454,7 @@ CONTAINS
    SUBROUTINE cp2k_run_input(input_file_path, output_file_path) BIND(C)
       CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: input_file_path(*), output_file_path(*)
 
-      CHARACTER(LEN=default_path_length)                 :: ifp, ofp
-      INTEGER                                            :: ncopied
-      TYPE(section_type), POINTER                        :: input_declaration
-
-      ifp = " "; ofp = " "
-      ncopied = strlcpy_c2f(ifp, input_file_path)
-      ncopied = strlcpy_c2f(ofp, output_file_path)
-
-      NULLIFY (input_declaration)
-      CALL create_cp2k_root_section(input_declaration)
-      CALL run_input(input_declaration, ifp, ofp, empty_initial_variables)
-      CALL section_release(input_declaration)
+      CALL cp2k_run_input_comm(input_file_path, output_file_path, INT(default_para_env%get_handle(), C_INT))
    END SUBROUTINE cp2k_run_input
 
 ! **************************************************************************************************
@@ -476,7 +468,7 @@ CONTAINS
       INTEGER(C_INT), VALUE                              :: mpi_comm
 
       CHARACTER(LEN=default_path_length)                 :: ifp, ofp
-      INTEGER                                            :: ncopied
+      INTEGER                                            :: ncopied, unit_nr
       TYPE(mp_comm_type)                                 :: my_mpi_comm
       TYPE(section_type), POINTER                        :: input_declaration
 
@@ -487,7 +479,15 @@ CONTAINS
       NULLIFY (input_declaration)
       CALL create_cp2k_root_section(input_declaration)
       CALL my_mpi_comm%set_handle(INT(mpi_comm))
+      IF (my_mpi_comm%is_source() .AND. ofp /= "__STD_OUT__") THEN
+         CALL open_file(file_name=ofp, &
+                        file_status="UNKNOWN", &
+                        file_action="WRITE", &
+                        file_position="APPEND", &
+                        unit_number=unit_nr)
+      END IF
       CALL run_input(input_declaration, ifp, ofp, empty_initial_variables, my_mpi_comm)
+      IF (my_mpi_comm%is_source() .AND. ofp /= "__STD_OUT__") CALL close_file(unit_number=unit_nr)
       CALL section_release(input_declaration)
    END SUBROUTINE cp2k_run_input_comm
 

@@ -127,7 +127,8 @@ int main() {
   // A library caller has not already opened output in the Fortran runtime.
   // run_input must create, close, and subsequently append to the named file.
   const char *run_out = "libcp2k_unittest_run.out";
-  cp2k_run_input(inp_fn, run_out);
+  cp2k_run_input_comm(inp_fn, run_out,
+                      cp_mpi_comm_c2f(cp_mpi_get_comm_world()));
   cp_mpi_barrier(cp_mpi_get_comm_world());
   long first_size = 0;
   if (rank == 0) {

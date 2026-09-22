@@ -1302,6 +1302,16 @@ CONTAINS
    END SUBROUTINE get_vel
 
 ! **************************************************************************************************
+!> \brief Invalidates results associated with the previous force-environment state.
+!> \param f_env Force environment whose state has changed or is being recalculated.
+! **************************************************************************************************
+   SUBROUTINE f_env_invalidate(f_env)
+      TYPE(f_env_type), INTENT(INOUT)                    :: f_env
+
+      f_env%is_dirty = .TRUE.
+   END SUBROUTINE f_env_invalidate
+
+! **************************************************************************************************
 !> \brief sets a new cell
 !> \param env_id id of the force_env
 !> \param new_cell the array with the cell matrix
@@ -1320,7 +1330,7 @@ CONTAINS
 
       NULLIFY (f_env, cell, subsys)
       CALL f_env_add_defaults(env_id, f_env)
-      f_env%is_dirty = .TRUE.
+      CALL f_env_invalidate(f_env)
       NULLIFY (cell)
       CALL force_env_get(f_env%force_env, cell=cell)
       CPASSERT(ASSOCIATED(cell))
@@ -1355,7 +1365,7 @@ CONTAINS
       NULLIFY (subsys)
       CALL force_env_get(f_env%force_env, subsys=subsys)
       CALL unpack_subsys_particles(subsys=subsys, r=new_pos)
-      f_env%is_dirty = .TRUE.
+      CALL f_env_invalidate(f_env)
       CALL f_env_rm_defaults(f_env, ierr)
 
    END SUBROUTINE set_pos
@@ -1383,7 +1393,7 @@ CONTAINS
       NULLIFY (subsys)
       CALL force_env_get(f_env%force_env, subsys=subsys)
       CALL unpack_subsys_particles(subsys=subsys, v=new_vel)
-      f_env%is_dirty = .TRUE.
+      CALL f_env_invalidate(f_env)
       CALL f_env_rm_defaults(f_env, ierr)
 
    END SUBROUTINE set_vel
@@ -1409,7 +1419,7 @@ CONTAINS
       CALL f_env_add_defaults(env_id, f_env)
       logger => cp_get_default_logger()
       CALL cp_iterate(logger%iter_info) ! add one to the iteration count
-      f_env%is_dirty = .TRUE.
+      CALL f_env_invalidate(f_env)
       CALL force_env_calc_energy_force(f_env%force_env, calc_force=calc_force)
       f_env%is_dirty = .FALSE.
       CALL f_env_rm_defaults(f_env, ierr)
