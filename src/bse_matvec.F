@@ -109,7 +109,7 @@ CONTAINS
 
       CHARACTER(LEN=12)                                  :: n_idle_str, n_ri_str, npe_str
       INTEGER                                            :: a, handle, i, n_ri, n_row_block
-      REAL(KIND=dp)                                      :: mem_slabs_GB
+      REAL(KIND=dp)                                      :: mem_slabs_GB, n_slab_entries
 
       CALL timeset(routineN, handle)
 
@@ -162,12 +162,13 @@ CONTAINS
       END IF
 
       IF (unit_nr > 0) THEN
-         mem_slabs_GB = REAL(homo*virt, dp)
+         ! pair entries of the sliced slabs per RI index
+         n_slab_entries = REAL(homo*virt, dp)
          IF (w_fac /= 0.0_dp) THEN
-            mem_slabs_GB = mem_slabs_GB + REAL(homo, dp)**2 + REAL(virt, dp)**2
-            IF (do_abba) mem_slabs_GB = mem_slabs_GB + REAL(homo*virt, dp)
+            n_slab_entries = n_slab_entries + REAL(homo, dp)**2 + REAL(virt, dp)**2
+            IF (do_abba) n_slab_entries = n_slab_entries + REAL(homo*virt, dp)
          END IF
-         mem_slabs_GB = mem_slabs_GB*REAL(mv_env%n_ri_loc, dp)*8.0E-9_dp
+         mem_slabs_GB = n_slab_entries*REAL(mv_env%n_ri_loc, dp)*8.0E-9_dp
          WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', &
             'Max. number of RI functions per MPI rank', mv_env%n_ri_loc
          WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', &
