@@ -1203,6 +1203,10 @@ CONTAINS
          c_val=gradient_runtime)
       CALL section_vals_val_get( &
          gauxc_functional_section, &
+         "FORCE_NUMERICAL_GRADIENT", &
+         l_val=params%force_fd_gradient)
+      CALL section_vals_val_get( &
+         gauxc_functional_section, &
          "OUTPUT_PATH", &
          c_val=output_path)
 
@@ -1329,21 +1333,7 @@ CONTAINS
          CALL cp_abort(__LOCATION__, "Unknown GAUXC%SKALA_RUNTIME value.")
       END SELECT
       IF (.NOT. use_skala_model) params%use_self_runtime = .FALSE.
-      SELECT CASE (TRIM(gradient_runtime_key))
-      CASE ("AUTO", "SELF")
-         params%use_gradient_mpi_runtime = .FALSE.
-         params%use_gradient_self_runtime = need_xc_gradient .AND. params%use_gauxc_model .AND. &
-                                            para_env%num_pe > 1 .AND. .NOT. params%use_self_runtime
-      CASE ("MPI")
-         params%use_gradient_mpi_runtime = need_xc_gradient .AND. params%use_gauxc_model .AND. para_env%num_pe > 1
-         params%use_gradient_self_runtime = .FALSE.
-      CASE DEFAULT
-         CALL cp_abort(__LOCATION__, "Unknown GAUXC%MODEL_GRADIENT_RUNTIME value.")
-      END SELECT
-      IF (.NOT. params%use_gauxc_model) THEN
-         params%use_gradient_mpi_runtime = .FALSE.
-         params%use_gradient_self_runtime = .FALSE.
-      END IF
+      params%gradient_runtime = gradient_runtime_key
       IF (use_skala_model .AND. para_env%num_pe > 1 .AND. .NOT. params%use_self_runtime .AND. &
           para_env%mepos == 0 .AND. ASSOCIATED(scf_env)) THEN
          IF (scf_env%iter_count == 1) THEN
@@ -1355,8 +1345,9 @@ CONTAINS
          END IF
       END IF
 
-      ! After creating the basisset, we will have to check max_l>3 as a further condition
-      params%use_fd_gradient = gapw_method .AND. need_xc_gradient
+      ! Resolve the gradient route once the cache knows the actual basis angular momentum.
+      params%gapw_method = gapw_method
+      params%need_xc_gradient = need_xc_gradient
 
       IF (.NOT. ASSOCIATED(qs_env%gauxc_cache)) ALLOCATE (qs_env%gauxc_cache)
       cache => qs_env%gauxc_cache

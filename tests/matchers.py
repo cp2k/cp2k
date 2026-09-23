@@ -280,6 +280,15 @@ registry["GAUXC_molecular_xc_virial_trace"] = GenericMatcher(
     col=8,
     regex=True,
 )
+registry["GAUXC_analytical_gradient"] = TextPresenceMatcher(
+    "GAUXC| Molecular XC gradient method: ANALYTICAL"
+)
+registry["GAUXC_numerical_gradient"] = TextPresenceMatcher(
+    "GAUXC| Molecular XC gradient method: FD"
+)
+registry["GAUXC_self_gradient"] = TextPresenceMatcher(
+    "GAUXC| Molecular XC gradient runtime: SELF"
+)
 registry["GAUXC_molecular_xc_virial_fd_diff"] = GenericMatcher(
     r"GAUXC\|\s+Molecular XC virial FD 1/3 Trace\s+"
     r"[-+0-9.EeDd]+\s+[-+0-9.EeDd]+\s+([-+0-9.EeDd]+)",

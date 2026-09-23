@@ -124,6 +124,9 @@ CONTAINS
 #if defined(GAUXC_HAS_ONEDFT)
       flags = TRIM(flags)//" gauxc_onedft"
 #endif
+#if defined(__GAUXC) && defined(__GAUXC_ONEDFT_GRADIENT_FIX)
+      flags = TRIM(flags)//" gauxc_onedft_gradients"
+#endif
 #if defined(GAUXC_HAS_HOST)
       flags = TRIM(flags)//" gauxc_host"
 #endif

@@ -101,8 +101,20 @@ of atoms per block, zero disables chunking, and the default lets GauXC or the
 For MPI calculations, `SKALA_RUNTIME` controls the communicator used for Skala energy and potential
 evaluation. `AUTO` uses the force-evaluation communicator for closed-shell calculations and a
 replicated rank-local runtime for open-shell calculations. The corresponding
-`MODEL_GRADIENT_RUNTIME` setting defaults to a conservative replicated runtime for nuclear
-gradients. Select `MPI` only with a GauXC installation that supports distributed Skala gradients.
+`MODEL_GRADIENT_RUNTIME AUTO` uses distributed analytical gradients when energy/VXC uses MPI and the
+GauXC OneDFT gradient fix from [PR #222](https://github.com/wavefunction91/GauXC/pull/222) is
+verified at build time. Otherwise it retains rank-local gradients. `SELF` explicitly keeps the
+rank-local gradient route. `MPI` requires verified support and an MPI energy/VXC runtime; an
+incompatible request is rejected, not silently downgraded. The open-shell `SKALA_RUNTIME AUTO`
+safeguard is unchanged.
+
+The toolchain pins GauXC commit `2c236c4ac9133dc70a7d668af5750eb6017a2aa4` and exports
+`GAUXC_HAS_ONEDFT_GRADIENT_FIX` in its CMake package. GauXC's package version alone does not
+identify this fix. Unmarked external installations retain the legacy high-angular-momentum and MPI
+safeguards. For an external installation independently verified to contain this commit or an
+equivalent validated backport, configure CP2K with `-DCP2K_GAUXC_ASSUME_ONEDFT_GRADIENT_FIX=ON`.
+This explicit override is not automatic version detection and must be reconsidered when changing the
+linked GauXC installation.
 
 ### GAPW Density Representations
 
@@ -149,11 +161,18 @@ require additional VXC, force, and virial derivatives. `NATIVE_GRID_DIAGNOSTICS 
 atom-composite electron integral for convergence checks.
 
 Molecular Skala forces are available for these GAPW and GAPW_XC cases. The direct molecular GauXC
-route evaluates its XC nuclear gradient through the configured GauXC gradient path. The
-`PAW_ONE_CENTER` representation instead propagates the Skala feature adjoint analytically through
-the CP2K smooth-field interpolation, one-center reconstruction, atom partition, and NLCC center
-coordinates. `MOLECULAR_VIRIAL` is a finite-system diagnostic constructed from the nuclear
-gradients; it is not a periodic stress tensor.
+route uses analytical XC nuclear gradients, including g functions, when the OneDFT gradient fix is
+verified. Unknown/older GauXC installations retain the central finite-difference fallback for
+GAPW/GAPW_XC bases beyond f shells. The separate conventional-functional high-l fallback is
+unchanged by the OneDFT fix. `FORCE_NUMERICAL_GRADIENT T` explicitly selects finite differences for
+diagnostics, including low-l and GPW cases. It uses a displacement of `1.0E-4` bohr at fixed AO
+density and costs six XC energy evaluations per atom, not six additional SCFs. It does not change
+`NATIVE_GRID` or the CP2K one-center contribution. The selected molecular gradient method and
+runtime are printed when a gradient cache is initialized. The `PAW_ONE_CENTER` representation
+instead propagates the Skala feature adjoint analytically through the CP2K smooth-field
+interpolation, one-center reconstruction, atom partition, and NLCC center coordinates.
+`MOLECULAR_VIRIAL` is a finite-system diagnostic constructed from the nuclear gradients; it is not a
+periodic stress tensor.
 
 Direct molecular GauXC evaluation with NLCC pseudopotentials is not supported because GauXC does not
 receive the frozen-core density and its derivatives. Molecular pseudopotential GAPW with
