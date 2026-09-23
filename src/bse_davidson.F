@@ -7,7 +7,12 @@
 
 ! **************************************************************************************************
 !> \brief Block Davidson solvers for the lowest excitations of the Bethe-Salpeter equation on top
-!>        of the matrix-free application of A and B
+!>        of the matrix-free application of A and B: the TDA problem sum_jb A_ia,jb X_jb = Ω X_ia
+!>        (bse_davidson_tda) and the full problem, either as sum_jb [(A+B)(A-B)]_ia,jb x_jb = Ω^2 x_ia
+!>        (bse_davidson_abba_mk) or as the pair sum_jb (A+B)_ia,jb y_jb = Ω x_ia, sum_jb (A-B)_ia,jb x_jb = Ω y_ia
+!>        (bse_davidson_abba_os). Every solver projects its problem onto an orthonormal basis, takes the
+!>        lowest Ritz pairs, extends the basis by the preconditioned residuals of the roots still in need
+!>        and restarts thick at the subspace ceiling; the helpers below are shared by the three drivers
 !> \par History
 !>      09.2026 created [Maximilian Graml]
 ! **************************************************************************************************
@@ -88,9 +93,9 @@ CONTAINS
 !>        and the basis grows by the corrections t_ia,k = r_ia,k/(d_ia - θ_k) of the residuals
 !>        r_ia,k = sum_m (A Z)_ia,m c_mk - θ_k X_ia^k, d_ia being the diagonal chosen by PRECONDITIONER.
 !>        Arrays: G_mn in fm_red_A on the process grid, c_mk in coef_ritz, θ_k c_mk in coef_ritz_theta
-!> \param mv_env ...
-!> \param mp2_env ...
-!> \param unit_nr ...
+!> \param mv_env slabs, prefactors and transition energies of the matrix-free A
+!> \param mp2_env mp2_env%bse carries the BSE_ITERAT settings and BSE_DEBUG_PRINT
+!> \param unit_nr output unit, positive on the writing rank only
 !> \param exc_ens Ω^n in Hartree
 !> \param fm_X X_ia^n on the process grid of mv_env, column n
 ! **************************************************************************************************
@@ -152,6 +157,7 @@ CONTAINS
       CALL cp_fm_create(fm_red_A, fm_struct, name="fm_red_A_davidson", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
 
+      ! c_mk and θ_k c_mk, the restart candidates (current and previous Ritz vectors) and the restart basis Q_pk
       ALLOCATE (coef_ritz(m_max, n_act), coef_restart_cand(m_max, 2*n_act), coef_ritz_theta(m_max, n_act))
       ALLOCATE (coef_restart(m_max, 2*n_act))
       ALLOCATE (theta(m_max), theta_prev(n_act), res(n_act), dE(n_act), conv(n_act), need(n_act), &
@@ -169,6 +175,7 @@ CONTAINS
       ELSE
          CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_Z, m)
       END IF
+      ! both guess routines return orthonormal columns by construction; one Gram matrix checks it
       IF (extension_deviation(fm_Z, fm_Z, 0, m, para_env) > ortho_tol) THEN
          CPABORT("BSE Davidson: the initial guess is not orthonormal")
       END IF
@@ -216,6 +223,7 @@ CONTAINS
          IF (m == n_ov) conv(:) = .TRUE.
          CALL roots_in_need(conv, theta, res, n_req, need)
          all_conv = .NOT. ANY(need)
+         ! the masked MAXVAL is -HUGE when no root is in need; the unmasked term covers that case
          CALL print_iteration(iter, m, COUNT(conv(1:n_want)), &
                               MAX(MAXVAL(res(1:n_req)), MAXVAL(res, MASK=need)), &
                               MAXVAL(dE(1:n_req)), theta(1), m_walltime() - t_iter, unit_nr)
@@ -228,14 +236,17 @@ CONTAINS
          CALL davidson_corrections(fm_work, selected(1:nt), theta, diag, fm_Z, m + 1)
          CALL project_out(fm_Z, m + 1, nt, fm_Z, m, para_env)
          CALL drop_small_columns(fm_Z, m + 1, nt, para_env)
-         ! no correction left: the open roots only wait for their energy criterion, allowed once
+         ! no new vector: with an unchanged basis the next iteration finds dE = 0, which lets the roots that
+         ! only wait for the energy criterion converge; a second empty pass means the residuals cannot improve
          IF (nt == 0 .AND. stalled) THEN
             CPABORT("BSE Davidson: correction vectors vanished before convergence")
          END IF
          stalled = nt == 0
          CALL cholqr2(fm_Z, m + 1, nt, para_env, ok, n_dropped)
+         ! cholqr2 gives up after two rounds of dropping dependent directions, or when none is left
          IF (.NOT. ok) CPABORT("BSE Davidson: orthonormalisation broke down")
          n_dependent = n_dependent + n_dropped
+         ! post-condition of the extension, one Gram matrix; the residual norms below rely on it
          IF (extension_deviation(fm_Z, fm_Z, m, nt, para_env) > ortho_tol) THEN
             CPABORT("BSE Davidson: the basis lost orthonormality")
          END IF
@@ -305,9 +316,9 @@ CONTAINS
 !>        and the correction t_ia,k = r_ia,k/(d_ia^2 - (Ω^k)^2), d_ia chosen by PRECONDITIONER.
 !>        Arrays: H_mn in fm_red_M on the process grid, c_mk in coef_ritz, (Ω^k)^1/2 c_mk in coef_x,
 !>        (Ω^k)^-1/2 c_mk in coef_y, Ω^k (Ω^k)^1/2 c_mk in coef_x_omega
-!> \param mv_env ...
-!> \param mp2_env ...
-!> \param unit_nr ...
+!> \param mv_env slabs, prefactors and transition energies of the matrix-free A and B
+!> \param mp2_env mp2_env%bse carries the BSE_ITERAT settings and BSE_DEBUG_PRINT
+!> \param unit_nr output unit, positive on the writing rank only
 !> \param exc_ens Ω^n in Hartree
 !> \param fm_X X_ia^n on the process grid of mv_env, column n; created only for abba_ok
 !> \param fm_Y Y_ia^n, as fm_X
@@ -386,6 +397,7 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_get_info(fm_V, nrow_local=nrow_local)
 
+      ! c_mk, the restart candidates and basis, then (Ω^k)^1/2 c_mk, (Ω^k)^-1/2 c_mk and Ω^k (Ω^k)^1/2 c_mk
       ALLOCATE (coef_ritz(m_max, n_act), coef_restart_cand(m_max, 2*n_act), coef_restart(m_max, 2*n_act))
       ALLOCATE (coef_x(m_max, n_act), coef_y(m_max, n_act), coef_x_omega(m_max, n_act))
       ALLOCATE (theta(m_max), omega(n_act), omega_prev(n_act), res(n_act), dE(n_act), conv(n_act), &
@@ -481,9 +493,11 @@ CONTAINS
             dE(:) = ABS(omega(:) - omega_prev(:))
             CALL convergence_flags(mp2_env, dE, res, conv)
             n_req = last_required_root(omega, n_want, n_act)
+            ! a subspace that spans all transitions is exact
             IF (m == n_ov) conv(:) = .TRUE.
             CALL roots_in_need(conv, omega, res, n_req, need)
             all_conv = .NOT. ANY(need)
+            ! the masked MAXVAL is -HUGE when no root is in need; the unmasked term covers that case
             CALL print_iteration(iter, m, COUNT(conv(1:n_want)), &
                                  MAX(MAXVAL(res(1:n_req)), MAXVAL(res, MASK=need)), &
                                  MAXVAL(dE(1:n_req)), omega(1), m_walltime() - t_iter, unit_nr)
@@ -497,6 +511,8 @@ CONTAINS
             CALL extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scratch, m, nt, n_kernel, n_dependent, abba_status, &
                                  ab_margin)
             IF (abba_status /= abba_ok) EXIT
+            ! no new vector: with an unchanged basis the next iteration finds dE = 0, which lets the roots that
+            ! only wait for the energy criterion converge; a second empty pass means the residuals cannot improve
             IF (nt == 0 .AND. stalled) THEN
                CPABORT("BSE Davidson: correction vectors vanished before convergence")
             END IF
@@ -596,9 +612,9 @@ CONTAINS
 !>        d_ia chosen by PRECONDITIONER; the rR block enters before the rL block, which is nearly
 !>        parallel to it for a small B. Arrays: Mr_mn and Kr_mn in fm_red_M and fm_red_K on the process
 !>        grid, R_mk in coef_right, L_mk in coef_left
-!> \param mv_env ...
-!> \param mp2_env ...
-!> \param unit_nr ...
+!> \param mv_env slabs, prefactors and transition energies of the matrix-free A and B
+!> \param mp2_env mp2_env%bse carries the BSE_ITERAT settings and BSE_DEBUG_PRINT
+!> \param unit_nr output unit, positive on the writing rank only
 !> \param exc_ens Ω^n in Hartree
 !> \param fm_X X_ia^n on the process grid of mv_env, column n; created only for abba_ok
 !> \param fm_Y Y_ia^n, as fm_X
@@ -682,6 +698,7 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_get_info(fm_b, nrow_local=nrow_local)
 
+      ! R_mk, L_mk and a work block, then the restart candidates (current and previous pairs) and the basis Q_pk
       ALLOCATE (coef_right(m_max, n_act), coef_left(m_max, n_act), coef_work(m_max, n_act))
       ALLOCATE (coef_restart_cand(m_max, 4*n_act), coef_restart(m_max, 4*n_act))
       ALLOCATE (omega(n_act), omega_prev(n_act), res(n_act), res_L(n_act), dE(n_act), conv(n_act), &
@@ -787,9 +804,11 @@ CONTAINS
             dE(:) = ABS(omega(:) - omega_prev(:))
             CALL convergence_flags(mp2_env, dE, res, conv)
             n_req = last_required_root(omega, n_want, n_act)
+            ! a subspace that spans all transitions is exact
             IF (m == n_ov) conv(:) = .TRUE.
             CALL roots_in_need(conv, omega, res, n_req, need)
             all_conv = .NOT. ANY(need)
+            ! the masked MAXVAL is -HUGE when no root is in need; the unmasked term covers that case
             CALL print_iteration(iter, m, COUNT(conv(1:n_want)), &
                                  MAX(MAXVAL(res(1:n_req)), MAXVAL(res, MASK=need)), &
                                  MAXVAL(dE(1:n_req)), omega(1), m_walltime() - t_iter, unit_nr)
@@ -808,6 +827,8 @@ CONTAINS
             CALL davidson_corrections(fm_work, selected(1:nt_L), omega, diag, fm_b, m + nt_R + 1, n_act)
             CALL extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scratch, m + nt_R, nt_L, n_kernel, n_dependent)
             nt = nt_R + nt_L
+            ! no new vector: with an unchanged basis the next iteration finds dE = 0, which lets the roots that
+            ! only wait for the energy criterion converge; a second empty pass means the residuals cannot improve
             IF (nt == 0 .AND. stalled) THEN
                CPABORT("BSE Davidson: correction vectors vanished before convergence")
             END IF
@@ -882,16 +903,16 @@ CONTAINS
 !>        stores their products: T_ia,k <- T_ia,k - sum_m V_ia,m sum_jb W_jb,m T_jb,k, Euclidean
 !>        orthonormalisation of T, W_ia,k = sum_jb (A-B)_ia,jb T_jb,k, T_ia,k <- sum_l T_ia,l (R^-1)_lk and
 !>        W alike with sum_p R_pk R_pl = sum_ia T_ia,k W_ia,l, and (M W)_ia,k = sum_jb (A+B)_ia,jb W_jb,k
-!> \param mv_env ...
-!> \param fm_V ...
-!> \param fm_W ...
-!> \param fm_MW ...
+!> \param mv_env the matrix-free A and B
+!> \param fm_V basis; columns 1..m are kept, m+1..m+nt hold T on entry and the kept columns on exit
+!> \param fm_W (A-B) V, extended in the same columns
+!> \param fm_MW (A+B) W, extended in the same columns
 !> \param fm_scratch scratch of at least nt columns
-!> \param m ...
+!> \param m columns of the basis before the extension
 !> \param nt on exit the number of columns kept
 !> \param n_kernel counter of the kernel applications
 !> \param n_dependent counter of the correction vectors dropped as dependent
-!> \param abba_status ...
+!> \param abba_status abba_indefinite if the Gram matrix of T in the (A-B) inner product is not positive definite
 !> \param ab_margin smallest eigenvalue of T^T (A-B) T if that matrix is not positive definite
 ! **************************************************************************************************
    SUBROUTINE extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scratch, m, nt, n_kernel, n_dependent, abba_status, &
@@ -914,6 +935,7 @@ CONTAINS
       CALL project_out(fm_V, m + 1, nt, fm_V, m, mv_env%para_env, fm_W)
       CALL drop_small_columns(fm_V, m + 1, nt, mv_env%para_env)
       CALL cholqr2(fm_V, m + 1, nt, mv_env%para_env, ok, n_dropped)
+      ! cholqr2 gives up after two rounds of dropping dependent directions, or when none is left
       IF (.NOT. ok) CPABORT("BSE Davidson: orthonormalisation broke down")
       n_dependent = n_dependent + n_dropped
 
@@ -927,6 +949,7 @@ CONTAINS
          CALL cholqr2_metric(fm_V, fm_W, m + 1, nt, mv_env%para_env, abba_status, ab_margin)
 
          IF (abba_status == abba_ok) THEN
+            ! post-condition of the extension, one Gram matrix; the residual norms below rely on it
             IF (extension_deviation(fm_V, fm_W, m, nt, mv_env%para_env) > ortho_tol) THEN
                CPABORT("BSE Davidson: the basis lost orthonormality in the (A-B) inner product")
             END IF
@@ -947,12 +970,12 @@ CONTAINS
 !>        factorization of a G with a negative eigenvalue reports K as indefinite, any other failure
 !>        is repeated once with a diagonal shift and a third pass. The Gram is the only communication:
 !>        R is factorised on one rank and broadcast, the triangular solve runs on the local rows
-!> \param fm_T ...
-!> \param fm_KT ...
-!> \param first_col ...
-!> \param nt ...
-!> \param para_env ...
-!> \param abba_status ...
+!> \param fm_T the block to orthonormalise, columns first_col .. first_col+nt-1
+!> \param fm_KT K T in the same columns, transformed alike
+!> \param first_col first column of the block
+!> \param nt number of columns in the block
+!> \param para_env communicator of the row-distributed matrices
+!> \param abba_status abba_indefinite if G has a negative eigenvalue, else untouched
 !> \param eig_min smallest eigenvalue of G, set if it is negative
 ! **************************************************************************************************
    SUBROUTINE cholqr2_metric(fm_T, fm_KT, first_col, nt, para_env, abba_status, eig_min)
@@ -1000,7 +1023,8 @@ CONTAINS
                eig_min = eigval(1)
                EXIT
             END IF
-            ! a positive G that failed numerically: factorise G_kl + shift δ_kl and pass once more
+            ! a positive G that failed numerically: factorise G_kl + shift δ_kl and pass once more, the
+            ! shift of shifted Cholesky QR (Fukaya et al. 2020), 11 (N_ov nt + nt (nt+1)) EPSILON |G|_F
             n_pass = 3
             shift = 11.0_dp*(REAL(n_ov, dp)*REAL(nt, dp) + REAL(nt, dp)*REAL(nt + 1, dp))* &
                     EPSILON(1.0_dp)*NORM2(G)
@@ -1031,19 +1055,22 @@ CONTAINS
    END SUBROUTINE cholqr2_metric
 
 ! **************************************************************************************************
-!> \brief Paired reduced problem on the orthonormal basis b_ia,m: with Mr_mn = sum_ia b_ia,m (M b)_ia,n
-!>        and Kr_mn = sum_ia b_ia,m (K b)_ia,n, sum_n Mr_mn R_nk = Ω_k L_mk and sum_n Kr_mn L_nk = Ω_k R_mk.
-!>        Solved as in initial_guess_subblock: Kr_mn = sum_p U_mp κ_p U_np, S_mn = sum_p U_mp √κ_p U_np,
-!>        sum_nop S_mn Mr_no S_op T_pk = λ_k T_mk, Ω_k = √λ_k, R_mk = sum_n S_mn T_nk/√Ω_k,
-!>        L_mk = sum_n Mr_mn R_nk/Ω_k. κ_1 <= 0 reports K as indefinite on the span of b.
+!> \brief Paired reduced problem on the orthonormal basis b_ia,m,
+!>        Mr_mn = sum_ia b_ia,m (M b)_ia,n and Kr_mn = sum_ia b_ia,m (K b)_ia,n,
+!>        sum_n Mr_mn R_nk = Ω_k L_mk and sum_n Kr_mn L_nk = Ω_k R_mk,
+!>        solved as in initial_guess_subblock through the symmetric form:
+!>        Kr_mn = sum_p U_mp κ_p U_np and S_mn = sum_p U_mp √κ_p U_np, the square root of Kr,
+!>        sum_nop S_mn Mr_no S_op T_pk = λ_k T_mk with Ω_k = √λ_k,
+!>        R_mk = sum_n S_mn T_nk/√Ω_k and L_mk = sum_n Mr_mn R_nk/Ω_k.
+!>        κ_1 <= 0 reports K as indefinite on the span of b.
 !>        Every m x m step runs on the grid of blacs_env: the two eigensolves through
 !>        choose_eigv_solver and the four products through parallel_gemm; only the pair
 !>        coefficients come back replicated, R_mk in coef_right and L_mk in coef_left
 !> \param fm_red_M Mr in its live block, on the grid of blacs_env
 !> \param fm_red_K Kr in its live block, on the grid of blacs_env
-!> \param m ...
+!> \param m dimension of the live block
 !> \param n_act number of pairs formed
-!> \param para_env ...
+!> \param para_env communicator of the grid
 !> \param omega Ω_k in Hartree
 !> \param coef_right coefficients of y_k in column k, zero below row m
 !> \param coef_left coefficients of x_k in column k, zero below row m
@@ -1072,8 +1099,11 @@ CONTAINS
                                                             fm_U, fm_work
 
       CALL timeset(routineN, handle)
+      ! n_act pairs are extracted from an m-dimensional basis
       CPASSERT(n_act <= m)
 
+      ! Kr_mn = sum_p U_mp κ_p U_np, S_mn = sum_p U_mp √κ_p U_np, H_mp = sum_no S_mn Mr_no S_op, T its eigenvectors:
+      ! κ and U, S, the symmetrised Mr, H, T and a work matrix, all m x m on the grid of blacs_env
       ALLOCATE (kappa(m), lambda(m))
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
@@ -1110,6 +1140,8 @@ CONTAINS
          CALL parallel_gemm('N', 'N', m, m, m, 1.0_dp, fm_S, fm_work, 0.0_dp, fm_H)
          lambda(:) = 0.0_dp
          CALL choose_eigv_solver(fm_H, fm_T, lambda)
+         ! H is congruent to Mr = sum_ia b (M b), so λ_1 <= 0 means (A+B) indefinite on the span of b, or
+         ! round-off in a nearly dependent basis, which extension_deviation excludes at every extension
          IF (lambda(1) <= 0.0_dp) THEN
             CALL cp_abort(__LOCATION__, &
                           "BSE Davidson (OLSEN_STRATMANN): negative squared excitation energy. Matrix "// &
@@ -1155,12 +1187,12 @@ CONTAINS
 !>        sum_p R_pk R_pl = sum_ia T_ia,k T_ia,l (cholqr2), and stores the products
 !>        (M b)_ia,k = sum_jb (A+B)_ia,jb b_jb,k, (K b)_ia,k = sum_jb (A-B)_ia,jb b_jb,k of the kept
 !>        columns from one application of A and B
-!> \param mv_env ...
-!> \param fm_b ...
-!> \param fm_Mb ...
-!> \param fm_Kb ...
+!> \param mv_env the matrix-free A and B
+!> \param fm_b basis; columns 1..m are kept, m+1..m+nt hold T on entry and the kept columns on exit
+!> \param fm_Mb (A+B) b, extended in the same columns
+!> \param fm_Kb (A-B) b, extended in the same columns
 !> \param fm_scratch scratch of at least nt columns
-!> \param m ...
+!> \param m columns of the basis before the extension
 !> \param nt on exit the number of columns kept
 !> \param n_kernel counter of the kernel applications
 !> \param n_dependent counter of the correction vectors dropped as dependent
@@ -1182,10 +1214,12 @@ CONTAINS
       CALL project_out(fm_b, m + 1, nt, fm_b, m, mv_env%para_env)
       CALL drop_small_columns(fm_b, m + 1, nt, mv_env%para_env)
       CALL cholqr2(fm_b, m + 1, nt, mv_env%para_env, ok, n_dropped)
+      ! cholqr2 gives up after two rounds of dropping dependent directions, or when none is left
       IF (.NOT. ok) CPABORT("BSE Davidson: orthonormalisation broke down")
       n_dependent = n_dependent + n_dropped
 
       IF (nt > 0) THEN
+         ! post-condition of the extension, one Gram matrix; the residual norms below rely on it
          IF (extension_deviation(fm_b, fm_b, m, nt, mv_env%para_env) > ortho_tol) THEN
             CPABORT("BSE Davidson: the basis lost orthonormality")
          END IF
@@ -1202,11 +1236,12 @@ CONTAINS
    END SUBROUTINE extend_basis_os
 
 ! **************************************************************************************************
-!> \brief Convergence flag of every tracked root from CONVERGENCE_CRITERION
-!> \param mp2_env ...
+!> \brief Convergence flag of every tracked root k from CONVERGENCE_CRITERION: EN dE_k < EPS_ENERGY,
+!>        RES |r_k| < EPS_RES, OR either of the two, AND both
+!> \param mp2_env CONVERGENCE_CRITERION, EPS_ENERGY and EPS_RES
 !> \param dE energy changes in Hartree
 !> \param res residual norms
-!> \param conv ...
+!> \param conv one flag per tracked root
 ! **************************************************************************************************
    SUBROUTINE convergence_flags(mp2_env, dE, res, conv)
 
@@ -1233,10 +1268,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Last root that has to converge: a multiplet that is cut by NUM_EXC_EN converges as a whole
-!> \param energies ...
-!> \param n_want ...
-!> \param n_act ...
-!> \return ...
+!> \param energies tracked energies in Hartree, ascending
+!> \param n_want requested states, NUM_EXC_EN
+!> \param n_act tracked states, the upper limit
+!> \return the last root that has to converge, n_want <= n_req <= n_act
 ! **************************************************************************************************
    FUNCTION last_required_root(energies, n_want, n_act) RESULT(n_req)
 
@@ -1255,12 +1290,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Roots that still need correction vectors: the unconverged ones up to n_req, and a tracked
 !>        root k above them as long as E_k - |r_k| < E_n_req. An eigenvalue of a symmetric matrix
-!>        lies within |r_k| of E_k, so such a root can still belong to the requested states
-!> \param conv ...
-!> \param energies ...
-!> \param res ...
-!> \param n_req ...
-!> \param need ...
+!>        lies within |r_k| of E_k, so such a root can still belong to the requested states; the ABBA
+!>        solvers, whose residuals are not those of a symmetric problem, use the same rule as a heuristic
+!> \param conv convergence flags of the tracked roots
+!> \param energies tracked energies in Hartree, ascending
+!> \param res residual norms
+!> \param n_req last required root
+!> \param need one flag per tracked root, set here
 ! **************************************************************************************************
    SUBROUTINE roots_in_need(conv, energies, res, n_req, need)
 
@@ -1280,11 +1316,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief The lowest roots in need, which receive a correction vector
-!> \param mp2_env ...
-!> \param need ...
-!> \param res ...
+!> \param mp2_env CONVERGENCE_CRITERION and EPS_RES
+!> \param need roots in need, from roots_in_need
+!> \param res residual norms
 !> \param n_max largest number of roots
-!> \param selected ...
+!> \param selected indices of the selected roots in ascending order, zero beyond nt
 !> \param nt number of selected roots
 ! **************************************************************************************************
    SUBROUTINE select_roots(mp2_env, need, res, n_max, selected, nt)
@@ -1314,8 +1350,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Title and column heads of the iteration table
-!> \param title ...
-!> \param unit_nr ...
+!> \param title line printed above the column heads
+!> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
    SUBROUTINE print_iteration_header(title, unit_nr)
 
@@ -1337,14 +1373,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief One line of the iteration table
-!> \param iter ...
+!> \param iter iteration count
 !> \param m subspace dimension
-!> \param n_conv ...
-!> \param max_res ...
+!> \param n_conv converged roots among the requested ones
+!> \param max_res largest residual norm over the required roots and the roots in need
 !> \param max_dE in Hartree
 !> \param lowest_E in Hartree
 !> \param t_iter wall time of the iteration in seconds
-!> \param unit_nr ...
+!> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
    SUBROUTINE print_iteration(iter, m, n_conv, max_res, max_dE, lowest_E, t_iter, unit_nr)
 
@@ -1362,11 +1398,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Table of the requested roots and of the tracked roots in need, then the abort for MAX_ITER
 !> \param energies in Hartree
-!> \param res ...
-!> \param conv ...
-!> \param need ...
-!> \param n_req ...
-!> \param unit_nr ...
+!> \param res residual norms
+!> \param conv convergence flags
+!> \param need roots in need
+!> \param n_req last required root
+!> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
    SUBROUTINE abort_unconverged(energies, res, conv, need, n_req, unit_nr)
 
@@ -1386,6 +1422,7 @@ CONTAINS
                k, energies(k)*evolt, res(k), conv(k)
          END DO
       END IF
+      ! unconverged roots would enter postprocess_bse as converged states; the table above is the diagnostic
       CPABORT("BSE Davidson: MAX_ITER reached before convergence")
 
    END SUBROUTINE abort_unconverged
@@ -1393,10 +1430,10 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Debug table of all tracked roots of a converged solve
 !> \param energies in Hartree
-!> \param res ...
-!> \param n_want ...
-!> \param n_act ...
-!> \param unit_nr ...
+!> \param res residual norms
+!> \param n_want requested states
+!> \param n_act tracked states
+!> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
    SUBROUTINE print_tracked_roots(energies, res, n_want, n_act, unit_nr)
 
@@ -1419,14 +1456,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Counters of a converged solve, the multiplet note and the warning for a degenerate group
 !>        that reaches the last buffer state
-!> \param iter ...
-!> \param n_kernel ...
-!> \param n_restart ...
-!> \param n_want ...
-!> \param n_req ...
-!> \param n_act ...
-!> \param n_ov ...
-!> \param unit_nr ...
+!> \param iter iterations run
+!> \param n_kernel kernel applications
+!> \param n_restart thick restarts
+!> \param n_want requested states
+!> \param n_req last required root
+!> \param n_act tracked states
+!> \param n_ov number of transitions
+!> \param unit_nr output unit, positive on the writing rank only
 !> \param ab_margin smallest eigenvalue of A-B on the trial space in Hartree
 !> \param n_dependent correction vectors dropped as dependent, printed when not zero
 ! **************************************************************************************************
@@ -1469,12 +1506,12 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Number of wanted and tracked states and the block size, clamped to the problem size
-!> \param mp2_env ...
-!> \param n_ov ...
-!> \param unit_nr ...
-!> \param n_want ...
+!> \param mp2_env NUM_EXC_EN, NUM_BUFFER_STATES, BLOCK_SIZE and MAX_ITER
+!> \param n_ov number of transitions
+!> \param unit_nr output unit, positive on the writing rank only
+!> \param n_want NUM_EXC_EN, at most n_ov
 !> \param n_act wanted plus buffer states
-!> \param block_size ...
+!> \param block_size BLOCK_SIZE, or MIN(32, n_act) for -1; at most n_act
 ! **************************************************************************************************
    SUBROUTINE davidson_sizes(mp2_env, n_ov, unit_nr, n_want, n_act, block_size)
 
@@ -1511,13 +1548,13 @@ CONTAINS
 !> \brief Largest subspace dimension m_max: MAX_SUBSPACE_FACTOR x n_act, or 20 x n_act for -1, with
 !>        the solver's arrays at m_max checked against the memory budget per rank as MEMORY_CHECK says;
 !>        CLAMP lowers m_max to the largest that fits, never below min_factor x n_act
-!> \param mp2_env ...
-!> \param mv_env ...
+!> \param mp2_env MAX_SUBSPACE_FACTOR, MEMORY_CHECK and MEMORY_BUDGET_GB
+!> \param mv_env n_ov, the RI share per rank, block_cols and mem_fraction
 !> \param driver driver_tda, driver_mk or driver_os
-!> \param n_act ...
-!> \param block_size ...
-!> \param unit_nr ...
-!> \param m_max ...
+!> \param n_act tracked states
+!> \param block_size correction vectors per iteration
+!> \param unit_nr output unit, positive on the writing rank only
+!> \param m_max the ceiling, min_factor x n_act <= m_max <= n_ov
 !> \param min_factor smallest subspace in vectors per tracked state, 3 by default
 ! **************************************************************************************************
    SUBROUTINE subspace_ceiling(mp2_env, mv_env, driver, n_act, block_size, unit_nr, m_max, min_factor)
@@ -1538,7 +1575,7 @@ CONTAINS
       IF (PRESENT(min_factor)) min_fac = min_factor
       WRITE (fac_str, '(I16)') min_fac
 
-      ! the start value: the keyword, or 20 x n_act for -1, which the check then trims
+      ! the start value: the keyword, or for -1 the generous 20 x n_act that the memory check below trims to what fits
       IF (mp2_env%bse%max_subspace_factor == -1) THEN
          m_start = 20*n_act
       ELSE IF (mp2_env%bse%max_subspace_factor >= min_fac) THEN
@@ -1693,10 +1730,10 @@ CONTAINS
 !>        distributed 8 B (N_ov (n_arrays m + n_work + n_scratch) + (n_red + n_solve) m^2)/P,
 !>        replicated 8 B (c_coef m n_act + m block_size + n_mv N_ov nb + n_ri nb + n_virt virt^2)
 !> \param driver driver_tda, driver_mk or driver_os
-!> \param mv_env ...
-!> \param m ...
-!> \param n_act ...
-!> \param block_size ...
+!> \param mv_env n_ov, virt and the communicator
+!> \param m subspace dimension
+!> \param n_act tracked states
+!> \param block_size correction vectors per iteration
 !> \param nb kernel pass width
 !> \param n_ri RI functions of a rank, the largest over the ranks
 !> \param dist_GB distributed family, falls as 1/P
@@ -1713,8 +1750,10 @@ CONTAINS
                                                             n_scratch, n_solve, n_virt, n_work
       REAL(KIND=dp)                                      :: rm, rn
 
-      ! trial vector arrays, work and scratch columns, reduced and per-solve m x m matrices,
-      ! m x n_act coefficient blocks with the restart work array, pass buffers, virt x virt for B
+      ! distributed 8 B (N_ov (n_arrays m + n_work + n_scratch) + (n_red + n_solve) m^2)/P: the trial vector
+      ! arrays, the work and scratch columns, the reduced and the per-solve m x m matrices;
+      ! replicated 8 B (c_coef m n_act + m block_size + n_mv N_ov nb + n_ri nb + n_virt virt^2): the m x n_act
+      ! coefficient blocks with the restart work array, the pass buffers of the kernel, virt x virt for B
       SELECT CASE (driver)
       CASE (driver_tda)
          n_arrays = 2
@@ -1744,6 +1783,7 @@ CONTAINS
          n_mv = 4
          n_virt = 1
       CASE DEFAULT
+         ! unreachable for the three driver constants; the DEFAULT keeps every counter defined
          CPABORT("BSE Davidson: unknown driver in the memory estimate")
       END SELECT
 
@@ -1759,14 +1799,15 @@ CONTAINS
    END SUBROUTINE davidson_footprint
 
 ! **************************************************************************************************
-!> \brief Unit vectors on the lowest entries of the diagonal, never cutting a degenerate group
-!>        The sorted diagonal is replicated; each rank writes the entries that fall on its own rows
-!> \param diag ...
-!> \param n_guess ...
+!> \brief Unit vectors Z_ia,k = δ_ia,idx(k) on the entries idx(1..n_used) with the lowest diagonal, never
+!>        cutting a degenerate group. The sorted diagonal is replicated; each rank writes the entries
+!>        that fall on its own rows
+!> \param diag the diagonal chosen by PRECONDITIONER, replicated
+!> \param n_guess guess vectors wanted
 !> \param n_max largest number of guess vectors
-!> \param deg_thresh_diag ...
-!> \param fm_Z ...
-!> \param n_used ...
+!> \param deg_thresh_diag entries of the sorted diagonal closer than this form one degenerate group
+!> \param fm_Z receives the unit vectors in its columns 1..n_used
+!> \param n_used guess vectors written, n_guess <= n_used <= n_max
 !> \param n_given leading columns that the caller has filled; they replace the lowest unit vectors
 ! **************************************************************************************************
    SUBROUTINE initial_guess(diag, n_guess, n_max, deg_thresh_diag, fm_Z, n_used, n_given)
@@ -1816,16 +1857,16 @@ CONTAINS
 !>        interlacing of Bai and Li for the linear response problem), kept for check_guess_bound. A
 !>        degenerate group at the upper boundary is taken as a whole. The block and its eigenvectors
 !>        are replicated; each rank writes the entries that fall on its own rows
-!> \param mv_env ...
-!> \param mp2_env ...
-!> \param diag ...
-!> \param n_guess ...
+!> \param mv_env the matrix-free A and B, for the exact block
+!> \param mp2_env NUM_GUESS_TRANSITIONS and BSE_DEBUG_PRINT
+!> \param diag the diagonal chosen by PRECONDITIONER, replicated; its lowest entries select the block
+!> \param n_guess guess vectors wanted
 !> \param n_max largest number of guess vectors
-!> \param deg_thresh_diag ...
-!> \param fm_Z ...
-!> \param n_used ...
+!> \param deg_thresh_diag Ritz values closer than this form one degenerate group
+!> \param fm_Z receives the guess vectors in its columns 1..n_used
+!> \param n_used guess vectors written, n_guess <= n_used <= n_max; 0 for abba_indefinite
 !> \param theta_sub allocated here, the n_sub Ritz values in Hartree
-!> \param unit_nr ...
+!> \param unit_nr output unit, positive on the writing rank only
 !> \param n_given leading columns that the caller has filled; they replace the lowest guess vectors
 !> \param abba_status ABBA problem when present; abba_indefinite if K_sub is not positive definite
 !> \param ab_margin smallest eigenvalue of K_sub in Hartree
@@ -1897,6 +1938,7 @@ CONTAINS
             A_sub(:, :) = 2.0_dp*A_sub(:, :) - B_sub(:, :)
             A_sub(:, :) = MATMUL(K_phalf, MATMUL(A_sub, K_phalf))
             CALL solve_replicated(A_sub, n_sub, para_env, theta_sub, U)
+            ! the same failure as in solve_reduced_paired: with K_sub positive definite, M_sub is indefinite
             IF (theta_sub(1) <= 0.0_dp) THEN
                CPABORT("BSE Davidson: the guess block gives a non-positive squared excitation energy")
             END IF
@@ -1970,10 +2012,10 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief A converged energy above the Ritz value of the guess block with the same index is a
 !>        provable miss: both are upper bounds of the true eigenvalue with that index
-!> \param theta_sub ...
+!> \param theta_sub Ritz values of the guess block in Hartree, ascending
 !> \param energies converged energies in Hartree
-!> \param n_req ...
-!> \param unit_nr ...
+!> \param n_req roots compared, the required ones
+!> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
    SUBROUTINE check_guess_bound(theta_sub, energies, n_req, unit_nr)
 
@@ -2000,13 +2042,13 @@ CONTAINS
 !> \brief sum_q (G_pq + G_qp)/2 c_qk = θ_k c_pk for p, q <= m, G_pq the live block of fm_red, solved
 !>        on the grid of blacs_env: θ_k in theta ascending, c_pk of the first n_vec k gathered into
 !>        coef_ritz
-!> \param fm_red ...
-!> \param m ...
+!> \param fm_red the reduced matrix; its live block is the first m rows and columns
+!> \param m dimension of the live block
 !> \param n_vec eigenvectors gathered; the drivers never read more than n_act
-!> \param para_env ...
-!> \param blacs_env ...
-!> \param theta ...
-!> \param coef_ritz ...
+!> \param para_env communicator of the grid
+!> \param blacs_env grid the reduced problem is solved on
+!> \param theta θ_k in the first m entries, zero beyond
+!> \param coef_ritz c_pk in the first m rows and n_vec columns, zero beyond
 ! **************************************************************************************************
    SUBROUTINE solve_reduced(fm_red, m, n_vec, para_env, blacs_env, theta, coef_ritz)
 
@@ -2052,9 +2094,9 @@ CONTAINS
 !> \brief sum_q (G_pq + G_qp)/2 coef_qk = θ_k coef_pk for p, q <= m, a small replicated block solved
 !>        on one rank and broadcast: the fixed-size blocks of the guess and of cholqr2, never the
 !>        reduced matrix
-!> \param G ...
-!> \param m ...
-!> \param para_env ...
+!> \param G the block; its first m rows and columns are read
+!> \param m dimension of the block
+!> \param para_env communicator; the solve runs on its source rank
 !> \param theta ascending
 !> \param coef all m eigenvectors in the columns
 ! **************************************************************************************************
@@ -2098,11 +2140,11 @@ CONTAINS
 !>        then coef_restart_p,new = u_p/|u| unless |u| is below norm_drop
 !> \param cand candidate coefficient columns, zero-padded to m rows: the current Ritz vectors, then
 !>        the previous ones
-!> \param m ...
-!> \param n_cand ...
-!> \param n_cap ...
+!> \param m rows of the coefficient vectors, the current basis size
+!> \param n_cand candidate columns
+!> \param n_cap largest number of vectors kept
 !> \param coef_restart m x n_new restart basis
-!> \param n_new ...
+!> \param n_new vectors kept, at most MIN(n_cap, n_cand)
 ! **************************************************************************************************
    SUBROUTINE restart_basis(cand, m, n_cand, n_cap, coef_restart, n_new)
 
@@ -2151,13 +2193,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief out_ia,k = alpha sum_m V_ia,m coef_mk + beta out_ia,k for m <= nv, k <= nc on the local rows ia
 !>        On the npe x 1 grid whole columns are local, so the rotation is one local DGEMM
-!> \param fm_V ...
-!> \param nv ...
-!> \param coef ...
-!> \param nc ...
-!> \param fm_out ...
-!> \param alpha ...
-!> \param beta ...
+!> \param fm_V basis, columns 1..nv read
+!> \param nv columns of fm_V read
+!> \param coef nv x nc coefficients, replicated
+!> \param nc columns written
+!> \param fm_out receives the rotated columns
+!> \param alpha scale of the product
+!> \param beta scale of the previous content of fm_out
 !> \param out_col first column of fm_out written, 1 by default
 ! **************************************************************************************************
    SUBROUTINE subspace_rotate(fm_V, nv, coef, nc, fm_out, alpha, beta, out_col)
@@ -2191,11 +2233,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief V_ia,k <- sum_p V_ia,p coef_pk for p <= m, k <= nq through the work matrix
-!> \param fm_V ...
-!> \param m ...
-!> \param coef ...
-!> \param nq ...
-!> \param fm_work ...
+!> \param fm_V basis; on exit columns 1..nq hold the rotation and nq+1..m are zero
+!> \param m columns of fm_V read
+!> \param coef restart basis, m x nq
+!> \param nq columns of the rotated basis
+!> \param fm_work at least nq columns
 ! **************************************************************************************************
    SUBROUTINE rotate_in_place(fm_V, m, coef, nq, fm_work)
 
@@ -2217,12 +2259,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief T_ia,t0+k-1 <- T_ia,t0+k-1 + alpha U_ia,u0+k-1 for k <= n
 !>        On the npe x 1 grid whole columns are local, so the update needs no communication
-!> \param alpha ...
-!> \param fm_U ...
+!> \param alpha scale of the added columns
+!> \param fm_U columns added
 !> \param u0 first column read
-!> \param fm_T ...
+!> \param fm_T columns updated
 !> \param t0 first column written
-!> \param n ...
+!> \param n number of columns
 ! **************************************************************************************************
    SUBROUTINE columns_axpy(alpha, fm_U, u0, fm_T, t0, n)
 
@@ -2243,14 +2285,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief G_kl = sum_ia U_ia,u0+k-1 V_ia,v0+l-1 for k <= nu, l <= nv, local product and sum over the ranks
 !>        The npe x 1 grid splits the rows over the ranks, which is what the one allreduce completes
-!> \param fm_U ...
-!> \param u0 ...
-!> \param nu ...
-!> \param fm_V ...
-!> \param v0 ...
-!> \param nv ...
-!> \param para_env ...
-!> \param G ...
+!> \param fm_U left factor
+!> \param u0 first column of fm_U
+!> \param nu columns of fm_U
+!> \param fm_V right factor
+!> \param v0 first column of fm_V
+!> \param nv columns of fm_V
+!> \param para_env communicator of the row-distributed matrices
+!> \param G nu x nv, replicated
 ! **************************************************************************************************
    SUBROUTINE subspace_gram(fm_U, u0, nu, fm_V, v0, nv, para_env, G)
 
@@ -2283,15 +2325,16 @@ CONTAINS
    END SUBROUTINE subspace_gram
 
 ! **************************************************************************************************
-!> \brief fm_red_k,v0+l-1 <- sum_ia U_ia,k V_ia,v0+l-1 for k <= nu, l <= nv, written in
-!>        column blocks of nb so the replicated temporary is nu x nb and never nu x nv
-!> \param fm_U ...
-!> \param nu ...
-!> \param fm_V ...
+!> \brief Overlaps of the whole basis U with a block of nv columns of V, written into the distributed
+!>        reduced matrix: fm_red_k,v0+l-1 <- sum_ia U_ia,k V_ia,v0+l-1 for k <= nu, l <= nv, in column
+!>        blocks of nb so that the replicated temporary is nu x nb and never nu x nv
+!> \param fm_U the basis, columns 1..nu
+!> \param nu columns of fm_U, rows of fm_red written
+!> \param fm_V the block of columns
 !> \param v0 first column of fm_V read and first column of fm_red written
-!> \param nv ...
+!> \param nv columns of fm_V read
 !> \param nb width of one column block
-!> \param para_env ...
+!> \param para_env communicator of the row-distributed matrices
 !> \param fm_red the distributed reduced matrix, on the diagonalisation grid
 ! **************************************************************************************************
    SUBROUTINE reduced_gram_blocks(fm_U, nu, fm_V, v0, nv, nb, para_env, fm_red)
@@ -2325,10 +2368,10 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief fm_red_p,m+l <- red_block_pl for p <= m+nt and fm_red_m+l,p <- red_block_pl for p <= m,
 !>        l <= nt: the two blocks a basis extension by nt columns adds to the symmetric reduced matrix
-!> \param fm_red ...
+!> \param fm_red the reduced matrix, at least m+nt rows and columns
 !> \param red_block (m+nt) x nt, the new columns' overlaps with the whole extended basis
-!> \param m ...
-!> \param nt ...
+!> \param m live dimension before the extension
+!> \param nt columns added
 ! **************************************************************************************************
    SUBROUTINE reduced_extend(fm_red, red_block, m, nt)
 
@@ -2343,11 +2386,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief A new m x m matrix on blacs_env holding the live block fm_red(1:m, 1:m)
-!> \param fm_red ...
-!> \param m ...
-!> \param para_env ...
-!> \param blacs_env ...
-!> \param name ...
+!> \param fm_red the reduced matrix
+!> \param m dimension of the live block
+!> \param para_env communicator of the grid
+!> \param blacs_env grid of the new matrix
+!> \param name name of the new matrix
 !> \param fm_live created here, released by the caller
 ! **************************************************************************************************
    SUBROUTINE reduced_live_block(fm_red, m, para_env, blacs_env, name, fm_live)
@@ -2373,12 +2416,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief fm_red_ij <- sum_pq coef_restart_pi fm_red_pq coef_restart_qj for p, q <= m and i, j <= k,
 !>        the rest of the matrix zeroed: two distributed products, no replicated m x m
-!> \param fm_red ...
-!> \param m ...
+!> \param fm_red the reduced matrix, rotated in place
+!> \param m live dimension before the restart
 !> \param coef_restart replicated, zero-padded to m rows
-!> \param k ...
-!> \param para_env ...
-!> \param blacs_env ...
+!> \param k vectors of the restart basis, the live dimension after
+!> \param para_env communicator of the grid
+!> \param blacs_env grid of fm_red and of the products
 ! **************************************************************************************************
    SUBROUTINE reduced_rotate(fm_red, m, coef_restart, k, para_env, blacs_env)
 
@@ -2427,12 +2470,12 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief max_kl |sum_ia U_ia,k V_ia,l - δ_kl| over k, l <= m, in column blocks of nb
-!> \param fm_U ...
-!> \param fm_V ...
-!> \param m ...
-!> \param nb ...
-!> \param para_env ...
-!> \return ...
+!> \param fm_U left basis
+!> \param fm_V right basis, fm_U for the Euclidean case
+!> \param m columns compared
+!> \param nb width of one column block
+!> \param para_env communicator of the row-distributed matrices
+!> \return the largest deviation
 ! **************************************************************************************************
    FUNCTION orthonormality_deviation(fm_U, fm_V, m, nb, para_env) RESULT(dev)
 
@@ -2461,11 +2504,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Euclidean norms of nt columns of a row-distributed matrix
 !>        Each rank sums the squares of its own rows of the npe x 1 grid, then one allreduce
-!> \param fm_T ...
-!> \param first_col ...
-!> \param nt ...
-!> \param para_env ...
-!> \param norms ...
+!> \param fm_T row-distributed matrix
+!> \param first_col first column measured
+!> \param nt number of columns
+!> \param para_env communicator of the rows
+!> \param norms nt Euclidean norms
 ! **************************************************************************************************
    SUBROUTINE column_norms(fm_T, first_col, nt, para_env, norms)
 
@@ -2490,11 +2533,11 @@ CONTAINS
 !> \brief Davidson corrections t_ia,k = r_ia,k/(d_ia - θ_k) of the selected roots k, written to fm_Z
 !>        Each rank divides the entries of its own rows of the npe x 1 grid, no communication
 !> \param fm_R residuals, column r_offset + k belongs to root k
-!> \param selected ...
-!> \param theta ...
-!> \param diag ...
-!> \param fm_Z ...
-!> \param first_col ...
+!> \param selected indices of the roots corrected
+!> \param theta Ritz values, indexed by root
+!> \param diag d_ia, replicated
+!> \param fm_Z receives the corrections
+!> \param first_col first column of fm_Z written
 !> \param r_offset columns of fm_R before the residuals, 0 by default
 ! **************************************************************************************************
    SUBROUTINE davidson_corrections(fm_R, selected, theta, diag, fm_Z, first_col, r_offset)
@@ -2513,7 +2556,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       REAL(KIND=dp)                                      :: denom
 
-! near-degeneracy guard as in tddfpt_compute_residual_vects
+! near-degeneracy guard as in tddfpt_compute_residual_vects: threshold detects a numerically zero
+! d_ia - θ_k, which the shift (1 - eref_scale) θ_k replaces by the denominator at the reference 0.99 θ_k
 
       CALL timeset(routineN, handle)
 
@@ -2537,12 +2581,12 @@ CONTAINS
 !> \brief T_ia,k <- T_ia,k - sum_m V_ia,m sum_jb U_jb,m T_jb,k for m <= nv and nt columns k, twice;
 !>        U = V for orthonormal columns V, else the dual basis with sum_ia U_ia,m V_ia,n = δ_mn
 !>        One allreduce per pass inside the Gram, the subtraction stays on the rows of the npe x 1 grid
-!> \param fm_T ...
-!> \param first_col ...
-!> \param nt ...
-!> \param fm_V ...
-!> \param nv ...
-!> \param para_env ...
+!> \param fm_T columns projected
+!> \param first_col first column of fm_T projected
+!> \param nt number of columns projected
+!> \param fm_V the basis projected out
+!> \param nv columns of fm_V
+!> \param para_env communicator of the row-distributed matrices
 !> \param fm_dual U
 ! **************************************************************************************************
    SUBROUTINE project_out(fm_T, first_col, nt, fm_V, nv, para_env, fm_dual)
@@ -2583,10 +2627,10 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Normalises nt columns and removes those that vanished in the projection
 !>        Only the norms communicate; the scaling and the zero-fill stay on the local rows
-!> \param fm_T ...
-!> \param first_col ...
+!> \param fm_T row-distributed matrix; the kept columns move to the front of the block
+!> \param first_col first column of the block
 !> \param nt on exit the number of columns kept
-!> \param para_env ...
+!> \param para_env communicator of the rows
 ! **************************************************************************************************
    SUBROUTINE drop_small_columns(fm_T, first_col, nt, para_env)
 
@@ -2624,11 +2668,11 @@ CONTAINS
 !>        below the drop tolerance are removed (canonical orthogonalisation), nt shrinks, and the
 !>        passes start again. The Gram is the only communication: R is factorised on one rank and
 !>        broadcast, the triangular solve runs on the rows of the npe x 1 grid
-!> \param fm_T ...
-!> \param first_col ...
-!> \param nt ...
-!> \param para_env ...
-!> \param ok ...
+!> \param fm_T the block to orthonormalise, columns first_col .. first_col+nt-1
+!> \param first_col first column of the block
+!> \param nt columns of the block; on exit the number kept
+!> \param para_env communicator of the row-distributed matrix
+!> \param ok .FALSE. when two drop rounds still leave no factorisable Gram matrix, or no direction survives
 !> \param n_dropped columns removed as dependent
 ! **************************************************************************************************
    SUBROUTINE cholqr2(fm_T, first_col, nt, para_env, ok, n_dropped)
@@ -2715,12 +2759,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Largest deviation of the nt new columns from orthonormality against the whole basis,
 !>        sum_ia V_ia,m D_ia,n - δ_mn for m = 1..nv+nt, n = nv+1..nv+nt; D = V in the Euclidean case
-!> \param fm_V ...
-!> \param fm_dual ...
-!> \param nv ...
-!> \param nt ...
-!> \param para_env ...
-!> \return ...
+!> \param fm_V the basis with its nt new columns
+!> \param fm_dual D, fm_V itself in the Euclidean case
+!> \param nv columns of the basis before the extension
+!> \param nt new columns
+!> \param para_env communicator of the row-distributed matrices
+!> \return the largest deviation
 ! **************************************************************************************************
    FUNCTION extension_deviation(fm_V, fm_dual, nv, nt, para_env) RESULT(dev)
 
@@ -2749,14 +2793,15 @@ CONTAINS
 !>        matrices: energies, and per multiplet the smallest singular value of X_ref^T X for the
 !>        TDA, or of X_ref^T X - Y_ref^T Y for ABBA. ABBA diagonalizes the Hermitian reduction
 !>        C = (A-B)^1/2 (A+B) (A-B)^1/2 with C T^n = (Ω^n)^2 T^n,
-!>        (X+Y)^n = (Ω^n)^-1/2 (A-B)^1/2 T^n, (X-Y)^n = (Ω^n)^1/2 (A-B)^-1/2 T^n
-!> \param fm_A_explicit ...
-!> \param exc_ens ...
-!> \param fm_X ...
-!> \param mp2_env ...
-!> \param unit_nr ...
+!>        (X+Y)^n = (Ω^n)^-1/2 (A-B)^1/2 T^n, (X-Y)^n = (Ω^n)^1/2 (A-B)^-1/2 T^n.
+!>        A failed reference solve aborts: this is debug output with nothing to fall back on
+!> \param fm_A_explicit A from create_A_and_B, N_ov x N_ov
+!> \param exc_ens Davidson energies in Hartree
+!> \param fm_X Davidson X_ia^n, column n
+!> \param mp2_env handed to create_hermitian_form_of_ABBA
+!> \param unit_nr output unit, positive on the writing rank only
 !> \param fm_B_explicit present for an ABBA result, together with fm_Y
-!> \param fm_Y ...
+!> \param fm_Y Davidson Y_ia^n, with fm_B_explicit
 ! **************************************************************************************************
    SUBROUTINE bse_davidson_refcheck(fm_A_explicit, exc_ens, fm_X, mp2_env, unit_nr, fm_B_explicit, fm_Y)
 
@@ -2779,6 +2824,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      ! B and Y arrive together or not at all
       CPASSERT(PRESENT(fm_B_explicit) .EQV. PRESENT(fm_Y))
       CALL cp_fm_get_info(fm_A_explicit, nrow_global=n_ov)
       n_want = SIZE(exc_ens)
@@ -2850,15 +2896,17 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Smallest singular value over the multiplets of O_kl = sum_ia (X_ref,ia^k X_ia^l - Y_ref,ia^k Y_ia^l),
-!>        k over a multiplet of the reference and l over the Davidson states inside it
-!> \param ref_ens ...
-!> \param n_want ...
+!>        k over a multiplet of the reference and l over the Davidson states inside it. Degenerate
+!>        eigenvectors are arbitrary within their multiplet, so the vectors are not compared one by one:
+!>        every singular value of O is 1 when the Davidson states lie in the span of the multiplet
+!> \param ref_ens reference energies in Hartree, ascending
+!> \param n_want Davidson states compared
 !> \param n_ref reference states up to the end of the multiplet that contains state n_want
-!> \param X_ref ...
-!> \param X_dav ...
-!> \param min_overlap ...
-!> \param Y_ref ...
-!> \param Y_dav ...
+!> \param X_ref reference X, N_ov x n_ref
+!> \param X_dav Davidson X, N_ov x n_want
+!> \param min_overlap the smallest singular value found, 1 if every multiplet is reproduced
+!> \param Y_ref reference Y for ABBA, with Y_dav
+!> \param Y_dav Davidson Y for ABBA
 ! **************************************************************************************************
    SUBROUTINE min_multiplet_overlap(ref_ens, n_want, n_ref, X_ref, X_dav, min_overlap, Y_ref, Y_dav)
 
@@ -2888,6 +2936,7 @@ CONTAINS
          IF (PRESENT(Y_ref)) THEN
             overlap(:, :) = overlap(:, :) - MATMUL(TRANSPOSE(Y_ref(:, k1:k2)), Y_dav(:, k1:k2_dav))
          END IF
+         ! DGESVD wants lwork >= MAX(3 n + m, 5 n) for the m x n overlap with n <= m; 5 m + 10 covers both
          lwork = 5*(k2 - k1 + 1) + 10
          ALLOCATE (work(lwork))
          CALL DGESVD('N', 'N', k2 - k1 + 1, k2_dav - k1 + 1, overlap, k2 - k1 + 1, sing_vals, &
@@ -2903,8 +2952,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief The two lines of a reference check
 !> \param dev_E largest energy deviation in Hartree
-!> \param min_overlap ...
-!> \param unit_nr ...
+!> \param min_overlap smallest singular value from min_multiplet_overlap
+!> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
    SUBROUTINE print_refcheck(dev_E, min_overlap, unit_nr)
 
