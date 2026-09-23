@@ -21,6 +21,7 @@ MODULE qs_dispersion_nonloc
                                               Romanperez2009,&
                                               Sabatini2013,&
                                               cite_reference
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE input_constants,                 ONLY: vdw_nl_DRSLL,&
@@ -32,6 +33,8 @@ MODULE qs_dispersion_nonloc
    USE mathconstants,                   ONLY: pi,&
                                               rootpi
    USE message_passing,                 ONLY: mp_para_env_type
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
    USE pw_grid_types,                   ONLY: HALFSPACE,&
                                               pw_grid_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -42,6 +45,8 @@ MODULE qs_dispersion_nonloc
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
@@ -55,6 +60,7 @@ MODULE qs_dispersion_nonloc
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_nonloc'
 
    PUBLIC :: qs_dispersion_nonloc_init, calculate_vxc_nlvdw
+   PUBLIC :: qs_fxc_nlvdw_fdiff, qs_fgxc_nlvdw_fdiff
    PUBLIC :: prepare_nlvdw_density, return_nlvdw_potential
 
 ! **************************************************************************************************
@@ -175,8 +181,6 @@ CONTAINS
       TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:)    :: thetas_g
       TYPE(pw_grid_type), POINTER                        :: grid
       TYPE(pw_r3d_rs_type)                               :: tmp_r
-
-!deb  INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE([1, 0, 0, 0, 1, 0, 0, 0, 1], [3, 3])
 
       CALL timeset(routineN, handle)
 
@@ -336,6 +340,249 @@ CONTAINS
    END SUBROUTINE calculate_vxc_nlvdw
 
 ! **************************************************************************************************
+!> \brief Second derivative of nl-vdW potential using finite differences
+!> \param qs_env ...
+!> \param dispersion_env ...
+!> \param rho0_r ...
+!> \param rho1_r ...
+!> \param accuracy ...
+!> \param fxc_rho ...
+!>
+!>
+!>  https://en.wikipedia.org/wiki/Finite_difference_coefficient
+!>  ---------------------------------------------------------------------------------------------------
+!>  Derivative    Accuracy            4       3       2       1       0       1       2      3       4
+!>  ---------------------------------------------------------------------------------------------------
+!>      1             2                                    -1/2       0     1/2
+!>                    4                            1/12    -2/3       0     2/3   -1/12
+!>                    6                   -1/60    3/20    -3/4       0     3/4   -3/20   1/60
+!>                    8           1/280  -4/105     1/5    -4/5       0     4/5    -1/5  4/105  -1/280
+!>  ---------------------------------------------------------------------------------------------------
+!>      2             2                                       1      -2       1
+!>                    4                           -1/12     4/3    -5/2     4/3   -1/12
+!>                    6                    1/90   -3/20     3/2  -49/18     3/2   -3/20   1/90
+!>                    8          -1/560   8/315    -1/5     8/5 -205/72     8/5    -1/5  8/315  -1/560
+!>  ---------------------------------------------------------------------------------------------------
+! **************************************************************************************************
+   SUBROUTINE qs_fxc_nlvdw_fdiff(qs_env, dispersion_env, rho0_r, rho1_r, accuracy, fxc_rho)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho0_r, rho1_r
+      INTEGER, INTENT(IN)                                :: accuracy
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_fxc_nlvdw_fdiff'
+      REAL(KIND=dp), PARAMETER                           :: epsrho = 5.e-4_dp
+
+      INTEGER                                            :: handle, ispin, istep, np, nspins, nstep
+      REAL(KIND=dp)                                      :: beta, edisp, oeps1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rho, rho1, rhonl
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: drho, drho1, drhonl
+      REAL(KIND=dp), DIMENSION(-4:4)                     :: ak
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: pw_pool, vdw_pw_pool
+      TYPE(pw_r3d_rs_type)                               :: vxcnl
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc00
+
+      CALL timeset(routineN, handle)
+
+      ak = 0.0_dp
+      SELECT CASE (accuracy)
+      CASE (:4)
+         nstep = 2
+         ak(-2:2) = [1.0_dp, -8.0_dp, 0.0_dp, 8.0_dp, -1.0_dp]/12.0_dp
+      CASE (5:7)
+         nstep = 3
+         ak(-3:3) = [-1.0_dp, 9.0_dp, -45.0_dp, 0.0_dp, 45.0_dp, -9.0_dp, 1.0_dp]/60.0_dp
+      CASE (8:)
+         nstep = 4
+         ak(-4:4) = [1.0_dp, -32.0_dp/3.0_dp, 56.0_dp, -224.0_dp, 0.0_dp, &
+                     224.0_dp, -56.0_dp, 32.0_dp/3.0_dp, -1.0_dp]/280.0_dp
+      END SELECT
+
+      CALL get_qs_env(qs_env, dft_control=dft_control, &
+                      pw_env=pw_env, para_env=para_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=pw_pool)
+      CALL pw_env_get(pw_env, vdw_pw_pool=vdw_pw_pool)
+
+      nspins = dft_control%nspins
+
+      ALLOCATE (vxc00(nspins))
+      DO ispin = 1, nspins
+         CALL pw_pool%create_pw(vxc00(ispin))
+         CALL pw_zero(fxc_rho(ispin))
+      END DO
+
+      np = vdw_pw_pool%pw_grid%ngpts_local
+      ALLOCATE (rho(np), drho(np, 3))
+      CALL prepare_nlvdw_density(rho0_r, rho, drho, vdw_pw_pool, pw_pool)
+      ALLOCATE (rho1(np), drho1(np, 3))
+      CALL prepare_nlvdw_density(rho1_r, rho1, drho1, vdw_pw_pool, pw_pool)
+      ALLOCATE (rhonl(np), drhonl(np, 3))
+
+      DO istep = -nstep, nstep
+
+         IF (ak(istep) /= 0.0_dp) THEN
+            beta = REAL(istep, KIND=dp)*epsrho
+            rhonl(:) = rho(:) + beta*rho1(:)
+            drhonl(:, :) = drho(:, :) + beta*drho1(:, :)
+            CALL vdw_pw_pool%create_pw(vxcnl)
+            CALL calculate_vxc_nlvdw(vxcnl, rhonl, drhonl, edisp, dispersion_env, &
+                                     .FALSE., vdw_pw_pool, para_env)
+            DO ispin = 1, nspins
+               CALL pw_zero(vxc00(ispin))
+            END DO
+            CALL return_nlvdw_potential(vxc00, vxcnl, vdw_pw_pool, pw_pool)
+            CALL vdw_pw_pool%give_back_pw(vxcnl)
+            DO ispin = 1, nspins
+               CALL pw_axpy(vxc00(ispin), fxc_rho(ispin), ak(istep))
+            END DO
+         END IF
+
+      END DO
+
+      DEALLOCATE (rho, drho)
+      DEALLOCATE (rho1, drho1)
+      DEALLOCATE (rhonl, drhonl)
+      DO ispin = 1, nspins
+         CALL pw_pool%give_back_pw(vxc00(ispin))
+      END DO
+      DEALLOCATE (vxc00)
+
+      oeps1 = 1.0_dp/epsrho
+      DO ispin = 1, nspins
+         CALL pw_scale(fxc_rho(ispin), oeps1)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_fxc_nlvdw_fdiff
+
+! **************************************************************************************************
+!> \brief Second derivative of nl-vdW potential using finite differences
+!> \param qs_env ...
+!> \param dispersion_env ...
+!> \param rho0_r ...
+!> \param rho1_r ...
+!> \param accuracy ...
+!> \param fxc_rho ...
+!> \param gxc_rho ...
+! **************************************************************************************************
+   SUBROUTINE qs_fgxc_nlvdw_fdiff(qs_env, dispersion_env, rho0_r, rho1_r, accuracy, &
+                                  fxc_rho, gxc_rho)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho0_r, rho1_r
+      INTEGER, INTENT(IN)                                :: accuracy
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho, gxc_rho
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_fgxc_nlvdw_fdiff'
+      REAL(KIND=dp), PARAMETER                           :: epsrho = 5.e-4_dp
+
+      INTEGER                                            :: handle, ispin, istep, np, nspins, nstep
+      REAL(KIND=dp)                                      :: beta, edisp, oeps1, oeps2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rho, rho1, rhonl
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: drho, drho1, drhonl
+      REAL(KIND=dp), DIMENSION(-4:4)                     :: ak, bl
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: pw_pool, vdw_pw_pool
+      TYPE(pw_r3d_rs_type)                               :: vxcnl
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc00
+
+      CALL timeset(routineN, handle)
+
+      ak = 0.0_dp
+      bl = 0.0_dp
+      SELECT CASE (accuracy)
+      CASE (:4)
+         nstep = 2
+         ak(-2:2) = [1.0_dp, -8.0_dp, 0.0_dp, 8.0_dp, -1.0_dp]/12.0_dp
+         bl(-2:2) = [-1.0_dp, 16.0_dp, -30.0_dp, 16.0_dp, -1.0_dp]/12.0_dp
+      CASE (5:7)
+         nstep = 3
+         ak(-3:3) = [-1.0_dp, 9.0_dp, -45.0_dp, 0.0_dp, 45.0_dp, -9.0_dp, 1.0_dp]/60.0_dp
+         bl(-3:3) = [2.0_dp, -27.0_dp, 270.0_dp, -490.0_dp, 270.0_dp, -27.0_dp, 2.0_dp]/180.0_dp
+      CASE (8:)
+         nstep = 4
+         ak(-4:4) = [1.0_dp, -32.0_dp/3.0_dp, 56.0_dp, -224.0_dp, 0.0_dp, &
+                     224.0_dp, -56.0_dp, 32.0_dp/3.0_dp, -1.0_dp]/280.0_dp
+         bl(-4:4) = [-1.0_dp, 128.0_dp/9.0_dp, -112.0_dp, 896.0_dp, -14350.0_dp/9.0_dp, &
+                     896.0_dp, -112.0_dp, 128.0_dp/9.0_dp, -1.0_dp]/560.0_dp
+      END SELECT
+
+      CALL get_qs_env(qs_env, dft_control=dft_control, &
+                      pw_env=pw_env, para_env=para_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=pw_pool)
+      CALL pw_env_get(pw_env, vdw_pw_pool=vdw_pw_pool)
+
+      nspins = dft_control%nspins
+
+      ALLOCATE (vxc00(nspins))
+      DO ispin = 1, nspins
+         CALL pw_pool%create_pw(vxc00(ispin))
+         CALL pw_zero(fxc_rho(ispin))
+         CALL pw_zero(gxc_rho(ispin))
+      END DO
+
+      np = vdw_pw_pool%pw_grid%ngpts_local
+      ALLOCATE (rho(np), drho(np, 3))
+      CALL prepare_nlvdw_density(rho0_r, rho, drho, vdw_pw_pool, pw_pool)
+      ALLOCATE (rho1(np), drho1(np, 3))
+      CALL prepare_nlvdw_density(rho1_r, rho1, drho1, vdw_pw_pool, pw_pool)
+      ALLOCATE (rhonl(np), drhonl(np, 3))
+
+      DO istep = -nstep, nstep
+
+         beta = REAL(istep, KIND=dp)*epsrho
+         rhonl(:) = rho(:) + beta*rho1(:)
+         drhonl(:, :) = drho(:, :) + beta*drho1(:, :)
+         CALL vdw_pw_pool%create_pw(vxcnl)
+         CALL calculate_vxc_nlvdw(vxcnl, rhonl, drhonl, edisp, dispersion_env, &
+                                  .FALSE., vdw_pw_pool, para_env)
+         DO ispin = 1, nspins
+            CALL pw_zero(vxc00(ispin))
+         END DO
+         CALL return_nlvdw_potential(vxc00, vxcnl, vdw_pw_pool, pw_pool)
+         CALL vdw_pw_pool%give_back_pw(vxcnl)
+         IF (ak(istep) /= 0.0_dp) THEN
+            DO ispin = 1, nspins
+               CALL pw_axpy(vxc00(ispin), fxc_rho(ispin), ak(istep))
+            END DO
+         END IF
+         IF (bl(istep) /= 0.0_dp) THEN
+            DO ispin = 1, nspins
+               CALL pw_axpy(vxc00(ispin), gxc_rho(ispin), bl(istep))
+            END DO
+         END IF
+
+      END DO
+
+      DEALLOCATE (rho, drho)
+      DEALLOCATE (rho1, drho1)
+      DEALLOCATE (rhonl, drhonl)
+      DO ispin = 1, nspins
+         CALL pw_pool%give_back_pw(vxc00(ispin))
+      END DO
+      DEALLOCATE (vxc00)
+
+      oeps1 = 1.0_dp/epsrho
+      oeps2 = 1.0_dp/(epsrho**2)
+      DO ispin = 1, nspins
+         CALL pw_scale(fxc_rho(ispin), oeps1)
+         CALL pw_scale(gxc_rho(ispin), oeps2)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_fgxc_nlvdw_fdiff
+
+! **************************************************************************************************
 !> \brief Transform the input density to a 1d grid used by the nl-vdW routines
 !> \param rho_r ...
 !> \param rho ...
@@ -356,8 +603,6 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: hi, lo, n
       TYPE(pw_c1d_gs_type)                               :: rho_g, rho_tot_g, tmp_g
       TYPE(pw_r3d_rs_type)                               :: tmp_r
-
-!deb  INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE([1, 0, 0, 0, 1, 0, 0, 0, 1], [3, 3])
 
       CALL timeset(routineN, handle)
 
@@ -445,8 +690,6 @@ CONTAINS
       INTEGER, DIMENSION(1:3)                            :: hi, lo, n
       REAL(KIND=dp), CONTIGUOUS, POINTER                 :: tmp_1d(:)
       TYPE(pw_c1d_gs_type)                               :: div_g
-
-!deb  INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE([1, 0, 0, 0, 1, 0, 0, 0, 1], [3, 3])
 
       CALL timeset(routineN, handle)
 
