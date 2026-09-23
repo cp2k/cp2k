@@ -1127,8 +1127,7 @@ CONTAINS
 
       ! Kr_mn = sum_p U_mp κ_p U_np on the symmetrised live block, (Kr_mn + Kr_nm)/2
       CALL cp_fm_to_fm_submat(fm_red_K, fm_work, m, m, 1, 1, 1, 1)
-      CALL cp_fm_transpose(fm_work, fm_K_eigvec)
-      CALL cp_fm_scale_and_add(0.5_dp, fm_work, 0.5_dp, fm_K_eigvec)
+      CALL symmetrise_in_place(fm_work, fm_K_eigvec)
       kappa(:) = 0.0_dp
       CALL choose_eigv_solver(fm_work, fm_K_eigvec, kappa)
       kr_min = kappa(1)
@@ -1143,8 +1142,7 @@ CONTAINS
 
          ! H_mp = sum_no S_mn Mr_no S_op with Mr_no <- (Mr_no + Mr_on)/2, then T holds its eigenvectors
          CALL cp_fm_to_fm_submat(fm_red_M, fm_Mr, m, m, 1, 1, 1, 1)
-         CALL cp_fm_transpose(fm_Mr, fm_H_eigvec)
-         CALL cp_fm_scale_and_add(0.5_dp, fm_Mr, 0.5_dp, fm_H_eigvec)
+         CALL symmetrise_in_place(fm_Mr, fm_H_eigvec)
          CALL parallel_gemm('N', 'N', m, m, m, 1.0_dp, fm_Mr, fm_K_sqrt, 0.0_dp, fm_work)
          CALL parallel_gemm('N', 'N', m, m, m, 1.0_dp, fm_K_sqrt, fm_work, 0.0_dp, fm_H)
          lambda(:) = 0.0_dp
@@ -2079,9 +2077,8 @@ CONTAINS
 
       CALL reduced_live_block(fm_red, m, para_env, blacs_env, "bse_reduced", fm_reduced_sym)
       CALL cp_fm_create(fm_reduced_eigvec, fm_reduced_sym%matrix_struct, name="bse_reduced_vectors")
-      ! a_pq <- (red_pq + red_qp)/2: the eigensolver reads one triangle
-      CALL cp_fm_transpose(fm_reduced_sym, fm_reduced_eigvec)
-      CALL cp_fm_scale_and_add(0.5_dp, fm_reduced_sym, 0.5_dp, fm_reduced_eigvec)
+      ! a_pq <- (red_pq + red_qp)/2
+      CALL symmetrise_in_place(fm_reduced_sym, fm_reduced_eigvec)
       ALLOCATE (eigval(m))
       eigval(:) = 0.0_dp
       CALL choose_eigv_solver(fm_reduced_sym, fm_reduced_eigvec, eigval)
@@ -2142,6 +2139,20 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE solve_replicated
+
+! **************************************************************************************************
+!> \brief a_pq <- (a_pq + a_qp)/2 through a scratch matrix of the same shape: the eigensolvers read one triangle
+!> \param fm_a symmetrised in place
+!> \param fm_scratch overwritten with the transpose
+! **************************************************************************************************
+   SUBROUTINE symmetrise_in_place(fm_a, fm_scratch)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_a, fm_scratch
+
+      CALL cp_fm_transpose(fm_a, fm_scratch)
+      CALL cp_fm_scale_and_add(0.5_dp, fm_a, 0.5_dp, fm_scratch)
+
+   END SUBROUTINE symmetrise_in_place
 
 ! **************************************************************************************************
 !> \brief Orthonormal coefficient vectors of the restart basis from the candidate columns in their
