@@ -25,7 +25,7 @@ MODULE rpa_im_time
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_clear, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, &
-        dbcsr_release_p, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_release_p, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
@@ -220,12 +220,11 @@ CONTAINS
       INTEGER, DIMENSION(2, 2)                           :: ibounds_1, jbounds_1
       INTEGER, DIMENSION(3)                              :: bounds_3c
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell_dm
-      LOGICAL :: do_Gamma_RPA, do_kpoints_cubic_RPA, first_cycle_im_time, first_cycle_omega_loop, &
-         memory_info, R_1_minus_S_needed, R_1_minus_T_needed, R_2_minus_S_minus_T_needed
+      LOGICAL :: do_Gamma_RPA, do_kpoints_cubic_RPA, first_cycle_im_time, memory_info, &
+         R_1_minus_S_needed, R_1_minus_T_needed, R_2_minus_S_minus_T_needed
       REAL(dp)                                           :: occ, occ_dm_occ, occ_dm_virt, occ_M_occ, &
                                                             occ_M_virt, occ_O, t1_flop
-      REAL(KIND=dp)                                      :: omega, omega_old, t1, t2, tau, weight, &
-                                                            weight_old
+      REAL(KIND=dp)                                      :: omega, t1, t2, tau, weight
       TYPE(dbcsr_distribution_type)                      :: dist_P
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: propagator
       TYPE(dbt_pgrid_type)                               :: pgrid_2d
@@ -541,8 +540,6 @@ CONTAINS
                CALL timeset(routineN//"_Fourier_transform", handle3)
 
                ! Fourier transform of P(it) to P(iw)
-               first_cycle_omega_loop = .TRUE.
-
                tau = grid%imaginary_time(jquad)
 
                DO iquad = 1, num_integ_points
@@ -550,20 +547,10 @@ CONTAINS
                   omega = grid%frequency(iquad)
                   weight = grid%cosine_time_to_frequency_weights(iquad, jquad)
 
-                  IF (first_cycle_omega_loop) THEN
-                     ! no multiplication with 2.0 as in Kresses paper (Kaltak, JCTC 10, 2498 (2014), Eq. 12)
-                     ! because this factor is already absorbed in the weight w_j
-                     CALL dbcsr_scale(mat_P_global%matrix, COS(omega*tau)*weight)
-                  ELSE
-                     CALL dbcsr_scale(mat_P_global%matrix, COS(omega*tau)/COS(omega_old*tau)*weight/weight_old)
-                  END IF
-
-                  CALL dbcsr_add(mat_P_omega(iquad, i_cell_T)%matrix, mat_P_global%matrix, 1.0_dp, 1.0_dp)
-
-                  first_cycle_omega_loop = .FALSE.
-
-                  omega_old = omega
-                  weight_old = weight
+                  ! no multiplication with 2.0 as in Kresses paper (Kaltak, JCTC 10, 2498 (2014), Eq. 12)
+                  ! because this factor is already absorbed in the weight w_j
+                  CALL dbcsr_add(mat_P_omega(iquad, i_cell_T)%matrix, mat_P_global%matrix, &
+                                 1.0_dp, COS(omega*tau)*weight)
 
                END DO
 
