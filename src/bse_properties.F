@@ -23,14 +23,9 @@ MODULE bse_properties
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_submatrix,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_to_fm_submat,&
-                                              cp_fm_to_fm_submat_general,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_release, cp_fm_set_all, &
+        cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_to_fm_submat_general, cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -129,7 +124,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_oscillator_strengths'
 
-      INTEGER                                            :: handle, idir, jdir, n
+      INTEGER                                            :: handle, idir, jdir, n, n_exc
       TYPE(cp_fm_struct_type), POINTER :: fm_struct_dipole_MO_trunc_reordered, &
          fm_struct_trans_mom_bse
       TYPE(cp_fm_type)                                   :: fm_eigvec_XYsum
@@ -138,10 +133,13 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      ! an iterative solver provides fewer excitations than transitions
+      CALL cp_fm_get_info(fm_eigvec_X, ncol_global=n_exc)
+
       CALL cp_fm_struct_create(fm_struct_dipole_MO_trunc_reordered, fm_eigvec_X%matrix_struct%para_env, &
                                fm_eigvec_X%matrix_struct%context, 1, homo_red*virtual_red)
       CALL cp_fm_struct_create(fm_struct_trans_mom_bse, fm_eigvec_X%matrix_struct%para_env, &
-                               fm_eigvec_X%matrix_struct%context, 1, homo_red*virtual_red)
+                               fm_eigvec_X%matrix_struct%context, 1, n_exc)
 
       ! Include excitonic amplitudes in dipoles, i.e. obtain "BSE dipoles":
       ! \vec{D}_n = sqrt(2) * sum_{i,a} \vec{D}_ai (X_{ai}^{(n)} + Y_{ai}^{(n)})
@@ -172,16 +170,16 @@ CONTAINS
          CALL cp_fm_scale_and_add(1.0_dp, fm_eigvec_XYsum, 1.0_dp, fm_eigvec_Y)
       END IF
       DO idir = 1, 3
-         CALL parallel_gemm('N', 'N', 1, homo_red*virtual_red, homo_red*virtual_red, SQRT(2.0_dp), &
+         CALL parallel_gemm('N', 'N', 1, n_exc, homo_red*virtual_red, SQRT(2.0_dp), &
                             fm_dipole_MO_trunc_reordered(idir), fm_eigvec_XYsum, 0.0_dp, fm_trans_mom_bse(idir))
       END DO
 
       ! Get oscillator strengths themselves
-      ALLOCATE (oscill_str(homo_red*virtual_red))
+      ALLOCATE (oscill_str(n_exc))
       ! trans_mom_bse needs to be a 2D array per direction idir, such that cp_fm_get_submatrix can directly
       !  write to it
-      ALLOCATE (trans_mom_bse(3, 1, homo_red*virtual_red))
-      ALLOCATE (polarizability_residues(3, 3, homo_red*virtual_red))
+      ALLOCATE (trans_mom_bse(3, 1, n_exc))
+      ALLOCATE (polarizability_residues(3, 3, n_exc))
       trans_mom_bse(:, :, :) = 0.0_dp
 
       ! Sum over all directions
@@ -189,7 +187,7 @@ CONTAINS
          CALL cp_fm_get_submatrix(fm_trans_mom_bse(idir), trans_mom_bse(idir, :, :))
       END DO
 
-      DO n = 1, homo_red*virtual_red
+      DO n = 1, n_exc
          DO idir = 1, 3
             DO jdir = 1, 3
                polarizability_residues(idir, jdir, n) = 2.0_dp*Exc_ens(n)*trans_mom_bse(idir, 1, n)*trans_mom_bse(jdir, 1, n)

@@ -1789,7 +1789,7 @@ CONTAINS
                                     fm_mat_Q_static_bse_gemm, &
                                     Eigenval, Eigenval_scf, &
                                     homo, virtual, dimen_RI, dimen_RI_red, bse_lev_virt, &
-                                    gd_array, color_sub, mp2_env, qs_env, mo_coeff, unit_nr)
+                                    mp2_env, qs_env, mo_coeff, unit_nr)
          ! Release per-spin BSE-copy of fm_mat_S
          DO ispin = 1, nspins
             CALL cp_fm_release(fm_mat_S_ia_bse(ispin))

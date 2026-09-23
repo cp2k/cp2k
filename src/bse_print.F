@@ -21,10 +21,13 @@ MODULE bse_print
                                               get_bse_spin_block_layout
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
-   USE input_constants,                 ONLY: bse_screening_alpha,&
+   USE input_constants,                 ONLY: bse_abba_mk_davidson,&
+                                              bse_iterdiag,&
+                                              bse_screening_alpha,&
                                               bse_screening_rpa,&
                                               bse_screening_tdhf,&
-                                              bse_screening_w0
+                                              bse_screening_w0,&
+                                              bse_singlet
    USE kinds,                           ONLY: dp
    USE mp2_types,                       ONLY: mp2_type
    USE particle_types,                  ONLY: particle_type
@@ -87,31 +90,38 @@ CONTAINS
    END SUBROUTINE print_BSE_start_flag
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Banner, defining equations and legend of one BSE problem, printed before it is solved
 !> \param homo ...
 !> \param virtual ...
 !> \param homo_irred ...
 !> \param flag_TDA ...
-!> \param multiplet ...
-!> \param alpha ...
 !> \param mp2_env ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE print_output_header(homo, virtual, homo_irred, flag_TDA, &
-                                  multiplet, alpha, mp2_env, unit_nr)
+   SUBROUTINE print_output_header(homo, virtual, homo_irred, flag_TDA, mp2_env, unit_nr)
 
       INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred
       LOGICAL, INTENT(IN)                                :: flag_TDA
-      CHARACTER(LEN=10), INTENT(IN)                      :: multiplet
-      REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_output_header'
 
+      CHARACTER(LEN=10)                                  :: multiplet
       INTEGER                                            :: handle
+      LOGICAL                                            :: iterative
+      REAL(KIND=dp)                                      :: alpha
 
       CALL timeset(routineN, handle)
+
+      IF (mp2_env%bse%bse_spin_config == bse_singlet) THEN
+         multiplet = "Singlet"
+         alpha = 2.0_dp
+      ELSE
+         multiplet = "Triplet"
+         alpha = 0.0_dp
+      END IF
+      iterative = mp2_env%bse%bse_diag_method == bse_iterdiag
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -121,8 +131,13 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '*   Bethe Salpeter equation (BSE) with Tamm Dancoff approximation (TDA)  *'
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A48,A23)') 'BSE|', 'The excitations are calculated by diagonalizing ', &
-               'the BSE within the TDA:'
+            IF (iterative) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'The lowest excitations are obtained iteratively (block Davidson)'
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'from the BSE within the TDA:'
+            ELSE
+               WRITE (unit_nr, '(T2,A4,T7,A48,A23)') 'BSE|', 'The excitations are calculated by diagonalizing ', &
+                  'the BSE within the TDA:'
+            END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T29,A16)') 'BSE|', 'A X^n = Ω^n X^n'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -137,8 +152,13 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '*      Full ("ABBA") Bethe Salpeter equation (BSE) (i.e. without TDA)    *'
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A48,A24)') 'BSE|', 'The excitations are calculated by diagonalizing ', &
-               'the BSE without the TDA:'
+            IF (iterative) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'The lowest excitations are obtained iteratively (block Davidson)'
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'from the BSE without the TDA:'
+            ELSE
+               WRITE (unit_nr, '(T2,A4,T7,A48,A24)') 'BSE|', 'The excitations are calculated by diagonalizing ', &
+                  'the BSE without the TDA:'
+            END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T22,A30)') 'BSE|', '|A B| |X^n|       |1  0| |X^n|'
             WRITE (unit_nr, '(T2,A4,T22,A31)') 'BSE|', '|B A| |Y^n| = Ω^n |0 -1| |Y^n|'
@@ -174,7 +194,9 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A14)') 'BSE|', 'Ref.: Eq. (10)'
             WRITE (unit_nr, '(T2,A4,T7,A61)') 'BSE|', 'in PRB 113,205152 (2026); https://doi.org/10.1103/38k2-d55h .'
          END IF
-         IF (.NOT. flag_TDA) THEN
+         IF (iterative) THEN
+            CALL print_iterative_method(flag_TDA, mp2_env%bse%abba_solver, unit_nr)
+         ELSE IF (.NOT. flag_TDA) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', 'The BSE is solved for Ω^n and X_ia^n as a hermitian problem, e.g. Eq.(42)'
             WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
@@ -205,6 +227,78 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE print_output_header
+
+! **************************************************************************************************
+!> \brief Equations of the block Davidson that BSE_DIAG_METHOD ITERDIAG runs, one arm per solver
+!> \param flag_TDA ...
+!> \param abba_solver ABBA_SOLVER, read outside the TDA
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE print_iterative_method(flag_TDA, abba_solver, unit_nr)
+
+      LOGICAL, INTENT(IN)                                :: flag_TDA
+      INTEGER, INTENT(IN)                                :: abba_solver, unit_nr
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         IF (flag_TDA) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Iterative solution (block Davidson); A is applied, never formed:'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Trial space'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'Z_ia,m  with  sum_ia Z_ia,m Z_ia,n = δ_mn'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Reduced problem'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'G_mn             = sum_ia Z_ia,m sum_jb A_ia,jb Z_jb,n'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'sum_n G_mn c_n^k = θ^k c_m^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'Ω^k              = θ^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'X_ia^k           = sum_m Z_ia,m c_m^k'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Residual and correction'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'r_ia^k = sum_jb A_ia,jb X_jb^k - θ^k X_ia^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 't_ia^k = r_ia^k / (d_ia - θ^k)'
+         ELSE IF (abba_solver == bse_abba_mk_davidson) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Iterative solution (block Davidson); A and B are applied, never formed:'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Trial space, orthonormal in the (A-B) metric'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'W_ia,m               = sum_jb (A-B)_ia,jb T_jb,m'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'sum_ia T_ia,m W_ia,n = δ_mn'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Reduced problem'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'H_mn             = sum_ia W_ia,m sum_jb (A+B)_ia,jb W_jb,n'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'sum_n H_mn c_n^k = θ^k c_m^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'Ω^k              = (θ^k)^1/2'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'X_ia^k - Y_ia^k  = (Ω^k)^1/2 sum_m T_ia,m c_m^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'X_ia^k + Y_ia^k  = (Ω^k)^-1/2 sum_m W_ia,m c_m^k'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Residual and correction'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'r_ia^k = sum_jb (A+B)_ia,jb (X_jb^k + Y_jb^k) - Ω^k (X_ia^k - Y_ia^k)'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 't_ia^k = r_ia^k / ((d_ia)^2 - θ^k)'
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Iterative solution (block Davidson); A and B are applied, never formed:'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Trial space'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'b_ia,m  with  sum_ia b_ia,m b_ia,n = δ_mn'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Reduced pair'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'Mr_mn             = sum_ia b_ia,m sum_jb (A+B)_ia,jb b_jb,n'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'Kr_mn             = sum_ia b_ia,m sum_jb (A-B)_ia,jb b_jb,n'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'sum_n Mr_mn R_n^k = Ω^k L_m^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'sum_n Kr_mn L_n^k = Ω^k R_m^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'X_ia^k + Y_ia^k   = sum_m b_ia,m R_m^k'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'X_ia^k - Y_ia^k   = sum_m b_ia,m L_m^k'
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Residuals and correction'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'rR_ia^k = sum_jb (A+B)_ia,jb (X_jb^k + Y_jb^k) - Ω^k (X_ia^k - Y_ia^k)'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 'rL_ia^k = sum_jb (A-B)_ia,jb (X_jb^k - Y_jb^k) - Ω^k (X_ia^k + Y_ia^k)'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', '|r^k|   = max(|rR^k|, |rL^k|)'
+            WRITE (unit_nr, '(T2,A4,T10,A)') 'BSE|', 't_ia^k  = r_ia^k / (d_ia - Ω^k)'
+         END IF
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'd_ia from PRECONDITIONER, the trial space grows by the t_ia^k'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'convergence: |r^k| < EPS_RES, |ΔΩ^k| < EPS_ENERGY (CONVERGENCE_CRITERION)'
+      END IF
+
+   END SUBROUTINE print_iterative_method
 
 ! **************************************************************************************************
 !> \brief ...
@@ -445,22 +539,25 @@ CONTAINS
                   trans_mom_bse(3, 1, i_exc), oscill_str(i_exc)
             END DO
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
-               'Check for Thomas-Reiche-Kuhn sum rule'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T35,A15)') 'BSE|', &
-               'N_e = Σ_n f^n'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            ! Open shell: caller passes homo_irred = n_alpha + n_beta (total electrons).
-            ! Closed shell: homo_irred = n_occ, i.e. 2 electrons per occupied orbital.
-            WRITE (unit_nr, '(T2,A4,T7,A24,T65,I16)') 'BSE|', &
-               'Number of electrons N_e:', MERGE(homo_irred, homo_irred*2, my_open_shell)
-            WRITE (unit_nr, '(T2,A4,T7,A40,T66,F16.3)') 'BSE|', &
-               'Sum over oscillator strengths Σ_n f^n :', SUM(oscill_str)
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "Accuracy of TRK sum rule might suffer from cutoffs.")
+            ! the sum rule needs all excitations, an iterative solver provides the lowest ones only
+            IF (SIZE(oscill_str) == homo*virtual) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
+                  'Check for Thomas-Reiche-Kuhn sum rule'
+               WRITE (unit_nr, '(T2,A4)') 'BSE|'
+               WRITE (unit_nr, '(T2,A4,T35,A15)') 'BSE|', &
+                  'N_e = Σ_n f^n'
+               WRITE (unit_nr, '(T2,A4)') 'BSE|'
+               ! Open shell: caller passes homo_irred = n_alpha + n_beta (total electrons).
+               ! Closed shell: homo_irred = n_occ, i.e. 2 electrons per occupied orbital.
+               WRITE (unit_nr, '(T2,A4,T7,A24,T65,I16)') 'BSE|', &
+                  'Number of electrons N_e:', MERGE(homo_irred, homo_irred*2, my_open_shell)
+               WRITE (unit_nr, '(T2,A4,T7,A40,T66,F16.3)') 'BSE|', &
+                  'Sum over oscillator strengths Σ_n f^n :', SUM(oscill_str)
+               WRITE (unit_nr, '(T2,A4)') 'BSE|'
+               IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
+                  CALL cp_warn(__LOCATION__, &
+                               "Accuracy of TRK sum rule might suffer from cutoffs.")
+               END IF
             END IF
          END IF
 

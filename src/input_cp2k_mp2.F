@@ -27,7 +27,9 @@ MODULE input_cp2k_mp2
    USE input_constants, ONLY: &
       bse_fulldiag, bse_iterdiag, bse_tda, bse_abba, bse_both, &
       bse_screening_w0, bse_screening_tdhf, bse_screening_rpa, bse_screening_alpha, &
-      bse_iter_both_cond, bse_iter_en_cond, bse_iter_res_cond, bse_singlet, &
+      bse_abba_mk_davidson, bse_abba_olsen_stratmann, bse_iter_and_cond, bse_iter_en_cond, &
+      bse_iter_or_cond, bse_iter_res_cond, bse_memcheck_abort, bse_memcheck_clamp, bse_memcheck_off, &
+      bse_memcheck_warn, bse_precond_full_diag, bse_precond_qp_diff, bse_singlet, &
       bse_triplet, do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
       do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
       do_potential_tshpsc, eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
@@ -1334,7 +1336,8 @@ CONTAINS
                           enum_c_vals=s2a("FULLDIAG", "ITERDIAG"), &
                           enum_i_vals=[bse_fulldiag, bse_iterdiag], &
                           enum_desc=s2a("Fully diagonalizes the BSE matrices within the chosen level of approximation.", &
-                                        "Iterative diagonalization has not been implemented yet."), &
+                                        "Block Davidson iteration for the lowest NUM_EXC_EN excitations, "// &
+                                        "applying the BSE matrices without forming them; settings in BSE_ITERAT."), &
                           default_i_val=bse_fulldiag)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1648,85 +1651,158 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BSE_ITERAT", &
-                          description="Parameters influencing the iterative Bethe-Salpeter calculation. "// &
-                          "The iterative solver has not been fully implemented yet.", &
-                          n_keywords=9, n_subsections=0, repeats=.FALSE.)
+                          description="Parameters of the iterative (block Davidson) solution of the "// &
+                          "Bethe-Salpeter equation for the lowest excitations, which is invoked by "// &
+                          "BSE_DIAG_METHOD ITERDIAG.", &
+                          n_keywords=10, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="DAVIDSON_ABORT_COND", &
-                          description="Desired abortion condition for Davidson solver", &
-                          usage="DAVIDSON_ABORT_COND OR", &
-                          enum_c_vals=s2a("EN", "RES", "OR"), &
-                          enum_i_vals=[bse_iter_en_cond, bse_iter_res_cond, bse_iter_both_cond], &
-                          enum_desc=s2a("Uses energy threshold for successfully exiting solver.", &
-                                        "Uses residual threshold for successfully exiting solver.", &
-                                        "Uses either energy or residual threshold for successfully exiting solver."), &
-                          default_i_val=bse_iter_en_cond)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="NUM_EXC_EN", &
-                          description="Number of lowest excitation energies to be computed.", &
-                          usage="NUM_EXC_EN 3", &
-                          default_i_val=3)
+                          description="Number of lowest excitation energies computed and printed. "// &
+                          "The absorption spectrum of BSE_SPECTRUM sums over these states only.", &
+                          usage="NUM_EXC_EN 10", &
+                          default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="NUM_ADD_START_Z_SPACE", &
-                          description="Determines the initial dimension of the subspace as "// &
-                          "dim = (NUM_EXC_EN+NUM_ADD_START_Z_SPACE)", &
-                          usage="NUM_ADD_START_Z_SPACE 1", &
-                          default_i_val=0)
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_BUFFER_STATES", &
+                          description="States carried above NUM_EXC_EN so that a degenerate group at the "// &
+                          "upper boundary converges as a whole. They are not printed and need not converge.", &
+                          usage="NUM_BUFFER_STATES 4", &
+                          default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="FAC_MAX_Z_SPACE", &
-                          description="Factor to determine maximum dimension of the Davidson subspace. "// &
-                          "dimension = (NUM_EXC_EN+NUM_ADD_START_Z_SPACE)*FAC_MAX_Z_SPACE", &
-                          usage="FAC_MAX_Z_SPACE 5", &
-                          default_i_val=5)
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_GUESS_TRANSITIONS", &
+                          description="Number of transitions with the lowest diagonal on which A (and B) "// &
+                          "are built exactly and diagonalized for the initial guess. Its eigenvalues bound "// &
+                          "the true energies from above and are checked against the converged ones. "// &
+                          "0: unit vectors on the lowest diagonal entries. The default is large because "// &
+                          "the block is cheap against the solver's iterations and a large block also seeds "// &
+                          "excitations built from transitions far up the diagonal ordering. Memory: the "// &
+                          "square of this number in doubles per MPI rank.", &
+                          usage="NUM_GUESS_TRANSITIONS 512", &
+                          default_i_val=512)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="NUM_NEW_T", &
-                          description="Number of new t vectors added. "// &
-                          "Must be smaller/equals (NUM_EXC_EN+NUM_ADD_START_Z_SPACE)", &
-                          usage="NUM_NEW_T 4", &
-                          default_i_val=1)
+      CALL keyword_create(keyword, __LOCATION__, name="BLOCK_SIZE", &
+                          description="Maximum number of correction vectors (and kernel applications) "// &
+                          "added to the subspace per iteration. -1: 32, or the number of tracked states "// &
+                          "if fewer. Measured on a 200-state nanographene: 32 within 5 % of the best "// &
+                          "width, 8 twice as slow.", &
+                          usage="BLOCK_SIZE 8", &
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_RES", &
-                          description="Threshold for stopping the iteration for computing the transition energies. "// &
-                          "If the residuals inside the Davidson space change by less than EPS_RES (in eV), the iteration "// &
-                          "stops.", &
-                          usage="EPS_RES 0.001", unit_str="eV", &
-                          type_of_var=real_t, default_r_val=0.001_dp)
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_SUBSPACE_FACTOR", &
+                          description="Subspace ceiling in units of (NUM_EXC_EN+NUM_BUFFER_STATES) before a "// &
+                          "thick restart. -1: start from 20 and let MEMORY_CHECK reduce it to the budget.", &
+                          usage="MAX_SUBSPACE_FACTOR 5", &
+                          default_i_val=10)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_EXC_EN", &
-                          description="Threshold for stopping the iteration for computing the transition energies. "// &
-                          "If the desired excitation energies change by less than EPS_EXC_EN (in eV), the iteration "// &
-                          "stops.", &
-                          usage="EPS_EXC_EN 0.001", unit_str="eV", &
-                          type_of_var=real_t, default_r_val=0.001_dp)
+      CALL keyword_create(keyword, __LOCATION__, name="MATVEC_BLOCK_COLUMNS", &
+                          description="Trial vectors the kernel applies per pass. The replicated work "// &
+                          "arrays of one pass are n_arrays*N_ov*MATVEC_BLOCK_COLUMNS doubles, n_arrays 3 for "// &
+                          "the TDA and 4 otherwise. Never more than the columns of the call. Measured: flat "// &
+                          "from 8 to 64, up to 28x slower in the gather at 128 and above. -1: as many as "// &
+                          "half the free memory per rank allows.", &
+                          usage="MATVEC_BLOCK_COLUMNS 32", &
+                          default_i_val=32)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="NUM_DAVIDSON_ITER", &
-                          description="Maximum number of iterations for determining the transition energies.", &
-                          usage="NUM_DAVIDSON_ITER 100", &
+      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CHECK", &
+                          description="What the iterative solver does when its arrays at the subspace "// &
+                          "ceiling exceed the memory budget per MPI rank: nothing, warn, reduce the ceiling "// &
+                          "to the largest that fits (never below the solver's minimum), or abort.", &
+                          usage="MEMORY_CHECK CLAMP", &
+                          enum_c_vals=s2a("OFF", "WARN", "CLAMP", "ABORT"), &
+                          enum_i_vals=[bse_memcheck_off, bse_memcheck_warn, bse_memcheck_clamp, bse_memcheck_abort], &
+                          enum_desc=s2a("Print the estimate, no comparison.", &
+                                        "Warn when the estimate exceeds the budget.", &
+                                        "Reduce the subspace ceiling to the budget and warn.", &
+                                        "Abort when the estimate exceeds the budget."), &
+                          default_i_val=bse_memcheck_clamp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_BUDGET_GB", &
+                          description="Memory per MPI rank the iterative solver may use for its own arrays, "// &
+                          "in GB; the RI slabs are already allocated and not part of it. -1: half of the "// &
+                          "free memory per rank detected at the start of the solver.", &
+                          usage="MEMORY_BUDGET_GB 8.0", &
+                          default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
+                          description="Maximum number of Davidson iterations. The calculation aborts if it "// &
+                          "is reached before convergence.", &
+                          usage="MAX_ITER 100", &
                           default_i_val=100)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="Z_SPACE_ENERGY_CUTOFF", &
-                          description="Cutoff (in eV) for maximal energy difference entering the A matrix. "// &
-                          "Per default and for negative values, there is no cutoff applied.", &
-                          usage="Z_SPACE_ENERGY_CUTOFF 60", unit_str="eV", &
-                          type_of_var=real_t, default_r_val=-1.0_dp)
+      CALL keyword_create(keyword, __LOCATION__, name="CONVERGENCE_CRITERION", &
+                          description="Which of EPS_ENERGY (change of each excitation energy between "// &
+                          "iterations) and EPS_RES (residual norm of each state) must hold.", &
+                          usage="CONVERGENCE_CRITERION AND", &
+                          enum_c_vals=s2a("EN", "RES", "OR", "AND"), &
+                          enum_i_vals=[bse_iter_en_cond, bse_iter_res_cond, bse_iter_or_cond, &
+                                       bse_iter_and_cond], &
+                          enum_desc=s2a("The energy criterion EPS_ENERGY has to hold.", &
+                                        "The residual criterion EPS_RES has to hold.", &
+                                        "One of the two criteria has to hold.", &
+                                        "Both criteria have to hold."), &
+                          default_i_val=bse_iter_and_cond)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_RES", &
+                          description="Threshold on the Euclidean residual norm of every requested state "// &
+                          "(atomic units). Controls the eigenvector accuracy and thereby oscillator "// &
+                          "strengths and descriptors.", &
+                          usage="EPS_RES 1.0E-6", &
+                          type_of_var=real_t, default_r_val=1.0E-6_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_ENERGY", &
+                          description="Threshold on the change of every requested excitation energy "// &
+                          "between two iterations.", &
+                          usage="EPS_ENERGY 1.0E-6", unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=cp_unit_to_cp2k(value=1.0E-6_dp, unit_str="eV"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PRECONDITIONER", &
+                          description="Diagonal used in the Davidson correction: the diagonal of A "// &
+                          "including the kernel, or the bare quasiparticle energy differences.", &
+                          usage="PRECONDITIONER FULL_DIAGONAL", &
+                          enum_c_vals=s2a("FULL_DIAGONAL", "QP_DIFFERENCE"), &
+                          enum_i_vals=[bse_precond_full_diag, bse_precond_qp_diff], &
+                          enum_desc=s2a("Diagonal of A including the exchange and the screened term.", &
+                                        "Quasiparticle energy differences."), &
+                          default_i_val=bse_precond_full_diag)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ABBA_SOLVER", &
+                          description="Paired solver beyond the TDA: block Davidson on (A+B)(A-B) in the "// &
+                          "(A-B) inner product, or the paired-subspace Davidson of Olsen and Stratmann. "// &
+                          "No automatic fallback between the two.", &
+                          usage="ABBA_SOLVER MK_DAVIDSON", &
+                          enum_c_vals=s2a("MK_DAVIDSON", "OLSEN_STRATMANN"), &
+                          enum_i_vals=[bse_abba_mk_davidson, bse_abba_olsen_stratmann], &
+                          enum_desc=s2a("Block Davidson on (A+B)(A-B) in the (A-B) inner product.", &
+                                        "Paired-subspace Davidson of Olsen and Stratmann."), &
+                          default_i_val=bse_abba_mk_davidson)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
    END SUBROUTINE create_bse_iterat_section

@@ -70,7 +70,11 @@ $$
 
 Diagonalizing $A$ in TDA, or the full block-matrix $ABBA$, takes in the order of
 $(N_\mathrm{occ} N_\mathrm{empty})^3$ floating point operations. This translates to a computational
-scaling of $O(N^6)$ in the system size $N$.
+scaling of $O(N^6)$ in the system size $N$. Alternatively, the lowest excitations can be obtained
+iteratively with a block Davidson solver that applies $A$ and $B$ to trial vectors without forming
+them ([BSE_DIAG_METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.BSE_DIAG_METHOD)
+`ITERDIAG`, settings in
+[BSE_ITERAT](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.BSE_ITERAT)).
 
 ### 1.2 Optical absorption spectrum
 
@@ -303,6 +307,13 @@ In the upper GW/BSE section, the following keywords have been used:
   - `OFF` generalized diagonalization of $ABBA$,
   - `TDA+ABBA` CP2K diagonalizes $ABBA$ as well as $A$.
 
+- [BSE_DIAG_METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.BSE_DIAG_METHOD):
+  `FULLDIAG` (default) diagonalizes the matrices; `ITERDIAG` runs a block Davidson solver for the
+  lowest
+  [NUM_EXC_EN](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.BSE_ITERAT.NUM_EXC_EN)
+  excitations without forming $A$ and $B$, with the settings of
+  [BSE_ITERAT](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.BSE_ITERAT).
+
 - [SPIN_CONFIG](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.SPIN_CONFIG): Two options
   available: Choose between `SINGLET` for computing singlet excitation energies $(\alpha^S = 2)$ and
   `TRIPLET` for computing triplet excitation energies $(\alpha^T=0)$. Standard is `SINGLET` as an
@@ -375,7 +386,9 @@ optical properties:
 The memory consumption of the BSE algorithm is large, it is approximately
 $100 \cdot N_\mathrm{occ}^2 N_\mathrm{empty}^2$ Bytes. You can see $N_\mathrm{occ}$,
 $N_\mathrm{empty}$ and the estimated memory consumption from the BSE output. The BSE implementation
-is well parallelized, i.e. you can use several nodes that can provide the memory.
+is well parallelized, i.e. you can use several nodes that can provide the memory. With
+`BSE_DIAG_METHOD ITERDIAG` these matrices are never allocated; the memory is then set by the RI
+three-center tensors, and the solver prints its own estimate.
 
 We have benchmarked the numerical precision of our BSE implementation in \[[](#Graml2026)\] and
 compared its results to the BSE implementation in FHI aims \[[](#Liu2020)\]. For our recommended

@@ -48,14 +48,17 @@ MODULE bse_full_diag
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE exstates_types,                  ONLY: excited_energy_type
-   USE input_constants,                 ONLY: bse_screening_alpha,&
+   USE input_constants,                 ONLY: bse_iterdiag,&
+                                              bse_screening_alpha,&
                                               bse_screening_rpa,&
+                                              bse_screening_tdhf,&
                                               bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
+   USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
 #include "./base/base_uses.f90"
@@ -66,8 +69,8 @@ MODULE bse_full_diag
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_full_diag'
 
-   PUBLIC :: create_A, diagonalize_A, create_B, create_hermitian_form_of_ABBA, &
-             diagonalize_C
+   PUBLIC :: create_A, diagonalize_A, create_B, create_A_and_B, create_hermitian_form_of_ABBA, &
+             diagonalize_C, postprocess_bse
 
 CONTAINS
 
@@ -439,6 +442,62 @@ CONTAINS
 
    END SUBROUTINE create_B
 
+! **************************************************************************************************
+!> \brief Explicit A, and B for ABBA, from the slabs the screening method contracts: the bare ones for
+!>        TDHF and ALPHA screening, the W-multiplied ones otherwise
+!> \param fm_mat_S_ia_bse ...
+!> \param fm_mat_S_ij_bse ...
+!> \param fm_mat_S_ab_bse ...
+!> \param fm_mat_S_bar_ia_bse ...
+!> \param fm_mat_S_bar_ij_bse ...
+!> \param fm_A ...
+!> \param fm_B created only for ABBA
+!> \param do_abba ...
+!> \param Eigenval ...
+!> \param unit_nr ...
+!> \param homo ...
+!> \param virtual ...
+!> \param dimen_RI ...
+!> \param mp2_env ...
+!> \param para_env ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE create_A_and_B(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S_bar_ia_bse, &
+                             fm_mat_S_bar_ij_bse, fm_A, fm_B, do_abba, Eigenval, unit_nr, &
+                             homo, virtual, dimen_RI, mp2_env, para_env, qs_env)
+
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
+                                                            fm_mat_S_ab_bse, fm_mat_S_bar_ia_bse, &
+                                                            fm_mat_S_bar_ij_bse
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A, fm_B
+      LOGICAL, INTENT(IN)                                :: do_abba
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      INTEGER, INTENT(IN)                                :: dimen_RI
+      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(mp_para_env_type), INTENT(INOUT)              :: para_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
+          mp2_env%bse%screening_method == bse_screening_alpha) THEN
+         CALL create_A(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_A, Eigenval, unit_nr, &
+                       homo, virtual, dimen_RI, mp2_env, para_env, qs_env)
+         IF (do_abba) THEN
+            CALL create_B(fm_mat_S_ia_bse, fm_mat_S_ia_bse, fm_B, homo, virtual, dimen_RI, unit_nr, &
+                          mp2_env)
+         END IF
+      ELSE
+         CALL create_A(fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, fm_A, Eigenval, unit_nr, &
+                       homo, virtual, dimen_RI, mp2_env, para_env, qs_env)
+         IF (do_abba) THEN
+            CALL create_B(fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse, fm_B, homo, virtual, dimen_RI, unit_nr, &
+                          mp2_env)
+         END IF
+      END IF
+
+   END SUBROUTINE create_A_and_B
+
    ! **************************************************************************************************
 !> \brief Construct Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 to solve full BSE matrix as a hermitian problem
 !>   (cf. Eq. (A7) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001)).
@@ -518,6 +577,10 @@ CONTAINS
       ! Create (A-B)^-0.5 (cf. EQ.II)
       CALL cp_fm_power(fm_inv_sqrt_A_minus_B, fm_dummy, -0.5_dp, 0.0_dp, n_dependent, eigvals=eigvals_AB_diff)
       CALL cp_fm_release(fm_dummy)
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4,T7,A,T65,F16.6)') 'BSE|', &
+            'Smallest eigenvalue of A-B (eV)', eigvals_AB_diff(1)*evolt
+      END IF
       ! Raise an error in case the the matrix A-B is not positive definite (i.e. negative eigenvalues)
       ! In this case, the procedure for hermitian form of ABBA is not applicable
       IF (eigvals_AB_diff(1) < 0) THEN
@@ -937,7 +1000,6 @@ CONTAINS
       CHARACTER(LEN=10)                                  :: info_approximation, multiplet
       INTEGER                                            :: handle, i_exc, idir, n_moments_di, &
                                                             n_moments_quad
-      REAL(KIND=dp)                                      :: alpha
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str, ref_point_multipole
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: polarizability_residues, trans_mom_bse
       TYPE(cp_fm_type)                                   :: fm_X_ia, fm_Y_ia
@@ -951,10 +1013,8 @@ CONTAINS
       !Prepare variables for printing
       IF (mp2_env%bse%bse_spin_config == 0) THEN
          multiplet = "Singlet"
-         alpha = 2.0_dp
       ELSE
          multiplet = "Triplet"
-         alpha = 0.0_dp
       END IF
       IF (.NOT. PRESENT(flag_TDA)) THEN
          flag_TDA = .FALSE.
@@ -1020,9 +1080,10 @@ CONTAINS
                                        fm_eigvec_Y)
       END IF
 
-      ! Prints basic definitions used in BSE calculation
-      CALL print_output_header(homo, virtual, homo_irred, flag_TDA, &
-                               multiplet, alpha, mp2_env, unit_nr)
+      ! the iterative driver prints the header before its solver runs
+      IF (mp2_env%bse%bse_diag_method /= bse_iterdiag) THEN
+         CALL print_output_header(homo, virtual, homo_irred, flag_TDA, mp2_env, unit_nr)
+      END IF
 
       ! Prints excitation energies up to user-specified number
       CALL print_excitation_energies(Exc_ens, homo, virtual, flag_TDA, multiplet, &

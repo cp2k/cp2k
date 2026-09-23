@@ -74,6 +74,8 @@ list(
   bse_main.F
   bse_full_diag.F
   bse_iterative.F
+  bse_davidson.F
+  bse_matvec.F
   bse_print.F
   bse_properties.F
   bse_util.F

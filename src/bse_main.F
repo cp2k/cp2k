@@ -13,13 +13,11 @@
 
 MODULE bse_main
 
-   USE bse_full_diag,                   ONLY: create_A,&
-                                              create_B,&
+   USE bse_full_diag,                   ONLY: create_A_and_B,&
                                               create_hermitian_form_of_ABBA,&
                                               diagonalize_A,&
                                               diagonalize_C
-   USE bse_iterative,                   ONLY: do_subspace_iterations,&
-                                              fill_local_3c_arrays
+   USE bse_iterative,                   ONLY: solve_bse_iteratively
    USE bse_print,                       ONLY: print_BSE_start_flag
    USE bse_util,                        ONLY: adapt_BSE_input_params,&
                                               deallocate_matrices_bse,&
@@ -36,13 +34,10 @@ MODULE bse_main
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: debug_print_level
-   USE group_dist_types,                ONLY: group_dist_d1_type
    USE input_constants,                 ONLY: bse_abba,&
                                               bse_both,&
                                               bse_fulldiag,&
                                               bse_iterdiag,&
-                                              bse_screening_alpha,&
-                                              bse_screening_tdhf,&
                                               bse_tda
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -77,8 +72,6 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param dimen_RI_red ...
 !> \param bse_lev_virt ...
-!> \param gd_array ...
-!> \param color_sub ...
 !> \param mp2_env ...
 !> \param qs_env ...
 !> \param mo_coeff ...
@@ -88,7 +81,7 @@ CONTAINS
                                     fm_mat_Q_static_bse_gemm, &
                                     Eigenval, Eigenval_scf, &
                                     homo, virtual, dimen_RI, dimen_RI_red, bse_lev_virt, &
-                                    gd_array, color_sub, mp2_env, qs_env, mo_coeff, unit_nr)
+                                    mp2_env, qs_env, mo_coeff, unit_nr)
 
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
@@ -98,8 +91,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
       INTEGER, DIMENSION(:), INTENT(IN)                  :: bse_lev_virt
-      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
-      INTEGER, INTENT(IN)                                :: color_sub
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
@@ -117,8 +108,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced, Eigenval_reduced_1, &
                                                             Eigenval_reduced_2, &
                                                             Eigenval_reduced_joint
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                                            B_bar_ijQ_bse_local, B_iaQ_bse_local
       TYPE(cp_fm_type)                                   :: fm_A_BSE, fm_B_BSE, fm_C_BSE, &
                                                             fm_inv_sqrt_A_minus_B, fm_Q_copy, &
                                                             fm_sqrt_A_minus_B
@@ -145,8 +134,6 @@ CONTAINS
       SELECT CASE (mp2_env%bse%bse_diag_method)
       CASE (bse_iterdiag)
          my_do_iterat_diag = .TRUE.
-         !MG: Basics of the Davidson solver are implemented, but not rigorously checked.
-         CPABORT("Iterative BSE not yet implemented")
       CASE (bse_fulldiag)
          my_do_fulldiag = .TRUE.
       END SELECT
@@ -183,6 +170,9 @@ CONTAINS
       END DO
 
       IF (nspins > 1) THEN
+         IF (my_do_iterat_diag) THEN
+            CPABORT("Iterative BSE is not yet available for open-shell references")
+         END IF
          CALL cp_warn(__LOCATION__, &
                       "Open-shell (UKS/LSD) BSE is a recent addition and has not been "// &
                       "extensively validated. Verify results carefully before using them "// &
@@ -234,25 +224,11 @@ CONTAINS
 
          IF (my_do_fulldiag) THEN
             CALL estimate_BSE_resources(n_ov_joint, unit_nr, my_do_abba, para_env, diag_runtime_est)
-            IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-                mp2_env%bse%screening_method == bse_screening_alpha) THEN
-               CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
-                             fm_A_BSE, Eigenval_reduced_joint, unit_nr, &
-                             homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
-            ELSE
-               CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ij_bse_arr, fm_mat_S_ab_trunc_arr, &
-                             fm_A_BSE, Eigenval_reduced_joint, unit_nr, &
-                             homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
-            END IF
+            CALL create_A_and_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
+                                fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr, fm_A_BSE, fm_B_BSE, &
+                                my_do_abba, Eigenval_reduced_joint, unit_nr, homo_red_arr, virt_red_arr, &
+                                dimen_RI, mp2_env, para_env, qs_env)
             IF (my_do_abba) THEN
-               IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-                   mp2_env%bse%screening_method == bse_screening_alpha) THEN
-                  CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ia_trunc_arr, fm_B_BSE, &
-                                homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
-               ELSE
-                  CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ia_bse_arr, fm_B_BSE, &
-                                homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
-               END IF
                CALL create_hermitian_form_of_ABBA(fm_A_BSE, fm_B_BSE, fm_C_BSE, &
                                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
                                                   unit_nr, mp2_env, diag_runtime_est)
@@ -299,38 +275,24 @@ CONTAINS
                             fm_mat_S_bar_ia_bse_arr(1), fm_mat_S_bar_ij_bse_arr(1), &
                             fm_mat_Q_static_bse_gemm, dimen_RI_red, homo_red_arr(1), virt_red_arr(1))
 
-         IF (my_do_iterat_diag) THEN
-            CALL fill_local_3c_arrays(fm_mat_S_ab_trunc_arr(1), fm_mat_S_ia_trunc_arr(1), &
-                                      fm_mat_S_bar_ia_bse_arr(1), fm_mat_S_bar_ij_bse_arr(1), &
-                                      B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                      B_iaQ_bse_local, dimen_RI_red, homo_red_arr(1), &
-                                      virt_red_arr(1), gd_array, color_sub, para_env)
-         END IF
-
          CALL adapt_BSE_input_params(homo_red_arr(1), virt_red_arr(1), unit_nr, mp2_env, qs_env)
+
+         IF (my_do_iterat_diag) THEN
+            CALL solve_bse_iteratively(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, &
+                                       fm_mat_S_ab_trunc_arr, fm_mat_S_bar_ia_bse_arr, &
+                                       fm_mat_S_bar_ij_bse_arr, Eigenval_reduced, &
+                                       homo_red_arr, virt_red_arr, homo, dimen_RI, &
+                                       my_do_tda, my_do_abba, mp2_env, qs_env, mo_coeff, unit_nr)
+         END IF
 
          IF (my_do_fulldiag) THEN
             n_ov_joint = homo_red_arr(1)*virt_red_arr(1)
             CALL estimate_BSE_resources(n_ov_joint, unit_nr, my_do_abba, para_env, diag_runtime_est)
-            IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-                mp2_env%bse%screening_method == bse_screening_alpha) THEN
-               CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
-                             fm_A_BSE, Eigenval_reduced, unit_nr, &
-                             homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
-            ELSE
-               CALL create_A(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ij_bse_arr, fm_mat_S_ab_trunc_arr, &
-                             fm_A_BSE, Eigenval_reduced, unit_nr, &
-                             homo_red_arr, virt_red_arr, dimen_RI, mp2_env, para_env, qs_env)
-            END IF
+            CALL create_A_and_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
+                                fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr, fm_A_BSE, fm_B_BSE, &
+                                my_do_abba, Eigenval_reduced, unit_nr, homo_red_arr, virt_red_arr, &
+                                dimen_RI, mp2_env, para_env, qs_env)
             IF (my_do_abba) THEN
-               IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-                   mp2_env%bse%screening_method == bse_screening_alpha) THEN
-                  CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ia_trunc_arr, fm_B_BSE, &
-                                homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
-               ELSE
-                  CALL create_B(fm_mat_S_ia_trunc_arr, fm_mat_S_bar_ia_bse_arr, fm_B_BSE, &
-                                homo_red_arr, virt_red_arr, dimen_RI, unit_nr, mp2_env)
-               END IF
                CALL create_hermitian_form_of_ABBA(fm_A_BSE, fm_B_BSE, fm_C_BSE, &
                                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
                                                   unit_nr, mp2_env, diag_runtime_est)
@@ -357,13 +319,6 @@ CONTAINS
                                       fm_mat_S_ia_trunc_arr(1), fm_mat_S_ij_trunc_arr(1), &
                                       fm_mat_S_ab_trunc_arr(1), fm_mat_Q_static_bse_gemm, mp2_env)
          DEALLOCATE (Eigenval_reduced)
-         IF (my_do_iterat_diag) THEN
-            CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                        B_iaQ_bse_local, homo(1), virtual(1), &
-                                        mp2_env%bse%bse_spin_config, unit_nr, &
-                                        Eigenval(:, 1, 1), para_env, mp2_env)
-            DEALLOCATE (B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, B_iaQ_bse_local)
-         END IF
 
       END IF
 
