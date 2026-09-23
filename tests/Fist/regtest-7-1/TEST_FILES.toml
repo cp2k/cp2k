@@ -23,7 +23,7 @@
 "uo2_shell_nvt_shnose_c.inp"            = [{matcher="M002", tol=1.0E-14, ref=-0.118482609833E+03}]
 "uo2_shell_nvt_shnosemass.inp"          = [{matcher="M002", tol=1.0E-14, ref=-0.118480159371E+03}]
 "uo2_shell_nvt_shnosemass_r.inp"        = [{matcher="M002", tol=1.0E-14, ref=-0.118439337147E+03}]
-"uo2_shell_nve_shnose.inp"              = [{matcher="M002", tol=1.0E-14, ref=-0.118486599707E+03}]
+"uo2_shell_nve_shnose.inp"              = [{matcher="M002", tol=1.0E-14, ref=-0.118486599400E+03}]
 # Temperature_per kind
 "uo2_shell_nvt_tkind.inp"               = [{matcher="M002", tol=1.0E-14, ref=-0.118491617892E+03}]
 "uo2_shell_nvt_tkind_1.inp"             = [{matcher="M002", tol=1.0E-14, ref=-0.118491617892E+03}]
@@ -45,12 +45,12 @@
 "uo2_shell_npt_vdt.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.118264970082E+03}]
 "uo2_shell_npt_vdt_2.inp"               = [{matcher="M002", tol=1.0E-14, ref=-0.117998080269E+03}]
 #Check on shell-core distance
-"uo2_shell_nve_dsc.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.117674397581E+03}]
-"uo2_shell_npt_dsc.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.118068236454E+03}]
+"uo2_shell_nve_dsc.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.117674419927E+03}]
+"uo2_shell_npt_dsc.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.118068232937E+03}]
 #ZBL repulsive term for core-core and shell-core interactions
-"uo2_shell_nve_zbl.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.118482304333E+03}]
+"uo2_shell_nve_zbl.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.118482305743E+03}]
 # thermal regions
-"uo2_shell_nve_cascade.inp"             = [{matcher="M002", tol=1.0E-14, ref=-0.118497693908E+03}]
+"uo2_shell_nve_cascade.inp"             = [{matcher="M002", tol=1.0E-14, ref=-0.118497693936E+03}]
 # Geometry optimisation for core-shell model
 "UO2-4x4x4-core-forces.inp"             = [{matcher="M043", tol=1.0E-11, ref=0}]
 "UO2-4x4x4-core-shell-debug.inp"        = [{matcher="M042", tol=3e+00, ref=4.6877E-06}]

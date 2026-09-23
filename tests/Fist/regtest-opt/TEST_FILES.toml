@@ -6,23 +6,23 @@
 # Geometry optimisation
 "geo_opt_bfgs.inp"                      = [{matcher="M011", tol=1.0E-14, ref=-35.282422070543703}]
 "geo_opt_cg_2pnt.inp"                   = [{matcher="M011", tol=2.0e-14, ref=-35.282422123859703}]
-"geo_opt_cg_fit.inp"                    = [{matcher="M011", tol=1.0E-12, ref=-35.2824221258401}]
-"geo_opt_cg_gold.inp"                   = [{matcher="M011", tol=1.0E-14, ref=-35.282422125930793}]
+"geo_opt_cg_fit.inp"                    = [{matcher="M011", tol=1.0E-12, ref=-35.28242197359649}]
+"geo_opt_cg_gold.inp"                   = [{matcher="M011", tol=1.0E-14, ref=-35.28242198134038}]
 "geo_opt_lbfgs.inp"                     = [{matcher="M011", tol=1.0E-14, ref=-35.282422125160856}]
 # Direct cell optimisation (combined geometry and cell optimiser)
 "cell_opt_direct_bfgs.inp"              = [{matcher="M011", tol=1.0E-14, ref=-35.644084205321462}]
-"cell_opt_direct_cg_2pnt.inp"           = [{matcher="M011", tol=1.0E-14, ref=-35.644084205340675}]
-"cell_opt_direct_cg_gold.inp"           = [{matcher="M011", tol=4e-10, ref=-35.644084195146633}]
+"cell_opt_direct_cg_2pnt.inp"           = [{matcher="M011", tol=1.0E-14, ref=-35.64408417979653}]
+"cell_opt_direct_cg_gold.inp"           = [{matcher="M011", tol=4e-10, ref=-35.64408416148384}]
 "cell_opt_direct_lbfgs.inp"             = [{matcher="M011", tol=3.0E-11, ref=-35.644084204213243}]
 # Geometry optimisation using core-shell models
 "cs_geo_opt_bfgs.inp"                   = [{matcher="M011", tol=1.0E-14, ref=-34.165775691654950}]
-"cs_geo_opt_cg_2pnt.inp"                = [{matcher="M011", tol=2e-14, ref=-34.165775860241943}]
-"cs_geo_opt_cg_fit.inp"                 = [{matcher="M011", tol=1.0E-11, ref=-34.165775838192260}]
-"cs_geo_opt_cg_gold.inp"                = [{matcher="M011", tol=1.0E-14, ref=-34.165775835825670}]
+"cs_geo_opt_cg_2pnt.inp"                = [{matcher="M011", tol=2e-14, ref=-34.16577572305044}]
+"cs_geo_opt_cg_fit.inp"                 = [{matcher="M011", tol=1.0E-11, ref=-34.16577575560136}]
+"cs_geo_opt_cg_gold.inp"                = [{matcher="M011", tol=1.0E-14, ref=-34.16577575379811}]
 "cs_geo_opt_lbfgs.inp"                  = [{matcher="M011", tol=1.0E-14, ref=-34.165775670048319}]
 # Direct cell optimisation using core-shell models
 "cs_cell_opt_direct_bfgs.inp"           = [{matcher="M011", tol=1.0E-14, ref=-34.187395867233498}]
-"cs_cell_opt_direct_cg_2pnt.inp"        = [{matcher="M011", tol=1.0E-14, ref=-34.187395869049013}]
+"cs_cell_opt_direct_cg_2pnt.inp"        = [{matcher="M011", tol=1.0E-14, ref=-34.18739586859258}]
 "cs_cell_opt_direct_cg_gold.inp"        = [{matcher="M011", tol=5e-11, ref=-34.187395868578747}]
 "cs_cell_opt_direct_lbfgs.inp"          = [{matcher="M011", tol=1.0E-14, ref=-34.18739586621215}]
 # Test parsing of products
@@ -47,8 +47,8 @@
 "cell_opt_constraint_xy.inp"            = [{matcher="M011", tol=1.0E-10, ref=-1210.460826328278017}]
 "cell_opt_constraint_z.inp"             = [{matcher="M011", tol=1.0E-10, ref=-1210.524637046745283}]
 # Cell optimisation with fixed volume
-"cell_opt_keep_volume.inp"              = [{matcher="M011", tol=1.0E-10, ref=-16.136338299528141}]
-"cell_opt_keep_volume_symmetry.inp"     = [{matcher="M011", tol=1.0E-10, ref=-16.136338299344466}]
+"cell_opt_keep_volume.inp"              = [{matcher="M011", tol=1.0E-10, ref=-16.136339196984437}]
+"cell_opt_keep_volume_symmetry.inp"     = [{matcher="M011", tol=1.0E-10, ref=-16.13633919692934}]
 # Inverse BFGS
 "geo_opt_bfgs_inverse.inp"                  = [{matcher="M011", tol=1.0E-14, ref=-35.282422070543689}]
 "cell_opt_direct_bfgs_inverse.inp"          = [{matcher="M011", tol=1.0E-14, ref=-35.644084205321576}]

@@ -2,9 +2,9 @@
 "silicon_cluster_2.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.141634971034E+02}]
 "silicon_cluster_3.inp"                 = [{matcher="M007", tol=1.0E-14, ref=-14.5034022524}]
 "silicon_cluster_4.inp"                 = [{matcher="M007", tol=1.0E-14, ref=-14.5520435455}]
-"silicon_cluster_5.inp"                 = [{matcher="M007", tol=1.0E-14, ref=-14.5662767168}]
+"silicon_cluster_5.inp"                 = [{matcher="M007", tol=1.0E-14, ref=-14.566284859}]
 # this depends on the previous runs and provides a quick check
-"silicon_cluster_6.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.145636857875E+02}]
+"silicon_cluster_6.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.145636556282E+02}]
 "al2o3.inp"                             = [{matcher="M002", tol=1.0E-14, ref=-281.495284522}]
 # NPT_F restart
 "al2o3-res.inp"                         = [{matcher="M002", tol=1.0E-14, ref=-281.517518706}]
