@@ -650,7 +650,7 @@ download_pkg_from_urlpath() {
   local __filename="$2"
   local __url="$3/${__filename}"
   local __outfile="${4:-${__filename}}"
-  local __command="wget ${DOWNLOADER_FLAGS} --quiet ${__url} -O ${__outfile}"
+  local __command="wget ${DOWNLOADER_FLAGS} --tries=3 --wait=5 --quiet ${__url} -O ${__outfile}"
   echo "${__command}"
   # download
   if ! eval "${__command}"; then

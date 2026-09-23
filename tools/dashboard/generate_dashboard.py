@@ -49,7 +49,7 @@ class GitLog:
             lines = entry.strip().split("\n")
             commit = Commit(
                 sha=GitSha(lines[0]),
-                date=datetime.fromtimestamp(float(lines[1])),
+                date=datetime.fromtimestamp(float(lines[1]), timezone.utc),
                 author_name=lines[2],
                 author_email=lines[3],
                 message=lines[4],
