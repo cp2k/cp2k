@@ -3008,9 +3008,7 @@ CONTAINS
          CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-#if !defined(__GNUC__) || __GNUC__ >= 9
          CPASSERT(IS_CONTIGUOUS(msgin) .OR. PRODUCT(SHAPE(msgin)) == 0)
-#endif
 
          my_tag = 0
          IF (PRESENT(tag)) my_tag = tag
@@ -3069,9 +3067,7 @@ CONTAINS
          CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-#if !defined(__GNUC__) || __GNUC__ >= 9
          CPASSERT(IS_CONTIGUOUS(msgout) .OR. PRODUCT(SHAPE(msgout)) == 0)
-#endif
 
          my_tag = 0
          IF (PRESENT(tag)) my_tag = tag
@@ -3130,9 +3126,7 @@ CONTAINS
          CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-#if !defined(__GNUC__) || __GNUC__ >= 9
          CPASSERT(IS_CONTIGUOUS(msgin) .OR. PRODUCT(SHAPE(msgin)) == 0)
-#endif
 
          my_tag = 0
          IF (PRESENT(tag)) my_tag = tag
@@ -3191,9 +3185,7 @@ CONTAINS
          CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-#if !defined(__GNUC__) || __GNUC__ >= 9
          CPASSERT(IS_CONTIGUOUS(msgout) .OR. PRODUCT(SHAPE(msgout)) == 0)
-#endif
 
          my_tag = 0
          IF (PRESENT(tag)) my_tag = tag
@@ -3774,9 +3766,7 @@ CONTAINS
          CALL mp_timeset(routineN, handle)
 #if defined(__parallel)
          msglen = SIZE(msg)
-#if !defined(__GNUC__) || __GNUC__ >= 9
          CPASSERT(IS_CONTIGUOUS(msg) .OR. PRODUCT(SHAPE(msg)) == 0)
-#endif
 
          IF (msglen > 0 .AND. comm%num_pe > 1) THEN
             CALL mpi_iallreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, comm%handle, request%handle, ierr)

@@ -192,7 +192,6 @@ CONTAINS
 
       grid(1:, 1:, 1:) => rsgrid%r(:, :, :)  ! pointer assignment
 
-#if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(rsgrid%desc%dh))
       CPASSERT(IS_CONTIGUOUS(rsgrid%desc%dh_inv))
       CPASSERT(IS_CONTIGUOUS(ra))
@@ -203,7 +202,6 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(border_width))
       CPASSERT(IS_CONTIGUOUS(pab))
       CPASSERT(IS_CONTIGUOUS(grid))
-#endif
 
       ! For collocating a single pgf product we use the optimized cpu backend.
 
@@ -419,7 +417,6 @@ CONTAINS
 
       grid(1:, 1:, 1:) => rsgrid%r(:, :, :) ! pointer assignment
 
-#if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(rsgrid%desc%dh))
       CPASSERT(IS_CONTIGUOUS(rsgrid%desc%dh_inv))
       CPASSERT(IS_CONTIGUOUS(ra))
@@ -441,7 +438,6 @@ CONTAINS
       IF (PRESENT(a_hdab)) THEN
          CPASSERT(IS_CONTIGUOUS(a_hdab))
       END IF
-#endif
 
       CALL grid_cpu_integrate_pgf_product_c(orthorhombic=orthorhombic, &
                                             compute_tau=my_compute_tau, &
@@ -610,7 +606,6 @@ CONTAINS
       CPASSERT(SIZE(zet, 1) == maxpgf .AND. SIZE(zet, 2) == nset)
       CPASSERT(.NOT. C_ASSOCIATED(basis_set%c_ptr))
 
-#if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(lmin))
       CPASSERT(IS_CONTIGUOUS(lmax))
       CPASSERT(IS_CONTIGUOUS(npgf))
@@ -618,7 +613,6 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(my_first_sgf))
       CPASSERT(IS_CONTIGUOUS(sphi))
       CPASSERT(IS_CONTIGUOUS(zet))
-#endif
 
       lmin_c = C_NULL_PTR
       lmax_c = C_NULL_PTR
@@ -839,7 +833,6 @@ CONTAINS
          END ASSOCIATE
       END DO
 
-#if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(block_offsets))
       CPASSERT(IS_CONTIGUOUS(atom_positions))
       CPASSERT(IS_CONTIGUOUS(atom_kinds))
@@ -861,7 +854,6 @@ CONTAINS
       CPASSERT(IS_CONTIGUOUS(border_width))
       CPASSERT(IS_CONTIGUOUS(dh))
       CPASSERT(IS_CONTIGUOUS(dh_inv))
-#endif
 
       IF (ntasks > 0) THEN
          block_offsets_c = C_LOC(block_offsets(1))
@@ -1005,10 +997,8 @@ CONTAINS
          END ASSOCIATE
       END DO
 
-#if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(npts_local))
       CPASSERT(IS_CONTIGUOUS(grids_c))
-#endif
 
       CPASSERT(C_ASSOCIATED(task_list%c_ptr))
       CPASSERT(C_ASSOCIATED(pab_blocks%c_ptr))
@@ -1101,12 +1091,10 @@ CONTAINS
          virial_c = C_NULL_PTR
       END IF
 
-#if __GNUC__ >= 9
       CPASSERT(IS_CONTIGUOUS(npts_local))
       CPASSERT(IS_CONTIGUOUS(grids_c))
       CPASSERT(IS_CONTIGUOUS(forces))
       CPASSERT(IS_CONTIGUOUS(virial))
-#endif
 
       CPASSERT(SIZE(forces, 1) == 3)
       CPASSERT(C_ASSOCIATED(task_list%c_ptr))
