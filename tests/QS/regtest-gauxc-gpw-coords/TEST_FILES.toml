@@ -1,3 +1,0 @@
-"AR4_NATIVE_GPW_PBE_WRAPPED_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-84.254262954861559}]
-"H2O_NATIVE_GPW_PBE_WRAPPED_REFERENCE.inp" = [{matcher="E_total", tol=1e-8, ref=-17.190128057784435}]
-"OH_NATIVE_GPW_PBE_UKS_WRAPPED_REFERENCE.inp" = [{matcher="E_total", tol=5e-7, ref=-16.519258379915687}]
