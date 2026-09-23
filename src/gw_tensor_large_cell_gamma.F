@@ -29,13 +29,11 @@ MODULE gw_tensor_large_cell_Gamma
                                               cp_cfm_release,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
-                                              cp_cfm_type,&
-                                              cp_fm_to_cfm
+                                              cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_block_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, dbcsr_set, &
-        dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
    USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -80,7 +78,7 @@ MODULE gw_tensor_large_cell_Gamma
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_file_delete
-   USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
+   USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat, RI_2c_integral_mat_kp
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
@@ -816,13 +814,13 @@ CONTAINS
 !> \brief ...
 !> \param bs_env ...
 !> \param qs_env ...
-!> \param fm_V_kp ...
+!> \param cfm_V_kp ...
 !> \param ikp_batch ...
 ! **************************************************************************************************
-   SUBROUTINE compute_V_k_by_lattice_sum(bs_env, qs_env, fm_V_kp, ikp_batch)
+   SUBROUTINE compute_V_k_by_lattice_sum(bs_env, qs_env, cfm_V_kp, ikp_batch)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_V_kp
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_V_kp
       INTEGER                                            :: ikp_batch
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_V_k_by_lattice_sum'
@@ -831,6 +829,7 @@ CONTAINS
                                                             nkp_chi_eps_W_batch, re_im
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_fm_type)                                   :: fm_V_kp_work
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_V_kp
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -892,15 +891,21 @@ CONTAINS
 
       bs_env%kpoints_chi_eps_W%nkp_grid = bs_env%nkp_grid_chi_eps_W_orig
 
-      ALLOCATE (fm_V_kp(ikp_start:ikp_end, 2))
-      DO re_im = 1, 2
-         DO ikp = ikp_start, ikp_end
-            CALL cp_fm_create(fm_V_kp(ikp, re_im), bs_env%fm_RI_RI%matrix_struct)
-            CALL copy_dbcsr_to_fm(mat_V_kp(ikp, re_im)%matrix, fm_V_kp(ikp, re_im))
-            CALL dbcsr_deallocate_matrix(mat_V_kp(ikp, re_im)%matrix)
-         END DO
+      ALLOCATE (cfm_V_kp(ikp_start:ikp_end))
+      CALL cp_fm_create(fm_V_kp_work, bs_env%fm_RI_RI%matrix_struct)
+      DO ikp = ikp_start, ikp_end
+         CALL cp_cfm_create(cfm_V_kp(ikp), bs_env%fm_RI_RI%matrix_struct)
+         CALL cp_fm_set_all(fm_V_kp_work, 0.0_dp)
+         CALL copy_dbcsr_to_fm(mat_V_kp(ikp, 1)%matrix, fm_V_kp_work)
+         cfm_V_kp(ikp)%local_data = CMPLX(fm_V_kp_work%local_data, 0.0_dp, KIND=dp)
+
+         CALL cp_fm_set_all(fm_V_kp_work, 0.0_dp)
+         CALL copy_dbcsr_to_fm(mat_V_kp(ikp, 2)%matrix, fm_V_kp_work)
+         cfm_V_kp(ikp)%local_data = CMPLX(REAL(cfm_V_kp(ikp)%local_data, KIND=dp), &
+                                          fm_V_kp_work%local_data, KIND=dp)
       END DO
-      DEALLOCATE (mat_V_kp)
+      CALL cp_fm_release(fm_V_kp_work)
+      CALL dbcsr_deallocate_matrix_set(mat_V_kp)
 
       CALL timestop(handle)
 
@@ -910,16 +915,16 @@ CONTAINS
 !> \brief ...
 !> \param bs_env ...
 !> \param qs_env ...
-!> \param fm_V_kp ...
+!> \param cfm_V_kp ...
 !> \param cfm_V_sqrt_ikp ...
 !> \param cfm_M_inv_V_sqrt_ikp ...
 !> \param ikp ...
 ! **************************************************************************************************
-   SUBROUTINE compute_MinvVsqrt_Vsqrt(bs_env, qs_env, fm_V_kp, cfm_V_sqrt_ikp, &
+   SUBROUTINE compute_MinvVsqrt_Vsqrt(bs_env, qs_env, cfm_V_kp, cfm_V_sqrt_ikp, &
                                       cfm_M_inv_V_sqrt_ikp, ikp)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_V_kp
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_V_kp
       TYPE(cp_cfm_type)                                  :: cfm_V_sqrt_ikp, cfm_M_inv_V_sqrt_ikp
       INTEGER                                            :: ikp
 
@@ -927,31 +932,30 @@ CONTAINS
 
       INTEGER                                            :: handle, info, n_RI
       TYPE(cp_cfm_type)                                  :: cfm_M_inv_ikp, cfm_work
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_M_ikp
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_M_ikp
 
       CALL timeset(routineN, handle)
 
       n_RI = bs_env%n_RI
 
-      ! get here M(k) and write it to fm_M_ikp
-      CALL RI_2c_integral_mat(qs_env, fm_M_ikp, fm_V_kp(ikp, 1), &
-                              n_RI, bs_env%ri_metric, do_kpoints=.TRUE., &
-                              kpoints=bs_env%kpoints_chi_eps_W, &
-                              regularization_RI=bs_env%regularization_RI, ikp_ext=ikp, &
-                              do_build_cell_index=(ikp == 1))
+      ! get here M(k) and write it to cfm_M_ikp
+      CALL RI_2c_integral_mat_kp(qs_env, cfm_M_ikp, cfm_V_kp(ikp)%matrix_struct, n_RI, bs_env%ri_metric, &
+                                 bs_env%kpoints_chi_eps_W, regularization_RI=bs_env%regularization_RI, &
+                                 ikp_ext=ikp, do_build_cell_index=(ikp == 1))
 
       IF (ikp == 1) THEN
-         CALL cp_cfm_create(cfm_V_sqrt_ikp, fm_V_kp(ikp, 1)%matrix_struct)
-         CALL cp_cfm_create(cfm_M_inv_V_sqrt_ikp, fm_V_kp(ikp, 1)%matrix_struct)
+         CALL cp_cfm_create(cfm_V_sqrt_ikp, cfm_V_kp(ikp)%matrix_struct)
+         CALL cp_cfm_create(cfm_M_inv_V_sqrt_ikp, cfm_V_kp(ikp)%matrix_struct)
       END IF
-      CALL cp_cfm_create(cfm_M_inv_ikp, fm_V_kp(ikp, 1)%matrix_struct)
+      CALL cp_cfm_create(cfm_M_inv_ikp, cfm_V_kp(ikp)%matrix_struct)
 
-      CALL cp_fm_to_cfm(fm_M_ikp(1, 1), fm_M_ikp(1, 2), cfm_M_inv_ikp)
-      CALL cp_fm_to_cfm(fm_V_kp(ikp, 1), fm_V_kp(ikp, 2), cfm_V_sqrt_ikp)
+      CALL cp_cfm_to_cfm(cfm_M_ikp(1), cfm_M_inv_ikp)
+      CALL cp_cfm_to_cfm(cfm_V_kp(ikp), cfm_V_sqrt_ikp)
 
-      CALL cp_fm_release(fm_M_ikp)
+      CALL cp_cfm_release(cfm_M_ikp(1))
+      DEALLOCATE (cfm_M_ikp)
 
-      CALL cp_cfm_create(cfm_work, fm_V_kp(ikp, 1)%matrix_struct)
+      CALL cp_cfm_create(cfm_work, cfm_V_kp(ikp)%matrix_struct)
 
       ! M(k) -> M^-1(k)
       CALL cp_cfm_to_cfm(cfm_M_inv_ikp, cfm_work)
@@ -1070,7 +1074,7 @@ CONTAINS
                                                             ikp_in_batch, j_w
       REAL(KIND=dp)                                      :: t1
       TYPE(cp_cfm_type)                                  :: cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_V_kp
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_V_kp
 
       CALL timeset(routineN, handle)
 
@@ -1081,20 +1085,21 @@ CONTAINS
          t1 = m_walltime()
 
          ! Compute V_PQ(k) = sum_R e^(ikR) <phi_P, cell 0 | 1/r | phi_Q, cell R>
-         CALL compute_V_k_by_lattice_sum(bs_env, qs_env, fm_V_kp, ikp_batch)
+         CALL compute_V_k_by_lattice_sum(bs_env, qs_env, cfm_V_kp, ikp_batch)
 
          DO ikp_in_batch = 1, bs_env%nkp_chi_eps_W_batch
 
             ikp = (ikp_batch - 1)*bs_env%nkp_chi_eps_W_batch + ikp_in_batch
 
-            IF (ikp > bs_env%nkp_chi_eps_W_orig_plus_extra) CYCLE
+            IF (ikp > bs_env%nkp_chi_eps_W_orig_plus_extra) THEN
+               CYCLE
+            END IF
 
-            CALL compute_MinvVsqrt_Vsqrt(bs_env, qs_env, fm_V_kp, &
+            CALL compute_MinvVsqrt_Vsqrt(bs_env, qs_env, cfm_V_kp, &
                                          cfm_V_sqrt_ikp, cfm_M_inv_V_sqrt_ikp, ikp)
 
             CALL bs_env%para_env%sync()
-            CALL cp_fm_release(fm_V_kp(ikp, 1))
-            CALL cp_fm_release(fm_V_kp(ikp, 2))
+            CALL cp_cfm_release(cfm_V_kp(ikp))
 
             DO j_w = 1, bs_env%num_time_freq_points
 
@@ -1113,7 +1118,7 @@ CONTAINS
 
          END DO ! ikp_in_batch
 
-         DEALLOCATE (fm_V_kp)
+         DEALLOCATE (cfm_V_kp)
 
          IF (bs_env%unit_nr > 0) THEN
             WRITE (bs_env%unit_nr, '(T2,A,I12,A,I3,A,F10.1,A)') &
@@ -1595,10 +1600,10 @@ CONTAINS
       CALL dbcsr_create(mat_Sigma_x_Gamma, template=bs_env%mat_ao_ao%matrix)
 
       ! 1. Compute truncated Coulomb operator matrix V^tr(k=0) (cutoff rad: cellsize/2)
-      CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI, bs_env%n_RI, &
-                              bs_env%trunc_coulomb, do_kpoints=.FALSE.)
+      CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI%matrix_struct, bs_env%n_RI, &
+                              bs_env%trunc_coulomb)
 
-      ! M^-1(k=0) V^tr(τ) M^-1(k=0) -> fm_Vtr_Gamma
+      ! M^-1(k=0) V^tr M^-1(k=0) -> fm_Vtr_Gamma
       CALL fm_contract_ABA(bs_env%fm_Minv_Gamma, fm_Vtr_Gamma(:, 1))
 
       DO ispin = 1, bs_env%n_spin

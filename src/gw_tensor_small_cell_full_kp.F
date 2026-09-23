@@ -13,16 +13,13 @@
 MODULE gw_tensor_small_cell_full_kp
    USE bibliography,                    ONLY: Pasquier2025,&
                                               cite_reference
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_get_diag
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
                                               cp_cfm_to_cfm,&
-                                              cp_cfm_to_fm,&
                                               cp_cfm_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_diag,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
+   USE cp_fm_types,                     ONLY: cp_fm_set_all,&
                                               cp_fm_type
    USE dbt_api,                         ONLY: dbt_clear,&
                                               dbt_contract,&
@@ -1448,14 +1445,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'trafo_to_k_and_nn'
 
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cdiag
       INTEGER                                            :: handle
       TYPE(cp_cfm_type)                                  :: cfm_ikp
-      TYPE(cp_fm_type)                                   :: fm_ikp_re
 
       CALL timeset(routineN, handle)
 
       CALL cp_cfm_create(cfm_ikp, cfm_mo_coeff%matrix_struct)
-      CALL cp_fm_create(fm_ikp_re, cfm_mo_coeff%matrix_struct)
 
       ! Σ_µν(k_i) = sum_R e^ik_iR Σ_µν^R
       CALL fm_rs_to_kp(cfm_ikp, fm_rs, bs_env%kpoints_DOS, ikp)
@@ -1464,11 +1460,12 @@ CONTAINS
       CALL cfm_contract_ABA(cfm_mo_coeff, cfm_ikp)
 
       ! get Σ_nn(k_i) which is a real quantity as Σ^x and Σ^c(iτ) is Hermitian
-      CALL cp_cfm_to_fm(cfm_ikp, fm_ikp_re)
-      CALL cp_fm_get_diag(fm_ikp_re, array_ikp_n)
+      ALLOCATE (cdiag(SIZE(array_ikp_n)))
+      CALL cp_cfm_get_diag(cfm_ikp, cdiag)
+      array_ikp_n = REAL(cdiag, KIND=dp)
 
+      DEALLOCATE (cdiag)
       CALL cp_cfm_release(cfm_ikp)
-      CALL cp_fm_release(fm_ikp_re)
 
       CALL timestop(handle)
 

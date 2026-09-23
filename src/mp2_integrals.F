@@ -22,6 +22,7 @@ MODULE mp2_integrals
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
@@ -140,8 +141,9 @@ CONTAINS
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 !> \param fm_matrix_PQ ...
-!> \param fm_matrix_L_kpoints ...
-!> \param fm_matrix_Minv_L_kpoints ...
+!> \param cfm_matrix_L_kpoints ...
+!> \param cfm_matrix_Minv_L_kpoints ...
+!> \param fm_matrix_Minv_L_gamma real Gamma-point factor used by the real-valued RPA path
 !> \param fm_matrix_Minv ...
 !> \param fm_matrix_Minv_Vtrunc_Minv ...
 !> \param nmo ...
@@ -185,7 +187,7 @@ CONTAINS
    SUBROUTINE mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, &
                                     dimen_RI, dimen_RI_red, qs_env, para_env, para_env_sub, color_sub, &
                                     cell, particle_set, atomic_kind_set, qs_kind_set, &
-                                    fm_matrix_PQ, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
+                                    fm_matrix_PQ, cfm_matrix_L_kpoints, cfm_matrix_Minv_L_kpoints, fm_matrix_Minv_L_gamma, &
                                     fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
                                     nmo, homo, mat_munu, &
                                     sab_orb_sub, mo_coeff_o, mo_coeff_v, mo_coeff_all, &
@@ -214,9 +216,9 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_matrix_PQ
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, &
-                                                            fm_matrix_Minv_L_kpoints, &
-                                                            fm_matrix_Minv, &
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_matrix_L_kpoints, &
+                                                            cfm_matrix_Minv_L_kpoints
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv_L_gamma, fm_matrix_Minv, &
                                                             fm_matrix_Minv_Vtrunc_Minv
       INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
@@ -372,7 +374,8 @@ CONTAINS
                             kpoints, my_group_L_size, my_group_L_start, my_group_L_end, &
                             gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, do_svd, eps_svd, &
                             qs_env%mp2_env%potential_parameter, ri_metric, &
-                            fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
+                            cfm_matrix_L_kpoints, cfm_matrix_Minv_L_kpoints, fm_matrix_Minv_L_gamma, &
+                            fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
                             do_im_time, do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
                             qs_kind_set, sab_orb_sub, calc_forces, unit_nr)
 

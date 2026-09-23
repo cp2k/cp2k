@@ -1788,8 +1788,8 @@ CONTAINS
             metric_regularization = bs_env%regularization_RI
             eigenvalue_threshold = bs_env%eps_eigval_mat_RI
          END IF
-         CALL RI_2c_integral_mat(qs_env, fm_M, bs_env%fm_RI_RI, bs_env%n_RI, &
-                                 bs_env%ri_metric, do_kpoints=.FALSE., &
+         CALL RI_2c_integral_mat(qs_env, fm_M, bs_env%fm_RI_RI%matrix_struct, bs_env%n_RI, &
+                                 bs_env%ri_metric, &
                                  regularization_RI=metric_regularization)
          CALL fm_invert(fm_M(1, 1), eigenvalue_threshold, bs_env%unit_nr)
          CALL cp_fm_to_fm(fm_M(1, 1), bs_env%fm_Minv_Gamma)

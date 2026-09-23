@@ -1207,8 +1207,8 @@ CONTAINS
       ! =========================================================================
       ! 2. COMPUTE V^tr_ll'
       ! =========================================================================
-      CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI, bs_env%n_RI, &
-                              bs_env%trunc_coulomb, do_kpoints=.FALSE.)
+      CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI%matrix_struct, bs_env%n_RI, &
+                              bs_env%trunc_coulomb)
 
       ! M^-1(k=0) V^tr(τ) M^-1(k=0) -> fm_Vtr_Gamma
       CALL fm_contract_ABA(bs_env%fm_Minv_Gamma, fm_Vtr_Gamma(:, 1))

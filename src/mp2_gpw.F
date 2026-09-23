@@ -22,6 +22,7 @@ MODULE mp2_gpw
                                               cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_clear_mempools, dbcsr_copy, dbcsr_create, dbcsr_distribution_release, &
@@ -155,10 +156,11 @@ CONTAINS
          DIMENSION(:, :, :)                              :: t_3c_O_ind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub, blacs_env_sub_mat_munu
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_matrix_L_kpoints, &
+                                                            cfm_matrix_Minv_L_kpoints
       TYPE(cp_fm_type)                                   :: fm_matrix_PQ
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_coeff
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, fm_matrix_Minv, &
-                                                            fm_matrix_Minv_L_kpoints, &
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv, fm_matrix_Minv_L_gamma, &
                                                             fm_matrix_Minv_Vtrunc_Minv
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_ptr
       TYPE(cp_logger_type), POINTER                      :: logger, logger_sub
@@ -386,7 +388,8 @@ CONTAINS
             CALL mp2_ri_gpw_compute_in( &
                BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, gd_array, gd_B_virtual, dimen_RI, dimen_RI_red, qs_env, &
                para_env, para_env_sub, color_sub, cell, particle_set, &
-               atomic_kind_set, qs_kind_set, fm_matrix_PQ, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
+               atomic_kind_set, qs_kind_set, fm_matrix_PQ, cfm_matrix_L_kpoints, cfm_matrix_Minv_L_kpoints, &
+               fm_matrix_Minv_L_gamma, &
                fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, nmo, homo, mat_munu, sab_orb_sub, &
                mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, mo_coeff_o_bse, mo_coeff_v_bse, &
                mp2_env%mp2_gpw%eps_filter, unit_nr, &
@@ -404,7 +407,8 @@ CONTAINS
                                        dimen_RI, dimen_RI_red, qs_env, para_env, para_env_sub, &
                                        color_sub, cell, particle_set, &
                                        atomic_kind_set, qs_kind_set, fm_matrix_PQ, &
-                                       fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
+                                       cfm_matrix_L_kpoints, cfm_matrix_Minv_L_kpoints, &
+                                       fm_matrix_Minv_L_gamma, &
                                        fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, nmo, homo, &
                                        mat_munu, sab_orb_sub, &
                                        mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, mo_coeff_o_bse, mo_coeff_v_bse, &
@@ -544,7 +548,8 @@ CONTAINS
          CALL rpa_ri_compute_en(qs_env, Emp2, mp2_env, BIb_C, BIb_C_gw, BIb_C_bse_ij, BIb_C_bse_ab, &
                                 para_env, para_env_sub, color_sub, &
                                 gd_array, gd_B_virtual, gd_B_all, gd_B_occ_bse, gd_B_virt_bse, &
-                                mo_coeff, fm_matrix_PQ, fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
+                                mo_coeff, fm_matrix_PQ, cfm_matrix_L_kpoints, cfm_matrix_Minv_L_kpoints, &
+                                fm_matrix_Minv_L_gamma, &
                                 fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, kpoints, &
                                 Eigenval, nmo, homo, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, &
                                 bse_lev_virt, &
