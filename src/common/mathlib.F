@@ -2230,7 +2230,7 @@ CONTAINS
       ! Calculate U*s**(-1/2)
       cevals(:) = CMPLX(1.0_dp/SQRT(evals(:)), 0.0_dp, KIND=dp)
       DO i = 1, MIN(SIZE(work, 2), SIZE(cevals))
-         CALL zscal(MIN(SIZE(work, 2), SIZE(cevals)), cevals(i), work(1, i), 1)
+         work(1:MIN(SIZE(work, 2), SIZE(cevals)), i) = cevals(i)*work(1:MIN(SIZE(work, 2), SIZE(cevals)), i)
       END DO
       ! Reduce to get U^(-C) * H * U^(-1)
       CALL gemm_square(work, 'C', A, 'N', B)

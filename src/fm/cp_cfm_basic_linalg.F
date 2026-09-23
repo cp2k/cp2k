@@ -558,13 +558,13 @@ CONTAINS
    SUBROUTINE cp_cfm_gemm(transa, transb, m, n, k, alpha, matrix_a, matrix_b, beta, &
                           matrix_c, a_first_col, a_first_row, b_first_col, b_first_row, c_first_col, &
                           c_first_row)
-      CHARACTER(len=1), INTENT(in)                       :: transa, transb
-      INTEGER, INTENT(in)                                :: m, n, k
-      COMPLEX(kind=dp), INTENT(in)                       :: alpha
+      CHARACTER(len=1), INTENT(IN)                       :: transa, transb
+      INTEGER, INTENT(IN)                                :: m, n, k
+      COMPLEX(kind=dp), INTENT(IN)                       :: alpha
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_a, matrix_b
-      COMPLEX(kind=dp), INTENT(in)                       :: beta
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_c
-      INTEGER, INTENT(in), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
+      COMPLEX(kind=dp), INTENT(IN)                       :: beta
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_c
+      INTEGER, INTENT(IN), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
                                                             b_first_row, c_first_col, c_first_row
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_gemm'
@@ -628,8 +628,8 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_column_scale(matrix_a, scaling)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_a
-      COMPLEX(kind=dp), DIMENSION(:), INTENT(in)         :: scaling
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_a
+      COMPLEX(kind=dp), DIMENSION(:), INTENT(IN)         :: scaling
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_column_scale'
 
@@ -649,14 +649,14 @@ CONTAINS
       ncol_local = MIN(ncol_local, SIZE(scaling))
 
       DO icol_local = 1, ncol_local
-         CALL zscal(nrow_local, scaling(col_indices(icol_local)), a(1, icol_local), 1)
+         a(1:nrow_local, icol_local) = scaling(col_indices(icol_local))*a(1:nrow_local, icol_local)
       END DO
 #else
       nrow_local = SIZE(a, 1)
       ncol_local = MIN(SIZE(a, 2), SIZE(scaling))
 
       DO icol_local = 1, ncol_local
-         CALL zscal(nrow_local, scaling(icol_local), a(1, icol_local), 1)
+         a(1:nrow_local, icol_local) = scaling(icol_local)*a(1:nrow_local, icol_local)
       END DO
 #endif
 
@@ -670,8 +670,8 @@ CONTAINS
 !> \param matrix_a complex matrix to scale
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_dscale(alpha, matrix_a)
-      REAL(kind=dp), INTENT(in)                          :: alpha
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_a
+      REAL(kind=dp), INTENT(IN)                          :: alpha
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_a
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_dscale'
 
@@ -699,21 +699,20 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_zscale(alpha, matrix_a)
       COMPLEX(kind=dp), INTENT(IN)                       :: alpha
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_a
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_a
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_zscale'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
-      INTEGER                                            :: handle, size_a
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
       NULLIFY (a)
 
       a => matrix_a%local_data
-      size_a = SIZE(a, 1)*SIZE(a, 2)
 
-      CALL zscal(size_a, alpha, a(1, 1), 1)
+      a(:, :) = alpha*a(:, :)
 
       CALL timestop(handle)
    END SUBROUTINE cp_cfm_zscale

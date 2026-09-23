@@ -169,12 +169,12 @@ CONTAINS
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    SUBROUTINE do_sancho(g_surf, omega, h0, s0, h1, s1, conv, transp, work)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: g_surf
-      COMPLEX(kind=dp), INTENT(in)                       :: omega
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: g_surf
+      COMPLEX(kind=dp), INTENT(IN)                       :: omega
       TYPE(cp_fm_type), INTENT(IN)                       :: h0, s0, h1, s1
-      REAL(kind=dp), INTENT(in)                          :: conv
-      LOGICAL, INTENT(in)                                :: transp
-      TYPE(sancho_work_matrices_type), INTENT(in)        :: work
+      REAL(kind=dp), INTENT(IN)                          :: conv
+      LOGICAL, INTENT(IN)                                :: transp
+      TYPE(sancho_work_matrices_type), INTENT(INOUT)     :: work
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'do_sancho'
 
@@ -267,11 +267,11 @@ CONTAINS
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    SUBROUTINE negf_contact_self_energy(self_energy_c, omega, g_surf_c, h_sc0, s_sc0, zwork1, zwork2, transp)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: self_energy_c
-      COMPLEX(kind=dp), INTENT(in)                       :: omega
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: self_energy_c
+      COMPLEX(kind=dp), INTENT(IN)                       :: omega
       TYPE(cp_cfm_type), INTENT(IN)                      :: g_surf_c
       TYPE(cp_fm_type), INTENT(IN)                       :: h_sc0, s_sc0
-      TYPE(cp_cfm_type), INTENT(IN)                      :: zwork1, zwork2
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: zwork1, zwork2
       LOGICAL, INTENT(in)                                :: transp
 
       CHARACTER(len=*), PARAMETER :: routineN = 'negf_contact_self_energy'
@@ -312,7 +312,8 @@ CONTAINS
 !> \author Sergey Chulkov
 ! **************************************************************************************************
    SUBROUTINE negf_contact_broadening_matrix(gamma_c, self_energy_c)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: gamma_c, self_energy_c
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: gamma_c
+      TYPE(cp_cfm_type), INTENT(IN)                      :: self_energy_c
 
       CHARACTER(len=*), PARAMETER :: routineN = 'negf_contact_broadening_matrix'
 
