@@ -1677,11 +1677,10 @@ CONTAINS
                           description="Number of transitions with the lowest diagonal on which A (and B) "// &
                           "are built exactly and diagonalized for the initial guess. Its eigenvalues bound "// &
                           "the true energies from above and are checked against the converged ones. "// &
-                          "Negative: twice the states asked for, at least 128. "// &
                           "0: unit vectors on the lowest diagonal entries. Memory: the square of this "// &
                           "number in doubles per MPI rank.", &
                           usage="NUM_GUESS_TRANSITIONS 512", &
-                          default_i_val=-1)
+                          default_i_val=512)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
