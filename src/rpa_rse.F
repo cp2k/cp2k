@@ -415,7 +415,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xc_contribution'
 
       INTEGER                                            :: handle, i, nao, nmo
-      REAL(KIND=dp)                                      :: exc
+      REAL(KIND=dp)                                      :: edisp, exc
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: tau_rspace, v_rspace
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -431,7 +431,8 @@ CONTAINS
 
       ! Compute XC matrix in AO basis
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
-                         vxc_rho=v_rspace, vxc_tau=tau_rspace, exc=exc)
+                         vxc_rho=v_rspace, vxc_tau=tau_rspace, exc=exc, &
+                         edisp=edisp, dispersion_env=qs_env%dispersion_env)
 
       IF (ASSOCIATED(v_rspace)) THEN
          CALL compute_matrix_vxc(qs_env=qs_env, v_rspace=v_rspace, matrix_vxc=matrix_vxc)

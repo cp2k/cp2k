@@ -849,8 +849,9 @@ CONTAINS
       INTEGER                                            :: handle, i, iounit, ispin, natom, nspins
       LOGICAL                                            :: debug_forces, debug_stress, do_ec_hfx, &
                                                             gapw, gapw_xc, use_virial
-      REAL(dp)                                           :: dummy_real, dummy_real2(2), ehartree, &
-                                                            ehartree_1c, eovrl, exc, exc1, fconv
+      REAL(dp)                                           :: dummy_real, dummy_real2(2), edisp, &
+                                                            ehartree, ehartree_1c, eovrl, exc, &
+                                                            exc1, fconv
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: ftot
       REAL(dp), DIMENSION(3)                             :: fodeb, fodeb2
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc, stdeb, sttot
@@ -1036,7 +1037,8 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, rho=rho_struct)
       END IF
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=ec_env%xc_section, &
-                         vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
+                         vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE., &
+                         edisp=edisp, dispersion_env=ec_env%dispersion_env)
 
       IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
@@ -1423,6 +1425,7 @@ CONTAINS
          IF (qs_env%energy_correction) THEN
             ec_env%ehartree = ehartree
             ec_env%exc = exc
+            IF (edisp /= 0.0_dp) ec_env%edispersion = edisp
          END IF
       END IF
 
@@ -1633,8 +1636,8 @@ CONTAINS
                                                             do_adiabatic_rescaling, do_ec_hfx, &
                                                             gapw, gapw_xc, hfx_treat_lsd_in_core, &
                                                             use_virial
-      REAL(dp)                                           :: dummy_real, dummy_real2(2), eexc, eh1c, &
-                                                            evhxc, exc1, t3
+      REAL(dp)                                           :: dummy_real, dummy_real2(2), edisp, eexc, &
+                                                            eh1c, evhxc, exc1, t3
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1779,10 +1782,12 @@ CONTAINS
       NULLIFY (v_rspace, v_tau_rspace)
       IF (dft_control%qs_control%gapw_xc) THEN
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_xc, xc_section=ec_env%xc_section, &
-                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE.)
+                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE., &
+                            edisp=edisp, dispersion_env=ec_env%dispersion_env)
       ELSE
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=ec_env%xc_section, &
-                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE.)
+                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE., &
+                            edisp=edisp, dispersion_env=ec_env%dispersion_env)
       END IF
 
       IF (.NOT. ASSOCIATED(v_rspace)) THEN
@@ -1902,6 +1907,7 @@ CONTAINS
 
       ! energies
       ec_env%exc = eexc
+      IF (edisp /= 0.0_dp) ec_env%edispersion = edisp
       ec_env%vhxc = evhxc
 
       ! add the core matrix
@@ -2098,7 +2104,8 @@ CONTAINS
       LOGICAL                                            :: debug_forces, debug_stress, do_ec_hfx, &
                                                             use_virial
       REAL(dp)                                           :: dehartree, dummy_real, dummy_real2(2), &
-                                                            eexc, ehartree, eovrl, exc, fconv
+                                                            edisp, eexc, ehartree, eovrl, exc, &
+                                                            fconv
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: ftot
       REAL(dp), DIMENSION(3)                             :: fodeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc, stdeb, sttot
@@ -2283,7 +2290,8 @@ CONTAINS
 
          NULLIFY (v_rspace, v_tau_rspace)
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=ec_env%xc_section, &
-                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
+                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE., &
+                            edisp=edisp, dispersion_env=ec_env%dispersion_env)
 
          ! Stress tensor XC-functional GGA contribution
          virial%pv_exc = virial%pv_exc - virial%pv_xc
@@ -2485,7 +2493,9 @@ CONTAINS
       NULLIFY (v_rspace, v_tau_rspace)
 
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=ec_env%xc_section, &
-                         vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE.)
+                         vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE., &
+                         edisp=edisp, dispersion_env=ec_env%dispersion_env)
+      IF (edisp /= 0.0_dp) eexc = eexc + edisp
 
       IF (use_virial) THEN
          eexc = 0.0_dp
