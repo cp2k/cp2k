@@ -628,7 +628,9 @@ CONTAINS
       n = LEN_TRIM(path1)
       IF (path2(1:1) == '/') THEN
          joined_path = path2
-      ELSE IF (n == 0 .OR. path1(n:n) == '/') THEN
+      ELSE IF (n == 0) THEN
+         joined_path = path2
+      ELSE IF (path1(n:n) == '/') THEN
          joined_path = TRIM(path1)//path2
       ELSE
          joined_path = TRIM(path1)//'/'//path2
