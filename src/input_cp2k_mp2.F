@@ -1336,7 +1336,8 @@ CONTAINS
                           enum_c_vals=s2a("FULLDIAG", "ITERDIAG"), &
                           enum_i_vals=[bse_fulldiag, bse_iterdiag], &
                           enum_desc=s2a("Fully diagonalizes the BSE matrices within the chosen level of approximation.", &
-                                        "Iterative diagonalization has not been implemented yet."), &
+                                        "Block Davidson iteration for the lowest NUM_EXC_EN excitations, "// &
+                                        "applying the BSE matrices without forming them; settings in BSE_ITERAT."), &
                           default_i_val=bse_fulldiag)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
