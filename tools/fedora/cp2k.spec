@@ -1,3 +1,6 @@
+# LIBXS is supported on x86_64, aarch64, and riscv64
+%bcond libxs %[ "%{_arch}" == "x86_64" || "%{_arch}" == "aarch64" || "%{_arch}" == "riscv64" ]
+
 # Disable LTO due to https://bugzilla.redhat.com/show_bug.cgi?id=2243158
 %global _lto_cflags %nil
 
@@ -9,22 +12,27 @@ License:       GPL-2.0-or-later
 URL:           https://www.cp2k.org/
 Source0:       https://github.com/cp2k/cp2k/releases/download/v%{version}/cp2k-%{version}.tar.bz2
 
-ExclusiveArch: x86_64 aarch64 riscv64
+# Drop 32bit architectures
+# Flaky MPI issues on s390x, and upstream do not officially support it yet
+# https://github.com/cp2k/cp2k/issues/3362
+ExcludeArch:   %{ix86} s390x
 
 # Build dependencies
 BuildRequires: cmake
 BuildRequires: gcc
 BuildRequires: gcc-gfortran
 BuildRequires: gcc-c++
+BuildRequires: ninja-build
 BuildRequires: python3-fypp
 # Project dependencies
 BuildRequires: flexiblas-devel
 BuildRequires: cmake(DBCSR)
 BuildRequires: cmake(libint2)
 BuildRequires: pkgconfig(fftw3)
+%if %{with libxs}
 BuildRequires: cmake(libxs)
-# TODO: Enable libxsmm once https://src.fedoraproject.org/rpms/libxsmm/pull-request/3 is merged.
-# BuildRequires: cmake(libxsmm)
+BuildRequires: cmake(libxsmm)
+%endif
 BuildRequires: cmake(libxc)
 BuildRequires: cmake(Spglib)
 # Test dependencies
@@ -118,7 +126,6 @@ rm tools/build_utils/fypp
 
 %conf
 cmake_common_args=(
-  "-G Ninja"
   "-DCP2K_BLAS_VENDOR:STRING=FlexiBLAS"
   "-DCP2K_USE_EVERYTHING:BOOL=OFF"
   "-DCP2K_USE_STATIC_BLAS:BOOL=OFF"
@@ -126,22 +133,20 @@ cmake_common_args=(
   "-DCP2K_USE_LIBINT2:BOOL=ON"
   "-DCP2K_USE_LIBXC:BOOL=ON"
   "-DCP2K_USE_SPGLIB:BOOL=ON"
-  "-DCP2K_USE_LIBXS:BOOL=ON"
-  # "-DCP2K_USE_LIBXSMM:BOOL=ON"
+  "-DCP2K_USE_LIBXS:BOOL=%{with libxs}"
+  "-DCP2K_USE_LIBXSMM:BOOL=%{with libxs}"
 )
 for mpi in '' mpich openmpi; do
   if [ -n "$mpi" ]; then
     module load mpi/${mpi}-%{_arch}
     cmake_mpi_args=(
       "-DCMAKE_INSTALL_PREFIX:PATH=${MPI_HOME}"
-      "-DCMAKE_INSTALL_LIBDIR:PATH=lib"
       "-DCMAKE_PREFIX_PATH:PATH=${MPI_HOME};%{_prefix}"
       "-DCMAKE_INSTALL_Fortran_MODULES:PATH=${MPI_FORTRAN_MOD_DIR}/cp2k"
+      "-DCMAKE_INSTALL_LIBDIR:PATH=lib"
       "-DCP2K_DATA_DIR:PATH=%{_datadir}/cp2k/data"
       "-DCP2K_USE_MPI:BOOL=ON"
       "-DCP2K_USE_MPI_F08:BOOL=ON"
-      # TODO: Uncomment when ELPA is un-retired
-      # "-DCP2K_USE_ELPA:BOOL=ON"
     )
   else
     cmake_mpi_args=(
