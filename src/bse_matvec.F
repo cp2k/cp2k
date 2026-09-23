@@ -47,8 +47,8 @@ MODULE bse_matvec
 !> \param w_fac prefactor of the screened term (0 switches it off)
 !> \param eps_diff ε_a - ε_i at compound index ia = (i-1)*virt + a
 !> \param B_ia B^P_ia at (a, i, P)
-!> \param Bbar_ia \bar{B}^P_ia at (a, i, P), only for do_abba
-!> \param Bbar_ij \bar{B}^P_ij at (j, i, P)
+!> \param B_bar_ia \bar{B}^P_ia at (a, i, P), only for do_abba
+!> \param B_bar_ij \bar{B}^P_ij at (j, i, P)
 !> \param B_ab B^P_ab at (b, a, P)
 !> \param row_count rows of a trial vector owned by each rank, in rank order
 !> \param row_displ first row of each rank minus one, so that row_count and row_displ describe
@@ -67,7 +67,7 @@ MODULE bse_matvec
       LOGICAL                                            :: do_abba = .FALSE.
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: row_count, row_displ
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_diff
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_ia, Bbar_ia, Bbar_ij, B_ab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_ia, B_bar_ia, B_bar_ij, B_ab
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env => NULL()
       TYPE(mp_para_env_type), POINTER                    :: para_env => NULL()
    END TYPE bse_matvec_env_type
@@ -80,9 +80,9 @@ CONTAINS
 !>        bse_matvec_apply is then a local DGEMM and only the final sum over P crosses the ranks
 !> \param mv_env the environment created here
 !> \param fm_S_ia B^P_ia, N_RI x homo*virt
-!> \param fm_Sw_ij slab that enters W_ij,ab as \bar{B}^P_ij, N_RI x homo*homo
+!> \param fm_S_bar_ij \bar{B}^P_ij, the slab that enters W_ij,ab, N_RI x homo*homo
 !> \param fm_S_ab B^P_ab, N_RI x virt*virt
-!> \param fm_Sw_ia slab that enters W_ib,aj as \bar{B}^P_ia, N_RI x homo*virt
+!> \param fm_S_bar_ia \bar{B}^P_ia, the slab that enters W_ib,aj, N_RI x homo*virt
 !> \param eps_reduced quasiparticle energies of the homo+virt active levels
 !> \param homo occupied levels of the active window
 !> \param virt virtual levels of the active window
@@ -92,11 +92,12 @@ CONTAINS
 !> \param unit_nr output unit, positive on the writing rank only
 !> \param block_cols trial vectors per pass of bse_matvec_apply; absent or -1 sizes it from the free memory
 ! **************************************************************************************************
-   SUBROUTINE bse_matvec_create(mv_env, fm_S_ia, fm_Sw_ij, fm_S_ab, fm_Sw_ia, eps_reduced, &
+   SUBROUTINE bse_matvec_create(mv_env, fm_S_ia, fm_S_bar_ij, fm_S_ab, fm_S_bar_ia, eps_reduced, &
                                 homo, virt, alpha, w_fac, do_abba, unit_nr, block_cols)
 
       TYPE(bse_matvec_env_type), INTENT(OUT)             :: mv_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_S_ia, fm_Sw_ij, fm_S_ab, fm_Sw_ia
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_S_ia, fm_S_bar_ij, fm_S_ab, &
+                                                            fm_S_bar_ia
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eps_reduced
       INTEGER, INTENT(IN)                                :: homo, virt
       REAL(KIND=dp), INTENT(IN)                          :: alpha, w_fac
@@ -143,9 +144,9 @@ CONTAINS
 
       CALL slice_slab(mv_env, fm_S_ia, virt, homo, mv_env%B_ia)
       IF (w_fac /= 0.0_dp) THEN
-         CALL slice_slab(mv_env, fm_Sw_ij, homo, homo, mv_env%Bbar_ij)
+         CALL slice_slab(mv_env, fm_S_bar_ij, homo, homo, mv_env%B_bar_ij)
          CALL slice_slab(mv_env, fm_S_ab, virt, virt, mv_env%B_ab)
-         IF (do_abba) CALL slice_slab(mv_env, fm_Sw_ia, virt, homo, mv_env%Bbar_ia)
+         IF (do_abba) CALL slice_slab(mv_env, fm_S_bar_ia, virt, homo, mv_env%B_bar_ia)
       END IF
       mv_env%n_ri_loc = SIZE(mv_env%B_ia, 3)
 
@@ -193,20 +194,20 @@ CONTAINS
    END FUNCTION contiguous_row_block
 
 ! **************************************************************************************************
-!> \brief Redistributes one N_RI x d1*d2 slab to whole RI rows per rank and copies the owned
-!>        rows into a contiguous (d1, d2, n_ri_loc) array, slab_loc(x, y, p) = slab(P_p, (y-1)*d1 + x)
-!>        for the p-th owned RI index P_p, so that every slice slab_loc(:, :, p) is a d1 x d2 DGEMM operand
+!> \brief Redistributes one N_RI x n_fast*n_slow slab to whole RI rows per rank and copies the owned
+!>        rows into a contiguous (n_fast, n_slow, n_ri_loc) array, slab_loc(x, y, p) = slab(P_p, (y-1)*n_fast + x)
+!>        for the p-th owned RI index P_p, so that every slice slab_loc(:, :, p) is a n_fast x n_slow DGEMM operand
 !> \param mv_env process grid and communicator of the slices
-!> \param fm_slab the slab on the grid of the caller, N_RI x d1*d2
-!> \param d1 fast index of the pair index of the slab
-!> \param d2 slow index of the pair index of the slab
+!> \param fm_slab the slab on the grid of the caller, N_RI x n_fast*n_slow
+!> \param n_fast fast index of the pair index of the slab
+!> \param n_slow slow index of the pair index of the slab
 !> \param slab_loc the owned slices, allocated here
 ! **************************************************************************************************
-   SUBROUTINE slice_slab(mv_env, fm_slab, d1, d2, slab_loc)
+   SUBROUTINE slice_slab(mv_env, fm_slab, n_fast, n_slow, slab_loc)
 
       TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_slab
-      INTEGER, INTENT(IN)                                :: d1, d2
+      INTEGER, INTENT(IN)                                :: n_fast, n_slow
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: slab_loc
 
@@ -220,10 +221,10 @@ CONTAINS
 
       ! row count from the struct: the slabs may carry fewer rows than the full RI basis
       CALL cp_fm_get_info(fm_slab, nrow_global=n_ri, ncol_global=npair)
-      CPASSERT(npair == d1*d2)
+      CPASSERT(npair == n_fast*n_slow)
 
       ! one-row blocks on the npe x 1 grid spread the RI rows cyclically over the ranks; the copy
-      ! below turns each strided local_data row into a contiguous (d1, d2) slice
+      ! below turns each strided local_data row into a contiguous (n_fast, n_slow) slice
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, para_env=mv_env%para_env, context=mv_env%blacs_env, &
                                nrow_global=n_ri, ncol_global=npair, nrow_block=1, &
@@ -234,9 +235,9 @@ CONTAINS
                                       fm_slab%matrix_struct%context)
 
       CALL cp_fm_get_info(fm_sliced, nrow_local=n_ri_loc)
-      ALLOCATE (slab_loc(d1, d2, n_ri_loc))
+      ALLOCATE (slab_loc(n_fast, n_slow, n_ri_loc))
       DO p = 1, n_ri_loc
-         slab_loc(:, :, p) = RESHAPE(fm_sliced%local_data(p, 1:npair), [d1, d2])
+         slab_loc(:, :, p) = RESHAPE(fm_sliced%local_data(p, 1:npair), [n_fast, n_slow])
       END DO
       CALL cp_fm_release(fm_sliced)
 
@@ -256,8 +257,8 @@ CONTAINS
       IF (ALLOCATED(mv_env%row_displ)) DEALLOCATE (mv_env%row_displ)
       IF (ALLOCATED(mv_env%eps_diff)) DEALLOCATE (mv_env%eps_diff)
       IF (ALLOCATED(mv_env%B_ia)) DEALLOCATE (mv_env%B_ia)
-      IF (ALLOCATED(mv_env%Bbar_ia)) DEALLOCATE (mv_env%Bbar_ia)
-      IF (ALLOCATED(mv_env%Bbar_ij)) DEALLOCATE (mv_env%Bbar_ij)
+      IF (ALLOCATED(mv_env%B_bar_ia)) DEALLOCATE (mv_env%B_bar_ia)
+      IF (ALLOCATED(mv_env%B_bar_ij)) DEALLOCATE (mv_env%B_bar_ij)
       IF (ALLOCATED(mv_env%B_ab)) DEALLOCATE (mv_env%B_ab)
       IF (ASSOCIATED(mv_env%blacs_env)) CALL cp_blacs_env_release(mv_env%blacs_env)
       NULLIFY (mv_env%para_env)
@@ -313,19 +314,19 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_matvec_apply'
 
       INTEGER                                            :: col, col_shift_B, handle, handle2, homo, &
-                                                            ia, iloc, k, me, n_arrays, n_ov, &
-                                                            n_ri_loc, nb, nb_max, nrow_local, p, &
-                                                            virt
+                                                            ia, iloc, k, me, n_ov, n_ri_loc, &
+                                                            n_work_bufs, nb, nb_max, nrow_local, &
+                                                            p, virt
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       LOGICAL                                            :: do_B
       REAL(KIND=dp)                                      :: mem_avail_GB
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: R_loc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: RA_buf, RB_buf, tmp_buf, Z_buf
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: T_Pk, tmp_ab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: BabZ_buf, RA_buf, RB_buf, Z_buf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: BjaZ_ab, T_Pk
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: B_ia_2d, RA, RB, tmp_wide, Z, Z_wide
+         POINTER                                         :: B_ia_2d, BabZ_wide, RA, RB, Z, Z_wide
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: RA_3d, RB_3d, tmp_3d, Z_3d
+         POINTER                                         :: BabZ_3d, RA_3d, RB_3d, Z_3d
 
       CALL timeset(routineN, handle)
 
@@ -349,25 +350,25 @@ CONTAINS
       CPASSERT(nrow_local == 0 .OR. row_indices(1) == mv_env%row_displ(me) + 1)
       ALLOCATE (R_loc(nrow_local))
 
-      ! columns per pass from the memory of the replicated work arrays Z, tmp, R^A (and R^B)
-      n_arrays = 3
-      IF (do_B) n_arrays = 4
+      ! columns per pass from the memory of the replicated work arrays Z, B_ab Z, R^A (and R^B)
+      n_work_bufs = 3
+      IF (do_B) n_work_bufs = 4
       IF (mv_env%block_cols > 0) THEN
-         ! pinned by input: the replicated work arrays are then a known n_arrays*n_ov*nb doubles
+         ! pinned by input: the replicated work arrays are then a known n_work_bufs*n_ov*nb doubles
          nb_max = MIN(ncol, mv_env%block_cols)
       ELSE
          CALL mp_mem_avail_per_rank_GB(mv_env%para_env, mem_avail_GB)
          nb_max = ncol
          IF (mem_avail_GB > 0.0_dp) THEN
             nb_max = INT(MIN(REAL(ncol, dp), &
-                             mv_env%mem_fraction*mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_arrays, dp)*REAL(n_ov, dp))))
+                             mv_env%mem_fraction*mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_work_bufs, dp)*REAL(n_ov, dp))))
          END IF
       END IF
       nb_max = MAX(nb_max, 1)
 
-      ALLOCATE (Z_buf(n_ov*nb_max), RA_buf(n_ov*nb_max), tmp_buf(n_ov*nb_max))
+      ALLOCATE (Z_buf(n_ov*nb_max), RA_buf(n_ov*nb_max), BabZ_buf(n_ov*nb_max))
       IF (do_B) THEN
-         ALLOCATE (RB_buf(n_ov*nb_max), tmp_ab(virt, virt))
+         ALLOCATE (RB_buf(n_ov*nb_max), BjaZ_ab(virt, virt))
       END IF
       ALLOCATE (T_Pk(n_ri_loc, nb_max))
       B_ia_2d(1:n_ov, 1:n_ri_loc) => mv_env%B_ia
@@ -379,8 +380,8 @@ CONTAINS
          Z_wide(1:virt, 1:homo*nb) => Z_buf(1:n_ov*nb)
          RA(1:n_ov, 1:nb) => RA_buf(1:n_ov*nb)
          RA_3d(1:virt, 1:homo, 1:nb) => RA_buf(1:n_ov*nb)
-         tmp_3d(1:virt, 1:homo, 1:nb) => tmp_buf(1:n_ov*nb)
-         tmp_wide(1:virt, 1:homo*nb) => tmp_buf(1:n_ov*nb)
+         BabZ_3d(1:virt, 1:homo, 1:nb) => BabZ_buf(1:n_ov*nb)
+         BabZ_wide(1:virt, 1:homo*nb) => BabZ_buf(1:n_ov*nb)
          IF (do_B) THEN
             RB(1:n_ov, 1:nb) => RB_buf(1:n_ov*nb)
             RB_3d(1:virt, 1:homo, 1:nb) => RB_buf(1:n_ov*nb)
@@ -409,20 +410,20 @@ CONTAINS
          CALL timeset(routineN//"_W", handle2)
          IF (mv_env%w_fac /= 0.0_dp) THEN
             DO p = 1, n_ri_loc
-               ! A: R_ia,k -= w sum_jb \bar{B}^P_ij B^P_ab Z_jb,k
+               ! A: R_ia,k -= w sum_jb \bar{B}^P_ij B^P_ab Z_jb,k, BabZ_ib,k = sum_b B^P_ab Z_jb,k first
                CALL DGEMM('T', 'N', virt, homo*nb, virt, 1.0_dp, mv_env%B_ab(:, :, p), virt, &
-                          Z_wide, virt, 0.0_dp, tmp_wide, virt)
+                          Z_wide, virt, 0.0_dp, BabZ_wide, virt)
                DO k = 1, nb
-                  CALL DGEMM('N', 'N', virt, homo, homo, -mv_env%w_fac, tmp_3d(:, :, k), virt, &
-                             mv_env%Bbar_ij(:, :, p), homo, 1.0_dp, RA_3d(:, :, k), virt)
+                  CALL DGEMM('N', 'N', virt, homo, homo, -mv_env%w_fac, BabZ_3d(:, :, k), virt, &
+                             mv_env%B_bar_ij(:, :, p), homo, 1.0_dp, RA_3d(:, :, k), virt)
                END DO
-               ! B: R_ia,k -= w sum_jb \bar{B}^P_ib B^P_ja Z_jb,k
+               ! B: R_ia,k -= w sum_jb \bar{B}^P_ib B^P_ja Z_jb,k, BjaZ_ab = sum_j B^P_ja Z_jb,k first
                IF (do_B) THEN
                   DO k = 1, nb
                      CALL DGEMM('N', 'T', virt, virt, homo, 1.0_dp, mv_env%B_ia(:, :, p), virt, &
-                                Z_3d(:, :, k), virt, 0.0_dp, tmp_ab, virt)
-                     CALL DGEMM('N', 'N', virt, homo, virt, -mv_env%w_fac, tmp_ab, virt, &
-                                mv_env%Bbar_ia(:, :, p), virt, 1.0_dp, RB_3d(:, :, k), virt)
+                                Z_3d(:, :, k), virt, 0.0_dp, BjaZ_ab, virt)
+                     CALL DGEMM('N', 'N', virt, homo, virt, -mv_env%w_fac, BjaZ_ab, virt, &
+                                mv_env%B_bar_ia(:, :, p), virt, 1.0_dp, RB_3d(:, :, k), virt)
                   END DO
                END IF
             END DO
@@ -446,9 +447,9 @@ CONTAINS
          CALL timestop(handle2)
       END DO
 
-      DEALLOCATE (Z_buf, RA_buf, tmp_buf, T_Pk)
+      DEALLOCATE (Z_buf, RA_buf, BabZ_buf, T_Pk)
       IF (do_B) THEN
-         DEALLOCATE (RB_buf, tmp_ab)
+         DEALLOCATE (RB_buf, BjaZ_ab)
       END IF
 
       CALL timestop(handle)
@@ -483,7 +484,7 @@ CONTAINS
                   ia = (i - 1)*mv_env%virt + a
                   diag(ia) = diag(ia) + mv_env%alpha*mv_env%B_ia(a, i, p)**2
                   IF (mv_env%w_fac /= 0.0_dp) THEN
-                     diag(ia) = diag(ia) - mv_env%w_fac*mv_env%Bbar_ij(i, i, p)*mv_env%B_ab(a, a, p)
+                     diag(ia) = diag(ia) - mv_env%w_fac*mv_env%B_bar_ij(i, i, p)*mv_env%B_ab(a, a, p)
                   END IF
                END DO
             END DO
@@ -502,14 +503,14 @@ CONTAINS
 !>        B_kl =                  α sum_P B^P_ia B^P_jb - w sum_P \bar{B}^P_ib B^P_ja
 !>        with k = (i,a), l = (j,b) and α, w, \bar{B} as in bse_matvec_apply
 !> \param mv_env slabs, prefactors and transition energies
-!> \param idx global transition indices ia = (i-1)*virt + a of the block
-!> \param A_sub SIZE(idx) x SIZE(idx)
+!> \param ia_list global transition indices ia = (i-1)*virt + a of the block
+!> \param A_sub SIZE(ia_list) x SIZE(ia_list)
 !> \param B_sub same, only formed when present
 ! **************************************************************************************************
-   SUBROUTINE bse_matvec_subblock(mv_env, idx, A_sub, B_sub)
+   SUBROUTINE bse_matvec_subblock(mv_env, ia_list, A_sub, B_sub)
 
       TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: idx
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ia_list
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: A_sub
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
          OPTIONAL                                        :: B_sub
@@ -517,25 +518,25 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_matvec_subblock'
 
       INTEGER                                            :: handle, k, l, n_sub, p
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ai, av
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: a_virt, i_occ
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: B_Pk
 
       CALL timeset(routineN, handle)
 
-      n_sub = SIZE(idx)
-      ALLOCATE (ai(n_sub), av(n_sub), G(MAX(mv_env%n_ri_loc, 1), n_sub))
+      n_sub = SIZE(ia_list)
+      ALLOCATE (i_occ(n_sub), a_virt(n_sub), B_Pk(MAX(mv_env%n_ri_loc, 1), n_sub))
       DO k = 1, n_sub
-         ai(k) = (idx(k) - 1)/mv_env%virt + 1
-         av(k) = idx(k) - (ai(k) - 1)*mv_env%virt
+         i_occ(k) = (ia_list(k) - 1)/mv_env%virt + 1
+         a_virt(k) = ia_list(k) - (i_occ(k) - 1)*mv_env%virt
       END DO
 
-      ! exchange, identical in A and B: α G^T G with G_Pk = B^P_ia
+      ! exchange, identical in A and B: α sum_P B_Pk B_Pl with B_Pk = B^P_ia at ia = ia_list(k)
       A_sub(:, :) = 0.0_dp
       IF (mv_env%alpha /= 0.0_dp .AND. mv_env%n_ri_loc > 0) THEN
          DO k = 1, n_sub
-            G(:, k) = mv_env%B_ia(av(k), ai(k), :)
+            B_Pk(:, k) = mv_env%B_ia(a_virt(k), i_occ(k), :)
          END DO
-         CALL DGEMM('T', 'N', n_sub, n_sub, mv_env%n_ri_loc, mv_env%alpha, G, SIZE(G, 1), G, SIZE(G, 1), &
+         CALL DGEMM('T', 'N', n_sub, n_sub, mv_env%n_ri_loc, mv_env%alpha, B_Pk, SIZE(B_Pk, 1), B_Pk, SIZE(B_Pk, 1), &
                     0.0_dp, A_sub, n_sub)
       END IF
       IF (PRESENT(B_sub)) B_sub(:, :) = A_sub(:, :)
@@ -544,13 +545,13 @@ CONTAINS
          DO p = 1, mv_env%n_ri_loc
             DO l = 1, n_sub
                DO k = 1, n_sub
-                  A_sub(k, l) = A_sub(k, l) - mv_env%w_fac*mv_env%Bbar_ij(ai(l), ai(k), p)*mv_env%B_ab(av(l), av(k), p)
+                A_sub(k, l) = A_sub(k, l) - mv_env%w_fac*mv_env%B_bar_ij(i_occ(l), i_occ(k), p)*mv_env%B_ab(a_virt(l), a_virt(k), p)
                END DO
             END DO
             IF (PRESENT(B_sub)) THEN
                DO l = 1, n_sub
                   DO k = 1, n_sub
-                     B_sub(k, l) = B_sub(k, l) - mv_env%w_fac*mv_env%B_ia(av(k), ai(l), p)*mv_env%Bbar_ia(av(l), ai(k), p)
+                B_sub(k, l) = B_sub(k, l) - mv_env%w_fac*mv_env%B_ia(a_virt(k), i_occ(l), p)*mv_env%B_bar_ia(a_virt(l), i_occ(k), p)
                   END DO
                END DO
             END IF
@@ -560,10 +561,10 @@ CONTAINS
       CALL mv_env%para_env%sum(A_sub)
       IF (PRESENT(B_sub)) CALL mv_env%para_env%sum(B_sub)
       DO k = 1, n_sub
-         A_sub(k, k) = A_sub(k, k) + mv_env%eps_diff(idx(k))
+         A_sub(k, k) = A_sub(k, k) + mv_env%eps_diff(ia_list(k))
       END DO
 
-      DEALLOCATE (ai, av, G)
+      DEALLOCATE (i_occ, a_virt, B_Pk)
 
       CALL timestop(handle)
 
@@ -592,7 +593,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       REAL(KIND=dp)                                      :: dev_A, dev_B, dev_diag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: M_explicit, MZ, MZ_ref, Z
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mv_result, ref_matrix, ref_result, Z
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_AZ, fm_BZ, fm_Z
 
@@ -637,23 +638,23 @@ CONTAINS
          CALL bse_matvec_apply(mv_env, fm_Z, 1, ncol, fm_AZ)
       END IF
 
-      ALLOCATE (M_explicit(n_ov, n_ov), MZ(n_ov, ncol), MZ_ref(n_ov, ncol), diag(n_ov))
+      ALLOCATE (ref_matrix(n_ov, n_ov), mv_result(n_ov, ncol), ref_result(n_ov, ncol), diag(n_ov))
 
-      CALL cp_fm_get_submatrix(fm_A_explicit, M_explicit)
-      CALL cp_fm_get_submatrix(fm_AZ, MZ)
-      MZ_ref(:, :) = MATMUL(M_explicit, Z)
-      dev_A = MAXVAL(ABS(MZ - MZ_ref))
+      CALL cp_fm_get_submatrix(fm_A_explicit, ref_matrix)
+      CALL cp_fm_get_submatrix(fm_AZ, mv_result)
+      ref_result(:, :) = MATMUL(ref_matrix, Z)
+      dev_A = MAXVAL(ABS(mv_result - ref_result))
       CALL bse_matvec_diagonal(mv_env, bse_precond_full_diag, diag)
       dev_diag = 0.0_dp
       DO ia = 1, n_ov
-         dev_diag = MAX(dev_diag, ABS(diag(ia) - M_explicit(ia, ia)))
+         dev_diag = MAX(dev_diag, ABS(diag(ia) - ref_matrix(ia, ia)))
       END DO
 
       IF (PRESENT(fm_B_explicit)) THEN
-         CALL cp_fm_get_submatrix(fm_B_explicit, M_explicit)
-         CALL cp_fm_get_submatrix(fm_BZ, MZ)
-         MZ_ref(:, :) = MATMUL(M_explicit, Z)
-         dev_B = MAXVAL(ABS(MZ - MZ_ref))
+         CALL cp_fm_get_submatrix(fm_B_explicit, ref_matrix)
+         CALL cp_fm_get_submatrix(fm_BZ, mv_result)
+         ref_result(:, :) = MATMUL(ref_matrix, Z)
+         dev_B = MAXVAL(ABS(mv_result - ref_result))
       END IF
 
       IF (unit_nr > 0) THEN
@@ -667,7 +668,7 @@ CONTAINS
             'Max deviation diagonal vs explicit A', dev_diag
       END IF
 
-      DEALLOCATE (Z, M_explicit, MZ, MZ_ref, diag)
+      DEALLOCATE (Z, ref_matrix, mv_result, ref_result, diag)
       CALL cp_fm_release(fm_Z)
       CALL cp_fm_release(fm_AZ)
       IF (PRESENT(fm_B_explicit)) CALL cp_fm_release(fm_BZ)
