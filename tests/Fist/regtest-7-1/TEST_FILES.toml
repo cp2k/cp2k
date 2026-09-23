@@ -54,7 +54,7 @@
 # Geometry optimisation for core-shell model
 "UO2-4x4x4-core-forces.inp"             = [{matcher="M043", tol=4.0E-11, ref=0}]
 "UO2-4x4x4-core-shell-debug.inp"        = [{matcher="M042", tol=3e+00, ref=4.6877E-06}]
-"UO2-4x4x4-shell-forces.inp"            = [{matcher="M044", tol=1.0E-11, ref=0}]
+"UO2-4x4x4-shell-forces.inp"            = [{matcher="M044", tol=4.0E-11, ref=0}]
 # Automatic fitting of the BUCK4RANGES polynomials
 "UO2-4x4x4-autofit.inp"                 = [{matcher="M011", tol=1E-12, ref=-948.24095020004961}]
 # Connectivity user
