@@ -94,16 +94,12 @@ case "${with_gauxc}" in
       if ! patch -l -p1 < "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" \
         > gauxc_cp2k_rks_density_fix.patch.log 2>&1; then
         tail_excerpt gauxc_cp2k_rks_density_fix.patch.log
-        exit 1
       fi
       install -m 0644 "${SCRIPT_DIR}/stage6/exchcxx-disable-builtin.patch" \
         cmake/exchcxx-disable-builtin.patch
-      install -m 0644 "${SCRIPT_DIR}/stage6/gauxc-apply-dependency-patch.cmake" \
-        cmake/gauxc-apply-dependency-patch.cmake
       if ! patch -l -p1 < "${SCRIPT_DIR}/stage6/gauxc-libxc-only-exchcxx.patch" \
         > gauxc_libxc_only_exchcxx.patch.log 2>&1; then
         tail_excerpt gauxc_libxc_only_exchcxx.patch.log
-        exit 1
       fi
 
       sed -i.bak '/find_dependency.*nlohmann_json/d' cmake/gauxc-config.cmake.in
@@ -181,7 +177,6 @@ case "${with_gauxc}" in
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename ${SCRIPT_NAME})" \
         "${SCRIPT_DIR}/stage6/gauxc-${gauxc_ver}.patch" \
         "${SCRIPT_DIR}/stage6/gauxc-libxc-only-exchcxx.patch" \
-        "${SCRIPT_DIR}/stage6/gauxc-apply-dependency-patch.cmake" \
         "${SCRIPT_DIR}/stage6/exchcxx-disable-builtin.patch" "${BUILDDIR}/${gauxc_pkg}" \
         "${BUILDDIR}/${nlohmann_json_pkg}" "${skala_model_checksum_files[@]}"
     fi

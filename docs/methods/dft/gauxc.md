@@ -111,10 +111,8 @@ safeguard is unchanged.
 The toolchain pins GauXC commit `2c236c4ac9133dc70a7d668af5750eb6017a2aa4` and exports
 `GAUXC_HAS_ONEDFT_GRADIENT_FIX` in its CMake package. GauXC's package version alone does not
 identify this fix. Unmarked external installations retain the legacy high-angular-momentum and MPI
-safeguards. For an external installation independently verified to contain this commit or an
-equivalent validated backport, configure CP2K with `-DCP2K_GAUXC_ASSUME_ONEDFT_GRADIENT_FIX=ON`.
-This explicit override is not automatic version detection and must be reconsidered when changing the
-linked GauXC installation.
+safeguards. Analytical high-angular-momentum and distributed OneDFT gradients require a GauXC
+package that advertises this capability.
 
 ### GAPW Density Representations
 

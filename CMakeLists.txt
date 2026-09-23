@@ -695,7 +695,11 @@ endif()
 if(CP2K_USE_GAUXC)
   find_package(Threads REQUIRED)
   find_package(gauxc REQUIRED CONFIG)
-  include(cmake/GauXCGradientSupport.cmake)
+  # GauXC's unchanged package version does not identify the fix from PR #222.
+  set(CP2K_GAUXC_HAS_ONEDFT_GRADIENT_FIX OFF)
+  if(GAUXC_HAS_ONEDFT AND GAUXC_HAS_ONEDFT_GRADIENT_FIX)
+    set(CP2K_GAUXC_HAS_ONEDFT_GRADIENT_FIX ON)
+  endif()
   if(CP2K_USE_MPI AND NOT GAUXC_HAS_MPI)
     message(
       FATAL_ERROR
