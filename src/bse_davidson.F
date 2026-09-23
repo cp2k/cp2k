@@ -221,7 +221,7 @@ CONTAINS
 
          dE(:) = ABS(theta(1:n_act) - theta_prev(:))
          CALL convergence_flags(mp2_env, dE, res, conv)
-         n_req = last_required_root(theta, n_want, n_act)
+         n_req = multiplet_end(theta, n_want, n_act, deg_thresh)
          ! a subspace that spans all transitions is exact
          IF (m == n_ov) conv(:) = .TRUE.
          CALL roots_in_need(conv, theta, res, n_req, need)
@@ -499,7 +499,7 @@ CONTAINS
 
             dE(:) = ABS(omega(:) - omega_prev(:))
             CALL convergence_flags(mp2_env, dE, res, conv)
-            n_req = last_required_root(omega, n_want, n_act)
+            n_req = multiplet_end(omega, n_want, n_act, deg_thresh)
             ! a subspace that spans all transitions is exact
             IF (m == n_ov) conv(:) = .TRUE.
             CALL roots_in_need(conv, omega, res, n_req, need)
@@ -811,7 +811,7 @@ CONTAINS
 
             dE(:) = ABS(omega(:) - omega_prev(:))
             CALL convergence_flags(mp2_env, dE, res, conv)
-            n_req = last_required_root(omega, n_want, n_act)
+            n_req = multiplet_end(omega, n_want, n_act, deg_thresh)
             ! a subspace that spans all transitions is exact
             IF (m == n_ov) conv(:) = .TRUE.
             CALL roots_in_need(conv, omega, res, n_req, need)
@@ -1276,26 +1276,28 @@ CONTAINS
    END SUBROUTINE convergence_flags
 
 ! **************************************************************************************************
-!> \brief Last root that has to converge: a multiplet that is cut by NUM_EXC_EN converges as a whole
-!> \param energies tracked energies in Hartree, ascending
-!> \param n_want requested states, NUM_EXC_EN
-!> \param n_act tracked states, the upper limit
-!> \return the last root that has to converge, n_want <= n_req <= n_act
+!> \brief Last member of the multiplet that contains state n_first: the scan stops at the first gap of
+!>        at least thresh, or at n_limit. A multiplet cut by NUM_EXC_EN is thereby taken as a whole
+!> \param energies ascending energies in Hartree
+!> \param n_first first state of the scan
+!> \param n_limit last state the scan may reach
+!> \param thresh gap that ends a multiplet, in Hartree
+!> \return the last member, n_first <= n_last <= n_limit
 ! **************************************************************************************************
-   FUNCTION last_required_root(energies, n_want, n_act) RESULT(n_req)
+   PURE FUNCTION multiplet_end(energies, n_first, n_limit, thresh) RESULT(n_last)
 
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: energies
-      INTEGER, INTENT(IN)                                :: n_want, n_act
-      INTEGER                                            :: n_req
+      INTEGER, INTENT(IN)                                :: n_first, n_limit
+      REAL(KIND=dp), INTENT(IN)                          :: thresh
+      INTEGER                                            :: n_last
 
-      n_req = n_want
-      DO WHILE (n_req < n_act)
-         IF (energies(n_req + 1) - energies(n_req) >= deg_thresh) EXIT
-         n_req = n_req + 1
+      n_last = n_first
+      DO WHILE (n_last < n_limit)
+         IF (energies(n_last + 1) - energies(n_last) >= thresh) EXIT
+         n_last = n_last + 1
       END DO
 
-   END FUNCTION last_required_root
-
+   END FUNCTION multiplet_end
 ! **************************************************************************************************
 !> \brief Roots that still need correction vectors: the unconverged ones up to n_req, and a tracked
 !>        root k above them as long as E_k - |r_k| < E_n_req. An eigenvalue of a symmetric matrix
@@ -1842,11 +1844,7 @@ CONTAINS
       diag_sorted(:) = diag(:)
       CALL sort(diag_sorted, n_ov, diag_order)
 
-      n_used = n_guess
-      DO WHILE (n_used < n_max)
-         IF (diag_sorted(n_used + 1) - diag_sorted(n_used) >= deg_thresh_diag) EXIT
-         n_used = n_used + 1
-      END DO
+      n_used = multiplet_end(diag_sorted, n_guess, n_max, deg_thresh_diag)
 
       k_first = 1
       IF (PRESENT(n_given)) k_first = n_given + 1
@@ -1979,14 +1977,10 @@ CONTAINS
          k_first = 1
          IF (PRESENT(n_given)) k_first = n_given + 1
 
-         n_used = n_guess
          n_top = MIN(n_max, n_sub)
          ! the partners of the columns k_first..n_used share the n_max columns with the guess
          IF (PRESENT(n_pair)) n_top = MIN(n_top, (n_max + k_first - 1)/2)
-         DO WHILE (n_used < n_top)
-            IF (theta_sub(n_used + 1) - theta_sub(n_used) >= deg_thresh_diag) EXIT
-            n_used = n_used + 1
-         END DO
+         n_used = multiplet_end(theta_sub, n_guess, n_top, deg_thresh_diag)
 
          rank_in_block(:) = 0
          DO k = 1, n_sub
@@ -2860,7 +2854,7 @@ CONTAINS
          END IF
          ref_ens(:) = SQRT(ref_ens(:))
 
-         n_ref = last_required_root(ref_ens, n_want, n_ov)
+         n_ref = multiplet_end(ref_ens, n_want, n_ov, deg_thresh)
          ALLOCATE (sum_ref(n_ov, n_ref), diff_ref(n_ov, n_ref))
          CALL cp_fm_create(fm_work, fm_C%matrix_struct)
          CALL parallel_gemm("N", "N", n_ov, n_ref, n_ov, 1.0_dp, fm_sqrt_A_minus_B, fm_eigvec, 0.0_dp, &
@@ -2892,7 +2886,7 @@ CONTAINS
          IF (diag_info /= 0) CPABORT("Reference diagonalization of A failed in the BSE Davidson check")
          CALL cp_fm_release(fm_work)
 
-         n_ref = last_required_root(ref_ens, n_want, n_ov)
+         n_ref = multiplet_end(ref_ens, n_want, n_ov, deg_thresh)
          ALLOCATE (X_ref(n_ov, n_ref))
          CALL cp_fm_get_submatrix(fm_eigvec, X_ref, 1, 1, n_ov, n_ref)
       END IF
@@ -2944,11 +2938,7 @@ CONTAINS
       min_overlap = 1.0_dp
       mult_first = 1
       DO WHILE (mult_first <= n_want)
-         mult_last = mult_first
-         DO WHILE (mult_last < n_ref)
-            IF (ref_ens(mult_last + 1) - ref_ens(mult_last) >= deg_thresh) EXIT
-            mult_last = mult_last + 1
-         END DO
+         mult_last = multiplet_end(ref_ens, mult_first, n_ref, deg_thresh)
          mult_last_dav = MIN(mult_last, n_want)
          ALLOCATE (overlap(mult_last - mult_first + 1, mult_last_dav - mult_first + 1), sing_vals(mult_last_dav - mult_first + 1))
          overlap(:, :) = MATMUL(TRANSPOSE(X_ref(:, mult_first:mult_last)), X_dav(:, mult_first:mult_last_dav))
