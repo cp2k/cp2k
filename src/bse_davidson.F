@@ -203,8 +203,7 @@ CONTAINS
             n_cand = n_act
             IF (has_prev) n_cand = 2*n_act
             CALL restart_basis(coef_restart_cand, m, n_cand, 2*n_act, coef_restart, k)
-            CALL rotate_in_place(fm_Z, m, coef_restart, k, fm_work)
-            CALL rotate_in_place(fm_AZ, m, coef_restart, k, fm_work)
+            CALL rotate_in_place(fm_Z, m, coef_restart, k, fm_work, fm_AZ)
             CALL reduced_rotate(fm_red_A, m, coef_restart, k, para_env, diag_blacs_env)
             m = k
             n_restart = n_restart + 1
@@ -471,9 +470,7 @@ CONTAINS
                n_cand = n_act
                IF (has_prev) n_cand = 2*n_act
                CALL restart_basis(coef_restart_cand, m, n_cand, 2*n_act, coef_restart, k)
-               CALL rotate_in_place(fm_V, m, coef_restart, k, fm_work)
-               CALL rotate_in_place(fm_W, m, coef_restart, k, fm_work)
-               CALL rotate_in_place(fm_MW, m, coef_restart, k, fm_work)
+               CALL rotate_in_place(fm_V, m, coef_restart, k, fm_work, fm_W, fm_MW)
                CALL reduced_rotate(fm_red_M, m, coef_restart, k, para_env, diag_blacs_env)
                m = k
                n_restart = n_restart + 1
@@ -780,9 +777,7 @@ CONTAINS
                n_cand = 2*n_act
                IF (has_prev) n_cand = 4*n_act
                CALL restart_basis(coef_restart_cand, m, n_cand, m_max - 2*block_size, coef_restart, k)
-               CALL rotate_in_place(fm_b, m, coef_restart, k, fm_work)
-               CALL rotate_in_place(fm_Mb, m, coef_restart, k, fm_work)
-               CALL rotate_in_place(fm_Kb, m, coef_restart, k, fm_work)
+               CALL rotate_in_place(fm_b, m, coef_restart, k, fm_work, fm_Mb, fm_Kb)
                CALL reduced_rotate(fm_red_M, m, coef_restart, k, para_env, diag_blacs_env)
                CALL reduced_rotate(fm_red_K, m, coef_restart, k, para_env, diag_blacs_env)
                m = k
@@ -2254,30 +2249,49 @@ CONTAINS
    END SUBROUTINE subspace_rotate
 
 ! **************************************************************************************************
-!> \brief V_ia,k <- sum_p V_ia,p coef_pk for p <= m, k <= nq through the work matrix
+!> \brief V_ia,k <- sum_p V_ia,p coef_pk for p <= m, k <= nq through the work matrix, and the same rotation
+!>        of up to two further matrices that share the basis, so that a thick restart is one call
 !> \param fm_V basis; on exit columns 1..nq hold the rotation and nq+1..m are zero
 !> \param m columns of fm_V read
 !> \param coef restart basis, m x nq
 !> \param nq columns of the rotated basis
 !> \param fm_work at least nq columns
+!> \param fm_V2 rotated alike
+!> \param fm_V3 rotated alike
 ! **************************************************************************************************
-   SUBROUTINE rotate_in_place(fm_V, m, coef, nq, fm_work)
+   SUBROUTINE rotate_in_place(fm_V, m, coef, nq, fm_work, fm_V2, fm_V3)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_V
       INTEGER, INTENT(IN)                                :: m
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: coef
       INTEGER, INTENT(IN)                                :: nq
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_work
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_V2, fm_V3
+
+      CALL rotate_one(fm_V)
+      IF (PRESENT(fm_V2)) CALL rotate_one(fm_V2)
+      IF (PRESENT(fm_V3)) CALL rotate_one(fm_V3)
+
+   CONTAINS
+
+! **************************************************************************************************
+!> \brief The rotation of one matrix
+!> \param fm rotated in place
+! **************************************************************************************************
+      SUBROUTINE rotate_one(fm)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm
 
       INTEGER                                            :: nrow_local
 
-      CALL subspace_rotate(fm_V, m, coef(1:m, 1:nq), nq, fm_work, 1.0_dp, 0.0_dp)
-      CALL cp_fm_to_fm(fm_work, fm_V, nq)
-      CALL cp_fm_get_info(fm_V, nrow_local=nrow_local)
-      fm_V%local_data(1:nrow_local, nq + 1:m) = 0.0_dp
+         CALL subspace_rotate(fm, m, coef(1:m, 1:nq), nq, fm_work, 1.0_dp, 0.0_dp)
+         CALL cp_fm_to_fm(fm_work, fm, nq)
+         CALL cp_fm_get_info(fm, nrow_local=nrow_local)
+         fm%local_data(1:nrow_local, nq + 1:m) = 0.0_dp
+
+      END SUBROUTINE rotate_one
 
    END SUBROUTINE rotate_in_place
-
 ! **************************************************************************************************
 !> \brief T_ia,t0+k-1 <- T_ia,t0+k-1 + alpha U_ia,u0+k-1 for k <= n
 !>        On the npe x 1 grid whole columns are local, so the update needs no communication
