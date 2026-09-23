@@ -221,6 +221,7 @@ CONTAINS
 
       ! print levels, are used if log_unit > 0
       ! defined for all parallel MPI processes
+      debug_output = .FALSE.
       CALL section_vals_val_get(negf_section, "PRINT%PROGRAM_RUN_INFO%PRINT_LEVEL", i_val=print_level)
       SELECT CASE (print_level)
       CASE (high_print_level)
@@ -230,7 +231,6 @@ CONTAINS
          debug_output = .TRUE.
       CASE DEFAULT
          verbose_output = .FALSE.
-         debug_output = .FALSE.
       END SELECT
 
       IF (log_unit > 0) THEN
