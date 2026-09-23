@@ -325,10 +325,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_matvec_apply'
 
-      INTEGER                                            :: col, col_shift_B, handle, handle2, homo, &
-                                                            ia, iloc, k, me, n_ov, n_ri_loc, &
-                                                            n_work_bufs, nb, nb_max, nrow_local, &
-                                                            p, virt
+      INTEGER                                            :: col, col_shift_B, handle, handle2, ia, &
+                                                            iloc, k, me, n_work_bufs, nb, nb_max, &
+                                                            nrow_local, p
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       LOGICAL                                            :: do_B
       REAL(KIND=dp)                                      :: mem_avail_GB
@@ -342,10 +341,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      homo = mv_env%homo
-      virt = mv_env%virt
-      n_ov = mv_env%n_ov
-      n_ri_loc = mv_env%n_ri_loc
       do_B = PRESENT(fm_BZ)
       IF (do_B) THEN
          ! B Z needs the \bar{B}^P_ia slab, which is sliced for do_abba only
@@ -376,30 +371,32 @@ CONTAINS
          nb_max = ncol
          IF (mem_avail_GB > 0.0_dp) THEN
             nb_max = INT(MIN(REAL(ncol, dp), &
-                             mv_env%mem_fraction*mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_work_bufs, dp)*REAL(n_ov, dp))))
+                             mv_env%mem_fraction*mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_work_bufs, dp)*REAL(mv_env%n_ov, dp))))
          END IF
       END IF
       nb_max = MAX(nb_max, 1)
 
-      ALLOCATE (Z_buf(n_ov*nb_max), RA_buf(n_ov*nb_max), BabZ_buf(n_ov*nb_max))
+      ALLOCATE (Z_buf(mv_env%n_ov*nb_max), RA_buf(mv_env%n_ov*nb_max), BabZ_buf(mv_env%n_ov*nb_max))
       IF (do_B) THEN
-         ALLOCATE (RB_buf(n_ov*nb_max), BjaZ_ab(virt, virt))
+         ALLOCATE (RB_buf(mv_env%n_ov*nb_max), BjaZ_ab(mv_env%virt, mv_env%virt))
       END IF
-      ALLOCATE (T_Pk(n_ri_loc, nb_max))
-      B_ia_2d(1:n_ov, 1:n_ri_loc) => mv_env%B_ia
+      ALLOCATE (T_Pk(mv_env%n_ri_loc, nb_max))
+      B_ia_2d(1:mv_env%n_ov, 1:mv_env%n_ri_loc) => mv_env%B_ia
 
       DO col = first_col, first_col + ncol - 1, nb_max
          nb = MIN(nb_max, first_col + ncol - col)
-         Z(1:n_ov, 1:nb) => Z_buf(1:n_ov*nb)
-         Z_3d(1:virt, 1:homo, 1:nb) => Z_buf(1:n_ov*nb)
-         Z_wide(1:virt, 1:homo*nb) => Z_buf(1:n_ov*nb)
-         RA(1:n_ov, 1:nb) => RA_buf(1:n_ov*nb)
-         RA_3d(1:virt, 1:homo, 1:nb) => RA_buf(1:n_ov*nb)
-         BabZ_3d(1:virt, 1:homo, 1:nb) => BabZ_buf(1:n_ov*nb)
-         BabZ_wide(1:virt, 1:homo*nb) => BabZ_buf(1:n_ov*nb)
+         ! three views of one contiguous buffer, bounds-remapping pointer assignment (Fortran 2003):
+         ! Z_ia,k for the exchange DGEMM, Z_3d(a, i, k) per column, Z_wide(a, (i k)) for the wide product
+         Z(1:mv_env%n_ov, 1:nb) => Z_buf(1:mv_env%n_ov*nb)
+         Z_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => Z_buf(1:mv_env%n_ov*nb)
+         Z_wide(1:mv_env%virt, 1:mv_env%homo*nb) => Z_buf(1:mv_env%n_ov*nb)
+         RA(1:mv_env%n_ov, 1:nb) => RA_buf(1:mv_env%n_ov*nb)
+         RA_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => RA_buf(1:mv_env%n_ov*nb)
+         BabZ_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => BabZ_buf(1:mv_env%n_ov*nb)
+         BabZ_wide(1:mv_env%virt, 1:mv_env%homo*nb) => BabZ_buf(1:mv_env%n_ov*nb)
          IF (do_B) THEN
-            RB(1:n_ov, 1:nb) => RB_buf(1:n_ov*nb)
-            RB_3d(1:virt, 1:homo, 1:nb) => RB_buf(1:n_ov*nb)
+            RB(1:mv_env%n_ov, 1:nb) => RB_buf(1:mv_env%n_ov*nb)
+            RB_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => RB_buf(1:mv_env%n_ov*nb)
          END IF
 
          ! Z_ia,k on every rank: every rank owns a contiguous ia range, so the column arrives sorted
@@ -413,32 +410,32 @@ CONTAINS
          ! exchange, identical in A Z and B Z: R_ia,k = α sum_P B^P_ia t_Pk, t_Pk = sum_jb B^P_jb Z_jb,k
          CALL timeset(routineN//"_exchange", handle2)
          RA(:, :) = 0.0_dp
-         IF (mv_env%alpha /= 0.0_dp .AND. n_ri_loc > 0) THEN
-            CALL DGEMM('T', 'N', n_ri_loc, nb, n_ov, 1.0_dp, B_ia_2d, n_ov, Z, n_ov, &
-                       0.0_dp, T_Pk, n_ri_loc)
-            CALL DGEMM('N', 'N', n_ov, nb, n_ri_loc, mv_env%alpha, B_ia_2d, n_ov, T_Pk, n_ri_loc, &
-                       0.0_dp, RA, n_ov)
+         IF (mv_env%alpha /= 0.0_dp .AND. mv_env%n_ri_loc > 0) THEN
+            CALL DGEMM('T', 'N', mv_env%n_ri_loc, nb, mv_env%n_ov, 1.0_dp, B_ia_2d, mv_env%n_ov, Z, mv_env%n_ov, &
+                       0.0_dp, T_Pk, mv_env%n_ri_loc)
+            CALL DGEMM('N', 'N', mv_env%n_ov, nb, mv_env%n_ri_loc, mv_env%alpha, B_ia_2d, mv_env%n_ov, T_Pk, mv_env%n_ri_loc, &
+                       0.0_dp, RA, mv_env%n_ov)
          END IF
          IF (do_B) RB(:, :) = RA(:, :)
          CALL timestop(handle2)
 
          CALL timeset(routineN//"_W", handle2)
          IF (mv_env%w_fac /= 0.0_dp) THEN
-            DO p = 1, n_ri_loc
+            DO p = 1, mv_env%n_ri_loc
                ! A: R_ia,k -= w sum_jb \bar{B}^P_ij B^P_ab Z_jb,k, BabZ_ib,k = sum_b B^P_ab Z_jb,k first
-               CALL DGEMM('T', 'N', virt, homo*nb, virt, 1.0_dp, mv_env%B_ab(:, :, p), virt, &
-                          Z_wide, virt, 0.0_dp, BabZ_wide, virt)
+               CALL DGEMM('T', 'N', mv_env%virt, mv_env%homo*nb, mv_env%virt, 1.0_dp, mv_env%B_ab(:, :, p), mv_env%virt, &
+                          Z_wide, mv_env%virt, 0.0_dp, BabZ_wide, mv_env%virt)
                DO k = 1, nb
-                  CALL DGEMM('N', 'N', virt, homo, homo, -mv_env%w_fac, BabZ_3d(:, :, k), virt, &
-                             mv_env%B_bar_ij(:, :, p), homo, 1.0_dp, RA_3d(:, :, k), virt)
+                  CALL DGEMM('N', 'N', mv_env%virt, mv_env%homo, mv_env%homo, -mv_env%w_fac, BabZ_3d(:, :, k), mv_env%virt, &
+                             mv_env%B_bar_ij(:, :, p), mv_env%homo, 1.0_dp, RA_3d(:, :, k), mv_env%virt)
                END DO
                ! B: R_ia,k -= w sum_jb \bar{B}^P_ib B^P_ja Z_jb,k, BjaZ_ab = sum_j B^P_ja Z_jb,k first
                IF (do_B) THEN
                   DO k = 1, nb
-                     CALL DGEMM('N', 'T', virt, virt, homo, 1.0_dp, mv_env%B_ia(:, :, p), virt, &
-                                Z_3d(:, :, k), virt, 0.0_dp, BjaZ_ab, virt)
-                     CALL DGEMM('N', 'N', virt, homo, virt, -mv_env%w_fac, BjaZ_ab, virt, &
-                                mv_env%B_bar_ia(:, :, p), virt, 1.0_dp, RB_3d(:, :, k), virt)
+                     CALL DGEMM('N', 'T', mv_env%virt, mv_env%virt, mv_env%homo, 1.0_dp, mv_env%B_ia(:, :, p), mv_env%virt, &
+                                Z_3d(:, :, k), mv_env%virt, 0.0_dp, BjaZ_ab, mv_env%virt)
+                     CALL DGEMM('N', 'N', mv_env%virt, mv_env%homo, mv_env%virt, -mv_env%w_fac, BjaZ_ab, mv_env%virt, &
+                                mv_env%B_bar_ia(:, :, p), mv_env%virt, 1.0_dp, RB_3d(:, :, k), mv_env%virt)
                   END DO
                END IF
             END DO
