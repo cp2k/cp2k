@@ -89,10 +89,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Block Davidson with thick restart for the NUM_EXC_EN lowest solutions of
 !>        sum_jb A_ia,jb X_jb^n = Ω^n X_ia^n. With the orthonormal basis Z_ia,m the reduced matrix is
-!>        G_mn = sum_ia Z_ia,m (A Z)_ia,n with eigenpairs (θ_k, c_mk), X_ia^k = sum_m Z_ia,m c_mk,
+!>        Ar_mn = sum_ia Z_ia,m (A Z)_ia,n with eigenpairs (θ_k, c_mk), X_ia^k = sum_m Z_ia,m c_mk,
 !>        and the basis grows by the corrections t_ia,k = r_ia,k/(d_ia - θ_k) of the residuals
 !>        r_ia,k = sum_m (A Z)_ia,m c_mk - θ_k X_ia^k, d_ia being the diagonal chosen by PRECONDITIONER.
-!>        Arrays: G_mn in fm_red_A on the process grid, c_mk in coef_ritz, θ_k c_mk in coef_ritz_theta
+!>        Arrays: Ar_mn (the reduced A) in fm_red_A on the process grid, c_mk in coef_ritz, θ_k c_mk in
+!>        coef_ritz_theta
 !> \param mv_env slabs, prefactors and transition energies of the matrix-free A
 !> \param mp2_env mp2_env%bse carries the BSE_ITERAT settings and BSE_DEBUG_PRINT
 !> \param unit_nr output unit, positive on the writing rank only
@@ -179,7 +180,7 @@ CONTAINS
       IF (extension_deviation(fm_Z, fm_Z, 0, m, para_env) > ortho_tol) THEN
          CPABORT("BSE Davidson: the initial guess is not orthonormal")
       END IF
-      ! (A Z)_ia,m of the guess and G_mn = sum_ia Z_ia,m (A Z)_ia,n
+      ! (A Z)_ia,m of the guess and Ar_mn = sum_ia Z_ia,m (A Z)_ia,n
       CALL bse_matvec_apply(mv_env, fm_Z, 1, m, fm_AZ)
       n_kernel = m
       CALL reduced_gram_blocks(fm_Z, m, fm_AZ, 1, m, block_size, para_env, fm_red_A)
@@ -190,11 +191,11 @@ CONTAINS
       DO iter = 1, mp2_env%bse%max_iter
          t_iter = m_walltime()
 
-         ! sum_n G_mn c_nk = θ_k c_mk, θ ascending
+         ! sum_n Ar_mn c_nk = θ_k c_mk, θ ascending
          CALL solve_reduced(fm_red_A, m, n_act, para_env, diag_blacs_env, theta, coef_ritz)
 
          ! thick restart onto the current and the previous Ritz vectors, no kernel application; with the
-         ! restart basis Q_pk in coef_restart, Z_ia,k <- sum_p Z_ia,p Q_pk, A Z alike, G_kl <- sum_pq Q_pk G_pq Q_ql
+         ! restart basis Q_pk in coef_restart, Z_ia,k <- sum_p Z_ia,p Q_pk, A Z alike, Ar_kl <- sum_pq Q_pk Ar_pq Q_ql
          IF (m + block_size > m_max .AND. m > n_act .AND. m < n_ov) THEN
             coef_restart_cand(1:m, 1:n_act) = coef_ritz(1:m, 1:n_act)
             n_cand = n_act
@@ -255,7 +256,7 @@ CONTAINS
             CALL bse_matvec_apply(mv_env, fm_Z, m + 1, nt, fm_AZ)
             n_kernel = n_kernel + nt
 
-            ! new columns G_mn = sum_ia Z_ia,m (A Z)_ia,n of the symmetric reduced matrix
+            ! new columns Ar_mn = sum_ia Z_ia,m (A Z)_ia,n of the symmetric reduced matrix
             ALLOCATE (red_block(m + nt, nt))
             CALL subspace_gram(fm_Z, 1, m + nt, fm_AZ, m + 1, nt, para_env, red_block)
             CALL reduced_extend(fm_red_A, red_block, m, nt)
@@ -310,11 +311,11 @@ CONTAINS
 !>        written as sum_jb [(A+B)(A-B)]_ia,jb x_jb^n = (Ω^n)^2 x_ia^n with x^n = X^n - Y^n, which is
 !>        symmetric in the inner product <u,v> = sum_ia,jb u_ia (A-B)_ia,jb v_jb. The basis V_ia,m is
 !>        orthonormal in that inner product, W_ia,m = sum_jb (A-B)_ia,jb V_jb,m, and the reduced matrix
-!>        H_mn = sum_ia,jb W_ia,m (A+B)_ia,jb W_jb,n has the eigenpairs ((Ω^k)^2, c_mk). Then
+!>        Hr_mn = sum_ia,jb W_ia,m (A+B)_ia,jb W_jb,n has the eigenpairs ((Ω^k)^2, c_mk). Then
 !>        x_ia^k = (Ω^k)^1/2 sum_m V_ia,m c_mk and y_ia^k = (X^k+Y^k)_ia = (Ω^k)^-1/2 sum_m W_ia,m c_mk
 !>        obey sum_ia x_ia^k y_ia^k = 1, the residual is r_ia,k = sum_jb (A+B)_ia,jb y_jb^k - Ω^k x_ia^k
 !>        and the correction t_ia,k = r_ia,k/(d_ia^2 - (Ω^k)^2), d_ia chosen by PRECONDITIONER.
-!>        Arrays: H_mn in fm_red_M on the process grid, c_mk in coef_ritz, (Ω^k)^1/2 c_mk in coef_x,
+!>        Arrays: Hr_mn in fm_red_M on the process grid, c_mk in coef_ritz, (Ω^k)^1/2 c_mk in coef_x,
 !>        (Ω^k)^-1/2 c_mk in coef_y, Ω^k (Ω^k)^1/2 c_mk in coef_x_omega
 !> \param mv_env slabs, prefactors and transition energies of the matrix-free A and B
 !> \param mp2_env mp2_env%bse carries the BSE_ITERAT settings and BSE_DEBUG_PRINT
@@ -354,8 +355,9 @@ CONTAINS
                                                             coef_y, red_block
       TYPE(cp_blacs_env_type), POINTER                   :: diag_blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_MW, fm_red_M, fm_S, fm_scratch, &
-                                                            fm_Svec, fm_V, fm_W, fm_work
+      TYPE(cp_fm_type)                                   :: fm_metric, fm_metric_vec, fm_MW, &
+                                                            fm_red_M, fm_scratch, fm_V, fm_W, &
+                                                            fm_work
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -446,7 +448,7 @@ CONTAINS
 
       IF (abba_status == abba_ok) THEN
          fm_V%local_data(1:nrow_local, m + 1:n_guess_cols) = 0.0_dp
-         ! H_mn = sum_ia W_ia,m (M W)_ia,n on the guess basis
+         ! Hr_mn = sum_ia W_ia,m (M W)_ia,n on the guess basis
          CALL reduced_gram_blocks(fm_W, m, fm_MW, 1, m, block_size, para_env, fm_red_M)
 
          CALL print_iteration_header('Block Davidson iterations for ABBA, (A+B)(A-B) x = E^2 x:', unit_nr)
@@ -454,11 +456,11 @@ CONTAINS
          DO iter = 1, mp2_env%bse%max_iter
             t_iter = m_walltime()
 
-            ! sum_n H_mn c_nk = θ_k c_mk with θ_k = (Ω^k)^2, ascending
+            ! sum_n Hr_mn c_nk = θ_k c_mk with θ_k = (Ω^k)^2, ascending
             CALL solve_reduced(fm_red_M, m, n_act, para_env, diag_blacs_env, theta, coef_ritz)
 
             ! thick restart: V, W and MW are rotated alike by Q_pk in coef_restart, which keeps
-            ! sum_ia V_ia,m W_ia,n = δ_mn, and H_kl <- sum_pq Q_pk H_pq Q_ql
+            ! sum_ia V_ia,m W_ia,n = δ_mn, and Hr_kl <- sum_pq Q_pk Hr_pq Q_ql
             IF (m + block_size > m_max .AND. m > n_act .AND. m < n_ov) THEN
                coef_restart_cand(1:m, 1:n_act) = coef_ritz(1:m, 1:n_act)
                n_cand = n_act
@@ -519,7 +521,7 @@ CONTAINS
             stalled = nt == 0
 
             IF (nt > 0) THEN
-               ! new columns H_mn = sum_ia W_ia,m (M W)_ia,n of the symmetric reduced matrix
+               ! new columns Hr_mn = sum_ia W_ia,m (M W)_ia,n of the symmetric reduced matrix
                ALLOCATE (red_block(m + nt, nt))
                CALL subspace_gram(fm_W, 1, m + nt, fm_MW, m + 1, nt, para_env, red_block)
                CALL reduced_extend(fm_red_M, red_block, m, nt)
@@ -548,21 +550,21 @@ CONTAINS
          END IF
 
          ! with sum_ia V_ia,m W_ia,n = δ_mn the smallest eigenvalue of A-B on the span of V is the
-         ! inverse of the largest eigenvalue of S_mn = sum_ia V_ia,m V_ia,n
+         ! inverse of the largest eigenvalue of the metric sum_ia V_ia,m V_ia,n
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=diag_blacs_env, &
                                   nrow_global=m, ncol_global=m)
-         CALL cp_fm_create(fm_S, fm_struct, name="bse_basis_metric")
-         CALL cp_fm_create(fm_Svec, fm_struct, name="bse_basis_metric_vectors")
+         CALL cp_fm_create(fm_metric, fm_struct, name="bse_basis_metric")
+         CALL cp_fm_create(fm_metric_vec, fm_struct, name="bse_basis_metric_vectors")
          CALL cp_fm_struct_release(fm_struct)
-         CALL reduced_gram_blocks(fm_V, m, fm_V, 1, m, block_size, para_env, fm_S)
+         CALL reduced_gram_blocks(fm_V, m, fm_V, 1, m, block_size, para_env, fm_metric)
          ALLOCATE (omega_sq(m))
          omega_sq(:) = 0.0_dp
-         CALL choose_eigv_solver(fm_S, fm_Svec, omega_sq)
+         CALL choose_eigv_solver(fm_metric, fm_metric_vec, omega_sq)
          ab_margin = 1.0_dp/omega_sq(m)
          DEALLOCATE (omega_sq)
-         CALL cp_fm_release(fm_S)
-         CALL cp_fm_release(fm_Svec)
+         CALL cp_fm_release(fm_metric)
+         CALL cp_fm_release(fm_metric_vec)
 
          IF (ALLOCATED(theta_sub)) CALL check_guess_bound(theta_sub, omega, n_req, unit_nr)
          CALL print_summary(iter, n_kernel, n_restart, n_want, n_req, n_act, n_ov, unit_nr, ab_margin, n_dependent)
@@ -975,8 +977,8 @@ CONTAINS
 !> \param first_col first column of the block
 !> \param nt number of columns in the block
 !> \param para_env communicator of the row-distributed matrices
-!> \param abba_status abba_indefinite if G has a negative eigenvalue, else untouched
-!> \param eig_min smallest eigenvalue of G, set if it is negative
+!> \param abba_status abba_indefinite if gram has a negative eigenvalue, else untouched
+!> \param eig_min smallest eigenvalue of gram, set if it is negative
 ! **************************************************************************************************
    SUBROUTINE cholqr2_metric(fm_T, fm_KT, first_col, nt, para_env, abba_status, eig_min)
 
@@ -992,31 +994,31 @@ CONTAINS
                                                             nrow_local
       REAL(KIND=dp)                                      :: shift
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G, R
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: chol_factor, gram
 
       CALL timeset(routineN, handle)
       CALL cp_fm_get_info(fm_T, nrow_local=nrow_local, nrow_global=n_ov)
-      ALLOCATE (G(nt, nt), R(nt, nt), eigval(nt))
+      ALLOCATE (gram(nt, nt), chol_factor(nt, nt), eigval(nt))
 
       n_pass = 2
       ipass = 0
       DO WHILE (ipass < n_pass)
          ipass = ipass + 1
          ! G_kl = (sum_ia T_ia,k (KT)_ia,l + sum_ia T_ia,l (KT)_ia,k)/2 = sum_p R_pk R_pl
-         CALL subspace_gram(fm_T, first_col, nt, fm_KT, first_col, nt, para_env, R)
-         G(:, :) = 0.5_dp*(R(:, :) + TRANSPOSE(R(:, :)))
-         R(:, :) = G(:, :)
+         CALL subspace_gram(fm_T, first_col, nt, fm_KT, first_col, nt, para_env, chol_factor)
+         gram(:, :) = 0.5_dp*(chol_factor(:, :) + TRANSPOSE(chol_factor(:, :)))
+         chol_factor(:, :) = gram(:, :)
          info = 0
-         IF (para_env%is_source()) CALL DPOTRF('U', nt, R, nt, info)
+         IF (para_env%is_source()) CALL DPOTRF('U', nt, chol_factor, nt, info)
          CALL para_env%bcast(info)
          IF (info /= 0) THEN
             IF (n_pass == 3) THEN
                CALL cp_abort(__LOCATION__, &
                              "BSE Davidson: orthonormalisation in the (A-B) inner product broke down")
             END IF
-            R(:, :) = G(:, :)
+            chol_factor(:, :) = gram(:, :)
             eigval(:) = 0.0_dp
-            IF (para_env%is_source()) CALL diamat_all(R, eigval)
+            IF (para_env%is_source()) CALL diamat_all(chol_factor, eigval)
             CALL para_env%bcast(eigval)
             IF (eigval(1) < 0.0_dp) THEN
                abba_status = abba_indefinite
@@ -1027,12 +1029,12 @@ CONTAINS
             ! shift of shifted Cholesky QR (Fukaya et al. 2020), 11 (N_ov nt + nt (nt+1)) EPSILON |G|_F
             n_pass = 3
             shift = 11.0_dp*(REAL(n_ov, dp)*REAL(nt, dp) + REAL(nt, dp)*REAL(nt + 1, dp))* &
-                    EPSILON(1.0_dp)*NORM2(G)
-            R(:, :) = G(:, :)
+                    EPSILON(1.0_dp)*NORM2(gram)
+            chol_factor(:, :) = gram(:, :)
             DO k = 1, nt
-               R(k, k) = R(k, k) + shift
+               chol_factor(k, k) = chol_factor(k, k) + shift
             END DO
-            IF (para_env%is_source()) CALL DPOTRF('U', nt, R, nt, info)
+            IF (para_env%is_source()) CALL DPOTRF('U', nt, chol_factor, nt, info)
             CALL para_env%bcast(info)
             IF (info /= 0) THEN
                CALL cp_abort(__LOCATION__, &
@@ -1040,16 +1042,16 @@ CONTAINS
             END IF
          END IF
          ! T_ia,k <- sum_l T_ia,l (R^-1)_lk and KT alike, on the local rows
-         CALL para_env%bcast(R)
+         CALL para_env%bcast(chol_factor)
          IF (nrow_local > 0) THEN
-            CALL DTRSM('R', 'U', 'N', 'N', nrow_local, nt, 1.0_dp, R, nt, &
+            CALL DTRSM('R', 'U', 'N', 'N', nrow_local, nt, 1.0_dp, chol_factor, nt, &
                        fm_T%local_data(:, first_col:first_col + nt - 1), SIZE(fm_T%local_data, 1))
-            CALL DTRSM('R', 'U', 'N', 'N', nrow_local, nt, 1.0_dp, R, nt, &
+            CALL DTRSM('R', 'U', 'N', 'N', nrow_local, nt, 1.0_dp, chol_factor, nt, &
                        fm_KT%local_data(:, first_col:first_col + nt - 1), SIZE(fm_KT%local_data, 1))
          END IF
       END DO
 
-      DEALLOCATE (G, R, eigval)
+      DEALLOCATE (gram, chol_factor, eigval)
       CALL timestop(handle)
 
    END SUBROUTINE cholqr2_metric
@@ -1095,51 +1097,52 @@ CONTAINS
       INTEGER                                            :: handle
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: kappa, lambda
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_H, fm_L, fm_Mr, fm_R, fm_S, fm_T, &
-                                                            fm_U, fm_work
+      TYPE(cp_fm_type)                                   :: fm_H, fm_H_eigvec, fm_K_eigvec, &
+                                                            fm_K_sqrt, fm_L, fm_Mr, fm_R, fm_work
 
       CALL timeset(routineN, handle)
       ! n_act pairs are extracted from an m-dimensional basis
       CPASSERT(n_act <= m)
 
       ! Kr_mn = sum_p U_mp κ_p U_np, S_mn = sum_p U_mp √κ_p U_np, H_mp = sum_no S_mn Mr_no S_op, T its eigenvectors:
-      ! κ and U, S, the symmetrised Mr, H, T and a work matrix, all m x m on the grid of blacs_env
+      ! κ, U in fm_K_eigvec, S in fm_K_sqrt, the symmetrised Mr, H, T in fm_H_eigvec and a work matrix,
+      ! all m x m on the grid of blacs_env
       ALLOCATE (kappa(m), lambda(m))
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, para_env=para_env, context=blacs_env, &
                                nrow_global=m, ncol_global=m)
-      CALL cp_fm_create(fm_U, fm_struct, name="bse_paired_U")
-      CALL cp_fm_create(fm_S, fm_struct, name="bse_paired_S")
+      CALL cp_fm_create(fm_K_eigvec, fm_struct, name="bse_paired_U")
+      CALL cp_fm_create(fm_K_sqrt, fm_struct, name="bse_paired_S")
       CALL cp_fm_create(fm_Mr, fm_struct, name="bse_paired_Mr")
       CALL cp_fm_create(fm_H, fm_struct, name="bse_paired_H")
-      CALL cp_fm_create(fm_T, fm_struct, name="bse_paired_T")
+      CALL cp_fm_create(fm_H_eigvec, fm_struct, name="bse_paired_T")
       CALL cp_fm_create(fm_work, fm_struct, name="bse_paired_work")
       CALL cp_fm_struct_release(fm_struct)
 
       ! Kr_mn = sum_p U_mp κ_p U_np on the symmetrised live block, (Kr_mn + Kr_nm)/2
       CALL cp_fm_to_fm_submat(fm_red_K, fm_work, m, m, 1, 1, 1, 1)
-      CALL cp_fm_transpose(fm_work, fm_U)
-      CALL cp_fm_scale_and_add(0.5_dp, fm_work, 0.5_dp, fm_U)
+      CALL cp_fm_transpose(fm_work, fm_K_eigvec)
+      CALL cp_fm_scale_and_add(0.5_dp, fm_work, 0.5_dp, fm_K_eigvec)
       kappa(:) = 0.0_dp
-      CALL choose_eigv_solver(fm_work, fm_U, kappa)
+      CALL choose_eigv_solver(fm_work, fm_K_eigvec, kappa)
       kr_min = kappa(1)
 
       IF (kappa(1) <= 0.0_dp) THEN
          abba_status = abba_indefinite
       ELSE
          ! S_mn = sum_p U_mp √κ_p U_np
-         CALL cp_fm_to_fm(fm_U, fm_work)
+         CALL cp_fm_to_fm(fm_K_eigvec, fm_work)
          CALL cp_fm_column_scale(fm_work, SQRT(kappa))
-         CALL parallel_gemm('N', 'T', m, m, m, 1.0_dp, fm_work, fm_U, 0.0_dp, fm_S)
+         CALL parallel_gemm('N', 'T', m, m, m, 1.0_dp, fm_work, fm_K_eigvec, 0.0_dp, fm_K_sqrt)
 
          ! H_mp = sum_no S_mn Mr_no S_op with Mr_no <- (Mr_no + Mr_on)/2, then T holds its eigenvectors
          CALL cp_fm_to_fm_submat(fm_red_M, fm_Mr, m, m, 1, 1, 1, 1)
-         CALL cp_fm_transpose(fm_Mr, fm_T)
-         CALL cp_fm_scale_and_add(0.5_dp, fm_Mr, 0.5_dp, fm_T)
-         CALL parallel_gemm('N', 'N', m, m, m, 1.0_dp, fm_Mr, fm_S, 0.0_dp, fm_work)
-         CALL parallel_gemm('N', 'N', m, m, m, 1.0_dp, fm_S, fm_work, 0.0_dp, fm_H)
+         CALL cp_fm_transpose(fm_Mr, fm_H_eigvec)
+         CALL cp_fm_scale_and_add(0.5_dp, fm_Mr, 0.5_dp, fm_H_eigvec)
+         CALL parallel_gemm('N', 'N', m, m, m, 1.0_dp, fm_Mr, fm_K_sqrt, 0.0_dp, fm_work)
+         CALL parallel_gemm('N', 'N', m, m, m, 1.0_dp, fm_K_sqrt, fm_work, 0.0_dp, fm_H)
          lambda(:) = 0.0_dp
-         CALL choose_eigv_solver(fm_H, fm_T, lambda)
+         CALL choose_eigv_solver(fm_H, fm_H_eigvec, lambda)
          ! H is congruent to Mr = sum_ia b (M b), so λ_1 <= 0 means (A+B) indefinite on the span of b, or
          ! round-off in a nearly dependent basis, which extension_deviation excludes at every extension
          IF (lambda(1) <= 0.0_dp) THEN
@@ -1157,7 +1160,7 @@ CONTAINS
          CALL cp_fm_create(fm_R, fm_struct, name="bse_paired_R")
          CALL cp_fm_create(fm_L, fm_struct, name="bse_paired_L")
          CALL cp_fm_struct_release(fm_struct)
-         CALL parallel_gemm('N', 'N', m, n_act, m, 1.0_dp, fm_S, fm_T, 0.0_dp, fm_R)
+         CALL parallel_gemm('N', 'N', m, n_act, m, 1.0_dp, fm_K_sqrt, fm_H_eigvec, 0.0_dp, fm_R)
          CALL cp_fm_column_scale(fm_R, 1.0_dp/SQRT(omega(1:n_act)))
          CALL parallel_gemm('N', 'N', m, n_act, m, 1.0_dp, fm_Mr, fm_R, 0.0_dp, fm_L)
          CALL cp_fm_column_scale(fm_L, 1.0_dp/omega(1:n_act))
@@ -1170,11 +1173,11 @@ CONTAINS
          CALL cp_fm_release(fm_L)
       END IF
 
-      CALL cp_fm_release(fm_U)
-      CALL cp_fm_release(fm_S)
+      CALL cp_fm_release(fm_K_eigvec)
+      CALL cp_fm_release(fm_K_sqrt)
       CALL cp_fm_release(fm_Mr)
       CALL cp_fm_release(fm_H)
-      CALL cp_fm_release(fm_T)
+      CALL cp_fm_release(fm_H_eigvec)
       CALL cp_fm_release(fm_work)
       DEALLOCATE (kappa, lambda)
       CALL timestop(handle)
@@ -1727,7 +1730,7 @@ CONTAINS
 !> \brief Memory per MPI rank of the solver's arrays at subspace dimension m, split into the family
 !>        spread over the ranks and the family every rank holds whole. The counts are those of the
 !>        ALLOCATE and cp_fm_create statements of the drivers at a thick restart, their peak:
-!>        distributed 8 B (N_ov (n_arrays m + n_work + n_scratch) + (n_red + n_solve) m^2)/P,
+!>        distributed 8 B (N_ov (n_basis m + n_work + n_scratch) + (n_red + n_solve) m^2)/P,
 !>        replicated 8 B (c_coef m n_act + m block_size + n_mv N_ov nb + n_ri nb + n_virt virt^2)
 !> \param driver driver_tda, driver_mk or driver_os
 !> \param mv_env n_ov, virt and the communicator
@@ -1746,17 +1749,17 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: m, n_act, block_size, nb, n_ri
       REAL(KIND=dp), INTENT(OUT)                         :: dist_GB, repl_GB
 
-      INTEGER                                            :: c_coef, n_arrays, n_mv, n_red, &
-                                                            n_scratch, n_solve, n_virt, n_work
-      REAL(KIND=dp)                                      :: rm, rn
+      INTEGER                                            :: c_coef, n_basis, n_mv, n_red, n_scratch, &
+                                                            n_solve, n_virt, n_work
+      REAL(KIND=dp)                                      :: m_real, n_ov_real
 
-      ! distributed 8 B (N_ov (n_arrays m + n_work + n_scratch) + (n_red + n_solve) m^2)/P: the trial vector
+      ! distributed 8 B (N_ov (n_basis m + n_work + n_scratch) + (n_red + n_solve) m^2)/P: the trial vector
       ! arrays, the work and scratch columns, the reduced and the per-solve m x m matrices;
       ! replicated 8 B (c_coef m n_act + m block_size + n_mv N_ov nb + n_ri nb + n_virt virt^2): the m x n_act
       ! coefficient blocks with the restart work array, the pass buffers of the kernel, virt x virt for B
       SELECT CASE (driver)
       CASE (driver_tda)
-         n_arrays = 2
+         n_basis = 2
          n_work = MIN(2*n_act, m)
          n_scratch = 0
          n_red = 1
@@ -1765,7 +1768,7 @@ CONTAINS
          n_mv = 3
          n_virt = 0
       CASE (driver_mk)
-         n_arrays = 3
+         n_basis = 3
          n_work = MIN(2*n_act, m)
          n_scratch = block_size
          n_red = 1
@@ -1774,7 +1777,7 @@ CONTAINS
          n_mv = 4
          n_virt = 1
       CASE (driver_os)
-         n_arrays = 3
+         n_basis = 3
          n_work = MAX(2*n_act, MIN(4*n_act, m))
          n_scratch = 2*block_size
          n_red = 2
@@ -1788,18 +1791,18 @@ CONTAINS
       END SELECT
 
       ! in REAL: m^2 overflows INTEGER(4) above 46340
-      rm = REAL(m, dp)
-      rn = REAL(mv_env%n_ov, dp)
-      dist_GB = 8.0E-9_dp*(rn*REAL(n_arrays*m + n_work + n_scratch, dp) + REAL(n_red + n_solve, dp)*rm*rm)/ &
+      m_real = REAL(m, dp)
+      n_ov_real = REAL(mv_env%n_ov, dp)
+      dist_GB = 8.0E-9_dp*(n_ov_real*REAL(n_basis*m + n_work + n_scratch, dp) + REAL(n_red + n_solve, dp)*m_real*m_real)/ &
                 REAL(mv_env%para_env%num_pe, dp)
-      repl_GB = 8.0E-9_dp*(REAL(c_coef, dp)*rm*REAL(n_act, dp) + rm*REAL(block_size, dp) + &
-                           REAL(n_mv, dp)*rn*REAL(nb, dp) + REAL(n_ri, dp)*REAL(nb, dp) + &
+      repl_GB = 8.0E-9_dp*(REAL(c_coef, dp)*m_real*REAL(n_act, dp) + m_real*REAL(block_size, dp) + &
+                           REAL(n_mv, dp)*n_ov_real*REAL(nb, dp) + REAL(n_ri, dp)*REAL(nb, dp) + &
                            REAL(n_virt, dp)*REAL(mv_env%virt, dp)**2)
 
    END SUBROUTINE davidson_footprint
 
 ! **************************************************************************************************
-!> \brief Unit vectors Z_ia,k = δ_ia,idx(k) on the entries idx(1..n_used) with the lowest diagonal, never
+!> \brief Unit vectors Z_ia,k = δ_ia,diag_order(k) on the entries diag_order(1..n_used) with the lowest diagonal, never
 !>        cutting a degenerate group. The sorted diagonal is replicated; each rank writes the entries
 !>        that fall on its own rows
 !> \param diag the diagonal chosen by PRECONDITIONER, replicated
@@ -1820,14 +1823,14 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: n_given
 
       INTEGER                                            :: iloc, k, k_first, n_ov, nrow_local
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: diag_order
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_sorted
 
       n_ov = SIZE(diag)
-      ALLOCATE (diag_sorted(n_ov), idx(n_ov))
+      ALLOCATE (diag_sorted(n_ov), diag_order(n_ov))
       diag_sorted(:) = diag(:)
-      CALL sort(diag_sorted, n_ov, idx)
+      CALL sort(diag_sorted, n_ov, diag_order)
 
       n_used = n_guess
       DO WHILE (n_used < n_max)
@@ -1841,11 +1844,11 @@ CONTAINS
       CALL cp_fm_get_info(fm_Z, nrow_local=nrow_local, row_indices=row_indices)
       DO k = k_first, n_used
          DO iloc = 1, nrow_local
-            IF (row_indices(iloc) == idx(k)) fm_Z%local_data(iloc, k) = 1.0_dp
+            IF (row_indices(iloc) == diag_order(k)) fm_Z%local_data(iloc, k) = 1.0_dp
          END DO
       END DO
 
-      DEALLOCATE (diag_sorted, idx)
+      DEALLOCATE (diag_sorted, diag_order)
 
    END SUBROUTINE initial_guess
 
@@ -1895,11 +1898,12 @@ CONTAINS
 
       INTEGER                                            :: handle, iloc, k, k_first, n_ov, n_sub, &
                                                             n_top, nrow_local
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx, pos
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: diag_order, rank_in_block
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       LOGICAL                                            :: ok
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_sorted, eig_K
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_sub, B_sub, K_mhalf, K_phalf, U, V, Y
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_sub, B_sub, guess_x, guess_y, K_mhalf, &
+                                                            K_phalf, U
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -1908,17 +1912,17 @@ CONTAINS
       para_env => mv_env%para_env
       n_ov = SIZE(diag)
       n_sub = MIN(n_ov, MAX(mp2_env%bse%num_guess_transitions, n_guess))
-      ALLOCATE (diag_sorted(n_ov), idx(n_ov), pos(n_ov))
+      ALLOCATE (diag_sorted(n_ov), diag_order(n_ov), rank_in_block(n_ov))
       diag_sorted(:) = diag(:)
-      CALL sort(diag_sorted, n_ov, idx)
+      CALL sort(diag_sorted, n_ov, diag_order)
 
-      ALLOCATE (A_sub(n_sub, n_sub), V(n_sub, n_sub), theta_sub(n_sub))
+      ALLOCATE (A_sub(n_sub, n_sub), guess_x(n_sub, n_sub), theta_sub(n_sub))
       ok = .TRUE.
       IF (PRESENT(abba_status)) THEN
          abba_status = abba_ok
          ALLOCATE (B_sub(n_sub, n_sub), U(n_sub, n_sub), K_phalf(n_sub, n_sub), K_mhalf(n_sub, n_sub), &
                    eig_K(n_sub))
-         CALL bse_matvec_subblock(mv_env, idx(1:n_sub), A_sub, B_sub)
+         CALL bse_matvec_subblock(mv_env, diag_order(1:n_sub), A_sub, B_sub)
          ! (K_sub^±1/2)_pq = sum_r U_pr κ_r^±1/2 U_qr from K_sub,pq = sum_r U_pr κ_r U_qr
          B_sub(:, :) = A_sub(:, :) - B_sub(:, :)
          CALL solve_replicated(B_sub, n_sub, para_env, eig_K, U)
@@ -1943,20 +1947,20 @@ CONTAINS
                CPABORT("BSE Davidson: the guess block gives a non-positive squared excitation energy")
             END IF
             theta_sub(:) = SQRT(theta_sub(:))
-            V(:, :) = MATMUL(K_mhalf, U)
+            guess_x(:, :) = MATMUL(K_mhalf, U)
             IF (PRESENT(n_pair)) THEN
-               ! partners y_k = K_sub x_k/θ_k, B_sub holds K_sub
-               ALLOCATE (Y(n_sub, n_sub))
-               Y(:, :) = MATMUL(B_sub, V)
+               ! partners guess_y_k = K_sub guess_x_k/θ_k, B_sub holds K_sub
+               ALLOCATE (guess_y(n_sub, n_sub))
+               guess_y(:, :) = MATMUL(B_sub, guess_x)
                DO k = 1, n_sub
-                  Y(:, k) = Y(:, k)/theta_sub(k)
+                  guess_y(:, k) = guess_y(:, k)/theta_sub(k)
                END DO
             END IF
          END IF
          DEALLOCATE (B_sub, U, K_phalf, K_mhalf, eig_K)
       ELSE
-         CALL bse_matvec_subblock(mv_env, idx(1:n_sub), A_sub)
-         CALL solve_replicated(A_sub, n_sub, para_env, theta_sub, V)
+         CALL bse_matvec_subblock(mv_env, diag_order(1:n_sub), A_sub)
+         CALL solve_replicated(A_sub, n_sub, para_env, theta_sub, guess_x)
       END IF
 
       IF (ok) THEN
@@ -1972,22 +1976,22 @@ CONTAINS
             n_used = n_used + 1
          END DO
 
-         pos(:) = 0
+         rank_in_block(:) = 0
          DO k = 1, n_sub
-            pos(idx(k)) = k
+            rank_in_block(diag_order(k)) = k
          END DO
          CALL cp_fm_get_info(fm_Z, nrow_local=nrow_local, row_indices=row_indices)
          DO k = k_first, n_used
             DO iloc = 1, nrow_local
-               IF (pos(row_indices(iloc)) > 0) fm_Z%local_data(iloc, k) = V(pos(row_indices(iloc)), k)
+               IF (rank_in_block(row_indices(iloc)) > 0) fm_Z%local_data(iloc, k) = guess_x(rank_in_block(row_indices(iloc)), k)
             END DO
          END DO
          IF (PRESENT(n_pair)) THEN
             n_pair = MIN(n_used - k_first + 1, n_max - n_used)
             DO k = 1, n_pair
                DO iloc = 1, nrow_local
-                  IF (pos(row_indices(iloc)) > 0) THEN
-                     fm_Z%local_data(iloc, n_used + k) = Y(pos(row_indices(iloc)), k_first + k - 1)
+                  IF (rank_in_block(row_indices(iloc)) > 0) THEN
+                     fm_Z%local_data(iloc, n_used + k) = guess_y(rank_in_block(row_indices(iloc)), k_first + k - 1)
                   END IF
                END DO
             END DO
@@ -2002,8 +2006,8 @@ CONTAINS
          END IF
       END IF
 
-      DEALLOCATE (diag_sorted, idx, pos, A_sub, V)
-      IF (ALLOCATED(Y)) DEALLOCATE (Y)
+      DEALLOCATE (diag_sorted, diag_order, rank_in_block, A_sub, guess_x)
+      IF (ALLOCATED(guess_y)) DEALLOCATE (guess_y)
 
       CALL timestop(handle)
 
@@ -2039,7 +2043,7 @@ CONTAINS
    END SUBROUTINE check_guess_bound
 
 ! **************************************************************************************************
-!> \brief sum_q (G_pq + G_qp)/2 c_qk = θ_k c_pk for p, q <= m, G_pq the live block of fm_red, solved
+!> \brief sum_q (red_pq + red_qp)/2 c_qk = θ_k c_pk for p, q <= m, red_pq the live block of fm_red, solved
 !>        on the grid of blacs_env: θ_k in theta ascending, c_pk of the first n_vec k gathered into
 !>        coef_ritz
 !> \param fm_red the reduced matrix; its live block is the first m rows and columns
@@ -2063,46 +2067,46 @@ CONTAINS
 
       INTEGER                                            :: handle, n_get
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
-      TYPE(cp_fm_type)                                   :: fm_a, fm_t
+      TYPE(cp_fm_type)                                   :: fm_reduced_eigvec, fm_reduced_sym
 
       CALL timeset(routineN, handle)
 
-      CALL reduced_live_block(fm_red, m, para_env, blacs_env, "bse_reduced", fm_a)
-      CALL cp_fm_create(fm_t, fm_a%matrix_struct, name="bse_reduced_vectors")
-      ! a_pq <- (G_pq + G_qp)/2: the eigensolver reads one triangle
-      CALL cp_fm_transpose(fm_a, fm_t)
-      CALL cp_fm_scale_and_add(0.5_dp, fm_a, 0.5_dp, fm_t)
+      CALL reduced_live_block(fm_red, m, para_env, blacs_env, "bse_reduced", fm_reduced_sym)
+      CALL cp_fm_create(fm_reduced_eigvec, fm_reduced_sym%matrix_struct, name="bse_reduced_vectors")
+      ! a_pq <- (red_pq + red_qp)/2: the eigensolver reads one triangle
+      CALL cp_fm_transpose(fm_reduced_sym, fm_reduced_eigvec)
+      CALL cp_fm_scale_and_add(0.5_dp, fm_reduced_sym, 0.5_dp, fm_reduced_eigvec)
       ALLOCATE (eigval(m))
       eigval(:) = 0.0_dp
-      CALL choose_eigv_solver(fm_a, fm_t, eigval)
+      CALL choose_eigv_solver(fm_reduced_sym, fm_reduced_eigvec, eigval)
 
       theta(:) = 0.0_dp
       theta(1:m) = eigval(:)
       coef_ritz(:, :) = 0.0_dp
       n_get = MIN(m, n_vec)
-      CALL cp_fm_get_submatrix(fm_t, coef_ritz(1:m, 1:n_get), 1, 1, m, n_get)
+      CALL cp_fm_get_submatrix(fm_reduced_eigvec, coef_ritz(1:m, 1:n_get), 1, 1, m, n_get)
 
       DEALLOCATE (eigval)
-      CALL cp_fm_release(fm_a)
-      CALL cp_fm_release(fm_t)
+      CALL cp_fm_release(fm_reduced_sym)
+      CALL cp_fm_release(fm_reduced_eigvec)
 
       CALL timestop(handle)
 
    END SUBROUTINE solve_reduced
 
 ! **************************************************************************************************
-!> \brief sum_q (G_pq + G_qp)/2 coef_qk = θ_k coef_pk for p, q <= m, a small replicated block solved
+!> \brief sum_q (mat_pq + mat_qp)/2 coef_qk = θ_k coef_pk for p, q <= m, a small replicated block solved
 !>        on one rank and broadcast: the fixed-size blocks of the guess and of cholqr2, never the
 !>        reduced matrix
-!> \param G the block; its first m rows and columns are read
+!> \param mat the block; its first m rows and columns are read
 !> \param m dimension of the block
 !> \param para_env communicator; the solve runs on its source rank
 !> \param theta ascending
 !> \param coef all m eigenvectors in the columns
 ! **************************************************************************************************
-   SUBROUTINE solve_replicated(G, m, para_env, theta, coef)
+   SUBROUTINE solve_replicated(mat, m, para_env, theta, coef)
 
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: G
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: mat
       INTEGER, INTENT(IN)                                :: m
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: theta
@@ -2112,22 +2116,22 @@ CONTAINS
 
       INTEGER                                            :: handle
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_sym
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mat_sym
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (G_sym(m, m), eigval(m))
-      G_sym(:, :) = 0.5_dp*(G(1:m, 1:m) + TRANSPOSE(G(1:m, 1:m)))
+      ALLOCATE (mat_sym(m, m), eigval(m))
+      mat_sym(:, :) = 0.5_dp*(mat(1:m, 1:m) + TRANSPOSE(mat(1:m, 1:m)))
       eigval(:) = 0.0_dp
-      IF (para_env%is_source()) CALL diamat_all(G_sym, eigval)
-      CALL para_env%bcast(G_sym)
+      IF (para_env%is_source()) CALL diamat_all(mat_sym, eigval)
+      CALL para_env%bcast(mat_sym)
       CALL para_env%bcast(eigval)
 
       theta(:) = 0.0_dp
       theta(1:m) = eigval(:)
       coef(:, :) = 0.0_dp
-      coef(1:m, 1:m) = G_sym(:, :)
-      DEALLOCATE (G_sym, eigval)
+      coef(1:m, 1:m) = mat_sym(:, :)
+      DEALLOCATE (mat_sym, eigval)
 
       CALL timestop(handle)
 
@@ -2137,7 +2141,7 @@ CONTAINS
 !> \brief Orthonormal coefficient vectors of the restart basis from the candidate columns in their
 !>        order of priority, at most n_cap of them: per candidate k, u_p = cand_pk -
 !>        sum_j (sum_q coef_restart_qj cand_qk) coef_restart_pj over the vectors j kept so far, twice,
-!>        then coef_restart_p,new = u_p/|u| unless |u| is below norm_drop
+!>        then coef_restart_p,new = u_p/|u| unless |u| is below coef_norm_drop
 !> \param cand candidate coefficient columns, zero-padded to m rows: the current Ritz vectors, then
 !>        the previous ones
 !> \param m rows of the coefficient vectors, the current basis size
@@ -2154,7 +2158,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: n_new
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'restart_basis'
-      REAL(KIND=dp), PARAMETER                           :: norm_drop = 1.0E-8_dp
+      REAL(KIND=dp), PARAMETER                           :: coef_norm_drop = 1.0E-8_dp
 
       INTEGER                                            :: handle, ipass, j, k
       REAL(KIND=dp)                                      :: norm
@@ -2176,10 +2180,11 @@ CONTAINS
                                      DOT_PRODUCT(basis(:, j), basis(:, n_new + 1))*basis(:, j)
             END DO
             norm = NORM2(basis(:, n_new + 1))
-            IF (norm < norm_drop) EXIT
+            IF (norm < coef_norm_drop) EXIT
             basis(:, n_new + 1) = basis(:, n_new + 1)/norm
          END DO
-         IF (norm < norm_drop) CYCLE
+         ! relative: a candidate that keeps less than this of its unit norm repeats the vectors kept
+         IF (norm < coef_norm_drop) CYCLE
          n_new = n_new + 1
       END DO
       coef_restart(:, :) = 0.0_dp
@@ -2292,9 +2297,9 @@ CONTAINS
 !> \param v0 first column of fm_V
 !> \param nv columns of fm_V
 !> \param para_env communicator of the row-distributed matrices
-!> \param G nu x nv, replicated
+!> \param gram nu x nv, replicated
 ! **************************************************************************************************
-   SUBROUTINE subspace_gram(fm_U, u0, nu, fm_V, v0, nv, para_env, G)
+   SUBROUTINE subspace_gram(fm_U, u0, nu, fm_V, v0, nv, para_env, gram)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_U
       INTEGER, INTENT(IN)                                :: u0, nu
@@ -2302,7 +2307,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: v0, nv
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         INTENT(OUT)                                     :: G
+         INTENT(OUT)                                     :: gram
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'subspace_gram'
 
@@ -2311,14 +2316,14 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(fm_U, nrow_local=nrow_local)
-      G(:, :) = 0.0_dp
+      gram(:, :) = 0.0_dp
       IF (nrow_local > 0) THEN
          CALL DGEMM('T', 'N', nu, nv, nrow_local, 1.0_dp, &
                     fm_U%local_data(:, u0:u0 + nu - 1), SIZE(fm_U%local_data, 1), &
                     fm_V%local_data(:, v0:v0 + nv - 1), SIZE(fm_V%local_data, 1), &
-                    0.0_dp, G, SIZE(G, 1))
+                    0.0_dp, gram, SIZE(gram, 1))
       END IF
-      CALL para_env%sum(G)
+      CALL para_env%sum(gram)
 
       CALL timestop(handle)
 
@@ -2349,17 +2354,17 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'reduced_gram_blocks'
 
       INTEGER                                            :: c0, handle, nc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: blk
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gram_block
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (blk(nu, nb))
+      ALLOCATE (gram_block(nu, nb))
       DO c0 = v0, v0 + nv - 1, nb
          nc = MIN(nb, v0 + nv - c0)
-         CALL subspace_gram(fm_U, 1, nu, fm_V, c0, nc, para_env, blk(:, 1:nc))
-         CALL cp_fm_set_submatrix(fm_red, blk(:, 1:nc), 1, c0, nu, nc)
+         CALL subspace_gram(fm_U, 1, nu, fm_V, c0, nc, para_env, gram_block(:, 1:nc))
+         CALL cp_fm_set_submatrix(fm_red, gram_block(:, 1:nc), 1, c0, nu, nc)
       END DO
-      DEALLOCATE (blk)
+      DEALLOCATE (gram_block)
 
       CALL timestop(handle)
 
@@ -2485,19 +2490,19 @@ CONTAINS
       REAL(KIND=dp)                                      :: dev
 
       INTEGER                                            :: c0, l, nc
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: blk
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gram_block
 
-      ALLOCATE (blk(m, nb))
+      ALLOCATE (gram_block(m, nb))
       dev = 0.0_dp
       DO c0 = 1, m, nb
          nc = MIN(nb, m - c0 + 1)
-         CALL subspace_gram(fm_U, 1, m, fm_V, c0, nc, para_env, blk(:, 1:nc))
+         CALL subspace_gram(fm_U, 1, m, fm_V, c0, nc, para_env, gram_block(:, 1:nc))
          DO l = 1, nc
-            blk(c0 + l - 1, l) = blk(c0 + l - 1, l) - 1.0_dp
+            gram_block(c0 + l - 1, l) = gram_block(c0 + l - 1, l) - 1.0_dp
          END DO
-         dev = MAX(dev, MAXVAL(ABS(blk(:, 1:nc))))
+         dev = MAX(dev, MAXVAL(ABS(gram_block(:, 1:nc))))
       END DO
-      DEALLOCATE (blk)
+      DEALLOCATE (gram_block)
 
    END FUNCTION orthonormality_deviation
 
@@ -2556,9 +2561,6 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       REAL(KIND=dp)                                      :: denom
 
-! near-degeneracy guard as in tddfpt_compute_residual_vects: threshold detects a numerically zero
-! d_ia - θ_k, which the shift (1 - eref_scale) θ_k replaces by the denominator at the reference 0.99 θ_k
-
       CALL timeset(routineN, handle)
 
       r_off = 0
@@ -2568,6 +2570,8 @@ CONTAINS
          k = selected(it)
          DO iloc = 1, nrow_local
             denom = diag(row_indices(iloc)) - theta(k)
+            ! near-degeneracy guard as in tddfpt_compute_residual_vects: threshold detects a numerically
+            ! zero d_ia - θ_k, which the shift (1 - eref_scale) θ_k replaces by the denominator at 0.99 θ_k
             IF (ABS(denom) < threshold) denom = denom + (1.0_dp - eref_scale)*theta(k)
             fm_Z%local_data(iloc, first_col + it - 1) = fm_R%local_data(iloc, r_off + k)/denom
          END DO
@@ -2639,7 +2643,7 @@ CONTAINS
       INTEGER, INTENT(INOUT)                             :: nt
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
-      REAL(KIND=dp), PARAMETER                           :: norm_drop = 1.0E-10_dp
+      REAL(KIND=dp), PARAMETER                           :: col_norm_drop = 1.0E-10_dp
 
       INTEGER                                            :: k, n_kept, nrow_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: norms
@@ -2650,7 +2654,8 @@ CONTAINS
       CALL column_norms(fm_T, first_col, nt, para_env, norms)
       n_kept = 0
       DO k = 1, nt
-         IF (norms(k) < norm_drop) CYCLE
+         ! absolute: the corrections r/(d - θ) arrive unnormalised, a column below this is numerically zero
+         IF (norms(k) < col_norm_drop) CYCLE
          n_kept = n_kept + 1
          fm_T%local_data(1:nrow_local, first_col + n_kept - 1) = &
             fm_T%local_data(1:nrow_local, first_col + k - 1)/norms(k)
@@ -2685,29 +2690,29 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: n_dropped
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cholqr2'
-      REAL(KIND=dp), PARAMETER                           :: eig_drop = 1.0E-10_dp
+      REAL(KIND=dp), PARAMETER                           :: eig_drop_rel = 1.0E-10_dp
 
       INTEGER                                            :: handle, info, ipass, k, n_drop_calls, &
                                                             n_keep, nrow_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G, R, T_new, U
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: chol_factor, gram, gram_eigvec, T_reduced
 
       ok = .TRUE.
       IF (PRESENT(n_dropped)) n_dropped = 0
       IF (nt == 0) RETURN
       CALL timeset(routineN, handle)
       CALL cp_fm_get_info(fm_T, nrow_local=nrow_local)
-      ALLOCATE (G(nt, nt), R(nt, nt))
+      ALLOCATE (gram(nt, nt), chol_factor(nt, nt))
 
       n_drop_calls = 0
       ipass = 0
       DO WHILE (ipass < 2)
          ipass = ipass + 1
          ! G_kl = sum_ia T_ia,k T_ia,l = sum_p R_pk R_pl
-         CALL subspace_gram(fm_T, first_col, nt, fm_T, first_col, nt, para_env, G)
-         R(:, :) = G(:, :)
+         CALL subspace_gram(fm_T, first_col, nt, fm_T, first_col, nt, para_env, gram)
+         chol_factor(:, :) = gram(:, :)
          info = 0
-         IF (para_env%is_source()) CALL DPOTRF('U', nt, R, nt, info)
+         IF (para_env%is_source()) CALL DPOTRF('U', nt, chol_factor, nt, info)
          CALL para_env%bcast(info)
          IF (info /= 0) THEN
             n_drop_calls = n_drop_calls + 1
@@ -2715,43 +2720,44 @@ CONTAINS
                ok = .FALSE.
                EXIT
             END IF
-            ! T_ia,k <- sum_l T_ia,l U_lk Λ_k^-1/2 over the eigenpairs of G above the drop tolerance
-            ALLOCATE (eig(nt), U(nt, nt))
-            CALL solve_replicated(G, nt, para_env, eig, U)
-            n_keep = COUNT(eig > eig_drop*eig(nt))
+            ! T_ia,k <- sum_l T_ia,l U_lk Λ_k^-1/2 over the eigenpairs of G above the drop tolerance,
+            ! eig_drop_rel of the largest eigenvalue: directions below it are numerically dependent
+            ALLOCATE (eig(nt), gram_eigvec(nt, nt))
+            CALL solve_replicated(gram, nt, para_env, eig, gram_eigvec)
+            n_keep = COUNT(eig > eig_drop_rel*eig(nt))
             IF (n_keep == 0) THEN
                ok = .FALSE.
-               DEALLOCATE (eig, U)
+               DEALLOCATE (eig, gram_eigvec)
                EXIT
             END IF
             DO k = 1, n_keep
-               U(:, nt - n_keep + k) = U(:, nt - n_keep + k)/SQRT(eig(nt - n_keep + k))
+               gram_eigvec(:, nt - n_keep + k) = gram_eigvec(:, nt - n_keep + k)/SQRT(eig(nt - n_keep + k))
             END DO
             IF (nrow_local > 0) THEN
-               ALLOCATE (T_new(nrow_local, n_keep))
+               ALLOCATE (T_reduced(nrow_local, n_keep))
                CALL DGEMM('N', 'N', nrow_local, n_keep, nt, 1.0_dp, &
                           fm_T%local_data(:, first_col:first_col + nt - 1), SIZE(fm_T%local_data, 1), &
-                          U(:, nt - n_keep + 1:nt), nt, 0.0_dp, T_new, nrow_local)
-               fm_T%local_data(1:nrow_local, first_col:first_col + n_keep - 1) = T_new(:, :)
+                          gram_eigvec(:, nt - n_keep + 1:nt), nt, 0.0_dp, T_reduced, nrow_local)
+               fm_T%local_data(1:nrow_local, first_col:first_col + n_keep - 1) = T_reduced(:, :)
                fm_T%local_data(1:nrow_local, first_col + n_keep:first_col + nt - 1) = 0.0_dp
-               DEALLOCATE (T_new)
+               DEALLOCATE (T_reduced)
             END IF
             IF (PRESENT(n_dropped)) n_dropped = n_dropped + nt - n_keep
             nt = n_keep
-            DEALLOCATE (eig, U, G, R)
-            ALLOCATE (G(nt, nt), R(nt, nt))
+            DEALLOCATE (eig, gram_eigvec, gram, chol_factor)
+            ALLOCATE (gram(nt, nt), chol_factor(nt, nt))
             ipass = 0
             CYCLE
          END IF
          ! T_ia,k <- sum_l T_ia,l (R^-1)_lk on the local rows
-         CALL para_env%bcast(R)
+         CALL para_env%bcast(chol_factor)
          IF (nrow_local > 0) THEN
-            CALL DTRSM('R', 'U', 'N', 'N', nrow_local, nt, 1.0_dp, R, nt, &
+            CALL DTRSM('R', 'U', 'N', 'N', nrow_local, nt, 1.0_dp, chol_factor, nt, &
                        fm_T%local_data(:, first_col:first_col + nt - 1), SIZE(fm_T%local_data, 1))
          END IF
       END DO
 
-      DEALLOCATE (G, R)
+      DEALLOCATE (gram, chol_factor)
       CALL timestop(handle)
 
    END SUBROUTINE cholqr2
@@ -2774,17 +2780,17 @@ CONTAINS
       REAL(KIND=dp)                                      :: dev
 
       INTEGER                                            :: k
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: S
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gram
 
       dev = 0.0_dp
       IF (nt == 0) RETURN
-      ALLOCATE (S(nv + nt, nt))
-      CALL subspace_gram(fm_V, 1, nv + nt, fm_dual, nv + 1, nt, para_env, S)
+      ALLOCATE (gram(nv + nt, nt))
+      CALL subspace_gram(fm_V, 1, nv + nt, fm_dual, nv + 1, nt, para_env, gram)
       DO k = 1, nt
-         S(nv + k, k) = S(nv + k, k) - 1.0_dp
+         gram(nv + k, k) = gram(nv + k, k) - 1.0_dp
       END DO
-      dev = MAXVAL(ABS(S))
-      DEALLOCATE (S)
+      dev = MAXVAL(ABS(gram))
+      DEALLOCATE (gram)
 
    END FUNCTION extension_deviation
 
@@ -2917,34 +2923,35 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: Y_ref, Y_dav
 
-      INTEGER                                            :: info, k1, k2, k2_dav, lwork
+      INTEGER                                            :: info, lwork, mult_first, mult_last, &
+                                                            mult_last_dav
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: sing_vals, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: overlap
       REAL(KIND=dp), DIMENSION(1, 1)                     :: dummy
 
       min_overlap = 1.0_dp
-      k1 = 1
-      DO WHILE (k1 <= n_want)
-         k2 = k1
-         DO WHILE (k2 < n_ref)
-            IF (ref_ens(k2 + 1) - ref_ens(k2) >= deg_thresh) EXIT
-            k2 = k2 + 1
+      mult_first = 1
+      DO WHILE (mult_first <= n_want)
+         mult_last = mult_first
+         DO WHILE (mult_last < n_ref)
+            IF (ref_ens(mult_last + 1) - ref_ens(mult_last) >= deg_thresh) EXIT
+            mult_last = mult_last + 1
          END DO
-         k2_dav = MIN(k2, n_want)
-         ALLOCATE (overlap(k2 - k1 + 1, k2_dav - k1 + 1), sing_vals(k2_dav - k1 + 1))
-         overlap(:, :) = MATMUL(TRANSPOSE(X_ref(:, k1:k2)), X_dav(:, k1:k2_dav))
+         mult_last_dav = MIN(mult_last, n_want)
+         ALLOCATE (overlap(mult_last - mult_first + 1, mult_last_dav - mult_first + 1), sing_vals(mult_last_dav - mult_first + 1))
+         overlap(:, :) = MATMUL(TRANSPOSE(X_ref(:, mult_first:mult_last)), X_dav(:, mult_first:mult_last_dav))
          IF (PRESENT(Y_ref)) THEN
-            overlap(:, :) = overlap(:, :) - MATMUL(TRANSPOSE(Y_ref(:, k1:k2)), Y_dav(:, k1:k2_dav))
+            overlap(:, :) = overlap(:, :) - MATMUL(TRANSPOSE(Y_ref(:, mult_first:mult_last)), Y_dav(:, mult_first:mult_last_dav))
          END IF
          ! DGESVD wants lwork >= MAX(3 n + m, 5 n) for the m x n overlap with n <= m; 5 m + 10 covers both
-         lwork = 5*(k2 - k1 + 1) + 10
+         lwork = 5*(mult_last - mult_first + 1) + 10
          ALLOCATE (work(lwork))
-         CALL DGESVD('N', 'N', k2 - k1 + 1, k2_dav - k1 + 1, overlap, k2 - k1 + 1, sing_vals, &
+ CALL DGESVD('N', 'N', mult_last - mult_first + 1, mult_last_dav - mult_first + 1, overlap, mult_last - mult_first + 1, sing_vals, &
                      dummy, 1, dummy, 1, work, lwork, info)
          IF (info /= 0) CPABORT("SVD failed in the BSE Davidson check")
          min_overlap = MIN(min_overlap, MINVAL(sing_vals))
          DEALLOCATE (overlap, sing_vals, work)
-         k1 = k2 + 1
+         mult_first = mult_last + 1
       END DO
 
    END SUBROUTINE min_multiplet_overlap
