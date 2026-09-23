@@ -673,10 +673,10 @@ CONTAINS
                                      force_block=.TRUE.)
             DO ik = 1, krylov_space%nkrylov
                CALL cp_fm_create(v_mat(ik), matrix_struct=fm_struct_tmp, &
-                                 name="v_mat")
+                                 name="v_mat", set_zero=.TRUE.)
             END DO
             CALL cp_fm_create(hc, matrix_struct=fm_struct_tmp, &
-                              name="hc")
+                              name="hc", set_zero=.TRUE.)
             CALL cp_fm_struct_release(fm_struct_tmp)
             NULLIFY (fm_struct_tmp)
             CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nao, ncol_global=ndim, &
