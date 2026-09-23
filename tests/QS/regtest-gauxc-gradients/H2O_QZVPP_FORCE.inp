@@ -1,3 +1,4 @@
+! Keep oxygen g functions; use a compact grid/cell and SVP hydrogen for CI.
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT_NAME H2O_QZVPP_FORCE
@@ -5,7 +6,8 @@
 &END GLOBAL
 
 &DEBUG
-  CHECK_ATOM_FORCE 2 y
+  ! Displace the oxygen center carrying the g functions, along a nonzero-force direction.
+  CHECK_ATOM_FORCE 1 z
   DEBUG_FORCES T
   DEBUG_STRESS_TENSOR F
   DX 1.0E-4
@@ -19,8 +21,8 @@
     BASIS_SET_FILE_NAME BASIS_MOLOPT_UZH
     POTENTIAL_FILE_NAME POTENTIAL_UZH
     &MGRID
-      CUTOFF 600
-      REL_CUTOFF 60
+      CUTOFF 300
+      REL_CUTOFF 40
     &END MGRID
     &POISSON
       PERIODIC NONE
@@ -44,11 +46,10 @@
     &XC
       &XC_FUNCTIONAL
         &GAUXC
-          GRID FINE
+          GRID GM3
           ! Explicit model file: MODEL PBE equals the default FUNCTIONAL and bypasses OneDFT.
           MODEL pbe.fun
           MODEL_GRADIENT_RUNTIME AUTO
-          MOLECULAR_VIRIAL_DEBUG T
           PRUNING_SCHEME ROBUST
         &END GAUXC
       &END XC_FUNCTIONAL
@@ -56,16 +57,16 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 12.0 12.0 12.0
+      ABC 6.0 6.0 6.0
       PERIODIC NONE
     &END CELL
     &COORD
-      O 6.00000000 6.00000000 6.00000000
-      H 6.00000000 6.75695000 6.58588000
-      H 6.00000000 5.24305000 6.58588000
+      O 3.00000000 3.00000000 3.00000000
+      H 3.00000000 3.75695000 3.58588000
+      H 3.00000000 2.24305000 3.58588000
     &END COORD
     &KIND H
-      BASIS_SET QZVPP-MOLOPT-PBE-ae
+      BASIS_SET SVP-MOLOPT-PBE-ae
       POTENTIAL ALL
     &END KIND
     &KIND O

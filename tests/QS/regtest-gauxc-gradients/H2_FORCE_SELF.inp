@@ -42,6 +42,8 @@
           GRID FINE
           MODEL pbe.fun
           MODEL_GRADIENT_RUNTIME SELF
+          ! Exercise the repeated fixed-density virial diagnostic on this small basis.
+          MOLECULAR_VIRIAL_DEBUG T
           PERIODIC_REFERENCE T
           PRUNING_SCHEME ROBUST
         &END GAUXC
