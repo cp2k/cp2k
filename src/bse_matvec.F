@@ -352,8 +352,11 @@ CONTAINS
       ALLOCATE (R_loc(nrow_local))
 
       ! columns per pass from the memory of the replicated work arrays Z, B_ab Z, R^A (and R^B)
-      n_work_bufs = 3
-      IF (do_B) n_work_bufs = 4
+      IF (do_B) THEN
+         n_work_bufs = 4
+      ELSE
+         n_work_bufs = 3
+      END IF
       IF (mv_env%block_cols > 0) THEN
          ! pinned by input: the replicated work arrays are then a known n_work_bufs*n_ov*nb doubles
          nb_max = MIN(ncol, mv_env%block_cols)
