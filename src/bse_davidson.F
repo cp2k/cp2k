@@ -348,8 +348,8 @@ CONTAINS
       LOGICAL                                            :: all_conv, has_prev, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
       REAL(KIND=dp)                                      :: dev, t_iter
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, omega, omega_prev, omega_sq, &
-                                                            res, theta, theta_sub
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, diag_sq, omega, omega_prev, &
+                                                            omega_sq, res, theta, theta_sub
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coef_restart, coef_restart_cand, &
                                                             coef_ritz, coef_x, coef_x_omega, &
                                                             coef_y, red_block
@@ -428,7 +428,8 @@ CONTAINS
          CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_V, n_guess_cols, n_seed)
       END IF
       ! the corrections divide by d_ia^2 - (Ω^k)^2
-      diag(:) = diag(:)**2
+      ALLOCATE (diag_sq(n_ov))
+      diag_sq(:) = diag(:)**2
 
       ! the guess enters the basis in blocks of the scratch width
       m = 0
@@ -509,7 +510,7 @@ CONTAINS
 
             ! corrections t_ia,k = r_ia,k/(d_ia^2 - (Ω^k)^2) for the lowest unconverged roots
             CALL select_roots(mp2_env, need, res, MIN(block_size, m_max - m), selected, nt)
-            CALL davidson_corrections(fm_work, selected(1:nt), theta, diag, fm_V, m + 1)
+            CALL davidson_corrections(fm_work, selected(1:nt), theta, diag_sq, fm_V, m + 1)
             CALL extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scratch, m, nt, n_kernel, n_dependent, abba_status, &
                                  ab_margin)
             IF (abba_status /= abba_ok) EXIT
@@ -595,7 +596,7 @@ CONTAINS
       CALL cp_fm_release(fm_red_M)
       CALL cp_blacs_env_release(diag_blacs_env)
       DEALLOCATE (coef_ritz, coef_restart_cand, coef_x, coef_y, coef_x_omega, coef_restart, theta, omega, omega_prev, &
-                  res, dE, conv, need, selected, diag)
+                  res, dE, conv, need, selected, diag, diag_sq)
       IF (ALLOCATED(theta_sub)) DEALLOCATE (theta_sub)
 
       CALL timestop(handle)
@@ -994,19 +995,19 @@ CONTAINS
                                                             nrow_local
       REAL(KIND=dp)                                      :: shift
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: chol_factor, gram
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: chol_factor, gram, gram_raw
 
       CALL timeset(routineN, handle)
       CALL cp_fm_get_info(fm_T, nrow_local=nrow_local, nrow_global=n_ov)
-      ALLOCATE (gram(nt, nt), chol_factor(nt, nt), eigval(nt))
+      ALLOCATE (gram_raw(nt, nt), gram(nt, nt), chol_factor(nt, nt), eigval(nt))
 
       n_pass = 2
       ipass = 0
       DO WHILE (ipass < n_pass)
          ipass = ipass + 1
          ! G_kl = (sum_ia T_ia,k (KT)_ia,l + sum_ia T_ia,l (KT)_ia,k)/2 = sum_p R_pk R_pl
-         CALL subspace_gram(fm_T, first_col, nt, fm_KT, first_col, nt, para_env, chol_factor)
-         gram(:, :) = 0.5_dp*(chol_factor(:, :) + TRANSPOSE(chol_factor(:, :)))
+         CALL subspace_gram(fm_T, first_col, nt, fm_KT, first_col, nt, para_env, gram_raw)
+         gram(:, :) = 0.5_dp*(gram_raw(:, :) + TRANSPOSE(gram_raw(:, :)))
          chol_factor(:, :) = gram(:, :)
          info = 0
          IF (para_env%is_source()) CALL DPOTRF('U', nt, chol_factor, nt, info)
@@ -1051,7 +1052,7 @@ CONTAINS
          END IF
       END DO
 
-      DEALLOCATE (gram, chol_factor, eigval)
+      DEALLOCATE (gram_raw, gram, chol_factor, eigval)
       CALL timestop(handle)
 
    END SUBROUTINE cholqr2_metric
@@ -1902,8 +1903,9 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
       LOGICAL                                            :: ok
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_sorted, eig_K
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_sub, B_sub, guess_x, guess_y, K_mhalf, &
-                                                            K_phalf, U
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: A_sub, B_sub, eigvec_H, eigvec_K, &
+                                                            guess_x, guess_y, H_sub, K_mhalf, &
+                                                            K_phalf, K_sub, M_sub
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -1920,12 +1922,13 @@ CONTAINS
       ok = .TRUE.
       IF (PRESENT(abba_status)) THEN
          abba_status = abba_ok
-         ALLOCATE (B_sub(n_sub, n_sub), U(n_sub, n_sub), K_phalf(n_sub, n_sub), K_mhalf(n_sub, n_sub), &
-                   eig_K(n_sub))
+         ALLOCATE (B_sub(n_sub, n_sub), K_sub(n_sub, n_sub), M_sub(n_sub, n_sub), H_sub(n_sub, n_sub), &
+                   eigvec_K(n_sub, n_sub), eigvec_H(n_sub, n_sub), K_phalf(n_sub, n_sub), &
+                   K_mhalf(n_sub, n_sub), eig_K(n_sub))
          CALL bse_matvec_subblock(mv_env, diag_order(1:n_sub), A_sub, B_sub)
          ! (K_sub^±1/2)_pq = sum_r U_pr κ_r^±1/2 U_qr from K_sub,pq = sum_r U_pr κ_r U_qr
-         B_sub(:, :) = A_sub(:, :) - B_sub(:, :)
-         CALL solve_replicated(B_sub, n_sub, para_env, eig_K, U)
+         K_sub(:, :) = A_sub(:, :) - B_sub(:, :)
+         CALL solve_replicated(K_sub, n_sub, para_env, eig_K, eigvec_K)
          ab_margin = eig_K(1)
          IF (eig_K(1) <= 0.0_dp) THEN
             abba_status = abba_indefinite
@@ -1933,31 +1936,31 @@ CONTAINS
             n_used = 0
          ELSE
             DO k = 1, n_sub
-               K_phalf(:, k) = U(:, k)*SQRT(eig_K(k))
-               K_mhalf(:, k) = U(:, k)/SQRT(eig_K(k))
+               K_phalf(:, k) = eigvec_K(:, k)*SQRT(eig_K(k))
+               K_mhalf(:, k) = eigvec_K(:, k)/SQRT(eig_K(k))
             END DO
-            K_phalf(:, :) = MATMUL(K_phalf, TRANSPOSE(U))
-            K_mhalf(:, :) = MATMUL(K_mhalf, TRANSPOSE(U))
+            K_phalf(:, :) = MATMUL(K_phalf, TRANSPOSE(eigvec_K))
+            K_mhalf(:, :) = MATMUL(K_mhalf, TRANSPOSE(eigvec_K))
             ! M_sub = 2 A_sub - K_sub, H_ps = sum_qr (K^1/2)_pq M_qr (K^1/2)_rs, x_pk = sum_q (K^-1/2)_pq t_qk
-            A_sub(:, :) = 2.0_dp*A_sub(:, :) - B_sub(:, :)
-            A_sub(:, :) = MATMUL(K_phalf, MATMUL(A_sub, K_phalf))
-            CALL solve_replicated(A_sub, n_sub, para_env, theta_sub, U)
+            M_sub(:, :) = 2.0_dp*A_sub(:, :) - K_sub(:, :)
+            H_sub(:, :) = MATMUL(K_phalf, MATMUL(M_sub, K_phalf))
+            CALL solve_replicated(H_sub, n_sub, para_env, theta_sub, eigvec_H)
             ! the same failure as in solve_reduced_paired: with K_sub positive definite, M_sub is indefinite
             IF (theta_sub(1) <= 0.0_dp) THEN
                CPABORT("BSE Davidson: the guess block gives a non-positive squared excitation energy")
             END IF
             theta_sub(:) = SQRT(theta_sub(:))
-            guess_x(:, :) = MATMUL(K_mhalf, U)
+            guess_x(:, :) = MATMUL(K_mhalf, eigvec_H)
             IF (PRESENT(n_pair)) THEN
-               ! partners guess_y_k = K_sub guess_x_k/θ_k, B_sub holds K_sub
+               ! partners guess_y_k = K_sub guess_x_k/θ_k
                ALLOCATE (guess_y(n_sub, n_sub))
-               guess_y(:, :) = MATMUL(B_sub, guess_x)
+               guess_y(:, :) = MATMUL(K_sub, guess_x)
                DO k = 1, n_sub
                   guess_y(:, k) = guess_y(:, k)/theta_sub(k)
                END DO
             END IF
          END IF
-         DEALLOCATE (B_sub, U, K_phalf, K_mhalf, eig_K)
+         DEALLOCATE (B_sub, K_sub, M_sub, H_sub, eigvec_K, eigvec_H, K_phalf, K_mhalf, eig_K)
       ELSE
          CALL bse_matvec_subblock(mv_env, diag_order(1:n_sub), A_sub)
          CALL solve_replicated(A_sub, n_sub, para_env, theta_sub, guess_x)
