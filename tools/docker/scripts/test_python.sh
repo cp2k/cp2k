@@ -12,8 +12,9 @@ rm -rf /var/lib/apt/lists/*
 
 python3 -m venv /opt/python-interface-venv
 export PATH="/opt/python-interface-venv/bin:$PATH"
+pip3 install -r /opt/cp2k/python/requirements-aiida.txt
 cd /opt/cp2k
-pip3 install -r python/requirements-aiida.txt './python[test]'
+pip3 install './python[test]'
 pip3 check
 python3 -c 'import aiida, aiida_cp2k, aiida_common_workflows'
 export CP2K_TEST_AIIDA=1
