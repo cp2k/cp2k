@@ -57,7 +57,7 @@
           GRID_SELECT 1
           &GRID_OPTIMIZATION
             MAX_ITER 100
-            RS_AO_RATIO 3
+            RS_AO_RATIO 6
           &END GRID_OPTIMIZATION
         &END RI_RS
       &END GW
