@@ -31,7 +31,8 @@ MODULE bse_davidson
                                               bse_matvec_diagonal,&
                                               bse_matvec_env_type,&
                                               bse_matvec_subblock,&
-                                              bse_matvec_vector_struct
+                                              bse_matvec_vector_struct,&
+                                              mem_fraction
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -1559,7 +1560,7 @@ CONTAINS
 !>        the solver's arrays at m_max checked against the memory budget per rank as MEMORY_CHECK says;
 !>        CLAMP lowers m_max to the largest that fits, never below 3 x n_act (4 x n_act for OLSEN_STRATMANN)
 !> \param mp2_env MAX_SUBSPACE_FACTOR, MEMORY_CHECK and MEMORY_BUDGET_GB
-!> \param mv_env n_ov, the RI share per rank, block_cols and mem_fraction
+!> \param mv_env n_ov, the RI share per rank and block_cols
 !> \param driver driver_tda, driver_mk or driver_os
 !> \param n_act tracked states
 !> \param block_size correction vectors per iteration
@@ -1623,7 +1624,7 @@ CONTAINS
       budget_GB = mp2_env%bse%memory_budget_gb
       IF (from_free) THEN
          CALL mp_mem_avail_per_rank_GB(mv_env%para_env, mem_avail_GB)
-         budget_GB = mv_env%mem_fraction*mem_avail_GB
+         budget_GB = mem_fraction*mem_avail_GB
          skipped = mem_avail_GB <= 0.0_dp
          IF (skipped .AND. mp2_env%bse%memory_check /= bse_memcheck_off .AND. unit_nr > 0) THEN
             CALL cp_warn(__LOCATION__, "BSE Davidson: free memory not detectable, memory check skipped")
@@ -1680,7 +1681,7 @@ CONTAINS
          IF (.NOT. skipped) THEN
             IF (from_free) THEN
                WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Fraction of the free memory made available', &
-                  mv_env%mem_fraction
+                  mem_fraction
             END IF
             WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory budget per MPI rank (GB)', budget_GB
          END IF

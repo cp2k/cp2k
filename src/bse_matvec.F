@@ -41,6 +41,11 @@ MODULE bse_matvec
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_matvec'
 
+   ! share of the free memory per rank the iterative solver may use, for the pass width of
+   ! bse_matvec_apply and the default budget of the subspace ceiling: half, since the probe counts
+   ! reclaimable cache and is optimistic
+   REAL(KIND=dp), PARAMETER, PUBLIC :: mem_fraction = 0.5_dp
+
    PUBLIC :: bse_matvec_env_type, bse_matvec_create, bse_matvec_release, bse_matvec_apply, &
              bse_matvec_diagonal, bse_matvec_subblock, bse_matvec_vector_struct, bse_matvec_selfcheck
 
@@ -58,15 +63,11 @@ MODULE bse_matvec
 !>        the contiguous ia range per rank that allgatherv and sum_scatter need
 !> \param blacs_env npe x 1 process grid of the slabs and of all trial vectors
 !> \param block_cols trial vectors per pass in bse_matvec_apply, -1 to size it from free memory
-!> \param mem_fraction share of the free memory per rank the iterative solver may use, for the
-!>        pass width at block_cols -1 and for the subspace ceiling's default budget
 ! **************************************************************************************************
    TYPE bse_matvec_env_type
       INTEGER                                            :: homo = 0, virt = 0, n_ov = 0, &
                                                             n_ri_loc = 0, block_cols = -1
-      ! mem_fraction: half of the free memory, since the probe counts reclaimable cache and is optimistic
-      REAL(KIND=dp)                                      :: alpha = 0.0_dp, w_fac = 0.0_dp, &
-                                                            mem_fraction = 0.5_dp
+      REAL(KIND=dp)                                      :: alpha = 0.0_dp, w_fac = 0.0_dp
       LOGICAL                                            :: do_abba = .FALSE.
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: row_count, row_displ
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_diff
@@ -371,7 +372,7 @@ CONTAINS
          nb_max = ncol
          IF (mem_avail_GB > 0.0_dp) THEN
             nb_max = INT(MIN(REAL(ncol, dp), &
-                             mv_env%mem_fraction*mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_work_bufs, dp)*REAL(mv_env%n_ov, dp))))
+                             mem_fraction*mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_work_bufs, dp)*REAL(mv_env%n_ov, dp))))
          END IF
       END IF
       nb_max = MAX(nb_max, 1)
