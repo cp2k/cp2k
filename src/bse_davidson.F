@@ -134,6 +134,8 @@ CONTAINS
       CALL cite_reference(Fukaya2014)
 
       para_env => mv_env%para_env
+      ! every local_data use below takes whole rows per rank: the npe x 1 grid of bse_matvec_create
+      CPASSERT(mv_env%blacs_env%num_pe(2) == 1)
       ! the trial vectors live on an npe x 1 grid, which is a bad one to diagonalize on
       NULLIFY (diag_blacs_env)
       CALL cp_blacs_env_create(diag_blacs_env, para_env)
@@ -370,6 +372,8 @@ CONTAINS
       abba_status = abba_ok
       ab_margin = 0.0_dp
       para_env => mv_env%para_env
+      ! every local_data use below takes whole rows per rank: the npe x 1 grid of bse_matvec_create
+      CPASSERT(mv_env%blacs_env%num_pe(2) == 1)
       ! the trial vectors live on an npe x 1 grid, which is a bad one to diagonalize on
       NULLIFY (diag_blacs_env)
       CALL cp_blacs_env_create(diag_blacs_env, para_env)
@@ -669,6 +673,8 @@ CONTAINS
       abba_status = abba_ok
       ab_margin = 0.0_dp
       para_env => mv_env%para_env
+      ! every local_data use below takes whole rows per rank: the npe x 1 grid of bse_matvec_create
+      CPASSERT(mv_env%blacs_env%num_pe(2) == 1)
       ! the trial vectors live on an npe x 1 grid, which is a bad one to diagonalize on
       NULLIFY (diag_blacs_env)
       CALL cp_blacs_env_create(diag_blacs_env, para_env)
