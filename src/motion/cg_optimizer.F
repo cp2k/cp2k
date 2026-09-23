@@ -252,14 +252,14 @@ CONTAINS
             CALL spgr_apply_rotations_coord(spgr, x0)
          END IF
 
+         IF (evaluate_before_io) THEN
+            ! Keep the accepted point and the physical state consistent even on external stop.
+            CALL cg_eval_current(gopt_env, x0, opt_energy, xi, spgr)
+         END IF
+
          ! Check for an external exit command
          CALL external_control(should_stop, "GEO", globenv=globenv)
          IF (should_stop) EXIT
-
-         IF (evaluate_before_io) THEN
-            ! The line search may leave x0 at an interpolated or projected point.
-            CALL cg_eval_current(gopt_env, x0, opt_energy, xi, spgr)
-         END IF
 
          ! Some IO and Convergence check
          t_now = m_walltime()
