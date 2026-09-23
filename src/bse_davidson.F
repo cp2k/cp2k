@@ -684,8 +684,7 @@ CONTAINS
       ALLOCATE (diag(n_ov))
       CALL bse_matvec_diagonal(mv_env, mp2_env%bse%preconditioner, diag)
 
-      ! the current pairs and one block of corrections have to fit below the ceiling
-      CALL subspace_ceiling(mp2_env, mv_env, driver_os, n_act, block_size, unit_nr, m_max, min_factor=4)
+      CALL subspace_ceiling(mp2_env, mv_env, driver_os, n_act, block_size, unit_nr, m_max)
 
       CALL bse_matvec_vector_struct(mv_env, m_max, fm_struct)
       CALL cp_fm_create(fm_b, fm_struct, name="fm_b_davidson", set_zero=.TRUE.)
@@ -1557,23 +1556,21 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Largest subspace dimension m_max: MAX_SUBSPACE_FACTOR x n_act, or 20 x n_act for -1, with
 !>        the solver's arrays at m_max checked against the memory budget per rank as MEMORY_CHECK says;
-!>        CLAMP lowers m_max to the largest that fits, never below min_factor x n_act
+!>        CLAMP lowers m_max to the largest that fits, never below 3 x n_act (4 x n_act for OLSEN_STRATMANN)
 !> \param mp2_env MAX_SUBSPACE_FACTOR, MEMORY_CHECK and MEMORY_BUDGET_GB
 !> \param mv_env n_ov, the RI share per rank, block_cols and mem_fraction
 !> \param driver driver_tda, driver_mk or driver_os
 !> \param n_act tracked states
 !> \param block_size correction vectors per iteration
 !> \param unit_nr output unit, positive on the writing rank only
-!> \param m_max the ceiling, min_factor x n_act <= m_max <= n_ov
-!> \param min_factor smallest subspace in vectors per tracked state, 3 by default
+!> \param m_max the ceiling, 3 or 4 x n_act <= m_max <= n_ov
 ! **************************************************************************************************
-   SUBROUTINE subspace_ceiling(mp2_env, mv_env, driver, n_act, block_size, unit_nr, m_max, min_factor)
+   SUBROUTINE subspace_ceiling(mp2_env, mv_env, driver, n_act, block_size, unit_nr, m_max)
 
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
       INTEGER, INTENT(IN)                                :: driver, n_act, block_size, unit_nr
       INTEGER, INTENT(OUT)                               :: m_max
-      INTEGER, INTENT(IN), OPTIONAL                      :: min_factor
 
       CHARACTER(LEN=16)                                  :: bud_str, fac_str, mem_str
       INTEGER                                            :: m_floor, m_hi, m_lo, m_mid, m_start, &
@@ -1581,8 +1578,14 @@ CONTAINS
       LOGICAL                                            :: from_free, over, skipped
       REAL(KIND=dp)                                      :: budget_GB, dist_GB, mem_avail_GB, repl_GB
 
-      min_fac = 3
-      IF (PRESENT(min_factor)) min_fac = min_factor
+      ! the smallest ceiling that leaves room for the restart and one block: TDA and MK restart onto at
+      ! most 2 n_act vectors and add a block of at most n_act; OS restarts onto right and left pairs
+      ! under the cap m_max - 2 block_size, which has to hold the current 2 n_act
+      IF (driver == driver_os) THEN
+         min_fac = 4
+      ELSE
+         min_fac = 3
+      END IF
       WRITE (fac_str, '(I16)') min_fac
 
       ! the start value: the keyword, or for -1 the generous 20 x n_act that the memory check below trims to what fits
