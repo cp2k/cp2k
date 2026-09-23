@@ -63,8 +63,8 @@
 "UO2-2x2x2-cs-geo_opt-lbfgs.inp"        = [{matcher="M011", tol=3e-14, ref=-118.530158827854791}]
 # Enable fixed atom constraint for core-shell models
 "UO2-4x4x4-fixd.inp"                    = [{matcher="M011", tol=9e-14, ref=-619.588154772236749}]
-"UO2-4x4x4-cs-fixd.inp"                 = [{matcher="M043", tol=3.0E-05, ref=8.410097E-03}]
-"UO2-4x4x4-cs-fixd-restart.inp"         = [{matcher="M044", tol=1.0E-05, ref=1.765517E-02}]
+"UO2-4x4x4-cs-fixd.inp"                 = [{matcher="M043", tol=3.0E-05, ref=2.171441E-03}]
+"UO2-4x4x4-cs-fixd-restart.inp"         = [{matcher="M044", tol=1.0E-05, ref=6.681947E-03}]
 "UO2-4x4x4-cs-fixd-nvt.inp"             = [{matcher="M054", tol=1.0E-05, ref=0.04097184}]
 "UO2-4x4x4-cs-fixd-npt.inp"             = [{matcher="M054", tol=1.0E-05, ref=0.04599766}]
 # Test UO2 force fields with generic input

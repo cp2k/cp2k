@@ -52,7 +52,7 @@
 "mfi_geo.inp"                           = [{matcher="M007", tol=1.0E-14, ref=0.1229559807}]
 "mfi_geo2.inp"                          = [{matcher="M007", tol=1.0E-14, ref=0.0119785072}]
 "mfi_geo2_extxyz.inp"                   = [{matcher="M007", tol=1.0E-14, ref=0.0119785072}]
-"mfi_geo3.inp"                          = [{matcher="M007", tol=1.0E-14, ref=0.0000039863}]
+"mfi_geo3.inp"                          = [{matcher="M007", tol=1.0E-14, ref=0.0000061961}]
 # fixed atoms with only partial components
 "nh3_fixd_x.inp"                        = [{matcher="M002", tol=1.0E-14, ref=-0.551955955308E+00}]
 "nh3_fixd_xy.inp"                       = [{matcher="M002", tol=1.0E-14, ref=-0.558215902527E+00}]
@@ -61,7 +61,7 @@
 #Cell opt
 "argon_opt_cell.inp"                    = [{matcher="M007", tol=2e-04, ref=-0.1916266492}]
 "argon_opt_cell_ks.inp"                 = [{matcher="M007", tol=8e-05, ref=-0.1707331928}]
-"Si_tersoff.inp"                        = [{matcher="M007", tol=1.0E-14, ref=-4.9280645107}]
+"Si_tersoff.inp"                        = [{matcher="M007", tol=1.0E-14, ref=-4.9278639834}]
 #initial orthorombic cells under npt_f dynamics
 "nptf_ortho.inp"                        = [{matcher="M002", tol=4e-09, ref=-1.68009364663}]
 "nptf_ortho_screen.inp"                 = [{matcher="M002", tol=8e-09, ref=-1.68087079556}]

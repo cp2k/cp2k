@@ -655,8 +655,14 @@ CONTAINS
             IF (PRESENT(converged)) converged = .TRUE.
             EXIT
          CASE (5)
-            ! op=5 abnormal exit ()
+            ! Restore the last accepted point; a failed FG request may leave x at a trial point.
             CALL optimizer%para_env%bcast(optimizer%task, optimizer%master)
+            optimizer%x = xold
+            CALL cp_eval_at(optimizer%obj_funct, x=optimizer%x, &
+                            f=optimizer%f, gradient=optimizer%gradient, &
+                            master=optimizer%master, para_env=optimizer%para_env)
+            IF (PRESENT(converged)) converged = .FALSE.
+            EXIT
          CASE (6)
             ! deallocated
             CPABORT("step on a deallocated opt structure ")
@@ -761,7 +767,7 @@ CONTAINS
                             last_f=last_f, projected_gradient=projected_gradient, &
                             converged=converged, geo_section=geo_section, &
                             force_env=force_env, gopt_param=gopt_param, spgr=spgr)
-      res = (optimizer%status < 40) .AND. .NOT. converged
+      res = (optimizer%status < 4) .AND. .NOT. converged
 
    END FUNCTION cp_opt_gopt_next
 

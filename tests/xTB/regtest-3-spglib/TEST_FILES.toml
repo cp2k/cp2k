@@ -9,7 +9,7 @@
                                            {matcher="N_special_kpoints", tol=0.0, ref=4}]
 "urea_gfn1_kp_spglib_boundary.inp"       = [{matcher="E_total", tol=1.0E-10, ref=-30.89448648357339},
                                            {matcher="N_special_kpoints", tol=0.0, ref=6}]
-"urea_gfn1_kp_spglib_cellopt.inp"        = [{matcher="M011", tol=1.0E-8, ref=-30.89506414487332},
+"urea_gfn1_kp_spglib_cellopt.inp"        = [{matcher="M011", tol=1.0E-8, ref=-30.89525350736404},
                                            {matcher="N_special_kpoints", tol=0.0, ref=6}]
 "ice_viii_gfn2_kp_spglib_nonsymmorphic.inp" = [{matcher="E_total", tol=1.0E-10, ref=-40.71301330821884},
                                                  {matcher="N_special_kpoints", tol=0.0, ref=6}]
