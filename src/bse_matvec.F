@@ -111,7 +111,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_matvec_create'
 
       CHARACTER(LEN=12)                                  :: n_idle_str, n_ri_str, npe_str
-      INTEGER                                            :: a, handle, i, n_ri, n_row_block
+      INTEGER                                            :: a, handle, i, n_ri, n_ri_slab, &
+                                                            n_row_block
       REAL(KIND=dp)                                      :: mem_slabs_GB, n_slab_entries
 
       CALL timeset(routineN, handle)
@@ -145,13 +146,18 @@ CONTAINS
          END DO
       END DO
 
-      CALL slice_slab(mv_env, fm_S_ia, virt, homo, mv_env%B_ia)
+      ! every slab is sliced on the same grid, so every rank owns the same RI indices of each slab
+      CALL slice_slab(mv_env, fm_S_ia, virt, homo, mv_env%B_ia, mv_env%n_ri_loc)
       IF (w_fac /= 0.0_dp) THEN
-         CALL slice_slab(mv_env, fm_S_bar_ij, homo, homo, mv_env%B_bar_ij)
-         CALL slice_slab(mv_env, fm_S_ab, virt, virt, mv_env%B_ab)
-         IF (do_abba) CALL slice_slab(mv_env, fm_S_bar_ia, virt, homo, mv_env%B_bar_ia)
+         CALL slice_slab(mv_env, fm_S_bar_ij, homo, homo, mv_env%B_bar_ij, n_ri_slab)
+         CPASSERT(n_ri_slab == mv_env%n_ri_loc)
+         CALL slice_slab(mv_env, fm_S_ab, virt, virt, mv_env%B_ab, n_ri_slab)
+         CPASSERT(n_ri_slab == mv_env%n_ri_loc)
+         IF (do_abba) THEN
+            CALL slice_slab(mv_env, fm_S_bar_ia, virt, homo, mv_env%B_bar_ia, n_ri_slab)
+            CPASSERT(n_ri_slab == mv_env%n_ri_loc)
+         END IF
       END IF
-      mv_env%n_ri_loc = SIZE(mv_env%B_ia, 3)
 
       CALL cp_fm_get_info(fm_S_ia, nrow_global=n_ri)
       IF (mv_env%para_env%num_pe > n_ri .AND. unit_nr > 0) THEN
@@ -206,18 +212,20 @@ CONTAINS
 !> \param n_fast fast index of the pair index of the slab
 !> \param n_slow slow index of the pair index of the slab
 !> \param slab_loc the owned slices, allocated here
+!> \param n_ri_loc RI indices owned by this rank, the third extent of slab_loc
 ! **************************************************************************************************
-   SUBROUTINE slice_slab(mv_env, fm_slab, n_fast, n_slow, slab_loc)
+   SUBROUTINE slice_slab(mv_env, fm_slab, n_fast, n_slow, slab_loc, n_ri_loc)
 
       TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_slab
       INTEGER, INTENT(IN)                                :: n_fast, n_slow
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: slab_loc
+      INTEGER, INTENT(OUT)                               :: n_ri_loc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'slice_slab'
 
-      INTEGER                                            :: handle, n_ri, n_ri_loc, npair, p
+      INTEGER                                            :: handle, n_ri, npair, p
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_sliced
 
