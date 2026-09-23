@@ -7,7 +7,9 @@
 
 ! **************************************************************************************************
 !> \brief Iterative solution of the Bethe-Salpeter equation: the block Davidson solvers on top of
-!>        the matrix-free application of A and B, and the post-processing of their eigenvectors
+!>        the matrix-free application of A and B, and the post-processing of their eigenvectors.
+!>        The solvers live in bse_davidson, apart from this driver, so that a later Lanczos-Haydock
+!>        solver for the spectrum can share the matrix-free A and B of bse_matvec and this driver
 !> \par History
 !>      09.2026 created [Maximilian Graml]
 ! **************************************************************************************************
@@ -62,24 +64,31 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Lowest excitations of a closed-shell reference from the block Davidson solvers on top of
-!>        the matrix-free application of A and B, post-processed as in the full diagonalization;
-!>        the five slabs are released once the solver holds its RI-sliced copies
-!> \param fm_mat_S_ia_trunc_arr ...
-!> \param fm_mat_S_ij_trunc_arr ...
-!> \param fm_mat_S_ab_trunc_arr ...
-!> \param fm_mat_S_bar_ia_bse_arr ...
-!> \param fm_mat_S_bar_ij_bse_arr ...
-!> \param Eigenval_reduced ...
-!> \param homo_red_arr ...
-!> \param virt_red_arr ...
-!> \param homo ...
-!> \param dimen_RI ...
-!> \param do_tda ...
-!> \param do_abba ...
-!> \param mp2_env ...
-!> \param qs_env ...
-!> \param mo_coeff ...
-!> \param unit_nr ...
+!>        the matrix-free application of A and B, post-processed as in the full diagonalization.
+!>        TDA (bse_davidson_tda): sum_jb A_ia,jb X_jb^n = Ω^n X_ia^n. Full problem, by ABBA_SOLVER:
+!>        MK_DAVIDSON, sum_jb [(A+B)(A-B)]_ia,jb x_jb^n = (Ω^n)^2 x_ia^n with x^n = X^n - Y^n;
+!>        OLSEN_STRATMANN, sum_jb (A+B)_ia,jb y_jb^n = Ω^n x_ia^n and sum_jb (A-B)_ia,jb x_jb^n = Ω^n y_ia^n
+!>        with y^n = X^n + Y^n. Neither A nor B is formed: bse_matvec_apply contracts the RI slabs,
+!>        (A Z)_ia = (ε_a-ε_i) Z_ia + α sum_P B^P_ia sum_jb B^P_jb Z_jb - w sum_Pjb \bar{B}^P_ij B^P_ab Z_jb
+!>        (B Z)_ia =                  α sum_P B^P_ia sum_jb B^P_jb Z_jb - w sum_Pjb \bar{B}^P_ib B^P_ja Z_jb
+!>        with α, w and \bar{B} set by create_matvec_env from SPIN_CONFIG and SCREENING_IN_W.
+!>        The five slabs are released once the solver holds its RI-sliced copies
+!> \param fm_mat_S_ia_trunc_arr B^P_ia of the active window, N_RI x homo_red*virt_red; entry 1 is used
+!> \param fm_mat_S_ij_trunc_arr B^P_ij, N_RI x homo_red^2
+!> \param fm_mat_S_ab_trunc_arr B^P_ab, N_RI x virt_red^2
+!> \param fm_mat_S_bar_ia_bse_arr \bar{B}^P_ia = sum_Q [1+Q(0)]^-1_PQ B^Q_ia, the W-screened slab of W_ib,aj
+!> \param fm_mat_S_bar_ij_bse_arr \bar{B}^P_ij, the W-screened slab of W_ij,ab
+!> \param Eigenval_reduced quasiparticle energies of the homo_red + virt_red active levels in Hartree
+!> \param homo_red_arr occupied levels in the active window, per spin; entry 1 is used
+!> \param virt_red_arr virtual levels in the active window, per spin; entry 1 is used
+!> \param homo occupied levels of the full reference, per spin; postprocess_bse indexes the MOs with it
+!> \param dimen_RI number of RI functions; only the debug construction of the explicit A and B uses it
+!> \param do_tda solve the TDA problem
+!> \param do_abba solve the full problem; after the TDA in a TDA+ABBA run, seeded with X^TDA
+!> \param mp2_env mp2_env%bse carries the BSE_ITERAT settings and BSE_DEBUG_PRINT
+!> \param qs_env for the TDDFPT control flags and postprocess_bse
+!> \param mo_coeff MO coefficients of the reference, handed to postprocess_bse
+!> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
    SUBROUTINE solve_bse_iteratively(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, &
                                     fm_mat_S_ab_trunc_arr, fm_mat_S_bar_ia_bse_arr, &
@@ -122,6 +131,8 @@ CONTAINS
       CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (dft_control%tddfpt2_control%do_bse .OR. dft_control%tddfpt2_control%do_bse_w_only .OR. &
           dft_control%tddfpt2_control%do_bse_gw_only) THEN
+         ! the TDDFPT path reads the explicit A and W matrices that create_A_and_B (FULLDIAG) stashes in the
+         ! excited-state environment; ITERDIAG never forms them
          CALL cp_abort(__LOCATION__, &
                        "BSE_DIAG_METHOD ITERDIAG cannot provide the BSE kernel of TDDFPT "// &
                        "(DO_BSE, DO_BSE_W_ONLY, DO_BSE_GW_ONLY). Use BSE_DIAG_METHOD FULLDIAG.")
@@ -245,9 +256,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Copies eigenvectors from the process grid of the solver to the one of the RI slabs, from
 !>        which postprocess_bse takes its grid
-!> \param fm_vec ...
+!> \param fm_vec eigenvectors on the npe x 1 process grid of the solver
 !> \param blacs_env_ia process grid of the RI slabs
-!> \param fm_vec_ia ...
+!> \param fm_vec_ia the copy on blacs_env_ia, created here
 ! **************************************************************************************************
    SUBROUTINE copy_to_ia_context(fm_vec, blacs_env_ia, fm_vec_ia)
 
@@ -270,19 +281,21 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Sets up the matrix-free application of A and B with the prefactors and the screened
-!>        slabs that create_A and create_B use for the chosen SPIN_CONFIG and SCREENING_IN_W
-!> \param mv_env ...
-!> \param fm_S_ia ...
-!> \param fm_S_ij ...
-!> \param fm_S_ab ...
-!> \param fm_S_bar_ia ...
-!> \param fm_S_bar_ij ...
-!> \param Eigenval_reduced ...
-!> \param homo_red ...
-!> \param virt_red ...
-!> \param do_abba ...
-!> \param mp2_env ...
-!> \param unit_nr ...
+!>        slabs that create_A and create_B use for the chosen SPIN_CONFIG and SCREENING_IN_W:
+!>        α = 2 (SINGLET) or 0 (TRIPLET); w = 1 with the W-screened \bar{B} (default screening),
+!>        w = SCREENING_FACTOR with \bar{B} = B (ALPHA), w = 1 with \bar{B} = B (TDHF), w = 0 (RPA)
+!> \param mv_env the environment created here
+!> \param fm_S_ia B^P_ia, N_RI x homo_red*virt_red
+!> \param fm_S_ij B^P_ij, N_RI x homo_red^2
+!> \param fm_S_ab B^P_ab, N_RI x virt_red^2
+!> \param fm_S_bar_ia W-screened \bar{B}^P_ia
+!> \param fm_S_bar_ij W-screened \bar{B}^P_ij
+!> \param Eigenval_reduced quasiparticle energies of the homo_red + virt_red active levels in Hartree
+!> \param homo_red occupied levels in the active window
+!> \param virt_red virtual levels in the active window
+!> \param do_abba B is applied too, so the \bar{B}^P_ia slab is sliced as well
+!> \param mp2_env SPIN_CONFIG, SCREENING_IN_W, SCREENING_FACTOR and MATVEC_BLOCK_COLUMNS
+!> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
    SUBROUTINE create_matvec_env(mv_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_S_bar_ia, fm_S_bar_ij, &
                                 Eigenval_reduced, homo_red, virt_red, do_abba, mp2_env, unit_nr)
