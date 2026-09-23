@@ -545,8 +545,11 @@ CONTAINS
       ! exchange, identical in A and B: α sum_P B_Pk B_Pl with B_Pk = B^P_ia at ia = ia_list(k)
       A_sub(:, :) = 0.0_dp
       IF (mv_env%alpha /= 0.0_dp .AND. mv_env%n_ri_loc > 0) THEN
-         DO k = 1, n_sub
-            B_Pk(:, k) = mv_env%B_ia(a_virt(k), i_occ(k), :)
+         ! P outermost: the gathered entries of one slice lie within one contiguous (a, i) block
+         DO p = 1, mv_env%n_ri_loc
+            DO k = 1, n_sub
+               B_Pk(p, k) = mv_env%B_ia(a_virt(k), i_occ(k), p)
+            END DO
          END DO
          CALL DGEMM('T', 'N', n_sub, n_sub, mv_env%n_ri_loc, mv_env%alpha, B_Pk, SIZE(B_Pk, 1), B_Pk, SIZE(B_Pk, 1), &
                     0.0_dp, A_sub, n_sub)
