@@ -61,6 +61,7 @@ MODULE bse_matvec
    TYPE bse_matvec_env_type
       INTEGER                                            :: homo = 0, virt = 0, n_ov = 0, &
                                                             n_ri_loc = 0, block_cols = -1
+      ! mem_fraction: half of the free memory, since the probe counts reclaimable cache and is optimistic
       REAL(KIND=dp)                                      :: alpha = 0.0_dp, w_fac = 0.0_dp, &
                                                             mem_fraction = 0.5_dp
       LOGICAL                                            :: do_abba = .FALSE.
@@ -75,20 +76,21 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Moves the RI slabs onto an npe x 1 process grid, such that every rank owns whole RI
-!>        slices, and stores them as local 3-index arrays
-!> \param mv_env ...
+!>        slices, and stores them as local 3-index arrays: the contraction over each P in
+!>        bse_matvec_apply is then a local DGEMM and only the final sum over P crosses the ranks
+!> \param mv_env the environment created here
 !> \param fm_S_ia B^P_ia, N_RI x homo*virt
 !> \param fm_Sw_ij slab that enters W_ij,ab as \bar{B}^P_ij, N_RI x homo*homo
 !> \param fm_S_ab B^P_ab, N_RI x virt*virt
 !> \param fm_Sw_ia slab that enters W_ib,aj as \bar{B}^P_ia, N_RI x homo*virt
 !> \param eps_reduced quasiparticle energies of the homo+virt active levels
-!> \param homo ...
-!> \param virt ...
-!> \param alpha ...
-!> \param w_fac ...
-!> \param do_abba ...
-!> \param unit_nr ...
-!> \param block_cols ...
+!> \param homo occupied levels of the active window
+!> \param virt virtual levels of the active window
+!> \param alpha prefactor of the exchange term, 2 singlet, 0 triplet
+!> \param w_fac prefactor of the screened term, 0 switches it off
+!> \param do_abba slice \bar{B}^P_ia as well, for the application of B
+!> \param unit_nr output unit, positive on the writing rank only
+!> \param block_cols trial vectors per pass of bse_matvec_apply; absent or -1 sizes it from the free memory
 ! **************************************************************************************************
    SUBROUTINE bse_matvec_create(mv_env, fm_S_ia, fm_Sw_ij, fm_S_ab, fm_Sw_ia, eps_reduced, &
                                 homo, virt, alpha, w_fac, do_abba, unit_nr, block_cols)
@@ -131,6 +133,7 @@ CONTAINS
          mv_env%row_count(i) = MIN(mv_env%n_ov, i*n_row_block) - mv_env%row_displ(i)
       END DO
 
+      ! eps_diff_ia = ε_a - ε_i at the compound index ia = (i-1)*virt + a, the row index of every trial vector
       ALLOCATE (mv_env%eps_diff(mv_env%n_ov))
       DO i = 1, homo
          DO a = 1, virt
@@ -176,9 +179,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Rows of a trial vector per rank, the smallest block that leaves no rank beyond the last
-!> \param n_ov ...
-!> \param npe ...
-!> \return ...
+!> \param n_ov number of transitions, the global row count
+!> \param npe ranks of the npe x 1 grid
+!> \return rows of every full block; the last rank takes what remains, possibly none
 ! **************************************************************************************************
    PURE FUNCTION contiguous_row_block(n_ov, npe) RESULT(n_row_block)
 
@@ -191,12 +194,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Redistributes one N_RI x d1*d2 slab to whole RI rows per rank and copies the owned
-!>        rows into a contiguous (d1, d2, n_ri_loc) array
-!> \param mv_env ...
-!> \param fm_slab ...
+!>        rows into a contiguous (d1, d2, n_ri_loc) array, slab_loc(x, y, p) = slab(P_p, (y-1)*d1 + x)
+!>        for the p-th owned RI index P_p, so that every slice slab_loc(:, :, p) is a d1 x d2 DGEMM operand
+!> \param mv_env process grid and communicator of the slices
+!> \param fm_slab the slab on the grid of the caller, N_RI x d1*d2
 !> \param d1 fast index of the pair index of the slab
 !> \param d2 slow index of the pair index of the slab
-!> \param slab_loc ...
+!> \param slab_loc the owned slices, allocated here
 ! **************************************************************************************************
    SUBROUTINE slice_slab(mv_env, fm_slab, d1, d2, slab_loc)
 
@@ -218,6 +222,8 @@ CONTAINS
       CALL cp_fm_get_info(fm_slab, nrow_global=n_ri, ncol_global=npair)
       CPASSERT(npair == d1*d2)
 
+      ! one-row blocks on the npe x 1 grid spread the RI rows cyclically over the ranks; the copy
+      ! below turns each strided local_data row into a contiguous (d1, d2) slice
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, para_env=mv_env%para_env, context=mv_env%blacs_env, &
                                nrow_global=n_ri, ncol_global=npair, nrow_block=1, &
@@ -239,8 +245,8 @@ CONTAINS
    END SUBROUTINE slice_slab
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param mv_env ...
+!> \brief Frees the sliced slabs, the transition energies and the process grid of mv_env
+!> \param mv_env the environment released
 ! **************************************************************************************************
    SUBROUTINE bse_matvec_release(mv_env)
 
@@ -260,9 +266,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Matrix structure of a block of trial vectors: rows ia distributed, all columns local
-!> \param mv_env ...
-!> \param ncol_global ...
-!> \param fm_struct ...
+!> \param mv_env process grid and communicator of the trial vectors
+!> \param ncol_global number of trial vectors
+!> \param fm_struct created here, released by the caller
 ! **************************************************************************************************
    SUBROUTINE bse_matvec_vector_struct(mv_env, ncol_global, fm_struct)
 
@@ -287,13 +293,13 @@ CONTAINS
 !>        \bar{B}: slab bound by the caller of bse_matvec_create (B itself for TDHF and ALPHA
 !>        screening, sum_Q [1+Q(0)]^-1_PQ B^Q otherwise); the sums over P run over the local RI
 !>        slices and are completed by a sum over the ranks
-!> \param mv_env ...
+!> \param mv_env slabs, prefactors and transition energies
 !> \param fm_Z trial vectors, columns first_col .. first_col+ncol-1 are read
-!> \param first_col ...
-!> \param ncol ...
+!> \param first_col first trial vector read, and first column written
+!> \param ncol number of trial vectors
 !> \param fm_AZ receives A Z in the same columns
 !> \param fm_BZ receives B Z in the same columns, or from first_col_BZ on
-!> \param first_col_BZ ...
+!> \param first_col_BZ first column of fm_BZ written, first_col by default
 ! **************************************************************************************************
    SUBROUTINE bse_matvec_apply(mv_env, fm_Z, first_col, ncol, fm_AZ, fm_BZ, first_col_BZ)
 
@@ -329,6 +335,7 @@ CONTAINS
       n_ri_loc = mv_env%n_ri_loc
       do_B = PRESENT(fm_BZ)
       IF (do_B) THEN
+         ! B Z needs the \bar{B}^P_ia slab, which is sliced for do_abba only
          CPASSERT(mv_env%do_abba)
       END IF
       col_shift_B = 0
@@ -452,7 +459,7 @@ CONTAINS
 !> \brief Diagonal used by the Davidson correction, either ε_a-ε_i or the full diagonal
 !>        A_ia,ia = ε_a-ε_i + α sum_P (B^P_ia)^2 - w sum_P \bar{B}^P_ii B^P_aa
 !>        with α, w and \bar{B} as in bse_matvec_apply
-!> \param mv_env ...
+!> \param mv_env slabs, prefactors and transition energies
 !> \param precond_kind bse_precond_full_diag or bse_precond_qp_diff
 !> \param diag replicated, size N_ov
 ! **************************************************************************************************
@@ -494,7 +501,7 @@ CONTAINS
 !>        A_kl = δ_kl (ε_a-ε_i) + α sum_P B^P_ia B^P_jb - w sum_P \bar{B}^P_ij B^P_ab
 !>        B_kl =                  α sum_P B^P_ia B^P_jb - w sum_P \bar{B}^P_ib B^P_ja
 !>        with k = (i,a), l = (j,b) and α, w, \bar{B} as in bse_matvec_apply
-!> \param mv_env ...
+!> \param mv_env slabs, prefactors and transition energies
 !> \param idx global transition indices ia = (i-1)*virt + a of the block
 !> \param A_sub SIZE(idx) x SIZE(idx)
 !> \param B_sub same, only formed when present
@@ -563,12 +570,13 @@ CONTAINS
    END SUBROUTINE bse_matvec_subblock
 
 ! **************************************************************************************************
-!> \brief Debug check of the matrix-free application against the explicit matrices A (and B):
-!>        up to eight unit vectors, one dense vector and the diagonal
-!> \param mv_env ...
-!> \param fm_A_explicit ...
-!> \param unit_nr ...
-!> \param fm_B_explicit ...
+!> \brief Debug check of the matrix-free application against the explicit matrices A (and B),
+!>        dev = max_ia,k |(A Z)_ia,k - sum_jb A_ia,jb Z_jb,k| over up to eight unit vectors Z_ia,k = δ_ia,k
+!>        and one dense vector Z_ia = sin(ia), the same for B, and max_ia |d_ia - A_ia,ia| for the diagonal
+!> \param mv_env the environment under test
+!> \param fm_A_explicit A from create_A_and_B, N_ov x N_ov on the grid of the caller
+!> \param unit_nr output unit, positive on the writing rank only
+!> \param fm_B_explicit B, present for an ABBA run
 ! **************************************************************************************************
    SUBROUTINE bse_matvec_selfcheck(mv_env, fm_A_explicit, unit_nr, fm_B_explicit)
 
@@ -591,10 +599,12 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       n_ov = mv_env%n_ov
+      ! eight unit vectors read eight columns of the explicit matrix exactly; the dense column covers the whole contraction
       n_unit = MIN(n_ov, 8)
       dev_B = 0.0_dp
       ncol = n_unit + 1
 
+      ! trial vectors: e_k for k <= n_unit, then one dense column Z_ia = sin(ia)
       ALLOCATE (Z(n_ov, ncol))
       Z(:, :) = 0.0_dp
       DO k = 1, n_unit
