@@ -339,8 +339,7 @@ CONTAINS
 
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega_kp
-      TYPE(cp_cfm_type)                                  :: cfm_mat_L
-      TYPE(cp_cfm_type)                                  :: cfm_mat_RI_global_work
+      TYPE(cp_cfm_type)                                  :: cfm_mat_L, cfm_mat_RI_global_work
       INTEGER, INTENT(IN)                                :: ikp, nkp, ikp_local
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: make_chi_pos_definite

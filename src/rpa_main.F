@@ -1165,10 +1165,10 @@ CONTAINS
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q, cfm_mat_RI_global_work
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_mat_L_kpoints, &
                                                             cfm_mat_Minv_L_kpoints, cfm_mo_coeff
-      TYPE(cp_fm_type)                                   :: fm_mat_Q_static_bse_gemm, fm_mat_work
+      TYPE(cp_fm_type)                                   :: fm_mat_Minv_L_gamma, &
+                                                            fm_mat_Q_static_bse_gemm, fm_mat_work
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_S_ia_bse, &
                                                             fm_mat_W
-      TYPE(cp_fm_type)                                   :: fm_mat_Minv_L_gamma
       TYPE(dbcsr_p_type)                                 :: mat_dm, mat_L, mat_M_P_munu_occ, &
                                                             mat_M_P_munu_virt, mat_MinvVMinv
       TYPE(dbcsr_p_type), ALLOCATABLE, &

@@ -177,7 +177,7 @@ CONTAINS
          INTENT(OUT)                                     :: wkp_W
       TYPE(cp_cfm_type), INTENT(OUT)                     :: cfm_mat_Q
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_mat_Minv_L_kpoints, cfm_mat_L_kpoints
-      TYPE(cp_fm_type), INTENT(OUT)                     :: fm_mat_Minv_L_gamma
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_Minv_L_gamma
       TYPE(cp_cfm_type), INTENT(OUT)                     :: cfm_mat_RI_global_work
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_work
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_dm, mat_L, mat_M_P_munu_occ, &
@@ -468,7 +468,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE reorder_mat_L(fm_mat_L, fm_matrix_Minv_L_gamma, fm_struct_template, mat_L, mat_template, &
                             dimen_RI, dimen_RI_red)
-      TYPE(cp_fm_type), INTENT(OUT)                     :: fm_mat_L
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_L
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv_L_gamma
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_template
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_L
@@ -1060,7 +1060,7 @@ CONTAINS
          INTENT(INOUT)                                   :: wkp_W
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat_Q
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_mat_Minv_L_kpoints, cfm_mat_L_kpoints
-      TYPE(cp_fm_type), INTENT(INOUT)                   :: fm_mat_Minv_L_gamma
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Minv_L_gamma
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv, &
                                                             fm_matrix_Minv_Vtrunc_Minv
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat_RI_global_work

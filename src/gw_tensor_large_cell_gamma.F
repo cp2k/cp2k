@@ -78,7 +78,8 @@ MODULE gw_tensor_large_cell_Gamma
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_file_delete
-   USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat, RI_2c_integral_mat_kp
+   USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat,&
+                                              RI_2c_integral_mat_kp
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type

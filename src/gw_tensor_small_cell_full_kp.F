@@ -38,8 +38,8 @@ MODULE gw_tensor_small_cell_full_kp
                                               local_array_to_fm,&
                                               local_dbt_to_global_fm
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
-                                              local_complex_power,&
-                                              local_Wc_from_chi
+                                              local_Wc_from_chi,&
+                                              local_complex_power
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp_small_cell

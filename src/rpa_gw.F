@@ -908,7 +908,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_work
       INTEGER, INTENT(IN)                                :: dimen_RI
-      TYPE(cp_fm_type), INTENT(IN)                      :: fm_mat_L
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L
       TYPE(time_frequency_grid_type), INTENT(IN)         :: grid
       INTEGER, INTENT(IN)                                :: jquad
       REAL(KIND=dp), INTENT(INOUT)                       :: omega
