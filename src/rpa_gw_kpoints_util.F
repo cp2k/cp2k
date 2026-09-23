@@ -16,10 +16,8 @@ MODULE rpa_gw_kpoints_util
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
-                                              cp_cfm_scale_and_add_fm,&
-                                              cp_cfm_uplo_to_full
-   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
-                                              cp_cfm_cholesky_invert
+                                              cp_cfm_scale_and_add_fm
+   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_geeig_canon,&
                                               cp_cfm_heevd
@@ -27,7 +25,6 @@ MODULE rpa_gw_kpoints_util
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
-                                              cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -47,6 +44,8 @@ MODULE rpa_gw_kpoints_util
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
+   USE gw_utils_fm,                     ONLY: cfm_Wc_from_cholesky_eps,&
+                                              cfm_contract_ABA
    USE hfx_types,                       ONLY: hfx_release
    USE input_constants,                 ONLY: cholesky_off,&
                                               kp_weights_W_auto,&
@@ -137,7 +136,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp_W
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_ri_Sigma_x, &
                                                             do_kpoints_from_Gamma
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat_Q
       INTEGER, INTENT(IN)                                :: ikp_local
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega, mat_P_omega_kp
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -189,7 +188,7 @@ CONTAINS
                                fm_mat_Minv_L_kpoints(ikp, 1), &
                                fm_mat_Minv_L_kpoints(ikp, 2), &
                                fm_mat_RI_global_work, &
-                               dimen_RI, ikp, nkp, ikp_local, para_env, &
+                               ikp, nkp, ikp_local, para_env, &
                                qs_env%mp2_env%ri_rpa_im_time%make_chi_pos_definite)
 
          ! 2. Cholesky decomposition of Id + Q(iw,k)
@@ -324,7 +323,6 @@ CONTAINS
 !> \param fm_mat_L_re ...
 !> \param fm_mat_L_im ...
 !> \param fm_mat_RI_global_work ...
-!> \param dimen_RI ...
 !> \param ikp ...
 !> \param nkp ...
 !> \param ikp_local ...
@@ -332,27 +330,24 @@ CONTAINS
 !> \param make_chi_pos_definite ...
 ! **************************************************************************************************
    SUBROUTINE compute_Q_kp_RPA(cfm_mat_Q, mat_P_omega_kp, fm_mat_L_re, fm_mat_L_im, &
-                               fm_mat_RI_global_work, dimen_RI, ikp, nkp, ikp_local, para_env, &
+                               fm_mat_RI_global_work, ikp, nkp, ikp_local, para_env, &
                                make_chi_pos_definite)
 
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega_kp
       TYPE(cp_fm_type)                                   :: fm_mat_L_re, fm_mat_L_im, &
                                                             fm_mat_RI_global_work
-      INTEGER, INTENT(IN)                                :: dimen_RI, ikp, nkp, ikp_local
+      INTEGER, INTENT(IN)                                :: ikp, nkp, ikp_local
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: make_chi_pos_definite
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Q_kp_RPA'
 
       INTEGER                                            :: handle
-      TYPE(cp_cfm_type)                                  :: cfm_mat_L, cfm_mat_work
+      TYPE(cp_cfm_type)                                  :: cfm_mat_L
       TYPE(cp_fm_type)                                   :: fm_mat_work
 
       CALL timeset(routineN, handle)
-
-      CALL cp_cfm_create(cfm_mat_work, fm_mat_L_re%matrix_struct)
-      CALL cp_cfm_set_all(cfm_mat_work, z_zero)
 
       CALL cp_cfm_create(cfm_mat_L, fm_mat_L_re%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_L, z_zero)
@@ -374,15 +369,9 @@ CONTAINS
       CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mat_L, z_one, fm_mat_L_re)
       CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_L, gaussi, fm_mat_L_im)
 
-      ! 4. work = P(iw,k)*L(k)
-      CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_L, &
-                         z_zero, cfm_mat_work)
+      ! Q(iw,k) = L^H(k)*P(iw,k)*L(k)
+      CALL cfm_contract_ABA(cfm_mat_L, cfm_mat_Q)
 
-      ! 5. Q(iw,k) = L^H(k)*work
-      CALL parallel_gemm('C', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_work, &
-                         z_zero, cfm_mat_Q)
-
-      CALL cp_cfm_release(cfm_mat_work)
       CALL cp_cfm_release(cfm_mat_L)
       CALL cp_fm_release(fm_mat_work)
 
@@ -507,15 +496,8 @@ CONTAINS
       INTEGER                                            :: handle, i_global, iiB, info_chol, &
                                                             j_global, jjB, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(cp_cfm_type)                                  :: cfm_mat_Q_tmp, cfm_mat_work
 
       CALL timeset(routineN, handle)
-
-      CALL cp_cfm_create(cfm_mat_work, cfm_mat_Q%matrix_struct)
-      CALL cp_cfm_set_all(cfm_mat_work, z_zero)
-
-      CALL cp_cfm_create(cfm_mat_Q_tmp, cfm_mat_Q%matrix_struct)
-      CALL cp_cfm_set_all(cfm_mat_Q_tmp, z_zero)
 
       ! get info of fm_mat_Q
       CALL cp_cfm_get_info(matrix=cfm_mat_Q, &
@@ -540,14 +522,9 @@ CONTAINS
       END DO
       CALL para_env%sum(trace_Qomega)
 
-      CALL cp_cfm_to_cfm(cfm_mat_Q, cfm_mat_Q_tmp)
-
       CALL cp_cfm_cholesky_decompose(matrix=cfm_mat_Q, n=dimen_RI, info_out=info_chol)
 
       CPASSERT(info_chol == 0)
-
-      CALL cp_cfm_release(cfm_mat_work)
-      CALL cp_cfm_release(cfm_mat_Q_tmp)
 
       CALL timestop(handle)
 
@@ -931,7 +908,7 @@ CONTAINS
                                            para_env, kpoints, qs_env, wkp_W)
 
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W_tau
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat_Q
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L_re, fm_mat_L_im
       INTEGER, INTENT(IN)                                :: dimen_RI, jquad, ikp
       TYPE(time_frequency_grid_type), INTENT(IN)         :: grid
@@ -943,8 +920,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Wc_real_space_tau_GW'
 
-      INTEGER :: handle, handle2, i_global, iatom, iatom_old, iiB, iquad, irow, j_global, jatom, &
-         jatom_old, jcol, jjB, jkp, ncol_local, nkp, nrow_local, num_cells, num_integ_points
+      INTEGER :: handle, handle2, iatom, iatom_old, iquad, irow, jatom, jatom_old, jcol, jkp, &
+         ncol_local, nkp, nrow_local, num_cells, num_integ_points
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_RI_index
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       INTEGER, DIMENSION(:, :), POINTER                  :: index_to_cell
@@ -954,7 +931,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_cfm_type)                                  :: cfm_mat_L, cfm_mat_work, cfm_mat_work_2
+      TYPE(cp_cfm_type)                                  :: cfm_mat_L, cfm_mat_work_2
       TYPE(cp_fm_type)                                   :: fm_dummy, fm_mat_work_global, &
                                                             fm_mat_work_local
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -964,9 +941,6 @@ CONTAINS
       num_integ_points = SIZE(grid%imaginary_time)
 
       CALL timeset(routineN//"_1", handle2)
-
-      CALL cp_cfm_create(cfm_mat_work, cfm_mat_Q%matrix_struct)
-      CALL cp_cfm_set_all(cfm_mat_work, z_zero)
 
       CALL cp_cfm_create(cfm_mat_work_2, cfm_mat_Q%matrix_struct)
       CALL cp_cfm_set_all(cfm_mat_work_2, z_zero)
@@ -988,40 +962,7 @@ CONTAINS
 
       CALL timeset(routineN//"_2", handle2)
 
-      ! calculate [1+Q(iw')]^-1
-      CALL cp_cfm_cholesky_invert(cfm_mat_Q)
-
-      ! symmetrize the result
-      CALL cp_cfm_uplo_to_full(cfm_mat_Q)
-
-      ! subtract exchange part by subtracing identity matrix from epsilon
-      CALL cp_cfm_get_info(matrix=cfm_mat_Q, &
-                           nrow_local=nrow_local, &
-                           ncol_local=ncol_local, &
-                           row_indices=row_indices, &
-                           col_indices=col_indices)
-
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-               cfm_mat_Q%local_data(iiB, jjB) = cfm_mat_Q%local_data(iiB, jjB) - z_one
-            END IF
-         END DO
-      END DO
-
-      CALL timestop(handle2)
-
-      CALL timeset(routineN//"_3", handle2)
-
-      ! work = epsilon(iw,k)*V^1/2(k)
-      CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_Q, cfm_mat_L, &
-                         z_zero, cfm_mat_work)
-
-      ! W(iw,k) = V^1/2(k)*work
-      CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, z_one, cfm_mat_L, cfm_mat_work, &
-                         z_zero, cfm_mat_work_2)
+      CALL cfm_Wc_from_cholesky_eps(cfm_mat_Q, cfm_mat_L, cfm_mat_work_2, dimen_RI)
 
       CALL timestop(handle2)
 
@@ -1030,8 +971,6 @@ CONTAINS
       CALL get_kpoint_info(kpoints, xkp=xkp, wkp=wkp, nkp=nkp)
       index_to_cell => kpoints%index_to_cell
       num_cells = SIZE(index_to_cell, 2)
-
-      CALL cp_cfm_set_all(cfm_mat_work, z_zero)
 
       ALLOCATE (atom_from_RI_index(dimen_RI))
 
@@ -1130,7 +1069,6 @@ CONTAINS
 
       END IF
 
-      CALL cp_cfm_release(cfm_mat_work)
       CALL cp_cfm_release(cfm_mat_work_2)
       CALL cp_cfm_release(cfm_mat_L)
       CALL cp_fm_release(fm_mat_work_global)

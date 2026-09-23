@@ -11,6 +11,9 @@
 !>      09.2026 created Jan Wilhelm
 ! **************************************************************************************************
 MODULE gw_utils_fm
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_uplo_to_full
+   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
+                                              cp_cfm_cholesky_invert
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
@@ -35,7 +38,8 @@ MODULE gw_utils_fm
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils_fm'
 
-   PUBLIC :: cfm_contract_ABA, fm_contract_ABA, fm_invert, fm_sqrt
+   PUBLIC :: cfm_contract_ABA, cfm_Wc_from_chi, cfm_Wc_from_cholesky_eps, &
+             fm_contract_ABA, fm_invert, fm_sqrt
 
    INTERFACE fm_contract_ABA
       MODULE PROCEDURE fm_contract_ABA, fm_contract_ABA_set
@@ -77,6 +81,80 @@ CONTAINS
       CALL cp_cfm_release(work)
 
    END SUBROUTINE cfm_contract_ABA
+
+! **************************************************************************************************
+!> \brief Compute the correlation part of the screened interaction from chi.
+!>        A=M^-1 B^H and V=B^H B. On return, chi_Wc contains
+!>        B^H[(I+A^H chi A)^-1-I]B.
+!> \param chi_Wc input chi(k,iw); overwritten by Wc(k,iw)
+!> \param A metric-weighted Coulomb factor M^-1 B^H
+!> \param B Coulomb factor satisfying V=B^H B
+! **************************************************************************************************
+   SUBROUTINE cfm_Wc_from_chi(chi_Wc, A, B)
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: chi_Wc
+      TYPE(cp_cfm_type), INTENT(IN)                      :: A, B
+
+      INTEGER                                            :: info
+
+      CALL cfm_contract_ABA(A, chi_Wc)
+      CALL cfm_add_on_diag(chi_Wc, z_one)
+      CALL cp_cfm_cholesky_decompose(chi_Wc, info_out=info)
+      CPASSERT(info == 0)
+      CALL cfm_Wc_from_cholesky_eps(chi_Wc, B)
+
+   END SUBROUTINE cfm_Wc_from_chi
+
+! **************************************************************************************************
+!> \brief Complete Wc after a caller has formed and Cholesky-factorized I+A^H chi A.
+!>        The separate entry point allows RPA to evaluate its log determinant first.
+!> \param eps_chol input Cholesky factor; overwritten by eps^-1-I or Wc
+!> \param B Coulomb factor satisfying V=B^H B
+!> \param Wc optional separate output; if absent, eps_chol is overwritten by Wc
+!> \param n_active optional number of physical rows/columns
+! **************************************************************************************************
+   SUBROUTINE cfm_Wc_from_cholesky_eps(eps_chol, B, Wc, n_active)
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: eps_chol
+      TYPE(cp_cfm_type), INTENT(IN)                      :: B
+      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: Wc
+      INTEGER, INTENT(IN), OPTIONAL                      :: n_active
+
+      CALL cp_cfm_cholesky_invert(eps_chol)
+      CALL cp_cfm_uplo_to_full(eps_chol)
+      CALL cfm_add_on_diag(eps_chol, -z_one, n_active)
+      CALL cfm_contract_ABA(B, eps_chol, Wc)
+
+   END SUBROUTINE cfm_Wc_from_cholesky_eps
+
+! **************************************************************************************************
+!> \brief Add a scalar to the diagonal of a distributed complex full matrix.
+!> \param matrix input/output matrix
+!> \param alpha scalar added to each diagonal element
+!> \param n_active optional number of physical rows/columns
+! **************************************************************************************************
+   SUBROUTINE cfm_add_on_diag(matrix, alpha, n_active)
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
+      COMPLEX(KIND=dp), INTENT(IN)                       :: alpha
+      INTEGER, INTENT(IN), OPTIONAL                      :: n_active
+
+      INTEGER                                            :: i_row, j_col, max_index, ncol_local, &
+                                                            nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+
+      max_index = HUGE(max_index)
+      IF (PRESENT(n_active)) max_index = n_active
+
+      CALL cp_cfm_get_info(matrix=matrix, nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices)
+
+      DO j_col = 1, ncol_local
+         DO i_row = 1, nrow_local
+            IF (row_indices(i_row) == col_indices(j_col) .AND. row_indices(i_row) <= max_index) THEN
+               matrix%local_data(i_row, j_col) = matrix%local_data(i_row, j_col) + alpha
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE cfm_add_on_diag
 
 ! **************************************************************************************************
 !> \brief Inverts a symmetric matrix. First, Cholesky decomposition is tried.

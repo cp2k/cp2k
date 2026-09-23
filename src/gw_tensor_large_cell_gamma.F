@@ -63,7 +63,8 @@ MODULE gw_tensor_large_cell_Gamma
                                               time_to_freq
    USE gw_utils_communication,          ONLY: fm_to_local_tensor,&
                                               local_dbt_to_global_mat
-   USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
+   USE gw_utils_fm,                     ONLY: cfm_Wc_from_chi,&
+                                              cfm_contract_ABA,&
                                               fm_contract_ABA
    USE input_constants,                 ONLY: G0W0,&
                                               rtp_method_bse,&
@@ -1210,8 +1211,7 @@ CONTAINS
 
       ! 4. ε(iω_j,k_i) = Id - V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
       !    W(iω_j,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-Id)*V^0.5(k_i)
-      CALL compute_cfm_W_ikp_freq_j(bs_env, cfm_chi_eps_W_ikp_freq_j, cfm_V_sqrt_ikp, &
-                                    cfm_M_inv_V_sqrt_ikp)
+      CALL cfm_Wc_from_chi(cfm_chi_eps_W_ikp_freq_j, cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp)
 
       ! 5. k-point integration W_PQ(iω_j, k_i) to W_PQ^MIC(iω_j)
       SELECT CASE (bs_env%approx_kp_extrapol)
@@ -1468,94 +1468,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE mat_ikp_from_mat_Gamma
-
-! **************************************************************************************************
-!> \brief ...
-!> \param bs_env ...
-!> \param cfm_chi_eps_W_ikp_freq_j input χ(iω_j,k); overwritten by W(iω_j,k)
-!> \param cfm_V_sqrt_ikp ...
-!> \param cfm_M_inv_V_sqrt_ikp ...
-! **************************************************************************************************
-   SUBROUTINE compute_cfm_W_ikp_freq_j(bs_env, cfm_chi_eps_W_ikp_freq_j, cfm_V_sqrt_ikp, &
-                                       cfm_M_inv_V_sqrt_ikp)
-
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cp_cfm_type)                                  :: cfm_chi_eps_W_ikp_freq_j, &
-                                                            cfm_V_sqrt_ikp, cfm_M_inv_V_sqrt_ikp
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_cfm_W_ikp_freq_j'
-
-      INTEGER                                            :: handle, info, n_RI
-
-      CALL timeset(routineN, handle)
-
-      n_RI = bs_env%n_RI
-
-      ! 1. ε(iω_j,k) = Id - V^0.5(k)*M^-1(k)*χ(iω_j,k)*M^-1(k)*V^0.5(k)
-
-      ! 1. a) ε(iω_j,k) = V^0.5(k)*M^-1(k)*χ(iω_j,k)*M^-1(k)*V^0.5(k)
-      CALL cfm_contract_ABA(cfm_M_inv_V_sqrt_ikp, cfm_chi_eps_W_ikp_freq_j)
-
-      ! 1. b) ε(iω_j,k) = ε(iω_j,k) - Id
-      CALL cfm_add_on_diag(cfm_chi_eps_W_ikp_freq_j, z_one)
-
-      ! 2. W(iω_j,k) = V^0.5(k)*(ε^-1(iω_j,k)-Id)*V^0.5(k)
-
-      ! 2. a) Cholesky decomposition of ε(iω_j,k) as preparation for inversion
-      CALL cp_cfm_cholesky_decompose(matrix=cfm_chi_eps_W_ikp_freq_j, n=n_RI, info_out=info)
-      CPASSERT(info == 0)
-
-      ! 2. b) Inversion of ε(iω_j,k) using its Cholesky decomposition
-      CALL cp_cfm_cholesky_invert(cfm_chi_eps_W_ikp_freq_j)
-      CALL cp_cfm_uplo_to_full(cfm_chi_eps_W_ikp_freq_j)
-
-      ! 2. c) ε^-1(iω_j,k)-Id
-      CALL cfm_add_on_diag(cfm_chi_eps_W_ikp_freq_j, -z_one)
-
-      ! 2. d) W(iω_j,k) = V^0.5(k)*(ε^-1(iω_j,k)-Id)*V^0.5(k)
-      CALL cfm_contract_ABA(cfm_V_sqrt_ikp, cfm_chi_eps_W_ikp_freq_j)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE compute_cfm_W_ikp_freq_j
-
-! **************************************************************************************************
-!> \brief ...
-!> \param cfm ...
-!> \param alpha ...
-! **************************************************************************************************
-   SUBROUTINE cfm_add_on_diag(cfm, alpha)
-
-      TYPE(cp_cfm_type)                                  :: cfm
-      COMPLEX(KIND=dp)                                   :: alpha
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cfm_add_on_diag'
-
-      INTEGER                                            :: handle, i_row, j_col, j_global, &
-                                                            ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_cfm_get_info(matrix=cfm, &
-                           nrow_local=nrow_local, &
-                           ncol_local=ncol_local, &
-                           row_indices=row_indices, &
-                           col_indices=col_indices)
-
-      ! add 1 on the diagonal
-      DO j_col = 1, ncol_local
-         j_global = col_indices(j_col)
-         DO i_row = 1, nrow_local
-            IF (j_global == row_indices(i_row)) THEN
-               cfm%local_data(i_row, j_col) = cfm%local_data(i_row, j_col) + alpha
-            END IF
-         END DO
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE cfm_add_on_diag
 
 ! **************************************************************************************************
 !> \brief ...
