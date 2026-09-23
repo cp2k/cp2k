@@ -655,8 +655,12 @@ CONTAINS
             IF (PRESENT(converged)) converged = .TRUE.
             EXIT
          CASE (5)
-            ! op=5 abnormal exit ()
+            ! Restore the last accepted point; a failed FG request may leave x at a trial point.
             CALL optimizer%para_env%bcast(optimizer%task, optimizer%master)
+            optimizer%x = xold
+            CALL cp_eval_at(optimizer%obj_funct, x=optimizer%x, &
+                            f=optimizer%f, gradient=optimizer%gradient, &
+                            master=optimizer%master, para_env=optimizer%para_env)
             IF (PRESENT(converged)) converged = .FALSE.
             EXIT
          CASE (6)

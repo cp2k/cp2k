@@ -148,7 +148,12 @@ CONTAINS
          IF (its == gopt_param%max_iter) EXIT
       END DO
 
-      IF ((its == gopt_param%max_iter) .AND. (.NOT. converged)) THEN
+      IF (optimizer%status == 5) THEN
+         IF (output_unit > 0) THEN
+            WRITE (output_unit, FMT="(/,T2,A)") "*** L-BFGS ABNORMAL EXIT: OPTIMIZATION NOT CONVERGED ***"
+            WRITE (output_unit, FMT="(T2,A)") "L-BFGS task: "//TRIM(optimizer%task)
+         END IF
+      ELSE IF ((its == gopt_param%max_iter) .AND. (.NOT. converged)) THEN
          CALL print_geo_opt_nc(gopt_env, output_unit)
       END IF
 
