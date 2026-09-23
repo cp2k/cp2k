@@ -3,10 +3,10 @@
 # author: Ole Schuett
 
 echo -e "\n========== Installing Dependencies =========="
-apt-get update -qq
+apt-get -o Acquire::Retries=3 update -qq
 export DEBIAN_FRONTEND=noninteractive
 export DEBCONF_NONINTERACTIVE_SEEN=true
-apt-get install -qq --no-install-recommends \
+apt-get -o Acquire::Retries=3 install -qq --no-install-recommends \
   python3-setuptools \
   python3-wheel \
   python3-pip \
