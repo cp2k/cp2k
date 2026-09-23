@@ -112,11 +112,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_davidson_tda'
 
       INTEGER                                            :: block_size, handle, iter, k, m, m_max, &
-                                                            n_act, n_cand, n_dependent, n_dropped, &
-                                                            n_kernel, n_ov, n_req, n_restart, &
-                                                            n_want, nt
+                                                            n_act, n_cand, n_dependent, n_kernel, &
+                                                            n_ov, n_req, n_restart, n_want, nt
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: selected
-      LOGICAL                                            :: all_conv, has_prev, ok, stalled
+      LOGICAL                                            :: all_conv, has_prev, stalled
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: conv, need
       REAL(KIND=dp)                                      :: dev, t_iter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, diag, res, theta, theta_prev, &
@@ -236,18 +235,13 @@ CONTAINS
          ! corrections for the lowest unconverged roots, t_ia,k = r_ia,k/(d_ia - θ_k)
          CALL select_roots(mp2_env, need, res, MIN(block_size, m_max - m), selected, nt)
          CALL davidson_corrections(fm_work, selected(1:nt), theta, diag, fm_Z, m + 1)
-         CALL project_out(fm_Z, m + 1, nt, fm_Z, m, para_env)
-         CALL drop_small_columns(fm_Z, m + 1, nt, para_env)
+         CALL extend_orthonormal(fm_Z, m, nt, para_env, n_dependent)
          ! no new vector: with an unchanged basis the next iteration finds dE = 0, which lets the roots that
          ! only wait for the energy criterion converge; a second empty pass means the residuals cannot improve
          IF (nt == 0 .AND. stalled) THEN
             CPABORT("BSE Davidson: correction vectors vanished before convergence")
          END IF
          stalled = nt == 0
-         CALL cholqr2(fm_Z, m + 1, nt, para_env, ok, n_dropped)
-         ! cholqr2 gives up after two rounds of dropping dependent directions, or when none is left
-         IF (.NOT. ok) CPABORT("BSE Davidson: orthonormalisation broke down")
-         n_dependent = n_dependent + n_dropped
          ! post-condition of the extension, one Gram matrix; the residual norms below rely on it
          IF (extension_deviation(fm_Z, fm_Z, m, nt, para_env) > ortho_tol) THEN
             CPABORT("BSE Davidson: the basis lost orthonormality")
@@ -929,18 +923,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'extend_basis_mk'
 
-      INTEGER                                            :: handle, n_dropped
-      LOGICAL                                            :: ok
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
       ! T_ia,k <- T_ia,k - sum_m V_ia,m sum_jb W_jb,m T_jb,k, then Euclidean orthonormalisation
-      CALL project_out(fm_V, m + 1, nt, fm_V, m, mv_env%para_env, fm_W)
-      CALL drop_small_columns(fm_V, m + 1, nt, mv_env%para_env)
-      CALL cholqr2(fm_V, m + 1, nt, mv_env%para_env, ok, n_dropped)
-      ! cholqr2 gives up after two rounds of dropping dependent directions, or when none is left
-      IF (.NOT. ok) CPABORT("BSE Davidson: orthonormalisation broke down")
-      n_dependent = n_dependent + n_dropped
+      CALL extend_orthonormal(fm_V, m, nt, mv_env%para_env, n_dependent, fm_W)
 
       IF (nt > 0) THEN
          ! W_ia,k = sum_jb (A-B)_ia,jb T_jb,k: A T into W, B T into the scratch
@@ -1208,17 +1196,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'extend_basis_os'
 
-      INTEGER                                            :: handle, n_dropped
-      LOGICAL                                            :: ok
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
-      CALL project_out(fm_b, m + 1, nt, fm_b, m, mv_env%para_env)
-      CALL drop_small_columns(fm_b, m + 1, nt, mv_env%para_env)
-      CALL cholqr2(fm_b, m + 1, nt, mv_env%para_env, ok, n_dropped)
-      ! cholqr2 gives up after two rounds of dropping dependent directions, or when none is left
-      IF (.NOT. ok) CPABORT("BSE Davidson: orthonormalisation broke down")
-      n_dependent = n_dependent + n_dropped
+      CALL extend_orthonormal(fm_b, m, nt, mv_env%para_env, n_dependent)
 
       IF (nt > 0) THEN
          ! post-condition of the extension, one Gram matrix; the residual norms below rely on it
@@ -2792,6 +2774,38 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cholqr2
+
+! **************************************************************************************************
+!> \brief Makes the nt columns T after column m of fm_V orthonormal to the basis and to each other:
+!>        T_ia,k <- T_ia,k - sum_p V_ia,p sum_jb U_jb,p T_jb,k twice, the columns that vanished dropped, then
+!>        the Euclidean cholqr2; nt shrinks by the vanished and the dependent columns
+!> \param fm_V basis in columns 1..m, the block T in columns m+1..m+nt
+!> \param m columns of the basis
+!> \param nt columns of T; on exit the number kept
+!> \param para_env communicator of the row-distributed matrix
+!> \param n_dependent counter of the columns dropped as dependent, incremented
+!> \param fm_dual U, the dual basis with sum_ia U_ia,p V_ia,q = δ_pq; fm_V itself when absent
+! **************************************************************************************************
+   SUBROUTINE extend_orthonormal(fm_V, m, nt, para_env, n_dependent, fm_dual)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_V
+      INTEGER, INTENT(IN)                                :: m
+      INTEGER, INTENT(INOUT)                             :: nt
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      INTEGER, INTENT(INOUT)                             :: n_dependent
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_dual
+
+      INTEGER                                            :: n_dropped
+      LOGICAL                                            :: ok
+
+      CALL project_out(fm_V, m + 1, nt, fm_V, m, para_env, fm_dual)
+      CALL drop_small_columns(fm_V, m + 1, nt, para_env)
+      CALL cholqr2(fm_V, m + 1, nt, para_env, ok, n_dropped)
+      ! cholqr2 gives up after two rounds of dropping dependent directions, or when none is left
+      IF (.NOT. ok) CPABORT("BSE Davidson: orthonormalisation broke down")
+      n_dependent = n_dependent + n_dropped
+
+   END SUBROUTINE extend_orthonormal
 
 ! **************************************************************************************************
 !> \brief Largest deviation of the nt new columns from orthonormality against the whole basis,
