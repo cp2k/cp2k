@@ -64,7 +64,8 @@ MODULE gw_utils
    USE gw_utils_communication,          ONLY: fm_to_local_array
    USE gw_utils_compute_integrals,      ONLY: build_3c_integral_block
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
-                                              fm_invert
+                                              fm_invert,&
+                                              local_complex_power
    USE input_constants,                 ONLY: &
         G0W0, do_potential_coulomb, do_potential_truncated, evGW0, ri_rpa_g0w0_crossing_newton, &
         ri_rs_large_cell_Gamma, ri_rs_non_periodic, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_rs, &
@@ -88,10 +89,8 @@ MODULE gw_utils
                                               cp_libint_static_init
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: gaussi,&
-                                              z_one,&
-                                              z_zero
-   USE mathlib,                         ONLY: diag_complex,&
-                                              gcd
+                                              z_one
+   USE mathlib,                         ONLY: gcd
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_mem_avail_per_rank_GB,&
                                               mp_mem_used_per_rank_GB,&
@@ -141,7 +140,7 @@ MODULE gw_utils
 
    PUBLIC :: create_and_init_bs_env_for_gw, de_init_bs_env, &
              compute_xkp, time_to_freq, analyt_conti_and_print, &
-             add_R, is_cell_in_index_to_cell, get_V_tr_R, power, &
+             add_R, is_cell_in_index_to_cell, get_V_tr_R, &
              rtbse_resolve_rirs_flag
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils'
@@ -3194,7 +3193,7 @@ CONTAINS
                        bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
 
          ! compute condition number of M_PQ(k)
-         CALL power(M(:, :, ikp_local), 1.0_dp, 0.0_dp, cond_nr, min_ev_ikp, max_ev_ikp)
+         CALL local_complex_power(M(:, :, ikp_local), 1.0_dp, 0.0_dp, cond_nr, min_ev_ikp, max_ev_ikp)
 
          IF (cond_nr > cond_nr_max) cond_nr_max = cond_nr
          IF (max_ev_ikp > max_ev) max_ev = max_ev_ikp
@@ -3303,57 +3302,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_V_tr_R
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param exponent ...
-!> \param eps ...
-!> \param cond_nr ...
-!> \param min_ev ...
-!> \param max_ev ...
-! **************************************************************************************************
-   SUBROUTINE power(matrix, exponent, eps, cond_nr, min_ev, max_ev)
-      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: matrix
-      REAL(KIND=dp)                                      :: exponent, eps
-      REAL(KIND=dp), OPTIONAL                            :: cond_nr, min_ev, max_ev
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'power'
-
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: eigenvectors
-      INTEGER                                            :: handle, i, n
-      REAL(KIND=dp)                                      :: pos_eval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
-
-      CALL timeset(routineN, handle)
-
-      ! make matrix perfectly Hermitian
-      matrix(:, :) = 0.5_dp*(matrix(:, :) + CONJG(TRANSPOSE(matrix(:, :))))
-
-      n = SIZE(matrix, 1)
-      ALLOCATE (eigenvalues(n), eigenvectors(n, n))
-      CALL diag_complex(matrix, eigenvectors, eigenvalues)
-
-      IF (PRESENT(cond_nr)) cond_nr = MAXVAL(ABS(eigenvalues))/MINVAL(ABS(eigenvalues))
-      IF (PRESENT(min_ev)) min_ev = MINVAL(ABS(eigenvalues))
-      IF (PRESENT(max_ev)) max_ev = MAXVAL(ABS(eigenvalues))
-
-      DO i = 1, n
-         IF (eps < eigenvalues(i)) THEN
-            pos_eval = (eigenvalues(i))**(0.5_dp*exponent)
-         ELSE
-            pos_eval = 0.0_dp
-         END IF
-         eigenvectors(:, i) = eigenvectors(:, i)*pos_eval
-      END DO
-
-      CALL ZGEMM("N", "C", n, n, n, z_one, eigenvectors, n, eigenvectors, n, z_zero, matrix, n)
-
-      DEALLOCATE (eigenvalues, eigenvectors)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE power
 
 ! **************************************************************************************************
 !> \brief ...

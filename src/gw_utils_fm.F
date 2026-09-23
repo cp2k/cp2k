@@ -30,6 +30,8 @@ MODULE gw_utils_fm
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
+   USE mathlib,                         ONLY: diag_complex,&
+                                              gemm_square
    USE parallel_gemm_api,               ONLY: parallel_gemm
 #include "./base/base_uses.f90"
 
@@ -39,7 +41,8 @@ MODULE gw_utils_fm
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils_fm'
 
    PUBLIC :: cfm_contract_ABA, cfm_Wc_from_chi, cfm_Wc_from_cholesky_eps, &
-             fm_contract_ABA, fm_invert, fm_sqrt
+             fm_contract_ABA, fm_invert, fm_sqrt, local_complex_power, &
+             local_Wc_from_chi
 
    INTERFACE fm_contract_ABA
       MODULE PROCEDURE fm_contract_ABA, fm_contract_ABA_set
@@ -105,6 +108,36 @@ CONTAINS
    END SUBROUTINE cfm_Wc_from_chi
 
 ! **************************************************************************************************
+!> \brief Compute the correlation part of the screened interaction for local complex matrices.
+!>        The input chi_Wc must already have its negative eigenvalues removed. On return,
+!>        chi_Wc contains Wc = B (epsilon^-1 - I) B^H, where epsilon = I + A^H chi A.
+!> \param chi_Wc input chi; overwritten by Wc
+!> \param A metric-weighted Coulomb factor M^-1 B^H
+!> \param B Coulomb factor satisfying V=B^H B
+!> \param work local complex workspace for epsilon
+! **************************************************************************************************
+   SUBROUTINE local_Wc_from_chi(chi_Wc, A, B, work)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: chi_Wc
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: A, B
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: work
+
+      INTEGER                                            :: n
+
+      n = SIZE(chi_Wc, 1)
+      CPASSERT(n == SIZE(chi_Wc, 2))
+      CPASSERT(ALL(SHAPE(A) == SHAPE(chi_Wc)))
+      CPASSERT(ALL(SHAPE(B) == SHAPE(chi_Wc)))
+      CPASSERT(ALL(SHAPE(work) == SHAPE(chi_Wc)))
+
+      CALL gemm_square(A, 'C', chi_Wc, 'N', A, 'N', work)
+      CALL local_add_on_diag(work, z_one)
+      CALL local_complex_power(work, -1.0_dp, 0.0_dp)
+      CALL local_add_on_diag(work, -z_one)
+      CALL gemm_square(B, 'N', work, 'N', B, 'C', chi_Wc)
+
+   END SUBROUTINE local_Wc_from_chi
+
+! **************************************************************************************************
 !> \brief Complete Wc after a caller has formed and Cholesky-factorized I+A^H chi A.
 !>        The separate entry point allows RPA to evaluate its log determinant first.
 !> \param eps_chol input Cholesky factor; overwritten by eps^-1-I or Wc
@@ -155,6 +188,78 @@ CONTAINS
       END DO
 
    END SUBROUTINE cfm_add_on_diag
+
+! **************************************************************************************************
+!> \brief Add a scalar to the diagonal of a local complex matrix.
+!> \param matrix input/output matrix
+!> \param alpha scalar added to each diagonal element
+! **************************************************************************************************
+   SUBROUTINE local_add_on_diag(matrix, alpha)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: matrix
+      COMPLEX(KIND=dp), INTENT(IN)                       :: alpha
+
+      INTEGER                                            :: i, n
+
+      n = SIZE(matrix, 1)
+      CPASSERT(n == SIZE(matrix, 2))
+
+      DO i = 1, n
+         matrix(i, i) = matrix(i, i) + alpha
+      END DO
+
+   END SUBROUTINE local_add_on_diag
+
+! **************************************************************************************************
+!> \brief Compute a spectral power of a local complex Hermitian matrix.
+!>        Eigenvalues not larger than eps are discarded.
+!> \param matrix input/output matrix
+!> \param exponent matrix exponent
+!> \param eps eigenvalue threshold
+!> \param cond_nr optional condition number
+!> \param min_ev optional minimum absolute eigenvalue
+!> \param max_ev optional maximum absolute eigenvalue
+! **************************************************************************************************
+   SUBROUTINE local_complex_power(matrix, exponent, eps, cond_nr, min_ev, max_ev)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: matrix
+      REAL(KIND=dp), INTENT(IN)                          :: exponent, eps
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: cond_nr, min_ev, max_ev
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'local_complex_power'
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: eigenvectors
+      INTEGER                                            :: handle, i, n
+      REAL(KIND=dp)                                      :: pos_eval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+
+      CALL timeset(routineN, handle)
+
+      n = SIZE(matrix, 1)
+      CPASSERT(n == SIZE(matrix, 2))
+      matrix(:, :) = 0.5_dp*(matrix(:, :) + CONJG(TRANSPOSE(matrix(:, :))))
+
+      ALLOCATE (eigenvalues(n), eigenvectors(n, n))
+      CALL diag_complex(matrix, eigenvectors, eigenvalues)
+
+      IF (PRESENT(cond_nr)) cond_nr = MAXVAL(ABS(eigenvalues))/MINVAL(ABS(eigenvalues))
+      IF (PRESENT(min_ev)) min_ev = MINVAL(ABS(eigenvalues))
+      IF (PRESENT(max_ev)) max_ev = MAXVAL(ABS(eigenvalues))
+
+      DO i = 1, n
+         IF (eps < eigenvalues(i)) THEN
+            pos_eval = eigenvalues(i)**(0.5_dp*exponent)
+         ELSE
+            pos_eval = 0.0_dp
+         END IF
+         eigenvectors(:, i) = eigenvectors(:, i)*pos_eval
+      END DO
+
+      CALL gemm_square(eigenvectors, 'N', eigenvectors, 'C', matrix)
+
+      DEALLOCATE (eigenvalues, eigenvectors)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE local_complex_power
 
 ! **************************************************************************************************
 !> \brief Inverts a symmetric matrix. First, Cholesky decomposition is tried.

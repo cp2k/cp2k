@@ -35,13 +35,14 @@ MODULE gw_tensor_small_cell_full_kp
                                               de_init_bs_env,&
                                               get_V_tr_R,&
                                               is_cell_in_index_to_cell,&
-                                              power,&
                                               time_to_freq
    USE gw_utils_communication,          ONLY: fm_to_local_array,&
                                               fm_to_local_tensor,&
                                               local_array_to_fm,&
                                               local_dbt_to_global_fm
-   USE gw_utils_fm,                     ONLY: cfm_contract_ABA
+   USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
+                                              local_complex_power,&
+                                              local_Wc_from_chi
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp_small_cell
@@ -573,7 +574,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_W_real_space'
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: chi_k_w, eps_k_w, W_k_w
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: chi_k_w, eps_k_w
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: M_inv, M_inv_V_sqrt, V_sqrt
       INTEGER                                            :: handle, i_t, ikp, ikp_local, j_w, n_RI, &
                                                             nimages_scf_desymm
@@ -585,7 +586,7 @@ CONTAINS
       n_RI = bs_env%n_RI
       nimages_scf_desymm = bs_env%nimages_scf_desymm
 
-      ALLOCATE (chi_k_w(n_RI, n_RI), eps_k_w(n_RI, n_RI), W_k_w(n_RI, n_RI))
+      ALLOCATE (chi_k_w(n_RI, n_RI), eps_k_w(n_RI, n_RI))
       ALLOCATE (chi_R(n_RI, n_RI, nimages_scf_desymm), W_R(n_RI, n_RI, nimages_scf_desymm), &
                 MWM_R(n_RI, n_RI, nimages_scf_desymm))
 
@@ -627,29 +628,16 @@ CONTAINS
                           bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
 
             ! 2. remove negative eigenvalues from χ_PQ(iω,k)
-            CALL power(chi_k_w, 1.0_dp, bs_env%eps_eigval_mat_RI)
+            CALL local_complex_power(chi_k_w, 1.0_dp, bs_env%eps_eigval_mat_RI)
 
-            ! 3. ε(iω_j,k_i) = Id - V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
-
-            ! 3. a) eps_work = V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
-            CALL gemm_square(M_inv_V_sqrt(:, :, ikp_local), 'C', chi_k_w, 'N', M_inv_V_sqrt(:, :, ikp_local), 'N', eps_k_w)
-
-            ! 3. b) ε(iω_j,k_i) = eps_work - Id
-            CALL add_on_diag(eps_k_w, z_one)
-
-            ! 4. W(iω_j,k_i) = M^-1(k_i)*V^0.5(k_i)*(ε^-1(iω_j,k_i)-Id)*V^0.5(k_i)*M^-1(k_i)
-
-            ! 4. a) Inversion of ε(iω_j,k_i) using its Cholesky decomposition
-            CALL power(eps_k_w, -1.0_dp, 0.0_dp)
-
-            ! 4. b) ε^-1(iω_j,k_i)-Id
-            CALL add_on_diag(eps_k_w, -z_one)
-
-            ! 4. c) W(iω,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-Id)*V^0.5(k_i)
-            CALL gemm_square(V_sqrt(:, :, ikp_local), 'N', eps_k_w, 'N', V_sqrt(:, :, ikp_local), 'C', W_k_w)
+            ! 3.-4. ε(iω_j,k_i) = I + A^H*χ(iω_j,k_i)*A and
+            !        W(iω_j,k_i) = B*(ε^-1(iω_j,k_i)-I)*B^H,
+            !        with A = M^-1*B^H and B = V^0.5.
+            CALL local_Wc_from_chi(chi_k_w, M_inv_V_sqrt(:, :, ikp_local), &
+                                   V_sqrt(:, :, ikp_local), eps_k_w)
 
             ! 5. W(iω,k_i) -> W^R(iω) = sum_k w_k e^(-ikR) W(iω,k) (k-point extrapolation here)
-            CALL add_kp_to_all_rs(W_k_w, W_R, bs_env%kpoints_chi_eps_W, ikp, &
+            CALL add_kp_to_all_rs(chi_k_w, W_R, bs_env%kpoints_chi_eps_W, ikp, &
                                   index_to_cell_ext=bs_env%kpoints_scf_desymm%index_to_cell)
 
          END DO ! ikp
@@ -751,10 +739,10 @@ CONTAINS
                        bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
 
          ! invert M_PQ(k)
-         CALL power(M_inv(:, :, ikp_local), -1.0_dp, 0.0_dp)
+         CALL local_complex_power(M_inv(:, :, ikp_local), -1.0_dp, 0.0_dp)
 
          ! V^0.5(k)
-         CALL power(V_sqrt(:, :, ikp_local), 0.5_dp, 0.0_dp)
+         CALL local_complex_power(V_sqrt(:, :, ikp_local), 0.5_dp, 0.0_dp)
 
          ! M^-1(k)*V^0.5(k)
          CALL gemm_square(M_inv(:, :, ikp_local), 'N', V_sqrt(:, :, ikp_local), 'C', M_inv_V_sqrt(:, :, ikp_local))
@@ -764,32 +752,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_Minv_and_Vsqrt
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param alpha ...
-! **************************************************************************************************
-   SUBROUTINE add_on_diag(matrix, alpha)
-      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: matrix
-      COMPLEX(KIND=dp)                                   :: alpha
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'add_on_diag'
-
-      INTEGER                                            :: handle, i, n
-
-      CALL timeset(routineN, handle)
-
-      n = SIZE(matrix, 1)
-      CPASSERT(n == SIZE(matrix, 2))
-
-      DO i = 1, n
-         matrix(i, i) = matrix(i, i) + alpha
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE add_on_diag
 
 ! **************************************************************************************************
 !> \brief ...
@@ -829,7 +791,7 @@ CONTAINS
                        bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
 
          ! invert M_PQ(k)
-         CALL power(M_inv, -1.0_dp, 0.0_dp)
+         CALL local_complex_power(M_inv, -1.0_dp, 0.0_dp)
 
          ! W(k) = sum_R e^ikR W^R [only R in the supercell that is determined by the SCF k-mesh]
          CALL rs_to_kp(W_R, W_k, &
@@ -1063,7 +1025,7 @@ CONTAINS
          CALL rs_to_kp(M_R, M_kp, bs_env%kpoints_scf_desymm%index_to_cell, &
                        bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
          ! M(k) -> M^-1(k)
-         CALL power(M_kp, -1.0_dp, 0.0_dp)
+         CALL local_complex_power(M_kp, -1.0_dp, 0.0_dp)
          ! Ṽ(k) = M^-1(k) * V_tr(k) * M^-1(k)
          CALL gemm_square(M_kp, 'N', V_tr_kp, 'N', M_kp, 'N', Mi_Vtr_Mi_kp)
          ! Ṽ^R = sum_k w_k e^-ikR Ṽ(k)
