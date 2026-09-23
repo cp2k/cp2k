@@ -78,7 +78,6 @@ MODULE rpa_im_time
    PUBLIC :: compute_mat_P_omega, &
              compute_transl_dm, &
              init_cell_index_rpa, &
-             zero_mat_P_omega, &
              compute_periodic_dm, &
              compute_mat_dm_global, &
              compute_gamma_propagator, &
@@ -236,6 +235,12 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: comm_2d
 
       CALL timeset(routineN, handle)
+
+      DO jquad = 1, SIZE(mat_P_omega, 1)
+         DO i_cell_T = 1, SIZE(mat_P_omega, 2)
+            CALL dbcsr_set(mat_P_omega(jquad, i_cell_T)%matrix, 0.0_dp)
+         END DO
+      END DO
 
       IF (do_ri_sos_laplace_mp2) THEN
          num_integ_points = SIZE(grid%imaginary_time)
@@ -632,25 +637,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_mat_P_omega
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat_P_omega ...
-! **************************************************************************************************
-   SUBROUTINE zero_mat_P_omega(mat_P_omega)
-      TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(IN)    :: mat_P_omega
-
-      INTEGER                                            :: i_kp, jquad
-
-      DO jquad = 1, SIZE(mat_P_omega, 1)
-         DO i_kp = 1, SIZE(mat_P_omega, 2)
-
-            CALL dbcsr_set(mat_P_omega(jquad, i_kp)%matrix, 0.0_dp)
-
-         END DO
-      END DO
-
-   END SUBROUTINE zero_mat_P_omega
 
 ! **************************************************************************************************
 !> \brief ...

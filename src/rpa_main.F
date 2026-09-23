@@ -98,8 +98,7 @@ MODULE rpa_main
    USE rpa_gw_ic,                       ONLY: calculate_ic_correction
    USE rpa_gw_kpoints_util,             ONLY: get_bandstruc_and_k_dependent_MOs,&
                                               invert_eps_compute_W_and_Erpa_kp
-   USE rpa_im_time,                     ONLY: compute_mat_P_omega,&
-                                              zero_mat_P_omega
+   USE rpa_im_time,                     ONLY: compute_mat_P_omega
    USE rpa_im_time_force_methods,       ONLY: calc_laplace_loop_forces,&
                                               calc_post_loop_forces,&
                                               calc_rpa_loop_forces,&
@@ -1392,9 +1391,6 @@ CONTAINS
             IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,i15)") &
                "SPARSITY_INFO| Minimum tensor block size:", min_bsize
 
-            ! for evGW, we have to ensure that mat_P_omega is zero
-            CALL zero_mat_P_omega(mat_P_omega(:, :, 1))
-
             ! compute the matrix Q(it) and Fourier transform it directly to mat_P_omega(iw)
             CALL compute_mat_P_omega(mat_P_omega(:, :, 1), cfm_mo_coeff(1), homo(1), &
                                      mat_P_global, matrix_s, 1, &
@@ -1412,7 +1408,6 @@ CONTAINS
 
             ! the same for open shell, use the beta-spin MO coefficients
             IF (my_open_shell) THEN
-               CALL zero_mat_P_omega(mat_P_omega(:, :, 2))
                CALL compute_mat_P_omega(mat_P_omega(:, :, 2), cfm_mo_coeff(2), homo(2), &
                                         mat_P_global, matrix_s, 2, &
                                         t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
