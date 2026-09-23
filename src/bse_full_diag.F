@@ -48,7 +48,8 @@ MODULE bse_full_diag
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE exstates_types,                  ONLY: excited_energy_type
-   USE input_constants,                 ONLY: bse_screening_alpha,&
+   USE input_constants,                 ONLY: bse_iterdiag,&
+                                              bse_screening_alpha,&
                                               bse_screening_rpa,&
                                               bse_screening_tdhf,&
                                               bse_singlet,&
@@ -999,7 +1000,6 @@ CONTAINS
       CHARACTER(LEN=10)                                  :: info_approximation, multiplet
       INTEGER                                            :: handle, i_exc, idir, n_moments_di, &
                                                             n_moments_quad
-      REAL(KIND=dp)                                      :: alpha
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str, ref_point_multipole
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: polarizability_residues, trans_mom_bse
       TYPE(cp_fm_type)                                   :: fm_X_ia, fm_Y_ia
@@ -1013,10 +1013,8 @@ CONTAINS
       !Prepare variables for printing
       IF (mp2_env%bse%bse_spin_config == 0) THEN
          multiplet = "Singlet"
-         alpha = 2.0_dp
       ELSE
          multiplet = "Triplet"
-         alpha = 0.0_dp
       END IF
       IF (.NOT. PRESENT(flag_TDA)) THEN
          flag_TDA = .FALSE.
@@ -1082,9 +1080,10 @@ CONTAINS
                                        fm_eigvec_Y)
       END IF
 
-      ! Prints basic definitions used in BSE calculation
-      CALL print_output_header(homo, virtual, homo_irred, flag_TDA, &
-                               multiplet, alpha, mp2_env, unit_nr)
+      ! the iterative driver prints the header before its solver runs
+      IF (mp2_env%bse%bse_diag_method /= bse_iterdiag) THEN
+         CALL print_output_header(homo, virtual, homo_irred, flag_TDA, mp2_env, unit_nr)
+      END IF
 
       ! Prints excitation energies up to user-specified number
       CALL print_excitation_energies(Exc_ens, homo, virtual, flag_TDA, multiplet, &

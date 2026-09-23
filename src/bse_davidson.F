@@ -2902,6 +2902,14 @@ CONTAINS
 
       ! B and Y arrive together or not at all
       CPASSERT(PRESENT(fm_B_explicit) .EQV. PRESENT(fm_Y))
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         IF (PRESENT(fm_B_explicit)) THEN
+            WRITE (unit_nr, '(T2,A10,T13,A)') 'BSE|DEBUG|', 'Reference check against the explicit A and B'
+         ELSE
+            WRITE (unit_nr, '(T2,A10,T13,A)') 'BSE|DEBUG|', 'Reference check against the explicit A'
+         END IF
+      END IF
       CALL cp_fm_get_info(fm_A_explicit, nrow_global=n_ov)
       n_want = SIZE(exc_ens)
       ALLOCATE (ref_ens(n_ov))

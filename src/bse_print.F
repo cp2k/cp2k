@@ -26,7 +26,8 @@ MODULE bse_print
                                               bse_screening_alpha,&
                                               bse_screening_rpa,&
                                               bse_screening_tdhf,&
-                                              bse_screening_w0
+                                              bse_screening_w0,&
+                                              bse_singlet
    USE kinds,                           ONLY: dp
    USE mp2_types,                       ONLY: mp2_type
    USE particle_types,                  ONLY: particle_type
@@ -89,31 +90,38 @@ CONTAINS
    END SUBROUTINE print_BSE_start_flag
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Banner, defining equations and legend of one BSE problem, printed before it is solved
 !> \param homo ...
 !> \param virtual ...
 !> \param homo_irred ...
 !> \param flag_TDA ...
-!> \param multiplet ...
-!> \param alpha ...
 !> \param mp2_env ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE print_output_header(homo, virtual, homo_irred, flag_TDA, &
-                                  multiplet, alpha, mp2_env, unit_nr)
+   SUBROUTINE print_output_header(homo, virtual, homo_irred, flag_TDA, mp2_env, unit_nr)
 
       INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred
       LOGICAL, INTENT(IN)                                :: flag_TDA
-      CHARACTER(LEN=10), INTENT(IN)                      :: multiplet
-      REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_output_header'
 
+      CHARACTER(LEN=10)                                  :: multiplet
       INTEGER                                            :: handle
+      LOGICAL                                            :: iterative
+      REAL(KIND=dp)                                      :: alpha
 
       CALL timeset(routineN, handle)
+
+      IF (mp2_env%bse%bse_spin_config == bse_singlet) THEN
+         multiplet = "Singlet"
+         alpha = 2.0_dp
+      ELSE
+         multiplet = "Triplet"
+         alpha = 0.0_dp
+      END IF
+      iterative = mp2_env%bse%bse_diag_method == bse_iterdiag
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -123,8 +131,13 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '*   Bethe Salpeter equation (BSE) with Tamm Dancoff approximation (TDA)  *'
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A48,A23)') 'BSE|', 'The excitations are calculated by diagonalizing ', &
-               'the BSE within the TDA:'
+            IF (iterative) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'The lowest excitations are obtained iteratively (block Davidson)'
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'from the BSE within the TDA:'
+            ELSE
+               WRITE (unit_nr, '(T2,A4,T7,A48,A23)') 'BSE|', 'The excitations are calculated by diagonalizing ', &
+                  'the BSE within the TDA:'
+            END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T29,A16)') 'BSE|', 'A X^n = Ω^n X^n'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -139,8 +152,13 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '*      Full ("ABBA") Bethe Salpeter equation (BSE) (i.e. without TDA)    *'
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A48,A24)') 'BSE|', 'The excitations are calculated by diagonalizing ', &
-               'the BSE without the TDA:'
+            IF (iterative) THEN
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'The lowest excitations are obtained iteratively (block Davidson)'
+               WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'from the BSE without the TDA:'
+            ELSE
+               WRITE (unit_nr, '(T2,A4,T7,A48,A24)') 'BSE|', 'The excitations are calculated by diagonalizing ', &
+                  'the BSE without the TDA:'
+            END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T22,A30)') 'BSE|', '|A B| |X^n|       |1  0| |X^n|'
             WRITE (unit_nr, '(T2,A4,T22,A31)') 'BSE|', '|B A| |Y^n| = Ω^n |0 -1| |Y^n|'
@@ -176,7 +194,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A14)') 'BSE|', 'Ref.: Eq. (10)'
             WRITE (unit_nr, '(T2,A4,T7,A61)') 'BSE|', 'in PRB 113,205152 (2026); https://doi.org/10.1103/38k2-d55h .'
          END IF
-         IF (mp2_env%bse%bse_diag_method == bse_iterdiag) THEN
+         IF (iterative) THEN
             CALL print_iterative_method(flag_TDA, mp2_env%bse%abba_solver, unit_nr)
          ELSE IF (.NOT. flag_TDA) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'

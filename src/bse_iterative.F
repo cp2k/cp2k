@@ -26,6 +26,7 @@ MODULE bse_iterative
                                               bse_matvec_env_type,&
                                               bse_matvec_release,&
                                               bse_matvec_selfcheck
+   USE bse_print,                       ONLY: print_output_header
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -176,6 +177,7 @@ CONTAINS
       CALL cp_fm_release(fm_mat_S_bar_ij_bse_arr(1))
 
       IF (do_tda) THEN
+         CALL print_output_header(homo_red_arr(1), virt_red_arr(1), homo(1), .TRUE., mp2_env, unit_nr)
          CALL bse_davidson_tda(mv_env, mp2_env, unit_nr, exc_ens, fm_X)
          IF (do_debug) CALL bse_davidson_refcheck(fm_A_BSE, exc_ens, fm_X, mp2_env, unit_nr)
 
@@ -191,6 +193,7 @@ CONTAINS
          ! optional argument counts as absent (Fortran 2008)
          NULLIFY (fm_tda_guess)
          IF (do_tda) fm_tda_guess => fm_X
+         CALL print_output_header(homo_red_arr(1), virt_red_arr(1), homo(1), .FALSE., mp2_env, unit_nr)
          SELECT CASE (mp2_env%bse%abba_solver)
          CASE (bse_abba_mk_davidson)
             solver_str = 'MK_DAVIDSON'
