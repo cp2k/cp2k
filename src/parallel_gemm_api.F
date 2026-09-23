@@ -150,7 +150,7 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(IN)                       :: alpha
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_a, matrix_b
       COMPLEX(KIND=dp), INTENT(IN)                       :: beta
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_c
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_c
       INTEGER, INTENT(IN), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
                                                             b_first_row, c_first_col, c_first_row
 

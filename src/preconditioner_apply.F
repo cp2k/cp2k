@@ -178,7 +178,8 @@ CONTAINS
    SUBROUTINE apply_preconditioner_cfm_complex(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in, matrix_out
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_cfm_complex'
 
@@ -235,7 +236,8 @@ CONTAINS
    SUBROUTINE apply_complex_full_all_spectral(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in, matrix_out
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_out
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
@@ -278,7 +280,8 @@ CONTAINS
    SUBROUTINE apply_complex_fermi_low_rank(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in, matrix_out
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_in
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_out
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data

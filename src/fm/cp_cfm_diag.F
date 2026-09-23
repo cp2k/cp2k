@@ -585,9 +585,9 @@ CONTAINS
    SUBROUTINE cp_cfm_geeig_canon(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig, &
                                  nmo_retained)
 
-      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
-      TYPE(cp_cfm_type), INTENT(IN)                      :: work
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: work
       REAL(KIND=dp), INTENT(IN)                          :: epseig
       INTEGER, INTENT(OUT), OPTIONAL                     :: nmo_retained
 

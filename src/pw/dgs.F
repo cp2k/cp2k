@@ -1158,13 +1158,12 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)         :: ex, ey, ez
       COMPLEX(KIND=dp), DIMENSION(:), INTENT(INOUT)      :: scr
 
-      INTEGER                                            :: n2, n3
+      INTEGER                                            :: n2
 
       n2 = n(1)*n(2)
-      n3 = n2*n(3)
       scr(1:n2) = z_zero
       CALL zgeru(n(1), n(2), zb, ex, 1, ey, 1, scr, n(1))
-      CALL zscal(n3, za, cmat, 1)
+      cmat(1:n(1), 1:n(2), 1:n(3)) = za*cmat(1:n(1), 1:n(2), 1:n(3))
       CALL zgeru(n2, n(3), z_one, scr, 1, ez, 1, cmat, n2)
 
    END SUBROUTINE rankup
