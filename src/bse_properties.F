@@ -26,9 +26,6 @@ MODULE bse_properties
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_get_submatrix, cp_fm_release, cp_fm_set_all, &
         cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_to_fm_submat_general, cp_fm_type
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_unit_nr,&
-                                              cp_logger_type
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -245,7 +242,6 @@ CONTAINS
                                                             omega
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: abs_cross_section, abs_spectrum
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eta_list
-      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
 
@@ -326,13 +322,9 @@ CONTAINS
             END IF
          END IF
 
-         ! Print it to file
-         logger => cp_get_default_logger()
-         IF (logger%para_env%is_source()) THEN
-            unit_nr_file = cp_logger_get_default_unit_nr()
-         ELSE
-            unit_nr_file = -1
-         END IF
+         ! Print it to file from the ionode only: unit_nr is open there alone, whereas the default
+         ! logger inside the MP2/GW driver is the subgroup's and would make every group's root write
+         unit_nr_file = unit_nr
 
          IF (unit_nr_file > 0) THEN
             CALL open_file(file_name_crosssection, unit_number=unit_nr_file, &
