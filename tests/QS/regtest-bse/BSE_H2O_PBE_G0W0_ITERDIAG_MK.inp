@@ -52,7 +52,7 @@
                 ABBA_SOLVER MK_DAVIDSON
                 MAX_SUBSPACE_FACTOR 4
                 NUM_EXC_EN 3
-                NUM_GUESS_TRANSITIONS 0
+                NUM_GUESS_TRANSITIONS -1
               &END BSE_ITERAT
             &END BSE
           &END GW
