@@ -217,17 +217,9 @@ CONTAINS
          CALL subspace_rotate(fm_Z, m, coef_ritz_theta(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
          CALL column_norms(fm_work, 1, n_act, para_env, res)
 
-         dE(:) = ABS(theta(1:n_act) - theta_prev(:))
-         CALL convergence_flags(mp2_env, dE, res, conv)
-         n_req = multiplet_end(theta, n_want, n_act, deg_thresh)
-         ! a subspace that spans all transitions is exact
-         IF (m == n_ov) conv(:) = .TRUE.
-         CALL roots_in_need(conv, theta, res, n_req, need)
+         CALL convergence_step(mp2_env, theta, theta_prev, res, m, n_ov, n_want, iter, t_iter, unit_nr, &
+                               dE, conv, n_req, need)
          all_conv = .NOT. ANY(need)
-         ! the masked MAXVAL is -HUGE when no root is in need; the unmasked term covers that case
-         CALL print_iteration(iter, m, COUNT(conv(1:n_want)), &
-                              MAX(MAXVAL(res(1:n_req)), MAXVAL(res, MASK=need)), &
-                              MAXVAL(dE(1:n_req)), theta(1), m_walltime() - t_iter, unit_nr)
          IF (all_conv) EXIT
 
          IF (iter == mp2_env%bse%max_iter) EXIT
@@ -488,17 +480,9 @@ CONTAINS
             CALL subspace_rotate(fm_V, m, coef_x_omega(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
             CALL column_norms(fm_work, 1, n_act, para_env, res)
 
-            dE(:) = ABS(omega(:) - omega_prev(:))
-            CALL convergence_flags(mp2_env, dE, res, conv)
-            n_req = multiplet_end(omega, n_want, n_act, deg_thresh)
-            ! a subspace that spans all transitions is exact
-            IF (m == n_ov) conv(:) = .TRUE.
-            CALL roots_in_need(conv, omega, res, n_req, need)
+            CALL convergence_step(mp2_env, omega, omega_prev, res, m, n_ov, n_want, iter, t_iter, unit_nr, &
+                                  dE, conv, n_req, need)
             all_conv = .NOT. ANY(need)
-            ! the masked MAXVAL is -HUGE when no root is in need; the unmasked term covers that case
-            CALL print_iteration(iter, m, COUNT(conv(1:n_want)), &
-                                 MAX(MAXVAL(res(1:n_req)), MAXVAL(res, MASK=need)), &
-                                 MAXVAL(dE(1:n_req)), omega(1), m_walltime() - t_iter, unit_nr)
             IF (all_conv) EXIT
 
             IF (iter == mp2_env%bse%max_iter) EXIT
@@ -798,17 +782,9 @@ CONTAINS
             CALL column_norms(fm_work, n_act + 1, n_act, para_env, res_L)
             res(:) = MAX(res(:), res_L(:))
 
-            dE(:) = ABS(omega(:) - omega_prev(:))
-            CALL convergence_flags(mp2_env, dE, res, conv)
-            n_req = multiplet_end(omega, n_want, n_act, deg_thresh)
-            ! a subspace that spans all transitions is exact
-            IF (m == n_ov) conv(:) = .TRUE.
-            CALL roots_in_need(conv, omega, res, n_req, need)
+            CALL convergence_step(mp2_env, omega, omega_prev, res, m, n_ov, n_want, iter, t_iter, unit_nr, &
+                                  dE, conv, n_req, need)
             all_conv = .NOT. ANY(need)
-            ! the masked MAXVAL is -HUGE when no root is in need; the unmasked term covers that case
-            CALL print_iteration(iter, m, COUNT(conv(1:n_want)), &
-                                 MAX(MAXVAL(res(1:n_req)), MAXVAL(res, MASK=need)), &
-                                 MAXVAL(dE(1:n_req)), omega(1), m_walltime() - t_iter, unit_nr)
             IF (all_conv) EXIT
 
             IF (iter == mp2_env%bse%max_iter) EXIT
@@ -1218,6 +1194,54 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE extend_basis_os
+
+! **************************************************************************************************
+!> \brief One convergence step of a driver: dE_k = |E_k - E_k^prev|, the flags from CONVERGENCE_CRITERION,
+!>        the last required root, every root converged once the basis spans all transitions, the roots
+!>        in need, and the line of the iteration table
+!> \param mp2_env CONVERGENCE_CRITERION, EPS_ENERGY and EPS_RES
+!> \param energies tracked energies in Hartree, ascending; the first SIZE(res) are read
+!> \param energies_prev the same of the previous iteration
+!> \param res residual norms of the tracked roots
+!> \param m subspace dimension
+!> \param n_ov number of transitions
+!> \param n_want requested states
+!> \param iter iteration count
+!> \param t_iter wall time at the start of the iteration
+!> \param unit_nr output unit, positive on the writing rank only
+!> \param dE energy changes in Hartree
+!> \param conv convergence flags
+!> \param n_req last required root
+!> \param need roots in need
+! **************************************************************************************************
+   SUBROUTINE convergence_step(mp2_env, energies, energies_prev, res, m, n_ov, n_want, iter, t_iter, unit_nr, &
+                               dE, conv, n_req, need)
+
+      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: energies, energies_prev, res
+      INTEGER, INTENT(IN)                                :: m, n_ov, n_want, iter
+      REAL(KIND=dp), INTENT(IN)                          :: t_iter
+      INTEGER, INTENT(IN)                                :: unit_nr
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: dE
+      LOGICAL, DIMENSION(:), INTENT(OUT)                 :: conv
+      INTEGER, INTENT(OUT)                               :: n_req
+      LOGICAL, DIMENSION(:), INTENT(OUT)                 :: need
+
+      INTEGER                                            :: n_act
+
+      n_act = SIZE(res)
+      dE(:) = ABS(energies(1:n_act) - energies_prev(1:n_act))
+      CALL convergence_flags(mp2_env, dE, res, conv)
+      n_req = multiplet_end(energies, n_want, n_act, deg_thresh)
+      ! a subspace that spans all transitions is exact
+      IF (m == n_ov) conv(:) = .TRUE.
+      CALL roots_in_need(conv, energies, res, n_req, need)
+      ! the masked MAXVAL is -HUGE when no root is in need; the unmasked term covers that case
+      CALL print_iteration(iter, m, COUNT(conv(1:n_want)), &
+                           MAX(MAXVAL(res(1:n_req)), MAXVAL(res, MASK=need)), &
+                           MAXVAL(dE(1:n_req)), energies(1), m_walltime() - t_iter, unit_nr)
+
+   END SUBROUTINE convergence_step
 
 ! **************************************************************************************************
 !> \brief Convergence flag of every tracked root k from CONVERGENCE_CRITERION: EN dE_k < EPS_ENERGY,
