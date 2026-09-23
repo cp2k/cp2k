@@ -301,7 +301,7 @@ CONTAINS
                                 Eigenval_reduced, homo_red, virt_red, do_abba, mp2_env, unit_nr)
 
       TYPE(bse_matvec_env_type), INTENT(OUT)             :: mv_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_S_ia, fm_S_ij, fm_S_ab, fm_S_bar_ia, &
+      TYPE(cp_fm_type), INTENT(IN), TARGET               :: fm_S_ia, fm_S_ij, fm_S_ab, fm_S_bar_ia, &
                                                             fm_S_bar_ij
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_reduced
       INTEGER, INTENT(IN)                                :: homo_red, virt_red
@@ -310,6 +310,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
 
       REAL(KIND=dp)                                      :: alpha, w_fac
+      TYPE(cp_fm_type), POINTER                          :: fm_W_ia, fm_W_ij
 
       alpha = 0.0_dp
       SELECT CASE (mp2_env%bse%bse_spin_config)
@@ -331,14 +332,15 @@ CONTAINS
       ! TDHF and ALPHA screening contract the bare slabs, all others the W-multiplied ones
       IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
           mp2_env%bse%screening_method == bse_screening_alpha) THEN
-         CALL bse_matvec_create(mv_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_S_ia, Eigenval_reduced, &
-                                homo_red, virt_red, alpha, w_fac, do_abba, unit_nr, &
-                                block_cols=mp2_env%bse%matvec_block_columns)
+         fm_W_ij => fm_S_ij
+         fm_W_ia => fm_S_ia
       ELSE
-         CALL bse_matvec_create(mv_env, fm_S_ia, fm_S_bar_ij, fm_S_ab, fm_S_bar_ia, Eigenval_reduced, &
-                                homo_red, virt_red, alpha, w_fac, do_abba, unit_nr, &
-                                block_cols=mp2_env%bse%matvec_block_columns)
+         fm_W_ij => fm_S_bar_ij
+         fm_W_ia => fm_S_bar_ia
       END IF
+      CALL bse_matvec_create(mv_env, fm_S_ia, fm_W_ij, fm_S_ab, fm_W_ia, Eigenval_reduced, &
+                             homo_red, virt_red, alpha, w_fac, do_abba, unit_nr, &
+                             block_cols=mp2_env%bse%matvec_block_columns)
 
    END SUBROUTINE create_matvec_env
 
