@@ -95,9 +95,56 @@ MODULE bse_util
              estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices, &
              adapt_BSE_input_params, get_multipoles_mo, &
              reshuffle_eigvec, print_bse_nto_cubes, trace_exciton_descr, &
-             get_bse_spin_block_layout, assemble_joint_ov_slab
+             get_bse_spin_block_layout, assemble_joint_ov_slab, &
+             ia_of_occ_virt, occ_of_ia, virt_of_ia
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Compound transition index ia = (i-1)*virt + a of the pair (i, a): a is the fast index
+!> \param i_occ occupied level
+!> \param a_virt virtual level
+!> \param virt number of virtual levels
+!> \return ia
+! **************************************************************************************************
+   PURE FUNCTION ia_of_occ_virt(i_occ, a_virt, virt) RESULT(ia)
+
+      INTEGER, INTENT(IN)                                :: i_occ, a_virt, virt
+      INTEGER                                            :: ia
+
+      ia = (i_occ - 1)*virt + a_virt
+
+   END FUNCTION ia_of_occ_virt
+
+! **************************************************************************************************
+!> \brief Occupied level of the compound transition index ia = (i-1)*virt + a
+!> \param ia compound transition index
+!> \param virt number of virtual levels
+!> \return i
+! **************************************************************************************************
+   PURE FUNCTION occ_of_ia(ia, virt) RESULT(i_occ)
+
+      INTEGER, INTENT(IN)                                :: ia, virt
+      INTEGER                                            :: i_occ
+
+      i_occ = (ia - 1)/virt + 1
+
+   END FUNCTION occ_of_ia
+
+! **************************************************************************************************
+!> \brief Virtual level of the compound transition index ia = (i-1)*virt + a
+!> \param ia compound transition index
+!> \param virt number of virtual levels
+!> \return a
+! **************************************************************************************************
+   PURE FUNCTION virt_of_ia(ia, virt) RESULT(a_virt)
+
+      INTEGER, INTENT(IN)                                :: ia, virt
+      INTEGER                                            :: a_virt
+
+      a_virt = MOD(ia - 1, virt) + 1
+
+   END FUNCTION virt_of_ia
 
 ! **************************************************************************************************
 !> \brief Multiplies B-matrix (RI-3c-Integrals) with W (screening) to obtain \bar{B}
