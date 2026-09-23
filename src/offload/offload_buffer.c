@@ -117,7 +117,7 @@ double *offload_get_buffer_host_pointer(offload_buffer *buffer) {
 
 /*******************************************************************************
  * \brief Returns a pointer to the device buffer (Fortran API).
- * \author Ole Schuett
+ * \author Samal Bibek
  ******************************************************************************/
 double *offload_get_buffer_device_pointer(offload_buffer *buffer) {
   assert(NULL != buffer);
@@ -126,7 +126,7 @@ double *offload_get_buffer_device_pointer(offload_buffer *buffer) {
 
 /*******************************************************************************
  * \brief Copy data from host to device (Fortran API).
- * \author Ole Schuett
+ * \author Samal Bibek
  ******************************************************************************/
 void offload_buffer_h2d(offload_buffer *buffer, const int length) {
   assert(NULL != buffer);
@@ -143,7 +143,7 @@ void offload_buffer_h2d(offload_buffer *buffer, const int length) {
 
 /*******************************************************************************
  * \brief Copy data from device to host (Fortran API).
- * \author Ole Schuett
+ * \author Samal Bibek
  ******************************************************************************/
 void offload_buffer_d2h(offload_buffer *buffer, const int length) {
   assert(NULL != buffer);
