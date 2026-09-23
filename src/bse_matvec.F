@@ -13,6 +13,9 @@
 ! **************************************************************************************************
 MODULE bse_matvec
 
+   USE bse_util,                        ONLY: ia_of_occ_virt,&
+                                              occ_of_ia,&
+                                              virt_of_ia
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -45,7 +48,7 @@ MODULE bse_matvec
 !> \brief RI slabs of one spin channel, every rank holding n_ri_loc whole RI slices
 !> \param alpha prefactor of the exchange term (2 singlet, 0 triplet)
 !> \param w_fac prefactor of the screened term (0 switches it off)
-!> \param eps_diff ε_a - ε_i at compound index ia = (i-1)*virt + a
+!> \param eps_diff ε_a - ε_i at the compound index ia = (i-1)*virt + a of bse_util's ia_of_occ_virt
 !> \param B_ia B^P_ia at (a, i, P)
 !> \param B_bar_ia \bar{B}^P_ia at (a, i, P), only for do_abba
 !> \param B_bar_ij \bar{B}^P_ij at (j, i, P)
@@ -138,7 +141,7 @@ CONTAINS
       ALLOCATE (mv_env%eps_diff(mv_env%n_ov))
       DO i = 1, homo
          DO a = 1, virt
-            mv_env%eps_diff((i - 1)*virt + a) = eps_reduced(homo + a) - eps_reduced(i)
+            mv_env%eps_diff(ia_of_occ_virt(i, a, virt)) = eps_reduced(homo + a) - eps_reduced(i)
          END DO
       END DO
 
@@ -485,7 +488,7 @@ CONTAINS
          DO p = 1, mv_env%n_ri_loc
             DO i = 1, mv_env%homo
                DO a = 1, mv_env%virt
-                  ia = (i - 1)*mv_env%virt + a
+                  ia = ia_of_occ_virt(i, a, mv_env%virt)
                   diag(ia) = diag(ia) + mv_env%alpha*mv_env%B_ia(a, i, p)**2
                   IF (mv_env%w_fac /= 0.0_dp) THEN
                      diag(ia) = diag(ia) - mv_env%w_fac*mv_env%B_bar_ij(i, i, p)*mv_env%B_ab(a, a, p)
@@ -530,8 +533,8 @@ CONTAINS
       n_sub = SIZE(ia_list)
       ALLOCATE (i_occ(n_sub), a_virt(n_sub), B_Pk(MAX(mv_env%n_ri_loc, 1), n_sub))
       DO k = 1, n_sub
-         i_occ(k) = (ia_list(k) - 1)/mv_env%virt + 1
-         a_virt(k) = ia_list(k) - (i_occ(k) - 1)*mv_env%virt
+         i_occ(k) = occ_of_ia(ia_list(k), mv_env%virt)
+         a_virt(k) = virt_of_ia(ia_list(k), mv_env%virt)
       END DO
 
       ! exchange, identical in A and B: α sum_P B_Pk B_Pl with B_Pk = B^P_ia at ia = ia_list(k)
