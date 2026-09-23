@@ -39,6 +39,7 @@ MODULE qs_dispersion_nonloc
                                               pw_grid_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_derive,&
+                                              pw_scale,&
                                               pw_transfer,&
                                               pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
