@@ -18,7 +18,7 @@ pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(
         not os.environ.get("CP2K_TEST_PLUMED"),
-        reason="Set CP2K_TEST_PLUMED for a PLUMED-enabled library",
+        reason="Set CP2K_TEST_PLUMED for a PLUMED-enabled executable",
     ),
 ]
 
