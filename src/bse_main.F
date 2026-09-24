@@ -177,12 +177,9 @@ CONTAINS
       DO ispin = 1, nspins
          ! the cutoff summary is printed for a closed-shell reference only
          CALL truncate_BSE_matrices(fm_S_ia_full(ispin), fm_S_ij_full(ispin), fm_S_ab_full(ispin), &
-                                    bse_env%fm_S_ia(ispin), bse_env%fm_S_ij(ispin), bse_env%fm_S_ab(ispin), &
                                     Eigenval_scf(:, 1, ispin), Eigenval(:, 1, ispin), &
                                     eigenval_dft_spin, eigenval_qp_spin, homo(ispin), virtual(ispin), &
-                                    dimen_RI, unit_nr, ispin, &
-                                    bse_env%homo_red(ispin), bse_env%virt_red(ispin), bse_env, &
-                                    window, nspins == 1)
+                                    dimen_RI, unit_nr, ispin, bse_env, window, nspins == 1)
          ! the window is one absolute range, so every spin has the same number of levels
          IF (ispin == 1) THEN
             n_window = SIZE(eigenval_qp_spin)
@@ -313,8 +310,7 @@ CONTAINS
       CALL cp_fm_release(bse_env%fm_eps_inv)
 
       IF (bse_env%do_iterdiag) THEN
-         CALL solve_bse_iteratively(bse_env%fm_S_ia, bse_env%fm_S_ij, bse_env%fm_S_ab, &
-                                    bse_env%fm_S_bar_ia, bse_env%fm_S_bar_ij, eigenval_joint, &
+         CALL solve_bse_iteratively(eigenval_joint, &
                                     bse_env%homo_red, bse_env%virt_red, bse_env%homo_full, &
                                     bse_env%dimen_RI, bse_env%do_tda, bse_env%do_abba, &
                                     bse_env, mo_coeff, unit_nr)

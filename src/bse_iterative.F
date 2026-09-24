@@ -71,11 +71,6 @@ CONTAINS
 !>        (B Z)_ia =                  α sum_P B^P_ia sum_jb B^P_jb Z_jb - w sum_Pjb \bar{B}^P_ib B^P_ja Z_jb
 !>        with α, w and \bar{B} set by create_matvec_env from SPIN_CONFIG and SCREENING_IN_W.
 !>        The five slabs are released once the solver holds its RI-sliced copies
-!> \param fm_mat_S_ia_trunc_arr B^P_ia of the active window, N_RI x homo_red*virt_red; entry 1 is used
-!> \param fm_mat_S_ij_trunc_arr B^P_ij, N_RI x homo_red^2
-!> \param fm_mat_S_ab_trunc_arr B^P_ab, N_RI x virt_red^2
-!> \param fm_mat_S_bar_ia_bse_arr \bar{B}^P_ia = sum_Q [1+Q(0)]^-1_PQ B^Q_ia, the W-screened slab of W_ib,aj
-!> \param fm_mat_S_bar_ij_bse_arr \bar{B}^P_ij, the W-screened slab of W_ij,ab
 !> \param Eigenval_reduced energies of the homo_red + virt_red active levels in Hartree, QP or DFT per USE_KS_ENERGIES
 !> \param homo_red_arr occupied levels in the active window, per spin; entry 1 is used
 !> \param virt_red_arr virtual levels in the active window, per spin; entry 1 is used
@@ -83,24 +78,22 @@ CONTAINS
 !> \param dimen_RI number of RI functions; only the debug construction of the explicit A and B uses it
 !> \param do_tda solve the TDA problem
 !> \param do_abba solve the full problem; after the TDA in a TDA+ABBA run, seeded with X^TDA
-!> \param bse_env the BSE environment: the BSE_ITERAT settings, BSE_DEBUG_PRINT and the TDDFPT control flags
+!> \param bse_env the BSE environment: the BSE_ITERAT settings, BSE_DEBUG_PRINT and the TDDFPT control flags;
+!>        the five slabs of spin 1, released here: fm_S_ia = B^P_ia (N_RI x homo_red*virt_red), fm_S_ij = B^P_ij,
+!>        fm_S_ab = B^P_ab, fm_S_bar_ia = \bar{B}^P_ia = sum_Q [1+Q(0)]^-1_PQ B^Q_ia (the slab of W_ib,aj) and
+!>        fm_S_bar_ij = \bar{B}^P_ij (the slab of W_ij,ab)
 !> \param mo_coeff MO coefficients of the reference, handed to postprocess_bse
 !> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
-   SUBROUTINE solve_bse_iteratively(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, &
-                                    fm_mat_S_ab_trunc_arr, fm_mat_S_bar_ia_bse_arr, &
-                                    fm_mat_S_bar_ij_bse_arr, Eigenval_reduced, &
+   SUBROUTINE solve_bse_iteratively(Eigenval_reduced, &
                                     homo_red_arr, virt_red_arr, homo, dimen_RI, &
                                     do_tda, do_abba, bse_env, mo_coeff, unit_nr)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT) :: fm_mat_S_ia_trunc_arr, &
-         fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, fm_mat_S_bar_ia_bse_arr, &
-         fm_mat_S_bar_ij_bse_arr
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_reduced
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo_red_arr, virt_red_arr, homo
       INTEGER, INTENT(IN)                                :: dimen_RI
       LOGICAL, INTENT(IN)                                :: do_tda, do_abba
-      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER, INTENT(IN)                                :: unit_nr
 
@@ -142,14 +135,14 @@ CONTAINS
                       "and B are skipped above N_ov = "//TRIM(n_ov_str)//".")
       END IF
 
-      CALL create_matvec_env(mv_env, fm_mat_S_ia_trunc_arr(1), fm_mat_S_ij_trunc_arr(1), &
-                             fm_mat_S_ab_trunc_arr(1), fm_mat_S_bar_ia_bse_arr(1), &
-                             fm_mat_S_bar_ij_bse_arr(1), Eigenval_reduced, &
+      CALL create_matvec_env(mv_env, bse_env%fm_S_ia(1), bse_env%fm_S_ij(1), &
+                             bse_env%fm_S_ab(1), bse_env%fm_S_bar_ia(1), &
+                             bse_env%fm_S_bar_ij(1), Eigenval_reduced, &
                              homo_red_arr(1), virt_red_arr(1), do_abba, bse_env, unit_nr)
 
       IF (do_debug) THEN
-         CALL create_A_and_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
-                             fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr, fm_A_BSE, fm_B_BSE, &
+         CALL create_A_and_B(bse_env%fm_S_ia, bse_env%fm_S_ij, bse_env%fm_S_ab, &
+                             bse_env%fm_S_bar_ia, bse_env%fm_S_bar_ij, fm_A_BSE, fm_B_BSE, &
                              do_abba, Eigenval_reduced, unit_nr, homo_red_arr, virt_red_arr, dimen_RI, &
                              bse_env)
          IF (do_abba) THEN
@@ -160,13 +153,13 @@ CONTAINS
       END IF
 
       ! the solver works on its RI-sliced copies; only the grid of the slabs is kept, for the eigenvectors
-      blacs_env_ia => fm_mat_S_ia_trunc_arr(1)%matrix_struct%context
+      blacs_env_ia => bse_env%fm_S_ia(1)%matrix_struct%context
       CALL blacs_env_ia%retain()
-      CALL cp_fm_release(fm_mat_S_ia_trunc_arr(1))
-      CALL cp_fm_release(fm_mat_S_ij_trunc_arr(1))
-      CALL cp_fm_release(fm_mat_S_ab_trunc_arr(1))
-      CALL cp_fm_release(fm_mat_S_bar_ia_bse_arr(1))
-      CALL cp_fm_release(fm_mat_S_bar_ij_bse_arr(1))
+      CALL cp_fm_release(bse_env%fm_S_ia(1))
+      CALL cp_fm_release(bse_env%fm_S_ij(1))
+      CALL cp_fm_release(bse_env%fm_S_ab(1))
+      CALL cp_fm_release(bse_env%fm_S_bar_ia(1))
+      CALL cp_fm_release(bse_env%fm_S_bar_ij(1))
 
       IF (do_tda) THEN
          CALL print_output_header(homo_red_arr(1), virt_red_arr(1), homo(1), .TRUE., bse_env, unit_nr)

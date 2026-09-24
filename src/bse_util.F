@@ -456,18 +456,18 @@ CONTAINS
 !> \param nrow_out ...
 !> \param ncol_out ...
 !> \param unit_nr ...
-!> \param bse_env the BSE environment (settings)
+!> \param debug_print BSE_DEBUG_PRINT
 !> \param nrow_offset ...
 !> \param ncol_offset ...
 ! **************************************************************************************************
    SUBROUTINE truncate_fm(fm_out, fm_in, ncol_in, &
-                          nrow_out, ncol_out, unit_nr, bse_env, &
+                          nrow_out, ncol_out, unit_nr, debug_print, &
                           nrow_offset, ncol_offset)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_in
       INTEGER                                            :: ncol_in, nrow_out, ncol_out, unit_nr
-      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
+      LOGICAL, INTENT(IN)                                :: debug_print
       INTEGER, INTENT(IN), OPTIONAL                      :: nrow_offset, ncol_offset
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'truncate_fm'
@@ -525,7 +525,7 @@ CONTAINS
                           nrow_block=nrow_block_in, &
                           ncol_block=ncol_block_in)
 
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_out%name, &
             fm_out%matrix_struct%nrow_global
          WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_out%name, &
@@ -583,7 +583,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_2_comm_entry_nums", handle2)
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A27)') 'BSE|DEBUG|', 'Communicating entry numbers'
       END IF
 
@@ -592,7 +592,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_3_alloc_buffer", handle2)
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A18)') 'BSE|DEBUG|', 'Allocating buffers'
       END IF
 
@@ -632,7 +632,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_4_buf_from_fmin_"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A18,A10,A13)') 'BSE|DEBUG|', 'Writing data from ', fm_in%name, ' into buffers'
       END IF
 
@@ -688,7 +688,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_5_comm_buffer", handle2)
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A21)') 'BSE|DEBUG|', 'Communicating buffers'
       END IF
 
@@ -699,7 +699,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_6_buffer_to_fmout"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_out%name
       END IF
 
@@ -722,7 +722,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_7_cleanup", handle2)
-      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A41)') 'BSE|DEBUG|', 'Starting cleanup of communication buffers'
       END IF
 
@@ -1173,9 +1173,6 @@ CONTAINS
 !> \param fm_S_ia_full ...
 !> \param fm_S_ij_full ...
 !> \param fm_S_ab_full ...
-!> \param fm_S_ia ...
-!> \param fm_S_ij ...
-!> \param fm_S_ab ...
 !> \param Eigenval_scf ...
 !> \param Eigenval ...
 !> \param Eigenval_reduced_scf DFT energies of the window, allocated here
@@ -1185,34 +1182,30 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param unit_nr ...
 !> \param ispin spin of the slabs, selects the GW-corrected virtual count
-!> \param homo_red ...
-!> \param virt_red ...
-!> \param bse_env the BSE environment (settings; the GW-corrected level counts)
+!> \param bse_env the BSE environment (settings; the GW-corrected level counts); receives the
+!>        window's slabs fm_S_ia, fm_S_ij, fm_S_ab and its level counts homo_red, virt_red of spin ispin
 !> \param window Absolute MO window to retain.
 !> \param print_window Whether to print the cutoff summary.
 ! **************************************************************************************************
    SUBROUTINE truncate_BSE_matrices(fm_S_ia_full, fm_S_ij_full, fm_S_ab_full, &
-                                    fm_S_ia, fm_S_ij, fm_S_ab, &
                                     Eigenval_scf, Eigenval, Eigenval_reduced_scf, Eigenval_reduced_qp, &
                                     homo, virtual, dimen_RI, unit_nr, &
                                     ispin, &
-                                    homo_red, virt_red, &
                                     bse_env, &
                                     window, print_window)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_S_ia_full, fm_S_ij_full, fm_S_ab_full
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_S_ia, fm_S_ij, fm_S_ab
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval_scf, Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced_scf, Eigenval_reduced_qp
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr, ispin
-      INTEGER, INTENT(OUT)                               :: homo_red, virt_red
-      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
       TYPE(mo_window_type), INTENT(IN)                   :: window
       LOGICAL, INTENT(IN)                                :: print_window
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'truncate_BSE_matrices'
 
-      INTEGER                                            :: handle, homo_incl, virt_incl
+      INTEGER                                            :: handle, homo_incl, homo_red, virt_incl, &
+                                                            virt_red
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ab, fm_struct_ia, fm_struct_ij
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -1272,9 +1265,9 @@ CONTAINS
       CALL cp_fm_struct_create(fm_struct_ij, para_env, context, dimen_RI, homo_red*homo_red)
       CALL cp_fm_struct_create(fm_struct_ab, para_env, context, dimen_RI, virt_red*virt_red)
 
-      CALL cp_fm_create(fm_S_ia, fm_struct_ia, name="fm_S_trunc", set_zero=.TRUE.)
-      CALL cp_fm_create(fm_S_ij, fm_struct_ij, name="fm_S_ij_trunc", set_zero=.TRUE.)
-      CALL cp_fm_create(fm_S_ab, fm_struct_ab, name="fm_S_ab_trunc", set_zero=.TRUE.)
+      CALL cp_fm_create(bse_env%fm_S_ia(ispin), fm_struct_ia, name="fm_S_trunc", set_zero=.TRUE.)
+      CALL cp_fm_create(bse_env%fm_S_ij(ispin), fm_struct_ij, name="fm_S_ij_trunc", set_zero=.TRUE.)
+      CALL cp_fm_create(bse_env%fm_S_ab(ispin), fm_struct_ab, name="fm_S_ab_trunc", set_zero=.TRUE.)
 
       !Copy parts of original matrices to truncated ones
       IF (bse_env%bse_cutoff_occ > 0 .OR. bse_env%bse_cutoff_empty > 0) THEN
@@ -1283,14 +1276,14 @@ CONTAINS
          Eigenval_reduced_scf(:) = Eigenval_scf(homo_incl:homo + virt_incl)
          Eigenval_reduced_qp(:) = Eigenval(homo_incl:homo + virt_incl)
 
-         CALL truncate_fm(fm_S_ia, fm_S_ia_full, virtual, &
-                          homo_red, virt_red, unit_nr, bse_env, &
+         CALL truncate_fm(bse_env%fm_S_ia(ispin), fm_S_ia_full, virtual, &
+                          homo_red, virt_red, unit_nr, bse_env%bse_debug_print, &
                           nrow_offset=homo_incl)
-         CALL truncate_fm(fm_S_ij, fm_S_ij_full, homo, &
-                          homo_red, homo_red, unit_nr, bse_env, &
+         CALL truncate_fm(bse_env%fm_S_ij(ispin), fm_S_ij_full, homo, &
+                          homo_red, homo_red, unit_nr, bse_env%bse_debug_print, &
                           homo_incl, homo_incl)
-         CALL truncate_fm(fm_S_ab, fm_S_ab_full, bse_env%gw_corr_lev_virt(ispin), &
-                          virt_red, virt_red, unit_nr, bse_env)
+         CALL truncate_fm(bse_env%fm_S_ab(ispin), fm_S_ab_full, bse_env%gw_corr_lev_virt(ispin), &
+                          virt_red, virt_red, unit_nr, bse_env%bse_debug_print)
 
       ELSE
          IF (unit_nr > 0) THEN
@@ -1300,13 +1293,16 @@ CONTAINS
          ALLOCATE (Eigenval_reduced_scf(homo_red + virt_red), Eigenval_reduced_qp(homo_red + virt_red))
          Eigenval_reduced_scf(:) = Eigenval_scf(:)
          Eigenval_reduced_qp(:) = Eigenval(:)
-         CALL cp_fm_to_fm_submat_general(fm_S_ia_full, fm_S_ia, dimen_RI, homo_red*virt_red, &
+         CALL cp_fm_to_fm_submat_general(fm_S_ia_full, bse_env%fm_S_ia(ispin), dimen_RI, homo_red*virt_red, &
                                          1, 1, 1, 1, context)
-         CALL cp_fm_to_fm_submat_general(fm_S_ij_full, fm_S_ij, dimen_RI, homo_red*homo_red, &
+         CALL cp_fm_to_fm_submat_general(fm_S_ij_full, bse_env%fm_S_ij(ispin), dimen_RI, homo_red*homo_red, &
                                          1, 1, 1, 1, context)
-         CALL cp_fm_to_fm_submat_general(fm_S_ab_full, fm_S_ab, dimen_RI, virt_red*virt_red, &
+         CALL cp_fm_to_fm_submat_general(fm_S_ab_full, bse_env%fm_S_ab(ispin), dimen_RI, virt_red*virt_red, &
                                          1, 1, 1, 1, context)
       END IF
+
+      bse_env%homo_red(ispin) = homo_red
+      bse_env%virt_red(ispin) = virt_red
 
       CALL cp_fm_struct_release(fm_struct_ia)
       CALL cp_fm_struct_release(fm_struct_ij)
