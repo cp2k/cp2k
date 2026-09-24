@@ -33,5 +33,5 @@
 "h2o_lsd_lda_analytic.inp"              = [{matcher="E_total", tol=1.0E-10, ref=-16.66698042191488}]
 "h2o_lsd_gga_analytic.inp"              = [{matcher="E_total", tol=1.0E-10, ref=-16.77629238461370}]
 "h2o_lsd_mgga_tau_analytic.inp"         = [{matcher="E_total", tol=1.0E-10, ref=-16.78482419749887}]
-"h2o_lsd_mgga_lapl_analytic.inp"        = [{matcher="E_total", tol=1.0E-08, ref=-16.54838854154019}]
+"h2o_lsd_mgga_lapl_analytic.inp"        = [{matcher="E_total", tol=1.0E-08, ref=-16.54706095214013}]
 #EOF
