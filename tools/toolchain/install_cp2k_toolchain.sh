@@ -1228,13 +1228,13 @@ case ${GPUVER} in
     export ARCH_NUM="121"
     ;;
   Mi50)
-    # TODO: export ARCH_NUM=
+    export ARCH_NUM="gfx906"
     ;;
   Mi100)
-    # TODO: export ARCH_NUM=
+    export ARCH_NUM="gfx908"
     ;;
   Mi250)
-    # TODO: export ARCH_NUM=
+    export ARCH_NUM="gfx90a"
     ;;
   no)
     export ARCH_NUM="no"

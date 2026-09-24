@@ -46,7 +46,7 @@ case "$with_libxc" in
         mkdir build-cuda
         cd build-cuda
         CFLAGS="${LIBXC_CFLAGS}" cmake \
-          -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+          -DCMAKE_BUILD_TYPE="Release" \
           -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
           -DCMAKE_INSTALL_LIBDIR="lib" \
           -DCMAKE_VERBOSE_MAKEFILE=ON \
@@ -65,14 +65,15 @@ case "$with_libxc" in
         mkdir build-hip
         cd build-hip
         CFLAGS="${LIBXC_CFLAGS}" cmake \
-          -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+          -DCMAKE_BUILD_TYPE="Release" \
           -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
           -DCMAKE_INSTALL_LIBDIR="lib" \
           -DCMAKE_VERBOSE_MAKEFILE=ON \
-          -DBUILD_SHARED_LIBS=OFF \
+          -DBUILD_SHARED_LIBS=ON \
           -DBUILD_TESTING=OFF \
           -DENABLE_FORTRAN=ON \
           -DENABLE_HIP=ON \
+          -DCMAKE_HIP_ARCHITECTURES="${ARCH_NUM}" \
           -DMAXORDER=3 \
           .. > configure.log 2>&1 || tail_excerpt configure.log
         make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
@@ -83,7 +84,7 @@ case "$with_libxc" in
         mkdir build
         cd build
         CFLAGS="${LIBXC_CFLAGS}" cmake \
-          -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+          -DCMAKE_BUILD_TYPE="Release" \
           -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
           -DCMAKE_INSTALL_LIBDIR="lib" \
           -DCMAKE_VERBOSE_MAKEFILE=ON \
