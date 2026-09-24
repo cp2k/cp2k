@@ -28,7 +28,6 @@ MODULE bse_main
                                               estimate_BSE_resources,&
                                               fulldiag_memory_estimate_GB,&
                                               get_bse_spin_block_layout,&
-                                              invert_static_screening,&
                                               screen_slabs,&
                                               truncate_BSE_matrices
    USE cp_control_types,                ONLY: tddfpt2_control_type
@@ -39,7 +38,14 @@ MODULE bse_main
                                               dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
-   USE cp_fm_types,                     ONLY: cp_fm_release,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
+   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                              cp_fm_cholesky_invert
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -200,6 +206,61 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE prepare_bse_env
+
+! **************************************************************************************************
+!> \brief The inverse dielectric matrix in the RI basis, [1+Q(0)]^-1_PQ on the leading dimen_RI_red
+!>        block, P, Q ≤ dimen_RI_red, by Cholesky decomposition and inversion of a copy of Q(0)
+!> \param fm_Q the static polarizability Q_PQ(0), untouched
+!> \param dimen_RI_red reduced RI dimension of Q(0)
+!> \param fm_eps_inv [1+Q(0)]^-1_PQ, created here on fm_Q's structure
+! **************************************************************************************************
+   SUBROUTINE invert_static_screening(fm_Q, dimen_RI_red, fm_eps_inv)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_Q
+      INTEGER, INTENT(IN)                                :: dimen_RI_red
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_eps_inv
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_static_screening'
+
+      INTEGER                                            :: handle, i_global, iiB, info_chol, &
+                                                            j_global, jjB, ncol_local, nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      TYPE(cp_fm_type)                                   :: fm_work
+
+      CALL timeset(routineN, handle)
+
+      ! a copy: the caller keeps Q(0), and the open-shell path inverts once for both spins
+      CALL cp_fm_create(fm_eps_inv, fm_Q%matrix_struct)
+      CALL cp_fm_to_fm(fm_Q, fm_eps_inv)
+      CALL cp_fm_create(fm_work, fm_Q%matrix_struct)
+      CALL cp_fm_set_all(fm_work, 0.0_dp)
+
+      ! δ_PQ + Q_PQ(0) on the leading dimen_RI_red block
+      CALL cp_fm_get_info(matrix=fm_eps_inv, nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices)
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         DO iiB = 1, nrow_local
+            i_global = row_indices(iiB)
+            IF (j_global == i_global .AND. i_global <= dimen_RI_red) THEN
+               fm_eps_inv%local_data(iiB, jjB) = fm_eps_inv%local_data(iiB, jjB) + 1.0_dp
+            END IF
+         END DO
+      END DO
+
+      ! [1+Q(0)]^-1_PQ by Cholesky, symmetrised from the stored triangle
+      CALL cp_fm_cholesky_decompose(matrix=fm_eps_inv, n=dimen_RI_red, info_out=info_chol)
+      IF (info_chol /= 0) THEN
+         CALL cp_abort(__LOCATION__, 'Cholesky decomposition failed for static polarization in BSE')
+      END IF
+      CALL cp_fm_cholesky_invert(fm_eps_inv)
+      CALL cp_fm_uplo_to_full(fm_eps_inv, fm_work)
+
+      CALL cp_fm_release(fm_work)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE invert_static_screening
 
 ! **************************************************************************************************
 !> \brief Solves the BSE on a prepared environment: input normalisation, the screened slabs from
