@@ -220,6 +220,20 @@ the CP2K restart: the CP2K restart alone does not contain PLUMED's bias history.
 PLUMED input and files when restarting. Time-dependent biases do not in general conserve the
 physical-plus-bias energy; the appropriate work/reweighting depends on the method.
 
+The executable-based coupling tests compare biased and unbiased native MD output, so they do not
+require the optional libcp2k stress API or MD adapters. With a PLUMED-enabled executable:
+
+```sh
+python -m pip install './python[test]'
+CP2K_TEST_PLUMED=1 CP2K_TEST_EXECUTABLE=/absolute/path/to/cp2k.psmp \
+  python -m pytest python/tests/test_plumed.py -q
+```
+
+`python/tests/plumed_mpi_smoke.py` separately exercises variable-cell MD through the existing Python
+binding with one or two MPI ranks. Run it in separate scratch directories with `CP2K_LIBRARY` set to
+the matching PLUMED-enabled shared library. Compare `.cell`, `.stress` and the physical columns of
+`.ener`; the last energy-file column is wall time.
+
 ## spglib (crystal symmetries tools)
 
 Spglib is a library for finding and handling crystal symmetries. For more information, refer to
