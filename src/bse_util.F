@@ -1052,11 +1052,11 @@ CONTAINS
       INTEGER                                            :: eigvec_idx, handle, ii, iproc, isp, jj, &
                                                             kk, ksp, ncol_local, nrow_local, &
                                                             num_entries_local, r_local, v_local
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_entries_to_comm
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: displ, indx_all, indx_local, &
+                                                            num_entries_to_comm
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: eigvec_entry
-      TYPE(integ_mat_buffer_type), ALLOCATABLE, &
-         DIMENSION(:)                                    :: buffer_entries
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: entries_local
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
@@ -1069,43 +1069,18 @@ CONTAINS
                           row_indices=row_indices, &
                           col_indices=col_indices)
 
-      ALLOCATE (num_entries_to_comm(0:para_env%num_pe - 1))
-      num_entries_to_comm(:) = 0
-
+      ! the local entries of column i_exc above EPS_X: count, then collect with their (i, a, sigma)
+      num_entries_local = 0
       DO jj = 1, ncol_local
-         !First check if i is localized on this proc
-         IF (col_indices(jj) /= i_exc) THEN
-            CYCLE
-         END IF
+         IF (col_indices(jj) /= i_exc) CYCLE
          DO ii = 1, nrow_local
-            eigvec_idx = row_indices(ii)
-            eigvec_entry = fm_eigvec%local_data(ii, jj)
-            IF (ABS(eigvec_entry) > bse_env%eps_x) THEN
-               num_entries_to_comm(para_env%mepos) = num_entries_to_comm(para_env%mepos) + 1
-            END IF
+            IF (ABS(fm_eigvec%local_data(ii, jj)) > bse_env%eps_x) num_entries_local = num_entries_local + 1
          END DO
       END DO
-
-      !Gather number of entries of other processes
-      CALL para_env%sum(num_entries_to_comm)
-
-      num_entries_local = num_entries_to_comm(para_env%mepos)
-
-      ALLOCATE (buffer_entries(0:para_env%num_pe - 1))
-
-      DO iproc = 0, para_env%num_pe - 1
-         ALLOCATE (buffer_entries(iproc)%msg(num_entries_to_comm(iproc)))
-         ALLOCATE (buffer_entries(iproc)%indx(num_entries_to_comm(iproc), 3))
-         buffer_entries(iproc)%msg = 0.0_dp
-         buffer_entries(iproc)%indx = 0
-      END DO
-
-      kk = 1
+      ALLOCATE (entries_local(num_entries_local), indx_local(3*num_entries_local))
+      kk = 0
       DO jj = 1, ncol_local
-         !First check if i is localized on this proc
-         IF (col_indices(jj) /= i_exc) THEN
-            CYCLE
-         END IF
+         IF (col_indices(jj) /= i_exc) CYCLE
          DO ii = 1, nrow_local
             eigvec_idx = row_indices(ii)
             eigvec_entry = fm_eigvec%local_data(ii, jj)
@@ -1125,47 +1100,37 @@ CONTAINS
                   r_local = eigvec_idx - offsets(isp)
                   v_local = virtual_per_spin(isp)
                END IF
-               buffer_entries(para_env%mepos)%indx(kk, 1) = (r_local - 1)/v_local + 1
-               buffer_entries(para_env%mepos)%indx(kk, 2) = MOD(r_local - 1, v_local) + 1
-               buffer_entries(para_env%mepos)%indx(kk, 3) = isp
-               buffer_entries(para_env%mepos)%msg(kk) = eigvec_entry
                kk = kk + 1
+               indx_local(3*kk - 2) = occ_of_ia(r_local, v_local)
+               indx_local(3*kk - 1) = virt_of_ia(r_local, v_local)
+               indx_local(3*kk) = isp
+               entries_local(kk) = eigvec_entry
             END IF
          END DO
       END DO
 
-      DO iproc = 0, para_env%num_pe - 1
-         CALL para_env%sum(buffer_entries(iproc)%msg)
-         CALL para_env%sum(buffer_entries(iproc)%indx)
+      ! one allgather of the counts, one allgatherv per array: every rank ends with the same
+      ! rank-ordered list
+      ALLOCATE (num_entries_to_comm(0:para_env%num_pe - 1), displ(0:para_env%num_pe - 1))
+      CALL para_env%allgather(num_entries_local, num_entries_to_comm)
+      displ(0) = 0
+      DO iproc = 1, para_env%num_pe - 1
+         displ(iproc) = displ(iproc - 1) + num_entries_to_comm(iproc - 1)
       END DO
-
-      !Now sum up gathered information
       num_entries = SUM(num_entries_to_comm)
-      ALLOCATE (idx_homo(num_entries))
-      ALLOCATE (idx_virt(num_entries))
-      ALLOCATE (eigvec_entries(num_entries))
+      ALLOCATE (eigvec_entries(num_entries), indx_all(3*num_entries))
+      CALL para_env%allgatherv(entries_local, eigvec_entries, num_entries_to_comm, displ)
+      CALL para_env%allgatherv(indx_local, indx_all, 3*num_entries_to_comm, 3*displ)
+
+      ALLOCATE (idx_homo(num_entries), idx_virt(num_entries))
       IF (PRESENT(idx_spin)) ALLOCATE (idx_spin(num_entries))
-
-      kk = 1
-      DO iproc = 0, para_env%num_pe - 1
-         IF (num_entries_to_comm(iproc) /= 0) THEN
-            DO ii = 1, num_entries_to_comm(iproc)
-               idx_homo(kk) = buffer_entries(iproc)%indx(ii, 1)
-               idx_virt(kk) = buffer_entries(iproc)%indx(ii, 2)
-               IF (PRESENT(idx_spin)) idx_spin(kk) = buffer_entries(iproc)%indx(ii, 3)
-               eigvec_entries(kk) = buffer_entries(iproc)%msg(ii)
-               kk = kk + 1
-            END DO
-         END IF
+      DO kk = 1, num_entries
+         idx_homo(kk) = indx_all(3*kk - 2)
+         idx_virt(kk) = indx_all(3*kk - 1)
+         IF (PRESENT(idx_spin)) idx_spin(kk) = indx_all(3*kk)
       END DO
 
-      !Deallocate all the used arrays
-      DO iproc = 0, para_env%num_pe - 1
-         DEALLOCATE (buffer_entries(iproc)%msg)
-         DEALLOCATE (buffer_entries(iproc)%indx)
-      END DO
-      DEALLOCATE (buffer_entries)
-      DEALLOCATE (num_entries_to_comm)
+      DEALLOCATE (entries_local, indx_local, indx_all, num_entries_to_comm, displ)
       NULLIFY (row_indices)
       NULLIFY (col_indices)
 
