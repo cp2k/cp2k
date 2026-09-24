@@ -6,14 +6,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Common full-matrix operations used by GW modules.
+!> \brief Full-matrix operations not provided by the CP2K FM packages.
 !> \par History
 !>      09.2026 created Jan Wilhelm
 ! **************************************************************************************************
 MODULE gw_utils_fm
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_uplo_to_full
-   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
-                                              cp_cfm_cholesky_invert
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
@@ -40,9 +37,8 @@ MODULE gw_utils_fm
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils_fm'
 
-   PUBLIC :: cfm_contract_ABA, cfm_Wc_from_chi, cfm_Wc_from_cholesky_eps, &
-             fm_contract_ABA, fm_invert, fm_sqrt, local_complex_power, &
-             local_Wc_from_chi
+   PUBLIC :: cfm_add_on_diag, cfm_contract_ABA, fm_contract_ABA, fm_invert, fm_sqrt, &
+             local_add_on_diag, local_complex_power
 
    INTERFACE fm_contract_ABA
       MODULE PROCEDURE fm_contract_ABA, fm_contract_ABA_set
@@ -84,79 +80,6 @@ CONTAINS
       CALL cp_cfm_release(work)
 
    END SUBROUTINE cfm_contract_ABA
-
-! **************************************************************************************************
-!> \brief Compute the correlation part of the screened interaction from chi.
-!>        A=M^-1 B^H and V=B^H B. On return, chi_Wc contains
-!>        B^H[(I+A^H chi A)^-1-I]B.
-!> \param chi_Wc input chi(k,iw); overwritten by Wc(k,iw)
-!> \param A metric-weighted Coulomb factor M^-1 B^H
-!> \param B Coulomb factor satisfying V=B^H B
-! **************************************************************************************************
-   SUBROUTINE cfm_Wc_from_chi(chi_Wc, A, B)
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: chi_Wc
-      TYPE(cp_cfm_type), INTENT(IN)                      :: A, B
-
-      INTEGER                                            :: info
-
-      CALL cfm_contract_ABA(A, chi_Wc)
-      CALL cfm_add_on_diag(chi_Wc, z_one)
-      CALL cp_cfm_cholesky_decompose(chi_Wc, info_out=info)
-      CPASSERT(info == 0)
-      CALL cfm_Wc_from_cholesky_eps(chi_Wc, B)
-
-   END SUBROUTINE cfm_Wc_from_chi
-
-! **************************************************************************************************
-!> \brief Compute the correlation part of the screened interaction for local complex matrices.
-!>        The input chi_Wc must already have its negative eigenvalues removed. On return,
-!>        chi_Wc contains Wc = B (epsilon^-1 - I) B^H, where epsilon = I + A^H chi A.
-!> \param chi_Wc input chi; overwritten by Wc
-!> \param A metric-weighted Coulomb factor M^-1 B^H
-!> \param B Coulomb factor satisfying V=B^H B
-!> \param work local complex workspace for epsilon
-! **************************************************************************************************
-   SUBROUTINE local_Wc_from_chi(chi_Wc, A, B, work)
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: chi_Wc
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: A, B
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: work
-
-      INTEGER                                            :: n
-
-      n = SIZE(chi_Wc, 1)
-      CPASSERT(n == SIZE(chi_Wc, 2))
-      CPASSERT(ALL(SHAPE(A) == SHAPE(chi_Wc)))
-      CPASSERT(ALL(SHAPE(B) == SHAPE(chi_Wc)))
-      CPASSERT(ALL(SHAPE(work) == SHAPE(chi_Wc)))
-
-      CALL gemm_square(A, 'C', chi_Wc, 'N', A, 'N', work)
-      CALL local_add_on_diag(work, z_one)
-      CALL local_complex_power(work, -1.0_dp, 0.0_dp)
-      CALL local_add_on_diag(work, -z_one)
-      CALL gemm_square(B, 'N', work, 'N', B, 'C', chi_Wc)
-
-   END SUBROUTINE local_Wc_from_chi
-
-! **************************************************************************************************
-!> \brief Complete Wc after a caller has formed and Cholesky-factorized I+A^H chi A.
-!>        The separate entry point allows RPA to evaluate its log determinant first.
-!> \param eps_chol input Cholesky factor; overwritten by eps^-1-I or Wc
-!> \param B Coulomb factor satisfying V=B^H B
-!> \param Wc optional separate output; if absent, eps_chol is overwritten by Wc
-!> \param n_active optional number of physical rows/columns
-! **************************************************************************************************
-   SUBROUTINE cfm_Wc_from_cholesky_eps(eps_chol, B, Wc, n_active)
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: eps_chol
-      TYPE(cp_cfm_type), INTENT(IN)                      :: B
-      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: Wc
-      INTEGER, INTENT(IN), OPTIONAL                      :: n_active
-
-      CALL cp_cfm_cholesky_invert(eps_chol)
-      CALL cp_cfm_uplo_to_full(eps_chol)
-      CALL cfm_add_on_diag(eps_chol, -z_one, n_active)
-      CALL cfm_contract_ABA(B, eps_chol, Wc)
-
-   END SUBROUTINE cfm_Wc_from_cholesky_eps
 
 ! **************************************************************************************************
 !> \brief Add a scalar to the diagonal of a distributed complex full matrix.

@@ -16,8 +16,10 @@ MODULE rpa_gw_kpoints_util
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
-                                              cp_cfm_scale_and_add_fm
-   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
+                                              cp_cfm_scale_and_add_fm,&
+                                              cp_cfm_uplo_to_full
+   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
+                                              cp_cfm_cholesky_invert
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_geeig_canon,&
                                               cp_cfm_heevd
@@ -42,7 +44,7 @@ MODULE rpa_gw_kpoints_util
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE gw_utils_fm,                     ONLY: cfm_Wc_from_cholesky_eps,&
+   USE gw_utils_fm,                     ONLY: cfm_add_on_diag,&
                                               cfm_contract_ABA
    USE hfx_types,                       ONLY: hfx_release
    USE input_constants,                 ONLY: cholesky_off,&
@@ -85,9 +87,29 @@ MODULE rpa_gw_kpoints_util
 
    PUBLIC :: invert_eps_compute_W_and_Erpa_kp, cp_cfm_power, real_space_to_kpoint_transform_rpa, &
              get_mat_cell_T_from_mat_gamma, get_bandstruc_and_k_dependent_MOs, &
-             compute_wkp_W, mat_kp_from_mat_gamma
+             compute_wkp_W, mat_kp_from_mat_gamma, cfm_screened_interaction_from_eps_cholesky
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Form the screened interaction from a Cholesky-factorized dielectric matrix.
+!> \param eps_chol input Cholesky factor; overwritten by epsilon^-1-Id or Wc
+!> \param B Coulomb factor satisfying V=B^H B
+!> \param Wc optional separate output; if absent, eps_chol is overwritten by Wc
+!> \param n_active optional number of physical rows/columns
+! **************************************************************************************************
+   SUBROUTINE cfm_screened_interaction_from_eps_cholesky(eps_chol, B, Wc, n_active)
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: eps_chol
+      TYPE(cp_cfm_type), INTENT(IN)                      :: B
+      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: Wc
+      INTEGER, INTENT(IN), OPTIONAL                      :: n_active
+
+      CALL cp_cfm_cholesky_invert(eps_chol)
+      CALL cp_cfm_uplo_to_full(eps_chol)
+      CALL cfm_add_on_diag(eps_chol, -z_one, n_active)
+      CALL cfm_contract_ABA(B, eps_chol, Wc)
+
+   END SUBROUTINE cfm_screened_interaction_from_eps_cholesky
 
 ! **************************************************************************************************
 !> \brief ...
@@ -906,7 +928,7 @@ CONTAINS
 
       CALL timeset(routineN//"_2", handle2)
 
-      CALL cfm_Wc_from_cholesky_eps(cfm_mat_Q, cfm_mat_L, cfm_mat_work_2, dimen_RI)
+      CALL cfm_screened_interaction_from_eps_cholesky(cfm_mat_Q, cfm_mat_L, cfm_mat_work_2, dimen_RI)
 
       CALL timestop(handle2)
 

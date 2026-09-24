@@ -38,7 +38,7 @@ MODULE gw_tensor_small_cell_full_kp
                                               local_array_to_fm,&
                                               local_dbt_to_global_fm
    USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
-                                              local_Wc_from_chi,&
+                                              local_add_on_diag,&
                                               local_complex_power
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -627,11 +627,18 @@ CONTAINS
             ! 2. remove negative eigenvalues from χ_PQ(iω,k)
             CALL local_complex_power(chi_k_w, 1.0_dp, bs_env%eps_eigval_mat_RI)
 
-            ! 3.-4. ε(iω_j,k_i) = I + A^H*χ(iω_j,k_i)*A and
-            !        W(iω_j,k_i) = B*(ε^-1(iω_j,k_i)-I)*B^H,
-            !        with A = M^-1*B^H and B = V^0.5.
-            CALL local_Wc_from_chi(chi_k_w, M_inv_V_sqrt(:, :, ikp_local), &
-                                   V_sqrt(:, :, ikp_local), eps_k_w)
+            ! 3.-4. ε(iω_j,k_i) = I + V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
+            !        W(iω_j,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-I)*V^0.5(k_i)
+            CPASSERT(ALL(SHAPE(M_inv_V_sqrt(:, :, ikp_local)) == SHAPE(chi_k_w)))
+            CPASSERT(ALL(SHAPE(V_sqrt(:, :, ikp_local)) == SHAPE(chi_k_w)))
+            CPASSERT(ALL(SHAPE(eps_k_w) == SHAPE(chi_k_w)))
+            CALL gemm_square(M_inv_V_sqrt(:, :, ikp_local), 'C', chi_k_w, 'N', &
+                             M_inv_V_sqrt(:, :, ikp_local), 'N', eps_k_w)
+            CALL local_add_on_diag(eps_k_w, z_one)
+            CALL local_complex_power(eps_k_w, -1.0_dp, 0.0_dp)
+            CALL local_add_on_diag(eps_k_w, -z_one)
+            CALL gemm_square(V_sqrt(:, :, ikp_local), 'N', eps_k_w, 'N', &
+                             V_sqrt(:, :, ikp_local), 'C', chi_k_w)
 
             ! 5. W(iω,k_i) -> W^R(iω) = sum_k w_k e^(-ikR) W(iω,k) (k-point extrapolation here)
             CALL add_kp_to_all_rs(chi_k_w, W_R, bs_env%kpoints_chi_eps_W, ikp, &

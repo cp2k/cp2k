@@ -61,7 +61,7 @@ MODULE gw_tensor_large_cell_Gamma
                                               time_to_freq
    USE gw_utils_communication,          ONLY: fm_to_local_tensor,&
                                               local_dbt_to_global_mat
-   USE gw_utils_fm,                     ONLY: cfm_Wc_from_chi,&
+   USE gw_utils_fm,                     ONLY: cfm_add_on_diag,&
                                               cfm_contract_ABA,&
                                               fm_contract_ABA
    USE input_constants,                 ONLY: G0W0,&
@@ -90,7 +90,8 @@ MODULE gw_tensor_large_cell_Gamma
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_tensors,                      ONLY: build_3c_integrals
-   USE rpa_gw_kpoints_util,             ONLY: cp_cfm_power
+   USE rpa_gw_kpoints_util,             ONLY: cfm_screened_interaction_from_eps_cholesky,&
+                                              cp_cfm_power
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -996,6 +997,46 @@ CONTAINS
    END SUBROUTINE compute_MinvVsqrt_Vsqrt
 
 ! **************************************************************************************************
+!> \brief Compute the screened interaction for one frequency and k-point.
+!> \param bs_env band-structure environment
+!> \param cfm_chi_eps_W_ikp_freq_j input chi; overwritten by W
+!> \param cfm_V_sqrt_ikp square root of the Coulomb matrix
+!> \param cfm_M_inv_V_sqrt_ikp metric-weighted Coulomb factor
+! **************************************************************************************************
+   SUBROUTINE compute_cfm_W_ikp_freq_j(bs_env, cfm_chi_eps_W_ikp_freq_j, cfm_V_sqrt_ikp, &
+                                       cfm_M_inv_V_sqrt_ikp)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_chi_eps_W_ikp_freq_j
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_V_sqrt_ikp, cfm_M_inv_V_sqrt_ikp
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_cfm_W_ikp_freq_j'
+
+      INTEGER                                            :: handle, info
+
+      CALL timeset(routineN, handle)
+
+      ! 1. epsilon(iw,k) = Id - V^0.5(k)*M^-1(k)*chi(iw,k)*M^-1(k)*V^0.5(k)
+
+      ! 1. a) Form V^0.5(k)*M^-1(k)*chi(iw,k)*M^-1(k)*V^0.5(k).
+      CALL cfm_contract_ABA(cfm_M_inv_V_sqrt_ikp, cfm_chi_eps_W_ikp_freq_j)
+
+      ! 1. b) Add the identity matrix.
+      CALL cfm_add_on_diag(cfm_chi_eps_W_ikp_freq_j, z_one)
+
+      ! 2. W(iw,k) = V^0.5(k)*(epsilon^-1(iw,k)-Id)*V^0.5(k)
+
+      ! 2. a) Cholesky-factorize epsilon before inversion.
+      CALL cp_cfm_cholesky_decompose(matrix=cfm_chi_eps_W_ikp_freq_j, n=bs_env%n_RI, info_out=info)
+      CPASSERT(info == 0)
+
+      ! 2. b) Invert epsilon, subtract Id, then contract with V^0.5 on both sides.
+      CALL cfm_screened_interaction_from_eps_cholesky(cfm_chi_eps_W_ikp_freq_j, cfm_V_sqrt_ikp)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_cfm_W_ikp_freq_j
+
+! **************************************************************************************************
 !> \brief ...
 !> \param bs_env ...
 !> \param mat_chi_Gamma_tau ...
@@ -1215,9 +1256,8 @@ CONTAINS
       ! 3. Remove all negative eigenvalues from χ_PQ(iω_j,k_i)
       CALL cp_cfm_power(cfm_chi_eps_W_ikp_freq_j, threshold=0.0_dp, exponent=1.0_dp)
 
-      ! 4. ε(iω_j,k_i) = Id - V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
-      !    W(iω_j,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-Id)*V^0.5(k_i)
-      CALL cfm_Wc_from_chi(cfm_chi_eps_W_ikp_freq_j, cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp)
+      CALL compute_cfm_W_ikp_freq_j(bs_env, cfm_chi_eps_W_ikp_freq_j, cfm_V_sqrt_ikp, &
+                                    cfm_M_inv_V_sqrt_ikp)
 
       ! 5. k-point integration W_PQ(iω_j, k_i) to W_PQ^MIC(iω_j)
       SELECT CASE (bs_env%approx_kp_extrapol)
