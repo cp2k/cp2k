@@ -17,6 +17,7 @@ MODULE bse_print
                                               cite_reference
    USE bse_properties,                  ONLY: compute_and_print_absorption_spectrum,&
                                               exciton_descr_type
+   USE bse_types,                       ONLY: bse_env_type
    USE bse_util,                        ONLY: filter_eigvec_contrib,&
                                               get_bse_spin_block_layout
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -29,12 +30,9 @@ MODULE bse_print
                                               bse_screening_w0,&
                                               bse_singlet
    USE kinds,                           ONLY: dp
-   USE mp2_types,                       ONLY: mp2_type
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -95,14 +93,14 @@ CONTAINS
 !> \param virtual ...
 !> \param homo_irred ...
 !> \param flag_TDA ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE print_output_header(homo, virtual, homo_irred, flag_TDA, mp2_env, unit_nr)
+   SUBROUTINE print_output_header(homo, virtual, homo_irred, flag_TDA, bse_env, unit_nr)
 
       INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred
       LOGICAL, INTENT(IN)                                :: flag_TDA
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_output_header'
@@ -114,14 +112,14 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (mp2_env%bse%bse_spin_config == bse_singlet) THEN
+      IF (bse_env%bse_spin_config == bse_singlet) THEN
          multiplet = "Singlet"
          alpha = 2.0_dp
       ELSE
          multiplet = "Triplet"
          alpha = 0.0_dp
       END IF
-      iterative = mp2_env%bse%bse_diag_method == bse_iterdiag
+      iterative = bse_env%bse_diag_method == bse_iterdiag
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -179,15 +177,15 @@ CONTAINS
             'unoccupied molecular orbitals, i.e. state in', '[', homo_irred + 1, ',', homo_irred + virtual, ']'
          WRITE (unit_nr, '(T2,A4,T7,A2,T18,A16)') 'BSE|', 'n:', 'Excitation index'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (mp2_env%bse%screening_method == bse_screening_w0) THEN
+         IF (bse_env%screening_method == bse_screening_w0) THEN
             WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab'
-         ELSE IF (mp2_env%bse%screening_method == bse_screening_rpa) THEN
+         ELSE IF (bse_env%screening_method == bse_screening_rpa) THEN
             WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb'
          END IF
          IF (.NOT. flag_TDA) THEN
-            IF (mp2_env%bse%screening_method == bse_screening_w0) THEN
+            IF (bse_env%screening_method == bse_screening_w0) THEN
                WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'B_ia,jb = α * v_ia,jb - W_ib,aj'
-            ELSE IF (mp2_env%bse%screening_method == bse_screening_rpa) THEN
+            ELSE IF (bse_env%screening_method == bse_screening_rpa) THEN
                WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'B_ia,jb = α * v_ia,jb'
             END IF
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -195,7 +193,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A61)') 'BSE|', 'in PRB 113,205152 (2026); https://doi.org/10.1103/38k2-d55h .'
          END IF
          IF (iterative) THEN
-            CALL print_iterative_method(flag_TDA, mp2_env%bse%abba_solver, unit_nr)
+            CALL print_iterative_method(flag_TDA, bse_env%abba_solver, unit_nr)
          ELSE IF (.NOT. flag_TDA) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', 'The BSE is solved for Ω^n and X_ia^n as a hermitian problem, e.g. Eq.(42)'
@@ -206,16 +204,16 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A7,T31,A15)') 'BSE|', 'δ_...:', 'Kronecker delta'
          WRITE (unit_nr, '(T2,A4,T7,A3,T31,A21)') 'BSE|', 'α:', 'spin-dependent factor (Singlet/Triplet)'
          WRITE (unit_nr, '(T2,A4,T7,A6,T30,A34)') 'BSE|', 'v_...:', 'Electron-hole exchange interaction'
-         IF (mp2_env%bse%screening_method == bse_screening_w0) THEN
+         IF (bse_env%screening_method == bse_screening_w0) THEN
             WRITE (unit_nr, '(T2,A4,T7,A,T31,A)') 'BSE|', 'W_... = 1/ϵ v_...:', &
                'Direct interaction screened by '
             WRITE (unit_nr, '(T2,A4,T30,A)') 'BSE|', &
                'dielectric function ϵ(ω=0)'
-         ELSE IF (mp2_env%bse%screening_method == bse_screening_tdhf) THEN
+         ELSE IF (bse_env%screening_method == bse_screening_tdhf) THEN
             WRITE (unit_nr, '(T2,A4,T7,A,T30,A)') 'BSE|', 'W_... = v_...:', 'Direct interaction without screening'
-         ELSE IF (mp2_env%bse%screening_method == bse_screening_alpha) THEN
+         ELSE IF (bse_env%screening_method == bse_screening_alpha) THEN
             WRITE (unit_nr, '(T2,A4,T7,A,T31,A,F5.2)') 'BSE|', 'W_... = γ v_...:', &
-               'Direct interaction with artificial screening γ=', mp2_env%bse%screening_factor
+               'Direct interaction with artificial screening γ=', bse_env%screening_factor
          END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -308,17 +306,17 @@ CONTAINS
 !> \param flag_TDA ...
 !> \param multiplet ...
 !> \param info_approximation ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE print_excitation_energies(Exc_ens, homo, virtual, flag_TDA, multiplet, &
-                                        info_approximation, mp2_env, unit_nr)
+                                        info_approximation, bse_env, unit_nr)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
       INTEGER, INTENT(IN)                                :: homo, virtual
       LOGICAL, INTENT(IN)                                :: flag_TDA
       CHARACTER(LEN=10), INTENT(IN)                      :: multiplet, info_approximation
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_excitation_energies'
@@ -339,7 +337,7 @@ CONTAINS
       END IF
       !prints actual energies values
       IF (unit_nr > 0) THEN
-         DO i_exc = 1, MIN(homo*virtual, mp2_env%bse%num_print_exc)
+         DO i_exc = 1, MIN(homo*virtual, bse_env%num_print_exc)
             WRITE (unit_nr, '(T2,A4,T7,I16,T30,A7,T46,A6,T59,F22.4)') &
                'BSE|', i_exc, multiplet, info_approximation, Exc_ens(i_exc)*evolt
          END DO
@@ -356,17 +354,17 @@ CONTAINS
 !> \param virtual ...
 !> \param homo_irred ...
 !> \param info_approximation ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 !> \param unit_nr ...
 !> \param fm_eigvec_Y ...
 ! **************************************************************************************************
    SUBROUTINE print_transition_amplitudes(fm_eigvec_X, homo, virtual, homo_irred, &
-                                          info_approximation, mp2_env, unit_nr, fm_eigvec_Y)
+                                          info_approximation, bse_env, unit_nr, fm_eigvec_Y)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec_X
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, homo_irred
       CHARACTER(LEN=10), INTENT(IN)                      :: info_approximation
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_eigvec_Y
 
@@ -397,8 +395,8 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A73)') &
             'BSE|', "The following single-particle transitions have significant contributions,"
          WRITE (unit_nr, '(T2,A4,T7,A16,F5.3,A15,F5.3,A16)') &
-            'BSE|', "i.e. |X_ia^n| > ", mp2_env%bse%eps_x, " or |Y_ia^n| > ", &
-            mp2_env%bse%eps_x, ", respectively :"
+            'BSE|', "i.e. |X_ia^n| > ", bse_env%eps_x, " or |Y_ia^n| > ", &
+            bse_env%eps_x, ", respectively :"
 
          IF (nspins == 1) THEN
             WRITE (unit_nr, '(T2,A4,T15,A27,I5,A13,I5,A3)') 'BSE|', '-- Quick reminder: HOMO i =', &
@@ -419,18 +417,18 @@ CONTAINS
                "BSE|", "Excitation n", "σ", "i", "=>/<=", "a", 'TDA/ABBA', "|X_iaσ^n|/|Y_iaσ^n|"
          END IF
       END IF
-      DO i_exc = 1, MIN(n_ov_joint, mp2_env%bse%num_print_exc)
+      DO i_exc = 1, MIN(n_ov_joint, bse_env%num_print_exc)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
          !Iterate through eigenvector and print values above threshold
          CALL print_transition_amplitudes_core(fm_eigvec_X, "=>", info_approximation, &
                                                i_exc, virtual, homo, homo_irred, &
-                                               unit_nr, mp2_env, offsets)
+                                               unit_nr, bse_env, offsets)
          IF (PRESENT(fm_eigvec_Y)) THEN
             CALL print_transition_amplitudes_core(fm_eigvec_Y, "<=", info_approximation, &
                                                   i_exc, virtual, homo, homo_irred, &
-                                                  unit_nr, mp2_env, offsets)
+                                                  unit_nr, bse_env, offsets)
          END IF
       END DO
 
@@ -450,20 +448,20 @@ CONTAINS
 !> \param homo_irred ...
 !> \param flag_TDA ...
 !> \param info_approximation ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 !> \param unit_nr ...
 !> \param open_shell if .TRUE., print spin-summed (UKS) dipole formula instead of the sqrt(2) one
 ! **************************************************************************************************
    SUBROUTINE print_optical_properties(Exc_ens, oscill_str, trans_mom_bse, polarizability_residues, &
                                        homo, virtual, homo_irred, flag_TDA, &
-                                       info_approximation, mp2_env, unit_nr, open_shell)
+                                       info_approximation, bse_env, unit_nr, open_shell)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens, oscill_str
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trans_mom_bse, polarizability_residues
       INTEGER, INTENT(IN)                                :: homo, virtual, homo_irred
       LOGICAL, INTENT(IN)                                :: flag_TDA
       CHARACTER(LEN=10), INTENT(IN)                      :: info_approximation
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                      :: open_shell
 
@@ -479,7 +477,7 @@ CONTAINS
 
       ! Discriminate between singlet and triplet, since triplet state can't couple to light
       ! and therefore calculations of dipoles etc are not necessary
-      IF (mp2_env%bse%bse_spin_config == 0) THEN
+      IF (bse_env%bse_spin_config == 0) THEN
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A60)') &
@@ -533,7 +531,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T38,A5,T48,A5,T58,A5,T64,A17)') 'BSE|', &
                'Excitation n', "TDA/ABBA", "d_x^n", "d_y^n", "d_z^n", 'Osc. strength f^n'
-            DO i_exc = 1, MIN(homo*virtual, mp2_env%bse%num_print_exc)
+            DO i_exc = 1, MIN(homo*virtual, bse_env%num_print_exc)
                WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T35,F8.3,T45,F8.3,T55,F8.3,T65,F16.3)') &
                   'BSE|', i_exc, info_approximation, trans_mom_bse(1, 1, i_exc), trans_mom_bse(2, 1, i_exc), &
                   trans_mom_bse(3, 1, i_exc), oscill_str(i_exc)
@@ -554,7 +552,7 @@ CONTAINS
                WRITE (unit_nr, '(T2,A4,T7,A40,T66,F16.3)') 'BSE|', &
                   'Sum over oscillator strengths Σ_n f^n :', SUM(oscill_str)
                WRITE (unit_nr, '(T2,A4)') 'BSE|'
-               IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
+               IF (bse_env%bse_cutoff_occ > 0 .OR. bse_env%bse_cutoff_empty > 0) THEN
                   CALL cp_warn(__LOCATION__, &
                                "Accuracy of TRK sum rule might suffer from cutoffs.")
                END IF
@@ -562,9 +560,9 @@ CONTAINS
          END IF
 
          ! Compute and print the absorption spectrum to external file
-         IF (mp2_env%bse%bse_print_spectrum) THEN
+         IF (bse_env%bse_print_spectrum) THEN
             CALL compute_and_print_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
-                                                       info_approximation, unit_nr, mp2_env%bse)
+                                                       info_approximation, unit_nr, bse_env)
          END IF
 
       ELSE
@@ -592,12 +590,12 @@ CONTAINS
 !> \param homo ...
 !> \param homo_irred ...
 !> \param unit_nr ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 !> \param offsets ...
 ! **************************************************************************************************
    SUBROUTINE print_transition_amplitudes_core(fm_eigvec, direction_excitation, info_approximation, &
                                                i_exc, virtual, homo, homo_irred, &
-                                               unit_nr, mp2_env, offsets)
+                                               unit_nr, bse_env, offsets)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
       CHARACTER(LEN=2), INTENT(IN)                       :: direction_excitation
@@ -605,7 +603,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: i_exc
       INTEGER, DIMENSION(:), INTENT(IN)                  :: virtual, homo, homo_irred
       INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: offsets
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_transition_amplitudes_core'
@@ -623,7 +621,7 @@ CONTAINS
       ! or <= (means deexcitation; from fm_eigvec_Y)
       IF (SIZE(homo) == 1) THEN
          CALL filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
-                                    i_exc, virtual(1), num_entries, mp2_env%bse)
+                                    i_exc, virtual(1), num_entries, bse_env)
          IF (unit_nr > 0) THEN
             DO k = 1, num_entries
                WRITE (unit_nr, '(T2,A4,T14,I5,T26,I5,T35,A2,T38,I5,T51,A6,T65,F16.4)') &
@@ -633,7 +631,7 @@ CONTAINS
          END IF
       ELSE
          CALL filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
-                                    i_exc, virtual(1), num_entries, mp2_env%bse, &
+                                    i_exc, virtual(1), num_entries, bse_env, &
                                     offsets=offsets, virtual_per_spin=virtual, idx_spin=idx_spin)
          IF (unit_nr > 0) THEN
             DO k = 1, num_entries
@@ -663,11 +661,11 @@ CONTAINS
 !> \param print_directional_exc_descr  Flag, which activates printing of directional descriptors
 !> \param print_directional_crosscorrelation Flag, which adds the crosscorrelation matrix to the directional descriptors
 !> \param prefix_output                String, which is put in front of prints, i.e. "BSE|" or "" for TDDFPT
-!> \param qs_env ...
+!> \param particle_set                 Atoms whose coordinates are printed with the descriptors
 ! **************************************************************************************************
    SUBROUTINE print_exciton_descriptors(exc_descr, ref_point_multipole, unit_nr, &
                                         num_print_exc_descr, print_checkvalue, print_directional_exc_descr, &
-                                        print_directional_crosscorrelation, prefix_output, qs_env)
+                                        print_directional_crosscorrelation, prefix_output, particle_set)
 
       TYPE(exciton_descr_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: exc_descr
@@ -677,14 +675,13 @@ CONTAINS
       LOGICAL, INTENT(IN) :: print_checkvalue, print_directional_exc_descr, &
          print_directional_crosscorrelation
       CHARACTER(LEN=4), INTENT(IN)                       :: prefix_output
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'print_exciton_descriptors'
 
       CHARACTER(LEN=1), DIMENSION(3)                     :: array_direction_str
       CHARACTER(LEN=5)                                   :: method_name
       INTEGER                                            :: handle, i_dir, i_exc
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       IF (prefix_output == 'BSE|') THEN
          method_name = 'BSE'
@@ -693,7 +690,6 @@ CONTAINS
       END IF
 
       CALL timeset(routineN, handle)
-      CALL get_qs_env(qs_env, particle_set=particle_set)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
             'Exciton descriptors for excitation level n are given by'

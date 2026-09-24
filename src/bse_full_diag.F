@@ -58,9 +58,11 @@ MODULE bse_full_diag
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
+   USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_subsys_types,                 ONLY: qs_subsys_get
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -883,11 +885,11 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A43)') 'BSE|', 'Joint open-shell BSE excitation energies:'
       END IF
       CALL print_excitation_energies(Exc_ens, n_ov_joint, 1, flag_tda, multiplet, &
-                                     info_approximation, mp2_env, unit_nr)
+                                     info_approximation, mp2_env%bse, unit_nr)
 
       ! Per-spin single-particle transition amplitudes (X via =>, Y via <=).
       CALL print_transition_amplitudes(fm_eigvec_X, homo, virtual, homo_irred, &
-                                       info_approximation, mp2_env, unit_nr, fm_eigvec_Y)
+                                       info_approximation, mp2_env%bse, unit_nr, fm_eigvec_Y)
 
       ! Transition coefficient for the spin-summed moment: X (TDA) or X+Y (ABBA).
       CALL cp_fm_create(fm_trans_coeff, fm_eigvec_X%matrix_struct)
@@ -955,7 +957,7 @@ CONTAINS
       END DO
       CALL print_optical_properties(Exc_ens, oscill_str_joint, trans_mom_joint, pol_res_joint, &
                                     n_ov_joint, 1, SUM(homo_irred), flag_tda, info_approximation, &
-                                    mp2_env, unit_nr, open_shell=.TRUE.)
+                                    mp2_env%bse, unit_nr, open_shell=.TRUE.)
       ! Open-shell post-processing is partial: energies, amplitudes, spin-summed oscillator strengths.
       CALL cp_warn(__LOCATION__, &
                    "Open-shell (UKS) BSE: exciton descriptors and NTO analysis are not yet "// &
@@ -1007,6 +1009,7 @@ CONTAINS
          fm_dipole_ij_trunc, fm_quadpole_ab_trunc, fm_quadpole_ai_trunc, fm_quadpole_ij_trunc
       TYPE(exciton_descr_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: exc_descr
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
 
@@ -1082,28 +1085,29 @@ CONTAINS
 
       ! the iterative driver prints the header before its solver runs
       IF (mp2_env%bse%bse_diag_method /= bse_iterdiag) THEN
-         CALL print_output_header(homo, virtual, homo_irred, flag_TDA, mp2_env, unit_nr)
+         CALL print_output_header(homo, virtual, homo_irred, flag_TDA, mp2_env%bse, unit_nr)
       END IF
 
       ! Prints excitation energies up to user-specified number
       CALL print_excitation_energies(Exc_ens, homo, virtual, flag_TDA, multiplet, &
-                                     info_approximation, mp2_env, unit_nr)
+                                     info_approximation, mp2_env%bse, unit_nr)
 
       ! Print single particle transition amplitudes, i.e. components of eigenvectors X and Y
       CALL print_transition_amplitudes(fm_eigvec_X, [homo], [virtual], [homo_irred], &
-                                       info_approximation, mp2_env, unit_nr, fm_eigvec_Y)
+                                       info_approximation, mp2_env%bse, unit_nr, fm_eigvec_Y)
 
       ! Prints optical properties, if state is a singlet
       CALL print_optical_properties(Exc_ens, oscill_str, trans_mom_bse, polarizability_residues, &
                                     homo, virtual, homo_irred, flag_TDA, &
-                                    info_approximation, mp2_env, unit_nr)
+                                    info_approximation, mp2_env%bse, unit_nr)
       ! Print exciton descriptors if keyword is invoked
       IF (mp2_env%bse%num_print_exc_descr > 0) THEN
+         CALL qs_subsys_get(mp2_env%bse%subsys, particle_set=particle_set)
          CALL print_exciton_descriptors(exc_descr, ref_point_multipole, unit_nr, &
                                         mp2_env%bse%num_print_exc_descr, mp2_env%bse%bse_debug_print, &
                                         mp2_env%bse%print_directional_exc_descr, &
                                         mp2_env%bse%print_directional_crosscorrelation, &
-                                        'BSE|', qs_env)
+                                        'BSE|', particle_set)
       END IF
 
       ! Compute and print excitation wavefunctions

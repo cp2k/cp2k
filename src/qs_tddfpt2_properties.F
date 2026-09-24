@@ -1259,6 +1259,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mo_coeff
       TYPE(exciton_descr_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: exc_descr
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
 
@@ -1365,9 +1366,10 @@ CONTAINS
       ! Actual printing
       print_checkvalue = .TRUE.
       prefix_output = ' '
+      CALL get_qs_env(qs_env, particle_set=particle_set)
       CALL print_exciton_descriptors(exc_descr, ref_point_multipole, log_unit, &
                                      nstates, print_checkvalue, do_directional_exciton_descriptors, &
-                                     do_directional_exciton_crosscorrelation, prefix_output, qs_env)
+                                     do_directional_exciton_crosscorrelation, prefix_output, particle_set)
 
       DEALLOCATE (ref_point_multipole)
       DEALLOCATE (exc_descr)
