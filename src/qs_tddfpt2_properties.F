@@ -9,7 +9,6 @@ MODULE qs_tddfpt2_properties
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bibliography,                    ONLY: Martin2003,&
                                               cite_reference
-   USE bse_main,                        ONLY: get_multipoles_ao
    USE bse_print,                       ONLY: print_exciton_descriptors
    USE bse_properties,                  ONLY: exciton_descr_type,&
                                               get_exciton_descriptors
@@ -101,7 +100,8 @@ MODULE qs_tddfpt2_properties
                                               mo_set_type,&
                                               set_mo_set
    USE qs_moments,                      ONLY: build_berry_moment_matrix,&
-                                              build_local_moment_matrix
+                                              build_local_moment_matrix,&
+                                              get_multipoles_ao
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&

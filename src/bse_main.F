@@ -31,13 +31,6 @@ MODULE bse_main
                                               screen_slabs,&
                                               truncate_BSE_matrices
    USE cp_control_types,                ONLY: tddfpt2_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
-                                              dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type_symmetric
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
@@ -52,18 +45,16 @@ MODULE bse_main
    USE cp_output_handling,              ONLY: debug_print_level
    USE input_constants,                 ONLY: &
         bse_abba, bse_both, bse_fulldiag, bse_iterdiag, bse_memcheck_abort, bse_memcheck_clamp, &
-        bse_memcheck_off, bse_memcheck_warn, bse_tda, use_mom_ref_coac
+        bse_memcheck_off, bse_memcheck_warn, bse_tda
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
                                               mp_para_env_type
    USE mo_window,                       ONLY: mo_window_type
-   USE moments_utils,                   ONLY: get_reference_point
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
-   USE qs_moments,                      ONLY: build_local_moment_matrix
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_moments,                      ONLY: get_multipoles_ao
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -72,7 +63,7 @@ MODULE bse_main
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_main'
 
-   PUBLIC :: prepare_bse_env, bse_solve, get_multipoles_ao, bse_fulldiag_memory_check
+   PUBLIC :: prepare_bse_env, bse_solve, bse_fulldiag_memory_check
 
 CONTAINS
 
@@ -351,54 +342,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE bse_solve
-
-! **************************************************************************************************
-!> \brief The AO multipoles M^k_µν = <φ_µ|(r - r_0)^k|φ_ν> of every order up to n_moments, on the
-!>        block pattern of the overlap, about r_0, the centre of atomic charges;
-!>        k = x, y, z for order 1, then xx, xy, xz, yy, yz, zz for order 2
-!> \param qs_env source of the basis, the geometry and the overlap's block pattern
-!> \param n_moments highest order, 1 for dipoles, 2 adds quadrupoles
-!> \param matrix_multipole M^k_µν, one entry per component k, allocated here; the caller releases it
-!> \param rpoint r_0
-! **************************************************************************************************
-   SUBROUTINE get_multipoles_ao(qs_env, n_moments, matrix_multipole, rpoint)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, INTENT(IN)                                :: n_moments
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_multipole
-      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: rpoint
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_multipoles_ao'
-
-      INTEGER                                            :: handle, idir, n_multipole
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
-
-      CALL timeset(routineN, handle)
-
-      NULLIFY (matrix_s, sab_orb, ref_point)
-      CALL get_qs_env(qs_env, matrix_s=matrix_s, sab_orb=sab_orb)
-
-      ! components of every order up to n_moments: 3 dipoles, then 6 quadrupoles
-      n_multipole = (6 + 11*n_moments + 6*n_moments**2 + n_moments**3)/6 - 1
-      NULLIFY (matrix_multipole)
-      CALL dbcsr_allocate_matrix_set(matrix_multipole, n_multipole)
-      DO idir = 1, n_multipole
-         CALL dbcsr_init_p(matrix_multipole(idir)%matrix)
-         CALL dbcsr_create(matrix_multipole(idir)%matrix, name="ao_multipole", &
-                           template=matrix_s(1)%matrix, matrix_type=dbcsr_type_symmetric)
-         CALL cp_dbcsr_alloc_block_from_nbl(matrix_multipole(idir)%matrix, sab_orb)
-         CALL dbcsr_set(matrix_multipole(idir)%matrix, 0._dp)
-      END DO
-
-      CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_coac, ref_point=ref_point)
-      CALL build_local_moment_matrix(qs_env, matrix_multipole, n_moments, ref_point=rpoint)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE get_multipoles_ao
 
 ! **************************************************************************************************
 !> \brief Early memory check for the full diagonalization, before any GW work: the window on the

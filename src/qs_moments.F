@@ -60,6 +60,7 @@ MODULE qs_moments
                                 put_results
    USE cp_result_types, ONLY: cp_result_type
    USE distribution_1d_types, ONLY: distribution_1d_type
+   USE input_constants, ONLY: use_mom_ref_coac
    USE kinds, ONLY: default_string_length, &
                     dp, &
                     max_line_length
@@ -130,7 +131,7 @@ MODULE qs_moments
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_moments'
 
    ! Public subroutines
-   PUBLIC :: build_berry_moment_matrix, build_local_moment_matrix
+   PUBLIC :: build_berry_moment_matrix, build_local_moment_matrix, get_multipoles_ao
    PUBLIC :: build_berry_kpoint_matrix, build_local_magmom_matrix
    PUBLIC :: qs_moment_berry_phase, qs_moment_locop
    PUBLIC :: qs_moment_kpoints, build_local_moment_matrix_rs_img
@@ -407,6 +408,54 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_local_moment_matrix
+
+! **************************************************************************************************
+!> \brief The AO multipoles M^k_µν = <φ_µ|(r - r_0)^k|φ_ν> of every order up to n_moments, on the
+!>        block pattern of the overlap, about r_0, the centre of atomic charges;
+!>        k = x, y, z for order 1, then xx, xy, xz, yy, yz, zz for order 2
+!> \param qs_env source of the basis, the geometry and the overlap's block pattern
+!> \param n_moments highest order, 1 for dipoles, 2 adds quadrupoles
+!> \param matrix_multipole M^k_µν, one entry per component k, allocated here; the caller releases it
+!> \param rpoint r_0
+! **************************************************************************************************
+   SUBROUTINE get_multipoles_ao(qs_env, n_moments, matrix_multipole, rpoint)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: n_moments
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_multipole
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: rpoint
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_multipoles_ao'
+
+      INTEGER                                            :: handle, idir, n_multipole
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (matrix_s, sab_orb, ref_point)
+      CALL get_qs_env(qs_env, matrix_s=matrix_s, sab_orb=sab_orb)
+
+      ! components of every order up to n_moments: 3 dipoles, then 6 quadrupoles
+      n_multipole = (6 + 11*n_moments + 6*n_moments**2 + n_moments**3)/6 - 1
+      NULLIFY (matrix_multipole)
+      CALL dbcsr_allocate_matrix_set(matrix_multipole, n_multipole)
+      DO idir = 1, n_multipole
+         CALL dbcsr_init_p(matrix_multipole(idir)%matrix)
+         CALL dbcsr_create(matrix_multipole(idir)%matrix, name="ao_multipole", &
+                           template=matrix_s(1)%matrix, matrix_type=dbcsr_type_symmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_multipole(idir)%matrix, sab_orb)
+         CALL dbcsr_set(matrix_multipole(idir)%matrix, 0._dp)
+      END DO
+
+      CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_coac, ref_point=ref_point)
+      CALL build_local_moment_matrix(qs_env, matrix_multipole, n_moments, ref_point=rpoint)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_multipoles_ao
 
 ! **************************************************************************************************
 !> \brief Calculate right-hand sided derivatives of multipole moments, e. g. < a | xy d/dz | b >
