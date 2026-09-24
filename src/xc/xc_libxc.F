@@ -188,9 +188,6 @@ MODULE xc_libxc
    INTEGER, PARAMETER, PRIVATE :: libxc_block_min = 64
    INTEGER, PARAMETER, PRIVATE :: libxc_block_max = 512
 
-   ! Scan every device result for NaNs before accumulating it. Useful when
-   ! debugging the GPU path, but it is an O(npoints) pass over the full block on
-   ! the host after every LibXC call, so it is compiled out by default.
    LOGICAL, PARAMETER, PRIVATE :: libxc_check_nan = .FALSE.
 
 ! **************************************************************************************************
@@ -2509,12 +2506,6 @@ CONTAINS
               eps_tau => workers%epsilon_tau)
       !$OMP    DO
       DO ib = 1, nblocks
-         ! The single-call GPU path needs buffers that hold the whole grid. Since
-         ! it sets bsize = npoints there is exactly one block, so grow the
-         ! executing thread's buffers inside the loop body: only the thread that
-         ! actually runs the block allocates the full-grid staging and device
-         ! buffers instead of every thread allocating its own copy. The resize
-         ! is a no-op once the buffers have reached the largest point count seen.
          IF (libxc_is_gpu()) THEN
             CALL libxc_worker_resize_cuda(w, workers%family, workers%nspin, grad_deriv, npoints)
          END IF
@@ -3171,10 +3162,6 @@ ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace,
            eps_tau => workers%epsilon_tau)
 !$OMP    DO
    DO ib = 1, nblocks
-      ! The single-call GPU path needs buffers that hold the whole grid (see the
-      ! spin-unpolarized routine); it runs exactly one block, so the executing
-      ! thread grows its own buffers here rather than every thread doing so
-      ! before the loop. A no-op once they have reached full size.
       IF (libxc_is_gpu()) THEN
          CALL libxc_worker_resize_cuda(w, workers%family, workers%nspin, grad_deriv, npoints)
       END IF
