@@ -320,11 +320,9 @@ CONTAINS
             END IF
          END IF
 
-         ! Print it to file from the ionode only: unit_nr is open there alone, whereas the default
-         ! logger inside the MP2/GW driver is the subgroup's and would make every group's root write
-         unit_nr_file = unit_nr
-
-         IF (unit_nr_file > 0) THEN
+         ! Print it to file from the ionode of the BSE communicator, at every print level; the
+         ! default logger inside the MP2/GW driver is the subgroup's and would make every group's root write
+         IF (bse_env%para_env%is_source()) THEN
             CALL open_file(file_name_crosssection, unit_number=unit_nr_file, &
                            file_status="UNKNOWN", file_action="WRITE")
             WRITE (unit_nr_file, '(A,A6)') "# Photoabsorption cross section  σ_{µ µ'}(ω) =  -4πω/c * Im[ \sum_n "// &
@@ -340,7 +338,7 @@ CONTAINS
          END IF
          DEALLOCATE (abs_cross_section)
 
-         IF (unit_nr_file > 0) THEN
+         IF (bse_env%para_env%is_source()) THEN
             CALL open_file(file_name_spectrum, unit_number=unit_nr_file, &
                            file_status="UNKNOWN", file_action="WRITE")
             WRITE (unit_nr_file, '(A,A6)') "# Imaginary part of polarizability α_{µ µ'}(ω) = -\sum_n "// &
