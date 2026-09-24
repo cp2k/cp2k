@@ -79,7 +79,7 @@ case "$with_libxc" in
         if [ "${libxc_jobs}" -gt 10 ]; then
           libxc_jobs=$((libxc_jobs / 2))
         fi
-        make -j "${libxc_jobs}" > make.log 2>&1 || tail_excerpt make.log
+        make -j 1 > make.log 2>&1 || tail_excerpt make.log
         make install > install.log 2>&1 || tail_excerpt install.log
         cd ..
       else
