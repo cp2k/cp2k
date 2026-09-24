@@ -1030,7 +1030,8 @@ CONTAINS
       num_BSE_matrices = 2
       IF (do_abba) num_BSE_matrices = 10
       full_dim = INT(n_ov_joint, KIND=int_8)**2*INT(num_BSE_matrices, KIND=int_8)
-      mem_GB = REAL(8*full_dim, KIND=dp)/REAL(1024**3, KIND=dp)
+      ! 1 GB = 1E9 B, the unit of the free-memory budget it is compared with
+      mem_GB = 8.0E-9_dp*REAL(full_dim, KIND=dp)
 
    END FUNCTION fulldiag_memory_estimate_GB
 
