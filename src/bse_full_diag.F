@@ -1076,7 +1076,7 @@ CONTAINS
       IF (mp2_env%bse%bse_spin_config == 0) THEN
          CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, fm_dipole_ai_trunc, &
                                        trans_mom_bse, oscill_str, polarizability_residues, &
-                                       mp2_env, homo, virtual, unit_nr, &
+                                       mp2_env%bse, homo, virtual, unit_nr, &
                                        fm_eigvec_Y)
       END IF
 
@@ -1118,7 +1118,7 @@ CONTAINS
                              mo_coeff, homo, virtual, &
                              info_approximation, &
                              oscill_str, &
-                             qs_env, unit_nr, mp2_env)
+                             mp2_env%bse, unit_nr)
       END IF
 
       DO idir = 1, n_moments_di

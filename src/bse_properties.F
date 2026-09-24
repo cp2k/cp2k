@@ -11,6 +11,7 @@
 !>      10.2024 created [Maximilian Graml]
 ! **************************************************************************************************
 MODULE bse_properties
+   USE bse_types,                       ONLY: bse_env_type
    USE bse_util,                        ONLY: fm_general_add_bse,&
                                               print_bse_nto_cubes,&
                                               reshuffle_eigvec,&
@@ -31,11 +32,9 @@ MODULE bse_properties
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
-   USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: c_light_au,&
                                               evolt
-   USE qs_environment_types,            ONLY: qs_environment_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
                                               init_mo_set,&
@@ -93,7 +92,7 @@ CONTAINS
 !> \param oscill_str Oscillator strength per excitation level
 !> \param polarizability_residues Residues of polarizability ("tensorial oscillator strength")
 !>          per excitation level
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 !> \param homo_red ...
 !> \param virtual_red ...
 !> \param unit_nr ...
@@ -101,7 +100,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_oscillator_strengths(fm_eigvec_X, Exc_ens, fm_dipole_ai_trunc, &
                                        trans_mom_bse, oscill_str, polarizability_residues, &
-                                       mp2_env, homo_red, virtual_red, unit_nr, &
+                                       bse_env, homo_red, virtual_red, unit_nr, &
                                        fm_eigvec_Y)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec_X
@@ -114,7 +113,7 @@ CONTAINS
          INTENT(OUT)                                     :: oscill_str
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: polarizability_residues
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: homo_red, virtual_red, unit_nr
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_eigvec_Y
 
@@ -148,7 +147,7 @@ CONTAINS
          CALL fm_general_add_bse(fm_dipole_MO_trunc_reordered(idir), fm_dipole_ai_trunc(idir), 1.0_dp, &
                                  1, 1, &
                                  1, virtual_red, &
-                                 unit_nr, [2, 4, 3, 1], mp2_env%bse)
+                                 unit_nr, [2, 4, 3, 1], bse_env)
          CALL cp_fm_release(fm_dipole_per_dir(idir))
       END DO
 
@@ -215,10 +214,10 @@ CONTAINS
 !> \param Exc_ens ...
 !> \param info_approximation ...
 !> \param unit_nr ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 ! **************************************************************************************************
    SUBROUTINE compute_and_print_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
-                                                    info_approximation, unit_nr, mp2_env)
+                                                    info_approximation, unit_nr, bse_env)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: oscill_str
@@ -228,7 +227,7 @@ CONTAINS
          INTENT(IN)                                      :: Exc_ens
       CHARACTER(LEN=10)                                  :: info_approximation
       INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_and_print_absorption_spectrum'
 
@@ -244,10 +243,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      freq_step = mp2_env%bse%bse_spectrum_freq_step_size
-      freq_start = mp2_env%bse%bse_spectrum_freq_start
-      freq_end = mp2_env%bse%bse_spectrum_freq_end
-      eta_list => mp2_env%bse%bse_eta_spectrum_list
+      freq_step = bse_env%bse_spectrum_freq_step_size
+      freq_start = bse_env%bse_spectrum_freq_start
+      freq_end = bse_env%bse_spectrum_freq_end
+      eta_list => bse_env%bse_eta_spectrum_list
 
       ! Calculate number of steps to fit given frequency range
       num_steps = NINT((freq_end - freq_start)/freq_step) + 1
@@ -310,7 +309,7 @@ CONTAINS
          END DO
 
          !For debug runs: Export an entry of the two tensors to allow regtests on spectra
-         IF (mp2_env%bse%bse_debug_print) THEN
+         IF (bse_env%bse_debug_print) THEN
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A10,T13,A,T65,F16.4)') 'BSE|DEBUG|', &
                   'Averaged dynamical dipole polarizability at 8.2 eV:', &
@@ -411,15 +410,14 @@ CONTAINS
 !> \param virtual ...
 !> \param info_approximation ...
 !> \param oscill_str ...
-!> \param qs_env ...
+!> \param bse_env the BSE environment (settings, the MO sets and the section of the NTO print keys)
 !> \param unit_nr ...
-!> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE calculate_NTOs(fm_X, fm_Y, &
                              mo_coeff, homo, virtual, &
                              info_approximation, &
                              oscill_str, &
-                             qs_env, unit_nr, mp2_env)
+                             bse_env, unit_nr)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_X
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_Y
@@ -427,9 +425,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo, virtual
       CHARACTER(LEN=10)                                  :: info_approximation
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calculate_NTOs'
       REAL(KIND=dp), PARAMETER                           :: coeff_err = 1.0E-5_dp
@@ -451,12 +448,12 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: bse_section, nto_section
 
       CALL timeset(routineN, handle)
-      bse_section => mp2_env%bse%bse_section
+      bse_section => bse_env%bse_section
 
-      nao_full = qs_env%mos(1)%nao
+      nao_full = bse_env%mos(1)%nao
       nao_trunc = homo + virtual
       ! This is not influenced by the BSE cutoff
-      homo_irred = qs_env%mos(1)%homo
+      homo_irred = bse_env%mos(1)%homo
       ! M will have a block structure and is quadratic in homo+virtual, i.e.
       !                          occ   virt
       !                       |   0    X_i,a |  occ  = homo
@@ -528,16 +525,16 @@ CONTAINS
             "The NTOs are calculated with the following settings:"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Number of excitations, for which NTOs are computed', &
-            mp2_env%bse%num_print_exc_ntos
-         IF (mp2_env%bse%eps_nto_osc_str > 0.0_dp) THEN
+            bse_env%num_print_exc_ntos
+         IF (bse_env%eps_nto_osc_str > 0.0_dp) THEN
             WRITE (unit_nr, '(T2,A4,T7,A,T71,F10.3)') 'BSE|', 'Threshold for oscillator strength f^n', &
-               mp2_env%bse%eps_nto_osc_str
+               bse_env%eps_nto_osc_str
          ELSE
             WRITE (unit_nr, '(T2,A4,T7,A,T71,A10)') 'BSE|', 'Threshold for oscillator strength f^n', &
                ADJUSTL("---")
          END IF
          WRITE (unit_nr, '(T2,A4,T7,A,T72,F10.3)') 'BSE|', 'Threshold for NTO weights (λ_I)^2', &
-            mp2_env%bse%eps_nto_eigval
+            bse_env%eps_nto_eigval
       END IF
 
       ! Write the header of NTO info table
@@ -555,12 +552,12 @@ CONTAINS
             'Excitation n', "TDA/ABBA", "Index of NTO I", 'NTO weights (λ_I)^2'
       END IF
 
-      DO j = 1, mp2_env%bse%num_print_exc_ntos
-         n_exc = mp2_env%bse%bse_nto_state_list_final(j)
+      DO j = 1, bse_env%num_print_exc_ntos
+         n_exc = bse_env%bse_nto_state_list_final(j)
          ! Takes care of unallocated oscill_str array in case of Triplet
-         IF (mp2_env%bse%eps_nto_osc_str > 0.0_dp) THEN
+         IF (bse_env%eps_nto_osc_str > 0.0_dp) THEN
             ! Check actual values
-            IF (oscill_str(n_exc) < mp2_env%bse%eps_nto_osc_str) THEN
+            IF (oscill_str(n_exc) < bse_env%eps_nto_osc_str) THEN
                ! Print skipped levels to table
                IF (unit_nr > 0) THEN
                   WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -585,7 +582,7 @@ CONTAINS
 
          ! Reshuffle from X_ia,n_exc to X_i,a
          CALL reshuffle_eigvec(fm_X, fm_X_ia, homo, virtual, n_exc, &
-                               .FALSE., unit_nr, mp2_env%bse)
+                               .FALSE., unit_nr, bse_env)
 
          ! Copy X to upper block in M, i.e. starting from column homo+1
          CALL cp_fm_to_fm_submat(fm_X_ia, fm_m, &
@@ -597,7 +594,7 @@ CONTAINS
          IF (PRESENT(fm_Y)) THEN
             ! Reshuffle from Y_ia,n_exc to Y_a,i
             CALL reshuffle_eigvec(fm_Y, fm_Y_ai, homo, virtual, n_exc, &
-                                  .TRUE., unit_nr, mp2_env%bse)
+                                  .TRUE., unit_nr, bse_env)
 
             ! Copy Y^T to lower block in M, i.e. starting from row homo+1
             CALL cp_fm_to_fm_submat(fm_Y_ai, fm_m, &
@@ -672,7 +669,7 @@ CONTAINS
             ! Extract number of significant NTOs
             n_nto = 0
             DO i_nto = 1, nao_trunc
-               IF (eigval_svd_squ(i_nto) > mp2_env%bse%eps_nto_eigval) THEN
+               IF (eigval_svd_squ(i_nto) > bse_env%eps_nto_eigval) THEN
                   n_nto = n_nto + 1
                ELSE
                   ! Since svd orders in descending order, we can exit the loop if smaller
@@ -708,7 +705,7 @@ CONTAINS
             CALL section_vals_val_get(nto_section, "STRIDE", i_vals=stride)
             CALL section_vals_val_get(nto_section, "APPEND", l_val=append_cube)
             IF (cube_file) THEN
-               CALL print_bse_nto_cubes(mp2_env%bse, nto_set, n_exc, info_approximation, &
+               CALL print_bse_nto_cubes(bse_env, nto_set, n_exc, info_approximation, &
                                         stride, append_cube, nto_section)
             END IF
 
