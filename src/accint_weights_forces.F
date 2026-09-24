@@ -585,6 +585,9 @@ CONTAINS
 !>        order=0: exc will contain the xc energy density E_xc(r)
 !>        order=1: exc will contain V_xc(r) * rho1(r)
 !>        order=2: exc will contain F_xc(r) * rho1(r) * rho1(r)
+!>
+!>        Note that possible nl-vdW functionals are not included int the accurate integration scheme
+!>
 !> \param qs_env to get all the needed things
 !> \param rho_struct density
 !> \param rho1_struct response density

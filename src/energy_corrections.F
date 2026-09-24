@@ -2401,6 +2401,7 @@ CONTAINS
       !
       CALL qs_fxc_create(qs_env, rho, rhoout, rho0_atom_set, xc_section, .FALSE., &
                          v_xc, v_xc_tau, rho1_atom_set, &
+                         dispersion_env=ec_env%dispersion_env, &
                          compute_virial=use_virial, virial_xc=virial%pv_xc)
       !
       DEALLOCATE (rhoout)

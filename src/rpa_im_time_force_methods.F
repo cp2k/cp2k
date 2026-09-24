@@ -2488,7 +2488,8 @@ CONTAINS
       END IF
       !
       CALL qs_fxc_create(qs_env, rho, rhoz, rho0_atom_set, xc_section, .FALSE., &
-                         v_xc, v_xc_tau, rho1_atom_set)
+                         v_xc, v_xc_tau, rho1_atom_set, &
+                         dispersion_env=qs_env%dispersion_env)
       !
       DEALLOCATE (rhoz)
 
@@ -3575,6 +3576,7 @@ CONTAINS
          !
          CALL qs_fxc_create(qs_env, rho, rhoz, rho0_atom_set, xc_section, .FALSE., &
                             v_xc, v_xc_tau, rho1_atom_set, &
+                            dispersion_env=qs_env%dispersion_env, &
                             compute_virial=use_virial, virial_xc=virial%pv_xc)
          !
          DEALLOCATE (rhoz)

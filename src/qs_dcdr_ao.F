@@ -241,7 +241,8 @@ CONTAINS
 
       ! Calculate the second derivative of the exchange-correlation potential
       CALL qs_fxc_create(qs_env, rho, perturbed_density, rho0_atom_set, xc_section, &
-                         .FALSE., v_xc, v_xc_tau, rho1_atom_set)
+                         .FALSE., v_xc, v_xc_tau, rho1_atom_set, &
+                         dispersion_env=qs_env%dispersion_env)
       !
 
       DO ispin = 1, dcdr_env%nspins
@@ -501,7 +502,8 @@ CONTAINS
          !
          NULLIFY (v_xc, v_xc_tau)
          CALL qs_fxc_create(qs_env, rho, drho, rho0_atom_set, xc_section, .FALSE., &
-                            v_xc, v_xc_tau, rho1_atom_set)
+                            v_xc, v_xc_tau, rho1_atom_set, &
+                            dispersion_env=qs_env%dispersion_env)
          !
          DEALLOCATE (drho)
 

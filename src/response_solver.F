@@ -1730,6 +1730,7 @@ CONTAINS
       NULLIFY (v_xc, v_xc_tau)
       CALL qs_fxc_create(qs_env, rho0, rho1, rho0_atom_set, xc_section, do_onecenter, &
                          v_xc, v_xc_tau, rho1_atom_set, &
+                         dispersion_env=qs_env%dispersion_env, &
                          compute_virial=use_virial, virial_xc=virial%pv_xc)
       DEALLOCATE (rho1)
 

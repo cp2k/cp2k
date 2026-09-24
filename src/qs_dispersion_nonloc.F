@@ -347,6 +347,7 @@ CONTAINS
 !> \param rho0_r ...
 !> \param rho1_r ...
 !> \param accuracy ...
+!> \param epsrho ...
 !> \param fxc_rho ...
 !>
 !>
@@ -365,16 +366,16 @@ CONTAINS
 !>                    8          -1/560   8/315    -1/5     8/5 -205/72     8/5    -1/5  8/315  -1/560
 !>  ---------------------------------------------------------------------------------------------------
 ! **************************************************************************************************
-   SUBROUTINE qs_fxc_nlvdw_fdiff(qs_env, dispersion_env, rho0_r, rho1_r, accuracy, fxc_rho)
+   SUBROUTINE qs_fxc_nlvdw_fdiff(qs_env, dispersion_env, rho0_r, rho1_r, accuracy, epsrho, fxc_rho)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho0_r, rho1_r
       INTEGER, INTENT(IN)                                :: accuracy
+      REAL(KIND=dp), INTENT(IN)                          :: epsrho
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_fxc_nlvdw_fdiff'
-      REAL(KIND=dp), PARAMETER                           :: epsrho = 5.e-4_dp
 
       INTEGER                                            :: handle, ispin, istep, np, nspins, nstep
       REAL(KIND=dp)                                      :: beta, edisp, oeps1

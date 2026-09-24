@@ -1020,7 +1020,8 @@ CONTAINS
          do_onecenter = .FALSE.
       END IF
       CALL qs_fxc_create(qs_env, rho_fxc, trho, rho_atom_set, xc_section, &
-                         do_onecenter, v_xc, v_xc_tau, rho1_atom_set)
+                         do_onecenter, v_xc, v_xc_tau, rho1_atom_set, &
+                         dispersion_env=qs_env%dispersion_env)
       DEALLOCATE (trho)
 
       DO ispin = 1, nspins

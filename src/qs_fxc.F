@@ -15,11 +15,13 @@
 MODULE qs_fxc
 
    USE cp_control_types,                ONLY: dft_control_type
+   USE input_constants,                 ONLY: xc_vdw_fun_nonloc
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_lval,&
                                               section_get_rval,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_type
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -32,6 +34,8 @@ MODULE qs_fxc
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
+   USE qs_dispersion_nonloc,            ONLY: qs_fxc_nlvdw_fdiff
+   USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_fxc_atom,                     ONLY: fxc_atom_calc
@@ -92,6 +96,7 @@ CONTAINS
 !> \param pw_env_ext ...
 !> \param kind_set_external ...
 !> \param para_env_external ...
+!> \param dispersion_env ...
 !> \param compute_virial ...
 !> \param virial_xc ...
 ! **************************************************************************************************
@@ -100,7 +105,7 @@ CONTAINS
                             fxc_rho, fxc_tau, rho1_atom_set, &
                             do_scale, is_triplet, spinflip, no_weights, uf_grid_results, &
                             pw_env_ext, kind_set_external, para_env_external, &
-                            compute_virial, virial_xc)
+                            dispersion_env, compute_virial, virial_xc)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_rho_type), POINTER                         :: rho0_struct, rho1_struct
@@ -115,22 +120,23 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kind_set_external
       TYPE(mp_para_env_type), INTENT(IN), OPTIONAL       :: para_env_external
+      TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: dispersion_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: virial_xc
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_fxc_create'
 
-      INTEGER                                            :: handle, ispin, nspins
-      LOGICAL                                            :: do_virial, do_w, ret_uf, uf_grid
-      REAL(KIND=dp)                                      :: factor
+      INTEGER                                            :: handle, ispin, nspins, nsteps, order, vdw
+      LOGICAL                                            :: do_virial, do_w, ret_uf, uf_grid, vdw_nl
+      REAL(KIND=dp)                                      :: eps_delta, factor
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(pw_c1d_gs_type), POINTER                      :: rho_nlcc_g
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, xc_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho_lo, fxc_rho_uf, fxc_tau_lo, &
-                                                            fxc_tau_uf, rho_r
+                                                            fxc_tau_uf, fxc_vdw, rho1_r, rho_r
       TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, weights, weights_uf
       TYPE(qs_rho_type), POINTER                         :: rho0_uf, rho1_uf
 
@@ -267,6 +273,25 @@ CONTAINS
                                compute_virial=do_virial, virial_xc=virial_xc)
       END IF
 
+      ! nonlocal vdW functionals
+      vdW_nl = .FALSE.
+      IF (PRESENT(dispersion_env)) THEN
+         CALL section_vals_val_get(xc_section, "VDW_POTENTIAL%POTENTIAL_TYPE", i_val=vdw)
+         vdW_nl = (vdw == xc_vdw_fun_nonloc)
+         IF (vdW_nl) THEN
+            nsteps = section_get_ival(xc_section, "NSTEPS")
+            order = 2*nsteps
+            eps_delta = section_get_rval(xc_section, "STEP_SIZE")
+            CALL qs_rho_get(rho1_struct, rho_r=rho1_r)
+            ALLOCATE (fxc_vdw(nspins))
+            DO ispin = 1, nspins
+               CALL auxbas_pw_pool%create_pw(fxc_vdw(ispin))
+            END DO
+            CALL qs_fxc_nlvdw_fdiff(qs_env, dispersion_env, rho_r, rho1_r, &
+                                    order, eps_delta, fxc_vdw)
+         END IF
+      END IF
+
       ! de-apply NLCC density
       IF (ASSOCIATED(rho_nlcc)) THEN
          factor = -1.0_dp
@@ -304,6 +329,13 @@ CONTAINS
          END IF
       ELSE
          fxc_tau => fxc_tau_lo
+      END IF
+
+      ! Add possible nl-vdW pootential
+      IF (vdW_nl) THEN
+         DO ispin = 1, nspins
+            CALL pw_axpy(fxc_vdw(ispin), fxc_rho(ispin), 1.0_dp)
+         END DO
       END IF
 
       IF (do_onecenter) THEN
