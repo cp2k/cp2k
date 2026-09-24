@@ -2916,7 +2916,7 @@ CONTAINS
 
       IF (PRESENT(fm_B_explicit)) THEN
          CALL create_hermitian_form_of_ABBA(fm_A_explicit, fm_B_explicit, fm_C, fm_sqrt_A_minus_B, &
-                                            fm_inv_sqrt_A_minus_B, unit_nr, mp2_env, 0.0_dp)
+                                            fm_inv_sqrt_A_minus_B, unit_nr, mp2_env%bse, 0.0_dp)
          CALL cp_fm_create(fm_eigvec, fm_C%matrix_struct)
          CALL choose_eigv_solver(fm_C, fm_eigvec, ref_ens, diag_info)
          IF (diag_info /= 0) CPABORT("Reference diagonalization of C failed in the BSE Davidson check")

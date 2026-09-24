@@ -46,7 +46,6 @@ MODULE bse_iterative
                                               bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -124,7 +123,6 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_tda_guess
       TYPE(cp_fm_type), TARGET                           :: fm_X
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
@@ -139,7 +137,6 @@ CONTAINS
                        "(DO_BSE, DO_BSE_W_ONLY, DO_BSE_GW_ONLY). Use BSE_DIAG_METHOD FULLDIAG.")
       END IF
 
-      para_env => fm_mat_S_ia_trunc_arr(1)%matrix_struct%para_env
       n_ov = homo_red_arr(1)*virt_red_arr(1)
       ! the debug checks hold the explicit N_ov x N_ov matrices
       do_debug = mp2_env%bse%bse_debug_print .AND. n_ov <= n_ov_max_debug
@@ -159,7 +156,7 @@ CONTAINS
          CALL create_A_and_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
                              fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr, fm_A_BSE, fm_B_BSE, &
                              do_abba, Eigenval_reduced, unit_nr, homo_red_arr, virt_red_arr, dimen_RI, &
-                             mp2_env, para_env, qs_env)
+                             mp2_env%bse)
          IF (do_abba) THEN
             CALL bse_matvec_selfcheck(mv_env, fm_A_BSE, unit_nr, fm_B_BSE)
          ELSE
@@ -182,7 +179,7 @@ CONTAINS
          IF (do_debug) CALL bse_davidson_refcheck(fm_A_BSE, exc_ens, fm_X, mp2_env, unit_nr)
 
          CALL copy_to_ia_context(fm_X, blacs_env_ia, fm_X_ia)
-         CALL postprocess_bse(exc_ens, fm_X_ia, mp2_env, qs_env, mo_coeff, &
+         CALL postprocess_bse(exc_ens, fm_X_ia, mp2_env%bse, qs_env, mo_coeff, &
                               homo_red_arr(1), virt_red_arr(1), homo(1), unit_nr, .TRUE.)
          CALL cp_fm_release(fm_X_ia)
          DEALLOCATE (exc_ens)
@@ -236,7 +233,7 @@ CONTAINS
             CALL copy_to_ia_context(fm_Y_abba, blacs_env_ia, fm_Y_ia)
             CALL cp_fm_release(fm_X_abba)
             CALL cp_fm_release(fm_Y_abba)
-            CALL postprocess_bse(exc_ens_abba, fm_X_ia, mp2_env, qs_env, mo_coeff, &
+            CALL postprocess_bse(exc_ens_abba, fm_X_ia, mp2_env%bse, qs_env, mo_coeff, &
                                  homo_red_arr(1), virt_red_arr(1), homo(1), unit_nr, .FALSE., fm_Y_ia)
             CALL cp_fm_release(fm_X_ia)
             CALL cp_fm_release(fm_Y_ia)

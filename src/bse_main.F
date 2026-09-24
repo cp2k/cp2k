@@ -240,11 +240,11 @@ CONTAINS
             CALL create_A_and_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
                                 fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr, fm_A_BSE, fm_B_BSE, &
                                 my_do_abba, Eigenval_reduced_joint, unit_nr, homo_red_arr, virt_red_arr, &
-                                dimen_RI, mp2_env, para_env, qs_env)
+                                dimen_RI, mp2_env%bse)
             IF (my_do_abba) THEN
                CALL create_hermitian_form_of_ABBA(fm_A_BSE, fm_B_BSE, fm_C_BSE, &
                                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                                                  unit_nr, mp2_env, diag_runtime_est)
+                                                  unit_nr, mp2_env%bse, diag_runtime_est)
                CALL cp_fm_release(fm_B_BSE)
             END IF
             NULLIFY (dft_control, tddfpt_control)
@@ -254,13 +254,13 @@ CONTAINS
             ! the amplitude table, and N_e = SUM(homo_irred) for the TRK print.
             IF (my_do_tda .AND. (.NOT. tddfpt_control%do_bse)) THEN
                CALL diagonalize_A(fm_A_BSE, homo_red_arr, virt_red_arr, homo, &
-                                  unit_nr, diag_runtime_est, mp2_env, qs_env, mo_coeff)
+                                  unit_nr, diag_runtime_est, mp2_env%bse, qs_env, mo_coeff)
             END IF
             CALL cp_fm_release(fm_A_BSE)
             IF (my_do_abba) THEN
                CALL diagonalize_C(fm_C_BSE, homo_red_arr, virt_red_arr, homo, &
                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                                  unit_nr, diag_runtime_est, mp2_env, qs_env, mo_coeff)
+                                  unit_nr, diag_runtime_est, mp2_env%bse, qs_env, mo_coeff)
                CALL cp_fm_release(fm_C_BSE)
             END IF
          END IF
@@ -314,11 +314,11 @@ CONTAINS
             CALL create_A_and_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
                                 fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr, fm_A_BSE, fm_B_BSE, &
                                 my_do_abba, Eigenval_reduced, unit_nr, homo_red_arr, virt_red_arr, &
-                                dimen_RI, mp2_env, para_env, qs_env)
+                                dimen_RI, mp2_env%bse)
             IF (my_do_abba) THEN
                CALL create_hermitian_form_of_ABBA(fm_A_BSE, fm_B_BSE, fm_C_BSE, &
                                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                                                  unit_nr, mp2_env, diag_runtime_est)
+                                                  unit_nr, mp2_env%bse, diag_runtime_est)
             END IF
             CALL cp_fm_release(fm_B_BSE)
 
@@ -327,13 +327,13 @@ CONTAINS
             tddfpt_control => dft_control%tddfpt2_control
             IF (my_do_tda .AND. (.NOT. tddfpt_control%do_bse)) THEN
                CALL diagonalize_A(fm_A_BSE, homo_red_arr, virt_red_arr, homo, &
-                                  unit_nr, diag_runtime_est, mp2_env, qs_env, mo_coeff)
+                                  unit_nr, diag_runtime_est, mp2_env%bse, qs_env, mo_coeff)
             END IF
             CALL cp_fm_release(fm_A_BSE)
             IF (my_do_abba) THEN
                CALL diagonalize_C(fm_C_BSE, homo_red_arr, virt_red_arr, homo, &
                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                                  unit_nr, diag_runtime_est, mp2_env, qs_env, mo_coeff)
+                                  unit_nr, diag_runtime_est, mp2_env%bse, qs_env, mo_coeff)
             END IF
             CALL cp_fm_release(fm_C_BSE)
          END IF
