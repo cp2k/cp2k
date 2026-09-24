@@ -28,7 +28,9 @@ MODULE bse_full_diag
                                               fm_general_add_bse,&
                                               get_bse_spin_block_layout,&
                                               get_multipoles_mo,&
-                                              reshuffle_eigvec
+                                              occ_of_ia,&
+                                              reshuffle_eigvec,&
+                                              virt_of_ia
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -280,8 +282,8 @@ CONTAINS
                      END IF
                   END DO
                   k_ov = i_row_global - offsets(isp)
-                  i_occ_row = (k_ov - 1)/virtual(isp) + 1
-                  a_virt_row = MOD(k_ov - 1, virtual(isp)) + 1
+                  i_occ_row = occ_of_ia(k_ov, virtual(isp))
+                  a_virt_row = virt_of_ia(k_ov, virtual(isp))
                   eigen_diff = Eigenval(eig_offsets(isp) + a_virt_row + homo(isp)) - &
                                Eigenval(eig_offsets(isp) + i_occ_row)
                   fm_A%local_data(ii, jj) = fm_A%local_data(ii, jj) + eigen_diff
