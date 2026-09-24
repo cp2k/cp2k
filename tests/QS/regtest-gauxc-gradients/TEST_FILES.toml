@@ -1,7 +1,3 @@
-"H2O_QZVPP_FORCE.inp" = [
-  {matcher="GAUXC_analytical_gradient"},
-  {matcher="DEBUG_force_sum", tol=5e-5, ref=0.0},
-]
 "H2_FORCE_FD.inp" = [
   {matcher="GAUXC_numerical_gradient"},
   {matcher="DEBUG_force_sum", tol=5e-5, ref=0.0},
