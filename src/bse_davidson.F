@@ -33,6 +33,7 @@ MODULE bse_davidson
                                               bse_matvec_subblock,&
                                               bse_matvec_vector_struct,&
                                               mem_fraction
+   USE bse_types,                       ONLY: bse_env_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -59,7 +60,6 @@ MODULE bse_davidson
    USE mathlib,                         ONLY: diamat_all
    USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
                                               mp_para_env_type
-   USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE util,                            ONLY: sort
@@ -96,15 +96,15 @@ CONTAINS
 !>        Arrays: Ar_mn (the reduced A) in fm_red_A on the process grid, c_mk in coef_ritz, θ_k c_mk in
 !>        coef_ritz_theta
 !> \param mv_env slabs, prefactors and transition energies of the matrix-free A
-!> \param mp2_env mp2_env%bse carries the BSE_ITERAT settings and BSE_DEBUG_PRINT
+!> \param bse_env bse_env carries the BSE_ITERAT settings and BSE_DEBUG_PRINT
 !> \param unit_nr output unit, positive on the writing rank only
 !> \param exc_ens Ω^n in Hartree
 !> \param fm_X X_ia^n on the process grid of mv_env, column n
 ! **************************************************************************************************
-   SUBROUTINE bse_davidson_tda(mv_env, mp2_env, unit_nr, exc_ens, fm_X)
+   SUBROUTINE bse_davidson_tda(mv_env, bse_env, unit_nr, exc_ens, fm_X)
 
       TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: exc_ens
@@ -140,12 +140,12 @@ CONTAINS
       NULLIFY (diag_blacs_env)
       CALL cp_blacs_env_create(diag_blacs_env, para_env)
       n_ov = mv_env%n_ov
-      CALL davidson_sizes(mp2_env, n_ov, unit_nr, n_want, n_act, block_size)
+      CALL davidson_sizes(bse_env, n_ov, unit_nr, n_want, n_act, block_size)
 
       ALLOCATE (diag(n_ov))
-      CALL bse_matvec_diagonal(mv_env, mp2_env%bse%preconditioner, diag)
+      CALL bse_matvec_diagonal(mv_env, bse_env%preconditioner, diag)
 
-      CALL subspace_ceiling(mp2_env, mv_env, driver_tda, n_act, block_size, unit_nr, m_max)
+      CALL subspace_ceiling(bse_env, mv_env, driver_tda, n_act, block_size, unit_nr, m_max)
 
       CALL bse_matvec_vector_struct(mv_env, m_max, fm_struct)
       CALL cp_fm_create(fm_Z, fm_struct, name="fm_Z_davidson", set_zero=.TRUE.)
@@ -172,8 +172,8 @@ CONTAINS
       n_restart = 0
       n_dependent = 0
 
-      IF (mp2_env%bse%num_guess_transitions > 0) THEN
-         CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_Z, m, theta_sub, &
+      IF (bse_env%num_guess_transitions > 0) THEN
+         CALL initial_guess_subblock(mv_env, bse_env, diag, n_act, m_max, deg_thresh, fm_Z, m, theta_sub, &
                                      unit_nr)
       ELSE
          CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_Z, m)
@@ -190,7 +190,7 @@ CONTAINS
       CALL print_iteration_header('Block Davidson iterations within the TDA:', unit_nr)
 
       all_conv = .FALSE.
-      DO iter = 1, mp2_env%bse%max_iter
+      DO iter = 1, bse_env%max_iter
          t_iter = m_walltime()
 
          ! sum_n Ar_mn c_nk = θ_k c_mk, θ ascending
@@ -218,15 +218,15 @@ CONTAINS
          CALL subspace_rotate(fm_Z, m, coef_ritz_theta(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
          CALL column_norms(fm_work, 1, n_act, para_env, res)
 
-         CALL convergence_step(mp2_env, theta, theta_prev, res, m, n_ov, n_want, iter, t_iter, unit_nr, &
+         CALL convergence_step(bse_env, theta, theta_prev, res, m, n_ov, n_want, iter, t_iter, unit_nr, &
                                dE, conv, n_req, need)
          all_conv = .NOT. ANY(need)
          IF (all_conv) EXIT
 
-         IF (iter == mp2_env%bse%max_iter) EXIT
+         IF (iter == bse_env%max_iter) EXIT
 
          ! corrections for the lowest unconverged roots, t_ia,k = r_ia,k/(d_ia - θ_k)
-         CALL select_roots(mp2_env, need, res, MIN(block_size, m_max - m), selected, nt)
+         CALL select_roots(bse_env, need, res, MIN(block_size, m_max - m), selected, nt)
          CALL davidson_corrections(fm_work, selected(1:nt), theta, diag, fm_Z, m + 1)
          CALL extend_orthonormal(fm_Z, m, nt, para_env, n_dependent)
          ! no new vector: with an unchanged basis the next iteration finds dE = 0, which lets the roots that
@@ -260,9 +260,9 @@ CONTAINS
       END DO
 
       IF (.NOT. all_conv) CALL abort_unconverged(theta, res, conv, need, n_req, unit_nr)
-      IF (mp2_env%bse%bse_debug_print) CALL print_tracked_roots(theta, res, n_want, n_act, unit_nr)
+      IF (bse_env%bse_debug_print) CALL print_tracked_roots(theta, res, n_want, n_act, unit_nr)
 
-      IF (mp2_env%bse%bse_debug_print) THEN
+      IF (bse_env%bse_debug_print) THEN
          dev = orthonormality_deviation(fm_Z, fm_Z, m, block_size, para_env)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A10,T13,A,T63,ES18.6)') 'BSE|DEBUG|', &
@@ -306,7 +306,7 @@ CONTAINS
 !>        Arrays: Hr_mn in fm_red_M on the process grid, c_mk in coef_ritz, (Ω^k)^1/2 c_mk in coef_x,
 !>        (Ω^k)^-1/2 c_mk in coef_y, Ω^k (Ω^k)^1/2 c_mk in coef_x_omega
 !> \param mv_env slabs, prefactors and transition energies of the matrix-free A and B
-!> \param mp2_env mp2_env%bse carries the BSE_ITERAT settings and BSE_DEBUG_PRINT
+!> \param bse_env bse_env carries the BSE_ITERAT settings and BSE_DEBUG_PRINT
 !> \param unit_nr output unit, positive on the writing rank only
 !> \param exc_ens Ω^n in Hartree
 !> \param fm_X X_ia^n on the process grid of mv_env, column n; created only for abba_ok
@@ -315,11 +315,11 @@ CONTAINS
 !> \param ab_margin smallest eigenvalue of A-B on the trial space in Hartree
 !> \param fm_X_tda converged TDA vectors as initial guess
 ! **************************************************************************************************
-   SUBROUTINE bse_davidson_abba_mk(mv_env, mp2_env, unit_nr, exc_ens, fm_X, fm_Y, abba_status, &
+   SUBROUTINE bse_davidson_abba_mk(mv_env, bse_env, unit_nr, exc_ens, fm_X, fm_Y, abba_status, &
                                    ab_margin, fm_X_tda)
 
       TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: exc_ens
@@ -364,12 +364,12 @@ CONTAINS
       NULLIFY (diag_blacs_env)
       CALL cp_blacs_env_create(diag_blacs_env, para_env)
       n_ov = mv_env%n_ov
-      CALL davidson_sizes(mp2_env, n_ov, unit_nr, n_want, n_act, block_size)
+      CALL davidson_sizes(bse_env, n_ov, unit_nr, n_want, n_act, block_size)
 
       ALLOCATE (diag(n_ov))
-      CALL bse_matvec_diagonal(mv_env, mp2_env%bse%preconditioner, diag)
+      CALL bse_matvec_diagonal(mv_env, bse_env%preconditioner, diag)
 
-      CALL subspace_ceiling(mp2_env, mv_env, driver_mk, n_act, block_size, unit_nr, m_max)
+      CALL subspace_ceiling(bse_env, mv_env, driver_mk, n_act, block_size, unit_nr, m_max)
 
       CALL bse_matvec_vector_struct(mv_env, m_max, fm_struct)
       CALL cp_fm_create(fm_V, fm_struct, name="fm_V_davidson", set_zero=.TRUE.)
@@ -411,8 +411,8 @@ CONTAINS
          n_seed = MIN(n_seed, n_act)
          CALL cp_fm_to_fm(fm_X_tda, fm_V, n_seed)
       END IF
-      IF (mp2_env%bse%num_guess_transitions > 0) THEN
-         CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_V, n_guess_cols, theta_sub, &
+      IF (bse_env%num_guess_transitions > 0) THEN
+         CALL initial_guess_subblock(mv_env, bse_env, diag, n_act, m_max, deg_thresh, fm_V, n_guess_cols, theta_sub, &
                                      unit_nr, n_seed, abba_status, ab_margin)
       ELSE
          CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_V, n_guess_cols, n_seed)
@@ -444,7 +444,7 @@ CONTAINS
 
          CALL print_iteration_header('Block Davidson iterations for ABBA, (A+B)(A-B) x = E^2 x:', unit_nr)
 
-         DO iter = 1, mp2_env%bse%max_iter
+         DO iter = 1, bse_env%max_iter
             t_iter = m_walltime()
 
             ! sum_n Hr_mn c_nk = θ_k c_mk with θ_k = (Ω^k)^2, ascending
@@ -481,15 +481,15 @@ CONTAINS
             CALL subspace_rotate(fm_V, m, coef_x_omega(1:m, 1:n_act), n_act, fm_work, -1.0_dp, 1.0_dp)
             CALL column_norms(fm_work, 1, n_act, para_env, res)
 
-            CALL convergence_step(mp2_env, omega, omega_prev, res, m, n_ov, n_want, iter, t_iter, unit_nr, &
+            CALL convergence_step(bse_env, omega, omega_prev, res, m, n_ov, n_want, iter, t_iter, unit_nr, &
                                   dE, conv, n_req, need)
             all_conv = .NOT. ANY(need)
             IF (all_conv) EXIT
 
-            IF (iter == mp2_env%bse%max_iter) EXIT
+            IF (iter == bse_env%max_iter) EXIT
 
             ! corrections t_ia,k = r_ia,k/(d_ia^2 - (Ω^k)^2) for the lowest unconverged roots
-            CALL select_roots(mp2_env, need, res, MIN(block_size, m_max - m), selected, nt)
+            CALL select_roots(bse_env, need, res, MIN(block_size, m_max - m), selected, nt)
             CALL davidson_corrections(fm_work, selected(1:nt), theta, diag_sq, fm_V, m + 1)
             CALL extend_basis_mk(mv_env, fm_V, fm_W, fm_MW, fm_scratch, m, nt, n_kernel, n_dependent, abba_status, &
                                  ab_margin)
@@ -520,9 +520,9 @@ CONTAINS
 
       IF (abba_status == abba_ok) THEN
          IF (.NOT. all_conv) CALL abort_unconverged(omega, res, conv, need, n_req, unit_nr)
-         IF (mp2_env%bse%bse_debug_print) CALL print_tracked_roots(omega, res, n_want, n_act, unit_nr)
+         IF (bse_env%bse_debug_print) CALL print_tracked_roots(omega, res, n_want, n_act, unit_nr)
 
-         IF (mp2_env%bse%bse_debug_print) THEN
+         IF (bse_env%bse_debug_print) THEN
             dev = orthonormality_deviation(fm_V, fm_W, m, block_size, para_env)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A10,T13,A,T63,ES18.6)') 'BSE|DEBUG|', &
@@ -596,7 +596,7 @@ CONTAINS
 !>        parallel to it for a small B. Arrays: Mr_mn and Kr_mn in fm_red_M and fm_red_K on the process
 !>        grid, R_mk in coef_right, L_mk in coef_left
 !> \param mv_env slabs, prefactors and transition energies of the matrix-free A and B
-!> \param mp2_env mp2_env%bse carries the BSE_ITERAT settings and BSE_DEBUG_PRINT
+!> \param bse_env bse_env carries the BSE_ITERAT settings and BSE_DEBUG_PRINT
 !> \param unit_nr output unit, positive on the writing rank only
 !> \param exc_ens Ω^n in Hartree
 !> \param fm_X X_ia^n on the process grid of mv_env, column n; created only for abba_ok
@@ -605,11 +605,11 @@ CONTAINS
 !> \param ab_margin smallest eigenvalue of A-B on the trial space in Hartree
 !> \param fm_X_tda converged TDA vectors as initial guess, x = y = X
 ! **************************************************************************************************
-   SUBROUTINE bse_davidson_abba_os(mv_env, mp2_env, unit_nr, exc_ens, fm_X, fm_Y, abba_status, &
+   SUBROUTINE bse_davidson_abba_os(mv_env, bse_env, unit_nr, exc_ens, fm_X, fm_Y, abba_status, &
                                    ab_margin, fm_X_tda)
 
       TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: exc_ens
@@ -655,12 +655,12 @@ CONTAINS
       NULLIFY (diag_blacs_env)
       CALL cp_blacs_env_create(diag_blacs_env, para_env)
       n_ov = mv_env%n_ov
-      CALL davidson_sizes(mp2_env, n_ov, unit_nr, n_want, n_act, block_size)
+      CALL davidson_sizes(bse_env, n_ov, unit_nr, n_want, n_act, block_size)
 
       ALLOCATE (diag(n_ov))
-      CALL bse_matvec_diagonal(mv_env, mp2_env%bse%preconditioner, diag)
+      CALL bse_matvec_diagonal(mv_env, bse_env%preconditioner, diag)
 
-      CALL subspace_ceiling(mp2_env, mv_env, driver_os, n_act, block_size, unit_nr, m_max)
+      CALL subspace_ceiling(bse_env, mv_env, driver_os, n_act, block_size, unit_nr, m_max)
 
       CALL bse_matvec_vector_struct(mv_env, m_max, fm_struct)
       CALL cp_fm_create(fm_b, fm_struct, name="fm_b_davidson", set_zero=.TRUE.)
@@ -706,8 +706,8 @@ CONTAINS
          CALL cp_fm_to_fm(fm_X_tda, fm_b, n_seed)
       END IF
       n_pair = 0
-      IF (mp2_env%bse%num_guess_transitions > 0) THEN
-         CALL initial_guess_subblock(mv_env, mp2_env, diag, n_act, m_max, deg_thresh, fm_b, n_guess_cols, theta_sub, &
+      IF (bse_env%num_guess_transitions > 0) THEN
+         CALL initial_guess_subblock(mv_env, bse_env, diag, n_act, m_max, deg_thresh, fm_b, n_guess_cols, theta_sub, &
                                      unit_nr, n_seed, abba_status, ab_margin, n_pair)
       ELSE
          CALL initial_guess(diag, n_act, m_max, deg_thresh, fm_b, n_guess_cols, n_seed)
@@ -737,7 +737,7 @@ CONTAINS
          CALL print_iteration_header('Block Davidson iterations for ABBA, Olsen-Stratmann paired subspace:', &
                                      unit_nr)
 
-         DO iter = 1, mp2_env%bse%max_iter
+         DO iter = 1, bse_env%max_iter
             t_iter = m_walltime()
 
             ! Ω^k ascending with the coefficients R_mk of y^k and L_mk of x^k, sum_m R_mk L_mk = 1
@@ -783,17 +783,17 @@ CONTAINS
             CALL column_norms(fm_work, n_act + 1, n_act, para_env, res_L)
             res(:) = MAX(res(:), res_L(:))
 
-            CALL convergence_step(mp2_env, omega, omega_prev, res, m, n_ov, n_want, iter, t_iter, unit_nr, &
+            CALL convergence_step(bse_env, omega, omega_prev, res, m, n_ov, n_want, iter, t_iter, unit_nr, &
                                   dE, conv, n_req, need)
             all_conv = .NOT. ANY(need)
             IF (all_conv) EXIT
 
-            IF (iter == mp2_env%bse%max_iter) EXIT
+            IF (iter == bse_env%max_iter) EXIT
 
             ! corrections t_ia,k = r_ia,k/(d_ia - Ω^k) of the lowest unconverged roots: the rR block
             ! against the basis, then the rL block of the same roots against the extended basis;
             ! both fit the room, which is odd only when the ceiling is the number of transitions
-            CALL select_roots(mp2_env, need, res, MIN(block_size, (m_max - m + 1)/2), selected, nt_sel)
+            CALL select_roots(bse_env, need, res, MIN(block_size, (m_max - m + 1)/2), selected, nt_sel)
             nt_R = nt_sel
             CALL davidson_corrections(fm_work, selected(1:nt_R), omega, diag, fm_b, m + 1)
             CALL extend_basis_os(mv_env, fm_b, fm_Mb, fm_Kb, fm_scratch, m, nt_R, n_kernel, n_dependent)
@@ -830,9 +830,9 @@ CONTAINS
 
       IF (abba_status == abba_ok) THEN
          IF (.NOT. all_conv) CALL abort_unconverged(omega, res, conv, need, n_req, unit_nr)
-         IF (mp2_env%bse%bse_debug_print) CALL print_tracked_roots(omega, res, n_want, n_act, unit_nr)
+         IF (bse_env%bse_debug_print) CALL print_tracked_roots(omega, res, n_want, n_act, unit_nr)
 
-         IF (mp2_env%bse%bse_debug_print) THEN
+         IF (bse_env%bse_debug_print) THEN
             dev = orthonormality_deviation(fm_b, fm_b, m, block_size, para_env)
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T2,A10,T13,A,T63,ES18.6)') 'BSE|DEBUG|', &
@@ -1200,7 +1200,7 @@ CONTAINS
 !> \brief One convergence step of a driver: dE_k = |E_k - E_k^prev|, the flags from CONVERGENCE_CRITERION,
 !>        the last required root, every root converged once the basis spans all transitions, the roots
 !>        in need, and the line of the iteration table
-!> \param mp2_env CONVERGENCE_CRITERION, EPS_ENERGY and EPS_RES
+!> \param bse_env CONVERGENCE_CRITERION, EPS_ENERGY and EPS_RES
 !> \param energies tracked energies in Hartree, ascending; the first SIZE(res) are read
 !> \param energies_prev the same of the previous iteration
 !> \param res residual norms of the tracked roots
@@ -1215,10 +1215,10 @@ CONTAINS
 !> \param n_req last required root
 !> \param need roots in need
 ! **************************************************************************************************
-   SUBROUTINE convergence_step(mp2_env, energies, energies_prev, res, m, n_ov, n_want, iter, t_iter, unit_nr, &
+   SUBROUTINE convergence_step(bse_env, energies, energies_prev, res, m, n_ov, n_want, iter, t_iter, unit_nr, &
                                dE, conv, n_req, need)
 
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: energies, energies_prev, res
       INTEGER, INTENT(IN)                                :: m, n_ov, n_want, iter
       REAL(KIND=dp), INTENT(IN)                          :: t_iter
@@ -1232,7 +1232,7 @@ CONTAINS
 
       n_act = SIZE(res)
       dE(:) = ABS(energies(1:n_act) - energies_prev(1:n_act))
-      CALL convergence_flags(mp2_env, dE, res, conv)
+      CALL convergence_flags(bse_env, dE, res, conv)
       n_req = multiplet_end(energies, n_want, n_act, deg_thresh)
       ! a subspace that spans all transitions is exact
       IF (m == n_ov) conv(:) = .TRUE.
@@ -1247,29 +1247,29 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Convergence flag of every tracked root k from CONVERGENCE_CRITERION: EN dE_k < EPS_ENERGY,
 !>        RES |r_k| < EPS_RES, OR either of the two, AND both
-!> \param mp2_env CONVERGENCE_CRITERION, EPS_ENERGY and EPS_RES
+!> \param bse_env CONVERGENCE_CRITERION, EPS_ENERGY and EPS_RES
 !> \param dE energy changes in Hartree
 !> \param res residual norms
 !> \param conv one flag per tracked root
 ! **************************************************************************************************
-   SUBROUTINE convergence_flags(mp2_env, dE, res, conv)
+   SUBROUTINE convergence_flags(bse_env, dE, res, conv)
 
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: dE, res
       LOGICAL, DIMENSION(:), INTENT(OUT)                 :: conv
 
       INTEGER                                            :: k
 
       DO k = 1, SIZE(conv)
-         SELECT CASE (mp2_env%bse%convergence_criterion)
+         SELECT CASE (bse_env%convergence_criterion)
          CASE (bse_iter_en_cond)
-            conv(k) = dE(k) < mp2_env%bse%eps_energy
+            conv(k) = dE(k) < bse_env%eps_energy
          CASE (bse_iter_res_cond)
-            conv(k) = res(k) < mp2_env%bse%eps_res
+            conv(k) = res(k) < bse_env%eps_res
          CASE (bse_iter_or_cond)
-            conv(k) = dE(k) < mp2_env%bse%eps_energy .OR. res(k) < mp2_env%bse%eps_res
+            conv(k) = dE(k) < bse_env%eps_energy .OR. res(k) < bse_env%eps_res
          CASE (bse_iter_and_cond)
-            conv(k) = dE(k) < mp2_env%bse%eps_energy .AND. res(k) < mp2_env%bse%eps_res
+            conv(k) = dE(k) < bse_env%eps_energy .AND. res(k) < bse_env%eps_res
          END SELECT
       END DO
 
@@ -1327,16 +1327,16 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief The lowest roots in need, which receive a correction vector
-!> \param mp2_env CONVERGENCE_CRITERION and EPS_RES
+!> \param bse_env CONVERGENCE_CRITERION and EPS_RES
 !> \param need roots in need, from roots_in_need
 !> \param res residual norms
 !> \param n_max largest number of roots
 !> \param selected indices of the selected roots in ascending order, zero beyond nt
 !> \param nt number of selected roots
 ! **************************************************************************************************
-   SUBROUTINE select_roots(mp2_env, need, res, n_max, selected, nt)
+   SUBROUTINE select_roots(bse_env, need, res, n_max, selected, nt)
 
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       LOGICAL, DIMENSION(:), INTENT(IN)                  :: need
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: res
       INTEGER, INTENT(IN)                                :: n_max
@@ -1350,8 +1350,8 @@ CONTAINS
       DO k = 1, SIZE(need)
          IF (.NOT. need(k)) CYCLE
          ! a root below EPS_RES only waits for its energy criterion
-         IF (mp2_env%bse%convergence_criterion == bse_iter_and_cond .AND. &
-             res(k) < mp2_env%bse%eps_res) CYCLE
+         IF (bse_env%convergence_criterion == bse_iter_and_cond .AND. &
+             res(k) < bse_env%eps_res) CYCLE
          IF (nt == n_max) EXIT
          nt = nt + 1
          selected(nt) = k
@@ -1517,34 +1517,34 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Number of wanted and tracked states and the block size, clamped to the problem size
-!> \param mp2_env NUM_EXC_EN, NUM_BUFFER_STATES, BLOCK_SIZE and MAX_ITER
+!> \param bse_env NUM_EXC_EN, NUM_BUFFER_STATES, BLOCK_SIZE and MAX_ITER
 !> \param n_ov number of transitions
 !> \param unit_nr output unit, positive on the writing rank only
 !> \param n_want NUM_EXC_EN, at most n_ov
 !> \param n_act wanted plus buffer states
 !> \param block_size BLOCK_SIZE, or MIN(32, n_act) for -1; at most n_act
 ! **************************************************************************************************
-   SUBROUTINE davidson_sizes(mp2_env, n_ov, unit_nr, n_want, n_act, block_size)
+   SUBROUTINE davidson_sizes(bse_env, n_ov, unit_nr, n_want, n_act, block_size)
 
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: n_ov, unit_nr
       INTEGER, INTENT(OUT)                               :: n_want, n_act, block_size
 
-      IF (mp2_env%bse%num_exc_en < 1) CPABORT("BSE_ITERAT%NUM_EXC_EN must be at least 1")
-      IF (mp2_env%bse%num_buffer_states < 0) CPABORT("BSE_ITERAT%NUM_BUFFER_STATES must not be negative")
-      IF (mp2_env%bse%block_size < 1 .AND. mp2_env%bse%block_size /= -1) THEN
+      IF (bse_env%num_exc_en < 1) CPABORT("BSE_ITERAT%NUM_EXC_EN must be at least 1")
+      IF (bse_env%num_buffer_states < 0) CPABORT("BSE_ITERAT%NUM_BUFFER_STATES must not be negative")
+      IF (bse_env%block_size < 1 .AND. bse_env%block_size /= -1) THEN
          CPABORT("BSE_ITERAT%BLOCK_SIZE must be at least 1, or -1 for the default")
       END IF
-      IF (mp2_env%bse%max_iter < 1) CPABORT("BSE_ITERAT%MAX_ITER must be at least 1")
+      IF (bse_env%max_iter < 1) CPABORT("BSE_ITERAT%MAX_ITER must be at least 1")
 
-      n_want = mp2_env%bse%num_exc_en
+      n_want = bse_env%num_exc_en
       IF (n_want > n_ov) THEN
          IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
                                        "BSE_ITERAT%NUM_EXC_EN exceeds the number of transitions and is reduced to it.")
          n_want = n_ov
       END IF
-      n_act = MIN(n_want + mp2_env%bse%num_buffer_states, n_ov)
-      block_size = mp2_env%bse%block_size
+      n_act = MIN(n_want + bse_env%num_buffer_states, n_ov)
+      block_size = bse_env%block_size
       ! 32 was within 5 % of the best width on the L8 deck at 200 states; wider passes cost restarts
       IF (block_size == -1) block_size = MIN(32, n_act)
       IF (block_size > n_act) THEN
@@ -1559,7 +1559,7 @@ CONTAINS
 !> \brief Largest subspace dimension m_max: MAX_SUBSPACE_FACTOR x n_act, or 20 x n_act for -1, with
 !>        the solver's arrays at m_max checked against the memory budget per rank as MEMORY_CHECK says;
 !>        CLAMP lowers m_max to the largest that fits, never below 3 x n_act (4 x n_act for OLSEN_STRATMANN)
-!> \param mp2_env MAX_SUBSPACE_FACTOR, MEMORY_CHECK and MEMORY_BUDGET_GB
+!> \param bse_env MAX_SUBSPACE_FACTOR, MEMORY_CHECK and MEMORY_BUDGET_GB
 !> \param mv_env n_ov, the RI share per rank and block_cols
 !> \param driver driver_tda, driver_mk or driver_os
 !> \param n_act tracked states
@@ -1567,9 +1567,9 @@ CONTAINS
 !> \param unit_nr output unit, positive on the writing rank only
 !> \param m_max the ceiling, 3 or 4 x n_act <= m_max <= n_ov
 ! **************************************************************************************************
-   SUBROUTINE subspace_ceiling(mp2_env, mv_env, driver, n_act, block_size, unit_nr, m_max)
+   SUBROUTINE subspace_ceiling(bse_env, mv_env, driver, n_act, block_size, unit_nr, m_max)
 
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
       INTEGER, INTENT(IN)                                :: driver, n_act, block_size, unit_nr
       INTEGER, INTENT(OUT)                               :: m_max
@@ -1591,10 +1591,10 @@ CONTAINS
       WRITE (fac_str, '(I16)') min_fac
 
       ! the start value: the keyword, or for -1 the generous 20 x n_act that the memory check below trims to what fits
-      IF (mp2_env%bse%max_subspace_factor == -1) THEN
+      IF (bse_env%max_subspace_factor == -1) THEN
          m_start = 20*n_act
-      ELSE IF (mp2_env%bse%max_subspace_factor >= min_fac) THEN
-         m_start = mp2_env%bse%max_subspace_factor*n_act
+      ELSE IF (bse_env%max_subspace_factor >= min_fac) THEN
+         m_start = bse_env%max_subspace_factor*n_act
       ELSE
          CALL cp_abort(__LOCATION__, &
                        "BSE_ITERAT%MAX_SUBSPACE_FACTOR must be at least "//TRIM(ADJUSTL(fac_str))// &
@@ -1619,23 +1619,23 @@ CONTAINS
       CALL mv_env%para_env%max(n_ri_max)
 
       ! the budget: as given, or the share mem_fraction of the free memory per rank
-      from_free = mp2_env%bse%memory_budget_gb < 0.0_dp
+      from_free = bse_env%memory_budget_gb < 0.0_dp
       skipped = .FALSE.
-      budget_GB = mp2_env%bse%memory_budget_gb
+      budget_GB = bse_env%memory_budget_gb
       IF (from_free) THEN
          CALL mp_mem_avail_per_rank_GB(mv_env%para_env, mem_avail_GB)
          budget_GB = mem_fraction*mem_avail_GB
          skipped = mem_avail_GB <= 0.0_dp
-         IF (skipped .AND. mp2_env%bse%memory_check /= bse_memcheck_off .AND. unit_nr > 0) THEN
+         IF (skipped .AND. bse_env%memory_check /= bse_memcheck_off .AND. unit_nr > 0) THEN
             CALL cp_warn(__LOCATION__, "BSE Davidson: free memory not detectable, memory check skipped")
          END IF
       END IF
 
       CALL davidson_footprint(driver, mv_env, m_max, n_act, block_size, nb, n_ri_max, dist_GB, repl_GB)
-      over = .NOT. skipped .AND. mp2_env%bse%memory_check /= bse_memcheck_off .AND. &
+      over = .NOT. skipped .AND. bse_env%memory_check /= bse_memcheck_off .AND. &
              dist_GB + repl_GB > budget_GB
 
-      IF (over .AND. mp2_env%bse%memory_check == bse_memcheck_clamp) THEN
+      IF (over .AND. bse_env%memory_check == bse_memcheck_clamp) THEN
          CALL davidson_footprint(driver, mv_env, m_floor, n_act, block_size, nb, n_ri_max, dist_GB, repl_GB)
          IF (dist_GB + repl_GB > budget_GB) THEN
             WRITE (mem_str, '(F16.3)') dist_GB + repl_GB
@@ -1663,7 +1663,7 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (mp2_env%bse%max_subspace_factor == -1) THEN
+         IF (bse_env%max_subspace_factor == -1) THEN
             WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Maximum subspace dimension (20 x buffered states)', &
                m_start
          ELSE
@@ -1686,12 +1686,12 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory budget per MPI rank (GB)', budget_GB
          END IF
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (mp2_env%bse%memory_check == bse_memcheck_off) THEN
+         IF (bse_env%memory_check == bse_memcheck_off) THEN
             WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: OFF'
          ELSE IF (skipped) THEN
             WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: skipped, free memory not detectable'
          ELSE
-            SELECT CASE (mp2_env%bse%memory_check)
+            SELECT CASE (bse_env%memory_check)
             CASE (bse_memcheck_warn)
                IF (over) THEN
                   WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: WARN, the total exceeds the budget'
@@ -1718,7 +1718,7 @@ CONTAINS
       IF (over) THEN
          WRITE (mem_str, '(F16.3)') dist_GB + repl_GB
          WRITE (bud_str, '(F16.3)') budget_GB
-         SELECT CASE (mp2_env%bse%memory_check)
+         SELECT CASE (bse_env%memory_check)
          CASE (bse_memcheck_warn)
             IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
                                           "BSE Davidson: the solver's arrays at the subspace ceiling need "// &
@@ -1869,7 +1869,7 @@ CONTAINS
 !>        degenerate group at the upper boundary is taken as a whole. The block and its eigenvectors
 !>        are replicated; each rank writes the entries that fall on its own rows
 !> \param mv_env the matrix-free A and B, for the exact block
-!> \param mp2_env NUM_GUESS_TRANSITIONS and BSE_DEBUG_PRINT
+!> \param bse_env NUM_GUESS_TRANSITIONS and BSE_DEBUG_PRINT
 !> \param diag the diagonal chosen by PRECONDITIONER, replicated; its lowest entries select the block
 !> \param n_guess guess vectors wanted
 !> \param n_max largest number of guess vectors
@@ -1884,11 +1884,11 @@ CONTAINS
 !> \param n_pair ABBA: partners y_k = K_sub x_k/θ_k of the guess vectors x_k not given by the caller,
 !>        written to the n_pair columns after n_used; n_used + n_pair stays within n_max
 ! **************************************************************************************************
-   SUBROUTINE initial_guess_subblock(mv_env, mp2_env, diag, n_guess, n_max, deg_thresh_diag, fm_Z, n_used, &
+   SUBROUTINE initial_guess_subblock(mv_env, bse_env, diag, n_guess, n_max, deg_thresh_diag, fm_Z, n_used, &
                                      theta_sub, unit_nr, n_given, abba_status, ab_margin, n_pair)
 
       TYPE(bse_matvec_env_type), INTENT(IN)              :: mv_env
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: diag
       INTEGER, INTENT(IN)                                :: n_guess, n_max
       REAL(KIND=dp), INTENT(IN)                          :: deg_thresh_diag
@@ -1920,7 +1920,7 @@ CONTAINS
       IF (PRESENT(n_pair)) n_pair = 0
       para_env => mv_env%para_env
       n_ov = SIZE(diag)
-      n_sub = MIN(n_ov, MAX(mp2_env%bse%num_guess_transitions, n_guess))
+      n_sub = MIN(n_ov, MAX(bse_env%num_guess_transitions, n_guess))
       ALLOCATE (diag_sorted(n_ov), diag_order(n_ov), rank_in_block(n_ov))
       diag_sorted(:) = diag(:)
       CALL sort(diag_sorted, n_ov, diag_order)
@@ -2005,7 +2005,7 @@ CONTAINS
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Transitions in the exact guess block', n_sub
-            IF (mp2_env%bse%bse_debug_print) THEN
+            IF (bse_env%bse_debug_print) THEN
                WRITE (unit_nr, '(T2,A10,T13,A,T67,F14.6)') 'BSE|DEBUG|', &
                   'Lowest Ritz value of the guess block (eV)', theta_sub(1)*evolt
             END IF
@@ -2874,17 +2874,17 @@ CONTAINS
 !> \param fm_A_explicit A from create_A_and_B, N_ov x N_ov
 !> \param exc_ens Davidson energies in Hartree
 !> \param fm_X Davidson X_ia^n, column n
-!> \param mp2_env handed to create_hermitian_form_of_ABBA
+!> \param bse_env handed to create_hermitian_form_of_ABBA
 !> \param unit_nr output unit, positive on the writing rank only
 !> \param fm_B_explicit present for an ABBA result, together with fm_Y
 !> \param fm_Y Davidson Y_ia^n, with fm_B_explicit
 ! **************************************************************************************************
-   SUBROUTINE bse_davidson_refcheck(fm_A_explicit, exc_ens, fm_X, mp2_env, unit_nr, fm_B_explicit, fm_Y)
+   SUBROUTINE bse_davidson_refcheck(fm_A_explicit, exc_ens, fm_X, bse_env, unit_nr, fm_B_explicit, fm_Y)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_A_explicit
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: exc_ens
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_X
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_B_explicit, fm_Y
 
@@ -2916,7 +2916,7 @@ CONTAINS
 
       IF (PRESENT(fm_B_explicit)) THEN
          CALL create_hermitian_form_of_ABBA(fm_A_explicit, fm_B_explicit, fm_C, fm_sqrt_A_minus_B, &
-                                            fm_inv_sqrt_A_minus_B, unit_nr, mp2_env%bse, 0.0_dp)
+                                            fm_inv_sqrt_A_minus_B, unit_nr, bse_env, 0.0_dp)
          CALL cp_fm_create(fm_eigvec, fm_C%matrix_struct)
          CALL choose_eigv_solver(fm_C, fm_eigvec, ref_ens, diag_info)
          IF (diag_info /= 0) CPABORT("Reference diagonalization of C failed in the BSE Davidson check")

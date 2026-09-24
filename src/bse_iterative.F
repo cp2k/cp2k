@@ -175,8 +175,8 @@ CONTAINS
 
       IF (do_tda) THEN
          CALL print_output_header(homo_red_arr(1), virt_red_arr(1), homo(1), .TRUE., mp2_env%bse, unit_nr)
-         CALL bse_davidson_tda(mv_env, mp2_env, unit_nr, exc_ens, fm_X)
-         IF (do_debug) CALL bse_davidson_refcheck(fm_A_BSE, exc_ens, fm_X, mp2_env, unit_nr)
+         CALL bse_davidson_tda(mv_env, mp2_env%bse, unit_nr, exc_ens, fm_X)
+         IF (do_debug) CALL bse_davidson_refcheck(fm_A_BSE, exc_ens, fm_X, mp2_env%bse, unit_nr)
 
          CALL copy_to_ia_context(fm_X, blacs_env_ia, fm_X_ia)
          CALL postprocess_bse(exc_ens, fm_X_ia, mp2_env%bse, qs_env, mo_coeff, &
@@ -194,11 +194,11 @@ CONTAINS
          SELECT CASE (mp2_env%bse%abba_solver)
          CASE (bse_abba_mk_davidson)
             solver_str = 'MK_DAVIDSON'
-            CALL bse_davidson_abba_mk(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+            CALL bse_davidson_abba_mk(mv_env, mp2_env%bse, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
                                       abba_status, ab_margin, fm_tda_guess)
          CASE (bse_abba_olsen_stratmann)
             solver_str = 'OLSEN_STRATMANN'
-            CALL bse_davidson_abba_os(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+            CALL bse_davidson_abba_os(mv_env, mp2_env%bse, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
                                       abba_status, ab_margin, fm_tda_guess)
          CASE DEFAULT
             CPABORT("Unknown BSE_ITERAT%ABBA_SOLVER")
@@ -225,7 +225,7 @@ CONTAINS
             END IF
          ELSE
             IF (do_debug) THEN
-               CALL bse_davidson_refcheck(fm_A_BSE, exc_ens_abba, fm_X_abba, mp2_env, unit_nr, &
+               CALL bse_davidson_refcheck(fm_A_BSE, exc_ens_abba, fm_X_abba, mp2_env%bse, unit_nr, &
                                           fm_B_BSE, fm_Y_abba)
             END IF
 
