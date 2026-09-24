@@ -116,13 +116,9 @@ CONTAINS
                                 r_vals=bse_env%bse_eta_spectrum_list)
       CALL section_vals_val_get(bse_section, "NTO_ANALYSIS%_SECTION_PARAMETERS_", &
                                 i_val=print_level_NTO_analysis)
-      ! All other print levels besides "off" should trigger the analysis
-      ! cf. input/cp_output_handling.F:cp_print_key_section_create
-      IF (print_level_NTO_analysis /= debug_print_level + 1) THEN
-         bse_env%do_nto_analysis = .TRUE.
-      ELSE
-         bse_env%do_nto_analysis = .FALSE.
-      END IF
+      ! a print key read as a switch: every value but OFF runs the analysis, whatever GLOBAL%PRINT_LEVEL;
+      ! cp_print_key_section_create encodes OFF as debug_print_level + 1
+      bse_env%do_nto_analysis = (print_level_NTO_analysis /= debug_print_level + 1)
       CALL section_vals_val_get(bse_section, "NTO_ANALYSIS%EPS_NTO_EIGVAL", &
                                 r_val=bse_env%eps_nto_eigval)
       CALL section_vals_val_get(bse_section, "NTO_ANALYSIS%EPS_OSC_STR", &
