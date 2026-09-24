@@ -80,6 +80,7 @@ list(
   bse_properties.F
   bse_util.F
   bse_types.F
+  bse_input.F
   bsse.F
   casino_utils.F
   cell_methods.F

@@ -35,8 +35,7 @@ MODULE bse_properties
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: c_light_au,&
                                               evolt
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
+   USE qs_environment_types,            ONLY: qs_environment_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
                                               init_mo_set,&
@@ -449,12 +448,10 @@ CONTAINS
       TYPE(cp_fm_type) :: fm_eigvl, fm_eigvr_t, fm_m, fm_mo_coeff, fm_nto_coeff_holes, &
          fm_nto_coeff_particles, fm_nto_set, fm_X_ia, fm_Y_ai
       TYPE(mo_set_type), ALLOCATABLE, DIMENSION(:)       :: nto_set
-      TYPE(section_vals_type), POINTER                   :: bse_section, input, nto_section
+      TYPE(section_vals_type), POINTER                   :: bse_section, nto_section
 
       CALL timeset(routineN, handle)
-      CALL get_qs_env(qs_env=qs_env, &
-                      input=input)
-      bse_section => section_vals_get_subs_vals(input, "DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE")
+      bse_section => mp2_env%bse%bse_section
 
       nao_full = qs_env%mos(1)%nao
       nao_trunc = homo + virtual
