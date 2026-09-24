@@ -12,6 +12,7 @@
 !> \author Michele Ceriotti 03.2012
 ! **************************************************************************************************
 MODULE ipi_driver
+   USE, INTRINSIC :: IEEE_ARITHMETIC, ONLY: ieee_is_finite
    USE ISO_C_BINDING, ONLY: C_CHAR, &
                             C_DOUBLE, &
                             C_INT, &
@@ -44,10 +45,12 @@ MODULE ipi_driver
    USE message_passing, ONLY: mp_para_env_type, &
                               mp_request_type, &
                               mp_testany
+   USE mathlib, ONLY: det_3x3
 #ifndef __NO_SOCKETS
    USE sockets_interface, ONLY: writebuffer, &
                                 readbuffer, &
                                 open_connect_socket, &
+                                close_socket, &
                                 uwait
 #endif
    USE virial_types, ONLY: virial_type
@@ -203,6 +206,7 @@ CONTAINS
             END IF
             CALL para_env%sync()
          ELSE IF (TRIM(header) == "POSDATA") THEN
+            IF (hasdata) CPABORT("@DRIVER MODE: POSDATA received before GETFORCE")
             IF (ionode) THEN
                CALL readbuffer(socket, mxmat, 9)
                cellh = RESHAPE(mxmat, [3, 3])
@@ -215,13 +219,23 @@ CONTAINS
             CALL para_env%bcast(cellh)
             CALL para_env%bcast(cellih)
             CALL para_env%bcast(nat)
+            CALL force_env_get(force_env, subsys=subsys)
+            ! Check before allocating/reading: nat is supplied by the socket peer.
+            IF (nat <= 0 .OR. nat /= subsys%particles%n_els .OR. nat > HUGE(nat)/3) THEN
+               CPABORT("@DRIVER MODE: Particle number mismatch between i-PI and CP2K input")
+            END IF
+            IF (.NOT. ALL(ieee_is_finite(cellh)) .OR. .NOT. ALL(ieee_is_finite(cellih))) THEN
+               CPABORT("@DRIVER MODE: Non-finite cell received from i-PI")
+            END IF
+            IF (.NOT. ieee_is_finite(det_3x3(cellh)) .OR. det_3x3(cellh) <= 0.0_dp) THEN
+               CPABORT("@DRIVER MODE: i-PI cell must be nonsingular and right-handed")
+            END IF
             IF (.NOT. ALLOCATED(combuf)) ALLOCATE (combuf(3*nat))
             IF (ionode) CALL readbuffer(socket, combuf, nat*3)
             CALL para_env%bcast(combuf)
 
-            CALL force_env_get(force_env, subsys=subsys)
-            IF (nat /= subsys%particles%n_els) THEN
-               CPABORT("@DRIVER MODE: Uh-oh! Particle number mismatch between i-PI and cp2k input!")
+            IF (.NOT. ALL(ieee_is_finite(combuf))) THEN
+               CPABORT("@DRIVER MODE: Non-finite positions received from i-PI")
             END IF
             ii = 0
             DO ip = 1, subsys%particles%n_els
@@ -259,6 +273,7 @@ CONTAINS
 
             hasdata = .TRUE.
          ELSE IF (TRIM(header) == "GETFORCE") THEN
+            IF (.NOT. hasdata) CPABORT("@DRIVER MODE: GETFORCE received without POSDATA")
             IF (output_unit > 0) WRITE (output_unit, *) " @ DRIVER MODE: Returning v,forces,stress "
             IF (ionode) THEN
                CALL writebuffer(socket, "FORCEREADY  ", MSGLEN)
@@ -275,13 +290,16 @@ CONTAINS
                CALL writebuffer(socket, nat) ! writes out zero for the length of the "extra" field (not implemented yet!)
             END IF
             hasdata = .FALSE.
-         ELSE
+         ELSE IF (TRIM(header) == "EXIT") THEN
             IF (output_unit > 0) WRITE (output_unit, *) " @DRIVER MODE:  Socket disconnected, time to exit."
             EXIT driver_loop
+         ELSE
+            CPABORT("@DRIVER MODE: Unknown i-PI message: "//TRIM(header))
          END IF
       END DO driver_loop
 
       ! clean up
+      IF (ionode) CALL close_socket(socket)
       CALL cell_release(cpcell)
       DEALLOCATE (wait_msg)
 #endif

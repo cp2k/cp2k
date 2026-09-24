@@ -1,12 +1,27 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import ctypes as ct
+import os
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
 import cp2k.library as library
+
+
+@pytest.fixture(scope="session")
+def real_runtime():
+    path = os.environ.get("CP2K_TEST_LIBRARY")
+    if not path:
+        pytest.skip("Set CP2K_TEST_LIBRARY to run native integration tests")
+    comm = None
+    if os.environ.get("CP2K_TEST_EXTERNAL_MPI"):
+        from mpi4py import MPI
+
+        comm = MPI.COMM_WORLD
+    with library.CP2K(library=path, comm=comm) as runtime:
+        yield runtime
 
 
 class FakeFunction:

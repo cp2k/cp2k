@@ -22,15 +22,6 @@ from cp2k.ase import CP2KCalculator
 pytestmark = pytest.mark.integration
 
 
-@pytest.fixture(scope="module")
-def real_runtime():
-    path = os.environ.get("CP2K_TEST_LIBRARY")
-    if not path:
-        pytest.skip("Set CP2K_TEST_LIBRARY to run native integration tests")
-    with CP2K(library=path) as runtime:
-        yield runtime
-
-
 def test_native_energy_force_and_cell(real_runtime, h2_input, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     assert "CP2K version" in real_runtime.version
