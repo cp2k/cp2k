@@ -1227,13 +1227,15 @@ CONTAINS
 !> \param env_id id of the force_env
 !> \param stress_tensor the array where to write the stress tensor
 !> \param ierr will return a number different from 0 if there was an error
+!> \param available whether the potential stress was calculated
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE get_stress_tensor(env_id, stress_tensor, ierr)
+   SUBROUTINE get_stress_tensor(env_id, stress_tensor, ierr, available)
 
       INTEGER, INTENT(IN)                                :: env_id
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)        :: stress_tensor
       INTEGER, INTENT(OUT)                               :: ierr
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: available
 
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_subsys_type), POINTER                      :: subsys
@@ -1246,6 +1248,7 @@ CONTAINS
       CALL f_env_add_defaults(env_id, f_env)
       CALL force_env_get(f_env%force_env, subsys=subsys, cell=cell)
       CALL cp_subsys_get(subsys, virial=virial)
+      IF (PRESENT(available)) available = virial%pv_availability
       IF (virial%pv_availability) THEN
          stress_tensor(:, :) = virial%pv_virial(:, :)/cell%deth
       END IF

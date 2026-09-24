@@ -35,6 +35,7 @@ int main() {
     f = fopen(inp_fn, "w");
     fprintf(f, "&FORCE_EVAL\n");
     fprintf(f, "  METHOD Quickstep\n");
+    fprintf(f, "  STRESS_TENSOR ANALYTICAL\n");
     fprintf(f, "  &DFT\n");
     fprintf(f, "    BASIS_SET_FILE_NAME BASIS_SET\n");
     fprintf(f, "    POTENTIAL_FILE_NAME POTENTIAL\n");
@@ -94,6 +95,24 @@ int main() {
   if (scf_status != 0) {
     printf("The deliberately truncated SCF must report non-convergence\n");
     return (-1);
+  }
+
+  // Stress is a column-major, pressure-positive potential tensor.
+  double stress[9];
+  int stress_available = 0;
+  cp2k_get_stress_tensor(force_env, stress, &stress_available);
+  if (!stress_available) {
+    printf("Missing analytical stress\n");
+    return (-1);
+  }
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      if (!isfinite(stress[3 * j + i]) ||
+          fabs(stress[3 * j + i] - stress[3 * i + j]) > 1e-10) {
+        printf("Invalid stress tensor\n");
+        return (-1);
+      }
+    }
   }
 
   // check energy
