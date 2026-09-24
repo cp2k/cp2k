@@ -148,7 +148,7 @@ CONTAINS
          CALL fm_general_add_bse(fm_dipole_MO_trunc_reordered(idir), fm_dipole_ai_trunc(idir), 1.0_dp, &
                                  1, 1, &
                                  1, virtual_red, &
-                                 unit_nr, [2, 4, 3, 1], mp2_env)
+                                 unit_nr, [2, 4, 3, 1], mp2_env%bse)
          CALL cp_fm_release(fm_dipole_per_dir(idir))
       END DO
 
@@ -585,7 +585,7 @@ CONTAINS
 
          ! Reshuffle from X_ia,n_exc to X_i,a
          CALL reshuffle_eigvec(fm_X, fm_X_ia, homo, virtual, n_exc, &
-                               .FALSE., unit_nr, mp2_env)
+                               .FALSE., unit_nr, mp2_env%bse)
 
          ! Copy X to upper block in M, i.e. starting from column homo+1
          CALL cp_fm_to_fm_submat(fm_X_ia, fm_m, &
@@ -597,7 +597,7 @@ CONTAINS
          IF (PRESENT(fm_Y)) THEN
             ! Reshuffle from Y_ia,n_exc to Y_a,i
             CALL reshuffle_eigvec(fm_Y, fm_Y_ai, homo, virtual, n_exc, &
-                                  .TRUE., unit_nr, mp2_env)
+                                  .TRUE., unit_nr, mp2_env%bse)
 
             ! Copy Y^T to lower block in M, i.e. starting from row homo+1
             CALL cp_fm_to_fm_submat(fm_Y_ai, fm_m, &
@@ -708,7 +708,7 @@ CONTAINS
             CALL section_vals_val_get(nto_section, "STRIDE", i_vals=stride)
             CALL section_vals_val_get(nto_section, "APPEND", l_val=append_cube)
             IF (cube_file) THEN
-               CALL print_bse_nto_cubes(qs_env, nto_set, n_exc, info_approximation, &
+               CALL print_bse_nto_cubes(mp2_env%bse, nto_set, n_exc, info_approximation, &
                                         stride, append_cube, nto_section)
             END IF
 

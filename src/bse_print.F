@@ -623,7 +623,7 @@ CONTAINS
       ! or <= (means deexcitation; from fm_eigvec_Y)
       IF (SIZE(homo) == 1) THEN
          CALL filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
-                                    i_exc, virtual(1), num_entries, mp2_env)
+                                    i_exc, virtual(1), num_entries, mp2_env%bse)
          IF (unit_nr > 0) THEN
             DO k = 1, num_entries
                WRITE (unit_nr, '(T2,A4,T14,I5,T26,I5,T35,A2,T38,I5,T51,A6,T65,F16.4)') &
@@ -633,7 +633,7 @@ CONTAINS
          END IF
       ELSE
          CALL filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
-                                    i_exc, virtual(1), num_entries, mp2_env, &
+                                    i_exc, virtual(1), num_entries, mp2_env%bse, &
                                     offsets=offsets, virtual_per_spin=virtual, idx_spin=idx_spin)
          IF (unit_nr > 0) THEN
             DO k = 1, num_entries

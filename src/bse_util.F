@@ -12,6 +12,7 @@
 ! **************************************************************************************************
 MODULE bse_util
    USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE bse_types,                       ONLY: bse_env_type
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -59,8 +60,7 @@ MODULE bse_util
                                               determine_mo_window,&
                                               mo_window_type
    USE moments_utils,                   ONLY: get_reference_point
-   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
-                                              mp2_type
+   USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
@@ -259,12 +259,12 @@ CONTAINS
 !> \param ncol_secidx_out ...
 !> \param unit_nr ...
 !> \param reordering ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 !> \param row_offset ...
 !> \param col_offset ...
 ! **************************************************************************************************
    SUBROUTINE fm_general_add_bse(fm_out, fm_in, beta, nrow_secidx_in, ncol_secidx_in, &
-                                 nrow_secidx_out, ncol_secidx_out, unit_nr, reordering, mp2_env, &
+                                 nrow_secidx_out, ncol_secidx_out, unit_nr, reordering, bse_env, &
                                  row_offset, col_offset)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out
@@ -274,7 +274,7 @@ CONTAINS
                                                             nrow_secidx_out, ncol_secidx_out
       INTEGER                                            :: unit_nr
       INTEGER, DIMENSION(4)                              :: reordering
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN), OPTIONAL                      :: row_offset, col_offset
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_general_add_bse'
@@ -331,7 +331,7 @@ CONTAINS
                           nrow_block=nrow_block_in, &
                           ncol_block=ncol_block_in)
 
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_out%name, &
             fm_out%matrix_struct%nrow_global
          WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_out%name, &
@@ -375,7 +375,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_2_comm_entry_nums", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A27)') 'BSE|DEBUG|', 'Communicating entry numbers'
       END IF
 
@@ -384,7 +384,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_3_alloc_buffer", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A18)') 'BSE|DEBUG|', 'Allocating buffers'
       END IF
 
@@ -424,7 +424,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_4_buf_from_fmin_"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A18,A10,A13)') 'BSE|DEBUG|', 'Writing data from ', fm_in%name, ' into buffers'
       END IF
 
@@ -462,7 +462,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_5_comm_buffer", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A21)') 'BSE|DEBUG|', 'Communicating buffers'
       END IF
 
@@ -473,7 +473,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_6_buffer_to_fmout"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_out%name
       END IF
 
@@ -496,7 +496,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_7_cleanup", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A41)') 'BSE|DEBUG|', 'Starting cleanup of communication buffers'
       END IF
 
@@ -528,18 +528,18 @@ CONTAINS
 !> \param nrow_out ...
 !> \param ncol_out ...
 !> \param unit_nr ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 !> \param nrow_offset ...
 !> \param ncol_offset ...
 ! **************************************************************************************************
    SUBROUTINE truncate_fm(fm_out, fm_in, ncol_in, &
-                          nrow_out, ncol_out, unit_nr, mp2_env, &
+                          nrow_out, ncol_out, unit_nr, bse_env, &
                           nrow_offset, ncol_offset)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_in
       INTEGER                                            :: ncol_in, nrow_out, ncol_out, unit_nr
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN), OPTIONAL                      :: nrow_offset, ncol_offset
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'truncate_fm'
@@ -597,7 +597,7 @@ CONTAINS
                           nrow_block=nrow_block_in, &
                           ncol_block=ncol_block_in)
 
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A14,A10,T71,I10)') 'BSE|DEBUG|', 'Row number of ', fm_out%name, &
             fm_out%matrix_struct%nrow_global
          WRITE (unit_nr, '(T2,A10,T13,A17,A10,T71,I10)') 'BSE|DEBUG|', 'Column number of ', fm_out%name, &
@@ -655,7 +655,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_2_comm_entry_nums", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A27)') 'BSE|DEBUG|', 'Communicating entry numbers'
       END IF
 
@@ -664,7 +664,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_3_alloc_buffer", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A18)') 'BSE|DEBUG|', 'Allocating buffers'
       END IF
 
@@ -704,7 +704,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_4_buf_from_fmin_"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A18,A10,A13)') 'BSE|DEBUG|', 'Writing data from ', fm_in%name, ' into buffers'
       END IF
 
@@ -760,7 +760,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_5_comm_buffer", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A21)') 'BSE|DEBUG|', 'Communicating buffers'
       END IF
 
@@ -771,7 +771,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_6_buffer_to_fmout"//fm_out%name, handle2)
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A24,A10)') 'BSE|DEBUG|', 'Writing from buffers to ', fm_out%name
       END IF
 
@@ -794,7 +794,7 @@ CONTAINS
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_7_cleanup", handle2)
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A41)') 'BSE|DEBUG|', 'Starting cleanup of communication buffers'
       END IF
 
@@ -823,15 +823,15 @@ CONTAINS
 !> \param fm_mat_S_ij_trunc ...
 !> \param fm_mat_S_ab_trunc ...
 !> \param fm_mat_Q_static_bse_gemm ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 ! **************************************************************************************************
    SUBROUTINE deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                                       fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
-                                      fm_mat_Q_static_bse_gemm, mp2_env)
+                                      fm_mat_Q_static_bse_gemm, bse_env)
 
       TYPE(cp_fm_type), INTENT(INOUT) :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_trunc, &
          fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, fm_mat_Q_static_bse_gemm
-      TYPE(mp2_type)                                     :: mp2_env
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_bse'
 
@@ -845,8 +845,8 @@ CONTAINS
       CALL cp_fm_release(fm_mat_S_ij_trunc)
       CALL cp_fm_release(fm_mat_S_ab_trunc)
       CALL cp_fm_release(fm_mat_Q_static_bse_gemm)
-      IF (mp2_env%bse%do_nto_analysis) THEN
-         DEALLOCATE (mp2_env%bse%bse_nto_state_list_final)
+      IF (bse_env%do_nto_analysis) THEN
+         DEALLOCATE (bse_env%bse_nto_state_list_final)
       END IF
 
       CALL timestop(handle)
@@ -1081,20 +1081,20 @@ CONTAINS
 !> \param i_exc ...
 !> \param virtual ...
 !> \param num_entries ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 !> \param offsets ...
 !> \param virtual_per_spin ...
 !> \param idx_spin ...
 ! **************************************************************************************************
    SUBROUTINE filter_eigvec_contrib(fm_eigvec, idx_homo, idx_virt, eigvec_entries, &
-                                    i_exc, virtual, num_entries, mp2_env, &
+                                    i_exc, virtual, num_entries, bse_env, &
                                     offsets, virtual_per_spin, idx_spin)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx_homo, idx_virt
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigvec_entries
       INTEGER                                            :: i_exc, virtual, num_entries
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: offsets, virtual_per_spin
       INTEGER, ALLOCATABLE, DIMENSION(:), OPTIONAL       :: idx_spin
 
@@ -1131,7 +1131,7 @@ CONTAINS
          DO ii = 1, nrow_local
             eigvec_idx = row_indices(ii)
             eigvec_entry = fm_eigvec%local_data(ii, jj)
-            IF (ABS(eigvec_entry) > mp2_env%bse%eps_x) THEN
+            IF (ABS(eigvec_entry) > bse_env%eps_x) THEN
                num_entries_to_comm(para_env%mepos) = num_entries_to_comm(para_env%mepos) + 1
             END IF
          END DO
@@ -1160,7 +1160,7 @@ CONTAINS
          DO ii = 1, nrow_local
             eigvec_idx = row_indices(ii)
             eigvec_entry = fm_eigvec%local_data(ii, jj)
-            IF (ABS(eigvec_entry) > mp2_env%bse%eps_x) THEN
+            IF (ABS(eigvec_entry) > bse_env%eps_x) THEN
                ! Decode spin block from the joint row index (blocks are contiguous; sigma is the
                ! largest offset strictly below eigvec_idx). offsets absent -> closed shell, sigma=1.
                isp = 1
@@ -1315,7 +1315,7 @@ CONTAINS
 !> \param ispin spin of the slabs, selects the GW-corrected virtual count
 !> \param homo_red ...
 !> \param virt_red ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 !> \param window Absolute MO window to retain.
 !> \param print_window Whether to print the cutoff summary.
 ! **************************************************************************************************
@@ -1325,7 +1325,7 @@ CONTAINS
                                     homo, virtual, dimen_RI, unit_nr, &
                                     ispin, &
                                     homo_red, virt_red, &
-                                    mp2_env, &
+                                    bse_env, &
                                     window, print_window)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
@@ -1336,7 +1336,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced_scf, Eigenval_reduced_qp
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr, ispin
       INTEGER, INTENT(OUT)                               :: homo_red, virt_red
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       TYPE(mo_window_type), INTENT(IN)                   :: window
       LOGICAL, INTENT(IN)                                :: print_window
 
@@ -1355,15 +1355,15 @@ CONTAINS
       virt_red = virt_incl
 
       IF (print_window .AND. unit_nr > 0) THEN
-         IF (mp2_env%bse%bse_cutoff_occ > 0) THEN
+         IF (bse_env%bse_cutoff_occ > 0) THEN
             WRITE (unit_nr, '(T2,A4,T7,A29,T71,F10.3)') 'BSE|', 'Cutoff occupied orbitals [eV]', &
-               mp2_env%bse%bse_cutoff_occ*evolt
+               bse_env%bse_cutoff_occ*evolt
          ELSE
             WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No cutoff given for occupied orbitals'
          END IF
-         IF (mp2_env%bse%bse_cutoff_empty > 0) THEN
+         IF (bse_env%bse_cutoff_empty > 0) THEN
             WRITE (unit_nr, '(T2,A4,T7,A26,T71,F10.3)') 'BSE|', 'Cutoff empty orbitals [eV]', &
-               mp2_env%bse%bse_cutoff_empty*evolt
+               bse_env%bse_cutoff_empty*evolt
          ELSE
             WRITE (unit_nr, '(T2,A4,T7,A34)') 'BSE|', 'No cutoff given for empty orbitals'
          END IF
@@ -1380,16 +1380,16 @@ CONTAINS
             'Energy difference of last empty index to LUMO [eV]', &
             (Eigenval(homo + virt_incl) - Eigenval(homo + 1))*evolt
          WRITE (unit_nr, '(T2,A4,T7,A35,T71,I10)') 'BSE|', 'Number of GW-corrected occupied MOs', &
-            mp2_env%bse%gw_corr_lev_occ
+            bse_env%gw_corr_lev_occ
          WRITE (unit_nr, '(T2,A4,T7,A32,T71,I10)') 'BSE|', 'Number of GW-corrected empty MOs', &
-            mp2_env%bse%gw_corr_lev_virt(ispin)
+            bse_env%gw_corr_lev_virt(ispin)
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
       IF (unit_nr > 0) THEN
-         IF (homo - homo_incl + 1 > mp2_env%bse%gw_corr_lev_occ) THEN
+         IF (homo - homo_incl + 1 > bse_env%gw_corr_lev_occ) THEN
             CPABORT("Number of GW-corrected occupied MOs too small for chosen BSE cutoff")
          END IF
-         IF (virt_incl > mp2_env%bse%gw_corr_lev_virt(ispin)) THEN
+         IF (virt_incl > bse_env%gw_corr_lev_virt(ispin)) THEN
             CPABORT("Number of GW-corrected virtual MOs too small for chosen BSE cutoff")
          END IF
       END IF
@@ -1407,20 +1407,20 @@ CONTAINS
       CALL cp_fm_create(fm_mat_S_ab_trunc, fm_struct_ab, name="fm_S_ab_trunc", set_zero=.TRUE.)
 
       !Copy parts of original matrices to truncated ones
-      IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
+      IF (bse_env%bse_cutoff_occ > 0 .OR. bse_env%bse_cutoff_empty > 0) THEN
          !Truncate eigenvals
          ALLOCATE (Eigenval_reduced_scf(homo_red + virt_red), Eigenval_reduced_qp(homo_red + virt_red))
          Eigenval_reduced_scf(:) = Eigenval_scf(homo_incl:homo + virt_incl)
          Eigenval_reduced_qp(:) = Eigenval(homo_incl:homo + virt_incl)
 
          CALL truncate_fm(fm_mat_S_trunc, fm_mat_S_ia_bse, virtual, &
-                          homo_red, virt_red, unit_nr, mp2_env, &
+                          homo_red, virt_red, unit_nr, bse_env, &
                           nrow_offset=homo_incl)
          CALL truncate_fm(fm_mat_S_ij_trunc, fm_mat_S_ij_bse, homo, &
-                          homo_red, homo_red, unit_nr, mp2_env, &
+                          homo_red, homo_red, unit_nr, bse_env, &
                           homo_incl, homo_incl)
-         CALL truncate_fm(fm_mat_S_ab_trunc, fm_mat_S_ab_bse, mp2_env%bse%gw_corr_lev_virt(ispin), &
-                          virt_red, virt_red, unit_nr, mp2_env)
+         CALL truncate_fm(fm_mat_S_ab_trunc, fm_mat_S_ab_bse, bse_env%gw_corr_lev_virt(ispin), &
+                          virt_red, virt_red, unit_nr, bse_env)
 
       ELSE
          IF (unit_nr > 0) THEN
@@ -1458,17 +1458,17 @@ CONTAINS
 !> \param n_exc ...
 !> \param do_transpose ...
 !> \param unit_nr ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 ! **************************************************************************************************
    SUBROUTINE reshuffle_eigvec(fm_eigvec, fm_eigvec_reshuffled, homo, virtual, n_exc, do_transpose, &
-                               unit_nr, mp2_env)
+                               unit_nr, bse_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_eigvec_reshuffled
       INTEGER, INTENT(IN)                                :: homo, virtual, n_exc
       LOGICAL, INTENT(IN)                                :: do_transpose
       INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reshuffle_eigvec'
 
@@ -1514,7 +1514,7 @@ CONTAINS
       CALL fm_general_add_bse(fm_eigvec_reshuffled, fm_eigvec_col, 1.0_dp, &
                               virtual, 1, &
                               1, 1, &
-                              unit_nr, reordering, mp2_env)
+                              unit_nr, reordering, bse_env)
 
       CALL cp_fm_release(fm_eigvec_col)
       CALL cp_fm_struct_release(fm_struct_eigvec_col)
@@ -1526,7 +1526,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Borrowed from the tddfpt module with slight adaptions
-!> \param qs_env ...
+!> \param bse_env the BSE environment (the QS objects the cube writer reads)
 !> \param mos ...
 !> \param istate ...
 !> \param info_approximation ...
@@ -1534,10 +1534,10 @@ CONTAINS
 !> \param append_cube ...
 !> \param print_section ...
 ! **************************************************************************************************
-   SUBROUTINE print_bse_nto_cubes(qs_env, mos, istate, info_approximation, &
+   SUBROUTINE print_bse_nto_cubes(bse_env, mos, istate, info_approximation, &
                                   stride, append_cube, print_section)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       INTEGER, INTENT(IN)                                :: istate
       CHARACTER(LEN=10)                                  :: info_approximation
@@ -1569,12 +1569,13 @@ CONTAINS
       logger => cp_get_default_logger()
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, pw_env=pw_env)
+      dft_control => bse_env%dft_control
+      pw_env => bse_env%pw_env
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
       CALL auxbas_pw_pool%create_pw(wf_r)
       CALL auxbas_pw_pool%create_pw(wf_g)
 
-      CALL get_qs_env(qs_env, subsys=subsys)
+      subsys => bse_env%subsys
       CALL qs_subsys_get(subsys, particles=particles)
 
       my_pos_cube = "REWIND"
@@ -1582,11 +1583,8 @@ CONTAINS
          my_pos_cube = "APPEND"
       END IF
 
-      CALL get_qs_env(qs_env=qs_env, &
-                      atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, &
-                      cell=cell, &
-                      particle_set=particle_set)
+      CALL qs_subsys_get(subsys, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                         cell=cell, particle_set=particle_set)
 
       DO iset = 1, 2
          CALL get_mo_set(mo_set=mos(iset), mo_coeff=mo_coeff, nmo=nmo)
@@ -1627,14 +1625,12 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param unit_nr ...
-!> \param mp2_env ...
-!> \param qs_env ...
+!> \param bse_env the BSE environment; the settings are normalised in place
 ! **************************************************************************************************
-   SUBROUTINE adapt_BSE_input_params(homo, virtual, unit_nr, mp2_env, qs_env)
+   SUBROUTINE adapt_BSE_input_params(homo, virtual, unit_nr, bse_env)
 
       INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
-      TYPE(mp2_type)                                     :: mp2_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'adapt_BSE_input_params'
 
@@ -1649,21 +1645,22 @@ CONTAINS
       CALL timeset(routineN, handle)
       ! Get environment infos for later usage
       NULLIFY (pw_env, cell_ref, poisson_env)
-      CALL get_qs_env(qs_env, pw_env=pw_env, cell_ref=cell_ref)
+      pw_env => bse_env%pw_env
+      CALL qs_subsys_get(bse_env%subsys, cell_ref=cell_ref)
       CALL pw_env_get(pw_env, poisson_env=poisson_env)
       ndim_periodic_poisson = COUNT(poisson_env%parameters%periodic == 1)
       ndim_periodic_cell = SUM(cell_ref%perd(1:3)) ! Borrowed from cell_methods.F/write_cell_low
 
       ! The iterative solver computes the NUM_EXC_EN lowest excitations only
       n_exc_max = homo*virtual
-      IF (mp2_env%bse%bse_diag_method == bse_iterdiag) THEN
-         n_exc_max = MIN(n_exc_max, mp2_env%bse%num_exc_en)
+      IF (bse_env%bse_diag_method == bse_iterdiag) THEN
+         n_exc_max = MIN(n_exc_max, bse_env%num_exc_en)
       END IF
 
       ! Handle negative NUM_PRINT_EXC
-      IF (mp2_env%bse%num_print_exc < 0 .OR. &
-          mp2_env%bse%num_print_exc > n_exc_max) THEN
-         mp2_env%bse%num_print_exc = n_exc_max
+      IF (bse_env%num_print_exc < 0 .OR. &
+          bse_env%num_print_exc > n_exc_max) THEN
+         bse_env%num_print_exc = n_exc_max
          IF (unit_nr > 0) THEN
             CALL cp_hint(__LOCATION__, &
                          "Keyword NUM_PRINT_EXC is either negative or too large. "// &
@@ -1677,9 +1674,9 @@ CONTAINS
       ! Logic: Explicit state list overrides NUM_PRINT_EXC_NTOS
       !        If only NUM_PRINT_EXC_NTOS is given, we write the array 1,...,NUM_PRINT_EXC_NTOS to
       !        bse_nto_state_list
-      IF (mp2_env%bse%do_nto_analysis) THEN
-         IF (mp2_env%bse%explicit_nto_list) THEN
-            IF (mp2_env%bse%num_print_exc_ntos > 0) THEN
+      IF (bse_env%do_nto_analysis) THEN
+         IF (bse_env%explicit_nto_list) THEN
+            IF (bse_env%num_print_exc_ntos > 0) THEN
                IF (unit_nr > 0) THEN
                   CALL cp_hint(__LOCATION__, &
                                "Keywords NUM_PRINT_EXC_NTOS and STATE_LIST are both given in input. "// &
@@ -1689,9 +1686,9 @@ CONTAINS
             ! Check if all states are within the range
             ! Count them and initialize new array afterwards
             num_state_list_exceptions = 0
-            DO i = 1, SIZE(mp2_env%bse%bse_nto_state_list)
-               IF (mp2_env%bse%bse_nto_state_list(i) < 1 .OR. &
-                   mp2_env%bse%bse_nto_state_list(i) > mp2_env%bse%num_print_exc) THEN
+            DO i = 1, SIZE(bse_env%bse_nto_state_list)
+               IF (bse_env%bse_nto_state_list(i) < 1 .OR. &
+                   bse_env%bse_nto_state_list(i) > bse_env%num_print_exc) THEN
                   num_state_list_exceptions = num_state_list_exceptions + 1
                END IF
             END DO
@@ -1702,64 +1699,64 @@ CONTAINS
                                "Ignoring these states.")
                END IF
             END IF
-            n = SIZE(mp2_env%bse%bse_nto_state_list) - num_state_list_exceptions
-            ALLOCATE (mp2_env%bse%bse_nto_state_list_final(n))
-            mp2_env%bse%bse_nto_state_list_final(:) = 0
+            n = SIZE(bse_env%bse_nto_state_list) - num_state_list_exceptions
+            ALLOCATE (bse_env%bse_nto_state_list_final(n))
+            bse_env%bse_nto_state_list_final(:) = 0
             i = 1
-            DO j = 1, SIZE(mp2_env%bse%bse_nto_state_list)
-               IF (mp2_env%bse%bse_nto_state_list(j) >= 1 .AND. &
-                   mp2_env%bse%bse_nto_state_list(j) <= mp2_env%bse%num_print_exc) THEN
-                  mp2_env%bse%bse_nto_state_list_final(i) = mp2_env%bse%bse_nto_state_list(j)
+            DO j = 1, SIZE(bse_env%bse_nto_state_list)
+               IF (bse_env%bse_nto_state_list(j) >= 1 .AND. &
+                   bse_env%bse_nto_state_list(j) <= bse_env%num_print_exc) THEN
+                  bse_env%bse_nto_state_list_final(i) = bse_env%bse_nto_state_list(j)
                   i = i + 1
                END IF
             END DO
 
-            mp2_env%bse%num_print_exc_ntos = SIZE(mp2_env%bse%bse_nto_state_list_final)
+            bse_env%num_print_exc_ntos = SIZE(bse_env%bse_nto_state_list_final)
          ELSE
-            IF (mp2_env%bse%num_print_exc_ntos > mp2_env%bse%num_print_exc .OR. &
-                mp2_env%bse%num_print_exc_ntos < 0) THEN
-               mp2_env%bse%num_print_exc_ntos = mp2_env%bse%num_print_exc
+            IF (bse_env%num_print_exc_ntos > bse_env%num_print_exc .OR. &
+                bse_env%num_print_exc_ntos < 0) THEN
+               bse_env%num_print_exc_ntos = bse_env%num_print_exc
             END IF
-            ALLOCATE (mp2_env%bse%bse_nto_state_list_final(mp2_env%bse%num_print_exc_ntos))
-            DO i = 1, mp2_env%bse%num_print_exc_ntos
-               mp2_env%bse%bse_nto_state_list_final(i) = i
+            ALLOCATE (bse_env%bse_nto_state_list_final(bse_env%num_print_exc_ntos))
+            DO i = 1, bse_env%num_print_exc_ntos
+               bse_env%bse_nto_state_list_final(i) = i
             END DO
          END IF
       END IF
 
       ! Takes care of triplet states, when oscillator strengths are 0
-      IF (mp2_env%bse%bse_spin_config /= 0 .AND. &
-          mp2_env%bse%eps_nto_osc_str > 0) THEN
+      IF (bse_env%bse_spin_config /= 0 .AND. &
+          bse_env%eps_nto_osc_str > 0) THEN
          IF (unit_nr > 0) THEN
             CALL cp_warn(__LOCATION__, &
                          "Cannot apply EPS_OSC_STR for Triplet excitations. "// &
                          "Resetting EPS_OSC_STR to default.")
          END IF
-         mp2_env%bse%eps_nto_osc_str = -1.0_dp
+         bse_env%eps_nto_osc_str = -1.0_dp
       END IF
 
       ! Take care of number for computed exciton descriptors
-      IF (mp2_env%bse%num_print_exc_descr < 0 .OR. &
-          mp2_env%bse%num_print_exc_descr > mp2_env%bse%num_print_exc) THEN
+      IF (bse_env%num_print_exc_descr < 0 .OR. &
+          bse_env%num_print_exc_descr > bse_env%num_print_exc) THEN
          IF (unit_nr > 0) THEN
             CALL cp_hint(__LOCATION__, &
                          "Keyword NUM_PRINT_EXC_DESCR is either negative or too large. "// &
                          "Printing exciton descriptors up to NUM_PRINT_EXC.")
          END IF
-         mp2_env%bse%num_print_exc_descr = mp2_env%bse%num_print_exc
+         bse_env%num_print_exc_descr = bse_env%num_print_exc
       END IF
 
       ! Handle screening factor options
-      IF (mp2_env%BSE%screening_factor > 0.0_dp) THEN
-         IF (mp2_env%BSE%screening_method /= bse_screening_alpha) THEN
+      IF (bse_env%screening_factor > 0.0_dp) THEN
+         IF (bse_env%screening_method /= bse_screening_alpha) THEN
             IF (unit_nr > 0) THEN
                CALL cp_warn(__LOCATION__, &
                             "Screening factor is only supported for &SCREENING_IN_W ALPHA. "// &
                             "Resetting SCREENING_IN_W to ALPHA.")
             END IF
-            mp2_env%BSE%screening_method = bse_screening_alpha
+            bse_env%screening_method = bse_screening_alpha
          END IF
-         IF (mp2_env%BSE%screening_factor > 1.0_dp) THEN
+         IF (bse_env%screening_factor > 1.0_dp) THEN
             IF (unit_nr > 0) THEN
                CALL cp_warn(__LOCATION__, &
                             "Screening factor is larger than 1.0. ")
@@ -1767,26 +1764,26 @@ CONTAINS
          END IF
       END IF
 
-      IF (mp2_env%BSE%screening_factor < 0.0_dp .AND. &
-          mp2_env%BSE%screening_method == bse_screening_alpha) THEN
+      IF (bse_env%screening_factor < 0.0_dp .AND. &
+          bse_env%screening_method == bse_screening_alpha) THEN
          IF (unit_nr > 0) THEN
             CALL cp_warn(__LOCATION__, &
                          "Screening factor is negative. Defaulting to 0.25")
          END IF
-         mp2_env%BSE%screening_factor = 0.25_dp
+         bse_env%screening_factor = 0.25_dp
       END IF
 
-      IF (mp2_env%BSE%screening_factor == 0.0_dp) THEN
+      IF (bse_env%screening_factor == 0.0_dp) THEN
          ! Use RPA internally in this case
-         mp2_env%BSE%screening_method = bse_screening_rpa
+         bse_env%screening_method = bse_screening_rpa
       END IF
-      IF (mp2_env%BSE%screening_factor == 1.0_dp) THEN
+      IF (bse_env%screening_factor == 1.0_dp) THEN
          ! Use TDHF internally in this case
-         mp2_env%BSE%screening_method = bse_screening_tdhf
+         bse_env%screening_method = bse_screening_tdhf
       END IF
 
       ! Add warning for usage of KS energies
-      IF (mp2_env%bse%use_ks_energies) THEN
+      IF (bse_env%use_ks_energies) THEN
          IF (unit_nr > 0) THEN
             CALL cp_warn(__LOCATION__, &
                          "Using KS energies for BSE calculations. Therefore, no quantities "// &

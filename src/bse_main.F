@@ -196,7 +196,7 @@ CONTAINS
                                        Eigenval_scf(:, 1, ispin), Eigenval(:, 1, ispin), &
                                        Eigenval_reduced_scf, Eigenval_reduced_qp, homo(ispin), virtual(ispin), &
                                        dimen_RI, unit_nr, ispin, homo_red_arr(ispin), &
-                                       virt_red_arr(ispin), mp2_env, window, .FALSE.)
+                                       virt_red_arr(ispin), mp2_env%bse, window, .FALSE.)
             ! the truncation returns both energy sets; USE_KS_ENERGIES picks the one the BSE sees
             IF (mp2_env%bse%use_ks_energies) THEN
                CALL MOVE_ALLOC(Eigenval_reduced_scf, Eigenval_reduced)
@@ -223,7 +223,7 @@ CONTAINS
          ALLOCATE (n_ov_arr(nspins), offsets_arr(nspins))
          CALL get_bse_spin_block_layout(homo_red_arr, virt_red_arr, n_ov_arr, offsets_arr, n_ov_joint)
 
-         CALL adapt_BSE_input_params(n_ov_joint, 1, unit_nr, mp2_env, qs_env)
+         CALL adapt_BSE_input_params(n_ov_joint, 1, unit_nr, mp2_env%bse)
 
          ! one [1+Q(0)]^-1 for both spins, then the screened slabs per spin
          CALL invert_static_screening(fm_mat_Q_static_bse_gemm, dimen_RI_red, fm_eps_inv)
@@ -282,7 +282,7 @@ CONTAINS
                                     fm_mat_S_ab_trunc_arr(1), &
                                     Eigenval_scf(:, 1, 1), Eigenval(:, 1, 1), Eigenval_reduced_scf, &
                                     Eigenval_reduced_qp, homo(1), virtual(1), dimen_RI, unit_nr, &
-                                    1, homo_red_arr(1), virt_red_arr(1), mp2_env, &
+                                    1, homo_red_arr(1), virt_red_arr(1), mp2_env%bse, &
                                     window, .TRUE.)
          ! the truncation returns both energy sets; USE_KS_ENERGIES picks the one the BSE sees
          IF (mp2_env%bse%use_ks_energies) THEN
@@ -298,7 +298,7 @@ CONTAINS
                            fm_mat_S_bar_ij_bse_arr(1), fm_mat_S_bar_ia_bse_arr(1))
          CALL cp_fm_release(fm_eps_inv)
 
-         CALL adapt_BSE_input_params(homo_red_arr(1), virt_red_arr(1), unit_nr, mp2_env, qs_env)
+         CALL adapt_BSE_input_params(homo_red_arr(1), virt_red_arr(1), unit_nr, mp2_env%bse)
 
          IF (my_do_iterat_diag) THEN
             CALL solve_bse_iteratively(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, &
@@ -340,7 +340,7 @@ CONTAINS
 
          CALL deallocate_matrices_bse(fm_mat_S_bar_ia_bse_arr(1), fm_mat_S_bar_ij_bse_arr(1), &
                                       fm_mat_S_ia_trunc_arr(1), fm_mat_S_ij_trunc_arr(1), &
-                                      fm_mat_S_ab_trunc_arr(1), fm_mat_Q_static_bse_gemm, mp2_env)
+                                      fm_mat_S_ab_trunc_arr(1), fm_mat_Q_static_bse_gemm, mp2_env%bse)
          DEALLOCATE (Eigenval_reduced)
 
       END IF

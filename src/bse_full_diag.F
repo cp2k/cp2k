@@ -231,11 +231,11 @@ CONTAINS
                                beta=0.0_dp, matrix_c=fm_W)
             reordering = [1, 3, 2, 4]
             CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo(isp), virtual(isp), &
-                                    virtual(isp), virtual(isp), unit_nr, reordering, mp2_env, &
+                                    virtual(isp), virtual(isp), unit_nr, reordering, mp2_env%bse, &
                                     row_offset=offsets(isp), col_offset=offsets(isp))
             IF (nspins == 1 .AND. tddfpt_control%do_bse_w_only) THEN
                CALL fm_general_add_bse(fm_A_copy, fm_W, -1.0_dp, homo(1), virtual(1), &
-                                       virtual(1), virtual(1), unit_nr, reordering, mp2_env)
+                                       virtual(1), virtual(1), unit_nr, reordering, mp2_env%bse)
             END IF
             ! W and A stash for TDDFPT path (closed-shell only; open-shell deferred)
             IF (nspins == 1) THEN
@@ -428,7 +428,7 @@ CONTAINS
                                beta=0.0_dp, matrix_c=fm_W)
             reordering = [1, 4, 3, 2]
             CALL fm_general_add_bse(fm_B, fm_W, -1.0_dp, virtual(isp), virtual(isp), &
-                                    virtual(isp), virtual(isp), unit_nr, reordering, mp2_env, &
+                                    virtual(isp), virtual(isp), unit_nr, reordering, mp2_env%bse, &
                                     row_offset=offsets(isp), col_offset=offsets(isp))
             CALL cp_fm_release(fm_W)
             CALL cp_fm_struct_release(fm_struct_W)
@@ -925,7 +925,7 @@ CONTAINS
             CALL cp_fm_create(fm_dip_reord_sp, fm_struct_dip_reord, name="bse_dip_reord")
             CALL cp_fm_set_all(fm_dip_reord_sp, 0.0_dp)
             CALL fm_general_add_bse(fm_dip_reord_sp, fm_dip_ai_sp(idir), 1.0_dp, &
-                                    1, 1, 1, virtual(isp), unit_nr, [2, 4, 3, 1], mp2_env)
+                                    1, 1, 1, virtual(isp), unit_nr, [2, 4, 3, 1], mp2_env%bse)
             CALL parallel_gemm('N', 'N', 1, n_ov_joint, n_ov_sp(isp), 1.0_dp, &
                                fm_dip_reord_sp, fm_eigvec_sp, 1.0_dp, fm_trans_mom_joint(idir))
             CALL cp_fm_release(fm_dip_reord_sp)
@@ -1050,10 +1050,10 @@ CONTAINS
          ALLOCATE (exc_descr(mp2_env%bse%num_print_exc_descr))
          DO i_exc = 1, mp2_env%bse%num_print_exc_descr
             CALL reshuffle_eigvec(fm_eigvec_X, fm_X_ia, homo, virtual, i_exc, &
-                                  .FALSE., unit_nr, mp2_env)
+                                  .FALSE., unit_nr, mp2_env%bse)
             IF (.NOT. flag_TDA) THEN
                CALL reshuffle_eigvec(fm_eigvec_Y, fm_Y_ia, homo, virtual, i_exc, &
-                                     .FALSE., unit_nr, mp2_env)
+                                     .FALSE., unit_nr, mp2_env%bse)
 
                CALL get_exciton_descriptors(exc_descr, fm_X_ia, &
                                             fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
