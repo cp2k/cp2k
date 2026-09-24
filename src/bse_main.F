@@ -20,11 +20,13 @@ MODULE bse_main
                                               diagonalize_A,&
                                               diagonalize_C
    USE bse_iterative,                   ONLY: solve_bse_iteratively
+   USE bse_matvec,                      ONLY: mem_fraction
    USE bse_print,                       ONLY: print_BSE_start_flag
    USE bse_types,                       ONLY: bse_env_type
    USE bse_util,                        ONLY: adapt_BSE_input_params,&
                                               bse_window_from_dft,&
                                               estimate_BSE_resources,&
+                                              fulldiag_memory_estimate_GB,&
                                               get_bse_spin_block_layout,&
                                               invert_static_screening,&
                                               screen_slabs,&
@@ -42,17 +44,18 @@ MODULE bse_main
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: debug_print_level
-   USE input_constants,                 ONLY: bse_abba,&
-                                              bse_both,&
-                                              bse_fulldiag,&
-                                              bse_iterdiag,&
-                                              bse_tda,&
-                                              use_mom_ref_coac
+   USE input_constants,                 ONLY: &
+        bse_abba, bse_both, bse_fulldiag, bse_iterdiag, bse_memcheck_abort, bse_memcheck_clamp, &
+        bse_memcheck_off, bse_memcheck_warn, bse_tda, use_mom_ref_coac
    USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
+                                              mp_para_env_type
    USE mo_window,                       ONLY: mo_window_type
    USE moments_utils,                   ONLY: get_reference_point
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              mo_set_type
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
 #include "./base/base_uses.f90"
@@ -63,7 +66,7 @@ MODULE bse_main
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_main'
 
-   PUBLIC :: prepare_bse_env, bse_solve, get_multipoles_ao
+   PUBLIC :: prepare_bse_env, bse_solve, get_multipoles_ao, bse_fulldiag_memory_check
 
 CONTAINS
 
@@ -341,5 +344,105 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_multipoles_ao
+
+! **************************************************************************************************
+!> \brief Early memory check for the full diagonalization, before any GW work: the window on the
+!>        DFT axis gives n_ov, the estimate is estimate_BSE_resources', the budget the one the
+!>        iterative solver uses. WARN and CLAMP warn, ABORT aborts, OFF prints the estimate only.
+!> \param bse_env settings; the window cutoffs, MEMORY_CHECK and MEMORY_BUDGET_GB
+!> \param mos the MO sets the GW will correct, for their DFT eigenvalues and occupations
+!> \param para_env the ranks that will hold the matrices
+!> \param unit_nr output unit, positive on the writing rank only
+! **************************************************************************************************
+   SUBROUTINE bse_fulldiag_memory_check(bse_env, mos, para_env, unit_nr)
+
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_fulldiag_memory_check'
+
+      CHARACTER(LEN=16)                                  :: bud_str, mem_str
+      INTEGER                                            :: handle, ispin, n_ov_joint, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: homo, n_mo
+      LOGICAL                                            :: from_free, over, skipped
+      REAL(KIND=dp)                                      :: budget_GB, mem_avail_GB, mem_est_GB
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenval_dft
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      TYPE(mo_window_type)                               :: window
+
+      CALL timeset(routineN, handle)
+
+      nspins = SIZE(mos)
+      ALLOCATE (homo(nspins), n_mo(nspins))
+      DO ispin = 1, nspins
+         CALL get_mo_set(mos(ispin), nmo=n_mo(ispin), homo=homo(ispin), eigenvalues=eigenvalues)
+         IF (ispin == 1) ALLOCATE (eigenval_dft(n_mo(1), nspins))
+         eigenval_dft(:, ispin) = eigenvalues(1:n_mo(ispin))
+      END DO
+      CALL bse_window_from_dft(eigenval_dft, n_mo, homo, bse_env%bse_cutoff_occ, &
+                               bse_env%bse_cutoff_empty, window)
+      n_ov_joint = 0
+      DO ispin = 1, nspins
+         n_ov_joint = n_ov_joint + (homo(ispin) - window%first_mo + 1)*(window%last_mo - homo(ispin))
+      END DO
+      DEALLOCATE (homo, n_mo, eigenval_dft)
+
+      mem_est_GB = fulldiag_memory_estimate_GB(n_ov_joint, bse_env%flag_tda /= bse_tda)/ &
+                   REAL(para_env%num_pe, KIND=dp)
+
+      ! the budget: as given, or the share mem_fraction of the free memory per rank
+      from_free = bse_env%memory_budget_gb < 0.0_dp
+      skipped = .FALSE.
+      budget_GB = bse_env%memory_budget_gb
+      IF (from_free) THEN
+         CALL mp_mem_avail_per_rank_GB(para_env, mem_avail_GB)
+         budget_GB = mem_fraction*mem_avail_GB
+         skipped = mem_avail_GB <= 0.0_dp
+      END IF
+      over = .NOT. skipped .AND. bse_env%memory_check /= bse_memcheck_off .AND. mem_est_GB > budget_GB
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Early memory check for the full diagonalization'
+         WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Transition pairs in the active window (DFT axis)', &
+            n_ov_joint
+         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Peak memory estimate per MPI rank (GB)', mem_est_GB
+         IF (.NOT. skipped) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory budget per MPI rank (GB)', budget_GB
+         END IF
+         IF (bse_env%memory_check == bse_memcheck_off) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: OFF'
+         ELSE IF (skipped) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: skipped, free memory not detectable'
+         ELSE IF (over) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: the estimate exceeds the budget'
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: within the budget'
+         END IF
+         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+      END IF
+
+      IF (over) THEN
+         WRITE (mem_str, '(F16.3)') mem_est_GB
+         WRITE (bud_str, '(F16.3)') budget_GB
+         SELECT CASE (bse_env%memory_check)
+         CASE (bse_memcheck_warn, bse_memcheck_clamp)
+            IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
+                                          "BSE full diagonalization: the estimate of "//TRIM(ADJUSTL(mem_str))// &
+                                          " GB per MPI rank exceeds the budget of "//TRIM(ADJUSTL(bud_str))// &
+                                          " GB. Use more MPI ranks, a tighter window, or ITERDIAG.")
+         CASE (bse_memcheck_abort)
+            CALL cp_abort(__LOCATION__, &
+                          "BSE full diagonalization: the estimate of "//TRIM(ADJUSTL(mem_str))// &
+                          " GB per MPI rank exceeds the budget of "//TRIM(ADJUSTL(bud_str))// &
+                          " GB. Use more MPI ranks, a tighter window, ITERDIAG, or MEMORY_CHECK WARN.")
+         END SELECT
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE bse_fulldiag_memory_check
 
 END MODULE bse_main

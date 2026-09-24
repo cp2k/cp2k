@@ -82,7 +82,7 @@ MODULE bse_util
 
    PUBLIC :: invert_static_screening, screen_slabs, bse_window_from_dft, fm_general_add_bse, truncate_fm, &
              comp_eigvec_coeff_BSE, sort_excitations, &
-             estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices, &
+             estimate_BSE_resources, fulldiag_memory_estimate_GB, filter_eigvec_contrib, truncate_BSE_matrices, &
              adapt_BSE_input_params, get_multipoles_mo, &
              reshuffle_eigvec, print_bse_nto_cubes, trace_exciton_descr, &
              get_bse_spin_block_layout, assemble_joint_ov_slab, &
@@ -984,22 +984,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'estimate_BSE_resources'
 
-      INTEGER                                            :: handle, num_BSE_matrices
-      INTEGER(KIND=int_8)                                :: full_dim
+      INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: mem_est, mem_est_per_rank
 
       CALL timeset(routineN, handle)
 
-      ! Number of matrices with size of A in TDA is 2 (A itself and W_ijab)
-      num_BSE_matrices = 2
-      ! With the full diagonalization of ABBA, we need several auxiliary matrices in the process
-      ! The maximum number is 2 + 2 + 6 (additional B and C matrix as well as 6 matrices to create C)
-      IF (bse_abba) THEN
-         num_BSE_matrices = 10
-      END IF
-
-      full_dim = INT(n_ov_joint, KIND=int_8)**2*INT(num_BSE_matrices, KIND=int_8)
-      mem_est = REAL(8*full_dim, KIND=dp)/REAL(1024**3, KIND=dp)
+      mem_est = fulldiag_memory_estimate_GB(n_ov_joint, bse_abba)
       mem_est_per_rank = REAL(mem_est/para_env%num_pe, KIND=dp)
 
       IF (unit_nr > 0) THEN
@@ -1019,6 +1009,30 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE estimate_BSE_resources
+
+! **************************************************************************************************
+!> \brief Peak memory of the full diagonalization in GB, all ranks together: n_ov^2 doubles times
+!>        the matrices held at once, 2 for TDA (A and W_ijab), 10 for ABBA (B, C and the six that
+!>        build C added)
+!> \param n_ov_joint transition pairs in the active window, summed over spins
+!> \param do_abba full problem, not TDA
+!> \return the estimate in GB
+! **************************************************************************************************
+   PURE FUNCTION fulldiag_memory_estimate_GB(n_ov_joint, do_abba) RESULT(mem_GB)
+
+      INTEGER, INTENT(IN)                                :: n_ov_joint
+      LOGICAL, INTENT(IN)                                :: do_abba
+      REAL(KIND=dp)                                      :: mem_GB
+
+      INTEGER                                            :: num_BSE_matrices
+      INTEGER(KIND=int_8)                                :: full_dim
+
+      num_BSE_matrices = 2
+      IF (do_abba) num_BSE_matrices = 10
+      full_dim = INT(n_ov_joint, KIND=int_8)**2*INT(num_BSE_matrices, KIND=int_8)
+      mem_GB = REAL(8*full_dim, KIND=dp)/REAL(1024**3, KIND=dp)
+
+   END FUNCTION fulldiag_memory_estimate_GB
 
 ! **************************************************************************************************
 !> \brief Filters eigenvector entries above a given threshold to describe excitations in the
