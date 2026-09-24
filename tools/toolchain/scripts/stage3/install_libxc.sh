@@ -75,7 +75,11 @@ case "$with_libxc" in
           -DENABLE_HIP=ON \
           -DMAXORDER=3 \
           .. > configure.log 2>&1 || tail_excerpt configure.log
-        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        libxc_jobs=$(get_nprocs)
+        if [ "${libxc_jobs}" -gt 10 ]; then
+          libxc_jobs=$((libxc_jobs / 2))
+        fi
+        make -j "${libxc_jobs}" > make.log 2>&1 || tail_excerpt make.log
         make install > install.log 2>&1 || tail_excerpt install.log
         cd ..
       else
