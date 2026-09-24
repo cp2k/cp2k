@@ -16,15 +16,8 @@ MODULE bse_util
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
-                                              dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type_symmetric
-   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
-                                              dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_trace,&
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -48,8 +41,7 @@ MODULE bse_util
    USE input_constants,                 ONLY: bse_iterdiag,&
                                               bse_screening_alpha,&
                                               bse_screening_rpa,&
-                                              bse_screening_tdhf,&
-                                              use_mom_ref_coac
+                                              bse_screening_tdhf
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_path_length,&
                                               dp,&
@@ -59,7 +51,6 @@ MODULE bse_util
    USE mo_window,                       ONLY: combine_mo_windows,&
                                               determine_mo_window,&
                                               mo_window_type
-   USE moments_utils,                   ONLY: get_reference_point
    USE mp2_types,                       ONLY: integ_mat_buffer_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
@@ -73,13 +64,9 @@ MODULE bse_util
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_wavefunction
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
-   USE qs_moments,                      ONLY: build_local_moment_matrix
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE rpa_communication,               ONLY: communicate_buffer
@@ -1815,31 +1802,31 @@ CONTAINS
 ! **************************************************************************************************
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param fm_multipole_ai_trunc ...
-!> \param fm_multipole_ij_trunc ...
-!> \param fm_multipole_ab_trunc ...
-!> \param qs_env ...
-!> \param mo_coeff ...
-!> \param rpoint ...
-!> \param n_moments ...
-!> \param homo_red ...
-!> \param virtual_red ...
+!> \brief The multipoles in the MO window, D^k_pq = sum_µν C_µp M^k_µν C_νq, cut to the ai, ij and ab
+!>        blocks of the window; M^k_µν are the AO multipoles of get_multipoles_ao
+!> \param fm_multipole_ai_trunc D^k_ai, one entry per component k
+!> \param fm_multipole_ij_trunc D^k_ij
+!> \param fm_multipole_ab_trunc D^k_ab
+!> \param matrix_multipole M^k_µν, one entry per component k (x, y, z, then xx, xy, xz, yy, yz, zz)
+!> \param mos MO sets of the reference, for the AO layout and the occupied count
+!> \param mo_coeff C_µp of the spin
+!> \param homo_red occupied levels in the window
+!> \param virtual_red virtual levels in the window
 !> \param context_BSE ...
 !> \param ispin spin channel whose mo_set supplies homo/nao (default 1); open-shell beta needs 2
 ! **************************************************************************************************
    SUBROUTINE get_multipoles_mo(fm_multipole_ai_trunc, fm_multipole_ij_trunc, fm_multipole_ab_trunc, &
-                                qs_env, mo_coeff, rpoint, n_moments, &
+                                matrix_multipole, mos, mo_coeff, &
                                 homo_red, virtual_red, context_BSE, ispin)
 
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: fm_multipole_ai_trunc, &
                                                             fm_multipole_ij_trunc, &
                                                             fm_multipole_ab_trunc
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_multipole
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
-      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: rpoint
-      INTEGER, INTENT(IN)                                :: n_moments, homo_red, virtual_red
+      INTEGER, INTENT(IN)                                :: homo_red, virtual_red
       TYPE(cp_blacs_env_type), POINTER                   :: context_BSE
       INTEGER, INTENT(IN), OPTIONAL                      :: ispin
 
@@ -1847,51 +1834,23 @@ CONTAINS
 
       INTEGER                                            :: handle, idir, my_ispin, n_multipole, &
                                                             n_occ, n_virt, nao, nmo_mp2
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(cp_fm_struct_type), POINTER :: fm_struct_mp_ab_trunc, fm_struct_mp_ai_trunc, &
          fm_struct_mp_ij_trunc, fm_struct_multipoles_ao, fm_struct_nao_nmo, fm_struct_nmo_nmo
       TYPE(cp_fm_type)                                   :: fm_work
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_multipole_per_dir
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_multipole, matrix_s
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env_BSE
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb
 
       CALL timeset(routineN, handle)
 
       my_ispin = 1
       IF (PRESENT(ispin)) my_ispin = ispin
 
-      !First, we calculate the AO dipoles
-      NULLIFY (sab_orb, matrix_s)
-      CALL get_qs_env(qs_env, &
-                      mos=mos, &
-                      matrix_s=matrix_s, &
-                      sab_orb=sab_orb)
-
       ! Use the same blacs environment as for the MO coefficients to ensure correct multiplication dbcsr x fm later on
       fm_struct_multipoles_ao => mos(my_ispin)%mo_coeff%matrix_struct
       ! BSE has different contexts and blacsenvs
       para_env_BSE => context_BSE%para_env
-      ! Get size of multipole tensor
-      n_multipole = (6 + 11*n_moments + 6*n_moments**2 + n_moments**3)/6 - 1
-      NULLIFY (matrix_multipole)
-      CALL dbcsr_allocate_matrix_set(matrix_multipole, n_multipole)
+      n_multipole = SIZE(matrix_multipole)
       ALLOCATE (fm_multipole_per_dir(n_multipole))
-      DO idir = 1, n_multipole
-         CALL dbcsr_init_p(matrix_multipole(idir)%matrix)
-         CALL dbcsr_create(matrix_multipole(idir)%matrix, name="ao_multipole", &
-                           template=matrix_s(1)%matrix, matrix_type=dbcsr_type_symmetric)
-         CALL cp_dbcsr_alloc_block_from_nbl(matrix_multipole(idir)%matrix, sab_orb)
-         CALL dbcsr_set(matrix_multipole(idir)%matrix, 0._dp)
-      END DO
-
-      CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_coac, ref_point=ref_point)
-
-      CALL build_local_moment_matrix(qs_env, matrix_multipole, n_moments, ref_point=rpoint)
-
-      NULLIFY (sab_orb)
 
       ! Now we transform them to MO
       ! n_occ is the number of occupied MOs, nao the number of all AOs
@@ -1999,7 +1958,6 @@ CONTAINS
       END DO
       DEALLOCATE (fm_multipole_per_dir)
       CALL cp_fm_release(fm_work)
-      CALL dbcsr_deallocate_matrix_set(matrix_multipole)
 
       CALL timestop(handle)
 

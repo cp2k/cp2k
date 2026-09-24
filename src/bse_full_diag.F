@@ -59,7 +59,6 @@ MODULE bse_full_diag
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
-   USE qs_environment_types,            ONLY: qs_environment_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get
 #include "./base/base_uses.f90"
 
@@ -623,12 +622,11 @@ CONTAINS
 !> \param unit_nr ...
 !> \param diag_est ...
 !> \param bse_env the BSE environment (settings)
-!> \param qs_env ...
 !> \param mo_coeff ...
 ! **************************************************************************************************
    SUBROUTINE diagonalize_C(fm_C, homo, virtual, homo_irred, &
                             fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                            unit_nr, diag_est, bse_env, qs_env, mo_coeff)
+                            unit_nr, diag_est, bse_env, mo_coeff)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, homo_irred
@@ -636,7 +634,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
       TYPE(bse_env_type), INTENT(IN)                     :: bse_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_C'
@@ -729,13 +726,13 @@ CONTAINS
       CALL cp_fm_release(fm_mat_eigvec_transform_sum)
 
       IF (nspins == 1) THEN
-         CALL postprocess_bse(Exc_ens, fm_eigvec_X, bse_env, qs_env, mo_coeff, &
+         CALL postprocess_bse(Exc_ens, fm_eigvec_X, bse_env, mo_coeff, &
                               homo(1), virtual(1), homo_irred(1), unit_nr, &
                               .FALSE., fm_eigvec_Y)
       ELSE
          ! Open-shell ABBA: helper forms X+Y internally and prints amplitudes (X and Y).
          CALL bse_open_shell_optical(Exc_ens, fm_eigvec_X, homo, virtual, homo_irred, &
-                                     .FALSE., qs_env, mo_coeff, bse_env, unit_nr, fm_eigvec_Y)
+                                     .FALSE., mo_coeff, bse_env, unit_nr, fm_eigvec_Y)
       END IF
 
       DEALLOCATE (Exc_ens)
@@ -755,18 +752,16 @@ CONTAINS
 !> \param unit_nr ...
 !> \param diag_est ...
 !> \param bse_env the BSE environment (settings)
-!> \param qs_env ...
 !> \param mo_coeff ...
 ! **************************************************************************************************
    SUBROUTINE diagonalize_A(fm_A, homo, virtual, homo_irred, &
-                            unit_nr, diag_est, bse_env, qs_env, mo_coeff)
+                            unit_nr, diag_est, bse_env, mo_coeff)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, homo_irred
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
       TYPE(bse_env_type), INTENT(IN)                     :: bse_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_A'
@@ -797,11 +792,11 @@ CONTAINS
       END IF
 
       IF (nspins == 1) THEN
-         CALL postprocess_bse(Exc_ens, fm_eigvec, bse_env, qs_env, mo_coeff, &
+         CALL postprocess_bse(Exc_ens, fm_eigvec, bse_env, mo_coeff, &
                               homo(1), virtual(1), homo_irred(1), unit_nr, .TRUE.)
       ELSE
          CALL bse_open_shell_optical(Exc_ens, fm_eigvec, homo, virtual, homo_irred, &
-                                     .TRUE., qs_env, mo_coeff, bse_env, unit_nr)
+                                     .TRUE., mo_coeff, bse_env, unit_nr)
       END IF
 
       CALL cp_fm_release(fm_eigvec)
@@ -821,20 +816,18 @@ CONTAINS
 !> \param virtual per-spin reduced/active virtual counts
 !> \param homo_irred per-spin full occupied counts (absolute-MO labels; N_e = sum)
 !> \param flag_tda .TRUE. -> TDA (coeff=X), .FALSE. -> ABBA (coeff=X+Y)
-!> \param qs_env ...
 !> \param mo_coeff per-spin MO coefficients
 !> \param bse_env the BSE environment (settings)
 !> \param unit_nr ...
 !> \param fm_eigvec_Y joint Y eigenvectors (deexcitations; ABBA only)
 ! **************************************************************************************************
    SUBROUTINE bse_open_shell_optical(Exc_ens, fm_eigvec_X, homo, virtual, homo_irred, &
-                                     flag_tda, qs_env, mo_coeff, bse_env, unit_nr, fm_eigvec_Y)
+                                     flag_tda, mo_coeff, bse_env, unit_nr, fm_eigvec_Y)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec_X
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, homo_irred
       LOGICAL, INTENT(IN)                                :: flag_tda
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -846,7 +839,7 @@ CONTAINS
       INTEGER                                            :: handle, idir, isp, jdir, n, n_ov_joint, &
                                                             nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_ov_sp, offsets_sp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str_joint, ref_pt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str_joint
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: pol_res_joint, trans_mom_joint
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_dip_reord, fm_struct_sp, &
                                                             fm_struct_tmom
@@ -887,7 +880,7 @@ CONTAINS
 
       ! Spin-summed transition moments: D^n_dir = sum_σ sum_{ia,σ} D^{dir,σ}_{ai} C_{ia,σ,n}
       ! with C = X (TDA) or X+Y (ABBA); explicit spin sum, factor 1.0.
-      ALLOCATE (fm_dip_ai_sp(3), fm_dip_ij_sp(3), fm_dip_ab_sp(3), ref_pt(3))
+      ALLOCATE (fm_dip_ai_sp(3), fm_dip_ij_sp(3), fm_dip_ab_sp(3))
       ALLOCATE (oscill_str_joint(n_ov_joint), trans_mom_joint(3, 1, n_ov_joint))
       ALLOCATE (pol_res_joint(3, 3, n_ov_joint))
       trans_mom_joint(:, :, :) = 0.0_dp
@@ -900,7 +893,7 @@ CONTAINS
       END DO
       DO isp = 1, nspins
          CALL get_multipoles_mo(fm_dip_ai_sp, fm_dip_ij_sp, fm_dip_ab_sp, &
-                                qs_env, mo_coeff(isp:isp), ref_pt, 1, &
+                                bse_env%matrix_dipole_ao, bse_env%mos, mo_coeff(isp:isp), &
                                 homo(isp), virtual(isp), fm_trans_coeff%matrix_struct%context, &
                                 ispin=isp)
          NULLIFY (fm_struct_sp, fm_struct_dip_reord)
@@ -952,7 +945,7 @@ CONTAINS
                    "Open-shell (UKS) BSE: exciton descriptors and NTO analysis are not yet "// &
                    "implemented and have been skipped.")
       CALL cp_fm_release(fm_trans_coeff)
-      DEALLOCATE (fm_dip_ai_sp, fm_dip_ij_sp, fm_dip_ab_sp, ref_pt)
+      DEALLOCATE (fm_dip_ai_sp, fm_dip_ij_sp, fm_dip_ab_sp)
       DEALLOCATE (n_ov_sp, offsets_sp, oscill_str_joint, trans_mom_joint, pol_res_joint)
 
       CALL timestop(handle)
@@ -964,7 +957,6 @@ CONTAINS
 !> \param Exc_ens ...
 !> \param fm_eigvec_X ...
 !> \param bse_env the BSE environment (settings)
-!> \param qs_env ...
 !> \param mo_coeff ...
 !> \param homo ...
 !> \param virtual ...
@@ -973,14 +965,13 @@ CONTAINS
 !> \param flag_TDA ...
 !> \param fm_eigvec_Y ...
 ! **************************************************************************************************
-   SUBROUTINE postprocess_bse(Exc_ens, fm_eigvec_X, bse_env, qs_env, mo_coeff, &
+   SUBROUTINE postprocess_bse(Exc_ens, fm_eigvec_X, bse_env, mo_coeff, &
                               homo, virtual, homo_irred, unit_nr, &
                               flag_TDA, fm_eigvec_Y)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec_X
       TYPE(bse_env_type), INTENT(IN)                     :: bse_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER                                            :: homo, virtual, homo_irred, unit_nr
       LOGICAL, OPTIONAL                                  :: flag_TDA
@@ -1025,9 +1016,10 @@ CONTAINS
       ALLOCATE (fm_dipole_ab_trunc(n_moments_di))
       ALLOCATE (fm_dipole_ai_trunc(n_moments_di))
       ALLOCATE (ref_point_multipole(3))
+      ref_point_multipole(:) = bse_env%multipole_ref_point
       ! Obtain dipoles in MO basis
       CALL get_multipoles_mo(fm_dipole_ai_trunc, fm_dipole_ij_trunc, fm_dipole_ab_trunc, &
-                             qs_env, mo_coeff, ref_point_multipole, 1, &
+                             bse_env%matrix_dipole_ao, bse_env%mos, mo_coeff, &
                              homo, virtual, fm_eigvec_X%matrix_struct%context)
       ! Compute exciton descriptors from these multipoles
       IF (bse_env%num_print_exc_descr > 0) THEN
@@ -1035,8 +1027,10 @@ CONTAINS
          ALLOCATE (fm_quadpole_ij_trunc(n_moments_quad))
          ALLOCATE (fm_quadpole_ab_trunc(n_moments_quad))
          ALLOCATE (fm_quadpole_ai_trunc(n_moments_quad))
+         ! the preparer builds the AO quadrupoles whenever NUM_PRINT_EXC_DESCR is nonzero
+         CPASSERT(ASSOCIATED(bse_env%matrix_quadpole_ao))
          CALL get_multipoles_mo(fm_quadpole_ai_trunc, fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
-                                qs_env, mo_coeff, ref_point_multipole, 2, &
+                                bse_env%matrix_quadpole_ao, bse_env%mos, mo_coeff, &
                                 homo, virtual, fm_eigvec_X%matrix_struct%context)
          ! Iterate over excitation index outside of routine to make it compatible with tddft module
          ALLOCATE (exc_descr(bse_env%num_print_exc_descr))

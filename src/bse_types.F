@@ -15,6 +15,7 @@ MODULE bse_types
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE exstates_types,                  ONLY: excited_energy_type
@@ -106,6 +107,11 @@ MODULE bse_types
       TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE        :: fm_S_ia, fm_S_ij, fm_S_ab, &
                                                             fm_S_bar_ia, fm_S_bar_ij
       TYPE(cp_fm_type)                                   :: fm_eps_inv = cp_fm_type()
+      ! AO multipoles <φ_µ|(r - r_0)^k|φ_ν> from QS, dipoles always and quadrupoles for the exciton
+      ! descriptors, about r_0; the solver transforms them into the window
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_dipole_ao => NULL(), &
+                                                            matrix_quadpole_ao => NULL()
+      REAL(KIND=dp), DIMENSION(3)                        :: multipole_ref_point = 0.0_dp
       ! QS objects the solver reads, none owned
       TYPE(mp_para_env_type), POINTER                    :: para_env => NULL()
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env => NULL()
@@ -135,6 +141,8 @@ CONTAINS
       CALL cp_fm_release(bse_env%fm_S_bar_ia)
       CALL cp_fm_release(bse_env%fm_S_bar_ij)
       CALL cp_fm_release(bse_env%fm_eps_inv)
+      CALL dbcsr_deallocate_matrix_set(bse_env%matrix_dipole_ao)
+      CALL dbcsr_deallocate_matrix_set(bse_env%matrix_quadpole_ao)
       IF (ALLOCATED(bse_env%homo_red)) DEALLOCATE (bse_env%homo_red)
       IF (ALLOCATED(bse_env%virt_red)) DEALLOCATE (bse_env%virt_red)
       IF (ALLOCATED(bse_env%homo_full)) DEALLOCATE (bse_env%homo_full)

@@ -29,6 +29,14 @@ MODULE bse_main
                                               truncate_BSE_matrices
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
+                                              dbcsr_init_p,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type_symmetric
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
+   USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -38,13 +46,17 @@ MODULE bse_main
                                               bse_both,&
                                               bse_fulldiag,&
                                               bse_iterdiag,&
-                                              bse_tda
+                                              bse_tda,&
+                                              use_mom_ref_coac
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mo_window,                       ONLY: mo_window_type
+   USE moments_utils,                   ONLY: get_reference_point
    USE mp2_types,                       ONLY: mp2_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_moments,                      ONLY: build_local_moment_matrix
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -53,7 +65,7 @@ MODULE bse_main
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_main'
 
-   PUBLIC :: start_bse_calculation
+   PUBLIC :: start_bse_calculation, get_multipoles_ao
 
 CONTAINS
 
@@ -136,6 +148,11 @@ CONTAINS
       IF (ALLOCATED(mp2_env%bse%gw_corr_lev_virt)) DEALLOCATE (mp2_env%bse%gw_corr_lev_virt)
       ALLOCATE (mp2_env%bse%gw_corr_lev_virt(nspins))
       mp2_env%bse%gw_corr_lev_virt(:) = bse_lev_virt(:)
+      ! the AO multipoles for the transition dipoles and, when asked for, the exciton descriptors
+      CALL get_multipoles_ao(qs_env, 1, mp2_env%bse%matrix_dipole_ao, mp2_env%bse%multipole_ref_point)
+      IF (mp2_env%bse%num_print_exc_descr /= 0) THEN
+         CALL get_multipoles_ao(qs_env, 2, mp2_env%bse%matrix_quadpole_ao, mp2_env%bse%multipole_ref_point)
+      END IF
 
       my_do_fulldiag = .FALSE.
       my_do_iterat_diag = .FALSE.
@@ -254,13 +271,13 @@ CONTAINS
             ! the amplitude table, and N_e = SUM(homo_irred) for the TRK print.
             IF (my_do_tda .AND. (.NOT. tddfpt_control%do_bse)) THEN
                CALL diagonalize_A(fm_A_BSE, homo_red_arr, virt_red_arr, homo, &
-                                  unit_nr, diag_runtime_est, mp2_env%bse, qs_env, mo_coeff)
+                                  unit_nr, diag_runtime_est, mp2_env%bse, mo_coeff)
             END IF
             CALL cp_fm_release(fm_A_BSE)
             IF (my_do_abba) THEN
                CALL diagonalize_C(fm_C_BSE, homo_red_arr, virt_red_arr, homo, &
                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                                  unit_nr, diag_runtime_est, mp2_env%bse, qs_env, mo_coeff)
+                                  unit_nr, diag_runtime_est, mp2_env%bse, mo_coeff)
                CALL cp_fm_release(fm_C_BSE)
             END IF
          END IF
@@ -327,13 +344,13 @@ CONTAINS
             tddfpt_control => dft_control%tddfpt2_control
             IF (my_do_tda .AND. (.NOT. tddfpt_control%do_bse)) THEN
                CALL diagonalize_A(fm_A_BSE, homo_red_arr, virt_red_arr, homo, &
-                                  unit_nr, diag_runtime_est, mp2_env%bse, qs_env, mo_coeff)
+                                  unit_nr, diag_runtime_est, mp2_env%bse, mo_coeff)
             END IF
             CALL cp_fm_release(fm_A_BSE)
             IF (my_do_abba) THEN
                CALL diagonalize_C(fm_C_BSE, homo_red_arr, virt_red_arr, homo, &
                                   fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                                  unit_nr, diag_runtime_est, mp2_env%bse, qs_env, mo_coeff)
+                                  unit_nr, diag_runtime_est, mp2_env%bse, mo_coeff)
             END IF
             CALL cp_fm_release(fm_C_BSE)
          END IF
@@ -349,6 +366,9 @@ CONTAINS
       DEALLOCATE (fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr)
       DEALLOCATE (fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr)
 
+      CALL dbcsr_deallocate_matrix_set(mp2_env%bse%matrix_dipole_ao)
+      CALL dbcsr_deallocate_matrix_set(mp2_env%bse%matrix_quadpole_ao)
+
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4,T7,A53)') 'BSE|', 'The BSE was successfully calculated. Have a nice day!'
       END IF
@@ -356,5 +376,53 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE start_bse_calculation
+
+! **************************************************************************************************
+!> \brief The AO multipoles M^k_µν = <φ_µ|(r - r_0)^k|φ_ν> of every order up to n_moments, on the
+!>        block pattern of the overlap, about r_0, the centre of atomic charges;
+!>        k = x, y, z for order 1, then xx, xy, xz, yy, yz, zz for order 2
+!> \param qs_env source of the basis, the geometry and the overlap's block pattern
+!> \param n_moments highest order, 1 for dipoles, 2 adds quadrupoles
+!> \param matrix_multipole M^k_µν, one entry per component k, allocated here; the caller releases it
+!> \param rpoint r_0
+! **************************************************************************************************
+   SUBROUTINE get_multipoles_ao(qs_env, n_moments, matrix_multipole, rpoint)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: n_moments
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_multipole
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: rpoint
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_multipoles_ao'
+
+      INTEGER                                            :: handle, idir, n_multipole
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (matrix_s, sab_orb, ref_point)
+      CALL get_qs_env(qs_env, matrix_s=matrix_s, sab_orb=sab_orb)
+
+      ! components of every order up to n_moments: 3 dipoles, then 6 quadrupoles
+      n_multipole = (6 + 11*n_moments + 6*n_moments**2 + n_moments**3)/6 - 1
+      NULLIFY (matrix_multipole)
+      CALL dbcsr_allocate_matrix_set(matrix_multipole, n_multipole)
+      DO idir = 1, n_multipole
+         CALL dbcsr_init_p(matrix_multipole(idir)%matrix)
+         CALL dbcsr_create(matrix_multipole(idir)%matrix, name="ao_multipole", &
+                           template=matrix_s(1)%matrix, matrix_type=dbcsr_type_symmetric)
+         CALL cp_dbcsr_alloc_block_from_nbl(matrix_multipole(idir)%matrix, sab_orb)
+         CALL dbcsr_set(matrix_multipole(idir)%matrix, 0._dp)
+      END DO
+
+      CALL get_reference_point(rpoint, qs_env=qs_env, reference=use_mom_ref_coac, ref_point=ref_point)
+      CALL build_local_moment_matrix(qs_env, matrix_multipole, n_moments, ref_point=rpoint)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_multipoles_ao
 
 END MODULE bse_main

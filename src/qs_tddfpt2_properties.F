@@ -9,6 +9,7 @@ MODULE qs_tddfpt2_properties
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bibliography,                    ONLY: Martin2003,&
                                               cite_reference
+   USE bse_main,                        ONLY: get_multipoles_ao
    USE bse_print,                       ONLY: print_exciton_descriptors
    USE bse_properties,                  ONLY: exciton_descr_type,&
                                               get_exciton_descriptors
@@ -1257,8 +1258,10 @@ CONTAINS
                                                             fm_multipole_ai, fm_multipole_ij, &
                                                             S_mos_virt
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_multipole
       TYPE(exciton_descr_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: exc_descr
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
@@ -1311,9 +1314,12 @@ CONTAINS
       ALLOCATE (fm_multipole_ab(n_moments_quad))
       ALLOCATE (fm_multipole_ai(n_moments_quad))
 
+      CALL get_multipoles_ao(qs_env, 2, matrix_multipole, ref_point_multipole)
+      CALL get_qs_env(qs_env, mos=mos)
       CALL get_multipoles_mo(fm_multipole_ai, fm_multipole_ij, fm_multipole_ab, &
-                             qs_env, mo_coeff, ref_point_multipole, 2, &
+                             matrix_multipole, mos, mo_coeff, &
                              nmo_occ(1), nmo_virt(1), blacs_env)
+      CALL dbcsr_deallocate_matrix_set(matrix_multipole)
 
       CALL cp_fm_release(mo_coeff)
 

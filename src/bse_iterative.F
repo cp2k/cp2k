@@ -179,7 +179,7 @@ CONTAINS
          IF (do_debug) CALL bse_davidson_refcheck(fm_A_BSE, exc_ens, fm_X, mp2_env%bse, unit_nr)
 
          CALL copy_to_ia_context(fm_X, blacs_env_ia, fm_X_ia)
-         CALL postprocess_bse(exc_ens, fm_X_ia, mp2_env%bse, qs_env, mo_coeff, &
+         CALL postprocess_bse(exc_ens, fm_X_ia, mp2_env%bse, mo_coeff, &
                               homo_red_arr(1), virt_red_arr(1), homo(1), unit_nr, .TRUE.)
          CALL cp_fm_release(fm_X_ia)
          DEALLOCATE (exc_ens)
@@ -233,7 +233,7 @@ CONTAINS
             CALL copy_to_ia_context(fm_Y_abba, blacs_env_ia, fm_Y_ia)
             CALL cp_fm_release(fm_X_abba)
             CALL cp_fm_release(fm_Y_abba)
-            CALL postprocess_bse(exc_ens_abba, fm_X_ia, mp2_env%bse, qs_env, mo_coeff, &
+            CALL postprocess_bse(exc_ens_abba, fm_X_ia, mp2_env%bse, mo_coeff, &
                                  homo_red_arr(1), virt_red_arr(1), homo(1), unit_nr, .FALSE., fm_Y_ia)
             CALL cp_fm_release(fm_X_ia)
             CALL cp_fm_release(fm_Y_ia)
