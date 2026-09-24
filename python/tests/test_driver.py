@@ -133,9 +133,13 @@ def test_driver_energy_force_virial(
         for scale in (1.0, 1.02):
             env.cell = cell * scale
             env.positions = positions * scale
-            references.append(env.calculate(stress=True))
+            reference = env.calculate()
+            # Only this pair is within the cutoff; use the position-force outer product.
+            # This uses the existing force API, not the optional stress getter.
+            virial = np.outer(env.positions[1] - env.positions[0], reference.forces[1])
+            references.append((reference, virial))
     with driver(tmp_path, lj_input, unix) as (sock, process):
-        for scale, reference in zip((1.0, 1.02), references):
+        for scale, (reference, reference_virial) in zip((1.0, 1.02), references):
             header(sock, "STATUS")
             assert receive(sock, 12).strip() == b"READY"
             geometry(sock, cell * scale, positions * scale)
@@ -151,7 +155,7 @@ def test_driver_energy_force_virial(
             assert struct.unpack("=i", receive(sock, 4))[0] == 0
             np.testing.assert_allclose(energy, reference.energy, rtol=1e-10)
             np.testing.assert_allclose(forces, reference.forces, rtol=1e-10)
-            np.testing.assert_allclose(virial, reference.virial, rtol=1e-10)
+            np.testing.assert_allclose(virial, reference_virial, rtol=1e-10)
         header(sock, "EXIT")
         assert process.wait(timeout=20) == 0
 

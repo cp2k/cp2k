@@ -13,12 +13,14 @@ CP2K completes fragmented socket transfers and validates the particle count, fin
 request order before evaluating forces. `EXIT` closes the connection normally; premature EOF and
 invalid requests fail explicitly.
 
-The inexpensive UNIX/TCP protocol checks use the CP2K executable, not the shared-library stress API
-or any optional Python adapter:
+The inexpensive UNIX/TCP protocol checks use the CP2K executable and the existing shared-library
+force API. The pair virial is computed directly from positions and forces; neither the new stress
+getter nor any optional Python adapter is needed:
 
 ```sh
 python -m pip install './python[test]'
 CP2K_TEST_EXECUTABLE=/absolute/path/to/cp2k.psmp \
+  CP2K_TEST_LIBRARY=/absolute/path/to/libcp2k.so \
   python -m pytest python/tests/test_driver.py -q
 ```
 
