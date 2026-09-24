@@ -7,6 +7,24 @@ nuclei, and of an external code that acts as a client and computes the electroni
 
 The i-PI documentation can be found at <https://ipi-code.org>.
 
+## Driver validation
+
+CP2K completes fragmented socket transfers and validates the particle count, finite geometry and
+request order before evaluating forces. `EXIT` closes the connection normally; premature EOF and
+invalid requests fail explicitly.
+
+The inexpensive UNIX/TCP protocol checks use the CP2K executable, not the shared-library stress API
+or any optional Python adapter:
+
+```sh
+python -m pip install './python[test]'
+CP2K_TEST_EXECUTABLE=/absolute/path/to/cp2k.psmp \
+  python -m pytest python/tests/test_driver.py -q
+```
+
+Set `CP2K_TEST_IPI=1` as well to exercise an installed i-PI server. The existing Python tester
+executes the protocol checks; the dedicated i-PI tester also exercises upstream examples.
+
 Please cite [](#Kapil2016) and [Kapil2018](https://doi.org/10.1016/j.cpc.2018.09.020) if you use
 i-PI with CP2K.
 
