@@ -42,13 +42,13 @@ class CP2KCalculator(Calculator):
     right-handed cell is required even for nonperiodic systems. Positions and
     cells are converted from angstrom, energy/forces back to eV and eV/angstrom.
 
-    Stress, per-atom energies, shell models, topology files, and implicit use
+    Per-atom energies, shell models, topology files, and implicit use
     of ASE initial charges/magnetic moments are not supported. Set charge and
-    spin explicitly in inp. Standard ASE geometry optimizers and fixed-cell
-    MD integrators can use this calculator. Close it before closing runtime.
+    spin explicitly in inp. Stress uses ASE's tensile-positive eV/angstrom**3
+    convention and enables cell optimization/NPT. Close before closing runtime.
     """
 
-    implemented_properties = ["energy", "free_energy", "forces"]
+    implemented_properties = ["energy", "free_energy", "forces", "stress"]
     default_parameters = {"inp": None}
 
     def __init__(self, runtime, inp, *, output_file=None, **kwargs):
@@ -82,6 +82,7 @@ class CP2KCalculator(Calculator):
         force_eval = tree.setdefault("FORCE_EVAL", {})
         if not isinstance(force_eval, dict):
             raise ValueError("ASE requires exactly one FORCE_EVAL section")
+        force_eval.setdefault("STRESS_TENSOR", "ANALYTICAL")
         subsys = force_eval.setdefault("SUBSYS", {})
         if not isinstance(subsys, dict):
             raise ValueError("SUBSYS must be a single section")
@@ -168,7 +169,7 @@ class CP2KCalculator(Calculator):
         self._env.cell = cell / Bohr
         self._env.positions = self.atoms.positions / Bohr
         try:
-            result = self._env.calculate()
+            result = self._env.calculate(stress="stress" in properties)
         except SCFConvergenceError as error:
             raise CalculationFailed(str(error)) from error
         # As in ASE's shell calculator, use CP2K's variational total energy.
@@ -177,6 +178,9 @@ class CP2KCalculator(Calculator):
             "free_energy": result.energy * Hartree,
             "forces": result.forces * (Hartree / Bohr),
         }
+        if result.stress is not None:
+            tensor = -result.stress * Hartree / Bohr**3
+            self.results["stress"] = tensor.flat[[0, 4, 8, 5, 2, 1]]
 
     def close(self):
         if not self._closed:

@@ -13,8 +13,19 @@ rm -rf /var/lib/apt/lists/*
 python3 -m venv /opt/python-interface-venv
 export PATH="/opt/python-interface-venv/bin:$PATH"
 cd /opt/cp2k
-pip3 install './python[test]'
+pip3 install './python[test,openmm]'
 pip3 check
+
+# A small serial LAMMPS build avoids relying on a wheel's bundled MPI ABI.
+git clone --quiet --depth=1 --branch stable_22Jul2025_update4 \
+  https://github.com/lammps/lammps.git /opt/lammps
+cmake -S /opt/lammps/cmake -B /opt/lammps/build \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_MPI=OFF \
+  -DPKG_MISC=ON -DBUILD_OMP=OFF
+cmake --build /opt/lammps/build --target lammps -j "$(nproc)"
+export PYTHONPATH="/opt/lammps/python${PYTHONPATH:+:${PYTHONPATH}}"
+export LD_LIBRARY_PATH="/opt/lammps/build${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+export CP2K_TEST_LAMMPS=1
 
 echo -e "\n========== Direct Python Interface Tests =========="
 export CP2K_TEST_LIBRARY=/opt/cp2k/build/src/libcp2k.so

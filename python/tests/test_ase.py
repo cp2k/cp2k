@@ -5,7 +5,7 @@ from copy import deepcopy
 import numpy as np
 import pytest
 from ase import Atoms
-from ase.calculators.calculator import CalculationFailed, PropertyNotImplementedError
+from ase.calculators.calculator import CalculationFailed
 
 from cp2k._units import BOHR_TO_ANGSTROM as Bohr, HARTREE_TO_EV as Hartree
 from cp2k.ase import CP2KCalculator
@@ -55,8 +55,10 @@ def test_ase_conversion_and_caching(runtime, fake_library, tmp_path, monkeypatch
         calc.set(inp={"FORCE_EVAL": {"METHOD": "FIST"}})
         atoms.get_potential_energy()
         assert fake_library.counter == 3
-        with pytest.raises(PropertyNotImplementedError):
-            atoms.get_stress()
+        np.testing.assert_allclose(
+            atoms.get_stress(),
+            -fake_library.stress.flat[[0, 4, 8, 5, 2, 1]] * Hartree / Bohr**3,
+        )
     assert inp == saved
     with pytest.raises(RuntimeError, match="closed"):
         atoms.get_potential_energy()

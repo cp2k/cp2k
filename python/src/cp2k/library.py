@@ -66,6 +66,8 @@ def _load_library(path):
     }
     if hasattr(lib, "cp2k_init_without_mpi_comm"):
         signatures["init_without_mpi_comm"] = [ct.c_int]
+    if hasattr(lib, "cp2k_get_stress_tensor"):
+        signatures["get_stress_tensor"] = [ct.c_int, _DP, ct.POINTER(ct.c_int)]
     if hasattr(lib, "cp2k_get_scf_convergence"):
         signatures["get_scf_convergence"] = [ct.c_int, ct.POINTER(ct.c_int)]
     for function, arguments in signatures.items():
@@ -110,10 +112,17 @@ def _array(values, shape, name):
 
 @dataclass(frozen=True)
 class CalculationResult:
-    """Energy/forces in atomic units; SCF status is None when unavailable."""
+    """Atomic-unit results; stress/virial are potential-only, pressure-positive.
+
+    Stress has units hartree/bohr**3; virial = stress * volume has units hartree.
+    Both are Cartesian (3, 3) tensors, with no kinetic contribution.
+    SCF status is None when unavailable.
+    """
 
     energy: float
     forces: np.ndarray | None
+    stress: np.ndarray | None = None
+    virial: np.ndarray | None = None
     scf_converged: bool | None = field(default=None, kw_only=True)
 
 
@@ -303,12 +312,18 @@ class ForceEnvironment:
         self._closed = False
         self._energy_valid = False
         self._forces_valid = False
+        self._stress_valid = False
         self._scf_converged = None
 
     def _check(self):
         self._runtime._check()
         if self._closed:
             raise RuntimeError("The CP2K force environment is closed")
+
+    @property
+    def communicator(self):
+        """Caller-side communicator, or None for a single-process caller."""
+        return self._runtime._comm
 
     def _count(self, name):
         self._check()
@@ -346,7 +361,7 @@ class ForceEnvironment:
         if sized:
             args.append(array.size)
         # Invalidate before entering native code; never expose stale results.
-        self._energy_valid = self._forces_valid = False
+        self._energy_valid = self._forces_valid = self._stress_valid = False
         self._scf_converged = None
         getattr(self._runtime._lib, "cp2k_set_" + name)(*args)
 
@@ -389,23 +404,46 @@ class ForceEnvironment:
         return self._get_array("forces", (self.nparticle, 3))
 
     @property
+    def stress(self):
+        """Potential pressure-positive Cartesian stress in hartree/bohr**3."""
+        self._check()
+        if not self._stress_valid:
+            raise RuntimeError("Call calculate(stress=True) before requesting stress")
+        result = np.empty((3, 3), dtype=np.float64, order="F")
+        available = ct.c_int()
+        self._runtime._lib.cp2k_get_stress_tensor(
+            self._handle, result.ctypes.data_as(_DP), ct.byref(available)
+        )
+        if not available.value:
+            raise RuntimeError("Enable FORCE_EVAL/STRESS_TENSOR in the CP2K input")
+        return result
+
+    @property
+    def virial(self):
+        """Potential pressure-positive Cartesian virial in hartree."""
+        return self.stress * np.linalg.det(self.cell)
+
+    @property
     def scf_converged(self):
         """True/False for the last SCF, or None if invalidated/unavailable."""
         self._check()
         return self._scf_converged
 
-    def calculate(self, *, forces=True, check_convergence=True):
+    def calculate(self, *, forces=True, stress=False, check_convergence=True):
         """Recalculate, raising on a reported SCF failure by default.
 
         check_convergence=False permits diagnostic unconverged results. Unknown
         status (older libraries or unsupported solvers) remains None, not True.
         This does not suppress native aborts: to inspect failed SCF results,
         explicitly enable SCF/IGNORE_CONVERGENCE_FAILURE in the CP2K input.
+        Stress requires STRESS_TENSOR input and also computes native forces.
         """
         self._check()
-        self._energy_valid = self._forces_valid = False
+        self._energy_valid = self._forces_valid = self._stress_valid = False
         self._scf_converged = None
-        method = "cp2k_calc_energy_force" if forces else "cp2k_calc_energy"
+        if stress and not hasattr(self._runtime._lib, "cp2k_get_stress_tensor"):
+            raise RuntimeError("This libcp2k lacks cp2k_get_stress_tensor")
+        method = "cp2k_calc_energy_force" if forces or stress else "cp2k_calc_energy"
         getattr(self._runtime._lib, method)(self._handle)
         query = getattr(self._runtime._lib, "cp2k_get_scf_convergence", None)
         if query is not None:
@@ -421,16 +459,23 @@ class ForceEnvironment:
             )
         self._energy_valid = True
         self._forces_valid = bool(forces)
-        result = CalculationResult(
-            self.potential_energy,
-            self.forces if forces else None,
-            scf_converged=self._scf_converged,
-        )
-        if not np.isfinite(result.energy) or (
-            result.forces is not None and not np.isfinite(result.forces).all()
-        ):
-            self._energy_valid = self._forces_valid = False
-            raise RuntimeError("CP2K returned non-finite energy or forces")
+        self._stress_valid = bool(stress)
+        try:
+            result = CalculationResult(
+                self.potential_energy,
+                self.forces if forces else None,
+                self.stress if stress else None,
+                self.virial if stress else None,
+                scf_converged=self._scf_converged,
+            )
+            if not np.isfinite(result.energy) or any(
+                value is not None and not np.isfinite(value).all()
+                for value in (result.forces, result.stress, result.virial)
+            ):
+                raise RuntimeError("CP2K returned non-finite energy, forces, or stress")
+        except Exception:
+            self._energy_valid = self._forces_valid = self._stress_valid = False
+            raise
         return result
 
     def close(self):
