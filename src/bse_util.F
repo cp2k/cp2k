@@ -81,7 +81,7 @@ MODULE bse_util
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_util'
 
    PUBLIC :: invert_static_screening, screen_slabs, bse_window_from_dft, fm_general_add_bse, truncate_fm, &
-             deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations, &
+             comp_eigvec_coeff_BSE, sort_excitations, &
              estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices, &
              adapt_BSE_input_params, get_multipoles_mo, &
              reshuffle_eigvec, print_bse_nto_cubes, trace_exciton_descr, &
@@ -801,44 +801,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE truncate_fm
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fm_mat_S_bar_ia_bse ...
-!> \param fm_mat_S_bar_ij_bse ...
-!> \param fm_mat_S_trunc ...
-!> \param fm_mat_S_ij_trunc ...
-!> \param fm_mat_S_ab_trunc ...
-!> \param fm_mat_Q_static_bse_gemm ...
-!> \param bse_env the BSE environment (settings)
-! **************************************************************************************************
-   SUBROUTINE deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
-                                      fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
-                                      fm_mat_Q_static_bse_gemm, bse_env)
-
-      TYPE(cp_fm_type), INTENT(INOUT) :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_trunc, &
-         fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, fm_mat_Q_static_bse_gemm
-      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_matrices_bse'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_release(fm_mat_S_bar_ia_bse)
-      CALL cp_fm_release(fm_mat_S_bar_ij_bse)
-      CALL cp_fm_release(fm_mat_S_trunc)
-      CALL cp_fm_release(fm_mat_S_ij_trunc)
-      CALL cp_fm_release(fm_mat_S_ab_trunc)
-      CALL cp_fm_release(fm_mat_Q_static_bse_gemm)
-      IF (bse_env%do_nto_analysis) THEN
-         DEALLOCATE (bse_env%bse_nto_state_list_final)
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE deallocate_matrices_bse
 
 ! **************************************************************************************************
 !> \brief Routine for computing the coefficients of the eigenvectors of the BSE matrix from a

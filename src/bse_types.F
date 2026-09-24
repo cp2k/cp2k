@@ -128,8 +128,9 @@ MODULE bse_types
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Releases the state and nullifies every pointer; the two lists that point into the input
-!>        tree are nullified and never deallocated. Safe on an environment that was never prepared.
+!> \brief Releases the state a GW path prepared and nullifies the QS pointers; the settings stay,
+!>        including the section pointer and the two lists into the input tree, since a later energy
+!>        evaluation on the same environment runs the BSE again. Safe on an unprepared environment.
 !> \param bse_env ...
 ! **************************************************************************************************
    SUBROUTINE bse_env_release(bse_env)
@@ -154,8 +155,7 @@ CONTAINS
       IF (ALLOCATED(bse_env%bse_nto_state_list_final)) DEALLOCATE (bse_env%bse_nto_state_list_final)
       NULLIFY (bse_env%para_env, bse_env%blacs_env, bse_env%subsys, bse_env%pw_env, &
                bse_env%dft_control, bse_env%mos, bse_env%matrix_s, bse_env%sab_orb, &
-               bse_env%exstate_env, bse_env%bse_section)
-      NULLIFY (bse_env%bse_eta_spectrum_list, bse_env%bse_nto_state_list)
+               bse_env%exstate_env)
 
    END SUBROUTINE bse_env_release
 
