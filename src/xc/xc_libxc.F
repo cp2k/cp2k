@@ -188,6 +188,11 @@ MODULE xc_libxc
    INTEGER, PARAMETER, PRIVATE :: libxc_block_min = 64
    INTEGER, PARAMETER, PRIVATE :: libxc_block_max = 512
 
+   ! Scan every device result for NaNs before accumulating it. Useful when
+   ! debugging the GPU path, but it is an O(npoints) pass over the full block on
+   ! the host after every LibXC call, so it is compiled out by default.
+   LOGICAL, PARAMETER, PRIVATE :: libxc_check_nan = .FALSE.
+
 ! **************************************************************************************************
 !> \brief One LibXC functional object plus the buffers used to hand it a block of
 !>        grid points. One of these is kept per OpenMP thread so that neither the
@@ -968,6 +973,227 @@ CONTAINS
       #:endfor
 
    END SUBROUTINE libxc_worker_free_buffers
+
+! **************************************************************************************************
+!> \brief Grows a worker's staging and device buffers to hold at least npoints
+!>        grid points.
+!> \param worker the worker
+!> \param family LibXC functional family
+!> \param nspin XC_UNPOLARIZED or XC_POLARIZED
+!> \param grad_deriv highest derivative order the buffers were allocated for
+!> \param npoints number of grid points the buffers must hold
+!> \author S. Lehtola
+!> \note Only used on the GPU path, where the whole grid is handed to LibXC in
+!>       a single call (no block cap), so the staging and device buffers have
+!>       to hold the entire grid. They grow to the largest point count seen and
+!>       are reused (never shrunk) for the run. Only the arrays the worker
+!>       actually carries are touched, mirroring libxc_worker_alloc_buffers.
+! **************************************************************************************************
+   SUBROUTINE libxc_worker_resize_cuda(worker, family, nspin, grad_deriv, npoints)
+      TYPE(libxc_worker_type), INTENT(INOUT)             :: worker
+      INTEGER, INTENT(IN)                                :: family, nspin, grad_deriv, npoints
+
+      INTEGER                                            :: nl, np, ns
+      LOGICAL                                            :: pol
+
+      pol = (nspin == XC_POLARIZED)
+      ! number of components per point, cf. the LibXC manual
+      IF (pol) THEN
+         np = 2   ! rho, vrho, lapl, tau, vlapl, vtau
+         ns = 3   ! sigma, vsigma, v2rho2, v2lapl2, v2tau2
+         nl = 4   ! v2rholapl, v2rhotau, v2lapltau, v3rho3
+      ELSE
+         np = 1
+         ns = 1
+         nl = 1
+      END IF
+
+      ! grow the host staging buffers that are actually allocated
+      IF (ALLOCATED(worker%rho)) THEN
+         IF (SIZE(worker%rho, 2) < npoints) THEN
+            DEALLOCATE (worker%rho)
+            ALLOCATE (worker%rho(np, npoints))
+         END IF
+      END IF
+      IF (ALLOCATED(worker%exc)) THEN
+         IF (SIZE(worker%exc) < npoints) THEN
+            DEALLOCATE (worker%exc)
+            ALLOCATE (worker%exc(npoints))
+         END IF
+      END IF
+      IF (ALLOCATED(worker%vrho)) THEN
+         IF (SIZE(worker%vrho, 2) < npoints) THEN
+            DEALLOCATE (worker%vrho)
+            ALLOCATE (worker%vrho(np, npoints))
+         END IF
+      END IF
+      IF (ALLOCATED(worker%v2rho2)) THEN
+         IF (SIZE(worker%v2rho2, 2) < npoints) THEN
+            DEALLOCATE (worker%v2rho2)
+            ALLOCATE (worker%v2rho2(ns, npoints))
+         END IF
+      END IF
+      IF (ALLOCATED(worker%v3rho3)) THEN
+         IF (SIZE(worker%v3rho3, 2) < npoints) THEN
+            DEALLOCATE (worker%v3rho3)
+            ALLOCATE (worker%v3rho3(nl, npoints))
+         END IF
+      END IF
+
+      SELECT CASE (family)
+      CASE (XC_FAMILY_GGA, XC_FAMILY_HYB_GGA, XC_FAMILY_MGGA, XC_FAMILY_HYB_MGGA)
+         IF (ALLOCATED(worker%sigma)) THEN
+            IF (SIZE(worker%sigma, 2) < npoints) THEN
+               DEALLOCATE (worker%sigma)
+               ALLOCATE (worker%sigma(ns, npoints))
+            END IF
+         END IF
+         IF (ALLOCATED(worker%vsigma)) THEN
+            IF (SIZE(worker%vsigma, 2) < npoints) THEN
+               DEALLOCATE (worker%vsigma)
+               ALLOCATE (worker%vsigma(ns, npoints))
+            END IF
+         END IF
+         IF (pol) THEN
+            IF (ALLOCATED(worker%nd) .AND. SIZE(worker%nd) < npoints) THEN
+               DEALLOCATE (worker%nd, worker%nda, worker%ndb)
+               ALLOCATE (worker%nd(npoints), worker%nda(npoints), worker%ndb(npoints))
+            END IF
+         END IF
+         IF (ALLOCATED(worker%v2rhosigma)) THEN
+            IF (SIZE(worker%v2rhosigma, 2) < npoints) THEN
+               DEALLOCATE (worker%v2rhosigma)
+               ALLOCATE (worker%v2rhosigma(MERGE(6, 1, pol), npoints))
+            END IF
+         END IF
+         IF (ALLOCATED(worker%v2sigma2)) THEN
+            IF (SIZE(worker%v2sigma2, 2) < npoints) THEN
+               DEALLOCATE (worker%v2sigma2)
+               ALLOCATE (worker%v2sigma2(MERGE(6, 1, pol), npoints))
+            END IF
+         END IF
+         #:for arr, dim in [("v3rho2sigma", "MERGE(9, 1, pol)"), &
+                            ("v3rhosigma2", "MERGE(12, 1, pol)"), &
+                            ("v3sigma3", "MERGE(10, 1, pol)")]
+            IF (ALLOCATED(worker%${arr}$)) THEN
+               IF (SIZE(worker%${arr}$, 2) < npoints) THEN
+                  DEALLOCATE (worker%${arr}$)
+                  ALLOCATE (worker%${arr}$(${dim}$, npoints))
+               END IF
+            END IF
+         #:endfor
+      END SELECT
+
+      SELECT CASE (family)
+      CASE (XC_FAMILY_MGGA, XC_FAMILY_HYB_MGGA)
+         #:for arr, dim in [("lapl", "np"), ("tau", "np"), ("vlapl", "np"), ("vtau", "np")]
+            IF (ALLOCATED(worker%${arr}$)) THEN
+               IF (SIZE(worker%${arr}$, 2) < npoints) THEN
+                  DEALLOCATE (worker%${arr}$)
+                  ALLOCATE (worker%${arr}$(${dim}$, npoints))
+               END IF
+            END IF
+         #:endfor
+         ! LibXC leaves vlapl untouched for functionals that do not use the
+         ! Laplacian; re-zero a freshly grown buffer as in the initial alloc.
+         IF (ALLOCATED(worker%vlapl)) worker%vlapl = 0.0_dp
+         #:for arr, dim in [("v2rholapl", "nl"), ("v2rhotau", "nl"), &
+                            ("v2sigmalapl", "MERGE(6, 1, pol)"), &
+                            ("v2sigmatau", "MERGE(6, 1, pol)"), &
+                            ("v2lapl2", "ns"), ("v2lapltau", "nl"), ("v2tau2", "ns")]
+            IF (ALLOCATED(worker%${arr}$)) THEN
+               IF (SIZE(worker%${arr}$, 2) < npoints) THEN
+                  DEALLOCATE (worker%${arr}$)
+                  ALLOCATE (worker%${arr}$(${dim}$, npoints))
+               END IF
+            END IF
+         #:endfor
+         #:for arr in v3_new
+            IF (ALLOCATED(worker%${arr}$)) THEN
+               IF (SIZE(worker%${arr}$, 2) < npoints) THEN
+                  DEALLOCATE (worker%${arr}$)
+                  ALLOCATE (worker%${arr}$ (MERGE(${mgga_ncomp[arr]}$, 1, pol), npoints))
+               END IF
+            END IF
+         #:endfor
+      END SELECT
+
+      ! grow the CUDA device buffers that are actually allocated. Device buffer
+      ! sizes are tracked in doubles, matching the element count. Each is grown
+      ! only when the matching host staging buffer exists, so the derivative
+      ! order guards of libxc_worker_alloc_buffers are respected.
+      #:for arr, dim in [("rho_d", "np"), ("exc_d", "1"), ("vrho_d", "np")]
+         IF (INT(worker%${arr}$%size) < ${dim}$*npoints) THEN
+            CALL libxc_device_buffer_alloc(worker%${arr}$, ${dim}$*npoints)
+         END IF
+      #:endfor
+      IF (ALLOCATED(worker%v2rho2)) THEN
+         IF (INT(worker%v2rho2_d%size) < ns*npoints) THEN
+            CALL libxc_device_buffer_alloc(worker%v2rho2_d, ns*npoints)
+         END IF
+      END IF
+      IF (ALLOCATED(worker%v3rho3)) THEN
+         IF (INT(worker%v3rho3_d%size) < nl*npoints) THEN
+            CALL libxc_device_buffer_alloc(worker%v3rho3_d, nl*npoints)
+         END IF
+      END IF
+
+      SELECT CASE (family)
+      CASE (XC_FAMILY_GGA, XC_FAMILY_HYB_GGA, XC_FAMILY_MGGA, XC_FAMILY_HYB_MGGA)
+         IF (INT(worker%sigma_d%size) < ns*npoints) THEN
+            CALL libxc_device_buffer_alloc(worker%sigma_d, ns*npoints)
+         END IF
+         IF (INT(worker%vsigma_d%size) < ns*npoints) THEN
+            CALL libxc_device_buffer_alloc(worker%vsigma_d, ns*npoints)
+         END IF
+         IF (ALLOCATED(worker%v2rhosigma)) THEN
+            IF (INT(worker%v2rhosigma_d%size) < MERGE(6, 1, pol)*npoints) THEN
+               CALL libxc_device_buffer_alloc(worker%v2rhosigma_d, MERGE(6, 1, pol)*npoints)
+            END IF
+         END IF
+         IF (ALLOCATED(worker%v2sigma2)) THEN
+            IF (INT(worker%v2sigma2_d%size) < MERGE(6, 1, pol)*npoints) THEN
+               CALL libxc_device_buffer_alloc(worker%v2sigma2_d, MERGE(6, 1, pol)*npoints)
+            END IF
+         END IF
+         #:for arr, dim in [("v3rho2sigma", "MERGE(9, 1, pol)"), &
+                            ("v3rhosigma2", "MERGE(12, 1, pol)"), &
+                            ("v3sigma3", "MERGE(10, 1, pol)")]
+            IF (ALLOCATED(worker%${arr}$)) THEN
+               IF (INT(worker%${arr}$_d%size) < ${dim}$*npoints) THEN
+                  CALL libxc_device_buffer_alloc(worker%${arr}$_d, ${dim}$*npoints)
+               END IF
+            END IF
+         #:endfor
+      END SELECT
+
+      SELECT CASE (family)
+      CASE (XC_FAMILY_MGGA, XC_FAMILY_HYB_MGGA)
+         #:for arr, dim in [("lapl", "np"), ("tau", "np"), ("vlapl", "np"), ("vtau", "np")]
+            IF (INT(worker%${arr}$_d%size) < ${dim}$*npoints) THEN
+               CALL libxc_device_buffer_alloc(worker%${arr}$_d, ${dim}$*npoints)
+            END IF
+         #:endfor
+         #:for arr, dim in [("v2rholapl", "nl"), ("v2rhotau", "nl"), &
+                            ("v2sigmalapl", "MERGE(6, 1, pol)"), &
+                            ("v2sigmatau", "MERGE(6, 1, pol)"), &
+                            ("v2lapl2", "ns"), ("v2lapltau", "nl"), ("v2tau2", "ns")]
+            IF (ALLOCATED(worker%${arr}$)) THEN
+               IF (INT(worker%${arr}$_d%size) < ${dim}$*npoints) THEN
+                  CALL libxc_device_buffer_alloc(worker%${arr}$_d, ${dim}$*npoints)
+               END IF
+            END IF
+         #:endfor
+         #:for arr in v3_new
+            IF (ALLOCATED(worker%${arr}$)) THEN
+               IF (INT(worker%${arr}$_d%size) < MERGE(${mgga_ncomp[arr]}$, 1, pol)*npoints) THEN
+                  CALL libxc_device_buffer_alloc(worker%${arr}$_d, MERGE(${mgga_ncomp[arr]}$, 1, pol)*npoints)
+               END IF
+            END IF
+         #:endfor
+      END SELECT
+
+   END SUBROUTINE libxc_worker_resize_cuda
 
 ! **************************************************************************************************
 !> \brief Makes sure the placeholder for unproduced derivatives holds npoints values.
@@ -2243,10 +2469,18 @@ CONTAINS
    ! backend needs this: on a CPU/HOST run it is a per-call CUDA-roundtrip.
    IF (libxc_is_gpu()) CALL offload_activate_chosen_device()
 
-   ! Cap the block at what the staging buffers were actually allocated for,
-   ! but shrink it when there are too few points to give every thread a block
-   ! of its own: small atomic grids would otherwise all be evaluated by thread 0.
-   bsize = MAX(1, MIN(workers%worker(1)%nb, (npoints + nthreads - 1)/nthreads))
+   ! On the GPU path the whole grid is handed to LibXC in a single call (no
+   ! block cap), so the per-thread staging and device buffers are grown to
+   ! npoints on demand; one large kernel and one synchronize beat hundreds of
+   ! cache-sized launches. The CPU/OpenMP blocking is left untouched: cap the
+   ! block at what the staging buffers were allocated for, but shrink it when
+   ! there are too few points to give every thread a block of its own, so small
+   ! atomic grids are not all evaluated by thread 0.
+   IF (libxc_is_gpu()) THEN
+      bsize = npoints
+   ELSE
+      bsize = MAX(1, MIN(workers%worker(1)%nb, (npoints + nthreads - 1)/nthreads))
+   END IF
    nblocks = (npoints + bsize - 1)/bsize
 
    family = workers%family
@@ -2275,6 +2509,15 @@ CONTAINS
               eps_tau => workers%epsilon_tau)
       !$OMP    DO
       DO ib = 1, nblocks
+         ! The single-call GPU path needs buffers that hold the whole grid. Since
+         ! it sets bsize = npoints there is exactly one block, so grow the
+         ! executing thread's buffers inside the loop body: only the thread that
+         ! actually runs the block allocates the full-grid staging and device
+         ! buffers instead of every thread allocating its own copy. The resize
+         ! is a no-op once the buffers have reached the largest point count seen.
+         IF (libxc_is_gpu()) THEN
+            CALL libxc_worker_resize_cuda(w, workers%family, workers%nspin, grad_deriv, npoints)
+         END IF
          i0 = (ib - 1)*bsize
          nb = MIN(bsize, npoints - i0)
          np = INT(nb, KIND=C_SIZE_T)
@@ -2513,13 +2756,15 @@ CONTAINS
                   END IF
                #:endfor
             END IF
-            IF (ANY(w%exc(1:nb) /= w%exc(1:nb)) .OR. &
-                (grad_deriv >= 1 .AND. ANY(w%vrho(:, 1:nb) /= w%vrho(:, 1:nb)))) THEN
-               WRITE (*, *) "NaN DETECTED: family=", family, " is_gga=", is_gga, " is_mgga=", is_mgga, &
-                  " grad_deriv=", grad_deriv, " no_exc=", no_exc, " nb=", nb
-               WRITE (*, *) "exc has NaN:", ANY(w%exc(1:nb) /= w%exc(1:nb))
-               IF (grad_deriv >= 1) WRITE (*, *) "vrho has NaN:", ANY(w%vrho(:, 1:nb) /= w%vrho(:, 1:nb))
-               CPABORT("NaN found right after device_to_host")
+            IF (libxc_check_nan) THEN
+               IF (ANY(w%exc(1:nb) /= w%exc(1:nb)) .OR. &
+                   (grad_deriv >= 1 .AND. ANY(w%vrho(:, 1:nb) /= w%vrho(:, 1:nb)))) THEN
+                  WRITE (*, *) "NaN DETECTED: family=", family, " is_gga=", is_gga, " is_mgga=", is_mgga, &
+                     " grad_deriv=", grad_deriv, " no_exc=", no_exc, " nb=", nb
+                  WRITE (*, *) "exc has NaN:", ANY(w%exc(1:nb) /= w%exc(1:nb))
+                  IF (grad_deriv >= 1) WRITE (*, *) "vrho has NaN:", ANY(w%vrho(:, 1:nb) /= w%vrho(:, 1:nb))
+                  CPABORT("NaN found right after device_to_host")
+               END IF
             END IF
          ELSE
             IF (is_mgga) THEN
@@ -2892,9 +3137,14 @@ CPASSERT(ithread < SIZE(workers%worker))
 ! backend needs this; on a CPU/HOST run it is a per-call CUDA-roundtrip.
 IF (libxc_is_gpu()) CALL offload_activate_chosen_device()
 
-! Cap the block at what the staging buffers were actually allocated for, but
-! shrink it so every thread gets a block of its own on small grids.
-bsize = MAX(1, MIN(workers%worker(1)%nb, (npoints + nthreads - 1)/nthreads))
+! See the spin-unpolarized calc: on the GPU path the whole grid is evaluated
+! in a single LibXC call, while the CPU/OpenMP path keeps its per-footprint
+! block cap (shrunk so every thread gets a block on small grids).
+IF (libxc_is_gpu()) THEN
+   bsize = npoints
+ELSE
+   bsize = MAX(1, MIN(workers%worker(1)%nb, (npoints + nthreads - 1)/nthreads))
+END IF
 nblocks = (npoints + bsize - 1)/bsize
 
 family = workers%family
@@ -2921,6 +3171,13 @@ ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace,
            eps_tau => workers%epsilon_tau)
 !$OMP    DO
    DO ib = 1, nblocks
+      ! The single-call GPU path needs buffers that hold the whole grid (see the
+      ! spin-unpolarized routine); it runs exactly one block, so the executing
+      ! thread grows its own buffers here rather than every thread doing so
+      ! before the loop. A no-op once they have reached full size.
+      IF (libxc_is_gpu()) THEN
+         CALL libxc_worker_resize_cuda(w, workers%family, workers%nspin, grad_deriv, npoints)
+      END IF
       i0 = (ib - 1)*bsize
       nb = MIN(bsize, npoints - i0)
       np = INT(nb, KIND=C_SIZE_T)
@@ -3172,13 +3429,15 @@ ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace,
             #:endfor
          END IF
 
-         IF (ANY(w%exc(1:nb) /= w%exc(1:nb)) .OR. &
-             (grad_deriv >= 1 .AND. ANY(w%vrho(:, 1:nb) /= w%vrho(:, 1:nb)))) THEN
-            WRITE (*, *) "NaN DETECTED: family=", family, " is_gga=", is_gga, " is_mgga=", is_mgga, &
-               " grad_deriv=", grad_deriv, " no_exc=", no_exc, " nb=", nb
-            WRITE (*, *) "exc has NaN:", ANY(w%exc(1:nb) /= w%exc(1:nb))
-            IF (grad_deriv >= 1) WRITE (*, *) "vrho has NaN:", ANY(w%vrho(:, 1:nb) /= w%vrho(:, 1:nb))
-            CPABORT("NaN found right after device_to_host")
+         IF (libxc_check_nan) THEN
+            IF (ANY(w%exc(1:nb) /= w%exc(1:nb)) .OR. &
+                (grad_deriv >= 1 .AND. ANY(w%vrho(:, 1:nb) /= w%vrho(:, 1:nb)))) THEN
+               WRITE (*, *) "NaN DETECTED: family=", family, " is_gga=", is_gga, " is_mgga=", is_mgga, &
+                  " grad_deriv=", grad_deriv, " no_exc=", no_exc, " nb=", nb
+               WRITE (*, *) "exc has NaN:", ANY(w%exc(1:nb) /= w%exc(1:nb))
+               IF (grad_deriv >= 1) WRITE (*, *) "vrho has NaN:", ANY(w%vrho(:, 1:nb) /= w%vrho(:, 1:nb))
+               CPABORT("NaN found right after device_to_host")
+            END IF
          END IF
       ELSE
          IF (is_mgga) THEN

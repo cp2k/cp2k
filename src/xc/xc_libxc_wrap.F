@@ -705,6 +705,12 @@ CONTAINS
       TYPE(libxc_device_buffer_type), INTENT(INOUT)      :: buffer
       INTEGER, INTENT(IN)                                :: n
 
+      ! Release any previous allocation first: the GPU path regrows the device
+      ! buffers to the whole grid (libxc_worker_resize_cuda), and
+      ! offload_create_buffer does not free the old device pointer on its own.
+      ! Freeing a buffer that was never allocated is a no-op.
+      CALL libxc_device_buffer_free(buffer)
+
       buffer%size = INT(n, KIND=C_INT64_T)
       CALL offload_create_buffer(n, buffer%buffer)
    END SUBROUTINE libxc_device_buffer_alloc
