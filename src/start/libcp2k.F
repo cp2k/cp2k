@@ -32,8 +32,8 @@ MODULE libcp2k
    USE f77_interface,                   ONLY: &
         calc_energy_force, create_force_env, default_para_env, destroy_force_env, &
         f_env_add_defaults, f_env_rm_defaults, f_env_type, finalize_cp2k, get_cell, get_energy, &
-        get_force, get_natom, get_nparticle, get_pos, get_qmmm_cell, get_result_r1, init_cp2k, &
-        set_cell, set_pos, set_vel
+        get_force, get_natom, get_nparticle, get_pos, get_qmmm_cell, get_result_r1, &
+        get_stress_tensor, init_cp2k, set_cell, set_pos, set_vel
    USE force_env_types,                 ONLY: force_env_get,&
                                               use_qs_force
    USE input_cp2k,                      ONLY: create_cp2k_root_section
@@ -57,7 +57,7 @@ MODULE libcp2k
              cp2k_finalize, cp2k_finalize_without_mpi, cp2k_create_force_env, &
              cp2k_create_force_env_comm, cp2k_destroy_force_env, cp2k_set_positions, &
              cp2k_set_velocities, cp2k_set_cell, cp2k_get_result, cp2k_get_natom, &
-             cp2k_get_nparticle, cp2k_get_positions, cp2k_get_forces, &
+             cp2k_get_nparticle, cp2k_get_positions, cp2k_get_forces, cp2k_get_stress_tensor, &
              cp2k_get_potential_energy, cp2k_get_cell, cp2k_get_qmmm_cell, &
              cp2k_get_scf_convergence, &
              cp2k_calc_energy_force, cp2k_calc_energy, cp2k_run_input, cp2k_run_input_comm, &
@@ -350,6 +350,25 @@ CONTAINS
       CALL get_force(env_id, force, n_el, ierr)
       CPASSERT(ierr == 0)
    END SUBROUTINE cp2k_get_forces
+
+! **************************************************************************************************
+!> \brief Get the configurational stress (pressure-positive, atomic units).
+!> \param env_id Force environment ID
+!> \param stress_tensor Column-major 3x3 tensor
+!> \param available 1 if stress was enabled in the input, otherwise 0 (tensor is zero).
+! **************************************************************************************************
+   SUBROUTINE cp2k_get_stress_tensor(env_id, stress_tensor, available) BIND(C)
+      INTEGER(C_INT), VALUE                              :: env_id
+      REAL(C_DOUBLE), DIMENSION(3, 3), INTENT(OUT)       :: stress_tensor
+      INTEGER(C_INT), INTENT(OUT)                        :: available
+
+      INTEGER                                            :: ierr
+      LOGICAL                                            :: has_stress
+
+      CALL get_stress_tensor(env_id, stress_tensor, ierr, available=has_stress)
+      CPASSERT(ierr == 0)
+      available = MERGE(1, 0, has_stress)
+   END SUBROUTINE cp2k_get_stress_tensor
 
 ! **************************************************************************************************
 !> \brief ...
