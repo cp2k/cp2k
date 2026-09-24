@@ -1195,13 +1195,15 @@ CONTAINS
 !> \param cutoff_occ ENERGY_CUTOFF_OCC in Hartree, negative for no cutoff
 !> \param cutoff_empty ENERGY_CUTOFF_EMPTY in Hartree, negative for no cutoff
 !> \param window first and last MO to keep
+!> \param warn warn when the spin windows differ; false for a second call in the same run
 ! **************************************************************************************************
-   SUBROUTINE bse_window_from_dft(eigenval_scf, n_mo, homo, cutoff_occ, cutoff_empty, window)
+   SUBROUTINE bse_window_from_dft(eigenval_scf, n_mo, homo, cutoff_occ, cutoff_empty, window, warn)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eigenval_scf
       INTEGER, DIMENSION(:), INTENT(IN)                  :: n_mo, homo
       REAL(KIND=dp), INTENT(IN)                          :: cutoff_occ, cutoff_empty
       TYPE(mo_window_type), INTENT(OUT)                  :: window
+      LOGICAL, INTENT(IN)                                :: warn
 
       INTEGER                                            :: ispin, nspins
       LOGICAL                                            :: spins_differ
@@ -1215,7 +1217,7 @@ CONTAINS
       END DO
       IF (nspins > 1) THEN
          CALL combine_mo_windows(spin_windows, window, spins_differ)
-         IF (spins_differ) THEN
+         IF (spins_differ .AND. warn) THEN
             CPWARN("BSE: spin-resolved active MO cutoff candidates differ; using combined window.")
          END IF
       ELSE

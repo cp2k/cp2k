@@ -161,7 +161,7 @@ CONTAINS
       ALLOCATE (n_mo(nspins))
       n_mo(:) = homo(:) + virtual(:)
       CALL bse_window_from_dft(Eigenval_scf(:, 1, :), n_mo, homo, bse_env%bse_cutoff_occ, &
-                               bse_env%bse_cutoff_empty, window)
+                               bse_env%bse_cutoff_empty, window, warn=.TRUE.)
       DEALLOCATE (n_mo)
 
       ALLOCATE (bse_env%homo_red(nspins), bse_env%virt_red(nspins), bse_env%homo_full(nspins))
@@ -364,6 +364,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_fulldiag_memory_check'
 
       CHARACTER(LEN=16)                                  :: bud_str, mem_str
+      CHARACTER(LEN=64)                                  :: remedy
       INTEGER                                            :: handle, ispin, n_ov_joint, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: homo, n_mo
       LOGICAL                                            :: from_free, over, skipped
@@ -381,8 +382,9 @@ CONTAINS
          IF (ispin == 1) ALLOCATE (eigenval_dft(n_mo(1), nspins))
          eigenval_dft(:, ispin) = eigenvalues(1:n_mo(ispin))
       END DO
+      ! the preparer warns about a combined window; the estimate stays silent
       CALL bse_window_from_dft(eigenval_dft, n_mo, homo, bse_env%bse_cutoff_occ, &
-                               bse_env%bse_cutoff_empty, window)
+                               bse_env%bse_cutoff_empty, window, warn=.FALSE.)
       n_ov_joint = 0
       DO ispin = 1, nspins
          n_ov_joint = n_ov_joint + (homo(ispin) - window%first_mo + 1)*(window%last_mo - homo(ispin))
@@ -427,17 +429,23 @@ CONTAINS
       IF (over) THEN
          WRITE (mem_str, '(F16.3)') mem_est_GB
          WRITE (bud_str, '(F16.3)') budget_GB
+         ! ITERDIAG is closed-shell only, so an open-shell run is not pointed to it
+         IF (nspins == 1) THEN
+            remedy = "more MPI ranks, a tighter window, ITERDIAG"
+         ELSE
+            remedy = "more MPI ranks, a tighter window"
+         END IF
          SELECT CASE (bse_env%memory_check)
          CASE (bse_memcheck_warn, bse_memcheck_clamp)
             IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
                                           "BSE full diagonalization: the estimate of "//TRIM(ADJUSTL(mem_str))// &
                                           " GB per MPI rank exceeds the budget of "//TRIM(ADJUSTL(bud_str))// &
-                                          " GB. Use more MPI ranks, a tighter window, or ITERDIAG.")
+                                          " GB. Try one of: "//TRIM(remedy)//".")
          CASE (bse_memcheck_abort)
             CALL cp_abort(__LOCATION__, &
                           "BSE full diagonalization: the estimate of "//TRIM(ADJUSTL(mem_str))// &
                           " GB per MPI rank exceeds the budget of "//TRIM(ADJUSTL(bud_str))// &
-                          " GB. Use more MPI ranks, a tighter window, ITERDIAG, or MEMORY_CHECK WARN.")
+                          " GB. Try one of: "//TRIM(remedy)//", MEMORY_CHECK WARN.")
          END SELECT
       END IF
 
