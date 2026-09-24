@@ -986,9 +986,9 @@ CONTAINS
 !>       are reused (never shrunk) for the run. Only the arrays the worker
 !>       actually carries are touched, mirroring libxc_worker_alloc_buffers.
 ! **************************************************************************************************
-   SUBROUTINE libxc_worker_resize_cuda(worker, family, nspin, grad_deriv, npoints)
+   SUBROUTINE libxc_worker_resize_cuda(worker, family, nspin, npoints)
       TYPE(libxc_worker_type), INTENT(INOUT)             :: worker
-      INTEGER, INTENT(IN)                                :: family, nspin, grad_deriv, npoints
+      INTEGER, INTENT(IN)                                :: family, nspin, npoints
 
       INTEGER                                            :: nl, np, ns
       LOGICAL                                            :: pol
@@ -2507,7 +2507,7 @@ CONTAINS
       !$OMP    DO
       DO ib = 1, nblocks
          IF (libxc_is_gpu()) THEN
-            CALL libxc_worker_resize_cuda(w, workers%family, workers%nspin, grad_deriv, npoints)
+            CALL libxc_worker_resize_cuda(w, workers%family, workers%nspin, npoints)
          END IF
          i0 = (ib - 1)*bsize
          nb = MIN(bsize, npoints - i0)
@@ -3163,7 +3163,7 @@ ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace,
 !$OMP    DO
    DO ib = 1, nblocks
       IF (libxc_is_gpu()) THEN
-         CALL libxc_worker_resize_cuda(w, workers%family, workers%nspin, grad_deriv, npoints)
+         CALL libxc_worker_resize_cuda(w, workers%family, workers%nspin, npoints)
       END IF
       i0 = (ib - 1)*bsize
       nb = MIN(bsize, npoints - i0)
