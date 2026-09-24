@@ -1247,12 +1247,12 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Determines indices within the given energy cutoffs and truncates Eigenvalues and matrices
-!> \param fm_mat_S_ia_bse ...
-!> \param fm_mat_S_ij_bse ...
-!> \param fm_mat_S_ab_bse ...
-!> \param fm_mat_S_trunc ...
-!> \param fm_mat_S_ij_trunc ...
-!> \param fm_mat_S_ab_trunc ...
+!> \param fm_S_ia_full ...
+!> \param fm_S_ij_full ...
+!> \param fm_S_ab_full ...
+!> \param fm_S_ia ...
+!> \param fm_S_ij ...
+!> \param fm_S_ab ...
 !> \param Eigenval_scf ...
 !> \param Eigenval ...
 !> \param Eigenval_reduced_scf DFT energies of the window, allocated here
@@ -1268,8 +1268,8 @@ CONTAINS
 !> \param window Absolute MO window to retain.
 !> \param print_window Whether to print the cutoff summary.
 ! **************************************************************************************************
-   SUBROUTINE truncate_BSE_matrices(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                                    fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
+   SUBROUTINE truncate_BSE_matrices(fm_S_ia_full, fm_S_ij_full, fm_S_ab_full, &
+                                    fm_S_ia, fm_S_ij, fm_S_ab, &
                                     Eigenval_scf, Eigenval, Eigenval_reduced_scf, Eigenval_reduced_qp, &
                                     homo, virtual, dimen_RI, unit_nr, &
                                     ispin, &
@@ -1277,10 +1277,8 @@ CONTAINS
                                     bse_env, &
                                     window, print_window)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
-                                                            fm_mat_S_ab_bse
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_S_trunc, fm_mat_S_ij_trunc, &
-                                                            fm_mat_S_ab_trunc
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_S_ia_full, fm_S_ij_full, fm_S_ab_full
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_S_ia, fm_S_ij, fm_S_ab
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval_scf, Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced_scf, Eigenval_reduced_qp
       INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr, ispin
@@ -1344,16 +1342,16 @@ CONTAINS
       END IF
       !Truncate full fm_S matrices
       !Allocate new truncated matrices of proper size
-      para_env => fm_mat_S_ia_bse%matrix_struct%para_env
-      context => fm_mat_S_ia_bse%matrix_struct%context
+      para_env => fm_S_ia_full%matrix_struct%para_env
+      context => fm_S_ia_full%matrix_struct%context
 
       CALL cp_fm_struct_create(fm_struct_ia, para_env, context, dimen_RI, homo_red*virt_red)
       CALL cp_fm_struct_create(fm_struct_ij, para_env, context, dimen_RI, homo_red*homo_red)
       CALL cp_fm_struct_create(fm_struct_ab, para_env, context, dimen_RI, virt_red*virt_red)
 
-      CALL cp_fm_create(fm_mat_S_trunc, fm_struct_ia, name="fm_S_trunc", set_zero=.TRUE.)
-      CALL cp_fm_create(fm_mat_S_ij_trunc, fm_struct_ij, name="fm_S_ij_trunc", set_zero=.TRUE.)
-      CALL cp_fm_create(fm_mat_S_ab_trunc, fm_struct_ab, name="fm_S_ab_trunc", set_zero=.TRUE.)
+      CALL cp_fm_create(fm_S_ia, fm_struct_ia, name="fm_S_trunc", set_zero=.TRUE.)
+      CALL cp_fm_create(fm_S_ij, fm_struct_ij, name="fm_S_ij_trunc", set_zero=.TRUE.)
+      CALL cp_fm_create(fm_S_ab, fm_struct_ab, name="fm_S_ab_trunc", set_zero=.TRUE.)
 
       !Copy parts of original matrices to truncated ones
       IF (bse_env%bse_cutoff_occ > 0 .OR. bse_env%bse_cutoff_empty > 0) THEN
@@ -1362,13 +1360,13 @@ CONTAINS
          Eigenval_reduced_scf(:) = Eigenval_scf(homo_incl:homo + virt_incl)
          Eigenval_reduced_qp(:) = Eigenval(homo_incl:homo + virt_incl)
 
-         CALL truncate_fm(fm_mat_S_trunc, fm_mat_S_ia_bse, virtual, &
+         CALL truncate_fm(fm_S_ia, fm_S_ia_full, virtual, &
                           homo_red, virt_red, unit_nr, bse_env, &
                           nrow_offset=homo_incl)
-         CALL truncate_fm(fm_mat_S_ij_trunc, fm_mat_S_ij_bse, homo, &
+         CALL truncate_fm(fm_S_ij, fm_S_ij_full, homo, &
                           homo_red, homo_red, unit_nr, bse_env, &
                           homo_incl, homo_incl)
-         CALL truncate_fm(fm_mat_S_ab_trunc, fm_mat_S_ab_bse, bse_env%gw_corr_lev_virt(ispin), &
+         CALL truncate_fm(fm_S_ab, fm_S_ab_full, bse_env%gw_corr_lev_virt(ispin), &
                           virt_red, virt_red, unit_nr, bse_env)
 
       ELSE
@@ -1379,11 +1377,11 @@ CONTAINS
          ALLOCATE (Eigenval_reduced_scf(homo_red + virt_red), Eigenval_reduced_qp(homo_red + virt_red))
          Eigenval_reduced_scf(:) = Eigenval_scf(:)
          Eigenval_reduced_qp(:) = Eigenval(:)
-         CALL cp_fm_to_fm_submat_general(fm_mat_S_ia_bse, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
+         CALL cp_fm_to_fm_submat_general(fm_S_ia_full, fm_S_ia, dimen_RI, homo_red*virt_red, &
                                          1, 1, 1, 1, context)
-         CALL cp_fm_to_fm_submat_general(fm_mat_S_ij_bse, fm_mat_S_ij_trunc, dimen_RI, homo_red*homo_red, &
+         CALL cp_fm_to_fm_submat_general(fm_S_ij_full, fm_S_ij, dimen_RI, homo_red*homo_red, &
                                          1, 1, 1, 1, context)
-         CALL cp_fm_to_fm_submat_general(fm_mat_S_ab_bse, fm_mat_S_ab_trunc, dimen_RI, virt_red*virt_red, &
+         CALL cp_fm_to_fm_submat_general(fm_S_ab_full, fm_S_ab, dimen_RI, virt_red*virt_red, &
                                          1, 1, 1, 1, context)
       END IF
 

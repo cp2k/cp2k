@@ -80,9 +80,9 @@ CONTAINS
 !>   α is a spin-dependent factor
 !>   v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
 !>   W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab (screened Coulomb interaction)
-!> \param fm_mat_S_ia_bse ...
-!> \param fm_mat_S_bar_ij_bse ...
-!> \param fm_mat_S_ab_bse ...
+!> \param fm_S_ia ...
+!> \param fm_S_bar_ij ...
+!> \param fm_S_ab ...
 !> \param fm_A ...
 !> \param Eigenval ...
 !> \param unit_nr ...
@@ -91,12 +91,11 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param bse_env the BSE environment (settings)
 ! **************************************************************************************************
-   SUBROUTINE create_A(fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
+   SUBROUTINE create_A(fm_S_ia, fm_S_bar_ij, fm_S_ab, &
                        fm_A, Eigenval, unit_nr, &
                        homo, virtual, dimen_RI, bse_env)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, &
-                                                            fm_mat_S_ab_bse
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_S_ia, fm_S_bar_ij, fm_S_ab
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -159,18 +158,18 @@ CONTAINS
          alpha_screening = 1.0_dp
       END IF
 
-      ! create the blacs env for ij matrices (NOT fm_mat_S_ia_bse%matrix_struct related parallel_gemms!)
+      ! create the blacs env for ij matrices (NOT fm_S_ia%matrix_struct related parallel_gemms!)
       NULLIFY (blacs_env)
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=bse_env%para_env)
 
-      ! We have to use the same blacs_env for A as for the matrices fm_mat_S_ia_bse from RPA
+      ! We have to use the same blacs_env for A as for the matrices fm_S_ia from RPA
       ! Logic: A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab
       ! We create v_ia,jb and W_ij,ab, then we communicate entries from local W_ij,ab
       ! to the full matrix v_ia,jb. By adding these and the energy diffenences: v_ia,jb -> A_ia,jb
       ! We use the A matrix already from the start instead of v
-      CALL cp_fm_struct_create(fm_struct_A, context=fm_mat_S_ia_bse(1)%matrix_struct%context, &
+      CALL cp_fm_struct_create(fm_struct_A, context=fm_S_ia(1)%matrix_struct%context, &
                                nrow_global=n_ov_joint, ncol_global=n_ov_joint, &
-                               para_env=fm_mat_S_ia_bse(1)%matrix_struct%para_env)
+                               para_env=fm_S_ia(1)%matrix_struct%para_env)
       CALL cp_fm_create(fm_A, fm_struct_A, name="fm_A_iajb")
       CALL cp_fm_set_all(fm_A, 0.0_dp)
       ! fm_A_copy only used in the TDDFPT do_bse_w_only path (closed-shell only)
@@ -185,12 +184,12 @@ CONTAINS
          IF (nspins > 1) THEN
             ! Assemble joint ia-slab for a single Coulomb gemm across all spin blocks
             CALL cp_fm_struct_create(fm_struct_S_joint, &
-                                     context=fm_mat_S_ia_bse(1)%matrix_struct%context, &
+                                     context=fm_S_ia(1)%matrix_struct%context, &
                                      nrow_global=dimen_RI, ncol_global=n_ov_joint, &
-                                     para_env=fm_mat_S_ia_bse(1)%matrix_struct%para_env)
+                                     para_env=fm_S_ia(1)%matrix_struct%para_env)
             CALL cp_fm_create(fm_S_joint, fm_struct_S_joint, name="fm_S_ia_joint")
             CALL cp_fm_set_all(fm_S_joint, 0.0_dp)
-            CALL assemble_joint_ov_slab(fm_mat_S_ia_bse, offsets, n_ov, dimen_RI, fm_S_joint)
+            CALL assemble_joint_ov_slab(fm_S_ia, offsets, n_ov, dimen_RI, fm_S_joint)
             CALL parallel_gemm(transa="T", transb="N", m=n_ov_joint, n=n_ov_joint, k=dimen_RI, &
                                alpha=alpha, matrix_a=fm_S_joint, matrix_b=fm_S_joint, beta=0.0_dp, &
                                matrix_c=fm_A)
@@ -199,7 +198,7 @@ CONTAINS
          ELSE
             CALL parallel_gemm(transa="T", transb="N", m=homo(1)*virtual(1), n=homo(1)*virtual(1), &
                                k=dimen_RI, alpha=alpha, &
-                               matrix_a=fm_mat_S_ia_bse(1), matrix_b=fm_mat_S_ia_bse(1), &
+                               matrix_a=fm_S_ia(1), matrix_b=fm_S_ia(1), &
                                beta=0.0_dp, matrix_c=fm_A)
          END IF
       END IF
@@ -213,15 +212,15 @@ CONTAINS
       ! For nspins=1: offsets(1)=0, equivalent to the original code.
       DO isp = 1, nspins
          IF (bse_env%screening_method /= bse_screening_rpa) THEN
-            CALL cp_fm_struct_create(fm_struct_W, context=fm_mat_S_ab_bse(isp)%matrix_struct%context, &
+            CALL cp_fm_struct_create(fm_struct_W, context=fm_S_ab(isp)%matrix_struct%context, &
                                      nrow_global=homo(isp)**2, ncol_global=virtual(isp)**2, &
-                                     para_env=fm_mat_S_ab_bse(isp)%matrix_struct%para_env)
+                                     para_env=fm_S_ab(isp)%matrix_struct%para_env)
             CALL cp_fm_create(fm_W, fm_struct_W, name="fm_W_ijab")
             CALL cp_fm_set_all(fm_W, 0.0_dp)
             !W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab
             CALL parallel_gemm(transa="T", transb="N", m=homo(isp)**2, n=virtual(isp)**2, &
                                k=dimen_RI, alpha=alpha_screening, &
-                               matrix_a=fm_mat_S_bar_ij_bse(isp), matrix_b=fm_mat_S_ab_bse(isp), &
+                               matrix_a=fm_S_bar_ij(isp), matrix_b=fm_S_ab(isp), &
                                beta=0.0_dp, matrix_c=fm_W)
             reordering = [1, 3, 2, 4]
             CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo(isp), virtual(isp), &
@@ -316,8 +315,8 @@ CONTAINS
 !>   α is a spin-dependent factor
 !>   v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
 !>   W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj (screened Coulomb interaction)
-!> \param fm_mat_S_ia_bse ...
-!> \param fm_mat_S_bar_ia_bse ...
+!> \param fm_S_ia ...
+!> \param fm_S_bar_ia ...
 !> \param fm_B ...
 !> \param homo ...
 !> \param virtual ...
@@ -325,10 +324,10 @@ CONTAINS
 !> \param unit_nr ...
 !> \param bse_env the BSE environment (settings)
 ! **************************************************************************************************
-   SUBROUTINE create_B(fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse, fm_B, &
+   SUBROUTINE create_B(fm_S_ia, fm_S_bar_ia, fm_B, &
                        homo, virtual, dimen_RI, unit_nr, bse_env)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_S_ia, fm_S_bar_ia
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_B
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI, unit_nr
@@ -372,9 +371,9 @@ CONTAINS
 
       ! Joint B over all spin blocks: B_ia,jb = alpha*(ia|bj) - W^sigma_ib,aj (W spin-diagonal)
       NULLIFY (fm_struct_B)
-      CALL cp_fm_struct_create(fm_struct_B, context=fm_mat_S_ia_bse(1)%matrix_struct%context, &
+      CALL cp_fm_struct_create(fm_struct_B, context=fm_S_ia(1)%matrix_struct%context, &
                                nrow_global=n_ov_joint, ncol_global=n_ov_joint, &
-                               para_env=fm_mat_S_ia_bse(1)%matrix_struct%para_env)
+                               para_env=fm_S_ia(1)%matrix_struct%para_env)
       CALL cp_fm_create(fm_B, fm_struct_B, name="fm_B_iajb")
       CALL cp_fm_set_all(fm_B, 0.0_dp)
 
@@ -382,12 +381,12 @@ CONTAINS
       IF (nspins > 1) THEN
          NULLIFY (fm_struct_S_joint)
          CALL cp_fm_struct_create(fm_struct_S_joint, &
-                                  context=fm_mat_S_ia_bse(1)%matrix_struct%context, &
+                                  context=fm_S_ia(1)%matrix_struct%context, &
                                   nrow_global=dimen_RI, ncol_global=n_ov_joint, &
-                                  para_env=fm_mat_S_ia_bse(1)%matrix_struct%para_env)
+                                  para_env=fm_S_ia(1)%matrix_struct%para_env)
          CALL cp_fm_create(fm_S_joint, fm_struct_S_joint, name="fm_S_ia_joint")
          CALL cp_fm_set_all(fm_S_joint, 0.0_dp)
-         CALL assemble_joint_ov_slab(fm_mat_S_ia_bse, offsets, n_ov, dimen_RI, fm_S_joint)
+         CALL assemble_joint_ov_slab(fm_S_ia, offsets, n_ov, dimen_RI, fm_S_joint)
          CALL parallel_gemm(transa="T", transb="N", m=n_ov_joint, n=n_ov_joint, k=dimen_RI, &
                             alpha=alpha, matrix_a=fm_S_joint, matrix_b=fm_S_joint, beta=0.0_dp, &
                             matrix_c=fm_B)
@@ -396,7 +395,7 @@ CONTAINS
       ELSE
          CALL parallel_gemm(transa="T", transb="N", m=homo(1)*virtual(1), n=homo(1)*virtual(1), &
                             k=dimen_RI, alpha=alpha, &
-                            matrix_a=fm_mat_S_ia_bse(1), matrix_b=fm_mat_S_ia_bse(1), &
+                            matrix_a=fm_S_ia(1), matrix_b=fm_S_ia(1), &
                             beta=0.0_dp, matrix_c=fm_B)
       END IF
 
@@ -410,15 +409,15 @@ CONTAINS
          DO isp = 1, nspins
             NULLIFY (fm_struct_W)
             CALL cp_fm_struct_create(fm_struct_W, &
-                                     context=fm_mat_S_ia_bse(isp)%matrix_struct%context, &
+                                     context=fm_S_ia(isp)%matrix_struct%context, &
                                      nrow_global=homo(isp)*virtual(isp), &
                                      ncol_global=homo(isp)*virtual(isp), &
-                                     para_env=fm_mat_S_ia_bse(isp)%matrix_struct%para_env)
+                                     para_env=fm_S_ia(isp)%matrix_struct%para_env)
             CALL cp_fm_create(fm_W, fm_struct_W, name="fm_W_ibaj")
             CALL cp_fm_set_all(fm_W, 0.0_dp)
             CALL parallel_gemm(transa="T", transb="N", m=homo(isp)*virtual(isp), &
                                n=homo(isp)*virtual(isp), k=dimen_RI, alpha=alpha_screening, &
-                               matrix_a=fm_mat_S_bar_ia_bse(isp), matrix_b=fm_mat_S_ia_bse(isp), &
+                               matrix_a=fm_S_bar_ia(isp), matrix_b=fm_S_ia(isp), &
                                beta=0.0_dp, matrix_c=fm_W)
             reordering = [1, 4, 3, 2]
             CALL fm_general_add_bse(fm_B, fm_W, -1.0_dp, virtual(isp), virtual(isp), &
@@ -439,11 +438,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Explicit A, and B for ABBA, from the slabs the screening method contracts: the bare ones for
 !>        TDHF and ALPHA screening, the W-multiplied ones otherwise
-!> \param fm_mat_S_ia_bse ...
-!> \param fm_mat_S_ij_bse ...
-!> \param fm_mat_S_ab_bse ...
-!> \param fm_mat_S_bar_ia_bse ...
-!> \param fm_mat_S_bar_ij_bse ...
+!> \param fm_S_ia ...
+!> \param fm_S_ij ...
+!> \param fm_S_ab ...
+!> \param fm_S_bar_ia ...
+!> \param fm_S_bar_ij ...
 !> \param fm_A ...
 !> \param fm_B created only for ABBA
 !> \param do_abba ...
@@ -454,13 +453,12 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param bse_env the BSE environment (settings)
 ! **************************************************************************************************
-   SUBROUTINE create_A_and_B(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S_bar_ia_bse, &
-                             fm_mat_S_bar_ij_bse, fm_A, fm_B, do_abba, Eigenval, unit_nr, &
+   SUBROUTINE create_A_and_B(fm_S_ia, fm_S_ij, fm_S_ab, fm_S_bar_ia, &
+                             fm_S_bar_ij, fm_A, fm_B, do_abba, Eigenval, unit_nr, &
                              homo, virtual, dimen_RI, bse_env)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
-                                                            fm_mat_S_ab_bse, fm_mat_S_bar_ia_bse, &
-                                                            fm_mat_S_bar_ij_bse
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_S_ia, fm_S_ij, fm_S_ab, fm_S_bar_ia, &
+                                                            fm_S_bar_ij
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A, fm_B
       LOGICAL, INTENT(IN)                                :: do_abba
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
@@ -471,17 +469,17 @@ CONTAINS
 
       IF (bse_env%screening_method == bse_screening_tdhf .OR. &
           bse_env%screening_method == bse_screening_alpha) THEN
-         CALL create_A(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_A, Eigenval, unit_nr, &
+         CALL create_A(fm_S_ia, fm_S_ij, fm_S_ab, fm_A, Eigenval, unit_nr, &
                        homo, virtual, dimen_RI, bse_env)
          IF (do_abba) THEN
-            CALL create_B(fm_mat_S_ia_bse, fm_mat_S_ia_bse, fm_B, homo, virtual, dimen_RI, unit_nr, &
+            CALL create_B(fm_S_ia, fm_S_ia, fm_B, homo, virtual, dimen_RI, unit_nr, &
                           bse_env)
          END IF
       ELSE
-         CALL create_A(fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, fm_A, Eigenval, unit_nr, &
+         CALL create_A(fm_S_ia, fm_S_bar_ij, fm_S_ab, fm_A, Eigenval, unit_nr, &
                        homo, virtual, dimen_RI, bse_env)
          IF (do_abba) THEN
-            CALL create_B(fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse, fm_B, homo, virtual, dimen_RI, unit_nr, &
+            CALL create_B(fm_S_ia, fm_S_bar_ia, fm_B, homo, virtual, dimen_RI, unit_nr, &
                           bse_env)
          END IF
       END IF
