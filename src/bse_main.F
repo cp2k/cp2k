@@ -322,7 +322,7 @@ CONTAINS
                                        fm_mat_S_ab_trunc_arr, fm_mat_S_bar_ia_bse_arr, &
                                        fm_mat_S_bar_ij_bse_arr, Eigenval_reduced, &
                                        homo_red_arr, virt_red_arr, homo, dimen_RI, &
-                                       my_do_tda, my_do_abba, mp2_env, qs_env, mo_coeff, unit_nr)
+                                       my_do_tda, my_do_abba, mp2_env%bse, mo_coeff, unit_nr)
          END IF
 
          IF (my_do_fulldiag) THEN
