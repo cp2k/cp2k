@@ -396,19 +396,21 @@ CONTAINS
    END SUBROUTINE mixing_allocate
 
 ! **************************************************************************************************
-!> \brief Allocate or resize a mixing vector, clearing history at SCF initialization.
+!> \brief Allocate or resize a mixing vector, optionally clearing its contents.
 !> \param buffer Vector or array of vectors.
 !> \param n Local vector length, including any auxiliary coordinates.
+!> \param clear Whether to clear the vector; Pulay retains history across SCF runs.
 ! **************************************************************************************************
-   ELEMENTAL SUBROUTINE mixing_buffer_allocate(buffer, n)
+   ELEMENTAL SUBROUTINE mixing_buffer_allocate(buffer, n, clear)
       TYPE(cp_1d_z_p_type), INTENT(INOUT)                :: buffer
       INTEGER, INTENT(IN)                                :: n
+      LOGICAL, INTENT(IN)                                :: clear
 
       IF (ASSOCIATED(buffer%cc)) THEN
          IF (SIZE(buffer%cc) /= n) DEALLOCATE (buffer%cc)
       END IF
       IF (.NOT. ASSOCIATED(buffer%cc)) ALLOCATE (buffer%cc(n))
-      buffer%cc = z_zero
+      IF (clear) buffer%cc = z_zero
    END SUBROUTINE mixing_buffer_allocate
 
 ! **************************************************************************************************
@@ -556,9 +558,9 @@ CONTAINS
          END DO
       END IF
       nbuffer = mixing_store%nbuffer
-      CALL mixing_buffer_allocate(mixing_store%rhoin, nvec)
-      IF (ASSOCIATED(mixing_store%rhoin_buffer)) CALL mixing_buffer_allocate(mixing_store%rhoin_buffer, nvec)
-      IF (ASSOCIATED(mixing_store%res_buffer)) CALL mixing_buffer_allocate(mixing_store%res_buffer, nvec)
+      CALL mixing_buffer_allocate(mixing_store%rhoin, nvec, .FALSE.)
+      IF (ASSOCIATED(mixing_store%rhoin_buffer)) CALL mixing_buffer_allocate(mixing_store%rhoin_buffer, nvec, .FALSE.)
+      IF (ASSOCIATED(mixing_store%res_buffer)) CALL mixing_buffer_allocate(mixing_store%res_buffer, nvec, .FALSE.)
       DO ispin = 1, nspin
          mixing_store%rhoin(ispin)%cc = density(ispin)%cc
       END DO
@@ -661,9 +663,9 @@ CONTAINS
             END DO
          END IF
       ELSE IF (mixing_method == broyden_mixing_nr .OR. mixing_method == modified_broyden_mixing_nr) THEN
-         CALL mixing_buffer_allocate(mixing_store%rhoin_old, nvec)
-         CALL mixing_buffer_allocate(mixing_store%drho_buffer, nvec)
-         CALL mixing_buffer_allocate(mixing_store%last_res, nvec)
+         CALL mixing_buffer_allocate(mixing_store%rhoin_old, nvec, .TRUE.)
+         CALL mixing_buffer_allocate(mixing_store%drho_buffer, nvec, .TRUE.)
+         CALL mixing_buffer_allocate(mixing_store%last_res, nvec, .TRUE.)
          IF (mixing_store%gmix_p) THEN
             IF (PRESENT(rho_atom)) THEN
                DO ispin = 1, nspin
