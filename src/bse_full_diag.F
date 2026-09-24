@@ -75,7 +75,7 @@ MODULE bse_full_diag
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Matrix A constructed from GW energies and 3c-B-matrices (cf. subroutine mult_B_with_W)
+!> \brief Matrix A constructed from GW energies and 3c-B-matrices (cf. subroutine screen_slabs)
 !>   A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab
 !>   ε_a, ε_i are GW singleparticle energies from Eigenval_reduced
 !>   α is a spin-dependent factor
@@ -317,7 +317,7 @@ CONTAINS
    END SUBROUTINE create_A
 
 ! **************************************************************************************************
-!> \brief Matrix B constructed from 3c-B-matrices (cf. subroutine mult_B_with_W)
+!> \brief Matrix B constructed from 3c-B-matrices (cf. subroutine screen_slabs)
 !>   B_ia,jb = α * v_ia,jb - W_ib,aj
 !>   α is a spin-dependent factor
 !>   v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)

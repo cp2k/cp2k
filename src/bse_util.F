@@ -35,6 +35,7 @@ MODULE bse_util
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
+                                              cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_to_fm_submat_general,&
                                               cp_fm_type
@@ -54,7 +55,9 @@ MODULE bse_util
                                               int_8
    USE message_passing,                 ONLY: mp_para_env_type,&
                                               mp_request_type
-   USE mo_window,                       ONLY: mo_window_type
+   USE mo_window,                       ONLY: combine_mo_windows,&
+                                              determine_mo_window,&
+                                              mo_window_type
    USE moments_utils,                   ONLY: get_reference_point
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               mp2_type
@@ -90,7 +93,7 @@ MODULE bse_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_util'
 
-   PUBLIC :: mult_B_with_W, fm_general_add_bse, truncate_fm, &
+   PUBLIC :: invert_static_screening, screen_slabs, bse_window_from_dft, fm_general_add_bse, truncate_fm, &
              deallocate_matrices_bse, comp_eigvec_coeff_BSE, sort_excitations, &
              estimate_BSE_resources, filter_eigvec_contrib, truncate_BSE_matrices, &
              adapt_BSE_input_params, get_multipoles_mo, &
@@ -147,26 +150,19 @@ CONTAINS
    END FUNCTION virt_of_ia
 
 ! **************************************************************************************************
-!> \brief Multiplies B-matrix (RI-3c-Integrals) with W (screening) to obtain \bar{B}
-!> \param fm_mat_S_ij_bse ...
-!> \param fm_mat_S_ia_bse ...
-!> \param fm_mat_S_bar_ia_bse ...
-!> \param fm_mat_S_bar_ij_bse ...
-!> \param fm_mat_Q_static_bse_gemm ...
-!> \param dimen_RI ...
-!> \param homo ...
-!> \param virtual ...
+!> \brief The inverse dielectric matrix in the RI basis, [1+Q(0)]^-1_PQ on the leading dimen_RI_red
+!>        block, P, Q ≤ dimen_RI_red, by Cholesky decomposition and inversion of a copy of Q(0)
+!> \param fm_Q the static polarizability Q_PQ(0), untouched
+!> \param dimen_RI_red reduced RI dimension of Q(0)
+!> \param fm_eps_inv [1+Q(0)]^-1_PQ, created here on fm_Q's structure
 ! **************************************************************************************************
-   SUBROUTINE mult_B_with_W(fm_mat_S_ij_bse, fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse, &
-                            fm_mat_S_bar_ij_bse, fm_mat_Q_static_bse_gemm, &
-                            dimen_RI, homo, virtual)
+   SUBROUTINE invert_static_screening(fm_Q, dimen_RI_red, fm_eps_inv)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ij_bse, fm_mat_S_ia_bse
-      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q_static_bse_gemm
-      INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_Q
+      INTEGER, INTENT(IN)                                :: dimen_RI_red
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_eps_inv
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mult_B_with_W'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_static_screening'
 
       INTEGER                                            :: handle, i_global, iiB, info_chol, &
                                                             j_global, jjB, ncol_local, nrow_local
@@ -175,60 +171,81 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_create(fm_mat_S_bar_ia_bse, fm_mat_S_ia_bse%matrix_struct)
-      CALL cp_fm_set_all(fm_mat_S_bar_ia_bse, 0.0_dp)
-
-      CALL cp_fm_create(fm_mat_S_bar_ij_bse, fm_mat_S_ij_bse%matrix_struct)
-      CALL cp_fm_set_all(fm_mat_S_bar_ij_bse, 0.0_dp)
-
-      CALL cp_fm_create(fm_work, fm_mat_Q_static_bse_gemm%matrix_struct)
+      ! a copy: the caller keeps Q(0), and the open-shell path inverts once for both spins
+      CALL cp_fm_create(fm_eps_inv, fm_Q%matrix_struct)
+      CALL cp_fm_to_fm(fm_Q, fm_eps_inv)
+      CALL cp_fm_create(fm_work, fm_Q%matrix_struct)
       CALL cp_fm_set_all(fm_work, 0.0_dp)
 
-      ! get info of fm_mat_Q_static_bse and compute ((1+Q(0))^-1-1)
-      CALL cp_fm_get_info(matrix=fm_mat_Q_static_bse_gemm, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
+      ! δ_PQ + Q_PQ(0) on the leading dimen_RI_red block
+      CALL cp_fm_get_info(matrix=fm_eps_inv, nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices)
       DO jjB = 1, ncol_local
          j_global = col_indices(jjB)
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
-            IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-               fm_mat_Q_static_bse_gemm%local_data(iiB, jjB) = fm_mat_Q_static_bse_gemm%local_data(iiB, jjB) + 1.0_dp
+            IF (j_global == i_global .AND. i_global <= dimen_RI_red) THEN
+               fm_eps_inv%local_data(iiB, jjB) = fm_eps_inv%local_data(iiB, jjB) + 1.0_dp
             END IF
          END DO
       END DO
 
-      ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
-      CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q_static_bse_gemm, n=dimen_RI, info_out=info_chol)
-
+      ! [1+Q(0)]^-1_PQ by Cholesky, symmetrised from the stored triangle
+      CALL cp_fm_cholesky_decompose(matrix=fm_eps_inv, n=dimen_RI_red, info_out=info_chol)
       IF (info_chol /= 0) THEN
          CALL cp_abort(__LOCATION__, 'Cholesky decomposition failed for static polarization in BSE')
       END IF
-
-      ! calculate [1+Q(i0)]^-1
-      CALL cp_fm_cholesky_invert(fm_mat_Q_static_bse_gemm)
-
-      ! symmetrize the result
-      CALL cp_fm_uplo_to_full(fm_mat_Q_static_bse_gemm, fm_work)
-
-      CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=homo**2, k=dimen_RI, alpha=1.0_dp, &
-                         matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S_ij_bse, beta=0.0_dp, &
-                         matrix_c=fm_mat_S_bar_ij_bse)
-
-      ! fm_mat_S_bar_ia_bse has a different blacs_env as fm_mat_S_ij_bse since we take
-      ! fm_mat_S_ia_bse from RPA. Therefore, we also need a different fm_mat_Q_static_bse_gemm
-      CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=homo*virtual, k=dimen_RI, alpha=1.0_dp, &
-                         matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
-                         matrix_c=fm_mat_S_bar_ia_bse)
+      CALL cp_fm_cholesky_invert(fm_eps_inv)
+      CALL cp_fm_uplo_to_full(fm_eps_inv, fm_work)
 
       CALL cp_fm_release(fm_work)
 
       CALL timestop(handle)
 
-   END SUBROUTINE mult_B_with_W
+   END SUBROUTINE invert_static_screening
+
+! **************************************************************************************************
+!> \brief The screened slabs \bar{B}^P_ij = sum_Q [1+Q(0)]^-1_PQ B^Q_ij and
+!>        \bar{B}^P_ia = sum_Q [1+Q(0)]^-1_PQ B^Q_ia, P, Q ≤ dimen_RI_red
+!> \param fm_eps_inv [1+Q(0)]^-1_PQ
+!> \param fm_S_ij B^P_ij of the window, dimen_RI x homo^2
+!> \param fm_S_ia B^P_ia of the window, dimen_RI x homo*virtual
+!> \param dimen_RI_red reduced RI dimension, the contraction length
+!> \param homo occupied levels in the window
+!> \param virtual virtual levels in the window
+!> \param fm_S_bar_ij \bar{B}^P_ij, created here on fm_S_ij's structure
+!> \param fm_S_bar_ia \bar{B}^P_ia, created here on fm_S_ia's structure
+! **************************************************************************************************
+   SUBROUTINE screen_slabs(fm_eps_inv, fm_S_ij, fm_S_ia, dimen_RI_red, homo, virtual, &
+                           fm_S_bar_ij, fm_S_bar_ia)
+
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eps_inv, fm_S_ij, fm_S_ia
+      INTEGER, INTENT(IN)                                :: dimen_RI_red, homo, virtual
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_S_bar_ij, fm_S_bar_ia
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'screen_slabs'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_create(fm_S_bar_ij, fm_S_ij%matrix_struct)
+      CALL cp_fm_set_all(fm_S_bar_ij, 0.0_dp)
+      CALL cp_fm_create(fm_S_bar_ia, fm_S_ia%matrix_struct)
+      CALL cp_fm_set_all(fm_S_bar_ia, 0.0_dp)
+
+      ! \bar{B}^P_ij = sum_Q [1+Q(0)]^-1_PQ B^Q_ij
+      CALL parallel_gemm(transa="N", transb="N", m=dimen_RI_red, n=homo**2, k=dimen_RI_red, alpha=1.0_dp, &
+                         matrix_a=fm_eps_inv, matrix_b=fm_S_ij, beta=0.0_dp, matrix_c=fm_S_bar_ij)
+
+      ! \bar{B}^P_ia = sum_Q [1+Q(0)]^-1_PQ B^Q_ia; fm_S_ia comes from RPA and has a different
+      ! blacs_env than fm_S_ij
+      CALL parallel_gemm(transa="N", transb="N", m=dimen_RI_red, n=homo*virtual, k=dimen_RI_red, alpha=1.0_dp, &
+                         matrix_a=fm_eps_inv, matrix_b=fm_S_ia, beta=0.0_dp, matrix_c=fm_S_bar_ia)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE screen_slabs
 
 ! **************************************************************************************************
 !> \brief Adds and reorders full matrices with a combined index structure, e.g. adding W_ij,ab
@@ -1241,6 +1258,45 @@ CONTAINS
    END SUBROUTINE get_bse_spin_block_layout
 
 ! **************************************************************************************************
+!> \brief The active MO window on the DFT axis: one absolute window for every spin, the combined
+!>        window when the spins differ, so the blocks of the joint matrix have equal size
+!> \param eigenval_scf DFT eigenvalues (level, spin)
+!> \param n_mo number of MOs per spin
+!> \param homo occupied MOs per spin
+!> \param cutoff_occ ENERGY_CUTOFF_OCC in Hartree, negative for no cutoff
+!> \param cutoff_empty ENERGY_CUTOFF_EMPTY in Hartree, negative for no cutoff
+!> \param window first and last MO to keep
+! **************************************************************************************************
+   SUBROUTINE bse_window_from_dft(eigenval_scf, n_mo, homo, cutoff_occ, cutoff_empty, window)
+
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eigenval_scf
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: n_mo, homo
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff_occ, cutoff_empty
+      TYPE(mo_window_type), INTENT(OUT)                  :: window
+
+      INTEGER                                            :: ispin, nspins
+      LOGICAL                                            :: spins_differ
+      TYPE(mo_window_type), ALLOCATABLE, DIMENSION(:)    :: spin_windows
+
+      nspins = SIZE(homo)
+      ALLOCATE (spin_windows(nspins))
+      DO ispin = 1, nspins
+         CALL determine_mo_window(eigenval_scf(:, ispin), n_mo(ispin), homo(ispin), &
+                                  cutoff_occ, cutoff_empty, spin_windows(ispin))
+      END DO
+      IF (nspins > 1) THEN
+         CALL combine_mo_windows(spin_windows, window, spins_differ)
+         IF (spins_differ) THEN
+            CPWARN("BSE: spin-resolved active MO cutoff candidates differ; using combined window.")
+         END IF
+      ELSE
+         window = spin_windows(1)
+      END IF
+      DEALLOCATE (spin_windows)
+
+   END SUBROUTINE bse_window_from_dft
+
+! **************************************************************************************************
 !> \brief Determines indices within the given energy cutoffs and truncates Eigenvalues and matrices
 !> \param fm_mat_S_ia_bse ...
 !> \param fm_mat_S_ij_bse ...
@@ -1250,12 +1306,13 @@ CONTAINS
 !> \param fm_mat_S_ab_trunc ...
 !> \param Eigenval_scf ...
 !> \param Eigenval ...
-!> \param Eigenval_reduced ...
+!> \param Eigenval_reduced_scf DFT energies of the window, allocated here
+!> \param Eigenval_reduced_qp quasiparticle energies of the window, allocated here
 !> \param homo ...
 !> \param virtual ...
 !> \param dimen_RI ...
 !> \param unit_nr ...
-!> \param bse_lev_virt ...
+!> \param ispin spin of the slabs, selects the GW-corrected virtual count
 !> \param homo_red ...
 !> \param virt_red ...
 !> \param mp2_env ...
@@ -1264,9 +1321,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE truncate_BSE_matrices(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                                     fm_mat_S_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
-                                    Eigenval_scf, Eigenval, Eigenval_reduced, &
+                                    Eigenval_scf, Eigenval, Eigenval_reduced_scf, Eigenval_reduced_qp, &
                                     homo, virtual, dimen_RI, unit_nr, &
-                                    bse_lev_virt, &
+                                    ispin, &
                                     homo_red, virt_red, &
                                     mp2_env, &
                                     window, print_window)
@@ -1276,9 +1333,8 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_S_trunc, fm_mat_S_ij_trunc, &
                                                             fm_mat_S_ab_trunc
       REAL(KIND=dp), DIMENSION(:)                        :: Eigenval_scf, Eigenval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced
-      INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr, &
-                                                            bse_lev_virt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Eigenval_reduced_scf, Eigenval_reduced_qp
+      INTEGER, INTENT(IN)                                :: homo, virtual, dimen_RI, unit_nr, ispin
       INTEGER, INTENT(OUT)                               :: homo_red, virt_red
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(mo_window_type), INTENT(IN)                   :: window
@@ -1324,16 +1380,16 @@ CONTAINS
             'Energy difference of last empty index to LUMO [eV]', &
             (Eigenval(homo + virt_incl) - Eigenval(homo + 1))*evolt
          WRITE (unit_nr, '(T2,A4,T7,A35,T71,I10)') 'BSE|', 'Number of GW-corrected occupied MOs', &
-            mp2_env%ri_g0w0%corr_mos_occ
+            mp2_env%bse%gw_corr_lev_occ
          WRITE (unit_nr, '(T2,A4,T7,A32,T71,I10)') 'BSE|', 'Number of GW-corrected empty MOs', &
-            bse_lev_virt
+            mp2_env%bse%gw_corr_lev_virt(ispin)
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
       IF (unit_nr > 0) THEN
-         IF (homo - homo_incl + 1 > mp2_env%ri_g0w0%corr_mos_occ) THEN
+         IF (homo - homo_incl + 1 > mp2_env%bse%gw_corr_lev_occ) THEN
             CPABORT("Number of GW-corrected occupied MOs too small for chosen BSE cutoff")
          END IF
-         IF (virt_incl > bse_lev_virt) THEN
+         IF (virt_incl > mp2_env%bse%gw_corr_lev_virt(ispin)) THEN
             CPABORT("Number of GW-corrected virtual MOs too small for chosen BSE cutoff")
          END IF
       END IF
@@ -1353,13 +1409,9 @@ CONTAINS
       !Copy parts of original matrices to truncated ones
       IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
          !Truncate eigenvals
-         ALLOCATE (Eigenval_reduced(homo_red + virt_red))
-         ! Include USE_KS_ENERGIES input
-         IF (mp2_env%bse%use_ks_energies) THEN
-            Eigenval_reduced(:) = Eigenval_scf(homo_incl:homo + virt_incl)
-         ELSE
-            Eigenval_reduced(:) = Eigenval(homo_incl:homo + virt_incl)
-         END IF
+         ALLOCATE (Eigenval_reduced_scf(homo_red + virt_red), Eigenval_reduced_qp(homo_red + virt_red))
+         Eigenval_reduced_scf(:) = Eigenval_scf(homo_incl:homo + virt_incl)
+         Eigenval_reduced_qp(:) = Eigenval(homo_incl:homo + virt_incl)
 
          CALL truncate_fm(fm_mat_S_trunc, fm_mat_S_ia_bse, virtual, &
                           homo_red, virt_red, unit_nr, mp2_env, &
@@ -1367,7 +1419,7 @@ CONTAINS
          CALL truncate_fm(fm_mat_S_ij_trunc, fm_mat_S_ij_bse, homo, &
                           homo_red, homo_red, unit_nr, mp2_env, &
                           homo_incl, homo_incl)
-         CALL truncate_fm(fm_mat_S_ab_trunc, fm_mat_S_ab_bse, bse_lev_virt, &
+         CALL truncate_fm(fm_mat_S_ab_trunc, fm_mat_S_ab_bse, mp2_env%bse%gw_corr_lev_virt(ispin), &
                           virt_red, virt_red, unit_nr, mp2_env)
 
       ELSE
@@ -1375,13 +1427,9 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A37)') 'BSE|', 'No truncation of BSE matrices applied'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
-         ALLOCATE (Eigenval_reduced(homo_red + virt_red))
-         ! Include USE_KS_ENERGIES input
-         IF (mp2_env%bse%use_ks_energies) THEN
-            Eigenval_reduced(:) = Eigenval_scf(:)
-         ELSE
-            Eigenval_reduced(:) = Eigenval(:)
-         END IF
+         ALLOCATE (Eigenval_reduced_scf(homo_red + virt_red), Eigenval_reduced_qp(homo_red + virt_red))
+         Eigenval_reduced_scf(:) = Eigenval_scf(:)
+         Eigenval_reduced_qp(:) = Eigenval(:)
          CALL cp_fm_to_fm_submat_general(fm_mat_S_ia_bse, fm_mat_S_trunc, dimen_RI, homo_red*virt_red, &
                                          1, 1, 1, 1, context)
          CALL cp_fm_to_fm_submat_general(fm_mat_S_ij_bse, fm_mat_S_ij_trunc, dimen_RI, homo_red*homo_red, &
