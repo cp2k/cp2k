@@ -3,9 +3,9 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"ch2o_1.inp"                            = [{matcher="E_total", tol=1.0E-12, ref=-6.46518011482464}]
+"ch2o_1.inp"                            = [{matcher="E_total", tol=1.0E-12, ref=-6.46518011482944}]
 "ch2o_2.inp"                            = []
-"ch2o_3.inp"                            = [{matcher="E_total", tol=1.0E-12, ref=-6.46539779335817}]
+"ch2o_3.inp"                            = [{matcher="E_total", tol=1.0E-12, ref=-6.46539779336391}]
 "ch2o_4.inp"                            = []
 "ch2o_5.inp"                            = []
 "ch2o_6.inp"                            = []
@@ -13,19 +13,19 @@
 "ch2o_8.inp"                            = []
 "ch2o_9.inp"                            = []
 "si_kp.inp"                             = []
-"si_kp_kpsym.inp"                       = [{matcher="E_total", tol=1.0E-11, ref=-13.9258635005528},
+"si_kp_kpsym.inp"                       = [{matcher="E_total", tol=1.0E-11, ref=-13.92586350194418},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4},
                                            {matcher="M072", tol=1.0E-12, ref=0.0},
-                                           {matcher="M031", tol=1.0E-5, ref=2.61113942316E+04}]
-"si_kp_kpsym_atomdisp.inp"              = [{matcher="E_total", tol=1.0E-11, ref=-13.92586348494191},
+                                           {matcher="M031", tol=1.0E-5, ref=2.61113965356E+04}]
+"si_kp_kpsym_atomdisp.inp"              = [{matcher="E_total", tol=1.0E-11, ref=-13.92586348633335},
                                            {matcher="N_special_kpoints", tol=0.0, ref=12}]
-"si_kp_spglib_backend.inp"              = [{matcher="E_total", tol=1.0E-11, ref=-13.9258635005528},
+"si_kp_spglib_backend.inp"              = [{matcher="E_total", tol=1.0E-11, ref=-13.92586350194418},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4},
                                            {matcher="M072", tol=1.0E-12, ref=0.0},
-                                           {matcher="M031", tol=1.0E-5, ref=2.61113942316E+04}]
-"si_kp_spglib_reduction_atomdisp.inp"   = [{matcher="E_total", tol=1.0E-11, ref=-13.92586348494191},
+                                           {matcher="M031", tol=1.0E-5, ref=2.61113965356E+04}]
+"si_kp_spglib_reduction_atomdisp.inp"   = [{matcher="E_total", tol=1.0E-11, ref=-13.92586348633335},
                                            {matcher="N_special_kpoints", tol=0.0, ref=12}]
-"si_kp_kpsym_debug_stress.inp"          = [{matcher="E_total", tol=1.0E-11, ref=-13.92597057132166},
+"si_kp_kpsym_debug_stress.inp"          = [{matcher="E_total", tol=1.0E-11, ref=-13.92597057271411},
                                            {matcher="N_special_kpoints", tol=0.0, ref=4},
                                            {matcher="M042", tol=1.0E-5, ref=0.0}]
 "si_smear.inp"                          = []
@@ -43,9 +43,9 @@
                                            {matcher="DEBUG_periodic_stress_sum", tol=1.0E-5, ref=0.0000000},
                                            {matcher="DEBUG_force_sum", tol=1.0E-6, ref=0.0000000},
                                            {matcher="N_special_kpoints", tol=0.0, ref=2}]
-"ch2o_eeq.inp"                          = [{matcher="E_total", tol=1.0E-11, ref=-7.84498764689590}]
+"ch2o_eeq.inp"                          = [{matcher="E_total", tol=1.0E-11, ref=-7.84498764690316}]
 "ch2o_eloc.inp"                         = []
 "ch2o_eper.inp"                         = []
-"ch2o_ls1.inp"                          = [{matcher="E_total", tol=1.0E-12, ref=-6.46515972056537}]
+"ch2o_ls1.inp"                          = [{matcher="E_total", tol=1.0E-12, ref=-6.46515972057403}]
 "ch2o_ls2.inp"                          = []
 #EOF

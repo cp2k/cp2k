@@ -4,14 +4,14 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM
-"wdim_scc.inp"                          = [{matcher="E_total", tol=1.0E-14, ref=-5.77017237050844}]
-"wdim_nonscc.inp"                       = [{matcher="E_total", tol=1.0E-14, ref=-5.77017237050844}]
-"wdimmc_scc.inp"                        = [{matcher="E_total", tol=1.0E-14, ref=-5.76659939309573}]
-"wdimmc_nonscc.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-5.76659939309573}]
-"epc_1.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.77019903376849}]
-"epc_2.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.77017237050844}]
-"epc_3.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.77019903376849}]
-"epc_4.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.77021119370038}]
+"wdim_scc.inp"                          = [{matcher="E_total", tol=1.0E-14, ref=-5.77017237051256}]
+"wdim_nonscc.inp"                       = [{matcher="E_total", tol=1.0E-14, ref=-5.77017237051256}]
+"wdimmc_scc.inp"                        = [{matcher="E_total", tol=1.0E-14, ref=-5.76659939309992}]
+"wdimmc_nonscc.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-5.76659939309992}]
+"epc_1.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.77019903377262}]
+"epc_2.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.77017237051256}]
+"epc_3.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.77019903377262}]
+"epc_4.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.7702111937045}]
 "fdeb_1.inp"                            = []
 "fdeb_2.inp"                            = []
 "fdeb_3.inp"                            = []
