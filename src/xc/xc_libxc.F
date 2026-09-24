@@ -1073,12 +1073,12 @@ CONTAINS
             END IF
          END IF
          #:for arr, dim in [("v3rho2sigma", "MERGE(9, 1, pol)"), &
-                            ("v3rhosigma2", "MERGE(12, 1, pol)"), &
-                            ("v3sigma3", "MERGE(10, 1, pol)")]
+            ("v3rhosigma2", "MERGE(12, 1, pol)"), &
+            ("v3sigma3", "MERGE(10, 1, pol)")]
             IF (ALLOCATED(worker%${arr}$)) THEN
                IF (SIZE(worker%${arr}$, 2) < npoints) THEN
                   DEALLOCATE (worker%${arr}$)
-                  ALLOCATE (worker%${arr}$(${dim}$, npoints))
+                  ALLOCATE (worker%${arr}$ (${dim}$, npoints))
                END IF
             END IF
          #:endfor
@@ -1090,7 +1090,7 @@ CONTAINS
             IF (ALLOCATED(worker%${arr}$)) THEN
                IF (SIZE(worker%${arr}$, 2) < npoints) THEN
                   DEALLOCATE (worker%${arr}$)
-                  ALLOCATE (worker%${arr}$(${dim}$, npoints))
+                  ALLOCATE (worker%${arr}$ (${dim}$, npoints))
                END IF
             END IF
          #:endfor
@@ -1098,13 +1098,13 @@ CONTAINS
          ! Laplacian; re-zero a freshly grown buffer as in the initial alloc.
          IF (ALLOCATED(worker%vlapl)) worker%vlapl = 0.0_dp
          #:for arr, dim in [("v2rholapl", "nl"), ("v2rhotau", "nl"), &
-                            ("v2sigmalapl", "MERGE(6, 1, pol)"), &
-                            ("v2sigmatau", "MERGE(6, 1, pol)"), &
-                            ("v2lapl2", "ns"), ("v2lapltau", "nl"), ("v2tau2", "ns")]
+            ("v2sigmalapl", "MERGE(6, 1, pol)"), &
+            ("v2sigmatau", "MERGE(6, 1, pol)"), &
+            ("v2lapl2", "ns"), ("v2lapltau", "nl"), ("v2tau2", "ns")]
             IF (ALLOCATED(worker%${arr}$)) THEN
                IF (SIZE(worker%${arr}$, 2) < npoints) THEN
                   DEALLOCATE (worker%${arr}$)
-                  ALLOCATE (worker%${arr}$(${dim}$, npoints))
+                  ALLOCATE (worker%${arr}$ (${dim}$, npoints))
                END IF
             END IF
          #:endfor
@@ -1157,8 +1157,8 @@ CONTAINS
             END IF
          END IF
          #:for arr, dim in [("v3rho2sigma", "MERGE(9, 1, pol)"), &
-                            ("v3rhosigma2", "MERGE(12, 1, pol)"), &
-                            ("v3sigma3", "MERGE(10, 1, pol)")]
+            ("v3rhosigma2", "MERGE(12, 1, pol)"), &
+            ("v3sigma3", "MERGE(10, 1, pol)")]
             IF (ALLOCATED(worker%${arr}$)) THEN
                IF (INT(worker%${arr}$_d%size) < ${dim}$*npoints) THEN
                   CALL libxc_device_buffer_alloc(worker%${arr}$_d, ${dim}$*npoints)
@@ -1175,9 +1175,9 @@ CONTAINS
             END IF
          #:endfor
          #:for arr, dim in [("v2rholapl", "nl"), ("v2rhotau", "nl"), &
-                            ("v2sigmalapl", "MERGE(6, 1, pol)"), &
-                            ("v2sigmatau", "MERGE(6, 1, pol)"), &
-                            ("v2lapl2", "ns"), ("v2lapltau", "nl"), ("v2tau2", "ns")]
+            ("v2sigmalapl", "MERGE(6, 1, pol)"), &
+            ("v2sigmatau", "MERGE(6, 1, pol)"), &
+            ("v2lapl2", "ns"), ("v2lapltau", "nl"), ("v2tau2", "ns")]
             IF (ALLOCATED(worker%${arr}$)) THEN
                IF (INT(worker%${arr}$_d%size) < ${dim}$*npoints) THEN
                   CALL libxc_device_buffer_alloc(worker%${arr}$_d, ${dim}$*npoints)
