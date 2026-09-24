@@ -1,0 +1,13 @@
+"H2O-rks-diag_kpforce.inp"              = [{matcher="M024", tol=1e-08, ref=0.01835237636893}]
+"H2O-rks-diag_kpforce-mulliken.inp"     = [{matcher="M024", tol=1e-08, ref=0.04212677844567}]
+"H2O-rks-diag_kpforce-lowdin.inp"       = [{matcher="M024", tol=1e-08, ref=0.06936381363726}]
+"H2O-rks-ot_kpforce.inp"                = [{matcher="M024", tol=1e-08, ref=0.01777717629915}]
+"H2O-rks-ot_kpforce-mulliken.inp"       = [{matcher="M024", tol=1e-08, ref=0.04212651924176}]
+"H2O-rks-ot_kpforce-lowdin.inp"         = [{matcher="M024", tol=1e-08, ref=0.06936387803108}]
+"H2O-uks-diag_kpforce.inp"              = [{matcher="M024", tol=1e-08, ref=0.01835209326603}]
+"H2O-uks-diag_kpforce-mulliken.inp"     = [{matcher="M024", tol=1e-08, ref=0.04212634663201}]
+"H2O-uks-diag_kpforce-lowdin.inp"       = [{matcher="M024", tol=1e-08, ref=0.06936421704631}]
+"H2O-uks-ot_kpforce.inp"                = [{matcher="M024", tol=1e-08, ref=0.01780948292401}]
+"H2O-uks-ot_kpforce-mulliken.inp"       = [{matcher="M024", tol=1e-08, ref=0.04176233804885}]
+"H2O-uks-ot_kpforce-lowdin.inp"         = [{matcher="M024", tol=1e-08, ref=0.06914004883888}]
+#EOF

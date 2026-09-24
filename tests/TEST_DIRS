@@ -65,6 +65,7 @@ QS/regtest-tddfpt-force                                     libint !ifx
 QS/regtest-embed                                            libint !ifx
 QS/regtest-acc-4                                            libint libxc !ifx
 QS/regtest-plus_u
+QS/regtest-plus_u-kp
 SE/regtest
 Fist/regtest-4
 Fist/regtest-opt

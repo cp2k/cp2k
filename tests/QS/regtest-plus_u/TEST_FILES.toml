@@ -21,6 +21,5 @@
 # Tensorial forces
 "H2O-uks-otcg-tensorial_force.inp"      = [{matcher="M072", tol=1e-06, ref=3.204718764528E-04}]
 # Lowdin forces
-"H2O-rks-diag_kpforce.inp"              = []
 "H2O-rks-diag-lowdin_force.inp"         = []
 #EOF
