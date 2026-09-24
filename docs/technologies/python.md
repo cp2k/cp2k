@@ -373,6 +373,17 @@ python -m pytest python/tests                    # native tests skip without a l
 CP2K_TEST_LIBRARY="$CP2K_LIBRARY" python -m pytest python/tests
 ```
 
+The public package entry points and ASE calculator also have a strict static type check:
+
+```sh
+python -m pip install './python[typing]'
+python -m mypy --strict --config-file python/pyproject.toml
+```
+
+This runs in the dedicated Python tester, without additional native calculations. The wheel includes
+`py.typed` so downstream type checkers can use the annotations. Optional OpenMM/LAMMPS/ QM-MM
+adapters and the server CLI are not yet included in this typing target.
+
 Unit tests cover the ABI signatures, lifecycle, validation, result invalidation, array layout, input
 serialization and ASE caching/unit conversion. Native tests exercise H2 energies/forces (including a
 finite-difference check), triclinic cells, reused and sequential environments, ASE optimization,
@@ -380,10 +391,9 @@ file input, full CP2K execution and a short native MD trajectory. They need CP2K
 data and a DFT-capable shared library.
 
 Optional integration tests additionally cover all six stress components, ASE cell optimization,
-OpenMM Reference/CPU dynamics and LAMMPS energy/forces/pressure/NPT.
-Enable LAMMPS tests with `CP2K_TEST_LAMMPS=1` and a compatible installed LAMMPS Python module; set
-`CP2K_TEST_EXTERNAL_MPI=1` when both native libraries use MPI. No optional
-package is imported by the core interface.
+OpenMM Reference/CPU dynamics and LAMMPS energy/forces/pressure/NPT. Enable LAMMPS tests with
+`CP2K_TEST_LAMMPS=1` and a compatible installed LAMMPS Python module; set `CP2K_TEST_EXTERNAL_MPI=1`
+when both native libraries use MPI. No optional package is imported by the core interface.
 
 `CP2K_TEST_REMOTE_MPI=1` additionally tests an independent two-rank CP2K server with OpenMM and two
 LAMMPS client ranks with a separate single-rank server (requires `mpiexec`, mpi4py and an
@@ -394,8 +404,8 @@ all six cell-strain derivatives. These are interface/model-algebra tests, not a 
 arbitrary QM/MM parameterization is physically appropriate.
 
 The dedicated Linux/x86-64 Python CI job builds a shared CP2K library and runs the suite, including
-OpenMM Reference/CPU, a serial LAMMPS build, socket transport and QM/MM subtraction, independently of
-ASE's shell-interface tests. Local macOS/ARM64 tests also exercise independent MPI jobs. Added CI
+OpenMM Reference/CPU, a serial LAMMPS build, socket transport and QM/MM subtraction, independently
+of ASE's shell-interface tests. Local macOS/ARM64 tests also exercise independent MPI jobs. Added CI
 coverage is not a completed test result: check the PR's Python job. GPU platforms and native Windows
 CP2K builds are not certified by these tests.
 
@@ -414,9 +424,9 @@ mpiexec -n 2 python python/tests/mpi_smoke.py implicit
 mpiexec -n 2 python python/tests/lammps_mpi_smoke.py
 ```
 
-Run the LAMMPS smoke script in a separate scratch directory; it writes native output there
-and requires LAMMPS with matching MPI. The independently reviewed PLUMED and i-PI fixes and
-their tests are documented in the corresponding native-interface documentation.
+Run the LAMMPS smoke script in a separate scratch directory; it writes native output there and
+requires LAMMPS with matching MPI. The independently reviewed PLUMED and i-PI fixes and their tests
+are documented in the corresponding native-interface documentation.
 
 The split test runs CP2K on rank 0 only and checks that no hidden WORLD collective is introduced.
 These tests also verify that Python retains MPI ownership. Use an external timeout when running MPI

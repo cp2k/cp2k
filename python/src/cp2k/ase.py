@@ -2,23 +2,27 @@
 
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from collections.abc import Mapping
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
 import os
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
+from ase import Atoms
 from ase.calculators.calculator import CalculationFailed, Calculator, all_changes
 
 from ._units import BOHR_TO_ANGSTROM as Bohr, HARTREE_TO_EV as Hartree
-from .input import input_to_string
-from .library import SCFConvergenceError
+from .input import InputMapping, input_to_string
+from .library import CP2K, ForceEnvironment, PathLike, SCFConvergenceError
 
 
-def _uppercase(tree):
+def _uppercase(tree: InputMapping) -> dict[str, Any]:
     if not isinstance(tree, Mapping):
         raise TypeError("inp must be a CP2K input mapping")
-    result = {}
+    result: dict[str, Any] = {}
     for key, value in tree.items():
         if not isinstance(key, str) or key.upper() in result:
             raise ValueError(f"Invalid or duplicate input key: {key!r}")
@@ -51,14 +55,22 @@ class CP2KCalculator(Calculator):
     implemented_properties = ["energy", "free_energy", "forces", "stress"]
     default_parameters = {"inp": None}
 
-    def __init__(self, runtime, inp, *, output_file=None, **kwargs):
+    def __init__(
+        self,
+        runtime: CP2K,
+        inp: InputMapping,
+        *,
+        output_file: PathLike | None = None,
+        **kwargs: Any,
+    ) -> None:
         self._runtime = runtime
-        self._env = None
+        self._env: ForceEnvironment | None = None
         self._closed = False
         self._output_file = output_file
-        super().__init__(inp=deepcopy(inp), **kwargs)
+        # ASE's base-class methods do not yet declare their argument types.
+        super().__init__(inp=deepcopy(inp), **kwargs)  # type: ignore[no-untyped-call]
 
-    def set(self, **kwargs):
+    def set(self, **kwargs: Any) -> dict[str, Any]:
         unknown = set(kwargs) - {"inp"}
         if unknown:
             raise TypeError(f"Unknown CP2K calculator parameters: {sorted(unknown)}")
@@ -66,19 +78,19 @@ class CP2KCalculator(Calculator):
             # Validate without mutating caller-owned dictionaries.
             kwargs["inp"] = _uppercase(kwargs["inp"])
             input_to_string(kwargs["inp"])
-        changed = super().set(**kwargs)
+        changed = super().set(**kwargs)  # type: ignore[no-untyped-call]
         if changed:
             self._discard_environment()
-            self.reset()
-        return changed
+            self.reset()  # type: ignore[no-untyped-call]
+        return cast(dict[str, Any], changed)
 
-    def _discard_environment(self):
+    def _discard_environment(self) -> None:
         if self._env is not None:
             self._env.close()
             self._env = None
 
-    def _make_input(self, atoms):
-        tree = deepcopy(self.parameters.inp)
+    def _make_input(self, atoms: Atoms) -> dict[str, Any]:
+        tree: dict[str, Any] = deepcopy(self.parameters["inp"])
         force_eval = tree.setdefault("FORCE_EVAL", {})
         if not isinstance(force_eval, dict):
             raise ValueError("ASE requires exactly one FORCE_EVAL section")
@@ -129,12 +141,18 @@ class CP2KCalculator(Calculator):
         glob.setdefault("PRINT_LEVEL", "LOW")
         return tree
 
-    def calculate(self, atoms=None, properties=("energy",), system_changes=all_changes):
+    def calculate(
+        self,
+        atoms: Atoms | None = None,
+        properties: Sequence[str] = ("energy",),
+        system_changes: Sequence[str] = all_changes,
+    ) -> None:
         if self._closed:
             raise RuntimeError("This CP2K calculator is closed")
         self._runtime._check()
-        super().calculate(atoms, properties, system_changes)
+        super().calculate(atoms, properties, system_changes)  # type: ignore[no-untyped-call]
         self.results = {}
+        assert self.atoms is not None
         if len(self.atoms) == 0:
             raise ValueError("CP2K requires at least one atom")
         cell = self.atoms.cell.array
@@ -172,6 +190,7 @@ class CP2KCalculator(Calculator):
             result = self._env.calculate(stress="stress" in properties)
         except SCFConvergenceError as error:
             raise CalculationFailed(str(error)) from error
+        assert result.forces is not None
         # As in ASE's shell calculator, use CP2K's variational total energy.
         self.results = {
             "energy": result.energy * Hartree,
@@ -182,16 +201,16 @@ class CP2KCalculator(Calculator):
             tensor = -result.stress * Hartree / Bohr**3
             self.results["stress"] = tensor.flat[[0, 4, 8, 5, 2, 1]]
 
-    def close(self):
+    def close(self) -> None:
         if not self._closed:
             self._discard_environment()
-            self.reset()
+            self.reset()  # type: ignore[no-untyped-call]
             self._closed = True
 
-    def __enter__(self):
+    def __enter__(self) -> CP2KCalculator:
         if self._closed:
             raise RuntimeError("This CP2K calculator is closed")
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: object) -> None:
         self.close()

@@ -13,7 +13,7 @@ rm -rf /var/lib/apt/lists/*
 python3 -m venv /opt/python-interface-venv
 export PATH="/opt/python-interface-venv/bin:$PATH"
 cd /opt/cp2k
-pip3 install './python[test,openmm]'
+pip3 install './python[test,openmm,typing]'
 pip3 check
 
 # A small serial LAMMPS build avoids relying on a wheel's bundled MPI ABI.
@@ -37,12 +37,13 @@ test -s "${CP2K_TEST_LIBRARY}"
 test -x "${CP2K_TEST_EXECUTABLE}"
 mkdir -p /workspace/artifacts
 
-if timeout 15m python3 -m pytest python/tests -q -ra \
-  --basetemp=/workspace/artifacts/python-tests; then
-  echo -e "\nSummary: Direct Python interface tests passed."
+if python3 -m mypy --strict --config-file python/pyproject.toml &&
+  timeout 15m python3 -m pytest python/tests -q -ra \
+    --basetemp=/workspace/artifacts/python-tests; then
+  echo -e "\nSummary: Direct Python interface type checks and tests passed."
   echo -e "Status: OK\n"
 else
-  echo -e "\nSummary: Direct Python interface tests failed."
+  echo -e "\nSummary: Direct Python interface type checks or tests failed."
   echo -e "Status: FAILED\n"
 fi
 

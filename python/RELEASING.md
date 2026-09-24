@@ -6,10 +6,13 @@ is no upload job or credential configuration in this change.
 
 ## Decisions before the first release
 
-- Agree on the final distribution name (currently `cp2k-python`) and retain `cp2k` as the import
-  name. The alternatives proposed in review, including `pycp2k`, remain a maintainer decision. Check
-  PyPI and TestPyPI separately; an absent public project is not proof that a name is available or
-  reserved. Never co-install the obsolete Cython distribution exporting the same import.
+- Agree on the final distribution and import names (currently `cp2k-python` and `cp2k`). The
+  alternatives proposed in review remain a maintainer decision. In particular, `pycp2k` already
+  identifies a third-party package: coordinate with its maintainer before reusing that name, and
+  document any migration rather than implying API compatibility. Do not rename the distribution or
+  imports before agreement. Check PyPI and TestPyPI separately; an absent public project is not
+  proof that a name is available or reserved. Never co-install the obsolete Cython distribution
+  exporting the same import.
 - Name a primary release maintainer and a backup, and agree who reviews native/Python API changes
   and responds to failed CI. Do not assign these duties to contributors without their agreement.
 - Agree project ownership, two-factor authentication and protected release approval with the CP2K
@@ -32,7 +35,7 @@ string. Record the native Git revision, build options, MPI implementation and te
 | Repeated complete runs followed by force evaluations | Output-file and DBCSR lifetime fixes in #6078                                                           |
 | Caller-owned MPI communicator                        | `cp2k_init_without_mpi_comm` and a compatible MPI runtime                                               |
 | SCF convergence status                               | `cp2k_get_scf_convergence` from #6078; older/unsupported paths report unknown                           |
-| Stress and variable-cell adapters, if included       | Stress API and integration changes in #6061                                                             |
+| Stress and variable-cell adapters, if included       | Native stress API from #6061 plus the matching Python stress wrappers and adapters                      |
 | Optional AiiDA workflows, if retained                | CP2K executable, compatible AiiDA packages and the final-cell-frame fix in #6062; no libcp2k dependency |
 
 The generic wheel tag describes the Python code, not native CP2K portability. A shared build

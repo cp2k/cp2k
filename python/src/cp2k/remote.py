@@ -2,14 +2,21 @@
 
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+from __future__ import annotations
+
 import os
 import socket
 import threading
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 from ._transport import receive, root_call, send
-from .library import CalculationResult, _array
+from .library import CalculationResult, FloatArray, _array
+
+if TYPE_CHECKING:
+    from mpi4py import MPI
 
 
 class SocketEnvironment:
@@ -27,7 +34,15 @@ class SocketEnvironment:
     requests server shutdown but does not manage the external MPI launcher.
     """
 
-    def __init__(self, host, port, *, token, comm=None, timeout=600):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        *,
+        token: str,
+        comm: MPI.Intracomm | None = None,
+        timeout: float = 600,
+    ) -> None:
         if not isinstance(token, str) or len(token) < 32:
             raise ValueError("Use a secret token of at least 32 characters")
         if not np.isfinite(timeout) or timeout <= 0:
@@ -37,12 +52,12 @@ class SocketEnvironment:
         if comm is not None and (comm.Is_inter() or comm.Get_size() == 0):
             raise ValueError("comm must be a live intracommunicator")
         self.communicator = comm
-        self._socket = None
+        self._socket: socket.socket | None = None
         self._closed = False
         self._pid = os.getpid()
-        self._result = None
+        self._result: CalculationResult | None = None
 
-        def connect():
+        def connect() -> dict[str, Any]:
             self._socket = socket.create_connection((host, port), timeout)
             send(self._socket, {"protocol": 1, "token": token})
             return receive(self._socket)
@@ -61,7 +76,7 @@ class SocketEnvironment:
             self._disconnect()
             raise
 
-    def _check(self):
+    def _check(self) -> None:
         if os.getpid() != self._pid:
             raise RuntimeError("Do not use a CP2K socket after fork")
         if threading.current_thread() is not threading.main_thread():
@@ -69,10 +84,11 @@ class SocketEnvironment:
         if self._closed:
             raise RuntimeError("The CP2K socket environment is closed")
 
-    def _request(self, request):
+    def _request(self, request: dict[str, Any]) -> dict[str, Any]:
         self._check()
 
-        def exchange():
+        def exchange() -> dict[str, Any]:
+            assert self._socket is not None
             send(self._socket, request)
             return receive(self._socket)
 
@@ -86,23 +102,23 @@ class SocketEnvironment:
             raise
 
     @property
-    def positions(self):
+    def positions(self) -> FloatArray:
         self._check()
         return self._positions.copy()
 
     @positions.setter
-    def positions(self, values):
+    def positions(self, values: ArrayLike) -> None:
         self._check()
         self._positions = _array(values, (self.nparticle, 3), "positions")
         self._result = None
 
     @property
-    def cell(self):
+    def cell(self) -> FloatArray:
         self._check()
         return self._cell.copy()
 
     @cell.setter
-    def cell(self, values):
+    def cell(self, values: ArrayLike) -> None:
         self._check()
         cell = _array(values, (3, 3), "cell")
         determinant = np.linalg.det(cell)
@@ -111,7 +127,13 @@ class SocketEnvironment:
         self._cell = cell
         self._result = None
 
-    def calculate(self, *, forces=True, stress=False, check_convergence=True):
+    def calculate(
+        self,
+        *,
+        forces: bool = True,
+        stress: bool = False,
+        check_convergence: bool = True,
+    ) -> CalculationResult:
         self._result = None
         reply = self._request(
             {
@@ -148,41 +170,56 @@ class SocketEnvironment:
         )
 
     @property
-    def scf_converged(self):
+    def scf_converged(self) -> bool | None:
         self._check()
         return None if self._result is None else self._result.scf_converged
 
-    def _get_result(self, name):
+    def _get_result(self, name: str) -> float | FloatArray:
         self._check()
         value = None if self._result is None else getattr(self._result, name)
         if value is None:
             raise RuntimeError(f"Call calculate() requesting {name} first")
-        return value.copy() if isinstance(value, np.ndarray) else value
+        return (
+            cast(FloatArray, value.copy())
+            if isinstance(value, np.ndarray)
+            else cast(float, value)
+        )
 
-    potential_energy = property(lambda self: self._get_result("energy"))
-    forces = property(lambda self: self._get_result("forces"))
-    stress = property(lambda self: self._get_result("stress"))
-    virial = property(lambda self: self._get_result("virial"))
+    @property
+    def potential_energy(self) -> float:
+        return cast(float, self._get_result("energy"))
 
-    def _disconnect(self):
+    @property
+    def forces(self) -> FloatArray:
+        return cast(FloatArray, self._get_result("forces"))
+
+    @property
+    def stress(self) -> FloatArray:
+        return cast(FloatArray, self._get_result("stress"))
+
+    @property
+    def virial(self) -> FloatArray:
+        return cast(FloatArray, self._get_result("virial"))
+
+    def _disconnect(self) -> None:
         if self._socket is not None:
             self._socket.close()
             self._socket = None
         self._closed = True
         self._result = None
 
-    def close(self):
+    def close(self) -> None:
         if not self._closed:
             try:
                 self._request({"command": "close"})
             finally:
                 self._disconnect()
 
-    def __enter__(self):
+    def __enter__(self) -> SocketEnvironment:
         self._check()
         return self
 
-    def __exit__(self, exc_type, *exc):
+    def __exit__(self, exc_type: type[BaseException] | None, *exc: object) -> None:
         if exc_type is None:
             self.close()
         else:

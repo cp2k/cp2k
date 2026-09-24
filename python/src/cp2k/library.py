@@ -2,8 +2,10 @@
 
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+from __future__ import annotations
+
 import atexit
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 import ctypes as ct
 from ctypes.util import find_library
@@ -13,17 +15,26 @@ from pathlib import Path
 import sys
 import tempfile
 import threading
+from types import ModuleType
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 import numpy as np
+from numpy.typing import ArrayLike, NDArray
 
-from .input import input_to_string
+from .input import InputMapping, input_to_string
 
-_runtime = None
+if TYPE_CHECKING:
+    from mpi4py import MPI
+
+PathLike: TypeAlias = str | os.PathLike[str]
+FloatArray: TypeAlias = NDArray[np.float64]
+
+_runtime: CP2K | None = None
 _C_INT_MAX = 2 ** (8 * ct.sizeof(ct.c_int) - 1) - 1
 _DP = ct.POINTER(ct.c_double)
 
 
-def _load_library(path):
+def _load_library(path: PathLike | None) -> ct.CDLL:
     name = os.fspath(path) if path is not None else os.environ.get("CP2K_LIBRARY")
     if not name:
         name = find_library("cp2k")
@@ -36,7 +47,7 @@ def _load_library(path):
         lib = ct.CDLL(name)
     except OSError as error:
         raise OSError(f"Cannot load libcp2k {name!r}: {error}") from error
-    signatures = {
+    signatures: dict[str, list[Any]] = {
         "get_version": [ct.POINTER(ct.c_char), ct.c_int],
         "init": [],
         "init_without_mpi": [],
@@ -80,26 +91,26 @@ def _load_library(path):
     return lib
 
 
-def _path_bytes(path, *, output=False):
+def _path_bytes(path: PathLike, *, output: bool = False) -> bytes:
     if output and os.fspath(path) == "__STD_OUT__":
         return b"__STD_OUT__"
-    path = Path(path).expanduser().absolute()
-    encoded = os.fsencode(path)
+    resolved = Path(path).expanduser().absolute()
+    encoded = os.fsencode(resolved)
     if b"\0" in encoded or len(encoded) >= 1024:
         raise ValueError(
             "CP2K paths must contain no NUL and be shorter than 1024 bytes"
         )
     if output:
-        if not path.parent.is_dir():
-            raise FileNotFoundError(path.parent)
-        if path.is_dir():
-            raise IsADirectoryError(path)
-    elif not path.is_file():
-        raise FileNotFoundError(path)
+        if not resolved.parent.is_dir():
+            raise FileNotFoundError(resolved.parent)
+        if resolved.is_dir():
+            raise IsADirectoryError(resolved)
+    elif not resolved.is_file():
+        raise FileNotFoundError(resolved)
     return encoded
 
 
-def _array(values, shape, name):
+def _array(values: ArrayLike, shape: tuple[int, ...], name: str) -> FloatArray:
     if np.iscomplexobj(values):
         raise ValueError(f"{name} must be real")
     result = np.array(values, dtype=np.float64, order="C", copy=True)
@@ -120,9 +131,9 @@ class CalculationResult:
     """
 
     energy: float
-    forces: np.ndarray | None
-    stress: np.ndarray | None = None
-    virial: np.ndarray | None = None
+    forces: FloatArray | None
+    stress: FloatArray | None = None
+    virial: FloatArray | None = None
     scf_converged: bool | None = field(default=None, kw_only=True)
 
 
@@ -145,7 +156,9 @@ class CP2K:
     Native CP2K errors may abort Python; they are not Python exceptions.
     """
 
-    def __init__(self, library=None, *, comm=None):
+    def __init__(
+        self, library: PathLike | None = None, *, comm: MPI.Intracomm | None = None
+    ) -> None:
         global _runtime
         if threading.current_thread() is not threading.main_thread():
             raise RuntimeError("CP2K must be used from Python's main thread")
@@ -157,9 +170,9 @@ class CP2K:
         self._lib = _load_library(library)
         self._pid = os.getpid()
         self._closed = False
-        self._environments = []
-        self._comm = None
-        self._mpi = sys.modules.get("mpi4py.MPI")
+        self._environments: list[ForceEnvironment] = []
+        self._comm: MPI.Intracomm | None = None
+        self._mpi: ModuleType | None = sys.modules.get("mpi4py.MPI")
         self._external_mpi = False
         if comm is not None:
             from mpi4py import MPI
@@ -190,12 +203,13 @@ class CP2K:
         # Validation above must finish before CP2K changes process-global state.
         _runtime = self
         if self._external_mpi:
+            assert self._comm is not None
             self._lib.cp2k_init_without_mpi_comm(self._comm.py2f())
         else:
             self._lib.cp2k_init()
         atexit.register(self._at_exit)
 
-    def _check(self):
+    def _check(self) -> None:
         if os.getpid() != self._pid:
             raise RuntimeError("Do not use CP2K after fork; use a spawned process")
         if threading.current_thread() is not threading.main_thread():
@@ -204,18 +218,24 @@ class CP2K:
             raise RuntimeError("The CP2K runtime is closed")
         if self._mpi is not None and self._mpi.Is_finalized():
             raise RuntimeError("MPI was finalized before CP2K was closed")
-        if self._comm is not None and self._comm == self._mpi.COMM_NULL:
-            raise RuntimeError("The MPI communicator was freed before CP2K was closed")
+        if self._comm is not None:
+            assert self._mpi is not None
+            if self._comm == self._mpi.COMM_NULL:
+                raise RuntimeError(
+                    "The MPI communicator was freed before CP2K was closed"
+                )
 
     @property
-    def version(self):
+    def version(self) -> str:
         self._check()
         buffer = ct.create_string_buffer(256)
         self._lib.cp2k_get_version(buffer, len(buffer))
         return buffer.value.decode("utf-8")
 
     @contextmanager
-    def _input_file(self, inp, input_file):
+    def _input_file(
+        self, inp: str | InputMapping | None, input_file: PathLike | None
+    ) -> Iterator[bytes]:
         if (inp is None) == (input_file is None):
             raise ValueError("Specify exactly one of inp= or input_file=")
         if input_file is not None:
@@ -233,7 +253,13 @@ class CP2K:
             handle.flush()
             yield _path_bytes(handle.name)
 
-    def create_force_env(self, inp=None, *, input_file=None, output_file="__STD_OUT__"):
+    def create_force_env(
+        self,
+        inp: str | InputMapping | None = None,
+        *,
+        input_file: PathLike | None = None,
+        output_file: PathLike = "__STD_OUT__",
+    ) -> ForceEnvironment:
         """Create an environment from CP2K input text, a mapping, or a file.
 
         Files named in the input (including PROJECT output) are resolved by
@@ -258,7 +284,13 @@ class CP2K:
         self._environments.append(env)
         return env
 
-    def run_input(self, inp=None, *, input_file=None, output_file="__STD_OUT__"):
+    def run_input(
+        self,
+        inp: str | InputMapping | None = None,
+        *,
+        input_file: PathLike | None = None,
+        output_file: PathLike = "__STD_OUT__",
+    ) -> None:
         """Execute a complete native input, including MD or geometry optimization."""
         self._check()
         if self._environments:
@@ -270,7 +302,7 @@ class CP2K:
             else:
                 self._lib.cp2k_run_input_comm(source, output, self._comm.py2f())
 
-    def close(self):
+    def close(self) -> None:
         """Destroy environments and finalize CP2K, never caller-owned MPI."""
         if self._closed:
             return
@@ -284,17 +316,17 @@ class CP2K:
         self._closed = True
         atexit.unregister(self._at_exit)
 
-    def _at_exit(self):
+    def _at_exit(self) -> None:
         # Last resort only. Collective cleanup belongs in explicit with/close.
         if os.getpid() == self._pid and not self._closed:
             if self._mpi is None or not self._mpi.Is_finalized():
                 self.close()
 
-    def __enter__(self):
+    def __enter__(self) -> CP2K:
         self._check()
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: object) -> None:
         self.close()
 
 
@@ -306,26 +338,26 @@ class ForceEnvironment:
     from atom counts, e.g. for shell models. Getters return independent copies.
     """
 
-    def __init__(self, runtime, handle):
+    def __init__(self, runtime: CP2K, handle: int) -> None:
         self._runtime = runtime
         self._handle = handle
         self._closed = False
         self._energy_valid = False
         self._forces_valid = False
         self._stress_valid = False
-        self._scf_converged = None
+        self._scf_converged: bool | None = None
 
-    def _check(self):
+    def _check(self) -> None:
         self._runtime._check()
         if self._closed:
             raise RuntimeError("The CP2K force environment is closed")
 
     @property
-    def communicator(self):
+    def communicator(self) -> MPI.Intracomm | None:
         """Caller-side communicator, or None for a single-process caller."""
         return self._runtime._comm
 
-    def _count(self, name):
+    def _count(self, name: str) -> int:
         self._check()
         value = ct.c_int()
         getattr(self._runtime._lib, "cp2k_get_" + name)(self._handle, ct.byref(value))
@@ -334,30 +366,34 @@ class ForceEnvironment:
         return value.value
 
     @property
-    def natom(self):
+    def natom(self) -> int:
         return self._count("natom")
 
     @property
-    def nparticle(self):
+    def nparticle(self) -> int:
         return self._count("nparticle")
 
-    def _get_array(self, name, shape, sized=True):
+    def _get_array(
+        self, name: str, shape: tuple[int, ...], sized: bool = True
+    ) -> FloatArray:
         self._check()
         result = np.empty(shape, dtype=np.float64)
-        args = [self._handle, result.ctypes.data_as(_DP)]
+        args: list[Any] = [self._handle, result.ctypes.data_as(_DP)]
         if sized:
             args.append(result.size)
         getattr(self._runtime._lib, "cp2k_get_" + name)(*args)
         return result
 
-    def _set_array(self, name, values, shape, sized=True):
+    def _set_array(
+        self, name: str, values: ArrayLike, shape: tuple[int, ...], sized: bool = True
+    ) -> None:
         self._check()
         array = _array(values, shape, name)
         if name == "cell":
             determinant = np.linalg.det(array)
             if not np.isfinite(determinant) or determinant <= 0:
                 raise ValueError("cell must be nonsingular and right-handed")
-        args = [self._handle, array.ctypes.data_as(_DP)]
+        args: list[Any] = [self._handle, array.ctypes.data_as(_DP)]
         if sized:
             args.append(array.size)
         # Invalidate before entering native code; never expose stale results.
@@ -366,27 +402,27 @@ class ForceEnvironment:
         getattr(self._runtime._lib, "cp2k_set_" + name)(*args)
 
     @property
-    def positions(self):
+    def positions(self) -> FloatArray:
         return self._get_array("positions", (self.nparticle, 3))
 
     @positions.setter
-    def positions(self, values):
+    def positions(self, values: ArrayLike) -> None:
         self._set_array("positions", values, (self.nparticle, 3))
 
     @property
-    def cell(self):
+    def cell(self) -> FloatArray:
         return self._get_array("cell", (3, 3), sized=False)
 
     @cell.setter
-    def cell(self, values):
+    def cell(self, values: ArrayLike) -> None:
         self._set_array("cell", values, (3, 3), sized=False)
 
-    def set_velocities(self, values):
+    def set_velocities(self, values: ArrayLike) -> None:
         """Set particle velocities in bohr per atomic unit of time."""
         self._set_array("velocities", values, (self.nparticle, 3))
 
     @property
-    def potential_energy(self):
+    def potential_energy(self) -> float:
         self._check()
         if not self._energy_valid:
             raise RuntimeError(
@@ -397,14 +433,14 @@ class ForceEnvironment:
         return value.value
 
     @property
-    def forces(self):
+    def forces(self) -> FloatArray:
         self._check()
         if not self._forces_valid:
             raise RuntimeError("Call calculate(forces=True) before requesting forces")
         return self._get_array("forces", (self.nparticle, 3))
 
     @property
-    def stress(self):
+    def stress(self) -> FloatArray:
         """Potential pressure-positive Cartesian stress in hartree/bohr**3."""
         self._check()
         if not self._stress_valid:
@@ -419,17 +455,23 @@ class ForceEnvironment:
         return result
 
     @property
-    def virial(self):
+    def virial(self) -> FloatArray:
         """Potential pressure-positive Cartesian virial in hartree."""
-        return self.stress * np.linalg.det(self.cell)
+        return cast(FloatArray, self.stress * np.linalg.det(self.cell))
 
     @property
-    def scf_converged(self):
+    def scf_converged(self) -> bool | None:
         """True/False for the last SCF, or None if invalidated/unavailable."""
         self._check()
         return self._scf_converged
 
-    def calculate(self, *, forces=True, stress=False, check_convergence=True):
+    def calculate(
+        self,
+        *,
+        forces: bool = True,
+        stress: bool = False,
+        check_convergence: bool = True,
+    ) -> CalculationResult:
         """Recalculate, raising on a reported SCF failure by default.
 
         check_convergence=False permits diagnostic unconverged results. Unknown
@@ -478,7 +520,7 @@ class ForceEnvironment:
             raise
         return result
 
-    def close(self):
+    def close(self) -> None:
         if self._closed:
             return
         self._check()
@@ -486,9 +528,9 @@ class ForceEnvironment:
         self._closed = True
         self._runtime._environments.remove(self)
 
-    def __enter__(self):
+    def __enter__(self) -> ForceEnvironment:
         self._check()
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: object) -> None:
         self.close()
