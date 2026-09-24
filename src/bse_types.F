@@ -12,7 +12,6 @@
 !>      09.2026 created from the bse_type of mp2_types [Maximilian Graml]
 ! **************************************************************************************************
 MODULE bse_types
-   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
@@ -24,7 +23,6 @@ MODULE bse_types
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_type
    USE qs_mo_types,                     ONLY: mo_set_type
-   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_subsys_types,                 ONLY: qs_subsys_type
 #include "./base/base_uses.f90"
 
@@ -98,9 +96,9 @@ MODULE bse_types
                                                             n_ov_joint = 0, &
                                                             gw_corr_lev_occ = 0
       ! per spin: the window's occupied and virtual counts, the full occupied count (MO labels and
-      ! N_e), the OV-pair count, the block offset in the joint matrix, the GW-corrected virtual count
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: homo_red, virt_red, homo_full, n_ov, &
-                                                            offsets, gw_corr_lev_virt
+      ! N_e), the GW-corrected virtual count
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: homo_red, virt_red, homo_full, &
+                                                            gw_corr_lev_virt
       ! windowed energies (level, spin), DFT and quasiparticle; bse_solve picks one by USE_KS_ENERGIES
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: eigenval_dft, eigenval_qp
       ! window-sized RI slabs per spin, [1+Q(0)]^-1, and the screened slabs bse_solve forms
@@ -114,14 +112,10 @@ MODULE bse_types
       REAL(KIND=dp), DIMENSION(3)                        :: multipole_ref_point = 0.0_dp
       ! QS objects the solver reads, none owned
       TYPE(mp_para_env_type), POINTER                    :: para_env => NULL()
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env => NULL()
       TYPE(qs_subsys_type), POINTER                      :: subsys => NULL()
       TYPE(pw_env_type), POINTER                         :: pw_env => NULL()
       TYPE(dft_control_type), POINTER                    :: dft_control => NULL()
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos => NULL()
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s => NULL()
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb => NULL()
       TYPE(excited_energy_type), POINTER                 :: exstate_env => NULL()
    END TYPE bse_env_type
 
@@ -147,14 +141,11 @@ CONTAINS
       IF (ALLOCATED(bse_env%homo_red)) DEALLOCATE (bse_env%homo_red)
       IF (ALLOCATED(bse_env%virt_red)) DEALLOCATE (bse_env%virt_red)
       IF (ALLOCATED(bse_env%homo_full)) DEALLOCATE (bse_env%homo_full)
-      IF (ALLOCATED(bse_env%n_ov)) DEALLOCATE (bse_env%n_ov)
-      IF (ALLOCATED(bse_env%offsets)) DEALLOCATE (bse_env%offsets)
       IF (ALLOCATED(bse_env%gw_corr_lev_virt)) DEALLOCATE (bse_env%gw_corr_lev_virt)
       IF (ALLOCATED(bse_env%eigenval_dft)) DEALLOCATE (bse_env%eigenval_dft)
       IF (ALLOCATED(bse_env%eigenval_qp)) DEALLOCATE (bse_env%eigenval_qp)
       IF (ALLOCATED(bse_env%bse_nto_state_list_final)) DEALLOCATE (bse_env%bse_nto_state_list_final)
-      NULLIFY (bse_env%para_env, bse_env%blacs_env, bse_env%subsys, bse_env%pw_env, &
-               bse_env%dft_control, bse_env%mos, bse_env%matrix_s, bse_env%sab_orb, &
+      NULLIFY (bse_env%para_env, bse_env%subsys, bse_env%pw_env, bse_env%dft_control, bse_env%mos, &
                bse_env%exstate_env)
 
    END SUBROUTINE bse_env_release

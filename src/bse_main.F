@@ -113,7 +113,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'prepare_bse_env'
 
       INTEGER                                            :: handle, ispin, n_window, nspins
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_mo
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_mo, n_ov, offsets
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_dft_spin, eigenval_qp_spin
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mo_window_type)                               :: window
@@ -146,10 +146,8 @@ CONTAINS
       ! what the solver reads from QS and the GW (pointers, none owned); the para_env is the RPA's,
       ! the one the slabs live on
       bse_env%para_env => fm_S_ia_full(1)%matrix_struct%para_env
-      bse_env%blacs_env => fm_S_ia_full(1)%matrix_struct%context
       CALL get_qs_env(qs_env, subsys=bse_env%subsys, pw_env=bse_env%pw_env, &
                       dft_control=bse_env%dft_control, mos=bse_env%mos, &
-                      matrix_s=bse_env%matrix_s, sab_orb=bse_env%sab_orb, &
                       exstate_env=bse_env%exstate_env)
       CALL bse_env%para_env%sync()
 
@@ -171,7 +169,6 @@ CONTAINS
       DEALLOCATE (n_mo)
 
       ALLOCATE (bse_env%homo_red(nspins), bse_env%virt_red(nspins), bse_env%homo_full(nspins))
-      ALLOCATE (bse_env%n_ov(nspins), bse_env%offsets(nspins))
       ALLOCATE (bse_env%fm_S_ia(nspins), bse_env%fm_S_ij(nspins), bse_env%fm_S_ab(nspins))
       bse_env%homo_full(:) = homo(:)
       DO ispin = 1, nspins
@@ -189,8 +186,9 @@ CONTAINS
          bse_env%eigenval_qp(:, ispin) = eigenval_qp_spin(:)
          DEALLOCATE (eigenval_dft_spin, eigenval_qp_spin)
       END DO
-      CALL get_bse_spin_block_layout(bse_env%homo_red, bse_env%virt_red, bse_env%n_ov, &
-                                     bse_env%offsets, bse_env%n_ov_joint)
+      ALLOCATE (n_ov(nspins), offsets(nspins))
+      CALL get_bse_spin_block_layout(bse_env%homo_red, bse_env%virt_red, n_ov, offsets, bse_env%n_ov_joint)
+      DEALLOCATE (n_ov, offsets)
 
       CALL invert_static_screening(fm_Q, dimen_RI_red, bse_env%fm_eps_inv)
 
