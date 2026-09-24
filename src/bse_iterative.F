@@ -76,7 +76,7 @@ CONTAINS
 !> \param fm_mat_S_ab_trunc_arr B^P_ab, N_RI x virt_red^2
 !> \param fm_mat_S_bar_ia_bse_arr \bar{B}^P_ia = sum_Q [1+Q(0)]^-1_PQ B^Q_ia, the W-screened slab of W_ib,aj
 !> \param fm_mat_S_bar_ij_bse_arr \bar{B}^P_ij, the W-screened slab of W_ij,ab
-!> \param Eigenval_reduced quasiparticle energies of the homo_red + virt_red active levels in Hartree
+!> \param Eigenval_reduced energies of the homo_red + virt_red active levels in Hartree, QP or DFT per USE_KS_ENERGIES
 !> \param homo_red_arr occupied levels in the active window, per spin; entry 1 is used
 !> \param virt_red_arr virtual levels in the active window, per spin; entry 1 is used
 !> \param homo occupied levels of the full reference, per spin; postprocess_bse indexes the MOs with it
@@ -285,7 +285,7 @@ CONTAINS
 !> \param fm_S_ab B^P_ab, N_RI x virt_red^2
 !> \param fm_S_bar_ia W-screened \bar{B}^P_ia
 !> \param fm_S_bar_ij W-screened \bar{B}^P_ij
-!> \param Eigenval_reduced quasiparticle energies of the homo_red + virt_red active levels in Hartree
+!> \param Eigenval_reduced energies of the homo_red + virt_red active levels in Hartree, QP or DFT per USE_KS_ENERGIES
 !> \param homo_red occupied levels in the active window
 !> \param virt_red virtual levels in the active window
 !> \param do_abba B is applied too, so the \bar{B}^P_ia slab is sliced as well

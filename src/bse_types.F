@@ -131,7 +131,7 @@ CONTAINS
 !> \brief Releases the state a GW path prepared and nullifies the QS pointers; the settings stay,
 !>        including the section pointer and the two lists into the input tree, since a later energy
 !>        evaluation on the same environment runs the BSE again. Safe on an unprepared environment.
-!> \param bse_env ...
+!> \param bse_env the environment whose prepared state is released
 ! **************************************************************************************************
    SUBROUTINE bse_env_release(bse_env)
       TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env

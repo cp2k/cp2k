@@ -1187,13 +1187,13 @@ CONTAINS
    END SUBROUTINE get_bse_spin_block_layout
 
 ! **************************************************************************************************
-!> \brief The active MO window on the DFT axis: one absolute window for every spin, the combined
-!>        window when the spins differ, so the blocks of the joint matrix have equal size
+!> \brief The active MO window on the DFT axis: one absolute MO range for every spin; when the spin
+!>        windows differ, the smallest range covering all of them
 !> \param eigenval_scf DFT eigenvalues (level, spin)
 !> \param n_mo number of MOs per spin
 !> \param homo occupied MOs per spin
-!> \param cutoff_occ ENERGY_CUTOFF_OCC in Hartree, negative for no cutoff
-!> \param cutoff_empty ENERGY_CUTOFF_EMPTY in Hartree, negative for no cutoff
+!> \param cutoff_occ ENERGY_CUTOFF_OCC in Hartree, zero or negative for no cutoff
+!> \param cutoff_empty ENERGY_CUTOFF_EMPTY in Hartree, zero or negative for no cutoff
 !> \param window first and last MO to keep
 !> \param warn warn when the spin windows differ; false for a second call in the same run
 ! **************************************************************************************************
@@ -1246,7 +1246,7 @@ CONTAINS
 !> \param ispin spin of the slabs, selects the GW-corrected virtual count
 !> \param homo_red ...
 !> \param virt_red ...
-!> \param bse_env the BSE environment (settings)
+!> \param bse_env the BSE environment (settings; the GW-corrected level counts)
 !> \param window Absolute MO window to retain.
 !> \param print_window Whether to print the cutoff summary.
 ! **************************************************************************************************
