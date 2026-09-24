@@ -183,9 +183,10 @@ CONTAINS
 
       CALL invert_static_screening(fm_Q, dimen_RI_red, bse_env%fm_eps_inv)
 
-      ! the AO multipoles for the transition dipoles and, when asked for, the exciton descriptors
+      ! the AO multipoles for the transition dipoles and, when asked for, the exciton descriptors;
+      ! the open-shell path computes no descriptors
       CALL get_multipoles_ao(qs_env, 1, bse_env%matrix_dipole_ao, bse_env%multipole_ref_point)
-      IF (bse_env%num_print_exc_descr /= 0) THEN
+      IF (bse_env%num_print_exc_descr /= 0 .AND. nspins == 1) THEN
          CALL get_multipoles_ao(qs_env, 2, bse_env%matrix_quadpole_ao, bse_env%multipole_ref_point)
       END IF
 
