@@ -30,6 +30,7 @@ MODULE qs_kpoint_state
                                               cp_fm_to_fm,&
                                               cp_fm_type,&
                                               cp_fm_vectorsnorm
+   USE dft_plus_u,                      ONLY: lowdin_kp_apply
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
                                               kpoint_density_transform,&
@@ -231,6 +232,7 @@ CONTAINS
             CALL cp_cfm_create(eigenvectors, active_struct, nrow=nocc, ncol=nocc, &
                                name="fixed-density Ritz eigenvectors")
             CALL cp_fm_to_cfm(kp%ot_hmat(1, ispin), kp%ot_hmat(2, ispin), matrix_h)
+            IF (ALLOCATED(kpoints%lowdin_v)) CALL lowdin_kp_apply(kp, kpoints%lowdin_v(:, ispin), cmat=matrix_h)
             CALL cp_fm_to_cfm(active_re, active_im, coeff)
 
             CALL cp_cfm_gemm('N', 'N', nao, nocc, nao, z_one, matrix_h, coeff, z_zero, hc)

@@ -18,18 +18,12 @@ MODULE qs_gspace_mixing
                                               z_zero
    USE mathlib,                         ONLY: invert_matrix
    USE message_passing,                 ONLY: mp_para_env_type
-   USE pw_env_types,                    ONLY: pw_env_get,&
-                                              pw_env_type
-   USE pw_methods,                      ONLY: pw_axpy,&
-                                              pw_copy,&
-                                              pw_integrate_function,&
-                                              pw_scale,&
-                                              pw_transfer,&
-                                              pw_zero
-   USE pw_pool_types,                   ONLY: pw_pool_type
+   USE pw_methods,                      ONLY: pw_integrate_function,&
+                                              pw_transfer
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_density_mixing_types,         ONLY: broyden_mixing_nr,&
+                                              cp_1d_z_p_type,&
                                               gspace_mixing_nr,&
                                               mixing_storage_type,&
                                               modified_broyden_mixing_nr,&
@@ -38,6 +32,7 @@ MODULE qs_gspace_mixing
                                               pulay_mixing_nr
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_mixing_utils,                 ONLY: mixing_density
    USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
@@ -62,50 +57,49 @@ CONTAINS
 !> \param rho ...
 !> \param para_env ...
 !> \param iter_count ...
+!> \param auxiliary Replicated density coordinates, mixed with the same history and spin channels.
 !> \par History
 !>      05.2009
 !>      02.2015 changed input to make g-space mixing available in linear scaling
 !>              SCF [Patrick Seewald]
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE gspace_mixing(qs_env, mixing_method, mixing_store, rho, para_env, iter_count)
+   SUBROUTINE gspace_mixing(qs_env, mixing_method, mixing_store, rho, para_env, iter_count, auxiliary)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: mixing_method
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: iter_count
+      REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: auxiliary(:, :)
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'gspace_mixing'
 
+      COMPLEX(KIND=dp)                                   :: tmp
       INTEGER                                            :: handle, iatom, ig, ispin, natom, ng, &
                                                             nspin
       LOGICAL                                            :: gapw
-      REAL(dp)                                           :: alpha
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
+      TYPE(cp_1d_z_p_type), ALLOCATABLE                  :: density(:)
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_gs_type)                               :: rho_tmp
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control, pw_env=pw_env)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (.NOT. (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb .OR. &
                  dft_control%qs_control%semi_empirical)) THEN
 
          CPASSERT(ASSOCIATED(mixing_store))
-         NULLIFY (auxbas_pw_pool, rho_atom, rho_g, rho_r, tot_rho_r)
+         NULLIFY (rho_atom, rho_g, rho_r, tot_rho_r)
          CALL qs_rho_get(rho, rho_g=rho_g, rho_r=rho_r, tot_rho_r=tot_rho_r)
 
          nspin = SIZE(rho_g, 1)
-         ng = SIZE(rho_g(1)%pw_grid%gsq)
+         CALL mixing_density(mixing_store, rho_g, density, auxiliary)
+         ng = SIZE(density(1)%cc)
          CPASSERT(ng == SIZE(mixing_store%rhoin(1)%cc))
-
-         alpha = mixing_store%alpha
          gapw = dft_control%qs_control%gapw
          natom = 0
 
@@ -115,13 +109,11 @@ CONTAINS
          END IF
 
          IF (nspin == 2) THEN
-            CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)
-            CALL auxbas_pw_pool%create_pw(rho_tmp)
-            CALL pw_zero(rho_tmp)
-            CALL pw_copy(rho_g(1), rho_tmp)
-            CALL pw_axpy(rho_g(2), rho_g(1), 1.0_dp)
-            CALL pw_axpy(rho_tmp, rho_g(2), -1.0_dp)
-            CALL pw_scale(rho_g(2), -1.0_dp)
+            DO ig = 1, ng
+               tmp = density(1)%cc(ig)
+               density(1)%cc(ig) = tmp + density(2)%cc(ig)
+               density(2)%cc(ig) = tmp - density(2)%cc(ig)
+            END DO
             IF (mixing_store%gmix_p .AND. gapw) THEN
                CALL gapw_cpc_spin_to_charge_mag(rho_atom, mixing_store)
             END IF
@@ -131,7 +123,7 @@ CONTAINS
             ! skip mixing
             DO ispin = 1, nspin
                DO ig = 1, ng
-                  mixing_store%rhoin(ispin)%cc(ig) = rho_g(ispin)%array(ig)
+                  mixing_store%rhoin(ispin)%cc(ig) = density(ispin)%cc(ig)
                END DO
             END DO
             IF (mixing_store%gmix_p .AND. gapw) THEN
@@ -146,45 +138,33 @@ CONTAINS
             END IF
 
             mixing_store%iter_method = "NoMix"
-            IF (nspin == 2) THEN
-               IF (mixing_store%gmix_p .AND. gapw) THEN
-                  CALL gapw_cpc_charge_mag_to_spin(rho_atom, mixing_store)
-               END IF
-               CALL pw_axpy(rho_g(2), rho_g(1), 1.0_dp)
-               CALL pw_scale(rho_g(1), 0.5_dp)
-               CALL pw_axpy(rho_g(1), rho_g(2), -1.0_dp)
-               CALL pw_scale(rho_g(2), -1.0_dp)
-               CALL auxbas_pw_pool%give_back_pw(rho_tmp)
-            END IF
-            CALL timestop(handle)
-            RETURN
-         END IF
-
-         IF ((iter_count + 1 - mixing_store%nskip_mixing) <= mixing_store%n_simple_mix) THEN
+         ELSE IF ((iter_count + 1 - mixing_store%nskip_mixing) <= mixing_store%n_simple_mix) THEN
             CALL cite_reference(Kerker1981)
-            CALL gmix_potential_only(qs_env, mixing_store, rho)
+            CALL gmix_potential_only(qs_env, mixing_store, density)
             mixing_store%iter_method = "Kerker"
          ELSE IF (mixing_method == gspace_mixing_nr) THEN
             CALL cite_reference(Kerker1981)
-            CALL gmix_potential_only(qs_env, mixing_store, rho)
+            CALL gmix_potential_only(qs_env, mixing_store, density)
             mixing_store%iter_method = "Kerker"
          ELSE IF (mixing_method == pulay_mixing_nr) THEN
-            CALL pulay_mixing(qs_env, mixing_store, rho, para_env)
+            CALL pulay_mixing(qs_env, mixing_store, density, para_env, rho_g(1)%pw_grid%vol)
             mixing_store%iter_method = "Pulay"
          ELSE IF (mixing_method == new_pulay_mixing_nr) THEN
-            CALL pulay_mixing(qs_env, mixing_store, rho, para_env)
+            CALL pulay_mixing(qs_env, mixing_store, density, para_env, rho_g(1)%pw_grid%vol)
             mixing_store%iter_method = "NPulay"
          ELSE IF (mixing_method == broyden_mixing_nr) THEN
             CALL cite_reference(Broyden1965)
-            CALL broyden_mixing(qs_env, mixing_store, rho, para_env)
+            CALL broyden_mixing(qs_env, mixing_store, density, para_env)
             mixing_store%iter_method = "Broy."
          ELSE IF (mixing_method == modified_broyden_mixing_nr) THEN
             CALL cite_reference(Johnson1988)
-            CALL modified_broyden_mixing(qs_env, mixing_store, rho, para_env)
+            CALL modified_broyden_mixing(qs_env, mixing_store, density, para_env)
             mixing_store%iter_method = "MBroy"
          ELSE IF (mixing_method == multisecant_mixing_nr) THEN
             CPASSERT(.NOT. gapw)
-            CALL multisecant_mixing(mixing_store, rho, para_env)
+            CPASSERT(rho_g(1)%pw_grid%ngpts < HUGE(ng) - mixing_store%naux)
+            CALL multisecant_mixing(mixing_store, density, para_env, rho_g(1)%pw_grid%gsq, &
+                                    INT(rho_g(1)%pw_grid%ngpts) + mixing_store%naux)
             mixing_store%iter_method = "MSec."
          END IF
 
@@ -192,13 +172,28 @@ CONTAINS
             IF (mixing_store%gmix_p .AND. gapw) THEN
                CALL gapw_cpc_charge_mag_to_spin(rho_atom, mixing_store)
             END IF
-            CALL pw_axpy(rho_g(2), rho_g(1), 1.0_dp)
-            CALL pw_scale(rho_g(1), 0.5_dp)
-            CALL pw_axpy(rho_g(1), rho_g(2), -1.0_dp)
-            CALL pw_scale(rho_g(2), -1.0_dp)
-            CALL auxbas_pw_pool%give_back_pw(rho_tmp)
+            DO ig = 1, ng
+               tmp = density(1)%cc(ig)
+               density(1)%cc(ig) = 0.5_dp*(tmp + density(2)%cc(ig))
+               density(2)%cc(ig) = 0.5_dp*(tmp - density(2)%cc(ig))
+            END DO
          END IF
 
+         IF (mixing_store%naux > 0) THEN
+            IF (ALLOCATED(mixing_store%aux_buffer)) THEN
+               ng = SIZE(rho_g(1)%array)
+               DO ispin = 1, nspin
+                  rho_g(ispin)%array = density(ispin)%cc(:ng)
+                  auxiliary(:, ispin) = REAL(density(ispin)%cc(ng + 1:), dp)*rho_g(ispin)%pw_grid%vol
+               END DO
+            END IF
+            CALL para_env%bcast(auxiliary, 0)
+         END IF
+         ! A skipped update already has a consistent real-space density.
+         IF (iter_count + 1 <= mixing_store%nskip_mixing) THEN
+            CALL timestop(handle)
+            RETURN
+         END IF
          DO ispin = 1, nspin
             CALL pw_transfer(rho_g(ispin), rho_r(ispin))
             tot_rho_r(ispin) = pw_integrate_function(rho_r(ispin), isign=-1)
@@ -326,17 +321,17 @@ CONTAINS
 !>        thus affecting only the caluclation of the potential, but not the denisity matrix
 !> \param qs_env ...
 !> \param mixing_store ...
-!> \param rho ...
+!> \param density Local mixing vectors, including any auxiliary coordinates.
 !> \par History
 !>      02.2009
 !> \author MI
 ! **************************************************************************************************
 
-   SUBROUTINE gmix_potential_only(qs_env, mixing_store, rho)
+   SUBROUTINE gmix_potential_only(qs_env, mixing_store, density)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(cp_1d_z_p_type), INTENT(IN)                   :: density(:)
 
       CHARACTER(len=*), PARAMETER :: routineN = 'gmix_potential_only'
 
@@ -347,20 +342,18 @@ CONTAINS
       REAL(dp)                                           :: alpha, alpha_eff, f_mix
       REAL(dp), DIMENSION(:), POINTER                    :: kerker_eff
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CPASSERT(ASSOCIATED(mixing_store%rhoin))
       CPASSERT(ASSOCIATED(mixing_store%kerker_factor))
 
       CALL timeset(routineN, handle)
-      NULLIFY (cc_new, dft_control, rho_atom, rho_g, kerker_eff)
+      NULLIFY (cc_new, dft_control, rho_atom, kerker_eff)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
-      CALL qs_rho_get(rho, rho_g=rho_g)
 
-      nspin = SIZE(rho_g, 1)
-      ng = SIZE(rho_g(1)%pw_grid%gsq)
+      nspin = SIZE(density)
+      ng = SIZE(density(1)%cc)
 
       gapw = dft_control%qs_control%gapw
       alpha = mixing_store%alpha
@@ -374,7 +367,7 @@ CONTAINS
             alpha_eff = mixing_store%alpha
             kerker_eff => mixing_store%kerker_factor
          END IF
-         cc_new => rho_g(ispin)%array
+         cc_new => density(ispin)%cc
          DO ig = 1, mixing_store%ig_max ! ng
             f_mix = alpha_eff*kerker_eff(ig)
             cc_new(ig) = (1.0_dp - f_mix)*mixing_store%rhoin(ispin)%cc(ig) + f_mix*cc_new(ig)
@@ -422,19 +415,21 @@ CONTAINS
 !>        on the grid but not the density matrix
 !> \param qs_env ...
 !> \param mixing_store ...
-!> \param rho ...
+!> \param density Local mixing vectors, including any auxiliary coordinates.
 !> \param para_env ...
+!> \param vol Cell volume for the Pulay metric.
 !> \par History
 !>      03.2009
 !> \author MI
 ! **************************************************************************************************
 
-   SUBROUTINE pulay_mixing(qs_env, mixing_store, rho, para_env)
+   SUBROUTINE pulay_mixing(qs_env, mixing_store, density, para_env, vol)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(cp_1d_z_p_type), INTENT(IN)                   :: density(:)
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp), INTENT(IN)                          :: vol
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pulay_mixing'
 
@@ -445,24 +440,21 @@ CONTAINS
       LOGICAL                                            :: gapw
       REAL(dp)                                           :: alpha_eff, alpha_kerker, alpha_pulay, &
                                                             beta, f_mix, inv_err, norm, &
-                                                            norm_c_inv, res_norm, vol
+                                                            norm_c_inv, res_norm
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: alpha_c, ev
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: b, c, c_inv, cpc_h_mix, cpc_s_mix
       REAL(dp), DIMENSION(:), POINTER                    :: kerker_eff
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CPASSERT(ASSOCIATED(mixing_store%res_buffer))
       CPASSERT(ASSOCIATED(mixing_store%rhoin_buffer))
-      NULLIFY (dft_control, rho_atom, rho_g, kerker_eff)
+      NULLIFY (dft_control, rho_atom, kerker_eff)
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
-      CALL qs_rho_get(rho, rho_g=rho_g)
-      nspin = SIZE(rho_g, 1)
+      nspin = SIZE(density)
       ng = SIZE(mixing_store%res_buffer(1, 1)%cc)
-      vol = rho_g(1)%pw_grid%vol
 
       alpha_kerker = mixing_store%alpha  ! default, overridden per spin in loop
       beta = mixing_store%pulay_beta
@@ -498,7 +490,7 @@ CONTAINS
          res_norm = 0.0_dp
          DO ig = 1, ng
             f_mix = kerker_eff(ig)
-            mixing_store%res_buffer(ib, ispin)%cc(ig) = f_mix*(rho_g(ispin)%array(ig) - &
+            mixing_store%res_buffer(ib, ispin)%cc(ig) = f_mix*(density(ispin)%cc(ig) - &
                                                                mixing_store%rhoin_buffer(ib, ispin)%cc(ig))
             res_norm = res_norm + &
                        REAL(mixing_store%res_buffer(ib, ispin)%cc(ig), dp)*REAL(mixing_store%res_buffer(ib, ispin)%cc(ig), dp) + &
@@ -549,11 +541,11 @@ CONTAINS
          IF (nb == 1 .OR. res_norm < 1.E-14_dp) THEN
             DO ig = 1, ng
                f_mix = alpha_kerker*kerker_eff(ig)
-               cc_mix(ig) = rho_g(ispin)%array(ig) - &
+               cc_mix(ig) = density(ispin)%cc(ig) - &
                             mixing_store%rhoin_buffer(ib, ispin)%cc(ig)
-               rho_g(ispin)%array(ig) = f_mix*cc_mix(ig) + &
-                                        mixing_store%rhoin_buffer(ib, ispin)%cc(ig)
-               mixing_store%rhoin_buffer(ibb, ispin)%cc(ig) = rho_g(ispin)%array(ig)
+               density(ispin)%cc(ig) = f_mix*cc_mix(ig) + &
+                                       mixing_store%rhoin_buffer(ib, ispin)%cc(ig)
+               mixing_store%rhoin_buffer(ibb, ispin)%cc(ig) = density(ispin)%cc(ig)
             END DO
             IF (mixing_store%gmix_p) THEN
                IF (gapw) THEN
@@ -607,14 +599,14 @@ CONTAINS
             IF (alpha_pulay > 0.0_dp) THEN
                DO ig = 1, ng
                   f_mix = alpha_pulay*kerker_eff(ig)
-                  rho_g(ispin)%array(ig) = f_mix*rho_g(ispin)%array(ig) + &
-                                           (1.0_dp - f_mix)*cc_mix(ig)
-                  mixing_store%rhoin_buffer(ibb, ispin)%cc(ig) = rho_g(ispin)%array(ig)
+                  density(ispin)%cc(ig) = f_mix*density(ispin)%cc(ig) + &
+                                          (1.0_dp - f_mix)*cc_mix(ig)
+                  mixing_store%rhoin_buffer(ibb, ispin)%cc(ig) = density(ispin)%cc(ig)
                END DO
             ELSE
                DO ig = 1, ng
-                  rho_g(ispin)%array(ig) = cc_mix(ig)
-                  mixing_store%rhoin_buffer(ibb, ispin)%cc(ig) = rho_g(ispin)%array(ig)
+                  density(ispin)%cc(ig) = cc_mix(ig)
+                  mixing_store%rhoin_buffer(ibb, ispin)%cc(ig) = density(ispin)%cc(ig)
                END DO
             END IF
 
@@ -673,18 +665,18 @@ CONTAINS
 !>        The mixing is applied directly on the density expansion in reciprocal space
 !> \param qs_env ...
 !> \param mixing_store ...
-!> \param rho ...
+!> \param density Local mixing vectors, including any auxiliary coordinates.
 !> \param para_env ...
 !> \par History
 !>      03.2009
 !> \author MI
 ! **************************************************************************************************
 
-   SUBROUTINE broyden_mixing(qs_env, mixing_store, rho, para_env)
+   SUBROUTINE broyden_mixing(qs_env, mixing_store, density, para_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(cp_1d_z_p_type), INTENT(IN)                   :: density(:)
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'broyden_mixing'
@@ -703,20 +695,18 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a, b
       REAL(dp), DIMENSION(:), POINTER                    :: kerker_eff
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CPASSERT(ASSOCIATED(mixing_store%res_buffer))
       CPASSERT(ASSOCIATED(mixing_store%rhoin))
       CPASSERT(ASSOCIATED(mixing_store%rhoin_old))
       CPASSERT(ASSOCIATED(mixing_store%drho_buffer))
-      NULLIFY (dft_control, rho_atom, rho_g, kerker_eff)
+      NULLIFY (dft_control, rho_atom, kerker_eff)
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
-      CALL qs_rho_get(rho, rho_g=rho_g)
 
-      nspin = SIZE(rho_g, 1)
+      nspin = SIZE(density)
       ng = SIZE(mixing_store%res_buffer(1, 1)%cc)
 
       alpha = mixing_store%alpha
@@ -753,16 +743,16 @@ CONTAINS
          END IF
          res_rho = z_zero
          DO ig = 1, ng
-            res_rho(ig) = rho_g(ispin)%array(ig) - mixing_store%rhoin(ispin)%cc(ig)
+            res_rho(ig) = density(ispin)%cc(ig) - mixing_store%rhoin(ispin)%cc(ig)
          END DO
 
          IF (only_kerker) THEN
             DO ig = 1, ng
                mixing_store%last_res(ispin)%cc(ig) = res_rho(ig)
                f_mix = alpha_eff*kerker_eff(ig)
-               rho_g(ispin)%array(ig) = mixing_store%rhoin(ispin)%cc(ig) + f_mix*res_rho(ig)
+               density(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig) + f_mix*res_rho(ig)
                mixing_store%rhoin_old(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig)
-               mixing_store%rhoin(ispin)%cc(ig) = rho_g(ispin)%array(ig)
+               mixing_store%rhoin(ispin)%cc(ig) = density(ispin)%cc(ig)
             END DO
 
             IF (mixing_store%gmix_p) THEN
@@ -813,8 +803,8 @@ CONTAINS
                             AIMAG(mixing_store%res_buffer(ib, ispin)%cc(ig))* &
                             AIMAG(mixing_store%res_buffer(ib, ispin)%cc(ig))
                rho_norm = rho_norm + &
-                          REAL(rho_g(ispin)%array(ig), dp)*REAL(rho_g(ispin)%array(ig), dp) + &
-                          AIMAG(rho_g(ispin)%array(ig))*AIMAG(rho_g(ispin)%array(ig))
+                          REAL(density(ispin)%cc(ig), dp)*REAL(density(ispin)%cc(ig), dp) + &
+                          AIMAG(density(ispin)%cc(ig))*AIMAG(density(ispin)%cc(ig))
             END DO
             DO ig = 1, ng
                mixing_store%drho_buffer(ib, ispin)%cc(ig) = &
@@ -914,10 +904,10 @@ CONTAINS
                END DO
                f_mix = alpha_eff*kerker_eff(ig)
 
-               IF (res_norm > 1.E-14_dp) rho_g(ispin)%array(ig) = mixing_store%rhoin(ispin)%cc(ig) + &
-                                                                  f_mix*res_rho(ig) + cc_mix
+               IF (res_norm > 1.E-14_dp) density(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig) + &
+                                                                 f_mix*res_rho(ig) + cc_mix
                mixing_store%rhoin_old(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig)
-               mixing_store%rhoin(ispin)%cc(ig) = rho_g(ispin)%array(ig)
+               mixing_store%rhoin(ispin)%cc(ig) = density(ispin)%cc(ig)
             END DO
 
             IF (mixing_store%gmix_p) THEN
@@ -970,15 +960,15 @@ CONTAINS
 !>        The mixing is applied directly on the density expansion in reciprocal space.
 !> \param qs_env ...
 !> \param mixing_store ...
-!> \param rho ...
+!> \param density Local mixing vectors, including any auxiliary coordinates.
 !> \param para_env ...
 ! **************************************************************************************************
 
-   SUBROUTINE modified_broyden_mixing(qs_env, mixing_store, rho, para_env)
+   SUBROUTINE modified_broyden_mixing(qs_env, mixing_store, density, para_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(cp_1d_z_p_type), INTENT(IN)                   :: density(:)
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'modified_broyden_mixing'
@@ -995,7 +985,6 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a, b
       REAL(dp), DIMENSION(:), POINTER                    :: kerker_eff
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
 
       CPASSERT(ASSOCIATED(mixing_store%res_buffer))
@@ -1003,13 +992,12 @@ CONTAINS
       CPASSERT(ASSOCIATED(mixing_store%rhoin_old))
       CPASSERT(ASSOCIATED(mixing_store%drho_buffer))
       CPASSERT(ASSOCIATED(mixing_store%weight))
-      NULLIFY (dft_control, rho_atom, rho_g, kerker_eff)
+      NULLIFY (dft_control, rho_atom, kerker_eff)
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
-      CALL qs_rho_get(rho, rho_g=rho_g)
 
-      nspin = SIZE(rho_g, 1)
+      nspin = SIZE(density)
       ng = SIZE(mixing_store%res_buffer(1, 1)%cc)
 
       broy_w0 = mixing_store%broy_w0
@@ -1047,16 +1035,16 @@ CONTAINS
          END IF
          res_rho = z_zero
          DO ig = 1, ng
-            res_rho(ig) = rho_g(ispin)%array(ig) - mixing_store%rhoin(ispin)%cc(ig)
+            res_rho(ig) = density(ispin)%cc(ig) - mixing_store%rhoin(ispin)%cc(ig)
          END DO
 
          IF (only_kerker) THEN
             DO ig = 1, ng
                mixing_store%last_res(ispin)%cc(ig) = res_rho(ig)
                f_mix = alpha_eff*kerker_eff(ig)
-               rho_g(ispin)%array(ig) = mixing_store%rhoin(ispin)%cc(ig) + f_mix*res_rho(ig)
+               density(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig) + f_mix*res_rho(ig)
                mixing_store%rhoin_old(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig)
-               mixing_store%rhoin(ispin)%cc(ig) = rho_g(ispin)%array(ig)
+               mixing_store%rhoin(ispin)%cc(ig) = density(ispin)%cc(ig)
             END DO
 
             IF (mixing_store%gmix_p) THEN
@@ -1107,8 +1095,8 @@ CONTAINS
                             AIMAG(mixing_store%res_buffer(ib, ispin)%cc(ig))* &
                             AIMAG(mixing_store%res_buffer(ib, ispin)%cc(ig))
                rho_norm = rho_norm + &
-                          REAL(rho_g(ispin)%array(ig), dp)*REAL(rho_g(ispin)%array(ig), dp) + &
-                          AIMAG(rho_g(ispin)%array(ig))*AIMAG(rho_g(ispin)%array(ig))
+                          REAL(density(ispin)%cc(ig), dp)*REAL(density(ispin)%cc(ig), dp) + &
+                          AIMAG(density(ispin)%cc(ig))*AIMAG(density(ispin)%cc(ig))
             END DO
             DO ig = 1, ng
                mixing_store%drho_buffer(ib, ispin)%cc(ig) = &
@@ -1225,10 +1213,10 @@ CONTAINS
                END DO
                f_mix = alpha_eff*kerker_eff(ig)
 
-               IF (res_norm > 1.E-14_dp) rho_g(ispin)%array(ig) = mixing_store%rhoin(ispin)%cc(ig) + &
-                                                                  f_mix*res_rho(ig) + cc_mix
+               IF (res_norm > 1.E-14_dp) density(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig) + &
+                                                                 f_mix*res_rho(ig) + cc_mix
                mixing_store%rhoin_old(ispin)%cc(ig) = mixing_store%rhoin(ispin)%cc(ig)
-               mixing_store%rhoin(ispin)%cc(ig) = rho_g(ispin)%array(ig)
+               mixing_store%rhoin(ispin)%cc(ig) = density(ispin)%cc(ig)
             END DO
 
             IF (mixing_store%gmix_p) THEN
@@ -1285,17 +1273,21 @@ CONTAINS
 !>        therefore it affects the potentials
 !>        on the grid but not the density matrix
 !> \param mixing_store ...
-!> \param rho ...
+!> \param density Local mixing vectors, including any auxiliary coordinates.
 !> \param para_env ...
+!> \param g2 Squared physical G vectors; auxiliary coordinates are not Fourier modes.
+!> \param ng_global Total distributed vector length including auxiliary coordinates.
 !> \par History
 !>      05.2009
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE multisecant_mixing(mixing_store, rho, para_env)
+   SUBROUTINE multisecant_mixing(mixing_store, density, para_env, g2, ng_global)
 
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(cp_1d_z_p_type), INTENT(IN)                   :: density(:)
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp), INTENT(IN)                          :: g2(:)
+      INTEGER, INTENT(IN)                                :: ng_global
 
       CHARACTER(len=*), PARAMETER :: routineN = 'multisecant_mixing'
       COMPLEX(KIND=dp), PARAMETER                        :: cmone = (-1.0_dp, 0.0_dp), &
@@ -1309,32 +1301,27 @@ CONTAINS
       COMPLEX(dp), DIMENSION(:), POINTER                 :: gn
       INTEGER                                            :: handle, ib, ib_next, ib_prev, ig, &
                                                             ig_global, iig, ispin, jb, kb, nb, &
-                                                            nbuffer, ng, ng_global, nspin
+                                                            nbuffer, ng, nspin
       LOGICAL                                            :: use_zgemm, use_zgemm_rev
       REAL(dp) :: alpha, alpha_eff, f_mix, gn_norm, gn_norm_old, inv_err, n_low, n_up, pgn_norm, &
          prec, r_step, reg_par, sigma_max, sigma_tilde, step_size
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: norm_res, norm_res_low, norm_res_up
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: b_matrix, binv_matrix
-      REAL(dp), DIMENSION(:), POINTER                    :: g2, kerker_eff
+      REAL(dp), DIMENSION(:), POINTER                    :: kerker_eff
       REAL(dp), SAVE                                     :: sigma_old = 1.0_dp
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
 
       CPASSERT(ASSOCIATED(mixing_store))
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (gn, rho_g)
+      NULLIFY (gn)
 
       use_zgemm = .FALSE.
       use_zgemm_rev = .TRUE.
 
       ! prepare the parameters
-      CALL qs_rho_get(rho, rho_g=rho_g)
 
-      nspin = SIZE(rho_g, 1)
-      ! not implemented for large grids.
-      CPASSERT(rho_g(1)%pw_grid%ngpts < HUGE(ng_global))
-      ng_global = INT(rho_g(1)%pw_grid%ngpts)
+      nspin = SIZE(density)
       ng = SIZE(mixing_store%rhoin_buffer(1, 1)%cc)
       alpha = mixing_store%alpha
 
@@ -1356,10 +1343,12 @@ CONTAINS
 
       ! compute the residual gn and its norm gn_norm
       DO ispin = 1, nspin
+         ! Start from the last accepted state, including skipped/simple mixing steps.
+         IF (nb == 0) mixing_store%rhoin_buffer(ib, ispin)%cc = mixing_store%rhoin(ispin)%cc
          gn => mixing_store%res_buffer(ib, ispin)%cc
          gn_norm = 0.0_dp
          DO ig = 1, ng
-            gn(ig) = (rho_g(ispin)%array(ig) - mixing_store%rhoin_buffer(ib, ispin)%cc(ig))
+            gn(ig) = (density(ispin)%cc(ig) - mixing_store%rhoin_buffer(ib, ispin)%cc(ig))
             gn_norm = gn_norm + &
                       REAL(gn(ig), dp)*REAL(gn(ig), dp) + AIMAG(gn(ig))*AIMAG(gn(ig))
          END DO
@@ -1380,9 +1369,9 @@ CONTAINS
             END IF
             DO ig = 1, ng
                f_mix = alpha_eff*kerker_eff(ig)
-               rho_g(ispin)%array(ig) = mixing_store%rhoin_buffer(1, ispin)%cc(ig) + &
-                                        f_mix*mixing_store%res_buffer(1, ispin)%cc(ig)
-               mixing_store%rhoin_buffer(ib_next, ispin)%cc(ig) = rho_g(ispin)%array(ig)
+               density(ispin)%cc(ig) = mixing_store%rhoin_buffer(1, ispin)%cc(ig) + &
+                                       f_mix*mixing_store%res_buffer(1, ispin)%cc(ig)
+               mixing_store%rhoin_buffer(ib_next, ispin)%cc(ig) = density(ispin)%cc(ig)
             END DO
          END DO
          CALL timestop(handle)
@@ -1441,7 +1430,6 @@ CONTAINS
          ! step and the present residual (use stored rho_in and res_buffer)
 
          ! These quantities are pre-conditioned by means of Kerker factor multipliccation
-         g2 => rho_g(1)%pw_grid%gsq
 
          DO jb = 1, nb + 1
             IF (jb < ib) THEN
@@ -1464,14 +1452,16 @@ CONTAINS
                                      mixing_store%res_buffer(ib, ispin)%cc(ig))
                norm_res(kb) = norm_res(kb) + REAL(res_matrix(ig, kb), dp)*REAL(res_matrix(ig, kb), dp) + &
                               AIMAG(res_matrix(ig, kb))*AIMAG(res_matrix(ig, kb))
-               IF (g2(ig) < 4.0_dp) THEN
-                  norm_res_low(kb) = norm_res_low(kb) + &
-                                     REAL(res_matrix(ig, kb), dp)*REAL(res_matrix(ig, kb), dp) + &
-                                     AIMAG(res_matrix(ig, kb))*AIMAG(res_matrix(ig, kb))
-               ELSE
-                  norm_res_up(kb) = norm_res_up(kb) + &
-                                    REAL(res_matrix(ig, kb), dp)*REAL(res_matrix(ig, kb), dp) + &
-                                    AIMAG(res_matrix(ig, kb))*AIMAG(res_matrix(ig, kb))
+               IF (ig <= SIZE(g2)) THEN
+                  IF (g2(ig) < 4.0_dp) THEN
+                     norm_res_low(kb) = norm_res_low(kb) + &
+                                        REAL(res_matrix(ig, kb), dp)*REAL(res_matrix(ig, kb), dp) + &
+                                        AIMAG(res_matrix(ig, kb))*AIMAG(res_matrix(ig, kb))
+                  ELSE
+                     norm_res_up(kb) = norm_res_up(kb) + &
+                                       REAL(res_matrix(ig, kb), dp)*REAL(res_matrix(ig, kb), dp) + &
+                                       AIMAG(res_matrix(ig, kb))*AIMAG(res_matrix(ig, kb))
+                  END IF
                END IF
                res_matrix(ig, kb) = prec*res_matrix(ig, kb)
             END DO
@@ -1488,12 +1478,15 @@ CONTAINS
             n_low = n_low + norm_res_low(jb)/norm_res(jb)
             n_up = n_up + norm_res_up(jb)/norm_res(jb)
          END DO
-         DO ig = 1, ng
-            IF (g2(ig) > 4.0_dp) THEN
-               step_matrix(ig, 1:nb) = step_matrix(ig, 1:nb)*SQRT(n_low/n_up)
-               res_matrix(ig, 1:nb) = res_matrix(ig, 1:nb)*SQRT(n_low/n_up)
-            END IF
-         END DO
+         ! Auxiliary-only changes have no Fourier low/high norm to rebalance.
+         IF (n_low > 0.0_dp .AND. n_up > 0.0_dp) THEN
+            DO ig = 1, SIZE(g2)
+               IF (g2(ig) > 4.0_dp) THEN
+                  step_matrix(ig, 1:nb) = step_matrix(ig, 1:nb)*SQRT(n_low/n_up)
+                  res_matrix(ig, 1:nb) = res_matrix(ig, 1:nb)*SQRT(n_low/n_up)
+               END IF
+            END DO
+         END IF
          DO kb = 1, nb
             step_matrix(1:ng, kb) = step_matrix(1:ng, kb)*norm_res(kb)
             res_matrix(1:ng, kb) = res_matrix(1:ng, kb)*norm_res(kb)
@@ -1623,9 +1616,9 @@ CONTAINS
          ! update the density
          DO ig = 1, ng
             prec = kerker_eff(ig)
-            rho_g(ispin)%array(ig) = mixing_store%rhoin_buffer(ib, ispin)%cc(ig) &
-                                     - prec*step_size*ugn(ig) + prec*pgn(ig) ! - 0.1_dp * prec* gn(ig)
-            mixing_store%rhoin_buffer(ib_next, ispin)%cc(ig) = rho_g(ispin)%array(ig)
+            density(ispin)%cc(ig) = mixing_store%rhoin_buffer(ib, ispin)%cc(ig) &
+                                    - prec*step_size*ugn(ig) + prec*pgn(ig) ! - 0.1_dp * prec* gn(ig)
+            mixing_store%rhoin_buffer(ib_next, ispin)%cc(ig) = density(ispin)%cc(ig)
          END DO
 
       END DO ! ispin

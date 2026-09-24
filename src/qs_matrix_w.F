@@ -25,6 +25,9 @@ MODULE qs_matrix_w
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_type
+   USE dft_plus_u,                      ONLY: lowdin_kp_apply_mo,&
+                                              plus_u
+   USE input_constants,                 ONLY: plus_u_lowdin
    USE kinds,                           ONLY: dp
    USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
                                               kpoint_density_transform,&
@@ -66,13 +69,15 @@ CONTAINS
 !>        into separate subroutine
 !> \param qs_env ...
 !> \param calc_forces ...
+!> \param include_lowdin_forces include the Lowdin overlap derivative before the W(k) transform
 !> \par History
 !>      05.2013 created [Florian Schiffmann]
 ! **************************************************************************************************
 
-   SUBROUTINE compute_matrix_w(qs_env, calc_forces)
+   SUBROUTINE compute_matrix_w(qs_env, calc_forces, include_lowdin_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calc_forces
+      LOGICAL, INTENT(IN), OPTIONAL                      :: include_lowdin_forces
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_matrix_w'
 
@@ -111,6 +116,7 @@ CONTAINS
                                matrix_s_kp=matrix_s_kp, &
                                sab_orb=sab_nl, &
                                mos=mos, &
+                               dft_control=dft_control, &
                                kpoints=kpoints, &
                                scf_control=scf_control)
 
@@ -125,9 +131,18 @@ CONTAINS
 
                ! energy weighted density matrices in k-space
                IF (scf_control%use_ot) THEN
+                  IF (ALLOCATED(kpoints%lowdin_v)) CALL plus_u(qs_env, matrix_h=matrix_ks_kp)
                   CALL kpoint_ot_energy_weighted_matrices(kpoints, matrix_ks_kp, fmwork(1))
                ELSE
                   CALL kpoint_density_matrices(kpoints, energy_weighted=.TRUE.)
+               END IF
+               ! Property callers need the ordinary energy-weighted density. Force callers
+               ! also need -dE_U/dS; transform both together, once, on the overlap support.
+               IF (PRESENT(include_lowdin_forces)) THEN
+                  IF (include_lowdin_forces .AND. dft_control%dft_plus_u .AND. &
+                      dft_control%plus_u_method_id == plus_u_lowdin) THEN
+                     CALL plus_u(qs_env, matrix_w=matrix_w_kp)
+                  END IF
                END IF
                ! energy weighted density matrices in real space
                CALL kpoint_density_transform(kpoints, matrix_w_kp, .TRUE., &
@@ -250,6 +265,9 @@ CONTAINS
                CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, coeff_im, hc_im, nmo)
                CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, coeff_re, hc_im, nmo, &
                                             alpha=1.0_dp, beta=1.0_dp)
+               IF (ALLOCATED(kpoint%lowdin_v)) THEN
+                  CALL lowdin_kp_apply_mo(kp, kpoint%lowdin_v(:, ispin), coeff_re, coeff_im, hc_re, hc_im)
+               END IF
 
                CALL kpoint_ot_energy_weighted_density( &
                   coeff_re, coeff_im, hc_re, hc_im, occupation, &

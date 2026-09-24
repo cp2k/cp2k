@@ -47,6 +47,11 @@
 MODULE qs_scf
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, &
@@ -54,6 +59,7 @@ MODULE qs_scf
         dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
+                                              copy_fm_to_dbcsr_bc,&
                                               cp_dbcsr_m_by_n_from_row_template,&
                                               dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file
@@ -81,6 +87,7 @@ MODULE qs_scf
    USE cp_result_methods,               ONLY: get_results,&
                                               test_for_result
    USE cp_result_types,                 ONLY: cp_result_type
+   USE dft_plus_u,                      ONLY: lowdin_kp_apply
    USE ec_env_types,                    ONLY: energy_correction_type
    USE input_constants,                 ONLY: &
         broyden_type_1, broyden_type_1_explicit, broyden_type_1_explicit_ls, broyden_type_1_ls, &
@@ -90,8 +97,8 @@ MODULE qs_scf
         ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
         ot_precond_none, ot_precond_s_inverse, outer_scf_becke_constraint, &
         outer_scf_hirshfeld_constraint, outer_scf_optimizer_broyden, &
-        outer_scf_optimizer_newton_ls, sic_eo, smear_fermi_dirac, smear_gaussian, smear_mp, &
-        smear_mv, tblite_scc_mixer_tblite
+        outer_scf_optimizer_newton_ls, plus_u_lowdin, sic_eo, smear_fermi_dirac, smear_gaussian, &
+        smear_mp, smear_mv, tblite_scc_mixer_tblite
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_path_length,&
@@ -165,6 +172,7 @@ MODULE qs_scf
    USE qs_matrix_pools,                 ONLY: mpools_get,&
                                               mpools_rebuild_fm_pools,&
                                               mpools_release
+   USE qs_mixing_utils,                 ONLY: mixing_init
    USE qs_mo_io,                        ONLY: write_mo_set_to_restart
    USE qs_mo_methods,                   ONLY: make_basis_simple,&
                                               make_basis_sm
@@ -194,7 +202,8 @@ MODULE qs_scf
                                               outer_loop_switch,&
                                               outer_loop_update_qs_env
    USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals
-   USE qs_rho_atom_types,               ONLY: zero_rho_atom_integrals
+   USE qs_rho_atom_types,               ONLY: rho_atom_type,&
+                                              zero_rho_atom_integrals
    USE qs_rho_methods,                  ONLY: qs_rho_update_rho
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
@@ -438,7 +447,9 @@ CONTAINS
          adiis_validation, density_full_step, diis_step, do_kpoints, energy_only, exit_inner_loop, &
          exit_outer_loop, inner_loop_converged, internal_tblite_density_full_step, &
          internal_tblite_mixer, just_energy, ot_kp_subspace_refresh, &
-         ot_kp_subspace_refresh_pending, outer_loop_converged, tblite_native_mixer
+         ot_kp_subspace_refresh_pending, outer_loop_converged, tblite_native_mixer, u_changed
+      REAL(dp), POINTER                                  :: subspace_density(:, :), &
+                                                            subspace_fock(:, :)
       REAL(KIND=dp)                                      :: adiis_raw_delta, adiis_step_delta, t1, t2
       REAL(KIND=dp), DIMENSION(3)                        :: res_val_3
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -459,6 +470,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(rho_atom_type), POINTER                       :: rho_atom(:)
       TYPE(section_vals_type), POINTER                   :: dft_section, input, scf_section
 
 ! Weak orbital metrics can need several bounded REF rebuilds to close the canonical density tail.
@@ -629,6 +641,13 @@ CONTAINS
             scf_env%adiis_validated = .FALSE.
 
             IF (scf_control%diagonalization%update_method == diag_update_method_adiis) THEN
+               NULLIFY (subspace_density, subspace_fock)
+               IF (do_kpoints) THEN
+                  IF (ALLOCATED(kpoints%lowdin_q)) THEN
+                     subspace_density => kpoints%lowdin_q
+                     subspace_fock => kpoints%lowdin_v
+                  END IF
+               END IF
                ! ADIIS is a Fock-space SCF method and never uses density mixing.  A small
                ! accelerated step is checked against the unmodified F[P] map before
                ! convergence is accepted. The check detects an artificial subspace zero;
@@ -646,7 +665,7 @@ CONTAINS
                       scf_env%scf_subspace_buffer%diis_weight < 1.0_dp .OR. &
                       scf_env%iter_delta >= scf_control%eps_diis) THEN
                      CALL qs_scf_subspace_push(scf_env%scf_subspace_buffer, matrix_ks_kp, rho_ao_kp, &
-                                               energy%total, adiis_pushed)
+                                               energy%total, adiis_pushed, subspace_density, subspace_fock)
                      IF (.NOT. adiis_pushed) CPABORT("Failed to append the accepted ADIIS SCF state")
                      CALL qs_scf_subspace_build(scf_env%scf_subspace_buffer)
                      IF (scf_control%diagonalization%adiis_shift > 0.0_dp) THEN
@@ -662,7 +681,7 @@ CONTAINS
                END IF
 
                IF (adiis_validation) THEN
-                  CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, adiis_raw_delta)
+                  CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, adiis_raw_delta, kpoints)
                   scf_env%raw_map_delta = adiis_raw_delta
                   scf_env%raw_map_delta_valid = .TRUE.
                   IF (adiis_raw_delta < scf_control%eps_scf) THEN
@@ -680,7 +699,7 @@ CONTAINS
                         ! accept the already computed raw candidate as the restart step.
                         ! This avoids duplicate history entries and a second diagonalization.
                         CALL qs_scf_subspace_restart(scf_env%scf_subspace_buffer, matrix_ks_kp, rho_ao_kp, &
-                                                     energy%total, adiis_restarted)
+                                                     energy%total, adiis_restarted, subspace_density, subspace_fock)
                         IF (.NOT. adiis_restarted) THEN
                            CPABORT("Failed to restart the ADIIS history from the current SCF state")
                         END IF
@@ -693,7 +712,7 @@ CONTAINS
                         ! artificial subspace zero. Preserve the useful history, discard the
                         ! raw trial, and repeat the normal ADIIS step in this iteration.
                         CALL qs_scf_subspace_push(scf_env%scf_subspace_buffer, matrix_ks_kp, rho_ao_kp, &
-                                                  energy%total, adiis_pushed)
+                                                  energy%total, adiis_pushed, subspace_density, subspace_fock)
                         IF (.NOT. adiis_pushed) CPABORT("Failed to append the accepted ADIIS SCF state")
                         CALL qs_scf_subspace_build(scf_env%scf_subspace_buffer)
                         IF (do_kpoints) THEN
@@ -702,7 +721,7 @@ CONTAINS
                         ELSE
                            CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only)
                         END IF
-                        CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, scf_env%iter_delta)
+                        CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, scf_env%iter_delta, kpoints)
                         scf_env%adiis_validated = scf_env%iter_delta < scf_control%eps_scf
                         IF (scf_env%adiis_validated .AND. .NOT. diis_step) THEN
                            scf_env%iter_param = 0.0_dp
@@ -716,7 +735,7 @@ CONTAINS
                END IF
 
                IF (.NOT. adiis_validation) THEN
-                  CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, scf_env%iter_delta)
+                  CALL qs_scf_candidate_density_delta(scf_env, rho, para_env, scf_env%iter_delta, kpoints)
                   scf_env%adiis_check_next = .NOT. diis_step .AND. &
                                              scf_env%iter_delta < scf_control%eps_scf
                END IF
@@ -816,7 +835,7 @@ CONTAINS
                density_full_step = .TRUE.
             ELSE
                density_full_step = diis_step .OR. tblite_native_mixer .OR. internal_tblite_density_full_step
-               CALL qs_scf_density_mixing(scf_env, rho, para_env, density_full_step)
+               CALL qs_scf_density_mixing(scf_env, rho, para_env, density_full_step, kpoints)
             END IF
             IF (dft_control%qs_control%xtb_control%do_tblite .AND. &
                 .NOT. (dft_control%qs_control%do_ls_scf .OR. scf_control%use_ot)) THEN
@@ -859,7 +878,20 @@ CONTAINS
             END IF
 
             CALL qs_scf_check_inner_exit(qs_env, scf_env, scf_control, should_stop, just_energy, &
-                                         exit_inner_loop, inner_loop_converged, output_unit)
+                                         exit_inner_loop, inner_loop_converged, output_unit, u_changed)
+            IF (u_changed) THEN
+               CALL qs_scf_inner_finalize(scf_env, qs_env, density_full_step, 0)
+               IF (scf_env%mixing_method > 1) THEN
+                  CALL get_qs_env(qs_env, rho_atom_set=rho_atom)
+                  CALL mixing_init(scf_env%mixing_method, rho, scf_env%mixing_store, para_env, &
+                                   rho_atom=rho_atom, auxiliary=kpoints%lowdin_q)
+               END IF
+               CALL init_scf_loop(scf_env, qs_env, scf_section, kp_ot_entry_reuse)
+               energy_only = .FALSE.
+               just_energy = .FALSE.
+               CALL timestop(handle2)
+               CYCLE scf_loop
+            END IF
 
             ! In case we decide to exit we perform few more check to see if this one
             ! is really the last SCF step
@@ -1365,7 +1397,8 @@ CONTAINS
             CPASSERT(ASSOCIATED(qs_kind_set))
             DO ikind = 1, SIZE(qs_kind_set)
                CALL get_qs_kind(qs_kind_set(ikind), u_ramping=u_ramping)
-               IF (u_ramping > 0.0_dp) THEN
+               IF (u_ramping > 0.0_dp .AND. &
+                   (.NOT. do_kpoints .OR. dft_control%plus_u_method_id /= plus_u_lowdin)) THEN
                   CPABORT("ADIIS is not yet compatible with DFT+U U_RAMPING")
                END IF
             END DO
@@ -2252,9 +2285,32 @@ CONTAINS
                 prec_type == ot_precond_full_single_inverse) THEN
                ks_spin = MIN(ispin, SIZE(kp%ot_hmat, 2))
                CPASSERT(SIZE(kp%ot_hmat, 1) >= 2)
-               CALL kpoint_operator_get_local(matrix_ks, kpoints, kp, ks_spin, &
-                                              kp%ot_hmat(1, ks_spin), kp%ot_hmat(2, ks_spin), &
-                                              matrix_h_re, matrix_h_im)
+               IF (ALLOCATED(kpoints%lowdin_v)) THEN
+                  BLOCK
+                     TYPE(cp_cfm_type) :: h
+                     TYPE(cp_fm_type) :: h_re, h_im
+
+                     ! The physical +U operator need not share the real-space sparsity pattern.
+                     ! This full construction is only needed when preparing the preconditioner.
+                     CALL cp_cfm_create(h, kp%ot_hmat(1, ks_spin)%matrix_struct)
+                     CALL cp_fm_to_cfm(kp%ot_hmat(1, ks_spin), kp%ot_hmat(2, ks_spin), h)
+                     CALL lowdin_kp_apply(kp, kpoints%lowdin_v(:, ks_spin), cmat=h)
+                     CALL cp_fm_create(h_re, h%matrix_struct)
+                     CALL cp_fm_create(h_im, h%matrix_struct)
+                     CALL cp_cfm_to_fm(h, h_re, h_im)
+                     CALL dbcsr_init_p(matrix_h_re)
+                     CALL dbcsr_init_p(matrix_h_im)
+                     CALL copy_fm_to_dbcsr_bc(h_re, matrix_h_re)
+                     CALL copy_fm_to_dbcsr_bc(h_im, matrix_h_im)
+                     CALL cp_fm_release(h_re)
+                     CALL cp_fm_release(h_im)
+                     CALL cp_cfm_release(h)
+                  END BLOCK
+               ELSE
+                  CALL kpoint_operator_get_local(matrix_ks, kpoints, kp, ks_spin, &
+                                                 kp%ot_hmat(1, ks_spin), kp%ot_hmat(2, ks_spin), &
+                                                 matrix_h_re, matrix_h_im)
+               END IF
             END IF
             SELECT CASE (prec_type)
             CASE (ot_precond_fermi_low_rank)

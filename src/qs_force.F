@@ -36,7 +36,8 @@ MODULE qs_force
    USE hfx_exx,                         ONLY: calculate_exx
    USE input_constants,                 ONLY: &
         do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_lrigpw, do_method_ofgpw, &
-        do_method_rigpw, ri_mp2_laplace, ri_mp2_method_gpw, ri_rpa_method_gpw
+        do_method_rigpw, plus_u_lowdin, ri_mp2_laplace, ri_mp2_method_gpw, ri_rpa_method_gpw, &
+        smeagol_runtype_emtransport
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -139,8 +140,8 @@ CONTAINS
                                                             output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind
       LOGICAL                                            :: do_admm, do_exx, do_gw, do_im_time, &
-                                                            has_unit_metric, omit_headers, &
-                                                            perform_ec, reuse_hfx
+                                                            do_kpoints, has_unit_metric, &
+                                                            omit_headers, perform_ec, reuse_hfx
       REAL(dp)                                           :: dummy_real, dummy_real2(2)
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -185,7 +186,15 @@ CONTAINS
       CALL get_qs_env(qs_env, &
                       force=force, &
                       subsys=subsys, &
+                      do_kpoints=do_kpoints, &
                       dft_control=dft_control)
+      IF (do_kpoints .AND. dft_control%dft_plus_u .AND. dft_control%plus_u_method_id == plus_u_lowdin) THEN
+         IF (ASSOCIATED(qs_env%mp2_env) .OR. qs_env%run_rtp .OR. &
+             (dft_control%smeagol_control%smeagol_enabled .AND. &
+              dft_control%smeagol_control%run_type == smeagol_runtype_emtransport)) THEN
+            CPABORT("Lowdin DFT+U forces with k-points require the ground-state DFT W matrix")
+         END IF
+      END IF
       IF (.NOT. ASSOCIATED(force)) THEN
          !   *** Allocate the force data structure ***
          nkind = SIZE(atomic_kind_set)
@@ -245,7 +254,8 @@ CONTAINS
       END IF
       ! Add non-Pulay contribution of DFT+U to W matrix, since it has also to be
       ! digested with overlap matrix derivatives
-      IF (dft_control%dft_plus_u) THEN
+      ! Lowdin k-point derivatives were already added before transforming W(k).
+      IF (dft_control%dft_plus_u .AND. .NOT. (do_kpoints .AND. dft_control%plus_u_method_id == plus_u_lowdin)) THEN
          NULLIFY (matrix_w_kp)
          CALL get_qs_env(qs_env, matrix_w_kp=matrix_w_kp)
          CALL plus_u(qs_env=qs_env, matrix_w=matrix_w_kp)

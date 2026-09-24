@@ -16,6 +16,8 @@
 !> \version 1.0
 ! **************************************************************************************************
 MODULE dft_plus_u
+   USE OMP_LIB,                         ONLY: omp_get_max_threads,&
+                                              omp_get_thread_num
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
@@ -24,13 +26,24 @@ MODULE dft_plus_u
    USE bibliography,                    ONLY: Dudarev1997,&
                                               Dudarev1998,&
                                               cite_reference
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
+                                              cp_cfm_transpose
+   USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_finalize, &
         dbcsr_get_block_p, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_set, dbcsr_type
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_get_block_diag
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_get_block_diag,&
+                                              dbcsr_get_diag,&
+                                              dbcsr_set_diag
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
@@ -46,6 +59,7 @@ MODULE dft_plus_u
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_submatrix,&
+                                              cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -54,15 +68,20 @@ MODULE dft_plus_u
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr,&
                                               low_print_level
-   USE input_constants,                 ONLY: plus_u_lowdin,&
+   USE input_constants,                 ONLY: diag_update_method_adiis,&
+                                              plus_u_lowdin,&
                                               plus_u_mulliken,&
                                               plus_u_mulliken_charges,&
                                               plus_u_tensorial
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE kpoint_methods,                  ONLY: lowdin_kp_trans
-   USE kpoint_types,                    ONLY: kpoint_type
+   USE kpoint_types,                    ONLY: kpoint_env_type,&
+                                              kpoint_type
+   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
+                                              local_gemm_ctxt_type
+   USE mathconstants,                   ONLY: z_one,&
+                                              z_zero
    USE mathlib,                         ONLY: invert_matrix,&
                                               jacobi
    USE message_passing,                 ONLY: mp_para_env_type
@@ -79,6 +98,10 @@ MODULE dft_plus_u
                                               get_qs_kind_set,&
                                               qs_kind_type,&
                                               set_qs_kind
+   USE qs_kpoint_operators,             ONLY: kpoint_operator_context_create,&
+                                              kpoint_operator_context_release,&
+                                              kpoint_operator_context_type,&
+                                              kpoint_operator_get
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -91,6 +114,10 @@ MODULE dft_plus_u
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dft_plus_u'
 
    PUBLIC :: plus_u
+   PUBLIC :: lowdin_kp_init, lowdin_kp_initial_density, lowdin_kp_population, lowdin_kp_apply
+   PUBLIC :: lowdin_kp_forces
+   PUBLIC :: lowdin_kp_apply_mo, lowdin_kp_kernel
+   PUBLIC :: lowdin_kp_prepare
 
 CONTAINS
 ! **************************************************************************************************
@@ -225,9 +252,9 @@ CONTAINS
       CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:)        :: symbol
       CHARACTER(LEN=default_string_length)               :: atomic_kind_name
       INTEGER :: atom_a, handle, i, i0, iatom, ikind, iorb, isb, iset, isgf, ishell, ispin, j, &
-         jsb, jset, jsgf, jshell, lu, m, max_scf, n, natom, natom_of_kind, nimg, nkind, norb, nsb, &
-         nsbsize, nset, nsgf, nsgf_kind, nspin
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf_atom
+         jsb, jsgf, lu, m, max_scf, n, natom_of_kind, nkind, norb, nsb, nsbsize, nset, nsgf, &
+         nsgf_kind, nspin
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: shell_sgf
       INTEGER, DIMENSION(1)                              :: iloc
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, nshell, orbitals
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, l, last_sgf
@@ -245,7 +272,6 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct
       TYPE(cp_fm_type)                                   :: fm_sev, fm_work1, fm_work2, slambda
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fm_wmat
       TYPE(cp_fm_type), POINTER                          :: fm_s_half
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vhxc
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_s
@@ -255,7 +281,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -281,7 +306,6 @@ CONTAINS
                       energy=energy, &
                       matrix_s_kp=matrix_s, &
                       matrix_vhxc=matrix_vhxc, &
-                      particle_set=particle_set, &
                       rho=rho, &
                       scf_env=scf_env, &
                       para_env=para_env)
@@ -291,7 +315,6 @@ CONTAINS
       energy%dft_plus_u = 0.0_dp
 
       nspin = dft_control%nspins
-      nimg = dft_control%nimages
       IF (dft_control%mtlr_dft_with_perturbation) THEN
          IF (.NOT. ASSOCIATED(matrix_vhxc)) THEN
             CPABORT("MTLR requires the projected Hxc matrix for every spin channel.")
@@ -307,19 +330,10 @@ CONTAINS
          fspin = 0.5_dp
       END IF
 
-      ! Get the total number of atoms, contracted spherical Gaussian basis
-      ! functions, and atomic kinds
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
+      ! Get the number of basis functions and atomic kinds.
       CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
 
       nkind = SIZE(atomic_kind_set)
-
-      ALLOCATE (first_sgf_atom(natom))
-      first_sgf_atom(:) = 0
-
-      CALL get_particle_set(particle_set, qs_kind_set, &
-                            first_sgf=first_sgf_atom)
 
       IF (PRESENT(matrix_h) .OR. PRESENT(matrix_w)) THEN
          just_energy = .FALSE.
@@ -345,28 +359,22 @@ CONTAINS
 
       NULLIFY (orbitals)
 
-      IF (do_kpoints) THEN
-         fm_wmat => scf_env%scf_work1
-         fmstruct => fm_wmat(1)%matrix_struct
-      ELSE
+      IF (.NOT. do_kpoints) THEN
          ! Retrieve S^(1/2) from the SCF environment
          fm_s_half => scf_env%s_half
          CPASSERT(ASSOCIATED(fm_s_half))
          ! work matrices
          CALL cp_fm_get_info(fm_s_half, matrix_struct=fmstruct)
+         CALL cp_fm_create(matrix=fm_work1, matrix_struct=fmstruct, &
+                           name="FULL WORK MATRIX 1")
+         CALL cp_fm_create(matrix=fm_work2, matrix_struct=fmstruct, &
+                           name="FULL WORK MATRIX 2")
       END IF
-      CALL cp_fm_create(matrix=fm_work1, matrix_struct=fmstruct, &
-                        name="FULL WORK MATRIX 1")
-      CALL cp_fm_create(matrix=fm_work2, matrix_struct=fmstruct, &
-                        name="FULL WORK MATRIX 2")
 
       ! Calculate S eigenvectors and Lambda matrix for forces
       ! See sTDA forces (get_lowdin_mo_coefficients in qs_tddfpt2_stda_utils
       ! A. Hehn et al JCTC 2022, 18, 4186
-      IF (PRESENT(matrix_w)) THEN
-         IF (do_kpoints) THEN
-            CPABORT("Lowdin forces with k-points NYA in DFT+U")
-         END IF
+      IF (PRESENT(matrix_w) .AND. .NOT. do_kpoints) THEN
          CALL cp_fm_create(matrix=fm_sev, matrix_struct=fmstruct)
          CALL cp_fm_create(matrix=slambda, matrix_struct=fmstruct)
          ALLOCATE (eigval(nsgf), slam(nsgf, 1))
@@ -400,10 +408,15 @@ CONTAINS
 
       ! Calculate S^(1/2)*P*S^(1/2)
       IF (do_kpoints) THEN
-         CPABORT("Lowdin option with k-points NYA in DFT+U")
+         ! OT and ADIIS evaluate the current trial density, including energy-only line searches.
+         ! Density mixing instead owns separate accepted coordinates.
+         IF (qs_env%scf_control%use_ot .OR. &
+             qs_env%scf_control%diagonalization%update_method == diag_update_method_adiis .OR. PRESENT(matrix_w)) THEN
+            CALL lowdin_kp_population(kpoints, alpha=1.0_dp)
+         END IF
          ALLOCATE (orbq(nsgf, nspin))
-         CALL lowdin_kp_trans(kpoints, orbq)
-         DEALLOCATE (orbq)
+         orbq = 0.0_dp
+         orbq(kpoints%lowdin_orbitals, :) = kpoints%lowdin_q
       END IF
 
       ! Create local block diagonal matrices
@@ -433,7 +446,8 @@ CONTAINS
          END IF
 
          IF (do_kpoints) THEN
-            CPABORT("Lowdin option with k-points NYA in DFT+U")
+            CALL dbcsr_set_diag(sm_q, orbq(:, ispin))
+            IF (if_plus_j .AND. nspin == 2) CALL dbcsr_set_diag(sm_q_opp, orbq(:, 3 - ispin))
          ELSE
             ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
             sm_p => matrix_p(ispin, 1)%matrix
@@ -519,7 +533,7 @@ CONTAINS
             IF (lu < 0) CYCLE
 
             ! Apply U ramping if requested
-            IF ((ispin == 1) .AND. (u_ramping > 0.0_dp)) THEN
+            IF ((ispin == 1) .AND. (u_ramping > 0.0_dp) .AND. .NOT. do_kpoints) THEN
                IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
                   u_minus_j = MIN(u_minus_j + u_ramping, u_minus_j_target)
                   CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j)
@@ -541,16 +555,20 @@ CONTAINS
                                    nset=nset, &
                                    nshell=nshell)
 
-            ! Count the relevant shell blocks of this atomic kind
-            nsb = 0
+            ! Select this kind's shell once; occupations and potentials use the same AO order.
+            ALLOCATE (shell_sgf(nsgf_kind))
+            n = 0
             DO iset = 1, nset
                DO ishell = 1, nshell(iset)
-                  IF (l(ishell, iset) == lu) nsb = nsb + 1
+                  IF (l(ishell, iset) /= lu) CYCLE
+                  DO isgf = first_sgf(ishell, iset), last_sgf(ishell, iset)
+                     n = n + 1
+                     shell_sgf(n) = isgf
+                  END DO
                END DO
             END DO
-
-            nsbsize = (2*lu + 1)
-            n = nsb*nsbsize
+            nsbsize = 2*lu + 1
+            nsb = n/nsbsize
 
             ALLOCATE (q_matrix(n, n))
             q_matrix(:, :) = 0.0_dp
@@ -619,36 +637,18 @@ CONTAINS
 
                IF (ASSOCIATED(q_block)) THEN
                   ! Calculate energy contribution to E(U)
-                  i = 0
-                  DO iset = 1, nset
-                     DO ishell = 1, nshell(iset)
-                        IF (l(ishell, iset) /= lu) CYCLE
-                        DO isgf = first_sgf(ishell, iset), last_sgf(ishell, iset)
-                           i = i + 1
-                           j = 0
-                           DO jset = 1, nset
-                              DO jshell = 1, nshell(jset)
-                                 IF (l(jshell, jset) /= lu) CYCLE
-                                 DO jsgf = first_sgf(jshell, jset), last_sgf(jshell, jset)
-                                    j = j + 1
-                                    IF (isgf == jsgf) q_matrix(i, j) = q_block(isgf, jsgf)
-                                    IF (hund_j /= 0.0_dp .AND. nspin == 2 .AND. ASSOCIATED(q_opp_block)) THEN
-                                       IF (isgf == jsgf) q_opp_matrix(i, j) = q_opp_block(isgf, jsgf)
-                                    END IF
-                                    IF (ASSOCIATED(vhxc_block) .AND. &
-                                        dft_control%mtlr_dft_with_perturbation .AND. &
-                                        dft_control%mtlr_ikind == ikind .AND. &
-                                        qs_kind_set(ikind)%dft_plus_u%lr_atom == atom_a .AND. &
-                                        isgf == jsgf) THEN
-                                       dft_control%vhxc(ispin) = dft_control%vhxc(ispin) + vhxc_block(isgf, isgf)
-                                       dft_control%trq(ispin) = dft_control%trq(ispin) + q_block(isgf, isgf)
-                                    END IF
-                                 END DO ! next contracted spherical Gaussian function "jsgf"
-                              END DO ! next shell "jshell"
-                           END DO ! next shell set "jset"
-                        END DO ! next contracted spherical Gaussian function "isgf"
-                     END DO ! next shell "ishell"
-                  END DO ! next shell set "iset"
+                  DO i = 1, n
+                     isgf = shell_sgf(i)
+                     q_matrix(i, i) = q_block(isgf, isgf)
+                     IF (hund_j /= 0.0_dp .AND. nspin == 2 .AND. ASSOCIATED(q_opp_block)) THEN
+                        q_opp_matrix(i, i) = q_opp_block(isgf, isgf)
+                     END IF
+                     IF (ASSOCIATED(vhxc_block) .AND. dft_control%mtlr_dft_with_perturbation .AND. &
+                         dft_control%mtlr_ikind == ikind .AND. qs_kind_set(ikind)%dft_plus_u%lr_atom == atom_a) THEN
+                        dft_control%vhxc(ispin) = dft_control%vhxc(ispin) + vhxc_block(isgf, isgf)
+                        dft_control%trq(ispin) = dft_control%trq(ispin) + q_block(isgf, isgf)
+                     END IF
+                  END DO
 
                   ! Perform the requested manipulations of the (initial) orbital occupations
                   IF (ASSOCIATED(orbitals)) THEN
@@ -706,24 +706,16 @@ CONTAINS
                      END IF
                   END IF ! orbitals associated
 
-                  trq = 0.0_dp
-                  trq2 = 0.0_dp
+                  trq = fspin*SUM([(q_matrix(i, i), i=1, n)])
+                  trq2 = fspin*fspin*SUM(q_matrix*TRANSPOSE(q_matrix))
                   trqxq_hund_j = 0.0_dp
-                  DO i = 1, n
-                     trq = trq + q_matrix(i, i)
-                     DO j = 1, n
-                        trq2 = trq2 + q_matrix(i, j)*q_matrix(j, i)
-                        IF (hund_j /= 0.0_dp) THEN
-                           IF (nspin == 2) THEN
-                              trqxq_hund_j = trqxq_hund_j + q_matrix(i, j)*q_opp_matrix(j, i)
-                           ELSE
-                              trqxq_hund_j = trqxq_hund_j + q_matrix(i, j)*q_matrix(j, i)
-                           END IF
-                        END IF
-                     END DO
-                  END DO
-                  trq = fspin*trq
-                  trq2 = fspin*fspin*trq2
+                  IF (hund_j /= 0.0_dp) THEN
+                     IF (nspin == 2) THEN
+                        trqxq_hund_j = SUM(q_matrix*TRANSPOSE(q_opp_matrix))
+                     ELSE
+                        trqxq_hund_j = SUM(q_matrix*TRANSPOSE(q_matrix))
+                     END IF
+                  END IF
 
                   ! Calculate energy contribution to E(U)
                   energy%dft_plus_u = energy%dft_plus_u + 0.5_dp*u_minus_j*(trq - trq2)/fspin
@@ -741,45 +733,33 @@ CONTAINS
                                             found=found)
                      CPASSERT(ASSOCIATED(v_block))
 
-                     i = 0
-                     DO iset = 1, nset
-                        DO ishell = 1, nshell(iset)
-                           IF (l(ishell, iset) /= lu) CYCLE
-                           DO isgf = first_sgf(ishell, iset), last_sgf(ishell, iset)
-                              i = i + 1
-                              j = 0
-                              DO jset = 1, nset
-                                 DO jshell = 1, nshell(jset)
-                                    IF (l(jshell, jset) /= lu) CYCLE
-                                    DO jsgf = first_sgf(jshell, jset), last_sgf(jshell, jset)
-                                       j = j + 1
-                                       IF (isgf == jsgf) THEN
-                                          v_block(isgf, isgf) = u_minus_j*(0.5_dp - fspin*q_matrix(i, i))
-                                          IF (dft_control%mtlr_dft_with_perturbation .AND. &
-                                              dft_control%mtlr_ikind == ikind .AND. &
-                                              qs_kind_set(ikind)%dft_plus_u%lr_atom == atom_a) THEN
-                                             v_block(isgf, isgf) = v_block(isgf, isgf) + perturbation_strength
-                                          END IF
-                                       ELSE
-                                          CPASSERT(ABS(q_matrix(j, i)) < 1.0E-14_dp)
-                                          IF (hund_j /= 0.0_dp .AND. nspin == 2) THEN
-                                             CPASSERT(ABS(q_opp_matrix(j, i)) < 1.0E-14_dp)
-                                          END IF
-                                          v_block(isgf, jsgf) = -u_minus_j*fspin*q_matrix(j, i)
-                                       END IF
-                                       IF (hund_j /= 0.0_dp) THEN
-                                          IF (nspin == 2) THEN
-                                             v_block(isgf, jsgf) = v_block(isgf, jsgf) + hund_j*fspin*q_opp_matrix(j, i)
-                                          ELSE
-                                             v_block(isgf, jsgf) = v_block(isgf, jsgf) + hund_j*fspin*q_matrix(j, i)
-                                          END IF
-                                       END IF
-                                    END DO ! next contracted spherical Gaussian function "jsgf"
-                                 END DO ! next shell "jshell"
-                              END DO ! next shell set "jset"
-                           END DO ! next contracted spherical Gaussian function "isgf"
-                        END DO ! next shell "ishell"
-                     END DO ! next shell set "iset"
+                     DO j = 1, n
+                        jsgf = shell_sgf(j)
+                        DO i = 1, n
+                           isgf = shell_sgf(i)
+                           IF (i == j) THEN
+                              v_block(isgf, isgf) = u_minus_j*(0.5_dp - fspin*q_matrix(i, i))
+                              IF (dft_control%mtlr_dft_with_perturbation .AND. &
+                                  dft_control%mtlr_ikind == ikind .AND. &
+                                  qs_kind_set(ikind)%dft_plus_u%lr_atom == atom_a) THEN
+                                 v_block(isgf, isgf) = v_block(isgf, isgf) + perturbation_strength
+                              END IF
+                           ELSE
+                              CPASSERT(ABS(q_matrix(j, i)) < 1.0E-14_dp)
+                              IF (hund_j /= 0.0_dp .AND. nspin == 2) THEN
+                                 CPASSERT(ABS(q_opp_matrix(j, i)) < 1.0E-14_dp)
+                              END IF
+                              v_block(isgf, jsgf) = -u_minus_j*fspin*q_matrix(j, i)
+                           END IF
+                           IF (hund_j /= 0.0_dp) THEN
+                              IF (nspin == 2) THEN
+                                 v_block(isgf, jsgf) = v_block(isgf, jsgf) + hund_j*fspin*q_opp_matrix(j, i)
+                              ELSE
+                                 v_block(isgf, jsgf) = v_block(isgf, jsgf) + hund_j*fspin*q_matrix(j, i)
+                              END IF
+                           END IF
+                        END DO
+                     END DO
                   END IF ! not just energy
 
                END IF ! q_block associated
@@ -866,9 +846,7 @@ CONTAINS
                CALL para_env%sum(dft_control%trq(ispin))
             END IF
 
-            IF (ALLOCATED(q_matrix)) THEN
-               DEALLOCATE (q_matrix)
-            END IF
+            DEALLOCATE (shell_sgf, q_matrix)
 
             IF (ALLOCATED(q_opp_matrix)) THEN
                DEALLOCATE (q_opp_matrix)
@@ -877,9 +855,14 @@ CONTAINS
          END DO ! next atomic kind "ikind"
 
          ! Add V(i,j)[U] to V(i,j)[DFT]
-         IF (PRESENT(matrix_h)) THEN
+         IF (PRESENT(matrix_h) .OR. (PRESENT(matrix_w) .AND. do_kpoints)) THEN
             IF (do_kpoints) THEN
-               CPABORT("Lowdin option with k-points NYA in DFT+U")
+               BLOCK
+                  REAL(dp) :: diagonal(nsgf)
+                  CALL dbcsr_get_diag(sm_v, diagonal)
+                  CALL para_env%sum(diagonal)
+                  kpoints%lowdin_v(:, ispin) = diagonal(kpoints%lowdin_orbitals)
+               END BLOCK
             ELSE
                sm_h => matrix_h(ispin, 1)%matrix
                CALL cp_dbcsr_sm_fm_multiply(sm_v, fm_s_half, fm_work1, nsgf)
@@ -890,7 +873,7 @@ CONTAINS
 
          ! Calculate the contribution (non-Pulay part) to the derivatives
          ! w.r.t. the nuclear positions
-         IF (PRESENT(matrix_w)) THEN
+         IF (PRESENT(matrix_w) .AND. .NOT. do_kpoints) THEN
 
             sm_p => matrix_p(ispin, 1)%matrix
             sm_w => matrix_w(ispin, 1)%matrix
@@ -902,8 +885,9 @@ CONTAINS
             CALL parallel_gemm('T', 'N', nsgf, nsgf, nsgf, 1.0_dp, fm_sev, fm_work2, 0.0_dp, fm_work1)
             CALL cp_fm_schur_product(fm_work1, slambda, fm_work2)
             CALL cp_fm_transpose(fm_work2, fm_work1)
-            CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_work1, matrix_b=fm_work2)
-            CALL parallel_gemm('N', 'N', nsgf, nsgf, nsgf, -2.0_dp, fm_sev, fm_work2, 0.0_dp, fm_work1)
+            ! Symmetrize before projecting onto the stored triangular sparse blocks.
+            CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_work2, matrix_b=fm_work1)
+            CALL parallel_gemm('N', 'N', nsgf, nsgf, nsgf, -1.0_dp, fm_sev, fm_work2, 0.0_dp, fm_work1)
             CALL cp_dbcsr_plus_fm_fm_t(sm_w, fm_work1, fm_sev, nsgf)
 
          END IF ! W matrix update requested
@@ -911,6 +895,7 @@ CONTAINS
       END DO ! next spin "ispin"
 
       IF (PRESENT(matrix_w)) THEN
+         IF (do_kpoints) CALL lowdin_kp_forces(kpoints)
          CALL cp_fm_release(matrix=fm_sev)
          CALL cp_fm_release(matrix=slambda)
       END IF
@@ -941,6 +926,614 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE lowdin
+
+! **************************************************************************************************
+!> \brief Select the AO columns used by the existing orbital-diagonal Lowdin functional.
+!> \param qs_env Quickstep environment, after S(k)**(1/2) has been prepared.
+! **************************************************************************************************
+   SUBROUTINE lowdin_kp_init(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      INTEGER                                            :: i, ia, ik, ikind, iset, ish, lu, m, nao, &
+                                                            nset, nspin
+      INTEGER, ALLOCATABLE                               :: first_atom(:)
+      INTEGER, POINTER                                   :: atoms(:), first(:, :), l(:, :), &
+                                                            last(:, :), nshell(:), orbitals(:)
+      LOGICAL                                            :: active
+      LOGICAL, ALLOCATABLE                               :: selected(:)
+      REAL(KIND=dp)                                      :: j, u
+      TYPE(atomic_kind_type), POINTER                    :: kinds_set(:)
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(gto_basis_set_type), POINTER                  :: basis
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(particle_type), POINTER                       :: particles(:)
+      TYPE(qs_kind_type), POINTER                        :: qs_kinds(:)
+
+      CALL get_qs_env(qs_env, kpoints=kpoints, atomic_kind_set=kinds_set, qs_kind_set=qs_kinds, &
+                      particle_set=particles, dft_control=dft_control)
+      IF (dft_control%mtlr_dft_with_perturbation) THEN
+         CPABORT("MTLR with Lowdin DFT+U and k-points is not implemented")
+      END IF
+      DO ik = 1, SIZE(kpoints%kp_sym)
+         IF (kpoints%kp_sym(ik)%kpoint_sym%apply_symmetry) THEN
+            CPABORT("Lowdin DFT+U requires a full k-point grid or time-reversal-only reduction")
+         END IF
+      END DO
+      CALL get_qs_kind_set(qs_kinds, nsgf=nao)
+      nspin = dft_control%nspins
+      ALLOCATE (first_atom(SIZE(particles)), selected(nao))
+      CALL get_particle_set(particles, qs_kinds, first_sgf=first_atom)
+      selected = .FALSE.
+      DO ikind = 1, SIZE(qs_kinds)
+         NULLIFY (orbitals)
+         CALL get_qs_kind(qs_kinds(ikind), dft_plus_u_atom=active, l_of_dft_plus_u=lu, &
+                          basis_set=basis, u_minus_j_target=u, hund_j=j, orbitals=orbitals)
+         IF (.NOT. active) CYCLE
+         IF (ASSOCIATED(orbitals)) THEN
+            CPABORT("Lowdin DFT+U with k-points does not support ENFORCE_OCCUPATION")
+         END IF
+         IF (u == 0.0_dp .AND. j == 0.0_dp) CYCLE
+         CALL get_atomic_kind(kinds_set(ikind), atom_list=atoms)
+         CALL get_gto_basis_set(basis, first_sgf=first, last_sgf=last, l=l, nset=nset, nshell=nshell)
+         DO ia = 1, SIZE(atoms)
+            DO iset = 1, nset
+               DO ish = 1, nshell(iset)
+                  IF (l(ish, iset) /= lu) CYCLE
+                  selected(first_atom(atoms(ia)) + first(ish, iset) - 1: &
+                           first_atom(atoms(ia)) + last(ish, iset) - 1) = .TRUE.
+               END DO
+            END DO
+         END DO
+      END DO
+      IF (ALLOCATED(kpoints%lowdin_orbitals)) THEN
+         DEALLOCATE (kpoints%lowdin_orbitals, kpoints%lowdin_q, kpoints%lowdin_q_new, kpoints%lowdin_v)
+      END IF
+      m = COUNT(selected)
+      ALLOCATE (kpoints%lowdin_orbitals(m))
+      kpoints%lowdin_orbitals(:) = PACK([(i, i=1, nao)], selected)
+      ALLOCATE (kpoints%lowdin_q(m, nspin), kpoints%lowdin_q_new(m, nspin), kpoints%lowdin_v(m, nspin))
+      kpoints%lowdin_q(:, :) = 0.0_dp
+      kpoints%lowdin_q_new(:, :) = 0.0_dp
+      kpoints%lowdin_v(:, :) = 0.0_dp
+      kpoints%lowdin_density_ready = .FALSE.
+      kpoints%lowdin_population_ready = .FALSE.
+      DO ik = 1, SIZE(kpoints%kp_env)
+         kp => kpoints%kp_env(ik)%kpoint_env
+         CALL lowdin_kp_prepare(kp, kpoints%lowdin_orbitals, kpoints%use_real_wfn)
+      END DO
+   END SUBROUTINE lowdin_kp_init
+
+! **************************************************************************************************
+!> \brief Prepare selected Lowdin projectors and their reusable product workspace.
+!> \param kp One k point; SCF already provides its overlap square root.
+!> \param orbitals Selected global AO indices.
+!> \param use_real_wfn Whether to use the real overlap square root.
+!> \param smat Optional complex overlap for post-SCF reconstruction; remains unchanged.
+! **************************************************************************************************
+   SUBROUTINE lowdin_kp_prepare(kp, orbitals, use_real_wfn, smat)
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      INTEGER, INTENT(IN)                                :: orbitals(:)
+      LOGICAL, INTENT(IN)                                :: use_real_wfn
+      TYPE(cp_cfm_type), INTENT(IN), OPTIONAL            :: smat
+
+      INTEGER                                            :: i, m, n
+      REAL(dp), ALLOCATABLE                              :: eigenvalues(:)
+      TYPE(cp_cfm_type)                                  :: evec, work
+
+      CALL cp_fm_release(kp%lowdin_b)
+      CALL cp_fm_release(kp%lowdin_work)
+      CALL cp_cfm_release(kp%lowdin_cb)
+      CALL cp_cfm_release(kp%lowdin_cwork)
+      CALL kp%lowdin_gemm%destroy()
+      m = SIZE(orbitals)
+      IF (m == 0) RETURN
+      IF (PRESENT(smat)) THEN
+         CPASSERT(.NOT. use_real_wfn)
+         CALL cp_cfm_get_info(smat, nrow_global=n)
+         ALLOCATE (eigenvalues(n))
+         CALL cp_cfm_create(evec, smat%matrix_struct)
+         CALL cp_cfm_create(work, smat%matrix_struct)
+         CALL cp_cfm_release(kp%cshalf)
+         CALL cp_cfm_create(kp%cshalf, smat%matrix_struct)
+         CALL cp_cfm_to_cfm(smat, work)
+         CALL cp_cfm_heevd(work, evec, eigenvalues)
+         CPASSERT(ALL(eigenvalues >= 0.0_dp))
+         CALL cp_cfm_to_cfm(evec, work)
+         CALL cp_cfm_column_scale(work, CMPLX(SQRT(eigenvalues), 0.0_dp, dp))
+         CALL parallel_gemm('N', 'C', n, n, n, z_one, work, evec, z_zero, kp%cshalf)
+         CALL cp_cfm_release(evec)
+         CALL cp_cfm_release(work)
+      END IF
+      CALL kp%lowdin_gemm%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
+      IF (use_real_wfn) THEN
+         CALL cp_fm_create(kp%lowdin_b, kp%shalf%matrix_struct, ncol=m)
+         CALL cp_fm_create(kp%lowdin_work, kp%lowdin_b%matrix_struct)
+         DO i = 1, m
+            CALL cp_fm_to_fm(kp%shalf, kp%lowdin_b, 1, orbitals(i), i)
+         END DO
+         ! The real driver also uses complex storage during its ADIIS/CDIIS handover.
+         CALL cp_cfm_create(kp%lowdin_cb, kp%lowdin_b%matrix_struct)
+         CALL cp_fm_to_cfm(kp%lowdin_b, mtarget=kp%lowdin_cb)
+      ELSE
+         CALL cp_cfm_create(kp%lowdin_cb, kp%cshalf%matrix_struct, ncol=m)
+         DO i = 1, m
+            CALL cp_cfm_to_cfm(kp%cshalf, kp%lowdin_cb, 1, orbitals(i), i)
+         END DO
+      END IF
+      CALL cp_cfm_create(kp%lowdin_cwork, kp%lowdin_cb%matrix_struct)
+      IF (PRESENT(smat)) CALL cp_cfm_release(kp%cshalf)
+   END SUBROUTINE lowdin_kp_prepare
+
+! **************************************************************************************************
+!> \brief Complete the initial density's Lowdin coordinates, including atomic and density restarts.
+!> \param qs_env Quickstep environment with an initialized real-space density.
+!> \param fmwork Global AO matrix workspace from the SCF environment being initialized.
+! **************************************************************************************************
+   SUBROUTINE lowdin_kp_initial_density(qs_env, fmwork)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: fmwork
+
+      INTEGER                                            :: ik, ispin, kplocal, kpmax
+      TYPE(cp_cfm_type)                                  :: cpmat
+      TYPE(cp_fm_type)                                   :: pmat
+      TYPE(dbcsr_p_type), POINTER                        :: density(:, :)
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_operator_context_type)                 :: ctx
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      CALL get_qs_env(qs_env, kpoints=kpoints, rho=rho)
+      IF (.NOT. ALLOCATED(kpoints%lowdin_orbitals)) RETURN
+      IF (.NOT. kpoints%lowdin_density_ready .AND. SIZE(kpoints%lowdin_orbitals) > 0) THEN
+         ! The initial real-space guess defines a finite Fourier series. Subsequent
+         ! accepted densities use their full Bloch matrices, never this sparse reconstruction.
+         CALL qs_rho_get(rho, rho_ao_kp=density)
+         CALL kpoint_operator_context_create(ctx, kpoints, fmwork, SIZE(density, 1))
+         kp => kpoints%kp_env(1)%kpoint_env
+         IF (kpoints%use_real_wfn) THEN
+            CALL cp_fm_create(pmat, kp%shalf%matrix_struct)
+         ELSE
+            CALL cp_cfm_create(cpmat, kp%cshalf%matrix_struct)
+         END IF
+         kplocal = SIZE(kpoints%kp_env)
+         kpmax = MAXVAL(kpoints%kp_dist(2, :) - kpoints%kp_dist(1, :) + 1)
+         kpoints%lowdin_q_new(:, :) = 0.0_dp
+         DO ik = 1, kpmax
+            DO ispin = 1, SIZE(density, 1)
+               IF (kpoints%use_real_wfn) THEN
+                  CALL kpoint_operator_get(ctx, ik, ispin, density, fm_re=pmat, matrix_row=ispin)
+               ELSE
+                  CALL kpoint_operator_get(ctx, ik, ispin, density, cmat=cpmat, matrix_row=ispin)
+               END IF
+               IF (ik > kplocal) CYCLE
+               kp => kpoints%kp_env(ik)%kpoint_env
+               IF (kpoints%use_real_wfn) THEN
+                  CALL lowdin_kp_accumulate(kp, kpoints%lowdin_q_new(:, ispin), pmat=pmat)
+               ELSE
+                  CALL lowdin_kp_accumulate(kp, kpoints%lowdin_q_new(:, ispin), cpmat=cpmat)
+               END IF
+            END DO
+         END DO
+         CALL kpoints%para_env%sum(kpoints%lowdin_q_new)
+         CALL kpoint_operator_context_release(ctx)
+         CALL cp_fm_release(pmat)
+         CALL cp_cfm_release(cpmat)
+         kpoints%lowdin_population_ready = .TRUE.
+      END IF
+      CALL lowdin_kp_population(kpoints, alpha=1.0_dp)
+   END SUBROUTINE lowdin_kp_initial_density
+
+! **************************************************************************************************
+!> \brief Cache the current occupations, optionally measure their residual and accept or mix them.
+!> \param kpoints Optional k-point state; absent or inactive Lowdin state is a no-op.
+!> \param delta Include the unmixed occupation residual in this convergence measure.
+!> \param alpha Weight of the current occupations in the accepted state; absent leaves it unchanged.
+! **************************************************************************************************
+   SUBROUTINE lowdin_kp_population(kpoints, delta, alpha)
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
+      REAL(KIND=dp), INTENT(INOUT), OPTIONAL             :: delta
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: alpha
+
+      IF (.NOT. PRESENT(kpoints)) RETURN
+      IF (.NOT. ASSOCIATED(kpoints)) RETURN
+      IF (.NOT. ALLOCATED(kpoints%lowdin_q)) RETURN
+      IF (.NOT. kpoints%lowdin_population_ready) THEN
+         IF (SIZE(kpoints%lowdin_q) > 0) THEN
+            CPASSERT(kpoints%lowdin_density_ready)
+            CALL lowdin_kp_project(kpoints, kpoints%lowdin_q_new)
+         END IF
+         kpoints%lowdin_population_ready = .TRUE.
+      END IF
+      IF (PRESENT(delta)) delta = MAX(delta, MAXVAL(ABS(kpoints%lowdin_q_new - kpoints%lowdin_q)))
+      IF (PRESENT(alpha)) THEN
+         IF (alpha == 1.0_dp) THEN
+            kpoints%lowdin_q(:, :) = kpoints%lowdin_q_new
+         ELSE IF (alpha /= 0.0_dp) THEN
+            kpoints%lowdin_q(:, :) = (1.0_dp - alpha)*kpoints%lowdin_q + alpha*kpoints%lowdin_q_new
+         END IF
+      END IF
+   END SUBROUTINE lowdin_kp_population
+
+! **************************************************************************************************
+!> \brief Project and reduce a Bloch density with one accumulator and matrix workspace per worker.
+!> \param kpoints Selected overlap columns and parallel distribution.
+!> \param q Weighted occupations; does not change the ground-state occupation caches.
+!> \param density Optional split-complex response; absent uses the current Bloch density.
+! **************************************************************************************************
+   SUBROUTINE lowdin_kp_project(kpoints, q, density)
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      REAL(KIND=dp), CONTIGUOUS, INTENT(OUT)             :: q(:, :)
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: density(:, :, :)
+
+      INTEGER                                            :: handle, ik, ispin, kplocal, m, nspin, &
+                                                            nworkers, thread
+      TYPE(cp_cfm_type), ALLOCATABLE                     :: work(:)
+      TYPE(kpoint_env_type), POINTER                     :: kp
+
+      m = SIZE(q, 1)
+      IF (m == 0) RETURN
+      CALL timeset("lowdin_kp_population", handle)
+      nspin = SIZE(q, 2)
+      kplocal = SIZE(kpoints%kp_env)
+      kp => kpoints%kp_env(1)%kpoint_env
+      nworkers = 1
+!$    IF (kpoints%para_env_kp%num_pe == 1) nworkers = MIN(omp_get_max_threads(), kplocal)
+      ALLOCATE (work(nworkers))
+      q(:, :) = 0.0_dp
+      IF (PRESENT(density) .OR. .NOT. kpoints%use_real_wfn) THEN
+         DO thread = 1, nworkers
+            CALL cp_cfm_create(work(thread), kp%pmat(1, 1)%matrix_struct)
+         END DO
+      END IF
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) NUM_THREADS(nworkers) IF(nworkers > 1) &
+!$OMP SHARED(kpoints,density,work,nspin,kplocal,nworkers) PRIVATE(ik,ispin,kp,thread) REDUCTION(+:q)
+      DO ik = 1, kplocal
+         thread = 1
+!$       thread = omp_get_thread_num() + 1
+         kp => kpoints%kp_env(ik)%kpoint_env
+         DO ispin = 1, nspin
+            IF (PRESENT(density)) THEN
+               CALL cp_fm_to_cfm(density(ik, 1, ispin), density(ik, 2, ispin), work(thread))
+               CALL lowdin_kp_accumulate(kp, q(:, ispin), cpmat=work(thread))
+            ELSE IF (kpoints%use_real_wfn) THEN
+               CALL lowdin_kp_accumulate(kp, q(:, ispin), pmat=kp%pmat(1, ispin))
+            ELSE
+               CALL cp_fm_to_cfm(kp%pmat(1, ispin), kp%pmat(2, ispin), work(thread))
+               CALL lowdin_kp_accumulate(kp, q(:, ispin), cpmat=work(thread))
+            END IF
+         END DO
+      END DO
+!$OMP END PARALLEL DO
+      ! Each entry is a local tile contraction: reduce once across groups AND group ranks.
+      CALL kpoints%para_env%sum(q)
+      DO thread = 1, nworkers
+         CALL cp_cfm_release(work(thread))
+      END DO
+      CALL timestop(handle)
+   END SUBROUTINE lowdin_kp_project
+
+! **************************************************************************************************
+!> \brief Accumulate weighted local entries of diag(B**H P B), without a full transformed density.
+!> \param kp One k point, with a private reusable product workspace.
+!> \param q Accumulated local contributions; the caller zeroes and reduces the worker buffers.
+!> \param pmat Real Bloch density.
+!> \param cpmat Complex Bloch density (exclusive with pmat).
+! **************************************************************************************************
+   SUBROUTINE lowdin_kp_accumulate(kp, q, pmat, cpmat)
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      REAL(KIND=dp), INTENT(INOUT)                       :: q(:)
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: pmat
+      TYPE(cp_cfm_type), INTENT(IN), OPTIONAL            :: cpmat
+
+      INTEGER                                            :: j, m, n, nc, nr
+      INTEGER, POINTER                                   :: columns(:)
+      LOGICAL                                            :: local
+
+      m = SIZE(q)
+      CPASSERT(PRESENT(pmat) .NEQV. PRESENT(cpmat))
+      IF (PRESENT(pmat)) THEN
+         CALL cp_fm_get_info(kp%lowdin_b, nrow_global=n, nrow_local=nr, ncol_local=nc, col_indices=columns)
+         local = PRODUCT(kp%lowdin_b%matrix_struct%context%num_pe) == 1
+         IF (local) THEN
+            CALL kp%lowdin_gemm%gemm('N', 'N', n, m, n, 1.0_dp, pmat%local_data, SIZE(pmat%local_data, 1), &
+                                     kp%lowdin_b%local_data, SIZE(kp%lowdin_b%local_data, 1), 0.0_dp, &
+                                     kp%lowdin_work%local_data, SIZE(kp%lowdin_work%local_data, 1))
+         ELSE
+            CALL parallel_gemm('N', 'N', n, m, n, 1.0_dp, pmat, kp%lowdin_b, 0.0_dp, kp%lowdin_work)
+         END IF
+         DO j = 1, nc
+            q(columns(j)) = q(columns(j)) + kp%wkp* &
+                            SUM(kp%lowdin_b%local_data(:nr, j)*kp%lowdin_work%local_data(:nr, j))
+         END DO
+      ELSE
+         CALL cp_cfm_get_info(kp%lowdin_cb, nrow_global=n, nrow_local=nr, ncol_local=nc, col_indices=columns)
+         CALL lowdin_kp_gemm('N', 'N', n, m, n, cpmat, kp%lowdin_cb, z_zero, kp%lowdin_cwork, kp%lowdin_gemm)
+         DO j = 1, nc
+            q(columns(j)) = q(columns(j)) + kp%wkp*REAL(SUM(CONJG(kp%lowdin_cb%local_data(:nr, j))* &
+                                                            kp%lowdin_cwork%local_data(:nr, j)), dp)
+         END DO
+      END IF
+   END SUBROUTINE lowdin_kp_accumulate
+
+! **************************************************************************************************
+!> \brief Add B diag(v) B**H before any solver, DIIS residual, or history storage uses H(k).
+!> \param kp One k point, with its private workspace.
+!> \param v Selected orbital potentials for the same raw/mixed state as the supplied Hamiltonian.
+!> \param rmat Real Hamiltonian.
+!> \param cmat Complex Hamiltonian (exclusive with rmat).
+! **************************************************************************************************
+   SUBROUTINE lowdin_kp_apply(kp, v, rmat, cmat)
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      REAL(KIND=dp), INTENT(IN)                          :: v(:)
+      TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: rmat
+      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: cmat
+
+      INTEGER                                            :: j, m, n, nc, nr
+      INTEGER, POINTER                                   :: columns(:)
+      LOGICAL                                            :: local
+
+      m = SIZE(v)
+      IF (m == 0) RETURN
+      IF (ALL(v == 0.0_dp)) RETURN
+      CPASSERT(PRESENT(rmat) .NEQV. PRESENT(cmat))
+      IF (PRESENT(rmat)) THEN
+         CALL cp_fm_get_info(kp%lowdin_b, nrow_global=n, nrow_local=nr, ncol_local=nc, col_indices=columns)
+         DO j = 1, nc
+            kp%lowdin_work%local_data(:nr, j) = v(columns(j))*kp%lowdin_b%local_data(:nr, j)
+         END DO
+         local = PRODUCT(kp%lowdin_b%matrix_struct%context%num_pe) == 1
+         IF (local) THEN
+            CALL kp%lowdin_gemm%gemm('N', 'T', n, n, m, 1.0_dp, &
+                                     kp%lowdin_work%local_data, SIZE(kp%lowdin_work%local_data, 1), &
+                                     kp%lowdin_b%local_data, SIZE(kp%lowdin_b%local_data, 1), 1.0_dp, &
+                                     rmat%local_data, SIZE(rmat%local_data, 1))
+         ELSE
+            CALL parallel_gemm('N', 'T', n, n, m, 1.0_dp, kp%lowdin_work, kp%lowdin_b, 1.0_dp, rmat)
+         END IF
+      ELSE
+         CALL cp_cfm_get_info(kp%lowdin_cb, nrow_global=n, nrow_local=nr, ncol_local=nc, col_indices=columns)
+         DO j = 1, nc
+            kp%lowdin_cwork%local_data(:nr, j) = v(columns(j))*kp%lowdin_cb%local_data(:nr, j)
+         END DO
+         CALL lowdin_kp_gemm('N', 'C', n, n, m, kp%lowdin_cwork, kp%lowdin_cb, z_one, cmat, kp%lowdin_gemm)
+      END IF
+   END SUBROUTINE lowdin_kp_apply
+
+! **************************************************************************************************
+!> \brief Add B diag(v) B**H C to the split-complex orbital gradient, without forming an AO matrix.
+!> \param kp K point owning the selected overlap columns and a private GEMM context.
+!> \param v Orbital potential, without k weights or occupations (applied by the caller).
+!> \param coeff_re Real part of the active orbitals.
+!> \param coeff_im Imaginary part of the active orbitals.
+!> \param hc_re Real part of H*C, updated in place.
+!> \param hc_im Imaginary part of H*C, updated in place.
+! **************************************************************************************************
+   SUBROUTINE lowdin_kp_apply_mo(kp, v, coeff_re, coeff_im, hc_re, hc_im)
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      REAL(KIND=dp), INTENT(IN)                          :: v(:)
+      TYPE(cp_fm_type), INTENT(IN)                       :: coeff_re, coeff_im
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: hc_re, hc_im
+
+      INTEGER                                            :: i, m, n, nc, nmo, nr
+      INTEGER, POINTER                                   :: rows(:)
+      TYPE(cp_cfm_type)                                  :: coeff, projected
+
+      m = SIZE(v)
+      IF (m == 0 .OR. ALL(v == 0.0_dp)) RETURN
+      CALL cp_fm_get_info(coeff_re, nrow_global=n, ncol_global=nmo)
+      CALL cp_cfm_create(coeff, coeff_re%matrix_struct)
+      CALL cp_cfm_create(projected, coeff_re%matrix_struct, nrow=m)
+      CALL cp_fm_to_cfm(coeff_re, coeff_im, coeff)
+      CALL lowdin_kp_gemm('C', 'N', m, nmo, n, kp%lowdin_cb, coeff, z_zero, projected, kp%lowdin_gemm)
+      CALL cp_cfm_get_info(projected, nrow_local=nr, ncol_local=nc, row_indices=rows)
+      DO i = 1, nr
+         projected%local_data(i, :nc) = v(rows(i))*projected%local_data(i, :nc)
+      END DO
+      CALL lowdin_kp_gemm('N', 'N', n, nmo, m, kp%lowdin_cb, projected, z_zero, coeff, kp%lowdin_gemm)
+      CALL cp_fm_get_info(coeff_re, nrow_local=nr, ncol_local=nc)
+      hc_re%local_data(:nr, :nc) = hc_re%local_data(:nr, :nc) + REAL(coeff%local_data(:nr, :nc), dp)
+      hc_im%local_data(:nr, :nc) = hc_im%local_data(:nr, :nc) + AIMAG(coeff%local_data(:nr, :nc))
+      CALL cp_cfm_release(projected)
+      CALL cp_cfm_release(coeff)
+   END SUBROUTINE lowdin_kp_apply_mo
+
+! **************************************************************************************************
+!> \brief Project a Bloch density response and return its orbital potential response, including +J.
+!> \param qs_env Quickstep environment with selected Lowdin projectors and current U/J.
+!> \param density Unweighted split-complex Bloch density response (local k point, component, spin).
+!> \param response Globally summed orbital potential response; ground-state caches are preserved.
+! **************************************************************************************************
+   SUBROUTINE lowdin_kp_kernel(qs_env, density, response)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), INTENT(IN)                       :: density(:, :, :)
+      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: response(:, :)
+
+      INTEGER                                            :: i, iatom, ikind, m, nspin
+      INTEGER, ALLOCATABLE                               :: last(:)
+      REAL(KIND=dp)                                      :: j, u
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(particle_type), POINTER                       :: particles(:)
+      TYPE(qs_kind_type), POINTER                        :: qs_kinds(:)
+
+      CALL get_qs_env(qs_env, kpoints=kpoints, particle_set=particles, qs_kind_set=qs_kinds)
+      m = SIZE(kpoints%lowdin_orbitals)
+      nspin = SIZE(density, 3)
+      ALLOCATE (response(m, nspin))
+      response(:, :) = 0.0_dp
+      IF (m == 0) RETURN
+      CALL lowdin_kp_project(kpoints, response, density)
+      ALLOCATE (last(SIZE(particles)))
+      CALL get_particle_set(particles, qs_kinds, last_sgf=last)
+      iatom = 1
+      DO i = 1, m
+         DO WHILE (kpoints%lowdin_orbitals(i) > last(iatom))
+            iatom = iatom + 1
+         END DO
+         CALL get_atomic_kind(particles(iatom)%atomic_kind, kind_number=ikind)
+         CALL get_qs_kind(qs_kinds(ikind), u_minus_j=u, hund_j=j)
+         response(i, :) = 0.5_dp*REAL(nspin, dp)*(j*response(i, nspin:1:-1) - u*response(i, :))
+      END DO
+   END SUBROUTINE lowdin_kp_kernel
+
+! **************************************************************************************************
+!> \brief Add -dE_U/dS(k) to W(k), before its ordinary inverse Fourier transform.
+!>        If A=S**(1/2), A*dA+dA*A=dS. In the overlap eigenbasis its adjoint is
+!>        G_ij=(U**H*(P*A*V+V*A*P)*U)_ij/(sqrt(s_i)+sqrt(s_j)).
+!>        W <- W-U*G*U**H; the existing overlap derivatives give forces and virial.
+!>        k-point weights belong to the Fourier transform and are not applied here.
+!> \param kpoints Final Bloch densities, orbital potentials and cached overlap spectra.
+! **************************************************************************************************
+   SUBROUTINE lowdin_kp_forces(kpoints)
+      TYPE(kpoint_type), POINTER                         :: kpoints
+
+      INTEGER                                            :: handle, ik, ispin, iw, nworkers, thread
+      TYPE(cp_cfm_type), ALLOCATABLE                     :: work(:, :)
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(local_gemm_ctxt_type), ALLOCATABLE            :: gemm(:)
+
+      IF (SIZE(kpoints%lowdin_orbitals) == 0) RETURN
+      IF (ALL(kpoints%lowdin_v == 0.0_dp)) RETURN
+      CALL timeset("lowdin_kp_forces", handle)
+      nworkers = 1
+!$    IF (kpoints%para_env_kp%num_pe == 1) &
+!$       nworkers = MIN(omp_get_max_threads(), SIZE(kpoints%kp_env)*SIZE(kpoints%lowdin_v, 2))
+      ALLOCATE (work(3, nworkers), gemm(nworkers))
+      kp => kpoints%kp_env(1)%kpoint_env
+      DO thread = 1, nworkers
+         DO iw = 1, 2
+            CALL cp_cfm_create(work(iw, thread), kp%pmat(1, 1)%matrix_struct)
+         END DO
+         CALL cp_cfm_create(work(3, thread), kp%lowdin_cb%matrix_struct)
+         CALL gemm(thread)%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
+      END DO
+!$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE) SCHEDULE(DYNAMIC, 1) NUM_THREADS(nworkers) IF(nworkers > 1) &
+!$OMP SHARED(kpoints,work,gemm,nworkers) PRIVATE(ik,ispin,thread)
+      DO ispin = 1, SIZE(kpoints%lowdin_v, 2)
+         DO ik = 1, SIZE(kpoints%kp_env)
+            thread = 1
+!$          thread = omp_get_thread_num() + 1
+            CALL lowdin_kp_force_matrix(kpoints%kp_env(ik)%kpoint_env, kpoints%lowdin_orbitals, ispin, &
+                                        kpoints%lowdin_v(:, ispin), work(:, thread), gemm(thread))
+         END DO
+      END DO
+!$OMP END PARALLEL DO
+      DO thread = 1, nworkers
+         CALL gemm(thread)%destroy()
+         DO iw = 1, 3
+            CALL cp_cfm_release(work(iw, thread))
+         END DO
+      END DO
+      CALL timestop(handle)
+   END SUBROUTINE lowdin_kp_forces
+
+! **************************************************************************************************
+!> \brief One spin/k-point's Hermitian overlap derivative, factoring through the selected AO columns.
+!> \param kp K-point state; W is updated, P and the overlap spectrum are preserved.
+!> \param orbitals Selected AO columns.
+!> \param ispin Spin channel to update.
+!> \param v Derivatives of the common U/J functional with respect to this spin's q.
+!> \param work Two square matrices and selected-column scratch, private to this worker.
+!> \param gemm Private local GEMM context; concurrent spins must not share the k-point context.
+! **************************************************************************************************
+   SUBROUTINE lowdin_kp_force_matrix(kp, orbitals, ispin, v, work, gemm)
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      INTEGER, INTENT(IN)                                :: orbitals(:), ispin
+      REAL(KIND=dp), INTENT(IN)                          :: v(:)
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: work(3)
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm
+
+      COMPLEX(KIND=dp)                                   :: value
+      INTEGER                                            :: i, j, m, n, nc, nr
+      INTEGER, POINTER                                   :: columns(:), rows(:)
+      LOGICAL                                            :: local, real_only
+
+      IF (ALL(v == 0.0_dp)) RETURN
+      CPASSERT(ALLOCATED(kp%lowdin_sqrt))
+      CPASSERT(ASSOCIATED(kp%lowdin_evec%local_data))
+      CPASSERT(ASSOCIATED(kp%wmat))
+      CALL cp_cfm_get_info(work(1), nrow_global=n, nrow_local=nr, ncol_local=nc, &
+                           row_indices=rows, col_indices=columns)
+      m = SIZE(orbitals)
+      local = PRODUCT(work(1)%matrix_struct%context%num_pe) == 1
+      real_only = SIZE(kp%pmat, 1) == 1
+      IF (real_only) THEN
+         CALL cp_fm_to_cfm(kp%pmat(1, ispin), mtarget=work(1))
+      ELSE
+         CALL cp_fm_to_cfm(kp%pmat(1, ispin), kp%pmat(2, ispin), work(1))
+      END IF
+      ! U**H * P * A * V * U = (U**H * P * B) * diag(v) * U(orbitals,:).
+      ! Keep these products thin: only the final backtransform needs square GEMMs.
+      CALL lowdin_kp_gemm('N', 'N', n, m, n, work(1), kp%lowdin_cb, z_zero, work(2), gemm)
+      CALL lowdin_kp_gemm('C', 'N', n, m, n, kp%lowdin_evec, work(2), z_zero, work(1), gemm)
+      DO j = 1, nc
+         IF (columns(j) <= m) work(1)%local_data(:nr, j) = v(columns(j))*work(1)%local_data(:nr, j)
+      END DO
+      IF (local) THEN
+         DO j = 1, m
+            work(3)%local_data(:n, j) = CONJG(kp%lowdin_evec%local_data(orbitals(j), :n))
+         END DO
+      ELSE
+         CALL cp_cfm_transpose(kp%lowdin_evec, 'C', work(2))
+         DO j = 1, m
+            CALL cp_cfm_to_cfm(work(2), work(3), 1, orbitals(j), j)
+         END DO
+      END IF
+      CALL lowdin_kp_gemm('N', 'C', n, n, m, work(1), work(3), z_zero, work(2), gemm)
+      ! Eigenvalue sums remain regular for equal or nearly equal overlap eigenvalues.
+      DO j = 1, nc
+         DO i = 1, nr
+            work(2)%local_data(i, j) = work(2)%local_data(i, j)/ &
+                                       (kp%lowdin_sqrt(rows(i)) + kp%lowdin_sqrt(columns(j)))
+         END DO
+      END DO
+      CALL lowdin_kp_gemm('N', 'N', n, n, n, kp%lowdin_evec, work(2), z_zero, work(1), gemm)
+      CALL lowdin_kp_gemm('N', 'C', n, n, n, work(1), kp%lowdin_evec, z_zero, work(2), gemm)
+      IF (.NOT. local) CALL cp_cfm_transpose(work(2), 'C', work(1))
+      DO j = 1, nc
+         DO i = 1, nr
+            IF (local) THEN
+               value = work(2)%local_data(i, j) + CONJG(work(2)%local_data(j, i))
+            ELSE
+               value = work(2)%local_data(i, j) + work(1)%local_data(i, j)
+            END IF
+            kp%wmat(1, ispin)%local_data(i, j) = kp%wmat(1, ispin)%local_data(i, j) - REAL(value, dp)
+            IF (.NOT. real_only) THEN
+               kp%wmat(2, ispin)%local_data(i, j) = kp%wmat(2, ispin)%local_data(i, j) - AIMAG(value)
+            END IF
+         END DO
+      END DO
+   END SUBROUTINE lowdin_kp_force_matrix
+
+! **************************************************************************************************
+!> \brief C = op(A)*op(B) + beta*C, with a private local context or collective parallel GEMM.
+!> \param ta Left transpose flag.
+!> \param tb Right transpose flag.
+!> \param nrow Output rows.
+!> \param ncol Output columns.
+!> \param inner Contraction dimension; may use only the selected columns of a square workspace.
+!> \param a Left operand.
+!> \param b Right operand.
+!> \param beta Scale of the existing output.
+!> \param c Output, distinct from both inputs.
+!> \param gemm Context owned by the current k-point or force worker.
+! **************************************************************************************************
+   SUBROUTINE lowdin_kp_gemm(ta, tb, nrow, ncol, inner, a, b, beta, c, gemm)
+      CHARACTER, INTENT(IN)                              :: ta, tb
+      INTEGER, INTENT(IN)                                :: nrow, ncol, inner
+      TYPE(cp_cfm_type), INTENT(IN)                      :: a, b
+      COMPLEX(KIND=dp), INTENT(IN)                       :: beta
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: c
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm
+
+      IF (PRODUCT(c%matrix_struct%context%num_pe) == 1) THEN
+         CALL gemm%gemm(ta, tb, nrow, ncol, inner, z_one, &
+                        a%local_data, SIZE(a%local_data, 1), b%local_data, SIZE(b%local_data, 1), &
+                        beta, c%local_data, SIZE(c%local_data, 1))
+      ELSE
+         CALL parallel_gemm(ta, tb, nrow, ncol, inner, z_one, a, b, beta, c)
+      END IF
+   END SUBROUTINE lowdin_kp_gemm
 
 ! **************************************************************************************************
 !> \brief         Add a DFT+U contribution to the Hamiltonian matrix\n
