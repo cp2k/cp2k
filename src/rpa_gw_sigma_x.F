@@ -16,7 +16,6 @@ MODULE rpa_gw_sigma_x
    USE admm_methods,                    ONLY: admm_mo_merge_ks_matrix
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
-   USE bse_main,                        ONLY: bse_fulldiag_memory_check
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
@@ -45,8 +44,7 @@ MODULE rpa_gw_sigma_x
                                               exx_post_hfx,&
                                               exx_pre_hfx
    USE hfx_ri,                          ONLY: hfx_ri_update_ks
-   USE input_constants,                 ONLY: bse_fulldiag,&
-                                              do_admm_basis_projection,&
+   USE input_constants,                 ONLY: do_admm_basis_projection,&
                                               do_admm_purify_none,&
                                               gw_print_exx,&
                                               gw_read_exx,&
@@ -640,11 +638,6 @@ CONTAINS
             CALL dbcsr_set(matrix_tmp_2, 0.0_dp)
 
          END DO
-
-         ! the full diagonalization's footprint is known here, before any GW work
-         IF (mp2_env%bse%do_bse .AND. mp2_env%bse%bse_diag_method == bse_fulldiag) THEN
-            CALL bse_fulldiag_memory_check(mp2_env%bse, mos_mp2, para_env, unit_nr)
-         END IF
 
          CALL para_env%sum(vec_Sigma_x_minus_vxc_gw)
 
