@@ -44,7 +44,6 @@ MODULE cell_opt_types
    IMPLICIT NONE
    PRIVATE
 
-   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_types'
 
    PUBLIC :: cell_opt_env_type, &
