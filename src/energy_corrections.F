@@ -156,7 +156,8 @@ MODULE energy_corrections
                                               zero_qs_force
    USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
-   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
+   USE qs_integrate_potential,          ONLY: integrate_rho_nlcc,&
+                                              integrate_v_core_rspace,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
@@ -876,6 +877,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace, v_rspace_in, &
                                                             v_tau_rspace
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -897,7 +899,7 @@ CONTAINS
       END IF
 
       NULLIFY (atomic_kind_set, cell, dft_control, force, ks_env, &
-               matrix_p, matrix_s, para_env, pw_env, rho, sab_orb, virial)
+               matrix_p, matrix_s, para_env, pw_env, rho, rho_nlcc, sab_orb, virial)
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
                       dft_control=dft_control, &
@@ -908,6 +910,7 @@ CONTAINS
                       pw_env=pw_env, &
                       rho=rho, &
                       rho_xc=rho_xc, &
+                      rho_nlcc=rho_nlcc, &
                       virial=virial)
       CPASSERT(ASSOCIATED(pw_env))
 
@@ -1155,6 +1158,25 @@ CONTAINS
       ! int v_Hxc[n_in]*n_out
       IF (use_virial) THEN
          pv_loc = virial%pv_virial
+      END IF
+
+      IF (ASSOCIATED(rho_nlcc)) THEN
+         IF (debug_forces) fodeb(1:3) = force(1)%gth_nlcc(1:3, 1)
+         IF (debug_stress .AND. use_virial) stdeb = virial%pv_nlcc
+         DO ispin = 1, nspins
+            CALL integrate_rho_nlcc(v_rspace(ispin), qs_env)
+         END DO
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%gth_nlcc(1:3, 1) - fodeb(1:3)
+            CALL para_env%sum(fodeb)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: dnlcc*dVxc    ", fodeb
+         END IF
+         IF (debug_stress .AND. use_virial) THEN
+            stdeb = fconv*(virial%pv_nlcc - stdeb)
+            CALL para_env%sum(stdeb)
+            IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+               'STRESS| INT dnlcc*dVxc     ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+         END IF
       END IF
 
       basis_type = "HARRIS"
@@ -2129,6 +2151,7 @@ CONTAINS
                                                             vtot_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, rhoout_r, tau_r, tauout_r, &
                                                             v_rspace, v_tau_rspace, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rhoout
@@ -2151,7 +2174,7 @@ CONTAINS
       ! get all information on the electronic density
       NULLIFY (atomic_kind_set, cell, dft_control, force, ks_env, &
                matrix_ks, matrix_p, matrix_s, para_env, rho, rho_core, &
-               rho_g, rho_r, sab_orb, tau_r, virial)
+               rho_g, rho_r, rho_nlcc, sab_orb, tau_r, virial)
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
                       dft_control=dft_control, &
@@ -2160,6 +2183,7 @@ CONTAINS
                       matrix_ks=matrix_ks, &
                       para_env=para_env, &
                       rho=rho, &
+                      rho_nlcc=rho_nlcc, &
                       sab_orb=sab_orb, &
                       virial=virial)
 
@@ -2418,6 +2442,25 @@ CONTAINS
             'STRESS| GGA 2nd f_Hxc[dP]*Pin   ', one_third_sum_diag(stdeb), det_3x3(stdeb)
       END IF
       !
+      IF (ASSOCIATED(rho_nlcc)) THEN
+         IF (debug_forces) fodeb(1:3) = force(1)%gth_nlcc(1:3, 1)
+         IF (debug_stress .AND. use_virial) stdeb = virial%pv_nlcc
+         DO ispin = 1, nspins
+            CALL integrate_rho_nlcc(v_xc(ispin), qs_env)
+         END DO
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%gth_nlcc(1:3, 1) - fodeb(1:3)
+            CALL para_env%sum(fodeb)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: dnlcc*dVxc    ", fodeb
+         END IF
+         IF (debug_stress .AND. use_virial) THEN
+            stdeb = fconv*(virial%pv_nlcc - stdeb)
+            CALL para_env%sum(stdeb)
+            IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+               'STRESS| INT dnlcc*dVxc     ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+         END IF
+      END IF
+      !
       CALL get_qs_env(qs_env=qs_env, rho=rho, matrix_s_kp=matrix_s)
       NULLIFY (ec_env%matrix_hz)
       CALL dbcsr_allocate_matrix_set(ec_env%matrix_hz, nspins)
@@ -2497,6 +2540,25 @@ CONTAINS
                          vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE., &
                          edisp=edisp, dispersion_env=ec_env%dispersion_env)
       IF (edisp /= 0.0_dp) eexc = eexc + edisp
+
+      IF (ASSOCIATED(rho_nlcc)) THEN
+         IF (debug_forces) fodeb(1:3) = force(1)%gth_nlcc(1:3, 1)
+         IF (debug_stress .AND. use_virial) stdeb = virial%pv_nlcc
+         DO ispin = 1, nspins
+            CALL integrate_rho_nlcc(v_rspace(ispin), qs_env)
+         END DO
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%gth_nlcc(1:3, 1) - fodeb(1:3)
+            CALL para_env%sum(fodeb)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: dnlcc*Vxc    ", fodeb
+         END IF
+         IF (debug_stress .AND. use_virial) THEN
+            stdeb = fconv*(virial%pv_nlcc - stdeb)
+            CALL para_env%sum(stdeb)
+            IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+               'STRESS| INT dnlcc*Vxc     ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+         END IF
+      END IF
 
       IF (use_virial) THEN
          eexc = 0.0_dp

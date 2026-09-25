@@ -42,6 +42,7 @@ xTB/regtest-gfn0-m2                                         libdftd4
 QS/regtest-debug-6                                          libint !ifx
 Fist/regtest-7-2
 QS/regtest-nlcc-1                                           libint libxc !ifx
+QS/regtest-nlcc-2                                           libint libxc !ifx
 QS/regtest-ot-2
 QS/regtest-ot
 QS/regtest-gpw-1                                            libint libvori !ifx
