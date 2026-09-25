@@ -66,7 +66,7 @@ MODULE kpoint_types
    PUBLIC :: kpoint_env_create, get_kpoint_env
    PUBLIC :: kind_rotmat_type
    PUBLIC :: kpoint_sym_type
-   PUBLIC :: kpoint_sym_create
+   PUBLIC :: kpoint_sym_create, find_kpoint_rotation_slot
 
 ! **************************************************************************************************
 !> \brief Keeps information about a specific k-point
@@ -1258,5 +1258,27 @@ CONTAINS
    END SUBROUTINE kpoint_sym_release
 
 ! **************************************************************************************************
+!> \brief Locate the basis-rotation slot corresponding to a signed k-point symmetry operation.
+!> \param qs_kpoint SCF k-point object
+!> \param rotp signed operation identifier
+!> \return rotation slot, or zero when no slot matches
+! **************************************************************************************************
+   INTEGER FUNCTION find_kpoint_rotation_slot(qs_kpoint, rotp) RESULT(rot_slot)
+      TYPE(kpoint_type), POINTER                         :: qs_kpoint
+      INTEGER, INTENT(IN)                                :: rotp
+
+      INTEGER                                            :: irot, rot_abs
+
+      rot_slot = 0
+      rot_abs = ABS(rotp)
+      IF (.NOT. ASSOCIATED(qs_kpoint%ibrot)) RETURN
+      DO irot = 1, SIZE(qs_kpoint%ibrot)
+         IF (rot_abs == qs_kpoint%ibrot(irot)) THEN
+            rot_slot = irot
+            RETURN
+         END IF
+      END DO
+
+   END FUNCTION find_kpoint_rotation_slot
 
 END MODULE kpoint_types

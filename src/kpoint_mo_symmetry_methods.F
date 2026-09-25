@@ -15,7 +15,8 @@ MODULE kpoint_mo_symmetry_methods
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
-   USE kpoint_types,                    ONLY: kind_rotmat_type,&
+   USE kpoint_types,                    ONLY: find_kpoint_rotation_slot,&
+                                              kind_rotmat_type,&
                                               kpoint_sym_type,&
                                               kpoint_type
    USE mathconstants,                   ONLY: twopi
@@ -210,29 +211,5 @@ CONTAINS
       success = .TRUE.
 
    END SUBROUTINE kpoint_transform_scf_mo
-
-! **************************************************************************************************
-!> \brief Locate the basis-rotation slot corresponding to a signed k-point symmetry operation.
-!> \param qs_kpoint SCF k-point object
-!> \param rotp signed operation identifier
-!> \return rotation slot, or zero when no slot matches
-! **************************************************************************************************
-   INTEGER FUNCTION find_kpoint_rotation_slot(qs_kpoint, rotp) RESULT(rot_slot)
-      TYPE(kpoint_type), POINTER                         :: qs_kpoint
-      INTEGER, INTENT(IN)                                :: rotp
-
-      INTEGER                                            :: irot, rot_abs
-
-      rot_slot = 0
-      rot_abs = ABS(rotp)
-      IF (.NOT. ASSOCIATED(qs_kpoint%ibrot)) RETURN
-      DO irot = 1, SIZE(qs_kpoint%ibrot)
-         IF (rot_abs == qs_kpoint%ibrot(irot)) THEN
-            rot_slot = irot
-            RETURN
-         END IF
-      END DO
-
-   END FUNCTION find_kpoint_rotation_slot
 
 END MODULE kpoint_mo_symmetry_methods
