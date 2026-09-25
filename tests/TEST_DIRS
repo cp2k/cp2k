@@ -289,7 +289,7 @@ QS/regtest-mom-2                                            libint !ifx
 QS/regtest-nonortho
 Fist/regtest-13
 xTB/regtest-debug
-QS/regtest-gpw-7                                            mpiranks<4
+QS/regtest-gpw-7
 QS/regtest-mtlr
 QS/regtest-polar
 QS/regtest-ecp-2
