@@ -26,7 +26,6 @@ MODULE offload_api
 
    PUBLIC :: offload_init
    PUBLIC :: offload_get_device_count
-   PUBLIC :: offload_get_device_count_safe
    PUBLIC :: offload_set_chosen_device, offload_get_chosen_device, offload_activate_chosen_device
    PUBLIC :: offload_timeset, offload_timestop, offload_mem_info
    PUBLIC :: offload_buffer_type, offload_create_buffer, offload_free_buffer, &
@@ -123,27 +122,6 @@ CONTAINS
       count = offload_get_device_count_c()
 
    END FUNCTION offload_get_device_count
-
-! **************************************************************************************************
-!> \brief Returns the number of available devices, or 0 when none is usable.
-!>        Never aborts (unlike offload_get_device_count).
-!> \return ...
-!> \author Johann Pototschnig
-! **************************************************************************************************
-   FUNCTION offload_get_device_count_safe() RESULT(count)
-      INTEGER                                            :: count
-
-      INTERFACE
-         FUNCTION offload_get_device_count_safe_c() &
-            BIND(C, name="offload_get_device_count_safe")
-            IMPORT :: C_INT
-            INTEGER(KIND=C_INT)                :: offload_get_device_count_safe_c
-         END FUNCTION offload_get_device_count_safe_c
-      END INTERFACE
-
-      count = offload_get_device_count_safe_c()
-
-   END FUNCTION offload_get_device_count_safe
 
 ! **************************************************************************************************
 !> \brief Selects the chosen device to be used.

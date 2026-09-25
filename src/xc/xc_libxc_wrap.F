@@ -235,7 +235,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE libxc_set_backend(backend)
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
-      USE offload_api, ONLY: offload_get_device_count_safe
+      USE offload_api, ONLY: offload_get_device_count
 #endif
       INTEGER, INTENT(IN)                                :: backend
 
@@ -244,7 +244,7 @@ CONTAINS
       ! a DEVICE request without one is an error.
       SELECT CASE (backend)
       CASE (do_libxc_gpu)
-         IF (offload_get_device_count_safe() > 0) THEN
+         IF (offload_get_device_count() > 0) THEN
             libxc_backend = do_libxc_gpu
          ELSE
             CALL cp__b(__SHORT_FILE__, __LINE__, &
