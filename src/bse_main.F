@@ -25,6 +25,7 @@ MODULE bse_main
    USE bse_types,                       ONLY: bse_env_type
    USE bse_util,                        ONLY: adapt_BSE_input_params,&
                                               bse_window_from_dft,&
+                                              bse_window_from_mos,&
                                               estimate_BSE_resources,&
                                               fulldiag_memory_estimate_GB,&
                                               get_bse_spin_block_layout,&
@@ -364,31 +365,21 @@ CONTAINS
 
       CHARACTER(LEN=16)                                  :: bud_str, mem_str
       CHARACTER(LEN=64)                                  :: remedy
-      INTEGER                                            :: handle, ispin, n_ov_joint, nspins
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: homo, n_mo
+      INTEGER                                            :: handle, homo, ispin, n_ov_joint, nspins
       LOGICAL                                            :: from_free, over, skipped
       REAL(KIND=dp)                                      :: budget_GB, mem_avail_GB, mem_est_GB
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenval_dft
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(mo_window_type)                               :: window
 
       CALL timeset(routineN, handle)
 
       nspins = SIZE(mos)
-      ALLOCATE (homo(nspins), n_mo(nspins))
-      DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin), nmo=n_mo(ispin), homo=homo(ispin), eigenvalues=eigenvalues)
-         IF (ispin == 1) ALLOCATE (eigenval_dft(n_mo(1), nspins))
-         eigenval_dft(:, ispin) = eigenvalues(1:n_mo(ispin))
-      END DO
       ! the preparer warns about a combined window; the estimate stays silent
-      CALL bse_window_from_dft(eigenval_dft, n_mo, homo, bse_env%bse_cutoff_occ, &
-                               bse_env%bse_cutoff_empty, window, warn=.FALSE.)
+      CALL bse_window_from_mos(mos, bse_env%bse_cutoff_occ, bse_env%bse_cutoff_empty, window, warn=.FALSE.)
       n_ov_joint = 0
       DO ispin = 1, nspins
-         n_ov_joint = n_ov_joint + (homo(ispin) - window%first_mo + 1)*(window%last_mo - homo(ispin))
+         CALL get_mo_set(mos(ispin), homo=homo)
+         n_ov_joint = n_ov_joint + (homo - window%first_mo + 1)*(window%last_mo - homo)
       END DO
-      DEALLOCATE (homo, n_mo, eigenval_dft)
 
       mem_est_GB = fulldiag_memory_estimate_GB(n_ov_joint, bse_env%flag_tda /= bse_tda)/ &
                    REAL(para_env%num_pe, KIND=dp)

@@ -16,6 +16,7 @@ MODULE rpa_gw_sigma_x
    USE admm_methods,                    ONLY: admm_mo_merge_ks_matrix
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
+   USE bse_util,                        ONLY: bse_window_from_mos
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
@@ -64,8 +65,7 @@ MODULE rpa_gw_sigma_x
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
-   USE mo_window,                       ONLY: determine_mo_window,&
-                                              mo_window_type
+   USE mo_window,                       ONLY: mo_window_type
    USE mp2_integrals,                   ONLY: compute_kpoints
    USE mp2_ri_2c,                       ONLY: trunc_coulomb_for_exchange
    USE mp2_types,                       ONLY: mp2_type
@@ -123,10 +123,10 @@ CONTAINS
 
       CHARACTER(4)                                       :: occ_virt
       CHARACTER(LEN=40)                                  :: line
-      INTEGER :: dimen, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, handle, homo, &
-         homo_reduced_bse, i_img, ikp, irep, ispin, iunit, max_corr_lev_occ, max_corr_lev_virt, &
-         myfun, myfun_aux, myfun_prim, n_level_gw, n_level_gw_ref, n_rep_hf, nkp, nkp_Sigma, nmo, &
-         nspins, print_exx, virtual_reduced_bse
+      INTEGER :: corr_mos_occ_input, corr_mos_virt_input, dimen, gw_corr_lev_occ, gw_corr_lev_tot, &
+         gw_corr_lev_virt, handle, homo, homo_reduced_bse, i_img, ikp, irep, ispin, iunit, &
+         max_corr_lev_occ, max_corr_lev_virt, myfun, myfun_aux, myfun_prim, n_level_gw, &
+         n_level_gw_ref, n_rep_hf, nkp, nkp_Sigma, nmo, nspins, print_exx, virtual_reduced_bse
       LOGICAL :: calc_ints, charge_constrain_tmp, do_admm_rpa, do_hfx, do_kpoints_cubic_RPA, &
          do_kpoints_from_Gamma, do_ri_Sigma_x, really_read_line
       REAL(KIND=dp) :: E_GAP_GW, E_HOMO_GW, E_LUMO_GW, eh1, ehfx, eigval_dft, eigval_hf_at_dft, &
@@ -136,7 +136,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Eigenval_kp_HF_at_DFT, vec_Sigma_x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp, vec_Sigma_x_minus_vxc_gw, &
                                                             vec_Sigma_x_minus_vxc_gw_im
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mat_exchange_for_kp_from_gamma
@@ -525,12 +524,21 @@ CONTAINS
          CALL dbcsr_desymmetrize(matrix_ks(1)%matrix, mo_coeff_b)
          CALL dbcsr_set(mo_coeff_b, 0.0_dp)
 
+         ! the requested counts: the loop overwrites mp2_env%ri_g0w0%corr_mos_* with spin 1's resolved ones
+         corr_mos_occ_input = mp2_env%ri_g0w0%corr_mos_occ
+         corr_mos_virt_input = mp2_env%ri_g0w0%corr_mos_virt
+         ! the BSE's window, one absolute MO range for every spin: each spin corrects the levels the BSE reads,
+         ! and the corrected totals agree between the spins; the BSE warns about a combined window itself
+         IF (mp2_env%bse%do_bse) THEN
+            CALL bse_window_from_mos(mos_mp2, mp2_env%bse%bse_cutoff_occ, mp2_env%bse%bse_cutoff_empty, &
+                                     bse_window, warn=.FALSE.)
+         END IF
+
          ! Transform matrix_sigma_x_minus_vxc to MO basis
          DO ispin = 1, nspins
 
             CALL get_mo_set(mo_set=mos_mp2(ispin), &
                             mo_coeff=mo_coeff, &
-                            eigenvalues=mo_eigenvalues, &
                             nmo=nmo, &
                             homo=homo, &
                             nao=dimen)
@@ -557,8 +565,8 @@ CONTAINS
                CALL dbcsr_set(matrix_tmp_2, 0.0_dp)
             END IF
 
-            gw_corr_lev_occ = mp2_env%ri_g0w0%corr_mos_occ
-            gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_virt
+            gw_corr_lev_occ = corr_mos_occ_input
+            gw_corr_lev_virt = corr_mos_virt_input
 
             ! If SVD is used to invert overlap matrix (for CHOLESKY OFF), some MOs are removed
             ! Therefore, setting the number of gw_corr_lev_virt simply to dimen - homo leads to index problems
@@ -589,8 +597,6 @@ CONTAINS
                END IF
 
                ! Obtain indices from DFT if gw_corr... are set to -2
-               CALL determine_mo_window(mo_eigenvalues, nmo, homo, &
-                                        mp2_env%bse%bse_cutoff_occ, mp2_env%bse%bse_cutoff_empty, bse_window)
                homo_reduced_bse = homo - bse_window%first_mo + 1
                virtual_reduced_bse = bse_window%last_mo - homo
                IF (gw_corr_lev_occ == -2) THEN

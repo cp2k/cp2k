@@ -76,7 +76,7 @@ MODULE bse_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_util'
 
-   PUBLIC :: screen_slabs, bse_window_from_dft, fm_general_add_bse, truncate_fm, &
+   PUBLIC :: screen_slabs, bse_window_from_dft, bse_window_from_mos, fm_general_add_bse, truncate_fm, &
              comp_eigvec_coeff_BSE, sort_excitations, &
              estimate_BSE_resources, fulldiag_memory_estimate_GB, filter_eigvec_contrib, truncate_BSE_matrices, &
              adapt_BSE_input_params, get_multipoles_mo, &
@@ -1167,6 +1167,38 @@ CONTAINS
       DEALLOCATE (spin_windows)
 
    END SUBROUTINE bse_window_from_dft
+
+! **************************************************************************************************
+!> \brief The active MO window of bse_window_from_dft, from the DFT eigenvalues of the MO sets
+!> \param mos MO sets per spin
+!> \param cutoff_occ ENERGY_CUTOFF_OCC in Hartree, zero or negative for no cutoff
+!> \param cutoff_empty ENERGY_CUTOFF_EMPTY in Hartree, zero or negative for no cutoff
+!> \param window first and last MO to keep, one absolute range for every spin
+!> \param warn warn when the spin windows differ
+! **************************************************************************************************
+   SUBROUTINE bse_window_from_mos(mos, cutoff_occ, cutoff_empty, window, warn)
+
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff_occ, cutoff_empty
+      TYPE(mo_window_type), INTENT(OUT)                  :: window
+      LOGICAL, INTENT(IN)                                :: warn
+
+      INTEGER                                            :: ispin, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: homo, n_mo
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenval_dft
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+
+      nspins = SIZE(mos)
+      ALLOCATE (homo(nspins), n_mo(nspins))
+      DO ispin = 1, nspins
+         CALL get_mo_set(mos(ispin), nmo=n_mo(ispin), homo=homo(ispin), eigenvalues=eigenvalues)
+         IF (ispin == 1) ALLOCATE (eigenval_dft(n_mo(1), nspins))
+         eigenval_dft(:, ispin) = eigenvalues(1:n_mo(ispin))
+      END DO
+      CALL bse_window_from_dft(eigenval_dft, n_mo, homo, cutoff_occ, cutoff_empty, window, warn)
+      DEALLOCATE (homo, n_mo, eigenval_dft)
+
+   END SUBROUTINE bse_window_from_mos
 
 ! **************************************************************************************************
 !> \brief Determines indices within the given energy cutoffs and truncates Eigenvalues and matrices
