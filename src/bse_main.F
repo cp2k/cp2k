@@ -19,6 +19,7 @@ MODULE bse_main
                                               create_hermitian_form_of_ABBA,&
                                               diagonalize_A,&
                                               diagonalize_C
+   USE bse_input,                       ONLY: read_bse_section
    USE bse_iterative,                   ONLY: solve_bse_iteratively
    USE bse_matvec,                      ONLY: mem_fraction
    USE bse_print,                       ONLY: print_BSE_start_flag
@@ -47,6 +48,7 @@ MODULE bse_main
    USE input_constants,                 ONLY: &
         bse_abba, bse_both, bse_fulldiag, bse_iterdiag, bse_memcheck_abort, bse_memcheck_clamp, &
         bse_memcheck_off, bse_memcheck_warn, bse_tda
+   USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
                                               mp_para_env_type
@@ -72,7 +74,7 @@ CONTAINS
 !> \brief Prepares the BSE environment from the old GW's slabs: run flags, the window on the DFT
 !>        axis, the window-sized slabs with both energy sets, [1+Q(0)]^-1 once, the AO multipoles
 !>        and the QS pointers. Starts no solver.
-!> \param bse_env settings read; state filled here
+!> \param bse_env settings re-read from its section; state filled here
 !> \param fm_S_ia_full B^P_ia of the GW levels per spin, the RPA copy without the energy factor
 !> \param fm_S_ij_full B^P_ij per spin
 !> \param fm_S_ab_full B^P_ab per spin
@@ -109,8 +111,15 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_dft_spin, eigenval_qp_spin
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mo_window_type)                               :: window
+      TYPE(section_vals_type), POINTER                   :: bse_section
 
       CALL timeset(routineN, handle)
+
+      ! the settings afresh from the input, since adapt_BSE_input_params normalises them in place and a
+      ! later energy evaluation on the same environment runs the BSE again; the local pointer keeps the
+      ! section apart from bse_env, whose section pointer the reader sets
+      bse_section => bse_env%bse_section
+      CALL read_bse_section(bse_section, bse_env)
 
       nspins = SIZE(homo)
       bse_env%nspins = nspins

@@ -7,7 +7,8 @@
 
 ! **************************************************************************************************
 !> \brief Reads the &BSE input section into the BSE environment; called by read_mp2_section with
-!>        the section under RI_RPA%GW, and by any other GW path with its own section
+!>        the section under RI_RPA%GW, by any other GW path with its own section, and again by
+!>        prepare_bse_env before every BSE run
 !> \par History
 !>      09.2026 moved out of read_mp2_section [Maximilian Graml]
 ! **************************************************************************************************
@@ -38,7 +39,6 @@ CONTAINS
       TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
 
       INTEGER                                            :: print_level_NTO_analysis
-      LOGICAL                                            :: explicit
 
       bse_env%bse_section => bse_section
       CALL section_vals_val_get(bse_section, "_SECTION_PARAMETERS_", &
@@ -56,12 +56,7 @@ CONTAINS
       CALL section_vals_val_get(bse_section, "PRINT_DIRECTIONAL_EXC_DESCR", &
                                 l_val=bse_env%print_directional_exc_descr)
       CALL section_vals_val_get(bse_section, "PRINT_DIRECTIONAL_CROSSCORRELATION", &
-                                l_val=bse_env%print_directional_crosscorrelation, explicit=explicit)
-      IF (explicit .AND. bse_env%print_directional_crosscorrelation .AND. &
-          .NOT. bse_env%print_directional_exc_descr) THEN
-         CALL cp_warn(__LOCATION__, &
-                      "PRINT_DIRECTIONAL_CROSSCORRELATION has no effect without PRINT_DIRECTIONAL_EXC_DESCR.")
-      END IF
+                                l_val=bse_env%print_directional_crosscorrelation)
       CALL section_vals_val_get(bse_section, "EPS_X", &
                                 r_val=bse_env%eps_x)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%NUM_EXC_EN", &

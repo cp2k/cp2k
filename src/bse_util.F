@@ -38,7 +38,8 @@ MODULE bse_util
                                               bse_screening_alpha,&
                                               bse_screening_rpa,&
                                               bse_screening_tdhf
-   USE input_section_types,             ONLY: section_vals_type
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               dp,&
                                               int_8
@@ -1536,6 +1537,7 @@ CONTAINS
                                                             ndim_periodic_cell, &
                                                             ndim_periodic_poisson, &
                                                             num_state_list_exceptions
+      LOGICAL                                            :: explicit
       TYPE(cell_type), POINTER                           :: cell_ref
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -1642,6 +1644,16 @@ CONTAINS
                          "Printing exciton descriptors up to NUM_PRINT_EXC.")
          END IF
          bse_env%num_print_exc_descr = bse_env%num_print_exc
+      END IF
+
+      ! the keyword defaults to true, so only an explicit request is worth a warning
+      CALL section_vals_val_get(bse_env%bse_section, "PRINT_DIRECTIONAL_CROSSCORRELATION", explicit=explicit)
+      IF (explicit .AND. bse_env%print_directional_crosscorrelation .AND. &
+          .NOT. bse_env%print_directional_exc_descr) THEN
+         IF (unit_nr > 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "PRINT_DIRECTIONAL_CROSSCORRELATION has no effect without PRINT_DIRECTIONAL_EXC_DESCR.")
+         END IF
       END IF
 
       ! Handle screening factor options
