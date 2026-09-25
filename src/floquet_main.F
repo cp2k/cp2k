@@ -28,7 +28,7 @@ MODULE floquet_main
                                               floquet_env_type
    USE floquet_utils,                   ONLY: &
         build_floquet_matrix, calculate_floquet_observables, check_floquet_convergence, &
-        compute_e_k_de_dk_dipole, distribute_floquet_kp_data, floquet_sector_weights, &
+        compute_e_k_p_k, distribute_floquet_kp_data, floquet_sector_weights, &
         make_floquet_subgroups, write_floquet_header, write_floquet_results
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_zero
@@ -61,12 +61,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'floquet'
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :, :, :)                        :: dipole
+         DIMENSION(:, :, :, :, :)                        :: p_k
       INTEGER                                            :: handle, ikp, ispin, my_group, &
                                                             n_est_done, n_source_done, ngroups
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_distribution
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: e_k
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: de_dk
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       TYPE(cp_cfm_type)                                  :: cfm_eigenvectors, floquet_matrix
       TYPE(cp_fm_struct_type), POINTER                   :: floquet_struct
@@ -95,11 +94,11 @@ CONTAINS
       CALL floquet_env_create(floquet_env, bs_env)
 
       ! Equilibrium band data at every band-structure k-point k from H(k)C(k) = S(k)C(k)ε(k):
-      !   band energies    ε_nk
-      !   k-derivatives    ∇_k ε_nk = C_n(k)^† ∇_k H(k) C_n(k) - ε_nk C_n(k)^† ∇_k S(k) C_n(k)
-      !   dipoles          d_nm(k) = <ψ_nk| r |ψ_mk>
+      !   band energies:   ε_nk
+      !   momentum matrix elements:
+      !                    p_nm = <ψ_n|-iħ∇_r|ψ_m> = <u_n|(ħk - iħ∇_r)|u_m>
       ! Results are distributed across ranks (k-point ikp stored on rank MOD(ikp-1,num_pe)).
-      CALL compute_e_k_de_dk_dipole(qs_env, bs_env, e_k, de_dk, dipole)
+      CALL compute_e_k_p_k(qs_env, bs_env, e_k, p_k)
 
       ! Split the global communicator into Floquet subgroups (Hamiltonian distributed within each
       ! subgroup, k-points distributed across subgroups) and create the subgroup BLACS context.
@@ -123,8 +122,8 @@ CONTAINS
          DO ispin = 1, floquet_env%n_spin
             ! Broadcast this k-point/spin's ε_nk, ∇_k ε_nk and d_nm(k) to every rank of the
             ! owning subgroup (its owner rank holds them from the distributed precompute above).
-            CALL distribute_floquet_kp_data(para_env, para_env_sub, ispin, ikp, e_k, de_dk, &
-                                            dipole, floquet_env)
+            CALL distribute_floquet_kp_data(para_env, para_env_sub, ispin, ikp, e_k, &
+                                            p_k, floquet_env)
 
             ! Assemble H_F(k) in Sambe space (blocks m,m' = -M..M, each nao×nao)
             !  diagonal      (H_F)^{m,m}_{nn'}   = (ε_nk + m ħΩ) δ_{nn'}
@@ -180,7 +179,7 @@ CONTAINS
       ! respective files
       CALL write_floquet_results(bs_env, floquet_env)
 
-      DEALLOCATE (e_k, de_dk, dipole)
+      DEALLOCATE (e_k, p_k)
       DEALLOCATE (group_distribution)
       CALL floquet_env_release(floquet_env)
       CALL cp_cfm_release(floquet_matrix)
