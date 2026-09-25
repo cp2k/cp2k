@@ -262,7 +262,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kpoint_gen'
 
       INTEGER                                            :: handle, i, ik, j, nkp, nkpts
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kpop, xptr
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kpop, rep_to_red
       LOGICAL                                            :: fullmesh, gamma_mesh, inversion_only, &
                                                             spglib_backend, spglib_reduction
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wkp
@@ -392,14 +392,15 @@ CONTAINS
       ! store reduced kpoint set
       csym%nkpoint = nkp
       ALLOCATE (csym%xkpoint(3, nkp), csym%wkpoint(nkp))
-      ALLOCATE (xptr(nkp))
+      ALLOCATE (rep_to_red(nkpts))
+      rep_to_red(:) = 0
       j = 0
       DO ik = 1, nkpts
          IF (wkp(ik) > 0.0_dp) THEN
             j = j + 1
             csym%wkpoint(j) = wkp(ik)
             csym%xkpoint(1:3, j) = xkp(1:3, ik)
-            xptr(j) = ik
+            rep_to_red(ik) = j
          END IF
       END DO
       CPASSERT(j == nkp)
@@ -411,14 +412,11 @@ CONTAINS
       ! kp: link
       DO ik = 1, nkpts
          i = csym%kplink(1, ik)
-         DO j = 1, nkp
-            IF (i == xptr(j)) THEN
-               csym%kplink(2, ik) = j
-               EXIT
-            END IF
-         END DO
+         CPASSERT(i > 0 .AND. i <= nkpts)
+         csym%kplink(2, ik) = rep_to_red(i)
+         CPASSERT(csym%kplink(2, ik) > 0)
       END DO
-      DEALLOCATE (xptr)
+      DEALLOCATE (rep_to_red)
 
       ! kp: operations
       ALLOCATE (csym%kpop(nkpts))
@@ -1048,15 +1046,21 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), INTENT(IN)            :: srot
       INTEGER, INTENT(IN)                                :: nrot
 
-      INTEGER                                            :: i, iop, isign, j, kr, nkpts, score
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kscore
-      INTEGER, DIMENSION(3, 3)                           :: krot
+      INTEGER                                            :: i, iop, isign, j, kr, nkpts
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kscore, op_score
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: krot
       REAL(KIND=dp)                                      :: eps
-      REAL(KIND=dp), DIMENSION(3)                        :: diff, rr
+      REAL(KIND=dp), DIMENSION(3)                        :: rr
 
       nkpts = SIZE(wkp)
       eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
-      ALLOCATE (kscore(nkpts))
+      ALLOCATE (kscore(nkpts), op_score(nrot), krot(3, 3, nrot))
+
+      DO iop = 1, nrot
+         kr = csym%ibrot(iop)
+         krot(1:3, 1:3, iop) = reciprocal_rotation(srot(1:3, 1:3, kr))
+         op_score(iop) = spglib_operation_score(csym, iop, srot(1:3, 1:3, kr))
+      END DO
 
       wkp = 0.0_dp
       kpop = 0
@@ -1072,38 +1076,28 @@ CONTAINS
          kscore(i) = 0
 
          DO iop = 1, nrot
-            kr = csym%ibrot(iop)
-            krot = reciprocal_rotation(srot(:, :, kr))
-            score = spglib_operation_score(csym, iop, srot(:, :, kr))
             DO isign = 1, 2
-               rr(1:3) = MATMUL(REAL(krot(1:3, 1:3), KIND=dp), xkp(1:3, i))
+               rr(1:3) = MATMUL(REAL(krot(1:3, 1:3, iop), KIND=dp), xkp(1:3, i))
+               kr = csym%ibrot(iop)
                IF (isign == 2) THEN
                   rr(1:3) = -rr(1:3)
-                  kr = -csym%ibrot(iop)
-               ELSE
-                  kr = csym%ibrot(iop)
+                  kr = -kr
                END IF
 
-               DO j = 1, nkpts
-                  diff(1:3) = xkp(1:3, j) - rr(1:3)
-                  diff(1:3) = diff(1:3) - ANINT(diff(1:3))
-                  IF (ALL(ABS(diff(1:3)) < eps)) THEN
-                     IF (csym%kplink(1, j) == 0) THEN
-                        csym%kplink(1, j) = i
-                        wkp(i) = wkp(i) + 1.0_dp
-                        kpop(j) = kr
-                        kscore(j) = score
-                     ELSE
-                        CPASSERT(csym%kplink(1, j) == i)
-                        IF (score < kscore(j)) THEN
-                           kpop(j) = kr
-                           kscore(j) = score
-                        END IF
-                     END IF
-                     EXIT
+               j = regular_kpoint_index(rr, xkp(1:3, 1), csym%mesh, eps)
+               IF (j == 0) CYCLE
+               IF (csym%kplink(1, j) == 0) THEN
+                  csym%kplink(1, j) = i
+                  wkp(i) = wkp(i) + 1.0_dp
+                  kpop(j) = kr
+                  kscore(j) = op_score(iop)
+               ELSE
+                  CPASSERT(csym%kplink(1, j) == i)
+                  IF (op_score(iop) < kscore(j)) THEN
+                     kpop(j) = kr
+                     kscore(j) = op_score(iop)
                   END IF
-               END DO
-               IF (j > nkpts) CYCLE
+               END IF
             END DO
          END DO
       END DO
@@ -1112,7 +1106,7 @@ CONTAINS
          CPASSERT(csym%kplink(1, i) /= 0)
          CPASSERT(kpop(i) /= 0)
       END DO
-      DEALLOCATE (kscore)
+      DEALLOCATE (kscore, op_score, krot)
 
    END SUBROUTINE reduce_spglib_kpoint_mesh
 
@@ -1514,7 +1508,7 @@ CONTAINS
       INTEGER, DIMENSION(3, 3)                           :: krot
       LOGICAL                                            :: valid
       REAL(KIND=dp)                                      :: eps
-      REAL(KIND=dp), DIMENSION(3)                        :: diff, rr
+      REAL(KIND=dp), DIMENSION(3)                        :: rr
 
       nkpts = SIZE(wkp)
       eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
@@ -1537,30 +1531,23 @@ CONTAINS
                rr(1:3) = MATMUL(REAL(krot(1:3, 1:3), KIND=dp), xkp(1:3, i))
                IF (isign == 2) rr(1:3) = -rr(1:3)
 
-               DO j = 1, nkpts
-                  diff(1:3) = xkp(1:3, j) - rr(1:3)
-                  diff(1:3) = diff(1:3) - ANINT(diff(1:3))
-                  IF (ALL(ABS(diff(1:3)) < eps)) THEN
-                     IF (j == i) EXIT
-                     IF (csym%kplink(1, j) /= 0) THEN
-                        CPASSERT(csym%kplink(1, j) == i)
-                        EXIT
-                     END IF
+               j = regular_kpoint_index(rr, xkp(1:3, 1), csym%mesh, eps)
+               IF (j == 0 .OR. j == i) CYCLE
+               IF (csym%kplink(1, j) /= 0) THEN
+                  CPASSERT(csym%kplink(1, j) == i)
+                  CYCLE
+               END IF
 
-                     CALL find_k290_kpoint_operation(csym, xkp(1:3, i), xkp(1:3, j), &
-                                                     a1, a2, a3, b1, b2, b3, alat, &
-                                                     k290_op, valid)
-                     IF (.NOT. valid) THEN
-                        nskipped = nskipped + 1
-                        EXIT
-                     END IF
-                     csym%kplink(1, j) = i
-                     wkp(i) = wkp(i) + 1.0_dp
-                     kpop(j) = k290_op
-                     EXIT
-                  END IF
-               END DO
-               IF (j > nkpts) CYCLE
+               CALL find_k290_kpoint_operation(csym, xkp(1:3, i), xkp(1:3, j), &
+                                               a1, a2, a3, b1, b2, b3, alat, &
+                                               k290_op, valid)
+               IF (.NOT. valid) THEN
+                  nskipped = nskipped + 1
+                  CYCLE
+               END IF
+               csym%kplink(1, j) = i
+               wkp(i) = wkp(i) + 1.0_dp
+               kpop(j) = k290_op
             END DO
          END DO
       END DO
@@ -1717,7 +1704,7 @@ CONTAINS
       INTEGER                                            :: i, ibsign, iop, j, kr, nkpts, &
                                                             nskipped_overlaps
       REAL(KIND=dp)                                      :: eps
-      REAL(KIND=dp), DIMENSION(3)                        :: diff, rr, wcart
+      REAL(KIND=dp), DIMENSION(3)                        :: rr, wcart
 
       nkpts = SIZE(wkp)
       eps = MAX(1.e-12_dp, 10.0_dp*csym%delta)
@@ -1747,25 +1734,19 @@ CONTAINS
                rr(2) = DOT_PRODUCT(a2(1:3), wcart(1:3))/alat
                rr(3) = DOT_PRODUCT(a3(1:3), wcart(1:3))/alat
 
-               DO j = 1, nkpts
-                  diff(1:3) = xkp(1:3, j) - rr(1:3)
-                  diff(1:3) = diff(1:3) - ANINT(diff(1:3))
-                  IF (ALL(ABS(diff(1:3)) < eps)) THEN
-                     IF (csym%kplink(1, j) == 0) THEN
-                        csym%kplink(1, j) = i
-                        wkp(i) = wkp(i) + 1.0_dp
-                        kpop(j) = kr
-                     ELSE IF (csym%kplink(1, j) /= i) THEN
-                        ! Approximate K290 operation sets need not be closed for structures whose
-                        ! coordinates lie close to several symmetry tolerances. Keep the existing
-                        ! disjoint orbit instead of aborting or double-counting this mesh point.
-                        nskipped_overlaps = nskipped_overlaps + 1
-                     END IF
-                     EXIT
-                  END IF
-               END DO
+               j = regular_kpoint_index(rr, xkp(1:3, 1), csym%mesh, eps)
                ! Some point-group operations are incompatible with the requested Monkhorst-Pack mesh.
-               IF (j > nkpts) CYCLE
+               IF (j == 0) CYCLE
+               IF (csym%kplink(1, j) == 0) THEN
+                  csym%kplink(1, j) = i
+                  wkp(i) = wkp(i) + 1.0_dp
+                  kpop(j) = kr
+               ELSE IF (csym%kplink(1, j) /= i) THEN
+                  ! Approximate K290 operation sets need not be closed for structures whose
+                  ! coordinates lie close to several symmetry tolerances. Keep the existing
+                  ! disjoint orbit instead of aborting or double-counting this mesh point.
+                  nskipped_overlaps = nskipped_overlaps + 1
+               END IF
             END DO
          END DO
       END DO
@@ -1795,6 +1776,38 @@ CONTAINS
 
    END SUBROUTINE reduce_kpoint_mesh
 
+! **************************************************************************************************
+!> \brief Return the flat index of a point on a regular Monkhorst-Pack mesh.
+!> \param x target k-point in reciprocal lattice coordinates
+!> \param origin first point of the generated mesh
+!> \param mesh mesh dimensions
+!> \param eps coordinate tolerance
+!> \return flat mesh index, or zero if x is not on the mesh
+! **************************************************************************************************
+   PURE FUNCTION regular_kpoint_index(x, origin, mesh, eps) RESULT(index)
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: x, origin
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: mesh
+      REAL(KIND=dp), INTENT(IN)                          :: eps
+      INTEGER                                            :: index
+
+      INTEGER                                            :: idim
+      INTEGER, DIMENSION(3)                              :: icoord, istep
+      REAL(KIND=dp)                                      :: scaled
+
+      index = 0
+      IF (ANY(mesh <= 0)) RETURN
+      DO idim = 1, 3
+         scaled = (x(idim) - origin(idim))*REAL(mesh(idim), KIND=dp)
+         istep(idim) = NINT(scaled)
+         IF (ABS(scaled - REAL(istep(idim), KIND=dp)) > eps*REAL(mesh(idim), KIND=dp)) RETURN
+         icoord(idim) = MODULO(istep(idim), mesh(idim)) + 1
+      END DO
+
+      index = ((icoord(1) - 1)*mesh(2) + icoord(2) - 1)*mesh(3) + icoord(3)
+
+   END FUNCTION regular_kpoint_index
+
+! **************************************************************************************************
 !> \brief ...
 !> \param nk ...
 !> \param xkp ...
