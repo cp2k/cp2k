@@ -27,6 +27,7 @@ MODULE bse_iterative
                                               bse_matvec_release,&
                                               bse_matvec_selfcheck
    USE bse_print,                       ONLY: print_output_header
+   USE bse_types,                       ONLY: bse_env_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
@@ -46,11 +47,7 @@ MODULE bse_iterative
                                               bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
-   USE mp2_types,                       ONLY: mp2_type
    USE physcon,                         ONLY: evolt
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -74,38 +71,29 @@ CONTAINS
 !>        (B Z)_ia =                  α sum_P B^P_ia sum_jb B^P_jb Z_jb - w sum_Pjb \bar{B}^P_ib B^P_ja Z_jb
 !>        with α, w and \bar{B} set by create_matvec_env from SPIN_CONFIG and SCREENING_IN_W.
 !>        The five slabs are released once the solver holds its RI-sliced copies
-!> \param fm_mat_S_ia_trunc_arr B^P_ia of the active window, N_RI x homo_red*virt_red; entry 1 is used
-!> \param fm_mat_S_ij_trunc_arr B^P_ij, N_RI x homo_red^2
-!> \param fm_mat_S_ab_trunc_arr B^P_ab, N_RI x virt_red^2
-!> \param fm_mat_S_bar_ia_bse_arr \bar{B}^P_ia = sum_Q [1+Q(0)]^-1_PQ B^Q_ia, the W-screened slab of W_ib,aj
-!> \param fm_mat_S_bar_ij_bse_arr \bar{B}^P_ij, the W-screened slab of W_ij,ab
-!> \param Eigenval_reduced quasiparticle energies of the homo_red + virt_red active levels in Hartree
+!> \param Eigenval_reduced energies of the homo_red + virt_red active levels in Hartree, QP or DFT per USE_KS_ENERGIES
 !> \param homo_red_arr occupied levels in the active window, per spin; entry 1 is used
 !> \param virt_red_arr virtual levels in the active window, per spin; entry 1 is used
 !> \param homo occupied levels of the full reference, per spin; postprocess_bse indexes the MOs with it
 !> \param dimen_RI number of RI functions; only the debug construction of the explicit A and B uses it
 !> \param do_tda solve the TDA problem
 !> \param do_abba solve the full problem; after the TDA in a TDA+ABBA run, seeded with X^TDA
-!> \param mp2_env mp2_env%bse carries the BSE_ITERAT settings and BSE_DEBUG_PRINT
-!> \param qs_env for the TDDFPT control flags and postprocess_bse
+!> \param bse_env the BSE environment: the BSE_ITERAT settings, BSE_DEBUG_PRINT and the TDDFPT control flags;
+!>        the five slabs of spin 1, released here: fm_S_ia = B^P_ia (N_RI x homo_red*virt_red), fm_S_ij = B^P_ij,
+!>        fm_S_ab = B^P_ab, fm_S_bar_ia = \bar{B}^P_ia = sum_Q [1+Q(0)]^-1_PQ B^Q_ia (the slab of W_ib,aj) and
+!>        fm_S_bar_ij = \bar{B}^P_ij (the slab of W_ij,ab)
 !> \param mo_coeff MO coefficients of the reference, handed to postprocess_bse
 !> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
-   SUBROUTINE solve_bse_iteratively(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, &
-                                    fm_mat_S_ab_trunc_arr, fm_mat_S_bar_ia_bse_arr, &
-                                    fm_mat_S_bar_ij_bse_arr, Eigenval_reduced, &
+   SUBROUTINE solve_bse_iteratively(Eigenval_reduced, &
                                     homo_red_arr, virt_red_arr, homo, dimen_RI, &
-                                    do_tda, do_abba, mp2_env, qs_env, mo_coeff, unit_nr)
+                                    do_tda, do_abba, bse_env, mo_coeff, unit_nr)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT) :: fm_mat_S_ia_trunc_arr, &
-         fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, fm_mat_S_bar_ia_bse_arr, &
-         fm_mat_S_bar_ij_bse_arr
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_reduced
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo_red_arr, virt_red_arr, homo
       INTEGER, INTENT(IN)                                :: dimen_RI
       LOGICAL, INTENT(IN)                                :: do_tda, do_abba
-      TYPE(mp2_type)                                     :: mp2_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER, INTENT(IN)                                :: unit_nr
 
@@ -124,12 +112,10 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: fm_tda_guess
       TYPE(cp_fm_type), TARGET                           :: fm_X
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control)
-      CALL get_qs_env(qs_env, dft_control=dft_control)
+      dft_control => bse_env%dft_control
       IF (dft_control%tddfpt2_control%do_bse .OR. dft_control%tddfpt2_control%do_bse_w_only .OR. &
           dft_control%tddfpt2_control%do_bse_gw_only) THEN
          ! the TDDFPT path reads the explicit A and W matrices that create_A_and_B (FULLDIAG) stashes in the
@@ -139,27 +125,26 @@ CONTAINS
                        "(DO_BSE, DO_BSE_W_ONLY, DO_BSE_GW_ONLY). Use BSE_DIAG_METHOD FULLDIAG.")
       END IF
 
-      para_env => fm_mat_S_ia_trunc_arr(1)%matrix_struct%para_env
       n_ov = homo_red_arr(1)*virt_red_arr(1)
       ! the debug checks hold the explicit N_ov x N_ov matrices
-      do_debug = mp2_env%bse%bse_debug_print .AND. n_ov <= n_ov_max_debug
-      IF (mp2_env%bse%bse_debug_print .AND. .NOT. do_debug .AND. unit_nr > 0) THEN
+      do_debug = bse_env%bse_debug_print .AND. n_ov <= n_ov_max_debug
+      IF (bse_env%bse_debug_print .AND. .NOT. do_debug .AND. unit_nr > 0) THEN
          WRITE (n_ov_str, '(I0)') n_ov_max_debug
          CALL cp_warn(__LOCATION__, &
                       "BSE_DEBUG_PRINT: the checks of the iterative solver against the explicit A "// &
                       "and B are skipped above N_ov = "//TRIM(n_ov_str)//".")
       END IF
 
-      CALL create_matvec_env(mv_env, fm_mat_S_ia_trunc_arr(1), fm_mat_S_ij_trunc_arr(1), &
-                             fm_mat_S_ab_trunc_arr(1), fm_mat_S_bar_ia_bse_arr(1), &
-                             fm_mat_S_bar_ij_bse_arr(1), Eigenval_reduced, &
-                             homo_red_arr(1), virt_red_arr(1), do_abba, mp2_env, unit_nr)
+      CALL create_matvec_env(mv_env, bse_env%fm_S_ia(1), bse_env%fm_S_ij(1), &
+                             bse_env%fm_S_ab(1), bse_env%fm_S_bar_ia(1), &
+                             bse_env%fm_S_bar_ij(1), Eigenval_reduced, &
+                             homo_red_arr(1), virt_red_arr(1), do_abba, bse_env, unit_nr)
 
       IF (do_debug) THEN
-         CALL create_A_and_B(fm_mat_S_ia_trunc_arr, fm_mat_S_ij_trunc_arr, fm_mat_S_ab_trunc_arr, &
-                             fm_mat_S_bar_ia_bse_arr, fm_mat_S_bar_ij_bse_arr, fm_A_BSE, fm_B_BSE, &
+         CALL create_A_and_B(bse_env%fm_S_ia, bse_env%fm_S_ij, bse_env%fm_S_ab, &
+                             bse_env%fm_S_bar_ia, bse_env%fm_S_bar_ij, fm_A_BSE, fm_B_BSE, &
                              do_abba, Eigenval_reduced, unit_nr, homo_red_arr, virt_red_arr, dimen_RI, &
-                             mp2_env, para_env, qs_env)
+                             bse_env)
          IF (do_abba) THEN
             CALL bse_matvec_selfcheck(mv_env, fm_A_BSE, unit_nr, fm_B_BSE)
          ELSE
@@ -168,21 +153,21 @@ CONTAINS
       END IF
 
       ! the solver works on its RI-sliced copies; only the grid of the slabs is kept, for the eigenvectors
-      blacs_env_ia => fm_mat_S_ia_trunc_arr(1)%matrix_struct%context
+      blacs_env_ia => bse_env%fm_S_ia(1)%matrix_struct%context
       CALL blacs_env_ia%retain()
-      CALL cp_fm_release(fm_mat_S_ia_trunc_arr(1))
-      CALL cp_fm_release(fm_mat_S_ij_trunc_arr(1))
-      CALL cp_fm_release(fm_mat_S_ab_trunc_arr(1))
-      CALL cp_fm_release(fm_mat_S_bar_ia_bse_arr(1))
-      CALL cp_fm_release(fm_mat_S_bar_ij_bse_arr(1))
+      CALL cp_fm_release(bse_env%fm_S_ia(1))
+      CALL cp_fm_release(bse_env%fm_S_ij(1))
+      CALL cp_fm_release(bse_env%fm_S_ab(1))
+      CALL cp_fm_release(bse_env%fm_S_bar_ia(1))
+      CALL cp_fm_release(bse_env%fm_S_bar_ij(1))
 
       IF (do_tda) THEN
-         CALL print_output_header(homo_red_arr(1), virt_red_arr(1), homo(1), .TRUE., mp2_env, unit_nr)
-         CALL bse_davidson_tda(mv_env, mp2_env, unit_nr, exc_ens, fm_X)
-         IF (do_debug) CALL bse_davidson_refcheck(fm_A_BSE, exc_ens, fm_X, mp2_env, unit_nr)
+         CALL print_output_header(homo_red_arr(1), virt_red_arr(1), homo(1), .TRUE., bse_env, unit_nr)
+         CALL bse_davidson_tda(mv_env, bse_env, unit_nr, exc_ens, fm_X)
+         IF (do_debug) CALL bse_davidson_refcheck(fm_A_BSE, exc_ens, fm_X, bse_env, unit_nr)
 
          CALL copy_to_ia_context(fm_X, blacs_env_ia, fm_X_ia)
-         CALL postprocess_bse(exc_ens, fm_X_ia, mp2_env, qs_env, mo_coeff, &
+         CALL postprocess_bse(exc_ens, fm_X_ia, bse_env, mo_coeff, &
                               homo_red_arr(1), virt_red_arr(1), homo(1), unit_nr, .TRUE.)
          CALL cp_fm_release(fm_X_ia)
          DEALLOCATE (exc_ens)
@@ -193,15 +178,15 @@ CONTAINS
          ! optional argument counts as absent (Fortran 2008)
          NULLIFY (fm_tda_guess)
          IF (do_tda) fm_tda_guess => fm_X
-         CALL print_output_header(homo_red_arr(1), virt_red_arr(1), homo(1), .FALSE., mp2_env, unit_nr)
-         SELECT CASE (mp2_env%bse%abba_solver)
+         CALL print_output_header(homo_red_arr(1), virt_red_arr(1), homo(1), .FALSE., bse_env, unit_nr)
+         SELECT CASE (bse_env%abba_solver)
          CASE (bse_abba_mk_davidson)
             solver_str = 'MK_DAVIDSON'
-            CALL bse_davidson_abba_mk(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+            CALL bse_davidson_abba_mk(mv_env, bse_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
                                       abba_status, ab_margin, fm_tda_guess)
          CASE (bse_abba_olsen_stratmann)
             solver_str = 'OLSEN_STRATMANN'
-            CALL bse_davidson_abba_os(mv_env, mp2_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
+            CALL bse_davidson_abba_os(mv_env, bse_env, unit_nr, exc_ens_abba, fm_X_abba, fm_Y_abba, &
                                       abba_status, ab_margin, fm_tda_guess)
          CASE DEFAULT
             CPABORT("Unknown BSE_ITERAT%ABBA_SOLVER")
@@ -228,7 +213,7 @@ CONTAINS
             END IF
          ELSE
             IF (do_debug) THEN
-               CALL bse_davidson_refcheck(fm_A_BSE, exc_ens_abba, fm_X_abba, mp2_env, unit_nr, &
+               CALL bse_davidson_refcheck(fm_A_BSE, exc_ens_abba, fm_X_abba, bse_env, unit_nr, &
                                           fm_B_BSE, fm_Y_abba)
             END IF
 
@@ -236,7 +221,7 @@ CONTAINS
             CALL copy_to_ia_context(fm_Y_abba, blacs_env_ia, fm_Y_ia)
             CALL cp_fm_release(fm_X_abba)
             CALL cp_fm_release(fm_Y_abba)
-            CALL postprocess_bse(exc_ens_abba, fm_X_ia, mp2_env, qs_env, mo_coeff, &
+            CALL postprocess_bse(exc_ens_abba, fm_X_ia, bse_env, mo_coeff, &
                                  homo_red_arr(1), virt_red_arr(1), homo(1), unit_nr, .FALSE., fm_Y_ia)
             CALL cp_fm_release(fm_X_ia)
             CALL cp_fm_release(fm_Y_ia)
@@ -293,15 +278,15 @@ CONTAINS
 !> \param fm_S_ab B^P_ab, N_RI x virt_red^2
 !> \param fm_S_bar_ia W-screened \bar{B}^P_ia
 !> \param fm_S_bar_ij W-screened \bar{B}^P_ij
-!> \param Eigenval_reduced quasiparticle energies of the homo_red + virt_red active levels in Hartree
+!> \param Eigenval_reduced energies of the homo_red + virt_red active levels in Hartree, QP or DFT per USE_KS_ENERGIES
 !> \param homo_red occupied levels in the active window
 !> \param virt_red virtual levels in the active window
 !> \param do_abba B is applied too, so the \bar{B}^P_ia slab is sliced as well
-!> \param mp2_env SPIN_CONFIG, SCREENING_IN_W, SCREENING_FACTOR and MATVEC_BLOCK_COLUMNS
+!> \param bse_env SPIN_CONFIG, SCREENING_IN_W, SCREENING_FACTOR and MATVEC_BLOCK_COLUMNS
 !> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
    SUBROUTINE create_matvec_env(mv_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_S_bar_ia, fm_S_bar_ij, &
-                                Eigenval_reduced, homo_red, virt_red, do_abba, mp2_env, unit_nr)
+                                Eigenval_reduced, homo_red, virt_red, do_abba, bse_env, unit_nr)
 
       TYPE(bse_matvec_env_type), INTENT(OUT)             :: mv_env
       TYPE(cp_fm_type), INTENT(IN), TARGET               :: fm_S_ia, fm_S_ij, fm_S_ab, fm_S_bar_ia, &
@@ -309,23 +294,23 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_reduced
       INTEGER, INTENT(IN)                                :: homo_red, virt_red
       LOGICAL, INTENT(IN)                                :: do_abba
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
       REAL(KIND=dp)                                      :: alpha, w_fac
       TYPE(cp_fm_type), POINTER                          :: fm_W_ia, fm_W_ij
 
       alpha = 0.0_dp
-      SELECT CASE (mp2_env%bse%bse_spin_config)
+      SELECT CASE (bse_env%bse_spin_config)
       CASE (bse_singlet)
          alpha = 2.0_dp
       CASE (bse_triplet)
          alpha = 0.0_dp
       END SELECT
 
-      SELECT CASE (mp2_env%bse%screening_method)
+      SELECT CASE (bse_env%screening_method)
       CASE (bse_screening_alpha)
-         w_fac = mp2_env%bse%screening_factor
+         w_fac = bse_env%screening_factor
       CASE (bse_screening_rpa)
          w_fac = 0.0_dp
       CASE DEFAULT
@@ -333,8 +318,8 @@ CONTAINS
       END SELECT
 
       ! TDHF and ALPHA screening contract the bare slabs, all others the W-multiplied ones
-      IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-          mp2_env%bse%screening_method == bse_screening_alpha) THEN
+      IF (bse_env%screening_method == bse_screening_tdhf .OR. &
+          bse_env%screening_method == bse_screening_alpha) THEN
          fm_W_ij => fm_S_ij
          fm_W_ia => fm_S_ia
       ELSE
@@ -343,7 +328,7 @@ CONTAINS
       END IF
       CALL bse_matvec_create(mv_env, fm_S_ia, fm_W_ij, fm_S_ab, fm_W_ia, Eigenval_reduced, &
                              homo_red, virt_red, alpha, w_fac, do_abba, unit_nr, &
-                             block_cols=mp2_env%bse%matvec_block_columns)
+                             block_cols=bse_env%matvec_block_columns)
 
    END SUBROUTINE create_matvec_env
 

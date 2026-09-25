@@ -22,12 +22,15 @@ MODULE bse_full_diag
                                               exciton_descr_type,&
                                               get_exciton_descriptors,&
                                               get_oscillator_strengths
+   USE bse_types,                       ONLY: bse_env_type
    USE bse_util,                        ONLY: assemble_joint_ov_slab,&
                                               comp_eigvec_coeff_BSE,&
                                               fm_general_add_bse,&
                                               get_bse_spin_block_layout,&
                                               get_multipoles_mo,&
-                                              reshuffle_eigvec
+                                              occ_of_ia,&
+                                              reshuffle_eigvec,&
+                                              virt_of_ia
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -55,12 +58,10 @@ MODULE bse_full_diag
                                               bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_para_env_type
-   USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
+   USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
-   USE qs_environment_types,            ONLY: get_qs_env,&
-                                              qs_environment_type
+   USE qs_subsys_types,                 ONLY: qs_subsys_get
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -75,40 +76,34 @@ MODULE bse_full_diag
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Matrix A constructed from GW energies and 3c-B-matrices (cf. subroutine mult_B_with_W)
+!> \brief Matrix A constructed from GW energies and 3c-B-matrices (cf. subroutine screen_slabs)
 !>   A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab
 !>   ε_a, ε_i are GW singleparticle energies from Eigenval_reduced
 !>   α is a spin-dependent factor
 !>   v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
 !>   W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab (screened Coulomb interaction)
-!> \param fm_mat_S_ia_bse ...
-!> \param fm_mat_S_bar_ij_bse ...
-!> \param fm_mat_S_ab_bse ...
+!> \param fm_S_ia ...
+!> \param fm_S_bar_ij ...
+!> \param fm_S_ab ...
 !> \param fm_A ...
 !> \param Eigenval ...
 !> \param unit_nr ...
 !> \param homo ...
 !> \param virtual ...
 !> \param dimen_RI ...
-!> \param mp2_env ...
-!> \param para_env ...
-!> \param qs_env ...
+!> \param bse_env the BSE environment (settings; para_env, dft_control, exstate_env)
 ! **************************************************************************************************
-   SUBROUTINE create_A(fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
+   SUBROUTINE create_A(fm_S_ia, fm_S_bar_ij, fm_S_ab, &
                        fm_A, Eigenval, unit_nr, &
-                       homo, virtual, dimen_RI, mp2_env, &
-                       para_env, qs_env)
+                       homo, virtual, dimen_RI, bse_env)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, &
-                                                            fm_mat_S_ab_bse
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_S_ia, fm_S_bar_ij, fm_S_ab
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-      TYPE(mp_para_env_type), INTENT(INOUT)              :: para_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_A'
 
@@ -138,15 +133,15 @@ CONTAINS
       END DO
 
       NULLIFY (dft_control, tddfpt_control)
-      CALL get_qs_env(qs_env, dft_control=dft_control)
+      dft_control => bse_env%dft_control
       tddfpt_control => dft_control%tddfpt2_control
 
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A10)') 'BSE|DEBUG|', 'Creating A'
       END IF
 
       !Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
-      SELECT CASE (mp2_env%bse%bse_spin_config)
+      SELECT CASE (bse_env%bse_spin_config)
       CASE (bse_singlet)
          alpha = 2.0_dp
       CASE (bse_triplet)
@@ -159,24 +154,24 @@ CONTAINS
          alpha = 1.0_dp
       END IF
 
-      IF (mp2_env%bse%screening_method == bse_screening_alpha) THEN
-         alpha_screening = mp2_env%bse%screening_factor
+      IF (bse_env%screening_method == bse_screening_alpha) THEN
+         alpha_screening = bse_env%screening_factor
       ELSE
          alpha_screening = 1.0_dp
       END IF
 
-      ! create the blacs env for ij matrices (NOT fm_mat_S_ia_bse%matrix_struct related parallel_gemms!)
+      ! create the blacs env for ij matrices (NOT fm_S_ia%matrix_struct related parallel_gemms!)
       NULLIFY (blacs_env)
-      CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env)
+      CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=bse_env%para_env)
 
-      ! We have to use the same blacs_env for A as for the matrices fm_mat_S_ia_bse from RPA
+      ! We have to use the same blacs_env for A as for the matrices fm_S_ia from RPA
       ! Logic: A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab
       ! We create v_ia,jb and W_ij,ab, then we communicate entries from local W_ij,ab
       ! to the full matrix v_ia,jb. By adding these and the energy diffenences: v_ia,jb -> A_ia,jb
       ! We use the A matrix already from the start instead of v
-      CALL cp_fm_struct_create(fm_struct_A, context=fm_mat_S_ia_bse(1)%matrix_struct%context, &
+      CALL cp_fm_struct_create(fm_struct_A, context=fm_S_ia(1)%matrix_struct%context, &
                                nrow_global=n_ov_joint, ncol_global=n_ov_joint, &
-                               para_env=fm_mat_S_ia_bse(1)%matrix_struct%para_env)
+                               para_env=fm_S_ia(1)%matrix_struct%para_env)
       CALL cp_fm_create(fm_A, fm_struct_A, name="fm_A_iajb")
       CALL cp_fm_set_all(fm_A, 0.0_dp)
       ! fm_A_copy only used in the TDDFPT do_bse_w_only path (closed-shell only)
@@ -191,12 +186,12 @@ CONTAINS
          IF (nspins > 1) THEN
             ! Assemble joint ia-slab for a single Coulomb gemm across all spin blocks
             CALL cp_fm_struct_create(fm_struct_S_joint, &
-                                     context=fm_mat_S_ia_bse(1)%matrix_struct%context, &
+                                     context=fm_S_ia(1)%matrix_struct%context, &
                                      nrow_global=dimen_RI, ncol_global=n_ov_joint, &
-                                     para_env=fm_mat_S_ia_bse(1)%matrix_struct%para_env)
+                                     para_env=fm_S_ia(1)%matrix_struct%para_env)
             CALL cp_fm_create(fm_S_joint, fm_struct_S_joint, name="fm_S_ia_joint")
             CALL cp_fm_set_all(fm_S_joint, 0.0_dp)
-            CALL assemble_joint_ov_slab(fm_mat_S_ia_bse, offsets, n_ov, dimen_RI, fm_S_joint)
+            CALL assemble_joint_ov_slab(fm_S_ia, offsets, n_ov, dimen_RI, fm_S_joint)
             CALL parallel_gemm(transa="T", transb="N", m=n_ov_joint, n=n_ov_joint, k=dimen_RI, &
                                alpha=alpha, matrix_a=fm_S_joint, matrix_b=fm_S_joint, beta=0.0_dp, &
                                matrix_c=fm_A)
@@ -205,12 +200,12 @@ CONTAINS
          ELSE
             CALL parallel_gemm(transa="T", transb="N", m=homo(1)*virtual(1), n=homo(1)*virtual(1), &
                                k=dimen_RI, alpha=alpha, &
-                               matrix_a=fm_mat_S_ia_bse(1), matrix_b=fm_mat_S_ia_bse(1), &
+                               matrix_a=fm_S_ia(1), matrix_b=fm_S_ia(1), &
                                beta=0.0_dp, matrix_c=fm_A)
          END IF
       END IF
 
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated A_iajb'
       END IF
 
@@ -218,31 +213,31 @@ CONTAINS
       ! offsets(isp) places each block at the correct position in joint A.
       ! For nspins=1: offsets(1)=0, equivalent to the original code.
       DO isp = 1, nspins
-         IF (mp2_env%bse%screening_method /= bse_screening_rpa) THEN
-            CALL cp_fm_struct_create(fm_struct_W, context=fm_mat_S_ab_bse(isp)%matrix_struct%context, &
+         IF (bse_env%screening_method /= bse_screening_rpa) THEN
+            CALL cp_fm_struct_create(fm_struct_W, context=fm_S_ab(isp)%matrix_struct%context, &
                                      nrow_global=homo(isp)**2, ncol_global=virtual(isp)**2, &
-                                     para_env=fm_mat_S_ab_bse(isp)%matrix_struct%para_env)
+                                     para_env=fm_S_ab(isp)%matrix_struct%para_env)
             CALL cp_fm_create(fm_W, fm_struct_W, name="fm_W_ijab")
             CALL cp_fm_set_all(fm_W, 0.0_dp)
             !W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab
             CALL parallel_gemm(transa="T", transb="N", m=homo(isp)**2, n=virtual(isp)**2, &
                                k=dimen_RI, alpha=alpha_screening, &
-                               matrix_a=fm_mat_S_bar_ij_bse(isp), matrix_b=fm_mat_S_ab_bse(isp), &
+                               matrix_a=fm_S_bar_ij(isp), matrix_b=fm_S_ab(isp), &
                                beta=0.0_dp, matrix_c=fm_W)
             reordering = [1, 3, 2, 4]
             CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo(isp), virtual(isp), &
-                                    virtual(isp), virtual(isp), unit_nr, reordering, mp2_env, &
+                                    virtual(isp), virtual(isp), unit_nr, reordering, bse_env, &
                                     row_offset=offsets(isp), col_offset=offsets(isp))
             IF (nspins == 1 .AND. tddfpt_control%do_bse_w_only) THEN
                CALL fm_general_add_bse(fm_A_copy, fm_W, -1.0_dp, homo(1), virtual(1), &
-                                       virtual(1), virtual(1), unit_nr, reordering, mp2_env)
+                                       virtual(1), virtual(1), unit_nr, reordering, bse_env)
             END IF
             ! W and A stash for TDDFPT path (closed-shell only; open-shell deferred)
             IF (nspins == 1) THEN
                IF (tddfpt_control%do_bse .OR. tddfpt_control%do_bse_w_only .OR. &
                    tddfpt_control%do_bse_gw_only) THEN
                   NULLIFY (ex_env)
-                  CALL get_qs_env(qs_env, exstate_env=ex_env)
+                  ex_env => bse_env%exstate_env
                   IF (.NOT. tddfpt_control%do_bse_gw_only) THEN
                      ALLOCATE (ex_env%bse_w_matrix_MO(1, 1))
                      ALLOCATE (ex_env%bse_a_matrix_MO(1, 1))
@@ -262,7 +257,7 @@ CONTAINS
          END IF
       END DO
 
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated W_ijab'
       END IF
       IF (nspins == 1 .AND. tddfpt_control%do_bse_w_only) CALL cp_fm_release(fm_A_copy)
@@ -287,8 +282,8 @@ CONTAINS
                      END IF
                   END DO
                   k_ov = i_row_global - offsets(isp)
-                  i_occ_row = (k_ov - 1)/virtual(isp) + 1
-                  a_virt_row = MOD(k_ov - 1, virtual(isp)) + 1
+                  i_occ_row = occ_of_ia(k_ov, virtual(isp))
+                  a_virt_row = virt_of_ia(k_ov, virtual(isp))
                   eigen_diff = Eigenval(eig_offsets(isp) + a_virt_row + homo(isp)) - &
                                Eigenval(eig_offsets(isp) + i_occ_row)
                   fm_A%local_data(ii, jj) = fm_A%local_data(ii, jj) + eigen_diff
@@ -317,28 +312,28 @@ CONTAINS
    END SUBROUTINE create_A
 
 ! **************************************************************************************************
-!> \brief Matrix B constructed from 3c-B-matrices (cf. subroutine mult_B_with_W)
+!> \brief Matrix B constructed from 3c-B-matrices (cf. subroutine screen_slabs)
 !>   B_ia,jb = α * v_ia,jb - W_ib,aj
 !>   α is a spin-dependent factor
 !>   v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
 !>   W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj (screened Coulomb interaction)
-!> \param fm_mat_S_ia_bse ...
-!> \param fm_mat_S_bar_ia_bse ...
+!> \param fm_S_ia ...
+!> \param fm_S_bar_ia ...
 !> \param fm_B ...
 !> \param homo ...
 !> \param virtual ...
 !> \param dimen_RI ...
 !> \param unit_nr ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 ! **************************************************************************************************
-   SUBROUTINE create_B(fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse, fm_B, &
-                       homo, virtual, dimen_RI, unit_nr, mp2_env)
+   SUBROUTINE create_B(fm_S_ia, fm_S_bar_ia, fm_B, &
+                       homo, virtual, dimen_RI, unit_nr, bse_env)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_S_ia, fm_S_bar_ia
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_B
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI, unit_nr
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_B'
 
@@ -356,13 +351,13 @@ CONTAINS
       ALLOCATE (n_ov(nspins), offsets(nspins))
       CALL get_bse_spin_block_layout(homo, virtual, n_ov, offsets, n_ov_joint)
 
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A10)') 'BSE|DEBUG|', 'Creating B'
       END IF
 
       ! Coulomb prefactor: SPIN_CONFIG sector for closed shell; for open shell each spin block
       ! contributes once (alpha=1). create_A already emits the SPIN_CONFIG-ignored warning.
-      SELECT CASE (mp2_env%bse%bse_spin_config)
+      SELECT CASE (bse_env%bse_spin_config)
       CASE (bse_singlet)
          alpha = 2.0_dp
       CASE (bse_triplet)
@@ -370,17 +365,17 @@ CONTAINS
       END SELECT
       IF (nspins > 1) alpha = 1.0_dp
 
-      IF (mp2_env%bse%screening_method == bse_screening_alpha) THEN
-         alpha_screening = mp2_env%bse%screening_factor
+      IF (bse_env%screening_method == bse_screening_alpha) THEN
+         alpha_screening = bse_env%screening_factor
       ELSE
          alpha_screening = 1.0_dp
       END IF
 
       ! Joint B over all spin blocks: B_ia,jb = alpha*(ia|bj) - W^sigma_ib,aj (W spin-diagonal)
       NULLIFY (fm_struct_B)
-      CALL cp_fm_struct_create(fm_struct_B, context=fm_mat_S_ia_bse(1)%matrix_struct%context, &
+      CALL cp_fm_struct_create(fm_struct_B, context=fm_S_ia(1)%matrix_struct%context, &
                                nrow_global=n_ov_joint, ncol_global=n_ov_joint, &
-                               para_env=fm_mat_S_ia_bse(1)%matrix_struct%para_env)
+                               para_env=fm_S_ia(1)%matrix_struct%para_env)
       CALL cp_fm_create(fm_B, fm_struct_B, name="fm_B_iajb")
       CALL cp_fm_set_all(fm_B, 0.0_dp)
 
@@ -388,12 +383,12 @@ CONTAINS
       IF (nspins > 1) THEN
          NULLIFY (fm_struct_S_joint)
          CALL cp_fm_struct_create(fm_struct_S_joint, &
-                                  context=fm_mat_S_ia_bse(1)%matrix_struct%context, &
+                                  context=fm_S_ia(1)%matrix_struct%context, &
                                   nrow_global=dimen_RI, ncol_global=n_ov_joint, &
-                                  para_env=fm_mat_S_ia_bse(1)%matrix_struct%para_env)
+                                  para_env=fm_S_ia(1)%matrix_struct%para_env)
          CALL cp_fm_create(fm_S_joint, fm_struct_S_joint, name="fm_S_ia_joint")
          CALL cp_fm_set_all(fm_S_joint, 0.0_dp)
-         CALL assemble_joint_ov_slab(fm_mat_S_ia_bse, offsets, n_ov, dimen_RI, fm_S_joint)
+         CALL assemble_joint_ov_slab(fm_S_ia, offsets, n_ov, dimen_RI, fm_S_joint)
          CALL parallel_gemm(transa="T", transb="N", m=n_ov_joint, n=n_ov_joint, k=dimen_RI, &
                             alpha=alpha, matrix_a=fm_S_joint, matrix_b=fm_S_joint, beta=0.0_dp, &
                             matrix_c=fm_B)
@@ -402,33 +397,33 @@ CONTAINS
       ELSE
          CALL parallel_gemm(transa="T", transb="N", m=homo(1)*virtual(1), n=homo(1)*virtual(1), &
                             k=dimen_RI, alpha=alpha, &
-                            matrix_a=fm_mat_S_ia_bse(1), matrix_b=fm_mat_S_ia_bse(1), &
+                            matrix_a=fm_S_ia(1), matrix_b=fm_S_ia(1), &
                             beta=0.0_dp, matrix_c=fm_B)
       END IF
 
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated B_iajb'
       END IF
 
       ! W^sigma_ib,aj = sum_P barB^P_ib B^P_aj on sigma-diagonal blocks only (offsets place them).
       ! reordering [1,4,3,2] maps W_ib,ja -> B_ia,jb. For nspins=1: offsets(1)=0 (original code).
-      IF (mp2_env%bse%screening_method /= bse_screening_rpa) THEN
+      IF (bse_env%screening_method /= bse_screening_rpa) THEN
          DO isp = 1, nspins
             NULLIFY (fm_struct_W)
             CALL cp_fm_struct_create(fm_struct_W, &
-                                     context=fm_mat_S_ia_bse(isp)%matrix_struct%context, &
+                                     context=fm_S_ia(isp)%matrix_struct%context, &
                                      nrow_global=homo(isp)*virtual(isp), &
                                      ncol_global=homo(isp)*virtual(isp), &
-                                     para_env=fm_mat_S_ia_bse(isp)%matrix_struct%para_env)
+                                     para_env=fm_S_ia(isp)%matrix_struct%para_env)
             CALL cp_fm_create(fm_W, fm_struct_W, name="fm_W_ibaj")
             CALL cp_fm_set_all(fm_W, 0.0_dp)
             CALL parallel_gemm(transa="T", transb="N", m=homo(isp)*virtual(isp), &
                                n=homo(isp)*virtual(isp), k=dimen_RI, alpha=alpha_screening, &
-                               matrix_a=fm_mat_S_bar_ia_bse(isp), matrix_b=fm_mat_S_ia_bse(isp), &
+                               matrix_a=fm_S_bar_ia(isp), matrix_b=fm_S_ia(isp), &
                                beta=0.0_dp, matrix_c=fm_W)
             reordering = [1, 4, 3, 2]
             CALL fm_general_add_bse(fm_B, fm_W, -1.0_dp, virtual(isp), virtual(isp), &
-                                    virtual(isp), virtual(isp), unit_nr, reordering, mp2_env, &
+                                    virtual(isp), virtual(isp), unit_nr, reordering, bse_env, &
                                     row_offset=offsets(isp), col_offset=offsets(isp))
             CALL cp_fm_release(fm_W)
             CALL cp_fm_struct_release(fm_struct_W)
@@ -445,11 +440,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Explicit A, and B for ABBA, from the slabs the screening method contracts: the bare ones for
 !>        TDHF and ALPHA screening, the W-multiplied ones otherwise
-!> \param fm_mat_S_ia_bse ...
-!> \param fm_mat_S_ij_bse ...
-!> \param fm_mat_S_ab_bse ...
-!> \param fm_mat_S_bar_ia_bse ...
-!> \param fm_mat_S_bar_ij_bse ...
+!> \param fm_S_ia ...
+!> \param fm_S_ij ...
+!> \param fm_S_ab ...
+!> \param fm_S_bar_ia ...
+!> \param fm_S_bar_ij ...
 !> \param fm_A ...
 !> \param fm_B created only for ABBA
 !> \param do_abba ...
@@ -458,41 +453,36 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param dimen_RI ...
-!> \param mp2_env ...
-!> \param para_env ...
-!> \param qs_env ...
+!> \param bse_env the BSE environment (settings)
 ! **************************************************************************************************
-   SUBROUTINE create_A_and_B(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_mat_S_bar_ia_bse, &
-                             fm_mat_S_bar_ij_bse, fm_A, fm_B, do_abba, Eigenval, unit_nr, &
-                             homo, virtual, dimen_RI, mp2_env, para_env, qs_env)
+   SUBROUTINE create_A_and_B(fm_S_ia, fm_S_ij, fm_S_ab, fm_S_bar_ia, &
+                             fm_S_bar_ij, fm_A, fm_B, do_abba, Eigenval, unit_nr, &
+                             homo, virtual, dimen_RI, bse_env)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ia_bse, fm_mat_S_ij_bse, &
-                                                            fm_mat_S_ab_bse, fm_mat_S_bar_ia_bse, &
-                                                            fm_mat_S_bar_ij_bse
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_S_ia, fm_S_ij, fm_S_ab, fm_S_bar_ia, &
+                                                            fm_S_bar_ij
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A, fm_B
       LOGICAL, INTENT(IN)                                :: do_abba
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-      TYPE(mp_para_env_type), INTENT(INOUT)              :: para_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
 
-      IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
-          mp2_env%bse%screening_method == bse_screening_alpha) THEN
-         CALL create_A(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, fm_A, Eigenval, unit_nr, &
-                       homo, virtual, dimen_RI, mp2_env, para_env, qs_env)
+      IF (bse_env%screening_method == bse_screening_tdhf .OR. &
+          bse_env%screening_method == bse_screening_alpha) THEN
+         CALL create_A(fm_S_ia, fm_S_ij, fm_S_ab, fm_A, Eigenval, unit_nr, &
+                       homo, virtual, dimen_RI, bse_env)
          IF (do_abba) THEN
-            CALL create_B(fm_mat_S_ia_bse, fm_mat_S_ia_bse, fm_B, homo, virtual, dimen_RI, unit_nr, &
-                          mp2_env)
+            CALL create_B(fm_S_ia, fm_S_ia, fm_B, homo, virtual, dimen_RI, unit_nr, &
+                          bse_env)
          END IF
       ELSE
-         CALL create_A(fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, fm_A, Eigenval, unit_nr, &
-                       homo, virtual, dimen_RI, mp2_env, para_env, qs_env)
+         CALL create_A(fm_S_ia, fm_S_bar_ij, fm_S_ab, fm_A, Eigenval, unit_nr, &
+                       homo, virtual, dimen_RI, bse_env)
          IF (do_abba) THEN
-            CALL create_B(fm_mat_S_ia_bse, fm_mat_S_bar_ia_bse, fm_B, homo, virtual, dimen_RI, unit_nr, &
-                          mp2_env)
+            CALL create_B(fm_S_ia, fm_S_bar_ia, fm_B, homo, virtual, dimen_RI, unit_nr, &
+                          bse_env)
          END IF
       END IF
 
@@ -509,18 +499,18 @@ CONTAINS
 !> \param fm_sqrt_A_minus_B ...
 !> \param fm_inv_sqrt_A_minus_B ...
 !> \param unit_nr ...
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings)
 !> \param diag_est ...
 ! **************************************************************************************************
    SUBROUTINE create_hermitian_form_of_ABBA(fm_A, fm_B, fm_C, &
                                             fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                                            unit_nr, mp2_env, diag_est)
+                                            unit_nr, bse_env, diag_est)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_A, fm_B
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C, fm_sqrt_A_minus_B, &
                                                             fm_inv_sqrt_A_minus_B
       INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_hermitian_form_of_ABBA'
@@ -558,7 +548,7 @@ CONTAINS
 
       CALL cp_fm_create(fm_work_product, fm_A%matrix_struct)
 
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A19)') 'BSE|DEBUG|', 'Created work arrays'
       END IF
 
@@ -612,7 +602,7 @@ CONTAINS
                          fm_C)
       CALL cp_fm_release(fm_work_product)
 
-      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. bse_env%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A36)') 'BSE|DEBUG|', 'Filled C=(A-B)^0.5 (A+B) (A-B)^0.5'
       END IF
 
@@ -631,21 +621,19 @@ CONTAINS
 !> \param fm_inv_sqrt_A_minus_B ...
 !> \param unit_nr ...
 !> \param diag_est ...
-!> \param mp2_env ...
-!> \param qs_env ...
+!> \param bse_env the BSE environment (settings, and the state the post-processing reads)
 !> \param mo_coeff ...
 ! **************************************************************************************************
    SUBROUTINE diagonalize_C(fm_C, homo, virtual, homo_irred, &
                             fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B, &
-                            unit_nr, diag_est, mp2_env, qs_env, mo_coeff)
+                            unit_nr, diag_est, bse_env, mo_coeff)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_C
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, homo_irred
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_sqrt_A_minus_B, fm_inv_sqrt_A_minus_B
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_C'
@@ -738,13 +726,13 @@ CONTAINS
       CALL cp_fm_release(fm_mat_eigvec_transform_sum)
 
       IF (nspins == 1) THEN
-         CALL postprocess_bse(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
+         CALL postprocess_bse(Exc_ens, fm_eigvec_X, bse_env, mo_coeff, &
                               homo(1), virtual(1), homo_irred(1), unit_nr, &
                               .FALSE., fm_eigvec_Y)
       ELSE
          ! Open-shell ABBA: helper forms X+Y internally and prints amplitudes (X and Y).
          CALL bse_open_shell_optical(Exc_ens, fm_eigvec_X, homo, virtual, homo_irred, &
-                                     .FALSE., qs_env, mo_coeff, mp2_env, unit_nr, fm_eigvec_Y)
+                                     .FALSE., mo_coeff, bse_env, unit_nr, fm_eigvec_Y)
       END IF
 
       DEALLOCATE (Exc_ens)
@@ -763,19 +751,17 @@ CONTAINS
 !> \param homo_irred ...
 !> \param unit_nr ...
 !> \param diag_est ...
-!> \param mp2_env ...
-!> \param qs_env ...
+!> \param bse_env the BSE environment (settings, and the state the post-processing reads)
 !> \param mo_coeff ...
 ! **************************************************************************************************
    SUBROUTINE diagonalize_A(fm_A, homo, virtual, homo_irred, &
-                            unit_nr, diag_est, mp2_env, qs_env, mo_coeff)
+                            unit_nr, diag_est, bse_env, mo_coeff)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_A
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, homo_irred
       INTEGER, INTENT(IN)                                :: unit_nr
       REAL(KIND=dp), INTENT(IN)                          :: diag_est
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'diagonalize_A'
@@ -806,11 +792,11 @@ CONTAINS
       END IF
 
       IF (nspins == 1) THEN
-         CALL postprocess_bse(Exc_ens, fm_eigvec, mp2_env, qs_env, mo_coeff, &
+         CALL postprocess_bse(Exc_ens, fm_eigvec, bse_env, mo_coeff, &
                               homo(1), virtual(1), homo_irred(1), unit_nr, .TRUE.)
       ELSE
          CALL bse_open_shell_optical(Exc_ens, fm_eigvec, homo, virtual, homo_irred, &
-                                     .TRUE., qs_env, mo_coeff, mp2_env, unit_nr)
+                                     .TRUE., mo_coeff, bse_env, unit_nr)
       END IF
 
       CALL cp_fm_release(fm_eigvec)
@@ -830,22 +816,20 @@ CONTAINS
 !> \param virtual per-spin reduced/active virtual counts
 !> \param homo_irred per-spin full occupied counts (absolute-MO labels; N_e = sum)
 !> \param flag_tda .TRUE. -> TDA (coeff=X), .FALSE. -> ABBA (coeff=X+Y)
-!> \param qs_env ...
 !> \param mo_coeff per-spin MO coefficients
-!> \param mp2_env ...
+!> \param bse_env the BSE environment (settings; the AO dipoles, mos)
 !> \param unit_nr ...
 !> \param fm_eigvec_Y joint Y eigenvectors (deexcitations; ABBA only)
 ! **************************************************************************************************
    SUBROUTINE bse_open_shell_optical(Exc_ens, fm_eigvec_X, homo, virtual, homo_irred, &
-                                     flag_tda, qs_env, mo_coeff, mp2_env, unit_nr, fm_eigvec_Y)
+                                     flag_tda, mo_coeff, bse_env, unit_nr, fm_eigvec_Y)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec_X
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, homo_irred
       LOGICAL, INTENT(IN)                                :: flag_tda
-      TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_eigvec_Y
 
@@ -855,7 +839,7 @@ CONTAINS
       INTEGER                                            :: handle, idir, isp, jdir, n, n_ov_joint, &
                                                             nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_ov_sp, offsets_sp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str_joint, ref_pt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str_joint
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: pol_res_joint, trans_mom_joint
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_dip_reord, fm_struct_sp, &
                                                             fm_struct_tmom
@@ -883,11 +867,11 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A43)') 'BSE|', 'Joint open-shell BSE excitation energies:'
       END IF
       CALL print_excitation_energies(Exc_ens, n_ov_joint, 1, flag_tda, multiplet, &
-                                     info_approximation, mp2_env, unit_nr)
+                                     info_approximation, bse_env, unit_nr)
 
       ! Per-spin single-particle transition amplitudes (X via =>, Y via <=).
       CALL print_transition_amplitudes(fm_eigvec_X, homo, virtual, homo_irred, &
-                                       info_approximation, mp2_env, unit_nr, fm_eigvec_Y)
+                                       info_approximation, bse_env, unit_nr, fm_eigvec_Y)
 
       ! Transition coefficient for the spin-summed moment: X (TDA) or X+Y (ABBA).
       CALL cp_fm_create(fm_trans_coeff, fm_eigvec_X%matrix_struct)
@@ -896,7 +880,7 @@ CONTAINS
 
       ! Spin-summed transition moments: D^n_dir = sum_σ sum_{ia,σ} D^{dir,σ}_{ai} C_{ia,σ,n}
       ! with C = X (TDA) or X+Y (ABBA); explicit spin sum, factor 1.0.
-      ALLOCATE (fm_dip_ai_sp(3), fm_dip_ij_sp(3), fm_dip_ab_sp(3), ref_pt(3))
+      ALLOCATE (fm_dip_ai_sp(3), fm_dip_ij_sp(3), fm_dip_ab_sp(3))
       ALLOCATE (oscill_str_joint(n_ov_joint), trans_mom_joint(3, 1, n_ov_joint))
       ALLOCATE (pol_res_joint(3, 3, n_ov_joint))
       trans_mom_joint(:, :, :) = 0.0_dp
@@ -909,7 +893,7 @@ CONTAINS
       END DO
       DO isp = 1, nspins
          CALL get_multipoles_mo(fm_dip_ai_sp, fm_dip_ij_sp, fm_dip_ab_sp, &
-                                qs_env, mo_coeff(isp:isp), ref_pt, 1, &
+                                bse_env%matrix_dipole_ao, bse_env%mos, mo_coeff(isp:isp), &
                                 homo(isp), virtual(isp), fm_trans_coeff%matrix_struct%context, &
                                 ispin=isp)
          NULLIFY (fm_struct_sp, fm_struct_dip_reord)
@@ -925,7 +909,7 @@ CONTAINS
             CALL cp_fm_create(fm_dip_reord_sp, fm_struct_dip_reord, name="bse_dip_reord")
             CALL cp_fm_set_all(fm_dip_reord_sp, 0.0_dp)
             CALL fm_general_add_bse(fm_dip_reord_sp, fm_dip_ai_sp(idir), 1.0_dp, &
-                                    1, 1, 1, virtual(isp), unit_nr, [2, 4, 3, 1], mp2_env)
+                                    1, 1, 1, virtual(isp), unit_nr, [2, 4, 3, 1], bse_env)
             CALL parallel_gemm('N', 'N', 1, n_ov_joint, n_ov_sp(isp), 1.0_dp, &
                                fm_dip_reord_sp, fm_eigvec_sp, 1.0_dp, fm_trans_mom_joint(idir))
             CALL cp_fm_release(fm_dip_reord_sp)
@@ -955,13 +939,13 @@ CONTAINS
       END DO
       CALL print_optical_properties(Exc_ens, oscill_str_joint, trans_mom_joint, pol_res_joint, &
                                     n_ov_joint, 1, SUM(homo_irred), flag_tda, info_approximation, &
-                                    mp2_env, unit_nr, open_shell=.TRUE.)
+                                    bse_env, unit_nr, open_shell=.TRUE.)
       ! Open-shell post-processing is partial: energies, amplitudes, spin-summed oscillator strengths.
       CALL cp_warn(__LOCATION__, &
                    "Open-shell (UKS) BSE: exciton descriptors and NTO analysis are not yet "// &
                    "implemented and have been skipped.")
       CALL cp_fm_release(fm_trans_coeff)
-      DEALLOCATE (fm_dip_ai_sp, fm_dip_ij_sp, fm_dip_ab_sp, ref_pt)
+      DEALLOCATE (fm_dip_ai_sp, fm_dip_ij_sp, fm_dip_ab_sp)
       DEALLOCATE (n_ov_sp, offsets_sp, oscill_str_joint, trans_mom_joint, pol_res_joint)
 
       CALL timestop(handle)
@@ -972,8 +956,7 @@ CONTAINS
 !> \brief Prints the success message (incl. energies) for full diag of BSE (TDA/full ABBA via flag)
 !> \param Exc_ens ...
 !> \param fm_eigvec_X ...
-!> \param mp2_env ...
-!> \param qs_env ...
+!> \param bse_env the BSE environment (settings; the AO multipoles and their reference point, mos, subsys)
 !> \param mo_coeff ...
 !> \param homo ...
 !> \param virtual ...
@@ -982,14 +965,13 @@ CONTAINS
 !> \param flag_TDA ...
 !> \param fm_eigvec_Y ...
 ! **************************************************************************************************
-   SUBROUTINE postprocess_bse(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
+   SUBROUTINE postprocess_bse(Exc_ens, fm_eigvec_X, bse_env, mo_coeff, &
                               homo, virtual, homo_irred, unit_nr, &
                               flag_TDA, fm_eigvec_Y)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Exc_ens
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec_X
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER                                            :: homo, virtual, homo_irred, unit_nr
       LOGICAL, OPTIONAL                                  :: flag_TDA
@@ -1007,11 +989,12 @@ CONTAINS
          fm_dipole_ij_trunc, fm_quadpole_ab_trunc, fm_quadpole_ai_trunc, fm_quadpole_ij_trunc
       TYPE(exciton_descr_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: exc_descr
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
 
       !Prepare variables for printing
-      IF (mp2_env%bse%bse_spin_config == 0) THEN
+      IF (bse_env%bse_spin_config == 0) THEN
          multiplet = "Singlet"
       ELSE
          multiplet = "Triplet"
@@ -1033,27 +1016,30 @@ CONTAINS
       ALLOCATE (fm_dipole_ab_trunc(n_moments_di))
       ALLOCATE (fm_dipole_ai_trunc(n_moments_di))
       ALLOCATE (ref_point_multipole(3))
+      ref_point_multipole(:) = bse_env%multipole_ref_point
       ! Obtain dipoles in MO basis
       CALL get_multipoles_mo(fm_dipole_ai_trunc, fm_dipole_ij_trunc, fm_dipole_ab_trunc, &
-                             qs_env, mo_coeff, ref_point_multipole, 1, &
+                             bse_env%matrix_dipole_ao, bse_env%mos, mo_coeff, &
                              homo, virtual, fm_eigvec_X%matrix_struct%context)
       ! Compute exciton descriptors from these multipoles
-      IF (mp2_env%bse%num_print_exc_descr > 0) THEN
+      IF (bse_env%num_print_exc_descr > 0) THEN
          ! Obtain quadrupoles in MO basis
          ALLOCATE (fm_quadpole_ij_trunc(n_moments_quad))
          ALLOCATE (fm_quadpole_ab_trunc(n_moments_quad))
          ALLOCATE (fm_quadpole_ai_trunc(n_moments_quad))
+         ! the preparer builds the AO quadrupoles whenever NUM_PRINT_EXC_DESCR is nonzero
+         CPASSERT(ASSOCIATED(bse_env%matrix_quadpole_ao))
          CALL get_multipoles_mo(fm_quadpole_ai_trunc, fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
-                                qs_env, mo_coeff, ref_point_multipole, 2, &
+                                bse_env%matrix_quadpole_ao, bse_env%mos, mo_coeff, &
                                 homo, virtual, fm_eigvec_X%matrix_struct%context)
          ! Iterate over excitation index outside of routine to make it compatible with tddft module
-         ALLOCATE (exc_descr(mp2_env%bse%num_print_exc_descr))
-         DO i_exc = 1, mp2_env%bse%num_print_exc_descr
+         ALLOCATE (exc_descr(bse_env%num_print_exc_descr))
+         DO i_exc = 1, bse_env%num_print_exc_descr
             CALL reshuffle_eigvec(fm_eigvec_X, fm_X_ia, homo, virtual, i_exc, &
-                                  .FALSE., unit_nr, mp2_env)
+                                  .FALSE., unit_nr, bse_env)
             IF (.NOT. flag_TDA) THEN
                CALL reshuffle_eigvec(fm_eigvec_Y, fm_Y_ia, homo, virtual, i_exc, &
-                                     .FALSE., unit_nr, mp2_env)
+                                     .FALSE., unit_nr, bse_env)
 
                CALL get_exciton_descriptors(exc_descr, fm_X_ia, &
                                             fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
@@ -1073,41 +1059,42 @@ CONTAINS
          END DO
       END IF
 
-      IF (mp2_env%bse%bse_spin_config == 0) THEN
+      IF (bse_env%bse_spin_config == 0) THEN
          CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, fm_dipole_ai_trunc, &
                                        trans_mom_bse, oscill_str, polarizability_residues, &
-                                       mp2_env, homo, virtual, unit_nr, &
+                                       bse_env, homo, virtual, unit_nr, &
                                        fm_eigvec_Y)
       END IF
 
       ! the iterative driver prints the header before its solver runs
-      IF (mp2_env%bse%bse_diag_method /= bse_iterdiag) THEN
-         CALL print_output_header(homo, virtual, homo_irred, flag_TDA, mp2_env, unit_nr)
+      IF (bse_env%bse_diag_method /= bse_iterdiag) THEN
+         CALL print_output_header(homo, virtual, homo_irred, flag_TDA, bse_env, unit_nr)
       END IF
 
       ! Prints excitation energies up to user-specified number
       CALL print_excitation_energies(Exc_ens, homo, virtual, flag_TDA, multiplet, &
-                                     info_approximation, mp2_env, unit_nr)
+                                     info_approximation, bse_env, unit_nr)
 
       ! Print single particle transition amplitudes, i.e. components of eigenvectors X and Y
       CALL print_transition_amplitudes(fm_eigvec_X, [homo], [virtual], [homo_irred], &
-                                       info_approximation, mp2_env, unit_nr, fm_eigvec_Y)
+                                       info_approximation, bse_env, unit_nr, fm_eigvec_Y)
 
       ! Prints optical properties, if state is a singlet
       CALL print_optical_properties(Exc_ens, oscill_str, trans_mom_bse, polarizability_residues, &
                                     homo, virtual, homo_irred, flag_TDA, &
-                                    info_approximation, mp2_env, unit_nr)
+                                    info_approximation, bse_env, unit_nr)
       ! Print exciton descriptors if keyword is invoked
-      IF (mp2_env%bse%num_print_exc_descr > 0) THEN
+      IF (bse_env%num_print_exc_descr > 0) THEN
+         CALL qs_subsys_get(bse_env%subsys, particle_set=particle_set)
          CALL print_exciton_descriptors(exc_descr, ref_point_multipole, unit_nr, &
-                                        mp2_env%bse%num_print_exc_descr, mp2_env%bse%bse_debug_print, &
-                                        mp2_env%bse%print_directional_exc_descr, &
-                                        mp2_env%bse%print_directional_crosscorrelation, &
-                                        'BSE|', qs_env)
+                                        bse_env%num_print_exc_descr, bse_env%bse_debug_print, &
+                                        bse_env%print_directional_exc_descr, &
+                                        bse_env%print_directional_crosscorrelation, &
+                                        'BSE|', particle_set)
       END IF
 
       ! Compute and print excitation wavefunctions
-      IF (mp2_env%bse%do_nto_analysis) THEN
+      IF (bse_env%do_nto_analysis) THEN
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A47)') &
@@ -1118,7 +1105,7 @@ CONTAINS
                              mo_coeff, homo, virtual, &
                              info_approximation, &
                              oscill_str, &
-                             qs_env, unit_nr, mp2_env)
+                             bse_env, unit_nr)
       END IF
 
       DO idir = 1, n_moments_di
@@ -1126,7 +1113,7 @@ CONTAINS
          CALL cp_fm_release(fm_dipole_ij_trunc(idir))
          CALL cp_fm_release(fm_dipole_ab_trunc(idir))
       END DO
-      IF (mp2_env%bse%num_print_exc_descr > 0) THEN
+      IF (bse_env%num_print_exc_descr > 0) THEN
          DO idir = 1, n_moments_quad
             CALL cp_fm_release(fm_quadpole_ai_trunc(idir))
             CALL cp_fm_release(fm_quadpole_ij_trunc(idir))
@@ -1137,7 +1124,7 @@ CONTAINS
       END IF
       DEALLOCATE (fm_dipole_ai_trunc, fm_dipole_ij_trunc, fm_dipole_ab_trunc)
       DEALLOCATE (ref_point_multipole)
-      IF (mp2_env%bse%bse_spin_config == 0) THEN
+      IF (bse_env%bse_spin_config == 0) THEN
          DEALLOCATE (oscill_str, trans_mom_bse, polarizability_residues)
       END IF
       IF (unit_nr > 0) THEN

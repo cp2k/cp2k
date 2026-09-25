@@ -12,6 +12,8 @@
 !> \author MDB
 ! **************************************************************************************************
 MODULE mp2_types
+   USE bse_types,                       ONLY: bse_env_release,&
+                                              bse_env_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_type
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_finalize,&
@@ -298,53 +300,6 @@ MODULE mp2_types
       INTEGER                                            :: max_parallel_comm = 0
    END TYPE grad_util
 
-   TYPE bse_type
-      INTEGER                                            :: bse_spin_config = 0, &
-                                                            bse_diag_method = 0, &
-                                                            flag_tda = 0, &
-                                                            num_exc_en = 0, &
-                                                            num_print_exc = 0, &
-                                                            num_print_exc_descr = 0, &
-                                                            screening_method = 0, &
-                                                            num_buffer_states = 0, &
-                                                            block_size = 0, &
-                                                            num_guess_transitions = 0, &
-                                                            max_subspace_factor = 0, &
-                                                            matvec_block_columns = -1, &
-                                                            memory_check = 0, &
-                                                            max_iter = 0, &
-                                                            convergence_criterion = 0, &
-                                                            preconditioner = 0, &
-                                                            abba_solver = 0
-      REAL(KIND=dp)                                      :: eps_res = 0.0_dp, &
-                                                            memory_budget_gb = 0.0_dp, &
-                                                            eps_energy = 0.0_dp, &
-                                                            eps_x = 0.0_dp, &
-                                                            screening_factor = 0.0_dp, &
-                                                            bse_cutoff_occ = 0.0_dp, &
-                                                            bse_cutoff_empty = 0.0_dp
-      LOGICAL                                            :: do_bse = .FALSE., &
-                                                            bse_debug_print = .FALSE., &
-                                                            print_directional_exc_descr = .FALSE., &
-                                                            print_directional_crosscorrelation = .FALSE., &
-                                                            use_ks_energies = .FALSE.
-      !BSE optical spectrum
-      REAL(KIND=dp)                                      :: bse_spectrum_freq_step_size = 0.0_dp, &
-                                                            bse_spectrum_freq_start = 0.0_dp, &
-                                                            bse_spectrum_freq_end = 0.0_dp
-      LOGICAL                                            :: bse_print_spectrum = .FALSE.
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: bse_eta_spectrum_list => NULL()
-
-      !BSE NTO prints
-      LOGICAL                                            :: do_nto_analysis = .FALSE., &
-                                                            explicit_nto_list = .FALSE.
-      REAL(KIND=dp)                                      :: eps_nto_eigval = 0.0_dp, &
-                                                            eps_nto_osc_str = 0.0_dp
-      INTEGER                                            :: num_print_exc_ntos = 0
-      INTEGER, DIMENSION(:), POINTER                     :: bse_nto_state_list => NULL()
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: bse_nto_state_list_final
-   END TYPE bse_type
-
    TYPE mp2_type
       INTEGER                                            :: method = mp2_method_none
       TYPE(mp2_laplace_type)                             :: ri_laplace = mp2_laplace_type()
@@ -386,13 +341,20 @@ MODULE mp2_types
                                                                                 mo_coeff_o=NULL(), &
                                                                                 mo_coeff_v=NULL(), &
                                                                                 P_mo=NULL(), W_mo=NULL(), L_jb=NULL())
-      TYPE(bse_type)                                     :: bse = bse_type(bse_nto_state_list_final=NULL())
+      TYPE(bse_env_type)                                 :: bse = bse_env_type(bse_nto_state_list_final=NULL(), &
+                                                                               homo_red=NULL(), virt_red=NULL(), &
+                                                                               homo_full=NULL(), n_ov=NULL(), &
+                                                                               offsets=NULL(), gw_corr_lev_virt=NULL(), &
+                                                                               eigenval_dft=NULL(), eigenval_qp=NULL(), &
+                                                                               fm_S_ia=NULL(), &
+                                                                               fm_S_ij=NULL(), fm_S_ab=NULL(), &
+                                                                               fm_S_bar_ia=NULL(), fm_S_bar_ij=NULL())
 #else
       TYPE(ri_rpa_im_time_type)                          :: ri_rpa_im_time = ri_rpa_im_time_type()
       TYPE(ri_g0w0_type)                                 :: ri_g0w0 = ri_g0w0_type()
       TYPE(ri_basis_opt)                                 :: ri_opt_param = ri_basis_opt()
       TYPE(grad_util)                                    :: ri_grad = grad_util()
-      TYPE(bse_type)                                     :: bse = bse_type()
+      TYPE(bse_env_type)                                 :: bse = bse_env_type()
 #endif
       REAL(KIND=dp)                                      :: mp2_memory = 0.0_dp, &
                                                             scale_S = 0.0_dp, &
@@ -465,6 +427,7 @@ CONTAINS
       CALL time_frequency_grid_release(mp2_env%ri_rpa_im_time%time_frequency_grid)
 
       CALL mp2_env%local_gemm_ctx%destroy()
+      CALL bse_env_release(mp2_env%bse)
 
       CALL timestop(handle)
 

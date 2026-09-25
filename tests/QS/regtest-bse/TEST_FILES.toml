@@ -37,6 +37,10 @@
                                                    {matcher="BSE_2nd_excit_ener_UKS",      tol=1e-03, ref=5.6071}]
 "ABBA_O2_PBE_UKS_G0W0.inp"                      = [{matcher="BSE_1st_excit_ener_UKS_ABBA", tol=1e-03, ref=5.5517},
                                                    {matcher="BSE_2nd_excit_ener_UKS_ABBA", tol=1e-03, ref=5.5517}]
+"TDA_O2_PBE_UKS_G0W0_CUTOFF.inp"                = [{matcher="BSE_1st_excit_ener_UKS",      tol=1e-03, ref=5.6185},
+                                                   {matcher="BSE_2nd_excit_ener_UKS",      tol=1e-03, ref=5.6185}]
+"TDA_O2_PBE_UKS_G0W0_CUTOFF_CORR_ALL.inp"       = [{matcher="BSE_1st_excit_ener_UKS",      tol=1e-03, ref=5.6185},
+                                                   {matcher="BSE_2nd_excit_ener_UKS",      tol=1e-03, ref=5.6185}]
 #EOF
 #Low convergence criteria for evGW make a higher threshold necessary for these tests
 #Logic: Absolute errors (for G0W0/evGW0) should be within 1e-4, i.e. relative errors are

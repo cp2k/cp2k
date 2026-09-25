@@ -100,7 +100,8 @@ MODULE qs_tddfpt2_properties
                                               mo_set_type,&
                                               set_mo_set
    USE qs_moments,                      ONLY: build_berry_moment_matrix,&
-                                              build_local_moment_matrix
+                                              build_local_moment_matrix,&
+                                              get_multipoles_ao
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
@@ -1257,8 +1258,11 @@ CONTAINS
                                                             fm_multipole_ai, fm_multipole_ij, &
                                                             S_mos_virt
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_multipole
       TYPE(exciton_descr_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: exc_descr
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
 
@@ -1310,9 +1314,12 @@ CONTAINS
       ALLOCATE (fm_multipole_ab(n_moments_quad))
       ALLOCATE (fm_multipole_ai(n_moments_quad))
 
+      CALL get_multipoles_ao(qs_env, 2, matrix_multipole, ref_point_multipole)
+      CALL get_qs_env(qs_env, mos=mos)
       CALL get_multipoles_mo(fm_multipole_ai, fm_multipole_ij, fm_multipole_ab, &
-                             qs_env, mo_coeff, ref_point_multipole, 2, &
+                             matrix_multipole, mos, mo_coeff, &
                              nmo_occ(1), nmo_virt(1), blacs_env)
+      CALL dbcsr_deallocate_matrix_set(matrix_multipole)
 
       CALL cp_fm_release(mo_coeff)
 
@@ -1365,9 +1372,10 @@ CONTAINS
       ! Actual printing
       print_checkvalue = .TRUE.
       prefix_output = ' '
+      CALL get_qs_env(qs_env, particle_set=particle_set)
       CALL print_exciton_descriptors(exc_descr, ref_point_multipole, log_unit, &
                                      nstates, print_checkvalue, do_directional_exciton_descriptors, &
-                                     do_directional_exciton_crosscorrelation, prefix_output, qs_env)
+                                     do_directional_exciton_crosscorrelation, prefix_output, particle_set)
 
       DEALLOCATE (ref_point_multipole)
       DEALLOCATE (exc_descr)
