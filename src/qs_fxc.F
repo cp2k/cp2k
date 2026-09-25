@@ -335,7 +335,9 @@ CONTAINS
       IF (vdW_nl) THEN
          DO ispin = 1, nspins
             CALL pw_axpy(fxc_vdw(ispin), fxc_rho(ispin), 1.0_dp)
+            CALL auxbas_pw_pool%give_back_pw(fxc_vdw(ispin))
          END DO
+         DEALLOCATE (fxc_vdw)
       END IF
 
       IF (do_onecenter) THEN

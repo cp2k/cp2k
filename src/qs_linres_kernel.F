@@ -65,6 +65,7 @@ MODULE qs_linres_kernel
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
+   USE qs_dispersion_nonloc,            ONLY: qs_fxc_nlvdw_apply
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_fxc,                          ONLY: qs_fxc_apply,&
@@ -146,7 +147,7 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_hxc, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho0_r, rho1_r, v_hxc, v_xc, v_xc_tau
       TYPE(qs_rho_type), POINTER                         :: rho, rho1
       TYPE(qs_rho_type), TARGET                          :: rho1_store
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
@@ -233,6 +234,11 @@ CONTAINS
 
       CALL qs_fxc_apply(qs_env, kpp1_env%deriv_set, kpp1_env%rho_set, rho1, &
                         rho_atom_set, xc_section, .FALSE., v_xc, v_xc_tau, rho1_atom_set)
+      ! nl-vdW
+      CALL qs_rho_get(rho, rho_r=rho0_r)
+      CALL qs_rho_get(rho1, rho_r=rho1_r)
+      CALL qs_fxc_nlvdw_apply(qs_env, xc_section, qs_env%dispersion_env, rho0_r, rho1_r, v_xc)
+      !
       v_hxc => v_xc
       NULLIFY (v_xc)
       DO ispin = 1, nspins
@@ -345,10 +351,11 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace_new, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho0_r, rho1_r, rho_r, v_rspace_new, &
+                                                            v_xc, v_xc_tau
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
-      TYPE(qs_rho_type), POINTER                         :: rho, rho1, rho1_xc, rho1a, rho_aux, &
-                                                            rho_xc
+      TYPE(qs_rho_type), POINTER                         :: rho, rho0, rho1, rho1_xc, rho1a, &
+                                                            rho_aux, rho_xc
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
       TYPE(section_vals_type), POINTER                   :: input, xc_section, xc_section_aux
 
@@ -446,8 +453,10 @@ CONTAINS
       ! *** calculate the xc potential ***
       NULLIFY (rho1a)
       IF (gapw_xc) THEN
+         CALL get_qs_env(qs_env, rho_xc=rho0)
          rho1a => rho1_xc
       ELSE
+         CALL get_qs_env(qs_env, rho=rho0)
          rho1a => rho1
       END IF
 
@@ -459,6 +468,10 @@ CONTAINS
       END IF
       CALL qs_fxc_apply(qs_env, kpp1_env%deriv_set, kpp1_env%rho_set, rho1a, rho_atom_set, &
                         xc_section, do_onecenter, v_xc, v_xc_tau, rho1_atom_set)
+      ! nl-vdW
+      CALL qs_rho_get(rho0, rho_r=rho0_r)
+      CALL qs_rho_get(rho1a, rho_r=rho1_r)
+      CALL qs_fxc_nlvdw_apply(qs_env, xc_section, qs_env%dispersion_env, rho0_r, rho1_r, v_xc)
 
       v_rspace_new => v_xc
       NULLIFY (v_xc)

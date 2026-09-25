@@ -28,6 +28,10 @@ MODULE qs_dispersion_nonloc
                                               vdw_nl_LMKLL,&
                                               vdw_nl_RVV10,&
                                               xc_vdw_fun_nonloc
+   USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_rval,&
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE mathconstants,                   ONLY: pi,&
@@ -61,7 +65,7 @@ MODULE qs_dispersion_nonloc
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_nonloc'
 
    PUBLIC :: qs_dispersion_nonloc_init, calculate_vxc_nlvdw
-   PUBLIC :: qs_fxc_nlvdw_fdiff, qs_fgxc_nlvdw_fdiff
+   PUBLIC :: qs_fxc_nlvdw_fdiff, qs_fxc_nlvdw_apply
    PUBLIC :: prepare_nlvdw_density, return_nlvdw_potential
 
 ! **************************************************************************************************
@@ -339,6 +343,62 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_vxc_nlvdw
+
+! **************************************************************************************************
+!> \brief Second derivative of nl-vdW potential
+!> \param qs_env ...
+!> \param xc_section ...
+!> \param dispersion_env ...
+!> \param rho0_r ...
+!> \param rho1_r ...
+!> \param fxc_rho ...
+! **************************************************************************************************
+   SUBROUTINE qs_fxc_nlvdw_apply(qs_env, xc_section, dispersion_env, rho0_r, rho1_r, fxc_rho)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho0_r, rho1_r, fxc_rho
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_fxc_nlvdw_apply'
+
+      INTEGER                                            :: handle, ispin, nspins, nsteps, order, vdw
+      LOGICAL                                            :: vdW_nl
+      REAL(KIND=dp)                                      :: eps_delta
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_vdw
+
+      CALL timeset(routineN, handle)
+
+      ! nonlocal vdW functionals
+      vdW_nl = .FALSE.
+      CALL section_vals_val_get(xc_section, "VDW_POTENTIAL%POTENTIAL_TYPE", i_val=vdw)
+      vdW_nl = (vdw == xc_vdw_fun_nonloc)
+      IF (vdW_nl) THEN
+         nsteps = section_get_ival(xc_section, "NSTEPS")
+         order = 2*nsteps
+         eps_delta = section_get_rval(xc_section, "STEP_SIZE")
+         nspins = SIZE(rho0_r)
+         CALL get_qs_env(qs_env, pw_env=pw_env)
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         ALLOCATE (fxc_vdw(nspins))
+         DO ispin = 1, nspins
+            CALL auxbas_pw_pool%create_pw(fxc_vdw(ispin))
+         END DO
+         CALL qs_fxc_nlvdw_fdiff(qs_env, dispersion_env, rho0_r, rho1_r, &
+                                 order, eps_delta, fxc_vdw)
+         DO ispin = 1, nspins
+            CALL pw_axpy(fxc_vdw(ispin), fxc_rho(ispin), 1.0_dp)
+            CALL auxbas_pw_pool%give_back_pw(fxc_vdw(ispin))
+         END DO
+         DEALLOCATE (fxc_vdw)
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_fxc_nlvdw_apply
 
 ! **************************************************************************************************
 !> \brief Second derivative of nl-vdW potential using finite differences

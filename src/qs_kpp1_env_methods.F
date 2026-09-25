@@ -46,6 +46,7 @@ MODULE qs_kpp1_env_methods
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
+   USE qs_dispersion_nonloc,            ONLY: qs_fxc_nlvdw_apply
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_fxc,                          ONLY: qs_fxc_apply,&
@@ -132,7 +133,8 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_rspace_new, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho0_r, rho1_r, v_rspace_new, v_xc, &
+                                                            v_xc_tau
       TYPE(qs_kpp1_env_type), POINTER                    :: kpp1_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho0_fxc, rho1_fxc
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho1_atom_set, rho_atom_set
@@ -229,6 +231,11 @@ CONTAINS
                         rho1_fxc, rho_atom_set, xc_section, &
                         do_onecenter, v_xc, v_xc_tau, rho1_atom_set, &
                         compute_virial=calc_virial, virial_xc=virial)
+      ! nl-vdW
+      CALL qs_rho_get(rho0_fxc, rho_r=rho0_r)
+      CALL qs_rho_get(rho1_fxc, rho_r=rho1_r)
+      CALL qs_fxc_nlvdw_apply(qs_env, xc_section, qs_env%dispersion_env, &
+                              rho0_r, rho1_r, v_xc)
 
       DO ispin = 1, nspins
          CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
