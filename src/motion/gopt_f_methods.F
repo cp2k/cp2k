@@ -85,7 +85,6 @@ MODULE gopt_f_methods
    IMPLICIT NONE
    PRIVATE
 
-   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
 
    PUBLIC :: cp_eval_at, &

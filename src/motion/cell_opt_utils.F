@@ -17,45 +17,23 @@ MODULE cell_opt_utils
         cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, cell_sym_orthorhombic, &
         cell_sym_rhombohedral, cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, &
         cell_sym_tetragonal_bc, cell_sym_triclinic, cell_type
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_create,&
-                                              cp_logger_get_default_unit_nr,&
-                                              cp_logger_release,&
-                                              cp_logger_set,&
-                                              cp_logger_type,&
-                                              cp_to_string
    USE input_constants,                 ONLY: fix_none
-   USE input_cp2k_global,               ONLY: create_global_section
-   USE input_enumeration_types,         ONLY: enum_i2c,&
-                                              enumeration_type
-   USE input_keyword_types,             ONLY: keyword_get,&
-                                              keyword_type
-   USE input_section_types,             ONLY: section_get_keyword,&
-                                              section_release,&
-                                              section_type,&
-                                              section_vals_type,&
-                                              section_vals_val_get,&
-                                              section_vals_val_set
-   USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length,&
+   USE input_section_types,             ONLY: section_vals_type,&
+                                              section_vals_val_get
+   USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: sqrt3
    USE mathlib,                         ONLY: angle,&
                                               det_3x3
-   USE message_passing,                 ONLY: mp_para_env_type
    USE string_utilities,                ONLY: uppercase
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
 
-   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_utils'
 
-   PUBLIC :: fixes_partially, get_dg_dh, gopt_new_logger_create, &
-             gopt_new_logger_release, keep_angles_conflict, &
+   PUBLIC :: fixes_partially, get_dg_dh, keep_angles_conflict, &
              keep_symmetry_coupled_set, keep_symmetry_conflict, parse_token, &
              read_external_press_tensor, &
              apply_cell_constraints, cell_opt_constraint_label, parse_cell_constraint, &
@@ -90,98 +68,6 @@ MODULE cell_opt_utils
                                  mask_all = comp_ax + comp_bx + comp_by + comp_cx + comp_cy + comp_cz
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief creates a new logger used for cell optimization algorithm
-!> \param new_logger ...
-!> \param root_section ...
-!> \param para_env ...
-!> \param project_name ...
-!> \param id_run ...
-!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
-! **************************************************************************************************
-   SUBROUTINE gopt_new_logger_create(new_logger, root_section, para_env, project_name, &
-                                     id_run)
-      TYPE(cp_logger_type), POINTER                      :: new_logger
-      TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      CHARACTER(len=default_string_length), INTENT(OUT)  :: project_name
-      INTEGER, INTENT(IN)                                :: id_run
-
-      CHARACTER(len=default_path_length)                 :: c_val, input_file_path, output_file_path
-      CHARACTER(len=default_string_length)               :: label
-      INTEGER                                            :: i, lp, unit_nr
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(enumeration_type), POINTER                    :: enum
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: section
-
-      NULLIFY (new_logger, logger, enum, keyword, section)
-      logger => cp_get_default_logger()
-
-      CALL create_global_section(section)
-      keyword => section_get_keyword(section, "RUN_TYPE")
-      CALL keyword_get(keyword, enum=enum)
-      label = TRIM(enum_i2c(enum, id_run))
-      CALL section_release(section)
-
-      ! Redirecting output of the sub_calculation to a different file
-      CALL section_vals_val_get(root_section, "GLOBAL%PROJECT_NAME", c_val=project_name)
-      input_file_path = TRIM(project_name)
-      lp = LEN_TRIM(input_file_path)
-      i = logger%iter_info%iteration(logger%iter_info%n_rlevel)
-      input_file_path(lp + 1:LEN(input_file_path)) = "-"//TRIM(label)//"-"//ADJUSTL(cp_to_string(i))
-      lp = LEN_TRIM(input_file_path)
-      CALL section_vals_val_set(root_section, "GLOBAL%PROJECT_NAME", c_val=input_file_path(1:lp))
-      CALL section_vals_val_set(root_section, "GLOBAL%RUN_TYPE", i_val=id_run)
-
-      ! Redirecting output into a new file
-      output_file_path = input_file_path(1:lp)//".out"
-      IF (para_env%is_source()) THEN
-         CALL open_file(file_name=output_file_path, file_status="UNKNOWN", &
-                        file_action="WRITE", file_position="APPEND", unit_number=unit_nr)
-      ELSE
-         unit_nr = -1
-      END IF
-      CALL cp_logger_create(new_logger, para_env=para_env, default_global_unit_nr=unit_nr, &
-                            close_global_unit_on_dealloc=.FALSE.)
-      CALL section_vals_val_get(root_section, "GLOBAL%PROJECT", c_val=c_val)
-      IF (c_val /= "") THEN
-         CALL cp_logger_set(new_logger, local_filename=TRIM(c_val)//"_localLog")
-      END IF
-      new_logger%iter_info%project_name = TRIM(c_val)
-      CALL section_vals_val_get(root_section, "GLOBAL%PRINT_LEVEL", &
-                                i_val=new_logger%iter_info%print_level)
-
-   END SUBROUTINE gopt_new_logger_create
-
-! **************************************************************************************************
-!> \brief releases a new logger used for cell optimization algorithm
-!> \param new_logger ...
-!> \param root_section ...
-!> \param para_env ...
-!> \param project_name ...
-!> \param id_run ...
-!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
-! **************************************************************************************************
-   SUBROUTINE gopt_new_logger_release(new_logger, root_section, para_env, project_name, id_run)
-      TYPE(cp_logger_type), POINTER                      :: new_logger
-      TYPE(section_vals_type), POINTER                   :: root_section
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      CHARACTER(len=default_string_length), INTENT(IN)   :: project_name
-      INTEGER, INTENT(IN)                                :: id_run
-
-      INTEGER                                            :: unit_nr
-
-      IF (para_env%is_source()) THEN
-         unit_nr = cp_logger_get_default_unit_nr(new_logger)
-         CALL close_file(unit_number=unit_nr)
-      END IF
-      CALL cp_logger_release(new_logger)
-      CALL section_vals_val_set(root_section, "GLOBAL%RUN_TYPE", i_val=id_run)
-      CALL section_vals_val_set(root_section, "GLOBAL%PROJECT_NAME", c_val=project_name)
-
-   END SUBROUTINE gopt_new_logger_release
 
 ! **************************************************************************************************
 !> \brief Reads the external pressure tensor

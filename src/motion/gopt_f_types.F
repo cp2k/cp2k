@@ -59,7 +59,6 @@ MODULE gopt_f_types
 ! **************************************************************************************************
    TYPE gopt_f_type
       INTEGER                                  :: ref_count = 0
-      INTEGER                                  :: nfree = 0
       INTEGER                                  :: type_id = default_cell_method_id
       INTEGER                                  :: ts_method_id = 0
       INTEGER                                  :: shellcore_method_id = 0
@@ -157,7 +156,6 @@ CONTAINS
                             shell_particles=shell_particles)
          IF (ASSOCIATED(shell_particles)) nshell = shell_particles%n_els
          ! The same number of shell and core particles is assumed
-         gopt_env%nfree = particles%n_els + nshell
          gopt_env%label = "GEO_OPT"
          gopt_env%tag = "GEOMETRY"
          SELECT CASE (gopt_param%type_id)
@@ -186,13 +184,11 @@ CONTAINS
             END SELECT
          END SELECT
       CASE (default_cell_method_id)
-         gopt_env%nfree = 6
          gopt_env%label = "CELL_OPT"
          gopt_env%tag = "  CELL  "
          ALLOCATE (gopt_env%cell_env)
          CALL cell_opt_env_create(gopt_env%cell_env, force_env, gopt_env%geo_section)
       CASE (default_shellcore_method_id)
-         gopt_env%nfree = subsys%shell_particles%n_els
          gopt_env%label = "SHELL_OPT"
          gopt_env%tag = "  SHELL-CORE  "
          gopt_env%shellcore_method_id = gopt_param%shellcore_method_id

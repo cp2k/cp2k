@@ -131,7 +131,7 @@ CONTAINS
 
       CHARACTER(LEN=5)                                   :: wildcard
       INTEGER                                            :: handle, info, iter_nr, its, &
-                                                            matrix_method, maxiter, ndf, nfree, &
+                                                            matrix_method, maxiter, ndf, &
                                                             output_unit
       LOGICAL                                            :: conv, hesrest, hess_reset, inverse, &
                                                             shell_present, should_stop, &
@@ -220,7 +220,6 @@ CONTAINS
       END IF
 
       ndf = SIZE(x0)
-      nfree = gopt_env%nfree
       IF (ndf > 3000 .AND. .NOT. inverse) THEN
          CALL cp_warn(__LOCATION__, &
                       "The dimension of the Hessian matrix ("// &
@@ -1285,12 +1284,10 @@ CONTAINS
                                                             min_eig = 0.005_dp, one = 1.0_dp
 
       INTEGER                                            :: handle, indf
-      LOGICAL                                            :: neg
 
       CALL timeset(routineN, handle)
 
       DO indf = 1, ndf
-         IF (eigval(indf) < 0.0_dp) neg = .TRUE.
          IF (eigval(indf) > 1000.0_dp) eigval(indf) = 1000.0_dp
       END DO
       DO indf = 1, ndf
@@ -1655,7 +1652,6 @@ CONTAINS
          CALL hess_mat%matrix_struct%para_env%min(fixed(i, :))
       END DO
       rho_ij = 0
-      !XXXX insert proper rows !XXX
       at_row = 3
       DO i = 1, natom
          CALL get_atomic_kind(atomic_kind=particles%els(i)%atomic_kind, z=z)
