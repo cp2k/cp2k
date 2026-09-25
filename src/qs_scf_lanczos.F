@@ -449,6 +449,7 @@ CONTAINS
             itaken = 0
             DO it = 1, nmob
                vmax = 0.0_dp
+               ik = 0
                !select index ik
                DO jt = 1, ndim
                   IF (itaken(jt) == 0 .AND. ABS(q_mat(it, jt)) > vmax) THEN
@@ -456,6 +457,7 @@ CONTAINS
                      ik = jt
                   END IF
                END DO
+               IF (ik == 0) CYCLE ! all candidates NaN or zero: keep the entry vector
                itaken(ik) = 1
 
                CALL cp_fm_to_fm(c2_tmp, v_mat(1), 1, ik, it)
@@ -841,6 +843,7 @@ CONTAINS
             itaken = 0
             DO it = 1, nmob
                vmax = 0.0_dp
+               ik = 0
                !select index ik
                DO jt = 1, ndim
                   IF (itaken(jt) == 0 .AND. ABS(q_mat(it, jt)) > vmax) THEN
@@ -848,6 +851,7 @@ CONTAINS
                      ik = jt
                   END IF
                END DO
+               IF (ik == 0) CYCLE ! all candidates NaN or zero: keep the entry vector
                itaken(ik) = 1
 
                CALL cp_fm_to_fm(c2_tmp, v_mat(1), 1, ik, it)
