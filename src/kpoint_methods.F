@@ -1958,6 +1958,10 @@ CONTAINS
          CALL gemm_ctx(thread)%destroy()
          CALL cp_fm_release(work(thread))
       END DO
+      IF (.NOT. wtype .AND. .NOT. aux_fit) THEN
+         kpoint%lowdin_density_ready = .TRUE.
+         kpoint%lowdin_population_ready = .FALSE.
+      END IF
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_density_matrices

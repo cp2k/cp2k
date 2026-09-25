@@ -60,6 +60,9 @@ MODULE qs_density_mixing_types
    END TYPE cp_1d_z_p_type
 
    TYPE mixing_storage_type
+      ! Replicated density coordinates are appended on world rank zero only.
+      INTEGER                                           :: naux = 0
+      COMPLEX(KIND=dp), ALLOCATABLE                     :: aux_buffer(:, :)
    INTEGER                                           :: ig_max = -1, ncall = -1, ncall_p(2) = -1, nbuffer = -1, n_simple_mix = -1, &
                                                            nskip_mixing = -1, p_metric_method = -1
       INTEGER, POINTER, DIMENSION(:)                    :: ig_global_index => NULL()
@@ -246,6 +249,9 @@ CONTAINS
       TYPE(mixing_storage_type), INTENT(INOUT)           :: mixing_store
 
       INTEGER                                            :: i, j, k
+
+      IF (ALLOCATED(mixing_store%aux_buffer)) DEALLOCATE (mixing_store%aux_buffer)
+      mixing_store%naux = 0
 
       IF (ASSOCIATED(mixing_store%kerker_factor)) THEN
          DEALLOCATE (mixing_store%kerker_factor)

@@ -50,6 +50,8 @@ MODULE qs_scf_subspace_types
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: generation
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE       :: pf_metric
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE          :: coefficients, state_energy
+      ! Replicated conjugate variables for a separately represented operator term.
+      REAL(dp), ALLOCATABLE :: density_aux(:, :, :), fock_aux(:, :, :), combined_aux(:, :)
    END TYPE qs_scf_subspace_buffer_type
 
 CONTAINS
@@ -151,6 +153,7 @@ CONTAINS
       IF (ALLOCATED(buffer%pf_metric)) DEALLOCATE (buffer%pf_metric)
       IF (ALLOCATED(buffer%coefficients)) DEALLOCATE (buffer%coefficients)
       IF (ALLOCATED(buffer%state_energy)) DEALLOCATE (buffer%state_energy)
+      IF (ALLOCATED(buffer%density_aux)) DEALLOCATE (buffer%density_aux, buffer%fock_aux, buffer%combined_aux)
       CALL qs_scf_subspace_buffer_create(buffer, 0)
 
    END SUBROUTINE qs_scf_subspace_buffer_release

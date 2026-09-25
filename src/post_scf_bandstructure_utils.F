@@ -56,6 +56,8 @@ MODULE post_scf_bandstructure_utils
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_to_string
    USE cp_parser_methods,               ONLY: read_float_object
+   USE dft_plus_u,                      ONLY: lowdin_kp_apply,&
+                                              lowdin_kp_prepare
    USE input_constants,                 ONLY: G0W0,&
                                               evGW0,&
                                               int_ldos_z,&
@@ -74,6 +76,7 @@ MODULE post_scf_bandstructure_utils
                                               rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_create,&
+                                              kpoint_env_type,&
                                               kpoint_type
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: gaussi,&
@@ -683,6 +686,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: xkp
       TYPE(cp_cfm_type)                                  :: cfm_ks, cfm_mos, cfm_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
+      TYPE(kpoint_env_type), POINTER                     :: lowdin_kp
       TYPE(kpoint_type), POINTER                         :: kpoints_scf
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
@@ -694,7 +698,10 @@ CONTAINS
                       matrix_s_kp=matrix_s, &
                       kpoints=kpoints_scf)
 
-      NULLIFY (sab_nl)
+      NULLIFY (sab_nl, lowdin_kp)
+      IF (ALLOCATED(kpoints_scf%lowdin_v)) THEN
+         IF (ANY(kpoints_scf%lowdin_v /= 0.0_dp)) ALLOCATE (lowdin_kp)
+      END IF
       CALL get_kpoint_info(kpoints_scf, sab_nl=sab_nl, cell_to_index=cell_to_index_scf)
 
       CALL cp_cfm_create(cfm_ks, bs_env%cfm_work_mo%matrix_struct)
@@ -717,21 +724,27 @@ CONTAINS
       CALL cp_cfm_create(bs_env%cfm_s_kp(ikp), bs_env%cfm_work_mo%matrix_struct)
       END DO
 
-      DO ispin = 1, bs_env%n_spin
-         DO ikp = 1, nkp_bs_and_DOS
+      DO ikp = 1, nkp_bs_and_DOS
 
-            xkp(1:3) = bs_env%kpoints_DOS%xkp(1:3, ikp)
+         xkp(1:3) = bs_env%kpoints_DOS%xkp(1:3, ikp)
 
+         ! S(k) and its Lowdin projectors are shared by both spin channels.
+         CALL rsmat_to_kp(matrix_s, 1, xkp, cell_to_index_scf, sab_nl, bs_env, cfm_s)
+         CALL cp_cfm_to_cfm(cfm_s, bs_env%cfm_s_kp(ikp))
+         IF (ASSOCIATED(lowdin_kp)) THEN
+            CALL lowdin_kp_prepare(lowdin_kp, kpoints_scf%lowdin_orbitals, .FALSE., cfm_s)
+         END IF
+         DO ispin = 1, bs_env%n_spin
             ! h^KS^R -> h^KS(k)
             CALL rsmat_to_kp(matrix_ks, ispin, xkp, cell_to_index_scf, sab_nl, bs_env, cfm_ks)
-
-            ! S^R -> S(k)
-            CALL rsmat_to_kp(matrix_s, 1, xkp, cell_to_index_scf, sab_nl, bs_env, cfm_s)
+            IF (ASSOCIATED(lowdin_kp)) THEN
+               CALL lowdin_kp_apply(lowdin_kp, kpoints_scf%lowdin_v(:, ispin), cmat=cfm_ks)
+            END IF
 
             ! we store the complex KS matrix as fm matrix because the infrastructure for fm is
             ! much nicer compared to cfm
             CALL cp_cfm_to_cfm(cfm_ks, bs_env%cfm_ks_kp(ikp, ispin))
-            CALL cp_cfm_to_cfm(cfm_s, bs_env%cfm_s_kp(ikp))
+            CALL cp_cfm_to_cfm(bs_env%cfm_s_kp(ikp), cfm_s)
 
             ! Diagonalize KS-matrix via Rothaan-Hall equation:
             ! H^KS(k) C(k) = S(k) C(k) ε(k)
@@ -746,7 +759,9 @@ CONTAINS
             CALL cp_cfm_to_cfm(cfm_mos, bs_env%cfm_mo_coeff_kp(ikp, ispin))
 
          END DO
+      END DO
 
+      DO ispin = 1, bs_env%n_spin
          VBM = MAXVAL(bs_env%eigenval_scf(bs_env%n_occ(ispin), :, ispin))
          CBM = MINVAL(bs_env%eigenval_scf(bs_env%n_occ(ispin) + 1, :, ispin))
 
@@ -759,6 +774,12 @@ CONTAINS
       CALL cp_cfm_release(cfm_ks)
       CALL cp_cfm_release(cfm_s)
       CALL cp_cfm_release(cfm_mos)
+      IF (ASSOCIATED(lowdin_kp)) THEN
+         CALL cp_cfm_release(lowdin_kp%lowdin_cb)
+         CALL cp_cfm_release(lowdin_kp%lowdin_cwork)
+         CALL lowdin_kp%lowdin_gemm%destroy()
+         DEALLOCATE (lowdin_kp)
+      END IF
 
       CALL timestop(handle)
 

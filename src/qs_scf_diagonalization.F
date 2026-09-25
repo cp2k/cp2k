@@ -73,6 +73,7 @@ MODULE qs_scf_diagonalization
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
                                               debug_print_level
+   USE dft_plus_u,                      ONLY: lowdin_kp_apply
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_reduce, cholesky_restore, &
@@ -683,11 +684,12 @@ CONTAINS
 !> \param qs_env ...
 !> \param probe ...
 !> \param added_mos_auto_grow true when the adaptive virtual-space buffer must grow
+!> \param potential Fixed Lowdin orbital potential for non-self-consistent k points.
 !> \par History
 !>      08.2014 created [JGH]
 ! **************************************************************************************************
    SUBROUTINE do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, update_p, &
-                                 diis_step, diis_error, qs_env, probe, added_mos_auto_grow)
+                                 diis_step, diis_error, qs_env, probe, added_mos_auto_grow, potential)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -700,10 +702,12 @@ CONTAINS
       TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: probe
       LOGICAL, INTENT(OUT), OPTIONAL                     :: added_mos_auto_grow
+      REAL(dp), INTENT(IN), OPTIONAL, TARGET             :: potential(:, :)
 
       CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag_kp'
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeffs
+      REAL(dp), POINTER :: effective_u(:, :), adiis_u(:, :)
       INTEGER :: cdiis_ncall, handle, ib, ikp, ispin, kplocal, kpmax, &
                  lattice_fft, nb, nkp, nspin, omp_threads, nworkers, nentry
       INTEGER, DIMENSION(2)                              :: kp_range
@@ -769,14 +773,24 @@ CONTAINS
           adiis_cdiis) do_diis = .TRUE.
 
       adiis_ks => matrix_ks
+      NULLIFY (adiis_u)
+      IF (ALLOCATED(kpoints%lowdin_v)) adiis_u => kpoints%lowdin_v
       IF (use_adiis) THEN
          IF (scf_env%scf_subspace_buffer%use_combined_fock) THEN
             adiis_ks => scf_env%scf_subspace_buffer%combined_fock
+            IF (ASSOCIATED(adiis_u)) adiis_u => scf_env%scf_subspace_buffer%combined_aux
          END IF
       END IF
       effective_ks => matrix_ks
+      NULLIFY (effective_u)
+      IF (ALLOCATED(kpoints%lowdin_v)) effective_u => kpoints%lowdin_v
+      IF (PRESENT(potential)) THEN
+         CPASSERT(.NOT. update_p)
+         effective_u => potential
+      END IF
       IF (use_adiis .AND. .NOT. adiis_cdiis) THEN
          effective_ks => adiis_ks
+         effective_u => adiis_u
       END IF
       IF (use_adiis .AND. .NOT. do_diis) THEN
          scf_env%scf_subspace_buffer%diis_weight = 0.0_dp
@@ -927,7 +941,7 @@ CONTAINS
          CALL qs_diis_b_check_i_alloc_kp(kpoints%scf_diis_buffer, matrix_struct, nspin, kplocal, scf_section)
          IF (use_local_kpoints) THEN
             CALL kp_diag_local_phase(op_ctx, kpoints, workspace, scf_env, scf_control, nspin, &
-                                     cache_smat, reuse_smat, use_adiis, ib, .TRUE., 1.0_dp)
+                                     cache_smat, reuse_smat, use_adiis, ib, .TRUE., 1.0_dp, potential=effective_u)
          ELSE
             DO ikp = 1, kpmax
                DO ispin = 1, nspin
@@ -987,9 +1001,10 @@ CONTAINS
       END IF
 
       IF (use_local_kpoints) THEN
-         ! An unallocated coeffs actual is absent at the optional dummy (Fortran 2008).
+         ! Unallocated arrays and disassociated pointers are absent at nonpointer optional dummies.
+         IF (do_diis) effective_u => adiis_u
          CALL kp_diag_local_phase(op_ctx, kpoints, workspace, scf_env, scf_control, nspin, &
-                                  cache_smat, reuse_smat, use_adiis, ib, .FALSE., diis_weight, coeffs)
+                                  cache_smat, reuse_smat, use_adiis, ib, .FALSE., diis_weight, coeffs, effective_u)
       ELSE
          DO ikp = 1, kpmax
             DO ispin = 1, nspin
@@ -998,6 +1013,9 @@ CONTAINS
                      CALL kpoint_operator_start(op_ctx, ikp, ispin, adiis_ks, kpoint_slot_ks, &
                                                 use_grid=.FALSE., matrix_row=ispin)
                      CALL kpoint_operator_finish(op_ctx, ikp, ispin, kpoint_slot_ks, cwork)
+                     IF (ikp <= kplocal .AND. ASSOCIATED(adiis_u)) THEN
+                        CALL lowdin_kp_apply(kpoints%kp_env(ikp)%kpoint_env, adiis_u(:, ispin), cmat=cwork)
+                     END IF
                   END IF
                   IF (ikp > kplocal) CYCLE
                   CALL cp_cfm_to_cfm(kpoints%scf_diis_buffer%smat(ikp), csmat)
@@ -1083,12 +1101,18 @@ CONTAINS
          IF (use_real_wfn) THEN
             CALL kpoint_operator_finish(op_ctx, round, spin, kpoint_slot_ks, fm_re=rksmat)
             CALL kpoint_operator_finish(op_ctx, round, spin, kpoint_slot_s, fm_re=rsmat)
+            IF (round <= kplocal .AND. ASSOCIATED(effective_u)) THEN
+               CALL lowdin_kp_apply(kpoints%kp_env(round)%kpoint_env, effective_u(:, spin), rmat=rksmat)
+            END IF
             IF (round <= kplocal .AND. do_diis) THEN
                CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, rksmat)
                CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, rsmat)
             END IF
          ELSE
             CALL kpoint_operator_finish(op_ctx, round, spin, kpoint_slot_ks, cksmat)
+            IF (round <= kplocal .AND. ASSOCIATED(effective_u)) THEN
+               CALL lowdin_kp_apply(kpoints%kp_env(round)%kpoint_env, effective_u(:, spin), cmat=cksmat)
+            END IF
             IF (.NOT. cache_smat .OR. (.NOT. reuse_smat .AND. spin == 1)) THEN
                CALL kpoint_operator_finish(op_ctx, round, spin, kpoint_slot_s, csmat)
             END IF
@@ -1122,9 +1146,10 @@ CONTAINS
 !> \param store_error store raw F and its residual instead of solving
 !> \param diis_weight weight of the CDIIS candidate
 !> \param coeffs optional DIIS coefficients for the second phase
+!> \param potential optional Lowdin orbital potential paired with the prepared Hamiltonian
 ! **************************************************************************************************
    SUBROUTINE kp_diag_local_phase(ctx, kpoints, workspace, scf_env, scf_control, nspin, &
-                                  cache_smat, reuse_smat, use_adiis, ib, store_error, diis_weight, coeffs)
+                                  cache_smat, reuse_smat, use_adiis, ib, store_error, diis_weight, coeffs, potential)
       TYPE(kpoint_operator_context_type), INTENT(IN) :: ctx
       TYPE(kpoint_type), POINTER :: kpoints
       TYPE(kp_diag_workspace_type), TARGET, INTENT(INOUT) :: workspace(:)
@@ -1134,6 +1159,7 @@ CONTAINS
       LOGICAL, INTENT(IN) :: cache_smat, reuse_smat, use_adiis, store_error
       REAL(KIND=dp), INTENT(IN) :: diis_weight
       COMPLEX(KIND=dp), OPTIONAL, INTENT(IN) :: coeffs(:)
+      REAL(dp), OPTIONAL, INTENT(IN) :: potential(:, :)
 
       INTEGER :: ik, ikp, ispin, kplocal, nworkers, thread
       LOGICAL :: build_h, build_s
@@ -1148,7 +1174,7 @@ CONTAINS
       ! Keep the workspace binding explicit and thread-private for classic ifort.
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(DYNAMIC, 1) NUM_THREADS(nworkers) IF(nworkers > 1) &
 !$OMP SHARED(ctx,kpoints,workspace,scf_env,scf_control,nspin,cache_smat,reuse_smat,use_adiis,ib, &
-!$OMP        store_error,diis_weight,coeffs,kplocal,nworkers,build_h,build_s) &
+!$OMP        store_error,diis_weight,coeffs,potential,kplocal,nworkers,build_h,build_s) &
 !$OMP PRIVATE(ik,ikp,ispin,thread,kp,work)
       DO ikp = 1, kplocal
          thread = 1
@@ -1163,8 +1189,10 @@ CONTAINS
             IF (build_h) THEN
                IF (PRESENT(coeffs)) THEN
                   CALL kpoint_operator_evaluate(ctx, ispin, kpoint_slot_ks, ik, work%phase, work%csmat_base)
+                  IF (PRESENT(potential)) CALL lowdin_kp_apply(kp, potential(:, ispin), cmat=work%csmat_base)
                ELSE
                   CALL kpoint_operator_evaluate(ctx, ispin, kpoint_slot_ks, ik, work%phase, work%cksmat)
+                  IF (PRESENT(potential)) CALL lowdin_kp_apply(kp, potential(:, ispin), cmat=work%cksmat)
                END IF
             END IF
             IF (PRESENT(coeffs)) THEN
@@ -3164,14 +3192,16 @@ CONTAINS
 !> \param matrix_s     Overlap matrices (RS indices, global)
 !> \param kpoints      Kpoint environment
 !> \param fmwork       full matrices distributed over all groups
+!> \param lowdin_forces retain the overlap spectrum for Lowdin force/stress derivatives
 !> \par History
 !>      02.2026 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE diag_kp_smat(matrix_s, kpoints, fmwork)
+   SUBROUTINE diag_kp_smat(matrix_s, kpoints, fmwork, lowdin_forces)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_fm_type), DIMENSION(:)                     :: fmwork
+      LOGICAL, INTENT(IN), OPTIONAL                      :: lowdin_forces
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'diag_kp_smat'
       COMPLEX(KIND=dp), PARAMETER                        :: cone = (1.0_dp, 0.0_dp), &
@@ -3181,7 +3211,7 @@ CONTAINS
       INTEGER                                            :: handle, ikp, kplocal, kpmax, nao
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
-      LOGICAL                                            :: use_real_wfn
+      LOGICAL                                            :: save_spectrum, use_real_wfn
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
       TYPE(cp_cfm_type)                                  :: csmat, cwork
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
@@ -3240,12 +3270,29 @@ CONTAINS
          ! Eigensolver Hermite or Symmetric
          IF (ikp > kplocal) CYCLE
          kp => kpoints%kp_env(ikp)%kpoint_env
+         save_spectrum = ALLOCATED(kp%lowdin_sqrt)
+         IF (PRESENT(lowdin_forces)) save_spectrum = lowdin_forces
+         CALL cp_cfm_release(kp%lowdin_evec)
+         IF (ALLOCATED(kp%lowdin_sqrt)) DEALLOCATE (kp%lowdin_sqrt)
          IF (use_real_wfn) THEN
             CALL choose_eigv_solver(rsmat, fmlocal, eigenvalues)
          ELSE
             CALL cp_cfm_heevd(csmat, cwork, eigenvalues)
          END IF
          CPASSERT(ALL(eigenvalues(1:nao) >= 0.0_dp))
+         IF (save_spectrum) THEN
+            IF (ANY(eigenvalues <= 0.0_dp)) THEN
+               CPABORT("Lowdin forces require a positive definite overlap")
+            END IF
+            ALLOCATE (kp%lowdin_sqrt(nao))
+            kp%lowdin_sqrt(:) = SQRT(eigenvalues)
+            CALL cp_cfm_create(kp%lowdin_evec, matrix_struct)
+            IF (use_real_wfn) THEN
+               CALL cp_fm_to_cfm(fmlocal, mtarget=kp%lowdin_evec)
+            ELSE
+               CALL cp_cfm_to_cfm(cwork, kp%lowdin_evec)
+            END IF
+         END IF
          IF (use_real_wfn) THEN
             CALL cp_fm_release(kp%shalf)
             CALL cp_fm_create(kp%shalf, matrix_struct)

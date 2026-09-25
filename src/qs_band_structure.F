@@ -20,6 +20,7 @@ MODULE qs_band_structure
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_parser_methods,               ONLY: read_float_object
+   USE dft_plus_u,                      ONLY: lowdin_kp_prepare
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -48,7 +49,8 @@ MODULE qs_band_structure
    USE qs_gamma2kp,                     ONLY: create_kp_from_gamma
    USE qs_mo_types,                     ONLY: get_mo_set
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-   USE qs_scf_diagonalization,          ONLY: do_general_diag_kp
+   USE qs_scf_diagonalization,          ONLY: diag_kp_smat,&
+                                              do_general_diag_kp
    USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE scf_control_types,               ONLY: scf_control_type
    USE string_utilities,                ONLY: uppercase
@@ -317,10 +319,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3), INTENT(IN), OPTIONAL  :: kp_shift
       LOGICAL, INTENT(IN), OPTIONAL                      :: gamma_centered
 
+      INTEGER                                            :: ik
       LOGICAL                                            :: diis_step
+      REAL(dp), POINTER                                  :: potential(:, :)
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: scf_kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
@@ -340,8 +345,21 @@ CONTAINS
       CALL kpoint_init_cell_index(kpoint, sab_nl, para_env, dft_control%nimages)
 
       CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s, &
-                      scf_env=scf_env, scf_control=scf_control)
-      CALL do_general_diag_kp(matrix_ks, matrix_s, kpoint, scf_env, scf_control, .FALSE., diis_step)
+                      scf_env=scf_env, scf_control=scf_control, kpoints=scf_kpoints)
+      NULLIFY (potential)
+      IF (ASSOCIATED(scf_kpoints)) THEN
+         IF (ALLOCATED(scf_kpoints%lowdin_v)) THEN
+            IF (ANY(scf_kpoints%lowdin_v /= 0.0_dp)) potential => scf_kpoints%lowdin_v
+         END IF
+      END IF
+      IF (ASSOCIATED(potential)) THEN
+         CALL diag_kp_smat(matrix_s, kpoint, scf_env%scf_work1)
+         DO ik = 1, SIZE(kpoint%kp_env)
+            CALL lowdin_kp_prepare(kpoint%kp_env(ik)%kpoint_env, scf_kpoints%lowdin_orbitals, .FALSE.)
+         END DO
+      END IF
+      CALL do_general_diag_kp(matrix_ks, matrix_s, kpoint, scf_env, scf_control, .FALSE., diis_step, &
+                              potential=potential)
 
    END SUBROUTINE calculate_kp_orbitals
 

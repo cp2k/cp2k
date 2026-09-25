@@ -8,6 +8,11 @@
 !> \brief Utility routines for qs_scf
 ! **************************************************************************************************
 MODULE qs_scf_loop_utils
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type,&
                                               hairy_probes_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
@@ -41,6 +46,10 @@ MODULE qs_scf_loop_utils
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
+   USE dft_plus_u,                      ONLY: lowdin_kp_apply,&
+                                              lowdin_kp_apply_mo,&
+                                              lowdin_kp_kernel,&
+                                              lowdin_kp_population
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE input_constants,                 ONLY: diag_update_method_adiis,&
                                               smear_fermi_dirac,&
@@ -59,6 +68,7 @@ MODULE qs_scf_loop_utils
                                               kpoint_env_type,&
                                               kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
+   USE physcon,                         ONLY: evolt
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_density_mixing_types,         ONLY: broyden_mixing_nr,&
                                               direct_mixing_nr,&
@@ -73,6 +83,9 @@ MODULE qs_scf_loop_utils
                                               qs_environment_type
    USE qs_fb_env_methods,               ONLY: fb_env_do_diag
    USE qs_gspace_mixing,                ONLY: gspace_mixing
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type,&
+                                              set_qs_kind
    USE qs_kpoint_operators,             ONLY: kpoint_operator_context_create,&
                                               kpoint_operator_context_release,&
                                               kpoint_operator_context_type,&
@@ -685,6 +698,7 @@ CONTAINS
                                                             trial_mu
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trial_eigenvalues, trial_occupation
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers, wkp
+      TYPE(cp_cfm_type)                                  :: physical_h
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct, chc_struct
       TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im, &
                                                             chc_im, chc_re, hc_im, hc_re, &
@@ -852,6 +866,18 @@ CONTAINS
             CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, active_mo_coeff_im, hc_im, homo)
             CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff, hc_im, homo, &
                                          alpha=1.0_dp, beta=1.0_dp)
+            IF (ALLOCATED(kpoints%lowdin_v)) THEN
+               CALL lowdin_kp_apply_mo(kp, kpoints%lowdin_v(:, ispin), &
+                                       active_mo_coeff, active_mo_coeff_im, hc_re, hc_im)
+               IF (physical_base_state .AND. local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
+                  ! H*C already includes +U; the physical secant history needs the same full H.
+                  CALL cp_cfm_create(physical_h, kp%ot_hmat(1, ispin)%matrix_struct)
+                  CALL cp_fm_to_cfm(kp%ot_hmat(1, ispin), kp%ot_hmat(2, ispin), physical_h)
+                  CALL lowdin_kp_apply(kp, kpoints%lowdin_v(:, ispin), cmat=physical_h)
+                  CALL cp_cfm_to_fm(physical_h, kp%ot_hmat(1, ispin), kp%ot_hmat(2, ispin))
+                  CALL cp_cfm_release(physical_h)
+               END IF
+            END IF
 
             IF (restricted_roks) THEN
                ! ROKS has one complex orbital variable but two spin densities. Form the exact
@@ -1516,7 +1542,7 @@ CONTAINS
    END SUBROUTINE multiply_complex_fm_right_adjoint
 
 ! **************************************************************************************************
-!> \brief evaluate the exact GPW Hartree-XC curvature of a complex K-point density mode
+!> \brief Evaluate the GPW Hartree-XC and Lowdin +U curvature of a complex K-point density mode.
 !> \param qs_env ground-state QS environment defining the current density and XC kernel
 !> \param kpoints K-point environment and group distribution
 !> \param local_ot_env local spin/K-point OT channels
@@ -1558,7 +1584,7 @@ CONTAINS
          nlocal_kpoints, nmo, nmode, response_mode, test_mode
       LOGICAL                                            :: do_hfx
       REAL(KIND=dp)                                      :: symmetry_error, symmetry_scale
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dense_im, dense_re
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dense_im, dense_re, lowdin_response
       TYPE(cp_fm_type)                                   :: action_im, action_re, density_im, &
                                                             density_re, inactive_im, inactive_re, &
                                                             projected_im, projected_re
@@ -1694,6 +1720,7 @@ CONTAINS
          END DO
          CALL kpoint_density_transform(kpoints, density_rs, .FALSE., template, sab_nl, fmwork, &
                                        pmat_ext=density_kp)
+         IF (ALLOCATED(kpoints%lowdin_v)) CALL lowdin_kp_kernel(qs_env, density_kp, lowdin_response)
          DO local_kpoint = 1, nlocal_kpoints
             DO ispin = 1, nspin_ot
                CALL cp_fm_release(density_kp(local_kpoint, 1, ispin))
@@ -1745,6 +1772,11 @@ CONTAINS
                CALL cp_dbcsr_sm_fm_multiply( &
                   matrix_k_im, local_ot_env(local_channel)%mermin_physical(1)%c0, action_im, nmo, &
                   alpha=1.0_dp, beta=1.0_dp)
+               IF (ALLOCATED(lowdin_response)) THEN
+                  CALL lowdin_kp_apply_mo(kp, lowdin_response(:, ispin), &
+                                          local_ot_env(local_channel)%mermin_physical(1)%c0, &
+                                          local_ot_env(local_channel)%mermin_physical(1)%c0_im, action_re, action_im)
+               END IF
                CALL cp_fm_create( &
                   projected_re, local_ot_env(local_channel)%mermin_physical(1)%c0%matrix_struct, &
                   name="hxc_projected_re", nrow=nmo, ncol=nmo, set_zero=.TRUE.)
@@ -3155,13 +3187,15 @@ CONTAINS
 !> \param scf_env Holds SCF environment information.
 !> \param rho Current electron density.
 !> \param para_env Parallel environment.
-!> \param delta Maximum matrix-element difference.
+!> \param delta Maximum change of the density and any separately stored density coordinates.
+!> \param kpoints Optional Bloch densities for the Lowdin convergence check.
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_candidate_density_delta(scf_env, rho, para_env, delta)
+   SUBROUTINE qs_scf_candidate_density_delta(scf_env, rho, para_env, delta, kpoints)
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(OUT)                         :: delta
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
 
       INTEGER                                            :: ic, ispin
       REAL(KIND=dp)                                      :: tmp
@@ -3183,6 +3217,7 @@ CONTAINS
          END DO
       END DO
 
+      CALL lowdin_kp_population(kpoints, delta=delta)
    END SUBROUTINE qs_scf_candidate_density_delta
 
 ! **************************************************************************************************
@@ -3217,13 +3252,16 @@ CONTAINS
 !> \param rho       All data for the electron density
 !> \param para_env  Parallel environment
 !> \param diis_step Did we do a DIIS step?
+!> \param kpoints Optional Bloch state with separate Lowdin density coordinates.
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_density_mixing(scf_env, rho, para_env, diis_step)
+   SUBROUTINE qs_scf_density_mixing(scf_env, rho, para_env, diis_step, kpoints)
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL                                            :: diis_step
+      TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
 
+      REAL(KIND=dp)                                      :: alpha
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
 
       NULLIFY (rho_ao_kp)
@@ -3246,6 +3284,16 @@ CONTAINS
                        "unknown scf mixing method: "// &
                        cp_to_string(scf_env%mixing_method))
       END SELECT
+
+      ! Reciprocal-space mixing accepts the occupations later, together with the grid density.
+      alpha = 0.0_dp
+      IF (scf_env%mixing_method <= direct_mixing_nr) alpha = 1.0_dp
+      IF (scf_env%mixing_method == direct_mixing_nr) THEN
+         IF (.NOT. diis_step .AND. scf_env%iter_count >= scf_env%mixing_store%nskip_mixing) THEN
+            alpha = scf_env%mixing_store%alpha
+         END IF
+      END IF
+      CALL lowdin_kp_population(kpoints, delta=scf_env%iter_delta, alpha=alpha)
 
    END SUBROUTINE qs_scf_density_mixing
 
@@ -3296,20 +3344,29 @@ CONTAINS
 !> \param exit_inner_loop ...
 !> \param inner_loop_converged ...
 !> \param output_unit ...
+!> \param u_changed Whether a Lowdin k-point U step requires restarting the SCF history.
 ! **************************************************************************************************
    SUBROUTINE qs_scf_check_inner_exit(qs_env, scf_env, scf_control, should_stop, just_energy, &
-                                      exit_inner_loop, inner_loop_converged, output_unit)
+                                      exit_inner_loop, inner_loop_converged, output_unit, u_changed)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       LOGICAL                                            :: should_stop, just_energy, &
                                                             exit_inner_loop, inner_loop_converged
       INTEGER                                            :: output_unit
+      LOGICAL, INTENT(OUT)                               :: u_changed
 
-      LOGICAL                                            :: davidson_tightening, update_validated
+      INTEGER                                            :: ikind
+      LOGICAL                                            :: davidson_tightening, u_pending, &
+                                                            update_validated
+      REAL(KIND=dp)                                      :: eps_u, ramp, target_u, u
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(qs_kind_type), POINTER                        :: qs_kinds(:)
 
       inner_loop_converged = .FALSE.
       exit_inner_loop = .FALSE.
+      u_changed = .FALSE.
+      u_pending = .FALSE.
       update_validated = scf_control%diagonalization%update_method /= diag_update_method_adiis
       IF (.NOT. update_validated) THEN
          CPASSERT(ASSOCIATED(scf_env%scf_subspace_buffer))
@@ -3319,7 +3376,28 @@ CONTAINS
 
       CALL external_control(should_stop, "SCF", target_time=qs_env%target_time, &
                             start_time=qs_env%start_time)
-      IF (scf_env%iter_delta < scf_control%eps_scf .AND. update_validated) THEN
+      CALL get_qs_env(qs_env, kpoints=kpoints, qs_kind_set=qs_kinds)
+      IF (ASSOCIATED(kpoints)) THEN
+         IF (ALLOCATED(kpoints%lowdin_q)) THEN
+            DO ikind = 1, SIZE(qs_kinds)
+               CALL get_qs_kind(qs_kinds(ikind), u_minus_j=u, u_minus_j_target=target_u, &
+                                u_ramping=ramp, eps_u_ramping=eps_u)
+               IF (ramp <= 0.0_dp .OR. u == target_u) CYCLE
+               u_pending = .TRUE.
+               IF (should_stop .OR. just_energy .OR. scf_env%iter_count >= scf_control%max_scf) CYCLE
+               IF (scf_control%use_ot .AND. .NOT. qs_scf_kp_search_endpoint(scf_env%iter_method)) CYCLE
+               IF (scf_env%iter_delta > eps_u .OR. .NOT. update_validated) CYCLE
+               ! Keep U fixed throughout trial energies and force evaluations.
+               u = MIN(u + ramp, target_u)
+               CALL set_qs_kind(qs_kinds(ikind), u_minus_j=u)
+               u_changed = .TRUE.
+               IF (output_unit > 0) WRITE (output_unit, '(T3,A,I0,A,F10.6,A)') &
+                  "DFT+U ramping: kind ", ikind, ", U(eff) = ", u*evolt, " eV"
+            END DO
+         END IF
+      END IF
+      IF (u_changed) RETURN
+      IF (scf_env%iter_delta < scf_control%eps_scf .AND. update_validated .AND. .NOT. u_pending) THEN
          ! nested IFs on purpose: a .AND. chain leaves the evaluation order
          ! unspecified. On non-Davidson runs the env array has size zero
          ! while the tightening test below indexes its first channel
@@ -3432,16 +3510,24 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       LOGICAL, INTENT(IN)                                :: mix_rho
 
+      REAL(KIND=dp), CONTIGUOUS, POINTER                 :: auxiliary(:, :)
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      NULLIFY (para_env)
-      CALL get_qs_env(qs_env, para_env=para_env)
+      NULLIFY (para_env, auxiliary)
+      CALL get_qs_env(qs_env, para_env=para_env, kpoints=kpoints)
       ! ** update qs_env%rho
       CALL qs_rho_update_rho(rho, qs_env=qs_env)
       ! ** Density mixing through density matrix or on the reciprocal space grid (exclusive)
       IF (mix_rho) THEN
+         IF (ASSOCIATED(kpoints)) THEN
+            IF (ALLOCATED(kpoints%lowdin_q)) THEN
+               CALL lowdin_kp_population(kpoints, alpha=1.0_dp)
+               auxiliary => kpoints%lowdin_q
+            END IF
+         END IF
          CALL gspace_mixing(qs_env, scf_env%mixing_method, scf_env%mixing_store, rho, &
-                            para_env, scf_env%iter_count)
+                            para_env, scf_env%iter_count, auxiliary=auxiliary)
 
       END IF
       CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)
@@ -3461,8 +3547,8 @@ CONTAINS
       LOGICAL                                            :: diis_step
       INTEGER, INTENT(IN)                                :: output_unit
 
-      LOGICAL                                            :: do_kpoints
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -3472,7 +3558,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, energy=energy, ks_env=ks_env, &
                       rho=rho, dft_control=dft_control, para_env=para_env, &
-                      do_kpoints=do_kpoints)
+                      kpoints=kpoints)
 
       CALL cleanup_scf_loop(scf_env)
 
@@ -3481,6 +3567,7 @@ CONTAINS
       CALL qs_scf_print_summary(output_unit, qs_env)
 
       CALL qs_scf_undo_mixing(scf_env, rho, dft_control, para_env, diis_step)
+      CALL lowdin_kp_population(kpoints, alpha=1.0_dp)
 
       !   *** update rspace rho since the mo changed
       !   *** this might not always be needed (i.e. no post calculation / no forces )

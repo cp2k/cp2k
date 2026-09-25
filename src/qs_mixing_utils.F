@@ -23,6 +23,7 @@ MODULE qs_mixing_utils
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_types,                        ONLY: pw_c1d_gs_type
    USE qs_density_mixing_types,         ONLY: broyden_mixing_nr,&
+                                              cp_1d_z_p_type,&
                                               gspace_mixing_nr,&
                                               mixing_storage_type,&
                                               modified_broyden_mixing_nr,&
@@ -46,7 +47,7 @@ MODULE qs_mixing_utils
    INTEGER, PARAMETER, PRIVATE          :: max_dftb_scc_vars = 1, &
                                            max_xtb_scc_vars = 28
 
-   PUBLIC :: mixing_allocate, mixing_init, charge_mixing_init, &
+   PUBLIC :: mixing_allocate, mixing_init, mixing_density, charge_mixing_init, &
              self_consistency_check
 
 CONTAINS
@@ -395,33 +396,86 @@ CONTAINS
    END SUBROUTINE mixing_allocate
 
 ! **************************************************************************************************
+!> \brief Allocate or resize a mixing vector, optionally clearing its contents.
+!> \param buffer Vector or array of vectors.
+!> \param n Local vector length, including any auxiliary coordinates.
+!> \param clear Whether to clear the vector; Pulay retains history across SCF runs.
+! **************************************************************************************************
+   ELEMENTAL SUBROUTINE mixing_buffer_allocate(buffer, n, clear)
+      TYPE(cp_1d_z_p_type), INTENT(INOUT)                :: buffer
+      INTEGER, INTENT(IN)                                :: n
+      LOGICAL, INTENT(IN)                                :: clear
+
+      IF (ASSOCIATED(buffer%cc)) THEN
+         IF (SIZE(buffer%cc) /= n) DEALLOCATE (buffer%cc)
+      END IF
+      IF (.NOT. ASSOCIATED(buffer%cc)) ALLOCATE (buffer%cc(n))
+      IF (clear) buffer%cc = z_zero
+   END SUBROUTINE mixing_buffer_allocate
+
+! **************************************************************************************************
+!> \brief View the physical density, appending auxiliary coordinates on their owning rank.
+!> \param mixing_store Owns the optional enlarged work buffer.
+!> \param rho_g Physical plane-wave density; its storage and grid are unchanged.
+!> \param density Vectors passed to the existing mixing algorithms.
+!> \param auxiliary Replicated density coordinates in electrons, scaled to Fourier-density units.
+! **************************************************************************************************
+   SUBROUTINE mixing_density(mixing_store, rho_g, density, auxiliary)
+      TYPE(mixing_storage_type), POINTER                 :: mixing_store
+      TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_g(:)
+      TYPE(cp_1d_z_p_type), ALLOCATABLE, INTENT(OUT)     :: density(:)
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: auxiliary(:, :)
+
+      INTEGER                                            :: ispin, ng
+
+      IF (mixing_store%naux > 0) THEN
+         CPASSERT(PRESENT(auxiliary))
+         CPASSERT(SIZE(auxiliary, 1) == mixing_store%naux)
+         CPASSERT(SIZE(auxiliary, 2) == SIZE(rho_g))
+      END IF
+      ng = SIZE(rho_g(1)%array)
+      ALLOCATE (density(SIZE(rho_g)))
+      DO ispin = 1, SIZE(rho_g)
+         density(ispin)%cc => rho_g(ispin)%array
+         IF (ALLOCATED(mixing_store%aux_buffer)) THEN
+            density(ispin)%cc => mixing_store%aux_buffer(:, ispin)
+            density(ispin)%cc(:ng) = rho_g(ispin)%array
+            density(ispin)%cc(ng + 1:) = auxiliary(:, ispin)/rho_g(ispin)%pw_grid%vol
+         END IF
+      END DO
+   END SUBROUTINE mixing_density
+
+! **************************************************************************************************
 !> \brief  initialiation needed when gspace mixing is used
 !> \param mixing_method ...
 !> \param rho ...
 !> \param mixing_store ...
 !> \param para_env ...
 !> \param rho_atom ...
+!> \param auxiliary Replicated real density coordinates, included once in the mixing metric.
 !> \par History
 !>      05.2009 created [MI]
 !> \author MI
 ! **************************************************************************************************
-   SUBROUTINE mixing_init(mixing_method, rho, mixing_store, para_env, rho_atom)
+   SUBROUTINE mixing_init(mixing_method, rho, mixing_store, para_env, rho_atom, auxiliary)
       INTEGER, INTENT(IN)                                :: mixing_method
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(mixing_storage_type), POINTER                 :: mixing_store
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(rho_atom_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rho_atom
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: auxiliary(:, :)
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mixing_init'
 
       INTEGER :: handle, iat, ib, icoef1, icoef2, ig, ig1, ig_count, iproc, ispin, n1, n2, natom, &
-         nbuffer, ncoef_h1, ncoef_h2, ncoef_s1, ncoef_s2, ng, nimg, nspin
+         nbuffer, ncoef_h1, ncoef_h2, ncoef_s1, ncoef_s2, ng, nimg, nspin, nvec
       REAL(dp)                                           :: bconst, beta, cpc_h_tmp, cpc_s_tmp, &
                                                             fdamp, g2max, g2min, kmin, qk, qkappa, &
                                                             qm
       REAL(dp), DIMENSION(:), POINTER                    :: g2
       REAL(dp), DIMENSION(:, :), POINTER                 :: g_vec
+      TYPE(cp_1d_z_p_type), ALLOCATABLE                  :: density(:)
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
 
@@ -433,6 +487,21 @@ CONTAINS
       nspin = SIZE(rho_g)
       ng = SIZE(rho_g(1)%pw_grid%gsq, 1)
       nimg = SIZE(rho_ao_kp, 2)
+      IF (PRESENT(auxiliary) .OR. mixing_store%naux > 0) THEN
+         mixing_store%ncall = 0
+         mixing_store%ncall_p = 0
+      END IF
+      mixing_store%naux = 0
+      IF (PRESENT(auxiliary)) mixing_store%naux = SIZE(auxiliary, 1)
+      nvec = ng
+      IF (ALLOCATED(mixing_store%aux_buffer)) DEALLOCATE (mixing_store%aux_buffer)
+      IF (mixing_store%naux > 0) THEN
+         IF (para_env%mepos == 0) THEN
+            nvec = ng + mixing_store%naux
+            ALLOCATE (mixing_store%aux_buffer(nvec, nspin))
+         END IF
+      END IF
+      CALL mixing_density(mixing_store, rho_g, density, auxiliary)
       mixing_store%ig_max = ng
       g2 => rho_g(1)%pw_grid%gsq
       g_vec => rho_g(1)%pw_grid%g
@@ -446,15 +515,12 @@ CONTAINS
          END DO
       END IF
 
-      IF (.NOT. ASSOCIATED(mixing_store%kerker_factor)) THEN
-         ALLOCATE (mixing_store%kerker_factor(ng))
-      END IF
-      IF (.NOT. ASSOCIATED(mixing_store%kerker_factor_mag)) THEN
-         ALLOCATE (mixing_store%kerker_factor_mag(ng))
-      END IF
-      IF (.NOT. ASSOCIATED(mixing_store%special_metric)) THEN
-         ALLOCATE (mixing_store%special_metric(ng))
-      END IF
+      IF (ASSOCIATED(mixing_store%kerker_factor)) DEALLOCATE (mixing_store%kerker_factor)
+      ALLOCATE (mixing_store%kerker_factor(nvec))
+      IF (ASSOCIATED(mixing_store%kerker_factor_mag)) DEALLOCATE (mixing_store%kerker_factor_mag)
+      ALLOCATE (mixing_store%kerker_factor_mag(nvec))
+      IF (ASSOCIATED(mixing_store%special_metric)) DEALLOCATE (mixing_store%special_metric)
+      ALLOCATE (mixing_store%special_metric(nvec))
       beta = mixing_store%beta
       kmin = 0.1_dp
       mixing_store%kerker_factor = 1.0_dp
@@ -492,37 +558,20 @@ CONTAINS
          END DO
       END IF
       nbuffer = mixing_store%nbuffer
+      CALL mixing_buffer_allocate(mixing_store%rhoin, nvec, .FALSE.)
+      IF (ASSOCIATED(mixing_store%rhoin_buffer)) CALL mixing_buffer_allocate(mixing_store%rhoin_buffer, nvec, .FALSE.)
+      IF (ASSOCIATED(mixing_store%res_buffer)) CALL mixing_buffer_allocate(mixing_store%res_buffer, nvec, .FALSE.)
       DO ispin = 1, nspin
-         IF (.NOT. ASSOCIATED(mixing_store%rhoin(ispin)%cc)) THEN
-            ALLOCATE (mixing_store%rhoin(ispin)%cc(ng))
-         END IF
-         mixing_store%rhoin(ispin)%cc = rho_g(ispin)%array
-
-         IF (ASSOCIATED(mixing_store%rhoin_buffer)) THEN
-            IF (.NOT. ASSOCIATED(mixing_store%rhoin_buffer(1, ispin)%cc)) THEN
-               DO ib = 1, nbuffer
-                  ALLOCATE (mixing_store%rhoin_buffer(ib, ispin)%cc(ng))
-               END DO
-            END IF
-            mixing_store%rhoin_buffer(1, ispin)%cc(1:ng) = &
-               rho_g(ispin)%array(1:ng)
-         END IF
-         IF (ASSOCIATED(mixing_store%res_buffer)) THEN
-            IF (.NOT. ASSOCIATED(mixing_store%res_buffer(1, ispin)%cc)) THEN
-               DO ib = 1, nbuffer
-                  ALLOCATE (mixing_store%res_buffer(ib, ispin)%cc(ng))
-               END DO
-            END IF
-         END IF
+         mixing_store%rhoin(ispin)%cc = density(ispin)%cc
       END DO
-
       IF (nspin == 2) THEN
-         mixing_store%rhoin(1)%cc = rho_g(1)%array + rho_g(2)%array
-         mixing_store%rhoin(2)%cc = rho_g(1)%array - rho_g(2)%array
-         IF (ASSOCIATED(mixing_store%rhoin_buffer)) THEN
-            mixing_store%rhoin_buffer(1, 1)%cc = rho_g(1)%array + rho_g(2)%array
-            mixing_store%rhoin_buffer(1, 2)%cc = rho_g(1)%array - rho_g(2)%array
-         END IF
+         mixing_store%rhoin(1)%cc = density(1)%cc + density(2)%cc
+         mixing_store%rhoin(2)%cc = density(1)%cc - density(2)%cc
+      END IF
+      IF (ASSOCIATED(mixing_store%rhoin_buffer)) THEN
+         DO ispin = 1, nspin
+            mixing_store%rhoin_buffer(1, ispin)%cc = mixing_store%rhoin(ispin)%cc
+         END DO
       END IF
 
       IF (mixing_store%gmix_p) THEN
@@ -614,22 +663,9 @@ CONTAINS
             END DO
          END IF
       ELSE IF (mixing_method == broyden_mixing_nr .OR. mixing_method == modified_broyden_mixing_nr) THEN
-         DO ispin = 1, nspin
-            IF (.NOT. ASSOCIATED(mixing_store%rhoin_old(ispin)%cc)) THEN
-               ALLOCATE (mixing_store%rhoin_old(ispin)%cc(ng))
-            END IF
-            IF (.NOT. ASSOCIATED(mixing_store%drho_buffer(1, ispin)%cc)) THEN
-               DO ib = 1, nbuffer
-                  ALLOCATE (mixing_store%drho_buffer(ib, ispin)%cc(ng))
-               END DO
-               ALLOCATE (mixing_store%last_res(ispin)%cc(ng))
-            END IF
-            DO ib = 1, nbuffer
-               mixing_store%drho_buffer(ib, ispin)%cc = z_zero
-            END DO
-            mixing_store%last_res(ispin)%cc = z_zero
-            mixing_store%rhoin_old(ispin)%cc = z_zero
-         END DO
+         CALL mixing_buffer_allocate(mixing_store%rhoin_old, nvec, .TRUE.)
+         CALL mixing_buffer_allocate(mixing_store%drho_buffer, nvec, .TRUE.)
+         CALL mixing_buffer_allocate(mixing_store%last_res, nvec, .TRUE.)
          IF (mixing_store%gmix_p) THEN
             IF (PRESENT(rho_atom)) THEN
                DO ispin = 1, nspin
@@ -663,37 +699,38 @@ CONTAINS
             END IF
          END IF
 
-         IF (.NOT. ASSOCIATED(mixing_store%p_metric)) THEN
-            ALLOCATE (mixing_store%p_metric(ng))
-            bconst = mixing_store%bconst
-            g2min = 1.E30_dp
-            DO ig = 1, ng
-               IF (g2(ig) > 1.E-10_dp) g2min = MIN(g2min, g2(ig))
-            END DO
-            g2max = -1.E30_dp
-            DO ig = 1, ng
-               g2max = MAX(g2max, g2(ig))
-            END DO
-            CALL para_env%min(g2min)
-            CALL para_env%max(g2max)
-            ! fdamp/g2 varies between (bconst-1) and 0
-            ! i.e. p_metric varies between bconst and 1
-            ! fdamp = (bconst-1.0_dp)*g2min
-            fdamp = (bconst - 1.0_dp)*g2min*g2max/(g2max - g2min*bconst)
-            DO ig = 1, ng
-               mixing_store%p_metric(ig) = (g2(ig) + fdamp)/MAX(g2(ig), 1.E-10_dp)
-            END DO
-            IF (rho_g(1)%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
-         END IF
+         IF (ASSOCIATED(mixing_store%p_metric)) DEALLOCATE (mixing_store%p_metric)
+         ALLOCATE (mixing_store%p_metric(nvec))
+         mixing_store%p_metric = 1.0_dp
+         bconst = mixing_store%bconst
+         g2min = 1.E30_dp
+         DO ig = 1, ng
+            IF (g2(ig) > 1.E-10_dp) g2min = MIN(g2min, g2(ig))
+         END DO
+         g2max = -1.E30_dp
+         DO ig = 1, ng
+            g2max = MAX(g2max, g2(ig))
+         END DO
+         CALL para_env%min(g2min)
+         CALL para_env%max(g2max)
+         ! fdamp/g2 varies between (bconst-1) and 0
+         ! i.e. p_metric varies between bconst and 1
+         ! fdamp = (bconst-1.0_dp)*g2min
+         fdamp = (bconst - 1.0_dp)*g2min*g2max/(g2max - g2min*bconst)
+         DO ig = 1, ng
+            mixing_store%p_metric(ig) = (g2(ig) + fdamp)/MAX(g2(ig), 1.E-10_dp)
+         END DO
+         IF (rho_g(1)%pw_grid%have_g0) mixing_store%p_metric(1) = bconst
+         ! Keep the original G cutoff; auxiliary coordinates have unit metric.
+         IF (nvec > ng) mixing_store%p_metric(mixing_store%ig_max + 1:ng) = 0.0_dp
       ELSE IF (mixing_method == multisecant_mixing_nr) THEN
-         IF (.NOT. ASSOCIATED(mixing_store%ig_global_index)) THEN
-            ALLOCATE (mixing_store%ig_global_index(ng))
-         END IF
+         IF (ASSOCIATED(mixing_store%ig_global_index)) DEALLOCATE (mixing_store%ig_global_index)
+         ALLOCATE (mixing_store%ig_global_index(nvec))
          mixing_store%ig_global_index = 0
          ig_count = 0
          DO iproc = 0, para_env%num_pe - 1
             IF (para_env%mepos == iproc) THEN
-               DO ig = 1, ng
+               DO ig = 1, nvec
                   ig_count = ig_count + 1
                   mixing_store%ig_global_index(ig) = ig_count
                END DO
@@ -702,6 +739,7 @@ CONTAINS
          END DO
       END IF
 
+      IF (nvec > ng) mixing_store%ig_max = nvec
       CALL timestop(handle)
 
    END SUBROUTINE mixing_init

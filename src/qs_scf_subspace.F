@@ -85,17 +85,20 @@ CONTAINS
 !> \param density Current input P that generated fock, with matching indices.
 !> \param state_energy ...
 !> \param restarted Whether the current state was stored successfully.
+!> \param density_aux Optional replicated density coordinates for a separately represented term.
+!> \param fock_aux Conjugate potential for the same state; contributes SUM(density_aux*fock_aux) to Tr(PF).
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_subspace_restart(buffer, fock, density, state_energy, restarted)
+   SUBROUTINE qs_scf_subspace_restart(buffer, fock, density, state_energy, restarted, density_aux, fock_aux)
 
       TYPE(qs_scf_subspace_buffer_type), INTENT(INOUT)   :: buffer
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: fock, density
       REAL(KIND=dp), INTENT(IN)                          :: state_energy
       LOGICAL, INTENT(OUT)                               :: restarted
+      REAL(dp), INTENT(IN), OPTIONAL                     :: density_aux(:, :), fock_aux(:, :)
 
       restarted = .FALSE.
       CALL qs_scf_subspace_buffer_clear(buffer)
-      CALL qs_scf_subspace_push(buffer, fock, density, state_energy, restarted)
+      CALL qs_scf_subspace_push(buffer, fock, density, state_energy, restarted, density_aux, fock_aux)
       IF (.NOT. restarted) RETURN
 
       buffer%coefficients = 0.0_dp
@@ -118,13 +121,16 @@ CONTAINS
 !> \param density Current input P that generated fock, with matching indices.
 !> \param state_energy ...
 !> \param pushed Whether the state was stored successfully.
+!> \param density_aux Optional replicated density coordinates for a separately represented term.
+!> \param fock_aux Conjugate potential for the same state; contributes SUM(density_aux*fock_aux) to Tr(PF).
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_subspace_push(buffer, fock, density, state_energy, pushed)
+   SUBROUTINE qs_scf_subspace_push(buffer, fock, density, state_energy, pushed, density_aux, fock_aux)
 
       TYPE(qs_scf_subspace_buffer_type), INTENT(INOUT)   :: buffer
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: fock, density
       REAL(KIND=dp), INTENT(IN)                          :: state_energy
       LOGICAL, INTENT(OUT)                               :: pushed
+      REAL(dp), INTENT(IN), OPTIONAL                     :: density_aux(:, :), fock_aux(:, :)
 
       LOGICAL                                            :: storage_valid
 
@@ -151,7 +157,20 @@ CONTAINS
          RETURN
       END IF
 
-      CALL push_paired_state(buffer, fock, density, state_energy, pushed)
+      CPASSERT(PRESENT(density_aux) .EQV. PRESENT(fock_aux))
+      IF (PRESENT(density_aux)) THEN
+         CPASSERT(ALL(SHAPE(density_aux) == SHAPE(fock_aux)))
+         IF (.NOT. ALLOCATED(buffer%density_aux)) THEN
+            CPASSERT(buffer%nstored == 0)
+            ALLOCATE (buffer%density_aux(SIZE(density_aux, 1), SIZE(density_aux, 2), buffer%nbuffer), &
+                      buffer%fock_aux(SIZE(density_aux, 1), SIZE(density_aux, 2), buffer%nbuffer), &
+                      buffer%combined_aux(SIZE(density_aux, 1), SIZE(density_aux, 2)))
+         END IF
+         CPASSERT(ALL(SHAPE(buffer%combined_aux) == SHAPE(density_aux)))
+      ELSE
+         CPASSERT(.NOT. ALLOCATED(buffer%density_aux))
+      END IF
+      CALL push_paired_state(buffer, fock, density, state_energy, pushed, density_aux, fock_aux)
       IF (.NOT. pushed) THEN
          buffer%last_status = simplex_qp_nonfinite_input
          RETURN
@@ -310,6 +329,9 @@ CONTAINS
             newest_pf = newest_pf + contribution
          END DO
       END DO
+      IF (ALLOCATED(buffer%density_aux)) THEN
+         newest_pf = newest_pf + SUM(buffer%density_aux(:, :, newest)*buffer%fock_aux(:, :, newest))
+      END IF
       IF (.NOT. ieee_is_finite(newest_energy) .OR. .NOT. ieee_is_finite(newest_pf)) THEN
          buffer%last_status = failure_status
          RETURN
@@ -442,13 +464,16 @@ CONTAINS
 !> \param density Current P.
 !> \param state_energy ...
 !> \param pushed Whether all scalar checks passed and the state was committed.
+!> \param density_aux Optional replicated density coordinates for a separately represented term.
+!> \param fock_aux Conjugate potential for the same state; contributes SUM(density_aux*fock_aux) to Tr(PF).
 ! **************************************************************************************************
-   SUBROUTINE push_paired_state(buffer, fock, density, state_energy, pushed)
+   SUBROUTINE push_paired_state(buffer, fock, density, state_energy, pushed, density_aux, fock_aux)
 
       TYPE(qs_scf_subspace_buffer_type), INTENT(INOUT)   :: buffer
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: fock, density
       REAL(KIND=dp), INTENT(IN)                          :: state_energy
       LOGICAL, INTENT(OUT)                               :: pushed
+      REAL(dp), INTENT(IN), OPTIONAL                     :: density_aux(:, :), fock_aux(:, :)
 
       INTEGER                                            :: icell, islot, ispin, target_slot
       LOGICAL                                            :: retained
@@ -468,12 +493,17 @@ CONTAINS
       old_current = 0.0_dp
 
       CALL paired_matrix_dot(density, fock, current_current)
+      IF (PRESENT(density_aux)) current_current = current_current + SUM(density_aux*fock_aux)
       IF (.NOT. ieee_is_finite(current_current)) RETURN
 
       DO islot = 1, buffer%nbuffer
          retained = buffer%generation(islot) > 0 .AND. islot /= target_slot
          IF (.NOT. retained) CYCLE
          CALL history_current_dot(buffer, islot, fock, density, old_current(islot), current_old(islot))
+         IF (PRESENT(density_aux)) THEN
+            old_current(islot) = old_current(islot) + SUM(buffer%density_aux(:, :, islot)*fock_aux)
+            current_old(islot) = current_old(islot) + SUM(density_aux*buffer%fock_aux(:, :, islot))
+         END IF
          IF (.NOT. ieee_is_finite(old_current(islot)) .OR. &
              .NOT. ieee_is_finite(current_old(islot))) RETURN
       END DO
@@ -485,6 +515,10 @@ CONTAINS
          END DO
       END DO
 
+      IF (PRESENT(density_aux)) THEN
+         buffer%density_aux(:, :, target_slot) = density_aux
+         buffer%fock_aux(:, :, target_slot) = fock_aux
+      END IF
       buffer%pf_metric(target_slot, :) = 0.0_dp
       buffer%pf_metric(:, target_slot) = 0.0_dp
       buffer%pf_metric(target_slot, target_slot) = current_current
@@ -606,6 +640,7 @@ CONTAINS
 
       INTEGER                                            :: icell, ispin
 
+      IF (ALLOCATED(buffer%combined_aux)) buffer%combined_aux(:, :) = 0.0_dp
       DO icell = 1, SIZE(buffer%combined_fock, 2)
          DO ispin = 1, SIZE(buffer%combined_fock, 1)
             CALL dbcsr_set(buffer%combined_fock(ispin, icell)%matrix, 0.0_dp)
@@ -628,6 +663,9 @@ CONTAINS
 
       INTEGER                                            :: icell, ispin
 
+      IF (ALLOCATED(buffer%combined_aux)) THEN
+         buffer%combined_aux(:, :) = buffer%combined_aux + coefficient*buffer%fock_aux(:, :, physical)
+      END IF
       DO icell = 1, SIZE(buffer%combined_fock, 2)
          DO ispin = 1, SIZE(buffer%combined_fock, 1)
             CALL dbcsr_add(buffer%combined_fock(ispin, icell)%matrix, &

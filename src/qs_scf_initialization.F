@@ -59,6 +59,8 @@ MODULE qs_scf_initialization
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE dft_plus_u,                      ONLY: lowdin_kp_init,&
+                                              lowdin_kp_initial_density
    USE hairy_probes,                    ONLY: AO_boundaries
    USE input_constants,                 ONLY: &
         broy_mix, cholesky_dbcsr, cholesky_inverse, cholesky_off, diag_block_davidson, &
@@ -1034,7 +1036,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, matrix_w_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -1227,8 +1229,20 @@ CONTAINS
       IF (dft_control%dft_plus_u) THEN
          IF (dft_control%plus_u_method_id == plus_u_lowdin) THEN
             IF (do_kpoints) THEN
-               CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp)
-               CALL diag_kp_smat(matrix_s_kp, kpoints, scf_env%scf_work1)
+               ! The active SCF environment is bound to qs_env only after first initialization.
+               IF (scf_env%method /= general_diag_method_nr .AND. scf_env%method /= ot_method_nr) THEN
+                  CALL cp_abort(__LOCATION__, &
+                                "Lowdin DFT+U with k-points requires STANDARD diagonalization or OT")
+               END IF
+               CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp, matrix_w_kp=matrix_w_kp)
+               IF (scf_control%use_ot) THEN
+                  IF (kpoints%use_real_wfn .OR. dft_control%restricted) THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "Lowdin DFT+U with k-point OT requires complex RKS/UKS wavefunctions")
+                  END IF
+               END IF
+               CALL diag_kp_smat(matrix_s_kp, kpoints, scf_env%scf_work1, lowdin_forces=ASSOCIATED(matrix_w_kp))
+               CALL lowdin_kp_init(qs_env)
             ELSE
                CALL get_qs_env(qs_env, matrix_s=matrix_s)
                IF (s_minus_half_available) THEN
@@ -1285,6 +1299,9 @@ CONTAINS
          ! it could be generalized for other cases, at the moment used only for core level spectroscopy
          ! initialize the density with the localized mos
          CALL xas_initialize_rho(qs_env, scf_env, scf_control)
+         IF (do_kpoints .AND. dft_control%dft_plus_u .AND. dft_control%plus_u_method_id == plus_u_lowdin) THEN
+            CALL lowdin_kp_initial_density(qs_env, scf_env%scf_work1(1))
+         END IF
       ELSE
          CALL scf_env_initial_rho_setup(scf_env, qs_env=qs_env, &
                                         scf_section=scf_section, scf_control=scf_control)
@@ -1343,10 +1360,12 @@ CONTAINS
       INTEGER                                            :: extrapolation_method_nr, handle, ispin, &
                                                             nmo, output_unit
       LOGICAL                                            :: do_harris, do_kpoints, orthogonal_wf
+      REAL(KIND=dp), POINTER                             :: auxiliary(:, :)
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(harris_type), POINTER                         :: harris_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1429,18 +1448,26 @@ CONTAINS
       END IF
 
       ! Some preparation for the mixing
+      NULLIFY (auxiliary)
+      IF (do_kpoints .AND. dft_control%dft_plus_u) THEN
+         IF (dft_control%plus_u_method_id == plus_u_lowdin) THEN
+            CALL lowdin_kp_initial_density(qs_env, scf_env%scf_work1(1))
+            CALL get_qs_env(qs_env, kpoints=kpoints)
+            auxiliary => kpoints%lowdin_q
+         END IF
+      END IF
       IF (scf_env%mixing_method > 1) THEN
          IF (dft_control%qs_control%gapw) THEN
             CALL get_qs_env(qs_env=qs_env, rho_atom_set=rho_atom)
             CALL mixing_init(scf_env%mixing_method, rho, scf_env%mixing_store, &
-                             para_env, rho_atom=rho_atom)
+                             para_env, rho_atom=rho_atom, auxiliary=auxiliary)
          ELSE IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
             CALL charge_mixing_init(scf_env%mixing_store)
          ELSE IF (dft_control%qs_control%semi_empirical) THEN
             CPABORT('SE Code not possible')
          ELSE
             CALL mixing_init(scf_env%mixing_method, rho, scf_env%mixing_store, &
-                             para_env)
+                             para_env, auxiliary=auxiliary)
          END IF
       END IF
 

@@ -152,7 +152,7 @@ CONTAINS
                IF (.NOT. (dft_control%smeagol_control%smeagol_enabled .AND. &
                           dft_control%smeagol_control%run_type == smeagol_runtype_emtransport)) THEN
                   ! if calculate forces, time to compute the w matrix
-                  CALL compute_matrix_w(qs_env, my_calc_forces)
+                  CALL compute_matrix_w(qs_env, my_calc_forces, include_lowdin_forces=my_calc_forces)
                END IF
             END IF
          END IF
