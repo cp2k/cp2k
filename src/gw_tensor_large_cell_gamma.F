@@ -1073,14 +1073,8 @@ CONTAINS
 
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
 
-      ! Marek : Reading of the W(w=0) potential for RTP
-      ! TODO : is the condition bs_env%all_W_exist sufficient for reading?
-      ! This block builds
-      ! bs_env%fm_W_MIC_freq_zero specifically for RT-BSE consumption (read by
-      ! rt_bse_linearized.F initialize_cohsex_selfenergy and by
-      ! rt_bse_ri_rs.F rt_bse_ri_rs_ensure_W0_grid). RT-BSE-specific compute
-      ! embedded in GW; left here because moving it would require keeping
-      ! fm_W_MIC_time alive past compute_W_MIC.
+      ! W^MIC(iω=0) for the post-GW consumers, built here because fm_W_MIC_time does not outlive
+      ! the W stage: RT-BSE reads its own restart file, PROPERTIES%BSE sums the W(iτ) just read.
       IF (bs_env%rtp_method == rtp_method_bse .OR. &
           bs_env%rtp_method == rtp_method_bse_linearized) THEN
          CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
@@ -1091,6 +1085,9 @@ CONTAINS
                'Read W^MIC(f=0) from file for freq. point  ', 1, ' /', 1, &
                ', Execution time', m_walltime() - t1, ' s'
          END IF
+      ELSE IF (bs_env%keep_W_freq_zero) THEN
+         ! no RTP file in a LRBSE-only run: W(iτ) was just read from the W_time files
+         CALL sum_W_MIC_freq_zero(bs_env, fm_W_MIC_time)
       END IF
 
       CALL timestop(handle)
@@ -1186,29 +1183,13 @@ CONTAINS
       CALL cp_cfm_release(cfm_V_sqrt_ikp)
       CALL dbcsr_deallocate_matrix_set(mat_chi_Gamma_tau)
 
-      ! Marek : Fourier transform W^MIC(itau) back to get it at a specific im.frequency point - iomega = 0
-      ! Same RT-BSE coupling as read_W_MIC_time.
+      ! W^MIC(iω=0) from W^MIC(iτ) for the post-GW consumers; the file is the RT-BSE restart's
       IF (bs_env%rtp_method == rtp_method_bse .OR. &
           bs_env%rtp_method == rtp_method_bse_linearized) THEN
-         t1 = m_walltime()
-         CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
-         ! Set to zero
-         CALL cp_fm_set_all(bs_env%fm_W_MIC_freq_zero, 0.0_dp)
-         ! Sum over all times
-         DO i_t = 1, bs_env%num_time_freq_points
-            ! Add the relevant structure with correct weight
-            CALL cp_fm_scale_and_add(1.0_dp, bs_env%fm_W_MIC_freq_zero, &
-                                     bs_env%time_frequency_grid%time_weights_at_zero_frequency(i_t), fm_W_MIC_time(i_t))
-         END DO
-         ! Done, save to file
+         CALL sum_W_MIC_freq_zero(bs_env, fm_W_MIC_time)
          CALL fm_write(bs_env%fm_W_MIC_freq_zero, 0, "W_freq_rtp", qs_env)
-         ! Report calculation
-         IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A,I11,A,I3,A,F10.1,A)') &
-               'Computed W(f=0,k) for k-point batch', &
-               1, ' /', 1, &
-               ', Execution time', m_walltime() - t1, ' s'
-         END IF
+      ELSE IF (bs_env%keep_W_freq_zero) THEN
+         CALL sum_W_MIC_freq_zero(bs_env, fm_W_MIC_time)
       END IF
 
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
@@ -1515,6 +1496,41 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE mat_ikp_from_mat_Gamma
+
+! **************************************************************************************************
+!> \brief W^MIC(iω=0) = Σ_τ w_τ(0) W^MIC(iτ) into bs_env%fm_W_MIC_freq_zero (created here)
+!> \param bs_env ...
+!> \param fm_W_MIC_time ...
+! **************************************************************************************************
+   SUBROUTINE sum_W_MIC_freq_zero(bs_env, fm_W_MIC_time)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_W_MIC_time
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'sum_W_MIC_freq_zero'
+
+      INTEGER                                            :: handle, i_t
+      REAL(KIND=dp)                                      :: t1
+
+      CALL timeset(routineN, handle)
+
+      t1 = m_walltime()
+      CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
+      CALL cp_fm_set_all(bs_env%fm_W_MIC_freq_zero, 0.0_dp)
+      DO i_t = 1, bs_env%num_time_freq_points
+         CALL cp_fm_scale_and_add(1.0_dp, bs_env%fm_W_MIC_freq_zero, &
+                                  bs_env%time_frequency_grid%time_weights_at_zero_frequency(i_t), &
+                                  fm_W_MIC_time(i_t))
+      END DO
+      IF (bs_env%unit_nr > 0) THEN
+         WRITE (bs_env%unit_nr, '(T2,A,I11,A,I3,A,F10.1,A)') &
+            'Computed W(f=0,k) for k-point batch', &
+            1, ' /', 1, &
+            ', Execution time', m_walltime() - t1, ' s'
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE sum_W_MIC_freq_zero
 
 ! **************************************************************************************************
 !> \brief ...

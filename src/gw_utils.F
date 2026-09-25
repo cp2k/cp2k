@@ -3422,16 +3422,16 @@ CONTAINS
       ! 2. consume a lot of memory and should not be kept until the quantity is
       !    deallocated in bs_env_release
 
-      ! nl_3c feeds only the AO-RI SEX self-energy (compute_3c_integrals); the RI-RS SEX
-      ! path never reads it, and AO-RI Hartree builds its own blocks. Retain iff AO-RI SEX.
-      retain_nl_3c = .FALSE.
+      ! nl_3c feeds compute_3c_integrals after the GW: the AO-RI RT-BSE SEX self-energy (the RI-RS
+      ! path never reads it, and AO-RI Hartree builds its own blocks) and PROPERTIES%BSE (keep_3c_nl).
+      retain_nl_3c = bs_env%keep_3c_nl
       IF (ASSOCIATED(bs_env%nl_3c%ij_list) .AND. (bs_env%rtp_method == rtp_method_bse)) THEN
          CALL rtbse_resolve_rirs_flag(qs_env, bs_env, rirs_kernel=rirs_kernel)
-         retain_nl_3c = .NOT. rirs_kernel
+         retain_nl_3c = retain_nl_3c .OR. .NOT. rirs_kernel
       END IF
 
       IF (retain_nl_3c) THEN
-         IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, *) "Retaining nl_3c for AO-RI RT-BSE self-energy"
+         IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, *) "Retaining nl_3c for a post-GW consumer"
       ELSE
          CALL neighbor_list_3c_destroy(bs_env%nl_3c)
       END IF

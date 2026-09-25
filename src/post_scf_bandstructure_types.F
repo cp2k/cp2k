@@ -347,6 +347,10 @@ MODULE post_scf_bandstructure_types
                                                       skip_chi
       ! rtbse_method (Stepan Marek)
       INTEGER                                      :: rtp_method = -1
+      ! what a post-GW consumer under PROPERTIES needs the GW to keep; set at init, read at the
+      ! W(0), de-init and release sites. Independent of the real-time method by design.
+      LOGICAL                                      :: keep_W_freq_zero = .FALSE., &
+                                                      keep_3c_nl = .FALSE.
 
       ! check-arrays and names for restarting
       LOGICAL, DIMENSION(:), ALLOCATABLE           :: read_chi, &
@@ -537,7 +541,8 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_Minv_Gamma)
       CALL cp_fm_release(bs_env%fm_chi_Gamma_freq)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq)
-      IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized) THEN
+      IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized &
+          .OR. bs_env%keep_W_freq_zero) THEN
          CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
       END IF
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_extra)

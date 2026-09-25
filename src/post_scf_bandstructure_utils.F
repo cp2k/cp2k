@@ -238,9 +238,46 @@ CONTAINS
 
       END SELECT
 
+      CALL read_bse_requirements(qs_env, bs_env)
+
       CALL timestop(handle)
 
    END SUBROUTINE create_and_init_bs_env
+
+! **************************************************************************************************
+!> \brief What PROPERTIES%BSE needs the GW to keep, and the three combinations it refuses at init
+!> \param qs_env ...
+!> \param bs_env ...
+! **************************************************************************************************
+   SUBROUTINE read_bse_requirements(qs_env, bs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_bse_requirements'
+
+      INTEGER                                            :: handle
+      LOGICAL                                            :: do_bse_props
+      TYPE(section_vals_type), POINTER                   :: bse_sec, input
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (bse_sec, input)
+      CALL get_qs_env(qs_env, input=input)
+      bse_sec => section_vals_get_subs_vals(input, "PROPERTIES%BSE", can_return_null=.TRUE.)
+      do_bse_props = .FALSE.
+      IF (ASSOCIATED(bse_sec)) CALL section_vals_get(bse_sec, explicit=do_bse_props)
+
+      IF (do_bse_props) THEN
+         IF (.NOT. bs_env%do_gw) CPABORT("PROPERTIES%BSE needs PROPERTIES%BANDSTRUCTURE%GW")
+         IF (bs_env%do_gw_ri_rs) CPABORT("PROPERTIES%BSE needs the RI-AO GW: remove &RI_RS")
+         IF (bs_env%do_periodic) CPABORT("PROPERTIES%BSE is non-periodic, Gamma only")
+      END IF
+      bs_env%keep_W_freq_zero = do_bse_props
+      bs_env%keep_3c_nl = do_bse_props
+
+      CALL timestop(handle)
+
+   END SUBROUTINE read_bse_requirements
 
 ! **************************************************************************************************
 !> \brief ...
