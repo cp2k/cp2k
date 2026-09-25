@@ -76,15 +76,11 @@ MODULE kpoint_methods
                                               k_grid_to_cell_work_type,&
                                               lattice_fft_shape,&
                                               regular_kpoint_grid
-   USE kpoint_types,                    ONLY: get_kpoint_info,&
-                                              kind_rotmat_type,&
-                                              kpoint_env_create,&
-                                              kpoint_env_p_type,&
-                                              kpoint_env_type,&
-                                              kpoint_sym_create,&
-                                              kpoint_sym_type,&
-                                              kpoint_type
+   USE kpoint_types,                    ONLY: &
+        find_kpoint_rotation_slot, get_kpoint_info, kind_rotmat_type, kpoint_env_create, &
+        kpoint_env_p_type, kpoint_env_type, kpoint_sym_create, kpoint_sym_type, kpoint_type
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
+                                              LOCAL_GEMM_PU_HOST,&
                                               local_gemm_ctxt_type
    USE mathconstants,                   ONLY: twopi
    USE mathlib,                         ONLY: inv_3x3
@@ -133,6 +129,23 @@ MODULE kpoint_methods
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: symmetry_sign
    END TYPE kp_transform_plan_type
 
+   ! Non-owning view of one symmetry contribution; valid while kpoint metadata is unchanged.
+   TYPE :: kp_symmetry_op_type
+      TYPE(kind_rotmat_type), DIMENSION(:), POINTER :: kind_rot => NULL()
+      INTEGER, DIMENSION(:), POINTER :: atom_map => NULL(), atom_kind => NULL()
+      INTEGER, DIMENSION(:, :), POINTER :: cell_shift => NULL()
+      REAL(KIND=dp), DIMENSION(3) :: xkp = 0.0_dp
+      LOGICAL :: time_reversal = .FALSE., identity = .FALSE., redistribute = .FALSE.
+   END TYPE kp_symmetry_op_type
+
+   ! Non-owning operation metadata and owned, group-local density contributions.
+   TYPE :: kp_density_group_type
+      TYPE(kp_symmetry_op_type) :: op
+      LOGICAL :: reverse_phase = .FALSE.
+      INTEGER, ALLOCATABLE :: inverse(:), ikp(:)
+      REAL(KIND=dp), ALLOCATABLE :: xkp(:, :), weight(:)
+   END TYPE kp_density_group_type
+
    PUBLIC :: kpoint_initialize, kpoint_env_initialize, kpoint_initialize_mos, kpoint_initialize_mo_set
    PUBLIC :: kpoint_init_cell_index, kpoint_set_mo_occupation
    PUBLIC :: kpoint_smearing_edge_status
@@ -156,6 +169,207 @@ MODULE kpoint_methods
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Index full-grid links by irreducible k-point without rescanning the complete mesh.
+!> \param representative irreducible representative of each full-grid link
+!> \param nkp number of irreducible k-points
+!> \param start offsets into order for each irreducible k-point
+!> \param order full-grid link indices grouped by irreducible representative
+! **************************************************************************************************
+   SUBROUTINE kp_link_index_create(representative, nkp, start, order)
+
+      INTEGER, INTENT(IN)                                :: representative(:), nkp
+      INTEGER, ALLOCATABLE, INTENT(OUT)                  :: start(:), order(:)
+
+      INTEGER                                            :: i, ik
+      INTEGER, ALLOCATABLE                               :: count(:), next(:)
+
+      ALLOCATE (COUNT(nkp), next(nkp), start(nkp + 1), order(SIZE(representative)))
+      COUNT(:) = 0
+      DO i = 1, SIZE(representative)
+         ik = representative(i)
+         CPASSERT(ik >= 1 .AND. ik <= nkp)
+         COUNT(ik) = COUNT(ik) + 1
+      END DO
+      start(1) = 1
+      DO ik = 1, nkp
+         start(ik + 1) = start(ik) + COUNT(ik)
+         next(ik) = start(ik)
+      END DO
+      DO i = 1, SIZE(representative)
+         ik = representative(i)
+         order(next(ik)) = i
+         next(ik) = next(ik) + 1
+      END DO
+
+   END SUBROUTINE kp_link_index_create
+
+! **************************************************************************************************
+!> \brief Precompute lattice representations of crystallographic rotations.
+!> \param crys_sym crystallographic symmetry data
+!> \param cell simulation cell
+!> \param srot scaled-coordinate rotations
+!> \param frot integer direct-lattice rotations
+!> \param krot integer reciprocal-lattice rotations
+! **************************************************************************************************
+   SUBROUTINE kp_rotation_cache_create(crys_sym, cell, srot, frot, krot)
+
+      TYPE(csym_type), INTENT(IN)                        :: crys_sym
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), ALLOCATABLE, INTENT(OUT)            :: srot(:, :, :)
+      INTEGER, ALLOCATABLE, INTENT(OUT)                  :: frot(:, :, :), krot(:, :, :)
+
+      INTEGER                                            :: ic
+
+      ALLOCATE (srot(3, 3, crys_sym%nrtot), frot(3, 3, crys_sym%nrtot), krot(3, 3, crys_sym%nrtot))
+      DO ic = 1, crys_sym%nrtot
+         srot(:, :, ic) = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(:, :, ic), cell%hmat))
+         frot(:, :, ic) = NINT(srot(:, :, ic))
+         krot(:, :, ic) = NINT(TRANSPOSE(inv_3x3(REAL(frot(:, :, ic), KIND=dp))))
+      END DO
+
+   END SUBROUTINE kp_rotation_cache_create
+
+! **************************************************************************************************
+!> \brief Import symmetry metadata for one irreducible k-point.
+!> \param kpoint k-point environment
+!> \param crys_sym crystallographic symmetry data
+!> \param ik irreducible k-point index
+!> \param natom number of atoms
+!> \param scoord scaled atomic coordinates
+!> \param agauge periodic-image gauge of each atom
+!> \param eps_kpoint reciprocal-space matching tolerance
+!> \param link_start offsets into link_order
+!> \param link_order full-grid links grouped by irreducible representative
+!> \param srot_cache scaled-coordinate rotations
+!> \param frot_cache integer direct-lattice rotations
+!> \param krot_cache integer reciprocal-lattice rotations
+! **************************************************************************************************
+   SUBROUTINE kp_symmetry_import(kpoint, crys_sym, ik, natom, scoord, agauge, eps_kpoint, &
+                                 link_start, link_order, srot_cache, frot_cache, krot_cache)
+
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(csym_type), INTENT(IN)                        :: crys_sym
+      INTEGER, INTENT(IN)                                :: ik, natom
+      REAL(KIND=dp), INTENT(IN)                          :: scoord(:, :)
+      INTEGER, INTENT(IN)                                :: agauge(:, :)
+      REAL(KIND=dp), INTENT(IN)                          :: eps_kpoint
+      INTEGER, ALLOCATABLE, INTENT(IN)                   :: link_start(:), link_order(:)
+      REAL(KIND=dp), ALLOCATABLE, INTENT(IN)             :: srot_cache(:, :, :)
+      INTEGER, ALLOCATABLE, INTENT(IN)                   :: frot_cache(:, :, :), krot_cache(:, :, :)
+
+      INTEGER                                            :: ic, ilink, ir, ira, is, isign, j, nr, ns
+      INTEGER, DIMENSION(3, 3)                           :: frot, krot
+      REAL(KIND=dp), DIMENSION(3)                        :: diff, kgvec, srot
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: srotmat
+      TYPE(kpoint_sym_type), POINTER                     :: kpsym
+
+      NULLIFY (kpoint%kp_sym(ik)%kpoint_sym)
+      CALL kpoint_sym_create(kpoint%kp_sym(ik)%kpoint_sym)
+      kpsym => kpoint%kp_sym(ik)%kpoint_sym
+      IF (crys_sym%nrtot <= 0 .OR. crys_sym%fullgrid .OR. &
+          crys_sym%istriz /= 1 .OR. crys_sym%inversion_only) RETURN
+
+      CPASSERT(ALLOCATED(link_start) .AND. ALLOCATED(link_order))
+      CPASSERT(ALLOCATED(srot_cache) .AND. ALLOCATED(frot_cache) .AND. ALLOCATED(krot_cache))
+      kpsym%nwght = NINT(crys_sym%wkpoint(ik))
+      ns = kpsym%nwght
+      IF (ns <= 1) RETURN
+
+      ! Count mappings not already recorded by kpoint_gen.
+      DO ilink = link_start(ik), link_start(ik + 1) - 1
+         is = link_order(ilink)
+         DO ic = 1, crys_sym%nrtot
+            krot(1:3, 1:3) = krot_cache(1:3, 1:3, ic)
+            DO isign = 1, 2
+               ir = MERGE(crys_sym%ibrot(ic), -crys_sym%ibrot(ic), isign == 1)
+               IF (ir == crys_sym%kpop(is)) CYCLE
+               kgvec(1:3) = crys_sym%kpmesh(1:3, is) - &
+                            MATMUL(REAL(MERGE(krot(1:3, 1:3), -krot(1:3, 1:3), isign == 1), KIND=dp), &
+                                   kpoint%xkp(1:3, ik))
+               diff(1:3) = kgvec(1:3) - ANINT(kgvec(1:3))
+               IF (ALL(ABS(diff(1:3)) < eps_kpoint)) ns = ns + 1
+            END DO
+         END DO
+      END DO
+
+      kpsym%apply_symmetry = .TRUE.
+      ALLOCATE (kpsym%rot(3, 3, ns), kpsym%xkp(3, ns), kpsym%rotp(ns))
+      ALLOCATE (kpsym%f0(natom, ns), kpsym%fcell(3, natom, ns), kpsym%fcell_gauge(3, natom, ns))
+      ALLOCATE (kpsym%phase_mode(ns), kpsym%kgphase(natom, ns))
+      kpsym%phase_mode(:) = 0
+
+      nr = 0
+      DO ilink = link_start(ik), link_start(ik + 1) - 1
+         is = link_order(ilink)
+         nr = nr + 1
+         ir = crys_sym%kpop(is)
+         ira = ABS(ir)
+         DO ic = 1, crys_sym%nrtot
+            IF (crys_sym%ibrot(ic) /= ira) CYCLE
+            kpsym%rotp(nr) = ir
+            kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ic)
+            srotmat(1:3, 1:3) = srot_cache(1:3, 1:3, ic)
+            frot(1:3, 1:3) = frot_cache(1:3, 1:3, ic)
+            kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
+            krot(1:3, 1:3) = krot_cache(1:3, 1:3, ic)
+            IF (ir < 0) krot(1:3, 1:3) = -krot(1:3, 1:3)
+            kgvec(1:3) = kpsym%xkp(1:3, nr) - &
+                         MATMUL(REAL(krot(1:3, 1:3), KIND=dp), kpoint%xkp(1:3, ik))
+            kgvec(1:3) = ANINT(kgvec(1:3))
+            kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
+            DO j = 1, natom
+               srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
+               kpsym%fcell(1:3, j, nr) = NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr)))
+               kpsym%fcell_gauge(1:3, j, nr) = kpsym%fcell(1:3, j, nr) + &
+                                               MATMUL(frot, agauge(1:3, j)) - &
+                                               agauge(1:3, kpsym%f0(j, nr))
+               kpsym%kgphase(j, nr) = DOT_PRODUCT(kgvec(1:3), &
+                                                  scoord(1:3, j) + REAL(agauge(1:3, j), KIND=dp))
+            END DO
+            EXIT
+         END DO
+         CPASSERT(ic <= crys_sym%nrtot)
+      END DO
+
+      ! Complete each star with equivalent operations not selected by kpoint_gen.
+      DO ilink = link_start(ik), link_start(ik + 1) - 1
+         is = link_order(ilink)
+         DO ic = 1, crys_sym%nrtot
+            srotmat(1:3, 1:3) = srot_cache(1:3, 1:3, ic)
+            frot(1:3, 1:3) = frot_cache(1:3, 1:3, ic)
+            krot(1:3, 1:3) = krot_cache(1:3, 1:3, ic)
+            DO isign = 1, 2
+               ir = MERGE(crys_sym%ibrot(ic), -crys_sym%ibrot(ic), isign == 1)
+               IF (ir == crys_sym%kpop(is)) CYCLE
+               kgvec(1:3) = crys_sym%kpmesh(1:3, is) - &
+                            MATMUL(REAL(MERGE(krot(1:3, 1:3), -krot(1:3, 1:3), isign == 1), KIND=dp), &
+                                   kpoint%xkp(1:3, ik))
+               diff(1:3) = kgvec(1:3) - ANINT(kgvec(1:3))
+               IF (.NOT. ALL(ABS(diff(1:3)) < eps_kpoint)) CYCLE
+               nr = nr + 1
+               kpsym%rotp(nr) = ir
+               kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ic)
+               kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
+               kgvec(1:3) = ANINT(kgvec(1:3))
+               kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
+               DO j = 1, natom
+                  srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
+                  kpsym%fcell(1:3, j, nr) = NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr)))
+                  kpsym%fcell_gauge(1:3, j, nr) = kpsym%fcell(1:3, j, nr) + &
+                                                  MATMUL(frot, agauge(1:3, j)) - &
+                                                  agauge(1:3, kpsym%f0(j, nr))
+                  kpsym%kgphase(j, nr) = DOT_PRODUCT(kgvec(1:3), &
+                                                     scoord(1:3, j) + REAL(agauge(1:3, j), KIND=dp))
+               END DO
+            END DO
+         END DO
+      END DO
+      CPASSERT(nr == ns)
+      kpsym%nwred = nr
+
+   END SUBROUTINE kp_symmetry_import
+
+! **************************************************************************************************
 !> \brief Generate the kpoints and initialize the kpoint environment
 !> \param kpoint       The kpoint environment
 !> \param particle_set Particle types and coordinates
@@ -169,20 +383,19 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kpoint_initialize'
 
-      INTEGER                                            :: handle, i, ic, ik, iounit, ir, ira, is, &
-                                                            isign, j, natom, nkind, nr, ns
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atype
+      INTEGER                                            :: handle, i, ik, iounit, j, natom, nkind, &
+                                                            ns
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atype, kp_link_order, kp_link_start
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: agauge
-      INTEGER, DIMENSION(3, 3)                           :: frot, krot
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: frot_cache, krot_cache
       LOGICAL                                            :: spez
       REAL(KIND=dp)                                      :: eps_kpoint, wsum
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: coord, scoord
-      REAL(KIND=dp), DIMENSION(3)                        :: diff, kgvec, r_pbc, scoord_pbc, srot
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: srotmat
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: srot_cache
+      REAL(KIND=dp), DIMENSION(3)                        :: r_pbc, scoord_pbc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp_full
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp_full
       TYPE(csym_type)                                    :: crys_sym
-      TYPE(kpoint_sym_type), POINTER                     :: kpsym
 
       CALL timeset(routineN, handle)
 
@@ -255,6 +468,11 @@ CONTAINS
             kpoint%xkp(1:3, ik) = crys_sym%xkpoint(1:3, ik)
             kpoint%wkp(ik) = crys_sym%wkpoint(ik)/wsum
          END DO
+         IF (crys_sym%nrtot > 0 .AND. .NOT. crys_sym%fullgrid .AND. &
+             crys_sym%istriz == 1 .AND. .NOT. crys_sym%inversion_only) THEN
+            CALL kp_link_index_create(crys_sym%kplink(2, :), kpoint%nkp, kp_link_start, kp_link_order)
+            CALL kp_rotation_cache_create(crys_sym, cell, srot_cache, frot_cache, krot_cache)
+         END IF
 
          eps_kpoint = MAX(1.e-12_dp, 10.0_dp*kpoint%eps_geo)
          ! print output
@@ -264,125 +482,8 @@ CONTAINS
          ! transfer symmetry information
          ALLOCATE (kpoint%kp_sym(kpoint%nkp))
          DO ik = 1, kpoint%nkp
-            NULLIFY (kpoint%kp_sym(ik)%kpoint_sym)
-            CALL kpoint_sym_create(kpoint%kp_sym(ik)%kpoint_sym)
-            kpsym => kpoint%kp_sym(ik)%kpoint_sym
-            IF (crys_sym%nrtot > 0 .AND. .NOT. crys_sym%fullgrid .AND. &
-                crys_sym%istriz == 1 .AND. .NOT. crys_sym%inversion_only) THEN
-               ! set up the symmetrization information
-               kpsym%nwght = NINT(crys_sym%wkpoint(ik))
-               ns = kpsym%nwght
-               !
-               IF (ns > 1) THEN
-                  DO is = 1, SIZE(crys_sym%kplink, 2)
-                     IF (crys_sym%kplink(2, is) == ik) THEN
-                        DO ic = 1, crys_sym%nrtot
-                           srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
-                           frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
-                           krot(1:3, 1:3) = NINT(TRANSPOSE(inv_3x3(REAL(frot(1:3, 1:3), KIND=dp))))
-                           DO isign = 1, 2
-                              ir = MERGE(crys_sym%ibrot(ic), -crys_sym%ibrot(ic), isign == 1)
-                              IF (ir == crys_sym%kpop(is)) CYCLE
-                              kgvec(1:3) = crys_sym%kpmesh(1:3, is) - &
-                                           MATMUL(REAL(MERGE(krot(1:3, 1:3), -krot(1:3, 1:3), &
-                                                             isign == 1), KIND=dp), &
-                                                  kpoint%xkp(1:3, ik))
-                              diff(1:3) = kgvec(1:3) - ANINT(kgvec(1:3))
-                              IF (ALL(ABS(diff(1:3)) < eps_kpoint)) ns = ns + 1
-                           END DO
-                        END DO
-                     END IF
-                  END DO
-                  kpsym%apply_symmetry = .TRUE.
-                  natom = SIZE(particle_set)
-                  ALLOCATE (kpsym%rot(3, 3, ns))
-                  ALLOCATE (kpsym%xkp(3, ns))
-                  ALLOCATE (kpsym%rotp(ns))
-                  ALLOCATE (kpsym%f0(natom, ns))
-                  ALLOCATE (kpsym%fcell(3, natom, ns))
-                  ALLOCATE (kpsym%fcell_gauge(3, natom, ns))
-                  ALLOCATE (kpsym%phase_mode(ns))
-                  kpsym%phase_mode = 0
-                  ALLOCATE (kpsym%kgphase(natom, ns))
-                  nr = 0
-                  DO is = 1, SIZE(crys_sym%kplink, 2)
-                     IF (crys_sym%kplink(2, is) == ik) THEN
-                        nr = nr + 1
-                        ir = crys_sym%kpop(is)
-                        ira = ABS(ir)
-                        DO ic = 1, crys_sym%nrtot
-                           IF (crys_sym%ibrot(ic) == ira) THEN
-                              kpsym%rotp(nr) = ir
-                              kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ic)
-                              srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
-                              frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
-                              kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
-                              krot(1:3, 1:3) = NINT(TRANSPOSE(inv_3x3(REAL(frot(1:3, 1:3), KIND=dp))))
-                              IF (ir < 0) krot(1:3, 1:3) = -krot(1:3, 1:3)
-                              kgvec(1:3) = kpsym%xkp(1:3, nr) - &
-                                           MATMUL(REAL(krot(1:3, 1:3), KIND=dp), &
-                                                  kpoint%xkp(1:3, ik))
-                              kgvec(1:3) = ANINT(kgvec(1:3))
-                              kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
-                              DO j = 1, natom
-                                 srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
-                                 kpsym%fcell(1:3, j, nr) = &
-                                    NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr)))
-                                 kpsym%fcell_gauge(1:3, j, nr) = &
-                                    NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
-                                    MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
-                                    agauge(1:3, kpsym%f0(j, nr))
-                                 kpsym%kgphase(j, nr) = DOT_PRODUCT(kgvec(1:3), &
-                                                                    scoord(1:3, j) + &
-                                                                    REAL(agauge(1:3, j), KIND=dp))
-                              END DO
-                              EXIT
-                           END IF
-                        END DO
-                        CPASSERT(ic <= crys_sym%nrtot)
-                     END IF
-                  END DO
-                  DO is = 1, SIZE(crys_sym%kplink, 2)
-                     IF (crys_sym%kplink(2, is) == ik) THEN
-                        DO ic = 1, crys_sym%nrtot
-                           srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
-                           frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
-                           krot(1:3, 1:3) = NINT(TRANSPOSE(inv_3x3(REAL(frot(1:3, 1:3), KIND=dp))))
-                           DO isign = 1, 2
-                              ir = MERGE(crys_sym%ibrot(ic), -crys_sym%ibrot(ic), isign == 1)
-                              IF (ir == crys_sym%kpop(is)) CYCLE
-                              kgvec(1:3) = crys_sym%kpmesh(1:3, is) - &
-                                           MATMUL(REAL(MERGE(krot(1:3, 1:3), -krot(1:3, 1:3), &
-                                                             isign == 1), KIND=dp), &
-                                                  kpoint%xkp(1:3, ik))
-                              diff(1:3) = kgvec(1:3) - ANINT(kgvec(1:3))
-                              IF (ALL(ABS(diff(1:3)) < eps_kpoint)) THEN
-                                 nr = nr + 1
-                                 kpsym%rotp(nr) = ir
-                                 kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ic)
-                                 kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
-                                 kgvec(1:3) = ANINT(kgvec(1:3))
-                                 kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
-                                 DO j = 1, natom
-                                    srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
-                                    kpsym%fcell(1:3, j, nr) = &
-                                       NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr)))
-                                    kpsym%fcell_gauge(1:3, j, nr) = &
-                                       NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
-                                       MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
-                                       agauge(1:3, kpsym%f0(j, nr))
-                                    kpsym%kgphase(j, nr) = DOT_PRODUCT(kgvec(1:3), &
-                                                                       scoord(1:3, j) + &
-                                                                       REAL(agauge(1:3, j), KIND=dp))
-                                 END DO
-                              END IF
-                           END DO
-                        END DO
-                     END IF
-                  END DO
-                  kpsym%nwred = nr
-               END IF
-            END IF
+            CALL kp_symmetry_import(kpoint, crys_sym, ik, natom, scoord, agauge, eps_kpoint, &
+                                    kp_link_start, kp_link_order, srot_cache, frot_cache, krot_cache)
          END DO
          IF (kpoint%symmetry) THEN
             nkind = MAXVAL(atype)
@@ -478,6 +579,11 @@ CONTAINS
                kpoint%xkp(1:3, ik) = crys_sym%xkpoint(1:3, ik)
                kpoint%wkp(ik) = crys_sym%wkpoint(ik)/wsum
             END DO
+            IF (crys_sym%nrtot > 0 .AND. .NOT. crys_sym%fullgrid .AND. &
+                crys_sym%istriz == 1 .AND. .NOT. crys_sym%inversion_only) THEN
+               CALL kp_link_index_create(crys_sym%kplink(2, :), kpoint%nkp, kp_link_start, kp_link_order)
+               CALL kp_rotation_cache_create(crys_sym, cell, srot_cache, frot_cache, krot_cache)
+            END IF
 
             eps_kpoint = MAX(1.e-12_dp, 10.0_dp*kpoint%eps_geo)
             CALL print_crys_symmetry(crys_sym)
@@ -485,122 +591,8 @@ CONTAINS
 
             ALLOCATE (kpoint%kp_sym(kpoint%nkp))
             DO ik = 1, kpoint%nkp
-               NULLIFY (kpoint%kp_sym(ik)%kpoint_sym)
-               CALL kpoint_sym_create(kpoint%kp_sym(ik)%kpoint_sym)
-               kpsym => kpoint%kp_sym(ik)%kpoint_sym
-               IF (crys_sym%nrtot > 0 .AND. .NOT. crys_sym%fullgrid .AND. &
-                   crys_sym%istriz == 1 .AND. .NOT. crys_sym%inversion_only) THEN
-                  kpsym%nwght = NINT(crys_sym%wkpoint(ik))
-                  ns = kpsym%nwght
-                  IF (ns > 1) THEN
-                     DO is = 1, SIZE(crys_sym%kplink, 2)
-                        IF (crys_sym%kplink(2, is) == ik) THEN
-                           DO ic = 1, crys_sym%nrtot
-                              srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
-                              frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
-                              krot(1:3, 1:3) = NINT(TRANSPOSE(inv_3x3(REAL(frot(1:3, 1:3), KIND=dp))))
-                              DO isign = 1, 2
-                                 ir = MERGE(crys_sym%ibrot(ic), -crys_sym%ibrot(ic), isign == 1)
-                                 IF (ir == crys_sym%kpop(is)) CYCLE
-                                 kgvec(1:3) = crys_sym%kpmesh(1:3, is) - &
-                                              MATMUL(REAL(MERGE(krot(1:3, 1:3), -krot(1:3, 1:3), &
-                                                                isign == 1), KIND=dp), &
-                                                     kpoint%xkp(1:3, ik))
-                                 diff(1:3) = kgvec(1:3) - ANINT(kgvec(1:3))
-                                 IF (ALL(ABS(diff(1:3)) < eps_kpoint)) ns = ns + 1
-                              END DO
-                           END DO
-                        END IF
-                     END DO
-                     kpsym%apply_symmetry = .TRUE.
-                     ALLOCATE (kpsym%rot(3, 3, ns))
-                     ALLOCATE (kpsym%xkp(3, ns))
-                     ALLOCATE (kpsym%rotp(ns))
-                     ALLOCATE (kpsym%f0(natom, ns))
-                     ALLOCATE (kpsym%fcell(3, natom, ns))
-                     ALLOCATE (kpsym%fcell_gauge(3, natom, ns))
-                     ALLOCATE (kpsym%phase_mode(ns))
-                     kpsym%phase_mode = 0
-                     ALLOCATE (kpsym%kgphase(natom, ns))
-                     nr = 0
-                     DO is = 1, SIZE(crys_sym%kplink, 2)
-                        IF (crys_sym%kplink(2, is) == ik) THEN
-                           nr = nr + 1
-                           ir = crys_sym%kpop(is)
-                           ira = ABS(ir)
-                           DO ic = 1, crys_sym%nrtot
-                              IF (crys_sym%ibrot(ic) == ira) THEN
-                                 kpsym%rotp(nr) = ir
-                                 kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ic)
-                                 srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
-                                 frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
-                                 kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
-                                 krot(1:3, 1:3) = NINT(TRANSPOSE(inv_3x3(REAL(frot(1:3, 1:3), KIND=dp))))
-                                 IF (ir < 0) krot(1:3, 1:3) = -krot(1:3, 1:3)
-                                 kgvec(1:3) = kpsym%xkp(1:3, nr) - &
-                                              MATMUL(REAL(krot(1:3, 1:3), KIND=dp), &
-                                                     kpoint%xkp(1:3, ik))
-                                 kgvec(1:3) = ANINT(kgvec(1:3))
-                                 kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
-                                 DO j = 1, natom
-                                    srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
-                                    kpsym%fcell(1:3, j, nr) = &
-                                       NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr)))
-                                    kpsym%fcell_gauge(1:3, j, nr) = &
-                                       NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
-                                       MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
-                                       agauge(1:3, kpsym%f0(j, nr))
-                                    kpsym%kgphase(j, nr) = DOT_PRODUCT(kgvec(1:3), &
-                                                                       scoord(1:3, j) + &
-                                                                       REAL(agauge(1:3, j), KIND=dp))
-                                 END DO
-                                 EXIT
-                              END IF
-                           END DO
-                           CPASSERT(ic <= crys_sym%nrtot)
-                        END IF
-                     END DO
-                     DO is = 1, SIZE(crys_sym%kplink, 2)
-                        IF (crys_sym%kplink(2, is) == ik) THEN
-                           DO ic = 1, crys_sym%nrtot
-                              srotmat = MATMUL(cell%h_inv, MATMUL(crys_sym%rt(1:3, 1:3, ic), cell%hmat))
-                              frot(1:3, 1:3) = NINT(srotmat(1:3, 1:3))
-                              krot(1:3, 1:3) = NINT(TRANSPOSE(inv_3x3(REAL(frot(1:3, 1:3), KIND=dp))))
-                              DO isign = 1, 2
-                                 ir = MERGE(crys_sym%ibrot(ic), -crys_sym%ibrot(ic), isign == 1)
-                                 IF (ir == crys_sym%kpop(is)) CYCLE
-                                 kgvec(1:3) = crys_sym%kpmesh(1:3, is) - &
-                                              MATMUL(REAL(MERGE(krot(1:3, 1:3), -krot(1:3, 1:3), &
-                                                                isign == 1), KIND=dp), &
-                                                     kpoint%xkp(1:3, ik))
-                                 diff(1:3) = kgvec(1:3) - ANINT(kgvec(1:3))
-                                 IF (ALL(ABS(diff(1:3)) < eps_kpoint)) THEN
-                                    nr = nr + 1
-                                    kpsym%rotp(nr) = ir
-                                    kpsym%rot(1:3, 1:3, nr) = crys_sym%rt(1:3, 1:3, ic)
-                                    kpsym%xkp(1:3, nr) = crys_sym%kpmesh(1:3, is)
-                                    kgvec(1:3) = ANINT(kgvec(1:3))
-                                    kpsym%f0(1:natom, nr) = crys_sym%f0(1:natom, ic)
-                                    DO j = 1, natom
-                                       srot(1:3) = MATMUL(srotmat, scoord(1:3, j)) + crys_sym%vt(1:3, ic)
-                                       kpsym%fcell(1:3, j, nr) = &
-                                          NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr)))
-                                       kpsym%fcell_gauge(1:3, j, nr) = &
-                                          NINT(srot(1:3) - scoord(1:3, kpsym%f0(j, nr))) + &
-                                          MATMUL(frot(1:3, 1:3), agauge(1:3, j)) - &
-                                          agauge(1:3, kpsym%f0(j, nr))
-                                       kpsym%kgphase(j, nr) = DOT_PRODUCT(kgvec(1:3), &
-                                                                          scoord(1:3, j) + &
-                                                                          REAL(agauge(1:3, j), KIND=dp))
-                                    END DO
-                                 END IF
-                              END DO
-                           END DO
-                        END IF
-                     END DO
-                     kpsym%nwred = nr
-                  END IF
-               END IF
+               CALL kp_symmetry_import(kpoint, crys_sym, ik, natom, scoord, agauge, eps_kpoint, &
+                                       kp_link_start, kp_link_order, srot_cache, frot_cache, krot_cache)
             END DO
             nkind = MAXVAL(atype)
             ns = crys_sym%nrtot
@@ -2297,18 +2289,13 @@ CONTAINS
       INTEGER                                            :: handle, ic, ik, ikp, ispin, kplocal, nc, &
                                                             nimg, nkp, nspin
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: aux_fit, do_symmetric, local, real_only, &
-                                                            use_grouped
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
-      TYPE(copy_info_type), ALLOCATABLE, &
-         DIMENSION(:, :, :)                              :: info
+      LOGICAL                                            :: aux_fit, do_symmetric, local, &
+                                                            regular_grid_done, &
+                                                            regular_grid_eligible
       TYPE(cp_fm_p_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: source
-      TYPE(cp_fm_type)                                   :: fmdummy
-      TYPE(cp_fm_type), POINTER                          :: matrix
       TYPE(dbcsr_p_type), DIMENSION(2)                   :: components
-      TYPE(dbcsr_type), POINTER                          :: cpmat, rpmat, scpmat, srpmat
+      TYPE(dbcsr_type), POINTER                          :: cpmat, rpmat
       TYPE(kp_transform_plan_type)                       :: transform_plan
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -2333,17 +2320,10 @@ CONTAINS
                         matrix_type=MERGE(dbcsr_type_symmetric, dbcsr_type_no_symmetry, do_symmetric))
       CALL cp_dbcsr_alloc_block_from_nbl(rpmat, sab_nl)
       CALL dbcsr_set(rpmat, 0.0_dp)
-      ALLOCATE (cpmat)
-      CALL dbcsr_create(cpmat, template=tempmat, &
-                        matrix_type=MERGE(dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, do_symmetric))
-      CALL cp_dbcsr_alloc_block_from_nbl(cpmat, sab_nl)
-      CALL dbcsr_set(cpmat, 0.0_dp)
-      NULLIFY (srpmat, scpmat)
+      NULLIFY (cpmat)
       components(1)%matrix => rpmat
-      components(2)%matrix => cpmat
 
-      CALL get_kpoint_info(kpoint, nkp=nkp, xkp=xkp, wkp=wkp, &
-                           cell_to_index=cell_to_index)
+      CALL get_kpoint_info(kpoint, nkp=nkp, cell_to_index=cell_to_index)
       IF (PRESENT(overlap_rs)) THEN
          CALL calibrate_symmetry_phases(kpoint, overlap_rs, tempmat, sab_nl, cell_to_index)
       END IF
@@ -2356,7 +2336,6 @@ CONTAINS
       nspin = SIZE(kp%mos, 2)
       nc = SIZE(kp%mos, 1)
       nimg = SIZE(denmat, 2)
-      real_only = (nc == 1)
       CALL kp_transform_plan_create(transform_plan, sab_nl, cell_to_index, nimg, &
                                     group_entries=.TRUE.)
 
@@ -2388,101 +2367,538 @@ CONTAINS
       IF (local) THEN
          CPASSERT(kpoint%kp_range(1) == 1 .AND. kplocal == nkp)
       END IF
-      ! Image-wise accumulation needs fewer images than k-points, compatible FM
-      ! layouts and no spatial rotations. The one-rank case needs no redistribution.
-      use_grouped = nimg < nkp
+      ! The regular-grid route is an optional specialization without spatial rotations.
+      ! The batched block transform handles all remaining cases.
+      regular_grid_eligible = nimg < nkp
       IF (ASSOCIATED(kpoint%index_to_cell)) THEN
-         use_grouped = use_grouped .AND. nimg <= SIZE(kpoint%index_to_cell, 2)
+         regular_grid_eligible = regular_grid_eligible .AND. nimg <= SIZE(kpoint%index_to_cell, 2)
       ELSE
-         use_grouped = .FALSE.
+         regular_grid_eligible = .FALSE.
       END IF
-      IF (use_grouped) THEN
+      IF (regular_grid_eligible) THEN
          DO ik = 1, nkp
-            IF (kpoint%kp_sym(ik)%kpoint_sym%apply_symmetry) use_grouped = .FALSE.
+            IF (kpoint%kp_sym(ik)%kpoint_sym%apply_symmetry) THEN
+               regular_grid_eligible = .FALSE.
+               EXIT
+            END IF
          END DO
-      END IF
-      IF (use_grouped) THEN
-         CALL kpoint_density_transform_grouped(kpoint, source, denmat, components, fmwork, &
-                                               transform_plan, use_grouped)
-      END IF
-      ! Grouped accumulation does not apply spatial rotations and needs no symmetry scratch.
-      IF (.NOT. kpoint%full_grid .AND. .NOT. use_grouped) THEN
-         ALLOCATE (srpmat)
-         CALL dbcsr_create(srpmat, template=rpmat)
-         CALL cp_dbcsr_alloc_block_from_nbl(srpmat, sab_nl)
-         CALL dbcsr_set(srpmat, 0.0_dp)
-         ALLOCATE (scpmat)
-         CALL dbcsr_create(scpmat, template=cpmat)
-         CALL cp_dbcsr_alloc_block_from_nbl(scpmat, sab_nl)
-         CALL dbcsr_set(scpmat, 0.0_dp)
       END IF
 
-      IF (.NOT. use_grouped) THEN
-         ! Distributed sources are prefetched in the same order as before. Local
-         ! sources are borrowed directly; both feed the same sparse transform.
-         IF (.NOT. local) THEN
-            CPASSERT(SIZE(fmwork) >= nc)
-            ALLOCATE (info(nc, nkp, nspin))
-            DO ispin = 1, nspin
-               DO ik = 1, nkp
-                  ikp = ik - kpoint%kp_range(1) + 1
-                  DO ic = 1, nc
-                     IF (ikp >= 1 .AND. ikp <= kplocal) THEN
-                        CALL cp_fm_start_copy_general(source(ikp, ic, ispin)%matrix, fmwork(ic), &
-                                                      para_env, info(ic, ik, ispin))
-                     ELSE
-                        CALL cp_fm_start_copy_general(fmdummy, fmwork(ic), para_env, info(ic, ik, ispin))
-                     END IF
-                  END DO
-               END DO
-            END DO
-         END IF
-         DO ispin = 1, nspin
-            DO ic = 1, nimg
-               CALL dbcsr_set(denmat(ispin, ic)%matrix, 0.0_dp)
-            END DO
-            DO ik = 1, nkp
-               ikp = ik - kpoint%kp_range(1) + 1
-               DO ic = 1, nc
-                  IF (local) THEN
-                     matrix => source(ikp, ic, ispin)%matrix
-                  ELSE
-                     CALL cp_fm_finish_copy_general(fmwork(ic), info(ic, ik, ispin))
-                     IF (ikp >= 1 .AND. ikp <= kplocal) CALL cp_fm_cleanup_copy_general(info(ic, ik, ispin))
-                     matrix => fmwork(ic)
-                  END IF
-                  CALL kp_copy_fm_to_dbcsr(matrix, components(ic)%matrix, local)
-               END DO
-               CALL kp_transform_density_matrix(kpoint, denmat, rpmat, cpmat, srpmat, scpmat, &
-                                                ispin, real_only, ik, xkp(1:3, ik), wkp(ik), transform_plan)
-            END DO
-         END DO
+      regular_grid_done = .FALSE.
+      IF (regular_grid_eligible) THEN
+         ALLOCATE (cpmat)
+         CALL dbcsr_create(cpmat, template=rpmat, &
+                           matrix_type=MERGE(dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, do_symmetric))
+         CALL cp_dbcsr_alloc_block_from_nbl(cpmat, sab_nl)
+         CALL dbcsr_set(cpmat, 0.0_dp)
+         components(2)%matrix => cpmat
+         CALL kpoint_density_transform_regular_grid(kpoint, source, denmat, components, fmwork, &
+                                                    transform_plan, regular_grid_done)
+      END IF
+      IF (.NOT. regular_grid_done) THEN
+         CALL kpoint_density_transform_batched(kpoint, source, denmat, rpmat, transform_plan)
       END IF
 
       CALL dbcsr_deallocate_matrix(rpmat)
-      CALL dbcsr_deallocate_matrix(cpmat)
-      IF (ASSOCIATED(srpmat)) THEN
-         CALL dbcsr_deallocate_matrix(srpmat)
-         CALL dbcsr_deallocate_matrix(scpmat)
-      END IF
+      IF (ASSOCIATED(cpmat)) CALL dbcsr_deallocate_matrix(cpmat)
 
       CALL timestop(handle)
 
    END SUBROUTINE kpoint_density_transform
 
 ! **************************************************************************************************
+!> \brief Contract group-local densities into bounded batches of real-space AO blocks.
+!>        Small tiles of images sharing an AO block are independent OpenMP work items. Rotations follow the
+!>        k-point contraction; only the resulting blocks are reduced to their DBCSR
+!>        owner. This also works when a source AO block spans several MPI ranks.
+!> \param kpoint ...
+!> \param source borrowed P, W or external density matrices
+!> \param denmat real-space output matrices
+!> \param template union of the source AO sparsities
+!> \param plan neighbor-list traversal and storage conventions
+! **************************************************************************************************
+   SUBROUTINE kpoint_density_transform_batched(kpoint, source, denmat, template, plan)
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(cp_fm_p_type), DIMENSION(:, :, :), INTENT(IN) :: source
+      TYPE(dbcsr_p_type), DIMENSION(:, :)                :: denmat
+      TYPE(dbcsr_type), POINTER                          :: template
+      TYPE(kp_transform_plan_type), INTENT(IN)           :: plan
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform_batched'
+      INTEGER(KIND=int_8), PARAMETER                     :: max_bytes = 64_int_8*1024*1024
+      INTEGER, PARAMETER                                 :: images_per_tile = 8, max_batch = 256
+
+      INTEGER :: a, b, batch, first, handle, i, ic, igroup, ikp, image, ispin, j, last, nblock, &
+         ncol, njob, nlocal, nrow, nthreads, ntile, nvalue, orientation, owner, slot, thread, tile
+      INTEGER(KIND=int_8)                                :: block_size
+      INTEGER, ALLOCATABLE                               :: available(:, :, :), counts(:), &
+                                                            jobs(:, :), local_jobs(:, :), &
+                                                            offsets(:), tile_start(:), &
+                                                            tiles(:, :, :, :, :)
+      INTEGER, DIMENSION(:), POINTER                     :: col_offset, col_size, row_offset, &
+                                                            row_size
+      LOGICAL                                            :: found, trans
+      REAL(KIND=dp), ALLOCATABLE                         :: packed(:, :), phases(:, :), &
+                                                            rotation_work(:, :)
+      REAL(KIND=dp), ALLOCATABLE, TARGET                 :: sums(:, :), values(:)
+      REAL(KIND=dp), POINTER                             :: block(:, :)
+      TYPE(kp_density_group_type), ALLOCATABLE           :: groups(:)
+      TYPE(local_gemm_ctxt_type), ALLOCATABLE            :: gemm_ctx(:)
+      TYPE(mp_para_env_type), POINTER                    :: world
+
+      CALL timeset(routineN, handle)
+      world => kpoint%blacs_env_all%para_env
+      CALL dbcsr_get_info(template, row_blk_size=row_size, col_blk_size=col_size, &
+                          row_blk_offset=row_offset, col_blk_offset=col_offset)
+      CALL kp_density_groups_create(kpoint, SIZE(row_size), groups)
+      CPASSERT(SIZE(row_size) == SIZE(col_size))
+      ALLOCATE (tiles(4, SIZE(row_size), SIZE(source, 1), SIZE(source, 2), SIZE(source, 3)))
+      DO ispin = 1, SIZE(source, 3)
+         DO ic = 1, SIZE(source, 2)
+            DO ikp = 1, SIZE(source, 1)
+               CALL kp_density_layout_create(source(ikp, ic, ispin)%matrix, row_size, col_size, &
+                                             row_offset, col_offset, tiles(:, :, ikp, ic, ispin))
+            END DO
+         END DO
+         DO image = 1, SIZE(denmat, 2)
+            CALL dbcsr_set(denmat(ispin, image)%matrix, 0.0_dp)
+         END DO
+      END DO
+
+      ! Only owners request blocks. A group contains one (image,row,col), hence
+      ! all its entries have the same cell; retain both multiplicity and sign.
+      ALLOCATE (local_jobs(8, plan%ngroup), counts(0:world%num_pe - 1))
+      nlocal = 0
+      DO igroup = 1, plan%ngroup
+         first = plan%group_start(igroup)
+         last = plan%group_start(igroup + 1) - 1
+         CALL dbcsr_get_readonly_block_p(denmat(1, plan%image(first))%matrix, &
+                                         plan%row(first), plan%col(first), block, found=found)
+         IF (.NOT. found) CYCLE
+         nlocal = nlocal + 1
+         local_jobs(:, nlocal) = [plan%row(first), plan%col(first), plan%image(first), &
+                                  plan%cell(:, first), last - first + 1, &
+                                  NINT(SUM(plan%symmetry_sign(first:last)))]
+      END DO
+      CALL world%allgather(nlocal, counts)
+      IF (MAXVAL(counts) == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+      block_size = INT(MAXVAL(row_size), int_8)*MAXVAL(col_size)
+      batch = MAX(1, MIN(max_batch, MAXVAL(counts), INT(max_bytes/(8_int_8*block_size))))
+      ALLOCATE (jobs(8, batch), offsets(batch + 1), tile_start(batch + 1), values(INT(block_size)*batch), &
+                available(2, 0:UBOUND(groups, 1), batch))
+      nthreads = 1
+!$    nthreads = MIN(omp_get_max_threads(), batch)
+      ALLOCATE (gemm_ctx(nthreads))
+      DO thread = 1, nthreads
+         CALL gemm_ctx(thread)%create(LOCAL_GEMM_PU_HOST, timing=.FALSE.)
+      END DO
+
+      DO owner = 0, world%num_pe - 1
+         DO first = 1, counts(owner), batch
+            njob = MIN(batch, counts(owner) - first + 1)
+            IF (world%mepos == owner) jobs(:, 1:njob) = local_jobs(:, first:first + njob - 1)
+            IF (world%num_pe > 1) CALL world%bcast(jobs(:, 1:njob), owner)
+            offsets(1) = 1
+            DO j = 1, njob
+               offsets(j + 1) = offsets(j) + row_size(jobs(1, j))*col_size(jobs(2, j))
+            END DO
+            ! Neighbor-list groups are ordered by AO pair and image. Limit image
+            ! tiles to retain enough independent work items for small unit cells.
+            ntile = 0
+            i = 1
+            DO WHILE (i <= njob)
+               ntile = ntile + 1
+               tile_start(ntile) = i
+               j = i + 1
+               DO WHILE (j <= MIN(njob, i + images_per_tile - 1))
+                  IF (ANY(jobs(1:2, j) /= jobs(1:2, i))) EXIT
+                  j = j + 1
+               END DO
+               i = j
+            END DO
+            tile_start(ntile + 1) = njob + 1
+            available(:, :, :) = 0
+            DO tile = 1, ntile
+               j = tile_start(tile)
+               DO slot = 0, UBOUND(groups, 1)
+                  IF (.NOT. ALLOCATED(groups(slot)%inverse)) CYCLE
+                  DO orientation = 1, 2
+                     CALL kp_density_source_block(groups(slot), jobs(1:2, j), plan%symmetric, &
+                                                  orientation, a, b, trans)
+                     IF (a == 0) CYCLE
+                     CALL dbcsr_get_readonly_block_p(template, a, b, block, found=found)
+                     available(orientation, slot, tile) = MERGE(1, 0, found)
+                  END DO
+               END DO
+            END DO
+            ! Source sparsity is distributed independently of the FM layout.
+            ! Reduce only presence flags, never the k-dependent source matrices.
+            IF (world%num_pe > 1) CALL world%sum(available(:, :, 1:ntile))
+            nvalue = offsets(njob + 1) - 1
+            nthreads = MIN(SIZE(gemm_ctx), ntile)
+            DO ispin = 1, SIZE(source, 3)
+               values(1:nvalue) = 0.0_dp
+!$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nthreads) &
+!$OMP SHARED(source,tiles,groups,jobs,available,plan,row_size,col_size,row_offset,col_offset, &
+!$OMP        values,offsets,tile_start,ntile,ispin,gemm_ctx) &
+!$OMP PRIVATE(tile,j,last,nrow,ncol,block,packed,phases,sums,rotation_work,thread)
+               thread = 1
+!$             thread = omp_get_thread_num() + 1
+!$OMP DO SCHEDULE(DYNAMIC, 1)
+               DO tile = 1, ntile
+                  j = tile_start(tile)
+                  last = tile_start(tile + 1) - 1
+                  nrow = row_size(jobs(1, j))
+                  ncol = col_size(jobs(2, j))
+                  block(1:nrow*ncol, 1:last - j + 1) => values(offsets(j):offsets(last + 1) - 1)
+                  CALL kp_density_contract_tile(source(:, :, ispin), tiles(:, :, :, :, ispin), groups, &
+                                                jobs(:, j:last), available(:, :, tile), plan%symmetric, &
+                                                row_size, col_size, row_offset, col_offset, block, &
+                                                packed, phases, sums, rotation_work, gemm_ctx(thread))
+               END DO
+!$OMP END DO
+!$OMP END PARALLEL
+               IF (world%num_pe > 1) CALL world%sum(values(1:nvalue), root=owner)
+               IF (world%mepos /= owner) CYCLE
+               DO j = 1, njob
+                  CALL dbcsr_get_block_p(denmat(ispin, jobs(3, j))%matrix, jobs(1, j), jobs(2, j), block, found=found)
+                  CPASSERT(found)
+                  nrow = SIZE(block, 1)
+                  DO i = 1, SIZE(block, 2)
+                     nblock = offsets(j) + (i - 1)*nrow
+                     block(:, i) = values(nblock:nblock + nrow - 1)
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
+      DO thread = 1, SIZE(gemm_ctx)
+         CALL gemm_ctx(thread)%destroy()
+      END DO
+      CALL timestop(handle)
+   END SUBROUTINE kpoint_density_transform_batched
+
+! **************************************************************************************************
+!> \brief Group the existing density contributions by operation and phase direction.
+!>        Only nwght entries contribute; additional little-group mappings are not
+!>        extra density terms. Metadata is borrowed, local k-point lists are owned.
+!> \param kpoint ...
+!> \param natom number of AO blocks
+!> \param groups operation views and local contribution lists; zero is the identity
+! **************************************************************************************************
+   SUBROUTINE kp_density_groups_create(kpoint, natom, groups)
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      INTEGER, INTENT(IN)                                :: natom
+      TYPE(kp_density_group_type), ALLOCATABLE, &
+         INTENT(OUT)                                     :: groups(:)
+
+      INTEGER                                            :: i, ik, ikp, is, ncontrib, nrot, pass, &
+                                                            slot
+      INTEGER, ALLOCATABLE                               :: counts(:)
+      TYPE(kpoint_sym_type), POINTER                     :: kpsym
+
+      nrot = 0
+      IF (ASSOCIATED(kpoint%ibrot)) nrot = SIZE(kpoint%ibrot)
+      ALLOCATE (groups(0:4*nrot), counts(0:4*nrot))
+      DO pass = 1, 2
+         counts(:) = 0
+         DO ik = 1, kpoint%nkp
+            ikp = ik - kpoint%kp_range(1) + 1
+            kpsym => kpoint%kp_sym(ik)%kpoint_sym
+            ncontrib = 1
+            IF (kpsym%apply_symmetry) ncontrib = kpsym%nwght
+            DO is = 1, ncontrib
+               slot = 0
+               IF (kpsym%apply_symmetry) THEN
+                  CPASSERT(kpsym%phase_mode(is) >= 1 .AND. kpsym%phase_mode(is) <= 2)
+                  slot = find_kpoint_rotation_slot(kpoint, kpsym%rotp(is))
+                  CPASSERT(slot > 0)
+                  slot = slot + nrot*MERGE(1, 0, kpsym%rotp(is) < 0) + 2*nrot*(kpsym%phase_mode(is) - 1)
+               END IF
+               IF (pass == 1) THEN
+                  IF (.NOT. ALLOCATED(groups(slot)%inverse)) THEN
+                     ALLOCATE (groups(slot)%inverse(natom))
+                     groups(slot)%op%identity = .TRUE.
+                     DO i = 1, natom
+                        groups(slot)%inverse(i) = i
+                     END DO
+                     IF (slot > 0) THEN
+                        CALL kp_symmetry_op_init(groups(slot)%op, kpoint, kpsym, is)
+                        groups(slot)%reverse_phase = kpsym%phase_mode(is) == 2
+                        DO i = 1, natom
+                           groups(slot)%inverse(groups(slot)%op%atom_map(i)) = i
+                        END DO
+                     END IF
+                  ELSE IF (slot > 0) THEN
+                     ! One crystallographic operation has one atom/gauge mapping.
+                     CPASSERT(ALL(groups(slot)%op%atom_map == kpsym%f0(:, is)))
+                     CPASSERT(ALL(groups(slot)%op%cell_shift == kpsym%fcell_gauge(:, :, is)))
+                  END IF
+               END IF
+               IF (ik < kpoint%kp_range(1) .OR. ik > kpoint%kp_range(2)) CYCLE
+               counts(slot) = counts(slot) + 1
+               IF (pass == 2) THEN
+                  i = counts(slot)
+                  groups(slot)%ikp(i) = ikp
+                  groups(slot)%weight(i) = kpoint%wkp(ik)/REAL(ncontrib, dp)
+                  IF (slot == 0) THEN
+                     groups(slot)%xkp(:, i) = kpoint%xkp(:, ik)
+                  ELSE
+                     groups(slot)%xkp(:, i) = kpsym%xkp(:, is)
+                  END IF
+               END IF
+            END DO
+         END DO
+         IF (pass == 1) THEN
+            DO slot = 0, 4*nrot
+               ALLOCATE (groups(slot)%ikp(counts(slot)), groups(slot)%weight(counts(slot)), &
+                         groups(slot)%xkp(3, counts(slot)))
+            END DO
+         END IF
+      END DO
+   END SUBROUTINE kp_density_groups_create
+
+! **************************************************************************************************
+!> \brief Map each AO block to its local FM row and column intervals, excluding padding.
+!> \param matrix ...
+!> \param row_size ...
+!> \param col_size ...
+!> \param row_offset ...
+!> \param col_offset ...
+!> \param tile local first/last row and column indices for each atom
+! **************************************************************************************************
+   SUBROUTINE kp_density_layout_create(matrix, row_size, col_size, row_offset, col_offset, tile)
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
+      INTEGER, INTENT(IN)                                :: row_size(:), col_size(:), row_offset(:), &
+                                                            col_offset(:)
+      INTEGER, INTENT(OUT)                               :: tile(:, :)
+
+      INTEGER                                            :: a, i, ncol, nrow
+      INTEGER, ALLOCATABLE                               :: cols(:), rows(:)
+      INTEGER, POINTER                                   :: col_indices(:), row_indices(:)
+
+      CPASSERT(matrix%matrix_struct%nrow_global == SUM(row_size))
+      CPASSERT(matrix%matrix_struct%ncol_global == SUM(col_size))
+      CALL cp_fm_get_info(matrix, nrow_local=nrow, ncol_local=ncol, &
+                          row_indices=row_indices, col_indices=col_indices)
+      ALLOCATE (rows(0:SUM(row_size)), cols(0:SUM(col_size)))
+      rows(:) = 0
+      cols(:) = 0
+      DO i = 1, nrow
+         rows(row_indices(i)) = 1
+      END DO
+      DO i = 1, ncol
+         cols(col_indices(i)) = 1
+      END DO
+      DO i = 1, UBOUND(rows, 1)
+         rows(i) = rows(i) + rows(i - 1)
+      END DO
+      DO i = 1, UBOUND(cols, 1)
+         cols(i) = cols(i) + cols(i - 1)
+      END DO
+      DO a = 1, SIZE(row_size)
+         tile(1:2, a) = [rows(row_offset(a) - 1) + 1, rows(row_offset(a) + row_size(a) - 1)]
+      END DO
+      DO a = 1, SIZE(col_size)
+         tile(3:4, a) = [cols(col_offset(a) - 1) + 1, cols(col_offset(a) + col_size(a) - 1)]
+      END DO
+   END SUBROUTINE kp_density_layout_create
+
+! **************************************************************************************************
+!> \brief Find the source orientation that maps to a stored output block.
+!>        A nonsymmetric source can contribute both orientations to an upper block,
+!>        as in the DBCSR symmetry adapter. An absent orientation returns a=0.
+!> \param group ...
+!> \param TARGET output atom pair
+!> \param symmetric source storage convention
+!> \param orientation ...
+!> \param a ...
+!> \param b ...
+!> \param trans whether rotation transposes the source block
+! **************************************************************************************************
+   SUBROUTINE kp_density_source_block(group, TARGET, symmetric, orientation, a, b, trans)
+      TYPE(kp_density_group_type), INTENT(IN)            :: group
+      INTEGER, INTENT(IN)                                :: target(2)
+      LOGICAL, INTENT(IN)                                :: symmetric
+      INTEGER, INTENT(IN)                                :: orientation
+      INTEGER, INTENT(OUT)                               :: a, b
+      LOGICAL, INTENT(OUT)                               :: trans
+
+      INTEGER                                            :: i, j
+
+      a = 0
+      b = 0
+      trans = .FALSE.
+      IF (group%op%identity) THEN
+         IF (orientation == 1) THEN
+            a = TARGET(1)
+            b = TARGET(2)
+         END IF
+         RETURN
+      END IF
+      IF (TARGET(1) > TARGET(2)) RETURN
+      i = group%inverse(TARGET(1))
+      j = group%inverse(TARGET(2))
+      IF (orientation == 2 .AND. (symmetric .OR. i == j)) RETURN
+      a = MIN(i, j)
+      b = MAX(i, j)
+      IF (orientation == 2) THEN
+         a = MAX(i, j)
+         b = MIN(i, j)
+      END IF
+      trans = group%op%atom_map(a) > group%op%atom_map(b)
+   END SUBROUTINE kp_density_source_block
+
+! **************************************************************************************************
+!> \brief Contract a small tile of images sharing an output AO block.
+!>        Pack bounded k-point batches once and reuse them across images in GEMM.
+!>        Gauge/Fourier phases remain inside the contraction; AO rotations follow
+!>        the completed local sum. MPI can then reduce the rotated partial blocks.
+!> \param source ...
+!> \param tiles local first/last row and column indices by atom, k-point and component
+!> \param groups ...
+!> \param jobs row, col, image, cell, real multiplicity and imaginary sign sum
+!> \param available global source-block presence by orientation and operation
+!> \param symmetric ...
+!> \param row_size ...
+!> \param col_size ...
+!> \param row_offset ...
+!> \param col_offset ...
+!> \param TARGET flattened output blocks, one column per image
+!> \param packed reusable thread-local source batch
+!> \param phases reusable thread-local contraction coefficients
+!> \param sums reusable thread-local contracted blocks
+!> \param rotation_work reusable thread-local GEMM buffer
+!> \param gemm_ctx thread-owned local GEMM context
+! **************************************************************************************************
+   SUBROUTINE kp_density_contract_tile(source, tiles, groups, jobs, available, symmetric, &
+                                       row_size, col_size, row_offset, col_offset, TARGET, &
+                                       packed, phases, sums, rotation_work, gemm_ctx)
+      TYPE(cp_fm_p_type), INTENT(IN)                     :: source(:, :)
+      INTEGER, INTENT(IN)                                :: tiles(:, :, :, :)
+      TYPE(kp_density_group_type), INTENT(IN)            :: groups(0:)
+      INTEGER, INTENT(IN)                                :: jobs(:, :), available(:, 0:)
+      LOGICAL, INTENT(IN)                                :: symmetric
+      INTEGER, INTENT(IN)                                :: row_size(:), col_size(:), row_offset(:), &
+                                                            col_offset(:)
+      REAL(KIND=dp), CONTIGUOUS, INTENT(INOUT), TARGET   :: target(:, :)
+      REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: packed(:, :), phases(:, :)
+      REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT), TARGET  :: sums(:, :)
+      REAL(KIND=dp), ALLOCATABLE, INTENT(INOUT)          :: rotation_work(:, :)
+      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
+
+      INTEGER(KIND=int_8), PARAMETER                     :: max_elements = 65536_int_8
+
+      INTEGER                                            :: a, b, batch, column, first, i, ic, &
+                                                            ifirst, ii, ikp, ilast, image, j, jj, &
+                                                            k, last, nc, nelement, nimage, nrow, &
+                                                            orientation, shift(3), slot
+      LOGICAL                                            :: contributes, real_only, trans
+      REAL(KIND=dp)                                      :: arg, cosine, factors(2, 2), sine
+      REAL(KIND=dp), POINTER                             :: left_rot(:, :), right_rot(:, :), &
+                                                            source_block(:, :), target_block(:, :)
+      TYPE(cp_fm_type), POINTER                          :: matrix
+
+! Up to 512 KiB of packed input per worker, except for a single larger AO block.
+
+      nc = SIZE(source, 2)
+      real_only = nc == 1
+      nimage = SIZE(jobs, 2)
+      DO slot = 0, UBOUND(groups, 1)
+         IF (SIZE(groups(slot)%ikp) == 0) CYCLE
+         DO orientation = 1, 2
+            IF (available(orientation, slot) == 0) CYCLE
+            CALL kp_density_source_block(groups(slot), jobs(1:2, 1), symmetric, orientation, a, b, trans)
+            CPASSERT(a > 0)
+            nelement = row_size(a)*col_size(b)
+            batch = MAX(1, MIN(128, SIZE(groups(slot)%ikp), INT(max_elements/(INT(nelement, int_8)*nc))))
+            CALL ensure_work_matrix(packed, nelement, nc*batch)
+            CALL ensure_work_matrix(phases, nc*batch, nimage)
+            CALL ensure_work_matrix(sums, nelement, nimage)
+            sums(:, :) = 0.0_dp
+            shift(:) = 0
+            IF (.NOT. groups(slot)%op%identity) THEN
+               shift(:) = groups(slot)%op%cell_shift(:, b) - groups(slot)%op%cell_shift(:, a)
+               IF (groups(slot)%reverse_phase) shift(:) = -shift
+            END IF
+            DO first = 1, SIZE(groups(slot)%ikp), batch
+               last = MIN(first + batch - 1, SIZE(groups(slot)%ikp))
+               packed(:, :) = 0.0_dp
+               contributes = .FALSE.
+               DO k = first, last
+                  ikp = groups(slot)%ikp(k)
+                  CALL kp_symmetry_phase_factors(shift, groups(slot)%xkp(:, k), &
+                                                 groups(slot)%op%time_reversal, real_only, factors)
+                  DO image = 1, nimage
+                     arg = twopi*DOT_PRODUCT(REAL(jobs(4:6, image), dp), groups(slot)%xkp(:, k))
+                     cosine = REAL(jobs(7, image), dp)*COS(arg)
+                     sine = REAL(jobs(8, image), dp)*SIN(arg)*MERGE(-1.0_dp, 1.0_dp, trans)
+                     IF (real_only) sine = 0.0_dp
+                     DO ic = 1, nc
+                        column = (k - first)*nc + ic
+                        phases(column, image) = groups(slot)%weight(k)*(cosine*factors(1, ic) + sine*factors(2, ic))
+                     END DO
+                  END DO
+                  DO ic = 1, nc
+                     ifirst = tiles(1, a, ikp, ic)
+                     ilast = tiles(2, a, ikp, ic)
+                     IF (ifirst > ilast .OR. tiles(3, b, ikp, ic) > tiles(4, b, ikp, ic)) CYCLE
+                     contributes = .TRUE.
+                     column = (k - first)*nc + ic
+                     matrix => source(ikp, ic)%matrix
+                     nrow = ilast - ifirst + 1
+                     DO j = tiles(3, b, ikp, ic), tiles(4, b, ikp, ic)
+                        jj = matrix%matrix_struct%col_indices(j) - col_offset(b)
+                        ii = matrix%matrix_struct%row_indices(ifirst) - row_offset(a) + 1 + jj*row_size(a)
+                        IF (matrix%matrix_struct%row_indices(ilast) - &
+                            matrix%matrix_struct%row_indices(ifirst) == nrow - 1) THEN
+                           packed(ii:ii + nrow - 1, column) = matrix%local_data(ifirst:ilast, j)
+                        ELSE
+                           DO i = ifirst, ilast
+                              ii = matrix%matrix_struct%row_indices(i) - row_offset(a) + 1 + jj*row_size(a)
+                              packed(ii, column) = matrix%local_data(i, j)
+                           END DO
+                        END IF
+                     END DO
+                  END DO
+               END DO
+               IF (.NOT. contributes) CYCLE
+               CALL gemm_ctx%gemm('N', 'N', nelement, nimage, nc*(last - first + 1), 1.0_dp, &
+                                  packed, SIZE(packed, 1), phases, SIZE(phases, 1), &
+                                  1.0_dp, sums, SIZE(sums, 1))
+            END DO
+            IF (groups(slot)%op%identity) THEN
+               TARGET(:, :) = TARGET + sums
+            ELSE
+               left_rot => groups(slot)%op%kind_rot(groups(slot)%op%atom_kind(groups(slot)%inverse(jobs(1, 1))))%rmat
+               right_rot => groups(slot)%op%kind_rot(groups(slot)%op%atom_kind(groups(slot)%inverse(jobs(2, 1))))%rmat
+               DO image = 1, nimage
+                  source_block(1:row_size(a), 1:col_size(b)) => sums(:, image)
+                  target_block(1:row_size(jobs(1, image)), 1:col_size(jobs(2, image))) => TARGET(:, image)
+                  CALL kp_symmetry_rotate_block(source_block, left_rot, right_rot, trans, &
+                                                1.0_dp, target_block, rotation_work)
+               END DO
+            END IF
+         END DO
+      END DO
+   END SUBROUTINE kp_density_contract_tile
+
+! **************************************************************************************************
 !> \brief Sum compatible group-local FM tiles before returning each image to DBCSR.
 !>        The single-rank case stores directly. Incompatible layouts and cheaper
-!>        local sparse sums return to the common per-k transform in the caller.
+!>        local sparse sums return to the common batched transform in the caller.
 !> \param kpoint ...
 !> \param source borrowed density matrices for all local k-points, components and spins
 !> \param denmat ...
 !> \param components real/imaginary DBCSR work matrices
 !> \param fmwork global FM work matrices, unused on one rank
 !> \param plan neighbor-list traversal and storage conventions
-!> \param done whether all spin/image results were produced
+!> \param completed whether all spin/image results were produced
 ! **************************************************************************************************
-   SUBROUTINE kpoint_density_transform_grouped(kpoint, source, denmat, components, fmwork, plan, done)
+   SUBROUTINE kpoint_density_transform_regular_grid(kpoint, source, denmat, components, fmwork, plan, completed)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(cp_fm_p_type), DIMENSION(:, :, :), INTENT(IN) :: source
@@ -2490,9 +2906,9 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: components
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN), TARGET :: fmwork
       TYPE(kp_transform_plan_type), INTENT(IN)           :: plan
-      LOGICAL, INTENT(OUT)                               :: done
+      LOGICAL, INTENT(OUT)                               :: completed
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform_grouped'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform_regular_grid'
 
       INTEGER                                            :: compatible, element, first, handle, i, &
                                                             ic, igroup, ik, ikp, image, ispin, j, &
@@ -2511,7 +2927,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: image_source
       TYPE(mp_para_env_type), POINTER                    :: inter, para_env
 
-      done = .FALSE.
+      completed = .FALSE.
       para_env => kpoint%blacs_env_all%para_env
       inter => kpoint%para_env_inter_kp
       local = para_env%num_pe == 1
@@ -2629,16 +3045,16 @@ CONTAINS
                                              components(2)%matrix, image, nc == 1, plan)
          END DO
          IF (ALLOCATED(fft_density)) DEALLOCATE (fft_density)
-         done = .TRUE.
+         completed = .TRUE.
       END DO
-      IF (done) THEN
+      IF (completed) THEN
          DO ic = 1, nc
             CALL cp_fm_release(partial(ic))
          END DO
       END IF
       CALL timestop(handle)
 
-   END SUBROUTINE kpoint_density_transform_grouped
+   END SUBROUTINE kpoint_density_transform_regular_grid
 
 ! **************************************************************************************************
 !> \brief Exchange k-distributed FM entries into batched FFT pencils.
@@ -2652,7 +3068,7 @@ CONTAINS
 !> \param ncol number of valid local FM columns
 !> \param nimg number of requested real-space images
 !> \param owned local FM element range assigned to this inter-group rank
-!> \param density allocated on success; unallocated selects the group-local direct sum
+!> \param density allocated on success; unallocated selects the regular-grid direct sum
 !> \param local all k-points and matrix entries are on this rank
 ! **************************************************************************************************
    SUBROUTINE kp_density_fft(kpoint, source, nrow, ncol, nimg, owned, density, local)
@@ -2732,7 +3148,7 @@ CONTAINS
       width = choice(2)
       IF (kpoint%lattice_fft == lattice_fft_auto .AND. ngroup > 1) THEN
          ! With several k-point groups, small per-peer payloads do not amortize
-         ! the all-to-all latency and the group-local direct sum is faster.
+         ! the all-to-all latency and the regular-grid direct sum is faster.
          min_local_k = MINVAL(kpoint%kp_dist(2, :) - kpoint%kp_dist(1, :) + 1)
          peer_bytes = 16_int_8*INT(width, int_8)*INT(min_local_k, int_8)
          IF (peer_bytes < min_fft_peer_bytes) RETURN
@@ -2850,67 +3266,6 @@ CONTAINS
 !$OMP END PARALLEL DO
 
    END SUBROUTINE kp_accumulate_density_image
-
-! **************************************************************************************************
-!> \brief Apply k-point symmetry and accumulate one reciprocal-space density matrix in real space.
-!> \param kpoint ...
-!> \param denmat ...
-!> \param rpmat ...
-!> \param cpmat ...
-!> \param srpmat ...
-!> \param scpmat ...
-!> \param ispin ...
-!> \param real_only ...
-!> \param ik ...
-!> \param xkp ...
-!> \param wkp ...
-!> \param plan ...
-! **************************************************************************************************
-   SUBROUTINE kp_transform_density_matrix(kpoint, denmat, rpmat, cpmat, srpmat, scpmat, &
-                                          ispin, real_only, ik, xkp, wkp, plan)
-
-      TYPE(kpoint_type), POINTER                         :: kpoint
-      TYPE(dbcsr_p_type), DIMENSION(:, :)                :: denmat
-      TYPE(dbcsr_type), POINTER                          :: rpmat, cpmat, srpmat, scpmat
-      INTEGER, INTENT(IN)                                :: ispin
-      LOGICAL, INTENT(IN)                                :: real_only
-      INTEGER, INTENT(IN)                                :: ik
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
-      REAL(KIND=dp), INTENT(IN)                          :: wkp
-      TYPE(kp_transform_plan_type), INTENT(IN)           :: plan
-
-      INTEGER                                            :: ir, ira, is, jr
-      LOGICAL                                            :: reverse_phase
-      REAL(KIND=dp)                                      :: symmetry_weight
-      TYPE(kind_rotmat_type), DIMENSION(:), POINTER      :: kind_rot
-      TYPE(kpoint_sym_type), POINTER                     :: kpsym
-
-      kpsym => kpoint%kp_sym(ik)%kpoint_sym
-      CPASSERT(ASSOCIATED(kpsym))
-      IF (kpsym%apply_symmetry) THEN
-         symmetry_weight = wkp/REAL(kpsym%nwght, KIND=dp)
-         DO is = 1, kpsym%nwght
-            ir = ABS(kpsym%rotp(is))
-            ira = 0
-            DO jr = 1, SIZE(kpoint%ibrot)
-               IF (ir == kpoint%ibrot(jr)) ira = jr
-            END DO
-            CPASSERT(ira > 0)
-            kind_rot => kpoint%kind_rotmat(ira, :)
-            CPASSERT(kpsym%phase_mode(is) > 0)
-            reverse_phase = kpsym%phase_mode(is) == 2
-            CALL symtrans_phase(srpmat, scpmat, rpmat, cpmat, real_only, kind_rot, &
-                                kpsym%rot(1:3, 1:3, is), kpsym%f0(:, is), &
-                                kpsym%fcell_gauge(:, :, is), kpoint%atype, &
-                                kpsym%xkp(1:3, is), kpsym%rotp(is) < 0, reverse_phase)
-            CALL transform_dmat(denmat, srpmat, scpmat, ispin, real_only, plan, &
-                                kpsym%xkp(1:3, is), symmetry_weight)
-         END DO
-      ELSE
-         CALL transform_dmat(denmat, rpmat, cpmat, ispin, real_only, plan, xkp, wkp)
-      END IF
-
-   END SUBROUTINE kp_transform_density_matrix
 
 ! **************************************************************************************************
 !> \brief Copy density FM data to existing DBCSR blocks, with no redistribution on one rank.
@@ -3063,87 +3418,6 @@ CONTAINS
    END SUBROUTINE kp_transform_plan_create
 
 ! **************************************************************************************************
-!> \brief real space density matrices in DBCSR format
-!> \param denmat  Real space (DBCSR) density matrix
-!> \param rpmat ...
-!> \param cpmat ...
-!> \param ispin ...
-!> \param real_only ...
-!> \param plan precomputed neighbor-list traversal
-!> \param xkp ...
-!> \param wkp ...
-! **************************************************************************************************
-   SUBROUTINE transform_dmat(denmat, rpmat, cpmat, ispin, real_only, plan, xkp, wkp)
-
-      TYPE(dbcsr_p_type), DIMENSION(:, :)                :: denmat
-      TYPE(dbcsr_type), POINTER                          :: rpmat, cpmat
-      INTEGER, INTENT(IN)                                :: ispin
-      LOGICAL, INTENT(IN)                                :: real_only
-      TYPE(kp_transform_plan_type), INTENT(IN)           :: plan
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
-      REAL(KIND=dp), INTENT(IN)                          :: wkp
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'transform_dmat'
-
-      INTEGER                                            :: handle, i, ifirst, igroup, ilast, &
-                                                            nthreads
-      LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: arg, coskl, sinkl
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, dblock, rblock
-
-      CALL timeset(routineN, handle)
-
-      nthreads = 1
-!$    nthreads = MAX(1, MIN(omp_get_max_threads(), plan%ngroup))
-      ! Entries are grouped by (image,row-block,col-block), hence workers
-      ! update disjoint DBCSR blocks without atomics or false sharing.
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(DYNAMIC, 4) NUM_THREADS(nthreads) &
-!$OMP SHARED(plan,denmat,rpmat,cpmat,ispin,real_only,xkp,wkp,nthreads) &
-!$OMP PRIVATE(igroup,ifirst,ilast,i,arg,coskl,sinkl,found,dblock,rblock,cblock)
-      DO igroup = 1, plan%ngroup
-         ifirst = plan%group_start(igroup)
-         ilast = plan%group_start(igroup + 1) - 1
-
-         !We have a FT from KP to real-space: S(R) = sum_k S(k)*exp(-i*k*R), with S(k) a complex number
-         !Therefore, we have: S(R) = sum_k Re(S(k))*cos(k*R) -i^2*Im(S(k))*sin(k*R)
-         !                         = sum_k Re(S(k))*cos(k*R) + Im(S(k))*sin(k*R)
-         !fc = +- 1 is due to the usual non-symmetric real-space matrices stored as symmetric ones
-         coskl = 0.0_dp
-         sinkl = 0.0_dp
-         DO i = ifirst, ilast
-            arg = DOT_PRODUCT(REAL(plan%cell(:, i), KIND=dp), xkp)
-            coskl = coskl + wkp*COS(twopi*arg)
-            sinkl = sinkl + wkp*plan%symmetry_sign(i)*SIN(twopi*arg)
-         END DO
-
-         CALL dbcsr_get_block_p(matrix=denmat(ispin, plan%image(ifirst))%matrix, &
-                                row=plan%row(ifirst), col=plan%col(ifirst), &
-                                block=dblock, found=found)
-         IF (.NOT. found) CYCLE
-
-         IF (real_only) THEN
-            CALL dbcsr_get_readonly_block_p(matrix=rpmat, row=plan%row(ifirst), col=plan%col(ifirst), &
-                                            block=rblock, found=found)
-            IF (.NOT. found) CYCLE
-            dblock = dblock + coskl*rblock
-         ELSE
-            CALL dbcsr_get_readonly_block_p(matrix=rpmat, row=plan%row(ifirst), col=plan%col(ifirst), &
-                                            block=rblock, found=found)
-            IF (.NOT. found) CYCLE
-            CALL dbcsr_get_readonly_block_p(matrix=cpmat, row=plan%row(ifirst), col=plan%col(ifirst), &
-                                            block=cblock, found=found)
-            IF (.NOT. found) CYCLE
-            dblock = dblock + coskl*rblock
-            dblock = dblock + sinkl*cblock
-         END IF
-      END DO
-!$OMP END PARALLEL DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE transform_dmat
-
-! **************************************************************************************************
 !> \brief Allocate a dense work matrix with the requested shape
 !> \param work dense work matrix
 !> \param nrow number of rows
@@ -3180,28 +3454,78 @@ CONTAINS
          POINTER                                         :: sab_nl
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calibrate_symmetry_phases'
+
       CHARACTER(LEN=256)                                 :: phase_error
-      INTEGER                                            :: best_mode, ik, ir, ira, is, jr, mode
+      INTEGER                                            :: best_mode, handle, iatom, ik, is, key, &
+                                                            mode, nrot, rot_slot
+      INTEGER, ALLOCATABLE                               :: best_ik(:), best_is(:), mode_by_op(:)
       LOGICAL                                            :: needs_calibration, reverse
-      REAL(KIND=dp)                                      :: best_residual, candidate_norm, &
-                                                            direct_norm, overlap_dot, &
+      REAL(KIND=dp)                                      :: arg, best_residual, candidate_norm, &
+                                                            direct_norm, overlap_dot, phase_score, &
                                                             phase_tolerance, relative_residual
+      REAL(KIND=dp), ALLOCATABLE                         :: best_score(:)
       TYPE(dbcsr_type), POINTER                          :: direct_c, direct_r, source_c, source_r, &
                                                             sym_c, sym_r
-      TYPE(kind_rotmat_type), DIMENSION(:), POINTER      :: kind_rot
+      TYPE(kp_symmetry_op_type)                          :: op
       TYPE(kpoint_sym_type), POINTER                     :: kpsym
 
       needs_calibration = .FALSE.
       DO ik = 1, kpoint%nkp
          kpsym => kpoint%kp_sym(ik)%kpoint_sym
          IF (kpsym%apply_symmetry) THEN
-            IF (ANY(kpsym%phase_mode == 0)) THEN
+            ! Only the first nwght operations enter the density transform.
+            IF (ANY(kpsym%phase_mode(1:kpsym%nwght) == 0)) THEN
                needs_calibration = .TRUE.
                EXIT
             END IF
          END IF
       END DO
       IF (.NOT. needs_calibration) RETURN
+
+      CALL timeset(routineN, handle)
+      CPASSERT(ASSOCIATED(kpoint%ibrot))
+      nrot = SIZE(kpoint%ibrot)
+      ALLOCATE (best_ik(2*nrot), best_is(2*nrot), mode_by_op(2*nrot), best_score(2*nrot))
+      best_ik(:) = 0
+      best_is(:) = 0
+      mode_by_op(:) = 0
+      best_score(:) = -1.0_dp
+
+      ! The Bloch-phase direction is a convention of the signed crystallographic
+      ! operation, not of an individual member of its k-point star. Select one
+      ! numerically discriminating representative per signed operation and reuse
+      ! the result for all equivalent contributions.
+      DO ik = 1, kpoint%nkp
+         kpsym => kpoint%kp_sym(ik)%kpoint_sym
+         IF (.NOT. kpsym%apply_symmetry) CYCLE
+         DO is = 1, kpsym%nwght
+            rot_slot = find_kpoint_rotation_slot(kpoint, kpsym%rotp(is))
+            CPASSERT(rot_slot > 0)
+            key = rot_slot + nrot*MERGE(1, 0, kpsym%rotp(is) < 0)
+            IF (kpsym%phase_mode(is) > 0) THEN
+               IF (mode_by_op(key) == 0) THEN
+                  mode_by_op(key) = kpsym%phase_mode(is)
+               ELSE
+                  CPASSERT(mode_by_op(key) == kpsym%phase_mode(is))
+               END IF
+               CYCLE
+            END IF
+
+            phase_score = 0.0_dp
+            DO iatom = 2, SIZE(kpsym%fcell_gauge, 2)
+               arg = DOT_PRODUCT(REAL(kpsym%fcell_gauge(:, iatom, is) - &
+                                      kpsym%fcell_gauge(:, 1, is), KIND=dp), &
+                                 kpsym%xkp(:, is))
+               phase_score = MAX(phase_score, ABS(SIN(twopi*arg)))
+            END DO
+            IF (phase_score > best_score(key)) THEN
+               best_score(key) = phase_score
+               best_ik(key) = ik
+               best_is(key) = is
+            END IF
+         END DO
+      END DO
 
       ALLOCATE (source_r, source_c, direct_r, direct_c, sym_r, sym_c)
       CALL dbcsr_create(source_r, template=tempmat, matrix_type=dbcsr_type_symmetric)
@@ -3218,62 +3542,68 @@ CONTAINS
       CALL cp_dbcsr_alloc_block_from_nbl(sym_c, sab_nl)
 
       phase_tolerance = MAX(1.0e-6_dp, 100.0_dp*kpoint%eps_geo)
-      DO ik = 1, kpoint%nkp
-         kpsym => kpoint%kp_sym(ik)%kpoint_sym
-         IF (.NOT. kpsym%apply_symmetry) CYCLE
-         IF (ALL(kpsym%phase_mode > 0)) CYCLE
+      DO key = 1, 2*nrot
+         IF (mode_by_op(key) > 0 .OR. best_ik(key) == 0) CYCLE
+         ! If both phase directions are algebraically indistinguishable for every
+         ! occurrence of this operation, avoid an unnecessary overlap transform.
+         IF (best_score(key) <= 1000.0_dp*EPSILON(1.0_dp)) THEN
+            mode_by_op(key) = 1
+            CYCLE
+         END IF
 
+         ik = best_ik(key)
+         is = best_is(key)
+         kpsym => kpoint%kp_sym(ik)%kpoint_sym
          CALL dbcsr_set(source_r, 0.0_dp)
          CALL dbcsr_set(source_c, 0.0_dp)
          CALL rskp_transform(source_r, source_c, overlap_rs, 1, kpoint%xkp(1:3, ik), &
                              cell_to_index, sab_nl)
+         CALL dbcsr_set(direct_r, 0.0_dp)
+         CALL dbcsr_set(direct_c, 0.0_dp)
+         CALL rskp_transform(direct_r, direct_c, overlap_rs, 1, kpsym%xkp(1:3, is), &
+                             cell_to_index, sab_nl)
+         CALL dbcsr_dot(direct_r, direct_r, direct_norm)
+         CALL dbcsr_dot(direct_c, direct_c, candidate_norm)
+         direct_norm = direct_norm + candidate_norm
 
+         CALL kp_symmetry_op_init(op, kpoint, kpsym, is)
+         best_mode = 0
+         best_residual = HUGE(1.0_dp)
+         DO mode = 1, 2
+            reverse = mode == 2
+            CALL symtrans_phase(sym_r, sym_c, source_r, source_c, .FALSE., op, reverse)
+            CALL dbcsr_dot(sym_r, sym_r, candidate_norm)
+            CALL dbcsr_dot(sym_c, sym_c, relative_residual)
+            candidate_norm = candidate_norm + relative_residual
+            CALL dbcsr_dot(sym_r, direct_r, overlap_dot)
+            CALL dbcsr_dot(sym_c, direct_c, relative_residual)
+            overlap_dot = overlap_dot + relative_residual
+            relative_residual = SQRT(MAX(0.0_dp, candidate_norm + direct_norm - &
+                                         2.0_dp*overlap_dot)/MAX(direct_norm, TINY(1.0_dp)))
+            IF (relative_residual < best_residual) THEN
+               best_residual = relative_residual
+               best_mode = mode
+            END IF
+         END DO
+         IF (best_residual > phase_tolerance) THEN
+            WRITE (phase_error, '(A,ES12.4,A,I0,A,I0)') &
+               "No Bloch-phase direction preserves overlap covariance; residual=", &
+               best_residual, ", irreducible k-point=", ik, ", operation=", is
+            CALL cp_abort(__LOCATION__, TRIM(phase_error))
+         END IF
+         mode_by_op(key) = best_mode
+      END DO
+
+      DO ik = 1, kpoint%nkp
+         kpsym => kpoint%kp_sym(ik)%kpoint_sym
+         IF (.NOT. kpsym%apply_symmetry) CYCLE
          DO is = 1, kpsym%nwght
             IF (kpsym%phase_mode(is) > 0) CYCLE
-            CALL dbcsr_set(direct_r, 0.0_dp)
-            CALL dbcsr_set(direct_c, 0.0_dp)
-            CALL rskp_transform(direct_r, direct_c, overlap_rs, 1, kpsym%xkp(1:3, is), &
-                                cell_to_index, sab_nl)
-            CALL dbcsr_dot(direct_r, direct_r, direct_norm)
-            CALL dbcsr_dot(direct_c, direct_c, candidate_norm)
-            direct_norm = direct_norm + candidate_norm
-
-            ir = ABS(kpsym%rotp(is))
-            ira = 0
-            DO jr = 1, SIZE(kpoint%ibrot)
-               IF (ir == kpoint%ibrot(jr)) ira = jr
-            END DO
-            CPASSERT(ira > 0)
-            kind_rot => kpoint%kind_rotmat(ira, :)
-
-            best_mode = 0
-            best_residual = HUGE(1.0_dp)
-            DO mode = 1, 2
-               reverse = mode == 2
-               CALL symtrans_phase(sym_r, sym_c, source_r, source_c, .FALSE., kind_rot, &
-                                   kpsym%rot(1:3, 1:3, is), kpsym%f0(:, is), &
-                                   kpsym%fcell_gauge(:, :, is), kpoint%atype, &
-                                   kpsym%xkp(1:3, is), kpsym%rotp(is) < 0, reverse)
-               CALL dbcsr_dot(sym_r, sym_r, candidate_norm)
-               CALL dbcsr_dot(sym_c, sym_c, relative_residual)
-               candidate_norm = candidate_norm + relative_residual
-               CALL dbcsr_dot(sym_r, direct_r, overlap_dot)
-               CALL dbcsr_dot(sym_c, direct_c, relative_residual)
-               overlap_dot = overlap_dot + relative_residual
-               relative_residual = SQRT(MAX(0.0_dp, candidate_norm + direct_norm - &
-                                            2.0_dp*overlap_dot)/MAX(direct_norm, TINY(1.0_dp)))
-               IF (relative_residual < best_residual) THEN
-                  best_residual = relative_residual
-                  best_mode = mode
-               END IF
-            END DO
-            IF (best_residual > phase_tolerance) THEN
-               WRITE (phase_error, '(A,ES12.4,A,I0,A,I0)') &
-                  "No Bloch-phase direction preserves overlap covariance; residual=", &
-                  best_residual, ", irreducible k-point=", ik, ", operation=", is
-               CALL cp_abort(__LOCATION__, TRIM(phase_error))
-            END IF
-            kpsym%phase_mode(is) = best_mode
+            rot_slot = find_kpoint_rotation_slot(kpoint, kpsym%rotp(is))
+            CPASSERT(rot_slot > 0)
+            key = rot_slot + nrot*MERGE(1, 0, kpsym%rotp(is) < 0)
+            CPASSERT(mode_by_op(key) > 0)
+            kpsym%phase_mode(is) = mode_by_op(key)
          END DO
       END DO
 
@@ -3283,70 +3613,83 @@ CONTAINS
       CALL dbcsr_deallocate_matrix(direct_c)
       CALL dbcsr_deallocate_matrix(sym_r)
       CALL dbcsr_deallocate_matrix(sym_c)
+      CALL timestop(handle)
 
    END SUBROUTINE calibrate_symmetry_phases
 
 ! **************************************************************************************************
-!> \brief Symmetrize a complex k-point matrix including Bloch phase shifts
+!> \brief Borrow the atom mapping and basis rotations for one symmetry contribution.
+!> \param op non-owning operation view
+!> \param kpoint k-point environment
+!> \param kpsym symmetry data for the representative k-point
+!> \param is index in the existing symmetry contribution list
+! **************************************************************************************************
+   SUBROUTINE kp_symmetry_op_init(op, kpoint, kpsym, is)
+      TYPE(kp_symmetry_op_type), INTENT(OUT)             :: op
+      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(kpoint_sym_type), POINTER                     :: kpsym
+      INTEGER, INTENT(IN)                                :: is
+
+      INTEGER                                            :: iatom, rot_slot
+      LOGICAL                                            :: has_phase, perm, rotates
+      REAL(KIND=dp)                                      :: dr
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rot
+
+      rot_slot = find_kpoint_rotation_slot(kpoint, kpsym%rotp(is))
+      CPASSERT(rot_slot > 0)
+      op%kind_rot => kpoint%kind_rotmat(rot_slot, :)
+      op%atom_map => kpsym%f0(:, is)
+      op%atom_kind => kpoint%atype
+      op%cell_shift => kpsym%fcell_gauge(:, :, is)
+      op%xkp(:) = kpsym%xkp(:, is)
+      op%time_reversal = kpsym%rotp(is) < 0
+
+      perm = .FALSE.
+      DO iatom = 1, SIZE(op%atom_map)
+         IF (op%atom_map(iatom) == iatom) CYCLE
+         perm = .TRUE.
+         EXIT
+      END DO
+      rot => kpsym%rot(:, :, is)
+      dr = ABS(rot(1, 1) - 1.0_dp) + ABS(rot(2, 2) - 1.0_dp) + ABS(rot(3, 3) - 1.0_dp)
+      rotates = ABS(SUM(ABS(rot)) - 3.0_dp) > 1.e-12_dp .OR. ABS(dr) > 1.e-12_dp
+      has_phase = ANY(op%cell_shift /= 0) .OR. op%time_reversal
+      op%identity = .NOT. (rotates .OR. perm .OR. has_phase)
+      op%redistribute = perm .OR. has_phase
+
+   END SUBROUTINE kp_symmetry_op_init
+
+! **************************************************************************************************
+!> \brief DBCSR adapter for a complex k-point symmetry operation.
 !> \param srpmat real part of transformed matrix
 !> \param scpmat imaginary part of transformed matrix
 !> \param rpmat real part of reference matrix
 !> \param cpmat imaginary part of reference matrix
-!> \param real_only ...
-!> \param kmat kind type rotation matrix
-!> \param rot rotation matrix
-!> \param f0 atom permutation
-!> \param fcell atom cell shifts generated by the symmetry operation
-!> \param atype atom to kind pointer
-!> \param xkp target k-point coordinates
-!> \param time_reversal ...
-!> \param reverse_phase ...
+!> \param real_only whether only the real part is present
+!> \param op symmetry operation and atom mapping
+!> \param reverse_phase use the reverse Bloch-phase convention
 ! **************************************************************************************************
-   SUBROUTINE symtrans_phase(srpmat, scpmat, rpmat, cpmat, real_only, kmat, rot, f0, fcell, atype, &
-                             xkp, time_reversal, reverse_phase)
-
+   SUBROUTINE symtrans_phase(srpmat, scpmat, rpmat, cpmat, real_only, op, reverse_phase)
       TYPE(dbcsr_type), POINTER                          :: srpmat, scpmat, rpmat, cpmat
       LOGICAL, INTENT(IN)                                :: real_only
-      TYPE(kind_rotmat_type), DIMENSION(:), POINTER      :: kmat
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: rot
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: f0
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: fcell
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: atype
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
-      LOGICAL, INTENT(IN)                                :: time_reversal, reverse_phase
+      TYPE(kp_symmetry_op_type), INTENT(IN)              :: op
+      LOGICAL, INTENT(IN)                                :: reverse_phase
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'symtrans_phase'
 
-      INTEGER                                            :: handle, iatom, icol, ikind, ip, irow, &
-                                                            jcol, jkind, jp, jrow, mynode, natom, &
-                                                            nthreads, numnodes, owner
+      INTEGER                                            :: handle, icol, ip, irow, jcol, jp, jrow, &
+                                                            mynode, nthreads, numnodes, owner
       INTEGER, DIMENSION(3)                              :: shift
-      LOGICAL                                            :: byrows, dorot, found, has_phase, perm, &
-                                                            trans
-      REAL(KIND=dp)                                      :: arg, coskl, dr, sinkl
+      LOGICAL                                            :: found, trans
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cwork, rwork, twork
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, kroti, krotj, rblock, scblock, &
-                                                            srblock
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cblock, left_rot, rblock, right_rot, &
+                                                            scblock, srblock
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
 
-      natom = SIZE(f0)
-      perm = .FALSE.
-      DO iatom = 1, natom
-         IF (f0(iatom) == iatom) CYCLE
-         perm = .TRUE.
-         EXIT
-      END DO
-
-      dorot = .FALSE.
-      IF (ABS(SUM(ABS(rot)) - 3.0_dp) > 1.e-12_dp) dorot = .TRUE.
-      dr = ABS(rot(1, 1) - 1.0_dp) + ABS(rot(2, 2) - 1.0_dp) + ABS(rot(3, 3) - 1.0_dp)
-      IF (ABS(dr) > 1.e-12_dp) dorot = .TRUE.
-      has_phase = ANY(fcell /= 0) .OR. time_reversal
-
-      IF (.NOT. (dorot .OR. perm .OR. has_phase)) THEN
+      IF (op%identity) THEN
          CALL dbcsr_copy(srpmat, rpmat)
          IF (.NOT. real_only) CALL dbcsr_copy(scpmat, cpmat)
          CALL timestop(handle)
@@ -3355,7 +3698,7 @@ CONTAINS
 
       CALL dbcsr_get_info(rpmat, distribution=dist)
       CALL dbcsr_distribution_get(dist, mynode=mynode, numnodes=numnodes)
-      IF (numnodes /= 1 .AND. (perm .OR. has_phase)) THEN
+      IF (numnodes /= 1 .AND. op%redistribute) THEN
          CALL dbcsr_replicate_all(rpmat)
          IF (.NOT. real_only) CALL dbcsr_replicate_all(cpmat)
       END IF
@@ -3366,78 +3709,34 @@ CONTAINS
       nthreads = 1
 !$    nthreads = omp_get_max_threads()
       ! Atom permutations preserve row ownership, while block scheduling can race on a target row.
-      byrows = .TRUE.
 !$OMP PARALLEL DEFAULT(NONE) NUM_THREADS(nthreads) &
-!$OMP SHARED(rpmat,cpmat,srpmat,scpmat,real_only,kmat,rot,f0,fcell,atype,xkp,time_reversal, &
-!$OMP        reverse_phase,natom,perm,dorot,has_phase,mynode,numnodes,nthreads,byrows) &
-!$OMP PRIVATE(iter,irow,icol,rblock,rwork,cwork,twork,ikind,jkind,kroti,krotj,shift,arg,coskl, &
-!$OMP         sinkl,cblock,found,ip,jp,jrow,jcol,trans,srblock,scblock,owner)
-      CALL dbcsr_iterator_readonly_start(iter, rpmat, dynamic=.TRUE., dynamic_byrows=byrows)
+!$OMP SHARED(rpmat,cpmat,srpmat,scpmat,real_only,op,reverse_phase,mynode) &
+!$OMP PRIVATE(iter,irow,icol,rblock,cblock,rwork,cwork,twork,left_rot,right_rot,shift, &
+!$OMP         found,ip,jp,jrow,jcol,trans,srblock,scblock,owner)
+      CALL dbcsr_iterator_readonly_start(iter, rpmat, dynamic=.TRUE., dynamic_byrows=.TRUE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, rblock)
-         IF (.NOT. ALLOCATED(rwork)) THEN
-            ALLOCATE (rwork(SIZE(rblock, 1), SIZE(rblock, 2)))
-         ELSE IF (SIZE(rwork, 1) /= SIZE(rblock, 1) .OR. SIZE(rwork, 2) /= SIZE(rblock, 2)) THEN
-            DEALLOCATE (rwork)
-            ALLOCATE (rwork(SIZE(rblock, 1), SIZE(rblock, 2)))
-         END IF
-         IF (.NOT. real_only) THEN
-            IF (.NOT. ALLOCATED(cwork)) THEN
-               ALLOCATE (cwork(SIZE(rblock, 1), SIZE(rblock, 2)))
-            ELSE IF (SIZE(cwork, 1) /= SIZE(rblock, 1) .OR. SIZE(cwork, 2) /= SIZE(rblock, 2)) THEN
-               DEALLOCATE (cwork)
-               ALLOCATE (cwork(SIZE(rblock, 1), SIZE(rblock, 2)))
-            END IF
-         END IF
-
-         ikind = atype(irow)
-         jkind = atype(icol)
-         kroti => kmat(ikind)%rmat
-         krotj => kmat(jkind)%rmat
-
-         IF (reverse_phase) THEN
-            shift = fcell(1:3, irow) - fcell(1:3, icol)
-         ELSE
-            shift = fcell(1:3, icol) - fcell(1:3, irow)
-         END IF
-         arg = REAL(shift(1), dp)*xkp(1) + REAL(shift(2), dp)*xkp(2) + &
-               REAL(shift(3), dp)*xkp(3)
-         coskl = COS(twopi*arg)
-         sinkl = SIN(twopi*arg)
+         shift(:) = op%cell_shift(:, icol) - op%cell_shift(:, irow)
+         IF (reverse_phase) shift(:) = -shift
          IF (real_only) THEN
-            IF (ABS(sinkl) > 1.e-12_dp) THEN
-               CALL cp_abort(__LOCATION__, &
-                             "Real k-point wavefunctions cannot represent symmetry phases")
-            END IF
-            rwork(:, :) = coskl*rblock
+            CALL kp_symmetry_phase_block(rblock, shift, op%xkp, op%time_reversal, rwork)
          ELSE
             CALL dbcsr_get_readonly_block_p(matrix=cpmat, row=irow, col=icol, block=cblock, found=found)
-            rwork(:, :) = coskl*rblock
-            IF (time_reversal) THEN
-               cwork(:, :) = -sinkl*rblock
-               IF (found) THEN
-                  rwork(:, :) = rwork - sinkl*cblock
-                  cwork(:, :) = cwork - coskl*cblock
-               END IF
-            ELSE
-               cwork(:, :) = -sinkl*rblock
-               IF (found) THEN
-                  rwork(:, :) = rwork + sinkl*cblock
-                  cwork(:, :) = cwork + coskl*cblock
-               END IF
-            END IF
+            IF (.NOT. found) NULLIFY (cblock)
+            CALL kp_symmetry_phase_block(rblock, shift, op%xkp, op%time_reversal, rwork, cwork, cblock)
          END IF
 
-         ip = f0(irow)
-         jp = f0(icol)
-         IF (ip <= jp) THEN
-            jrow = ip
-            jcol = jp
-            trans = .FALSE.
+         ip = op%atom_map(irow)
+         jp = op%atom_map(icol)
+         jrow = MIN(ip, jp)
+         jcol = MAX(ip, jp)
+         trans = ip > jp
+         IF (trans) THEN
+            left_rot => op%kind_rot(op%atom_kind(icol))%rmat
+            right_rot => op%kind_rot(op%atom_kind(irow))%rmat
          ELSE
-            jrow = jp
-            jcol = ip
-            trans = .TRUE.
+            left_rot => op%kind_rot(op%atom_kind(irow))%rmat
+            right_rot => op%kind_rot(op%atom_kind(icol))%rmat
          END IF
 
          CALL dbcsr_get_block_p(matrix=srpmat, row=jrow, col=jcol, block=srblock, found=found)
@@ -3446,49 +3745,18 @@ CONTAINS
             CPASSERT(owner /= mynode)
             CYCLE
          END IF
-         IF (trans) THEN
-            CALL ensure_work_matrix(twork, SIZE(krotj, 1), SIZE(rwork, 1))
-            CALL dgemm('N', 'T', SIZE(krotj, 1), SIZE(rwork, 1), SIZE(krotj, 2), &
-                       1.0_dp, krotj, SIZE(krotj, 1), rwork, SIZE(rwork, 1), &
-                       0.0_dp, twork, SIZE(twork, 1))
-            CALL dgemm('N', 'T', SIZE(twork, 1), SIZE(kroti, 1), SIZE(twork, 2), &
-                       1.0_dp, twork, SIZE(twork, 1), kroti, SIZE(kroti, 1), &
-                       1.0_dp, srblock, SIZE(srblock, 1))
-         ELSE
-            CALL ensure_work_matrix(twork, SIZE(kroti, 1), SIZE(rwork, 2))
-            CALL dgemm('N', 'N', SIZE(kroti, 1), SIZE(rwork, 2), SIZE(kroti, 2), &
-                       1.0_dp, kroti, SIZE(kroti, 1), rwork, SIZE(rwork, 1), &
-                       0.0_dp, twork, SIZE(twork, 1))
-            CALL dgemm('N', 'T', SIZE(twork, 1), SIZE(krotj, 1), SIZE(twork, 2), &
-                       1.0_dp, twork, SIZE(twork, 1), krotj, SIZE(krotj, 1), &
-                       1.0_dp, srblock, SIZE(srblock, 1))
-         END IF
-
+         CALL kp_symmetry_rotate_block(rwork, left_rot, right_rot, trans, 1.0_dp, srblock, twork)
          IF (.NOT. real_only) THEN
             CALL dbcsr_get_block_p(matrix=scpmat, row=jrow, col=jcol, block=scblock, found=found)
             CPASSERT(found)
-            IF (trans) THEN
-               CALL ensure_work_matrix(twork, SIZE(krotj, 1), SIZE(cwork, 1))
-               CALL dgemm('N', 'T', SIZE(krotj, 1), SIZE(cwork, 1), SIZE(krotj, 2), &
-                          1.0_dp, krotj, SIZE(krotj, 1), cwork, SIZE(cwork, 1), &
-                          0.0_dp, twork, SIZE(twork, 1))
-               CALL dgemm('N', 'T', SIZE(twork, 1), SIZE(kroti, 1), SIZE(twork, 2), &
-                          -1.0_dp, twork, SIZE(twork, 1), kroti, SIZE(kroti, 1), &
-                          1.0_dp, scblock, SIZE(scblock, 1))
-            ELSE
-               CALL ensure_work_matrix(twork, SIZE(kroti, 1), SIZE(cwork, 2))
-               CALL dgemm('N', 'N', SIZE(kroti, 1), SIZE(cwork, 2), SIZE(kroti, 2), &
-                          1.0_dp, kroti, SIZE(kroti, 1), cwork, SIZE(cwork, 1), &
-                          0.0_dp, twork, SIZE(twork, 1))
-               CALL dgemm('N', 'T', SIZE(twork, 1), SIZE(krotj, 1), SIZE(twork, 2), &
-                          1.0_dp, twork, SIZE(twork, 1), krotj, SIZE(krotj, 1), &
-                          1.0_dp, scblock, SIZE(scblock, 1))
-            END IF
+            ! Returning to the stored upper triangle conjugates the imaginary part.
+            CALL kp_symmetry_rotate_block(cwork, left_rot, right_rot, trans, &
+                                          MERGE(-1.0_dp, 1.0_dp, trans), scblock, twork)
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
-      IF (numnodes /= 1 .AND. (perm .OR. has_phase)) THEN
+      IF (numnodes /= 1 .AND. op%redistribute) THEN
          CALL dbcsr_distribute(rpmat)
          IF (.NOT. real_only) CALL dbcsr_distribute(cpmat)
       END IF
@@ -3498,197 +3766,97 @@ CONTAINS
    END SUBROUTINE symtrans_phase
 
 ! **************************************************************************************************
-!> \brief Symmetrization of density matrix - transform to new k-point
-!> \param smat density matrix at new kpoint
-!> \param pmat reference density matrix
-!> \param kmat Kind type rotation matrix
-!> \param rot Rotation matrix
-!> \param f0 Permutation of atoms under transformation
-!> \param atype Atom to kind pointer
-!> \param symmetric Symmetric matrix
-!> \param antisymmetric Anti-Symmetric matrix
+!> \brief Real two-component representation of the Bloch phase and time reversal.
+!> \param shift column-minus-row cell shift with the selected phase direction
+!> \param xkp target k-point coordinates
+!> \param time_reversal conjugate the source before applying the phase
+!> \param real_only reject phases not representable by real wavefunctions
+!> \param phase coefficients mapping source [Re,Im] to transformed [Re,Im]
 ! **************************************************************************************************
-   SUBROUTINE symtrans(smat, pmat, kmat, rot, f0, atype, symmetric, antisymmetric)
-      TYPE(dbcsr_type), POINTER                          :: smat, pmat
-      TYPE(kind_rotmat_type), DIMENSION(:), POINTER      :: kmat
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: rot
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: f0, atype
-      LOGICAL, INTENT(IN), OPTIONAL                      :: symmetric, antisymmetric
+   SUBROUTINE kp_symmetry_phase_factors(shift, xkp, time_reversal, real_only, phase)
+      INTEGER, INTENT(IN)                                :: shift(3)
+      REAL(KIND=dp), INTENT(IN)                          :: xkp(3)
+      LOGICAL, INTENT(IN)                                :: time_reversal, real_only
+      REAL(KIND=dp), INTENT(OUT)                         :: phase(2, 2)
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'symtrans'
+      REAL(KIND=dp)                                      :: arg, cosine, sine
 
-      INTEGER                                            :: handle, iatom, icol, ikind, ip, irow, &
-                                                            jcol, jkind, jp, jrow, natom, numnodes
-      LOGICAL                                            :: asym, dorot, found, perm, sym, trans
-      REAL(KIND=dp)                                      :: dr, fsign
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: kroti, krotj, pblock, sblock
-      TYPE(dbcsr_distribution_type)                      :: dist
-      TYPE(dbcsr_iterator_type)                          :: iter
+      arg = REAL(shift(1), dp)*xkp(1) + REAL(shift(2), dp)*xkp(2) + REAL(shift(3), dp)*xkp(3)
+      cosine = COS(twopi*arg)
+      sine = SIN(twopi*arg)
+      IF (real_only .AND. ABS(sine) > 1.e-12_dp) THEN
+         CALL cp_abort(__LOCATION__, "Real k-point wavefunctions cannot represent symmetry phases")
+      END IF
+      phase(:, 1) = [cosine, -sine]
+      phase(:, 2) = MERGE(-1.0_dp, 1.0_dp, time_reversal)*[sine, cosine]
+   END SUBROUTINE kp_symmetry_phase_factors
 
-      CALL timeset(routineN, handle)
+! **************************************************************************************************
+!> \brief Apply the Bloch phase and optional time reversal to one AO block.
+!> \param rblock real part of source block
+!> \param shift column-minus-row cell shift, with the selected phase direction
+!> \param xkp target k-point coordinates
+!> \param time_reversal conjugate the source before applying the phase
+!> \param rwork real part of the phased block; caller-owned reusable workspace
+!> \param cwork imaginary workspace; absent for real-only wavefunctions
+!> \param cblock imaginary source block; absent when the sparse block is missing
+! **************************************************************************************************
+   SUBROUTINE kp_symmetry_phase_block(rblock, shift, xkp, time_reversal, rwork, cwork, cblock)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: rblock
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: shift
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
+      LOGICAL, INTENT(IN)                                :: time_reversal
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: rwork
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT), OPTIONAL                         :: cwork
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: cblock
 
-      ! check symmetry options
-      sym = .FALSE.
-      IF (PRESENT(symmetric)) sym = symmetric
-      asym = .FALSE.
-      IF (PRESENT(antisymmetric)) asym = antisymmetric
+      REAL(KIND=dp)                                      :: phase(2, 2)
 
-      CPASSERT(.NOT. (sym .AND. asym))
-      CPASSERT((sym .OR. asym))
-
-      ! do we have permutation of atoms
-      natom = SIZE(f0)
-      perm = .FALSE.
-      DO iatom = 1, natom
-         IF (f0(iatom) == iatom) CYCLE
-         perm = .TRUE.
-         EXIT
-      END DO
-
-      ! do we have a real rotation
-      dorot = .FALSE.
-      IF (ABS(SUM(ABS(rot)) - 3.0_dp) > 1.e-12_dp) dorot = .TRUE.
-      dr = ABS(rot(1, 1) - 1.0_dp) + ABS(rot(2, 2) - 1.0_dp) + ABS(rot(3, 3) - 1.0_dp)
-      IF (ABS(dr) > 1.e-12_dp) dorot = .TRUE.
-
-      fsign = 1.0_dp
-      IF (asym) fsign = -1.0_dp
-
-      IF (dorot .OR. perm) THEN
-         CALL cp_abort(__LOCATION__, "k-points need FULL_GRID currently. "// &
-                       "Reduced grids not yet working correctly")
-         CALL dbcsr_set(smat, 0.0_dp)
-         IF (perm) THEN
-            CALL dbcsr_get_info(pmat, distribution=dist)
-            CALL dbcsr_distribution_get(dist, numnodes=numnodes)
-            IF (numnodes == 1) THEN
-               ! the matrices are local to this process
-               CALL dbcsr_iterator_start(iter, pmat)
-               DO WHILE (dbcsr_iterator_blocks_left(iter))
-                  CALL dbcsr_iterator_next_block(iter, irow, icol, pblock)
-                  ip = f0(irow)
-                  jp = f0(icol)
-                  IF (ip <= jp) THEN
-                     jrow = ip
-                     jcol = jp
-                     trans = .FALSE.
-                  ELSE
-                     jrow = jp
-                     jcol = ip
-                     trans = .TRUE.
-                  END IF
-                  CALL dbcsr_get_block_p(matrix=smat, row=jrow, col=jcol, BLOCK=sblock, found=found)
-                  CPASSERT(found)
-                  ikind = atype(irow)
-                  jkind = atype(icol)
-                  kroti => kmat(ikind)%rmat
-                  krotj => kmat(jkind)%rmat
-                  ! rotation
-                  IF (trans) THEN
-                     CALL ensure_work_matrix(work, SIZE(krotj, 2), SIZE(pblock, 1))
-                     CALL dgemm('T', 'T', SIZE(krotj, 2), SIZE(pblock, 1), SIZE(krotj, 1), &
-                                1.0_dp, krotj, SIZE(krotj, 1), pblock, SIZE(pblock, 1), &
-                                0.0_dp, work, SIZE(work, 1))
-                     CALL dgemm('N', 'N', SIZE(work, 1), SIZE(kroti, 2), SIZE(work, 2), &
-                                fsign, work, SIZE(work, 1), kroti, SIZE(kroti, 1), &
-                                0.0_dp, sblock, SIZE(sblock, 1))
-                  ELSE
-                     CALL ensure_work_matrix(work, SIZE(kroti, 2), SIZE(pblock, 2))
-                     CALL dgemm('T', 'N', SIZE(kroti, 2), SIZE(pblock, 2), SIZE(kroti, 1), &
-                                1.0_dp, kroti, SIZE(kroti, 1), pblock, SIZE(pblock, 1), &
-                                0.0_dp, work, SIZE(work, 1))
-                     CALL dgemm('N', 'N', SIZE(work, 1), SIZE(krotj, 2), SIZE(work, 2), &
-                                fsign, work, SIZE(work, 1), krotj, SIZE(krotj, 1), &
-                                0.0_dp, sblock, SIZE(sblock, 1))
-                  END IF
-               END DO
-               CALL dbcsr_iterator_stop(iter)
-               !
-            ELSE
-               ! distributed matrices, most general code needed
-               CALL cp_abort(__LOCATION__, "k-points need FULL_GRID currently. "// &
-                             "Reduced grids not yet working correctly")
-            END IF
-         ELSE
-            ! no atom permutations, this is always local
-            CALL dbcsr_copy(smat, pmat)
-            CALL dbcsr_iterator_start(iter, smat)
-            DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
-               ip = f0(irow)
-               jp = f0(icol)
-               IF (ip <= jp) THEN
-                  jrow = ip
-                  jcol = jp
-                  trans = .FALSE.
-               ELSE
-                  jrow = jp
-                  jcol = ip
-                  trans = .TRUE.
-               END IF
-               ikind = atype(irow)
-               jkind = atype(icol)
-               kroti => kmat(ikind)%rmat
-               krotj => kmat(jkind)%rmat
-               ! rotation
-               IF (trans) THEN
-                  CALL ensure_work_matrix(work, SIZE(krotj, 2), SIZE(sblock, 1))
-                  CALL dgemm('T', 'T', SIZE(krotj, 2), SIZE(sblock, 1), SIZE(krotj, 1), &
-                             1.0_dp, krotj, SIZE(krotj, 1), sblock, SIZE(sblock, 1), &
-                             0.0_dp, work, SIZE(work, 1))
-                  CALL dgemm('N', 'N', SIZE(work, 1), SIZE(kroti, 2), SIZE(work, 2), &
-                             fsign, work, SIZE(work, 1), kroti, SIZE(kroti, 1), &
-                             0.0_dp, sblock, SIZE(sblock, 1))
-               ELSE
-                  CALL ensure_work_matrix(work, SIZE(kroti, 2), SIZE(sblock, 2))
-                  CALL dgemm('T', 'N', SIZE(kroti, 2), SIZE(sblock, 2), SIZE(kroti, 1), &
-                             1.0_dp, kroti, SIZE(kroti, 1), sblock, SIZE(sblock, 1), &
-                             0.0_dp, work, SIZE(work, 1))
-                  CALL dgemm('N', 'N', SIZE(work, 1), SIZE(krotj, 2), SIZE(work, 2), &
-                             fsign, work, SIZE(work, 1), krotj, SIZE(krotj, 1), &
-                             0.0_dp, sblock, SIZE(sblock, 1))
-               END IF
-            END DO
-            CALL dbcsr_iterator_stop(iter)
-            !
-         END IF
-      ELSE
-         ! this is the identity operation, just copy the matrix
-         CALL dbcsr_copy(smat, pmat)
+      CALL kp_symmetry_phase_factors(shift, xkp, time_reversal,.NOT. PRESENT(cwork), phase)
+      CALL ensure_work_matrix(rwork, SIZE(rblock, 1), SIZE(rblock, 2))
+      rwork(:, :) = phase(1, 1)*rblock
+      IF (.NOT. PRESENT(cwork)) RETURN
+      CALL ensure_work_matrix(cwork, SIZE(rblock, 1), SIZE(rblock, 2))
+      cwork(:, :) = phase(2, 1)*rblock
+      IF (PRESENT(cblock)) THEN
+         rwork(:, :) = rwork + phase(1, 2)*cblock
+         cwork(:, :) = cwork + phase(2, 2)*cblock
       END IF
 
-      CALL timestop(handle)
-
-   END SUBROUTINE symtrans
+   END SUBROUTINE kp_symmetry_phase_block
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param mat ...
+!> \brief Accumulate left_rot * op(block) * right_rot^T into one AO block.
+!> \param block phased source block
+!> \param left_rot rotation for the target row
+!> \param right_rot rotation for the target column
+!> \param trans transpose the source when the atom mapping reverses block order
+!> \param alpha sign for real symmetric or imaginary antisymmetric storage
+!> \param TARGET destination block, updated in place
+!> \param work caller-owned reusable GEMM workspace
 ! **************************************************************************************************
-   SUBROUTINE matprint(mat)
-      TYPE(dbcsr_type), POINTER                          :: mat
+   SUBROUTINE kp_symmetry_rotate_block(block, left_rot, right_rot, trans, alpha, TARGET, work)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: block, left_rot, right_rot
+      LOGICAL, INTENT(IN)                                :: trans
+      REAL(KIND=dp), INTENT(IN)                          :: alpha
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: target
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: work
 
-      INTEGER                                            :: i, icol, iounit, irow
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: mblock
-      TYPE(dbcsr_iterator_type)                          :: iter
+      INTEGER                                            :: ncol
 
-      iounit = cp_logger_get_default_io_unit()
-      CALL dbcsr_iterator_start(iter, mat)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, mblock)
-         !
-         IF (iounit > 0) THEN
-            WRITE (iounit, '(A,2I4)') 'BLOCK  ', irow, icol
-            DO i = 1, SIZE(mblock, 1)
-               WRITE (iounit, '(8F12.6)') mblock(i, :)
-            END DO
-         END IF
-         !
-      END DO
-      CALL dbcsr_iterator_stop(iter)
+      ncol = MERGE(SIZE(block, 1), SIZE(block, 2), trans)
+      CALL ensure_work_matrix(work, SIZE(left_rot, 1), ncol)
+      CALL dgemm('N', MERGE('T', 'N', trans), SIZE(left_rot, 1), ncol, SIZE(left_rot, 2), &
+                 1.0_dp, left_rot, SIZE(left_rot, 1), block, SIZE(block, 1), &
+                 0.0_dp, work, SIZE(work, 1))
+      CALL dgemm('N', 'T', SIZE(work, 1), SIZE(right_rot, 1), SIZE(work, 2), &
+                 alpha, work, SIZE(work, 1), right_rot, SIZE(right_rot, 1), &
+                 1.0_dp, TARGET, SIZE(TARGET, 1))
 
-   END SUBROUTINE matprint
-! **************************************************************************************************
+   END SUBROUTINE kp_symmetry_rotate_block
 
 END MODULE kpoint_methods
