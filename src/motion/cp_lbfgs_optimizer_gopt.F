@@ -370,7 +370,7 @@ CONTAINS
 
       CHARACTER(LEN=5)                                   :: wildcard
       INTEGER                                            :: dataunit, handle, its
-      LOGICAL                                            :: conv, is_master, justEntred, &
+      LOGICAL                                            :: conv, is_master, just_entered, &
                                                             keep_space_group
       REAL(KIND=dp)                                      :: t_diff, t_now, t_old
       REAL(KIND=dp), DIMENSION(:), POINTER               :: xold
@@ -380,7 +380,7 @@ CONTAINS
       NULLIFY (logger, xold)
       logger => cp_get_default_logger()
       CALL timeset(routineN, handle)
-      justEntred = .TRUE.
+      just_entered = .TRUE.
       is_master = optimizer%master == optimizer%para_env%mepos
       IF (PRESENT(converged)) converged = optimizer%status == 4
       ALLOCATE (xold(SIZE(optimizer%x)))
@@ -442,7 +442,7 @@ CONTAINS
                   optimizer%status = 1
                END IF
             ELSE IF (optimizer%task(1:5) == 'NEW_X') THEN
-               IF (justEntred) THEN
+               IF (just_entered) THEN
                   optimizer%status = 2
                   ! applies rotation matrices to coordinates and forces
                   IF (keep_space_group) THEN
@@ -579,11 +579,11 @@ CONTAINS
             optimizer%status = 5
             EXIT
          END SELECT
-         IF (optimizer%status == 1 .AND. justEntred) THEN
+         IF (optimizer%status == 1 .AND. just_entered) THEN
             optimizer%eold = optimizer%f
             optimizer%emin = optimizer%eold
          END IF
-         justEntred = .FALSE.
+         just_entered = .FALSE.
       END DO
 
       CALL optimizer%para_env%bcast(optimizer%x, optimizer%master)
