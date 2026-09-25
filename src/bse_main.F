@@ -67,7 +67,7 @@ MODULE bse_main
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_main'
 
-   PUBLIC :: prepare_bse_env, bse_solve, bse_fulldiag_memory_check
+   PUBLIC :: prepare_bse_env, prepare_bse_env_windowed, bse_solve, bse_fulldiag_memory_check
 
 CONTAINS
 
@@ -108,7 +108,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'prepare_bse_env'
 
       INTEGER                                            :: handle, ispin, n_window, nspins
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_mo, n_ov, offsets
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_mo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_dft_spin, eigenval_qp_spin
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mo_window_type)                               :: window
@@ -145,24 +145,6 @@ CONTAINS
          bse_env%bse_debug_print = .TRUE.
       END IF
 
-      ! what the solver reads from QS and the GW (pointers, none owned); the para_env is the RPA's,
-      ! the one the slabs live on
-      bse_env%para_env => fm_S_ia_full(1)%matrix_struct%para_env
-      CALL get_qs_env(qs_env, subsys=bse_env%subsys, pw_env=bse_env%pw_env, &
-                      dft_control=bse_env%dft_control, mos=bse_env%mos, &
-                      exstate_env=bse_env%exstate_env)
-      CALL bse_env%para_env%sync()
-
-      IF (nspins > 1) THEN
-         IF (bse_env%do_iterdiag) THEN
-            CPABORT("Iterative BSE is not yet available for open-shell references")
-         END IF
-         CALL cp_warn(__LOCATION__, &
-                      "Open-shell (UKS/LSD) BSE is a recent addition and has not been "// &
-                      "extensively validated. Verify results carefully before using them "// &
-                      "for production calculations.")
-      END IF
-
       ! one absolute window on the DFT axis, then the window-sized slabs and both energy sets per spin
       ALLOCATE (n_mo(nspins))
       n_mo(:) = homo(:) + virtual(:)
@@ -188,9 +170,6 @@ CONTAINS
          bse_env%eigenval_qp(:, ispin) = eigenval_qp_spin(:)
          DEALLOCATE (eigenval_dft_spin, eigenval_qp_spin)
       END DO
-      ALLOCATE (n_ov(nspins), offsets(nspins))
-      CALL get_bse_spin_block_layout(bse_env%homo_red, bse_env%virt_red, n_ov, offsets, bse_env%n_ov_joint)
-      DEALLOCATE (n_ov, offsets)
 
       CALL invert_static_screening(fm_Q, dimen_RI_red, bse_env%fm_eps_inv)
 
@@ -205,6 +184,149 @@ CONTAINS
          END IF
       END IF
 
+      CALL finish_bse_env(bse_env, qs_env, fm_S_ia_full(1)%matrix_struct%para_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE prepare_bse_env
+
+! **************************************************************************************************
+!> \brief Entry of the seam for window-sized slabs and a ready inverse dielectric matrix: settings
+!>        re-read from the section, run flags, the window's energies, the slabs taken over, then
+!>        the QS pointers. Starts no solver.
+!> \param bse_env settings re-read from its section, which must be associated; state filled here
+!> \param fm_S_ia B^P_ia of the window per spin, moved into bse_env (comes back deallocated)
+!> \param fm_S_ij B^P_ij of the window per spin, moved into bse_env
+!> \param fm_S_ab B^P_ab of the window per spin, moved into bse_env
+!> \param fm_eps_inv the inverse dielectric matrix, RI x RI, copied; stays the caller's
+!> \param eigenval_qp quasiparticle energies of the window (level, spin)
+!> \param eigenval_dft DFT energies of the window (level, spin)
+!> \param homo_full occupied MOs per spin of the full reference
+!> \param homo_red occupied levels in the window per spin
+!> \param virt_red virtual levels in the window per spin
+!> \param dimen_RI RI dimension of the slabs and of fm_eps_inv
+!> \param qs_env source of the pointers the solver reads and of the AO multipoles
+!> \param unit_nr output unit, positive on the writing rank only
+! **************************************************************************************************
+   SUBROUTINE prepare_bse_env_windowed(bse_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_eps_inv, &
+                                       eigenval_qp, eigenval_dft, homo_full, homo_red, virt_red, &
+                                       dimen_RI, qs_env, unit_nr)
+
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: fm_S_ia, fm_S_ij, fm_S_ab
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eps_inv
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eigenval_qp, eigenval_dft
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo_full, homo_red, virt_red
+      INTEGER, INTENT(IN)                                :: dimen_RI
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_bse_env_windowed'
+
+      INTEGER                                            :: handle, ispin, n_window, nspins
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: bse_section
+
+      CALL timeset(routineN, handle)
+
+      ! the settings afresh from the input, as in prepare_bse_env
+      bse_section => bse_env%bse_section
+      CPASSERT(ASSOCIATED(bse_section))
+      CALL read_bse_section(bse_section, bse_env)
+
+      nspins = SIZE(homo_full)
+      CPASSERT(SIZE(fm_S_ia) == nspins .AND. SIZE(eigenval_qp, 2) == nspins)
+      bse_env%nspins = nspins
+      bse_env%dimen_RI = dimen_RI
+      bse_env%dimen_RI_red = dimen_RI
+      ! every window level carries a GW energy on this path
+      bse_env%gw_corr_lev_occ = MAXVAL(homo_red)
+      ALLOCATE (bse_env%gw_corr_lev_virt(nspins))
+      bse_env%gw_corr_lev_virt(:) = virt_red(:)
+
+      ! run flags from the settings
+      bse_env%do_iterdiag = bse_env%bse_diag_method == bse_iterdiag
+      bse_env%do_fulldiag = bse_env%bse_diag_method == bse_fulldiag
+      bse_env%do_tda = bse_env%flag_tda == bse_tda .OR. bse_env%flag_tda == bse_both
+      bse_env%do_abba = bse_env%flag_tda == bse_abba .OR. bse_env%flag_tda == bse_both
+
+      CALL print_BSE_start_flag(bse_env%do_tda, bse_env%do_abba, unit_nr)
+
+      ! the debug flag follows the debug print level
+      logger => cp_get_default_logger()
+      IF (logger%iter_info%print_level == debug_print_level) THEN
+         bse_env%bse_debug_print = .TRUE.
+      END IF
+
+      ALLOCATE (bse_env%homo_red(nspins), bse_env%virt_red(nspins), bse_env%homo_full(nspins))
+      bse_env%homo_full(:) = homo_full(:)
+      bse_env%homo_red(:) = homo_red(:)
+      bse_env%virt_red(:) = virt_red(:)
+      n_window = SIZE(eigenval_qp, 1)
+      DO ispin = 1, nspins
+         CPASSERT(homo_red(ispin) + virt_red(ispin) == n_window)
+      END DO
+      ALLOCATE (bse_env%eigenval_dft(n_window, nspins), bse_env%eigenval_qp(n_window, nspins))
+      bse_env%eigenval_dft(:, :) = eigenval_dft(:, :)
+      bse_env%eigenval_qp(:, :) = eigenval_qp(:, :)
+
+      ! the slabs are window-sized already: take them over
+      CALL MOVE_ALLOC(fm_S_ia, bse_env%fm_S_ia)
+      CALL MOVE_ALLOC(fm_S_ij, bse_env%fm_S_ij)
+      CALL MOVE_ALLOC(fm_S_ab, bse_env%fm_S_ab)
+      CALL cp_fm_create(bse_env%fm_eps_inv, fm_eps_inv%matrix_struct)
+      CALL cp_fm_to_fm(fm_eps_inv, bse_env%fm_eps_inv)
+
+      CALL finish_bse_env(bse_env, qs_env, bse_env%fm_S_ia(1)%matrix_struct%para_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE prepare_bse_env_windowed
+
+! **************************************************************************************************
+!> \brief The part of the seam both entries share once the window and the slabs are in place: the
+!>        QS pointers, the open-shell checks, the spin-block layout and the AO multipoles
+!> \param bse_env state filled here
+!> \param qs_env source of the pointers the solver reads and of the AO multipoles
+!> \param para_env_slabs the communicator the slabs live on
+! **************************************************************************************************
+   SUBROUTINE finish_bse_env(bse_env, qs_env, para_env_slabs)
+
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env_slabs
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'finish_bse_env'
+
+      INTEGER                                            :: handle, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_ov, offsets
+
+      CALL timeset(routineN, handle)
+
+      nspins = bse_env%nspins
+
+      ! what the solver reads from QS and the GW (pointers, none owned)
+      bse_env%para_env => para_env_slabs
+      CALL get_qs_env(qs_env, subsys=bse_env%subsys, pw_env=bse_env%pw_env, &
+                      dft_control=bse_env%dft_control, mos=bse_env%mos, &
+                      exstate_env=bse_env%exstate_env)
+      CALL bse_env%para_env%sync()
+
+      IF (nspins > 1) THEN
+         IF (bse_env%do_iterdiag) THEN
+            CPABORT("Iterative BSE is not yet available for open-shell references")
+         END IF
+         CALL cp_warn(__LOCATION__, &
+                      "Open-shell (UKS/LSD) BSE is a recent addition and has not been "// &
+                      "extensively validated. Verify results carefully before using them "// &
+                      "for production calculations.")
+      END IF
+
+      ALLOCATE (n_ov(nspins), offsets(nspins))
+      CALL get_bse_spin_block_layout(bse_env%homo_red, bse_env%virt_red, n_ov, offsets, bse_env%n_ov_joint)
+      DEALLOCATE (n_ov, offsets)
+
       ! the AO multipoles for the transition dipoles and, when asked for, the exciton descriptors;
       ! the open-shell path computes no descriptors
       CALL get_multipoles_ao(qs_env, 1, bse_env%matrix_dipole_ao, bse_env%multipole_ref_point)
@@ -214,7 +336,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE prepare_bse_env
+   END SUBROUTINE finish_bse_env
 
 ! **************************************************************************************************
 !> \brief Scale the correlation part of the static screened Coulomb interaction in the RI kernel
