@@ -58,7 +58,8 @@ MODULE input_cp2k_mp2
                               integer_t, &
                               logical_t, &
                               real_t
-   USE kinds, ONLY: dp
+   USE kinds, ONLY: default_string_length, &
+                    dp
    USE string_utilities, ONLY: newline, &
                                s2a
 #include "./base/base_uses.f90"
@@ -68,7 +69,7 @@ MODULE input_cp2k_mp2
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_mp2'
 
-   PUBLIC :: create_mp2_section
+   PUBLIC :: create_mp2_section, create_bse_section
 
 CONTAINS
 
@@ -1343,16 +1344,28 @@ CONTAINS
    END SUBROUTINE create_periodic_gw_correction_section
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief The &BSE section, built once under RI_RPA%GW and once under PROPERTIES
 !> \param section ...
+!> \param for_properties .TRUE. for the PROPERTIES%BSE copy, whose description names its GW
 ! **************************************************************************************************
-   SUBROUTINE create_bse_section(section)
+   SUBROUTINE create_bse_section(section, for_properties)
       TYPE(section_type), POINTER                        :: section
+      LOGICAL, INTENT(IN), OPTIONAL                      :: for_properties
 
+      CHARACTER(LEN=default_string_length*4)             :: where_from
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
+      where_from = " Here the quasiparticle energies and the screening come from the RPA-based GW "// &
+                   "of RI_RPA%GW; the same section under PROPERTIES runs the BSE on the RI-AO GW of "// &
+                   "PROPERTIES%BANDSTRUCTURE%GW."
+      IF (PRESENT(for_properties)) THEN
+         IF (for_properties) where_from = " Here the quasiparticle energies, the static screened "// &
+                                        "interaction and the RI integrals come from PROPERTIES%BANDSTRUCTURE%GW (the RI-AO GW, "// &
+                                         "non-periodic, Gamma only), which must be present in the same input; the same section "// &
+                                          "under RI_RPA%GW runs the BSE on the RPA-based GW."
+      END IF
       CALL section_create(section, __LOCATION__, name="BSE", &
                           description="Parameters for a calculation solving the Bethe-Salpeter equation "// &
                           "(BSE) for electronic excitations. The full BSE "// &
@@ -1363,8 +1376,9 @@ CONTAINS
                           "enables, for example, the computation of electronic excitation energies $\Omega^{(n)}$ "// &
                           "as well as optical properties. The BSE can be solved by diagonalizing "// &
                           "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA). "// &
-                         "Preliminary reference: Eq. (35) in PRB 92, 045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209", &
-                          n_keywords=8, n_subsections=3, repeats=.FALSE.)
+                          "Preliminary reference: Eq. (35) in PRB 92, 045209 (2015); "// &
+                          "http://dx.doi.org/10.1103/PhysRevB.92.045209"//TRIM(where_from), &
+                          n_keywords=8, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword)
 

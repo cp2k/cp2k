@@ -263,9 +263,8 @@ CONTAINS
 
       NULLIFY (bse_sec, input)
       CALL get_qs_env(qs_env, input=input)
-      bse_sec => section_vals_get_subs_vals(input, "PROPERTIES%BSE", can_return_null=.TRUE.)
-      do_bse_props = .FALSE.
-      IF (ASSOCIATED(bse_sec)) CALL section_vals_get(bse_sec, explicit=do_bse_props)
+      bse_sec => section_vals_get_subs_vals(input, "PROPERTIES%BSE")
+      CALL section_vals_get(bse_sec, explicit=do_bse_props)
 
       IF (do_bse_props) THEN
          IF (.NOT. bs_env%do_gw) CPABORT("PROPERTIES%BSE needs PROPERTIES%BANDSTRUCTURE%GW")

@@ -48,6 +48,7 @@ MODULE input_cp2k_properties_dft
    USE input_cp2k_atprop, ONLY: create_atprop_section
    USE input_cp2k_dft, ONLY: create_interp_section, &
                              create_mgrid_section
+   USE input_cp2k_mp2, ONLY: create_bse_section
    USE input_cp2k_qs, ONLY: create_ddapc_restraint_section, &
                             create_lrigpw_section
    USE input_cp2k_kpoints, ONLY: create_kpoint_set_section
@@ -96,7 +97,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="PROPERTIES", &
                           description="This section is used to set up the PROPERTIES calculation.", &
-                          n_keywords=0, n_subsections=6, repeats=.FALSE.)
+                          n_keywords=0, n_subsections=7, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
 
@@ -145,6 +146,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_bandstructure_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_bse_section(subsection, for_properties=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
