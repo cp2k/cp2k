@@ -113,7 +113,7 @@ CONTAINS
 
       ! Stop if not implemented
       IF (gopt_env%type_id == default_ts_method_id) THEN
-         CPABORT("BFGS method not yet working with DIMER")
+         CPABORT("L-BFGS method not yet working with DIMER")
       END IF
 
       ALLOCATE (optimizer)
