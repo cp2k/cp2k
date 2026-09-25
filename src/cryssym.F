@@ -15,8 +15,7 @@ MODULE cryssym
                                               Worlton1972,&
                                               cite_reference
    USE kinds,                           ONLY: dp
-   USE kpsym,                           ONLY: group1s,&
-                                              k290s
+   USE kpsym,                           ONLY: group1s
    USE mathlib,                         ONLY: inv_3x3
    USE spglib_f08,                      ONLY: spg_get_international,&
                                               spg_get_major_version,&
@@ -569,93 +568,24 @@ CONTAINS
       INTEGER, DIMENSION(:)                              :: kpop
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_spglib_reduction
 
-      INTEGER                                            :: i, ihc, ihg, indpg, iou, iq1, iq2, iq3, &
-                                                            istriz, isy, li, nat, nc, nhash, &
-                                                            nkpoint, nrot, nsp, ntvec
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: includ, isc, list, lwght, ty
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: f0, lrot
+      INTEGER                                            :: nc, nrot
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: srot
       INTEGER, DIMENSION(48)                             :: ib
       LOGICAL                                            :: spglib_reduction
       REAL(KIND=dp)                                      :: alat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rlist, rx, tvec, wvkl, xkapa
-      REAL(KIND=dp), DIMENSION(3)                        :: a1, a2, a3, b1, b2, b3, origin, wvk0
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat, strain
+      REAL(KIND=dp), DIMENSION(3)                        :: a1, a2, a3, b1, b2, b3
       REAL(KIND=dp), DIMENSION(3, 3, 48)                 :: r
-      REAL(KIND=dp), DIMENSION(3, 48)                    :: vt
 
-      iou = csym%punit
-      hmat = csym%hmat
-      nat = csym%nat
-      iq1 = csym%mesh(1)
-      iq2 = csym%mesh(2)
-      iq3 = csym%mesh(3)
-      nkpoint = 10*iq1*iq2*iq3
-      ! K290 is used here to identify the atomic symmetry operations. The actual
-      ! shifted k-point mesh is reduced afterwards by reduce_kpoint_mesh.
-      wvk0 = 0.0_dp
-      istriz = csym%istriz
       IF (PRESENT(use_spglib_reduction)) THEN
          spglib_reduction = use_spglib_reduction
       ELSE
          spglib_reduction = .FALSE.
       END IF
-      a1(1:3) = hmat(1:3, 1)
-      a2(1:3) = hmat(1:3, 2)
-      a3(1:3) = hmat(1:3, 3)
-      alat = SQRT(SUM(a1**2))
-      strain = 0.0_dp
-      ALLOCATE (xkapa(3, nat), rx(3, nat), tvec(3, 200), ty(nat), isc(nat), f0(49, nat))
-      ty(1:nat) = csym%atype(1:nat)
-      nsp = MAXVAL(ty)
-      DO i = 1, nat
-         xkapa(1:3, i) = MATMUL(hmat, csym%scoord(1:3, i))
-      END DO
-      nhash = MAX(1000, nkpoint)
-      ALLOCATE (wvkl(3, nkpoint), rlist(3, nkpoint), includ(nkpoint), list(nhash + nkpoint))
-      ALLOCATE (lrot(48, nkpoint), lwght(nkpoint))
 
-      IF (iou > 0) THEN
-         WRITE (iou, '(/,(T2,A79))') &
-            "*******************************************************************************", &
-            "**                      Special K-Point Generation by K290                   **", &
-            "*******************************************************************************"
-      END IF
-      CALL cite_reference(Worlton1972)
+      CALL detect_k290_symmetry(csym, a1, a2, a3, b1, b2, b3, alat, nc, ib, r)
       IF (spglib_reduction) CALL cite_reference(Togo2018)
 
-      CALL K290s(iou, nat, nkpoint, nsp, iq1, iq2, iq3, istriz, &
-                 a1, a2, a3, alat, strain, xkapa, rx, tvec, &
-                 ty, isc, f0, ntvec, wvk0, wvkl, lwght, lrot, &
-                 nhash, includ, list, rlist, csym%delta)
-
-      CALL GROUP1s(0, a1, a2, a3, nat, ty, xkapa, b1, b2, b3, &
-                   ihg, ihc, isy, li, nc, indpg, ib, ntvec, &
-                   vt, f0, r, tvec, origin, rx, isc, csym%delta)
-
-      IF (iou > 0) THEN
-         WRITE (iou, '((T2,A79))') &
-            "*******************************************************************************", &
-            "**                              Finished K290                                **", &
-            "*******************************************************************************"
-      END IF
-
-      csym%nrtot = nc
-      IF (ALLOCATED(csym%rt)) DEALLOCATE (csym%rt)
-      IF (ALLOCATED(csym%vt)) DEALLOCATE (csym%vt)
-      IF (ALLOCATED(csym%ibrot)) DEALLOCATE (csym%ibrot)
-      IF (ALLOCATED(csym%f0)) DEALLOCATE (csym%f0)
-      ALLOCATE (csym%rt(3, 3, nc), csym%vt(3, nc), csym%ibrot(nc))
-      csym%vt(1:3, 1:nc) = vt(1:3, 1:nc)
-      ALLOCATE (csym%f0(nat, nc))
-      DO i = 1, nc
-         csym%rt(1:3, 1:3, i) = r(1:3, 1:3, ib(i))
-         csym%f0(1:nat, i) = f0(i, 1:nat)
-      END DO
-      csym%ibrot(1:nc) = ib(1:nc)
-
       IF (csym%n_operations > nc .AND. .NOT. spglib_reduction) THEN
-         IF (ALLOCATED(srot)) DEALLOCATE (srot)
          ALLOCATE (srot(3, 3, csym%n_operations))
          CALL setup_spglib_operations(csym, srot, nrot)
          CALL reduce_spglib_kpoint_mesh(csym, xkp, wkp, kpop, srot, nrot)
@@ -669,9 +599,6 @@ CONTAINS
       ELSE
          CALL reduce_kpoint_mesh(csym, xkp, wkp, kpop, nc, ib, r, a1, a2, a3, b1, b2, b3, alat)
       END IF
-      DEALLOCATE (xkapa, rx, tvec, ty, isc, f0)
-      DEALLOCATE (wvkl, rlist, includ, list)
-      DEALLOCATE (lrot, lwght)
 
    END SUBROUTINE kp_symmetry
 
@@ -715,59 +642,71 @@ CONTAINS
    END SUBROUTINE kp_symmetry_spglib
 
 ! **************************************************************************************************
-!> \brief Store K290 atomic symmetry operations without reducing a generated mesh.
+!> \brief Store K290 atomic symmetry operations.
 !> \param csym ...
 ! **************************************************************************************************
    SUBROUTINE setup_k290_operations(csym)
       TYPE(csym_type)                                    :: csym
 
-      INTEGER                                            :: i, ihc, ihg, indpg, iou, iq1, iq2, iq3, &
-                                                            isy, li, nat, nc, nhash, nkpoint, nsp, &
-                                                            ntvec
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: includ, isc, list, lwght, ty
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: f0, lrot
+      INTEGER                                            :: nc
       INTEGER, DIMENSION(48)                             :: ib
       REAL(KIND=dp)                                      :: alat
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rlist, rx, tvec, wvkl, xkapa
-      REAL(KIND=dp), DIMENSION(3)                        :: a1, a2, a3, b1, b2, b3, origin, wvk0
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: strain
+      REAL(KIND=dp), DIMENSION(3)                        :: a1, a2, a3, b1, b2, b3
       REAL(KIND=dp), DIMENSION(3, 3, 48)                 :: r
+
+      CALL detect_k290_symmetry(csym, a1, a2, a3, b1, b2, b3, alat, nc, ib, r)
+
+   END SUBROUTINE setup_k290_operations
+
+! **************************************************************************************************
+!> \brief Detect and store atomic symmetry operations with the K290/Worlton routines.
+!> \param csym crystal symmetry data
+!> \param a1 first lattice vector
+!> \param a2 second lattice vector
+!> \param a3 third lattice vector
+!> \param b1 first reciprocal lattice vector
+!> \param b2 second reciprocal lattice vector
+!> \param b3 third reciprocal lattice vector
+!> \param alat lattice scaling used by K290
+!> \param nc number of detected operations
+!> \param ib indices of the detected rotations
+!> \param r K290 rotation matrices
+! **************************************************************************************************
+   SUBROUTINE detect_k290_symmetry(csym, a1, a2, a3, b1, b2, b3, alat, nc, ib, r)
+      TYPE(csym_type), INTENT(INOUT)                     :: csym
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: a1, a2, a3, b1, b2, b3
+      REAL(KIND=dp), INTENT(OUT)                         :: alat
+      INTEGER, INTENT(OUT)                               :: nc
+      INTEGER, DIMENSION(48), INTENT(OUT)                :: ib
+      REAL(KIND=dp), DIMENSION(3, 3, 48), INTENT(OUT)    :: r
+
+      INTEGER                                            :: i, ihc, ihg, indpg, iou, isy, li, nat, &
+                                                            ntvec
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: isc, ty
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: f0
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rx, tvec, xkapa
+      REAL(KIND=dp), DIMENSION(3)                        :: origin
       REAL(KIND=dp), DIMENSION(3, 48)                    :: vt
 
       iou = csym%punit
       nat = csym%nat
       CALL setup_k290_lattice(csym, a1, a2, a3, b1, b2, b3, alat)
-      iq1 = MAX(1, csym%mesh(1))
-      iq2 = MAX(1, csym%mesh(2))
-      iq3 = MAX(1, csym%mesh(3))
-      nkpoint = MAX(10, 10*iq1*iq2*iq3)
-      strain = 0.0_dp
-      wvk0 = 0.0_dp
 
-      ALLOCATE (xkapa(3, nat), rx(3, nat), tvec(3, 200), ty(nat), isc(nat), f0(49, nat))
+      ALLOCATE (xkapa(3, nat), rx(3, nat), tvec(3, nat), ty(nat), isc(nat), f0(49, nat))
       ty(1:nat) = csym%atype(1:nat)
-      nsp = MAXVAL(ty)
       DO i = 1, nat
          xkapa(1:3, i) = MATMUL(csym%hmat, csym%scoord(1:3, i))
       END DO
-      nhash = MAX(1000, nkpoint)
-      ALLOCATE (wvkl(3, nkpoint), rlist(3, nkpoint), includ(nkpoint), list(nhash + nkpoint))
-      ALLOCATE (lrot(48, nkpoint), lwght(nkpoint))
 
       IF (iou > 0) THEN
          WRITE (iou, '(/,(T2,A79))') &
             "*******************************************************************************", &
-            "**                      Special K-Point Generation by K290                   **", &
+            "**                     Crystal Symmetry Analysis by K290                    **", &
             "*******************************************************************************"
       END IF
       CALL cite_reference(Worlton1972)
 
-      CALL K290s(iou, nat, nkpoint, nsp, iq1, iq2, iq3, csym%istriz, &
-                 a1, a2, a3, alat, strain, xkapa, rx, tvec, &
-                 ty, isc, f0, ntvec, wvk0, wvkl, lwght, lrot, &
-                 nhash, includ, list, rlist, csym%delta)
-
-      CALL GROUP1s(0, a1, a2, a3, nat, ty, xkapa, b1, b2, b3, &
+      CALL GROUP1s(iou, a1, a2, a3, nat, ty, xkapa, b1, b2, b3, &
                    ihg, ihc, isy, li, nc, indpg, ib, ntvec, &
                    vt, f0, r, tvec, origin, rx, isc, csym%delta)
 
@@ -783,9 +722,8 @@ CONTAINS
       IF (ALLOCATED(csym%vt)) DEALLOCATE (csym%vt)
       IF (ALLOCATED(csym%ibrot)) DEALLOCATE (csym%ibrot)
       IF (ALLOCATED(csym%f0)) DEALLOCATE (csym%f0)
-      ALLOCATE (csym%rt(3, 3, nc), csym%vt(3, nc), csym%ibrot(nc))
+      ALLOCATE (csym%rt(3, 3, nc), csym%vt(3, nc), csym%ibrot(nc), csym%f0(nat, nc))
       csym%vt(1:3, 1:nc) = vt(1:3, 1:nc)
-      ALLOCATE (csym%f0(nat, nc))
       DO i = 1, nc
          csym%rt(1:3, 1:3, i) = r(1:3, 1:3, ib(i))
          csym%f0(1:nat, i) = f0(i, 1:nat)
@@ -793,10 +731,8 @@ CONTAINS
       csym%ibrot(1:nc) = ib(1:nc)
 
       DEALLOCATE (xkapa, rx, tvec, ty, isc, f0)
-      DEALLOCATE (wvkl, rlist, includ, list)
-      DEALLOCATE (lrot, lwght)
 
-   END SUBROUTINE setup_k290_operations
+   END SUBROUTINE detect_k290_symmetry
 
 ! **************************************************************************************************
 !> \brief Return K290 lattice vectors and reciprocal vectors.
