@@ -4,4 +4,6 @@
 "Ar_polar.inp"                          = []
 "h2o_nlcc.inp"                          = []
 "h2o_polar.inp"                         = []
+"h2o_dcdft-1.inp"                       = []
+"h2o_dcdft-2.inp"                       = []
 #EOF
