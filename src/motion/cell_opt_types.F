@@ -89,7 +89,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: constraint_string, label
       INTEGER                                            :: output_unit
-      LOGICAL                                            :: bad_constraint, constraint_explicit
+      LOGICAL                                            :: constraint_explicit
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -120,47 +120,7 @@ CONTAINS
                                               cell_opt_constraint_label(cell_env%constraint_id))))
       END IF
 
-      ! Reject CONSTRAINT combinations that would silently corrupt the
-      ! KEEP_ANGLES projection or the KEEP_SYMMETRY symmetrization.
-      ! Slot order of apply_cell_constraints: AX, BX, BY, CX, CY, CZ.
-      ! KEEP_ANGLES projects the gradient slots {BX,BY} onto b and {CX,CY,CZ} onto c.
-      ! Gradient slots that a legacy value zeroes:
-      !    x  = {AX,BX,CX}          B partial,  C partial   -> breaks parallelism
-      !    y  = {BX,BY,CY}          B complete, C partial   -> breaks parallelism
-      !    z  = {CX,CY,CZ}          B untouched, C complete -> safe
-      !    xy = {AX..CY}            B complete, C partial   -> breaks parallelism
-      !    xz = {AX,BX,CX,CY,CZ}    B partial,  C complete  -> breaks parallelism
-      !    yz = {BX..CZ}            B complete, C complete  -> safe
-      ! A partial group breaks the parallelism. A complete or untouched group keeps it.
-      IF (cell_env%keep_angles) THEN
-         ! The decision lives in keep_angles_conflict, which the unit test
-         ! checks over all 64 masks.
-         IF (keep_angles_conflict(cell_env%constraint_id, &
-                                  cell_env%opt_cell%orthorhombic)) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "CELL_OPT: CONSTRAINT ("// &
-                          TRIM(cell_opt_constraint_label(cell_env%constraint_id))// &
-                          ") fixes only part of the b or c cell vector and would "// &
-                          "destroy the KEEP_ANGLES projection.")
-         END IF
-      END IF
-
-      IF (cell_env%keep_symmetry .AND. cell_env%constraint_id /= fix_none) THEN
-         ! The decision lives in keep_symmetry_conflict, which the unit test
-         ! checks over all 64 masks for every crystal system.
-         bad_constraint = keep_symmetry_conflict(cell_env%constraint_id, &
-                                                 cell_env%opt_cell%symmetry_id)
-         IF (bad_constraint) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "CELL_OPT: CONSTRAINT ("// &
-                          TRIM(cell_opt_constraint_label(cell_env%constraint_id))// &
-                          ") fixes only part of the components coupled by "// &
-                          "KEEP_SYMMETRY ("// &
-                          TRIM(cell_opt_constraint_label( &
-                               keep_symmetry_coupled_set(cell_env%opt_cell%symmetry_id)))// &
-                          ") and would break the cell symmetry.")
-         END IF
-      END IF
+      CALL cell_opt_validate_constraint(cell_env)
 
       ! Get the external pressure
       CALL read_external_press_tensor(geo_section, cell_env%opt_cell, cell_env%pres_ext, &
@@ -204,6 +164,59 @@ CONTAINS
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, "PRINT%CELL")
 
    END SUBROUTINE cell_opt_env_create
+
+! **************************************************************************************************
+!> \brief Abort on constraint combinations that corrupt the KEEP_* projections
+!> \param cell_env ...
+! **************************************************************************************************
+   SUBROUTINE cell_opt_validate_constraint(cell_env)
+      TYPE(cell_opt_env_type), INTENT(IN)                :: cell_env
+
+      LOGICAL                                            :: bad_constraint
+
+      ! Reject CONSTRAINT combinations that would silently corrupt the
+      ! KEEP_ANGLES projection or the KEEP_SYMMETRY symmetrization.
+      ! Slot order of apply_cell_constraints: AX, BX, BY, CX, CY, CZ.
+      ! KEEP_ANGLES projects the gradient slots {BX,BY} onto b and {CX,CY,CZ} onto c.
+      ! Gradient slots that a legacy value zeroes:
+      !    x  = {AX,BX,CX}          B partial,  C partial   -> breaks parallelism
+      !    y  = {BX,BY,CY}          B complete, C partial   -> breaks parallelism
+      !    z  = {CX,CY,CZ}          B untouched, C complete -> safe
+      !    xy = {AX..CY}            B complete, C partial   -> breaks parallelism
+      !    xz = {AX,BX,CX,CY,CZ}    B partial,  C complete  -> breaks parallelism
+      !    yz = {BX..CZ}            B complete, C complete  -> safe
+      ! A partial group breaks the parallelism. A complete or untouched group keeps it.
+      IF (cell_env%keep_angles) THEN
+         ! The decision lives in keep_angles_conflict, which the unit test
+         ! checks over all 64 masks.
+         IF (keep_angles_conflict(cell_env%constraint_id, &
+                                  cell_env%opt_cell%orthorhombic)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "CELL_OPT: CONSTRAINT ("// &
+                          TRIM(cell_opt_constraint_label(cell_env%constraint_id))// &
+                          ") fixes only part of the b or c cell vector and would "// &
+                          "destroy the KEEP_ANGLES projection.")
+         END IF
+      END IF
+
+      IF (cell_env%keep_symmetry .AND. cell_env%constraint_id /= fix_none) THEN
+         ! The decision lives in keep_symmetry_conflict, which the unit test
+         ! checks over all 64 masks for every crystal system.
+         bad_constraint = keep_symmetry_conflict(cell_env%constraint_id, &
+                                                 cell_env%opt_cell%symmetry_id)
+         IF (bad_constraint) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "CELL_OPT: CONSTRAINT ("// &
+                          TRIM(cell_opt_constraint_label(cell_env%constraint_id))// &
+                          ") fixes only part of the components coupled by "// &
+                          "KEEP_SYMMETRY ("// &
+                          TRIM(cell_opt_constraint_label( &
+                               keep_symmetry_coupled_set(cell_env%opt_cell%symmetry_id)))// &
+                          ") and would break the cell symmetry.")
+         END IF
+      END IF
+
+   END SUBROUTINE cell_opt_validate_constraint
 
 ! **************************************************************************************************
 !> \brief ...

@@ -120,12 +120,7 @@ CONTAINS
       CASE (default_minimization_method_id, default_ts_method_id)
          CALL force_env_get(gopt_env%force_env, subsys=subsys)
          ! before starting we handle the case of translating coordinates (QM/MM)
-         IF (gopt_env%force_env%in_use == use_qmmm) THEN
-            CALL apply_qmmm_translate(gopt_env%force_env%qmmm_env)
-         END IF
-         IF (gopt_env%force_env%in_use == use_qmmmx) THEN
-            CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
-         END IF
+         CALL apply_qmmm_translation(gopt_env)
          nparticle = force_env_get_nparticle(gopt_env%force_env)
          ALLOCATE (x0(3*nparticle))
          CALL pack_subsys_particles(subsys=subsys, r=x0)
@@ -134,12 +129,7 @@ CONTAINS
          ! Store reference cell
          gopt_env%h_ref = cell%hmat
          ! before starting we handle the case of translating coordinates (QM/MM)
-         IF (gopt_env%force_env%in_use == use_qmmm) THEN
-            CALL apply_qmmm_translate(gopt_env%force_env%qmmm_env)
-         END IF
-         IF (gopt_env%force_env%in_use == use_qmmmx) THEN
-            CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
-         END IF
+         CALL apply_qmmm_translation(gopt_env)
          nparticle = force_env_get_nparticle(gopt_env%force_env)
          ALLOCATE (x0(3*nparticle + 6))
          CALL pack_subsys_particles(subsys=subsys, r=x0)
@@ -157,6 +147,21 @@ CONTAINS
    END SUBROUTINE gopt_f_create_x0
 
 ! **************************************************************************************************
+!> \brief Apply the QM/MM and QM/MM/X coordinate translations before packing x0
+!> \param gopt_env ...
+! **************************************************************************************************
+   SUBROUTINE apply_qmmm_translation(gopt_env)
+      TYPE(gopt_f_type), POINTER                         :: gopt_env
+
+      IF (gopt_env%force_env%in_use == use_qmmm) THEN
+         CALL apply_qmmm_translate(gopt_env%force_env%qmmm_env)
+      END IF
+      IF (gopt_env%force_env%in_use == use_qmmmx) THEN
+         CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
+      END IF
+   END SUBROUTINE apply_qmmm_translation
+
+! **************************************************************************************************
 !> \brief evaluete the potential energy and its gradients using an array
 !>      with same dimension as the particle_set
 !> \param gopt_env the geometry optimization environment
@@ -164,7 +169,6 @@ CONTAINS
 !> \param f the function value
 !> \param gradient the value of its gradient
 !> \param master ...
-!> \param final_evaluation ...
 !> \param para_env ...
 !> \par History
 !>       CELL OPTIMIZATION:  Teodoro Laino [tlaino] - University of Zurich - 03.2008
@@ -172,14 +176,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
 ! **************************************************************************************************
    SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, &
-                         final_evaluation, para_env)
+                         para_env)
 
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       REAL(KIND=dp), DIMENSION(:), POINTER               :: x
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: f
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: gradient
       INTEGER, INTENT(IN)                                :: master
-      LOGICAL, INTENT(IN), OPTIONAL                      :: final_evaluation
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_eval_at'
@@ -195,8 +198,6 @@ CONTAINS
                                                             shell_particles
       TYPE(spgr_type), POINTER                           :: spgr
       TYPE(virial_type), POINTER                         :: virial
-
-      MARK_USED(final_evaluation)
 
       NULLIFY (cell)
       NULLIFY (core_particles)
@@ -1196,7 +1197,7 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(/,T20,' Reevaluating energy at the minimum')")
          END IF
 
-         CALL cp_eval_at(gopt_env, x0, f=etot, master=master, final_evaluation=.TRUE., &
+         CALL cp_eval_at(gopt_env, x0, f=etot, master=master, &
                          para_env=para_env)
          CALL write_geo_traj(force_env, root_section, it, etot)
          CALL write_simulation_cell(cell, motion_section, it, 0.0_dp)
