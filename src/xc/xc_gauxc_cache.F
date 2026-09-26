@@ -11,6 +11,7 @@
 
 MODULE xc_gauxc_cache
 
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE iso_c_binding,                   ONLY: c_double
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
@@ -18,6 +19,7 @@ MODULE xc_gauxc_cache
                                               mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE xc_gauxc_gradient_policy,        ONLY: gauxc_resolve_gradient_policy
    USE xc_gauxc_interface,              ONLY: &
         cp_gauxc_basisset_type, cp_gauxc_grid_type, cp_gauxc_integrator_type, &
         cp_gauxc_molecule_type, cp_gauxc_status_type, gauxc_check_status, gauxc_create_basisset, &
@@ -41,6 +43,10 @@ MODULE xc_gauxc_cache
       CHARACTER(LEN=default_string_length)         :: int_exec_space = ""
       CHARACTER(LEN=default_path_length)           :: model_eval_name = ""
       CHARACTER(len=default_string_length)         :: lwd_kernel = ""
+      CHARACTER(len=default_string_length)         :: gradient_runtime = "AUTO"
+      LOGICAL                                      :: need_xc_gradient = .FALSE.
+      LOGICAL                                      :: gapw_method = .FALSE.
+      LOGICAL                                      :: force_fd_gradient = .FALSE.
       LOGICAL                                      :: use_mpi_runtime = .FALSE.
       LOGICAL                                      :: use_gradient_mpi_runtime = .FALSE.
       LOGICAL                                      :: use_self_runtime = .FALSE.
@@ -124,11 +130,16 @@ CONTAINS
       TYPE(cp_gauxc_status_type), INTENT(inout)          :: status
 
 #ifdef __GAUXC
+      INTEGER                                            :: gradient_error, unit_nr
+
       IF (gauxc_cache_is_valid( &
           cache, &
           params, &
           para_env, &
           particle_set)) THEN
+         params%use_fd_gradient = cache%use_fd_gradient
+         params%use_gradient_mpi_runtime = cache%use_gradient_mpi_runtime
+         params%use_gradient_self_runtime = cache%use_gradient_self_runtime
          status%status%code = 0
          RETURN
       END IF
@@ -152,19 +163,40 @@ CONTAINS
          RETURN
       END IF
 
-      params%use_fd_gradient = &
-         params%use_fd_gradient .AND. (cache%max_l() > 3)
-      params%use_gradient_mpi_runtime = &
-         params%use_gradient_mpi_runtime .AND. .NOT. params%use_fd_gradient
-      params%use_gradient_self_runtime = &
-         params%use_gradient_self_runtime .AND. .NOT. params%use_gradient_mpi_runtime
+      CALL gauxc_resolve_gradient_policy( &
+         params%need_xc_gradient, params%gapw_method, cache%max_l(), params%use_gauxc_model, para_env%num_pe, &
+         params%use_self_runtime, TRIM(params%gradient_runtime), params%force_fd_gradient, &
+         params%use_fd_gradient, params%use_gradient_mpi_runtime, params%use_gradient_self_runtime, gradient_error)
+      SELECT CASE (gradient_error)
+      CASE (1)
+         CALL cp_abort(__LOCATION__, &
+                       "MODEL_GRADIENT_RUNTIME MPI requires verified GauXC OneDFT gradient support (PR #222).")
+      CASE (2)
+         CALL cp_abort(__LOCATION__, &
+                       "MODEL_GRADIENT_RUNTIME MPI requires an MPI energy/VXC runtime. "// &
+                       "Use AUTO/SELF to retain the open-shell replicated-runtime safeguard.")
+      CASE (3)
+         CALL cp_abort(__LOCATION__, &
+                       "MODEL_GRADIENT_RUNTIME MPI is incompatible with FORCE_NUMERICAL_GRADIENT.")
+      CASE (4)
+         CALL cp_abort(__LOCATION__, "Unknown GAUXC%MODEL_GRADIENT_RUNTIME value.")
+      END SELECT
 
-      IF (params%use_fd_gradient .AND. para_env%mepos == 0) THEN
+      IF (params%use_fd_gradient .AND. .NOT. params%force_fd_gradient .AND. para_env%mepos == 0) THEN
          CALL cp_warn( &
             __LOCATION__, &
             "Using finite-difference GauXC XC gradients for METHOD GAPW/GAPW_XC with "// &
-            "basis functions beyond f shells. The upstream analytical GauXC gradient path is "// &
-            "not yet reliable for this case.")
+            "basis functions beyond f shells. Analytical high-l gradients have not been "// &
+            "enabled for this GauXC installation and functional path.")
+      END IF
+      IF (params%need_xc_gradient .AND. para_env%mepos == 0) THEN
+         unit_nr = cp_logger_get_default_io_unit()
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(A,A)') " GAUXC| Molecular XC gradient method: ", &
+               TRIM(MERGE("FD        ", "ANALYTICAL", params%use_fd_gradient))
+            WRITE (unit_nr, '(A,A)') " GAUXC| Molecular XC gradient runtime: ", &
+               MERGE("MPI ", "SELF", params%use_gradient_mpi_runtime)
+         END IF
       END IF
       IF (params%use_self_runtime .OR. .NOT. params%use_gauxc_model) THEN
          ! SKALA currently needs a replicated molecular runtime for reproducible
@@ -218,9 +250,8 @@ CONTAINS
       END IF
 
       IF (params%use_gradient_self_runtime) THEN
-         ! Upstream GauXC does not yet support OneDFT/SKALA nuclear gradients
-         ! on an MPI runtime.  Keep the energy/VXC path on the normal MPI
-         ! runtime and use an isolated runtime only for the replicated gradient.
+         ! Retain the energy/VXC runtime when SELF is requested or the external
+         ! GauXC installation has not advertised corrected distributed gradients.
          cache%gradient_grid = gauxc_create_grid( &
                                cache%molecule, &
                                cache%basisset, &
@@ -262,6 +293,11 @@ CONTAINS
       cache%int_exec_space = TRIM(params%int_exec_space)
       cache%model_eval_name = TRIM(params%model_eval_name)
       cache%lwd_kernel = TRIM(params%lwd_kernel)
+      cache%gradient_runtime = params%gradient_runtime
+      cache%need_xc_gradient = params%need_xc_gradient
+      cache%gapw_method = params%gapw_method
+      cache%force_fd_gradient = params%force_fd_gradient
+      cache%use_gauxc_model = params%use_gauxc_model
       cache%use_gradient_mpi_runtime = params%use_gradient_mpi_runtime
       cache%use_mpi_runtime = params%use_mpi_runtime
       cache%use_gradient_self_runtime = params%use_gradient_self_runtime
@@ -411,7 +447,6 @@ CONTAINS
       TYPE(cp_gauxc_cache_params), INTENT(in)              :: params
       TYPE(mp_para_env_type), INTENT(in), POINTER          :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER           :: particle_set
-      LOGICAL                                              :: use_gradient_self_runtime, use_gradient_mpi_runtime, use_fd_gradient
       LOGICAL                                              :: cache_valid
 
 #ifdef __GAUXC
@@ -436,21 +471,12 @@ CONTAINS
       IF (cache%use_self_runtime .NEQV. params%use_self_runtime) RETURN
       IF (cache%use_mpi_runtime .NEQV. params%use_mpi_runtime) RETURN
 
-      ! These three are modified during cache init, so we must emulate these changes here
-      use_gradient_self_runtime = params%use_gradient_self_runtime
-      use_gradient_mpi_runtime = params%use_gradient_mpi_runtime
-      use_fd_gradient = params%use_fd_gradient
-
-      use_fd_gradient = &
-         use_fd_gradient .AND. (cache%max_l() > 3)
-      use_gradient_mpi_runtime = &
-         use_gradient_mpi_runtime .AND. .NOT. use_fd_gradient
-      use_gradient_self_runtime = &
-         use_gradient_self_runtime .AND. .NOT. use_gradient_mpi_runtime
-
-      IF (cache%use_gradient_mpi_runtime .NEQV. use_gradient_mpi_runtime) RETURN
-      IF (cache%use_fd_gradient .NEQV. use_fd_gradient) RETURN
-      IF (cache%use_gradient_self_runtime .NEQV. use_gradient_self_runtime) RETURN
+      ! Compare requests, not flags resolved from the basis during initialization.
+      IF (cache%gradient_runtime /= params%gradient_runtime) RETURN
+      IF (cache%need_xc_gradient .NEQV. params%need_xc_gradient) RETURN
+      IF (cache%gapw_method .NEQV. params%gapw_method) RETURN
+      IF (cache%force_fd_gradient .NEQV. params%force_fd_gradient) RETURN
+      IF (cache%use_gauxc_model .NEQV. params%use_gauxc_model) RETURN
       IF (cache%mpi_comm /= para_env%get_handle()) RETURN
 
       IF (.NOT. ALLOCATED(cache%last_positions)) RETURN
@@ -464,9 +490,6 @@ CONTAINS
       MARK_USED(cache)
       MARK_USED(particle_set)
       MARK_USED(params)
-      MARK_USED(use_gradient_self_runtime)
-      MARK_USED(use_gradient_mpi_runtime)
-      MARK_USED(use_fd_gradient)
       MARK_USED(para_env)
       cache_valid = .FALSE.
 #endif

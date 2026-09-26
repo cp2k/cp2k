@@ -1432,6 +1432,7 @@ list(
   xc/xc_fxc_kernel.F
   xc/xc_gauxc_cache.F
   xc/xc_gauxc_functional.F
+  xc/xc_gauxc_gradient_policy.F
   xc/xc_gauxc_interface.F
   xc/xc_hcth.F
   xc/xc_input_constants.F
@@ -1925,6 +1926,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_SIRIUS}>:__SIRIUS>
     $<$<BOOL:${CP2K_USE_LIBVDWXC}>:__LIBVDWXC>
     $<$<BOOL:${CP2K_USE_GAUXC}>:__GAUXC>
+    $<$<AND:$<BOOL:${CP2K_USE_GAUXC}>,$<BOOL:${CP2K_GAUXC_HAS_ONEDFT_GRADIENT_FIX}>>:__GAUXC_ONEDFT_GRADIENT_FIX>
     # GauXC's CMake package exports CUTLASS even when its Fortran config does
     # not.
     $<$<AND:$<BOOL:${CP2K_USE_GAUXC}>,$<BOOL:${GAUXC_HAS_CUTLASS}>>:GAUXC_HAS_CUTLASS>

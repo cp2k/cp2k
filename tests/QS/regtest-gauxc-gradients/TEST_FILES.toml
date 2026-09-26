@@ -1,0 +1,10 @@
+"H2_FORCE_FD.inp" = [
+  {matcher="GAUXC_numerical_gradient"},
+  {matcher="DEBUG_force_sum", tol=5e-5, ref=0.0},
+]
+"H2_FORCE_SELF.inp" = [
+  {matcher="GAUXC_analytical_gradient"},
+  {matcher="GAUXC_self_gradient"},
+  {matcher="DEBUG_force_sum", tol=5e-5, ref=0.0},
+  {matcher="GAUXC_molecular_xc_virial_fd_diff", tol=5e-6, ref=0.0},
+]

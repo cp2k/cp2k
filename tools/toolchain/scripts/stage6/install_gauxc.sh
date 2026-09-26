@@ -7,9 +7,9 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 gauxc_ver="1.1-skala-cp2k-fixes"
-gauxc_rev="ea0f1fc7c02497aa950376eda61686ba30256999"
+gauxc_rev="2c236c4ac9133dc70a7d668af5750eb6017a2aa4"
 gauxc_pkg="GauXC-${gauxc_rev}.tar.gz"
-gauxc_sha256="10b89536abd8d43b0f10ae33b53c8218c45f23a375bbd9783b62e8e6e606b579"
+gauxc_sha256="7e9b17691ab342865f7c8c43a247e075650e3e7a180be45ddcff24745a246d8f"
 nlohmann_json_pkg="nlohmann-json-3.12.0-include.zip"
 nlohmann_json_sha256="b8cb0ef2dd7f57f18933997c9934bb1fa962594f701cd5a8d3c2c80541559372"
 nlohmann_json_urlpath="https://github.com/nlohmann/json/releases/download/v3.12.0"
