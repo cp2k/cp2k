@@ -47,6 +47,7 @@ MODULE bse_bs_env_link
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_2c_3c,                    ONLY: libint_potential_type
+   USE message_passing,                 ONLY: mp_mem_used_per_rank_GB
    USE mo_window,                       ONLY: mo_window_type
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -68,8 +69,9 @@ MODULE bse_bs_env_link
 
    ! MO columns per tensor block of the window coefficients
    INTEGER, PARAMETER, PRIVATE :: mo_chunk = 64
-   ! bytes of one RI batch of (P, p, q) transformed integrals and of one column chunk of a slab
-   INTEGER(KIND=int_8), PARAMETER, PRIVATE :: slab_batch_bytes = 2_int_8**28
+   ! share of the free memory per rank (MEMORY_PER_PROC of the GW minus what is in use) that one
+   ! RI batch of (p, q, P) transformed integrals may take; the batch is replicated on every rank
+   REAL(KIND=dp), PARAMETER, PRIVATE :: slab_batch_fraction = 0.25_dp
    ! eigenvalue floor of the RI Coulomb matrix for its symmetric roots; the GW inverts its metric
    ! with no floor on the RI-AO path (eps_eigval_mat_RI = 0), so the roots need their own
    REAL(KIND=dp), PARAMETER, PRIVATE :: eps_ri_coulomb = 1.0E-10_dp
@@ -132,7 +134,7 @@ CONTAINS
       ALLOCATE (eigenval_qp(n_window, n_spin), eigenval_dft(n_window, n_spin), homo_full(n_spin))
       DO ispin = 1, n_spin
          CALL link_slabs(qs_env, bs_env, ispin, window, homo_red(ispin), virt_red(ispin), fm_T, &
-                         fm_S_ij(ispin), fm_S_ia(ispin), fm_S_ab(ispin))
+                         fm_S_ij(ispin), fm_S_ia(ispin), fm_S_ab(ispin), unit_nr)
          eigenval_qp(:, ispin) = bs_env%eigenval_GW(window%first_mo:window%last_mo, 1, ispin)
          eigenval_dft(:, ispin) = bs_env%eigenval_scf_Gamma(window%first_mo:window%last_mo, ispin)
          homo_full(ispin) = bs_env%n_occ(ispin)
@@ -369,23 +371,26 @@ CONTAINS
    END SUBROUTINE link_mo_tensor
 
 ! **************************************************************************************************
-!> \brief Contiguous RI atom ranges whose (P, p, q) batch stays under slab_batch_bytes; an atom
-!>        larger than the budget forms its own batch
+!> \brief Contiguous RI atom ranges whose (p, q, P) batch stays under batch_bytes; an atom larger
+!>        than the budget forms its own batch
 !> \param sizes_RI RI functions per atom
 !> \param n_w MOs in the window
+!> \param batch_bytes ...
 !> \param batch_first first atom per batch, allocated here
 !> \param batch_last last atom per batch, allocated here
 ! **************************************************************************************************
-   SUBROUTINE link_ri_batches(sizes_RI, n_w, batch_first, batch_last)
+   SUBROUTINE link_ri_batches(sizes_RI, n_w, batch_bytes, batch_first, batch_last)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_RI
       INTEGER, INTENT(IN)                                :: n_w
+      INTEGER(KIND=int_8), INTENT(IN)                    :: batch_bytes
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: batch_first, batch_last
 
       INTEGER                                            :: i_atom, max_fn, n_atom, n_batch, n_in
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first, last
 
       n_atom = SIZE(sizes_RI)
-      max_fn = MAX(1, INT(slab_batch_bytes/(8_int_8*INT(n_w, int_8)*INT(n_w, int_8))))
+      max_fn = INT(MAX(1_int_8, MIN(INT(SUM(sizes_RI), int_8), &
+                                    batch_bytes/(8_int_8*INT(n_w, int_8)**2))))
       ALLOCATE (first(n_atom), last(n_atom))
       n_batch = 0
       n_in = 0
@@ -409,6 +414,25 @@ CONTAINS
    END SUBROUTINE link_ri_batches
 
 ! **************************************************************************************************
+!> \brief Bytes one rank spends on one RI batch: slab_batch_fraction of MEMORY_PER_PROC minus the
+!>        memory in use now (its maximum over the ranks, so every rank cuts the same batches)
+!> \param bs_env ...
+!> \param batch_bytes zero once the run exceeds MEMORY_PER_PROC; the batches are then one RI atom
+!>        each and the slab transform runs column by column
+! **************************************************************************************************
+   SUBROUTINE link_batch_budget(bs_env, batch_bytes)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      INTEGER(KIND=int_8), INTENT(OUT)                   :: batch_bytes
+
+      REAL(KIND=dp)                                      :: mem_free_GB, mem_used_GB
+
+      CALL mp_mem_used_per_rank_GB(bs_env%para_env, mem_used_GB)
+      mem_free_GB = MAX(bs_env%input_memory_per_proc_GB - mem_used_GB, 0.0_dp)
+      batch_bytes = INT(slab_batch_fraction*mem_free_GB*1.0E9_dp, KIND=int_8)
+
+   END SUBROUTINE link_batch_budget
+
+! **************************************************************************************************
 !> \brief The three window-sized slabs of one spin, S_P,pq = sum_Q (pq|Q) T_QP with
 !>        (pq|Q) = sum_μν C_μp (Q|μν) C_νq, batched over RI atoms: the 3c integrals of the batch
 !>        are rebuilt, half-transformed by a tensor contraction over ν, the second half runs on the
@@ -425,8 +449,10 @@ CONTAINS
 !> \param fm_S_ij created here, RI x n_o*n_o
 !> \param fm_S_ia created here, RI x n_o*n_v
 !> \param fm_S_ab created here, RI x n_v*n_v
+!> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE link_slabs(qs_env, bs_env, ispin, window, n_o, n_v, fm_T, fm_S_ij, fm_S_ia, fm_S_ab)
+   SUBROUTINE link_slabs(qs_env, bs_env, ispin, window, n_o, n_v, fm_T, fm_S_ij, fm_S_ia, fm_S_ab, &
+                         unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, INTENT(IN)                                :: ispin
@@ -434,12 +460,14 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: n_o, n_v
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_T
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_S_ij, fm_S_ia, fm_S_ab
+      INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'link_slabs'
 
       INTEGER                                            :: a, a1, a2, b, handle, i, i_batch, j, &
                                                             mu0, n_batch, n_RI, n_w, nP, p, P0, &
                                                             p_off, q0
+      INTEGER(KIND=int_8)                                :: batch_bytes
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_first, batch_last, dist_1, dist_2, &
                                                             dist_3, sizes_mo
       INTEGER, DIMENSION(3)                              :: blk_size, ind, pdims_3d
@@ -473,8 +501,11 @@ CONTAINS
 
       CALL link_mo_tensor(bs_env, ispin, window, sizes_mo, c_win, t_C)
 
-      CALL link_ri_batches(bs_env%sizes_RI, n_w, batch_first, batch_last)
+      CALL link_batch_budget(bs_env, batch_bytes)
+      CALL link_ri_batches(bs_env%sizes_RI, n_w, batch_bytes, batch_first, batch_last)
       n_batch = SIZE(batch_first)
+      IF (unit_nr > 0) WRITE (unit_nr, '(T2,A4,T7,A,T61,I10,F10.1)') 'BSE|', &
+         'RI atom batches of the slabs, budget per rank (MB)', n_batch, REAL(batch_bytes, dp)*1.0E-6_dp
 
       ! (RI AO | MO) result of the half-transform on the tensor group's grid
       pdims_3d = 0
@@ -571,9 +602,9 @@ CONTAINS
       DEALLOCATE (c_win, sizes_mo, batch_first, batch_last)
 
       ! S_P,pq = sum_Q T_QP (Q|pq), in column chunks, in place
-      CALL apply_ri_transform(fm_T, fm_S_ij, n_RI, n_o*n_o)
-      CALL apply_ri_transform(fm_T, fm_S_ia, n_RI, n_o*n_v)
-      CALL apply_ri_transform(fm_T, fm_S_ab, n_RI, n_v*n_v)
+      CALL apply_ri_transform(fm_T, fm_S_ij, n_RI, n_o*n_o, batch_bytes)
+      CALL apply_ri_transform(fm_T, fm_S_ia, n_RI, n_o*n_v, batch_bytes)
+      CALL apply_ri_transform(fm_T, fm_S_ab, n_RI, n_v*n_v, batch_bytes)
 
       CALL timestop(handle)
 
@@ -586,10 +617,12 @@ CONTAINS
 !> \param fm_slab ...
 !> \param n_RI ...
 !> \param n_cols ...
+!> \param batch_bytes per-rank budget of the work matrix, which is distributed over the ranks
 ! **************************************************************************************************
-   SUBROUTINE apply_ri_transform(fm_T, fm_slab, n_RI, n_cols)
+   SUBROUTINE apply_ri_transform(fm_T, fm_slab, n_RI, n_cols, batch_bytes)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_T, fm_slab
       INTEGER, INTENT(IN)                                :: n_RI, n_cols
+      INTEGER(KIND=int_8), INTENT(IN)                    :: batch_bytes
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_ri_transform'
 
@@ -599,7 +632,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      n_chunk = MIN(n_cols, MAX(1, INT(slab_batch_bytes/(8_int_8*INT(n_RI, int_8)))))
+      n_chunk = INT(MAX(1_int_8, MIN(INT(n_cols, int_8), &
+                                     batch_bytes*INT(fm_slab%matrix_struct%para_env%num_pe, int_8) &
+                                     /(8_int_8*INT(n_RI, int_8)))))
       NULLIFY (struct_work)
       CALL cp_fm_struct_create(struct_work, para_env=fm_slab%matrix_struct%para_env, &
                                context=fm_slab%matrix_struct%context, nrow_global=n_RI, ncol_global=n_chunk)

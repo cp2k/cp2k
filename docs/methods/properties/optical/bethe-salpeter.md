@@ -628,5 +628,9 @@ DZVP-GTH basis, the lowest ten excitation energies with `USE_KS_ENERGIES` agree 
 already at `NUM_TIME_FREQ_POINTS 20`. With quasiparticle energies the two paths differ by the
 difference of their *GW* implementations.
 
+The three-centre integrals are transformed in batches of RI atoms. Each batch may take a quarter of
+the free memory per rank, `MEMORY_PER_PROC` of the *GW* section minus the memory in use, and the
+output reports the batch count and the budget; a run short of memory lowers the keyword.
+
 [bse]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE
 [gw]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW

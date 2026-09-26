@@ -2481,7 +2481,8 @@ CONTAINS
                           "automatically from the free memory of the node divided by the number "// &
                           "of MPI processes running on that node; this is the recommended setting. "// &
                           "Note: This keyword is not used for GW calculations with RI-RS, "// &
-                          "where the available memory is always detected automatically.", &
+                          "where the available memory is always detected automatically. "// &
+                          "PROPERTIES%BSE sizes the RI batches of its integral transform from it too.", &
                           usage="MEMORY_PER_PROC 16", &
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
