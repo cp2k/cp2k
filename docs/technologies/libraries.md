@@ -24,6 +24,24 @@ be used for a oneMKL installation.
 
 On the Mac, BLAS and LAPACK can be provided by either OpenBLAS or Apple's Accelerate framework.
 
+## FFTW (required, FFT implementation)
+
+FFTW is required for performing FFT. The current version of CP2K works with FFTW 3.X. It can be
+downloaded from <http://www.fftw.org>.
+
+FFTW is also provided by MKL. If you have MKL but still want to use standalone FFTW3, pass
+`-DCP2K_USE_FFTW3_WITH_MKL=ON` to CMake.
+
+```{warning}
+Note that FFTW must know the Fortran compiler you will use in order to install properly
+(e.g., `export F77=gfortran` before configure if you intend to use gfortran).
+```
+
+Since CP2K is OpenMP parallelized, CP2K enables the FFTW3 OpenMP interface by default
+(`-DCP2K_ENABLE_FFTW3_OPENMP_SUPPORT=ON`); the FFTW installation must therefore provide
+`libfftw3_omp`. The alternative threads interface can be selected with
+`-DCP2K_ENABLE_FFTW3_THREADS_SUPPORT=ON`, which requires `libfftw3_threads`.
+
 ## DBCSR (required, block-sparse matrix operations)
 
 DBCSR is a standalone library for block-sparse matrix operations. It is maintained at the
@@ -81,31 +99,6 @@ lower thread-support level is insufficient.
 For more information of ScaLAPACK, see <http://www.netlib.org/scalapack/>. ScaLAPACK can be part of
 AOCL (AMD) or oneMKL (Intel); these libraries are recommended on the corresponding machines if
 available.
-
-## FFTW (improved performance of FFTs)
-
-FFTW can be used to improve FFT speed on a wide range of architectures. It is strongly recommended
-to install and use FFTW3. The current version of CP2K works with FFTW 3.X (pass
-`-DCP2K_USE_FFTW3=ON` to CMake). It can be downloaded from <http://www.fftw.org>.
-
-FFTW is also provided by MKL. If you have MKL but still want to use standalone FFTW3, pass
-`-DCP2K_USE_FFTW3_WITH_MKL=ON` to CMake.
-
-```{warning}
-Note that FFTW must know the Fortran compiler you will use in order to install properly
-(e.g., `export F77=gfortran` before configure if you intend to use gfortran).
-```
-
-Since CP2K is OpenMP parallelized, CP2K enables the FFTW3 OpenMP interface by default
-(`-DCP2K_ENABLE_FFTW3_OPENMP_SUPPORT=ON`); the FFTW installation must therefore provide
-`libfftw3_omp`. The alternative threads interface can be selected with
-`-DCP2K_ENABLE_FFTW3_THREADS_SUPPORT=ON`, which requires `libfftw3_threads`.
-
-```{important}
-Support for FFTW is required for some features, especially systems with very large block sizes/grid
-sizes. A future release of CP2K may make FFTW a hard dependency. Please consider CP2K to be compiled
-with support for FFTW.
-```
 
 ## LIBINT (ERI calculation for HFX)
 
