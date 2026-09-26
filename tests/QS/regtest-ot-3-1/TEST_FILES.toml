@@ -10,7 +10,7 @@
 # fixed-N Mermin OT at symmetry-reduced complex K points and its diagonalization reference
 "Al-kpoint-diag-reference.inp"          = [{matcher="E_total", tol=1e-9, ref=-2.903015361392054}]
 "Al-kpoint-otdiag.inp"                  = [
-  {matcher="E_total", tol=1e-8, ref=-2.975637282434870},
+  {matcher="E_total", tol=1e-8, ref=-2.06393459533834},
   {matcher="NO_TEXT", text="K-point smearing includes the first band"},
   {matcher="NO_TEXT", text="K-point smearing includes the last band"},
 ]

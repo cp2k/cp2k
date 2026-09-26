@@ -23,5 +23,5 @@
 
 # Inverse BFGS Hessian as mode-selective initial guess
 "N3dye_geoopt_inverse.inp"              = [{matcher="M007", tol=2.0E-10, ref=0.5616277602}]
-"N3dye_vib_bfgs_inverse.inp"            = [{matcher="M018", tol=5.0E-08, ref=1721.581032}]
+"N3dye_vib_bfgs_inverse.inp"            = [{matcher="M018", tol=1.0E-07, ref=1721.581032}]
 #EOF

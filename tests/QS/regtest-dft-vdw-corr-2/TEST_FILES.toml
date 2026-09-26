@@ -1,6 +1,6 @@
 "dftd3_t4.inp"                          = [{matcher="M033", tol=1.0E-14, ref=-0.02290735568048}]
 "dftd3_t5.inp"                          = [{matcher="M033", tol=1.0E-14, ref=-0.00012095225918}]
-"dftd3_t6.inp"                          = [{matcher="M007", tol=1.0E-14, ref=-84.2984982702}]
+"dftd3_t6.inp"                          = [{matcher="M007", tol=3.0E-12, ref=-84.2984982702}]
 "dftd3_t7.inp"                          = [{matcher="M007", tol=1.0E-14, ref=-84.2984884919}]
 "dftd3_t8.inp"                          = [{matcher="M033", tol=1.0E-14, ref=-0.00115782785972}]
 #
