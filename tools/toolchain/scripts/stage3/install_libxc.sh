@@ -32,30 +32,73 @@ case "$with_libxc" in
       [ -d libxc-${libxc_ver} ] && rm -rf libxc-${libxc_ver}
       tar -xjf libxc-${libxc_ver}.tar.bz2
       cd libxc-${libxc_ver}
-      mkdir build
-      cd build
+
       if [ "${with_gcc}" != "__DONTUSE__" ] &&
         [ "${with_intel}" = "__DONTUSE__" ] && [ "${with_amd}" = "__DONTUSE__" ]; then
-        # Turn off variable tracking
         LIBXC_CFLAGS="${CFLAGS} -fno-var-tracking"
       else
         LIBXC_CFLAGS=""
       fi
-      # CP2K make use of third derivatives in libxc
-      CFLAGS="${LIBXC_CFLAGS}" cmake \
-        -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-        -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-        -DCMAKE_INSTALL_LIBDIR="lib" \
-        -DCMAKE_VERBOSE_MAKEFILE=ON \
-        -DBUILD_SHARED_LIBS=OFF \
-        -DBUILD_TESTING=OFF \
-        -DENABLE_FORTRAN=ON \
-        -DMAXORDER=3 \
-        .. > configure.log 2>&1 || tail_excerpt configure.log
-      make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
-      make install > install.log 2>&1 || tail_excerpt install.log
+
+      # Build exactly one variant: CUDA, HIP, or CPU.
+      if [ "${ENABLE_CUDA}" = "__TRUE__" ]; then
+        echo "Installing CUDA-only libxc into ${pkg_install_dir}"
+        mkdir build-cuda
+        cd build-cuda
+        CFLAGS="${LIBXC_CFLAGS}" cmake \
+          -DCMAKE_BUILD_TYPE="Release" \
+          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+          -DCMAKE_INSTALL_LIBDIR="lib" \
+          -DCMAKE_VERBOSE_MAKEFILE=ON \
+          -DBUILD_SHARED_LIBS=ON \
+          -DBUILD_TESTING=OFF \
+          -DENABLE_FORTRAN=ON \
+          -DENABLE_CUDA=ON \
+          -DCMAKE_CUDA_ARCHITECTURES="${ARCH_NUM}" \
+          -DMAXORDER=3 \
+          .. > configure.log 2>&1 || tail_excerpt configure.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make install > install.log 2>&1 || tail_excerpt install.log
+        cd ..
+      elif [ "${ENABLE_HIP}" = "__TRUE__" ]; then
+        echo "Installing HIP-only libxc into ${pkg_install_dir}"
+        mkdir build-hip
+        cd build-hip
+        CFLAGS="${LIBXC_CFLAGS}" cmake \
+          -DCMAKE_BUILD_TYPE="Release" \
+          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+          -DCMAKE_INSTALL_LIBDIR="lib" \
+          -DCMAKE_VERBOSE_MAKEFILE=ON \
+          -DBUILD_SHARED_LIBS=ON \
+          -DBUILD_TESTING=OFF \
+          -DENABLE_FORTRAN=ON \
+          -DENABLE_HIP=ON \
+          -DCMAKE_HIP_ARCHITECTURES="${ARCH_NUM}" \
+          -DMAXORDER=3 \
+          .. > configure.log 2>&1 || tail_excerpt configure.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make install > install.log 2>&1 || tail_excerpt install.log
+        cd ..
+      else
+        echo "Installing CPU-only libxc into ${pkg_install_dir}"
+        mkdir build
+        cd build
+        CFLAGS="${LIBXC_CFLAGS}" cmake \
+          -DCMAKE_BUILD_TYPE="Release" \
+          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+          -DCMAKE_INSTALL_LIBDIR="lib" \
+          -DCMAKE_VERBOSE_MAKEFILE=ON \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DBUILD_TESTING=OFF \
+          -DENABLE_FORTRAN=ON \
+          -DMAXORDER=3 \
+          .. > configure.log 2>&1 || tail_excerpt configure.log
+        make -j $(get_nprocs) > make.log 2>&1 || tail_excerpt make.log
+        make install > install.log 2>&1 || tail_excerpt install.log
+        cd ..
+      fi
+
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"
-      cd ..
     fi
     ;;
   __SYSTEM__)

@@ -431,7 +431,7 @@ while [[ $# -gt 0 ]]; do
           cray_pm_accel_energy | spla_gemm_offloading | unified_memory)
             CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_USE_${2^^}=${ON_OFF}"
             ;;
-          dbm_gpu | elpa_gpu | grid_gpu | pw_gpu)
+          dbm_gpu | elpa_gpu | grid_gpu | libxc_gpu | pw_gpu)
             CMAKE_FEATURE_FLAGS_GPU+=" -DCP2K_ENABLE_${2^^}=${ON_OFF}"
             ;;
           none)
@@ -884,7 +884,7 @@ if [[ "${HELP}" == "yes" ]]; then
   echo "          libgint | libint | libsmeagol | libtorch | libvdwxc | libxs | mimic | openpmd | pexsi | plumed |"
   echo "          sirius | spfft | spglib | spla | tblite | trexio | vori "
   echo ""
-  echo "Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | pw_gpu |"
+  echo "Features: cray_pm_accel_energy | cusolver_mp | dbm_gpu | elpa_gpu | grid_gpu | libxc_gpu | pw_gpu |"
   echo "          spla_gemm_offloading | unified_memory"
   echo ""
   ${EXIT_CMD}
@@ -1320,10 +1320,12 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
       -e "0,/~cuda/s//+cuda cuda_arch=${CUDA_SM_CODE}/" \
       -e 's/"~cuda\s+~gpu_direct"/"\+cuda ~gpu_direct"/' \
       -e '/\s*#\s*-\s+"fabrics=efa,ucx"/ s/#/ /' \
+      -e "/^[[:space:]]+libxc:/{n; n; s/- \"~cuda\"/- \"+cuda cuda_arch=${CUDA_SM_CODE}\"/}" \
       -i "${CP2K_CONFIG_FILE}"
     # Building libfabric with CUDA causes problems
     # sed -E -e 's/"~cuda\s+~gdrcopy"/"\+cuda \+gdrcopy"/' -i "${CP2K_CONFIG_FILE}"
     sed -E -e 's/"~cuda\s+~gdrcopy"/"\~cuda"/' -i "${CP2K_CONFIG_FILE}"
+    echo -e "\nLibxc will be built with CUDA support (cuda_arch=${CUDA_SM_CODE})"
     if [[ -n "${CUDA_VERSION:-}" ]]; then
       # Set CUDA SM code
       sed -E -e "s/spec:\s+cuda@[.0-9]*/spec: cuda@${CUDA_VERSION}/" -i "${CP2K_CONFIG_FILE}"
@@ -1425,6 +1427,17 @@ if [[ ! -f "${SPACK_BUILD_PATH}/BUILD_DEPENDENCIES_COMPLETED" ]]; then
   if ! spack repo update; then
     echo "ERROR: The update of the repo builtin failed"
     ${EXIT_CMD} 1
+  fi
+
+  # CUDA-enabled libxc needs a C++ compiler, which the builtin recipe does not declare yet
+  if ((CUDA_SM_CODE > 0)); then
+    LIBXC_PACKAGE_FILE="$(find -L "${SPACK_USER_CACHE_PATH}/package_repos" -path "*/builtin/packages/libxc/package.py" -print -quit)"
+    if [[ -f "${LIBXC_PACKAGE_FILE}" ]] && ! grep -q "type=\"build\", when=\"+cuda\"" "${LIBXC_PACKAGE_FILE}"; then
+      sed -i \
+        -e 's/^\(    depends_on("c", type="build")\)$/\1\n    depends_on("cxx", type="build", when="+cuda")/' \
+        "${LIBXC_PACKAGE_FILE}"
+      echo "The builtin spack recipe of libxc has been patched to add the cxx build dependency for CUDA builds"
+    fi
   fi
 
   # Add the local CP2K development Spack repository when missing
