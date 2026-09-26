@@ -184,9 +184,14 @@ spack:
       require:
         - "@1.21.0"
 
+    # Yasm's CMake recipe has many target-related issues.
+    yasm:
+      require:
+        - "build_system=autotools"
+
   repos:
     builtin:
-      commit: 4d092a104627e9871a0d74f853d6df9c8e6105c2 # 2026-08-11
+      commit: 92e70fa0c0c499e9648d77567671f54e02396f3e # 2026-09-23
 
   specs:
     # Build tools
@@ -218,6 +223,7 @@ spack:
     - "libsmeagol@1.2"
     - "libvdwxc@0.5.0"
     - "libvori@220621"
+    - "libwignernj@0.8.0"
     - "libxc@7.1.2"
     - "libxs@1.0.0"
     - "libxsmm@2.1.0"

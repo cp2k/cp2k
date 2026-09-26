@@ -297,7 +297,9 @@ def run_format_fortran(fn: str) -> None:
 
 # ======================================================================================
 def run_check_file_properties(fn: str) -> None:
-    run_local_tool("./tools/precommit/check_file_properties.py", fn)
+    # Explicit command-line arguments are absolute, while discovered paths are
+    # relative. License selection needs repo-relative paths in both cases.
+    run_local_tool("./tools/precommit/check_file_properties.py", os.path.relpath(fn))
 
 
 # ======================================================================================

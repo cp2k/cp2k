@@ -82,8 +82,9 @@ At a minimum, CP2K requires a modern suite of C and Fortran compiler compliant w
 F2008 standard respectively. For currently supported compiler versions, see the GitHub Wiki page on
 [Compiler Support](https://github.com/cp2k/cp2k/wiki/Compiler-Support).
 
-In addition, CP2K requires [DBCSR](https://github.com/cp2k/dbcsr/), BLAS, and LAPACK; on top of
-these, MPI builds require MPI and ScaLAPACK.
+In addition, CP2K requires [DBCSR](https://github.com/cp2k/dbcsr/), BLAS, LAPACK, and
+[libwignernj](https://github.com/susilehtola/libwignernj) 0.8 or newer; on top of these, MPI builds
+require MPI and ScaLAPACK.
 
 Detailed descriptions of available dependencies can be found in the technologies section:
 
