@@ -65,6 +65,7 @@ class CP2KCalculator(Calculator):
     ) -> None:
         self._runtime = runtime
         self._env: ForceEnvironment | None = None
+        self._stress_requested = False
         self._closed = False
         self._output_file = output_file
         # ASE's base-class methods do not yet declare their argument types.
@@ -88,13 +89,15 @@ class CP2KCalculator(Calculator):
         if self._env is not None:
             self._env.close()
             self._env = None
+        self._stress_requested = False
 
-    def _make_input(self, atoms: Atoms) -> dict[str, Any]:
+    def _make_input(self, atoms: Atoms, *, stress: bool = False) -> dict[str, Any]:
         tree: dict[str, Any] = deepcopy(self.parameters["inp"])
         force_eval = tree.setdefault("FORCE_EVAL", {})
         if not isinstance(force_eval, dict):
             raise ValueError("ASE requires exactly one FORCE_EVAL section")
-        force_eval.setdefault("STRESS_TENSOR", "ANALYTICAL")
+        if stress:
+            force_eval.setdefault("STRESS_TENSOR", "ANALYTICAL")
         subsys = force_eval.setdefault("SUBSYS", {})
         if not isinstance(subsys, dict):
             raise ValueError("SUBSYS must be a single section")
@@ -173,12 +176,21 @@ class CP2KCalculator(Calculator):
             )
         if set(system_changes) & {"numbers", "pbc"}:
             self._discard_environment()
+        stress = "stress" in properties
+        # The native stress setting is fixed when the environment is created.
+        if (
+            self._env is not None
+            and stress != self._stress_requested
+            and "STRESS_TENSOR" not in self.parameters["inp"].get("FORCE_EVAL", {})
+        ):
+            self._discard_environment()
         if self._env is None:
-            source = self._make_input(self.atoms)
+            source = self._make_input(self.atoms, stress=stress)
             output = self._output_file or str(
                 Path(self.directory) / f"{self.prefix or 'cp2k'}.out"
             )
             self._env = self._runtime.create_force_env(source, output_file=output)
+            self._stress_requested = stress
             if self._env.natom != len(self.atoms) or self._env.nparticle != len(
                 self.atoms
             ):
@@ -187,7 +199,7 @@ class CP2KCalculator(Calculator):
         self._env.cell = cell / Bohr
         self._env.positions = self.atoms.positions / Bohr
         try:
-            result = self._env.calculate(stress="stress" in properties)
+            result = self._env.calculate(stress=stress)
         except SCFConvergenceError as error:
             raise CalculationFailed(str(error)) from error
         assert result.forces is not None

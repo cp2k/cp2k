@@ -10,6 +10,9 @@ from .library import CalculationResult, _array
 class SubtractiveQMMM:
     """Supply E_QM(region) - E_MM(region) on top of a full-system MM potential.
 
+    This optional coupling API is provisional and may change independently of
+    the core libcp2k bindings.
+
     ``qm`` and ``mm`` are caller-owned environments for the *same* selected
     atoms, in the order of zero-based ``qm_atoms``. ``mm`` must reproduce exactly
     the internal MM terms of this region in the host's full-system force field.

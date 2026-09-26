@@ -76,11 +76,15 @@ def test_ase_cell_optimization(real_runtime, lj_input, tmp_path, monkeypatch):
         cell, positions = env.cell * BOHR_TO_ANGSTROM, env.positions * BOHR_TO_ANGSTROM
         reference = env.calculate(stress=True)
     inp = deepcopy(lj_input)
+    del inp["FORCE_EVAL"]["STRESS_TENSOR"]
     for key in ("CELL", "COORD", "TOPOLOGY"):
         del inp["FORCE_EVAL"]["SUBSYS"][key]
     atoms = Atoms("Ar2", positions=positions, cell=cell, pbc=True)
     with CP2KCalculator(real_runtime, inp, output_file="ase-cell.out") as calc:
         atoms.calc = calc
+        np.testing.assert_allclose(
+            atoms.get_potential_energy(), reference.energy * Hartree
+        )
         np.testing.assert_allclose(
             atoms.get_stress(voigt=False),
             -reference.stress * Hartree / Bohr**3,

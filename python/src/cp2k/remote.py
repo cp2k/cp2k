@@ -30,8 +30,10 @@ class SocketEnvironment:
 
     Connections are authenticated but NOT encrypted: use loopback or a trusted
     SSH tunnel, not an untrusted network. Both peers need the same token (at
-    least 32 characters). Timeouts/connection failures are terminal. close()
-    requests server shutdown but does not manage the external MPI launcher.
+    least 32 characters). Server-side exceptions, including SCF convergence
+    failures, become RuntimeError with the original error in the message and
+    close the connection. Timeouts/connection failures are also terminal.
+    close() requests server shutdown but does not manage the external MPI launcher.
     """
 
     def __init__(

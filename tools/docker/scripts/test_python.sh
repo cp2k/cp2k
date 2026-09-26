@@ -16,9 +16,13 @@ cd /opt/cp2k
 pip3 install './python[test,openmm,typing]'
 pip3 check
 
-# A small serial LAMMPS build avoids relying on a wheel's bundled MPI ABI.
-git clone --quiet --depth=1 --branch stable_22Jul2025_update4 \
-  https://github.com/lammps/lammps.git /opt/lammps
+# Keep the serial build, using the pinned upstream tarball instead of GitHub.
+wget --quiet --tries=3 --timeout=30 -O /opt/lammps.tar.gz \
+  https://download.lammps.org/tars/lammps-22Jul2025_update4.tar.gz
+echo "b456a4d6f19d398dee9880d761594b4bfcb70f8dbb7c2b3aeee51815aa6419c6  /opt/lammps.tar.gz" | sha256sum --check
+mkdir -p /opt/lammps
+tar -xzf /opt/lammps.tar.gz -C /opt/lammps --strip-components=1
+rm /opt/lammps.tar.gz
 cmake -S /opt/lammps/cmake -B /opt/lammps/build \
   -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_MPI=OFF \
   -DPKG_MISC=ON -DBUILD_OMP=OFF

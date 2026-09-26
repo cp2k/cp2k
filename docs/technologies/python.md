@@ -157,10 +157,13 @@ not in-place edits to `calc.parameters`.
 
 Supported ASE properties: energy, free_energy (the same native variational total energy), forces,
 and stress. Stress is converted to ASE's tensile-positive sign and Voigt ordering
-`xx, yy, zz, yz, xz, xy`, in eV/angstrom^3. The adapter enables analytical stress by default; the
-user can override `STRESS_TENSOR` in the input. Cell filters such as `ase.filters.FrechetCellFilter`
-and variable-cell MD can therefore use it. There is no per-atom energy or shell-particle mapping.
-Finite differences of cell strain are part of the native tests.
+`xx, yy, zz, yz, xz, xy`, in eV/angstrom^3. The adapter enables analytical stress only when ASE
+requests it. Without an explicit `STRESS_TENSOR` setting, changing between stress and
+energy/force-only calculations recreates the native environment; cached results do not trigger a
+rebuild. Explicit `STRESS_TENSOR` settings, including `NONE` and `NUMERICAL`, are preserved. Cell
+filters such as `ase.filters.FrechetCellFilter` and variable-cell MD can therefore use it. There is
+no per-atom energy or shell-particle mapping. Finite differences of cell strain are part of the
+native tests.
 
 ## OpenMM
 
@@ -289,6 +292,9 @@ for remote machines. Do not expose this service or token on an untrusted network
 only calculation/shutdown requests, not arbitrary Python code, input files or file operations.
 
 ## QM/MM without double counting
+
+The optional `SubtractiveQMMM` coupling API is provisional; its interface and scope may change
+independently of the core libcp2k bindings.
 
 There are two distinct, explicit choices:
 

@@ -65,6 +65,70 @@ def test_ase_conversion_and_caching(runtime, fake_library, tmp_path, monkeypatch
     assert not runtime._closed
 
 
+def test_ase_stress_request_recreates_environment(runtime, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    sources = []
+    create_force_env = runtime.create_force_env
+
+    def capture(source, **kwargs):
+        sources.append(deepcopy(source))
+        return create_force_env(source, **kwargs)
+
+    monkeypatch.setattr(runtime, "create_force_env", capture)
+    atoms = Atoms("H2", positions=[[0, 0, 0], [0.8, 0, 0]], cell=[8] * 3)
+    with CP2KCalculator(runtime, {}) as calc:
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        atoms.get_forces()
+        assert len(sources) == 1
+        assert "STRESS_TENSOR" not in sources[-1]["FORCE_EVAL"]
+        original = calc._env
+
+        atoms.cell[0, 0] += 0.1
+        atoms.get_stress()
+        assert original._closed
+        assert len(sources) == 2
+        assert sources[-1]["FORCE_EVAL"]["STRESS_TENSOR"] == "ANALYTICAL"
+        np.testing.assert_allclose(
+            sources[-1]["FORCE_EVAL"]["SUBSYS"]["CELL"]["A"], atoms.cell[0]
+        )
+        atoms.get_stress()
+        atoms.get_forces()
+        assert len(sources) == 2
+
+        atoms.positions[1, 0] += 0.1
+        atoms.get_forces()
+        assert len(sources) == 3
+        assert "STRESS_TENSOR" not in sources[-1]["FORCE_EVAL"]
+
+
+@pytest.mark.parametrize("setting", ["NONE", "ANALYTICAL", "NUMERICAL"])
+def test_ase_preserves_explicit_stress(
+    runtime, fake_library, setting, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    inp = {"force_eval": {"stress_tensor": setting}}
+    saved = deepcopy(inp)
+    atoms = Atoms("H2", positions=[[0, 0, 0], [0.8, 0, 0]], cell=[8] * 3)
+    with CP2KCalculator(runtime, inp) as calc:
+        atoms.calc = calc
+        for requested in (False, True):
+            assert (
+                calc._make_input(atoms, stress=requested)["FORCE_EVAL"]["STRESS_TENSOR"]
+                == setting
+            )
+        atoms.get_forces()
+        if setting == "NONE":
+            fake_library.stress_available = 0
+            with pytest.raises(RuntimeError, match="STRESS_TENSOR"):
+                atoms.get_stress()
+            assert calc.results == {}
+        else:
+            atoms.get_stress()
+        assert fake_library.counter == 1
+    assert inp == saved
+
+
 def test_project_path_is_quoted(runtime, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     atoms = Atoms("H", cell=[8] * 3)
