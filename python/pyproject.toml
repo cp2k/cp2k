@@ -16,7 +16,10 @@ dependencies = ["numpy>=1.23"]
 ase = ["ase>=3.23"]
 aiida = ["aiida-core>=2.7,<3", "aiida-cp2k>=2.1,<3"]
 mpi = ["mpi4py>=3.1"]
+openmm = ["openmm>=8.6.1"]
+lammps = ["lammps>=2025.7.22"]
 test = ["pytest>=7", "ase>=3.23"]
+typing = ["mypy==2.3.1", "ase>=3.23", "mpi4py>=3.1"]
 
 [project.urls]
 Homepage = "https://www.cp2k.org"
@@ -24,6 +27,17 @@ Repository = "https://github.com/cp2k/cp2k"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.mypy]
+strict = true
+# Upstream ASE methods are not all annotated yet.
+untyped_calls_exclude = ["ase"]
+# Public package entry points and ASE calculator, including imported helpers.
+files = [
+    "$MYPY_CONFIG_FILE_DIR/src/cp2k/__init__.py",
+    "$MYPY_CONFIG_FILE_DIR/src/cp2k/ase.py",
+    "$MYPY_CONFIG_FILE_DIR/tests/typing/public_api.py",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

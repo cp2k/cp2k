@@ -8,11 +8,13 @@ not load libcp2k or initialize MPI. See :class:`CP2K` for runtime ownership.
 
 from .input import input_to_string
 from .library import CP2K, CalculationResult, ForceEnvironment, SCFConvergenceError
+from .remote import SocketEnvironment
 
 __all__ = [
     "CP2K",
     "CalculationResult",
     "ForceEnvironment",
+    "SocketEnvironment",
     "SCFConvergenceError",
     "input_to_string",
 ]

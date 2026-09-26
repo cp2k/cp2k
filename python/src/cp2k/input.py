@@ -6,9 +6,13 @@ from collections.abc import Mapping
 import math
 from numbers import Real
 import re
+from typing import Any, TypeAlias
+
+# Native CP2K validates the schema; this serializer accepts heterogeneous trees.
+InputMapping: TypeAlias = Mapping[str, Any]
 
 
-def _value(value):
+def _value(value: object) -> str:
     if isinstance(value, bool):
         return ".TRUE." if value else ".FALSE."
     if isinstance(value, str):
@@ -20,7 +24,7 @@ def _value(value):
     raise TypeError(f"Unsupported CP2K input value: {value!r}")
 
 
-def input_to_string(tree):
+def input_to_string(tree: InputMapping) -> str:
     """Serialize a mapping to CP2K input (without selecting physical defaults).
 
     A mapping is a section; a list of mappings repeats a section. ``_`` gives
@@ -32,7 +36,7 @@ def input_to_string(tree):
     if not isinstance(tree, Mapping):
         raise TypeError("CP2K input must be a mapping")
 
-    def contents(section, depth):
+    def contents(section: InputMapping, depth: int) -> list[str]:
         lines = []
         indent = "  " * depth
         seen = set()

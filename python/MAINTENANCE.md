@@ -19,6 +19,14 @@ implementation or assuming that they have accepted ownership.
 
 ## Compatibility and testing
 
+- Check the public package entry points and ASE calculator with
+  `python -m pip install './python[typing]'` and
+  `python -m mypy --strict --config-file python/pyproject.toml` from the repository root. The
+  dedicated Python tester runs this check before pytest. Static contract examples also verify that
+  invalid calls and result assignments are rejected; no native calculation is needed. CP2K mappings
+  remain schema-independent and are validated at runtime. Calls to five untyped ASE base methods
+  have narrow, explicit exceptions; CP2K definitions remain strictly checked. The optional
+  OpenMM/LAMMPS/QM-MM adapters and server CLI are not yet part of this typing target.
 - Keep imports free of native-library and MPI initialization side effects.
 - Test missing/older optional C API symbols. Report unavailable capabilities explicitly; do not
   silently return zero stress or successful SCF convergence.

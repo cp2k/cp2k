@@ -60,6 +60,17 @@ def test_invalid_scf_status(runtime, fake_library, tmp_path, monkeypatch):
             _ = env.potential_energy
 
 
+def test_scf_failure_invalidates_stress(runtime, fake_library, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with runtime.create_force_env("x") as env:
+        env.calculate(stress=True)
+        fake_library.scf_status = 0
+        with pytest.raises(library.SCFConvergenceError):
+            env.calculate(stress=True)
+        with pytest.raises(RuntimeError, match="calculate"):
+            _ = env.stress
+
+
 def test_missing_library(monkeypatch):
     monkeypatch.delenv("CP2K_LIBRARY", raising=False)
     monkeypatch.setattr(library, "find_library", lambda _: None)
