@@ -58,13 +58,9 @@ MODULE post_scf_bandstructure_utils
    USE cp_parser_methods,               ONLY: read_float_object
    USE dft_plus_u,                      ONLY: lowdin_kp_apply,&
                                               lowdin_kp_prepare
-   USE input_constants,                 ONLY: G0W0,&
-                                              evGW0,&
-                                              int_ldos_z,&
-                                              ri_rs_large_cell_Gamma,&
-                                              ri_rs_non_periodic,&
-                                              tensor_large_cell_Gamma,&
-                                              tensor_small_cell_full_kp
+   USE input_constants,                 ONLY: &
+        G0W0, evGW0, int_ldos_z, ri_rs_large_cell_Gamma, ri_rs_non_periodic, rtp_method_bse, &
+        rtp_method_bse_linearized, tensor_large_cell_Gamma, tensor_small_cell_full_kp
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -245,7 +241,7 @@ CONTAINS
    END SUBROUTINE create_and_init_bs_env
 
 ! **************************************************************************************************
-!> \brief What PROPERTIES%BSE needs the GW to keep, and the three combinations it refuses at init
+!> \brief What PROPERTIES%BSE needs the GW to keep, and the four combinations it refuses at init
 !> \param qs_env ...
 !> \param bs_env ...
 ! **************************************************************************************************
@@ -270,6 +266,12 @@ CONTAINS
          IF (.NOT. bs_env%do_gw) CPABORT("PROPERTIES%BSE needs PROPERTIES%BANDSTRUCTURE%GW")
          IF (bs_env%do_gw_ri_rs) CPABORT("PROPERTIES%BSE needs the RI-AO GW: remove &RI_RS")
          IF (bs_env%do_periodic) CPABORT("PROPERTIES%BSE is non-periodic, Gamma only")
+         ! both read the W(0) and the neighbour list the GW keeps, and PROPERTIES%BSE frees them
+         IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "PROPERTIES%BSE and DFT%REAL_TIME_PROPAGATION%RTBSE do not share a run: "// &
+                          "remove one of the two sections")
+         END IF
       END IF
       bs_env%keep_W_freq_zero = do_bse_props
       bs_env%keep_3c_nl = do_bse_props

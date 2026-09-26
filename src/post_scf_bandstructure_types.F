@@ -43,8 +43,7 @@ MODULE post_scf_bandstructure_types
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
-   USE qs_tensors_types,                ONLY: neighbor_list_3c_destroy,&
-                                              neighbor_list_3c_type
+   USE qs_tensors_types,                ONLY: neighbor_list_3c_type
    USE time_frequency_grids,            ONLY: time_frequency_grid_release,&
                                               time_frequency_grid_type
 #include "./base/base_uses.f90"
@@ -348,9 +347,8 @@ MODULE post_scf_bandstructure_types
                                                       skip_chi
       ! rtbse_method (Stepan Marek)
       INTEGER                                      :: rtp_method = -1
-      ! what a post-GW consumer under PROPERTIES needs the GW to keep; set at init, read at the
-      ! W(0), de-init, release and QS part-release sites; nl_3c kept past de-init is destroyed
-      ! at release if still alive. Independent of the real-time method.
+      ! what PROPERTIES%BSE needs the GW to keep for it; set at init, read at the W(0), de-init
+      ! and QS part-release sites; the consumer frees W(0) and nl_3c itself once read
       LOGICAL                                      :: keep_W_freq_zero = .FALSE., &
                                                       keep_3c_nl = .FALSE., &
                                                       keep_qs_state = .FALSE.
@@ -544,12 +542,9 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_Minv_Gamma)
       CALL cp_fm_release(bs_env%fm_chi_Gamma_freq)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq)
-      IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized &
-          .OR. bs_env%keep_W_freq_zero) THEN
+      IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized) THEN
          CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
       END IF
-      ! a neighbour list a post-GW consumer kept past de_init_bs_env; RT-BSE destroys its own earlier
-      IF (ASSOCIATED(bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(bs_env%nl_3c)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_extra)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_no_extra)
       CALL cp_cfm_release(bs_env%cfm_work_mo)

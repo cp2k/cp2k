@@ -53,6 +53,7 @@ MODULE bse_bs_env_link
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_tensors,                      ONLY: neighbor_list_3c_destroy
    USE qs_tensors_types,                ONLY: create_2c_tensor,&
                                               create_3c_tensor
 
@@ -124,6 +125,8 @@ CONTAINS
       n_window = window%last_mo - window%first_mo + 1
 
       CALL link_screening(qs_env, bs_env, unit_nr, fm_T, fm_eps_inv)
+      ! the GW kept W(0) for the screening and nl_3c for the slabs; each goes once read
+      CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
 
       ALLOCATE (fm_S_ia(n_spin), fm_S_ij(n_spin), fm_S_ab(n_spin))
       ALLOCATE (eigenval_qp(n_window, n_spin), eigenval_dft(n_window, n_spin), homo_full(n_spin))
@@ -135,9 +138,8 @@ CONTAINS
          homo_full(ispin) = bs_env%n_occ(ispin)
       END DO
       CALL cp_fm_release(fm_T)
+      CALL neighbor_list_3c_destroy(bs_env%nl_3c)
 
-      ! W(0) and nl_3c stay with bs_env: a real-time propagation in the same run reads them after
-      ! this call, and bs_env_release frees them
       CALL prepare_bse_env_windowed(bse_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_eps_inv, &
                                     eigenval_qp, eigenval_dft, homo_full, homo_red, virt_red, &
                                     n_RI, qs_env, unit_nr)
