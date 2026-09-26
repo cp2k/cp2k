@@ -99,7 +99,8 @@ MODULE bibliography
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
                             Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
                             Cances2000, Herbst2022, Zhang2025, Gresch2017, Soluyanov2011, Davidson1975, &
-                            Olsen1988, Stratmann1998, Vecharynski2017, Stathopoulos1998, Bai2012, Fukaya2014
+                            Olsen1988, Stratmann1998, Vecharynski2017, Stathopoulos1998, Bai2012, &
+                            Fukaya2014, Schreder2024_3
 
 CONTAINS
 
@@ -2363,6 +2364,14 @@ CONTAINS
                          source="2014 5th Workshop on Latest Advances in Scalable Algorithms for Large-Scale "// &
                          "Systems (ScalA)", pages="31-38", &
                          year=2014, doi="10.1109/ScalA.2014.11")
+
+      CALL add_reference(key=Schreder2024_3, &
+                         authors=s2a("L. Schreder", "S. Luber"), &
+                         title="Implementation of frozen density embedding in CP2K and "// &
+                         "OpenMolcas: CASSCF wavefunctions embedded in a Gaussian and plane "// &
+                         "wave DFT environment", &
+                         source="J. Chem. Phys.", volume="161", pages="144110", &
+                         year=2024, doi="10.1063/5.0222409")
 
    END SUBROUTINE add_all_references
 

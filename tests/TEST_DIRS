@@ -505,3 +505,4 @@ QS/regtest-fftw                                             fftw3
 QS/regtest-wfn-restart
 Fist/regtest-plumed2                                        plumed2
 QS/regtest-topology
+QS/regtest-fde
