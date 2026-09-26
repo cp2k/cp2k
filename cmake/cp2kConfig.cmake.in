@@ -44,6 +44,11 @@ if(NOT TARGET cp2k::cp2k)
 
   find_dependency(DBCSR 2.8 REQUIRED)
 
+  set(CP2K_USE_STANDALONE_FFTW3 @CP2K_USE_FFTW3_@)
+  if(CP2K_USE_STANDALONE_FFTW3)
+    find_dependency(Fftw REQUIRED)
+  endif()
+
   set(CP2K_USE_LIBXS @CP2K_USE_LIBXS@)
   set(CP2K_USE_LIBXSMM @CP2K_USE_LIBXSMM@)
   if(CP2K_USE_LIBXS)
@@ -98,11 +103,6 @@ if(NOT TARGET cp2k::cp2k)
       target_link_libraries(cp2k::cosma INTERFACE cosma::cosma_prefixed_pxgemm
                                                   cosma::cosma)
     endif()
-  endif()
-
-  set(CP2K_USE_FFTW3 @CP2K_USE_FFTW3@)
-  if(CP2K_USE_FFTW3)
-    find_dependency(Fftw REQUIRED)
   endif()
 
   set(CP2K_USE_LIBINT2 @CP2K_USE_LIBINT2@)
