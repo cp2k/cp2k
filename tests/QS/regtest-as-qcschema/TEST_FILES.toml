@@ -6,4 +6,7 @@
 #
 "h2o.inp"                               = [{matcher="E_total", tol=1e-12, ref=-17.12434837130648}]
 "be.inp"                                = [{matcher="E_total", tol=1e-12, ref=-14.49107600944466}]
+# Manual active-orbital indices 1 and 3 exercise FINDLOC in the QCSchema ERI export.
+"be-manual.inp"                         = [{matcher="E_total", tol=1e-12, ref=-14.49107600944331},
+                                           {matcher="M092", tol=1e-8, ref=13.37085977}]
 #EOF
