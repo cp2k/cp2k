@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Tested optional workflow stack. PyPI's common-workflows 1.0.1 uses AiiDA 1.x.
+aiida-core==2.9.2
+aiida-cp2k==2.1.1
+aiida-common-workflows[cp2k] @ git+https://github.com/aiidateam/aiida-common-workflows.git@600c4f231e96731a5256f01940cfcc6bdff26b82

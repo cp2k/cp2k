@@ -3,10 +3,10 @@
 # author: Ole Schuett
 
 echo -e "\n========== Installing Dependencies =========="
-apt-get update -qq
+apt-get -o Acquire::Retries=3 update -qq
 export DEBIAN_FRONTEND=noninteractive
 export DEBCONF_NONINTERACTIVE_SEEN=true
-apt-get install -qq --no-install-recommends \
+apt-get -o Acquire::Retries=3 install -qq --no-install-recommends \
   python3-setuptools \
   python3-wheel \
   python3-pip \
@@ -38,6 +38,9 @@ export CC=gcc
 echo -e "\n========== Installing AiiDA-CP2K plugin =========="
 git clone --quiet https://github.com/aiidateam/aiida-cp2k.git /opt/aiida-cp2k/
 cd /opt/aiida-cp2k/
+# CP2K always enables extended FFT lengths now. Keep the band-structure test,
+# but drop its removed input keyword until aiidateam/aiida-cp2k#233 is merged.
+sed -i '/"EXTENDED_FFT_LENGTHS": True,/d' examples/single_calculations/example_bands.py
 # For compatibility of Python 3.14
 # pip3 install './[dev]'
 pip3 install .
@@ -82,6 +85,7 @@ set +e # disable error trapping for remainder of script
 EXIT_CODE=$?
 
 AIIDA_COMMIT=$(git rev-parse --short HEAD)
+
 if ((EXIT_CODE)); then
   echo -e "\nSummary: Something is wrong with aiida-cp2k commit ${AIIDA_COMMIT}."
   echo -e "Status: FAILED\n"
