@@ -196,11 +196,14 @@ CONTAINS
    END SUBROUTINE link_window
 
 ! **************************************************************************************************
-!> \brief The RI transform and the effective inverse dielectric matrix from the GW's static W:
-!>        with V the bare Coulomb and M the RI metric, T = M^-1 V^1/2 so that the slabs
-!>        S_P,pq = Σ_Q (pq|Q) T_QP give SᵀS = (pq|P) [M^-1 V M^-1] (Q|rs); with the stored
-!>        W~ = M^-1 W^c(0) M^-1, ε^-1_eff = 1 + V^-1/2 (M W~ M) V^-1/2, so that
-!>        Sᵀ ε^-1_eff S = (pq|P) [M^-1 (V + W^c(0)) M^-1] (Q|rs), the full static W
+!> \brief The RI transform and the effective inverse dielectric matrix from the GW's static W,
+!>        with V_PQ the bare Coulomb and M_PQ the RI metric in the RI basis:
+!>        T_QP = sum_R [M^-1]_QR [V^1/2]_RP, so that the slabs S_P,pq = sum_Q (pq|Q) T_QP give
+!>        sum_P S_P,pq S_P,rs = sum_QR (pq|Q) [M^-1 V M^-1]_QR (R|rs);
+!>        with the stored W~_PQ = [M^-1 W^c(0) M^-1]_PQ,
+!>        ε^-1_eff,PQ = δ_PQ + sum_RS [V^-1/2]_PR [M W~ M]_RS [V^-1/2]_SQ, so that
+!>        sum_PQ S_P,pq ε^-1_eff,PQ S_Q,rs = sum_RS (pq|R) [M^-1 (V + W^c(0)) M^-1]_RS (S|rs),
+!>        the full static W of the GW. Symmetric roots V^±1/2 drop RI directions under the threshold
 !> \param qs_env ...
 !> \param bs_env ...
 !> \param unit_nr ...
@@ -404,8 +407,8 @@ CONTAINS
    END SUBROUTINE link_ri_batches
 
 ! **************************************************************************************************
-!> \brief The three window-sized slabs of one spin, S_P,pq = Σ_Q (pq|Q) T_QP with
-!>        (pq|Q) = Σ_μν C(μ,p) (Q|μν) C(ν,q), batched over RI atoms: the 3c integrals of the batch
+!> \brief The three window-sized slabs of one spin, S_P,pq = sum_Q (pq|Q) T_QP with
+!>        (pq|Q) = sum_μν C_μp (Q|μν) C_νq, batched over RI atoms: the 3c integrals of the batch
 !>        are rebuilt, half-transformed by a tensor contraction over ν, the second half runs on the
 !>        blocks this rank holds, the batch is summed over all ranks and its rows scattered into
 !>        the slabs; the RI transform by T follows in column chunks. Column conventions of the
@@ -492,13 +495,13 @@ CONTAINS
          ! one tensor group per batch, round robin; every rank joins the sum below
          IF (MODULO(i_batch - 1, bs_env%num_tensor_groups) == bs_env%tensor_group_color) THEN
             CALL compute_3c_integrals(qs_env, bs_env, t_3c, atoms_RI=[a1, a2])
-            ! T(P, μ, q) = Σ_ν (P|μν) C(ν, q)
+            ! T_Pμq = sum_ν (P|μν) C_νq
             CALL dbt_contract(alpha=1.0_dp, tensor_1=t_3c, tensor_2=t_C, beta=0.0_dp, tensor_3=t_T, &
                               contract_1=[3], notcontract_1=[1, 2], map_1=[1, 2], &
                               contract_2=[1], notcontract_2=[2], map_2=[3], &
                               filter_eps=bs_env%eps_filter)
             CALL dbt_clear(t_3c)
-            ! s_loc(p, q, P) += Σ_μ C(μ, p) T(P, μ, q) over the blocks this rank holds; the iterator
+            ! s_loc(p, q, P) += sum_μ C_μp T_Pμq over the blocks this rank holds; the iterator
             ! needs the full thread team, the accumulation into one (p, q, P) slice is serialised
 !$OMP PARALLEL DEFAULT(NONE) SHARED(t_T, bs_env, c_win, s_loc, P0, n_w) &
 !$OMP PRIVATE(iter, ind, blk_size, blk, found, p_off, mu0, q0, tmp, p)
@@ -565,7 +568,7 @@ CONTAINS
       CALL dbt_destroy(t_C)
       DEALLOCATE (c_win, sizes_mo, batch_first, batch_last)
 
-      ! S = Tᵀ (P|pq), in column chunks, in place
+      ! S_P,pq = sum_Q T_QP (Q|pq), in column chunks, in place
       CALL apply_ri_transform(fm_T, fm_S_ij, n_RI, n_o*n_o)
       CALL apply_ri_transform(fm_T, fm_S_ia, n_RI, n_o*n_v)
       CALL apply_ri_transform(fm_T, fm_S_ab, n_RI, n_v*n_v)
@@ -575,7 +578,8 @@ CONTAINS
    END SUBROUTINE link_slabs
 
 ! **************************************************************************************************
-!> \brief fm_slab(:, chunk) <- Tᵀ fm_slab(:, chunk) with one RI x n_chunk work matrix
+!> \brief slab_P,c <- sum_Q T_QP slab_Q,c over the columns c of one chunk, with one RI x n_chunk
+!>        work matrix
 !> \param fm_T ...
 !> \param fm_slab ...
 !> \param n_RI ...
