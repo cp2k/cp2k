@@ -12,6 +12,7 @@ topology_symmetry_unittest
 topology_curvature_unittest
 topology_snapshot_unittest
 kpsym_unittest
+wannier90_projections_unittest
 qs_ot_minimizer_unittest
 low_rank_preconditioner_unittest
 ot_covariant_preconditioner_unittest

@@ -8,3 +8,4 @@
 "neon-tqc-plane.inp" = [{matcher="TQC_PARITY_INDEX", tol=0.0, ref=0.0},
                         {matcher="TQC_ATOMIC_SIGNATURE", tol=0.0, ref=1.0}]
 "stanene-tqc.inp" = [{matcher="TQC_PARITY_INDEX", tol=0.0, ref=1.0}]
+"helium-nnkp-beta.inp" = [{matcher="TOPOLOGY_BERRY_PHASE", tol=1e-4, ref=3.141592653589793}]
