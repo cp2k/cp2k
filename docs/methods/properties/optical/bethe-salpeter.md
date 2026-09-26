@@ -587,5 +587,46 @@ and
 [ENERGY_CUTOFF_EMPTY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.ENERGY_CUTOFF_EMPTY),
 see details given above.
 
+## 4. BSE on the RI-AO *GW* (`PROPERTIES%BSE`)
+
+The BSE section exists in two places, each fed by the *GW* next to it:
+
+- `FORCE_EVAL%DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE` runs on the RPA-based *GW* of the
+  [GW](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW) section, as in the sections above.
+- `FORCE_EVAL%PROPERTIES%BSE` runs on the RI-AO *GW* of
+  [PROPERTIES%BANDSTRUCTURE%GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW), which must be
+  present in the same input. The keywords of both sections are identical.
+
+The second path is restricted to non-periodic systems at the Γ point and to the RI-AO *GW* (no
+`RI_RS` subsection). It takes the quasiparticle energies, the RI three-center integrals and the
+static screened interaction $W(i\omega = 0)$ of that *GW*, summed from its imaginary-time grid, so
+the screening is the *GW*'s own and no second RPA is run. A minimal input:
+
+```
+&PROPERTIES
+  &BANDSTRUCTURE
+    &GW
+      NUM_TIME_FREQ_POINTS 20
+      FREQ_MAX_FIT 27.211
+      CUTOFF_RADIUS_RI 20.0
+      MEMORY_PER_PROC 2
+    &END GW
+  &END BANDSTRUCTURE
+  &BSE
+    BSE_DIAG_METHOD FULLDIAG
+    ENERGY_CUTOFF_EMPTY 50.0
+    ENERGY_CUTOFF_OCC 60.0
+    TDA OFF
+  &END BSE
+&END PROPERTIES
+```
+
+The RI-AO *GW* works in the truncated-Coulomb RI metric with radius `CUTOFF_RADIUS_RI`. A radius
+beyond the extent of the system makes that metric the Coulomb metric of the RPA-based path, and the
+two paths then agree to the accuracy of the imaginary-time quadrature: on H<sub>2</sub>O with a
+DZVP-GTH basis, the lowest ten excitation energies with `USE_KS_ENERGIES` agree to below 0.1 meV
+already at `NUM_TIME_FREQ_POINTS 20`. With quasiparticle energies the two paths differ by the
+difference of their *GW* implementations.
+
 [bse]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE
 [gw]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW
