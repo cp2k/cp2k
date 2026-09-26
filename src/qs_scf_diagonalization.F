@@ -17,7 +17,10 @@ MODULE qs_scf_diagonalization
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                               cp_cfm_scale_and_add,&
-                                              cp_cfm_scale_and_add_fm
+                                              cp_cfm_scale_and_add_fm,&
+                                              cp_cfm_transpose,&
+                                              cp_cfm_triangular_multiply
+   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
    USE cp_cfm_diag,                     ONLY: cp_cfm_diag_workspace_type,&
                                               cp_cfm_geeig,&
                                               cp_cfm_geeig_canon,&
@@ -52,6 +55,7 @@ MODULE qs_scf_diagonalization
                                               cp_fm_geeig,&
                                               cp_fm_geeig_canon,&
                                               diag_check_requested,&
+                                              diag_lib_explicit,&
                                               direct_generalized_diagonalization
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_create_fm,&
@@ -159,6 +163,10 @@ MODULE qs_scf_diagonalization
                                               generate_extended_space_sparse
    USE qs_scf_lanczos,                  ONLY: lanczos_refinement,&
                                               lanczos_refinement_2v
+   USE qs_scf_lanczos_c,                ONLY: lanczos_refinement_2v_c,&
+                                              lanczos_workspace_create,&
+                                              lanczos_workspace_release,&
+                                              lanczos_workspace_type
    USE qs_scf_methods,                  ONLY: combine_ks_matrices,&
                                               eigensolver,&
                                               eigensolver_dbcsr,&
@@ -180,9 +188,15 @@ MODULE qs_scf_diagonalization
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_diagonalization'
 
+   ! occupation below this weight sits beyond the thermal smearing tail
+   ! and converges at the relaxed empty threshold. The Davidson k-point
+   ! driver and both Lanczos k-point paths below use this rule
+   REAL(KIND=dp), PARAMETER, PRIVATE :: occ_tol = 1.0E-3_dp
+
    TYPE, PRIVATE :: kp_diag_workspace_type
       TYPE(cp_cfm_type) :: cksmat, cmos, csmat, csmat_base, cwork
       TYPE(cp_cfm_diag_workspace_type) :: solver
+      TYPE(lanczos_workspace_type) :: lan_ws
       TYPE(local_gemm_ctxt_type) :: gemm_ctx
       COMPLEX(KIND=dp), ALLOCATABLE :: phase(:, :)
    END TYPE kp_diag_workspace_type
@@ -190,7 +204,7 @@ MODULE qs_scf_diagonalization
    PUBLIC :: do_general_diag, do_general_diag_kp, do_roks_diag, &
              do_special_diag, do_ot_diag, do_ot_diag_kp, do_block_davidson_diag, &
              do_block_davidson_diag_kp, &
-             do_block_krylov_diag, do_scf_diag_subspace, diag_subspace_allocate, &
+             do_block_krylov_diag, do_block_krylov_diag_kp, do_scf_diag_subspace, diag_subspace_allocate, &
              general_eigenproblem, diag_kp_smat, diag_kp_basic
 
 CONTAINS
@@ -1295,16 +1309,26 @@ CONTAINS
 !> \param nentry number of phase-sum entries
 !> \param local allocate local phase and solver scratch
 !> \param canonical use the canonical solver
+!> \param lanczos allocate the block-Lanczos kernel scratch
+!> \param nkrylov number of block expansion steps, sizes the kernel scratch
+!> \param nblock number of columns refined jointly, sizes the kernel scratch
 ! **************************************************************************************************
-   SUBROUTINE kp_diag_workspaces_create(workspace, nworkers, matrix_struct, mo_struct, nentry, local, canonical)
+   SUBROUTINE kp_diag_workspaces_create(workspace, nworkers, matrix_struct, mo_struct, nentry, local, canonical, &
+                                        lanczos, nkrylov, nblock)
       TYPE(kp_diag_workspace_type), ALLOCATABLE, &
          INTENT(OUT)                                     :: workspace(:)
       INTEGER, INTENT(IN)                                :: nworkers
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
       INTEGER, INTENT(IN)                                :: nentry
       LOGICAL, INTENT(IN)                                :: local, canonical
+      LOGICAL, INTENT(IN), OPTIONAL                      :: lanczos
+      INTEGER, INTENT(IN), OPTIONAL                      :: nkrylov, nblock
 
       INTEGER                                            :: i, n
+      LOGICAL                                            :: my_lanczos
+
+      my_lanczos = .FALSE.
+      IF (PRESENT(lanczos)) my_lanczos = lanczos
 
       ALLOCATE (workspace(nworkers))
       DO i = 1, nworkers
@@ -1312,16 +1336,23 @@ CONTAINS
          CALL cp_cfm_create(workspace(i)%csmat, matrix_struct)
          CALL cp_cfm_create(workspace(i)%cwork, matrix_struct)
          CALL cp_cfm_create(workspace(i)%cmos, mo_struct)
-         IF (.NOT. local) CYCLE
-         CALL workspace(i)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
+         IF (.NOT. local .AND. .NOT. my_lanczos) CYCLE
+         IF (local) THEN
+            CALL workspace(i)%gemm_ctx%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
+            ALLOCATE (workspace(i)%phase(1, nentry))
+            n = matrix_struct%nrow_global
+            IF (canonical) THEN
+               CALL cp_cfm_local_workspace_prepare(workspace(i)%solver, n, workspace(i)%cksmat%local_data)
+            ELSE
+               CALL cp_cfm_local_workspace_prepare(workspace(i)%solver, n, workspace(i)%cksmat%local_data, &
+                                                   workspace(i)%csmat%local_data)
+            END IF
+         END IF
+         ! the transfer rounds of the Lanczos driver also need the stored
+         ! overlap copy, although they never run the local solvers
          CALL cp_cfm_create(workspace(i)%csmat_base, matrix_struct)
-         ALLOCATE (workspace(i)%phase(1, nentry))
-         n = matrix_struct%nrow_global
-         IF (canonical) THEN
-            CALL cp_cfm_local_workspace_prepare(workspace(i)%solver, n, workspace(i)%cksmat%local_data)
-         ELSE
-            CALL cp_cfm_local_workspace_prepare(workspace(i)%solver, n, workspace(i)%cksmat%local_data, &
-                                                workspace(i)%csmat%local_data)
+         IF (my_lanczos) THEN
+            CALL lanczos_workspace_create(workspace(i)%lan_ws, mo_struct, matrix_struct, nkrylov, nblock)
          END IF
       END DO
    END SUBROUTINE kp_diag_workspaces_create
@@ -1343,9 +1374,174 @@ CONTAINS
          CALL cp_cfm_release(workspace(i)%csmat_base)
          CALL cp_cfm_release(workspace(i)%cwork)
          CALL cp_cfm_release(workspace(i)%cmos)
+         CALL lanczos_workspace_release(workspace(i)%lan_ws)
       END DO
       DEALLOCATE (workspace)
    END SUBROUTINE kp_diag_workspaces_release
+
+! **************************************************************************************************
+!> \brief Adaptive inner tolerance of an iterative solver from EPS_ADAPT:
+!>        loose while the density error sits far from self-consistency,
+!>        tracking that error at a fixed fraction and capped in the early
+!>        phase. A nonpositive factor or error disables the loosening and
+!>        returns the user threshold
+!> \param eps_iter user threshold
+!> \param eps_adapt loosening factor of the tracking
+!> \param iter_error outer error the threshold tracks
+!> \param noise_scale fraction of the outer error the solver noise keeps
+!> \param cap bound of the early loose phase
+!> \return ...
+! **************************************************************************************************
+   PURE FUNCTION kp_adaptive_eps_iter(eps_iter, eps_adapt, iter_error, noise_scale, cap) RESULT(eps)
+      REAL(KIND=dp), INTENT(IN)                          :: eps_iter, eps_adapt, iter_error, &
+                                                            noise_scale, cap
+      REAL(KIND=dp)                                      :: eps
+
+      IF (eps_adapt <= 0.0_dp .OR. iter_error <= 0.0_dp) THEN
+         eps = eps_iter
+      ELSE
+         eps = MAX(eps_iter, MIN(eps_adapt*iter_error/noise_scale, cap))
+      END IF
+   END FUNCTION kp_adaptive_eps_iter
+
+! **************************************************************************************************
+!> \brief Occupations, ADDED_MOS_AUTO growth check and the density exit
+!>        chain shared by the k-point diagonalization drivers. The
+!>        routine keeps its own bookkeeping: a growing step abandons the
+!>        density of the abandoned SCF step
+!> \param kpoints ...
+!> \param scf_env ...
+!> \param scf_control ...
+!> \param matrix_s_kp real-space overlap matrix, dbcsr image set
+!> \param sab_nl ...
+!> \param fmwork global scratch fms of the driver
+!> \param grow TRUE when the virtual-space buffer is too small for the
+!>        smearing tail: the outer loop grows the MOS and redoes this
+!>        SCF step
+! **************************************************************************************************
+   SUBROUTINE kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s_kp, sab_nl, fmwork, grow)
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(scf_control_type), POINTER                    :: scf_control
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      LOGICAL, INTENT(OUT)                               :: grow
+
+      CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
+                                    added_mos_auto=scf_control%added_mos_auto, &
+                                    added_mos_auto_grow=grow)
+      IF (grow) RETURN
+      CALL kpoint_density_matrices(kpoints)
+      CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
+                                    matrix_s_kp(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s_kp)
+   END SUBROUTINE kp_diag_exit_chain
+
+! **************************************************************************************************
+!> \brief Per-column convergence thresholds of an iterative k-point
+!>        solver: the occupation decides which columns sit beyond the
+!>        thermal smearing tail and converge at the relaxed empty
+!>        threshold
+!> \param occupation occupation numbers of the channel
+!> \param eps_iter threshold of the occupied columns
+!> \param eps_iter_empty relaxed threshold of the unoccupied columns
+!> \param eps_col per-column thresholds, at least as long as the
+!>        occupation numbers
+! **************************************************************************************************
+   SUBROUTINE kp_eps_col_by_occupation(occupation, eps_iter, eps_iter_empty, eps_col)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), POINTER   :: occupation
+      REAL(KIND=dp), INTENT(IN)                          :: eps_iter, eps_iter_empty
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eps_col
+
+      INTEGER                                            :: imo
+
+      DO imo = 1, SIZE(occupation)
+         IF (occupation(imo) < occ_tol) THEN
+            eps_col(imo) = eps_iter_empty
+         ELSE
+            eps_col(imo) = eps_iter
+         END IF
+      END DO
+   END SUBROUTINE kp_eps_col_by_occupation
+
+! **************************************************************************************************
+!> \brief Common setup of the iterative k-point drivers: the global
+!>        scratch fms, the operator context and the group matrix
+!>        structure
+!> \param qs_env ...
+!> \param kpoints ...
+!> \param nspin number of spin components
+!> \param matrix_ks_kp real-space Kohn-Sham matrices, dbcsr image set
+!> \param matrix_s_kp real-space overlap matrix, dbcsr image set
+!> \param fmwork returned global scratch fms
+!> \param op_ctx returned operator context
+!> \param matrix_struct returned AO layout of the k-point group
+!> \param prepare prepare the operator snapshot right away. The
+!>        transfer rounds of the Lanczos driver assemble lazily through
+!>        the get path and skip the snapshot
+!> \param prepared optional returned status of the snapshot preparation
+! **************************************************************************************************
+   SUBROUTINE kp_diag_setup(qs_env, kpoints, nspin, matrix_ks_kp, matrix_s_kp, fmwork, op_ctx, &
+                            matrix_struct, prepare, prepared)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      INTEGER, INTENT(IN)                                :: nspin
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      TYPE(kpoint_operator_context_type)                 :: op_ctx
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
+      LOGICAL, INTENT(IN)                                :: prepare
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: prepared
+
+      INTEGER                                            :: i
+      LOGICAL                                            :: ks_ready, s_ready
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools, kp_ao_ao_fm_pools
+      TYPE(qs_matrix_pools_type), POINTER                :: kp_mpools, mpools
+
+      IF (PRESENT(prepared)) prepared = .FALSE.
+      CALL get_qs_env(qs_env, mpools=mpools)
+      CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
+      ALLOCATE (fmwork(4))
+      DO i = 1, 4
+         CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmwork(i))
+      END DO
+      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
+      IF (prepare) THEN
+         CALL kpoint_operator_prepare(op_ctx, matrix_ks_kp, kpoint_slot_ks, ks_ready)
+         CALL kpoint_operator_prepare(op_ctx, matrix_s_kp, kpoint_slot_s, s_ready, &
+                                      matrix_row=kpoint_spin_free)
+         IF (PRESENT(prepared)) prepared = ks_ready .AND. s_ready
+      END IF
+      CALL get_kpoint_info(kpoints, mpools=kp_mpools)
+      CALL mpools_get(kp_mpools, ao_ao_fm_pools=kp_ao_ao_fm_pools)
+      matrix_struct => fm_pool_get_el_struct(kp_ao_ao_fm_pools(1)%pool)
+   END SUBROUTINE kp_diag_setup
+
+! **************************************************************************************************
+!> \brief Common finalization of the iterative k-point drivers: release
+!>        the operator context and return the global scratch fms
+!> \param qs_env ...
+!> \param fmwork global scratch fms of the driver
+!> \param op_ctx operator context of the driver
+! **************************************************************************************************
+   SUBROUTINE kp_diag_finalize(qs_env, fmwork, op_ctx)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      TYPE(kpoint_operator_context_type)                 :: op_ctx
+
+      INTEGER                                            :: i
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
+      TYPE(qs_matrix_pools_type), POINTER                :: mpools
+
+      CALL kpoint_operator_context_release(op_ctx)
+      CALL get_qs_env(qs_env, mpools=mpools)
+      CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
+      DO i = 1, 4
+         CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmwork(i))
+      END DO
+      DEALLOCATE (fmwork)
+   END SUBROUTINE kp_diag_finalize
 
 ! **************************************************************************************************
 !> \brief Kpoint diagonalization routine
@@ -2095,15 +2291,9 @@ CONTAINS
          IF (ASSOCIATED(matrix_t_im)) CALL dbcsr_release_p(matrix_t_im)
       END DO
 
-      CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
-                                    added_mos_auto=scf_control%added_mos_auto, &
-                                    added_mos_auto_grow=added_mos_auto_grow)
-      IF (added_mos_auto_grow) RETURN
-
-      CALL kpoint_density_matrices(kpoints)
       fmwork => scf_env%scf_work1
-      CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
-                                    matrix_s(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s)
+      CALL kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s, sab_nl, fmwork, added_mos_auto_grow)
+      IF (added_mos_auto_grow) RETURN
       IF (scf_env%mixing_method == 0) THEN
          scf_env%iter_method = 'NoMix/OTdiag.'
       ELSE IF (scf_env%mixing_method == 1) THEN
@@ -2506,7 +2696,8 @@ CONTAINS
                " Spin ", " Cycle ", &
                " conv. MOS ", " B2MAX ", " B2MIN ", " Time", REPEAT("-", 60)
          END IF
-         eps_iter = MAX(scf_env%krylov_space%eps_conv, scf_env%krylov_space%eps_adapt*scf_env%iter_delta)
+         eps_iter = kp_adaptive_eps_iter(scf_env%krylov_settings%eps_conv, scf_env%krylov_settings%eps_adapt, &
+                                         scf_env%iter_delta, 1.0_dp, HUGE(1.0_dp))
          iter = 0
          converged = .FALSE.
          !Check convergence of MOS
@@ -2524,7 +2715,7 @@ CONTAINS
             CYCLE
          ELSE
             !Block Lanczos refinement
-            DO iter = 1, scf_env%krylov_space%max_iter
+            DO iter = 1, scf_env%krylov_settings%max_iter
                CALL lanczos_refinement_2v(scf_env%krylov_space, ks, c0, c1, mo_eigenvalues, &
                                           nao, eps_iter, ispin)
                t2 = m_walltime()
@@ -2748,17 +2939,15 @@ CONTAINS
                                                             eps_iter_cap = 1.0E-4_dp
 
       INTEGER                                            :: channel, first_prec, handle, ispin, iw, &
-                                                            iwork, kplocal, kpmax, local_kpoint, &
+                                                            kplocal, kpmax, local_kpoint, &
                                                             nchannels, nspin, output_unit
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: do_prec, my_added_mos_auto_grow, &
-                                                            use_real_wfn
+      LOGICAL                                            :: do_prec, my_grow, use_real_wfn
       REAL(KIND=dp)                                      :: eps_iter, eps_iter_empty
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_cfm_type)                                  :: cksmat, csmat, csmat_base
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools, kp_ao_ao_fm_pools
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -2767,7 +2956,6 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      TYPE(qs_matrix_pools_type), POINTER                :: kp_mpools, mpools
       TYPE(section_vals_type), POINTER                   :: scf_section
 
 ! bounds of the adaptive inner tolerance. The loose phase is capped for
@@ -2792,7 +2980,7 @@ CONTAINS
 
       CALL get_kpoint_info(kpoints, kp_range=kp_range, kp_dist=kp_dist, xkp=xkp, &
                            use_real_wfn=use_real_wfn, sab_nl=sab_nl, &
-                           cell_to_index=cell_to_index, mpools=kp_mpools)
+                           cell_to_index=cell_to_index)
       IF (use_real_wfn) THEN
          CPABORT('Davidson Kp requires complex K-point MOS')
       END IF
@@ -2880,19 +3068,9 @@ CONTAINS
       END IF
 
       ! work matrices: global scratch fms (also the operator-context
-      ! template), two k-group fms as preconditioner outputs, and the
-      ! complex H(k)/S(k)
-      CALL get_qs_env(qs_env, mpools=mpools)
-      CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
-      ALLOCATE (fmwork(4))
-      DO iwork = 1, 4
-         CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
-      END DO
-      CALL kpoint_operator_context_create(op_ctx, kpoints, fmwork(1), nspin)
-      CALL kpoint_operator_prepare(op_ctx, matrix_ks_kp, kpoint_slot_ks)
-      CALL kpoint_operator_prepare(op_ctx, matrix_s_kp, kpoint_slot_s, matrix_row=kpoint_spin_free)
-      CALL mpools_get(kp_mpools, ao_ao_fm_pools=kp_ao_ao_fm_pools)
-      matrix_struct => fm_pool_get_el_struct(kp_ao_ao_fm_pools(1)%pool)
+      ! template) and the complex H(k)/S(k)
+      CALL kp_diag_setup(qs_env, kpoints, nspin, matrix_ks_kp, matrix_s_kp, fmwork, op_ctx, &
+                         matrix_struct, .TRUE.)
       CALL cp_cfm_create(cksmat, matrix_struct, name="dav_hk")
       CALL cp_cfm_create(csmat, matrix_struct, name="dav_sk")
       CALL cp_cfm_create(csmat_base, matrix_struct, name="dav_sk_base")
@@ -2939,30 +3117,15 @@ CONTAINS
          END DO
       END DO
 
-      ! occupations and density, same exit chain as do_general_diag_kp
-      my_added_mos_auto_grow = .FALSE.
-      CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
-                                    added_mos_auto=scf_control%added_mos_auto, &
-                                    added_mos_auto_grow=my_added_mos_auto_grow)
-      IF (my_added_mos_auto_grow) THEN
-         ! the virtual-space buffer is too small for the smearing tail; the
-         ! outer loop grows the MOS and redoes this SCF step, the density of
-         ! the abandoned step must not be assembled
-         IF (PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
-      ELSE
-         CALL kpoint_density_matrices(kpoints)
-         CALL kpoint_density_transform(kpoints, scf_env%p_mix_new, .FALSE., &
-                                       matrix_s_kp(1, 1)%matrix, sab_nl, fmwork, overlap_rs=matrix_s_kp)
-      END IF
+      ! occupations and density: the shared exit chain, same as every
+      ! other k-point diagonalization driver
+      CALL kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s_kp, sab_nl, fmwork, my_grow)
+      IF (my_grow .AND. PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
 
       CALL cp_cfm_release(cksmat)
       CALL cp_cfm_release(csmat)
       CALL cp_cfm_release(csmat_base)
-      CALL kpoint_operator_context_release(op_ctx)
-      DO iwork = 1, 4
-         CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmwork(iwork))
-      END DO
-      DEALLOCATE (fmwork)
+      CALL kp_diag_finalize(qs_env, fmwork, op_ctx)
 
       IF (output_unit > 0) THEN
          WRITE (output_unit, "(T15,A/)") '<<<<<<<<< END DAVIDSON ITERATION  <<<<<<<<<<'
@@ -2973,6 +3136,377 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE do_block_davidson_diag_kp
+
+! **************************************************************************************************
+!> \brief Block Krylov (Lanczos) refinement of the k-point MOS, the complex
+!>        counterpart of do_block_krylov_diag: every channel (local kpoint,
+!>        spin) is standardized with the Cholesky factor of S(k), refined by
+!>        the complex block-Krylov kernel, and rotated back into the
+!>        generalized problem
+!> \param qs_env ...
+!> \param scf_env ...
+!> \param matrix_ks_kp real-space Kohn-Sham matrix, dbcsr image set
+!> \param matrix_s_kp real-space overlap matrix, dbcsr image set
+!> \param kpoints ...
+!> \param scf_control ...
+!> \param check_moconv_only only report the convergence statistics
+!> \param added_mos_auto_grow signals the outer loop that the virtual-space
+!>        buffer must grow before this SCF step is redone
+! **************************************************************************************************
+   SUBROUTINE do_block_krylov_diag_kp(qs_env, scf_env, matrix_ks_kp, matrix_s_kp, kpoints, &
+                                      scf_control, check_moconv_only, added_mos_auto_grow)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(scf_control_type), POINTER                    :: scf_control
+      LOGICAL, INTENT(IN), OPTIONAL                      :: check_moconv_only
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: added_mos_auto_grow
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'do_block_krylov_diag_kp'
+      REAL(KIND=dp), PARAMETER                           :: empty_factor = 5.0_dp, &
+                                                            eps_iter_cap = 1.0E-4_dp, &
+                                                            noise_scale = 100.0_dp
+
+      INTEGER                                            :: handle, ik, ikp, ispin, kplocal, kpmax, &
+                                                            local_kpoint, max_iter, nentry, nspin, &
+                                                            output_unit
+      INTEGER, DIMENSION(2)                              :: kp_range
+      INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
+      LOGICAL                                            :: my_check_moconv_only, my_grow, &
+                                                            prepared_ops, use_local_kpoints, &
+                                                            use_real_wfn
+      REAL(KIND=dp)                                      :: eps_iter, eps_iter_empty
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct, mo_struct
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(kp_diag_workspace_type), ALLOCATABLE, TARGET  :: workspace(:)
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      TYPE(kpoint_operator_context_type)                 :: op_ctx
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      TYPE(section_vals_type), POINTER                   :: scf_section
+
+! empty_factor and noise_scale mirror the defaults of the
+! Davidson k-point driver. eps_iter_cap bounds the adaptive tolerance
+
+      logger => cp_get_default_logger()
+      CALL timeset(routineN, handle)
+
+      my_check_moconv_only = .FALSE.
+      IF (PRESENT(check_moconv_only)) my_check_moconv_only = check_moconv_only
+
+      scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
+      output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%LANCZOS", &
+                                         extension=".scfLog")
+
+      CALL get_kpoint_info(kpoints, kp_range=kp_range, kp_dist=kp_dist, &
+                           use_real_wfn=use_real_wfn, sab_nl=sab_nl)
+      IF (use_real_wfn) THEN
+         CPABORT('k-point Lanczos refinement requires complex k-point MOS')
+      END IF
+      kplocal = kp_range(2) - kp_range(1) + 1
+      ! the largest local k-point count across the groups: kp_dist can be
+      ! uneven, and every group must join the service calls for every round
+      kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
+      nspin = SIZE(matrix_ks_kp, 1)
+
+      IF (scf_env%mixing_method == 1) THEN
+         scf_env%iter_param = scf_env%p_mix_alpha
+         scf_env%iter_method = "P_Mix/Lanczos"
+      ELSE
+         scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Lanc."
+      END IF
+
+      ! work matrices: the driver workspace below holds the complex
+      ! H(k)/S(k) of the channels
+
+      ! adaptive inner tolerance, mirrors do_block_krylov_diag with the
+      ! loosening capped as in the Davidson k-point driver: a cold-start
+      ! iter_delta of thousands of Ha would otherwise swallow every entry
+      ! residual. No column would ever refine, and the frozen density
+      ! satisfies the outer convergence test spuriously.
+      ! The mixing delta carries the sloppiness of the previous inner
+      ! solve in its own unit. Scaling it by the noise scale keeps the
+      ! loosening at one hundredth of the outer error, so the inner
+      ! threshold tightens by itself as the SCF converges.
+      ! No ratchet state is carried across steps: the threshold follows
+      ! the monotonically sinking delta, and the entry residuals of a
+      ! step sit at the previous (looser) value of the same coupling, so
+      ! the refinement always finds work left
+      eps_iter = kp_adaptive_eps_iter(scf_env%krylov_settings%eps_conv, scf_env%krylov_settings%eps_adapt, &
+                                      scf_env%iter_delta, noise_scale, eps_iter_cap)
+      ! unoccupied MOS relax like the Davidson k-point driver: an occupation
+      ! below occ_tol sits beyond the thermal smearing tail and carries no
+      ! weight in the density. Such a column may converge at the relaxed
+      ! empty threshold. The occupation decides, not the HOMO index (see
+      ! generate_extended_space_c)
+      eps_iter_empty = eps_iter
+      IF (scf_env%krylov_settings%eps_adapt > 0.0_dp) eps_iter_empty = empty_factor*eps_iter
+      max_iter = scf_env%krylov_settings%max_iter
+
+      ! One-rank k-point groups assemble every operator locally from a
+      ! prepared snapshot, like the local phase of the general k-point
+      ! diagonalization. They refine their k points without a single
+      ! collective transfer round. The refinement runs serially over the
+      ! channels of both layouts. The kernel keeps its heavy scratch in
+      ! a preallocated workspace. An OpenMP port still needs to address
+      ! the per-block allocation of the solver pair, the distributed
+      ! GEMMs, the solver dispatch and the collective column norms. A
+      ! diag check, a convergence-only probe and an explicitly selected
+      ! diagonalization library also keep the rounds. The serial LAPACK
+      ! branch of the local path would silently bypass such a library.
+      ! The ELPA dispatch regression keeps its coverage through the
+      ! rounds.
+      use_local_kpoints = kpoints%para_env_kp%num_pe == 1
+      IF (diag_check_requested()) use_local_kpoints = .FALSE.
+      IF (my_check_moconv_only) use_local_kpoints = .FALSE.
+      IF (diag_lib_explicit) use_local_kpoints = .FALSE.
+      ! the transfer rounds assemble their operators lazily through the
+      ! get path and skip the snapshot
+      CALL kp_diag_setup(qs_env, kpoints, nspin, matrix_ks_kp, matrix_s_kp, fmwork, op_ctx, &
+                         matrix_struct, use_local_kpoints, prepared_ops)
+      use_local_kpoints = use_local_kpoints .AND. prepared_ops
+
+      nentry = 0
+      IF (use_local_kpoints) CALL kpoint_operator_work_size(op_ctx, nentry)
+      kp => kpoints%kp_env(1)%kpoint_env
+      CALL get_mo_set(kp%mos(1, 1), mo_coeff=mo_coeff)
+      CALL cp_fm_get_info(mo_coeff, matrix_struct=mo_struct)
+      CALL kp_diag_workspaces_create(workspace, 1, matrix_struct, mo_struct, nentry, &
+                                     use_local_kpoints, scf_env%cholesky_method == cholesky_off, &
+                                     lanczos=.TRUE., nkrylov=scf_env%krylov_settings%nkrylov, &
+                                     nblock=scf_env%krylov_settings%nblock)
+
+      IF (output_unit > 0 .AND. .NOT. my_check_moconv_only .AND. .NOT. use_local_kpoints) THEN
+         WRITE (output_unit, "(/T15,A)") '<<<<<<<<<   LANCZOS REFINEMENT    <<<<<<<<<<'
+         WRITE (output_unit, "(T8,A,T15,A,T23,A,T36,A,T49,A,T60,A,/,T8,A)") &
+            " Spin ", " Cycle ", &
+            " conv. MOS ", " B2MAX ", " B2MIN ", " Time", REPEAT("-", 60)
+      END IF
+
+      IF (use_local_kpoints) THEN
+         ! serial pass over the locally owned k points. The first SCF step
+         ! cold-starts every unprefilled channel in place, like the rounds
+         ! path below. Later steps refine. The layout comment above states
+         ! why this loop cannot run under OpenMP
+         DO ikp = 1, kplocal
+            kp => kpoints%kp_env(ikp)%kpoint_env
+            ik = kp_range(1) + ikp - 1
+            CALL kpoint_operator_evaluate(op_ctx, 1, kpoint_slot_s, ik, workspace(1)%phase, &
+                                          workspace(1)%csmat_base)
+            DO ispin = 1, nspin
+               CALL kpoint_operator_evaluate(op_ctx, ispin, kpoint_slot_ks, ik, workspace(1)%phase, &
+                                             workspace(1)%cksmat)
+               IF (scf_env%iter_count == 1 .AND. .NOT. kp%mos_prefilled) THEN
+                  ! the K-point MOS enter the first SCF step allocated but
+                  ! uninitialized. cp_cfm_geeig overwrites its matrix
+                  ! arguments, so the stored S(k) copy is restored first
+                  CALL cp_cfm_to_cfm(workspace(1)%csmat_base, workspace(1)%csmat)
+                  CALL cold_start_mo_init(kp, ispin, workspace(1)%cksmat, workspace(1)%csmat)
+                  CYCLE
+               END IF
+               CALL lanczos_refine_channel(kp, ispin, scf_env, my_check_moconv_only, eps_iter, &
+                                           eps_iter_empty, max_iter, workspace(1), output_unit, .FALSE.)
+            END DO
+         END DO
+      ELSE
+
+         DO local_kpoint = 1, kpmax
+            ! Every k-point group executes the same sequence of global transforms
+            ! up to the largest local k-point count (kp_dist can be uneven after
+            ! #5993). Only the group owning this local_kpoint receives the
+            ! redistributed matrix. The others participate through the dummy
+            ! destination. Groups without a k point in the last rounds still
+            ! join the service calls and skip their local solver work.
+            CALL kpoint_operator_get(op_ctx, local_kpoint, kpoint_spin_free, matrix_s_kp, &
+                                     cmat=workspace(1)%csmat_base, matrix_row=kpoint_spin_free)
+
+            DO ispin = 1, nspin
+               CALL kpoint_operator_get(op_ctx, local_kpoint, ispin, matrix_ks_kp, &
+                                        cmat=workspace(1)%cksmat, matrix_row=ispin)
+               IF (local_kpoint > kplocal) CYCLE
+               kp => kpoints%kp_env(local_kpoint)%kpoint_env
+
+               IF (scf_env%iter_count == 1 .AND. .NOT. kp%mos_prefilled) THEN
+                  ! first SCF step cold-starts by a direct diagonalization,
+                  ! same entry as the Davidson k-point path
+                  CALL cp_cfm_to_cfm(workspace(1)%csmat_base, workspace(1)%csmat)
+                  CALL cold_start_mo_init(kp, ispin, workspace(1)%cksmat, workspace(1)%csmat)
+                  CYCLE
+               END IF
+
+               CALL lanczos_refine_channel(kp, ispin, scf_env, my_check_moconv_only, eps_iter, &
+                                           eps_iter_empty, max_iter, workspace(1), output_unit, .TRUE.)
+            END DO
+         END DO
+      END IF
+
+      ! occupations and density: the shared exit chain. With
+      ! check_moconv_only the caller falls back to the standard k-point
+      ! diagonalization. That path supplies MOS and density, and the
+      ! statistics above are printed for information only
+      IF (.NOT. my_check_moconv_only) THEN
+         CALL kp_diag_exit_chain(kpoints, scf_env, scf_control, matrix_s_kp, sab_nl, fmwork, my_grow)
+         IF (my_grow .AND. PRESENT(added_mos_auto_grow)) added_mos_auto_grow = .TRUE.
+      END IF
+
+      CALL kp_diag_workspaces_release(workspace)
+      CALL kp_diag_finalize(qs_env, fmwork, op_ctx)
+
+      IF (output_unit > 0 .AND. .NOT. my_check_moconv_only .AND. .NOT. use_local_kpoints) THEN
+         WRITE (output_unit, "(T15,A/)") '<<<<<<<<< END LANCZOS REFINEMENT  <<<<<<<<<<'
+      END IF
+      CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
+                                        "PRINT%LANCZOS")
+
+      CALL timestop(handle)
+
+   END SUBROUTINE do_block_krylov_diag_kp
+
+! **************************************************************************************************
+!> \brief Refine the MOS of one (k point, spin) channel. The routine
+!>        projects H(k) onto its Hermitian part, standardizes the channel
+!>        by the Cholesky factor of S(k), sweeps the single-pass kernel,
+!>        and writes the MOS back to the MO sets. The caller owns every
+!>        matrix. The routine allocates no CP2K matrix.
+!> \param kp k-point environment holding the MOS pair of the channel
+!> \param ispin spin component
+!> \param scf_env SCF environment holding the Krylov settings
+!> \param check_moconv_only only run the entry Rayleigh-Ritz of the kernel
+!>        and report the convergence count
+!> \param eps_iter convergence threshold of the occupied columns
+!> \param eps_iter_empty relaxed threshold of the unoccupied columns
+!> \param max_iter sweeps allowed per channel
+!> \param work driver workspace of the channel. cksmat holds the
+!>        complex H(k), standardized in place. csmat_base holds the
+!>        untouched S(k). csmat holds its work copy and the Cholesky
+!>        factor after the standardization. cwork holds the
+!>        Hermitian-projection scratch. cmos holds the MOS in the
+!>        standardized basis. lan_ws holds the kernel scratch
+!> \param output_unit unit of the refinement table. A nonpositive unit
+!>        disables every report
+!> \param print_row report this channel in the refinement table and in
+!>        the not-converged warnings. The local-kpoint path passes
+!>        .FALSE. and reports nothing, like the local phase of the
+!>        general k-point diagonalization
+! **************************************************************************************************
+   SUBROUTINE lanczos_refine_channel(kp, ispin, scf_env, check_moconv_only, eps_iter, eps_iter_empty, &
+                                     max_iter, work, output_unit, print_row)
+      TYPE(kpoint_env_type), POINTER                     :: kp
+      INTEGER, INTENT(IN)                                :: ispin
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      LOGICAL, INTENT(IN)                                :: check_moconv_only
+      REAL(KIND=dp), INTENT(IN)                          :: eps_iter, eps_iter_empty
+      INTEGER, INTENT(IN)                                :: max_iter
+      TYPE(kp_diag_workspace_type), INTENT(INOUT)        :: work
+      INTEGER, INTENT(IN)                                :: output_unit
+      LOGICAL, INTENT(IN)                                :: print_row
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_refine_channel'
+
+      INTEGER                                            :: handle, iter, nmo, nmo_conv, nmo_nc
+      LOGICAL                                            :: converged
+      REAL(KIND=dp)                                      :: max_res, min_res, t1, t2
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_col
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, occupation
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_i, mo_coeff_r
+
+      CALL timeset(routineN, handle)
+
+      CALL get_mo_set(mo_set=kp%mos(1, ispin), nmo=nmo, &
+                      eigenvalues=mo_eigenvalues, occupation_numbers=occupation, &
+                      mo_coeff=mo_coeff_r)
+      CALL get_mo_set(mo_set=kp%mos(2, ispin), mo_coeff=mo_coeff_i)
+
+      CALL cp_cfm_to_cfm(work%csmat_base, work%csmat)
+
+      ! the R-space blocks of the KS matrix come from independent grid
+      ! collocations, so H(k) is Hermitian only to grid accuracy. The
+      ! Hermitian solvers of the reference paths read a single triangle
+      ! and never see the antisymmetric part. The refinement kernel
+      ! forms its residuals with the full matrix. Project onto the
+      ! Hermitian part once per channel
+      CALL cp_cfm_transpose(work%cksmat, "C", work%cwork)
+      CALL cp_cfm_scale_and_add(CMPLX(0.5_dp, 0.0_dp, KIND=dp), work%cksmat, &
+                                CMPLX(0.5_dp, 0.0_dp, KIND=dp), work%cwork)
+
+      ! complex MOS of the channel
+      CALL cp_cfm_scale_and_add_fm(z_zero, work%cmos, z_one, mo_coeff_r)
+      CALL cp_cfm_scale_and_add_fm(z_one, work%cmos, gaussi, mo_coeff_i)
+
+      ! standardization S(k) = U^dag U: operator and MOS are pulled
+      ! through the same transform, X = U C and A = U^-dag H U^-1, so
+      ! the kernel faces a standard eigenproblem. The kernel uses a
+      ! plain Cholesky, like the complex k-point family (cp_cfm_geeig
+      ! decomposes S the same way and ignores scf_env%cholesky_method
+      ! beyond the off switch). CHOLESKY OFF is not supported on this
+      ! path
+      CALL cp_cfm_cholesky_decompose(work%csmat)
+      CALL cp_cfm_triangular_multiply(work%csmat, work%cksmat, side="R", invert_tr=.TRUE.)
+      CALL cp_cfm_triangular_multiply(work%csmat, work%cksmat, side="L", transa_tr="C", invert_tr=.TRUE.)
+      CALL cp_cfm_triangular_multiply(work%csmat, work%cmos, side="L", invert_tr=.FALSE.)
+
+      ! per-column thresholds: the occupation decides which columns
+      ! qualify for the relaxed empty threshold
+      ALLOCATE (eps_col(nmo))
+      CALL kp_eps_col_by_occupation(occupation, eps_iter, eps_iter_empty, eps_col)
+
+      IF (check_moconv_only) THEN
+         CALL lanczos_refinement_2v_c(work%cksmat, work%cmos, mo_eigenvalues, eps_col, &
+                                      scf_env%krylov_settings%nkrylov, scf_env%krylov_settings%nblock, &
+                                      work%lan_ws, max_res, min_res, nmo_conv, nmo_nc, check_moconv_only=.TRUE.)
+         DEALLOCATE (eps_col)
+         IF (print_row .AND. output_unit > 0) THEN
+            WRITE (output_unit, '(T8,I3,T16,I5,T24,I6,T33,E12.4,2x,E12.4)') &
+               ispin, 0, nmo_conv, max_res, min_res
+         END IF
+         CALL timestop(handle)
+         RETURN
+      END IF
+
+      ! one full refinement sweep per iteration. The loop restarts
+      ! from the refreshed columns, exactly like the real-valued
+      ! driver above. Each kernel call purifies the current MOS into
+      ! a fresh Krylov basis and runs a single Rayleigh-Ritz pass.
+      ! No state passes from one call to the next
+      converged = .FALSE.
+      DO iter = 1, max_iter
+         t1 = m_walltime()
+         CALL lanczos_refinement_2v_c(work%cksmat, work%cmos, mo_eigenvalues, eps_col, &
+                                      scf_env%krylov_settings%nkrylov, scf_env%krylov_settings%nblock, &
+                                      work%lan_ws, max_res, min_res, nmo_conv, nmo_nc)
+         t2 = m_walltime()
+         IF (print_row .AND. output_unit > 0) THEN
+            WRITE (output_unit, '(T8,I3,T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)') &
+               ispin, iter, nmo_conv, max_res, min_res, t2 - t1
+         END IF
+         ! exit on the per-column thresholds: the empty columns converge
+         ! at the relaxed level under EPS_ADAPT, so the largest residual
+         ! alone cannot decide
+         IF (nmo_nc == 0) THEN
+            converged = .TRUE.
+            EXIT
+         END IF
+      END DO
+      DEALLOCATE (eps_col)
+      IF (.NOT. converged .AND. print_row .AND. output_unit > 0) THEN
+         WRITE (output_unit, "(T4, A)") " WARNING Lanczos refinement could "// &
+            "not converge all the mos:"
+         WRITE (output_unit, "(T40,A,T70,I10)") " number of not converged mos ", nmo_nc
+         WRITE (output_unit, "(T40,A,T70,E10.2)") " max norm of the residual ", max_res
+      END IF
+
+      ! rotate the refined MOS back into the generalized problem, C = U^-1 X.
+      ! The helper also copies the eigenvalues to the imaginary set, like
+      ! every other k-point diagonalization path
+      CALL cp_cfm_triangular_multiply(work%csmat, work%cmos, side="L", invert_tr=.TRUE.)
+      CALL kpoint_operator_cfm_to_mo(work%cmos, kp%mos(1, ispin), kp%mos(2, ispin), mo_eigenvalues)
+
+      CALL timestop(handle)
+   END SUBROUTINE lanczos_refine_channel
 
 ! **************************************************************************************************
 !> \brief first-SCF-step initialization of the K-point MOS of one spin by one
@@ -3000,8 +3534,8 @@ CONTAINS
 
       CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
       CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
-      CALL cp_cfm_create(cmos, rmos%matrix_struct, name="dav_cold_cmos")
-      CALL cp_cfm_create(cwork, cksmat%matrix_struct, name="dav_cold_cwork")
+      CALL cp_cfm_create(cmos, rmos%matrix_struct, name="kp_cold_cmos")
+      CALL cp_cfm_create(cwork, cksmat%matrix_struct, name="kp_cold_cwork")
       CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
       kp%mos(2, ispin)%eigenvalues = eigenvalues
       CALL cp_cfm_to_fm(cmos, rmos, imos)
