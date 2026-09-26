@@ -55,7 +55,9 @@ MODULE cell_opt_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_utils'
 
    PUBLIC :: fixes_partially, get_dg_dh, gopt_new_logger_create, &
-             gopt_new_logger_release, read_external_press_tensor, &
+             gopt_new_logger_release, keep_angles_conflict, &
+             keep_symmetry_coupled_set, keep_symmetry_conflict, parse_token, &
+             read_external_press_tensor, &
              apply_cell_constraints, cell_opt_constraint_label, parse_cell_constraint, &
              rescale_new_cell_volume, slot_is_fixed
 
@@ -253,10 +255,11 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: explicit
       INTEGER, INTENT(OUT)                               :: mask
 
-      CHARACTER(LEN=default_string_length)               :: token
+      CHARACTER(LEN=default_string_length)               :: reject_reason, token
       CHARACTER(LEN=LEN(constraint_string))              :: line
       INTEGER                                            :: isep, n_tokens, nonperiodic_axis, &
-                                                            required_mask, tok_mask
+                                                            overlap, required_mask, tok_mask
+      LOGICAL                                            :: accepted
 
       ! The value arrives without quotes. The input parser strips quotes and
       ! aborts on unmatched ones. Restart echoes are bare.
@@ -290,49 +293,23 @@ CONTAINS
             mask = 0
             CYCLE
          END IF
-         SELECT CASE (token)
-         CASE ("A", "AX")
-            tok_mask = comp_ax
-         CASE ("B")
-            tok_mask = mask_b
-         CASE ("BX")
-            tok_mask = comp_bx
-         CASE ("BY")
-            tok_mask = comp_by
-         CASE ("C", "Z")
-            tok_mask = mask_c
-         CASE ("CX")
-            tok_mask = comp_cx
-         CASE ("CY")
-            tok_mask = comp_cy
-         CASE ("CZ")
-            tok_mask = comp_cz
-         CASE ("X")
-            tok_mask = mask_x
-         CASE ("Y")
-            tok_mask = mask_y
-         CASE ("XY")
-            tok_mask = mask_xy
-         CASE ("XZ")
-            tok_mask = mask_xz
-         CASE ("YZ")
-            tok_mask = mask_yz
-         CASE ("ALPHA", "BETA", "GAMMA")
-            CALL cp_abort(__LOCATION__, &
-                          "CELL_OPT CONSTRAINT on angles (ALPHA, BETA, "// &
-                          "GAMMA) is not supported yet.")
-         CASE DEFAULT
-            CALL cp_abort(__LOCATION__, &
-                          "Unknown CELL_OPT CONSTRAINT token: "//TRIM(token)// &
-                          ". Accepted tokens: NONE, the directions X, Y, Z,"// &
-                          " XY, XZ, YZ, the vectors A, B, C, and the components"// &
-                          " AX, BX, BY, CX, CY, CZ. Several tokens may be combined.")
-         END SELECT
-         IF (IAND(tok_mask, mask) /= 0) THEN
+         CALL parse_token(token, accepted, tok_mask, reject_reason)
+         IF (.NOT. accepted) THEN
+            CALL cp_abort(__LOCATION__, TRIM(reject_reason))
+         END IF
+         overlap = IAND(tok_mask, mask)
+         IF (overlap == tok_mask) THEN
             CALL cp_warn(__LOCATION__, &
                          "Redundant CELL_OPT CONSTRAINT token: "//TRIM(token)// &
                          " (already constrained: "// &
-                         TRIM(ADJUSTL(cell_opt_constraint_label(IAND(tok_mask, mask))))//").")
+                         TRIM(ADJUSTL(cell_opt_constraint_label(overlap)))//").")
+         ELSE IF (overlap /= 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "CELL_OPT CONSTRAINT token "//TRIM(token)//" partially overlaps: "// &
+                         "already constrained "// &
+                         TRIM(ADJUSTL(cell_opt_constraint_label(overlap)))// &
+                         ", newly fixed "// &
+                         TRIM(ADJUSTL(cell_opt_constraint_label(IAND(NOT(mask), tok_mask))))//".")
          END IF
          mask = IOR(mask, tok_mask)
       END DO
@@ -444,6 +421,138 @@ CONTAINS
 
       fixed = BTEST(mask, slot - 1)
    END FUNCTION slot_is_fixed
+
+! **************************************************************************************************
+!> \brief Whether a CONSTRAINT mask conflicts with the KEEP_ANGLES projection
+!> \param mask bit mask of fixed cell components
+!> \param orthorhombic whether the cell is orthorhombic
+!> \return conflict flag; the caller aborts when it is true
+!> \note KEEP_ANGLES projects the gradient slots {BX,BY} onto b and {CX,CY,CZ}
+!>       onto c. A conflict arises only on a non-orthorhombic cell, and only
+!>       when the mask fixes part of the b vector or part of the c vector.
+! **************************************************************************************************
+   PURE FUNCTION keep_angles_conflict(mask, orthorhombic) RESULT(conflict)
+      INTEGER, INTENT(IN)                                :: mask
+      LOGICAL, INTENT(IN)                                :: orthorhombic
+      LOGICAL                                            :: conflict
+
+      conflict = .NOT. orthorhombic .AND. &
+                 (fixes_partially(mask, mask_b) .OR. fixes_partially(mask, mask_c))
+   END FUNCTION keep_angles_conflict
+
+! **************************************************************************************************
+!> \brief Whether a CONSTRAINT mask conflicts with the KEEP_SYMMETRY projection
+!> \param mask bit mask of fixed cell components
+!> \param symmetry_id crystal system of the cell (cell_sym_* constants)
+!> \return conflict flag; the caller aborts when it is true
+!> \note Each crystal system couples a set of cell components. A conflict
+!>       arises when the mask fixes part of such a set. Systems without
+!>       coupling never conflict.
+! **************************************************************************************************
+   PURE FUNCTION keep_symmetry_conflict(mask, symmetry_id) RESULT(conflict)
+      INTEGER, INTENT(IN)                                :: mask, symmetry_id
+      LOGICAL                                            :: conflict
+
+      INTEGER                                            :: coupled_set
+
+      coupled_set = keep_symmetry_coupled_set(symmetry_id)
+      conflict = coupled_set /= 0 .AND. fixes_partially(mask, coupled_set)
+   END FUNCTION keep_symmetry_conflict
+
+! **************************************************************************************************
+!> \brief The set of cell components coupled by a crystal system (for diagnostics)
+!> \param symmetry_id crystal system of the cell (cell_sym_* constants)
+!> \return mask of the coupled set; zero for systems without coupling
+!> \note Mirrors the SELECT CASE in keep_symmetry_conflict. The abort messages
+!>       print this label so the user can see which components the symmetry
+!>       couples against their constraint.
+! **************************************************************************************************
+   PURE FUNCTION keep_symmetry_coupled_set(symmetry_id) RESULT(coupled_set)
+      INTEGER, INTENT(IN)                                :: symmetry_id
+      INTEGER                                            :: coupled_set
+
+      SELECT CASE (symmetry_id)
+      CASE (cell_sym_cubic)
+         coupled_set = mask_diag
+      CASE (cell_sym_rhombohedral)
+         coupled_set = mask_all
+      CASE (cell_sym_hexagonal_gamma_60, &
+            cell_sym_hexagonal_gamma_120, &
+            cell_sym_monoclinic_gamma_ab)
+         coupled_set = mask_ab_plane
+      CASE (cell_sym_tetragonal_ab)
+         coupled_set = mask_diag_ab
+      CASE (cell_sym_tetragonal_ac)
+         coupled_set = mask_diag_ac
+      CASE (cell_sym_tetragonal_bc)
+         coupled_set = mask_diag_bc
+      CASE DEFAULT
+         coupled_set = 0
+      END SELECT
+   END FUNCTION keep_symmetry_coupled_set
+
+! **************************************************************************************************
+!> \brief Classify one CONSTRAINT token without aborting (decision half of the parser)
+!> \param token one upper-case token of the CONSTRAINT value line
+!> \param accepted .TRUE. when the token contributes a mask
+!> \param token_mask the component mask contributed by an accepted token
+!> \param reject_reason empty for accepted tokens; the abort message otherwise
+!> \note parse_cell_constraint applies this classification and turns a rejection
+!>       into a cp_abort. Keeping the decision here keeps it unit-testable:
+!>       the unit test checks the classification table without triggering aborts.
+! **************************************************************************************************
+   PURE SUBROUTINE parse_token(token, accepted, token_mask, reject_reason)
+      CHARACTER(LEN=*), INTENT(IN)                       :: token
+      LOGICAL, INTENT(OUT)                               :: accepted
+      INTEGER, INTENT(OUT)                               :: token_mask
+      CHARACTER(LEN=default_string_length), INTENT(OUT)  :: reject_reason
+
+      accepted = .TRUE.
+      token_mask = 0
+      reject_reason = ""
+      SELECT CASE (token)
+      CASE ("A", "AX")
+         token_mask = mask_a
+      CASE ("B")
+         token_mask = mask_b
+      CASE ("BX")
+         token_mask = comp_bx
+      CASE ("BY")
+         token_mask = comp_by
+      CASE ("C", "Z")
+         token_mask = mask_c
+      CASE ("CX")
+         token_mask = comp_cx
+      CASE ("CY")
+         token_mask = comp_cy
+      CASE ("CZ")
+         token_mask = comp_cz
+      CASE ("X")
+         token_mask = mask_x
+      CASE ("Y")
+         token_mask = mask_y
+      CASE ("XY")
+         token_mask = mask_xy
+      CASE ("XZ")
+         token_mask = mask_xz
+      CASE ("YZ")
+         token_mask = mask_yz
+      CASE ("ALPHA", "BETA", "GAMMA")
+         accepted = .FALSE.
+         reject_reason = "CELL_OPT CONSTRAINT on angles (ALPHA, BETA, GAMMA) is not supported yet."
+      CASE ("AY", "AZ", "BZ")
+         accepted = .FALSE.
+         reject_reason = "CELL_OPT CONSTRAINT token "//TRIM(token)//" is always zero in "// &
+                         "the cell convention (a lies along x, b lies in the xy plane) "// &
+                         "and cannot be constrained."
+      CASE DEFAULT
+         accepted = .FALSE.
+         reject_reason = "Unknown CELL_OPT CONSTRAINT token: "//TRIM(token)// &
+                         ". Accepted tokens: NONE, the directions X, Y, Z,"// &
+                         " XY, XZ, YZ, the vectors A, B, C, and the components"// &
+                         " AX, BX, BY, CX, CY, CZ. Several tokens may be combined."
+      END SELECT
+   END SUBROUTINE parse_token
 
 ! **************************************************************************************************
 !> \brief Computes the derivatives for the cell
