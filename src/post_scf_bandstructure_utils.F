@@ -273,6 +273,8 @@ CONTAINS
       END IF
       bs_env%keep_W_freq_zero = do_bse_props
       bs_env%keep_3c_nl = do_bse_props
+      ! the solver reads pw_env, the multipoles and the QS pointers after the GW
+      bs_env%keep_qs_state = do_bse_props
 
       CALL timestop(handle)
 

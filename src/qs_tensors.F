@@ -82,18 +82,21 @@ MODULE qs_tensors
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_neighbor_list_types,          ONLY: &
-        get_iterator_info, get_neighbor_list_set_p, neighbor_list_iterate, &
-        neighbor_list_iterator_create, neighbor_list_iterator_p_type, &
-        neighbor_list_iterator_release, neighbor_list_set_p_type, nl_sub_iterate, &
-        release_neighbor_list_sets
+   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                              get_neighbor_list_set_p,&
+                                              neighbor_list_iterate,&
+                                              neighbor_list_iterator_create,&
+                                              neighbor_list_iterator_p_type,&
+                                              neighbor_list_iterator_release,&
+                                              neighbor_list_set_p_type,&
+                                              nl_sub_iterate
    USE qs_neighbor_lists,               ONLY: atom2d_build,&
                                               atom2d_cleanup,&
                                               build_neighbor_lists,&
                                               local_atoms_type,&
                                               pair_radius_setup
    USE qs_tensors_types,                ONLY: &
-        distribution_3d_destroy, distribution_3d_type, neighbor_list_3c_iterator_type, &
+        distribution_3d_type, neighbor_list_3c_destroy, neighbor_list_3c_iterator_type, &
         neighbor_list_3c_type, symmetric_ij, symmetric_ijk, symmetric_jk, symmetric_none, &
         symmetrik_ik
    USE t_c_g0,                          ONLY: get_lmax_init,&
@@ -372,22 +375,6 @@ CONTAINS
       END IF
 
    END FUNCTION include_symmetric
-
-! **************************************************************************************************
-!> \brief Destroy 3c neighborlist
-!> \param ijk_list ...
-! **************************************************************************************************
-   SUBROUTINE neighbor_list_3c_destroy(ijk_list)
-      TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: ijk_list
-
-      CALL release_neighbor_list_sets(ijk_list%ij_list)
-      CALL release_neighbor_list_sets(ijk_list%jk_list)
-
-      IF (ijk_list%owns_dist) THEN
-         CALL distribution_3d_destroy(ijk_list%dist_3d)
-      END IF
-
-   END SUBROUTINE neighbor_list_3c_destroy
 
 ! **************************************************************************************************
 !> \brief Create a 3-center neighborlist iterator

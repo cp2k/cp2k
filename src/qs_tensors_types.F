@@ -35,7 +35,8 @@ MODULE qs_tensors_types
                                               mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_iterator_p_type,&
-                                              neighbor_list_set_p_type
+                                              neighbor_list_set_p_type,&
+                                              release_neighbor_list_sets
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -44,7 +45,7 @@ MODULE qs_tensors_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tensors_types'
 
-   PUBLIC :: distribution_3d_type, neighbor_list_3c_type, neighbor_list_3c_iterator_type, &
+   PUBLIC :: distribution_3d_type, neighbor_list_3c_type, neighbor_list_3c_destroy, neighbor_list_3c_iterator_type, &
              distribution_2d_create, distribution_3d_create, distribution_3d_destroy, &
              split_block_sizes, create_3c_tensor, create_2c_tensor, contiguous_tensor_dist, pgf_block_sizes, &
              create_tensor_batches
@@ -149,6 +150,22 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE distribution_3d_destroy
+
+! **************************************************************************************************
+!> \brief Destroy 3c neighborlist
+!> \param ijk_list ...
+! **************************************************************************************************
+   SUBROUTINE neighbor_list_3c_destroy(ijk_list)
+      TYPE(neighbor_list_3c_type), INTENT(INOUT)         :: ijk_list
+
+      CALL release_neighbor_list_sets(ijk_list%ij_list)
+      CALL release_neighbor_list_sets(ijk_list%jk_list)
+
+      IF (ijk_list%owns_dist) THEN
+         CALL distribution_3d_destroy(ijk_list%dist_3d)
+      END IF
+
+   END SUBROUTINE neighbor_list_3c_destroy
 
 ! **************************************************************************************************
 !> \brief Create a 2d distribution. This mainly wraps distribution_2d_create
