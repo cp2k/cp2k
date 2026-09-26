@@ -15,15 +15,14 @@ MODULE cell_opt_types
 
    USE cell_methods,                    ONLY: canonicalize_cell_matrix,&
                                               cell_create
-   USE cell_opt_utils,                  ONLY: cell_opt_constraint_label,&
-                                              keep_angles_conflict,&
-                                              keep_symmetry_conflict,&
-                                              keep_symmetry_coupled_set,&
-                                              parse_cell_constraint,&
-                                              read_external_press_tensor
-   USE cell_types,                      ONLY: cell_clone,&
-                                              cell_release,&
-                                              cell_type
+   USE cell_opt_utils,                  ONLY: &
+        cell_opt_constraint_label, fixes_partially, mask_ab_plane, mask_all, mask_b, mask_c, &
+        mask_diag, mask_diag_ab, mask_diag_ac, mask_diag_bc, parse_cell_constraint, &
+        read_external_press_tensor
+   USE cell_types,                      ONLY: &
+        cell_clone, cell_release, cell_sym_cubic, cell_sym_hexagonal_gamma_120, &
+        cell_sym_hexagonal_gamma_60, cell_sym_monoclinic_gamma_ab, cell_sym_rhombohedral, &
+        cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -133,33 +132,55 @@ CONTAINS
       !    xz = {AX,BX,CX,CY,CZ}    B partial,  C complete  -> breaks parallelism
       !    yz = {BX..CZ}            B complete, C complete  -> safe
       ! A partial group breaks the parallelism. A complete or untouched group keeps it.
-      IF (cell_env%keep_angles) THEN
-         ! The decision lives in keep_angles_conflict, which the unit test
-         ! checks over all 64 masks.
-         IF (keep_angles_conflict(cell_env%constraint_id, &
-                                  cell_env%opt_cell%orthorhombic)) THEN
+      IF (cell_env%keep_angles .AND. .NOT. cell_env%opt_cell%orthorhombic) THEN
+         ! KEEP_ANGLES makes the b and c gradient components parallel to the
+         ! current b and c cell vectors. A CONSTRAINT that fixes only part of
+         ! the b or c vector destroys this parallelism. A constraint that
+         ! fixes the vector completely leaves it intact.
+         IF (fixes_partially(cell_env%constraint_id, mask_b) .OR. &
+             fixes_partially(cell_env%constraint_id, mask_c)) THEN
             CALL cp_abort(__LOCATION__, &
-                          "CELL_OPT: CONSTRAINT ("// &
-                          TRIM(cell_opt_constraint_label(cell_env%constraint_id))// &
-                          ") fixes only part of the b or c cell vector and would "// &
-                          "destroy the KEEP_ANGLES projection.")
+                          "CELL_OPT: KEEP_ANGLES with a CONSTRAINT that fixes "// &
+                          "only part of the b or c cell vector would destroy "// &
+                          "the fixed angles.")
          END IF
       END IF
 
       IF (cell_env%keep_symmetry .AND. cell_env%constraint_id /= fix_none) THEN
-         ! The decision lives in keep_symmetry_conflict, which the unit test
-         ! checks over all 64 masks for every crystal system.
-         bad_constraint = keep_symmetry_conflict(cell_env%constraint_id, &
-                                                 cell_env%opt_cell%symmetry_id)
+         ! KEEP_SYMMETRY couples sets of cell components. A CONSTRAINT is
+         ! compatible only if it leaves such a set untouched, or fixes the
+         ! set completely. A partial fixation breaks the symmetry group
+         ! after the gradient symmetrization.
+         bad_constraint = .FALSE.
+         SELECT CASE (cell_env%opt_cell%symmetry_id)
+         CASE (cell_sym_cubic)
+            ! All three cell vector lengths are coupled
+            bad_constraint = fixes_partially(cell_env%constraint_id, mask_diag)
+         CASE (cell_sym_rhombohedral)
+            ! Even all six cell components are coupled
+            bad_constraint = fixes_partially(cell_env%constraint_id, mask_all)
+         CASE (cell_sym_hexagonal_gamma_60, &
+               cell_sym_hexagonal_gamma_120, &
+               cell_sym_monoclinic_gamma_ab)
+            ! The in-plane (a,b) components are coupled
+            bad_constraint = fixes_partially(cell_env%constraint_id, mask_ab_plane)
+         CASE (cell_sym_tetragonal_ab)
+            ! The lengths of a and b are coupled
+            bad_constraint = fixes_partially(cell_env%constraint_id, mask_diag_ab)
+         CASE (cell_sym_tetragonal_ac)
+            ! The lengths of a and c are coupled
+            bad_constraint = fixes_partially(cell_env%constraint_id, mask_diag_ac)
+         CASE (cell_sym_tetragonal_bc)
+            ! The lengths of b and c are coupled
+            bad_constraint = fixes_partially(cell_env%constraint_id, mask_diag_bc)
+         CASE DEFAULT
+            ! orthorhombic, monoclinic, triclinic and none have no coupling
+         END SELECT
          IF (bad_constraint) THEN
             CALL cp_abort(__LOCATION__, &
-                          "CELL_OPT: CONSTRAINT ("// &
-                          TRIM(cell_opt_constraint_label(cell_env%constraint_id))// &
-                          ") fixes only part of the components coupled by "// &
-                          "KEEP_SYMMETRY ("// &
-                          TRIM(cell_opt_constraint_label( &
-                               keep_symmetry_coupled_set(cell_env%opt_cell%symmetry_id)))// &
-                          ") and would break the cell symmetry.")
+                          "CELL_OPT: CONSTRAINT fixes only part of the cell "// &
+                          "components coupled by KEEP_SYMMETRY and would "// &
+                          "break the cell symmetry.")
          END IF
       END IF
 
@@ -196,9 +217,6 @@ CONTAINS
                "CELL_OPT| Keep cell symmetry: ", " NO"
          END IF
          label = cell_opt_constraint_label(cell_env%constraint_id)
-         IF (COUNT(cell%perd /= 0) == 2 .AND. .NOT. constraint_explicit) THEN
-            label = TRIM(label)//" (auto)"
-         END IF
          WRITE (UNIT=output_unit, FMT="(T2,A,T77,A)") &
             "CELL_OPT| Constraint: ", TRIM(label)
       END IF
