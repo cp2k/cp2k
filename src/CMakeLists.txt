@@ -235,6 +235,7 @@ list(
   gw_utils_communication.F
   gw.F
   gw_tensor_large_cell_gamma.F
+  gw_tensor_large_cell_gamma_stcohsex.F
   gw_tensor_small_cell_full_kp.F
   gw_ri_rs_non_periodic.F
   gw_ri_rs_large_cell_gamma.F

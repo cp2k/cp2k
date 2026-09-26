@@ -103,7 +103,11 @@ MODULE gw_tensor_large_cell_Gamma
              compute_3c_integrals, G_occ_vir, fm_read, write_matrix, &
              fill_fm_Sigma_c_Gamma_time, delete_unnecessary_files, get_W_MIC, &
              create_fm_W_MIC_time, Fourier_transform_w_to_t, &
-             compute_fm_chi_Gamma_freq, compute_QP_energies, fm_write
+             compute_fm_chi_Gamma_freq, compute_QP_energies, fm_write, &
+             RI_2c_integral_mat, compute_3c_and_contract_W, compute_MinvVsqrt_Vsqrt, &
+             compute_V_k_by_lattice_sum, compute_fm_W_MIC_freq_j, &
+             get_Sigma_x, get_mat_chi_Gamma_tau, print_skipping, apply_extrapol_factor, &
+             apply_extrapol_factor_single
 
 CONTAINS
 
@@ -1179,15 +1183,17 @@ CONTAINS
 !> \param mat_chi_Gamma_tau ...
 !> \param cfm_M_inv_V_sqrt_ikp ...
 !> \param cfm_V_sqrt_ikp ...
+!> \param at_zero_freq ...
 ! **************************************************************************************************
    SUBROUTINE compute_fm_W_MIC_freq_j(bs_env, qs_env, fm_W_MIC_freq_j, j_w, ikp, mat_chi_Gamma_tau, &
-                                      cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp)
+                                      cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp, at_zero_freq)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type)                                   :: fm_W_MIC_freq_j
       INTEGER                                            :: j_w, ikp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_chi_Gamma_tau
       TYPE(cp_cfm_type)                                  :: cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp
+      LOGICAL, OPTIONAL                                  :: at_zero_freq
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_fm_W_MIC_freq_j'
 
@@ -1197,7 +1203,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! 1. Fourier transformation of χ_PQ(iτ,k=0) to χ_PQ(iω_j,k=0)
-      CALL compute_fm_chi_Gamma_freq(bs_env, bs_env%fm_chi_Gamma_freq, j_w, mat_chi_Gamma_tau)
+      CALL compute_fm_chi_Gamma_freq(bs_env, bs_env%fm_chi_Gamma_freq, j_w, mat_chi_Gamma_tau, &
+                                     at_zero_freq=at_zero_freq)
 
       CALL cp_fm_set_all(fm_W_MIC_freq_j, 0.0_dp)
 
@@ -1334,33 +1341,90 @@ CONTAINS
    END SUBROUTINE apply_extrapol_factor
 
 ! **************************************************************************************************
+!> \brief Same as apply_extrapol_factor, but for a single fm matrix at one frequency point
+!>        (e.g. the static, ω=0 matrix used in st-COHSEX) instead of an array over time/freq points.
+!> \param bs_env ...
+!> \param fm_W_MIC ...
+! **************************************************************************************************
+   SUBROUTINE apply_extrapol_factor_single(bs_env, fm_W_MIC)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(cp_fm_type)                                   :: fm_W_MIC
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_extrapol_factor_single'
+
+      INTEGER                                            :: handle, i, j, ncol_local, nrow_local
+      REAL(KIND=dp)                                      :: extrapol_factor, W_extra_1, W_no_extra_1
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(matrix=fm_W_MIC, nrow_local=nrow_local, ncol_local=ncol_local)
+
+      DO j = 1, ncol_local
+         DO i = 1, nrow_local
+
+            W_extra_1 = bs_env%fm_W_MIC_freq_1_extra%local_data(i, j)
+            W_no_extra_1 = bs_env%fm_W_MIC_freq_1_no_extra%local_data(i, j)
+
+            IF (ABS(W_no_extra_1) > 1.0E-13) THEN
+               extrapol_factor = ABS(W_extra_1/W_no_extra_1)
+            ELSE
+               extrapol_factor = 1.0_dp
+            END IF
+
+            ! reset extrapolation factor if it is very large
+            IF (extrapol_factor > 10.0_dp) extrapol_factor = 1.0_dp
+
+            fm_W_MIC%local_data(i, j) = fm_W_MIC%local_data(i, j)*extrapol_factor
+         END DO
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE apply_extrapol_factor_single
+
+! **************************************************************************************************
 !> \brief ...
 !> \param bs_env ...
 !> \param fm_chi_Gamma_freq ...
 !> \param j_w ...
 !> \param mat_chi_Gamma_tau ...
+!> \param at_zero_freq ...
 ! **************************************************************************************************
-   SUBROUTINE compute_fm_chi_Gamma_freq(bs_env, fm_chi_Gamma_freq, j_w, mat_chi_Gamma_tau)
+   SUBROUTINE compute_fm_chi_Gamma_freq(bs_env, fm_chi_Gamma_freq, j_w, mat_chi_Gamma_tau, &
+                                        at_zero_freq)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(cp_fm_type)                                   :: fm_chi_Gamma_freq
       INTEGER                                            :: j_w
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_chi_Gamma_tau
+      LOGICAL, OPTIONAL                                  :: at_zero_freq
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_fm_chi_Gamma_freq'
 
       INTEGER                                            :: handle, i_t
+      LOGICAL                                            :: my_at_zero_freq
       REAL(KIND=dp)                                      :: freq_j, time_i, weight_ij
 
       CALL timeset(routineN, handle)
 
+      my_at_zero_freq = .FALSE.
+      IF (PRESENT(at_zero_freq)) my_at_zero_freq = at_zero_freq
+
       CALL dbcsr_set(bs_env%mat_RI_RI%matrix, 0.0_dp)
 
-      freq_j = bs_env%time_frequency_grid%frequency(j_w)
+      IF (my_at_zero_freq) THEN
+         freq_j = 0.0_dp
+      ELSE
+         freq_j = bs_env%time_frequency_grid%frequency(j_w)
+      END IF
 
       DO i_t = 1, bs_env%num_time_freq_points
 
          time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
-         weight_ij = bs_env%time_frequency_grid%cosine_time_to_frequency_weights(j_w, i_t)
+         IF (my_at_zero_freq) THEN
+            weight_ij = bs_env%time_frequency_grid%time_weights_at_zero_frequency(i_t)
+         ELSE
+            weight_ij = bs_env%time_frequency_grid%cosine_time_to_frequency_weights(j_w, i_t)
+         END IF
 
          ! actual Fourier transform
          CALL dbcsr_add(bs_env%mat_RI_RI%matrix, mat_chi_Gamma_tau(i_t)%matrix, &
