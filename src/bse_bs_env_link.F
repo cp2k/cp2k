@@ -55,6 +55,8 @@ MODULE bse_bs_env_link
                                               qs_environment_type
    USE qs_tensors_types,                ONLY: create_2c_tensor,&
                                               create_3c_tensor
+
+!$ USE OMP_LIB, ONLY: omp_get_num_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -112,7 +114,6 @@ CONTAINS
       CPASSERT(bs_env%nkp_bs_and_DOS == 1)
 
       n_spin = bs_env%n_spin
-      IF (n_spin /= 1) CPABORT("PROPERTIES%BSE: open shell lands with the next commit")
       n_RI = bs_env%n_RI
       ! the canonical orthogonalisation parks the linearly dependent directions above n_mo_retained
       n_mo_real = MIN(bs_env%n_mo_retained, bs_env%n_ao)
@@ -286,9 +287,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'link_mo_tensor'
 
-      INTEGER                                            :: ao0, handle, i_atom, i_blk, i_chunk, &
-                                                            iproc, mo0, n_blk, n_c, n_chunk, n_mu, &
-                                                            n_window
+      INTEGER :: ao0, handle, i_atom, i_blk, i_chunk, i_first, i_last, iproc, ithread, mo0, n_blk, &
+         n_c, n_chunk, n_mu, n_window, nblk_per_thread, nthreads
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_ind_1, blk_ind_2, dist_1, dist_2
       INTEGER, DIMENSION(2)                              :: pdims_2d
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: blk
@@ -332,7 +332,18 @@ CONTAINS
             blk_ind_2(n_blk) = i_chunk
          END DO
       END DO
-      CALL dbt_reserve_blocks(t_C, blk_ind_1, blk_ind_2)
+      ! DBM reserves inside one parallel region, every thread over its own slice of the list
+!$OMP PARALLEL DEFAULT(NONE) SHARED(t_C, blk_ind_1, blk_ind_2, n_blk) &
+!$OMP PRIVATE(nthreads, ithread, nblk_per_thread, i_first, i_last)
+      nthreads = 1
+      ithread = 0
+!$    nthreads = omp_get_num_threads()
+!$    ithread = omp_get_thread_num()
+      nblk_per_thread = n_blk/nthreads + 1
+      i_first = ithread*nblk_per_thread + 1
+      i_last = MIN(i_first + nblk_per_thread - 1, n_blk)
+      CALL dbt_reserve_blocks(t_C, blk_ind_1(i_first:i_last), blk_ind_2(i_first:i_last))
+!$OMP END PARALLEL
       DO i_blk = 1, n_blk
          i_atom = blk_ind_1(i_blk)
          i_chunk = blk_ind_2(i_blk)
