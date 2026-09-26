@@ -205,10 +205,6 @@ if [ -n "$(grep -- "--install-all" "${TOOLCHAIN_ROOTDIR}/toolchain_settings")" ]
     CMAKE_OPTIONS+=" -DCP2K_USE_MPI=OFF"
   fi
   # Some options that should be specially considered:
-  # Intel MKL includes FFTW
-  if [ "${with_fftw}" = "__DONTUSE__" ] && [ "${math_mode}" != "mkl" ]; then
-    CMAKE_OPTIONS+=" -DCP2K_USE_FFTW3=OFF"
-  fi
   # MiMic-MCL (MiMiC Communication Library)
   if [ "${with_mcl}" = "__DONTUSE__" ]; then
     CMAKE_OPTIONS+=" -DCP2K_USE_MIMIC=OFF"
@@ -228,10 +224,6 @@ else
     CMAKE_OPTIONS+=" -DCP2K_USE_MPI=ON -DCP2K_USE_MPI_F08=ON"
   fi
   # Some options that should be specially considered:
-  # Intel MKL includes FFTW
-  if [ "${with_fftw}" != "__DONTUSE__" ] || [ "${math_mode}" = "mkl" ]; then
-    CMAKE_OPTIONS+=" -DCP2K_USE_FFTW3=ON"
-  fi
   # MiMic-MCL (MiMiC Communication Library)
   if [ "${with_mcl}" != "__DONTUSE__" ]; then
     CMAKE_OPTIONS+=" -DCP2K_USE_MIMIC=ON"

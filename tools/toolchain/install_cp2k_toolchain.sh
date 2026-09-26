@@ -1021,6 +1021,11 @@ supported. Please install manually and check executable path before rerunning."
   esac
 fi
 
+# FFTW is a hard dependency
+if [ "${with_fftw}" = "__DONTUSE__" ] && [ "${MATH_MODE}" != "mkl" ]; then
+  report_error "FFTW is a hard dependency required by CP2K and cannot be disabled. Please either install FFTW, detect FFTW from system, or use MKL implementation through \"--with-mkl\"."
+fi
+
 # If CUDA or HIP are enabled, make sure the GPU version has been defined.
 if [ "${ENABLE_CUDA}" = "__TRUE__" ] || [ "${ENABLE_HIP}" = "__TRUE__" ]; then
   if [ "${GPUVER}" = "no" ]; then

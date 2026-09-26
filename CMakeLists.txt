@@ -122,7 +122,6 @@ option(CP2K_USE_ACE "Enable ACE support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_DEEPMD "Enable DeePMD support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_DFTD4 "Enable DFTD4 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TBLITE "Enable TBLITE support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_FFTW3 "Enable FFTW3 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GREENX "Enable GreenX support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_HDF5 "Enable HDF5 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBFCI "Enable LibFCI active-space solver support"
@@ -140,10 +139,14 @@ option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_VORI "Enable Libvori support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_CRAY_PM_ENERGY "Enable Cray PM energy framework" OFF)
 option(BUILD_SHARED_LIBS "Build CP2K shared library" ON)
+
 option(
   CP2K_USE_FFTW3_WITH_MKL
   "MKL has its own compatible implementation of the FFTW3 library. This option, when ON, will use the separate and original FFTW3 library."
   OFF)
+option(CP2K_ENABLE_FFTW3_OPENMP_SUPPORT "Enable FFTW3 OpenMP support" ON)
+option(CP2K_ENABLE_FFTW3_THREADS_SUPPORT "Enable FFTW3 threads support" OFF)
+
 option(CP2K_USE_DBCSR_CONFIG "Return DBCSR cmake configuration parameters" OFF)
 
 # MPI-enabled options
@@ -213,10 +216,6 @@ cmake_dependent_option(
 
 cmake_dependent_option(CP2K_ENABLE_ELPA_OPENMP_SUPPORT
                        "Enable ELPA OpenMP support" ON "CP2K_USE_ELPA" OFF)
-cmake_dependent_option(CP2K_ENABLE_FFTW3_OPENMP_SUPPORT
-                       "Enable FFTW3 OpenMP support" ON "CP2K_USE_FFTW3" OFF)
-cmake_dependent_option(CP2K_ENABLE_FFTW3_THREADS_SUPPORT
-                       "Enable FFTW3 threads support" OFF "CP2K_USE_FFTW3" OFF)
 
 cmake_dependent_option(
   CP2K_USE_CUSOLVER_MP "Enable cuSOLVERMp. Only active when CUDA is ON" OFF
@@ -777,43 +776,38 @@ endif()
 
 # FFTW3
 
-# we set this variable to ON when we want FFTW3 support (with or without MKL)
+# CP2K_USE_FFTW3_ for native FFTW3, CP2K_USE_FFTW3_MKL_ for MKL
 set(CP2K_USE_FFTW3_ OFF)
-if(CP2K_USE_FFTW3)
-  if(NOT CP2K_BLAS_VENDOR MATCHES "MKL" OR CP2K_USE_FFTW3_WITH_MKL)
-    find_package(Fftw REQUIRED)
-    if(CP2K_ENABLE_FFTW3_THREADS_SUPPORT AND CP2K_ENABLE_FFTW3_OPENMP_SUPPORT)
-      message(
-        FATAL_ERROR
-          "FFTW3 threads and openmp supports can not be used at the same time")
-    endif()
-
-    if((CP2K_ENABLE_FFTW3_THREADS_SUPPORT) AND (NOT TARGET
-                                                cp2k::FFTW3::fftw3_threads))
-      message(
-        FATAL_ERROR
-          "FFTW3 was compiled without multithreading support (--enable-threads option in the FFTW3 build system)."
-      )
-    endif()
-
-    if((CP2K_ENABLE_FFTW3_OPENMP_SUPPORT) AND (NOT TARGET cp2k::FFTW3::fftw3_omp
-                                              ))
-      message(
-        FATAL_ERROR
-          "FFTW3 was compiled without openmp support (--enable-openmp option in the FFTW3 build system)."
-      )
-    endif()
-    set(CP2K_USE_FFTW3_ ON)
-  else()
-    message("-- Using the MKL implementation of FFTW3.")
-    foreach(DIR ${CP2K_BLAS_INCLUDE_DIRS})
-      if(EXISTS ${DIR}/fftw)
-        list(APPEND CP2K_FFTW3_INCLUDE_DIRS ${DIR}/fftw)
-        include_directories(${DIR}/fftw)
-      endif()
-    endforeach()
-    set(CP2K_USE_FFTW3_MKL_ ON)
+if(NOT CP2K_BLAS_VENDOR MATCHES "MKL" OR CP2K_USE_FFTW3_WITH_MKL)
+  find_package(Fftw REQUIRED)
+  if(CP2K_ENABLE_FFTW3_THREADS_SUPPORT AND CP2K_ENABLE_FFTW3_OPENMP_SUPPORT)
+    message(
+      FATAL_ERROR
+        "FFTW3 threads and openmp supports can not be used at the same time")
   endif()
+  if(CP2K_ENABLE_FFTW3_THREADS_SUPPORT AND NOT TARGET
+                                           cp2k::FFTW3::fftw3_threads)
+    message(
+      FATAL_ERROR
+        "FFTW3 was compiled without multithreading support (--enable-threads option in the FFTW3 build system)."
+    )
+  endif()
+  if(CP2K_ENABLE_FFTW3_OPENMP_SUPPORT AND NOT TARGET cp2k::FFTW3::fftw3_omp)
+    message(
+      FATAL_ERROR
+        "FFTW3 was compiled without openmp support (--enable-openmp option in the FFTW3 build system)."
+    )
+  endif()
+  set(CP2K_USE_FFTW3_ ON)
+else()
+  message("-- Using the MKL implementation of FFTW3.")
+  foreach(DIR ${CP2K_BLAS_INCLUDE_DIRS})
+    if(EXISTS ${DIR}/fftw)
+      list(APPEND CP2K_FFTW3_INCLUDE_DIRS ${DIR}/fftw)
+      include_directories(${DIR}/fftw)
+    endif()
+  endforeach()
+  set(CP2K_USE_FFTW3_MKL_ ON)
 endif()
 
 # Libint
@@ -1039,6 +1033,9 @@ message("  - LAPACK\n"
         "    - Include directories: ${CP2K_LAPACK_INCLUDE_DIRS}\n"
         "    - Libraries: ${CP2K_LAPACK_LINK_LIBRARIES}\n")
 
+message("  - FFTW3\n" "    - Include directories: ${CP2K_FFTW3_INCLUDE_DIRS}\n"
+        "    - Libraries: ${CP2K_FFTW3_LINK_LIBRARIES}\n")
+
 if(CP2K_USE_MPI)
   message("  - MPI\n" "    - Include directories: ${MPI_INCLUDE_DIRS}\n"
           "    - Libraries: ${MPI_LIBRARIES}")
@@ -1120,12 +1117,6 @@ endif()
 
 if(CP2K_USE_OPENPMD)
   message("  - OpenPMD\n" "    - package directory: ${openPMD_DIR}\n")
-endif()
-
-if(CP2K_USE_FFTW3)
-  message("  - FFTW3\n"
-          "    - Include directories: ${CP2K_FFTW3_INCLUDE_DIRS}\n"
-          "    - Libraries: ${CP2K_FFTW3_LINK_LIBRARIES}\n")
 endif()
 
 if(CP2K_USE_PLUMED)
@@ -1353,14 +1344,6 @@ endif()
 
 if(NOT CP2K_USE_VORI)
   message("  - Libvori")
-endif()
-
-if(NOT CP2K_USE_FFTW3)
-  message("  - FFTW3")
-  message(
-    WARNING
-      "FFTW3 may become mandatory in future releases of CP2K. Calculations requiring large grid sizes may not work properly without FFTW3. Please consider installing and enabling it."
-  )
 endif()
 
 if(NOT CP2K_USE_LIBTORCH)

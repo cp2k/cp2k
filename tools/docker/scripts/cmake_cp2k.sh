@@ -274,7 +274,6 @@ elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "sdbg" ]]; then
     -GNinja \
     -DCMAKE_BUILD_TYPE="Debug" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_USE_FFTW3=ON \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
