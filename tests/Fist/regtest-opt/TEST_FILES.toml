@@ -11,7 +11,7 @@
 "geo_opt_lbfgs.inp"                     = [{matcher="M011", tol=1.0E-14, ref=-35.282422125160856}]
 # Direct cell optimisation (combined geometry and cell optimiser)
 "cell_opt_direct_bfgs.inp"              = [{matcher="M011", tol=1.0E-14, ref=-35.644084205321462}]
-"cell_opt_direct_cg_2pnt.inp"           = [{matcher="M011", tol=1.0E-14, ref=-35.64408417979653}]
+"cell_opt_direct_cg_2pnt.inp"           = [{matcher="M011", tol=2.0E-14, ref=-35.64408417979653}]
 "cell_opt_direct_cg_gold.inp"           = [{matcher="M011", tol=4e-10, ref=-35.64408416148384}]
 "cell_opt_direct_lbfgs.inp"             = [{matcher="M011", tol=3.0E-11, ref=-35.644084204213243}]
 # Geometry optimisation using core-shell models

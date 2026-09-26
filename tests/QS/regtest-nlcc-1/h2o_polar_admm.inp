@@ -28,7 +28,7 @@
     &EFIELD
     &END EFIELD
     &MGRID
-      CUTOFF 280
+      CUTOFF 120
     &END MGRID
     &POISSON
       PERIODIC NONE

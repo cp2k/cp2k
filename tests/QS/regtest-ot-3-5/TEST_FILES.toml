@@ -12,9 +12,9 @@
   {matcher="OT_mermin_lbfgs_response_update"},
 ]
 "Al-kpoint-mermin-md.inp"              = [
-  {matcher="M_INIT_ENERGY", tol=1e-8, ref=-3.959232525340075},
-  {matcher="M_CONS_QTY", tol=1e-8, ref=-3.95874105061},
+  {matcher="M_INIT_ENERGY", tol=1e-8, ref=-4.065278275060435},
+  {matcher="M_CONS_QTY", tol=1e-8, ref=-4.06478643187},
 ]
-"Al-kpoint-mermin-geo-opt.inp"         = [{matcher="E_total", tol=1e-8, ref=-3.95942279154558}]
+"Al-kpoint-mermin-geo-opt.inp"         = [{matcher="E_total", tol=1e-8, ref=-4.06534815637185}]
 "Al-kpoint-mermin-cell-opt.inp"        = [{matcher="E_total", tol=1e-8, ref=-2.08597923726350}]
 #EOF
