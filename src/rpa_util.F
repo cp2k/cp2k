@@ -17,11 +17,10 @@ MODULE rpa_util
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_release,&
-                                              cp_cfm_set_all,&
-                                              cp_cfm_type,&
-                                              cp_fm_to_cfm
+   USE cp_cfm_types,                    ONLY: &
+        copy_cfm_info_type, cp_cfm_cleanup_copy_general, cp_cfm_create, &
+        cp_cfm_finish_copy_general, cp_cfm_release, cp_cfm_set_all, cp_cfm_start_copy_general, &
+        cp_cfm_type, cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
@@ -86,10 +85,12 @@ CONTAINS
 !> \param dimen_RI_red ...
 !> \param num_integ_points ...
 !> \param nspins ...
+!> \param create_cfm_mo_coeff whether to promote the real Gamma-point coefficients to CFM
 !> \param fm_mat_Q ...
 !> \param cfm_mo_coeff ...
-!> \param fm_matrix_Minv_L_kpoints ...
-!> \param fm_matrix_L_kpoints ...
+!> \param cfm_matrix_Minv_L_kpoints ...
+!> \param cfm_matrix_L_kpoints ...
+!> \param fm_matrix_Minv_L_gamma ...
 !> \param mat_P_global ...
 !> \param t_3c_O ...
 !> \param matrix_s ...
@@ -112,9 +113,10 @@ CONTAINS
 !> \param has_mat_P_blocks ...
 !> \param wkp_W ...
 !> \param cfm_mat_Q ...
-!> \param fm_mat_Minv_L_kpoints ...
-!> \param fm_mat_L_kpoints ...
-!> \param fm_mat_RI_global_work ...
+!> \param cfm_mat_Minv_L_kpoints ...
+!> \param cfm_mat_L_kpoints ...
+!> \param fm_mat_Minv_L_gamma ...
+!> \param cfm_mat_RI_global_work ...
 !> \param fm_mat_work ...
 !> \param mat_dm ...
 !> \param mat_L ...
@@ -127,8 +129,9 @@ CONTAINS
 !> \param mo_coeff ...
 ! **************************************************************************************************
    SUBROUTINE alloc_im_time(qs_env, para_env, dimen_RI, dimen_RI_red, num_integ_points, nspins, &
+                            create_cfm_mo_coeff, &
                             fm_mat_Q, cfm_mo_coeff, &
-                            fm_matrix_Minv_L_kpoints, fm_matrix_L_kpoints, mat_P_global, &
+                            cfm_matrix_Minv_L_kpoints, cfm_matrix_L_kpoints, fm_matrix_Minv_L_gamma, mat_P_global, &
                             t_3c_O, matrix_s, kpoints, eps_filter_im_time, &
                             cut_memory, nkp, num_cells_dm, num_3c_repl, &
                             size_P, ikp_local, &
@@ -138,8 +141,8 @@ CONTAINS
                             do_ic_model, do_kpoints_cubic_RPA, &
                             do_kpoints_from_Gamma, do_ri_Sigma_x, my_open_shell, &
                             has_mat_P_blocks, wkp_W, &
-                            cfm_mat_Q, fm_mat_Minv_L_kpoints, fm_mat_L_kpoints, &
-                            fm_mat_RI_global_work, fm_mat_work, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, &
+                            cfm_mat_Q, cfm_mat_Minv_L_kpoints, cfm_mat_L_kpoints, fm_mat_Minv_L_gamma, &
+                            cfm_mat_RI_global_work, fm_mat_work, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, &
                             mat_MinvVMinv, mat_P_omega, mat_P_omega_kp, &
                             mat_work, mo_coeff)
 
@@ -147,10 +150,11 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red, &
                                                             num_integ_points, nspins
+      LOGICAL, INTENT(IN)                                :: create_cfm_mo_coeff
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
-      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_mo_coeff
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv_L_kpoints, &
-                                                            fm_matrix_L_kpoints
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_mo_coeff, cfm_matrix_Minv_L_kpoints, &
+                                                            cfm_matrix_L_kpoints
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv_L_gamma
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_P_global
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: t_3c_O
@@ -172,8 +176,10 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: wkp_W
       TYPE(cp_cfm_type), INTENT(OUT)                     :: cfm_mat_Q
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_Minv_L_kpoints, fm_mat_L_kpoints
-      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_RI_global_work, fm_mat_work
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_mat_Minv_L_kpoints, cfm_mat_L_kpoints
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_Minv_L_gamma
+      TYPE(cp_cfm_type), INTENT(OUT)                     :: cfm_mat_RI_global_work
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_work
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_dm, mat_L, mat_M_P_munu_occ, &
                                                             mat_M_P_munu_virt, mat_MinvVMinv
       TYPE(dbcsr_p_type), ALLOCATABLE, &
@@ -194,11 +200,14 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ALLOCATE (cfm_mo_coeff(nspins))
+      NULLIFY (mat_L%matrix)
 
-      DO ispin = 1, SIZE(mo_coeff)
-         CALL create_mo_coeff(cfm_mo_coeff(ispin), mo_coeff(ispin))
-      END DO
+      IF (create_cfm_mo_coeff) THEN
+         ALLOCATE (cfm_mo_coeff(nspins))
+         DO ispin = 1, SIZE(mo_coeff)
+            CALL create_mo_coeff(cfm_mo_coeff(ispin), mo_coeff(ispin))
+         END DO
+      END IF
 
       num_3c_repl = SIZE(t_3c_O, 2)
 
@@ -282,25 +291,24 @@ CONTAINS
       END IF
 
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
-         CALL cp_fm_create(fm_mat_RI_global_work, fm_matrix_Minv_L_kpoints(1, 1)%matrix_struct, set_zero=.TRUE.)
+         CALL cp_cfm_create(cfm_mat_RI_global_work, cfm_matrix_Minv_L_kpoints(1)%matrix_struct, set_zero=.TRUE.)
       END IF
 
       ALLOCATE (has_mat_P_blocks(num_cells_dm/2 + 1, cut_memory, cut_memory, num_3c_repl, num_3c_repl))
       has_mat_P_blocks = .TRUE.
 
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
-         CALL reorder_mat_L(fm_mat_Minv_L_kpoints, fm_matrix_Minv_L_kpoints, fm_mat_Q%matrix_struct, para_env, mat_L, &
-                            mat_P_global%matrix, dimen_RI, dimen_RI_red, first_ikp_local, ikp_local, fm_struct_sub_kp, &
-                            allocate_mat_L=.FALSE.)
+         CALL reorder_cfm_mat_L(cfm_mat_Minv_L_kpoints, cfm_matrix_Minv_L_kpoints, fm_struct_sub_kp, para_env, &
+                                first_ikp_local, ikp_local)
 
-         CALL reorder_mat_L(fm_mat_L_kpoints, fm_matrix_L_kpoints, fm_mat_Q%matrix_struct, para_env, mat_L, &
-                            mat_P_global%matrix, dimen_RI, dimen_RI_red, first_ikp_local, ikp_local, fm_struct_sub_kp)
+         CALL reorder_cfm_mat_L(cfm_mat_L_kpoints, cfm_matrix_L_kpoints, fm_struct_sub_kp, para_env, &
+                                first_ikp_local, ikp_local)
 
          CALL cp_fm_struct_release(fm_struct_sub_kp)
 
       ELSE
-         CALL reorder_mat_L(fm_mat_Minv_L_kpoints, fm_matrix_Minv_L_kpoints, fm_mat_Q%matrix_struct, para_env, mat_L, &
-                            mat_P_global%matrix, dimen_RI, dimen_RI_red, first_ikp_local)
+         CALL reorder_mat_L(fm_mat_Minv_L_gamma, fm_matrix_Minv_L_gamma, fm_mat_Q%matrix_struct, mat_L, &
+                            mat_P_global%matrix, dimen_RI, dimen_RI_red)
       END IF
 
       ! Create Scalapack working matrix for the contraction with the metric
@@ -331,7 +339,7 @@ CONTAINS
          CALL dbcsr_set(mat_MinvVMinv%matrix, 0.0_dp)
 
          ! for kpoints we compute SinvVSinv later with kpoints
-         IF (.NOT. do_kpoints_from_Gamma) THEN
+         IF (.NOT. (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma)) THEN
 
             !  get the Coulomb matrix for Sigma_x = G*V
             CALL dbcsr_multiply("T", "N", 1.0_dp, mat_L%matrix, mat_L%matrix, &
@@ -377,6 +385,45 @@ CONTAINS
    END SUBROUTINE create_mo_coeff
 
 ! **************************************************************************************************
+!> \brief Reorders complex k-point matrices to the subgroup distribution.
+!> \param cfm_mat_L ...
+!> \param cfm_matrix_L_kpoints ...
+!> \param fm_struct_sub_kp ...
+!> \param para_env ...
+!> \param first_ikp_local ...
+!> \param ikp_local ...
+! **************************************************************************************************
+   SUBROUTINE reorder_cfm_mat_L(cfm_mat_L, cfm_matrix_L_kpoints, fm_struct_sub_kp, para_env, first_ikp_local, ikp_local)
+
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_mat_L, cfm_matrix_L_kpoints
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_sub_kp
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(IN)                                :: first_ikp_local, ikp_local
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reorder_cfm_mat_L'
+
+      INTEGER                                            :: handle, ikp
+      TYPE(copy_cfm_info_type)                           :: copy_info
+
+      CALL timeset(routineN, handle)
+
+      ALLOCATE (cfm_mat_L(SIZE(cfm_matrix_L_kpoints)))
+      DO ikp = 1, SIZE(cfm_matrix_L_kpoints)
+         IF (ikp == first_ikp_local .OR. ikp_local == -1) THEN
+            CALL cp_cfm_create(cfm_mat_L(ikp), fm_struct_sub_kp, set_zero=.TRUE.)
+         END IF
+         CALL cp_cfm_start_copy_general(cfm_matrix_L_kpoints(ikp), cfm_mat_L(ikp), para_env, copy_info)
+         IF (ASSOCIATED(cfm_mat_L(ikp)%matrix_struct)) CALL cp_cfm_finish_copy_general(cfm_mat_L(ikp), copy_info)
+         IF (ASSOCIATED(cfm_matrix_L_kpoints(ikp)%matrix_struct)) CALL cp_cfm_cleanup_copy_general(copy_info)
+         IF (ASSOCIATED(cfm_matrix_L_kpoints(ikp)%matrix_struct)) CALL cp_cfm_release(cfm_matrix_L_kpoints(ikp))
+      END DO
+      DEALLOCATE (cfm_matrix_L_kpoints)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE reorder_cfm_mat_L
+
+! **************************************************************************************************
 !> \brief ...
 !> \param mat_P_omega ...
 !> \param num_integ_points ...
@@ -412,45 +459,31 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param fm_mat_L ...
-!> \param fm_matrix_Minv_L_kpoints ...
+!> \param fm_matrix_Minv_L_gamma ...
 !> \param fm_struct_template ...
-!> \param para_env ...
 !> \param mat_L ...
 !> \param mat_template ...
 !> \param dimen_RI ...
 !> \param dimen_RI_red ...
-!> \param first_ikp_local ...
-!> \param ikp_local ...
-!> \param fm_struct_sub_kp ...
-!> \param allocate_mat_L ...
 ! **************************************************************************************************
-   SUBROUTINE reorder_mat_L(fm_mat_L, fm_matrix_Minv_L_kpoints, fm_struct_template, para_env, mat_L, mat_template, &
-                            dimen_RI, dimen_RI_red, first_ikp_local, ikp_local, fm_struct_sub_kp, allocate_mat_L)
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L, fm_matrix_Minv_L_kpoints
+   SUBROUTINE reorder_mat_L(fm_mat_L, fm_matrix_Minv_L_gamma, fm_struct_template, mat_L, mat_template, &
+                            dimen_RI, dimen_RI_red)
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_L
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv_L_gamma
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_template
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), INTENT(OUT)                    :: mat_L
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_template
-      INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red, first_ikp_local
-      INTEGER, OPTIONAL                                  :: ikp_local
-      TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: fm_struct_sub_kp
-      LOGICAL, INTENT(IN), OPTIONAL                      :: allocate_mat_L
+      INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reorder_mat_L'
 
-      INTEGER                                            :: handle, ikp, j_size, nblk
+      INTEGER                                            :: handle, nblk
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
-      LOGICAL                                            :: do_kpoints, my_allocate_mat_L
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_mat_L_transposed, fmdummy
+      TYPE(cp_fm_type)                                   :: fm_mat_L_transposed
 
       CALL timeset(routineN, handle)
-
-      do_kpoints = .FALSE.
-      IF (PRESENT(ikp_local) .AND. PRESENT(fm_struct_sub_kp)) THEN
-         do_kpoints = .TRUE.
-      END IF
 
       ! Get the fm_struct for fm_mat_L
       NULLIFY (fm_struct)
@@ -461,35 +494,21 @@ CONTAINS
          CALL cp_fm_struct_create(fm_struct, nrow_global=dimen_RI_red, ncol_global=dimen_RI, template_fmstruct=fm_struct_template)
       END IF
 
-      ! Start to allocate the new full matrix
-      ALLOCATE (fm_mat_L(SIZE(fm_matrix_Minv_L_kpoints, 1), SIZE(fm_matrix_Minv_L_kpoints, 2)))
-      DO j_size = 1, SIZE(fm_matrix_Minv_L_kpoints, 2)
-         DO ikp = 1, SIZE(fm_matrix_Minv_L_kpoints, 1)
-            IF (do_kpoints) THEN
-               IF (ikp == first_ikp_local .OR. ikp_local == -1) THEN
-                  CALL cp_fm_create(fm_mat_L(ikp, j_size), fm_struct_sub_kp)
-                  CALL cp_fm_set_all(fm_mat_L(ikp, j_size), 0.0_dp)
-               END IF
-            ELSE
-               CALL cp_fm_create(fm_mat_L(ikp, j_size), fm_struct)
-               CALL cp_fm_set_all(fm_mat_L(ikp, j_size), 0.0_dp)
-            END IF
-         END DO
-      END DO
+      CALL cp_fm_create(fm_mat_L, fm_struct)
+      CALL cp_fm_set_all(fm_mat_L, 0.0_dp)
 
       ! For the transposed matric we need a different fm_struct
       IF (dimen_RI == dimen_RI_red) THEN
-         fm_struct => fm_mat_L(first_ikp_local, 1)%matrix_struct
+         fm_struct => fm_mat_L%matrix_struct
       ELSE
          CALL cp_fm_struct_release(fm_struct)
 
          ! Create a fm_struct with transposed sizes
          NULLIFY (fm_struct)
          CALL cp_fm_struct_create(fm_struct, nrow_global=dimen_RI, ncol_global=dimen_RI_red, &
-                                  template_fmstruct=fm_mat_L(first_ikp_local, 1)%matrix_struct) !, force_block=.TRUE.)
+                                  template_fmstruct=fm_mat_L%matrix_struct)
       END IF
 
-      ! Allocate buffer matrix
       CALL cp_fm_create(fm_mat_L_transposed, fm_struct)
       CALL cp_fm_set_all(matrix=fm_mat_L_transposed, alpha=0.0_dp)
 
@@ -497,54 +516,29 @@ CONTAINS
 
       CALL cp_fm_get_info(fm_mat_L_transposed, context=blacs_env)
 
-      ! For k-points copy matrices of your group
-      ! Without kpoints, transpose matrix
-      ! without kpoints, the size of fm_mat_L is 1x1. with kpoints, the size is N_kpoints x 2 (2 for real/complex)
-      DO j_size = 1, SIZE(fm_matrix_Minv_L_kpoints, 2)
-      DO ikp = 1, SIZE(fm_matrix_Minv_L_kpoints, 1)
-         IF (do_kpoints) THEN
-            IF (ikp_local == ikp .OR. ikp_local == -1) THEN
-               CALL cp_fm_copy_general(fm_matrix_Minv_L_kpoints(ikp, j_size), fm_mat_L_transposed, para_env)
-               CALL cp_fm_to_fm(fm_mat_L_transposed, fm_mat_L(ikp, j_size))
-            ELSE
-               CALL cp_fm_copy_general(fm_matrix_Minv_L_kpoints(ikp, j_size), fmdummy, para_env)
-            END IF
-         ELSE
-            CALL cp_fm_copy_general(fm_matrix_Minv_L_kpoints(ikp, j_size), fm_mat_L_transposed, blacs_env%para_env)
-            CALL cp_fm_transpose(fm_mat_L_transposed, fm_mat_L(ikp, j_size))
-         END IF
-      END DO
-      END DO
+      CALL cp_fm_copy_general(fm_matrix_Minv_L_gamma(1, 1), fm_mat_L_transposed, blacs_env%para_env)
+      CALL cp_fm_transpose(fm_mat_L_transposed, fm_mat_L)
 
       ! Release old matrix
-      CALL cp_fm_release(fm_matrix_Minv_L_kpoints)
+      CALL cp_fm_release(fm_matrix_Minv_L_gamma)
       ! Release buffer
       CALL cp_fm_release(fm_mat_L_transposed)
 
-      my_allocate_mat_L = .TRUE.
-      IF (PRESENT(allocate_mat_L)) my_allocate_mat_L = allocate_mat_L
+      NULLIFY (mat_L%matrix)
+      ALLOCATE (mat_L%matrix)
+      IF (dimen_RI == dimen_RI_red) THEN
+         CALL dbcsr_create(mat_L%matrix, template=mat_template)
+      ELSE
+         CALL dbcsr_get_info(mat_template, nblkrows_total=nblk, col_blk_size=col_blk_size)
 
-      IF (my_allocate_mat_L) THEN
-         ! Create sparse variant of L
-         NULLIFY (mat_L%matrix)
-         ALLOCATE (mat_L%matrix)
-         IF (dimen_RI == dimen_RI_red) THEN
-            CALL dbcsr_create(mat_L%matrix, template=mat_template)
-         ELSE
-            CALL dbcsr_get_info(mat_template, nblkrows_total=nblk, col_blk_size=col_blk_size)
+         CALL calculate_equal_blk_size(row_blk_size, dimen_RI_red, nblk)
 
-            CALL calculate_equal_blk_size(row_blk_size, dimen_RI_red, nblk)
+         CALL dbcsr_create(mat_L%matrix, template=mat_template, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
 
-            CALL dbcsr_create(mat_L%matrix, template=mat_template, row_blk_size=row_blk_size, col_blk_size=col_blk_size)
-
-            DEALLOCATE (row_blk_size)
-         END IF
-
-         IF (.NOT. (do_kpoints)) THEN
-            CALL copy_fm_to_dbcsr(fm_mat_L(1, 1), mat_L%matrix)
-         END IF
-
+         DEALLOCATE (row_blk_size)
       END IF
+
+      CALL copy_fm_to_dbcsr(fm_mat_L, mat_L%matrix)
 
       CALL timestop(handle)
 
@@ -1021,11 +1015,12 @@ CONTAINS
 !> \param has_mat_P_blocks ...
 !> \param wkp_W ...
 !> \param cfm_mat_Q ...
-!> \param fm_mat_Minv_L_kpoints ...
-!> \param fm_mat_L_kpoints ...
+!> \param cfm_mat_Minv_L_kpoints ...
+!> \param cfm_mat_L_kpoints ...
+!> \param fm_mat_Minv_L_gamma ...
 !> \param fm_matrix_Minv ...
 !> \param fm_matrix_Minv_Vtrunc_Minv ...
-!> \param fm_mat_RI_global_work ...
+!> \param cfm_mat_RI_global_work ...
 !> \param fm_mat_work ...
 !> \param mat_dm ...
 !> \param mat_L ...
@@ -1043,14 +1038,16 @@ CONTAINS
                               cell_to_index_3c, do_ic_model, &
                               do_kpoints_cubic_RPA, do_kpoints_from_Gamma, do_ri_Sigma_x, &
                               has_mat_P_blocks, &
-                              wkp_W, cfm_mat_Q, fm_mat_Minv_L_kpoints, fm_mat_L_kpoints, &
+                              wkp_W, cfm_mat_Q, cfm_mat_Minv_L_kpoints, cfm_mat_L_kpoints, &
+                              fm_mat_Minv_L_gamma, &
                               fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
-                              fm_mat_RI_global_work, fm_mat_work, mat_dm, mat_L, &
+                              cfm_mat_RI_global_work, fm_mat_work, mat_dm, mat_L, &
                               mat_MinvVMinv, mat_P_omega, mat_P_omega_kp, &
                               t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                               mat_work, qs_env)
 
-      TYPE(cp_cfm_type), DIMENSION(:), INTENT(INOUT)     :: cfm_mo_coeff
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: cfm_mo_coeff
       INTEGER, ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
@@ -1062,10 +1059,12 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: wkp_W
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat_Q
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_Minv_L_kpoints, fm_mat_L_kpoints, &
-                                                            fm_matrix_Minv, &
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_mat_Minv_L_kpoints, cfm_mat_L_kpoints
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Minv_L_gamma
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv, &
                                                             fm_matrix_Minv_Vtrunc_Minv
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_RI_global_work, fm_mat_work
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat_RI_global_work
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_work
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_dm, mat_L, mat_MinvVMinv
       TYPE(dbcsr_p_type), ALLOCATABLE, &
          DIMENSION(:, :, :), INTENT(INOUT)               :: mat_P_omega
@@ -1082,19 +1081,31 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dealloc_im_time'
 
       INTEGER                                            :: cut_memory, handle, i_kp, i_mem, i_size, &
-                                                            ispin, j_size, jquad, nspins, unused
-      LOGICAL                                            :: my_open_shell
+                                                            ispin, j_size, jquad, unused
 
       CALL timeset(routineN, handle)
 
-      nspins = SIZE(cfm_mo_coeff)
-      my_open_shell = (nspins == 2)
-
-      DO ispin = 1, SIZE(cfm_mo_coeff)
-         CALL cp_cfm_release(cfm_mo_coeff(ispin))
-      END DO
-      CALL cp_fm_release(fm_mat_Minv_L_kpoints)
-      CALL cp_fm_release(fm_mat_L_kpoints)
+      IF (ALLOCATED(cfm_mo_coeff)) THEN
+         DO ispin = 1, SIZE(cfm_mo_coeff)
+            CALL cp_cfm_release(cfm_mo_coeff(ispin))
+         END DO
+         DEALLOCATE (cfm_mo_coeff)
+      END IF
+      IF (ALLOCATED(cfm_mat_Minv_L_kpoints)) THEN
+         DO i_kp = 1, SIZE(cfm_mat_Minv_L_kpoints)
+            IF (ASSOCIATED(cfm_mat_Minv_L_kpoints(i_kp)%matrix_struct)) THEN
+               CALL cp_cfm_release(cfm_mat_Minv_L_kpoints(i_kp))
+            END IF
+         END DO
+         DEALLOCATE (cfm_mat_Minv_L_kpoints)
+      END IF
+      IF (ALLOCATED(cfm_mat_L_kpoints)) THEN
+         DO i_kp = 1, SIZE(cfm_mat_L_kpoints)
+            IF (ASSOCIATED(cfm_mat_L_kpoints(i_kp)%matrix_struct)) CALL cp_cfm_release(cfm_mat_L_kpoints(i_kp))
+         END DO
+         DEALLOCATE (cfm_mat_L_kpoints)
+      END IF
+      CALL cp_fm_release(fm_mat_Minv_L_gamma)
 
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
          CALL cp_fm_release(fm_matrix_Minv_Vtrunc_Minv)
@@ -1108,8 +1119,10 @@ CONTAINS
          DEALLOCATE (mat_work)
       END IF
 
-      CALL dbcsr_release(mat_L%matrix)
-      DEALLOCATE (mat_L%matrix)
+      IF (ASSOCIATED(mat_L%matrix)) THEN
+         CALL dbcsr_release(mat_L%matrix)
+         DEALLOCATE (mat_L%matrix)
+      END IF
 
       IF (do_ri_Sigma_x .OR. do_ic_model) THEN
          CALL dbcsr_release(mat_MinvVMinv%matrix)
@@ -1146,7 +1159,7 @@ CONTAINS
 
       IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
          CALL cp_cfm_release(cfm_mat_Q)
-         CALL cp_fm_release(fm_mat_RI_global_work)
+         CALL cp_cfm_release(cfm_mat_RI_global_work)
          CALL dbcsr_deallocate_matrix_set(mat_P_omega_kp)
          DEALLOCATE (wkp_W)
       END IF

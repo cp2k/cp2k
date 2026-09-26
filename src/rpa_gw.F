@@ -908,7 +908,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_work
       INTEGER, INTENT(IN)                                :: dimen_RI
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: fm_mat_L
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L
       TYPE(time_frequency_grid_type), INTENT(IN)         :: grid
       INTEGER, INTENT(IN)                                :: jquad
       REAL(KIND=dp), INTENT(INOUT)                       :: omega
@@ -950,10 +950,10 @@ CONTAINS
       END DO
 
       ! multiply with L from the left and the right to get the screened Coulomb interaction
-      CALL parallel_gemm('T', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L(1, 1), fm_mat_Q, &
+      CALL parallel_gemm('T', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L, fm_mat_Q, &
                          0.0_dp, fm_mat_work)
 
-      CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_work, fm_mat_L(1, 1), &
+      CALL parallel_gemm('N', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_work, fm_mat_L, &
                          0.0_dp, fm_mat_Q)
 
       ! Fourier transform from w to t
@@ -1126,7 +1126,6 @@ CONTAINS
 !> \param vec_omega_fit_gw ...
 !> \param vec_Sigma_x_gw ...
 !> \param ic_corr_list ...
-!> \param cfm_mo_coeff ...
 !> \param mo_coeff ...
 !> \param fm_mat_W ...
 !> \param para_env ...
@@ -1163,7 +1162,7 @@ CONTAINS
                                   fermi_level_offset, delta_corr, Eigenval, &
                                   Eigenval_last, Eigenval_scf, iter_sc_GW0, exit_ev_gw, grid, &
                                   vec_omega_fit_gw, vec_Sigma_x_gw, ic_corr_list, &
-                                  cfm_mo_coeff, mo_coeff, fm_mat_W, &
+                                  mo_coeff, fm_mat_W, &
                                   para_env, para_env_RPA, mat_dm, mat_MinvVMinv, &
                                   t_3c_O, t_3c_M, t_3c_overl_int_ao_mo, &
                                   t_3c_O_compressed, t_3c_O_mo_compressed, &
@@ -1198,8 +1197,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: vec_Sigma_x_gw
       TYPE(one_dim_real_array), DIMENSION(2), INTENT(IN) :: ic_corr_list
-      TYPE(cp_cfm_type), DIMENSION(:), INTENT(IN)        :: cfm_mo_coeff
-      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: fm_mat_W
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_RPA
@@ -1252,7 +1250,7 @@ CONTAINS
 
             DO ispin = 1, nspins
                CALL compute_self_energy_cubic_gw(nmo, grid, &
-                                                 matrix_s, cfm_mo_coeff(ispin), Eigenval(:, 1, ispin), eps_filter, &
+                                                 matrix_s, Eigenval(:, 1, ispin), eps_filter, &
                                                  e_fermi(ispin), fm_mat_W, &
                                                  gw_corr_lev_tot, gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), homo(ispin), &
                                                  count_ev_sc_GW, count_sc_GW0, &
@@ -1263,7 +1261,7 @@ CONTAINS
                                                  vec_Sigma_c_gw(:, :, :, ispin), &
                                                  do_periodic, num_points_corr, delta_corr, qs_env, para_env, para_env_RPA, &
                                                  mp2_env, matrix_berry_re_mo_mo, matrix_berry_im_mo_mo, &
-                                                 first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff, &
+                                                 first_cycle_periodic_correction, kpoints, num_fit_points, mo_coeff(ispin), &
                                                  do_ri_Sigma_x, vec_Sigma_x_gw(:, :, ispin), unit_nr, ispin)
             END DO
 
@@ -1278,7 +1276,7 @@ CONTAINS
                                                       mat_W, mat_MinvVMinv, &
                                                       vec_Sigma_c_gw(:, :, :, :), &
                                                       qs_env, para_env, &
-                                                      mp2_env, num_fit_points, mo_coeff, &
+                                                      mp2_env, num_fit_points, mo_coeff(1), &
                                                       do_ri_Sigma_x, vec_Sigma_x_gw(:, :, :), unit_nr, nspins, &
                                                       starts_array_mc, ends_array_mc, eps_filter)
 
@@ -5273,7 +5271,6 @@ CONTAINS
 !> \param nmo ...
 !> \param grid ...
 !> \param matrix_s ...
-!> \param cfm_mo_coeff ...
 !> \param Eigenval ...
 !> \param eps_filter ...
 !> \param e_fermi ...
@@ -5312,7 +5309,7 @@ CONTAINS
 !> \param ispin ...
 ! **************************************************************************************************
    SUBROUTINE compute_self_energy_cubic_gw(nmo, grid, &
-                                           matrix_s, cfm_mo_coeff, Eigenval, eps_filter, &
+                                           matrix_s, Eigenval, eps_filter, &
                                            e_fermi, fm_mat_W, &
                                            gw_corr_lev_tot, gw_corr_lev_occ, gw_corr_lev_virt, homo, &
                                            count_ev_sc_GW, count_sc_GW0, &
@@ -5327,7 +5324,6 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmo
       TYPE(time_frequency_grid_type), INTENT(IN)         :: grid
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_s
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mo_coeff
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       REAL(KIND=dp), INTENT(INOUT)                       :: e_fermi
@@ -5376,7 +5372,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: vec_Sigma_c_gw_cos_omega, &
          vec_Sigma_c_gw_cos_tau, vec_Sigma_c_gw_neg_tau, vec_Sigma_c_gw_pos_tau, &
          vec_Sigma_c_gw_sin_omega, vec_Sigma_c_gw_sin_tau
-      TYPE(cp_cfm_type)                                  :: cfm_scaled_dm_occ_tau
       TYPE(cp_fm_type)                                   :: fm_scaled_dm_occ_tau
       TYPE(dbcsr_p_type), DIMENSION(:, :, :), POINTER    :: greens_fct
       TYPE(dbcsr_type), POINTER                          :: mat_greens_fct_occ, mat_greens_fct_virt
@@ -5390,7 +5385,7 @@ CONTAINS
 
       num_integ_points = SIZE(grid%imaginary_time)
 
-      CALL cp_cfm_get_info(cfm_mo_coeff, nrow_global=nao)
+      CALL cp_fm_get_info(fm_mo_coeff, nrow_global=nao)
 
       CALL decompress_tensor(t_3c_overl_int_ao_mo, t_3c_O_mo_ind, t_3c_O_mo_compressed, &
                              mp2_env%ri_rpa_im_time%eps_compress)
@@ -5464,7 +5459,7 @@ CONTAINS
 
       DO jquad = 1, num_integ_points
 
-         CALL compute_gamma_propagator(greens_fct, 1, cfm_mo_coeff, homo, Eigenval, nmo, &
+         CALL compute_gamma_propagator(greens_fct, 1, fm_mo_coeff, homo, Eigenval, nmo, &
                                        eps_filter, e_fermi, grid%imaginary_time(jquad), para_env)
 
          CALL dbcsr_set(mat_W, 0.0_dp)
@@ -5561,15 +5556,12 @@ CONTAINS
 
          CALL timeset(routineN//"_RI_HFX_operation_1", handle3)
 
-         CALL cp_cfm_create(cfm_scaled_dm_occ_tau, cfm_mo_coeff%matrix_struct, nrow=nao, ncol=nao)
+         CALL cp_fm_create(fm_scaled_dm_occ_tau, fm_mo_coeff%matrix_struct, nrow=nao, ncol=nao)
 
          ! get density matrix
-         CALL parallel_gemm(transa="N", transb="C", m=nao, n=nao, k=homo, alpha=(1.0_dp, 0.0_dp), &
-                            matrix_a=cfm_mo_coeff, matrix_b=cfm_mo_coeff, beta=(0.0_dp, 0.0_dp), &
-                            matrix_c=cfm_scaled_dm_occ_tau)
-
-         CALL cp_fm_create(fm_scaled_dm_occ_tau, cfm_scaled_dm_occ_tau%matrix_struct)
-         CALL cp_cfm_to_fm(cfm_scaled_dm_occ_tau, fm_scaled_dm_occ_tau)
+         CALL parallel_gemm(transa="N", transb="T", m=nao, n=nao, k=homo, alpha=1.0_dp, &
+                            matrix_a=fm_mo_coeff, matrix_b=fm_mo_coeff, beta=0.0_dp, &
+                            matrix_c=fm_scaled_dm_occ_tau)
 
          CALL timestop(handle3)
 
@@ -5580,7 +5572,6 @@ CONTAINS
                                keep_sparsity=.FALSE.)
 
          CALL cp_fm_release(fm_scaled_dm_occ_tau)
-         CALL cp_cfm_release(cfm_scaled_dm_occ_tau)
 
          CALL timestop(handle3)
 

@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Common full-matrix operations used by GW modules.
+!> \brief Full-matrix operations not provided by the CP2K FM packages.
 !> \par History
 !>      09.2026 created Jan Wilhelm
 ! **************************************************************************************************
@@ -27,6 +27,8 @@ MODULE gw_utils_fm
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
+   USE mathlib,                         ONLY: diag_complex,&
+                                              gemm_square
    USE parallel_gemm_api,               ONLY: parallel_gemm
 #include "./base/base_uses.f90"
 
@@ -35,7 +37,8 @@ MODULE gw_utils_fm
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils_fm'
 
-   PUBLIC :: cfm_contract_ABA, fm_contract_ABA, fm_invert, fm_sqrt
+   PUBLIC :: cfm_add_on_diag, cfm_contract_ABA, fm_contract_ABA, fm_invert, fm_sqrt, &
+             local_add_on_diag, local_complex_power
 
    INTERFACE fm_contract_ABA
       MODULE PROCEDURE fm_contract_ABA, fm_contract_ABA_set
@@ -77,6 +80,109 @@ CONTAINS
       CALL cp_cfm_release(work)
 
    END SUBROUTINE cfm_contract_ABA
+
+! **************************************************************************************************
+!> \brief Add a scalar to the diagonal of a distributed complex full matrix.
+!> \param matrix input/output matrix
+!> \param alpha scalar added to each diagonal element
+!> \param n_active optional number of physical rows/columns
+! **************************************************************************************************
+   SUBROUTINE cfm_add_on_diag(matrix, alpha, n_active)
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
+      COMPLEX(KIND=dp), INTENT(IN)                       :: alpha
+      INTEGER, INTENT(IN), OPTIONAL                      :: n_active
+
+      INTEGER                                            :: i_row, j_col, max_index, ncol_local, &
+                                                            nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+
+      max_index = HUGE(max_index)
+      IF (PRESENT(n_active)) max_index = n_active
+
+      CALL cp_cfm_get_info(matrix=matrix, nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices)
+
+      DO j_col = 1, ncol_local
+         DO i_row = 1, nrow_local
+            IF (row_indices(i_row) == col_indices(j_col) .AND. row_indices(i_row) <= max_index) THEN
+               matrix%local_data(i_row, j_col) = matrix%local_data(i_row, j_col) + alpha
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE cfm_add_on_diag
+
+! **************************************************************************************************
+!> \brief Add a scalar to the diagonal of a local complex matrix.
+!> \param matrix input/output matrix
+!> \param alpha scalar added to each diagonal element
+! **************************************************************************************************
+   SUBROUTINE local_add_on_diag(matrix, alpha)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: matrix
+      COMPLEX(KIND=dp), INTENT(IN)                       :: alpha
+
+      INTEGER                                            :: i, n
+
+      n = SIZE(matrix, 1)
+      CPASSERT(n == SIZE(matrix, 2))
+
+      DO i = 1, n
+         matrix(i, i) = matrix(i, i) + alpha
+      END DO
+
+   END SUBROUTINE local_add_on_diag
+
+! **************************************************************************************************
+!> \brief Compute a spectral power of a local complex Hermitian matrix.
+!>        Eigenvalues not larger than eps are discarded.
+!> \param matrix input/output matrix
+!> \param exponent matrix exponent
+!> \param eps eigenvalue threshold
+!> \param cond_nr optional condition number
+!> \param min_ev optional minimum absolute eigenvalue
+!> \param max_ev optional maximum absolute eigenvalue
+! **************************************************************************************************
+   SUBROUTINE local_complex_power(matrix, exponent, eps, cond_nr, min_ev, max_ev)
+      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT)   :: matrix
+      REAL(KIND=dp), INTENT(IN)                          :: exponent, eps
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: cond_nr, min_ev, max_ev
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'local_complex_power'
+
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: eigenvectors
+      INTEGER                                            :: handle, i, n
+      REAL(KIND=dp)                                      :: pos_eval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
+
+      CALL timeset(routineN, handle)
+
+      n = SIZE(matrix, 1)
+      CPASSERT(n == SIZE(matrix, 2))
+      matrix(:, :) = 0.5_dp*(matrix(:, :) + CONJG(TRANSPOSE(matrix(:, :))))
+
+      ALLOCATE (eigenvalues(n), eigenvectors(n, n))
+      CALL diag_complex(matrix, eigenvectors, eigenvalues)
+
+      IF (PRESENT(cond_nr)) cond_nr = MAXVAL(ABS(eigenvalues))/MINVAL(ABS(eigenvalues))
+      IF (PRESENT(min_ev)) min_ev = MINVAL(ABS(eigenvalues))
+      IF (PRESENT(max_ev)) max_ev = MAXVAL(ABS(eigenvalues))
+
+      DO i = 1, n
+         IF (eps < eigenvalues(i)) THEN
+            pos_eval = eigenvalues(i)**(0.5_dp*exponent)
+         ELSE
+            pos_eval = 0.0_dp
+         END IF
+         eigenvectors(:, i) = eigenvectors(:, i)*pos_eval
+      END DO
+
+      CALL gemm_square(eigenvectors, 'N', eigenvectors, 'C', matrix)
+
+      DEALLOCATE (eigenvalues, eigenvectors)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE local_complex_power
 
 ! **************************************************************************************************
 !> \brief Inverts a symmetric matrix. First, Cholesky decomposition is tried.
