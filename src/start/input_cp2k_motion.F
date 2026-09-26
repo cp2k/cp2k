@@ -1086,9 +1086,7 @@ CONTAINS
          description="Imposes a constraint on the pressure tensor by fixing the specified cell components. "// &
          "Cell convention: a lies along x, b lies in the xy plane. The six independent components "// &
          "are AX, BX, BY, CX, CY, CZ. A, B and C fix a complete cell vector: A = AX, B = BX and BY, "// &
-         "C = CX, CY and CZ. X, Y and Z follow the legacy direction tokens. X fixes every x "// &
-         "component: AX, BX and CX. Y fixes the complete b vector and the y component of c: "// &
-         "BX, BY and CY. Z fixes the complete c vector, because only c has a z component: Z equals C. "// &
+         "C = CX, CY and CZ. X, Y and Z fix a complete Cartesian direction: X = AX, BX and CX, and so on. "// &
          "Accepted tokens: NONE, A, B, C, X, Y, Z, XY, XZ, YZ, AX, BX, BY, CX, CY, CZ. "// &
          "Several tokens may be given on one line, the union of the fixed components is used. "// &
          "NONE must stand alone, redundant tokens give a warning, and angle constraints "// &

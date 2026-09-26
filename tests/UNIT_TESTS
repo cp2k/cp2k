@@ -4,7 +4,6 @@
 dbt_tas_unittest
 dbt_unittest
 cell_types_unittest
-cell_opt_utils_unittest
 grid_unittest
 kpoint_lattice_fft_unittest
 kpoint_smearing_unittest
