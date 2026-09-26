@@ -1170,7 +1170,8 @@ MODULE input_constants
                                                evGW0 = 36, &
                                                evGW = 37, &
                                                ri_rs_non_periodic = 38, &
-                                               ri_rs_large_cell_Gamma = 39
+                                               ri_rs_large_cell_Gamma = 39, &
+                                               tensor_stcohsex = 40
 
    ! periodic RESP parameters
    INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir = 0, &

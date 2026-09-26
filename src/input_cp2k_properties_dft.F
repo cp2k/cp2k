@@ -2552,6 +2552,31 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="STCOHSEX", &
+                          description="StaticCoulomb hole screened exchange (st-COHSEX) approximation. "// &
+                          "The COHSEX self-energy is a static approximation to the "// &
+                          "GW self-energy, which can be expressed as Σ^COHSEX_mn = "// &
+                          "1/2 Σ_p W^C_mppn(ω=0) sgn(ε_p - ε_F) ", &
+                          usage="STCOHSEX", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="STFACIP", &
+                          description="scaling factor for st-COHSEX IPs", &
+                          usage="STFACIP", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="STFACEA", &
+                          description="scaling factor for st-COHSEX EAs", &
+                          usage="STFACEA", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       NULLIFY (subsection, print_key)
       CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Printing of GW restarts.", &

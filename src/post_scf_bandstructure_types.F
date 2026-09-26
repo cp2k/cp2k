@@ -161,7 +161,8 @@ MODULE post_scf_bandstructure_types
                                                          do_ldos = .FALSE., &
                                                          do_gw_ri_rs = .FALSE., &
                                                          do_dos_pdos = .FALSE., &
-                                                         do_floquet = .FALSE.
+                                                         do_floquet = .FALSE., &
+                                                         do_stcohsex = .FALSE.
 
       ! various eigenvalues computed in GW code, some depend on k-points
       ! and have therefore three dimensions (band index, k-point, spin)
@@ -183,6 +184,10 @@ MODULE post_scf_bandstructure_types
       LOGICAL                                         :: do_hedin_shift = .FALSE.
       ! which GW flavour was requested; constants from input_constants (G0W0, evGW0, ...)
       INTEGER                                         :: gw_flavour = G0W0
+
+      ! parameters for st-COHSEX approximation to GW
+      REAL(KIND=dp)                                   :: stfacip = 1.0_dp, &
+                                                         stfacea = 1.0_dp
 
       ! parameters for RI-RS implementation of GW
       TYPE(ri_rs_env)                                 :: ri_rs
@@ -353,12 +358,16 @@ MODULE post_scf_bandstructure_types
                                                       calc_chi
       LOGICAL, DIMENSION(:, :), ALLOCATABLE        :: Sigma_c_exists
       LOGICAL                                      :: all_W_exist = .FALSE., &
-                                                      Sigma_x_exists = .FALSE.
+                                                      Sigma_x_exists = .FALSE., &
+                                                      W_freq_zero_exists = .FALSE., &
+                                                      SigmaC_freq_zero_exists = .FALSE.
       CHARACTER(LEN=3)                             :: chi_name = "chi"
       CHARACTER(LEN=6)                             :: W_time_name = "W_time"
       CHARACTER(LEN=7)                             :: Sigma_x_name = "Sigma_x"
       CHARACTER(LEN=13)                            :: Sigma_p_name = "Sigma_pos_tau", &
                                                       Sigma_n_name = "Sigma_neg_tau"
+      CHARACTER(LEN=11)                            :: W_freq_zero_name = "W_freq_zero"
+      CHARACTER(LEN=16)                            :: SigmaC_freq_zero_name = "SigmaC_freq_zero"
       CHARACTER(LEN=default_path_length)           :: prefix = ""
       INTEGER                                      :: unit_nr = -1
 
@@ -537,6 +546,9 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_chi_Gamma_freq)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq)
       IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized) THEN
+         CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
+      END IF
+      IF (bs_env%do_stcohsex) THEN
          CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
       END IF
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_extra)

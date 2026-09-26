@@ -69,7 +69,7 @@ MODULE gw_utils
         G0W0, do_potential_coulomb, do_potential_truncated, evGW0, ri_rpa_g0w0_crossing_newton, &
         ri_rs_large_cell_Gamma, ri_rs_non_periodic, rtp_bse_kernel_ri_ao, rtp_bse_kernel_ri_rs, &
         rtp_method_bse, rtp_method_bse_linearized, tensor_large_cell_Gamma, &
-        tensor_small_cell_full_kp, xc_none
+        tensor_small_cell_full_kp, tensor_stcohsex, xc_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -198,7 +198,7 @@ CONTAINS
       CALL allocate_GW_eigenvalues(bs_env)
 
       SELECT CASE (bs_env%gw_implementation)
-      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic)
+      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_stcohsex)
 
          IF (.NOT. bs_env%do_gw_ri_rs) THEN
             CALL check_sparsity_3c(qs_env, bs_env)
@@ -297,6 +297,8 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "KPOINTS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
       CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
       CALL section_vals_val_get(gw_sec, "FREQ_MAX_FIT", r_val=bs_env%freq_max_fit)
+      CALL section_vals_val_get(gw_sec, "STFACIP", r_val=bs_env%stfacip)
+      CALL section_vals_val_get(gw_sec, "STFACEA", r_val=bs_env%stfacea)
       CALL read_rirs_input(bs_env%ri_rs, ri_rs_sec)
       CALL read_rirs_grid_opt(bs_env%ri_rs, grid_opt_sec)
       CALL read_evgw0_input(bs_env%ri_rs, evgw0_sec, do_evgw0)
@@ -582,6 +584,12 @@ CONTAINS
                bs_env%input_memory_per_proc_GB, ' GB'
          END IF
          IF (bs_env%do_gw_ri_rs) CALL print_gw_rirs_input(bs_env)
+         IF (bs_env%do_stcohsex) THEN
+            WRITE (u, FMT="(T2,A,L56)") "st-COHSEX Approximation", bs_env%do_stcohsex
+            WRITE (u, FMT="(T2,A,T73,F8.6)") "st-COHSEX scaling factor for IP:", bs_env%stfacip
+            WRITE (u, FMT="(T2,A,T73,F8.6)") "st-COHSEX scaling factor for EA:", bs_env%stfacea
+         END IF
+         WRITE (u, '(A)') ' '
       END IF
 
       CALL timestop(handle)
@@ -1005,7 +1013,7 @@ CONTAINS
                nkp_grid_extra(i_dim) = 1
             CASE (1)
                SELECT CASE (bs_env%gw_implementation)
-               CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic)
+               CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_stcohsex)
                   nkp_grid(i_dim) = 4
                   nkp_grid_extra(i_dim) = 6
                CASE (tensor_small_cell_full_kp)
@@ -1851,7 +1859,7 @@ CONTAINS
       energy_ex = energy%ex
 
       SELECT CASE (bs_env%gw_implementation)
-      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic)
+      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_stcohsex)
 
          NULLIFY (mat_ks_without_v_xc)
          CALL dbcsr_allocate_matrix_set(mat_ks_without_v_xc, bs_env%n_spin)
@@ -2429,14 +2437,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_for_restart_files'
 
       CHARACTER(LEN=9)                                   :: frmt
-      CHARACTER(len=default_path_length)                 :: f_chi, f_s_n, f_s_p, f_s_x, f_w_t, &
+      CHARACTER(len=default_path_length)                 :: f_chi, f_s_n, f_s_p, f_s_x, &
+                                                            f_SigmaC_zero, f_w_t, f_W_zero, &
                                                             prefix, project_name, Z_lP_name
       INTEGER                                            :: handle, i_spin, i_t_or_w, ind, n_spin, &
                                                             num_time_freq_points
-      LOGICAL                                            :: chi_exists, Sigma_neg_time_exists, &
-                                                            Sigma_pos_time_exists, &
-                                                            Sigma_x_spin_exists, W_time_exists, &
-                                                            Z_lP_exists
+      LOGICAL :: chi_exists, Sigma_neg_time_exists, Sigma_pos_time_exists, Sigma_x_spin_exists, &
+         SigmaC_freq_zero_exists, W_freq_zero_exists, W_time_exists, Z_lP_exists
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: input, print_key
 
@@ -2529,6 +2536,19 @@ CONTAINS
          bs_env%calc_chi(:) = .FALSE.
       END IF
 
+      IF (bs_env%do_stcohsex) THEN
+         WRITE (f_W_zero, '(3A,I1,A)') TRIM(prefix), bs_env%W_freq_zero_name, "_0", 0, ".matrix"
+         INQUIRE (file=TRIM(f_W_zero), exist=W_freq_zero_exists)
+         bs_env%W_freq_zero_exists = W_freq_zero_exists
+         IF (bs_env%W_freq_zero_exists) THEN
+            bs_env%read_chi(:) = .FALSE.
+            bs_env%calc_chi(:) = .FALSE.
+         END IF
+         WRITE (f_SigmaC_zero, '(3A,I1,A)') TRIM(prefix), bs_env%SigmaC_freq_zero_name, "_0", 0, ".matrix"
+         INQUIRE (file=TRIM(f_W_zero), exist=SigmaC_freq_zero_exists)
+         bs_env%SigmaC_freq_zero_exists = SigmaC_freq_zero_exists
+      END IF
+
       bs_env%Sigma_x_exists = .TRUE.
       DO i_spin = 1, n_spin
          WRITE (f_S_x, '(3A,I1,A)') TRIM(prefix), bs_env%Sigma_x_name, "_0", i_spin, ".matrix"
@@ -2542,6 +2562,8 @@ CONTAINS
           .OR. ANY(bs_env%Sigma_c_exists) &
           .OR. bs_env%all_W_exist &
           .OR. bs_env%Sigma_x_exists &
+          .OR. bs_env%W_freq_zero_exists &
+          .OR. bs_env%SigmaC_freq_zero_exists &
           ) THEN
 
          IF (qs_env%scf_env%iter_count /= 1) THEN
@@ -3386,7 +3408,7 @@ CONTAINS
          n_top = MAX(MIN(bs_env%n_mo_retained, n_mo), homo + 1)
 
          SELECT CASE (bs_env%gw_implementation)
-         CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic)
+         CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_stcohsex)
             E_min_ispin = bs_env%eigenval_scf_Gamma(homo + 1, ispin) - &
                           bs_env%eigenval_scf_Gamma(homo, ispin)
             E_max_ispin = bs_env%eigenval_scf_Gamma(n_top, ispin) - &
