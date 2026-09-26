@@ -21,7 +21,8 @@ MODULE gopt_f_methods
    USE cell_methods,                    ONLY: cell_create,&
                                               init_cell,&
                                               write_cell
-   USE cell_opt_utils,                  ONLY: get_dg_dh,&
+   USE cell_opt_utils,                  ONLY: cell_opt_constraint_label,&
+                                              get_dg_dh,&
                                               rescale_new_cell_volume
    USE cell_types,                      ONLY: cell_copy,&
                                               cell_release,&
@@ -48,9 +49,11 @@ MODULE gopt_f_methods
                                               use_qmmmx
    USE gopt_f_types,                    ONLY: gopt_f_type
    USE gopt_param_types,                ONLY: gopt_param_type
-   USE input_constants,                 ONLY: &
-        default_cell_method_id, default_minimization_method_id, default_shellcore_method_id, &
-        default_ts_method_id, fix_none, fix_x, fix_xy, fix_xz, fix_y, fix_yz, fix_z
+   USE input_constants,                 ONLY: default_cell_method_id,&
+                                              default_minimization_method_id,&
+                                              default_shellcore_method_id,&
+                                              default_ts_method_id,&
+                                              fix_none
    USE input_cp2k_restarts,             ONLY: write_restart
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
@@ -1145,7 +1148,7 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: motion_section, root_section
 
-      CHARACTER(LEN=4)                                   :: constraint_label
+      CHARACTER(LEN=default_string_length)               :: constraint_label
       LOGICAL                                            :: keep_angles, keep_symmetry, keep_volume
       REAL(KIND=dp)                                      :: etot
       TYPE(cell_type), POINTER                           :: cell
@@ -1168,22 +1171,7 @@ CONTAINS
          keep_angles = gopt_env%cell_env%keep_angles
          keep_symmetry = gopt_env%cell_env%keep_symmetry
          keep_volume = gopt_env%cell_env%keep_volume
-         SELECT CASE (gopt_env%cell_env%constraint_id)
-         CASE (fix_x)
-            constraint_label = "   X"
-         CASE (fix_y)
-            constraint_label = "   Y"
-         CASE (fix_z)
-            constraint_label = "   Z"
-         CASE (fix_xy)
-            constraint_label = "  XY"
-         CASE (fix_xz)
-            constraint_label = "  XZ"
-         CASE (fix_yz)
-            constraint_label = "  YZ"
-         CASE (fix_none)
-            constraint_label = "NONE"
-         END SELECT
+         constraint_label = cell_opt_constraint_label(gopt_env%cell_env%constraint_id)
       END IF
       CALL write_final_structure(particle_set, cell, motion_section, conv, &
                                  keep_angles, keep_symmetry, keep_volume, &
