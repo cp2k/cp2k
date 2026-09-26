@@ -133,7 +133,8 @@ CONTAINS
       gopt_env%dimer_rotation = .FALSE.
       gopt_env%do_line_search = .FALSE.
       ALLOCATE (gopt_env%spgr)
-      ! Space-group flags are read once here; the optimizer drivers consume spgr%* only.
+      ! This routine reads the space-group flags once. The optimizer
+      ! drivers consume spgr%* only.
       CALL section_vals_val_get(geo_opt_section, "KEEP_SPACE_GROUP", &
                                 l_val=gopt_env%spgr%keep_space_group)
       CALL section_vals_val_get(geo_opt_section, "SHOW_SPACE_GROUP", &

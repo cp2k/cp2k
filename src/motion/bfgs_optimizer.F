@@ -95,8 +95,8 @@ MODULE bfgs_optimizer
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bfgs_optimizer'
-   ! Lindh 1995 model Hessian parameters (atom rows H/C/O-N, pair columns) and
-   ! the screening constants used by construct_initial_hess
+   ! Parameters of the Lindh 1995 model Hessian (atom rows H/C/O-N, pair
+   ! columns). Screening constants for construct_initial_hess.
    REAL(KIND=dp), PARAMETER, PRIVATE :: lindh_alpha(3, 3) = &
                                         RESHAPE([1.0_dp, 0.3494_dp, 0.3494_dp, &
                                                  0.3949_dp, 0.2800_dp, 0.2800_dp, &
