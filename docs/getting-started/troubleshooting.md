@@ -5,10 +5,10 @@ inevitable when working with CP2K due to various reasons. Don't panic: this page
 catalog of possible issues and provides hints on how to address them.
 
 This is a dynamic list attempting to cover more topics of interest; feel free to open requests for
-expansion, but please read first and bear in mind the recommendations about asking questions in the
-[Foreward and FAQ](./foreword-and-faq.md#what-is-the-best-practice-to-ask-questions). Moreover, here
-is a gentle reminder that the normal termination of a computational task does not inherently
-guarantee scientifically meaningful, accurate, rigorous and publishable results.
+expansion, but please read first and bear in mind the recommendations about asking questions on the
+`SUPPORT.md` document. Moreover, here is a gentle reminder that the normal termination of a
+computational task does not inherently guarantee scientifically meaningful, accurate, rigorous and
+publishable results.
 
 ## The Whereabouts of Input & Output
 
@@ -79,7 +79,19 @@ the secondary logs (automatically generated per replica under the working direct
 necessary to locate the exact issue(s) from the latter. This applies to warnings and errors too,
 which in addition are typically issued on the first MPI rank of each replica.
 
+In the rare cases of a lack of identifiable error messages, try rerunning the task with the
+[GNU Debugger](https://sourceware.org/gdb/) to capture more information:
+
+```shell
+gdb --args cp2k.psmp -i project.inp
+```
+
 ## Problems and Solutions
+
+Faulty libraries are unfortunately very common that problems may be localized to a machine X or with
+a dependency Y, or even in a period of time Z with certain external concurrent processes or other
+users intervening; try ruling out these factors first with a separate installation, environment or
+even other machines.
 
 ### Program is stuck or killed for unknown reason
 

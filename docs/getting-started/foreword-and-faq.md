@@ -158,103 +158,22 @@ distinct perspectives.
 ## Does CP2K support k-points?
 
 As an essential element for solid-state electronic structure, k-point sampling is supported for some
-features in the `QUICKSTEP` module of CP2K, as elaborated on [](../methods/dft/k-points).
+features in the `QUICKSTEP` module of CP2K, as elaborated on [](../methods/dft/k-points). This is an
+very active field of development, with many new implementations and performance enhancement becoming
+available only recently; so, stay tuned and do not get distracted by outdated unofficial accounts.
 
-## Where can I meet the CP2K community?
+## What is the software ecosystem of CP2K like?
 
-Several discussion venues are available:
+There is a large arsenal of third-party auxiliary programs and libraries, interfaced with CP2K in
+one form or another, that offer supplementary utilities and can be readily integrated into the
+computation and pre- and post-processing workflow. See for instance:
 
-- The [User Forum](https://groups.google.com/group/cp2k) hosted on Google Groups, with a read-only
-  [mirror](https://lists.cp2k.org/listinfo/cp2k-user) and a downloadable
-  [archives](https://lists.cp2k.org/archives/cp2k-user/). To use the forum, sign in with a Google
-  account, apply to join and then wait for approval.
-- The [issues](https://github.com/cp2k/cp2k/issues/) and
-  [discussions](https://github.com/cp2k/cp2k/discussions) of the official github repository.
-- The
-  [Matter Modeling Stack Exchange](https://mattermodeling.stackexchange.com/questions/tagged/cp2k)
-  has, among other topics, a tag for CP2K.
-- For Chinese users, there is also a CP2K category in the First-principles subforum of the
-  [Computational Chemistry Commune](http://bbs.keinsci.com/forum-105-1.html?typeid=42).
+- The aforementioned [](#Iannuzzi2026) that mentions in section 11.1.3 a number of such tools;
+- The list of [tools for simplifying your life with CP2K](https://www.cp2k.org/tools) on cp2k.org;
+- And the `technologies` section of this manual.
 
-Please note that the github issues and discussions are only intended for topics relevant to the
-program development and code implementation, such as reproducible bug reports, well-defined feature
-requests and revisions to the documentation or manual. For more general help on the usage, as well
-as unexpected behaviors that may or may not be bugs, check the other venues first; experts can
-handle the questions and determine if they are eligible to be brought to github issues.
+## Where can I reach out to the community for asking questions, making contributions, etc.?
 
-## What is the best practice to ask questions?
-
-The general etiquette for requesting tech support online has been summarized nicely by Eric S.
-Raymond's [How To Ask Questions The Smart Way](http://www.catb.org/~esr/faqs/smart-questions.html).
-(**Disclaimer**: this link does not imply any connection between the original author and the CP2K
-developers, nor does it suggest that the original author may be contacted for assistance.)
-
-In the very first place, please refer to the [](./troubleshooting) page for a catalog of well-known
-warning and error messages with readily available explanations and suggestions. Search through the
-venues mentioned above for similar questions from others, and see if there are recent answers and
-advice applicable to the scenario. For the time being, it is not recommended to seek for unofficial
-CP2K-specific suggestions from generic large language models (LLM); even if they have been trained
-on a refined and verified corpus of CP2K materials one day, they can still hallucinate and generate
-superficially convincing but factually incorrect responses. (Unless willing to take responsibility
-for the correctness of any content produced by artificial intelligence as with human authors of a
-formal academic publication, do not bother mentioning anything from AI in the discussion at all.)
-
-Before submitting a question, please compose it with sufficient details, accuracy, and clarity.
-Approach the process in the same way as making a presentation to general audience, or even writing
-the "Methods" section in a formal academic publication; this includes giving explanations to
-uncommon acronyms (say, the abbreviated name of a specific class of materials, or anything that is
-not on the [Acronyms](../acronyms) page) and traceable citations (with publication title, date, and
-DOI link, instead of merely showing a screenshot or a paragraph of copy-pasted text).
-
-The release date or git version of CP2K, and custom revisions if any, has to be mentioned at the
-beginning. It is encouraged to try out the latest development version from the master branch of the
-github repository whenever situation permits, as this is likely containing the resolution patches
-already, and if not, works on which will benefit the next release version. Be aware that there are
-distinctive sets of manuals, with [](../CP2K_INPUT) for the latest development version and
-[](../versions) for the past releases; check twice if a page matches the program actually used prior
-to reading it.
-
-For problems related to installation and/or performance, the hardware specification and the
-configuration for linked libraries should be explained. The distribution source and means of
-preparation of dependencies, like with package managers, environment-controlling modules, or just a
-build from source, need clarifying. Faulty libraries are unfortunately very common that problems may
-be localized to a machine X or with a dependency Y, or even in a period of time Z with certain
-external concurrent processes or other users intervening; try ruling out these factors first.
-
-For error terminations and wrong results, it is imperative to provide a complete input deck and the
-output files. The "input deck" encompasses not only the main input file with keyword settings, but
-also all of the external files referenced inside unless they are available under the official `data`
-directory, so that the job can be actually run and tested on the developers' side. Suspected wrong
-results should have the precise location in the output and the reference expectation pointed out.
-
-```{note}
-The input file does not have to use the intended chemical structure and composition in the original
-encounter. For the [minimal reproducer](https://en.wikipedia.org/wiki/Minimal_reproducible_example),
-any simplified system is fine and the accuracy-controlling parameters can be tuned down, as long as
-the input can reliably trigger the problem. Not only would this reduce the demand on computational
-resources while reproducing, but also confidential research information would not be disclosed.
-```
-
-Lastly, please kindly understand that, despite the CP2K developers having knowledge about the
-algorithm infrastructures and program implementations, they may not be suitable for answering all of
-the questions arising from practice, especially those pertaining to niche research areas where
-apprehending the science and acquiring the skills will require much more extensive academic training
-than learning to use a program. The best party to consult for guidance of this type would be the
-tutor, advisor, experienced colleagues or collaborators in real life, and when attempting to
-reproduce reported findings, the original authors. This is not denying any personal potential to
-teach oneself at no cost, but rather hinting the necessity of communicating with the right
-professional people which does not have substitutes.
-
-## What can I do for the community?
-
-Potential forms of contribution, apart from engaging in the discussions, include:
-
-- Participating the project development as instructed on [](../development/onboarding.md);
-- Enriching the [cp2k-examples](https://github.com/cp2k/cp2k-examples) repository with example
-  inputs, outputs, pre- and post-analysis scripts. Interpretation and discussion of the results from
-  the program to complete the workflow would be nice to have.
-
-It is also strongly advised to share the input files as well as structures as supplementary
-materials in a publication. This will not only help other curious readers see the full potential of
-CP2K in terms of scientific and engineering applications, but also bridge the gap between
-theoretical configurations and input setup syntax.
+Please find the `SUPPORT.md` document for discussion venues, recommended practice for requesting
+help, and possible ways of contribution. These contents are previously on this page but have been
+refactored for brevity.
