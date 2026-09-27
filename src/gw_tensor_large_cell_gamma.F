@@ -1256,6 +1256,7 @@ CONTAINS
       ! 3. Remove all negative eigenvalues from χ_PQ(iω_j,k_i)
       CALL cp_cfm_power(cfm_chi_eps_W_ikp_freq_j, threshold=0.0_dp, exponent=1.0_dp)
 
+      ! 4. ε(iω_j,k_i) = Id - V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
       CALL compute_cfm_W_ikp_freq_j(bs_env, cfm_chi_eps_W_ikp_freq_j, cfm_V_sqrt_ikp, &
                                     cfm_M_inv_V_sqrt_ikp)
 
