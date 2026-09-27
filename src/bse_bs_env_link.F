@@ -16,6 +16,7 @@ MODULE bse_bs_env_link
    USE bse_input,                       ONLY: read_bse_section
    USE bse_main,                        ONLY: bse_solve,&
                                               prepare_bse_env_windowed
+   USE bse_matvec,                      ONLY: mem_fraction
    USE bse_types,                       ONLY: bse_env_release,&
                                               bse_env_type
    USE bse_util,                        ONLY: bse_window_from_dft
@@ -43,11 +44,13 @@ MODULE bse_bs_env_link
         dbt_pgrid_destroy, dbt_pgrid_type, dbt_put_block, dbt_reserve_blocks, dbt_type
    USE gw_tensor_large_cell_Gamma,      ONLY: compute_3c_integrals
    USE gw_utils_fm,                     ONLY: fm_contract_ABA
+   USE input_constants,                 ONLY: bse_memcheck_off,&
+                                              bse_memcheck_warn
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_2c_3c,                    ONLY: libint_potential_type
-   USE message_passing,                 ONLY: mp_mem_used_per_rank_GB
+   USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB
    USE mo_window,                       ONLY: mo_window_type
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -69,9 +72,6 @@ MODULE bse_bs_env_link
 
    ! MO columns per tensor block of the window coefficients
    INTEGER, PARAMETER, PRIVATE :: mo_chunk = 64
-   ! share of the free memory per rank (MEMORY_PER_PROC of the GW minus what is in use) that one
-   ! RI batch of (p, q, P) transformed integrals may take; the batch is replicated on every rank
-   REAL(KIND=dp), PARAMETER, PRIVATE :: slab_batch_fraction = 0.25_dp
    ! eigenvalue floor of the RI Coulomb matrix for its symmetric roots; the GW inverts its metric
    ! with no floor on the RI-AO path (eps_eigval_mat_RI = 0), so the roots need their own
    REAL(KIND=dp), PARAMETER, PRIVATE :: eps_ri_coulomb = 1.0E-10_dp
@@ -135,7 +135,7 @@ CONTAINS
       ALLOCATE (fm_S_ia(n_spin), fm_S_ij(n_spin), fm_S_ab(n_spin))
       ALLOCATE (eigenval_qp(n_window, n_spin), eigenval_dft(n_window, n_spin), homo_full(n_spin))
       DO ispin = 1, n_spin
-         CALL link_slabs(qs_env, bs_env, ispin, window, homo_red(ispin), virt_red(ispin), fm_T, &
+         CALL link_slabs(qs_env, bs_env, bse_env, ispin, window, homo_red(ispin), virt_red(ispin), fm_T, &
                          fm_S_ij(ispin), fm_S_ia(ispin), fm_S_ab(ispin), unit_nr)
          eigenval_qp(:, ispin) = bs_env%eigenval_GW(window%first_mo:window%last_mo, 1, ispin)
          eigenval_dft(:, ispin) = bs_env%eigenval_scf_Gamma(window%first_mo:window%last_mo, ispin)
@@ -373,26 +373,22 @@ CONTAINS
    END SUBROUTINE link_mo_tensor
 
 ! **************************************************************************************************
-!> \brief Contiguous RI atom ranges whose (p, q, P) batch stays under batch_bytes; an atom larger
-!>        than the budget forms its own batch
+!> \brief Contiguous RI atom ranges of at most max_fn RI functions; an atom larger than that forms
+!>        its own batch
 !> \param sizes_RI RI functions per atom
-!> \param n_w MOs in the window
-!> \param batch_bytes ...
+!> \param max_fn RI functions per batch the memory budget allows
 !> \param batch_first first atom per batch, allocated here
 !> \param batch_last last atom per batch, allocated here
 ! **************************************************************************************************
-   SUBROUTINE link_ri_batches(sizes_RI, n_w, batch_bytes, batch_first, batch_last)
+   SUBROUTINE link_ri_batches(sizes_RI, max_fn, batch_first, batch_last)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_RI
-      INTEGER, INTENT(IN)                                :: n_w
-      INTEGER(KIND=int_8), INTENT(IN)                    :: batch_bytes
+      INTEGER, INTENT(IN)                                :: max_fn
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: batch_first, batch_last
 
-      INTEGER                                            :: i_atom, max_fn, n_atom, n_batch, n_in
+      INTEGER                                            :: i_atom, n_atom, n_batch, n_in
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first, last
 
       n_atom = SIZE(sizes_RI)
-      max_fn = INT(MAX(1_int_8, MIN(INT(SUM(sizes_RI), int_8), &
-                                    batch_bytes/(8_int_8*INT(n_w, int_8)**2))))
       ALLOCATE (first(n_atom), last(n_atom))
       n_batch = 0
       n_in = 0
@@ -416,21 +412,69 @@ CONTAINS
    END SUBROUTINE link_ri_batches
 
 ! **************************************************************************************************
-!> \brief Bytes one rank spends on one RI batch: slab_batch_fraction of MEMORY_PER_PROC minus the
-!>        memory in use now (its maximum over the ranks, so every rank cuts the same batches)
+!> \brief The memory budget of the slab build per rank and the largest RI batch it allows:
+!>        BSE_ITERAT%MEMORY_BUDGET_GB as given, else mem_fraction of the free memory per rank measured
+!>        now (its minimum over the ranks, so every rank cuts the same batches); MEMORY_CHECK decides
+!>        what happens when one RI atom alone exceeds the budget
 !> \param bs_env ...
-!> \param batch_bytes zero once the run exceeds MEMORY_PER_PROC; the batches are then one RI atom
-!>        each and the slab transform runs column by column
+!> \param bse_env MEMORY_BUDGET_GB and MEMORY_CHECK
+!> \param n_w MOs in the window
+!> \param n_pairs_max columns of the widest slab
+!> \param unit_nr ...
+!> \param budget_bytes the budget; the RI transform chunks its work matrix by it as well
+!> \param max_fn RI functions per batch within the budget, at least one
 ! **************************************************************************************************
-   SUBROUTINE link_batch_budget(bs_env, batch_bytes)
+   SUBROUTINE link_batch_budget(bs_env, bse_env, n_w, n_pairs_max, unit_nr, budget_bytes, max_fn)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER(KIND=int_8), INTENT(OUT)                   :: batch_bytes
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
+      INTEGER, INTENT(IN)                                :: n_w, n_pairs_max, unit_nr
+      INTEGER(KIND=int_8), INTENT(OUT)                   :: budget_bytes
+      INTEGER, INTENT(OUT)                               :: max_fn
 
-      REAL(KIND=dp)                                      :: mem_free_GB, mem_used_GB
+      CHARACTER(LEN=16)                                  :: bud_str, need_str
+      INTEGER(KIND=int_8)                                :: bytes_per_fn, largest_bytes, &
+                                                            one_atom_bytes
+      REAL(KIND=dp)                                      :: budget_GB, mem_avail_GB
 
-      CALL mp_mem_used_per_rank_GB(bs_env%para_env, mem_used_GB)
-      mem_free_GB = MAX(bs_env%input_memory_per_proc_GB - mem_used_GB, 0.0_dp)
-      batch_bytes = INT(slab_batch_fraction*mem_free_GB*1.0E9_dp, KIND=int_8)
+      budget_GB = bse_env%memory_budget_gb
+      IF (budget_GB < 0.0_dp) THEN
+         CALL mp_mem_avail_per_rank_GB(bs_env%para_env, mem_avail_GB)
+         budget_GB = mem_fraction*mem_avail_GB
+      END IF
+      budget_bytes = INT(MAX(budget_GB, 0.0_dp)*1.0E9_dp, KIND=int_8)
+
+      ! per RI function of a batch: on every rank the replicated (p, q, P) block and the scatter
+      ! buffer, on the ranks of its tensor group the 3c integrals (P|μν) and the half-transform
+      ! (P μ|q), distributed; the contraction's own scratch is not counted
+      bytes_per_fn = 8_int_8*(INT(n_w, int_8)**2 + INT(n_pairs_max, int_8) + &
+                              (INT(bs_env%n_ao, int_8)**2 + INT(bs_env%n_ao, int_8)*INT(n_w, int_8)) &
+                              /INT(bs_env%para_env_tensor%num_pe, int_8))
+      max_fn = INT(MAX(1_int_8, MIN(INT(SUM(bs_env%sizes_RI), int_8), budget_bytes/bytes_per_fn)))
+      one_atom_bytes = INT(MAXVAL(bs_env%sizes_RI), int_8)*bytes_per_fn
+      largest_bytes = MAX(INT(max_fn, int_8)*bytes_per_fn, one_atom_bytes)
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory budget of the slab build per MPI rank (GB)', &
+            budget_GB
+         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Largest RI batch per MPI rank (GB)', &
+            REAL(largest_bytes, dp)*1.0E-9_dp
+      END IF
+
+      ! nothing smaller than one atom per batch exists, so CLAMP has nothing left to clamp
+      IF (one_atom_bytes > budget_bytes .AND. bse_env%memory_check /= bse_memcheck_off) THEN
+         WRITE (need_str, '(F16.3)') REAL(one_atom_bytes, dp)*1.0E-9_dp
+         WRITE (bud_str, '(F16.3)') budget_GB
+         IF (bse_env%memory_check == bse_memcheck_warn) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "PROPERTIES%BSE: the slab batch of one RI atom needs "//TRIM(ADJUSTL(need_str))// &
+                         " GB per MPI rank, the budget is "//TRIM(ADJUSTL(bud_str))//" GB; one atom per batch")
+         ELSE
+            CALL cp_abort(__LOCATION__, &
+                          "PROPERTIES%BSE: not enough memory for the slab batch of one RI atom: "// &
+                          TRIM(ADJUSTL(need_str))//" GB per MPI rank, the budget is "//TRIM(ADJUSTL(bud_str))// &
+                          " GB. Raise BSE_ITERAT%MEMORY_BUDGET_GB or use more MPI ranks.")
+         END IF
+      END IF
 
    END SUBROUTINE link_batch_budget
 
@@ -443,6 +487,7 @@ CONTAINS
 !>        solver core: ia = (i-1) n_v + a, ij = (i-1) n_o + j, ab = (a-1) n_v + b
 !> \param qs_env ...
 !> \param bs_env ...
+!> \param bse_env its memory budget and memory check
 !> \param ispin ...
 !> \param window ...
 !> \param n_o occupied levels in the window
@@ -453,10 +498,11 @@ CONTAINS
 !> \param fm_S_ab created here, RI x n_v*n_v
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE link_slabs(qs_env, bs_env, ispin, window, n_o, n_v, fm_T, fm_S_ij, fm_S_ia, fm_S_ab, &
-                         unit_nr)
+   SUBROUTINE link_slabs(qs_env, bs_env, bse_env, ispin, window, n_o, n_v, fm_T, fm_S_ij, fm_S_ia, &
+                         fm_S_ab, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(mo_window_type), INTENT(IN)                   :: window
       INTEGER, INTENT(IN)                                :: n_o, n_v
@@ -467,8 +513,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'link_slabs'
 
       INTEGER                                            :: a, a1, a2, b, handle, i, i_batch, j, &
-                                                            mu0, n_batch, n_RI, n_w, nP, p, P0, &
-                                                            p_off, q0
+                                                            max_fn, mu0, n_batch, n_RI, n_w, nP, &
+                                                            p, P0, p_off, q0
       INTEGER(KIND=int_8)                                :: batch_bytes
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_first, batch_last, dist_1, dist_2, &
                                                             dist_3, sizes_mo
@@ -503,11 +549,10 @@ CONTAINS
 
       CALL link_mo_tensor(bs_env, ispin, window, sizes_mo, c_win, t_C)
 
-      CALL link_batch_budget(bs_env, batch_bytes)
-      CALL link_ri_batches(bs_env%sizes_RI, n_w, batch_bytes, batch_first, batch_last)
+      CALL link_batch_budget(bs_env, bse_env, n_w, MAX(n_o*n_o, n_o*n_v, n_v*n_v), unit_nr, batch_bytes, max_fn)
+      CALL link_ri_batches(bs_env%sizes_RI, max_fn, batch_first, batch_last)
       n_batch = SIZE(batch_first)
-      IF (unit_nr > 0) WRITE (unit_nr, '(T2,A4,T7,A,T61,I10,F10.1)') 'BSE|', &
-         'RI atom batches of the slabs, budget per rank (MB)', n_batch, REAL(batch_bytes, dp)*1.0E-6_dp
+      IF (unit_nr > 0) WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'RI atom batches of the slabs', n_batch
 
       ! (RI AO | MO) result of the half-transform on the tensor group's grid
       pdims_3d = 0

@@ -1792,7 +1792,9 @@ CONTAINS
                           "ceiling exceed the memory budget per MPI rank: nothing, warn, reduce the ceiling "// &
                           "to the largest that fits (never below the solver's minimum), or abort. "// &
                           "With FULLDIAG, the check runs before the GW on the peak estimate of the full "// &
-                          "diagonalization, and CLAMP warns.", &
+                          "diagonalization, and CLAMP warns. PROPERTIES%BSE cuts the RI batches of its "// &
+                          "slab build to the budget; when one RI atom alone exceeds it, WARN warns and "// &
+                          "CLAMP or ABORT abort.", &
                           usage="MEMORY_CHECK CLAMP", &
                           enum_c_vals=s2a("OFF", "WARN", "CLAMP", "ABORT"), &
                           enum_i_vals=[bse_memcheck_off, bse_memcheck_warn, bse_memcheck_clamp, bse_memcheck_abort], &
@@ -1808,7 +1810,8 @@ CONTAINS
                           description="Memory per MPI rank the iterative solver may use for its own arrays, "// &
                           "in GB; the RI slabs are already allocated and not part of it. -1: half of the "// &
                           "free memory per rank detected at the start of the solver. With FULLDIAG, the "// &
-                          "budget the full diagonalization's peak estimate is checked against before the GW.", &
+                          "budget the full diagonalization's peak estimate is checked against before the GW. "// &
+                          "PROPERTIES%BSE also cuts the RI batches of its slab build to it.", &
                           usage="MEMORY_BUDGET_GB 8.0", &
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)

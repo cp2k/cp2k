@@ -628,9 +628,10 @@ of the imaginary-time quadrature: on H<sub>2</sub>O with a DZVP-GTH basis, the l
 energies with `USE_KS_ENERGIES` agree to below 0.1 meV already at `NUM_TIME_FREQ_POINTS 20`. With
 quasiparticle energies the two paths differ by the difference of their *GW* implementations.
 
-The three-centre integrals are transformed in batches of RI atoms. Each batch may take a quarter of
-the free memory per rank, `MEMORY_PER_PROC` of the *GW* section minus the memory in use, and the
-output reports the batch count and the budget; a run short of memory lowers the keyword.
+The three-centre integrals are transformed in batches of RI atoms cut to a memory budget per rank:
+`BSE_ITERAT%MEMORY_BUDGET_GB` when set, else half of the free memory per rank measured after the
+*GW*. The output reports the budget, the largest batch and the batch count; `MEMORY_CHECK` decides
+what happens when one RI atom alone exceeds the budget.
 
 [bse]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE
 [gw]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW
