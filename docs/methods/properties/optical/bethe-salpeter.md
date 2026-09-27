@@ -621,12 +621,12 @@ the screening is the *GW*'s own and no second RPA is run. A minimal input:
 &END PROPERTIES
 ```
 
-The RI-AO *GW* works in the truncated-Coulomb RI metric with radius `CUTOFF_RADIUS_RI`. A radius
-beyond the extent of the system makes that metric the Coulomb metric of the RPA-based path, and the
-two paths then agree to the accuracy of the imaginary-time quadrature: on H<sub>2</sub>O with a
-DZVP-GTH basis, the lowest ten excitation energies with `USE_KS_ENERGIES` agree to below 0.1 meV
-already at `NUM_TIME_FREQ_POINTS 20`. With quasiparticle energies the two paths differ by the
-difference of their *GW* implementations.
+The RI-AO *GW* works in the truncated-Coulomb RI metric with radius `CUTOFF_RADIUS_RI`, so the
+radius is a convergence parameter of the BSE as well. A radius beyond the extent of the system makes
+that metric the Coulomb metric of the RPA-based path, and the two paths then agree to the accuracy
+of the imaginary-time quadrature: on H<sub>2</sub>O with a DZVP-GTH basis, the lowest ten excitation
+energies with `USE_KS_ENERGIES` agree to below 0.1 meV already at `NUM_TIME_FREQ_POINTS 20`. With
+quasiparticle energies the two paths differ by the difference of their *GW* implementations.
 
 The three-centre integrals are transformed in batches of RI atoms. Each batch may take a quarter of
 the free memory per rank, `MEMORY_PER_PROC` of the *GW* section minus the memory in use, and the
