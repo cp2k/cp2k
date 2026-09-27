@@ -111,6 +111,8 @@ MODULE bse_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_dipole_ao => NULL(), &
                                                             matrix_quadpole_ao => NULL()
       REAL(KIND=dp), DIMENSION(3)                        :: multipole_ref_point = 0.0_dp
+      ! periodic directions of the Poisson solver, read from the input: the grids may be released
+      INTEGER                                            :: n_periodic_poisson = 0
       ! QS objects the solver reads, none owned
       TYPE(mp_para_env_type), POINTER                    :: para_env => NULL()
       TYPE(qs_subsys_type), POINTER                      :: subsys => NULL()

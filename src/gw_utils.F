@@ -227,15 +227,14 @@ CONTAINS
 
       ! Free memory in qs_env. SCF real-space grids, task  lists, neighbor
       ! lists and work arrays on large systems hold GBs per rank for the whole run.
-      ! Not required by GW. LDOS, RT-BSE and PROPERTIES%BSE still need these information.
+      ! Not required by GW. LDOS and RT-BSE still needs these information.
       !
       ! Recommendation in case of memory issues: first perform GW calculation without calculating
       !                                          LDOS (to save memory). Then, use GW restart files
       !                                          in a subsequent calculation to calculate the LDOS
       IF (.NOT. bs_env%do_ldos .AND. &
           bs_env%rtp_method /= rtp_method_bse .AND. &
-          bs_env%rtp_method /= rtp_method_bse_linearized .AND. &
-          .NOT. bs_env%keep_qs_state) THEN
+          bs_env%rtp_method /= rtp_method_bse_linearized) THEN
          CALL qs_env_part_release(qs_env)
       END IF
 

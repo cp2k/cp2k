@@ -49,11 +49,14 @@ MODULE bse_main
    USE input_constants,                 ONLY: &
         bse_abba, bse_both, bse_fulldiag, bse_iterdiag, bse_memcheck_abort, bse_memcheck_clamp, &
         bse_memcheck_off, bse_memcheck_warn, bse_screening_w0, bse_tda
-   USE input_section_types,             ONLY: section_vals_type
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
                                               mp_para_env_type
    USE mo_window,                       ONLY: mo_window_type
+   USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
+   USE pw_poisson_types,                ONLY: pw_poisson_parameter_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -191,10 +194,10 @@ CONTAINS
    END SUBROUTINE prepare_bse_env
 
 ! **************************************************************************************************
-!> \brief Entry of the seam for window-sized slabs and a ready inverse dielectric matrix: settings
-!>        re-read from the section, run flags, the window's energies, the slabs taken over, then
-!>        the QS pointers. Starts no solver.
-!> \param bse_env settings re-read from its section, which must be associated; state filled here
+!> \brief Entry of the seam for window-sized slabs and a ready inverse dielectric matrix: run flags
+!>        from the settings the caller read, the window's energies, the slabs taken over, then the
+!>        QS pointers. Starts no solver.
+!> \param bse_env settings read from its section by the caller; state filled here
 !> \param fm_S_ia B^P_ia of the window per spin, moved into bse_env (comes back deallocated)
 !> \param fm_S_ij B^P_ij of the window per spin, moved into bse_env
 !> \param fm_S_ab B^P_ab of the window per spin, moved into bse_env
@@ -226,14 +229,11 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, n_window, nspins
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: bse_section
 
       CALL timeset(routineN, handle)
 
-      ! the settings afresh from the input, as in prepare_bse_env
-      bse_section => bse_env%bse_section
-      CPASSERT(ASSOCIATED(bse_section))
-      CALL read_bse_section(bse_section, bse_env)
+      ! the caller read the settings afresh from the input (bse_from_bs_env), as prepare_bse_env does
+      CPASSERT(ASSOCIATED(bse_env%bse_section))
 
       nspins = SIZE(homo_full)
       CPASSERT(SIZE(fm_S_ia) == nspins .AND. SIZE(eigenval_qp, 2) == nspins)
@@ -301,6 +301,8 @@ CONTAINS
 
       INTEGER                                            :: handle, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_ov, offsets
+      TYPE(pw_poisson_parameter_type)                    :: poisson_params
+      TYPE(section_vals_type), POINTER                   :: input, poisson_section
 
       CALL timeset(routineN, handle)
 
@@ -311,6 +313,12 @@ CONTAINS
       CALL get_qs_env(qs_env, subsys=bse_env%subsys, pw_env=bse_env%pw_env, &
                       dft_control=bse_env%dft_control, mos=bse_env%mos, &
                       exstate_env=bse_env%exstate_env)
+      ! the Poisson periodicity from the input: PROPERTIES%BSE runs after the GW released the grids
+      NULLIFY (input, poisson_section)
+      CALL get_qs_env(qs_env, input=input)
+      poisson_section => section_vals_get_subs_vals(input, "DFT%POISSON")
+      CALL pw_poisson_read_parameters(poisson_section, poisson_params)
+      bse_env%n_periodic_poisson = COUNT(poisson_params%periodic == 1)
       CALL bse_env%para_env%sync()
 
       IF (nspins > 1) THEN

@@ -55,6 +55,7 @@ MODULE post_scf_bandstructure_utils
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_to_string
+   USE cp_output_handling,              ONLY: debug_print_level
    USE cp_parser_methods,               ONLY: read_float_object
    USE dft_plus_u,                      ONLY: lowdin_kp_apply,&
                                               lowdin_kp_prepare
@@ -241,7 +242,7 @@ CONTAINS
    END SUBROUTINE create_and_init_bs_env
 
 ! **************************************************************************************************
-!> \brief What PROPERTIES%BSE needs the GW to keep, and the four combinations it refuses at init
+!> \brief What PROPERTIES%BSE needs the GW to keep, and the five combinations it refuses at init
 !> \param qs_env ...
 !> \param bs_env ...
 ! **************************************************************************************************
@@ -251,8 +252,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_bse_requirements'
 
-      INTEGER                                            :: handle
-      LOGICAL                                            :: do_bse_props
+      INTEGER                                            :: handle, print_level_nto
+      LOGICAL                                            :: cube_files, do_bse_props
       TYPE(section_vals_type), POINTER                   :: bse_sec, input
 
       CALL timeset(routineN, handle)
@@ -272,11 +273,20 @@ CONTAINS
                           "PROPERTIES%BSE and DFT%REAL_TIME_PROPAGATION%RTBSE do not share a run: "// &
                           "remove one of the two sections")
          END IF
+         ! the GW releases the SCF grids at its init; the NTO cube writer collocates on them
+         ! (CUBE_FILES defaults to true; the print key's level is the switch, OFF encoded as
+         ! debug_print_level + 1, read as read_bse_section reads it)
+         CALL section_vals_val_get(bse_sec, "NTO_ANALYSIS%_SECTION_PARAMETERS_", i_val=print_level_nto)
+         CALL section_vals_val_get(bse_sec, "NTO_ANALYSIS%CUBE_FILES", l_val=cube_files)
+         IF (print_level_nto /= debug_print_level + 1 .AND. cube_files) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "PROPERTIES%BSE runs after the GW released the SCF grids: set "// &
+                          "NTO_ANALYSIS%CUBE_FILES to F, or write the cubes from the BSE of "// &
+                          "XC%WF_CORRELATION%RI_RPA%GW")
+         END IF
       END IF
       bs_env%keep_W_freq_zero = do_bse_props
       bs_env%keep_3c_nl = do_bse_props
-      ! the solver reads pw_env, the multipoles and the QS pointers after the GW
-      bs_env%keep_qs_state = do_bse_props
 
       CALL timestop(handle)
 

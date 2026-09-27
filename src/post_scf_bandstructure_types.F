@@ -347,11 +347,10 @@ MODULE post_scf_bandstructure_types
                                                       skip_chi
       ! rtbse_method (Stepan Marek)
       INTEGER                                      :: rtp_method = -1
-      ! what PROPERTIES%BSE needs the GW to keep for it; set at init, read at the W(0), de-init
-      ! and QS part-release sites; the consumer frees W(0) and nl_3c itself once read
+      ! what PROPERTIES%BSE needs the GW to keep for it; set at init, read at the W(0) and de-init
+      ! sites; the consumer frees both itself once read
       LOGICAL                                      :: keep_W_freq_zero = .FALSE., &
-                                                      keep_3c_nl = .FALSE., &
-                                                      keep_qs_state = .FALSE.
+                                                      keep_3c_nl = .FALSE.
 
       ! check-arrays and names for restarting
       LOGICAL, DIMENSION(:), ALLOCATABLE           :: read_chi, &
