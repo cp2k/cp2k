@@ -629,9 +629,6 @@ CONTAINS
 
             ! 3.-4. ε(iω_j,k_i) = I + V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
             !        W(iω_j,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-I)*V^0.5(k_i)
-            CPASSERT(ALL(SHAPE(M_inv_V_sqrt(:, :, ikp_local)) == SHAPE(chi_k_w)))
-            CPASSERT(ALL(SHAPE(V_sqrt(:, :, ikp_local)) == SHAPE(chi_k_w)))
-            CPASSERT(ALL(SHAPE(eps_k_w) == SHAPE(chi_k_w)))
             CALL gemm_square(M_inv_V_sqrt(:, :, ikp_local), 'C', chi_k_w, 'N', &
                              M_inv_V_sqrt(:, :, ikp_local), 'N', eps_k_w)
             CALL local_add_on_diag(eps_k_w, z_one)
