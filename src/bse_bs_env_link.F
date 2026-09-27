@@ -115,6 +115,8 @@ CONTAINS
       CPASSERT(bs_env%keep_W_freq_zero .AND. bs_env%keep_3c_nl)
       CPASSERT(ASSOCIATED(bs_env%fm_W_MIC_freq_zero%matrix_struct))
       CPASSERT(bs_env%nkp_bs_and_DOS == 1)
+      ! every RI batch of the slabs goes to one tensor group; unset groups would skip them all silently
+      CPASSERT(bs_env%num_tensor_groups >= 1 .AND. bs_env%tensor_group_color >= 0)
 
       n_spin = bs_env%n_spin
       n_RI = bs_env%n_RI
@@ -569,24 +571,21 @@ CONTAINS
 
          CALL bs_env%para_env%sum(s_loc)
 
-         ! the batch rows into the three slabs (every rank writes the elements it owns)
-         ALLOCATE (cols(nP, n_o*n_o))
+         ! the batch rows into the three slabs (every rank writes the elements it owns); one buffer
+         ! serves all three, the setter reads its first n_cols columns only
+         ALLOCATE (cols(nP, MAX(n_o*n_o, n_o*n_v, n_v*n_v)))
          DO i = 1, n_o
             DO j = 1, n_o
                cols(:, (i - 1)*n_o + j) = s_loc(i, j, :)
             END DO
          END DO
          CALL cp_fm_set_submatrix(fm_S_ij, cols, start_row=P0, start_col=1, n_rows=nP, n_cols=n_o*n_o)
-         DEALLOCATE (cols)
-         ALLOCATE (cols(nP, n_o*n_v))
          DO i = 1, n_o
             DO a = 1, n_v
                cols(:, (i - 1)*n_v + a) = s_loc(i, n_o + a, :)
             END DO
          END DO
          CALL cp_fm_set_submatrix(fm_S_ia, cols, start_row=P0, start_col=1, n_rows=nP, n_cols=n_o*n_v)
-         DEALLOCATE (cols)
-         ALLOCATE (cols(nP, n_v*n_v))
          DO a = 1, n_v
             DO b = 1, n_v
                cols(:, (a - 1)*n_v + b) = s_loc(n_o + a, n_o + b, :)
