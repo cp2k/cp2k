@@ -23,14 +23,6 @@ MODULE realspace_grid_openpmd
       mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
       mpi_character_size
    USE physcon, ONLY: a_bohr, e_charge, seconds
-#if defined(__parallel)
-#if defined(__MPI_F08)
-   USE mpi_f08, ONLY: mpi_allreduce, mpi_integer, mpi_bxor, mpi_allgather
-#else
-   USE mpi, ONLY: mpi_allreduce, mpi_integer, mpi_bxor, mpi_allgather
-#endif
-#endif
-
    USE openpmd_api, ONLY: &
       openpmd_attributable_type, &
       openpmd_dynamic_memory_view_type_1d, &
