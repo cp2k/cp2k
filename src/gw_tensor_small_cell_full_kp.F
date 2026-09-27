@@ -571,7 +571,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_W_real_space'
 
-      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: chi_k_w, eps_k_w
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: chi_k_w, eps_k_w, W_k_w
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: M_inv, M_inv_V_sqrt, V_sqrt
       INTEGER                                            :: handle, i_t, ikp, ikp_local, j_w, n_RI, &
                                                             nimages_scf_desymm
@@ -583,7 +583,7 @@ CONTAINS
       n_RI = bs_env%n_RI
       nimages_scf_desymm = bs_env%nimages_scf_desymm
 
-      ALLOCATE (chi_k_w(n_RI, n_RI), eps_k_w(n_RI, n_RI))
+      ALLOCATE (chi_k_w(n_RI, n_RI), eps_k_w(n_RI, n_RI), W_k_w(n_RI, n_RI))
       ALLOCATE (chi_R(n_RI, n_RI, nimages_scf_desymm), W_R(n_RI, n_RI, nimages_scf_desymm), &
                 MWM_R(n_RI, n_RI, nimages_scf_desymm))
 
@@ -627,18 +627,27 @@ CONTAINS
             ! 2. remove negative eigenvalues from χ_PQ(iω,k)
             CALL local_complex_power(chi_k_w, 1.0_dp, bs_env%eps_eigval_mat_RI)
 
-            ! 3.-4. ε(iω_j,k_i) = I + V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
-            !        W(iω_j,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-I)*V^0.5(k_i)
+            ! 3. ε(iω_j,k_i) = I + V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
+            !    a) eps_work = V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
             CALL gemm_square(M_inv_V_sqrt(:, :, ikp_local), 'C', chi_k_w, 'N', &
                              M_inv_V_sqrt(:, :, ikp_local), 'N', eps_k_w)
+
+            !    b) ε(iω_j,k_i) = eps_work + I
             CALL local_add_on_diag(eps_k_w, z_one)
+
+            ! 4. W(iω_j,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-I)*V^0.5(k_i)
+            !    a) Invert ε(iω_j,k_i) using its Cholesky decomposition
             CALL local_complex_power(eps_k_w, -1.0_dp, 0.0_dp)
+
+            !    b) ε^-1(iω_j,k_i)-I
             CALL local_add_on_diag(eps_k_w, -z_one)
+
+            !    c) W(iω_j,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-I)*V^0.5(k_i)
             CALL gemm_square(V_sqrt(:, :, ikp_local), 'N', eps_k_w, 'N', &
-                             V_sqrt(:, :, ikp_local), 'C', chi_k_w)
+                             V_sqrt(:, :, ikp_local), 'C', W_k_w)
 
             ! 5. W(iω,k_i) -> W^R(iω) = sum_k w_k e^(-ikR) W(iω,k) (k-point extrapolation here)
-            CALL add_kp_to_all_rs(chi_k_w, W_R, bs_env%kpoints_chi_eps_W, ikp, &
+            CALL add_kp_to_all_rs(W_k_w, W_R, bs_env%kpoints_chi_eps_W, ikp, &
                                   index_to_cell_ext=bs_env%kpoints_scf_desymm%index_to_cell)
 
          END DO ! ikp
