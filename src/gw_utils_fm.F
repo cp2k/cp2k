@@ -120,7 +120,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: eigenvectors
       INTEGER                                            :: handle, i, n
-      REAL(KIND=dp)                                      :: pos_eval
+      REAL(KIND=dp)                                      :: sqrt_power_eval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
 
       CALL timeset(routineN, handle)
@@ -136,15 +136,18 @@ CONTAINS
       IF (PRESENT(min_ev)) min_ev = MINVAL(ABS(eigenvalues))
       IF (PRESENT(max_ev)) max_ev = MAXVAL(ABS(eigenvalues))
 
+      ! Reconstruct matrix**exponent as X*X^H, where
+      ! X = U*diag(eigenvalues**(exponent/2)).
       DO i = 1, n
          IF (eps < eigenvalues(i)) THEN
-            pos_eval = eigenvalues(i)**(0.5_dp*exponent)
+            sqrt_power_eval = eigenvalues(i)**(0.5_dp*exponent)
          ELSE
-            pos_eval = 0.0_dp
+            sqrt_power_eval = 0.0_dp
          END IF
-         eigenvectors(:, i) = eigenvectors(:, i)*pos_eval
+         eigenvectors(:, i) = eigenvectors(:, i)*sqrt_power_eval
       END DO
 
+      ! X*X^H = U*diag(eigenvalues**exponent)*U^H.
       CALL gemm_square(eigenvectors, 'N', eigenvectors, 'C', matrix)
 
       DEALLOCATE (eigenvalues, eigenvectors)
