@@ -23,10 +23,11 @@ MODULE mp2_ri_2c
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
    USE cp_cfm_types,                    ONLY: &
         copy_cfm_info_type, cp_cfm_cleanup_copy_general, cp_cfm_create, &
         cp_cfm_finish_copy_general, cp_cfm_release, cp_cfm_start_copy_general, cp_cfm_to_cfm, &
-        cp_cfm_to_fm, cp_cfm_type
+        cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
@@ -77,7 +78,8 @@ MODULE mp2_ri_2c
    USE libint_2c_3c,                    ONLY: compare_potential_types,&
                                               libint_potential_type
    USE machine,                         ONLY: m_flush
-   USE mathconstants,                   ONLY: z_one,&
+   USE mathconstants,                   ONLY: gaussi,&
+                                              z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_release,&
@@ -835,15 +837,14 @@ CONTAINS
 
             CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
             CALL copy_dbcsr_to_fm(tmpmat, fm_matrix_S_global)
-            cfm_matrix_S_global%local_data = CMPLX(fm_matrix_S_global%local_data, 0.0_dp, KIND=dp)
+            CALL cp_fm_to_cfm(msourcer=fm_matrix_S_global, mtarget=cfm_matrix_S_global)
 
             CALL dbcsr_set(tmpmat, 0.0_dp)
             CALL dbcsr_desymmetrize(cmatrix, tmpmat)
 
             CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
             CALL copy_dbcsr_to_fm(tmpmat, fm_matrix_S_global)
-            cfm_matrix_S_global%local_data = CMPLX(REAL(cfm_matrix_S_global%local_data, KIND=dp), &
-                                                   fm_matrix_S_global%local_data, KIND=dp)
+            CALL cp_cfm_scale_and_add_fm(z_one, cfm_matrix_S_global, gaussi, fm_matrix_S_global)
             CALL cp_cfm_start_copy_general(cfm_matrix_S_global, cfm_matrix_M_kpoints(ikp), para_env, copy_info)
             IF (ASSOCIATED(cfm_matrix_M_kpoints(ikp)%matrix_struct)) THEN
                CALL cp_cfm_finish_copy_general(cfm_matrix_M_kpoints(ikp), copy_info)
@@ -908,11 +909,11 @@ CONTAINS
 
       CALL cp_fm_set_all(fm_work, 0.0_dp)
       CALL copy_dbcsr_to_fm(matrix_re, fm_work)
-      cfm_matrix%local_data = CMPLX(fm_work%local_data, 0.0_dp, KIND=dp)
+      CALL cp_fm_to_cfm(msourcer=fm_work, mtarget=cfm_matrix)
 
       CALL cp_fm_set_all(fm_work, 0.0_dp)
       CALL copy_dbcsr_to_fm(matrix_im, fm_work)
-      cfm_matrix%local_data = CMPLX(REAL(cfm_matrix%local_data, KIND=dp), fm_work%local_data, KIND=dp)
+      CALL cp_cfm_scale_and_add_fm(z_one, cfm_matrix, gaussi, fm_work)
    END SUBROUTINE copy_dbcsr_pair_to_cfm
 
 ! **************************************************************************************************

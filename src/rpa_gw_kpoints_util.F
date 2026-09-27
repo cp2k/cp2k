@@ -27,7 +27,7 @@ MODULE rpa_gw_kpoints_util
    USE cp_cfm_types,                    ONLY: &
         copy_cfm_info_type, cp_cfm_cleanup_copy_general, cp_cfm_create, &
         cp_cfm_finish_copy_general, cp_cfm_get_info, cp_cfm_release, cp_cfm_set_all, &
-        cp_cfm_start_copy_general, cp_cfm_to_fm, cp_cfm_type
+        cp_cfm_start_copy_general, cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_filter, &
@@ -423,13 +423,12 @@ CONTAINS
          mat_P_omega_re => mat_P_omega_kp(1, jkp)%matrix
          CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
          CALL copy_dbcsr_to_fm(mat_P_omega_re, fm_mat_work)
-         cfm_mat_RI_global_work%local_data = CMPLX(fm_mat_work%local_data, 0.0_dp, KIND=dp)
+         CALL cp_fm_to_cfm(msourcer=fm_mat_work, mtarget=cfm_mat_RI_global_work)
 
          mat_P_omega_im => mat_P_omega_kp(2, jkp)%matrix
          CALL cp_fm_set_all(fm_mat_work, 0.0_dp)
          CALL copy_dbcsr_to_fm(mat_P_omega_im, fm_mat_work)
-         cfm_mat_RI_global_work%local_data = CMPLX(REAL(cfm_mat_RI_global_work%local_data, KIND=dp), &
-                                                   fm_mat_work%local_data, KIND=dp)
+         CALL cp_cfm_scale_and_add_fm(z_one, cfm_mat_RI_global_work, gaussi, fm_mat_work)
 
          IF (ikp_local /= -1) CALL para_env%sync()
 
