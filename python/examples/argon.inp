@@ -1,0 +1,47 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT argon
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  STRESS_TENSOR ANALYTICAL
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Ar Ar
+          EPSILON [hartree] 0.001
+          RCUT 8
+          SIGMA 3
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      A 20 0 0
+      B 1 21 0
+      C 2 3 22
+    &END CELL
+    &COORD
+      Ar 4 4 4
+      Ar 7.2 4.8 4.5
+    &END COORD
+    &KIND Ar
+      ELEMENT Ar
+    &END KIND
+    &TOPOLOGY
+      CONN_FILE_FORMAT OFF
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
