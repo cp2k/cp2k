@@ -15,7 +15,8 @@ MODULE rpa_gw_kpoints_util
                                               get_cell,&
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_on_diag,&
+                                              cp_cfm_column_scale,&
                                               cp_cfm_scale_and_add_fm,&
                                               cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
@@ -44,8 +45,7 @@ MODULE rpa_gw_kpoints_util
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_type
-   USE gw_utils_fm,                     ONLY: cfm_add_on_diag,&
-                                              cfm_contract_ABA
+   USE gw_utils_fm,                     ONLY: cfm_contract_ABA
    USE hfx_types,                       ONLY: hfx_release
    USE input_constants,                 ONLY: cholesky_off,&
                                               kp_weights_W_auto,&
@@ -106,7 +106,7 @@ CONTAINS
 
       CALL cp_cfm_cholesky_invert(eps_chol)
       CALL cp_cfm_uplo_to_full(eps_chol)
-      CALL cfm_add_on_diag(eps_chol, -z_one, n_active)
+      CALL cp_cfm_add_on_diag(eps_chol, -z_one, n_active)
       CALL cfm_contract_ABA(B, eps_chol, Wc)
 
    END SUBROUTINE cfm_screened_interaction_from_eps_cholesky

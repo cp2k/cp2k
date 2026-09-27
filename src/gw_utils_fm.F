@@ -37,7 +37,7 @@ MODULE gw_utils_fm
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils_fm'
 
-   PUBLIC :: cfm_add_on_diag, cfm_contract_ABA, fm_contract_ABA, fm_invert, fm_sqrt, &
+   PUBLIC :: cfm_contract_ABA, fm_contract_ABA, fm_invert, fm_sqrt, &
              local_add_on_diag, local_complex_power
 
    INTERFACE fm_contract_ABA
@@ -80,37 +80,6 @@ CONTAINS
       CALL cp_cfm_release(work)
 
    END SUBROUTINE cfm_contract_ABA
-
-! **************************************************************************************************
-!> \brief Add a scalar to the diagonal of a distributed complex full matrix.
-!> \param matrix input/output matrix
-!> \param alpha scalar added to each diagonal element
-!> \param n_active optional number of physical rows/columns
-! **************************************************************************************************
-   SUBROUTINE cfm_add_on_diag(matrix, alpha, n_active)
-      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
-      COMPLEX(KIND=dp), INTENT(IN)                       :: alpha
-      INTEGER, INTENT(IN), OPTIONAL                      :: n_active
-
-      INTEGER                                            :: i_row, j_col, max_index, ncol_local, &
-                                                            nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-
-      max_index = HUGE(max_index)
-      IF (PRESENT(n_active)) max_index = n_active
-
-      CALL cp_cfm_get_info(matrix=matrix, nrow_local=nrow_local, ncol_local=ncol_local, &
-                           row_indices=row_indices, col_indices=col_indices)
-
-      DO j_col = 1, ncol_local
-         DO i_row = 1, nrow_local
-            IF (row_indices(i_row) == col_indices(j_col) .AND. row_indices(i_row) <= max_index) THEN
-               matrix%local_data(i_row, j_col) = matrix%local_data(i_row, j_col) + alpha
-            END IF
-         END DO
-      END DO
-
-   END SUBROUTINE cfm_add_on_diag
 
 ! **************************************************************************************************
 !> \brief Add a scalar to the diagonal of a local complex matrix.

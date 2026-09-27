@@ -20,7 +20,8 @@ MODULE gw_tensor_large_cell_Gamma
                                               get_cell,&
                                               pbc
    USE constants_operator,              ONLY: operator_coulomb
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_uplo_to_full
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_on_diag,&
+                                              cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
@@ -61,8 +62,7 @@ MODULE gw_tensor_large_cell_Gamma
                                               time_to_freq
    USE gw_utils_communication,          ONLY: fm_to_local_tensor,&
                                               local_dbt_to_global_mat
-   USE gw_utils_fm,                     ONLY: cfm_add_on_diag,&
-                                              cfm_contract_ABA,&
+   USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
                                               fm_contract_ABA
    USE input_constants,                 ONLY: G0W0,&
                                               rtp_method_bse,&
@@ -1021,7 +1021,7 @@ CONTAINS
       CALL cfm_contract_ABA(cfm_M_inv_V_sqrt_ikp, cfm_chi_eps_W_ikp_freq_j)
 
       ! 1. b) Add the identity matrix.
-      CALL cfm_add_on_diag(cfm_chi_eps_W_ikp_freq_j, z_one)
+      CALL cp_cfm_add_on_diag(cfm_chi_eps_W_ikp_freq_j, z_one)
 
       ! 2. W(iw,k) = V^0.5(k)*(epsilon^-1(iw,k)-Id)*V^0.5(k)
 
