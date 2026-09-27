@@ -1091,6 +1091,7 @@ CONTAINS
          "BX, BY and CY. Z fixes the complete c vector, because only c has a z component: Z equals C. "// &
          "Accepted tokens: NONE, A, B, C, X, Y, Z, XY, XZ, YZ, AX, BX, BY, CX, CY, CZ. "// &
          "Several tokens may be given on one line, the union of the fixed components is used. "// &
+         "Give the value unquoted. "// &
          "NONE must stand alone, redundant tokens give a warning, and angle constraints "// &
          "(ALPHA, BETA, GAMMA) are not supported yet.", &
          usage="CONSTRAINT {NONE} | ({A|B|C|X|Y|Z|XY|XZ|YZ|AX|BX|BY|CX|CY|CZ} ...)", &

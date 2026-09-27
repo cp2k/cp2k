@@ -257,12 +257,14 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: reject_reason, token
       CHARACTER(LEN=LEN(constraint_string))              :: line
-      INTEGER                                            :: isep, n_tokens, nonperiodic_axis, &
-                                                            overlap, required_mask, tok_mask
+      INTEGER                                            :: axis_index, isep, n_tokens, &
+                                                            nonperiodic_axis, overlap, &
+                                                            required_mask, tok_mask
       LOGICAL                                            :: accepted
 
-      ! The value arrives without quotes. The input parser strips quotes and
-      ! aborts on unmatched ones. Restart echoes are bare.
+      ! The lchar_t tokenizer cuts the value at the first quote character,
+      ! so a quoted value arrives as an empty string. Give the value
+      ! unquoted. Restart echoes are bare and round-trip correctly.
       line = ADJUSTL(constraint_string)
 
       mask = 0
@@ -315,13 +317,18 @@ CONTAINS
       END DO
       IF (n_tokens == 0) THEN
          CALL cp_abort(__LOCATION__, &
-                       "CELL_OPT CONSTRAINT requires a value.")
+                       "CELL_OPT CONSTRAINT requires a value. "// &
+                       "Give the value unquoted: the input tokenizer cuts "// &
+                       "a quoted value at the first quote character.")
       END IF
 
       ! For 2D periodicity the non-periodic cell direction must be constrained.
       ! Complete the constraint automatically if the keyword was not given.
       IF (COUNT(cell%perd /= 0) == 2) THEN
-         nonperiodic_axis = FINDLOC(cell%perd, 0, dim=1)
+         nonperiodic_axis = 0
+         DO axis_index = 1, 3
+            IF (cell%perd(axis_index) == 0) nonperiodic_axis = axis_index
+         END DO
          required_mask = 0
          SELECT CASE (nonperiodic_axis)
          CASE (1)
