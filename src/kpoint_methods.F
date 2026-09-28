@@ -25,7 +25,9 @@ MODULE kpoint_methods
                                               cp_cfm_transpose
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
+                                              cp_cfm_get_submatrix,&
                                               cp_cfm_release,&
+                                              cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
@@ -82,7 +84,9 @@ MODULE kpoint_methods
    USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
                                               LOCAL_GEMM_PU_HOST,&
                                               local_gemm_ctxt_type
-   USE mathconstants,                   ONLY: twopi
+   USE mathconstants,                   ONLY: twopi,&
+                                              z_one,&
+                                              z_zero
    USE mathlib,                         ONLY: inv_3x3
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_cart_type,&
@@ -849,120 +853,115 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(kpoint))
 
-      IF (.TRUE. .OR. ASSOCIATED(mos(1)%mo_coeff)) THEN
+      IF (aux_fit) THEN
+         CPASSERT(ASSOCIATED(kpoint%kp_aux_env))
+      END IF
+
+      IF (PRESENT(added_mos)) THEN
+         nadd = added_mos
+      ELSE
+         nadd = 0
+      END IF
+
+      IF (kpoint%use_real_wfn) THEN
+         nc = 1
+      ELSE
+         nc = 2
+      END IF
+      nspin = SIZE(mos, 1)
+      nkp_loc = kpoint%kp_range(2) - kpoint%kp_range(1) + 1
+      IF (nkp_loc > 0) THEN
          IF (aux_fit) THEN
-            CPASSERT(ASSOCIATED(kpoint%kp_aux_env))
-         END IF
-
-         IF (PRESENT(added_mos)) THEN
-            nadd = added_mos
+            CPASSERT(SIZE(kpoint%kp_aux_env) == nkp_loc)
          ELSE
-            nadd = 0
+            CPASSERT(SIZE(kpoint%kp_env) == nkp_loc)
          END IF
+         ! Allocate one MO set per spin; its coefficient matrix owns the scalar type.
+         DO ik = 1, nkp_loc
+            IF (aux_fit) THEN
+               kp => kpoint%kp_aux_env(ik)%kpoint_env
+            ELSE
+               kp => kpoint%kp_env(ik)%kpoint_env
+            END IF
+            ALLOCATE (kp%mos(nspin))
+            DO is = 1, nspin
+               CALL get_mo_set(mos(is), nao=nao, nmo=nmo, nelectron=nelectron, &
+                               n_el_f=n_el_f, maxocc=maxocc, flexible_electron_count=flexible_electron_count)
+               nmo = MIN(nao, nmo + nadd)
+               CALL allocate_mo_set(kp%mos(is), nao, nmo, nelectron, n_el_f, maxocc, &
+                                    flexible_electron_count)
+            END DO
+            ! freshly allocated MOS carry no coefficients: solvers must
+            ! cold-start again until an extrapolation refills them
+            kp%mos_prefilled = .FALSE.
+         END DO
 
-         IF (kpoint%use_real_wfn) THEN
-            nc = 1
+         ! generate the blacs environment for the kpoint group
+         ! we generate a blacs env for each kpoint group in parallel
+         ! we assume here that the group para_env_inter_kp will connect
+         ! equivalent parts of fm matrices, i.e. no reshuffeling of processors
+         NULLIFY (blacs_env)
+         IF (ASSOCIATED(kpoint%blacs_env)) THEN
+            blacs_env => kpoint%blacs_env
          ELSE
-            nc = 2
+            CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=kpoint%para_env_kp)
+            kpoint%blacs_env => blacs_env
          END IF
-         nspin = SIZE(mos, 1)
-         nkp_loc = kpoint%kp_range(2) - kpoint%kp_range(1) + 1
-         IF (nkp_loc > 0) THEN
-            IF (aux_fit) THEN
-               CPASSERT(SIZE(kpoint%kp_aux_env) == nkp_loc)
-            ELSE
-               CPASSERT(SIZE(kpoint%kp_env) == nkp_loc)
-            END IF
-            ! allocate the mo sets, correct number of kpoints (local), real/complex, spin
-            DO ik = 1, nkp_loc
-               IF (aux_fit) THEN
-                  kp => kpoint%kp_aux_env(ik)%kpoint_env
-               ELSE
-                  kp => kpoint%kp_env(ik)%kpoint_env
-               END IF
-               ALLOCATE (kp%mos(nc, nspin))
-               DO is = 1, nspin
-                  CALL get_mo_set(mos(is), nao=nao, nmo=nmo, nelectron=nelectron, &
-                                  n_el_f=n_el_f, maxocc=maxocc, flexible_electron_count=flexible_electron_count)
-                  nmo = MIN(nao, nmo + nadd)
-                  DO ic = 1, nc
-                     CALL allocate_mo_set(kp%mos(ic, is), nao, nmo, nelectron, n_el_f, maxocc, &
-                                          flexible_electron_count)
-                  END DO
-               END DO
-               ! freshly allocated MOS carry no coefficients: solvers must
-               ! cold-start again until an extrapolation refills them
-               kp%mos_prefilled = .FALSE.
-            END DO
 
-            ! generate the blacs environment for the kpoint group
-            ! we generate a blacs env for each kpoint group in parallel
-            ! we assume here that the group para_env_inter_kp will connect
-            ! equivalent parts of fm matrices, i.e. no reshuffeling of processors
-            NULLIFY (blacs_env)
-            IF (ASSOCIATED(kpoint%blacs_env)) THEN
-               blacs_env => kpoint%blacs_env
-            ELSE
-               CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=kpoint%para_env_kp)
-               kpoint%blacs_env => blacs_env
-            END IF
+         ! set possible new number of MOs
+         DO is = 1, nspin
+            CALL get_mo_set(mos(is), nmo=nmorig(is))
+            nmo = MIN(nao, nmorig(is) + nadd)
+            CALL set_mo_set(mos(is), nmo=nmo)
+         END DO
+         ! matrix pools for the kpoint group, information on MOs is transferred using
+         ! generic mos structure
+         NULLIFY (mpools)
+         CALL mpools_create(mpools=mpools)
+         CALL mpools_rebuild_fm_pools(mpools=mpools, mos=mos, &
+                                      blacs_env=blacs_env, para_env=kpoint%para_env_kp)
 
-            ! set possible new number of MOs
-            DO is = 1, nspin
-               CALL get_mo_set(mos(is), nmo=nmorig(is))
-               nmo = MIN(nao, nmorig(is) + nadd)
-               CALL set_mo_set(mos(is), nmo=nmo)
-            END DO
-            ! matrix pools for the kpoint group, information on MOs is transferred using
-            ! generic mos structure
-            NULLIFY (mpools)
-            CALL mpools_create(mpools=mpools)
-            CALL mpools_rebuild_fm_pools(mpools=mpools, mos=mos, &
-                                         blacs_env=blacs_env, para_env=kpoint%para_env_kp)
-
-            IF (aux_fit) THEN
-               kpoint%mpools_aux_fit => mpools
-            ELSE
-               kpoint%mpools => mpools
-            END IF
-
-            ! reset old number of MOs
-            DO is = 1, nspin
-               CALL set_mo_set(mos(is), nmo=nmorig(is))
-            END DO
-
-            ! allocate density matrices
-            CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
-            ALLOCATE (fmlocal)
-            CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmlocal)
-            CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
-            DO ik = 1, nkp_loc
-               IF (aux_fit) THEN
-                  kp => kpoint%kp_aux_env(ik)%kpoint_env
-               ELSE
-                  kp => kpoint%kp_env(ik)%kpoint_env
-               END IF
-               ! density matrix
-               CALL cp_fm_release(kp%pmat)
-               ALLOCATE (kp%pmat(nc, nspin))
-               DO is = 1, nspin
-                  DO ic = 1, nc
-                     CALL cp_fm_create(kp%pmat(ic, is), matrix_struct)
-                  END DO
-               END DO
-               ! energy weighted density matrix
-               CALL cp_fm_release(kp%wmat)
-               ALLOCATE (kp%wmat(nc, nspin))
-               DO is = 1, nspin
-                  DO ic = 1, nc
-                     CALL cp_fm_create(kp%wmat(ic, is), matrix_struct)
-                  END DO
-               END DO
-            END DO
-            CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal)
-            DEALLOCATE (fmlocal)
-
+         IF (aux_fit) THEN
+            kpoint%mpools_aux_fit => mpools
+         ELSE
+            kpoint%mpools => mpools
          END IF
+
+         ! reset old number of MOs
+         DO is = 1, nspin
+            CALL set_mo_set(mos(is), nmo=nmorig(is))
+         END DO
+
+         ! allocate density matrices
+         CALL mpools_get(mpools, ao_ao_fm_pools=ao_ao_fm_pools)
+         ALLOCATE (fmlocal)
+         CALL fm_pool_create_fm(ao_ao_fm_pools(1)%pool, fmlocal)
+         CALL cp_fm_get_info(fmlocal, matrix_struct=matrix_struct)
+         DO ik = 1, nkp_loc
+            IF (aux_fit) THEN
+               kp => kpoint%kp_aux_env(ik)%kpoint_env
+            ELSE
+               kp => kpoint%kp_env(ik)%kpoint_env
+            END IF
+            ! density matrix
+            CALL cp_fm_release(kp%pmat)
+            ALLOCATE (kp%pmat(nc, nspin))
+            DO is = 1, nspin
+               DO ic = 1, nc
+                  CALL cp_fm_create(kp%pmat(ic, is), matrix_struct)
+               END DO
+            END DO
+            ! energy weighted density matrix
+            CALL cp_fm_release(kp%wmat)
+            ALLOCATE (kp%wmat(nc, nspin))
+            DO is = 1, nspin
+               DO ic = 1, nc
+                  CALL cp_fm_create(kp%wmat(ic, is), matrix_struct)
+               END DO
+            END DO
+         END DO
+         CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal)
+         DEALLOCATE (fmlocal)
 
       END IF
 
@@ -979,26 +978,26 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize_mo_set'
 
-      INTEGER                                            :: handle, ic, ik, ikk, ispin
+      INTEGER                                            :: handle, ik, ispin
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: moskp
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: moskp
 
       CALL timeset(routineN, handle)
 
       DO ik = 1, SIZE(kpoint%kp_env)
          CALL mpools_get(kpoint%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
          moskp => kpoint%kp_env(ik)%kpoint_env%mos
-         ikk = kpoint%kp_range(1) + ik - 1
          CPASSERT(ASSOCIATED(moskp))
-         DO ispin = 1, SIZE(moskp, 2)
-            DO ic = 1, SIZE(moskp, 1)
-               CALL get_mo_set(moskp(ic, ispin), mo_coeff=mo_coeff)
-               IF (.NOT. ASSOCIATED(mo_coeff)) THEN
-                  CALL init_mo_set(moskp(ic, ispin), &
-                                   fm_pool=ao_mo_fm_pools(ispin)%pool, name="kpoints")
-               END IF
-            END DO
+         DO ispin = 1, SIZE(moskp)
+            IF (kpoint%use_real_wfn) THEN
+               mo_coeff => moskp(ispin)%mo_coeff
+               IF (ASSOCIATED(mo_coeff)) CYCLE
+            ELSE
+               IF (ASSOCIATED(moskp(ispin)%cmo_coeff)) CYCLE
+            END IF
+            CALL init_mo_set(moskp(ispin), fm_pool=ao_mo_fm_pools(ispin)%pool, &
+                             name="kpoints", complex_coeff=.NOT. kpoint%use_real_wfn)
          END DO
       END DO
 
@@ -1521,6 +1520,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_set_mo_occupation'
 
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: csmatrix
       INTEGER                                            :: handle, ik, ikpgr, ispin, kplocal, nao, &
                                                             nb, ncol_global, ne_a, ne_b, &
                                                             nelectron, nkp, nmo, nrow_global, nspin
@@ -1532,6 +1532,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: weig, wocc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: icoeff, rcoeff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation, wkp
+      TYPE(cp_cfm_type), POINTER                         :: cmo_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mo_set_type), POINTER                         :: mo_set
@@ -1545,16 +1546,16 @@ CONTAINS
       ! first collect all the eigenvalues
       CALL get_kpoint_info(kpoint, nkp=nkp)
       kp => kpoint%kp_env(1)%kpoint_env
-      nspin = SIZE(kp%mos, 2)
+      nspin = SIZE(kp%mos)
       my_separate_spin_occupations = smear%fixed_mag_mom > 0.0_dp
       IF (PRESENT(separate_spin_occupations)) THEN
          my_separate_spin_occupations = my_separate_spin_occupations .OR. separate_spin_occupations
       END IF
-      mo_set => kp%mos(1, 1)
+      mo_set => kp%mos(1)
       CALL get_mo_set(mo_set, nmo=nmo, nao=nao, nelectron=nelectron)
       ne_a = nelectron
       IF (nspin == 2) THEN
-         CALL get_mo_set(kp%mos(1, 2), nmo=nb, nelectron=ne_b)
+         CALL get_mo_set(kp%mos(2), nmo=nb, nelectron=ne_b)
          CPASSERT(nmo == nb)
       END IF
       ALLOCATE (weig(nmo, nkp, nspin), wocc(nmo, nkp, nspin))
@@ -1571,35 +1572,26 @@ CONTAINS
          ik = kp_range(1) + ikpgr - 1
          kp => kpoint%kp_env(ikpgr)%kpoint_env
          DO ispin = 1, nspin
-            mo_set => kp%mos(1, ispin)
+            mo_set => kp%mos(ispin)
             CALL get_mo_set(mo_set, eigenvalues=eigenvalues)
             weig(1:nmo, ik, ispin) = eigenvalues(1:nmo)
             IF (PRESENT(probe)) THEN
-               CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
-               CALL cp_fm_get_info(mo_coeff, &
-                                   nrow_global=nrow_global, &
-                                   ncol_global=ncol_global)
-               ALLOCATE (smatrix(nrow_global, ncol_global))
-               CALL cp_fm_get_submatrix(mo_coeff, smatrix)
-
-               rcoeff(1:nao, 1:nmo, ik, ispin) = smatrix(1:nrow_global, 1:ncol_global)
-
-               DEALLOCATE (smatrix)
-
-               mo_set => kp%mos(2, ispin)
-
-               CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
-               CALL cp_fm_get_info(mo_coeff, &
-                                   nrow_global=nrow_global, &
-                                   ncol_global=ncol_global)
-               ALLOCATE (smatrix(nrow_global, ncol_global))
-               CALL cp_fm_get_submatrix(mo_coeff, smatrix)
-
-               icoeff(1:nao, 1:nmo, ik, ispin) = smatrix(1:nrow_global, 1:ncol_global)
-
-               mo_set => kp%mos(1, ispin)
-
-               DEALLOCATE (smatrix)
+               IF (kpoint%use_real_wfn) THEN
+                  CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
+                  CALL cp_fm_get_info(mo_coeff, nrow_global=nrow_global, ncol_global=ncol_global)
+                  ALLOCATE (smatrix(nrow_global, ncol_global))
+                  CALL cp_fm_get_submatrix(mo_coeff, smatrix)
+                  rcoeff(1:nao, 1:nmo, ik, ispin) = smatrix(1:nao, 1:nmo)
+                  DEALLOCATE (smatrix)
+               ELSE
+                  CALL get_mo_set(mo_set, cmo_coeff=cmo_coeff)
+                  CALL cp_cfm_get_info(cmo_coeff, nrow_global=nrow_global, ncol_global=ncol_global)
+                  ALLOCATE (csmatrix(nrow_global, ncol_global))
+                  CALL cp_cfm_get_submatrix(cmo_coeff, csmatrix)
+                  rcoeff(1:nao, 1:nmo, ik, ispin) = REAL(csmatrix(1:nao, 1:nmo), KIND=dp)
+                  icoeff(1:nao, 1:nmo, ik, ispin) = AIMAG(csmatrix(1:nao, 1:nmo))
+                  DEALLOCATE (csmatrix)
+               END IF
             END IF
          END DO
       END DO
@@ -1634,38 +1626,12 @@ CONTAINS
             ik = kp_range(1) + ikpgr - 1
             kp => kpoint%kp_env(ikpgr)%kpoint_env
             DO ispin = 1, nspin
-               mo_set => kp%mos(1, ispin)
+               mo_set => kp%mos(ispin)
                CALL get_mo_set(mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation)
                eigenvalues(1:nmo) = weig(1:nmo, ik, ispin)
                occupation(1:nmo) = wocc(1:nmo, ik, ispin)
                mo_set%kTS = kTS
                mo_set%mu = mus(ispin)
-
-               CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
-               !get smatrix for kpoint_env ikp
-               CALL cp_fm_get_info(mo_coeff, &
-                                   nrow_global=nrow_global, &
-                                   ncol_global=ncol_global)
-               ALLOCATE (smatrix(nrow_global, ncol_global))
-               CALL cp_fm_get_submatrix(mo_coeff, smatrix)
-
-               smatrix(1:nrow_global, 1:ncol_global) = rcoeff(1:nao, 1:nmo, ik, ispin)
-               DEALLOCATE (smatrix)
-
-               mo_set => kp%mos(2, ispin)
-
-               CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
-               !get smatrix for kpoint_env ikp
-               CALL cp_fm_get_info(mo_coeff, &
-                                   nrow_global=nrow_global, &
-                                   ncol_global=ncol_global)
-               ALLOCATE (smatrix(nrow_global, ncol_global))
-               CALL cp_fm_get_submatrix(mo_coeff, smatrix)
-
-               smatrix(1:nrow_global, 1:ncol_global) = icoeff(1:nao, 1:nmo, ik, ispin)
-               DEALLOCATE (smatrix)
-
-               mo_set => kp%mos(1, ispin)
 
             END DO
          END DO
@@ -1765,7 +1731,7 @@ CONTAINS
             ik = kp_range(1) + ikpgr - 1
             kp => kpoint%kp_env(ikpgr)%kpoint_env
             DO ispin = 1, nspin
-               mo_set => kp%mos(1, ispin)
+               mo_set => kp%mos(ispin)
                CALL get_mo_set(mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation)
                eigenvalues(1:nmo) = weig(1:nmo, ik, ispin)
                occupation(1:nmo) = wocc(1:nmo, ik, ispin)
@@ -1773,7 +1739,7 @@ CONTAINS
                mo_set%mu = mus(ispin)
                IF (.NOT. smear%do_smear) THEN
                   ! Zero-width filling can give different occupied ranks at different k points.
-                  kp%mos(:, ispin)%homo = COUNT(occupation(1:nmo) > 0.0_dp)
+                  kp%mos(ispin)%homo = COUNT(occupation(1:nmo) > 0.0_dp)
                END IF
             END DO
          END DO
@@ -1905,6 +1871,7 @@ CONTAINS
       INTEGER                                            :: handle, ikpgr, ispin, kplocal, nao, nmo, &
                                                             nspin, nworkers, thread
       LOGICAL                                            :: aux_fit, local, wtype
+      TYPE(cp_cfm_type), ALLOCATABLE                     :: cdensity(:), cwork(:)
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type), ALLOCATABLE                      :: work(:)
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -1921,34 +1888,58 @@ CONTAINS
       ELSE
          kp => kpoint%kp_env(1)%kpoint_env
       END IF
-      CALL get_mo_set(kp%mos(1, 1), nao=nao, nmo=nmo)
-      CALL cp_fm_get_info(kp%mos(1, 1)%mo_coeff, matrix_struct=matrix_struct)
+      CALL get_mo_set(kp%mos(1), nao=nao, nmo=nmo)
+      IF (kpoint%use_real_wfn) THEN
+         CALL cp_fm_get_info(kp%mos(1)%mo_coeff, matrix_struct=matrix_struct)
+      ELSE
+         CALL cp_cfm_get_info(kp%mos(1)%cmo_coeff, matrix_struct=matrix_struct)
+      END IF
       kplocal = kpoint%kp_range(2) - kpoint%kp_range(1) + 1
-      nspin = SIZE(kp%mos, 2)
+      nspin = SIZE(kp%mos)
       ! Only the group layout matters. Distributed GEMM stays on the calling thread.
       local = PRODUCT(matrix_struct%context%num_pe) == 1
       nworkers = 1
 !$    IF (local) nworkers = MIN(omp_get_max_threads(), kplocal*nspin)
-      ALLOCATE (work(nworkers), gemm_ctx(nworkers))
+      ALLOCATE (gemm_ctx(nworkers))
+      IF (kpoint%use_real_wfn) THEN
+         ALLOCATE (work(nworkers))
+      ELSE
+         ALLOCATE (cwork(nworkers), cdensity(nworkers))
+      END IF
       DO thread = 1, nworkers
-         CALL cp_fm_create(work(thread), matrix_struct)
+         IF (kpoint%use_real_wfn) THEN
+            CALL cp_fm_create(work(thread), matrix_struct)
+         ELSE
+            CALL cp_cfm_create(cwork(thread), matrix_struct)
+            CALL cp_cfm_create(cdensity(thread), kp%pmat(1, 1)%matrix_struct)
+         END IF
          IF (local) CALL gemm_ctx(thread)%create(LOCAL_GEMM_PU_GPU, timing=.FALSE.)
       END DO
 
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE) SCHEDULE(DYNAMIC, 1) NUM_THREADS(nworkers) IF(nworkers > 1) &
-!$OMP SHARED(kpoint,wtype,aux_fit,nao,nmo,kplocal,nspin,nworkers,work,local,gemm_ctx) PRIVATE(ikpgr,ispin,thread)
+!$OMP SHARED(kpoint,wtype,aux_fit,nao,nmo,kplocal,nspin,nworkers,work,cwork,cdensity,local,gemm_ctx) PRIVATE(ikpgr,ispin,thread)
       DO ikpgr = 1, kplocal
          DO ispin = 1, nspin
             thread = 1
 !$          thread = omp_get_thread_num() + 1
-            CALL kpoint_density_matrix_job(kpoint, ikpgr, ispin, wtype, aux_fit, nao, nmo, &
-                                           work(thread), local, gemm_ctx(thread))
+            IF (kpoint%use_real_wfn) THEN
+               CALL kpoint_density_matrix_job(kpoint, ikpgr, ispin, wtype, aux_fit, nao, nmo, &
+                                              local, gemm_ctx(thread), work=work(thread))
+            ELSE
+               CALL kpoint_density_matrix_job(kpoint, ikpgr, ispin, wtype, aux_fit, nao, nmo, &
+                                              local, gemm_ctx(thread), cwork=cwork(thread), cdensity=cdensity(thread))
+            END IF
          END DO
       END DO
 !$OMP END PARALLEL DO
       DO thread = 1, nworkers
          CALL gemm_ctx(thread)%destroy()
-         CALL cp_fm_release(work(thread))
+         IF (kpoint%use_real_wfn) THEN
+            CALL cp_fm_release(work(thread))
+         ELSE
+            CALL cp_cfm_release(cwork(thread))
+            CALL cp_cfm_release(cdensity(thread))
+         END IF
       END DO
       IF (.NOT. wtype .AND. .NOT. aux_fit) THEN
          kpoint%lowdin_density_ready = .TRUE.
@@ -2031,22 +2022,27 @@ CONTAINS
 !> \param aux_fit use the auxiliary MO set
 !> \param nao number of atomic orbitals
 !> \param nmo number of molecular orbitals
-!> \param work private column-scaled MO scratch
 !> \param local use local GEMM, without communication
 !> \param gemm_ctx private local GEMM context, unused for distributed groups
+!> \param work real column-scaled MO scratch
+!> \param cwork complex column-scaled MO scratch
+!> \param cdensity complex density scratch
 ! **************************************************************************************************
-   SUBROUTINE kpoint_density_matrix_job(kpoint, ikpgr, ispin, wtype, aux_fit, nao, nmo, work, local, gemm_ctx)
+   SUBROUTINE kpoint_density_matrix_job(kpoint, ikpgr, ispin, wtype, aux_fit, nao, nmo, &
+                                        local, gemm_ctx, work, cwork, cdensity)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       INTEGER, INTENT(IN)                                :: ikpgr, ispin
       LOGICAL, INTENT(IN)                                :: wtype, aux_fit
       INTEGER, INTENT(IN)                                :: nao, nmo
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: work
       LOGICAL, INTENT(IN)                                :: local
       TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: gemm_ctx
+      TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: work
+      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: cwork, cdensity
 
-      INTEGER                                            :: part
+      COMPLEX(KIND=dp), ALLOCATABLE                      :: weights(:)
       REAL(KIND=dp), POINTER                             :: eigenvalues(:), occupation(:)
+      TYPE(cp_cfm_type), POINTER                         :: ccoeff
       TYPE(cp_fm_type), POINTER                          :: coeff, cpmat, rpmat
       TYPE(kpoint_env_type), POINTER                     :: kp
 
@@ -2055,14 +2051,15 @@ CONTAINS
       ELSE
          kp => kpoint%kp_env(ikpgr)%kpoint_env
       END IF
-      CALL get_mo_set(kp%mos(1, ispin), occupation_numbers=occupation, eigenvalues=eigenvalues)
+      CALL get_mo_set(kp%mos(ispin), occupation_numbers=occupation, eigenvalues=eigenvalues)
       IF (wtype) THEN
          rpmat => kp%wmat(1, ispin)
       ELSE
          rpmat => kp%pmat(1, ispin)
       END IF
-      DO part = 1, MERGE(1, 2, kpoint%use_real_wfn)
-         coeff => kp%mos(part, ispin)%mo_coeff
+      IF (kpoint%use_real_wfn) THEN
+         CPASSERT(PRESENT(work))
+         coeff => kp%mos(ispin)%mo_coeff
          CALL cp_fm_to_fm(coeff, work)
          CALL cp_fm_column_scale(work, occupation)
          IF (wtype) CALL cp_fm_column_scale(work, eigenvalues)
@@ -2072,34 +2069,36 @@ CONTAINS
             CPASSERT(PRODUCT(rpmat%matrix_struct%context%num_pe) == 1)
             CALL gemm_ctx%gemm("N", "T", nao, nao, nmo, 1.0_dp, &
                                coeff%local_data, SIZE(coeff%local_data, 1), &
-                               work%local_data, SIZE(work%local_data, 1), REAL(part - 1, dp), &
+                               work%local_data, SIZE(work%local_data, 1), 0.0_dp, &
                                rpmat%local_data, SIZE(rpmat%local_data, 1))
          ELSE
-            CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, coeff, work, REAL(part - 1, dp), rpmat)
+            CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, coeff, work, 0.0_dp, rpmat)
          END IF
-         IF (part /= 1 .OR. kpoint%use_real_wfn) CYCLE
+      ELSE
+         CPASSERT(PRESENT(cwork) .AND. PRESENT(cdensity))
          IF (wtype) THEN
             cpmat => kp%wmat(2, ispin)
          ELSE
             cpmat => kp%pmat(2, ispin)
          END IF
-         coeff => kp%mos(2, ispin)%mo_coeff
+         ccoeff => kp%mos(ispin)%cmo_coeff
+         ALLOCATE (weights(nmo))
+         weights = CMPLX(occupation(1:nmo), 0.0_dp, KIND=dp)
+         IF (wtype) weights = weights*eigenvalues(1:nmo)
+         CALL cp_cfm_to_cfm(ccoeff, cwork)
+         CALL cp_cfm_column_scale(cwork, weights)
          IF (local) THEN
-            CPASSERT(PRODUCT(coeff%matrix_struct%context%num_pe) == 1)
-            CPASSERT(PRODUCT(cpmat%matrix_struct%context%num_pe) == 1)
-            CALL gemm_ctx%gemm("N", "T", nao, nao, nmo, 1.0_dp, &
-                               coeff%local_data, SIZE(coeff%local_data, 1), &
-                               work%local_data, SIZE(work%local_data, 1), 0.0_dp, &
-                               cpmat%local_data, SIZE(cpmat%local_data, 1))
-            CALL gemm_ctx%gemm("N", "T", nao, nao, nmo, -1.0_dp, &
-                               work%local_data, SIZE(work%local_data, 1), &
-                               coeff%local_data, SIZE(coeff%local_data, 1), 1.0_dp, &
-                               cpmat%local_data, SIZE(cpmat%local_data, 1))
+            CPASSERT(PRODUCT(ccoeff%matrix_struct%context%num_pe) == 1)
+            CALL gemm_ctx%gemm("N", "C", nao, nao, nmo, z_one, &
+                               ccoeff%local_data, SIZE(ccoeff%local_data, 1), &
+                               cwork%local_data, SIZE(cwork%local_data, 1), z_zero, &
+                               cdensity%local_data, SIZE(cdensity%local_data, 1))
          ELSE
-            CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, coeff, work, 0.0_dp, cpmat)
-            CALL parallel_gemm("N", "T", nao, nao, nmo, -1.0_dp, work, coeff, 1.0_dp, cpmat)
+            CALL parallel_gemm("N", "C", nao, nao, nmo, z_one, ccoeff, cwork, z_zero, cdensity)
          END IF
-      END DO
+         CALL cp_cfm_to_fm(cdensity, rpmat, cpmat)
+         DEALLOCATE (weights)
+      END IF
 
    END SUBROUTINE kpoint_density_matrix_job
 
@@ -2207,50 +2206,21 @@ CONTAINS
       TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: cshalfc
 
       INTEGER                                            :: nao, nmo
-      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct_mo, matrix_struct_shalf
-      TYPE(cp_fm_type)                                   :: cshalf_im, cshalf_re, shalf_im, shalf_re
-      TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_im, mo_set_re
+      TYPE(mo_set_type), POINTER                         :: mo_set
 
       IF (use_real_wfn) THEN
          CPASSERT(PRESENT(shalfc))
-         mo_set => kp%mos(1, ispin)
+         mo_set => kp%mos(ispin)
          CALL get_mo_set(mo_set, nao=nao, nmo=nmo)
 
          CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, kp%shalf, &
                             mo_set%mo_coeff, 0.0_dp, shalfc)
       ELSE
          CPASSERT(PRESENT(cshalfc))
-         mo_set_re => kp%mos(1, ispin)
-         mo_set_im => kp%mos(2, ispin)
-         CALL get_mo_set(mo_set_re, nao=nao, nmo=nmo)
-         CALL cp_fm_get_info(mo_set_re%mo_coeff, matrix_struct=matrix_struct_mo)
-         CALL cp_cfm_get_info(kp%cshalf, matrix_struct=matrix_struct_shalf)
-
-         CALL cp_fm_create(shalf_re, matrix_struct_shalf, nrow=nao, ncol=nao)
-         CALL cp_fm_create(shalf_im, matrix_struct_shalf, nrow=nao, ncol=nao)
-         CALL cp_fm_create(cshalf_re, matrix_struct_mo, nrow=nao, ncol=nmo)
-         CALL cp_fm_create(cshalf_im, matrix_struct_mo, nrow=nao, ncol=nmo)
-
-         CALL cp_cfm_to_fm(kp%cshalf, mtargetr=shalf_re, mtargeti=shalf_im)
-
-         ! Re[S(k)^1/2 C(k)] = Re[S(k)^1/2] C_re(k) - Im[S(k)^1/2] C_im(k)
-         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, shalf_re, &
-                            mo_set_re%mo_coeff, 0.0_dp, cshalf_re)
-         CALL parallel_gemm("N", "N", nao, nmo, nao, -1.0_dp, shalf_im, &
-                            mo_set_im%mo_coeff, 1.0_dp, cshalf_re)
-
-         ! Im[S(k)^1/2 C(k)] = Re[S(k)^1/2] C_im(k) + Im[S(k)^1/2] C_re(k)
-         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, shalf_re, &
-                            mo_set_im%mo_coeff, 0.0_dp, cshalf_im)
-         CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, shalf_im, &
-                            mo_set_re%mo_coeff, 1.0_dp, cshalf_im)
-
-         CALL cp_fm_to_cfm(cshalf_re, cshalf_im, cshalfc)
-
-         CALL cp_fm_release(shalf_re)
-         CALL cp_fm_release(shalf_im)
-         CALL cp_fm_release(cshalf_re)
-         CALL cp_fm_release(cshalf_im)
+         mo_set => kp%mos(ispin)
+         CALL get_mo_set(mo_set, nao=nao, nmo=nmo)
+         CALL cp_cfm_gemm("N", "N", nao, nmo, nao, z_one, kp%cshalf, &
+                          mo_set%cmo_coeff, z_zero, cshalfc)
       END IF
 
    END SUBROUTINE lowdin_kp_mo_coeff
@@ -2333,8 +2303,8 @@ CONTAINS
       ELSE
          kp => kpoint%kp_env(1)%kpoint_env
       END IF
-      nspin = SIZE(kp%mos, 2)
-      nc = SIZE(kp%mos, 1)
+      nspin = SIZE(kp%mos)
+      nc = SIZE(kp%pmat, 1)
       nimg = SIZE(denmat, 2)
       CALL kp_transform_plan_create(transform_plan, sab_nl, cell_to_index, nimg, &
                                     group_entries=.TRUE.)

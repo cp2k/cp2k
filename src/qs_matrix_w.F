@@ -12,6 +12,7 @@
 !> \author MK (29.10.2002)
 ! **************************************************************************************************
 MODULE qs_matrix_w
+   USE cp_cfm_types,                    ONLY: cp_cfm_to_fm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_init_p,&
                                               dbcsr_p_type,&
@@ -221,14 +222,13 @@ CONTAINS
       INTEGER                                            :: handle, ikpgr, ispin, kplocal, kpmax, &
                                                             nmo, nspin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation
-      TYPE(cp_fm_type)                                   :: hc_im, hc_re
-      TYPE(cp_fm_type), POINTER                          :: coeff_im, coeff_re
+      TYPE(cp_fm_type)                                   :: coeff_im, coeff_re, hc_im, hc_re
       TYPE(dbcsr_type), POINTER                          :: matrix_k_im, matrix_k_re
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_operator_context_type)                 :: op_ctx
 
       CALL timeset(routineN, handle)
-      NULLIFY (coeff_im, coeff_re, matrix_k_im, matrix_k_re, occupation)
+      NULLIFY (matrix_k_im, matrix_k_re, occupation)
       CPASSERT(.NOT. kpoint%use_real_wfn)
       CPASSERT(ASSOCIATED(matrix_ks))
 
@@ -250,9 +250,11 @@ CONTAINS
                                      matrix_row=ispin, slot=kpoint_slot_ks)
             IF (ikpgr <= kplocal) THEN
                kp => kpoint%kp_env(ikpgr)%kpoint_env
-               CALL get_mo_set(kp%mos(1, ispin), mo_coeff=coeff_re, nmo=nmo, &
+               CALL get_mo_set(kp%mos(ispin), nmo=nmo, &
                                occupation_numbers=occupation)
-               CALL get_mo_set(kp%mos(2, ispin), mo_coeff=coeff_im)
+               CALL cp_fm_create(coeff_re, kp%mos(ispin)%cmo_coeff%matrix_struct)
+               CALL cp_fm_create(coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
+               CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, coeff_re, coeff_im)
                CPASSERT(nmo >= 1)
                CPASSERT(SIZE(occupation) >= nmo)
 
@@ -275,6 +277,8 @@ CONTAINS
 
                CALL cp_fm_release(hc_im)
                CALL cp_fm_release(hc_re)
+               CALL cp_fm_release(coeff_im)
+               CALL cp_fm_release(coeff_re)
             END IF
             CALL dbcsr_release_p(matrix_k_im)
             CALL dbcsr_release_p(matrix_k_re)

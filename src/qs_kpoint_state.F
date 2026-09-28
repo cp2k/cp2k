@@ -10,23 +10,21 @@
 ! **************************************************************************************************
 MODULE qs_kpoint_state
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
-                                              cp_cfm_scale
+                                              cp_cfm_scale,&
+                                              cp_cfm_vectorsnorm
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
+                                              cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
-                                              cp_cfm_to_fm,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
+   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_to_fm,&
                                               cp_fm_type,&
                                               cp_fm_vectorsnorm
@@ -81,12 +79,11 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: density_eigenvalues
       TYPE(cp_cfm_type)                                  :: density_metric, density_work, matrix_p, &
                                                             matrix_s, matrix_s_work, projected
+      TYPE(cp_cfm_type), POINTER                         :: cmo_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: active_struct, square_struct
-      TYPE(cp_fm_type)                                   :: active_im, active_re
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff_im, mo_coeff_re
       TYPE(kpoint_env_type), POINTER                     :: kp
 
-      NULLIFY (active_struct, kp, mo_coeff_im, mo_coeff_re, square_struct)
+      NULLIFY (active_struct, cmo_coeff, kp, square_struct)
 
       CPASSERT(ASSOCIATED(kpoints))
       CPASSERT(ASSOCIATED(kpoints%kp_env))
@@ -102,7 +99,7 @@ CONTAINS
          CPASSERT(ASSOCIATED(kp%ot_hmat))
          CPASSERT(ASSOCIATED(kp%ot_smat))
          CPASSERT(SIZE(kp%ot_hmat, 1) >= 2)
-         CPASSERT(SIZE(kp%ot_hmat, 2) >= SIZE(kp%mos, 2))
+         CPASSERT(SIZE(kp%ot_hmat, 2) >= SIZE(kp%mos))
          CPASSERT(SIZE(kp%ot_smat) >= 2)
 
          CALL cp_fm_get_info(kp%ot_hmat(1, 1), matrix_struct=square_struct, nrow_global=nao)
@@ -110,14 +107,12 @@ CONTAINS
          CALL cp_cfm_create(matrix_s, square_struct, name="natural-orbital overlap S(k)")
          CALL cp_fm_to_cfm(kp%ot_smat(1), kp%ot_smat(2), matrix_s)
 
-         DO ispin = 1, SIZE(kp%mos, 2)
-            CALL get_mo_set(kp%mos(1, ispin), homo=nocc, mo_coeff=mo_coeff_re, nmo=nmo)
-            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=mo_coeff_im)
-            CPASSERT(ASSOCIATED(mo_coeff_re))
-            CPASSERT(ASSOCIATED(mo_coeff_im))
+         DO ispin = 1, SIZE(kp%mos)
+            CALL get_mo_set(kp%mos(ispin), homo=nocc, cmo_coeff=cmo_coeff, nmo=nmo)
+            CPASSERT(ASSOCIATED(cmo_coeff))
             CPASSERT(nocc >= 1 .AND. nocc <= nmo)
 
-            CALL cp_fm_struct_create(active_struct, template_fmstruct=mo_coeff_re%matrix_struct, &
+            CALL cp_fm_struct_create(active_struct, template_fmstruct=cmo_coeff%matrix_struct, &
                                      ncol_global=nocc)
             CALL cp_fm_to_cfm(kp%ot_hmat(1, ispin), kp%ot_hmat(2, ispin), matrix_p)
             CALL cp_cfm_create(projected, active_struct, name="fixed-density natural orbitals")
@@ -139,16 +134,8 @@ CONTAINS
                               density_eigenvalues, density_work, lowest_subset=.TRUE.)
             DEALLOCATE (density_eigenvalues)
 
-            CALL cp_fm_create(active_re, active_struct, name="fixed-density orbitals real")
-            CALL cp_fm_create(active_im, active_struct, name="fixed-density orbitals imaginary")
-            CALL cp_cfm_to_fm(projected, active_re, active_im)
-            CALL cp_fm_set_all(mo_coeff_re, 0.0_dp)
-            CALL cp_fm_set_all(mo_coeff_im, 0.0_dp)
-            CALL cp_fm_to_fm(active_re, mo_coeff_re, nocc)
-            CALL cp_fm_to_fm(active_im, mo_coeff_im, nocc)
-
-            CALL cp_fm_release(active_im)
-            CALL cp_fm_release(active_re)
+            CALL cp_cfm_set_all(cmo_coeff, CMPLX(0.0_dp, 0.0_dp, KIND=dp))
+            CALL cp_cfm_to_cfm(projected, cmo_coeff, nocc)
             CALL cp_cfm_release(matrix_s_work)
             CALL cp_cfm_release(density_work)
             CALL cp_cfm_release(density_metric)
@@ -175,15 +162,14 @@ CONTAINS
       INTEGER                                            :: ikpoint_local, ispin, nao, nmo, nocc
       LOGICAL                                            :: use_real_wfn
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ritz_values
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues_im, eigenvalues_re
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues_re
       TYPE(cp_cfm_type)                                  :: coeff, eigenvectors, hblock, hc, &
                                                             matrix_h, rotated
+      TYPE(cp_cfm_type), POINTER                         :: cmo_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: active_struct, square_struct
-      TYPE(cp_fm_type)                                   :: active_im, active_re
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff_im, mo_coeff_re
       TYPE(kpoint_env_type), POINTER                     :: kp
 
-      NULLIFY (active_struct, eigenvalues_im, eigenvalues_re, kp, mo_coeff_im, mo_coeff_re, &
+      NULLIFY (active_struct, cmo_coeff, eigenvalues_re, kp, &
                square_struct)
 
       CPASSERT(ASSOCIATED(kpoints))
@@ -199,31 +185,21 @@ CONTAINS
          CPASSERT(ASSOCIATED(kp%mos))
          CPASSERT(ASSOCIATED(kp%ot_hmat))
          CPASSERT(SIZE(kp%ot_hmat, 1) >= 2)
-         CPASSERT(SIZE(kp%ot_hmat, 2) >= SIZE(kp%mos, 2))
+         CPASSERT(SIZE(kp%ot_hmat, 2) >= SIZE(kp%mos))
 
          CALL cp_fm_get_info(kp%ot_hmat(1, 1), matrix_struct=square_struct, nrow_global=nao)
          CALL cp_cfm_create(matrix_h, square_struct, name="fixed-density Ritz Hamiltonian")
 
-         DO ispin = 1, SIZE(kp%mos, 2)
-            CALL get_mo_set(kp%mos(1, ispin), homo=nocc, mo_coeff=mo_coeff_re, nmo=nmo, &
+         DO ispin = 1, SIZE(kp%mos)
+            CALL get_mo_set(kp%mos(ispin), homo=nocc, cmo_coeff=cmo_coeff, nmo=nmo, &
                             eigenvalues=eigenvalues_re)
-            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=mo_coeff_im, &
-                            eigenvalues=eigenvalues_im)
-            CPASSERT(ASSOCIATED(mo_coeff_re))
-            CPASSERT(ASSOCIATED(mo_coeff_im))
+            CPASSERT(ASSOCIATED(cmo_coeff))
             CPASSERT(ASSOCIATED(eigenvalues_re))
-            CPASSERT(ASSOCIATED(eigenvalues_im))
             CPASSERT(nocc >= 1 .AND. nocc <= nmo)
             CPASSERT(SIZE(eigenvalues_re) >= nocc)
-            CPASSERT(SIZE(eigenvalues_im) >= nocc)
 
-            CALL cp_fm_struct_create(active_struct, template_fmstruct=mo_coeff_re%matrix_struct, &
+            CALL cp_fm_struct_create(active_struct, template_fmstruct=cmo_coeff%matrix_struct, &
                                      ncol_global=nocc)
-            CALL cp_fm_create(active_re, active_struct, name="fixed-density Ritz orbitals real")
-            CALL cp_fm_create(active_im, active_struct, name="fixed-density Ritz orbitals imaginary")
-            CALL cp_fm_to_fm(mo_coeff_re, active_re, nocc)
-            CALL cp_fm_to_fm(mo_coeff_im, active_im, nocc)
-
             CALL cp_cfm_create(coeff, active_struct, name="fixed-density Ritz orbitals")
             CALL cp_cfm_create(hc, active_struct, name="fixed-density Ritz HC")
             CALL cp_cfm_create(rotated, active_struct, name="fixed-density Ritz rotated orbitals")
@@ -233,7 +209,7 @@ CONTAINS
                                name="fixed-density Ritz eigenvectors")
             CALL cp_fm_to_cfm(kp%ot_hmat(1, ispin), kp%ot_hmat(2, ispin), matrix_h)
             IF (ALLOCATED(kpoints%lowdin_v)) CALL lowdin_kp_apply(kp, kpoints%lowdin_v(:, ispin), cmat=matrix_h)
-            CALL cp_fm_to_cfm(active_re, active_im, coeff)
+            CALL cp_cfm_to_cfm(cmo_coeff, coeff, nocc)
 
             CALL cp_cfm_gemm('N', 'N', nao, nocc, nao, z_one, matrix_h, coeff, z_zero, hc)
             CALL cp_cfm_gemm('C', 'N', nocc, nocc, nao, z_one, coeff, hc, z_zero, hblock)
@@ -241,11 +217,8 @@ CONTAINS
             CALL cp_cfm_heevd(hblock, eigenvectors, ritz_values)
             CALL cp_cfm_gemm('N', 'N', nao, nocc, nocc, z_one, coeff, eigenvectors, &
                              z_zero, rotated)
-            CALL cp_cfm_to_fm(rotated, active_re, active_im)
-            CALL cp_fm_to_fm(active_re, mo_coeff_re, nocc)
-            CALL cp_fm_to_fm(active_im, mo_coeff_im, nocc)
+            CALL cp_cfm_to_cfm(rotated, cmo_coeff, nocc)
             eigenvalues_re(1:nocc) = ritz_values
-            eigenvalues_im(1:nocc) = ritz_values
             DEALLOCATE (ritz_values)
 
             CALL cp_cfm_release(eigenvectors)
@@ -253,8 +226,6 @@ CONTAINS
             CALL cp_cfm_release(rotated)
             CALL cp_cfm_release(hc)
             CALL cp_cfm_release(coeff)
-            CALL cp_fm_release(active_im)
-            CALL cp_fm_release(active_re)
             CALL cp_fm_struct_release(active_struct)
          END DO
 
@@ -281,7 +252,7 @@ CONTAINS
       LOGICAL                                            :: fixed, separate_spins
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp, rho_ao_kp
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -320,11 +291,11 @@ CONTAINS
       energy%efermi = 0.0_dp
       mos => kpoints%kp_env(1)%kpoint_env%mos
       CPASSERT(ASSOCIATED(mos))
-      DO ispin = 1, SIZE(mos, 2)
-         energy%kTS = energy%kTS + mos(1, ispin)%kTS
-         energy%efermi = energy%efermi + mos(1, ispin)%mu
+      DO ispin = 1, SIZE(mos)
+         energy%kTS = energy%kTS + mos(ispin)%kTS
+         energy%efermi = energy%efermi + mos(ispin)%mu
       END DO
-      energy%efermi = energy%efermi/REAL(SIZE(mos, 2), KIND=dp)
+      energy%efermi = energy%efermi/REAL(SIZE(mos), KIND=dp)
 
    END SUBROUTINE qs_kpoint_state_commit
 
@@ -339,16 +310,16 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: require_full_space
       LOGICAL                                            :: initialized
 
-      INTEGER                                            :: icomponent, ikpoint_local, ispin, &
-                                                            nactive, nmo, nocc
+      INTEGER                                            :: ikpoint_local, ispin, nactive, nmo, nocc
       LOGICAL                                            :: full_space
       REAL(KIND=dp)                                      :: coefficient_norm
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: column_norm, component_norm
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: column_norm
+      TYPE(cp_cfm_type), POINTER                         :: cmo_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      NULLIFY (kp, mo_coeff, para_env)
+      NULLIFY (cmo_coeff, kp, mo_coeff, para_env)
       CPASSERT(ASSOCIATED(kpoints))
       CPASSERT(ASSOCIATED(kpoints%kp_env))
 
@@ -359,24 +330,23 @@ CONTAINS
          kp => kpoints%kp_env(ikpoint_local)%kpoint_env
          CPASSERT(ASSOCIATED(kp))
          CPASSERT(ASSOCIATED(kp%mos))
-         DO ispin = 1, SIZE(kp%mos, 2)
-            CALL get_mo_set(kp%mos(1, ispin), homo=nocc, mo_coeff=mo_coeff, nmo=nmo)
-            CPASSERT(ASSOCIATED(mo_coeff))
+         DO ispin = 1, SIZE(kp%mos)
+            CALL get_mo_set(kp%mos(ispin), homo=nocc, cmo_coeff=cmo_coeff, &
+                            mo_coeff=mo_coeff, nmo=nmo)
             nactive = MERGE(nmo, nocc, full_space)
             IF (nactive < 1 .OR. nactive > nmo) THEN
                coefficient_norm = 0.0_dp
                CYCLE
             END IF
-            ALLOCATE (column_norm(nmo), component_norm(nmo))
-            column_norm(:) = 0.0_dp
-            DO icomponent = 1, SIZE(kp%mos, 1)
-               CALL get_mo_set(kp%mos(icomponent, ispin), mo_coeff=mo_coeff)
+            ALLOCATE (column_norm(nmo))
+            IF (ASSOCIATED(cmo_coeff)) THEN
+               CALL cp_cfm_vectorsnorm(cmo_coeff, column_norm)
+            ELSE
                CPASSERT(ASSOCIATED(mo_coeff))
-               CALL cp_fm_vectorsnorm(mo_coeff, component_norm)
-               column_norm(:) = column_norm(:) + component_norm(:)**2
-            END DO
-            coefficient_norm = MIN(coefficient_norm, SQRT(MINVAL(column_norm(1:nactive))))
-            DEALLOCATE (column_norm, component_norm)
+               CALL cp_fm_vectorsnorm(mo_coeff, column_norm)
+            END IF
+            coefficient_norm = MIN(coefficient_norm, MINVAL(column_norm(1:nactive)))
+            DEALLOCATE (column_norm)
          END DO
       END DO
 
@@ -396,12 +366,14 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER, INTENT(IN)                                :: nspin
 
-      INTEGER                                            :: icomponent, ikpoint_local, ispin
+      INTEGER                                            :: ikpoint_local, ispin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues_source, eigenvalues_target
+      TYPE(cp_cfm_type), POINTER                         :: cmo_coeff_source, cmo_coeff_target
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_source, mo_coeff_target
       TYPE(kpoint_env_type), POINTER                     :: kp
 
-      NULLIFY (eigenvalues_source, eigenvalues_target, kp, mo_coeff_source, mo_coeff_target)
+      NULLIFY (cmo_coeff_source, cmo_coeff_target, eigenvalues_source, eigenvalues_target, kp, &
+               mo_coeff_source, mo_coeff_target)
       CPASSERT(ASSOCIATED(kpoints))
       CPASSERT(ASSOCIATED(kpoints%kp_env))
       CPASSERT(nspin >= 1)
@@ -410,21 +382,32 @@ CONTAINS
          kp => kpoints%kp_env(ikpoint_local)%kpoint_env
          CPASSERT(ASSOCIATED(kp))
          CPASSERT(ASSOCIATED(kp%mos))
-         CPASSERT(SIZE(kp%mos, 2) >= nspin)
-         DO icomponent = 1, SIZE(kp%mos, 1)
-            CALL get_mo_set(kp%mos(icomponent, 1), mo_coeff=mo_coeff_source, &
-                            eigenvalues=eigenvalues_source)
+         CPASSERT(SIZE(kp%mos) >= nspin)
+         IF (ASSOCIATED(kp%mos(1)%cmo_coeff)) THEN
+            cmo_coeff_source => kp%mos(1)%cmo_coeff
+            CALL get_mo_set(kp%mos(1), eigenvalues=eigenvalues_source)
+            CPASSERT(ASSOCIATED(eigenvalues_source))
+            DO ispin = 2, nspin
+               cmo_coeff_target => kp%mos(ispin)%cmo_coeff
+               CALL get_mo_set(kp%mos(ispin), eigenvalues=eigenvalues_target)
+               CPASSERT(ASSOCIATED(cmo_coeff_target))
+               CPASSERT(ASSOCIATED(eigenvalues_target))
+               CALL cp_cfm_to_cfm(cmo_coeff_source, cmo_coeff_target)
+               eigenvalues_target(:) = eigenvalues_source(:)
+            END DO
+         ELSE
+            CALL get_mo_set(kp%mos(1), mo_coeff=mo_coeff_source, eigenvalues=eigenvalues_source)
             CPASSERT(ASSOCIATED(mo_coeff_source))
             CPASSERT(ASSOCIATED(eigenvalues_source))
             DO ispin = 2, nspin
-               CALL get_mo_set(kp%mos(icomponent, ispin), mo_coeff=mo_coeff_target, &
+               CALL get_mo_set(kp%mos(ispin), mo_coeff=mo_coeff_target, &
                                eigenvalues=eigenvalues_target)
                CPASSERT(ASSOCIATED(mo_coeff_target))
                CPASSERT(ASSOCIATED(eigenvalues_target))
                CALL cp_fm_to_fm(mo_coeff_source, mo_coeff_target)
                eigenvalues_target(:) = eigenvalues_source(:)
             END DO
-         END DO
+         END IF
       END DO
 
    END SUBROUTINE qs_kpoint_copy_spin_mos
@@ -436,8 +419,8 @@ CONTAINS
    SUBROUTINE qs_kpoint_set_fixed_occupations(kpoints)
       TYPE(kpoint_type), POINTER                         :: kpoints
 
-      INTEGER                                            :: icomponent, ikpoint_local, ispin, &
-                                                            nelectron, nmo, nocc
+      INTEGER                                            :: ikpoint_local, ispin, nelectron, nmo, &
+                                                            nocc
       REAL(KIND=dp)                                      :: maxocc
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -450,25 +433,23 @@ CONTAINS
          kp => kpoints%kp_env(ikpoint_local)%kpoint_env
          CPASSERT(ASSOCIATED(kp))
          CPASSERT(ASSOCIATED(kp%mos))
-         DO ispin = 1, SIZE(kp%mos, 2)
-            DO icomponent = 1, SIZE(kp%mos, 1)
-               CALL get_mo_set(kp%mos(icomponent, ispin), maxocc=maxocc, &
-                               nelectron=nelectron, nmo=nmo, occupation_numbers=occupation_numbers)
-               CPASSERT(ASSOCIATED(occupation_numbers))
-               ! The fixed rank comes from the spin electron count, not a previous k-point filling.
-               nocc = NINT(REAL(nelectron, KIND=dp)/maxocc)
-               IF (nocc < 1 .OR. nocc > nmo) THEN
-                  CPABORT("Fixed-occupation k-point OT requires a nonempty occupied subspace.")
-               END IF
-               IF (ABS(maxocc*REAL(nocc, KIND=dp) - REAL(nelectron, KIND=dp)) > &
-                   100.0_dp*EPSILON(1.0_dp)) THEN
-                  CPABORT("Fixed-occupation k-point OT requires uniform integer occupations.")
-               END IF
-               occupation_numbers(:) = 0.0_dp
-               occupation_numbers(1:nocc) = maxocc
-               kp%mos(icomponent, ispin)%homo = nocc
-               kp%mos(icomponent, ispin)%kTS = 0.0_dp
-            END DO
+         DO ispin = 1, SIZE(kp%mos)
+            CALL get_mo_set(kp%mos(ispin), maxocc=maxocc, nelectron=nelectron, &
+                            nmo=nmo, occupation_numbers=occupation_numbers)
+            CPASSERT(ASSOCIATED(occupation_numbers))
+            ! The fixed rank comes from the spin electron count, not a previous k-point filling.
+            nocc = NINT(REAL(nelectron, KIND=dp)/maxocc)
+            IF (nocc < 1 .OR. nocc > nmo) THEN
+               CPABORT("Fixed-occupation k-point OT requires a nonempty occupied subspace.")
+            END IF
+            IF (ABS(maxocc*REAL(nocc, KIND=dp) - REAL(nelectron, KIND=dp)) > &
+                100.0_dp*EPSILON(1.0_dp)) THEN
+               CPABORT("Fixed-occupation k-point OT requires uniform integer occupations.")
+            END IF
+            occupation_numbers(:) = 0.0_dp
+            occupation_numbers(1:nocc) = maxocc
+            kp%mos(ispin)%homo = nocc
+            kp%mos(ispin)%kTS = 0.0_dp
          END DO
       END DO
 

@@ -293,10 +293,10 @@ CONTAINS
          IF (do_kpoints) THEN
             BLOCK
                TYPE(kpoint_type), POINTER :: kpoints
-               TYPE(mo_set_type), DIMENSION(:, :), POINTER           :: mos_aux_fit_kp
+               TYPE(mo_set_type), DIMENSION(:), POINTER              :: mos_aux_fit_kp
                TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mo_fm_pools_aux_fit
                TYPE(cp_fm_struct_type), POINTER                      :: ao_ao_fm_struct
-               INTEGER                                               :: ic, ik, ikk, is
+               INTEGER                                               :: ik, ikk, is
                INTEGER, PARAMETER                                    :: nwork1 = 4
                LOGICAL                                               :: use_real_wfn
 
@@ -323,20 +323,19 @@ CONTAINS
                DO ik = 1, SIZE(kpoints%kp_aux_env)
                   mos_aux_fit_kp => kpoints%kp_aux_env(ik)%kpoint_env%mos
                   ikk = kpoints%kp_range(1) + ik - 1
-                  DO ispin = 1, SIZE(mos_aux_fit_kp, 2)
-                     DO ic = 1, SIZE(mos_aux_fit_kp, 1)
-                        CALL get_mo_set(mos_aux_fit_kp(ic, ispin), mo_coeff=mo_coeff_aux_fit, mo_coeff_b=mo_coeff_b)
-
-                        ! no sparse matrix representation of kpoint MO vectors
-                        CPASSERT(.NOT. ASSOCIATED(mo_coeff_b))
-
-                        IF (.NOT. ASSOCIATED(mo_coeff_aux_fit)) THEN
-                           CALL init_mo_set(mos_aux_fit_kp(ic, ispin), &
-                                            fm_pool=ao_mo_fm_pools_aux_fit(ispin)%pool, &
-                                            name="kpoints_"//TRIM(ADJUSTL(cp_to_string(ikk)))// &
-                                            "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))))
-                        END IF
-                     END DO
+                  DO ispin = 1, SIZE(mos_aux_fit_kp)
+                     ! No sparse matrix representation of k-point MO vectors.
+                     CPASSERT(.NOT. ASSOCIATED(mos_aux_fit_kp(ispin)%mo_coeff_b))
+                     IF (use_real_wfn) THEN
+                        IF (ASSOCIATED(mos_aux_fit_kp(ispin)%mo_coeff)) CYCLE
+                     ELSE
+                        IF (ASSOCIATED(mos_aux_fit_kp(ispin)%cmo_coeff)) CYCLE
+                     END IF
+                     CALL init_mo_set(mos_aux_fit_kp(ispin), &
+                                      fm_pool=ao_mo_fm_pools_aux_fit(ispin)%pool, &
+                                      name="kpoints_"//TRIM(ADJUSTL(cp_to_string(ikk)))// &
+                                      "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))), &
+                                      complex_coeff=.NOT. use_real_wfn)
                   END DO
                END DO
 

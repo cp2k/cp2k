@@ -17,6 +17,7 @@ MODULE qs_tddfpt2_methods
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_to_fm
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rixs_control_type,&
                                               tddfpt2_control_type
@@ -1023,17 +1024,17 @@ CONTAINS
       REAL(kind=dp), DIMENSION(nderivs)                  :: transition_dipole_abs
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env, blacs_env_all
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, moment_struct
-      TYPE(cp_fm_type)                                   :: fm_dummy, fm_tmp, mo_coeff_im_global, &
+      TYPE(cp_fm_type)                                   :: fm_dummy, fm_tmp, mo_coeff_im, &
+                                                            mo_coeff_im_global, mo_coeff_re, &
                                                             mo_coeff_re_global, moment_im, &
                                                             moment_re
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff_im, mo_coeff_re
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: overlap_deriv
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_kp
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_inter_kp, para_env_kp
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_kp, sab_orb
@@ -1042,7 +1043,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (blacs_env, blacs_env_all, cell_to_index, cmatrix, dft_control, eigenvalues, &
-               fm_struct, kp, kp_env, kpoints, ks_env, mo_coeff_im, mo_coeff_re, &
+               fm_struct, kp, kp_env, kpoints, ks_env, &
                moment_struct, mos_kp, overlap_deriv, para_env, para_env_inter_kp, para_env_kp, &
                rmatrix, sab_kp, sab_orb, wkp)
       CALL get_qs_env(qs_env, dft_control=dft_control, kpoints=kpoints, ks_env=ks_env, &
@@ -1074,9 +1075,9 @@ CONTAINS
          kp => kp_env(1)%kpoint_env
          mos_kp => kp%mos
          CPASSERT(ASSOCIATED(mos_kp))
-         CPASSERT(SIZE(mos_kp, 2) == nspins)
+         CPASSERT(SIZE(mos_kp) == nspins)
          DO ispin = 1, nspins
-            CALL get_mo_set(mos_kp(1, ispin), nmo=nmo_spin(ispin), homo=homo_spin(ispin), &
+            CALL get_mo_set(mos_kp(ispin), nmo=nmo_spin(ispin), homo=homo_spin(ispin), &
                             nao=nao_spin(ispin))
          END DO
       END IF
@@ -1156,18 +1157,19 @@ CONTAINS
             END IF
 
             IF (my_kpgrp) THEN
-               CALL get_mo_set(mos_kp(1, ispin), eigenvalues=eigenvalues)
+               CALL get_mo_set(mos_kp(ispin), eigenvalues=eigenvalues)
                CPASSERT(ASSOCIATED(eigenvalues))
                IF (para_env_kp%is_source()) THEN
                   eigenvalues_kp(1:nmo_spin(ispin)) = eigenvalues(1:nmo_spin(ispin))
                END IF
                IF (.NOT. use_scf_moment_dipoles) THEN
-                  CALL get_mo_set(mos_kp(1, ispin), mo_coeff=mo_coeff_re)
-                  CALL get_mo_set(mos_kp(2, ispin), mo_coeff=mo_coeff_im)
-                  CPASSERT(ASSOCIATED(mo_coeff_re))
-                  CPASSERT(ASSOCIATED(mo_coeff_im))
+                  CALL cp_fm_create(mo_coeff_re, mos_kp(ispin)%cmo_coeff%matrix_struct)
+                  CALL cp_fm_create(mo_coeff_im, mos_kp(ispin)%cmo_coeff%matrix_struct)
+                  CALL cp_cfm_to_fm(mos_kp(ispin)%cmo_coeff, mo_coeff_re, mo_coeff_im)
                   CALL cp_fm_copy_general(mo_coeff_re, mo_coeff_re_global, para_env)
                   CALL cp_fm_copy_general(mo_coeff_im, mo_coeff_im_global, para_env)
+                  CALL cp_fm_release(mo_coeff_re)
+                  CALL cp_fm_release(mo_coeff_im)
                END IF
             ELSE IF (.NOT. use_scf_moment_dipoles) THEN
                CALL cp_fm_copy_general(fm_dummy, mo_coeff_re_global, para_env)

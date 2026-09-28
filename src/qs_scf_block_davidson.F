@@ -21,7 +21,6 @@ MODULE qs_scf_block_davidson
                                               cp_cfm_gemm,&
                                               cp_cfm_get_diag,&
                                               cp_cfm_scale_and_add,&
-                                              cp_cfm_scale_and_add_fm,&
                                               cp_cfm_vectorsnorm
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -30,7 +29,6 @@ MODULE qs_scf_block_davidson
                                               cp_cfm_set_all,&
                                               cp_cfm_set_submatrix,&
                                               cp_cfm_to_cfm,&
-                                              cp_cfm_to_fm,&
                                               cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_init_p, &
@@ -67,8 +65,7 @@ MODULE qs_scf_block_davidson
                                               cp_fm_vectorsnorm
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
-   USE mathconstants,                   ONLY: gaussi,&
-                                              z_one,&
+   USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -503,7 +500,7 @@ CONTAINS
                                         eps_iter, eps_iter_empty, preconditioner)
 
       TYPE(davidson_type)                                :: bdav_env
-      TYPE(mo_set_type), DIMENSION(2), INTENT(INOUT)     :: mos
+      TYPE(mo_set_type), INTENT(INOUT)                   :: mos
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_h, matrix_s
       INTEGER, INTENT(IN)                                :: output_unit
       REAL(KIND=dp), INTENT(IN)                          :: eps_iter, eps_iter_empty
@@ -528,11 +525,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eig_not_conv, eigenvalues, evals, &
                                                             occupation
       TYPE(cp_cfm_type)                                  :: c_conv, c_mz, c_new, c_notconv, c_out, &
-                                                            c_pzo, c_pzw, c_z, cmo, h_block, h_fm, &
+                                                            c_pzo, c_pzw, c_z, h_block, h_fm, &
                                                             m_hc, m_sc, m_tmp, s_block, v_block, &
                                                             w_block
+      TYPE(cp_cfm_type), POINTER                         :: cmo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff_i, mo_coeff_r
 
 ! an occupation below this carries no weight in the density (it sits
 ! beyond the thermal smearing tail) and may converge at the relaxed
@@ -545,13 +542,12 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (eigenvalues, evals, eig_not_conv, mo_coeff_r, mo_coeff_i, occupation, fm_struct_tmp)
+      NULLIFY (eigenvalues, evals, eig_not_conv, cmo, occupation, fm_struct_tmp)
 
       do_apply_preconditioner = .FALSE.
       IF (PRESENT(preconditioner)) do_apply_preconditioner = .TRUE.
-      CALL get_mo_set(mo_set=mos(1), mo_coeff=mo_coeff_r, eigenvalues=eigenvalues, &
+      CALL get_mo_set(mo_set=mos, cmo_coeff=cmo, eigenvalues=eigenvalues, &
                       occupation_numbers=occupation, nao=nao, nmo=nmo, homo=homo)
-      CALL get_mo_set(mo_set=mos(2), mo_coeff=mo_coeff_i)
       IF (do_apply_preconditioner) THEN
          max_iter = bdav_env%max_iter
       ELSE
@@ -569,11 +565,6 @@ CONTAINS
       ALLOCATE (ritz_coeff(nmo))
       ALLOCATE (vnorm(nmo))
       ALLOCATE (cdiag(nmo))
-
-      ! assemble the complex MO matrix of this K point: cmo = C_re + i*C_im
-      CALL cp_cfm_create(cmo, mo_coeff_r%matrix_struct, name="cmo")
-      CALL cp_cfm_scale_and_add_fm(z_zero, cmo, z_one, mo_coeff_r)
-      CALL cp_cfm_scale_and_add_fm(z_one, cmo, gaussi, mo_coeff_i)
 
       converged = .FALSE.
       exhausted = .FALSE.
@@ -1053,11 +1044,6 @@ CONTAINS
          CALL cp_cfm_release(c_out)
          CALL cp_cfm_release(c_new)
       END IF
-
-      ! split the complex MOS back into the real/imaginary pair of this K point
-      CALL cp_cfm_to_fm(cmo, mo_coeff_r, mo_coeff_i)
-      mos(2)%eigenvalues = eigenvalues
-      CALL cp_cfm_release(cmo)
 
       DEALLOCATE (iconv)
       DEALLOCATE (inotconv)

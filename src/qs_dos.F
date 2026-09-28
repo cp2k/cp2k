@@ -386,7 +386,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
@@ -479,7 +479,7 @@ CONTAINS
             mos => kpoints%kp_env(ik)%kpoint_env%mos
             CPASSERT(ASSOCIATED(mos))
             DO ispin = 1, nspins
-               mo_set => mos(1, ispin)
+               mo_set => mos(ispin)
                CALL get_mo_set(mo_set=mo_set, nmo=nmo_kp, mu=e_fermi(ispin))
                eigenvalues => mo_set%eigenvalues
                occupation_numbers => mo_set%occupation_numbers
@@ -524,7 +524,7 @@ CONTAINS
             mos => kpoints%kp_env(ik)%kpoint_env%mos
             wkp = kpoints%kp_env(ik)%kpoint_env%wkp
             DO ispin = 1, nspins
-               mo_set => mos(1, ispin)
+               mo_set => mos(ispin)
                occupation_numbers => mo_set%occupation_numbers
                eigenvalues => mo_set%eigenvalues
                IF (do_broaden) THEN

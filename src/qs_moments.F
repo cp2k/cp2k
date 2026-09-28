@@ -33,6 +33,7 @@ MODULE qs_moments
    USE cp_cfm_types, ONLY: cp_cfm_create, &
                            cp_cfm_get_info, &
                            cp_cfm_release, &
+                           cp_cfm_to_fm, &
                            cp_cfm_type
    USE cp_control_types, ONLY: dft_control_type
    USE cp_dbcsr_api, ONLY: &
@@ -3289,14 +3290,14 @@ CONTAINS
       TYPE(cp_fm_type)                                   :: fm_dummy, fm_tmp, mo_coeff_im_global, &
                                                             mo_coeff_re_global, moment_im, &
                                                             moment_re
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff_im, mo_coeff_re
+      TYPE(cp_fm_type)                                   :: mo_coeff_im, mo_coeff_re
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: overlap_deriv
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints_scf
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_kp
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_kp
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_kp, sab_orb
@@ -3305,7 +3306,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (blacs_env_all, cell_to_index, cmatrix, dft_control, eigenvals, fm_struct, kp, &
-               kp_env, kpoints_scf, ks_env, mo_coeff_im, mo_coeff_re, moment_struct, mos_kp, &
+               kp_env, kpoints_scf, ks_env, moment_struct, mos_kp, &
                overlap_deriv, para_env, para_env_kp, rmatrix, sab_kp, sab_orb)
       IF (PRESENT(rcc)) THEN
          MARK_USED(rcc)
@@ -3342,7 +3343,7 @@ CONTAINS
          mos_kp => kp%mos
          CPASSERT(ASSOCIATED(mos_kp))
          DO ispin = 1, nspin
-            CALL get_mo_set(mos_kp(1, ispin), nmo=nmo_spin(ispin))
+            CALL get_mo_set(mos_kp(ispin), nmo=nmo_spin(ispin))
          END DO
       END IF
       CALL para_env%max(nmo_spin)
@@ -3386,14 +3387,16 @@ CONTAINS
             CALL cp_fm_struct_release(moment_struct)
 
             IF (my_kpgrp) THEN
-               CALL get_mo_set(mos_kp(1, ispin), eigenvalues=eigenvals, mo_coeff=mo_coeff_re)
-               CALL get_mo_set(mos_kp(2, ispin), mo_coeff=mo_coeff_im)
+               CALL get_mo_set(mos_kp(ispin), eigenvalues=eigenvals)
                CPASSERT(ASSOCIATED(eigenvals))
-               CPASSERT(ASSOCIATED(mo_coeff_re))
-               CPASSERT(ASSOCIATED(mo_coeff_im))
+               CALL cp_fm_create(mo_coeff_re, mos_kp(ispin)%cmo_coeff%matrix_struct)
+               CALL cp_fm_create(mo_coeff_im, mos_kp(ispin)%cmo_coeff%matrix_struct)
+               CALL cp_cfm_to_fm(mos_kp(ispin)%cmo_coeff, mo_coeff_re, mo_coeff_im)
                IF (para_env_kp%is_source()) eigenvalues_kp(1:nmo) = eigenvals(1:nmo)
                CALL cp_fm_copy_general(mo_coeff_re, mo_coeff_re_global, para_env)
                CALL cp_fm_copy_general(mo_coeff_im, mo_coeff_im_global, para_env)
+               CALL cp_fm_release(mo_coeff_re)
+               CALL cp_fm_release(mo_coeff_im)
             ELSE
                CALL cp_fm_copy_general(fm_dummy, mo_coeff_re_global, para_env)
                CALL cp_fm_copy_general(fm_dummy, mo_coeff_im_global, para_env)

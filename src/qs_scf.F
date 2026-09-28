@@ -186,7 +186,6 @@ MODULE qs_scf
                                               mo_set_type,&
                                               reassign_allocated_mos
    USE qs_ot,                           ONLY: qs_ot_get_orbitals_ref_complex,&
-                                              qs_ot_get_p,&
                                               qs_ot_get_p_complex,&
                                               qs_ot_new_preconditioner
    USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
@@ -1228,10 +1227,8 @@ CONTAINS
       DO ik = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(ik)%kpoint_env
          IF (ASSOCIATED(kp%mos)) THEN
-            DO ispin = 1, SIZE(kp%mos, 2)
-               DO ic = 1, SIZE(kp%mos, 1)
-                  CALL deallocate_mo_set(kp%mos(ic, ispin))
-               END DO
+            DO ispin = 1, SIZE(kp%mos)
+               CALL deallocate_mo_set(kp%mos(ispin))
             END DO
             DEALLOCATE (kp%mos)
             NULLIFY (kp%mos)
@@ -1981,16 +1978,15 @@ CONTAINS
       LOGICAL                                            :: use_real_wfn
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct
-      TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_im
+      TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im, &
+                                                            mo_coeff, mo_coeff_im
       TYPE(dbcsr_type), POINTER                          :: matrix_sk_im, matrix_sk_re
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_im
+      TYPE(mo_set_type), POINTER                         :: mo_set
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (active_mo_struct, eigenvalues, kp, matrix_sk_im, matrix_sk_re, &
-               mo_coeff, mo_coeff_im, mo_set, mo_set_im)
+      NULLIFY (active_mo_struct, eigenvalues, kp, matrix_sk_im, matrix_sk_re, mo_set)
 
       CPASSERT(ASSOCIATED(qs_env))
       CPASSERT(ASSOCIATED(scf_env%qs_ot_env))
@@ -2002,16 +1998,14 @@ CONTAINS
       CPASSERT(.NOT. dft_control%restricted .OR. nspin_ot == 1)
 
       CALL get_kpoint_info(kpoints, use_real_wfn=use_real_wfn)
-      IF (use_real_wfn) THEN
-         CPABORT("K-point OT currently requires complex K-point wavefunctions.")
-      END IF
+      CPASSERT(.NOT. use_real_wfn)
 
       DO ikpoint_local = 1, SIZE(kpoints%kp_env)
          kp => kpoints%kp_env(ikpoint_local)%kpoint_env
          CPASSERT(ASSOCIATED(kp))
          CPASSERT(ASSOCIATED(kp%mos))
          CPASSERT(ASSOCIATED(kp%ot_smat))
-         CPASSERT(nspin_ot <= SIZE(kp%mos, 2))
+         CPASSERT(nspin_ot <= SIZE(kp%mos))
          ikpoint = kp%nkpoint
          CPASSERT(ikpoint >= 1)
          CPASSERT(SIZE(kp%ot_smat) >= 2)
@@ -2022,11 +2016,10 @@ CONTAINS
             ot_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot)
             CPASSERT(.NOT. scf_env%qs_ot_env(ot_channel)%state_allocated)
 
-            NULLIFY (mo_coeff, mo_coeff_im, mo_set_im)
-            mo_set => kp%mos(1, ispin)
-            CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, eigenvalues=eigenvalues, &
+            mo_set => kp%mos(ispin)
+            CALL get_mo_set(mo_set=mo_set, eigenvalues=eigenvalues, &
                             homo=nocc, nao=nao, nmo=nmo)
-            CPASSERT(ASSOCIATED(mo_coeff))
+            CPASSERT(ASSOCIATED(mo_set%cmo_coeff))
             CPASSERT(ASSOCIATED(eigenvalues))
             CPASSERT(nao > 0)
             CPASSERT(nmo > 0)
@@ -2036,7 +2029,10 @@ CONTAINS
                              "K-point OT requires at least one occupied orbital in every spin channel.")
             END IF
 
-            CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=mo_coeff%matrix_struct, &
+            CALL cp_fm_create(mo_coeff, mo_set%cmo_coeff%matrix_struct)
+            CALL cp_fm_create(mo_coeff_im, mo_set%cmo_coeff%matrix_struct)
+            CALL cp_cfm_to_fm(mo_set%cmo_coeff, mo_coeff, mo_coeff_im)
+            CALL cp_fm_struct_create(active_mo_struct, template_fmstruct=mo_set%cmo_coeff%matrix_struct, &
                                      ncol_global=nocc)
             CALL cp_fm_create(active_mo_coeff, active_mo_struct)
             CALL cp_fm_to_fm(mo_coeff, active_mo_coeff, nocc)
@@ -2044,7 +2040,7 @@ CONTAINS
             energy_dimension = nocc
             IF (dft_control%restricted .AND. &
                 scf_env%qs_ot_env(ot_channel)%settings%do_ener) THEN
-               energy_dimension = nocc*SIZE(kp%mos, 2)
+               energy_dimension = nocc*SIZE(kp%mos)
             END IF
             CALL qs_ot_allocate(scf_env%qs_ot_env(ot_channel), &
                                 matrix_sk_re, &
@@ -2053,43 +2049,37 @@ CONTAINS
             CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp)
             CALL copy_fm_to_dbcsr(active_mo_coeff, scf_env%qs_ot_env(ot_channel)%matrix_c0)
 
-            IF (.NOT. use_real_wfn) THEN
-               CPASSERT(SIZE(kp%mos, 1) >= 2)
-               mo_set_im => kp%mos(2, ispin)
-               CALL get_mo_set(mo_set=mo_set_im, mo_coeff=mo_coeff_im)
-               CPASSERT(ASSOCIATED(mo_coeff_im))
-               CALL cp_fm_create(active_mo_coeff_im, active_mo_struct)
-               CALL cp_fm_to_fm(mo_coeff_im, active_mo_coeff_im, nocc)
-               CALL qs_ot_allocate_complex_state(scf_env%qs_ot_env(ot_channel), matrix_sk_re)
-               CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp)
-               CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, 0.0_dp)
-               CALL copy_fm_to_dbcsr(active_mo_coeff_im, scf_env%qs_ot_env(ot_channel)%matrix_c0_im)
-               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_re, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_sc0)
-               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_im, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_x)
-               CALL dbcsr_add(scf_env%qs_ot_env(ot_channel)%matrix_sc0, &
-                              scf_env%qs_ot_env(ot_channel)%matrix_x, &
-                              alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+            CALL cp_fm_create(active_mo_coeff_im, active_mo_struct)
+            CALL cp_fm_to_fm(mo_coeff_im, active_mo_coeff_im, nocc)
+            CALL qs_ot_allocate_complex_state(scf_env%qs_ot_env(ot_channel), matrix_sk_re)
+            CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp)
+            CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, 0.0_dp)
+            CALL copy_fm_to_dbcsr(active_mo_coeff_im, scf_env%qs_ot_env(ot_channel)%matrix_c0_im)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_re, &
+                                scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp, &
+                                scf_env%qs_ot_env(ot_channel)%matrix_sc0)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_im, &
+                                scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp, &
+                                scf_env%qs_ot_env(ot_channel)%matrix_x)
+            CALL dbcsr_add(scf_env%qs_ot_env(ot_channel)%matrix_sc0, &
+                           scf_env%qs_ot_env(ot_channel)%matrix_x, &
+                           alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
 
-               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_re, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_sc0_im)
-               CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_im, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_x)
-               CALL dbcsr_add(scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, &
-                              scf_env%qs_ot_env(ot_channel)%matrix_x, &
-                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-            END IF
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_re, &
+                                scf_env%qs_ot_env(ot_channel)%matrix_c0_im, 0.0_dp, &
+                                scf_env%qs_ot_env(ot_channel)%matrix_sc0_im)
+            CALL dbcsr_multiply('N', 'N', 1.0_dp, matrix_sk_im, &
+                                scf_env%qs_ot_env(ot_channel)%matrix_c0, 0.0_dp, &
+                                scf_env%qs_ot_env(ot_channel)%matrix_x)
+            CALL dbcsr_add(scf_env%qs_ot_env(ot_channel)%matrix_sc0_im, &
+                           scf_env%qs_ot_env(ot_channel)%matrix_x, &
+                           alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
 
             CALL qs_ot_init(scf_env%qs_ot_env(ot_channel))
             IF (scf_env%qs_ot_env(ot_channel)%settings%do_ener) THEN
                IF (dft_control%restricted) THEN
-                  DO energy_spin = 1, SIZE(kp%mos, 2)
-                     CALL get_mo_set(kp%mos(1, energy_spin), eigenvalues=eigenvalues)
+                  DO energy_spin = 1, SIZE(kp%mos)
+                     CALL get_mo_set(kp%mos(energy_spin), eigenvalues=eigenvalues)
                      energy_start = (energy_spin - 1)*nocc + 1
                      scf_env%qs_ot_env(ot_channel)%ener_x(energy_start:energy_start + nocc - 1) = &
                         eigenvalues(1:nocc)
@@ -2102,51 +2092,39 @@ CONTAINS
 
             CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_x, 0.0_dp)
             CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sx, 0.0_dp)
-            IF (scf_env%qs_ot_env(ot_channel)%has_complex_kpoint_state) THEN
-               CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_x_im, 0.0_dp)
-               CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sx_im, 0.0_dp)
-            END IF
+            CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_x_im, 0.0_dp)
+            CALL dbcsr_set(scf_env%qs_ot_env(ot_channel)%matrix_sx_im, 0.0_dp)
 
             SELECT CASE (scf_env%qs_ot_env(ot_channel)%settings%ot_algorithm)
             CASE ("TOD")
-               IF (scf_env%qs_ot_env(ot_channel)%has_complex_kpoint_state) THEN
-                  CALL qs_ot_get_p_complex(scf_env%qs_ot_env(ot_channel)%matrix_x, &
-                                           scf_env%qs_ot_env(ot_channel)%matrix_x_im, &
-                                           scf_env%qs_ot_env(ot_channel)%matrix_sx, &
-                                           scf_env%qs_ot_env(ot_channel)%matrix_sx_im, &
-                                           scf_env%qs_ot_env(ot_channel))
-               ELSE
-                  CALL qs_ot_get_p(scf_env%qs_ot_env(ot_channel)%matrix_x, &
-                                   scf_env%qs_ot_env(ot_channel)%matrix_sx, &
-                                   scf_env%qs_ot_env(ot_channel))
-               END IF
+               CALL qs_ot_get_p_complex(scf_env%qs_ot_env(ot_channel)%matrix_x, &
+                                        scf_env%qs_ot_env(ot_channel)%matrix_x_im, &
+                                        scf_env%qs_ot_env(ot_channel)%matrix_sx, &
+                                        scf_env%qs_ot_env(ot_channel)%matrix_sx_im, &
+                                        scf_env%qs_ot_env(ot_channel))
             CASE ("REF")
                CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_x, &
                                scf_env%qs_ot_env(ot_channel)%matrix_c0)
                CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_sx, &
                                scf_env%qs_ot_env(ot_channel)%matrix_sc0)
-               IF (scf_env%qs_ot_env(ot_channel)%has_complex_kpoint_state) THEN
-                  CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_x_im, &
-                                  scf_env%qs_ot_env(ot_channel)%matrix_c0_im)
-                  CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_sx_im, &
-                                  scf_env%qs_ot_env(ot_channel)%matrix_sc0_im)
-                  CALL qs_ot_get_orbitals_ref_complex(scf_env%qs_ot_env(ot_channel)%matrix_c0, &
-                                                      scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
-                                                      matrix_sk_re, matrix_sk_im, &
-                                                      scf_env%qs_ot_env(ot_channel))
-               END IF
+               CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_x_im, &
+                               scf_env%qs_ot_env(ot_channel)%matrix_c0_im)
+               CALL dbcsr_copy(scf_env%qs_ot_env(ot_channel)%matrix_sx_im, &
+                               scf_env%qs_ot_env(ot_channel)%matrix_sc0_im)
+               CALL qs_ot_get_orbitals_ref_complex(scf_env%qs_ot_env(ot_channel)%matrix_c0, &
+                                                   scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
+                                                   matrix_sk_re, matrix_sk_im, &
+                                                   scf_env%qs_ot_env(ot_channel))
             CASE DEFAULT
                CPABORT("Algorithm not yet implemented")
             END SELECT
 
             CPASSERT(scf_env%qs_ot_env(ot_channel)%state_allocated)
-            IF (.NOT. use_real_wfn) THEN
-               CPASSERT(scf_env%qs_ot_env(ot_channel)%has_complex_kpoint_state)
-            END IF
+            CPASSERT(scf_env%qs_ot_env(ot_channel)%has_complex_kpoint_state)
             CALL cp_fm_release(active_mo_coeff)
-            IF (.NOT. use_real_wfn) THEN
-               CALL cp_fm_release(active_mo_coeff_im)
-            END IF
+            CALL cp_fm_release(active_mo_coeff_im)
+            CALL cp_fm_release(mo_coeff)
+            CALL cp_fm_release(mo_coeff_im)
             CALL cp_fm_struct_release(active_mo_struct)
          END DO
          CALL dbcsr_release_p(matrix_sk_re)
@@ -2159,7 +2137,7 @@ CONTAINS
                                        require_kpoint=.TRUE., &
                                        kp_range=kpoints%kp_range, &
                                        require_local_state=.TRUE., &
-                                       require_complex_state=.NOT. use_real_wfn)
+                                       require_complex_state=.TRUE.)
 
       CALL prepare_qs_ot_kpoint_preconditioners(scf_env, kpoints, matrix_ks_kp, &
                                                 matrix_s_kp, matrix_t_kp, nspin_ot)
@@ -2328,23 +2306,23 @@ CONTAINS
                   scf_env%qs_ot_env(ot_channel)%matrix_c0, &
                   scf_env%qs_ot_env(ot_channel)%matrix_c0_im, &
                   matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
-                  kp%mos(1, ispin), &
+                  kp%mos(ispin), &
                   scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
                   scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
             CASE (ot_precond_full_single)
                CALL make_preconditioner_complex_full_single( &
                   scf_env%ot_preconditioner(ot_channel)%preconditioner, &
                   matrix_h_re, matrix_h_im, matrix_s_re, matrix_s_im, &
-                  kp%mos(1, ispin), &
+                  kp%mos(ispin), &
                   scf_env%qs_ot_env(ot_channel)%settings%energy_gap, &
                   scf_env%qs_ot_env(ot_channel)%settings%precond_solver_type)
             CASE (ot_precond_full_all_covariant)
-               IF (nspin_ot == 1 .AND. SIZE(kp%mos, 2) > 1) THEN
+               IF (nspin_ot == 1 .AND. SIZE(kp%mos) > 1) THEN
                   CALL dbcsr_get_info(scf_env%qs_ot_env(ot_channel)%matrix_c0, &
                                       nfullcols_total=nocc)
-                  ALLOCATE (occupation_signature(nocc, SIZE(kp%mos, 2)))
-                  DO occupation_spin = 1, SIZE(kp%mos, 2)
-                     CALL get_mo_set(kp%mos(1, occupation_spin), &
+                  ALLOCATE (occupation_signature(nocc, SIZE(kp%mos)))
+                  DO occupation_spin = 1, SIZE(kp%mos)
+                     CALL get_mo_set(kp%mos(occupation_spin), &
                                      occupation_numbers=occupation_numbers)
                      CPASSERT(ASSOCIATED(occupation_numbers))
                      CPASSERT(SIZE(occupation_numbers) >= nocc)

@@ -37,7 +37,6 @@ MODULE rpa_gw_sigma_x
                                               open_file
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_type
    USE hfx_energy_potential,            ONLY: integrate_four_center
@@ -860,16 +859,17 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: imval, reval
-      TYPE(cp_cfm_type)                                  :: cfm_mos, cfm_sigma_x_minus_vxc, &
+      TYPE(cp_cfm_type)                                  :: cfm_sigma_x_minus_vxc, &
                                                             cfm_sigma_x_minus_vxc_mo_basis, cfm_tmp
+      TYPE(cp_cfm_type), POINTER                         :: cmo_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type)                                   :: fwork_im, fwork_re
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_im, mo_set_re
+      TYPE(mo_set_type), POINTER                         :: mo_set
 
       CALL timeset(routineN, handle)
 
-      mo_set => kpoints%kp_env(1)%kpoint_env%mos(1, 1)
+      mo_set => kpoints%kp_env(1)%kpoint_env%mos(1)
       CALL get_mo_set(mo_set, nmo=nmo)
 
       nspins = SIZE(matrix_sigma_x_minus_vxc, 1)
@@ -885,10 +885,9 @@ CONTAINS
       ALLOCATE (vec_Sigma_x_minus_vxc_gw_im(nmo, nspins, nkp))
       vec_Sigma_x_minus_vxc_gw_im = 0.0_dp
 
-      CALL cp_fm_get_info(mo_set%mo_coeff, matrix_struct=matrix_struct)
+      CALL cp_cfm_get_info(mo_set%cmo_coeff, matrix_struct=matrix_struct)
       CALL cp_fm_create(fwork_re, matrix_struct)
       CALL cp_fm_create(fwork_im, matrix_struct)
-      CALL cp_cfm_create(cfm_mos, matrix_struct)
       CALL cp_cfm_create(cfm_sigma_x_minus_vxc, matrix_struct)
       CALL cp_cfm_create(cfm_sigma_x_minus_vxc_mo_basis, matrix_struct)
       CALL cp_cfm_create(cfm_tmp, matrix_struct)
@@ -913,19 +912,14 @@ CONTAINS
             CALL cp_cfm_scale_and_add_fm(z_zero, cfm_sigma_x_minus_vxc, z_one, fwork_re)
             CALL cp_cfm_scale_and_add_fm(z_one, cfm_sigma_x_minus_vxc, gaussi, fwork_im)
 
-            ! get real part (1) and imag. part (2) of the mo coeffs
-            mo_set_re => kp%mos(1, ispin)
-            mo_set_im => kp%mos(2, ispin)
-
-            CALL cp_cfm_scale_and_add_fm(z_zero, cfm_mos, z_one, mo_set_re%mo_coeff)
-            CALL cp_cfm_scale_and_add_fm(z_one, cfm_mos, gaussi, mo_set_im%mo_coeff)
+            cmo_coeff => kp%mos(ispin)%cmo_coeff
 
             ! tmp = V(k)*C(k)
             CALL parallel_gemm('N', 'N', nmo, nmo, nmo, z_one, cfm_sigma_x_minus_vxc, &
-                               cfm_mos, z_zero, cfm_tmp)
+                               cmo_coeff, z_zero, cfm_tmp)
 
             ! V_n(k) = C^H(k)*tmp
-            CALL parallel_gemm('C', 'N', nmo, nmo, nmo, z_one, cfm_mos, cfm_tmp, &
+            CALL parallel_gemm('C', 'N', nmo, nmo, nmo, z_one, cmo_coeff, cfm_tmp, &
                                z_zero, cfm_sigma_x_minus_vxc_mo_basis)
 
             DO jjB = 1, ncol_local
@@ -958,7 +952,7 @@ CONTAINS
       CALL para_env%sum(vec_Sigma_x_minus_vxc_gw_im)
       ! also adjust in the case of kpoints too big gw_corr_lev_occ and gw_corr_lev_virt
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=kpoints%kp_env(1)%kpoint_env%mos(ispin, 1), &
+         CALL get_mo_set(mo_set=kpoints%kp_env(1)%kpoint_env%mos(ispin), &
                          homo=homo, nao=dimen)
          ! If SVD is used to invert overlap matrix (for CHOLESKY OFF), some MOs are removed
          ! Therefore, setting the number of gw_corr_lev_virt simply to dimen - homo leads to index problems
@@ -989,7 +983,6 @@ CONTAINS
 
       CALL cp_fm_release(fwork_re)
       CALL cp_fm_release(fwork_im)
-      CALL cp_cfm_release(cfm_mos)
       CALL cp_cfm_release(cfm_sigma_x_minus_vxc)
       CALL cp_cfm_release(cfm_sigma_x_minus_vxc_mo_basis)
       CALL cp_cfm_release(cfm_tmp)

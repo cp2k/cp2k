@@ -1577,8 +1577,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_kp
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_kp
 
       CALL timeset(routineN, handle)
@@ -1597,8 +1596,7 @@ CONTAINS
                CALL get_kpoint_env(kp_env(ikpgr)%kpoint_env, nkpoint=ikpoint, mos=mos_kp)
 
                IF (ikpoint == gamma_point) THEN
-                  ! mos_kp(component, spin), where component = 1 (real), or 2 (imaginary)
-                  CALL get_mo_set(mos_kp(1, 1), homo=homo, eigenvalues=eigenvalues) ! mu=fermi_level
+                  CALL get_mo_set(mos_kp(1), homo=homo, eigenvalues=eigenvalues) ! mu=fermi_level
 
                   my_homo_energy = eigenvalues(homo)
                   EXIT

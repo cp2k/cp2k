@@ -1018,7 +1018,7 @@ CONTAINS
    SUBROUTINE qs_diis_b_calc_err_kp(diis_buffer, ib, mos, kc, sc, ispin, ikp, cmos, real_wfn, local, gemm_ctx)
       TYPE(qs_diis_buffer_type_kp), POINTER              :: diis_buffer
       INTEGER, INTENT(IN)                                :: ib
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: kc, sc
       INTEGER, INTENT(IN)                                :: ispin, ikp
       TYPE(cp_cfm_type), INTENT(INOUT)                   :: cmos
@@ -1031,9 +1031,9 @@ CONTAINS
       LOGICAL                                            :: my_real_wfn
       REAL(dp)                                           :: maxocc
       TYPE(cp_cfm_type), POINTER                         :: new_errors, parameters, smat
-      TYPE(cp_fm_type), POINTER                          :: imos, rmos
+      TYPE(cp_fm_type), POINTER                          :: rmos
 
-      NULLIFY (imos, rmos, parameters, new_errors, smat)
+      NULLIFY (rmos, parameters, new_errors, smat)
 
       CALL timeset(routineN, handle)
       my_real_wfn = .FALSE.
@@ -1047,14 +1047,14 @@ CONTAINS
          CALL timestop(handle)
          RETURN
       END IF
-      CALL get_mo_set(mos(1, ispin), nao=nao, homo=homo, mo_coeff=rmos, maxocc=maxocc)
+      CALL get_mo_set(mos(ispin), nao=nao, homo=homo, maxocc=maxocc)
 
       IF (my_real_wfn) THEN
+         CALL get_mo_set(mos(ispin), mo_coeff=rmos)
          CALL cp_cfm_scale_and_add_fm(CMPLX(0.0_dp, KIND=dp), cmos, &
                                       CMPLX(1.0_dp, KIND=dp), rmos)
       ELSE
-         CALL get_mo_set(mos(2, ispin), mo_coeff=imos)
-         CALL cp_fm_to_cfm(rmos, imos, cmos)
+         CALL cp_cfm_to_cfm(mos(ispin)%cmo_coeff, cmos)
       END IF
 
       new_errors => diis_buffer%error(ib, ispin, ikp)

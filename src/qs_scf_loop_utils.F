@@ -10,6 +10,7 @@
 MODULE qs_scf_loop_utils
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
+                                              cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
@@ -480,7 +481,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, matrix_t
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
 
@@ -658,11 +659,11 @@ CONTAINS
       energy%kTS = 0.0_dp
       energy%efermi = 0.0_dp
       mos => kpoints%kp_env(1)%kpoint_env%mos
-      DO ispin = 1, SIZE(mos, 2)
-         energy%kTS = energy%kTS + mos(1, ispin)%kTS
-         energy%efermi = energy%efermi + mos(1, ispin)%mu
+      DO ispin = 1, SIZE(mos)
+         energy%kTS = energy%kTS + mos(ispin)%kTS
+         energy%efermi = energy%efermi + mos(ispin)%mu
       END DO
-      energy%efermi = energy%efermi/REAL(SIZE(mos, 2), KIND=dp)
+      energy%efermi = energy%efermi/REAL(SIZE(mos), KIND=dp)
 
       CALL timestop(handle)
 
@@ -686,8 +687,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_do_ot_kp'
 
-      INTEGER :: energy_spin, energy_start, first_channel, handle, homo, icomponent, ikpoint, &
-         ispin, local_channel, local_kpoint, nao, nkp_groups, nkpoint, nlocal_channels, nmo, &
+      INTEGER :: energy_spin, energy_start, first_channel, handle, homo, ikpoint, ispin, &
+         local_channel, local_kpoint, nao, nkp_groups, nkpoint, nlocal_channels, nmo, &
          nspin_energy, nspin_ot
       INTEGER, DIMENSION(2)                              :: kp_range
       LOGICAL                                            :: ot_gradient_prepared, &
@@ -702,9 +703,9 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct, chc_struct
       TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im, &
                                                             chc_im, chc_re, hc_im, hc_re, &
-                                                            hc_roks_im, hc_roks_re
+                                                            hc_roks_im, hc_roks_re, mo_coeff, &
+                                                            mo_coeff_im
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: fmwork
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_im, mo_coeff_target
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc, matrix_hc_im, &
                                                             matrix_hc_physical, &
                                                             matrix_hc_physical_im
@@ -728,7 +729,7 @@ CONTAINS
 
       NULLIFY (active_mo_struct, chc_struct, density_target, dft_control, energy, fmwork, kpoints, &
                local_ot_env, matrix_hc, matrix_hc_im, matrix_k_im, matrix_k_re, matrix_s_im, &
-               matrix_hc_physical, matrix_hc_physical_im, matrix_s_re, mo_coeff, mo_coeff_im, &
+               matrix_hc_physical, matrix_hc_physical_im, matrix_s_re, &
                occupation_numbers, para_env_inter_kp, rho, &
                rho_ao_kp, sab_nl, scf_control, wkp)
 
@@ -755,8 +756,8 @@ CONTAINS
       END IF
       kp => kpoints%kp_env(1)%kpoint_env
       restricted_roks = dft_control%restricted
-      nspin_ot = MERGE(1, SIZE(kp%mos, 2), restricted_roks)
-      nspin_energy = MERGE(SIZE(kp%mos, 2), nspin_ot, restricted_roks)
+      nspin_ot = MERGE(1, SIZE(kp%mos), restricted_roks)
+      nspin_energy = MERGE(SIZE(kp%mos), nspin_ot, restricted_roks)
       CALL qs_ot_check_channel_context(scf_env%qs_ot_env, nspin_ot, &
                                        nkpoint=nkpoint, &
                                        restricted=ANY(scf_env%qs_ot_env(:)%restricted), &
@@ -829,9 +830,11 @@ CONTAINS
                   matrix_k_im, kp%ot_hmat(2, MIN(ispin, SIZE(kp%ot_hmat, 2))))
             END IF
 
-            CALL get_mo_set(kp%mos(1, ispin), homo=homo, mo_coeff=mo_coeff, nao=nao, nmo=nmo, &
+            CALL get_mo_set(kp%mos(ispin), homo=homo, nao=nao, nmo=nmo, &
                             occupation_numbers=occupation_numbers)
-            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=mo_coeff_im)
+            CALL cp_fm_create(mo_coeff, kp%mos(ispin)%cmo_coeff%matrix_struct)
+            CALL cp_fm_create(mo_coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
+            CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, mo_coeff, mo_coeff_im)
             IF (local_ot_env(local_channel)%settings%do_ener) homo = nmo
             CPASSERT(homo >= 1 .AND. homo <= nmo)
             IF (.NOT. local_ot_env(local_channel)%settings%do_ener) THEN
@@ -907,7 +910,7 @@ CONTAINS
                CALL kpoint_operator_get_local( &
                   matrix_ks, kpoints, kp, 2, kp%ot_hmat(1, 2), kp%ot_hmat(2, 2), &
                   matrix_k_re, matrix_k_im)
-               CALL get_mo_set(kp%mos(1, 2), occupation_numbers=occupation_numbers, nmo=nmo)
+               CALL get_mo_set(kp%mos(2), occupation_numbers=occupation_numbers, nmo=nmo)
                ALLOCATE (roks_occupation(homo))
                roks_occupation(:) = 0.0_dp
                roks_occupation(1:MIN(homo, nmo)) = occupation_numbers(1:MIN(homo, nmo))
@@ -976,6 +979,8 @@ CONTAINS
             CALL cp_fm_release(active_mo_coeff_im)
             CALL cp_fm_release(hc_re)
             CALL cp_fm_release(hc_im)
+            CALL cp_fm_release(mo_coeff)
+            CALL cp_fm_release(mo_coeff_im)
             CALL cp_fm_struct_release(active_mo_struct)
             CALL dbcsr_release_p(matrix_k_re)
             CALL dbcsr_release_p(matrix_k_im)
@@ -994,9 +999,11 @@ CONTAINS
          ikpoint = kp%nkpoint
          DO ispin = 1, nspin_ot
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
-            CALL get_mo_set(kp%mos(1, ispin), homo=homo, mo_coeff=mo_coeff, nmo=nmo, &
+            CALL get_mo_set(kp%mos(ispin), homo=homo, nmo=nmo, &
                             occupation_numbers=occupation_numbers)
-            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=mo_coeff_im)
+            CALL cp_fm_create(mo_coeff, kp%mos(ispin)%cmo_coeff%matrix_struct)
+            CALL cp_fm_create(mo_coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
+            CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, mo_coeff, mo_coeff_im)
             IF (local_ot_env(local_channel)%settings%do_ener) homo = nmo
             IF (physical_base_state .AND. &
                 local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
@@ -1053,6 +1060,8 @@ CONTAINS
             CALL dbcsr_scale_by_vector(matrix_hc_im(local_channel)%matrix, &
                                        alpha=orbital_scaling_factor, side='right')
             DEALLOCATE (orbital_scaling_factor)
+            CALL cp_fm_release(mo_coeff)
+            CALL cp_fm_release(mo_coeff_im)
          END DO
       END DO
 
@@ -1116,9 +1125,11 @@ CONTAINS
                                         matrix_s_re, matrix_s_im)
          DO ispin = 1, nspin_ot
             local_channel = qs_ot_channel_index(ispin, ikpoint, nspin_ot) - first_channel + 1
-            CALL get_mo_set(kp%mos(1, ispin), homo=homo, mo_coeff=mo_coeff, eigenvalues=eigenvalues, &
+            CALL get_mo_set(kp%mos(ispin), homo=homo, eigenvalues=eigenvalues, &
                             nao=nao, nmo=nmo)
-            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=mo_coeff_im)
+            CALL cp_fm_create(mo_coeff, kp%mos(ispin)%cmo_coeff%matrix_struct)
+            CALL cp_fm_create(mo_coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
+            CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, mo_coeff, mo_coeff_im)
             IF (local_ot_env(local_channel)%settings%do_ener) homo = nmo
             SELECT CASE (local_ot_env(local_channel)%settings%ot_algorithm)
             CASE ("TOD")
@@ -1142,27 +1153,23 @@ CONTAINS
             CALL copy_dbcsr_to_fm(matrix_hc_im(local_channel)%matrix, active_mo_coeff_im)
             CALL cp_fm_to_fm(active_mo_coeff, mo_coeff, homo)
             CALL cp_fm_to_fm(active_mo_coeff_im, mo_coeff_im, homo)
+            CALL cp_fm_to_cfm(mo_coeff, mo_coeff_im, kp%mos(ispin)%cmo_coeff)
             IF (local_ot_env(local_channel)%settings%do_ener .AND. .NOT. restricted_roks) THEN
                eigenvalues(1:homo) = local_ot_env(local_channel)%ener_x(:)
-               kp%mos(2, ispin)%eigenvalues(1:homo) = local_ot_env(local_channel)%ener_x(:)
             END IF
             CALL cp_fm_release(active_mo_coeff)
             CALL cp_fm_release(active_mo_coeff_im)
+            CALL cp_fm_release(mo_coeff)
+            CALL cp_fm_release(mo_coeff_im)
             CALL cp_fm_struct_release(active_mo_struct)
          END DO
          IF (restricted_roks) THEN
-            CPASSERT(SIZE(kp%mos, 2) == 2)
-            DO icomponent = 1, 2
-               CALL get_mo_set(kp%mos(icomponent, 1), mo_coeff=mo_coeff)
-               CALL get_mo_set(kp%mos(icomponent, 2), mo_coeff=mo_coeff_target)
-               CALL cp_fm_to_fm(mo_coeff, mo_coeff_target)
-            END DO
+            CPASSERT(SIZE(kp%mos) == 2)
+            CALL cp_cfm_to_cfm(kp%mos(1)%cmo_coeff, kp%mos(2)%cmo_coeff)
             IF (local_ot_env(local_channel)%settings%do_ener) THEN
                DO energy_spin = 1, nspin_energy
                   energy_start = (energy_spin - 1)*homo + 1
-                  kp%mos(1, energy_spin)%eigenvalues(1:homo) = &
-                     local_ot_env(local_channel)%ener_x(energy_start:energy_start + homo - 1)
-                  kp%mos(2, energy_spin)%eigenvalues(1:homo) = &
+                  kp%mos(energy_spin)%eigenvalues(1:homo) = &
                      local_ot_env(local_channel)%ener_x(energy_start:energy_start + homo - 1)
                END DO
             END IF
@@ -1935,10 +1942,10 @@ CONTAINS
       CPASSERT(ASSOCIATED(para_env_inter_kp))
       CALL get_kpoint_info(kpoints, nkp=nkpoint)
       kp => kpoints%kp_env(1)%kpoint_env
-      CALL get_mo_set(kp%mos(1, 1), nelectron=nelectron, nmo=nmo)
+      CALL get_mo_set(kp%mos(1), nelectron=nelectron, nmo=nmo)
       ne_a = nelectron
       ne_b = 0
-      IF (nspin_energy == 2) CALL get_mo_set(kp%mos(1, 2), nelectron=ne_b)
+      IF (nspin_energy == 2) CALL get_mo_set(kp%mos(2), nelectron=ne_b)
 
       ALLOCATE (trial_eigenvalues(nmo, nkpoint, nspin_energy))
       ALLOCATE (trial_occupation(nmo, nkpoint, nspin_energy))
@@ -2057,7 +2064,7 @@ CONTAINS
                                                 ikpoint, nspin_ot) - first_channel + 1
             energy_start = 1
             IF (restricted_roks) energy_start = (ispin - 1)*nmo + 1
-            CALL get_mo_set(kp%mos(1, ispin), maxocc=maxocc, nmo=nmo)
+            CALL get_mo_set(kp%mos(ispin), maxocc=maxocc, nmo=nmo)
             CPASSERT(maxocc > EPSILON(maxocc))
             IF (.NOT. (energy_start + nmo - 1 <= SIZE(local_ot_env(local_channel)%ener_x))) THEN
                CALL cp_abort(__LOCATION__, "OT energy slice exceeds channel storage")
@@ -2088,7 +2095,7 @@ CONTAINS
                group = MERGE(ispin, 1, ngroups == nspin_energy)
                local_channel = qs_ot_channel_index(MERGE(1, ispin, restricted_roks), &
                                                    ikpoint, nspin_ot) - first_channel + 1
-               CALL get_mo_set(kp%mos(1, ispin), nmo=nmo)
+               CALL get_mo_set(kp%mos(ispin), nmo=nmo)
                energy_start = 1
                IF (restricted_roks) energy_start = (ispin - 1)*nmo + 1
                fixed_n_mean = 0.0_dp
@@ -2117,7 +2124,7 @@ CONTAINS
             group = MERGE(ispin, 1, ngroups == nspin_energy)
             local_channel = qs_ot_channel_index(MERGE(1, ispin, restricted_roks), &
                                                 ikpoint, nspin_ot) - first_channel + 1
-            CALL get_mo_set(kp%mos(1, ispin), maxocc=maxocc, nmo=nmo)
+            CALL get_mo_set(kp%mos(ispin), maxocc=maxocc, nmo=nmo)
             energy_start = 1
             IF (restricted_roks) energy_start = (ispin - 1)*nmo + 1
             IF (local_ot_env(local_channel)%settings%occupation_preconditioner .AND. &
@@ -2217,7 +2224,7 @@ CONTAINS
          projected_gradient
       REAL(KIND=dp), DIMENSION(2, 2)                     :: exact_hxc_correction, hxc_correction, &
                                                             projected_hessian
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_im
+      TYPE(cp_fm_type)                                   :: mo_coeff, mo_coeff_im
       TYPE(kpoint_env_type), POINTER                     :: kp
 
       nlocal_channels = SIZE(local_ot_env)
@@ -2358,13 +2365,14 @@ CONTAINS
                IF (.NOT. (ASSOCIATED(kp%ot_hmat) .AND. SIZE(kp%ot_hmat, 2) >= nspin_energy)) THEN
                   CALL cp_abort(__LOCATION__, "Missing OT Hamiltonian spin cache")
                END IF
-               CALL get_mo_set(kp%mos(1, 1), mo_coeff=mo_coeff)
-               CALL get_mo_set(kp%mos(2, 1), mo_coeff=mo_coeff_im)
+               CALL cp_fm_create(mo_coeff, kp%mos(1)%cmo_coeff%matrix_struct)
+               CALL cp_fm_create(mo_coeff_im, kp%mos(1)%cmo_coeff%matrix_struct)
+               CALL cp_cfm_to_fm(kp%mos(1)%cmo_coeff, mo_coeff, mo_coeff_im)
                DO energy_spin = 1, nspin_energy
                   energy_start = (energy_spin - 1)*nmo + 1
                   energy_stop = energy_start + nmo - 1
                   group = energy_spin
-                  CALL get_mo_set(kp%mos(1, energy_spin), maxocc=maxocc)
+                  CALL get_mo_set(kp%mos(energy_spin), maxocc=maxocc)
                   CPASSERT(maxocc > EPSILON(maxocc))
                   CALL smearing_response_weight( &
                      response_weight, trial_occupation(:, ikpoint, energy_spin), &
@@ -2387,8 +2395,10 @@ CONTAINS
                   rayleigh_response(energy_start:energy_stop, :) = spin_rayleigh_response
                   DEALLOCATE (chc)
                END DO
+               CALL cp_fm_release(mo_coeff)
+               CALL cp_fm_release(mo_coeff_im)
             ELSE
-               CALL get_mo_set(kp%mos(1, ispin), maxocc=maxocc)
+               CALL get_mo_set(kp%mos(ispin), maxocc=maxocc)
                CPASSERT(maxocc > EPSILON(maxocc))
                CALL smearing_response_weight( &
                   response_weight, trial_occupation(:, ikpoint, ispin), &

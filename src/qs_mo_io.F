@@ -24,6 +24,8 @@ MODULE qs_mo_io
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_p_type,&
                                               gto_basis_set_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_get_submatrix,&
+                                              cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_binary_write,&
                                               dbcsr_create,&
                                               dbcsr_p_type,&
@@ -1051,6 +1053,7 @@ CONTAINS
       CHARACTER(LEN=4)                                   :: reim
       CHARACTER(LEN=40)                                  :: fmtstr3
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: bsgf_symbol
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: cmo_coeff_buf
       INTEGER :: after, first_mo, from, homo, iatom, icgf, ico, icol, ikind, imo, irow, iset, &
          isgf, ishell, iso, iw, jcol, last_mo, left, lmax, lshell, nao, natom, ncgf, ncol, nkind, &
          nmo, nmo_local, nset, nsgf, numo, right, scf_step, to, width
@@ -1062,6 +1065,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mo_eigenvalues, mo_occupation_numbers
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmatrix, smatrix
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
+      TYPE(cp_cfm_type), POINTER                         :: cmo_coeff
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, umo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: sro
@@ -1080,6 +1084,7 @@ CONTAINS
       NULLIFY (mo_index_range)
       NULLIFY (nshell)
       NULLIFY (mo_coeff)
+      NULLIFY (cmo_coeff)
 
       logger => cp_get_default_logger()
       ionode = logger%para_env%is_source()
@@ -1151,11 +1156,12 @@ CONTAINS
          homo = 0
          maxocc = 0.0_dp
          chemical_potential = 0.0_dp
-         NULLIFY (eigenvalues, occupation_numbers, mo_coeff)
+         NULLIFY (cmo_coeff, eigenvalues, occupation_numbers, mo_coeff)
          IF (PRESENT(mo_set)) THEN
             CALL get_mo_set(mo_set=mo_set, eigenvalues=eigenvalues, &
                             occupation_numbers=occupation_numbers, mo_coeff=mo_coeff, &
-                            homo=homo, maxocc=maxocc, mu=chemical_potential, nmo=nmo_local)
+                            homo=homo, maxocc=maxocc, mu=chemical_potential, nmo=nmo_local, &
+                            cmo_coeff=cmo_coeff)
          END IF
          nmo = nmo_local
          CALL para_env_inter_kp%max(nmo)
@@ -1176,7 +1182,15 @@ CONTAINS
             ALLOCATE (smatrix(nao, nmo))
             smatrix = 0.0_dp
             IF (nmo_local > 0 .AND. PRESENT(mo_set)) THEN
-               CALL cp_fm_get_submatrix(mo_coeff, smatrix(:, 1:nmo_local))
+               IF (ASSOCIATED(cmo_coeff)) THEN
+                  ALLOCATE (cmo_coeff_buf(nao, nmo_local))
+                  CALL cp_cfm_get_submatrix(cmo_coeff, cmo_coeff_buf)
+                  ! Preserve the legacy text output by printing only the real part.
+                  smatrix(:, 1:nmo_local) = REAL(cmo_coeff_buf, KIND=dp)
+                  DEALLOCATE (cmo_coeff_buf)
+               ELSE
+                  CALL cp_fm_get_submatrix(mo_coeff, smatrix(:, 1:nmo_local))
+               END IF
             END IF
             CALL para_env_inter_kp%sum(smatrix)
          END IF
