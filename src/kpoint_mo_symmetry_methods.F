@@ -9,18 +9,17 @@
 !> \brief Utilities for transforming k-point MO coefficients under symmetry operations
 ! **************************************************************************************************
 MODULE kpoint_mo_symmetry_methods
-   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
-                                              cp_fm_get_info,&
-                                              cp_fm_get_submatrix,&
-                                              cp_fm_set_submatrix,&
-                                              cp_fm_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_get_info,&
+                                              cp_cfm_get_submatrix,&
+                                              cp_cfm_set_submatrix,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_type
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: find_kpoint_rotation_slot,&
                                               kind_rotmat_type,&
                                               kpoint_sym_type,&
                                               kpoint_type
    USE mathconstants,                   ONLY: twopi
-   USE message_passing,                 ONLY: mp_para_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -52,33 +51,29 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Transform one SCF MO coefficient matrix to an equivalent full-mesh k-point.
-!> \param src_real real part of source MO coefficients
-!> \param src_imag imaginary part of source MO coefficients
-!> \param dst_real real part of transformed MO coefficients
-!> \param dst_imag imaginary part of transformed MO coefficients
+!> \param src source MO coefficients
+!> \param dst transformed MO coefficients
 !> \param qs_kpoint SCF k-point object containing symmetry operations
 !> \param ikred representative k-point index
 !> \param isym symmetry operation index; 0 direct copy, -1 time reversal
-!> \param para_env global parallel environment
 !> \param success true if the transformation was performed
 !> \param reason diagnostic message
 ! **************************************************************************************************
-   SUBROUTINE kpoint_transform_scf_mo(src_real, src_imag, dst_real, dst_imag, qs_kpoint, ikred, &
-                                      isym, para_env, success, reason)
-      TYPE(cp_fm_type), INTENT(IN)                       :: src_real, src_imag, dst_real, dst_imag
+   SUBROUTINE kpoint_transform_scf_mo(src, dst, qs_kpoint, ikred, &
+                                      isym, success, reason)
+      TYPE(cp_cfm_type), INTENT(IN)                      :: src, dst
       TYPE(kpoint_type), POINTER                         :: qs_kpoint
       INTEGER, INTENT(IN)                                :: ikred, isym
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(OUT)                               :: success
       CHARACTER(LEN=*), INTENT(OUT)                      :: reason
 
+      COMPLEX(KIND=dp)                                   :: coeff, phase
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: dst_coeff, src_coeff
       INTEGER :: iao, iatom, ikind, imo, irow, irow_source, irow_target, irow_work, nao, natom, &
          nmo, rot_slot, source_atom, source_dim, target_atom, target_dim
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ao_size, ao_start
       LOGICAL                                            :: reverse_phase, time_reversal
-      REAL(KIND=dp)                                      :: arg, coeff_imag, coeff_real, coskl, &
-                                                            phase_imag, phase_real, sinkl
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dst_i, dst_r, src_i, src_r
+      REAL(KIND=dp)                                      :: arg, coskl, sinkl
       REAL(KIND=dp), DIMENSION(3)                        :: xkp_phase
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: rotmat
       TYPE(kind_rotmat_type), DIMENSION(:), POINTER      :: kind_rot
@@ -87,55 +82,50 @@ CONTAINS
       success = .FALSE.
       reason = ""
       IF (isym == 0) THEN
-         CALL cp_fm_copy_general(src_real, dst_real, para_env)
-         CALL cp_fm_copy_general(src_imag, dst_imag, para_env)
+         CALL cp_cfm_to_cfm(src, dst)
          success = .TRUE.
          RETURN
       END IF
 
-      CALL cp_fm_get_info(src_real, nrow_global=nao, ncol_global=nmo)
-      ALLOCATE (src_r(nao, nmo), src_i(nao, nmo), dst_r(nao, nmo), dst_i(nao, nmo))
-      CALL cp_fm_get_submatrix(src_real, src_r)
-      CALL cp_fm_get_submatrix(src_imag, src_i)
-      dst_r(:, :) = 0.0_dp
-      dst_i(:, :) = 0.0_dp
+      CALL cp_cfm_get_info(src, nrow_global=nao, ncol_global=nmo)
+      ALLOCATE (src_coeff(nao, nmo), dst_coeff(nao, nmo))
+      CALL cp_cfm_get_submatrix(src, src_coeff)
+      dst_coeff(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
 
       IF (isym == -1) THEN
-         dst_r(1:nao, 1:nmo) = src_r(1:nao, 1:nmo)
-         dst_i(1:nao, 1:nmo) = -src_i(1:nao, 1:nmo)
-         CALL cp_fm_set_submatrix(dst_real, dst_r)
-         CALL cp_fm_set_submatrix(dst_imag, dst_i)
-         DEALLOCATE (src_r, src_i, dst_r, dst_i)
+         dst_coeff(:, :) = CONJG(src_coeff)
+         CALL cp_cfm_set_submatrix(dst, dst_coeff)
+         DEALLOCATE (src_coeff, dst_coeff)
          success = .TRUE.
          RETURN
       END IF
 
       IF (.NOT. ASSOCIATED(qs_kpoint%kp_sym)) THEN
          reason = "SCF symmetry operation data are not available"
-         DEALLOCATE (src_r, src_i, dst_r, dst_i)
+         DEALLOCATE (src_coeff, dst_coeff)
          RETURN
       END IF
       kpsym => qs_kpoint%kp_sym(ikred)%kpoint_sym
       IF (.NOT. ASSOCIATED(kpsym)) THEN
          reason = "SCF k-point symmetry operation is not available"
-         DEALLOCATE (src_r, src_i, dst_r, dst_i)
+         DEALLOCATE (src_coeff, dst_coeff)
          RETURN
       END IF
       IF (isym > kpsym%nwred) THEN
          reason = "SCF k-point symmetry operation index is out of range"
-         DEALLOCATE (src_r, src_i, dst_r, dst_i)
+         DEALLOCATE (src_coeff, dst_coeff)
          RETURN
       END IF
       IF (.NOT. ASSOCIATED(qs_kpoint%atype) .OR. .NOT. ASSOCIATED(qs_kpoint%kind_rotmat)) THEN
          reason = "SCF atom mappings or basis rotation matrices are not available"
-         DEALLOCATE (src_r, src_i, dst_r, dst_i)
+         DEALLOCATE (src_coeff, dst_coeff)
          RETURN
       END IF
 
       rot_slot = find_kpoint_rotation_slot(qs_kpoint, kpsym%rotp(isym))
       IF (rot_slot == 0) THEN
          reason = "could not match the SCF symmetry operation to a basis rotation"
-         DEALLOCATE (src_r, src_i, dst_r, dst_i)
+         DEALLOCATE (src_coeff, dst_coeff)
          RETURN
       END IF
       kind_rot => qs_kpoint%kind_rotmat(rot_slot, :)
@@ -146,7 +136,7 @@ CONTAINS
          ikind = qs_kpoint%atype(iatom)
          IF (.NOT. ASSOCIATED(kind_rot(ikind)%rmat)) THEN
             reason = "a required basis rotation matrix is not available"
-            DEALLOCATE (src_r, src_i, dst_r, dst_i, ao_start, ao_size)
+            DEALLOCATE (src_coeff, dst_coeff, ao_start, ao_size)
             RETURN
          END IF
          ao_start(iatom) = irow
@@ -155,7 +145,7 @@ CONTAINS
       END DO
       IF (irow - 1 /= nao) THEN
          reason = "atom-resolved AO dimensions do not match the MO coefficient matrix"
-         DEALLOCATE (src_r, src_i, dst_r, dst_i, ao_start, ao_size)
+         DEALLOCATE (src_coeff, dst_coeff, ao_start, ao_size)
          RETURN
       END IF
 
@@ -174,7 +164,7 @@ CONTAINS
          target_dim = ao_size(target_atom)
          IF (SIZE(rotmat, 1) /= target_dim .OR. SIZE(rotmat, 2) /= source_dim) THEN
             reason = "basis rotation dimensions do not match the atom/AO symmetry transform"
-            DEALLOCATE (src_r, src_i, dst_r, dst_i, ao_start, ao_size)
+            DEALLOCATE (src_coeff, dst_coeff, ao_start, ao_size)
             RETURN
          END IF
          arg = REAL(kpsym%fcell_gauge(1, source_atom, isym), KIND=dp)*xkp_phase(1) + &
@@ -189,25 +179,20 @@ CONTAINS
          DO imo = 1, nmo
             DO irow_work = 1, source_dim
                irow_source = ao_start(source_atom) + irow_work - 1
-               coeff_real = src_r(irow_source, imo)
-               coeff_imag = src_i(irow_source, imo)
-               IF (time_reversal) coeff_imag = -coeff_imag
-               phase_real = coskl*coeff_real - sinkl*coeff_imag
-               phase_imag = sinkl*coeff_real + coskl*coeff_imag
+               coeff = src_coeff(irow_source, imo)
+               IF (time_reversal) coeff = CONJG(coeff)
+               phase = CMPLX(coskl, sinkl, KIND=dp)*coeff
                DO iao = 1, target_dim
                   irow_target = ao_start(target_atom) + iao - 1
-                  dst_r(irow_target, imo) = dst_r(irow_target, imo) + &
-                                            rotmat(iao, irow_work)*phase_real
-                  dst_i(irow_target, imo) = dst_i(irow_target, imo) + &
-                                            rotmat(iao, irow_work)*phase_imag
+                  dst_coeff(irow_target, imo) = dst_coeff(irow_target, imo) + &
+                                                rotmat(iao, irow_work)*phase
                END DO
             END DO
          END DO
       END DO
 
-      CALL cp_fm_set_submatrix(dst_real, dst_r)
-      CALL cp_fm_set_submatrix(dst_imag, dst_i)
-      DEALLOCATE (src_r, src_i, dst_r, dst_i, ao_start, ao_size)
+      CALL cp_cfm_set_submatrix(dst, dst_coeff)
+      DEALLOCATE (src_coeff, dst_coeff, ao_start, ao_size)
       success = .TRUE.
 
    END SUBROUTINE kpoint_transform_scf_mo
