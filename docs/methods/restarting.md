@@ -488,4 +488,3 @@ For more information about restarting calculations, see:
 - The [CP2K Input Reference](https://manual.cp2k.org/trunk/CP2K_INPUT.html) for detailed keyword
   documentation
 - Example input files in the `tests` directory of the CP2K distribution
-- The [CP2K Forum](https://groups.google.com/group/cp2k) for community support

@@ -78,8 +78,9 @@ artifact rather than a Git tag for released CP2K versions.
 
 ## Setting up dependencies and building CP2K
 
-At a minimum, CP2K requires a modern suite of C and Fortran compiler compliant with the C99 and the
-F2008 standard respectively. For currently supported compiler versions, see the GitHub Wiki page on
+At a minimum, CP2K requires a modern suite of Fortran and C compiler compliant with the F2008
+(`-std=f2008`) and C2011 (`-std=c11`) standards respectively. For an up-to-date list of supported
+compiler flavors, versions and known limitations, see the GitHub Wiki page on
 [Compiler Support](https://github.com/cp2k/cp2k/wiki/Compiler-Support).
 
 In addition, CP2K requires [DBCSR](https://github.com/cp2k/dbcsr/), BLAS, and LAPACK; on top of
