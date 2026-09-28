@@ -400,7 +400,9 @@ CONTAINS
             RB_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => RB_buf(1:mv_env%n_ov*nb)
          END IF
 
-         ! Z_ia,k on every rank: every rank owns a contiguous ia range, so the column arrives sorted
+         ! Z_ia,k on every rank, by design: each rank contracts its whole RI slices against all of Z (header of
+         ! bse_matvec_create), so the trial vectors are the one replicated buffer, n_ov x nb per matvec at any rank
+         ! count; every rank owns a contiguous ia range, so the column arrives sorted
          CALL timeset(routineN//"_gather", handle2)
          DO k = 1, nb
             CALL mv_env%para_env%allgatherv(fm_Z%local_data(1:nrow_local, col + k - 1), Z(:, k), &
@@ -502,6 +504,7 @@ CONTAINS
                END DO
             END DO
          END DO
+         ! one n_ov vector, summed once per solve; replicated on every rank on purpose
          CALL mv_env%para_env%sum(diag)
       END IF
       diag(:) = diag(:) + mv_env%eps_diff(:)
