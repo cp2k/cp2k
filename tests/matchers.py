@@ -384,6 +384,7 @@ registry["BSE_2nd_excit_ener_UKS"] = GenericMatcher(
     r"BSE|                2       UKS              -TDA-", col=5
 )
 registry["BSE_osc_str_n2_UKS"] = GenericMatcher(r"BSE|             2     -TDA-", col=7)
+registry["BSE_osc_str_n11_UKS"] = GenericMatcher(r"BSE|            11     -TDA-", col=7)
 registry["BSE_1st_excit_ener_UKS_ABBA"] = GenericMatcher(
     r"BSE|                1       UKS             -ABBA-", col=5
 )
