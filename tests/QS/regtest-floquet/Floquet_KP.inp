@@ -17,7 +17,8 @@
       CUTOFF 100
     &END MGRID
     &POISSON
-      PERIODIC XYZ
+      PERIODIC XY
+      POISSON_SOLVER IMPLICIT
     &END POISSON
     &QS
       EXTRAPOLATION USE_GUESS  ! required for K-Point sampling
@@ -61,6 +62,7 @@
         ENERGY_WINDOW 0.12
         FREQUENCY 1.5
         MAX_FLOQUET_INDEX 10
+        MAX_NMO 8
         PHASE_OFFSETS 0.0 0.5 0.0
         POLARISATION 1 1 0
         TEMPERATURE 300

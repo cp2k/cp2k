@@ -316,6 +316,7 @@ CONTAINS
       CALL section_vals_val_get(floquet_sec, "POLARISATION", r_vals=bs_env%floquet_polarisation)
       CALL section_vals_val_get(floquet_sec, "PHASE_OFFSETS", r_vals=bs_env%floquet_phi)
       CALL section_vals_val_get(floquet_sec, "MAX_FLOQUET_INDEX", i_val=bs_env%max_floquet_index)
+      CALL section_vals_val_get(floquet_sec, "MAX_NMO", i_val=bs_env%max_nmo_floquet)
       CALL section_vals_val_get(floquet_sec, "EPS_FLOQUET", r_val=bs_env%eps_floquet)
       CALL section_vals_val_get(floquet_sec, "ENERGY_WINDOW", r_val=bs_env%energy_window_floquet)
       CALL section_vals_val_get(floquet_sec, "ENERGY_STEP", r_val=bs_env%energy_step_floquet)

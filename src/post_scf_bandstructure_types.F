@@ -394,6 +394,7 @@ MODULE post_scf_bandstructure_types
 
       ! parameters for Floquet band structure calculations
       INTEGER                                      :: max_floquet_index = -1
+      INTEGER                                      :: max_nmo_floquet = -1
       REAL(KIND=dp), DIMENSION(:), POINTER         :: floquet_polarisation => NULL(), &
                                                       floquet_phi => NULL()
       REAL(KIND=dp)                                :: floquet_omega = -1.0_dp, &

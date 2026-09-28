@@ -3262,6 +3262,20 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_NMO", &
+                          description="Maximum number of Kohn-Sham eigenstates closest "// &
+                          "to the valence band maximum used in the Floquet calculation. "// &
+                          "The Floquet Hamiltonian is built only from this band window, "// &
+                          "greatly reducing its size and the diagonalisation cost for "// &
+                          "large (e.g. moire) cells. 0 means use all bands. The window "// &
+                          "must be wide enough that the bands of interest do not couple "// &
+                          "significantly to the excluded bands; converge results by "// &
+                          "increasing MAX_NMO.", &
+                          usage="MAX_NMO 20", &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FLOQUET", &
                           description="Threshold on the error due to truncation of "// &
                           "the Floquet Hamiltonian. Used to verify that MAX_FLOQUET_INDEX "// &
