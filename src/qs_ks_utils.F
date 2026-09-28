@@ -77,6 +77,7 @@ MODULE qs_ks_utils
                                               calculate_ri_forces
    USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix,&
                                               calculate_ri_ks_matrix
+   USE mathlib,                         ONLY: abnormal_value
    USE message_passing,                 ONLY: mp_para_env_type
    USE ps_implicit_types,               ONLY: MIXED_BC,&
                                               MIXED_PERIODIC_BC,&
@@ -131,7 +132,7 @@ MODULE qs_ks_utils
    LOGICAL, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_utils'
 
-   PUBLIC :: low_spin_roks, sic_explicit_orbitals, calc_v_sic_rspace, print_densities, &
+   PUBLIC :: low_spin_roks, sic_explicit_orbitals, calc_v_sic_rspace, check_sum_energies, print_densities, &
              print_detailed_energy, compute_matrix_vxc, compute_matrix_vxc_kp, sum_up_and_integrate, &
              calculate_zmp_potential, get_embed_potential_energy
 
@@ -881,6 +882,72 @@ CONTAINS
       CALL auxbas_pw_pool%give_back_pw(work_v)
 
    END SUBROUTINE calc_v_sic_rspace
+
+! **************************************************************************************************
+!> \brief Check each term of the energy and sum to total
+!> \param energy ...
+! **************************************************************************************************
+   SUBROUTINE check_sum_energies(energy)
+      TYPE(qs_energy_type), INTENT(INOUT), POINTER       :: energy
+
+      ! Reset the total energy counter, just in case
+      ! it is used to store some intermediate value
+      energy%total = 0.0_dp
+
+      CALL check_sum_energy(energy%total, energy%core_overlap, "Core overlap energy")
+      CALL check_sum_energy(energy%total, energy%core_self, "Core self energy")
+      CALL check_sum_energy(energy%total, energy%core_cneo, "Quantum nuclear core energy")
+      CALL check_sum_energy(energy%total, energy%core, "Core Hamiltonian energy")
+      CALL check_sum_energy(energy%total, energy%hartree, "Hartree energy")
+      CALL check_sum_energy(energy%total, energy%hartree_1c, "Energy from GAPW local Eh = 1 center integrals")
+      CALL check_sum_energy(energy%total, energy%exc, "Exchange-correlation energy")
+      CALL check_sum_energy(energy%total, energy%exc1, "Exc1 energy")
+      CALL check_sum_energy(energy%total, energy%ex, "Ex energy")
+      CALL check_sum_energy(energy%total, energy%dispersion, "Dispersion energy")
+      CALL check_sum_energy(energy%total, energy%gcp, "gCP energy")
+      CALL check_sum_energy(energy%total, energy%qmmm_el, "QM/MM Electrostatic energy")
+      CALL check_sum_energy(energy%total, energy%mulliken, "Mulliken restraint energy")
+      CALL check_sum_energy(energy%total, SUM(energy%ddapc_restraint), "DDAPC restraint energy")
+      CALL check_sum_energy(energy%total, energy%s2_restraint, "S2 restraint energy")
+      CALL check_sum_energy(energy%total, energy%dft_plus_u, "DFT+U energy")
+      CALL check_sum_energy(energy%total, energy%kTS, "Electronic entropic contribution energy")
+      CALL check_sum_energy(energy%total, energy%efield, "Electric field interaction energy")
+      CALL check_sum_energy(energy%total, energy%efield_core, "Electric field core interaction energy")
+      CALL check_sum_energy(energy%total, energy%ee, "External potential interaction energy")
+      CALL check_sum_energy(energy%total, energy%ee_core, "External potential core interaction energy")
+      CALL check_sum_energy(energy%total, energy%exc_aux_fit, "Wfn fit exchange-correlation energy")
+      CALL check_sum_energy(energy%total, energy%image_charge, "QM/MM image charge energy energy")
+      CALL check_sum_energy(energy%total, energy%sccs_pol, "SCCS polarisation energy")
+      CALL check_sum_energy(energy%total, energy%cdft, "CDFT constraint energy")
+      CALL check_sum_energy(energy%total, energy%exc1_aux_fit, "Wfn fit soft/hard atomic rho1 Exc contribution energy")
+      CALL check_sum_energy(energy%total, energy%embed_corr, "Embedding potential correction energy")
+
+      IF (abnormal_value(energy%total)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Total energy after summing up the terms is an abnormal value (NaN/Inf).")
+      END IF
+
+   END SUBROUTINE check_sum_energies
+
+! **************************************************************************************************
+!> \brief Check one term of the energy and sum to total if normal
+!> \param total ...
+!> \param term ...
+!> \param name ...
+! **************************************************************************************************
+   SUBROUTINE check_sum_energy(total, term, name)
+      REAL(KIND=dp), INTENT(INOUT)                       :: total
+      REAL(KIND=dp), INTENT(IN)                          :: term
+      CHARACTER(LEN=*), INTENT(IN)                       :: name
+
+      IF (abnormal_value(term)) THEN
+         CALL cp_abort(__LOCATION__, &
+                       TRIM(name)//" is an abnormal value (NaN/Inf).")
+      ELSE
+         total = total + term
+      END IF
+
+   END SUBROUTINE check_sum_energy
 
 ! **************************************************************************************************
 !> \brief ...

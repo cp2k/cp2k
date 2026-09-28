@@ -170,7 +170,8 @@ specifications like the PDB file and the Gaussian cube file where the entries ha
 fixed-width field formats for writing or reading, while others like the XYZ file are more lenient.
 
 Beyond that, abnormal values may be represented as `NaN` for "Not a Number" or `Inf` for Infinity,
-padded with whitespaces to satisfy the width of the edit descriptor. Both of these marks in the
+padded with whitespaces to satisfy the width of the edit descriptor. Sometimes they may be caught
+with an error message like `{something} is an abnormal value (NaN/Inf)` instead. These marks in the
 output suggest that something numerically unstable has gone haywire and needs developer attention.
 
 ### A certain type object was expected, found something else
@@ -219,11 +220,6 @@ possibilities of modelling errors, there are three frequently relevant pitfalls:
   atom, and the fractional occupancy is not handled well when creating the model, as discussed in
   [a FAQ](./foreword-and-faq.md#how-do-i-create-the-atomistic-model-for-cp2k-input).
 
-### SCF convergence troubles
-
-`SCF run NOT converged` and `KS energy is an abnormal value (NaN/Inf)` are discussed separately on
-[](../methods/dft/convergence).
-
 ### Messages mentioning LSD
 
 `LSD` is an alias for [UKS](#CP2K_INPUT.FORCE_EVAL.DFT.UKS) in some error messages such as
@@ -232,3 +228,8 @@ possibilities of modelling errors, there are three frequently relevant pitfalls:
 [MULTIPLICITY](#CP2K_INPUT.FORCE_EVAL.DFT.MULTIPLICITY) options should be set correctly based on the
 chemistry to be modelled. If the system is intended to be closed-shell, broken geometry like missing
 or duplicated hydrogen atoms may give rise to the errors.
+
+### SCF convergence trouble
+
+`SCF run NOT converged` has a wide variety of causes and possible solutions, as discussed separately
+on [](../methods/dft/convergence).
