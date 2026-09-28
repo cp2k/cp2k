@@ -11,11 +11,16 @@
 !>      Every check computes its expectation with a method that differs from
 !>      the implementation: the checks enumerate bits one by one, while the
 !>      implementation uses IAND set intersections. A bug on either side
-!>      breaks the comparison.
+!>      breaks the comparison. The projection checks take their expectation
+!>      from the guard predicates and their behavior from
+!>      apply_cell_constraints, so the hand-mirrored coupling tables and the
+!>      executable projections verify each other.
 !> \par Coverage
 !>      All 64 constraint masks, every token of the grammar, every crystal
 !>      system, and the parse(label(m)) round trip. About 1800 combinations
-!>      execute in total.
+!>      execute in total, plus the guard decisions checked against the real
+!>      projections: 64 masks on 14 cell shapes with four gradient draws
+!>      each, every draw passed through apply_cell_constraints twice.
 !> \par Failure behavior
 !>      The first mismatch prints the offending mask or token and stops with
 !>      exit code 1. do_regtest runs this program from the UNIT_TESTS
@@ -24,16 +29,18 @@
 PROGRAM cell_opt_utils_TEST
    USE cell_methods,                    ONLY: cell_create
    USE cell_opt_utils,                  ONLY: &
-        cell_opt_constraint_label, comp_ax, comp_bx, comp_by, comp_cx, comp_cy, comp_cz, &
-        fixes_partially, keep_angles_conflict, keep_symmetry_conflict, mask_ab_plane, mask_all, &
-        mask_b, mask_c, mask_diag, mask_diag_ab, mask_diag_ac, mask_diag_bc, mask_x, mask_xy, &
-        mask_xz, mask_y, mask_yz, mask_z, parse_cell_constraint, parse_token, slot_is_fixed
+        apply_cell_constraints, cell_opt_constraint_label, comp_ax, comp_bx, comp_by, comp_cx, &
+        comp_cy, comp_cz, fixes_partially, keep_angles_conflict, keep_symmetry_conflict, &
+        mask_ab_plane, mask_all, mask_b, mask_c, mask_diag, mask_diag_ab, mask_diag_ac, &
+        mask_diag_bc, mask_x, mask_xy, mask_xz, mask_y, mask_yz, mask_z, parse_cell_constraint, &
+        parse_token, slot_is_fixed
    USE cell_types,                      ONLY: &
         cell_release, cell_sym_cubic, cell_sym_hexagonal_gamma_120, cell_sym_hexagonal_gamma_60, &
         cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, cell_sym_none, cell_sym_orthorhombic, &
         cell_sym_rhombohedral, cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, &
         cell_sym_tetragonal_bc, cell_sym_triclinic, cell_type
-   USE kinds,                           ONLY: default_string_length
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
 
    IMPLICIT NONE
 
@@ -47,6 +54,7 @@ PROGRAM cell_opt_utils_TEST
    CALL check_keep_symmetry_conflict()
    CALL check_parse_token_rejections()
    CALL check_overlap_classification()
+   CALL check_projection_guard_consistency()
 
    PRINT *, "cell_opt_utils_unittest: all checks passed"
 CONTAINS
@@ -463,6 +471,252 @@ CONTAINS
    END SUBROUTINE check_overlap_classification
 
 ! **************************************************************************************************
+!> \brief The guard decisions must agree with the projections they protect
+!> \par Method
+!>      A guard rejects a mask because the projection and the hard zeroing
+!>      would fight over the coupled slots. The signature of that fight is
+!>      non-idempotence: with a consistent mask, applying
+!>      apply_cell_constraints to its own output reproduces it, and the
+!>      output lies in the projected subspace with every fixed slot exactly
+!>      zero. With a conflicting mask, the projection pushes components back
+!>      into slots the zeroing has emptied, so a second application moves
+!>      the result for a generic gradient. The expectation comes from the
+!>      guard predicate, the behavior from the projection code: the coupled
+!>      set table and the SELECT CASE in apply_cell_constraints verify each
+!>      other instead of a third hand-written copy.
+!> \note The monoclinic_gamma_ab projection is idempotent only on a cell
+!>       with equal a and b lengths, and the KEEP_ANGLES projections divide
+!>       by the norms of b and c. The shaped cells below satisfy both.
+! **************************************************************************************************
+   SUBROUTINE check_projection_guard_consistency()
+      INTEGER, PARAMETER :: crystal_system_ids(12) = [cell_sym_none, cell_sym_triclinic, &
+         cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, cell_sym_orthorhombic, &
+         cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, &
+         cell_sym_rhombohedral, cell_sym_hexagonal_gamma_60, cell_sym_hexagonal_gamma_120, &
+         cell_sym_cubic]
+
+      INTEGER                                            :: mask_value, shape_index, system_index
+      LOGICAL                                            :: expected_conflict, is_orthorhombic
+      TYPE(cell_type), POINTER                           :: cell
+
+      ! Part one: KEEP_ANGLES against keep_angles_conflict, on an
+      ! orthorhombic and a triclinic cell. The triclinic cell has nonzero
+      ! in-plane components in b and c, so a partial fixation of either
+      ! vector is visible in the projections.
+      DO shape_index = 1, 2
+         is_orthorhombic = (shape_index == 2)
+         IF (is_orthorhombic) THEN
+            CALL make_projection_cell(cell, .TRUE., cell_sym_orthorhombic)
+         ELSE
+            CALL make_projection_cell(cell, .FALSE., cell_sym_triclinic)
+         END IF
+         DO mask_value = 0, 63
+            expected_conflict = keep_angles_conflict(mask_value, is_orthorhombic)
+            CALL projection_case(cell, .TRUE., .FALSE., mask_value, expected_conflict, &
+                                 "check_projection_guard_consistency: KEEP_ANGLES")
+         END DO
+         CALL cell_release(cell)
+      END DO
+
+      ! Part two: KEEP_SYMMETRY against keep_symmetry_conflict, on one
+      ! shaped cell per crystal system.
+      DO system_index = 1, SIZE(crystal_system_ids)
+         CALL make_projection_cell(cell, .FALSE., crystal_system_ids(system_index))
+         DO mask_value = 0, 63
+            expected_conflict = keep_symmetry_conflict(mask_value, crystal_system_ids(system_index))
+            CALL projection_case(cell, .FALSE., .TRUE., mask_value, expected_conflict, &
+                                 "check_projection_guard_consistency: KEEP_SYMMETRY")
+         END DO
+         CALL cell_release(cell)
+      END DO
+      PRINT *, "check_projection_guard_consistency: OK (64 masks x 14 cell shapes x 4 draws)"
+   END SUBROUTINE check_projection_guard_consistency
+
+! **************************************************************************************************
+!> \brief One cell and mask: a stationary projection iff the guard sees no conflict
+!> \param cell shaped cell carrying orthorhombic flag and symmetry id
+!> \param use_keep_angles run the KEEP_ANGLES projection
+!> \param use_keep_symmetry run the KEEP_SYMMETRY projection
+!> \param mask_value constraint mask under test
+!> \param expect_conflict guard decision for this mask and cell
+!> \param label check name prefix for failure messages
+! **************************************************************************************************
+   SUBROUTINE projection_case(cell, use_keep_angles, use_keep_symmetry, mask_value, &
+                              expect_conflict, label)
+      TYPE(cell_type), POINTER                           :: cell
+      LOGICAL, INTENT(IN)                                :: use_keep_angles, use_keep_symmetry
+      INTEGER, INTENT(IN)                                :: mask_value
+      LOGICAL, INTENT(IN)                                :: expect_conflict
+      CHARACTER(LEN=*), INTENT(IN)                       :: label
+
+      INTEGER                                            :: draw, slot
+      LOGICAL                                            :: any_draw_moved
+      REAL(KIND=dp)                                      :: scale
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: g1, g2
+
+      ALLOCATE (g1(6), g2(6))
+      any_draw_moved = .FALSE.
+      DO draw = 1, 4
+         DO slot = 1, 6
+            ! Deterministic entries of order one, varied per draw so an
+            ! accidental symmetry of one gradient cannot mask a moved
+            ! result. The fractional part keeps entries away from zero.
+            g1(slot) = MOD(draw*7 + slot*13, 19) - 9 + 0.37_dp*slot + 0.11_dp*draw
+         END DO
+         CALL apply_cell_constraints(g1, cell, use_keep_angles, use_keep_symmetry, mask_value)
+         g2 = g1
+         CALL apply_cell_constraints(g2, cell, use_keep_angles, use_keep_symmetry, mask_value)
+         scale = MAX(1.0_dp, MAXVAL(ABS(g1)))
+         ! The hard zeroing runs last, so fixed slots are exactly zero in
+         ! the output of the first application, whatever the projections
+         ! did before it.
+         DO slot = 1, 6
+            IF (slot_is_fixed(mask_value, slot) .AND. g1(slot) /= 0.0_dp) THEN
+               PRINT *, TRIM(label)//": fixed slot nonzero, mask", mask_value, "slot", slot
+               ERROR STOP 1
+            END IF
+         END DO
+         IF (expect_conflict) THEN
+            IF (MAXVAL(ABS(g2 - g1)) > 1.0E-6_dp*scale) any_draw_moved = .TRUE.
+         ELSE
+            ! Consistent mask: the second application reproduces the first
+            ! up to rounding, and the output lies in the projected
+            ! subspace the projections define.
+            IF (MAXVAL(ABS(g2 - g1)) > 1.0E-12_dp*scale) THEN
+               PRINT *, TRIM(label)//": projection not stationary, mask", mask_value
+               ERROR STOP 1
+            END IF
+            IF (use_keep_angles) CALL check_angles_output(g1, cell, scale, label, mask_value)
+            IF (use_keep_symmetry) CALL check_symmetry_output(g1, cell, scale, label, mask_value)
+         END IF
+      END DO
+      IF (expect_conflict .AND. .NOT. any_draw_moved) THEN
+         PRINT *, TRIM(label)//": conflict mask never moved the projection, mask", mask_value
+         ERROR STOP 1
+      END IF
+      DEALLOCATE (g1, g2)
+   END SUBROUTINE projection_case
+
+! **************************************************************************************************
+!> \brief A KEEP_ANGLES output must follow the cell vectors it projects onto
+!> \param g projected gradient (six cell components)
+!> \param cell shaped cell (hmat and orthorhombic flag are read)
+!> \param scale magnitude scale for the comparison tolerances
+!> \param label check name prefix for failure messages
+!> \param mask_value constraint mask under test
+! **************************************************************************************************
+   SUBROUTINE check_angles_output(g, cell, scale, label, mask_value)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: g
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), INTENT(IN)                          :: scale
+      CHARACTER(LEN=*), INTENT(IN)                       :: label
+      INTEGER, INTENT(IN)                                :: mask_value
+
+      IF (cell%orthorhombic) THEN
+         ! An orthorhombic cell keeps its off-axis slots exactly zero.
+         IF (g(2) /= 0.0_dp .OR. g(4) /= 0.0_dp .OR. g(5) /= 0.0_dp) THEN
+            PRINT *, TRIM(label)//": orthorhombic off-axis slot nonzero, mask", mask_value
+            ERROR STOP 1
+         END IF
+      ELSE
+         ! b lies in the xy plane: the projected pair is parallel to b when
+         ! the two-dimensional cross product vanishes.
+         IF (ABS(g(2)*cell%hmat(2, 2) - g(3)*cell%hmat(1, 2)) > 1.0E-12_dp*scale) THEN
+            PRINT *, TRIM(label)//": b pair not parallel to b, mask", mask_value
+            ERROR STOP 1
+         END IF
+         ! c spans all three directions: every cross-product component
+         ! with c must vanish.
+         IF (ABS(g(5)*cell%hmat(3, 3) - g(6)*cell%hmat(2, 3)) > 1.0E-12_dp*scale .OR. &
+             ABS(g(6)*cell%hmat(1, 3) - g(4)*cell%hmat(3, 3)) > 1.0E-12_dp*scale .OR. &
+             ABS(g(4)*cell%hmat(2, 3) - g(5)*cell%hmat(1, 3)) > 1.0E-12_dp*scale) THEN
+            PRINT *, TRIM(label)//": c triple not parallel to c, mask", mask_value
+            ERROR STOP 1
+         END IF
+      END IF
+   END SUBROUTINE check_angles_output
+
+! **************************************************************************************************
+!> \brief A KEEP_SYMMETRY output must satisfy the coupling of its crystal system
+!> \param g projected gradient (six cell components)
+!> \param cell shaped cell (symmetry id is read)
+!> \param scale magnitude scale for the comparison tolerances
+!> \param label check name prefix for failure messages
+!> \param mask_value constraint mask under test
+!> \note Equalities are asserted where the projection enforces equal slots
+!>       (cubic, tetragonal) or fixed ratios (hexagonal). Rhombohedral
+!>       couples all six slots with angle-dependent ratios and is carried
+!>       by the stationarity check alone. Systems without coupling
+!>       (none, triclinic) impose nothing.
+! **************************************************************************************************
+   SUBROUTINE check_symmetry_output(g, cell, scale, label, mask_value)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: g
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), INTENT(IN)                          :: scale
+      CHARACTER(LEN=*), INTENT(IN)                       :: label
+      INTEGER, INTENT(IN)                                :: mask_value
+
+      SELECT CASE (cell%symmetry_id)
+      CASE (cell_sym_cubic)
+         IF (ABS(g(1) - g(3)) > 1.0E-12_dp*scale .OR. ABS(g(1) - g(6)) > 1.0E-12_dp*scale .OR. &
+             g(2) /= 0.0_dp .OR. g(4) /= 0.0_dp .OR. g(5) /= 0.0_dp) THEN
+            PRINT *, TRIM(label)//": cubic coupling violated, mask", mask_value
+            ERROR STOP 1
+         END IF
+      CASE (cell_sym_tetragonal_ab)
+         IF (ABS(g(1) - g(3)) > 1.0E-12_dp*scale .OR. g(2) /= 0.0_dp .OR. &
+             g(4) /= 0.0_dp .OR. g(5) /= 0.0_dp) THEN
+            PRINT *, TRIM(label)//": tetragonal_ab coupling violated, mask", mask_value
+            ERROR STOP 1
+         END IF
+      CASE (cell_sym_tetragonal_ac)
+         IF (ABS(g(1) - g(6)) > 1.0E-12_dp*scale .OR. g(2) /= 0.0_dp .OR. &
+             g(4) /= 0.0_dp .OR. g(5) /= 0.0_dp) THEN
+            PRINT *, TRIM(label)//": tetragonal_ac coupling violated, mask", mask_value
+            ERROR STOP 1
+         END IF
+      CASE (cell_sym_tetragonal_bc)
+         IF (ABS(g(3) - g(6)) > 1.0E-12_dp*scale .OR. g(2) /= 0.0_dp .OR. &
+             g(4) /= 0.0_dp .OR. g(5) /= 0.0_dp) THEN
+            PRINT *, TRIM(label)//": tetragonal_bc coupling violated, mask", mask_value
+            ERROR STOP 1
+         END IF
+      CASE (cell_sym_orthorhombic)
+         IF (g(2) /= 0.0_dp .OR. g(4) /= 0.0_dp .OR. g(5) /= 0.0_dp) THEN
+            PRINT *, TRIM(label)//": orthorhombic off-axis slots nonzero, mask", mask_value
+            ERROR STOP 1
+         END IF
+      CASE (cell_sym_monoclinic)
+         IF (g(2) /= 0.0_dp .OR. g(5) /= 0.0_dp) THEN
+            PRINT *, TRIM(label)//": monoclinic off-axis slots nonzero, mask", mask_value
+            ERROR STOP 1
+         END IF
+      CASE (cell_sym_hexagonal_gamma_60)
+         IF (ABS(g(2) - 0.5_dp*g(1)) > 1.0E-12_dp*scale .OR. &
+             ABS(g(3) - SQRT(3.0_dp)*g(2)) > 1.0E-12_dp*scale .OR. &
+             g(4) /= 0.0_dp .OR. g(5) /= 0.0_dp) THEN
+            PRINT *, TRIM(label)//": hexagonal_gamma_60 coupling violated, mask", mask_value
+            ERROR STOP 1
+         END IF
+      CASE (cell_sym_hexagonal_gamma_120)
+         IF (ABS(g(2) + 0.5_dp*g(1)) > 1.0E-12_dp*scale .OR. &
+             ABS(g(3) + SQRT(3.0_dp)*g(2)) > 1.0E-12_dp*scale .OR. &
+             g(4) /= 0.0_dp .OR. g(5) /= 0.0_dp) THEN
+            PRINT *, TRIM(label)//": hexagonal_gamma_120 coupling violated, mask", mask_value
+            ERROR STOP 1
+         END IF
+      CASE (cell_sym_monoclinic_gamma_ab)
+         IF (g(4) /= 0.0_dp .OR. g(5) /= 0.0_dp) THEN
+            PRINT *, TRIM(label)//": monoclinic_gamma_ab off-axis slots nonzero, mask", mask_value
+            ERROR STOP 1
+         END IF
+      CASE DEFAULT
+         ! none, triclinic, rhombohedral: carried by the stationarity
+         ! check.
+      END SELECT
+   END SUBROUTINE check_symmetry_output
+
+! **************************************************************************************************
 !> \brief Create a 3D-periodic cell. parse_cell_constraint reads only the perd field.
 !> \param cell ...
 ! **************************************************************************************************
@@ -486,5 +740,50 @@ CONTAINS
       CALL cell_create(cell)
       cell%perd(:) = [1, 1, 0]
    END SUBROUTINE make_cell2d
+
+! **************************************************************************************************
+!> \brief Create a 3D-periodic cell with a lattice consistent with symmetry_id
+!> \param cell ...
+!> \param is_orthorhombic sets the orthorhombic flag read by KEEP_ANGLES
+!> \param symmetry_id crystal system read by KEEP_SYMMETRY
+!> \note apply_cell_constraints reads hmat, the orthorhombic flag and
+!>       symmetry_id. Each system whose projection reads hmat gets a
+!>       consistent lattice: monoclinic_gamma_ab needs equal a and b
+!>       lengths, hexagonal needs the named gamma, rhombohedral needs equal
+!>       pairwise angles. The other projections are lattice independent and
+!>       share the generic triclinic lattice.
+! **************************************************************************************************
+   SUBROUTINE make_projection_cell(cell, is_orthorhombic, symmetry_id)
+      TYPE(cell_type), POINTER                           :: cell
+      LOGICAL, INTENT(IN)                                :: is_orthorhombic
+      INTEGER, INTENT(IN)                                :: symmetry_id
+
+      NULLIFY (cell)
+      CALL cell_create(cell)
+      cell%perd(:) = 1
+      cell%orthorhombic = is_orthorhombic
+      cell%symmetry_id = symmetry_id
+      SELECT CASE (symmetry_id)
+      CASE (cell_sym_orthorhombic)
+         cell%hmat = RESHAPE([10.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 9.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, &
+                              8.0_dp], [3, 3])
+      CASE (cell_sym_monoclinic_gamma_ab, cell_sym_hexagonal_gamma_60)
+         ! a and b of length 2 with gamma = 60 degree, c orthogonal.
+         cell%hmat = RESHAPE([2.0_dp, 0.0_dp, 0.0_dp, 1.0_dp, 1.7320508075688772_dp, 0.0_dp, &
+                              0.0_dp, 0.0_dp, 8.0_dp], [3, 3])
+      CASE (cell_sym_hexagonal_gamma_120)
+         cell%hmat = RESHAPE([2.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, 1.7320508075688772_dp, 0.0_dp, &
+                              0.0_dp, 0.0_dp, 8.0_dp], [3, 3])
+      CASE (cell_sym_rhombohedral)
+         ! Three vectors of length 1 with pairwise angles of 60 degree.
+         cell%hmat = RESHAPE([1.0_dp, 0.0_dp, 0.0_dp, 0.5_dp, 0.8660254037844386_dp, 0.0_dp, &
+                              0.5_dp, 0.2886751345948129_dp, 0.8164965809277260_dp], [3, 3])
+      CASE DEFAULT
+         ! Generic triclinic lattice: b and c carry nonzero in-plane
+         ! components, so partial fixations show up in the projections.
+         cell%hmat = RESHAPE([10.0_dp, 0.0_dp, 0.0_dp, 1.0_dp, 9.0_dp, 0.0_dp, 0.5_dp, 1.5_dp, &
+                              8.0_dp], [3, 3])
+      END SELECT
+   END SUBROUTINE make_projection_cell
 
 END PROGRAM cell_opt_utils_TEST
