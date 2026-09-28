@@ -38,8 +38,6 @@ MODULE floquet_utils
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type
    USE qs_moments,                      ONLY: qs_moment_kpoints_deep
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -82,7 +80,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_off_diagonal_matrix'
 
       COMPLEX(KIND=dp), DIMENSION(3)                     :: efactor
-      INTEGER                                            :: handle, i, i_dir, j, nao
+      INTEGER                                            :: handle, i, i_dir, j, n_mo
       REAL(KIND=dp)                                      :: amplitude, omega
       REAL(KIND=dp), DIMENSION(3)                        :: e_vec, phi, polarisation
 
@@ -90,7 +88,7 @@ CONTAINS
 
       ! Builds the matrix that occupies the off diagonal blocks in the Floquet Matrix H_F
 
-      nao = SIZE(p_k_kp_spin, 2)
+      n_mo = SIZE(p_k_kp_spin, 2)
 
       polarisation(:) = bs_env%floquet_polarisation(:)
       IF (SQRT(SUM(polarisation**2)) < EPSILON(0.0_dp)) THEN
@@ -110,8 +108,8 @@ CONTAINS
       ! off_diag_uv = Σ_α [p_uv^α(k) · E_factor(α)], where α = x,y,z
       off_diag_m(:, :) = z_zero
       DO i_dir = 1, 3
-         DO i = 1, nao
-            DO j = 1, nao
+         DO i = 1, n_mo
+            DO j = 1, n_mo
                off_diag_m(i, j) = off_diag_m(i, j) + &
                                   p_k_kp_spin(i_dir, i, j)*efactor(i_dir)
             END DO
@@ -137,16 +135,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_diagonal_matrix'
 
-      INTEGER                                            :: handle, i, nao
+      INTEGER                                            :: handle, i, n_mo
       REAL(KIND=dp)                                      :: omega
 
       CALL timeset(routineN, handle)
       ! Builds the diagonal block of the H_F for Floquet sector index f_index
       ! Equilibrium band energies shifted by f_index·ħΩ, i.e., diag_e(n,n) = ε_{nk} + f_index·ħΩ.
-      nao = SIZE(e_k_kp_spin)
+      n_mo = SIZE(e_k_kp_spin)
       omega = bs_env%floquet_omega
       diag_e(:, :) = z_zero
-      DO i = 1, nao
+      DO i = 1, n_mo
          diag_e(i, i) = e_k_kp_spin(i) + f_index*omega
       END DO
 
@@ -170,31 +168,31 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: conj_off_diag_m, diag_e, off_diag_m
       INTEGER                                            :: f_index, handle, i, i_f, max_f_index, &
-                                                            n_fbands, nao
+                                                            n_fbands, n_mo
 
       CALL timeset(routineN, handle)
 
-      nao = floquet_env%nao
+      n_mo = floquet_env%n_mo
       max_f_index = floquet_env%max_f_index
       n_fbands = 1 + 2*max_f_index
 
       ! Creates the floquet matrix H_F by placing the diagonal and off diagonal blocks
-      ALLOCATE (diag_e(nao, nao), source=z_zero)
-      ALLOCATE (off_diag_m(nao, nao), source=z_zero)
-      ALLOCATE (conj_off_diag_m(nao, nao), source=z_zero)
+      ALLOCATE (diag_e(n_mo, n_mo), source=z_zero)
+      ALLOCATE (off_diag_m(n_mo, n_mo), source=z_zero)
+      ALLOCATE (conj_off_diag_m(n_mo, n_mo), source=z_zero)
 
       CALL build_off_diagonal_matrix(bs_env, floquet_env%p_k_kp_spin, off_diag_m)
       conj_off_diag_m(:, :) = CONJG(TRANSPOSE(off_diag_m(:, :)))
 
       floquet_matrix%local_data(:, :) = z_zero
       DO i = 1, n_fbands
-         i_f = 1 + (i - 1)*nao
+         i_f = 1 + (i - 1)*n_mo
          f_index = i - max_f_index - 1
          CALL build_diagonal_matrix(bs_env, floquet_env%e_k_kp_spin, f_index, diag_e)
          CALL cp_cfm_set_submatrix(floquet_matrix, diag_e, i_f, i_f)
          IF (i > 1) THEN
-            CALL cp_cfm_set_submatrix(floquet_matrix, off_diag_m, i_f, i_f - nao)
-            CALL cp_cfm_set_submatrix(floquet_matrix, conj_off_diag_m, i_f - nao, i_f)
+            CALL cp_cfm_set_submatrix(floquet_matrix, off_diag_m, i_f, i_f - n_mo)
+            CALL cp_cfm_set_submatrix(floquet_matrix, conj_off_diag_m, i_f - n_mo, i_f)
          END IF
       END DO
       DEALLOCATE (diag_e, off_diag_m, conj_off_diag_m)
@@ -238,13 +236,13 @@ CONTAINS
       ! The owner copies its single-spin slice of this k-point's distributed band data into the
       ! broadcast buffers, then broadcasts them to the whole subgroup. Only the active band
       ! window [n_lo, n_hi] (the MAX_NMO states closest to the VBM) is taken from the full-band
-      ! e_k/de_dk/dipole arrays; the broadcast buffers are sized to this window (floquet_env%nao).
+      ! e_k/p_k arrays; the broadcast buffers are sized to this window (floquet_env%n_mo).
       IF (para_env%mepos == owner) THEN
          loc_idx = CEILING(REAL(ikp)/para_env%num_pe)
          nlo = floquet_env%n_lo(ispin)
          nhi = floquet_env%n_hi(ispin)
-         floquet_env%e_k_kp_spin(:) = e_k(ispin, loc_idx, :)
-         floquet_env%p_k_kp_spin(:, :, :) = p_k(ispin, loc_idx, :, :, :)
+         floquet_env%e_k_kp_spin(:) = e_k(ispin, loc_idx, nlo:nhi)
+         floquet_env%p_k_kp_spin(:, :, :) = p_k(ispin, loc_idx, :, nlo:nhi, nlo:nhi)
       END IF
       CALL para_env_sub%bcast(floquet_env%e_k_kp_spin, local_src)
       CALL para_env_sub%bcast(floquet_env%p_k_kp_spin, local_src)
@@ -467,43 +465,43 @@ CONTAINS
 !> \brief Central and boundary-sector weights of every Floquet eigenvector, stored into
 !>        floquet_env%w0 and floquet_env%wE.
 !> \param floquet_env ...
-!> \param cfm_eigenvectors Floquet eigenvectors
+!> \param floquet_eigenvectors Floquet eigenvectors
 ! **************************************************************************************************
-   SUBROUTINE floquet_sector_weights(floquet_env, cfm_eigenvectors)
+   SUBROUTINE floquet_sector_weights(floquet_env, floquet_eigenvectors)
       TYPE(floquet_env_type), INTENT(INOUT)              :: floquet_env
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_eigenvectors
+      TYPE(cp_cfm_type), INTENT(IN)                      :: floquet_eigenvectors
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_sector_weights'
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: v_block
-      INTEGER                                            :: handle, max_f_index, n_f_size, nao
+      INTEGER                                            :: handle, max_f_index, n_f_size, n_mo
 
       CALL timeset(routineN, handle)
 
-      nao = floquet_env%nao
+      n_mo = floquet_env%n_mo
       max_f_index = floquet_env%max_f_index
       n_f_size = floquet_env%n_f_size
 
-      ALLOCATE (v_block(nao, n_f_size))
+      ALLOCATE (v_block(n_mo, n_f_size))
 
-      ! Evaluate w0_α = Σ_{n=1..nao} |<n,m=0|α>|^2 (central sector)
-      CALL cp_cfm_get_submatrix(cfm_eigenvectors, v_block, 1 + nao*max_f_index, 1)
+      ! Evaluate w0_α = Σ_{n=1..n_mo} |<n,m=0|α>|^2 (central sector)
+      CALL cp_cfm_get_submatrix(floquet_eigenvectors, v_block, 1 + n_mo*max_f_index, 1)
       floquet_env%w0(:) = SUM(ABS(v_block)**2, DIM=1)
 
-      ! Evaluate wE_α = Σ_{n=1..nao} (|<n,m=-M|α>|^2 + |<n,m=+M|α>|^2) (outermost rungs)
+      ! Evaluate wE_α = Σ_{n=1..n_mo} (|<n,m=-M|α>|^2 + |<n,m=+M|α>|^2) (outermost rungs)
       floquet_env%wE(:) = 0.0_dp
       IF (max_f_index >= 1) THEN
-         CALL cp_cfm_get_submatrix(cfm_eigenvectors, v_block, 1, 1)
+         CALL cp_cfm_get_submatrix(floquet_eigenvectors, v_block, 1, 1)
          floquet_env%wE(:) = SUM(ABS(v_block)**2, DIM=1)
 
-         CALL cp_cfm_get_submatrix(cfm_eigenvectors, v_block, 1 + nao*2*max_f_index, 1)
+         CALL cp_cfm_get_submatrix(floquet_eigenvectors, v_block, 1 + n_mo*2*max_f_index, 1)
          floquet_env%wE(:) = floquet_env%wE(:) + SUM(ABS(v_block)**2, DIM=1)
       END IF
 
       DEALLOCATE (v_block)
 
-      ! The orthonormal rows of a unitary matrix are such that Σ_α w0_α = nao.
-      CPASSERT(ABS(SUM(floquet_env%w0) - REAL(nao, dp)) < 1.0E-6_dp*REAL(nao, dp))
+      ! The orthonormal rows of a unitary matrix are such that Σ_α w0_α = n_mo.
+      CPASSERT(ABS(SUM(floquet_env%w0) - REAL(n_mo, dp)) < 1.0E-6_dp*REAL(n_mo, dp))
 
       CALL timestop(handle)
 
@@ -593,7 +591,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_floquet_observables'
 
-      INTEGER                                            :: handle, i, i_E, j, n_E, n_f_size, nao
+      INTEGER                                            :: handle, i, i_E, j, n_E, n_f_size, n_mo
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: work
       REAL(KIND=dp)                                      :: broad, cum, E_min, energy, energy_step, &
                                                             mu, omega, target_level
@@ -601,7 +599,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       n_f_size = floquet_env%n_f_size
-      nao = floquet_env%nao
+      n_mo = floquet_env%n_mo
       n_E = floquet_env%n_E
 
       mu = floquet_reference_energy(bs_env)
@@ -626,7 +624,7 @@ CONTAINS
       ! (2) m=0 band structure by weighted count
       cum = 0.0_dp
       j = 0
-      DO i = 1, nao
+      DO i = 1, n_mo
          target_level = REAL(i, dp) - 0.5_dp
          DO WHILE (cum < target_level .AND. j < n_f_size)
             j = j + 1
@@ -641,8 +639,8 @@ CONTAINS
                                       - omega*REAL(CEILING(floquet_env%m0_energies/omega - 0.5_dp), dp)
 
       ! Sort the quasi-energies
-      ALLOCATE (work(nao))
-      CALL sort(floquet_env%quasi_energies, nao, work)
+      ALLOCATE (work(n_mo))
+      CALL sort(floquet_env%quasi_energies, n_mo, work)
       DEALLOCATE (work)
 
       ! Store this result on the subgroup source only, so the global sum below picks up
@@ -752,7 +750,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: fname
       INTEGER                                            :: bunit, handle, i, i_E, ikp_for_file, &
-                                                            ispin, n_E, n_spin, nao, nkp_only_bs, &
+                                                            ispin, n_E, n_mo, n_spin, nkp_only_bs, &
                                                             nkp_start, qunit, wunit
       REAL(KIND=dp)                                      :: E_min, energy, energy_step, f_occ, kT, &
                                                             mu, x
@@ -768,7 +766,7 @@ CONTAINS
 
       IF (bs_env%para_env%is_source()) THEN
 
-         nao = floquet_env%nao
+         n_mo = floquet_env%n_mo
          n_spin = floquet_env%n_spin
          nkp_only_bs = floquet_env%nkp_only_bs
          n_E = floquet_env%n_E
@@ -814,7 +812,7 @@ CONTAINS
                WRITE (bunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
                   "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
                WRITE (bunit, "(A)") "#  KS band       Energy [eV]         m=0 weight"
-               DO i = 1, nao
+               DO i = 1, n_mo
                   WRITE (bunit, "(I8,F21.8,F17.5)") floquet_env%n_lo(ispin) - 1 + i, &
                      floquet_env%all_m0_energies(i, ispin, ikp_for_file)*evolt, &
                      floquet_env%all_m0_weights(i, ispin, ikp_for_file)
@@ -824,7 +822,7 @@ CONTAINS
                WRITE (qunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
                   "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
                WRITE (qunit, "(A)") "#  Floquet band  Quasi-energy [eV]"
-               DO i = 1, nao
+               DO i = 1, n_mo
                   WRITE (qunit, "(I8,F21.8)") i, &
                      floquet_env%all_quasi_energies(i, ispin, ikp_for_file)*evolt
                END DO

@@ -67,7 +67,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: group_distribution
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: e_k
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      TYPE(cp_cfm_type)                                  :: cfm_eigenvectors, floquet_matrix
+      TYPE(cp_cfm_type)                                  :: floquet_eigenvectors, floquet_matrix
       TYPE(cp_fm_struct_type), POINTER                   :: floquet_struct
       TYPE(floquet_env_type)                             :: floquet_env
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
@@ -86,8 +86,8 @@ CONTAINS
       ! Taking the Fourier transform, the solutions are obtained by diagonalizing the matrix H_F(k)
       !   H_F(k) F_αk = λ_αk F_αk,
       ! where H_F(k) is block-tridiagonal in the sector index m = -M..M (M = MAX_FLOQUET_INDEX)
-      ! and each block is nao×nao. We build and diagonalise H_F(k) per DOS k-point k and spin.
-      ! The matrix H_F(k) has size (nao*(2*MAX_FLOQUET_INDEX+1) x nao*(2*MAX_FLOQUET_INDEX+1)).
+      ! and each block is n_mo×n_mo. We build and diagonalise H_F(k) per DOS k-point k and spin.
+      ! The matrix H_F(k) has size (n_mo*(2*MAX_FLOQUET_INDEX+1) x n_mo*(2*MAX_FLOQUET_INDEX+1)).
 
       CALL write_floquet_header(bs_env)
 
@@ -111,7 +111,7 @@ CONTAINS
       CALL cp_fm_struct_create(floquet_struct, context=blacs_env_sub, para_env=para_env_sub, &
                                nrow_global=floquet_env%n_f_size, ncol_global=floquet_env%n_f_size)
       CALL cp_cfm_create(floquet_matrix, floquet_struct, set_zero=.TRUE.)
-      CALL cp_cfm_create(cfm_eigenvectors, floquet_struct, set_zero=.TRUE.)
+      CALL cp_cfm_create(floquet_eigenvectors, floquet_struct, set_zero=.TRUE.)
 
       n_source_done = 0
 
@@ -125,7 +125,7 @@ CONTAINS
             CALL distribute_floquet_kp_data(para_env, para_env_sub, ispin, ikp, e_k, &
                                             p_k, floquet_env)
 
-            ! Assemble H_F(k) in Sambe space (blocks m,m' = -M..M, each nao×nao)
+            ! Assemble H_F(k) in Sambe space (blocks m,m' = -M..M, each n_mo×n_mo)
             !  diagonal      (H_F)^{m,m}_{nn'}   = (ε_nk + m ħΩ) δ_{nn'}
             !  off diagonal  (H_F)^{m,m±1}_{nn'} = Σ_a p^a_{nn'}(k) (i E_a e^{±iφ_a})/(2Ω),  a=x,y,z
             ! with momentum   p^a_{nn'}(k) = i d^a_{nn'}(k)(ε_nk - ε_n'k) + ∇_{k_a} ε_nk δ_{nn'}
@@ -134,14 +134,14 @@ CONTAINS
 
             ! Diagonalise H_F(k) F_αk = λ_αk F_αk -> quasi-energies λ_αk and eigenvector components
             ! F^{n,m}_αk = <n,m|αk> (band index n, sector m).
-            CALL cp_cfm_set_all(cfm_eigenvectors, z_zero)
-            CALL cp_cfm_heevd(floquet_matrix, cfm_eigenvectors, floquet_env%eigenvalues)
+            CALL cp_cfm_set_all(floquet_eigenvectors, z_zero)
+            CALL cp_cfm_heevd(floquet_matrix, floquet_eigenvectors, floquet_env%eigenvalues)
 
             ! Calculate sector weights,
-            ! w_αk^(m) = Σ_{n=1}^{nao} |<n,m|αk>|^2 (with Σ_m w_αk^(m) = 1).
+            ! w_αk^(m) = Σ_{n=1}^{n_mo} |<n,m|αk>|^2 (with Σ_m w_αk^(m) = 1).
             ! Keep only the central weight w0_αk = w_αk^(0) and the outermost-rung weight
             ! wE_αk = w_αk^(-M) + w_αk^(+M)
-            CALL floquet_sector_weights(floquet_env, cfm_eigenvectors)
+            CALL floquet_sector_weights(floquet_env, floquet_eigenvectors)
 
             ! Truncation check: the m=0-dominated states (w0_αk > 1/2) must leak negligibly onto the
             ! outermost rungs, max_{α: w0_αk > 1/2} wE_αk ≤ EPS_FLOQUET, else M is too small.
@@ -158,7 +158,7 @@ CONTAINS
             !   m=0 bands:
             !      ε^{0}_ik = λ_{α(i)}k, with band i placed at the eigenvalue where the cumulative
             !      m=0 weight Σ_{λ_αk<E} w0_αk first crosses i - 1/2.
-            !      We know that: Σ_α w0_αk = nao. So we choose the matrix eigenvalue such that:
+            !      We know that: Σ_α w0_αk = n_mo. So we choose the matrix eigenvalue such that:
             !      N(ε) = Σ_{α : λ_αk ≤ ε} w0_αk first crosses i - 1/2 to find the m=0 band.
             !   Quasi-energy:
             !      ε̃_ik = ε^{0}_ik - mħΩ (choose m such that ε̃_ik is folded to (-ħΩ/2, ħΩ/2]).
@@ -183,7 +183,7 @@ CONTAINS
       DEALLOCATE (group_distribution)
       CALL floquet_env_release(floquet_env)
       CALL cp_cfm_release(floquet_matrix)
-      CALL cp_cfm_release(cfm_eigenvectors)
+      CALL cp_cfm_release(floquet_eigenvectors)
       CALL cp_fm_struct_release(floquet_struct)
       CALL cp_blacs_env_release(blacs_env_sub)
       CALL mp_para_env_release(para_env_sub)
