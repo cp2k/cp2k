@@ -67,8 +67,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: string_pointer
       CHARACTER(LEN=max_line_length)                     :: error_message
-      INTEGER                                            :: gw_sc, handle, i, i_special_kp, ival, &
-                                                            unit_nr
+      INTEGER                                            :: gw_sc, handle, i, i_special_kp, &
+                                                            i_stcohsex_bse, ival, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: do_mp2, do_opt_ri_basis, do_ri_mp2, &
                                                             do_ri_sos_mp2, do_rpa
@@ -172,6 +172,9 @@ CONTAINS
                                 r_val=mp2_env%ri_g0w0%stfacip)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%STFACEA", &
                                 r_val=mp2_env%ri_g0w0%stfacea)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%STCOHSEX_BSE_ENERGIES", &
+                                i_val=i_stcohsex_bse)
+      mp2_env%ri_g0w0%stcohsex_bse_canonical = (i_stcohsex_bse == 1)
 
       NULLIFY (r_vals)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IC_CORR_LIST", &

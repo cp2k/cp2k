@@ -750,6 +750,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="STCOHSEX_BSE_ENERGIES", &
+                          description="Quasiparticle energies and MOs that enter a BSE after STCOHSEX. "// &
+                          "The BSE kernel is W = v + STFACIP*W^c(omega=0), which requires STFACIP = STFACEA.", &
+                          usage="STCOHSEX_BSE_ENERGIES CANONICAL", &
+                          enum_c_vals=s2a("DIAGONAL", "CANONICAL"), &
+                          enum_i_vals=[0, 1], &
+                          enum_desc=s2a("Diagonal st-COHSEX energies e_n^DG with the Kohn-Sham MOs.", &
+                                        "Canonical st-COHSEX energies e_n^CN with the canonical st-COHSEX "// &
+                                        "MOs, i.e. the full st-COHSEX quasiparticle Hamiltonian."), &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="STFACIP", &
                           description="Scaling factor of the st-COHSEX correlation self-energy in the "// &
                           "occupied-occupied block (ionization potentials).", &

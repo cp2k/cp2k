@@ -15,4 +15,6 @@
 "evGW_H2O_PBE_set_sc_flag.inp"          = [{matcher="E_evGW_gap", tol=1e-04, ref=17.0863}]
 "stCOHSEX_H2O_PBE.inp"                  = [{matcher="E_stCOHSEX_gap_CN", tol=1e-04, ref=18.445}]
 "stCOHSEX_H2O_PBE_HFX_window.inp"       = [{matcher="E_stCOHSEX_gap_DG", tol=1e-04, ref=18.021}]
+"BSE_stCOHSEX_H2O_PBE_diagonal_TDA.inp"  = [{matcher="BSE_1st_excit_ener_TDA", tol=2e-05, ref=9.3782}]
+"BSE_stCOHSEX_H2O_PBE_canonical.inp"     = [{matcher="BSE_1st_excit_ener", tol=2e-05, ref=9.5576}]
 #EOF

@@ -106,7 +106,7 @@ MODULE rpa_gw_stcohsex
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_gw_stcohsex'
 
-   PUBLIC :: stcohsex_qp_energies
+   PUBLIC :: stcohsex_qp_energies, rotate_bse_slab, get_stcohsex_mo_coeff
 
 CONTAINS
 
@@ -127,10 +127,13 @@ CONTAINS
 !> \param unit_nr output unit, > 0 only on the ionode
 !> \param qs_env ...
 !> \param mp2_env ...
+!> \param eigenval_dg optional, ϵ_n^DG of all MOs (scissor outside the window), nmo x nspins
+!> \param eigenval_cn optional, ϵ_n^CN of all MOs (scissor outside the window), nmo x nspins
+!> \param u_qp_all optional, U_mn of all MOs (δ_mn outside the window), nmo x nmo x nspins
 ! **************************************************************************************************
    SUBROUTINE stcohsex_qp_energies(fm_mat_Q, fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI, nmo, homo, &
                                    gw_corr_lev_occ, gw_corr_lev_virt, Eigenval, mo_coeff, unit_nr, &
-                                   qs_env, mp2_env)
+                                   qs_env, mp2_env, eigenval_dg, eigenval_cn, u_qp_all)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_gw, fm_mat_S_gw_work
@@ -141,6 +144,10 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type)                                     :: mp2_env
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT), &
+         OPTIONAL                                        :: eigenval_dg, eigenval_cn
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT), &
+         OPTIONAL                                        :: u_qp_all
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'stcohsex_qp_energies'
 
@@ -354,6 +361,22 @@ CONTAINS
          END DO
          u_qp(win_start:win_start + n_mo_win - 1, win_start:win_start + n_mo_win - 1) = h_qp(:, :)
 
+         ! for a subsequent BSE: ϵ^CN, ϵ^DG (same scissor outside the window) and U of all MOs
+         IF (PRESENT(eigenval_cn)) eigenval_cn(:, ispin) = e_qp(:)
+         IF (PRESENT(u_qp_all)) u_qp_all(:, :, ispin) = u_qp(:, :)
+         IF (PRESENT(eigenval_dg)) THEN
+            DO n = 1, nmo
+               IF (n < win_start) THEN
+                  eigenval_dg(n, ispin) = Eigenval(n, ispin) + e_diag(1) - Eigenval(win_start, ispin)
+               ELSE IF (n >= win_start + n_mo_win) THEN
+                  eigenval_dg(n, ispin) = Eigenval(n, ispin) + e_diag(n_mo_win) - &
+                                          Eigenval(win_start + n_mo_win - 1, ispin)
+               ELSE
+                  eigenval_dg(n, ispin) = e_diag(n - win_start + 1)
+               END IF
+            END DO
+         END IF
+
          ! ==============================================================================
          ! 10. Print per MO: ϵ_n, Σ^c_nn (unscaled), Σ^x_nn, v^xc_nn, ϵ_n^DG, ϵ_n^CN and
          !     HOMO, LUMO, gap; ϵ^CN is sorted in each block, i.e. ϵ^CN_HOMO = max over
@@ -509,8 +532,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: maxocc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_qp_mo, fm_u
+      TYPE(cp_fm_type)                                   :: fm_qp_mo
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type)                                  :: qp_mo_set
@@ -542,16 +564,7 @@ CONTAINS
          CALL cp_fm_get_info(mo_coeff, nrow_global=nao, ncol_global=nmo)
 
          ! C^QP_μn = Σ_m C_μm U_mn
-         NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, template_fmstruct=mo_coeff%matrix_struct, &
-                                  nrow_global=nmo, ncol_global=nmo)
-         CALL cp_fm_create(fm_u, fm_struct)
-         CALL cp_fm_struct_release(fm_struct)
-         CALL cp_fm_set_submatrix(fm_u, u_qp)
-         CALL cp_fm_create(fm_qp_mo, mo_coeff%matrix_struct)
-         CALL parallel_gemm(transa="N", transb="N", m=nao, n=nmo, k=nmo, alpha=1.0_dp, &
-                            matrix_a=mo_coeff, matrix_b=fm_u, beta=0.0_dp, matrix_c=fm_qp_mo)
-         CALL cp_fm_release(fm_u)
+         CALL get_stcohsex_mo_coeff(mo_coeff, u_qp, fm_qp_mo)
 
          ! MO energies ϵ_n^QP, occupations f_n (maxocc for n <= homo) and coefficients C^QP_μn
          IF (print_mo) THEN
@@ -623,5 +636,139 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE print_stcohsex_mos
+
+! **************************************************************************************************
+!> \brief Canonical st-COHSEX MO coefficients
+!>          C^QP_μn = Σ_m C_μm U_mn
+!> \param mo_coeff DFT MO coefficients C_μm, nao x nmo
+!> \param u_qp U_mn, replicated, nmo x nmo
+!> \param fm_qp_mo C^QP_μn, created here on the structure of mo_coeff
+! **************************************************************************************************
+   SUBROUTINE get_stcohsex_mo_coeff(mo_coeff, u_qp, fm_qp_mo)
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: u_qp
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_qp_mo
+
+      INTEGER                                            :: nao, nmo
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: fm_u
+
+      CALL cp_fm_get_info(mo_coeff, nrow_global=nao, ncol_global=nmo)
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, template_fmstruct=mo_coeff%matrix_struct, &
+                               nrow_global=nmo, ncol_global=nmo)
+      CALL cp_fm_create(fm_u, fm_struct)
+      CALL cp_fm_struct_release(fm_struct)
+      CALL cp_fm_set_submatrix(fm_u, u_qp)
+      CALL cp_fm_create(fm_qp_mo, mo_coeff%matrix_struct)
+      CALL parallel_gemm(transa="N", transb="N", m=nao, n=nmo, k=nmo, alpha=1.0_dp, &
+                         matrix_a=mo_coeff, matrix_b=fm_u, beta=0.0_dp, matrix_c=fm_qp_mo)
+      CALL cp_fm_release(fm_u)
+
+   END SUBROUTINE get_stcohsex_mo_coeff
+
+! **************************************************************************************************
+!> \brief Rotate an RI 3-center slab to the canonical st-COHSEX MOs
+!>
+!>        The slab B^P_(o,i) (rows P, compound column (o-1)*n_inner + i) is transformed with
+!>        the MO rotations U^outer (n_outer x n_outer) and U^inner (n_inner x n_inner):
+!>          B̃^P_(o',i') = Σ_o Σ_i U^outer_oo' U^inner_ii' B^P_(o,i)
+!>        e.g. B^P_ia with (U^occ, U^virt), B^P_ij with (U^occ, U^occ), B^P_ab with (U^virt, U^virt).
+!>        O(N^4) in two gemm steps; the compound index is reordered with fm_general_add_bse:
+!>          (a) T_(P,o),i = B^P_(o,i),   T̃ = T U^inner,        B^P_(o,i') = T̃_(P,o),i'
+!>          (b) T_(P,i),o = B^P_(o,i),   T̃ = T U^outer,        B̃^P_(o',i) = T̃_(P,i),o'
+!> \param fm_slab the slab, dimen_RI x (n_outer*n_inner), rotated in place
+!> \param dimen_RI number of rows (RI functions)
+!> \param n_outer size of the outer MO index
+!> \param n_inner size of the inner MO index
+!> \param u_outer U^outer, replicated
+!> \param u_inner U^inner, replicated
+!> \param mp2_env ...
+! **************************************************************************************************
+   SUBROUTINE rotate_bse_slab(fm_slab, dimen_RI, n_outer, n_inner, u_outer, u_inner, mp2_env)
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_slab
+      INTEGER, INTENT(IN)                                :: dimen_RI, n_outer, n_inner
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: u_outer, u_inner
+      TYPE(mp2_type)                                     :: mp2_env
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rotate_bse_slab'
+
+      INTEGER                                            :: handle, unit_debug
+
+      CALL timeset(routineN, handle)
+
+      ! fm_general_add_bse prints debug information only with BSE_DEBUG_PRINT
+      unit_debug = -1
+
+      ! (a) inner index: (P ; o,i) -> (P,o ; i), P fast, reordering [3,1,2,4] and back [3,2,1,4]
+      CALL rotate_one_index(fm_slab, dimen_RI, n_outer, n_inner, u_inner, [3, 1, 2, 4], [3, 2, 1, 4], &
+                            n_inner, unit_debug, mp2_env)
+      ! (b) outer index: (P ; o,i) -> (P,i ; o), P fast, reordering [4,1,2,3] and back [3,2,4,1]
+      CALL rotate_one_index(fm_slab, dimen_RI, n_inner, n_outer, u_outer, [4, 1, 2, 3], [3, 2, 4, 1], &
+                            n_inner, unit_debug, mp2_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE rotate_bse_slab
+
+! **************************************************************************************************
+!> \brief One step of rotate_bse_slab: rotate one MO index of the compound column index
+!>          T_(P,s),r = B^P_(o,i) (reordered),   T̃_(P,s),r' = Σ_r T_(P,s),r U_rr',   back to B
+!>        r is the rotated index, s the spectator index
+!> \param fm_slab the slab, dimen_RI x (n_outer*n_inner), rotated in place
+!> \param dimen_RI number of rows (RI functions)
+!> \param n_spect size of the spectator index s
+!> \param n_rot size of the rotated index r
+!> \param u_rot U_rr', replicated
+!> \param reord_to reordering (P ; o,i) -> (P,s ; r)
+!> \param reord_back reordering (P,s ; r) -> (P ; o,i)
+!> \param n_inner size of the inner index i of the slab
+!> \param unit_debug ...
+!> \param mp2_env ...
+! **************************************************************************************************
+   SUBROUTINE rotate_one_index(fm_slab, dimen_RI, n_spect, n_rot, u_rot, reord_to, reord_back, &
+                               n_inner, unit_debug, mp2_env)
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_slab
+      INTEGER, INTENT(IN)                                :: dimen_RI, n_spect, n_rot
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: u_rot
+      INTEGER, DIMENSION(4)                              :: reord_to, reord_back
+      INTEGER, INTENT(IN)                                :: n_inner
+      INTEGER                                            :: unit_debug
+      TYPE(mp2_type)                                     :: mp2_env
+
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: fm_slab_out, fm_t, fm_t_rot, fm_u
+
+      ! T_(P,s),r with row index P + (s-1)*dimen_RI
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_slab%matrix_struct, &
+                               nrow_global=n_spect*dimen_RI, ncol_global=n_rot)
+      CALL cp_fm_create(fm_t, fm_struct, name="stcohsex_slab_reordered", set_zero=.TRUE.)
+      CALL cp_fm_create(fm_t_rot, fm_struct, name="stcohsex_slab_rotated", set_zero=.TRUE.)
+      CALL cp_fm_struct_release(fm_struct)
+      CALL fm_general_add_bse(fm_t, fm_slab, 1.0_dp, 1, n_inner, dimen_RI, n_rot, &
+                              unit_debug, reord_to, mp2_env%bse)
+
+      ! T̃_(P,s),r' = Σ_r T_(P,s),r U_rr'
+      NULLIFY (fm_struct)
+      CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_slab%matrix_struct, &
+                               nrow_global=n_rot, ncol_global=n_rot)
+      CALL cp_fm_create(fm_u, fm_struct, name="stcohsex_U")
+      CALL cp_fm_struct_release(fm_struct)
+      CALL cp_fm_set_submatrix(fm_u, u_rot)
+      CALL parallel_gemm(transa="N", transb="N", m=n_spect*dimen_RI, n=n_rot, k=n_rot, alpha=1.0_dp, &
+                         matrix_a=fm_t, matrix_b=fm_u, beta=0.0_dp, matrix_c=fm_t_rot)
+      CALL cp_fm_release(fm_u)
+      CALL cp_fm_release(fm_t)
+
+      ! back to B^P_(o,i); the slab keeps its structure
+      CALL cp_fm_create(fm_slab_out, fm_slab%matrix_struct, name="stcohsex_slab_back", set_zero=.TRUE.)
+      CALL fm_general_add_bse(fm_slab_out, fm_t_rot, 1.0_dp, dimen_RI, n_rot, 1, n_inner, &
+                              unit_debug, reord_back, mp2_env%bse)
+      CALL cp_fm_to_fm(fm_slab_out, fm_slab)
+      CALL cp_fm_release(fm_slab_out)
+      CALL cp_fm_release(fm_t_rot)
+
+   END SUBROUTINE rotate_one_index
 
 END MODULE rpa_gw_stcohsex

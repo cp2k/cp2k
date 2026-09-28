@@ -247,7 +247,10 @@ MODULE mp2_types
       ! static COHSEX (st-COHSEX) in the O(N^4) GW code (rpa_gw_stcohsex.F):
       !   H^QP_mn = ϵ_n δ_mn + Σ^x_mn - v^xc_mn + f Σ^c_mn,  f = stfacip (occ-occ), stfacea (virt-virt)
       ! matrix_vxc: AO matrix v^xc_μν (st-COHSEX only), matrix_sigma_x_minus_vxc: AO (Σ^x - v^xc)_μν
-      LOGICAL                                            :: do_stcohsex = .FALSE.
+      ! stcohsex_bse_canonical: BSE with the canonical (ϵ^CN, C U) instead of the diagonal
+      ! (ϵ^DG, KS MOs) st-COHSEX quasiparticles
+      LOGICAL                                            :: do_stcohsex = .FALSE., &
+                                                            stcohsex_bse_canonical = .FALSE.
       REAL(KIND=dp)                                      :: stfacip = 1.0_dp, &
                                                             stfacea = 1.0_dp
       REAL(KIND=dp)                                      :: broadening_print_loc_bandgap = 0.0_dp, &
