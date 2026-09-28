@@ -18,7 +18,8 @@ MODULE floquet_utils
                                               cp_cfm_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE floquet_types,                   ONLY: floquet_env_type
+   USE floquet_types,                   ONLY: floquet_active_band_count,&
+                                              floquet_env_type
    USE input_constants,                 ONLY: tensor_small_cell_full_kp
    USE kinds,                           ONLY: default_string_length,&
                                               dp,&
@@ -222,7 +223,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_floquet_kp_data'
 
-      INTEGER                                            :: handle, loc_idx, local_src, owner
+      INTEGER                                            :: handle, loc_idx, local_src, nhi, nlo, &
+                                                            owner
 
       CALL timeset(routineN, handle)
 
@@ -234,9 +236,13 @@ CONTAINS
       CALL para_env_sub%max(local_src)
 
       ! The owner copies its single-spin slice of this k-point's distributed band data into the
-      ! broadcast buffers, then broadcasts them to the whole subgroup.
+      ! broadcast buffers, then broadcasts them to the whole subgroup. Only the active band
+      ! window [n_lo, n_hi] (the MAX_NMO states closest to the VBM) is taken from the full-band
+      ! e_k/de_dk/dipole arrays; the broadcast buffers are sized to this window (floquet_env%nao).
       IF (para_env%mepos == owner) THEN
          loc_idx = CEILING(REAL(ikp)/para_env%num_pe)
+         nlo = floquet_env%n_lo(ispin)
+         nhi = floquet_env%n_hi(ispin)
          floquet_env%e_k_kp_spin(:) = e_k(ispin, loc_idx, :)
          floquet_env%p_k_kp_spin(:, :, :) = p_k(ispin, loc_idx, :, :, :)
       END IF
@@ -322,22 +328,21 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'floquet_determine_subgroup_size'
 
-      INTEGER                                            :: g_load, g_mem, handle, n_f_size, nao, &
+      INTEGER                                            :: g_load, g_mem, handle, n_f_size, &
                                                             nkp_only_bs, ranks_per_node, unit_nr
       INTEGER(KIND=int_8)                                :: Buffers, Cached, MemFree, MemLikelyFree, &
                                                             MemTotal, needed_bytes, Slab, &
                                                             SReclaimable, usable_per_rank
       REAL(KIND=dp)                                      :: mem_fill_fraction
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, para_env=para_env, mos=mos)
-      CALL get_mo_set(mo_set=mos(1), nao=nao)
+      CALL get_qs_env(qs_env, para_env=para_env)
 
       unit_nr = bs_env%unit_nr
-      n_f_size = nao*(1 + 2*bs_env%max_floquet_index)
+      ! Size for the active band window (the MAX_NMO band count, or the full count when MAX_NMO <= 0)
+      n_f_size = floquet_active_band_count(bs_env)*(1 + 2*bs_env%max_floquet_index)
       nkp_only_bs = bs_env%nkp_only_bs
       mem_fill_fraction = bs_env%floquet_mem_fill_fraction
 
@@ -662,12 +667,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_floquet_header'
 
-      INTEGER                                            :: handle, n_f_size, unit_nr
+      INTEGER                                            :: handle, n_active, n_f_size, unit_nr
 
       CALL timeset(routineN, handle)
 
       unit_nr = bs_env%unit_nr
-      n_f_size = bs_env%n_ao*(1 + 2*bs_env%max_floquet_index)
+      ! Active band window (the MAX_NMO states closest to the VBM, or all bands when MAX_NMO <= 0)
+      n_active = floquet_active_band_count(bs_env)
+      n_f_size = n_active*(1 + 2*bs_env%max_floquet_index)
 
       IF (unit_nr > 0) THEN
 
@@ -687,6 +694,9 @@ CONTAINS
          WRITE (unit_nr, '(T37,A,T55,3F8.4)') "Phase offsets:", pi*bs_env%floquet_phi(1:3)
          WRITE (unit_nr, '(T37,A)') REPEAT("-", 44)
          WRITE (unit_nr, '(T37,A,T67,I12)') "Max Floquet index:", bs_env%max_floquet_index
+         WRITE (unit_nr, '(T37,A,T67,I12)') "Max KS states (MAX_NMO, 0=all):", bs_env%max_nmo_floquet
+         WRITE (unit_nr, '(T37,A,T67,I12)') "Active bands used (of total):", n_active
+         WRITE (unit_nr, '(T37,A,T67,I12)') "Total number of bands:", bs_env%n_ao
          WRITE (unit_nr, '(T37,A,T67,I12)') "Floquet Hamiltonian Size:", n_f_size
          WRITE (unit_nr, '(T37,A)') REPEAT("-", 44)
          WRITE (unit_nr, '(T37,A,T67,F12.4)') &
@@ -781,6 +791,8 @@ CONTAINS
          WRITE (bunit, "(A)") "# (in units of eV, relative to the VBM, not folded)"
          WRITE (bunit, "(A)") "# w = sum_n |<n,m=0|alpha>|^2 in [0,1]: w~1 clean m=0 replica,"
          WRITE (bunit, "(A)") "# w~0.5 hybridised with a sideband (drive near resonance)"
+         WRITE (bunit, "(A)") "# The band column is the absolute Kohn-Sham band index; only the"
+         WRITE (bunit, "(A)") "# MAX_NMO band window closest to the VBM is reported (all bands if 0)."
 
          ! Quasi-energies
          WRITE (fname, "(2A)") TRIM(bs_env%floquet_qe_file), ".bs"
@@ -801,9 +813,9 @@ CONTAINS
                ! <floquet_bs_file>.bs the m=0 band structure (absolute energies) and its weights
                WRITE (bunit, "(A,I0,T10,A,I0,A,T24,3(1X,F14.8))") &
                   "#  Spin ", ispin, "  Point ", ikp_for_file, ": ", xkp(1:3)
-               WRITE (bunit, "(A)") "#  Floquet band  Energy [eV]         m=0 weight"
+               WRITE (bunit, "(A)") "#  KS band       Energy [eV]         m=0 weight"
                DO i = 1, nao
-                  WRITE (bunit, "(I8,F21.8,F17.5)") i, &
+                  WRITE (bunit, "(I8,F21.8,F17.5)") floquet_env%n_lo(ispin) - 1 + i, &
                      floquet_env%all_m0_energies(i, ispin, ikp_for_file)*evolt, &
                      floquet_env%all_m0_weights(i, ispin, ikp_for_file)
                END DO
