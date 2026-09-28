@@ -23,8 +23,8 @@ MODULE bse_bs_env_link
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
-        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_stored_coordinates, dbcsr_put_block, &
-        dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_info, dbcsr_get_stored_coordinates, &
+        dbcsr_put_block, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_diag,                      ONLY: cp_fm_power
@@ -32,7 +32,6 @@ MODULE bse_bs_env_link
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_submatrix,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -43,12 +42,12 @@ MODULE bse_bs_env_link
                                               cp_logger_type
    USE dbt_api,                         ONLY: &
         dbt_batched_contract_finalize, dbt_batched_contract_init, dbt_clear, dbt_contract, &
-        dbt_create, dbt_destroy, dbt_filter, dbt_get_block, dbt_get_stored_coordinates, &
+        dbt_create, dbt_destroy, dbt_get_block, dbt_get_stored_coordinates, &
         dbt_iterator_blocks_left, dbt_iterator_next_block, dbt_iterator_start, dbt_iterator_stop, &
-        dbt_iterator_type, dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_put_block, &
-        dbt_reserve_blocks, dbt_type
+        dbt_iterator_type, dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_type
    USE gw_tensor_large_cell_Gamma,      ONLY: compute_3c_integrals
-   USE gw_utils_communication,          ONLY: local_matrix_to_global_matrix
+   USE gw_utils_communication,          ONLY: fm_to_local_tensor,&
+                                              local_matrix_to_global_matrix
    USE gw_utils_fm,                     ONLY: fm_contract_ABA
    USE input_constants,                 ONLY: bse_memcheck_off,&
                                               bse_memcheck_warn
@@ -66,8 +65,6 @@ MODULE bse_bs_env_link
    USE qs_tensors,                      ONLY: neighbor_list_3c_destroy
    USE qs_tensors_types,                ONLY: create_2c_tensor,&
                                               create_3c_tensor
-
-!$ USE OMP_LIB, ONLY: omp_get_num_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -285,13 +282,15 @@ CONTAINS
 !> \brief The window columns of the MO coefficients, C(μ, p) for p in the window, as a 2-index
 !>        tensor (AO atom | MO block) on the tensor group's grid, the MO blocking the caller's
 !> \param bs_env ...
+!> \param dbcsr_dist distribution of the SCF matrices, the template of the global matrix
 !> \param ispin ...
 !> \param window ...
 !> \param sizes_mo MO block sizes of the tensor, summing to the window
 !> \param t_C the tensor, created here
 ! **************************************************************************************************
-   SUBROUTINE link_mo_tensor(bs_env, ispin, window, sizes_mo, t_C)
+   SUBROUTINE link_mo_tensor(bs_env, dbcsr_dist, ispin, window, sizes_mo, t_C)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(mo_window_type), INTENT(IN)                   :: window
       INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_mo
@@ -299,22 +298,19 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'link_mo_tensor'
 
-      INTEGER :: ao0, handle, i_atom, i_blk, i_chunk, i_first, i_last, iproc, ithread, mo0, n_blk, &
-         n_c, n_chunk, n_mu, n_window, nblk_per_thread, nthreads
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_ind_1, blk_ind_2, dist_1, dist_2
+      INTEGER                                            :: handle, n_window
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist_1, dist_2
       INTEGER, DIMENSION(2)                              :: pdims_2d
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: blk, c_win
+      TYPE(cp_fm_struct_type), POINTER                   :: struct
+      TYPE(cp_fm_type)                                   :: fm_win
+      TYPE(dbcsr_distribution_type)                      :: dist_glob, dist_group, dist_tmpl
+      TYPE(dbcsr_type)                                   :: mat_glob, mat_group
       TYPE(dbt_pgrid_type)                               :: pgrid_2d
 
       CALL timeset(routineN, handle)
 
       n_window = window%last_mo - window%first_mo + 1
-      n_chunk = SIZE(sizes_mo)
       CPASSERT(SUM(sizes_mo) == n_window)
-      ! the window columns replicated, the source of the local blocks below
-      ALLOCATE (c_win(bs_env%n_ao, n_window))
-      CALL cp_fm_get_submatrix(bs_env%fm_mo_coeff_Gamma(ispin), c_win, start_row=1, &
-                               start_col=window%first_mo, n_rows=bs_env%n_ao, n_cols=n_window)
 
       pdims_2d = 0
       CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims_2d, pgrid_2d)
@@ -322,55 +318,63 @@ CONTAINS
       DEALLOCATE (dist_1, dist_2)
       CALL dbt_pgrid_destroy(pgrid_2d)
 
-      ! reserve and fill the blocks this rank stores
-      n_blk = 0
-      DO i_atom = 1, bs_env%n_atom
-         DO i_chunk = 1, n_chunk
-            CALL dbt_get_stored_coordinates(t_C, [i_atom, i_chunk], iproc)
-            IF (iproc == bs_env%para_env_tensor%mepos) n_blk = n_blk + 1
-         END DO
-      END DO
-      ALLOCATE (blk_ind_1(n_blk), blk_ind_2(n_blk))
-      n_blk = 0
-      DO i_atom = 1, bs_env%n_atom
-         DO i_chunk = 1, n_chunk
-            CALL dbt_get_stored_coordinates(t_C, [i_atom, i_chunk], iproc)
-            IF (iproc /= bs_env%para_env_tensor%mepos) CYCLE
-            n_blk = n_blk + 1
-            blk_ind_1(n_blk) = i_atom
-            blk_ind_2(n_blk) = i_chunk
-         END DO
-      END DO
-      ! DBM reserves inside one parallel region, every thread over its own slice of the list
-!$OMP PARALLEL DEFAULT(NONE) SHARED(t_C, blk_ind_1, blk_ind_2, n_blk) &
-!$OMP PRIVATE(nthreads, ithread, nblk_per_thread, i_first, i_last)
-      nthreads = 1
-      ithread = 0
-!$    nthreads = omp_get_num_threads()
-!$    ithread = omp_get_thread_num()
-      nblk_per_thread = n_blk/nthreads + 1
-      i_first = ithread*nblk_per_thread + 1
-      i_last = MIN(i_first + nblk_per_thread - 1, n_blk)
-      CALL dbt_reserve_blocks(t_C, blk_ind_1(i_first:i_last), blk_ind_2(i_first:i_last))
-!$OMP END PARALLEL
-      DO i_blk = 1, n_blk
-         i_atom = blk_ind_1(i_blk)
-         i_chunk = blk_ind_2(i_blk)
-         ao0 = bs_env%i_ao_start_from_atom(i_atom)
-         n_mu = bs_env%sizes_AO(i_atom)
-         mo0 = SUM(sizes_mo(1:i_chunk - 1)) + 1
-         n_c = sizes_mo(i_chunk)
-         ALLOCATE (blk(n_mu, n_c))
-         blk(:, :) = c_win(ao0:ao0 + n_mu - 1, mo0:mo0 + n_c - 1)
-         CALL dbt_put_block(t_C, [i_atom, i_chunk], [n_mu, n_c], blk)
-         DEALLOCATE (blk)
-      END DO
-      CALL dbt_filter(t_C, bs_env%eps_filter)
-      DEALLOCATE (blk_ind_1, blk_ind_2, c_win)
+      ! the window columns as a full matrix, then the route of the GW's own matrices (fm_to_local_tensor):
+      ! global DBCSR, group DBCSR, tensor; the coefficients are never replicated
+      NULLIFY (struct)
+      CALL cp_fm_struct_create(struct, template_fmstruct=bs_env%fm_mo_coeff_Gamma(ispin)%matrix_struct, &
+                               ncol_global=n_window)
+      CALL cp_fm_create(fm_win, struct)
+      CALL cp_fm_struct_release(struct)
+      CALL cp_fm_to_fm_submat(bs_env%fm_mo_coeff_Gamma(ispin), fm_win, bs_env%n_ao, n_window, 1, window%first_mo, 1, 1)
+      CALL link_matrix_round_robin(dbcsr_dist, bs_env%sizes_AO, sizes_mo, "C window", dist_glob, mat_glob)
+      ! the group matrix on the grid of the GW's AO matrices of the tensor group
+      CALL dbcsr_get_info(bs_env%mat_ao_ao_tensor%matrix, distribution=dist_tmpl)
+      CALL link_matrix_round_robin(dist_tmpl, bs_env%sizes_AO, sizes_mo, "C window, group", dist_group, mat_group)
+      CALL fm_to_local_tensor(fm_win, mat_glob, mat_group, t_C, bs_env)
+
+      CALL cp_fm_release(fm_win)
+      CALL dbcsr_release(mat_glob)
+      CALL dbcsr_release(mat_group)
+      CALL dbcsr_distribution_release(dist_glob)
+      CALL dbcsr_distribution_release(dist_group)
 
       CALL timestop(handle)
 
    END SUBROUTINE link_mo_tensor
+
+! **************************************************************************************************
+!> \brief A DBCSR matrix with the given blocking on the communicator and process grid of a template
+!>        distribution, the blocks round robin over the grid rows and columns
+!> \param dist_tmpl the template
+!> \param row_sizes ...
+!> \param col_sizes ...
+!> \param name ...
+!> \param dist the distribution of the matrix, created here, released after the matrix
+!> \param matrix created here
+! **************************************************************************************************
+   SUBROUTINE link_matrix_round_robin(dist_tmpl, row_sizes, col_sizes, name, dist, matrix)
+      TYPE(dbcsr_distribution_type), INTENT(IN)          :: dist_tmpl
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: row_sizes, col_sizes
+      CHARACTER(LEN=*), INTENT(IN)                       :: name
+      TYPE(dbcsr_distribution_type), INTENT(OUT)         :: dist
+      TYPE(dbcsr_type), INTENT(OUT)                      :: matrix
+
+      INTEGER                                            :: ib, npcols, nprows
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk, col_dist, row_blk, row_dist
+
+      NULLIFY (col_blk, col_dist, row_blk, row_dist)
+      CALL dbcsr_distribution_get(dist_tmpl, nprows=nprows, npcols=npcols)
+      ALLOCATE (row_dist(SIZE(row_sizes)), col_dist(SIZE(col_sizes)), row_blk(SIZE(row_sizes)), col_blk(SIZE(col_sizes)))
+      row_dist(:) = [(MOD(ib - 1, nprows), ib=1, SIZE(row_sizes))]
+      col_dist(:) = [(MOD(ib - 1, npcols), ib=1, SIZE(col_sizes))]
+      row_blk(:) = row_sizes(:)
+      col_blk(:) = col_sizes(:)
+      CALL dbcsr_distribution_new(dist, template=dist_tmpl, row_dist=row_dist, col_dist=col_dist)
+      CALL dbcsr_create(matrix, name=name, dist=dist, matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=row_blk, col_blk_size=col_blk)
+      DEALLOCATE (row_dist, col_dist, row_blk, col_blk)
+
+   END SUBROUTINE link_matrix_round_robin
 
 ! **************************************************************************************************
 !> \brief Block sizes of the window index p: chunks of at most mo_chunk levels inside the occupied
@@ -572,8 +576,8 @@ CONTAINS
       ALLOCATE (sizes_q(2))
       sizes_q(:) = [n_o, n_v]
       CALL link_sector_chunks(n_o, n_v, sizes_p, n_chunk_o)
-      CALL link_mo_tensor(bs_env, ispin, window, sizes_q, t_C_q)
-      CALL link_mo_tensor(bs_env, ispin, window, sizes_p, t_C_p)
+      CALL link_mo_tensor(bs_env, dbcsr_dist, ispin, window, sizes_q, t_C_q)
+      CALL link_mo_tensor(bs_env, dbcsr_dist, ispin, window, sizes_p, t_C_p)
 
       CALL link_batch_budget(bs_env, bse_env, n_w, unit_nr, batch_bytes, max_fn)
       CALL link_ri_batches(bs_env%sizes_RI, max_fn, batch_first, batch_last)
@@ -677,13 +681,11 @@ CONTAINS
 
       INTEGER                                            :: bp, bq, group_handle, handle, ib, ikind, &
                                                             iproc, jb, my_rank, n_chunk, nb_P, nP, &
-                                                            npcol, npcol_g, nprow, nprow_g, P0, &
-                                                            rank
+                                                            npcol, nprow, P0, rank
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: coords
       INTEGER, DIMENSION(3)                              :: blk_size, bp0_of, bq_of, ind, n_cols, &
                                                             nb_col
-      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_dist_g, col_sizes, &
-                                                            row_dist, row_dist_g, row_sizes
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_sizes, row_dist, row_sizes
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: blk
@@ -695,7 +697,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (col_dist, col_dist_g, col_sizes, pgrid, row_dist, row_dist_g, row_sizes, struct)
+      NULLIFY (col_dist, col_sizes, pgrid, row_dist, row_sizes, struct)
       P0 = bs_env%i_RI_start_from_atom(a1)
       nP = bs_env%i_RI_end_from_atom(a2) - P0 + 1
       nb_P = a2 - a1 + 1
@@ -720,23 +722,20 @@ CONTAINS
             pgrid(coords(1, rank), coords(2, rank)) = rank
          END DO
       END ASSOCIATE
-      ALLOCATE (row_dist(nb_P), row_sizes(nb_P), row_dist_g(nb_P))
-      CALL dbcsr_distribution_get(dbcsr_dist, nprows=nprow_g, npcols=npcol_g)
+      ALLOCATE (row_dist(nb_P), row_sizes(nb_P))
       DO ib = 1, nb_P
          CALL dbt_get_stored_coordinates(t_S, [a1 + ib - 1, 1, 1], iproc)
          row_dist(ib) = coords(1, iproc)
          row_sizes(ib) = bs_env%sizes_RI(a1 + ib - 1)
-         row_dist_g(ib) = MOD(ib - 1, nprow_g)
       END DO
       DO ikind = 1, 3
-         ALLOCATE (col_dist(nb_col(ikind)), col_sizes(nb_col(ikind)), col_dist_g(nb_col(ikind)))
+         ALLOCATE (col_dist(nb_col(ikind)), col_sizes(nb_col(ikind)))
          DO jb = 1, nb_col(ikind)
             bp = bp0_of(ikind) + jb
             CALL dbt_get_stored_coordinates(t_S, [a1, bq_of(ikind), bp], iproc)
             col_dist(jb) = coords(2, iproc)
             ! the q range of the pair type times the p chunk
             col_sizes(jb) = MERGE(n_o, n_v, ikind == kind_ij)*sizes_p(bp)
-            col_dist_g(jb) = MOD(jb - 1, npcol_g)
          END DO
          CALL dbcsr_distribution_new(dist_loc(ikind), group=group_handle, pgrid=pgrid, &
                                      row_dist=row_dist, col_dist=col_dist)
@@ -745,13 +744,10 @@ CONTAINS
          ! the threaded put_block below cannot create the work matrix itself
          CALL dbcsr_work_create(mat_loc(ikind), work_mutable=.TRUE.)
          ! the global matrix of the batch, round robin over the process grid of the slabs
-         CALL dbcsr_distribution_new(dist_glob(ikind), template=dbcsr_dist, row_dist=row_dist_g, &
-                                     col_dist=col_dist_g)
-         CALL dbcsr_create(mat_glob(ikind), name="S batch", dist=dist_glob(ikind), &
-                           matrix_type=dbcsr_type_no_symmetry, row_blk_size=row_sizes, col_blk_size=col_sizes)
-         DEALLOCATE (col_dist, col_sizes, col_dist_g)
+         CALL link_matrix_round_robin(dbcsr_dist, row_sizes, col_sizes, "S batch", dist_glob(ikind), mat_glob(ikind))
+         DEALLOCATE (col_dist, col_sizes)
       END DO
-      DEALLOCATE (pgrid, coords, row_dist, row_sizes, row_dist_g)
+      DEALLOCATE (pgrid, coords, row_dist, row_sizes)
 
       ! the local (P, q, p) blocks as (P, qp) blocks, q fastest, the column order of the slabs; the
       ! iterator needs the full thread team
