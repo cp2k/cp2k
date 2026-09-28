@@ -21,6 +21,11 @@ MODULE bse_bs_env_link
                                               bse_env_type
    USE bse_util,                        ONLY: bse_window_from_dft
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_dbcsr_api,                    ONLY: &
+        dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_stored_coordinates, dbcsr_put_block, &
+        dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_diag,                      ONLY: cp_fm_power
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -30,7 +35,6 @@ MODULE bse_bs_env_link
                                               cp_fm_get_submatrix,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
@@ -38,11 +42,13 @@ MODULE bse_bs_env_link
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE dbt_api,                         ONLY: &
-        dbt_clear, dbt_contract, dbt_create, dbt_destroy, dbt_filter, dbt_get_block, &
-        dbt_get_stored_coordinates, dbt_iterator_blocks_left, dbt_iterator_next_block, &
-        dbt_iterator_start, dbt_iterator_stop, dbt_iterator_type, dbt_pgrid_create, &
-        dbt_pgrid_destroy, dbt_pgrid_type, dbt_put_block, dbt_reserve_blocks, dbt_type
+        dbt_batched_contract_finalize, dbt_batched_contract_init, dbt_clear, dbt_contract, &
+        dbt_create, dbt_destroy, dbt_filter, dbt_get_block, dbt_get_stored_coordinates, &
+        dbt_iterator_blocks_left, dbt_iterator_next_block, dbt_iterator_start, dbt_iterator_stop, &
+        dbt_iterator_type, dbt_pgrid_create, dbt_pgrid_destroy, dbt_pgrid_type, dbt_put_block, &
+        dbt_reserve_blocks, dbt_type
    USE gw_tensor_large_cell_Gamma,      ONLY: compute_3c_integrals
+   USE gw_utils_communication,          ONLY: local_matrix_to_global_matrix
    USE gw_utils_fm,                     ONLY: fm_contract_ABA
    USE input_constants,                 ONLY: bse_memcheck_off,&
                                               bse_memcheck_warn
@@ -276,22 +282,19 @@ CONTAINS
    END SUBROUTINE link_screening
 
 ! **************************************************************************************************
-!> \brief The window columns of the MO coefficients, C(μ, p) for p in the window, as a replicated
-!>        array and as a 2-index tensor (AO atom | MO chunk) on the tensor group's grid
+!> \brief The window columns of the MO coefficients, C(μ, p) for p in the window, as a 2-index
+!>        tensor (AO atom | MO block) on the tensor group's grid, the MO blocking the caller's
 !> \param bs_env ...
 !> \param ispin ...
 !> \param window ...
-!> \param sizes_mo MO block sizes of the tensor, allocated here
-!> \param c_win C(n_ao, n_window), allocated here
+!> \param sizes_mo MO block sizes of the tensor, summing to the window
 !> \param t_C the tensor, created here
 ! **************************************************************************************************
-   SUBROUTINE link_mo_tensor(bs_env, ispin, window, sizes_mo, c_win, t_C)
+   SUBROUTINE link_mo_tensor(bs_env, ispin, window, sizes_mo, t_C)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(mo_window_type), INTENT(IN)                   :: window
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: sizes_mo
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(OUT)                                     :: c_win
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_mo
       TYPE(dbt_type), INTENT(OUT)                        :: t_C
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'link_mo_tensor'
@@ -300,21 +303,18 @@ CONTAINS
          n_c, n_chunk, n_mu, n_window, nblk_per_thread, nthreads
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_ind_1, blk_ind_2, dist_1, dist_2
       INTEGER, DIMENSION(2)                              :: pdims_2d
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: blk
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: blk, c_win
       TYPE(dbt_pgrid_type)                               :: pgrid_2d
 
       CALL timeset(routineN, handle)
 
       n_window = window%last_mo - window%first_mo + 1
+      n_chunk = SIZE(sizes_mo)
+      CPASSERT(SUM(sizes_mo) == n_window)
+      ! the window columns replicated, the source of the local blocks below
       ALLOCATE (c_win(bs_env%n_ao, n_window))
       CALL cp_fm_get_submatrix(bs_env%fm_mo_coeff_Gamma(ispin), c_win, start_row=1, &
                                start_col=window%first_mo, n_rows=bs_env%n_ao, n_cols=n_window)
-
-      ! MO chunks of at most mo_chunk columns
-      n_chunk = (n_window - 1)/mo_chunk + 1
-      ALLOCATE (sizes_mo(n_chunk))
-      sizes_mo(:) = mo_chunk
-      sizes_mo(n_chunk) = n_window - (n_chunk - 1)*mo_chunk
 
       pdims_2d = 0
       CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims_2d, pgrid_2d)
@@ -358,7 +358,7 @@ CONTAINS
          i_chunk = blk_ind_2(i_blk)
          ao0 = bs_env%i_ao_start_from_atom(i_atom)
          n_mu = bs_env%sizes_AO(i_atom)
-         mo0 = (i_chunk - 1)*mo_chunk + 1
+         mo0 = SUM(sizes_mo(1:i_chunk - 1)) + 1
          n_c = sizes_mo(i_chunk)
          ALLOCATE (blk(n_mu, n_c))
          blk(:, :) = c_win(ao0:ao0 + n_mu - 1, mo0:mo0 + n_c - 1)
@@ -366,11 +366,35 @@ CONTAINS
          DEALLOCATE (blk)
       END DO
       CALL dbt_filter(t_C, bs_env%eps_filter)
-      DEALLOCATE (blk_ind_1, blk_ind_2)
+      DEALLOCATE (blk_ind_1, blk_ind_2, c_win)
 
       CALL timestop(handle)
 
    END SUBROUTINE link_mo_tensor
+
+! **************************************************************************************************
+!> \brief Block sizes of the window index p: chunks of at most mo_chunk levels inside the occupied
+!>        and inside the virtual sector, so that no block straddles the two
+!> \param n_o ...
+!> \param n_v ...
+!> \param sizes the chunk sizes, occupied chunks first, allocated here
+!> \param n_chunk_o occupied chunks
+! **************************************************************************************************
+   SUBROUTINE link_sector_chunks(n_o, n_v, sizes, n_chunk_o)
+      INTEGER, INTENT(IN)                                :: n_o, n_v
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: sizes
+      INTEGER, INTENT(OUT)                               :: n_chunk_o
+
+      INTEGER                                            :: n_chunk_v
+
+      n_chunk_o = (n_o - 1)/mo_chunk + 1
+      n_chunk_v = (n_v - 1)/mo_chunk + 1
+      ALLOCATE (sizes(n_chunk_o + n_chunk_v))
+      sizes(:) = mo_chunk
+      sizes(n_chunk_o) = n_o - (n_chunk_o - 1)*mo_chunk
+      sizes(n_chunk_o + n_chunk_v) = n_v - (n_chunk_v - 1)*mo_chunk
+
+   END SUBROUTINE link_sector_chunks
 
 ! **************************************************************************************************
 !> \brief Contiguous RI atom ranges of at most max_fn RI functions; an atom larger than that forms
@@ -419,15 +443,14 @@ CONTAINS
 !> \param bs_env ...
 !> \param bse_env MEMORY_BUDGET_GB and MEMORY_CHECK
 !> \param n_w MOs in the window
-!> \param n_pairs_max columns of the widest slab
 !> \param unit_nr ...
 !> \param budget_bytes the budget; the RI transform chunks its work matrix by it as well
 !> \param max_fn RI functions per batch within the budget, at least one
 ! **************************************************************************************************
-   SUBROUTINE link_batch_budget(bs_env, bse_env, n_w, n_pairs_max, unit_nr, budget_bytes, max_fn)
+   SUBROUTINE link_batch_budget(bs_env, bse_env, n_w, unit_nr, budget_bytes, max_fn)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(bse_env_type), INTENT(IN)                     :: bse_env
-      INTEGER, INTENT(IN)                                :: n_w, n_pairs_max, unit_nr
+      INTEGER, INTENT(IN)                                :: n_w, unit_nr
       INTEGER(KIND=int_8), INTENT(OUT)                   :: budget_bytes
       INTEGER, INTENT(OUT)                               :: max_fn
 
@@ -443,12 +466,13 @@ CONTAINS
       END IF
       budget_bytes = INT(MAX(budget_GB, 0.0_dp)*1.0E9_dp, KIND=int_8)
 
-      ! per RI function of a batch: on every rank the replicated (p, q, P) block and the scatter
-      ! buffer, on the ranks of its tensor group the 3c integrals (P|μν) and the half-transform
-      ! (P μ|q), distributed; the contraction's own scratch is not counted
-      bytes_per_fn = 8_int_8*(INT(n_w, int_8)**2 + INT(n_pairs_max, int_8) + &
-                              (INT(bs_env%n_ao, int_8)**2 + INT(bs_env%n_ao, int_8)*INT(n_w, int_8)) &
-                              /INT(bs_env%para_env_tensor%num_pe, int_8))
+      ! per RI function of a batch, all distributed: on the ranks of its tensor group the 3c
+      ! integrals (P|μν), the half-transform (P μ|q) and the product (P|qp); on all ranks the block
+      ! matrices of the batch, their global copies (two inside the group-to-global hop) and the
+      ! batch's full matrix, four (P|qp); the contractions' own scratch is not counted
+      bytes_per_fn = 8_int_8*((INT(bs_env%n_ao, int_8)**2 + INT(bs_env%n_ao, int_8)*INT(n_w, int_8) + &
+                               INT(n_w, int_8)**2)/INT(bs_env%para_env_tensor%num_pe, int_8) + &
+                              4_int_8*INT(n_w, int_8)**2/INT(bs_env%para_env%num_pe, int_8))
       max_fn = INT(MAX(1_int_8, MIN(INT(SUM(bs_env%sizes_RI), int_8), budget_bytes/bytes_per_fn)))
       one_atom_bytes = INT(MAXVAL(bs_env%sizes_RI), int_8)*bytes_per_fn
       largest_bytes = MAX(INT(max_fn, int_8)*bytes_per_fn, one_atom_bytes)
@@ -512,26 +536,22 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'link_slabs'
 
-      INTEGER                                            :: a, a1, a2, b, handle, i, i_batch, j, &
-                                                            max_fn, mu0, n_batch, n_RI, n_w, nP, &
-                                                            p, P0, p_off, q0
+      INTEGER                                            :: a1, a2, handle, i_batch, max_fn, &
+                                                            n_batch, n_chunk_o, n_RI, n_w
       INTEGER(KIND=int_8)                                :: batch_bytes
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_first, batch_last, dist_1, dist_2, &
-                                                            dist_3, sizes_mo
-      INTEGER, DIMENSION(3)                              :: blk_size, ind, pdims_3d
-      LOGICAL                                            :: found
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: c_win, cols, tmp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: blk, s_loc
+                                                            dist_3, sizes_p, sizes_q
+      INTEGER, DIMENSION(3)                              :: pdims_3d
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: struct_ab, struct_ia, struct_ij
-      TYPE(dbt_iterator_type)                            :: iter
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbt_pgrid_type)                               :: pgrid_3d
-      TYPE(dbt_type)                                     :: t_3c, t_C, t_T
+      TYPE(dbt_type)                                     :: t_3c, t_C_p, t_C_q, t_S, t_T
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (blacs_env, struct_ab, struct_ia, struct_ij)
-      CALL get_qs_env(qs_env, blacs_env=blacs_env)
+      NULLIFY (blacs_env, dbcsr_dist, struct_ab, struct_ia, struct_ij)
+      CALL get_qs_env(qs_env, blacs_env=blacs_env, dbcsr_dist=dbcsr_dist)
       n_RI = bs_env%n_RI
       n_w = n_o + n_v
       CALL cp_fm_struct_create(struct_ij, para_env=bs_env%para_env, context=blacs_env, &
@@ -547,103 +567,71 @@ CONTAINS
       CALL cp_fm_struct_release(struct_ia)
       CALL cp_fm_struct_release(struct_ab)
 
-      CALL link_mo_tensor(bs_env, ispin, window, sizes_mo, c_win, t_C)
+      ! the window index q in two blocks, occupied and virtual, so that every (P, q, p) block of the
+      ! product covers the whole q range of one pair type; p in chunks inside each sector
+      ALLOCATE (sizes_q(2))
+      sizes_q(:) = [n_o, n_v]
+      CALL link_sector_chunks(n_o, n_v, sizes_p, n_chunk_o)
+      CALL link_mo_tensor(bs_env, ispin, window, sizes_q, t_C_q)
+      CALL link_mo_tensor(bs_env, ispin, window, sizes_p, t_C_p)
 
-      CALL link_batch_budget(bs_env, bse_env, n_w, MAX(n_o*n_o, n_o*n_v, n_v*n_v), unit_nr, batch_bytes, max_fn)
+      CALL link_batch_budget(bs_env, bse_env, n_w, unit_nr, batch_bytes, max_fn)
       CALL link_ri_batches(bs_env%sizes_RI, max_fn, batch_first, batch_last)
       n_batch = SIZE(batch_first)
       IF (unit_nr > 0) WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'RI atom batches of the slabs', n_batch
 
-      ! (RI AO | MO) result of the half-transform on the tensor group's grid
+      ! (RI AO | MO) of the half-transform and (RI | MO MO) of the product on the tensor group's grid
       pdims_3d = 0
       CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims_3d, pgrid_3d)
       CALL create_3c_tensor(t_T, dist_1, dist_2, dist_3, pgrid_3d, bs_env%sizes_RI, bs_env%sizes_AO, &
-                            sizes_mo, map1=[1, 2], map2=[3], name="(RI AO | MO)")
+                            sizes_q, map1=[1, 2], map2=[3], name="(RI AO | MO)")
+      DEALLOCATE (dist_1, dist_2, dist_3)
+      CALL dbt_pgrid_destroy(pgrid_3d)
+      pdims_3d = 0
+      CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims_3d, pgrid_3d, &
+                            tensor_dims=[bs_env%n_atom, SIZE(sizes_q), SIZE(sizes_p)])
+      CALL create_3c_tensor(t_S, dist_1, dist_2, dist_3, pgrid_3d, bs_env%sizes_RI, sizes_q, sizes_p, &
+                            map1=[1], map2=[2, 3], name="(RI | MO MO)")
       DEALLOCATE (dist_1, dist_2, dist_3)
       CALL dbt_pgrid_destroy(pgrid_3d)
       CALL dbt_create(bs_env%t_RI_AO__AO, t_3c)
 
+      ! C_q contracts once per batch in a layout-compatible contraction: the batched context keeps its replicated
+      ! copy across the batches; on the small operand only, so that no grid changes under the neighbour list
+      ! of the 3c integrals. No context on C_p: no layout of T fits both contractions, so the second remaps T anyway
+      CALL dbt_batched_contract_init(t_C_q)
+
       DO i_batch = 1, n_batch
          a1 = batch_first(i_batch)
          a2 = batch_last(i_batch)
-         P0 = bs_env%i_RI_start_from_atom(a1)
-         nP = bs_env%i_RI_end_from_atom(a2) - P0 + 1
-         ! s_loc(p, q, P): the (p, q) slice of one RI function is contiguous, the DGEMM operand below
-         ALLOCATE (s_loc(n_w, n_w, nP))
-         s_loc(:, :, :) = 0.0_dp
-
-         ! one tensor group per batch, round robin; every rank joins the sum below
+         ! one tensor group per batch, round robin; every rank joins the hop into the slabs
          IF (MODULO(i_batch - 1, bs_env%num_tensor_groups) == bs_env%tensor_group_color) THEN
             CALL compute_3c_integrals(qs_env, bs_env, t_3c, atoms_RI=[a1, a2])
             ! T_Pμq = sum_ν (P|μν) C_νq
-            CALL dbt_contract(alpha=1.0_dp, tensor_1=t_3c, tensor_2=t_C, beta=0.0_dp, tensor_3=t_T, &
+            CALL dbt_contract(alpha=1.0_dp, tensor_1=t_3c, tensor_2=t_C_q, beta=0.0_dp, tensor_3=t_T, &
                               contract_1=[3], notcontract_1=[1, 2], map_1=[1, 2], &
                               contract_2=[1], notcontract_2=[2], map_2=[3], &
                               filter_eps=bs_env%eps_filter)
             CALL dbt_clear(t_3c)
-            ! s_loc(p, q, P) += sum_μ C_μp T_Pμq over the blocks this rank holds; the iterator
-            ! needs the full thread team, the accumulation into one (p, q, P) slice is serialised
-!$OMP PARALLEL DEFAULT(NONE) SHARED(t_T, bs_env, c_win, s_loc, P0, n_w) &
-!$OMP PRIVATE(iter, ind, blk_size, blk, found, p_off, mu0, q0, tmp, p)
-            CALL dbt_iterator_start(iter, t_T)
-            DO WHILE (dbt_iterator_blocks_left(iter))
-               CALL dbt_iterator_next_block(iter, ind, blk_size=blk_size)
-               ALLOCATE (blk(blk_size(1), blk_size(2), blk_size(3)))
-               CALL dbt_get_block(t_T, ind, blk_size, blk, found)
-               IF (found) THEN
-                  p_off = bs_env%i_RI_start_from_atom(ind(1)) - P0
-                  mu0 = bs_env%i_ao_start_from_atom(ind(2))
-                  q0 = (ind(3) - 1)*mo_chunk + 1
-                  ALLOCATE (tmp(blk_size(2), blk_size(3)))
-                  DO p = 1, blk_size(1)
-                     tmp(:, :) = blk(p, :, :)
-                     ! A = C(μ0.., 1:n_w) with leading dimension n_ao, transposed: n_w x n_μ
-                     ! B = tmp, n_μ x n_c; C = s_loc(1:n_w, q0.., P) with leading dimension n_w
-!$OMP CRITICAL(bse_link_slabs_sum)
-                     CALL dgemm('T', 'N', n_w, blk_size(3), blk_size(2), 1.0_dp, &
-                                c_win(mu0, 1), bs_env%n_ao, tmp, blk_size(2), 1.0_dp, &
-                                s_loc(1, q0, p_off + p), n_w)
-!$OMP END CRITICAL(bse_link_slabs_sum)
-                  END DO
-                  DEALLOCATE (tmp)
-               END IF
-               DEALLOCATE (blk)
-            END DO
-            CALL dbt_iterator_stop(iter)
-!$OMP END PARALLEL
+            ! S_Pqp = sum_μ T_Pμq C_μp, distributed over the group
+            CALL dbt_contract(alpha=1.0_dp, tensor_1=t_T, tensor_2=t_C_p, beta=0.0_dp, tensor_3=t_S, &
+                              contract_1=[2], notcontract_1=[1, 3], map_1=[1, 2], &
+                              contract_2=[1], notcontract_2=[2], map_2=[3], &
+                              filter_eps=bs_env%eps_filter)
             CALL dbt_clear(t_T)
          END IF
-
-         CALL bs_env%para_env%sum(s_loc)
-
-         ! the batch rows into the three slabs (every rank writes the elements it owns); one buffer
-         ! serves all three, the setter reads its first n_cols columns only
-         ALLOCATE (cols(nP, MAX(n_o*n_o, n_o*n_v, n_v*n_v)))
-         DO i = 1, n_o
-            DO j = 1, n_o
-               cols(:, (i - 1)*n_o + j) = s_loc(i, j, :)
-            END DO
-         END DO
-         CALL cp_fm_set_submatrix(fm_S_ij, cols, start_row=P0, start_col=1, n_rows=nP, n_cols=n_o*n_o)
-         DO i = 1, n_o
-            DO a = 1, n_v
-               cols(:, (i - 1)*n_v + a) = s_loc(i, n_o + a, :)
-            END DO
-         END DO
-         CALL cp_fm_set_submatrix(fm_S_ia, cols, start_row=P0, start_col=1, n_rows=nP, n_cols=n_o*n_v)
-         DO a = 1, n_v
-            DO b = 1, n_v
-               cols(:, (a - 1)*n_v + b) = s_loc(n_o + a, n_o + b, :)
-            END DO
-         END DO
-         CALL cp_fm_set_submatrix(fm_S_ab, cols, start_row=P0, start_col=1, n_rows=nP, n_cols=n_v*n_v)
-         DEALLOCATE (cols, s_loc)
+         CALL link_slab_rows(bs_env, blacs_env, dbcsr_dist, t_S, n_o, n_v, sizes_p, n_chunk_o, a1, a2, &
+                             fm_S_ij, fm_S_ia, fm_S_ab)
+         CALL dbt_clear(t_S)
       END DO
 
+      CALL dbt_batched_contract_finalize(t_C_q)
       CALL dbt_destroy(t_3c)
       CALL dbt_destroy(t_T)
-      CALL dbt_destroy(t_C)
-      DEALLOCATE (c_win, sizes_mo, batch_first, batch_last)
+      CALL dbt_destroy(t_S)
+      CALL dbt_destroy(t_C_q)
+      CALL dbt_destroy(t_C_p)
+      DEALLOCATE (sizes_q, sizes_p, batch_first, batch_last)
 
       ! S_P,pq = sum_Q T_QP (Q|pq), in column chunks, in place
       CALL apply_ri_transform(fm_T, fm_S_ij, n_RI, n_o*n_o, batch_bytes)
@@ -653,6 +641,177 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE link_slabs
+
+! **************************************************************************************************
+!> \brief The batch product S(P, q, p) into rows P0.. of the three slabs: the local (P, q, p) blocks
+!>        into one block matrix per pair type on the tensor group's grid, the group-to-global hop of
+!>        the GW, the block-cyclic copy, the row copy into the slab; every rank takes part, a rank
+!>        outside the batch's group with no blocks
+!> \param bs_env ...
+!> \param blacs_env context of the slabs
+!> \param dbcsr_dist a distribution over all ranks, the template of the global block matrices
+!> \param t_S S(P, q, p) of the RI atoms a1..a2, q in two blocks (occupied, virtual), p in sector chunks
+!> \param n_o ...
+!> \param n_v ...
+!> \param sizes_p the p chunks, occupied chunks first
+!> \param n_chunk_o occupied chunks of p
+!> \param a1 first RI atom of the batch
+!> \param a2 last RI atom of the batch
+!> \param fm_S_ij ...
+!> \param fm_S_ia ...
+!> \param fm_S_ab ...
+! **************************************************************************************************
+   SUBROUTINE link_slab_rows(bs_env, blacs_env, dbcsr_dist, t_S, n_o, n_v, sizes_p, n_chunk_o, a1, a2, &
+                             fm_S_ij, fm_S_ia, fm_S_ab)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
+      TYPE(dbt_type), INTENT(INOUT)                      :: t_S
+      INTEGER, INTENT(IN)                                :: n_o, n_v
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_p
+      INTEGER, INTENT(IN)                                :: n_chunk_o, a1, a2
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_S_ij, fm_S_ia, fm_S_ab
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'link_slab_rows'
+      INTEGER, PARAMETER                                 :: kind_ab = 3, kind_ia = 2, kind_ij = 1
+
+      INTEGER                                            :: bp, bq, group_handle, handle, ib, ikind, &
+                                                            iproc, jb, my_rank, n_chunk, nb_P, nP, &
+                                                            npcol, npcol_g, nprow, nprow_g, P0, &
+                                                            rank
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: coords
+      INTEGER, DIMENSION(3)                              :: blk_size, bp0_of, bq_of, ind, n_cols, &
+                                                            nb_col
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_dist_g, col_sizes, &
+                                                            row_dist, row_dist_g, row_sizes
+      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
+      LOGICAL                                            :: found
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: blk
+      TYPE(cp_fm_struct_type), POINTER                   :: struct
+      TYPE(cp_fm_type)                                   :: fm_batch
+      TYPE(dbcsr_distribution_type), DIMENSION(3)        :: dist_glob, dist_loc
+      TYPE(dbcsr_type), DIMENSION(3)                     :: mat_glob, mat_loc
+      TYPE(dbt_iterator_type)                            :: iter
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (col_dist, col_dist_g, col_sizes, pgrid, row_dist, row_dist_g, row_sizes, struct)
+      P0 = bs_env%i_RI_start_from_atom(a1)
+      nP = bs_env%i_RI_end_from_atom(a2) - P0 + 1
+      nb_P = a2 - a1 + 1
+      n_chunk = SIZE(sizes_p)
+      n_cols = [n_o*n_o, n_o*n_v, n_v*n_v]
+      nb_col = [n_chunk_o, n_chunk_o, n_chunk - n_chunk_o]
+      bq_of = [1, 2, 2]
+      ! column block jb of a pair type is the p chunk bp = bp0_of + jb
+      bp0_of = [0, 0, n_chunk_o]
+
+      ! the group grid of the tensor as the process grid of the local matrices, its ranks placed by
+      ! their coordinates, so that every block the tensor holds is local to its matrix
+      ASSOCIATE (cart => t_S%pgrid%mp_comm_2d)
+         my_rank = cart%mepos
+         group_handle = cart%get_handle()
+         nprow = cart%num_pe_cart(1)
+         npcol = cart%num_pe_cart(2)
+         ALLOCATE (coords(2, 0:cart%num_pe - 1))
+         CALL cart%allgather(cart%mepos_cart, coords)
+         ALLOCATE (pgrid(0:nprow - 1, 0:npcol - 1))
+         DO rank = 0, cart%num_pe - 1
+            pgrid(coords(1, rank), coords(2, rank)) = rank
+         END DO
+      END ASSOCIATE
+      ALLOCATE (row_dist(nb_P), row_sizes(nb_P), row_dist_g(nb_P))
+      CALL dbcsr_distribution_get(dbcsr_dist, nprows=nprow_g, npcols=npcol_g)
+      DO ib = 1, nb_P
+         CALL dbt_get_stored_coordinates(t_S, [a1 + ib - 1, 1, 1], iproc)
+         row_dist(ib) = coords(1, iproc)
+         row_sizes(ib) = bs_env%sizes_RI(a1 + ib - 1)
+         row_dist_g(ib) = MOD(ib - 1, nprow_g)
+      END DO
+      DO ikind = 1, 3
+         ALLOCATE (col_dist(nb_col(ikind)), col_sizes(nb_col(ikind)), col_dist_g(nb_col(ikind)))
+         DO jb = 1, nb_col(ikind)
+            bp = bp0_of(ikind) + jb
+            CALL dbt_get_stored_coordinates(t_S, [a1, bq_of(ikind), bp], iproc)
+            col_dist(jb) = coords(2, iproc)
+            ! the q range of the pair type times the p chunk
+            col_sizes(jb) = MERGE(n_o, n_v, ikind == kind_ij)*sizes_p(bp)
+            col_dist_g(jb) = MOD(jb - 1, npcol_g)
+         END DO
+         CALL dbcsr_distribution_new(dist_loc(ikind), group=group_handle, pgrid=pgrid, &
+                                     row_dist=row_dist, col_dist=col_dist)
+         CALL dbcsr_create(mat_loc(ikind), name="S batch, group", dist=dist_loc(ikind), &
+                           matrix_type=dbcsr_type_no_symmetry, row_blk_size=row_sizes, col_blk_size=col_sizes)
+         ! the threaded put_block below cannot create the work matrix itself
+         CALL dbcsr_work_create(mat_loc(ikind), work_mutable=.TRUE.)
+         ! the global matrix of the batch, round robin over the process grid of the slabs
+         CALL dbcsr_distribution_new(dist_glob(ikind), template=dbcsr_dist, row_dist=row_dist_g, &
+                                     col_dist=col_dist_g)
+         CALL dbcsr_create(mat_glob(ikind), name="S batch", dist=dist_glob(ikind), &
+                           matrix_type=dbcsr_type_no_symmetry, row_blk_size=row_sizes, col_blk_size=col_sizes)
+         DEALLOCATE (col_dist, col_sizes, col_dist_g)
+      END DO
+      DEALLOCATE (pgrid, coords, row_dist, row_sizes, row_dist_g)
+
+      ! the local (P, q, p) blocks as (P, qp) blocks, q fastest, the column order of the slabs; the
+      ! iterator needs the full thread team
+!$OMP PARALLEL DEFAULT(NONE) SHARED(t_S, mat_loc, n_chunk_o, a1, bp0_of, my_rank) &
+!$OMP PRIVATE(iter, ind, blk_size, blk, found, bq, bp, ikind, ib, jb, iproc)
+      CALL dbt_iterator_start(iter, t_S)
+      DO WHILE (dbt_iterator_blocks_left(iter))
+         CALL dbt_iterator_next_block(iter, ind, blk_size=blk_size)
+         bq = ind(2)
+         bp = ind(3)
+         ! pair types of the (q block, p chunk) blocks: (occ, occ) ij, (virt, occ) ia, (virt, virt) ab;
+         ! (occ, virt) is the ai block, which no slab holds
+         IF (bq == 1 .AND. bp > n_chunk_o) CYCLE
+         IF (bq == 1) THEN
+            ikind = kind_ij
+         ELSE IF (bp <= n_chunk_o) THEN
+            ikind = kind_ia
+         ELSE
+            ikind = kind_ab
+         END IF
+         ALLOCATE (blk(blk_size(1), blk_size(2), blk_size(3)))
+         CALL dbt_get_block(t_S, ind, blk_size, blk, found)
+         IF (found) THEN
+            ib = ind(1) - a1 + 1
+            jb = bp - bp0_of(ikind)
+            CALL dbcsr_get_stored_coordinates(mat_loc(ikind), ib, jb, iproc)
+            CPASSERT(iproc == my_rank)
+            CALL dbcsr_put_block(mat_loc(ikind), ib, jb, RESHAPE(blk, [blk_size(1), blk_size(2)*blk_size(3)]))
+         END IF
+         DEALLOCATE (blk)
+      END DO
+      CALL dbt_iterator_stop(iter)
+!$OMP END PARALLEL
+
+      DO ikind = 1, 3
+         CALL dbcsr_finalize(mat_loc(ikind))
+         CALL local_matrix_to_global_matrix(mat_loc(ikind), mat_glob(ikind), bs_env%para_env)
+         CALL cp_fm_struct_create(struct, para_env=bs_env%para_env, context=blacs_env, &
+                                  nrow_global=nP, ncol_global=n_cols(ikind))
+         CALL cp_fm_create(fm_batch, struct)
+         CALL cp_fm_struct_release(struct)
+         CALL copy_dbcsr_to_fm(mat_glob(ikind), fm_batch)
+         SELECT CASE (ikind)
+         CASE (kind_ij)
+            CALL cp_fm_to_fm_submat(fm_batch, fm_S_ij, nP, n_cols(ikind), 1, 1, P0, 1)
+         CASE (kind_ia)
+            CALL cp_fm_to_fm_submat(fm_batch, fm_S_ia, nP, n_cols(ikind), 1, 1, P0, 1)
+         CASE (kind_ab)
+            CALL cp_fm_to_fm_submat(fm_batch, fm_S_ab, nP, n_cols(ikind), 1, 1, P0, 1)
+         END SELECT
+         CALL cp_fm_release(fm_batch)
+         CALL dbcsr_release(mat_loc(ikind))
+         CALL dbcsr_release(mat_glob(ikind))
+         CALL dbcsr_distribution_release(dist_loc(ikind))
+         CALL dbcsr_distribution_release(dist_glob(ikind))
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE link_slab_rows
 
 ! **************************************************************************************************
 !> \brief slab_P,c <- sum_Q T_QP slab_Q,c over the columns c of one chunk, with one RI x n_chunk

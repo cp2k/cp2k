@@ -42,6 +42,7 @@ MODULE gw_utils_communication
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gw_utils_communication'
 
    PUBLIC :: local_dbt_to_global_mat, fm_to_local_tensor, fm_to_local_array, local_array_to_fm, &
+             local_matrix_to_global_matrix, &
              local_dbt_to_global_fm
 
    TYPE buffer_type
