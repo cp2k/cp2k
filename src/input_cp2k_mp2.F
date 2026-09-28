@@ -735,6 +735,37 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="STCOHSEX", &
+                          description="Static Coulomb hole screened exchange (st-COHSEX) instead of the "// &
+                          "frequency-integrated G0W0. Only W(omega=0) is computed, the correlation "// &
+                          "self-energy is Sigma^c_mn = 1/2 sum_p W^c_mppn(omega=0) sgn(eps_p - eps_F). "// &
+                          "The quasiparticle Hamiltonian eps^DFT + Sigma^x - v^xc + Sigma^c is built in "// &
+                          "the space of the corrected MOs (CORR_MOS_OCC, CORR_MOS_VIRT); its diagonal "// &
+                          "gives the diagonal st-COHSEX energies and the separate diagonalization of its "// &
+                          "occupied-occupied and virtual-virtual blocks gives the canonical st-COHSEX "// &
+                          "energies and MOs. The canonical MOs are printed with DFT%PRINT%MO and "// &
+                          "DFT%PRINT%MO_CUBES. No RPA correlation energy is computed.", &
+                          usage="STCOHSEX", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="STFACIP", &
+                          description="Scaling factor of the st-COHSEX correlation self-energy in the "// &
+                          "occupied-occupied block (ionization potentials).", &
+                          usage="STFACIP 0.6", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="STFACEA", &
+                          description="Scaling factor of the st-COHSEX correlation self-energy in the "// &
+                          "virtual-virtual block (electron affinities).", &
+                          usage="STFACEA 0.6", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="CORR_MOS_OCC", &
                           variants=["CORR_OCC"], &
                           description="Number of occupied MOs whose energies are corrected in GW. "// &

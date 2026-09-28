@@ -260,6 +260,14 @@ registry["E_G0W0_gap"] = GenericMatcher(r"G0W0 HOMO-LUMO gap (eV)", col=5)
 # G0W0 HOMO-LUMO gap of second spin channel of molecule
 registry["E_G0W0_gap_beta"] = GenericMatcher(r"Beta GW HOMO-LUMO gap (eV)", col=6)
 
+# st-COHSEX HOMO-LUMO gap of molecule in the O(N^4) GW code, diagonal (DG) and canonical (CN)
+registry["E_stCOHSEX_gap_DG"] = GenericMatcher(
+    r"st-COHSEX HOMO-LUMO gap (eV), DG and CN", col=8
+)
+registry["E_stCOHSEX_gap_CN"] = GenericMatcher(
+    r"st-COHSEX HOMO-LUMO gap (eV), DG and CN", col=9
+)
+
 registry["IC_gap"] = GenericMatcher(r"IC HOMO-LUMO gap (eV)", col=5)
 
 registry["M081"] = GenericMatcher(r"HOMO SCF Cycle:     4", col=9)

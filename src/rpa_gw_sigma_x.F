@@ -25,8 +25,8 @@ MODULE rpa_gw_sigma_x
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_release_p, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_symmetric
+        dbcsr_release, dbcsr_release_p, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_symmetric
    USE cp_dbcsr_contrib,                ONLY: dbcsr_get_diag
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -405,6 +405,22 @@ CONTAINS
          END IF
       END DO
 
+      ! st-COHSEX needs the full AO matrix v^xc_μν (not only its diagonal in the MO basis).
+      ! At this point
+      !   (Σ^x - v^xc)_μν = h^KS,noXC_μν - h^KS_μν = -v^xc_μν
+      ! (KS matrix without and with XC; for a hybrid, v^xc contains its fraction of HFX);
+      ! the exchange self-energy Σ^x_μν (HFX) is added below if not RI_SIGMA_X.
+      ! Stored: mp2_env%ri_g0w0%matrix_vxc = v^xc_μν
+      IF (mp2_env%ri_g0w0%do_stcohsex .AND. .NOT. do_kpoints_cubic_RPA) THEN
+         ALLOCATE (mp2_env%ri_g0w0%matrix_vxc(nspins))
+         DO ispin = 1, nspins
+            ALLOCATE (mp2_env%ri_g0w0%matrix_vxc(ispin)%matrix)
+            CALL dbcsr_create(mp2_env%ri_g0w0%matrix_vxc(ispin)%matrix, template=matrix_ks(1)%matrix)
+            CALL dbcsr_copy(mp2_env%ri_g0w0%matrix_vxc(ispin)%matrix, matrix_sigma_x_minus_vxc(ispin, 1)%matrix)
+            CALL dbcsr_scale(mp2_env%ri_g0w0%matrix_vxc(ispin)%matrix, -1.0_dp)
+         END DO
+      END IF
+
       IF (do_kpoints_cubic_RPA) THEN
 
          CALL transform_sigma_x_minus_vxc_to_MO_basis(kpoints, matrix_sigma_x_minus_vxc, &
@@ -505,8 +521,10 @@ CONTAINS
          END DO
 
          ! safe matrix_sigma_x_minus_vxc for later: for example, we will transform matrix_sigma_x_minus_vxc
-         ! to T-cell index and then to k-points for band structure calculation
-         IF (do_kpoints_from_Gamma) THEN
+         ! to T-cell index and then to k-points for band structure calculation; st-COHSEX needs the
+         ! off-diagonal MO elements (Σ^x - v^xc)_mn = Σ_μν C_μm (Σ^x - v^xc)_μν C_νn, stored in
+         ! mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc (= -v^xc_μν with RI_SIGMA_X)
+         IF (do_kpoints_from_Gamma .OR. mp2_env%ri_g0w0%do_stcohsex) THEN
             ! not yet there: open shell
             ALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc(nspins))
             DO ispin = 1, nspins

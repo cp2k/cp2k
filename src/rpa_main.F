@@ -100,6 +100,7 @@ MODULE rpa_main
    USE rpa_gw_ic,                       ONLY: calculate_ic_correction
    USE rpa_gw_kpoints_util,             ONLY: get_bandstruc_and_k_dependent_MOs,&
                                               invert_eps_compute_W_and_Erpa_kp
+   USE rpa_gw_stcohsex,                 ONLY: stcohsex_qp_energies
    USE rpa_im_time,                     ONLY: compute_mat_P_omega
    USE rpa_im_time_force_methods,       ONLY: calc_laplace_loop_forces,&
                                               calc_post_loop_forces,&
@@ -1153,7 +1154,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, prim_blk_sizes, &
                                                             RI_blk_sizes
       LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_ic_model, do_kpoints_cubic_RPA, &
-         do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
+         do_periodic, do_print, do_ri_Sigma_x, do_stcohsex, exit_ev_gw, first_cycle, &
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
@@ -1207,6 +1208,7 @@ CONTAINS
       print_ic_values = mp2_env%ri_g0w0%print_ic_values
       do_periodic = mp2_env%ri_g0w0%do_periodic
       do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
+      do_stcohsex = my_do_gw .AND. mp2_env%ri_g0w0%do_stcohsex
 
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
@@ -1222,6 +1224,15 @@ CONTAINS
             IF (iter_sc_GW0 /= 1 .AND. iter_evGW /= 1) CPABORT("Mixed scGW0/evGW not implemented.")
             ! in case of scGW0 with the N^4 algorithm, we use the evGW code but use the DFT eigenvalues for W
             IF (iter_sc_GW0 /= 1) iter_evGW = iter_sc_GW0
+         END IF
+         IF (do_stcohsex) THEN
+            IF (do_im_time) CPABORT("STCOHSEX is only implemented in the O(N^4) GW code.")
+            IF (do_periodic) CPABORT("STCOHSEX with PERIODIC_CORRECTION is not implemented.")
+            IF (do_bse) CPABORT("BSE after STCOHSEX is not implemented.")
+            IF (do_ri_sos_laplace_mp2) CPABORT("STCOHSEX with SOS-MP2 is not implemented.")
+            ! st-COHSEX is one-shot @DFT: Σ^COHSEX is static, no quasiparticle self-consistency
+            iter_evGW = 1
+            iter_sc_GW0 = 1
          END IF
       ELSE
          ext_scaling = 0.0_dp
@@ -1446,7 +1457,38 @@ CONTAINS
             CALL rpa_sigma_create(rpa_sigma, mp2_env%ri_rpa%sigma_param, fm_mat_Q(1), unit_nr, para_env)
          END IF
 
+         ! ==============================================================================
+         ! st-COHSEX: only the static screening at ω = 0, no frequency integration, no
+         ! analytic continuation and no RPA correlation energy (Erpa stays zero)
+         !   S^P_ia(0) = B^P_ia sqrt(1/(ϵ_a - ϵ_i))            (calc_mat_Q, first_cycle)
+         !   Q_PQ(0)   = α Σ_ia S^P_ia S^Q_ia,  α = 4 (closed shell), 2 (per spin, open shell)
+         !   Q_PQ(0)   = Σ_σ Q^σ_PQ(0)                          (spin sum, open shell)
+         !   ε_PQ(0)   = δ_PQ + Q_PQ(0)                          (Q_trace_and_add_unit_matrix)
+         ! then W^c(0), Σ^c, Σ^x, H^QP and the diagonal/canonical st-COHSEX energies and MOs
+         ! in stcohsex_qp_energies (rpa_gw_stcohsex.F)
+         ! ==============================================================================
+         IF (do_stcohsex) THEN
+            omega = 0.0_dp
+            DO ispin = 1, nspins
+               CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
+                               Eigenval(:, 1, ispin), homo(ispin), omega, omega_old, 1, mm_style, &
+                               dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
+                               fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                               num_integ_points, count_ev_sc_GW)
+            END DO
+            DO ispin = 2, nspins
+               CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1), beta=1.0_dp, matrix_b=fm_mat_Q(ispin))
+            END DO
+            CALL Q_trace_and_add_unit_matrix(dimen_RI_red, trace_Qomega, fm_mat_Q(1))
+            CALL stcohsex_qp_energies(fm_mat_Q(1), fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI_red, nmo, homo, &
+                                      gw_corr_lev_occ, gw_corr_lev_virt, Eigenval(:, 1, :), mo_coeff, &
+                                      unit_nr, qs_env, mp2_env)
+            first_cycle = .FALSE.
+         END IF
+
          DO jquad = 1, num_integ_points
+            ! st-COHSEX needs no frequency integral
+            IF (do_stcohsex) EXIT
             IF (MODULO(jquad, num_integ_group) /= color_rpa_group) CYCLE
 
             CALL timeset(routineN//"_RPA_matrix_operations", handle3)
@@ -1706,7 +1748,8 @@ CONTAINS
          ! GW: for low-scaling calculation: Compute self-energy Sigma(i*tau), Sigma(i*omega)
          ! for low-scaling and ordinary-scaling: analytic continuation from Sigma(iw) -> Sigma(w)
          !                                       and correction of quasiparticle energies e_n^GW
-         IF (my_do_gw) THEN
+         ! (st-COHSEX energies are already computed and printed in stcohsex_qp_energies)
+         IF (my_do_gw .AND. .NOT. do_stcohsex) THEN
 
             CALL compute_QP_energies(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
                                      gw_corr_lev_tot, gw_corr_lev_virt, homo, &

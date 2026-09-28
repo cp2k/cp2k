@@ -242,7 +242,14 @@ MODULE mp2_types
                                                             soc_type = soc_none
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp_special_kp
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE      :: matrix_sigma_x_minus_vxc, &
-                                                            matrix_ks
+                                                            matrix_ks, &
+                                                            matrix_vxc
+      ! static COHSEX (st-COHSEX) in the O(N^4) GW code (rpa_gw_stcohsex.F):
+      !   H^QP_mn = ϵ_n δ_mn + Σ^x_mn - v^xc_mn + f Σ^c_mn,  f = stfacip (occ-occ), stfacea (virt-virt)
+      ! matrix_vxc: AO matrix v^xc_μν (st-COHSEX only), matrix_sigma_x_minus_vxc: AO (Σ^x - v^xc)_μν
+      LOGICAL                                            :: do_stcohsex = .FALSE.
+      REAL(KIND=dp)                                      :: stfacip = 1.0_dp, &
+                                                            stfacea = 1.0_dp
       REAL(KIND=dp)                                      :: broadening_print_loc_bandgap = 0.0_dp, &
                                                             energy_window_print_loc_bandgap = 0.0_dp, &
                                                             ldos_thresh_print_loc_bandgap = 0.0_dp, &
@@ -331,7 +338,8 @@ MODULE mp2_types
       TYPE(ri_g0w0_type)                                 :: ri_g0w0 = ri_g0w0_type(vec_Sigma_x_minus_vxc_gw=NULL(), &
                                                                                    xkp_special_kp=NULL(), &
                                                                                    matrix_sigma_x_minus_vxc=NULL(), &
-                                                                                   matrix_ks=NULL())
+                                                                                   matrix_ks=NULL(), &
+                                                                                   matrix_vxc=NULL())
       TYPE(ri_basis_opt)                                 :: ri_opt_param = ri_basis_opt(RI_nset_per_l=NULL())
       TYPE(grad_util)                                    :: ri_grad = grad_util(operator_half=NULL(), &
                                                                                 PQ_half=NULL(), &
