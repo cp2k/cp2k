@@ -19,6 +19,7 @@ listed on the [Bibliography](../bibliography) page and printed as REFERENCES at 
 log of the program, in particular the review articles:
 
 - [](#K%C3%BChne2020), on the theoretical background and algorithms;
+- [Luber2025](#Hanasaki2025), on DFT-based excited-state, spectroscopic, and nonadiabatic dynamics methods;
 - [](#Iannuzzi2026), on the practical usage and applications.
 
 We have prepared a list of Q&A for frequently asked things below, which we hope can be helpful for
