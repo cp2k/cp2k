@@ -451,11 +451,14 @@ while [[ $# -gt 0 ]]; do
     -gm | -gpu | --gpu_model)
       if (($# > 1)); then
         case "${2^^}" in
-          P100 | V100 | T400 | A100 | A40 | H100 | H200 | GH200 | B200)
+          P100 | P4 | V100 | T400 | A100 | A40 | H100 | H200 | GH200 | B200)
             GPU_MODEL="${2^^}"
             case "${GPU_MODEL}" in
               P100)
                 CUDA_SM_CODE=60
+                ;;
+              P4)
+                CUDA_SM_CODE=61
                 ;;
               V100)
                 CUDA_SM_CODE=70
