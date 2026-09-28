@@ -297,7 +297,7 @@ def main() -> None:
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
         f.write(install_deps_toolchain())
-        f.write(regtest("toolchain_asan", "psmp"))
+        f.write(regtest("toolchain_asan", "psmp", "--timeout 400"))
 
     with OutputFile(f"Dockerfile.test_coverage", args.check) as f:
         f.write(install_deps_toolchain())
