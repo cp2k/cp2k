@@ -41,6 +41,9 @@ MODULE qs_integrate_potential_single
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_get_block_p,&
                                               dbcsr_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
+                                              cp_logger_type
    USE external_potential_types,        ONLY: get_potential,&
                                               gth_potential_type
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
@@ -48,11 +51,13 @@ MODULE qs_integrate_potential_single
    USE grid_api,                        ONLY: integrate_pgf_product
    USE kinds,                           ONLY: dp
    USE lri_environment_types,           ONLY: lri_kind_type
+   USE mathlib,                         ONLY: det_3x3
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE orbital_pointers,                ONLY: coset,&
                                               ncoset
    USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: pascal
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_types,                        ONLY: pw_r3d_rs_type
@@ -67,6 +72,7 @@ MODULE qs_integrate_potential_single
                                               rs_grid_zero,&
                                               transfer_pw2rs
    USE rs_pw_interface,                 ONLY: potential_pw2rs
+   USE virial_methods,                  ONLY: one_third_sum_diag
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
@@ -283,27 +289,35 @@ CONTAINS
 !> \brief computes the forces/virial due to the nlcc pseudopotential
 !> \param rho_rspace ...
 !> \param qs_env ...
+!> \param debug_forces ...
+!> \param debug_stress ...
+!> \param iotag ...
 ! **************************************************************************************************
-   SUBROUTINE integrate_rho_nlcc(rho_rspace, qs_env)
+   SUBROUTINE integrate_rho_nlcc(rho_rspace, qs_env, debug_forces, debug_stress, iotag)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_rspace
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN), OPTIONAL                      :: debug_forces, debug_stress
+      CHARACTER(len=*), OPTIONAL                         :: iotag
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_rho_nlcc'
 
+      CHARACTER(len=30)                                  :: ftag, stag
       INTEGER                                            :: atom_a, handle, iatom, iexp_nlcc, ikind, &
-                                                            ithread, j, n, natom, nc, nexp_nlcc, &
-                                                            ni, npme, nthread
+                                                            iounit, ithread, j, n, natom, nc, &
+                                                            nexp_nlcc, ni, npme, nthread
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores, nct_nlcc
-      LOGICAL                                            :: nlcc, use_virial
-      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
-      REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
+      LOGICAL                                            :: debfor, debstr, nlcc, use_virial
+      REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, fconv, radius
+      REAL(KIND=dp), DIMENSION(3)                        :: fodeb, force_a, force_b, ra
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b, stdeb
       REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_nlcc
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_nlcc, hab, pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gth_potential_type), POINTER                  :: gth_potential
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -312,6 +326,13 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      IF (logger%para_env%is_source()) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      END IF
 
       NULLIFY (pw_env, cores)
 
@@ -327,9 +348,29 @@ CONTAINS
                       dft_control=dft_control, &
                       particle_set=particle_set, &
                       pw_env=pw_env, &
+                      para_env=para_env, &
                       force=force, virial=virial)
 
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      !debug
+      debfor = .FALSE.
+      IF (PRESENT(debug_forces)) debfor = debug_forces
+      debstr = .FALSE.
+      IF (PRESENT(debug_stress)) debstr = debug_stress
+      debstr = debstr .AND. use_virial
+      IF (debstr) THEN
+         fconv = 1.0E-9_dp*pascal/cell%deth
+      END IF
+      IF (PRESENT(iotag)) THEN
+         ftag = "DEBUG :: "//ADJUSTL(iotag)
+         stag = "STRESS| INT "//ADJUSTL(iotag)
+      ELSE
+         ftag = "DEBUG :: dnlcc*V(r)  "
+         stag = "STRESS| INT dnlcc*V(r)  "
+      END IF
+
+      IF (debfor) fodeb(1:3) = force(1)%gth_nlcc(1:3, 1)
+      IF (debstr) stdeb = virial%pv_nlcc
 
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -474,6 +515,18 @@ CONTAINS
       END DO
 
       DEALLOCATE (cores)
+
+      IF (debfor) THEN
+         fodeb(1:3) = force(1)%gth_nlcc(1:3, 1) - fodeb(1:3)
+         CALL para_env%sum(fodeb)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") TRIM(ftag), fodeb
+      END IF
+      IF (debstr) THEN
+         stdeb = fconv*(virial%pv_nlcc - stdeb)
+         CALL para_env%sum(stdeb)
+         IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+            TRIM(stag), one_third_sum_diag(stdeb), det_3x3(stdeb)
+      END IF
 
       CALL timestop(handle)
 

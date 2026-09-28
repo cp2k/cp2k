@@ -1763,22 +1763,10 @@ CONTAINS
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
 
       IF (ASSOCIATED(rho_nlcc)) THEN
-         IF (debug_forces) fodeb(1:3) = force(1)%gth_nlcc(1:3, 1)
-         IF (debug_stress .AND. use_virial) stdeb = virial%pv_nlcc
          DO ispin = 1, nspins
-            CALL integrate_rho_nlcc(v_xc(ispin), qs_env)
+            CALL integrate_rho_nlcc(v_xc(ispin), qs_env, &
+                                    debug_forces, debug_stress, "dnlcc*dVxc")
          END DO
-         IF (debug_forces) THEN
-            fodeb(1:3) = force(1)%gth_nlcc(1:3, 1) - fodeb(1:3)
-            CALL para_env%sum(fodeb)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: dnlcc*dVxc    ", fodeb
-         END IF
-         IF (debug_stress .AND. use_virial) THEN
-            stdeb = fconv*(virial%pv_nlcc - stdeb)
-            CALL para_env%sum(stdeb)
-            IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
-               'STRESS| INT dnlcc*dVxc     ', one_third_sum_diag(stdeb), det_3x3(stdeb)
-         END IF
       END IF
 
       DO ispin = 1, nspins
@@ -2209,22 +2197,10 @@ CONTAINS
             END IF
             !
             IF (ASSOCIATED(rho_nlcc)) THEN
-               IF (debug_forces) fodeb(1:3) = force(1)%gth_nlcc(1:3, 1)
-               IF (debug_stress .AND. use_virial) stdeb = virial%pv_nlcc
                DO ispin = 1, nspins
-                  CALL integrate_rho_nlcc(v_xc(ispin), qs_env)
+                  CALL integrate_rho_nlcc(v_xc(ispin), qs_env, &
+                                          debug_forces, debug_stress, "dnlcc*dVxc(ADMM)")
                END DO
-               IF (debug_forces) THEN
-                  fodeb(1:3) = force(1)%gth_nlcc(1:3, 1) - fodeb(1:3)
-                  CALL para_env%sum(fodeb)
-                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: dnlcc*dVxc(ADMM)", fodeb
-               END IF
-               IF (debug_stress .AND. use_virial) THEN
-                  stdeb = fconv*(virial%pv_nlcc - stdeb)
-                  CALL para_env%sum(stdeb)
-                  IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
-                     'STRESS| INT dnlcc*dVxc(ADMM)', one_third_sum_diag(stdeb), det_3x3(stdeb)
-               END IF
             END IF
             !
             CALL qs_rho_get(rho_aux_fit, rho_ao_kp=matrix_p)

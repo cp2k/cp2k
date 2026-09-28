@@ -614,15 +614,10 @@ CONTAINS
          END IF
 
          IF (ASSOCIATED(rho_nlcc)) THEN
-            IF (debug_forces) fodeb(1:3) = force(1)%gth_nlcc(1:3, 1)
             DO ispin = 1, nspins
-               CALL integrate_rho_nlcc(gxc_rho(ispin), qs_env)
+               CALL integrate_rho_nlcc(gxc_rho(ispin), qs_env, &
+                                       debug_forces, .FALSE., "dnlcc*dFxc")
             END DO
-            IF (debug_forces) THEN
-               fodeb(1:3) = force(1)%gth_nlcc(1:3, 1) - fodeb(1:3)
-               CALL para_env%sum(fodeb)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: dnlcc*dFxc    ", fodeb
-            END IF
          END IF
 
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
@@ -812,15 +807,10 @@ CONTAINS
                                 rho_atom_set_f, rho_atom_set_g, qs_kind_set)
 
             IF (ASSOCIATED(rho_nlcc)) THEN
-               IF (debug_forces) fodeb(1:3) = force(1)%gth_nlcc(1:3, 1)
                DO ispin = 1, nspins
-                  CALL integrate_rho_nlcc(gxc_rho(ispin), qs_env)
+                  CALL integrate_rho_nlcc(gxc_rho(ispin), qs_env, &
+                                          debug_forces, .FALSE., "dnlcc*dFxc(ADMM)")
                END DO
-               IF (debug_forces) THEN
-                  fodeb(1:3) = force(1)%gth_nlcc(1:3, 1) - fodeb(1:3)
-                  CALL para_env%sum(fodeb)
-                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: dnlcc*dFxc(ADMM)", fodeb
-               END IF
             END IF
 
             ! grid weight contribution to forces ADMM XC correction term
