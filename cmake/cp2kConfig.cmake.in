@@ -82,7 +82,7 @@ if(NOT TARGET cp2k::cp2k)
 
   set(CP2K_USE_LIBXC @CP2K_USE_LIBXC@)
   if(CP2K_USE_LIBXC)
-    find_dependency(Libxc 7 REQUIRED CONFIG)
+    find_dependency(Libxc 7.1 CONFIG REQUIRED)
   endif()
 
   set(CP2K_USE_GAUXC @CP2K_USE_GAUXC@)

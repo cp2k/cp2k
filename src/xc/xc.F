@@ -63,6 +63,9 @@ MODULE xc
    USE xc_derivatives, ONLY: xc_functionals_eval, &
                              xc_functionals_get_needs
    USE xc_gauxc_functional, ONLY: xc_section_uses_gauxc
+#if defined(__LIBXC)
+   USE xc_libxc, ONLY: libxc_set_backend
+#endif
    USE xc_rho_cflags_types, ONLY: xc_rho_cflags_type
    USE xc_rho_set_types, ONLY: xc_rho_set_create, &
                                xc_rho_set_get, &
@@ -178,6 +181,11 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       MARK_USED(weights)
+
+#if defined(__LIBXC)
+      ! Apply the runtime LibXC backend selection from &XC/LIBXC_GPU_BACKEND.
+      CALL libxc_set_backend(section_get_ival(xc_section, "LIBXC_GPU_BACKEND"))
+#endif
 
       CPASSERT(ASSOCIATED(pw_pool))
 
