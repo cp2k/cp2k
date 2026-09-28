@@ -1954,20 +1954,16 @@ CONTAINS
 !>        The occupied-space Lagrange multiplier is
 !>        Hermitian[(C^H H C) f], which reduces to the usual eigenvalue-weighted
 !>        expression for canonical orbitals.
-!> \param coeff_re real part of C(k)
-!> \param coeff_im imaginary part of C(k)
-!> \param hc_re real part of H(k) C(k)
-!> \param hc_im imaginary part of H(k) C(k)
+!> \param coeff C(k)
+!> \param hc H(k) C(k)
 !> \param occupation orbital occupations
-!> \param wmat_re real part of W(k)
-!> \param wmat_im imaginary part of W(k)
+!> \param wmat W(k)
 ! **************************************************************************************************
-   SUBROUTINE kpoint_ot_energy_weighted_density(coeff_re, coeff_im, hc_re, hc_im, occupation, &
-                                                wmat_re, wmat_im)
+   SUBROUTINE kpoint_ot_energy_weighted_density(coeff, hc, occupation, wmat)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: coeff_re, coeff_im, hc_re, hc_im
+      TYPE(cp_cfm_type), INTENT(IN)                      :: coeff, hc
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation
-      TYPE(cp_fm_type), INTENT(IN)                       :: wmat_re, wmat_im
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: wmat
 
       COMPLEX(KIND=dp), PARAMETER                        :: zhalf = (0.5_dp, 0.0_dp), &
                                                             zone = (1.0_dp, 0.0_dp), &
@@ -1975,22 +1971,15 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: occupation_complex
       INTEGER                                            :: nao, nmo
-      TYPE(cp_cfm_type)                                  :: coeff, hblock, hblock_h, hc, weighted, &
-                                                            wmat
+      TYPE(cp_cfm_type)                                  :: hblock, hblock_h, weighted
 
-      CALL cp_fm_get_info(coeff_re, nrow_global=nao, ncol_global=nmo)
+      CALL cp_cfm_get_info(coeff, nrow_global=nao, ncol_global=nmo)
       CPASSERT(nmo >= 1)
       CPASSERT(SIZE(occupation) >= nmo)
 
-      CALL cp_cfm_create(coeff, coeff_re%matrix_struct)
-      CALL cp_cfm_create(hc, hc_re%matrix_struct)
-      CALL cp_cfm_create(weighted, coeff_re%matrix_struct)
-      CALL cp_cfm_create(hblock, coeff_re%matrix_struct, nrow=nmo, ncol=nmo)
-      CALL cp_cfm_create(hblock_h, coeff_re%matrix_struct, nrow=nmo, ncol=nmo)
-      CALL cp_cfm_create(wmat, wmat_re%matrix_struct)
-
-      CALL cp_fm_to_cfm(coeff_re, coeff_im, coeff)
-      CALL cp_fm_to_cfm(hc_re, hc_im, hc)
+      CALL cp_cfm_create(weighted, coeff%matrix_struct)
+      CALL cp_cfm_create(hblock, coeff%matrix_struct, nrow=nmo, ncol=nmo)
+      CALL cp_cfm_create(hblock_h, coeff%matrix_struct, nrow=nmo, ncol=nmo)
       CALL cp_cfm_gemm("C", "N", nmo, nmo, nao, zone, coeff, hc, zzero, hblock)
 
       ALLOCATE (occupation_complex(nmo))
@@ -2002,14 +1991,10 @@ CONTAINS
 
       CALL cp_cfm_gemm("N", "N", nao, nmo, nmo, zone, coeff, hblock, zzero, weighted)
       CALL cp_cfm_gemm("N", "C", nao, nao, nmo, zone, weighted, coeff, zzero, wmat)
-      CALL cp_cfm_to_fm(wmat, wmat_re, wmat_im)
 
-      CALL cp_cfm_release(wmat)
       CALL cp_cfm_release(hblock_h)
       CALL cp_cfm_release(hblock)
       CALL cp_cfm_release(weighted)
-      CALL cp_cfm_release(hc)
-      CALL cp_cfm_release(coeff)
 
    END SUBROUTINE kpoint_ot_energy_weighted_density
 

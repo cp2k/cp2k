@@ -699,7 +699,7 @@ CONTAINS
                                                             trial_mu
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trial_eigenvalues, trial_occupation
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers, wkp
-      TYPE(cp_cfm_type)                                  :: physical_h
+      TYPE(cp_cfm_type)                                  :: active_mo_coeff_cfm, hc_cfm, physical_h
       TYPE(cp_fm_struct_type), POINTER                   :: active_mo_struct, chc_struct
       TYPE(cp_fm_type)                                   :: active_mo_coeff, active_mo_coeff_im, &
                                                             chc_im, chc_re, hc_im, hc_re, &
@@ -870,8 +870,16 @@ CONTAINS
             CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, active_mo_coeff, hc_im, homo, &
                                          alpha=1.0_dp, beta=1.0_dp)
             IF (ALLOCATED(kpoints%lowdin_v)) THEN
-               CALL lowdin_kp_apply_mo(kp, kpoints%lowdin_v(:, ispin), &
-                                       active_mo_coeff, active_mo_coeff_im, hc_re, hc_im)
+               IF (ANY(kpoints%lowdin_v(:, ispin) /= 0.0_dp)) THEN
+                  CALL cp_cfm_create(active_mo_coeff_cfm, active_mo_struct)
+                  CALL cp_cfm_create(hc_cfm, active_mo_struct)
+                  CALL cp_cfm_to_cfm(kp%mos(ispin)%cmo_coeff, active_mo_coeff_cfm, homo)
+                  CALL cp_fm_to_cfm(hc_re, hc_im, hc_cfm)
+                  CALL lowdin_kp_apply_mo(kp, kpoints%lowdin_v(:, ispin), active_mo_coeff_cfm, hc_cfm)
+                  CALL cp_cfm_to_fm(hc_cfm, hc_re, hc_im)
+                  CALL cp_cfm_release(hc_cfm)
+                  CALL cp_cfm_release(active_mo_coeff_cfm)
+               END IF
                IF (physical_base_state .AND. local_ot_env(local_channel)%settings%occupation_preconditioner) THEN
                   ! H*C already includes +U; the physical secant history needs the same full H.
                   CALL cp_cfm_create(physical_h, kp%ot_hmat(1, ispin)%matrix_struct)
@@ -1592,6 +1600,7 @@ CONTAINS
       LOGICAL                                            :: do_hfx
       REAL(KIND=dp)                                      :: symmetry_error, symmetry_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dense_im, dense_re, lowdin_response
+      TYPE(cp_cfm_type)                                  :: action_cfm, coeff_cfm
       TYPE(cp_fm_type)                                   :: action_im, action_re, density_im, &
                                                             density_re, inactive_im, inactive_re, &
                                                             projected_im, projected_re
@@ -1780,9 +1789,17 @@ CONTAINS
                   matrix_k_im, local_ot_env(local_channel)%mermin_physical(1)%c0, action_im, nmo, &
                   alpha=1.0_dp, beta=1.0_dp)
                IF (ALLOCATED(lowdin_response)) THEN
-                  CALL lowdin_kp_apply_mo(kp, lowdin_response(:, ispin), &
-                                          local_ot_env(local_channel)%mermin_physical(1)%c0, &
-                                          local_ot_env(local_channel)%mermin_physical(1)%c0_im, action_re, action_im)
+                  IF (ANY(lowdin_response(:, ispin) /= 0.0_dp)) THEN
+                     CALL cp_cfm_create(coeff_cfm, local_ot_env(local_channel)%mermin_physical(1)%c0%matrix_struct)
+                     CALL cp_cfm_create(action_cfm, action_re%matrix_struct)
+                     CALL cp_fm_to_cfm(local_ot_env(local_channel)%mermin_physical(1)%c0, &
+                                       local_ot_env(local_channel)%mermin_physical(1)%c0_im, coeff_cfm)
+                     CALL cp_fm_to_cfm(action_re, action_im, action_cfm)
+                     CALL lowdin_kp_apply_mo(kp, lowdin_response(:, ispin), coeff_cfm, action_cfm)
+                     CALL cp_cfm_to_fm(action_cfm, action_re, action_im)
+                     CALL cp_cfm_release(action_cfm)
+                     CALL cp_cfm_release(coeff_cfm)
+                  END IF
                END IF
                CALL cp_fm_create( &
                   projected_re, local_ot_env(local_channel)%mermin_physical(1)%c0%matrix_struct, &

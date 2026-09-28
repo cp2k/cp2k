@@ -1301,41 +1301,33 @@ CONTAINS
    END SUBROUTINE lowdin_kp_apply
 
 ! **************************************************************************************************
-!> \brief Add B diag(v) B**H C to the split-complex orbital gradient, without forming an AO matrix.
+!> \brief Add B diag(v) B**H C to the complex orbital gradient, without forming an AO matrix.
 !> \param kp K point owning the selected overlap columns and a private GEMM context.
 !> \param v Orbital potential, without k weights or occupations (applied by the caller).
-!> \param coeff_re Real part of the active orbitals.
-!> \param coeff_im Imaginary part of the active orbitals.
-!> \param hc_re Real part of H*C, updated in place.
-!> \param hc_im Imaginary part of H*C, updated in place.
+!> \param coeff Active complex orbitals.
+!> \param hc H*C, updated in place.
 ! **************************************************************************************************
-   SUBROUTINE lowdin_kp_apply_mo(kp, v, coeff_re, coeff_im, hc_re, hc_im)
+   SUBROUTINE lowdin_kp_apply_mo(kp, v, coeff, hc)
       TYPE(kpoint_env_type), POINTER                     :: kp
       REAL(KIND=dp), INTENT(IN)                          :: v(:)
-      TYPE(cp_fm_type), INTENT(IN)                       :: coeff_re, coeff_im
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: hc_re, hc_im
+      TYPE(cp_cfm_type), INTENT(IN)                      :: coeff
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: hc
 
       INTEGER                                            :: i, m, n, nc, nmo, nr
       INTEGER, POINTER                                   :: rows(:)
-      TYPE(cp_cfm_type)                                  :: coeff, projected
+      TYPE(cp_cfm_type)                                  :: projected
 
       m = SIZE(v)
       IF (m == 0 .OR. ALL(v == 0.0_dp)) RETURN
-      CALL cp_fm_get_info(coeff_re, nrow_global=n, ncol_global=nmo)
-      CALL cp_cfm_create(coeff, coeff_re%matrix_struct)
-      CALL cp_cfm_create(projected, coeff_re%matrix_struct, nrow=m)
-      CALL cp_fm_to_cfm(coeff_re, coeff_im, coeff)
+      CALL cp_cfm_get_info(coeff, nrow_global=n, ncol_global=nmo)
+      CALL cp_cfm_create(projected, coeff%matrix_struct, nrow=m)
       CALL lowdin_kp_gemm('C', 'N', m, nmo, n, kp%lowdin_cb, coeff, z_zero, projected, kp%lowdin_gemm)
       CALL cp_cfm_get_info(projected, nrow_local=nr, ncol_local=nc, row_indices=rows)
       DO i = 1, nr
          projected%local_data(i, :nc) = v(rows(i))*projected%local_data(i, :nc)
       END DO
-      CALL lowdin_kp_gemm('N', 'N', n, nmo, m, kp%lowdin_cb, projected, z_zero, coeff, kp%lowdin_gemm)
-      CALL cp_fm_get_info(coeff_re, nrow_local=nr, ncol_local=nc)
-      hc_re%local_data(:nr, :nc) = hc_re%local_data(:nr, :nc) + REAL(coeff%local_data(:nr, :nc), dp)
-      hc_im%local_data(:nr, :nc) = hc_im%local_data(:nr, :nc) + AIMAG(coeff%local_data(:nr, :nc))
+      CALL lowdin_kp_gemm('N', 'N', n, nmo, m, kp%lowdin_cb, projected, z_one, hc, kp%lowdin_gemm)
       CALL cp_cfm_release(projected)
-      CALL cp_cfm_release(coeff)
    END SUBROUTINE lowdin_kp_apply_mo
 
 ! **************************************************************************************************

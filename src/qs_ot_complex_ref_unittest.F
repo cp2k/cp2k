@@ -15,9 +15,11 @@ PROGRAM qs_ot_complex_ref_unittest
                                               cp_blacs_env_type
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_element,&
+                                              cp_cfm_get_submatrix,&
                                               cp_cfm_release,&
                                               cp_cfm_set_all,&
                                               cp_cfm_set_element,&
+                                              cp_cfm_set_submatrix,&
                                               cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
@@ -371,13 +373,10 @@ CONTAINS
       INTEGER                                            :: i, j
       REAL(KIND=dp)                                      :: error, gauge_error, hermitian_error, &
                                                             phase, pi
-      REAL(KIND=dp), DIMENSION(nao, nao)                 :: actual_im, actual_re, rotated_im, &
-                                                            rotated_re
       REAL(KIND=dp), DIMENSION(nmo)                      :: occupation, uniform_occupation
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_cfm_type)                                  :: coeff_cfm, hc_cfm, wmat_cfm
       TYPE(cp_fm_struct_type), POINTER                   :: coeff_struct, hmat_struct
-      TYPE(cp_fm_type)                                   :: coeff_im_fm, coeff_re_fm, hc_im_fm, &
-                                                            hc_re_fm, wmat_im_fm, wmat_re_fm
 
       NULLIFY (blacs_env, coeff_struct, hmat_struct)
       pi = ACOS(-1.0_dp)
@@ -418,23 +417,15 @@ CONTAINS
                                context=blacs_env, para_env=para_env)
       CALL cp_fm_struct_create(coeff_struct, nrow_global=nao, ncol_global=nmo, &
                                context=blacs_env, para_env=para_env)
-      CALL cp_fm_create(coeff_re_fm, coeff_struct)
-      CALL cp_fm_create(coeff_im_fm, coeff_struct)
-      CALL cp_fm_create(hc_re_fm, coeff_struct)
-      CALL cp_fm_create(hc_im_fm, coeff_struct)
-      CALL cp_fm_create(wmat_re_fm, hmat_struct)
-      CALL cp_fm_create(wmat_im_fm, hmat_struct)
-      CALL cp_fm_set_submatrix(coeff_re_fm, REAL(coeff, KIND=dp))
-      CALL cp_fm_set_submatrix(coeff_im_fm, AIMAG(coeff))
-      CALL cp_fm_set_submatrix(hc_re_fm, REAL(hc_dense, KIND=dp))
-      CALL cp_fm_set_submatrix(hc_im_fm, AIMAG(hc_dense))
+      CALL cp_cfm_create(coeff_cfm, coeff_struct)
+      CALL cp_cfm_create(hc_cfm, coeff_struct)
+      CALL cp_cfm_create(wmat_cfm, hmat_struct)
+      CALL cp_cfm_set_submatrix(coeff_cfm, coeff)
+      CALL cp_cfm_set_submatrix(hc_cfm, hc_dense)
 
       CALL kpoint_ot_energy_weighted_density( &
-         coeff_re_fm, coeff_im_fm, hc_re_fm, hc_im_fm, occupation, &
-         wmat_re_fm, wmat_im_fm)
-      CALL cp_fm_get_submatrix(wmat_re_fm, actual_re)
-      CALL cp_fm_get_submatrix(wmat_im_fm, actual_im)
-      actual = CMPLX(actual_re, actual_im, KIND=dp)
+         coeff_cfm, hc_cfm, occupation, wmat_cfm)
+      CALL cp_cfm_get_submatrix(wmat_cfm, actual)
       error = MAXVAL(ABS(actual - expected))
       hermitian_error = MAXVAL(ABS(actual - CONJG(TRANSPOSE(actual))))
 
@@ -447,16 +438,11 @@ CONTAINS
       coeff_rot = MATMUL(coeff, rotation)
       hc_rot = MATMUL(hc_dense, rotation)
       uniform_occupation(:) = 1.0_dp
-      CALL cp_fm_set_submatrix(coeff_re_fm, REAL(coeff_rot, KIND=dp))
-      CALL cp_fm_set_submatrix(coeff_im_fm, AIMAG(coeff_rot))
-      CALL cp_fm_set_submatrix(hc_re_fm, REAL(hc_rot, KIND=dp))
-      CALL cp_fm_set_submatrix(hc_im_fm, AIMAG(hc_rot))
+      CALL cp_cfm_set_submatrix(coeff_cfm, coeff_rot)
+      CALL cp_cfm_set_submatrix(hc_cfm, hc_rot)
       CALL kpoint_ot_energy_weighted_density( &
-         coeff_re_fm, coeff_im_fm, hc_re_fm, hc_im_fm, uniform_occupation, &
-         wmat_re_fm, wmat_im_fm)
-      CALL cp_fm_get_submatrix(wmat_re_fm, rotated_re)
-      CALL cp_fm_get_submatrix(wmat_im_fm, rotated_im)
-      rotated = CMPLX(rotated_re, rotated_im, KIND=dp)
+         coeff_cfm, hc_cfm, uniform_occupation, wmat_cfm)
+      CALL cp_cfm_get_submatrix(wmat_cfm, rotated)
       expected = MATMUL(MATMUL(coeff, hblock), CONJG(TRANSPOSE(coeff)))
       gauge_error = MAXVAL(ABS(rotated - expected))
 
@@ -467,12 +453,9 @@ CONTAINS
             error, hermitian_error, gauge_error
       END IF
 
-      CALL cp_fm_release(wmat_im_fm)
-      CALL cp_fm_release(wmat_re_fm)
-      CALL cp_fm_release(hc_im_fm)
-      CALL cp_fm_release(hc_re_fm)
-      CALL cp_fm_release(coeff_im_fm)
-      CALL cp_fm_release(coeff_re_fm)
+      CALL cp_cfm_release(wmat_cfm)
+      CALL cp_cfm_release(hc_cfm)
+      CALL cp_cfm_release(coeff_cfm)
       CALL cp_fm_struct_release(coeff_struct)
       CALL cp_fm_struct_release(hmat_struct)
       CALL cp_blacs_env_release(blacs_env)

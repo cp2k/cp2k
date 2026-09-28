@@ -12,14 +12,17 @@
 !> \author MK (29.10.2002)
 ! **************************************************************************************************
 MODULE qs_matrix_w
-   USE cp_cfm_types,                    ONLY: cp_cfm_to_fm
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_init_p,&
-                                              dbcsr_p_type,&
-                                              dbcsr_release_p,&
-                                              dbcsr_set,&
-                                              dbcsr_type
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
+                                              dbcsr_set
+   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                              fm_pool_get_el_struct
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -45,6 +48,7 @@ MODULE qs_matrix_w
                                               kpoint_operator_get,&
                                               kpoint_operator_prepare,&
                                               kpoint_slot_ks
+   USE qs_matrix_pools,                 ONLY: mpools_get
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -218,17 +222,20 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: ao_ao_fm
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_ot_energy_weighted_matrices'
+      COMPLEX(KIND=dp), PARAMETER                        :: zone = (1.0_dp, 0.0_dp), &
+                                                            zzero = (0.0_dp, 0.0_dp)
 
       INTEGER                                            :: handle, ikpgr, ispin, kplocal, kpmax, &
-                                                            nmo, nspin
+                                                            nao, nmo, nspin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation
-      TYPE(cp_fm_type)                                   :: coeff_im, coeff_re, hc_im, hc_re
-      TYPE(dbcsr_type), POINTER                          :: matrix_k_im, matrix_k_re
+      TYPE(cp_cfm_type)                                  :: h_k, hc, wmat
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools
+      TYPE(cp_fm_struct_type), POINTER                   :: h_k_struct
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_operator_context_type)                 :: op_ctx
 
       CALL timeset(routineN, handle)
-      NULLIFY (matrix_k_im, matrix_k_re, occupation)
+      NULLIFY (ao_ao_fm_pools, h_k_struct, occupation)
       CPASSERT(.NOT. kpoint%use_real_wfn)
       CPASSERT(ASSOCIATED(matrix_ks))
 
@@ -238,53 +245,47 @@ CONTAINS
       CALL kpoint_operator_context_create(op_ctx, kpoint, ao_ao_fm, nspin)
       ! Capture the current Hamiltonian after SCF, independently of OT's iteration caches.
       CALL kpoint_operator_prepare(op_ctx, matrix_ks, kpoint_slot_ks)
+      CALL mpools_get(kpoint%mpools, ao_ao_fm_pools=ao_ao_fm_pools)
+      h_k_struct => fm_pool_get_el_struct(ao_ao_fm_pools(1)%pool)
+      CALL cp_cfm_create(h_k, h_k_struct)
 
       DO ikpgr = 1, kpmax
          DO ispin = 1, nspin
-            CALL dbcsr_init_p(matrix_k_re)
-            CALL dbcsr_init_p(matrix_k_im)
-            ! All groups participate in the operator calls, including inactive groups in the
-            ! last round. The fallback may communicate over the global parallel environment.
+            ! Every group calls the collective service; the AO/AO pool layout keeps H(k)
+            ! valid even on inactive rounds, when fallback assembly may communicate globally.
             CALL kpoint_operator_get(op_ctx, ikpgr, ispin, matrix_ks, &
-                                     mat_re=matrix_k_re, mat_im=matrix_k_im, &
+                                     cmat=h_k, &
                                      matrix_row=ispin, slot=kpoint_slot_ks)
             IF (ikpgr <= kplocal) THEN
                kp => kpoint%kp_env(ikpgr)%kpoint_env
                CALL get_mo_set(kp%mos(ispin), nmo=nmo, &
                                occupation_numbers=occupation)
-               CALL cp_fm_create(coeff_re, kp%mos(ispin)%cmo_coeff%matrix_struct)
-               CALL cp_fm_create(coeff_im, kp%mos(ispin)%cmo_coeff%matrix_struct)
-               CALL cp_cfm_to_fm(kp%mos(ispin)%cmo_coeff, coeff_re, coeff_im)
+               CALL cp_cfm_get_info(kp%mos(ispin)%cmo_coeff, nrow_global=nao)
                CPASSERT(nmo >= 1)
                CPASSERT(SIZE(occupation) >= nmo)
 
                ! Smearing occupations are k-point resolved, whereas mo_set%homo is not.
-               CALL cp_fm_create(hc_re, coeff_re%matrix_struct, set_zero=.TRUE.)
-               CALL cp_fm_create(hc_im, coeff_im%matrix_struct, set_zero=.TRUE.)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, coeff_re, hc_re, nmo)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, coeff_im, hc_re, nmo, &
-                                            alpha=-1.0_dp, beta=1.0_dp)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_k_re, coeff_im, hc_im, nmo)
-               CALL cp_dbcsr_sm_fm_multiply(matrix_k_im, coeff_re, hc_im, nmo, &
-                                            alpha=1.0_dp, beta=1.0_dp)
+               CALL cp_cfm_create(hc, kp%mos(ispin)%cmo_coeff%matrix_struct, set_zero=.TRUE.)
+               CALL cp_cfm_gemm("N", "N", nao, nmo, nao, zone, h_k, &
+                                kp%mos(ispin)%cmo_coeff, zzero, hc)
                IF (ALLOCATED(kpoint%lowdin_v)) THEN
-                  CALL lowdin_kp_apply_mo(kp, kpoint%lowdin_v(:, ispin), coeff_re, coeff_im, hc_re, hc_im)
+                  CALL lowdin_kp_apply_mo(kp, kpoint%lowdin_v(:, ispin), &
+                                          kp%mos(ispin)%cmo_coeff, hc)
                END IF
 
+               CALL cp_cfm_create(wmat, kp%wmat(1, ispin)%matrix_struct)
                CALL kpoint_ot_energy_weighted_density( &
-                  coeff_re, coeff_im, hc_re, hc_im, occupation, &
-                  kp%wmat(1, ispin), kp%wmat(2, ispin))
+                  kp%mos(ispin)%cmo_coeff, hc, occupation, wmat)
+               ! wmat remains split-FM storage; keep that conversion at its boundary.
+               CALL cp_cfm_to_fm(wmat, kp%wmat(1, ispin), kp%wmat(2, ispin))
 
-               CALL cp_fm_release(hc_im)
-               CALL cp_fm_release(hc_re)
-               CALL cp_fm_release(coeff_im)
-               CALL cp_fm_release(coeff_re)
+               CALL cp_cfm_release(wmat)
+               CALL cp_cfm_release(hc)
             END IF
-            CALL dbcsr_release_p(matrix_k_im)
-            CALL dbcsr_release_p(matrix_k_re)
          END DO
       END DO
 
+      CALL cp_cfm_release(h_k)
       CALL kpoint_operator_context_release(op_ctx)
       CALL timestop(handle)
 
