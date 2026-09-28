@@ -1667,7 +1667,7 @@ CONTAINS
       INTEGER                                            :: imatrix
 
       IF (ASSOCIATED(matrix_set)) THEN
-         DO imatrix = 1, SIZE(matrix_set)
+         DO imatrix = LBOUND(matrix_set, 1), UBOUND(matrix_set, 1)
             CALL dbcsr_deallocate_matrix(matrix_set(imatrix)%matrix)
          END DO
          DEALLOCATE (matrix_set)
@@ -1688,8 +1688,8 @@ CONTAINS
       INTEGER                                            :: imatrix, jmatrix
 
       IF (ASSOCIATED(matrix_set)) THEN
-         DO jmatrix = 1, SIZE(matrix_set, 2)
-            DO imatrix = 1, SIZE(matrix_set, 1)
+         DO jmatrix = LBOUND(matrix_set, 2), UBOUND(matrix_set, 2)
+            DO imatrix = LBOUND(matrix_set, 1), UBOUND(matrix_set, 1)
                CALL dbcsr_deallocate_matrix(matrix_set(imatrix, jmatrix)%matrix)
             END DO
          END DO
@@ -1710,9 +1710,9 @@ CONTAINS
       INTEGER                                            :: imatrix, jmatrix, kmatrix
 
       IF (ASSOCIATED(matrix_set)) THEN
-         DO kmatrix = 1, SIZE(matrix_set, 3)
-            DO jmatrix = 1, SIZE(matrix_set, 2)
-               DO imatrix = 1, SIZE(matrix_set, 1)
+         DO kmatrix = LBOUND(matrix_set, 3), UBOUND(matrix_set, 3)
+            DO jmatrix = LBOUND(matrix_set, 2), UBOUND(matrix_set, 2)
+               DO imatrix = LBOUND(matrix_set, 1), UBOUND(matrix_set, 1)
                   CALL dbcsr_deallocate_matrix(matrix_set(imatrix, jmatrix, kmatrix)%matrix)
                END DO
             END DO
@@ -1734,10 +1734,10 @@ CONTAINS
       INTEGER                                            :: imatrix, jmatrix, kmatrix, lmatrix
 
       IF (ASSOCIATED(matrix_set)) THEN
-         DO lmatrix = 1, SIZE(matrix_set, 4)
-         DO kmatrix = 1, SIZE(matrix_set, 3)
-            DO jmatrix = 1, SIZE(matrix_set, 2)
-               DO imatrix = 1, SIZE(matrix_set, 1)
+         DO lmatrix = LBOUND(matrix_set, 4), UBOUND(matrix_set, 4)
+         DO kmatrix = LBOUND(matrix_set, 3), UBOUND(matrix_set, 3)
+            DO jmatrix = LBOUND(matrix_set, 2), UBOUND(matrix_set, 2)
+               DO imatrix = LBOUND(matrix_set, 1), UBOUND(matrix_set, 1)
                   CALL dbcsr_deallocate_matrix(matrix_set(imatrix, jmatrix, kmatrix, lmatrix)%matrix)
                END DO
             END DO
@@ -1762,11 +1762,11 @@ CONTAINS
                                                             lmatrix
 
       IF (ASSOCIATED(matrix_set)) THEN
-         DO hmatrix = 1, SIZE(matrix_set, 5)
-            DO lmatrix = 1, SIZE(matrix_set, 4)
-            DO kmatrix = 1, SIZE(matrix_set, 3)
-               DO jmatrix = 1, SIZE(matrix_set, 2)
-                  DO imatrix = 1, SIZE(matrix_set, 1)
+         DO hmatrix = LBOUND(matrix_set, 5), UBOUND(matrix_set, 5)
+            DO lmatrix = LBOUND(matrix_set, 4), UBOUND(matrix_set, 4)
+            DO kmatrix = LBOUND(matrix_set, 3), UBOUND(matrix_set, 3)
+               DO jmatrix = LBOUND(matrix_set, 2), UBOUND(matrix_set, 2)
+                  DO imatrix = LBOUND(matrix_set, 1), UBOUND(matrix_set, 1)
                      CALL dbcsr_deallocate_matrix(matrix_set(imatrix, jmatrix, kmatrix, lmatrix, hmatrix)%matrix)
                   END DO
                END DO

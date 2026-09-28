@@ -36,7 +36,8 @@ MODULE cp_cfm_basic_linalg
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_basic_linalg'
 
-   PUBLIC :: cp_cfm_column_scale, &
+   PUBLIC :: cp_cfm_add_on_diag, &
+             cp_cfm_column_scale, &
              cp_cfm_gemm, &
              cp_cfm_get_diag, &
              cp_cfm_lu_decompose, &
@@ -1435,6 +1436,37 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE cp_cfm_vectorsnorm
+
+! **************************************************************************************************
+!> \brief Adds a scalar to the diagonal of a distributed complex full matrix.
+!> \param matrix input/output matrix
+!> \param alpha scalar added to each diagonal element
+!> \param n_active optional number of physical rows/columns
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_add_on_diag(matrix, alpha, n_active)
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
+      COMPLEX(KIND=dp), INTENT(IN)                       :: alpha
+      INTEGER, INTENT(IN), OPTIONAL                      :: n_active
+
+      INTEGER                                            :: i_row, j_col, max_index, ncol_local, &
+                                                            nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+
+      max_index = HUGE(max_index)
+      IF (PRESENT(n_active)) max_index = n_active
+
+      CALL cp_cfm_get_info(matrix=matrix, nrow_local=nrow_local, ncol_local=ncol_local, &
+                           row_indices=row_indices, col_indices=col_indices)
+
+      DO j_col = 1, ncol_local
+         DO i_row = 1, nrow_local
+            IF (row_indices(i_row) == col_indices(j_col) .AND. row_indices(i_row) <= max_index) THEN
+               matrix%local_data(i_row, j_col) = matrix%local_data(i_row, j_col) + alpha
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE cp_cfm_add_on_diag
 
 ! **************************************************************************************************
 !> \brief returns the diagonal of a complex full matrix: diag(i)= A_{ii}.

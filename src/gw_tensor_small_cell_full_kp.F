@@ -13,16 +13,13 @@
 MODULE gw_tensor_small_cell_full_kp
    USE bibliography,                    ONLY: Pasquier2025,&
                                               cite_reference
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_get_diag
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
                                               cp_cfm_to_cfm,&
-                                              cp_cfm_to_fm,&
                                               cp_cfm_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_diag,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
+   USE cp_fm_types,                     ONLY: cp_fm_set_all,&
                                               cp_fm_type
    USE dbt_api,                         ONLY: dbt_clear,&
                                               dbt_contract,&
@@ -35,13 +32,14 @@ MODULE gw_tensor_small_cell_full_kp
                                               de_init_bs_env,&
                                               get_V_tr_R,&
                                               is_cell_in_index_to_cell,&
-                                              power,&
                                               time_to_freq
    USE gw_utils_communication,          ONLY: fm_to_local_array,&
                                               fm_to_local_tensor,&
                                               local_array_to_fm,&
                                               local_dbt_to_global_fm
-   USE gw_utils_fm,                     ONLY: cfm_contract_ABA
+   USE gw_utils_fm,                     ONLY: cfm_contract_ABA,&
+                                              local_add_on_diag,&
+                                              local_complex_power
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp_small_cell
@@ -627,26 +625,26 @@ CONTAINS
                           bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
 
             ! 2. remove negative eigenvalues from χ_PQ(iω,k)
-            CALL power(chi_k_w, 1.0_dp, bs_env%eps_eigval_mat_RI)
+            CALL local_complex_power(chi_k_w, 1.0_dp, bs_env%eps_eigval_mat_RI)
 
-            ! 3. ε(iω_j,k_i) = Id - V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
+            ! 3. ε(iω_j,k_i) = I + V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
+            !    a) eps_work = V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
+            CALL gemm_square(M_inv_V_sqrt(:, :, ikp_local), 'C', chi_k_w, 'N', &
+                             M_inv_V_sqrt(:, :, ikp_local), 'N', eps_k_w)
 
-            ! 3. a) eps_work = V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
-            CALL gemm_square(M_inv_V_sqrt(:, :, ikp_local), 'C', chi_k_w, 'N', M_inv_V_sqrt(:, :, ikp_local), 'N', eps_k_w)
+            !    b) ε(iω_j,k_i) = eps_work + I
+            CALL local_add_on_diag(eps_k_w, z_one)
 
-            ! 3. b) ε(iω_j,k_i) = eps_work - Id
-            CALL add_on_diag(eps_k_w, z_one)
+            ! 4. W(iω_j,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-I)*V^0.5(k_i)
+            !    a) Invert ε(iω_j,k_i) using its Cholesky decomposition
+            CALL local_complex_power(eps_k_w, -1.0_dp, 0.0_dp)
 
-            ! 4. W(iω_j,k_i) = M^-1(k_i)*V^0.5(k_i)*(ε^-1(iω_j,k_i)-Id)*V^0.5(k_i)*M^-1(k_i)
+            !    b) ε^-1(iω_j,k_i)-I
+            CALL local_add_on_diag(eps_k_w, -z_one)
 
-            ! 4. a) Inversion of ε(iω_j,k_i) using its Cholesky decomposition
-            CALL power(eps_k_w, -1.0_dp, 0.0_dp)
-
-            ! 4. b) ε^-1(iω_j,k_i)-Id
-            CALL add_on_diag(eps_k_w, -z_one)
-
-            ! 4. c) W(iω,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-Id)*V^0.5(k_i)
-            CALL gemm_square(V_sqrt(:, :, ikp_local), 'N', eps_k_w, 'N', V_sqrt(:, :, ikp_local), 'C', W_k_w)
+            !    c) W(iω_j,k_i) = V^0.5(k_i)*(ε^-1(iω_j,k_i)-I)*V^0.5(k_i)
+            CALL gemm_square(V_sqrt(:, :, ikp_local), 'N', eps_k_w, 'N', &
+                             V_sqrt(:, :, ikp_local), 'C', W_k_w)
 
             ! 5. W(iω,k_i) -> W^R(iω) = sum_k w_k e^(-ikR) W(iω,k) (k-point extrapolation here)
             CALL add_kp_to_all_rs(W_k_w, W_R, bs_env%kpoints_chi_eps_W, ikp, &
@@ -751,10 +749,10 @@ CONTAINS
                        bs_env%kpoints_chi_eps_W%xkp(1:3, ikp))
 
          ! invert M_PQ(k)
-         CALL power(M_inv(:, :, ikp_local), -1.0_dp, 0.0_dp)
+         CALL local_complex_power(M_inv(:, :, ikp_local), -1.0_dp, 0.0_dp)
 
          ! V^0.5(k)
-         CALL power(V_sqrt(:, :, ikp_local), 0.5_dp, 0.0_dp)
+         CALL local_complex_power(V_sqrt(:, :, ikp_local), 0.5_dp, 0.0_dp)
 
          ! M^-1(k)*V^0.5(k)
          CALL gemm_square(M_inv(:, :, ikp_local), 'N', V_sqrt(:, :, ikp_local), 'C', M_inv_V_sqrt(:, :, ikp_local))
@@ -764,32 +762,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_Minv_and_Vsqrt
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param alpha ...
-! **************************************************************************************************
-   SUBROUTINE add_on_diag(matrix, alpha)
-      COMPLEX(KIND=dp), DIMENSION(:, :)                  :: matrix
-      COMPLEX(KIND=dp)                                   :: alpha
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'add_on_diag'
-
-      INTEGER                                            :: handle, i, n
-
-      CALL timeset(routineN, handle)
-
-      n = SIZE(matrix, 1)
-      CPASSERT(n == SIZE(matrix, 2))
-
-      DO i = 1, n
-         matrix(i, i) = matrix(i, i) + alpha
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE add_on_diag
 
 ! **************************************************************************************************
 !> \brief ...
@@ -829,7 +801,7 @@ CONTAINS
                        bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
 
          ! invert M_PQ(k)
-         CALL power(M_inv, -1.0_dp, 0.0_dp)
+         CALL local_complex_power(M_inv, -1.0_dp, 0.0_dp)
 
          ! W(k) = sum_R e^ikR W^R [only R in the supercell that is determined by the SCF k-mesh]
          CALL rs_to_kp(W_R, W_k, &
@@ -1063,7 +1035,7 @@ CONTAINS
          CALL rs_to_kp(M_R, M_kp, bs_env%kpoints_scf_desymm%index_to_cell, &
                        bs_env%kpoints_scf_desymm%xkp(1:3, ikp))
          ! M(k) -> M^-1(k)
-         CALL power(M_kp, -1.0_dp, 0.0_dp)
+         CALL local_complex_power(M_kp, -1.0_dp, 0.0_dp)
          ! Ṽ(k) = M^-1(k) * V_tr(k) * M^-1(k)
          CALL gemm_square(M_kp, 'N', V_tr_kp, 'N', M_kp, 'N', Mi_Vtr_Mi_kp)
          ! Ṽ^R = sum_k w_k e^-ikR Ṽ(k)
@@ -1486,14 +1458,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'trafo_to_k_and_nn'
 
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cdiag
       INTEGER                                            :: handle
       TYPE(cp_cfm_type)                                  :: cfm_ikp
-      TYPE(cp_fm_type)                                   :: fm_ikp_re
 
       CALL timeset(routineN, handle)
 
       CALL cp_cfm_create(cfm_ikp, cfm_mo_coeff%matrix_struct)
-      CALL cp_fm_create(fm_ikp_re, cfm_mo_coeff%matrix_struct)
 
       ! Σ_µν(k_i) = sum_R e^ik_iR Σ_µν^R
       CALL fm_rs_to_kp(cfm_ikp, fm_rs, bs_env%kpoints_DOS, ikp)
@@ -1502,11 +1473,12 @@ CONTAINS
       CALL cfm_contract_ABA(cfm_mo_coeff, cfm_ikp)
 
       ! get Σ_nn(k_i) which is a real quantity as Σ^x and Σ^c(iτ) is Hermitian
-      CALL cp_cfm_to_fm(cfm_ikp, fm_ikp_re)
-      CALL cp_fm_get_diag(fm_ikp_re, array_ikp_n)
+      ALLOCATE (cdiag(SIZE(array_ikp_n)))
+      CALL cp_cfm_get_diag(cfm_ikp, cdiag)
+      array_ikp_n = REAL(cdiag, KIND=dp)
 
+      DEALLOCATE (cdiag)
       CALL cp_cfm_release(cfm_ikp)
-      CALL cp_fm_release(fm_ikp_re)
 
       CALL timestop(handle)
 

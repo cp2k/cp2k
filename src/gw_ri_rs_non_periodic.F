@@ -2499,8 +2499,8 @@ CONTAINS
          CALL cp_fm_create(fm_Vtr_Gamma(1, 1), bs_env%fm_RI_RI%matrix_struct)
          CALL cp_fm_to_fm(bs_env%auto_ri%V_pq, fm_Vtr_Gamma(1, 1))
       ELSE
-         CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI, bs_env%n_RI, &
-                                 bs_env%trunc_coulomb, do_kpoints=.FALSE.)
+         CALL RI_2c_integral_mat(qs_env, fm_Vtr_Gamma, bs_env%fm_RI_RI%matrix_struct, bs_env%n_RI, &
+                                 bs_env%trunc_coulomb)
       END IF
 
       ! M^-1(k=0) V^tr(τ) M^-1(k=0) -> fm_Vtr_Gamma
