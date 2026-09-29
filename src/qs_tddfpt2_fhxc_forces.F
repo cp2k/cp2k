@@ -102,7 +102,8 @@ MODULE qs_tddfpt2_fhxc_forces
                                               qs_fgxc_release
    USE qs_force_types,                  ONLY: qs_force_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
-   USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_integrate_potential,          ONLY: integrate_rho_nlcc,&
+                                              integrate_v_rspace
    USE qs_kernel_types,                 ONLY: full_kernel_env_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_atom,                      ONLY: update_ks_atom
@@ -219,7 +220,7 @@ CONTAINS
                                                             rho_r_aux, rhox_r, rhox_r_aux, &
                                                             rhox_tau_r, rhox_tau_r_aux, rhoxx_r, &
                                                             rhoxx_tau_r
-      TYPE(pw_r3d_rs_type), POINTER                      :: weights
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, weights
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -291,6 +292,8 @@ CONTAINS
       !
       CALL get_qs_env(qs_env, ks_env=ks_env, pw_env=pw_env, para_env=para_env)
       CALL get_qs_env(qs_env, xcint_weights=weights)
+      NULLIFY (rho_nlcc)
+      CALL get_qs_env(qs_env, rho_nlcc=rho_nlcc)
       !
       NULLIFY (hartree_local, local_rho_set, local_rho_set_admm)
       IF (gapw .OR. gapw_xc) THEN
@@ -610,6 +613,13 @@ CONTAINS
             END DO
          END IF
 
+         IF (ASSOCIATED(rho_nlcc)) THEN
+            DO ispin = 1, nspins
+               CALL integrate_rho_nlcc(gxc_rho(ispin), qs_env, &
+                                       debug_forces, .FALSE., "dnlcc*dFxc")
+            END DO
+         END IF
+
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          NULLIFY (matrix_fx)
          CALL dbcsr_allocate_matrix_set(matrix_fx, SIZE(fxc_rho))
@@ -795,6 +805,13 @@ CONTAINS
                                 xc_section, do_onecenter, is_rks_triplets, do_sf, &
                                 fxc_rho, fxc_tau, gxc_rho, gxc_tau, &
                                 rho_atom_set_f, rho_atom_set_g, qs_kind_set)
+
+            IF (ASSOCIATED(rho_nlcc)) THEN
+               DO ispin = 1, nspins
+                  CALL integrate_rho_nlcc(gxc_rho(ispin), qs_env, &
+                                          debug_forces, .FALSE., "dnlcc*dFxc(ADMM)")
+               END DO
+            END IF
 
             ! grid weight contribution to forces ADMM XC correction term
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)

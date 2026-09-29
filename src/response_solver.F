@@ -107,7 +107,8 @@ MODULE response_solver
                                               total_qs_force
    USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
-   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
+   USE qs_integrate_potential,          ONLY: integrate_rho_nlcc,&
+                                              integrate_v_core_rspace,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
@@ -915,6 +916,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r_gs, rho_r_t, rhoz_r, rhoz_r_aux, &
                                                             rhoz_r_xc, rhoz_tau_r_aux, tauz_r, &
                                                             tauz_r_xc, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set, qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -960,6 +962,10 @@ CONTAINS
       nspins = dft_control%nspins
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
+
+      ! NLCC
+      NULLIFY (rho_nlcc)
+      CALL get_qs_env(qs_env=qs_env, rho_nlcc=rho_nlcc)
 
       IF (debug_forces) THEN
          CALL get_qs_env(qs_env, natom=natom, atomic_kind_set=atomic_kind_set)
@@ -1730,6 +1736,7 @@ CONTAINS
       NULLIFY (v_xc, v_xc_tau)
       CALL qs_fxc_create(qs_env, rho0, rho1, rho0_atom_set, xc_section, do_onecenter, &
                          v_xc, v_xc_tau, rho1_atom_set, &
+                         dispersion_env=qs_env%dispersion_env, &
                          compute_virial=use_virial, virial_xc=virial%pv_xc)
       DEALLOCATE (rho1)
 
@@ -1755,9 +1762,17 @@ CONTAINS
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
 
+      IF (ASSOCIATED(rho_nlcc)) THEN
+         DO ispin = 1, nspins
+            CALL integrate_rho_nlcc(v_xc(ispin), qs_env, &
+                                    debug_forces, debug_stress, "dnlcc*dVxc")
+         END DO
+      END IF
+
       DO ispin = 1, nspins
          CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
       END DO
+
       IF ((.NOT. (gapw)) .AND. (.NOT. gapw_xc)) THEN
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          DO ispin = 1, nspins
@@ -2181,6 +2196,13 @@ CONTAINS
                   'STRESS| GGA 2nd Pin_admm*dK*rhoz_admm', one_third_sum_diag(stdeb), det_3x3(stdeb)
             END IF
             !
+            IF (ASSOCIATED(rho_nlcc)) THEN
+               DO ispin = 1, nspins
+                  CALL integrate_rho_nlcc(v_xc(ispin), qs_env, &
+                                          debug_forces, debug_stress, "dnlcc*dVxc(ADMM)")
+               END DO
+            END IF
+            !
             CALL qs_rho_get(rho_aux_fit, rho_ao_kp=matrix_p)
             ! Stress-tensor Pin*dK*rhoz_admm
             IF (use_virial) THEN
@@ -2220,6 +2242,7 @@ CONTAINS
             IF (use_virial) THEN
                virial%pv_ehartree = virial%pv_ehartree + (virial%pv_virial - pv_loc)
             END IF
+
             ! GAPW ADMM XC correction integrate weight contribution to force
             IF (admm_env%do_gapw) THEN
                IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)

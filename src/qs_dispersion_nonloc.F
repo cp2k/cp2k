@@ -21,26 +21,37 @@ MODULE qs_dispersion_nonloc
                                               Romanperez2009,&
                                               Sabatini2013,&
                                               cite_reference
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE input_constants,                 ONLY: vdw_nl_DRSLL,&
                                               vdw_nl_LMKLL,&
                                               vdw_nl_RVV10,&
                                               xc_vdw_fun_nonloc
+   USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_rval,&
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE mathconstants,                   ONLY: pi,&
                                               rootpi
    USE message_passing,                 ONLY: mp_para_env_type
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
    USE pw_grid_types,                   ONLY: HALFSPACE,&
                                               pw_grid_type
    USE pw_methods,                      ONLY: pw_axpy,&
                                               pw_derive,&
-                                              pw_transfer
+                                              pw_scale,&
+                                              pw_transfer,&
+                                              pw_zero
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
@@ -49,10 +60,13 @@ MODULE qs_dispersion_nonloc
    PRIVATE
 
    REAL(KIND=dp), PARAMETER :: epsr = 1.e-12_dp
+   INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE([1, 0, 0, 0, 1, 0, 0, 0, 1], [3, 3])
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_nonloc'
 
-   PUBLIC :: qs_dispersion_nonloc_init, calculate_dispersion_nonloc
+   PUBLIC :: qs_dispersion_nonloc_init, calculate_vxc_nlvdw
+   PUBLIC :: qs_fxc_nlvdw_fdiff, qs_fxc_nlvdw_apply
+   PUBLIC :: prepare_nlvdw_density, return_nlvdw_potential
 
 ! **************************************************************************************************
 
@@ -135,51 +149,45 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculates the non-local vdW functional using the method of Soler
 !>        For spin polarized cases we use E(a,b) = E(a+b), i.e. total density
-!> \param vxc_rho ...
-!> \param rho_r ...
-!> \param rho_g ...
+!> \param vxc_r ...
+!> \param rho ...
+!> \param drho ...
 !> \param edispersion ...
 !> \param dispersion_env ...
 !> \param energy_only ...
 !> \param pw_pool ...
-!> \param xc_pw_pool ...
 !> \param para_env ...
 !> \param virial ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_dispersion_nonloc(vxc_rho, rho_r, rho_g, edispersion, &
-                                          dispersion_env, energy_only, pw_pool, xc_pw_pool, para_env, virial)
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc_rho, rho_r
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
+   SUBROUTINE calculate_vxc_nlvdw(vxc_r, rho, drho, edispersion, &
+                                  dispersion_env, energy_only, pw_pool, para_env, virial)
+      TYPE(pw_r3d_rs_type)                               :: vxc_r
+      REAL(KIND=dp), DIMENSION(:)                        :: rho
+      REAL(KIND=dp), DIMENSION(:, :)                     :: drho
       REAL(KIND=dp), INTENT(OUT)                         :: edispersion
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       LOGICAL, INTENT(IN)                                :: energy_only
-      TYPE(pw_pool_type), POINTER                        :: pw_pool, xc_pw_pool
+      TYPE(pw_pool_type), POINTER                        :: pw_pool
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_nonloc'
-      INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE([1, 0, 0, 0, 1, 0, 0, 0, 1], [3, 3])
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_nlvdw'
 
       INTEGER                                            :: handle, handle_fft, i, i_grid, idir, &
-                                                            ispin, nl_type, np, nspin, p, q, r, s
+                                                            nl_type, np, s
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: q_low
-      INTEGER, DIMENSION(1:3)                            :: hi, lo, n
       LOGICAL                                            :: use_virial
       REAL(KIND=dp)                                      :: b_value, beta, Ec_nl, sumnp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dq0_dgradrho, dq0_drho, hpot, q0, rho, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dq0_dgradrho, dq0_drho, hpot, q0, &
                                                             theta_scale
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: drho, spline_coeff, u_contract
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: spline_coeff, u_contract
       REAL(KIND=dp), CONTIGUOUS, POINTER                 :: tmp_1d(:), vxc_1d(:)
-      TYPE(pw_c1d_gs_type)                               :: div_g, rho_tot_g, tmp_g, vxc_g
+      TYPE(pw_c1d_gs_type)                               :: tmp_g
       TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:)    :: thetas_g
       TYPE(pw_grid_type), POINTER                        :: grid
-      TYPE(pw_r3d_rs_type)                               :: tmp_r, vxc_r
+      TYPE(pw_r3d_rs_type)                               :: tmp_r
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(rho_r))
-      CPASSERT(ASSOCIATED(rho_g))
-      CPASSERT(ASSOCIATED(pw_pool))
 
       IF (PRESENT(virial)) THEN
          use_virial = virial%pv_calculate .AND. (.NOT. virial%pv_numer)
@@ -189,65 +197,16 @@ CONTAINS
       IF (use_virial) THEN
          CPASSERT(.NOT. energy_only)
       END IF
-      IF (.NOT. energy_only) THEN
-         CPASSERT(ASSOCIATED(vxc_rho))
-      END IF
 
       nl_type = dispersion_env%nl_type
 
       b_value = dispersion_env%b_value
       beta = 0.03125_dp*(3.0_dp/(b_value**2.0_dp))**0.75_dp
-      nspin = SIZE(rho_r)
 
-      ! temporary arrays for FFT
       CALL pw_pool%create_pw(tmp_g)
       CALL pw_pool%create_pw(tmp_r)
-
-      ! Sum the spin densities on the vdW grid before transforming or differentiating.
-      CALL pw_pool%create_pw(rho_tot_g)
-      CALL pw_transfer(rho_g(1), rho_tot_g)
-      DO ispin = 2, nspin
-         CALL pw_transfer(rho_g(ispin), tmp_g)
-         CALL pw_axpy(tmp_g, rho_tot_g, 1._dp)
-      END DO
-      CALL pw_transfer(rho_tot_g, tmp_r)
-
-      np = SIZE(tmp_r%array)
+      np = pw_pool%pw_grid%ngpts_local
       tmp_1d(1:np) => tmp_r%array
-      ALLOCATE (rho(np), drho(np, 3))
-      DO i = 1, 3
-         lo(i) = LBOUND(tmp_r%array, i)
-         hi(i) = UBOUND(tmp_r%array, i)
-         n(i) = hi(i) - lo(i) + 1
-      END DO
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             SHARED(n, lo, rho, tmp_r) PRIVATE(s) COLLAPSE(3)
-      DO r = 0, n(3) - 1
-         DO q = 0, n(2) - 1
-            DO p = 0, n(1) - 1
-               s = r*n(2)*n(1) + q*n(1) + p + 1
-               rho(s) = tmp_r%array(p + lo(1), q + lo(2), r + lo(3))
-            END DO
-         END DO
-      END DO
-!$OMP END PARALLEL DO
-      DO idir = 1, 3
-         CALL pw_transfer(rho_tot_g, tmp_g)
-         CALL pw_derive(tmp_g, nd(:, idir))
-         CALL pw_transfer(tmp_g, tmp_r)
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             SHARED(idir, n, lo, drho, tmp_r) PRIVATE(s) COLLAPSE(3)
-         DO r = 0, n(3) - 1
-            DO q = 0, n(2) - 1
-               DO p = 0, n(1) - 1
-                  s = r*n(2)*n(1) + q*n(1) + p + 1
-                  drho(s, idir) = tmp_r%array(p + lo(1), q + lo(2), r + lo(3))
-               END DO
-            END DO
-         END DO
-!$OMP END PARALLEL DO
-      END DO
-      CALL pw_pool%give_back_pw(rho_tot_g)
 
       !! ---------------------------------------------------------------------------------
       !! Find the value of q0 for all assigned grid points.  q is defined in equations
@@ -346,7 +305,6 @@ CONTAINS
          CALL timestop(handle_fft)
 
          ! Write the local potential directly into its PW object.
-         CALL pw_pool%create_pw(vxc_r)
          vxc_1d(1:np) => vxc_r%array
          IF (use_virial) THEN
             grid => tmp_g%pw_grid
@@ -367,43 +325,9 @@ CONTAINS
 !$OMP END PARALLEL DO
          END SELECT
          NULLIFY (vxc_1d)
-         ! Sum the derivatives before the inverse FFT. Keep the real-space projection
-         ! before transferring the potential to a possibly different XC grid.
-         CALL pw_pool%create_pw(div_g)
-         DO idir = 1, 3
-!$OMP PARALLEL DO DEFAULT(NONE) &
-!$OMP             SHARED(n, lo, tmp_r, hpot, drho, idir) PRIVATE(s) COLLAPSE(3)
-            DO r = 0, n(3) - 1
-               DO q = 0, n(2) - 1
-                  DO p = 0, n(1) - 1
-                     s = r*n(2)*n(1) + q*n(1) + p + 1
-                     tmp_r%array(p + lo(1), q + lo(2), r + lo(3)) = hpot(s)*drho(s, idir)
-                  END DO
-               END DO
-            END DO
-!$OMP END PARALLEL DO
-            CALL pw_transfer(tmp_r, tmp_g)
-            CALL pw_derive(tmp_g, nd(:, idir))
-            IF (idir == 1) THEN
-               CALL pw_transfer(tmp_g, div_g)
-            ELSE
-               CALL pw_axpy(tmp_g, div_g, 1._dp)
-            END IF
-         END DO
-         CALL pw_transfer(div_g, tmp_r)
-         CALL pw_pool%give_back_pw(div_g)
-         CALL pw_axpy(tmp_r, vxc_r, -1._dp)
-         CALL pw_transfer(vxc_r, tmp_g)
-         CALL pw_pool%give_back_pw(vxc_r)
-         CALL xc_pw_pool%create_pw(vxc_r)
-         CALL xc_pw_pool%create_pw(vxc_g)
-         CALL pw_transfer(tmp_g, vxc_g)
-         CALL pw_transfer(vxc_g, vxc_r)
-         DO ispin = 1, nspin
-            CALL pw_axpy(vxc_r, vxc_rho(ispin), 1._dp)
-         END DO
-         CALL xc_pw_pool%give_back_pw(vxc_r)
-         CALL xc_pw_pool%give_back_pw(vxc_g)
+
+         CALL combine_nlvdw_potential(vxc_r, drho, hpot, tmp_r, tmp_g, pw_pool)
+
       END IF
 
       NULLIFY (tmp_1d)
@@ -414,11 +338,378 @@ CONTAINS
       CALL pw_pool%give_back_pw(tmp_r)
       CALL pw_pool%give_back_pw(tmp_g)
 
-      DEALLOCATE (rho, drho, thetas_g)
+      DEALLOCATE (thetas_g)
 
       CALL timestop(handle)
 
-   END SUBROUTINE calculate_dispersion_nonloc
+   END SUBROUTINE calculate_vxc_nlvdw
+
+! **************************************************************************************************
+!> \brief Second derivative of nl-vdW potential
+!> \param qs_env ...
+!> \param xc_section ...
+!> \param dispersion_env ...
+!> \param rho0_r ...
+!> \param rho1_r ...
+!> \param fxc_rho ...
+! **************************************************************************************************
+   SUBROUTINE qs_fxc_nlvdw_apply(qs_env, xc_section, dispersion_env, rho0_r, rho1_r, fxc_rho)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: xc_section
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho0_r, rho1_r, fxc_rho
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_fxc_nlvdw_apply'
+
+      INTEGER                                            :: handle, ispin, nspins, nsteps, order, vdw
+      LOGICAL                                            :: vdW_nl
+      REAL(KIND=dp)                                      :: eps_delta
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_vdw
+
+      CALL timeset(routineN, handle)
+
+      ! nonlocal vdW functionals
+      vdW_nl = .FALSE.
+      CALL section_vals_val_get(xc_section, "VDW_POTENTIAL%POTENTIAL_TYPE", i_val=vdw)
+      vdW_nl = (vdw == xc_vdw_fun_nonloc)
+      IF (vdW_nl) THEN
+         nsteps = section_get_ival(xc_section, "NSTEPS")
+         order = 2*nsteps
+         eps_delta = section_get_rval(xc_section, "STEP_SIZE")
+         nspins = SIZE(rho0_r)
+         CALL get_qs_env(qs_env, pw_env=pw_env)
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         ALLOCATE (fxc_vdw(nspins))
+         DO ispin = 1, nspins
+            CALL auxbas_pw_pool%create_pw(fxc_vdw(ispin))
+         END DO
+         CALL qs_fxc_nlvdw_fdiff(qs_env, dispersion_env, rho0_r, rho1_r, &
+                                 order, eps_delta, fxc_vdw)
+         DO ispin = 1, nspins
+            CALL pw_axpy(fxc_vdw(ispin), fxc_rho(ispin), 1.0_dp)
+            CALL auxbas_pw_pool%give_back_pw(fxc_vdw(ispin))
+         END DO
+         DEALLOCATE (fxc_vdw)
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_fxc_nlvdw_apply
+
+! **************************************************************************************************
+!> \brief Second derivative of nl-vdW potential using finite differences
+!> \param qs_env ...
+!> \param dispersion_env ...
+!> \param rho0_r ...
+!> \param rho1_r ...
+!> \param accuracy ...
+!> \param epsrho ...
+!> \param fxc_rho ...
+!>
+!>
+!>  https://en.wikipedia.org/wiki/Finite_difference_coefficient
+!>  ---------------------------------------------------------------------------------------------------
+!>  Derivative    Accuracy            4       3       2       1       0       1       2      3       4
+!>  ---------------------------------------------------------------------------------------------------
+!>      1             2                                    -1/2       0     1/2
+!>                    4                            1/12    -2/3       0     2/3   -1/12
+!>                    6                   -1/60    3/20    -3/4       0     3/4   -3/20   1/60
+!>                    8           1/280  -4/105     1/5    -4/5       0     4/5    -1/5  4/105  -1/280
+!>  ---------------------------------------------------------------------------------------------------
+!>      2             2                                       1      -2       1
+!>                    4                           -1/12     4/3    -5/2     4/3   -1/12
+!>                    6                    1/90   -3/20     3/2  -49/18     3/2   -3/20   1/90
+!>                    8          -1/560   8/315    -1/5     8/5 -205/72     8/5    -1/5  8/315  -1/560
+!>  ---------------------------------------------------------------------------------------------------
+! **************************************************************************************************
+   SUBROUTINE qs_fxc_nlvdw_fdiff(qs_env, dispersion_env, rho0_r, rho1_r, accuracy, epsrho, fxc_rho)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho0_r, rho1_r
+      INTEGER, INTENT(IN)                                :: accuracy
+      REAL(KIND=dp), INTENT(IN)                          :: epsrho
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: fxc_rho
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_fxc_nlvdw_fdiff'
+
+      INTEGER                                            :: handle, ispin, istep, np, nspins, nstep
+      REAL(KIND=dp)                                      :: beta, edisp, oeps1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rho, rho1, rhonl
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: drho, drho1, drhonl
+      REAL(KIND=dp), DIMENSION(-4:4)                     :: ak
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_pool_type), POINTER                        :: pw_pool, vdw_pw_pool
+      TYPE(pw_r3d_rs_type)                               :: vxcnl
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc00
+
+      CALL timeset(routineN, handle)
+
+      ak = 0.0_dp
+      SELECT CASE (accuracy)
+      CASE (:4)
+         nstep = 2
+         ak(-2:2) = [1.0_dp, -8.0_dp, 0.0_dp, 8.0_dp, -1.0_dp]/12.0_dp
+      CASE (5:7)
+         nstep = 3
+         ak(-3:3) = [-1.0_dp, 9.0_dp, -45.0_dp, 0.0_dp, 45.0_dp, -9.0_dp, 1.0_dp]/60.0_dp
+      CASE (8:)
+         nstep = 4
+         ak(-4:4) = [1.0_dp, -32.0_dp/3.0_dp, 56.0_dp, -224.0_dp, 0.0_dp, &
+                     224.0_dp, -56.0_dp, 32.0_dp/3.0_dp, -1.0_dp]/280.0_dp
+      END SELECT
+
+      CALL get_qs_env(qs_env, dft_control=dft_control, &
+                      pw_env=pw_env, para_env=para_env)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=pw_pool)
+      CALL pw_env_get(pw_env, vdw_pw_pool=vdw_pw_pool)
+
+      nspins = dft_control%nspins
+
+      ALLOCATE (vxc00(nspins))
+      DO ispin = 1, nspins
+         CALL pw_pool%create_pw(vxc00(ispin))
+         CALL pw_zero(fxc_rho(ispin))
+      END DO
+
+      np = vdw_pw_pool%pw_grid%ngpts_local
+      ALLOCATE (rho(np), drho(np, 3))
+      CALL prepare_nlvdw_density(rho0_r, rho, drho, vdw_pw_pool, pw_pool)
+      ALLOCATE (rho1(np), drho1(np, 3))
+      CALL prepare_nlvdw_density(rho1_r, rho1, drho1, vdw_pw_pool, pw_pool)
+      ALLOCATE (rhonl(np), drhonl(np, 3))
+
+      DO istep = -nstep, nstep
+
+         IF (ak(istep) /= 0.0_dp) THEN
+            beta = REAL(istep, KIND=dp)*epsrho
+            rhonl(:) = rho(:) + beta*rho1(:)
+            drhonl(:, :) = drho(:, :) + beta*drho1(:, :)
+            CALL vdw_pw_pool%create_pw(vxcnl)
+            CALL calculate_vxc_nlvdw(vxcnl, rhonl, drhonl, edisp, dispersion_env, &
+                                     .FALSE., vdw_pw_pool, para_env)
+            DO ispin = 1, nspins
+               CALL pw_zero(vxc00(ispin))
+            END DO
+            CALL return_nlvdw_potential(vxc00, vxcnl, vdw_pw_pool, pw_pool)
+            CALL vdw_pw_pool%give_back_pw(vxcnl)
+            DO ispin = 1, nspins
+               CALL pw_axpy(vxc00(ispin), fxc_rho(ispin), ak(istep))
+            END DO
+         END IF
+
+      END DO
+
+      DEALLOCATE (rho, drho)
+      DEALLOCATE (rho1, drho1)
+      DEALLOCATE (rhonl, drhonl)
+      DO ispin = 1, nspins
+         CALL pw_pool%give_back_pw(vxc00(ispin))
+      END DO
+      DEALLOCATE (vxc00)
+
+      oeps1 = 1.0_dp/epsrho
+      DO ispin = 1, nspins
+         CALL pw_scale(fxc_rho(ispin), oeps1)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_fxc_nlvdw_fdiff
+
+! **************************************************************************************************
+!> \brief Transform the input density to a 1d grid used by the nl-vdW routines
+!> \param rho_r ...
+!> \param rho ...
+!> \param drho ...
+!> \param pw_pool ...
+!> \param xc_pw_pool ...
+! **************************************************************************************************
+   SUBROUTINE prepare_nlvdw_density(rho_r, rho, drho, pw_pool, xc_pw_pool)
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
+      REAL(KIND=dp), DIMENSION(:)                        :: rho
+      REAL(KIND=dp), DIMENSION(:, :)                     :: drho
+      TYPE(pw_pool_type), POINTER                        :: pw_pool, xc_pw_pool
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_nlvdw_density'
+
+      INTEGER                                            :: handle, i, idir, ispin, np, nspins, p, &
+                                                            q, r, s
+      INTEGER, DIMENSION(3)                              :: hi, lo, n
+      TYPE(pw_c1d_gs_type)                               :: rho_g, rho_tot_g, tmp_g
+      TYPE(pw_r3d_rs_type)                               :: tmp_r
+
+      CALL timeset(routineN, handle)
+
+      nspins = SIZE(rho_r)
+
+      CALL pw_pool%create_pw(tmp_g)
+      CALL pw_pool%create_pw(tmp_r)
+
+      ! Sum the spin densities on the vdW grid
+      ! before transforming or differentiating.
+      CALL xc_pw_pool%create_pw(rho_g)
+      CALL pw_pool%create_pw(rho_tot_g)
+      CALL pw_zero(rho_tot_g)
+      DO ispin = 1, nspins
+         CALL pw_transfer(rho_r(ispin), rho_g)
+         CALL pw_transfer(rho_g, tmp_g)
+         CALL pw_axpy(tmp_g, rho_tot_g, 1._dp)
+      END DO
+      CALL pw_transfer(rho_tot_g, tmp_r)
+      CALL xc_pw_pool%give_back_pw(rho_g)
+
+      np = SIZE(tmp_r%array)
+      CPASSERT(np == SIZE(rho))
+      CPASSERT(np == SIZE(drho, 1))
+      DO i = 1, 3
+         lo(i) = LBOUND(tmp_r%array, i)
+         hi(i) = UBOUND(tmp_r%array, i)
+         n(i) = hi(i) - lo(i) + 1
+      END DO
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             SHARED(n, lo, rho, tmp_r) PRIVATE(s) COLLAPSE(3)
+      DO r = 0, n(3) - 1
+         DO q = 0, n(2) - 1
+            DO p = 0, n(1) - 1
+               s = r*n(2)*n(1) + q*n(1) + p + 1
+               rho(s) = tmp_r%array(p + lo(1), q + lo(2), r + lo(3))
+            END DO
+         END DO
+      END DO
+!$OMP END PARALLEL DO
+      DO idir = 1, 3
+         CALL pw_transfer(rho_tot_g, tmp_g)
+         CALL pw_derive(tmp_g, nd(:, idir))
+         CALL pw_transfer(tmp_g, tmp_r)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             SHARED(idir, n, lo, drho, tmp_r) PRIVATE(s) COLLAPSE(3)
+         DO r = 0, n(3) - 1
+            DO q = 0, n(2) - 1
+               DO p = 0, n(1) - 1
+                  s = r*n(2)*n(1) + q*n(1) + p + 1
+                  drho(s, idir) = tmp_r%array(p + lo(1), q + lo(2), r + lo(3))
+               END DO
+            END DO
+         END DO
+!$OMP END PARALLEL DO
+      END DO
+      CALL pw_pool%give_back_pw(rho_tot_g)
+      CALL pw_pool%give_back_pw(tmp_r)
+      CALL pw_pool%give_back_pw(tmp_g)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE prepare_nlvdw_density
+
+! **************************************************************************************************
+!> \brief Finalizes the potential calculation
+!> \param vxc_r ...
+!> \param drho ...
+!> \param hpot ...
+!> \param tmp_r ...
+!> \param tmp_g ...
+!> \param pw_pool ...
+! **************************************************************************************************
+   SUBROUTINE combine_nlvdw_potential(vxc_r, drho, hpot, tmp_r, tmp_g, pw_pool)
+      TYPE(pw_r3d_rs_type)                               :: vxc_r
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: drho
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: hpot
+      TYPE(pw_r3d_rs_type)                               :: tmp_r
+      TYPE(pw_c1d_gs_type)                               :: tmp_g
+      TYPE(pw_pool_type), POINTER                        :: pw_pool
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'combine_nlvdw_potential'
+
+      INTEGER                                            :: handle, i, idir, np, p, q, r, s
+      INTEGER, DIMENSION(1:3)                            :: hi, lo, n
+      REAL(KIND=dp), CONTIGUOUS, POINTER                 :: tmp_1d(:)
+      TYPE(pw_c1d_gs_type)                               :: div_g
+
+      CALL timeset(routineN, handle)
+
+      np = SIZE(tmp_r%array)
+      tmp_1d(1:np) => tmp_r%array
+      DO i = 1, 3
+         lo(i) = LBOUND(tmp_r%array, i)
+         hi(i) = UBOUND(tmp_r%array, i)
+         n(i) = hi(i) - lo(i) + 1
+      END DO
+
+      ! Sum the derivatives before the inverse FFT. Keep the real-space projection
+      ! before transferring the potential to a possibly different XC grid.
+      CALL pw_pool%create_pw(div_g)
+      CALL pw_zero(div_g)
+      DO idir = 1, 3
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             SHARED(n, lo, tmp_r, hpot, drho, idir) PRIVATE(s) COLLAPSE(3)
+         DO r = 0, n(3) - 1
+            DO q = 0, n(2) - 1
+               DO p = 0, n(1) - 1
+                  s = r*n(2)*n(1) + q*n(1) + p + 1
+                  tmp_r%array(p + lo(1), q + lo(2), r + lo(3)) = hpot(s)*drho(s, idir)
+               END DO
+            END DO
+         END DO
+!$OMP END PARALLEL DO
+         CALL pw_transfer(tmp_r, tmp_g)
+         CALL pw_derive(tmp_g, nd(:, idir))
+         CALL pw_axpy(tmp_g, div_g, 1._dp)
+      END DO
+
+      CALL pw_transfer(div_g, tmp_r)
+      CALL pw_axpy(tmp_r, vxc_r, -1._dp)
+
+      CALL pw_pool%give_back_pw(div_g)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE combine_nlvdw_potential
+
+! **************************************************************************************************
+!> \brief Take the nl-vdW potential and return it on the XC grid and for all spin channels
+!> \param vxc_rho ...
+!> \param vxc_r ...
+!> \param pw_pool ...
+!> \param xc_pw_pool ...
+! **************************************************************************************************
+   SUBROUTINE return_nlvdw_potential(vxc_rho, vxc_r, pw_pool, xc_pw_pool)
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: vxc_rho
+      TYPE(pw_r3d_rs_type)                               :: vxc_r
+      TYPE(pw_pool_type), POINTER                        :: pw_pool, xc_pw_pool
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'return_nlvdw_potential'
+
+      INTEGER                                            :: handle, ispin, nspins
+      TYPE(pw_c1d_gs_type)                               :: tmp_g, vxc_g
+      TYPE(pw_r3d_rs_type)                               :: tmp_r
+
+      CALL timeset(routineN, handle)
+
+      nspins = SIZE(vxc_rho)
+
+      CALL pw_pool%create_pw(tmp_g)
+      CALL pw_transfer(vxc_r, tmp_g)
+      CALL xc_pw_pool%create_pw(vxc_g)
+      CALL pw_transfer(tmp_g, vxc_g)
+      CALL xc_pw_pool%create_pw(tmp_r)
+      CALL pw_transfer(vxc_g, tmp_r)
+      DO ispin = 1, nspins
+         CALL pw_axpy(tmp_r, vxc_rho(ispin), 1._dp)
+      END DO
+      CALL pw_pool%give_back_pw(tmp_g)
+      CALL xc_pw_pool%give_back_pw(vxc_g)
+      CALL xc_pw_pool%give_back_pw(tmp_r)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE return_nlvdw_potential
 
 ! **************************************************************************************************
 !> \brief This routine carries out the integration of equation 8 of SOLER.  It returns the non-local

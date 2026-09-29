@@ -48,7 +48,9 @@ MODULE qs_vxc
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec
-   USE qs_dispersion_nonloc,            ONLY: calculate_dispersion_nonloc
+   USE qs_dispersion_nonloc,            ONLY: calculate_vxc_nlvdw,&
+                                              prepare_nlvdw_density,&
+                                              return_nlvdw_potential
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_environment_types,            ONLY: qs_environment_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
@@ -135,7 +137,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_vxc_create'
 
       INTEGER                                            :: handle, i, ispin, j, k, mspin, myfun, &
-                                                            nelec_spin(2), output_unit, vdw
+                                                            nelec_spin(2), np, output_unit, vdw
       LOGICAL :: compute_virial, defer_native_skala_to_atom_composite, do_adiabatic_rescaling, &
          my_just_energy, native_gapw_composite_direct_ao, native_gapw_composite_reference, &
          native_grid_diagnostics, native_skala_grid, rho_g_valid, sic_scaling_b_zero, tau_g_valid, &
@@ -146,6 +148,8 @@ CONTAINS
          my_adiabatic_rescale_factor, my_scaling, nelec_s_inv, q_max, rho_composite_hard, &
          rho_composite_soft, rho_diff_l2, rho_diff_max, rho_ref_l2, tau_composite_hard, &
          tau_composite_soft, tau_diff_l2, tau_diff_max, tau_ref_l2, volume
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rhonl
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: drhonl
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc_tmp
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
@@ -160,6 +164,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, diagnostics_pw_pool, &
                                                             vdw_pw_pool, xc_pw_pool
+      TYPE(pw_r3d_rs_type)                               :: vxcnl
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER :: my_vxc_rho, my_vxc_tau, rho_direct_r, &
          rho_hard_r, rho_m_rspace, rho_r, rho_smooth_model_r, rho_smooth_r, rho_struct_r, tau, &
          tau_direct_r, tau_hard_r, tau_smooth_model_r, tau_smooth_r, tau_struct_r
@@ -738,15 +743,6 @@ CONTAINS
             NULLIFY (diagnostics_pw_pool)
          END IF
 
-         ! remove the nlcc densities (keep stuff in original state)
-         IF (ASSOCIATED(rho_nlcc_use)) THEN
-            factor = -1.0_dp
-            DO ispin = 1, mspin
-               CALL pw_axpy(rho_nlcc_use, rho_r(ispin), factor)
-               CALL pw_axpy(rho_nlcc_g_use, rho_g(ispin), factor)
-            END DO
-         END IF
-
          ! calclulate non-local vdW functional
          ! only if this XC_SECTION has it
          ! if yes, we use the dispersion_env from ks_env
@@ -757,13 +753,29 @@ CONTAINS
             CPASSERT(dft_control%sic_method_id == sic_none)
             !
             CALL pw_env_get(pw_env, vdw_pw_pool=vdw_pw_pool)
+            np = vdw_pw_pool%pw_grid%ngpts_local
+            ALLOCATE (rhonl(np), drhonl(np, 3))
+            CALL prepare_nlvdw_density(rho_r, rhonl, drhonl, vdw_pw_pool, xc_pw_pool)
             IF (my_just_energy) THEN
-               CALL calculate_dispersion_nonloc(my_vxc_rho, rho_r, rho_g, edisp, dispersion_env, &
-                                                my_just_energy, vdw_pw_pool, xc_pw_pool, para_env)
+               CALL calculate_vxc_nlvdw(vxcnl, rhonl, drhonl, edisp, dispersion_env, &
+                                        my_just_energy, vdw_pw_pool, para_env)
             ELSE
-               CALL calculate_dispersion_nonloc(my_vxc_rho, rho_r, rho_g, edisp, dispersion_env, &
-                                                my_just_energy, vdw_pw_pool, xc_pw_pool, para_env, virial=virial)
+               CALL vdw_pw_pool%create_pw(vxcnl)
+               CALL calculate_vxc_nlvdw(vxcnl, rhonl, drhonl, edisp, dispersion_env, &
+                                        my_just_energy, vdw_pw_pool, para_env, virial=virial)
+               CALL return_nlvdw_potential(my_vxc_rho, vxcnl, vdw_pw_pool, xc_pw_pool)
+               CALL vdw_pw_pool%give_back_pw(vxcnl)
             END IF
+            DEALLOCATE (rhonl, drhonl)
+         END IF
+
+         ! remove the nlcc densities (keep stuff in original state)
+         IF (ASSOCIATED(rho_nlcc_use)) THEN
+            factor = -1.0_dp
+            DO ispin = 1, mspin
+               CALL pw_axpy(rho_nlcc_use, rho_r(ispin), factor)
+               CALL pw_axpy(rho_nlcc_g_use, rho_g(ispin), factor)
+            END DO
          END IF
 
          !! Apply rescaling to the potential if requested
@@ -1228,10 +1240,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_xc_density'
 
-      INTEGER                                            :: handle, ispin, mspin, myfun, nspins, vdw
+      INTEGER                                            :: handle, ispin, mspin, myfun, np, nspins, &
+                                                            vdw
       LOGICAL                                            :: rho_g_valid, tau_g_valid, tau_r_valid, &
                                                             uf_grid, vdW_nl
       REAL(KIND=dp)                                      :: edisp, excint, factor, rho_cutoff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rhonl
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: drhonl
       REAL(KIND=dp), DIMENSION(3, 3)                     :: vdum
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1240,7 +1255,7 @@ CONTAINS
       TYPE(pw_c1d_gs_type), POINTER                      :: rho_nlcc_g, rho_nlcc_g_use, rho_nlcc_g_xc
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool, vdw_pw_pool, xc_pw_pool
-      TYPE(pw_r3d_rs_type)                               :: exc_r
+      TYPE(pw_r3d_rs_type)                               :: exc_r, vxcnl
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, rho_struct_r, tau_r, &
                                                             tau_struct_r, vxc_rho, vxc_tau
       TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc, rho_nlcc_use, rho_nlcc_xc, &
@@ -1382,8 +1397,15 @@ CONTAINS
             CPASSERT(dft_control%sic_method_id == sic_none)
             !
             CALL pw_env_get(pw_env, vdw_pw_pool=vdw_pw_pool)
-            CALL calculate_dispersion_nonloc(vxc_rho, rho_r, rho_g, edisp, dispersion_env, &
-                                             .FALSE., vdw_pw_pool, xc_pw_pool, para_env)
+            np = vdw_pw_pool%pw_grid%ngpts_local
+            ALLOCATE (rhonl(np), drhonl(np, 3))
+            CALL prepare_nlvdw_density(rho_r, rhonl, drhonl, vdw_pw_pool, xc_pw_pool)
+            CALL vdw_pw_pool%create_pw(vxcnl)
+            CALL calculate_vxc_nlvdw(vxcnl, rhonl, drhonl, edisp, dispersion_env, &
+                                     .FALSE., vdw_pw_pool, para_env)
+            CALL return_nlvdw_potential(vxc_rho, vxcnl, vdw_pw_pool, xc_pw_pool)
+            CALL vdw_pw_pool%give_back_pw(vxcnl)
+            DEALLOCATE (rhonl, drhonl)
          END IF
 
          ! remove the nlcc densities (keep stuff in original state)

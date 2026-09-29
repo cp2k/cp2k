@@ -1101,7 +1101,7 @@ CONTAINS
 !> \brief Calculates the radial weight function for accurate XC integration
 !> \param fun  The weight function
 !> \param r2   Radial values of the grid (squared)
-!> \param order  Polynomila order (2n)
+!> \param order  Polynomial order (2n)
 !> \param alpha  Gaussian exponent
 ! **************************************************************************************************
    SUBROUTINE calc_weight_function(fun, r2, order, alpha)

@@ -156,7 +156,8 @@ MODULE energy_corrections
                                               zero_qs_force
    USE qs_fxc,                          ONLY: qs_fxc_create
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
-   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
+   USE qs_integrate_potential,          ONLY: integrate_rho_nlcc,&
+                                              integrate_v_core_rspace,&
                                               integrate_v_rspace
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
@@ -849,8 +850,9 @@ CONTAINS
       INTEGER                                            :: handle, i, iounit, ispin, natom, nspins
       LOGICAL                                            :: debug_forces, debug_stress, do_ec_hfx, &
                                                             gapw, gapw_xc, use_virial
-      REAL(dp)                                           :: dummy_real, dummy_real2(2), ehartree, &
-                                                            ehartree_1c, eovrl, exc, exc1, fconv
+      REAL(dp)                                           :: dummy_real, dummy_real2(2), edisp, &
+                                                            ehartree, ehartree_1c, eovrl, exc, &
+                                                            exc1, fconv
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: ftot
       REAL(dp), DIMENSION(3)                             :: fodeb, fodeb2
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc, stdeb, sttot
@@ -875,6 +877,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type)                               :: v_hartree_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace, v_rspace_in, &
                                                             v_tau_rspace
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -896,7 +899,7 @@ CONTAINS
       END IF
 
       NULLIFY (atomic_kind_set, cell, dft_control, force, ks_env, &
-               matrix_p, matrix_s, para_env, pw_env, rho, sab_orb, virial)
+               matrix_p, matrix_s, para_env, pw_env, rho, rho_nlcc, sab_orb, virial)
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
                       dft_control=dft_control, &
@@ -907,6 +910,7 @@ CONTAINS
                       pw_env=pw_env, &
                       rho=rho, &
                       rho_xc=rho_xc, &
+                      rho_nlcc=rho_nlcc, &
                       virial=virial)
       CPASSERT(ASSOCIATED(pw_env))
 
@@ -1036,7 +1040,8 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, rho=rho_struct)
       END IF
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=ec_env%xc_section, &
-                         vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
+                         vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE., &
+                         edisp=edisp, dispersion_env=ec_env%dispersion_env)
 
       IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
@@ -1153,6 +1158,13 @@ CONTAINS
       ! int v_Hxc[n_in]*n_out
       IF (use_virial) THEN
          pv_loc = virial%pv_virial
+      END IF
+
+      IF (ASSOCIATED(rho_nlcc)) THEN
+         DO ispin = 1, nspins
+            CALL integrate_rho_nlcc(v_rspace(ispin), qs_env, &
+                                    debug_forces, debug_stress, "dnlcc*dVxc")
+         END DO
       END IF
 
       basis_type = "HARRIS"
@@ -1423,6 +1435,7 @@ CONTAINS
          IF (qs_env%energy_correction) THEN
             ec_env%ehartree = ehartree
             ec_env%exc = exc
+            IF (edisp /= 0.0_dp) ec_env%edispersion = edisp
          END IF
       END IF
 
@@ -1633,8 +1646,8 @@ CONTAINS
                                                             do_adiabatic_rescaling, do_ec_hfx, &
                                                             gapw, gapw_xc, hfx_treat_lsd_in_core, &
                                                             use_virial
-      REAL(dp)                                           :: dummy_real, dummy_real2(2), eexc, eh1c, &
-                                                            evhxc, exc1, t3
+      REAL(dp)                                           :: dummy_real, dummy_real2(2), edisp, eexc, &
+                                                            eh1c, evhxc, exc1, t3
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1779,10 +1792,12 @@ CONTAINS
       NULLIFY (v_rspace, v_tau_rspace)
       IF (dft_control%qs_control%gapw_xc) THEN
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_xc, xc_section=ec_env%xc_section, &
-                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE.)
+                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE., &
+                            edisp=edisp, dispersion_env=ec_env%dispersion_env)
       ELSE
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=ec_env%xc_section, &
-                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE.)
+                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE., &
+                            edisp=edisp, dispersion_env=ec_env%dispersion_env)
       END IF
 
       IF (.NOT. ASSOCIATED(v_rspace)) THEN
@@ -1902,6 +1917,7 @@ CONTAINS
 
       ! energies
       ec_env%exc = eexc
+      IF (edisp /= 0.0_dp) ec_env%edispersion = edisp
       ec_env%vhxc = evhxc
 
       ! add the core matrix
@@ -2098,7 +2114,8 @@ CONTAINS
       LOGICAL                                            :: debug_forces, debug_stress, do_ec_hfx, &
                                                             use_virial
       REAL(dp)                                           :: dehartree, dummy_real, dummy_real2(2), &
-                                                            eexc, ehartree, eovrl, exc, fconv
+                                                            edisp, eexc, ehartree, eovrl, exc, &
+                                                            fconv
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: ftot
       REAL(dp), DIMENSION(3)                             :: fodeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc, stdeb, sttot
@@ -2122,6 +2139,7 @@ CONTAINS
                                                             vtot_rspace
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, rhoout_r, tau_r, tauout_r, &
                                                             v_rspace, v_tau_rspace, v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_nlcc
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rhoout
@@ -2144,7 +2162,7 @@ CONTAINS
       ! get all information on the electronic density
       NULLIFY (atomic_kind_set, cell, dft_control, force, ks_env, &
                matrix_ks, matrix_p, matrix_s, para_env, rho, rho_core, &
-               rho_g, rho_r, sab_orb, tau_r, virial)
+               rho_g, rho_r, rho_nlcc, sab_orb, tau_r, virial)
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
                       dft_control=dft_control, &
@@ -2153,6 +2171,7 @@ CONTAINS
                       matrix_ks=matrix_ks, &
                       para_env=para_env, &
                       rho=rho, &
+                      rho_nlcc=rho_nlcc, &
                       sab_orb=sab_orb, &
                       virial=virial)
 
@@ -2283,7 +2302,8 @@ CONTAINS
 
          NULLIFY (v_rspace, v_tau_rspace)
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=ec_env%xc_section, &
-                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
+                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE., &
+                            edisp=edisp, dispersion_env=ec_env%dispersion_env)
 
          ! Stress tensor XC-functional GGA contribution
          virial%pv_exc = virial%pv_exc - virial%pv_xc
@@ -2393,6 +2413,7 @@ CONTAINS
       !
       CALL qs_fxc_create(qs_env, rho, rhoout, rho0_atom_set, xc_section, .FALSE., &
                          v_xc, v_xc_tau, rho1_atom_set, &
+                         dispersion_env=ec_env%dispersion_env, &
                          compute_virial=use_virial, virial_xc=virial%pv_xc)
       !
       DEALLOCATE (rhoout)
@@ -2407,6 +2428,13 @@ CONTAINS
          CALL para_env%sum(stdeb)
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
             'STRESS| GGA 2nd f_Hxc[dP]*Pin   ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+      END IF
+      !
+      IF (ASSOCIATED(rho_nlcc)) THEN
+         DO ispin = 1, nspins
+            CALL integrate_rho_nlcc(v_xc(ispin), qs_env, &
+                                    debug_forces, debug_stress, "dnlcc*dVxc")
+         END DO
       END IF
       !
       CALL get_qs_env(qs_env=qs_env, rho=rho, matrix_s_kp=matrix_s)
@@ -2485,7 +2513,16 @@ CONTAINS
       NULLIFY (v_rspace, v_tau_rspace)
 
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=ec_env%xc_section, &
-                         vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE.)
+                         vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=eexc, just_energy=.FALSE., &
+                         edisp=edisp, dispersion_env=ec_env%dispersion_env)
+      IF (edisp /= 0.0_dp) eexc = eexc + edisp
+
+      IF (ASSOCIATED(rho_nlcc)) THEN
+         DO ispin = 1, nspins
+            CALL integrate_rho_nlcc(v_rspace(ispin), qs_env, &
+                                    debug_forces, debug_stress, "dnlcc*dVxc")
+         END DO
+      END IF
 
       IF (use_virial) THEN
          eexc = 0.0_dp

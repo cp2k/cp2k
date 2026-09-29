@@ -433,7 +433,7 @@ CONTAINS
       END IF
       !
       CALL qs_fxc_create(qs_env, rho, rhoh, rho0_atom_set, xc_section, .FALSE., &
-                         fxc, ftau, rho1_atom_set)
+                         fxc, ftau, rho1_atom_set, dispersion_env=qs_env%dispersion_env)
       !
       DEALLOCATE (rhoh)
       CPASSERT(.NOT. ASSOCIATED(ftau))

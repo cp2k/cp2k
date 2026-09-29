@@ -241,7 +241,8 @@ CONTAINS
 
       ! Calculate the second derivative of the exchange-correlation potential
       CALL qs_fxc_create(qs_env, rho, perturbed_density, rho0_atom_set, xc_section, &
-                         .FALSE., v_xc, v_xc_tau, rho1_atom_set)
+                         .FALSE., v_xc, v_xc_tau, rho1_atom_set, &
+                         dispersion_env=qs_env%dispersion_env)
       !
 
       DO ispin = 1, dcdr_env%nspins
@@ -501,7 +502,8 @@ CONTAINS
          !
          NULLIFY (v_xc, v_xc_tau)
          CALL qs_fxc_create(qs_env, rho, drho, rho0_atom_set, xc_section, .FALSE., &
-                            v_xc, v_xc_tau, rho1_atom_set)
+                            v_xc, v_xc_tau, rho1_atom_set, &
+                            dispersion_env=qs_env%dispersion_env)
          !
          DEALLOCATE (drho)
 
@@ -559,6 +561,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'vhxc_R_perturbed_basis_functions'
 
       INTEGER                                            :: handle, ispin
+      REAL(KIND=dp)                                      :: edisp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vhxc_dbasis
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -591,7 +594,8 @@ CONTAINS
       ! If we do wavefunction fitting, we need the vxc_potential in the auxiliary basis set
       NULLIFY (v_hxc_r, v_tau_rspace)
       CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_struct, xc_section=xc_section, &
-                         vxc_rho=v_hxc_r, vxc_tau=v_tau_rspace, exc=energy%exc)
+                         vxc_rho=v_hxc_r, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                         edisp=edisp, dispersion_env=qs_env%dispersion_env)
 
       DO ispin = 1, dcdr_env%nspins
          CALL pw_scale(v_hxc_r(ispin), v_hxc_r(ispin)%pw_grid%dvol)

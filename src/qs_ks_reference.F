@@ -105,7 +105,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ks_ref_potential'
 
       INTEGER                                            :: handle, iab, ispin, nspins
-      REAL(dp)                                           :: eadmm, eovrl, eself
+      REAL(dp)                                           :: eadmm, edisp, eovrl, eself
       REAL(KIND=dp), DIMENSION(3, 3)                     :: virial_xc
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -173,10 +173,12 @@ CONTAINS
       IF (dft_control%qs_control%gapw_xc) THEN
          CALL get_qs_env(qs_env=qs_env, rho_xc=rho_xc)
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_xc, xc_section=xc_section, &
-                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
+                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, &
+                            edisp=edisp, dispersion_env=qs_env%dispersion_env, just_energy=.FALSE.)
       ELSE
          CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
-                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
+                            vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, &
+                            edisp=edisp, dispersion_env=qs_env%dispersion_env, just_energy=.FALSE.)
       END IF
 
       NULLIFY (v_admm_rspace, v_admm_tau_rspace)

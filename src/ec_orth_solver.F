@@ -1216,7 +1216,8 @@ CONTAINS
 
       ! add xc-kernel
       CALL qs_fxc_create(qs_env, rho, p_env%rho1, rho0_atom_set, xc_section, .FALSE., &
-                         v_xc, v_xc_tau, rho1_atom_set)
+                         v_xc, v_xc_tau, rho1_atom_set, &
+                         dispersion_env=qs_env%dispersion_env)
 
       DO ispin = 1, nspins
          CALL pw_scale(v_xc(ispin), v_xc(ispin)%pw_grid%dvol)
