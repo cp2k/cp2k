@@ -28,17 +28,13 @@
 !>          Σ^c_mn     =  Σ^COH_mn + Σ^SEX_mn = 1/2 Σ_p sgn(ϵ_p - ϵ_F) W^c_mp,pn
 !>          Σ^x_mn     = -Σ_i^occ Σ_P B^P_mi B^P_in          (RI_SIGMA_X; else from HFX)
 !>
-!>        Quasiparticle Hamiltonian in the window (one-shot @DFT, no frequency dependence):
+!>        Quasiparticle Hamiltonian in the window:
 !>          H^QP_mn    = ϵ_n δ_mn + Σ^x_mn - v^xc_mn + f_mn Σ^c_mn
 !>          f_mn       = STFACIP (m,n occupied),  STFACEA (m,n virtual),  H^QP_ia = 0
 !>          ϵ_n^DG     = H^QP_nn                              (diagonal st-COHSEX)
 !>          H^QP U     = U ϵ^CN, occ-occ and virt-virt block separately   (canonical st-COHSEX)
 !>          C^QP_μn    = Σ_m C_μm U_mn                        (st-COHSEX MOs)
 !>
-!>        O(N^4) evaluation of Σ^c and Σ^x: the compound index (m,p) of B^P_mp is reordered to
-!>        the row index (p,P), such that both double sums over p and P become the inner
-!>        dimension of a single matrix multiplication
-!>          B'_(p,P),m = B^P_mp,   Σ^c = (W^c B)'^T B',   Σ^x = -B'(occ rows)^T B'(occ rows)
 !> \par History
 !>      09.2026 created [Ritaj Tyagi]
 ! **************************************************************************************************
@@ -112,24 +108,23 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Compute and print the diagonal (ϵ^DG) and canonical (ϵ^CN) st-COHSEX quasiparticle
-!>        energies and print the canonical st-COHSEX MOs, see the module header for the equations
+!>        energies and print the canonical st-COHSEX MOs
 !> \param fm_mat_Q on entry the spin-summed 1 + Q_PQ(ω=0); on exit W^c_PQ(0) = [1 + Q(0)]^(-1)_PQ - δ_PQ
-!> \param fm_mat_S_gw per-spin B^P_mp, dimen_RI x (n_mo_win*nmo), compound column index
-!>        (m-1)*nmo + p with the window MO m outer and the summed MO p inner
-!> \param fm_mat_S_gw_work per-spin work matrix of the shape of fm_mat_S_gw
-!> \param dimen_RI number of RI functions (after the reduction of the RI basis)
-!> \param nmo number of MOs
-!> \param homo per-spin number of occupied MOs
-!> \param gw_corr_lev_occ per-spin number of corrected occupied MOs
-!> \param gw_corr_lev_virt per-spin number of corrected virtual MOs
-!> \param Eigenval DFT eigenvalues, nmo x nspins
-!> \param mo_coeff per-spin DFT MO coefficients, nao x nmo
-!> \param unit_nr output unit, > 0 only on the ionode
+!> \param fm_mat_S_gw per-spin B^P_mp
+!> \param fm_mat_S_gw_work ...
+!> \param dimen_RI ...
+!> \param nmo ...
+!> \param homo ...
+!> \param gw_corr_lev_occ ...
+!> \param gw_corr_lev_virt ...
+!> \param Eigenval ...
+!> \param mo_coeff ...
+!> \param unit_nr ...
 !> \param qs_env ...
 !> \param mp2_env ...
-!> \param eigenval_dg optional, ϵ_n^DG of all MOs (scissor outside the window), nmo x nspins
-!> \param eigenval_cn optional, ϵ_n^CN of all MOs (scissor outside the window), nmo x nspins
-!> \param u_qp_all optional, U_mn of all MOs (δ_mn outside the window), nmo x nmo x nspins
+!> \param eigenval_dg ϵ_n^DG of all MOs (scissor outside the window), nmo x nspins
+!> \param eigenval_cn ϵ_n^CN of all MOs (scissor outside the window), nmo x nspins
+!> \param u_qp_all U_mn of all MOs (δ_mn outside the window), nmo x nmo x nspins
 ! **************************************************************************************************
    SUBROUTINE stcohsex_qp_energies(fm_mat_Q, fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI, nmo, homo, &
                                    gw_corr_lev_occ, gw_corr_lev_virt, Eigenval, mo_coeff, unit_nr, &
@@ -172,13 +167,9 @@ CONTAINS
       CALL cp_fm_get_info(mo_coeff(1), para_env=para_env)
 
       ! ==============================================================================
-      ! 1. Static correlation part of the screened Coulomb interaction (RI basis)
-      !      ε_PQ(0)   = δ_PQ + Q_PQ(0)                        (fm_mat_Q on entry)
-      !      W^c_PQ(0) = ε^(-1)_PQ(0) - δ_PQ                   (fm_mat_Q on exit)
-      !    ε(0) is symmetric positive definite: Cholesky ε = L L^T, then ε^(-1) from L.
-      !    cp_fm_cholesky_invert needs the Cholesky factor L as input; in the GW
-      !    frequency loop, L comes from the RPA energy (compute_Erpa_by_freq_int),
-      !    which st-COHSEX skips.
+      ! 1. Static correlation part of the screened Coulomb interaction 
+      !      ε_PQ(0)   = δ_PQ + Q_PQ(0)                        
+      !      W^c_PQ(0) = ε^(-1)_PQ(0) - δ_PQ                  
       ! ==============================================================================
       CALL cp_fm_cholesky_decompose(fm_mat_Q, n=dimen_RI)
       CALL cp_fm_cholesky_invert(fm_mat_Q)
@@ -197,12 +188,10 @@ CONTAINS
          END DO
       END DO
 
-      ! fm_general_add_bse (index reordering) prints debug information only with BSE_DEBUG_PRINT
       unit_debug = unit_nr
 
       DO ispin = 1, nspins
 
-         ! window of corrected MOs: no occupied + nv virtual, starting at MO win_start
          no = gw_corr_lev_occ(ispin)
          nv = gw_corr_lev_virt(ispin)
          n_mo_win = no + nv
@@ -211,8 +200,7 @@ CONTAINS
          ! ==============================================================================
          ! 2. Screened 3-center integrals, weighted with the COHSEX occupation factor
          !      (W^c B)^P_mp = Σ_Q W^c_PQ(0) B^Q_mp  s_p,   s_p = 1/2 sgn(ϵ_p - ϵ_F)
-         !      s_p = -1/2 for p occupied (COH + SEX),  s_p = +1/2 for p virtual (COH)
-         !    column (m-1)*nmo + p of fm_mat_S_gw_work
+         !      s_p = -1/2 for p occupied,  s_p = +1/2 for p virtual (COH)
          ! ==============================================================================
          CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=n_mo_win*nmo, k=dimen_RI, &
                             alpha=1.0_dp, matrix_a=fm_mat_Q, matrix_b=fm_mat_S_gw(ispin), &
@@ -232,8 +220,8 @@ CONTAINS
 
          ! ==============================================================================
          ! 3. Reorder the compound index for O(N^4) contractions over (p,P)
-         !      B'_(p,P),m      = B^P_mp          (fm_B_re,  (nmo*dimen_RI) x n_mo_win)
-         !      (W^c B)'_(p,P),m = (W^c B)^P_mp   (fm_WB_re)
+         !      B'_(p,P),m      = B^P_mp         
+         !      (W^c B)'_(p,P),m = (W^c B)^P_mp   
          !    row index (p-1)*dimen_RI + P, P fast: the occupied p (p <= homo) are the
          !    first homo*dimen_RI rows. fm_general_add_bse maps the input indices
          !    (P,1 ; m,p) with reordering [4,1,3,2] to (p,P ; m,1).
@@ -258,7 +246,7 @@ CONTAINS
          ALLOCATE (sigma_c(n_mo_win, n_mo_win), sigma_x(n_mo_win, n_mo_win))
 
          ! ==============================================================================
-         ! 4. Correlation self-energy (one gemm, inner dimension nmo*dimen_RI)
+         ! 4. Correlation self-energy 
          !      Σ^c_mn = Σ_p s_p Σ_PQ B^P_mp W^c_PQ(0) B^Q_pn
          !             = Σ_(p,P) (W^c B)'_(p,P),m B'_(p,P),n
          ! ==============================================================================
@@ -268,7 +256,7 @@ CONTAINS
          CALL cp_fm_get_submatrix(fm_sigma, sigma_c)
 
          ! ==============================================================================
-         ! 5. RI exchange self-energy (RI_SIGMA_X), gemm over the first homo*dimen_RI rows
+         ! 5. RI exchange self-energy (RI_SIGMA_X)
          !      Σ^x_mn = -Σ_i^occ Σ_P B^P_mi B^P_in = -Σ_(i,P) B'_(i,P),m B'_(i,P),n
          ! ==============================================================================
          sigma_x(:, :) = 0.0_dp
@@ -284,7 +272,7 @@ CONTAINS
          CALL cp_fm_release(fm_WB_re)
 
          ! ==============================================================================
-         ! 6. v^xc and Σ^x - v^xc in the MO window (from rpa_gw_sigma_x.F)
+         ! 6. v^xc and Σ^x - v^xc in the MO window 
          !      v^xc_mn         = Σ_μν C_μm v^xc_μν C_νn
          !      (Σ^x - v^xc)_mn = Σ_μν C_μm (Σ^x - v^xc)_μν C_νn
          !    The AO matrix (Σ^x - v^xc)_μν holds the HFX exchange Σ^x_μν without
@@ -303,7 +291,7 @@ CONTAINS
          !      H^QP_ij = ϵ_i δ_ij + Σ^x_ij - v^xc_ij + STFACIP Σ^c_ij   (occ-occ)
          !      H^QP_ab = ϵ_a δ_ab + Σ^x_ab - v^xc_ab + STFACEA Σ^c_ab   (virt-virt)
          !      H^QP_ia = 0                                              (occ-virt)
-         !    symmetrized, H^QP = (H^QP + H^QP^T)/2, against round-off
+         !    symmetrized, H^QP = (H^QP + H^QP^T)/2
          !      ϵ_n^DG  = H^QP_nn                                        (diagonal st-COHSEX)
          ! ==============================================================================
          ALLOCATE (h_qp(n_mo_win, n_mo_win))
@@ -325,8 +313,6 @@ CONTAINS
          ! ==============================================================================
          ! 8. Canonical st-COHSEX: diagonalize the occ-occ and virt-virt blocks
          !      Σ_m H^QP_nm U_mk = U_nk ϵ_k^CN,   U block diagonal, overwrites h_qp
-         !    on one rank only and broadcast, such that all ranks share the same
-         !    eigenvectors (phases)
          ! ==============================================================================
          e_can(:) = 0.0_dp
          IF (para_env%is_source()) THEN
@@ -427,7 +413,6 @@ CONTAINS
 
       END DO
 
-      ! the AO matrices v^xc_μν and (Σ^x - v^xc)_μν stored by rpa_gw_sigma_x.F are consumed
       DO ispin = 1, nspins
          CALL dbcsr_release_p(mp2_env%ri_g0w0%matrix_vxc(ispin)%matrix)
          CALL dbcsr_release_p(mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc(ispin)%matrix)
@@ -439,13 +424,13 @@ CONTAINS
    END SUBROUTINE stcohsex_qp_energies
 
 ! **************************************************************************************************
-!> \brief MO-window block of an AO matrix, replicated on all ranks
+!> \brief MO-window block of an AO matrix
 !>          A_mn = Σ_μν C_μm A_μν C_νn,   m,n = win_start, ..., win_start + n_mo_win - 1
-!> \param matrix_ao AO matrix A_μν
-!> \param mo_coeff MO coefficients, nao x nmo
-!> \param win_start first MO of the window
-!> \param n_mo_win number of MOs in the window
-!> \param mat_mo on exit the n_mo_win x n_mo_win MO block
+!> \param matrix_ao ...
+!> \param mo_coeff ...
+!> \param win_start ...
+!> \param n_mo_win ...
+!> \param mat_mo ...
 ! **************************************************************************************************
    SUBROUTINE ao_to_mo_window(matrix_ao, mo_coeff, win_start, n_mo_win, mat_mo)
       TYPE(dbcsr_type), POINTER                          :: matrix_ao
@@ -502,15 +487,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Print the canonical st-COHSEX MOs with the DFT%PRINT%MO and DFT%PRINT%MO_CUBES
-!>        print keys
-!>          C^QP_μn = Σ_m C_μm U_mn,   ϵ_n^QP from stcohsex_qp_energies
-!>        MO energies/occupations/coefficients: the lowest homo MOs are occupied;
-!>        cube files: stcohsex_WFN_<n>_<spin>, ψ_n(r) = Σ_μ C^QP_μn ϕ_μ(r)
 !> \param qs_env ...
-!> \param mo_coeff DFT MO coefficients, nao x nmo
-!> \param u_qp U_mn, replicated transformation from the DFT to the st-COHSEX MOs, nmo x nmo
-!> \param e_qp ϵ_n^QP, st-COHSEX energies of all MOs
-!> \param homo number of occupied MOs
+!> \param mo_coeff ...
+!> \param u_qp ...
+!> \param e_qp ...
+!> \param homo ...
 !> \param nspins ...
 !> \param ispin ...
 ! **************************************************************************************************
@@ -640,9 +621,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Canonical st-COHSEX MO coefficients
 !>          C^QP_μn = Σ_m C_μm U_mn
-!> \param mo_coeff DFT MO coefficients C_μm, nao x nmo
-!> \param u_qp U_mn, replicated, nmo x nmo
-!> \param fm_qp_mo C^QP_μn, created here on the structure of mo_coeff
+!> \param mo_coeff ...
+!> \param u_qp ...
+!> \param fm_qp_mo ...
 ! **************************************************************************************************
    SUBROUTINE get_stcohsex_mo_coeff(mo_coeff, u_qp, fm_qp_mo)
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
@@ -669,20 +650,12 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Rotate an RI 3-center slab to the canonical st-COHSEX MOs
-!>
-!>        The slab B^P_(o,i) (rows P, compound column (o-1)*n_inner + i) is transformed with
-!>        the MO rotations U^outer (n_outer x n_outer) and U^inner (n_inner x n_inner):
-!>          B̃^P_(o',i') = Σ_o Σ_i U^outer_oo' U^inner_ii' B^P_(o,i)
-!>        e.g. B^P_ia with (U^occ, U^virt), B^P_ij with (U^occ, U^occ), B^P_ab with (U^virt, U^virt).
-!>        O(N^4) in two gemm steps; the compound index is reordered with fm_general_add_bse:
-!>          (a) T_(P,o),i = B^P_(o,i),   T̃ = T U^inner,        B^P_(o,i') = T̃_(P,o),i'
-!>          (b) T_(P,i),o = B^P_(o,i),   T̃ = T U^outer,        B̃^P_(o',i) = T̃_(P,i),o'
-!> \param fm_slab the slab, dimen_RI x (n_outer*n_inner), rotated in place
-!> \param dimen_RI number of rows (RI functions)
-!> \param n_outer size of the outer MO index
-!> \param n_inner size of the inner MO index
-!> \param u_outer U^outer, replicated
-!> \param u_inner U^inner, replicated
+!> \param fm_slab ...
+!> \param dimen_RI ...
+!> \param n_outer ...
+!> \param n_inner ...
+!> \param u_outer ...
+!> \param u_inner ...
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE rotate_bse_slab(fm_slab, dimen_RI, n_outer, n_inner, u_outer, u_inner, mp2_env)
@@ -697,7 +670,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! fm_general_add_bse prints debug information only with BSE_DEBUG_PRINT
       unit_debug = -1
 
       ! (a) inner index: (P ; o,i) -> (P,o ; i), P fast, reordering [3,1,2,4] and back [3,2,1,4]
@@ -712,17 +684,15 @@ CONTAINS
    END SUBROUTINE rotate_bse_slab
 
 ! **************************************************************************************************
-!> \brief One step of rotate_bse_slab: rotate one MO index of the compound column index
-!>          T_(P,s),r = B^P_(o,i) (reordered),   T̃_(P,s),r' = Σ_r T_(P,s),r U_rr',   back to B
-!>        r is the rotated index, s the spectator index
-!> \param fm_slab the slab, dimen_RI x (n_outer*n_inner), rotated in place
-!> \param dimen_RI number of rows (RI functions)
-!> \param n_spect size of the spectator index s
-!> \param n_rot size of the rotated index r
-!> \param u_rot U_rr', replicated
-!> \param reord_to reordering (P ; o,i) -> (P,s ; r)
-!> \param reord_back reordering (P,s ; r) -> (P ; o,i)
-!> \param n_inner size of the inner index i of the slab
+!> \brief rotate one MO index of the compound column index
+!> \param fm_slab ...
+!> \param dimen_RI ...
+!> \param n_spect ...
+!> \param n_rot ...
+!> \param u_rot ...
+!> \param reord_to ...
+!> \param reord_back ...
+!> \param n_inner size ...
 !> \param unit_debug ...
 !> \param mp2_env ...
 ! **************************************************************************************************
@@ -739,7 +709,6 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: fm_slab_out, fm_t, fm_t_rot, fm_u
 
-      ! T_(P,s),r with row index P + (s-1)*dimen_RI
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_slab%matrix_struct, &
                                nrow_global=n_spect*dimen_RI, ncol_global=n_rot)
@@ -749,7 +718,6 @@ CONTAINS
       CALL fm_general_add_bse(fm_t, fm_slab, 1.0_dp, 1, n_inner, dimen_RI, n_rot, &
                               unit_debug, reord_to, mp2_env%bse)
 
-      ! T̃_(P,s),r' = Σ_r T_(P,s),r U_rr'
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_slab%matrix_struct, &
                                nrow_global=n_rot, ncol_global=n_rot)
@@ -761,7 +729,6 @@ CONTAINS
       CALL cp_fm_release(fm_u)
       CALL cp_fm_release(fm_t)
 
-      ! back to B^P_(o,i); the slab keeps its structure
       CALL cp_fm_create(fm_slab_out, fm_slab%matrix_struct, name="stcohsex_slab_back", set_zero=.TRUE.)
       CALL fm_general_add_bse(fm_slab_out, fm_t_rot, 1.0_dp, dimen_RI, n_rot, 1, n_inner, &
                               unit_debug, reord_back, mp2_env%bse)

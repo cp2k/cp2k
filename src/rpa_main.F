@@ -1465,12 +1465,11 @@ CONTAINS
          ! ==============================================================================
          ! st-COHSEX: only the static screening at ω = 0, no frequency integration, no
          ! analytic continuation and no RPA correlation energy (Erpa stays zero)
-         !   S^P_ia(0) = B^P_ia sqrt(1/(ϵ_a - ϵ_i))            (calc_mat_Q, first_cycle)
+         !   S^P_ia(0) = B^P_ia sqrt(1/(ϵ_a - ϵ_i))         
          !   Q_PQ(0)   = α Σ_ia S^P_ia S^Q_ia,  α = 4 (closed shell), 2 (per spin, open shell)
          !   Q_PQ(0)   = Σ_σ Q^σ_PQ(0)                          (spin sum, open shell)
-         !   ε_PQ(0)   = δ_PQ + Q_PQ(0)                          (Q_trace_and_add_unit_matrix)
-         ! then W^c(0), Σ^c, Σ^x, H^QP and the diagonal/canonical st-COHSEX energies and MOs
-         ! in stcohsex_qp_energies (rpa_gw_stcohsex.F)
+         !   ε_PQ(0)   = δ_PQ + Q_PQ(0)                      
+         ! then W^c(0), Σ^c, Σ^x, H^QP and the diagonal/canonical st-COHSEX energies
          ! ==============================================================================
          IF (do_stcohsex) THEN
             omega = 0.0_dp
@@ -1484,8 +1483,7 @@ CONTAINS
             DO ispin = 2, nspins
                CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1), beta=1.0_dp, matrix_b=fm_mat_Q(ispin))
             END DO
-            ! BSE: the static polarizability Q_PQ(0) = Σ_σ Q^σ_PQ(0) (without the unit matrix);
-            ! calc_mat_Q copies it only at jquad = num_integ_points
+            ! BSE: the static polarizability Q_PQ(0) = Σ_σ Q^σ_PQ(0);
             IF (do_bse) THEN
                CALL cp_fm_set_all(fm_mat_Q_static_bse_gemm, 0.0_dp)
                DO ispin = 1, nspins

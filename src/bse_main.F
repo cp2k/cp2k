@@ -193,7 +193,6 @@ CONTAINS
 
       CALL invert_static_screening(fm_Q, dimen_RI_red, bse_env%fm_eps_inv)
 
-      ! BSE after scaled st-COHSEX: W = v + α W^c(0), see scale_static_screening
       IF (bse_env%wc_scaling /= 1.0_dp) THEN
          IF (bse_env%screening_method /= bse_screening_w0 .OR. bse_env%screening_factor > 0.0_dp) THEN
             CPABORT("SCREENING_IN_W other than W_0 cannot be combined with a scaled W^c (st-COHSEX).")
@@ -226,9 +225,9 @@ CONTAINS
 !>          A_ia,jb = (ϵ_a - ϵ_i) δ_ij δ_ab + 2 (ia|jb) - (ij|ab) - α (ij|W^c|ab)
 !>          B_ia,jb = 2 (ia|jb) - (ib|ja) - α (ib|W^c|ja)
 !>        α = 1: standard BSE@W0, α = 0: unscreened (TDHF-like) kernel.
-!> \param fm_eps_inv on entry ε^(-1)_PQ(0), on exit K_PQ
-!> \param dimen_RI_red reduced RI dimension
-!> \param alpha scaling α of W^c (STFACIP of st-COHSEX)
+!> \param fm_eps_inv ...
+!> \param dimen_RI_red ...
+!> \param alpha ...
 ! **************************************************************************************************
    SUBROUTINE scale_static_screening(fm_eps_inv, dimen_RI_red, alpha)
 
