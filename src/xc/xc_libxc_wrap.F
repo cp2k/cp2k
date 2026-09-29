@@ -159,9 +159,6 @@ MODULE xc_libxc_wrap
    ! path; CPU-only/__NO_OFFLOAD_LIBXC builds have only the CPU backend.
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
    INTEGER, SAVE, PRIVATE :: libxc_backend = do_libxc_gpu
-#else
-   INTEGER, SAVE, PRIVATE :: libxc_backend = do_libxc_cpu
-#endif
 
    ! Device buffer type for GPU memory management. It wraps an offload buffer so
    ! that the host-side pinned staging memory and the device allocation share a
@@ -170,6 +167,9 @@ MODULE xc_libxc_wrap
       TYPE(offload_buffer_type) :: buffer
       INTEGER(KIND=C_SIZE_T) :: size = 0
    END TYPE libxc_device_buffer_type
+#else
+   INTEGER, SAVE, PRIVATE :: libxc_backend = do_libxc_cpu
+#endif
 
 ! wrappers for routines
    PUBLIC :: xc_libxc_wrap_info_refs, &
@@ -186,14 +186,16 @@ MODULE xc_libxc_wrap
              libxc_get_backend, &
              libxc_set_backend, &
              libxc_func_init_wrapper, &
-             libxc_is_gpu, &
-             libxc_device_buffer_alloc, libxc_device_buffer_free, &
-             libxc_host_to_device, libxc_device_to_host, &
-             libxc_d2h_issue, libxc_d2h_read, &
              libxc_gga_exc_vxc_wrapper, libxc_gga_exc_wrapper, &
              libxc_lda_exc_vxc_wrapper, libxc_lda_exc_wrapper, &
              libxc_mgga_exc_vxc_wrapper, libxc_mgga_exc_wrapper, &
-             libxc_mgga_vxc_wrapper, &
+             libxc_mgga_vxc_wrapper
+   PUBLIC :: libxc_is_gpu
+
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
+   PUBLIC :: libxc_device_buffer_alloc, libxc_device_buffer_free, &
+             libxc_host_to_device, libxc_device_to_host, &
+             libxc_d2h_issue, libxc_d2h_read, &
              libxc_lda_exc_vxc_device, libxc_lda_exc_device, &
              libxc_lda_vxc_fxc_device, &
              libxc_lda_exc_vxc_fxc_device, libxc_lda_exc_vxc_fxc_kxc_device, &
@@ -205,6 +207,7 @@ MODULE xc_libxc_wrap
              libxc_mgga_vxc_device, libxc_mgga_vxc_fxc_device, &
              libxc_mgga_exc_vxc_fxc_device, &
              libxc_mgga_vxc_fxc_kxc_device, libxc_mgga_exc_vxc_fxc_kxc_device
+#endif
 
    ! Alias definitions for backward compatibility
    PROCEDURE(xc_f03_lda_exc_vxc_fxc_kxc), POINTER :: xc_f03_lda => xc_f03_lda_exc_vxc_fxc_kxc
@@ -681,12 +684,12 @@ CONTAINS
    END SUBROUTINE libxc_func_init_wrapper
 
 #endif
-#endif
 
-   ! Device buffer management
 ! **************************************************************************************************
 !> \brief Whether the runtime LibXC backend is the GPU.
 !> \return ...
+!> \note Always available under __LIBXC: CPU-only/__NO_OFFLOAD_LIBXC builds
+!>       compile the flag but can never select the device backend at runtime.
 ! **************************************************************************************************
    FUNCTION libxc_is_gpu() RESULT(is_gpu)
       LOGICAL                                            :: is_gpu
@@ -694,6 +697,7 @@ CONTAINS
       is_gpu = (libxc_backend == do_libxc_gpu)
    END FUNCTION libxc_is_gpu
 
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
 ! **************************************************************************************************
 !> \brief Allocate a device buffer for LibXC.
 !> \param buffer ...
@@ -1684,6 +1688,8 @@ CONTAINS
       CALL xc_f03_mgga_vxc(func, np, rho_p, sigma_p, lapl_p, tau_p, vrho_p, vsigma_p, vlapl_p, vtau_p)
    END SUBROUTINE libxc_mgga_vxc_device
 
+#endif
+
 ! **************************************************************************************************
 !> \brief GGA exc and vxc on host arrays.
 !> \param func ...
@@ -1823,5 +1829,7 @@ CONTAINS
 
       CALL xc_f03_mgga_vxc(func, np, rho, sigma, lapl, tau, vrho, vsigma, vlapl, vtau)
    END SUBROUTINE libxc_mgga_vxc_wrapper
+
+#endif
 
 END MODULE xc_libxc_wrap

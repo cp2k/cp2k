@@ -55,6 +55,7 @@ MODULE xc_libxc
    USE xc_rho_cflags_types, ONLY: xc_rho_cflags_type
    USE xc_rho_set_types, ONLY: xc_rho_set_get, &
                                xc_rho_set_type
+#include "../base/base_uses.f90"
 #if defined (__LIBXC)
    USE input_keyword_types, ONLY: keyword_create, &
                                   keyword_release, &
@@ -114,7 +115,6 @@ MODULE xc_libxc
                             XC_FAMILY_HYB_LDA, &
                             XC_FAMILY_HYB_GGA, &
                             XC_FAMILY_HYB_MGGA, &
-                            libxc_device_buffer_type, &
                             libxc_get_backend, &
                             libxc_set_backend, &
                             libxc_func_init_wrapper, &
@@ -122,21 +122,6 @@ MODULE xc_libxc
                             libxc_lda_exc_vxc_wrapper, libxc_lda_exc_wrapper, &
                             libxc_mgga_exc_vxc_wrapper, libxc_mgga_exc_wrapper, &
                             libxc_mgga_vxc_wrapper, &
-                            libxc_is_gpu, &
-                            libxc_device_buffer_alloc, libxc_device_buffer_free, &
-                            libxc_host_to_device, libxc_device_to_host, &
-                            libxc_d2h_issue, libxc_d2h_read, &
-                            libxc_lda_exc_vxc_device, libxc_lda_exc_device, &
-                            libxc_lda_vxc_fxc_device, &
-                            libxc_lda_exc_vxc_fxc_device, libxc_lda_exc_vxc_fxc_kxc_device, &
-                            libxc_gga_exc_device, libxc_gga_exc_vxc_device, &
-                            libxc_gga_vxc_device, &
-                            libxc_gga_vxc_fxc_device, libxc_gga_exc_vxc_fxc_device, &
-                            libxc_gga_vxc_fxc_kxc_device, libxc_gga_exc_vxc_fxc_kxc_device, &
-                            libxc_mgga_exc_device, libxc_mgga_exc_vxc_device, &
-                            libxc_mgga_vxc_device, libxc_mgga_vxc_fxc_device, &
-                            libxc_mgga_exc_vxc_fxc_device, &
-                            libxc_mgga_vxc_fxc_kxc_device, libxc_mgga_exc_vxc_fxc_kxc_device, &
                             xc_libxc_wrap_functional_get_number, &
                             xc_libxc_wrap_info_needs_laplace, &
                             xc_libxc_wrap_info_no_exc, &
@@ -150,13 +135,29 @@ MODULE xc_libxc
                             xc_libxc_wrap_info_refs, &
                             xc_f03_func_set_ext_params, &
                             XC_EXCHANGE, XC_CORRELATION, XC_EXCHANGE_CORRELATION, XC_KINETIC
+   USE xc_libxc_wrap, ONLY: libxc_is_gpu
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
+   USE xc_libxc_wrap, ONLY: libxc_device_buffer_type, &
+                            libxc_device_buffer_alloc, libxc_device_buffer_free, &
+                            libxc_host_to_device, libxc_device_to_host, &
+                            libxc_d2h_issue, libxc_d2h_read, &
+                            libxc_lda_exc_vxc_device, libxc_lda_exc_device, &
+                            libxc_lda_vxc_fxc_device, &
+                            libxc_lda_exc_vxc_fxc_device, libxc_lda_exc_vxc_fxc_kxc_device, &
+                            libxc_gga_exc_device, libxc_gga_exc_vxc_device, &
+                            libxc_gga_vxc_device, &
+                            libxc_gga_vxc_fxc_device, libxc_gga_exc_vxc_fxc_device, &
+                            libxc_gga_vxc_fxc_kxc_device, libxc_gga_exc_vxc_fxc_kxc_device, &
+                            libxc_mgga_exc_device, libxc_mgga_exc_vxc_device, &
+                            libxc_mgga_vxc_device, libxc_mgga_vxc_fxc_device, &
+                            libxc_mgga_exc_vxc_fxc_device, &
+                            libxc_mgga_vxc_fxc_kxc_device, libxc_mgga_exc_vxc_fxc_kxc_device
+#endif
    USE offload_api, ONLY: offload_activate_chosen_device, offload_device_synchronize
 #endif
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, &
 !$                    omp_get_num_threads, &
 !$                    omp_get_thread_num
-
-#include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
@@ -168,11 +169,10 @@ MODULE xc_libxc
              libxc_version_info, libxc_library_reference, &
              libxc_get_reference_length, libxc_add_sections, &
              libxc_check_existence_in_libxc, libxc_release_workers
-#if defined (__LIBXC)
-   PUBLIC :: libxc_set_backend, libxc_get_backend
-#endif
 
 #if defined (__LIBXC)
+   PUBLIC :: libxc_set_backend, libxc_get_backend
+
    ! Number of grid points handed to LibXC in a single call. LibXC amortizes its
    ! per-call work (argument checks, output initialization and, for functionals
    ! built by mixing components, a full allocate/free cycle of the component
@@ -215,6 +215,7 @@ MODULE xc_libxc
       #:for arr in v3_new
          REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: ${arr}$
       #:endfor
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
       ! GPU device buffers for the active backend
       TYPE(libxc_device_buffer_type)                     :: rho_d, sigma_d, lapl_d, tau_d
       TYPE(libxc_device_buffer_type)                     :: exc_d
@@ -227,6 +228,7 @@ MODULE xc_libxc
       #:for arr in v3_new
          TYPE(libxc_device_buffer_type)                     :: ${arr}$_d
       #:endfor
+#endif
    END TYPE libxc_worker_type
 
 ! **************************************************************************************************
@@ -878,6 +880,7 @@ CONTAINS
 
       ! Allocate GPU device buffers when the GPU backend is active. They follow
       ! the host staging buffers, so the same derivative-order guards apply.
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
       IF (want_device .AND. libxc_is_gpu()) THEN
          CALL libxc_device_buffer_alloc(worker%rho_d, np*nb)
          CALL libxc_device_buffer_alloc(worker%exc_d, nb)
@@ -922,6 +925,9 @@ CONTAINS
             END IF
          END SELECT
       END IF
+#else
+      MARK_USED(want_device)
+#endif
 
    END SUBROUTINE libxc_worker_alloc_buffers
 
@@ -940,6 +946,7 @@ CONTAINS
       #:endfor
       worker%nb = 0
 
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
       ! Freeing a buffer that was never allocated is a no-op, so this is done
       ! unconditionally rather than gating on the currently active backend.
       CALL libxc_device_buffer_free(worker%rho_d)
@@ -968,6 +975,7 @@ CONTAINS
       #:for arr in v3_new
          CALL libxc_device_buffer_free(worker%${arr}$_d)
       #:endfor
+#endif
 
    END SUBROUTINE libxc_worker_free_buffers
 
@@ -986,6 +994,7 @@ CONTAINS
 !>       are reused (never shrunk) for the run. Only the arrays the worker
 !>       actually carries are touched, mirroring libxc_worker_alloc_buffers.
 ! **************************************************************************************************
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
    SUBROUTINE libxc_worker_resize_cuda(worker, family, nspin, npoints)
       TYPE(libxc_worker_type), INTENT(INOUT)             :: worker
       INTEGER, INTENT(IN)                                :: family, nspin, npoints
@@ -1191,6 +1200,7 @@ CONTAINS
       END SELECT
 
    END SUBROUTINE libxc_worker_resize_cuda
+#endif
 
 ! **************************************************************************************************
 !> \brief Makes sure the placeholder for unproduced derivatives holds npoints values.
@@ -2464,6 +2474,7 @@ CONTAINS
    ! e.g. when an OpenMP worker thread's current device defaults to GPU 0
    ! while the buffers were allocated on the rank's own GPU. Only the GPU
    ! backend needs this: on a CPU/HOST run it is a per-call CUDA-roundtrip.
+   ! No guard is needed: the routine is a no-op without a device.
    IF (libxc_is_gpu()) CALL offload_activate_chosen_device()
 
    ! On the GPU path the whole grid is handed to LibXC in a single call (no
@@ -2506,9 +2517,11 @@ CONTAINS
               eps_tau => workers%epsilon_tau)
       !$OMP    DO
       DO ib = 1, nblocks
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
          IF (libxc_is_gpu()) THEN
             CALL libxc_worker_resize_cuda(w, workers%family, workers%nspin, npoints)
          END IF
+#endif
          i0 = (ib - 1)*bsize
          nb = MIN(bsize, npoints - i0)
          np = INT(nb, KIND=C_SIZE_T)
@@ -2540,6 +2553,7 @@ CONTAINS
 
          ! one LibXC call for the whole block
          IF (libxc_is_gpu()) THEN
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
             ! Copy data to device
             CALL libxc_host_to_device(w%rho_d, w%rho(1, 1), INT(np))
             IF (is_gga) THEN
@@ -2757,6 +2771,7 @@ CONTAINS
                   CPABORT("NaN found right after device_to_host")
                END IF
             END IF
+#endif
          ELSE
             IF (is_mgga) THEN
                SELECT CASE (grad_deriv)
@@ -3126,6 +3141,7 @@ CPASSERT(ithread < SIZE(workers%worker))
 ! See the spin-unpolarized calc: CUDA's current device is thread-local,
 ! so activate the rank's chosen device on every thread. Only the GPU
 ! backend needs this; on a CPU/HOST run it is a per-call CUDA-roundtrip.
+! No guard is needed: the routine is a no-op without a device.
 IF (libxc_is_gpu()) CALL offload_activate_chosen_device()
 
 ! See the spin-unpolarized calc: on the GPU path the whole grid is evaluated
@@ -3162,9 +3178,11 @@ ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace,
            eps_tau => workers%epsilon_tau)
 !$OMP    DO
    DO ib = 1, nblocks
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
       IF (libxc_is_gpu()) THEN
          CALL libxc_worker_resize_cuda(w, workers%family, workers%nspin, npoints)
       END IF
+#endif
       i0 = (ib - 1)*bsize
       nb = MIN(bsize, npoints - i0)
       np = INT(nb, KIND=C_SIZE_T)
@@ -3213,6 +3231,7 @@ ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace,
       ! one LibXC call for the whole block
 
       IF (libxc_is_gpu()) THEN
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_LIBXC)
          CALL libxc_host_to_device(w%rho_d, w%rho(1, 1), INT(2*np))
          IF (is_gga) THEN
             CALL libxc_host_to_device(w%sigma_d, w%sigma(1, 1), INT(3*np))
@@ -3426,6 +3445,7 @@ ASSOCIATE (w => workers%worker(ithread + 1), has_laplace => workers%has_laplace,
                CPABORT("NaN found right after device_to_host")
             END IF
          END IF
+#endif
       ELSE
          IF (is_mgga) THEN
             SELECT CASE (grad_deriv)
