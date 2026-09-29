@@ -326,11 +326,8 @@ CONTAINS
                   DO ispin = 1, SIZE(mos_aux_fit_kp)
                      ! No sparse matrix representation of k-point MO vectors.
                      CPASSERT(.NOT. ASSOCIATED(mos_aux_fit_kp(ispin)%mo_coeff_b))
-                     IF (use_real_wfn) THEN
-                        IF (ASSOCIATED(mos_aux_fit_kp(ispin)%mo_coeff)) CYCLE
-                     ELSE
-                        IF (ASSOCIATED(mos_aux_fit_kp(ispin)%cmo_coeff)) CYCLE
-                     END IF
+                     IF (ASSOCIATED(mos_aux_fit_kp(ispin)%mo_coeff) .OR. &
+                         ASSOCIATED(mos_aux_fit_kp(ispin)%cmo_coeff)) CYCLE
                      CALL init_mo_set(mos_aux_fit_kp(ispin), &
                                       fm_pool=ao_mo_fm_pools_aux_fit(ispin)%pool, &
                                       name="kpoints_"//TRIM(ADJUSTL(cp_to_string(ikk)))// &

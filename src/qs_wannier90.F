@@ -2653,131 +2653,117 @@ CONTAINS
       CALL cp_cfm_create(s_dst, matrix_struct_metric)
       CALL cp_cfm_create(h_dst, matrix_struct_metric)
 
-      CALL apply_wannier90_kp_matrix(matrix_s, 1, xkp, cell_to_index, sab_nl, &
-                                     dst_cfm, s_dst)
-      CALL apply_wannier90_kp_matrix(matrix_ks, ispin, xkp, cell_to_index, sab_nl, &
-                                     dst_cfm, h_dst)
+      stabilize_subspace: BLOCK
+         CALL apply_wannier90_kp_matrix(matrix_s, 1, xkp, cell_to_index, sab_nl, &
+                                        dst_cfm, s_dst)
+         CALL apply_wannier90_kp_matrix(matrix_ks, ispin, xkp, cell_to_index, sab_nl, &
+                                        dst_cfm, h_dst)
 
-      ALLOCATE (dst_coeff(nao, nmo), s_coeff(nao, nmo), h_coeff(nao, nmo))
-      CALL cp_cfm_get_submatrix(dst_cfm, dst_coeff)
-      CALL cp_cfm_get_submatrix(s_dst, s_coeff)
-      CALL cp_cfm_get_submatrix(h_dst, h_coeff)
+         ALLOCATE (dst_coeff(nao, nmo), s_coeff(nao, nmo), h_coeff(nao, nmo))
+         CALL cp_cfm_get_submatrix(dst_cfm, dst_coeff)
+         CALL cp_cfm_get_submatrix(s_dst, s_coeff)
+         CALL cp_cfm_get_submatrix(h_dst, h_coeff)
 
-      block_first = 1
-      DO WHILE (block_first <= nmo)
-         block_last = block_first
-         DO WHILE (block_last < nmo)
-            IF (ABS(eigenvalues(block_last + 1) - eigenvalues(block_last)) >= degenerate_band_tol) EXIT
-            block_last = block_last + 1
-         END DO
-         block_size = block_last - block_first + 1
-         IF (block_size > 1) THEN
-            ! The atom/AO operation fixes the subspace, while the little-group gauge inside an
-            ! exactly degenerate manifold is arbitrary. Stabilize only that manifold and verify
-            ! that it is an invariant H(k),S(k) subspace before exporting it to Wannier90.
-            ALLOCATE (block_coeff(nao, block_size), h_block(nao, block_size), &
-                      h_projected(block_size, block_size), h_projected_work(block_size, block_size), &
-                      metric_vectors(block_size, block_size), residual_block(nao, block_size), &
-                      ritz_vectors(block_size, block_size), s_block(nao, block_size), &
-                      s_projected(block_size, block_size), stabilized(nao, block_size), &
-                      metric_values(block_size), ritz_values(block_size))
-            block_coeff(:, :) = dst_coeff(:, block_first:block_last)
-            s_block(:, :) = s_coeff(:, block_first:block_last)
-            h_block(:, :) = h_coeff(:, block_first:block_last)
-            s_projected(:, :) = MATMUL(CONJG(TRANSPOSE(block_coeff)), s_block)
-            h_projected(:, :) = MATMUL(CONJG(TRANSPOSE(block_coeff)), h_block)
-            s_projected(:, :) = 0.5_dp*(s_projected + CONJG(TRANSPOSE(s_projected)))
-            h_projected(:, :) = 0.5_dp*(h_projected + CONJG(TRANSPOSE(h_projected)))
-
-            CALL diag_complex(s_projected, metric_vectors, metric_values)
-            aligned_min_svalue = MIN(aligned_min_svalue, MINVAL(metric_values))
-            metric_deviation = MAXVAL(ABS(metric_values - 1.0_dp))
-            IF (MINVAL(metric_values) < 1.0e-10_dp) THEN
-               WRITE (reason, "(A,I0,A,ES9.2,A,ES9.2)") &
-                  "singular metric blk=", block_first, " smin=", MINVAL(metric_values), &
-                  " dS=", metric_deviation
-               max_residual = HUGE(1.0_dp)
-               DEALLOCATE (block_coeff, h_block, h_projected, h_projected_work, metric_vectors, &
-                           residual_block, ritz_vectors, s_block, s_projected, stabilized, &
-                           metric_values, ritz_values)
-               DEALLOCATE (s_coeff, h_coeff, dst_coeff)
-               CALL cp_cfm_release(s_dst)
-               CALL cp_cfm_release(h_dst)
-               RETURN
-            END IF
-
-            DO ib = 1, block_size
-               metric_vectors(:, ib) = metric_vectors(:, ib)/SQRT(metric_values(ib))
+         block_first = 1
+         DO WHILE (block_first <= nmo)
+            block_last = block_first
+            DO WHILE (block_last < nmo)
+               IF (ABS(eigenvalues(block_last + 1) - eigenvalues(block_last)) >= degenerate_band_tol) EXIT
+               block_last = block_last + 1
             END DO
-            h_projected_work(:, :) = MATMUL(h_projected, metric_vectors)
-            h_projected(:, :) = MATMUL(CONJG(TRANSPOSE(metric_vectors)), h_projected_work)
-            h_projected(:, :) = 0.5_dp*(h_projected + CONJG(TRANSPOSE(h_projected)))
-            CALL diag_complex(h_projected, ritz_vectors, ritz_values)
-            h_projected_work(:, :) = MATMUL(metric_vectors, ritz_vectors)
-            ritz_vectors(:, :) = h_projected_work
-            stabilized(:, :) = MATMUL(block_coeff, ritz_vectors)
-            residual_block(:, :) = MATMUL(h_block, ritz_vectors)
-            h_block(:, :) = residual_block
-            residual_block(:, :) = MATMUL(s_block, ritz_vectors)
-            s_block(:, :) = residual_block
-            DO ib = 1, block_size
-               norm_value = SQRT(ABS(REAL(DOT_PRODUCT(stabilized(:, ib), s_block(:, ib)), KIND=dp)))
-               IF (norm_value > EPSILON(1.0_dp)) THEN
-                  stabilized(:, ib) = stabilized(:, ib)/norm_value
-                  h_block(:, ib) = h_block(:, ib)/norm_value
-                  s_block(:, ib) = s_block(:, ib)/norm_value
+            block_size = block_last - block_first + 1
+            IF (block_size > 1) THEN
+               ! The atom/AO operation fixes the subspace, while the little-group gauge inside an
+               ! exactly degenerate manifold is arbitrary. Stabilize only that manifold and verify
+               ! that it is an invariant H(k),S(k) subspace before exporting it to Wannier90.
+               ALLOCATE (block_coeff(nao, block_size), h_block(nao, block_size), &
+                         h_projected(block_size, block_size), h_projected_work(block_size, block_size), &
+                         metric_vectors(block_size, block_size), residual_block(nao, block_size), &
+                         ritz_vectors(block_size, block_size), s_block(nao, block_size), &
+                         s_projected(block_size, block_size), stabilized(nao, block_size), &
+                         metric_values(block_size), ritz_values(block_size))
+               block_coeff(:, :) = dst_coeff(:, block_first:block_last)
+               s_block(:, :) = s_coeff(:, block_first:block_last)
+               h_block(:, :) = h_coeff(:, block_first:block_last)
+               s_projected(:, :) = MATMUL(CONJG(TRANSPOSE(block_coeff)), s_block)
+               h_projected(:, :) = MATMUL(CONJG(TRANSPOSE(block_coeff)), h_block)
+               s_projected(:, :) = 0.5_dp*(s_projected + CONJG(TRANSPOSE(s_projected)))
+               h_projected(:, :) = 0.5_dp*(h_projected + CONJG(TRANSPOSE(h_projected)))
+
+               CALL diag_complex(s_projected, metric_vectors, metric_values)
+               aligned_min_svalue = MIN(aligned_min_svalue, MINVAL(metric_values))
+               metric_deviation = MAXVAL(ABS(metric_values - 1.0_dp))
+               IF (MINVAL(metric_values) < 1.0e-10_dp) THEN
+                  WRITE (reason, "(A,I0,A,ES9.2,A,ES9.2)") &
+                     "singular metric blk=", block_first, " smin=", MINVAL(metric_values), &
+                     " dS=", metric_deviation
+                  max_residual = HUGE(1.0_dp)
+                  EXIT stabilize_subspace
                END IF
-            END DO
-            residual_block(:, :) = h_block
-            DO ib = 1, block_size
-               residual_block(:, ib) = residual_block(:, ib) - &
-                                       eigenvalues(block_first + ib - 1)*s_block(:, ib)
-            END DO
-            residual_norm = MAXVAL(ABS(residual_block))
-            max_residual = MAX(max_residual, residual_norm)
-            IF (residual_norm > residual_tol) THEN
-               WRITE (reason, "(A,I0,A,ES9.2)") &
-                  "blk=", block_first, " dS=", metric_deviation
+
+               DO ib = 1, block_size
+                  metric_vectors(:, ib) = metric_vectors(:, ib)/SQRT(metric_values(ib))
+               END DO
+               h_projected_work(:, :) = MATMUL(h_projected, metric_vectors)
+               h_projected(:, :) = MATMUL(CONJG(TRANSPOSE(metric_vectors)), h_projected_work)
+               h_projected(:, :) = 0.5_dp*(h_projected + CONJG(TRANSPOSE(h_projected)))
+               CALL diag_complex(h_projected, ritz_vectors, ritz_values)
+               h_projected_work(:, :) = MATMUL(metric_vectors, ritz_vectors)
+               ritz_vectors(:, :) = h_projected_work
+               stabilized(:, :) = MATMUL(block_coeff, ritz_vectors)
+               residual_block(:, :) = MATMUL(h_block, ritz_vectors)
+               h_block(:, :) = residual_block
+               residual_block(:, :) = MATMUL(s_block, ritz_vectors)
+               s_block(:, :) = residual_block
+               DO ib = 1, block_size
+                  norm_value = SQRT(ABS(REAL(DOT_PRODUCT(stabilized(:, ib), s_block(:, ib)), KIND=dp)))
+                  IF (norm_value > EPSILON(1.0_dp)) THEN
+                     stabilized(:, ib) = stabilized(:, ib)/norm_value
+                     h_block(:, ib) = h_block(:, ib)/norm_value
+                     s_block(:, ib) = s_block(:, ib)/norm_value
+                  END IF
+               END DO
+               residual_block(:, :) = h_block
+               DO ib = 1, block_size
+                  residual_block(:, ib) = residual_block(:, ib) - &
+                                          eigenvalues(block_first + ib - 1)*s_block(:, ib)
+               END DO
+               residual_norm = MAXVAL(ABS(residual_block))
+               max_residual = MAX(max_residual, residual_norm)
+               IF (residual_norm > residual_tol) THEN
+                  WRITE (reason, "(A,I0,A,ES9.2)") &
+                     "blk=", block_first, " dS=", metric_deviation
+                  EXIT stabilize_subspace
+               END IF
+
+               dst_coeff(:, block_first:block_last) = stabilized
+               h_coeff(:, block_first:block_last) = h_block
+               s_coeff(:, block_first:block_last) = s_block
+               aligned_blocks = aligned_blocks + 1
+               aligned_max_size = MAX(aligned_max_size, block_size)
                DEALLOCATE (block_coeff, h_block, h_projected, h_projected_work, metric_vectors, &
-                           residual_block, ritz_vectors, s_block, s_projected, stabilized, &
-                           metric_values, ritz_values)
-               DEALLOCATE (s_coeff, h_coeff, dst_coeff)
-               CALL cp_cfm_release(s_dst)
-               CALL cp_cfm_release(h_dst)
-               RETURN
+                           residual_block, ritz_vectors, s_block, s_projected, stabilized, metric_values, &
+                           ritz_values)
             END IF
+            block_first = block_last + 1
+         END DO
 
-            dst_coeff(:, block_first:block_last) = stabilized
-            h_coeff(:, block_first:block_last) = h_block
-            s_coeff(:, block_first:block_last) = s_block
-            aligned_blocks = aligned_blocks + 1
-            aligned_max_size = MAX(aligned_max_size, block_size)
-            DEALLOCATE (block_coeff, h_block, h_projected, h_projected_work, metric_vectors, &
-                        residual_block, ritz_vectors, s_block, s_projected, stabilized, metric_values, &
-                        ritz_values)
+         DO ib = 1, nmo
+            residual_norm = MAXVAL(ABS(h_coeff(:, ib) - eigenvalues(ib)*s_coeff(:, ib)))
+            max_residual = MAX(max_residual, residual_norm)
+         END DO
+         IF (max_residual > residual_tol) THEN
+            WRITE (reason, "(A,ES10.3)") &
+               "atom/AO W90 reuse guarded: Ritz residual=", max_residual
+            EXIT stabilize_subspace
          END IF
-         block_first = block_last + 1
-      END DO
 
-      DO ib = 1, nmo
-         residual_norm = MAXVAL(ABS(h_coeff(:, ib) - eigenvalues(ib)*s_coeff(:, ib)))
-         max_residual = MAX(max_residual, residual_norm)
-      END DO
-      IF (max_residual > residual_tol) THEN
-         WRITE (reason, "(A,ES10.3)") &
-            "atom/AO W90 reuse guarded: Ritz residual=", max_residual
-         DEALLOCATE (s_coeff, h_coeff, dst_coeff)
-         CALL cp_cfm_release(s_dst)
-         CALL cp_cfm_release(h_dst)
-         RETURN
-      END IF
+         CALL cp_cfm_set_submatrix(dst_cfm, dst_coeff)
 
-      CALL cp_cfm_set_submatrix(dst_cfm, dst_coeff)
+         IF (aligned_blocks == 0) aligned_min_svalue = 0.0_dp
+         success = .TRUE.
+      END BLOCK stabilize_subspace
 
-      IF (aligned_blocks == 0) aligned_min_svalue = 0.0_dp
-      success = .TRUE.
-
-      DEALLOCATE (s_coeff, h_coeff, dst_coeff)
       CALL cp_cfm_release(s_dst)
       CALL cp_cfm_release(h_dst)
 

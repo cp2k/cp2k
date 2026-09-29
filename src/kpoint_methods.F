@@ -980,7 +980,6 @@ CONTAINS
 
       INTEGER                                            :: handle, ik, ispin
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: moskp
 
       CALL timeset(routineN, handle)
@@ -990,12 +989,8 @@ CONTAINS
          moskp => kpoint%kp_env(ik)%kpoint_env%mos
          CPASSERT(ASSOCIATED(moskp))
          DO ispin = 1, SIZE(moskp)
-            IF (kpoint%use_real_wfn) THEN
-               mo_coeff => moskp(ispin)%mo_coeff
-               IF (ASSOCIATED(mo_coeff)) CYCLE
-            ELSE
-               IF (ASSOCIATED(moskp(ispin)%cmo_coeff)) CYCLE
-            END IF
+            IF (ASSOCIATED(moskp(ispin)%mo_coeff) .OR. &
+                ASSOCIATED(moskp(ispin)%cmo_coeff)) CYCLE
             CALL init_mo_set(moskp(ispin), fm_pool=ao_mo_fm_pools(ispin)%pool, &
                              name="kpoints", complex_coeff=.NOT. kpoint%use_real_wfn)
          END DO
@@ -2025,7 +2020,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: work
       TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: cwork, cdensity
 
-      COMPLEX(KIND=dp), ALLOCATABLE                      :: weights(:)
+      COMPLEX(KIND=dp)                                   :: weights(nmo)
       REAL(KIND=dp), POINTER                             :: eigenvalues(:), occupation(:)
       TYPE(cp_cfm_type), POINTER                         :: ccoeff
       TYPE(cp_fm_type), POINTER                          :: coeff, cpmat, rpmat
@@ -2067,7 +2062,6 @@ CONTAINS
             cpmat => kp%pmat(2, ispin)
          END IF
          ccoeff => kp%mos(ispin)%cmo_coeff
-         ALLOCATE (weights(nmo))
          weights = CMPLX(occupation(1:nmo), 0.0_dp, KIND=dp)
          IF (wtype) weights = weights*eigenvalues(1:nmo)
          CALL cp_cfm_to_cfm(ccoeff, cwork)
@@ -2082,7 +2076,6 @@ CONTAINS
             CALL parallel_gemm("N", "C", nao, nao, nmo, z_one, ccoeff, cwork, z_zero, cdensity)
          END IF
          CALL cp_cfm_to_fm(cdensity, rpmat, cpmat)
-         DEALLOCATE (weights)
       END IF
 
    END SUBROUTINE kpoint_density_matrix_job

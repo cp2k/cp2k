@@ -95,37 +95,31 @@ CONTAINS
       IF (isym == -1) THEN
          dst_coeff(:, :) = CONJG(src_coeff)
          CALL cp_cfm_set_submatrix(dst, dst_coeff)
-         DEALLOCATE (src_coeff, dst_coeff)
          success = .TRUE.
          RETURN
       END IF
 
       IF (.NOT. ASSOCIATED(qs_kpoint%kp_sym)) THEN
          reason = "SCF symmetry operation data are not available"
-         DEALLOCATE (src_coeff, dst_coeff)
          RETURN
       END IF
       kpsym => qs_kpoint%kp_sym(ikred)%kpoint_sym
       IF (.NOT. ASSOCIATED(kpsym)) THEN
          reason = "SCF k-point symmetry operation is not available"
-         DEALLOCATE (src_coeff, dst_coeff)
          RETURN
       END IF
       IF (isym > kpsym%nwred) THEN
          reason = "SCF k-point symmetry operation index is out of range"
-         DEALLOCATE (src_coeff, dst_coeff)
          RETURN
       END IF
       IF (.NOT. ASSOCIATED(qs_kpoint%atype) .OR. .NOT. ASSOCIATED(qs_kpoint%kind_rotmat)) THEN
          reason = "SCF atom mappings or basis rotation matrices are not available"
-         DEALLOCATE (src_coeff, dst_coeff)
          RETURN
       END IF
 
       rot_slot = find_kpoint_rotation_slot(qs_kpoint, kpsym%rotp(isym))
       IF (rot_slot == 0) THEN
          reason = "could not match the SCF symmetry operation to a basis rotation"
-         DEALLOCATE (src_coeff, dst_coeff)
          RETURN
       END IF
       kind_rot => qs_kpoint%kind_rotmat(rot_slot, :)
@@ -136,7 +130,6 @@ CONTAINS
          ikind = qs_kpoint%atype(iatom)
          IF (.NOT. ASSOCIATED(kind_rot(ikind)%rmat)) THEN
             reason = "a required basis rotation matrix is not available"
-            DEALLOCATE (src_coeff, dst_coeff, ao_start, ao_size)
             RETURN
          END IF
          ao_start(iatom) = irow
@@ -145,7 +138,6 @@ CONTAINS
       END DO
       IF (irow - 1 /= nao) THEN
          reason = "atom-resolved AO dimensions do not match the MO coefficient matrix"
-         DEALLOCATE (src_coeff, dst_coeff, ao_start, ao_size)
          RETURN
       END IF
 
@@ -164,7 +156,6 @@ CONTAINS
          target_dim = ao_size(target_atom)
          IF (SIZE(rotmat, 1) /= target_dim .OR. SIZE(rotmat, 2) /= source_dim) THEN
             reason = "basis rotation dimensions do not match the atom/AO symmetry transform"
-            DEALLOCATE (src_coeff, dst_coeff, ao_start, ao_size)
             RETURN
          END IF
          arg = REAL(kpsym%fcell_gauge(1, source_atom, isym), KIND=dp)*xkp_phase(1) + &
@@ -192,7 +183,6 @@ CONTAINS
       END DO
 
       CALL cp_cfm_set_submatrix(dst, dst_coeff)
-      DEALLOCATE (src_coeff, dst_coeff, ao_start, ao_size)
       success = .TRUE.
 
    END SUBROUTINE kpoint_transform_scf_mo

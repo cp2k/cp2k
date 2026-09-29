@@ -330,12 +330,7 @@ CONTAINS
                CALL wfi_store_kp_pbc_shift(snapshot, cell, particle_set)
 
                IF (ASSOCIATED(snapshot%wf_kp)) THEN
-                  DO ikp = 1, SIZE(snapshot%wf_kp, 1)
-                     DO ispin = 1, SIZE(snapshot%wf_kp, 2)
-                        CALL cp_fm_release(snapshot%wf_kp(ikp, ispin))
-                     END DO
-                  END DO
-                  DEALLOCATE (snapshot%wf_kp)
+                  CALL cp_fm_release(snapshot%wf_kp)
                END IF
                IF (ASSOCIATED(snapshot%wf_kp_cfm)) THEN
                   DO ikp = 1, SIZE(snapshot%wf_kp_cfm, 1)
