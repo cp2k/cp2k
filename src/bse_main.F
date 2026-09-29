@@ -33,7 +33,9 @@ MODULE bse_main
                                               screen_slabs,&
                                               truncate_BSE_matrices
    USE cp_control_types,                ONLY: tddfpt2_control_type
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
+                                              cp_fm_scale,&
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -237,26 +239,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_static_screening'
 
-      INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
-                                                            ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_get_info(matrix=fm_eps_inv, nrow_local=nrow_local, ncol_local=ncol_local, &
-                          row_indices=row_indices, col_indices=col_indices)
-
       ! K_PQ = α ε^(-1)_PQ + (1 - α) δ_PQ on the leading dimen_RI_red block
-      fm_eps_inv%local_data(:, :) = alpha*fm_eps_inv%local_data(:, :)
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            IF (j_global == i_global .AND. i_global <= dimen_RI_red) THEN
-               fm_eps_inv%local_data(iiB, jjB) = fm_eps_inv%local_data(iiB, jjB) + (1.0_dp - alpha)
-            END IF
-         END DO
-      END DO
+      CALL cp_fm_scale(alpha, fm_eps_inv)
+      CALL cp_fm_add_on_diag(fm_eps_inv, 1.0_dp - alpha, dimen_RI_red)
 
       CALL timestop(handle)
 

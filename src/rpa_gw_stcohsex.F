@@ -46,7 +46,8 @@ MODULE rpa_gw_stcohsex
    USE cp_dbcsr_api,                    ONLY: dbcsr_release_p,&
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
+                                              cp_fm_column_scale,&
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
@@ -148,11 +149,8 @@ CONTAINS
 
       CHARACTER(LEN=10)                                  :: spin_label
       CHARACTER(LEN=3)                                   :: occ_vir
-      INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
-                                                            jjB, m, n, n_mo_win, ncol_local, no, &
-                                                            nrow_local, nspins, nv, p, unit_debug, &
-                                                            win_start
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: handle, ispin, m, n, n_mo_win, no, &
+                                                            nspins, nv, p, unit_debug, win_start
       REAL(KIND=dp)                                      :: shift_occ, shift_virt
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_can, e_diag, e_qp, scale_vec
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_qp, sigma_c, sigma_x, &
@@ -176,17 +174,7 @@ CONTAINS
       CALL cp_fm_create(fm_work, fm_mat_Q%matrix_struct)
       CALL cp_fm_uplo_to_full(fm_mat_Q, fm_work)
       CALL cp_fm_release(fm_work)
-      CALL cp_fm_get_info(fm_mat_Q, nrow_local=nrow_local, ncol_local=ncol_local, &
-                          row_indices=row_indices, col_indices=col_indices)
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            IF (i_global == j_global .AND. i_global <= dimen_RI) THEN
-               fm_mat_Q%local_data(iiB, jjB) = fm_mat_Q%local_data(iiB, jjB) - 1.0_dp
-            END IF
-         END DO
-      END DO
+      CALL cp_fm_add_on_diag(fm_mat_Q, -1.0_dp, dimen_RI)
 
       unit_debug = unit_nr
 

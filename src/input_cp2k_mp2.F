@@ -751,28 +751,25 @@ CONTAINS
                           "st-COHSEX energies $\varepsilon_n^\text{DG} = H^\text{QP}_{nn}$; diagonalizing the "// &
                           "occupied-occupied and virtual-virtual blocks separately gives the canonical "// &
                           "st-COHSEX energies $\varepsilon_n^\text{CN}$ and MOs. The canonical MOs are printed "// &
-                          "with DFT%PRINT%MO and DFT%PRINT%MO_CUBES.", &
-                          usage="STCOHSEX", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="STCOHSEX_BSE_ENERGIES", &
-                          description="Quasiparticle energies and MOs that enter a BSE after STCOHSEX. "// &
-                          "The BSE kernel is $W = v + \alpha\, W^\text{c}(\omega=0)$ with "// &
+                          "with DFT%PRINT%MO and DFT%PRINT%MO_CUBES. "// &
+                          "The value selects the quasiparticle energies and MOs that enter a BSE after "// &
+                          "STCOHSEX. The BSE kernel is $W = v + \alpha\, W^\text{c}(\omega=0)$ with "// &
                           "$\alpha = \alpha_\text{IP} = \alpha_\text{EA}$, i.e. STFACIP = STFACEA is required: "// &
                           "$A_{ia,jb} = (\varepsilon_a - \varepsilon_i)\delta_{ij}\delta_{ab} + 2(ia|jb) "// &
                           "- (ij|ab) - \alpha\,(ij|W^\text{c}|ab)$ and "// &
                           "$B_{ia,jb} = 2(ia|jb) - (ib|ja) - \alpha\,(ib|W^\text{c}|ja)$.", &
-                          usage="STCOHSEX_BSE_ENERGIES CANONICAL", &
-                          enum_c_vals=s2a("DIAGONAL", "CANONICAL"), &
-                          enum_i_vals=[0, 1], &
-                          enum_desc=s2a("Diagonal st-COHSEX energies $\varepsilon_n^\text{DG}$ with the "// &
-                                        "Kohn-Sham MOs.", &
-                                        "Canonical st-COHSEX energies $\varepsilon_n^\text{CN}$ with the canonical "// &
-                                        "st-COHSEX MOs, i.e. the full st-COHSEX quasiparticle Hamiltonian "// &
-                                        "$H^\text{QP}$ including its off-diagonal elements."), &
-                          default_i_val=0)
+                          usage="STCOHSEX CANONICAL", &
+                          enum_c_vals=s2a("OFF", "DIAGONAL", "CANONICAL"), &
+                          enum_i_vals=[0, 1, 2], &
+                          enum_desc=s2a("No st-COHSEX (default without the keyword).", &
+                                        "st-COHSEX; a BSE uses the diagonal st-COHSEX energies "// &
+                                        "$\varepsilon_n^\text{DG}$ with the Kohn-Sham MOs (default of the "// &
+                                        "lone keyword).", &
+                                        "st-COHSEX; a BSE uses the canonical st-COHSEX energies "// &
+                                        "$\varepsilon_n^\text{CN}$ with the canonical st-COHSEX MOs, i.e. the full "// &
+                                        "st-COHSEX quasiparticle Hamiltonian $H^\text{QP}$ including its "// &
+                                        "off-diagonal elements."), &
+                          default_i_val=0, lone_keyword_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

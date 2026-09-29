@@ -68,7 +68,7 @@ CONTAINS
          DIMENSION(:), POINTER                           :: string_pointer
       CHARACTER(LEN=max_line_length)                     :: error_message
       INTEGER                                            :: gw_sc, handle, i, i_special_kp, &
-                                                            i_stcohsex_bse, ival, unit_nr
+                                                            i_stcohsex, ival, unit_nr
       INTEGER, DIMENSION(:), POINTER                     :: tmplist
       LOGICAL                                            :: do_mp2, do_opt_ri_basis, do_ri_mp2, &
                                                             do_ri_sos_mp2, do_rpa
@@ -166,15 +166,15 @@ CONTAINS
                                 l_val=mp2_env%ri_g0w0%print_self_energy)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%RI_SIGMA_X", &
                                 l_val=mp2_env%ri_g0w0%do_ri_Sigma_x)
+      ! STCOHSEX: 0 = OFF, 1 = DIAGONAL, 2 = CANONICAL (quasiparticles for a subsequent BSE)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%STCOHSEX", &
-                                l_val=mp2_env%ri_g0w0%do_stcohsex)
+                                i_val=i_stcohsex)
+      mp2_env%ri_g0w0%do_stcohsex = (i_stcohsex /= 0)
+      mp2_env%ri_g0w0%stcohsex_bse_canonical = (i_stcohsex == 2)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%STFACIP", &
                                 r_val=mp2_env%ri_g0w0%stfacip)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%STFACEA", &
                                 r_val=mp2_env%ri_g0w0%stfacea)
-      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%STCOHSEX_BSE_ENERGIES", &
-                                i_val=i_stcohsex_bse)
-      mp2_env%ri_g0w0%stcohsex_bse_canonical = (i_stcohsex_bse == 1)
 
       NULLIFY (r_vals)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IC_CORR_LIST", &

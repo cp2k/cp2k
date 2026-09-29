@@ -71,7 +71,8 @@ MODULE cp_fm_basic_linalg
              cp_fm_rot_cols, & ! rotates two columns
              cp_fm_Gram_Schmidt_orthonorm, & ! Gram-Schmidt orthonormalization of columns of a full matrix, &
              cp_fm_det, & ! determinant of a real matrix with correct sign
-             cp_fm_matvec ! matrix-vector multiplication (vector replicated)
+             cp_fm_matvec, & ! matrix-vector multiplication (vector replicated)
+             cp_fm_add_on_diag ! add a scalar to the diagonal
 
    REAL(KIND=dp), EXTERNAL :: dlange, pdlange, pdlatra
 
@@ -2570,5 +2571,36 @@ CONTAINS
 #endif
 
    END SUBROUTINE cp_fm_matvec
+
+! **************************************************************************************************
+!> \brief Adds a scalar to the diagonal of a distributed real full matrix.
+!> \param matrix input/output matrix
+!> \param alpha scalar added to each diagonal element
+!> \param n_active optional number of physical rows/columns
+! **************************************************************************************************
+   SUBROUTINE cp_fm_add_on_diag(matrix, alpha, n_active)
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
+      REAL(KIND=dp), INTENT(IN)                          :: alpha
+      INTEGER, INTENT(IN), OPTIONAL                      :: n_active
+
+      INTEGER                                            :: i_row, j_col, max_index, ncol_local, &
+                                                            nrow_local
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+
+      max_index = HUGE(max_index)
+      IF (PRESENT(n_active)) max_index = n_active
+
+      CALL cp_fm_get_info(matrix=matrix, nrow_local=nrow_local, ncol_local=ncol_local, &
+                          row_indices=row_indices, col_indices=col_indices)
+
+      DO j_col = 1, ncol_local
+         DO i_row = 1, nrow_local
+            IF (row_indices(i_row) == col_indices(j_col) .AND. row_indices(i_row) <= max_index) THEN
+               matrix%local_data(i_row, j_col) = matrix%local_data(i_row, j_col) + alpha
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE cp_fm_add_on_diag
 
 END MODULE cp_fm_basic_linalg
