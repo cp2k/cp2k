@@ -24,10 +24,13 @@ MODULE mp2_ri_2c
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
-   USE cp_cfm_types,                    ONLY: &
-        copy_cfm_info_type, cp_cfm_cleanup_copy_general, cp_cfm_create, &
-        cp_cfm_finish_copy_general, cp_cfm_release, cp_cfm_start_copy_general, cp_cfm_to_cfm, &
-        cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
+   USE cp_cfm_types,                    ONLY: cp_cfm_copy_general,&
+                                              cp_cfm_create,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
@@ -667,7 +670,6 @@ CONTAINS
       LOGICAL                                            :: my_do_build_cell_index, my_put_mat_KS_env
       REAL(KIND=dp)                                      :: my_regularization_RI
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
-      TYPE(copy_cfm_info_type)                           :: copy_info
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_cfm_type)                                  :: cfm_matrix_S_global
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -845,11 +847,7 @@ CONTAINS
             CALL cp_fm_set_all(fm_matrix_S_global, 0.0_dp)
             CALL copy_dbcsr_to_fm(tmpmat, fm_matrix_S_global)
             CALL cp_cfm_scale_and_add_fm(z_one, cfm_matrix_S_global, gaussi, fm_matrix_S_global)
-            CALL cp_cfm_start_copy_general(cfm_matrix_S_global, cfm_matrix_M_kpoints(ikp), para_env, copy_info)
-            IF (ASSOCIATED(cfm_matrix_M_kpoints(ikp)%matrix_struct)) THEN
-               CALL cp_cfm_finish_copy_general(cfm_matrix_M_kpoints(ikp), copy_info)
-            END IF
-            IF (ASSOCIATED(cfm_matrix_S_global%matrix_struct)) CALL cp_cfm_cleanup_copy_general(copy_info)
+            CALL cp_cfm_copy_general(cfm_matrix_S_global, cfm_matrix_M_kpoints(ikp), para_env)
 
          END DO
 

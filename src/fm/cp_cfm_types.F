@@ -39,6 +39,7 @@ MODULE cp_cfm_types
 
    PUBLIC :: cp_cfm_type, cp_cfm_p_type, copy_cfm_info_type
    PUBLIC :: cp_cfm_cleanup_copy_general, &
+             cp_cfm_copy_general, &
              cp_cfm_create, &
              cp_cfm_finish_copy_general, &
              cp_cfm_get_element, &
@@ -891,6 +892,36 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_to_cfm
+
+! **************************************************************************************************
+!> \brief General copy of a cfm matrix to another cfm matrix.
+!>        Uses non-blocking MPI rather than ScaLAPACK.
+!> \param source input cfm matrix
+!> \param destination output cfm matrix
+!> \param para_env parallel environment corresponding to the BLACS env that covers all parts
+!>                  of the input and output matrices
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_copy_general(source, destination, para_env)
+      TYPE(cp_cfm_type), INTENT(IN)                      :: source, destination
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_copy_general'
+
+      INTEGER                                            :: handle
+      TYPE(copy_cfm_info_type)                           :: info
+
+      CALL timeset(routineN, handle)
+
+      CALL cp_cfm_start_copy_general(source, destination, para_env, info)
+      IF (ASSOCIATED(destination%matrix_struct)) THEN
+         CALL cp_cfm_finish_copy_general(destination, info)
+      END IF
+      IF (ASSOCIATED(source%matrix_struct)) THEN
+         CALL cp_cfm_cleanup_copy_general(info)
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE cp_cfm_copy_general
 
 ! **************************************************************************************************
 !> \brief Initiate the copy operation: get distribution data, post MPI isend and irecvs.
