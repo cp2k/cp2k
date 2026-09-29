@@ -17,10 +17,12 @@ MODULE rpa_util
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
-   USE cp_cfm_types,                    ONLY: &
-        copy_cfm_info_type, cp_cfm_cleanup_copy_general, cp_cfm_create, &
-        cp_cfm_finish_copy_general, cp_cfm_release, cp_cfm_set_all, cp_cfm_start_copy_general, &
-        cp_cfm_type, cp_fm_to_cfm
+   USE cp_cfm_types,                    ONLY: cp_cfm_copy_general,&
+                                              cp_cfm_create,&
+                                              cp_cfm_release,&
+                                              cp_cfm_set_all,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_filter, dbcsr_get_info, dbcsr_multiply, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
@@ -403,7 +405,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reorder_cfm_mat_L'
 
       INTEGER                                            :: handle, ikp
-      TYPE(copy_cfm_info_type)                           :: copy_info
 
       CALL timeset(routineN, handle)
 
@@ -412,9 +413,7 @@ CONTAINS
          IF (ikp == first_ikp_local .OR. ikp_local == -1) THEN
             CALL cp_cfm_create(cfm_mat_L(ikp), fm_struct_sub_kp, set_zero=.TRUE.)
          END IF
-         CALL cp_cfm_start_copy_general(cfm_matrix_L_kpoints(ikp), cfm_mat_L(ikp), para_env, copy_info)
-         IF (ASSOCIATED(cfm_mat_L(ikp)%matrix_struct)) CALL cp_cfm_finish_copy_general(cfm_mat_L(ikp), copy_info)
-         IF (ASSOCIATED(cfm_matrix_L_kpoints(ikp)%matrix_struct)) CALL cp_cfm_cleanup_copy_general(copy_info)
+         CALL cp_cfm_copy_general(cfm_matrix_L_kpoints(ikp), cfm_mat_L(ikp), para_env)
          IF (ASSOCIATED(cfm_matrix_L_kpoints(ikp)%matrix_struct)) CALL cp_cfm_release(cfm_matrix_L_kpoints(ikp))
       END DO
       DEALLOCATE (cfm_matrix_L_kpoints)
