@@ -1232,8 +1232,9 @@ CONTAINS
             IF (do_im_time) CPABORT("STCOHSEX is only implemented in the O(N^4) GW code.")
             IF (do_periodic) CPABORT("STCOHSEX with PERIODIC_CORRECTION is not implemented.")
             ! BSE after st-COHSEX: W = v + α W^c(0) with one α for both A and B
-            IF (do_bse .AND. mp2_env%ri_g0w0%stfacip /= mp2_env%ri_g0w0%stfacea) &
-               CPABORT("BSE after STCOHSEX requires STFACIP = STFACEA (the scaling of W^c in the BSE).")
+            IF (do_bse .AND. mp2_env%ri_g0w0%stfacip /= mp2_env%ri_g0w0%stfacea) then
+              CPABORT("BSE after STCOHSEX requires STFACIP = STFACEA (the scaling of W^c in the BSE).")
+            end if
             IF (do_ri_sos_laplace_mp2) CPABORT("STCOHSEX with SOS-MP2 is not implemented.")
             ! st-COHSEX is one-shot @DFT: Σ^COHSEX is static, no quasiparticle self-consistency
             iter_evGW = 1
@@ -1465,10 +1466,10 @@ CONTAINS
          ! ==============================================================================
          ! st-COHSEX: only the static screening at ω = 0, no frequency integration, no
          ! analytic continuation and no RPA correlation energy (Erpa stays zero)
-         !   S^P_ia(0) = B^P_ia sqrt(1/(ϵ_a - ϵ_i))         
-         !   Q_PQ(0)   = α Σ_ia S^P_ia S^Q_ia,  α = 4 (closed shell), 2 (per spin, open shell)
+         !   S^P_ia(0) = B^P_ia sqrt(1/(ϵ_a - ϵ_i))
+         !   Q_PQ(0)   = 4 Σ_ia S^P_ia S^Q_ia (closed shell), 2 Σ_ia S^P_ia S^Q_ia per spin (open shell)
          !   Q_PQ(0)   = Σ_σ Q^σ_PQ(0)                          (spin sum, open shell)
-         !   ε_PQ(0)   = δ_PQ + Q_PQ(0)                      
+         !   ε_PQ(0)   = δ_PQ + Q_PQ(0)
          ! then W^c(0), Σ^c, Σ^x, H^QP and the diagonal/canonical st-COHSEX energies
          ! ==============================================================================
          IF (do_stcohsex) THEN
@@ -1870,8 +1871,9 @@ CONTAINS
             ALLOCATE (mo_coeff_bse(nspins))
             DO ispin = 1, nspins
                ! the ab slab holds the first bse_lev_virt virtuals: U must not mix beyond them
-               IF (gw_corr_lev_virt(ispin) > bse_lev_virt(ispin)) &
-                  CPABORT("Canonical st-COHSEX BSE: the corrected virtual MOs exceed the BSE (ab) slab.")
+               IF (gw_corr_lev_virt(ispin) > bse_lev_virt(ispin)) then
+                 CPABORT("Canonical st-COHSEX BSE: the corrected virtual MOs exceed the BSE (ab) slab.")
+               end if
                CALL rotate_bse_slab(fm_mat_S_ia_bse(ispin), dimen_RI_red, homo(ispin), virtual(ispin), &
                                     stcohsex_u(1:homo(ispin), 1:homo(ispin), ispin), &
                                     stcohsex_u(homo(ispin) + 1:nmo, homo(ispin) + 1:nmo, ispin), mp2_env)

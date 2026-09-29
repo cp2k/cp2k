@@ -736,15 +736,22 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STCOHSEX", &
-                          description="Static Coulomb hole screened exchange (st-COHSEX) instead of the "// &
-                          "frequency-integrated G0W0. Only W(omega=0) is computed, the correlation "// &
-                          "self-energy is Sigma^c_mn = 1/2 sum_p W^c_mppn(omega=0) sgn(eps_p - eps_F). "// &
-                          "The quasiparticle Hamiltonian eps^DFT + Sigma^x - v^xc + Sigma^c is built in "// &
-                          "the space of the corrected MOs (CORR_MOS_OCC, CORR_MOS_VIRT); its diagonal "// &
-                          "gives the diagonal st-COHSEX energies and the separate diagonalization of its "// &
-                          "occupied-occupied and virtual-virtual blocks gives the canonical st-COHSEX "// &
-                          "energies and MOs. The canonical MOs are printed with DFT%PRINT%MO and "// &
-                          "DFT%PRINT%MO_CUBES. No RPA correlation energy is computed.", &
+                          description="Static Coulomb-hole screened-exchange (st-COHSEX) approximation "// &
+                          "to G0W0. Only the static screened Coulomb "// &
+                          "interaction $W(\omega=0)$ is computed; its correlation part "// &
+                          "$W^\text{c}(0) = W(0) - v$ gives the correlation self-energy "// &
+                          "$\Sigma^\text{c}_{mn} = \frac{1}{2}\sum_p \text{sgn}(\varepsilon_p - "// &
+                          "\varepsilon_\text{F})\, W^\text{c}_{mp,pn}(\omega=0)$. "// &
+                          "The quasiparticle Hamiltonian "// &
+                          "$H^\text{QP}_{mn} = \varepsilon_n^\text{DFT}\delta_{mn} + \Sigma^\text{x}_{mn} "// &
+                          "- v^\text{xc}_{mn} + \alpha_{mn}\,\Sigma^\text{c}_{mn}$, with "// &
+                          "$\alpha_{mn} = \alpha_\text{IP}$ = STFACIP in the occupied-occupied and "// &
+                          "$\alpha_{mn} = \alpha_\text{EA}$ = STFACEA in the virtual-virtual block, is built for the "// &
+                          "(CORR_MOS_OCC, CORR_MOS_VIRT) MO space. Its diagonal gives the diagonal "// &
+                          "st-COHSEX energies $\varepsilon_n^\text{DG} = H^\text{QP}_{nn}$; diagonalizing the "// &
+                          "occupied-occupied and virtual-virtual blocks separately gives the canonical "// &
+                          "st-COHSEX energies $\varepsilon_n^\text{CN}$ and MOs. The canonical MOs are printed "// &
+                          "with DFT%PRINT%MO and DFT%PRINT%MO_CUBES.", &
                           usage="STCOHSEX", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -752,28 +759,36 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="STCOHSEX_BSE_ENERGIES", &
                           description="Quasiparticle energies and MOs that enter a BSE after STCOHSEX. "// &
-                          "The BSE kernel is W = v + STFACIP*W^c(omega=0), which requires STFACIP = STFACEA.", &
+                          "The BSE kernel is $W = v + \alpha\, W^\text{c}(\omega=0)$ with "// &
+                          "$\alpha = \alpha_\text{IP} = \alpha_\text{EA}$, i.e. STFACIP = STFACEA is required: "// &
+                          "$A_{ia,jb} = (\varepsilon_a - \varepsilon_i)\delta_{ij}\delta_{ab} + 2(ia|jb) "// &
+                          "- (ij|ab) - \alpha\,(ij|W^\text{c}|ab)$ and "// &
+                          "$B_{ia,jb} = 2(ia|jb) - (ib|ja) - \alpha\,(ib|W^\text{c}|ja)$.", &
                           usage="STCOHSEX_BSE_ENERGIES CANONICAL", &
                           enum_c_vals=s2a("DIAGONAL", "CANONICAL"), &
                           enum_i_vals=[0, 1], &
-                          enum_desc=s2a("Diagonal st-COHSEX energies e_n^DG with the Kohn-Sham MOs.", &
-                                        "Canonical st-COHSEX energies e_n^CN with the canonical st-COHSEX "// &
-                                        "MOs, i.e. the full st-COHSEX quasiparticle Hamiltonian."), &
+                          enum_desc=s2a("Diagonal st-COHSEX energies $\varepsilon_n^\text{DG}$ with the "// &
+                                        "Kohn-Sham MOs.", &
+                                        "Canonical st-COHSEX energies $\varepsilon_n^\text{CN}$ with the canonical "// &
+                                        "st-COHSEX MOs, i.e. the full st-COHSEX quasiparticle Hamiltonian "// &
+                                        "$H^\text{QP}$ including its off-diagonal elements."), &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STFACIP", &
-                          description="Scaling factor of the st-COHSEX correlation self-energy in the "// &
-                          "occupied-occupied block (ionization potentials).", &
+                          description="Scaling factor $\alpha_\text{IP}$ of the st-COHSEX correlation "// &
+                          "self-energy $\Sigma^\text{c}_{ij}$ in the occupied-occupied block (ionization "// &
+                          "potentials).", &
                           usage="STFACIP 0.6", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STFACEA", &
-                          description="Scaling factor of the st-COHSEX correlation self-energy in the "// &
-                          "virtual-virtual block (electron affinities).", &
+                          description="Scaling factor $\alpha_\text{EA}$ of the st-COHSEX correlation "// &
+                          "self-energy $\Sigma^\text{c}_{ab}$ in the virtual-virtual block (electron "// &
+                          "affinities).", &
                           usage="STFACEA 0.6", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)

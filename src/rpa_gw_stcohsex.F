@@ -29,8 +29,8 @@
 !>          Σ^x_mn     = -Σ_i^occ Σ_P B^P_mi B^P_in          (RI_SIGMA_X; else from HFX)
 !>
 !>        Quasiparticle Hamiltonian in the window:
-!>          H^QP_mn    = ϵ_n δ_mn + Σ^x_mn - v^xc_mn + f_mn Σ^c_mn
-!>          f_mn       = STFACIP (m,n occupied),  STFACEA (m,n virtual),  H^QP_ia = 0
+!>          H^QP_mn    = ϵ_n δ_mn + Σ^x_mn - v^xc_mn + α_mn Σ^c_mn
+!>          α_mn       = α_IP = STFACIP (m,n occupied),  α_EA = STFACEA (m,n virtual),  H^QP_ia = 0
 !>          ϵ_n^DG     = H^QP_nn                              (diagonal st-COHSEX)
 !>          H^QP U     = U ϵ^CN, occ-occ and virt-virt block separately   (canonical st-COHSEX)
 !>          C^QP_μn    = Σ_m C_μm U_mn                        (st-COHSEX MOs)
@@ -167,9 +167,9 @@ CONTAINS
       CALL cp_fm_get_info(mo_coeff(1), para_env=para_env)
 
       ! ==============================================================================
-      ! 1. Static correlation part of the screened Coulomb interaction 
-      !      ε_PQ(0)   = δ_PQ + Q_PQ(0)                        
-      !      W^c_PQ(0) = ε^(-1)_PQ(0) - δ_PQ                  
+      ! 1. Static correlation part of the screened Coulomb interaction
+      !      ε_PQ(0)   = δ_PQ + Q_PQ(0)
+      !      W^c_PQ(0) = ε^(-1)_PQ(0) - δ_PQ
       ! ==============================================================================
       CALL cp_fm_cholesky_decompose(fm_mat_Q, n=dimen_RI)
       CALL cp_fm_cholesky_invert(fm_mat_Q)
@@ -220,8 +220,8 @@ CONTAINS
 
          ! ==============================================================================
          ! 3. Reorder the compound index for O(N^4) contractions over (p,P)
-         !      B'_(p,P),m      = B^P_mp         
-         !      (W^c B)'_(p,P),m = (W^c B)^P_mp   
+         !      B'_(p,P),m      = B^P_mp
+         !      (W^c B)'_(p,P),m = (W^c B)^P_mp
          !    row index (p-1)*dimen_RI + P, P fast: the occupied p (p <= homo) are the
          !    first homo*dimen_RI rows. fm_general_add_bse maps the input indices
          !    (P,1 ; m,p) with reordering [4,1,3,2] to (p,P ; m,1).
@@ -246,7 +246,7 @@ CONTAINS
          ALLOCATE (sigma_c(n_mo_win, n_mo_win), sigma_x(n_mo_win, n_mo_win))
 
          ! ==============================================================================
-         ! 4. Correlation self-energy 
+         ! 4. Correlation self-energy
          !      Σ^c_mn = Σ_p s_p Σ_PQ B^P_mp W^c_PQ(0) B^Q_pn
          !             = Σ_(p,P) (W^c B)'_(p,P),m B'_(p,P),n
          ! ==============================================================================
@@ -272,7 +272,7 @@ CONTAINS
          CALL cp_fm_release(fm_WB_re)
 
          ! ==============================================================================
-         ! 6. v^xc and Σ^x - v^xc in the MO window 
+         ! 6. v^xc and Σ^x - v^xc in the MO window
          !      v^xc_mn         = Σ_μν C_μm v^xc_μν C_νn
          !      (Σ^x - v^xc)_mn = Σ_μν C_μm (Σ^x - v^xc)_μν C_νn
          !    The AO matrix (Σ^x - v^xc)_μν holds the HFX exchange Σ^x_μν without
@@ -288,8 +288,8 @@ CONTAINS
 
          ! ==============================================================================
          ! 7. st-COHSEX quasiparticle Hamiltonian in the window
-         !      H^QP_ij = ϵ_i δ_ij + Σ^x_ij - v^xc_ij + STFACIP Σ^c_ij   (occ-occ)
-         !      H^QP_ab = ϵ_a δ_ab + Σ^x_ab - v^xc_ab + STFACEA Σ^c_ab   (virt-virt)
+         !      H^QP_ij = ϵ_i δ_ij + Σ^x_ij - v^xc_ij + α_IP Σ^c_ij   (occ-occ)
+         !      H^QP_ab = ϵ_a δ_ab + Σ^x_ab - v^xc_ab + α_EA Σ^c_ab   (virt-virt)
          !      H^QP_ia = 0                                              (occ-virt)
          !    symmetrized, H^QP = (H^QP + H^QP^T)/2
          !      ϵ_n^DG  = H^QP_nn                                        (diagonal st-COHSEX)
