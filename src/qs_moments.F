@@ -29,8 +29,7 @@ MODULE qs_moments
                          get_cell
    USE commutator_rpnl, ONLY: build_com_mom_nl
    USE cp_blacs_env, ONLY: cp_blacs_env_type
-   USE cp_cfm_basic_linalg, ONLY: cp_cfm_det, &
-                                  cp_cfm_gemm
+   USE cp_cfm_basic_linalg, ONLY: cp_cfm_det
    USE cp_cfm_types, ONLY: cp_cfm_copy_general, &
                            cp_cfm_create, &
                            cp_cfm_get_element, &
@@ -87,11 +86,11 @@ MODULE qs_moments
                             z_one, &
                             z_zero
    USE message_passing, ONLY: mp_para_env_type
+   USE parallel_gemm_api, ONLY: parallel_gemm
    USE moments_utils, ONLY: get_reference_point
    USE orbital_pointers, ONLY: current_maxl, &
                                indco, &
                                ncoset
-   USE parallel_gemm_api, ONLY: parallel_gemm
    USE particle_methods, ONLY: get_particle_set
    USE particle_types, ONLY: particle_type
    USE physcon, ONLY: bohr, &
@@ -3295,7 +3294,7 @@ CONTAINS
       TYPE(cp_cfm_type)                                  :: cfm_empty, cfm_mo_coeff_global, &
                                                             cfm_moment, cfm_operator, cfm_work
       TYPE(cp_fm_type)                                   :: fm_dummy, fm_mo_coeff_global, &
-                                                            fm_operator_component
+                                                            fm_operator_imag, fm_operator_real
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: overlap_deriv
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -3394,7 +3393,8 @@ CONTAINS
             CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, &
                                      para_env=para_env, context=blacs_env_all)
             CALL cp_cfm_create(cfm_operator, fm_struct)
-            CALL cp_fm_create(fm_operator_component, fm_struct)
+            CALL cp_fm_create(fm_operator_real, fm_struct)
+            CALL cp_fm_create(fm_operator_imag, fm_struct)
             CALL cp_fm_struct_release(fm_struct)
 
             IF (my_kpgrp) THEN
@@ -3438,15 +3438,13 @@ CONTAINS
                                    cell_to_index=cell_to_index, sab_nl=sab_kp)
 
                ! Project A = rmatrix + i*cmatrix as C^H A C.
-               CALL copy_dbcsr_to_fm(rmatrix, fm_operator_component)
-               cfm_operator%local_data = CMPLX(fm_operator_component%local_data, 0.0_dp, KIND=dp)
-               CALL copy_dbcsr_to_fm(cmatrix, fm_operator_component)
-               cfm_operator%local_data = CMPLX(REAL(cfm_operator%local_data, KIND=dp), &
-                                               fm_operator_component%local_data, KIND=dp)
-               CALL cp_cfm_gemm("N", "N", nao, nmo, nao, z_one, cfm_operator, &
-                                cfm_mo_coeff_global, z_zero, cfm_work)
-               CALL cp_cfm_gemm("C", "N", nmo, nmo, nao, z_one, cfm_mo_coeff_global, &
-                                cfm_work, z_zero, cfm_moment)
+               CALL copy_dbcsr_to_fm(rmatrix, fm_operator_real)
+               CALL copy_dbcsr_to_fm(cmatrix, fm_operator_imag)
+               CALL cp_fm_to_cfm(fm_operator_real, fm_operator_imag, cfm_operator)
+               CALL parallel_gemm("N", "N", nao, nmo, nao, z_one, cfm_operator, &
+                                  cfm_mo_coeff_global, z_zero, cfm_work)
+               CALL parallel_gemm("C", "N", nmo, nmo, nao, z_one, cfm_mo_coeff_global, &
+                                  cfm_work, z_zero, cfm_moment)
 
                DO n = 1, nmo
                   DO m = 1, nmo
@@ -3464,7 +3462,8 @@ CONTAINS
             CALL cp_cfm_release(cfm_work)
             CALL cp_cfm_release(cfm_moment)
             CALL cp_cfm_release(cfm_operator)
-            CALL cp_fm_release(fm_operator_component)
+            CALL cp_fm_release(fm_operator_real)
+            CALL cp_fm_release(fm_operator_imag)
             DEALLOCATE (eigenvalues_kp)
          END DO
       END DO

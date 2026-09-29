@@ -19,7 +19,6 @@ MODULE qs_wannier90
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
    USE cp_cfm_types,                    ONLY: &
         cp_cfm_copy_general, cp_cfm_create, cp_cfm_get_element, cp_cfm_get_info, &
         cp_cfm_get_submatrix, cp_cfm_release, cp_cfm_set_submatrix, cp_cfm_to_cfm, cp_cfm_type, &
@@ -68,6 +67,7 @@ MODULE qs_wannier90
    USE mathconstants,                   ONLY: twopi
    USE mathlib,                         ONLY: diag_complex
    USE message_passing,                 ONLY: mp_para_env_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
@@ -1090,10 +1090,10 @@ CONTAINS
                CALL copy_dbcsr_to_fm(rmatrix_full, mat_real)
                CALL copy_dbcsr_to_fm(cmatrix_full, mat_imag)
                CALL cp_fm_to_cfm(mat_real, mat_imag, omat_cfm)
-               CALL cp_cfm_gemm("N", "N", nao, nmo, nao, CMPLX(1.0_dp, 0.0_dp, dp), &
-                                omat_cfm, fmk1_cfm, CMPLX(0.0_dp, 0.0_dp, dp), tmp_cfm)
-               CALL cp_cfm_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, dp), &
-                                fmk1_cfm, tmp_cfm, CMPLX(0.0_dp, 0.0_dp, dp), mmn_cfm)
+               CALL parallel_gemm("N", "N", nao, nmo, nao, CMPLX(1.0_dp, 0.0_dp, dp), &
+                                  omat_cfm, fmk1_cfm, CMPLX(0.0_dp, 0.0_dp, dp), tmp_cfm)
+               CALL parallel_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, dp), &
+                                  fmk1_cfm, tmp_cfm, CMPLX(0.0_dp, 0.0_dp, dp), mmn_cfm)
                CALL cp_cfm_get_submatrix(mmn_cfm, soc_xyz(:, :, axis))
             END DO
             soc_h(1:nmo, 1:nmo) = soc_xyz(:, :, 3)
@@ -1180,10 +1180,10 @@ CONTAINS
                CALL copy_dbcsr_to_fm(rmatrix_full, mat_real)
                CALL copy_dbcsr_to_fm(cmatrix_full, mat_imag)
                CALL cp_fm_to_cfm(mat_real, mat_imag, omat_cfm)
-               CALL cp_cfm_gemm("N", "N", nao, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-                                omat_cfm, fmk2_cfm, CMPLX(0.0_dp, 0.0_dp, KIND=dp), tmp_cfm)
-               CALL cp_cfm_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-                                fmk1_cfm, tmp_cfm, CMPLX(0.0_dp, 0.0_dp, KIND=dp), mmn_cfm)
+               CALL parallel_gemm("N", "N", nao, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
+                                  omat_cfm, fmk2_cfm, CMPLX(0.0_dp, 0.0_dp, KIND=dp), tmp_cfm)
+               CALL parallel_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
+                                  fmk1_cfm, tmp_cfm, CMPLX(0.0_dp, 0.0_dp, KIND=dp), mmn_cfm)
                IF (do_soc) THEN
                   CALL cp_cfm_get_submatrix(mmn_cfm, scalar_overlap)
                   link_matrix(:, :) = MATMUL(CONJG(TRANSPOSE(spinor_coeff(1:nmo, :, ik))), &
@@ -2484,8 +2484,8 @@ CONTAINS
                                para_env=matrix_struct_metric%para_env, &
                                context=matrix_struct_metric%context)
       CALL cp_cfm_create(metric_cfm, matrix_struct_projected)
-      CALL cp_cfm_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), cand_cfm, &
-                       s_cand, CMPLX(0.0_dp, 0.0_dp, KIND=dp), metric_cfm)
+      CALL parallel_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), cand_cfm, &
+                         s_cand, CMPLX(0.0_dp, 0.0_dp, KIND=dp), metric_cfm)
       CALL cp_cfm_get_submatrix(metric_cfm, s_projected)
       s_projected(:, :) = 0.5_dp*(s_projected + CONJG(TRANSPOSE(s_projected)))
       CALL diag_complex(s_projected, metric_vectors, metric_values)
@@ -2572,8 +2572,8 @@ CONTAINS
 
       CALL cp_cfm_create(kmat_cfm, matrix_struct_ao)
       CALL cp_fm_to_cfm(mat_real, mat_imag, kmat_cfm)
-      CALL cp_cfm_gemm("N", "N", nao, ncol, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), kmat_cfm, &
-                       coeff, CMPLX(0.0_dp, 0.0_dp, KIND=dp), RESULT)
+      CALL parallel_gemm("N", "N", nao, ncol, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), kmat_cfm, &
+                         coeff, CMPLX(0.0_dp, 0.0_dp, KIND=dp), RESULT)
 
       CALL cp_fm_release(mat_real)
       CALL cp_fm_release(mat_imag)

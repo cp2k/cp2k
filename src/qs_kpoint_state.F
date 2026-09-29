@@ -9,8 +9,7 @@
 !> \brief Methods for preparing and committing k-point orbital states to the QS environment.
 ! **************************************************************************************************
 MODULE qs_kpoint_state
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm,&
-                                              cp_cfm_scale,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale,&
                                               cp_cfm_vectorsnorm
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_heevd
@@ -39,6 +38,7 @@ MODULE qs_kpoint_state
    USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -123,10 +123,10 @@ CONTAINS
             ! The largest eigenvectors of S*P*S*C = S*C*n are the natural orbitals of
             ! S**(1/2)*P*S**(1/2). Negating the left-hand side lets the generalized
             ! eigensolver request only its lowest nocc eigenpairs when supported.
-            CALL cp_cfm_gemm('N', 'N', nao, nao, nao, z_one, matrix_p, matrix_s, &
-                             z_zero, density_work)
-            CALL cp_cfm_gemm('N', 'N', nao, nao, nao, z_one, matrix_s, density_work, &
-                             z_zero, density_metric)
+            CALL parallel_gemm('N', 'N', nao, nao, nao, z_one, matrix_p, matrix_s, &
+                               z_zero, density_work)
+            CALL parallel_gemm('N', 'N', nao, nao, nao, z_one, matrix_s, density_work, &
+                               z_zero, density_metric)
             CALL cp_cfm_scale(-z_one, density_metric)
             CALL cp_cfm_to_cfm(matrix_s, matrix_s_work)
             ALLOCATE (density_eigenvalues(nocc))
@@ -211,12 +211,12 @@ CONTAINS
             IF (ALLOCATED(kpoints%lowdin_v)) CALL lowdin_kp_apply(kp, kpoints%lowdin_v(:, ispin), cmat=matrix_h)
             CALL cp_cfm_to_cfm(cmo_coeff, coeff, nocc)
 
-            CALL cp_cfm_gemm('N', 'N', nao, nocc, nao, z_one, matrix_h, coeff, z_zero, hc)
-            CALL cp_cfm_gemm('C', 'N', nocc, nocc, nao, z_one, coeff, hc, z_zero, hblock)
+            CALL parallel_gemm('N', 'N', nao, nocc, nao, z_one, matrix_h, coeff, z_zero, hc)
+            CALL parallel_gemm('C', 'N', nocc, nocc, nao, z_one, coeff, hc, z_zero, hblock)
             ALLOCATE (ritz_values(nocc))
             CALL cp_cfm_heevd(hblock, eigenvectors, ritz_values)
-            CALL cp_cfm_gemm('N', 'N', nao, nocc, nocc, z_one, coeff, eigenvectors, &
-                             z_zero, rotated)
+            CALL parallel_gemm('N', 'N', nao, nocc, nocc, z_one, coeff, eigenvectors, &
+                               z_zero, rotated)
             CALL cp_cfm_to_cfm(rotated, cmo_coeff, nocc)
             eigenvalues_re(1:nocc) = ritz_values
             DEALLOCATE (ritz_values)

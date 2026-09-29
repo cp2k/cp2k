@@ -20,7 +20,6 @@ MODULE kpoint_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
-                                              cp_cfm_gemm,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_transpose
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -1975,7 +1974,7 @@ CONTAINS
       CALL cp_cfm_create(weighted, coeff%matrix_struct)
       CALL cp_cfm_create(hblock, coeff%matrix_struct, nrow=nmo, ncol=nmo)
       CALL cp_cfm_create(hblock_h, coeff%matrix_struct, nrow=nmo, ncol=nmo)
-      CALL cp_cfm_gemm("C", "N", nmo, nmo, nao, zone, coeff, hc, zzero, hblock)
+      CALL parallel_gemm("C", "N", nmo, nmo, nao, zone, coeff, hc, zzero, hblock)
 
       ALLOCATE (occupation_complex(nmo))
       occupation_complex(:) = CMPLX(occupation(1:nmo), 0.0_dp, KIND=dp)
@@ -1984,8 +1983,8 @@ CONTAINS
       CALL cp_cfm_transpose(hblock, "C", hblock_h)
       CALL cp_cfm_scale_and_add(zhalf, hblock, zhalf, hblock_h)
 
-      CALL cp_cfm_gemm("N", "N", nao, nmo, nmo, zone, coeff, hblock, zzero, weighted)
-      CALL cp_cfm_gemm("N", "C", nao, nao, nmo, zone, weighted, coeff, zzero, wmat)
+      CALL parallel_gemm("N", "N", nao, nmo, nmo, zone, coeff, hblock, zzero, weighted)
+      CALL parallel_gemm("N", "C", nao, nao, nmo, zone, weighted, coeff, zzero, wmat)
 
       CALL cp_cfm_release(hblock_h)
       CALL cp_cfm_release(hblock)
@@ -2197,8 +2196,8 @@ CONTAINS
          CPASSERT(PRESENT(cshalfc))
          mo_set => kp%mos(ispin)
          CALL get_mo_set(mo_set, nao=nao, nmo=nmo)
-         CALL cp_cfm_gemm("N", "N", nao, nmo, nao, z_one, kp%cshalf, &
-                          mo_set%cmo_coeff, z_zero, cshalfc)
+         CALL parallel_gemm("N", "N", nao, nmo, nao, z_one, kp%cshalf, &
+                            mo_set%cmo_coeff, z_zero, cshalfc)
       END IF
 
    END SUBROUTINE lowdin_kp_mo_coeff

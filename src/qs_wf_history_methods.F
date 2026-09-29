@@ -27,7 +27,6 @@ MODULE qs_wf_history_methods
                                               pbc,&
                                               real_to_scaled
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
-                                              cp_cfm_gemm,&
                                               cp_cfm_scale,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_trace,&
@@ -1386,16 +1385,16 @@ CONTAINS
                                                xkp(1:3, ik), matrix_s_kp(1, 1)%matrix)
             END IF
 
-            CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, &
-                             csmat_cur(ikp), cmos_new, z_zero, cfm_nao_nmo_work)
-            CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, &
-                             cmos_new, cfm_nao_nmo_work, z_zero, csc_cfm)
+            CALL parallel_gemm('N', 'N', nao, nmo, nao, z_one, &
+                               csmat_cur(ikp), cmos_new, z_zero, cfm_nao_nmo_work)
+            CALL parallel_gemm('C', 'N', nmo, nmo, nao, z_one, &
+                               cmos_new, cfm_nao_nmo_work, z_zero, csc_cfm)
 
             CALL cp_cfm_cholesky_decompose(csc_cfm, info_out=chol_info)
             IF (chol_info == 0) THEN
                CALL cp_cfm_triangular_multiply(csc_cfm, cmos_new, side='R', invert_tr=.TRUE., uplo_tr='U')
             ELSE
-               CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, cmos_new, cfm_nao_nmo_work, z_zero, csc_cfm)
+               CALL parallel_gemm('C', 'N', nmo, nmo, nao, z_one, cmos_new, cfm_nao_nmo_work, z_zero, csc_cfm)
                CALL cp_cfm_create(cfm_evecs, csc_cfm%matrix_struct)
                CALL cp_cfm_create(cfm_mhalf, csc_cfm%matrix_struct)
                CALL cp_cfm_heevd(csc_cfm, cfm_evecs, eigenvalues)
@@ -1410,8 +1409,8 @@ CONTAINS
                END DO
                CALL cp_cfm_column_scale(cfm_mhalf, col_scaling)
                DEALLOCATE (col_scaling)
-               CALL cp_cfm_gemm('N', 'C', nmo, nmo, nmo, z_one, cfm_mhalf, cfm_evecs, z_zero, csc_cfm)
-               CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, cmos_new, csc_cfm, z_zero, cfm_nao_nmo_work)
+               CALL parallel_gemm('N', 'C', nmo, nmo, nmo, z_one, cfm_mhalf, cfm_evecs, z_zero, csc_cfm)
+               CALL parallel_gemm('N', 'N', nao, nmo, nmo, z_one, cmos_new, csc_cfm, z_zero, cfm_nao_nmo_work)
                CALL cp_cfm_to_cfm(cfm_nao_nmo_work, cmos_new)
                CALL cp_cfm_release(cfm_evecs)
                CALL cp_cfm_release(cfm_mhalf)
@@ -1688,12 +1687,12 @@ CONTAINS
                                                xkp(1:3, ik), matrix_s_kp(1, 1)%matrix)
 
                ! Subspace projection: C_proj = C_i * (C_i^dag S_i C_1)
-               CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, &
-                                t0_state%overlap_cfm_kp(ikp), cmos_1, z_zero, cfm_nao_nmo_work)
-               CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, &
-                                cmos_i, cfm_nao_nmo_work, z_zero, csc_cfm)
-               CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, &
-                                cmos_i, csc_cfm, z_zero, cfm_nao_nmo_work)
+               CALL parallel_gemm('N', 'N', nao, nmo, nao, z_one, &
+                                  t0_state%overlap_cfm_kp(ikp), cmos_1, z_zero, cfm_nao_nmo_work)
+               CALL parallel_gemm('C', 'N', nmo, nmo, nao, z_one, &
+                                  cmos_i, cfm_nao_nmo_work, z_zero, csc_cfm)
+               CALL parallel_gemm('N', 'N', nao, nmo, nmo, z_one, &
+                                  cmos_i, csc_cfm, z_zero, cfm_nao_nmo_work)
 
                ! Convert the projected contribution from snapshot i to the reference
                ! image convention of snapshot 1. The final conversion to the current
@@ -1855,12 +1854,12 @@ CONTAINS
                CALL wfi_apply_kp_pbc_phase_cfm(cmos_1, t0_state%kp_pbc_shift - t1_state%kp_pbc_shift, &
                                                xkp(1:3, ik), matrix_s_kp(1, 1)%matrix)
 
-               CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, &
-                                t0_state%overlap_cfm_kp(ikp), cmos_1, z_zero, cfm_nao_nmo_work)
-               CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, &
-                                cmos_i, cfm_nao_nmo_work, z_zero, csc_cfm)
-               CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, &
-                                cmos_i, csc_cfm, z_zero, cfm_nao_nmo_work)
+               CALL parallel_gemm('N', 'N', nao, nmo, nao, z_one, &
+                                  t0_state%overlap_cfm_kp(ikp), cmos_1, z_zero, cfm_nao_nmo_work)
+               CALL parallel_gemm('C', 'N', nmo, nmo, nao, z_one, &
+                                  cmos_i, cfm_nao_nmo_work, z_zero, csc_cfm)
+               CALL parallel_gemm('N', 'N', nao, nmo, nmo, z_one, &
+                                  cmos_i, csc_cfm, z_zero, cfm_nao_nmo_work)
 
                CALL wfi_apply_kp_pbc_phase_cfm(cfm_nao_nmo_work, t1_state%kp_pbc_shift - t0_state%kp_pbc_shift, &
                                                xkp(1:3, ik), matrix_s_kp(1, 1)%matrix)

@@ -12,7 +12,6 @@
 !> \author MK (29.10.2002)
 ! **************************************************************************************************
 MODULE qs_matrix_w
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_get_info,&
                                               cp_cfm_release,&
@@ -38,6 +37,7 @@ MODULE qs_matrix_w
                                               kpoint_ot_energy_weighted_density
    USE kpoint_types,                    ONLY: kpoint_env_type,&
                                               kpoint_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_density_matrices,             ONLY: calculate_w_matrix,&
                                               calculate_w_matrix_ot
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -266,8 +266,8 @@ CONTAINS
 
                ! Smearing occupations are k-point resolved, whereas mo_set%homo is not.
                CALL cp_cfm_create(hc, kp%mos(ispin)%cmo_coeff%matrix_struct, set_zero=.TRUE.)
-               CALL cp_cfm_gemm("N", "N", nao, nmo, nao, zone, h_k, &
-                                kp%mos(ispin)%cmo_coeff, zzero, hc)
+               CALL parallel_gemm("N", "N", nao, nmo, nao, zone, h_k, &
+                                  kp%mos(ispin)%cmo_coeff, zzero, hc)
                IF (ALLOCATED(kpoint%lowdin_v)) THEN
                   CALL lowdin_kp_apply_mo(kp, kpoint%lowdin_v(:, ispin), &
                                           kp%mos(ispin)%cmo_coeff, hc)

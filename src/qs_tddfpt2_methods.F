@@ -17,12 +17,12 @@ MODULE qs_tddfpt2_methods
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_gemm
    USE cp_cfm_types,                    ONLY: cp_cfm_copy_general,&
                                               cp_cfm_create,&
                                               cp_cfm_get_element,&
                                               cp_cfm_release,&
-                                              cp_cfm_type
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rixs_control_type,&
                                               tddfpt2_control_type
@@ -84,6 +84,7 @@ MODULE qs_tddfpt2_methods
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE min_basis_set,                   ONLY: create_minbas_set
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -1033,7 +1034,7 @@ CONTAINS
                                                             cfm_moment, cfm_operator, cfm_work
       TYPE(cp_cfm_type), POINTER                         :: cmo_coeff_source
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_operator_component
+      TYPE(cp_fm_type)                                   :: fm_operator_imag, fm_operator_real
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: overlap_deriv
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1162,7 +1163,8 @@ CONTAINS
                CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nao, &
                                         para_env=para_env, context=blacs_env_all)
                CALL cp_cfm_create(cfm_operator, fm_struct)
-               CALL cp_fm_create(fm_operator_component, fm_struct)
+               CALL cp_fm_create(fm_operator_real, fm_struct)
+               CALL cp_fm_create(fm_operator_imag, fm_struct)
                CALL cp_fm_struct_release(fm_struct)
             END IF
 
@@ -1205,15 +1207,13 @@ CONTAINS
                                       cell_to_index=cell_to_index, sab_nl=sab_kp)
 
                   ! Keep the existing transpose convention: these terms form C^T A C.
-                  CALL copy_dbcsr_to_fm(rmatrix, fm_operator_component)
-                  cfm_operator%local_data = CMPLX(fm_operator_component%local_data, 0.0_dp, KIND=dp)
-                  CALL copy_dbcsr_to_fm(cmatrix, fm_operator_component)
-                  cfm_operator%local_data = CMPLX(REAL(cfm_operator%local_data, KIND=dp), &
-                                                  fm_operator_component%local_data, KIND=dp)
-                  CALL cp_cfm_gemm("N", "N", nao, nmo_spin(ispin), nao, z_one, cfm_operator, &
-                                   cfm_mo_coeff_global, z_zero, cfm_work)
-                  CALL cp_cfm_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, z_one, &
-                                   cfm_mo_coeff_global, cfm_work, z_zero, cfm_moment)
+                  CALL copy_dbcsr_to_fm(rmatrix, fm_operator_real)
+                  CALL copy_dbcsr_to_fm(cmatrix, fm_operator_imag)
+                  CALL cp_fm_to_cfm(fm_operator_real, fm_operator_imag, cfm_operator)
+                  CALL parallel_gemm("N", "N", nao, nmo_spin(ispin), nao, z_one, cfm_operator, &
+                                     cfm_mo_coeff_global, z_zero, cfm_work)
+                  CALL parallel_gemm("T", "N", nmo_spin(ispin), nmo_spin(ispin), nao, z_one, &
+                                     cfm_mo_coeff_global, cfm_work, z_zero, cfm_moment)
                END IF
 
                DO iocc = 1, homo_spin(ispin)
@@ -1255,7 +1255,8 @@ CONTAINS
                CALL cp_cfm_release(cfm_operator)
                CALL cp_cfm_release(cfm_work)
                CALL cp_cfm_release(cfm_mo_coeff_global)
-               CALL cp_fm_release(fm_operator_component)
+               CALL cp_fm_release(fm_operator_real)
+               CALL cp_fm_release(fm_operator_imag)
             END IF
             DEALLOCATE (eigenvalues_kp)
             spin_offset = spin_offset + homo_spin(ispin)*nvirt_spin(ispin)
