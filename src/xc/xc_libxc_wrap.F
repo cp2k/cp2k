@@ -961,6 +961,7 @@ CONTAINS
 #else
       MARK_USED(worker)
       MARK_USED(slot)
+      MARK_USED(host)
       MARK_USED(n)
       CPABORT("libxc_worker_h2d: device backend not compiled in.")
 #endif
@@ -996,6 +997,7 @@ CONTAINS
 #else
       MARK_USED(worker)
       MARK_USED(slot)
+      MARK_USED(host)
       MARK_USED(n)
       CPABORT("libxc_worker_d2h_read: device backend not compiled in.")
 #endif
@@ -1511,6 +1513,25 @@ CONTAINS
       CALL C_F_POINTER(hptr, host_p, [n])
       host(1:n) = host_p(1:n)
    END SUBROUTINE libxc_d2h_read
+
+! **************************************************************************************************
+!> \brief Return a Fortran pointer to a device buffer's underlying GPU memory.
+!> \param buffer ...
+!> \param n ...
+!> \param fptr ...
+! **************************************************************************************************
+   SUBROUTINE libxc_device_buffer_get_ptr(buffer, n, fptr)
+      USE ISO_C_BINDING, ONLY: C_F_POINTER, C_PTR
+      USE offload_api, ONLY: offload_get_buffer_device_pointer
+      TYPE(libxc_device_buffer_type), INTENT(IN)         :: buffer
+      INTEGER, INTENT(IN)                                :: n
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT), POINTER  :: fptr
+
+      TYPE(C_PTR)                                        :: dptr
+
+      dptr = offload_get_buffer_device_pointer(buffer%buffer)
+      CALL C_F_POINTER(dptr, fptr, [n])
+   END SUBROUTINE libxc_device_buffer_get_ptr
 
 ! **************************************************************************************************
 !> \brief LDA exc and vxc on device buffers.
