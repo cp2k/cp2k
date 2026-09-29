@@ -961,7 +961,7 @@ CONTAINS
 #else
       MARK_USED(worker)
       MARK_USED(slot)
-      MARK_USED(host)
+      IF (.FALSE.) THEN; DO; IF (ABS(host(1)) > ABS(host(1))) EXIT; END DO; END IF
       MARK_USED(n)
       CPABORT("libxc_worker_h2d: device backend not compiled in.")
 #endif
@@ -997,7 +997,7 @@ CONTAINS
 #else
       MARK_USED(worker)
       MARK_USED(slot)
-      MARK_USED(host)
+      IF (.FALSE.) THEN; DO; IF (ABS(host(1)) > ABS(host(1))) EXIT; END DO; END IF
       MARK_USED(n)
       CPABORT("libxc_worker_d2h_read: device backend not compiled in.")
 #endif
