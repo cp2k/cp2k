@@ -108,7 +108,7 @@ QS/regtest-dcdft-stress                                     libint libxc !ifx
 QS/regtest-hfx-ri-2                                         libint libxc !ifx
 QS/regtest-LnPP2
 QS/regtest-ot-3-1
-QS/regtest-rVV10
+QS/regtest-rVV10                                             libxc
 QMMM/SE/regtest
 QS/regtest-harris-kp
 QS/regtest-rtbse-linearized-rirs                            libint !ifx
