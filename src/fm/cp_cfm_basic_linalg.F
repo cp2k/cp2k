@@ -1458,6 +1458,8 @@ CONTAINS
       CALL cp_cfm_get_info(matrix=matrix, nrow_local=nrow_local, ncol_local=ncol_local, &
                            row_indices=row_indices, col_indices=col_indices)
 
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i_row, j_col) &
+!$OMP             SHARED(ncol_local, nrow_local, row_indices, col_indices, max_index, matrix, alpha)
       DO j_col = 1, ncol_local
          DO i_row = 1, nrow_local
             IF (row_indices(i_row) == col_indices(j_col) .AND. row_indices(i_row) <= max_index) THEN
@@ -1465,6 +1467,7 @@ CONTAINS
             END IF
          END DO
       END DO
+!$OMP END PARALLEL DO
 
    END SUBROUTINE cp_cfm_add_on_diag
 

@@ -45,7 +45,8 @@ MODULE rpa_gw
                                               dbcsr_deallocate_matrix_set
    USE cp_files,                        ONLY: close_file,&
                                               open_file
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
+                                              cp_fm_scale_and_add,&
                                               cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
@@ -792,19 +793,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_GW_self_energy'
 
-      INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
-                                                            jjB, ncol_local, nrow_local, nspins
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: handle, ispin, nspins
 
       CALL timeset(routineN, handle)
 
       nspins = SIZE(fm_mat_S_gw)
-
-      CALL cp_fm_get_info(matrix=fm_mat_Q, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
 
       IF (.NOT. do_im_time) THEN
          ! calculate [1+Q(iw')]^-1
@@ -828,17 +821,7 @@ CONTAINS
          CALL para_env_RPA%sync()
 
          ! subtract 1 from the diagonal to get rid of exchange self-energy
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
-!$OMP                       SHARED(ncol_local,nrow_local,col_indices,row_indices,fm_mat_Q,dimen_RI)
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-                  fm_mat_Q%local_data(iiB, jjB) = fm_mat_Q%local_data(iiB, jjB) - 1.0_dp
-               END IF
-            END DO
-         END DO
+         CALL cp_fm_add_on_diag(fm_mat_Q, -1.0_dp, dimen_RI)
 
          CALL para_env_RPA%sync()
 
@@ -915,21 +898,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_W_cubic_GW'
 
-      INTEGER                                            :: handle, i_global, iiB, iquad, j_global, &
-                                                            jjB, ncol_local, nrow_local, &
-                                                            num_integ_points
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: handle, iquad, num_integ_points
       REAL(KIND=dp)                                      :: tau, weight
 
       CALL timeset(routineN, handle)
 
       num_integ_points = SIZE(grid%imaginary_time)
 
-      CALL cp_fm_get_info(matrix=fm_mat_Q, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
       ! calculate [1+Q(iw')]^-1
       CALL cp_fm_cholesky_invert(fm_mat_Q)
 
@@ -937,17 +912,7 @@ CONTAINS
       CALL cp_fm_uplo_to_full(fm_mat_Q, fm_mat_work)
 
       ! subtract 1 from the diagonal to get rid of exchange self-energy
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
-!$OMP                       SHARED(ncol_local,nrow_local,col_indices,row_indices,fm_mat_Q,dimen_RI)
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-               fm_mat_Q%local_data(iiB, jjB) = fm_mat_Q%local_data(iiB, jjB) - 1.0_dp
-            END IF
-         END DO
-      END DO
+      CALL cp_fm_add_on_diag(fm_mat_Q, -1.0_dp, dimen_RI)
 
       ! multiply with L from the left and the right to get the screened Coulomb interaction
       CALL parallel_gemm('T', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L, fm_mat_Q, &

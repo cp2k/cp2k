@@ -28,12 +28,12 @@ MODULE gw_ri_rs_non_periodic
                                               copy_fm_to_dbcsr,&
                                               dbcsr_deallocate_matrix_set,&
                                               max_elements_per_block
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
+                                              cp_fm_scale_and_add,&
                                               cp_fm_uplo_to_full
    USE cp_fm_diag,                      ONLY: cp_fm_geeig
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_diag,&
-                                              cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -2384,7 +2384,7 @@ CONTAINS
                          fm_Minv_Vsqrt, fm_work, 0.0_dp, fm_eps_freq_j)
 
       ! ε(iω_j) = Id - eps_work  -->  -eps_work + Id
-      CALL fm_add_on_diag(fm_eps_freq_j, 1.0_dp)
+      CALL cp_fm_add_on_diag(fm_eps_freq_j, 1.0_dp)
 
       ! Force perfect symmetry before Cholesky to avoid info != 0 due to GEMM noise
       CALL cp_fm_uplo_to_full(fm_eps_freq_j, fm_work)
@@ -2397,7 +2397,7 @@ CONTAINS
       CALL fm_invert(fm_eps_freq_j, bs_env%eps_eigval_mat_RI, bs_env%unit_nr)
 
       ! b) ε^-1(iω_j) - Id
-      CALL fm_add_on_diag(fm_eps_freq_j, -1.0_dp)
+      CALL cp_fm_add_on_diag(fm_eps_freq_j, -1.0_dp)
 
       ! c) W(iω_j) = V^0.5^T * (ε^-1(iω_j) - Id) * V^0.5
       CALL fm_contract_ABA(fm_V_sqrt, fm_eps_freq_j, fm_W_freq_j)
@@ -2409,43 +2409,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE compute_fm_W_freq
-
-! **************************************************************************************************
-!> \brief Adds a real scalar value to the diagonal of a real full matrix
-!> \param fm ...
-!> \param alpha ...
-! **************************************************************************************************
-   SUBROUTINE fm_add_on_diag(fm, alpha)
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm
-      REAL(KIND=dp), INTENT(IN)                          :: alpha
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fm_add_on_diag'
-
-      INTEGER                                            :: handle, i_global, i_row, j_col, &
-                                                            j_global, ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_get_info(matrix=fm, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      DO j_col = 1, ncol_local
-         j_global = col_indices(j_col)
-         DO i_row = 1, nrow_local
-            i_global = row_indices(i_row)
-            IF (j_global == i_global) THEN
-               fm%local_data(i_row, j_col) = fm%local_data(i_row, j_col) + alpha
-            END IF
-         END DO
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE fm_add_on_diag
 
 ! **************************************************************************************************
 !> \brief Computes the exact-exchange part of the GW self-energy:

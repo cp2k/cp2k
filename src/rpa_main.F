@@ -51,7 +51,8 @@ MODULE rpa_main
                                               release_group_dist
    USE hfx_types,                       ONLY: block_ind_type,&
                                               hfx_compression_type
-   USE input_constants,                 ONLY: rpa_exchange_axk,&
+   USE input_constants,                 ONLY: cohsex_qp_update,&
+                                              rpa_exchange_axk,&
                                               rpa_exchange_none,&
                                               rpa_exchange_sosex,&
                                               sigma_none,&
@@ -1229,13 +1230,14 @@ CONTAINS
             IF (iter_sc_GW0 /= 1) iter_evGW = iter_sc_GW0
          END IF
          IF (do_stcohsex) THEN
-            IF (do_im_time) CPABORT("STCOHSEX is only implemented in the O(N^4) GW code.")
-            IF (do_periodic) CPABORT("STCOHSEX with PERIODIC_CORRECTION is not implemented.")
+            IF (do_im_time) CPABORT("COHSEX is only implemented in the O(N^4) GW code.")
+            IF (do_periodic) CPABORT("COHSEX with PERIODIC_CORRECTION is not implemented.")
             ! BSE after st-COHSEX: W = v + α W^c(0) with one α for both A and B
-            IF (do_bse .AND. mp2_env%ri_g0w0%stfacip /= mp2_env%ri_g0w0%stfacea) THEN
-               CPABORT("BSE after STCOHSEX requires STFACIP = STFACEA (the scaling of W^c in the BSE).")
+            IF (do_bse .AND. mp2_env%ri_g0w0%scale_cohsex_occ /= mp2_env%ri_g0w0%scale_cohsex_virt) THEN
+               CALL cp_abort(__LOCATION__, "BSE after COHSEX requires SCALE_COHSEX_OCC = SCALE_COHSEX_VIRT "// &
+                             "(the scaling of W^c in the BSE).")
             END IF
-            IF (do_ri_sos_laplace_mp2) CPABORT("STCOHSEX with SOS-MP2 is not implemented.")
+            IF (do_ri_sos_laplace_mp2) CPABORT("COHSEX with SOS-MP2 is not implemented.")
             ! st-COHSEX is one-shot @DFT: Σ^COHSEX is static, no quasiparticle self-consistency
             iter_evGW = 1
             iter_sc_GW0 = 1
@@ -1501,14 +1503,14 @@ CONTAINS
                                          stcohsex_u)
                ! the BSE reads the quasiparticle energies from Eigenval: ϵ^CN (with the canonical
                ! MOs, see the BSE block) or ϵ^DG (with the KS MOs)
-               IF (mp2_env%ri_g0w0%stcohsex_bse_canonical) THEN
+               IF (mp2_env%ri_g0w0%cohsex_flavor == cohsex_qp_update) THEN
                   Eigenval(:, 1, :) = stcohsex_eigenval_cn(:, :)
                ELSE
                   Eigenval(:, 1, :) = stcohsex_eigenval_dg(:, :)
                END IF
                DEALLOCATE (stcohsex_eigenval_dg, stcohsex_eigenval_cn)
-               ! direct terms of the BSE with W = v + α W^c(0), α = STFACIP (= STFACEA)
-               mp2_env%bse%wc_scaling = mp2_env%ri_g0w0%stfacip
+               ! direct terms of the BSE with W = v + α W^c(0), α = SCALE_COHSEX_OCC (= SCALE_COHSEX_VIRT)
+               mp2_env%bse%wc_scaling = mp2_env%ri_g0w0%scale_cohsex_occ
             ELSE
                CALL stcohsex_qp_energies(fm_mat_Q(1), fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI_red, nmo, homo, &
                                          gw_corr_lev_occ, gw_corr_lev_virt, Eigenval(:, 1, :), mo_coeff, &
@@ -1867,7 +1869,7 @@ CONTAINS
          ! Q(0), ε^(-1)(0) and the kernel are invariant under these rotations, so the BSE with
          ! ϵ^CN and C^QP equals the BSE with the full H^QP in the KS basis.
          ! ==============================================================================
-         IF (do_stcohsex .AND. mp2_env%ri_g0w0%stcohsex_bse_canonical) THEN
+         IF (do_stcohsex .AND. mp2_env%ri_g0w0%cohsex_flavor == cohsex_qp_update) THEN
             ALLOCATE (mo_coeff_bse(nspins))
             DO ispin = 1, nspins
                ! the ab slab holds the first bse_lev_virt virtuals: U must not mix beyond them

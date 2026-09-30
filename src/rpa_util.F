@@ -30,20 +30,16 @@ MODULE rpa_util
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
+                                              cp_fm_syrk,&
                                               cp_fm_transpose
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
-                                              cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_to_fm_submat_general,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_copy_general, cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_release, &
+        cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat_general, cp_fm_type
    USE dbt_api,                         ONLY: dbt_destroy,&
                                               dbt_type
    USE dgemm_counter_types,             ONLY: dgemm_counter_start,&
@@ -818,35 +814,18 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Q_trace_and_add_unit_matrix'
 
-      INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
-                                                            ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER                                            :: handle, nrow_global
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_Q
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_get_info(matrix=fm_mat_Q, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          para_env=para_env)
-
-      ! calculate the trace of Q and add 1 on the diagonal
-      trace_Qomega = 0.0_dp
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
-!$OMP                       SHARED(ncol_local,nrow_local,col_indices,row_indices,trace_Qomega,fm_mat_Q,dimen_RI)
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-               trace_Qomega(i_global) = fm_mat_Q%local_data(iiB, jjB)
-               fm_mat_Q%local_data(iiB, jjB) = fm_mat_Q%local_data(iiB, jjB) + 1.0_dp
-            END IF
-         END DO
-      END DO
-      CALL para_env%sum(trace_Qomega)
+      ! the diagonal of Q (for the trace) and add 1 on the diagonal
+      CALL cp_fm_get_info(matrix=fm_mat_Q, nrow_global=nrow_global)
+      ALLOCATE (diag_Q(nrow_global))
+      CALL cp_fm_get_diag(fm_mat_Q, diag_Q)
+      trace_Qomega(1:dimen_RI) = diag_Q(1:dimen_RI)
+      DEALLOCATE (diag_Q)
+      CALL cp_fm_add_on_diag(fm_mat_Q, 1.0_dp, dimen_RI)
 
       CALL timestop(handle)
 

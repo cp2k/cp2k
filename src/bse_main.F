@@ -39,7 +39,6 @@ MODULE bse_main
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
@@ -266,9 +265,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'invert_static_screening'
 
-      INTEGER                                            :: handle, i_global, iiB, info_chol, &
-                                                            j_global, jjB, ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: handle, info_chol
       TYPE(cp_fm_type)                                   :: fm_work
 
       CALL timeset(routineN, handle)
@@ -280,17 +277,7 @@ CONTAINS
       CALL cp_fm_set_all(fm_work, 0.0_dp)
 
       ! δ_PQ + Q_PQ(0) on the leading dimen_RI_red block
-      CALL cp_fm_get_info(matrix=fm_eps_inv, nrow_local=nrow_local, ncol_local=ncol_local, &
-                          row_indices=row_indices, col_indices=col_indices)
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            IF (j_global == i_global .AND. i_global <= dimen_RI_red) THEN
-               fm_eps_inv%local_data(iiB, jjB) = fm_eps_inv%local_data(iiB, jjB) + 1.0_dp
-            END IF
-         END DO
-      END DO
+      CALL cp_fm_add_on_diag(fm_eps_inv, 1.0_dp, dimen_RI_red)
 
       ! [1+Q(0)]^-1_PQ by Cholesky, symmetrised from the stored triangle
       CALL cp_fm_cholesky_decompose(matrix=fm_eps_inv, n=dimen_RI_red, info_out=info_chol)

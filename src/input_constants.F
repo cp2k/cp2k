@@ -1176,6 +1176,10 @@ MODULE input_constants
                                                ri_rs_non_periodic = 38, &
                                                ri_rs_large_cell_Gamma = 39
 
+   INTEGER, PARAMETER, PUBLIC               :: cohsex_off = 0, &
+                                               cohsex_diagonal = 1, &
+                                               cohsex_qp_update = 2
+
    ! periodic RESP parameters
    INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir = 0, &
                                                do_resp_y_dir = 1, &

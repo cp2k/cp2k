@@ -30,7 +30,7 @@
 !>
 !>        Quasiparticle Hamiltonian in the window:
 !>          H^QP_mn    = ϵ_n δ_mn + Σ^x_mn - v^xc_mn + α_mn Σ^c_mn
-!>          α_mn       = α_IP = STFACIP (m,n occupied),  α_EA = STFACEA (m,n virtual),  H^QP_ia = 0
+!>          α_mn       = α_IP = SCALE_COHSEX_OCC (m,n occupied),  α_EA = SCALE_COHSEX_VIRT (m,n virtual),  H^QP_ia = 0
 !>          ϵ_n^DG     = H^QP_nn                              (diagonal st-COHSEX)
 !>          H^QP U     = U ϵ^CN, occ-occ and virt-virt block separately   (canonical st-COHSEX)
 !>          C^QP_μn    = Σ_m C_μm U_mn                        (st-COHSEX MOs)
@@ -285,9 +285,9 @@ CONTAINS
          ALLOCATE (h_qp(n_mo_win, n_mo_win))
          h_qp(:, :) = 0.0_dp
          h_qp(1:no, 1:no) = sigma_x(1:no, 1:no) - vxc(1:no, 1:no) + &
-                            mp2_env%ri_g0w0%stfacip*sigma_c(1:no, 1:no)
+                            mp2_env%ri_g0w0%scale_cohsex_occ*sigma_c(1:no, 1:no)
          h_qp(no + 1:, no + 1:) = sigma_x(no + 1:, no + 1:) - vxc(no + 1:, no + 1:) + &
-                                  mp2_env%ri_g0w0%stfacea*sigma_c(no + 1:, no + 1:)
+                                  mp2_env%ri_g0w0%scale_cohsex_virt*sigma_c(no + 1:, no + 1:)
          h_qp(:, :) = 0.5_dp*(h_qp(:, :) + TRANSPOSE(h_qp(:, :)))
          DO n = 1, n_mo_win
             h_qp(n, n) = h_qp(n, n) + Eigenval(win_start + n - 1, ispin)
@@ -361,8 +361,9 @@ CONTAINS
             IF (nspins == 2 .AND. ispin == 1) spin_label = "Alpha "
             IF (nspins == 2 .AND. ispin == 2) spin_label = "Beta "
             WRITE (unit_nr, "(/,T3,A)") REPEAT("-", 77)
-            WRITE (unit_nr, "(T3,2A,F6.3,A,F6.3)") TRIM(spin_label)//" ", "st-COHSEX quasiparticle energies, "// &
-               "STFACIP =", mp2_env%ri_g0w0%stfacip, ", STFACEA =", mp2_env%ri_g0w0%stfacea
+            WRITE (unit_nr, "(T3,2A)") TRIM(spin_label)//" ", "st-COHSEX quasiparticle energies"
+            WRITE (unit_nr, "(T3,A,F6.3,A,F6.3)") "SCALE_COHSEX_OCC =", mp2_env%ri_g0w0%scale_cohsex_occ, &
+               ",  SCALE_COHSEX_VIRT =", mp2_env%ri_g0w0%scale_cohsex_virt
             WRITE (unit_nr, "(T3,A)") REPEAT("-", 77)
             WRITE (unit_nr, "(T3,A)") "DG: diagonal of H^QP,  CN: canonical, eigenvalues of the "// &
                "occ-occ and virt-virt blocks"
