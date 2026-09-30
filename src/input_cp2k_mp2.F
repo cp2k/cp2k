@@ -1791,13 +1791,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CHECK", &
-                          description="What the iterative solver does when its arrays at the subspace "// &
-                          "ceiling exceed the memory budget per MPI rank: nothing, warn, reduce the ceiling "// &
-                          "to the largest that fits (never below the solver's minimum), or abort. "// &
-                          "With FULLDIAG, the check runs before the GW on the peak estimate of the full "// &
-                          "diagonalization, and CLAMP warns. PROPERTIES%BSE transforms its three-center "// &
-                          "integrals in batches of RI atoms sized by the budget; when the batch of a single "// &
-                          "atom exceeds it, WARN warns, and CLAMP and ABORT stop the run.", &
+                          description="What the BSE does when one of its memory-heavy steps exceeds "// &
+                          "MEMORY_BUDGET_GB per MPI rank. Three steps are checked. (1) With ITERDIAG, the "// &
+                          "arrays of the iterative solver at the subspace ceiling: nothing, warn, reduce "// &
+                          "the ceiling to the largest that fits (never below the solver's minimum), or "// &
+                          "abort. (2) With FULLDIAG under RI_RPA%GW, the peak estimate of the full "// &
+                          "diagonalization, checked before the GW: CLAMP warns. (3) Under PROPERTIES, "// &
+                          "with either solver, the batch of a single RI atom in the transformation of "// &
+                          "the three-center integrals: WARN warns, CLAMP and ABORT stop the run.", &
                           usage="MEMORY_CHECK CLAMP", &
                           enum_c_vals=s2a("OFF", "WARN", "CLAMP", "ABORT"), &
                           enum_i_vals=[bse_memcheck_off, bse_memcheck_warn, bse_memcheck_clamp, bse_memcheck_abort], &
@@ -1810,11 +1811,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_BUDGET_GB", &
-                          description="Memory per MPI rank the iterative solver may use for its own arrays, "// &
-                          "in GB; the RI slabs are already allocated and not part of it. -1: half of the "// &
-                          "free memory per rank detected at the start of the solver. With FULLDIAG, the "// &
-                          "budget the full diagonalization's peak estimate is checked against before the GW. "// &
-                          "PROPERTIES%BSE also sizes the batches of its three-center integral transformation by it.", &
+                          description="Memory budget per MPI rank in GB for the memory-heavy steps of the "// &
+                          "BSE. -1: half of the free memory per rank, detected when the step starts. Three "// &
+                          "steps read the budget. (1) With ITERDIAG, the arrays of the iterative solver; "// &
+                          "the RI three-center integrals are allocated before the solver starts and are "// &
+                          "not part of it. (2) With FULLDIAG under RI_RPA%GW, the peak estimate of the "// &
+                          "full diagonalization, checked before the GW. (3) Under PROPERTIES, with either "// &
+                          "solver, the batches of RI atoms in which the three-center integrals are "// &
+                          "transformed. MEMORY_CHECK decides what happens when a step exceeds the budget.", &
                           usage="MEMORY_BUDGET_GB 8.0", &
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
