@@ -2501,14 +2501,21 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: no_exc
       INTEGER, INTENT(IN)                                :: family
 
+      CHARACTER(len=256)                                 :: message
+      LOGICAL                                            :: exc_has_nan, vrho_has_nan
+
       IF (.NOT. libxc_check_nan) RETURN
-      IF (ANY(worker%exc(1:npoints) /= worker%exc(1:npoints)) .OR. &
-          (grad_deriv >= 1 .AND. ANY(worker%vrho(:, 1:npoints) /= worker%vrho(:, 1:npoints)))) THEN
-         WRITE (*, *) "NaN DETECTED: family=", family, " grad_deriv=", grad_deriv, &
-            " no_exc=", no_exc, " nb=", npoints
-         WRITE (*, *) "exc has NaN:", ANY(worker%exc(1:npoints) /= worker%exc(1:npoints))
-         IF (grad_deriv >= 1) WRITE (*, *) "vrho has NaN:", ANY(worker%vrho(:, 1:npoints) /= worker%vrho(:, 1:npoints))
-         CPABORT("NaN found right after device_to_host")
+      exc_has_nan = ANY(worker%exc(1:npoints) /= worker%exc(1:npoints))
+      vrho_has_nan = .FALSE.
+      IF (grad_deriv >= 1) THEN
+         vrho_has_nan = ANY(worker%vrho(:, 1:npoints) /= worker%vrho(:, 1:npoints))
+      END IF
+      IF (exc_has_nan .OR. vrho_has_nan) THEN
+         WRITE (message, '(A,I0,A,I0,A,L1,A,I0,A,L1,A,L1)') &
+            "NaN after device_to_host: family=", family, " grad_deriv=", grad_deriv, &
+            " no_exc=", no_exc, " nb=", npoints, &
+            " exc has NaN=", exc_has_nan, " vrho has NaN=", vrho_has_nan
+         CPABORT(TRIM(message))
       END IF
    END SUBROUTINE libxc_worker_check_nan
 
