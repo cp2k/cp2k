@@ -46,11 +46,11 @@
         &END INTEGRALS
         &RI_RPA
           &GW
+            COHSEX
             CORR_MOS_OCC -1
             CORR_MOS_VIRT -1
-            COHSEX
-            SCALE_COHSEX_VIRT 0.6
             SCALE_COHSEX_OCC 0.6
+            SCALE_COHSEX_VIRT 0.6
           &END GW
         &END RI_RPA
       &END WF_CORRELATION

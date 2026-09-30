@@ -46,10 +46,10 @@
         &END INTEGRALS
         &RI_RPA
           &GW
+            COHSEX
             CORR_MOS_OCC 3
             CORR_MOS_VIRT 5
             RI_SIGMA_X FALSE
-            COHSEX
           &END GW
           &HF
             FRACTION 1.0000000
