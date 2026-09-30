@@ -34,13 +34,11 @@ MODULE bse_main
                                               truncate_BSE_matrices
    USE cp_control_types,                ONLY: tddfpt2_control_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
-                                              cp_fm_scale,&
-                                              cp_fm_uplo_to_full
+                                              cp_fm_scale
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
-                                              cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -274,18 +272,16 @@ CONTAINS
       CALL cp_fm_create(fm_eps_inv, fm_Q%matrix_struct)
       CALL cp_fm_to_fm(fm_Q, fm_eps_inv)
       CALL cp_fm_create(fm_work, fm_Q%matrix_struct)
-      CALL cp_fm_set_all(fm_work, 0.0_dp)
 
       ! δ_PQ + Q_PQ(0) on the leading dimen_RI_red block
-      CALL cp_fm_add_on_diag(fm_eps_inv, 1.0_dp, dimen_RI_red)
+      CALL cp_fm_add_on_diag(fm_eps_inv, 1.0_dp, n_active=dimen_RI_red)
 
       ! [1+Q(0)]^-1_PQ by Cholesky, symmetrised from the stored triangle
       CALL cp_fm_cholesky_decompose(matrix=fm_eps_inv, n=dimen_RI_red, info_out=info_chol)
       IF (info_chol /= 0) THEN
          CALL cp_abort(__LOCATION__, 'Cholesky decomposition failed for static polarization in BSE')
       END IF
-      CALL cp_fm_cholesky_invert(fm_eps_inv)
-      CALL cp_fm_uplo_to_full(fm_eps_inv, fm_work)
+      CALL cp_fm_cholesky_invert(fm_eps_inv, n=dimen_RI_red, work=fm_work)
 
       CALL cp_fm_release(fm_work)
 

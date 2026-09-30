@@ -17,6 +17,7 @@ MODULE rpa_gw_kpoints_util
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_on_diag,&
                                               cp_cfm_column_scale,&
+                                              cp_cfm_get_diag,&
                                               cp_cfm_scale_and_add_fm,&
                                               cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
@@ -180,7 +181,7 @@ CONTAINS
       INTEGER                                            :: handle, ikp, num_integ_points
       LOGICAL                                            :: do_this_ikp
       REAL(KIND=dp)                                      :: t1, t2
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: trace_Qomega
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_Qomega
 
       CALL timeset(routineN, handle)
 
@@ -195,7 +196,7 @@ CONTAINS
       CALL transform_P_from_real_space_to_kpoints(mat_P_omega, mat_P_omega_kp, &
                                                   kpoints, eps_filter_im_time, jquad)
 
-      ALLOCATE (trace_Qomega(dimen_RI))
+      ALLOCATE (diag_Qomega(dimen_RI))
 
       IF (unit_nr > 0) WRITE (unit_nr, '(/T3,A,1X,I3)') &
          'GW_INFO| Computing chi and W frequency point', jquad
@@ -215,10 +216,10 @@ CONTAINS
                                qs_env%mp2_env%ri_rpa_im_time%make_chi_pos_definite)
 
          ! 2. Cholesky decomposition of Id + Q(iw,k)
-         CALL cholesky_decomp_Q(cfm_mat_Q, para_env, trace_Qomega, dimen_RI)
+         CALL cholesky_decomp_Q(cfm_mat_Q, diag_Qomega, dimen_RI)
 
          ! 3. Computing E_c^RPA = E_c^RPA + a_w/N_k*sum_k ln[det(1+Q(iw,k))-Tr(Q(iw,k))]
-         CALL frequency_and_kpoint_integration(Erpa, cfm_mat_Q, para_env, trace_Qomega, &
+         CALL frequency_and_kpoint_integration(Erpa, cfm_mat_Q, para_env, diag_Qomega, &
                                                dimen_RI, grid%frequency_weights(jquad), kpoints%wkp(ikp))
 
          IF (do_gw_im_time) THEN
@@ -246,7 +247,7 @@ CONTAINS
          CALL deallocate_kp_matrices(cfm_matrix_L_kpoints, cfm_mat_Minv_L_kpoints)
       END IF
 
-      DEALLOCATE (trace_Qomega)
+      DEALLOCATE (diag_Qomega)
 
       t2 = m_walltime()
 
@@ -454,47 +455,26 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param cfm_mat_Q ...
-!> \param para_env ...
-!> \param trace_Qomega ...
+!> \param diag_Qomega ...
 !> \param dimen_RI ...
 ! **************************************************************************************************
-   SUBROUTINE cholesky_decomp_Q(cfm_mat_Q, para_env, trace_Qomega, dimen_RI)
+   SUBROUTINE cholesky_decomp_Q(cfm_mat_Q, diag_Qomega, dimen_RI)
 
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
-      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: trace_Qomega
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat_Q
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: diag_Qomega
       INTEGER, INTENT(IN)                                :: dimen_RI
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cholesky_decomp_Q'
 
-      INTEGER                                            :: handle, i_global, iiB, info_chol, &
-                                                            j_global, jjB, ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: handle, info_chol
+      COMPLEX(KIND=dp), DIMENSION(dimen_RI)              :: diag_Q
 
       CALL timeset(routineN, handle)
 
-      ! get info of fm_mat_Q
-      CALL cp_cfm_get_info(matrix=cfm_mat_Q, &
-                           nrow_local=nrow_local, &
-                           ncol_local=ncol_local, &
-                           row_indices=row_indices, &
-                           col_indices=col_indices)
-
-      ! calculate the trace of Q and add 1 on the diagonal
-      trace_Qomega = 0.0_dp
-!$OMP     PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
-!$OMP                 SHARED(ncol_local,nrow_local,col_indices,row_indices,trace_Qomega,cfm_mat_Q,dimen_RI)
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-               trace_Qomega(i_global) = REAL(cfm_mat_Q%local_data(iiB, jjB))
-               cfm_mat_Q%local_data(iiB, jjB) = cfm_mat_Q%local_data(iiB, jjB) + z_one
-            END IF
-         END DO
-      END DO
-      CALL para_env%sum(trace_Qomega)
+      ! epsilon = I + Q; the Hermitian Q has a real diagonal for the RPA energy.
+      CALL cp_cfm_get_diag(cfm_mat_Q, diag_Q, n_active=dimen_RI)
+      diag_Qomega = REAL(diag_Q, KIND=dp)
+      CALL cp_cfm_add_on_diag(cfm_mat_Q, z_one, n_active=dimen_RI)
 
       CALL cp_cfm_cholesky_decompose(matrix=cfm_mat_Q, n=dimen_RI, info_out=info_chol)
 
@@ -509,58 +489,39 @@ CONTAINS
 !> \param Erpa ...
 !> \param cfm_mat_Q ...
 !> \param para_env ...
-!> \param trace_Qomega ...
+!> \param diag_Qomega ...
 !> \param dimen_RI ...
 !> \param freq_weight ...
 !> \param kp_weight ...
 ! **************************************************************************************************
-   SUBROUTINE frequency_and_kpoint_integration(Erpa, cfm_mat_Q, para_env, trace_Qomega, &
+   SUBROUTINE frequency_and_kpoint_integration(Erpa, cfm_mat_Q, para_env, diag_Qomega, &
                                                dimen_RI, freq_weight, kp_weight)
 
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
       TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: trace_Qomega
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: diag_Qomega
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), INTENT(IN)                          :: freq_weight, kp_weight
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'frequency_and_kpoint_integration'
 
-      INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
-                                                            ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: handle, iiB
+      COMPLEX(KIND=dp), DIMENSION(dimen_RI)              :: diag_chol
       REAL(KIND=dp)                                      :: FComega
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Q_log
 
       CALL timeset(routineN, handle)
 
-      ! get info of cholesky_decomposed(fm_mat_Q)
-      CALL cp_cfm_get_info(matrix=cfm_mat_Q, &
-                           nrow_local=nrow_local, &
-                           ncol_local=ncol_local, &
-                           row_indices=row_indices, &
-                           col_indices=col_indices)
-
       ALLOCATE (Q_log(dimen_RI))
-      Q_log = 0.0_dp
-!$OMP    PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
-!$OMP                SHARED(ncol_local,nrow_local,col_indices,row_indices,Q_log,cfm_mat_Q,dimen_RI)
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-               Q_log(i_global) = 2.0_dp*LOG(REAL(cfm_mat_Q%local_data(iiB, jjB)))
-            END IF
-         END DO
-      END DO
-      CALL para_env%sum(Q_log)
+      ! epsilon = U^H U; log(det(epsilon)) = 2*sum(log(real(U_ii))).
+      CALL cp_cfm_get_diag(cfm_mat_Q, diag_chol, n_active=dimen_RI)
+      Q_log(:) = 2.0_dp*LOG(REAL(diag_chol, KIND=dp))
 
       FComega = 0.0_dp
       DO iiB = 1, dimen_RI
          IF (MODULO(iiB, para_env%num_pe) /= para_env%mepos) CYCLE
-         ! FComega=FComega+(LOG(Q_log(iiB))-trace_Qomega(iiB))/2.0_dp
-         FComega = FComega + (Q_log(iiB) - trace_Qomega(iiB))/2.0_dp
+         FComega = FComega + (Q_log(iiB) - diag_Qomega(iiB))/2.0_dp
       END DO
 
       Erpa = Erpa + FComega*freq_weight*kp_weight

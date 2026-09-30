@@ -875,7 +875,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param fm_mat_W ...
-!> \param fm_mat_Q ...
+!> \param fm_mat_Q upper Cholesky factor of epsilon from RPA, overwritten by the screened interaction
 !> \param fm_mat_work ...
 !> \param dimen_RI ...
 !> \param fm_mat_L ...
@@ -904,13 +904,10 @@ CONTAINS
       num_integ_points = SIZE(grid%imaginary_time)
 
       ! calculate [1+Q(iw')]^-1
-      CALL cp_fm_cholesky_invert(fm_mat_Q)
-
-      ! symmetrize the result
-      CALL cp_fm_uplo_to_full(fm_mat_Q, fm_mat_work)
+      CALL cp_fm_cholesky_invert(fm_mat_Q, n=dimen_RI, work=fm_mat_work)
 
       ! subtract 1 from the diagonal to get rid of exchange self-energy
-      CALL cp_fm_add_on_diag(fm_mat_Q, -1.0_dp, dimen_RI)
+      CALL cp_fm_add_on_diag(fm_mat_Q, -1.0_dp, n_active=dimen_RI)
 
       ! multiply with L from the left and the right to get the screened Coulomb interaction
       CALL parallel_gemm('T', 'N', dimen_RI, dimen_RI, dimen_RI, 1.0_dp, fm_mat_L, fm_mat_Q, &
