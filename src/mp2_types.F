@@ -343,8 +343,7 @@ MODULE mp2_types
                                                                                 P_mo=NULL(), W_mo=NULL(), L_jb=NULL())
       TYPE(bse_env_type)                                 :: bse = bse_env_type(bse_nto_state_list_final=NULL(), &
                                                                                homo_red=NULL(), virt_red=NULL(), &
-                                                                               homo_full=NULL(), n_ov=NULL(), &
-                                                                               offsets=NULL(), gw_corr_lev_virt=NULL(), &
+                                                                               homo_full=NULL(), gw_corr_lev_virt=NULL(), &
                                                                                eigenval_dft=NULL(), eigenval_qp=NULL(), &
                                                                                fm_S_ia=NULL(), &
                                                                                fm_S_ij=NULL(), fm_S_ab=NULL(), &
