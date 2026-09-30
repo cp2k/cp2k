@@ -1,0 +1,73 @@
+# Basis/integral smoke test, NOT an OpenMX-equivalent Hamiltonian.
+# These particular GTH potentials give six O and one H valence electrons.
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H2O_omx_basis
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../../../data/BASIS_OMX
+    POTENTIAL_FILE_NAME ../../../data/GTH_POTENTIALS
+    &MGRID
+      CUTOFF 400
+      REL_CUTOFF 60
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &PRINT
+      &AO_MATRICES ON
+        DENSITY T
+        KINETIC_ENERGY T
+        NDIGITS 12
+        OVERLAP T
+      &END AO_MATRICES
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      ADDED_MOS -1
+      EPS_SCF 1.0E-7
+      MAX_SCF 80
+      SCF_GUESS ATOMIC
+      &DIAGONALIZATION
+      &END DIAGONALIZATION
+      &MIXING
+        ALPHA 0.2
+        METHOD BROYDEN_MIXING
+      &END MIXING
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 12 12 12
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O 6.0 6.0 6.0
+      H 6.0 6.757 6.587
+      H 6.0 5.243 6.587
+    &END COORD
+    &KIND O
+      BASIS_SET OMX-FIT-O7.0-s1p1
+      POTENTIAL GTH-PBE-q6
+    &END KIND
+    &KIND H
+      BASIS_SET OMX-FIT-H7.0-s2p1
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
