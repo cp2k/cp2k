@@ -75,9 +75,9 @@ MODULE bse_main
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Prepares the BSE environment from the old GW's slabs: run flags, the window on the DFT
-!>        axis, the window-sized slabs with both energy sets, [1+Q(0)]^-1 once, the AO multipoles
-!>        and the QS pointers. Starts no solver.
+!> \brief Entry for the BSE of RI_RPA%GW, which hands over the slabs of all its GW levels and the
+!>        static polarizability Q(0): re-reads the settings, cuts the window on the DFT axis out of
+!>        the slabs and both energy sets, and inverts 1+Q(0). Starts no solver.
 !> \param bse_env settings re-read from its section; state filled here
 !> \param fm_S_ia_full B^P_ia of the GW levels per spin, the RPA copy without the energy factor
 !> \param fm_S_ij_full B^P_ij per spin
@@ -113,7 +113,6 @@ CONTAINS
       INTEGER                                            :: handle, ispin, n_window, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_mo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_dft_spin, eigenval_qp_spin
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mo_window_type)                               :: window
       TYPE(section_vals_type), POINTER                   :: bse_section
 
@@ -126,27 +125,8 @@ CONTAINS
       CALL read_bse_section(bse_section, bse_env)
 
       nspins = SIZE(homo)
-      bse_env%nspins = nspins
-      bse_env%dimen_RI = dimen_RI
-      bse_env%dimen_RI_red = dimen_RI_red
-      ! the GW-corrected level counts, the ceiling of the window
-      bse_env%gw_corr_lev_occ = gw_corr_lev_occ
-      ALLOCATE (bse_env%gw_corr_lev_virt(nspins))
-      bse_env%gw_corr_lev_virt(:) = bse_lev_virt(:)
-
-      ! run flags from the settings
-      bse_env%do_iterdiag = bse_env%bse_diag_method == bse_iterdiag
-      bse_env%do_fulldiag = bse_env%bse_diag_method == bse_fulldiag
-      bse_env%do_tda = bse_env%flag_tda == bse_tda .OR. bse_env%flag_tda == bse_both
-      bse_env%do_abba = bse_env%flag_tda == bse_abba .OR. bse_env%flag_tda == bse_both
-
-      CALL print_BSE_start_flag(bse_env%do_tda, bse_env%do_abba, unit_nr)
-
-      ! the debug flag follows the debug print level
-      logger => cp_get_default_logger()
-      IF (logger%iter_info%print_level == debug_print_level) THEN
-         bse_env%bse_debug_print = .TRUE.
-      END IF
+      ! the GW-corrected level counts are the ceiling of the window
+      CALL start_bse_env(bse_env, nspins, dimen_RI, dimen_RI_red, gw_corr_lev_occ, bse_lev_virt, unit_nr)
 
       ! one absolute window on the DFT axis, then the window-sized slabs and both energy sets per spin
       ALLOCATE (n_mo(nspins))
@@ -194,13 +174,13 @@ CONTAINS
    END SUBROUTINE prepare_bse_env
 
 ! **************************************************************************************************
-!> \brief Entry of the seam for window-sized slabs and a ready inverse dielectric matrix: run flags
-!>        from the settings the caller read, the window's energies, the slabs taken over, then the
-!>        QS pointers. Starts no solver.
+!> \brief Entry for PROPERTIES%BSE, which hands over window-sized slabs and a ready inverse
+!>        dielectric matrix: nothing is cut or inverted, the slabs are taken over as they are.
+!>        Both entries share start_bse_env and finish_bse_env. Starts no solver.
 !> \param bse_env settings read from its section by the caller; state filled here
-!> \param fm_S_ia B^P_ia of the window per spin, moved into bse_env (comes back deallocated)
-!> \param fm_S_ij B^P_ij of the window per spin, moved into bse_env
-!> \param fm_S_ab B^P_ab of the window per spin, moved into bse_env
+!> \param fm_S_ia B^P_ia of the window per spin; moved into bse_env, deallocated on return
+!> \param fm_S_ij B^P_ij of the window per spin; moved into bse_env, deallocated on return
+!> \param fm_S_ab B^P_ab of the window per spin; moved into bse_env, deallocated on return
 !> \param fm_eps_inv the inverse dielectric matrix ε^-1_PQ the core screens the slabs with,
 !>        \bar{B}^P_ij = sum_Q ε^-1_PQ B^Q_ij; RI x RI, copied; stays the caller's
 !> \param eigenval_qp quasiparticle energies of the window (level, spin)
@@ -229,37 +209,18 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_bse_env_windowed'
 
       INTEGER                                            :: handle, ispin, n_window, nspins
-      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
 
       ! the caller read the settings afresh from the input (bse_from_bs_env), as prepare_bse_env does
-      CPASSERT(ASSOCIATED(bse_env%bse_section))
+      IF (.NOT. ASSOCIATED(bse_env%bse_section)) CPABORT("BSE settings not read: read_bse_section comes first")
 
       nspins = SIZE(homo_full)
-      ! one slab set and one energy column per spin
-      CPASSERT(SIZE(fm_S_ia) == nspins .AND. SIZE(eigenval_qp, 2) == nspins)
-      bse_env%nspins = nspins
-      bse_env%dimen_RI = dimen_RI
-      bse_env%dimen_RI_red = dimen_RI
-      ! every window level carries a GW energy on this path
-      bse_env%gw_corr_lev_occ = MAXVAL(homo_red)
-      ALLOCATE (bse_env%gw_corr_lev_virt(nspins))
-      bse_env%gw_corr_lev_virt(:) = virt_red(:)
-
-      ! run flags from the settings
-      bse_env%do_iterdiag = bse_env%bse_diag_method == bse_iterdiag
-      bse_env%do_fulldiag = bse_env%bse_diag_method == bse_fulldiag
-      bse_env%do_tda = bse_env%flag_tda == bse_tda .OR. bse_env%flag_tda == bse_both
-      bse_env%do_abba = bse_env%flag_tda == bse_abba .OR. bse_env%flag_tda == bse_both
-
-      CALL print_BSE_start_flag(bse_env%do_tda, bse_env%do_abba, unit_nr)
-
-      ! the debug flag follows the debug print level
-      logger => cp_get_default_logger()
-      IF (logger%iter_info%print_level == debug_print_level) THEN
-         bse_env%bse_debug_print = .TRUE.
+      IF (SIZE(fm_S_ia) /= nspins .OR. SIZE(eigenval_qp, 2) /= nspins) THEN
+         CPABORT("BSE needs one set of RI integrals and one set of energies per spin")
       END IF
+      ! every window level carries a GW energy here, and the inverse dielectric matrix has the full RI dimension
+      CALL start_bse_env(bse_env, nspins, dimen_RI, dimen_RI, MAXVAL(homo_red), virt_red, unit_nr)
 
       ALLOCATE (bse_env%homo_red(nspins), bse_env%virt_red(nspins), bse_env%homo_full(nspins))
       bse_env%homo_full(:) = homo_full(:)
@@ -268,7 +229,9 @@ CONTAINS
       n_window = SIZE(eigenval_qp, 1)
       DO ispin = 1, nspins
          ! one absolute window for every spin: its occupied and virtual levels fill it
-         CPASSERT(homo_red(ispin) + virt_red(ispin) == n_window)
+         IF (homo_red(ispin) + virt_red(ispin) /= n_window) THEN
+            CPABORT("Occupied and virtual levels do not fill the BSE window")
+         END IF
       END DO
       ALLOCATE (bse_env%eigenval_dft(n_window, nspins), bse_env%eigenval_qp(n_window, nspins))
       bse_env%eigenval_dft(:, :) = eigenval_dft(:, :)
@@ -288,7 +251,51 @@ CONTAINS
    END SUBROUTINE prepare_bse_env_windowed
 
 ! **************************************************************************************************
-!> \brief The part of the seam both entries share once the window and the slabs are in place: the
+!> \brief The part both entries share before their window: the sizes, the run flags from the
+!>        settings, the start banner and the debug flag
+!> \param bse_env settings read from its section; sizes and flags set here
+!> \param nspins spin channels
+!> \param dimen_RI RI dimension of the slabs
+!> \param dimen_RI_red RI dimension of the inverse dielectric matrix
+!> \param gw_corr_lev_occ GW-corrected occupied levels
+!> \param gw_corr_lev_virt GW-corrected virtual levels per spin
+!> \param unit_nr output unit, positive on the writing rank only
+! **************************************************************************************************
+   SUBROUTINE start_bse_env(bse_env, nspins, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, unit_nr)
+
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
+      INTEGER, INTENT(IN)                                :: nspins, dimen_RI, dimen_RI_red, &
+                                                            gw_corr_lev_occ
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_virt
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      bse_env%nspins = nspins
+      bse_env%dimen_RI = dimen_RI
+      bse_env%dimen_RI_red = dimen_RI_red
+      bse_env%gw_corr_lev_occ = gw_corr_lev_occ
+      ALLOCATE (bse_env%gw_corr_lev_virt(nspins))
+      bse_env%gw_corr_lev_virt(:) = gw_corr_lev_virt(:)
+
+      ! run flags from the settings
+      bse_env%do_iterdiag = bse_env%bse_diag_method == bse_iterdiag
+      bse_env%do_fulldiag = bse_env%bse_diag_method == bse_fulldiag
+      bse_env%do_tda = bse_env%flag_tda == bse_tda .OR. bse_env%flag_tda == bse_both
+      bse_env%do_abba = bse_env%flag_tda == bse_abba .OR. bse_env%flag_tda == bse_both
+
+      CALL print_BSE_start_flag(bse_env%do_tda, bse_env%do_abba, unit_nr)
+
+      ! the debug flag follows the debug print level
+      logger => cp_get_default_logger()
+      IF (logger%iter_info%print_level == debug_print_level) THEN
+         bse_env%bse_debug_print = .TRUE.
+      END IF
+
+   END SUBROUTINE start_bse_env
+
+! **************************************************************************************************
+!> \brief The part both entries share once the window and the slabs are in place: the
 !>        QS pointers, the open-shell checks, the spin-block layout and the AO multipoles
 !> \param bse_env state filled here
 !> \param qs_env source of the pointers the solver reads and of the AO multipoles
