@@ -39,6 +39,7 @@ MODULE external_potential_types
                                               dp
    USE mathconstants,                   ONLY: dfac,&
                                               fac,&
+                                              fourpi,&
                                               pi,&
                                               rootpi
    USE mathlib,                         ONLY: symmetrize_matrix
@@ -1287,7 +1288,10 @@ CONTAINS
                   IF (la /= lb) CYCLE
                   j2 = ind2(n2, 2)
                   i2 = ind2(n2, 3)
-                  cprj(n1, n2) = orbtramat(la)%c2s(j2, j1)*cn(i1, i2, la)
+                  ! Primitive overlap integrals contain unnormalized Cartesian
+                  ! monomials. SGP radial coefficients include 1/sqrt(4*pi),
+                  ! whereas slm supplies unit-normalized real solid harmonics.
+                  cprj(n1, n2) = SQRT(fourpi)*orbtramat(la)%slm(j2, j1)*cn(i1, i2, la)
                END DO
             END DO
             !

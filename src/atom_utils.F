@@ -785,7 +785,24 @@ CONTAINS
          END IF
       CASE (sgp_pseudo)
          IF (potential%sgp_pot%has_nlcc) THEN
-            CPABORT("not implemented")
+            m = SIZE(corden)
+            ALLOCATE (fe(m))
+            DO i = 1, potential%sgp_pot%n_nlcc
+               a = potential%sgp_pot%a_nlcc(i)
+               cval = potential%sgp_pot%c_nlcc(i)
+               fe(:) = cval*EXP(-a*rr(:)**2)
+               SELECT CASE (my_typ)
+               CASE ("RHO")
+                  corden(:) = corden(:) + fe(:)
+               CASE ("DER")
+                  corden(:) = corden(:) - 2.0_dp*a*rr(:)*fe(:)
+               CASE ("LAP")
+                  corden(:) = corden(:) + (4.0_dp*a*a*rr(:)**2 - 6.0_dp*a)*fe(:)
+               CASE DEFAULT
+                  CPABORT("Only RHO, DER, and LAP are supported in atom_core_density")
+               END SELECT
+            END DO
+            DEALLOCATE (fe)
          END IF
       CASE DEFAULT
          CPABORT("Unknown PP type")

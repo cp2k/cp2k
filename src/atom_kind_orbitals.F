@@ -43,6 +43,7 @@ MODULE atom_kind_orbitals
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
+                                              fourpi,&
                                               pi
    USE periodic_table,                  ONLY: ptable
    USE physcon,                         ONLY: bohr
@@ -63,7 +64,7 @@ MODULE atom_kind_orbitals
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_kind_orbitals'
 
    PUBLIC :: calculate_atomic_orbitals, calculate_atomic_density, &
-             calculate_atomic_relkin, gth_potential_conversion
+             calculate_atomic_relkin, gth_potential_conversion, sgp_potential_conversion
 
 ! **************************************************************************************************
 
@@ -1330,7 +1331,7 @@ CONTAINS
                          name=sgp_atompot%pname, &
                          zeff=zeff, &
                          elec_conf=ppeconf, &
-                         alpha_core_charge=ac)
+                         core_charge_radius=ac)
       sgp_atompot%zion = zeff
       sgp_atompot%ac_local = ac
       sgp_atompot%econf(0:3) = ppeconf(0:3)
@@ -1345,7 +1346,9 @@ CONTAINS
          sgp_atompot%n_nonlocal = n
          sgp_atompot%a_nonlocal(1:n) = ap(1:n)
          sgp_atompot%h_nonlocal(1:n, 0:lm) = hhp(1:n, 0:lm)
-         sgp_atompot%c_nonlocal(1:n, 1:n, 0:lm) = ccp(1:n, 1:n, 0:lm)
+         ! The atomic solver uses unit-normalized spherical harmonics and
+         ! radial integrals; undo the SGP storage factor 1/sqrt(4*pi).
+         sgp_atompot%c_nonlocal(1:n, 1:n, 0:lm) = SQRT(fourpi)*ccp(1:n, 1:n, 0:lm)
       END IF
       ! local
       CALL get_potential(sgp_potential, n_local=n, a_local=ap, c_local=ce)

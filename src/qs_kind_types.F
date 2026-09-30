@@ -2845,9 +2845,7 @@ CONTAINS
                      ALLOCATE (a_nl(nnl), h_nl(nnl, 0:l), c_nl(nnl, nnl, 0:l))
                      a_nl(:) = sgppot%a_nonlocal(:)
                      h_nl(:, :) = sgppot%h_nonlocal(:, :)
-                     DO l = 0, sgppot%lmax
-                        c_nl(:, :, l) = sgppot%c_nonlocal(:, :, l)*SQRT(2._dp*l + 1.0_dp)
-                     END DO
+                     c_nl(:, :, :) = sgppot%c_nonlocal(:, :, :)
                      CALL set_potential(qs_kind%sgp_potential, nppnl=nppnl, a_nonlocal=a_nl, h_nonlocal=h_nl, c_nonlocal=c_nl)
                   ELSE
                      CALL set_potential(qs_kind%sgp_potential, n_nonlocal=0, lmax=-1, is_nonlocal=sgppot%is_nonlocal)

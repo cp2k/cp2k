@@ -305,7 +305,9 @@ CONTAINS
             DO l = 0, lppnl
                IF (is_nonlocal(l)) THEN
                   DO i = 1, nloc
-                     cval = MAXVAL(ABS(c_nonlocal(i, :, l)))
+                     ! SGP coefficients contain 1/sqrt(4*pi). The addition
+                     ! theorem bounds every angular component by sqrt(2*l+1).
+                     cval = SQRT(REAL(2*l + 1, dp))*MAXVAL(ABS(c_nonlocal(i, :, l)))
                      ppnl_radius = MAX(ppnl_radius, &
                                        exp_radius(l, a_nonlocal(i), qs_control%eps_pgf_orb, cval, rlow=ppnl_radius))
                   END DO

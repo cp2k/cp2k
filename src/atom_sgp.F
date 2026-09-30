@@ -150,13 +150,16 @@ CONTAINS
          n = MIN(3, UBOUND(core%op, 3))
          error(1) = MAXVAL(ABS(core%op(:, :, 0:n) - score%op(:, :, 0:n)))
          mloc = MAXLOC(ABS(core%op(:, :, 0:n) - score%op(:, :, 0:n)))
-         error(4) = error(1)/MAX(ABS(score%op(mloc(1), mloc(2), mloc(3))), 1.E-6_dp)
+         ! MAXLOC returns positions starting at one, whereas the angular index starts at zero.
+         mloc(3) = mloc(3) - 1
+         error(4) = error(1)/MAX(ABS(core%op(mloc(1), mloc(2), mloc(3))), 1.E-6_dp)
       END IF
       IF (sgp_pot%has_nonlocal) THEN
          n = MIN(3, UBOUND(hnl%op, 3))
          error(2) = MAXVAL(ABS(hnl%op(:, :, 0:n) - shnl%op(:, :, 0:n)))
          mloc = MAXLOC(ABS(hnl%op(:, :, 0:n) - shnl%op(:, :, 0:n)))
-         error(5) = error(1)/MAX(ABS(hnl%op(mloc(1), mloc(2), mloc(3))), 1.E-6_dp)
+         mloc(3) = mloc(3) - 1
+         error(5) = error(2)/MAX(ABS(hnl%op(mloc(1), mloc(2), mloc(3))), 1.E-6_dp)
       END IF
       IF (sgp_pot%has_nlcc) THEN
          IF (is_upf) THEN
@@ -747,7 +750,7 @@ CONTAINS
             cgauss(:) = cgauss(:) + cl(ir)*EXP(-al(ir)*upf_pot%r(:)**2)
          END DO
          errcc = SUM((cgauss - ccharge)**2*ww)
-         ALLOCATE (sgp_pot%a_local(nl), sgp_pot%c_local(nl))
+         ALLOCATE (sgp_pot%a_nlcc(nl), sgp_pot%c_nlcc(nl))
          sgp_pot%n_nlcc = nl
          sgp_pot%a_nlcc(1:nl) = al(1:nl)
          sgp_pot%c_nlcc(1:nl) = cl(1:nl)
@@ -776,6 +779,8 @@ CONTAINS
 
       IF (ASSOCIATED(sgp_pot%a_nlcc)) DEALLOCATE (sgp_pot%a_nlcc)
       IF (ASSOCIATED(sgp_pot%c_nlcc)) DEALLOCATE (sgp_pot%c_nlcc)
+
+      sgp_pot = atom_sgp_potential_type()
 
    END SUBROUTINE atom_sgp_release
 
