@@ -18,21 +18,6 @@ cycles (default 50), the value printed under the `Convergence` column does not m
  *******************************************************************************
 ```
 
-Occasionally the symptom of diverging SCF cycles manifests as another error before hitting MAX_SCF.
-
-```text
- *******************************************************************************
- *   ___                                                                       *
- *  /   \                                                                      *
- * [ABORT]                                                                     *
- *  \___/                KS energy is an abnormal value (NaN/Inf).             *
- *    |                                                                        *
- *  O/|                                                                        *
- * /| |                                                                        *
- * / \                                                    qs_ks_methods.F:1166 *
- *******************************************************************************
-```
-
 This page discusses a variety of measures available for addressing these errors and converging to a
 reasonable SCF solution with good precision. It is assumed that the reader has read beforehand
 [](../../getting-started/foreword-and-faq) and the other documentations under [](./index).

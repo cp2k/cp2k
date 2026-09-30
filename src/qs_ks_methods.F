@@ -126,9 +126,9 @@ MODULE qs_ks_methods
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
    USE qs_ks_utils,                     ONLY: &
-        calc_v_sic_rspace, calculate_zmp_potential, compute_matrix_vxc, compute_matrix_vxc_kp, &
-        get_embed_potential_energy, low_spin_roks, print_densities, print_detailed_energy, &
-        sic_explicit_orbitals, sum_up_and_integrate
+        calc_v_sic_rspace, calculate_zmp_potential, check_sum_energies, compute_matrix_vxc, &
+        compute_matrix_vxc_kp, get_embed_potential_energy, low_spin_roks, print_densities, &
+        print_detailed_energy, sic_explicit_orbitals, sum_up_and_integrate
    USE qs_local_rho_types,              ONLY: local_rho_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
@@ -1464,21 +1464,14 @@ CONTAINS
       END IF
 
       ! Sum all energy terms to obtain the total energy
-      energy%total = energy%core_overlap + energy%core_self + energy%core_cneo + energy%core + &
-                     energy%hartree + energy%hartree_1c + energy%exc + energy%exc1 + energy%ex + &
-                     energy%dispersion + energy%gcp + energy%qmmm_el + energy%mulliken + &
-                     SUM(energy%ddapc_restraint) + energy%s2_restraint + &
-                     energy%dft_plus_u + energy%kTS + &
-                     energy%efield + energy%efield_core + energy%ee + &
-                     energy%ee_core + energy%exc_aux_fit + energy%image_charge + &
-                     energy%sccs_pol + energy%cdft + energy%exc1_aux_fit
-
-      IF (dft_control%apply_embed_pot) energy%total = energy%total + energy%embed_corr
-
-      IF (native_skala_restore_exc) energy%total = native_skala_total_scf
-
-      IF (abnormal_value(energy%total)) THEN
-         CPABORT("KS energy is an abnormal value (NaN/Inf).")
+      IF (native_skala_restore_exc) THEN
+         energy%total = native_skala_total_scf
+         IF (abnormal_value(energy%total)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "SCF energy restored by native Skala is an abnormal value (NaN/Inf).")
+         END IF
+      ELSE
+         CALL check_sum_energies(energy)
       END IF
 
       ! Print detailed energy
