@@ -589,18 +589,24 @@ see details given above.
 
 ## 4. BSE on the RI-AO *GW* (`PROPERTIES%BSE`)
 
-The BSE section exists in two places, each fed by the *GW* next to it:
+The BSE section exists in two places. Each runs on the *GW* next to it, the keywords of both are
+identical, and both treat non-periodic systems (molecules) only:
 
 - `FORCE_EVAL%DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE` runs on the RPA-based *GW* of the
   [GW](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW) section, as in the sections above.
 - `FORCE_EVAL%PROPERTIES%BSE` runs on the RI-AO *GW* of
   [PROPERTIES%BANDSTRUCTURE%GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW), which must be
-  present in the same input. The keywords of both sections are identical.
+  present in the same input.
 
-The second path is restricted to non-periodic systems at the Γ point and to the RI-AO *GW* (no
-`RI_RS` subsection). It takes the quasiparticle energies, the RI three-center integrals and the
-static screened interaction $W(i\omega = 0)$ of that *GW*, summed from its imaginary-time grid, so
-the screening is the *GW*'s own and no second RPA is run. A minimal input:
+That *GW* is designed for large systems, so `PROPERTIES%BSE` is the path for large molecules. It has
+three requirements of its own: a non-periodic cell (`PERIODIC NONE`), a *GW* section without the
+`RI_RS` subsection, and no `REAL_TIME_PROPAGATION%RTBSE` section in the same run. With
+`NTO_ANALYSIS`, set `CUBE_FILES F`: the cube files of the natural transition orbitals are not
+available on this path.
+
+`PROPERTIES%BSE` takes the quasiparticle energies, the RI three-center integrals and the static
+screened interaction $W(i\omega = 0)$ from that *GW*, the latter summed from its imaginary-time
+grid, so the screening is the *GW*'s own and no second RPA is run. A minimal input:
 
 ```
 &PROPERTIES
@@ -628,7 +634,7 @@ of the imaginary-time quadrature: on H<sub>2</sub>O with a DZVP-GTH basis, the l
 energies with `USE_KS_ENERGIES` agree to below 0.1 meV already at `NUM_TIME_FREQ_POINTS 20`. With
 quasiparticle energies the two paths differ by the difference of their *GW* implementations.
 
-The three-centre integrals are transformed in batches of RI atoms cut to a memory budget per rank:
+The three-center integrals are transformed in batches of RI atoms sized by a memory budget per rank:
 `BSE_ITERAT%MEMORY_BUDGET_GB` when set, else half of the free memory per rank measured after the
 *GW*. The output reports the budget, the largest batch and the batch count; `MEMORY_CHECK` decides
 what happens when one RI atom alone exceeds the budget.

@@ -266,7 +266,11 @@ CONTAINS
       IF (do_bse_props) THEN
          IF (.NOT. bs_env%do_gw) CPABORT("PROPERTIES%BSE needs PROPERTIES%BANDSTRUCTURE%GW")
          IF (bs_env%do_gw_ri_rs) CPABORT("PROPERTIES%BSE needs the RI-AO GW: remove &RI_RS")
-         IF (bs_env%do_periodic) CPABORT("PROPERTIES%BSE is non-periodic, Gamma only")
+         IF (bs_env%do_periodic) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "The BSE treats non-periodic systems only: PROPERTIES%BSE needs "// &
+                          "PERIODIC NONE in the CELL section")
+         END IF
          ! both read the W(0) and the neighbour list the GW keeps, and PROPERTIES%BSE frees them
          IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized) THEN
             CALL cp_abort(__LOCATION__, &

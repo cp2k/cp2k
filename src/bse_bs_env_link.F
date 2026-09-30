@@ -506,7 +506,7 @@ CONTAINS
       largest_batch_bytes = MAX(INT(max_RI_per_batch, int_8)*bytes_per_RI, one_atom_bytes)
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory budget of the slab build per MPI rank (GB)', &
+         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory budget per MPI rank for the 3c integrals (GB)', &
             budget_GB
          WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Largest RI batch per MPI rank (GB)', &
             REAL(largest_batch_bytes, dp)*1.0E-9_dp
@@ -518,11 +518,11 @@ CONTAINS
          WRITE (budget_str, '(F16.3)') budget_GB
          IF (bse_env%memory_check == bse_memcheck_warn) THEN
             CALL cp_warn(__LOCATION__, &
-                         "PROPERTIES%BSE: the slab batch of one RI atom needs "//TRIM(ADJUSTL(need_str))// &
+                         "PROPERTIES%BSE: the 3c integral batch of one RI atom needs "//TRIM(ADJUSTL(need_str))// &
                          " GB per MPI rank, the budget is "//TRIM(ADJUSTL(budget_str))//" GB; one atom per batch")
          ELSE
             CALL cp_abort(__LOCATION__, &
-                          "PROPERTIES%BSE: not enough memory for the slab batch of one RI atom: "// &
+                          "PROPERTIES%BSE: not enough memory for the 3c integral batch of one RI atom: "// &
                           TRIM(ADJUSTL(need_str))//" GB per MPI rank, the budget is "//TRIM(ADJUSTL(budget_str))// &
                           " GB. Raise BSE_ITERAT%MEMORY_BUDGET_GB or use more MPI ranks.")
          END IF
@@ -608,7 +608,7 @@ CONTAINS
       CALL link_batch_budget(bs_env, bse_env, n_window, unit_nr, budget_bytes, max_RI_per_batch)
       CALL link_ri_batches(bs_env%sizes_RI, max_RI_per_batch, batch_first, batch_last)
       n_batch = SIZE(batch_first)
-      IF (unit_nr > 0) WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'RI atom batches of the slabs', n_batch
+      IF (unit_nr > 0) WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'RI atom batches of the 3c integral transformation', n_batch
 
       ! (RI AO | MO) of the half-transform and (RI | MO MO) of the product on the tensor group's grid
       pdims_3d = 0

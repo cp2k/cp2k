@@ -58,8 +58,7 @@ MODULE input_cp2k_mp2
                               integer_t, &
                               logical_t, &
                               real_t
-   USE kinds, ONLY: default_string_length, &
-                    dp
+   USE kinds, ONLY: dp
    USE string_utilities, ONLY: newline, &
                                s2a
 #include "./base/base_uses.f90"
@@ -1353,20 +1352,22 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
       LOGICAL, INTENT(IN)                                :: for_properties
 
-      CHARACTER(LEN=default_string_length*4)             :: where_from
+      CHARACTER(LEN=:), ALLOCATABLE                      :: where_from
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
       IF (for_properties) THEN
-         where_from = " Here the quasiparticle energies, the static screened interaction and the "// &
-                      "RI integrals come from PROPERTIES%BANDSTRUCTURE%GW (the RI-AO GW, "// &
-                      "non-periodic, Gamma only), which must be present in the same input; the same "// &
-                      "section under RI_RPA%GW runs the BSE on the RPA-based GW."
+         where_from = " This section runs the BSE on the GW of PROPERTIES%BANDSTRUCTURE%GW, which must be "// &
+                      "present in the same input and must not use RI_RS: the quasiparticle energies, the "// &
+                      "static screened interaction and the RI integrals are taken from that GW. The same "// &
+                      "section under XC%WF_CORRELATION%RI_RPA%GW runs the BSE on the RPA-based GW instead. "// &
+                      "Both treat non-periodic systems only."
       ELSE
-         where_from = " Here the quasiparticle energies and the screening come from the RPA-based GW "// &
-                      "of RI_RPA%GW; the same section under PROPERTIES runs the BSE on the RI-AO GW of "// &
-                      "PROPERTIES%BANDSTRUCTURE%GW."
+         where_from = " This section runs the BSE on the RPA-based GW of RI_RPA%GW, which provides the "// &
+                      "quasiparticle energies and the screening. The same section under PROPERTIES runs "// &
+                      "the BSE on the GW of PROPERTIES%BANDSTRUCTURE%GW instead. Both treat non-periodic "// &
+                      "systems only."
       END IF
       CALL section_create(section, __LOCATION__, name="BSE", &
                           description="Parameters for a calculation solving the Bethe-Salpeter equation "// &
@@ -1379,7 +1380,7 @@ CONTAINS
                           "as well as optical properties. The BSE can be solved by diagonalizing "// &
                           "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA). "// &
                           "Preliminary reference: Eq. (35) in PRB 92, 045209 (2015); "// &
-                          "http://dx.doi.org/10.1103/PhysRevB.92.045209"//TRIM(where_from), &
+                          "http://dx.doi.org/10.1103/PhysRevB.92.045209"//where_from, &
                           n_keywords=8, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -1794,9 +1795,9 @@ CONTAINS
                           "ceiling exceed the memory budget per MPI rank: nothing, warn, reduce the ceiling "// &
                           "to the largest that fits (never below the solver's minimum), or abort. "// &
                           "With FULLDIAG, the check runs before the GW on the peak estimate of the full "// &
-                          "diagonalization, and CLAMP warns. PROPERTIES%BSE cuts the RI batches of its "// &
-                          "slab build to the budget; when one RI atom alone exceeds it, WARN warns and "// &
-                          "CLAMP or ABORT abort.", &
+                          "diagonalization, and CLAMP warns. PROPERTIES%BSE transforms its three-center "// &
+                          "integrals in batches of RI atoms sized by the budget; when the batch of a single "// &
+                          "atom exceeds it, WARN warns, and CLAMP and ABORT stop the run.", &
                           usage="MEMORY_CHECK CLAMP", &
                           enum_c_vals=s2a("OFF", "WARN", "CLAMP", "ABORT"), &
                           enum_i_vals=[bse_memcheck_off, bse_memcheck_warn, bse_memcheck_clamp, bse_memcheck_abort], &
@@ -1813,7 +1814,7 @@ CONTAINS
                           "in GB; the RI slabs are already allocated and not part of it. -1: half of the "// &
                           "free memory per rank detected at the start of the solver. With FULLDIAG, the "// &
                           "budget the full diagonalization's peak estimate is checked against before the GW. "// &
-                          "PROPERTIES%BSE also cuts the RI batches of its slab build to it.", &
+                          "PROPERTIES%BSE also sizes the batches of its three-center integral transformation by it.", &
                           usage="MEMORY_BUDGET_GB 8.0", &
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
