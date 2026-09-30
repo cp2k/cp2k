@@ -1755,17 +1755,27 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MODEL_GRADIENT_RUNTIME", &
                           description="MPI communicator policy for GauXC Skala nuclear gradients. "// &
-                          "AUTO keeps the conservative rank-local gradient runtime when energy/VXC uses "// &
-                          "the MPI communicator. MPI uses the force-evaluation communicator for gradients "// &
-                          "and requires GauXC support for distributed Skala gradients. SELF forces "// &
-                          "rank-local replicated gradient runtimes.", &
+                          "AUTO uses distributed analytical gradients when the GauXC PR #222 fix is "// &
+                          "verified and energy/VXC uses MPI; otherwise it retains rank-local gradients. "// &
+                          "MPI requires verified support and an MPI energy/VXC runtime. SELF forces "// &
+                          "rank-local gradients. AUTO never overrides SKALA_RUNTIME's open-shell safeguard.", &
                           usage="MODEL_GRADIENT_RUNTIME AUTO", &
                           enum_c_vals=s2a("AUTO", "MPI", "SELF"), &
                           enum_i_vals=[1, 2, 3], &
-                          enum_desc=s2a("Conservative replicated gradient runtime (default)", &
+                          enum_desc=s2a("Use verified MPI gradients or safe replicated fallback (default)", &
                                         "Use the force-evaluation MPI communicator when supported", &
                                         "Use rank-local replicated gradient runtimes"), &
                           default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FORCE_NUMERICAL_GRADIENT", &
+                          description="Force central finite differences for the GauXC molecular XC "// &
+                          "nuclear gradient, using a displacement of 1.0E-4 bohr at fixed AO density. "// &
+                          "Diagnostic option; costs six XC energy evaluations per atom. Does not "// &
+                          "affect NATIVE_GRID or the CP2K one-center contribution.", &
+                          usage="FORCE_NUMERICAL_GRADIENT T", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

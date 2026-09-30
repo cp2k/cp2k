@@ -180,6 +180,9 @@ integrator.
 - Libtorch is required for Skala support.
 - Pass `-DCP2K_USE_GAUXC=ON` to CMake to enable GauXC. An MPI-enabled CP2K build requires a GauXC
   installation built with MPI support.
+- The toolchain marks its pinned GauXC as containing the OneDFT gradient correction from PR #222.
+  Unmarked external builds retain the older gradient safeguards; GauXC's version alone is
+  insufficient to identify the correction.
 - TorchScript-based GauXC models require a libtorch installation compatible with CP2K's BLAS and
   OpenMP runtime. Pre-built libtorch bundles commonly include oneMKL. CP2K's LP64 OpenBLAS build
   provides a compatibility path for the conflicting grouped SGEMM/DGEMM symbols; other mixed BLAS

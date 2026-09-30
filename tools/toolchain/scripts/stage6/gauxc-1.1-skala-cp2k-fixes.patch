@@ -11,7 +11,11 @@ index c6c4c2d4..35e426af 100644
 +  endif()
 +  set(CMAKE_POLICY_DEFAULT_CMP0144 NEW)
 +endif()
-@@ -93,0 +102,9 @@ endif()
+@@ -27,0 +36,3 @@
++# CP2K toolchain capability: pinned source includes GauXC PR #222.
++# This is not inferred from GauXC's unchanged package version.
++set( GAUXC_HAS_ONEDFT_GRADIENT_FIX @GAUXC_HAS_ONEDFT@ )
+@@ -93,0 +105,9 @@ endif()
 +if(POLICY CMP0144)
 +  if(DEFINED _GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144)
 +    set(CMAKE_POLICY_DEFAULT_CMP0144 "${_GAUXC_PREV_CMAKE_POLICY_DEFAULT_CMP0144}")
