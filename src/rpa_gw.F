@@ -797,10 +797,8 @@ CONTAINS
       nspins = SIZE(fm_mat_S_gw)
 
       IF (.NOT. do_im_time) THEN
-         ! calculate [1+Q(iw')]^-1
-         CALL cp_fm_cholesky_invert(fm_mat_Q)
-         ! symmetrize the result, fm_mat_R_gw is only temporary work matrix
-         CALL cp_fm_uplo_to_full(fm_mat_Q, fm_mat_R_gw)
+         ! Invert [1+Q(iw')], using fm_mat_R_gw as temporary workspace.
+         CALL cp_fm_cholesky_invert(fm_mat_Q, n=dimen_RI, work=fm_mat_R_gw)
 
          ! periodic correction for GW (paper Phys. Rev. B 95, 235123 (2017))
          IF (do_periodic) THEN
@@ -818,7 +816,7 @@ CONTAINS
          CALL para_env_RPA%sync()
 
          ! subtract 1 from the diagonal to get rid of exchange self-energy
-         CALL cp_fm_add_on_diag(fm_mat_Q, -1.0_dp, dimen_RI)
+         CALL cp_fm_add_on_diag(fm_mat_Q, -1.0_dp, n_active=dimen_RI)
 
          CALL para_env_RPA%sync()
 

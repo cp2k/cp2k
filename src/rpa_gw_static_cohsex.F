@@ -47,8 +47,7 @@ MODULE rpa_gw_static_cohsex
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
-                                              cp_fm_column_scale,&
-                                              cp_fm_uplo_to_full
+                                              cp_fm_column_scale
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -170,11 +169,10 @@ CONTAINS
       !      W^c_PQ(0) = ε^(-1)_PQ(0) - δ_PQ
       ! ==============================================================================
       CALL cp_fm_cholesky_decompose(fm_mat_Q, n=dimen_RI)
-      CALL cp_fm_cholesky_invert(fm_mat_Q)
       CALL cp_fm_create(fm_work, fm_mat_Q%matrix_struct)
-      CALL cp_fm_uplo_to_full(fm_mat_Q, fm_work)
+      CALL cp_fm_cholesky_invert(fm_mat_Q, n=dimen_RI, work=fm_work)
       CALL cp_fm_release(fm_work)
-      CALL cp_fm_add_on_diag(fm_mat_Q, -1.0_dp, dimen_RI)
+      CALL cp_fm_add_on_diag(fm_mat_Q, -1.0_dp, n_active=dimen_RI)
 
       unit_debug = unit_nr
 
