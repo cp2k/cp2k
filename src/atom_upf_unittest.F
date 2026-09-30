@@ -22,6 +22,8 @@ PROGRAM atom_upf_unittest
                                               atom_release_upf,&
                                               atom_upfpot_type
    USE atom_utils,                      ONLY: atom_core_density
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
    USE external_potential_types,        ONLY: allocate_potential,&
                                               deallocate_potential,&
                                               init_potential,&
@@ -50,6 +52,7 @@ PROGRAM atom_upf_unittest
    CALL check_core_derivatives()
    CALL check_projector_addition_theorem()
    CALL check_atomic_potential()
+   CALL check_upf_units()
 
    ! The same temporary is reused for successive KIND sections in Quickstep.
    ALLOCATE (pot%rho_nlcc(3))
@@ -102,6 +105,69 @@ PROGRAM atom_upf_unittest
    CALL cp2k_finalize()
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Read an independent miniature UPF fixture and check its numerical convention.
+!>        The values are deliberately simple and are not a physical pseudopotential.
+!>        Checking beta separately matters: an inverse rescaling of D leaves the NC
+!>        operator unchanged but would require rescaling USPP augmentation data too.
+! **************************************************************************************************
+   SUBROUTINE check_upf_units()
+      CHARACTER(LEN=*), PARAMETER                        :: fixture = "upf-units-test.upf"
+
+      INTEGER                                            :: unit
+      TYPE(atom_upfpot_type)                             :: potential
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      logger => cp_get_default_logger()
+      IF (logger%para_env%is_source()) THEN
+         OPEN (NEWUNIT=unit, FILE=fixture, STATUS="REPLACE", ACTION="WRITE")
+         WRITE (unit, '(A)') &
+            '<UPF version="2.0.1">', &
+            '<PP_HEADER element="He" pseudo_type="NC" z_valence="2"', &
+            ' mesh_size="3" number_of_proj="2" l_max="0" />', &
+            '<PP_MESH mesh="3">', &
+            '<PP_R type="real" size="3">', &
+            '0.5 1.0 1.5', &
+            '</PP_R>', &
+            '<PP_RAB type="real" size="3">', &
+            '0.5 0.5 0.5', &
+            '</PP_RAB>', &
+            '</PP_MESH>', &
+            '<PP_LOCAL type="real" size="3">', &
+            '6.0 4.0 2.0', &
+            '</PP_LOCAL>', &
+            '<PP_NONLOCAL>', &
+            '<PP_BETA.1 type="real" size="3" index="1" angular_momentum="0">', &
+            '1.0 4.0 9.0', &
+            '</PP_BETA.1>', &
+            '<PP_BETA.2 type="real" size="3" index="2" angular_momentum="0">', &
+            '2.0 -1.0 3.0', &
+            '</PP_BETA.2>', &
+            '<PP_DIJ type="real" size="4">', &
+            '2.0 0.4 0.4 8.0', &
+            '</PP_DIJ>', &
+            '</PP_NONLOCAL>', &
+            '</UPF>'
+         CLOSE (unit)
+      END IF
+      CALL logger%para_env%sync()
+      CALL atom_read_upf(potential, fixture)
+      IF (MAXVAL(ABS(potential%vlocal - [3.0_dp, 2.0_dp, 1.0_dp])) > 1.e-14_dp) &
+         ERROR STOP "UPF local potential is not in Hartree"
+      IF (MAXVAL(ABS(potential%beta(:, 1) - [2.0_dp, 4.0_dp, 6.0_dp])) > 1.e-14_dp) &
+         ERROR STOP "UPF changed the first tabulated projector amplitude"
+      IF (MAXVAL(ABS(potential%beta(:, 2) - [4.0_dp, -1.0_dp, 2.0_dp])) > 1.e-14_dp) &
+         ERROR STOP "UPF changed the second tabulated projector amplitude"
+      IF (MAXVAL(ABS(potential%dion - RESHAPE([1.0_dp, 0.2_dp, 0.2_dp, 4.0_dp], [2, 2]))) > 1.e-14_dp) &
+         ERROR STOP "UPF D matrix is not in the tabulated-projector convention"
+      CALL atom_release_upf(potential)
+      CALL logger%para_env%sync()
+      IF (logger%para_env%is_source()) THEN
+         OPEN (NEWUNIT=unit, FILE=fixture, STATUS="OLD")
+         CLOSE (unit, STATUS="DELETE")
+      END IF
+   END SUBROUTINE check_upf_units
 
 ! **************************************************************************************************
 !> \brief Compare the converted atomic SGP operator with analytic Gaussian integrals.

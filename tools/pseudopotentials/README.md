@@ -27,7 +27,12 @@ atomic local/nonlocal operators against analytic Gaussian integrals.
 ## Direct radial projector integrals
 
 Quickstep retains the scalar NC radial projector identities and the full UPF coupling matrix,
-using the UPF reader's existing atomic-unit convention.
+preserving the numerical amplitude of the tabulated projectors. The reader removes the radial
+prefactor from `PP_BETA` and multiplies `PP_DIJ` by 0.5 to express the complete operator in
+Hartree. The unit test checks projector amplitudes separately from the operator: compensating
+changes to beta and D alone would conceal a mismatch with future augmentation data.
+See the [UPF specification](https://pseudopotentials.quantum-espresso.org/home/unified-pseudopotential-format)
+for the radial prefactors and dataset unit conventions.
 `upf_projector_integrals` integrates Cartesian polynomials and real spherical harmonics
 analytically, with a one-dimensional Simpson quadrature on the supplied radial mesh. Gaussian
 basis contractions, projector identities, and off-diagonal radial couplings are preserved.

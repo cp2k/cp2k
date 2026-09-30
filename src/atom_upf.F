@@ -76,7 +76,8 @@ MODULE atom_upf
       REAL(dp), DIMENSION(:), ALLOCATABLE            :: rho_nlcc
       ! <LOCAL>
       REAL(dp), DIMENSION(:), ALLOCATABLE            :: vlocal
-      ! <NONLOCAL>
+      ! <NONLOCAL>: keep the tabulated projector amplitude; D includes Ry -> Hartree.
+      ! beta stores beta(r), with the radial prefactor in PP_BETA removed.
       REAL(dp), DIMENSION(:, :), ALLOCATABLE         :: dion
       REAL(dp), DIMENSION(:, :), ALLOCATABLE         :: beta
       INTEGER, DIMENSION(:), ALLOCATABLE             :: lbeta
@@ -784,9 +785,13 @@ CONTAINS
          END IF
       END DO
 
-      ! change units and scaling, beta is still r*beta
-      pot%dion = 2.0_dp*pot%dion
-      pot%beta = 0.5_dp*pot%beta
+      ! Convert the complete beta*D*beta operator from Ry to Hartree without
+      ! changing the tabulated projector amplitude. This also preserves the
+      ! projector convention needed by augmentation charges and PAW duality.
+      ! Some NC converters put energy units into beta and inverse energy into D;
+      ! preserving their numerical beta still gives the correct operator here.
+      ! The radial prefactor in PP_BETA is removed after reading the whole file.
+      pot%dion = 0.5_dp*pot%dion
 
    END SUBROUTINE upf_nonlocal_section
 

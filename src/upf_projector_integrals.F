@@ -9,7 +9,8 @@
 !> \brief Half-numerical overlaps with the original scalar UPF radial projectors.
 !>        Cartesian polynomials and angular products are integrated analytically.
 !>        Only a radial quadrature remains; no fit or rotation of projector identities
-!>        is performed. The UPF reader supplies radial beta in its Hartree convention.
+!>        is performed. The UPF reader preserves the tabulated beta amplitude and
+!>        includes the Ry-to-Hartree factor in the coupling matrix D.
 ! **************************************************************************************************
 MODULE upf_projector_integrals
    USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
