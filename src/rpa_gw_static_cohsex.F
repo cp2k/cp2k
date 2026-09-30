@@ -131,7 +131,7 @@ CONTAINS
                                         gw_corr_lev_occ, gw_corr_lev_virt, Eigenval, mo_coeff, unit_nr, &
                                         qs_env, mp2_env, eigenval_dg, eigenval_cn, u_qp_all)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_gw, fm_mat_S_gw_work
       INTEGER, INTENT(IN)                                :: dimen_RI, nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, gw_corr_lev_occ, gw_corr_lev_virt

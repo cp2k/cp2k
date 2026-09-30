@@ -810,7 +810,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(OUT)    :: trace_Qomega
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Q_trace_and_add_unit_matrix'
 

@@ -777,7 +777,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: vec_W_gw
       TYPE(time_frequency_grid_type), INTENT(IN)         :: grid
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_R_gw
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_R_gw
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_gw, fm_mat_S_gw_work
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_RPA
@@ -885,7 +886,8 @@ CONTAINS
    SUBROUTINE compute_W_cubic_GW(fm_mat_W, fm_mat_Q, fm_mat_work, dimen_RI, fm_mat_L, &
                                  grid, jquad, omega)
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_work
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_work
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L
       TYPE(time_frequency_grid_type), INTENT(IN)         :: grid

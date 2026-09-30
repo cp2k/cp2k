@@ -232,7 +232,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scale_static_screening(fm_eps_inv, dimen_RI_red, alpha)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eps_inv
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_eps_inv
       INTEGER, INTENT(IN)                                :: dimen_RI_red
       REAL(KIND=dp), INTENT(IN)                          :: alpha
 
