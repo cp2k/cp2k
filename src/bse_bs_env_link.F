@@ -123,16 +123,21 @@ CONTAINS
       NULLIFY (bs_env)
       CALL get_qs_env(qs_env, bs_env=bs_env)
       ! the driver calls this after the bandstructure block, which creates bs_env
-      CPASSERT(ASSOCIATED(bs_env))
-      ! the requirement reader at GW init refused RI_RS and periodic runs already
-      CPASSERT(bs_env%do_gw .AND. .NOT. bs_env%do_periodic .AND. .NOT. bs_env%do_gw_ri_rs)
+      IF (.NOT. ASSOCIATED(bs_env)) CPABORT("PROPERTIES%BSE found no GW environment (bs_env)")
+      ! read_bse_requirements refused each of these at GW init with a message that says what to change;
+      ! Gamma is the one k-point that carries the MOs and the energies read below
+      IF (.NOT. bs_env%do_gw .OR. bs_env%do_periodic .OR. bs_env%do_gw_ri_rs .OR. bs_env%nkp_bs_and_DOS /= 1) THEN
+         CPABORT("PROPERTIES%BSE needs a non-periodic, Gamma-only GW without RI_RS")
+      END IF
       ! the same reader told the GW to keep its static W and the 3c neighbour list
-      CPASSERT(bs_env%keep_W_freq_zero .AND. bs_env%keep_3c_nl)
-      CPASSERT(ASSOCIATED(bs_env%fm_W_MIC_freq_zero%matrix_struct))
-      ! non-periodic: Gamma is the one k-point that carries the MOs and the energies read below
-      CPASSERT(bs_env%nkp_bs_and_DOS == 1)
+      IF (.NOT. (bs_env%keep_W_freq_zero .AND. bs_env%keep_3c_nl) .OR. &
+          .NOT. ASSOCIATED(bs_env%fm_W_MIC_freq_zero%matrix_struct)) THEN
+         CPABORT("PROPERTIES%BSE: the GW kept no static W(0) or no 3c neighbour list")
+      END IF
       ! every RI batch of the slabs goes to one tensor group; unset groups would skip them all silently
-      CPASSERT(bs_env%num_tensor_groups >= 1 .AND. bs_env%tensor_group_color >= 0)
+      IF (bs_env%num_tensor_groups < 1 .OR. bs_env%tensor_group_color < 0) THEN
+         CPABORT("PROPERTIES%BSE: the tensor groups of the GW are not set")
+      END IF
 
       n_spin = bs_env%n_spin
       n_RI = bs_env%n_RI
@@ -329,7 +334,7 @@ CONTAINS
 
       n_window = window%last_mo - window%first_mo + 1
       ! the MO blocks cover the window exactly
-      CPASSERT(SUM(sizes_mo) == n_window)
+      IF (SUM(sizes_mo) /= n_window) CPABORT("MO block sizes do not sum to the active window")
 
       pdims_2d = 0
       CALL dbt_pgrid_create(bs_env%para_env_tensor, pdims_2d, pgrid_2d)
@@ -805,7 +810,7 @@ CONTAINS
             col_block = p_chunk - p_chunk_offset(i_pair)
             CALL dbcsr_get_stored_coordinates(mat_group(i_pair), row_block, col_block, owner_rank)
             ! the group matrix was laid out by the tensor's coordinates: the rank holding the block owns it
-            CPASSERT(owner_rank == my_rank)
+            IF (owner_rank /= my_rank) CPABORT("(P|qp) block is not local to its group matrix")
             CALL dbcsr_put_block(mat_group(i_pair), row_block, col_block, &
                                  RESHAPE(block_Pqp, [blk_size(1), blk_size(2)*blk_size(3)]))
          END IF

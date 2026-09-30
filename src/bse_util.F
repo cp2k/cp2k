@@ -1469,7 +1469,9 @@ CONTAINS
 
       dft_control => bse_env%dft_control
       ! PROPERTIES%BSE runs after the GW released the grids; its requirement reader refuses cube files
-      CPASSERT(ASSOCIATED(bse_env%pw_env))
+      IF (.NOT. ASSOCIATED(bse_env%pw_env)) THEN
+         CPABORT("NTO cube files need the SCF grids: set NTO_ANALYSIS%CUBE_FILES to F")
+      END IF
       pw_env => bse_env%pw_env
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
       CALL auxbas_pw_pool%create_pw(wf_r)

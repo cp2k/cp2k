@@ -242,7 +242,7 @@ CONTAINS
    END SUBROUTINE create_and_init_bs_env
 
 ! **************************************************************************************************
-!> \brief What PROPERTIES%BSE needs the GW to keep, and the five combinations it refuses at init
+!> \brief What PROPERTIES%BSE needs the GW to keep, and the six combinations it refuses at init
 !> \param qs_env source of the input
 !> \param bs_env its GW flags are read; keep_W_freq_zero and keep_3c_nl are set
 ! **************************************************************************************************
@@ -265,11 +265,23 @@ CONTAINS
 
       IF (do_bse_props) THEN
          IF (.NOT. bs_env%do_gw) CPABORT("PROPERTIES%BSE needs PROPERTIES%BANDSTRUCTURE%GW")
-         IF (bs_env%do_gw_ri_rs) CPABORT("PROPERTIES%BSE needs the RI-AO GW: remove &RI_RS")
+         ! the BSE kernel is built from the three-center RI integrals, which RI_RS replaces by a grid
+         IF (bs_env%do_gw_ri_rs) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "PROPERTIES%BSE needs the three-center RI integrals of the GW: remove the "// &
+                          "RI_RS subsection from PROPERTIES%BANDSTRUCTURE%GW")
+         END IF
          IF (bs_env%do_periodic) THEN
             CALL cp_abort(__LOCATION__, &
                           "The BSE treats non-periodic systems only: PROPERTIES%BSE needs "// &
                           "PERIODIC NONE in the CELL section")
+         END IF
+         ! the BSE reads the MOs and the GW energies at the Gamma point, the only k-point of a
+         ! non-periodic run unless a band path or a DOS k-grid adds more
+         IF (bs_env%nkp_bs_and_DOS /= 1) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "PROPERTIES%BSE needs the Gamma point only: remove BANDSTRUCTURE_PATH and "// &
+                          "DOS%KPOINTS from PROPERTIES%BANDSTRUCTURE")
          END IF
          ! both read the W(0) and the neighbour list the GW keeps, and PROPERTIES%BSE frees them
          IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized) THEN
