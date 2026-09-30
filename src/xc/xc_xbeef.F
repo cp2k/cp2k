@@ -170,7 +170,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -178,7 +178,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
       END IF
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives greater than 1 not implemented")
       END IF
 
@@ -260,7 +260,7 @@ CONTAINS
                e_leg(1) = t !second legendre pol
             END IF
 
-            IF ((grad_deriv >= 1) .OR. (grad_deriv == -1)) THEN !asking for first derivative or higher
+            IF ((grad_deriv >= 1)) THEN !asking for first derivative or higher
                de_leg(0) = 0
                de_leg(1) = 1
                dt = 4.0_dp*s/(4.0_dp + s2) - 4.0_dp*s*s2/(4.0_dp + s2)**2
@@ -285,7 +285,7 @@ CONTAINS
             END IF
 
             !FIRST DERIVATIVE
-            IF ((grad_deriv >= 1) .OR. (grad_deriv == -1)) THEN !asking for first derivative or higher
+            IF ((grad_deriv >= 1)) THEN !asking for first derivative or higher
                e_rho(ii) = e_rho(ii) + (SUM(e_leg*a)*e_ueg_drho + SUM(de_leg*a)*dt*ds_rho*e_ueg)*sx
                e_ndrho(ii) = e_ndrho(ii) + (SUM(de_leg*a)*dt*ds_ndrho*e_ueg)*sx
             END IF
@@ -353,7 +353,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho(1)%array)
@@ -367,7 +367,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho(2)%array)
       END IF
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives greater than 1 not implemented")
       END IF
 
@@ -458,7 +458,7 @@ CONTAINS
                e_leg(1) = t !second legendre pol
             END IF
 
-            IF ((grad_deriv >= 1) .OR. (grad_deriv == -1)) THEN !asking for first derivative or higher
+            IF ((grad_deriv >= 1)) THEN !asking for first derivative or higher
                de_leg(0) = 0
                de_leg(1) = 1
                dt = 4.0_dp*s/(4.0_dp + s2) - 4.0_dp*s*s2/(4.0_dp + s2)**2
@@ -484,7 +484,7 @@ CONTAINS
             END IF
 
             !FIRST DERIVATIVE
-            IF ((grad_deriv >= 1) .OR. (grad_deriv == -1)) THEN !asking for first derivative or higher
+            IF ((grad_deriv >= 1)) THEN !asking for first derivative or higher
                e_rho_spin(ii) = e_rho_spin(ii) + (SUM(e_leg*a)*e_ueg_drho + SUM(de_leg*a)*dt*ds_rho*e_ueg)*sx
                e_ndrho_spin(ii) = e_ndrho_spin(ii) + (SUM(de_leg*a)*dt*ds_ndrho*e_ueg)*sx
             END IF

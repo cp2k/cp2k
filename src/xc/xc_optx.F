@@ -141,7 +141,7 @@ CONTAINS
       deriv => xc_dset_get_derivative(deriv_set, [deriv_norm_drho], &
                                       allocate_deriv=.TRUE.)
       CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives bigger than 1 not implemented")
       END IF
 
@@ -216,7 +216,7 @@ CONTAINS
                                       allocate_deriv=.TRUE.)
       CALL xc_derivative_get(deriv, deriv_data=e_ndrho(2)%array)
 
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives bigger than 1 not implemented")
       END IF
       DO ispin = 1, 2

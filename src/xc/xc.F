@@ -180,8 +180,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      MARK_USED(weights)
-
 #if defined(__LIBXC)
       ! Apply the runtime LibXC backend selection from &XC/LIBXC_GPU_BACKEND.
       CALL libxc_set_backend(section_get_ival(xc_section, "LIBXC_GPU_BACKEND"))

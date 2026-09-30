@@ -172,7 +172,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -180,7 +180,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
       END IF
-      IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+      IF (grad_deriv >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
@@ -191,7 +191,7 @@ CONTAINS
                                          [deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho)
       END IF
-      IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+      IF (grad_deriv >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
@@ -205,7 +205,7 @@ CONTAINS
                                          [deriv_norm_drho, deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_ndrho)
       END IF
-      IF (grad_deriv > 3 .OR. grad_deriv < -3) THEN
+      IF (grad_deriv > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -551,7 +551,7 @@ CONTAINS
                e_0(ii) = e_0(ii) + (-0.4444444448e0_dp*t43*t79 + t8*(-0.3333333336e0_dp*t83*t141 &
                                                                      - 0.2222222224e0_dp*t144*t46*t207))*sx*2.0_dp
             END IF
-            IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+            IF (grad_deriv >= 1) THEN
                t214 = lambda*t42
                t217 = t4*t41
                t218 = t10*t16
@@ -787,7 +787,7 @@ CONTAINS
                                                             *t83*t653 - 0.2222222224e0_dp*t144*t46*t739))*sx
             END IF
 
-            IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+            IF (grad_deriv >= 2) THEN
                t747 = lambda*t41*omega
                t753 = t4*t48
                t754 = t237**2
@@ -1744,7 +1744,7 @@ CONTAINS
                        t46*t78*t2230 - 0.4444444448e0_dp*t43*t46*t2392 + t8*(t2635 &
                                                                              + t3288)
             END IF
-            IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+            IF (grad_deriv >= 3) THEN
                e_rho_rho_rho(ii) = e_rho_rho_rho(ii) + t3291*sx
                t3305 = t4*t428
                t3306 = t754*t561
@@ -2904,7 +2904,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho(1)%array)
@@ -2918,7 +2918,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho(2)%array)
       END IF
-      IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+      IF (grad_deriv >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho(1)%array)
@@ -2938,7 +2938,7 @@ CONTAINS
                                          [deriv_norm_drhob, deriv_norm_drhob], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho(2)%array)
       END IF
-      IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+      IF (grad_deriv >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho(1)%array)
@@ -2964,7 +2964,7 @@ CONTAINS
                                          [deriv_norm_drhob, deriv_norm_drhob, deriv_norm_drhob], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_ndrho(2)%array)
       END IF
-      IF (grad_deriv > 3 .OR. grad_deriv < -3) THEN
+      IF (grad_deriv > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -3320,7 +3320,7 @@ CONTAINS
                e_0(ii) = e_0(ii) + (-0.4444444448e0_dp*t43*t79 + t8*(-0.3333333336e0_dp*t83*t141 &
                                                                      - 0.2222222224e0_dp*t144*t46*t207))*sx
             END IF
-            IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+            IF (grad_deriv >= 1) THEN
                t214 = lambda*t42
                t217 = t4*t41
                t218 = t10*t16
@@ -3556,7 +3556,7 @@ CONTAINS
                                                                       *t83*t653 - 0.2222222224e0_dp*t144*t46*t739))*sx
             END IF
 
-            IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+            IF (grad_deriv >= 2) THEN
                t747 = lambda*t41*omega
                t753 = t4*t48
                t754 = t237**2
@@ -4513,7 +4513,7 @@ CONTAINS
                        t46*t78*t2230 - 0.4444444448e0_dp*t43*t46*t2392 + t8*(t2635 &
                                                                              + t3288)
             END IF
-            IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+            IF (grad_deriv >= 3) THEN
                e_rho_rho_rho_spin(ii) = e_rho_rho_rho_spin(ii) + t3291*sx
                t3305 = t4*t428
                t3306 = t754*t561
