@@ -26,6 +26,7 @@ MODULE admm_methods
                                               cp_cfm_cholesky_invert
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
+                                              cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type,&
                                               cp_fm_to_cfm
@@ -301,8 +302,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
-      TYPE(cp_cfm_type)                                  :: cA, cpmatrix, cwork_aux_aux, &
-                                                            cwork_aux_orb
+      TYPE(cp_cfm_type)                                  :: cpmatrix, cwork_aux_aux, cwork_aux_orb
       TYPE(cp_fm_struct_type), POINTER                   :: struct_aux_aux, struct_aux_orb, &
                                                             struct_orb_orb
       TYPE(cp_fm_type)                                   :: fmdummy, work_aux_orb, work_orb_orb, &
@@ -395,7 +395,6 @@ CONTAINS
 
          CALL cp_cfm_create(cwork_aux_aux, struct_aux_aux)
 
-         CALL cp_cfm_create(cA, struct_aux_orb)
          CALL cp_cfm_create(cwork_aux_orb, struct_aux_orb)
 
       END IF
@@ -509,17 +508,17 @@ CONTAINS
                                occupation_numbers=occ_num_aux)
 
                kp => kpoints%kp_aux_env(ikp)%kpoint_env
-               CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, 1.0_dp, kp%amat(1, 1), &
+               CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, 1.0_dp, kp%amat, &
                                   mo_coeff, 0.0_dp, mo_coeff_aux_fit)
 
                occ_num_aux(1:nmo) = occ_num(1:nmo)
 
                IF (pmat_from_rs) THEN
                   !We project on the AUX basis: P_aux = A * P *A^T
-                  CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, 1.0_dp, kp%amat(1, 1), &
+                  CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, 1.0_dp, kp%amat, &
                                      work_orb_orb, 0.0_dp, work_aux_orb)
                   CALL parallel_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nao_orb, 1.0_dp, work_aux_orb, &
-                                     kp%amat(1, 1), 0.0_dp, kpoints%kp_aux_env(ikp)%kpoint_env%pmat(1, ispin))
+                                     kp%amat, 0.0_dp, kpoints%kp_aux_env(ikp)%kpoint_env%pmat(1, ispin))
                END IF
 
             ELSE !complex wfn
@@ -529,9 +528,8 @@ CONTAINS
 
                !project
                kp => kpoints%kp_aux_env(ikp)%kpoint_env
-               CALL cp_fm_to_cfm(kp%amat(1, 1), kp%amat(2, 1), cA)
                CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
-                                  z_one, cA, mos_kp(ispin)%cmo_coeff, z_zero, &
+                                  z_one, kp%camat, mos_kp(ispin)%cmo_coeff, z_zero, &
                                   kp%mos(ispin)%cmo_coeff)
 
                !write result back to KP MOs
@@ -541,10 +539,10 @@ CONTAINS
                occ_num_aux(:) = occ_num(:)
 
                IF (pmat_from_rs) THEN
-                  CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, z_one, cA, &
+                  CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, z_one, kp%camat, &
                                      cpmatrix, z_zero, cwork_aux_orb)
                   CALL parallel_gemm('N', 'C', nao_aux_fit, nao_aux_fit, nao_orb, z_one, cwork_aux_orb, &
-                                     cA, z_zero, cwork_aux_aux)
+                                     kp%camat, z_zero, cwork_aux_aux)
 
                   CALL cp_cfm_to_fm(cwork_aux_aux, mtargetr=kpoints%kp_aux_env(ikp)%kpoint_env%pmat(1, ispin), &
                                     mtargeti=kpoints%kp_aux_env(ikp)%kpoint_env%pmat(2, ispin))
@@ -574,7 +572,6 @@ CONTAINS
          CALL cp_cfm_release(cpmatrix)
          CALL cp_cfm_release(cwork_aux_aux)
          CALL cp_cfm_release(cwork_aux_orb)
-         CALL cp_cfm_release(cA)
       END IF
 
       IF (.NOT. pmat_from_rs) CALL kpoint_density_matrices(kpoints, for_aux_fit=.TRUE.)
@@ -1908,8 +1905,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
-      TYPE(cp_cfm_type)                                  :: cA, cK, cS, cwork_aux_aux, &
-                                                            cwork_aux_orb, cwork_orb_orb
+      TYPE(cp_cfm_type)                                  :: cK, cwork_aux_orb, cwork_orb_orb
       TYPE(cp_fm_struct_type), POINTER                   :: struct_aux_aux, struct_aux_orb, &
                                                             struct_orb_orb
       TYPE(cp_fm_type)                                   :: fmdummy, work_aux_aux, work_aux_aux2, &
@@ -2079,11 +2075,8 @@ CONTAINS
 
       !Create cfm work matrices
       IF (.NOT. use_real_wfn) THEN
-         CALL cp_cfm_create(cS, struct_aux_aux)
          CALL cp_cfm_create(cK, struct_aux_aux)
-         CALL cp_cfm_create(cwork_aux_aux, struct_aux_aux)
 
-         CALL cp_cfm_create(cA, struct_aux_orb)
          CALL cp_cfm_create(cwork_aux_orb, struct_aux_orb)
 
          CALL cp_cfm_create(cwork_orb_orb, struct_orb_orb)
@@ -2171,38 +2164,33 @@ CONTAINS
 
                !! K*A
                CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                                  1.0_dp, work_aux_aux, kp%amat(1, 1), 0.0_dp, &
+                                  1.0_dp, work_aux_aux, kp%amat, 0.0_dp, &
                                   work_aux_orb)
                !! A^T*K*A
                CALL parallel_gemm('T', 'N', nao_orb, nao_orb, nao_aux_fit, &
-                                  1.0_dp, kp%amat(1, 1), work_aux_orb, 0.0_dp, &
+                                  1.0_dp, kp%amat, work_aux_orb, 0.0_dp, &
                                   fm_ks(ikp, 1, ispin))
             ELSE
 
                IF (admm_env%do_admmq .OR. admm_env%do_admms) THEN
-                  CALL cp_fm_to_cfm(kp%smat(1, 1), kp%smat(2, 1), cS)
-
                   !Need to subdtract lambda* S_aux to K_aux, and scale the whole thing by gsi
                   fac = CMPLX(-admm_env%lambda_merlot(ispin), 0.0_dp, dp)
-                  CALL cp_cfm_scale_and_add(z_one, cK, fac, cS)
+                  CALL cp_cfm_scale_and_add(z_one, cK, fac, kp%csmat)
                   CALL cp_cfm_scale(admm_env%gsi(ispin), cK)
                END IF
 
                IF (admm_env%do_admmp) THEN
-                  CALL cp_fm_to_cfm(kp%smat(1, 1), kp%smat(2, 1), cS)
-
                   !Need to substract labda*gsi*S_aux to gsi**2*K_aux
                   fac = CMPLX(-admm_env%gsi(ispin)*admm_env%lambda_merlot(ispin), 0.0_dp, dp)
                   fac2 = CMPLX(admm_env%gsi(ispin)**2, 0.0_dp, dp)
-                  CALL cp_cfm_scale_and_add(fac2, cK, fac, cS)
+                  CALL cp_cfm_scale_and_add(fac2, cK, fac, kp%csmat)
                END IF
 
-               CALL cp_fm_to_cfm(kp%amat(1, 1), kp%amat(2, 1), cA)
                CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
-                                  z_one, cK, cA, z_zero, cwork_aux_orb)
+                                  z_one, cK, kp%camat, z_zero, cwork_aux_orb)
 
                CALL parallel_gemm('C', 'N', nao_orb, nao_orb, nao_aux_fit, &
-                                  z_one, cA, cwork_aux_orb, z_zero, cwork_orb_orb)
+                                  z_one, kp%camat, cwork_aux_orb, z_zero, cwork_orb_orb)
 
                CALL cp_cfm_to_fm(cwork_orb_orb, mtargetr=fm_ks(ikp, 1, ispin), mtargeti=fm_ks(ikp, 2, ispin))
             END IF
@@ -2223,10 +2211,7 @@ CONTAINS
       CALL cp_fm_release(work_aux_aux2)
       CALL cp_fm_release(work_aux_orb)
       IF (.NOT. use_real_wfn) THEN
-         CALL cp_cfm_release(cS)
          CALL cp_cfm_release(cK)
-         CALL cp_cfm_release(cwork_aux_aux)
-         CALL cp_cfm_release(cA)
          CALL cp_cfm_release(cwork_aux_orb)
          CALL cp_cfm_release(cwork_orb_orb)
       END IF
@@ -2758,7 +2743,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
-      TYPE(cp_cfm_type)                                  :: cA, ckmatrix, cpmatrix, cQ, cS, cS_inv, &
+      TYPE(cp_cfm_type)                                  :: ckmatrix, cpmatrix, cS_inv, &
                                                             cwork_aux_aux, cwork_aux_orb, &
                                                             cwork_aux_orb2
       TYPE(cp_fm_struct_type), POINTER                   :: struct_aux_aux, struct_aux_orb, &
@@ -2880,12 +2865,9 @@ CONTAINS
          CALL cp_cfm_create(cpmatrix, struct_orb_orb)
 
          CALL cp_cfm_create(cS_inv, struct_aux_aux)
-         CALL cp_cfm_create(cS, struct_aux_aux)
          CALL cp_cfm_create(cwork_aux_aux, struct_aux_aux)
          CALL cp_cfm_create(ckmatrix, struct_aux_aux)
 
-         CALL cp_cfm_create(cA, struct_aux_orb)
-         CALL cp_cfm_create(cQ, struct_aux_orb)
          CALL cp_cfm_create(cwork_aux_orb, struct_aux_orb)
          CALL cp_cfm_create(cwork_aux_orb2, struct_aux_orb)
       END IF
@@ -2971,7 +2953,7 @@ CONTAINS
             IF (use_real_wfn) THEN
 
                !! Calculate S'_inverse
-               CALL cp_fm_to_fm(kp%smat(1, 1), S_inv)
+               CALL cp_fm_to_fm(kp%smat, S_inv)
                CALL cp_fm_cholesky_decompose(S_inv)
                CALL cp_fm_cholesky_invert(S_inv)
                !! Symmetrize the guy
@@ -2981,34 +2963,30 @@ CONTAINS
                CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, 1.0_dp, S_inv, &
                                   work_aux_aux, 0.0_dp, work_aux_aux3) ! S^-1 * K
                CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, 1.0_dp, work_aux_aux3, &
-                                  kp%amat(1, 1), 0.0_dp, work_aux_orb) ! S^-1 * K * A
+                                  kp%amat, 0.0_dp, work_aux_orb) ! S^-1 * K * A
                CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, 1.0_dp, work_aux_orb, &
                                   kpoints%kp_env(ikp)%kpoint_env%pmat(1, ispin), 0.0_dp, &
                                   fm_skap(ikp, 1, ispin)) ! S^-1 * K * A * P
                CALL parallel_gemm('N', 'T', nao_aux_fit, nao_aux_fit, nao_orb, 1.0_dp, fm_skap(ikp, 1, ispin), &
-                                  kp%amat(1, 1), 0.0_dp, fm_skapa(ikp, 1, ispin))
+                                  kp%amat, 0.0_dp, fm_skapa(ikp, 1, ispin))
 
             ELSE !complex wfn
 
                IF (admm_env%do_admmq .OR. admm_env%do_admms) THEN
-                  CALL cp_fm_to_cfm(kp%smat(1, 1), kp%smat(2, 1), cS)
-
                   !Need to subdtract lambda* S_aux to K_aux, and scale the whole thing by gsi
                   fac = CMPLX(-admm_env%lambda_merlot(ispin), 0.0_dp, dp)
-                  CALL cp_cfm_scale_and_add(z_one, ckmatrix, fac, cS)
+                  CALL cp_cfm_scale_and_add(z_one, ckmatrix, fac, kp%csmat)
                   CALL cp_cfm_scale(admm_env%gsi(ispin), ckmatrix)
                END IF
 
                IF (admm_env%do_admmp) THEN
-                  CALL cp_fm_to_cfm(kp%smat(1, 1), kp%smat(2, 1), cS)
-
                   !Need to substract labda*gsi*S_aux to gsi**2*K_aux
                   fac = CMPLX(-admm_env%gsi(ispin)*admm_env%lambda_merlot(ispin), 0.0_dp, dp)
                   fac2 = CMPLX(admm_env%gsi(ispin)**2, 0.0_dp, dp)
-                  CALL cp_cfm_scale_and_add(fac2, ckmatrix, fac, cS)
+                  CALL cp_cfm_scale_and_add(fac2, ckmatrix, fac, kp%csmat)
                END IF
 
-               CALL cp_fm_to_cfm(kp%smat(1, 1), kp%smat(2, 1), cS_inv)
+               CALL cp_cfm_to_cfm(kp%csmat, cS_inv)
                CALL cp_cfm_cholesky_decompose(cS_inv)
                CALL cp_cfm_cholesky_invert(cS_inv)
                CALL cp_cfm_uplo_to_full(cS_inv, cwork_aux_aux)
@@ -3020,15 +2998,14 @@ CONTAINS
 
                !Do the same thing as in the real case
                !We need to calculate S^-1*K*A*P and S^-1*K*A*P*A^T
-               CALL cp_fm_to_cfm(kp%amat(1, 1), kp%amat(2, 1), cA)
                CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, z_one, cS_inv, &
                                   ckmatrix, z_zero, cwork_aux_aux) ! S^-1 * K
                CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, z_one, cwork_aux_aux, &
-                                  cA, z_zero, cwork_aux_orb) ! S^-1 * K * A
+                                  kp%camat, z_zero, cwork_aux_orb) ! S^-1 * K * A
                CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, z_one, cwork_aux_orb, &
                                   cpmatrix, z_zero, cwork_aux_orb2) ! S^-1 * K * A * P
                CALL parallel_gemm('N', 'C', nao_aux_fit, nao_aux_fit, nao_orb, z_one, cwork_aux_orb2, &
-                                  cA, z_zero, cwork_aux_aux)
+                                  kp%camat, z_zero, cwork_aux_aux)
 
                IF (admm_env%do_admmq .OR. admm_env%do_admmp .OR. admm_env%do_admms) THEN
                   !In ADMMQ, ADMMS, and ADMMP, there is an extra lambda*Tq *P* Tq^T matrix to contract with S_aux^(x)
@@ -3036,10 +3013,10 @@ CONTAINS
 
                   !factor 0.5 because later multiplied by 2
                   fac = CMPLX(0.5_dp*admm_env%lambda_merlot(ispin)*admm_env%gsi(ispin), 0.0_dp, dp)
-                  CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, z_one, cA, cpmatrix, &
+                  CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, z_one, kp%camat, cpmatrix, &
                                      z_zero, cwork_aux_orb)
                   CALL parallel_gemm('N', 'C', nao_aux_fit, nao_aux_fit, nao_orb, fac, cwork_aux_orb, &
-                                     cA, z_one, cwork_aux_aux)
+                                     kp%camat, z_one, cwork_aux_aux)
                END IF
 
                CALL cp_cfm_to_fm(cwork_aux_orb2, mtargetr=fm_skap(ikp, 1, ispin), mtargeti=fm_skap(ikp, 2, ispin))
@@ -3069,12 +3046,9 @@ CONTAINS
          CALL cp_cfm_release(ckmatrix)
          CALL cp_cfm_release(cpmatrix)
          CALL cp_cfm_release(cS_inv)
-         CALL cp_cfm_release(cS)
          CALL cp_cfm_release(cwork_aux_aux)
          CALL cp_cfm_release(cwork_aux_orb)
          CALL cp_cfm_release(cwork_aux_orb2)
-         CALL cp_cfm_release(cA)
-         CALL cp_cfm_release(cQ)
       END IF
 
       !Back FT to real space
@@ -3797,7 +3771,7 @@ CONTAINS
    END SUBROUTINE admm_aux_response_density
 
 ! **************************************************************************************************
-!> \brief Fill the ADMM overlp and basis change  matrices in the KP env based on the real-space array
+!> \brief Store the ADMM auxiliary overlap and projection A = S^-1 Q in their native scalar type.
 !> \param qs_env ...
 !> \param calculate_forces ...
 ! **************************************************************************************************
@@ -3805,18 +3779,17 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL                                            :: calculate_forces
 
-      INTEGER                                            :: ic, igroup, ik, ikp, indx, kplocal, &
-                                                            kpmax, nao_aux_fit, nao_orb, nc, nkp, &
-                                                            nkp_groups
+      INTEGER                                            :: igroup, ik, ikp, indx, kplocal, kpmax, &
+                                                            nao_aux_fit, nao_orb, nkp, nkp_groups
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:, :), POINTER                  :: kp_dist
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: my_kpgrp, use_real_wfn
+      LOGICAL                                            :: my_kpgrp, store_overlap, use_real_wfn
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
       TYPE(cp_cfm_type)                                  :: cmat_aux_fit, cmat_aux_fit_vs_orb, &
-                                                            cwork_aux_fit, cwork_aux_fit_vs_orb
+                                                            cwork_aux_fit
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct_aux_fit, &
                                                             matrix_struct_aux_fit_vs_orb
       TYPE(cp_fm_type)                                   :: fmdummy, imat_aux_fit, &
@@ -3841,13 +3814,12 @@ CONTAINS
                         matrix_s_aux_fit_vs_orb_kp=matrix_s_aux_fit_vs_orb, &
                         sab_aux_fit=sab_aux_fit, &
                         sab_aux_fit_vs_orb=sab_aux_fit_vs_orb)
+      store_overlap = admm_env%do_admmp .OR. admm_env%do_admmq .OR. admm_env%do_admms .OR. calculate_forces
 
       CALL get_kpoint_info(kpoints, nkp=nkp, xkp=xkp, use_real_wfn=use_real_wfn, kp_range=kp_range, &
                            nkp_groups=nkp_groups, kp_dist=kp_dist, cell_to_index=cell_to_index)
       kplocal = kp_range(2) - kp_range(1) + 1
       kpmax = MAXVAL(kp_dist(2, :) - kp_dist(1, :) + 1)
-      nc = 1
-      IF (.NOT. use_real_wfn) nc = 2
 
       ALLOCATE (dbcsr_aux_fit(3))
       CALL dbcsr_create(dbcsr_aux_fit(1), template=matrix_s_aux_fit(1, 1)%matrix, matrix_type=dbcsr_type_symmetric)
@@ -3873,13 +3845,13 @@ CONTAINS
       CALL cp_fm_struct_create(matrix_struct_aux_fit, context=kpoints%blacs_env_all, para_env=para_env_global, &
                                nrow_global=nao_aux_fit, ncol_global=nao_aux_fit)
       CALL cp_fm_create(fmwork(1), matrix_struct_aux_fit)
-      CALL cp_fm_create(fmwork(2), matrix_struct_aux_fit)
+      IF (.NOT. use_real_wfn) CALL cp_fm_create(fmwork(2), matrix_struct_aux_fit)
       CALL cp_fm_struct_release(matrix_struct_aux_fit)
 
       CALL cp_fm_struct_create(matrix_struct_aux_fit_vs_orb, context=kpoints%blacs_env_all, para_env=para_env_global, &
                                nrow_global=nao_aux_fit, ncol_global=nao_orb)
       CALL cp_fm_create(fmwork(3), matrix_struct_aux_fit_vs_orb)
-      CALL cp_fm_create(fmwork(4), matrix_struct_aux_fit_vs_orb)
+      IF (.NOT. use_real_wfn) CALL cp_fm_create(fmwork(4), matrix_struct_aux_fit_vs_orb)
       CALL cp_fm_struct_release(matrix_struct_aux_fit_vs_orb)
 
       !Create fm local to the KP groups
@@ -3890,17 +3862,21 @@ CONTAINS
       CALL cp_fm_struct_create(matrix_struct_aux_fit, context=kpoints%blacs_env, para_env=para_env_local, &
                                nrow_global=nao_aux_fit, ncol_global=nao_aux_fit)
       CALL cp_fm_create(rmat_aux_fit, matrix_struct_aux_fit)
-      CALL cp_fm_create(imat_aux_fit, matrix_struct_aux_fit)
-      CALL cp_fm_create(work_aux_fit, matrix_struct_aux_fit)
-      CALL cp_cfm_create(cwork_aux_fit, matrix_struct_aux_fit)
-      CALL cp_cfm_create(cmat_aux_fit, matrix_struct_aux_fit)
+      IF (use_real_wfn) THEN
+         CALL cp_fm_create(work_aux_fit, matrix_struct_aux_fit)
+      ELSE
+         CALL cp_fm_create(imat_aux_fit, matrix_struct_aux_fit)
+         CALL cp_cfm_create(cwork_aux_fit, matrix_struct_aux_fit)
+         CALL cp_cfm_create(cmat_aux_fit, matrix_struct_aux_fit)
+      END IF
 
       CALL cp_fm_struct_create(matrix_struct_aux_fit_vs_orb, context=kpoints%blacs_env, para_env=para_env_local, &
                                nrow_global=nao_aux_fit, ncol_global=nao_orb)
       CALL cp_fm_create(rmat_aux_fit_vs_orb, matrix_struct_aux_fit_vs_orb)
-      CALL cp_fm_create(imat_aux_fit_vs_orb, matrix_struct_aux_fit_vs_orb)
-      CALL cp_cfm_create(cwork_aux_fit_vs_orb, matrix_struct_aux_fit_vs_orb)
-      CALL cp_cfm_create(cmat_aux_fit_vs_orb, matrix_struct_aux_fit_vs_orb)
+      IF (.NOT. use_real_wfn) THEN
+         CALL cp_fm_create(imat_aux_fit_vs_orb, matrix_struct_aux_fit_vs_orb)
+         CALL cp_cfm_create(cmat_aux_fit_vs_orb, matrix_struct_aux_fit_vs_orb)
+      END IF
 
       ALLOCATE (info(nkp, 4))
 
@@ -3990,23 +3966,21 @@ CONTAINS
 
          !Allocate local KP matrices
          CALL cp_fm_release(kp%amat)
-         ALLOCATE (kp%amat(nc, 1))
-         DO ic = 1, nc
-            CALL cp_fm_create(kp%amat(ic, 1), matrix_struct_aux_fit_vs_orb)
-         END DO
+         CALL cp_cfm_release(kp%camat)
 
          !Only need the overlap in case of ADMMP, ADMMQ or ADMMS, or for forces
-         IF (admm_env%do_admmp .OR. admm_env%do_admmq .OR. admm_env%do_admms .OR. calculate_forces) THEN
+         IF (store_overlap) THEN
             CALL cp_fm_release(kp%smat)
-            ALLOCATE (kp%smat(nc, 1))
-            DO ic = 1, nc
-               CALL cp_fm_create(kp%smat(ic, 1), matrix_struct_aux_fit)
-            END DO
-            CALL cp_fm_to_fm(rmat_aux_fit, kp%smat(1, 1))
-            IF (.NOT. use_real_wfn) CALL cp_fm_to_fm(imat_aux_fit, kp%smat(2, 1))
+            CALL cp_cfm_release(kp%csmat)
          END IF
 
          IF (use_real_wfn) THEN
+            CALL cp_fm_create(kp%amat, matrix_struct_aux_fit_vs_orb)
+            IF (store_overlap) THEN
+               CALL cp_fm_create(kp%smat, matrix_struct_aux_fit)
+               CALL cp_fm_to_fm(rmat_aux_fit, kp%smat)
+            END IF
+
             !Invert S_aux
             CALL cp_fm_cholesky_decompose(rmat_aux_fit)
             CALL cp_fm_cholesky_invert(rmat_aux_fit)
@@ -4014,11 +3988,16 @@ CONTAINS
 
             !A = S^-1 * Q
             CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, 1.0_dp, &
-                               rmat_aux_fit, rmat_aux_fit_vs_orb, 0.0_dp, kp%amat(1, 1))
+                               rmat_aux_fit, rmat_aux_fit_vs_orb, 0.0_dp, kp%amat)
          ELSE
+            CALL cp_cfm_create(kp%camat, matrix_struct_aux_fit_vs_orb)
+            CALL cp_fm_to_cfm(rmat_aux_fit, imat_aux_fit, cmat_aux_fit)
+            IF (store_overlap) THEN
+               CALL cp_cfm_create(kp%csmat, matrix_struct_aux_fit)
+               CALL cp_cfm_to_cfm(cmat_aux_fit, kp%csmat)
+            END IF
 
             !Invert S_aux
-            CALL cp_fm_to_cfm(rmat_aux_fit, imat_aux_fit, cmat_aux_fit)
             CALL cp_cfm_cholesky_decompose(cmat_aux_fit)
             CALL cp_cfm_cholesky_invert(cmat_aux_fit)
             CALL cp_cfm_uplo_to_full(cmat_aux_fit, cwork_aux_fit)
@@ -4026,8 +4005,7 @@ CONTAINS
             !A = S^-1 * Q
             CALL cp_fm_to_cfm(rmat_aux_fit_vs_orb, imat_aux_fit_vs_orb, cmat_aux_fit_vs_orb)
             CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, z_one, &
-                               cmat_aux_fit, cmat_aux_fit_vs_orb, z_zero, cwork_aux_fit_vs_orb)
-            CALL cp_cfm_to_fm(cwork_aux_fit_vs_orb, kp%amat(1, 1), kp%amat(2, 1))
+                               cmat_aux_fit, cmat_aux_fit_vs_orb, z_zero, kp%camat)
          END IF
       END DO
 
@@ -4048,7 +4026,6 @@ CONTAINS
       CALL cp_cfm_release(cmat_aux_fit)
       CALL cp_fm_release(rmat_aux_fit_vs_orb)
       CALL cp_fm_release(imat_aux_fit_vs_orb)
-      CALL cp_cfm_release(cwork_aux_fit_vs_orb)
       CALL cp_cfm_release(cmat_aux_fit_vs_orb)
       CALL cp_fm_struct_release(matrix_struct_aux_fit)
       CALL cp_fm_struct_release(matrix_struct_aux_fit_vs_orb)
