@@ -7,8 +7,9 @@
 
 include(CheckFortranSourceCompiles)
 
-set(CHECK_PROGRAMS f2008-norm2.f90 f2008-block_construct.f90
-                   f2008-contiguous.f90 f95-reshape-order-allocatable.f90)
+set(CHECK_PROGRAMS
+    f2008-norm2.f90 f2008-block_construct.f90 f2008-contiguous.f90
+    f2008-findloc.f90 f95-reshape-order-allocatable.f90)
 
 foreach(prog ${CHECK_PROGRAMS})
   get_filename_component(prog_ext ${prog} EXT) # get the src extension to pass
