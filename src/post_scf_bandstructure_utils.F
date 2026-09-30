@@ -14,6 +14,10 @@ MODULE post_scf_bandstructure_utils
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
+   USE bse_input,                       ONLY: read_bse_section
+   USE bse_main,                        ONLY: bse_fulldiag_memory_check
+   USE bse_types,                       ONLY: bse_env_type
+   USE bse_util,                        ONLY: bse_window_from_dft
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell,&
                                               pbc
@@ -60,8 +64,9 @@ MODULE post_scf_bandstructure_utils
    USE dft_plus_u,                      ONLY: lowdin_kp_apply,&
                                               lowdin_kp_prepare
    USE input_constants,                 ONLY: &
-        G0W0, evGW0, int_ldos_z, ri_rs_large_cell_Gamma, ri_rs_non_periodic, rtp_method_bse, &
-        rtp_method_bse_linearized, tensor_large_cell_Gamma, tensor_small_cell_full_kp
+        G0W0, bse_fulldiag, evGW0, int_ldos_z, ri_rs_large_cell_Gamma, ri_rs_non_periodic, &
+        rtp_method_bse, rtp_method_bse_linearized, tensor_large_cell_Gamma, &
+        tensor_small_cell_full_kp
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -81,6 +86,7 @@ MODULE post_scf_bandstructure_utils
                                               z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
+   USE mo_window,                       ONLY: mo_window_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
@@ -242,7 +248,8 @@ CONTAINS
    END SUBROUTINE create_and_init_bs_env
 
 ! **************************************************************************************************
-!> \brief What PROPERTIES%BSE needs the GW to keep, and the six combinations it refuses at init
+!> \brief What PROPERTIES%BSE needs the GW to keep, the six combinations it refuses at init and,
+!>        with FULLDIAG, the early memory check of the full diagonalization
 !> \param qs_env source of the input
 !> \param bs_env its GW flags are read; keep_W_freq_zero and keep_3c_nl are set
 ! **************************************************************************************************
@@ -252,8 +259,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_bse_requirements'
 
-      INTEGER                                            :: handle, print_level_nto
+      INTEGER                                            :: handle, n_spin, print_level_nto
+      INTEGER, DIMENSION(2)                              :: n_mo
       LOGICAL                                            :: cube_files, do_bse_props
+      TYPE(bse_env_type)                                 :: bse_env
+      TYPE(mo_window_type)                               :: window
       TYPE(section_vals_type), POINTER                   :: bse_sec, input
 
       CALL timeset(routineN, handle)
@@ -299,6 +309,19 @@ CONTAINS
                           "PROPERTIES%BSE runs after the GW released the SCF grids: set "// &
                           "NTO_ANALYSIS%CUBE_FILES to F, or write the cubes from the BSE of "// &
                           "XC%WF_CORRELATION%RI_RPA%GW")
+         END IF
+         ! the full diagonalization's footprint is known here, before any GW work
+         CALL read_bse_section(bse_sec, bse_env)
+         IF (bse_env%bse_diag_method == bse_fulldiag) THEN
+            n_spin = bs_env%n_spin
+            ! the canonical orthogonalisation parks the linearly dependent directions above n_mo_retained
+            n_mo(:) = MIN(bs_env%n_mo_retained, bs_env%n_ao)
+            ! the BSE warns about a combined window when it starts; the estimate stays silent
+            CALL bse_window_from_dft(bs_env%eigenval_scf_Gamma(1:n_mo(1), 1:n_spin), n_mo(1:n_spin), &
+                                     bs_env%n_occ(1:n_spin), bse_env%bse_cutoff_occ, &
+                                     bse_env%bse_cutoff_empty, window, warn=.FALSE.)
+            CALL bse_fulldiag_memory_check(bse_env, window, bs_env%n_occ(1:n_spin), bs_env%para_env, &
+                                           bs_env%unit_nr)
          END IF
       END IF
       bs_env%keep_W_freq_zero = do_bse_props

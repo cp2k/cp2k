@@ -671,8 +671,9 @@ By default, the batch size is adapted to the free memory.
 MPI rank by hand, and [MEMORY_CHECK](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.BSE_ITERAT.MEMORY_CHECK)
 in the same subsection decides whether the run warns or stops when a single RI atom does not fit
 into the budget. `PROPERTIES%BSE` reads both keywords for either
-[BSE_DIAG_METHOD](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.BSE_DIAG_METHOD). The output reports the
-budget, the largest batch and the number of batches.
+[BSE_DIAG_METHOD](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.BSE_DIAG_METHOD). With `FULLDIAG`, the
+memory of the diagonalization is estimated before the *GW* starts and compared with the same budget.
+The output reports the budget, the largest batch and the number of batches.
 
 [bse]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE
 [gw]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW

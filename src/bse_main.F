@@ -70,7 +70,8 @@ MODULE bse_main
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_main'
 
-   PUBLIC :: prepare_bse_env, prepare_bse_env_windowed, bse_solve, bse_fulldiag_memory_check
+   PUBLIC :: prepare_bse_env, prepare_bse_env_windowed, bse_solve, bse_fulldiag_memory_check, &
+             bse_fulldiag_memory_check_from_mos
 
 CONTAINS
 
@@ -530,17 +531,20 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Early memory check for the full diagonalization, before any GW work: the window on the
-!>        DFT axis gives n_ov, the estimate is estimate_BSE_resources', the budget the one the
-!>        iterative solver uses. WARN and CLAMP warn, ABORT aborts, OFF prints the estimate only.
-!> \param bse_env settings; the window cutoffs, MEMORY_CHECK and MEMORY_BUDGET_GB
-!> \param mos the MO sets the GW will correct, for their DFT eigenvalues and occupations
+!>        DFT axis gives n_ov = sum_spin n_occ n_virt, the estimate is estimate_BSE_resources', the
+!>        budget the one the iterative solver uses. WARN and CLAMP warn, ABORT aborts, OFF prints
+!>        the estimate only.
+!> \param bse_env settings; the TDA flag, MEMORY_CHECK and MEMORY_BUDGET_GB
+!> \param window the active MO window on the DFT axis, one absolute range for every spin
+!> \param homo occupied MOs per spin
 !> \param para_env the ranks that will hold the matrices
 !> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
-   SUBROUTINE bse_fulldiag_memory_check(bse_env, mos, para_env, unit_nr)
+   SUBROUTINE bse_fulldiag_memory_check(bse_env, window, homo, para_env, unit_nr)
 
       TYPE(bse_env_type), INTENT(IN)                     :: bse_env
-      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      TYPE(mo_window_type), INTENT(IN)                   :: window
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
@@ -548,20 +552,16 @@ CONTAINS
 
       CHARACTER(LEN=16)                                  :: bud_str, mem_str
       CHARACTER(LEN=64)                                  :: remedy
-      INTEGER                                            :: handle, homo, ispin, n_ov_joint, nspins
+      INTEGER                                            :: handle, ispin, n_ov_joint, nspins
       LOGICAL                                            :: from_free, over, skipped
       REAL(KIND=dp)                                      :: budget_GB, mem_avail_GB, mem_est_GB
-      TYPE(mo_window_type)                               :: window
 
       CALL timeset(routineN, handle)
 
-      nspins = SIZE(mos)
-      ! the preparer warns about a combined window; the estimate stays silent
-      CALL bse_window_from_mos(mos, bse_env%bse_cutoff_occ, bse_env%bse_cutoff_empty, window, warn=.FALSE.)
+      nspins = SIZE(homo)
       n_ov_joint = 0
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin), homo=homo)
-         n_ov_joint = n_ov_joint + (homo - window%first_mo + 1)*(window%last_mo - homo)
+         n_ov_joint = n_ov_joint + (homo(ispin) - window%first_mo + 1)*(window%last_mo - homo(ispin))
       END DO
 
       mem_est_GB = fulldiag_memory_estimate_GB(n_ov_joint, bse_env%flag_tda /= bse_tda)/ &
@@ -625,5 +625,35 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE bse_fulldiag_memory_check
+
+! **************************************************************************************************
+!> \brief bse_fulldiag_memory_check for a caller that holds MO sets: the window on the DFT axis
+!>        from their eigenvalues, the occupied MOs per spin from their homo
+!> \param bse_env settings; the window cutoffs, the TDA flag, MEMORY_CHECK and MEMORY_BUDGET_GB
+!> \param mos the MO sets the GW will correct, for their DFT eigenvalues and occupations
+!> \param para_env the ranks that will hold the matrices
+!> \param unit_nr output unit, positive on the writing rank only
+! **************************************************************************************************
+   SUBROUTINE bse_fulldiag_memory_check_from_mos(bse_env, mos, para_env, unit_nr)
+
+      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      INTEGER                                            :: ispin
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: homo
+      TYPE(mo_window_type)                               :: window
+
+      ! the preparer warns about a combined window; the estimate stays silent
+      CALL bse_window_from_mos(mos, bse_env%bse_cutoff_occ, bse_env%bse_cutoff_empty, window, warn=.FALSE.)
+      ALLOCATE (homo(SIZE(mos)))
+      DO ispin = 1, SIZE(mos)
+         CALL get_mo_set(mos(ispin), homo=homo(ispin))
+      END DO
+      CALL bse_fulldiag_memory_check(bse_env, window, homo, para_env, unit_nr)
+      DEALLOCATE (homo)
+
+   END SUBROUTINE bse_fulldiag_memory_check_from_mos
 
 END MODULE bse_main
