@@ -1,0 +1,142 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT blue_moon_colvars
+  RUN_TYPE MD
+&END GLOBAL
+
+&MOTION
+  &FREE_ENERGY
+    METHOD METADYN
+    &METADYN
+      DO_HILLS F
+      &METAVAR
+        COLVAR 1
+        SCALE 1.0
+      &END METAVAR
+      &METAVAR
+        COLVAR 2
+        SCALE 1.0
+      &END METAVAR
+      &METAVAR
+        COLVAR 3
+        SCALE 1.0
+      &END METAVAR
+      &METAVAR
+        COLVAR 4
+        SCALE 1.0
+      &END METAVAR
+      &METAVAR
+        COLVAR 5
+        SCALE 1.0
+      &END METAVAR
+      &METAVAR
+        COLVAR 6
+        SCALE 1.0
+      &END METAVAR
+      &PRINT
+        &COLVAR
+          FILENAME =colvars.metadynLog
+        &END COLVAR
+      &END PRINT
+    &END METADYN
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVE
+    STEPS 1
+    TEMPERATURE 0
+    TIMESTEP 0.5
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      FILENAME =colvars.xyz
+      FORMAT XYZ
+      &EACH
+        MD 1
+      &END EACH
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Ar Ar
+          EPSILON 0.0
+          RCUT [angstrom] 8.0
+          SIGMA [angstrom] 3.405
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      PERIODIC NONE
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 30 30 30
+      PERIODIC NONE
+    &END CELL
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 2
+      &END DISTANCE
+    &END COLVAR
+    &COLVAR
+      &ANGLE
+        ATOMS 1 2 3
+      &END ANGLE
+    &END COLVAR
+    &COLVAR
+      &TORSION
+        ATOMS 1 2 3 4
+      &END TORSION
+    &END COLVAR
+    &COLVAR
+      &DISTANCE_POINT_PLANE
+        ATOMS_PLANE 1 2 3
+        ATOM_POINT 4
+      &END DISTANCE_POINT_PLANE
+    &END COLVAR
+    &COLVAR
+      &DISTANCE
+        POINTS 1 2
+        &POINT
+          ATOMS 1
+          TYPE GEO_CENTER
+        &END POINT
+        &POINT
+          ATOMS 2 3
+          TYPE GEO_CENTER
+        &END POINT
+      &END DISTANCE
+    &END COLVAR
+    &COLVAR
+      &DISTANCE_FUNCTION
+        ATOMS 1 2 3 2
+        COEFFICIENT -1
+      &END DISTANCE_FUNCTION
+    &END COLVAR
+    &COORD
+      Ar 12.0 10.3 10.1
+      Ar 10.0 10.0 10.0
+      Ar 11.0 13.0 9.6
+      Ar 10.1 10.2 12.4
+    &END COORD
+    &KIND Ar
+      MASS 39.948
+    &END KIND
+    &TOPOLOGY
+      CONN_FILE_FORMAT OFF
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
