@@ -80,10 +80,6 @@ MODULE bse_bs_env_link
    ! index has none. A block is the unit the tensor grid distributes and filters, so the size bounds
    ! the largest block of the MO product, (RI atom) x (q sector) x mo_block_size
    INTEGER, PARAMETER, PRIVATE :: mo_block_size = 64
-   ! eigenvalue floor for the symmetric roots V^1/2 and V^-1/2 of the RI Coulomb matrix: V^-1/2
-   ! divides by the eigenvalues, and the GW sets no floor of its own on the RI-AO path
-   ! (eps_eigval_mat_RI = 0). The output counts the RI directions the floor drops
-   REAL(KIND=dp), PARAMETER, PRIVATE :: eps_eigval_coulomb_RI = 1.0E-10_dp
 
    PUBLIC :: bse_from_bs_env
 
@@ -239,7 +235,7 @@ CONTAINS
 !>        sum_PQ B^P_pq ε^-1_eff,PQ B^Q_rs = sum_RS (pq|R) [M^-1 (V + W^c(iω=0)) M^-1]_RS (S|rs),
 !>        the full static W of the GW. The GW builds the same factor M^-1 V^1/2 per frequency from a
 !>        Cholesky factor of V (compute_MinvVsqrt_Vsqrt); the symmetric roots here give V^-1/2 as
-!>        well, which the stored W~ needs, and drop RI directions under the eigenvalue floor.
+!>        well, which the stored W~ needs, with the eigenvalue threshold of the GW (eps_eigval_mat_RI).
 !>        Two diagonalisations of an RI x RI matrix, once per run
 !> \param qs_env for the 2c RI integrals
 !> \param bs_env RI metric and its inverse, the stored static W~, the RI x RI matrix structure
@@ -256,7 +252,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'link_screening'
 
       INTEGER                                            :: handle, n_dependent, n_RI
-      REAL(KIND=dp)                                      :: eigval_threshold
       TYPE(cp_fm_type)                                   :: fm_V_inv_sqrt, fm_V_sqrt, fm_Wc, fm_work
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_M, fm_V
       TYPE(libint_potential_type)                        :: coulomb_op
@@ -268,19 +263,14 @@ CONTAINS
       CALL RI_2c_integral_mat(qs_env, fm_V, bs_env%fm_RI_RI%matrix_struct, n_RI, coulomb_op)
       CALL RI_2c_integral_mat(qs_env, fm_M, bs_env%fm_RI_RI%matrix_struct, n_RI, bs_env%ri_metric)
 
-      ! [V^1/2]_PQ and [V^-1/2]_PQ by symmetric roots, near-null RI directions dropped by the threshold
-      IF (bs_env%eps_eigval_mat_RI > 0.0_dp) THEN
-         eigval_threshold = bs_env%eps_eigval_mat_RI
-      ELSE
-         eigval_threshold = eps_eigval_coulomb_RI
-      END IF
+      ! [V^1/2]_PQ and [V^-1/2]_PQ by symmetric roots; eigenvalues of V under the GW's threshold are dropped
       CALL cp_fm_create(fm_V_sqrt, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_create(fm_V_inv_sqrt, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_create(fm_work, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_to_fm(fm_V(1, 1), fm_V_sqrt)
-      CALL cp_fm_power(fm_V_sqrt, fm_work, 0.5_dp, eigval_threshold, n_dependent)
+      CALL cp_fm_power(fm_V_sqrt, fm_work, 0.5_dp, bs_env%eps_eigval_mat_RI, n_dependent)
       CALL cp_fm_to_fm(fm_V(1, 1), fm_V_inv_sqrt)
-      CALL cp_fm_power(fm_V_inv_sqrt, fm_work, -0.5_dp, eigval_threshold, n_dependent)
+      CALL cp_fm_power(fm_V_inv_sqrt, fm_work, -0.5_dp, bs_env%eps_eigval_mat_RI, n_dependent)
       IF (unit_nr > 0 .AND. n_dependent > 0) WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', &
          'RI Coulomb directions dropped by the eigenvalue threshold', n_dependent
 
