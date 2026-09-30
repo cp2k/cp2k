@@ -3,7 +3,8 @@
 The Bethe-Salpeter equation (BSE) is a method for computing electronic excitation energies and
 optical absorption spectra. We repeat the theory and implementation of BSE from \[[](#Graml2026)\]
 in Sec. [1](#header-theory), in Sec. [2](#header-input) the BSE input keywords and in Sec.
-[3](#header-example) a full CP2K input file of a BSE calculation and the corresponding output. For
+[3](#header-example) a full CP2K input file of a BSE calculation and the corresponding output. Sec.
+[4](#header-properties-bse) describes the BSE section under `PROPERTIES` for large molecules. For
 further references on BSE, see \[[](#Blase2018), [](#Blase2020), [](#Bruneval2015),
 [](#Sander2015)\].
 
@@ -587,27 +588,55 @@ and
 [ENERGY_CUTOFF_EMPTY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.ENERGY_CUTOFF_EMPTY),
 see details given above.
 
-## 4. BSE on the RI-AO *GW* (`PROPERTIES%BSE`)
+(header-properties-bse)=
+
+## 4. BSE on the *GW* of `PROPERTIES%BANDSTRUCTURE%GW` (`PROPERTIES%BSE`)
 
 The BSE section exists in two places. Each runs on the *GW* next to it, the keywords of both are
 identical, and both treat non-periodic systems (molecules) only:
 
-- `FORCE_EVAL%DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE` runs on the RPA-based *GW* of the
-  [GW](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW) section, as in the sections above.
-- `FORCE_EVAL%PROPERTIES%BSE` runs on the RI-AO *GW* of
-  [PROPERTIES%BANDSTRUCTURE%GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW), which must be
-  present in the same input.
+- [RI_RPA%GW%BSE][bse], in full `FORCE_EVAL%DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE`, runs on the
+  RPA-based *GW* of the [RI_RPA%GW][gw] section, as in the sections above.
+- [PROPERTIES%BSE](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE), in full `FORCE_EVAL%PROPERTIES%BSE`, runs
+  on the *GW* of [PROPERTIES%BANDSTRUCTURE%GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW),
+  which must be present in the same input and is described in
+  [](../../electronic_structure/band/gw).
 
-The RI-AO *GW* of `PROPERTIES%BANDSTRUCTURE%GW` is designed for large systems, so `PROPERTIES%BSE`
-is the BSE section to use for large molecules. `PROPERTIES%BSE` has three requirements of its own: a
-non-periodic cell (`PERIODIC NONE`), a `PROPERTIES%BANDSTRUCTURE%GW` section without the `RI_RS`
-subsection, and no `REAL_TIME_PROPAGATION%RTBSE` section in the same run. With `NTO_ANALYSIS`, set
-`CUBE_FILES F`: `PROPERTIES%BSE` writes no cube files of the natural transition orbitals.
+The *GW* of `PROPERTIES%BANDSTRUCTURE%GW` is designed for large systems \[[](#Graml2024)\], so
+`PROPERTIES%BSE` is the BSE section to use for large molecules. `PROPERTIES%BSE` has the following
+requirements of its own:
 
-`PROPERTIES%BSE` takes the quasiparticle energies, the RI three-center integrals and the static
-screened interaction $W(i\omega = 0)$ from `PROPERTIES%BANDSTRUCTURE%GW`. $W(i\omega = 0)$ is summed
-from the imaginary-time grid of `PROPERTIES%BANDSTRUCTURE%GW`, so no second RPA calculation is run
-for the screening. A minimal input:
+- A non-periodic cell, i.e. [PERIODIC](#CP2K_INPUT.FORCE_EVAL.SUBSYS.CELL.PERIODIC) `NONE`.
+- No [RI_RS](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.RI_RS) subsection in
+  `PROPERTIES%BANDSTRUCTURE%GW`. By default, `PROPERTIES%BANDSTRUCTURE%GW` computes the three-center
+  integrals $(\mu\nu|P)$ of the resolution of the identity (RI) between atomic orbitals $\mu, \nu$
+  and RI basis functions $P$ explicitly; `RI_RS` replaces them by a representation on a real-space
+  grid. `PROPERTIES%BSE` builds its kernel from the explicit three-center integrals.
+- The Γ-point only, i.e. no
+  [BANDSTRUCTURE_PATH](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.BANDSTRUCTURE_PATH)
+  subsection and no [DOS%KPOINTS](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.DOS.KPOINTS) in
+  `PROPERTIES%BANDSTRUCTURE`.
+- No [RTBSE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE) section in the same run.
+- With [NTO_ANALYSIS](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.NTO_ANALYSIS),
+  [CUBE_FILES](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.NTO_ANALYSIS.CUBE_FILES) `F`: `PROPERTIES%BSE`
+  writes no cube files of the natural transition orbitals.
+
+`PROPERTIES%BSE` takes the quasiparticle energies, the three-center integrals and the static
+screened interaction $W(i\omega = 0)$ from `PROPERTIES%BANDSTRUCTURE%GW`; no second RPA calculation
+is run for the screening. $W(i\omega = 0)$ is summed from the screened interaction on the
+imaginary-time grid of `PROPERTIES%BANDSTRUCTURE%GW`. The numerical parameters of
+`PROPERTIES%BANDSTRUCTURE%GW` are therefore convergence parameters of `PROPERTIES%BSE` as well,
+beyond their effect on the quasiparticle energies:
+
+- [NUM_TIME_FREQ_POINTS](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.NUM_TIME_FREQ_POINTS)
+  sets the imaginary-time grid from which $W(i\omega = 0)$ is summed.
+- [CUTOFF_RADIUS_RI](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.CUTOFF_RADIUS_RI) is the
+  radius of the truncated Coulomb metric of the RI. `PROPERTIES%BSE` builds its kernel in the same
+  metric.
+- [EPS_FILTER](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.EPS_FILTER) filters the
+  three-center integrals, which enter the screening and the kernel of `PROPERTIES%BSE`.
+
+A minimal input:
 
 ```
 &PROPERTIES
@@ -628,20 +657,22 @@ for the screening. A minimal input:
 &END PROPERTIES
 ```
 
-The RI-AO *GW* of `PROPERTIES%BANDSTRUCTURE%GW` works in the truncated-Coulomb RI metric with radius
-`CUTOFF_RADIUS_RI`, so `CUTOFF_RADIUS_RI` is a convergence parameter of `PROPERTIES%BSE` as well. A
-radius beyond the extent of the system turns the truncated-Coulomb metric into the Coulomb metric of
-the RPA-based *GW* of `RI_RPA%GW`, and `PROPERTIES%BSE` and `RI_RPA%GW%BSE` then agree to the
-accuracy of the imaginary-time quadrature: on H<sub>2</sub>O with a DZVP-GTH basis, the lowest ten
-excitation energies with `USE_KS_ENERGIES` agree to below 0.1 meV already at
-`NUM_TIME_FREQ_POINTS 20`. With quasiparticle energies, `PROPERTIES%BSE` and `RI_RPA%GW%BSE` differ
-by the difference between the two *GW* implementations.
+A `CUTOFF_RADIUS_RI` beyond the extent of the molecule turns the truncated Coulomb metric of
+`PROPERTIES%BANDSTRUCTURE%GW` into the Coulomb metric of `RI_RPA%GW`. With such a radius and enough
+time and frequency points, the two *GW* implementations, and with them `PROPERTIES%BSE` and
+`RI_RPA%GW%BSE`, can be converged to each other. With looser settings, a residual deviation between
+the excitation energies of `PROPERTIES%BSE` and of `RI_RPA%GW%BSE` remains, which stems from the
+*GW* step.
 
-`PROPERTIES%BSE` transforms the three-center integrals in batches of RI atoms sized by a memory
-budget per rank: `BSE_ITERAT%MEMORY_BUDGET_GB` when set, else half of the free memory per rank
-measured after the *GW* of `PROPERTIES%BANDSTRUCTURE%GW`. The output reports the budget, the largest
-batch and the batch count; `MEMORY_CHECK` decides what happens when one RI atom alone exceeds the
-budget.
+`PROPERTIES%BSE` transforms the three-center integrals to molecular orbitals in batches of RI atoms.
+By default, the batch size is adapted to the free memory.
+[MEMORY_BUDGET_GB](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.BSE_ITERAT.MEMORY_BUDGET_GB) in the
+[BSE_ITERAT](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.BSE_ITERAT) subsection sets the memory budget per
+MPI rank by hand, and [MEMORY_CHECK](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.BSE_ITERAT.MEMORY_CHECK)
+in the same subsection decides whether the run warns or stops when a single RI atom does not fit
+into the budget. `PROPERTIES%BSE` reads both keywords for either
+[BSE_DIAG_METHOD](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.BSE_DIAG_METHOD). The output reports the
+budget, the largest batch and the number of batches.
 
 [bse]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE
 [gw]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW
