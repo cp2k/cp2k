@@ -295,11 +295,12 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: filename, input_kp_scheme, reuse_reason, &
                                                             seed_name
       CHARACTER(LEN=timestamp_length)                    :: timestamp
+      COMPLEX(KIND=dp)                                   :: zmmn
       COMPLEX(KIND=dp), ALLOCATABLE :: ao_projections(:, :, :), export_coeff(:, :), &
          export_scalar(:, :), hybrid_projections(:, :, :), initial_amn(:, :, :), &
          link_matrix(:, :), overlap_block(:, :), parity_metric(:, :), parity_phase(:), &
-         scalar_overlap(:, :), soc_h(:, :), soc_u(:, :), soc_xyz(:, :, :), spinor_coeff(:, :, :), &
-         wilson_product(:, :, :)
+         reference_mo(:, :, :), scalar_overlap(:, :), soc_h(:, :), soc_u(:, :), soc_xyz(:, :, :), &
+         spinor_coeff(:, :, :), wilson_product(:, :, :)
       INTEGER :: aligned_degenerate_blocks, aligned_degenerate_max_size, axis, base_mesh(2), &
          counts(2), first_point, i, i_rep, ib, ib1, ib2, ibs, ik, ik2, ikk, ikpgr, iloop, &
          initial_projections, ipoint, iunit, ix, iy, iz, jpar, k, kept_index, kpoints_source, &
@@ -336,7 +337,6 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atoms_cart, b_latt, kpt_latt, &
                                                             reference_eigenvalues
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: reference_mo_imag, reference_mo_real
       REAL(KIND=dp), DIMENSION(3)                        :: bvec, input_kp_shift, phase_center
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv, real_lattice, recip_lattice
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, wkp, wkp_source
@@ -347,11 +347,10 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_cfm_type)                                  :: fmk1_cfm, fmk2_cfm, mmn_cfm, omat_cfm, &
                                                             tmp_cfm
+      TYPE(cp_cfm_type), POINTER                         :: cmo_coeff_source
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct_ao, matrix_struct_mmn, &
                                                             matrix_struct_work
-      TYPE(cp_fm_type)                                   :: mat_imag, mat_real, mmn_imag, mmn_real
-      TYPE(cp_fm_type), DIMENSION(2)                     :: fmk1, fmk2
-      TYPE(cp_fm_type), POINTER                          :: fmdummy, fmi, fmr
+      TYPE(cp_fm_type)                                   :: mat_imag, mat_real
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s, soc_matrices
       TYPE(dbcsr_type), POINTER                          :: cmatrix, cmatrix_full, loop_imag, &
                                                             loop_real, rmatrix, rmatrix_full
@@ -953,8 +952,7 @@ CONTAINS
             END IF
             CALL do_general_diag_kp(matrix_ks, matrix_s, kpoint, scf_env, scf_control, .FALSE., diis_step)
             full_mesh_diagonalized = .TRUE.
-            CALL save_wannier90_mo_snapshot(kpoint, ispin, para_env, reference_mo_real, &
-                                            reference_mo_imag, reference_eigenvalues)
+            CALL save_wannier90_mo_snapshot(kpoint, ispin, para_env, reference_mo, reference_eigenvalues)
             CALL diagnose_wannier90_scf_reuse_candidates(kpoint, qs_kpoint, matrix_s, matrix_ks, &
                                                          cell_to_index, sab_nl, para_env, iw, ispin, &
                                                          reuse_candidate_deviation, &
@@ -976,7 +974,7 @@ CONTAINS
          IF (validate_reuse_scf_mos) THEN
             IF (reused_scf_mos) THEN
                CALL validate_wannier90_reused_mos(kpoint, matrix_s, cell_to_index, sab_nl, &
-                                                  para_env, ispin, reference_mo_real, reference_mo_imag, &
+                                                  para_env, ispin, reference_mo, &
                                                   reference_eigenvalues, validate_reuse_ok, &
                                                   validation_subspace_deviation, validation_min_svalue, &
                                                   validation_eigenvalue_deviation)
@@ -995,7 +993,7 @@ CONTAINS
                END IF
             END IF
             IF (.NOT. reused_scf_mos) THEN
-               CALL restore_wannier90_mo_snapshot(kpoint, ispin, reference_mo_real, reference_mo_imag, &
+               CALL restore_wannier90_mo_snapshot(kpoint, ispin, reference_mo, &
                                                   reference_eigenvalues)
             END IF
          END IF
@@ -1028,8 +1026,7 @@ CONTAINS
       IF (.NOT. reused_scf_mos .AND. .NOT. full_mesh_diagonalized) THEN
          CALL do_general_diag_kp(matrix_ks, matrix_s, kpoint, scf_env, scf_control, .FALSE., diis_step)
       END IF
-      IF (ALLOCATED(reference_mo_real)) DEALLOCATE (reference_mo_real)
-      IF (ALLOCATED(reference_mo_imag)) DEALLOCATE (reference_mo_imag)
+      IF (ALLOCATED(reference_mo)) DEALLOCATE (reference_mo)
       IF (ALLOCATED(reference_eigenvalues)) DEALLOCATE (reference_eigenvalues)
       !
       IF (iw > 0) THEN
@@ -1089,7 +1086,7 @@ CONTAINS
       END DO
       ! work matrices for MOs (all group)
       kp => kpoint%kp_env(1)%kpoint_env
-      CALL get_mo_set(kp%mos(1, ispin), nmo=nmo)
+      CALL get_mo_set(kp%mos(ispin), nmo=nmo)
       IF (ordered_berry .AND. nmo /= nscalar) THEN
          CPABORT("WANNIER90: unexpected orbital count in export.")
       END IF
@@ -1098,10 +1095,6 @@ CONTAINS
                                ncol_global=nmo, &
                                para_env=para_env, &
                                context=blacs_env)
-      DO i = 1, 2
-         CALL cp_fm_create(fmk1(i), matrix_struct_work)
-         CALL cp_fm_create(fmk2(i), matrix_struct_work)
-      END DO
       CALL cp_cfm_create(fmk1_cfm, matrix_struct_work)
       CALL cp_cfm_create(fmk2_cfm, matrix_struct_work)
       CALL cp_cfm_create(tmp_cfm, matrix_struct_work)
@@ -1118,8 +1111,6 @@ CONTAINS
                                ncol_global=nmo, &
                                para_env=para_env, &
                                context=blacs_env)
-      CALL cp_fm_create(mmn_real, matrix_struct_mmn)
-      CALL cp_fm_create(mmn_imag, matrix_struct_mmn)
       CALL cp_cfm_create(mmn_cfm, matrix_struct_mmn)
       ! allocate some work matrices
       ALLOCATE (rmatrix_full, cmatrix_full)
@@ -1141,7 +1132,7 @@ CONTAINS
       END IF
       !
       CALL get_kpoint_info(kpoint=kpoint, cell_to_index=cell_to_index)
-      NULLIFY (fmdummy)
+      NULLIFY (cmo_coeff_source)
       IF (do_soc .OR. do_parity) THEN
          ! Parity needs the overlap work matrices even without SOC, and after SOC is done.
          ALLOCATE (rmatrix, cmatrix)
@@ -1160,12 +1151,8 @@ CONTAINS
          ALLOCATE (spinor_coeff(2*nmo, num_bands, num_kpts), scalar_overlap(nmo, nmo))
          DO ik = 1, num_kpts
             kp => kpoint%kp_env(ik)%kpoint_env
-            fmr => kp%mos(1, 1)%mo_coeff
-            fmi => kp%mos(2, 1)%mo_coeff
-            CALL cp_fm_copy_general(fmr, fmk1(1), para_env)
-            CALL cp_fm_copy_general(fmi, fmk1(2), para_env)
-            CALL cp_fm_to_cfm(fmk1(1), fmk1(2), fmk1_cfm)
-            CALL get_mo_set(kp%mos(1, 1), eigenvalues=eigenvalues)
+            CALL cp_cfm_copy_general(kp%mos(1)%cmo_coeff, fmk1_cfm, para_env)
+            CALL get_mo_set(kp%mos(1), eigenvalues=eigenvalues)
             scalar_values(1:nmo) = eigenvalues(1:nmo)
             scalar_values(nmo + 1:) = eigenvalues(1:nmo)
             DO axis = 1, 3
@@ -1179,10 +1166,10 @@ CONTAINS
                CALL copy_dbcsr_to_fm(rmatrix_full, mat_real)
                CALL copy_dbcsr_to_fm(cmatrix_full, mat_imag)
                CALL cp_fm_to_cfm(mat_real, mat_imag, omat_cfm)
-               CALL cp_cfm_gemm("N", "N", nao, nmo, nao, CMPLX(1.0_dp, 0.0_dp, dp), &
-                                omat_cfm, fmk1_cfm, CMPLX(0.0_dp, 0.0_dp, dp), tmp_cfm)
-               CALL cp_cfm_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, dp), &
-                                fmk1_cfm, tmp_cfm, CMPLX(0.0_dp, 0.0_dp, dp), mmn_cfm)
+               CALL parallel_gemm("N", "N", nao, nmo, nao, CMPLX(1.0_dp, 0.0_dp, dp), &
+                                  omat_cfm, fmk1_cfm, CMPLX(0.0_dp, 0.0_dp, dp), tmp_cfm)
+               CALL parallel_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, dp), &
+                                  fmk1_cfm, tmp_cfm, CMPLX(0.0_dp, 0.0_dp, dp), mmn_cfm)
                CALL cp_cfm_get_submatrix(mmn_cfm, soc_xyz(:, :, axis))
             END DO
             soc_h(1:nmo, 1:nmo) = soc_xyz(:, :, 3)
@@ -1208,7 +1195,7 @@ CONTAINS
       END IF
       ! Eigenvalues are needed before library disentanglement and after SOC diagonalization.
       kp => kpoint%kp_env(1)%kpoint_env
-      CALL get_mo_set(kp%mos(1, ispin), nmo=nmo)
+      CALL get_mo_set(kp%mos(ispin), nmo=nmo)
       CPASSERT(nmo >= nscalar)
       ALLOCATE (eigval(MERGE(2*nmo, nmo, do_soc)))
       direct_gap = HUGE(1.0_dp)
@@ -1229,7 +1216,7 @@ CONTAINS
          ELSE IF (my_kpgrp) THEN
             ikpgr = ik - kp_range(1) + 1
             kp => kpoint%kp_env(ikpgr)%kpoint_env
-            CALL get_mo_set(kp%mos(1, ispin), eigenvalues=eigenvalues)
+            CALL get_mo_set(kp%mos(ispin), eigenvalues=eigenvalues)
             eigval(1:nmo) = eigenvalues(1:nmo)
          ELSE
             eigval(1:nmo) = 0.0_dp
@@ -1320,17 +1307,11 @@ CONTAINS
          IF (my_kpgrp) THEN
             ikk = ik - kpoint%kp_range(1) + 1
             kp => kpoint%kp_env(ikk)%kpoint_env
-            CPASSERT(SIZE(kp%mos, 1) == 2)
-            fmr => kp%mos(1, ispin)%mo_coeff
-            fmi => kp%mos(2, ispin)%mo_coeff
-            CALL cp_fm_copy_general(fmr, fmk1(1), para_env)
-            CALL cp_fm_copy_general(fmi, fmk1(2), para_env)
+            cmo_coeff_source => kp%mos(ispin)%cmo_coeff
          ELSE
-            NULLIFY (fmr, fmi, kp)
-            CALL cp_fm_copy_general(fmdummy, fmk1(1), para_env)
-            CALL cp_fm_copy_general(fmdummy, fmk1(2), para_env)
+            NULLIFY (cmo_coeff_source, kp)
          END IF
-         CALL cp_fm_to_cfm(fmk1(1), fmk1(2), fmk1_cfm)
+         CALL wannier90_copy_cfm_general(cmo_coeff_source, fmk1_cfm, para_env)
          ! loop over all connected neighbors
          DO i = 1, nntot
             ! get the MO coefficients for the connected k-point
@@ -1339,17 +1320,11 @@ CONTAINS
             IF (mygrp) THEN
                ikk = ik2 - kpoint%kp_range(1) + 1
                kp => kpoint%kp_env(ikk)%kpoint_env
-               CPASSERT(SIZE(kp%mos, 1) == 2)
-               fmr => kp%mos(1, ispin)%mo_coeff
-               fmi => kp%mos(2, ispin)%mo_coeff
-               CALL cp_fm_copy_general(fmr, fmk2(1), para_env)
-               CALL cp_fm_copy_general(fmi, fmk2(2), para_env)
+               cmo_coeff_source => kp%mos(ispin)%cmo_coeff
             ELSE
-               NULLIFY (fmr, fmi, kp)
-               CALL cp_fm_copy_general(fmdummy, fmk2(1), para_env)
-               CALL cp_fm_copy_general(fmdummy, fmk2(2), para_env)
+               NULLIFY (cmo_coeff_source, kp)
             END IF
-            CALL cp_fm_to_cfm(fmk2(1), fmk2(2), fmk2_cfm)
+            CALL wannier90_copy_cfm_general(cmo_coeff_source, fmk2_cfm, para_env)
             !
             ! transfer realspace overlaps to connected k-point
             ibs = nblist(ik, i)
@@ -1378,11 +1353,10 @@ CONTAINS
             CALL copy_dbcsr_to_fm(rmatrix_full, mat_real)
             CALL copy_dbcsr_to_fm(cmatrix_full, mat_imag)
             CALL cp_fm_to_cfm(mat_real, mat_imag, omat_cfm)
-            CALL cp_cfm_gemm("N", "N", nao, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-                             omat_cfm, fmk2_cfm, CMPLX(0.0_dp, 0.0_dp, KIND=dp), tmp_cfm)
-            CALL cp_cfm_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-                             fmk1_cfm, tmp_cfm, CMPLX(0.0_dp, 0.0_dp, KIND=dp), mmn_cfm)
-            CALL cp_cfm_to_fm(mmn_cfm, mmn_real, mmn_imag)
+            CALL parallel_gemm("N", "N", nao, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
+                               omat_cfm, fmk2_cfm, CMPLX(0.0_dp, 0.0_dp, KIND=dp), tmp_cfm)
+            CALL parallel_gemm("C", "N", nmo, nmo, nao, CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
+                               fmk1_cfm, tmp_cfm, CMPLX(0.0_dp, 0.0_dp, KIND=dp), mmn_cfm)
             IF (do_soc) THEN
                CALL cp_cfm_get_submatrix(mmn_cfm, scalar_overlap)
                link_matrix(:, :) = MATMUL(CONJG(TRANSPOSE(spinor_coeff(1:nmo, :, ik))), &
@@ -1417,8 +1391,9 @@ CONTAINS
                      rmmn = REAL(link_matrix(ib1, ib2), dp)
                      cmmn = AIMAG(link_matrix(ib1, ib2))
                   ELSE
-                     CALL cp_fm_get_element(mmn_real, band_indices(ib1), band_indices(ib2), rmmn)
-                     CALL cp_fm_get_element(mmn_imag, band_indices(ib1), band_indices(ib2), cmmn)
+                     CALL cp_cfm_get_element(mmn_cfm, band_indices(ib1), band_indices(ib2), zmmn)
+                     rmmn = REAL(zmmn, KIND=dp)
+                     cmmn = AIMAG(zmmn)
                   END IF
                   gauge_tmp = gauge_real*rmmn - gauge_imag*cmmn
                   cmmn = gauge_imag*rmmn + gauge_real*cmmn
@@ -1464,9 +1439,7 @@ CONTAINS
          END IF
          DO ik = 1, num_kpts
             kp => kpoint%kp_env(ik)%kpoint_env
-            CALL cp_fm_copy_general(kp%mos(1, spin_channel)%mo_coeff, fmk1(1), para_env)
-            CALL cp_fm_copy_general(kp%mos(2, spin_channel)%mo_coeff, fmk1(2), para_env)
-            CALL cp_fm_to_cfm(fmk1(1), fmk1(2), fmk1_cfm)
+            CALL cp_cfm_copy_general(kp%mos(spin_channel)%cmo_coeff, fmk1_cfm, para_env)
             CALL cp_cfm_get_submatrix(fmk1_cfm, export_scalar)
             IF (do_soc) THEN
                export_coeff(:nao, :) = MATMUL(export_scalar, spinor_coeff(:nscalar, :, ik))
@@ -1475,7 +1448,7 @@ CONTAINS
                IF (do_parity) parity_energies(:) = spinor_values(:, ik)
             ELSE
                export_coeff(:, :) = export_scalar(:, band_indices)
-               CALL get_mo_set(kp%mos(1, spin_channel), eigenvalues=eigenvalues)
+               CALL get_mo_set(kp%mos(spin_channel), eigenvalues=eigenvalues)
                CALL topology_state_point(state_unit, ik, kpt_latt(:, ik), eigenvalues(:nscalar), export_coeff)
                IF (do_parity) parity_energies(:) = eigenvalues(:nscalar)
             END IF
@@ -1576,10 +1549,6 @@ CONTAINS
       END DO
       DEALLOCATE (berry_matrix)
       CALL cp_fm_struct_release(matrix_struct_work)
-      DO i = 1, 2
-         CALL cp_fm_release(fmk1(i))
-         CALL cp_fm_release(fmk2(i))
-      END DO
       CALL cp_cfm_release(fmk1_cfm)
       CALL cp_cfm_release(fmk2_cfm)
       CALL cp_cfm_release(tmp_cfm)
@@ -1588,8 +1557,6 @@ CONTAINS
       CALL cp_fm_release(mat_imag)
       CALL cp_cfm_release(omat_cfm)
       CALL cp_fm_struct_release(matrix_struct_mmn)
-      CALL cp_fm_release(mmn_real)
-      CALL cp_fm_release(mmn_imag)
       CALL cp_cfm_release(mmn_cfm)
       CALL dbcsr_deallocate_matrix(rmatrix_full)
       CALL dbcsr_deallocate_matrix(cmatrix_full)
@@ -1795,16 +1762,16 @@ CONTAINS
 !> \param aligned_degenerate_min_svalue Smallest metric singular value.
 ! **************************************************************************************************
    SUBROUTINE prepare_wannier90_spin_mos(kpoint, qs_kpoint, matrix_s, matrix_ks, cell_to_index, &
-                                        sab_nl, para_env, ispin, success, reason, aligned_degenerate_blocks, &
-                                        aligned_degenerate_max_size, &
-                                        aligned_degenerate_min_svalue)
+                                         sab_nl, para_env, ispin, success, reason, aligned_degenerate_blocks, &
+                                         aligned_degenerate_max_size, &
+                                         aligned_degenerate_min_svalue)
       TYPE(kpoint_type), POINTER                         :: kpoint, qs_kpoint
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, matrix_ks
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN) :: ispin
+      INTEGER, INTENT(IN)                                :: ispin
       LOGICAL, INTENT(OUT)                               :: success
       CHARACTER(LEN=*), INTENT(OUT)                      :: reason
       INTEGER, INTENT(OUT)                               :: aligned_degenerate_blocks, &
@@ -1813,9 +1780,8 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: best_reason, candidate_reason
       INTEGER :: aligned_blocks, aligned_max_size, candidate_aligned_blocks, &
-         candidate_aligned_max_size, ik, ikpgr, ikred, isym_try, min_gap_band, &
-         min_gap_kpoint, min_gap_spin, nao, nao_src, nmo, nmo_src, nsymmetry, &
-         num_candidates
+         candidate_aligned_max_size, ik, ikpgr, ikred, isym_try, min_gap_band, min_gap_kpoint, &
+         min_gap_spin, nao, nao_src, nmo, nmo_src, nsymmetry, num_candidates
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: source_kpoint, sym_index
       INTEGER, DIMENSION(2)                              :: kp_range, source_kp_range
       LOGICAL                                            :: my_kpgrp, my_source_kpgrp, ok, &
@@ -2158,22 +2124,22 @@ CONTAINS
 !> \param kpoint full Wannier90 export k-point object
 !> \param ispin Selected spin channel.
 !> \param para_env global parallel environment
-!> \param mo MO coefficients, indexed as AO, MO, k-point, spin
-!> \param eigenvalue_snapshot MO eigenvalues, indexed as MO, k-point, spin
+!> \param mo MO coefficients for the selected spin, indexed as AO, MO, k-point
+!> \param eigenvalue_snapshot MO eigenvalues for the selected spin, indexed as MO, k-point
 ! **************************************************************************************************
-   SUBROUTINE save_wannier90_mo_snapshot(kpoint, para_env, mo, &
+   SUBROUTINE save_wannier90_mo_snapshot(kpoint, ispin, para_env, mo, &
                                          eigenvalue_snapshot)
       TYPE(kpoint_type), POINTER                         :: kpoint
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(mp_para_env_type), POINTER                    :: para_env
       COMPLEX(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :, :), INTENT(OUT)              :: mo
+         DIMENSION(:, :, :), INTENT(OUT)                 :: mo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: eigenvalue_snapshot
 
       INTEGER                                            :: ik, ikpgr, nao, nkp, nmo
       INTEGER, DIMENSION(2)                              :: kp_range
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: owner_weight
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: owner_weight
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
       TYPE(kpoint_env_type), POINTER                     :: kp
 
@@ -2210,15 +2176,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Restore a full-mesh Wannier90 MO reference after a failed diagnostic reuse attempt.
 !> \param kpoint full Wannier90 export k-point object
+!> \param ispin Selected spin channel.
 !> \param mo complex MO coefficient snapshot
 !> \param eigenvalue_snapshot MO eigenvalue snapshot
 ! **************************************************************************************************
    SUBROUTINE restore_wannier90_mo_snapshot(kpoint, ispin, mo, eigenvalue_snapshot)
       TYPE(kpoint_type), POINTER                         :: kpoint
-      INTEGER, INTENT(IN) :: ispin
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-         INTENT(IN)                                      :: mo
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: eigenvalue_snapshot
+      INTEGER, INTENT(IN)                                :: ispin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: mo
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eigenvalue_snapshot
 
       INTEGER                                            :: ik, ikpgr, nmo
       INTEGER, DIMENSION(2)                              :: kp_range
@@ -2244,6 +2210,7 @@ CONTAINS
 !> \param cell_to_index real-space cell index table
 !> \param sab_nl overlap neighbor list
 !> \param para_env global parallel environment
+!> \param ispin Selected spin channel.
 !> \param reference_mo complex MO coefficient reference
 !> \param reference_eigenvalues MO eigenvalue reference
 !> \param success true if the reconstructed MOs match the reference subspaces
@@ -2261,10 +2228,9 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER, INTENT(IN) :: ispin
-      COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-         INTENT(IN)                                      :: reference_mo
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)      :: reference_eigenvalues
+      INTEGER, INTENT(IN)                                :: ispin
+      COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(IN)   :: reference_mo
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: reference_eigenvalues
       LOGICAL, INTENT(OUT)                               :: success
       REAL(KIND=dp), INTENT(OUT)                         :: max_subspace_deviation, min_svalue, &
                                                             max_eigenvalue_deviation
@@ -2754,29 +2720,6 @@ CONTAINS
    END SUBROUTINE measure_wannier90_eigenspace_quality
 
 ! **************************************************************************************************
-!> \brief Copy the leading MO columns from a larger SCF MO matrix into the Wannier90 export window.
-!> \param source source MO coefficient matrix
-!> \param destination destination MO coefficient matrix
-!> \param ncol number of columns to copy
-! **************************************************************************************************
-   SUBROUTINE copy_wannier90_mo_window(source, destination, ncol)
-      TYPE(cp_fm_type), INTENT(IN)                       :: source, destination
-      INTEGER, INTENT(IN)                                :: ncol
-
-      INTEGER                                            :: ncol_source, nrow
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: destination_buffer, source_buffer
-
-      CALL cp_fm_get_info(source, nrow_global=nrow, ncol_global=ncol_source)
-      CPASSERT(ncol_source >= ncol)
-      ALLOCATE (source_buffer(nrow, ncol_source), destination_buffer(nrow, ncol))
-      CALL cp_fm_get_submatrix(source, source_buffer)
-      destination_buffer(1:nrow, 1:ncol) = source_buffer(1:nrow, 1:ncol)
-      CALL cp_fm_set_submatrix(destination, destination_buffer)
-      DEALLOCATE (source_buffer, destination_buffer)
-
-   END SUBROUTINE copy_wannier90_mo_window
-
-! **************************************************************************************************
 !> \brief Independently minimize physical projection families and retain the converged winner.
 !> \param library Original input matrices; replaced by the winning optimized library instance.
 !> \param input Library settings shared by all trials.
@@ -3061,21 +3004,17 @@ CONTAINS
       INTEGER                                            :: ik, iklocal, nao, nk, nmo
       INTEGER, POINTER                                   :: cell_to_index(:, :, :)
       REAL(KIND=dp)                                      :: phase
-      TYPE(cp_cfm_type)                                  :: sc_cfm
+      TYPE(cp_cfm_type)                                  :: mo_cfm, sc_cfm
+      TYPE(cp_cfm_type), POINTER                         :: source_cfm
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
-      TYPE(cp_fm_type)                                   :: mo_imag, mo_real, sc_imag, sc_real
-      TYPE(cp_fm_type), POINTER                          :: source_imag, source_real
 
-      NULLIFY (matrix_struct, cell_to_index, source_real, source_imag)
-      CALL get_mo_set(kpoint%kp_env(1)%kpoint_env%mos(1, ispin), nao=nao, nmo=nmo)
+      NULLIFY (matrix_struct, cell_to_index, source_cfm)
+      CALL get_mo_set(kpoint%kp_env(1)%kpoint_env%mos(ispin), nao=nao, nmo=nmo)
       nk = SIZE(kpoint%xkp, 2)
       CALL get_kpoint_info(kpoint, cell_to_index=cell_to_index)
       CALL cp_fm_struct_create(matrix_struct, nrow_global=nao, ncol_global=nmo, &
                                para_env=para_env, context=kpoint%blacs_env)
-      CALL cp_fm_create(mo_real, matrix_struct)
-      CALL cp_fm_create(mo_imag, matrix_struct)
-      CALL cp_fm_create(sc_real, matrix_struct)
-      CALL cp_fm_create(sc_imag, matrix_struct)
+      CALL cp_cfm_create(mo_cfm, matrix_struct)
       CALL cp_cfm_create(sc_cfm, matrix_struct)
       ALLOCATE (buffer(nmo, nao))
       IF (para_env%is_source()) THEN
@@ -3086,16 +3025,13 @@ CONTAINS
       DO ik = 1, nk
          IF (ik >= kpoint%kp_range(1) .AND. ik <= kpoint%kp_range(2)) THEN
             iklocal = ik - kpoint%kp_range(1) + 1
-            source_real => kpoint%kp_env(iklocal)%kpoint_env%mos(1, ispin)%mo_coeff
-            source_imag => kpoint%kp_env(iklocal)%kpoint_env%mos(2, ispin)%mo_coeff
+            source_cfm => kpoint%kp_env(iklocal)%kpoint_env%mos(ispin)%cmo_coeff
          ELSE
-            NULLIFY (source_real, source_imag)
+            NULLIFY (source_cfm)
          END IF
-         CALL cp_fm_copy_general(source_real, mo_real, para_env)
-         CALL cp_fm_copy_general(source_imag, mo_imag, para_env)
+         CALL wannier90_copy_cfm_general(source_cfm, mo_cfm, para_env)
          CALL apply_wannier90_kp_matrix(matrix_s, 1, kpoint%xkp(:, ik), cell_to_index, sab_nl, &
-                                        mo_real, mo_imag, sc_real, sc_imag)
-         CALL cp_fm_to_cfm(sc_real, sc_imag, sc_cfm)
+                                        mo_cfm, sc_cfm)
          CALL cp_cfm_get_submatrix(sc_cfm, buffer, transpose=.TRUE.)
          IF (para_env%is_source()) THEN
             projections(:, :, ik) = CONJG(buffer(bands, :))
@@ -3107,10 +3043,7 @@ CONTAINS
          END IF
       END DO
       DEALLOCATE (buffer)
-      CALL cp_fm_release(mo_real)
-      CALL cp_fm_release(mo_imag)
-      CALL cp_fm_release(sc_real)
-      CALL cp_fm_release(sc_imag)
+      CALL cp_cfm_release(mo_cfm)
       CALL cp_cfm_release(sc_cfm)
       CALL cp_fm_struct_release(matrix_struct)
    END SUBROUTINE build_wannier90_ao_projections
