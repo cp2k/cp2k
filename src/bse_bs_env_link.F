@@ -480,7 +480,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief The memory budget of the slab build per rank and the largest RI batch it allows:
-!>        BSE_ITERAT%MEMORY_BUDGET_GB as given, else mem_fraction of the free memory per rank measured
+!>        MEMORY_BUDGET_GB as given, else mem_fraction of the free memory per rank measured
 !>        now (its minimum over the ranks, so every rank cuts the same batches). One RI function of a
 !>        batch costs, per rank,
 !>        bytes_per_RI = 8 [(n_ao^2 + n_ao n_window + n_window^2)/N_group + 4 n_window^2/N_all],
@@ -544,7 +544,7 @@ CONTAINS
             CALL cp_abort(__LOCATION__, &
                           "PROPERTIES%BSE: not enough memory for the 3c integral batch of one RI atom: "// &
                           TRIM(ADJUSTL(need_str))//" GB per MPI rank, the budget is "//TRIM(ADJUSTL(budget_str))// &
-                          " GB. Raise BSE_ITERAT%MEMORY_BUDGET_GB or use more MPI ranks.")
+                          " GB. Raise MEMORY_BUDGET_GB or use more MPI ranks.")
          END IF
       END IF
 

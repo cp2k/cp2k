@@ -666,14 +666,23 @@ the excitation energies of `PROPERTIES%BSE` and of `RI_RPA%GW%BSE` remains, whic
 
 `PROPERTIES%BSE` transforms the three-center integrals to molecular orbitals in batches of RI atoms.
 By default, the batch size is adapted to the free memory.
-[MEMORY_BUDGET_GB](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.BSE_ITERAT.MEMORY_BUDGET_GB) in the
-[BSE_ITERAT](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.BSE_ITERAT) subsection sets the memory budget per
-MPI rank by hand, and [MEMORY_CHECK](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.BSE_ITERAT.MEMORY_CHECK)
-in the same subsection decides whether the run warns or stops when a single RI atom does not fit
-into the budget. `PROPERTIES%BSE` reads both keywords for either
+[MEMORY_BUDGET_GB](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.MEMORY_BUDGET_GB) sets the memory budget
+per MPI rank by hand, and [MEMORY_CHECK](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.MEMORY_CHECK) decides
+whether the run warns or stops when a single RI atom does not fit into the budget. `PROPERTIES%BSE`
+reads both keywords for either
 [BSE_DIAG_METHOD](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.BSE_DIAG_METHOD). With `FULLDIAG`, the
 memory of the diagonalization is estimated before the *GW* starts and compared with the same budget.
 The output reports the budget, the largest batch and the number of batches.
+
+The budget holds per step and is no total for the run. The transformation of the integrals and the
+solver run one after the other, and each may take up to the budget on top of what the run holds when
+the step starts. By default, each step takes half of the memory that is free at that moment, so no
+value has to be estimated. A budget set by hand should not exceed the memory per MPI rank minus what
+the run holds already: the memory that SCF and *GW* have not released, and the transformed
+three-center integrals, which stay until the BSE ends and take about
+$8\,N_\text{RI}\,(N_\text{occ}^2 + N_\text{occ} N_\text{virt} + N_\text{virt}^2)$ bytes over all
+ranks and per spin, with $N_\text{RI}$ RI functions and $N_\text{occ}$, $N_\text{virt}$ levels in
+the active window.
 
 [bse]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE
 [gw]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW

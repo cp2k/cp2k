@@ -1381,7 +1381,7 @@ CONTAINS
                           "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA). "// &
                           "Preliminary reference: Eq. (35) in PRB 92, 045209 (2015); "// &
                           "http://dx.doi.org/10.1103/PhysRevB.92.045209"//where_from, &
-                          n_keywords=8, n_subsections=4, repeats=.FALSE.)
+                          n_keywords=10, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1446,6 +1446,48 @@ CONTAINS
                           "Can be used to accelerate runtime and reduce memory consumption.", &
                           usage="ENERGY_CUTOFF_EMPTY 10.0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CHECK", &
+                          description="What the BSE does when one of its memory-heavy steps exceeds "// &
+                          "MEMORY_BUDGET_GB per MPI rank. Three steps are checked. (1) With ITERDIAG, the "// &
+               "arrays of the iterative solver at the subspace ceiling (BSE_ITERAT%MAX_SUBSPACE_FACTOR): nothing, warn, reduce "// &
+                          "the ceiling to the largest that fits (never below the solver's minimum), or "// &
+                          "abort. (2) With FULLDIAG, the peak estimate of the full "// &
+                          "diagonalization, checked before the GW: CLAMP warns. (3) Under PROPERTIES, "// &
+                          "with either solver, the batch of a single RI atom in the transformation of "// &
+                          "the three-center integrals: WARN warns, CLAMP and ABORT stop the run.", &
+                          usage="MEMORY_CHECK CLAMP", &
+                          enum_c_vals=s2a("OFF", "WARN", "CLAMP", "ABORT"), &
+                          enum_i_vals=[bse_memcheck_off, bse_memcheck_warn, bse_memcheck_clamp, bse_memcheck_abort], &
+                          enum_desc=s2a("Print the estimate, no comparison.", &
+                                        "Warn when the estimate exceeds the budget.", &
+                                        "Reduce the subspace ceiling to the budget and warn.", &
+                                        "Abort when the estimate exceeds the budget."), &
+                          default_i_val=bse_memcheck_clamp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_BUDGET_GB", &
+                          description="Memory budget per MPI rank in GB for the memory-heavy steps of the "// &
+                          "BSE. -1: each step takes half of the memory that is free on its ranks when the "// &
+                          "step starts. The budget holds per step and is no total for the run: the steps "// &
+                          "run one after the other, and each may take up to the budget on top of what the "// &
+                          "run holds when the step starts. Three steps read the budget. (1) With ITERDIAG, "// &
+                          "the arrays of the iterative solver. (2) With FULLDIAG, the peak estimate of the "// &
+                          "full diagonalization, compared with the budget before the GW starts. (3) Under "// &
+                          "PROPERTIES, with either solver, the batches of RI atoms in which the "// &
+                          "three-center integrals are transformed. No step counts what the run holds "// &
+                          "already: the memory that SCF and GW have not released, and the three-center "// &
+                          "integrals of the BSE, which stay until the BSE ends. Under PROPERTIES these take "// &
+                          "about 8 N_RI (N_occ^2 + N_occ N_virt + N_virt^2) bytes over all ranks and per "// &
+                          "spin, with N_RI RI functions and N_occ, N_virt levels in the active window. A "// &
+                          "budget set by hand should therefore not exceed the memory per rank minus these "// &
+                          "two; the default measures the free memory and needs no such estimate. "// &
+                          "MEMORY_CHECK decides what happens when a step exceeds the budget.", &
+                          usage="MEMORY_BUDGET_GB 8.0", &
+                          default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1728,7 +1770,7 @@ CONTAINS
                           description="Parameters of the iterative (block Davidson) solution of the "// &
                           "Bethe-Salpeter equation for the lowest excitations, which is invoked by "// &
                           "BSE_DIAG_METHOD ITERDIAG.", &
-                          n_keywords=10, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=8, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1773,7 +1815,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_SUBSPACE_FACTOR", &
                           description="Subspace ceiling in units of (NUM_EXC_EN+NUM_BUFFER_STATES) before a "// &
-                          "thick restart. -1: start from 20 and let MEMORY_CHECK reduce it to the budget.", &
+                          "thick restart. -1: start from 20 and let MEMORY_CHECK of the BSE section reduce it to "// &
+                          "the budget.", &
                           usage="MAX_SUBSPACE_FACTOR 5", &
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)
@@ -1787,40 +1830,6 @@ CONTAINS
                           "half the free memory per rank allows.", &
                           usage="MATVEC_BLOCK_COLUMNS 32", &
                           default_i_val=32)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CHECK", &
-                          description="What the BSE does when one of its memory-heavy steps exceeds "// &
-                          "MEMORY_BUDGET_GB per MPI rank. Three steps are checked. (1) With ITERDIAG, the "// &
-                          "arrays of the iterative solver at the subspace ceiling: nothing, warn, reduce "// &
-                          "the ceiling to the largest that fits (never below the solver's minimum), or "// &
-                          "abort. (2) With FULLDIAG, the peak estimate of the full "// &
-                          "diagonalization, checked before the GW: CLAMP warns. (3) Under PROPERTIES, "// &
-                          "with either solver, the batch of a single RI atom in the transformation of "// &
-                          "the three-center integrals: WARN warns, CLAMP and ABORT stop the run.", &
-                          usage="MEMORY_CHECK CLAMP", &
-                          enum_c_vals=s2a("OFF", "WARN", "CLAMP", "ABORT"), &
-                          enum_i_vals=[bse_memcheck_off, bse_memcheck_warn, bse_memcheck_clamp, bse_memcheck_abort], &
-                          enum_desc=s2a("Print the estimate, no comparison.", &
-                                        "Warn when the estimate exceeds the budget.", &
-                                        "Reduce the subspace ceiling to the budget and warn.", &
-                                        "Abort when the estimate exceeds the budget."), &
-                          default_i_val=bse_memcheck_clamp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_BUDGET_GB", &
-                          description="Memory budget per MPI rank in GB for the memory-heavy steps of the "// &
-                          "BSE. -1: half of the free memory per rank, detected when the step starts. Three "// &
-                          "steps read the budget. (1) With ITERDIAG, the arrays of the iterative solver; "// &
-                          "the RI three-center integrals are allocated before the solver starts and are "// &
-                          "not part of it. (2) With FULLDIAG, the peak estimate of the "// &
-                          "full diagonalization, checked before the GW. (3) Under PROPERTIES, with either "// &
-                          "solver, the batches of RI atoms in which the three-center integrals are "// &
-                          "transformed. MEMORY_CHECK decides what happens when a step exceeds the budget.", &
-                          usage="MEMORY_BUDGET_GB 8.0", &
-                          default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

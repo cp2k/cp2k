@@ -49,6 +49,10 @@ CONTAINS
                                 r_val=bse_env%bse_cutoff_occ)
       CALL section_vals_val_get(bse_section, "ENERGY_CUTOFF_EMPTY", &
                                 r_val=bse_env%bse_cutoff_empty)
+      CALL section_vals_val_get(bse_section, "MEMORY_CHECK", &
+                                i_val=bse_env%memory_check)
+      CALL section_vals_val_get(bse_section, "MEMORY_BUDGET_GB", &
+                                r_val=bse_env%memory_budget_gb)
       CALL section_vals_val_get(bse_section, "NUM_PRINT_EXC", &
                                 i_val=bse_env%num_print_exc)
       CALL section_vals_val_get(bse_section, "NUM_PRINT_EXC_DESCR", &
@@ -71,10 +75,6 @@ CONTAINS
                                 i_val=bse_env%max_subspace_factor)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%MATVEC_BLOCK_COLUMNS", &
                                 i_val=bse_env%matvec_block_columns)
-      CALL section_vals_val_get(bse_section, "BSE_ITERAT%MEMORY_CHECK", &
-                                i_val=bse_env%memory_check)
-      CALL section_vals_val_get(bse_section, "BSE_ITERAT%MEMORY_BUDGET_GB", &
-                                r_val=bse_env%memory_budget_gb)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%MAX_ITER", &
                                 i_val=bse_env%max_iter)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%CONVERGENCE_CRITERION", &
