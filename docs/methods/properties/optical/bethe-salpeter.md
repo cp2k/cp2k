@@ -327,16 +327,18 @@ In the upper GW/BSE section, the following keywords have been used:
 - [ENERGY_CUTOFF_OCC](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.ENERGY_CUTOFF_OCC)
   $E_\text{cut}^\text{occ}$: Restrict occupied molecular orbital (MO) indices $i$ and only use
   occupied MOs with
-  $\varepsilon_i\in[\varepsilon_{i=\text{HOMO}}^{GW}-E_\text{cut}^\text{occ},\varepsilon_{i=\text{HOMO}}^{GW}]$.
-  Setting a small `ENERGY_CUTOFF_OCC` drastically reduces the computation time and the memory
-  consumption, but also might affect the computed excitation energies $\Omega^{(n)}$. Recommended to
-  use for large systems with more than 30 atoms, but we recommend a careful convergence test by
-  increasing `ENERGY_CUTOFF_OCC` and observing the effect on $\Omega^{(n)}$ \[[](#Graml2026)\].
+  $\varepsilon_i\in[\varepsilon_{i=\text{HOMO}}^{DFT}-E_\text{cut}^\text{occ},\varepsilon_{i=\text{HOMO}}^{DFT}]$.
+  The cutoff is applied to the DFT eigenvalues, also when the BSE takes quasiparticle energies from
+  the *GW*. Setting a small `ENERGY_CUTOFF_OCC` drastically reduces the computation time and the
+  memory consumption, but also might affect the computed excitation energies $\Omega^{(n)}$.
+  Recommended to use for large systems with more than 30 atoms, but we recommend a careful
+  convergence test by increasing `ENERGY_CUTOFF_OCC` and observing the effect on $\Omega^{(n)}$
+  \[[](#Graml2026)\].
 
 - [ENERGY_CUTOFF_EMPTY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.ENERGY_CUTOFF_EMPTY)
   $E_\text{cut}^\text{empty}$: Analogous to `ENERGY_CUTOFF_OCC`, but for the empty states, i.e. only
   empty states in the interval
-  $\varepsilon_a\in[\varepsilon_{a=\text{LUMO}}^{GW},\varepsilon_{a=\text{LUMO}}^{GW}+E_\text{cut}^\text{empty}]$.
+  $\varepsilon_a\in[\varepsilon_{a=\text{LUMO}}^{DFT},\varepsilon_{a=\text{LUMO}}^{DFT}+E_\text{cut}^\text{empty}]$.
 
 - [NUM_PRINT_EXC_DESCR](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.NUM_PRINT_EXC_DESCR):
   Number of excitations, for which the exciton descriptors are printed.
