@@ -22,6 +22,11 @@
 # The meta-GGA cutoffs differ per test: the restricted TPSS run stalls near
 # 1e-6 RMS gradient on a coarser grid and needs CUTOFF 600 to reach EPS_SCF,
 # while the others converge on a cheaper one and are kept there for runtime.
+#
+# NOTE: this suite must be run with --mpiranks 2. The h2o_lda_analytic total
+# energy is MPI-sensitive: with 4 ranks it can differ from the reference by
+# ~1e-7, far below physical significance but well above the 1e-11 tolerance,
+# so the run would falsely fail. The other tests are not affected.
 "h2o_lda_analytic.inp"                  = [{matcher="E_total", tol=1.0E-11, ref=-17.12647008678879}]
 "h2o_gga_analytic.inp"                  = [{matcher="E_total", tol=1.0E-11, ref=-17.22346825004372}]
 "h2o_mgga_tau_analytic.inp"             = [{matcher="E_total", tol=1.0E-07, ref=-17.24684298922764},
