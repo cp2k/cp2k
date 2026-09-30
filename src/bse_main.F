@@ -70,8 +70,8 @@ MODULE bse_main
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_main'
 
-   PUBLIC :: prepare_bse_env, prepare_bse_env_windowed, bse_solve, bse_fulldiag_memory_check, &
-             bse_fulldiag_memory_check_from_mos
+   PUBLIC :: prepare_bse_env_from_ri_rpa_gw, prepare_bse_env_from_bandstructure_gw, bse_solve, &
+             bse_fulldiag_memory_check, bse_fulldiag_memory_check_from_mos
 
 CONTAINS
 
@@ -95,9 +95,9 @@ CONTAINS
 !> \param qs_env source of the pointers the solver reads and of the AO multipoles
 !> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
-   SUBROUTINE prepare_bse_env(bse_env, fm_S_ia_full, fm_S_ij_full, fm_S_ab_full, fm_Q, &
-                              Eigenval, Eigenval_scf, homo, virtual, dimen_RI, dimen_RI_red, &
-                              gw_corr_lev_occ, bse_lev_virt, qs_env, unit_nr)
+   SUBROUTINE prepare_bse_env_from_ri_rpa_gw(bse_env, fm_S_ia_full, fm_S_ij_full, fm_S_ab_full, fm_Q, &
+                                             Eigenval, Eigenval_scf, homo, virtual, dimen_RI, dimen_RI_red, &
+                                             gw_corr_lev_occ, bse_lev_virt, qs_env, unit_nr)
 
       TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_S_ia_full, fm_S_ij_full, fm_S_ab_full
@@ -109,7 +109,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'prepare_bse_env'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_bse_env_from_ri_rpa_gw'
 
       INTEGER                                            :: handle, ispin, n_window, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_mo
@@ -172,12 +172,13 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE prepare_bse_env
+   END SUBROUTINE prepare_bse_env_from_ri_rpa_gw
 
 ! **************************************************************************************************
-!> \brief Entry for PROPERTIES%BSE, which hands over window-sized slabs and a ready inverse
-!>        dielectric matrix: nothing is cut or inverted, the slabs are taken over as they are.
-!>        Both entries share start_bse_env and finish_bse_env. Starts no solver.
+!> \brief Entry for the BSE of PROPERTIES%BANDSTRUCTURE%GW (PROPERTIES%BSE), which hands over
+!>        window-sized slabs and a ready inverse dielectric matrix: nothing is cut or inverted, the
+!>        slabs are taken over as they are. Shares start_bse_env and finish_bse_env with
+!>        prepare_bse_env_from_ri_rpa_gw. Starts no solver.
 !> \param bse_env settings read from its section by the caller; state filled here
 !> \param fm_S_ia B^P_ia of the window per spin; moved into bse_env, deallocated on return
 !> \param fm_S_ij B^P_ij of the window per spin; moved into bse_env, deallocated on return
@@ -193,9 +194,9 @@ CONTAINS
 !> \param qs_env source of the pointers the solver reads and of the AO multipoles
 !> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
-   SUBROUTINE prepare_bse_env_windowed(bse_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_eps_inv, &
-                                       eigenval_qp, eigenval_dft, homo_full, homo_red, virt_red, &
-                                       dimen_RI, qs_env, unit_nr)
+   SUBROUTINE prepare_bse_env_from_bandstructure_gw(bse_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_eps_inv, &
+                                                    eigenval_qp, eigenval_dft, homo_full, homo_red, virt_red, &
+                                                    dimen_RI, qs_env, unit_nr)
 
       TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
@@ -207,13 +208,13 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_bse_env_windowed'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_bse_env_from_bandstructure_gw'
 
       INTEGER                                            :: handle, ispin, n_window, nspins
 
       CALL timeset(routineN, handle)
 
-      ! the caller read the settings afresh from the input (bse_from_bs_env), as prepare_bse_env does
+      ! the caller (bse_from_bs_env) read the settings afresh from the input; the entry of RI_RPA%GW reads them itself
       IF (.NOT. ASSOCIATED(bse_env%bse_section)) CPABORT("BSE settings not read: read_bse_section comes first")
 
       nspins = SIZE(homo_full)
@@ -249,7 +250,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE prepare_bse_env_windowed
+   END SUBROUTINE prepare_bse_env_from_bandstructure_gw
 
 ! **************************************************************************************************
 !> \brief The part both entries share before their window: the sizes, the run flags from the

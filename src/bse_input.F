@@ -8,7 +8,7 @@
 ! **************************************************************************************************
 !> \brief Reads the &BSE input section into the BSE environment; called by read_mp2_section with
 !>        the section under RI_RPA%GW, by any other GW path with its own section, and again by
-!>        prepare_bse_env before every BSE run
+!>        prepare_bse_env_from_ri_rpa_gw before every BSE run
 !> \par History
 !>      09.2026 moved out of read_mp2_section [Maximilian Graml]
 ! **************************************************************************************************

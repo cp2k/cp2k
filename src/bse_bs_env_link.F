@@ -9,7 +9,7 @@
 !> \brief Bethe-Salpeter equation on the RI-AO GW, the GW of PROPERTIES%BANDSTRUCTURE%GW with explicit
 !>        three-center RI integrals over atomic orbitals (no RI_RS): reads PROPERTIES%BSE, builds the
 !>        window-sized RI slabs and the effective inverse dielectric matrix from bs_env, and hands
-!>        them to the solver core through prepare_bse_env_windowed.
+!>        them to the solver core through prepare_bse_env_from_bandstructure_gw.
 !>        Non-periodic systems only. Reads no real-time propagation input.
 !> \par History
 !>      09.2026 created [Maximilian Graml]
@@ -18,7 +18,7 @@
 MODULE bse_bs_env_link
    USE bse_input,                       ONLY: read_bse_section
    USE bse_main,                        ONLY: bse_solve,&
-                                              prepare_bse_env_windowed
+                                              prepare_bse_env_from_bandstructure_gw
    USE bse_matvec,                      ONLY: mem_fraction
    USE bse_types,                       ONLY: bse_env_release,&
                                               bse_env_type
@@ -166,9 +166,9 @@ CONTAINS
       CALL cp_fm_release(fm_M_inv_V_sqrt)
       CALL neighbor_list_3c_destroy(bs_env%nl_3c)
 
-      CALL prepare_bse_env_windowed(bse_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_eps_inv, &
-                                    eigenval_qp, eigenval_dft, homo_full, homo_red, virt_red, &
-                                    n_RI, qs_env, unit_nr)
+      CALL prepare_bse_env_from_bandstructure_gw(bse_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_eps_inv, &
+                                                 eigenval_qp, eigenval_dft, homo_full, homo_red, virt_red, &
+                                                 n_RI, qs_env, unit_nr)
       CALL cp_fm_release(fm_eps_inv)
       CALL bse_solve(bse_env, bs_env%fm_mo_coeff_Gamma(1:n_spin), unit_nr)
       CALL bse_env_release(bse_env)
