@@ -202,8 +202,8 @@ CONTAINS
       CALL fm_read(fm_W_MIC_freq_zero, bs_env, bs_env%W_freq_zero_name, 0)
 
       IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,A,F7.1,A)') &
-            'Read W(0,k) from file  ', 'Execution time', m_walltime() - t1, ' s'
+         WRITE (bs_env%unit_nr, '(T2,A,T55,A,F10.1,A)') &
+            'Read W(0,k) from file,', ' Execution time', m_walltime() - t1, ' s'
       END IF
 
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
@@ -230,7 +230,7 @@ CONTAINS
       INTEGER                                            :: handle, ikp, ikp_batch, ikp_in_batch
       REAL(KIND=dp)                                      :: t1
       TYPE(cp_cfm_type)                                  :: cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_V_kp
+      TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_V_kp
 
       CALL timeset(routineN, handle)
 
@@ -243,7 +243,7 @@ CONTAINS
          t1 = m_walltime()
 
          ! Compute V_PQ(k) = sum_R e^(ikR) <phi_P, cell 0 | 1/r | phi_Q, cell R>
-         CALL compute_V_k_by_lattice_sum(bs_env, qs_env, fm_V_kp, ikp_batch)
+         CALL compute_V_k_by_lattice_sum(bs_env, qs_env, cfm_V_kp, ikp_batch)
 
          DO ikp_in_batch = 1, bs_env%nkp_chi_eps_W_batch
 
@@ -251,10 +251,11 @@ CONTAINS
 
             IF (ikp > bs_env%nkp_chi_eps_W_orig_plus_extra) CYCLE
 
-            CALL compute_MinvVsqrt_Vsqrt(bs_env, qs_env, fm_V_kp, &
+            CALL compute_MinvVsqrt_Vsqrt(bs_env, qs_env, cfm_V_kp, &
                                          cfm_V_sqrt_ikp, cfm_M_inv_V_sqrt_ikp, ikp)
 
             CALL bs_env%para_env%sync()
+            CALL cp_cfm_release(cfm_V_kp(ikp))
 
             CALL compute_fm_W_MIC_freq_j(bs_env, qs_env, bs_env%fm_W_MIC_freq, 1, ikp, &
                                          mat_chi_Gamma_tau, cfm_M_inv_V_sqrt_ikp, &
@@ -263,18 +264,15 @@ CONTAINS
             CALL cp_fm_scale_and_add(1.0_dp, fm_W_MIC_freq_zero, &
                                      1.0_dp, bs_env%fm_W_MIC_freq)
 
-            CALL cp_fm_release(fm_V_kp(ikp, 1))
-            CALL cp_fm_release(fm_V_kp(ikp, 2))
-
          END DO ! ikp_in_batch
 
-         DEALLOCATE (fm_V_kp)
+         DEALLOCATE (cfm_V_kp)
 
          IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A,I12,A,I3,A,F7.1,A)') &
+            WRITE (bs_env%unit_nr, '(T2,A,I13,A,I3,A,F10.1,A)') &
                'Computed W(0,k) for k-point batch', &
                ikp_batch, ' /', bs_env%num_chi_eps_W_batches, &
-               ',    Execution time', m_walltime() - t1, ' s'
+               ', Execution time', m_walltime() - t1, ' s'
          END IF
 
       END DO ! ikp_batch
@@ -423,9 +421,8 @@ CONTAINS
             CALL dbt_destroy(t_2c_Sigma)
 
             IF (bs_env%unit_nr > 0) THEN
-               WRITE (bs_env%unit_nr, '(T2,A,A,F7.1,A)') &
-                  'Computed Σ^c(k=0) ', &
-                  ',    Execution time', m_walltime() - t1, ' s'
+               WRITE (bs_env%unit_nr, '(T2,A,T55,A,F10.1,A)') &
+                  'Computed Σ^c(k=0),', ' Execution time', m_walltime() - t1, ' s'
             END IF
 
          END DO
@@ -475,8 +472,8 @@ CONTAINS
       CALL fm_read(fm_Sigma_c_Gamma(1, 1), bs_env, bs_env%SigmaC_freq_zero_name, 0)
 
       IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,A,F7.1,A)') &
-            'Read Σ^c(k=0) from file  ', 'Execution time', m_walltime() - t1, ' s'
+         WRITE (bs_env%unit_nr, '(T2,A,T55,A,F10.1,A)') &
+            'Read Σ^c(k=0) from file,', ' Execution time', m_walltime() - t1, ' s'
       END IF
 
       IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, '(A)') ' '
@@ -853,9 +850,9 @@ CONTAINS
 
       ! Build the st-COHSEX QP Hamiltonian directly in the distributed fm by looping
       ! over local elements only (global indices from row_indices/col_indices):
-      !   occ-occ block : Σ^x - v^xc + stfacip*Σ^c
-      !   vir-vir block : Σ^x - v^xc + stfacea*Σ^c
-      !   occ-vir / vir-occ : 0
+      !   occ-occ block : Σ^x - v^xc + α Σ^c   (α = SCALE_COHSEX_OCC)
+      !   vir-vir block : Σ^x - v^xc + α Σ^c   (α = SCALE_COHSEX_VIRT)
+      !   occ-vir / vir-occ : 0, i.e. occupied and virtual states are not mixed
       !   diagonal additionally gets + ϵ^DFT_nk
       CALL cp_fm_get_info(fm_SP_mat, nrow_local=nrow_local, ncol_local=ncol_local, &
                           row_indices=row_indices, col_indices=col_indices)
@@ -871,11 +868,11 @@ CONTAINS
             IF (j_row <= bs_env%n_occ(ispin) .AND. j_col <= bs_env%n_occ(ispin)) THEN
                val = fm_Sigma_x_ikp_mo%local_data(i_row, i_col) &
                      - fm_V_xc_ikp_mo%local_data(i_row, i_col) &
-                     + bs_env%stfacip*fm_Sigma_c_ikp_mo%local_data(i_row, i_col)
+                     + bs_env%scale_cohsex_occ*fm_Sigma_c_ikp_mo%local_data(i_row, i_col)
             ELSE IF (j_row > bs_env%n_occ(ispin) .AND. j_col > bs_env%n_occ(ispin)) THEN
                val = fm_Sigma_x_ikp_mo%local_data(i_row, i_col) &
                      - fm_V_xc_ikp_mo%local_data(i_row, i_col) &
-                     + bs_env%stfacea*fm_Sigma_c_ikp_mo%local_data(i_row, i_col)
+                     + bs_env%scale_cohsex_virt*fm_Sigma_c_ikp_mo%local_data(i_row, i_col)
             ELSE
                val = 0.0_dp
             END IF

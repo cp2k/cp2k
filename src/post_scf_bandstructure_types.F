@@ -178,8 +178,8 @@ MODULE post_scf_bandstructure_types
       INTEGER                                         :: gw_flavour = G0W0
 
       ! parameters for st-COHSEX approximation to GW
-      REAL(KIND=dp)                                   :: stfacip = 1.0_dp, &
-                                                         stfacea = 1.0_dp
+      REAL(KIND=dp)                                   :: scale_cohsex_occ = 1.0_dp, &
+                                                         scale_cohsex_virt = 1.0_dp
 
       ! parameters for RI-RS implementation of GW
       TYPE(ri_rs_env)                                 :: ri_rs

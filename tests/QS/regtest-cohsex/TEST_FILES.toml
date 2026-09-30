@@ -5,4 +5,8 @@
 "02_STCOHSEX_PBE_H2O_periodic.inp"       = [{matcher="E_STCOHSEX_HOMO", tol=1e-03, ref=-7.454},
                                             {matcher="E_STCOHSEX_LUMO", tol=1e-03, ref=4.939},
                                             {matcher="E_STCOHSEX_gap", tol=1e-03, ref=12.392}]
+
+"03_STCOHSEX_PBE_H2O_periodic_XYZ.inp"   = [{matcher="E_STCOHSEX_HOMO", tol=1e-03, ref=-7.459},
+                                            {matcher="E_STCOHSEX_LUMO", tol=1e-03, ref=6.699},
+                                            {matcher="E_STCOHSEX_gap", tol=1e-03, ref=14.158}]
 #EOF

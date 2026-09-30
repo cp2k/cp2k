@@ -296,8 +296,8 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "KPOINTS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
       CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
       CALL section_vals_val_get(gw_sec, "FREQ_MAX_FIT", r_val=bs_env%freq_max_fit)
-      CALL section_vals_val_get(gw_sec, "STFACIP", r_val=bs_env%stfacip)
-      CALL section_vals_val_get(gw_sec, "STFACEA", r_val=bs_env%stfacea)
+      CALL section_vals_val_get(gw_sec, "SCALE_COHSEX_OCC", r_val=bs_env%scale_cohsex_occ)
+      CALL section_vals_val_get(gw_sec, "SCALE_COHSEX_VIRT", r_val=bs_env%scale_cohsex_virt)
       CALL read_rirs_input(bs_env%ri_rs, ri_rs_sec)
       CALL read_rirs_grid_opt(bs_env%ri_rs, grid_opt_sec)
       CALL read_evgw0_input(bs_env%ri_rs, evgw0_sec, do_evgw0)
@@ -577,8 +577,10 @@ CONTAINS
          IF (bs_env%do_gw_ri_rs) CALL print_gw_rirs_input(bs_env)
          IF (bs_env%do_stcohsex) THEN
             WRITE (u, FMT="(T2,A,L56)") "st-COHSEX Approximation", bs_env%do_stcohsex
-            WRITE (u, FMT="(T2,A,T73,F8.6)") "st-COHSEX scaling factor for IP:", bs_env%stfacip
-            WRITE (u, FMT="(T2,A,T73,F8.6)") "st-COHSEX scaling factor for EA:", bs_env%stfacea
+            WRITE (u, FMT="(T2,A,T73,F8.6)") "st-COHSEX scaling of Sigma^c, occ-occ (SCALE_COHSEX_OCC):", &
+               bs_env%scale_cohsex_occ
+            WRITE (u, FMT="(T2,A,T73,F8.6)") "st-COHSEX scaling of Sigma^c, virt-virt (SCALE_COHSEX_VIRT):", &
+               bs_env%scale_cohsex_virt
          END IF
          WRITE (u, '(A)') ' '
       END IF

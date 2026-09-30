@@ -44,8 +44,8 @@
       &GW
         NUM_TIME_FREQ_POINTS 10
         STCOHSEX
-        STFACEA 0.5
-        STFACIP 0.5
+        SCALE_COHSEX_VIRT 0.5
+        SCALE_COHSEX_OCC 0.5
       &END GW
     &END BANDSTRUCTURE
   &END PROPERTIES

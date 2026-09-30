@@ -2565,26 +2565,38 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STCOHSEX", &
-                          description="StaticCoulomb hole screened exchange (st-COHSEX) approximation. "// &
-                          "The COHSEX self-energy is a static approximation to the "// &
-                          "GW self-energy, which can be expressed as Σ^COHSEX_mn = "// &
-                          "1/2 Σ_p W^C_mppn(ω=0) sgn(ε_p - ε_F) ", &
+                          description="Static Coulomb-hole screened-exchange (st-COHSEX) approximation "// &
+                          "to $G_0W_0$. Only the static screened Coulomb interaction $W(\omega=0)$ is "// &
+                          "computed; its correlation part $W^\text{c}(0) = W(0) - v$ gives the correlation "// &
+                          "self-energy $\Sigma^\text{c}_{mn} = \frac{1}{2}\sum_p \text{sgn}(\varepsilon_p - "// &
+                          "\varepsilon_\text{F})\, W^\text{c}_{mp,pn}(\omega=0)$. The quasiparticle "// &
+                          "Hamiltonian $H^\text{QP}_{mn} = \varepsilon_n^\text{DFT}\delta_{mn} + "// &
+                          "\Sigma^\text{x}_{mn} - v^\text{xc}_{mn} + \alpha_{mn}\,\Sigma^\text{c}_{mn}$, "// &
+                          "with $\alpha_{mn}$ = SCALE_COHSEX_OCC in the occupied-occupied "// &
+                          "and $\alpha_{mn}$ = SCALE_COHSEX_VIRT in the virtual-virtual "// &
+                          "block, is built in the Kohn-Sham MO basis. The occupied-virtual blocks are set to "// &
+                          "zero, $H^\text{QP}_{ia} = 0$, i.e. occupied and virtual states are not mixed. "// &
+                          "The diagonal gives the diagonal st-COHSEX energies "// &
+                          "$\varepsilon_n^\text{DG} = H^\text{QP}_{nn}$; diagonalizing $H^\text{QP}$ gives "// &
+                          "the canonical st-COHSEX energies $\varepsilon_n^\text{CN}$ and MOs.", &
                           usage="STCOHSEX", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="STFACIP", &
-                          description="scaling factor for st-COHSEX IPs", &
-                          usage="STFACIP", &
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE_COHSEX_OCC", &
+                          description="Scaling factor of the st-COHSEX correlation "// &
+                          "self-energy $\Sigma^\text{c}_{ij}$ in the occupied-occupied block.", &
+                          usage="SCALE_COHSEX_OCC 0.6", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="STFACEA", &
-                          description="scaling factor for st-COHSEX EAs", &
-                          usage="STFACEA", &
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE_COHSEX_VIRT", &
+                          description="Scaling factor of the st-COHSEX correlation "// &
+                          "self-energy $\Sigma^\text{c}_{ab}$ in the virtual-virtual block.", &
+                          usage="SCALE_COHSEX_VIRT 0.6", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
