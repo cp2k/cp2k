@@ -46,6 +46,8 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b" https:
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l" https://cp2k.org/conv#c012
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input" https://cp2k.org/conv#c204
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input" https://cp2k.org/conv#c203
+# FDE intentionally launches the user-configured external subsystem solver on the source rank.
+fde_methods.F: Found CALL EXECUTE_COMMAND_LINE in procedure "fde_spawn" https://cp2k.org/conv#c106
 fftw3_lib.F: Found CLOSE statement in procedure "fftw3_do_cleanup" https://cp2k.org/conv#c204
 fftw3_lib.F: Found CLOSE statement in procedure "fftw3_do_init" https://cp2k.org/conv#c204
 fftw3_lib.F: Found OPEN statement in procedure "fftw3_do_cleanup" https://cp2k.org/conv#c203
