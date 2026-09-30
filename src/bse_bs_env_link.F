@@ -237,8 +237,8 @@ CONTAINS
 
       n_RI = bs_env%n_RI
       ! bare Coulomb V (coulomb_op keeps its default, the full 1/r) and the RI metric M
-      CALL RI_2c_integral_mat(qs_env, fm_V, bs_env%fm_RI_RI, n_RI, coulomb_op, do_kpoints=.FALSE.)
-      CALL RI_2c_integral_mat(qs_env, fm_M, bs_env%fm_RI_RI, n_RI, bs_env%ri_metric, do_kpoints=.FALSE.)
+      CALL RI_2c_integral_mat(qs_env, fm_V, bs_env%fm_RI_RI%matrix_struct, n_RI, coulomb_op)
+      CALL RI_2c_integral_mat(qs_env, fm_M, bs_env%fm_RI_RI%matrix_struct, n_RI, bs_env%ri_metric)
 
       ! V^1/2 and V^-1/2 by symmetric roots, near-null RI directions dropped by the threshold
       threshold = bs_env%eps_eigval_mat_RI
