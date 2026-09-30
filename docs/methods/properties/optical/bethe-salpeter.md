@@ -598,15 +598,16 @@ identical, and both treat non-periodic systems (molecules) only:
   [PROPERTIES%BANDSTRUCTURE%GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW), which must be
   present in the same input.
 
-That *GW* is designed for large systems, so `PROPERTIES%BSE` is the path for large molecules. It has
-three requirements of its own: a non-periodic cell (`PERIODIC NONE`), a *GW* section without the
-`RI_RS` subsection, and no `REAL_TIME_PROPAGATION%RTBSE` section in the same run. With
-`NTO_ANALYSIS`, set `CUBE_FILES F`: the cube files of the natural transition orbitals are not
-available on this path.
+The RI-AO *GW* of `PROPERTIES%BANDSTRUCTURE%GW` is designed for large systems, so `PROPERTIES%BSE`
+is the BSE section to use for large molecules. `PROPERTIES%BSE` has three requirements of its own: a
+non-periodic cell (`PERIODIC NONE`), a `PROPERTIES%BANDSTRUCTURE%GW` section without the `RI_RS`
+subsection, and no `REAL_TIME_PROPAGATION%RTBSE` section in the same run. With `NTO_ANALYSIS`, set
+`CUBE_FILES F`: `PROPERTIES%BSE` writes no cube files of the natural transition orbitals.
 
 `PROPERTIES%BSE` takes the quasiparticle energies, the RI three-center integrals and the static
-screened interaction $W(i\omega = 0)$ from that *GW*, the latter summed from its imaginary-time
-grid, so the screening is the *GW*'s own and no second RPA is run. A minimal input:
+screened interaction $W(i\omega = 0)$ from `PROPERTIES%BANDSTRUCTURE%GW`. $W(i\omega = 0)$ is summed
+from the imaginary-time grid of `PROPERTIES%BANDSTRUCTURE%GW`, so no second RPA calculation is run
+for the screening. A minimal input:
 
 ```
 &PROPERTIES
@@ -627,17 +628,20 @@ grid, so the screening is the *GW*'s own and no second RPA is run. A minimal inp
 &END PROPERTIES
 ```
 
-The RI-AO *GW* works in the truncated-Coulomb RI metric with radius `CUTOFF_RADIUS_RI`, so the
-radius is a convergence parameter of the BSE as well. A radius beyond the extent of the system makes
-that metric the Coulomb metric of the RPA-based path, and the two paths then agree to the accuracy
-of the imaginary-time quadrature: on H<sub>2</sub>O with a DZVP-GTH basis, the lowest ten excitation
-energies with `USE_KS_ENERGIES` agree to below 0.1 meV already at `NUM_TIME_FREQ_POINTS 20`. With
-quasiparticle energies the two paths differ by the difference of their *GW* implementations.
+The RI-AO *GW* of `PROPERTIES%BANDSTRUCTURE%GW` works in the truncated-Coulomb RI metric with radius
+`CUTOFF_RADIUS_RI`, so `CUTOFF_RADIUS_RI` is a convergence parameter of `PROPERTIES%BSE` as well. A
+radius beyond the extent of the system turns the truncated-Coulomb metric into the Coulomb metric of
+the RPA-based *GW* of `RI_RPA%GW`, and `PROPERTIES%BSE` and `RI_RPA%GW%BSE` then agree to the
+accuracy of the imaginary-time quadrature: on H<sub>2</sub>O with a DZVP-GTH basis, the lowest ten
+excitation energies with `USE_KS_ENERGIES` agree to below 0.1 meV already at
+`NUM_TIME_FREQ_POINTS 20`. With quasiparticle energies, `PROPERTIES%BSE` and `RI_RPA%GW%BSE` differ
+by the difference between the two *GW* implementations.
 
-The three-center integrals are transformed in batches of RI atoms sized by a memory budget per rank:
-`BSE_ITERAT%MEMORY_BUDGET_GB` when set, else half of the free memory per rank measured after the
-*GW*. The output reports the budget, the largest batch and the batch count; `MEMORY_CHECK` decides
-what happens when one RI atom alone exceeds the budget.
+`PROPERTIES%BSE` transforms the three-center integrals in batches of RI atoms sized by a memory
+budget per rank: `BSE_ITERAT%MEMORY_BUDGET_GB` when set, else half of the free memory per rank
+measured after the *GW* of `PROPERTIES%BANDSTRUCTURE%GW`. The output reports the budget, the largest
+batch and the batch count; `MEMORY_CHECK` decides what happens when one RI atom alone exceeds the
+budget.
 
 [bse]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE
 [gw]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW

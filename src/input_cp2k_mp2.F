@@ -1358,16 +1358,16 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       IF (for_properties) THEN
-         where_from = " This section runs the BSE on the GW of PROPERTIES%BANDSTRUCTURE%GW, which must be "// &
-                      "present in the same input and must not use RI_RS: the quasiparticle energies, the "// &
-                      "static screened interaction and the RI integrals are taken from that GW. The same "// &
-                      "section under XC%WF_CORRELATION%RI_RPA%GW runs the BSE on the RPA-based GW instead. "// &
-                      "Both treat non-periodic systems only."
+         where_from = " This section runs the BSE on the quasiparticle energies, the static screened "// &
+                      "interaction and the RI integrals of PROPERTIES%BANDSTRUCTURE%GW, which must be "// &
+                      "present in the same input and must not use RI_RS. The same section under "// &
+                      "XC%WF_CORRELATION%RI_RPA%GW runs the BSE on the RPA-based GW of RI_RPA%GW instead. "// &
+                      "Both sections treat non-periodic systems only."
       ELSE
          where_from = " This section runs the BSE on the RPA-based GW of RI_RPA%GW, which provides the "// &
                       "quasiparticle energies and the screening. The same section under PROPERTIES runs "// &
-                      "the BSE on the GW of PROPERTIES%BANDSTRUCTURE%GW instead. Both treat non-periodic "// &
-                      "systems only."
+                      "the BSE on the GW of PROPERTIES%BANDSTRUCTURE%GW instead. Both sections treat "// &
+                      "non-periodic systems only."
       END IF
       CALL section_create(section, __LOCATION__, name="BSE", &
                           description="Parameters for a calculation solving the Bethe-Salpeter equation "// &
