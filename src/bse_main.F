@@ -201,7 +201,8 @@ CONTAINS
 !> \param fm_S_ia B^P_ia of the window per spin, moved into bse_env (comes back deallocated)
 !> \param fm_S_ij B^P_ij of the window per spin, moved into bse_env
 !> \param fm_S_ab B^P_ab of the window per spin, moved into bse_env
-!> \param fm_eps_inv the inverse dielectric matrix, RI x RI, copied; stays the caller's
+!> \param fm_eps_inv the inverse dielectric matrix ε^-1_PQ the core screens the slabs with,
+!>        \bar{B}^P_ij = sum_Q ε^-1_PQ B^Q_ij; RI x RI, copied; stays the caller's
 !> \param eigenval_qp quasiparticle energies of the window (level, spin)
 !> \param eigenval_dft DFT energies of the window (level, spin)
 !> \param homo_full occupied MOs per spin of the full reference
@@ -236,6 +237,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(bse_env%bse_section))
 
       nspins = SIZE(homo_full)
+      ! one slab set and one energy column per spin
       CPASSERT(SIZE(fm_S_ia) == nspins .AND. SIZE(eigenval_qp, 2) == nspins)
       bse_env%nspins = nspins
       bse_env%dimen_RI = dimen_RI
@@ -265,6 +267,7 @@ CONTAINS
       bse_env%virt_red(:) = virt_red(:)
       n_window = SIZE(eigenval_qp, 1)
       DO ispin = 1, nspins
+         ! one absolute window for every spin: its occupied and virtual levels fill it
          CPASSERT(homo_red(ispin) + virt_red(ispin) == n_window)
       END DO
       ALLOCATE (bse_env%eigenval_dft(n_window, nspins), bse_env%eigenval_qp(n_window, nspins))

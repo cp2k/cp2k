@@ -1498,9 +1498,10 @@ CONTAINS
    END SUBROUTINE mat_ikp_from_mat_Gamma
 
 ! **************************************************************************************************
-!> \brief W^MIC(iω=0) = Σ_τ w_τ(0) W^MIC(iτ) into bs_env%fm_W_MIC_freq_zero (created here)
-!> \param bs_env ...
-!> \param fm_W_MIC_time ...
+!> \brief W^MIC_PQ(iω=0) = sum_j w_j W^MIC_PQ(iτ_j) with the time weights w_j of the grid at zero
+!>        frequency, into bs_env%fm_W_MIC_freq_zero (created here)
+!> \param bs_env time grid and its weights; receives fm_W_MIC_freq_zero
+!> \param fm_W_MIC_time W^MIC_PQ(iτ_j) for every time point j
 ! **************************************************************************************************
    SUBROUTINE sum_W_MIC_freq_zero(bs_env, fm_W_MIC_time)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
@@ -1509,11 +1510,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'sum_W_MIC_freq_zero'
 
       INTEGER                                            :: handle, i_t
-      REAL(KIND=dp)                                      :: t1
+      REAL(KIND=dp)                                      :: t_start
 
       CALL timeset(routineN, handle)
 
-      t1 = m_walltime()
+      t_start = m_walltime()
       CALL cp_fm_create(bs_env%fm_W_MIC_freq_zero, bs_env%fm_W_MIC_freq%matrix_struct)
       CALL cp_fm_set_all(bs_env%fm_W_MIC_freq_zero, 0.0_dp)
       DO i_t = 1, bs_env%num_time_freq_points
@@ -1525,7 +1526,7 @@ CONTAINS
          WRITE (bs_env%unit_nr, '(T2,A,I11,A,I3,A,F10.1,A)') &
             'Computed W(f=0,k) for k-point batch', &
             1, ' /', 1, &
-            ', Execution time', m_walltime() - t1, ' s'
+            ', Execution time', m_walltime() - t_start, ' s'
       END IF
 
       CALL timestop(handle)

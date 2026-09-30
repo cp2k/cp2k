@@ -214,7 +214,8 @@ CONTAINS
          CALL post_scf_bandstructure(qs_env, post_scf_bands_section)
       END IF
 
-      ! Bethe-Salpeter on the new GW; the requirement reader at GW init settled RI_RS and periodicity
+      ! Bethe-Salpeter on the RI-AO GW of the bandstructure block; the requirement reader at GW init
+      ! settled RI_RS and periodicity
       NULLIFY (bse_props_section)
       bse_props_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%BSE")
       CALL section_vals_get(bse_props_section, explicit=do_bse_props)

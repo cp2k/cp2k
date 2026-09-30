@@ -243,8 +243,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief What PROPERTIES%BSE needs the GW to keep, and the five combinations it refuses at init
-!> \param qs_env ...
-!> \param bs_env ...
+!> \param qs_env source of the input
+!> \param bs_env its GW flags are read; keep_W_freq_zero and keep_3c_nl are set
 ! **************************************************************************************************
    SUBROUTINE read_bse_requirements(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
