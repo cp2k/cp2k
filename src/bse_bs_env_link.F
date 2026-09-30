@@ -6,11 +6,14 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Bethe-Salpeter equation on the RI-AO GW of PROPERTIES%BANDSTRUCTURE%GW: reads
-!>        PROPERTIES%BSE, builds the window-sized RI slabs and the effective inverse dielectric
-!>        matrix from bs_env, and hands them to the solver core through its windowed seam.
-!>        Non-periodic, Gamma point only. Reads no real-time propagation input.
-!> \author Max Graml
+!> \brief Bethe-Salpeter equation on the RI-AO GW, the GW of PROPERTIES%BANDSTRUCTURE%GW with explicit
+!>        three-center RI integrals over atomic orbitals (no RI_RS): reads PROPERTIES%BSE, builds the
+!>        window-sized RI slabs and the effective inverse dielectric matrix from bs_env, and hands
+!>        them to the solver core through prepare_bse_env_windowed.
+!>        Non-periodic systems only. Reads no real-time propagation input.
+!> \par History
+!>      09.2026 created [Maximilian Graml]
+!> \author Maximilian Graml
 ! **************************************************************************************************
 MODULE bse_bs_env_link
    USE bse_input,                       ONLY: read_bse_section
@@ -73,12 +76,14 @@ MODULE bse_bs_env_link
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_bs_env_link'
 
-   ! MO columns per tensor block of the window coefficients: a block is the unit the tensor grid
-   ! distributes, so the chunk bounds the largest block of the MO product (RI atom x q sector x chunk)
-   INTEGER, PARAMETER, PRIVATE :: mo_chunk = 64
-   ! eigenvalue floor of the RI Coulomb matrix for its symmetric roots; the GW inverts its metric
-   ! with no floor on the RI-AO path (eps_eigval_mat_RI = 0), so the roots need their own
-   REAL(KIND=dp), PARAMETER, PRIVATE :: eps_ri_coulomb = 1.0E-10_dp
+   ! block size of the MO index p in the tensors: the AO and RI indices come in atomic blocks, the MO
+   ! index has none. A block is the unit the tensor grid distributes and filters, so the size bounds
+   ! the largest block of the MO product, (RI atom) x (q sector) x mo_block_size
+   INTEGER, PARAMETER, PRIVATE :: mo_block_size = 64
+   ! eigenvalue floor for the symmetric roots V^1/2 and V^-1/2 of the RI Coulomb matrix: V^-1/2
+   ! divides by the eigenvalues, and the GW sets no floor of its own on the RI-AO path
+   ! (eps_eigval_mat_RI = 0). The output counts the RI directions the floor drops
+   REAL(KIND=dp), PARAMETER, PRIVATE :: eps_eigval_coulomb_RI = 1.0E-10_dp
 
    PUBLIC :: bse_from_bs_env
 
@@ -87,7 +92,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Entry from the properties driver after the bandstructure block. Hands the solver core what
 !>        its kernels are built from, for p, q in the active window:
-!>        B^P_pq = sum_Q (pq|Q) T_QP with T_QP = sum_R [M^-1]_QR [V^1/2]_RP,
+!>        B^P_pq = sum_QR (pq|Q) [M^-1]_QR [V^1/2]_RP,
 !>        ε^-1_eff,PQ = δ_PQ + sum_RS [V^-1/2]_PR W^c_RS(iω=0) [V^-1/2]_SQ,
 !>        and the quasiparticle energies ε_p of the GW, so that, with the core's
 !>        \bar{B}^P_ij = sum_Q ε^-1_eff,PQ B^Q_ij,
@@ -110,7 +115,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: homo_full, homo_red, virt_red
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenval_dft, eigenval_qp
       TYPE(bse_env_type)                                 :: bse_env
-      TYPE(cp_fm_type)                                   :: fm_eps_inv, fm_T
+      TYPE(cp_fm_type)                                   :: fm_eps_inv, fm_M_inv_V_sqrt
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_S_ab, fm_S_ia, fm_S_ij
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mo_window_type)                               :: window
@@ -149,20 +154,20 @@ CONTAINS
       CALL link_window(bs_env, bse_env, n_mo_real, window, homo_red, virt_red, unit_nr)
       n_window = window%last_mo - window%first_mo + 1
 
-      CALL link_screening(qs_env, bs_env, unit_nr, fm_T, fm_eps_inv)
+      CALL link_screening(qs_env, bs_env, unit_nr, fm_M_inv_V_sqrt, fm_eps_inv)
       ! the GW kept W(0) for the screening and nl_3c for the slabs; each goes once read
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
 
       ALLOCATE (fm_S_ia(n_spin), fm_S_ij(n_spin), fm_S_ab(n_spin))
       ALLOCATE (eigenval_qp(n_window, n_spin), eigenval_dft(n_window, n_spin), homo_full(n_spin))
       DO ispin = 1, n_spin
-         CALL link_slabs(qs_env, bs_env, bse_env, ispin, window, homo_red(ispin), virt_red(ispin), fm_T, &
+         CALL link_slabs(qs_env, bs_env, bse_env, ispin, window, homo_red(ispin), virt_red(ispin), fm_M_inv_V_sqrt, &
                          fm_S_ij(ispin), fm_S_ia(ispin), fm_S_ab(ispin), unit_nr)
          eigenval_qp(:, ispin) = bs_env%eigenval_GW(window%first_mo:window%last_mo, 1, ispin)
          eigenval_dft(:, ispin) = bs_env%eigenval_scf_Gamma(window%first_mo:window%last_mo, ispin)
          homo_full(ispin) = bs_env%n_occ(ispin)
       END DO
-      CALL cp_fm_release(fm_T)
+      CALL cp_fm_release(fm_M_inv_V_sqrt)
       CALL neighbor_list_3c_destroy(bs_env%nl_3c)
 
       CALL prepare_bse_env_windowed(bse_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_eps_inv, &
@@ -226,29 +231,33 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief The RI transform and the effective inverse dielectric matrix from the GW's static W,
 !>        with V_PQ the bare Coulomb and M_PQ the RI metric in the RI basis:
-!>        T_QP = sum_R [M^-1]_QR [V^1/2]_RP, so that the slabs B^P_pq = sum_Q (pq|Q) T_QP give
+!>        [M^-1 V^1/2]_QP = sum_R [M^-1]_QR [V^1/2]_RP, so that the slabs
+!>        B^P_pq = sum_Q (pq|Q) [M^-1 V^1/2]_QP give
 !>        sum_P B^P_pq B^P_rs = sum_QR (pq|Q) [M^-1 V M^-1]_QR (R|rs);
 !>        with the stored W~_PQ = sum_RS [M^-1]_PR W^c_RS(iω=0) [M^-1]_SQ,
 !>        ε^-1_eff,PQ = δ_PQ + sum_RS [V^-1/2]_PR W^c_RS(iω=0) [V^-1/2]_SQ, so that
 !>        sum_PQ B^P_pq ε^-1_eff,PQ B^Q_rs = sum_RS (pq|R) [M^-1 (V + W^c(iω=0)) M^-1]_RS (S|rs),
-!>        the full static W of the GW. Symmetric roots V^±1/2 drop RI directions under the threshold
+!>        the full static W of the GW. The GW builds the same factor M^-1 V^1/2 per frequency from a
+!>        Cholesky factor of V (compute_MinvVsqrt_Vsqrt); the symmetric roots here give V^-1/2 as
+!>        well, which the stored W~ needs, and drop RI directions under the eigenvalue floor.
+!>        Two diagonalisations of an RI x RI matrix, once per run
 !> \param qs_env for the 2c RI integrals
 !> \param bs_env RI metric and its inverse, the stored static W~, the RI x RI matrix structure
 !> \param unit_nr output unit, positive on the writing rank only
-!> \param fm_T T_QP, RI x RI, created here
+!> \param fm_M_inv_V_sqrt [M^-1 V^1/2]_QP, RI x RI, created here
 !> \param fm_eps_inv ε^-1_eff,PQ, RI x RI, created here
 ! **************************************************************************************************
-   SUBROUTINE link_screening(qs_env, bs_env, unit_nr, fm_T, fm_eps_inv)
+   SUBROUTINE link_screening(qs_env, bs_env, unit_nr, fm_M_inv_V_sqrt, fm_eps_inv)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_T, fm_eps_inv
+      TYPE(cp_fm_type), INTENT(OUT)                      :: fm_M_inv_V_sqrt, fm_eps_inv
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'link_screening'
 
       INTEGER                                            :: handle, n_dependent, n_RI
       REAL(KIND=dp)                                      :: eigval_threshold
-      TYPE(cp_fm_type)                                   :: fm_V_msqrt, fm_V_sqrt, fm_Wc, fm_work
+      TYPE(cp_fm_type)                                   :: fm_V_inv_sqrt, fm_V_sqrt, fm_Wc, fm_work
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_M, fm_V
       TYPE(libint_potential_type)                        :: coulomb_op
 
@@ -263,29 +272,29 @@ CONTAINS
       IF (bs_env%eps_eigval_mat_RI > 0.0_dp) THEN
          eigval_threshold = bs_env%eps_eigval_mat_RI
       ELSE
-         eigval_threshold = eps_ri_coulomb
+         eigval_threshold = eps_eigval_coulomb_RI
       END IF
       CALL cp_fm_create(fm_V_sqrt, bs_env%fm_RI_RI%matrix_struct)
-      CALL cp_fm_create(fm_V_msqrt, bs_env%fm_RI_RI%matrix_struct)
+      CALL cp_fm_create(fm_V_inv_sqrt, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_create(fm_work, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_to_fm(fm_V(1, 1), fm_V_sqrt)
       CALL cp_fm_power(fm_V_sqrt, fm_work, 0.5_dp, eigval_threshold, n_dependent)
-      CALL cp_fm_to_fm(fm_V(1, 1), fm_V_msqrt)
-      CALL cp_fm_power(fm_V_msqrt, fm_work, -0.5_dp, eigval_threshold, n_dependent)
+      CALL cp_fm_to_fm(fm_V(1, 1), fm_V_inv_sqrt)
+      CALL cp_fm_power(fm_V_inv_sqrt, fm_work, -0.5_dp, eigval_threshold, n_dependent)
       IF (unit_nr > 0 .AND. n_dependent > 0) WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', &
          'RI Coulomb directions dropped by the eigenvalue threshold', n_dependent
 
-      ! T_QP = sum_R [M^-1]_QR [V^1/2]_RP
-      CALL cp_fm_create(fm_T, bs_env%fm_RI_RI%matrix_struct)
+      ! [M^-1 V^1/2]_QP = sum_R [M^-1]_QR [V^1/2]_RP
+      CALL cp_fm_create(fm_M_inv_V_sqrt, bs_env%fm_RI_RI%matrix_struct)
       CALL parallel_gemm("N", "N", n_RI, n_RI, n_RI, 1.0_dp, bs_env%fm_Minv_Gamma, fm_V_sqrt, &
-                         0.0_dp, fm_T)
+                         0.0_dp, fm_M_inv_V_sqrt)
 
       ! W^c_PQ(iω=0) = sum_RS M_PR W~_RS M_SQ, in place on a copy of the stored W~
       CALL cp_fm_create(fm_Wc, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_to_fm(bs_env%fm_W_MIC_freq_zero, fm_Wc)
       CALL fm_contract_ABA(fm_M(1, 1), fm_Wc)
       ! ε^-1_eff,PQ = δ_PQ + sum_RS [V^-1/2]_PR W^c_RS(iω=0) [V^-1/2]_SQ, the sum in the work matrix
-      CALL fm_contract_ABA(fm_V_msqrt, fm_Wc, fm_work)
+      CALL fm_contract_ABA(fm_V_inv_sqrt, fm_Wc, fm_work)
       CALL cp_fm_create(fm_eps_inv, bs_env%fm_RI_RI%matrix_struct)
       CALL cp_fm_set_all(fm_eps_inv, 0.0_dp, 1.0_dp)
       CALL cp_fm_scale_and_add(1.0_dp, fm_eps_inv, 1.0_dp, fm_work)
@@ -293,7 +302,7 @@ CONTAINS
       CALL cp_fm_release(fm_V)
       CALL cp_fm_release(fm_M)
       CALL cp_fm_release(fm_V_sqrt)
-      CALL cp_fm_release(fm_V_msqrt)
+      CALL cp_fm_release(fm_V_inv_sqrt)
       CALL cp_fm_release(fm_Wc)
       CALL cp_fm_release(fm_work)
 
@@ -303,7 +312,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief The window columns of the MO coefficients, C_μp for p in the window, as a 2-index
-!>        tensor (AO atom | MO block) on the tensor group's grid, the MO blocking the caller's
+!>        tensor (AO atom | MO block) on the tensor group's grid, the MO blocking the caller's.
+!>        The coefficients are a full matrix on all ranks, the tensor lives on the ranks of one
+!>        tensor group, and no copy between the two exists. The routine takes the route of the GW's
+!>        own matrices (fm_to_local_tensor: full matrix, DBCSR matrix on all ranks, DBCSR matrix on
+!>        the group, tensor) and creates the two DBCSR matrices of that route in the
+!>        (AO atom | MO block) blocking, for which the GW holds no template. A small object,
+!>        n_ao x n_window: the steps are there for the change of communicator, not for memory
 !> \param bs_env MO coefficients at Gamma, AO block sizes, the tensor group
 !> \param dbcsr_dist distribution of the SCF matrices, the template of the global matrix
 !> \param ispin spin channel
@@ -401,28 +416,28 @@ CONTAINS
    END SUBROUTINE link_matrix_round_robin
 
 ! **************************************************************************************************
-!> \brief Block sizes of the window index p: chunks of at most mo_chunk levels inside the occupied
-!>        and inside the virtual sector, so that no block straddles the two
+!> \brief Block sizes of the window index p: blocks of at most mo_block_size levels inside the
+!>        occupied and inside the virtual sector, so that no block straddles the two
 !> \param n_occ occupied levels in the window
 !> \param n_virt virtual levels in the window
-!> \param chunk_sizes levels per chunk, occupied chunks first, allocated here
-!> \param n_chunk_occ occupied chunks
+!> \param block_sizes levels per block, occupied blocks first, allocated here
+!> \param n_block_occ occupied blocks
 ! **************************************************************************************************
-   SUBROUTINE link_sector_chunks(n_occ, n_virt, chunk_sizes, n_chunk_occ)
+   SUBROUTINE link_sector_blocks(n_occ, n_virt, block_sizes, n_block_occ)
       INTEGER, INTENT(IN)                                :: n_occ, n_virt
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: chunk_sizes
-      INTEGER, INTENT(OUT)                               :: n_chunk_occ
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: block_sizes
+      INTEGER, INTENT(OUT)                               :: n_block_occ
 
-      INTEGER                                            :: n_chunk_virt
+      INTEGER                                            :: n_block_virt
 
-      n_chunk_occ = (n_occ - 1)/mo_chunk + 1
-      n_chunk_virt = (n_virt - 1)/mo_chunk + 1
-      ALLOCATE (chunk_sizes(n_chunk_occ + n_chunk_virt))
-      chunk_sizes(:) = mo_chunk
-      chunk_sizes(n_chunk_occ) = n_occ - (n_chunk_occ - 1)*mo_chunk
-      chunk_sizes(n_chunk_occ + n_chunk_virt) = n_virt - (n_chunk_virt - 1)*mo_chunk
+      n_block_occ = (n_occ - 1)/mo_block_size + 1
+      n_block_virt = (n_virt - 1)/mo_block_size + 1
+      ALLOCATE (block_sizes(n_block_occ + n_block_virt))
+      block_sizes(:) = mo_block_size
+      block_sizes(n_block_occ) = n_occ - (n_block_occ - 1)*mo_block_size
+      block_sizes(n_block_occ + n_block_virt) = n_virt - (n_block_virt - 1)*mo_block_size
 
-   END SUBROUTINE link_sector_chunks
+   END SUBROUTINE link_sector_blocks
 
 ! **************************************************************************************************
 !> \brief Contiguous RI atom ranges of at most max_RI_per_batch RI functions; an atom larger than
@@ -536,11 +551,11 @@ CONTAINS
    END SUBROUTINE link_batch_budget
 
 ! **************************************************************************************************
-!> \brief The three window-sized slabs of one spin, B^P_pq = sum_Q (pq|Q) T_QP with
+!> \brief The three window-sized slabs of one spin, B^P_pq = sum_Q (pq|Q) [M^-1 V^1/2]_QP with
 !>        (Q|pq) = sum_μν C_μp (Q|μν) C_νq, batched over RI atoms: the 3c integrals of the batch
 !>        are rebuilt and transformed over ν, then over μ, by two tensor contractions on the batch's
 !>        tensor group; the product goes to all ranks and its rows are copied into the slabs; the
-!>        RI transform by T follows in column chunks. Column conventions of the solver core:
+!>        RI transform by M^-1 V^1/2 follows in column chunks. Column conventions of the solver core:
 !>        ia = (i-1) n_virt + a, ij = (i-1) n_occ + j, ab = (a-1) n_virt + b
 !> \param qs_env blacs context, distribution of the SCF matrices, environment of the 3c integrals
 !> \param bs_env RI and AO sizes, the 3c neighbour list and tensor template, the tensor groups
@@ -549,13 +564,13 @@ CONTAINS
 !> \param window first and last MO of the active window
 !> \param n_occ occupied levels in the window
 !> \param n_virt virtual levels in the window
-!> \param fm_T the RI transform T_QP, RI x RI
+!> \param fm_M_inv_V_sqrt the RI transform [M^-1 V^1/2]_QP, RI x RI
 !> \param fm_S_ij B^P_ij, RI x n_occ*n_occ, created here
 !> \param fm_S_ia B^P_ia, RI x n_occ*n_virt, created here
 !> \param fm_S_ab B^P_ab, RI x n_virt*n_virt, created here
 !> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
-   SUBROUTINE link_slabs(qs_env, bs_env, bse_env, ispin, window, n_occ, n_virt, fm_T, fm_S_ij, fm_S_ia, &
+   SUBROUTINE link_slabs(qs_env, bs_env, bse_env, ispin, window, n_occ, n_virt, fm_M_inv_V_sqrt, fm_S_ij, fm_S_ia, &
                          fm_S_ab, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
@@ -563,7 +578,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(mo_window_type), INTENT(IN)                   :: window
       INTEGER, INTENT(IN)                                :: n_occ, n_virt
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_T
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_M_inv_V_sqrt
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_S_ij, fm_S_ia, fm_S_ab
       INTEGER, INTENT(IN)                                :: unit_nr
 
@@ -571,7 +586,7 @@ CONTAINS
 
       INTEGER                                            :: atom_first, atom_last, handle, i_batch, &
                                                             max_RI_per_batch, n_batch, &
-                                                            n_chunk_occ, n_RI, n_window
+                                                            n_block_occ, n_RI, n_window
       INTEGER(KIND=int_8)                                :: budget_bytes
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_first, batch_last, dist_1, dist_2, &
                                                             dist_3, sizes_p, sizes_q
@@ -603,10 +618,10 @@ CONTAINS
       CALL cp_fm_struct_release(struct_ab)
 
       ! the window index q in two blocks, occupied and virtual, so that every (P, q, p) block of the
-      ! product covers the whole q range of one pair type; p in chunks inside each sector
+      ! product covers the whole q range of one pair type; p in blocks inside each sector
       ALLOCATE (sizes_q(2))
       sizes_q(:) = [n_occ, n_virt]
-      CALL link_sector_chunks(n_occ, n_virt, sizes_p, n_chunk_occ)
+      CALL link_sector_blocks(n_occ, n_virt, sizes_p, n_block_occ)
       CALL link_mo_tensor(bs_env, dbcsr_dist, ispin, window, sizes_q, t_C_q)
       CALL link_mo_tensor(bs_env, dbcsr_dist, ispin, window, sizes_p, t_C_p)
 
@@ -655,7 +670,7 @@ CONTAINS
                               filter_eps=bs_env%eps_filter)
             CALL dbt_clear(t_3c_half)
          END IF
-         CALL link_slab_rows(bs_env, blacs_env, dbcsr_dist, t_3c_mo, n_occ, n_virt, sizes_p, n_chunk_occ, atom_first, atom_last, &
+         CALL link_slab_rows(bs_env, blacs_env, dbcsr_dist, t_3c_mo, n_occ, n_virt, sizes_p, n_block_occ, atom_first, atom_last, &
                              fm_S_ij, fm_S_ia, fm_S_ab)
          CALL dbt_clear(t_3c_mo)
       END DO
@@ -668,10 +683,10 @@ CONTAINS
       CALL dbt_destroy(t_C_p)
       DEALLOCATE (sizes_q, sizes_p, batch_first, batch_last)
 
-      ! B^P_pq = sum_Q T_QP (Q|pq), in column chunks, in place
-      CALL apply_ri_transform(fm_T, fm_S_ij, n_RI, n_occ*n_occ, budget_bytes)
-      CALL apply_ri_transform(fm_T, fm_S_ia, n_RI, n_occ*n_virt, budget_bytes)
-      CALL apply_ri_transform(fm_T, fm_S_ab, n_RI, n_virt*n_virt, budget_bytes)
+      ! B^P_pq = sum_Q [M^-1 V^1/2]_QP (Q|pq), in column chunks, in place
+      CALL apply_ri_transform(fm_M_inv_V_sqrt, fm_S_ij, n_RI, n_occ*n_occ, budget_bytes)
+      CALL apply_ri_transform(fm_M_inv_V_sqrt, fm_S_ia, n_RI, n_occ*n_virt, budget_bytes)
+      CALL apply_ri_transform(fm_M_inv_V_sqrt, fm_S_ab, n_RI, n_virt*n_virt, budget_bytes)
 
       CALL timestop(handle)
 
@@ -689,18 +704,18 @@ CONTAINS
 !> \param blacs_env context of the slabs
 !> \param dbcsr_dist a distribution over all ranks, the template of the global block matrices
 !> \param t_3c_mo (P|qp) of the RI atoms atom_first..atom_last, q in two blocks (occupied, virtual),
-!>        p in sector chunks
+!>        p in sector blocks
 !> \param n_occ occupied levels in the window
 !> \param n_virt virtual levels in the window
-!> \param sizes_p the p chunks, occupied chunks first
-!> \param n_chunk_occ occupied chunks of p
+!> \param sizes_p the p blocks, occupied blocks first
+!> \param n_block_occ occupied blocks of p
 !> \param atom_first first RI atom of the batch
 !> \param atom_last last RI atom of the batch
 !> \param fm_S_ij slab of the ij pairs; the rows of the batch are written
 !> \param fm_S_ia slab of the ia pairs; the rows of the batch are written
 !> \param fm_S_ab slab of the ab pairs; the rows of the batch are written
 ! **************************************************************************************************
-   SUBROUTINE link_slab_rows(bs_env, blacs_env, dbcsr_dist, t_3c_mo, n_occ, n_virt, sizes_p, n_chunk_occ, atom_first, atom_last, &
+   SUBROUTINE link_slab_rows(bs_env, blacs_env, dbcsr_dist, t_3c_mo, n_occ, n_virt, sizes_p, n_block_occ, atom_first, atom_last, &
                              fm_S_ij, fm_S_ia, fm_S_ab)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -708,17 +723,17 @@ CONTAINS
       TYPE(dbt_type), INTENT(INOUT)                      :: t_3c_mo
       INTEGER, INTENT(IN)                                :: n_occ, n_virt
       INTEGER, DIMENSION(:), INTENT(IN)                  :: sizes_p
-      INTEGER, INTENT(IN)                                :: n_chunk_occ, atom_first, atom_last
+      INTEGER, INTENT(IN)                                :: n_block_occ, atom_first, atom_last
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_S_ij, fm_S_ia, fm_S_ab
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'link_slab_rows'
       INTEGER, PARAMETER                                 :: pair_ab = 3, pair_ia = 2, pair_ij = 1
 
-      INTEGER :: col_block, group_handle, handle, i_pair, my_rank, n_atom_batch, n_chunk_p, &
-         n_RI_batch, npcol, nprow, owner_rank, p_chunk, q_block, rank, RI_first, row_block
+      INTEGER :: col_block, group_handle, handle, i_pair, my_rank, n_atom_batch, n_block_p, &
+         n_RI_batch, npcol, nprow, owner_rank, p_block, q_block, rank, RI_first, row_block
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cart_coords
       INTEGER, DIMENSION(3)                              :: blk_index, blk_size, n_col_blocks, &
-                                                            n_cols_pair, p_chunk_offset, &
+                                                            n_cols_pair, p_block_offset, &
                                                             q_block_of_pair
       INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_sizes, row_dist, row_sizes
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
@@ -736,12 +751,12 @@ CONTAINS
       RI_first = bs_env%i_RI_start_from_atom(atom_first)
       n_RI_batch = bs_env%i_RI_end_from_atom(atom_last) - RI_first + 1
       n_atom_batch = atom_last - atom_first + 1
-      n_chunk_p = SIZE(sizes_p)
+      n_block_p = SIZE(sizes_p)
       n_cols_pair = [n_occ*n_occ, n_occ*n_virt, n_virt*n_virt]
-      n_col_blocks = [n_chunk_occ, n_chunk_occ, n_chunk_p - n_chunk_occ]
+      n_col_blocks = [n_block_occ, n_block_occ, n_block_p - n_block_occ]
       q_block_of_pair = [1, 2, 2]
-      ! column block col_block of a pair type is the p chunk p_chunk = p_chunk_offset + col_block
-      p_chunk_offset = [0, 0, n_chunk_occ]
+      ! column block col_block of a pair type is the p block p_block = p_block_offset + col_block
+      p_block_offset = [0, 0, n_block_occ]
 
       ! the group grid of the tensor as the process grid of the local matrices, its ranks placed by
       ! their coordinates, so that every block the tensor holds is local to its matrix
@@ -766,11 +781,11 @@ CONTAINS
       DO i_pair = 1, 3
          ALLOCATE (col_dist(n_col_blocks(i_pair)), col_sizes(n_col_blocks(i_pair)))
          DO col_block = 1, n_col_blocks(i_pair)
-            p_chunk = p_chunk_offset(i_pair) + col_block
-            CALL dbt_get_stored_coordinates(t_3c_mo, [atom_first, q_block_of_pair(i_pair), p_chunk], owner_rank)
+            p_block = p_block_offset(i_pair) + col_block
+            CALL dbt_get_stored_coordinates(t_3c_mo, [atom_first, q_block_of_pair(i_pair), p_block], owner_rank)
             col_dist(col_block) = cart_coords(2, owner_rank)
-            ! the q range of the pair type times the p chunk
-            col_sizes(col_block) = MERGE(n_occ, n_virt, i_pair == pair_ij)*sizes_p(p_chunk)
+            ! the q range of the pair type times the p block
+            col_sizes(col_block) = MERGE(n_occ, n_virt, i_pair == pair_ij)*sizes_p(p_block)
          END DO
          CALL dbcsr_distribution_new(dist_group(i_pair), group=group_handle, pgrid=pgrid, &
                                      row_dist=row_dist, col_dist=col_dist)
@@ -786,19 +801,19 @@ CONTAINS
 
       ! the local (P, q, p) blocks as (P, qp) blocks, q fastest, the column order of the slabs; the
       ! iterator needs the full thread team
-!$OMP PARALLEL DEFAULT(NONE) SHARED(t_3c_mo, mat_group, n_chunk_occ, atom_first, p_chunk_offset, my_rank) &
-!$OMP PRIVATE(iter, blk_index, blk_size, block_Pqp, found, q_block, p_chunk, i_pair, row_block, col_block, owner_rank)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(t_3c_mo, mat_group, n_block_occ, atom_first, p_block_offset, my_rank) &
+!$OMP PRIVATE(iter, blk_index, blk_size, block_Pqp, found, q_block, p_block, i_pair, row_block, col_block, owner_rank)
       CALL dbt_iterator_start(iter, t_3c_mo)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, blk_index, blk_size=blk_size)
          q_block = blk_index(2)
-         p_chunk = blk_index(3)
-         ! pair types of the (q block, p chunk) blocks: (occ, occ) ij, (virt, occ) ia, (virt, virt) ab;
+         p_block = blk_index(3)
+         ! pair types of the (q block, p block) blocks: (occ, occ) ij, (virt, occ) ia, (virt, virt) ab;
          ! (occ, virt) is the ai block, which no slab holds
-         IF (q_block == 1 .AND. p_chunk > n_chunk_occ) CYCLE
+         IF (q_block == 1 .AND. p_block > n_block_occ) CYCLE
          IF (q_block == 1) THEN
             i_pair = pair_ij
-         ELSE IF (p_chunk <= n_chunk_occ) THEN
+         ELSE IF (p_block <= n_block_occ) THEN
             i_pair = pair_ia
          ELSE
             i_pair = pair_ab
@@ -807,7 +822,7 @@ CONTAINS
          CALL dbt_get_block(t_3c_mo, blk_index, blk_size, block_Pqp, found)
          IF (found) THEN
             row_block = blk_index(1) - atom_first + 1
-            col_block = p_chunk - p_chunk_offset(i_pair)
+            col_block = p_block - p_block_offset(i_pair)
             CALL dbcsr_get_stored_coordinates(mat_group(i_pair), row_block, col_block, owner_rank)
             ! the group matrix was laid out by the tensor's coordinates: the rank holding the block owns it
             IF (owner_rank /= my_rank) CPABORT("(P|qp) block is not local to its group matrix")
@@ -827,6 +842,9 @@ CONTAINS
          CALL cp_fm_create(fm_batch, struct_batch)
          CALL cp_fm_struct_release(struct_batch)
          CALL copy_dbcsr_to_fm(mat_global(i_pair), fm_batch)
+         ! known bottleneck: cp_fm_to_fm_submat copies column by column, one pdcopy per pair column; the
+         ! memory it takes on single ranks can stay until the end of the run and set their peak. A block
+         ! redistribution of fm_batch into the rows of the slab would replace it
          SELECT CASE (i_pair)
          CASE (pair_ij)
             CALL cp_fm_to_fm_submat(fm_batch, fm_S_ij, n_RI_batch, n_cols_pair(i_pair), 1, 1, RI_first, 1)
@@ -847,17 +865,17 @@ CONTAINS
    END SUBROUTINE link_slab_rows
 
 ! **************************************************************************************************
-!> \brief B^P_c = sum_Q T_QP (Q|c) for every column c of a slab, in place: the columns pass in
+!> \brief B^P_c = sum_Q [M^-1 V^1/2]_QP (Q|c) for every column c of a slab, in place: the columns pass in
 !>        chunks through one RI x chunk work matrix of at most budget_bytes per rank,
 !>        max_cols_chunk = budget_bytes N_all/(8 n_RI) with N_all the ranks of the slab
-!> \param fm_T the RI transform T_QP, RI x RI
+!> \param fm_M_inv_V_sqrt the RI transform [M^-1 V^1/2]_QP, RI x RI
 !> \param fm_slab (Q|c) on entry, B^P_c on exit
 !> \param n_RI RI functions, the rows of the slab
 !> \param n_cols columns of the slab
 !> \param budget_bytes per-rank budget of the work matrix, which is distributed over the ranks
 ! **************************************************************************************************
-   SUBROUTINE apply_ri_transform(fm_T, fm_slab, n_RI, n_cols, budget_bytes)
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_T, fm_slab
+   SUBROUTINE apply_ri_transform(fm_M_inv_V_sqrt, fm_slab, n_RI, n_cols, budget_bytes)
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_M_inv_V_sqrt, fm_slab
       INTEGER, INTENT(IN)                                :: n_RI, n_cols
       INTEGER(KIND=int_8), INTENT(IN)                    :: budget_bytes
 
@@ -880,8 +898,9 @@ CONTAINS
       CALL cp_fm_struct_release(struct_work)
       DO col_first = 1, n_cols, max_cols_chunk
          n_cols_chunk = MIN(max_cols_chunk, n_cols - col_first + 1)
-         ! work_P,c = sum_Q T_QP slab_Q,c for the columns c of this chunk, then back into the slab
-         CALL parallel_gemm("T", "N", n_RI, n_cols_chunk, n_RI, 1.0_dp, fm_T, fm_slab, 0.0_dp, fm_work, &
+         ! work_P,c = sum_Q [M^-1 V^1/2]_QP slab_Q,c for the columns c of this chunk, then back into the
+         ! slab; the copy back is column by column (one pdcopy each), see link_slab_rows
+         CALL parallel_gemm("T", "N", n_RI, n_cols_chunk, n_RI, 1.0_dp, fm_M_inv_V_sqrt, fm_slab, 0.0_dp, fm_work, &
                             b_first_col=col_first, c_first_col=1)
          CALL cp_fm_to_fm_submat(fm_work, fm_slab, nrow=n_RI, ncol=n_cols_chunk, s_firstrow=1, s_firstcol=1, &
                                  t_firstrow=1, t_firstcol=col_first)
