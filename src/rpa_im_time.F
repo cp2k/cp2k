@@ -20,8 +20,7 @@ MODULE rpa_im_time
                                               cp_cfm_release,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
-                                              cp_cfm_type,&
-                                              cp_fm_to_cfm
+                                              cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_clear, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, &
@@ -878,9 +877,10 @@ CONTAINS
 
       INTEGER                                            :: handle, i_mo, nao, nmo, nspin
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, exp_scaling, occupation
-      TYPE(cp_cfm_type)                                  :: cfm_mo_coeff, cfm_work
+      TYPE(cp_cfm_type)                                  :: cfm_work
+      TYPE(cp_cfm_type), POINTER                         :: cfm_mo_coeff
       TYPE(kpoint_env_type), POINTER                     :: kp
-      TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_im
+      TYPE(mo_set_type), POINTER                         :: mo_set
 
       CALL timeset(routineN, handle)
 
@@ -888,21 +888,18 @@ CONTAINS
       CPASSERT(kpoint%use_real_wfn .EQV. .FALSE.)
 
       kp => kpoint%kp_env(ikpgr)%kpoint_env
-      nspin = SIZE(kp%mos, 2)
+      nspin = SIZE(kp%mos)
       CPASSERT(ispin >= 1 .AND. ispin <= nspin)
-      mo_set => kp%mos(1, ispin)
-      mo_set_im => kp%mos(2, ispin)
-      CALL get_mo_set(mo_set, nao=nao, nmo=nmo, eigenvalues=eigenvalues, occupation_numbers=occupation)
+      mo_set => kp%mos(ispin)
+      CALL get_mo_set(mo_set, cmo_coeff=cfm_mo_coeff, nao=nao, nmo=nmo, &
+                      eigenvalues=eigenvalues, occupation_numbers=occupation)
 
       ! if this CPASSERT is triggered, please add all virtual MOs to SCF section,
       ! e.g. ADDED_MOS 1000000
       CPASSERT(nao == nmo)
 
       ALLOCATE (exp_scaling(nmo))
-      CALL cp_cfm_create(cfm_mo_coeff, mo_set%mo_coeff%matrix_struct)
-      CALL cp_cfm_create(cfm_work, mo_set%mo_coeff%matrix_struct)
-      CALL cp_fm_to_cfm(msourcer=mo_set%mo_coeff, msourcei=mo_set_im%mo_coeff, &
-                        mtarget=cfm_mo_coeff)
+      CALL cp_cfm_create(cfm_work, cfm_mo_coeff%matrix_struct)
       CALL cp_cfm_to_cfm(cfm_mo_coeff, cfm_work)
 
       IF (sector == propagator_sector_occupied) THEN
@@ -929,7 +926,6 @@ CONTAINS
                          (0.0_dp, 0.0_dp), density)
 
       CALL cp_cfm_release(cfm_work)
-      CALL cp_cfm_release(cfm_mo_coeff)
       DEALLOCATE (exp_scaling)
 
       CALL timestop(handle)
@@ -1004,8 +1000,8 @@ CONTAINS
       END DO
 
       ! Reusable complex AO scratch for the k-point density source.
-      CALL get_mo_set(kpoints%kp_env(1)%kpoint_env%mos(1, 1), nao=nao)
-      CALL cp_cfm_create(cfm_density, kpoints%kp_env(1)%kpoint_env%mos(1, 1)%mo_coeff%matrix_struct, &
+      CALL get_mo_set(kpoints%kp_env(1)%kpoint_env%mos(1), nao=nao)
+      CALL cp_cfm_create(cfm_density, kpoints%kp_env(1)%kpoint_env%mos(1)%cmo_coeff%matrix_struct, &
                          nrow=nao, ncol=nao)
 
       ! overwrite the cell indices in kpoints
@@ -1104,8 +1100,8 @@ CONTAINS
       CALL dbcsr_set(mat_dm_global_work(1)%matrix, 0.0_dp)
 
       ! Reusable complex AO scratch for the k-point density source.
-      CALL get_mo_set(kpoints_G%kp_env(1)%kpoint_env%mos(1, 1), nao=nao)
-      CALL cp_cfm_create(cfm_density, kpoints_G%kp_env(1)%kpoint_env%mos(1, 1)%mo_coeff%matrix_struct, &
+      CALL get_mo_set(kpoints_G%kp_env(1)%kpoint_env%mos(1), nao=nao)
+      CALL cp_cfm_create(cfm_density, kpoints_G%kp_env(1)%kpoint_env%mos(1)%cmo_coeff%matrix_struct, &
                          nrow=nao, ncol=nao)
 
       CALL density_matrix_from_kp_to_mic(kpoints_G, cfm_density, mat_dm_global_work, qs_env, ispin, tau, e_fermi, sector)

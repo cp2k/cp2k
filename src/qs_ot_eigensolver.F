@@ -385,8 +385,7 @@ CONTAINS
 !> \param matrix_h_im imaginary part of H(k)
 !> \param matrix_s real part of S(k)
 !> \param matrix_s_im imaginary part of S(k)
-!> \param matrix_c_fm real part of the orbital coefficients
-!> \param matrix_c_fm_im imaginary part of the orbital coefficients
+!> \param matrix_c_cfm complex orbital coefficients
 !> \param preconditioner optional complex k-point preconditioner
 !> \param eps_gradient requested OT gradient accuracy
 !> \param iter_max maximum number of OT iterations
@@ -398,13 +397,13 @@ CONTAINS
 !> \param mo_set ...
 ! **************************************************************************************************
    SUBROUTINE ot_eigensolver_complex(matrix_h, matrix_h_im, matrix_s, matrix_s_im, &
-                                     matrix_c_fm, matrix_c_fm_im, preconditioner, &
+                                     matrix_c_cfm, preconditioner, &
                                      eps_gradient, iter_max, eigenvalues, silent, ot_settings, &
                                      matrix_t, matrix_t_im, mo_set)
 
       TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_h_im, matrix_s, &
                                                             matrix_s_im
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_c_fm, matrix_c_fm_im
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_c_cfm
       TYPE(preconditioner_type), OPTIONAL, POINTER       :: preconditioner
       REAL(KIND=dp), INTENT(IN)                          :: eps_gradient
       INTEGER, INTENT(IN)                                :: iter_max
@@ -422,6 +421,7 @@ CONTAINS
       LOGICAL                                            :: energy_only, my_silent, &
                                                             preconditioner_rejected
       REAL(KIND=dp)                                      :: delta, energy_im, energy_re
+      TYPE(cp_fm_type)                                   :: matrix_c_fm, matrix_c_fm_im
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hc, matrix_hc_im
       TYPE(dbcsr_type), POINTER                          :: matrix_c, matrix_c_im, matrix_tmp
       TYPE(preconditioner_type), POINTER                 :: local_preconditioner
@@ -433,6 +433,9 @@ CONTAINS
       IF (PRESENT(silent)) my_silent = silent
       NULLIFY (local_preconditioner)
 
+      CALL cp_fm_create(matrix_c_fm, matrix_c_cfm%matrix_struct)
+      CALL cp_fm_create(matrix_c_fm_im, matrix_c_cfm%matrix_struct)
+      CALL cp_cfm_to_fm(matrix_c_cfm, matrix_c_fm, matrix_c_fm_im)
       CALL cp_fm_get_info(matrix_c_fm, nrow_global=n, ncol_global=k)
       CPASSERT(n > 0 .AND. k > 0)
       ALLOCATE (matrix_c, matrix_c_im, matrix_tmp)
@@ -664,6 +667,9 @@ CONTAINS
          CALL canonicalize_complex_subspace(matrix_h, matrix_h_im, matrix_c_fm, &
                                             matrix_c_fm_im, eigenvalues)
       END IF
+      CALL cp_fm_to_cfm(matrix_c_fm, matrix_c_fm_im, matrix_c_cfm)
+      CALL cp_fm_release(matrix_c_fm)
+      CALL cp_fm_release(matrix_c_fm_im)
       CALL dbcsr_release_p(matrix_c)
       CALL dbcsr_release_p(matrix_c_im)
       CALL dbcsr_release_p(matrix_tmp)

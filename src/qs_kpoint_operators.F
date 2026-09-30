@@ -25,8 +25,7 @@
 ! **************************************************************************************************
 MODULE qs_kpoint_operators
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add_fm
-   USE cp_cfm_types,                    ONLY: cp_cfm_to_fm,&
-                                              cp_cfm_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_get_info, dbcsr_get_readonly_block_p, &
         dbcsr_init_p, dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
@@ -69,8 +68,6 @@ MODULE qs_kpoint_operators
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE qs_matrix_pools,                 ONLY: mpools_get
-   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
 
 !$ USE omp_lib, ONLY: omp_get_max_threads, omp_get_num_threads, omp_get_thread_num
@@ -82,7 +79,6 @@ MODULE qs_kpoint_operators
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpoint_operators'
 
-   PUBLIC :: kpoint_operator_cfm_to_mo
    PUBLIC :: kpoint_operator_context_create, kpoint_operator_context_release
    PUBLIC :: kpoint_operator_start, kpoint_operator_finish
    PUBLIC :: kpoint_operator_get, kpoint_operator_prepare
@@ -363,36 +359,6 @@ CONTAINS
          CALL cp_fm_cleanup_copy_general(info(part))
       END DO
    END SUBROUTINE kpoint_operator_receive
-
-! **************************************************************************************************
-!> \brief Split a complex matrix into the real and imaginary MO sets and copy
-!>        the eigenvalues to the imaginary set.
-!> \param cmat complex MO coefficients
-!> \param mo_re real part MO set
-!> \param mo_im imaginary part MO set
-!> \param eigenvalues eigenvalues of mo_re, copied to mo_im
-! **************************************************************************************************
-   SUBROUTINE kpoint_operator_cfm_to_mo(cmat, mo_re, mo_im, eigenvalues)
-
-      TYPE(cp_cfm_type)                                  :: cmat
-      TYPE(mo_set_type)                                  :: mo_re, mo_im
-      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_operator_cfm_to_mo'
-
-      INTEGER                                            :: handle
-      TYPE(cp_fm_type), POINTER                          :: imos, rmos
-
-      CALL timeset(routineN, handle)
-
-      CALL get_mo_set(mo_re, mo_coeff=rmos)
-      CALL get_mo_set(mo_im, mo_coeff=imos)
-      mo_im%eigenvalues(:) = eigenvalues
-      CALL cp_cfm_to_fm(cmat, rmos, imos)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE kpoint_operator_cfm_to_mo
 
 ! **************************************************************************************************
 !> \brief Create an empty operator context.

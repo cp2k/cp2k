@@ -27,15 +27,20 @@ MODULE qs_wf_history_methods
                                               pbc,&
                                               real_to_scaled
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
-                                              cp_cfm_gemm,&
+                                              cp_cfm_scale,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_trace,&
                                               cp_cfm_triangular_multiply
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
-   USE cp_cfm_types,                    ONLY: &
-        cp_cfm_create, cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_release, &
-        cp_cfm_set_submatrix, cp_cfm_to_cfm, cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_get_submatrix,&
+                                              cp_cfm_release,&
+                                              cp_cfm_set_all,&
+                                              cp_cfm_set_submatrix,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
@@ -63,10 +68,8 @@ MODULE qs_wf_history_methods
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
-                                              cp_fm_get_submatrix,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -151,7 +154,7 @@ CONTAINS
 
       NULLIFY (snapshot%wf, snapshot%rho_r, &
                snapshot%rho_g, snapshot%rho_ao, snapshot%rho_ao_kp, &
-               snapshot%overlap, snapshot%wf_kp, snapshot%overlap_cfm_kp, &
+               snapshot%overlap, snapshot%wf_kp, snapshot%wf_kp_cfm, snapshot%overlap_cfm_kp, &
                snapshot%kp_pbc_shift, snapshot%rho_frozen)
       snapshot%dt = 1.0_dp
    END SUBROUTINE wfs_create
@@ -175,9 +178,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'wfs_update'
 
-      INTEGER                                            :: handle, ic, ikp, img, ispin, kplocal, &
-                                                            nc, nimg, nspin_kp, nspins
+      INTEGER                                            :: handle, ikp, img, ispin, kplocal, nimg, &
+                                                            nspin_kp, nspins
       INTEGER, DIMENSION(2)                              :: kp_range
+      LOGICAL                                            :: use_real_wfn
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_pools
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -316,37 +320,44 @@ CONTAINS
       CALL get_qs_env(qs_env, kpoints=kpoints)
       IF (ASSOCIATED(kpoints)) THEN
          IF (ASSOCIATED(kpoints%kp_env)) THEN
-            ! --- k-point WFN snapshot: store complex MO coefficients per local k-point ---
+            ! Store k-point MO snapshots in their native scalar type.
             IF (wf_history%store_wf_kp) THEN
-               CALL get_kpoint_info(kpoints, kp_range=kp_range)
+               CALL get_kpoint_info(kpoints, kp_range=kp_range, use_real_wfn=use_real_wfn)
                kplocal = kp_range(2) - kp_range(1) + 1
-               nspin_kp = SIZE(kpoints%kp_env(1)%kpoint_env%mos, 2)
-               nc = SIZE(kpoints%kp_env(1)%kpoint_env%mos, 1) ! 2=complex, 1=real
+               nspin_kp = SIZE(kpoints%kp_env(1)%kpoint_env%mos)
 
                CALL wfi_store_kp_pbc_shift(snapshot, cell, particle_set)
 
                IF (ASSOCIATED(snapshot%wf_kp)) THEN
-                  DO ikp = 1, SIZE(snapshot%wf_kp, 1)
-                     DO ic = 1, SIZE(snapshot%wf_kp, 2)
-                        DO ispin = 1, SIZE(snapshot%wf_kp, 3)
-                           CALL cp_fm_release(snapshot%wf_kp(ikp, ic, ispin))
-                        END DO
+                  CALL cp_fm_release(snapshot%wf_kp)
+               END IF
+               IF (ASSOCIATED(snapshot%wf_kp_cfm)) THEN
+                  DO ikp = 1, SIZE(snapshot%wf_kp_cfm, 1)
+                     DO ispin = 1, SIZE(snapshot%wf_kp_cfm, 2)
+                        CALL cp_cfm_release(snapshot%wf_kp_cfm(ikp, ispin))
                      END DO
                   END DO
-                  DEALLOCATE (snapshot%wf_kp)
+                  DEALLOCATE (snapshot%wf_kp_cfm)
                END IF
 
-               ALLOCATE (snapshot%wf_kp(kplocal, nc, nspin_kp))
+               IF (use_real_wfn) THEN
+                  ALLOCATE (snapshot%wf_kp(kplocal, nspin_kp))
+               ELSE
+                  ALLOCATE (snapshot%wf_kp_cfm(kplocal, nspin_kp))
+               END IF
                DO ikp = 1, kplocal
                   kp => kpoints%kp_env(ikp)%kpoint_env
                   DO ispin = 1, nspin_kp
-                     DO ic = 1, nc
-                        CALL get_mo_set(kp%mos(ic, ispin), mo_coeff=mo_coeff)
-                        CALL cp_fm_create(snapshot%wf_kp(ikp, ic, ispin), &
-                                          mo_coeff%matrix_struct, &
+                     IF (use_real_wfn) THEN
+                        CALL get_mo_set(kp%mos(ispin), mo_coeff=mo_coeff)
+                        CALL cp_fm_create(snapshot%wf_kp(ikp, ispin), mo_coeff%matrix_struct, &
                                           name="wfkp_snap")
-                        CALL cp_fm_to_fm(mo_coeff, snapshot%wf_kp(ikp, ic, ispin))
-                     END DO
+                        CALL cp_fm_to_fm(mo_coeff, snapshot%wf_kp(ikp, ispin))
+                     ELSE
+                        CALL cp_cfm_create(snapshot%wf_kp_cfm(ikp, ispin), &
+                                           kp%mos(ispin)%cmo_coeff%matrix_struct, name="wfkp_snap")
+                        CALL cp_cfm_to_cfm(kp%mos(ispin)%cmo_coeff, snapshot%wf_kp_cfm(ikp, ispin))
+                     END IF
                   END DO
                END DO
             END IF
@@ -1274,9 +1285,9 @@ CONTAINS
       TYPE(cp_cfm_type)                                  :: cfm_evecs, cfm_mhalf, cfm_nao_nmo_work, &
                                                             cmos_new, csc_cfm
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: csmat_cur
+      TYPE(cp_cfm_type), POINTER                         :: mo_coeff
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools_kp
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, nmo_nmo_struct
-      TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
@@ -1290,7 +1301,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (dft_control, scf_control, kpoints, matrix_s_kp, scf_env, kp, &
-               mo_coeff, rmos, imos, wf_history, t1_state)
+               mo_coeff, wf_history, t1_state)
 
       CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp, scf_env=scf_env, &
                       dft_control=dft_control, scf_control=scf_control)
@@ -1314,7 +1325,7 @@ CONTAINS
          IF (ASSOCIATED(wf_history)) THEN
             IF (wf_history%store_wf_kp .AND. wf_history%snapshot_count > 0) THEN
                t1_state => wfi_get_snapshot(wf_history, wf_index=1)
-               CPASSERT(ASSOCIATED(t1_state%wf_kp))
+               CPASSERT(ASSOCIATED(t1_state%wf_kp_cfm))
                CPASSERT(ASSOCIATED(t1_state%kp_pbc_shift))
                reload_snapshot_wf = .TRUE.
                ALLOCATE (pbc_shift_src(3, SIZE(t1_state%kp_pbc_shift, 2)))
@@ -1326,8 +1337,8 @@ CONTAINS
       IF (use_pbc_phase_ref) CALL wfi_compute_kp_pbc_shift(qs_env, pbc_shift_cur)
 
       kp => kpoints%kp_env(1)%kpoint_env
-      nspin = SIZE(kp%mos, 2)
-      CALL get_mo_set(kp%mos(1, 1), nao=nao, nmo=nmo, mo_coeff=mo_coeff)
+      nspin = SIZE(kp%mos)
+      CALL get_mo_set(kp%mos(1), nao=nao, nmo=nmo, cmo_coeff=mo_coeff)
 
       IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
          WRITE (UNIT=io_unit, FMT="(/,T2,A)") &
@@ -1363,29 +1374,27 @@ CONTAINS
       DO ikp = 1, kplocal
          kp => kpoints%kp_env(ikp)%kpoint_env
          DO ispin = 1, nspin
-            CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
-            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
             IF (reload_snapshot_wf) THEN
-               CALL cp_fm_to_fm(t1_state%wf_kp(ikp, 1, ispin), rmos)
-               CALL cp_fm_to_fm(t1_state%wf_kp(ikp, 2, ispin), imos)
+               CALL cp_cfm_to_cfm(t1_state%wf_kp_cfm(ikp, ispin), cmos_new)
+            ELSE
+               CALL cp_cfm_to_cfm(kp%mos(ispin)%cmo_coeff, cmos_new)
             END IF
             IF (use_pbc_phase_ref) THEN
                ik = kp_range(1) + ikp - 1
-               CALL wfi_apply_kp_pbc_phase_fm(rmos, imos, pbc_shift_cur - pbc_shift_src, &
-                                              xkp(1:3, ik), matrix_s_kp(1, 1)%matrix)
+               CALL wfi_apply_kp_pbc_phase_cfm(cmos_new, pbc_shift_cur - pbc_shift_src, &
+                                               xkp(1:3, ik), matrix_s_kp(1, 1)%matrix)
             END IF
-            CALL cp_fm_to_cfm(rmos, imos, cmos_new)
 
-            CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, &
-                             csmat_cur(ikp), cmos_new, z_zero, cfm_nao_nmo_work)
-            CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, &
-                             cmos_new, cfm_nao_nmo_work, z_zero, csc_cfm)
+            CALL parallel_gemm('N', 'N', nao, nmo, nao, z_one, &
+                               csmat_cur(ikp), cmos_new, z_zero, cfm_nao_nmo_work)
+            CALL parallel_gemm('C', 'N', nmo, nmo, nao, z_one, &
+                               cmos_new, cfm_nao_nmo_work, z_zero, csc_cfm)
 
             CALL cp_cfm_cholesky_decompose(csc_cfm, info_out=chol_info)
             IF (chol_info == 0) THEN
                CALL cp_cfm_triangular_multiply(csc_cfm, cmos_new, side='R', invert_tr=.TRUE., uplo_tr='U')
             ELSE
-               CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, cmos_new, cfm_nao_nmo_work, z_zero, csc_cfm)
+               CALL parallel_gemm('C', 'N', nmo, nmo, nao, z_one, cmos_new, cfm_nao_nmo_work, z_zero, csc_cfm)
                CALL cp_cfm_create(cfm_evecs, csc_cfm%matrix_struct)
                CALL cp_cfm_create(cfm_mhalf, csc_cfm%matrix_struct)
                CALL cp_cfm_heevd(csc_cfm, cfm_evecs, eigenvalues)
@@ -1400,13 +1409,13 @@ CONTAINS
                END DO
                CALL cp_cfm_column_scale(cfm_mhalf, col_scaling)
                DEALLOCATE (col_scaling)
-               CALL cp_cfm_gemm('N', 'C', nmo, nmo, nmo, z_one, cfm_mhalf, cfm_evecs, z_zero, csc_cfm)
-               CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, cmos_new, csc_cfm, z_zero, cfm_nao_nmo_work)
+               CALL parallel_gemm('N', 'C', nmo, nmo, nmo, z_one, cfm_mhalf, cfm_evecs, z_zero, csc_cfm)
+               CALL parallel_gemm('N', 'N', nao, nmo, nmo, z_one, cmos_new, csc_cfm, z_zero, cfm_nao_nmo_work)
                CALL cp_cfm_to_cfm(cfm_nao_nmo_work, cmos_new)
                CALL cp_cfm_release(cfm_evecs)
                CALL cp_cfm_release(cfm_mhalf)
             END IF
-            CALL cp_cfm_to_fm(cmos_new, rmos, imos)
+            CALL cp_cfm_to_cfm(cmos_new, kp%mos(ispin)%cmo_coeff)
          END DO
          ! the MOS now hold extrapolated coefficients that are orthonormal under
          ! the S(k) of the current geometry: a valid trial subspace for solvers.
@@ -1501,63 +1510,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Applies the atom-wise Bloch phase associated with a change of the internal
-!>        k-point PBC image convention to real/imaginary MO coefficient matrices.
-!> \param rmos real part of the MO coefficients
-!> \param imos imaginary part of the MO coefficients
-!> \param pbc_shift_delta target shift minus source shift for each atom
-!> \param xk fractional k-point coordinates
-!> \param matrix_template AO block structure used to map rows to atoms
-! **************************************************************************************************
-   SUBROUTINE wfi_apply_kp_pbc_phase_fm(rmos, imos, pbc_shift_delta, xk, matrix_template)
-      TYPE(cp_fm_type), POINTER                          :: rmos, imos
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: pbc_shift_delta
-      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xk
-      TYPE(dbcsr_type), POINTER                          :: matrix_template
-
-      INTEGER                                            :: iatom, icol, irow, natom, nmo, nrow, &
-                                                            row_start
-      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
-      REAL(KIND=dp)                                      :: ci, cr, i_old, r_old, theta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: iblock, rblock
-
-      CPASSERT(ASSOCIATED(rmos))
-      CPASSERT(ASSOCIATED(imos))
-      CPASSERT(ASSOCIATED(matrix_template))
-
-      natom = SIZE(pbc_shift_delta, 2)
-      CALL cp_fm_get_info(rmos, ncol_global=nmo)
-      NULLIFY (row_blk_size)
-      CALL dbcsr_get_info(matrix_template, row_blk_size=row_blk_size)
-      CPASSERT(SIZE(row_blk_size) >= natom)
-
-      row_start = 1
-      DO iatom = 1, natom
-         nrow = row_blk_size(iatom)
-         IF (ANY(pbc_shift_delta(1:3, iatom) /= 0)) THEN
-            theta = twopi*SUM(xk(1:3)*REAL(pbc_shift_delta(1:3, iatom), KIND=dp))
-            cr = COS(theta)
-            ci = SIN(theta)
-            ALLOCATE (rblock(nrow, nmo), iblock(nrow, nmo))
-            CALL cp_fm_get_submatrix(rmos, rblock, row_start, 1, nrow, nmo)
-            CALL cp_fm_get_submatrix(imos, iblock, row_start, 1, nrow, nmo)
-            DO icol = 1, nmo
-               DO irow = 1, nrow
-                  r_old = rblock(irow, icol)
-                  i_old = iblock(irow, icol)
-                  rblock(irow, icol) = cr*r_old - ci*i_old
-                  iblock(irow, icol) = ci*r_old + cr*i_old
-               END DO
-            END DO
-            CALL cp_fm_set_submatrix(rmos, rblock, row_start, 1, nrow, nmo)
-            CALL cp_fm_set_submatrix(imos, iblock, row_start, 1, nrow, nmo)
-            DEALLOCATE (rblock, iblock)
-         END IF
-         row_start = row_start + nrow
-      END DO
-   END SUBROUTINE wfi_apply_kp_pbc_phase_fm
-
-! **************************************************************************************************
-!> \brief Applies the atom-wise Bloch phase associated with a change of the internal
 !>        k-point PBC image convention to a complex MO coefficient matrix.
 !> \param cmos complex MO coefficients
 !> \param pbc_shift_delta target shift minus source shift for each atom
@@ -1626,8 +1578,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(cp_cfm_type)                                  :: cfm_nao_nmo_work, cmos_1, cmos_i, &
                                                             cmos_new, csc_cfm
+      TYPE(cp_cfm_type), POINTER                         :: mo_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: nmo_nmo_struct
-      TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1636,7 +1588,7 @@ CONTAINS
       method_nr = wf_history%interpolation_method_nr
 
       CALL timeset(routineN, handle)
-      NULLIFY (kpoints, kp, mo_coeff, rmos, imos, t0_state, t1_state, nmo_nmo_struct, &
+      NULLIFY (kpoints, kp, mo_coeff, t0_state, t1_state, nmo_nmo_struct, &
                matrix_s_kp, xkp)
 
       CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp)
@@ -1657,8 +1609,8 @@ CONTAINS
       END IF
 
       kp => kpoints%kp_env(1)%kpoint_env
-      nspin = SIZE(kp%mos, 2)
-      CALL get_mo_set(kp%mos(1, 1), nao=nao, nmo=nmo, mo_coeff=mo_coeff)
+      nspin = SIZE(kp%mos)
+      CALL get_mo_set(kp%mos(1), nao=nao, nmo=nmo, cmo_coeff=mo_coeff)
 
       IF (method_nr == wfi_aspc_nr) THEN
          IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
@@ -1703,12 +1655,9 @@ CONTAINS
       DO ikp = 1, kplocal
          kp => kpoints%kp_env(ikp)%kpoint_env
          DO ispin = 1, nspin
-            CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
-            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
-            CALL cp_fm_to_fm(t1_state%wf_kp(ikp, 1, ispin), rmos)
-            CALL cp_fm_to_fm(t1_state%wf_kp(ikp, 2, ispin), imos)
-            CALL cp_fm_scale(alpha_coeff, rmos)
-            CALL cp_fm_scale(alpha_coeff, imos)
+            CALL cp_cfm_to_cfm(t1_state%wf_kp_cfm(ikp, ispin), cmos_new)
+            CALL cp_cfm_scale(alpha_coeff, cmos_new)
+            CALL cp_cfm_to_cfm(cmos_new, kp%mos(ispin)%cmo_coeff)
          END DO
       END DO
 
@@ -1729,8 +1678,8 @@ CONTAINS
             kp => kpoints%kp_env(ikp)%kpoint_env
             DO ispin = 1, nspin
                ik = kp_range(1) + ikp - 1
-               CALL cp_fm_to_cfm(t1_state%wf_kp(ikp, 1, ispin), t1_state%wf_kp(ikp, 2, ispin), cmos_1)
-               CALL cp_fm_to_cfm(t0_state%wf_kp(ikp, 1, ispin), t0_state%wf_kp(ikp, 2, ispin), cmos_i)
+               CALL cp_cfm_to_cfm(t1_state%wf_kp_cfm(ikp, ispin), cmos_1)
+               CALL cp_cfm_to_cfm(t0_state%wf_kp_cfm(ikp, ispin), cmos_i)
 
                ! Express the reference snapshot in the image convention of snapshot i,
                ! because the historical overlap below belongs to snapshot i.
@@ -1738,12 +1687,12 @@ CONTAINS
                                                xkp(1:3, ik), matrix_s_kp(1, 1)%matrix)
 
                ! Subspace projection: C_proj = C_i * (C_i^dag S_i C_1)
-               CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, &
-                                t0_state%overlap_cfm_kp(ikp), cmos_1, z_zero, cfm_nao_nmo_work)
-               CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, &
-                                cmos_i, cfm_nao_nmo_work, z_zero, csc_cfm)
-               CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, &
-                                cmos_i, csc_cfm, z_zero, cfm_nao_nmo_work)
+               CALL parallel_gemm('N', 'N', nao, nmo, nao, z_one, &
+                                  t0_state%overlap_cfm_kp(ikp), cmos_1, z_zero, cfm_nao_nmo_work)
+               CALL parallel_gemm('C', 'N', nmo, nmo, nao, z_one, &
+                                  cmos_i, cfm_nao_nmo_work, z_zero, csc_cfm)
+               CALL parallel_gemm('N', 'N', nao, nmo, nmo, z_one, &
+                                  cmos_i, csc_cfm, z_zero, cfm_nao_nmo_work)
 
                ! Convert the projected contribution from snapshot i to the reference
                ! image convention of snapshot 1. The final conversion to the current
@@ -1751,11 +1700,9 @@ CONTAINS
                CALL wfi_apply_kp_pbc_phase_cfm(cfm_nao_nmo_work, t1_state%kp_pbc_shift - t0_state%kp_pbc_shift, &
                                                xkp(1:3, ik), matrix_s_kp(1, 1)%matrix)
 
-               CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
-               CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
-               CALL cp_fm_to_cfm(rmos, imos, cmos_new)
+               CALL cp_cfm_to_cfm(kp%mos(ispin)%cmo_coeff, cmos_new)
                CALL cp_cfm_scale_and_add(z_one, cmos_new, CMPLX(alpha_coeff, 0.0_dp, KIND=dp), cfm_nao_nmo_work)
-               CALL cp_cfm_to_fm(cmos_new, rmos, imos)
+               CALL cp_cfm_to_cfm(cmos_new, kp%mos(ispin)%cmo_coeff)
             END DO
          END DO
       END DO
@@ -1804,9 +1751,9 @@ CONTAINS
       TYPE(cp_cfm_type)                                  :: cfm_nao_nmo_work, cmos_1, cmos_i, &
                                                             cmos_new, csc_cfm
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: csmat_cur
+      TYPE(cp_cfm_type), POINTER                         :: mo_coeff
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_ao_fm_pools_kp
       TYPE(cp_fm_struct_type), POINTER                   :: ao_ao_struct, nmo_nmo_struct
-      TYPE(cp_fm_type), POINTER                          :: imos, mo_coeff, rmos
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1818,8 +1765,8 @@ CONTAINS
       method_nr = wf_history%interpolation_method_nr
 
       CALL timeset(routineN, handle)
-      NULLIFY (ao_ao_struct, imos, kp, kpoints, matrix_s_kp, mo_coeff, mpools_kp, &
-               para_env_inter_kp, rmos, scf_env, t0_state, t1_state, wkp, xkp, nmo_nmo_struct, &
+      NULLIFY (ao_ao_struct, kp, kpoints, matrix_s_kp, mo_coeff, mpools_kp, &
+               para_env_inter_kp, scf_env, t0_state, t1_state, wkp, xkp, nmo_nmo_struct, &
                ao_ao_fm_pools_kp)
 
       CALL get_qs_env(qs_env, kpoints=kpoints, matrix_s_kp=matrix_s_kp, scf_env=scf_env)
@@ -1851,8 +1798,8 @@ CONTAINS
       END IF
 
       kp => kpoints%kp_env(1)%kpoint_env
-      nspin = SIZE(kp%mos, 2)
-      CALL get_mo_set(kp%mos(1, 1), nao=nao, nmo=nmo, mo_coeff=mo_coeff)
+      nspin = SIZE(kp%mos)
+      CALL get_mo_set(kp%mos(1), nao=nao, nmo=nmo, cmo_coeff=mo_coeff)
 
       CALL mpools_get(mpools_kp, ao_ao_fm_pools=ao_ao_fm_pools_kp)
       ao_ao_struct => fm_pool_get_el_struct(ao_ao_fm_pools_kp(1)%pool)
@@ -1891,10 +1838,7 @@ CONTAINS
       DO ikp = 1, kplocal
          kp => kpoints%kp_env(ikp)%kpoint_env
          DO ispin = 1, nspin
-            CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
-            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
-            CALL cp_fm_set_all(rmos, 0.0_dp)
-            CALL cp_fm_set_all(imos, 0.0_dp)
+            CALL cp_cfm_set_all(kp%mos(ispin)%cmo_coeff, z_zero)
          END DO
       END DO
 
@@ -1904,27 +1848,25 @@ CONTAINS
             kp => kpoints%kp_env(ikp)%kpoint_env
             ik = kp_range(1) + ikp - 1
             DO ispin = 1, nspin
-               CALL cp_fm_to_cfm(t1_state%wf_kp(ikp, 1, ispin), t1_state%wf_kp(ikp, 2, ispin), cmos_1)
-               CALL cp_fm_to_cfm(t0_state%wf_kp(ikp, 1, ispin), t0_state%wf_kp(ikp, 2, ispin), cmos_i)
+               CALL cp_cfm_to_cfm(t1_state%wf_kp_cfm(ikp, ispin), cmos_1)
+               CALL cp_cfm_to_cfm(t0_state%wf_kp_cfm(ikp, ispin), cmos_i)
 
                CALL wfi_apply_kp_pbc_phase_cfm(cmos_1, t0_state%kp_pbc_shift - t1_state%kp_pbc_shift, &
                                                xkp(1:3, ik), matrix_s_kp(1, 1)%matrix)
 
-               CALL cp_cfm_gemm('N', 'N', nao, nmo, nao, z_one, &
-                                t0_state%overlap_cfm_kp(ikp), cmos_1, z_zero, cfm_nao_nmo_work)
-               CALL cp_cfm_gemm('C', 'N', nmo, nmo, nao, z_one, &
-                                cmos_i, cfm_nao_nmo_work, z_zero, csc_cfm)
-               CALL cp_cfm_gemm('N', 'N', nao, nmo, nmo, z_one, &
-                                cmos_i, csc_cfm, z_zero, cfm_nao_nmo_work)
+               CALL parallel_gemm('N', 'N', nao, nmo, nao, z_one, &
+                                  t0_state%overlap_cfm_kp(ikp), cmos_1, z_zero, cfm_nao_nmo_work)
+               CALL parallel_gemm('C', 'N', nmo, nmo, nao, z_one, &
+                                  cmos_i, cfm_nao_nmo_work, z_zero, csc_cfm)
+               CALL parallel_gemm('N', 'N', nao, nmo, nmo, z_one, &
+                                  cmos_i, csc_cfm, z_zero, cfm_nao_nmo_work)
 
                CALL wfi_apply_kp_pbc_phase_cfm(cfm_nao_nmo_work, t1_state%kp_pbc_shift - t0_state%kp_pbc_shift, &
                                                xkp(1:3, ik), matrix_s_kp(1, 1)%matrix)
 
-               CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos)
-               CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
-               CALL cp_fm_to_cfm(rmos, imos, cmos_new)
+               CALL cp_cfm_to_cfm(kp%mos(ispin)%cmo_coeff, cmos_new)
                CALL cp_cfm_scale_and_add(z_one, cmos_new, CMPLX(coeffs(i), 0.0_dp, KIND=dp), cfm_nao_nmo_work)
-               CALL cp_cfm_to_fm(cmos_new, rmos, imos)
+               CALL cp_cfm_to_cfm(cmos_new, kp%mos(ispin)%cmo_coeff)
             END DO
          END DO
       END DO

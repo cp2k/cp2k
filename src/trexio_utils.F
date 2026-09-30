@@ -22,6 +22,7 @@ MODULE trexio_utils
    USE cp2k_info, ONLY: cp2k_version
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_control_types, ONLY: dft_control_type
+   USE cp_cfm_types, ONLY: cp_cfm_to_fm
    USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm
    USE cp_files, ONLY: close_file, file_exists, open_file
    USE cp_fm_types, ONLY: cp_fm_get_info, cp_fm_type, cp_fm_create, cp_fm_set_all, &
@@ -160,12 +161,13 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_kp
       TYPE(kpoint_env_p_type), DIMENSION(:), POINTER     :: kp_env
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_inter_kp
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
-      TYPE(cp_fm_type)                                   :: fm_mo_coeff, fm_dummy, fm_mo_coeff_im
+      TYPE(cp_fm_type)                                   :: fm_mo_coeff, fm_dummy, fm_mo_coeff_im, &
+                                                            kp_coeff_re, kp_coeff_im
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CHARACTER(LEN=2)                                   :: element_symbol
@@ -802,7 +804,7 @@ CONTAINS
          CALL get_kpoint_info(trexio_kpoints, kp_env=kp_env, nkp=nkp, use_real_wfn=use_real_wfn)
          CALL get_kpoint_env(kp_env(1)%kpoint_env, mos=mos_kp)
          DO ispin = 1, nspins
-            CALL get_mo_set(mos_kp(1, ispin), nmo=nmo)
+            CALL get_mo_set(mos_kp(ispin), nmo=nmo)
             nmo_spin(ispin) = nmo
          END DO
          mo_num = nkp*SUM(nmo_spin)
@@ -815,6 +817,8 @@ CONTAINS
          IF (.NOT. use_real_wfn) THEN
             CALL cp_fm_create(fm_mo_coeff_im, fm_struct)
             CALL cp_fm_set_all(fm_mo_coeff_im, 0.0_dp)
+            CALL cp_fm_create(kp_coeff_re, mos_kp(1)%cmo_coeff%matrix_struct)
+            CALL cp_fm_create(kp_coeff_im, mos_kp(1)%cmo_coeff%matrix_struct)
          END IF
          CALL cp_fm_struct_release(fm_struct)
       ELSE
@@ -861,26 +865,30 @@ CONTAINS
                   ! get the mo set for this kpoint
                   CALL get_kpoint_env(kp_env(ikp_loc)%kpoint_env, mos=mos_kp)
 
-                  ! if MOs are stored with dbcsr, copy them to fm
-                  IF (mos_kp(1, ispin)%use_mo_coeff_b) THEN
-                     CALL copy_dbcsr_to_fm(mos_kp(1, ispin)%mo_coeff_b, mos_kp(1, ispin)%mo_coeff)
+                  IF (use_real_wfn) THEN
+                     IF (mos_kp(ispin)%use_mo_coeff_b) THEN
+                        CALL copy_dbcsr_to_fm(mos_kp(ispin)%mo_coeff_b, mos_kp(ispin)%mo_coeff)
+                     END IF
+                  ELSE
+                     CALL cp_cfm_to_fm(mos_kp(ispin)%cmo_coeff, kp_coeff_re, kp_coeff_im)
                   END IF
-                  ! copy real part of MO coefficients to large distributed fm matrix
-                  CALL cp_fm_to_fm_submat_general(mos_kp(1, ispin)%mo_coeff, fm_mo_coeff, &
-                                                  nsgf, nmo, 1, 1, 1, imo + 1, blacs_env)
+                  IF (use_real_wfn) THEN
+                     CALL cp_fm_to_fm_submat_general(mos_kp(ispin)%mo_coeff, fm_mo_coeff, &
+                                                     nsgf, nmo, 1, 1, 1, imo + 1, blacs_env)
+                  ELSE
+                     CALL cp_fm_to_fm_submat_general(kp_coeff_re, fm_mo_coeff, &
+                                                     nsgf, nmo, 1, 1, 1, imo + 1, blacs_env)
+                  END IF
 
                   ! copy MO energies to local arrays
-                  mo_energy(imo + 1:imo + nmo) = mos_kp(1, ispin)%eigenvalues(1:nmo)
+                  mo_energy(imo + 1:imo + nmo) = mos_kp(ispin)%eigenvalues(1:nmo)
 
                   ! copy MO occupations to local arrays
-                  mo_occupation(imo + 1:imo + nmo) = mos_kp(1, ispin)%occupation_numbers(1:nmo)
+                  mo_occupation(imo + 1:imo + nmo) = mos_kp(ispin)%occupation_numbers(1:nmo)
 
                   ! same for the imaginary part of MO coefficients
                   IF (.NOT. use_real_wfn) THEN
-                     IF (mos_kp(2, ispin)%use_mo_coeff_b) THEN
-                        CALL copy_dbcsr_to_fm(mos_kp(2, ispin)%mo_coeff_b, mos_kp(2, ispin)%mo_coeff)
-                     END IF
-                     CALL cp_fm_to_fm_submat_general(mos_kp(2, ispin)%mo_coeff, fm_mo_coeff_im, &
+                     CALL cp_fm_to_fm_submat_general(kp_coeff_im, fm_mo_coeff_im, &
                                                      nsgf, nmo, 1, 1, 1, imo + 1, blacs_env)
                   END IF
                ELSE
@@ -1046,7 +1054,11 @@ CONTAINS
          DEALLOCATE (mo_coefficient_im)
          DEALLOCATE (mo_kpoint)
          CALL cp_fm_release(fm_mo_coeff)
-         CALL cp_fm_release(fm_mo_coeff_im)
+         IF (.NOT. use_real_wfn) THEN
+            CALL cp_fm_release(fm_mo_coeff_im)
+            CALL cp_fm_release(kp_coeff_re)
+            CALL cp_fm_release(kp_coeff_im)
+         END IF
       END IF
       IF (ALLOCATED(ao_to_atom)) DEALLOCATE (ao_to_atom)
       IF (ALLOCATED(agauge)) DEALLOCATE (agauge)

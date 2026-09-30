@@ -48,6 +48,8 @@ MODULE qs_wf_history_types
 !> \param rho_g the density in g space
 !> \param rho_ao the density in ao space
 !> \param overlap the overlap matrix
+!> \param wf_kp real k-point MO snapshots
+!> \param wf_kp_cfm complex k-point MO snapshots
 !> \param rho_frozen the frozen density structure
 !> \param dt the time of the snapshot (wrf to te previous snapshot!)
 !> \note
@@ -64,7 +66,8 @@ MODULE qs_wf_history_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: rho_ao_kp => NULL()
       TYPE(dbcsr_type), POINTER :: overlap => NULL()
-      TYPE(cp_fm_type), DIMENSION(:, :, :), POINTER :: wf_kp => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER :: wf_kp => NULL()
+      TYPE(cp_cfm_type), DIMENSION(:, :), POINTER :: wf_kp_cfm => NULL()
       TYPE(cp_cfm_type), DIMENSION(:), POINTER :: overlap_cfm_kp => NULL()
       INTEGER, DIMENSION(:, :), POINTER :: kp_pbc_shift => NULL()
       TYPE(qs_rho_type), POINTER :: rho_frozen => NULL()
@@ -132,7 +135,7 @@ CONTAINS
    SUBROUTINE wfs_release(snapshot)
       TYPE(qs_wf_snapshot_type), INTENT(INOUT)           :: snapshot
 
-      INTEGER                                            :: i, ic, ikp, ispin
+      INTEGER                                            :: i, ikp, ispin
 
       CALL cp_fm_release(snapshot%wf)
       ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
@@ -147,14 +150,15 @@ CONTAINS
          CALL dbcsr_deallocate_matrix(snapshot%overlap)
       END IF
       IF (ASSOCIATED(snapshot%wf_kp)) THEN
-         DO ikp = 1, SIZE(snapshot%wf_kp, 1)
-            DO ic = 1, SIZE(snapshot%wf_kp, 2)
-               DO ispin = 1, SIZE(snapshot%wf_kp, 3)
-                  CALL cp_fm_release(snapshot%wf_kp(ikp, ic, ispin))
-               END DO
+         CALL cp_fm_release(snapshot%wf_kp)
+      END IF
+      IF (ASSOCIATED(snapshot%wf_kp_cfm)) THEN
+         DO ikp = 1, SIZE(snapshot%wf_kp_cfm, 1)
+            DO ispin = 1, SIZE(snapshot%wf_kp_cfm, 2)
+               CALL cp_cfm_release(snapshot%wf_kp_cfm(ikp, ispin))
             END DO
          END DO
-         DEALLOCATE (snapshot%wf_kp)
+         DEALLOCATE (snapshot%wf_kp_cfm)
       END IF
       IF (ASSOCIATED(snapshot%overlap_cfm_kp)) THEN
          DO i = 1, SIZE(snapshot%overlap_cfm_kp)

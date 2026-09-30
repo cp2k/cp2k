@@ -21,7 +21,6 @@ MODULE admm_methods
                                               cite_reference
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale,&
                                               cp_cfm_scale_and_add,&
-                                              cp_cfm_scale_and_add_fm,&
                                               cp_cfm_uplo_to_full
    USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
                                               cp_cfm_cholesky_invert
@@ -85,8 +84,7 @@ MODULE admm_methods
                                               get_kpoint_info,&
                                               kpoint_env_type,&
                                               kpoint_type
-   USE mathconstants,                   ONLY: gaussi,&
-                                              z_one,&
+   USE mathconstants,                   ONLY: z_one,&
                                               z_zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -288,7 +286,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'admm_mo_calc_rho_aux_kp'
 
       CHARACTER(LEN=default_string_length)               :: basis_type
-      INTEGER                                            :: handle, i, igroup, ik, ikp, img, indx, &
+      INTEGER                                            :: handle, igroup, ik, ikp, img, indx, &
                                                             ispin, kplocal, kpmax, nao_aux_fit, &
                                                             nao_orb, natom, nkp, nkp_groups, nmo, &
                                                             nspins
@@ -303,10 +301,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xkp
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(copy_info_type), ALLOCATABLE, DIMENSION(:, :) :: info
-      TYPE(cp_cfm_type)                                  :: cA, cmo_coeff, cmo_coeff_aux_fit, &
-                                                            cpmatrix, cwork_aux_aux, cwork_aux_orb
-      TYPE(cp_fm_struct_type), POINTER                   :: mo_struct, mo_struct_aux_fit, &
-                                                            struct_aux_aux, struct_aux_orb, &
+      TYPE(cp_cfm_type)                                  :: cA, cpmatrix, cwork_aux_aux, &
+                                                            cwork_aux_orb
+      TYPE(cp_fm_struct_type), POINTER                   :: struct_aux_aux, struct_aux_orb, &
                                                             struct_orb_orb
       TYPE(cp_fm_type)                                   :: fmdummy, work_aux_orb, work_orb_orb, &
                                                             work_orb_orb2
@@ -319,8 +316,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_aux_fit_kp, mos_kp
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_aux_fit, mos_aux_fit_kp, mos_kp
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit, sab_kp
@@ -337,7 +333,7 @@ CONTAINS
                matrix_s_aux_fit, rho_aux_fit, rho_ao_orb, &
                para_env, rho_g_aux, rho_r_aux, rho_ao_aux, tot_rho_r_aux, &
                kpoints, sab_aux_fit, sab_kp, kp, &
-               struct_orb_orb, struct_aux_orb, struct_aux_aux, mo_struct, mo_struct_aux_fit)
+               struct_orb_orb, struct_aux_orb, struct_aux_aux)
 
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
@@ -402,17 +398,6 @@ CONTAINS
          CALL cp_cfm_create(cA, struct_aux_orb)
          CALL cp_cfm_create(cwork_aux_orb, struct_aux_orb)
 
-         CALL get_kpoint_env(kpoints%kp_env(1)%kpoint_env, mos=mos_kp)
-         mos => mos_kp(1, :)
-         CALL get_mo_set(mos(1), mo_coeff=mo_coeff)
-         CALL cp_fm_get_info(mo_coeff, matrix_struct=mo_struct)
-         CALL cp_cfm_create(cmo_coeff, mo_struct)
-
-         CALL get_kpoint_env(kpoints%kp_aux_env(1)%kpoint_env, mos=mos_aux_fit_kp)
-         mos => mos_aux_fit_kp(1, :)
-         CALL get_mo_set(mos(1), mo_coeff=mo_coeff_aux_fit)
-         CALL cp_fm_get_info(mo_coeff_aux_fit, matrix_struct=mo_struct_aux_fit)
-         CALL cp_cfm_create(cmo_coeff_aux_fit, mo_struct_aux_fit)
       END IF
 
       CALL cp_fm_struct_release(struct_orb_orb)
@@ -429,14 +414,11 @@ CONTAINS
       DO ikp = 1, kplocal
          CALL get_kpoint_env(kpoints%kp_env(ikp)%kpoint_env, mos=mos_kp)
          DO ispin = 1, nspins
-            mos => mos_kp(1, :)
-            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-            maxval_mos = MAX(maxval_mos, MAXVAL(ABS(mo_coeff%local_data)))
-
-            IF (.NOT. use_real_wfn) THEN
-               mos => mos_kp(2, :)
-               CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-               maxval_mos = MAX(maxval_mos, MAXVAL(ABS(mo_coeff%local_data)))
+            IF (use_real_wfn) THEN
+               maxval_mos = MAX(maxval_mos, MAXVAL(ABS(mos_kp(ispin)%mo_coeff%local_data)))
+            ELSE
+               maxval_mos = MAX(maxval_mos, MAXVAL(ABS(REAL(mos_kp(ispin)%cmo_coeff%local_data, KIND=dp))), &
+                                MAXVAL(ABS(AIMAG(mos_kp(ispin)%cmo_coeff%local_data))))
             END IF
          END DO
       END DO
@@ -519,8 +501,8 @@ CONTAINS
                !! Each kpoint group has now information on a kpoint for which to calculate the MOS_aux
                CALL get_kpoint_env(kpoints%kp_env(ikp)%kpoint_env, mos=mos_kp)
                CALL get_kpoint_env(kpoints%kp_aux_env(ikp)%kpoint_env, mos=mos_aux_fit_kp)
-               mos => mos_kp(1, :)
-               mos_aux_fit => mos_aux_fit_kp(1, :)
+               mos => mos_kp
+               mos_aux_fit => mos_aux_fit_kp
 
                CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, occupation_numbers=occ_num)
                CALL get_mo_set(mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit, &
@@ -542,38 +524,21 @@ CONTAINS
 
             ELSE !complex wfn
 
-               !construct the ORB MOs in complex format
                nmo = admm_env%nmo(ispin)
                CALL get_kpoint_env(kpoints%kp_env(ikp)%kpoint_env, mos=mos_kp)
-               mos => mos_kp(1, :) !real
-               CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-               CALL cp_cfm_scale_and_add_fm(z_zero, cmo_coeff, z_one, mo_coeff)
-               mos => mos_kp(2, :) !complex
-               CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-               CALL cp_cfm_scale_and_add_fm(z_one, cmo_coeff, gaussi, mo_coeff)
 
                !project
                kp => kpoints%kp_aux_env(ikp)%kpoint_env
                CALL cp_fm_to_cfm(kp%amat(1, 1), kp%amat(2, 1), cA)
                CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_orb, &
-                                  z_one, cA, cmo_coeff, z_zero, cmo_coeff_aux_fit)
+                                  z_one, cA, mos_kp(ispin)%cmo_coeff, z_zero, &
+                                  kp%mos(ispin)%cmo_coeff)
 
                !write result back to KP MOs
                CALL get_kpoint_env(kpoints%kp_aux_env(ikp)%kpoint_env, mos=mos_aux_fit_kp)
-               mos_aux_fit => mos_aux_fit_kp(1, :)
-               CALL get_mo_set(mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit)
-               CALL cp_cfm_to_fm(cmo_coeff_aux_fit, mtargetr=mo_coeff_aux_fit)
-               mos_aux_fit => mos_aux_fit_kp(2, :)
-               CALL get_mo_set(mos_aux_fit(ispin), mo_coeff=mo_coeff_aux_fit)
-               CALL cp_cfm_to_fm(cmo_coeff_aux_fit, mtargeti=mo_coeff_aux_fit)
-
-               DO i = 1, 2
-                  mos => mos_kp(i, :)
-                  CALL get_mo_set(mos(ispin), occupation_numbers=occ_num)
-                  mos_aux_fit => mos_aux_fit_kp(i, :)
-                  CALL get_mo_set(mos_aux_fit(ispin), occupation_numbers=occ_num_aux)
-                  occ_num_aux(:) = occ_num(:)
-               END DO
+               CALL get_mo_set(mos_kp(ispin), occupation_numbers=occ_num)
+               CALL get_mo_set(mos_aux_fit_kp(ispin), occupation_numbers=occ_num_aux)
+               occ_num_aux(:) = occ_num(:)
 
                IF (pmat_from_rs) THEN
                   CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_orb, z_one, cA, &
@@ -610,8 +575,6 @@ CONTAINS
          CALL cp_cfm_release(cwork_aux_aux)
          CALL cp_cfm_release(cwork_aux_orb)
          CALL cp_cfm_release(cA)
-         CALL cp_cfm_release(cmo_coeff)
-         CALL cp_cfm_release(cmo_coeff_aux_fit)
       END IF
 
       IF (.NOT. pmat_from_rs) CALL kpoint_density_matrices(kpoints, for_aux_fit=.TRUE.)

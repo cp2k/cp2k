@@ -74,7 +74,7 @@ MODULE kpoint_types
 !> \param wkp       weight of this kpoint
 !> \param xkp       kpoint coordinates in units of b-vector
 !> \param is_local  if this kpoint is calculated on a single thread
-!> \param mos       associated MOs (r/i,spin)
+!> \param mos       associated MOs (spin); complex coefficients use native CFM storage
 !> \param mos_prefilled the MOS hold meaningful coefficients (refilled and
 !>                     reorthogonalized by wavefunction extrapolation for the
 !>                     current geometry) rather than being only allocated
@@ -94,7 +94,7 @@ MODULE kpoint_types
       REAL(KIND=dp)                                     :: wkp = 0.0_dp
       REAL(KIND=dp), DIMENSION(3)                       :: xkp = 0.0_dp
       LOGICAL                                           :: is_local = .FALSE.
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER       :: mos => NULL()
+      TYPE(mo_set_type), DIMENSION(:), POINTER          :: mos => NULL()
       LOGICAL                                           :: mos_prefilled = .FALSE.
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: pmat => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :), POINTER        :: wmat => NULL()
@@ -1126,15 +1126,13 @@ CONTAINS
    SUBROUTINE kpoint_env_release(kp_env)
       TYPE(kpoint_env_type), POINTER                     :: kp_env
 
-      INTEGER                                            :: ic, is
+      INTEGER                                            :: is
 
       IF (ASSOCIATED(kp_env)) THEN
 
          IF (ASSOCIATED(kp_env%mos)) THEN
-            DO is = 1, SIZE(kp_env%mos, 2)
-               DO ic = 1, SIZE(kp_env%mos, 1)
-                  CALL deallocate_mo_set(kp_env%mos(ic, is))
-               END DO
+            DO is = 1, SIZE(kp_env%mos)
+               CALL deallocate_mo_set(kp_env%mos(is))
             END DO
             DEALLOCATE (kp_env%mos)
          END IF
@@ -1178,8 +1176,7 @@ CONTAINS
       REAL(KIND=dp), OPTIONAL                            :: wkp
       REAL(KIND=dp), DIMENSION(3), OPTIONAL              :: xkp
       LOGICAL, OPTIONAL                                  :: is_local
-      TYPE(mo_set_type), DIMENSION(:, :), OPTIONAL, &
-         POINTER                                         :: mos
+      TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos
 
       IF (PRESENT(nkpoint)) nkpoint = kpoint_env%nkpoint
       IF (PRESENT(wkp)) wkp = kpoint_env%wkp

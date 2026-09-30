@@ -1222,7 +1222,7 @@ CONTAINS
          DO ik = 1, SIZE(kpoints%kp_env)
             kp => kpoints%kp_env(ik)%kpoint_env
             DO ispin = 1, nspins
-               mo_set => kp%mos(1, ispin)
+               mo_set => kp%mos(ispin)
                CALL get_mo_set(mo_set=mo_set, nmo=nmo_kp, mu=e_fermi(ispin))
                eigenvalues => mo_set%eigenvalues
                occupation_numbers => mo_set%occupation_numbers
@@ -1272,7 +1272,7 @@ CONTAINS
 
       ! Use the first local k point to construct the AO -> kind/l/component map.
       kp => kpoints%kp_env(1)%kpoint_env
-      mo_set => kp%mos(1, 1)
+      mo_set => kp%mos(1)
       CALL get_mo_set(mo_set=mo_set, nao=nao)
       CALL build_pdos_ao_map(qs_kind_set, particle_set, nao, ao_kind, ao_l, ao_comp)
       ALLOCATE (ao_weight(nao), proj_weight(ncomp, nkind))
@@ -1283,14 +1283,15 @@ CONTAINS
             kp => kpoints%kp_env(ik)%kpoint_env
             wkp = kp%wkp
             DO ispin = 1, nspins
-               mo_set => kp%mos(1, ispin)
+               mo_set => kp%mos(ispin)
                CALL get_mo_set(mo_set=mo_set, nao=nao, nmo=nmo_kp)
                eigenvalues => mo_set%eigenvalues
-               CALL cp_fm_get_info(mo_set%mo_coeff, matrix_struct=fm_struct_tmp)
                IF (kpoints%use_real_wfn) THEN
+                  CALL cp_fm_get_info(mo_set%mo_coeff, matrix_struct=fm_struct_tmp)
                   CALL cp_fm_create(shalfc, fm_struct_tmp, name="shalfc")
                   CALL lowdin_kp_mo_coeff(kp, ispin, kpoints%use_real_wfn, shalfc=shalfc)
                ELSE
+                  fm_struct_tmp => mo_set%cmo_coeff%matrix_struct
                   CALL cp_cfm_create(cshalfc, fm_struct_tmp, name="cshalfc")
                   CALL lowdin_kp_mo_coeff(kp, ispin, kpoints%use_real_wfn, cshalfc=cshalfc)
                END IF

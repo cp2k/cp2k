@@ -18,6 +18,8 @@ MODULE kpoint_mo_dump
                                               gto_basis_set_type
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_get_submatrix,&
+                                              cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_p_type, dbcsr_set, &
@@ -82,8 +84,8 @@ CONTAINS
 !>  (AO_EXPORT_TYPE = GTO_BASIS) or AO metadata list (AO_EXPORT_TYPE = OVERLAP_MATRIX).
 !>
 !>  Parallel strategy:
-!>    MO coefficients:  cp_fm_get_submatrix (collective on kp-group),
-!>                      then para_env_inter_kp%sum to collect across groups.
+!>    MO coefficients:  cp_fm_get_submatrix or cp_cfm_get_submatrix
+!>                      (collective on kp-group), then para_env_inter_kp%sum.
 !>    S(k):             Built on global communicator using rskp_transform,
 !>                      then copy_dbcsr_to_fm + cp_fm_get_submatrix.
 !>    File write:       Only on ionode (cp_print_key_unit_nr returns -1 elsewhere).
@@ -100,6 +102,7 @@ CONTAINS
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=20)                                  :: fmtstr_gto, fmtstr_sparse, fmtstr_vec
+      COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: C_buf
       INTEGER :: ao_export_type, atom_shell_index, handle, i, iao, iatom, ikind, ikp, ikp_loc, &
          imo, ipgf, iset, isgf_global, ishell, ispin, iw, j, lshell, m_ao, n, nao, natom, ndigits, &
          nkp, nmo, nset_atom, nspins, output_unit, unit_choice, z_nuc
@@ -118,9 +121,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
+      TYPE(cp_cfm_type), POINTER                         :: cmo_coeff
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_S
       TYPE(cp_fm_type)                                   :: fm_S_global
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff_im, mo_coeff_re
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_re
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
       TYPE(dbcsr_type), POINTER                          :: cmatrix, rmatrix, tmpmat
@@ -128,7 +132,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_kp
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_kp
       TYPE(mp_para_env_type), POINTER                    :: para_env_global, para_env_inter_kp
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
@@ -171,7 +175,7 @@ CONTAINS
       nmo = 0
       IF (SIZE(kpoints%kp_env) > 0) THEN
          mos_kp => kpoints%kp_env(1)%kpoint_env%mos
-         CALL get_mo_set(mo_set=mos_kp(1, 1), nmo=nmo)
+         CALL get_mo_set(mo_set=mos_kp(1), nmo=nmo)
       END IF
       CALL para_env_inter_kp%max(nmo)
 
@@ -212,6 +216,7 @@ CONTAINS
       ! Allocate work buffers
       ! ================================================================
       ALLOCATE (Cre_buf(nao, nmo), Cim_buf(nao, nmo))
+      IF (.NOT. use_real_wfn) ALLOCATE (C_buf(nao, nmo))
       ALLOCATE (eval_buf(nmo), occ_buf(nmo))
 
       ! S(k) infrastructure: only needed in MATRIX mode
@@ -384,27 +389,27 @@ CONTAINS
                kp => kpoints%kp_env(ikp_loc)%kpoint_env
                mos_kp => kp%mos
 
-               CALL get_mo_set(mos_kp(1, ispin), &
+               CALL get_mo_set(mos_kp(ispin), &
                                eigenvalues=eigenvalues, &
                                occupation_numbers=occupation_numbers)
                eval_buf(1:nmo) = eigenvalues(1:nmo)
                occ_buf(1:nmo) = occupation_numbers(1:nmo)
 
-               CALL get_mo_set(mos_kp(1, ispin), mo_coeff=mo_coeff_re)
-               CALL cp_fm_get_submatrix(mo_coeff_re, Cre_buf)
-
-               IF (.NOT. use_real_wfn) THEN
-                  CALL get_mo_set(mos_kp(2, ispin), mo_coeff=mo_coeff_im)
-                  CALL cp_fm_get_submatrix(mo_coeff_im, Cim_buf)
+               IF (use_real_wfn) THEN
+                  CALL get_mo_set(mos_kp(ispin), mo_coeff=mo_coeff_re)
+                  CALL cp_fm_get_submatrix(mo_coeff_re, Cre_buf)
+               ELSE
+                  CALL get_mo_set(mos_kp(ispin), cmo_coeff=cmo_coeff)
+                  CALL cp_cfm_get_submatrix(cmo_coeff, C_buf)
+                  Cre_buf(:, :) = REAL(C_buf, KIND=dp)
+                  Cim_buf(:, :) = AIMAG(C_buf)
                END IF
             END IF
 
             CALL para_env_inter_kp%sum(eval_buf)
             CALL para_env_inter_kp%sum(occ_buf)
             CALL para_env_inter_kp%sum(Cre_buf)
-            IF (.NOT. use_real_wfn) THEN
-               CALL para_env_inter_kp%sum(Cim_buf)
-            END IF
+            IF (.NOT. use_real_wfn) CALL para_env_inter_kp%sum(Cim_buf)
 
             IF (iw > 0) THEN
                WRITE (iw, '(A,2I6)') "# BEGIN_KPOINT_SPIN ikp ispin =", ikp, ispin
@@ -517,6 +522,7 @@ CONTAINS
          DEALLOCATE (Sre_buf, Sim_buf)
       END IF
       DEALLOCATE (Cre_buf, Cim_buf)
+      IF (.NOT. use_real_wfn) DEALLOCATE (C_buf)
       DEALLOCATE (eval_buf, occ_buf)
       DEALLOCATE (first_sgf, last_sgf)
 

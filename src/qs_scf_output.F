@@ -285,7 +285,7 @@ CONTAINS
                nmo_occ = 0
                IF ((ikp >= kp_range(1)) .AND. (ikp <= kp_range(2))) THEN
                   ikp_local = ikp - kp_range(1) + 1
-                  mo_set => kpoints%kp_env(ikp_local)%kpoint_env%mos(1, ispin)
+                  mo_set => kpoints%kp_env(ikp_local)%kpoint_env%mos(ispin)
                   IF (print_occup_stats) THEN
                      nmo_occ = COUNT(mo_set%occupation_numbers > occup_stats_occ_threshold)
                   END IF

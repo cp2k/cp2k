@@ -21,13 +21,19 @@
 ! **************************************************************************************************
 MODULE qs_mo_types
 
+   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_release,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_init_p,&
                                               dbcsr_release_p,&
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_copy_columns_hack
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
-                                              fm_pool_create_fm
+                                              fm_pool_create_fm,&
+                                              fm_pool_get_el_struct
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
@@ -47,6 +53,7 @@ MODULE qs_mo_types
    TYPE mo_set_type
       ! The actual MO coefficients as a matrix
       TYPE(cp_fm_type), POINTER                          :: mo_coeff => NULL()
+      TYPE(cp_cfm_type), POINTER                         :: cmo_coeff => NULL()
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b => NULL()
       ! we are using the dbcsr mo_coeff_b
       LOGICAL                                            :: use_mo_coeff_b = .FALSE.
@@ -125,7 +132,12 @@ CONTAINS
 
       nmo = mo_set_new%nmo
 
-      CALL cp_fm_to_fm(mo_set_old%mo_coeff, mo_set_new%mo_coeff)
+      IF (ASSOCIATED(mo_set_old%cmo_coeff)) THEN
+         CPASSERT(ASSOCIATED(mo_set_new%cmo_coeff))
+         CALL cp_cfm_to_cfm(mo_set_old%cmo_coeff, mo_set_new%cmo_coeff)
+      ELSE
+         CALL cp_fm_to_fm(mo_set_old%mo_coeff, mo_set_new%mo_coeff)
+      END IF
 
       !IF (ASSOCIATED(mo_set_old%mo_coeff_b)) THEN
       !   CALL dbcsr_copy(mo_set_new%mo_coeff_b, mo_set_old%mo_coeff_b)
@@ -166,10 +178,15 @@ CONTAINS
 
       nmo = mo_set_new%nmo
 
-      NULLIFY (mo_set_new%mo_coeff)
-      ALLOCATE (mo_set_new%mo_coeff)
-      CALL cp_fm_create(mo_set_new%mo_coeff, mo_set_old%mo_coeff%matrix_struct)
-      CALL cp_fm_to_fm(mo_set_old%mo_coeff, mo_set_new%mo_coeff)
+      IF (ASSOCIATED(mo_set_old%cmo_coeff)) THEN
+         ALLOCATE (mo_set_new%cmo_coeff)
+         CALL cp_cfm_create(mo_set_new%cmo_coeff, mo_set_old%cmo_coeff%matrix_struct)
+         CALL cp_cfm_to_cfm(mo_set_old%cmo_coeff, mo_set_new%cmo_coeff)
+      ELSE
+         ALLOCATE (mo_set_new%mo_coeff)
+         CALL cp_fm_create(mo_set_new%mo_coeff, mo_set_old%mo_coeff%matrix_struct)
+         CALL cp_fm_to_fm(mo_set_old%mo_coeff, mo_set_new%mo_coeff)
+      END IF
 
       NULLIFY (mo_set_new%mo_coeff_b)
       IF (ASSOCIATED(mo_set_old%mo_coeff_b)) THEN
@@ -224,6 +241,7 @@ CONTAINS
       NULLIFY (mo_set%eigenvalues)
       NULLIFY (mo_set%occupation_numbers)
       NULLIFY (mo_set%mo_coeff)
+      NULLIFY (mo_set%cmo_coeff)
       NULLIFY (mo_set%mo_coeff_b)
       mo_set%use_mo_coeff_b = .FALSE.
 
@@ -239,11 +257,12 @@ CONTAINS
 !> \param fm_struct ...
 !> \param name ...
 !> \param counter ...
+!> \param complex_coeff allocate native complex coefficients instead of real coefficients
 !> \par History
 !>      11.2002 revamped [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
-   SUBROUTINE init_mo_set(mo_set, fm_pool, fm_ref, fm_struct, name, counter)
+   SUBROUTINE init_mo_set(mo_set, fm_pool, fm_ref, fm_struct, name, counter, complex_coeff)
 
       TYPE(mo_set_type), INTENT(INOUT)                   :: mo_set
       TYPE(cp_fm_pool_type), INTENT(IN), OPTIONAL        :: fm_pool
@@ -251,28 +270,47 @@ CONTAINS
       TYPE(cp_fm_struct_type), OPTIONAL, POINTER         :: fm_struct
       CHARACTER(LEN=*), INTENT(in)                       :: name
       INTEGER, INTENT(INOUT), OPTIONAL                   :: counter
+      LOGICAL, INTENT(IN), OPTIONAL                      :: complex_coeff
 
       INTEGER                                            :: na, nao, nb, nmo, nomo
+      LOGICAL                                            :: use_complex
+      TYPE(cp_fm_struct_type), POINTER                   :: coeff_struct
 
       CPASSERT(.NOT. ASSOCIATED(mo_set%eigenvalues))
       CPASSERT(.NOT. ASSOCIATED(mo_set%occupation_numbers))
       CPASSERT(.NOT. ASSOCIATED(mo_set%mo_coeff))
+      CPASSERT(.NOT. ASSOCIATED(mo_set%cmo_coeff))
       MARK_USED(counter)
       CPASSERT(PRESENT(fm_pool) .NEQV. (PRESENT(fm_ref) .NEQV. PRESENT(fm_struct)))
-      NULLIFY (mo_set%mo_coeff)
-      IF (PRESENT(fm_pool)) THEN
-         ALLOCATE (mo_set%mo_coeff)
-         CALL fm_pool_create_fm(fm_pool, mo_set%mo_coeff, name=name)
-      ELSE IF (PRESENT(fm_ref)) THEN
-         ALLOCATE (mo_set%mo_coeff)
-         CALL cp_fm_create(mo_set%mo_coeff, fm_ref%matrix_struct, name=name)
-      ELSE IF (PRESENT(fm_struct)) THEN
-         ALLOCATE (mo_set%mo_coeff)
-         CPASSERT(ASSOCIATED(fm_struct))
-         CALL cp_fm_create(mo_set%mo_coeff, fm_struct, name=name)
+      use_complex = .FALSE.
+      IF (PRESENT(complex_coeff)) use_complex = complex_coeff
+      IF (use_complex) THEN
+         IF (PRESENT(fm_pool)) THEN
+            coeff_struct => fm_pool_get_el_struct(fm_pool)
+         ELSE IF (PRESENT(fm_ref)) THEN
+            coeff_struct => fm_ref%matrix_struct
+         ELSE
+            CPASSERT(ASSOCIATED(fm_struct))
+            coeff_struct => fm_struct
+         END IF
+         ALLOCATE (mo_set%cmo_coeff)
+         CALL cp_cfm_create(mo_set%cmo_coeff, coeff_struct, name=name, set_zero=.TRUE.)
+         CALL cp_cfm_get_info(mo_set%cmo_coeff, nrow_global=nao, ncol_global=nmo)
+      ELSE
+         IF (PRESENT(fm_pool)) THEN
+            ALLOCATE (mo_set%mo_coeff)
+            CALL fm_pool_create_fm(fm_pool, mo_set%mo_coeff, name=name)
+         ELSE IF (PRESENT(fm_ref)) THEN
+            ALLOCATE (mo_set%mo_coeff)
+            CALL cp_fm_create(mo_set%mo_coeff, fm_ref%matrix_struct, name=name)
+         ELSE IF (PRESENT(fm_struct)) THEN
+            ALLOCATE (mo_set%mo_coeff)
+            CPASSERT(ASSOCIATED(fm_struct))
+            CALL cp_fm_create(mo_set%mo_coeff, fm_struct, name=name)
+         END IF
+         CALL cp_fm_set_all(mo_set%mo_coeff, 0.0_dp)
+         CALL cp_fm_get_info(mo_set%mo_coeff, nrow_global=nao, ncol_global=nmo)
       END IF
-      CALL cp_fm_set_all(mo_set%mo_coeff, 0.0_dp)
-      CALL cp_fm_get_info(mo_set%mo_coeff, nrow_global=nao, ncol_global=nmo)
 
       CPASSERT(nao >= mo_set%nao)
       CPASSERT(nmo >= mo_set%nmo)
@@ -369,6 +407,11 @@ CONTAINS
          DEALLOCATE (mo_set%mo_coeff)
          NULLIFY (mo_set%mo_coeff)
       END IF
+      IF (ASSOCIATED(mo_set%cmo_coeff)) THEN
+         CALL cp_cfm_release(mo_set%cmo_coeff)
+         DEALLOCATE (mo_set%cmo_coeff)
+         NULLIFY (mo_set%cmo_coeff)
+      END IF
       IF (ASSOCIATED(mo_set%mo_coeff_b)) CALL dbcsr_release_p(mo_set%mo_coeff_b)
 
    END SUBROUTINE deallocate_mo_set
@@ -391,13 +434,14 @@ CONTAINS
 !> \param kTS ...
 !> \param mu ...
 !> \param flexible_electron_count ...
+!> \param cmo_coeff ...
 !> \date    22.04.2002
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE get_mo_set(mo_set, maxocc, homo, lfomo, nao, nelectron, n_el_f, nmo, &
                          eigenvalues, occupation_numbers, mo_coeff, mo_coeff_b, &
-                         uniform_occupation, kTS, mu, flexible_electron_count)
+                         uniform_occupation, kTS, mu, flexible_electron_count, cmo_coeff)
 
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: maxocc
@@ -409,6 +453,7 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: mo_coeff_b
       LOGICAL, INTENT(OUT), OPTIONAL                     :: uniform_occupation
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: kTS, mu, flexible_electron_count
+      TYPE(cp_cfm_type), OPTIONAL, POINTER               :: cmo_coeff
 
       IF (PRESENT(maxocc)) maxocc = mo_set%maxocc
       IF (PRESENT(homo)) homo = mo_set%homo
@@ -422,6 +467,7 @@ CONTAINS
          occupation_numbers => mo_set%occupation_numbers
       END IF
       IF (PRESENT(mo_coeff)) mo_coeff => mo_set%mo_coeff
+      IF (PRESENT(cmo_coeff)) cmo_coeff => mo_set%cmo_coeff
       IF (PRESENT(mo_coeff_b)) mo_coeff_b => mo_set%mo_coeff_b
       IF (PRESENT(uniform_occupation)) uniform_occupation = mo_set%uniform_occupation
       IF (PRESENT(kTS)) kTS = mo_set%kTS

@@ -24,10 +24,14 @@ MODULE rpa_gw_kpoints_util
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_geeig_canon,&
                                               cp_cfm_heevd
-   USE cp_cfm_types,                    ONLY: &
-        copy_cfm_info_type, cp_cfm_cleanup_copy_general, cp_cfm_create, &
-        cp_cfm_finish_copy_general, cp_cfm_get_info, cp_cfm_release, cp_cfm_set_all, &
-        cp_cfm_start_copy_general, cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
+   USE cp_cfm_types,                    ONLY: cp_cfm_copy_general,&
+                                              cp_cfm_create,&
+                                              cp_cfm_get_info,&
+                                              cp_cfm_release,&
+                                              cp_cfm_set_all,&
+                                              cp_cfm_to_cfm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_filter, &
@@ -408,7 +412,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mat_P_to_subgroup'
 
       INTEGER                                            :: handle, jkp
-      TYPE(copy_cfm_info_type)                           :: copy_info
       TYPE(cp_cfm_type)                                  :: cfm_dummy
       TYPE(cp_fm_type)                                   :: fm_mat_work
       TYPE(dbcsr_type), POINTER                          :: mat_P_omega_im, mat_P_omega_re
@@ -433,12 +436,10 @@ CONTAINS
          IF (ikp_local /= -1) CALL para_env%sync()
 
          IF (ikp_local == -1 .OR. ikp_local == jkp) THEN
-            CALL cp_cfm_start_copy_general(cfm_mat_RI_global_work, cfm_mat_Q, para_env, copy_info)
-            IF (ASSOCIATED(cfm_mat_Q%matrix_struct)) CALL cp_cfm_finish_copy_general(cfm_mat_Q, copy_info)
+            CALL cp_cfm_copy_general(cfm_mat_RI_global_work, cfm_mat_Q, para_env)
          ELSE
-            CALL cp_cfm_start_copy_general(cfm_mat_RI_global_work, cfm_dummy, para_env, copy_info)
+            CALL cp_cfm_copy_general(cfm_mat_RI_global_work, cfm_dummy, para_env)
          END IF
-         IF (ASSOCIATED(cfm_mat_RI_global_work%matrix_struct)) CALL cp_cfm_cleanup_copy_general(copy_info)
 
          IF (ikp_local /= -1) CALL para_env%sync()
       END DO
@@ -1314,7 +1315,7 @@ CONTAINS
 
             DO ispin = 1, nspins
 
-               ev => kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(1, ispin)%eigenvalues
+               ev => kpoints_Sigma%kp_env(ikp)%kpoint_env%mos(ispin)%eigenvalues
 
                Eigenval_kp(:, ikp, ispin) = ev(:)
 
@@ -1384,7 +1385,6 @@ CONTAINS
       TYPE(cp_cfm_type)                                  :: cksmat, cmos, csmat, cwork
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type)                                   :: fm_work
-      TYPE(cp_fm_type), POINTER                          :: imos, rmos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, matrix_s_desymm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_ks_kp, mat_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1481,8 +1481,7 @@ CONTAINS
 
             kp => kpoints%kp_env(ikp)%kpoint_env
 
-            CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
-            CALL get_mo_set(kp%mos(2, ispin), mo_coeff=imos)
+            CALL get_mo_set(kp%mos(ispin), eigenvalues=eigenvalues)
 
             IF (scf_env%cholesky_method == cholesky_off .OR. &
                 qs_env%mp2_env%ri_rpa_im_time%make_overlap_mat_ao_pos_definite) THEN
@@ -1491,9 +1490,9 @@ CONTAINS
                CALL cp_cfm_geeig(cksmat, csmat, cmos, eigenvalues, cwork)
             END IF
 
-            CALL cp_cfm_to_fm(cmos, rmos, imos)
+            CALL cp_cfm_to_cfm(cmos, kp%mos(ispin)%cmo_coeff)
 
-            kp%mos(2, ispin)%eigenvalues = eigenvalues
+            kp%mos(ispin)%eigenvalues = eigenvalues
 
          END DO
 

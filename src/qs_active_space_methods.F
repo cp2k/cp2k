@@ -453,7 +453,7 @@ CONTAINS
          CPABORT("Unknown orbital selection method")
       CASE (casci_canonical)
          IF (do_kpoints) THEN
-            mos => kpoints%kp_env(1)%kpoint_env%mos(1, :)
+            mos => kpoints%kp_env(1)%kpoint_env%mos(:)
          ELSE
             CALL get_qs_env(qs_env, mos=mos)
          END IF
@@ -683,7 +683,7 @@ CONTAINS
             END DO
 
             IF (do_kpoints) THEN
-               mos => kpoints%kp_env(1)%kpoint_env%mos(1, :)
+               mos => kpoints%kp_env(1)%kpoint_env%mos(:)
             ELSE
                CALL get_qs_env(qs_env, mos=mos)
             END IF

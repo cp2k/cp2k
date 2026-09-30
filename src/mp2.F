@@ -947,9 +947,8 @@ CONTAINS
 
       matrix_ks(1:nspins) => matrix_ks_transl(1:nspins, 1)
       matrix_s(1:1) => matrix_s_kp(1:1, 1)
-      mos(1:nspins) => kpoints%kp_env(1)%kpoint_env%mos(1:nspins, 1)
+      mos(1:nspins) => kpoints%kp_env(1)%kpoint_env%mos(1:nspins)
 
    END SUBROUTINE get_gamma
 
 END MODULE mp2
-

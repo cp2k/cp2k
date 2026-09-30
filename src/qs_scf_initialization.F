@@ -633,7 +633,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_scf_ensure_mos'
 
-      INTEGER                                            :: handle, ic, ik, ikk, ispin, nmo, nmo_mat
+      INTEGER                                            :: handle, ik, ikk, ispin, nmo, nmo_mat
       TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_last
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
@@ -641,8 +641,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_last_converged
-      TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos_k
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos, mos_k, mos_last_converged
       TYPE(xas_environment_type), POINTER                :: xas_env
 
       CALL timeset(routineN, handle)
@@ -735,18 +734,17 @@ CONTAINS
             mos_k => kpoints%kp_env(ik)%kpoint_env%mos
             ikk = kpoints%kp_range(1) + ik - 1
             CPASSERT(ASSOCIATED(mos_k))
-            DO ispin = 1, SIZE(mos_k, 2)
-               DO ic = 1, SIZE(mos_k, 1)
-                  CALL get_mo_set(mos_k(ic, ispin), mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
-                  IF (.NOT. ASSOCIATED(mo_coeff)) THEN
-                     CALL init_mo_set(mos_k(ic, ispin), &
-                                      fm_pool=ao_mo_fm_pools(ispin)%pool, &
-                                      name="kpoints_"//TRIM(ADJUSTL(cp_to_string(ikk)))// &
-                                      "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
-                  END IF
-                  ! no sparse matrix representation of kpoint MO vectors
-                  CPASSERT(.NOT. ASSOCIATED(mo_coeff_b))
-               END DO
+            DO ispin = 1, SIZE(mos_k)
+               CPASSERT(.NOT. ASSOCIATED(mos_k(ispin)%mo_coeff_b))
+               IF (kpoints%use_real_wfn) THEN
+                  IF (ASSOCIATED(mos_k(ispin)%mo_coeff)) CYCLE
+               ELSE
+                  IF (ASSOCIATED(mos_k(ispin)%cmo_coeff)) CYCLE
+               END IF
+               CALL init_mo_set(mos_k(ispin), fm_pool=ao_mo_fm_pools(ispin)%pool, &
+                                name="kpoints_"//TRIM(ADJUSTL(cp_to_string(ikk)))// &
+                                "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))), &
+                                complex_coeff=.NOT. kpoints%use_real_wfn)
             END DO
          END DO
       END IF

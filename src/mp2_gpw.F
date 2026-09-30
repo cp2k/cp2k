@@ -179,7 +179,6 @@ CONTAINS
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: t_3c_O_compressed
       TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_from_DFT
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env_sub
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
@@ -224,9 +223,8 @@ CONTAINS
       ! ... setup needed to be able to qs_integrate in a subgroup.
       IF (do_kpoints_cubic_RPA) THEN
          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, kpoints=kpoints_from_DFT)
-         mos(1:nspins) => kpoints_from_DFT%kp_env(1)%kpoint_env%mos(1:nspins, 1)
       ELSE
-         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, mos=mos)
+         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
       END IF
       CALL get_mo_set(mo_set=mos_mp2(1), nmo=nmo)
       ALLOCATE (homo(nspins), Eigenval(nmo, nspins), mo_coeff(nspins))
