@@ -429,7 +429,6 @@ LIBTEST/dbm
 QS/regtest-rs-dhft                                          libint libxc !ifx
 QS/regtest-gauxc-api-debug                                  gauxc
 QS/regtest-gauxc-gradients                                  gauxc_onedft_gradients
-QS/regtest-gauxc-gpw-kp                                     gauxc
 QS/regtest-double-hybrid-grad
 QS/regtest-pao-3
 QS/regtest-mp2-3                                            libint !ifx
