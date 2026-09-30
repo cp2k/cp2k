@@ -1087,7 +1087,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! here we generate a subsection for Bethe-Salpeter
-      CALL create_bse_section(subsection)
+      CALL create_bse_section(subsection, for_properties=.FALSE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1345,26 +1345,28 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief The &BSE section, built once under RI_RPA%GW and once under PROPERTIES
-!> \param section ...
-!> \param for_properties .TRUE. for the PROPERTIES%BSE copy, whose description names its GW
+!> \param section the section, created here
+!> \param for_properties .TRUE. for the copy under PROPERTIES, .FALSE. for the one under RI_RPA%GW;
+!>        selects the sentence of the description that names the GW behind the section
 ! **************************************************************************************************
    SUBROUTINE create_bse_section(section, for_properties)
       TYPE(section_type), POINTER                        :: section
-      LOGICAL, INTENT(IN), OPTIONAL                      :: for_properties
+      LOGICAL, INTENT(IN)                                :: for_properties
 
       CHARACTER(LEN=default_string_length*4)             :: where_from
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      where_from = " Here the quasiparticle energies and the screening come from the RPA-based GW "// &
-                   "of RI_RPA%GW; the same section under PROPERTIES runs the BSE on the RI-AO GW of "// &
-                   "PROPERTIES%BANDSTRUCTURE%GW."
-      IF (PRESENT(for_properties)) THEN
-         IF (for_properties) where_from = " Here the quasiparticle energies, the static screened "// &
-                                        "interaction and the RI integrals come from PROPERTIES%BANDSTRUCTURE%GW (the RI-AO GW, "// &
-                                         "non-periodic, Gamma only), which must be present in the same input; the same section "// &
-                                          "under RI_RPA%GW runs the BSE on the RPA-based GW."
+      IF (for_properties) THEN
+         where_from = " Here the quasiparticle energies, the static screened interaction and the "// &
+                      "RI integrals come from PROPERTIES%BANDSTRUCTURE%GW (the RI-AO GW, "// &
+                      "non-periodic, Gamma only), which must be present in the same input; the same "// &
+                      "section under RI_RPA%GW runs the BSE on the RPA-based GW."
+      ELSE
+         where_from = " Here the quasiparticle energies and the screening come from the RPA-based GW "// &
+                      "of RI_RPA%GW; the same section under PROPERTIES runs the BSE on the RI-AO GW of "// &
+                      "PROPERTIES%BANDSTRUCTURE%GW."
       END IF
       CALL section_create(section, __LOCATION__, name="BSE", &
                           description="Parameters for a calculation solving the Bethe-Salpeter equation "// &
