@@ -198,7 +198,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -212,7 +212,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_laplace_rho)
       END IF
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives bigger than 1 not implemented")
       END IF
 
@@ -399,7 +399,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rhoa)
@@ -428,7 +428,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_laplace_rhob)
       END IF
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives bigger than 1 not implemented")
       END IF
 
@@ -660,7 +660,7 @@ CONTAINS
          t102 = t95*t101
          e_0 = e_0 + (-t92*t102)*sx
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          t108 = t4*t17
          t111 = 0.1e1_dp/t3
          t113 = t38*gamma
@@ -914,7 +914,7 @@ CONTAINS
          t117 = t110*t102*t115
          e_0 = e_0 + (-t107*t117)*sx
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          t124 = 0.1e1_dp/t4/t32
          t131 = 0.1e1_dp/t4/t33*gamma*t9
          t134 = 0.1e1_dp/t41
@@ -1267,7 +1267,7 @@ CONTAINS
          t124 = rho*t123
          e_0 = e_0 + (t124*t102/0.8e1_dp)*sx
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          t129 = t5*t17
          t132 = 0.1e1_dp/t4
          t134 = t33*gamma
@@ -1607,7 +1607,7 @@ CONTAINS
          t123 = t121*REAL(t85, KIND=dp)*t101
          e_0 = e_0 + (t119*t123/0.8e1_dp)*sx
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          t128 = t5*t17
          t131 = 0.1e1_dp/t4
          t133 = t33*gamma
@@ -2041,7 +2041,7 @@ CONTAINS
          t139 = rho*t138
          e_0 = e_0 + (t139*t117/0.8e1_dp)*sx
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          t145 = 0.1e1_dp/t7/t26
          t152 = 0.1e1_dp/t7/t27*gamma*t12
          t155 = 0.1e1_dp/t35
@@ -2394,7 +2394,7 @@ CONTAINS
          t138 = t136*REAL(t100, KIND=dp)*t116
          e_0 = e_0 + (t134*t138/0.8e1_dp)*sx
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          t144 = 0.1e1_dp/t7/t26
          t151 = 0.1e1_dp/t7/t27*gamma*t12
          t154 = 0.1e1_dp/t35

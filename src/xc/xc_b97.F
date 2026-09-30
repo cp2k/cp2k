@@ -10,7 +10,7 @@
 !> \note
 !>      This was generated with the help of a maple worksheet that you can
 !>      find under doc/b97.mw .
-!>      I did not add 3. derivatives in the polazied (lsd) case because it
+!>      I did not add 3. derivatives in the polarized (lsd) case because it
 !>      would have added lots of code. If you need them the worksheet
 !>      is already prepared for them, and by uncommenting a couple of lines
 !>      you should be able to generate them.
@@ -290,7 +290,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -298,7 +298,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho)
       END IF
-      IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+      IF (grad_deriv >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
@@ -309,7 +309,7 @@ CONTAINS
                                          [deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho)
       END IF
-      IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
+      IF (grad_deriv >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
@@ -323,7 +323,7 @@ CONTAINS
                                          [deriv_norm_drho, deriv_norm_drho, deriv_norm_drho], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrho_ndrho_ndrho)
       END IF
-      IF (grad_deriv > 3 .OR. grad_deriv < -3) THEN
+      IF (grad_deriv > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -411,7 +411,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ra)
@@ -425,7 +425,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrb)
       END IF
-      IF (grad_deriv >= 2 .OR. grad_deriv == -2) THEN
+      IF (grad_deriv >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ra_ra)
@@ -457,8 +457,8 @@ CONTAINS
                                          [deriv_norm_drhob, deriv_norm_drhob], allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ndrb_ndrb)
       END IF
-      IF (grad_deriv >= 3 .OR. grad_deriv == -3) THEN
-         ! to do
+      IF (grad_deriv >= 3) THEN
+         CPABORT("Derivatives higher than 3 not implemented!")
       END IF
 
       CALL section_vals_val_get(b97_params, "parametrization", i_val=param)
@@ -922,12 +922,10 @@ CONTAINS
                   gc_abrhoa = u_c_abrhoa*t170 + u_c_ab*u_c_abrhoa*c_cab_2
                   gc_arhoa = u_c_arhoa*t173 + u_c_a*u_c_arhoa*c_css_2
 
-                  IF (grad_deriv > 0 .OR. grad_deriv == -1) THEN
-                     exc_rhoa = scale_x*(e_lsda_x_arhoa*gx_a + e_lsda_x_a* &
-                                         gx_arhoa) + scale_c*(e_lsda_c_abrhoa*gc_ab + e_lsda_c_ab* &
-                                                              gc_abrhoa + e_lsda_c_arhoa*gc_a + e_lsda_c_a*gc_arhoa)
-                     e_ra(ii) = e_ra(ii) + exc_rhoa
-                  END IF
+                  exc_rhoa = scale_x*(e_lsda_x_arhoa*gx_a + e_lsda_x_a* &
+                                      gx_arhoa) + scale_c*(e_lsda_c_abrhoa*gc_ab + e_lsda_c_ab* &
+                                                           gc_abrhoa + e_lsda_c_arhoa*gc_a + e_lsda_c_a*gc_arhoa)
+                  e_ra(ii) = e_ra(ii) + exc_rhoa
 
                   e_lsda_x_brhob = -t4*t6*t20/0.2e1_dp
                   t365 = my_rhob**2
@@ -994,12 +992,10 @@ CONTAINS
                   gc_abrhob = u_c_abrhob*t170 + u_c_ab*u_c_abrhob*c_cab_2
                   gc_brhob = u_c_brhob*t176 + u_c_b*u_c_brhob*c_css_2
 
-                  IF (grad_deriv > 0 .OR. grad_deriv == -1) THEN
-                     exc_rhob = scale_x*(e_lsda_x_brhob*gx_b + e_lsda_x_b* &
-                                         gx_brhob) + scale_c*(e_lsda_c_abrhob*gc_ab + e_lsda_c_ab* &
-                                                              gc_abrhob + e_lsda_c_brhob*gc_b + e_lsda_c_b*gc_brhob)
-                     e_rb(ii) = e_rb(ii) + exc_rhob
-                  END IF
+                  exc_rhob = scale_x*(e_lsda_x_brhob*gx_b + e_lsda_x_b* &
+                                      gx_brhob) + scale_c*(e_lsda_c_abrhob*gc_ab + e_lsda_c_ab* &
+                                                           gc_abrhob + e_lsda_c_brhob*gc_b + e_lsda_c_b*gc_brhob)
+                  e_rb(ii) = e_rb(ii) + exc_rhob
 
                   s_anorm_drhoa = t12
                   u_x_anorm_drhoa = 0.2e1_dp*t191*t16*s_anorm_drhoa - 0.2e1_dp &
@@ -1016,11 +1012,9 @@ CONTAINS
                   gc_anorm_drhoa = u_c_anorm_drhoa*t173 + u_c_a*u_c_anorm_drhoa &
                                    *c_css_2
 
-                  IF (grad_deriv > 0 .OR. grad_deriv == -1) THEN
-                     exc_norm_drhoa = scale_x*e_lsda_x_a*gx_anorm_drhoa + scale_c* &
-                                      (e_lsda_c_ab*gc_abnorm_drhoa + e_lsda_c_a*gc_anorm_drhoa)
-                     e_ndra(ii) = e_ndra(ii) + exc_norm_drhoa
-                  END IF
+                  exc_norm_drhoa = scale_x*e_lsda_x_a*gx_anorm_drhoa + scale_c* &
+                                   (e_lsda_c_ab*gc_abnorm_drhoa + e_lsda_c_a*gc_anorm_drhoa)
+                  e_ndra(ii) = e_ndra(ii) + exc_norm_drhoa
 
                   s_bnorm_drhob = t25
                   u_x_bnorm_drhob = 0.2e1_dp*t370*t29*s_bnorm_drhob - 0.2e1_dp &
@@ -1037,13 +1031,11 @@ CONTAINS
                   gc_bnorm_drhob = u_c_bnorm_drhob*t176 + u_c_b*u_c_bnorm_drhob &
                                    *c_css_2
 
-                  IF (grad_deriv > 0 .OR. grad_deriv == -1) THEN
-                     exc_norm_drhob = scale_x*e_lsda_x_b*gx_bnorm_drhob + scale_c* &
-                                      (e_lsda_c_ab*gc_abnorm_drhob + e_lsda_c_b*gc_bnorm_drhob)
-                     e_ndrb(ii) = e_ndrb(ii) + exc_norm_drhob
-                  END IF
+                  exc_norm_drhob = scale_x*e_lsda_x_b*gx_bnorm_drhob + scale_c* &
+                                   (e_lsda_c_ab*gc_abnorm_drhob + e_lsda_c_b*gc_bnorm_drhob)
+                  e_ndrb(ii) = e_ndrb(ii) + exc_norm_drhob
 
-                  IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+                  IF (grad_deriv > 1) THEN
                      t555 = t7**2
                      t560 = t186*my_rhoa
                      s_arhoarhoa = 0.28e2_dp/0.9e1_dp*my_norm_drhoa/t7/t560
@@ -1182,10 +1174,10 @@ CONTAINS
                                      t925*t926 + 0.2e1_dp*t930*t933*s_a_21rhoa - t345*t347* &
                                      s_a_2rhoarhoa
                      u_c_a1rhoa = gamma_c_ss*s_a_21rhoa*t165 - t345*t926
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhoa_rhoa = scale_x*(-t4*t6/t555*gx_a/0.6e1_dp &
-                                                 + e_lsda_x_arhoa*(u_x_a1rhoa*t18 + u_x_a*u_x_a1rhoa*c_x_2) &
-                                                 + e_lsda_x_arhoa*gx_arhoa + e_lsda_x_a*(u_x_arhoarhoa*t18 + &
+
+                     exc_rhoa_rhoa = scale_x*(-t4*t6/t555*gx_a/0.6e1_dp &
+                                              + e_lsda_x_arhoa*(u_x_a1rhoa*t18 + u_x_a*u_x_a1rhoa*c_x_2) &
+                                              + e_lsda_x_arhoa*gx_arhoa + e_lsda_x_a*(u_x_arhoarhoa*t18 + &
                                                                         0.2e1_dp*u_x_arhoa*u_x_a1rhoa*c_x_2 + u_x_a*u_x_arhoarhoa* &
                                                                             c_x_2)) + scale_c*(((e_c_u_0rhoarhoa + (0.2e1_dp*t260* &
                                                                          rsrhoarhoa*t92 - 0.2e1_dp*t719*t721 + 0.2e1_dp*t726*t727* &
@@ -1207,8 +1199,7 @@ CONTAINS
                                                                       *t173 + u_c_a*u_c_a1rhoa*c_css_2) + e_lsda_c_a1rhoa*gc_arhoa &
                                                                             + e_lsda_c_a*(u_c_arhoarhoa*t173 + 0.2e1_dp*u_c_arhoa* &
                                                                                   u_c_a1rhoa*c_css_2 + u_c_a*u_c_arhoarhoa*c_css_2))
-                        e_ra_ra(ii) = e_ra_ra(ii) + exc_rhoa_rhoa
-                     END IF
+                     e_ra_ra(ii) = e_ra_ra(ii) + exc_rhoa_rhoa
 
                      chirhoarhob = 0.2e1_dp*t601
                      rsrhoarhob = rsrhoarhoa
@@ -1246,23 +1237,21 @@ CONTAINS
                      u_c_abrhoarhob = -0.2e1_dp*t906*t480 + 0.2e1_dp*t911*t914 &
                                       *s_avg_2rhob
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhoa_rhob = scale_c*(((e_c_u_0rhoarhob + (0.2e1_dp*t260* &
-                                                                      rsrhoarhob*t92 - t719*t1047 - t1049*t721 + 0.2e1_dp*t726* &
-                                                                      t279*t424 - t266*(-t731*t981/0.4e1_dp + t267*rsrhoarhob/ &
+                     exc_rhoa_rhob = scale_c*(((e_c_u_0rhoarhob + (0.2e1_dp*t260* &
+                                                                   rsrhoarhob*t92 - t719*t1047 - t1049*t721 + 0.2e1_dp*t726* &
+                                                                   t279*t424 - t266*(-t731*t981/0.4e1_dp + t267*rsrhoarhob/ &
                                                                       0.2e1_dp + beta_2_3*rsrhoarhob + 0.3e1_dp/0.4e1_dp*t737*t981 &
                                                                          + 0.3e1_dp/0.2e1_dp*t271*rsrhoarhob + t86*t742*t993 + t86 &
                                                                              *t84*rsrhoarhob*t232 - t86*t84*t993)*t278 - t757*t277 &
-                                                                      *t759*t80*t424/0.2e1_dp)*f*t110 + alpha_crhoa*frhob* &
-                                                   t110 - 0.4e1_dp*t285*t435 + alpha_crhob*frhoa*t110 + alpha_c &
-                                                   *frhoarhob*t110 - 0.4e1_dp*t287*t435 - 0.4e1_dp*t431* &
-                                                   t291 - 0.4e1_dp*t433*t291 - 0.12e2_dp*t105*t106*t1107 + &
-                                                   t1136)*rho + epsilon_c_unifrhoa + epsilon_c_unifrhob)*gc_ab + &
-                                                 e_lsda_c_abrhoa*gc_abrhob + e_lsda_c_abrhob*gc_abrhoa + &
-                                                 e_lsda_c_ab*(u_c_abrhoarhob*t170 + 0.2e1_dp*u_c_abrhoa* &
-                                                              u_c_abrhob*c_cab_2 + u_c_ab*u_c_abrhoarhob*c_cab_2))
-                        e_ra_rb(ii) = e_ra_rb(ii) + exc_rhoa_rhob
-                     END IF
+                                                                   *t759*t80*t424/0.2e1_dp)*f*t110 + alpha_crhoa*frhob* &
+                                                t110 - 0.4e1_dp*t285*t435 + alpha_crhob*frhoa*t110 + alpha_c &
+                                                *frhoarhob*t110 - 0.4e1_dp*t287*t435 - 0.4e1_dp*t431* &
+                                                t291 - 0.4e1_dp*t433*t291 - 0.12e2_dp*t105*t106*t1107 + &
+                                                t1136)*rho + epsilon_c_unifrhoa + epsilon_c_unifrhob)*gc_ab + &
+                                              e_lsda_c_abrhoa*gc_abrhob + e_lsda_c_abrhob*gc_abrhoa + &
+                                              e_lsda_c_ab*(u_c_abrhoarhob*t170 + 0.2e1_dp*u_c_abrhoa* &
+                                                           u_c_abrhob*c_cab_2 + u_c_ab*u_c_abrhoarhob*c_cab_2))
+                     e_ra_rb(ii) = e_ra_rb(ii) + exc_rhoa_rhob
 
                      t1152 = t20**2
                      t1157 = t365*my_rhob
@@ -1356,9 +1345,8 @@ CONTAINS
                                      *s_b_2rhobrhob
                      u_c_b1rhob = gamma_c_ss*s_b_21rhob*t168 - t484*t1452
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhob_rhob = scale_x*(-t4*t6/t1152*gx_b/ &
-                                                 0.6e1_dp + e_lsda_x_brhob*(u_x_b1rhob*t31 + u_x_b*u_x_b1rhob* &
+                     exc_rhob_rhob = scale_x*(-t4*t6/t1152*gx_b/ &
+                                              0.6e1_dp + e_lsda_x_brhob*(u_x_b1rhob*t31 + u_x_b*u_x_b1rhob* &
                                                                      c_x_2) + e_lsda_x_brhob*gx_brhob + e_lsda_x_b*(u_x_brhobrhob* &
                                                                                 t31 + 0.2e1_dp*u_x_brhob*u_x_b1rhob*c_x_2 + u_x_b* &
                                                                    u_x_brhobrhob*c_x_2)) + scale_c*(((e_c_u_0rhobrhob + (0.2e1_dp* &
@@ -1382,8 +1370,7 @@ CONTAINS
                                                                      + e_lsda_c_b1rhob*gc_brhob + e_lsda_c_b*(u_c_brhobrhob*t176 + &
                                                                        0.2e1_dp*u_c_brhob*u_c_b1rhob*c_css_2 + u_c_b*u_c_brhobrhob &
                                                                                                                           *c_css_2))
-                        e_rb_rb(ii) = e_rb_rb(ii) + exc_rhob_rhob
-                     END IF
+                     e_rb_rb(ii) = e_rb_rb(ii) + exc_rhob_rhob
 
                      s_arhoanorm_drhoa = -0.4e1_dp/0.3e1_dp*t188
                      u_x_arhoanorm_drhoa = 0.2e1_dp*gamma_x*s_anorm_drhoa*t192 - &
@@ -1400,29 +1387,25 @@ CONTAINS
                                            0.2e1_dp*t925*t516 + 0.2e1_dp*t930*t933*s_a_2norm_drhoa - &
                                            t345*t347*s_a_2rhoanorm_drhoa
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhoa_norm_drhoa = scale_x*(e_lsda_x_arhoa*gx_anorm_drhoa + &
-                                                       e_lsda_x_a*(u_x_arhoanorm_drhoa*t18 + 0.2e1_dp*u_x_arhoa* &
-                                                                   u_x_anorm_drhoa*c_x_2 + u_x_a*u_x_arhoanorm_drhoa*c_x_2)) + &
-                                              scale_c*(e_lsda_c_abrhoa*gc_abnorm_drhoa + e_lsda_c_ab*( &
-                                                       u_c_abrhoanorm_drhoa*t170 + 0.2e1_dp*u_c_abrhoa* &
-                                                       u_c_abnorm_drhoa*c_cab_2 + u_c_ab*u_c_abrhoanorm_drhoa*c_cab_2 &
-                                                       ) + e_lsda_c_arhoa*gc_anorm_drhoa + e_lsda_c_a*( &
-                                                       u_c_arhoanorm_drhoa*t173 + 0.2e1_dp*u_c_arhoa*u_c_anorm_drhoa &
-                                                       *c_css_2 + u_c_a*u_c_arhoanorm_drhoa*c_css_2))
-                        e_ra_ndra(ii) = e_ra_ndra(ii) + exc_rhoa_norm_drhoa
-                     END IF
+                     exc_rhoa_norm_drhoa = scale_x*(e_lsda_x_arhoa*gx_anorm_drhoa + &
+                                                    e_lsda_x_a*(u_x_arhoanorm_drhoa*t18 + 0.2e1_dp*u_x_arhoa* &
+                                                                u_x_anorm_drhoa*c_x_2 + u_x_a*u_x_arhoanorm_drhoa*c_x_2)) + &
+                                           scale_c*(e_lsda_c_abrhoa*gc_abnorm_drhoa + e_lsda_c_ab*( &
+                                                    u_c_abrhoanorm_drhoa*t170 + 0.2e1_dp*u_c_abrhoa* &
+                                                    u_c_abnorm_drhoa*c_cab_2 + u_c_ab*u_c_abrhoanorm_drhoa*c_cab_2 &
+                                                    ) + e_lsda_c_arhoa*gc_anorm_drhoa + e_lsda_c_a*( &
+                                                    u_c_arhoanorm_drhoa*t173 + 0.2e1_dp*u_c_arhoa*u_c_anorm_drhoa &
+                                                    *c_css_2 + u_c_a*u_c_arhoanorm_drhoa*c_css_2))
+                     e_ra_ndra(ii) = e_ra_ndra(ii) + exc_rhoa_norm_drhoa
 
                      u_c_abrhobnorm_drhoa = -0.2e1_dp*t1436*t512 + 0.2e1_dp*t911 &
                                             *t1440*s_avg_2norm_drhoa
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhob_norm_drhoa = scale_c*(e_lsda_c_abrhob*gc_abnorm_drhoa &
-                                                       + e_lsda_c_ab*(u_c_abrhobnorm_drhoa*t170 + 0.2e1_dp* &
-                                                                      u_c_abrhob*u_c_abnorm_drhoa*c_cab_2 + u_c_ab* &
-                                                                      u_c_abrhobnorm_drhoa*c_cab_2))
-                        e_rb_ndra(ii) = e_rb_ndra(ii) + exc_rhob_norm_drhoa
-                     END IF
+                     exc_rhob_norm_drhoa = scale_c*(e_lsda_c_abrhob*gc_abnorm_drhoa &
+                                                    + e_lsda_c_ab*(u_c_abrhobnorm_drhoa*t170 + 0.2e1_dp* &
+                                                                   u_c_abrhob*u_c_abnorm_drhoa*c_cab_2 + u_c_ab* &
+                                                                   u_c_abrhobnorm_drhoa*c_cab_2))
+                     e_rb_ndra(ii) = e_rb_ndra(ii) + exc_rhob_norm_drhoa
 
                      t1571 = s_anorm_drhoa**2
                      u_x_anorm_drhoanorm_drhoa = 0.2e1_dp*gamma_x*t1571*t16 - &
@@ -1444,29 +1427,25 @@ CONTAINS
                                                  t930*t932*s_a_2norm_drhoa*s_a_21norm_drhoa - t345*t347* &
                                                  s_a_2norm_drhoanorm_drhoa
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_norm_drhoa_norm_drhoa = scale_x*e_lsda_x_a*( &
-                                                    u_x_anorm_drhoanorm_drhoa*t18 + 0.2e1_dp*u_x_anorm_drhoa**2* &
-                                                    c_x_2 + u_x_a*u_x_anorm_drhoanorm_drhoa*c_x_2) + scale_c*( &
-                                                    e_lsda_c_ab*(u_c_abnorm_drhoanorm_drhoa*t170 + 0.2e1_dp* &
-                                                                 u_c_abnorm_drhoa*(gamma_c_ab*s_avg_21norm_drhoa*t162 - t337* &
+                     exc_norm_drhoa_norm_drhoa = scale_x*e_lsda_x_a*( &
+                                                 u_x_anorm_drhoanorm_drhoa*t18 + 0.2e1_dp*u_x_anorm_drhoa**2* &
+                                                 c_x_2 + u_x_a*u_x_anorm_drhoanorm_drhoa*c_x_2) + scale_c*( &
+                                                 e_lsda_c_ab*(u_c_abnorm_drhoanorm_drhoa*t170 + 0.2e1_dp* &
+                                                              u_c_abnorm_drhoa*(gamma_c_ab*s_avg_21norm_drhoa*t162 - t337* &
                                                                      t1590)*c_cab_2 + u_c_ab*u_c_abnorm_drhoanorm_drhoa*c_cab_2) + &
-                                                    e_lsda_c_a*(u_c_anorm_drhoanorm_drhoa*t173 + 0.2e1_dp* &
-                                                                u_c_anorm_drhoa*(gamma_c_ss*s_a_21norm_drhoa*t165 - t345* &
+                                                 e_lsda_c_a*(u_c_anorm_drhoanorm_drhoa*t173 + 0.2e1_dp* &
+                                                             u_c_anorm_drhoa*(gamma_c_ss*s_a_21norm_drhoa*t165 - t345* &
                                                                           t1605)*c_css_2 + u_c_a*u_c_anorm_drhoanorm_drhoa*c_css_2))
-                        e_ndra_ndra(ii) = e_ndra_ndra(ii) + exc_norm_drhoa_norm_drhoa
-                     END IF
+                     e_ndra_ndra(ii) = e_ndra_ndra(ii) + exc_norm_drhoa_norm_drhoa
 
                      u_c_abrhoanorm_drhob = -0.2e1_dp*t906*t539 + 0.2e1_dp*t911* &
                                             t914*s_avg_2norm_drhob
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhoa_norm_drhob = scale_c*(e_lsda_c_abrhoa*gc_abnorm_drhob &
-                                                       + e_lsda_c_ab*(u_c_abrhoanorm_drhob*t170 + 0.2e1_dp* &
-                                                                      u_c_abrhoa*u_c_abnorm_drhob*c_cab_2 + u_c_ab* &
-                                                                      u_c_abrhoanorm_drhob*c_cab_2))
-                        e_ra_ndrb(ii) = e_ra_ndrb(ii) + exc_rhoa_norm_drhob
-                     END IF
+                     exc_rhoa_norm_drhob = scale_c*(e_lsda_c_abrhoa*gc_abnorm_drhob &
+                                                    + e_lsda_c_ab*(u_c_abrhoanorm_drhob*t170 + 0.2e1_dp* &
+                                                                   u_c_abrhoa*u_c_abnorm_drhob*c_cab_2 + u_c_ab* &
+                                                                   u_c_abrhoanorm_drhob*c_cab_2))
+                     e_ra_ndrb(ii) = e_ra_ndrb(ii) + exc_rhoa_norm_drhob
 
                      s_brhobnorm_drhob = -0.4e1_dp/0.3e1_dp*t367
                      u_x_brhobnorm_drhob = 0.2e1_dp*gamma_x*s_bnorm_drhob*t371 - &
@@ -1483,29 +1462,25 @@ CONTAINS
                                            0.2e1_dp*t1451*t543 + 0.2e1_dp*t1455*t1458*s_b_2norm_drhob &
                                            - t484*t486*s_b_2rhobnorm_drhob
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhob_norm_drhob = scale_x*(e_lsda_x_brhob*gx_bnorm_drhob + &
-                                                       e_lsda_x_b*(u_x_brhobnorm_drhob*t31 + 0.2e1_dp*u_x_brhob* &
-                                                                   u_x_bnorm_drhob*c_x_2 + u_x_b*u_x_brhobnorm_drhob*c_x_2)) + &
-                                              scale_c*(e_lsda_c_abrhob*gc_abnorm_drhob + e_lsda_c_ab*( &
-                                                       u_c_abrhobnorm_drhob*t170 + 0.2e1_dp*u_c_abrhob* &
-                                                       u_c_abnorm_drhob*c_cab_2 + u_c_ab*u_c_abrhobnorm_drhob*c_cab_2 &
-                                                       ) + e_lsda_c_brhob*gc_bnorm_drhob + e_lsda_c_b*( &
-                                                       u_c_brhobnorm_drhob*t176 + 0.2e1_dp*u_c_brhob*u_c_bnorm_drhob &
-                                                       *c_css_2 + u_c_b*u_c_brhobnorm_drhob*c_css_2))
-                        e_rb_ndrb(ii) = e_rb_ndrb(ii) + exc_rhob_norm_drhob
-                     END IF
+                     exc_rhob_norm_drhob = scale_x*(e_lsda_x_brhob*gx_bnorm_drhob + &
+                                                    e_lsda_x_b*(u_x_brhobnorm_drhob*t31 + 0.2e1_dp*u_x_brhob* &
+                                                                u_x_bnorm_drhob*c_x_2 + u_x_b*u_x_brhobnorm_drhob*c_x_2)) + &
+                                           scale_c*(e_lsda_c_abrhob*gc_abnorm_drhob + e_lsda_c_ab*( &
+                                                    u_c_abrhobnorm_drhob*t170 + 0.2e1_dp*u_c_abrhob* &
+                                                    u_c_abnorm_drhob*c_cab_2 + u_c_ab*u_c_abrhobnorm_drhob*c_cab_2 &
+                                                    ) + e_lsda_c_brhob*gc_bnorm_drhob + e_lsda_c_b*( &
+                                                    u_c_brhobnorm_drhob*t176 + 0.2e1_dp*u_c_brhob*u_c_bnorm_drhob &
+                                                    *c_css_2 + u_c_b*u_c_brhobnorm_drhob*c_css_2))
+                     e_rb_ndrb(ii) = e_rb_ndrb(ii) + exc_rhob_norm_drhob
 
                      u_c_abnorm_drhoanorm_drhob = -0.2e1_dp*t1589*t539 + 0.2e1_dp* &
                                                   t911*t1593*s_avg_2norm_drhob
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_norm_drhoa_norm_drhob = scale_c*e_lsda_c_ab*( &
-                                                    u_c_abnorm_drhoanorm_drhob*t170 + 0.2e1_dp*u_c_abnorm_drhoa* &
-                                                    u_c_abnorm_drhob*c_cab_2 + u_c_ab*u_c_abnorm_drhoanorm_drhob* &
-                                                    c_cab_2)
-                        e_ndra_ndrb(ii) = e_ndra_ndrb(ii) + exc_norm_drhoa_norm_drhob
-                     END IF
+                     exc_norm_drhoa_norm_drhob = scale_c*e_lsda_c_ab*( &
+                                                 u_c_abnorm_drhoanorm_drhob*t170 + 0.2e1_dp*u_c_abnorm_drhoa* &
+                                                 u_c_abnorm_drhob*c_cab_2 + u_c_ab*u_c_abnorm_drhoanorm_drhob* &
+                                                 c_cab_2)
+                     e_ndra_ndrb(ii) = e_ndra_ndrb(ii) + exc_norm_drhoa_norm_drhob
 
                      t1719 = s_bnorm_drhob**2
                      u_x_bnorm_drhobnorm_drhob = 0.2e1_dp*gamma_x*t1719*t29 - &
@@ -1526,18 +1501,16 @@ CONTAINS
                                                  t1455*t1457*s_b_2norm_drhob*s_b_21norm_drhob - t484*t486* &
                                                  s_b_2norm_drhobnorm_drhob
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_norm_drhob_norm_drhob = scale_x*e_lsda_x_b*( &
-                                                    u_x_bnorm_drhobnorm_drhob*t31 + 0.2e1_dp*u_x_bnorm_drhob**2* &
-                                                    c_x_2 + u_x_b*u_x_bnorm_drhobnorm_drhob*c_x_2) + scale_c*( &
-                                                    e_lsda_c_ab*(u_c_abnorm_drhobnorm_drhob*t170 + 0.2e1_dp* &
-                                                                 u_c_abnorm_drhob*(gamma_c_ab*s_avg_21norm_drhob*t162 - t337* &
+                     exc_norm_drhob_norm_drhob = scale_x*e_lsda_x_b*( &
+                                                 u_x_bnorm_drhobnorm_drhob*t31 + 0.2e1_dp*u_x_bnorm_drhob**2* &
+                                                 c_x_2 + u_x_b*u_x_bnorm_drhobnorm_drhob*c_x_2) + scale_c*( &
+                                                 e_lsda_c_ab*(u_c_abnorm_drhobnorm_drhob*t170 + 0.2e1_dp* &
+                                                              u_c_abnorm_drhob*(gamma_c_ab*s_avg_21norm_drhob*t162 - t337* &
                                                                      t1738)*c_cab_2 + u_c_ab*u_c_abnorm_drhobnorm_drhob*c_cab_2) + &
-                                                    e_lsda_c_b*(u_c_bnorm_drhobnorm_drhob*t176 + 0.2e1_dp* &
-                                                                u_c_bnorm_drhob*(gamma_c_ss*s_b_21norm_drhob*t168 - t484* &
+                                                 e_lsda_c_b*(u_c_bnorm_drhobnorm_drhob*t176 + 0.2e1_dp* &
+                                                             u_c_bnorm_drhob*(gamma_c_ss*s_b_21norm_drhob*t168 - t484* &
                                                                           t1753)*c_css_2 + u_c_b*u_c_bnorm_drhobnorm_drhob*c_css_2))
-                        e_ndrb_ndrb(ii) = e_ndrb_ndrb(ii) + exc_norm_drhob_norm_drhob
-                     END IF
+                     e_ndrb_ndrb(ii) = e_ndrb_ndrb(ii) + exc_norm_drhob_norm_drhob
                   END IF ! <1 || >1
                END IF ! /=0
             END IF ! rho>epsilon_rho
@@ -1826,11 +1799,9 @@ CONTAINS
                t176 = c_css_1 + u_c_b*c_css_2
                gc_b = c_css_0 + u_c_b*t176
 
-               IF (grad_deriv >= 0) THEN
-                  exc = scale_x*(e_lsda_x_a*gx_a + e_lsda_x_b*gx_b) + scale_c &
-                        *(e_lsda_c_ab*gc_ab + e_lsda_c_a*gc_a + e_lsda_c_b*gc_b)
-                  e_0(ii) = e_0(ii) + exc
-               END IF
+               exc = scale_x*(e_lsda_x_a*gx_a + e_lsda_x_b*gx_b) + scale_c &
+                     *(e_lsda_c_ab*gc_ab + e_lsda_c_a*gc_a + e_lsda_c_b*gc_b)
+               e_0(ii) = e_0(ii) + exc
 
                IF (grad_deriv /= 0) THEN
 
@@ -1937,12 +1908,10 @@ CONTAINS
                   gc_abrhoa = u_c_abrhoa*t170 + u_c_ab*u_c_abrhoa*c_cab_2
                   gc_arhoa = u_c_arhoa*t173 + u_c_a*u_c_arhoa*c_css_2
 
-                  IF (grad_deriv > 0 .OR. grad_deriv == -1) THEN
-                     exc_rhoa = scale_x*(e_lsda_x_arhoa*gx_a + e_lsda_x_a* &
-                                         gx_arhoa) + scale_c*(e_lsda_c_abrhoa*gc_ab + e_lsda_c_ab* &
-                                                              gc_abrhoa + e_lsda_c_arhoa*gc_a + e_lsda_c_a*gc_arhoa)
-                     e_r(ii) = e_r(ii) + 0.5_dp*exc_rhoa
-                  END IF
+                  exc_rhoa = scale_x*(e_lsda_x_arhoa*gx_a + e_lsda_x_a* &
+                                      gx_arhoa) + scale_c*(e_lsda_c_abrhoa*gc_ab + e_lsda_c_ab* &
+                                                           gc_abrhoa + e_lsda_c_arhoa*gc_a + e_lsda_c_a*gc_arhoa)
+                  e_r(ii) = e_r(ii) + 0.5_dp*exc_rhoa
 
                   e_lsda_x_brhob = -t4*t6*t20/0.2e1_dp
                   t365 = my_rhob**2
@@ -2009,12 +1978,10 @@ CONTAINS
                   gc_abrhob = u_c_abrhob*t170 + u_c_ab*u_c_abrhob*c_cab_2
                   gc_brhob = u_c_brhob*t176 + u_c_b*u_c_brhob*c_css_2
 
-                  IF (grad_deriv > 0 .OR. grad_deriv == -1) THEN
-                     exc_rhob = scale_x*(e_lsda_x_brhob*gx_b + e_lsda_x_b* &
-                                         gx_brhob) + scale_c*(e_lsda_c_abrhob*gc_ab + e_lsda_c_ab* &
-                                                              gc_abrhob + e_lsda_c_brhob*gc_b + e_lsda_c_b*gc_brhob)
-                     e_r(ii) = e_r(ii) + 0.5_dp*exc_rhob
-                  END IF
+                  exc_rhob = scale_x*(e_lsda_x_brhob*gx_b + e_lsda_x_b* &
+                                      gx_brhob) + scale_c*(e_lsda_c_abrhob*gc_ab + e_lsda_c_ab* &
+                                                           gc_abrhob + e_lsda_c_brhob*gc_b + e_lsda_c_b*gc_brhob)
+                  e_r(ii) = e_r(ii) + 0.5_dp*exc_rhob
 
                   s_anorm_drhoa = t12
                   u_x_anorm_drhoa = 0.2e1_dp*t191*t16*s_anorm_drhoa - 0.2e1_dp &
@@ -2031,11 +1998,9 @@ CONTAINS
                   gc_anorm_drhoa = u_c_anorm_drhoa*t173 + u_c_a*u_c_anorm_drhoa &
                                    *c_css_2
 
-                  IF (grad_deriv > 0 .OR. grad_deriv == -1) THEN
-                     exc_norm_drhoa = scale_x*e_lsda_x_a*gx_anorm_drhoa + scale_c* &
-                                      (e_lsda_c_ab*gc_abnorm_drhoa + e_lsda_c_a*gc_anorm_drhoa)
-                     e_ndr(ii) = e_ndr(ii) + 0.5_dp*exc_norm_drhoa
-                  END IF
+                  exc_norm_drhoa = scale_x*e_lsda_x_a*gx_anorm_drhoa + scale_c* &
+                                   (e_lsda_c_ab*gc_abnorm_drhoa + e_lsda_c_a*gc_anorm_drhoa)
+                  e_ndr(ii) = e_ndr(ii) + 0.5_dp*exc_norm_drhoa
 
                   s_bnorm_drhob = t25
                   u_x_bnorm_drhob = 0.2e1_dp*t370*t29*s_bnorm_drhob - 0.2e1_dp &
@@ -2052,13 +2017,11 @@ CONTAINS
                   gc_bnorm_drhob = u_c_bnorm_drhob*t176 + u_c_b*u_c_bnorm_drhob &
                                    *c_css_2
 
-                  IF (grad_deriv > 0 .OR. grad_deriv == -1) THEN
-                     exc_norm_drhob = scale_x*e_lsda_x_b*gx_bnorm_drhob + scale_c* &
-                                      (e_lsda_c_ab*gc_abnorm_drhob + e_lsda_c_b*gc_bnorm_drhob)
-                     e_ndr(ii) = e_ndr(ii) + 0.5_dp*exc_norm_drhob
-                  END IF
+                  exc_norm_drhob = scale_x*e_lsda_x_b*gx_bnorm_drhob + scale_c* &
+                                   (e_lsda_c_ab*gc_abnorm_drhob + e_lsda_c_b*gc_bnorm_drhob)
+                  e_ndr(ii) = e_ndr(ii) + 0.5_dp*exc_norm_drhob
 
-                  IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+                  IF (grad_deriv > 1) THEN
                      t555 = t7**2
                      t560 = t186*my_rhoa
                      s_arhoarhoa = 0.28e2_dp/0.9e1_dp*my_norm_drhoa/t7/t560
@@ -2197,10 +2160,10 @@ CONTAINS
                                      t925*t926 + 0.2e1_dp*t930*t933*s_a_21rhoa - t345*t347* &
                                      s_a_2rhoarhoa
                      u_c_a1rhoa = gamma_c_ss*s_a_21rhoa*t165 - t345*t926
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhoa_rhoa = scale_x*(-t4*t6/t555*gx_a/0.6e1_dp &
-                                                 + e_lsda_x_arhoa*(u_x_a1rhoa*t18 + u_x_a*u_x_a1rhoa*c_x_2) &
-                                                 + e_lsda_x_arhoa*gx_arhoa + e_lsda_x_a*(u_x_arhoarhoa*t18 + &
+
+                     exc_rhoa_rhoa = scale_x*(-t4*t6/t555*gx_a/0.6e1_dp &
+                                              + e_lsda_x_arhoa*(u_x_a1rhoa*t18 + u_x_a*u_x_a1rhoa*c_x_2) &
+                                              + e_lsda_x_arhoa*gx_arhoa + e_lsda_x_a*(u_x_arhoarhoa*t18 + &
                                                                         0.2e1_dp*u_x_arhoa*u_x_a1rhoa*c_x_2 + u_x_a*u_x_arhoarhoa* &
                                                                             c_x_2)) + scale_c*(((e_c_u_0rhoarhoa + (0.2e1_dp*t260* &
                                                                          rsrhoarhoa*t92 - 0.2e1_dp*t719*t721 + 0.2e1_dp*t726*t727* &
@@ -2222,8 +2185,7 @@ CONTAINS
                                                                       *t173 + u_c_a*u_c_a1rhoa*c_css_2) + e_lsda_c_a1rhoa*gc_arhoa &
                                                                             + e_lsda_c_a*(u_c_arhoarhoa*t173 + 0.2e1_dp*u_c_arhoa* &
                                                                                   u_c_a1rhoa*c_css_2 + u_c_a*u_c_arhoarhoa*c_css_2))
-                        e_r_r(ii) = e_r_r(ii) + 0.5_dp*0.5_dp*exc_rhoa_rhoa
-                     END IF
+                     e_r_r(ii) = e_r_r(ii) + 0.5_dp*0.5_dp*exc_rhoa_rhoa
 
                      chirhoarhob = 0.2e1_dp*t601
                      rsrhoarhob = rsrhoarhoa
@@ -2261,23 +2223,21 @@ CONTAINS
                      u_c_abrhoarhob = -0.2e1_dp*t906*t480 + 0.2e1_dp*t911*t914 &
                                       *s_avg_2rhob
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhoa_rhob = scale_c*(((e_c_u_0rhoarhob + (0.2e1_dp*t260* &
-                                                                      rsrhoarhob*t92 - t719*t1047 - t1049*t721 + 0.2e1_dp*t726* &
-                                                                      t279*t424 - t266*(-t731*t981/0.4e1_dp + t267*rsrhoarhob/ &
+                     exc_rhoa_rhob = scale_c*(((e_c_u_0rhoarhob + (0.2e1_dp*t260* &
+                                                                   rsrhoarhob*t92 - t719*t1047 - t1049*t721 + 0.2e1_dp*t726* &
+                                                                   t279*t424 - t266*(-t731*t981/0.4e1_dp + t267*rsrhoarhob/ &
                                                                       0.2e1_dp + beta_2_3*rsrhoarhob + 0.3e1_dp/0.4e1_dp*t737*t981 &
                                                                          + 0.3e1_dp/0.2e1_dp*t271*rsrhoarhob + t86*t742*t993 + t86 &
                                                                              *t84*rsrhoarhob*t232 - t86*t84*t993)*t278 - t757*t277 &
-                                                                      *t759*t80*t424/0.2e1_dp)*f*t110 + alpha_crhoa*frhob* &
-                                                   t110 - 0.4e1_dp*t285*t435 + alpha_crhob*frhoa*t110 + alpha_c &
-                                                   *frhoarhob*t110 - 0.4e1_dp*t287*t435 - 0.4e1_dp*t431* &
-                                                   t291 - 0.4e1_dp*t433*t291 - 0.12e2_dp*t105*t106*t1107 + &
-                                                   t1136)*rho + epsilon_c_unifrhoa + epsilon_c_unifrhob)*gc_ab + &
-                                                 e_lsda_c_abrhoa*gc_abrhob + e_lsda_c_abrhob*gc_abrhoa + &
-                                                 e_lsda_c_ab*(u_c_abrhoarhob*t170 + 0.2e1_dp*u_c_abrhoa* &
-                                                              u_c_abrhob*c_cab_2 + u_c_ab*u_c_abrhoarhob*c_cab_2))
-                        e_r_r(ii) = e_r_r(ii) + 0.5_dp*exc_rhoa_rhob
-                     END IF
+                                                                   *t759*t80*t424/0.2e1_dp)*f*t110 + alpha_crhoa*frhob* &
+                                                t110 - 0.4e1_dp*t285*t435 + alpha_crhob*frhoa*t110 + alpha_c &
+                                                *frhoarhob*t110 - 0.4e1_dp*t287*t435 - 0.4e1_dp*t431* &
+                                                t291 - 0.4e1_dp*t433*t291 - 0.12e2_dp*t105*t106*t1107 + &
+                                                t1136)*rho + epsilon_c_unifrhoa + epsilon_c_unifrhob)*gc_ab + &
+                                              e_lsda_c_abrhoa*gc_abrhob + e_lsda_c_abrhob*gc_abrhoa + &
+                                              e_lsda_c_ab*(u_c_abrhoarhob*t170 + 0.2e1_dp*u_c_abrhoa* &
+                                                           u_c_abrhob*c_cab_2 + u_c_ab*u_c_abrhoarhob*c_cab_2))
+                     e_r_r(ii) = e_r_r(ii) + 0.5_dp*exc_rhoa_rhob
 
                      t1152 = t20**2
                      t1157 = t365*my_rhob
@@ -2371,9 +2331,8 @@ CONTAINS
                                      *s_b_2rhobrhob
                      u_c_b1rhob = gamma_c_ss*s_b_21rhob*t168 - t484*t1452
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhob_rhob = scale_x*(-t4*t6/t1152*gx_b/ &
-                                                 0.6e1_dp + e_lsda_x_brhob*(u_x_b1rhob*t31 + u_x_b*u_x_b1rhob* &
+                     exc_rhob_rhob = scale_x*(-t4*t6/t1152*gx_b/ &
+                                              0.6e1_dp + e_lsda_x_brhob*(u_x_b1rhob*t31 + u_x_b*u_x_b1rhob* &
                                                                      c_x_2) + e_lsda_x_brhob*gx_brhob + e_lsda_x_b*(u_x_brhobrhob* &
                                                                                 t31 + 0.2e1_dp*u_x_brhob*u_x_b1rhob*c_x_2 + u_x_b* &
                                                                    u_x_brhobrhob*c_x_2)) + scale_c*(((e_c_u_0rhobrhob + (0.2e1_dp* &
@@ -2397,8 +2356,7 @@ CONTAINS
                                                                      + e_lsda_c_b1rhob*gc_brhob + e_lsda_c_b*(u_c_brhobrhob*t176 + &
                                                                        0.2e1_dp*u_c_brhob*u_c_b1rhob*c_css_2 + u_c_b*u_c_brhobrhob &
                                                                                                                           *c_css_2))
-                        e_r_r(ii) = e_r_r(ii) + 0.5_dp*0.5_dp*exc_rhob_rhob
-                     END IF
+                     e_r_r(ii) = e_r_r(ii) + 0.5_dp*0.5_dp*exc_rhob_rhob
 
                      s_arhoanorm_drhoa = -0.4e1_dp/0.3e1_dp*t188
                      u_x_arhoanorm_drhoa = 0.2e1_dp*gamma_x*s_anorm_drhoa*t192 - &
@@ -2415,29 +2373,25 @@ CONTAINS
                                            0.2e1_dp*t925*t516 + 0.2e1_dp*t930*t933*s_a_2norm_drhoa - &
                                            t345*t347*s_a_2rhoanorm_drhoa
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhoa_norm_drhoa = scale_x*(e_lsda_x_arhoa*gx_anorm_drhoa + &
-                                                       e_lsda_x_a*(u_x_arhoanorm_drhoa*t18 + 0.2e1_dp*u_x_arhoa* &
-                                                                   u_x_anorm_drhoa*c_x_2 + u_x_a*u_x_arhoanorm_drhoa*c_x_2)) + &
-                                              scale_c*(e_lsda_c_abrhoa*gc_abnorm_drhoa + e_lsda_c_ab*( &
-                                                       u_c_abrhoanorm_drhoa*t170 + 0.2e1_dp*u_c_abrhoa* &
-                                                       u_c_abnorm_drhoa*c_cab_2 + u_c_ab*u_c_abrhoanorm_drhoa*c_cab_2 &
-                                                       ) + e_lsda_c_arhoa*gc_anorm_drhoa + e_lsda_c_a*( &
-                                                       u_c_arhoanorm_drhoa*t173 + 0.2e1_dp*u_c_arhoa*u_c_anorm_drhoa &
-                                                       *c_css_2 + u_c_a*u_c_arhoanorm_drhoa*c_css_2))
-                        e_r_ndr(ii) = e_r_ndr(ii) + 0.5_dp*0.5_dp*exc_rhoa_norm_drhoa
-                     END IF
+                     exc_rhoa_norm_drhoa = scale_x*(e_lsda_x_arhoa*gx_anorm_drhoa + &
+                                                    e_lsda_x_a*(u_x_arhoanorm_drhoa*t18 + 0.2e1_dp*u_x_arhoa* &
+                                                                u_x_anorm_drhoa*c_x_2 + u_x_a*u_x_arhoanorm_drhoa*c_x_2)) + &
+                                           scale_c*(e_lsda_c_abrhoa*gc_abnorm_drhoa + e_lsda_c_ab*( &
+                                                    u_c_abrhoanorm_drhoa*t170 + 0.2e1_dp*u_c_abrhoa* &
+                                                    u_c_abnorm_drhoa*c_cab_2 + u_c_ab*u_c_abrhoanorm_drhoa*c_cab_2 &
+                                                    ) + e_lsda_c_arhoa*gc_anorm_drhoa + e_lsda_c_a*( &
+                                                    u_c_arhoanorm_drhoa*t173 + 0.2e1_dp*u_c_arhoa*u_c_anorm_drhoa &
+                                                    *c_css_2 + u_c_a*u_c_arhoanorm_drhoa*c_css_2))
+                     e_r_ndr(ii) = e_r_ndr(ii) + 0.5_dp*0.5_dp*exc_rhoa_norm_drhoa
 
                      u_c_abrhobnorm_drhoa = -0.2e1_dp*t1436*t512 + 0.2e1_dp*t911 &
                                             *t1440*s_avg_2norm_drhoa
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhob_norm_drhoa = scale_c*(e_lsda_c_abrhob*gc_abnorm_drhoa &
-                                                       + e_lsda_c_ab*(u_c_abrhobnorm_drhoa*t170 + 0.2e1_dp* &
-                                                                      u_c_abrhob*u_c_abnorm_drhoa*c_cab_2 + u_c_ab* &
-                                                                      u_c_abrhobnorm_drhoa*c_cab_2))
-                        e_r_ndr(ii) = e_r_ndr(ii) + 0.5_dp*0.5_dp*exc_rhob_norm_drhoa
-                     END IF
+                     exc_rhob_norm_drhoa = scale_c*(e_lsda_c_abrhob*gc_abnorm_drhoa &
+                                                    + e_lsda_c_ab*(u_c_abrhobnorm_drhoa*t170 + 0.2e1_dp* &
+                                                                   u_c_abrhob*u_c_abnorm_drhoa*c_cab_2 + u_c_ab* &
+                                                                   u_c_abrhobnorm_drhoa*c_cab_2))
+                     e_r_ndr(ii) = e_r_ndr(ii) + 0.5_dp*0.5_dp*exc_rhob_norm_drhoa
 
                      t1571 = s_anorm_drhoa**2
                      u_x_anorm_drhoanorm_drhoa = 0.2e1_dp*gamma_x*t1571*t16 - &
@@ -2459,29 +2413,25 @@ CONTAINS
                                                  t930*t932*s_a_2norm_drhoa*s_a_21norm_drhoa - t345*t347* &
                                                  s_a_2norm_drhoanorm_drhoa
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_norm_drhoa_norm_drhoa = scale_x*e_lsda_x_a*( &
-                                                    u_x_anorm_drhoanorm_drhoa*t18 + 0.2e1_dp*u_x_anorm_drhoa**2* &
-                                                    c_x_2 + u_x_a*u_x_anorm_drhoanorm_drhoa*c_x_2) + scale_c*( &
-                                                    e_lsda_c_ab*(u_c_abnorm_drhoanorm_drhoa*t170 + 0.2e1_dp* &
-                                                                 u_c_abnorm_drhoa*(gamma_c_ab*s_avg_21norm_drhoa*t162 - t337* &
+                     exc_norm_drhoa_norm_drhoa = scale_x*e_lsda_x_a*( &
+                                                 u_x_anorm_drhoanorm_drhoa*t18 + 0.2e1_dp*u_x_anorm_drhoa**2* &
+                                                 c_x_2 + u_x_a*u_x_anorm_drhoanorm_drhoa*c_x_2) + scale_c*( &
+                                                 e_lsda_c_ab*(u_c_abnorm_drhoanorm_drhoa*t170 + 0.2e1_dp* &
+                                                              u_c_abnorm_drhoa*(gamma_c_ab*s_avg_21norm_drhoa*t162 - t337* &
                                                                      t1590)*c_cab_2 + u_c_ab*u_c_abnorm_drhoanorm_drhoa*c_cab_2) + &
-                                                    e_lsda_c_a*(u_c_anorm_drhoanorm_drhoa*t173 + 0.2e1_dp* &
-                                                                u_c_anorm_drhoa*(gamma_c_ss*s_a_21norm_drhoa*t165 - t345* &
+                                                 e_lsda_c_a*(u_c_anorm_drhoanorm_drhoa*t173 + 0.2e1_dp* &
+                                                             u_c_anorm_drhoa*(gamma_c_ss*s_a_21norm_drhoa*t165 - t345* &
                                                                           t1605)*c_css_2 + u_c_a*u_c_anorm_drhoanorm_drhoa*c_css_2))
-                        e_ndr_ndr(ii) = e_ndr_ndr(ii) + 0.5_dp*0.5_dp*exc_norm_drhoa_norm_drhoa
-                     END IF
+                     e_ndr_ndr(ii) = e_ndr_ndr(ii) + 0.5_dp*0.5_dp*exc_norm_drhoa_norm_drhoa
 
                      u_c_abrhoanorm_drhob = -0.2e1_dp*t906*t539 + 0.2e1_dp*t911* &
                                             t914*s_avg_2norm_drhob
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhoa_norm_drhob = scale_c*(e_lsda_c_abrhoa*gc_abnorm_drhob &
-                                                       + e_lsda_c_ab*(u_c_abrhoanorm_drhob*t170 + 0.2e1_dp* &
-                                                                      u_c_abrhoa*u_c_abnorm_drhob*c_cab_2 + u_c_ab* &
-                                                                      u_c_abrhoanorm_drhob*c_cab_2))
-                        e_r_ndr(ii) = e_r_ndr(ii) + 0.5_dp*0.5_dp*exc_rhoa_norm_drhob
-                     END IF
+                     exc_rhoa_norm_drhob = scale_c*(e_lsda_c_abrhoa*gc_abnorm_drhob &
+                                                    + e_lsda_c_ab*(u_c_abrhoanorm_drhob*t170 + 0.2e1_dp* &
+                                                                   u_c_abrhoa*u_c_abnorm_drhob*c_cab_2 + u_c_ab* &
+                                                                   u_c_abrhoanorm_drhob*c_cab_2))
+                     e_r_ndr(ii) = e_r_ndr(ii) + 0.5_dp*0.5_dp*exc_rhoa_norm_drhob
 
                      s_brhobnorm_drhob = -0.4e1_dp/0.3e1_dp*t367
                      u_x_brhobnorm_drhob = 0.2e1_dp*gamma_x*s_bnorm_drhob*t371 - &
@@ -2498,29 +2448,25 @@ CONTAINS
                                            0.2e1_dp*t1451*t543 + 0.2e1_dp*t1455*t1458*s_b_2norm_drhob &
                                            - t484*t486*s_b_2rhobnorm_drhob
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_rhob_norm_drhob = scale_x*(e_lsda_x_brhob*gx_bnorm_drhob + &
-                                                       e_lsda_x_b*(u_x_brhobnorm_drhob*t31 + 0.2e1_dp*u_x_brhob* &
-                                                                   u_x_bnorm_drhob*c_x_2 + u_x_b*u_x_brhobnorm_drhob*c_x_2)) + &
-                                              scale_c*(e_lsda_c_abrhob*gc_abnorm_drhob + e_lsda_c_ab*( &
-                                                       u_c_abrhobnorm_drhob*t170 + 0.2e1_dp*u_c_abrhob* &
-                                                       u_c_abnorm_drhob*c_cab_2 + u_c_ab*u_c_abrhobnorm_drhob*c_cab_2 &
-                                                       ) + e_lsda_c_brhob*gc_bnorm_drhob + e_lsda_c_b*( &
-                                                       u_c_brhobnorm_drhob*t176 + 0.2e1_dp*u_c_brhob*u_c_bnorm_drhob &
-                                                       *c_css_2 + u_c_b*u_c_brhobnorm_drhob*c_css_2))
-                        e_r_ndr(ii) = e_r_ndr(ii) + 0.5_dp*0.5_dp*exc_rhob_norm_drhob
-                     END IF
+                     exc_rhob_norm_drhob = scale_x*(e_lsda_x_brhob*gx_bnorm_drhob + &
+                                                    e_lsda_x_b*(u_x_brhobnorm_drhob*t31 + 0.2e1_dp*u_x_brhob* &
+                                                                u_x_bnorm_drhob*c_x_2 + u_x_b*u_x_brhobnorm_drhob*c_x_2)) + &
+                                           scale_c*(e_lsda_c_abrhob*gc_abnorm_drhob + e_lsda_c_ab*( &
+                                                    u_c_abrhobnorm_drhob*t170 + 0.2e1_dp*u_c_abrhob* &
+                                                    u_c_abnorm_drhob*c_cab_2 + u_c_ab*u_c_abrhobnorm_drhob*c_cab_2 &
+                                                    ) + e_lsda_c_brhob*gc_bnorm_drhob + e_lsda_c_b*( &
+                                                    u_c_brhobnorm_drhob*t176 + 0.2e1_dp*u_c_brhob*u_c_bnorm_drhob &
+                                                    *c_css_2 + u_c_b*u_c_brhobnorm_drhob*c_css_2))
+                     e_r_ndr(ii) = e_r_ndr(ii) + 0.5_dp*0.5_dp*exc_rhob_norm_drhob
 
                      u_c_abnorm_drhoanorm_drhob = -0.2e1_dp*t1589*t539 + 0.2e1_dp* &
                                                   t911*t1593*s_avg_2norm_drhob
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_norm_drhoa_norm_drhob = scale_c*e_lsda_c_ab*( &
-                                                    u_c_abnorm_drhoanorm_drhob*t170 + 0.2e1_dp*u_c_abnorm_drhoa* &
-                                                    u_c_abnorm_drhob*c_cab_2 + u_c_ab*u_c_abnorm_drhoanorm_drhob* &
-                                                    c_cab_2)
-                        e_ndr_ndr(ii) = e_ndr_ndr(ii) + 0.5_dp*exc_norm_drhoa_norm_drhob
-                     END IF
+                     exc_norm_drhoa_norm_drhob = scale_c*e_lsda_c_ab*( &
+                                                 u_c_abnorm_drhoanorm_drhob*t170 + 0.2e1_dp*u_c_abnorm_drhoa* &
+                                                 u_c_abnorm_drhob*c_cab_2 + u_c_ab*u_c_abnorm_drhoanorm_drhob* &
+                                                 c_cab_2)
+                     e_ndr_ndr(ii) = e_ndr_ndr(ii) + 0.5_dp*exc_norm_drhoa_norm_drhob
 
                      t1719 = s_bnorm_drhob**2
                      u_x_bnorm_drhobnorm_drhob = 0.2e1_dp*gamma_x*t1719*t29 - &
@@ -2541,18 +2487,16 @@ CONTAINS
                                                  t1455*t1457*s_b_2norm_drhob*s_b_21norm_drhob - t484*t486* &
                                                  s_b_2norm_drhobnorm_drhob
 
-                     IF (grad_deriv > 1 .OR. grad_deriv == -2) THEN
-                        exc_norm_drhob_norm_drhob = scale_x*e_lsda_x_b*( &
-                                                    u_x_bnorm_drhobnorm_drhob*t31 + 0.2e1_dp*u_x_bnorm_drhob**2* &
-                                                    c_x_2 + u_x_b*u_x_bnorm_drhobnorm_drhob*c_x_2) + scale_c*( &
-                                                    e_lsda_c_ab*(u_c_abnorm_drhobnorm_drhob*t170 + 0.2e1_dp* &
-                                                                 u_c_abnorm_drhob*(gamma_c_ab*s_avg_21norm_drhob*t162 - t337* &
+                     exc_norm_drhob_norm_drhob = scale_x*e_lsda_x_b*( &
+                                                 u_x_bnorm_drhobnorm_drhob*t31 + 0.2e1_dp*u_x_bnorm_drhob**2* &
+                                                 c_x_2 + u_x_b*u_x_bnorm_drhobnorm_drhob*c_x_2) + scale_c*( &
+                                                 e_lsda_c_ab*(u_c_abnorm_drhobnorm_drhob*t170 + 0.2e1_dp* &
+                                                              u_c_abnorm_drhob*(gamma_c_ab*s_avg_21norm_drhob*t162 - t337* &
                                                                      t1738)*c_cab_2 + u_c_ab*u_c_abnorm_drhobnorm_drhob*c_cab_2) + &
-                                                    e_lsda_c_b*(u_c_bnorm_drhobnorm_drhob*t176 + 0.2e1_dp* &
-                                                                u_c_bnorm_drhob*(gamma_c_ss*s_b_21norm_drhob*t168 - t484* &
+                                                 e_lsda_c_b*(u_c_bnorm_drhobnorm_drhob*t176 + 0.2e1_dp* &
+                                                             u_c_bnorm_drhob*(gamma_c_ss*s_b_21norm_drhob*t168 - t484* &
                                                                           t1753)*c_css_2 + u_c_b*u_c_bnorm_drhobnorm_drhob*c_css_2))
-                        e_ndr_ndr(ii) = e_ndr_ndr(ii) + 0.5_dp*0.5_dp*exc_norm_drhob_norm_drhob
-                     END IF
+                     e_ndr_ndr(ii) = e_ndr_ndr(ii) + 0.5_dp*0.5_dp*exc_norm_drhob_norm_drhob
                   END IF ! <1 || >1
                END IF ! /=0
             END IF ! rho>epsilon_rho

@@ -378,6 +378,10 @@ CONTAINS
          RETURN
       END IF
 
+      IF (deriv_order < 0) THEN
+         CPABORT("Negative orders of derivative not allowed!")
+      END IF
+
       SELECT CASE (functional%section%name)
       CASE ("BECKE97")
          IF (lsd) THEN

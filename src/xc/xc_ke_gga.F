@@ -248,7 +248,7 @@ CONTAINS
          CALL kex_p_0(rho, rho13, fs, e_0, npoints)
       END IF
 
-      IF (order >= 1 .OR. order == -1) THEN
+      IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -259,7 +259,7 @@ CONTAINS
          CALL kex_p_1(rho, rho13, s, fs, e_rho=e_rho, e_ndrho=e_ndrho, &
                       npoints=npoints)
       END IF
-      IF (order >= 2 .OR. order == -2) THEN
+      IF (order >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
@@ -273,7 +273,7 @@ CONTAINS
          CALL kex_p_2(rho, rho13, s, fs, e_rho_rho=e_rho_rho, &
                       e_rho_ndrho=e_rho_ndrho, e_ndrho_ndrho=e_ndrho_ndrho, npoints=npoints)
       END IF
-      IF (order >= 3 .OR. order == -3) THEN
+      IF (order >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
@@ -291,7 +291,7 @@ CONTAINS
                       e_rho_rho_ndrho=e_rho_rho_ndrho, e_rho_ndrho_ndrho=e_rho_ndrho_ndrho, &
                       e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho, npoints=npoints)
       END IF
-      IF (order > 3 .OR. order < -3) THEN
+      IF (order > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -396,7 +396,7 @@ CONTAINS
             CALL kex_p_0(rho(ispin)%array, rho_1_3(ispin)%array, fs, &
                          e_0=e_0, npoints=npoints)
          END IF
-         IF (order >= 1 .OR. order == -1) THEN
+         IF (order >= 1) THEN
             deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin)], &
                                             allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -408,7 +408,7 @@ CONTAINS
                          r13=rho_1_3(ispin)%array, s=s, fs=fs, e_rho=e_rho, &
                          e_ndrho=e_ndrho, npoints=npoints)
          END IF
-         IF (order >= 2 .OR. order == -2) THEN
+         IF (order >= 2) THEN
             deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin), &
                                                         rho_spin_name(ispin)], allocate_deriv=.TRUE.)
             CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
@@ -422,7 +422,7 @@ CONTAINS
             CALL kex_p_2(rho(ispin)%array, rho_1_3(ispin)%array, &
                          s, fs, e_rho_rho, e_rho_ndrho, e_ndrho_ndrho, npoints)
          END IF
-         IF (order >= 3 .OR. order == -3) THEN
+         IF (order >= 3) THEN
             deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin), &
                                                         rho_spin_name(ispin), rho_spin_name(ispin)], &
                                             allocate_deriv=.TRUE.)
@@ -444,7 +444,7 @@ CONTAINS
                          rho_1_3(ispin)%array, s, fs, e_rho_rho_rho, e_rho_rho_ndrho, &
                          e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints)
          END IF
-         IF (order > 3 .OR. order < -3) THEN
+         IF (order > 3) THEN
             CPABORT("derivatives bigger than 3 not implemented")
          END IF
 

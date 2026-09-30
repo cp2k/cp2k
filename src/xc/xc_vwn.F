@@ -206,28 +206,22 @@ CONTAINS
          CALL xc_derivative_get(deriv, deriv_data=e_0)
 
          CALL vwn_lda_0(rho, x, e_0, npoints, sc)
-      ELSE IF (order == -1) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_rho)
-
-         CALL vwn_lda_1(rho, x, e_rho, npoints, sc)
       END IF
-      IF (order >= 2 .OR. order == -2) THEN
+      IF (order >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
 
          CALL vwn_lda_2(rho, x, e_rho_rho, npoints, sc)
       END IF
-      IF (order >= 3 .OR. order == -3) THEN
+      IF (order >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
 
          CALL vwn_lda_3(rho, x, e_rho_rho_rho, npoints, sc)
       END IF
-      IF (order > 3 .OR. order < -3) THEN
+      IF (order > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -279,57 +273,6 @@ CONTAINS
 !$OMP     END PARALLEL DO
 
    END SUBROUTINE vwn_lda_0
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rho ...
-!> \param x ...
-!> \param e_rho ...
-!> \param npoints ...
-!> \param sc ...
-! **************************************************************************************************
-   SUBROUTINE vwn_lda_1(rho, x, e_rho, npoints, sc)
-
-      REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho, x
-      REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: e_rho
-      INTEGER, INTENT(in)                                :: npoints
-      REAL(KIND=dp)                                      :: sc
-
-      INTEGER                                            :: ip
-      REAL(KIND=dp)                                      :: at, dat, dex, dln1, dln2, dpx, ex, ln1, &
-                                                            ln2, pa, px, px0, q, xb
-
-      q = SQRT(4.0_dp*c - b*b)
-      xb = 2.0_dp*x0 + b
-      px0 = x0*x0 + b*x0 + c
-
-!$OMP     PARALLEL DO DEFAULT(NONE) &
-!$OMP                 SHARED(npoints, rho, eps_rho, x, b, sc, e_rho) &
-!$OMP                 SHARED(c, x0, q, xb, px0) &
-!$OMP                 PRIVATE(ip,px,dpx,at,pa,dat,ln1,dln1,ln2,dln2,ex,dex)
-
-      DO ip = 1, npoints
-
-         IF (rho(ip) > eps_rho) THEN
-            px = x(ip)*x(ip) + b*x(ip) + c
-            dpx = 2.0_dp*x(ip) + b
-            at = 2.0_dp/q*ATAN(q/dpx)
-            pa = 4.0_dp*x(ip)*x(ip) + 4.0_dp*b*x(ip) + b*b + q*q
-            dat = -4.0_dp/pa
-            ln1 = LOG(x(ip)*x(ip)/px)
-            dln1 = (b*x(ip) + 2.0_dp*c)/(x(ip)*px)
-            ln2 = LOG((x(ip) - x0)**2/px)
-            dln2 = (b*x(ip) + 2.0_dp*c + 2.0_dp*x0*x(ip) + x0*b)/((x(ip) - x0)*px)
-            ex = a*(ln1 + b*at - b*x0/px0*(ln2 + xb*at))
-            dex = a*(dln1 + b*dat - b*x0/px0*(dln2 + xb*dat))
-            e_rho(ip) = e_rho(ip) + (ex - x(ip)*dex/6.0_dp)*sc
-         END IF
-
-      END DO
-
-!$OMP     END PARALLEL DO
-
-   END SUBROUTINE vwn_lda_1
 
 ! **************************************************************************************************
 !> \brief ...
@@ -565,7 +508,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
-      IF (order >= 1 .OR. order == -1) THEN
+      IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_a)
@@ -574,7 +517,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_b)
       END IF
-      IF (order >= 2 .OR. order == -2) THEN
+      IF (order >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_aa)
@@ -587,7 +530,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_ab)
       END IF
-      IF (order >= 3 .OR. order == -3) THEN
+      IF (order >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa, deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_aaa)
@@ -605,7 +548,7 @@ CONTAINS
          CALL xc_derivative_get(deriv, deriv_data=e_abb)
 
       END IF
-      IF (order > 3 .OR. order < -3) THEN
+      IF (order > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
 
@@ -774,7 +717,7 @@ CONTAINS
                e_0(ip) = e_0(ip) + ((t42 + t86)*t2)*sc
 
             END IF
-            IF (order >= 1 .OR. order == -1) THEN
+            IF (order >= 1) THEN
                t88 = t4**(-0.6666666668e0_dp)
                t89 = t88*t11
                t90 = t2**2
@@ -857,7 +800,7 @@ CONTAINS
                e_b(ip) = e_b(ip) + ((t144 + t213 + t203)*t2 + t42 + t86)*sc
 
             END IF
-            IF (order >= 2 .OR. order == -2) THEN
+            IF (order >= 2) THEN
                t216 = t4**(-0.1666666667e1_dp)
                t217 = t216*t11
                t218 = 0.3141592654e1_dp**2
@@ -1020,7 +963,7 @@ CONTAINS
                e_bb(ip) = e_bb(ip) + ((t332 + t489 + t490 + t452)*t2 + t455 + 0.2e1_dp*t213 + t457)*sc
 
             END IF
-            IF (order >= 3 .OR. order == -3) THEN
+            IF (order >= 3) THEN
                t494 = t4**(-0.2666666667e1_dp)
                t497 = 0.1e1_dp/t218/0.3141592654e1_dp
                t499 = 0.1e1_dp/t220/t90
@@ -1390,7 +1333,7 @@ CONTAINS
                e_0(ip) = e_0(ip) + ((t55 + t93 + t127)*t2)*sc
 
             END IF
-            IF (order >= 1 .OR. order == -1) THEN
+            IF (order >= 1) THEN
                t129 = t5**0.333333333e0_dp
                t130 = t2**2
                t131 = 0.1e1_dp/t130
@@ -1529,7 +1472,7 @@ CONTAINS
                                     t55 + t93 + t127)*sc
 
             END IF
-            IF (order >= 2 .OR. order == -2) THEN
+            IF (order >= 2) THEN
                t332 = t5**(-0.666666667e0_dp)
                t333 = t133**2
                t337 = 0.1e1_dp/t130/t2
@@ -1856,7 +1799,7 @@ CONTAINS
                                       + t712 + 0.2e1_dp*t326 + 0.80e1_dp*t328 + t715)*sc
 
             END IF
-            IF (order >= 3 .OR. order == -3) THEN
+            IF (order >= 3) THEN
                t842 = 0.3e1_dp*t480
                t851 = 0.3e1_dp*t592
                t857 = 0.3e1_dp*t705

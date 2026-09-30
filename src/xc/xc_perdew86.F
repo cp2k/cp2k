@@ -157,7 +157,7 @@ CONTAINS
 
          CALL p86_u_0(rho, rs, grho, e_0, npoints)
       END IF
-      IF (order >= 1 .OR. order == -1) THEN
+      IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -168,7 +168,7 @@ CONTAINS
          CALL p86_u_1(rho, grho, rs, e_rho, &
                       e_ndrho, npoints)
       END IF
-      IF (order >= 2 .OR. order == -2) THEN
+      IF (order >= 2) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
@@ -182,7 +182,7 @@ CONTAINS
          CALL p86_u_2(rho, grho, rs, e_rho_rho, &
                       e_rho_ndrho, e_ndrho_ndrho, npoints)
       END IF
-      IF (order >= 3 .OR. order == -3) THEN
+      IF (order >= 3) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho, deriv_rho, deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho_rho_rho)
@@ -200,7 +200,7 @@ CONTAINS
                       e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, &
                       npoints)
       END IF
-      IF (order > 3 .OR. order < -3) THEN
+      IF (order > 3) THEN
          CPABORT("derivatives bigger than 3 not implemented")
       END IF
       DEALLOCATE (rs)

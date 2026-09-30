@@ -214,7 +214,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
@@ -228,7 +228,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_laplace_rho)
       END IF
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives bigger than 1 not implemented")
       END IF
 
@@ -393,14 +393,14 @@ CONTAINS
 
             Fermi = alpha/(EXP((Fx - mu)/N) + 1.0_dp)
 
-            dFermi_drho = -Fermi**2/alpha/N*(e_rho_br/e_0_lda - e_0_br*e_rho_lda/e_0_lda**2)*EXP((Fx - mu)/N)
-            dFermi_dndrho = -Fermi**2/alpha/N*(e_ndrho_br/e_0_lda)*EXP((Fx - mu)/N)
-            dFermi_dtau = -Fermi**2/alpha/N*(e_tau_br/e_0_lda)*EXP((Fx - mu)/N)
-            dFermi_dlaplace_rho = -Fermi**2/alpha/N*(e_laplace_rho_br/e_0_lda)*EXP((Fx - mu)/N)
-
             e_0(ip) = e_0(ip) + (Fermi*e_0_pbe + (1.0_dp - Fermi)*e_0_br)*sx
 
-            IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+            IF (grad_deriv >= 1) THEN
+
+               dFermi_drho = -Fermi**2/alpha/N*(e_rho_br/e_0_lda - e_0_br*e_rho_lda/e_0_lda**2)*EXP((Fx - mu)/N)
+               dFermi_dndrho = -Fermi**2/alpha/N*(e_ndrho_br/e_0_lda)*EXP((Fx - mu)/N)
+               dFermi_dtau = -Fermi**2/alpha/N*(e_tau_br/e_0_lda)*EXP((Fx - mu)/N)
+               dFermi_dlaplace_rho = -Fermi**2/alpha/N*(e_laplace_rho_br/e_0_lda)*EXP((Fx - mu)/N)
 
                e_rho(ip) = e_rho(ip) + (Fermi*e_rho_pbe + dFermi_drho*e_0_pbe + &
                                         (1.0_dp - Fermi)*e_rho_br - dFermi_drho*e_0_br)*sx
@@ -475,7 +475,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_0)
       END IF
-      IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+      IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rhoa)
@@ -504,7 +504,7 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_laplace_rhob)
       END IF
-      IF (grad_deriv > 1 .OR. grad_deriv < -1) THEN
+      IF (grad_deriv > 1) THEN
          CPABORT("derivatives bigger than 1 not implemented")
       END IF
 
@@ -671,14 +671,14 @@ CONTAINS
 
             Fermi = alpha/(EXP((Fx - mu)/N) + 1.0_dp)
 
-            dFermi_drho = -Fermi**2/alpha/N*(e_rho_br/e_0_lda - e_0_br*e_rho_lda/e_0_lda**2)*EXP((Fx - mu)/N)
-            dFermi_dndrho = -Fermi**2/alpha/N*(e_ndrho_br/e_0_lda)*EXP((Fx - mu)/N)
-            dFermi_dtau = -Fermi**2/alpha/N*(e_tau_br/e_0_lda)*EXP((Fx - mu)/N)
-            dFermi_dlaplace_rho = -Fermi**2/alpha/N*(e_laplace_rho_br/e_0_lda)*EXP((Fx - mu)/N)
-
             e_0(ip) = e_0(ip) + (Fermi*e_0_pbe + (1.0_dp - Fermi)*e_0_br)*sx
 
-            IF (grad_deriv >= 1 .OR. grad_deriv == -1) THEN
+            IF (grad_deriv >= 1) THEN
+
+               dFermi_drho = -Fermi**2/alpha/N*(e_rho_br/e_0_lda - e_0_br*e_rho_lda/e_0_lda**2)*EXP((Fx - mu)/N)
+               dFermi_dndrho = -Fermi**2/alpha/N*(e_ndrho_br/e_0_lda)*EXP((Fx - mu)/N)
+               dFermi_dtau = -Fermi**2/alpha/N*(e_tau_br/e_0_lda)*EXP((Fx - mu)/N)
+               dFermi_dlaplace_rho = -Fermi**2/alpha/N*(e_laplace_rho_br/e_0_lda)*EXP((Fx - mu)/N)
 
                e_rho(ip) = e_rho(ip) + (Fermi*e_rho_pbe + dFermi_drho*e_0_pbe + &
                                         (1.0_dp - Fermi)*e_rho_br - dFermi_drho*e_0_br)*sx

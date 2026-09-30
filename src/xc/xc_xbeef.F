@@ -255,10 +255,8 @@ CONTAINS
             s2 = s**2
             t = 2.0_dp*s2/(4.0_dp + s2) - 1.0_dp
 
-            IF (grad_deriv >= 0) THEN !asking for pure e evaluation or also derivatives
-               e_leg(0) = 1 !first legendre pol
-               e_leg(1) = t !second legendre pol
-            END IF
+            e_leg(0) = 1 !first legendre pol
+            e_leg(1) = t !second legendre pol
 
             IF ((grad_deriv >= 1)) THEN !asking for first derivative or higher
                de_leg(0) = 0
@@ -272,17 +270,14 @@ CONTAINS
                e_leg(i) = 2._dp*(t)*e_leg(i - 1) - e_leg(i - 2) - ((t)*e_leg(i - 1) - e_leg(i - 2))/(REAL(i, KIND=dp))
                !taken from quantum espresso beef library.
 
-               IF (ABS(grad_deriv) >= 1) THEN !first derivative
+               IF (grad_deriv >= 1) THEN !first derivative
                   !the zero-derivatives need to be available for the first deriv.
                   de_leg(i) = e_leg(i - 1)*i + de_leg(i - 1)*(t)
                END IF
             END DO
 
-            !NO DERIVATIVE
-            IF (grad_deriv >= 0) THEN
-               !add the scaled legendre linear combination to e_0
-               e_0(ii) = e_0(ii) + SUM(e_leg*a)*e_ueg*sx
-            END IF
+            !add the scaled legendre linear combination to e_0
+            e_0(ii) = e_0(ii) + SUM(e_leg*a)*e_ueg*sx
 
             !FIRST DERIVATIVE
             IF ((grad_deriv >= 1)) THEN !asking for first derivative or higher
@@ -453,10 +448,8 @@ CONTAINS
             s2 = s**2
             t = 2.0_dp*s**2/(4.0_dp + s**2) - 1.0_dp
 
-            IF (grad_deriv >= 0) THEN !asking for pure e evaluation or also derivatives
-               e_leg(0) = 1 !first legendre pol
-               e_leg(1) = t !second legendre pol
-            END IF
+            e_leg(0) = 1 !first legendre pol
+            e_leg(1) = t !second legendre pol
 
             IF ((grad_deriv >= 1)) THEN !asking for first derivative or higher
                de_leg(0) = 0
@@ -470,7 +463,7 @@ CONTAINS
                e_leg(i) = 2._dp*(t)*e_leg(i - 1) - e_leg(i - 2) - ((t)*e_leg(i - 1) - e_leg(i - 2))/(REAL(i, KIND=dp))
                !taken from quantum espresso beef library.
 
-               IF (ABS(grad_deriv) >= 1) THEN !first derivative
+               IF (grad_deriv >= 1) THEN !first derivative
                   !the zero-derivatives need to be available for the first deriv.
                   de_leg(i) = e_leg(i - 1)*i + de_leg(i - 1)*(t)
                END IF
@@ -478,10 +471,8 @@ CONTAINS
             END DO
 
             !NO DERIVATIVE
-            IF (grad_deriv >= 0) THEN
-               !add the scaled legendre linear combination to e_0
-               e_0(ii) = e_0(ii) + SUM(e_leg*a)*e_ueg*sx
-            END IF
+            !add the scaled legendre linear combination to e_0
+            e_0(ii) = e_0(ii) + SUM(e_leg*a)*e_ueg*sx
 
             !FIRST DERIVATIVE
             IF ((grad_deriv >= 1)) THEN !asking for first derivative or higher
