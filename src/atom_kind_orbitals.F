@@ -39,7 +39,7 @@ MODULE atom_kind_orbitals
         barrier_conf, do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
         do_gapw_log, do_nonrel_atom, do_numeric, do_rks_atom, do_sczoramp_atom, do_uks_atom, &
         do_zoramp_atom, ecp_pseudo, gth_pseudo, no_pseudo, poly_conf, rel_dkh, rel_none, &
-        rel_sczora_mp, rel_zora, rel_zora_full, rel_zora_mp, sgp_pseudo
+        rel_sczora_mp, rel_zora, rel_zora_full, rel_zora_mp, sgp_pseudo, upf_pseudo
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
@@ -191,7 +191,10 @@ CONTAINS
          CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
       ELSE IF (ASSOCIATED(sgp_potential)) THEN
          CALL get_potential(sgp_potential, ecp_semi_local=ecp_semi_local)
-         IF (ecp_semi_local) THEN
+         IF (ALLOCATED(sgp_potential%upf_data)) THEN
+            potential%ppot_type = upf_pseudo
+            potential%upf_pot = sgp_potential%upf_data
+         ELSE IF (ecp_semi_local) THEN
             potential%ppot_type = ecp_pseudo
             CALL ecp_potential_conversion(sgp_potential, potential%ecp_pot)
             potential%ecp_pot%symbol = ptable(z)%symbol
@@ -666,7 +669,10 @@ CONTAINS
          CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
       ELSE IF (ASSOCIATED(sgp_potential)) THEN
          CALL get_potential(sgp_potential, ecp_semi_local=ecp_semi_local)
-         IF (ecp_semi_local) THEN
+         IF (ALLOCATED(sgp_potential%upf_data)) THEN
+            potential%ppot_type = upf_pseudo
+            potential%upf_pot = sgp_potential%upf_data
+         ELSE IF (ecp_semi_local) THEN
             potential%ppot_type = ecp_pseudo
             CALL ecp_potential_conversion(sgp_potential, potential%ecp_pot)
             potential%ecp_pot%symbol = ptable(z)%symbol

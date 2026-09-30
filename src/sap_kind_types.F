@@ -30,6 +30,9 @@ MODULE sap_kind_types
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE upf_projector_integrals,         ONLY: upf_projector_init,&
+                                              upf_projector_overlap,&
+                                              upf_projector_type
    USE util,                            ONLY: locate,&
                                               sort
 #include "./base/base_uses.f90"
@@ -303,9 +306,10 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nprj_ppnl, &
                                                             nsgf_seta
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: dogth, my_momentmode, my_ref
+      LOGICAL                                            :: do_upf, dogth, my_momentmode, my_ref
       LOGICAL, DIMENSION(0:9)                            :: is_nonlocal
       REAL(KIND=dp)                                      :: dac, ppnl_radius
+      REAL(KIND=dp), ALLOCATABLE                         :: upf_int(:, :, :)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: radp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sab, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ai_work
@@ -323,6 +327,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(sgp_potential_p_type), DIMENSION(:), POINTER  :: spotential
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
+      TYPE(upf_projector_type), POINTER                  :: upf
 
       CALL timeset(routineN, handle)
 
@@ -378,6 +383,13 @@ CONTAINS
             ldai_nl = MAX(ldai_nl, ncoset(gth_potential%lprj_ppnl_max))
          ELSE IF (ASSOCIATED(sgp_potential)) THEN
             spotential(ikind)%sgp_potential => sgp_potential
+            IF (ALLOCATED(sgp_potential%upf_data)) THEN
+               IF (sgp_potential%upf_data%number_of_proj > 0) THEN
+                  IF (sgp_potential%upf_projectors%degree < maxlgto + nder) THEN
+                     CALL upf_projector_init(sgp_potential%upf_data, maxlgto + nder, sgp_potential%upf_projectors)
+                  END IF
+               END IF
+            END IF
             ldai_nl = MAX(ldai_nl, sgp_potential%n_nonlocal*ncoset(sgp_potential%lmax))
          END IF
       END DO
@@ -426,6 +438,7 @@ CONTAINS
 !$OMP PRIVATE (ikind, kkind, iatom, katom, nlist, ilist, nneighbor, jneighbor, &
 !$OMP          cell_c, rac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta, &
 !$OMP          slot, sphi_a, zeta, cprj, hprj, lppnl, nppnl, nprj_ppnl, &
+!$OMP          do_upf, upf, upf_int, &
 !$OMP          clist, iset, ncoa, sgfa, prjc, work, sab, ai_work, nprjc,  ppnl_radius, &
 !$OMP          ncoc, rpgfa, first_col, vprj_ppnl, i, j, l, dogth, &
 !$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl, &
@@ -470,6 +483,7 @@ CONTAINS
          sphi_a => basis_set(ikind)%gto_basis_set%sphi
          zeta => basis_set(ikind)%gto_basis_set%zet
          ! get definition of PP projectors
+         do_upf = .FALSE.
          IF (ASSOCIATED(gpotential(kkind)%gth_potential)) THEN
             ! GTH potential
             dogth = .TRUE.
@@ -485,19 +499,25 @@ CONTAINS
             dogth = .FALSE.
             nprjc = spotential(kkind)%sgp_potential%nppnl
             IF (nprjc == 0) CYCLE
-            nnl = spotential(kkind)%sgp_potential%n_nonlocal
-            lppnl = spotential(kkind)%sgp_potential%lmax
-            is_nonlocal = .FALSE.
-            is_nonlocal(0:lppnl) = spotential(kkind)%sgp_potential%is_nonlocal(0:lppnl)
-            a_nl => spotential(kkind)%sgp_potential%a_nonlocal
-            h_nl => spotential(kkind)%sgp_potential%h_nonlocal
-            c_nl => spotential(kkind)%sgp_potential%c_nonlocal
-            ppnl_radius = spotential(kkind)%sgp_potential%ppnl_radius
-            ALLOCATE (radp(nnl))
-            radp(:) = ppnl_radius
-            cprj => spotential(kkind)%sgp_potential%cprj_ppnl
-            hprj => spotential(kkind)%sgp_potential%vprj_ppnl
-            nppnl = SIZE(cprj, 2)
+            do_upf = ALLOCATED(spotential(kkind)%sgp_potential%upf_data)
+            IF (do_upf) THEN
+               upf => spotential(kkind)%sgp_potential%upf_projectors
+               nppnl = upf%nproj
+            ELSE
+               nnl = spotential(kkind)%sgp_potential%n_nonlocal
+               lppnl = spotential(kkind)%sgp_potential%lmax
+               is_nonlocal = .FALSE.
+               is_nonlocal(0:lppnl) = spotential(kkind)%sgp_potential%is_nonlocal(0:lppnl)
+               a_nl => spotential(kkind)%sgp_potential%a_nonlocal
+               h_nl => spotential(kkind)%sgp_potential%h_nonlocal
+               c_nl => spotential(kkind)%sgp_potential%c_nonlocal
+               ppnl_radius = spotential(kkind)%sgp_potential%ppnl_radius
+               ALLOCATE (radp(nnl))
+               radp(:) = ppnl_radius
+               cprj => spotential(kkind)%sgp_potential%cprj_ppnl
+               hprj => spotential(kkind)%sgp_potential%vprj_ppnl
+               nppnl = SIZE(cprj, 2)
+            END IF
          ELSE
             CYCLE
          END IF
@@ -528,7 +548,7 @@ CONTAINS
             IF (pseudoatom /= katom) THEN
                clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
                clist%maxach = MAXVAL(ABS(clist%achint(:, :, 1)))
-               IF (.NOT. dogth) DEALLOCATE (radp)
+               IF (.NOT. dogth .AND. .NOT. do_upf) DEALLOCATE (radp)
                CYCLE
             END IF
          END IF
@@ -596,6 +616,25 @@ CONTAINS
                   clist%achint(sgfa:sgfa + na - 1, 1:nb, i) = &
                      MATMUL(clist%acint(sgfa:sgfa + na - 1, 1:nb, i), vprj_ppnl(1:nb, 1:nb))
                END DO
+            ELSE IF (do_upf) THEN
+               na = nsgf_seta(iset)
+               nb = nppnl
+               np = ncoa
+               ALLOCATE (upf_int(np, nb, maxder))
+               IF (my_momentmode) THEN
+                  CALL upf_projector_overlap(upf, la_max(iset), zeta(:npgfa(iset), iset), &
+                                             rac, nder, upf_int, moment_origin=raf)
+               ELSE
+                  CALL upf_projector_overlap(upf, la_max(iset), zeta(:npgfa(iset), iset), &
+                                             rac, nder, upf_int)
+               END IF
+               DO i = 1, maxder
+                  clist%acint(sgfa:sgfa + na - 1, 1:nb, i) = &
+                     MATMUL(TRANSPOSE(sphi_a(1:np, sgfa:sgfa + na - 1)), upf_int(:, :, i))
+                  clist%achint(sgfa:sgfa + na - 1, 1:nb, i) = &
+                     MATMUL(clist%acint(sgfa:sgfa + na - 1, 1:nb, i), upf%d)
+               END DO
+               DEALLOCATE (upf_int)
             ELSE
                ! SGP potential
                ! *** Calculate the primitive overlap integrals ***
@@ -639,7 +678,7 @@ CONTAINS
          END DO
          clist%maxac = MAXVAL(ABS(clist%acint(:, :, 1)))
          clist%maxach = MAXVAL(ABS(clist%achint(:, :, 1)))
-         IF (.NOT. dogth) DEALLOCATE (radp)
+         IF (.NOT. dogth .AND. .NOT. do_upf) DEALLOCATE (radp)
 
       END DO
 

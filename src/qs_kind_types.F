@@ -2874,6 +2874,9 @@ CONTAINS
                   CALL get_potential(qs_kind%sgp_potential, description=description)
                   description(4) = "UPF "//TRIM(potential_name)
                   CALL atom_read_upf(upfpot, potential_name)
+                  IF (TRIM(upfpot%pseudo_type) == "NC") THEN
+                     ALLOCATE (qs_kind%sgp_potential%upf_data, SOURCE=upfpot)
+                  END IF
                   CALL set_potential(qs_kind%sgp_potential, name=upfpot%pname, description=description, &
                                      zeff=upfpot%zion, z=z, has_nlcc=upfpot%core_correction)
                   ! convert pp
@@ -2884,7 +2887,11 @@ CONTAINS
                         WRITE (iounit, "(T8,'Accuracy for local part:',T61,F20.12)") error(1)
                      END IF
                      IF (sgppot%has_nonlocal) THEN
-                        WRITE (iounit, "(T8,'Accuracy for nonlocal part:',T61,F20.12)") error(2)
+                        IF (ALLOCATED(qs_kind%sgp_potential%upf_data)) THEN
+                           WRITE (iounit, "(T8,'Unused nonlocal Gaussian fit error:',T61,F20.12)") error(2)
+                        ELSE
+                           WRITE (iounit, "(T8,'Accuracy for nonlocal part:',T61,F20.12)") error(2)
+                        END IF
                      END IF
                      IF (sgppot%has_nlcc) THEN
                         WRITE (iounit, "(T8,'Accuracy for NLCC density:',T61,F20.12)") error(3)

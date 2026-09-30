@@ -24,6 +24,30 @@ more than one library. The executable also checks analytic radial core-density d
 finite differences, the spherical-harmonic addition theorem through angular momentum five, and
 atomic local/nonlocal operators against analytic Gaussian integrals.
 
+## Direct radial projector integrals
+
+Quickstep retains the scalar NC radial projector identities and the full UPF coupling matrix,
+using the UPF reader's existing atomic-unit convention.
+`upf_projector_integrals` integrates Cartesian polynomials and real spherical harmonics
+analytically, with a one-dimensional Simpson quadrature on the supplied radial mesh. Gaussian
+basis contractions, projector identities, and off-diagonal radial couplings are preserved.
+The local potential and NLCC density still use the existing Gaussian representation.
+
+Run the independent analytic integral checks with:
+
+```sh
+cmake --build /path/to/build --target upf_projector_integrals_unittest
+/path/to/build/bin/upf_projector_integrals_unittest.psmp
+```
+
+Synthetic Gaussian radial projectors are compared with the existing analytic Cartesian Gaussian
+integral routines for s through f channels, three exponents, four center separations, linear and
+logarithmic meshes, derivatives through second order, and moments through quadrupole order.
+These tests verify the integral algebra. They do not measure quadrature convergence for every
+UPF dataset or convergence of the molecular orbital basis.
+Optional UPF filenames on the command line additionally check native integral finiteness and
+successive replacement of the radial/angular cache for each dataset.
+
 The `tests/QS/regtest-upf` inputs combine two different NC potentials with nonlinear core
 corrections and the existing UZH-MOLOPT basis sets. They exercise complete energy/force
 calculations. Additional checks must cover active GAPW one-center expansions, finite-difference
