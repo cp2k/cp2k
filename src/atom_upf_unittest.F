@@ -11,6 +11,7 @@ PROGRAM atom_upf_unittest
                                               atom_ppint_setup
    USE atom_sgp,                        ONLY: atom_sgp_potential_type,&
                                               atom_sgp_release,&
+                                              fit_core_density_gaussians,&
                                               sgp_construction
    USE atom_types,                      ONLY: atom_basis_type,&
                                               atom_integrals,&
@@ -53,6 +54,7 @@ PROGRAM atom_upf_unittest
    CALL check_projector_addition_theorem()
    CALL check_atomic_potential()
    CALL check_upf_units()
+   CALL check_nlcc_fit()
 
    ! The same temporary is reused for successive KIND sections in Quickstep.
    ALLOCATE (pot%rho_nlcc(3))
@@ -105,6 +107,54 @@ PROGRAM atom_upf_unittest
    CALL cp2k_finalize()
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Check fitted densities and their derivatives against an analytic reference.
+!>        Evaluation points differ from the input mesh, and neither input mesh
+!>        nor reference exponents coincide with the internal fitting sequence.
+! **************************************************************************************************
+   SUBROUTINE check_nlcc_fit()
+      INTEGER, PARAMETER                                 :: nr = 1601
+      REAL(dp), PARAMETER :: amplitudes(3) = [0.02_dp, 1.7_dp, 0.4_dp], &
+         exponents(3) = [0.15_dp, 2.3_dp, 35.0_dp]
+
+      INTEGER                                            :: i, mesh
+      REAL(dp) :: density_error, derivative, derivative_error, dx, r(nr), rab(nr), radius, &
+         reference, reference_derivative, rho(nr), value
+      REAL(dp), ALLOCATABLE                              :: alpha(:), coeff(:)
+
+      DO mesh = 1, 2
+         dx = LOG(20.0_dp/1.e-6_dp)/REAL(nr - 1, dp)
+         DO i = 1, nr
+            IF (mesh == 1) THEN
+               r(i) = 20.0_dp*REAL(i - 1, dp)/REAL(nr - 1, dp)
+               rab(i) = 20.0_dp/REAL(nr - 1, dp)
+            ELSE
+               r(i) = 1.e-6_dp*EXP(dx*REAL(i - 1, dp))
+               rab(i) = dx*r(i)
+            END IF
+            rho(i) = SUM(amplitudes*EXP(-exponents*r(i)**2))
+         END DO
+         CALL fit_core_density_gaussians(r, rab, rho, alpha, coeff)
+         density_error = 0.0_dp
+         derivative_error = 0.0_dp
+         DO i = 0, 1200
+            radius = REAL(i, dp)*0.017_dp
+            reference = SUM(amplitudes*EXP(-exponents*radius**2))
+            reference_derivative = -2.0_dp*radius*SUM(exponents*amplitudes*EXP(-exponents*radius**2))
+            value = SUM(coeff*EXP(-alpha*radius**2))
+            derivative = -2.0_dp*radius*SUM(alpha*coeff*EXP(-alpha*radius**2))
+            density_error = MAX(density_error, ABS(value - reference))
+            derivative_error = MAX(derivative_error, ABS(derivative - reference_derivative))
+         END DO
+         WRITE (*, '(A,I2,2ES16.7)') "Core Gaussian fit, density and derivative:", mesh, density_error, derivative_error
+         IF (density_error > 2.e-7_dp) ERROR STOP "Gaussian core-density fit is inaccurate"
+         IF (derivative_error > 3.e-6_dp) ERROR STOP "Gaussian core-density derivative is inaccurate"
+         rho = 0.0_dp
+         CALL fit_core_density_gaussians(r, rab, rho, alpha, coeff)
+         IF (ANY(coeff /= 0.0_dp)) ERROR STOP "Zero core density generated nonzero Gaussian coefficients"
+      END DO
+   END SUBROUTINE check_nlcc_fit
 
 ! **************************************************************************************************
 !> \brief Read an independent miniature UPF fixture and check its numerical convention.

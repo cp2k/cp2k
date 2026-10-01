@@ -7,7 +7,6 @@
 
 ! **************************************************************************************************
 MODULE atom_sgp
-   USE ai_onecenter,                    ONLY: sg_overlap
    USE atom_set_basis,                  ONLY: set_kind_basis_atomic
    USE atom_types,                      ONLY: &
         atom_basis_gridrep, atom_basis_type, atom_ecppot_type, atom_p_type, atom_type, &
@@ -60,6 +59,7 @@ MODULE atom_sgp
    PRIVATE
    PUBLIC  :: atom_sgp_potential_type, atom_sgp_release
    PUBLIC  :: atom_sgp_construction, sgp_construction
+   PUBLIC  :: fit_core_density_gaussians
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_sgp'
 
@@ -463,10 +463,9 @@ CONTAINS
       INTEGER                                            :: ia, ib, ipa, ipb, ir, la, lb, na, nl, &
                                                             np, nr
       LOGICAL                                            :: nl_trans
-      REAL(KIND=dp)                                      :: cpa, cpb, eee, ei, errcc, errloc, rc, &
-                                                            x(2), zval
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: al, ccharge, cgauss, cl, pgauss, pproa, &
-                                                            pprob, tv, vgauss, vloc, ww
+      REAL(KIND=dp)                                      :: cpa, cpb, eee, ei, errloc, rc, x(2), zval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: al, cl, pgauss, pproa, pprob, vgauss, &
+                                                            vloc, ww
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cmat, qmat, score, sinv, smat, tmat
       TYPE(atom_basis_type)                              :: gbasis
       TYPE(opt_state_type)                               :: ostate
@@ -724,43 +723,75 @@ CONTAINS
 
       ! fit core charge to Gaussian form
       IF (sgp_pot%has_nlcc) THEN
-         ALLOCATE (ccharge(nr), cgauss(nr))
-         ccharge(:) = upf_pot%rho_nlcc(:)
-         nl = 8
-         ALLOCATE (al(nl), cl(nl), tv(nl))
-         ALLOCATE (smat(nl, nl), sinv(nl, nl))
-         al = 0.0_dp
-         cl = 0.0_dp
-         DO ir = 1, nl
-            al(ir) = 10.0_dp*0.6_dp**(ir - 1)
-         END DO
-         ! calculate integrals
-         smat = 0.0_dp
-         sinv = 0.0_dp
-         tv = 0.0_dp
-         CALL sg_overlap(smat(1:nl, 1:nl), 0, al(1:nl), al(1:nl))
-         DO ir = 1, nl
-            cgauss(:) = EXP(-al(ir)*upf_pot%r(:)**2)
-            tv(ir) = SUM(cgauss*ccharge*ww)
-         END DO
-         CALL get_pseudo_inverse_diag(smat(1:nl, 1:nl), sinv(1:nl, 1:nl), 1.e-10_dp)
-         cl(1:nl) = MATMUL(sinv(1:nl, 1:nl), tv(1:nl))
-         cgauss = 0.0_dp
-         DO ir = 1, nl
-            cgauss(:) = cgauss(:) + cl(ir)*EXP(-al(ir)*upf_pot%r(:)**2)
-         END DO
-         errcc = SUM((cgauss - ccharge)**2*ww)
-         ALLOCATE (sgp_pot%a_nlcc(nl), sgp_pot%c_nlcc(nl))
-         sgp_pot%n_nlcc = nl
-         sgp_pot%a_nlcc(1:nl) = al(1:nl)
-         sgp_pot%c_nlcc(1:nl) = cl(1:nl)
-         DEALLOCATE (ccharge, cgauss)
-         DEALLOCATE (al, cl, tv, smat, sinv)
+         CALL fit_core_density_gaussians(upf_pot%r, upf_pot%rab, upf_pot%rho_nlcc, al, cl)
+         sgp_pot%n_nlcc = SIZE(al)
+         ALLOCATE (sgp_pot%a_nlcc, SOURCE=al)
+         ALLOCATE (sgp_pot%c_nlcc, SOURCE=cl)
+         DEALLOCATE (al, cl)
       END IF
 
       DEALLOCATE (ww)
 
    END SUBROUTINE upf_sgp_constr
+
+! **************************************************************************************************
+!> \brief Fit a tabulated core density without forming ill-conditioned normal equations.
+!>        Column-normalized, radial least squares use a direct SVD. A broad Gaussian
+!>        sequence resolves both the core and its smooth tail. Zero-density samples
+!>        beyond the tabulated mesh prevent an unconstrained diffuse continuation.
+!> \param r Radial grid in bohr.
+!> \param rab Radial mesh Jacobian dr/dj.
+!> \param rho True spherical density (without the 4*pi*r**2 prefactor).
+!> \param alpha Gaussian exponents in inverse square bohr.
+!> \param coeff Coefficients multiplying exp(-alpha*r**2).
+! **************************************************************************************************
+   SUBROUTINE fit_core_density_gaussians(r, rab, rho, alpha, coeff)
+      REAL(dp), INTENT(IN)                               :: r(:), rab(:), rho(:)
+      REAL(dp), ALLOCATABLE, INTENT(OUT)                 :: alpha(:), coeff(:)
+
+      INTEGER, PARAMETER                                 :: ng = 48, ntail = 200
+      REAL(dp), PARAMETER                                :: amax = 300.0_dp, amin = 0.03_dp, &
+                                                            rcond = 1.e-12_dp
+
+      INTEGER                                            :: i, info, lwork, m, nr, rank
+      REAL(dp)                                           :: dr, extent, norms(ng), singular(ng), &
+                                                            work_query(1)
+      REAL(dp), ALLOCATABLE                              :: matrix(:, :), rhs(:, :), rr(:), sw(:), &
+                                                            work(:)
+
+      nr = SIZE(r)
+      CPASSERT(nr >= 2 .AND. SIZE(rab) == nr .AND. SIZE(rho) == nr)
+      CPASSERT(ALL(r >= 0.0_dp) .AND. ALL(rab > 0.0_dp))
+      CPASSERT(ALL(r(2:) > r(:nr - 1)))
+      m = nr + ntail
+      ALLOCATE (alpha(ng), coeff(ng), matrix(m, ng), rhs(m, 1), rr(m), sw(m))
+      rr(:nr) = r
+      sw(:nr) = r*SQRT(rab)
+      ! At 50 bohr even the most diffuse fitting Gaussian is below exp(-75).
+      extent = MAX(r(nr) + 1.0_dp, 50.0_dp)
+      dr = (extent - r(nr))/REAL(ntail, dp)
+      DO i = 1, ntail
+         rr(nr + i) = r(nr) + REAL(i, dp)*dr
+         sw(nr + i) = rr(nr + i)*SQRT(dr)
+      END DO
+      sw(m) = sw(m)/SQRT(2.0_dp)
+      rhs = 0.0_dp
+      rhs(:nr, 1) = rho*sw(:nr)
+      DO i = 1, ng
+         alpha(i) = amin*EXP(LOG(amax/amin)*REAL(i - 1, dp)/REAL(ng - 1, dp))
+         matrix(:, i) = EXP(-alpha(i)*rr**2)*sw
+         norms(i) = SQRT(SUM(matrix(:, i)**2))
+         CPASSERT(norms(i) > 0.0_dp)
+         matrix(:, i) = matrix(:, i)/norms(i)
+      END DO
+      CALL dgelss(m, ng, 1, matrix, m, rhs, m, singular, rcond, rank, work_query, -1, info)
+      CPASSERT(info == 0)
+      lwork = MAX(1, CEILING(work_query(1)))
+      ALLOCATE (work(lwork))
+      CALL dgelss(m, ng, 1, matrix, m, rhs, m, singular, rcond, rank, work, lwork, info)
+      IF (info /= 0) CPABORT("SVD failed while fitting the UPF core density")
+      coeff = rhs(:ng, 1)/norms
+   END SUBROUTINE fit_core_density_gaussians
 
 ! **************************************************************************************************
 !> \brief ...
