@@ -14,9 +14,9 @@ MODULE rpa_grad
    USE cp_array_utils,                  ONLY: cp_1d_r_cp_type,&
                                               cp_3d_r_cp_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_geadd,&
-                                              cp_fm_scale_and_add,&
-                                              cp_fm_uplo_to_full
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
+                                              cp_fm_geadd,&
+                                              cp_fm_scale_and_add
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_invert
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_get,&
@@ -738,7 +738,8 @@ CONTAINS
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_Q, fm_mat_Q_gemm
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_Q
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_Q_gemm
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       REAL(KIND=dp), INTENT(IN)                          :: omega
@@ -749,11 +750,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_grad_matrix_operations'
 
-      INTEGER                                            :: col_global, col_local, dimen_ia, &
-                                                            dimen_RI, handle, handle2, ispin, &
-                                                            jspin, ncol_local, nrow_local, nspins, &
-                                                            row_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: dimen_ia, dimen_RI, handle, handle2, &
+                                                            ispin, jspin, nspins
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          TARGET                                          :: mat_S_3D, mat_work_iaP_3D
       TYPE(cp_fm_type)                                   :: fm_work_iaP, fm_work_PQ
@@ -762,28 +760,17 @@ CONTAINS
 
       nspins = SIZE(fm_mat_Q)
 
-      CALL cp_fm_get_info(fm_mat_Q(1), nrow_global=dimen_RI, nrow_local=nrow_local, ncol_local=ncol_local, &
-                          col_indices=col_indices, row_indices=row_indices)
+      CALL cp_fm_get_info(fm_mat_Q(1), nrow_global=dimen_RI)
 
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
          CALL cp_fm_create(fm_work_PQ, fm_mat_Q(1)%matrix_struct)
 
-         ! calculate [1+Q(iw')]^-1
-         CALL cp_fm_cholesky_invert(fm_mat_Q(1))
-         ! symmetrize the result, fm_work_PQ is only a work matrix
-         CALL cp_fm_uplo_to_full(fm_mat_Q(1), fm_work_PQ)
+         ! Invert [1+Q(iw')], using fm_work_PQ as temporary workspace.
+         CALL cp_fm_cholesky_invert(fm_mat_Q(1), n=dimen_RI, work=fm_work_PQ)
 
          CALL cp_fm_release(fm_work_PQ)
 
-         DO col_local = 1, ncol_local
-            col_global = col_indices(col_local)
-            DO row_local = 1, nrow_local
-            IF (col_global == row_indices(row_local)) THEN
-               fm_mat_Q(1)%local_data(row_local, col_local) = fm_mat_Q(1)%local_data(row_local, col_local) - 1.0_dp
-               EXIT
-            END IF
-            END DO
-         END DO
+         CALL cp_fm_add_on_diag(fm_mat_Q(1), -1.0_dp, n_active=dimen_RI)
 
          CALL timeset(routineN//"_PQ", handle2)
          CALL dgemm_counter_start(dgemm_counter)

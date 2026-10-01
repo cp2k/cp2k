@@ -14,6 +14,7 @@
 MODULE cp_fm_cholesky
    USE cp_dlaf_utils_api,               ONLY: cp_dlaf_create_grid,&
                                               cp_dlaf_initialize
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
    USE cp_fm_dlaf_api,                  ONLY: cp_pdpotrf_dlaf,&
                                               cp_pdpotri_dlaf
    USE cp_fm_types,                     ONLY: cp_fm_type
@@ -170,18 +171,21 @@ CONTAINS
    END SUBROUTINE cp_fm_cholesky_solve
 
 ! **************************************************************************************************
-!> \brief used to replace the cholesky decomposition by the inverse
+!> \brief Replace the upper Cholesky factor by the upper triangle of the inverse.
+!>        When work is provided, expand the upper triangle to a full symmetric matrix.
 !> \param matrix the matrix to invert (must be an upper triangular matrix)
 !> \param n size of the matrix to invert (defaults to the min(size(matrix)))
 !> \param info_out ...
+!> \param work optional workspace of the same size and distribution for expanding the upper triangle
 !> \par History
 !>      05.2002 created [JVdV]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_cholesky_invert(matrix, n, info_out)
+   SUBROUTINE cp_fm_cholesky_invert(matrix, n, info_out, work)
       TYPE(cp_fm_type), INTENT(IN)              :: matrix
       INTEGER, INTENT(in), OPTIONAL             :: n
       INTEGER, INTENT(OUT), OPTIONAL            :: info_out
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL    :: work
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_invert'
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: a
@@ -233,6 +237,8 @@ CONTAINS
          IF (info /= 0) &
             CPABORT("Cholesky invert failed: the matrix is not positive definite or ill-conditioned.")
       END IF
+
+      IF (PRESENT(work) .AND. info == 0) CALL cp_fm_uplo_to_full(matrix, work)
 
       CALL timestop(handle)
 

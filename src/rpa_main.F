@@ -30,11 +30,13 @@ MODULE rpa_main
                                               dbcsr_get_info,&
                                               dbcsr_p_type,&
                                               dbcsr_type
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
+                                              cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_diag,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
@@ -116,8 +118,7 @@ MODULE rpa_main
                                               rpa_sigma_create,&
                                               rpa_sigma_matrix_spectral,&
                                               rpa_sigma_type
-   USE rpa_util,                        ONLY: Q_trace_and_add_unit_matrix,&
-                                              alloc_im_time,&
+   USE rpa_util,                        ONLY: alloc_im_time,&
                                               calc_mat_Q,&
                                               compute_Erpa_by_freq_int,&
                                               contract_P_omega_with_mat_L,&
@@ -1112,7 +1113,9 @@ CONTAINS
                                                             color_rpa_group
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
       TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_Q_gemm
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_Q
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_gw
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_R_gw
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_ij_bse, fm_mat_S_ab_bse
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse
@@ -1163,7 +1166,7 @@ CONTAINS
       REAL(KIND=dp) :: alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
          eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
          my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, trace_Qomega, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, diag_Qomega, e_fermi, &
                                                             vec_omega_fit_gw, wkp_W
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: static_cohsex_eigenval_cn, &
                                                             static_cohsex_eigenval_dg, vec_W_gw
@@ -1339,7 +1342,7 @@ CONTAINS
 
       ! This array is needed for RPA
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
-         ALLOCATE (trace_Qomega(dimen_RI_red))
+         ALLOCATE (diag_Qomega(dimen_RI_red))
       END IF
 
       IF (do_ri_sos_laplace_mp2 .AND. .NOT. do_im_time) THEN
@@ -1493,7 +1496,7 @@ CONTAINS
                   CALL cp_fm_scale_and_add(1.0_dp, fm_mat_Q_static_bse_gemm, 1.0_dp, fm_mat_Q_gemm(ispin))
                END DO
             END IF
-            CALL Q_trace_and_add_unit_matrix(dimen_RI_red, trace_Qomega, fm_mat_Q(1))
+            CALL cp_fm_add_on_diag(fm_mat_Q(1), 1.0_dp, n_active=dimen_RI_red)
             IF (do_bse) THEN
                ALLOCATE (static_cohsex_eigenval_dg(nmo, nspins), static_cohsex_eigenval_cn(nmo, nspins), &
                          static_cohsex_u(nmo, nmo, nspins))
@@ -1635,7 +1638,9 @@ CONTAINS
             ELSE
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_copy_Q(fm_mat_Q(1), rpa_grad)
 
-               CALL Q_trace_and_add_unit_matrix(dimen_RI_red, trace_Qomega, fm_mat_Q(1))
+               ! epsilon = I + Q; retain the diagonal of Q for the RPA energy.
+               CALL cp_fm_get_diag(fm_mat_Q(1), diag_Qomega, n_active=dimen_RI_red)
+               CALL cp_fm_add_on_diag(fm_mat_Q(1), 1.0_dp, n_active=dimen_RI_red)
 
                IF (do_kpoints_cubic_RPA .OR. do_kpoints_from_Gamma) THEN
                   CALL invert_eps_compute_W_and_Erpa_kp(dimen_RI, jquad, nkp, count_ev_sc_GW, para_env, &
@@ -1647,7 +1652,7 @@ CONTAINS
                                                         fm_mat_W, cfm_mat_RI_global_work, mat_MinvVMinv, &
                                                         fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv)
                ELSE
-                  CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA, Erpa, &
+                  CALL compute_Erpa_by_freq_int(dimen_RI_red, diag_Qomega, fm_mat_Q(1), para_env_RPA, Erpa, &
                                                 time_frequency_grid%frequency_weights(jquad))
                END IF
 
@@ -1946,7 +1951,7 @@ CONTAINS
       IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) CALL exchange_work%release()
 
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
-         DEALLOCATE (trace_Qomega)
+         DEALLOCATE (diag_Qomega)
       END IF
 
       CALL time_frequency_grid_release(time_frequency_grid)

@@ -559,47 +559,53 @@ CONTAINS
 !> \brief returns the diagonal elements of a fm
 !> \param matrix ...
 !> \param diag ...
+!> \param n_active optional number of leading diagonal elements to return
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_get_diag(matrix, diag)
+   SUBROUTINE cp_fm_get_diag(matrix, diag, n_active)
 
-      ! arguments
-      TYPE(cp_fm_type), INTENT(IN)             :: matrix
-      REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: diag
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: diag
+      INTEGER, INTENT(IN), OPTIONAL                      :: n_active
 
-      ! locals
-      INTEGER :: i, nrow_global
-
+      INTEGER                                            :: i_global, n_diag, ncol_global, nrow_global
 #if defined(__parallel)
-      INTEGER, DIMENSION(9) :: desca
-      TYPE(cp_blacs_env_type), POINTER :: context
-      INTEGER :: icol_local, ipcol, iprow, irow_local, mypcol, myprow, npcol, &
-                 nprow
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: a
+      INTEGER                                            :: icol_local, ipcol, iprow, irow, irow_local, &
+                                                            mypcol, myprow, npcol, nprow, nrow_local
+      INTEGER, DIMENSION(9)                              :: desca
+      INTEGER, DIMENSION(:), POINTER                     :: row_indices
+      TYPE(cp_blacs_env_type), POINTER                   :: context
 #endif
 
-      CALL cp_fm_get_info(matrix, nrow_global=nrow_global)
+      CALL cp_fm_get_info(matrix, nrow_global=nrow_global, ncol_global=ncol_global)
 
-#if defined(__parallel)
+      n_diag = MIN(nrow_global, ncol_global)
+      IF (PRESENT(n_active)) n_diag = n_active
+      CPASSERT(n_diag >= 0 .AND. n_diag <= MIN(nrow_global, ncol_global))
+      CPASSERT(SIZE(diag) >= n_diag)
+
       diag = 0.0_dp
+#if defined(__parallel)
+      CALL cp_fm_get_info(matrix, nrow_local=nrow_local, row_indices=row_indices)
       context => matrix%matrix_struct%context
       myprow = context%mepos(1)
       mypcol = context%mepos(2)
       nprow = context%num_pe(1)
       npcol = context%num_pe(2)
 
-      a => matrix%local_data
       desca(:) = matrix%matrix_struct%descriptor(:)
 
-      DO i = 1, nrow_global
-         CALL infog2l(i, i, desca, nprow, npcol, myprow, mypcol, &
+      DO irow = 1, nrow_local
+         i_global = row_indices(irow)
+         IF (i_global > n_diag) EXIT
+         CALL infog2l(i_global, i_global, desca, nprow, npcol, myprow, mypcol, &
                       irow_local, icol_local, iprow, ipcol)
          IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
-            diag(i) = a(irow_local, icol_local)
+            diag(i_global) = matrix%local_data(irow_local, icol_local)
          END IF
       END DO
 #else
-      DO i = 1, nrow_global
-         diag(i) = matrix%local_data(i, i)
+      DO i_global = 1, n_diag
+         diag(i_global) = matrix%local_data(i_global, i_global)
       END DO
 #endif
       CALL matrix%matrix_struct%para_env%sum(diag)

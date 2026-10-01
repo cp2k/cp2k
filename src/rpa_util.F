@@ -30,8 +30,7 @@ MODULE rpa_util
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_add_on_diag,&
-                                              cp_fm_syrk,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk,&
                                               cp_fm_transpose
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -70,7 +69,7 @@ MODULE rpa_util
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_util'
 
-   PUBLIC :: compute_Erpa_by_freq_int, alloc_im_time, calc_mat_Q, Q_trace_and_add_unit_matrix, &
+   PUBLIC :: compute_Erpa_by_freq_int, alloc_im_time, calc_mat_Q, &
              dealloc_im_time, contract_P_omega_with_mat_L, calc_fm_mat_S_rpa, remove_scaling_factor_rpa
 
 CONTAINS
@@ -801,49 +800,18 @@ CONTAINS
    END SUBROUTINE contract_S_to_Q
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param dimen_RI ...
-!> \param trace_Qomega ...
-!> \param fm_mat_Q ...
-! **************************************************************************************************
-   SUBROUTINE Q_trace_and_add_unit_matrix(dimen_RI, trace_Qomega, fm_mat_Q)
-
-      INTEGER, INTENT(IN)                                :: dimen_RI
-      REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(OUT)    :: trace_Qomega
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'Q_trace_and_add_unit_matrix'
-
-      INTEGER                                            :: handle, nrow_global
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_Q
-
-      CALL timeset(routineN, handle)
-
-      ! the diagonal of Q (for the trace) and add 1 on the diagonal
-      CALL cp_fm_get_info(matrix=fm_mat_Q, nrow_global=nrow_global)
-      ALLOCATE (diag_Q(nrow_global))
-      CALL cp_fm_get_diag(fm_mat_Q, diag_Q)
-      trace_Qomega(1:dimen_RI) = diag_Q(1:dimen_RI)
-      DEALLOCATE (diag_Q)
-      CALL cp_fm_add_on_diag(fm_mat_Q, 1.0_dp, dimen_RI)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE Q_trace_and_add_unit_matrix
-
-! **************************************************************************************************
-!> \brief ...
-!> \param dimen_RI ...
-!> \param trace_Qomega ...
-!> \param fm_mat_Q ...
+!> \brief Factorize epsilon in place and accumulate the frequency-weighted RPA energy.
+!> \param dimen_RI dimension of the active RI block
+!> \param diag_Qomega global diagonal elements of Q
+!> \param fm_mat_Q epsilon on entry, its upper Cholesky factor on exit
 !> \param para_env_RPA ...
 !> \param Erpa ...
 !> \param wjquad ...
 ! **************************************************************************************************
-   SUBROUTINE compute_Erpa_by_freq_int(dimen_RI, trace_Qomega, fm_mat_Q, para_env_RPA, Erpa, wjquad)
+   SUBROUTINE compute_Erpa_by_freq_int(dimen_RI, diag_Qomega, fm_mat_Q, para_env_RPA, Erpa, wjquad)
 
       INTEGER, INTENT(IN)                                :: dimen_RI
-      REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(IN)     :: trace_Qomega
+      REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(IN)     :: diag_Qomega
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
@@ -851,21 +819,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Erpa_by_freq_int'
 
-      INTEGER                                            :: handle, i_global, iiB, info_chol, &
-                                                            j_global, jjB, ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: handle, iiB, info_chol
       REAL(KIND=dp)                                      :: FComega
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: Q_log
 
       CALL timeset(routineN, handle)
 
-      CALL cp_fm_get_info(matrix=fm_mat_Q, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
+      ! epsilon = U^T U; log(det(epsilon)) = 2*sum(log(U_ii)).
       CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q, n=dimen_RI, info_out=info_chol)
       IF (info_chol /= 0) THEN
          CALL cp_warn(__LOCATION__, &
@@ -880,26 +840,15 @@ CONTAINS
       CPASSERT(info_chol == 0)
 
       ALLOCATE (Q_log(dimen_RI))
-      Q_log = 0.0_dp
-!$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
-!$OMP                         SHARED(ncol_local,nrow_local,col_indices,row_indices,Q_log,fm_mat_Q,dimen_RI)
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            IF (j_global == i_global .AND. i_global <= dimen_RI) THEN
-               Q_log(i_global) = 2.0_dp*LOG(fm_mat_Q%local_data(iiB, jjB))
-            END IF
-         END DO
-      END DO
-      CALL para_env_RPA%sum(Q_log)
+      CALL cp_fm_get_diag(fm_mat_Q, Q_log, n_active=dimen_RI)
+      Q_log = 2.0_dp*LOG(Q_log)
 
       ! the following frequency integration is Eq. (27) in M. Del Ben et al., JCTC 9, 2654 (2013)
       ! (https://doi.org/10.1021/ct4002202)
       FComega = 0.0_dp
       DO iiB = 1, dimen_RI
          IF (MODULO(iiB, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
-         FComega = FComega + (Q_log(iiB) - trace_Qomega(iiB))/2.0_dp
+         FComega = FComega + (Q_log(iiB) - diag_Qomega(iiB))/2.0_dp
       END DO
       Erpa = Erpa + FComega*wjquad
 
