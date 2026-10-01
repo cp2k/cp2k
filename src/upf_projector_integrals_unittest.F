@@ -25,8 +25,8 @@ PROGRAM upf_projector_integrals_unittest
 
    IMPLICIT NONE
 
-   INTEGER, PARAMETER :: la = 3, lb = 3, nder = 2, na = 3, nb = 5
-   REAL(KIND=dp), PARAMETER :: alpha(na) = [0.3_dp, 1.2_dp, 5.0_dp]
+   INTEGER, PARAMETER :: la = 4, lb = 3, nder = 2, na = 5, nb = 5
+   REAL(KIND=dp), PARAMETER :: alpha(na) = [0.04_dp, 0.3_dp, 1.2_dp, 5.0_dp, 24.0_dp]
    REAL(KIND=dp), PARAMETER :: eta(nb) = [0.3_dp, 0.7_dp, 1.1_dp, 2.2_dp, 0.4_dp]
    CHARACTER(LEN=default_path_length) :: filename
    INTEGER :: grid, nr, i, j, p, m, l, geometry, id, ld, ldai, first, shell, q
