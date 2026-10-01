@@ -21,7 +21,8 @@ MODULE bse_main
                                               diagonalize_C
    USE bse_input,                       ONLY: read_bse_section
    USE bse_iterative,                   ONLY: solve_bse_iteratively
-   USE bse_matvec,                      ONLY: mem_fraction
+   USE bse_matvec,                      ONLY: bse_memory_left_GB,&
+                                              bse_resolve_memory_per_proc
    USE bse_print,                       ONLY: print_BSE_start_flag
    USE bse_types,                       ONLY: bse_env_type
    USE bse_util,                        ONLY: adapt_BSE_input_params,&
@@ -44,14 +45,19 @@ MODULE bse_main
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: debug_print_level
-   USE input_constants,                 ONLY: &
-        bse_abba, bse_both, bse_fulldiag, bse_iterdiag, bse_memcheck_abort, bse_memcheck_clamp, &
-        bse_memcheck_off, bse_memcheck_warn, bse_screening_w0, bse_tda
-   USE input_section_types,             ONLY: section_vals_type
+   USE input_constants,                 ONLY: bse_abba,&
+                                              bse_both,&
+                                              bse_fulldiag,&
+                                              bse_iterdiag,&
+                                              bse_screening_w0,&
+                                              bse_tda
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mo_window,                       ONLY: mo_window_type
+   USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
+   USE pw_poisson_types,                ONLY: pw_poisson_parameter_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -65,14 +71,15 @@ MODULE bse_main
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_main'
 
-   PUBLIC :: prepare_bse_env, bse_solve, bse_fulldiag_memory_check
+   PUBLIC :: prepare_bse_env_from_ri_rpa_gw, prepare_bse_env_from_bandstructure_gw, bse_solve, &
+             bse_fulldiag_memory_check, bse_fulldiag_memory_check_from_mos
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Prepares the BSE environment from the old GW's slabs: run flags, the window on the DFT
-!>        axis, the window-sized slabs with both energy sets, [1+Q(0)]^-1 once, the AO multipoles
-!>        and the QS pointers. Starts no solver.
+!> \brief Entry for the BSE of RI_RPA%GW, which hands over the slabs of all its GW levels and the
+!>        static polarizability Q(0): re-reads the settings, cuts the window on the DFT axis out of
+!>        the slabs and both energy sets, and inverts 1+Q(0). Starts no solver.
 !> \param bse_env settings re-read from its section; state filled here
 !> \param fm_S_ia_full B^P_ia of the GW levels per spin, the RPA copy without the energy factor
 !> \param fm_S_ij_full B^P_ij per spin
@@ -89,9 +96,9 @@ CONTAINS
 !> \param qs_env source of the pointers the solver reads and of the AO multipoles
 !> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
-   SUBROUTINE prepare_bse_env(bse_env, fm_S_ia_full, fm_S_ij_full, fm_S_ab_full, fm_Q, &
-                              Eigenval, Eigenval_scf, homo, virtual, dimen_RI, dimen_RI_red, &
-                              gw_corr_lev_occ, bse_lev_virt, qs_env, unit_nr)
+   SUBROUTINE prepare_bse_env_from_ri_rpa_gw(bse_env, fm_S_ia_full, fm_S_ij_full, fm_S_ab_full, fm_Q, &
+                                             Eigenval, Eigenval_scf, homo, virtual, dimen_RI, dimen_RI_red, &
+                                             gw_corr_lev_occ, bse_lev_virt, qs_env, unit_nr)
 
       TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_S_ia_full, fm_S_ij_full, fm_S_ab_full
@@ -103,12 +110,11 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'prepare_bse_env'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_bse_env_from_ri_rpa_gw'
 
       INTEGER                                            :: handle, ispin, n_window, nspins
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_mo, n_ov, offsets
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_mo
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenval_dft_spin, eigenval_qp_spin
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(mo_window_type)                               :: window
       TYPE(section_vals_type), POINTER                   :: bse_section
 
@@ -119,47 +125,11 @@ CONTAINS
       ! section apart from bse_env, whose section pointer the reader sets
       bse_section => bse_env%bse_section
       CALL read_bse_section(bse_section, bse_env)
+      CALL bse_resolve_memory_per_proc(bse_env%memory_per_proc_gb, fm_S_ia_full(1)%matrix_struct%para_env, unit_nr)
 
       nspins = SIZE(homo)
-      bse_env%nspins = nspins
-      bse_env%dimen_RI = dimen_RI
-      bse_env%dimen_RI_red = dimen_RI_red
-      ! the GW-corrected level counts, the ceiling of the window
-      bse_env%gw_corr_lev_occ = gw_corr_lev_occ
-      ALLOCATE (bse_env%gw_corr_lev_virt(nspins))
-      bse_env%gw_corr_lev_virt(:) = bse_lev_virt(:)
-
-      ! run flags from the settings
-      bse_env%do_iterdiag = bse_env%bse_diag_method == bse_iterdiag
-      bse_env%do_fulldiag = bse_env%bse_diag_method == bse_fulldiag
-      bse_env%do_tda = bse_env%flag_tda == bse_tda .OR. bse_env%flag_tda == bse_both
-      bse_env%do_abba = bse_env%flag_tda == bse_abba .OR. bse_env%flag_tda == bse_both
-
-      CALL print_BSE_start_flag(bse_env%do_tda, bse_env%do_abba, unit_nr)
-
-      ! the debug flag follows the debug print level
-      logger => cp_get_default_logger()
-      IF (logger%iter_info%print_level == debug_print_level) THEN
-         bse_env%bse_debug_print = .TRUE.
-      END IF
-
-      ! what the solver reads from QS and the GW (pointers, none owned); the para_env is the RPA's,
-      ! the one the slabs live on
-      bse_env%para_env => fm_S_ia_full(1)%matrix_struct%para_env
-      CALL get_qs_env(qs_env, subsys=bse_env%subsys, pw_env=bse_env%pw_env, &
-                      dft_control=bse_env%dft_control, mos=bse_env%mos, &
-                      exstate_env=bse_env%exstate_env)
-      CALL bse_env%para_env%sync()
-
-      IF (nspins > 1) THEN
-         IF (bse_env%do_iterdiag) THEN
-            CPABORT("Iterative BSE is not yet available for open-shell references")
-         END IF
-         CALL cp_warn(__LOCATION__, &
-                      "Open-shell (UKS/LSD) BSE is a recent addition and has not been "// &
-                      "extensively validated. Verify results carefully before using them "// &
-                      "for production calculations.")
-      END IF
+      ! the GW-corrected level counts are the ceiling of the window
+      CALL start_bse_env(bse_env, nspins, dimen_RI, dimen_RI_red, gw_corr_lev_occ, bse_lev_virt, unit_nr)
 
       ! one absolute window on the DFT axis, then the window-sized slabs and both energy sets per spin
       ALLOCATE (n_mo(nspins))
@@ -186,9 +156,6 @@ CONTAINS
          bse_env%eigenval_qp(:, ispin) = eigenval_qp_spin(:)
          DEALLOCATE (eigenval_dft_spin, eigenval_qp_spin)
       END DO
-      ALLOCATE (n_ov(nspins), offsets(nspins))
-      CALL get_bse_spin_block_layout(bse_env%homo_red, bse_env%virt_red, n_ov, offsets, bse_env%n_ov_joint)
-      DEALLOCATE (n_ov, offsets)
 
       CALL invert_static_screening(fm_Q, dimen_RI_red, bse_env%fm_eps_inv)
 
@@ -203,6 +170,185 @@ CONTAINS
          END IF
       END IF
 
+      CALL finish_bse_env(bse_env, qs_env, fm_S_ia_full(1)%matrix_struct%para_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE prepare_bse_env_from_ri_rpa_gw
+
+! **************************************************************************************************
+!> \brief Entry for the BSE of PROPERTIES%BANDSTRUCTURE%GW (PROPERTIES%BSE), which hands over
+!>        window-sized slabs and a ready inverse dielectric matrix: nothing is cut or inverted, the
+!>        slabs are taken over as they are. Shares start_bse_env and finish_bse_env with
+!>        prepare_bse_env_from_ri_rpa_gw. Starts no solver.
+!> \param bse_env settings read from its section by the caller; state filled here
+!> \param fm_S_ia B^P_ia of the window per spin; moved into bse_env, deallocated on return
+!> \param fm_S_ij B^P_ij of the window per spin; moved into bse_env, deallocated on return
+!> \param fm_S_ab B^P_ab of the window per spin; moved into bse_env, deallocated on return
+!> \param fm_eps_inv the inverse dielectric matrix ε^-1_PQ the core screens the slabs with,
+!>        \bar{B}^P_ij = sum_Q ε^-1_PQ B^Q_ij; RI x RI, copied; stays the caller's
+!> \param eigenval_qp quasiparticle energies of the window (level, spin)
+!> \param eigenval_dft DFT energies of the window (level, spin)
+!> \param homo_full occupied MOs per spin of the full reference
+!> \param homo_red occupied levels in the window per spin
+!> \param virt_red virtual levels in the window per spin
+!> \param dimen_RI RI dimension of the slabs and of fm_eps_inv
+!> \param qs_env source of the pointers the solver reads and of the AO multipoles
+!> \param unit_nr output unit, positive on the writing rank only
+! **************************************************************************************************
+   SUBROUTINE prepare_bse_env_from_bandstructure_gw(bse_env, fm_S_ia, fm_S_ij, fm_S_ab, fm_eps_inv, &
+                                                    eigenval_qp, eigenval_dft, homo_full, homo_red, virt_red, &
+                                                    dimen_RI, qs_env, unit_nr)
+
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: fm_S_ia, fm_S_ij, fm_S_ab
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eps_inv
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eigenval_qp, eigenval_dft
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo_full, homo_red, virt_red
+      INTEGER, INTENT(IN)                                :: dimen_RI
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'prepare_bse_env_from_bandstructure_gw'
+
+      INTEGER                                            :: handle, ispin, n_window, nspins
+
+      CALL timeset(routineN, handle)
+
+      ! the caller (bse_from_bs_env) read the settings afresh from the input; the entry of RI_RPA%GW reads them itself
+      IF (.NOT. ASSOCIATED(bse_env%bse_section)) CPABORT("BSE settings not read: read_bse_section comes first")
+
+      nspins = SIZE(homo_full)
+      IF (SIZE(fm_S_ia) /= nspins .OR. SIZE(eigenval_qp, 2) /= nspins) THEN
+         CPABORT("BSE needs one set of RI integrals and one set of energies per spin")
+      END IF
+      ! every window level carries a GW energy here, and the inverse dielectric matrix has the full RI dimension
+      CALL start_bse_env(bse_env, nspins, dimen_RI, dimen_RI, MAXVAL(homo_red), virt_red, unit_nr)
+
+      ALLOCATE (bse_env%homo_red(nspins), bse_env%virt_red(nspins), bse_env%homo_full(nspins))
+      bse_env%homo_full(:) = homo_full(:)
+      bse_env%homo_red(:) = homo_red(:)
+      bse_env%virt_red(:) = virt_red(:)
+      n_window = SIZE(eigenval_qp, 1)
+      DO ispin = 1, nspins
+         ! one absolute window for every spin: its occupied and virtual levels fill it
+         IF (homo_red(ispin) + virt_red(ispin) /= n_window) THEN
+            CPABORT("Occupied and virtual levels do not fill the BSE window")
+         END IF
+      END DO
+      ALLOCATE (bse_env%eigenval_dft(n_window, nspins), bse_env%eigenval_qp(n_window, nspins))
+      bse_env%eigenval_dft(:, :) = eigenval_dft(:, :)
+      bse_env%eigenval_qp(:, :) = eigenval_qp(:, :)
+
+      ! the slabs are window-sized already: take them over
+      CALL MOVE_ALLOC(fm_S_ia, bse_env%fm_S_ia)
+      CALL MOVE_ALLOC(fm_S_ij, bse_env%fm_S_ij)
+      CALL MOVE_ALLOC(fm_S_ab, bse_env%fm_S_ab)
+      CALL cp_fm_create(bse_env%fm_eps_inv, fm_eps_inv%matrix_struct)
+      CALL cp_fm_to_fm(fm_eps_inv, bse_env%fm_eps_inv)
+
+      CALL finish_bse_env(bse_env, qs_env, bse_env%fm_S_ia(1)%matrix_struct%para_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE prepare_bse_env_from_bandstructure_gw
+
+! **************************************************************************************************
+!> \brief The part both entries share before their window: the sizes, the run flags from the
+!>        settings, the start banner and the debug flag
+!> \param bse_env settings read from its section; sizes and flags set here
+!> \param nspins spin channels
+!> \param dimen_RI RI dimension of the slabs
+!> \param dimen_RI_red RI dimension of the inverse dielectric matrix
+!> \param gw_corr_lev_occ GW-corrected occupied levels
+!> \param gw_corr_lev_virt GW-corrected virtual levels per spin
+!> \param unit_nr output unit, positive on the writing rank only
+! **************************************************************************************************
+   SUBROUTINE start_bse_env(bse_env, nspins, dimen_RI, dimen_RI_red, gw_corr_lev_occ, gw_corr_lev_virt, unit_nr)
+
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
+      INTEGER, INTENT(IN)                                :: nspins, dimen_RI, dimen_RI_red, &
+                                                            gw_corr_lev_occ
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_virt
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+      bse_env%nspins = nspins
+      bse_env%dimen_RI = dimen_RI
+      bse_env%dimen_RI_red = dimen_RI_red
+      bse_env%gw_corr_lev_occ = gw_corr_lev_occ
+      ALLOCATE (bse_env%gw_corr_lev_virt(nspins))
+      bse_env%gw_corr_lev_virt(:) = gw_corr_lev_virt(:)
+
+      ! run flags from the settings
+      bse_env%do_iterdiag = bse_env%bse_diag_method == bse_iterdiag
+      bse_env%do_fulldiag = bse_env%bse_diag_method == bse_fulldiag
+      bse_env%do_tda = bse_env%flag_tda == bse_tda .OR. bse_env%flag_tda == bse_both
+      bse_env%do_abba = bse_env%flag_tda == bse_abba .OR. bse_env%flag_tda == bse_both
+
+      CALL print_BSE_start_flag(bse_env%do_tda, bse_env%do_abba, unit_nr)
+
+      ! the debug flag follows the debug print level
+      logger => cp_get_default_logger()
+      IF (logger%iter_info%print_level == debug_print_level) THEN
+         bse_env%bse_debug_print = .TRUE.
+      END IF
+
+   END SUBROUTINE start_bse_env
+
+! **************************************************************************************************
+!> \brief The part both entries share once the window and the slabs are in place: the
+!>        QS pointers, the open-shell checks, the spin-block layout and the AO multipoles
+!> \param bse_env state filled here
+!> \param qs_env source of the pointers the solver reads and of the AO multipoles
+!> \param para_env_slabs the communicator the slabs live on
+! **************************************************************************************************
+   SUBROUTINE finish_bse_env(bse_env, qs_env, para_env_slabs)
+
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env_slabs
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'finish_bse_env'
+
+      INTEGER                                            :: handle, nspins
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_ov, offsets
+      TYPE(pw_poisson_parameter_type)                    :: poisson_params
+      TYPE(section_vals_type), POINTER                   :: input, poisson_section
+
+      CALL timeset(routineN, handle)
+
+      nspins = bse_env%nspins
+
+      ! what the solver reads from QS and the GW (pointers, none owned)
+      bse_env%para_env => para_env_slabs
+      CALL get_qs_env(qs_env, subsys=bse_env%subsys, pw_env=bse_env%pw_env, &
+                      dft_control=bse_env%dft_control, mos=bse_env%mos, &
+                      exstate_env=bse_env%exstate_env)
+      ! the Poisson periodicity from the input: PROPERTIES%BSE runs after the GW released the grids
+      NULLIFY (input, poisson_section)
+      CALL get_qs_env(qs_env, input=input)
+      poisson_section => section_vals_get_subs_vals(input, "DFT%POISSON")
+      CALL pw_poisson_read_parameters(poisson_section, poisson_params)
+      bse_env%n_periodic_poisson = COUNT(poisson_params%periodic == 1)
+      CALL bse_env%para_env%sync()
+
+      IF (nspins > 1) THEN
+         IF (bse_env%do_iterdiag) THEN
+            CPABORT("Iterative BSE is not yet available for open-shell references")
+         END IF
+         CALL cp_warn(__LOCATION__, &
+                      "Open-shell (UKS/LSD) BSE is a recent addition and has not been "// &
+                      "extensively validated. Verify results carefully before using them "// &
+                      "for production calculations.")
+      END IF
+
+      ALLOCATE (n_ov(nspins), offsets(nspins))
+      CALL get_bse_spin_block_layout(bse_env%homo_red, bse_env%virt_red, n_ov, offsets, bse_env%n_ov_joint)
+      DEALLOCATE (n_ov, offsets)
+
       ! the AO multipoles for the transition dipoles and, when asked for, the exciton descriptors;
       ! the open-shell path computes no descriptors
       CALL get_multipoles_ao(qs_env, 1, bse_env%matrix_dipole_ao, bse_env%multipole_ref_point)
@@ -212,7 +358,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE prepare_bse_env
+   END SUBROUTINE finish_bse_env
 
 ! **************************************************************************************************
 !> \brief Scale the correlation part of the static screened Coulomb interaction in the RI kernel
@@ -386,53 +532,40 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Early memory check for the full diagonalization, before any GW work: the window on the
-!>        DFT axis gives n_ov, the estimate is estimate_BSE_resources', the budget the one the
-!>        iterative solver uses. WARN and CLAMP warn, ABORT aborts, OFF prints the estimate only.
-!> \param bse_env settings; the window cutoffs, MEMORY_CHECK and MEMORY_BUDGET_GB
-!> \param mos the MO sets the GW will correct, for their DFT eigenvalues and occupations
+!>        DFT axis gives n_ov = sum_spin n_occ n_virt, the estimate is estimate_BSE_resources', and
+!>        the run stops when it exceeds what MEMORY_PER_PROC leaves after the memory the rank holds,
+!>        since a full diagonalization has nothing to shrink
+!> \param bse_env settings; the TDA flag and MEMORY_PER_PROC, resolved here when still -1
+!> \param window the active MO window on the DFT axis, one absolute range for every spin
+!> \param homo occupied MOs per spin
 !> \param para_env the ranks that will hold the matrices
 !> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
-   SUBROUTINE bse_fulldiag_memory_check(bse_env, mos, para_env, unit_nr)
-
-      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
-      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+   SUBROUTINE bse_fulldiag_memory_check(bse_env, window, homo, para_env, unit_nr)
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
+      TYPE(mo_window_type), INTENT(IN)                   :: window
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_fulldiag_memory_check'
 
-      CHARACTER(LEN=16)                                  :: bud_str, mem_str
-      CHARACTER(LEN=64)                                  :: remedy
-      INTEGER                                            :: handle, homo, ispin, n_ov_joint, nspins
-      LOGICAL                                            :: from_free, over, skipped
-      REAL(KIND=dp)                                      :: budget_GB, mem_avail_GB, mem_est_GB
-      TYPE(mo_window_type)                               :: window
+      CHARACTER(LEN=16)                                  :: left_str, mem_str
+      CHARACTER(LEN=80)                                  :: remedy
+      INTEGER                                            :: handle, ispin, n_ov_joint, nspins
+      REAL(KIND=dp)                                      :: mem_est_GB, mem_left_GB
 
       CALL timeset(routineN, handle)
 
-      nspins = SIZE(mos)
-      ! the preparer warns about a combined window; the estimate stays silent
-      CALL bse_window_from_mos(mos, bse_env%bse_cutoff_occ, bse_env%bse_cutoff_empty, window, warn=.FALSE.)
+      nspins = SIZE(homo)
       n_ov_joint = 0
       DO ispin = 1, nspins
-         CALL get_mo_set(mos(ispin), homo=homo)
-         n_ov_joint = n_ov_joint + (homo - window%first_mo + 1)*(window%last_mo - homo)
+         n_ov_joint = n_ov_joint + (homo(ispin) - window%first_mo + 1)*(window%last_mo - homo(ispin))
       END DO
-
       mem_est_GB = fulldiag_memory_estimate_GB(n_ov_joint, bse_env%flag_tda /= bse_tda)/ &
                    REAL(para_env%num_pe, KIND=dp)
-
-      ! the budget: as given, or the share mem_fraction of the free memory per rank
-      from_free = bse_env%memory_budget_gb < 0.0_dp
-      skipped = .FALSE.
-      budget_GB = bse_env%memory_budget_gb
-      IF (from_free) THEN
-         CALL mp_mem_avail_per_rank_GB(para_env, mem_avail_GB)
-         budget_GB = mem_fraction*mem_avail_GB
-         skipped = mem_avail_GB <= 0.0_dp
-      END IF
-      over = .NOT. skipped .AND. bse_env%memory_check /= bse_memcheck_off .AND. mem_est_GB > budget_GB
+      CALL bse_resolve_memory_per_proc(bse_env%memory_per_proc_gb, para_env, unit_nr)
+      mem_left_GB = bse_memory_left_GB(bse_env%memory_per_proc_gb, para_env)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -440,46 +573,59 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Transition pairs in the active window (DFT axis)', &
             n_ov_joint
          WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Peak memory estimate per MPI rank (GB)', mem_est_GB
-         IF (.NOT. skipped) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory budget per MPI rank (GB)', budget_GB
-         END IF
-         IF (bse_env%memory_check == bse_memcheck_off) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: OFF'
-         ELSE IF (skipped) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: skipped, free memory not detectable'
-         ELSE IF (over) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: the estimate exceeds the budget'
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: within the budget'
-         END IF
+         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory per MPI rank for the BSE, MEMORY_PER_PROC (GB)', &
+            bse_env%memory_per_proc_gb
+         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Left after the memory the rank holds (GB)', mem_left_GB
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
 
-      IF (over) THEN
+      IF (mem_est_GB > mem_left_GB) THEN
          WRITE (mem_str, '(F16.3)') mem_est_GB
-         WRITE (bud_str, '(F16.3)') budget_GB
+         WRITE (left_str, '(F16.3)') mem_left_GB
          ! ITERDIAG is closed-shell only, so an open-shell run is not pointed to it
          IF (nspins == 1) THEN
-            remedy = "more MPI ranks, a tighter window, ITERDIAG"
+            remedy = "more MPI ranks, a tighter window, ITERDIAG, a higher MEMORY_PER_PROC"
          ELSE
-            remedy = "more MPI ranks, a tighter window"
+            remedy = "more MPI ranks, a tighter window, a higher MEMORY_PER_PROC"
          END IF
-         SELECT CASE (bse_env%memory_check)
-         CASE (bse_memcheck_warn, bse_memcheck_clamp)
-            IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
-                                          "BSE full diagonalization: the estimate of "//TRIM(ADJUSTL(mem_str))// &
-                                          " GB per MPI rank exceeds the budget of "//TRIM(ADJUSTL(bud_str))// &
-                                          " GB. Try one of: "//TRIM(remedy)//".")
-         CASE (bse_memcheck_abort)
-            CALL cp_abort(__LOCATION__, &
-                          "BSE full diagonalization: the estimate of "//TRIM(ADJUSTL(mem_str))// &
-                          " GB per MPI rank exceeds the budget of "//TRIM(ADJUSTL(bud_str))// &
-                          " GB. Try one of: "//TRIM(remedy)//", MEMORY_CHECK WARN.")
-         END SELECT
+         CALL cp_abort(__LOCATION__, &
+                       "BSE full diagonalization: the estimate of "//TRIM(ADJUSTL(mem_str))// &
+                       " GB per MPI rank exceeds the "//TRIM(ADJUSTL(left_str))// &
+                       " GB left of MEMORY_PER_PROC. Try one of: "//TRIM(remedy)//".")
       END IF
 
       CALL timestop(handle)
 
    END SUBROUTINE bse_fulldiag_memory_check
+
+! **************************************************************************************************
+!> \brief bse_fulldiag_memory_check for a caller that holds MO sets: the window on the DFT axis
+!>        from their eigenvalues, the occupied MOs per spin from their homo
+!> \param bse_env settings; the window cutoffs, the TDA flag and MEMORY_PER_PROC, resolved when still -1
+!> \param mos the MO sets the GW will correct, for their DFT eigenvalues and occupations
+!> \param para_env the ranks that will hold the matrices
+!> \param unit_nr output unit, positive on the writing rank only
+! **************************************************************************************************
+   SUBROUTINE bse_fulldiag_memory_check_from_mos(bse_env, mos, para_env, unit_nr)
+
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      INTEGER                                            :: ispin
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: homo
+      TYPE(mo_window_type)                               :: window
+
+      ! the preparer warns about a combined window; the estimate stays silent
+      CALL bse_window_from_mos(mos, bse_env%bse_cutoff_occ, bse_env%bse_cutoff_empty, window, warn=.FALSE.)
+      ALLOCATE (homo(SIZE(mos)))
+      DO ispin = 1, SIZE(mos)
+         CALL get_mo_set(mos(ispin), homo=homo(ispin))
+      END DO
+      CALL bse_fulldiag_memory_check(bse_env, window, homo, para_env, unit_nr)
+      DEALLOCATE (homo)
+
+   END SUBROUTINE bse_fulldiag_memory_check_from_mos
 
 END MODULE bse_main

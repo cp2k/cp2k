@@ -29,8 +29,7 @@ MODULE input_cp2k_mp2
       bse_screening_w0, bse_screening_tdhf, bse_screening_rpa, bse_screening_alpha, &
       cohsex_diagonal, cohsex_off, cohsex_qp_update, &
       bse_abba_mk_davidson, bse_abba_olsen_stratmann, bse_iter_and_cond, bse_iter_en_cond, &
-      bse_iter_or_cond, bse_iter_res_cond, bse_memcheck_abort, bse_memcheck_clamp, bse_memcheck_off, &
-      bse_memcheck_warn, bse_precond_full_diag, bse_precond_qp_diff, bse_singlet, &
+      bse_iter_or_cond, bse_iter_res_cond, bse_precond_full_diag, bse_precond_qp_diff, bse_singlet, &
       bse_triplet, do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
       do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
       do_potential_tshpsc, eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
@@ -68,7 +67,7 @@ MODULE input_cp2k_mp2
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_mp2'
 
-   PUBLIC :: create_mp2_section
+   PUBLIC :: create_mp2_section, create_bse_section
 
 CONTAINS
 
@@ -1086,7 +1085,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! here we generate a subsection for Bethe-Salpeter
-      CALL create_bse_section(subsection)
+      CALL create_bse_section(subsection, run_bse_from_band_structure_section=.FALSE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1343,16 +1342,38 @@ CONTAINS
    END SUBROUTINE create_periodic_gw_correction_section
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param section ...
+!> \brief The &BSE section, built once under RI_RPA%GW and once under PROPERTIES
+!> \param section the section, created here
+!> \param run_bse_from_band_structure_section .TRUE. for the copy under PROPERTIES, .FALSE. for the one under RI_RPA%GW;
+!>        selects the sentence of the description that names the GW behind the section
 ! **************************************************************************************************
-   SUBROUTINE create_bse_section(section)
+   SUBROUTINE create_bse_section(section, run_bse_from_band_structure_section)
       TYPE(section_type), POINTER                        :: section
+      LOGICAL, INTENT(IN)                                :: run_bse_from_band_structure_section
 
+      CHARACTER(LEN=:), ALLOCATABLE                      :: where_from
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
+      IF (run_bse_from_band_structure_section) THEN
+         where_from = " This section runs the BSE on the quasiparticle energies, the static screened "// &
+                      "interaction and the RI integrals of the low-scaling GW of PROPERTIES%BANDSTRUCTURE%GW "// &
+                      "(three-center RI integrals in the atomic-orbital basis; "// &
+                      "<https://doi.org/10.1021/acs.jctc.0c01282>), which must be present in the same "// &
+                      "input and must not use RI_RS; its CUTOFF_RADIUS_RI and RI basis set are convergence "// &
+                      "parameters of PROPERTIES%BSE as well. The same section under XC%WF_CORRELATION%RI_RPA%GW "// &
+                      "runs the BSE on the $O(N^4)$-scaling GW of RI_RPA%GW (molecular-orbital basis; "// &
+                      "<https://doi.org/10.1021/acs.jctc.6b00380>) instead. Both sections treat "// &
+                      "non-periodic systems only."
+      ELSE
+         where_from = " This section runs the BSE on the $O(N^4)$-scaling GW of RI_RPA%GW (molecular-orbital "// &
+                      "basis; <https://doi.org/10.1021/acs.jctc.6b00380>), which provides the quasiparticle "// &
+                      "energies and the screening. The same section under PROPERTIES runs the BSE on the "// &
+                      "low-scaling GW of PROPERTIES%BANDSTRUCTURE%GW (three-center RI integrals in the "// &
+                      "atomic-orbital basis; <https://doi.org/10.1021/acs.jctc.0c01282>) instead. Both "// &
+                      "sections treat non-periodic systems only."
+      END IF
       CALL section_create(section, __LOCATION__, name="BSE", &
                           description="Parameters for a calculation solving the Bethe-Salpeter equation "// &
                           "(BSE) for electronic excitations. The full BSE "// &
@@ -1363,8 +1384,10 @@ CONTAINS
                           "enables, for example, the computation of electronic excitation energies $\Omega^{(n)}$ "// &
                           "as well as optical properties. The BSE can be solved by diagonalizing "// &
                           "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA). "// &
-                         "Preliminary reference: Eq. (35) in PRB 92, 045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209", &
-                          n_keywords=8, n_subsections=3, repeats=.FALSE.)
+                          "Reference: Eq. (8) (the full BSE), Eq. (10) (the matrix elements A and B with the "// &
+                          "singlet and triplet prefactors) and Eq. (18) (TDA) in PRB 113, 205152 (2026); "// &
+                          "https://doi.org/10.1103/38k2-d55h"//where_from, &
+                          n_keywords=9, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1415,7 +1438,9 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_OCC", &
                           description="Remove all orbitals with indices i,j from A_ia,jb and B_ia,jb with energy difference "// &
                           "to HOMO level larger than the given energy cutoff, i.e. "// &
-               "$\varepsilon_i\in[\varepsilon_{i=\text{HOMO}}^{GW}-E_\text{cut}^\text{occ},\varepsilon_{i=\text{HOMO}}^{GW}]$. "// &
+             "$\varepsilon_i\in[\varepsilon_{i=\text{HOMO}}^{DFT}-E_\text{cut}^\text{occ},\varepsilon_{i=\text{HOMO}}^{DFT}]$. "// &
+                          "The cutoff is applied to the DFT eigenvalues, also when the BSE takes quasiparticle "// &
+                          "energies from the GW. "// &
                           "Can be used to accelerate runtime and reduce memory consumption.", &
                           usage="ENERGY_CUTOFF_OCC 10.0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=-1.0_dp)
@@ -1425,10 +1450,27 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_CUTOFF_EMPTY", &
                           description="Remove all orbitals with indices a,b from A_ia,jb and B_ia,jb with energy difference "// &
                           "to LUMO level larger than the given energy cutoff, i.e. "// &
-             "$\varepsilon_a\in[\varepsilon_{a=\text{LUMO}}^{GW},\varepsilon_{a=\text{LUMO}}^{GW}+E_\text{cut}^\text{empty}]$. "// &
+           "$\varepsilon_a\in[\varepsilon_{a=\text{LUMO}}^{DFT},\varepsilon_{a=\text{LUMO}}^{DFT}+E_\text{cut}^\text{empty}]$. "// &
+                          "The cutoff is applied to the DFT eigenvalues, also when the BSE takes quasiparticle "// &
+                          "energies from the GW. "// &
                           "Can be used to accelerate runtime and reduce memory consumption.", &
                           usage="ENERGY_CUTOFF_EMPTY 10.0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_PER_PROC", &
+                          description="Memory per MPI rank in GB available to the BSE, the counterpart of "// &
+                          "MEMORY_PER_PROC in the GW section. -1: detected when the BSE first needs it, as the "// &
+                          "memory the rank holds plus 80 percent of the free memory of the node divided by its "// &
+                          "ranks. Every memory-heavy step takes what is left after the memory the rank holds "// &
+                          "at that moment: under PROPERTIES the three-center integrals are transformed in "// &
+                          "batches of RI atoms that fit, down to one atom per batch; with ITERDIAG the "// &
+                          "subspace ceiling and the matvec blocks are lowered to fit; with FULLDIAG the "// &
+                          "memory of the BSE matrices is fixed by the active window, and the run stops before "// &
+                          "the GW when it does not fit.", &
+                          usage="MEMORY_PER_PROC 8.0", &
+                          default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1711,7 +1753,7 @@ CONTAINS
                           description="Parameters of the iterative (block Davidson) solution of the "// &
                           "Bethe-Salpeter equation for the lowest excitations, which is invoked by "// &
                           "BSE_DIAG_METHOD ITERDIAG.", &
-                          n_keywords=10, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=8, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1756,7 +1798,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_SUBSPACE_FACTOR", &
                           description="Subspace ceiling in units of (NUM_EXC_EN+NUM_BUFFER_STATES) before a "// &
-                          "thick restart. -1: start from 20 and let MEMORY_CHECK reduce it to the budget.", &
+                          "thick restart, lowered to what MEMORY_PER_PROC of the BSE section leaves; -1 starts "// &
+                          "from 20.", &
                           usage="MAX_SUBSPACE_FACTOR 5", &
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)
@@ -1767,36 +1810,9 @@ CONTAINS
                           "arrays of one pass are n_arrays*N_ov*MATVEC_BLOCK_COLUMNS doubles, n_arrays 3 for "// &
                           "the TDA and 4 otherwise. Never more than the columns of the call. Measured: flat "// &
                           "from 8 to 64, up to 28x slower in the gather at 128 and above. -1: as many as "// &
-                          "half the free memory per rank allows.", &
+                          "the memory MEMORY_PER_PROC of the BSE section leaves allows.", &
                           usage="MATVEC_BLOCK_COLUMNS 32", &
                           default_i_val=32)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CHECK", &
-                          description="What the iterative solver does when its arrays at the subspace "// &
-                          "ceiling exceed the memory budget per MPI rank: nothing, warn, reduce the ceiling "// &
-                          "to the largest that fits (never below the solver's minimum), or abort. "// &
-                          "With FULLDIAG, the check runs before the GW on the peak estimate of the full "// &
-                          "diagonalization, and CLAMP warns.", &
-                          usage="MEMORY_CHECK CLAMP", &
-                          enum_c_vals=s2a("OFF", "WARN", "CLAMP", "ABORT"), &
-                          enum_i_vals=[bse_memcheck_off, bse_memcheck_warn, bse_memcheck_clamp, bse_memcheck_abort], &
-                          enum_desc=s2a("Print the estimate, no comparison.", &
-                                        "Warn when the estimate exceeds the budget.", &
-                                        "Reduce the subspace ceiling to the budget and warn.", &
-                                        "Abort when the estimate exceeds the budget."), &
-                          default_i_val=bse_memcheck_clamp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_BUDGET_GB", &
-                          description="Memory per MPI rank the iterative solver may use for its own arrays, "// &
-                          "in GB; the RI slabs are already allocated and not part of it. -1: half of the "// &
-                          "free memory per rank detected at the start of the solver. With FULLDIAG, the "// &
-                          "budget the full diagonalization's peak estimate is checked against before the GW.", &
-                          usage="MEMORY_BUDGET_GB 8.0", &
-                          default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

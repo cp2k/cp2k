@@ -32,6 +32,7 @@ MODULE bse_matvec
    USE input_constants,                 ONLY: bse_precond_full_diag
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
+                                              mp_mem_used_per_rank_GB,&
                                               mp_para_env_type
 #include "./base/base_uses.f90"
 
@@ -41,12 +42,13 @@ MODULE bse_matvec
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bse_matvec'
 
-   ! share of the free memory per rank the iterative solver may use, for the pass width of
-   ! bse_matvec_apply and the default budget of the subspace ceiling: half, since the probe counts
-   ! reclaimable cache and is optimistic
-   REAL(KIND=dp), PARAMETER, PUBLIC :: mem_fraction = 0.5_dp
+   ! the detected MEMORY_PER_PROC claims this share of the free memory on top of the occupied memory,
+   ! the share resolve_memory_per_proc of the GW claims; the probe counts reclaimable cache
+   REAL(KIND=dp), PARAMETER :: detected_memory_fraction = 0.8_dp, &
+                               fallback_memory_per_proc_GB = 2.0_dp
 
    PUBLIC :: bse_matvec_env_type, bse_matvec_create, bse_matvec_release, bse_matvec_apply, &
+             bse_memory_left_GB, bse_resolve_memory_per_proc, &
              bse_matvec_diagonal, bse_matvec_subblock, bse_matvec_vector_struct, bse_matvec_selfcheck
 
 ! **************************************************************************************************
@@ -62,12 +64,14 @@ MODULE bse_matvec
 !> \param row_displ first row of each rank minus one, so that row_count and row_displ describe
 !>        the contiguous ia range per rank that allgatherv and sum_scatter need
 !> \param blacs_env npe x 1 process grid of the slabs and of all trial vectors
-!> \param block_cols trial vectors per pass in bse_matvec_apply, -1 to size it from free memory
+!> \param block_cols trial vectors per pass in bse_matvec_apply, -1 to size it from the memory left
+!> \param memory_per_proc_gb the resolved MEMORY_PER_PROC of the BSE, which block_cols -1 sizes the pass from
 ! **************************************************************************************************
    TYPE bse_matvec_env_type
       INTEGER                                            :: homo = 0, virt = 0, n_ov = 0, &
                                                             n_ri_loc = 0, block_cols = -1
-      REAL(KIND=dp)                                      :: alpha = 0.0_dp, w_fac = 0.0_dp
+      REAL(KIND=dp)                                      :: alpha = 0.0_dp, w_fac = 0.0_dp, &
+                                                            memory_per_proc_gb = -1.0_dp
       LOGICAL                                            :: do_abba = .FALSE.
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: row_count, row_displ
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eps_diff
@@ -77,6 +81,60 @@ MODULE bse_matvec
    END TYPE bse_matvec_env_type
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief MEMORY_PER_PROC of the BSE as a number: the keyword's value, or for -1 the memory the rank
+!>        holds plus the share detected_memory_fraction of the free memory, read once at the first
+!>        consumer; when the free memory cannot be read, the GW's fallback of 2 GB with a warning
+!> \param memory_per_proc_gb the keyword's value on entry, the memory per MPI rank for the BSE on exit
+!> \param para_env the ranks that share the node's memory
+!> \param unit_nr output unit, positive on the writing rank only
+! **************************************************************************************************
+   SUBROUTINE bse_resolve_memory_per_proc(memory_per_proc_gb, para_env, unit_nr)
+      REAL(KIND=dp), INTENT(INOUT)                       :: memory_per_proc_gb
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      REAL(KIND=dp)                                      :: mem_free_GB, mem_occ_GB
+
+      IF (memory_per_proc_gb >= 0.0_dp) RETURN
+      CALL mp_mem_avail_per_rank_GB(para_env, mem_free_GB)
+      CALL mp_mem_used_per_rank_GB(para_env, mem_occ_GB)
+      IF (mem_free_GB > 0.0_dp) THEN
+         memory_per_proc_gb = mem_occ_GB + detected_memory_fraction*mem_free_GB
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory per MPI rank for the BSE, detected (GB)', &
+               memory_per_proc_gb
+         END IF
+      ELSE
+         memory_per_proc_gb = fallback_memory_per_proc_GB
+         CALL cp_warn(__LOCATION__, &
+                      "BSE: the free memory per MPI rank could not be detected; MEMORY_PER_PROC falls back "// &
+                      "to 2 GB. Set MEMORY_PER_PROC in the BSE section for a run that fits the node.")
+      END IF
+
+   END SUBROUTINE bse_resolve_memory_per_proc
+
+! **************************************************************************************************
+!> \brief What MEMORY_PER_PROC leaves to a step: the resolved memory per MPI rank minus the memory the
+!>        rank holds now, never negative; both probes reduce over the ranks, so every rank gets the same
+!> \param memory_per_proc_gb the resolved MEMORY_PER_PROC
+!> \param para_env the ranks that share the node's memory
+!> \return memory left per MPI rank in GB
+! **************************************************************************************************
+   FUNCTION bse_memory_left_GB(memory_per_proc_gb, para_env) RESULT(mem_left_GB)
+      REAL(KIND=dp), INTENT(IN)                          :: memory_per_proc_gb
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp)                                      :: mem_left_GB
+
+      REAL(KIND=dp)                                      :: mem_occ_GB
+
+      ! a consumer before the resolution would size itself from the keyword's -1
+      CPASSERT(memory_per_proc_gb >= 0.0_dp)
+      CALL mp_mem_used_per_rank_GB(para_env, mem_occ_GB)
+      mem_left_GB = MAX(memory_per_proc_gb - mem_occ_GB, 0.0_dp)
+
+   END FUNCTION bse_memory_left_GB
 
 ! **************************************************************************************************
 !> \brief Moves the RI slabs onto an npe x 1 process grid, such that every rank owns whole RI
@@ -94,10 +152,11 @@ CONTAINS
 !> \param w_fac prefactor of the screened term, 0 switches it off
 !> \param do_abba slice \bar{B}^P_ia as well, for the application of B
 !> \param unit_nr output unit, positive on the writing rank only
-!> \param block_cols trial vectors per pass of bse_matvec_apply; absent or -1 sizes it from the free memory
+!> \param block_cols trial vectors per pass of bse_matvec_apply; absent or -1 sizes it from the memory left
+!> \param memory_per_proc_gb the resolved MEMORY_PER_PROC of the BSE, what block_cols -1 sizes the pass from
 ! **************************************************************************************************
    SUBROUTINE bse_matvec_create(mv_env, fm_S_ia, fm_S_bar_ij, fm_S_ab, fm_S_bar_ia, eps_reduced, &
-                                homo, virt, alpha, w_fac, do_abba, unit_nr, block_cols)
+                                homo, virt, alpha, w_fac, do_abba, unit_nr, block_cols, memory_per_proc_gb)
 
       TYPE(bse_matvec_env_type), INTENT(OUT)             :: mv_env
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_S_ia, fm_S_bar_ij, fm_S_ab, &
@@ -108,6 +167,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_abba
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, INTENT(IN), OPTIONAL                      :: block_cols
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: memory_per_proc_gb
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'bse_matvec_create'
 
@@ -121,6 +181,7 @@ CONTAINS
       mv_env%homo = homo
       mv_env%virt = virt
       IF (PRESENT(block_cols)) mv_env%block_cols = block_cols
+      IF (PRESENT(memory_per_proc_gb)) mv_env%memory_per_proc_gb = memory_per_proc_gb
       mv_env%n_ov = homo*virt
       mv_env%alpha = alpha
       mv_env%w_fac = w_fac
@@ -368,12 +429,10 @@ CONTAINS
          ! pinned by input: the replicated work arrays are then a known n_work_bufs*n_ov*nb doubles
          nb_max = MIN(ncol, mv_env%block_cols)
       ELSE
-         CALL mp_mem_avail_per_rank_GB(mv_env%para_env, mem_avail_GB)
-         nb_max = ncol
-         IF (mem_avail_GB > 0.0_dp) THEN
-            nb_max = INT(MIN(REAL(ncol, dp), &
-                             mem_fraction*mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_work_bufs, dp)*REAL(mv_env%n_ov, dp))))
-         END IF
+         ! the pass takes what MEMORY_PER_PROC leaves after the solver's arrays
+         mem_avail_GB = bse_memory_left_GB(mv_env%memory_per_proc_gb, mv_env%para_env)
+         nb_max = INT(MIN(REAL(ncol, dp), &
+                          mem_avail_GB*1.0E9_dp/(8.0_dp*REAL(n_work_bufs, dp)*REAL(mv_env%n_ov, dp))))
       END IF
       nb_max = MAX(nb_max, 1)
 
@@ -400,7 +459,9 @@ CONTAINS
             RB_3d(1:mv_env%virt, 1:mv_env%homo, 1:nb) => RB_buf(1:mv_env%n_ov*nb)
          END IF
 
-         ! Z_ia,k on every rank: every rank owns a contiguous ia range, so the column arrives sorted
+         ! Z_ia,k on every rank, by design: each rank contracts its whole RI slices against all of Z (header of
+         ! bse_matvec_create), so the trial vectors are the one replicated buffer, n_ov x nb per matvec at any rank
+         ! count; every rank owns a contiguous ia range, so the column arrives sorted
          CALL timeset(routineN//"_gather", handle2)
          DO k = 1, nb
             CALL mv_env%para_env%allgatherv(fm_Z%local_data(1:nrow_local, col + k - 1), Z(:, k), &
@@ -502,6 +563,7 @@ CONTAINS
                END DO
             END DO
          END DO
+         ! one n_ov vector, summed once per solve; replicated on every rank on purpose
          CALL mv_env%para_env%sum(diag)
       END IF
       diag(:) = diag(:) + mv_env%eps_diff(:)

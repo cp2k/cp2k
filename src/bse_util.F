@@ -55,7 +55,6 @@ MODULE bse_util
    USE physcon,                         ONLY: evolt
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
-   USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
@@ -1469,6 +1468,10 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       dft_control => bse_env%dft_control
+      ! PROPERTIES%BSE runs after the GW released the grids; its requirement reader refuses cube files
+      IF (.NOT. ASSOCIATED(bse_env%pw_env)) THEN
+         CPABORT("NTO cube files need the SCF grids: set NTO_ANALYSIS%CUBE_FILES to F")
+      END IF
       pw_env => bse_env%pw_env
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, pw_pools=pw_pools)
       CALL auxbas_pw_pool%create_pw(wf_r)
@@ -1539,16 +1542,12 @@ CONTAINS
                                                             num_state_list_exceptions
       LOGICAL                                            :: explicit
       TYPE(cell_type), POINTER                           :: cell_ref
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_poisson_type), POINTER                     :: poisson_env
 
       CALL timeset(routineN, handle)
-      ! Get environment infos for later usage
-      NULLIFY (pw_env, cell_ref, poisson_env)
-      pw_env => bse_env%pw_env
+      ! the Poisson periodicity was read from the input (finish_bse_env): the grids may be released
+      NULLIFY (cell_ref)
       CALL qs_subsys_get(bse_env%subsys, cell_ref=cell_ref)
-      CALL pw_env_get(pw_env, poisson_env=poisson_env)
-      ndim_periodic_poisson = COUNT(poisson_env%parameters%periodic == 1)
+      ndim_periodic_poisson = bse_env%n_periodic_poisson
       ndim_periodic_cell = SUM(cell_ref%perd(1:3)) ! Borrowed from cell_methods.F/write_cell_low
 
       ! The iterative solver computes the NUM_EXC_EN lowest excitations only

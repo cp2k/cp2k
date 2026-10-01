@@ -73,6 +73,7 @@ list(
   soc_pseudopotential_utils.F
   basis_set_output.F
   block_p_types.F
+  bse_bs_env_link.F
   bse_main.F
   bse_full_diag.F
   bse_iterative.F

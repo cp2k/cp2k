@@ -3,7 +3,8 @@
 The Bethe-Salpeter equation (BSE) is a method for computing electronic excitation energies and
 optical absorption spectra. We repeat the theory and implementation of BSE from \[[](#Graml2026)\]
 in Sec. [1](#header-theory), in Sec. [2](#header-input) the BSE input keywords and in Sec.
-[3](#header-example) a full CP2K input file of a BSE calculation and the corresponding output. For
+[3](#header-example) a full CP2K input file of a BSE calculation and the corresponding output. Sec.
+[4](#header-properties-bse) describes the BSE section under `PROPERTIES` for large molecules. For
 further references on BSE, see \[[](#Blase2018), [](#Blase2020), [](#Bruneval2015),
 [](#Sander2015)\].
 
@@ -326,16 +327,18 @@ In the upper GW/BSE section, the following keywords have been used:
 - [ENERGY_CUTOFF_OCC](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.ENERGY_CUTOFF_OCC)
   $E_\text{cut}^\text{occ}$: Restrict occupied molecular orbital (MO) indices $i$ and only use
   occupied MOs with
-  $\varepsilon_i\in[\varepsilon_{i=\text{HOMO}}^{GW}-E_\text{cut}^\text{occ},\varepsilon_{i=\text{HOMO}}^{GW}]$.
-  Setting a small `ENERGY_CUTOFF_OCC` drastically reduces the computation time and the memory
-  consumption, but also might affect the computed excitation energies $\Omega^{(n)}$. Recommended to
-  use for large systems with more than 30 atoms, but we recommend a careful convergence test by
-  increasing `ENERGY_CUTOFF_OCC` and observing the effect on $\Omega^{(n)}$ \[[](#Graml2026)\].
+  $\varepsilon_i\in[\varepsilon_{i=\text{HOMO}}^{DFT}-E_\text{cut}^\text{occ},\varepsilon_{i=\text{HOMO}}^{DFT}]$.
+  The cutoff is applied to the DFT eigenvalues, also when the BSE takes quasiparticle energies from
+  the *GW*. Setting a small `ENERGY_CUTOFF_OCC` drastically reduces the computation time and the
+  memory consumption, but also might affect the computed excitation energies $\Omega^{(n)}$.
+  Recommended to use for large systems with more than 30 atoms, but we recommend a careful
+  convergence test by increasing `ENERGY_CUTOFF_OCC` and observing the effect on $\Omega^{(n)}$
+  \[[](#Graml2026)\].
 
 - [ENERGY_CUTOFF_EMPTY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.ENERGY_CUTOFF_EMPTY)
   $E_\text{cut}^\text{empty}$: Analogous to `ENERGY_CUTOFF_OCC`, but for the empty states, i.e. only
   empty states in the interval
-  $\varepsilon_a\in[\varepsilon_{a=\text{LUMO}}^{GW},\varepsilon_{a=\text{LUMO}}^{GW}+E_\text{cut}^\text{empty}]$.
+  $\varepsilon_a\in[\varepsilon_{a=\text{LUMO}}^{DFT},\varepsilon_{a=\text{LUMO}}^{DFT}+E_\text{cut}^\text{empty}]$.
 
 - [NUM_PRINT_EXC_DESCR](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.NUM_PRINT_EXC_DESCR):
   Number of excitations, for which the exciton descriptors are printed.
@@ -586,6 +589,103 @@ and explicitly setting the keywords
 and
 [ENERGY_CUTOFF_EMPTY](#CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE.ENERGY_CUTOFF_EMPTY),
 see details given above.
+
+(header-properties-bse)=
+
+## 4. BSE on the *GW* of `PROPERTIES%BANDSTRUCTURE%GW` (`PROPERTIES%BSE`)
+
+The BSE section exists in two places. Each runs on the *GW* next to it, the keywords of both are
+identical, and both treat non-periodic systems (molecules) only:
+
+- [RI_RPA%GW%BSE][bse], in full `FORCE_EVAL%DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE`, runs on the
+  $O(N^4)$-scaling *GW* of the [RI_RPA%GW][gw] section, as in the sections above.
+- [PROPERTIES%BSE](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE), in full `FORCE_EVAL%PROPERTIES%BSE`, runs
+  on the low-scaling *GW* of
+  [PROPERTIES%BANDSTRUCTURE%GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW), which must be
+  present in the same input and is described in [](../../electronic_structure/band/gw).
+
+The *GW* of `PROPERTIES%BANDSTRUCTURE%GW` is designed for large systems \[[](#Graml2024)\], so
+`PROPERTIES%BSE` is the BSE section to use for large molecules. `PROPERTIES%BSE` has the following
+requirements of its own:
+
+- A non-periodic cell, i.e. [PERIODIC](#CP2K_INPUT.FORCE_EVAL.SUBSYS.CELL.PERIODIC) `NONE`.
+- No [RI_RS](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.RI_RS) subsection in
+  `PROPERTIES%BANDSTRUCTURE%GW`. By default, `PROPERTIES%BANDSTRUCTURE%GW` computes the three-center
+  integrals $(\mu\nu|P)$ of the resolution of the identity (RI) between atomic orbitals $\mu, \nu$
+  and RI basis functions $P$ explicitly; `RI_RS` replaces them by a representation on a real-space
+  grid. `PROPERTIES%BSE` builds its kernel from the explicit three-center integrals.
+- The Γ-point only, i.e. no
+  [BANDSTRUCTURE_PATH](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.BANDSTRUCTURE_PATH)
+  subsection and no [DOS%KPOINTS](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.DOS.KPOINTS) in
+  `PROPERTIES%BANDSTRUCTURE`.
+- No [RTBSE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE) section in the same run.
+- With [NTO_ANALYSIS](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.NTO_ANALYSIS),
+  [CUBE_FILES](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.NTO_ANALYSIS.CUBE_FILES) `F`: `PROPERTIES%BSE`
+  writes no cube files of the natural transition orbitals.
+
+`PROPERTIES%BSE` takes the quasiparticle energies, the three-center integrals and the static
+screened interaction $W(i\omega = 0)$ from `PROPERTIES%BANDSTRUCTURE%GW`; no second RPA calculation
+is run for the screening. $W(i\omega = 0)$ is summed from the screened interaction on the
+imaginary-time grid of `PROPERTIES%BANDSTRUCTURE%GW`. The numerical parameters of
+`PROPERTIES%BANDSTRUCTURE%GW` are therefore convergence parameters of `PROPERTIES%BSE` as well,
+beyond their effect on the quasiparticle energies:
+
+- [NUM_TIME_FREQ_POINTS](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.NUM_TIME_FREQ_POINTS)
+  sets the imaginary-time grid from which $W(i\omega = 0)$ is summed.
+- [CUTOFF_RADIUS_RI](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.CUTOFF_RADIUS_RI) is the
+  radius of the truncated Coulomb metric of the RI. `PROPERTIES%BSE` builds its kernel in the same
+  metric.
+- [EPS_FILTER](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.EPS_FILTER) filters the
+  three-center integrals, which enter the screening and the kernel of `PROPERTIES%BSE`.
+
+A minimal input:
+
+```
+&PROPERTIES
+  &BANDSTRUCTURE
+    &GW
+      NUM_TIME_FREQ_POINTS 30
+      CUTOFF_RADIUS_RI 20.0
+      MEMORY_PER_PROC 2
+    &END GW
+  &END BANDSTRUCTURE
+  &BSE
+    BSE_DIAG_METHOD FULLDIAG
+    ENERGY_CUTOFF_EMPTY 50.0
+    ENERGY_CUTOFF_OCC 60.0
+    TDA OFF
+  &END BSE
+&END PROPERTIES
+```
+
+A `CUTOFF_RADIUS_RI` beyond the extent of the molecule turns the truncated Coulomb metric of
+`PROPERTIES%BANDSTRUCTURE%GW` into the Coulomb metric of `RI_RPA%GW`. With such a radius and enough
+time and frequency points, the two *GW* implementations, and with them `PROPERTIES%BSE` and
+`RI_RPA%GW%BSE`, can be converged to each other. With looser settings, a residual deviation between
+the excitation energies of `PROPERTIES%BSE` and of `RI_RPA%GW%BSE` remains, which stems from the
+*GW* step.
+
+`PROPERTIES%BSE` transforms the three-center integrals to molecular orbitals in batches of RI atoms
+that fit the memory [MEMORY_PER_PROC](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.MEMORY_PER_PROC) leaves
+per MPI rank after what the rank holds; by default the BSE detects that memory as the *GW* does for
+its own [MEMORY_PER_PROC](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.MEMORY_PER_PROC). The
+same remainder bounds the subspace of the iterative solver, and with `FULLDIAG` the memory of the
+diagonalization is estimated before the *GW* starts and the run stops when it does not fit. The
+output reports the memory per rank, what is left for each step, the largest batch and the number of
+batches. The three-center integrals of the BSE stay until the BSE ends and take about
+$8 N_\mathrm{RI} (N_\mathrm{occ}^2 + N_\mathrm{occ} N_\mathrm{virt} + N_\mathrm{virt}^2)$ bytes over
+all ranks and per spin, with $N_\mathrm{RI}$ RI functions and $N_\mathrm{occ}$, $N_\mathrm{virt}$
+levels in the active window; a value set by hand covers them and what SCF and *GW* hold.
+
+The budget holds per step and is no total for the run. The transformation of the integrals and the
+solver run one after the other, and each may take up to the budget on top of what the run holds when
+the step starts. By default, each step takes half of the memory that is free at that moment, so no
+value has to be estimated. A budget set by hand should not exceed the memory per MPI rank minus what
+the run holds already: the memory that SCF and *GW* have not released, and the transformed
+three-center integrals, which stay until the BSE ends and take about
+$8\,N_\text{RI}\,(N_\text{occ}^2 + N_\text{occ} N_\text{virt} + N_\text{virt}^2)$ bytes over all
+ranks and per spin, with $N_\text{RI}$ RI functions and $N_\text{occ}$, $N_\text{virt}$ levels in
+the active window.
 
 [bse]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW.BSE
 [gw]: #CP2K_INPUT.FORCE_EVAL.DFT.XC.WF_CORRELATION.RI_RPA.GW

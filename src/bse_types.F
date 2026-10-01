@@ -35,8 +35,10 @@ MODULE bse_types
    PUBLIC :: bse_env_type, bse_env_release
 
 ! **************************************************************************************************
-!> \brief Settings of the &BSE section (read_bse_section, re-read by prepare_bse_env, normalised in
-!>        place by adapt_BSE_input_params) and the state prepare_bse_env fills for bse_solve
+!> \brief Settings of the &BSE section (read_bse_section, re-read before every BSE run, normalised in
+!>        place by adapt_BSE_input_params) and the state that the entry of the GW fills for bse_solve:
+!>        prepare_bse_env_from_ri_rpa_gw for RI_RPA%GW, prepare_bse_env_from_bandstructure_gw for
+!>        PROPERTIES%BANDSTRUCTURE%GW
 ! **************************************************************************************************
    TYPE bse_env_type
       ! --- settings, one field per keyword of the &BSE section; the reader sets them ---
@@ -52,13 +54,12 @@ MODULE bse_types
                                                             num_guess_transitions = 0, &
                                                             max_subspace_factor = 0, &
                                                             matvec_block_columns = -1, &
-                                                            memory_check = 0, &
                                                             max_iter = 0, &
                                                             convergence_criterion = 0, &
                                                             preconditioner = 0, &
                                                             abba_solver = 0
       REAL(KIND=dp)                                      :: eps_res = 0.0_dp, &
-                                                            memory_budget_gb = 0.0_dp, &
+                                                            memory_per_proc_gb = -1.0_dp, &
                                                             eps_energy = 0.0_dp, &
                                                             eps_x = 0.0_dp, &
                                                             screening_factor = 0.0_dp, &
@@ -86,7 +87,7 @@ MODULE bse_types
       INTEGER, DIMENSION(:), POINTER                     :: bse_nto_state_list => NULL()
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: bse_nto_state_list_final
       TYPE(section_vals_type), POINTER                   :: bse_section => NULL()
-      ! --- state, unset until prepare_bse_env fills it ---
+      ! --- state, unset until the entry of the GW (prepare_bse_env_from_...) fills it ---
       LOGICAL                                            :: do_tda = .FALSE., &
                                                             do_abba = .FALSE., &
                                                             do_fulldiag = .FALSE., &
@@ -111,6 +112,8 @@ MODULE bse_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_dipole_ao => NULL(), &
                                                             matrix_quadpole_ao => NULL()
       REAL(KIND=dp), DIMENSION(3)                        :: multipole_ref_point = 0.0_dp
+      ! periodic directions of the Poisson solver, read from the input: the grids may be released
+      INTEGER                                            :: n_periodic_poisson = 0
       ! QS objects the solver reads, none owned
       TYPE(mp_para_env_type), POINTER                    :: para_env => NULL()
       TYPE(qs_subsys_type), POINTER                      :: subsys => NULL()
@@ -124,9 +127,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Releases the state a GW path prepared and nullifies the QS pointers; the settings stay,
-!>        including the section pointer and the two lists into the input tree, since prepare_bse_env
-!>        re-reads them from the section when a later energy evaluation on the same environment runs
-!>        the BSE again. Safe on an unprepared environment.
+!>        including the section pointer and the two lists into the input tree, since
+!>        prepare_bse_env_from_ri_rpa_gw re-reads them from the section when a later energy evaluation
+!>        on the same environment runs the BSE again. Safe on an unprepared environment.
 !> \param bse_env the environment whose prepared state is released
 ! **************************************************************************************************
    SUBROUTINE bse_env_release(bse_env)

@@ -32,7 +32,7 @@ MODULE bse_davidson
                                               bse_matvec_env_type,&
                                               bse_matvec_subblock,&
                                               bse_matvec_vector_struct,&
-                                              mem_fraction
+                                              bse_memory_left_GB
    USE bse_types,                       ONLY: bse_env_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
@@ -50,16 +50,11 @@ MODULE bse_davidson
    USE input_constants,                 ONLY: bse_iter_and_cond,&
                                               bse_iter_en_cond,&
                                               bse_iter_or_cond,&
-                                              bse_iter_res_cond,&
-                                              bse_memcheck_abort,&
-                                              bse_memcheck_clamp,&
-                                              bse_memcheck_off,&
-                                              bse_memcheck_warn
+                                              bse_iter_res_cond
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
    USE mathlib,                         ONLY: diamat_all
-   USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
    USE util,                            ONLY: sort
@@ -1516,7 +1511,7 @@ CONTAINS
    END SUBROUTINE print_summary
 
 ! **************************************************************************************************
-!> \brief Number of wanted and tracked states and the block size, clamped to the problem size
+!> \brief Number of wanted and tracked states and the block size, capped at the problem size
 !> \param bse_env NUM_EXC_EN, NUM_BUFFER_STATES, BLOCK_SIZE and MAX_ITER
 !> \param n_ov number of transitions
 !> \param unit_nr output unit, positive on the writing rank only
@@ -1557,9 +1552,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Largest subspace dimension m_max: MAX_SUBSPACE_FACTOR x n_act, or 20 x n_act for -1, with
-!>        the solver's arrays at m_max checked against the memory budget per rank as MEMORY_CHECK says;
-!>        CLAMP lowers m_max to the largest that fits, never below 3 x n_act (4 x n_act for OLSEN_STRATMANN)
-!> \param bse_env MAX_SUBSPACE_FACTOR, MEMORY_CHECK and MEMORY_BUDGET_GB
+!>        lowered to the largest whose arrays fit what MEMORY_PER_PROC leaves after the memory the rank
+!>        holds, never below 3 x n_act (4 x n_act for OLSEN_STRATMANN); the minimal subspace over that
+!>        remainder runs with a warning
+!> \param bse_env MAX_SUBSPACE_FACTOR and the resolved MEMORY_PER_PROC
 !> \param mv_env n_ov, the RI share per rank and block_cols
 !> \param driver driver_tda, driver_mk or driver_os
 !> \param n_act tracked states
@@ -1577,8 +1573,8 @@ CONTAINS
       CHARACTER(LEN=16)                                  :: bud_str, fac_str, mem_str
       INTEGER                                            :: m_floor, m_hi, m_lo, m_mid, m_start, &
                                                             min_fac, n_ri_max, nb
-      LOGICAL                                            :: from_free, over, skipped
-      REAL(KIND=dp)                                      :: budget_GB, dist_GB, mem_avail_GB, repl_GB
+      LOGICAL                                            :: floor_over, lowered
+      REAL(KIND=dp)                                      :: dist_GB, mem_left_GB, repl_GB
 
       ! the smallest ceiling that leaves room for the restart and one block: TDA and MK restart onto at
       ! most 2 n_act vectors and add a block of at most n_act; OS restarts onto right and left pairs
@@ -1618,49 +1614,34 @@ CONTAINS
       n_ri_max = mv_env%n_ri_loc
       CALL mv_env%para_env%max(n_ri_max)
 
-      ! the budget: as given, or the share mem_fraction of the free memory per rank
-      from_free = bse_env%memory_budget_gb < 0.0_dp
-      skipped = .FALSE.
-      budget_GB = bse_env%memory_budget_gb
-      IF (from_free) THEN
-         CALL mp_mem_avail_per_rank_GB(mv_env%para_env, mem_avail_GB)
-         budget_GB = mem_fraction*mem_avail_GB
-         skipped = mem_avail_GB <= 0.0_dp
-         IF (skipped .AND. bse_env%memory_check /= bse_memcheck_off .AND. unit_nr > 0) THEN
-            CALL cp_warn(__LOCATION__, "BSE Davidson: free memory not detectable, memory check skipped")
-         END IF
-      END IF
-
+      ! what MEMORY_PER_PROC leaves after the slabs and everything else the rank holds
+      mem_left_GB = bse_memory_left_GB(bse_env%memory_per_proc_gb, mv_env%para_env)
       CALL davidson_footprint(driver, mv_env, m_max, n_act, block_size, nb, n_ri_max, dist_GB, repl_GB)
-      over = .NOT. skipped .AND. bse_env%memory_check /= bse_memcheck_off .AND. &
-             dist_GB + repl_GB > budget_GB
-
-      IF (over .AND. bse_env%memory_check == bse_memcheck_clamp) THEN
+      lowered = dist_GB + repl_GB > mem_left_GB
+      floor_over = .FALSE.
+      IF (lowered) THEN
          CALL davidson_footprint(driver, mv_env, m_floor, n_act, block_size, nb, n_ri_max, dist_GB, repl_GB)
-         IF (dist_GB + repl_GB > budget_GB) THEN
-            WRITE (mem_str, '(F16.3)') dist_GB + repl_GB
-            WRITE (bud_str, '(F16.3)') budget_GB
-            CALL cp_abort(__LOCATION__, &
-                          "BSE Davidson: not enough memory for the smallest subspace of "//TRIM(ADJUSTL(fac_str))// &
-                          " vectors per state: "//TRIM(ADJUSTL(mem_str))//" GB per MPI rank, the budget is "// &
-                          TRIM(ADJUSTL(bud_str))//" GB. Raise MEMORY_BUDGET_GB or use more MPI ranks.")
+         IF (dist_GB + repl_GB > mem_left_GB) THEN
+            ! nothing smaller than the minimal subspace exists: run with it and say so
+            floor_over = .TRUE.
+            m_max = m_floor
+         ELSE
+            ! the footprint grows with m: bisect for the largest m within what is left
+            m_lo = m_floor
+            m_hi = m_start
+            DO WHILE (m_hi - m_lo > 1)
+               m_mid = (m_lo + m_hi)/2
+               CALL davidson_footprint(driver, mv_env, m_mid, n_act, block_size, nb, n_ri_max, dist_GB, repl_GB)
+               IF (dist_GB + repl_GB <= mem_left_GB) THEN
+                  m_lo = m_mid
+               ELSE
+                  m_hi = m_mid
+               END IF
+            END DO
+            m_max = m_lo
+            CALL davidson_footprint(driver, mv_env, m_max, n_act, block_size, nb, n_ri_max, dist_GB, repl_GB)
          END IF
-         ! the footprint grows with m: bisect for the largest m within the budget
-         m_lo = m_floor
-         m_hi = m_start
-         DO WHILE (m_hi - m_lo > 1)
-            m_mid = (m_lo + m_hi)/2
-            CALL davidson_footprint(driver, mv_env, m_mid, n_act, block_size, nb, n_ri_max, dist_GB, repl_GB)
-            IF (dist_GB + repl_GB <= budget_GB) THEN
-               m_lo = m_mid
-            ELSE
-               m_hi = m_mid
-            END IF
-         END DO
-         m_max = m_lo
-         CALL davidson_footprint(driver, mv_env, m_max, n_act, block_size, nb, n_ri_max, dist_GB, repl_GB)
       END IF
-
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          IF (bse_env%max_subspace_factor == -1) THEN
@@ -1671,69 +1652,26 @@ CONTAINS
                m_start
          END IF
          IF (m_max < m_start) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Maximum subspace dimension after the memory check', &
+            WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Maximum subspace dimension lowered to the memory left', &
                m_max
          END IF
          WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory per MPI rank at the subspace ceiling (GB)'
          WRITE (unit_nr, '(T2,A4,T9,A,T67,F14.3)') 'BSE|', 'Distributed arrays', dist_GB
          WRITE (unit_nr, '(T2,A4,T9,A,T67,F14.3)') 'BSE|', 'Replicated arrays', repl_GB
          WRITE (unit_nr, '(T2,A4,T9,A,T67,F14.3)') 'BSE|', 'Total', dist_GB + repl_GB
-         IF (.NOT. skipped) THEN
-            IF (from_free) THEN
-               WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Fraction of the free memory made available', &
-                  mem_fraction
-            END IF
-            WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory budget per MPI rank (GB)', budget_GB
-         END IF
+         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory per MPI rank for the BSE, MEMORY_PER_PROC (GB)', &
+            bse_env%memory_per_proc_gb
+         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Left for the solver after the memory held (GB)', &
+            mem_left_GB
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (bse_env%memory_check == bse_memcheck_off) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: OFF'
-         ELSE IF (skipped) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: skipped, free memory not detectable'
-         ELSE
-            SELECT CASE (bse_env%memory_check)
-            CASE (bse_memcheck_warn)
-               IF (over) THEN
-                  WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: WARN, the total exceeds the budget'
-               ELSE
-                  WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: within the budget, no WARN raised'
-               END IF
-            CASE (bse_memcheck_clamp)
-               IF (over) THEN
-                  WRITE (unit_nr, '(T2,A4,T7,A,I0,A,I0)') 'BSE|', &
-                     'Memory check: CLAMP applied, subspace ceiling reduced from ', m_start, ' to ', m_max
-               ELSE
-                  WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: within the budget, no CLAMP applied'
-               END IF
-            CASE (bse_memcheck_abort)
-               IF (over) THEN
-                  WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: ABORT, the total exceeds the budget'
-               ELSE
-                  WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: within the budget, no ABORT raised'
-               END IF
-            END SELECT
-         END IF
       END IF
-
-      IF (over) THEN
+      IF (floor_over) THEN
          WRITE (mem_str, '(F16.3)') dist_GB + repl_GB
-         WRITE (bud_str, '(F16.3)') budget_GB
-         SELECT CASE (bse_env%memory_check)
-         CASE (bse_memcheck_warn)
-            IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
-                                          "BSE Davidson: the solver's arrays at the subspace ceiling need "// &
-                                          TRIM(ADJUSTL(mem_str))//" GB per MPI rank, above the budget of "// &
-                                          TRIM(ADJUSTL(bud_str))//" GB.")
-         CASE (bse_memcheck_clamp)
-            IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
-                                          "BSE Davidson: subspace ceiling reduced to fit the memory budget; raise "// &
-                                          "MEMORY_BUDGET_GB or lower MAX_SUBSPACE_FACTOR to silence this.")
-         CASE (bse_memcheck_abort)
-            CALL cp_abort(__LOCATION__, &
-                          "BSE Davidson: the solver's arrays at the subspace ceiling need "//TRIM(ADJUSTL(mem_str))// &
-                          " GB per MPI rank, the budget is "//TRIM(ADJUSTL(bud_str))//" GB. Raise MEMORY_BUDGET_GB, "// &
-                          "lower MAX_SUBSPACE_FACTOR, or set MEMORY_CHECK CLAMP.")
-         END SELECT
+         WRITE (bud_str, '(F16.3)') mem_left_GB
+         CALL cp_warn(__LOCATION__, &
+                      "BSE Davidson: the minimal subspace of "//TRIM(ADJUSTL(fac_str))//" vectors per state needs "// &
+                      TRIM(ADJUSTL(mem_str))//" GB per MPI rank, "//TRIM(ADJUSTL(bud_str))// &
+                      " GB are left of MEMORY_PER_PROC; running with it. Raise MEMORY_PER_PROC or use more MPI ranks.")
       END IF
 
    END SUBROUTINE subspace_ceiling

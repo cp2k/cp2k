@@ -8,7 +8,7 @@
 ! **************************************************************************************************
 !> \brief Reads the &BSE input section into the BSE environment; called by read_mp2_section with
 !>        the section under RI_RPA%GW, by any other GW path with its own section, and again by
-!>        prepare_bse_env before every BSE run
+!>        prepare_bse_env_from_ri_rpa_gw before every BSE run
 !> \par History
 !>      09.2026 moved out of read_mp2_section [Maximilian Graml]
 ! **************************************************************************************************
@@ -49,6 +49,8 @@ CONTAINS
                                 r_val=bse_env%bse_cutoff_occ)
       CALL section_vals_val_get(bse_section, "ENERGY_CUTOFF_EMPTY", &
                                 r_val=bse_env%bse_cutoff_empty)
+      CALL section_vals_val_get(bse_section, "MEMORY_PER_PROC", &
+                                r_val=bse_env%memory_per_proc_gb)
       CALL section_vals_val_get(bse_section, "NUM_PRINT_EXC", &
                                 i_val=bse_env%num_print_exc)
       CALL section_vals_val_get(bse_section, "NUM_PRINT_EXC_DESCR", &
@@ -71,10 +73,6 @@ CONTAINS
                                 i_val=bse_env%max_subspace_factor)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%MATVEC_BLOCK_COLUMNS", &
                                 i_val=bse_env%matvec_block_columns)
-      CALL section_vals_val_get(bse_section, "BSE_ITERAT%MEMORY_CHECK", &
-                                i_val=bse_env%memory_check)
-      CALL section_vals_val_get(bse_section, "BSE_ITERAT%MEMORY_BUDGET_GB", &
-                                r_val=bse_env%memory_budget_gb)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%MAX_ITER", &
                                 i_val=bse_env%max_iter)
       CALL section_vals_val_get(bse_section, "BSE_ITERAT%CONVERGENCE_CRITERION", &

@@ -16,6 +16,7 @@ MODULE qs_energy_utils
    USE atprop_types,                    ONLY: atprop_array_add,&
                                               atprop_array_init,&
                                               atprop_type
+   USE bse_bs_env_link,                 ONLY: bse_from_bs_env
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_control_utils,                ONLY: read_ddapc_section
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
@@ -99,7 +100,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_properties'
 
       INTEGER                                            :: handle, natom
-      LOGICAL                                            :: do_et, do_et_proj, &
+      LOGICAL                                            :: do_bse_props, do_et, do_et_proj, &
                                                             do_post_scf_bandstructure, do_tip_scan
       REAL(KIND=dp)                                      :: ekts
       TYPE(atprop_type), POINTER                         :: atprop
@@ -108,9 +109,9 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_r3d_rs_type), POINTER                      :: v_hartree_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(section_vals_type), POINTER                   :: input, post_scf_bands_section, &
-                                                            proj_section, rest_b_section, &
-                                                            tip_scan_section
+      TYPE(section_vals_type), POINTER                   :: bse_props_section, input, &
+                                                            post_scf_bands_section, proj_section, &
+                                                            rest_b_section, tip_scan_section
 
       NULLIFY (atprop, energy, pw_env)
       CALL timeset(routineN, handle)
@@ -212,6 +213,12 @@ CONTAINS
       IF (do_post_scf_bandstructure) THEN
          CALL post_scf_bandstructure(qs_env, post_scf_bands_section)
       END IF
+
+      ! Linear-response Bethe-Salpeter on the GW of the bandstructure section
+      NULLIFY (bse_props_section)
+      bse_props_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%BSE")
+      CALL section_vals_get(bse_props_section, explicit=do_bse_props)
+      IF (do_bse_props) CALL bse_from_bs_env(qs_env, bse_props_section)
 
       ! tip scan
       NULLIFY (tip_scan_section)

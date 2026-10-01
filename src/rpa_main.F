@@ -19,7 +19,7 @@ MODULE rpa_main
         Bates2013, DelBen2013, DelBen2015, Freeman1977, Gruneis2009, Ren2011, Ren2013, &
         Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, cite_reference
    USE bse_main,                        ONLY: bse_solve,&
-                                              prepare_bse_env
+                                              prepare_bse_env_from_ri_rpa_gw
    USE bse_types,                       ONLY: bse_env_release
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
@@ -1899,10 +1899,10 @@ CONTAINS
          IF (ALLOCATED(static_cohsex_u)) DEALLOCATE (static_cohsex_u)
 
          ! the solver keeps [1+Q(0)]^-1 and the window-sized slabs; Q(0) and the full slabs stay the GW's
-         CALL prepare_bse_env(mp2_env%bse, fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
-                              fm_mat_Q_static_bse_gemm, Eigenval, Eigenval_scf, &
-                              homo, virtual, dimen_RI, dimen_RI_red, mp2_env%ri_g0w0%corr_mos_occ, &
-                              bse_lev_virt, qs_env, unit_nr)
+         CALL prepare_bse_env_from_ri_rpa_gw(mp2_env%bse, fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
+                                             fm_mat_Q_static_bse_gemm, Eigenval, Eigenval_scf, &
+                                             homo, virtual, dimen_RI, dimen_RI_red, mp2_env%ri_g0w0%corr_mos_occ, &
+                                             bse_lev_virt, qs_env, unit_nr)
          CALL cp_fm_release(fm_mat_Q_static_bse_gemm)
          IF (ALLOCATED(mo_coeff_bse)) THEN
             CALL bse_solve(mp2_env%bse, mo_coeff_bse, unit_nr)

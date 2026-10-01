@@ -24,7 +24,7 @@ MODULE mp2
                                               Stein2022,&
                                               Stein2024,&
                                               cite_reference
-   USE bse_main,                        ONLY: bse_fulldiag_memory_check
+   USE bse_main,                        ONLY: bse_fulldiag_memory_check_from_mos
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
@@ -562,7 +562,7 @@ CONTAINS
       IF (mp2_env%ri_rpa%do_ri_g0w0) THEN
          ! the full diagonalization's footprint is known here, before any GW work
          IF (mp2_env%bse%do_bse .AND. mp2_env%bse%bse_diag_method == bse_fulldiag) THEN
-            CALL bse_fulldiag_memory_check(mp2_env%bse, mos_mp2, para_env, unit_nr)
+            CALL bse_fulldiag_memory_check_from_mos(mp2_env%bse, mos_mp2, para_env, unit_nr)
          END IF
          CALL compute_vec_Sigma_x_minus_vxc_gw(qs_env, mp2_env, mos_mp2, E_ex_from_GW, E_admm_from_GW, t3, unit_nr)
       END IF
