@@ -142,5 +142,6 @@ PROGRAM upf_local_integrals_unittest
       PRINT '(A,1X,A,2ES18.9)', 'Native local UPF:', TRIM(filename), cache%radial%radius, MAXVAL(ABS(v))
       CALL atom_release_upf(pot)
    END DO
+   DEALLOCATE (v, da, db)
    CALL cp2k_finalize()
 END PROGRAM upf_local_integrals_unittest
