@@ -18,8 +18,8 @@
 "hlsd_3.inp"                            = [{matcher="E_total", tol=2e-14, ref=-16.81101156813314}]
 "hlsd_4.inp"                            = [{matcher="E_total", tol=2e-14, ref=-16.81101156813314}]
 "hlsd_5.inp"                            = [{matcher="E_total", tol=2e-14, ref=-16.81101156813314}]
-"hlsd_6.inp"                            = [{matcher="E_total", tol=4e-14, ref=-16.80070757658133}]
-"hlsd_7.inp"                            = [{matcher="E_total", tol=4e-14, ref=-16.80070757658133}]
-"hlsd_8.inp"                            = [{matcher="E_total", tol=4e-14, ref=-16.80070757658133}]
-"hlsd_9.inp"                            = [{matcher="E_total", tol=4e-14, ref=-16.80070757658133}]
+"hlsd_6.inp"                            = [{matcher="E_total", tol=4e-14, ref=-16.80055680403342}]
+"hlsd_7.inp"                            = [{matcher="E_total", tol=4e-14, ref=-16.80055680403342}]
+"hlsd_8.inp"                            = [{matcher="E_total", tol=4e-14, ref=-16.80055680403342}]
+"hlsd_9.inp"                            = [{matcher="E_total", tol=4e-14, ref=-16.80055680403342}]
 #EOF

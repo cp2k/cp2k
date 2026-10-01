@@ -39,6 +39,29 @@ finite-integral audit. Among them, 40 contain NLCC data; their maximum relative 
 core-density fit error was 4.54e-7. These checks do not replace self-consistent benchmarks across
 all elements and materials.
 
+## Existing GAPW regression references
+
+The extended one-center basis and periodic-background repairs also affect existing GAPW tests
+without UPF potentials. A controlled comparison covered all 36 changed matchers in 34 inputs from
+the pdbg CI report. The original matcher tolerances were retained throughout. The GNU Debug build on
+Terok was extended with Libint 2.13.1 so that the two PBE0 cases were also included.
+
+| Implementation used for the comparison | Matches old references | Matches repaired CI values |
+| -------------------------------------- | ---------------------: | -------------------------: |
+| Repaired basis and background          |                   0/36 |                      36/36 |
+| Previous basis, repaired background    |                  22/36 |                      14/36 |
+| Previous basis and background          |                  36/36 |                       0/36 |
+
+All 34 inputs completed in each comparison. These controls isolate the reference shifts to the two
+intentional repairs: retaining admissible diffuse functions and using the physical cell charge with
+the consistent background energy/potential. The latter also removes a spurious correction that the
+old rule could activate from a numerical charge-integration error in nominally neutral calculations.
+The affected checks include energies, stresses, response quantities, charged cells, and hybrids. The
+36 reference values are updated to the reproduced repaired CI values; no matcher or tolerance is
+relaxed. The repaired source and executable were restored after the comparison. The independent
+one-center-basis negative control and periodic-Gaussian electrostatic reference remain the tests of
+the respective mathematical corrections; reproducing old values is a change-attribution check.
+
 ## Finite-difference controls
 
 For the larger SBr2 controls, start from the registered inputs, restore a 10-Angstrom cubic cell,

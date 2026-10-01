@@ -13,7 +13,7 @@
 #bug fix gpw_type
 "H2O_O_gpw.inp"                         = [{matcher="E_total", tol=2e-13, ref=-17.10774257571033}]
 #bug fix perdew_zunger
-"Ne-BP.inp"                             = [{matcher="E_total", tol=3.0E-14, ref=-128.04346037104085}]
+"Ne-BP.inp"                             = [{matcher="E_total", tol=3.0E-14, ref=-128.04346035558336}]
 "H2O_all_gpw.inp"                       = [{matcher="E_total", tol=2e-11, ref=-16.14000416634191}]
 "H2O_H_gpw_O_gapw.inp"                  = [{matcher="E_total", tol=3e-12, ref=-14.67461500144429}]
 "H_hf_gapw_forcepaw.inp"                = [{matcher="E_total", tol=4e-13, ref=-0.42427650604842998}]
