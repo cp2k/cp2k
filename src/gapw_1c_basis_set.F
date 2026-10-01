@@ -159,10 +159,11 @@ CONTAINS
             ext_basis%lmin(l + 1) = l
             ext_basis%lmax(l + 1) = l
             IF (l <= maxl) THEN
-               fmin = 10.0_dp
                nn = 0
                DO i = 1, n1
                   xz = z1(i)
+                  ! Each candidate is compared independently with the soft basis.
+                  fmin = 10.0_dp
                   DO j = 1, nps(l)
                      yz = zexs(j, l)
                      fz = MAX(xz, yz)/MIN(xz, yz)

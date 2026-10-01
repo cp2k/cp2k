@@ -1596,6 +1596,7 @@ set(CP2K_PROGS_F
     upf_projector_integrals_unittest.F
     upf_local_integrals_unittest.F
     gapw_background_unittest.F
+    gapw_1c_basis_unittest.F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
     topology_wilson_unittest.F
@@ -2028,6 +2029,7 @@ list(
   "upf_projector_integrals_unittest"
   "upf_local_integrals_unittest"
   "gapw_background_unittest"
+  "gapw_1c_basis_unittest"
   "kpoint_lattice_fft_unittest"
   "kpoint_smearing_unittest"
   "topology_wilson_unittest"
@@ -2070,6 +2072,7 @@ add_executable(atom_upf_unittest atom_upf_unittest.F)
 add_executable(upf_projector_integrals_unittest upf_projector_integrals_unittest.F)
 add_executable(upf_local_integrals_unittest upf_local_integrals_unittest.F)
 add_executable(gapw_background_unittest gapw_background_unittest.F)
+add_executable(gapw_1c_basis_unittest gapw_1c_basis_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(topology_wilson_unittest topology_wilson_unittest.F)
