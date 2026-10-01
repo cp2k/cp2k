@@ -51,6 +51,9 @@ MODULE core_ppl
                                               neighbor_list_set_p_type,&
                                               nl_set_sub_iterator,&
                                               nl_sub_iterate
+   USE upf_local_integrals,             ONLY: upf_local_init,&
+                                              upf_local_matrix,&
+                                              upf_local_ri
    USE virial_methods,                  ONLY: virial_pair_force
    USE virial_types,                    ONLY: virial_type
 
@@ -130,13 +133,15 @@ CONTAINS
                                                             nct_lpot, npgfa, npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(nexp_max)                       :: nct_ppl
-      LOGICAL                                            :: do_dR, doat, dokp, ecp_local, &
-                                                            ecp_semi_local, found, libgrpp_local, &
-                                                            lpotextended, only_gaussians
+      LOGICAL                                            :: do_dR, do_upf, doat, dokp, ecp_local, &
+                                                            ecp_semi_local, found, have_upf, &
+                                                            libgrpp_local, lpotextended, &
+                                                            only_gaussians
       REAL(KIND=dp)                                      :: alpha, atk0, atk1, dab, dac, dbc, f0, &
                                                             ppl_radius
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: hab2_w, ppl_fwork, ppl_work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: upf_v, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: hab2_w, ppl_fwork, ppl_work, upf_da, &
+                                                            upf_db
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: hab, pab
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: hab2
@@ -231,6 +236,8 @@ CONTAINS
          END IF
       END DO
 
+      CALL prepare_upf_local(qs_kind_set, 2*maxlgto + 1, have_upf)
+
       pv_thread = 0.0_dp
 
       nthread = 1
@@ -245,7 +252,7 @@ CONTAINS
 !$OMP          matrix_h, matrix_p, atomic_kind_set, qs_kind_set, particle_set, &
 !$OMP          sab_orb, sac_ppl, nthread, ncoset, nkind, cell_to_index, &
 !$OMP          ldsab,  maxnset, maxder, do_dR, deltaR, doat, libgrpp_local, &
-!$OMP          maxlgto, nder, maxco, dokp, locks, natom) &
+!$OMP          maxlgto, nder, maxco, dokp, locks, natom, have_upf) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, basis_set_a, basis_set_b, &
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &
@@ -259,7 +266,7 @@ CONTAINS
 !$OMP          slot, f0, katom, ppl_work, cellind, img, ecp_local, ecp_semi_local, &
 !$OMP          nloc, nrloc, aloc, bloc, n_local, a_local, c_local, &
 !$OMP          slmax, npot, nrpot, apot, bpot, only_gaussians, &
-!$OMP          ldai, hash, hash1, hash2, iatom8) &
+!$OMP          ldai, hash, hash1, hash2, iatom8, do_upf, upf_v, upf_da, upf_db) &
 !$OMP REDUCTION (+ : pv_thread, force_thread, at_thread )
 
 !$OMP SINGLE
@@ -276,6 +283,10 @@ CONTAINS
 !$    mepos = omp_get_thread_num()
 
       ALLOCATE (hab(ldsab, ldsab, maxnset, maxnset), work(ldsab, ldsab*maxder))
+      IF (have_upf) THEN
+         ALLOCATE (upf_v(ldsab, ldsab))
+         IF (calculate_forces .OR. do_dR) ALLOCATE (upf_da(ldsab, ldsab, 3), upf_db(ldsab, ldsab, 3))
+      END IF
       ldai = ncoset(2*maxlgto + 2*nder)
       ALLOCATE (ppl_work(ldai, ldai, MAX(maxder, 2*maxlgto + 2*nder + 1)))
       IF (calculate_forces .OR. doat) THEN
@@ -405,6 +416,7 @@ CONTAINS
             CALL get_qs_kind(qs_kind_set(kkind), gth_potential=gth_potential, &
                              sgp_potential=sgp_potential)
             ecp_semi_local = .FALSE.
+            do_upf = .FALSE.
             only_gaussians = .TRUE.
             IF (ASSOCIATED(gth_potential)) THEN
                CALL get_potential(potential=gth_potential, &
@@ -429,7 +441,10 @@ CONTAINS
             ELSE IF (ASSOCIATED(sgp_potential)) THEN
                CALL get_potential(potential=sgp_potential, ecp_local=ecp_local, ecp_semi_local=ecp_semi_local, &
                                   ppl_radius=ppl_radius)
-               IF (ecp_local) THEN
+               do_upf = ALLOCATED(sgp_potential%upf_data)
+               IF (do_upf) THEN
+                  CPASSERT(.NOT. ecp_local .AND. .NOT. ecp_semi_local)
+               ELSE IF (ecp_local) THEN
                   CALL get_potential(potential=sgp_potential, nloc=nloc, nrloc=nrloc, aloc=aloc, bloc=bloc)
                   nexp_ppl = nloc
                   CPASSERT(nexp_ppl <= nexp_max)
@@ -488,7 +503,17 @@ CONTAINS
                         force_a(:) = 0.0_dp
                         force_b(:) = 0.0_dp
 
-                        IF (only_gaussians) THEN
+                        IF (do_upf) THEN
+                           CALL upf_local_matrix(sgp_potential%upf_local, &
+                                                 la_max(iset), zeta(:npgfa(iset), iset), &
+                                                 lb_max(jset), zetb(:npgfb(jset), jset), rab, rac, &
+                                                 upf_v(:ncoa, :ncob), upf_da(:ncoa, :ncob, :), upf_db(:ncoa, :ncob, :))
+                           hab(:ncoa, :ncob, iset, jset) = hab(:ncoa, :ncob, iset, jset) + upf_v(:ncoa, :ncob)
+                           DO i = 1, 3
+                              force_a(i) = SUM(pab(:ncoa, :ncob, iset, jset)*upf_da(:ncoa, :ncob, i))
+                              force_b(i) = SUM(pab(:ncoa, :ncob, iset, jset)*upf_db(:ncoa, :ncob, i))
+                           END DO
+                        ELSE IF (only_gaussians) THEN
                            CALL ppl_integral( &
                               la_max(iset), la_min(iset), npgfa(iset), &
                               rpgfa(:, iset), zeta(:, iset), &
@@ -557,23 +582,42 @@ CONTAINS
                            CALL virial_pair_force(pv_thread, f0, force_b, rbc)
                         END IF
                      ELSE IF (do_dR) THEN
-                        hab2_w = 0._dp
-                        CALL ppl_integral( &
-                           la_max(iset), la_min(iset), npgfa(iset), &
-                           rpgfa(:, iset), zeta(:, iset), &
-                           lb_max(jset), lb_min(jset), npgfb(jset), &
-                           rpgfb(:, jset), zetb(:, jset), &
-                           nexp_ppl, alpha_ppl, nct_ppl, cval_ppl, ppl_radius, &
-                           rab, dab, rac, dac, rbc, dbc, &
-                           vab=hab(:, :, iset, jset), s=ppl_work, &
-                           hab2=hab2(:, :, :, iset, jset), hab2_work=hab2_w, fs=ppl_fwork, &
-                           deltaR=deltaR, iatom=iatom, jatom=jatom, katom=katom)
+                        IF (do_upf) THEN
+                           CALL upf_local_matrix(sgp_potential%upf_local, &
+                                                 la_max(iset), zeta(:npgfa(iset), iset), &
+                                                 lb_max(jset), zetb(:npgfb(jset), jset), rab, rac, &
+                                                 upf_v(:ncoa, :ncob), upf_da(:ncoa, :ncob, :), upf_db(:ncoa, :ncob, :))
+                           hab(:ncoa, :ncob, iset, jset) = hab(:ncoa, :ncob, iset, jset) + upf_v(:ncoa, :ncob)
+                           DO i = 1, 3
+                              hab2(:ncoa, :ncob, i, iset, jset) = hab2(:ncoa, :ncob, i, iset, jset) &
+                                                                  + upf_da(:ncoa, :ncob, i)*(deltaR(i, iatom) - deltaR(i, katom)) &
+                                                                  + upf_db(:ncoa, :ncob, i)*(deltaR(i, jatom) - deltaR(i, katom))
+                           END DO
+                        ELSE
+                           hab2_w = 0._dp
+                           CALL ppl_integral( &
+                              la_max(iset), la_min(iset), npgfa(iset), &
+                              rpgfa(:, iset), zeta(:, iset), &
+                              lb_max(jset), lb_min(jset), npgfb(jset), &
+                              rpgfb(:, jset), zetb(:, jset), &
+                              nexp_ppl, alpha_ppl, nct_ppl, cval_ppl, ppl_radius, &
+                              rab, dab, rac, dac, rbc, dbc, &
+                              vab=hab(:, :, iset, jset), s=ppl_work, &
+                              hab2=hab2(:, :, :, iset, jset), hab2_work=hab2_w, fs=ppl_fwork, &
+                              deltaR=deltaR, iatom=iatom, jatom=jatom, katom=katom)
+                        END IF
                         IF (ecp_semi_local) THEN
                            ! semi local ECP part
                            CPABORT("Option not implemented")
                         END IF
                      ELSE
-                        IF (only_gaussians) THEN
+                        IF (do_upf) THEN
+                           CALL upf_local_matrix(sgp_potential%upf_local, &
+                                                 la_max(iset), zeta(:npgfa(iset), iset), &
+                                                 lb_max(jset), zetb(:npgfb(jset), jset), rab, rac, &
+                                                 upf_v(:ncoa, :ncob))
+                           hab(:ncoa, :ncob, iset, jset) = hab(:ncoa, :ncob, iset, jset) + upf_v(:ncoa, :ncob)
+                        ELSE IF (only_gaussians) THEN
                            !If the local part of the pseudo-potential only has Gaussian functions
                            !we can use CP2K native code, that can run without libgrpp installation
                            CALL ppl_integral( &
@@ -715,6 +759,8 @@ CONTAINS
       END DO ! slot
 
       DEALLOCATE (hab, work, ppl_work)
+      IF (ALLOCATED(upf_v)) DEALLOCATE (upf_v)
+      IF (ALLOCATED(upf_da)) DEALLOCATE (upf_da, upf_db)
       IF (calculate_forces .OR. doat) THEN
          DEALLOCATE (pab, ppl_fwork)
       END IF
@@ -804,14 +850,15 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_core_ppl_ri'
       INTEGER, PARAMETER                                 :: nexp_max = 30
 
-      INTEGER :: atom_a, handle, i, iatom, ikind, iset, katom, kkind, maxco, maxsgf, n_local, &
-         natom, ncoa, nexp_lpot, nexp_ppl, nfun, nkind, nloc, nseta, sgfa, sgfb, slot
+      INTEGER :: atom_a, handle, i, iatom, ikind, iset, katom, kkind, maxco, maxlgto, maxsgf, &
+         n_local, natom, ncoa, nexp_lpot, nexp_ppl, nfun, nkind, nloc, nseta, sgfa, sgfb, slot
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(1:10)                           :: nrloc
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, nct_lpot, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       INTEGER, DIMENSION(nexp_max)                       :: nct_ppl
-      LOGICAL                                            :: ecp_local, ecp_semi_local, lpotextended
+      LOGICAL                                            :: do_upf, ecp_local, ecp_semi_local, &
+                                                            lpotextended
       REAL(KIND=dp)                                      :: alpha, dac, ppl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: va, work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dva, dvas
@@ -857,7 +904,8 @@ CONTAINS
          END IF
       END DO
 
-      CALL get_qs_kind_set(qs_kind_set, maxco=maxco, maxsgf=maxsgf, basis_type=basis_type)
+      CALL get_qs_kind_set(qs_kind_set, maxco=maxco, maxsgf=maxsgf, maxlgto=maxlgto, basis_type=basis_type)
+      CALL prepare_upf_local(qs_kind_set, maxlgto + 1)
 
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &
@@ -868,7 +916,7 @@ CONTAINS
 !$OMP          sphi_a,zeta,gth_potential,sgp_potential,alpha,cexp_ppl,lpotextended,ppl_radius,&
 !$OMP          nexp_ppl,alpha_ppl,nct_ppl,cval_ppl,nloc,n_local,nrloc,a_local,aloc,bloc,c_local,nfun,work,&
 !$OMP          hash,dac,force_a,iset,sgfa,sgfb,ncoa,bcon,cval_lpot,nct_lpot,alpha_lpot,nexp_lpot,&
-!$OMP          ecp_local,ecp_semi_local) &
+!$OMP          ecp_local,ecp_semi_local,do_upf) &
 !$OMP REDUCTION (+ : pv_thread, force_thread )
 
 !$OMP SINGLE
@@ -915,6 +963,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(kkind), gth_potential=gth_potential, &
                           sgp_potential=sgp_potential)
          ecp_semi_local = .FALSE.
+         do_upf = .FALSE.
          IF (ASSOCIATED(gth_potential)) THEN
             CALL get_potential(potential=gth_potential, &
                                alpha_ppl=alpha, cexp_ppl=cexp_ppl, &
@@ -938,7 +987,10 @@ CONTAINS
             CALL get_potential(potential=sgp_potential, ecp_local=ecp_local, ecp_semi_local=ecp_semi_local, &
                                ppl_radius=ppl_radius)
             CPASSERT(.NOT. ecp_semi_local)
-            IF (ecp_local) THEN
+            do_upf = ALLOCATED(sgp_potential%upf_data)
+            IF (do_upf) THEN
+               CPASSERT(.NOT. ecp_local)
+            ELSE IF (ecp_local) THEN
                CALL get_potential(potential=sgp_potential, nloc=nloc, nrloc=nrloc, aloc=aloc, bloc=bloc)
                IF (SUM(ABS(aloc(1:nloc))) < 1.0e-12_dp) CYCLE
                nexp_ppl = nloc
@@ -966,7 +1018,15 @@ CONTAINS
          DO iset = 1, nseta
             IF (set_radius_a(iset) + ppl_radius < dac) CYCLE
             ! integrals
-            IF (calculate_forces) THEN
+            ncoa = npgfa(iset)*ncoset(la_max(iset))
+            IF (do_upf) THEN
+               IF (calculate_forces) THEN
+                  CALL upf_local_ri(sgp_potential%upf_local, la_max(iset), zeta(:npgfa(iset), iset), &
+                                    rac, va(:ncoa), dva(:ncoa, :))
+               ELSE
+                  CALL upf_local_ri(sgp_potential%upf_local, la_max(iset), zeta(:npgfa(iset), iset), rac, va(:ncoa))
+               END IF
+            ELSE IF (calculate_forces) THEN
                va = 0.0_dp
                dva = 0.0_dp
                CALL ppl_integral_ri( &
@@ -1040,5 +1100,31 @@ CONTAINS
    END SUBROUTINE build_core_ppl_ri
 
 ! **************************************************************************************************
+
+! **************************************************************************************************
+!> \brief Initialize immutable native local-potential caches before OpenMP work.
+!> \param qs_kind_set Atomic kinds with original UPF data.
+!> \param degree Maximum Cartesian product degree required by the caller.
+!> \param have_upf Whether any kind uses the native local operator.
+! **************************************************************************************************
+   SUBROUTINE prepare_upf_local(qs_kind_set, degree, have_upf)
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      INTEGER, INTENT(IN)                                :: degree
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: have_upf
+
+      INTEGER                                            :: ikind
+      TYPE(sgp_potential_type), POINTER                  :: potential
+
+      IF (PRESENT(have_upf)) have_upf = .FALSE.
+      DO ikind = 1, SIZE(qs_kind_set)
+         CALL get_qs_kind(qs_kind_set(ikind), sgp_potential=potential)
+         IF (.NOT. ASSOCIATED(potential)) CYCLE
+         IF (.NOT. ALLOCATED(potential%upf_data)) CYCLE
+         IF (PRESENT(have_upf)) have_upf = .TRUE.
+         IF (potential%upf_local%radial%degree < degree) THEN
+            CALL upf_local_init(potential%upf_data, potential%alpha_core_charge, degree, potential%upf_local)
+         END IF
+      END DO
+   END SUBROUTINE prepare_upf_local
 
 END MODULE core_ppl

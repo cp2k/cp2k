@@ -56,6 +56,7 @@ MODULE external_potential_types
    USE periodic_table,                  ONLY: ptable
    USE string_utilities,                ONLY: remove_word,&
                                               uppercase
+   USE upf_local_integrals,             ONLY: upf_local_type
    USE upf_projector_integrals,         ONLY: upf_projector_init,&
                                               upf_projector_type
 #include "../base/base_uses.f90"
@@ -222,6 +223,7 @@ MODULE external_potential_types
       ! Original scalar UPF projectors and their immutable quadrature cache.
       TYPE(atom_upfpot_type), ALLOCATABLE         :: upf_data
       TYPE(upf_projector_type)                    :: upf_projectors
+      TYPE(upf_local_type)                        :: upf_local
       ! NLCC
       LOGICAL                                    :: has_nlcc = .FALSE.
       INTEGER                                    :: n_nlcc = 0
@@ -3124,7 +3126,10 @@ CONTAINS
                END DO
             END IF
          ELSE
-            IF (potential%n_local > 0) THEN
+            IF (ALLOCATED(potential%upf_data)) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T8,A)") 'Local UPF potential: original radial table'
+               WRITE (UNIT=output_unit, FMT="(T8,A)") 'Gaussian core electrostatics and direct short-range quadrature'
+            ELSE IF (potential%n_local > 0) THEN
                WRITE (UNIT=output_unit, FMT="(/,T8,'Local pseudopotential')")
                WRITE (UNIT=output_unit, FMT="(T8,A,10(T21,6F10.4,/))") &
                   'Exponents:', potential%a_local(1:potential%n_local)
@@ -3372,6 +3377,7 @@ CONTAINS
       IF (ALLOCATED(pot_in%upf_data)) THEN
          pot_out%upf_data = pot_in%upf_data
          pot_out%upf_projectors = pot_in%upf_projectors
+         pot_out%upf_local = pot_in%upf_local
       END IF
 
       IF (ASSOCIATED(pot_in%elec_conf)) THEN

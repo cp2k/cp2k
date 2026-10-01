@@ -1,0 +1,17 @@
+# Original SSSP v2.0 NC datasets; native local and nonlocal integrals and NLCC.
+# GAPW cases deliberately retain a nonzero one-center correction.
+"SBr2_GPW.inp" = [
+  {matcher="M011", tol=1e-11, ref=-42.02229995315830},
+  {matcher="Atomic_force_1_z", tol=1e-6, ref=-0.0616498078},
+  {matcher="Atomic_force_2_y", tol=1e-6, ref=-0.0378236536},
+]
+"SBr2_GAPW_XC.inp" = [
+  {matcher="M011", tol=1e-11, ref=-42.04622862017517},
+  {matcher="Atomic_force_1_z", tol=1e-6, ref=-0.0633540594},
+  {matcher="Atomic_force_2_y", tol=1e-6, ref=-0.0388389098},
+]
+"SBr2_GAPW.inp" = [
+  {matcher="M011", tol=1e-11, ref=-42.04311512017074},
+  {matcher="Atomic_force_1_z", tol=1e-6, ref=-0.0674374844},
+  {matcher="Atomic_force_2_y", tol=1e-6, ref=-0.0415994870},
+]

@@ -64,6 +64,7 @@ list(
   atom_types.F
   atom_upf.F
   upf_projector_integrals.F
+  upf_local_integrals.F
   atom_utils.F
   atom_xc.F
   auto_basis.F
@@ -1593,6 +1594,7 @@ set(CP2K_PROGS_F
     common/parallel_rng_types_unittest.F
     atom_upf_unittest.F
     upf_projector_integrals_unittest.F
+    upf_local_integrals_unittest.F
     gapw_background_unittest.F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
@@ -2024,6 +2026,7 @@ list(
   "parallel_rng_types_unittest"
   "atom_upf_unittest"
   "upf_projector_integrals_unittest"
+  "upf_local_integrals_unittest"
   "gapw_background_unittest"
   "kpoint_lattice_fft_unittest"
   "kpoint_smearing_unittest"
@@ -2065,6 +2068,7 @@ add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
 add_executable(atom_upf_unittest atom_upf_unittest.F)
 add_executable(upf_projector_integrals_unittest upf_projector_integrals_unittest.F)
+add_executable(upf_local_integrals_unittest upf_local_integrals_unittest.F)
 add_executable(gapw_background_unittest gapw_background_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)

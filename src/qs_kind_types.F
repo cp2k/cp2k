@@ -2884,7 +2884,7 @@ CONTAINS
                   IF (iounit > 0 .AND. .NOT. silent) THEN
                      WRITE (iounit, "(/,T2,'PP Transformation for ',A)") TRIM(upfpot%pname)
                      IF (sgppot%has_local) THEN
-                        WRITE (iounit, "(T8,'Accuracy for local part:',T61,F20.12)") error(1)
+                        WRITE (iounit, "(T8,'Auxiliary local Gaussian fit error:',T61,F20.12)") error(1)
                      END IF
                      IF (sgppot%has_nonlocal) THEN
                         IF (ALLOCATED(qs_kind%sgp_potential%upf_data)) THEN

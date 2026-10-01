@@ -229,6 +229,7 @@ QS/regtest-ps-implicit-2-2
 Fist/regtest-5-vib                                          mpiranks==1||mpiranks%2==0
 Fist/regtest-14
 QS/regtest-kind
+QS/regtest-upf
 QS/regtest-ri-laplace-mp2-cubic-2                           libint libxc !ifx
 QS/regtest-gauxc-gpw-mol                                    gauxc
 QS/regtest-lsroks                                           libint !ifx
