@@ -755,10 +755,9 @@ CONTAINS
          group_handle = cart%get_handle()
          nprow = cart%num_pe_cart(1)
          npcol = cart%num_pe_cart(2)
-         ALLOCATE (cart_coords(2, 0:cart%num_pe - 1))
-         CALL cart%allgather(cart%mepos_cart, cart_coords)
-         ALLOCATE (pgrid(0:nprow - 1, 0:npcol - 1))
+         ALLOCATE (cart_coords(2, 0:cart%num_pe - 1), pgrid(0:nprow - 1, 0:npcol - 1))
          DO rank = 0, cart%num_pe - 1
+            CALL cart%coords(rank, cart_coords(:, rank))
             pgrid(cart_coords(1, rank), cart_coords(2, rank)) = rank
          END DO
       END ASSOCIATE
