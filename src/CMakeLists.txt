@@ -1586,6 +1586,7 @@ set(CP2K_PROGS_F
     dbt/dbt_unittest.F
     dbt/tas/dbt_tas_unittest.F
     start/cp2k.F
+    common/cp_files_unittest.F
     common/gemm_square_unittest.F
     common/memory_utilities_unittest.F
     common/parallel_rng_types_unittest.F
@@ -2014,6 +2015,7 @@ list(
   APPEND
   __CP2K_APPS
   "orbital_transformation_matrices_unittest"
+  "cp_files_unittest"
   "gemm_square_unittest"
   "memory_utilities_unittest"
   "parallel_rng_types_unittest"
@@ -2052,6 +2054,9 @@ add_executable(cp2k-bin start/cp2k.F)
 
 add_executable(orbital_transformation_matrices_unittest
                aobasis/orbital_transformation_matrices_unittest.F)
+add_executable(cp_files_unittest common/cp_files_unittest.F)
+enable_testing()
+add_test(NAME cp_files_unittest COMMAND cp_files_unittest)
 add_executable(gemm_square_unittest common/gemm_square_unittest.F)
 add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
