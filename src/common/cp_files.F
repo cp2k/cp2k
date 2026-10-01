@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Utility routines to open and close files. Tracking of preconnections.
+!> \brief Utility routines to open and close files.
 !> \par History
 !>      - Creation CP2K_WORKSHOP 1.0 TEAM
 !>      - Revised (18.02.2011,MK)
@@ -39,77 +39,9 @@ MODULE cp_files
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_files'
 
-   INTEGER, PARAMETER :: max_preconnections = 10, &
-                         max_unit_number = 999
-
-   TYPE preconnection_type
-      PRIVATE
-      CHARACTER(LEN=default_path_length) :: file_name = ""
-      INTEGER                            :: unit_number = -1
-   END TYPE preconnection_type
-
-   TYPE(preconnection_type), DIMENSION(max_preconnections) :: preconnected
+   INTEGER, PARAMETER :: max_unit_number = 999
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Add an entry to the list of preconnected units
-!> \param file_name ...
-!> \param unit_number ...
-!> \par History
-!>      - Creation (22.02.2011,MK)
-!> \author Matthias Krack (MK)
-! **************************************************************************************************
-   SUBROUTINE assign_preconnection(file_name, unit_number)
-
-      CHARACTER(LEN=*), INTENT(IN)                       :: file_name
-      INTEGER, INTENT(IN)                                :: unit_number
-
-      INTEGER                                            :: ic, islot, nc
-
-      IF ((unit_number < 1) .OR. (unit_number > max_unit_number)) THEN
-         CPABORT("An invalid logical unit number was specified.")
-      END IF
-
-      IF (LEN_TRIM(file_name) == 0) THEN
-         CPABORT("No valid file name was specified.")
-      END IF
-
-      nc = SIZE(preconnected)
-
-      ! Check if a preconnection already exists
-      DO ic = 1, nc
-         IF (TRIM(preconnected(ic)%file_name) == TRIM(file_name)) THEN
-            ! Return if the entry already exists
-            IF (preconnected(ic)%unit_number == unit_number) THEN
-               RETURN
-            ELSE
-               CALL print_preconnection_list()
-               CALL cp_abort(__LOCATION__, &
-                             "Attempt to connect the already connected file <"// &
-                             TRIM(file_name)//"> to another unit.")
-            END IF
-         END IF
-      END DO
-
-      ! Search for an unused entry
-      islot = -1
-      DO ic = 1, nc
-         IF (preconnected(ic)%unit_number == -1) THEN
-            islot = ic
-            EXIT
-         END IF
-      END DO
-
-      IF (islot == -1) THEN
-         CALL print_preconnection_list()
-         CPABORT("No free slot found in the list of preconnected units.")
-      END IF
-
-      preconnected(islot)%file_name = TRIM(file_name)
-      preconnected(islot)%unit_number = unit_number
-
-   END SUBROUTINE assign_preconnection
 
 ! **************************************************************************************************
 !> \brief Close an open file given by its logical unit number.
@@ -127,7 +59,6 @@ CONTAINS
 
       CHARACTER(LEN=2*default_path_length)               :: message
       CHARACTER(LEN=6)                                   :: status_string
-      CHARACTER(LEN=default_path_length)                 :: file_name
       INTEGER                                            :: istat
       LOGICAL                                            :: exists, is_named, is_open, &
                                                             keep_file_connection
@@ -177,21 +108,8 @@ CONTAINS
          ELSE
             status_string = "KEEP"
          END IF
-         ! Optionally, keep this unit preconnected
-         IF (is_named) THEN
-            INQUIRE (UNIT=unit_number, NAME=file_name, IOSTAT=istat)
-            IF (istat /= 0) THEN
-               WRITE (UNIT=message, FMT="(A,I0,A,I0,A)") &
-                  "An error occurred inquiring the unit with the number ", unit_number, &
-                  " (IOSTAT = ", istat, ")."
-               CPABORT(TRIM(message))
-            END IF
-         END IF
-         ! Manage preconnections
-         IF (keep_file_connection) THEN
-            CALL assign_preconnection(file_name, unit_number)
-         ELSE
-            IF (is_named) CALL delete_preconnection(file_name, unit_number)
+         ! Keeping a connection means leaving the file open, including its position.
+         IF (.NOT. keep_file_connection) THEN
             CLOSE (UNIT=unit_number, IOSTAT=istat, STATUS=TRIM(status_string))
             IF (istat /= 0) THEN
                WRITE (UNIT=message, FMT="(A,I0,A,I0,A)") &
@@ -205,43 +123,7 @@ CONTAINS
    END SUBROUTINE close_file
 
 ! **************************************************************************************************
-!> \brief Remove an entry from the list of preconnected units
-!> \param file_name ...
-!> \param unit_number ...
-!> \par History
-!>      - Creation (22.02.2011,MK)
-!> \author Matthias Krack (MK)
-! **************************************************************************************************
-   SUBROUTINE delete_preconnection(file_name, unit_number)
-
-      CHARACTER(LEN=*), INTENT(IN)                       :: file_name
-      INTEGER                                            :: unit_number
-
-      INTEGER                                            :: ic, nc
-
-      nc = SIZE(preconnected)
-
-      ! Search for preconnection entry and delete it when found
-      DO ic = 1, nc
-         IF (TRIM(preconnected(ic)%file_name) == TRIM(file_name)) THEN
-            IF (preconnected(ic)%unit_number == unit_number) THEN
-               preconnected(ic)%file_name = ""
-               preconnected(ic)%unit_number = -1
-               EXIT
-            ELSE
-               CALL print_preconnection_list()
-               CALL cp_abort(__LOCATION__, &
-                             "Attempt to disconnect the file <"// &
-                             TRIM(file_name)// &
-                             "> from an unlisted unit.")
-            END IF
-         END IF
-      END DO
-
-   END SUBROUTINE delete_preconnection
-
-! **************************************************************************************************
-!> \brief Returns the first logical unit that is not preconnected
+!> \brief Return an open file's unit, or the first available positive logical unit.
 !> \param file_name ...
 !> \return ...
 !> \author Matthias Krack (MK)
@@ -253,23 +135,18 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: file_name
       INTEGER                                            :: unit_number
 
-      INTEGER                                            :: ic, istat, nc
+      INTEGER                                            :: istat
       LOGICAL                                            :: exists, is_open
 
       IF (PRESENT(file_name)) THEN
-         nc = SIZE(preconnected)
-         ! Check for preconnected units
-         DO ic = 3, nc ! Exclude the preconnected system units (< 3)
-            IF (TRIM(preconnected(ic)%file_name) == TRIM(file_name)) THEN
-               unit_number = preconnected(ic)%unit_number
-               RETURN
-            END IF
-         END DO
+         INQUIRE (FILE=TRIM(file_name), OPENED=is_open, NUMBER=unit_number, IOSTAT=istat)
+         CPASSERT(istat == 0)
+         IF (is_open) RETURN
       END IF
 
       ! Get a new unit number
       DO unit_number = 1, max_unit_number
-         IF (ANY(unit_number == preconnected(:)%unit_number)) CYCLE
+         IF (unit_number == default_input_unit .OR. unit_number == default_output_unit) CYCLE
          INQUIRE (UNIT=unit_number, EXIST=exists, OPENED=is_open, IOSTAT=istat)
          IF (exists .AND. (.NOT. is_open) .AND. (istat == 0)) RETURN
       END DO
@@ -279,27 +156,14 @@ CONTAINS
    END FUNCTION get_unit_number
 
 ! **************************************************************************************************
-!> \brief Allocate and initialise the list of preconnected units
+!> \brief Compatibility entry point; open connections are tracked by the Fortran runtime.
 !> \par History
 !>      - Creation (22.02.2011,MK)
 !> \author Matthias Krack (MK)
 ! **************************************************************************************************
    SUBROUTINE init_preconnection_list()
 
-      INTEGER                                            :: ic, nc
-
-      nc = SIZE(preconnected)
-
-      DO ic = 1, nc
-         preconnected(ic)%file_name = ""
-         preconnected(ic)%unit_number = -1
-      END DO
-
-      ! Define reserved unit numbers
-      preconnected(1)%file_name = "stdin"
-      preconnected(1)%unit_number = default_input_unit
-      preconnected(2)%file_name = "stdout"
-      preconnected(2)%unit_number = default_output_unit
+      ! Retained for callers including the F77 interface. No initialization is needed.
 
    END SUBROUTINE init_preconnection_list
 
@@ -520,7 +384,6 @@ CONTAINS
          WRITE (UNIT=debug_unit, FMT="(T3,A)") "FORM    : "//TRIM(form_string)
          WRITE (UNIT=debug_unit, FMT="(T3,A)") "ACTION  : "//TRIM(action_string)
          WRITE (UNIT=debug_unit, FMT="(T2,A)") "END DEBUG "//TRIM(routineN)
-         CALL print_preconnection_list(debug_unit)
       END IF
 
    END SUBROUTINE open_file
@@ -636,43 +499,5 @@ CONTAINS
          joined_path = TRIM(path1)//'/'//path2
       END IF
    END FUNCTION join_paths
-
-! **************************************************************************************************
-!> \brief Print the list of preconnected units
-!> \param output_unit which unit to print to (optional)
-!> \par History
-!>      - Creation (22.02.2011,MK)
-!> \author Matthias Krack (MK)
-! **************************************************************************************************
-   SUBROUTINE print_preconnection_list(output_unit)
-      INTEGER, INTENT(IN), OPTIONAL                      :: output_unit
-
-      INTEGER                                            :: ic, nc, unit
-
-      IF (PRESENT(output_unit)) THEN
-         unit = output_unit
-      ELSE
-         unit = default_output_unit
-      END IF
-
-      nc = SIZE(preconnected)
-
-      IF (output_unit > 0) THEN
-
-         WRITE (UNIT=output_unit, FMT="(A,/,A)") &
-            " LIST OF PRECONNECTED LOGICAL UNITS", &
-            "  Slot   Unit number   File name"
-         DO ic = 1, nc
-            IF (preconnected(ic)%unit_number > 0) THEN
-               WRITE (UNIT=output_unit, FMT="(I6,3X,I6,8X,A)") &
-                  ic, preconnected(ic)%unit_number, &
-                  TRIM(preconnected(ic)%file_name)
-            ELSE
-               WRITE (UNIT=output_unit, FMT="(I6,17X,A)") &
-                  ic, "UNUSED"
-            END IF
-         END DO
-      END IF
-   END SUBROUTINE print_preconnection_list
 
 END MODULE cp_files
