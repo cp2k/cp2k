@@ -24,6 +24,7 @@ PROGRAM upf_projector_integrals_unittest
                                               upf_projector_type
 
    IMPLICIT NONE
+   LOGICAL :: source_root_argument
 
    INTEGER, PARAMETER :: la = 4, lb = 3, nder = 2, na = 5, nb = 5
    REAL(KIND=dp), PARAMETER :: alpha(na) = [0.04_dp, 0.3_dp, 1.2_dp, 5.0_dp, 24.0_dp]
@@ -146,6 +147,11 @@ PROGRAM upf_projector_integrals_unittest
    ! successive cache replacement. Finiteness is not a physical accuracy test.
    DO i = 1, COMMAND_ARGUMENT_COUNT()
       CALL GET_COMMAND_ARGUMENT(i, filename)
+      ! do_regtest.py passes the CP2K source root before any optional UPF audit files.
+      IF (i == 1) THEN
+         INQUIRE (FILE=TRIM(filename)//"/tests/UNIT_TESTS", EXIST=source_root_argument)
+         IF (source_root_argument) CYCLE
+      END IF
       CALL atom_read_upf(pot, TRIM(filename))
       IF (pot%number_of_proj > 0) THEN
          CALL upf_projector_init(pot, la + nder, projectors)

@@ -44,6 +44,7 @@ PROGRAM atom_upf_unittest
    USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
 
    IMPLICIT NONE
+   LOGICAL :: source_root_argument
 
    CHARACTER(LEN=default_path_length) :: filename
    INTEGER :: i
@@ -86,6 +87,11 @@ PROGRAM atom_upf_unittest
    ! This also permits auditing a complete SSSP library without bundling it in CP2K.
    DO i = 1, COMMAND_ARGUMENT_COUNT()
       CALL GET_COMMAND_ARGUMENT(i, filename)
+      ! do_regtest.py passes the CP2K source root before any optional UPF audit files.
+      IF (i == 1) THEN
+         INQUIRE (FILE=TRIM(filename)//"/tests/UNIT_TESTS", EXIST=source_root_argument)
+         IF (source_root_argument) CYCLE
+      END IF
       CALL atom_read_upf(pot, TRIM(filename))
       IF (ABS(SUM(pot%econf) - pot%zion) > 1.e-10_dp) ERROR STOP "UPF valence count mismatch"
       IF (.NOT. ALL(ieee_is_finite(pot%vlocal))) ERROR STOP "Non-finite UPF local potential"

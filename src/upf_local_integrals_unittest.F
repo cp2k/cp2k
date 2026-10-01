@@ -25,6 +25,8 @@ PROGRAM upf_local_integrals_unittest
                                               upf_local_type
 
    IMPLICIT NONE
+   LOGICAL :: source_root_argument
+
    INTEGER, PARAMETER :: la = 4, lb = 4, na = 2, nb = 2
    REAL(KIND=dp), PARAMETER :: alpha(na) = [.1_dp, 3._dp], beta(nb) = [.3_dp, 2.1_dp], gamma(2) = [.2_dp, 4._dp]
    REAL(KIND=dp), PARAMETER :: coeff(1, 2) = RESHAPE([-.7_dp, 2.3_dp], [1, 2])
@@ -132,6 +134,11 @@ PROGRAM upf_local_integrals_unittest
    ALLOCATE (v(ma, mb), da(ma, mb, 3), db(ma, mb, 3))
    DO i = 1, command_argument_count()
       CALL get_command_argument(i, filename)
+      ! do_regtest.py passes the CP2K source root before any optional UPF audit files.
+      IF (i == 1) THEN
+         INQUIRE (FILE=TRIM(filename)//"/tests/UNIT_TESTS", EXIST=source_root_argument)
+         IF (source_root_argument) CYCLE
+      END IF
       CALL atom_read_upf(pot, TRIM(filename))
       CALL upf_local_init(pot, .8_dp, la + lb + 1, cache, 1.e-12_dp)
       rabv = [.3_dp, -.5_dp, .8_dp]; rac = [.2_dp, .4_dp, -.7_dp]
