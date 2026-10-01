@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Static Coulomb-hole screened-exchange (st-COHSEX) quasiparticle energies and MOs in the
+!> \brief Static Coulomb-hole screened-exchange (COHSEX) quasiparticle energies and MOs in the
 !>        O(N^4) (RI_RPA%GW) GW code for molecules
 !>
 !>        Symbols
@@ -22,7 +22,7 @@
 !>          W^c_PQ(0)  = [1 + Q(0)]^(-1)_PQ - δ_PQ           (-δ_PQ removes the bare Coulomb part)
 !>          W^c_mp,pn  = Σ_PQ B^P_mp W^c_PQ(0) B^Q_pn
 !>
-!>        st-COHSEX self-energy = Coulomb hole (COH) + screened exchange (SEX):
+!>        static COHSEX self-energy = Coulomb hole (COH) + screened exchange (SEX):
 !>          Σ^COH_mn   =  1/2 Σ_p     W^c_mp,pn
 !>          Σ^SEX_mn   = -    Σ_i^occ W^c_mi,in              (+ bare exchange Σ^x_mn)
 !>          Σ^c_mn     =  Σ^COH_mn + Σ^SEX_mn = 1/2 Σ_p sgn(ϵ_p - ϵ_F) W^c_mp,pn
@@ -31,14 +31,14 @@
 !>        Quasiparticle Hamiltonian in the window:
 !>          H^QP_mn    = ϵ_n δ_mn + Σ^x_mn - v^xc_mn + α_mn Σ^c_mn
 !>          α_mn       = α_IP = SCALE_COHSEX_OCC (m,n occupied),  α_EA = SCALE_COHSEX_VIRT (m,n virtual),  H^QP_ia = 0
-!>          ϵ_n^DG     = H^QP_nn                              (diagonal st-COHSEX)
-!>          H^QP U     = U ϵ^CN, occ-occ and virt-virt block separately   (canonical st-COHSEX)
-!>          C^QP_μn    = Σ_m C_μm U_mn                        (st-COHSEX MOs)
+!>          ϵ_n^DG     = H^QP_nn                              (diagonal static COHSEX)
+!>          H^QP U     = U ϵ^CN, occ-occ and virt-virt block separately   (canonical static COHSEX)
+!>          C^QP_μn    = Σ_m C_μm U_mn                        (static COHSEX MOs)
 !>
 !> \par History
 !>      09.2026 created [Ritaj Tyagi]
 ! **************************************************************************************************
-MODULE rpa_gw_stcohsex
+MODULE rpa_gw_static_cohsex
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bse_util,                        ONLY: fm_general_add_bse
    USE cell_types,                      ONLY: cell_type
@@ -101,15 +101,15 @@ MODULE rpa_gw_stcohsex
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_gw_stcohsex'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_gw_static_cohsex'
 
-   PUBLIC :: stcohsex_qp_energies, rotate_bse_slab, get_stcohsex_mo_coeff
+   PUBLIC :: static_cohsex_qp_energies, rotate_bse_slab, get_static_cohsex_mo_coeff
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Compute and print the diagonal (ϵ^DG) and canonical (ϵ^CN) st-COHSEX quasiparticle
-!>        energies and print the canonical st-COHSEX MOs
+!> \brief Compute and print the diagonal (ϵ^DG) and canonical (ϵ^CN) static COHSEX quasiparticle
+!>        energies and print the canonical static COHSEX MOs
 !> \param fm_mat_Q on entry the spin-summed 1 + Q_PQ(ω=0); on exit W^c_PQ(0) = [1 + Q(0)]^(-1)_PQ - δ_PQ
 !> \param fm_mat_S_gw per-spin B^P_mp
 !> \param fm_mat_S_gw_work ...
@@ -127,9 +127,9 @@ CONTAINS
 !> \param eigenval_cn ϵ_n^CN of all MOs (scissor outside the window), nmo x nspins
 !> \param u_qp_all U_mn of all MOs (δ_mn outside the window), nmo x nmo x nspins
 ! **************************************************************************************************
-   SUBROUTINE stcohsex_qp_energies(fm_mat_Q, fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI, nmo, homo, &
-                                   gw_corr_lev_occ, gw_corr_lev_virt, Eigenval, mo_coeff, unit_nr, &
-                                   qs_env, mp2_env, eigenval_dg, eigenval_cn, u_qp_all)
+   SUBROUTINE static_cohsex_qp_energies(fm_mat_Q, fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI, nmo, homo, &
+                                        gw_corr_lev_occ, gw_corr_lev_virt, Eigenval, mo_coeff, unit_nr, &
+                                        qs_env, mp2_env, eigenval_dg, eigenval_cn, u_qp_all)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_gw, fm_mat_S_gw_work
@@ -145,7 +145,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(OUT), &
          OPTIONAL                                        :: u_qp_all
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'stcohsex_qp_energies'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'static_cohsex_qp_energies'
 
       CHARACTER(LEN=10)                                  :: spin_label
       CHARACTER(LEN=3)                                   :: occ_vir
@@ -217,8 +217,8 @@ CONTAINS
          NULLIFY (fm_struct_B_re)
          CALL cp_fm_struct_create(fm_struct_B_re, template_fmstruct=fm_mat_S_gw(ispin)%matrix_struct, &
                                   nrow_global=nmo*dimen_RI, ncol_global=n_mo_win)
-         CALL cp_fm_create(fm_B_re, fm_struct_B_re, name="stcohsex_B_reordered", set_zero=.TRUE.)
-         CALL cp_fm_create(fm_WB_re, fm_struct_B_re, name="stcohsex_WB_reordered", set_zero=.TRUE.)
+         CALL cp_fm_create(fm_B_re, fm_struct_B_re, name="static_cohsex_B_reordered", set_zero=.TRUE.)
+         CALL cp_fm_create(fm_WB_re, fm_struct_B_re, name="static_cohsex_WB_reordered", set_zero=.TRUE.)
          CALL cp_fm_struct_release(fm_struct_B_re)
          CALL fm_general_add_bse(fm_B_re, fm_mat_S_gw(ispin), 1.0_dp, 1, nmo, dimen_RI, 1, &
                                  unit_debug, [4, 1, 3, 2], mp2_env%bse)
@@ -275,12 +275,12 @@ CONTAINS
          sigma_x(:, :) = sigma_x(:, :) + sigma_x_minus_vxc(:, :) + vxc(:, :)
 
          ! ==============================================================================
-         ! 7. st-COHSEX quasiparticle Hamiltonian in the window
+         ! 7. static COHSEX quasiparticle Hamiltonian in the window
          !      H^QP_ij = ϵ_i δ_ij + Σ^x_ij - v^xc_ij + α_IP Σ^c_ij   (occ-occ)
          !      H^QP_ab = ϵ_a δ_ab + Σ^x_ab - v^xc_ab + α_EA Σ^c_ab   (virt-virt)
          !      H^QP_ia = 0                                              (occ-virt)
          !    symmetrized, H^QP = (H^QP + H^QP^T)/2
-         !      ϵ_n^DG  = H^QP_nn                                        (diagonal st-COHSEX)
+         !      ϵ_n^DG  = H^QP_nn                                        (diagonal static COHSEX)
          ! ==============================================================================
          ALLOCATE (h_qp(n_mo_win, n_mo_win))
          h_qp(:, :) = 0.0_dp
@@ -299,7 +299,7 @@ CONTAINS
          END DO
 
          ! ==============================================================================
-         ! 8. Canonical st-COHSEX: diagonalize the occ-occ and virt-virt blocks
+         ! 8. Canonical static COHSEX: diagonalize the occ-occ and virt-virt blocks
          !      Σ_m H^QP_nm U_mk = U_nk ϵ_k^CN,   U block diagonal, overwrites h_qp
          ! ==============================================================================
          e_can(:) = 0.0_dp
@@ -361,7 +361,7 @@ CONTAINS
             IF (nspins == 2 .AND. ispin == 1) spin_label = "Alpha "
             IF (nspins == 2 .AND. ispin == 2) spin_label = "Beta "
             WRITE (unit_nr, "(/,T3,A)") REPEAT("-", 77)
-            WRITE (unit_nr, "(T3,2A)") TRIM(spin_label)//" ", "st-COHSEX quasiparticle energies"
+            WRITE (unit_nr, "(T3,2A)") TRIM(spin_label)//" ", "static COHSEX quasiparticle energies"
             WRITE (unit_nr, "(T3,A,F6.3,A,F6.3)") "SCALE_COHSEX_OCC =", mp2_env%ri_g0w0%scale_cohsex_occ, &
                ",  SCALE_COHSEX_VIRT =", mp2_env%ri_g0w0%scale_cohsex_virt
             WRITE (unit_nr, "(T3,A)") REPEAT("-", 77)
@@ -382,21 +382,21 @@ CONTAINS
                   vxc(n, n)*evolt, e_diag(n)*evolt, e_can(n)*evolt
             END DO
             IF (no > 0 .AND. nv > 0) THEN
-               WRITE (unit_nr, "(/,T3,A,T60,F11.3,F11.3)") TRIM(spin_label)//" st-COHSEX HOMO (eV), DG and CN", &
+               WRITE (unit_nr, "(/,T3,A,T60,F11.3,F11.3)") TRIM(spin_label)//" static COHSEX HOMO (eV), DG and CN", &
                   e_diag(no)*evolt, e_can(no)*evolt
-               WRITE (unit_nr, "(T3,A,T60,F11.3,F11.3)") TRIM(spin_label)//" st-COHSEX LUMO (eV), DG and CN", &
+               WRITE (unit_nr, "(T3,A,T60,F11.3,F11.3)") TRIM(spin_label)//" static COHSEX LUMO (eV), DG and CN", &
                   e_diag(no + 1)*evolt, MINVAL(e_can(no + 1:))*evolt
                WRITE (unit_nr, "(T3,A,T60,F11.3,F11.3)") TRIM(spin_label)// &
-                  " st-COHSEX HOMO-LUMO gap (eV), DG and CN", &
+                  " static COHSEX HOMO-LUMO gap (eV), DG and CN", &
                   (e_diag(no + 1) - e_diag(no))*evolt, (MINVAL(e_can(no + 1:)) - MAXVAL(e_can(1:no)))*evolt
             END IF
             WRITE (unit_nr, "(T3,A)") REPEAT("-", 77)
          END IF
 
          ! ==============================================================================
-         ! 11. Canonical st-COHSEX MOs C^QP = C U via DFT%PRINT%MO and DFT%PRINT%MO_CUBES
+         ! 11. Canonical static COHSEX MOs C^QP = C U via DFT%PRINT%MO and DFT%PRINT%MO_CUBES
          ! ==============================================================================
-         CALL print_stcohsex_mos(qs_env, mo_coeff(ispin), u_qp, e_qp, homo(ispin), nspins, ispin)
+         CALL print_static_cohsex_mos(qs_env, mo_coeff(ispin), u_qp, e_qp, homo(ispin), nspins, ispin)
 
          DEALLOCATE (sigma_c, sigma_x, sigma_x_minus_vxc, vxc, h_qp, e_diag, e_can, e_qp, u_qp)
 
@@ -410,7 +410,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE stcohsex_qp_energies
+   END SUBROUTINE static_cohsex_qp_energies
 
 ! **************************************************************************************************
 !> \brief MO-window block of an AO matrix
@@ -475,7 +475,7 @@ CONTAINS
    END SUBROUTINE ao_to_mo_window
 
 ! **************************************************************************************************
-!> \brief Print the canonical st-COHSEX MOs with the DFT%PRINT%MO and DFT%PRINT%MO_CUBES
+!> \brief Print the canonical static COHSEX MOs with the DFT%PRINT%MO and DFT%PRINT%MO_CUBES
 !> \param qs_env ...
 !> \param mo_coeff ...
 !> \param u_qp ...
@@ -484,14 +484,14 @@ CONTAINS
 !> \param nspins ...
 !> \param ispin ...
 ! **************************************************************************************************
-   SUBROUTINE print_stcohsex_mos(qs_env, mo_coeff, u_qp, e_qp, homo, nspins, ispin)
+   SUBROUTINE print_static_cohsex_mos(qs_env, mo_coeff, u_qp, e_qp, homo, nspins, ispin)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: u_qp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: e_qp
       INTEGER, INTENT(IN)                                :: homo, nspins, ispin
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_stcohsex_mos'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_static_cohsex_mos'
 
       CHARACTER(LEN=default_path_length)                 :: fname, title
       INTEGER                                            :: first_mo, handle, ivector, last_mo, nao, &
@@ -534,7 +534,7 @@ CONTAINS
          CALL cp_fm_get_info(mo_coeff, nrow_global=nao, ncol_global=nmo)
 
          ! C^QP_μn = Σ_m C_μm U_mn
-         CALL get_stcohsex_mo_coeff(mo_coeff, u_qp, fm_qp_mo)
+         CALL get_static_cohsex_mo_coeff(mo_coeff, u_qp, fm_qp_mo)
 
          ! MO energies ϵ_n^QP, occupations f_n (maxocc for n <= homo) and coefficients C^QP_μn
          IF (print_mo) THEN
@@ -547,7 +547,7 @@ CONTAINS
             CALL allocate_mo_set(qp_mo_set, nao=nao, nmo=nmo, nelectron=nelectron, &
                                  n_el_f=REAL(nelectron, KIND=dp), maxocc=maxocc, &
                                  flexible_electron_count=0.0_dp)
-            CALL init_mo_set(qp_mo_set, fm_struct=fm_qp_mo%matrix_struct, name="stcohsex")
+            CALL init_mo_set(qp_mo_set, fm_struct=fm_qp_mo%matrix_struct, name="static_cohsex")
             qp_mo_set%eigenvalues(:) = e_qp(:)
             CALL cp_fm_to_fm(fm_qp_mo, qp_mo_set%mo_coeff)
 
@@ -586,11 +586,11 @@ CONTAINS
             DO ivector = first_mo, last_mo
                CALL calculate_wavefunction(fm_qp_mo, ivector, wf_r, wf_g, atomic_kind_set, &
                                            qs_kind_set, cell, dft_control, particle_set, pw_env)
-               WRITE (fname, '(A,I5.5,A,I1)') "stcohsex_WFN_", ivector, "_", ispin
+               WRITE (fname, '(A,I5.5,A,I1)') "static_cohsex_WFN_", ivector, "_", ispin
                unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%MO_CUBES", &
                                               extension=".cube", middle_name=TRIM(fname), &
                                               file_position="REWIND", log_filename=.FALSE.)
-               WRITE (title, *) "st-COHSEX WAVEFUNCTION ", ivector, " spin ", ispin, &
+               WRITE (title, *) "static COHSEX WAVEFUNCTION ", ivector, " spin ", ispin, &
                   " i.e. HOMO ", ivector - homo
                CALL cp_pw_to_cube(wf_r, unit_nr, title, particles, stride=stride)
                CALL cp_print_key_finished_output(unit_nr, logger, dft_section, "PRINT%MO_CUBES")
@@ -605,16 +605,16 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE print_stcohsex_mos
+   END SUBROUTINE print_static_cohsex_mos
 
 ! **************************************************************************************************
-!> \brief Canonical st-COHSEX MO coefficients
+!> \brief Canonical static COHSEX MO coefficients
 !>          C^QP_μn = Σ_m C_μm U_mn
 !> \param mo_coeff ...
 !> \param u_qp ...
 !> \param fm_qp_mo ...
 ! **************************************************************************************************
-   SUBROUTINE get_stcohsex_mo_coeff(mo_coeff, u_qp, fm_qp_mo)
+   SUBROUTINE get_static_cohsex_mo_coeff(mo_coeff, u_qp, fm_qp_mo)
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: u_qp
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_qp_mo
@@ -635,10 +635,10 @@ CONTAINS
                          matrix_a=mo_coeff, matrix_b=fm_u, beta=0.0_dp, matrix_c=fm_qp_mo)
       CALL cp_fm_release(fm_u)
 
-   END SUBROUTINE get_stcohsex_mo_coeff
+   END SUBROUTINE get_static_cohsex_mo_coeff
 
 ! **************************************************************************************************
-!> \brief Rotate an RI 3-center slab to the canonical st-COHSEX MOs
+!> \brief Rotate an RI 3-center slab to the canonical static COHSEX MOs
 !> \param fm_slab ...
 !> \param dimen_RI ...
 !> \param n_outer ...
@@ -701,8 +701,8 @@ CONTAINS
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_slab%matrix_struct, &
                                nrow_global=n_spect*dimen_RI, ncol_global=n_rot)
-      CALL cp_fm_create(fm_t, fm_struct, name="stcohsex_slab_reordered", set_zero=.TRUE.)
-      CALL cp_fm_create(fm_t_rot, fm_struct, name="stcohsex_slab_rotated", set_zero=.TRUE.)
+      CALL cp_fm_create(fm_t, fm_struct, name="static_cohsex_slab_reordered", set_zero=.TRUE.)
+      CALL cp_fm_create(fm_t_rot, fm_struct, name="static_cohsex_slab_rotated", set_zero=.TRUE.)
       CALL cp_fm_struct_release(fm_struct)
       CALL fm_general_add_bse(fm_t, fm_slab, 1.0_dp, 1, n_inner, dimen_RI, n_rot, &
                               unit_debug, reord_to, mp2_env%bse)
@@ -710,7 +710,7 @@ CONTAINS
       NULLIFY (fm_struct)
       CALL cp_fm_struct_create(fm_struct, template_fmstruct=fm_slab%matrix_struct, &
                                nrow_global=n_rot, ncol_global=n_rot)
-      CALL cp_fm_create(fm_u, fm_struct, name="stcohsex_U")
+      CALL cp_fm_create(fm_u, fm_struct, name="static_cohsex_U")
       CALL cp_fm_struct_release(fm_struct)
       CALL cp_fm_set_submatrix(fm_u, u_rot)
       CALL parallel_gemm(transa="N", transb="N", m=n_spect*dimen_RI, n=n_rot, k=n_rot, alpha=1.0_dp, &
@@ -718,7 +718,7 @@ CONTAINS
       CALL cp_fm_release(fm_u)
       CALL cp_fm_release(fm_t)
 
-      CALL cp_fm_create(fm_slab_out, fm_slab%matrix_struct, name="stcohsex_slab_back", set_zero=.TRUE.)
+      CALL cp_fm_create(fm_slab_out, fm_slab%matrix_struct, name="static_cohsex_slab_back", set_zero=.TRUE.)
       CALL fm_general_add_bse(fm_slab_out, fm_t_rot, 1.0_dp, dimen_RI, n_rot, 1, n_inner, &
                               unit_debug, reord_back, mp2_env%bse)
       CALL cp_fm_to_fm(fm_slab_out, fm_slab)
@@ -727,4 +727,4 @@ CONTAINS
 
    END SUBROUTINE rotate_one_index
 
-END MODULE rpa_gw_stcohsex
+END MODULE rpa_gw_static_cohsex

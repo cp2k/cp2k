@@ -814,7 +814,7 @@ list(
   rpa_gw_im_time_util.F
   rpa_gw_kpoints_util.F
   rpa_gw_sigma_x.F
-  rpa_gw_stcohsex.F
+  rpa_gw_static_cohsex.F
   rpa_im_time.F
   rpa_main.F
   rpa_sigma_functional.F

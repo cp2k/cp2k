@@ -244,7 +244,7 @@ MODULE mp2_types
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE      :: matrix_sigma_x_minus_vxc, &
                                                             matrix_ks, &
                                                             matrix_vxc
-      LOGICAL                                            :: do_stcohsex = .FALSE.
+      LOGICAL                                            :: do_static_cohsex = .FALSE.
       INTEGER                                            :: cohsex_flavor = cohsex_off
       REAL(KIND=dp)                                      :: scale_cohsex_occ = 1.0_dp, &
                                                             scale_cohsex_virt = 1.0_dp

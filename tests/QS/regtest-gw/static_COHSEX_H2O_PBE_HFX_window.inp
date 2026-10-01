@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT stCOHSEX_H2O_PBE
+  PROJECT static_COHSEX_H2O_PBE_HFX_window
   RUN_TYPE ENERGY
   &TIMINGS
     THRESHOLD 0.01
@@ -47,11 +47,17 @@
         &RI_RPA
           &GW
             COHSEX
-            CORR_MOS_OCC -1
-            CORR_MOS_VIRT -1
-            SCALE_COHSEX_OCC 0.6
-            SCALE_COHSEX_VIRT 0.6
+            CORR_MOS_OCC 3
+            CORR_MOS_VIRT 5
+            RI_SIGMA_X FALSE
           &END GW
+          &HF
+            FRACTION 1.0000000
+            &SCREENING
+              EPS_SCHWARZ 1.0E-6
+              SCREEN_ON_INITIAL_P FALSE
+            &END SCREENING
+          &END HF
         &END RI_RPA
       &END WF_CORRELATION
       &XC_FUNCTIONAL PBE

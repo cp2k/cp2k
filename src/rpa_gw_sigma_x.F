@@ -405,13 +405,13 @@ CONTAINS
          END IF
       END DO
 
-      ! st-COHSEX needs the full AO matrix v^xc_μν (not only its diagonal in the MO basis).
+      ! static COHSEX needs the full AO matrix v^xc_μν (not only its diagonal in the MO basis).
       ! At this point
       !   (Σ^x - v^xc)_μν = h^KS,noXC_μν - h^KS_μν = -v^xc_μν
       ! (KS matrix without and with XC; for a hybrid, v^xc contains its fraction of HFX);
       ! the exchange self-energy Σ^x_μν (HFX) is added below if not RI_SIGMA_X.
       ! Stored: mp2_env%ri_g0w0%matrix_vxc = v^xc_μν
-      IF (mp2_env%ri_g0w0%do_stcohsex .AND. .NOT. do_kpoints_cubic_RPA) THEN
+      IF (mp2_env%ri_g0w0%do_static_cohsex .AND. .NOT. do_kpoints_cubic_RPA) THEN
          ALLOCATE (mp2_env%ri_g0w0%matrix_vxc(nspins))
          DO ispin = 1, nspins
             ALLOCATE (mp2_env%ri_g0w0%matrix_vxc(ispin)%matrix)
@@ -521,10 +521,10 @@ CONTAINS
          END DO
 
          ! safe matrix_sigma_x_minus_vxc for later: for example, we will transform matrix_sigma_x_minus_vxc
-         ! to T-cell index and then to k-points for band structure calculation; st-COHSEX needs the
+         ! to T-cell index and then to k-points for band structure calculation; static COHSEX needs the
          ! off-diagonal MO elements (Σ^x - v^xc)_mn = Σ_μν C_μm (Σ^x - v^xc)_μν C_νn, stored in
          ! mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc (= -v^xc_μν with RI_SIGMA_X)
-         IF (do_kpoints_from_Gamma .OR. mp2_env%ri_g0w0%do_stcohsex) THEN
+         IF (do_kpoints_from_Gamma .OR. mp2_env%ri_g0w0%do_static_cohsex) THEN
             ! not yet there: open shell
             ALLOCATE (qs_env%mp2_env%ri_g0w0%matrix_sigma_x_minus_vxc(nspins))
             DO ispin = 1, nspins

@@ -298,9 +298,9 @@ CONTAINS
       END IF
 
       ! MG: Disable logger layer for BSE, misses some key information to print cube files properly;
-      ! the same holds for the st-COHSEX MOs (DFT%PRINT%MO, DFT%PRINT%MO_CUBES)
+      ! the same holds for the static COHSEX MOs (DFT%PRINT%MO, DFT%PRINT%MO_CUBES)
       IF (.NOT. (mp2_env%ri_g0w0%print_local_bandgap .OR. mp2_env%bse%do_nto_analysis .OR. &
-                 mp2_env%ri_g0w0%do_stcohsex)) THEN
+                 mp2_env%ri_g0w0%do_static_cohsex)) THEN
          ! a logger
          NULLIFY (logger_sub)
          CALL cp_logger_create(logger_sub, para_env=para_env_sub, &
@@ -643,7 +643,7 @@ CONTAINS
       CALL cp_blacs_env_release(blacs_env_sub)
 
       IF (.NOT. (mp2_env%ri_g0w0%print_local_bandgap .OR. mp2_env%bse%do_nto_analysis .OR. &
-                 mp2_env%ri_g0w0%do_stcohsex)) THEN
+                 mp2_env%ri_g0w0%do_static_cohsex)) THEN
          CALL cp_rm_default_logger()
          CALL cp_logger_release(logger_sub)
       END IF

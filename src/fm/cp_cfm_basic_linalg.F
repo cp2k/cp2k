@@ -1448,26 +1448,30 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(IN)                       :: alpha
       INTEGER, INTENT(IN), OPTIONAL                      :: n_active
 
-      INTEGER                                            :: i_row, j_col, max_index, ncol_local, &
+      INTEGER                                            :: i_global, icol, irow, j_global, n_diag, &
+                                                            ncol_global, ncol_local, nrow_global, &
                                                             nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
 
-      max_index = HUGE(max_index)
-      IF (PRESENT(n_active)) max_index = n_active
-
-      CALL cp_cfm_get_info(matrix=matrix, nrow_local=nrow_local, ncol_local=ncol_local, &
+      CALL cp_cfm_get_info(matrix, nrow_global=nrow_global, ncol_global=ncol_global, &
+                           nrow_local=nrow_local, ncol_local=ncol_local, &
                            row_indices=row_indices, col_indices=col_indices)
 
-!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i_row, j_col) &
-!$OMP             SHARED(ncol_local, nrow_local, row_indices, col_indices, max_index, matrix, alpha)
-      DO j_col = 1, ncol_local
-         DO i_row = 1, nrow_local
-            IF (row_indices(i_row) == col_indices(j_col) .AND. row_indices(i_row) <= max_index) THEN
-               matrix%local_data(i_row, j_col) = matrix%local_data(i_row, j_col) + alpha
-            END IF
-         END DO
+      n_diag = MIN(nrow_global, ncol_global)
+      IF (PRESENT(n_active)) n_diag = n_active
+      CPASSERT(n_diag >= 0 .AND. n_diag <= MIN(nrow_global, ncol_global))
+
+      ! intersect the sorted local row and column indices: O(nrow_local + ncol_local)
+      irow = 1
+      icol = 1
+      DO WHILE (irow <= nrow_local .AND. icol <= ncol_local)
+         i_global = row_indices(irow)
+         j_global = col_indices(icol)
+         IF (MAX(i_global, j_global) > n_diag) EXIT
+         IF (i_global == j_global) matrix%local_data(irow, icol) = matrix%local_data(irow, icol) + alpha
+         IF (i_global <= j_global) irow = irow + 1
+         IF (j_global <= i_global) icol = icol + 1
       END DO
-!$OMP END PARALLEL DO
 
    END SUBROUTINE cp_cfm_add_on_diag
 

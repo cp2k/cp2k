@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT BSE_stCOHSEX_H2O_PBE_qp_update
+  PROJECT static_COHSEX_H2O_PBE
   RUN_TYPE ENERGY
   &TIMINGS
     THRESHOLD 0.01
@@ -46,16 +46,11 @@
         &END INTEGRALS
         &RI_RPA
           &GW
-            COHSEX QP_UPDATE
+            COHSEX
             CORR_MOS_OCC -1
             CORR_MOS_VIRT -1
             SCALE_COHSEX_OCC 0.6
             SCALE_COHSEX_VIRT 0.6
-            &BSE
-              BSE_DIAG_METHOD FULLDIAG
-              NUM_PRINT_EXC 5
-              TDA OFF
-            &END BSE
           &END GW
         &END RI_RPA
       &END WF_CORRELATION

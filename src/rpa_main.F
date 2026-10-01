@@ -101,9 +101,9 @@ MODULE rpa_main
    USE rpa_gw_ic,                       ONLY: calculate_ic_correction
    USE rpa_gw_kpoints_util,             ONLY: get_bandstruc_and_k_dependent_MOs,&
                                               invert_eps_compute_W_and_Erpa_kp
-   USE rpa_gw_stcohsex,                 ONLY: get_stcohsex_mo_coeff,&
+   USE rpa_gw_static_cohsex,            ONLY: get_static_cohsex_mo_coeff,&
                                               rotate_bse_slab,&
-                                              stcohsex_qp_energies
+                                              static_cohsex_qp_energies
    USE rpa_im_time,                     ONLY: compute_mat_P_omega
    USE rpa_im_time_force_methods,       ONLY: calc_laplace_loop_forces,&
                                               calc_post_loop_forces,&
@@ -1157,7 +1157,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, prim_blk_sizes, &
                                                             RI_blk_sizes
       LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_ic_model, do_kpoints_cubic_RPA, &
-         do_periodic, do_print, do_ri_Sigma_x, do_stcohsex, exit_ev_gw, first_cycle, &
+         do_periodic, do_print, do_ri_Sigma_x, do_static_cohsex, exit_ev_gw, first_cycle, &
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
       REAL(KIND=dp) :: alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
@@ -1165,10 +1165,10 @@ CONTAINS
          my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, trace_Qomega, &
                                                             vec_omega_fit_gw, wkp_W
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: stcohsex_eigenval_cn, &
-                                                            stcohsex_eigenval_dg, vec_W_gw
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_last, Eigenval_scf, stcohsex_u, &
-                                                            vec_Sigma_x_gw
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: static_cohsex_eigenval_cn, &
+                                                            static_cohsex_eigenval_dg, vec_W_gw
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_last, Eigenval_scf, &
+                                                            static_cohsex_u, vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q, cfm_mat_RI_global_work
       TYPE(cp_cfm_type), ALLOCATABLE, DIMENSION(:)       :: cfm_mat_L_kpoints, &
                                                             cfm_mat_Minv_L_kpoints, cfm_mo_coeff
@@ -1212,7 +1212,7 @@ CONTAINS
       print_ic_values = mp2_env%ri_g0w0%print_ic_values
       do_periodic = mp2_env%ri_g0w0%do_periodic
       do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
-      do_stcohsex = my_do_gw .AND. mp2_env%ri_g0w0%do_stcohsex
+      do_static_cohsex = my_do_gw .AND. mp2_env%ri_g0w0%do_static_cohsex
 
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
@@ -1229,16 +1229,16 @@ CONTAINS
             ! in case of scGW0 with the N^4 algorithm, we use the evGW code but use the DFT eigenvalues for W
             IF (iter_sc_GW0 /= 1) iter_evGW = iter_sc_GW0
          END IF
-         IF (do_stcohsex) THEN
+         IF (do_static_cohsex) THEN
             IF (do_im_time) CPABORT("COHSEX is only implemented in the O(N^4) GW code.")
             IF (do_periodic) CPABORT("COHSEX with PERIODIC_CORRECTION is not implemented.")
-            ! BSE after st-COHSEX: W = v + α W^c(0) with one α for both A and B
+            ! BSE after static COHSEX: W = v + α W^c(0) with one α for both A and B
             IF (do_bse .AND. mp2_env%ri_g0w0%scale_cohsex_occ /= mp2_env%ri_g0w0%scale_cohsex_virt) THEN
                CALL cp_abort(__LOCATION__, "BSE after COHSEX requires SCALE_COHSEX_OCC = SCALE_COHSEX_VIRT "// &
                              "(the scaling of W^c in the BSE).")
             END IF
             IF (do_ri_sos_laplace_mp2) CPABORT("COHSEX with SOS-MP2 is not implemented.")
-            ! st-COHSEX is one-shot @DFT: Σ^COHSEX is static, no quasiparticle self-consistency
+            ! static COHSEX is one-shot @DFT: Σ^COHSEX is static, no quasiparticle self-consistency
             iter_evGW = 1
             iter_sc_GW0 = 1
          END IF
@@ -1466,15 +1466,15 @@ CONTAINS
          END IF
 
          ! ==============================================================================
-         ! st-COHSEX: only the static screening at ω = 0, no frequency integration, no
+         ! static COHSEX: only the static screening at ω = 0, no frequency integration, no
          ! analytic continuation and no RPA correlation energy (Erpa stays zero)
          !   S^P_ia(0) = B^P_ia sqrt(1/(ϵ_a - ϵ_i))
          !   Q_PQ(0)   = 4 Σ_ia S^P_ia S^Q_ia (closed shell), 2 Σ_ia S^P_ia S^Q_ia per spin (open shell)
          !   Q_PQ(0)   = Σ_σ Q^σ_PQ(0)                          (spin sum, open shell)
          !   ε_PQ(0)   = δ_PQ + Q_PQ(0)
-         ! then W^c(0), Σ^c, Σ^x, H^QP and the diagonal/canonical st-COHSEX energies
+         ! then W^c(0), Σ^c, Σ^x, H^QP and the diagonal/canonical static COHSEX energies
          ! ==============================================================================
-         IF (do_stcohsex) THEN
+         IF (do_static_cohsex) THEN
             omega = 0.0_dp
             DO ispin = 1, nspins
                CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
@@ -1495,33 +1495,33 @@ CONTAINS
             END IF
             CALL Q_trace_and_add_unit_matrix(dimen_RI_red, trace_Qomega, fm_mat_Q(1))
             IF (do_bse) THEN
-               ALLOCATE (stcohsex_eigenval_dg(nmo, nspins), stcohsex_eigenval_cn(nmo, nspins), &
-                         stcohsex_u(nmo, nmo, nspins))
-               CALL stcohsex_qp_energies(fm_mat_Q(1), fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI_red, nmo, homo, &
-                                         gw_corr_lev_occ, gw_corr_lev_virt, Eigenval(:, 1, :), mo_coeff, &
-                                         unit_nr, qs_env, mp2_env, stcohsex_eigenval_dg, stcohsex_eigenval_cn, &
-                                         stcohsex_u)
+               ALLOCATE (static_cohsex_eigenval_dg(nmo, nspins), static_cohsex_eigenval_cn(nmo, nspins), &
+                         static_cohsex_u(nmo, nmo, nspins))
+               CALL static_cohsex_qp_energies(fm_mat_Q(1), fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI_red, nmo, homo, &
+                                              gw_corr_lev_occ, gw_corr_lev_virt, Eigenval(:, 1, :), mo_coeff, &
+                                              unit_nr, qs_env, mp2_env, static_cohsex_eigenval_dg, static_cohsex_eigenval_cn, &
+                                              static_cohsex_u)
                ! the BSE reads the quasiparticle energies from Eigenval: ϵ^CN (with the canonical
                ! MOs, see the BSE block) or ϵ^DG (with the KS MOs)
                IF (mp2_env%ri_g0w0%cohsex_flavor == cohsex_qp_update) THEN
-                  Eigenval(:, 1, :) = stcohsex_eigenval_cn(:, :)
+                  Eigenval(:, 1, :) = static_cohsex_eigenval_cn(:, :)
                ELSE
-                  Eigenval(:, 1, :) = stcohsex_eigenval_dg(:, :)
+                  Eigenval(:, 1, :) = static_cohsex_eigenval_dg(:, :)
                END IF
-               DEALLOCATE (stcohsex_eigenval_dg, stcohsex_eigenval_cn)
+               DEALLOCATE (static_cohsex_eigenval_dg, static_cohsex_eigenval_cn)
                ! direct terms of the BSE with W = v + α W^c(0), α = SCALE_COHSEX_OCC (= SCALE_COHSEX_VIRT)
                mp2_env%bse%wc_scaling = mp2_env%ri_g0w0%scale_cohsex_occ
             ELSE
-               CALL stcohsex_qp_energies(fm_mat_Q(1), fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI_red, nmo, homo, &
-                                         gw_corr_lev_occ, gw_corr_lev_virt, Eigenval(:, 1, :), mo_coeff, &
-                                         unit_nr, qs_env, mp2_env)
+               CALL static_cohsex_qp_energies(fm_mat_Q(1), fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI_red, nmo, homo, &
+                                              gw_corr_lev_occ, gw_corr_lev_virt, Eigenval(:, 1, :), mo_coeff, &
+                                              unit_nr, qs_env, mp2_env)
             END IF
             first_cycle = .FALSE.
          END IF
 
          DO jquad = 1, num_integ_points
-            ! st-COHSEX needs no frequency integral
-            IF (do_stcohsex) EXIT
+            ! static COHSEX needs no frequency integral
+            IF (do_static_cohsex) EXIT
             IF (MODULO(jquad, num_integ_group) /= color_rpa_group) CYCLE
 
             CALL timeset(routineN//"_RPA_matrix_operations", handle3)
@@ -1781,8 +1781,8 @@ CONTAINS
          ! GW: for low-scaling calculation: Compute self-energy Sigma(i*tau), Sigma(i*omega)
          ! for low-scaling and ordinary-scaling: analytic continuation from Sigma(iw) -> Sigma(w)
          !                                       and correction of quasiparticle energies e_n^GW
-         ! (st-COHSEX energies are already computed and printed in stcohsex_qp_energies)
-         IF (my_do_gw .AND. .NOT. do_stcohsex) THEN
+         ! (static COHSEX energies are already computed and printed in static_cohsex_qp_energies)
+         IF (my_do_gw .AND. .NOT. do_static_cohsex) THEN
 
             CALL compute_QP_energies(vec_Sigma_c_gw, count_ev_sc_GW, gw_corr_lev_occ, &
                                      gw_corr_lev_tot, gw_corr_lev_virt, homo, &
@@ -1863,35 +1863,35 @@ CONTAINS
             END IF
          END DO
          ! ==============================================================================
-         ! BSE with the canonical st-COHSEX quasiparticles: the KS-MO slabs are rotated to the
+         ! BSE with the canonical static COHSEX quasiparticles: the KS-MO slabs are rotated to the
          ! canonical MOs C^QP = C U (U block diagonal in occ/virt, δ outside the window)
          !   B̃^P_ia = Σ_jb U_ji U_ba B^P_jb,  B̃^P_ij = Σ_kl U_ki U_lj B^P_kl,  B̃^P_ab analogous
          ! Q(0), ε^(-1)(0) and the kernel are invariant under these rotations, so the BSE with
          ! ϵ^CN and C^QP equals the BSE with the full H^QP in the KS basis.
          ! ==============================================================================
-         IF (do_stcohsex .AND. mp2_env%ri_g0w0%cohsex_flavor == cohsex_qp_update) THEN
+         IF (do_static_cohsex .AND. mp2_env%ri_g0w0%cohsex_flavor == cohsex_qp_update) THEN
             ALLOCATE (mo_coeff_bse(nspins))
             DO ispin = 1, nspins
                ! the ab slab holds the first bse_lev_virt virtuals: U must not mix beyond them
                IF (gw_corr_lev_virt(ispin) > bse_lev_virt(ispin)) THEN
-                  CPABORT("Canonical st-COHSEX BSE: the corrected virtual MOs exceed the BSE (ab) slab.")
+                  CPABORT("Canonical static COHSEX BSE: the corrected virtual MOs exceed the BSE (ab) slab.")
                END IF
                CALL rotate_bse_slab(fm_mat_S_ia_bse(ispin), dimen_RI_red, homo(ispin), virtual(ispin), &
-                                    stcohsex_u(1:homo(ispin), 1:homo(ispin), ispin), &
-                                    stcohsex_u(homo(ispin) + 1:nmo, homo(ispin) + 1:nmo, ispin), mp2_env)
+                                    static_cohsex_u(1:homo(ispin), 1:homo(ispin), ispin), &
+                                    static_cohsex_u(homo(ispin) + 1:nmo, homo(ispin) + 1:nmo, ispin), mp2_env)
                CALL rotate_bse_slab(fm_mat_S_ij_bse(ispin), dimen_RI_red, homo(ispin), homo(ispin), &
-                                    stcohsex_u(1:homo(ispin), 1:homo(ispin), ispin), &
-                                    stcohsex_u(1:homo(ispin), 1:homo(ispin), ispin), mp2_env)
+                                    static_cohsex_u(1:homo(ispin), 1:homo(ispin), ispin), &
+                                    static_cohsex_u(1:homo(ispin), 1:homo(ispin), ispin), mp2_env)
                CALL rotate_bse_slab(fm_mat_S_ab_bse(ispin), dimen_RI_red, bse_lev_virt(ispin), bse_lev_virt(ispin), &
-                                    stcohsex_u(homo(ispin) + 1:homo(ispin) + bse_lev_virt(ispin), &
-                                               homo(ispin) + 1:homo(ispin) + bse_lev_virt(ispin), ispin), &
-                                    stcohsex_u(homo(ispin) + 1:homo(ispin) + bse_lev_virt(ispin), &
-                                               homo(ispin) + 1:homo(ispin) + bse_lev_virt(ispin), ispin), mp2_env)
+                                    static_cohsex_u(homo(ispin) + 1:homo(ispin) + bse_lev_virt(ispin), &
+                                                    homo(ispin) + 1:homo(ispin) + bse_lev_virt(ispin), ispin), &
+                                    static_cohsex_u(homo(ispin) + 1:homo(ispin) + bse_lev_virt(ispin), &
+                                                    homo(ispin) + 1:homo(ispin) + bse_lev_virt(ispin), ispin), mp2_env)
                ! transition dipoles, NTOs and exciton descriptors with C^QP
-               CALL get_stcohsex_mo_coeff(mo_coeff(ispin), stcohsex_u(:, :, ispin), mo_coeff_bse(ispin))
+               CALL get_static_cohsex_mo_coeff(mo_coeff(ispin), static_cohsex_u(:, :, ispin), mo_coeff_bse(ispin))
             END DO
          END IF
-         IF (ALLOCATED(stcohsex_u)) DEALLOCATE (stcohsex_u)
+         IF (ALLOCATED(static_cohsex_u)) DEALLOCATE (static_cohsex_u)
 
          ! the solver keeps [1+Q(0)]^-1 and the window-sized slabs; Q(0) and the full slabs stay the GW's
          CALL prepare_bse_env(mp2_env%bse, fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &

@@ -196,7 +196,7 @@ CONTAINS
 
       IF (bse_env%wc_scaling /= 1.0_dp) THEN
          IF (bse_env%screening_method /= bse_screening_w0 .OR. bse_env%screening_factor > 0.0_dp) THEN
-            CPABORT("SCREENING_IN_W other than W_0 cannot be combined with a scaled W^c (st-COHSEX).")
+            CPABORT("SCREENING_IN_W other than W_0 cannot be combined with a scaled W^c (static COHSEX).")
          END IF
          CALL scale_static_screening(bse_env%fm_eps_inv, dimen_RI_red, bse_env%wc_scaling)
          IF (unit_nr > 0) THEN

@@ -168,7 +168,7 @@ CONTAINS
                                 l_val=mp2_env%ri_g0w0%do_ri_Sigma_x)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%COHSEX", &
                                 i_val=mp2_env%ri_g0w0%cohsex_flavor)
-      mp2_env%ri_g0w0%do_stcohsex = (mp2_env%ri_g0w0%cohsex_flavor /= cohsex_off)
+      mp2_env%ri_g0w0%do_static_cohsex = (mp2_env%ri_g0w0%cohsex_flavor /= cohsex_off)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SCALE_COHSEX_OCC", &
                                 r_val=mp2_env%ri_g0w0%scale_cohsex_occ)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SCALE_COHSEX_VIRT", &
