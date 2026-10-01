@@ -13,7 +13,9 @@ PROGRAM atom_upf_unittest
                                               atom_sgp_release,&
                                               fit_core_density_gaussians,&
                                               sgp_construction
-   USE atom_types,                      ONLY: atom_basis_type,&
+   USE atom_types,                      ONLY: CGTO_BASIS,&
+                                              atom_basis_gridrep,&
+                                              atom_basis_type,&
                                               atom_integrals,&
                                               atom_potential_type,&
                                               init_atom_basis_default_pp,&
@@ -55,6 +57,7 @@ PROGRAM atom_upf_unittest
    CALL check_atomic_potential()
    CALL check_upf_units()
    CALL check_nlcc_fit()
+   CALL check_basis_origin()
 
    ! The same temporary is reused for successive KIND sections in Quickstep.
    ALLOCATE (pot%rho_nlcc(3))
@@ -107,6 +110,44 @@ PROGRAM atom_upf_unittest
    CALL cp2k_finalize()
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Check primitive and contracted Gaussian derivatives on UPF meshes starting at zero.
+! **************************************************************************************************
+   SUBROUTINE check_basis_origin()
+      INTEGER                                            :: i, l, n, variant
+      REAL(KIND=dp)                                      :: expected(3), scale
+      TYPE(atom_basis_type)                              :: basis, radial
+
+      CALL init_atom_basis_default_pp(basis)
+      n = MAXVAL(basis%nbas)
+      DO variant = 1, 2
+         scale = REAL(variant, dp)
+         IF (variant == 2) THEN
+            basis%basis_type = CGTO_BASIS
+            ALLOCATE (basis%cm(n, n, 0:UBOUND(basis%am, 2)))
+            basis%cm = 0.0_dp
+            DO i = 1, n
+               basis%cm(i, i, :) = scale
+            END DO
+         END IF
+         CALL atom_basis_gridrep(basis, radial, [0.0_dp, 1.e-16_dp, 0.1_dp], [0.1_dp, 0.1_dp, 0.1_dp])
+         IF (.NOT. ALL(ieee_is_finite(radial%bf)) .OR. .NOT. ALL(ieee_is_finite(radial%dbf)) .OR. &
+             .NOT. ALL(ieee_is_finite(radial%ddbf))) ERROR STOP "Nonfinite Gaussian derivatives at the UPF origin"
+         DO l = 0, UBOUND(basis%am, 2)
+            DO i = 1, basis%nbas(l)
+               expected = 0.0_dp
+               IF (l == 0) expected = [1.0_dp, 0.0_dp, -2.0_dp*basis%am(i, l)]
+               IF (l == 1) expected(2) = 1.0_dp
+               IF (l == 2) expected(3) = 2.0_dp
+               IF (MAXVAL(ABS([radial%bf(1, i, l), radial%dbf(1, i, l), radial%ddbf(1, i, l)] - &
+                              scale*expected)) > 1.e-12_dp) ERROR STOP "Incorrect Gaussian origin limit"
+            END DO
+         END DO
+         CALL release_atom_basis(radial)
+      END DO
+      CALL release_atom_basis(basis)
+   END SUBROUTINE check_basis_origin
 
 ! **************************************************************************************************
 !> \brief Check fitted densities and their derivatives against an analytic reference.

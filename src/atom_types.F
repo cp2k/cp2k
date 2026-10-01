@@ -867,6 +867,7 @@ CONTAINS
 
       SELECT CASE (gbasis%basis_type)
       CASE (GTO_BASIS)
+         ! Zero prefactors must not evaluate negative powers at the UPF origin.
          DO l = 0, lmat
             DO i = 1, gbasis%nbas(l)
                al = gbasis%am(i, l)
@@ -874,8 +875,8 @@ CONTAINS
                   rk = gbasis%grid%rad(k)
                   ear = EXP(-al*gbasis%grid%rad(k)**2)
                   gbasis%bf(k, i, l) = rk**l*ear
-                  gbasis%dbf(k, i, l) = (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear
-                  gbasis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**(l - 2) - &
+                  gbasis%dbf(k, i, l) = (REAL(l, dp)*rk**MAX(0, l - 1) - 2._dp*al*rk**(l + 1))*ear
+                  gbasis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**MAX(0, l - 2) - &
                                           2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al*rk**(l + 2))*ear
                END DO
             END DO
@@ -890,9 +891,9 @@ CONTAINS
                   DO j = 1, gbasis%nbas(l)
                      gbasis%bf(k, j, l) = gbasis%bf(k, j, l) + rk**l*ear*gbasis%cm(i, j, l)
                      gbasis%dbf(k, j, l) = gbasis%dbf(k, j, l) &
-                                           + (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear*gbasis%cm(i, j, l)
+                                           + (REAL(l, dp)*rk**MAX(0, l - 1) - 2._dp*al*rk**(l + 1))*ear*gbasis%cm(i, j, l)
                      gbasis%ddbf(k, j, l) = gbasis%ddbf(k, j, l) + &
-                                    (REAL(l*(l - 1), dp)*rk**(l - 2) - 2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al*rk**(l + 2))* &
+                              (REAL(l*(l - 1), dp)*rk**MAX(0, l - 2) - 2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al*rk**(l + 2))* &
                                             ear*gbasis%cm(i, j, l)
                   END DO
                END DO
