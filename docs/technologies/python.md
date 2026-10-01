@@ -645,16 +645,3 @@ python /path/to/cp2k/python/examples/compare_ase.py \
 For typical DFT jobs, electronic-structure work can dominate interface overhead. The direct
 interface primarily adds embedding and communicator control; the shell backend remains useful when
 process isolation and executable-based deployment are preferred.
-
-For orientation, two local runs of the example (12 changed geometries after the first point,
-macOS/ARM64, GCC 16, CP2K 2026.2 development, Python 3.12.13, ASE 3.29.0, NumPy 2.5.3, one MPI rank
-and one OpenMP/BLAS thread) gave the following wall times in seconds:
-
-| Backend          | Setup       | First evaluation | Median subsequent evaluation |
-| ---------------- | ----------- | ---------------- | ---------------------------- |
-| Persistent shell | 0.284-0.914 | 0.414-0.460      | 0.176-0.180                  |
-| Direct library   | 0.302-0.343 | 0.517-0.546      | 0.171-0.182                  |
-
-The maximum energy difference was `5.4e-13` eV and the maximum force-component difference was
-`1.9e-9` eV/angstrom. These small-system timings show no consistent steady-state speed advantage;
-startup variation also cautions against extrapolating them to production workloads.

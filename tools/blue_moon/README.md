@@ -181,15 +181,9 @@ also checks the SHAKE multiplier's sign and normalization within timestep and pr
 Regenerating with another CP2K version should be compared with these invariant checks; the recorded
 data are not an assertion of bitwise reproducibility across versions and platforms.
 
-For the initial-time check, reducing the timestep from 0.25 to 0.125 and 0.0625 fs changes the
-printed first multiplier from `-3.092e-6` to `-3.091e-6` and `-3.091e-6` hartree/bohr, approaching
-the continuous-time value `-3.0905654669e-6`. The nine-decimal-place multiplier output limits this
-comparison. This checks the initial inertial force, not an equilibrated mean force.
-
-For the recorded files, 28 retained samples give `2.21025541695497e-5` hartree/bohr versus the
-uncorrected `3.2065e-6`. These numbers are **I/O/estimator regression values, not a physical
-free-energy result**: this short unthermostatted, unconfined trajectory is not an equilibrium sample
-at 300 K. The temperature and discarded prefix exercise the processing options only.
+The recorded trajectory is an I/O and estimator fixture, not an equilibrium free-energy sample.
+Temperature and discard settings exercise the processing options. The timestep study checks the
+initial inertial force within the multiplier's printed precision.
 
 ### Independent canonical-ensemble reference
 
@@ -221,16 +215,9 @@ tool's automatic differentiation and metric functions. Those conditional multipl
 are passed through `analyze`; numerical integration of its weighted numerator and denominator is
 then compared with `-kB*T*d(ln P)/dxi`.
 
-The two windows `xi = -1` and `0.75` bohr give respectively `-1.1238227746` and `0.8527258234` for
-`(dA/dxi)/(kB*T)` in inverse bohr. Both mass sets `[12,1,16]` and `[1,2,3]` recover the same
-thermodynamic answer to within the test tolerance of `2e-7` inverse bohr, although their constrained
-distributions differ. Removing either the G term or the Z reweighting fails this comparison.
-
-This is deterministic equilibrium integration, **not a synthetic CP2K trajectory or a CP2K MD
-convergence benchmark**. Together with the recorded-data test it checks complementary parts of the
-workflow, but does not establish long-time sampling, thermostat or timestep convergence in CP2K.
-Independent scientific review of the distance-difference specialization remains appropriate; these
-tests do not substitute for that review.
+The test compares two constraint windows and two mass sets. Removing either the G term or the Z
+reweighting fails the comparison. This deterministic equilibrium integration complements the
+recorded-data check; it does not establish MD sampling or timestep convergence.
 
 ### Equivalent logarithmic derivative
 
@@ -269,10 +256,8 @@ Z = 1/mi + 1/mk + 2*(1-c)/mj
 G = (1-c*c) * (1/rij - 1/rkj) / (mj*mj*Z*Z)
 ```
 
-G is not generally zero: equal distances or collinear bonds are special cases. For example,
-positions `[(2,0,0),(0,0,0),(1,3,0)]` in bohr and masses `[12,1,16]` in amu give
-`Z = 1.5133778012996573` and `G = 0.07221504489510591` per bohr. The tests compare the Hessian
-contraction, this closed form and an independent directional finite difference of Z.
+G is generally nonzero; equal distances and collinear bonds are special cases. The tests compare the
+Hessian contraction, this closed form and an independent directional finite difference of Z.
 
 The general estimator is Eq. (6)-(8) of
 [Komeiji (2007), Chem-Bio Informatics Journal 7, 12](https://doi.org/10.1273/cbij.7.12). The `G=0`
