@@ -1086,7 +1086,7 @@ CONTAINS
       CALL section_release(subsection)
 
       ! here we generate a subsection for Bethe-Salpeter
-      CALL create_bse_section(subsection, for_properties=.FALSE.)
+      CALL create_bse_section(subsection, run_bse_from_band_structure_section=.FALSE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -1345,19 +1345,19 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief The &BSE section, built once under RI_RPA%GW and once under PROPERTIES
 !> \param section the section, created here
-!> \param for_properties .TRUE. for the copy under PROPERTIES, .FALSE. for the one under RI_RPA%GW;
+!> \param run_bse_from_band_structure_section .TRUE. for the copy under PROPERTIES, .FALSE. for the one under RI_RPA%GW;
 !>        selects the sentence of the description that names the GW behind the section
 ! **************************************************************************************************
-   SUBROUTINE create_bse_section(section, for_properties)
+   SUBROUTINE create_bse_section(section, run_bse_from_band_structure_section)
       TYPE(section_type), POINTER                        :: section
-      LOGICAL, INTENT(IN)                                :: for_properties
+      LOGICAL, INTENT(IN)                                :: run_bse_from_band_structure_section
 
       CHARACTER(LEN=:), ALLOCATABLE                      :: where_from
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      IF (for_properties) THEN
+      IF (run_bse_from_band_structure_section) THEN
          where_from = " This section runs the BSE on the quasiparticle energies, the static screened "// &
                       "interaction and the RI integrals of the low-scaling GW of PROPERTIES%BANDSTRUCTURE%GW "// &
                       "(three-center RI integrals in the atomic-orbital basis; "// &

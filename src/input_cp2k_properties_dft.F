@@ -149,7 +149,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL create_bse_section(subsection, for_properties=.TRUE.)
+      CALL create_bse_section(subsection, run_bse_from_band_structure_section=.TRUE.)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

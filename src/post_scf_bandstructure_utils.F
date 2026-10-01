@@ -241,7 +241,7 @@ CONTAINS
 
       END SELECT
 
-      CALL read_bse_requirements(qs_env, bs_env)
+      CALL read_bse_input(qs_env, bs_env)
 
       CALL timestop(handle)
 
@@ -253,11 +253,11 @@ CONTAINS
 !> \param qs_env source of the input
 !> \param bs_env its GW flags are read; keep_W_freq_zero and keep_3c_nl are set
 ! **************************************************************************************************
-   SUBROUTINE read_bse_requirements(qs_env, bs_env)
+   SUBROUTINE read_bse_input(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_bse_requirements'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_bse_input'
 
       INTEGER                                            :: handle, n_spin, print_level_nto
       INTEGER, DIMENSION(2)                              :: n_mo
@@ -329,7 +329,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE read_bse_requirements
+   END SUBROUTINE read_bse_input
 
 ! **************************************************************************************************
 !> \brief ...

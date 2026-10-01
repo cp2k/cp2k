@@ -125,7 +125,7 @@ CONTAINS
       CALL get_qs_env(qs_env, bs_env=bs_env)
       ! the driver calls this after the bandstructure block, which creates bs_env
       IF (.NOT. ASSOCIATED(bs_env)) CPABORT("PROPERTIES%BSE found no GW environment (bs_env)")
-      ! read_bse_requirements refused each of these at GW init with a message that says what to change;
+      ! read_bse_input refused each of these at GW init with a message that says what to change;
       ! Gamma is the one k-point that carries the MOs and the energies read below
       IF (.NOT. bs_env%do_gw .OR. bs_env%do_periodic .OR. bs_env%do_gw_ri_rs .OR. bs_env%nkp_bs_and_DOS /= 1) THEN
          CPABORT("PROPERTIES%BSE needs a non-periodic, Gamma-only GW without RI_RS")
