@@ -677,6 +677,16 @@ list(
   qs_ks_utils.F
   qs_ks_reference.F
   qs_kubo_transport.F
+  qs_spectral_localizer.F
+  qs_localizer_torus.F
+  spectral_localizer.F
+  quadratic_pseudospectrum.F
+  qs_finite_ao.F
+  qs_ao_translations.F
+  qs_quadratic_pseudospectrum.F
+  spectral_localizer_dbcsr.F
+  spectral_localizer_flatten.F
+  spectral_localizer_bloch.F
   qs_linres_atom_current.F
   qs_linres_current.F
   qs_linres_current_utils.F
@@ -1601,6 +1611,11 @@ set(CP2K_PROGS_F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
     topology_wilson_unittest.F
+    spectral_localizer_unittest.F
+    spectral_localizer_3d_unittest.F
+    spectral_localizer_flatten_unittest.F
+    quadratic_pseudospectrum_unittest.F
+    pw/pw_copy_unittest.F
     topology_symmetry_unittest.F
     topology_curvature_unittest.F
     topology_snapshot_unittest.F
@@ -2034,6 +2049,11 @@ list(
   "kpoint_lattice_fft_unittest"
   "kpoint_smearing_unittest"
   "topology_wilson_unittest"
+  "spectral_localizer_unittest"
+  "spectral_localizer_3d_unittest"
+  "spectral_localizer_flatten_unittest"
+  "quadratic_pseudospectrum_unittest"
+  "pw_copy_unittest"
   "topology_symmetry_unittest"
   "topology_curvature_unittest"
   "topology_snapshot_unittest"
@@ -2078,6 +2098,13 @@ add_executable(gapw_1c_basis_unittest gapw_1c_basis_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(topology_wilson_unittest topology_wilson_unittest.F)
+add_executable(spectral_localizer_unittest spectral_localizer_unittest.F)
+add_executable(spectral_localizer_3d_unittest spectral_localizer_3d_unittest.F)
+add_executable(spectral_localizer_flatten_unittest
+               spectral_localizer_flatten_unittest.F)
+add_executable(quadratic_pseudospectrum_unittest
+               quadratic_pseudospectrum_unittest.F)
+add_executable(pw_copy_unittest pw/pw_copy_unittest.F)
 add_executable(topology_symmetry_unittest topology_symmetry_unittest.F)
 add_executable(topology_curvature_unittest topology_curvature_unittest.F)
 add_executable(topology_snapshot_unittest topology_snapshot_unittest.F)

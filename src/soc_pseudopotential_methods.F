@@ -88,11 +88,12 @@ CONTAINS
                cell_to_index)
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, dft_control=dft_control, &
                       matrix_s_kp=matrix_s, kpoints=kpoints, atomic_kind_set=atomic_kind_set, &
-                      particle_set=particle_set, sab_orb=sab_orb, sap_ppnl=sap_ppnl)
+                      particle_set=particle_set, sab_orb=sab_orb, sap_ppnl=sap_ppnl, do_kpoints=do_kp)
 
       eps_ppnl = dft_control%qs_control%eps_ppnl
       nimages = dft_control%nimages
-      do_kp = (nimages > 1)
+      ! Even a one-image k-point environment needs the triangular storage expected by
+      ! rskp_transform. Desymmetrizing redistributes blocks away from their neighbour-list owners.
       CALL get_neighbor_list_set_p(neighbor_list_sets=sab_orb, symmetric=do_symmetric)
       CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
 

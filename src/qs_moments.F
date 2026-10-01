@@ -3015,7 +3015,7 @@ CONTAINS
 
                      CALL dgemm("T", "N", nsgfa(iset), nsgfb(jset), ncoa, &
                                 1.0_dp, sphi_a(1, sgfa), ldsa, &
-                                work(1, 1), ldwork, 1.0_dp, dblock(1, 1), SIZE(dblock, 1))
+                                work(1, 1), ldwork, 1.0_dp, dblock(sgfa, sgfb), SIZE(dblock, 1))
                   END DO
                END DO
             END DO

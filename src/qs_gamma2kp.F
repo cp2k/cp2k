@@ -12,6 +12,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_gamma2kp
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_p_type
    USE cp_subsys_types,                 ONLY: cp_subsys_type
@@ -35,7 +36,9 @@ MODULE qs_gamma2kp
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_set,&
                                               qs_rho_type
    USE qs_scf_initialization,           ONLY: qs_scf_env_init_basic
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -63,16 +66,15 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env, qs_env_kp
       LOGICAL, OPTIONAL                                  :: with_xc_terms
 
-      INTEGER                                            :: ispin, xc_func
+      INTEGER                                            :: iatom, ispin, xc_func
       LOGICAL                                            :: without_xc_terms
       TYPE(cp_subsys_type), POINTER                      :: cp_subsys
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp, rho_ao_kp_gamma
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_gamma, rho_g_kp
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r_gamma, rho_r_kp
       TYPE(qs_rho_type), POINTER                         :: rho, rho_gamma
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(rho_atom_type), POINTER                       :: atoms(:), atoms_gamma(:)
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section, &
                                                             xc_fun_section
@@ -118,18 +120,34 @@ CONTAINS
 
       CALL set_qs_env(qs_env_kp, scf_env=scf_env)
 
-      ! copy density matrix, n(r) and n(G) from Gamma-only to kpoint calculation
+      ! Preserve the converged density fields, not the new environment's atomic guess.
       CALL get_qs_env(qs_env, rho=rho_gamma)
-      CALL qs_rho_get(rho_gamma, rho_ao_kp=rho_ao_kp_gamma, rho_r=rho_r_gamma, rho_g=rho_g_gamma)
       CALL get_qs_env(qs_env_kp, rho=rho)
-      CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, rho_r=rho_r_kp, rho_g=rho_g_kp)
+      CALL copy_frozen_density(rho_gamma, rho)
 
-      DO ispin = 1, SIZE(rho_r_gamma)
-         CALL pw_copy(rho_r_gamma(ispin), rho_r_kp(ispin))
-         CALL pw_copy(rho_g_gamma(ispin), rho_g_kp(ispin))
-         CALL dbcsr_add(matrix_a=rho_ao_kp(ispin, 1)%matrix, alpha_scalar=0.0_dp, &
-                        matrix_b=rho_ao_kp_gamma(ispin, 1)%matrix, beta_scalar=1.0_dp)
-      END DO
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      IF (dft_control%qs_control%gapw_xc) THEN
+         CALL get_qs_env(qs_env, rho_xc=rho_gamma)
+         CALL get_qs_env(qs_env_kp, rho_xc=rho)
+         CALL copy_frozen_density(rho_gamma, rho)
+      END IF
+      IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+         ! The frozen GAPW potential also depends on these hard/soft onsite densities.
+         CALL get_qs_env(qs_env, rho_atom_set=atoms_gamma)
+         CALL get_qs_env(qs_env_kp, rho_atom_set=atoms)
+         CPASSERT(SIZE(atoms) == SIZE(atoms_gamma))
+         DO iatom = 1, SIZE(atoms_gamma)
+            IF (.NOT. ASSOCIATED(atoms_gamma(iatom)%cpc_h)) CYCLE
+            CPASSERT(ASSOCIATED(atoms(iatom)%cpc_h))
+            DO ispin = 1, SIZE(atoms_gamma(iatom)%cpc_h)
+               IF (.NOT. ASSOCIATED(atoms_gamma(iatom)%cpc_h(ispin)%r_coef)) CYCLE
+               CPASSERT(ASSOCIATED(atoms(iatom)%cpc_h(ispin)%r_coef))
+               CPASSERT(ASSOCIATED(atoms(iatom)%cpc_s(ispin)%r_coef))
+               atoms(iatom)%cpc_h(ispin)%r_coef = atoms_gamma(iatom)%cpc_h(ispin)%r_coef
+               atoms(iatom)%cpc_s(ispin)%r_coef = atoms_gamma(iatom)%cpc_s(ispin)%r_coef
+            END DO
+         END DO
+      END IF
 
       CALL qs_ks_update_qs_env(qs_env_kp, print_active=.FALSE.)
 
@@ -139,5 +157,75 @@ CONTAINS
       END IF
 
    END SUBROUTINE create_kp_from_gamma
+
+! **************************************************************************************************
+!> \brief Copy converged Gamma density fields into the initialized k-point environment.
+!> \param source Converged Gamma density
+!> \param destination Initialized density with the same real/reciprocal grids
+!> \author Thomas D. Kuehne (tkuehne@cp2k.org)
+! **************************************************************************************************
+   SUBROUTINE copy_frozen_density(source, destination)
+      TYPE(qs_rho_type), INTENT(IN)                      :: source
+      TYPE(qs_rho_type), INTENT(INOUT)                   :: destination
+
+      INTEGER                                            :: idir, ispin
+      LOGICAL                                            :: drho_g_valid, drho_r_valid, rho_g_valid, &
+                                                            rho_r_valid, soft_valid, tau_g_valid, &
+                                                            tau_r_valid
+      REAL(dp), DIMENSION(:), POINTER                    :: total_g_in, total_g_out, total_r_in, &
+                                                            total_r_out
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ao_in, ao_out
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_in, rho_g_out, tau_g_in, tau_g_out
+      TYPE(pw_c1d_gs_type), DIMENSION(:, :), POINTER     :: drho_g_in, drho_g_out
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r_in, rho_r_out, tau_r_in, tau_r_out
+      TYPE(pw_r3d_rs_type), DIMENSION(:, :), POINTER     :: drho_r_in, drho_r_out
+
+      CALL qs_rho_get(source, rho_ao_kp=ao_in, rho_r=rho_r_in, rho_g=rho_g_in, &
+                      tau_r=tau_r_in, tau_g=tau_g_in, drho_r=drho_r_in, drho_g=drho_g_in, &
+                      tot_rho_r=total_r_in, tot_rho_g=total_g_in, &
+                      rho_r_valid=rho_r_valid, rho_g_valid=rho_g_valid, &
+                      tau_r_valid=tau_r_valid, tau_g_valid=tau_g_valid, &
+                      drho_r_valid=drho_r_valid, drho_g_valid=drho_g_valid, soft_valid=soft_valid)
+      CALL qs_rho_get(destination, rho_ao_kp=ao_out, rho_r=rho_r_out, rho_g=rho_g_out, &
+                      tau_r=tau_r_out, tau_g=tau_g_out, drho_r=drho_r_out, drho_g=drho_g_out, &
+                      tot_rho_r=total_r_out, tot_rho_g=total_g_out)
+
+      CPASSERT(SIZE(rho_r_in) == SIZE(rho_r_out))
+      DO ispin = 1, SIZE(rho_r_in)
+         CALL pw_copy(rho_r_in(ispin), rho_r_out(ispin))
+         CALL pw_copy(rho_g_in(ispin), rho_g_out(ispin))
+         CALL dbcsr_add(matrix_a=ao_out(ispin, 1)%matrix, alpha_scalar=0.0_dp, &
+                        matrix_b=ao_in(ispin, 1)%matrix, beta_scalar=1.0_dp)
+         ! XC fields need not be allocated when with_xc_terms is false.
+         IF (ASSOCIATED(tau_r_out) .AND. tau_r_valid) THEN
+            CPASSERT(ASSOCIATED(tau_r_in))
+            CALL pw_copy(tau_r_in(ispin), tau_r_out(ispin))
+         END IF
+         IF (ASSOCIATED(tau_g_out) .AND. tau_g_valid) THEN
+            CPASSERT(ASSOCIATED(tau_g_in))
+            CALL pw_copy(tau_g_in(ispin), tau_g_out(ispin))
+         END IF
+         IF (ASSOCIATED(drho_r_out) .AND. drho_r_valid) THEN
+            CPASSERT(ASSOCIATED(drho_r_in))
+            DO idir = 1, SIZE(drho_r_out, 1)
+               CALL pw_copy(drho_r_in(idir, ispin), drho_r_out(idir, ispin))
+            END DO
+         END IF
+         IF (ASSOCIATED(drho_g_out) .AND. drho_g_valid) THEN
+            CPASSERT(ASSOCIATED(drho_g_in))
+            DO idir = 1, SIZE(drho_g_out, 1)
+               CALL pw_copy(drho_g_in(idir, ispin), drho_g_out(idir, ispin))
+            END DO
+         END IF
+      END DO
+      IF (ASSOCIATED(total_r_in) .AND. ASSOCIATED(total_r_out)) total_r_out = total_r_in
+      IF (ASSOCIATED(total_g_in) .AND. ASSOCIATED(total_g_out)) total_g_out = total_g_in
+      CALL qs_rho_set(destination, rho_r_valid=rho_r_valid, rho_g_valid=rho_g_valid, &
+                      tau_r_valid=tau_r_valid .AND. ASSOCIATED(tau_r_out), &
+                      tau_g_valid=tau_g_valid .AND. ASSOCIATED(tau_g_out), &
+                      drho_r_valid=drho_r_valid .AND. ASSOCIATED(drho_r_out), &
+                      drho_g_valid=drho_g_valid .AND. ASSOCIATED(drho_g_out), soft_valid=soft_valid)
+
+   END SUBROUTINE copy_frozen_density
 
 END MODULE qs_gamma2kp

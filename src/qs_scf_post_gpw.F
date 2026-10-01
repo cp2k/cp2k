@@ -201,6 +201,7 @@ MODULE qs_scf_post_gpw
    USE qs_ot_eigensolver,               ONLY: ot_eigensolver
    USE qs_pdos,                         ONLY: calculate_projected_dos,&
                                               calculate_projected_dos_kp
+   USE qs_quadratic_pseudospectrum,     ONLY: qs_scf_post_quadratic
    USE qs_resp,                         ONLY: resp_fit
    USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                               mpole_rho_atom,&
@@ -217,6 +218,7 @@ MODULE qs_scf_post_gpw
    USE qs_scf_types,                    ONLY: ot_method_nr,&
                                               qs_scf_env_type
    USE qs_scf_wfn_mix,                  ONLY: wfn_mix
+   USE qs_spectral_localizer,           ONLY: qs_scf_post_localizer
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE qs_wannier90,                    ONLY: wannier90_interface
@@ -3361,6 +3363,9 @@ CONTAINS
 
       ! post SCF finite-volume Kubo transport
       CALL qs_scf_post_kubo_transport(qs_env)
+
+      CALL qs_scf_post_localizer(qs_env)
+      CALL qs_scf_post_quadratic(qs_env)
 
       ! post SCF Transport
       CALL qs_scf_post_transport(qs_env)

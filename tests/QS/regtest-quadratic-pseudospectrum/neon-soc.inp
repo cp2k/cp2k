@@ -1,0 +1,2 @@
+@SET QUADRATIC_SOLVER DENSE
+@INCLUDE neon-common.inc

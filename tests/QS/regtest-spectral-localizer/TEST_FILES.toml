@@ -1,0 +1,21 @@
+# Finite/periodic AO localizers, GPW/GAPW, SOC and flattening.
+# Includes unresolved-gap rejection and the offsite-SOC MPI ownership regression.
+"h2-gpw.inp" = [{matcher="LOCALIZER_CHERN", tol=0, ref=0},
+                {matcher="LOCALIZER_GAP", tol=2e-6, ref=4.32887629475349e-3}]
+"h2-all-electron.inp" = [{matcher="LOCALIZER_CHERN", tol=0, ref=0},
+                         {matcher="LOCALIZER_GAP", tol=2e-6, ref=3.06186032815457e-3}]
+"h2-unresolved.inp" = [{matcher="LOCALIZER_UNRESOLVED", tol=0, ref=1}]
+"bismuth-soc.inp" = [{matcher="LOCALIZER_Z2", tol=0, ref=0},
+                     {matcher="LOCALIZER_GAP", tol=2e-6, ref=6.81101299873304e-2}]
+"periodic-yz-gapw.inp" = [{matcher="LOCALIZER_Z2", tol=0, ref=0},
+                          {matcher="LOCALIZER_GAP", tol=2e-6, ref=6.65284047966709e-2}]
+"torus-kpoints.inp" = [{matcher="LOCALIZER_Z2", tol=0, ref=0},
+                       {matcher="LOCALIZER_GAP", tol=2e-6, ref=3.80937263188252e-1}]
+"torus-reduced.inp" = [{matcher="LOCALIZER_Z2", tol=0, ref=0},
+                       {matcher="LOCALIZER_GAP", tol=2e-6, ref=3.80937263188252e-1}]
+"stanene-soc.inp" = [{matcher="LOCALIZER_Z2", tol=0, ref=0},
+                     {matcher="LOCALIZER_GAP", tol=2e-6, ref=9.66375577896045e-4}]
+"stanene-flattened.inp" = [{matcher="LOCALIZER_Z2", tol=0, ref=0},
+                           {matcher="LOCALIZER_GAP", tol=2e-6, ref=5.94648185248214e-1}]
+"h2-flattened-gpw.inp" = [{matcher="LOCALIZER_CHERN", tol=0, ref=0},
+                         {matcher="LOCALIZER_GAP", tol=2e-6, ref=8.33447166247184e-1}]

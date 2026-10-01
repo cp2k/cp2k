@@ -548,3 +548,33 @@ registry["Harris_direct_energy_difference"] = GenericMatcher(
     r"Trial-DM minus Harris-like energy:", col=5
 )
 # EOF
+
+registry["LOCALIZER_GAP"] = GenericMatcher("SPECTRAL_LOCALIZER| Gap [hartree]:", col=4)
+
+registry["QUADRATIC_GAP"] = GenericMatcher(
+    "QUADRATIC_PSEUDOSPECTRUM| Gap [hartree]:", col=4
+)
+
+registry["QUADRATIC_ENERGY_RESIDUAL"] = GenericMatcher(
+    "QUADRATIC_PSEUDOSPECTRUM| Energy residual [hartree]:", col=5
+)
+
+registry["QUADRATIC_TRANSLATION_LEAKAGE"] = GenericMatcher(
+    "QUADRATIC_PSEUDOSPECTRUM| Translation residual 1 full/projected/leakage:", col=8
+)
+
+registry["QUADRATIC_TRANSLATION_IMAG"] = GenericMatcher(
+    "QUADRATIC_PSEUDOSPECTRUM| Translation expectation 1 real/imag:", col=7
+)
+
+registry["LOCALIZER_CHERN"] = GenericMatcher("SPECTRAL_LOCALIZER| Chern index:", col=4)
+
+registry["LOCALIZER_Z2"] = GenericMatcher("SPECTRAL_LOCALIZER| Z2 index:", col=4)
+
+registry["LOCALIZER_UNRESOLVED"] = TextPresenceMatcher(
+    "SPECTRAL_LOCALIZER| UNRESOLVED:"
+)
+
+registry["Band_first_eigenvalue"] = GenericMatcher(
+    r"^\s*1\s+([-+]?\d+\.\d{8})\s+\d+\.\d{8}\s*$", col=2, regex=True
+)

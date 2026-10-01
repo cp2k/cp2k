@@ -1,0 +1,4 @@
+@SET QS_METHOD GPW
+@SET FUNCTIONAL TPSS
+@SET SCF_K F
+@INCLUDE helium-common.inc

@@ -486,6 +486,23 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="POSITION", &
+                          description="Print the analytic AO matrices <mu|x,y,z|nu> in Bohr, relative to "// &
+                          "the coordinate origin, in the same AO ordering as OVERLAP and KOHN_SHAM_MATRIX. "// &
+                          "Only isolated GPW/GAPW systems; not a periodic Berry-phase operator. "// &
+                          "Use NDIGITS 16 for numerical postprocessing.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SOC", &
+                          description="Print the three real antisymmetric AO GTH SOC components Vx, Vy, Vz in hartree. "// &
+                          "The physical orbital operators are i*Vx, i*Vy, i*Vz. "// &
+                          "Requires a restricted, isolated GPW/GAPW calculation with GTH SOC potentials.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="FERMI_CONTACT", &
                           description="If the printkey is activated controls the printing of the Fermi contact matrix", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)

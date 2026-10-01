@@ -579,10 +579,10 @@ CONTAINS
             DO irow = first_row, last_row
                IF (omit_headers) THEN
                   WRITE (UNIT=output_unit, FMT=fmtstr2) &
-                     irow, (matrix(irow, jcol), jcol=from, to)
+                     (matrix(irow, jcol), jcol=from, to)
                ELSE
                   WRITE (UNIT=output_unit, FMT=fmtstr2) &
-                     (matrix(irow, jcol), jcol=from, to)
+                     irow, (matrix(irow, jcol), jcol=from, to)
                END IF
             END DO
          END DO
