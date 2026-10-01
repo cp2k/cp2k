@@ -91,8 +91,9 @@ CONTAINS
       CPASSERT(SIZE(pot%beta, 2) == pot%number_of_proj)
       CPASSERT(ALL(pot%r(2:) > pot%r(:n - 1)))
       CPASSERT(ALL(pot%rab > 0.0_dp))
-      projectors%r = pot%r
-      projectors%lbeta = pot%lbeta
+      ALLOCATE (projectors%r(n), projectors%lbeta(pot%number_of_proj))
+      projectors%r(:) = pot%r
+      projectors%lbeta(:) = pot%lbeta
       ALLOCATE (weights(n))
       weights = 0.0_dp
       ! Composite Simpson in the mesh index; PP_RAB is dr/d(index).
@@ -103,7 +104,7 @@ CONTAINS
       weights(1) = 1.0_dp/3.0_dp
       weights(nsimpson) = 1.0_dp/3.0_dp
       IF (nsimpson < n) weights(n - 1:n) = weights(n - 1:n) + 0.5_dp
-      weights = weights*pot%rab*pot%r**2
+      weights(:) = weights*pot%rab*pot%r**2
       ALLOCATE (projectors%weighted_beta(n, pot%number_of_proj))
       DO i = 1, pot%number_of_proj
          projectors%weighted_beta(:, i) = weights*pot%beta(:, i)
@@ -244,16 +245,16 @@ CONTAINS
       integrals = 0.0_dp
       DO ip = 1, SIZE(zeta)
          alpha = zeta(ip)
-         envelope = EXP(-alpha*(projectors%r - distance)**2)
+         envelope(:) = EXP(-alpha*(projectors%r - distance)**2)
          DO lambda = 0, nh
             DO i = 1, nr
                radial_work(i) = envelope(i)*scaled_bessel(INT(lambda, C_INT), &
                                                           REAL(2.0_dp*alpha*projectors%r(i)*distance, C_DOUBLE))
             END DO
-            radial_power = radial_work
+            radial_power(:) = radial_work
             DO k = 0, degree
                radial(k, :, lambda) = MATMUL(radial_power, projectors%weighted_beta)
-               radial_power = radial_power*projectors%r
+               radial_power(:) = radial_power*projectors%r
             END DO
          END DO
          centered = 0.0_dp
@@ -265,7 +266,7 @@ CONTAINS
                centered(s, p) = fourpi*DOT_PRODUCT(angular(s, j, :), radial(k, i, :))
             END DO
          END DO
-         cartesian = MATMUL(shift, centered)
+         cartesian(:, :) = MATMUL(shift, centered)
          DO id = 1, ncoset(nder)
             deriv = indco(:, id)
             DO t = 1, ncoset(la)

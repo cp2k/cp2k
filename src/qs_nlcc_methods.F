@@ -53,9 +53,10 @@ CONTAINS
          CALL get_potential(gth_potential, nlcc_present=nlcc, nexp_nlcc=nexp, &
                             alpha_nlcc=gth_alpha, nct_nlcc=gth_nct, cval_nlcc=gth_cval)
          IF (nlcc) THEN
-            alpha = gth_alpha(1:nexp)
-            nct = gth_nct(1:nexp)
-            cval = gth_cval(:, 1:nexp)
+            ALLOCATE (alpha(nexp), nct(nexp), cval(SIZE(gth_cval, 1), nexp))
+            alpha(:) = gth_alpha(1:nexp)
+            nct(:) = gth_nct(1:nexp)
+            cval(:, :) = gth_cval(:, 1:nexp)
             RETURN
          END IF
       ELSE IF (ASSOCIATED(sgp_potential)) THEN
@@ -64,8 +65,8 @@ CONTAINS
          IF (nlcc) THEN
             CPASSERT(ALL(a_nlcc(1:nexp) > 0.0_dp))
             ! SGP stores exponents in exp(-a*r**2), whereas GTH stores widths.
-            alpha = 1.0_dp/SQRT(2.0_dp*a_nlcc(1:nexp))
-            ALLOCATE (nct(nexp), cval(1, nexp))
+            ALLOCATE (alpha(nexp), nct(nexp), cval(1, nexp))
+            alpha(:) = 1.0_dp/SQRT(2.0_dp*a_nlcc(1:nexp))
             nct = 1
             cval(1, :) = c_nlcc(1:nexp)
             RETURN

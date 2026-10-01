@@ -37,7 +37,8 @@ PROGRAM upf_projector_integrals_unittest
 
    CALL cp2k_init()
    pot%number_of_proj = nb
-   pot%lbeta = [0, 1, 2, 3, 1]
+   ALLOCATE (pot%lbeta(nb))
+   pot%lbeta(:) = [0, 1, 2, 3, 1]
    ALLOCATE (pot%dion(nb, nb))
    pot%dion = 0.0_dp
    DO i = 1, nb

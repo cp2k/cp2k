@@ -41,6 +41,7 @@ PROGRAM gapw_1c_basis_unittest
       ! More diffuse, well-separated candidates must still be admitted.
       seed%zet(:, 1) = [1.0_dp, 1.0_dp/SQRT(ratio)]
       CALL create_primitive_basis_set(seed, orbitals)
+      orbitals%set_radius = 0.0_dp
       CALL create_1c_basis(orbitals, orbitals, extended, level)
       diffuse = 1.0_dp/(ratio*SQRT(ratio))
       PRINT '(A,I2,A,I3)', 'GAPW extension level ', level, ': added s primitives ', extended%npgf(2)

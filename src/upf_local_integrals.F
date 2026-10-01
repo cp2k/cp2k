@@ -64,7 +64,8 @@ CONTAINS
       CPASSERT(SIZE(pot%r) >= 3)
       IF (PRESENT(eps)) local%eps = eps
       CPASSERT(local%eps >= 0.0_dp)
-      short_range = pot%vlocal
+      ALLOCATE (short_range(SIZE(pot%vlocal)))
+      short_range(:) = pot%vlocal
       DO i = 1, SIZE(pot%r)
          IF (pot%r(i) > 0.0_dp) THEN
             short_range(i) = short_range(i) + pot%zion*ERF(SQRT(alpha)*pot%r(i))/pot%r(i)
@@ -81,9 +82,10 @@ CONTAINS
       END DO
       n = SIZE(short_range)
       scalar%number_of_proj = 1
-      scalar%r = pot%r(:n)
-      scalar%rab = pot%rab(:n)
-      scalar%lbeta = [0]
+      ALLOCATE (scalar%r(n), scalar%rab(n), scalar%lbeta(1))
+      scalar%r(:) = pot%r(:n)
+      scalar%rab(:) = pot%rab(:n)
+      scalar%lbeta = 0
       ALLOCATE (scalar%beta(n, 1), scalar%dion(1, 1))
       ! Y00 = 1/sqrt(4*pi); absorb it to integrate a scalar radial potential.
       scalar%beta(:, 1) = SQRT(fourpi)*short_range(:n)

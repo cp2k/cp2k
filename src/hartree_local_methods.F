@@ -363,8 +363,8 @@ CONTAINS
             nsotot = maxso*nset
             ALLOCATE (gsph(nr, nsotot))
             ALLOCATE (gexp(nr))
-            ALLOCATE (sqrtwr(nr), g0_h_w(nr, 0:lmax_0))
-            background_potential = gapw_background_potential(back_ch, cell%deth, grid_atom%rad2(:))
+            ALLOCATE (sqrtwr(nr), g0_h_w(nr, 0:lmax_0), background_potential(nr))
+            background_potential(:) = gapw_background_potential(back_ch, cell%deth, grid_atom%rad2(:))
 
             ALLOCATE (aVh1b_hh(nsotot, nsotot))
             ALLOCATE (aVh1b_ss(nsotot, nsotot))

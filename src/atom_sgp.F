@@ -790,7 +790,7 @@ CONTAINS
       ALLOCATE (work(lwork))
       CALL dgelss(m, ng, 1, matrix, m, rhs, m, singular, rcond, rank, work, lwork, info)
       IF (info /= 0) CPABORT("SVD failed while fitting the UPF core density")
-      coeff = rhs(:ng, 1)/norms
+      coeff(:) = rhs(:ng, 1)/norms
    END SUBROUTINE fit_core_density_gaussians
 
 ! **************************************************************************************************

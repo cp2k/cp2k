@@ -52,11 +52,12 @@ PROGRAM upf_local_integrals_unittest
             rab(i) = .005_dp
          END IF
       END DO
-      potential = coeff(1, 1)*EXP(-gamma(1)*r*r) + coeff(1, 2)*EXP(-gamma(2)*r*r)
-      pot%r = r
-      pot%rab = rab
+      potential(:) = coeff(1, 1)*EXP(-gamma(1)*r*r) + coeff(1, 2)*EXP(-gamma(2)*r*r)
+      ALLOCATE (pot%r(n), pot%rab(n), pot%vlocal(n))
+      pot%r(:) = r
+      pot%rab(:) = rab
       pot%zion = 6._dp
-      pot%vlocal = potential
+      pot%vlocal(:) = potential
       DO i = 1, n
          IF (r(i) > 0._dp) THEN
             pot%vlocal(i) = potential(i) - pot%zion*erf(SQRT(.8_dp)*r(i))/r(i)
