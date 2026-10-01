@@ -600,3 +600,12 @@ registry["LOCALIZER_UNRESOLVED"] = TextPresenceMatcher(
 registry["Band_first_eigenvalue"] = GenericMatcher(
     r"^\s*1\s+([-+]?\d+\.\d{8})\s+\d+\.\d{8}\s*$", col=2, regex=True
 )
+registry["Kubo_hall_max"] = GenericMatcher(r"KUBO_TRANSPORT| hall_max", col=3)
+
+registry["Kubo_symmetry_current_error"] = GenericMatcher(
+    r"KUBO_TRANSPORT| Symmetry errors S/H/current:", col=7
+)
+
+registry["Kubo_symmetry_points"] = GenericMatcher(
+    r"KUBO_TRANSPORT| Property symmetry representatives:", col=5
+)

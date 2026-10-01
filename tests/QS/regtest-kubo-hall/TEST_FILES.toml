@@ -1,0 +1,10 @@
+# Time-reversal cancellation, finite/SOC bulk response and sheet/chain units.
+# Nonzero Hall response and gauge covariance are covered by kubo_hall_unittest.
+"projected-gapw.inp" = [{matcher="Kubo_hall_max", tol=1e-9, ref=0.0}]
+"bloch-k290.inp" = [{matcher="Kubo_hall_max", tol=1e-9, ref=0.0},
+                    {matcher="Kubo_sigma_iso", tol=2e-6, ref=1.07057468e-1},
+                    {matcher="Kubo_symmetry_points", tol=0.0, ref=4}]
+"bloch-sheet.inp" = [{matcher="Kubo_hall_max", tol=1e-18, ref=0.0},
+                     {matcher="Kubo_sigma_iso_2d", tol=2e-6, ref=6.42389197e-9}]
+"bloch-chain.inp" = [{matcher="Kubo_hall_max", tol=0.0, ref=0.0},
+                     {matcher="Kubo_sigma_iso_1d", tol=2e-6, ref=3.85441018e-18}]
