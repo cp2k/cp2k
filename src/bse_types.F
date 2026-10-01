@@ -64,6 +64,7 @@ MODULE bse_types
                                                             screening_factor = 0.0_dp, &
                                                             bse_cutoff_occ = 0.0_dp, &
                                                             bse_cutoff_empty = 0.0_dp
+      REAL(KIND=dp)                                      :: wc_scaling = 1.0_dp
       LOGICAL                                            :: do_bse = .FALSE., &
                                                             bse_debug_print = .FALSE., &
                                                             print_directional_exc_descr = .FALSE., &

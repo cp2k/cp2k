@@ -13,4 +13,8 @@
 "G0W0_H2O_PBE0_Hedin_shift.inp"         = [{matcher="E_G0W0_gap", tol=1e-04, ref=16.806}]
 "evGW0_H2O_PBE_set_sc_flag.inp"         = [{matcher="E_evGW0_gap", tol=1e-04, ref=16.5546}]
 "evGW_H2O_PBE_set_sc_flag.inp"          = [{matcher="E_evGW_gap", tol=1e-04, ref=17.0863}]
+"static_COHSEX_H2O_PBE.inp"                  = [{matcher="E_static_COHSEX_gap_CN", tol=1e-04, ref=18.445}]
+"static_COHSEX_H2O_PBE_HFX_window.inp"       = [{matcher="E_static_COHSEX_gap_DG", tol=1e-04, ref=18.021}]
+"BSE_static_COHSEX_H2O_PBE_diagonal_TDA.inp"  = [{matcher="BSE_1st_excit_ener_TDA", tol=2e-05, ref=9.3782}]
+"BSE_static_COHSEX_H2O_PBE_qp_update.inp"     = [{matcher="BSE_1st_excit_ener", tol=2e-05, ref=9.5576}]
 #EOF

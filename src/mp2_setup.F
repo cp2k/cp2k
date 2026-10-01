@@ -22,8 +22,8 @@ MODULE mp2_setup
                                               cp_print_key_unit_nr
    USE cp_parser_methods,               ONLY: read_float_object
    USE input_constants,                 ONLY: &
-        do_eri_mme, do_potential_short, evGW, evGW0, mp2_method_direct, mp2_method_gpw, &
-        mp2_method_none, mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, &
+        cohsex_off, do_eri_mme, do_potential_short, evGW, evGW0, mp2_method_direct, &
+        mp2_method_gpw, mp2_method_none, mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, &
         ri_rpa_method_gpw
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -166,6 +166,13 @@ CONTAINS
                                 l_val=mp2_env%ri_g0w0%print_self_energy)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%RI_SIGMA_X", &
                                 l_val=mp2_env%ri_g0w0%do_ri_Sigma_x)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%COHSEX", &
+                                i_val=mp2_env%ri_g0w0%cohsex_flavor)
+      mp2_env%ri_g0w0%do_static_cohsex = (mp2_env%ri_g0w0%cohsex_flavor /= cohsex_off)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SCALE_COHSEX_OCC", &
+                                r_val=mp2_env%ri_g0w0%scale_cohsex_occ)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%GW%SCALE_COHSEX_VIRT", &
+                                r_val=mp2_env%ri_g0w0%scale_cohsex_virt)
 
       NULLIFY (r_vals)
       CALL section_vals_val_get(mp2_section, "RI_RPA%GW%IC_CORR_LIST", &

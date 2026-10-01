@@ -71,7 +71,8 @@ MODULE cp_fm_basic_linalg
              cp_fm_rot_cols, & ! rotates two columns
              cp_fm_Gram_Schmidt_orthonorm, & ! Gram-Schmidt orthonormalization of columns of a full matrix, &
              cp_fm_det, & ! determinant of a real matrix with correct sign
-             cp_fm_matvec ! matrix-vector multiplication (vector replicated)
+             cp_fm_matvec, & ! matrix-vector multiplication (vector replicated)
+             cp_fm_add_on_diag ! add a scalar to the diagonal
 
    REAL(KIND=dp), EXTERNAL :: dlange, pdlange, pdlatra
 
@@ -2570,5 +2571,57 @@ CONTAINS
 #endif
 
    END SUBROUTINE cp_fm_matvec
+
+! **************************************************************************************************
+!> \brief Adds a scalar to the diagonal of a distributed real full matrix.
+!> \param matrix input/output matrix
+!> \param alpha scalar added to each diagonal element
+!> \param n_active optional number of physical rows/columns
+! **************************************************************************************************
+   SUBROUTINE cp_fm_add_on_diag(matrix, alpha, n_active)
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
+      REAL(KIND=dp), INTENT(IN)                          :: alpha
+      INTEGER, INTENT(IN), OPTIONAL                      :: n_active
+
+      INTEGER                                            :: i_global, n_diag, ncol_global, nrow_global
+#if defined(__parallel)
+      INTEGER                                            :: icol_local, ipcol, iprow, irow, irow_local, &
+                                                            mypcol, myprow, npcol, nprow, nrow_local
+      INTEGER, DIMENSION(9)                              :: desca
+      INTEGER, DIMENSION(:), POINTER                     :: row_indices
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+#endif
+
+      CALL cp_fm_get_info(matrix, nrow_global=nrow_global, ncol_global=ncol_global)
+
+      n_diag = MIN(nrow_global, ncol_global)
+      IF (PRESENT(n_active)) n_diag = n_active
+      CPASSERT(n_diag >= 0 .AND. n_diag <= MIN(nrow_global, ncol_global))
+
+#if defined(__parallel)
+      CALL cp_fm_get_info(matrix, nrow_local=nrow_local, row_indices=row_indices)
+      context => matrix%matrix_struct%context
+      myprow = context%mepos(1)
+      mypcol = context%mepos(2)
+      nprow = context%num_pe(1)
+      npcol = context%num_pe(2)
+      desca(:) = matrix%matrix_struct%descriptor(:)
+
+      DO irow = 1, nrow_local
+         i_global = row_indices(irow)
+         IF (i_global > n_diag) EXIT
+         CALL infog2l(i_global, i_global, desca, nprow, npcol, myprow, mypcol, &
+                      irow_local, icol_local, iprow, ipcol)
+         IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
+            matrix%local_data(irow_local, icol_local) = matrix%local_data(irow_local, icol_local) + alpha
+         END IF
+      END DO
+#else
+      DO i_global = 1, n_diag
+         matrix%local_data(i_global, i_global) = matrix%local_data(i_global, i_global) + alpha
+      END DO
+#endif
+
+   END SUBROUTINE cp_fm_add_on_diag
 
 END MODULE cp_fm_basic_linalg

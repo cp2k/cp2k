@@ -23,7 +23,7 @@ MODULE mp2_types
                                               hfx_type,&
                                               pair_list_element_type
    USE input_constants,                 ONLY: &
-        do_eri_mme, eri_default, gw_pade_approx, kp_weights_W_auto, mp2_method_direct, &
+        cohsex_off, do_eri_mme, eri_default, gw_pade_approx, kp_weights_W_auto, mp2_method_direct, &
         mp2_method_gpw, mp2_method_none, mp2_ri_optimize_basis, ri_mp2_laplace, ri_mp2_method_gpw, &
         ri_rpa_g0w0_crossing_z_shot, ri_rpa_method_gpw, rpa_exchange_none, soc_none, &
         wfc_mm_style_gemm
@@ -242,7 +242,12 @@ MODULE mp2_types
                                                             soc_type = soc_none
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xkp_special_kp
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE      :: matrix_sigma_x_minus_vxc, &
-                                                            matrix_ks
+                                                            matrix_ks, &
+                                                            matrix_vxc
+      LOGICAL                                            :: do_static_cohsex = .FALSE.
+      INTEGER                                            :: cohsex_flavor = cohsex_off
+      REAL(KIND=dp)                                      :: scale_cohsex_occ = 1.0_dp, &
+                                                            scale_cohsex_virt = 1.0_dp
       REAL(KIND=dp)                                      :: broadening_print_loc_bandgap = 0.0_dp, &
                                                             energy_window_print_loc_bandgap = 0.0_dp, &
                                                             ldos_thresh_print_loc_bandgap = 0.0_dp, &
@@ -331,7 +336,8 @@ MODULE mp2_types
       TYPE(ri_g0w0_type)                                 :: ri_g0w0 = ri_g0w0_type(vec_Sigma_x_minus_vxc_gw=NULL(), &
                                                                                    xkp_special_kp=NULL(), &
                                                                                    matrix_sigma_x_minus_vxc=NULL(), &
-                                                                                   matrix_ks=NULL())
+                                                                                   matrix_ks=NULL(), &
+                                                                                   matrix_vxc=NULL())
       TYPE(ri_basis_opt)                                 :: ri_opt_param = ri_basis_opt(RI_nset_per_l=NULL())
       TYPE(grad_util)                                    :: ri_grad = grad_util(operator_half=NULL(), &
                                                                                 PQ_half=NULL(), &

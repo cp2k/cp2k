@@ -1448,23 +1448,44 @@ CONTAINS
       COMPLEX(KIND=dp), INTENT(IN)                       :: alpha
       INTEGER, INTENT(IN), OPTIONAL                      :: n_active
 
-      INTEGER                                            :: i_row, j_col, max_index, ncol_local, &
-                                                            nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: i_global, n_diag, ncol_global, nrow_global
+#if defined(__parallel)
+      INTEGER                                            :: icol_local, ipcol, iprow, irow, irow_local, &
+                                                            mypcol, myprow, npcol, nprow, nrow_local
+      INTEGER, DIMENSION(9)                              :: desca
+      INTEGER, DIMENSION(:), POINTER                     :: row_indices
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+#endif
 
-      max_index = HUGE(max_index)
-      IF (PRESENT(n_active)) max_index = n_active
+      CALL cp_cfm_get_info(matrix, nrow_global=nrow_global, ncol_global=ncol_global)
 
-      CALL cp_cfm_get_info(matrix=matrix, nrow_local=nrow_local, ncol_local=ncol_local, &
-                           row_indices=row_indices, col_indices=col_indices)
+      n_diag = MIN(nrow_global, ncol_global)
+      IF (PRESENT(n_active)) n_diag = n_active
+      CPASSERT(n_diag >= 0 .AND. n_diag <= MIN(nrow_global, ncol_global))
 
-      DO j_col = 1, ncol_local
-         DO i_row = 1, nrow_local
-            IF (row_indices(i_row) == col_indices(j_col) .AND. row_indices(i_row) <= max_index) THEN
-               matrix%local_data(i_row, j_col) = matrix%local_data(i_row, j_col) + alpha
-            END IF
-         END DO
+#if defined(__parallel)
+      CALL cp_cfm_get_info(matrix, nrow_local=nrow_local, row_indices=row_indices)
+      context => matrix%matrix_struct%context
+      myprow = context%mepos(1)
+      mypcol = context%mepos(2)
+      nprow = context%num_pe(1)
+      npcol = context%num_pe(2)
+      desca(:) = matrix%matrix_struct%descriptor(:)
+
+      DO irow = 1, nrow_local
+         i_global = row_indices(irow)
+         IF (i_global > n_diag) EXIT
+         CALL infog2l(i_global, i_global, desca, nprow, npcol, myprow, mypcol, &
+                      irow_local, icol_local, iprow, ipcol)
+         IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
+            matrix%local_data(irow_local, icol_local) = matrix%local_data(irow_local, icol_local) + alpha
+         END IF
       END DO
+#else
+      DO i_global = 1, n_diag
+         matrix%local_data(i_global, i_global) = matrix%local_data(i_global, i_global) + alpha
+      END DO
+#endif
 
    END SUBROUTINE cp_cfm_add_on_diag
 
