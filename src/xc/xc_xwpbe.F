@@ -133,9 +133,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param order degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param order maximum degree of the derivative that should be evaluated
 !> \param xwpbe_params input parameters (scaling,omega)
 !> \par History
 !>      05.2007 created [Manuel Guidon]
@@ -182,11 +180,9 @@ CONTAINS
       e_rho => dummy
       e_ndrho => dummy
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
       IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
@@ -216,9 +212,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief evaluates the screened hole averaged PBE exchange functional for lda
 !> \param npoints ...
-!> \param order degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param order maximum degree of the derivative that should be evaluated
 !> \param rho , ndrho: density and norm of the density gradient
 !> \param norm_drho ...
 !> \param e_0 ...
@@ -314,9 +308,7 @@ CONTAINS
 !> \param ndrho ...
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
 !> \param sx0 scaling factor
-!> \param order degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param order maximum degree of the derivative that should be evaluated
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -676,9 +668,7 @@ CONTAINS
 !> \param ndrho ...
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
 !> \param sx0 scaling factor
-!> \param order degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param order maximum degree of the derivative that should be evaluated
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -976,9 +966,7 @@ CONTAINS
 !> \param omega scaling factor
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
 !> \param sx scaling factor
-!> \param order degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param order maximum degree of the derivative that should be evaluated
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -1589,9 +1577,7 @@ CONTAINS
 !> \param omega scaling factor
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
 !> \param sx scaling factor
-!> \param order degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param order maximum degree of the derivative that should be evaluated
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -2117,9 +2103,7 @@ CONTAINS
 !> \param omega screening parameter
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
 !> \param sx scaling factor
-!> \param order degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param order maximum degree of the derivative that should be evaluated
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -2580,9 +2564,7 @@ CONTAINS
 !> \param omega screening parameter
 !> \param sscale scaling factor to enforce Lieb-Oxford bound
 !> \param sx scaling factor
-!> \param order degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param order maximum degree of the derivative that should be evaluated
 !> \par History
 !>      05.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -2980,9 +2962,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param order degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param order maximum degree of the derivative that should be evaluated
 !> \param xwpbe_params input parameters (scaling,omega)
 !> \par History
 !>      05.2007 created [Manuel Guidon]
@@ -3032,11 +3012,9 @@ CONTAINS
       e_ndrhoa => dummy
       e_ndrhob => dummy
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
       IF (order >= 1 .OR. order == -1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)

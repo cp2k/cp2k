@@ -253,14 +253,12 @@ CONTAINS
             CPABORT("Unsupported functional")
          END SELECT
 
-         IF (order >= 0) THEN
-            deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                            allocate_deriv=.TRUE.)
-            CALL xc_derivative_get(deriv, deriv_data=e_0)
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                         allocate_deriv=.TRUE.)
+         CALL xc_derivative_get(deriv, deriv_data=e_0)
 
-            CALL x_p_0(rho(ispin)%array, rho_1_3(ispin)%array, fs, e_0, &
-                       npoints)
-         END IF
+         CALL x_p_0(rho(ispin)%array, rho_1_3(ispin)%array, fs, e_0, &
+                    npoints)
          IF (order >= 1) THEN
             deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin)], &
                                             allocate_deriv=.TRUE.)

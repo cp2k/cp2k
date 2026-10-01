@@ -125,10 +125,8 @@ CONTAINS
 !> \param method ...
 !> \param rho_set ...
 !> \param deriv_set ...
-!> \param order INTEGER, OPTIONAL - order of derivatives to calculate
-!>        order must lie between -3 and 3. If it is negative then only
-!>        that order will be calculated, otherwise all derivatives up to
-!>        that order will be calculated.
+!> \param order INTEGER, OPTIONAL - maximum order of derivatives to calculate
+!>        order must lie between 0 and 3.
 !> \param pz_params input parameter (scaling)
 !> \par History
 !>     01.2007 added scaling [Manuel Guidon]
@@ -169,11 +167,9 @@ CONTAINS
       e_rho_rho => dummy
       e_rho_rho_rho => dummy
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
       IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
@@ -228,9 +224,7 @@ CONTAINS
 
             CALL pz_lda_ed_loc(rho(k), ed, ABS(order), sc)
 
-            IF (order >= 0) THEN
-               e_0(k) = e_0(k) + rho(k)*ed(0)
-            END IF
+            e_0(k) = e_0(k) + rho(k)*ed(0)
             IF (order >= 1) THEN
                e_rho(k) = e_rho(k) + ed(0) + rho(k)*ed(1)
             END IF
@@ -257,10 +251,8 @@ CONTAINS
 !> \param method ...
 !> \param rho_set ...
 !> \param deriv_set ...
-!> \param order INTEGER, OPTIONAL - order of derivatives to calculate
-!>        order must lie between -3 and 3. If it is negative then only
-!>        that order will be calculated, otherwise all derivatives up to
-!>        that order will be calculated.
+!> \param order INTEGER, OPTIONAL - maximum order of derivatives to calculate
+!>        order must lie between 0 and 3.
 !> \param pz_params input parameter (scaling)
 !> \par History
 !>      01.2007 added scaling [Manuel Guidon]
@@ -300,11 +292,9 @@ CONTAINS
       eaa => dummy; eab => dummy; ebb => dummy
       eaaa => dummy; eaab => dummy; eabb => dummy; ebbb => dummy
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
       IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
@@ -388,9 +378,7 @@ CONTAINS
 
             CALL pz_lsd_ed_loc(a(k), b(k), ed, order_, sc)
 
-            IF (order >= 0) THEN
-               e_0(k) = e_0(k) + rho*ed(0)
-            END IF
+            e_0(k) = e_0(k) + rho*ed(0)
 
             IF (order >= 1) THEN
                ea(k) = ea(k) + ed(0) + rho*ed(1)

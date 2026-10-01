@@ -183,7 +183,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ke_gga_lda_eval'
 
-      INTEGER                                            :: handle, m, npoints
+      INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: drho_cutoff, rho_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: s
@@ -197,7 +197,6 @@ CONTAINS
       NULLIFY (rho, rho13, e_0, e_rho, e_ndrho, &
                e_rho_rho, e_rho_ndrho, e_ndrho_ndrho, &
                e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho)
-      m = ABS(order)
 
       CALL xc_rho_set_get(rho_set, rho_1_3=rho13, rho=rho, &
                           norm_drho=grho, local_bounds=bo, rho_cutoff=rho_cutoff, &
@@ -206,7 +205,7 @@ CONTAINS
       CALL ke_gga_init(rho_cutoff)
 
       ALLOCATE (s(npoints))
-      ALLOCATE (fs(npoints, m + 1))
+      ALLOCATE (fs(npoints, order + 1))
 
 !      s = norm_drho/(rho^(4/3)*2*(pi*pi*3)^(1/3))
       CALL calc_wave_vector("p", rho, grho, s)
@@ -219,34 +218,32 @@ CONTAINS
 
       SELECT CASE (functional)
       CASE (ke_ol1)
-         CALL efactor_ol1(s, fs, m)
+         CALL efactor_ol1(s, fs, order)
          CPABORT("OL1 functional currently not working properly")
       CASE (ke_ol2)
-         CALL efactor_ol2(s, fs, m)
+         CALL efactor_ol2(s, fs, order)
          CPABORT("OL2 functional currently not working properly")
       CASE (ke_llp)
-         CALL efactor_llp(s, fs, m)
+         CALL efactor_llp(s, fs, order)
       CASE (ke_pw86)
-         CALL efactor_pw86(s, fs, m)
+         CALL efactor_pw86(s, fs, order)
       CASE (ke_pw91)
-         CALL efactor_pw91(s, fs, m, 1)
+         CALL efactor_pw91(s, fs, order, 1)
       CASE (ke_lc)
-         CALL efactor_pw91(s, fs, m, 2)
+         CALL efactor_pw91(s, fs, order, 2)
       CASE (ke_t92)
-         CALL efactor_t92(s, fs, m)
+         CALL efactor_t92(s, fs, order)
       CASE (ke_pbe)
-         CALL efactor_pbex(s, fs, m, 1)
+         CALL efactor_pbex(s, fs, order, 1)
       CASE DEFAULT
          CPABORT("Unsupported functional")
       END SELECT
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
 
-         CALL kex_p_0(rho, rho13, fs, e_0, npoints)
-      END IF
+      CALL kex_p_0(rho, rho13, fs, e_0, npoints)
 
       IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
@@ -321,7 +318,7 @@ CONTAINS
          norm_drho_spin_name = [deriv_norm_drhoa, deriv_norm_drhob], &
          rho_spin_name = [deriv_rhoa, deriv_rhob]
 
-      INTEGER                                            :: handle, ispin, m, npoints
+      INTEGER                                            :: handle, ispin, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: rho_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: s
@@ -345,11 +342,10 @@ CONTAINS
                           norm_drhob=norm_drho(2)%array, rho_cutoff=rho_cutoff, &
                           local_bounds=bo)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
-      m = ABS(order)
       CALL ke_gga_init(rho_cutoff)
 
       ALLOCATE (s(npoints))
-      ALLOCATE (fs(npoints, m + 1))
+      ALLOCATE (fs(npoints, order + 1))
 
       fact = flsd
       b = b_lsd
@@ -361,41 +357,39 @@ CONTAINS
 
          SELECT CASE (functional)
          CASE (ke_ol1)
-            CALL efactor_ol1(s, fs, m)
+            CALL efactor_ol1(s, fs, order)
          CASE (ke_ol2)
-            CALL efactor_ol2(s, fs, m)
+            CALL efactor_ol2(s, fs, order)
          CASE (ke_llp)
-            CALL efactor_llp(s, fs, m)
+            CALL efactor_llp(s, fs, order)
          CASE (ke_pw86)
             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
-            CALL efactor_pw86(s, fs, m, f2_lsd=tact)
+            CALL efactor_pw86(s, fs, order, f2_lsd=tact)
             tact = 1.0_dp
          CASE (ke_pbe)
             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
-            CALL efactor_pbex(s, fs, m, 1, f2_lsd=tact)
+            CALL efactor_pbex(s, fs, order, 1, f2_lsd=tact)
             tact = 1.0_dp
          CASE (ke_pw91)
             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
-            CALL efactor_pw91(s, fs, m, 1, f2_lsd=tact)
+            CALL efactor_pw91(s, fs, order, 1, f2_lsd=tact)
             tact = 1.0_dp
          CASE (ke_lc)
             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
-            CALL efactor_pw91(s, fs, m, 2, f2_lsd=tact)
+            CALL efactor_pw91(s, fs, order, 2, f2_lsd=tact)
             tact = 1.0_dp
          CASE (ke_t92)
-            CALL efactor_t92(s, fs, m)
+            CALL efactor_t92(s, fs, order)
          CASE DEFAULT
             CPABORT("Unsupported functional")
          END SELECT
 
-         IF (order >= 0) THEN
-            deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                            allocate_deriv=.TRUE.)
-            CALL xc_derivative_get(deriv, deriv_data=e_0)
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                         allocate_deriv=.TRUE.)
+         CALL xc_derivative_get(deriv, deriv_data=e_0)
 
-            CALL kex_p_0(rho(ispin)%array, rho_1_3(ispin)%array, fs, &
-                         e_0=e_0, npoints=npoints)
-         END IF
+         CALL kex_p_0(rho(ispin)%array, rho_1_3(ispin)%array, fs, &
+                      e_0=e_0, npoints=npoints)
          IF (order >= 1) THEN
             deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin)], &
                                             allocate_deriv=.TRUE.)

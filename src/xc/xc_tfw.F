@@ -155,13 +155,11 @@ CONTAINS
       ALLOCATE (s(npoints))
       CALL calc_s(rho, grho, s, npoints)
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
 
-         CALL tfw_u_0(rho, r13, s, e_0, npoints)
-      END IF
+      CALL tfw_u_0(rho, r13, s, e_0, npoints)
       IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
@@ -280,14 +278,12 @@ CONTAINS
       DO ispin = 1, 2
          CALL calc_s(rho(ispin)%array, norm_drho(ispin)%array, s, npoints)
 
-         IF (order >= 0) THEN
-            deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                            allocate_deriv=.TRUE.)
-            CALL xc_derivative_get(deriv, deriv_data=e_0)
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                         allocate_deriv=.TRUE.)
+         CALL xc_derivative_get(deriv, deriv_data=e_0)
 
-            CALL tfw_p_0(rho(ispin)%array, &
-                         rho_1_3(ispin)%array, s, e_0, npoints)
-         END IF
+         CALL tfw_p_0(rho(ispin)%array, &
+                      rho_1_3(ispin)%array, s, e_0, npoints)
          IF (order >= 1) THEN
             deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin)], &
                                             allocate_deriv=.TRUE.)

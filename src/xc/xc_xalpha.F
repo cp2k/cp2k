@@ -174,14 +174,12 @@ CONTAINS
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       CALL xalpha_init(epsilon_rho, xa_parameter)
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
 
-         CALL xalpha_lda_0(npoints, rho, r13, e_0, sx)
+      CALL xalpha_lda_0(npoints, rho, r13, e_0, sx)
 
-      END IF
       IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
@@ -252,14 +250,12 @@ CONTAINS
       CALL xalpha_init(epsilon_rho, xa_parameter)
 
       DO ispin = 1, 2
-         IF (order >= 0) THEN
-            deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                            allocate_deriv=.TRUE.)
-            CALL xc_derivative_get(deriv, deriv_data=e_0)
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                         allocate_deriv=.TRUE.)
+         CALL xc_derivative_get(deriv, deriv_data=e_0)
 
-            CALL xalpha_lsd_0(npoints, rho(ispin)%array, rho_1_3(ispin)%array, &
-                              e_0, sx)
-         END IF
+         CALL xalpha_lsd_0(npoints, rho(ispin)%array, rho_1_3(ispin)%array, &
+                           e_0, sx)
          IF (order >= 1) THEN
             deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin)], &
                                             allocate_deriv=.TRUE.)

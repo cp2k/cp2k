@@ -242,9 +242,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param b97_params ...
 !> \author fawzi
 ! **************************************************************************************************
@@ -285,11 +283,9 @@ CONTAINS
       e_ndrho_ndrho_rho => dummy
       e_ndrho_ndrho_ndrho => dummy
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
       IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
@@ -406,11 +402,9 @@ CONTAINS
       e_ra_rb => dummy
       e_rb_rb => dummy
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
       IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
@@ -811,11 +805,9 @@ CONTAINS
                t176 = c_css_1 + u_c_b*c_css_2
                gc_b = c_css_0 + u_c_b*t176
 
-               IF (grad_deriv >= 0) THEN
-                  exc = scale_x*(e_lsda_x_a*gx_a + e_lsda_x_b*gx_b) + scale_c &
-                        *(e_lsda_c_ab*gc_ab + e_lsda_c_a*gc_a + e_lsda_c_b*gc_b)
-                  e_0(ii) = e_0(ii) + exc
-               END IF
+               exc = scale_x*(e_lsda_x_a*gx_a + e_lsda_x_b*gx_b) + scale_c &
+                     *(e_lsda_c_ab*gc_ab + e_lsda_c_a*gc_a + e_lsda_c_b*gc_b)
+               e_0(ii) = e_0(ii) + exc
 
                IF (grad_deriv /= 0) THEN
 

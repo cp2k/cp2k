@@ -139,13 +139,11 @@ CONTAINS
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       CALL thomas_fermi_init(epsilon_rho)
 
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
 
-         CALL thomas_fermi_lda_0(rho, r13, e_0, npoints)
-      END IF
+      CALL thomas_fermi_lda_0(rho, r13, e_0, npoints)
       IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
@@ -210,14 +208,12 @@ CONTAINS
       CALL thomas_fermi_init(epsilon_rho)
 
       DO ispin = 1, 2
-         IF (order >= 0) THEN
-            deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                            allocate_deriv=.TRUE.)
-            CALL xc_derivative_get(deriv, deriv_data=e_0)
+         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                         allocate_deriv=.TRUE.)
+         CALL xc_derivative_get(deriv, deriv_data=e_0)
 
-            CALL thomas_fermi_lsd_0(rho(ispin)%array, rho_1_3(ispin)%array, &
-                                    e_0, npoints)
-         END IF
+         CALL thomas_fermi_lsd_0(rho(ispin)%array, rho_1_3(ispin)%array, &
+                                 e_0, npoints)
          IF (order >= 1) THEN
             deriv => xc_dset_get_derivative(deriv_set, [rho_spin_name(ispin)], &
                                             allocate_deriv=.TRUE.)

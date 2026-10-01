@@ -125,9 +125,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param xbeef_params input parameters (scaling)
 !> \par History
 !>      02.2014 created
@@ -165,11 +163,9 @@ CONTAINS
       e_rho => dummy
       e_ndrho => dummy
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
       IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
@@ -204,9 +200,7 @@ CONTAINS
 !> \param e_0 ...
 !> \param e_rho ...
 !> \param e_ndrho ...
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param npoints ...
 !> \param epsilon_rho ...
 !> \param sx scaling-parameter for exchange
@@ -343,11 +337,9 @@ CONTAINS
          e_ndrho(i)%array => dummy
       END DO
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
       IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)

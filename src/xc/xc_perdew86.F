@@ -123,7 +123,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p86_lda_eval'
 
-      INTEGER                                            :: handle, m, npoints
+      INTEGER                                            :: handle, npoints
       INTEGER, DIMENSION(2, 3)                           :: bo
       REAL(KIND=dp)                                      :: drho_cutoff, rho_cutoff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rs
@@ -145,18 +145,15 @@ CONTAINS
                           drho_cutoff=drho_cutoff)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
       CALL p86_init(rho_cutoff)
-      m = ABS(order)
 
       ALLOCATE (rs(npoints))
 
       CALL calc_rs_pw(rho, rs, npoints)
-      IF (order >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
 
-         CALL p86_u_0(rho, rs, grho, e_0, npoints)
-      END IF
+      CALL p86_u_0(rho, rs, grho, e_0, npoints)
       IF (order >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)

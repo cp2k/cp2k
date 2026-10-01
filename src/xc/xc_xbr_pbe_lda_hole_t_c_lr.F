@@ -170,9 +170,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param params parameters for functional
 !> \author mguidon (01.2009)
 ! **************************************************************************************************
@@ -209,11 +207,9 @@ CONTAINS
       e_tau => dummy
       e_laplace_rho => dummy
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
       IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                          allocate_deriv=.TRUE.)
@@ -268,9 +264,7 @@ CONTAINS
 !> \param e_ndrho derivatives on the grid
 !> \param e_tau derivatives on the grid
 !> \param e_laplace_rho derivatives on the grid
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param npoints number of gridpoints
 !> \param epsilon_rho cutoffs
 !> \param sx parameters for  functional
@@ -427,9 +421,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param params parameters for functional
 !> \author mguidon (01.2009)
 ! **************************************************************************************************
@@ -470,11 +462,9 @@ CONTAINS
       e_laplace_rhoa => dummy
       e_laplace_rhob => dummy
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
       IF (grad_deriv >= 1) THEN
          deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa], &
                                          allocate_deriv=.TRUE.)
@@ -552,9 +542,7 @@ CONTAINS
 !> \param e_ndrho derivatives on the grid
 !> \param e_tau derivatives on the grid
 !> \param e_laplace_rho derivatives on the grid
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \param npoints number of gridpoints
 !> \param epsilon_rho cutoffs
 !> \param sx parameters for  functional

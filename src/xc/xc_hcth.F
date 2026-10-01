@@ -109,9 +109,7 @@ CONTAINS
 !> \param rho_set the density where you want to evaluate the functional
 !> \param deriv_set place where to store the functional derivatives (they are
 !>        added to the derivatives)
-!> \param grad_deriv degree of the derivative that should be evaluated,
-!>        if positive all the derivatives up to the given degree are evaluated,
-!>        if negative only the given degree is calculated
+!> \param grad_deriv maximum degree of the derivative that should be evaluated
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE hcth_lda_eval(iparset, rho_set, deriv_set, grad_deriv)
@@ -133,11 +131,9 @@ CONTAINS
                           norm_drho=norm_drho, local_bounds=bo, rho_cutoff=epsilon_rho)
       npoints = (bo(2, 1) - bo(1, 1) + 1)*(bo(2, 2) - bo(1, 2) + 1)*(bo(2, 3) - bo(1, 3) + 1)
 
-      IF (grad_deriv >= 0) THEN
-         deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
-                                         allocate_deriv=.TRUE.)
-         CALL xc_derivative_get(deriv, deriv_data=e_0)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set, [INTEGER::], &
+                                      allocate_deriv=.TRUE.)
+      CALL xc_derivative_get(deriv, deriv_data=e_0)
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rho], &
                                       allocate_deriv=.TRUE.)
       CALL xc_derivative_get(deriv, deriv_data=e_rho)
