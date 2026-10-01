@@ -3431,7 +3431,7 @@ CONTAINS
       END IF
 
       IF (retain_nl_3c) THEN
-         IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, *) "Retaining nl_3c for a post-GW consumer"
+         IF (bs_env%unit_nr > 0) WRITE (bs_env%unit_nr, *) "Keep nl_3c for BSE"
       ELSE
          CALL neighbor_list_3c_destroy(bs_env%nl_3c)
       END IF

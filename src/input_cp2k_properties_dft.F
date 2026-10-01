@@ -2468,8 +2468,7 @@ CONTAINS
                           "Coulomb operator. The larger the cutoff radius, the faster "// &
                           "converges the resolution of the identity (RI) with respect to the "// &
                           "RI basis set size. Larger cutoff radius means higher computational "// &
-                          "cost. PROPERTIES%BSE builds its kernel in the same RI metric, so the "// &
-                          "cutoff radius is a convergence parameter of PROPERTIES%BSE as well.", &
+                          "cost.", &
                           usage="CUTOFF_RADIUS_RI 3.0", &
                           default_r_val=cp_unit_to_cp2k(value=3.0_dp, unit_str="angstrom"), &
                           type_of_var=real_t, unit_str="angstrom")

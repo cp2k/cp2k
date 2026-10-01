@@ -598,11 +598,11 @@ The BSE section exists in two places. Each runs on the *GW* next to it, the keyw
 identical, and both treat non-periodic systems (molecules) only:
 
 - [RI_RPA%GW%BSE][bse], in full `FORCE_EVAL%DFT%XC%WF_CORRELATION%RI_RPA%GW%BSE`, runs on the
-  RPA-based *GW* of the [RI_RPA%GW][gw] section, as in the sections above.
+  $O(N^4)$-scaling *GW* of the [RI_RPA%GW][gw] section, as in the sections above.
 - [PROPERTIES%BSE](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE), in full `FORCE_EVAL%PROPERTIES%BSE`, runs
-  on the *GW* of [PROPERTIES%BANDSTRUCTURE%GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW),
-  which must be present in the same input and is described in
-  [](../../electronic_structure/band/gw).
+  on the low-scaling *GW* of
+  [PROPERTIES%BANDSTRUCTURE%GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW), which must be
+  present in the same input and is described in [](../../electronic_structure/band/gw).
 
 The *GW* of `PROPERTIES%BANDSTRUCTURE%GW` is designed for large systems \[[](#Graml2024)\], so
 `PROPERTIES%BSE` is the BSE section to use for large molecules. `PROPERTIES%BSE` has the following

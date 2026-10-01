@@ -1524,7 +1524,7 @@ CONTAINS
       END DO
       IF (bs_env%unit_nr > 0) THEN
          WRITE (bs_env%unit_nr, '(T2,A,I11,A,I3,A,F10.1,A)') &
-            'Computed W(f=0,k) for k-point batch', &
+            'Computed W(ω=0,k) for k-point batch', &
             1, ' /', 1, &
             ', Execution time', m_walltime() - t_start, ' s'
       END IF
