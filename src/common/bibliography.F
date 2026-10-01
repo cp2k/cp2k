@@ -99,7 +99,7 @@ MODULE bibliography
                             Shiga2022, Lindh1995, Chai2024a, Rullan2026, Sundararaman2017, Andreussi2019, &
                             Chai2025a, Neugebauer2023, Chai2024b, Moynihan2017, Cococcioni2005, &
                             Cances2000, Herbst2022, Zhang2025, Gresch2017, Soluyanov2011, Dixon2023, Doll2025, &
-                            Wong2026, Loring2015, Cerjan2023, Bairnsfather2026, Davidson1975, &
+                            Wong2026, Loring2015, Cerjan2023, Bairnsfather2026, Davidson1975, EsteveParedes2023, &
                             Olsen1988, Stratmann1998, Vecharynski2017, Stathopoulos1998, Bai2012, Fukaya2014, Schreder2024_3
 
 CONTAINS
@@ -2340,6 +2340,13 @@ CONTAINS
                          title="Topological indices for periodic gapped Hamiltonians and fuzzy tori", &
                          source="Math. Phys. Anal. Geom.", volume="28", pages="13", &
                          year=2025, doi="10.1007/s11040-025-09508-0")
+
+      CALL add_reference(key=EsteveParedes2023, &
+                         authors=s2a("J. J. Esteve-Paredes", "J. J. Palacios"), &
+                         title="A comprehensive study of the velocity, momentum and position matrix elements "// &
+                         "for Bloch states using a local orbital basis", &
+                         source="SciPost Phys. Core", volume="6", pages="002", &
+                         year=2023, doi="10.21468/SciPostPhysCore.6.1.002")
 
       CALL add_reference(key=Cerjan2023, &
                          authors=s2a("A. Cerjan", "T. A. Loring", "F. Vides"), &

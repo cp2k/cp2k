@@ -678,6 +678,11 @@ list(
   qs_ks_utils.F
   qs_ks_reference.F
   qs_kubo_transport.F
+  kubo_bloch.F
+  kubo_hall.F
+  kubo_projected.F
+  qs_kubo_bloch.F
+  qs_property_symmetry.F
   qs_spectral_localizer.F
   qs_localizer_torus.F
   spectral_localizer.F
@@ -1612,6 +1617,7 @@ set(CP2K_PROGS_F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
     topology_wilson_unittest.F
+    kubo_unittest.F
     spectral_localizer_unittest.F
     quadratic_pseudospectrum_unittest.F
     pw/pw_unittest.F
@@ -2049,6 +2055,7 @@ list(
   "kpoint_lattice_fft_unittest"
   "kpoint_smearing_unittest"
   "topology_wilson_unittest"
+  "kubo_unittest"
   "spectral_localizer_unittest"
   "quadratic_pseudospectrum_unittest"
   "pw_unittest"
@@ -2095,6 +2102,7 @@ add_executable(gapw_1c_basis_unittest gapw_1c_basis_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(topology_wilson_unittest topology_wilson_unittest.F)
+add_executable(kubo_unittest kubo_unittest.F)
 add_executable(spectral_localizer_unittest spectral_localizer_unittest.F)
 add_executable(quadratic_pseudospectrum_unittest
                quadratic_pseudospectrum_unittest.F)

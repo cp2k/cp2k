@@ -13,4 +13,9 @@
 "H2-kubo-1d.inp"                       = [{matcher="Kubo_sigma_iso_1d", tol=1e-7, ref=3.19688732e-17},
                                            {matcher="Kubo_internal_diag", tol=0.0, ref=0.0},
                                            {matcher="Kubo_reference", tol=0.0, ref=0.0}]
-#EOF
+"bloch-gamma-potential.inp" = [{matcher="Kubo_sigma_iso_2d", tol=2e-6, ref=6.42555894e-9}]
+"bloch-scalar-full3d.inp" = [{matcher="Kubo_sigma_iso", tol=2e-6, ref=1.07055098e-1}]
+"bloch-scalar-symmetry.inp" = [{matcher="Kubo_sigma_iso", tol=2e-6, ref=1.07055098e-1},
+                             {matcher="Kubo_symmetry_points", tol=0.0, ref=4}]
+"bloch-gapw-symmetry.inp" = [{matcher="Kubo_sigma_iso_2d", tol=2e-6, ref=6.31009978e-9},
+                           {matcher="Kubo_symmetry_points", tol=0.0, ref=4}]

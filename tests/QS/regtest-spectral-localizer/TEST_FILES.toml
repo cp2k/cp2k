@@ -19,3 +19,5 @@
                            {matcher="LOCALIZER_GAP", tol=2e-6, ref=5.94648185248214e-1}]
 "h2-flattened-gpw.inp" = [{matcher="LOCALIZER_CHERN", tol=0, ref=0},
                          {matcher="LOCALIZER_GAP", tol=2e-6, ref=8.33447166247184e-1}]
+"kubo-projected-gapw.inp" = [{matcher="Kubo_sigma_iso", tol=2e-6, ref=5.02109726e-1}]
+"kubo-projected-uks.inp" = [{matcher="Kubo_sigma_iso", tol=2e-6, ref=5.02019468e-1}]
