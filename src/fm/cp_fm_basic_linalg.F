@@ -2583,30 +2583,44 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       INTEGER, INTENT(IN), OPTIONAL                      :: n_active
 
-      INTEGER                                            :: i_global, icol, irow, j_global, n_diag, &
-                                                            ncol_global, ncol_local, nrow_global, &
-                                                            nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      INTEGER                                            :: i_global, n_diag, ncol_global, nrow_global
+#if defined(__parallel)
+      INTEGER                                            :: icol_local, ipcol, iprow, irow, irow_local, &
+                                                            mypcol, myprow, npcol, nprow, nrow_local
+      INTEGER, DIMENSION(9)                              :: desca
+      INTEGER, DIMENSION(:), POINTER                     :: row_indices
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+#endif
 
-      CALL cp_fm_get_info(matrix, nrow_global=nrow_global, ncol_global=ncol_global, &
-                          nrow_local=nrow_local, ncol_local=ncol_local, &
-                          row_indices=row_indices, col_indices=col_indices)
+      CALL cp_fm_get_info(matrix, nrow_global=nrow_global, ncol_global=ncol_global)
 
       n_diag = MIN(nrow_global, ncol_global)
       IF (PRESENT(n_active)) n_diag = n_active
       CPASSERT(n_diag >= 0 .AND. n_diag <= MIN(nrow_global, ncol_global))
 
-      ! intersect the sorted local row and column indices: O(nrow_local + ncol_local)
-      irow = 1
-      icol = 1
-      DO WHILE (irow <= nrow_local .AND. icol <= ncol_local)
+#if defined(__parallel)
+      CALL cp_fm_get_info(matrix, nrow_local=nrow_local, row_indices=row_indices)
+      context => matrix%matrix_struct%context
+      myprow = context%mepos(1)
+      mypcol = context%mepos(2)
+      nprow = context%num_pe(1)
+      npcol = context%num_pe(2)
+      desca(:) = matrix%matrix_struct%descriptor(:)
+
+      DO irow = 1, nrow_local
          i_global = row_indices(irow)
-         j_global = col_indices(icol)
-         IF (MAX(i_global, j_global) > n_diag) EXIT
-         IF (i_global == j_global) matrix%local_data(irow, icol) = matrix%local_data(irow, icol) + alpha
-         IF (i_global <= j_global) irow = irow + 1
-         IF (j_global <= i_global) icol = icol + 1
+         IF (i_global > n_diag) EXIT
+         CALL infog2l(i_global, i_global, desca, nprow, npcol, myprow, mypcol, &
+                      irow_local, icol_local, iprow, ipcol)
+         IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
+            matrix%local_data(irow_local, icol_local) = matrix%local_data(irow_local, icol_local) + alpha
+         END IF
       END DO
+#else
+      DO i_global = 1, n_diag
+         matrix%local_data(i_global, i_global) = matrix%local_data(i_global, i_global) + alpha
+      END DO
+#endif
 
    END SUBROUTINE cp_fm_add_on_diag
 
