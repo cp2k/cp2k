@@ -24,7 +24,8 @@ PROGRAM atom_upf_unittest
    USE atom_upf,                        ONLY: atom_read_upf,&
                                               atom_release_upf,&
                                               atom_upfpot_type
-   USE atom_utils,                      ONLY: atom_core_density
+   USE atom_utils,                      ONLY: atom_core_density,&
+                                              atom_density
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE external_potential_types,        ONLY: allocate_potential,&
@@ -59,6 +60,7 @@ PROGRAM atom_upf_unittest
    CALL check_upf_units()
    CALL check_nlcc_fit()
    CALL check_basis_origin()
+   CALL check_basis_derivatives()
 
    ! The same temporary is reused for successive KIND sections in Quickstep.
    ALLOCATE (pot%rho_nlcc(3))
@@ -154,6 +156,70 @@ CONTAINS
       END DO
       CALL release_atom_basis(basis)
    END SUBROUTINE check_basis_origin
+
+! **************************************************************************************************
+!> \brief Differentiate radial basis values and densities independently at finite radii.
+! **************************************************************************************************
+   SUBROUTINE check_basis_derivatives()
+      REAL(dp), PARAMETER :: radius(4) = [0.08_dp, 0.3_dp, 0.9_dp, 2.1_dp], step = 2.e-4_dp
+
+      INTEGER                                            :: i, k, l, n, variant
+      REAL(dp)                                           :: derivative(5), errors(3), first, lap(5), &
+                                                            r(5), reference, rho(5), second
+      REAL(dp), ALLOCATABLE                              :: pmat(:, :, :)
+      TYPE(atom_basis_type)                              :: basis, radial
+
+      CALL init_atom_basis_default_pp(basis)
+      n = MAXVAL(basis%nbas)
+      ! Nonunit exponents and signed mixing exercise primitives and genuine contractions.
+      basis%nbas = 2
+      basis%nprim = 2
+      basis%am(1, :) = 0.37_dp
+      basis%am(2, :) = 2.3_dp
+      ALLOCATE (pmat(n, n, 0:UBOUND(basis%am, 2)))
+      pmat = 0.0_dp
+      pmat(1, 1, :) = 0.8_dp
+      pmat(2, 2, :) = 0.4_dp
+      pmat(1, 2, :) = -0.17_dp
+      pmat(2, 1, :) = -0.17_dp
+      errors = 0.0_dp
+      DO variant = 1, 2
+         IF (variant == 2) THEN
+            basis%basis_type = CGTO_BASIS
+            ALLOCATE (basis%cm(n, n, 0:UBOUND(basis%am, 2)))
+            basis%cm = 0.0_dp
+            basis%cm(1, 1, :) = 0.7_dp
+            basis%cm(2, 1, :) = -0.2_dp
+            basis%cm(1, 2, :) = 0.1_dp
+            basis%cm(2, 2, :) = 1.3_dp
+         END IF
+         DO k = 1, SIZE(radius)
+            r = radius(k) + step*[-2.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 2.0_dp]
+            CALL atom_basis_gridrep(basis, radial, r, SPREAD(step, 1, 5))
+            DO l = 0, UBOUND(basis%am, 2)
+               DO i = 1, 2
+                  first = DOT_PRODUCT(radial%bf(:, i, l), [1.0_dp, -8.0_dp, 0.0_dp, 8.0_dp, -1.0_dp])/(12*step)
+                  second = DOT_PRODUCT(radial%bf(:, i, l), [-1.0_dp, 16.0_dp, -30.0_dp, 16.0_dp, -1.0_dp])/(12*step**2)
+                  errors(1) = MAX(errors(1), ABS(first - radial%dbf(3, i, l))/(1 + ABS(first)))
+                  errors(2) = MAX(errors(2), ABS(second - radial%ddbf(3, i, l))/(1 + ABS(second)))
+               END DO
+            END DO
+            CALL atom_density(rho, pmat, radial, UBOUND(basis%am, 2), typ="RHO")
+            CALL atom_density(derivative, pmat, radial, UBOUND(basis%am, 2), typ="DER")
+            CALL atom_density(lap, pmat, radial, UBOUND(basis%am, 2), typ="LAP", rr=r*r)
+            first = DOT_PRODUCT(rho, [1.0_dp, -8.0_dp, 0.0_dp, 8.0_dp, -1.0_dp])/(12*step)
+            second = DOT_PRODUCT(rho, [-1.0_dp, 16.0_dp, -30.0_dp, 16.0_dp, -1.0_dp])/(12*step**2)
+            errors(1) = MAX(errors(1), ABS(first - derivative(3))/(1 + ABS(first)))
+            reference = second + 2*first/radius(k)
+            errors(3) = MAX(errors(3), ABS(reference - lap(3))/(1 + ABS(reference)))
+            CALL release_atom_basis(radial)
+         END DO
+      END DO
+      WRITE (*, '(A,3ES24.15)') "Atomic radial derivative/Laplacian scaled errors: ", errors
+      DEALLOCATE (pmat)
+      CALL release_atom_basis(basis)
+      IF (MAXVAL(errors) > 2.e-7_dp) ERROR STOP "Atomic radial finite-difference derivatives disagree"
+   END SUBROUTINE check_basis_derivatives
 
 ! **************************************************************************************************
 !> \brief Check fitted densities and their derivatives against an analytic reference.

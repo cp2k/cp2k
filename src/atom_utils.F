@@ -358,7 +358,7 @@ CONTAINS
 !>                 DER -- first derivatives of the electron density;
 !>                 KIN -- kinetic energy density;
 !>                 LAP -- second derivatives of the electron density.
-!> \param rr       abscissa on the radial grid (required for typ == 'KIN')
+!> \param rr       squared radial coordinates (required for KIN and LAP)
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
@@ -376,7 +376,8 @@ CONTAINS
 
       my_typ = "RHO"
       IF (PRESENT(typ)) my_typ = typ(1:3)
-      IF (my_typ == "KIN") THEN
+      ! Both callers supply squared radii; the radial Laplacian uses 2/r.
+      IF (my_typ == "KIN" .OR. my_typ == "LAP") THEN
          CPASSERT(PRESENT(rr))
       END IF
 
@@ -399,8 +400,9 @@ CONTAINS
                ELSE IF (my_typ == "LAP") THEN
                   density(:) = density(:) + ff*basis%ddbf(:, i, l)*basis%bf(:, j, l) &
                                + ff*basis%bf(:, i, l)*basis%ddbf(:, j, l) &
-                               + 2._dp*ff*basis%dbf(:, i, l)*basis%bf(:, j, l)/rr(:) &
-                               + 2._dp*ff*basis%bf(:, i, l)*basis%dbf(:, j, l)/rr(:)
+                               + 2._dp*ff*basis%dbf(:, i, l)*basis%dbf(:, j, l) &
+                               + 2._dp*ff*basis%dbf(:, i, l)*basis%bf(:, j, l)/SQRT(rr(:)) &
+                               + 2._dp*ff*basis%bf(:, i, l)*basis%dbf(:, j, l)/SQRT(rr(:))
                ELSE
                   CPABORT("Unknown matrix type specified. Check the code!")
                END IF
