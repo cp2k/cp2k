@@ -209,15 +209,15 @@ CONTAINS
       determinant = 0
       status = -4
       DO method = 1, 2
-         factors = matrix
-         permuted = matrix
+         factors(:, :) = matrix
+         permuted(:, :) = matrix
          IF (method == 1) THEN
             CALL dgetrf(n, n, factors, n, pivots, info)
          ELSE
             CALL dgeqrf(n, n, factors, n, tau, work, SIZE(work), info)
          END IF
          IF (info /= 0 .OR. .NOT. ALL(ieee_is_finite(factors))) CYCLE
-         product = factors
+         PRODUCT(:, :) = factors
          DO i = 1, n
             PRODUCT(i + 1:, i) = 0.0_dp
          END DO
@@ -226,7 +226,7 @@ CONTAINS
          IF (method == 1) THEN
             CALL dtrmm('L', 'L', 'N', 'U', n, n, 1.0_dp, factors, n, product, n)
             DO i = 1, n
-               row = permuted(i, :)
+               row(:) = permuted(i, :)
                permuted(i, :) = permuted(pivots(i), :)
                permuted(pivots(i), :) = row
             END DO
@@ -238,8 +238,8 @@ CONTAINS
          error = SQRT(SUM((product - permuted)**2))
          IF (method == 1) THEN
             ! Bound cancellation in the reconstructed product by |L| |U|, not by |L U|.
-            permuted = ABS(factors)
-            product = permuted
+            permuted(:, :) = ABS(factors)
+            PRODUCT(:, :) = permuted
             DO i = 1, n
                PRODUCT(i + 1:, i) = 0.0_dp
             END DO
@@ -327,9 +327,9 @@ CONTAINS
          END DO
       END IF
       ALLOCATE (mass(n, n), shifted_sine(n, n, 2), l(2*n, 2*n))
-      mass = h - energy*s
+      mass(:, :) = h - energy*s
       DO j = 1, 2
-         mass = mass - eta*(s - COS(origin(j))*cosine(:, :, j) - SIN(origin(j))*sine(:, :, j))
+         mass(:, :) = mass - eta*(s - COS(origin(j))*cosine(:, :, j) - SIN(origin(j))*sine(:, :, j))
          shifted_sine(:, :, j) = eta*(COS(origin(j))*sine(:, :, j) - SIN(origin(j))*cosine(:, :, j))
       END DO
       l(:n, :n) = mass
@@ -568,7 +568,7 @@ CONTAINS
       status = 1
       IF (scale <= TINY(1.0_dp)) RETURN
       ALLOCATE (a(n, n), pivots(n), work(MAX(1, 64*n)))
-      a = matrix/scale
+      a(:, :) = matrix/scale
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
@@ -614,7 +614,7 @@ CONTAINS
       status = 1
       IF (scale <= TINY(1.0_dp)) RETURN
       ALLOCATE (a(n, n), pivots(n), work(MAX(1, 64*n)))
-      a = matrix/scale
+      a(:, :) = matrix/scale
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)

@@ -407,7 +407,10 @@ CONTAINS
             END IF
             local_point(:ndim) = point(directions(:ndim))
             IF (periodic_localizer) THEN
-               local_point(:ndim) = twopi*MATMUL(cell%h_inv(directions(:ndim), :), point)/REAL(grid(directions(:ndim)), dp)
+               DO axis = 1, ndim
+                  local_point(axis) = twopi*DOT_PRODUCT(cell%h_inv(directions(axis), :), point)/ &
+                                      REAL(grid(directions(axis)), dp)
+               END DO
             END IF
             DO ik = 1, SIZE(kappas)
                IF (ndim == 3) THEN

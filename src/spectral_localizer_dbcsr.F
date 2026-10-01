@@ -436,7 +436,7 @@ CONTAINS
          DO j = 1, SIZE(factors, 2)
             DO i = 1, SIZE(factors, 1)
                IF (ABS(factors(i, j)) == 0.0_dp) CYCLE
-               values = factors(i, j)*block
+               values(:, :) = factors(i, j)*block
                IF (REAL(factors(i, j), dp) /= 0.0_dp) THEN
                   CALL dbcsr_put_block(destination%real_part, row + (i - 1)*blocks, col + (j - 1)*blocks, &
                                        REAL(values, dp), summation=.TRUE.)

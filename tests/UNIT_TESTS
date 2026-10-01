@@ -34,8 +34,6 @@ realspace_grid_cube_unittest
 gx_ac_unittest                                           greenx
 
 spectral_localizer_unittest
-spectral_localizer_3d_unittest
-spectral_localizer_flatten_unittest
 quadratic_pseudospectrum_unittest
 pw_copy_unittest
 

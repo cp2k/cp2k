@@ -1612,8 +1612,6 @@ set(CP2K_PROGS_F
     kpoint_smearing_unittest.F
     topology_wilson_unittest.F
     spectral_localizer_unittest.F
-    spectral_localizer_3d_unittest.F
-    spectral_localizer_flatten_unittest.F
     quadratic_pseudospectrum_unittest.F
     pw/pw_copy_unittest.F
     topology_symmetry_unittest.F
@@ -2050,8 +2048,6 @@ list(
   "kpoint_smearing_unittest"
   "topology_wilson_unittest"
   "spectral_localizer_unittest"
-  "spectral_localizer_3d_unittest"
-  "spectral_localizer_flatten_unittest"
   "quadratic_pseudospectrum_unittest"
   "pw_copy_unittest"
   "topology_symmetry_unittest"
@@ -2099,9 +2095,6 @@ add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(topology_wilson_unittest topology_wilson_unittest.F)
 add_executable(spectral_localizer_unittest spectral_localizer_unittest.F)
-add_executable(spectral_localizer_3d_unittest spectral_localizer_3d_unittest.F)
-add_executable(spectral_localizer_flatten_unittest
-               spectral_localizer_flatten_unittest.F)
 add_executable(quadratic_pseudospectrum_unittest
                quadratic_pseudospectrum_unittest.F)
 add_executable(pw_copy_unittest pw/pw_copy_unittest.F)

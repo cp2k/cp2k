@@ -81,7 +81,7 @@ PROGRAM quadratic_pseudospectrum_unittest
    CALL quadratic_dense(defect, overlap, shift, weights, 3, .TRUE., 20, 500, 1.e-9_dp, 1.e-10_dp, iterative, status)
    IF (status /= 0) ERROR STOP 'Defect iteration failed'
    IF (MAXVAL(ABS(dense%eigenvalues - iterative%eigenvalues)) > 1.e-8_dp) ERROR STOP 'Defect Ritz eigenvalue mismatch'
-   projected = MATMUL(CONJG(TRANSPOSE(dense%states)), iterative%states)
+   projected(:, :) = MATMUL(CONJG(TRANSPOSE(dense%states)), iterative%states)
    IF (SUM(ABS(projected)**2) < 3.0_dp - 1.e-7_dp) ERROR STOP 'Defect invariant subspace mismatch'
    CALL quadratic_dense(defect, overlap, shift, weights, 3, .TRUE., 12, 1, 1.e-12_dp, 1.e-10_dp, iterative, status)
    IF (status /= 1) ERROR STOP 'Unconverged quadratic solve accepted'
@@ -373,9 +373,9 @@ CONTAINS
       ALLOCATE (gram(n, n), shifted(n, n), solved(n, n), lu(n, n), pivots(n), work(4*n), rwork(4*n))
       gram = 0
       DO i = 1, SIZE(query)
-         lu = metric
-         shifted = operators(:, :, i) - query(i)*metric
-         solved = shifted
+         lu(:, :) = metric
+         shifted(:, :) = operators(:, :, i) - query(i)*metric
+         solved(:, :) = shifted
 #if defined(__HAS_IEEE_EXCEPTIONS)
          CALL ieee_get_halting_mode(IEEE_ALL, halt)
          CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
@@ -385,10 +385,10 @@ CONTAINS
          CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
          IF (status /= 0) ERROR STOP 'Explicit Gram metric solve failed'
-         gram = gram + weights(i)**2*MATMUL(CONJG(TRANSPOSE(shifted)), solved)
+         gram(:, :) = gram + weights(i)**2*MATMUL(CONJG(TRANSPOSE(shifted)), solved)
       END DO
       IF (MAXVAL(ABS(gram - CONJG(TRANSPOSE(gram)))) > 1.e-11_dp) ERROR STOP 'Explicit Gram is not Hermitian'
-      lu = metric
+      lu(:, :) = metric
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)

@@ -336,7 +336,7 @@ CONTAINS
       serror = MAXVAL(ABS(s - CONJG(TRANSPOSE(s))))
       IF (herror > tolerance*hnorm .OR. serror > tolerance*snorm) RETURN
       ALLOCATE (a(n, n), b(n, n), work(MAX(1, 2*n)), eigenvalues(n), rwork(MAX(1, 3*n)))
-      a = s
+      a(:, :) = s
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
@@ -350,8 +350,8 @@ CONTAINS
       bounds = [MINVAL(eigenvalues), MAXVAL(eigenvalues)]
       status = -2
       IF (bounds(2) <= 0.0_dp .OR. bounds(1) <= metric_tolerance*bounds(2)) RETURN
-      a = h - energy*s
-      b = s
+      a(:, :) = h - energy*s
+      b(:, :) = s
 #if defined(__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
@@ -365,13 +365,14 @@ CONTAINS
       threshold = REAL(n, dp)*(herror + (ABS(energy) + MAXVAL(ABS(eigenvalues)))*serror)/bounds(1) + &
                   100.0_dp*EPSILON(1.0_dp)*REAL(n, dp)* &
                   MAX(MAXVAL(ABS(eigenvalues)), MAXVAL(ABS(h - energy*s))/bounds(1))
-      sc = MATMUL(s, a)
-      residual = MATMUL(CONJG(TRANSPOSE(a)), sc)
+      ALLOCATE (sc(n, n), residual(n, n))
+      sc(:, :) = MATMUL(s, a)
+      residual(:, :) = MATMUL(CONJG(TRANSPOSE(a)), sc)
       DO i = 1, n
          residual(i, i) = residual(i, i) - 1.0_dp
       END DO
       errors(1) = SQRT(SUM(ABS(residual)**2))
-      residual = MATMUL(h - energy*s, a) - sc*SPREAD(eigenvalues, 1, n)
+      residual(:, :) = MATMUL(h - energy*s, a) - sc*SPREAD(eigenvalues, 1, n)
       errors(2) = SQRT(SUM(ABS(residual)**2))/MAX(TINY(1.0_dp), &
                                                   SQRT(SUM(ABS(h - energy*s)**2))*SQRT(SUM(ABS(a)**2)))
       flat = MATMUL(sc*SPREAD(SIGN(scale, eigenvalues), 1, n), CONJG(TRANSPOSE(sc)))

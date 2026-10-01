@@ -134,8 +134,9 @@ CONTAINS
          IF (cell_periodic /= periodic .OR. COUNT(cell%perd /= 0) == 0) THEN
             CPABORT('Quadratic torus needs matching, nonempty CELL/POISSON PERIODIC.')
          END IF
-         directions = PACK([1, 2, 3], cell%perd /= 0)
-         ndim = SIZE(directions)
+         ndim = COUNT(cell%perd /= 0)
+         ALLOCATE (directions(ndim))
+         directions(:) = PACK([1, 2, 3], cell%perd /= 0)
          IF (periodic_analysis) THEN
             nobs = 1 + 2*ndim
             ALLOCATE (radii(ndim), angles(ndim))

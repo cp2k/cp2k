@@ -284,7 +284,8 @@ CONTAINS
       INTEGER, INTENT(OUT) :: status
       LOGICAL, INTENT(IN), OPTIONAL :: unitary(:)
       COMPLEX(dp), ALLOCATABLE :: v(:, :), sv(:, :), qv(:, :), projected(:, :), sc(:, :), qc(:, :), &
-                                  r(:, :), z(:, :), trial(:, :), strial(:, :), work(:, :), invwork(:, :)
+                                  r(:, :), z(:, :), trial(:, :), strial(:, :), work(:, :), invwork(:, :), &
+                                  restarted(:, :)
       REAL(dp), ALLOCATABLE :: eigenvalues(:)
       REAL(dp) :: square, scale, norm_before, norm_after, full_square, lost_square
       COMPLEX(dp) :: coefficient
@@ -299,7 +300,7 @@ CONTAINS
       continuum = .FALSE.
       IF (PRESENT(unitary)) THEN
          IF (SIZE(unitary) /= SIZE(shift)) RETURN
-         continuum = unitary
+         continuum(:) = unitary
       END IF
       IF (.NOT. ALL(ieee_is_finite([REAL(shift, dp), AIMAG(shift), weights, tolerance]))) RETURN
       IF (ANY(weights < 0.0_dp) .OR. MAXVAL(weights) <= 0.0_dp .OR. tolerance <= 0.0_dp) RETURN
@@ -337,19 +338,19 @@ CONTAINS
       DO iteration = 1, max_iter
          result%iterations = iteration
          ALLOCATE (projected(m, m), eigenvalues(m))
-         projected = MATMUL(CONJG(TRANSPOSE(v(:, :m))), qv(:, :m))
+         projected(:, :) = MATMUL(CONJG(TRANSPOSE(v(:, :m))), qv(:, :m))
          scale = MAX(1.0_dp, MAXVAL(ABS(projected)))
          IF (MAXVAL(ABS(projected - CONJG(TRANSPOSE(projected)))) > 1.e-8_dp*scale) THEN
             status = -4
             RETURN
          END IF
-         projected = 0.5_dp*(projected + CONJG(TRANSPOSE(projected)))
+         projected(:, :) = 0.5_dp*(projected + CONJG(TRANSPOSE(projected)))
          CALL diagonalize(projected, eigenvalues, status)
          IF (status /= 0) RETURN
-         result%eigenvalues = eigenvalues(:nstates)
-         result%states = MATMUL(v(:, :m), projected(:, :nstates))
-         sc = MATMUL(sv(:, :m), projected(:, :nstates))
-         qc = MATMUL(qv(:, :m), projected(:, :nstates))
+         result%eigenvalues(:) = eigenvalues(:nstates)
+         result%states(:, :) = MATMUL(v(:, :m), projected(:, :nstates))
+         sc(:, :) = MATMUL(sv(:, :m), projected(:, :nstates))
+         qc(:, :) = MATMUL(qv(:, :m), projected(:, :nstates))
          DO pass = 1, 2
             IF (pass == 2) THEN
                ! Cached metric/operator images can drift through repeated Ritz restarts.
@@ -395,9 +396,14 @@ CONTAINS
          IF (m == capacity) THEN
             ! Retain nearby Ritz vectors across restarts, important for clustered spectra.
             keep = MIN(m, MAX(nstates, capacity/2))
-            v(:, :keep) = MATMUL(v(:, :m), projected(:, :keep))
-            sv(:, :keep) = MATMUL(sv(:, :m), projected(:, :keep))
-            qv(:, :keep) = MATMUL(qv(:, :m), projected(:, :keep))
+            ALLOCATE (restarted(n, keep))
+            restarted(:, :) = MATMUL(v(:, :m), projected(:, :keep))
+            v(:, :keep) = restarted
+            restarted(:, :) = MATMUL(sv(:, :m), projected(:, :keep))
+            sv(:, :keep) = restarted
+            restarted(:, :) = MATMUL(qv(:, :m), projected(:, :keep))
+            qv(:, :keep) = restarted
+            DEALLOCATE (restarted)
             m = keep
          END IF
          DEALLOCATE (projected, eigenvalues)
@@ -433,7 +439,7 @@ CONTAINS
             result%complex_means(p, j) = DOT_PRODUCT(result%states(:, j), work(:, j))
             result%means(p, j) = REAL(result%complex_means(p, j), dp)
          END DO
-         work = work - shift(p)*sc
+         work(:, :) = work - shift(p)*sc
          CALL solve(work, invwork, status)
          IF (status /= 0) RETURN
          DO j = 1, nstates
@@ -543,7 +549,7 @@ CONTAINS
                                                - CONJG(shift(op))*ab - shift(op)*second)
                CYCLE
             END IF
-            ab = ab - shift(op)*sb
+            ab(:, :) = ab - shift(op)*sb
             CALL solve(ab, solved, status)
             IF (status /= 0) RETURN
             CALL adjoint(op, solved, second, status)
