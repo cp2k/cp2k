@@ -541,8 +541,11 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: energy_unit, stress_unit
       INTEGER(KIND=int_8)                                :: max_memory
-      REAL(KIND=dp)                                      :: pres_diff, pres_diff_constr, pres_int, &
-                                                            pres_tol
+      LOGICAL                                            :: conv_dx, conv_g, conv_p, conv_rdx, &
+                                                            conv_rg
+      REAL(KIND=dp)                                      :: max_dr, max_grad, pres_diff, &
+                                                            pres_diff_constr, pres_int, pres_tol, &
+                                                            rms_dr, rms_grad
 
       CALL get_reporting_metadata(gopt_env, force_env, max_memory, energy_unit, stress_unit)
 
@@ -571,7 +574,11 @@ CONTAINS
                CPASSERT(PRESENT(ndf))
                CPASSERT(PRESENT(dx))
                CPASSERT(PRESENT(xi))
-               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory, stress_unit)
+               CALL check_converg(ndf, dx, xi, gopt_param, conv, conv_dx, conv_rdx, conv_g, conv_rg, &
+                                  conv_p, max_dr, rms_dr, max_grad, rms_grad)
+               CALL write_convergence_infos(output_unit, gopt_param, conv, conv_dx, conv_rdx, conv_g, &
+                                            conv_rg, conv_p, max_dr, rms_dr, max_grad, rms_grad, &
+                                            max_memory, stress_unit)
             END IF
          ELSE
             CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section)
@@ -612,12 +619,19 @@ CONTAINS
             CPASSERT(PRESENT(dx))
             CPASSERT(PRESENT(xi))
             IF (gopt_env%cell_env%constraint_id == fix_none) THEN
-               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory, stress_unit, &
-                                  pres_diff, pres_tol)
+               CALL check_converg(ndf, dx, xi, gopt_param, conv, conv_dx, conv_rdx, conv_g, conv_rg, &
+                                  conv_p, max_dr, rms_dr, max_grad, rms_grad, pres_diff, pres_tol)
+               CALL write_convergence_infos(output_unit, gopt_param, conv, conv_dx, conv_rdx, conv_g, &
+                                            conv_rg, conv_p, max_dr, rms_dr, max_grad, rms_grad, &
+                                            max_memory, stress_unit, pres_diff, pres_tol)
             ELSE
                pres_diff_constr = gopt_env%cell_env%pres_constr - gopt_env%cell_env%pres_ext
-               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory, stress_unit, &
-                                  pres_diff, pres_tol, pres_diff_constr)
+               CALL check_converg(ndf, dx, xi, gopt_param, conv, conv_dx, conv_rdx, conv_g, conv_rg, &
+                                  conv_p, max_dr, rms_dr, max_grad, rms_grad, pres_diff, pres_tol, &
+                                  pres_diff_constr)
+               CALL write_convergence_infos(output_unit, gopt_param, conv, conv_dx, conv_rdx, conv_g, &
+                                            conv_rg, conv_p, max_dr, rms_dr, max_grad, rms_grad, &
+                                            max_memory, stress_unit, pres_diff, pres_tol, pres_diff_constr)
             END IF
          END IF
       CASE (default_shellcore_method_id)
@@ -640,7 +654,11 @@ CONTAINS
             CPASSERT(PRESENT(ndf))
             CPASSERT(PRESENT(dx))
             CPASSERT(PRESENT(xi))
-            CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory, stress_unit)
+            CALL check_converg(ndf, dx, xi, gopt_param, conv, conv_dx, conv_rdx, conv_g, conv_rg, &
+                               conv_p, max_dr, rms_dr, max_grad, rms_grad)
+            CALL write_convergence_infos(output_unit, gopt_param, conv, conv_dx, conv_rdx, conv_g, &
+                                         conv_rg, conv_p, max_dr, rms_dr, max_grad, rms_grad, &
+                                         max_memory, stress_unit)
          END IF
       END SELECT
 
@@ -839,37 +857,38 @@ CONTAINS
    END SUBROUTINE write_rot_cycle_infos
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Evaluate the geometry/cell optimization convergence criteria (pure decision, no I/O)
 !> \param ndf ...
 !> \param dr ...
 !> \param g ...
-!> \param output_unit ...
-!> \param conv ...
 !> \param gopt_param ...
-!> \param max_memory ...
-!> \param stress_unit ...
+!> \param conv ...
+!> \param conv_dx ...
+!> \param conv_rdx ...
+!> \param conv_g ...
+!> \param conv_rg ...
+!> \param conv_p ...
+!> \param max_dr ...
+!> \param rms_dr ...
+!> \param max_grad ...
+!> \param rms_grad ...
 !> \param pres_diff ...
 !> \param pres_tol ...
 !> \param pres_diff_constr ...
 ! **************************************************************************************************
-   SUBROUTINE check_converg(ndf, dr, g, output_unit, conv, gopt_param, max_memory, stress_unit, &
-                            pres_diff, pres_tol, pres_diff_constr)
+   SUBROUTINE check_converg(ndf, dr, g, gopt_param, conv, conv_dx, conv_rdx, conv_g, conv_rg, conv_p, &
+                            max_dr, rms_dr, max_grad, rms_grad, pres_diff, pres_tol, pres_diff_constr)
 
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(IN)                          :: dr(ndf), g(ndf)
-      INTEGER, INTENT(IN)                                :: output_unit
-      LOGICAL, INTENT(OUT)                               :: conv
       TYPE(gopt_param_type), POINTER                     :: gopt_param
-      INTEGER(KIND=int_8), INTENT(IN)                    :: max_memory
-      CHARACTER(LEN=default_string_length), INTENT(IN)   :: stress_unit
+      LOGICAL, INTENT(OUT)                               :: conv, conv_dx, conv_rdx, conv_g, &
+                                                            conv_rg, conv_p
+      REAL(KIND=dp), INTENT(OUT)                         :: max_dr, rms_dr, max_grad, rms_grad
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pres_diff, pres_tol, pres_diff_constr
 
-      CHARACTER(LEN=5)                                   :: tag
       INTEGER                                            :: indf
-      LOGICAL                                            :: conv_dx, conv_g, conv_p, conv_rdx, &
-                                                            conv_rg
-      REAL(KIND=dp)                                      :: dumm, dxcon, gcon, maxdum(4), rmsgcon, &
-                                                            rmsxcon
+      REAL(KIND=dp)                                      :: dumm, dxcon, gcon, rmsgcon, rmsxcon
 
       dxcon = gopt_param%max_dr
       gcon = gopt_param%max_force
@@ -885,25 +904,25 @@ CONTAINS
 
       dumm = 0.0_dp
       DO indf = 1, ndf
-         IF (indf == 1) maxdum(1) = ABS(dr(indf))
+         IF (indf == 1) max_dr = ABS(dr(indf))
          dumm = dumm + dr(indf)**2
          IF (ABS(dr(indf)) > dxcon) conv_dx = .FALSE.
-         IF (ABS(dr(indf)) > maxdum(1)) maxdum(1) = ABS(dr(indf))
+         IF (ABS(dr(indf)) > max_dr) max_dr = ABS(dr(indf))
       END DO
       ! SQRT(dumm/ndf) > rmsxcon
       IF (dumm > (rmsxcon*rmsxcon*ndf)) conv_rdx = .FALSE.
-      maxdum(2) = SQRT(dumm/ndf)
+      rms_dr = SQRT(dumm/ndf)
 
       dumm = 0.0_dp
       DO indf = 1, ndf
-         IF (indf == 1) maxdum(3) = ABS(g(indf))
+         IF (indf == 1) max_grad = ABS(g(indf))
          dumm = dumm + g(indf)**2
          IF (ABS(g(indf)) > gcon) conv_g = .FALSE.
-         IF (ABS(g(indf)) > maxdum(3)) maxdum(3) = ABS(g(indf))
+         IF (ABS(g(indf)) > max_grad) max_grad = ABS(g(indf))
       END DO
       ! SQRT(dumm/ndf) > rmsgcon
       IF (dumm > (rmsgcon*rmsgcon*ndf)) conv_rg = .FALSE.
-      maxdum(4) = SQRT(dumm/ndf)
+      rms_grad = SQRT(dumm/ndf)
 
       IF (PRESENT(pres_diff_constr) .AND. PRESENT(pres_tol)) THEN
          conv_p = ABS(pres_diff_constr) < ABS(pres_tol)
@@ -911,13 +930,58 @@ CONTAINS
          conv_p = ABS(pres_diff) < ABS(pres_tol)
       END IF
 
+      IF (conv_dx .AND. conv_rdx .AND. conv_g .AND. conv_rg .AND. conv_p) conv = .TRUE.
+
+   END SUBROUTINE check_converg
+
+! **************************************************************************************************
+!> \brief Print the per-cycle convergence report (body moved verbatim from check_converg)
+!> \param output_unit ...
+!> \param gopt_param ...
+!> \param conv ...
+!> \param conv_dx ...
+!> \param conv_rdx ...
+!> \param conv_g ...
+!> \param conv_rg ...
+!> \param conv_p ...
+!> \param max_dr ...
+!> \param rms_dr ...
+!> \param max_grad ...
+!> \param rms_grad ...
+!> \param max_memory ...
+!> \param stress_unit ...
+!> \param pres_diff ...
+!> \param pres_tol ...
+!> \param pres_diff_constr ...
+! **************************************************************************************************
+   SUBROUTINE write_convergence_infos(output_unit, gopt_param, conv, conv_dx, conv_rdx, conv_g, &
+                                      conv_rg, conv_p, max_dr, rms_dr, max_grad, rms_grad, &
+                                      max_memory, stress_unit, pres_diff, pres_tol, pres_diff_constr)
+
+      INTEGER, INTENT(IN)                                :: output_unit
+      TYPE(gopt_param_type), POINTER                     :: gopt_param
+      LOGICAL, INTENT(IN)                                :: conv, conv_dx, conv_rdx, conv_g, &
+                                                            conv_rg, conv_p
+      REAL(KIND=dp), INTENT(IN)                          :: max_dr, rms_dr, max_grad, rms_grad
+      INTEGER(KIND=int_8), INTENT(IN)                    :: max_memory
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: stress_unit
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pres_diff, pres_tol, pres_diff_constr
+
+      CHARACTER(LEN=5)                                   :: tag
+      REAL(KIND=dp)                                      :: dxcon, gcon, rmsgcon, rmsxcon
+
+      dxcon = gopt_param%max_dr
+      gcon = gopt_param%max_force
+      rmsgcon = gopt_param%rms_force
+      rmsxcon = gopt_param%rms_dr
+
       IF (output_unit > 0) THEN
 
          tag = "OPT| "
 
          WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
          WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
-            tag//"Maximum step size", maxdum(1), &
+            tag//"Maximum step size", max_dr, &
             tag//"Convergence limit for maximum step size", dxcon
          IF (conv_dx) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
@@ -929,7 +993,7 @@ CONTAINS
 
          WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
          WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
-            tag//"RMS step size", maxdum(2), &
+            tag//"RMS step size", rms_dr, &
             tag//"Convergence limit for RMS step size", rmsxcon
          IF (conv_rdx) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
@@ -941,7 +1005,7 @@ CONTAINS
 
          WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
          WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
-            tag//"Maximum gradient", maxdum(3), &
+            tag//"Maximum gradient", max_grad, &
             tag//"Convergence limit for maximum gradient", gcon
          IF (conv_g) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
@@ -953,7 +1017,7 @@ CONTAINS
 
          WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
          WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
-            tag//"RMS gradient", maxdum(4), &
+            tag//"RMS gradient", rms_grad, &
             tag//"Convergence limit for RMS gradient", rmsgcon
          IF (conv_rg) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
@@ -1001,8 +1065,6 @@ CONTAINS
 
       END IF
 
-      IF (conv_dx .AND. conv_rdx .AND. conv_g .AND. conv_rg .AND. conv_p) conv = .TRUE.
-
       IF ((conv) .AND. (output_unit > 0)) THEN
          WRITE (UNIT=output_unit, FMT="(/,T2,A)") REPEAT("*", 79)
          WRITE (UNIT=output_unit, FMT="(T2,A,T25,A,T78,A)") &
@@ -1010,7 +1072,7 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(T2,A)") REPEAT("*", 79)
       END IF
 
-   END SUBROUTINE check_converg
+   END SUBROUTINE write_convergence_infos
 
 ! **************************************************************************************************
 !> \brief ...

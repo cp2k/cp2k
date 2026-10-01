@@ -35,7 +35,6 @@ MODULE cp_lbfgs_geo
    USE gopt_param_types,                ONLY: gopt_param_type
    USE input_constants,                 ONLY: default_ts_method_id
    USE input_section_types,             ONLY: section_vals_type,&
-                                              section_vals_val_get,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -106,7 +105,6 @@ CONTAINS
       CALL print_geo_opt_header(gopt_env, output_unit, "L-BFGS")
 
       ! finds space group
-      CALL section_vals_val_get(geo_section, "KEEP_SPACE_GROUP", l_val=spgr%keep_space_group)
       IF (spgr%keep_space_group) THEN
          CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
          CALL spgr_apply_rotations_coord(spgr, x0)
@@ -158,7 +156,6 @@ CONTAINS
       END IF
 
       ! show space_group
-      CALL section_vals_val_get(geo_section, "SHOW_SPACE_GROUP", l_val=spgr%show_space_group)
       IF (spgr%show_space_group) THEN
          CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
          CALL print_spgr(spgr)

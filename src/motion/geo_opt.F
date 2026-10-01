@@ -44,7 +44,7 @@ MODULE geo_opt
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'geo_opt'
 
-   PUBLIC :: cp_geo_opt
+   PUBLIC :: cp_geo_opt, gopt_dispatch_optimizer
 
 CONTAINS
 
@@ -97,8 +97,8 @@ CONTAINS
       CALL section_vals_val_get(geo_section, "STEP_START_VAL", i_val=step_start_val)
       CALL cp_add_iter_level(logger%iter_info, "GEO_OPT")
       CALL cp_iterate(logger%iter_info, iter_nr=step_start_val)
-      CALL cp_geo_opt_low(force_env, globenv, gopt_param, gopt_env, &
-                          geo_section, x0)
+      CALL gopt_dispatch_optimizer(force_env, globenv, gopt_param, gopt_env, &
+                                   geo_section, x0)
       CALL cp_rm_iter_level(logger%iter_info, "GEO_OPT")
 
       ! Reset counter for next iteration, unless rm_restart_info==.FALSE.
@@ -142,8 +142,8 @@ CONTAINS
       CALL section_vals_val_get(geo_section, "STEP_START_VAL", i_val=step_start_val)
       CALL cp_add_iter_level(logger%iter_info, "ROT_OPT")
       CALL cp_iterate(logger%iter_info, iter_nr=step_start_val)
-      CALL cp_geo_opt_low(gopt_env%force_env, gopt_env%globenv, gopt_param, gopt_env, &
-                          geo_section, x0)
+      CALL gopt_dispatch_optimizer(gopt_env%force_env, gopt_env%globenv, gopt_param, gopt_env, &
+                                   geo_section, x0)
       CALL cp_rm_iter_level(logger%iter_info, "ROT_OPT")
 
       ! Reset counter for next iteration
@@ -153,7 +153,7 @@ CONTAINS
    END SUBROUTINE cp_rot_opt
 
 ! **************************************************************************************************
-!> \brief call to low level geometry optimizers
+!> \brief dispatch to the selected optimizer (BFGS, L-BFGS or CG)
 !> \param force_env ...
 !> \param globenv ...
 !> \param gopt_param ...
@@ -161,8 +161,8 @@ CONTAINS
 !> \param geo_section ...
 !> \param x0 ...
 ! **************************************************************************************************
-   SUBROUTINE cp_geo_opt_low(force_env, globenv, gopt_param, gopt_env, &
-                             geo_section, x0)
+   SUBROUTINE gopt_dispatch_optimizer(force_env, globenv, gopt_param, gopt_env, &
+                                      geo_section, x0)
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(gopt_param_type), POINTER                     :: gopt_param
@@ -191,6 +191,6 @@ CONTAINS
          CPABORT("Invalid or not yet implemented method for optimization")
       END SELECT
 
-   END SUBROUTINE cp_geo_opt_low
+   END SUBROUTINE gopt_dispatch_optimizer
 
 END MODULE geo_opt

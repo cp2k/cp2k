@@ -35,7 +35,8 @@ MODULE gopt_f_types
                                               default_shellcore_method_id,&
                                               default_ts_method_id
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type
+                                              section_vals_type,&
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE particle_list_types,             ONLY: particle_list_type
@@ -133,6 +134,11 @@ CONTAINS
       gopt_env%dimer_rotation = .FALSE.
       gopt_env%do_line_search = .FALSE.
       ALLOCATE (gopt_env%spgr)
+      ! Space-group flags are read once here; the optimizer drivers consume spgr%* only.
+      CALL section_vals_val_get(geo_opt_section, "KEEP_SPACE_GROUP", &
+                                l_val=gopt_env%spgr%keep_space_group)
+      CALL section_vals_val_get(geo_opt_section, "SHOW_SPACE_GROUP", &
+                                l_val=gopt_env%spgr%show_space_group)
       CALL force_env_retain(force_env)
       gopt_env%force_env => force_env
       gopt_env%motion_section => section_vals_get_subs_vals(force_env%root_section, "MOTION")
