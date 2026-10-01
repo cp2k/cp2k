@@ -799,8 +799,7 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(INOUT)               :: gbasis
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, rab
 
-      INTEGER                                            :: i, j, k, l, m, n1, n2, n3, ngp, nl, nr, &
-                                                            quadtype
+      INTEGER                                            :: i, j, k, l, m, n1, n2, n3, ngp, nl, nr
       REAL(KIND=dp)                                      :: al, ear, pf, rk
 
       NULLIFY (gbasis%am, gbasis%cm, gbasis%as, gbasis%ns, gbasis%bf, gbasis%dbf, gbasis%ddbf)
@@ -845,11 +844,12 @@ CONTAINS
       NULLIFY (gbasis%grid)
       CALL allocate_grid_atom(gbasis%grid)
       ngp = SIZE(r)
-      quadtype = do_gapw_log
       IF (ngp <= 0) THEN
          CPABORT("The number of radial grid points must be greater than zero.")
       END IF
-      CALL create_grid_atom(gbasis%grid, ngp, 1, 1, 0, quadtype)
+      CPASSERT(SIZE(rab) == ngp)
+      ! The supplied radial mesh needs no generated quadrature or angular grid.
+      ALLOCATE (gbasis%grid%rad(ngp), gbasis%grid%rad2(ngp), gbasis%grid%wr(ngp))
       gbasis%grid%nr = ngp
       gbasis%grid%rad(:) = r(:)
       gbasis%grid%rad2(:) = r(:)*r(:)

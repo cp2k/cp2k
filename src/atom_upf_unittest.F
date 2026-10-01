@@ -124,11 +124,22 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_basis_origin()
       INTEGER                                            :: i, l, n, variant
-      REAL(KIND=dp)                                      :: expected(3), scale
+      REAL(KIND=dp)                                      :: expected(3), r(6001), rab(6001), scale
       TYPE(atom_basis_type)                              :: basis, radial
 
       CALL init_atom_basis_default_pp(basis)
       n = MAXVAL(basis%nbas)
+      ! A long supplied mesh must not generate an unused singular auxiliary grid.
+      r = [(0.002_dp*REAL(i - 1, dp), i=1, SIZE(r))]
+      rab = 0.002_dp
+      CALL atom_basis_gridrep(basis, radial, r, rab)
+      IF (ANY(radial%grid%rad /= r) .OR. ANY(radial%grid%wr /= rab*r**2)) THEN
+         ERROR STOP "Supplied UPF mesh changed during basis evaluation"
+      END IF
+      IF (MAXVAL(ABS(radial%bf(:, 1, 0) - EXP(-basis%am(1, 0)*r**2))) > 1.e-14_dp) THEN
+         ERROR STOP "Incorrect basis values on long UPF mesh"
+      END IF
+      CALL release_atom_basis(radial)
       DO variant = 1, 2
          scale = REAL(variant, dp)
          IF (variant == 2) THEN
