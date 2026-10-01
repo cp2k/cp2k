@@ -16,9 +16,10 @@ MODULE cell_opt_types
    USE cell_methods,                    ONLY: canonicalize_cell_matrix,&
                                               cell_create
    USE cell_opt_utils,                  ONLY: read_external_press_tensor
-   USE cell_types,                      ONLY: cell_clone,&
-                                              cell_release,&
-                                              cell_type
+   USE cell_types,                      ONLY: &
+        cell_clone, cell_release, cell_sym_cubic, cell_sym_hexagonal_gamma_120, &
+        cell_sym_hexagonal_gamma_60, cell_sym_monoclinic_gamma_ab, cell_sym_rhombohedral, &
+        cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -87,7 +88,8 @@ CONTAINS
 
       CHARACTER(LEN=4)                                   :: label
       INTEGER                                            :: output_unit, required_constraint_id
-      LOGICAL                                            :: constraint_explicit, valid_constraint
+      LOGICAL                                            :: bad_constraint, constraint_explicit, &
+                                                            valid_constraint
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -136,6 +138,65 @@ CONTAINS
          ELSE IF (.NOT. valid_constraint) THEN
             CALL cp_abort(__LOCATION__, &
                           "2D CELL_OPT needs constrained non-periodic cell direction.")
+         END IF
+      END IF
+
+      ! Reject CONSTRAINT combinations that would silently corrupt the
+      ! KEEP_ANGLES projection or the KEEP_SYMMETRY symmetrization
+      IF (cell_env%keep_angles .AND. .NOT. cell_env%opt_cell%orthorhombic) THEN
+         ! KEEP_ANGLES makes the b and c gradient components parallel to the
+         ! current b and c cell vectors. A CONSTRAINT fixing only part of the
+         ! b or c vector destroys this parallelism, while constraints fixing
+         ! a vector completely (fix_z, fix_yz) leave it intact.
+         IF (cell_env%constraint_id == fix_x .OR. cell_env%constraint_id == fix_y .OR. &
+             cell_env%constraint_id == fix_xy .OR. cell_env%constraint_id == fix_xz) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "CELL_OPT: KEEP_ANGLES with a CONSTRAINT that fixes "// &
+                          "only part of the b or c cell vector would destroy "// &
+                          "the fixed angles.")
+         END IF
+      END IF
+
+      IF (cell_env%keep_symmetry .AND. cell_env%constraint_id /= fix_none) THEN
+         ! A CONSTRAINT is compatible with KEEP_SYMMETRY only if it leaves
+         ! every set of cell components coupled by the symmetry untouched or
+         ! fixes such a set completely; a partial fixation breaks the
+         ! symmetry group after the gradient symmetrization.
+         bad_constraint = .FALSE.
+         SELECT CASE (cell_env%opt_cell%symmetry_id)
+         CASE (cell_sym_cubic, cell_sym_rhombohedral)
+            ! All three (cubic), respectively even all six (rhombohedral),
+            ! cell components are coupled: any partial constraint breaks it
+            bad_constraint = .TRUE.
+         CASE (cell_sym_tetragonal_ab, &
+               cell_sym_hexagonal_gamma_60, &
+               cell_sym_hexagonal_gamma_120, &
+               cell_sym_monoclinic_gamma_ab)
+            ! The in-plane (a,b) components are coupled
+            bad_constraint = cell_env%constraint_id == fix_x .OR. &
+                             cell_env%constraint_id == fix_y .OR. &
+                             cell_env%constraint_id == fix_xz .OR. &
+                             cell_env%constraint_id == fix_yz
+         CASE (cell_sym_tetragonal_ac)
+            ! The (a,c) components are coupled
+            bad_constraint = cell_env%constraint_id == fix_x .OR. &
+                             cell_env%constraint_id == fix_z .OR. &
+                             cell_env%constraint_id == fix_xy .OR. &
+                             cell_env%constraint_id == fix_yz
+         CASE (cell_sym_tetragonal_bc)
+            ! The (b,c) components are coupled
+            bad_constraint = cell_env%constraint_id == fix_y .OR. &
+                             cell_env%constraint_id == fix_z .OR. &
+                             cell_env%constraint_id == fix_xy .OR. &
+                             cell_env%constraint_id == fix_xz
+         CASE DEFAULT
+            ! orthorhombic, monoclinic, triclinic and none have no coupling
+         END SELECT
+         IF (bad_constraint) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "CELL_OPT: CONSTRAINT fixes only part of the cell "// &
+                          "components coupled by KEEP_SYMMETRY and would "// &
+                          "break the cell symmetry.")
          END IF
       END IF
 
