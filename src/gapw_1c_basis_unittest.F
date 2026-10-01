@@ -45,10 +45,12 @@ PROGRAM gapw_1c_basis_unittest
       diffuse = 1.0_dp/(ratio*SQRT(ratio))
       PRINT '(A,I2,A,I3)', 'GAPW extension level ', level, ': added s primitives ', extended%npgf(2)
       IF (extended%npgf(2) /= expected(level)) ERROR STOP 'GAPW extension lost admissible diffuse exponents'
-      IF (MINVAL(ABS(extended%zet(:extended%npgf(2), 2) - diffuse)) > 1.e-12_dp) &
+      IF (MINVAL(ABS(extended%zet(:extended%npgf(2), 2) - diffuse)) > 1.e-12_dp) THEN
          ERROR STOP 'GAPW extension is missing the first admissible diffuse exponent'
-      IF (MINVAL(ABS(extended%zet(:extended%npgf(2), 2) - seed%zet(2, 1))) < 1.e-12_dp) &
+      END IF
+      IF (MINVAL(ABS(extended%zet(:extended%npgf(2), 2) - seed%zet(2, 1))) < 1.e-12_dp) THEN
          ERROR STOP 'GAPW extension duplicated an existing soft exponent'
+      END IF
       CALL deallocate_gto_basis_set(extended)
       CALL deallocate_gto_basis_set(orbitals)
       CALL deallocate_gto_basis_set(seed)

@@ -203,14 +203,18 @@ CONTAINS
       END IF
       CALL logger%para_env%sync()
       CALL atom_read_upf(potential, fixture)
-      IF (MAXVAL(ABS(potential%vlocal - [3.0_dp, 2.0_dp, 1.0_dp])) > 1.e-14_dp) &
+      IF (MAXVAL(ABS(potential%vlocal - [3.0_dp, 2.0_dp, 1.0_dp])) > 1.e-14_dp) THEN
          ERROR STOP "UPF local potential is not in Hartree"
-      IF (MAXVAL(ABS(potential%beta(:, 1) - [2.0_dp, 4.0_dp, 6.0_dp])) > 1.e-14_dp) &
+      END IF
+      IF (MAXVAL(ABS(potential%beta(:, 1) - [2.0_dp, 4.0_dp, 6.0_dp])) > 1.e-14_dp) THEN
          ERROR STOP "UPF changed the first tabulated projector amplitude"
-      IF (MAXVAL(ABS(potential%beta(:, 2) - [4.0_dp, -1.0_dp, 2.0_dp])) > 1.e-14_dp) &
+      END IF
+      IF (MAXVAL(ABS(potential%beta(:, 2) - [4.0_dp, -1.0_dp, 2.0_dp])) > 1.e-14_dp) THEN
          ERROR STOP "UPF changed the second tabulated projector amplitude"
-      IF (MAXVAL(ABS(potential%dion - RESHAPE([1.0_dp, 0.2_dp, 0.2_dp, 4.0_dp], [2, 2]))) > 1.e-14_dp) &
+      END IF
+      IF (MAXVAL(ABS(potential%dion - RESHAPE([1.0_dp, 0.2_dp, 0.2_dp, 4.0_dp], [2, 2]))) > 1.e-14_dp) THEN
          ERROR STOP "UPF D matrix is not in the tabulated-projector convention"
+      END IF
       CALL atom_release_upf(potential)
       CALL logger%para_env%sync()
       IF (logger%para_env%is_source()) THEN

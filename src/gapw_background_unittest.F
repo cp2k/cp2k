@@ -66,8 +66,9 @@ PROGRAM gapw_background_unittest
       eplus = SUM(shifted*delta_rho*weights)
       shifted = gapw_background_potential(-q, box**3*(1.0_dp - h), rad2)
       eminus = SUM(shifted*delta_rho*weights)
-      IF (ABS(-(eplus - eminus)/(2.0_dp*h) - correction) > 1.e-11_dp) &
+      IF (ABS(-(eplus - eminus)/(2.0_dp*h) - correction) > 1.e-11_dp) THEN
          ERROR STOP "GAPW background volume derivative failed"
+      END IF
    END DO
    potential = gapw_background_potential(0.0_dp, box**3, rad2)
    IF (ANY(potential /= 0.0_dp)) ERROR STOP "Neutral cell has a background potential"

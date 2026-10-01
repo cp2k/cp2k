@@ -92,8 +92,9 @@ PROGRAM upf_local_integrals_unittest
          rbc = rac - rabv
          CALL upf_local_matrix(cache, la, alpha, lb, beta, rabv, rac, v, da, db)
          CALL upf_local_matrix(cache, la, alpha, lb, beta, rabv, rac, energy_only)
-         IF (MAXVAL(ABS(v - energy_only))/MAX(1._dp, MAXVAL(ABS(v))) > 1.e-12_dp) &
+         IF (MAXVAL(ABS(v - energy_only))/MAX(1._dp, MAXVAL(ABS(v))) > 1.e-12_dp) THEN
             ERROR STOP 'Energy-only and derivative local operators differ'
+         END IF
          reference = 0; s = 0; fs = 0
          CALL ppl_integral(la, 0, na, SPREAD(100._dp, 1, na), alpha, lb, 0, nb, SPREAD(100._dp, 1, nb), beta, &
                            2, gamma, [1, 1], coeff, 100._dp, rabv, norm2(rabv), rac, norm2(rac), rbc, norm2(rbc), reference, s, &
@@ -134,8 +135,9 @@ PROGRAM upf_local_integrals_unittest
       CALL upf_local_init(pot, .8_dp, la + lb + 1, cache, 1.e-12_dp)
       rabv = [.3_dp, -.5_dp, .8_dp]; rac = [.2_dp, .4_dp, -.7_dp]
       CALL upf_local_matrix(cache, la, alpha, lb, beta, rabv, rac, v, da, db)
-      IF (.NOT. ALL(ieee_is_finite(v)) .OR. .NOT. ALL(ieee_is_finite(da)) .OR. .NOT. ALL(ieee_is_finite(db))) &
+      IF (.NOT. ALL(ieee_is_finite(v)) .OR. .NOT. ALL(ieee_is_finite(da)) .OR. .NOT. ALL(ieee_is_finite(db))) THEN
          ERROR STOP 'Non-finite native local UPF integrals'
+      END IF
       PRINT '(A,1X,A,2ES18.9)', 'Native local UPF:', TRIM(filename), cache%radial%radius, MAXVAL(ABS(v))
       CALL atom_release_upf(pot)
    END DO
