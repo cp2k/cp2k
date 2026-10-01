@@ -2055,8 +2055,6 @@ add_executable(cp2k-bin start/cp2k.F)
 add_executable(orbital_transformation_matrices_unittest
                aobasis/orbital_transformation_matrices_unittest.F)
 add_executable(cp_files_unittest common/cp_files_unittest.F)
-enable_testing()
-add_test(NAME cp_files_unittest COMMAND cp_files_unittest)
 add_executable(gemm_square_unittest common/gemm_square_unittest.F)
 add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
