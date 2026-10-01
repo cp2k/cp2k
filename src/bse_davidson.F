@@ -52,8 +52,8 @@ MODULE bse_davidson
                                               bse_iter_or_cond,&
                                               bse_iter_res_cond,&
                                               bse_memcheck_abort,&
-                                              bse_memcheck_clamp,&
                                               bse_memcheck_off,&
+                                              bse_memcheck_reduce,&
                                               bse_memcheck_warn
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
@@ -1516,7 +1516,7 @@ CONTAINS
    END SUBROUTINE print_summary
 
 ! **************************************************************************************************
-!> \brief Number of wanted and tracked states and the block size, clamped to the problem size
+!> \brief Number of wanted and tracked states and the block size, capped at the problem size
 !> \param bse_env NUM_EXC_EN, NUM_BUFFER_STATES, BLOCK_SIZE and MAX_ITER
 !> \param n_ov number of transitions
 !> \param unit_nr output unit, positive on the writing rank only
@@ -1558,7 +1558,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Largest subspace dimension m_max: MAX_SUBSPACE_FACTOR x n_act, or 20 x n_act for -1, with
 !>        the solver's arrays at m_max checked against the memory budget per rank as MEMORY_CHECK says;
-!>        CLAMP lowers m_max to the largest that fits, never below 3 x n_act (4 x n_act for OLSEN_STRATMANN)
+!>        REDUCE lowers m_max to the largest that fits, never below 3 x n_act (4 x n_act for OLSEN_STRATMANN)
 !> \param bse_env MAX_SUBSPACE_FACTOR, MEMORY_CHECK and MEMORY_BUDGET_GB
 !> \param mv_env n_ov, the RI share per rank and block_cols
 !> \param driver driver_tda, driver_mk or driver_os
@@ -1635,7 +1635,7 @@ CONTAINS
       over = .NOT. skipped .AND. bse_env%memory_check /= bse_memcheck_off .AND. &
              dist_GB + repl_GB > budget_GB
 
-      IF (over .AND. bse_env%memory_check == bse_memcheck_clamp) THEN
+      IF (over .AND. bse_env%memory_check == bse_memcheck_reduce) THEN
          CALL davidson_footprint(driver, mv_env, m_floor, n_act, block_size, nb, n_ri_max, dist_GB, repl_GB)
          IF (dist_GB + repl_GB > budget_GB) THEN
             WRITE (mem_str, '(F16.3)') dist_GB + repl_GB
@@ -1698,12 +1698,12 @@ CONTAINS
                ELSE
                   WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: within the budget, no WARN raised'
                END IF
-            CASE (bse_memcheck_clamp)
+            CASE (bse_memcheck_reduce)
                IF (over) THEN
                   WRITE (unit_nr, '(T2,A4,T7,A,I0,A,I0)') 'BSE|', &
-                     'Memory check: CLAMP applied, subspace ceiling reduced from ', m_start, ' to ', m_max
+                     'Memory check: REDUCE lowered the subspace ceiling from ', m_start, ' to ', m_max
                ELSE
-                  WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: within the budget, no CLAMP applied'
+                  WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: within the budget, no REDUCE applied'
                END IF
             CASE (bse_memcheck_abort)
                IF (over) THEN
@@ -1724,7 +1724,7 @@ CONTAINS
                                           "BSE Davidson: the solver's arrays at the subspace ceiling need "// &
                                           TRIM(ADJUSTL(mem_str))//" GB per MPI rank, above the budget of "// &
                                           TRIM(ADJUSTL(bud_str))//" GB.")
-         CASE (bse_memcheck_clamp)
+         CASE (bse_memcheck_reduce)
             IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
                                           "BSE Davidson: subspace ceiling reduced to fit the memory budget; raise "// &
                                           "MEMORY_BUDGET_GB or lower MAX_SUBSPACE_FACTOR to silence this.")
@@ -1732,7 +1732,7 @@ CONTAINS
             CALL cp_abort(__LOCATION__, &
                           "BSE Davidson: the solver's arrays at the subspace ceiling need "//TRIM(ADJUSTL(mem_str))// &
                           " GB per MPI rank, the budget is "//TRIM(ADJUSTL(bud_str))//" GB. Raise MEMORY_BUDGET_GB, "// &
-                          "lower MAX_SUBSPACE_FACTOR, or set MEMORY_CHECK CLAMP.")
+                          "lower MAX_SUBSPACE_FACTOR, or set MEMORY_CHECK REDUCE.")
          END SELECT
       END IF
 

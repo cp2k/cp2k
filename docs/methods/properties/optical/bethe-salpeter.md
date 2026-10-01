@@ -673,7 +673,13 @@ whether the run warns or stops when a single RI atom does not fit into the budge
 reads both keywords for either
 [BSE_DIAG_METHOD](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.BSE_DIAG_METHOD). With `FULLDIAG`, the
 memory of the diagonalization is estimated before the *GW* starts and compared with the same budget.
-The output reports the budget, the largest batch and the number of batches.
+The output reports the budget, the largest batch and the number of batches. The budget does not
+include what the run holds already: the memory that SCF and *GW* have not released, and the
+three-center integrals of the BSE, which stay until the BSE ends and take about
+$8 N_\mathrm{RI} (N_\mathrm{occ}^2 + N_\mathrm{occ} N_\mathrm{virt} + N_\mathrm{virt}^2)$ bytes over
+all ranks and per spin, with $N_\mathrm{RI}$ RI functions and $N_\mathrm{occ}$, $N_\mathrm{virt}$
+levels in the active window. A budget set by hand should not exceed the memory per rank minus these
+two.
 
 The budget holds per step and is no total for the run. The transformation of the integrals and the
 solver run one after the other, and each may take up to the budget on top of what the run holds when

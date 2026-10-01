@@ -1425,7 +1425,7 @@ MODULE input_constants
    ! BSE iterative solver: what the memory check does when the budget is exceeded
    INTEGER, PARAMETER, PUBLIC               :: bse_memcheck_off = 0, &
                                                bse_memcheck_warn = 1, &
-                                               bse_memcheck_clamp = 2, &
+                                               bse_memcheck_reduce = 2, &
                                                bse_memcheck_abort = 3
    ! SIGMA_functional parameters selection
    INTEGER, PARAMETER, PUBLIC               :: sigma_none = 0, &

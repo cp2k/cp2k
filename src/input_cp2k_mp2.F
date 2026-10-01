@@ -29,7 +29,7 @@ MODULE input_cp2k_mp2
       bse_screening_w0, bse_screening_tdhf, bse_screening_rpa, bse_screening_alpha, &
       cohsex_diagonal, cohsex_off, cohsex_qp_update, &
       bse_abba_mk_davidson, bse_abba_olsen_stratmann, bse_iter_and_cond, bse_iter_en_cond, &
-      bse_iter_or_cond, bse_iter_res_cond, bse_memcheck_abort, bse_memcheck_clamp, bse_memcheck_off, &
+      bse_iter_or_cond, bse_iter_res_cond, bse_memcheck_abort, bse_memcheck_reduce, bse_memcheck_off, &
       bse_memcheck_warn, bse_precond_full_diag, bse_precond_qp_diff, bse_singlet, &
       bse_triplet, do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
       do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
@@ -1461,42 +1461,35 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CHECK", &
-                          description="What the BSE does when one of its memory-heavy steps exceeds "// &
-                          "MEMORY_BUDGET_GB per MPI rank. Three steps are checked. (1) With ITERDIAG, the "// &
-               "arrays of the iterative solver at the subspace ceiling (BSE_ITERAT%MAX_SUBSPACE_FACTOR): nothing, warn, reduce "// &
-                          "the ceiling to the largest that fits (never below the solver's minimum), or "// &
-                          "abort. (2) With FULLDIAG, the peak estimate of the full "// &
-                          "diagonalization, checked before the GW: CLAMP warns. (3) Under PROPERTIES, "// &
-                          "with either solver, the batch of a single RI atom in the transformation of "// &
-                          "the three-center integrals: WARN warns, CLAMP and ABORT stop the run.", &
-                          usage="MEMORY_CHECK CLAMP", &
-                          enum_c_vals=s2a("OFF", "WARN", "CLAMP", "ABORT"), &
-                          enum_i_vals=[bse_memcheck_off, bse_memcheck_warn, bse_memcheck_clamp, bse_memcheck_abort], &
+                          description="What the BSE does when a memory-heavy step exceeds MEMORY_BUDGET_GB. "// &
+                          "With ITERDIAG: OFF prints the estimate, WARN warns, REDUCE lowers the subspace "// &
+                          "ceiling (BSE_ITERAT%MAX_SUBSPACE_FACTOR) to the budget and warns, ABORT stops. "// &
+                          "With FULLDIAG, before the GW starts, nothing can be reduced: WARN and REDUCE "// &
+                          "warn, ABORT stops. Under PROPERTIES, when one RI atom of the three-center "// &
+                          "transformation alone exceeds the budget: WARN warns, REDUCE and ABORT stop.", &
+                          usage="MEMORY_CHECK REDUCE", &
+                          enum_c_vals=s2a("OFF", "WARN", "REDUCE", "ABORT"), &
+                          enum_i_vals=[bse_memcheck_off, bse_memcheck_warn, bse_memcheck_reduce, bse_memcheck_abort], &
                           enum_desc=s2a("Print the estimate, no comparison.", &
                                         "Warn when the estimate exceeds the budget.", &
-                                        "Reduce the subspace ceiling to the budget and warn.", &
+                                        "Reduce the subspace ceiling to the budget and warn; warn where nothing can be reduced.", &
                                         "Abort when the estimate exceeds the budget."), &
-                          default_i_val=bse_memcheck_clamp)
+                          default_i_val=bse_memcheck_reduce)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_BUDGET_GB", &
                           description="Memory budget per MPI rank in GB for the memory-heavy steps of the "// &
-                          "BSE. -1: each step takes half of the memory that is free on its ranks when the "// &
-                          "step starts. The budget holds per step and is no total for the run: the steps "// &
-                          "run one after the other, and each may take up to the budget on top of what the "// &
-                          "run holds when the step starts. Three steps read the budget. (1) With ITERDIAG, "// &
-                          "the arrays of the iterative solver. (2) With FULLDIAG, the peak estimate of the "// &
-                          "full diagonalization, compared with the budget before the GW starts. (3) Under "// &
-                          "PROPERTIES, with either solver, the batches of RI atoms in which the "// &
-                          "three-center integrals are transformed. No step counts what the run holds "// &
-                          "already: the memory that SCF and GW have not released, and the three-center "// &
-                          "integrals of the BSE, which stay until the BSE ends. Under PROPERTIES these take "// &
-                          "about 8 N_RI (N_occ^2 + N_occ N_virt + N_virt^2) bytes over all ranks and per "// &
-                          "spin, with N_RI RI functions and N_occ, N_virt levels in the active window. A "// &
-                          "budget set by hand should therefore not exceed the memory per rank minus these "// &
-                          "two; the default measures the free memory and needs no such estimate. "// &
-                          "MEMORY_CHECK decides what happens when a step exceeds the budget.", &
+                          "BSE. -1: each step derives its budget from the memory that is free on its ranks "// &
+                          "when it starts. The budget is a ceiling the steps are checked against, not what "// &
+                          "they allocate. With ITERDIAG the solver fits its subspace arrays into it; the "// &
+                          "BSE matrices are never stored. With FULLDIAG the memory of the BSE matrices and "// &
+                          "their diagonalization is fixed by the active window and is compared with the "// &
+                          "budget before the GW starts. Under PROPERTIES the three-center integrals are "// &
+                          "transformed in batches of RI atoms sized to the budget. What the run holds "// &
+                          "already (SCF, GW, the three-center integrals of the BSE) is not counted; the "// &
+                          "manual gives their size. MEMORY_CHECK sets what happens when a step exceeds "// &
+                          "the budget.", &
                           usage="MEMORY_BUDGET_GB 8.0", &
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)

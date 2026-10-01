@@ -522,7 +522,7 @@ CONTAINS
             REAL(largest_batch_bytes, dp)*1.0E-9_dp
       END IF
 
-      ! nothing smaller than one atom per batch exists, so CLAMP has nothing left to clamp
+      ! nothing smaller than one atom per batch exists, so REDUCE has nothing left to reduce
       IF (one_atom_bytes > budget_bytes .AND. bse_env%memory_check /= bse_memcheck_off) THEN
          WRITE (need_str, '(F16.3)') REAL(one_atom_bytes, dp)*1.0E-9_dp
          WRITE (budget_str, '(F16.3)') budget_GB

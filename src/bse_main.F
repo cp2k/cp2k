@@ -47,8 +47,8 @@ MODULE bse_main
                                               cp_logger_type
    USE cp_output_handling,              ONLY: debug_print_level
    USE input_constants,                 ONLY: &
-        bse_abba, bse_both, bse_fulldiag, bse_iterdiag, bse_memcheck_abort, bse_memcheck_clamp, &
-        bse_memcheck_off, bse_memcheck_warn, bse_screening_w0, bse_tda
+        bse_abba, bse_both, bse_fulldiag, bse_iterdiag, bse_memcheck_abort, bse_memcheck_off, &
+        bse_memcheck_reduce, bse_memcheck_warn, bse_screening_w0, bse_tda
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
@@ -533,7 +533,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Early memory check for the full diagonalization, before any GW work: the window on the
 !>        DFT axis gives n_ov = sum_spin n_occ n_virt, the estimate is estimate_BSE_resources', the
-!>        budget the one the iterative solver uses. WARN and CLAMP warn, ABORT aborts, OFF prints
+!>        budget the one the iterative solver uses. WARN and REDUCE warn, ABORT aborts, OFF prints
 !>        the estimate only.
 !> \param bse_env settings; the TDA flag, MEMORY_CHECK and MEMORY_BUDGET_GB
 !> \param window the active MO window on the DFT axis, one absolute range for every spin
@@ -610,7 +610,7 @@ CONTAINS
             remedy = "more MPI ranks, a tighter window"
          END IF
          SELECT CASE (bse_env%memory_check)
-         CASE (bse_memcheck_warn, bse_memcheck_clamp)
+         CASE (bse_memcheck_warn, bse_memcheck_reduce)
             IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
                                           "BSE full diagonalization: the estimate of "//TRIM(ADJUSTL(mem_str))// &
                                           " GB per MPI rank exceeds the budget of "//TRIM(ADJUSTL(bud_str))// &
