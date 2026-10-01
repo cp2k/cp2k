@@ -25,7 +25,8 @@ MODULE rt_bse_linearized
                                               cp_cfm_scale,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_transpose
-   USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
+   USE cp_cfm_diag,                     ONLY: cp_cfm_heevd,&
+                                              cp_cfm_power
    USE cp_cfm_types,                    ONLY: &
         cp_cfm_get_info, cp_cfm_get_submatrix, cp_cfm_set_all, cp_cfm_set_element, &
         cp_cfm_set_submatrix, cp_cfm_to_cfm, cp_cfm_to_fm, cp_cfm_type, cp_fm_to_cfm
@@ -71,7 +72,6 @@ MODULE rt_bse_linearized
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: get_qs_env
    USE qs_moments,                      ONLY: build_local_moment_matrix
-   USE rpa_gw_kpoints_util,             ONLY: cp_cfm_power
    USE rt_bse,                          ONLY: get_hartree,&
                                               get_sigma,&
                                               init_hartree,&
