@@ -31,13 +31,14 @@
     &END QS
     &SCF
       ADDED_MOS -1
-      EPS_SCF 1.0E-9
+      EPS_SCF 1.0E-11
       MAX_SCF 150
-      SCF_GUESS ATOMIC
+      ! The flattening check reuses the preceding SOC calculation's SCF state.
+      SCF_GUESS RESTART
       &DIAGONALIZATION
       &END DIAGONALIZATION
       &MIXING
-        ALPHA 0.15
+        ALPHA 0.4
         METHOD BROYDEN_MIXING
       &END MIXING
     &END SCF

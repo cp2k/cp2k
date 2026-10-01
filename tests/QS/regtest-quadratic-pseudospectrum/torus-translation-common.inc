@@ -15,8 +15,14 @@
     &END QS
     &MGRID
       CUTOFF 300
-      NGRIDS 1
-      REL_CUTOFF 40
+      @IF ${QS_METHOD} == GAPW
+        NGRIDS 4
+        REL_CUTOFF 60
+      @ENDIF
+      @IF ${QS_METHOD} == GPW
+        NGRIDS 1
+        REL_CUTOFF 40
+      @ENDIF
     &END MGRID
     &POISSON
       PERIODIC ${PERIODIC}

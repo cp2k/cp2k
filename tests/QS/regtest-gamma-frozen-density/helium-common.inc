@@ -23,7 +23,7 @@
     &END QS
     &MGRID
       CUTOFF 300
-      NGRIDS 1
+      NGRIDS 4
     &END MGRID
     &SCF
       EPS_SCF 1.0E-11

@@ -102,6 +102,7 @@ PROGRAM quadratic_pseudospectrum_unittest
    overlap(1, 1) = 1.e-14_dp
    CALL quadratic_dense(defect, overlap, shift, weights, 3, .FALSE., n, 200, 1.e-9_dp, 1.e-10_dp, dense, status)
    IF (status /= -2) ERROR STOP 'Ill-conditioned metric accepted'
+   DEALLOCATE (defect, overlap, projected)
    CALL periodic_tests()
    CALL translation_tests()
    CALL folded_translation_tests()
