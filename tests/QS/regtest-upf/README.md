@@ -6,6 +6,9 @@ nonlinear core correction. The SBr2 inputs exercise GPW, GAPW_XC, and GAPW,
 including successive UPF kinds, atomic initial densities, and forces.
 The GAPW variants use FORCE_PAW and a 3-bohr hard radius to exercise nonzero
 one-center corrections. Energy and two nonzero force components are checked.
+The 8-Angstrom cell and 400/60-Ry grids keep the cases within the regular
+regression time budget; larger-cell convergence and derivative studies are
+separate from these implementation checks.
 
 The source archives and SHA-256 hashes are pinned in
 `tools/pseudopotentials/sssp_v2_archives.json`. The original generator and

@@ -13,8 +13,8 @@
    EPS_DEFAULT 1.E-10
   &END QS
   &MGRID
-   CUTOFF 600
-   REL_CUTOFF 80
+   CUTOFF 400
+   REL_CUTOFF 60
   &END MGRID
   &SCF
    EPS_SCF 1.E-9
@@ -34,12 +34,12 @@
  &END DFT
  &SUBSYS
   &CELL
-   ABC 10 10 10
+   ABC 8 8 8
   &END CELL
   &COORD
-   S 5 5 5
-   Br 5 3.3 6.2
-   Br 5 6.7 6.2
+   S 4 4 4
+   Br 4 2.3 5.2
+   Br 4 5.7 5.2
   &END COORD
   &KIND S
    HARD_EXP_RADIUS 3.0
