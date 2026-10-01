@@ -214,17 +214,11 @@ CONTAINS
          CALL post_scf_bandstructure(qs_env, post_scf_bands_section)
       END IF
 
-      ! Bethe-Salpeter on the RI-AO GW of the bandstructure block; the requirement reader at GW init
-      ! settled RI_RS and periodicity
+      ! Linear-response Bethe-Salpeter on the GW of the bandstructure section
       NULLIFY (bse_props_section)
       bse_props_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%BSE")
       CALL section_vals_get(bse_props_section, explicit=do_bse_props)
-      IF (do_bse_props) THEN
-         IF (.NOT. do_post_scf_bandstructure) THEN
-            CPABORT("PROPERTIES%BSE needs PROPERTIES%BANDSTRUCTURE%GW")
-         END IF
-         CALL bse_from_bs_env(qs_env, bse_props_section)
-      END IF
+      IF (do_bse_props) CALL bse_from_bs_env(qs_env, bse_props_section)
 
       ! tip scan
       NULLIFY (tip_scan_section)

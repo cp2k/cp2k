@@ -125,12 +125,12 @@ CONTAINS
       CALL get_qs_env(qs_env, bs_env=bs_env)
       ! the driver calls this after the bandstructure block, which creates bs_env
       IF (.NOT. ASSOCIATED(bs_env)) CPABORT("PROPERTIES%BSE found no GW environment (bs_env)")
-      ! read_bse_input refused each of these at GW init with a message that says what to change;
+      ! check_cp2k_input refused each of these at input parsing with a message that says what to change;
       ! Gamma is the one k-point that carries the MOs and the energies read below
       IF (.NOT. bs_env%do_gw .OR. bs_env%do_periodic .OR. bs_env%do_gw_ri_rs .OR. bs_env%nkp_bs_and_DOS /= 1) THEN
          CPABORT("PROPERTIES%BSE needs a non-periodic, Gamma-only GW without RI_RS")
       END IF
-      ! the same reader told the GW to keep its static W and the 3c neighbour list
+      ! read_bse_input told the GW at its init to keep its static W and the 3c neighbour list
       IF (.NOT. (bs_env%keep_W_freq_zero .AND. bs_env%keep_3c_nl) .OR. &
           .NOT. ASSOCIATED(bs_env%fm_W_MIC_freq_zero%matrix_struct)) THEN
          CPABORT("PROPERTIES%BSE: the GW kept no static W(0) or no 3c neighbour list")

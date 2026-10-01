@@ -59,14 +59,17 @@ MODULE post_scf_bandstructure_utils
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
                                               cp_to_string
-   USE cp_output_handling,              ONLY: debug_print_level
    USE cp_parser_methods,               ONLY: read_float_object
    USE dft_plus_u,                      ONLY: lowdin_kp_apply,&
                                               lowdin_kp_prepare
-   USE input_constants,                 ONLY: &
-        G0W0, bse_fulldiag, evGW0, int_ldos_z, ri_rs_large_cell_Gamma, ri_rs_non_periodic, &
-        rtp_method_bse, rtp_method_bse_linearized, tensor_large_cell_Gamma, &
-        tensor_small_cell_full_kp
+   USE input_constants,                 ONLY: G0W0,&
+                                              bse_fulldiag,&
+                                              evGW0,&
+                                              int_ldos_z,&
+                                              ri_rs_large_cell_Gamma,&
+                                              ri_rs_non_periodic,&
+                                              tensor_large_cell_Gamma,&
+                                              tensor_small_cell_full_kp
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -248,10 +251,10 @@ CONTAINS
    END SUBROUTINE create_and_init_bs_env
 
 ! **************************************************************************************************
-!> \brief What PROPERTIES%BSE needs the GW to keep, the six combinations it refuses at init and,
-!>        with FULLDIAG, the early memory check of the full diagonalization
+!> \brief What PROPERTIES%BSE needs the GW to keep and, with FULLDIAG, the early memory check of the
+!>        full diagonalization; check_cp2k_input refused the input combinations the BSE cannot run
 !> \param qs_env source of the input
-!> \param bs_env its GW flags are read; keep_W_freq_zero and keep_3c_nl are set
+!> \param bs_env SCF eigenvalues and occupations of the memory check; keep_W_freq_zero and keep_3c_nl are set
 ! **************************************************************************************************
    SUBROUTINE read_bse_input(qs_env, bs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -259,9 +262,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_bse_input'
 
-      INTEGER                                            :: handle, n_spin, print_level_nto
+      INTEGER                                            :: handle, n_spin
       INTEGER, DIMENSION(2)                              :: n_mo
-      LOGICAL                                            :: cube_files, do_bse_props
+      LOGICAL                                            :: do_bse_props
       TYPE(bse_env_type)                                 :: bse_env
       TYPE(mo_window_type)                               :: window
       TYPE(section_vals_type), POINTER                   :: bse_sec, input
@@ -274,42 +277,6 @@ CONTAINS
       CALL section_vals_get(bse_sec, explicit=do_bse_props)
 
       IF (do_bse_props) THEN
-         IF (.NOT. bs_env%do_gw) CPABORT("PROPERTIES%BSE needs PROPERTIES%BANDSTRUCTURE%GW")
-         ! the BSE kernel is built from the three-center RI integrals, which RI_RS replaces by a grid
-         IF (bs_env%do_gw_ri_rs) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "PROPERTIES%BSE needs the three-center RI integrals of the GW: remove the "// &
-                          "RI_RS subsection from PROPERTIES%BANDSTRUCTURE%GW")
-         END IF
-         IF (bs_env%do_periodic) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "The BSE treats non-periodic systems only: PROPERTIES%BSE needs "// &
-                          "PERIODIC NONE in the CELL section")
-         END IF
-         ! the BSE reads the MOs and the GW energies at the Gamma point, the only k-point of a
-         ! non-periodic run unless a band path or a DOS k-grid adds more
-         IF (bs_env%nkp_bs_and_DOS /= 1) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "PROPERTIES%BSE needs the Gamma point only: remove BANDSTRUCTURE_PATH and "// &
-                          "DOS%KPOINTS from PROPERTIES%BANDSTRUCTURE")
-         END IF
-         ! both read the W(0) and the neighbour list the GW keeps, and PROPERTIES%BSE frees them
-         IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "PROPERTIES%BSE and DFT%REAL_TIME_PROPAGATION%RTBSE do not share a run: "// &
-                          "remove one of the two sections")
-         END IF
-         ! the GW releases the SCF grids at its init; the NTO cube writer collocates on them
-         ! (CUBE_FILES defaults to true; the print key's level is the switch, OFF encoded as
-         ! debug_print_level + 1, read as read_bse_section reads it)
-         CALL section_vals_val_get(bse_sec, "NTO_ANALYSIS%_SECTION_PARAMETERS_", i_val=print_level_nto)
-         CALL section_vals_val_get(bse_sec, "NTO_ANALYSIS%CUBE_FILES", l_val=cube_files)
-         IF (print_level_nto /= debug_print_level + 1 .AND. cube_files) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "PROPERTIES%BSE runs after the GW released the SCF grids: set "// &
-                          "NTO_ANALYSIS%CUBE_FILES to F, or write the cubes from the BSE of "// &
-                          "XC%WF_CORRELATION%RI_RPA%GW")
-         END IF
          ! the full diagonalization's footprint is known here, before any GW work
          CALL read_bse_section(bse_sec, bse_env)
          IF (bse_env%bse_diag_method == bse_fulldiag) THEN
