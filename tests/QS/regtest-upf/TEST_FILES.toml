@@ -1,18 +1,18 @@
-# Unmodified SSSP v2.0 PBE Efficiency S/Br datasets; source hashes: tools/pseudopotentials/sssp_v2_archives.json
-# Original SSSP v2.0 NC datasets; native local and nonlocal integrals and NLCC.
-# GAPW cases deliberately retain a nonzero one-center correction.
-"SBr2_GPW.inp" = [
-  {matcher="M011", tol=1e-11, ref=-42.01916351833797},
-  {matcher="Atomic_force_1_z", tol=1e-6, ref=-0.0594063222},
-  {matcher="Atomic_force_2_y", tol=1e-6, ref=-0.0365327401},
+# SSSP v2.0 PBE Efficiency Br and the existing local HGH H dataset.
+# Tests native local/nonlocal operators, mixed NLCC kinds, and energy/forces.
+# GAPW cases retain nonzero one-center contributions.
+"HBr_GPW.inp" = [
+  {matcher="M011", tol=1e-11, ref=-16.119259810573283},
+  {matcher="Atomic_force_1_z", tol=1e-6, ref=-0.0206469421},
+  {matcher="Atomic_force_2_y", tol=1e-6, ref=0.00643540086},
 ]
-"SBr2_GAPW_XC.inp" = [
-  {matcher="M011", tol=1e-11, ref=-42.04308373207205},
-  {matcher="Atomic_force_1_z", tol=1e-6, ref=-0.0611066447},
-  {matcher="Atomic_force_2_y", tol=1e-6, ref=-0.0375531613},
+"HBr_GAPW_XC.inp" = [
+  {matcher="M011", tol=1e-11, ref=-16.127538493400515},
+  {matcher="Atomic_force_1_z", tol=1e-6, ref=-0.0193301809},
+  {matcher="Atomic_force_2_y", tol=1e-6, ref=0.0062152316},
 ]
-"SBr2_GAPW.inp" = [
-  {matcher="M011", tol=1e-11, ref=-42.03995554512824},
-  {matcher="Atomic_force_1_z", tol=1e-6, ref=-0.0651971347},
-  {matcher="Atomic_force_2_y", tol=1e-6, ref=-0.0403255003},
+"HBr_GAPW.inp" = [
+  {matcher="M011", tol=1e-11, ref=-16.128310975491278},
+  {matcher="Atomic_force_1_z", tol=1e-6, ref=-0.0124653551},
+  {matcher="Atomic_force_2_y", tol=1e-6, ref=0.00415927816},
 ]

@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT SBr2_GAPW_XC
+  PROJECT HBr_GAPW_XC
   RUN_TYPE ENERGY_FORCE
 &END GLOBAL
 
@@ -9,8 +9,8 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_MOLOPT_UZH_2026.2
     &MGRID
-      CUTOFF 400
-      REL_CUTOFF 60
+      CUTOFF 200
+      REL_CUTOFF 40
     &END MGRID
     &QS
       EPS_DEFAULT 1.E-10
@@ -19,12 +19,12 @@
     &END QS
     &SCF
       EPS_SCF 1.E-9
-      MAX_SCF 180
+      MAX_SCF 60
       SCF_GUESS ATOMIC
       &DIAGONALIZATION
       &END DIAGONALIZATION
       &MIXING
-        ALPHA 0.2
+        ALPHA 0.4
         METHOD BROYDEN_MIXING
       &END MIXING
     &END SCF
@@ -39,26 +39,25 @@
   &END PRINT
   &SUBSYS
     &CELL
-      ABC 8 8 8
+      ABC 6 6 6
     &END CELL
     &COORD
-      S 4 4 4
-      Br 4 2.3 5.2
-      Br 4 5.7 5.2
+      H 2.1 2.7 2.0
+      Br 3 3 3
     &END COORD
-    &KIND S
-      BASIS_SET DZVP-MOLOPT-PBE-GTH-q6
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-PBE-GTH-q1
       HARD_EXP_RADIUS 3.0
-      LEBEDEV_GRID 302
-      POTENTIAL UPF S.nc.pbe.z_6.oncvpsp4.spms.v1.upf
-      RADIAL_GRID 200
+      LEBEDEV_GRID 110
+      POTENTIAL UPF ../regtest-kind/H.pbe-hgh.UPF
+      RADIAL_GRID 80
     &END KIND
     &KIND Br
       BASIS_SET DZVP-MOLOPT-PBE-GTH-q7
       HARD_EXP_RADIUS 3.0
-      LEBEDEV_GRID 302
+      LEBEDEV_GRID 110
       POTENTIAL UPF Br.nc.pbe.z_7.oncvpsp4.spms.v1.upf
-      RADIAL_GRID 200
+      RADIAL_GRID 80
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL
