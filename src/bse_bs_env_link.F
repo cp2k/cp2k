@@ -19,7 +19,8 @@ MODULE bse_bs_env_link
    USE bse_input,                       ONLY: read_bse_section
    USE bse_main,                        ONLY: bse_solve,&
                                               prepare_bse_env_from_bandstructure_gw
-   USE bse_matvec,                      ONLY: mem_fraction
+   USE bse_matvec,                      ONLY: bse_memory_left_GB,&
+                                              bse_resolve_memory_per_proc
    USE bse_types,                       ONLY: bse_env_release,&
                                               bse_env_type
    USE bse_util,                        ONLY: bse_window_from_dft
@@ -52,13 +53,10 @@ MODULE bse_bs_env_link
    USE gw_utils_communication,          ONLY: fm_to_local_tensor,&
                                               local_matrix_to_global_matrix
    USE gw_utils_fm,                     ONLY: fm_contract_ABA
-   USE input_constants,                 ONLY: bse_memcheck_off,&
-                                              bse_memcheck_warn
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_2c_3c,                    ONLY: libint_potential_type
-   USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB
    USE mo_window,                       ONLY: mo_window_type
    USE mp2_ri_2c,                       ONLY: RI_2c_integral_mat
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -146,6 +144,7 @@ CONTAINS
       n_mo_real = MIN(bs_env%n_mo_retained, bs_env%n_ao)
 
       CALL read_bse_section(bse_section, bse_env)
+      CALL bse_resolve_memory_per_proc(bse_env%memory_per_proc_gb, bs_env%para_env, unit_nr)
 
       CALL link_window(bs_env, bse_env, n_mo_real, window, homo_red, virt_red, unit_nr)
       n_window = window%last_mo - window%first_mo + 1
@@ -433,7 +432,7 @@ CONTAINS
 !> \brief Contiguous RI atom ranges of at most max_RI_per_batch RI functions; an atom larger than
 !>        that forms its own batch
 !> \param sizes_RI RI functions per atom
-!> \param max_RI_per_batch RI functions per batch the memory budget allows
+!> \param max_RI_per_batch RI functions per batch the memory left allows
 !> \param batch_first first atom per batch, allocated here
 !> \param batch_last last atom per batch, allocated here
 ! **************************************************************************************************
@@ -469,19 +468,17 @@ CONTAINS
    END SUBROUTINE link_ri_batches
 
 ! **************************************************************************************************
-!> \brief The memory budget of the slab build per rank and the largest RI batch it allows:
-!>        MEMORY_BUDGET_GB as given, else mem_fraction of the free memory per rank measured
-!>        now (its minimum over the ranks, so every rank cuts the same batches). One RI function of a
-!>        batch costs, per rank,
-!>        bytes_per_RI = 8 [(n_ao^2 + n_ao n_window + n_window^2)/N_group + 4 n_window^2/N_all],
-!>        N_group: ranks of one tensor group, N_all: all ranks. MEMORY_CHECK decides what happens
-!>        when one RI atom alone exceeds the budget
-!> \param bs_env AO and RI sizes, the communicators of all ranks and of the tensor group
-!> \param bse_env MEMORY_BUDGET_GB and MEMORY_CHECK
-!> \param n_window MOs in the window
+!> \brief What MEMORY_PER_PROC leaves to the slab build per rank and the largest RI batch it allows:
+!>        per RI function of a batch, on the ranks of its tensor group the 3c integrals (P|μν), the
+!>        half-transform (P μ|q) and the product (P|qp), and on all ranks the block matrices of the
+!>        batch, their global copies and the batch's full matrix; one atom per batch with a warning
+!>        when one RI atom alone exceeds what is left
+!> \param bs_env sizes and communicators
+!> \param bse_env the resolved MEMORY_PER_PROC
+!> \param n_window levels in the active window
 !> \param unit_nr output unit, positive on the writing rank only
-!> \param budget_bytes the budget; the RI transform chunks its work matrix by it as well
-!> \param max_RI_per_batch RI functions per batch within the budget, at least one
+!> \param budget_bytes what is left, in bytes; the RI transform chunks its work matrix by it as well
+!> \param max_RI_per_batch RI functions per batch within what is left, at least one
 ! **************************************************************************************************
    SUBROUTINE link_batch_budget(bs_env, bse_env, n_window, unit_nr, budget_bytes, max_RI_per_batch)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
@@ -490,20 +487,13 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(OUT)                   :: budget_bytes
       INTEGER, INTENT(OUT)                               :: max_RI_per_batch
 
-      CHARACTER(LEN=16)                                  :: budget_str, need_str
+      CHARACTER(LEN=16)                                  :: left_str, need_str
       INTEGER(KIND=int_8)                                :: bytes_per_RI, largest_batch_bytes, &
                                                             one_atom_bytes
-      REAL(KIND=dp)                                      :: budget_GB, mem_avail_GB
+      REAL(KIND=dp)                                      :: mem_left_GB
 
-      ! a negative MEMORY_BUDGET_GB is the keyword's default and asks for the measured budget
-      IF (bse_env%memory_budget_gb < 0.0_dp) THEN
-         CALL mp_mem_avail_per_rank_GB(bs_env%para_env, mem_avail_GB)
-         budget_GB = mem_fraction*mem_avail_GB
-      ELSE
-         budget_GB = bse_env%memory_budget_gb
-      END IF
-      budget_bytes = INT(MAX(budget_GB, 0.0_dp)*1.0E9_dp, KIND=int_8)
-
+      mem_left_GB = bse_memory_left_GB(bse_env%memory_per_proc_gb, bs_env%para_env)
+      budget_bytes = INT(mem_left_GB*1.0E9_dp, KIND=int_8)
       ! per RI function of a batch, all distributed: on the ranks of its tensor group the 3c
       ! integrals (P|μν), the half-transform (P μ|q) and the product (P|qp); on all ranks the block
       ! matrices of the batch, their global copies (two inside the group-to-global hop) and the
@@ -514,28 +504,22 @@ CONTAINS
       max_RI_per_batch = INT(MAX(1_int_8, MIN(INT(SUM(bs_env%sizes_RI), int_8), budget_bytes/bytes_per_RI)))
       one_atom_bytes = INT(MAXVAL(bs_env%sizes_RI), int_8)*bytes_per_RI
       largest_batch_bytes = MAX(INT(max_RI_per_batch, int_8)*bytes_per_RI, one_atom_bytes)
-
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory budget per MPI rank for the 3c integrals (GB)', &
-            budget_GB
+         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory per MPI rank for the BSE, MEMORY_PER_PROC (GB)', &
+            bse_env%memory_per_proc_gb
+         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Left for the 3c integrals after the memory held (GB)', &
+            mem_left_GB
          WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Largest RI batch per MPI rank (GB)', &
             REAL(largest_batch_bytes, dp)*1.0E-9_dp
       END IF
-
-      ! nothing smaller than one atom per batch exists, so REDUCE has nothing left to reduce
-      IF (one_atom_bytes > budget_bytes .AND. bse_env%memory_check /= bse_memcheck_off) THEN
+      ! nothing smaller than one atom per batch exists: run with it and say so
+      IF (one_atom_bytes > budget_bytes) THEN
          WRITE (need_str, '(F16.3)') REAL(one_atom_bytes, dp)*1.0E-9_dp
-         WRITE (budget_str, '(F16.3)') budget_GB
-         IF (bse_env%memory_check == bse_memcheck_warn) THEN
-            CALL cp_warn(__LOCATION__, &
-                         "PROPERTIES%BSE: the 3c integral batch of one RI atom needs "//TRIM(ADJUSTL(need_str))// &
-                         " GB per MPI rank, the budget is "//TRIM(ADJUSTL(budget_str))//" GB; one atom per batch")
-         ELSE
-            CALL cp_abort(__LOCATION__, &
-                          "PROPERTIES%BSE: not enough memory for the 3c integral batch of one RI atom: "// &
-                          TRIM(ADJUSTL(need_str))//" GB per MPI rank, the budget is "//TRIM(ADJUSTL(budget_str))// &
-                          " GB. Raise MEMORY_BUDGET_GB or use more MPI ranks.")
-         END IF
+         WRITE (left_str, '(F16.3)') mem_left_GB
+         CALL cp_warn(__LOCATION__, &
+                      "PROPERTIES%BSE: the 3c integral batch of one RI atom needs "//TRIM(ADJUSTL(need_str))// &
+                      " GB per MPI rank, "//TRIM(ADJUSTL(left_str))//" GB are left of MEMORY_PER_PROC; one atom "// &
+                      "per batch. Raise MEMORY_PER_PROC or use more MPI ranks.")
       END IF
 
    END SUBROUTINE link_batch_budget

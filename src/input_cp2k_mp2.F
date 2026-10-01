@@ -29,8 +29,7 @@ MODULE input_cp2k_mp2
       bse_screening_w0, bse_screening_tdhf, bse_screening_rpa, bse_screening_alpha, &
       cohsex_diagonal, cohsex_off, cohsex_qp_update, &
       bse_abba_mk_davidson, bse_abba_olsen_stratmann, bse_iter_and_cond, bse_iter_en_cond, &
-      bse_iter_or_cond, bse_iter_res_cond, bse_memcheck_abort, bse_memcheck_reduce, bse_memcheck_off, &
-      bse_memcheck_warn, bse_precond_full_diag, bse_precond_qp_diff, bse_singlet, &
+      bse_iter_or_cond, bse_iter_res_cond, bse_precond_full_diag, bse_precond_qp_diff, bse_singlet, &
       bse_triplet, do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
       do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
       do_potential_tshpsc, eri_default, gaussian, gw_no_print_exx, gw_pade_approx, gw_print_exx, &
@@ -1388,7 +1387,7 @@ CONTAINS
                           "Reference: Eq. (8) (the full BSE), Eq. (10) (the matrix elements A and B with the "// &
                           "singlet and triplet prefactors) and Eq. (18) (TDA) in PRB 113, 205152 (2026); "// &
                           "https://doi.org/10.1103/38k2-d55h"//where_from, &
-                          n_keywords=10, n_subsections=4, repeats=.FALSE.)
+                          n_keywords=9, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1460,37 +1459,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_CHECK", &
-                          description="What the BSE does when a memory-heavy step exceeds MEMORY_BUDGET_GB. "// &
-                          "With ITERDIAG: OFF prints the estimate, WARN warns, REDUCE lowers the subspace "// &
-                          "ceiling (BSE_ITERAT%MAX_SUBSPACE_FACTOR) to the budget and warns, ABORT stops. "// &
-                          "With FULLDIAG, before the GW starts, nothing can be reduced: WARN and REDUCE "// &
-                          "warn, ABORT stops. Under PROPERTIES, when one RI atom of the three-center "// &
-                          "transformation alone exceeds the budget: WARN warns, REDUCE and ABORT stop.", &
-                          usage="MEMORY_CHECK REDUCE", &
-                          enum_c_vals=s2a("OFF", "WARN", "REDUCE", "ABORT"), &
-                          enum_i_vals=[bse_memcheck_off, bse_memcheck_warn, bse_memcheck_reduce, bse_memcheck_abort], &
-                          enum_desc=s2a("Print the estimate, no comparison.", &
-                                        "Warn when the estimate exceeds the budget.", &
-                                        "Reduce the subspace ceiling to the budget and warn; warn where nothing can be reduced.", &
-                                        "Abort when the estimate exceeds the budget."), &
-                          default_i_val=bse_memcheck_reduce)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_BUDGET_GB", &
-                          description="Memory budget per MPI rank in GB for the memory-heavy steps of the "// &
-                          "BSE. -1: each step derives its budget from the memory that is free on its ranks "// &
-                          "when it starts. The budget is a ceiling the steps are checked against, not what "// &
-                          "they allocate. With ITERDIAG the solver fits its subspace arrays into it; the "// &
-                          "BSE matrices are never stored. With FULLDIAG the memory of the BSE matrices and "// &
-                          "their diagonalization is fixed by the active window and is compared with the "// &
-                          "budget before the GW starts. Under PROPERTIES the three-center integrals are "// &
-                          "transformed in batches of RI atoms sized to the budget. What the run holds "// &
-                          "already (SCF, GW, the three-center integrals of the BSE) is not counted; the "// &
-                          "manual gives their size. MEMORY_CHECK sets what happens when a step exceeds "// &
-                          "the budget.", &
-                          usage="MEMORY_BUDGET_GB 8.0", &
+      CALL keyword_create(keyword, __LOCATION__, name="MEMORY_PER_PROC", &
+                          description="Memory per MPI rank in GB available to the BSE, the counterpart of "// &
+                          "MEMORY_PER_PROC in the GW section. -1: detected when the BSE first needs it, as the "// &
+                          "memory the rank holds plus 80 percent of the free memory of the node divided by its "// &
+                          "ranks. Every memory-heavy step takes what is left after the memory the rank holds "// &
+                          "at that moment: under PROPERTIES the three-center integrals are transformed in "// &
+                          "batches of RI atoms that fit, down to one atom per batch; with ITERDIAG the "// &
+                          "subspace ceiling and the matvec blocks are lowered to fit; with FULLDIAG the "// &
+                          "memory of the BSE matrices is fixed by the active window, and the run stops before "// &
+                          "the GW when it does not fit.", &
+                          usage="MEMORY_PER_PROC 8.0", &
                           default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1819,8 +1798,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_SUBSPACE_FACTOR", &
                           description="Subspace ceiling in units of (NUM_EXC_EN+NUM_BUFFER_STATES) before a "// &
-                          "thick restart. -1: start from 20 and let MEMORY_CHECK of the BSE section reduce it to "// &
-                          "the budget.", &
+                          "thick restart, lowered to what MEMORY_PER_PROC of the BSE section leaves; -1 starts "// &
+                          "from 20.", &
                           usage="MAX_SUBSPACE_FACTOR 5", &
                           default_i_val=10)
       CALL section_add_keyword(section, keyword)
@@ -1831,7 +1810,7 @@ CONTAINS
                           "arrays of one pass are n_arrays*N_ov*MATVEC_BLOCK_COLUMNS doubles, n_arrays 3 for "// &
                           "the TDA and 4 otherwise. Never more than the columns of the call. Measured: flat "// &
                           "from 8 to 64, up to 28x slower in the gather at 128 and above. -1: as many as "// &
-                          "half the free memory per rank allows.", &
+                          "the memory MEMORY_PER_PROC of the BSE section leaves allows.", &
                           usage="MATVEC_BLOCK_COLUMNS 32", &
                           default_i_val=32)
       CALL section_add_keyword(section, keyword)

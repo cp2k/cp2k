@@ -21,7 +21,8 @@ MODULE bse_main
                                               diagonalize_C
    USE bse_input,                       ONLY: read_bse_section
    USE bse_iterative,                   ONLY: solve_bse_iteratively
-   USE bse_matvec,                      ONLY: mem_fraction
+   USE bse_matvec,                      ONLY: bse_memory_left_GB,&
+                                              bse_resolve_memory_per_proc
    USE bse_print,                       ONLY: print_BSE_start_flag
    USE bse_types,                       ONLY: bse_env_type
    USE bse_util,                        ONLY: adapt_BSE_input_params,&
@@ -46,14 +47,16 @@ MODULE bse_main
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: debug_print_level
-   USE input_constants,                 ONLY: &
-        bse_abba, bse_both, bse_fulldiag, bse_iterdiag, bse_memcheck_abort, bse_memcheck_off, &
-        bse_memcheck_reduce, bse_memcheck_warn, bse_screening_w0, bse_tda
+   USE input_constants,                 ONLY: bse_abba,&
+                                              bse_both,&
+                                              bse_fulldiag,&
+                                              bse_iterdiag,&
+                                              bse_screening_w0,&
+                                              bse_tda
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_mem_avail_per_rank_GB,&
-                                              mp_para_env_type
+   USE message_passing,                 ONLY: mp_para_env_type
    USE mo_window,                       ONLY: mo_window_type
    USE pw_poisson_read_input,           ONLY: pw_poisson_read_parameters
    USE pw_poisson_types,                ONLY: pw_poisson_parameter_type
@@ -124,6 +127,7 @@ CONTAINS
       ! section apart from bse_env, whose section pointer the reader sets
       bse_section => bse_env%bse_section
       CALL read_bse_section(bse_section, bse_env)
+      CALL bse_resolve_memory_per_proc(bse_env%memory_per_proc_gb, fm_S_ia_full(1)%matrix_struct%para_env, unit_nr)
 
       nspins = SIZE(homo)
       ! the GW-corrected level counts are the ceiling of the window
@@ -532,18 +536,17 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Early memory check for the full diagonalization, before any GW work: the window on the
-!>        DFT axis gives n_ov = sum_spin n_occ n_virt, the estimate is estimate_BSE_resources', the
-!>        budget the one the iterative solver uses. WARN and REDUCE warn, ABORT aborts, OFF prints
-!>        the estimate only.
-!> \param bse_env settings; the TDA flag, MEMORY_CHECK and MEMORY_BUDGET_GB
+!>        DFT axis gives n_ov = sum_spin n_occ n_virt, the estimate is estimate_BSE_resources', and
+!>        the run stops when it exceeds what MEMORY_PER_PROC leaves after the memory the rank holds,
+!>        since a full diagonalization has nothing to shrink
+!> \param bse_env settings; the TDA flag and MEMORY_PER_PROC, resolved here when still -1
 !> \param window the active MO window on the DFT axis, one absolute range for every spin
 !> \param homo occupied MOs per spin
 !> \param para_env the ranks that will hold the matrices
 !> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
    SUBROUTINE bse_fulldiag_memory_check(bse_env, window, homo, para_env, unit_nr)
-
-      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
       TYPE(mo_window_type), INTENT(IN)                   :: window
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -551,11 +554,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'bse_fulldiag_memory_check'
 
-      CHARACTER(LEN=16)                                  :: bud_str, mem_str
-      CHARACTER(LEN=64)                                  :: remedy
+      CHARACTER(LEN=16)                                  :: left_str, mem_str
+      CHARACTER(LEN=80)                                  :: remedy
       INTEGER                                            :: handle, ispin, n_ov_joint, nspins
-      LOGICAL                                            :: from_free, over, skipped
-      REAL(KIND=dp)                                      :: budget_GB, mem_avail_GB, mem_est_GB
+      REAL(KIND=dp)                                      :: mem_est_GB, mem_left_GB
 
       CALL timeset(routineN, handle)
 
@@ -564,20 +566,10 @@ CONTAINS
       DO ispin = 1, nspins
          n_ov_joint = n_ov_joint + (homo(ispin) - window%first_mo + 1)*(window%last_mo - homo(ispin))
       END DO
-
       mem_est_GB = fulldiag_memory_estimate_GB(n_ov_joint, bse_env%flag_tda /= bse_tda)/ &
                    REAL(para_env%num_pe, KIND=dp)
-
-      ! the budget: as given, or the share mem_fraction of the free memory per rank
-      from_free = bse_env%memory_budget_gb < 0.0_dp
-      skipped = .FALSE.
-      budget_GB = bse_env%memory_budget_gb
-      IF (from_free) THEN
-         CALL mp_mem_avail_per_rank_GB(para_env, mem_avail_GB)
-         budget_GB = mem_fraction*mem_avail_GB
-         skipped = mem_avail_GB <= 0.0_dp
-      END IF
-      over = .NOT. skipped .AND. bse_env%memory_check /= bse_memcheck_off .AND. mem_est_GB > budget_GB
+      CALL bse_resolve_memory_per_proc(bse_env%memory_per_proc_gb, para_env, unit_nr)
+      mem_left_GB = bse_memory_left_GB(bse_env%memory_per_proc_gb, para_env)
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -585,42 +577,25 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T7,A,T71,I10)') 'BSE|', 'Transition pairs in the active window (DFT axis)', &
             n_ov_joint
          WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Peak memory estimate per MPI rank (GB)', mem_est_GB
-         IF (.NOT. skipped) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory budget per MPI rank (GB)', budget_GB
-         END IF
-         IF (bse_env%memory_check == bse_memcheck_off) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: OFF'
-         ELSE IF (skipped) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: skipped, free memory not detectable'
-         ELSE IF (over) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: the estimate exceeds the budget'
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', 'Memory check: within the budget'
-         END IF
+         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Memory per MPI rank for the BSE, MEMORY_PER_PROC (GB)', &
+            bse_env%memory_per_proc_gb
+         WRITE (unit_nr, '(T2,A4,T7,A,T67,F14.3)') 'BSE|', 'Left after the memory the rank holds (GB)', mem_left_GB
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
       END IF
 
-      IF (over) THEN
+      IF (mem_est_GB > mem_left_GB) THEN
          WRITE (mem_str, '(F16.3)') mem_est_GB
-         WRITE (bud_str, '(F16.3)') budget_GB
+         WRITE (left_str, '(F16.3)') mem_left_GB
          ! ITERDIAG is closed-shell only, so an open-shell run is not pointed to it
          IF (nspins == 1) THEN
-            remedy = "more MPI ranks, a tighter window, ITERDIAG"
+            remedy = "more MPI ranks, a tighter window, ITERDIAG, a higher MEMORY_PER_PROC"
          ELSE
-            remedy = "more MPI ranks, a tighter window"
+            remedy = "more MPI ranks, a tighter window, a higher MEMORY_PER_PROC"
          END IF
-         SELECT CASE (bse_env%memory_check)
-         CASE (bse_memcheck_warn, bse_memcheck_reduce)
-            IF (unit_nr > 0) CALL cp_warn(__LOCATION__, &
-                                          "BSE full diagonalization: the estimate of "//TRIM(ADJUSTL(mem_str))// &
-                                          " GB per MPI rank exceeds the budget of "//TRIM(ADJUSTL(bud_str))// &
-                                          " GB. Try one of: "//TRIM(remedy)//".")
-         CASE (bse_memcheck_abort)
-            CALL cp_abort(__LOCATION__, &
-                          "BSE full diagonalization: the estimate of "//TRIM(ADJUSTL(mem_str))// &
-                          " GB per MPI rank exceeds the budget of "//TRIM(ADJUSTL(bud_str))// &
-                          " GB. Try one of: "//TRIM(remedy)//", MEMORY_CHECK WARN.")
-         END SELECT
+         CALL cp_abort(__LOCATION__, &
+                       "BSE full diagonalization: the estimate of "//TRIM(ADJUSTL(mem_str))// &
+                       " GB per MPI rank exceeds the "//TRIM(ADJUSTL(left_str))// &
+                       " GB left of MEMORY_PER_PROC. Try one of: "//TRIM(remedy)//".")
       END IF
 
       CALL timestop(handle)
@@ -630,14 +605,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief bse_fulldiag_memory_check for a caller that holds MO sets: the window on the DFT axis
 !>        from their eigenvalues, the occupied MOs per spin from their homo
-!> \param bse_env settings; the window cutoffs, the TDA flag, MEMORY_CHECK and MEMORY_BUDGET_GB
+!> \param bse_env settings; the window cutoffs, the TDA flag and MEMORY_PER_PROC, resolved when still -1
 !> \param mos the MO sets the GW will correct, for their DFT eigenvalues and occupations
 !> \param para_env the ranks that will hold the matrices
 !> \param unit_nr output unit, positive on the writing rank only
 ! **************************************************************************************************
    SUBROUTINE bse_fulldiag_memory_check_from_mos(bse_env, mos, para_env, unit_nr)
 
-      TYPE(bse_env_type), INTENT(IN)                     :: bse_env
+      TYPE(bse_env_type), INTENT(INOUT)                  :: bse_env
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr

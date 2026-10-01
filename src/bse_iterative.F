@@ -328,7 +328,7 @@ CONTAINS
       END IF
       CALL bse_matvec_create(mv_env, fm_S_ia, fm_W_ij, fm_S_ab, fm_W_ia, Eigenval_reduced, &
                              homo_red, virt_red, alpha, w_fac, do_abba, unit_nr, &
-                             block_cols=bse_env%matvec_block_columns)
+                             block_cols=bse_env%matvec_block_columns, memory_per_proc_gb=bse_env%memory_per_proc_gb)
 
    END SUBROUTINE create_matvec_env
 

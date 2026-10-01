@@ -54,13 +54,12 @@ MODULE bse_types
                                                             num_guess_transitions = 0, &
                                                             max_subspace_factor = 0, &
                                                             matvec_block_columns = -1, &
-                                                            memory_check = 0, &
                                                             max_iter = 0, &
                                                             convergence_criterion = 0, &
                                                             preconditioner = 0, &
                                                             abba_solver = 0
       REAL(KIND=dp)                                      :: eps_res = 0.0_dp, &
-                                                            memory_budget_gb = 0.0_dp, &
+                                                            memory_per_proc_gb = -1.0_dp, &
                                                             eps_energy = 0.0_dp, &
                                                             eps_x = 0.0_dp, &
                                                             screening_factor = 0.0_dp, &

@@ -49,10 +49,8 @@ CONTAINS
                                 r_val=bse_env%bse_cutoff_occ)
       CALL section_vals_val_get(bse_section, "ENERGY_CUTOFF_EMPTY", &
                                 r_val=bse_env%bse_cutoff_empty)
-      CALL section_vals_val_get(bse_section, "MEMORY_CHECK", &
-                                i_val=bse_env%memory_check)
-      CALL section_vals_val_get(bse_section, "MEMORY_BUDGET_GB", &
-                                r_val=bse_env%memory_budget_gb)
+      CALL section_vals_val_get(bse_section, "MEMORY_PER_PROC", &
+                                r_val=bse_env%memory_per_proc_gb)
       CALL section_vals_val_get(bse_section, "NUM_PRINT_EXC", &
                                 i_val=bse_env%num_print_exc)
       CALL section_vals_val_get(bse_section, "NUM_PRINT_EXC_DESCR", &

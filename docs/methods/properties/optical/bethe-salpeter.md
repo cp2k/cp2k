@@ -665,21 +665,17 @@ time and frequency points, the two *GW* implementations, and with them `PROPERTI
 the excitation energies of `PROPERTIES%BSE` and of `RI_RPA%GW%BSE` remains, which stems from the
 *GW* step.
 
-`PROPERTIES%BSE` transforms the three-center integrals to molecular orbitals in batches of RI atoms.
-By default, the batch size is adapted to the free memory.
-[MEMORY_BUDGET_GB](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.MEMORY_BUDGET_GB) sets the memory budget
-per MPI rank by hand, and [MEMORY_CHECK](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.MEMORY_CHECK) decides
-whether the run warns or stops when a single RI atom does not fit into the budget. `PROPERTIES%BSE`
-reads both keywords for either
-[BSE_DIAG_METHOD](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.BSE_DIAG_METHOD). With `FULLDIAG`, the
-memory of the diagonalization is estimated before the *GW* starts and compared with the same budget.
-The output reports the budget, the largest batch and the number of batches. The budget does not
-include what the run holds already: the memory that SCF and *GW* have not released, and the
-three-center integrals of the BSE, which stay until the BSE ends and take about
+`PROPERTIES%BSE` transforms the three-center integrals to molecular orbitals in batches of RI atoms
+that fit the memory [MEMORY_PER_PROC](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BSE.MEMORY_PER_PROC) leaves
+per MPI rank after what the rank holds; by default the BSE detects that memory as the *GW* does for
+its own [MEMORY_PER_PROC](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW.MEMORY_PER_PROC). The
+same remainder bounds the subspace of the iterative solver, and with `FULLDIAG` the memory of the
+diagonalization is estimated before the *GW* starts and the run stops when it does not fit. The
+output reports the memory per rank, what is left for each step, the largest batch and the number of
+batches. The three-center integrals of the BSE stay until the BSE ends and take about
 $8 N_\mathrm{RI} (N_\mathrm{occ}^2 + N_\mathrm{occ} N_\mathrm{virt} + N_\mathrm{virt}^2)$ bytes over
 all ranks and per spin, with $N_\mathrm{RI}$ RI functions and $N_\mathrm{occ}$, $N_\mathrm{virt}$
-levels in the active window. A budget set by hand should not exceed the memory per rank minus these
-two.
+levels in the active window; a value set by hand covers them and what SCF and *GW* hold.
 
 The budget holds per step and is no total for the run. The transformation of the integrals and the
 solver run one after the other, and each may take up to the budget on top of what the run holds when
