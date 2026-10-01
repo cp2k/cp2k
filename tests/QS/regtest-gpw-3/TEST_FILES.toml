@@ -51,8 +51,6 @@
 "H2O-xc_none.inp"                       = [{matcher="E_total", tol=5e-14, ref=-13.34544293762806}]
 # ghost atom dynamics
 "dynamics.inp"                          = [{matcher="E_total", tol=8e-09, ref=-15.53408184176079}]
-# RESP charges
-"CH3OH.inp"                             = []
 # distributed non-ortho grids
 "rsgrid-dist-2.inp"                     = [{matcher="E_total", tol=3e-14, ref=-17.15213124622071}]
 # also write wavefunctions

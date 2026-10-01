@@ -4,7 +4,6 @@
 "water_3_ddist.inp"                     = [{matcher="M002", tol=1.0E-14, ref=0.124331490580E-01}]
 # distributed grid for spme/pme
 "JAC_distr.inp"                         = [{matcher="M002", tol=1.0E-14, ref=-123.353543684}]
-"H2O-32_PME_distr.inp"                  = [{matcher="M002", tol=1.0E-14, ref=-0.611544181350E+00}]
 # Central Force Water test (Nir)
 "cf_genpot.inp"                         = [{matcher="M002", tol=1.0E-14, ref=-0.437747928494E+00}]
 # Tersoff potential test

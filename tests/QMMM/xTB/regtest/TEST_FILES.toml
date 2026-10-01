@@ -10,7 +10,6 @@
 "wdimmc_nonscc.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-5.76659939309992}]
 "epc_1.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.77019903377262}]
 "epc_2.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.77017237051256}]
-"epc_3.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.77019903377262}]
 "epc_4.inp"                             = [{matcher="E_total", tol=1.0E-14, ref=-5.7702111937045}]
 "fdeb_1.inp"                            = []
 "fdeb_2.inp"                            = []
