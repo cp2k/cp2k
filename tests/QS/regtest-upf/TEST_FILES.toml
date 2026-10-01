@@ -1,6 +1,4 @@
-# S and Br: unmodified SSSP v2.0 PBE Efficiency NC datasets; generator/license notices remain in each UPF.
-# Archive revision: 0fb07d89d13407b0f00a0a3b8c21d7e387fb56f9 (unkcpz/sssp-verify-scripts).
-# SSSP-lib-pbe-eff-v2.tar.gz SHA-256: 67c59659953f32b87ebf1e7e59b5cdd55bcaca02b518532098c339c0d11193c2
+# Unmodified SSSP v2.0 PBE Efficiency S/Br datasets; source hashes: tools/pseudopotentials/sssp_v2_archives.json
 # Original SSSP v2.0 NC datasets; native local and nonlocal integrals and NLCC.
 # GAPW cases deliberately retain a nonzero one-center correction.
 "SBr2_GPW.inp" = [
