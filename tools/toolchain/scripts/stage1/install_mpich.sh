@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-mpich_ver="5.0.1"
-mpich_sha256="8c1832a13ddacf071685069f5fadfd1f2877a29e1a628652892c65211b1f3327"
+mpich_ver="5.0.2"
+mpich_sha256="928c2f18d350a91443fe8024ad01ce2c6009e9c551e0a73e797fc567f119137d"
 mpich_pkg="mpich-${mpich_ver}.tar.gz"
 
 source "${SCRIPT_DIR}"/common_vars.sh
