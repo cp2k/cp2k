@@ -45,6 +45,7 @@ MODULE qs_interactions
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE string_utilities,                ONLY: uppercase
+   USE upf_local_integrals,             ONLY: upf_local_init
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -269,7 +270,15 @@ CONTAINS
             ! Calculate the radii of the local part
             ppl_radius = core_charge_radius
             CALL get_potential(potential=sgp_potential, ecp_local=ecp_local)
-            IF (ecp_local) THEN
+            IF (ALLOCATED(sgp_potential%upf_data)) THEN
+               IF (sgp_potential%upf_local%radial%degree < 0 .OR. &
+                   sgp_potential%upf_local%eps /= qs_control%eps_ppl) THEN
+                  CALL upf_local_init(sgp_potential%upf_data, alpha_core_charge, &
+                                      MAX(0, sgp_potential%upf_local%radial%degree), &
+                                      sgp_potential%upf_local, qs_control%eps_ppl)
+               END IF
+               ppl_radius = MAX(ppl_radius, sgp_potential%upf_local%radial%radius)
+            ELSE IF (ecp_local) THEN
                CALL get_potential(potential=sgp_potential, nloc=nloc, nrloc=nrloc, aloc=aloc, bloc=bloc)
                DO i = 1, nloc
                   lppl = MAX(0, nrloc(i) - 2)
@@ -302,15 +311,21 @@ CONTAINS
             CALL get_potential(potential=sgp_potential, lmax=lppnl, n_nonlocal=nloc)
             CALL get_potential(potential=sgp_potential, is_nonlocal=is_nonlocal, &
                                a_nonlocal=a_nonlocal, c_nonlocal=c_nonlocal)
-            DO l = 0, lppnl
-               IF (is_nonlocal(l)) THEN
-                  DO i = 1, nloc
-                     cval = MAXVAL(ABS(c_nonlocal(i, :, l)))
-                     ppnl_radius = MAX(ppnl_radius, &
-                                       exp_radius(l, a_nonlocal(i), qs_control%eps_pgf_orb, cval, rlow=ppnl_radius))
-                  END DO
-               END IF
-            END DO
+            IF (ALLOCATED(sgp_potential%upf_data)) THEN
+               ppnl_radius = sgp_potential%upf_projectors%radius
+            ELSE
+               DO l = 0, lppnl
+                  IF (is_nonlocal(l)) THEN
+                     DO i = 1, nloc
+                        ! SGP coefficients contain 1/sqrt(4*pi). The addition
+                        ! theorem bounds every angular component by sqrt(2*l+1).
+                        cval = SQRT(REAL(2*l + 1, dp))*MAXVAL(ABS(c_nonlocal(i, :, l)))
+                        ppnl_radius = MAX(ppnl_radius, &
+                                          exp_radius(l, a_nonlocal(i), qs_control%eps_pgf_orb, cval, rlow=ppnl_radius))
+                     END DO
+                  END IF
+               END DO
+            END IF
             CALL set_potential(potential=sgp_potential, &
                                core_charge_radius=core_charge_radius, &
                                ppl_radius=ppl_radius, &

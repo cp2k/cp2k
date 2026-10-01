@@ -18,7 +18,8 @@ MODULE atom_upf
    USE cp_parser_types,                 ONLY: cp_parser_type,&
                                               parser_create,&
                                               parser_release
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE periodic_table,                  ONLY: get_ptable_info,&
                                               ptable
@@ -35,7 +36,7 @@ MODULE atom_upf
       INTEGER, DIMENSION(0:lmat)                     :: econf = 0
       REAL(dp)                                       :: zion = 0.0_dp
       CHARACTER(LEN=default_string_length)           :: version = ""
-      CHARACTER(LEN=default_string_length)           :: filename = ""
+      CHARACTER(LEN=default_path_length)             :: filename = ""
       ! <INFO>
       INTEGER                                        :: maxinfo = 100
       CHARACTER(LEN=default_string_length), DIMENSION(100) &
@@ -75,7 +76,8 @@ MODULE atom_upf
       REAL(dp), DIMENSION(:), ALLOCATABLE            :: rho_nlcc
       ! <LOCAL>
       REAL(dp), DIMENSION(:), ALLOCATABLE            :: vlocal
-      ! <NONLOCAL>
+      ! <NONLOCAL>: keep the tabulated projector amplitude; D includes Ry -> Hartree.
+      ! beta stores beta(r), with the radial prefactor in PP_BETA removed.
       REAL(dp), DIMENSION(:, :), ALLOCATABLE         :: dion
       REAL(dp), DIMENSION(:, :), ALLOCATABLE         :: beta
       INTEGER, DIMENSION(:), ALLOCATABLE             :: lbeta
@@ -119,9 +121,11 @@ CONTAINS
 
       ! Ignore json potentials as SIRIUS will parse those on its own.
       l = LEN_TRIM(pot%filename)
-      IF (pot%filename(l - 4:l) == '.json') THEN
-         pot%zion = 0.0_dp
-         RETURN
+      IF (l >= 5) THEN
+         IF (pot%filename(l - 4:l) == '.json') THEN
+            pot%zion = 0.0_dp
+            RETURN
+         END IF
       END IF
 
       CALL atom_read_upf_v2(pot, upf_filename, readall)
@@ -194,7 +198,7 @@ CONTAINS
       TYPE(cp_parser_type)                               :: parser
 
       ntag = 0
-      CALL parser_create(parser, upf_filename)
+      CALL parser_create(parser, upf_filename, apply_preprocessing=.FALSE.)
       DO
          at_end = .FALSE.
          CALL parser_get_next_line(parser, 1, at_end)
@@ -332,13 +336,13 @@ CONTAINS
          IF (string == "/>") EXIT
          SELECT CASE (string)
          CASE ("GENERATED")
-            CALL parser_get_object(parser, pot%generated)
+            CALL parser_get_object(parser, pot%generated, allow_empty=.TRUE.)
          CASE ("AUTHOR")
-            CALL parser_get_object(parser, pot%author)
+            CALL parser_get_object(parser, pot%author, allow_empty=.TRUE.)
          CASE ("DATE")
-            CALL parser_get_object(parser, pot%date)
+            CALL parser_get_object(parser, pot%date, allow_empty=.TRUE.)
          CASE ("COMMENT")
-            CALL parser_get_object(parser, pot%comment)
+            CALL parser_get_object(parser, pot%comment, allow_empty=.TRUE.)
          CASE ("ELEMENT")
             CALL parser_get_object(parser, pot%symbol)
             CPASSERT(2 <= LEN(pot%symbol))
@@ -481,15 +485,14 @@ CONTAINS
             ALLOCATE (pot%r(m))
             pot%r = 0.0_dp
             icount = 1
-            DO
+            DO WHILE (icount <= ms)
                IF (parser_test_next_token(parser) == "EOL") THEN
                   CALL parser_get_next_line(parser, 1, at_end)
                   CPASSERT(.NOT. at_end)
-               ELSE IF (parser_test_next_token(parser) == "FLT") THEN
+               ELSE
                   CALL parser_get_object(parser, pot%r(icount))
                   icount = icount + 1
                END IF
-               IF (icount > ms) EXIT
             END DO
          CASE ("<PP_RAB")
             IF (string(6:6) /= ">") THEN
@@ -518,15 +521,14 @@ CONTAINS
             ALLOCATE (pot%rab(m))
             pot%rab = 0.0_dp
             icount = 1
-            DO
+            DO WHILE (icount <= ms)
                IF (parser_test_next_token(parser) == "EOL") THEN
                   CALL parser_get_next_line(parser, 1, at_end)
                   CPASSERT(.NOT. at_end)
-               ELSE IF (parser_test_next_token(parser) == "FLT") THEN
+               ELSE
                   CALL parser_get_object(parser, pot%rab(icount))
                   icount = icount + 1
                END IF
-               IF (icount > ms) EXIT
             END DO
          CASE ("</PP_MESH>")
             EXIT
@@ -581,15 +583,14 @@ CONTAINS
       ALLOCATE (pot%rho_nlcc(m))
       pot%rho_nlcc = 0.0_dp
       icount = 1
-      DO
+      DO WHILE (icount <= ms)
          IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end)
             CPASSERT(.NOT. at_end)
-         ELSE IF (parser_test_next_token(parser) == "FLT") THEN
+         ELSE
             CALL parser_get_object(parser, pot%rho_nlcc(icount))
             icount = icount + 1
          END IF
-         IF (icount > ms) EXIT
       END DO
 
       CALL parser_get_next_line(parser, 1, at_end)
@@ -643,15 +644,14 @@ CONTAINS
       ALLOCATE (pot%vlocal(m))
       pot%vlocal = 0.0_dp
       icount = 1
-      DO
+      DO WHILE (icount <= ms)
          IF (parser_test_next_token(parser) == "EOL") THEN
             CALL parser_get_next_line(parser, 1, at_end)
             CPASSERT(.NOT. at_end)
-         ELSE IF (parser_test_next_token(parser) == "FLT") THEN
+         ELSE
             CALL parser_get_object(parser, pot%vlocal(icount))
             icount = icount + 1
          END IF
-         IF (icount > ms) EXIT
       END DO
 
       ! Ry -> Hartree
@@ -718,7 +718,7 @@ CONTAINS
                CASE ("ANGULAR_MOMENTUM")
                   CALL parser_get_object(parser, la)
                CASE ("LABEL")
-                  CALL parser_get_object(parser, line)
+                  CALL parser_get_object(parser, line, allow_empty=.TRUE.)
                   ! not used currently
                CASE ("CUTOFF_RADIUS_INDEX")
                   CALL parser_get_object(parser, line)
@@ -735,15 +735,14 @@ CONTAINS
             END DO
             pot%lbeta(i1) = la
             icount = 1
-            DO
+            DO WHILE (icount <= ms)
                IF (parser_test_next_token(parser) == "EOL") THEN
                   CALL parser_get_next_line(parser, 1, at_end)
                   CPASSERT(.NOT. at_end)
-               ELSE IF (parser_test_next_token(parser) == "FLT") THEN
+               ELSE
                   CALL parser_get_object(parser, pot%beta(icount, i1))
                   icount = icount + 1
                END IF
-               IF (icount > ms) EXIT
             END DO
          ELSE IF (string(1:7) == "<PP_DIJ") THEN
             ms = nbeta*nbeta
@@ -760,7 +759,7 @@ CONTAINS
                   CPASSERT(line == "REAL")
                CASE ("SIZE")
                   CALL parser_get_object(parser, ms)
-                  CPASSERT(ms <= m)
+                  CPASSERT(ms == nbeta*nbeta)
                CASE ("COLUMNS")
                   CALL parser_get_object(parser, mc)
                CASE DEFAULT
@@ -768,17 +767,16 @@ CONTAINS
                END SELECT
             END DO
             icount = 1
-            DO
+            DO WHILE (icount <= ms)
                IF (parser_test_next_token(parser) == "EOL") THEN
                   CALL parser_get_next_line(parser, 1, at_end)
                   CPASSERT(.NOT. at_end)
-               ELSE IF (parser_test_next_token(parser) == "FLT") THEN
+               ELSE
                   i1 = (icount - 1)/nbeta + 1
                   i2 = MOD(icount - 1, nbeta) + 1
                   CALL parser_get_object(parser, pot%dion(i1, i2))
                   icount = icount + 1
                END IF
-               IF (icount > ms) EXIT
             END DO
          ELSE IF (string(1:7) == "<PP_QIJL") THEN
             ! skip this option
@@ -787,9 +785,13 @@ CONTAINS
          END IF
       END DO
 
-      ! change units and scaling, beta is still r*beta
-      pot%dion = 2.0_dp*pot%dion
-      pot%beta = 0.5_dp*pot%beta
+      ! Convert the complete beta*D*beta operator from Ry to Hartree without
+      ! changing the tabulated projector amplitude. This also preserves the
+      ! projector convention needed by augmentation charges and PAW duality.
+      ! Some NC converters put energy units into beta and inverse energy into D;
+      ! preserving their numerical beta still gives the correct operator here.
+      ! The radial prefactor in PP_BETA is removed after reading the whole file.
+      pot%dion = 0.5_dp*pot%dion
 
    END SUBROUTINE upf_nonlocal_section
 
@@ -846,15 +848,14 @@ CONTAINS
             END DO
             i1 = la + 1
             icount = 1
-            DO
+            DO WHILE (icount <= ms)
                IF (parser_test_next_token(parser) == "EOL") THEN
                   CALL parser_get_next_line(parser, 1, at_end)
                   CPASSERT(.NOT. at_end)
-               ELSE IF (parser_test_next_token(parser) == "FLT") THEN
+               ELSE
                   CALL parser_get_object(parser, pot%vsemi(icount, i1))
                   icount = icount + 1
                END IF
-               IF (icount > ms) EXIT
             END DO
          ELSE IF (string(1:15) == "</PP_SEMILOCAL>") THEN
             EXIT
@@ -875,13 +876,9 @@ CONTAINS
 
       TYPE(atom_upfpot_type), INTENT(INOUT)              :: upfpot
 
-      IF (ALLOCATED(upfpot%r)) DEALLOCATE (upfpot%r)
-      IF (ALLOCATED(upfpot%rab)) DEALLOCATE (upfpot%rab)
-      IF (ALLOCATED(upfpot%vlocal)) DEALLOCATE (upfpot%vlocal)
-      IF (ALLOCATED(upfpot%dion)) DEALLOCATE (upfpot%dion)
-      IF (ALLOCATED(upfpot%beta)) DEALLOCATE (upfpot%beta)
-      IF (ALLOCATED(upfpot%lbeta)) DEALLOCATE (upfpot%lbeta)
-      IF (ALLOCATED(upfpot%vsemi)) DEALLOCATE (upfpot%vsemi)
+      ! Intrinsic assignment releases all allocatable components, including NLCC,
+      ! and clears metadata before this temporary is reused for another KIND.
+      upfpot = atom_upfpot_type()
 
    END SUBROUTINE atom_release_upf
 ! **************************************************************************************************

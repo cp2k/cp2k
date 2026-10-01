@@ -358,7 +358,7 @@ CONTAINS
 !>                 DER -- first derivatives of the electron density;
 !>                 KIN -- kinetic energy density;
 !>                 LAP -- second derivatives of the electron density.
-!> \param rr       abscissa on the radial grid (required for typ == 'KIN')
+!> \param rr       squared radial coordinates (required for KIN and LAP)
 !> \par History
 !>    * 08.2008 created [Juerg Hutter]
 ! **************************************************************************************************
@@ -376,7 +376,8 @@ CONTAINS
 
       my_typ = "RHO"
       IF (PRESENT(typ)) my_typ = typ(1:3)
-      IF (my_typ == "KIN") THEN
+      ! Both callers supply squared radii; the radial Laplacian uses 2/r.
+      IF (my_typ == "KIN" .OR. my_typ == "LAP") THEN
          CPASSERT(PRESENT(rr))
       END IF
 
@@ -399,8 +400,9 @@ CONTAINS
                ELSE IF (my_typ == "LAP") THEN
                   density(:) = density(:) + ff*basis%ddbf(:, i, l)*basis%bf(:, j, l) &
                                + ff*basis%bf(:, i, l)*basis%ddbf(:, j, l) &
-                               + 2._dp*ff*basis%dbf(:, i, l)*basis%bf(:, j, l)/rr(:) &
-                               + 2._dp*ff*basis%bf(:, i, l)*basis%dbf(:, j, l)/rr(:)
+                               + 2._dp*ff*basis%dbf(:, i, l)*basis%dbf(:, j, l) &
+                               + 2._dp*ff*basis%dbf(:, i, l)*basis%bf(:, j, l)/SQRT(rr(:)) &
+                               + 2._dp*ff*basis%bf(:, i, l)*basis%dbf(:, j, l)/SQRT(rr(:))
                ELSE
                   CPABORT("Unknown matrix type specified. Check the code!")
                END IF
@@ -785,7 +787,24 @@ CONTAINS
          END IF
       CASE (sgp_pseudo)
          IF (potential%sgp_pot%has_nlcc) THEN
-            CPABORT("not implemented")
+            m = SIZE(corden)
+            ALLOCATE (fe(m))
+            DO i = 1, potential%sgp_pot%n_nlcc
+               a = potential%sgp_pot%a_nlcc(i)
+               cval = potential%sgp_pot%c_nlcc(i)
+               fe(:) = cval*EXP(-a*rr(:)**2)
+               SELECT CASE (my_typ)
+               CASE ("RHO")
+                  corden(:) = corden(:) + fe(:)
+               CASE ("DER")
+                  corden(:) = corden(:) - 2.0_dp*a*rr(:)*fe(:)
+               CASE ("LAP")
+                  corden(:) = corden(:) + (4.0_dp*a*a*rr(:)**2 - 6.0_dp*a)*fe(:)
+               CASE DEFAULT
+                  CPABORT("Only RHO, DER, and LAP are supported in atom_core_density")
+               END SELECT
+            END DO
+            DEALLOCATE (fe)
          END IF
       CASE DEFAULT
          CPABORT("Unknown PP type")

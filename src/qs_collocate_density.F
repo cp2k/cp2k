@@ -95,6 +95,7 @@ MODULE qs_collocate_density
    USE qs_ks_types, ONLY: get_ks_env, &
                           qs_ks_env_type
    USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
+   USE qs_nlcc_methods, ONLY: get_nlcc_gaussians
    USE realspace_grid_types, ONLY: map_gaussian_here, &
                                    realspace_grid_desc_p_type, &
                                    realspace_grid_type, &
@@ -159,18 +160,18 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_nlcc'
 
       INTEGER                                            :: atom_a, handle, iatom, iexp_nlcc, ikind, &
-                                                            ithread, j, n, natom, nc, nexp_nlcc, &
-                                                            ni, npme, nthread, subpatch_pattern
-      INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores, nct_nlcc
-      LOGICAL                                            :: nlcc
+                                                            j, n, natom, nc, nexp_nlcc, &
+                                                            ni, npme, subpatch_pattern
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nct_nlcc
+      INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
       REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, radius
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha_nlcc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cval_nlcc
       REAL(KIND=dp), DIMENSION(3)                        :: ra
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_nlcc
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_nlcc, pab
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -198,13 +199,8 @@ CONTAINS
 
       DO ikind = 1, SIZE(atomic_kind_set)
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
-         CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
-
-         IF (.NOT. ASSOCIATED(gth_potential)) CYCLE
-         CALL get_potential(potential=gth_potential, nlcc_present=nlcc, nexp_nlcc=nexp_nlcc, &
-                            alpha_nlcc=alpha_nlcc, nct_nlcc=nct_nlcc, cval_nlcc=cval_nlcc)
-
-         IF (.NOT. nlcc) CYCLE
+         CALL get_nlcc_gaussians(qs_kind_set(ikind), alpha_nlcc, nct_nlcc, cval_nlcc)
+         nexp_nlcc = SIZE(alpha_nlcc)
 
          DO iexp_nlcc = 1, nexp_nlcc
 
@@ -214,9 +210,6 @@ CONTAINS
             ni = ncoset(2*nc - 2)
             ALLOCATE (pab(ni, 1))
             pab = 0._dp
-
-            nthread = 1
-            ithread = 0
 
             CALL reallocate(cores, 1, natom)
             npme = 0

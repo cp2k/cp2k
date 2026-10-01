@@ -67,6 +67,7 @@ MODULE qs_integrate_potential_single
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_nlcc_methods,                 ONLY: get_nlcc_gaussians
    USE realspace_grid_types,            ONLY: map_gaussian_here,&
                                               realspace_grid_type,&
                                               rs_grid_zero,&
@@ -303,20 +304,21 @@ CONTAINS
 
       CHARACTER(len=30)                                  :: ftag, stag
       INTEGER                                            :: atom_a, handle, iatom, iexp_nlcc, ikind, &
-                                                            iounit, ithread, j, n, natom, nc, &
-                                                            nexp_nlcc, ni, npme, nthread
-      INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores, nct_nlcc
-      LOGICAL                                            :: debfor, debstr, nlcc, use_virial
+                                                            iounit, j, n, natom, nc, nexp_nlcc, &
+                                                            ni, npme
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nct_nlcc
+      INTEGER, DIMENSION(:), POINTER                     :: atom_list, cores
+      LOGICAL                                            :: debfor, debstr, use_virial
       REAL(KIND=dp)                                      :: alpha, eps_rho_rspace, fconv, radius
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha_nlcc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cval_nlcc
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb, force_a, force_b, ra
       REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b, stdeb
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_nlcc
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_nlcc, hab, pab
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hab, pab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -377,13 +379,8 @@ CONTAINS
       DO ikind = 1, SIZE(atomic_kind_set)
 
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
-         CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
-
-         IF (.NOT. ASSOCIATED(gth_potential)) CYCLE
-         CALL get_potential(potential=gth_potential, nlcc_present=nlcc, nexp_nlcc=nexp_nlcc, &
-                            alpha_nlcc=alpha_nlcc, nct_nlcc=nct_nlcc, cval_nlcc=cval_nlcc)
-
-         IF (.NOT. nlcc) CYCLE
+         CALL get_nlcc_gaussians(qs_kind_set(ikind), alpha_nlcc, nct_nlcc, cval_nlcc)
+         nexp_nlcc = SIZE(alpha_nlcc)
 
          DO iexp_nlcc = 1, nexp_nlcc
 
@@ -391,9 +388,6 @@ CONTAINS
             nc = nct_nlcc(iexp_nlcc)
 
             ni = ncoset(2*nc - 2)
-
-            nthread = 1
-            ithread = 0
 
             ALLOCATE (hab(ni, 1), pab(ni, 1))
             pab = 0._dp
@@ -514,7 +508,7 @@ CONTAINS
 
       END DO
 
-      DEALLOCATE (cores)
+      IF (ASSOCIATED(cores)) DEALLOCATE (cores)
 
       IF (debfor) THEN
          fodeb(1:3) = force(1)%gth_nlcc(1:3, 1) - fodeb(1:3)

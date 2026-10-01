@@ -500,7 +500,7 @@ CONTAINS
                   basis%bf(k, i, l) = rk**l*ear
                   basis%dbf(k, i, l) = (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear
                   basis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**(l - 2) - &
-                                         2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al*rk**(l + 2))*ear
+                                         2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))*ear
                END DO
             END DO
          END DO
@@ -585,7 +585,7 @@ CONTAINS
                   basis%bf(k, i, l) = rk**l*ear
                   basis%dbf(k, i, l) = (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear
                   basis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**(l - 2) - &
-                                         2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al*rk**(l + 2))*ear
+                                         2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))*ear
                END DO
             END DO
          END DO
@@ -617,7 +617,7 @@ CONTAINS
                      basis%dbf(k, j, l) = basis%dbf(k, j, l) &
                                           + (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear*basis%cm(i, j, l)
                      basis%ddbf(k, j, l) = basis%ddbf(k, j, l) + &
-                                    (REAL(l*(l - 1), dp)*rk**(l - 2) - 2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al*rk**(l + 2))* &
+                                 (REAL(l*(l - 1), dp)*rk**(l - 2) - 2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))* &
                                            ear*basis%cm(i, j, l)
                   END DO
                END DO
@@ -778,7 +778,7 @@ CONTAINS
                basis%bf(k, i, l) = rk**l*ear
                basis%dbf(k, i, l) = (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear
                basis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**(l - 2) - &
-                                      2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al*rk**(l + 2))*ear
+                                      2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))*ear
             END DO
          END DO
       END DO
@@ -799,8 +799,7 @@ CONTAINS
       TYPE(atom_basis_type), INTENT(INOUT)               :: gbasis
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: r, rab
 
-      INTEGER                                            :: i, j, k, l, m, n1, n2, n3, ngp, nl, nr, &
-                                                            quadtype
+      INTEGER                                            :: i, j, k, l, m, n1, n2, n3, ngp, nl, nr
       REAL(KIND=dp)                                      :: al, ear, pf, rk
 
       NULLIFY (gbasis%am, gbasis%cm, gbasis%as, gbasis%ns, gbasis%bf, gbasis%dbf, gbasis%ddbf)
@@ -845,11 +844,12 @@ CONTAINS
       NULLIFY (gbasis%grid)
       CALL allocate_grid_atom(gbasis%grid)
       ngp = SIZE(r)
-      quadtype = do_gapw_log
       IF (ngp <= 0) THEN
          CPABORT("The number of radial grid points must be greater than zero.")
       END IF
-      CALL create_grid_atom(gbasis%grid, ngp, 1, 1, 0, quadtype)
+      CPASSERT(SIZE(rab) == ngp)
+      ! The supplied radial mesh needs no generated quadrature or angular grid.
+      ALLOCATE (gbasis%grid%rad(ngp), gbasis%grid%rad2(ngp), gbasis%grid%wr(ngp))
       gbasis%grid%nr = ngp
       gbasis%grid%rad(:) = r(:)
       gbasis%grid%rad2(:) = r(:)*r(:)
@@ -867,6 +867,7 @@ CONTAINS
 
       SELECT CASE (gbasis%basis_type)
       CASE (GTO_BASIS)
+         ! Zero prefactors must not evaluate negative powers at the UPF origin.
          DO l = 0, lmat
             DO i = 1, gbasis%nbas(l)
                al = gbasis%am(i, l)
@@ -874,9 +875,9 @@ CONTAINS
                   rk = gbasis%grid%rad(k)
                   ear = EXP(-al*gbasis%grid%rad(k)**2)
                   gbasis%bf(k, i, l) = rk**l*ear
-                  gbasis%dbf(k, i, l) = (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear
-                  gbasis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**(l - 2) - &
-                                          2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al*rk**(l + 2))*ear
+                  gbasis%dbf(k, i, l) = (REAL(l, dp)*rk**MAX(0, l - 1) - 2._dp*al*rk**(l + 1))*ear
+                  gbasis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**MAX(0, l - 2) - &
+                                          2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))*ear
                END DO
             END DO
          END DO
@@ -890,9 +891,9 @@ CONTAINS
                   DO j = 1, gbasis%nbas(l)
                      gbasis%bf(k, j, l) = gbasis%bf(k, j, l) + rk**l*ear*gbasis%cm(i, j, l)
                      gbasis%dbf(k, j, l) = gbasis%dbf(k, j, l) &
-                                           + (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear*gbasis%cm(i, j, l)
+                                           + (REAL(l, dp)*rk**MAX(0, l - 1) - 2._dp*al*rk**(l + 1))*ear*gbasis%cm(i, j, l)
                      gbasis%ddbf(k, j, l) = gbasis%ddbf(k, j, l) + &
-                                    (REAL(l*(l - 1), dp)*rk**(l - 2) - 2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al*rk**(l + 2))* &
+                           (REAL(l*(l - 1), dp)*rk**MAX(0, l - 2) - 2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))* &
                                             ear*gbasis%cm(i, j, l)
                   END DO
                END DO

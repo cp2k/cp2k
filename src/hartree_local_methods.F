@@ -49,6 +49,7 @@ MODULE hartree_local_methods
                                               rho_atom_coeff,&
                                               rho_atom_type
    USE util,                            ONLY: get_limit
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -60,6 +61,7 @@ MODULE hartree_local_methods
    ! Public Subroutine
 
    PUBLIC :: init_coulomb_local, calculate_Vh_1center, Vh_1c_gg_integrals
+   PUBLIC :: gapw_background_potential
 
 CONTAINS
 
@@ -229,8 +231,9 @@ CONTAINS
                                                             lmin_nuc, npgf, npgf_nuc
       LOGICAL                                            :: cneo, core_charge, l_2nd_local_rho, &
                                                             my_core_2nd, my_periodic, paw_atom
-      REAL(dp)                                           :: back_ch, ecoul_1_z_cneo, factor
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gexp, sqrtwr
+      REAL(dp)                                           :: back_ch, background_energy, &
+                                                            background_nuc, ecoul_1_z_cneo
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: background_potential, gexp, sqrtwr
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: aVh1b_00, aVh1b_00_nuc, aVh1b_hh, &
                                                             aVh1b_hh_nuc, aVh1b_ss, aVh1b_ss_nuc, &
                                                             g0_h_w
@@ -256,6 +259,7 @@ CONTAINS
       TYPE(rhoz_cneo_type), DIMENSION(:), POINTER        :: rhoz_cneo_set
       TYPE(rhoz_cneo_type), POINTER                      :: rhoz_cneo
       TYPE(rhoz_type), DIMENSION(:), POINTER             :: rhoz_set, rhoz_set_2nd
+      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
@@ -271,12 +275,17 @@ CONTAINS
                       cell=cell, dft_control=dft_control, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
-                      pw_env=pw_env, qs_charges=qs_charges)
+                      pw_env=pw_env, qs_charges=qs_charges, virial=virial)
 
       CALL pw_env_get(pw_env, poisson_env=poisson_env)
       my_periodic = (poisson_env%method == pw_poisson_periodic)
 
-      back_ch = qs_charges%background*cell%deth
+      ! The compensating uniform charge is fixed by the electron number, not
+      ! by the approximate hard/soft quadrature. A planar countercharge makes
+      ! the full Poisson problem neutral. At fixed charge the correction is
+      ! linear in the density, so it contributes no TDDFT Hartree kernel.
+      back_ch = 0.0_dp
+      IF (my_periodic .AND. .NOT. dft_control%do_pcc .AND. .NOT. tddft) back_ch = dft_control%charge
 
       ! rhoz_set is not accessed in TDDFT
       CALL get_local_rho(local_rho_set, rho_atom_set, rho0_atom_set, rho0_mpole, rhoz_set, &
@@ -354,7 +363,8 @@ CONTAINS
             nsotot = maxso*nset
             ALLOCATE (gsph(nr, nsotot))
             ALLOCATE (gexp(nr))
-            ALLOCATE (sqrtwr(nr), g0_h_w(nr, 0:lmax_0))
+            ALLOCATE (sqrtwr(nr), g0_h_w(nr, 0:lmax_0), background_potential(nr))
+            background_potential(:) = gapw_background_potential(back_ch, cell%deth, grid_atom%rad2(:))
 
             ALLOCATE (aVh1b_hh(nsotot, nsotot))
             ALLOCATE (aVh1b_ss(nsotot, nsotot))
@@ -488,20 +498,15 @@ CONTAINS
                   rho_atom => rho_atom_set_2nd(iatom)
                   vrrad_0 => rho0_atom_set_2nd(iatom)%vrho0_rad_h%r_coef ! for potential
                END IF
-               IF (my_periodic .AND. back_ch > 1.E-3_dp) THEN
-                  factor = -2.0_dp*pi/3.0_dp*SQRT(fourpi)*qs_charges%background
-               ELSE
-                  factor = 0._dp
-               END IF
-
                CALL Vh_1c_atom_potential(rho_atom, vrrad_0, &
                                          grid_atom, my_core_2nd .AND. .NOT. cneo, & ! core charge for potential (2nd)
                                          vrrad_z, Vh1_h, Vh1_s, &
-                                         nchan_0, nspins, max_iso_not0, factor)
+                                         nchan_0, nspins, max_iso_not0, background_potential)
 
                IF (l_2nd_local_rho) rho_atom => rho_atom_set(iatom) ! rho_atom for density
 
                ecoul_1_z_cneo = 0.0_dp
+               background_nuc = 0.0_dp
                IF (cneo) THEN
                   rhoz_cneo => rhoz_cneo_set(iatom)
                   ! Add the soft tail of nuclear Hartree potential to total Vh1_s first.
@@ -544,6 +549,12 @@ CONTAINS
                                       SUM(Vh1_s(:, iso)*rhoz_cneo%rho_rad_s(:, iso)*grid_atom%wr(:))
                   END DO
 
+                  background_nuc = SUM(background_potential*(rhoz_cneo%rho_rad_h(:, 1) - &
+                                                             rhoz_cneo%rho_rad_s(:, 1))*grid_atom%wr(:))
+                  ! The background interaction is linear, whereas the generic
+                  ! Coulomb contraction above includes only one half of it.
+                  ecoul_1_z_cneo = ecoul_1_z_cneo + 0.5_dp*background_nuc
+
                   ! Add nuclear Hartree potential to total Vh1_h after solving the nuclear 1c problem
                   ! to avoid nuclear self-interaction.
                   ! vrho already contains the -zeff factor.
@@ -557,13 +568,24 @@ CONTAINS
 
                CALL Vh_1c_atom_energy(energy_hartree_1c, ecoul_1c, rho_atom, rrad_0, &
                                       grid_atom, iatom, core_charge .AND. .NOT. cneo, & ! core charge for density
-                                      rrad_z, Vh1_h, Vh1_s, nchan_0, nspins, max_iso_not0)
+                                      rrad_z, Vh1_h, Vh1_s, nchan_0, nspins, max_iso_not0, &
+                                      background_potential, background_energy)
 
                IF (l_2nd_local_rho) rho_atom => rho_atom_set_2nd(iatom) ! rho_atom for potential (2nd)
 
                IF (cneo) THEN
                   CALL set_ecoul_1c(ecoul_1c, iatom, ecoul_1_z=ecoul_1c(iatom)%ecoul_1_z + ecoul_1_z_cneo)
                   energy_hartree_1c = energy_hartree_1c + ecoul_1_z_cneo
+               END IF
+
+               ! Besides the OCE coefficient derivatives, E_background has an
+               ! explicit 1/volume dependence. At fixed local radial functions
+               ! its contribution to -dE/d(strain) is E_background times I.
+               IF (virial%pv_calculate .AND. .NOT. tddft) THEN
+                  DO iso = 1, 3
+                     virial%pv_virial(iso, iso) = virial%pv_virial(iso, iso) + background_energy + background_nuc
+                     virial%pv_ehartree(iso, iso) = virial%pv_ehartree(iso, iso) + background_energy + background_nuc
+                  END DO
                END IF
 
                CALL Vh_1c_atom_integrals(rho_atom, &  ! results (int_local_h and int_local_s) written on rho_atom_2nd
@@ -587,7 +609,7 @@ CONTAINS
             DEALLOCATE (gsph)
             IF (ASSOCIATED(gsph_nuc)) DEALLOCATE (gsph_nuc)
             DEALLOCATE (gexp)
-            DEALLOCATE (sqrtwr, g0_h_w)
+            DEALLOCATE (sqrtwr, g0_h_w, background_potential)
 
             IF (cneo) THEN
                ! broadcast nuclear pmat, cpc and e_core
@@ -629,11 +651,11 @@ CONTAINS
 !> \param nchan_0 ...
 !> \param nspins ...
 !> \param max_iso_not0 ...
-!> \param bfactor ...
+!> \param background_potential Unweighted l=0 potential of the uniform background.
 ! **************************************************************************************************
    SUBROUTINE Vh_1c_atom_potential(rho_atom, vrrad_0, &
                                    grid_atom, core_charge, vrrad_z, Vh1_h, Vh1_s, &
-                                   nchan_0, nspins, max_iso_not0, bfactor)
+                                   nchan_0, nspins, max_iso_not0, background_potential)
 
       TYPE(rho_atom_type), POINTER                       :: rho_atom
       REAL(dp), DIMENSION(:, :), POINTER                 :: vrrad_0
@@ -642,9 +664,9 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: vrrad_z
       REAL(dp), DIMENSION(:, :), POINTER                 :: Vh1_h, Vh1_s
       INTEGER, INTENT(IN)                                :: nchan_0, nspins, max_iso_not0
-      REAL(dp), INTENT(IN)                               :: bfactor
+      REAL(dp), INTENT(IN)                               :: background_potential(:)
 
-      INTEGER                                            :: ir, iso, ispin, nr
+      INTEGER                                            :: iso, ispin, nr
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: vr_h, vr_s
 
       nr = grid_atom%nr
@@ -668,12 +690,8 @@ CONTAINS
          END DO
       END DO
 
-      IF (bfactor /= 0._dp) THEN
-         DO ir = 1, nr
-            Vh1_h(ir, 1) = Vh1_h(ir, 1) + bfactor*grid_atom%rad2(ir)*grid_atom%wr(ir)
-            Vh1_s(ir, 1) = Vh1_s(ir, 1) + bfactor*grid_atom%rad2(ir)*grid_atom%wr(ir)
-         END DO
-      END IF
+      Vh1_h(:, 1) = Vh1_h(:, 1) + background_potential
+      Vh1_s(:, 1) = Vh1_s(:, 1) + background_potential
 
    END SUBROUTINE Vh_1c_atom_potential
 
@@ -694,10 +712,12 @@ CONTAINS
 !> \param nchan_0 ...
 !> \param nspins ...
 !> \param max_iso_not0 ...
+!> \param background_potential Unweighted l=0 potential of the uniform background.
+!> \param background_energy Full linear background interaction for the volume derivative.
 ! **************************************************************************************************
    SUBROUTINE Vh_1c_atom_energy(energy_hartree_1c, ecoul_1c, rho_atom, rrad_0, &
                                 grid_atom, iatom, core_charge, rrad_z, Vh1_h, Vh1_s, &
-                                nchan_0, nspins, max_iso_not0)
+                                nchan_0, nspins, max_iso_not0, background_potential, background_energy)
 
       REAL(dp), INTENT(INOUT)                            :: energy_hartree_1c
       TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
@@ -709,10 +729,12 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: rrad_z
       REAL(dp), DIMENSION(:, :), POINTER                 :: Vh1_h, Vh1_s
       INTEGER, INTENT(IN)                                :: nchan_0, nspins, max_iso_not0
+      REAL(dp), INTENT(IN)                               :: background_potential(:)
+      REAL(dp), INTENT(OUT)                              :: background_energy
 
       INTEGER                                            :: iso, ispin, nr
-      REAL(dp)                                           :: ecoul_1_0, ecoul_1_h, ecoul_1_s, &
-                                                            ecoul_1_z
+      REAL(dp)                                           :: bg_0, bg_h, bg_s, bg_z, ecoul_1_0, &
+                                                            ecoul_1_h, ecoul_1_s, ecoul_1_z
       TYPE(rho_atom_coeff), DIMENSION(:), POINTER        :: r_h, r_s
 
       nr = grid_atom%nr
@@ -722,8 +744,10 @@ CONTAINS
 
       !       Calculate the contributions to Ecoul coming from Vh1_h*rhoz
       ecoul_1_z = 0.0_dp
+      bg_z = 0.0_dp
       IF (core_charge) THEN
          ecoul_1_z = 0.5_dp*SUM(Vh1_h(:, 1)*rrad_z(:)*grid_atom%wr(:))
+         bg_z = SUM(background_potential*rrad_z(:)*grid_atom%wr(:))
       END IF
 
       !       Calculate the contributions to Ecoul coming from  Vh1_s*rho0
@@ -731,16 +755,29 @@ CONTAINS
       DO iso = 1, nchan_0
          ecoul_1_0 = ecoul_1_0 + 0.5_dp*SUM(Vh1_s(:, iso)*rrad_0(:, iso)*grid_atom%wr(:))
       END DO
+      bg_0 = SUM(background_potential*rrad_0(:, 1)*grid_atom%wr(:))
 
       !       Calculate the contributions to Ecoul coming from Vh1_h*rho1_h and Vh1_s*rho1_s
       ecoul_1_s = 0.0_dp
       ecoul_1_h = 0.0_dp
+      bg_h = 0.0_dp
+      bg_s = 0.0_dp
       DO ispin = 1, nspins
+         bg_h = bg_h + SUM(background_potential*r_h(ispin)%r_coef(:, 1)*grid_atom%wr(:))
+         bg_s = bg_s + SUM(background_potential*r_s(ispin)%r_coef(:, 1)*grid_atom%wr(:))
          DO iso = 1, max_iso_not0
             ecoul_1_s = ecoul_1_s + 0.5_dp*SUM(Vh1_s(:, iso)*r_s(ispin)%r_coef(:, iso)*grid_atom%wr(:))
             ecoul_1_h = ecoul_1_h + 0.5_dp*SUM(Vh1_h(:, iso)*r_h(ispin)%r_coef(:, iso)*grid_atom%wr(:))
          END DO
       END DO
+
+      ! Unlike the quadratic Hartree self-energy, the interaction with a fixed
+      ! uniform background has no factor 1/2. Its potential is already in Vh1.
+      ecoul_1_z = ecoul_1_z + 0.5_dp*bg_z
+      ecoul_1_0 = ecoul_1_0 + 0.5_dp*bg_0
+      ecoul_1_h = ecoul_1_h + 0.5_dp*bg_h
+      ecoul_1_s = ecoul_1_s + 0.5_dp*bg_s
+      background_energy = bg_z - bg_0 + bg_h - bg_s
 
       CALL set_ecoul_1c(ecoul_1c, iatom, ecoul_1_z=ecoul_1_z, ecoul_1_0=ecoul_1_0)
       CALL set_ecoul_1c(ecoul_1c=ecoul_1c, iatom=iatom, ecoul_1_h=ecoul_1_h, ecoul_1_s=ecoul_1_s)
@@ -749,6 +786,24 @@ CONTAINS
       energy_hartree_1c = energy_hartree_1c + ecoul_1_h - ecoul_1_s
 
    END SUBROUTINE Vh_1c_atom_energy
+
+! **************************************************************************************************
+!> \brief l=0 potential for the periodic mean-potential correction.
+!>        For a neutral localized difference delta_rho between hard and soft
+!>        total charges, integral V(delta_rho) = -2*pi/3 integral r^2 delta_rho.
+!>        CP2K stores electron-minus-nuclear densities, opposite to net_charge.
+!>        Radial quadrature weights belong in the contraction, not in this potential.
+!> \param net_charge Physical cell charge, positive for missing electrons.
+!> \param volume Cell volume in bohr^3.
+!> \param rad2 Squared atom-centered radial coordinates.
+!> \return Real spherical-harmonic l=0 coefficient of the potential.
+! **************************************************************************************************
+   PURE FUNCTION gapw_background_potential(net_charge, volume, rad2) RESULT(potential)
+      REAL(dp), INTENT(IN)                               :: net_charge, volume, rad2(:)
+      REAL(dp)                                           :: potential(SIZE(rad2))
+
+      potential = -(2.0_dp*pi/3.0_dp)*SQRT(fourpi)*net_charge/volume*rad2
+   END FUNCTION gapw_background_potential
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

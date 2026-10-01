@@ -39,10 +39,11 @@ MODULE atom_kind_orbitals
         barrier_conf, do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
         do_gapw_log, do_nonrel_atom, do_numeric, do_rks_atom, do_sczoramp_atom, do_uks_atom, &
         do_zoramp_atom, ecp_pseudo, gth_pseudo, no_pseudo, poly_conf, rel_dkh, rel_none, &
-        rel_sczora_mp, rel_zora, rel_zora_full, rel_zora_mp, sgp_pseudo
+        rel_sczora_mp, rel_zora, rel_zora_full, rel_zora_mp, sgp_pseudo, upf_pseudo
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: dfac,&
+                                              fourpi,&
                                               pi
    USE periodic_table,                  ONLY: ptable
    USE physcon,                         ONLY: bohr
@@ -63,7 +64,7 @@ MODULE atom_kind_orbitals
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atom_kind_orbitals'
 
    PUBLIC :: calculate_atomic_orbitals, calculate_atomic_density, &
-             calculate_atomic_relkin, gth_potential_conversion
+             calculate_atomic_relkin, gth_potential_conversion, sgp_potential_conversion
 
 ! **************************************************************************************************
 
@@ -190,7 +191,10 @@ CONTAINS
          CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
       ELSE IF (ASSOCIATED(sgp_potential)) THEN
          CALL get_potential(sgp_potential, ecp_semi_local=ecp_semi_local)
-         IF (ecp_semi_local) THEN
+         IF (ALLOCATED(sgp_potential%upf_data)) THEN
+            potential%ppot_type = upf_pseudo
+            potential%upf_pot = sgp_potential%upf_data
+         ELSE IF (ecp_semi_local) THEN
             potential%ppot_type = ecp_pseudo
             CALL ecp_potential_conversion(sgp_potential, potential%ecp_pot)
             potential%ecp_pot%symbol = ptable(z)%symbol
@@ -665,7 +669,10 @@ CONTAINS
          CALL set_atom(atom, zcore=NINT(zeff), potential=potential)
       ELSE IF (ASSOCIATED(sgp_potential)) THEN
          CALL get_potential(sgp_potential, ecp_semi_local=ecp_semi_local)
-         IF (ecp_semi_local) THEN
+         IF (ALLOCATED(sgp_potential%upf_data)) THEN
+            potential%ppot_type = upf_pseudo
+            potential%upf_pot = sgp_potential%upf_data
+         ELSE IF (ecp_semi_local) THEN
             potential%ppot_type = ecp_pseudo
             CALL ecp_potential_conversion(sgp_potential, potential%ecp_pot)
             potential%ecp_pot%symbol = ptable(z)%symbol
@@ -730,7 +737,7 @@ CONTAINS
                basis%bf(k, i, l) = rk**l*ear
                basis%dbf(k, i, l) = (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear
                basis%ddbf(k, i, l) = (REAL(l*(l - 1), dp)*rk**(l - 2) - &
-                                      2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al*rk**(l + 2))*ear
+                                      2._dp*al*REAL(2*l + 1, dp)*rk**(l) + 4._dp*al**2*rk**(l + 2))*ear
             END DO
          END DO
       END DO
@@ -1039,7 +1046,7 @@ CONTAINS
                                           + (REAL(l, dp)*rk**(l - 1) - 2._dp*al*rk**(l + 1))*ear*basis%cm(i, j, l)
                      basis%ddbf(k, j, l) = basis%ddbf(k, j, l) + &
                                            (REAL(l*(l - 1), dp)*rk**(l - 2) - 2._dp*al*REAL(2*l + 1, dp)* &
-                                            rk**(l) + 4._dp*al*rk**(l + 2))*ear*basis%cm(i, j, l)
+                                            rk**(l) + 4._dp*al**2*rk**(l + 2))*ear*basis%cm(i, j, l)
                   END DO
                END DO
             END DO
@@ -1330,7 +1337,7 @@ CONTAINS
                          name=sgp_atompot%pname, &
                          zeff=zeff, &
                          elec_conf=ppeconf, &
-                         alpha_core_charge=ac)
+                         core_charge_radius=ac)
       sgp_atompot%zion = zeff
       sgp_atompot%ac_local = ac
       sgp_atompot%econf(0:3) = ppeconf(0:3)
@@ -1345,7 +1352,9 @@ CONTAINS
          sgp_atompot%n_nonlocal = n
          sgp_atompot%a_nonlocal(1:n) = ap(1:n)
          sgp_atompot%h_nonlocal(1:n, 0:lm) = hhp(1:n, 0:lm)
-         sgp_atompot%c_nonlocal(1:n, 1:n, 0:lm) = ccp(1:n, 1:n, 0:lm)
+         ! The atomic solver uses unit-normalized spherical harmonics and
+         ! radial integrals; undo the SGP storage factor 1/sqrt(4*pi).
+         sgp_atompot%c_nonlocal(1:n, 1:n, 0:lm) = SQRT(fourpi)*ccp(1:n, 1:n, 0:lm)
       END IF
       ! local
       CALL get_potential(sgp_potential, n_local=n, a_local=ap, c_local=ce)

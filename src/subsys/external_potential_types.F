@@ -14,6 +14,7 @@
 MODULE external_potential_types
 
    USE ao_util,                         ONLY: exp_radius
+   USE atom_upf,                        ONLY: atom_upfpot_type
    USE bibliography,                    ONLY: Goedecker1996,&
                                               Hartwigsen1998,&
                                               Krack2000,&
@@ -39,6 +40,7 @@ MODULE external_potential_types
                                               dp
    USE mathconstants,                   ONLY: dfac,&
                                               fac,&
+                                              fourpi,&
                                               pi,&
                                               rootpi
    USE mathlib,                         ONLY: symmetrize_matrix
@@ -54,6 +56,9 @@ MODULE external_potential_types
    USE periodic_table,                  ONLY: ptable
    USE string_utilities,                ONLY: remove_word,&
                                               uppercase
+   USE upf_local_integrals,             ONLY: upf_local_type
+   USE upf_projector_integrals,         ONLY: upf_projector_init,&
+                                              upf_projector_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -215,6 +220,10 @@ MODULE external_potential_types
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: c_nonlocal => Null()
       REAL(KIND=dp), DIMENSION(:, :), POINTER    :: cprj_ppnl => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER       :: vprj_ppnl => NULL()
+      ! Original scalar UPF projectors and their immutable quadrature cache.
+      TYPE(atom_upfpot_type), ALLOCATABLE         :: upf_data
+      TYPE(upf_projector_type)                    :: upf_projectors
+      TYPE(upf_local_type)                        :: upf_local
       ! NLCC
       LOGICAL                                    :: has_nlcc = .FALSE.
       INTEGER                                    :: n_nlcc = 0
@@ -1237,6 +1246,16 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cn
 
       IF (ASSOCIATED(potential)) THEN
+         IF (ALLOCATED(potential%upf_data)) THEN
+            potential%nppnl = 0
+            IF (potential%upf_data%number_of_proj > 0) THEN
+               IF (potential%upf_projectors%degree < 0) THEN
+                  CALL upf_projector_init(potential%upf_data, 0, potential%upf_projectors)
+               END IF
+               potential%nppnl = potential%upf_projectors%nproj
+            END IF
+            RETURN
+         END IF
          IF (potential%nppnl > 0) THEN
             !
             IF (ASSOCIATED(potential%cprj_ppnl)) THEN
@@ -1287,7 +1306,10 @@ CONTAINS
                   IF (la /= lb) CYCLE
                   j2 = ind2(n2, 2)
                   i2 = ind2(n2, 3)
-                  cprj(n1, n2) = orbtramat(la)%c2s(j2, j1)*cn(i1, i2, la)
+                  ! Primitive overlap integrals contain unnormalized Cartesian
+                  ! monomials. SGP radial coefficients include 1/sqrt(4*pi),
+                  ! whereas slm supplies unit-normalized real solid harmonics.
+                  cprj(n1, n2) = SQRT(fourpi)*orbtramat(la)%slm(j2, j1)*cn(i1, i2, la)
                END DO
             END DO
             !
@@ -3104,7 +3126,10 @@ CONTAINS
                END DO
             END IF
          ELSE
-            IF (potential%n_local > 0) THEN
+            IF (ALLOCATED(potential%upf_data)) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T8,A)") 'Local UPF potential: original radial table'
+               WRITE (UNIT=output_unit, FMT="(T8,A)") 'Gaussian core electrostatics and direct short-range quadrature'
+            ELSE IF (potential%n_local > 0) THEN
                WRITE (UNIT=output_unit, FMT="(/,T8,'Local pseudopotential')")
                WRITE (UNIT=output_unit, FMT="(T8,A,10(T21,6F10.4,/))") &
                   'Exponents:', potential%a_local(1:potential%n_local)
@@ -3123,7 +3148,11 @@ CONTAINS
             END DO
          END IF
          ! nonlocal PP
-         IF (potential%n_nonlocal > 0) THEN
+         IF (ALLOCATED(potential%upf_data)) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T8,A)") 'Nonlocal UPF potential: original radial projectors'
+            WRITE (UNIT=output_unit, FMT="(T8,A,T71,I10)") 'Total number of projectors:', potential%nppnl
+            WRITE (UNIT=output_unit, FMT="(T8,A)") 'Analytic angular integration and radial mesh quadrature'
+         ELSE IF (potential%n_nonlocal > 0) THEN
             WRITE (UNIT=output_unit, FMT="(/,T8,'Nonlocal pseudopotential')")
             WRITE (UNIT=output_unit, FMT="(T8,A,T71,I10)") 'Total number of projectors:', potential%nppnl
             WRITE (UNIT=output_unit, FMT="(T8,A,10(T21,6F10.4,/))") &
@@ -3345,6 +3374,11 @@ CONTAINS
       pot_out%is_nonlocal = pot_in%is_nonlocal
       pot_out%has_nlcc = pot_in%has_nlcc
       pot_out%n_nlcc = pot_in%n_nlcc
+      IF (ALLOCATED(pot_in%upf_data)) THEN
+         pot_out%upf_data = pot_in%upf_data
+         pot_out%upf_projectors = pot_in%upf_projectors
+         pot_out%upf_local = pot_in%upf_local
+      END IF
 
       IF (ASSOCIATED(pot_in%elec_conf)) THEN
          ALLOCATE (pot_out%elec_conf(LBOUND(pot_in%elec_conf, 1):UBOUND(pot_in%elec_conf, 1)))

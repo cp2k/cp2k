@@ -1,0 +1,26 @@
+{
+  "version": "2.0",
+  "source_revision": "0fb07d89d13407b0f00a0a3b8c21d7e387fb56f9",
+  "archives": [
+    {
+      "url": "https://raw.githubusercontent.com/unkcpz/sssp-verify-scripts/0fb07d89d13407b0f00a0a3b8c21d7e387fb56f9/2-experiments/finalized_scripts/010-extract-eff-lib/SSSP-lib-pbe-eff-v2.tar.gz",
+      "archive": "SSSP-lib-pbe-eff-v2.tar.gz",
+      "sha256": "67c59659953f32b87ebf1e7e59b5cdd55bcaca02b518532098c339c0d11193c2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/unkcpz/sssp-verify-scripts/0fb07d89d13407b0f00a0a3b8c21d7e387fb56f9/2-experiments/finalized_scripts/011-extract-prec-lib/SSSP-lib-pbe-prec-v2.tar.gz",
+      "archive": "SSSP-lib-pbe-prec-v2.tar.gz",
+      "sha256": "74b40b9f4df74df4c4c45da12d80bc2284b85284790628c2ae05fa092dad6286"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/unkcpz/sssp-verify-scripts/0fb07d89d13407b0f00a0a3b8c21d7e387fb56f9/2-experiments/finalized_scripts/010-extract-eff-lib/SSSP-lib-pbesol-eff-v2.tar.gz",
+      "archive": "SSSP-lib-pbesol-eff-v2.tar.gz",
+      "sha256": "276cf7222e07f324aa24046db8fb83f83d7aff50736f19e6960e26c24a61ae7b"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/unkcpz/sssp-verify-scripts/0fb07d89d13407b0f00a0a3b8c21d7e387fb56f9/2-experiments/finalized_scripts/011-extract-prec-lib/SSSP-lib-pbesol-prec-v2.tar.gz",
+      "archive": "SSSP-lib-pbesol-prec-v2.tar.gz",
+      "sha256": "e8ef3382f809be3f5e9ebab7d06e5823e1510048ddd6b369215a9bfa719a4cf9"
+    }
+  ]
+}

@@ -4,8 +4,8 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-"H2O_GAPW_1.inp"                        = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.549263E+00},
-                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.17658618E+00}]
+"H2O_GAPW_1.inp"                        = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.54926051},
+                                           {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.17658264}]
 "H2O_GAPW_2.inp"                        = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.591112E+00},
                                            {matcher="TDDFPT_Check_Osc_Strength", tol=1.0E-06, ref=0.17431296E+00}]
 "H2O_GAPW_3.inp"                        = [{matcher="TDDFPT_Check_Energy", tol=4.0E-06, ref=0.609537E+00},

@@ -63,6 +63,8 @@ list(
   atoms_input.F
   atom_types.F
   atom_upf.F
+  upf_projector_integrals.F
+  upf_local_integrals.F
   atom_utils.F
   atom_xc.F
   auto_basis.F
@@ -714,6 +716,7 @@ list(
   qs_mo_types.F
   qs_neighbor_lists.F
   qs_neighbor_list_types.F
+  qs_nlcc_methods.F
   qs_nl_hash_table_types.F
   qs_nonscf.F
   qs_nonscf_utils.F
@@ -1590,6 +1593,11 @@ set(CP2K_PROGS_F
     common/gemm_square_unittest.F
     common/memory_utilities_unittest.F
     common/parallel_rng_types_unittest.F
+    atom_upf_unittest.F
+    upf_projector_integrals_unittest.F
+    upf_local_integrals_unittest.F
+    gapw_background_unittest.F
+    gapw_1c_basis_unittest.F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
     topology_wilson_unittest.F
@@ -2018,6 +2026,11 @@ list(
   "gemm_square_unittest"
   "memory_utilities_unittest"
   "parallel_rng_types_unittest"
+  "atom_upf_unittest"
+  "upf_projector_integrals_unittest"
+  "upf_local_integrals_unittest"
+  "gapw_background_unittest"
+  "gapw_1c_basis_unittest"
   "kpoint_lattice_fft_unittest"
   "kpoint_smearing_unittest"
   "topology_wilson_unittest"
@@ -2056,6 +2069,12 @@ add_executable(orbital_transformation_matrices_unittest
 add_executable(gemm_square_unittest common/gemm_square_unittest.F)
 add_executable(memory_utilities_unittest common/memory_utilities_unittest.F)
 add_executable(parallel_rng_types_unittest common/parallel_rng_types_unittest.F)
+add_executable(atom_upf_unittest atom_upf_unittest.F)
+add_executable(upf_projector_integrals_unittest
+               upf_projector_integrals_unittest.F)
+add_executable(upf_local_integrals_unittest upf_local_integrals_unittest.F)
+add_executable(gapw_background_unittest gapw_background_unittest.F)
+add_executable(gapw_1c_basis_unittest gapw_1c_basis_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(topology_wilson_unittest topology_wilson_unittest.F)
