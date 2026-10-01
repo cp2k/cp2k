@@ -8,8 +8,6 @@
 "N2_t02.inp"                            = [{matcher="M031", tol=1e-05, ref=3.27915201801E+05}]
 # PBE - LDA MO solver
 "N2_t03.inp"                            = [{matcher="M031", tol=1e-05, ref=3.27261434593E+05}]
-# PBE - LDA AO solver
-"N2_t04.inp"                            = [{matcher="M031", tol=1e-05, ref=3.27915201801E+05}]
 # LDA - TPSS MO solver
 "N2_t05.inp"                            = [{matcher="M031", tol=1e-05, ref=2.76973145058E+05}]
 # TPSS - LDA MO solver

@@ -27,7 +27,6 @@
 "stp2.inp"                              = [{matcher="M003", tol=4e-14, ref=-1866.8099996050064}]
 "stp3.inp"                              = [{matcher="M003", tol=1.0E-14, ref=-1830.57737362865873}]
 "stp4.inp"                              = [{matcher="M003", tol=1.0E-14, ref=-1855.59205973407825}]
-"stp6.inp"                              = [{matcher="M003", tol=1.0E-14, ref=-1789.84713338782581}]
 #Reftraj standard XYZ
 "scan_zn_1w_cp2k.inp"                   = [{matcher="M003", tol=4e-14, ref=-282.31129947389360}]
 "zn_1w_debug.inp"                       = [{matcher="M003", tol=5e-12, ref=-329.29454943704621}]

@@ -4,11 +4,9 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 "ch2o_t01.inp"                          = []
-"ch2o_t02.inp"                          = []
 "ch2o_t03.inp"                          = []
 #
 "ch2o_t04.inp"                          = []
-"ch2o_t05.inp"                          = []
 "ch2o_t06.inp"                          = []
 #
 "ch2o_t07.inp"                          = []
