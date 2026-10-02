@@ -95,6 +95,20 @@ MODULE bfgs_optimizer
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bfgs_optimizer'
+   ! Parameters of the Lindh 1995 model Hessian (atom rows H/C/O-N, pair
+   ! columns). Screening constants for construct_initial_hess.
+   REAL(KIND=dp), PARAMETER, PRIVATE :: lindh_alpha(3, 3) = &
+                                        RESHAPE([1.0_dp, 0.3494_dp, 0.3494_dp, &
+                                                 0.3949_dp, 0.2800_dp, 0.2800_dp, &
+                                                 0.3949_dp, 0.2800_dp, 0.1800_dp], [3, 3])
+   REAL(KIND=dp), PARAMETER, PRIVATE :: lindh_r0(3, 3) = &
+                                        RESHAPE([1.35_dp, 2.10_dp, 2.53_dp, &
+                                                 2.10_dp, 2.87_dp, 3.40_dp, &
+                                                 2.53_dp, 3.40_dp, 3.40_dp], [3, 3])
+   REAL(KIND=dp), PARAMETER, PRIVATE :: lindh_cutoff = 6.0_dp
+   REAL(KIND=dp), PARAMETER, PRIVATE :: lindh_stretch_factor = 0.45_dp
+   REAL(KIND=dp), PARAMETER, PRIVATE :: lindh_angle_factor = 0.15_dp
+   REAL(KIND=dp), PARAMETER, PRIVATE :: lindh_denom_floor = 0.01_dp
    LOGICAL, PARAMETER                   :: debug_this_module = .TRUE.
 
    ! Both matrix representations share one restart format and the existing file name.
@@ -131,7 +145,7 @@ CONTAINS
 
       CHARACTER(LEN=5)                                   :: wildcard
       INTEGER                                            :: handle, info, iter_nr, its, &
-                                                            matrix_method, maxiter, ndf, nfree, &
+                                                            matrix_method, maxiter, ndf, &
                                                             output_unit
       LOGICAL                                            :: conv, hesrest, hess_reset, inverse, &
                                                             shell_present, should_stop, &
@@ -163,7 +177,6 @@ CONTAINS
       CALL section_vals_val_get(geo_section, "BFGS%METHOD", i_val=matrix_method)
       inverse = matrix_method == bfgs_inverse
       maxiter = gopt_param%max_iter
-      conv = .FALSE.
       rat = 0.0_dp
       wildcard = " BFGS"
 
@@ -220,7 +233,6 @@ CONTAINS
       END IF
 
       ndf = SIZE(x0)
-      nfree = gopt_env%nfree
       IF (ndf > 3000 .AND. .NOT. inverse) THEN
          CALL cp_warn(__LOCATION__, &
                       "The dimension of the Hessian matrix ("// &
@@ -447,7 +459,7 @@ CONTAINS
          step = MAXVAL(ABS(dr))
 
          ! This diagnostic requires B, not H. It is optional in gopt_f_io.
-         IF (.NOT. inverse) CALL energy_predict(ndf, work, hess_mat, dr, gold, conv, pred, para_env)
+         IF (.NOT. inverse) CALL energy_predict(ndf, work, hess_mat, dr, gold, pred, para_env)
 
          ediff = etot - eold
 
@@ -954,7 +966,6 @@ CONTAINS
          ln = 0.0_dp
          IF (eigval(iref) < 0.0_dp) ln = eigval(iref) - 0.01_dp
 
-         conv = .FALSE.
          iter = 0
          DO
             iter = iter + 1
@@ -976,7 +987,6 @@ CONTAINS
          END DO
          outer: DO
             IF (.NOT. conv) THEN
-               conv = .FALSE.
                bisec = .TRUE.
                iter = 0
                maxit = 9999
@@ -1038,7 +1048,6 @@ CONTAINS
                                           (eigval(iref) > 0.0_dp))) THEN
 
                IF (.NOT. bisec) THEN
-                  conv = .FALSE.
                   CYCLE outer
                END IF
                ln = 0.0_dp
@@ -1285,12 +1294,10 @@ CONTAINS
                                                             min_eig = 0.005_dp, one = 1.0_dp
 
       INTEGER                                            :: handle, indf
-      LOGICAL                                            :: neg
 
       CALL timeset(routineN, handle)
 
       DO indf = 1, ndf
-         IF (eigval(indf) < 0.0_dp) neg = .TRUE.
          IF (eigval(indf) > 1000.0_dp) eigval(indf) = 1000.0_dp
       END DO
       DO indf = 1, ndf
@@ -1435,18 +1442,15 @@ CONTAINS
 !> \param hess_mat ...
 !> \param dr ...
 !> \param g ...
-!> \param conv ...
 !> \param pred ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE energy_predict(ndf, work, hess_mat, dr, g, conv, pred, para_env)
+   SUBROUTINE energy_predict(ndf, work, hess_mat, dr, g, pred, para_env)
 
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: work(ndf)
       TYPE(cp_fm_type), INTENT(IN)                       :: hess_mat
-      REAL(KIND=dp), INTENT(INOUT)                       :: dr(ndf), g(ndf)
-      LOGICAL, INTENT(INOUT)                             :: conv
-      REAL(KIND=dp), INTENT(INOUT)                       :: pred
+      REAL(KIND=dp), INTENT(INOUT)                       :: dr(ndf), g(ndf), pred
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'energy_predict'
@@ -1478,7 +1482,6 @@ CONTAINS
       CALL para_env%sum(work)
       ener2 = DOT_PRODUCT(dr(1:ndf), work(1:ndf))
       pred = ener1 + 0.5_dp*ener2
-      conv = .FALSE.
       CALL timestop(handle)
 
    END SUBROUTINE energy_predict
@@ -1633,13 +1636,8 @@ CONTAINS
       CALL cp_subsys_get(subsys, &
                          particles=particles)
 
-      alpha(1, :) = [1._dp, 0.3949_dp, 0.3949_dp]
-      alpha(2, :) = [0.3494_dp, 0.2800_dp, 0.2800_dp]
-      alpha(3, :) = [0.3494_dp, 0.2800_dp, 0.1800_dp]
-
-      r0(1, :) = [1.35_dp, 2.10_dp, 2.53_dp]
-      r0(2, :) = [2.10_dp, 2.87_dp, 3.40_dp]
-      r0(3, :) = [2.53_dp, 3.40_dp, 3.40_dp]
+      alpha = lindh_alpha
+      r0 = lindh_r0
 
       CALL cp_fm_get_info(hess_mat, row_indices=row_indices, col_indices=col_indices, &
                           local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)
@@ -1655,7 +1653,6 @@ CONTAINS
          CALL hess_mat%matrix_struct%para_env%min(fixed(i, :))
       END DO
       rho_ij = 0
-      !XXXX insert proper rows !XXX
       at_row = 3
       DO i = 1, natom
          CALL get_atomic_kind(atomic_kind=particles%els(i)%atomic_kind, z=z)
@@ -1686,7 +1683,7 @@ CONTAINS
             iat_row = (jglobal + 2)/3
             IF (iat_row > natom) CYCLE
             IF (iat_row /= iat_col) THEN
-               IF (d_ij(iat_row, iat_col) < 6.0_dp) THEN
+               IF (d_ij(iat_row, iat_col) < lindh_cutoff) THEN
                   local_data(j, i) = local_data(j, i) + &
                                      angle_second_deriv(r_ij, d_ij, rho_ij, iind, jind, iat_col, iat_row, natom)
                END IF
@@ -1695,7 +1692,7 @@ CONTAINS
                                   angle_second_deriv(r_ij, d_ij, rho_ij, iind, jind, iat_col, iat_row, natom)
             END IF
             IF (iat_col /= iat_row) THEN
-               IF (d_ij(iat_row, iat_col) < 6.0_dp) THEN
+               IF (d_ij(iat_row, iat_col) < lindh_cutoff) THEN
                   local_data(j, i) = local_data(j, i) - &
                                      dist_second_deriv(r_ij(iat_col, iat_row, :), &
                                                        iind, jind, d_ij(iat_row, iat_col), rho_ij(iat_row, iat_col))
@@ -1703,7 +1700,7 @@ CONTAINS
             ELSE
                DO k = 1, natom
                   IF (k == iat_col) CYCLE
-                  IF (d_ij(iat_row, k) < 6.0_dp) THEN
+                  IF (d_ij(iat_row, k) < lindh_cutoff) THEN
                      local_data(j, i) = local_data(j, i) + &
                                         dist_second_deriv(r_ij(iat_col, k, :), &
                                                           iind, jind, d_ij(iat_row, k), rho_ij(iat_row, k))
@@ -1739,7 +1736,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: d, rho
       REAL(KIND=dp)                                      :: deriv
 
-      deriv = 0.45_dp*rho*(r1(i)*r1(j))/d**2
+      deriv = lindh_stretch_factor*rho*(r1(i)*r1(j))/d**2
    END FUNCTION dist_second_deriv
 
 ! **************************************************************************************************
@@ -1784,13 +1781,13 @@ CONTAINS
                   d12 = d_ij(iat_der, j); d23 = d_ij(j, i); d31 = d_ij(i, iat_der)
                   rho12 = rho_ij(iat_der, j); rho23 = rho_ij(j, i); rho31 = rho_ij(i, iat_der)
                END IF
-               ka1 = 0.15_dp*rho12*rho23; ka2 = 0.15_dp*rho23*rho31; ka3 = 0.15_dp*rho31*rho12
+               ka1 = lindh_angle_factor*rho12*rho23; ka2 = lindh_angle_factor*rho23*rho31; ka3 = lindh_angle_factor*rho31*rho12
                rsst1 = DOT_PRODUCT(r12, r23); rsst2 = DOT_PRODUCT(r23, r31); rsst3 = DOT_PRODUCT(r31, r12)
                denom1 = 1.0_dp - rsst1**2/(d12**2*d23**2); denom2 = 1.0_dp - rsst2**2/(d23**2*d31**2)
                denom3 = 1.0_dp - rsst3**2/(d31**2*d12**2)
-               denom1 = SIGN(1.0_dp, denom1)*MAX(ABS(denom1), 0.01_dp)
-               denom2 = SIGN(1.0_dp, denom2)*MAX(ABS(denom2), 0.01_dp)
-               denom3 = SIGN(1.0_dp, denom3)*MAX(ABS(denom3), 0.01_dp)
+               denom1 = SIGN(1.0_dp, denom1)*MAX(ABS(denom1), lindh_denom_floor)
+               denom2 = SIGN(1.0_dp, denom2)*MAX(ABS(denom2), lindh_denom_floor)
+               denom3 = SIGN(1.0_dp, denom3)*MAX(ABS(denom3), lindh_denom_floor)
                D_mat(1, 1) = r23(idir)/(d12*d23) - rsst1*r12(idir)/(d12**3*d23)
                D_mat(1, 2) = r23(jdir)/(d12*d23) - rsst1*r12(jdir)/(d12**3*d23)
                D_mat(2, 1) = -r23(idir)/(d23*d31) + rsst2*r31(idir)/(d23*d31**3)
@@ -1825,13 +1822,13 @@ CONTAINS
                d12 = d_ij(iat, i); d23 = d_ij(i, jat); d31 = d_ij(jat, iat)
                rho12 = rho_ij(iat, i); rho23 = rho_ij(i, jat); rho31 = rho_ij(jat, iat)
             END IF
-            ka1 = 0.15_dp*rho12*rho23; ka2 = 0.15_dp*rho23*rho31; ka3 = 0.15_dp*rho31*rho12
+            ka1 = lindh_angle_factor*rho12*rho23; ka2 = lindh_angle_factor*rho23*rho31; ka3 = lindh_angle_factor*rho31*rho12
             rsst1 = DOT_PRODUCT(r12, r23); rsst2 = DOT_PRODUCT(r23, r31); rsst3 = DOT_PRODUCT(r31, r12)
             denom1 = 1.0_dp - rsst1**2/(d12**2*d23**2); denom2 = 1.0_dp - rsst2**2/(d23**2*d31**2)
             denom3 = 1.0_dp - rsst3**2/(d31**2*d12**2)
-            denom1 = SIGN(1.0_dp, denom1)*MAX(ABS(denom1), 0.01_dp)
-            denom2 = SIGN(1.0_dp, denom2)*MAX(ABS(denom2), 0.01_dp)
-            denom3 = SIGN(1.0_dp, denom3)*MAX(ABS(denom3), 0.01_dp)
+            denom1 = SIGN(1.0_dp, denom1)*MAX(ABS(denom1), lindh_denom_floor)
+            denom2 = SIGN(1.0_dp, denom2)*MAX(ABS(denom2), lindh_denom_floor)
+            denom3 = SIGN(1.0_dp, denom3)*MAX(ABS(denom3), lindh_denom_floor)
             D_mat(1, 1) = r23(idr)/(d12*d23) - rsst1*r12(idr)/(d12**3*d23)
             D_mat(2, 1) = -r23(idr)/(d23*d31) + rsst2*r31(idr)/(d23*d31**3)
             D_mat(3, 1) = (r31(idr) - r12(idr))/(d31*d12) + rsst3*r31(idr)/(d31**3*d12) - &

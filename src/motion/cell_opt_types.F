@@ -15,11 +15,15 @@ MODULE cell_opt_types
 
    USE cell_methods,                    ONLY: canonicalize_cell_matrix,&
                                               cell_create
-   USE cell_opt_utils,                  ONLY: read_external_press_tensor
-   USE cell_types,                      ONLY: &
-        cell_clone, cell_release, cell_sym_cubic, cell_sym_hexagonal_gamma_120, &
-        cell_sym_hexagonal_gamma_60, cell_sym_monoclinic_gamma_ab, cell_sym_rhombohedral, &
-        cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, cell_type
+   USE cell_opt_utils,                  ONLY: cell_opt_constraint_label,&
+                                              keep_angles_conflict,&
+                                              keep_symmetry_conflict,&
+                                              keep_symmetry_coupled_set,&
+                                              parse_cell_constraint,&
+                                              read_external_press_tensor
+   USE cell_types,                      ONLY: cell_clone,&
+                                              cell_release,&
+                                              cell_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -27,22 +31,17 @@ MODULE cell_opt_types
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE force_env_types,                 ONLY: force_env_get,&
                                               force_env_type
-   USE input_constants,                 ONLY: fix_none,&
-                                              fix_x,&
-                                              fix_xy,&
-                                              fix_xz,&
-                                              fix_y,&
-                                              fix_yz,&
-                                              fix_z
+   USE input_constants,                 ONLY: fix_none
    USE input_section_types,             ONLY: section_vals_type,&
-                                              section_vals_val_get
-   USE kinds,                           ONLY: dp
+                                              section_vals_val_get,&
+                                              section_vals_val_set
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
 
-   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .FALSE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_types'
 
    PUBLIC :: cell_opt_env_type, &
@@ -57,6 +56,8 @@ MODULE cell_opt_types
 ! **************************************************************************************************
    TYPE cell_opt_env_type
       ! Simulation cell optimization parameters
+      ! constraint_id is a mask of fixed cell components (comp_* / mask_*):
+      ! a set bit means fixed, 0 (= fix_none) leaves all components relaxable
       INTEGER                                    :: constraint_id = fix_none
       LOGICAL                                    :: keep_angles = .FALSE., &
                                                     keep_symmetry = .FALSE., &
@@ -86,10 +87,9 @@ CONTAINS
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: geo_section
 
-      CHARACTER(LEN=4)                                   :: label
-      INTEGER                                            :: output_unit, required_constraint_id
-      LOGICAL                                            :: bad_constraint, constraint_explicit, &
-                                                            valid_constraint
+      CHARACTER(LEN=default_string_length)               :: constraint_string, label
+      INTEGER                                            :: output_unit
+      LOGICAL                                            :: constraint_explicit
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -107,98 +107,20 @@ CONTAINS
       CALL section_vals_val_get(geo_section, "KEEP_SYMMETRY", l_val=cell_env%keep_symmetry)
       CALL section_vals_val_get(geo_section, "PRESSURE_TOLERANCE", r_val=cell_env%pres_tol)
       CALL section_vals_val_get(geo_section, "CONSTRAINT", &
-                                i_val=cell_env%constraint_id, explicit=constraint_explicit)
-      IF (COUNT(cell%perd /= 0) == 2) THEN
-         required_constraint_id = fix_none
-         IF (cell%perd(1) == 0) required_constraint_id = fix_x
-         IF (cell%perd(2) == 0) required_constraint_id = fix_y
-         IF (cell%perd(3) == 0) required_constraint_id = fix_z
-
-         SELECT CASE (required_constraint_id)
-         CASE (fix_x)
-            valid_constraint = cell_env%constraint_id == fix_x .OR. &
-                               cell_env%constraint_id == fix_xy .OR. &
-                               cell_env%constraint_id == fix_xz
-         CASE (fix_y)
-            valid_constraint = cell_env%constraint_id == fix_y .OR. &
-                               cell_env%constraint_id == fix_xy .OR. &
-                               cell_env%constraint_id == fix_yz
-         CASE (fix_z)
-            valid_constraint = cell_env%constraint_id == fix_z .OR. &
-                               cell_env%constraint_id == fix_xz .OR. &
-                               cell_env%constraint_id == fix_yz
-         CASE DEFAULT
-            valid_constraint = .FALSE.
-         END SELECT
-
-         IF (cell_env%constraint_id == fix_none .AND. .NOT. constraint_explicit) THEN
-            cell_env%constraint_id = required_constraint_id
-            CALL cp_warn(__LOCATION__, &
-                         "2D CELL_OPT: constraining non-periodic cell direction.")
-         ELSE IF (.NOT. valid_constraint) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "2D CELL_OPT needs constrained non-periodic cell direction.")
-         END IF
+                                c_val=constraint_string, explicit=constraint_explicit)
+      CALL parse_cell_constraint(constraint_string, cell, constraint_explicit, &
+                                 cell_env%constraint_id)
+      ! Canonicalize the echoed value so restart files record the effective
+      ! constraint instead of the user's spelling (case and token order).
+      ! Only for explicitly set values: an unset keyword must stay unparsed so
+      ! the restart echo keeps omitting the line, as it always has.
+      IF (constraint_explicit) THEN
+         CALL section_vals_val_set(geo_section, "CONSTRAINT", &
+                                   c_val=TRIM(ADJUSTL( &
+                                              cell_opt_constraint_label(cell_env%constraint_id))))
       END IF
 
-      ! Reject CONSTRAINT combinations that would silently corrupt the
-      ! KEEP_ANGLES projection or the KEEP_SYMMETRY symmetrization
-      IF (cell_env%keep_angles .AND. .NOT. cell_env%opt_cell%orthorhombic) THEN
-         ! KEEP_ANGLES makes the b and c gradient components parallel to the
-         ! current b and c cell vectors. A CONSTRAINT fixing only part of the
-         ! b or c vector destroys this parallelism, while constraints fixing
-         ! a vector completely (fix_z, fix_yz) leave it intact.
-         IF (cell_env%constraint_id == fix_x .OR. cell_env%constraint_id == fix_y .OR. &
-             cell_env%constraint_id == fix_xy .OR. cell_env%constraint_id == fix_xz) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "CELL_OPT: KEEP_ANGLES with a CONSTRAINT that fixes "// &
-                          "only part of the b or c cell vector would destroy "// &
-                          "the fixed angles.")
-         END IF
-      END IF
-
-      IF (cell_env%keep_symmetry .AND. cell_env%constraint_id /= fix_none) THEN
-         ! A CONSTRAINT is compatible with KEEP_SYMMETRY only if it leaves
-         ! every set of cell components coupled by the symmetry untouched or
-         ! fixes such a set completely; a partial fixation breaks the
-         ! symmetry group after the gradient symmetrization.
-         bad_constraint = .FALSE.
-         SELECT CASE (cell_env%opt_cell%symmetry_id)
-         CASE (cell_sym_cubic, cell_sym_rhombohedral)
-            ! All three (cubic), respectively even all six (rhombohedral),
-            ! cell components are coupled: any partial constraint breaks it
-            bad_constraint = .TRUE.
-         CASE (cell_sym_tetragonal_ab, &
-               cell_sym_hexagonal_gamma_60, &
-               cell_sym_hexagonal_gamma_120, &
-               cell_sym_monoclinic_gamma_ab)
-            ! The in-plane (a,b) components are coupled
-            bad_constraint = cell_env%constraint_id == fix_x .OR. &
-                             cell_env%constraint_id == fix_y .OR. &
-                             cell_env%constraint_id == fix_xz .OR. &
-                             cell_env%constraint_id == fix_yz
-         CASE (cell_sym_tetragonal_ac)
-            ! The (a,c) components are coupled
-            bad_constraint = cell_env%constraint_id == fix_x .OR. &
-                             cell_env%constraint_id == fix_z .OR. &
-                             cell_env%constraint_id == fix_xy .OR. &
-                             cell_env%constraint_id == fix_yz
-         CASE (cell_sym_tetragonal_bc)
-            ! The (b,c) components are coupled
-            bad_constraint = cell_env%constraint_id == fix_y .OR. &
-                             cell_env%constraint_id == fix_z .OR. &
-                             cell_env%constraint_id == fix_xy .OR. &
-                             cell_env%constraint_id == fix_xz
-         CASE DEFAULT
-            ! orthorhombic, monoclinic, triclinic and none have no coupling
-         END SELECT
-         IF (bad_constraint) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "CELL_OPT: CONSTRAINT fixes only part of the cell "// &
-                          "components coupled by KEEP_SYMMETRY and would "// &
-                          "break the cell symmetry.")
-         END IF
-      END IF
+      CALL cell_opt_validate_constraint(cell_env)
 
       ! Get the external pressure
       CALL read_external_press_tensor(geo_section, cell_env%opt_cell, cell_env%pres_ext, &
@@ -232,28 +154,69 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T2,A,T78,A3)") &
                "CELL_OPT| Keep cell symmetry: ", " NO"
          END IF
-         SELECT CASE (cell_env%constraint_id)
-         CASE (fix_x)
-            label = "   X"
-         CASE (fix_y)
-            label = "   Y"
-         CASE (fix_z)
-            label = "   Z"
-         CASE (fix_xy)
-            label = "  XY"
-         CASE (fix_xz)
-            label = "  XZ"
-         CASE (fix_yz)
-            label = "  YZ"
-         CASE (fix_none)
-            label = "NONE"
-         END SELECT
-         WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
-            "CELL_OPT| Constraint: ", label
+         label = cell_opt_constraint_label(cell_env%constraint_id)
+         IF (COUNT(cell%perd /= 0) == 2 .AND. .NOT. constraint_explicit) THEN
+            label = TRIM(label)//" (auto)"
+         END IF
+         WRITE (UNIT=output_unit, FMT="(T2,A,T77,A)") &
+            "CELL_OPT| Constraint: ", TRIM(label)
       END IF
       CALL cp_print_key_finished_output(output_unit, logger, geo_section, "PRINT%CELL")
 
    END SUBROUTINE cell_opt_env_create
+
+! **************************************************************************************************
+!> \brief Abort on constraint combinations that corrupt the KEEP_* projections
+!> \param cell_env ...
+! **************************************************************************************************
+   SUBROUTINE cell_opt_validate_constraint(cell_env)
+      TYPE(cell_opt_env_type), INTENT(IN)                :: cell_env
+
+      LOGICAL                                            :: bad_constraint
+
+      ! Reject CONSTRAINT combinations that would silently corrupt the
+      ! KEEP_ANGLES projection or the KEEP_SYMMETRY symmetrization.
+      ! Slot order of apply_cell_constraints: AX, BX, BY, CX, CY, CZ.
+      ! KEEP_ANGLES projects the gradient slots {BX,BY} onto b and {CX,CY,CZ} onto c.
+      ! Gradient slots that a legacy value zeroes:
+      !    x  = {AX,BX,CX}          B partial,  C partial   -> breaks parallelism
+      !    y  = {BX,BY,CY}          B complete, C partial   -> breaks parallelism
+      !    z  = {CX,CY,CZ}          B untouched, C complete -> safe
+      !    xy = {AX..CY}            B complete, C partial   -> breaks parallelism
+      !    xz = {AX,BX,CX,CY,CZ}    B partial,  C complete  -> breaks parallelism
+      !    yz = {BX..CZ}            B complete, C complete  -> safe
+      ! A partial group breaks the parallelism. A complete or untouched group keeps it.
+      IF (cell_env%keep_angles) THEN
+         ! The decision lives in keep_angles_conflict, which the unit test
+         ! checks over all 64 masks.
+         IF (keep_angles_conflict(cell_env%constraint_id, &
+                                  cell_env%opt_cell%orthorhombic)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "CELL_OPT: CONSTRAINT ("// &
+                          TRIM(cell_opt_constraint_label(cell_env%constraint_id))// &
+                          ") fixes only part of the b or c cell vector and would "// &
+                          "destroy the KEEP_ANGLES projection.")
+         END IF
+      END IF
+
+      IF (cell_env%keep_symmetry .AND. cell_env%constraint_id /= fix_none) THEN
+         ! The decision lives in keep_symmetry_conflict, which the unit test
+         ! checks over all 64 masks for every crystal system.
+         bad_constraint = keep_symmetry_conflict(cell_env%constraint_id, &
+                                                 cell_env%opt_cell%symmetry_id)
+         IF (bad_constraint) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "CELL_OPT: CONSTRAINT ("// &
+                          TRIM(cell_opt_constraint_label(cell_env%constraint_id))// &
+                          ") fixes only part of the components coupled by "// &
+                          "KEEP_SYMMETRY ("// &
+                          TRIM(cell_opt_constraint_label( &
+                               keep_symmetry_coupled_set(cell_env%opt_cell%symmetry_id)))// &
+                          ") and would break the cell symmetry.")
+         END IF
+      END IF
+
+   END SUBROUTINE cell_opt_validate_constraint
 
 ! **************************************************************************************************
 !> \brief ...

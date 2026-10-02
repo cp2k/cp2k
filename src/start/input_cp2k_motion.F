@@ -32,8 +32,8 @@ MODULE input_cp2k_motion
       bfgs_direct, bfgs_inverse, debug_lbfgs, default_bfgs_method_id, default_cg_method_id, default_dimer_method_id, &
       default_lbfgs_method_id, default_minimization_method_id, default_ts_method_id, &
       dimer_init_molden, dimer_init_random, &
-      do_mc_gemc_npt, do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fix_none, fix_x, fix_xy, &
-      fix_xz, fix_y, fix_yz, fix_z, fmt_id_pdb, fmt_id_xyz, gaussian, helium_cell_shape_cube, &
+      do_mc_gemc_npt, do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fmt_id_pdb, fmt_id_xyz, &
+      gaussian, helium_cell_shape_cube, &
       helium_cell_shape_octahedron, helium_forces_average, helium_forces_last, &
       helium_mdist_exponential, helium_mdist_gaussian, helium_mdist_linear, &
       helium_mdist_quadratic, helium_mdist_singlev, helium_mdist_uniform, &
@@ -1083,18 +1083,19 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="CONSTRAINT", &
-         description="Imposes a constraint on the pressure tensor by fixing the specified cell components.", &
-         usage="CONSTRAINT (none|x|y|z|xy|xz|yz)", &
-         enum_desc=s2a("Fix nothing", &
-                       "Fix only x component", &
-                       "Fix only y component", &
-                       "Fix only z component", &
-                       "Fix x and y component", &
-                       "Fix x and z component", &
-                       "Fix y and z component"), &
-         enum_c_vals=s2a("NONE", "X", "Y", "Z", "XY", "XZ", "YZ"), &
-         enum_i_vals=[fix_none, fix_x, fix_y, fix_z, fix_xy, fix_xz, fix_yz], &
-         default_i_val=fix_none)
+         description="Imposes a constraint on the pressure tensor by fixing the specified cell components. "// &
+         "Cell convention: a lies along x, b lies in the xy plane. The six independent components "// &
+         "are AX, BX, BY, CX, CY, CZ. A, B and C fix a complete cell vector: A = AX, B = BX and BY, "// &
+         "C = CX, CY and CZ. X, Y and Z follow the legacy direction tokens. X fixes every x "// &
+         "component: AX, BX and CX. Y fixes the complete b vector and the y component of c: "// &
+         "BX, BY and CY. Z fixes the complete c vector, because only c has a z component: Z equals C. "// &
+         "Accepted tokens: NONE, A, B, C, X, Y, Z, XY, XZ, YZ, AX, BX, BY, CX, CY, CZ. "// &
+         "Several tokens may be given on one line, the union of the fixed components is used. "// &
+         "Give the value unquoted. "// &
+         "NONE must stand alone, redundant tokens give a warning, and angle constraints "// &
+         "(ALPHA, BETA, GAMMA) are not supported yet.", &
+         usage="CONSTRAINT {NONE} | ({A|B|C|X|Y|Z|XY|XZ|YZ|AX|BX|BY|CX|CY|CZ} ...)", &
+         type_of_var=lchar_t, default_lc_val="NONE")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

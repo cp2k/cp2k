@@ -52,7 +52,6 @@ MODULE cg_optimizer
    PRIVATE
 
    PUBLIC :: geoopt_cg
-   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cg_optimizer'
 
 CONTAINS

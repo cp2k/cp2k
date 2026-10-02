@@ -1090,8 +1090,7 @@ CONTAINS
       TYPE(section_vals_type), INTENT(IN), POINTER       :: input_section
       LOGICAL, INTENT(IN)                                :: conv, keep_angles, keep_symmetry, &
                                                             keep_volume
-      CHARACTER(LEN=default_string_length), INTENT(IN)   :: gopt_env_label
-      CHARACTER(LEN=4), INTENT(IN)                       :: constraint_label
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: gopt_env_label, constraint_label
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_final_structure'
 
