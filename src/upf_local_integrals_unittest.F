@@ -11,6 +11,7 @@ PROGRAM upf_local_integrals_unittest
    USE atom_upf,                        ONLY: atom_read_upf,&
                                               atom_release_upf,&
                                               atom_upfpot_type
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE kinds,                           ONLY: default_path_length,&
                                               dp
@@ -30,7 +31,7 @@ PROGRAM upf_local_integrals_unittest
    INTEGER, PARAMETER :: la = 4, lb = 4, na = 2, nb = 2
    REAL(KIND=dp), PARAMETER :: alpha(na) = [.1_dp, 3._dp], beta(nb) = [.3_dp, 2.1_dp], gamma(2) = [.2_dp, 4._dp]
    REAL(KIND=dp), PARAMETER :: coeff(1, 2) = RESHAPE([-.7_dp, 2.3_dp], [1, 2])
-   INTEGER :: n, grid, geometry, i, j, k, ld, ma, mb
+   INTEGER :: n, grid, geometry, i, j, k, ld, ma, mb, io_unit
    CHARACTER(len=default_path_length) :: filename
    REAL(KIND=dp) :: rabv(3), rac(3), rbc(3), dx, error, force_a(3), force_b(3), ref_a(3), ref_b(3), scale, threshold
    REAL(KIND=dp), ALLOCATABLE :: vri(:), dri(:, :), rri(:), rdri(:, :), energy_only(:, :)
@@ -39,6 +40,7 @@ PROGRAM upf_local_integrals_unittest
    TYPE(upf_local_type) :: cache
    TYPE(atom_upfpot_type) :: pot
    CALL cp2k_init()
+   io_unit = cp_logger_get_default_io_unit()
    CALL init_orbital_pointers(2*MAX(la, lb) + 3)
    DO grid = 1, 4
       n = 2501
@@ -108,7 +110,7 @@ PROGRAM upf_local_integrals_unittest
             ref_a(k) = SUM(density*da(:, :, k))
             ref_b(k) = SUM(density*db(:, :, k))
          END DO
-         WRITE (*, '(A,2I3,3ES18.9)') 'Native local matrix/derivative errors: ', grid, geometry, &
+         IF (io_unit > 0) WRITE (io_unit, '(A,2I3,3ES18.9)') 'Native local matrix/derivative errors: ', grid, geometry, &
             error, MAXVAL(ABS(force_a - ref_a)), MAXVAL(ABS(force_b - ref_b))
          IF (error > 1.e-10_dp) ERROR STOP 'Local radial integral differs from analytic three-center reference'
          IF (MAXVAL(ABS(force_a - ref_a)) > 1.e-10_dp .OR. MAXVAL(ABS(force_b - ref_b)) > 1.e-10_dp) THEN
@@ -120,7 +122,7 @@ PROGRAM upf_local_integrals_unittest
                               -rac, norm2(rac), rri, rdri)
          scale = MAX(1._dp, MAXVAL(ABS(rri)), MAXVAL(ABS(rdri)))
          error = MAX(MAXVAL(ABS(vri - rri)), MAXVAL(ABS(dri - rdri)))/scale
-         PRINT '(A,2I3,ES18.9)', 'Native local RI errors: ', grid, geometry, error
+         IF (io_unit > 0) WRITE (io_unit, '(A,2I3,ES18.9)') 'Native local RI errors: ', grid, geometry, error
          IF (error > 1.e-10_dp) ERROR STOP 'Local RI operator differs from analytic Gaussian integrals'
          CALL upf_local_ri(cache, la, alpha, rac, vri)
          IF (MAXVAL(ABS(vri - rri))/scale > 1.e-10_dp) ERROR STOP 'Energy-only RI local operator mismatch'
@@ -146,7 +148,8 @@ PROGRAM upf_local_integrals_unittest
       IF (.NOT. ALL(ieee_is_finite(v)) .OR. .NOT. ALL(ieee_is_finite(da)) .OR. .NOT. ALL(ieee_is_finite(db))) THEN
          ERROR STOP 'Non-finite native local UPF integrals'
       END IF
-      PRINT '(A,1X,A,2ES18.9)', 'Native local UPF:', TRIM(filename), cache%radial%radius, MAXVAL(ABS(v))
+      IF (io_unit > 0) WRITE (io_unit, '(A,1X,A,2ES18.9)') &
+         'Native local UPF:', TRIM(filename), cache%radial%radius, MAXVAL(ABS(v))
       CALL atom_release_upf(pot)
    END DO
    DEALLOCATE (v, da, db)

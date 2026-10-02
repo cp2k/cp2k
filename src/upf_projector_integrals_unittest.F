@@ -11,6 +11,7 @@ PROGRAM upf_projector_integrals_unittest
    USE atom_upf,                        ONLY: atom_read_upf,&
                                               atom_release_upf,&
                                               atom_upfpot_type
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE kinds,                           ONLY: default_path_length,&
                                               dp
@@ -30,13 +31,14 @@ PROGRAM upf_projector_integrals_unittest
    REAL(KIND=dp), PARAMETER :: alpha(na) = [0.04_dp, 0.3_dp, 1.2_dp, 5.0_dp, 24.0_dp]
    REAL(KIND=dp), PARAMETER :: eta(nb) = [0.3_dp, 0.7_dp, 1.1_dp, 2.2_dp, 0.4_dp]
    CHARACTER(LEN=default_path_length) :: filename
-   INTEGER :: grid, nr, i, j, p, m, l, geometry, id, ld, ldai, first, shell, q
+   INTEGER :: grid, nr, i, j, p, m, l, geometry, id, ld, ldai, first, shell, q, io_unit
    REAL(KIND=dp) :: dx, rac(3), origin(3), error, scale, expected_d
    REAL(KIND=dp), ALLOCATABLE :: sab(:, :), work(:, :, :), moments(:, :, :), integrals(:, :, :), reference(:, :, :)
    TYPE(atom_upfpot_type) :: pot
    TYPE(upf_projector_type) :: projectors
 
    CALL cp2k_init()
+   io_unit = cp_logger_get_default_io_unit()
    pot%number_of_proj = nb
    ALLOCATE (pot%lbeta(nb))
    pot%lbeta(:) = [0, 1, 2, 3, 1]
@@ -117,7 +119,8 @@ PROGRAM upf_projector_integrals_unittest
          DO id = 1, ncoset(nder)
             scale = MAX(1.0_dp, MAXVAL(ABS(reference(:, :, id))))
             error = MAXVAL(ABS(integrals(:, :, id) - reference(:, :, id)))/scale
-            WRITE (*, '(A,3I4,ES16.7)') "UPF radial Gaussian overlap/derivative:", grid, geometry, id, error
+            IF (io_unit > 0) WRITE (io_unit, '(A,3I4,ES16.7)') &
+               "UPF radial Gaussian overlap/derivative:", grid, geometry, id, error
             IF (error > 1.e-10_dp) ERROR STOP "Numerical UPF overlaps disagree with analytic Gaussian integrals"
          END DO
          ! Independent moment implementation uses the OS recurrence with a fixed reference.
@@ -137,7 +140,7 @@ PROGRAM upf_projector_integrals_unittest
          CALL upf_projector_overlap(projectors, la, alpha, rac, nder, integrals, moment_origin=origin)
          scale = MAX(1.0_dp, MAXVAL(ABS(reference)))
          error = MAXVAL(ABS(integrals - reference))/scale
-         WRITE (*, '(A,2I4,ES16.7)') "UPF radial Gaussian moments:", grid, geometry, error
+         IF (io_unit > 0) WRITE (io_unit, '(A,2I4,ES16.7)') "UPF radial Gaussian moments:", grid, geometry, error
          IF (error > 1.e-10_dp) ERROR STOP "Numerical UPF moments disagree with analytic Gaussian integrals"
       END DO
       DEALLOCATE (pot%r, pot%rab, pot%beta, sab, work, moments, integrals, reference)
@@ -163,7 +166,7 @@ PROGRAM upf_projector_integrals_unittest
             CALL upf_projector_overlap(projectors, la, alpha, rac, nder, integrals)
             IF (.NOT. ALL(ieee_is_finite(integrals))) ERROR STOP "Non-finite native UPF projector integrals"
          END DO
-         WRITE (*, '(A,1X,A,1X,I6,1X,ES16.7)') "UPF native integrals:", TRIM(filename), &
+         IF (io_unit > 0) WRITE (io_unit, '(A,1X,A,1X,I6,1X,ES16.7)') "UPF native integrals:", TRIM(filename), &
             projectors%nproj, MAXVAL(ABS(integrals))
          DEALLOCATE (integrals)
       END IF

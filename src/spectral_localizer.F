@@ -647,6 +647,13 @@ CONTAINS
 
       INTEGER                                            :: i, n
       REAL(dp)                                           :: values(2)
+      INTERFACE
+         SUBROUTINE dlae2(a, b, c, rt1, rt2)
+            IMPORT :: dp
+            REAL(dp), INTENT(IN) :: a, b, c
+            REAL(dp), INTENT(OUT) :: rt1, rt2
+         END SUBROUTINE dlae2
+      END INTERFACE
 
       positive = 0
       negative = 0
