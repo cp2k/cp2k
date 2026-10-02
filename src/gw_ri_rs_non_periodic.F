@@ -481,9 +481,8 @@ CONTAINS
 !>        Grid points outside the reach of an atom's most
 !>        diffuse Gaussian (or the CUTOFF_RADIUS_RL_AO) are skipped, and only blocks
 !>        with at least one element > eps_filter are stored. This locality is the source of
-!>        ALL grid-dimension sparsity used downstream. Also caches the atom centers and the
-!>        per-chunk centroids needed by the optional CUTOFF_RADIUS_G_W / CUTOFF_RADIUS_RL_W
-!>        operator truncations.
+!>        ALL grid-dimension sparsity used downstream. Also caches the per-chunk centroids
+!>        needed by the optional CUTOFF_RADIUS_RL_W operator truncation.
 !> \param bs_env ...
 !> \param ri_rs_grid_points ...
 !> \param mat_phi_mu_l ...
@@ -567,14 +566,6 @@ CONTAINS
             'RI-RS grid row-blocks of ϕ_μ(r_l)', num_grid_chunks
          WRITE (bs_env%unit_nr, '(T2,A,T69,I12)') 'RI-RS grid points per block (max)', bs_eff
       END IF
-
-      ! Cache atomic positions: AO and RI blocks are one-block-per-atom, so these are the
-      ! block centers used by the optional CUTOFF_RADIUS_G_W atom-pair truncation.
-      IF (ALLOCATED(bs_env%ri_rs%atom_centers)) DEALLOCATE (bs_env%ri_rs%atom_centers)
-      ALLOCATE (bs_env%ri_rs%atom_centers(3, natom))
-      DO iatom = 1, natom
-         bs_env%ri_rs%atom_centers(1:3, iatom) = particle_set(iatom)%r(1:3)
-      END DO
 
       ! Cache per-chunk centroids for the optional CUTOFF_RADIUS_RL_W / CUTOFF_RADIUS_W0 block
       ! truncations. Left unallocated otherwise, so PRESENT(centroids) stays .FALSE. at the
@@ -731,7 +722,6 @@ CONTAINS
                                       pan_first=pan_first, pan_last=pan_last, &
                                       lb_eq_la=.TRUE., lout_eq_la=.FALSE., &
                                       zero_out=(ispin == 1), &
-                                      keep_sparsity=bs_env%ri_rs%keep_sparsity_rirs, &
                                       centroids=bs_env%ri_rs%chunk_centroids, &
                                       cutoff=bs_env%ri_rs%cutoff_radius_v_w, &
                                       grid_occupation=grid_occ)
@@ -918,12 +908,9 @@ CONTAINS
 !> \param n_ao ...
 !> \param n_procs ...
 !> \param mem_budget_GB ...
-!> \param honor_exact ...
-!> \param unsafe ...
 ! **************************************************************************************************
    SUBROUTINE plan_grid_panels(bs_env, r_blk_sizes, panel_size, min_dim, pan_first, pan_last, &
-                               centroids, cutoff, n_RI, n_ao, n_procs, mem_budget_GB, &
-                               honor_exact, unsafe)
+                               centroids, cutoff, n_RI, n_ao, n_procs, mem_budget_GB)
 
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: r_blk_sizes
@@ -934,8 +921,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cutoff
       INTEGER, INTENT(IN), OPTIONAL                      :: n_RI, n_ao, n_procs
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: mem_budget_GB
-      LOGICAL, INTENT(IN), OPTIONAL                      :: honor_exact
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: unsafe
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'plan_grid_panels'
 
@@ -944,8 +929,7 @@ CONTAINS
                                                             TARGET, width
       INTEGER(KIND=int_8)                                :: msg, nze_tmpl, side
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp_first, tmp_last
-      LOGICAL                                            :: fits, my_honor_exact, my_unsafe, &
-                                                            use_cutoff
+      LOGICAL                                            :: fits, use_cutoff
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: used
       REAL(KIND=dp)                                      :: f_near, mem_GB
 
@@ -956,12 +940,6 @@ CONTAINS
       IF (use_cutoff) THEN
          CPASSERT(PRESENT(n_RI) .AND. PRESENT(n_ao) .AND. PRESENT(n_procs))
       END IF
-
-      ! honor_exact: use N_PANELS as requested -- do NOT split a panel further even if it trips
-      ! the message-overflow / memory-budget check; instead flag `unsafe` so the caller can warn.
-      my_honor_exact = .FALSE.
-      IF (PRESENT(honor_exact)) my_honor_exact = honor_exact
-      my_unsafe = .FALSE.
 
       n_grid_blocks = SIZE(r_blk_sizes)
       n_grid_total = SUM(r_blk_sizes)
@@ -996,13 +974,7 @@ CONTAINS
             END IF
             ! Panel size is bounded only by the message-overflow and memory checks above; there is
             ! no neighborhood-width (f_near) cap. mp_waitall is dominated by the NUMBER of panel
-            ! multiplies, so fewer/larger panels are cheaper here -- panel count is driven DOWN by
-            ! the N_PANELS keyword (panel_size), not split up by a width heuristic.
-            IF (my_honor_exact) THEN
-               ! Keep exactly the requested grouping; just record if it exceeds a safety limit.
-               IF (.NOT. fits) my_unsafe = .TRUE.
-               EXIT
-            END IF
+            ! multiplies, so fewer/larger panels are cheaper here.
             IF (fits) EXIT
             TARGET = MAX(1, MIN(TARGET, rows_acc)/2)
          END DO
@@ -1016,8 +988,6 @@ CONTAINS
       pan_first(:) = tmp_first(1:n_panels)
       pan_last(:) = tmp_last(1:n_panels)
       DEALLOCATE (tmp_first, tmp_last)
-
-      IF (PRESENT(unsafe)) unsafe = my_unsafe
 
       CALL timestop(handle)
 
@@ -1038,12 +1008,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'resolve_grid_panels'
 
-      CHARACTER(LEN=max_line_length)                     :: msg
-      INTEGER                                            :: handle, min_dim, n_grid_total, &
-                                                            n_panels_req, npcols, nprows, &
-                                                            panel_size, safe_max
+      INTEGER                                            :: handle, min_dim, n_grid_total, npcols, &
+                                                            nprows, panel_size, safe_max
       INTEGER, DIMENSION(:), POINTER                     :: r_blk_sizes
-      LOGICAL                                            :: honor_exact, panels_unsafe, use_cutoff
+      LOGICAL                                            :: use_cutoff
       REAL(KIND=dp)                                      :: mem_avail_GB, mem_budget_GB
       TYPE(dbcsr_distribution_type)                      :: dist
 
@@ -1079,23 +1047,9 @@ CONTAINS
          safe_max = MAX(1, MIN(safe_max, n_grid_total))
       END IF
 
-      ! A user-set N_PANELS ( > 1 ) is honored EXACTLY: the planner produces that many panels
-      ! (up to grid-block granularity) and never force-splits them for the message/memory safety
-      ! limits -- if a limit is tripped it warns instead of silently changing the count.
-      n_panels_req = bs_env%ri_rs%n_panels
-      honor_exact = (n_panels_req > 1)
-      panels_unsafe = .FALSE.
-      IF (n_panels_req > 1) THEN
-         ! ceil(n_grid/n_panels_req) rows per panel => exactly n_panels_req panels. With the
-         ! cutoff active safe_max = n_grid_total (no clamp, honored exactly); without it, safe_max
-         ! is the int32-overflow ceiling and MUST still bound the panel (the non-cutoff planner
-         ! loop has no in-loop message-size check).
-         panel_size = MIN((n_grid_total + n_panels_req - 1)/n_panels_req, safe_max)
-      ELSE
-         ! Default (<= 1): a single whole-grid panel, clamped to the overflow-safe ceiling.
-         panel_size = safe_max
-      END IF
-      panel_size = MAX(1, panel_size)
+      ! Start from a single whole-grid panel, clamped to the overflow-safe ceiling; with the
+      ! cutoff active the planner splits it further for the message/memory limits.
+      panel_size = MAX(1, safe_max)
 
       IF (use_cutoff) THEN
          ! Half of the measured free memory as panel budget.
@@ -1105,18 +1059,9 @@ CONTAINS
                                centroids=bs_env%ri_rs%chunk_centroids, &
                                cutoff=bs_env%ri_rs%cutoff_radius_v_w, &
                                n_RI=bs_env%n_RI, n_ao=bs_env%n_ao, &
-                               n_procs=bs_env%para_env%num_pe, mem_budget_GB=mem_budget_GB, &
-                               honor_exact=honor_exact, unsafe=panels_unsafe)
+                               n_procs=bs_env%para_env%num_pe, mem_budget_GB=mem_budget_GB)
       ELSE
          CALL plan_grid_panels(bs_env, r_blk_sizes, panel_size, min_dim, pan_first, pan_last)
-      END IF
-
-      IF (honor_exact .AND. panels_unsafe) THEN
-         WRITE (msg, '(A,I0,A)') &
-            "N_PANELS = ", n_panels_req, " is used as requested, but one or more panels "// &
-            "exceed the DBCSR 32-bit message length or the memory budget. The run may abort "// &
-            "or swap; increase N_PANELS if it does."
-         CPWARN(TRIM(msg))
       END IF
 
       ALLOCATE (bs_env%ri_rs%pan_first, SOURCE=pan_first)
@@ -1143,8 +1088,8 @@ CONTAINS
                                                             max_n_ao_used, max_n_local_grid, &
                                                             n_ao_used_atom, n_grid_total, &
                                                             n_local_grid, n_loc_ri_max, n_procs, &
-                                                            n_procs_per_atom, n_RI, n_threads, &
-                                                            natom, pan_rows, pan_width
+                                                            n_RI, n_threads, natom, pan_rows, &
+                                                            pan_width
       INTEGER(KIND=int_8)                                :: nze_tmpl
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pan_first, pan_last
       INTEGER, DIMENSION(:), POINTER                     :: r_blk_sizes
@@ -1206,8 +1151,8 @@ CONTAINS
       !   D_local  : n_local_grid x n_local_grid  (dense D'_ll', BLAS path only; O(n_local_grid^2))
       !   phi_local: n_local_grid x n_ao_used  (AOs reaching into the sphere only)
       !   d_lp     : n_local_grid x n_loc_ri, replicated once + one private copy per OMP thread
-      ! n_local_grid = # grid points within cutoff_ri(P) = CUTOFF_RADIUS_RL_RI (if > 0) else
-      ! r_c(RI metric) + r_RI(P). This is NOT evenly distributed: n_local_grid depends on the
+      ! n_local_grid = # grid points within cutoff_ri(P) = r_c(RI metric) + r_RI(P).
+      ! This is NOT evenly distributed: n_local_grid depends on the
       ! local density of atoms/grid, so the rank owning the densest atom peaks well above the
       ! average. We report the worst-case (max over atoms) as a per-rank upper bound.
       particle_set => bs_env%ri_rs%particle_set
@@ -1218,11 +1163,7 @@ CONTAINS
       n_loc_ri_max = 0
       max_n_ao_used = 0
       DO iatom = 1, natom
-         IF (bs_env%ri_rs%cutoff_radius_ri_rs > 0.0_dp) THEN
-            cutoff_ri = bs_env%ri_rs%cutoff_radius_ri_rs
-         ELSE
-            cutoff_ri = bs_env%ri_metric%cutoff_radius + bs_env%ri_rs%radius_ri_per_atom(iatom)
-         END IF
+         cutoff_ri = bs_env%ri_metric%cutoff_radius + bs_env%ri_rs%radius_ri_per_atom(iatom)
          pos_P(:) = particle_set(iatom)%r(:)
          n_local_grid = 0
          DO l = 1, n_grid_total
@@ -1237,17 +1178,12 @@ CONTAINS
                             bs_env%i_RI_end_from_atom(iatom) - bs_env%i_RI_start_from_atom(iatom) + 1)
       END DO
 
-      n_procs_per_atom = MIN(MAX(bs_env%ri_rs%n_procs_per_atom_z_lp, 1), n_procs)
       n_threads = 1
 !$    n_threads = omp_get_max_threads()
 
-      ! D_local: dense on one rank for the BLAS path; block-cyclic over the subgroup (=> /G) for
-      ! the ScaLAPACK path (N_PROCS_PER_ATOM_Z_LP = G > 1). phi_local/d_lp stay per-rank either way.
-      IF (n_procs_per_atom > 1) THEN
-         mem_D_local_GB = REAL(max_n_local_grid, dp)**2*8.0_dp/REAL(n_procs_per_atom, dp)*1.0E-9_dp
-      ELSE
-         mem_D_local_GB = REAL(max_n_local_grid, dp)**2*8.0_dp*1.0E-9_dp
-      END IF
+      ! D_local: dense on one rank (single-rank BLAS path). This is the upper bound; atoms whose
+      ! solve does not fit are distributed automatically over a rank subgroup (ScaLAPACK).
+      mem_D_local_GB = REAL(max_n_local_grid, dp)**2*8.0_dp*1.0E-9_dp
       mem_phi_local_GB = REAL(max_n_local_grid, dp)*REAL(max_n_ao_used, dp)*8.0_dp*1.0E-9_dp
       mem_dlp_GB = REAL(max_n_local_grid, dp)*REAL(n_loc_ri_max, dp)*8.0_dp* &
                    REAL(1 + n_threads, dp)*1.0E-9_dp
@@ -1279,9 +1215,7 @@ CONTAINS
          WRITE (msg, '(A,F0.2,A,F0.2,A)') &
             "The estimated memory for Z_lP, ", mem_Z_lP_GB, " GB per process, exceeds the "// &
             "available ", mem_avail_GB, " GB. Z_lP (n_grid x n_RI) is distributed across all "// &
-            "MPI ranks, so add nodes, use fewer MPI ranks per node, or raise "// &
-            "N_PROCS_PER_ATOM_Z_LP to distribute each atom block via ScaLAPACK, which reduces "// &
-            "the per-rank memory roughly by the number of ranks per atom."
+            "MPI ranks, so add nodes or use fewer MPI ranks per node."
          CPWARN(TRIM(msg))
       END IF
 
@@ -1290,7 +1224,7 @@ CONTAINS
             "The estimated peak memory of the chi/W/Sigma panels, ", mem_panels_GB, &
             " GB per process, exceeds the available ", mem_avail_GB, " GB. Panel memory "// &
             "scales roughly as 3*panel_size*n_grid/n_procs, so add nodes, use fewer MPI ranks "// &
-            "per node, or raise N_PANELS for more but smaller panels."
+            "per node."
          CPWARN(TRIM(msg))
       END IF
 
@@ -1301,11 +1235,10 @@ CONTAINS
             " GB. The per-atom matrix D'_ll' dominates and "// &
             "scales as n_local_grid^2, and it is not balanced across ranks: the rank owning "// &
             "the atom with the largest integration sphere peaks well above the average. "// &
-            "Either raise N_PROCS_PER_ATOM_Z_LP to distribute D_local block-cyclic via "// &
-            "ScaLAPACK, which reduces that term roughly by the number of ranks per atom at no "// &
-            "loss of accuracy, or lower CUTOFF_RADIUS_RL_RI, which shrinks D_local as "// &
-            "n_local_grid^2 but trades accuracy, or use fewer MPI ranks per node so that each "// &
-            "rank has more memory for the peak atom."
+            "Such atoms are distributed automatically over a rank subgroup via ScaLAPACK. "// &
+            "If the run still runs out of memory, use fewer MPI ranks per node so that each "// &
+            "rank has more memory for the peak atom, or lower CUTOFF_RADIUS_RI, which shrinks "// &
+            "D_local as n_local_grid^2 but trades accuracy."
          CPWARN(TRIM(msg))
       END IF
 
@@ -1585,9 +1518,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Pre-seeds a square blocked DBCSR matrix with zero blocks only for block pairs whose
 !>        centers lie within radius, for use with copy_fm_to_dbcsr(keep_sparsity=T) or
-!>        dbcsr_multiply(retain_sparsity=T). Consumers: the CUTOFF_RADIUS_G_W operator truncation
-!>        (atom-blocked, centers = atom_centers) and the RT-BSE CUTOFF_RADIUS_W0 truncation of the
-!>        grid-basis W^0 (grid-blocked, centers = chunk_centroids).
+!>        dbcsr_multiply(retain_sparsity=T). Consumer: the RT-BSE CUTOFF_RADIUS_W0 truncation of
+!>        the grid-basis W^0 (grid-blocked, centers = chunk_centroids).
 !> \param matrix ...
 !> \param centers block positions, one column per block row/column of matrix
 !> \param radius truncation radius, same units as centers (bohr)
@@ -1742,16 +1674,7 @@ CONTAINS
                         matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=blk_ao, col_blk_size=blk_ao)
 
-      ! Optional CUTOFF_RADIUS_G_W operator truncation: only atom-pair blocks within the radius
-      ! are reserved and filled.
-      IF (bs_env%ri_rs%cutoff_radius_g_w > 0.0_dp .AND. &
-          ALLOCATED(bs_env%ri_rs%atom_centers)) THEN
-         CALL reserve_blocks_within_radius(matrix_G_ao, bs_env%ri_rs%atom_centers, &
-                                           bs_env%ri_rs%cutoff_radius_g_w)
-         CALL copy_fm_to_dbcsr(fm_G, matrix_G_ao, keep_sparsity=.TRUE.)
-      ELSE
-         CALL copy_fm_to_dbcsr(fm_G, matrix_G_ao, keep_sparsity=.FALSE.)
-      END IF
+      CALL copy_fm_to_dbcsr(fm_G, matrix_G_ao, keep_sparsity=.FALSE.)
       CALL dbcsr_filter(matrix_G_ao, bs_env%eps_filter)
 
       ! release only the topology; keep matrix_G_ao for the caller
@@ -1786,14 +1709,13 @@ CONTAINS
 !> \param lb_eq_la ...
 !> \param lout_eq_la ...
 !> \param zero_out ...
-!> \param keep_sparsity ...
 !> \param centroids ...
 !> \param cutoff ...
 !> \param grid_occupation ...
 ! **************************************************************************************************
    SUBROUTINE contract_grid_panels(L_A, M_A, L_B, M_B, L_out, mat_out, scale, eps, para_env, &
                                    pan_first, pan_last, lb_eq_la, lout_eq_la, zero_out, &
-                                   keep_sparsity, centroids, cutoff, grid_occupation)
+                                   centroids, cutoff, grid_occupation)
 
       TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: L_A
       TYPE(dbcsr_type), INTENT(INOUT)                    :: M_A
@@ -1805,7 +1727,6 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: pan_first, pan_last
       LOGICAL, INTENT(IN)                                :: lb_eq_la, lout_eq_la, zero_out
-      LOGICAL, INTENT(IN), OPTIONAL                      :: keep_sparsity
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: centroids
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cutoff
@@ -1816,7 +1737,7 @@ CONTAINS
       INTEGER                                            :: blk0, blk1, handle, ipan, n_grid_total, &
                                                             ncols_pan, nrows_pan
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: gmap
-      LOGICAL                                            :: my_keep_sparsity, use_cutoff
+      LOGICAL                                            :: use_cutoff
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: grid_used, usedA, usedB
       TYPE(dbcsr_type)                                   :: A_pan, B_pan, C_pan, LA_pan, LA_panC, &
                                                             LB_pan, LB_panC, Lout_pan, MA_sub, &
@@ -1826,8 +1747,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      my_keep_sparsity = .FALSE.
-      IF (PRESENT(keep_sparsity)) my_keep_sparsity = keep_sparsity
       use_cutoff = PRESENT(centroids) .AND. PRESENT(cutoff)
       IF (use_cutoff) use_cutoff = cutoff > 0.0_dp
       IF (PRESENT(grid_occupation)) grid_occupation = 0.0_dp
@@ -1923,7 +1842,7 @@ CONTAINS
          END IF
 
          ! B_pan = LB_pan * M_B * L_B^T   (P x grid_near); reuse the L_A slices when L_B == L_A.
-         ! With keep_sparsity, B_pan is pre-populated with A_pan's block structure so that
+         ! B_pan is pre-populated with A_pan's block structure so that
          ! retain_sparsity forces the final multiply to fill only those blocks (exact for ∘).
          IF (lb_eq_la) THEN
             CALL extract_masked_blocks(M_B, usedA, MB_sub, compress_rows=.TRUE.)
@@ -1937,18 +1856,13 @@ CONTAINS
             CALL dbcsr_release(LB_panC)
          END IF
          CALL dbcsr_release(MB_sub)
-         IF (my_keep_sparsity) THEN
-            CALL dbcsr_create(B_pan, template=A_pan)
-            CALL dbcsr_copy(B_pan, A_pan)
-            CALL dbcsr_set(B_pan, 0.0_dp)
-            ! The output pattern is already fixed. Omitting redundant on-the-fly filtering also
-            ! avoids overflowing DBCSR's single-precision screening norms for conditioned Z fits.
-            CALL dbcsr_multiply('N', 'T', 1.0_dp, tmpB, RB_B, 0.0_dp, B_pan, &
-                                retain_sparsity=.TRUE.)
-         ELSE
-            CALL create_product_matrix(tmpB, RB_B, 'N', 'T', B_pan)
-            CALL dbcsr_multiply('N', 'T', 1.0_dp, tmpB, RB_B, 0.0_dp, B_pan, filter_eps=eps)
-         END IF
+         CALL dbcsr_create(B_pan, template=A_pan)
+         CALL dbcsr_copy(B_pan, A_pan)
+         CALL dbcsr_set(B_pan, 0.0_dp)
+         ! The output pattern is already fixed. Omitting redundant on-the-fly filtering also
+         ! avoids overflowing DBCSR's single-precision screening norms for conditioned Z fits.
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, tmpB, RB_B, 0.0_dp, B_pan, &
+                             retain_sparsity=.TRUE.)
          CALL dbcsr_release(tmpB)
          CALL dbcsr_release(LA_panC)
 
@@ -2005,13 +1919,12 @@ CONTAINS
 !> \param para_env ...
 !> \param pan_first ...
 !> \param pan_last ...
-!> \param keep_sparsity ...
 !> \param centroids ...
 !> \param cutoff ...
 ! **************************************************************************************************
    SUBROUTINE contract_grid_panels_sigma_c(mat_phi, mat_Z, mat_G_occ_ao, mat_G_vir_ao, &
                                            mat_W_aux, mat_Sigma_neg, mat_Sigma_pos, eps, para_env, &
-                                           pan_first, pan_last, keep_sparsity, centroids, cutoff)
+                                           pan_first, pan_last, centroids, cutoff)
 
       TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: mat_phi, mat_Z
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_G_occ_ao, mat_G_vir_ao, mat_W_aux, &
@@ -2019,7 +1932,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: pan_first, pan_last
-      LOGICAL, INTENT(IN), OPTIONAL                      :: keep_sparsity
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: centroids
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cutoff
@@ -2028,7 +1940,7 @@ CONTAINS
 
       INTEGER                                            :: blk0, blk1, handle, ipan
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: gmap
-      LOGICAL                                            :: my_keep_sparsity, use_cutoff
+      LOGICAL                                            :: use_cutoff
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: grid_used, used_ao, used_ri
       TYPE(dbcsr_type)                                   :: A_occ, A_vir, C_pan, G_occ_sub, &
                                                             G_vir_sub, phi_pan, phi_panC, tmp2, &
@@ -2038,8 +1950,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      my_keep_sparsity = .FALSE.
-      IF (PRESENT(keep_sparsity)) my_keep_sparsity = keep_sparsity
       use_cutoff = PRESENT(centroids) .AND. PRESENT(cutoff)
       IF (use_cutoff) use_cutoff = cutoff > 0.0_dp
 
@@ -2113,24 +2023,19 @@ CONTAINS
          CALL dbcsr_release(G_vir_sub)
 
          ! W_pan = Z_pan × W_aux × Z^T  (computed once, reused for both Σ^c terms).
-         ! With keep_sparsity, W_pan is pre-seeded with the union of A_occ and A_vir block
-         ! patterns so that retain_sparsity forces the multiply to fill only those blocks:
-         ! exact since W outside G_occ∪G_vir is multiplied by zero in the Hadamard.
+         ! W_pan is pre-seeded with the union of A_occ and A_vir block patterns so that
+         ! retain_sparsity forces the multiply to fill only those blocks: exact since W
+         ! outside G_occ∪G_vir is multiplied by zero in the Hadamard.
          CALL create_product_matrix(Z_panC, W_sub, 'N', 'N', tmpB)
          CALL dbcsr_multiply('N', 'N', 1.0_dp, Z_panC, W_sub, 0.0_dp, tmpB, filter_eps=eps)
-         IF (my_keep_sparsity) THEN
-            CALL dbcsr_create(W_pan, template=A_occ)
-            CALL dbcsr_copy(W_pan, A_occ)
-            CALL dbcsr_add(W_pan, A_vir, 1.0_dp, 1.0_dp)
-            CALL dbcsr_set(W_pan, 0.0_dp)
-            ! The retained pattern is exact for the following Hadamard products; screening it
-            ! again is redundant and may overflow DBCSR's single-precision block-norm product.
-            CALL dbcsr_multiply('N', 'T', 1.0_dp, tmpB, RB_Z, 0.0_dp, W_pan, &
-                                retain_sparsity=.TRUE.)
-         ELSE
-            CALL create_product_matrix(tmpB, RB_Z, 'N', 'T', W_pan)
-            CALL dbcsr_multiply('N', 'T', 1.0_dp, tmpB, RB_Z, 0.0_dp, W_pan, filter_eps=eps)
-         END IF
+         CALL dbcsr_create(W_pan, template=A_occ)
+         CALL dbcsr_copy(W_pan, A_occ)
+         CALL dbcsr_add(W_pan, A_vir, 1.0_dp, 1.0_dp)
+         CALL dbcsr_set(W_pan, 0.0_dp)
+         ! The retained pattern is exact for the following Hadamard products; screening it
+         ! again is redundant and may overflow DBCSR's single-precision block-norm product.
+         CALL dbcsr_multiply('N', 'T', 1.0_dp, tmpB, RB_Z, 0.0_dp, W_pan, &
+                             retain_sparsity=.TRUE.)
          CALL dbcsr_release(tmpB)
          CALL dbcsr_release(W_sub)
          CALL dbcsr_release(phi_panC)
@@ -2470,14 +2375,7 @@ CONTAINS
       CALL fm_contract_ABA(bs_env%fm_Minv_Gamma, fm_Vtr_Gamma(:, 1))
 
       CALL dbcsr_create(matrix_V_aux, "V_aux", dist_aux_aux, dbcsr_type_no_symmetry, blk_aux, blk_aux)
-      ! Optional CUTOFF_RADIUS_G_W operator truncation + filter (see build_G_ao)
-      IF (bs_env%ri_rs%cutoff_radius_g_w > 0.0_dp .AND. ALLOCATED(bs_env%ri_rs%atom_centers)) THEN
-         CALL reserve_blocks_within_radius(matrix_V_aux, bs_env%ri_rs%atom_centers, &
-                                           bs_env%ri_rs%cutoff_radius_g_w)
-         CALL copy_fm_to_dbcsr(fm_Vtr_Gamma(1, 1), matrix_V_aux, keep_sparsity=.TRUE.)
-      ELSE
-         CALL copy_fm_to_dbcsr(fm_Vtr_Gamma(1, 1), matrix_V_aux, keep_sparsity=.FALSE.)
-      END IF
+      CALL copy_fm_to_dbcsr(fm_Vtr_Gamma(1, 1), matrix_V_aux, keep_sparsity=.FALSE.)
       CALL dbcsr_filter(matrix_V_aux, bs_env%eps_filter)
 
       ! =========================================================================
@@ -2497,7 +2395,6 @@ CONTAINS
                                    para_env=bs_env%para_env, &
                                    pan_first=pan_first, pan_last=pan_last, &
                                    lb_eq_la=.FALSE., lout_eq_la=.TRUE., zero_out=.TRUE., &
-                                   keep_sparsity=bs_env%ri_rs%keep_sparsity_rirs, &
                                    centroids=bs_env%ri_rs%chunk_centroids, &
                                    cutoff=bs_env%ri_rs%cutoff_radius_v_w)
          CALL dbcsr_scale(mat_Sigma_x_Gamma, -1.0_dp)
@@ -2589,13 +2486,7 @@ CONTAINS
 
          CALL dbcsr_create(matrix_W_aux, "W_aux", dist_aux_aux, dbcsr_type_no_symmetry, &
                            blk_aux, blk_aux)
-         IF (bs_env%ri_rs%cutoff_radius_g_w > 0.0_dp .AND. ALLOCATED(bs_env%ri_rs%atom_centers)) THEN
-            CALL reserve_blocks_within_radius(matrix_W_aux, bs_env%ri_rs%atom_centers, &
-                                              bs_env%ri_rs%cutoff_radius_g_w)
-            CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.TRUE.)
-         ELSE
-            CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.FALSE.)
-         END IF
+         CALL copy_fm_to_dbcsr(fm_W_time(i_t), matrix_W_aux, keep_sparsity=.FALSE.)
          CALL dbcsr_filter(matrix_W_aux, bs_env%eps_filter)
 
          DO ispin = 1, bs_env%n_spin
@@ -2615,7 +2506,6 @@ CONTAINS
                                               eps=bs_env%eps_filter, &
                                               para_env=bs_env%para_env, &
                                               pan_first=pan_first, pan_last=pan_last, &
-                                              keep_sparsity=bs_env%ri_rs%keep_sparsity_rirs, &
                                               centroids=bs_env%ri_rs%chunk_centroids, &
                                               cutoff=bs_env%ri_rs%cutoff_radius_v_w)
             CALL dbcsr_scale(mat_Sigma_neg_tau(i_t, ispin)%matrix, -1.0_dp)
@@ -2887,7 +2777,7 @@ CONTAINS
                "The largest per-rank message of ", TRIM(label), " reaches ", frac_2p31, &
                " of the 32-bit limit that DBCSR uses for its message length. Beyond it the "// &
                "length overflows and multiply_cannon fails. Reduce the per-rank block size, "// &
-               "for instance with more MPI ranks or a larger N_PANELS."
+               "for instance with more MPI ranks."
             CPWARN(TRIM(msg))
          END IF
          CALL m_flush(bs_env%unit_nr)

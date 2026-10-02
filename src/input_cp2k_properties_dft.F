@@ -2709,30 +2709,9 @@ CONTAINS
                           "(see https://doi.org/10.1063/1.5090605). "// &
                           "(3) User-provided grids: per-element grid files supplied by the "// &
                           "user, read as ri_rs_grid/<Element><suffix> in the same format as "// &
-                          "the built-in sets; the suffix is _rirs.ion by default and can be "// &
-                          "changed with GRID_FILE_SUFFIX.", &
+                          "the built-in sets, with the suffix _rirs.ion.", &
                           usage="GRID_SELECT 1", &
                           default_i_val=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="GRID_FILE_SUFFIX", &
-                          description="Overrides the per-element grid file suffix used by "// &
-                          "GRID_SELECT 3; grid files are read as ri_rs_grid/<Element><suffix>.", &
-                          usage="GRID_FILE_SUFFIX _my-grids.ion", &
-                          default_lc_val="")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_RL_RI", &
-                          description="Real-space cutoff radius (in Angstrom) for evaluating "// &
-                          "the RI-RS integration domain $B^P$. Overrides the default "// &
-                          "$R_c + r_P$, where $R_c$ is the truncated-Coulomb cutoff of the "// &
-                          "RI metric and $r_P$ the radius of the most diffuse RI auxiliary "// &
-                          "Gaussian on atom $P$.", &
-                          usage="CUTOFF_RADIUS_RL_RI 15.0", &
-                          default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &
-                          type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2746,60 +2725,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="N_PROCS_PER_ATOM_Z_LP", &
-                          description="Number of MPI ranks that cooperate on one atom's "// &
-                          "Cholesky factorisation in computation of $Z_{\ell P}$ in RI-RS. "// &
-                          "Default -1 = AUTO: "// &
-                          "each atom is solved single-rank (fast BLAS) unless its dense "// &
-                          "grid-overlap matrix would exceed the available memory per process, "// &
-                          "in which case it is distributed across a rank subgroup sized "// &
-                          "automatically (ScaLAPACK). Set to 1 to force single-rank for all "// &
-                          "atoms, or > 1 to force that fixed subgroup size for all atoms.", &
-                          usage="N_PROCS_PER_ATOM_Z_LP 2", &
-                          default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="N_PANELS", &
-                          description="Number of grid panels (batches) the real-space grid is "// &
-                          "split into for the streaming chi/W/Sigma contractions in RI-RS. More "// &
-                          "panels means lower peak memory per step but more overhead. Default 1 = a "// &
-                          "single whole-grid panel. On large cells the number of panels is "// &
-                          "automatically increased beyond the request to keep per-rank DBCSR "// &
-                          "messages under the 32-bit length limit.", &
-                          usage="N_PANELS 4", &
-                          default_i_val=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="KEEP_SPARSITY_RL", &
-                          description="If `.TRUE.` (default), the W/V matrices in the "// &
-                          "grid-basis contractions of RI-RSwill used the sparsity pattern of the "// &
-                          "corresponding G/D matrices. "// &
-                          "Set `.FALSE.` to build W/V fully dense.", &
-                          usage="KEEP_SPARSITY_RL .FALSE.", &
-                          default_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_RL_W", &
                           description="Real-space truncation radius (Angstrom) for the grid-basis "// &
                           "G operators in the RI-RS GW self-energy. "// &
                           "Default -1.0 disables the truncation (exact grid-basis operators).", &
                           usage="CUTOFF_RADIUS_RL_W 20.0", &
-                          default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &
-                          type_of_var=real_t, unit_str="angstrom")
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS_G_W", &
-                          description="Atom-pair distance truncation radius (Angstrom) applied to "// &
-                          "the AO/RI-space operator matrices G, D, V and W themselves in the RI-RS "// &
-                          "GW contractions: matrix blocks between atoms further apart than this "// &
-                          "radius are dropped. Physically consistent with CUTOFF_RADIUS_RL_W, "// &
-                          "which truncates the grid-basis products at the same kind of range. "// &
-                          "Default -1.0 disables the truncation (exact operators).", &
-                          usage="CUTOFF_RADIUS_G_W 20.0", &
                           default_r_val=cp_unit_to_cp2k(value=-1.0_dp, unit_str="angstrom"), &
                           type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)

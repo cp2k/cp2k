@@ -254,18 +254,13 @@ CONTAINS
          ! Per-atom RI-RS integration sphere:
          !   cutoff_ri(P) = r_c + r_RI(P)
          ! where r_c is the truncated-Coulomb cutoff of the RI metric and r_RI the radius of
-         ! the most diffuse RI auxiliary Gaussian on P. The CUTOFF_RADIUS_RL_RI keyword
-         ! (when > 0) overrides the entire cutoff calculation.
+         ! the most diffuse RI auxiliary Gaussian on P.
          ALLOCATE (cutoff_ri_per_atom(natom))
 
-         IF (bs_env%ri_rs%cutoff_radius_ri_rs > 0.0_dp) THEN
-            cutoff_ri_per_atom(:) = bs_env%ri_rs%cutoff_radius_ri_rs
-         ELSE
-            r_c = bs_env%ri_metric%cutoff_radius
-            DO iatom = 1, natom
-               cutoff_ri_per_atom(iatom) = r_c + bs_env%ri_rs%radius_ri_per_atom(iatom)
-            END DO
-         END IF
+         r_c = bs_env%ri_metric%cutoff_radius
+         DO iatom = 1, natom
+            cutoff_ri_per_atom(iatom) = r_c + bs_env%ri_rs%radius_ri_per_atom(iatom)
+         END DO
 
          CALL print_sphere_cutoff_table(bs_env, cutoff_ri_per_atom)
 
@@ -1005,18 +1000,14 @@ CONTAINS
                END DO
 
                center = particle_set(fit_atom)%r
-               IF (bs_env%ri_rs%cutoff_radius_ri_rs > 0.0_dp) THEN
-                  cutoff_ri = bs_env%ri_rs%cutoff_radius_ri_rs
-               ELSE
-                  r_c = bs_env%ri_metric%cutoff_radius
-                  cutoff_ri = 0.0_dp
-                  DO ri_atom = 1, natom
-                     IF (.NOT. active_atom(ri_atom)) CYCLE
-                     cutoff_ri = MAX(cutoff_ri, &
-                                     r_c + bs_env%ri_rs%radius_ri_per_atom(ri_atom) + &
-                                     NORM2(center - particle_set(ri_atom)%r))
-                  END DO
-               END IF
+               r_c = bs_env%ri_metric%cutoff_radius
+               cutoff_ri = 0.0_dp
+               DO ri_atom = 1, natom
+                  IF (.NOT. active_atom(ri_atom)) CYCLE
+                  cutoff_ri = MAX(cutoff_ri, &
+                                  r_c + bs_env%ri_rs%radius_ri_per_atom(ri_atom) + &
+                                  NORM2(center - particle_set(ri_atom)%r))
+               END DO
                CALL build_phi_on_sphere(bs_env, qs_kind_set, &
                                         ri_rs_grid_points, fit_atom, cutoff_ri, n_ao_total, &
                                         local_grid_idx, ngrid, phi_local, ao_col_map, n_ao_used, &
@@ -1239,17 +1230,13 @@ CONTAINS
          END DO
 
          center = particle_set(fit_atom)%r
-         IF (bs_env%ri_rs%cutoff_radius_ri_rs > 0.0_dp) THEN
-            cutoff_ri = bs_env%ri_rs%cutoff_radius_ri_rs
-         ELSE
-            cutoff_ri = 0.0_dp
-            DO iatom = 1, natom
-               IF (.NOT. active_atom(iatom)) CYCLE
-               cutoff_ri = MAX(cutoff_ri, bs_env%ri_metric%cutoff_radius + &
-                               bs_env%ri_rs%radius_ri_per_atom(iatom) + &
-                               NORM2(center - particle_set(iatom)%r))
-            END DO
-         END IF
+         cutoff_ri = 0.0_dp
+         DO iatom = 1, natom
+            IF (.NOT. active_atom(iatom)) CYCLE
+            cutoff_ri = MAX(cutoff_ri, bs_env%ri_metric%cutoff_radius + &
+                            bs_env%ri_rs%radius_ri_per_atom(iatom) + &
+                            NORM2(center - particle_set(iatom)%r))
+         END DO
 
          DO igrid = 1, bs_env%ri_rs%n_grid_points
             IF (NORM2(ri_rs_grid_points(1:3, igrid) - center) > cutoff_ri) THEN
@@ -1998,11 +1985,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       particle_set => bs_env%ri_rs%particle_set
-      radius = bs_env%ri_rs%cutoff_radius_ri_rs
-      IF (bs_env%ri_rs%cutoff_radius_ri_rs > 0.0_dp) THEN
-         CALL timestop(handle)
-         RETURN
-      END IF
       radius = 0.0_dp
       cutoff = bs_env%ri_metric%cutoff_radius
       DO AB_block = 1, bs_env%auto_ri%AB_block_count
@@ -2460,18 +2442,15 @@ CONTAINS
 !> \brief Splits the atoms of the Z_lP solve into a single-rank list ("small", Phase A: LAPACK
 !>        dpotrf/dpotrs on one rank) and a distributed list ("big", Phase B: ScaLAPACK
 !>        pdpotrf/pdpotrs over a rank subgroup of size G), and sizes G.
-!>        AUTO mode (N_PROCS_PER_ATOM_Z_LP <= 0, the default): estimate each atom's single-rank
-!>        peak memory
+!>        Each atom's single-rank peak memory is estimated as
 !>          peak(P) = 8*n_local_grid(P)^2                (dense matrix D'_ll', stored in D_local)
 !>                  + 8*n_local_grid(P)*n_ao_used(P)     (phi_local)
 !>                  + 8*n_local_grid(P)*n_RI(P)*(1+n_threads)   (d_lp + OMP partials)
 !>        and send atoms whose peak exceeds mem_safety * available-memory-per-proc to the
 !>        distributed path; G is auto-sized so the biggest atom's distributed D_local (/G)
-!>        fits alongside the replicated phi_local + d_lp.
-!>        MANUAL mode (> 0): 1 forces the single-rank path for every atom; > 1 keeps the
-!>        memory-based classification but forces that fixed subgroup size G.
-!>        In every mode G is floored by the ScaLAPACK 32-bit index limit (a local block-cyclic
-!>        slice of ~n_local_grid^2/G elements must stay below 2^31 or pdpotrf segfaults).
+!>        fits alongside the replicated phi_local + d_lp. G is floored by the ScaLAPACK 32-bit
+!>        index limit (a local block-cyclic slice of ~n_local_grid^2/G elements must stay below
+!>        2^31 or pdpotrf segfaults).
 !> \param bs_env ...
 !> \param ri_rs_grid_points ...
 !> \param cutoff_ri_per_atom ...
@@ -2506,11 +2485,9 @@ CONTAINS
       ! elements) with 32-bit integers; keep it safely below 2^31 or pdpotrf segfaults.
       REAL(KIND=dp), PARAMETER                           :: scalapack_loc_limit = 2.0E9_dp
 
-      INTEGER                                            :: G_atom, G_int32, G_int32_max, l, &
-                                                            n_ao_used_atom, n_grid_total, &
-                                                            n_local_grid, natom, nthreads_cls, &
-                                                            P_loop_atom
-      LOGICAL                                            :: auto_mode
+      INTEGER                                            :: G_atom, G_int32, l, n_ao_used_atom, &
+                                                            n_grid_total, n_local_grid, natom, &
+                                                            nthreads_cls, P_loop_atom
       REAL(KIND=dp)                                      :: budget_bytes, cutoff_ri, dlp_bytes, &
                                                             mem_avail_GB, ng, nri, peak_bytes, &
                                                             phi_bytes
@@ -2544,10 +2521,6 @@ CONTAINS
 
       nthreads_cls = 1
 !$    nthreads_cls = omp_get_max_threads()
-      ! N_PROCS_PER_ATOM_Z_LP: -1 (default) = AUTO (classify by memory, auto-size G);
-      ! 1 = force single-rank BLAS for every atom; >1 = classify by memory but use this
-      ! fixed subgroup size G for the big atoms.
-      auto_mode = (bs_env%ri_rs%n_procs_per_atom_z_lp <= 0)
       CALL mp_mem_avail_per_rank_GB(bs_env%para_env, mem_avail_GB)  ! collective over all ranks
       budget_bytes = mem_safety*mem_avail_GB*1.0E9_dp
 
@@ -2555,42 +2528,18 @@ CONTAINS
       n_big = 0
       G = 1
       G_atom = 1              ! max G a big atom needs (memory + ScaLAPACK int32 floor)
-      G_int32_max = 1         ! max ScaLAPACK-int32 floor over the distributed atoms
-      IF (bs_env%ri_rs%n_procs_per_atom_z_lp == 1) THEN
-         ! Force single-rank BLAS for every atom.
+      IF (mem_avail_GB <= 0.0_dp) THEN
+         ! No /proc/meminfo => cannot size by memory.
+         IF (bs_env%unit_nr > 0) THEN
+            CPWARN("RI-RS Z_lP: no meminfo; single-rank solve for all atoms")
+         END IF
          DO P_loop_atom = 1, natom
             n_small = n_small + 1
             small_list(n_small) = P_loop_atom
          END DO
-      ELSE IF (mem_avail_GB <= 0.0_dp) THEN
-         ! No /proc/meminfo => cannot size by memory.
-         IF (auto_mode) THEN
-            IF (bs_env%unit_nr > 0) THEN
-               CPWARN("RI-RS Z_lP: no meminfo; single-rank solve for all atoms")
-            END IF
-            DO P_loop_atom = 1, natom
-               n_small = n_small + 1
-               small_list(n_small) = P_loop_atom
-            END DO
-         ELSE
-            ! Fixed G, no meminfo: distribute all atoms; still floor G by the int32 limit.
-            DO P_loop_atom = 1, natom
-               ng = REAL(n_local_grid_atom(P_loop_atom), dp)
-               G_int32_max = MAX(G_int32_max, CEILING(ng*ng/scalapack_loc_limit))
-               n_big = n_big + 1
-               big_list(n_big) = P_loop_atom
-            END DO
-            G = MIN(bs_env%ri_rs%n_procs_per_atom_z_lp, para_env%num_pe)
-            IF (G < G_int32_max) THEN
-               G = MIN(G_int32_max, para_env%num_pe)
-               IF (bs_env%unit_nr > 0) THEN
-                  CPWARN("RI-RS Z_lP: raised G to avoid ScaLAPACK overflow")
-               END IF
-            END IF
-         END IF
       ELSE
          ! Classify by memory: peak (D_local + phi_local + d_lp) vs budget. Small -> BLAS,
-         ! big -> distributed. Same classification for AUTO and fixed-G modes.
+         ! big -> distributed.
          DO P_loop_atom = 1, natom
             ng = REAL(n_local_grid_atom(P_loop_atom), dp)
             nri = REAL(ri_blk_sizes(P_loop_atom), dp)
@@ -2608,35 +2557,20 @@ CONTAINS
                ! G must satisfy BOTH: (a) memory — distributed D_local (/G) fits next to the
                ! replicated phi_local + d_lp; (b) ScaLAPACK — local ~ng^2/G below the int32 limit.
                G_int32 = CEILING(ng*ng/scalapack_loc_limit)
-               G_int32_max = MAX(G_int32_max, G_int32)
                G_atom = MAX(G_atom, G_int32, &
                             CEILING(8.0_dp*ng*ng/MAX(budget_bytes - phi_bytes - dlp_bytes, 1.0_dp)))
             END IF
          END DO
          IF (n_big > 0) THEN
-            IF (auto_mode) THEN
-               ! Auto-size G from the most demanding big atom.
-               IF (G_atom > para_env%num_pe) THEN
-                  CALL cp_abort(__LOCATION__, &
-                                "RI-RS Z_lP: an atom is too large to fit even when "// &
-                                "distributed over all ranks. Add nodes, use fewer MPI ranks "// &
-                                "per node, lower CUTOFF_RADIUS_RL_RI, or raise EPS_FILTER "// &
-                                "for more grid screening.")
-               END IF
-               G = MIN(MAX(G_atom, 2), para_env%num_pe)
-            ELSE
-               ! Fixed G from the keyword. Hard-floor by the ScaLAPACK int32 limit (below it
-               ! pdpotrf segfaults); warn if it is still below the memory recommendation.
-               G = MIN(bs_env%ri_rs%n_procs_per_atom_z_lp, para_env%num_pe)
-               IF (G < G_int32_max) THEN
-                  G = MIN(G_int32_max, para_env%num_pe)
-                  IF (bs_env%unit_nr > 0) THEN
-                     CPWARN("RI-RS Z_lP: raised G to avoid ScaLAPACK overflow")
-                  END IF
-               ELSE IF (G < G_atom .AND. bs_env%unit_nr > 0) THEN
-                  CPWARN("RI-RS Z_lP: N_PROCS_PER_ATOM_Z_LP too small for the largest atom")
-               END IF
+            ! Auto-size G from the most demanding big atom.
+            IF (G_atom > para_env%num_pe) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "RI-RS Z_lP: an atom is too large to fit even when "// &
+                             "distributed over all ranks. Add nodes, use fewer MPI ranks "// &
+                             "per node, lower CUTOFF_RADIUS_RI, or raise EPS_FILTER "// &
+                             "for more grid screening.")
             END IF
+            G = MIN(MAX(G_atom, 2), para_env%num_pe)
          END IF
       END IF
 

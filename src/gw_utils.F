@@ -323,14 +323,8 @@ CONTAINS
 
       CALL section_vals_val_get(ri_rs_sec, "TIKHONOV", r_val=ri_rs%tikhonov)
       CALL section_vals_val_get(ri_rs_sec, "GRID_SELECT", i_val=ri_rs%grid_select)
-      CALL section_vals_val_get(ri_rs_sec, "GRID_FILE_SUFFIX", c_val=ri_rs%grid_file_suffix)
-      CALL section_vals_val_get(ri_rs_sec, "CUTOFF_RADIUS_RL_RI", r_val=ri_rs%cutoff_radius_ri_rs)
       CALL section_vals_val_get(ri_rs_sec, "CUTOFF_RADIUS_RL_AO", r_val=ri_rs%cutoff_radius_ri_ao)
-      CALL section_vals_val_get(ri_rs_sec, "N_PROCS_PER_ATOM_Z_LP", i_val=ri_rs%n_procs_per_atom_z_lp)
-      CALL section_vals_val_get(ri_rs_sec, "N_PANELS", i_val=ri_rs%n_panels)
-      CALL section_vals_val_get(ri_rs_sec, "KEEP_SPARSITY_RL", l_val=ri_rs%keep_sparsity_rirs)
       CALL section_vals_val_get(ri_rs_sec, "CUTOFF_RADIUS_RL_W", r_val=ri_rs%cutoff_radius_v_w)
-      CALL section_vals_val_get(ri_rs_sec, "CUTOFF_RADIUS_G_W", r_val=ri_rs%cutoff_radius_g_w)
 
       CALL timestop(handle)
 
@@ -467,8 +461,6 @@ CONTAINS
          CPASSERT(bs_env%do_gw_ri_rs)
          ! AUTO_RI is implemented only for nonperiodic systems.
          CPASSERT(.NOT. bs_env%do_periodic)
-         ! AUTO_RI is incompatible with real-space truncation of G and W.
-         CPASSERT(bs_env%ri_rs%cutoff_radius_g_w <= 0.0_dp)
       END IF
 
       bs_env%gw_flavour = G0W0
@@ -605,18 +597,10 @@ CONTAINS
       WRITE (unit_nr, '(A)') ' '
       WRITE (unit_nr, '(T2,A,ES43.2)') 'Input: RI-RS Tikhonov regularization', &
          bs_env%ri_rs%tikhonov
-      CALL print_cutoff_radius_input(unit_nr, 'RI-RS integration sphere cutoff', &
-                                     bs_env%ri_rs%cutoff_radius_ri_rs)
       CALL print_cutoff_radius_input(unit_nr, 'AO grid hard cutoff radius', &
                                      bs_env%ri_rs%cutoff_radius_ri_ao)
-      WRITE (unit_nr, '(T2,A,I40)') 'Input: MPI ranks per atom in Z_lP solve', &
-         bs_env%ri_rs%n_procs_per_atom_z_lp
-      WRITE (unit_nr, '(T2,A,L43)') 'Input: Keep sparsity in χ/G/W panels', &
-         bs_env%ri_rs%keep_sparsity_rirs
       CALL print_cutoff_radius_input(unit_nr, 'G/W panel truncation radius', &
                                      bs_env%ri_rs%cutoff_radius_v_w)
-      CALL print_cutoff_radius_input(unit_nr, 'G/W operator truncation radius', &
-                                     bs_env%ri_rs%cutoff_radius_g_w)
       WRITE (unit_nr, '(T2,A,A62)') 'Input: GW flavour', TRIM(gw_flavour_label(bs_env))
 
       IF (bs_env%ri_rs%grid_opt%enabled) THEN
