@@ -598,13 +598,13 @@ CONTAINS
             b(i, i) = (1.0_dp + REAL(MODULO(i, 5), dp)/5)*EXP(iu*0.17_dp*i)
             IF (i < n) b(i, i + 1) = CMPLX(0.05_dp, 0.03_dp, dp)
          END DO
-         sc = MATMUL(CONJG(TRANSPOSE(b)), MATMUL(s, b))
-         wc = MATMUL(CONJG(TRANSPOSE(b)), MATMUL(w, b))
+         sc(:, :) = MATMUL(CONJG(TRANSPOSE(b)), MATMUL(s, b))
+         wc(:, :) = MATMUL(CONJG(TRANSPOSE(b)), MATMUL(w, b))
          DO axis = 1, 2
             rc(:, :, axis) = MATMUL(CONJG(TRANSPOSE(b)), MATMUL(r(:, :, axis), b))
          END DO
-         factor = b
-         cc = c
+         factor(:, :) = b
+         cc(:, :) = c
          CALL zgesv(n, n/2, factor, n, pivots, cc, n, status)
          IF (status /= 0) ERROR STOP 'Occupied AO basis change'
          CALL finite_chern_marker(cc(:, :n/2), sc, rc, wc, 9.0_dp, changed, status)
@@ -781,8 +781,8 @@ CONTAINS
                END DO
             END DO
          END DO
-         co = REAL(epos, dp)
-         si = -AIMAG(epos)
+         co(:, :, :) = REAL(epos, dp)
+         si(:, :, :) = -AIMAG(epos)
          CALL projected_eigensystem(h, s, energies, c, status)
          IF (status /= 0) ERROR STOP 'Periodic model eigensystem'
          CALL periodic_chern_marker(c(:, :n/2), s, epos, s, REAL(length**2, dp), REAL(length**2, dp), &
@@ -801,25 +801,25 @@ CONTAINS
             b(i, i) = (1.0_dp + REAL(MODULO(i, 5), dp)/5)*EXP(iu*0.17_dp*i)
             IF (i < n) b(i, i + 1) = CMPLX(0.05_dp, 0.03_dp, dp)
          END DO
-         sc = MATMUL(CONJG(TRANSPOSE(b)), b)
-         wc = MATMUL(CONJG(TRANSPOSE(b)), MATMUL(w, b))
+         sc(:, :) = MATMUL(CONJG(TRANSPOSE(b)), b)
+         wc(:, :) = MATMUL(CONJG(TRANSPOSE(b)), MATMUL(w, b))
          DO axis = 1, 2
             ec(:, :, axis) = MATMUL(CONJG(TRANSPOSE(b)), MATMUL(epos(:, :, axis), b))
          END DO
-         factor = b
-         cc = c
+         factor(:, :) = b
+         cc(:, :) = c
          CALL zgesv(n, n/2, factor, n, pivots, cc, n, status)
          IF (status /= 0) ERROR STOP 'Periodic occupied AO basis change'
          CALL periodic_chern_marker(cc(:, :n/2), sc, ec, wc, REAL(length**2, dp), area, &
                                     1.e-8_dp, changed, minimum, status)
          IF (status /= 0 .OR. ABS(value - changed) > 1.e-11_dp) ERROR STOP 'Periodic marker AO covariance'
-         cc = c
+         cc(:, :) = c
          cc(:, 1) = (c(:, 1) + iu*c(:, 2))/SQRT(2.0_dp)
          cc(:, 2) = (iu*c(:, 1) + c(:, 2))/SQRT(2.0_dp)
          CALL periodic_chern_marker(cc(:, :n/2), s, epos, w, REAL(length**2, dp), area, &
                                     1.e-8_dp, changed, minimum, status)
          IF (status /= 0 .OR. ABS(value - changed) > 1.e-11_dp) ERROR STOP 'Periodic occupied gauge'
-         ec = epos*EXP(iu*0.43_dp)
+         ec(:, :, :) = epos*EXP(iu*0.43_dp)
          CALL periodic_chern_marker(c(:, :n/2), s, ec, w, REAL(length**2, dp), area, &
                                     1.e-8_dp, changed, minimum, status)
          IF (status /= 0 .OR. ABS(value - changed) > 1.e-11_dp) ERROR STOP 'Periodic origin phase'
