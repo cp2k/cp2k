@@ -232,7 +232,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="WINDOW_SIGMA", &
                           description="Required positive widths in the two ordered PLANE directions. "// &
                           "The window is exp(-sum((r_i-center_i)^2/(2*sigma_i^2))), independent of the normal "// &
-                          "coordinate. Its physical area is 2*pi*sigma_1*sigma_2. Integrates the AO window "// &
+                          "coordinate. In FINITE its physical area is 2*pi*sigma_1*sigma_2. Integrates the AO window "// &
                           "matrix analytically, not by selecting atoms or AOs. For PERIODIC, sigma divided by the "// &
                           "torus lattice-vector length defines a fractional-coordinate Gaussian width. Its periodic "// &
                           "image sum is normalized to peak one, and its area includes the cell Jacobian. "// &
