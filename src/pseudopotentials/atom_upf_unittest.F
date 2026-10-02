@@ -23,7 +23,10 @@ PROGRAM atom_upf_unittest
                                               atom_upfpot_type
    USE atom_utils,                      ONLY: atom_core_density,&
                                               atom_density
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: silent_print_level
    USE external_potential_types,        ONLY: allocate_potential,&
@@ -64,12 +67,13 @@ PROGRAM atom_upf_unittest
    LOGICAL :: source_root_argument
 
    CHARACTER(LEN=default_path_length) :: filename
-   INTEGER :: i
+   INTEGER :: i, io_unit
    REAL(KIND=dp) :: error(6)
    TYPE(atom_upfpot_type) :: pot
    TYPE(atom_sgp_potential_type) :: sgp
 
    CALL cp2k_init()
+   io_unit = cp_logger_get_default_io_unit()
    CALL check_core_derivatives()
    CALL check_projector_addition_theorem()
    CALL check_atomic_potential()
@@ -131,7 +135,7 @@ PROGRAM atom_upf_unittest
          IF (.NOT. ASSOCIATED(sgp%a_nlcc)) ERROR STOP "Missing transformed UPF core density"
          IF (.NOT. ALL(ieee_is_finite(sgp%c_nlcc))) ERROR STOP "Non-finite transformed UPF core density"
       END IF
-      WRITE (*, '(A,1X,A,1X,6ES16.7)') "UPF transformation:", TRIM(filename), error
+      IF (io_unit > 0) WRITE (io_unit, '(A,1X,A,1X,6ES16.7)') "UPF transformation:", TRIM(filename), error
       CALL atom_sgp_release(sgp)
       CALL atom_release_upf(pot)
    END DO
@@ -452,7 +456,7 @@ CONTAINS
             CALL release_atom_basis(radial)
          END DO
       END DO
-      WRITE (*, '(A,3ES24.15)') "Atomic radial derivative/Laplacian scaled errors: ", errors
+      IF (io_unit > 0) WRITE (io_unit, '(A,3ES24.15)') "Atomic radial derivative/Laplacian scaled errors: ", errors
       DEALLOCATE (pmat)
       CALL release_atom_basis(basis)
       IF (MAXVAL(errors) > 2.e-7_dp) ERROR STOP "Atomic radial finite-difference derivatives disagree"
@@ -497,7 +501,8 @@ CONTAINS
             density_error = MAX(density_error, ABS(value - reference))
             derivative_error = MAX(derivative_error, ABS(derivative - reference_derivative))
          END DO
-         WRITE (*, '(A,I2,2ES16.7)') "Core Gaussian fit, density and derivative:", mesh, density_error, derivative_error
+         IF (io_unit > 0) WRITE (io_unit, '(A,I2,2ES16.7)') &
+            "Core Gaussian fit, density and derivative:", mesh, density_error, derivative_error
          IF (density_error > 2.e-7_dp) ERROR STOP "Gaussian core-density fit is inaccurate"
          IF (derivative_error > 3.e-6_dp) ERROR STOP "Gaussian core-density derivative is inaccurate"
          rho = 0.0_dp
@@ -525,7 +530,7 @@ CONTAINS
 
       logger => cp_get_default_logger()
       IF (logger%para_env%is_source()) THEN
-         OPEN (NEWUNIT=unit, FILE=fixture, STATUS="REPLACE", ACTION="WRITE")
+         CALL open_file(fixture, unit_number=unit, file_status="REPLACE", file_action="WRITE")
          WRITE (unit, '(A)') &
             '<UPF version="2.0.1">', &
             '<PP_HEADER element="He" pseudo_type="NC" z_valence="2"', &
@@ -553,7 +558,7 @@ CONTAINS
             '</PP_DIJ>', &
             '</PP_NONLOCAL>', &
             '</UPF>'
-         CLOSE (unit)
+         CALL close_file(unit)
       END IF
       CALL logger%para_env%sync()
       NULLIFY (specification, input)
@@ -582,8 +587,8 @@ CONTAINS
       CALL section_release(specification)
       CALL logger%para_env%sync()
       IF (logger%para_env%is_source()) THEN
-         OPEN (NEWUNIT=unit, FILE=fixture, STATUS="OLD")
-         CLOSE (unit, STATUS="DELETE")
+         CALL open_file(fixture, unit_number=unit, file_status="OLD")
+         CALL close_file(unit, file_status="DELETE")
       END IF
    END SUBROUTINE check_upf_units
 
