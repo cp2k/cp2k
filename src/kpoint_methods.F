@@ -886,7 +886,8 @@ CONTAINS
             DO is = 1, nspin
                CALL get_mo_set(mos(is), nao=nao, nmo=nmo, nelectron=nelectron, &
                                n_el_f=n_el_f, maxocc=maxocc, flexible_electron_count=flexible_electron_count)
-               nmo = MIN(nao, nmo + nadd)
+               ! aux ADMM basis keeps the orbital nmo; do not cap at aux nao
+               IF (.NOT. aux_fit) nmo = MIN(nao, nmo + nadd)
                CALL allocate_mo_set(kp%mos(is), nao, nmo, nelectron, n_el_f, maxocc, &
                                     flexible_electron_count)
             END DO
@@ -910,7 +911,11 @@ CONTAINS
          ! set possible new number of MOs
          DO is = 1, nspin
             CALL get_mo_set(mos(is), nmo=nmorig(is))
-            nmo = MIN(nao, nmorig(is) + nadd)
+            IF (aux_fit) THEN
+               nmo = nmorig(is)
+            ELSE
+               nmo = MIN(nao, nmorig(is) + nadd)
+            END IF
             CALL set_mo_set(mos(is), nmo=nmo)
          END DO
          ! matrix pools for the kpoint group, information on MOs is transferred using
