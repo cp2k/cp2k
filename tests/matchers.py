@@ -588,6 +588,11 @@ registry["Band_first_eigenvalue"] = GenericMatcher(
 )
 registry["Kubo_hall_max"] = GenericMatcher(r"KUBO_TRANSPORT| hall_max", col=3)
 
+registry["Real_space_chern_marker"] = GenericMatcher("REAL_SPACE_CHERN| Marker:", col=3)
+registry["Real_space_chern_weight"] = GenericMatcher(
+    "REAL_SPACE_CHERN| Window occupied weight:", col=5
+)
+
 registry["Kubo_symmetry_current_error"] = GenericMatcher(
     r"KUBO_TRANSPORT| Symmetry errors S/H/current:", col=7
 )

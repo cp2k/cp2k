@@ -7,8 +7,61 @@
 MODULE kubo_test_cases
    IMPLICIT NONE
    PRIVATE
-   PUBLIC :: check_projected_current, check_bloch_current, check_hall_response, check_real_space_chern
+   PUBLIC :: check_projected_current, check_bloch_current, check_hall_response, check_real_space_chern, check_gaussian_window
 CONTAINS
+
+! **************************************************************************************************
+!> \brief Check analytic physical-window integrals for displaced, contracted and higher-L AOs.
+! **************************************************************************************************
+   SUBROUTINE check_gaussian_window()
+      USE ai_gaussian_window, ONLY: gaussian_window_overlap
+      USE ai_overlap, ONLY: overlap_ab
+      USE ai_overlap3, ONLY: overlap3
+      USE kinds, ONLY: dp
+      USE mathconstants, ONLY: pi
+      USE orbital_pointers, ONLY: coset, deallocate_orbital_pointers, init_orbital_pointers
+      INTEGER                                            :: dx, dy, px
+      REAL(dp)                                           :: alpha(3), center(3), f0, p(3), ra(3), &
+                                                            radii(2), rb(3), s(20, 20), t(20, 20), &
+                                                            triple(20, 20, 1), zeta(2), zetb(2)
+
+      CALL init_orbital_pointers(2)
+      ra = [0.1_dp, -0.3_dp, 0.2_dp]
+      rb = [-0.4_dp, 0.2_dp, -0.1_dp]
+      center = [0.2_dp, -0.1_dp, -0.3_dp]
+      zeta = [0.9_dp, 0.4_dp]
+      zetb = [0.7_dp, 0.3_dp]
+      radii = 100.0_dp
+      CALL gaussian_window_overlap(2, 1, zeta, 2, 0, zetb, ra, rb, center, [0.0_dp, 0.0_dp, 0.0_dp], s)
+      CALL overlap_ab(2, 1, 2, radii, zeta, 2, 0, 2, radii, zetb, rb - ra, sab=t)
+      IF (MAXVAL(ABS(s(:18, :) - t(:18, :))) > 1.e-13_dp) ERROR STOP 'Window identity/compact shell ordering'
+      alpha = 0.6_dp
+      CALL gaussian_window_overlap(2, 0, zeta, 2, 0, zetb, ra, rb, center, alpha, s)
+      CALL overlap3(2, 2, zeta, radii, 0, 2, 2, zetb, radii, 0, 0, 1, [alpha(1)], [100.0_dp], 0, &
+                    rb - ra, NORM2(rb - ra), center - ra, NORM2(center - ra), &
+                    center - rb, NORM2(center - rb), triple)
+      IF (MAXVAL(ABS(s - triple(:, :, 1))) > 1.e-13_dp) ERROR STOP 'Independent three-center window reference'
+      CALL gaussian_window_overlap(2, 0, zetb, 2, 0, zeta, rb, ra, center, alpha, t)
+      IF (MAXVAL(ABS(s - TRANSPOSE(t))) > 1.e-13_dp) ERROR STOP 'Window Hermiticity'
+      CALL gaussian_window_overlap(2, 0, zeta, 2, 0, zetb, ra + 4, rb + 4, center + 4, alpha, t)
+      IF (MAXVAL(ABS(s - t)) > 1.e-13_dp) ERROR STOP 'Window common translation'
+      alpha = [0.3_dp, 0.7_dp, 0.0_dp]
+      ra = 0.0_dp
+      rb = 0.0_dp
+      center = 0.0_dp
+      CALL gaussian_window_overlap(2, 0, zeta(:1), 2, 0, zetb(:1), ra, rb, center, alpha, s)
+      p = zeta(1) + zetb(1) + alpha
+      f0 = PRODUCT(SQRT(pi/p))
+      px = coset(1, 0, 0)
+      dx = coset(2, 0, 0)
+      dy = coset(0, 2, 0)
+      IF (ABS(s(1, 1) - f0) > 1.e-13_dp .OR. ABS(s(px, 1)) > 1.e-13_dp) ERROR STOP 'Window s/p parity'
+      IF (ABS(s(px, px) - f0/(2*p(1))) > 1.e-13_dp) ERROR STOP 'Anisotropic window p integral'
+      IF (ABS(s(dx, dx) - 3*f0/(4*p(1)**2)) > 1.e-13_dp) ERROR STOP 'Anisotropic window d integral'
+      IF (ABS(s(dx, dy) - f0/(4*p(1)*p(2))) > 1.e-13_dp) ERROR STOP 'Anisotropic window mixed d integral'
+      CALL deallocate_orbital_pointers()
+      PRINT *, 'Physical Gaussian window, s/p/d, compact shells, reference and translation tests passed.'
+   END SUBROUTINE check_gaussian_window
 
 ! **************************************************************************************************
 !> \brief Validate projected currents and their AO-metric covariance.
@@ -629,10 +682,12 @@ CONTAINS
 END MODULE kubo_test_cases
 
 PROGRAM kubo_unittest
-   USE kubo_test_cases, ONLY: check_projected_current, check_bloch_current, check_hall_response, check_real_space_chern
+   USE kubo_test_cases, ONLY: check_projected_current, check_bloch_current, check_hall_response, &
+                              check_real_space_chern, check_gaussian_window
    IMPLICIT NONE
    CALL check_projected_current()
    CALL check_bloch_current()
    CALL check_hall_response()
    CALL check_real_space_chern()
+   CALL check_gaussian_window()
 END PROGRAM kubo_unittest

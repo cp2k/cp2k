@@ -52,6 +52,15 @@
     &END XC
   &END DFT
   &PROPERTIES
+    @IF ${HALL_BLOCH} == F
+      &REAL_SPACE_CHERN ON
+        SOC T
+        ENERGY [hartree] -0.1
+        PLANE YX
+        WINDOW_CENTER [angstrom] 3.1 2.8 3.0
+        WINDOW_SIGMA [bohr] 1.2 1.7
+      &END REAL_SPACE_CHERN
+    @ENDIF
     &KUBO_TRANSPORT ON
       CURRENT_OPERATOR ${HALL_CURRENT}
       HALL_RESPONSE T

@@ -12,7 +12,7 @@
 !> \author MI
 ! **************************************************************************************************
 MODULE input_cp2k_properties_dft
-   USE bibliography, ONLY: Dixon2023, Doll2025, Wong2026, Loring2015, Cerjan2023, Futera2017, &
+   USE bibliography, ONLY: Dixon2023, Doll2025, Wong2026, Loring2015, Cerjan2023, BiancoResta2011, Futera2017, &
                            Hanasaki2025, &
                            Hernandez2025, &
                            Iannuzzi2005, &
@@ -145,6 +145,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_real_space_chern_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_spectral_localizer_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -165,6 +169,79 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_properties_section
+
+! **************************************************************************************************
+!> \brief Create an opt-in finite-window Chern-marker analysis, independent of periodic Wilson paths.
+!> \param section New properties section
+! **************************************************************************************************
+   SUBROUTINE create_real_space_chern_section(section)
+      TYPE(section_type), POINTER :: section
+      TYPE(keyword_type), POINTER :: keyword
+
+      NULLIFY (keyword)
+      CALL section_create(section, __LOCATION__, name="REAL_SPACE_CHERN", &
+                          description="Finite-window real-space Chern marker from the complete GPW/GAPW AO "// &
+                          "Hamiltonian, overlap and analytic position operators. Requires isolated systems with "// &
+                          "CELL/POISSON PERIODIC NONE and no KPOINTS. Uses a sharp spectral projector below ENERGY, "// &
+                          "not smeared SCF occupations. A finite, basis-dependent marker, not a rounded bulk index "// &
+                          "or a Z2 invariant. Does not change WANNIER90 Wilson/Chern/Z2 or external Z2Pack interfaces.", &
+                          repeats=.FALSE., citations=[BiancoResta2011])
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Activate finite-window Chern analysis after converged SCF.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="PLANE", type_of_var=enum_t, &
+                          description="Ordered Cartesian plane in the SUBSYS/COORD frame. Reversing its order "// &
+                          "reverses the marker sign. Positive convention uses Berry connection i<u|grad u>.", &
+                          enum_c_vals=s2a("XY", "YX", "XZ", "ZX", "YZ", "ZY"), &
+                          enum_i_vals=[1, 2, 3, 4, 5, 6], default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="WINDOW_CENTER", &
+                          description="Cartesian center of the physical Gaussian window in the input coordinate frame.", &
+                          type_of_var=real_t, n_var=3, unit_str="bohr", default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="WINDOW_SIGMA", &
+                          description="Required positive widths in the two ordered PLANE directions. "// &
+                          "The window is exp(-sum((r_i-center_i)^2/(2*sigma_i^2))), independent of the normal "// &
+                          "coordinate. Its physical area is 2*pi*sigma_1*sigma_2. Integrates the AO window "// &
+                          "matrix analytically, not by selecting atoms or AOs. Check window and sample-size dependence.", &
+                          type_of_var=real_t, n_var=2, unit_str="bohr")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY", &
+                          description="Required absolute energy defining the occupied projector (eigenvalues < ENERGY). "// &
+                          "Choose a resolved gap; an energy crossing a level is rejected. No Fermi-level shift.", &
+                          type_of_var=real_t, n_var=1, unit_str="hartree")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_GAP", &
+                          description="Minimum distance of ENERGY from the generalized Hamiltonian spectrum. "// &
+                          "An additional roundoff bound applies; no splitting of unresolved degeneracies.", &
+                          unit_str="hartree", default_r_val=1.e-8_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SPIN_CHANNEL", &
+                          description="Scalar collinear channel. Scalar markers are per channel without a spin "// &
+                          "degeneracy factor. SOC requires restricted channel 1 and includes both spinor components.", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SOC", &
+                          description="Add post-SCF GTH SOC in the complete AO spinor space. Requires a restricted "// &
+                          "SCF and SOC parameters in all GTH potentials, not a self-consistent noncollinear calculation. "// &
+                          "A time-reversal symmetric spinor charge marker can vanish even for a nontrivial Z2 insulator.", &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_AO", &
+                          description="Safety limit on scalar AO dimension. Dense reference, replicated matrices "// &
+                          "and source-rank factorization. SOC doubles the working dimension.", default_i_val=512)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+   END SUBROUTINE create_real_space_chern_section
 
 ! **************************************************************************************************
 !> \brief creates the input structure used to activate finite-volume Kubo transport
