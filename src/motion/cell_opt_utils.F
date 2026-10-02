@@ -56,7 +56,8 @@ MODULE cell_opt_utils
 
    PUBLIC :: fixes_partially, get_dg_dh, gopt_new_logger_create, &
              gopt_new_logger_release, keep_angles_conflict, &
-             keep_symmetry_coupled_set, keep_symmetry_conflict, parse_token, &
+             keep_symmetry_coupled_set, keep_symmetry_conflict, &
+             pres_crit_shear_pinned, parse_token, &
              read_external_press_tensor, &
              apply_cell_constraints, cell_opt_constraint_label, parse_cell_constraint, &
              rescale_new_cell_volume, slot_is_fixed
@@ -87,6 +88,7 @@ MODULE cell_opt_utils
                                  mask_diag_ac = comp_ax + comp_cz, &
                                  mask_diag_bc = comp_by + comp_cz, &
                                  mask_ab_plane = comp_ax + comp_bx + comp_by, &
+                                 mask_shear = comp_bx + comp_cx + comp_cy, &
                                  mask_all = comp_ax + comp_bx + comp_by + comp_cx + comp_cy + comp_cz
 
 CONTAINS
@@ -497,6 +499,49 @@ CONTAINS
          coupled_set = 0
       END SELECT
    END FUNCTION keep_symmetry_coupled_set
+
+! **************************************************************************************************
+!> \brief Whether the masked pressure criterion is structurally off target
+!> \param mask bit mask of fixed cell components (comp_* / mask_* bits)
+!> \param orthorhombic whether the cell is orthorhombic
+!> \param keep_angles whether the KEEP_ANGLES projection is active
+!> \return pinned flag; the caller warns, the run stays legal
+!> \note On a non-orthorhombic cell the masked pressure criterion (the
+!>       average of the diagonal stresses over the free diagonal slots)
+!>       equals the external pressure at the constrained minimum only when
+!>       the shear stresses conjugate to the pinned shear components vanish.
+!>       That needs the shear components BX, CX, CY to stay free. The
+!>       criterion is therefore not guaranteed to converge when the mask
+!>       pins a shear component, or when KEEP_ANGLES pins the cell angles
+!>       while a diagonal slot is fixed. Zero or all diagonal slots fixed
+!>       stay fine (the hydrostatic trace, resp. the external-pressure
+!>       bypass). Measured on a UO2 cell: the deviation stays at -117 bar
+!>       for CONSTRAINT Z on a triclinic cell without KEEP_ANGLES and at
+!>       +110 bar for CONSTRAINT A with KEEP_ANGLES, static under forced
+!>       continuation, while a symmetric-angle setup converges to -0.003
+!>       bar. The projected-stress criterion planned in #6031 removes the
+!>       limitation.
+!>       The orthorhombic branch is evaluated at setup: a run that starts
+!>       orthorhombic can grow oblique cell components when a shear slot is
+!>       pinned while its partners stay free. That residual is second order
+!>       (two evolved shears must couple into a checked diagonal) and the
+!>       legacy direction masks X, Y, Z are immune to it because their
+!>       pinned slots stay zero, where the coupling vanishes.
+! **************************************************************************************************
+   PURE LOGICAL FUNCTION pres_crit_shear_pinned(mask, orthorhombic, keep_angles)
+      INTEGER, INTENT(IN)                                :: mask
+      LOGICAL, INTENT(IN)                                :: orthorhombic, keep_angles
+
+      pres_crit_shear_pinned = .FALSE.
+      IF (.NOT. orthorhombic) THEN
+         IF (IAND(mask, mask_diag) /= mask_diag) THEN
+            pres_crit_shear_pinned = IAND(mask, mask_shear) /= 0
+            IF (.NOT. pres_crit_shear_pinned) THEN
+               pres_crit_shear_pinned = keep_angles .AND. IAND(mask, mask_diag) /= 0
+            END IF
+         END IF
+      END IF
+   END FUNCTION pres_crit_shear_pinned
 
 ! **************************************************************************************************
 !> \brief Classify one CONSTRAINT token without aborting (decision half of the parser)

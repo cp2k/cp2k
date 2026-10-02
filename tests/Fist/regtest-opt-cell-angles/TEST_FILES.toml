@@ -1,0 +1,22 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      for details see cp2k/tools/do_regtest
+#
+# This directory pins mpiranks==1 in TEST_DIRS: the 60-degree rhombohedral
+# cells below crash in parallel runs through an out-of-bounds write in
+# pw_grid_distribute (extreme-plane mirror ray), a pre-existing upstream bug
+# unrelated to these inputs; serial runs do not execute that code path.
+# The requirement can be dropped once the pw-grid bug is fixed.
+#
+# Non-orthorhombic + KEEP_ANGLES + a fixed diagonal component: inside the
+# pres_crit_shear_pinned warning domain, yet converges with the pressure
+# criterion met, because the pinned value equals the stress-free one and the
+# remaining symmetry forces the conjugate shear stresses to vanish.
+"cell_opt_constraint_a_keep_angles.inp" = [{matcher="M011", tol=1.0E-10, ref=-19.369006707220770}]
+# Triclinic + KEEP_ANGLES + Z, anchored after two steps: the full run stops
+# via the optimizer's internal criteria with the pressure criterion unmet
+# (see the setup warning); anchoring an early step keeps the reference
+# independent of those stopping heuristics.
+"cell_opt_constraint_z_keep_angles_smoke.inp" = [{matcher="M011", tol=1.0E-10, ref=-77.466559969627582}]
+#EOF

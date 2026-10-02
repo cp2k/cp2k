@@ -1093,7 +1093,12 @@ CONTAINS
          "Several tokens may be given on one line, the union of the fixed components is used. "// &
          "Give the value unquoted. "// &
          "NONE must stand alone, redundant tokens give a warning, and angle constraints "// &
-         "(ALPHA, BETA, GAMMA) are not supported yet.", &
+         "(ALPHA, BETA, GAMMA) are not supported yet. On a non-orthorhombic cell a constraint "// &
+         "that pins a shear component (BX, CX, CY), or a fixed diagonal component together "// &
+         "with KEEP_ANGLES, draws a warning: the pressure criterion is then met only when "// &
+         "the pinned values match the stress-free cell; otherwise it can stay off the "// &
+         "external pressure at the constrained minimum. Check the per-step pressure "// &
+         "convergence report.", &
          usage="CONSTRAINT {NONE} | ({A|B|C|X|Y|Z|XY|XZ|YZ|AX|BX|BY|CX|CY|CZ} ...)", &
          type_of_var=lchar_t, default_lc_val="NONE")
       CALL section_add_keyword(section, keyword)

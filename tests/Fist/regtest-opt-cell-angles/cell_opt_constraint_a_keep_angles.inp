@@ -1,4 +1,5 @@
 @SET a             5.50
+@SET arh           3.8890872965
 @SET b             ${a}
 @SET c             ${a}
 @SET na            5
@@ -9,21 +10,21 @@
 @SET ngp_c         8
 &GLOBAL
   PRINT_LEVEL low
-  PROJECT cell_opt_constraint_z_keep_angles
+  PROJECT cell_opt_constraint_a_keep_angles
   RUN_TYPE cell_opt
 &END GLOBAL
 
 &MOTION
   &CELL_OPT
-    CONSTRAINT z
+    CONSTRAINT A
     EXTERNAL_PRESSURE [bar] 1.0
     KEEP_ANGLES T
     KEEP_SYMMETRY no
     MAX_DR 0.001
     MAX_FORCE 0.0001
-    MAX_ITER 20
-    OPTIMIZER LBFGS
-    PRESSURE_TOLERANCE [bar] 1.0E1  # Disable this convergence check
+    MAX_ITER 60
+    OPTIMIZER BFGS
+    PRESSURE_TOLERANCE [bar] 1.0E-1  # Disable this convergence check
     RMS_DR 0.0003
     RMS_FORCE 0.00003
     &LBFGS
@@ -153,23 +154,14 @@
   &END PRINT
   &SUBSYS
     &CELL
-      ABC ${a} ${b} ${c}
-      ALPHA_BETA_GAMMA 89.0 90.0 91.0
-      MULTIPLE_UNIT_CELL ${na} ${nb} ${nc}
+      ABC 3.8519455 3.9329844 3.9329844
+      ALPHA_BETA_GAMMA 60.0 60.0 60.0
+      MULTIPLE_UNIT_CELL 2 2 2
     &END CELL
     &COORD
       SCALED
       U       0           0           0         UO2  1
-      U       0           1/2         1/2       UO2  1
-      U       1/2         0           1/2       UO2  1
-      U       1/2         1/2         0         UO2  1
       O       1/4         1/4         1/4       UO2  1
-      O       1/4         1/4         3/4       UO2  1
-      O       1/4         3/4         1/4       UO2  1
-      O       3/4         1/4         1/4       UO2  1
-      O       1/4         3/4         3/4       UO2  1
-      O       3/4         1/4         3/4       UO2  1
-      O       3/4         3/4         1/4       UO2  1
       O       3/4         3/4         3/4       UO2  1
     &END COORD
     &PRINT
@@ -187,7 +179,7 @@
     &TOPOLOGY
       CONNECTIVITY user
       DISABLE_EXCLUSION_LISTS
-      MULTIPLE_UNIT_CELL ${na} ${nb} ${nc}
+      MULTIPLE_UNIT_CELL 2 2 2
       PARA_RES off
     &END TOPOLOGY
   &END SUBSYS

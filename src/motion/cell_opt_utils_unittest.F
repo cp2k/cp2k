@@ -20,7 +20,9 @@
 !>      system, and the parse(label(m)) round trip. About 1800 combinations
 !>      execute in total, plus the guard decisions checked against the real
 !>      projections: 64 masks on 14 cell shapes with four gradient draws
-!>      each, every draw passed through apply_cell_constraints twice.
+!>      each, every draw passed through apply_cell_constraints twice, and
+!>      the pressure-criterion predicate over 64 masks, both cell shapes
+!>      and both KEEP_ANGLES settings.
 !> \par Failure behavior
 !>      The first mismatch prints the offending mask or token and stops with
 !>      exit code 1. do_regtest runs this program from the UNIT_TESTS
@@ -33,7 +35,7 @@ PROGRAM cell_opt_utils_TEST
         comp_cy, comp_cz, fixes_partially, keep_angles_conflict, keep_symmetry_conflict, &
         mask_ab_plane, mask_all, mask_b, mask_c, mask_diag, mask_diag_ab, mask_diag_ac, &
         mask_diag_bc, mask_x, mask_xy, mask_xz, mask_y, mask_yz, mask_z, parse_cell_constraint, &
-        parse_token, slot_is_fixed
+        parse_token, pres_crit_shear_pinned, slot_is_fixed
    USE cell_types,                      ONLY: &
         cell_release, cell_sym_cubic, cell_sym_hexagonal_gamma_120, cell_sym_hexagonal_gamma_60, &
         cell_sym_monoclinic, cell_sym_monoclinic_gamma_ab, cell_sym_none, cell_sym_orthorhombic, &
@@ -55,6 +57,7 @@ PROGRAM cell_opt_utils_TEST
    CALL check_parse_token_rejections()
    CALL check_overlap_classification()
    CALL check_projection_guard_consistency()
+   CALL check_pres_crit_shear_pinned()
 
    PRINT *, "cell_opt_utils_unittest: all checks passed"
 CONTAINS
@@ -715,6 +718,97 @@ CONTAINS
          ! check.
       END SELECT
    END SUBROUTINE check_symmetry_output
+
+! **************************************************************************************************
+!> \brief The pressure-criterion predicate must fire exactly on the pinned-shear domain
+!> \par Method
+!>      The oracle enumerates slot bits by position: the diagonal slots
+!>      AX, BY, CZ are bits 0, 2 and 5, the shear slots BX, CX, CY are
+!>      bits 1, 3 and 4. The criterion is expected to fire on a
+!>      non-orthorhombic cell when some but not all diagonal slots are
+!>      fixed and either the mask pins a shear slot or KEEP_ANGLES pins
+!>      the angles together with a fixed diagonal slot. Zero or all
+!>      diagonal slots fixed never fire (the hydrostatic trace, resp. the
+!>      external-pressure bypass). The firing counts per cell shape and
+!>      KEEP_ANGLES setting are asserted as well, and mask NONE never
+!>      fires, so existing KEEP_ANGLE regtests without a constraint stay
+!>      warning-free.
+! **************************************************************************************************
+   SUBROUTINE check_pres_crit_shear_pinned()
+      INTEGER                                            :: count_fired, ka_index, mask_value, &
+                                                            shape_index
+      LOGICAL                                            :: all_diag_fixed, diag_hit, expected, &
+                                                            is_orthorhombic, shear_hit, &
+                                                            use_keep_angles
+
+      DO shape_index = 0, 1
+         is_orthorhombic = (shape_index == 1)
+         DO ka_index = 0, 1
+            use_keep_angles = (ka_index == 1)
+            count_fired = 0
+            DO mask_value = 0, 63
+               ! Independent expectation from the bit positions.
+               all_diag_fixed = BTEST(mask_value, 0) .AND. BTEST(mask_value, 2) .AND. &
+                                BTEST(mask_value, 5)
+               shear_hit = BTEST(mask_value, 1) .OR. BTEST(mask_value, 3) .OR. &
+                           BTEST(mask_value, 4)
+               diag_hit = BTEST(mask_value, 0) .OR. BTEST(mask_value, 2) .OR. &
+                          BTEST(mask_value, 5)
+               expected = .NOT. is_orthorhombic .AND. .NOT. all_diag_fixed .AND. &
+                          (shear_hit .OR. (use_keep_angles .AND. diag_hit))
+               IF (pres_crit_shear_pinned(mask_value, is_orthorhombic, use_keep_angles) &
+                   .NEQV. expected) THEN
+                  PRINT *, "check_pres_crit_shear_pinned: mismatch, mask", mask_value, &
+                     "orthorhombic", is_orthorhombic, "keep_angles", use_keep_angles
+                  ERROR STOP 1
+               END IF
+               IF (expected) count_fired = count_fired + 1
+            END DO
+            ! Firing counts of the pinned-shear domain: an orthorhombic
+            ! cell never fires; on an oblique cell the mask domain has 56
+            ! members of which the all-diagonals-fixed ones are excluded,
+            ! and KEEP_ANGLES adds every mask with a fixed diagonal slot.
+            IF (is_orthorhombic) THEN
+               IF (count_fired /= 0) THEN
+                  PRINT *, "check_pres_crit_shear_pinned: fired on an orthorhombic cell"
+                  ERROR STOP 1
+               END IF
+               CYCLE
+            END IF
+            IF (use_keep_angles) THEN
+               IF (count_fired /= 55) THEN
+                  PRINT *, "check_pres_crit_shear_pinned: expected 55 masks, got", count_fired
+                  ERROR STOP 1
+               END IF
+            ELSE
+               IF (count_fired /= 49) THEN
+                  PRINT *, "check_pres_crit_shear_pinned: expected 49 masks, got", count_fired
+                  ERROR STOP 1
+               END IF
+            END IF
+         END DO
+      END DO
+      ! Effective warned set under KEEP_ANGLES: the merged abort guard
+      ! (keep_angles_conflict) rejects every mask that fixes part of b or c,
+      ! so only whole-vector and a-only masks reach the warning; of those,
+      ! NONE stays outside the domain and ABC takes the bypass.
+      count_fired = 0
+      DO mask_value = 0, 63
+         IF (pres_crit_shear_pinned(mask_value, .FALSE., .TRUE.) .AND. &
+             .NOT. keep_angles_conflict(mask_value, .FALSE.)) THEN
+            count_fired = count_fired + 1
+            IF (.NOT. ANY(mask_value == [1, 6, 7, 56, 57, 62])) THEN
+               PRINT *, "check_pres_crit_shear_pinned: unexpected survivor", mask_value
+               ERROR STOP 1
+            END IF
+         END IF
+      END DO
+      IF (count_fired /= 6) THEN
+         PRINT *, "check_pres_crit_shear_pinned: expected 6 effective masks, got", count_fired
+         ERROR STOP 1
+      END IF
+      PRINT *, "check_pres_crit_shear_pinned: OK (64 masks x 2 cell shapes x 2 flags, 6 effective)"
+   END SUBROUTINE check_pres_crit_shear_pinned
 
 ! **************************************************************************************************
 !> \brief Create a 3D-periodic cell. parse_cell_constraint reads only the perd field.

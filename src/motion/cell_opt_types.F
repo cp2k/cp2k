@@ -19,7 +19,9 @@ MODULE cell_opt_types
                                               keep_angles_conflict,&
                                               keep_symmetry_conflict,&
                                               keep_symmetry_coupled_set,&
+                                              mask_shear,&
                                               parse_cell_constraint,&
+                                              pres_crit_shear_pinned,&
                                               read_external_press_tensor
    USE cell_types,                      ONLY: cell_clone,&
                                               cell_release,&
@@ -160,6 +162,43 @@ CONTAINS
                           TRIM(cell_opt_constraint_label( &
                                keep_symmetry_coupled_set(cell_env%opt_cell%symmetry_id)))// &
                           ") and would break the cell symmetry.")
+         END IF
+      END IF
+
+      ! The masked pressure criterion is structurally off target for this
+      ! combination on a non-orthorhombic cell. The run stays legal: the
+      ! geometry criteria still work, and the pressure criterion may still
+      ! be met when the pinned shear stresses vanish by symmetry. The
+      ! decision lives in pres_crit_shear_pinned, which the unit test
+      ! checks over all 64 masks.
+      IF (pres_crit_shear_pinned(cell_env%constraint_id, &
+                                 cell_env%opt_cell%orthorhombic, &
+                                 cell_env%keep_angles)) THEN
+         IF (IAND(cell_env%constraint_id, mask_shear) /= 0) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "CELL_OPT: CONSTRAINT ("// &
+                         TRIM(cell_opt_constraint_label(cell_env%constraint_id))// &
+                         ") pins a shear component of a non-orthorhombic cell. "// &
+                         "The masked pressure criterion is met at the constrained minimum "// &
+                         "only if the stresses conjugate to the pinned components vanish "// &
+                         "there, for example when the pinned values are the stress-free "// &
+                         "ones; otherwise it can stay off the external pressure. Check "// &
+                         "the per-step ""Pressure is converged"" line: with L-BFGS the "// &
+                         """run CONVERGED"" banner can appear while it is NO. The "// &
+                         "projected-stress criterion planned in #6031 removes this limitation.")
+         ELSE
+            CALL cp_warn(__LOCATION__, &
+                         "CELL_OPT: CONSTRAINT ("// &
+                         TRIM(cell_opt_constraint_label(cell_env%constraint_id))// &
+                         ") fixes a diagonal component while KEEP_ANGLES pins the "// &
+                         "angles of a non-orthorhombic cell. The masked pressure criterion "// &
+                         "is met at the constrained minimum only if the stresses conjugate "// &
+                         "to the pinned components vanish there, for example when the "// &
+                         "pinned values are the stress-free ones; otherwise it can stay "// &
+                         "off the external pressure. Check the per-step ""Pressure is "// &
+                         "converged"" line: with L-BFGS the ""run CONVERGED"" banner can "// &
+                         "appear while it is NO. The projected-stress criterion planned "// &
+                         "in #6031 removes this limitation.")
          END IF
       END IF
 
