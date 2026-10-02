@@ -105,10 +105,10 @@ MODULE gw_tensor_large_cell_Gamma
              fill_fm_Sigma_c_Gamma_time, delete_unnecessary_files, get_W_MIC, &
              create_fm_W_MIC_time, Fourier_transform_w_to_t, &
              compute_fm_chi_Gamma_freq, compute_QP_energies, fm_write, &
-             RI_2c_integral_mat, compute_3c_and_contract_W, compute_MinvVsqrt_Vsqrt, &
-             compute_V_k_by_lattice_sum, compute_fm_W_MIC_freq_j, &
-             get_Sigma_x, get_mat_chi_Gamma_tau, print_skipping, apply_extrapol_factor, &
-             apply_extrapol_factor_single
+             get_mat_chi_Gamma_tau, get_Sigma_x, create_mat_for_Sigma_c, destroy_mat_Sigma_c, &
+             compute_Sigma_c_occ_vir, fm_Gamma_ao_to_cfm_ikp_mo, print_skipping, &
+             compute_V_k_by_lattice_sum, compute_MinvVsqrt_Vsqrt, compute_fm_W_MIC_freq_j_from_chi, &
+             apply_extrapol_factor
 
 CONTAINS
 
@@ -596,7 +596,10 @@ CONTAINS
                bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = 0.0_dp
             END IF
 
-            IF ((occ .AND. j_col > homo) .OR. (vir .AND. j_col <= homo)) THEN
+            ! the modes above n_mo_retained are removed by the canonical orthogonalization
+            ! (EPS_EIGVAL) and carry no MO coefficients
+            IF ((occ .AND. j_col > homo) .OR. (vir .AND. j_col <= homo) .OR. &
+                j_col > bs_env%n_mo_retained) THEN
                bs_env%fm_work_mo(1)%local_data(i_row_local, j_col_local) = 0.0_dp
             END IF
 
@@ -1212,43 +1215,72 @@ CONTAINS
 !> \param mat_chi_Gamma_tau ...
 !> \param cfm_M_inv_V_sqrt_ikp ...
 !> \param cfm_V_sqrt_ikp ...
-!> \param at_zero_freq ...
 ! **************************************************************************************************
    SUBROUTINE compute_fm_W_MIC_freq_j(bs_env, qs_env, fm_W_MIC_freq_j, j_w, ikp, mat_chi_Gamma_tau, &
-                                      cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp, at_zero_freq)
+                                      cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type)                                   :: fm_W_MIC_freq_j
       INTEGER                                            :: j_w, ikp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_chi_Gamma_tau
       TYPE(cp_cfm_type)                                  :: cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp
-      LOGICAL, OPTIONAL                                  :: at_zero_freq
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_fm_W_MIC_freq_j'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      ! 1. Fourier transformation of χ_PQ(iτ,k=0) to χ_PQ(iω_j,k=0)
+      CALL compute_fm_chi_Gamma_freq(bs_env, bs_env%fm_chi_Gamma_freq, j_w, mat_chi_Gamma_tau)
+
+      ! 2. χ_PQ(iω_j,k=0) -> W_PQ^MIC(iω_j)
+      CALL compute_fm_W_MIC_freq_j_from_chi(bs_env, qs_env, fm_W_MIC_freq_j, j_w, ikp, &
+                                            cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_fm_W_MIC_freq_j
+
+! **************************************************************************************************
+!> \brief W_PQ^MIC(iω_j) from χ_PQ(iω_j,k=0) in bs_env%fm_chi_Gamma_freq
+!> \param bs_env ...
+!> \param qs_env ...
+!> \param fm_W_MIC_freq_j ...
+!> \param j_w ...
+!> \param ikp ...
+!> \param cfm_M_inv_V_sqrt_ikp ...
+!> \param cfm_V_sqrt_ikp ...
+! **************************************************************************************************
+   SUBROUTINE compute_fm_W_MIC_freq_j_from_chi(bs_env, qs_env, fm_W_MIC_freq_j, j_w, ikp, &
+                                               cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_fm_type)                                   :: fm_W_MIC_freq_j
+      INTEGER                                            :: j_w, ikp
+      TYPE(cp_cfm_type)                                  :: cfm_M_inv_V_sqrt_ikp, cfm_V_sqrt_ikp
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_fm_W_MIC_freq_j_from_chi'
 
       INTEGER                                            :: handle
       TYPE(cp_cfm_type)                                  :: cfm_chi_eps_W_ikp_freq_j
 
       CALL timeset(routineN, handle)
 
-      ! 1. Fourier transformation of χ_PQ(iτ,k=0) to χ_PQ(iω_j,k=0)
-      CALL compute_fm_chi_Gamma_freq(bs_env, bs_env%fm_chi_Gamma_freq, j_w, mat_chi_Gamma_tau, &
-                                     at_zero_freq=at_zero_freq)
-
       CALL cp_fm_set_all(fm_W_MIC_freq_j, 0.0_dp)
 
-      ! 2. Get χ_PQ(iω_j,k_i) from χ_PQ(iω_j,k=0) using the minimum image convention
+      ! 1. Get χ_PQ(iω_j,k_i) from χ_PQ(iω_j,k=0) using the minimum image convention
       CALL cfm_ikp_from_fm_Gamma(cfm_chi_eps_W_ikp_freq_j, bs_env%fm_chi_Gamma_freq, &
                                  ikp, qs_env, bs_env%kpoints_chi_eps_W, "RI_AUX")
 
-      ! 3. Remove all negative eigenvalues from χ_PQ(iω_j,k_i)
+      ! 2. Remove all negative eigenvalues from χ_PQ(iω_j,k_i)
       CALL cp_cfm_power(cfm_chi_eps_W_ikp_freq_j, threshold=0.0_dp, exponent=1.0_dp)
 
-      ! 4. ε(iω_j,k_i) = Id - V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
+      ! 3. ε(iω_j,k_i) = Id - V^0.5(k_i)*M^-1(k_i)*χ(iω_j,k_i)*M^-1(k_i)*V^0.5(k_i)
       CALL compute_cfm_W_ikp_freq_j(bs_env, cfm_chi_eps_W_ikp_freq_j, cfm_V_sqrt_ikp, &
                                     cfm_M_inv_V_sqrt_ikp)
 
-      ! 5. k-point integration W_PQ(iω_j, k_i) to W_PQ^MIC(iω_j)
+      ! 4. k-point integration W_PQ(iω_j, k_i) to W_PQ^MIC(iω_j)
       SELECT CASE (bs_env%approx_kp_extrapol)
       CASE (.FALSE.)
          ! default: standard k-point extrapolation
@@ -1291,7 +1323,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE compute_fm_W_MIC_freq_j
+   END SUBROUTINE compute_fm_W_MIC_freq_j_from_chi
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1342,7 +1374,7 @@ CONTAINS
 
       CALL cp_fm_get_info(matrix=fm_W_MIC_time(1), nrow_local=nrow_local, ncol_local=ncol_local)
 
-      DO i_t = 1, bs_env%num_time_freq_points
+      DO i_t = 1, SIZE(fm_W_MIC_time)
          DO j = 1, ncol_local
             DO i = 1, nrow_local
 
@@ -1369,92 +1401,35 @@ CONTAINS
    END SUBROUTINE apply_extrapol_factor
 
 ! **************************************************************************************************
-!> \brief Same as apply_extrapol_factor, but for a single fm matrix at one frequency point
-!>        (e.g. the static, ω=0 matrix used in st-COHSEX) instead of an array over time/freq points.
-!> \param bs_env ...
-!> \param fm_W_MIC ...
-! **************************************************************************************************
-   SUBROUTINE apply_extrapol_factor_single(bs_env, fm_W_MIC)
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cp_fm_type)                                   :: fm_W_MIC
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_extrapol_factor_single'
-
-      INTEGER                                            :: handle, i, j, ncol_local, nrow_local
-      REAL(KIND=dp)                                      :: extrapol_factor, W_extra_1, W_no_extra_1
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_fm_get_info(matrix=fm_W_MIC, nrow_local=nrow_local, ncol_local=ncol_local)
-
-      DO j = 1, ncol_local
-         DO i = 1, nrow_local
-
-            W_extra_1 = bs_env%fm_W_MIC_freq_1_extra%local_data(i, j)
-            W_no_extra_1 = bs_env%fm_W_MIC_freq_1_no_extra%local_data(i, j)
-
-            IF (ABS(W_no_extra_1) > 1.0E-13) THEN
-               extrapol_factor = ABS(W_extra_1/W_no_extra_1)
-            ELSE
-               extrapol_factor = 1.0_dp
-            END IF
-
-            ! reset extrapolation factor if it is very large
-            IF (extrapol_factor > 10.0_dp) extrapol_factor = 1.0_dp
-
-            fm_W_MIC%local_data(i, j) = fm_W_MIC%local_data(i, j)*extrapol_factor
-         END DO
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE apply_extrapol_factor_single
-
-! **************************************************************************************************
 !> \brief ...
 !> \param bs_env ...
 !> \param fm_chi_Gamma_freq ...
 !> \param j_w ...
 !> \param mat_chi_Gamma_tau ...
-!> \param at_zero_freq ...
 ! **************************************************************************************************
-   SUBROUTINE compute_fm_chi_Gamma_freq(bs_env, fm_chi_Gamma_freq, j_w, mat_chi_Gamma_tau, &
-                                        at_zero_freq)
+   SUBROUTINE compute_fm_chi_Gamma_freq(bs_env, fm_chi_Gamma_freq, j_w, mat_chi_Gamma_tau)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(cp_fm_type)                                   :: fm_chi_Gamma_freq
       INTEGER                                            :: j_w
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_chi_Gamma_tau
-      LOGICAL, OPTIONAL                                  :: at_zero_freq
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_fm_chi_Gamma_freq'
 
       INTEGER                                            :: handle, i_t
-      LOGICAL                                            :: my_at_zero_freq
       REAL(KIND=dp)                                      :: freq_j, time_i, weight_ij
 
       CALL timeset(routineN, handle)
 
-      my_at_zero_freq = .FALSE.
-      IF (PRESENT(at_zero_freq)) my_at_zero_freq = at_zero_freq
-
       CALL dbcsr_set(bs_env%mat_RI_RI%matrix, 0.0_dp)
 
-      IF (my_at_zero_freq) THEN
-         freq_j = 0.0_dp
-      ELSE
-         freq_j = bs_env%time_frequency_grid%frequency(j_w)
-      END IF
+      freq_j = bs_env%time_frequency_grid%frequency(j_w)
 
       DO i_t = 1, bs_env%num_time_freq_points
 
          time_i = bs_env%time_frequency_grid%imaginary_time(i_t)
-         IF (my_at_zero_freq) THEN
-            weight_ij = bs_env%time_frequency_grid%time_weights_at_zero_frequency(i_t)
-         ELSE
-            weight_ij = bs_env%time_frequency_grid%cosine_time_to_frequency_weights(j_w, i_t)
-         END IF
+         weight_ij = bs_env%time_frequency_grid%cosine_time_to_frequency_weights(j_w, i_t)
 
-         ! actual Fourier transform
+         ! Fourier transform
          CALL dbcsr_add(bs_env%mat_RI_RI%matrix, mat_chi_Gamma_tau(i_t)%matrix, &
                         1.0_dp, COS(time_i*freq_j)*weight_ij)
 
@@ -1563,7 +1538,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief W^MIC_PQ(iω=0) = sum_j w_j W^MIC_PQ(iτ_j) with the time weights w_j of the grid at zero
-!>        frequency, into bs_env%fm_W_MIC_freq_zero (created here)
+!>        frequency, into bs_env%fm_W_MIC_freq_zero
 !> \param bs_env time grid and its weights; receives fm_W_MIC_freq_zero
 !> \param fm_W_MIC_time W^MIC_PQ(iτ_j) for every time point j
 ! **************************************************************************************************
@@ -1803,9 +1778,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_Sigma_c'
 
-      INTEGER                                            :: handle, i_intval_idx, i_t, ispin, &
-                                                            j_intval_idx, read_write_index
-      INTEGER, DIMENSION(2)                              :: i_atoms, j_atoms
+      INTEGER                                            :: handle, i_t, ispin, read_write_index
       REAL(KIND=dp)                                      :: t1, tau
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_Sigma_neg_tau, mat_Sigma_pos_tau
       TYPE(dbt_type)                                     :: t_2c_Gocc, t_2c_Gvir, &
@@ -1846,61 +1819,12 @@ CONTAINS
 
             tau = bs_env%time_frequency_grid%imaginary_time(i_t)
 
-            CALL G_occ_vir(bs_env, tau, bs_env%fm_Gocc, ispin, occ=.TRUE., vir=.FALSE.)
-            CALL G_occ_vir(bs_env, tau, bs_env%fm_Gvir, ispin, occ=.FALSE., vir=.TRUE.)
-
-            ! fm G^occ, G^vir and W to local tensor
-            CALL fm_to_local_tensor(bs_env%fm_Gocc, bs_env%mat_ao_ao%matrix, &
-                                    bs_env%mat_ao_ao_tensor%matrix, t_2c_Gocc, bs_env, &
-                                    bs_env%atoms_i_t_group)
-            CALL fm_to_local_tensor(bs_env%fm_Gvir, bs_env%mat_ao_ao%matrix, &
-                                    bs_env%mat_ao_ao_tensor%matrix, t_2c_Gvir, bs_env, &
-                                    bs_env%atoms_i_t_group)
-            CALL fm_to_local_tensor(fm_W_MIC_time(i_t), bs_env%mat_RI_RI%matrix, &
-                                    bs_env%mat_RI_RI_tensor%matrix, t_2c_W, bs_env, &
-                                    bs_env%atoms_j_t_group)
-
-            ! every group has its own range of i_atoms and j_atoms; only deal with a
-            ! limited number of i_atom-j_atom pairs simultaneously in a group to save memory
-            DO i_intval_idx = 1, bs_env%n_intervals_i
-               DO j_intval_idx = 1, bs_env%n_intervals_j
-                  i_atoms = bs_env%i_atom_intervals(1:2, i_intval_idx)
-                  j_atoms = bs_env%j_atom_intervals(1:2, j_intval_idx)
-
-                  IF (bs_env%skip_Sigma_occ(i_intval_idx, j_intval_idx) .AND. &
-                      bs_env%skip_Sigma_vir(i_intval_idx, j_intval_idx)) THEN
-                     ! Do that only after first timestep to avoid skips due to vanishing G
-                     ! caused by gaps
-                     IF (i_t == 2) THEN
-                        bs_env%n_skip_sigma = bs_env%n_skip_sigma + 1
-                     END IF
-                     CYCLE
-                  END IF
-
-                  ! 1. compute 3-center integrals (µν|P) ("|": truncated Coulomb operator)
-                  ! 2. tensor operation M_Qνσ(iτ) = sum_P (νσ|P) W^MIC_QP(iτ)
-                  CALL compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_W, t_2c_W)
-
-                  ! 3. Σ_λσ(iτ,k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) G^occ_νµ(i|τ|) for τ < 0
-                  !    (recall M_Qνσ(iτ) = M_Qνσ(-iτ) because W^MIC_PQ(iτ) = W^MIC_PQ(-iτ) )
-                  CALL contract_to_Sigma(t_2c_Gocc, t_3c_x_W, t_2c_Sigma_neg_tau, i_atoms, j_atoms, &
-                                         qs_env, bs_env, occ=.TRUE., vir=.FALSE., &
-                                         can_skip=bs_env%skip_Sigma_occ(i_intval_idx, j_intval_idx))
-
-                  !    Σ_λσ(iτ,k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) G^vir_νµ(i|τ|) for τ > 0
-                  CALL contract_to_Sigma(t_2c_Gvir, t_3c_x_W, t_2c_Sigma_pos_tau, i_atoms, j_atoms, &
-                                         qs_env, bs_env, occ=.FALSE., vir=.TRUE., &
-                                         can_skip=bs_env%skip_Sigma_vir(i_intval_idx, j_intval_idx))
-
-               END DO ! j_atoms
-            END DO ! i_atoms
-
-            ! 4. communicate data tensor t_2c_Sigma (which is local in the subgroup)
-            !    to the global dbcsr matrix mat_Sigma_pos/neg_tau (which stores Σ for all iτ)
-            CALL local_dbt_to_global_mat(t_2c_Sigma_neg_tau, bs_env%mat_ao_ao_tensor%matrix, &
-                                         mat_Sigma_neg_tau(i_t, ispin)%matrix, bs_env%para_env)
-            CALL local_dbt_to_global_mat(t_2c_Sigma_pos_tau, bs_env%mat_ao_ao_tensor%matrix, &
-                                         mat_Sigma_pos_tau(i_t, ispin)%matrix, bs_env%para_env)
+            CALL compute_Sigma_c_occ_vir(bs_env, qs_env, tau, ispin, fm_W_MIC_time(i_t), &
+                                         t_2c_Gocc, t_2c_Gvir, t_2c_W, t_2c_Sigma_neg_tau, &
+                                         t_2c_Sigma_pos_tau, t_3c_x_W, &
+                                         mat_Sigma_neg_tau(i_t, ispin)%matrix, &
+                                         mat_Sigma_pos_tau(i_t, ispin)%matrix, &
+                                         count_skipped=(i_t == 2))
 
             CALL write_matrix(mat_Sigma_pos_tau(i_t, ispin)%matrix, read_write_index, &
                               bs_env%Sigma_p_name, bs_env%fm_work_mo(1), qs_env)
@@ -1933,6 +1857,108 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_Sigma_c
+
+! **************************************************************************************************
+!> \brief ...
+!> \brief Occupied and virtual parts of the correlation self-energy at one imaginary time τ
+!>          Σ^neg_λσ(iτ) = -sum_νQ [sum_P (νσ|P) W_PQ] [sum_µ (λµ|Q) G^occ_µν(i|τ|)]
+!>          Σ^pos_λσ(iτ) =  sum_νQ [sum_P (νσ|P) W_PQ] [sum_µ (λµ|Q) G^vir_µν(i|τ|)]
+!>        (G0W0: W = W^MIC(iτ); static COHSEX: W = W^MIC(iω=0))
+!> \param bs_env ...
+!> \param qs_env ...
+!> \param tau imaginary time τ
+!> \param ispin ...
+!> \param fm_W W^MIC_PQ
+!> \param t_2c_Gocc ...
+!> \param t_2c_Gvir ...
+!> \param t_2c_W ...
+!> \param t_2c_Sigma_neg work tensor for Σ^neg
+!> \param t_2c_Sigma_pos work tensor for Σ^pos
+!> \param t_3c_x_W ...
+!> \param mat_Sigma_neg Σ^neg_λσ(iτ) on exit
+!> \param mat_Sigma_pos Σ^pos_λσ(iτ) on exit
+!> \param count_skipped count the skipped atom-interval pairs (for print_skipping)
+! **************************************************************************************************
+   SUBROUTINE compute_Sigma_c_occ_vir(bs_env, qs_env, tau, ispin, fm_W, t_2c_Gocc, t_2c_Gvir, &
+                                      t_2c_W, t_2c_Sigma_neg, t_2c_Sigma_pos, t_3c_x_W, &
+                                      mat_Sigma_neg, mat_Sigma_pos, count_skipped)
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp)                                      :: tau
+      INTEGER                                            :: ispin
+      TYPE(cp_fm_type)                                   :: fm_W
+      TYPE(dbt_type)                                     :: t_2c_Gocc, t_2c_Gvir, t_2c_W, &
+                                                            t_2c_Sigma_neg, t_2c_Sigma_pos, &
+                                                            t_3c_x_W
+      TYPE(dbcsr_type)                                   :: mat_Sigma_neg, mat_Sigma_pos
+      LOGICAL                                            :: count_skipped
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Sigma_c_occ_vir'
+
+      INTEGER                                            :: handle, i_intval_idx, j_intval_idx
+      INTEGER, DIMENSION(2)                              :: i_atoms, j_atoms
+
+      CALL timeset(routineN, handle)
+
+      CALL G_occ_vir(bs_env, tau, bs_env%fm_Gocc, ispin, occ=.TRUE., vir=.FALSE.)
+      CALL G_occ_vir(bs_env, tau, bs_env%fm_Gvir, ispin, occ=.FALSE., vir=.TRUE.)
+
+      ! fm G^occ, G^vir and W to local tensor
+      CALL fm_to_local_tensor(bs_env%fm_Gocc, bs_env%mat_ao_ao%matrix, &
+                              bs_env%mat_ao_ao_tensor%matrix, t_2c_Gocc, bs_env, &
+                              bs_env%atoms_i_t_group)
+      CALL fm_to_local_tensor(bs_env%fm_Gvir, bs_env%mat_ao_ao%matrix, &
+                              bs_env%mat_ao_ao_tensor%matrix, t_2c_Gvir, bs_env, &
+                              bs_env%atoms_i_t_group)
+      CALL fm_to_local_tensor(fm_W, bs_env%mat_RI_RI%matrix, &
+                              bs_env%mat_RI_RI_tensor%matrix, t_2c_W, bs_env, &
+                              bs_env%atoms_j_t_group)
+
+      ! every group has its own range of i_atoms and j_atoms; only deal with a
+      ! limited number of i_atom-j_atom pairs simultaneously in a group to save memory
+      DO i_intval_idx = 1, bs_env%n_intervals_i
+         DO j_intval_idx = 1, bs_env%n_intervals_j
+            i_atoms = bs_env%i_atom_intervals(1:2, i_intval_idx)
+            j_atoms = bs_env%j_atom_intervals(1:2, j_intval_idx)
+
+            IF (bs_env%skip_Sigma_occ(i_intval_idx, j_intval_idx) .AND. &
+                bs_env%skip_Sigma_vir(i_intval_idx, j_intval_idx)) THEN
+               ! Do that only after first timestep to avoid skips due to vanishing G
+               ! caused by gaps
+               IF (count_skipped) THEN
+                  bs_env%n_skip_sigma = bs_env%n_skip_sigma + 1
+               END IF
+               CYCLE
+            END IF
+
+            ! 1. compute 3-center integrals (µν|P) ("|": truncated Coulomb operator)
+            ! 2. tensor operation M_Qνσ(iτ) = sum_P (νσ|P) W^MIC_QP(iτ)
+            CALL compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_W, t_2c_W)
+
+            ! 3. Σ_λσ(iτ,k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) G^occ_νµ(i|τ|) for τ < 0
+            !    (recall M_Qνσ(iτ) = M_Qνσ(-iτ) because W^MIC_PQ(iτ) = W^MIC_PQ(-iτ) )
+            CALL contract_to_Sigma(t_2c_Gocc, t_3c_x_W, t_2c_Sigma_neg, i_atoms, j_atoms, &
+                                   qs_env, bs_env, occ=.TRUE., vir=.FALSE., &
+                                   can_skip=bs_env%skip_Sigma_occ(i_intval_idx, j_intval_idx))
+
+            !    Σ_λσ(iτ,k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) G^vir_νµ(i|τ|) for τ > 0
+            CALL contract_to_Sigma(t_2c_Gvir, t_3c_x_W, t_2c_Sigma_pos, i_atoms, j_atoms, &
+                                   qs_env, bs_env, occ=.FALSE., vir=.TRUE., &
+                                   can_skip=bs_env%skip_Sigma_vir(i_intval_idx, j_intval_idx))
+
+         END DO ! j_atoms
+      END DO ! i_atoms
+
+      ! 4. communicate data tensor t_2c_Sigma (which is local in the subgroup)
+      !    to the global dbcsr matrix mat_Sigma_pos/neg_tau (which stores Σ for all iτ)
+      CALL local_dbt_to_global_mat(t_2c_Sigma_neg, bs_env%mat_ao_ao_tensor%matrix, &
+                                   mat_Sigma_neg, bs_env%para_env)
+      CALL local_dbt_to_global_mat(t_2c_Sigma_pos, bs_env%mat_ao_ao_tensor%matrix, &
+                                   mat_Sigma_pos, bs_env%para_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE compute_Sigma_c_occ_vir
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2362,11 +2388,11 @@ CONTAINS
       DO i_t = 1, bs_env%num_time_freq_points
 
          IF (i_t < 10) THEN
-            WRITE (f_chi, '(3A,I1,A)') TRIM(prefix), bs_env%chi_name, "_00", i_t, ".matrix"
-            WRITE (f_W_t, '(3A,I1,A)') TRIM(prefix), bs_env%W_time_name, "_00", i_t, ".matrix"
+            WRITE (f_chi, '(3A,I1,A)') TRIM(prefix), bs_env%chi_name, "_0", i_t, ".matrix"
+            WRITE (f_W_t, '(3A,I1,A)') TRIM(prefix), bs_env%W_time_name, "_0", i_t, ".matrix"
          ELSE IF (i_t < 100) THEN
-            WRITE (f_chi, '(3A,I2,A)') TRIM(prefix), bs_env%chi_name, "_0", i_t, ".matrix"
-            WRITE (f_W_t, '(3A,I2,A)') TRIM(prefix), bs_env%W_time_name, "_0", i_t, ".matrix"
+            WRITE (f_chi, '(3A,I2,A)') TRIM(prefix), bs_env%chi_name, "_", i_t, ".matrix"
+            WRITE (f_W_t, '(3A,I2,A)') TRIM(prefix), bs_env%W_time_name, "_", i_t, ".matrix"
          ELSE
             CPABORT('Please implement more than 99 time/frequency points.')
          END IF

@@ -1175,7 +1175,7 @@ MODULE input_constants
                                                evGW = 37, &
                                                ri_rs_non_periodic = 38, &
                                                ri_rs_large_cell_Gamma = 39, &
-                                               tensor_stcohsex = 40
+                                               tensor_static_cohsex = 40
 
    INTEGER, PARAMETER, PUBLIC               :: cohsex_off = 0, &
                                                cohsex_diagonal = 1, &

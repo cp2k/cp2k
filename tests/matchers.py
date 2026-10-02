@@ -262,10 +262,10 @@ registry["E_G0W0_gap_beta"] = GenericMatcher(r"Beta GW HOMO-LUMO gap (eV)", col=
 
 # static COHSEX HOMO-LUMO gap of molecule in the O(N^4) GW code, diagonal (DG) and canonical (CN)
 registry["E_static_COHSEX_gap_DG"] = GenericMatcher(
-    r"static COHSEX HOMO-LUMO gap (eV), DG and CN", col=9
+    r"static COHSEX HOMO-LUMO gap, diagonal (eV)", col=7
 )
 registry["E_static_COHSEX_gap_CN"] = GenericMatcher(
-    r"static COHSEX HOMO-LUMO gap (eV), DG and CN", col=10
+    r"static COHSEX HOMO-LUMO gap, canonical (eV)", col=7
 )
 
 registry["IC_gap"] = GenericMatcher(r"IC HOMO-LUMO gap (eV)", col=5)
@@ -488,9 +488,15 @@ registry["E_RIRS_LUMO"] = GenericMatcher(r"G0W0 conduction band minimum", col=6)
 # G0W0 once SELF_CONSISTENCY EVGW0 is requested, so these need their own matchers
 registry["E_RIRS_evGW0_HOMO"] = GenericMatcher(r"evGW0 valence band maximum", col=6)
 
-registry["E_STCOHSEX_HOMO"] = GenericMatcher(r"G0W0 valence band maximum", col=6)
-registry["E_STCOHSEX_LUMO"] = GenericMatcher(r"G0W0 conduction band minimum", col=6)
-registry["E_STCOHSEX_gap"] = GenericMatcher(r"G0W0 indirect band gap", col=6)
+registry["E_static_COHSEX_HOMO"] = GenericMatcher(
+    r"static COHSEX valence band maximum", col=7
+)
+registry["E_static_COHSEX_LUMO"] = GenericMatcher(
+    r"static COHSEX conduction band minimum", col=7
+)
+registry["E_static_COHSEX_gap"] = GenericMatcher(
+    r"static COHSEX indirect band gap", col=7
+)
 registry["E_RIRS_evGW0_LUMO"] = GenericMatcher(r"evGW0 conduction band minimum", col=6)
 registry["E_evGW0_direct_gap"] = GenericMatcher(r"evGW0 direct band gap", col=6)
 

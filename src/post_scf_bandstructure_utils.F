@@ -62,15 +62,10 @@ MODULE post_scf_bandstructure_utils
    USE cp_parser_methods,               ONLY: read_float_object
    USE dft_plus_u,                      ONLY: lowdin_kp_apply,&
                                               lowdin_kp_prepare
-   USE input_constants,                 ONLY: G0W0,&
-                                              bse_fulldiag,&
-                                              evGW0,&
-                                              int_ldos_z,&
-                                              ri_rs_large_cell_Gamma,&
-                                              ri_rs_non_periodic,&
-                                              tensor_large_cell_Gamma,&
-                                              tensor_small_cell_full_kp,&
-                                              tensor_stcohsex
+   USE input_constants,                 ONLY: &
+        G0W0, bse_fulldiag, cohsex_off, evGW0, int_ldos_z, ri_rs_large_cell_Gamma, &
+        ri_rs_non_periodic, tensor_large_cell_Gamma, tensor_small_cell_full_kp, &
+        tensor_static_cohsex
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -192,6 +187,7 @@ CONTAINS
       CASE DEFAULT
          label = "G0W0"
       END SELECT
+      IF (bs_env%do_static_cohsex) label = "static COHSEX"
 
    END FUNCTION gw_flavour_label
 
@@ -223,7 +219,7 @@ CONTAINS
       CALL set_heuristic_parameters(bs_env)
 
       SELECT CASE (bs_env%gw_implementation)
-      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_stcohsex)
+      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_static_cohsex)
 
          CALL setup_kpoints_DOS_large_cell_Gamma(qs_env, bs_env, bs_env%kpoints_DOS)
 
@@ -332,7 +328,8 @@ CONTAINS
       NULLIFY (gw_sec)
       gw_sec => section_vals_get_subs_vals(bs_sec, "GW")
       CALL section_vals_get(gw_sec, explicit=bs_env%do_gw)
-      CALL section_vals_val_get(gw_sec, "STCOHSEX", l_val=bs_env%do_stcohsex)
+      CALL section_vals_val_get(gw_sec, "COHSEX", i_val=bs_env%cohsex_flavor)
+      bs_env%do_static_cohsex = (bs_env%cohsex_flavor /= cohsex_off)
       CALL section_vals_val_get(gw_sec, "RI_RS%_SECTION_PARAMETERS_", l_val=bs_env%do_gw_ri_rs)
 
       NULLIFY (soc_sec)
@@ -1086,16 +1083,16 @@ CONTAINS
             ELSE
                bs_env%gw_implementation = ri_rs_non_periodic
             END IF
-         ELSE IF (bs_env%do_stcohsex) THEN
-            bs_env%gw_implementation = tensor_stcohsex
+         ELSE IF (bs_env%do_static_cohsex) THEN
+            bs_env%gw_implementation = tensor_static_cohsex
          ELSE
             bs_env%gw_implementation = tensor_large_cell_Gamma
          END IF
       ELSE IF (dft_control%nimages > 1) THEN
          IF (bs_env%do_gw_ri_rs) THEN
             CPABORT("RI-RS Not Implemented for K-point Calculations")
-         ELSE IF (bs_env%do_stcohsex) THEN
-            CPABORT("STCOHSEX Not Implemented for K-point Calculations")
+         ELSE IF (bs_env%do_static_cohsex) THEN
+            CPABORT("COHSEX Not Implemented for K-point Calculations")
          ELSE
             bs_env%gw_implementation = tensor_small_cell_full_kp
          END IF
@@ -1395,7 +1392,7 @@ CONTAINS
          DO ispin = 1, bs_env%n_spin
 
             SELECT CASE (bs_env%gw_implementation)
-            CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_stcohsex)
+            CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_static_cohsex)
 
                ! 1. get H^KS_µν(k_i) from H^KS_µν(k=0)
                CALL cfm_ikp_from_fm_Gamma(cfm_ks_ikp, bs_env%fm_ks_Gamma(ispin), &
@@ -1873,7 +1870,7 @@ CONTAINS
 
       ! 1. get V^SOC_µν,σσ'(k_i)
       SELECT CASE (bs_env%gw_implementation)
-      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_stcohsex)
+      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_static_cohsex)
 
          ! 1. get V^SOC_µν,σσ'(k_i) from V^SOC_µν,σσ'(k=0)
          CALL cfm_ikp_from_cfm_spinor_Gamma(cfm_SOC_ikp_spinor, &
@@ -2932,7 +2929,7 @@ CONTAINS
       ! Calculate H^SOC_µν,σσ'(k) = sum_α V^SOC_µν^(α)(k)*Pauli-matrix^(α)_σσ'
       ! see Hartwigsen, Goedecker, Hutter, Eq.(18) (doi.org/10.1103/PhysRevB.58.3641)
       SELECT CASE (bs_env%gw_implementation)
-      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_stcohsex)
+      CASE (tensor_large_cell_Gamma, ri_rs_large_cell_Gamma, ri_rs_non_periodic, tensor_static_cohsex)
 
          ! H^SOC_µν,σσ' = sum_α V^SOC_µν^(α)*Pauli-matrix^(α)_σσ'
          CALL H_KS_spinor_Gamma(bs_env)

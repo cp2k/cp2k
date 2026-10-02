@@ -14,14 +14,14 @@ MODULE gw
    USE gw_ri_rs_large_cell_Gamma,       ONLY: gw_calc_ri_rs_large_cell_Gamma
    USE gw_ri_rs_non_periodic,           ONLY: gw_calc_ri_rs_non_periodic
    USE gw_tensor_large_cell_Gamma,      ONLY: gw_calc_tensor_large_cell_Gamma
-   USE gw_tensor_large_cell_Gamma_stcohsex,ONLY: gw_calc_tensor_large_cell_Gamma_stcohsex
+   USE gw_tensor_large_cell_Gamma_static_cohsex,ONLY: gw_calc_tensor_large_cell_Gamma_static_cohsex
    USE gw_tensor_small_cell_full_kp,    ONLY: gw_calc_tensor_small_cell_full_kp
    USE gw_utils,                        ONLY: create_and_init_bs_env_for_gw
    USE input_constants,                 ONLY: ri_rs_large_cell_Gamma,&
                                               ri_rs_non_periodic,&
                                               tensor_large_cell_Gamma,&
                                               tensor_small_cell_full_kp,&
-                                              tensor_stcohsex
+                                              tensor_static_cohsex
    USE input_section_types,             ONLY: section_vals_type
    USE post_scf_bandstructure_types,    ONLY: post_scf_bandstructure_type
    USE qs_environment_types,            ONLY: qs_environment_type
@@ -77,9 +77,9 @@ CONTAINS
 
          CALL gw_calc_ri_rs_non_periodic(qs_env, bs_env)
 
-      CASE (tensor_stcohsex)
+      CASE (tensor_static_cohsex)
 
-         CALL gw_calc_tensor_large_cell_Gamma_stcohsex(qs_env, bs_env)
+         CALL gw_calc_tensor_large_cell_Gamma_static_cohsex(qs_env, bs_env)
 
       CASE DEFAULT
 

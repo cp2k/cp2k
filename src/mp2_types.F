@@ -246,8 +246,8 @@ MODULE mp2_types
                                                             matrix_vxc
       LOGICAL                                            :: do_static_cohsex = .FALSE.
       INTEGER                                            :: cohsex_flavor = cohsex_off
-      REAL(KIND=dp)                                      :: scale_cohsex_occ = 1.0_dp, &
-                                                            scale_cohsex_virt = 1.0_dp
+      REAL(KIND=dp)                                      :: cohsex_scale_occ = 1.0_dp, &
+                                                            cohsex_scale_virt = 1.0_dp
       REAL(KIND=dp)                                      :: broadening_print_loc_bandgap = 0.0_dp, &
                                                             energy_window_print_loc_bandgap = 0.0_dp, &
                                                             ldos_thresh_print_loc_bandgap = 0.0_dp, &

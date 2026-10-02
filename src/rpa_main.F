@@ -1236,8 +1236,8 @@ CONTAINS
             IF (do_im_time) CPABORT("COHSEX is only implemented in the O(N^4) GW code.")
             IF (do_periodic) CPABORT("COHSEX with PERIODIC_CORRECTION is not implemented.")
             ! BSE after static COHSEX: W = v + α W^c(0) with one α for both A and B
-            IF (do_bse .AND. mp2_env%ri_g0w0%scale_cohsex_occ /= mp2_env%ri_g0w0%scale_cohsex_virt) THEN
-               CALL cp_abort(__LOCATION__, "BSE after COHSEX requires SCALE_COHSEX_OCC = SCALE_COHSEX_VIRT "// &
+            IF (do_bse .AND. mp2_env%ri_g0w0%cohsex_scale_occ /= mp2_env%ri_g0w0%cohsex_scale_virt) THEN
+               CALL cp_abort(__LOCATION__, "BSE after COHSEX requires COHSEX_SCALE_OCC = COHSEX_SCALE_VIRT "// &
                              "(the scaling of W^c in the BSE).")
             END IF
             IF (do_ri_sos_laplace_mp2) CPABORT("COHSEX with SOS-MP2 is not implemented.")
@@ -1498,22 +1498,27 @@ CONTAINS
             END IF
             CALL cp_fm_add_on_diag(fm_mat_Q(1), 1.0_dp, n_active=dimen_RI_red)
             IF (do_bse) THEN
-               ALLOCATE (static_cohsex_eigenval_dg(nmo, nspins), static_cohsex_eigenval_cn(nmo, nspins), &
-                         static_cohsex_u(nmo, nmo, nspins))
-               CALL static_cohsex_qp_energies(fm_mat_Q(1), fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI_red, nmo, homo, &
-                                              gw_corr_lev_occ, gw_corr_lev_virt, Eigenval(:, 1, :), mo_coeff, &
-                                              unit_nr, qs_env, mp2_env, static_cohsex_eigenval_dg, static_cohsex_eigenval_cn, &
-                                              static_cohsex_u)
-               ! the BSE reads the quasiparticle energies from Eigenval: ϵ^CN (with the canonical
-               ! MOs, see the BSE block) or ϵ^DG (with the KS MOs)
+               ! the BSE reads the quasiparticle energies from Eigenval: ϵ^CN (QP_UPDATE, with the
+               ! canonical MOs, see the BSE block) or ϵ^DG (DIAGONAL, with the KS MOs)
                IF (mp2_env%ri_g0w0%cohsex_flavor == cohsex_qp_update) THEN
+                  ALLOCATE (static_cohsex_eigenval_cn(nmo, nspins), static_cohsex_u(nmo, nmo, nspins))
+                  CALL static_cohsex_qp_energies(fm_mat_Q(1), fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI_red, nmo, &
+                                                 homo, gw_corr_lev_occ, gw_corr_lev_virt, Eigenval(:, 1, :), &
+                                                 mo_coeff, unit_nr, qs_env, mp2_env, &
+                                                 eigenval_cn=static_cohsex_eigenval_cn, u_qp_all=static_cohsex_u)
                   Eigenval(:, 1, :) = static_cohsex_eigenval_cn(:, :)
+                  DEALLOCATE (static_cohsex_eigenval_cn)
                ELSE
+                  ALLOCATE (static_cohsex_eigenval_dg(nmo, nspins))
+                  CALL static_cohsex_qp_energies(fm_mat_Q(1), fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI_red, nmo, &
+                                                 homo, gw_corr_lev_occ, gw_corr_lev_virt, Eigenval(:, 1, :), &
+                                                 mo_coeff, unit_nr, qs_env, mp2_env, &
+                                                 eigenval_dg=static_cohsex_eigenval_dg)
                   Eigenval(:, 1, :) = static_cohsex_eigenval_dg(:, :)
+                  DEALLOCATE (static_cohsex_eigenval_dg)
                END IF
-               DEALLOCATE (static_cohsex_eigenval_dg, static_cohsex_eigenval_cn)
-               ! direct terms of the BSE with W = v + α W^c(0), α = SCALE_COHSEX_OCC (= SCALE_COHSEX_VIRT)
-               mp2_env%bse%wc_scaling = mp2_env%ri_g0w0%scale_cohsex_occ
+               ! direct terms of the BSE with W = v + α W^c(0), α = COHSEX_SCALE_OCC (= COHSEX_SCALE_VIRT)
+               mp2_env%bse%wc_scaling = mp2_env%ri_g0w0%cohsex_scale_occ
             ELSE
                CALL static_cohsex_qp_energies(fm_mat_Q(1), fm_mat_S_gw, fm_mat_S_gw_work, dimen_RI_red, nmo, homo, &
                                               gw_corr_lev_occ, gw_corr_lev_virt, Eigenval(:, 1, :), mo_coeff, &

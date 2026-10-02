@@ -27,8 +27,7 @@ MODULE post_scf_bandstructure_types
    USE gw_auto_ri_types,                ONLY: auto_ri_release,&
                                               auto_ri_type
    USE input_constants,                 ONLY: G0W0,&
-                                              rtp_method_bse,&
-                                              rtp_method_bse_linearized,&
+                                              cohsex_off,&
                                               tensor_small_cell_full_kp
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
@@ -154,7 +153,7 @@ MODULE post_scf_bandstructure_types
                                                          do_gw_ri_rs = .FALSE., &
                                                          do_dos_pdos = .FALSE., &
                                                          do_floquet = .FALSE., &
-                                                         do_stcohsex = .FALSE.
+                                                         do_static_cohsex = .FALSE.
 
       ! various eigenvalues computed in GW code, some depend on k-points
       ! and have therefore three dimensions (band index, k-point, spin)
@@ -177,9 +176,11 @@ MODULE post_scf_bandstructure_types
       ! which GW flavour was requested; constants from input_constants (G0W0, evGW0, ...)
       INTEGER                                         :: gw_flavour = G0W0
 
-      ! parameters for st-COHSEX approximation to GW
-      REAL(KIND=dp)                                   :: scale_cohsex_occ = 1.0_dp, &
-                                                         scale_cohsex_virt = 1.0_dp
+      ! parameters for static COHSEX approximation to GW
+      ! static COHSEX: OFF, DIAGONAL (ϵ^DG only) or QP_UPDATE (also diagonalization, ϵ^CN, MOs)
+      INTEGER                                         :: cohsex_flavor = cohsex_off
+      REAL(KIND=dp)                                   :: cohsex_scale_occ = 1.0_dp, &
+                                                         cohsex_scale_virt = 1.0_dp
 
       ! parameters for RI-RS implementation of GW
       TYPE(ri_rs_env)                                 :: ri_rs
@@ -355,15 +356,13 @@ MODULE post_scf_bandstructure_types
       LOGICAL, DIMENSION(:, :), ALLOCATABLE        :: Sigma_c_exists
       LOGICAL                                      :: all_W_exist = .FALSE., &
                                                       Sigma_x_exists = .FALSE., &
-                                                      W_freq_zero_exists = .FALSE., &
-                                                      SigmaC_freq_zero_exists = .FALSE.
+                                                      Sigma_c_freq_zero_exists = .FALSE.
       CHARACTER(LEN=3)                             :: chi_name = "chi"
       CHARACTER(LEN=6)                             :: W_time_name = "W_time"
       CHARACTER(LEN=7)                             :: Sigma_x_name = "Sigma_x"
+      CHARACTER(LEN=17)                            :: Sigma_c_freq_zero_name = "Sigma_c_freq_zero"
       CHARACTER(LEN=13)                            :: Sigma_p_name = "Sigma_pos_tau", &
                                                       Sigma_n_name = "Sigma_neg_tau"
-      CHARACTER(LEN=11)                            :: W_freq_zero_name = "W_freq_zero"
-      CHARACTER(LEN=16)                            :: SigmaC_freq_zero_name = "SigmaC_freq_zero"
       CHARACTER(LEN=default_path_length)           :: prefix = ""
       INTEGER                                      :: unit_nr = -1
 
@@ -542,12 +541,7 @@ CONTAINS
       CALL cp_fm_release(bs_env%fm_Minv_Gamma)
       CALL cp_fm_release(bs_env%fm_chi_Gamma_freq)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq)
-      IF (bs_env%rtp_method == rtp_method_bse .OR. bs_env%rtp_method == rtp_method_bse_linearized) THEN
-         CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
-      END IF
-      IF (bs_env%do_stcohsex) THEN
-         CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
-      END IF
+      CALL cp_fm_release(bs_env%fm_W_MIC_freq_zero)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_extra)
       CALL cp_fm_release(bs_env%fm_W_MIC_freq_1_no_extra)
       CALL cp_cfm_release(bs_env%cfm_work_mo)

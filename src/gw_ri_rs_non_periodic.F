@@ -1237,8 +1237,7 @@ CONTAINS
             "the atom with the largest integration sphere peaks well above the average. "// &
             "Such atoms are distributed automatically over a rank subgroup via ScaLAPACK. "// &
             "If the run still runs out of memory, use fewer MPI ranks per node so that each "// &
-            "rank has more memory for the peak atom, or lower CUTOFF_RADIUS_RI, which shrinks "// &
-            "D_local as n_local_grid^2 but trades accuracy."
+            "rank has more memory for the peak atom."
          CPWARN(TRIM(msg))
       END IF
 
