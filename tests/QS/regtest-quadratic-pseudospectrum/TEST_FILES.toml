@@ -1,0 +1,30 @@
+# Finite/periodic, scalar/SOC, translation residuals and frozen GAPW supercells.
+"h2-all-electron.inp" = [
+  {matcher="QUADRATIC_GAP", tol=1e-8, ref=0.345116599675240},
+  {matcher="QUADRATIC_ENERGY_RESIDUAL", tol=1e-8, ref=0.303339929772427},
+]
+"neon-soc.inp" = [
+  {matcher="QUADRATIC_GAP", tol=1e-8, ref=0.400733982257778},
+]
+"periodic-helium.inp" = [
+  {matcher="QUADRATIC_GAP", tol=1e-8, ref=0.391994926074411},
+  {matcher="QUADRATIC_ENERGY_RESIDUAL", tol=1e-8, ref=0.335889946486092},
+]
+"periodic-soc.inp" = [
+  {matcher="QUADRATIC_GAP", tol=1e-8, ref=0.406734402392868},
+]
+"translation-gapw.inp" = [
+  {matcher="QUADRATIC_GAP", tol=1e-8, ref=0.476363977835768},
+  {matcher="QUADRATIC_TRANSLATION_LEAKAGE", tol=1e-8, ref=0.337011416277078},
+]
+"torus-translation-gapw.inp" = [
+  {matcher="QUADRATIC_GAP", tol=1e-8, ref=0.272131175195650},
+]
+"torus-translation-gapw-supercell.inp" = [
+  {matcher="QUADRATIC_GAP", tol=1e-8, ref=0.272131175195650},
+]
+"torus-translation-lattice.inp" = [
+  {matcher="QUADRATIC_GAP", tol=1e-8, ref=0.419407127807262},
+  {matcher="QUADRATIC_TRANSLATION_IMAG", tol=1e-10, ref=0.866025403784439},
+  {matcher="QUADRATIC_TRANSLATION_LEAKAGE", tol=1e-7, ref=0.0},
+]

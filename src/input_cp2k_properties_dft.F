@@ -12,7 +12,7 @@
 !> \author MI
 ! **************************************************************************************************
 MODULE input_cp2k_properties_dft
-   USE bibliography, ONLY: Futera2017, &
+   USE bibliography, ONLY: Dixon2023, Doll2025, Wong2026, Loring2015, Cerjan2023, Futera2017, &
                            Hanasaki2025, &
                            Hernandez2025, &
                            Iannuzzi2005, &
@@ -63,7 +63,7 @@ MODULE input_cp2k_properties_dft
                                   section_create, &
                                   section_release, &
                                   section_type
-   USE input_val_types, ONLY: char_t, &
+   USE input_val_types, ONLY: char_t, enum_t, &
                               integer_t, &
                               lchar_t, &
                               logical_t, &
@@ -142,6 +142,13 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_kubo_transport_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_spectral_localizer_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+      CALL create_quadratic_pseudospectrum_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -3287,5 +3294,287 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_floquet_section
+
+! **************************************************************************************************
+!> \brief Create the post-SCF analysis input.
+!> \param section New properties section
+! **************************************************************************************************
+   SUBROUTINE create_spectral_localizer_section(section)
+      TYPE(section_type), POINTER :: section
+      TYPE(keyword_type), POINTER :: keyword
+
+      NULLIFY (keyword)
+      CALL section_create(section, __LOCATION__, name="SPECTRAL_LOCALIZER", &
+                       description="Spectral localizer for isolated or two- and three-dimensionally periodic GPW/GAPW systems. "// &
+                          "Uses the full converged AO Hamiltonian, overlap, and analytic position or Berry integrals. "// &
+                          "Independent of KUBO_TRANSPORT and WANNIER90 Wilson/Z2/Chern or inversion-TQC analysis. "// &
+                          "Reports a finite-basis local index and protection gap, not a bulk-gap certificate. "// &
+                          "Requires convergence with basis, system size, and position/energy scale.", &
+                          repeats=.FALSE., citations=[Dixon2023, Wong2026, Doll2025, Loring2015])
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Activate post-SCF spectral localizer analysis.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="FORMULATION", type_of_var=enum_t, &
+                          description="FINITE uses Cartesian first moments for PERIODIC NONE. PERIODIC uses "// &
+                          "analytic cos(G.r)/sin(G.r) integrals on a two- or three-dimensional Born-von-Karman torus. "// &
+                          "MP_GRID controls its size; this is not an independent localizer at each k.", &
+                          enum_c_vals=s2a("FINITE", "PERIODIC"), enum_i_vals=[0, 1], default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MP_GRID", &
+                          description="Full Gamma-centered analysis mesh for FORMULATION PERIODIC. "// &
+                          "Equivalent to a Gamma supercell with these replication factors, at the frozen SCF potential. "// &
+                          "Independent of the SCF KPOINTS scheme or symmetry reduction. Nonperiodic directions "// &
+                          "must have size one. MAX_AO applies to the entire torus, not the primitive cell.", &
+                          type_of_var=integer_t, n_var=3, default_i_vals=[1, 1, 1])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ETA", &
+                          description="Positive energy scales for FORMULATION PERIODIC, multiplying the "// &
+                          "dimensionless trigonometric coordinates. Choose on the scale of H-ENERGY and "// &
+                          "check size/basis/ETA convergence. Replaces KAPPA for this formulation. "// &
+                          "The localizer and reported gaps retain energy units.", &
+                          type_of_var=real_t, n_var=-1, unit_str="hartree", default_r_vals=[1.0_dp])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SOLVER", type_of_var=enum_t, &
+                          description="Dense LAPACK reference calculation in the AO overlap metric.", &
+                          enum_c_vals=s2a("DENSE"), enum_i_vals=[0], default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="INVARIANT", type_of_var=enum_t, &
+                          description="CHERN evaluates the 2D class A half-signature. Z2 evaluates the "// &
+                          "class AII Pfaffian sign (2D) or chiral-block determinant sign (3D); "// &
+                          "requires SOC and TIME_REVERSAL.", &
+                          enum_c_vals=s2a("CHERN", "Z2"), enum_i_vals=[0, 1], default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="DIMENSION", &
+                          description="Number of localizer position directions, 2 or 3. DIMENSION 3 uses "// &
+                          "all Cartesian moments (FINITE) or all three torus directions (PERIODIC). "// &
+                          "It requires Z2 and SOLVER DENSE; PERIODIC also requires CELL and POISSON PERIODIC XYZ. "// &
+                          "Its strong local Z2 index is not a tuple of weak indices or a 2D slice index.", default_i_val=2)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="PLANE", type_of_var=enum_t, &
+                          description="Ordered Cartesian directions for FINITE; ordered lattice-vector "// &
+                          "directions for PERIODIC, which must match the two periodic CELL directions. "// &
+                          "Only valid for DIMENSION 2.", &
+                          enum_c_vals=s2a("XY", "XZ", "YZ"), enum_i_vals=[1, 2, 3], default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="POSITION", &
+                          description="Cartesian query position in the coordinate frame of SUBSYS/COORD. "// &
+                          "For FINITE with DIMENSION 2 the component perpendicular to PLANE is ignored. For PERIODIC "// &
+                          "the reciprocal-cell phase G.r0 is used, including for oblique cells. Repeat for scans.", &
+                          type_of_var=real_t, n_var=3, repeats=.TRUE., unit_str="bohr", &
+                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY", &
+                          description="Absolute query energies, without a Fermi-level shift. All combinations "// &
+                          "of POSITION, ENERGY and KAPPA (FINITE) or ETA (PERIODIC) are evaluated.", &
+                          type_of_var=real_t, n_var=-1, unit_str="hartree", default_r_vals=[0.0_dp])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="KAPPA", &
+                          description="Positive energy/length scales. The default is not a converged choice; "// &
+                          "check a plateau under changes of KAPPA and system size.", &
+                          type_of_var=real_t, n_var=-1, unit_str="hartree*bohr^-1", default_r_vals=[0.01_dp])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SPIN_CHANNEL", &
+                          description="Scalar collinear spin channel, as in WANNIER90. SOC requires restricted channel 1.", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SOC", &
+                          description="Add the GTH pseudopotential SOC operator to the restricted SCF Hamiltonian "// &
+                          "in the complete AO spinor space. Requires SOC parameters in the potentials; "// &
+                          "does not perform a self-consistent noncollinear calculation.", default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="TIME_REVERSAL", &
+                          description="Assert physical spinful time reversal for Z2, as in WANNIER90. "// &
+                          "The Hamiltonian, metric and position operators are also checked numerically.", &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_GAP", &
+                          description="Absolute localizer-gap threshold below which the index is unresolved. "// &
+                          "An additional roundoff threshold is always applied.", unit_str="hartree", &
+                          default_r_val=1.e-8_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_METRIC", &
+                          description="Minimum smallest/largest AO-overlap eigenvalue ratio. "// &
+                          "Ill-conditioned bases are rejected, not silently truncated.", default_r_val=1.e-10_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SPECTRAL_FLATTENING", &
+                          description="Replace H-ENERGY*S by FLATTENING_SCALE*S*sign(S^-1*(H-ENERGY*S)). "// &
+                          "Retains the full occupied and empty AO subspaces and leaves position operators unchanged. "// &
+                          "Requires a positive metric and a resolved electronic gap, checked before flattening. "// &
+                          "The resulting finite localizer can have a different index and gap from the unflattened one. "// &
+                          "No bulk-index or convergence certificate is implied. Computed once per ENERGY, using "// &
+                          "complete Bloch blocks for periodic tori or DBCSR matrix iterations for finite systems. "// &
+                          "Both retain the original AO basis and can increase fill-in.", default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="FLATTENING_SCALE", &
+                          description="Positive energy assigned to the positive bands by SPECTRAL_FLATTENING; "// &
+                          "negative bands receive its negative. ETA or KAPPA and output gaps retain their normal "// &
+                          "units but refer to this flattened Hamiltonian, not to the original band dispersion.", &
+                          unit_str="hartree", default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_ELECTRONIC_GAP", &
+                          description="Minimum resolved distance from ENERGY to the original generalized "// &
+                          "Hamiltonian spectrum before SPECTRAL_FLATTENING. Additional roundoff bounds apply. "// &
+                          "Separate from EPS_GAP, which applies to the final localizer.", &
+                          unit_str="hartree", default_r_val=1.e-8_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FLATTENING", &
+                          description="Tolerance for the inverse and sign-square Frobenius residuals and "// &
+                          "relative complex-structure/Hermiticity residuals of the DBCSR matrix iterations. "// &
+                          "For the periodic Bloch path, checks translation covariance, metric orthonormality, "// &
+                          "eigenproblem residuals and final Hermiticity instead. "// &
+                          "An unconverged result is rejected, not used to report an index.", default_r_val=1.e-9_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MATRIX_TOLERANCE", &
+                          description="Relative Hermiticity and time-reversal residual tolerance.", default_r_val=1.e-9_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_AO", &
+                          description="Safety limit on scalar AO dimension for the dense solver. "// &
+                          "DENSE uses replicated localizers and source-rank diagonalization, "// &
+                          "quadratic memory and cubic runtime; the SOC Hermitian localizer has dimension "// &
+                          "4*NAO (DIMENSION 2) or 8*NAO (DIMENSION 3).", default_i_val=512)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+   END SUBROUTINE create_spectral_localizer_section
+
+! **************************************************************************************************
+!> \brief Create the post-SCF analysis input.
+!> \param section New properties section
+! **************************************************************************************************
+   SUBROUTINE create_quadratic_pseudospectrum_section(section)
+      TYPE(section_type), POINTER :: section, print_key
+      TYPE(keyword_type), POINTER :: keyword
+      NULLIFY (keyword, print_key)
+      CALL section_create(section, __LOCATION__, name="QUADRATIC_PSEUDOSPECTRUM", &
+                          description="Joint position/energy localization analysis for GPW/GAPW systems. "// &
+                          "Uses full AO H, S and analytic first moments or periodic trigonometric coordinates. "// &
+                          "No occupied-state projection and no topology index. "// &
+                          "Residuals concern finite-basis projected operators, not exact real-space variances.", &
+                          repeats=.FALSE., citations=[Cerjan2023])
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Activate post-SCF quadratic pseudospectrum analysis.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="FORMULATION", type_of_var=enum_t, &
+                          description="FINITE uses Cartesian first moments for isolated systems. PERIODIC uses "// &
+                          "cos(G.r)/sin(G.r) on a Born-von-Karman torus in the periodic CELL directions only. "// &
+                          "Open directions are not localized by PERIODIC. TRANSLATION uses analytic translated "// &
+                          "Gaussian overlaps, with continuum translation norms and explicit AO leakage. Periodic "// &
+                          "TRANSLATION uses periodized AOs on the full MP_GRID torus; finite translations need no KPOINTS. "// &
+                          "ENERGY still refers to the projected AO Hamiltonian; no boundary suppression is applied.", &
+                          enum_c_vals=s2a("FINITE", "PERIODIC", "TRANSLATION"), enum_i_vals=[0, 1, 2], default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="TRANSLATION_VECTOR", &
+                          description="Cartesian vector a in the input coordinate frame, for U(a) psi(r) = psi(r+a). "// &
+                          "Repeat for each equally weighted translation. Only with FORMULATION TRANSLATION. "// &
+                          "Choose directions and lengths deliberately; this defines a momentum-resolution metric.", &
+                          type_of_var=real_t, n_var=3, repeats=.TRUE., unit_str="bohr")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="WAVE_VECTOR", &
+                          description="Cartesian momentum query k in the input frame; phase is exp(i k.a), "// &
+                          "without an additional 2*pi. Repeat for scans. Only with FORMULATION TRANSLATION.", &
+                          type_of_var=real_t, n_var=3, repeats=.TRUE., unit_str="bohr^-1", &
+                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="TRANSLATION_SCALE", &
+                          description="Positive energy scales for dimensionless full translation residuals. "// &
+                          "Every WAVE_VECTOR/ENERGY/TRANSLATION_SCALE combination is evaluated. "// &
+                          "Only with FORMULATION TRANSLATION, replacing the energy/length-valued KAPPA.", &
+                          type_of_var=real_t, n_var=-1, unit_str="hartree", default_r_vals=[1.0_dp])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MP_GRID", &
+                          description="Full Gamma-centered mesh for PERIODIC or periodic TRANSLATION, independent "// &
+                          "of SCF symmetry reduction. Equivalent to a Gamma supercell at the frozen SCF potential. "// &
+                          "Nonperiodic directions must be one; MAX_AO bounds the entire torus.", &
+                          type_of_var=integer_t, n_var=3, default_i_vals=[1, 1, 1])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SOLVER", type_of_var=enum_t, &
+                          description="Dense LAPACK reference calculation in the AO overlap metric.", &
+                          enum_c_vals=s2a("DENSE"), enum_i_vals=[0], default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="POSITION", &
+                          description="Query position in the SUBSYS/COORD frame. Repeat for spatial scans.", &
+                          type_of_var=real_t, n_var=3, repeats=.TRUE., unit_str="bohr", &
+                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="ENERGY", &
+                          description="Absolute query energies; every POSITION/ENERGY/KAPPA combination is evaluated.", &
+                          type_of_var=real_t, n_var=-1, unit_str="hartree", default_r_vals=[0.0_dp])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="KAPPA", &
+                          description="Positive energy/length scales for Cartesian residuals (FINITE) or "// &
+                          "periodic chord residuals divided by reciprocal-vector norms (PERIODIC). "// &
+                          "Check basis, system-size and KAPPA convergence.", &
+                          type_of_var=real_t, n_var=-1, unit_str="hartree*bohr^-1", default_r_vals=[0.01_dp])
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="NSTATES", default_i_val=1, &
+                          description="Number of lowest quadratic-operator eigenstates, S-normalized.")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_EIGEN", default_r_val=1.e-8_dp, &
+                          description="Convergence criterion: S-inverse residual norm <= EPS_EIGEN times "// &
+                          "max(1,abs(eigenvalue)), with eigenvalues in atomic units of energy squared.")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_METRIC", default_r_val=1.e-10_dp, &
+                          description="Minimum AO metric eigenvalue ratio. "// &
+                          "Ill-conditioned directions are rejected, not silently discarded.")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_AO", default_i_val=512, &
+                          description="Scalar AO safety limit for the dense solver, including all periodic torus cells. "// &
+                          "Increase deliberately for large systems. "// &
+                          "SOC doubles the operator dimension; DENSE uses quadratic memory.")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SPIN_CHANNEL", default_i_val=1, &
+                          description="Collinear scalar spin channel. SOC requires a restricted SCF and channel 1.")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="SOC", default_l_val=.FALSE., &
+                          description="Add GTH SOC to the restricted converged AO Hamiltonian. Requires SOC "// &
+                          "pseudopotentials; not a self-consistent noncollinear calculation.")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="STATES", &
+                                       description="S-normalized complex AO coefficients, scalar-AO order with "// &
+                                       "spin-up followed by spin-down for SOC. These are quadratic-operator states, "// &
+                                       "with cell-major AO ordering within each spin block for PERIODIC. "// &
+                                       "not Hamiltonian eigenstates. Degenerate states are gauge dependent.", &
+                                       print_level=low_print_level, filename="")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+   END SUBROUTINE create_quadratic_pseudospectrum_section
 
 END MODULE input_cp2k_properties_dft

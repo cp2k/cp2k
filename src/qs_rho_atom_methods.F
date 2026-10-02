@@ -54,6 +54,7 @@ MODULE qs_rho_atom_methods
                                               rho_atom_type
    USE sap_kind_types,                  ONLY: alist_pre_align_blk,&
                                               alist_type,&
+                                              clist_type,&
                                               get_alist
    USE spherical_harmonics,             ONLY: clebsch_gordon,&
                                               clebsch_gordon_deallocate,&
@@ -588,6 +589,7 @@ CONTAINS
                                                             r_coef_s
       TYPE(alist_type), POINTER                          :: alist_ac, alist_bc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(clist_type), POINTER                          :: clist_a, clist_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c, basis_set_a, basis_set_b
@@ -702,6 +704,7 @@ CONTAINS
 !$OMP                 , nsoctot, katom                    &
 !$OMP                 , iac , alist_ac, kac, n_cont_a, list_a     &
 !$OMP                 , ibc , alist_bc, kbc, n_cont_b, list_b     &
+!$OMP                 , clist_a, clist_b                         &
 !$OMP                 , C_coeff_hh_a, C_coeff_ss_a, dista         &
 !$OMP                 , C_coeff_hh_b, C_coeff_ss_b, distb         &
 !$OMP                 , distab                                    &
@@ -790,22 +793,25 @@ CONTAINS
 
                      katom = alist_ac%clist(kac)%catom
 
+                     ! Scalar aliases avoid nested component-slice bounds-check temporaries.
+                     clist_a => alist_ac%clist(kac)
+                     clist_b => alist_bc%clist(kbc)
                      IF (iatom == katom .AND. ALL(alist_ac%clist(kac)%cell == 0)) THEN
-                        C_coeff_hh_a => alist_ac%clist(kac)%achint(:, :, 1)
-                        C_coeff_ss_a => alist_ac%clist(kac)%acint(:, :, 1)
+                        C_coeff_hh_a => clist_a%achint(:, :, 1)
+                        C_coeff_ss_a => clist_a%acint(:, :, 1)
                         dista = .FALSE.
                      ELSE
-                        C_coeff_hh_a => alist_ac%clist(kac)%acint(:, :, 1)
-                        C_coeff_ss_a => alist_ac%clist(kac)%acint(:, :, 1)
+                        C_coeff_hh_a => clist_a%acint(:, :, 1)
+                        C_coeff_ss_a => clist_a%acint(:, :, 1)
                         dista = .TRUE.
                      END IF
                      IF (jatom == katom .AND. ALL(alist_bc%clist(kbc)%cell == 0)) THEN
-                        C_coeff_hh_b => alist_bc%clist(kbc)%achint(:, :, 1)
-                        C_coeff_ss_b => alist_bc%clist(kbc)%acint(:, :, 1)
+                        C_coeff_hh_b => clist_b%achint(:, :, 1)
+                        C_coeff_ss_b => clist_b%acint(:, :, 1)
                         distb = .FALSE.
                      ELSE
-                        C_coeff_hh_b => alist_bc%clist(kbc)%acint(:, :, 1)
-                        C_coeff_ss_b => alist_bc%clist(kbc)%acint(:, :, 1)
+                        C_coeff_hh_b => clist_b%acint(:, :, 1)
+                        C_coeff_ss_b => clist_b%acint(:, :, 1)
                         distb = .TRUE.
                      END IF
 

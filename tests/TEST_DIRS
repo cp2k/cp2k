@@ -516,3 +516,8 @@ QS/regtest-wfn-restart
 Fist/regtest-plumed2                                        plumed2
 QS/regtest-topology
 QS/regtest-fde
+
+QS/regtest-spectral-localizer
+QS/regtest-spectral-localizer-3d
+QS/regtest-quadratic-pseudospectrum
+QS/regtest-gamma-frozen-density

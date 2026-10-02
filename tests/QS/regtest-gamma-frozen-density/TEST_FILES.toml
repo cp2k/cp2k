@@ -1,0 +1,5 @@
+# Frozen Gamma densities: GPW, GAPW and GAPW_XC.
+# References from independent generalized diagonalization of the original SCF H/S.
+"gpw-tpss.inp" = [{matcher="Band_first_eigenvalue", tol=1e-8, ref=-22.2902580608813}]
+"gapw-tpss.inp" = [{matcher="Band_first_eigenvalue", tol=1e-8, ref=-22.3145743932677}]
+"gapwxc-tpss.inp" = [{matcher="Band_first_eigenvalue", tol=1e-8, ref=-22.2872485817718}]

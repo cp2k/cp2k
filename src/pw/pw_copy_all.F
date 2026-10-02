@@ -45,7 +45,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cc
       INTEGER                                            :: group_size, ig1, ig2, ip, jg2, me, ng1, &
-                                                            ng2, ngm, penow
+                                                            ng2, ngm, penow, same_order
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ngr
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: g_hat
       INTEGER, DIMENSION(3)                              :: k1, k2
@@ -61,6 +61,17 @@ CONTAINS
       group = pg1%para%group
       group_size = pg1%para%group%num_pe
       me = pg1%para%group%mepos
+      ! Independently constructed grids can still have identical local ordering.
+      ! All ranks must agree before bypassing the collective ring exchange.
+      same_order = 0
+      IF (ng1 == ng2) THEN
+         IF (ALL(pg1%g_hat(1:3, 1:ng1) == pg2%g_hat(1:3, 1:ng2))) same_order = 1
+      END IF
+      CALL group%min(same_order)
+      IF (same_order == 1) THEN
+         pw2%array(:) = pw1%array(:)
+         RETURN
+      END IF
       ALLOCATE (ngr(group_size))
       ngr = 0
       ngr(me + 1) = pg1%ngpts_cut_local
@@ -102,4 +113,3 @@ CONTAINS
    END SUBROUTINE pw_copy_match
 
 END MODULE pw_copy_all
-

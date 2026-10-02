@@ -678,6 +678,16 @@ list(
   qs_ks_utils.F
   qs_ks_reference.F
   qs_kubo_transport.F
+  qs_spectral_localizer.F
+  qs_localizer_torus.F
+  spectral_localizer.F
+  quadratic_pseudospectrum.F
+  qs_finite_ao.F
+  qs_ao_translations.F
+  qs_quadratic_pseudospectrum.F
+  spectral_localizer_dbcsr.F
+  spectral_localizer_flatten.F
+  spectral_localizer_bloch.F
   qs_linres_atom_current.F
   qs_linres_current.F
   qs_linres_current_utils.F
@@ -1602,6 +1612,9 @@ set(CP2K_PROGS_F
     kpoint_lattice_fft_unittest.F
     kpoint_smearing_unittest.F
     topology_wilson_unittest.F
+    spectral_localizer_unittest.F
+    quadratic_pseudospectrum_unittest.F
+    pw/pw_unittest.F
     topology_symmetry_unittest.F
     topology_curvature_unittest.F
     topology_snapshot_unittest.F
@@ -1615,7 +1628,6 @@ set(CP2K_PROGS_F
     qs_fod_unittest.F
     qs_ot_complex_ref_unittest.F
     subsys/cell_types_unittest.F
-    pw/realspace_grid_cube_unittest.F
     metadyn_tools/graph.F
     motion/dumpdcd.F
     motion/xyz2dcd.F
@@ -2037,6 +2049,9 @@ list(
   "kpoint_lattice_fft_unittest"
   "kpoint_smearing_unittest"
   "topology_wilson_unittest"
+  "spectral_localizer_unittest"
+  "quadratic_pseudospectrum_unittest"
+  "pw_unittest"
   "topology_symmetry_unittest"
   "topology_curvature_unittest"
   "topology_snapshot_unittest"
@@ -2050,7 +2065,6 @@ list(
   "qs_fod_unittest"
   "qs_ot_complex_ref_unittest"
   "cell_types_unittest"
-  "realspace_grid_cube_unittest"
   "graph"
   "dumpdcd"
   "xyz2dcd"
@@ -2081,6 +2095,10 @@ add_executable(gapw_1c_basis_unittest gapw_1c_basis_unittest.F)
 add_executable(kpoint_lattice_fft_unittest kpoint_lattice_fft_unittest.F)
 add_executable(kpoint_smearing_unittest kpoint_smearing_unittest.F)
 add_executable(topology_wilson_unittest topology_wilson_unittest.F)
+add_executable(spectral_localizer_unittest spectral_localizer_unittest.F)
+add_executable(quadratic_pseudospectrum_unittest
+               quadratic_pseudospectrum_unittest.F)
+add_executable(pw_unittest pw/pw_unittest.F)
 add_executable(topology_symmetry_unittest topology_symmetry_unittest.F)
 add_executable(topology_curvature_unittest topology_curvature_unittest.F)
 add_executable(topology_snapshot_unittest topology_snapshot_unittest.F)
@@ -2097,7 +2115,6 @@ add_executable(qs_charge_mixing_unittest qs_charge_mixing_unittest.F)
 add_executable(qs_fod_unittest qs_fod_unittest.F)
 add_executable(qs_ot_complex_ref_unittest qs_ot_complex_ref_unittest.F)
 add_executable(cell_types_unittest subsys/cell_types_unittest.F)
-add_executable(realspace_grid_cube_unittest pw/realspace_grid_cube_unittest.F)
 add_executable(graph metadyn_tools/graph.F)
 add_executable(dumpdcd motion/dumpdcd.F)
 add_executable(xyz2dcd motion/xyz2dcd.F)

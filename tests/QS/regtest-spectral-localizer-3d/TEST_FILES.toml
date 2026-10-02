@@ -1,0 +1,7 @@
+# Finite and periodic 3D Z2, including spectral flattening.
+"neon-gapw.inp" = [{matcher="LOCALIZER_Z2", tol=0, ref=0},
+                   {matcher="LOCALIZER_GAP", tol=2e-6, ref=2.8747080965025573e-1}]
+"torus-gpw.inp" = [{matcher="LOCALIZER_Z2", tol=0, ref=0},
+                   {matcher="LOCALIZER_GAP", tol=2e-6, ref=3.7706004429287915e-1}]
+"torus-flattened.inp" = [{matcher="LOCALIZER_Z2", tol=0, ref=0},
+                         {matcher="LOCALIZER_GAP", tol=2e-6, ref=3.1322383425700584e-1}]

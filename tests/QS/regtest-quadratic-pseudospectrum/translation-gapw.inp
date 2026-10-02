@@ -1,0 +1,3 @@
+@SET QS_METHOD GAPW
+@SET QUADRATIC_SOLVER DENSE
+@INCLUDE translation-common.inc
